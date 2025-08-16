@@ -476,7 +476,7 @@ added: v23.8.0
 
 * `options` {Object}
   * `body` {ArrayBuffer | ArrayBufferView | Blob}
-  * `sendOrder` {number}
+  * `sendOrder` {integer}
 * Returns: {Promise} for a {quic.QuicStream}
 
 Open a new bidirectional stream. If the `body` option is not specified,
@@ -490,7 +490,7 @@ added: v23.8.0
 
 * `options` {Object}
   * `body` {ArrayBuffer | ArrayBufferView | Blob}
-  * `sendOrder` {number}
+  * `sendOrder` {integer}
 * Returns: {Promise} for a {quic.QuicStream}
 
 Open a new unidirectional stream. If the `body` option is not specified,
@@ -972,7 +972,7 @@ If not specified the endpoint will bind to IPv4 `localhost` on a random port.
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 The endpoint maintains an internal cache of validated socket addresses as a
 performance optimization. This option sets the maximum number of addresses
@@ -995,7 +995,7 @@ When `true`, indicates that the endpoint should bind only to IPv6 addresses.
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 Specifies the maximum number of concurrent sessions allowed per remote peer address.
 
@@ -1005,7 +1005,7 @@ Specifies the maximum number of concurrent sessions allowed per remote peer addr
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 Specifies the maximum total number of concurrent sessions.
 
@@ -1015,7 +1015,7 @@ Specifies the maximum total number of concurrent sessions.
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 Specifies the maximum number of QUIC retry attempts allowed per remote peer address.
 
@@ -1025,7 +1025,7 @@ Specifies the maximum number of QUIC retry attempts allowed per remote peer addr
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 Specifies the maximum number of stateless resets that are allowed per remote peer address.
 
@@ -1035,7 +1035,7 @@ Specifies the maximum number of stateless resets that are allowed per remote pee
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 Specifies the length of time a QUIC retry token is considered valid.
 
@@ -1055,7 +1055,7 @@ Specifies the 16-byte secret used to generate QUIC retry tokens.
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 Specifies the length of time a QUIC token is considered valid.
 
@@ -1075,7 +1075,7 @@ Specifies the 16-byte secret used to generate QUIC tokens.
 added: v23.8.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 #### `endpointOptions.udpSendBufferSize`
 
@@ -1083,7 +1083,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 #### `endpointOptions.udpTTL`
 
@@ -1091,7 +1091,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 #### `endpointOptions.validateAddress`
 
@@ -1209,7 +1209,7 @@ The TLS crypto keys to use for sessions.
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 Specifies the maximum UDP packet payload size.
 
@@ -1219,7 +1219,7 @@ Specifies the maximum UDP packet payload size.
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 Specifies the maximum stream flow-control window size.
 
@@ -1229,7 +1229,7 @@ Specifies the maximum stream flow-control window size.
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 Specifies the maximum session flow-control window size.
 
@@ -1239,7 +1239,7 @@ Specifies the maximum session flow-control window size.
 added: v23.8.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The minimum QUIC version number to allow. This is an advanced option that users
 typically won't have need to specify.
@@ -1279,7 +1279,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 Specifies the maximum number of milliseconds a TLS handshake is permitted to take
 to complete before timing out.
@@ -1320,7 +1320,7 @@ The QUIC transport parameters to use for the session.
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 Specifies the maximum number of unacknowledged packets a session should allow.
 
@@ -1350,7 +1350,7 @@ True to require private key verification.
 added: v23.8.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The QUIC version number to use. This is an advanced option that users typically
 won't have need to specify.
@@ -1383,7 +1383,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 #### `transportParams.initialMaxStreamDataBidiRemote`
 
@@ -1391,7 +1391,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 #### `transportParams.initialMaxStreamDataUni`
 
@@ -1399,7 +1399,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 #### `transportParams.initialMaxData`
 
@@ -1407,7 +1407,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 #### `transportParams.initialMaxStreamsBidi`
 
@@ -1415,7 +1415,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 #### `transportParams.initialMaxStreamsUni`
 
@@ -1423,7 +1423,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 #### `transportParams.maxIdleTimeout`
 
@@ -1431,7 +1431,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 #### `transportParams.activeConnectionIDLimit`
 
@@ -1439,7 +1439,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 #### `transportParams.ackDelayExponent`
 
@@ -1447,7 +1447,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 #### `transportParams.maxAckDelay`
 
@@ -1455,7 +1455,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 #### `transportParams.maxDatagramFrameSize`
 
@@ -1463,7 +1463,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint|number}
+* Type: {bigint|integer}
 
 ## Callbacks
 
@@ -1537,9 +1537,9 @@ added: v23.8.0
 -->
 
 * `this` {quic.QuicSession}
-* `version` {number}
-* `requestedVersions` {number\[]}
-* `supportedVersions` {number\[]}
+* `version` {integer}
+* `requestedVersions` {integer\[]}
+* `supportedVersions` {integer\[]}
 
 ### Callback: `OnHandshakeCallback`
 
@@ -1553,7 +1553,7 @@ added: v23.8.0
 * `cipher` {string}
 * `cipherVersion` {string}
 * `validationErrorReason` {string}
-* `validationErrorCode` {number}
+* `validationErrorCode` {integer}
 * `earlyDataAccepted` {boolean}
 
 ### Callback: `OnBlockedCallback`

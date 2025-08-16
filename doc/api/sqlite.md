@@ -129,7 +129,7 @@ changes:
     and the `loadExtension()` method are enabled.
     You can call `enableLoadExtension(false)` later to disable this feature.
     **Default:** `false`.
-  * `timeout` {number} The [busy timeout][] in milliseconds. This is the maximum amount of
+  * `timeout` {integer} The [busy timeout][] in milliseconds. This is the maximum amount of
     time that SQLite will wait for a database lock to be released before
     returning an error. **Default:** `0`.
   * `readBigInts` {boolean} If `true`, integer fields are read as JavaScript `BigInt` values. If `false`,
@@ -167,7 +167,7 @@ Registers a new aggregate function with the SQLite database. This method is a wr
     arguments (between zero and [`SQLITE_MAX_FUNCTION_ARG`][]). If `false`,
     `inverse` and `step` must be invoked with exactly `length` arguments.
     **Default:** `false`.
-  * `start` {number | string | null | Array | Object | Function} The identity
+  * `start` {integer | string | null | Array | Object | Function} The identity
     value for the aggregation function. This value is used when the aggregation
     function is initialized. When a {Function} is passed the identity will be its return value.
   * `step` {Function} The function to call for each row in the aggregation. The
@@ -518,7 +518,7 @@ changes:
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
+* `...anonymousParameters` {null|integer|bigint|string|Buffer|TypedArray|DataView} Zero or
   more values to bind to anonymous parameters.
 * Returns: {Array} An array of objects. Each object corresponds to a row
   returned by executing the prepared statement. The keys and values of each
@@ -586,7 +586,7 @@ changes:
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
+* `...anonymousParameters` {null|integer|bigint|string|Buffer|TypedArray|DataView} Zero or
   more values to bind to anonymous parameters.
 * Returns: {Object|undefined} An object corresponding to the first row returned
   by executing the prepared statement. The keys and values of the object
@@ -614,7 +614,7 @@ changes:
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
+* `...anonymousParameters` {null|integer|bigint|string|Buffer|TypedArray|DataView} Zero or
   more values to bind to anonymous parameters.
 * Returns: {Iterator} An iterable iterator of objects. Each object corresponds to a row
   returned by executing the prepared statement. The keys and values of each
@@ -639,15 +639,15 @@ changes:
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
+* `...anonymousParameters` {null|integer|bigint|string|Buffer|TypedArray|DataView} Zero or
   more values to bind to anonymous parameters.
 * Returns: {Object}
-  * `changes` {number|bigint} The number of rows modified, inserted, or deleted
+  * `changes` {integer|bigint} The number of rows modified, inserted, or deleted
     by the most recently completed `INSERT`, `UPDATE`, or `DELETE` statement.
     This field is either a number or a `BigInt` depending on the prepared
     statement's configuration. This property is the result of
     [`sqlite3_changes64()`][].
-  * `lastInsertRowid` {number|bigint} The most recently inserted rowid. This
+  * `lastInsertRowid` {integer|bigint} The most recently inserted rowid. This
     field is either a number or a `BigInt` depending on the prepared statement's
     configuration. This property is the result of
     [`sqlite3_last_insert_rowid()`][].
@@ -771,7 +771,7 @@ changes:
     database that have been added with [`ATTACH DATABASE`][] **Default:** `'main'`.
   * `target` {string} Name of the target database. This can be `'main'` (the default primary database) or any other
     database that have been added with [`ATTACH DATABASE`][] **Default:** `'main'`.
-  * `rate` {number} Number of pages to be transmitted in each batch of the backup. **Default:** `100`.
+  * `rate` {integer} Number of pages to be transmitted in each batch of the backup. **Default:** `100`.
   * `progress` {Function} Callback function that will be called with the number of pages copied and the total number of
     pages.
 * Returns: {Promise} A promise that resolves when the backup is completed and rejects if an error occurs.

@@ -79,7 +79,7 @@ changes:
   * `decodeURIComponent` {Function} The function to use when decoding
     percent-encoded characters in the query string. **Default:**
     `querystring.unescape()`.
-  * `maxKeys` {number} Specifies the maximum number of keys to parse.
+  * `maxKeys` {integer} Specifies the maximum number of keys to parse.
     Specify `0` to remove key counting limitations. **Default:** `1000`.
 
 The `querystring.parse()` method parses a URL query string (`str`) into a

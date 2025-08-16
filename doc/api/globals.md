@@ -117,7 +117,7 @@ added:
   - v16.14.0
 -->
 
-* `delay` {number} The number of milliseconds to wait before triggering
+* `delay` {integer} The number of milliseconds to wait before triggering
   the AbortSignal.
 
 Returns a new `AbortSignal` which will be aborted in `delay` milliseconds.
@@ -688,7 +688,7 @@ A partial implementation of [`window.navigator`][].
 added: v21.0.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The `navigator.hardwareConcurrency` read-only property returns the number of
 logical processors available to the current Node.js instance.

@@ -81,7 +81,7 @@ changes:
 
 * `options` {Object} Set of configurable options to set on the agent.
   Can have the same fields as for [`http.Agent(options)`][], and
-  * `maxCachedSessions` {number} maximum number of TLS cached sessions.
+  * `maxCachedSessions` {integer} maximum number of TLS cached sessions.
     Use `0` to disable TLS session caching. **Default:** `100`.
   * `servername` {string} the value of
     [Server Name Indication extension][sni wiki] to be sent to the server. Use
@@ -176,7 +176,7 @@ See [`server.closeIdleConnections()`][] in the `node:http` module.
 added: v11.3.0
 -->
 
-* Type: {number} **Default:** `60000`
+* Type: {integer} **Default:** `60000`
 
 See [`server.headersTimeout`][] in the `node:http` module.
 
@@ -187,7 +187,7 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ### `server.maxHeadersCount`
 
-* Type: {number} **Default:** `2000`
+* Type: {integer} **Default:** `2000`
 
 See [`server.maxHeadersCount`][] in the `node:http` module.
 
@@ -202,7 +202,7 @@ changes:
                  from no timeout to 300s (5 minutes).
 -->
 
-* Type: {number} **Default:** `300000`
+* Type: {integer} **Default:** `300000`
 
 See [`server.requestTimeout`][] in the `node:http` module.
 
@@ -212,7 +212,7 @@ See [`server.requestTimeout`][] in the `node:http` module.
 added: v0.11.2
 -->
 
-* `msecs` {number} **Default:** `120000` (2 minutes)
+* `msecs` {integer} **Default:** `120000` (2 minutes)
 * `callback` {Function}
 * Returns: {https.Server}
 
@@ -228,7 +228,7 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* Type: {number} **Default:** 0 (no timeout)
+* Type: {integer} **Default:** 0 (no timeout)
 
 See [`server.timeout`][] in the `node:http` module.
 
@@ -238,7 +238,7 @@ See [`server.timeout`][] in the `node:http` module.
 added: v8.0.0
 -->
 
-* Type: {number} **Default:** `5000` (5 seconds)
+* Type: {integer} **Default:** `5000` (5 seconds)
 
 See [`server.keepAliveTimeout`][] in the `node:http` module.
 

@@ -596,7 +596,7 @@ changes:
 
 * `algorithm` {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
 * `baseKey` {CryptoKey}
-* `length` {number|null} **Default:** `null`
+* `length` {integer|null} **Default:** `null`
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 <!--lint enable maximum-line-length remark-lint-->
@@ -1053,7 +1053,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The length of the AES key to be derived. This must be either `128`, `192`,
 or `256`.
@@ -1108,7 +1108,7 @@ counter and the remaining bits as the nonce.
 added: v15.0.0
 -->
 
-* Type: {number} The number of bits in the `aesCtrParams.counter` that are
+* Type: {integer} The number of bits in the `aesCtrParams.counter` that are
   to be used as the counter.
 
 #### `aesCtrParams.name`
@@ -1168,7 +1168,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {number} The size in bits of the generated authentication tag.
+* Type: {integer} The size in bits of the generated authentication tag.
   This values must be one of `32`, `64`, `96`, `104`, `112`, `120`, or
   `128`. **Default:** `128`.
 
@@ -1184,7 +1184,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The length of the AES key in bits.
 
@@ -1208,7 +1208,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The length of the AES key to be generated. This must be either `128`, `192`,
 or `256`.
@@ -1464,7 +1464,7 @@ must be one of the above listed values.
 added: v15.0.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The optional number of bits in the HMAC key. This is optional and should
 be omitted for most cases.
@@ -1497,7 +1497,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The length of the HMAC key in bits.
 
@@ -1539,7 +1539,7 @@ must be one of the above listed values.
 added: v15.0.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The number of bits to generate for the HMAC key. If omitted,
 the length will be determined by the hash algorithm used.
@@ -1597,7 +1597,7 @@ must be one of the above listed values.
 added: v15.0.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The number of iterations the PBKDF2 algorithm should make when deriving bits.
 
@@ -1672,7 +1672,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The length in bits of the RSA modulus.
 
@@ -1724,7 +1724,7 @@ must be one of the above listed values.
 added: v15.0.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The length in bits of the RSA modulus. As a best practice, this should be
 at least `2048`.
@@ -1799,7 +1799,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The length (in bytes) of the random salt to use.
 

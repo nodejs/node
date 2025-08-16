@@ -133,7 +133,7 @@ changes:
     **Default:** `'auto'`.
   * `inspectOptions` {Object} Specifies options that are passed along to
     [`util.inspect()`][].
-  * `groupIndentation` {number} Set group indentation.
+  * `groupIndentation` {integer} Set group indentation.
     **Default:** `2`.
 
 Creates a new `Console` with one or two writable stream instances. `stdout` is a
@@ -309,7 +309,7 @@ added: v0.1.101
 * `options` {Object}
   * `showHidden` {boolean} If `true` then the object's non-enumerable and symbol
     properties will be shown too. **Default:** `false`.
-  * `depth` {number} Tells [`util.inspect()`][] how many times to recurse while
+  * `depth` {integer} Tells [`util.inspect()`][] how many times to recurse while
     formatting the object. This is useful for inspecting large complicated
     objects. To make it recurse indefinitely, pass `null`. **Default:** `2`.
   * `colors` {boolean} If `true`, then the output will be styled with ANSI color

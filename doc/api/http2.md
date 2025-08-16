@@ -295,8 +295,8 @@ immediately following the `'frameError'` event.
 added: v8.4.0
 -->
 
-* `errorCode` {number} The HTTP/2 error code specified in the `GOAWAY` frame.
-* `lastStreamID` {number} The ID of the last stream the remote peer successfully
+* `errorCode` {integer} The HTTP/2 error code specified in the `GOAWAY` frame.
+* `lastStreamID` {integer} The ID of the last stream the remote peer successfully
   processed (or `0` if no ID is specified).
 * `opaqueData` {Buffer} If additional opaque data was included in the `GOAWAY`
   frame, a `Buffer` instance will be passed containing that data.
@@ -364,7 +364,7 @@ added: v8.4.0
 
 * `stream` {Http2Stream} A reference to the stream
 * `headers` {HTTP/2 Headers Object} An object describing the headers
-* `flags` {number} The associated numeric flags
+* `flags` {integer} The associated numeric flags
 * `rawHeaders` {Array} An array containing the raw header names followed by
   their respective values.
 
@@ -505,7 +505,7 @@ added: v8.4.0
 
 * `error` {Error} An `Error` object if the `Http2Session` is being destroyed
   due to an error.
-* `code` {number} The HTTP/2 error code to send in the final `GOAWAY` frame.
+* `code` {integer} The HTTP/2 error code to send in the final `GOAWAY` frame.
   If unspecified, and `error` is not undefined, the default is `INTERNAL_ERROR`,
   otherwise defaults to `NO_ERROR`.
 
@@ -549,8 +549,8 @@ or stream.
 added: v9.4.0
 -->
 
-* `code` {number} An HTTP/2 error code
-* `lastStreamID` {number} The numeric ID of the last processed `Http2Stream`
+* `code` {integer} An HTTP/2 error code
+* `lastStreamID` {integer} The numeric ID of the last processed `Http2Stream`
 * `opaqueData` {Buffer|TypedArray|DataView} A `TypedArray` or `DataView`
   instance containing additional data to be carried within the `GOAWAY` frame.
 
@@ -668,7 +668,7 @@ added:
   - v14.18.0
 -->
 
-* `windowSize` {number}
+* `windowSize` {integer}
 
 Sets the local endpoint's window size.
 The `windowSize` is the total window size to set, not
@@ -712,7 +712,7 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `msecs` {number}
+* `msecs` {integer}
 * `callback` {Function}
 
 Used to set a callback function that is called when there is no activity on
@@ -748,23 +748,23 @@ Provides miscellaneous information about the current state of the
 `Http2Session`.
 
 * Type: {Object}
-  * `effectiveLocalWindowSize` {number} The current local (receive)
+  * `effectiveLocalWindowSize` {integer} The current local (receive)
     flow control window size for the `Http2Session`.
-  * `effectiveRecvDataLength` {number} The current number of bytes
+  * `effectiveRecvDataLength` {integer} The current number of bytes
     that have been received since the last flow control `WINDOW_UPDATE`.
-  * `nextStreamID` {number} The numeric identifier to be used the
+  * `nextStreamID` {integer} The numeric identifier to be used the
     next time a new `Http2Stream` is created by this `Http2Session`.
-  * `localWindowSize` {number} The number of bytes that the remote peer can
+  * `localWindowSize` {integer} The number of bytes that the remote peer can
     send without receiving a `WINDOW_UPDATE`.
-  * `lastProcStreamID` {number} The numeric id of the `Http2Stream`
+  * `lastProcStreamID` {integer} The numeric id of the `Http2Stream`
     for which a `HEADERS` or `DATA` frame was most recently received.
-  * `remoteWindowSize` {number} The number of bytes that this `Http2Session`
+  * `remoteWindowSize` {integer} The number of bytes that this `Http2Session`
     may send without receiving a `WINDOW_UPDATE`.
-  * `outboundQueueSize` {number} The number of frames currently within the
+  * `outboundQueueSize` {integer} The number of frames currently within the
     outbound queue for this `Http2Session`.
-  * `deflateDynamicTableSize` {number} The current size in bytes of the
+  * `deflateDynamicTableSize` {integer} The current size in bytes of the
     outbound header compression state table.
-  * `inflateDynamicTableSize` {number} The current size in bytes of the
+  * `inflateDynamicTableSize` {integer} The current size in bytes of the
     inbound header compression state table.
 
 An object describing the current status of this `Http2Session`.
@@ -805,7 +805,7 @@ multiple `SETTINGS` frames while acknowledgment is still pending.
 added: v8.4.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The `http2session.type` will be equal to
 `http2.constants.NGHTTP2_SESSION_SERVER` if this `Http2Session` instance is a
@@ -837,7 +837,7 @@ added: v9.4.0
 
 * `alt` {string} A description of the alternative service configuration as
   defined by [RFC 7838][].
-* `originOrStream` {number|string|URL|Object} Either a URL string specifying
+* `originOrStream` {integer|string|URL|Object} Either a URL string specifying
   the origin (or an `Object` with an `origin` property) or the numeric
   identifier of an active `Http2Stream` as given by the `http2stream.id`
   property.
@@ -1003,7 +1003,7 @@ added: v9.4.0
 
 * `alt` {string}
 * `origin` {string}
-* `streamId` {number}
+* `streamId` {integer}
 
 The `'altsvc'` event is emitted whenever an `ALTSVC` frame is received by
 the client. The event is emitted with the `ALTSVC` value, origin, and stream
@@ -1094,7 +1094,7 @@ changes:
     the created stream is made the sole direct dependency of the parent, with
     all other existing dependents made a dependent of the newly created stream.
     **Default:** `false`.
-  * `parent` {number} Specifies the numeric identifier of a stream the newly
+  * `parent` {integer} Specifies the numeric identifier of a stream the newly
     created stream is dependent on.
   * `waitForTrailers` {boolean} When `true`, the `Http2Stream` will emit the
     `'wantTrailers'` event after the final `DATA` frame has been sent.
@@ -1335,7 +1335,7 @@ added: v8.4.0
 -->
 
 * `headers` {HTTP/2 Headers Object} An object describing the headers
-* `flags` {number} The associated numeric flags
+* `flags` {integer} The associated numeric flags
 
 The `'trailers'` event is emitted when a block of headers associated with
 trailing header fields is received. The listener callback is passed the
@@ -1381,7 +1381,7 @@ added:
  - v10.16.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 This property shows the number of characters currently buffered to be written.
 See [`net.Socket.bufferSize`][] for details.
@@ -1398,7 +1398,7 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `code` {number} Unsigned 32-bit integer identifying the error code.
+* `code` {integer} Unsigned 32-bit integer identifying the error code.
   **Default:** `http2.constants.NGHTTP2_NO_ERROR` (`0x00`).
 * `callback` {Function} An optional function registered to listen for the
   `'close'` event.
@@ -1445,7 +1445,7 @@ and the readable side of the `Http2Stream` will be closed.
 added: v8.4.0
 -->
 
-* Type: {number|undefined}
+* Type: {integer|undefined}
 
 The numeric stream identifier of this `Http2Stream` instance. Set to `undefined`
 if the stream identifier has not yet been assigned.
@@ -1486,7 +1486,7 @@ Empty method, only there to maintain some backward compatibility.
 added: v8.4.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 Set to the `RST_STREAM` [error code][] reported when the `Http2Stream` is
 destroyed after either receiving an `RST_STREAM` frame from the connected peer,
@@ -1547,7 +1547,7 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `msecs` {number}
+* `msecs` {integer}
 * `callback` {Function}
 
 ```mjs
@@ -1591,15 +1591,15 @@ Provides miscellaneous information about the current state of the
 `Http2Stream`.
 
 * Type: {Object}
-  * `localWindowSize` {number} The number of bytes the connected peer may send
+  * `localWindowSize` {integer} The number of bytes the connected peer may send
     for this `Http2Stream` without receiving a `WINDOW_UPDATE`.
-  * `state` {number} A flag indicating the low-level current state of the
+  * `state` {integer} A flag indicating the low-level current state of the
     `Http2Stream` as determined by `nghttp2`.
-  * `localClose` {number} `1` if this `Http2Stream` has been closed locally.
-  * `remoteClose` {number} `1` if this `Http2Stream` has been closed
+  * `localClose` {integer} `1` if this `Http2Stream` has been closed locally.
+  * `remoteClose` {integer} `1` if this `Http2Stream` has been closed
     remotely.
-  * `sumDependencyWeight` {number} Legacy property, always set to `0`.
-  * `weight` {number} Legacy property, always set to `16`.
+  * `sumDependencyWeight` {integer} Legacy property, always set to `0`.
+  * `weight` {integer} Legacy property, always set to `16`.
 
 A current state of this `Http2Stream`.
 
@@ -1675,7 +1675,7 @@ added: v8.4.0
 -->
 
 * `headers` {HTTP/2 Headers Object}
-* `flags` {number}
+* `flags` {integer}
 
 The `'headers'` event is emitted when an additional block of headers is received
 for a stream, such as when a block of `1xx` informational headers is received.
@@ -1695,7 +1695,7 @@ added: v8.4.0
 -->
 
 * `headers` {HTTP/2 Headers Object}
-* `flags` {number}
+* `flags` {integer}
 
 The `'push'` event is emitted when response headers for a Server Push stream
 are received. The listener callback is passed the [HTTP/2 Headers Object][] and
@@ -1714,7 +1714,7 @@ added: v8.4.0
 -->
 
 * `headers` {HTTP/2 Headers Object}
-* `flags` {number}
+* `flags` {integer}
 
 The `'response'` event is emitted when a response `HEADERS` frame has been
 received for this stream from the connected HTTP/2 server. The listener is
@@ -1803,7 +1803,7 @@ changes:
     the created stream is made the sole direct dependency of the parent, with
     all other existing dependents made a dependent of the newly created stream.
     **Default:** `false`.
-  * `parent` {number} Specifies the numeric identifier of a stream the newly
+  * `parent` {integer} Specifies the numeric identifier of a stream the newly
     created stream is dependent on.
 * `callback` {Function} Callback that is called once the push stream has been
   initiated.
@@ -1941,14 +1941,14 @@ changes:
                  regular file, is supported now.
 -->
 
-* `fd` {number|FileHandle} A readable file descriptor.
+* `fd` {integer|FileHandle} A readable file descriptor.
 * `headers` {HTTP/2 Headers Object}
 * `options` {Object}
   * `statCheck` {Function}
   * `waitForTrailers` {boolean} When `true`, the `Http2Stream` will emit the
     `'wantTrailers'` event after the final `DATA` frame has been sent.
-  * `offset` {number} The offset position at which to begin reading.
-  * `length` {number} The amount of data from the fd to send.
+  * `offset` {integer} The offset position at which to begin reading.
+  * `length` {integer} The amount of data from the fd to send.
 
 Initiates a response whose data is read from the given file descriptor. No
 validation is performed on the given file descriptor. If an error occurs while
@@ -2092,8 +2092,8 @@ changes:
     error before send.
   * `waitForTrailers` {boolean} When `true`, the `Http2Stream` will emit the
     `'wantTrailers'` event after the final `DATA` frame has been sent.
-  * `offset` {number} The offset position at which to begin reading.
-  * `length` {number} The amount of data from the fd to send.
+  * `offset` {integer} The offset position at which to begin reading.
+  * `length` {integer} The amount of data from the fd to send.
 
 Sends a regular file as the response. The `path` must specify a regular file
 or an `'error'` event will be emitted on the `Http2Stream` object.
@@ -2346,7 +2346,7 @@ added: v8.4.0
 
 * `stream` {Http2Stream} A reference to the stream
 * `headers` {HTTP/2 Headers Object} An object describing the headers
-* `flags` {number} The associated numeric flags
+* `flags` {integer} The associated numeric flags
 * `rawHeaders` {Array} An array containing the raw header names followed by
   their respective values.
 
@@ -2460,7 +2460,7 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* `msecs` {number} **Default:** 0 (no timeout)
+* `msecs` {integer} **Default:** 0 (no timeout)
 * `callback` {Function}
 * Returns: {Http2Server}
 
@@ -2483,7 +2483,7 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* Type: {number} Timeout in milliseconds. **Default:** 0 (no timeout)
+* Type: {integer} Timeout in milliseconds. **Default:** 0 (no timeout)
 
 The number of milliseconds of inactivity before a socket is presumed
 to have timed out.
@@ -2602,7 +2602,7 @@ added: v8.4.0
 
 * `stream` {Http2Stream} A reference to the stream
 * `headers` {HTTP/2 Headers Object} An object describing the headers
-* `flags` {number} The associated numeric flags
+* `flags` {integer} The associated numeric flags
 * `rawHeaders` {Array} An array containing the raw header names followed by
   their respective values.
 
@@ -2729,7 +2729,7 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `msecs` {number} **Default:** `120000` (2 minutes)
+* `msecs` {integer} **Default:** `120000` (2 minutes)
 * `callback` {Function}
 * Returns: {Http2SecureServer}
 
@@ -2752,7 +2752,7 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* Type: {number} Timeout in milliseconds. **Default:** 0 (no timeout)
+* Type: {integer} Timeout in milliseconds. **Default:** 0 (no timeout)
 
 The number of milliseconds of inactivity before a socket is presumed
 to have timed out.
@@ -2836,11 +2836,11 @@ changes:
 -->
 
 * `options` {Object}
-  * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
+  * `maxDeflateDynamicTableSize` {integer} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`.
-  * `maxSettings` {number} Sets the maximum number of settings entries per
+  * `maxSettings` {integer} Sets the maximum number of settings entries per
     `SETTINGS` frame. The minimum value allowed is `1`. **Default:** `32`.
-  * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
+  * `maxSessionMemory`{integer} Sets the maximum memory that the `Http2Session`
     is permitted to use. The value is expressed in terms of number of megabytes,
     e.g. `1` equal 1 megabyte. The minimum value allowed is `1`.
     This is a credit based limit, existing `Http2Stream`s may cause this
@@ -2849,20 +2849,20 @@ changes:
     the current memory use of the header compression tables, current data
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
-  * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
+  * `maxHeaderListPairs` {integer} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
     [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
     is `4`. **Default:** `128`.
-  * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
+  * `maxOutstandingPings` {integer} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
-  * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
+  * `maxSendHeaderBlockLength` {integer} Sets the maximum allowed size for a
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
     While this sets the maximum allowed size to the entire block of headers,
     `nghttp2` (the internal http2 library) has a limit of `65536`
     for each decompressed key/value pair.
-  * `paddingStrategy` {number} The strategy used for determining the amount of
+  * `paddingStrategy` {integer} The strategy used for determining the amount of
     padding to use for `HEADERS` and `DATA` frames. **Default:**
     `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
     * `http2.constants.PADDING_STRATEGY_NONE`: No padding is applied.
@@ -2875,7 +2875,7 @@ changes:
       and settings. If this maximum is less than the calculated amount needed to
       ensure alignment, the maximum is used and the total frame length is not
       necessarily aligned at 8 bytes.
-  * `peerMaxConcurrentStreams` {number} Sets the maximum number of concurrent
+  * `peerMaxConcurrentStreams` {integer} Sets the maximum number of concurrent
     streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
     `maxConcurrentStreams`. **Default:** `100`.
@@ -2890,7 +2890,7 @@ changes:
     **Default:** `100`.
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
-  * `streamResetBurst` {number} and `streamResetRate` {number} Sets the rate
+  * `streamResetBurst` {integer} and `streamResetRate` {integer} Sets the rate
     limit for the incoming stream reset (RST\_STREAM frame). Both settings must
     be set to have any effect, and default to 1000 and 33 respectively.
   * `remoteCustomSettings` {Array} The array of integer values determines the
@@ -2912,7 +2912,7 @@ changes:
     `Http2ServerResponse` class to use.
     Useful for extending the original `Http2ServerResponse`.
     **Default:** `Http2ServerResponse`.
-  * `unknownProtocolTimeout` {number} Specifies a timeout in milliseconds that
+  * `unknownProtocolTimeout` {integer} Specifies a timeout in milliseconds that
     a server should wait when an [`'unknownProtocol'`][] is emitted. If the
     socket has not been destroyed by that time the server will destroy it.
     **Default:** `10000`.
@@ -3025,11 +3025,11 @@ changes:
     HTTP/2 will be downgraded to HTTP/1.x when set to `true`.
     See the [`'unknownProtocol'`][] event. See [ALPN negotiation][].
     **Default:** `false`.
-  * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
+  * `maxDeflateDynamicTableSize` {integer} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`.
-  * `maxSettings` {number} Sets the maximum number of settings entries per
+  * `maxSettings` {integer} Sets the maximum number of settings entries per
     `SETTINGS` frame. The minimum value allowed is `1`. **Default:** `32`.
-  * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
+  * `maxSessionMemory`{integer} Sets the maximum memory that the `Http2Session`
     is permitted to use. The value is expressed in terms of number of megabytes,
     e.g. `1` equal 1 megabyte. The minimum value allowed is `1`. This is a
     credit based limit, existing `Http2Stream`s may cause this
@@ -3038,17 +3038,17 @@ changes:
     the current memory use of the header compression tables, current data
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
-  * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
+  * `maxHeaderListPairs` {integer} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
     [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
     is `4`. **Default:** `128`.
-  * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
+  * `maxOutstandingPings` {integer} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
-  * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
+  * `maxSendHeaderBlockLength` {integer} Sets the maximum allowed size for a
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
-  * `paddingStrategy` {number} Strategy used for determining the amount of
+  * `paddingStrategy` {integer} Strategy used for determining the amount of
     padding to use for `HEADERS` and `DATA` frames. **Default:**
     `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
     * `http2.constants.PADDING_STRATEGY_NONE`: No padding is applied.
@@ -3061,7 +3061,7 @@ changes:
       state and settings. If this maximum is less than the calculated amount
       needed to ensure alignment, the maximum is used and the total frame length
       is not necessarily aligned at 8 bytes.
-  * `peerMaxConcurrentStreams` {number} Sets the maximum number of concurrent
+  * `peerMaxConcurrentStreams` {integer} Sets the maximum number of concurrent
     streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
     `maxConcurrentStreams`. **Default:** `100`.
@@ -3076,7 +3076,7 @@ changes:
     **Default:** `100`.
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
-  * `streamResetBurst` {number} and `streamResetRate` {number} Sets the rate
+  * `streamResetBurst` {integer} and `streamResetRate` {integer} Sets the rate
     limit for the incoming stream reset (RST\_STREAM frame). Both settings must
     be set to have any effect, and default to 1000 and 33 respectively.
   * `remoteCustomSettings` {Array} The array of integer values determines the
@@ -3087,7 +3087,7 @@ changes:
     For servers, the identity options (`pfx` or `key`/`cert`) are usually required.
   * `origins` {string\[]} An array of origin strings to send within an `ORIGIN`
     frame immediately following creation of a new server `Http2Session`.
-  * `unknownProtocolTimeout` {number} Specifies a timeout in milliseconds that
+  * `unknownProtocolTimeout` {integer} Specifies a timeout in milliseconds that
     a server should wait when an [`'unknownProtocol'`][] event is emitted. If
     the socket has not been destroyed by that time the server will destroy it.
     **Default:** `10000`.
@@ -3187,11 +3187,11 @@ changes:
   (user ID and password), path, querystring, and fragment details in the
   URL will be ignored.
 * `options` {Object}
-  * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
+  * `maxDeflateDynamicTableSize` {integer} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`.
-  * `maxSettings` {number} Sets the maximum number of settings entries per
+  * `maxSettings` {integer} Sets the maximum number of settings entries per
     `SETTINGS` frame. The minimum value allowed is `1`. **Default:** `32`.
-  * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
+  * `maxSessionMemory`{integer} Sets the maximum memory that the `Http2Session`
     is permitted to use. The value is expressed in terms of number of megabytes,
     e.g. `1` equal 1 megabyte. The minimum value allowed is `1`.
     This is a credit based limit, existing `Http2Stream`s may cause this
@@ -3200,23 +3200,23 @@ changes:
     the current memory use of the header compression tables, current data
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
-  * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
+  * `maxHeaderListPairs` {integer} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
     [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
     is `1`. **Default:** `128`.
-  * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
+  * `maxOutstandingPings` {integer} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
-  * `maxReservedRemoteStreams` {number} Sets the maximum number of reserved push
+  * `maxReservedRemoteStreams` {integer} Sets the maximum number of reserved push
     streams the client will accept at any given time. Once the current number of
     currently reserved push streams exceeds reaches this limit, new push streams
     sent by the server will be automatically rejected. The minimum allowed value
     is 0. The maximum allowed value is 2<sup>32</sup>-1. A negative value sets
     this option to the maximum allowed value. **Default:** `200`.
-  * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
+  * `maxSendHeaderBlockLength` {integer} Sets the maximum allowed size for a
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
-  * `paddingStrategy` {number} Strategy used for determining the amount of
+  * `paddingStrategy` {integer} Strategy used for determining the amount of
     padding to use for `HEADERS` and `DATA` frames. **Default:**
     `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
     * `http2.constants.PADDING_STRATEGY_NONE`: No padding is applied.
@@ -3229,7 +3229,7 @@ changes:
       state and settings. If this maximum is less than the calculated amount
       needed to ensure alignment, the maximum is used and the total frame length
       is not necessarily aligned at 8 bytes.
-  * `peerMaxConcurrentStreams` {number} Sets the maximum number of concurrent
+  * `peerMaxConcurrentStreams` {integer} Sets the maximum number of concurrent
     streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
     `maxConcurrentStreams`. **Default:** `100`.
@@ -3247,7 +3247,7 @@ changes:
     [`Duplex`][] stream that is to be used as the connection for this session.
   * `...options` {Object} Any [`net.connect()`][] or [`tls.connect()`][] options
     can be provided.
-  * `unknownProtocolTimeout` {number} Specifies a timeout in milliseconds that
+  * `unknownProtocolTimeout` {integer} Specifies a timeout in milliseconds that
     a server should wait when an [`'unknownProtocol'`][] event is emitted. If
     the socket has not been destroyed by that time the server will destroy it.
     **Default:** `10000`.
@@ -3494,27 +3494,27 @@ object that defines configuration settings for an `Http2Session` object.
 These objects are ordinary JavaScript objects containing the following
 properties.
 
-* `headerTableSize` {number} Specifies the maximum number of bytes used for
+* `headerTableSize` {integer} Specifies the maximum number of bytes used for
   header compression. The minimum allowed value is 0. The maximum allowed value
   is 2<sup>32</sup>-1. **Default:** `4096`.
 * `enablePush` {boolean} Specifies `true` if HTTP/2 Push Streams are to be
   permitted on the `Http2Session` instances. **Default:** `true`.
-* `initialWindowSize` {number} Specifies the _sender's_ initial window size in
+* `initialWindowSize` {integer} Specifies the _sender's_ initial window size in
   bytes for stream-level flow control. The minimum allowed value is 0. The
   maximum allowed value is 2<sup>32</sup>-1. **Default:** `65535`.
-* `maxFrameSize` {number} Specifies the size in bytes of the largest frame
+* `maxFrameSize` {integer} Specifies the size in bytes of the largest frame
   payload. The minimum allowed value is 16,384. The maximum allowed value is
   2<sup>24</sup>-1. **Default:** `16384`.
-* `maxConcurrentStreams` {number} Specifies the maximum number of concurrent
+* `maxConcurrentStreams` {integer} Specifies the maximum number of concurrent
   streams permitted on an `Http2Session`. There is no default value which
   implies, at least theoretically, 2<sup>32</sup>-1 streams may be open
   concurrently at any given time in an `Http2Session`. The minimum value
   is 0. The maximum allowed value is 2<sup>32</sup>-1. **Default:**
   `4294967295`.
-* `maxHeaderListSize` {number} Specifies the maximum size (uncompressed octets)
+* `maxHeaderListSize` {integer} Specifies the maximum size (uncompressed octets)
   of header list that will be accepted. The minimum allowed value is 0. The
   maximum allowed value is 2<sup>32</sup>-1. **Default:** `65535`.
-* `maxHeaderSize` {number} Alias for `maxHeaderListSize`.
+* `maxHeaderSize` {integer} Alias for `maxHeaderListSize`.
 * `enableConnectProtocol`{boolean} Specifies `true` if the "Extended Connect
   Protocol" defined by [RFC 8441][] is to be enabled. This setting is only
   meaningful if sent by the server. Once the `enableConnectProtocol` setting
@@ -4121,7 +4121,7 @@ portion of the target URL.
 added: v8.4.0
 -->
 
-* `msecs` {number}
+* `msecs` {integer}
 * `callback` {Function}
 * Returns: {http2.Http2ServerRequest}
 
@@ -4557,7 +4557,7 @@ const server = http2.createServer((req, res) => {
 added: v8.4.0
 -->
 
-* `msecs` {number}
+* `msecs` {integer}
 * `callback` {Function}
 * Returns: {http2.Http2ServerResponse}
 
@@ -4619,7 +4619,7 @@ const server = http2.createServer((req, res) => {
 added: v8.4.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 When using implicit headers (not calling [`response.writeHead()`][] explicitly),
 this property controls the status code that will be sent to the client when
@@ -4757,7 +4757,7 @@ changes:
                  `end()`.
 -->
 
-* `statusCode` {number}
+* `statusCode` {integer}
 * `statusMessage` {string}
 * `headers` {Object|Array}
 * Returns: {http2.Http2ServerResponse}
@@ -4853,34 +4853,34 @@ The `name` property of the `PerformanceEntry` will be equal to either
 If `name` is equal to `Http2Stream`, the `PerformanceEntry` will contain the
 following additional properties:
 
-* `bytesRead` {number} The number of `DATA` frame bytes received for this
+* `bytesRead` {integer} The number of `DATA` frame bytes received for this
   `Http2Stream`.
-* `bytesWritten` {number} The number of `DATA` frame bytes sent for this
+* `bytesWritten` {integer} The number of `DATA` frame bytes sent for this
   `Http2Stream`.
-* `id` {number} The identifier of the associated `Http2Stream`
-* `timeToFirstByte` {number} The number of milliseconds elapsed between the
+* `id` {integer} The identifier of the associated `Http2Stream`
+* `timeToFirstByte` {integer} The number of milliseconds elapsed between the
   `PerformanceEntry` `startTime` and the reception of the first `DATA` frame.
-* `timeToFirstByteSent` {number} The number of milliseconds elapsed between
+* `timeToFirstByteSent` {integer} The number of milliseconds elapsed between
   the `PerformanceEntry` `startTime` and sending of the first `DATA` frame.
-* `timeToFirstHeader` {number} The number of milliseconds elapsed between the
+* `timeToFirstHeader` {integer} The number of milliseconds elapsed between the
   `PerformanceEntry` `startTime` and the reception of the first header.
 
 If `name` is equal to `Http2Session`, the `PerformanceEntry` will contain the
 following additional properties:
 
-* `bytesRead` {number} The number of bytes received for this `Http2Session`.
-* `bytesWritten` {number} The number of bytes sent for this `Http2Session`.
-* `framesReceived` {number} The number of HTTP/2 frames received by the
+* `bytesRead` {integer} The number of bytes received for this `Http2Session`.
+* `bytesWritten` {integer} The number of bytes sent for this `Http2Session`.
+* `framesReceived` {integer} The number of HTTP/2 frames received by the
   `Http2Session`.
-* `framesSent` {number} The number of HTTP/2 frames sent by the `Http2Session`.
-* `maxConcurrentStreams` {number} The maximum number of streams concurrently
+* `framesSent` {integer} The number of HTTP/2 frames sent by the `Http2Session`.
+* `maxConcurrentStreams` {integer} The maximum number of streams concurrently
   open during the lifetime of the `Http2Session`.
-* `pingRTT` {number} The number of milliseconds elapsed since the transmission
+* `pingRTT` {integer} The number of milliseconds elapsed since the transmission
   of a `PING` frame and the reception of its acknowledgment. Only present if
   a `PING` frame has been sent on the `Http2Session`.
-* `streamAverageDuration` {number} The average duration (in milliseconds) for
+* `streamAverageDuration` {integer} The average duration (in milliseconds) for
   all `Http2Stream` instances.
-* `streamCount` {number} The number of `Http2Stream` instances processed by
+* `streamCount` {integer} The number of `Http2Stream` instances processed by
   the `Http2Session`.
 * `type` {string} Either `'server'` or `'client'` to identify the type of
   `Http2Session`.

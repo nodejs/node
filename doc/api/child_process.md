@@ -195,14 +195,14 @@ changes:
     `'/bin/sh'` on Unix, `process.env.ComSpec` on Windows.
   * `signal` {AbortSignal} allows aborting the child process using an
     AbortSignal.
-  * `timeout` {number} **Default:** `0`
-  * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
+  * `timeout` {integer} **Default:** `0`
+  * `maxBuffer` {integer} Largest amount of data in bytes allowed on stdout or
     stderr. If exceeded, the child process is terminated and any output is
     truncated. See caveat at [`maxBuffer` and Unicode][].
     **Default:** `1024 * 1024`.
   * `killSignal` {string|integer} **Default:** `'SIGTERM'`
-  * `uid` {number} Sets the user identity of the process (see setuid(2)).
-  * `gid` {number} Sets the group identity of the process (see setgid(2)).
+  * `uid` {integer} Sets the user identity of the process (see setuid(2)).
+  * `gid` {integer} Sets the group identity of the process (see setgid(2)).
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
 * `callback` {Function} called with the output when process terminates.
@@ -375,14 +375,14 @@ changes:
   * `cwd` {string|URL} Current working directory of the child process.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `encoding` {string} **Default:** `'utf8'`
-  * `timeout` {number} **Default:** `0`
-  * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
+  * `timeout` {integer} **Default:** `0`
+  * `maxBuffer` {integer} Largest amount of data in bytes allowed on stdout or
     stderr. If exceeded, the child process is terminated and any output is
     truncated. See caveat at [`maxBuffer` and Unicode][].
     **Default:** `1024 * 1024`.
   * `killSignal` {string|integer} **Default:** `'SIGTERM'`
-  * `uid` {number} Sets the user identity of the process (see setuid(2)).
-  * `gid` {number} Sets the group identity of the process (see setgid(2)).
+  * `uid` {integer} Sets the user identity of the process (see setuid(2)).
+  * `gid` {integer} Sets the group identity of the process (see setgid(2)).
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
@@ -547,7 +547,7 @@ changes:
   * `execPath` {string} Executable used to create the child process.
   * `execArgv` {string\[]} List of string arguments passed to the executable.
     **Default:** `process.execArgv`.
-  * `gid` {number} Sets the group identity of the process (see setgid(2)).
+  * `gid` {integer} Sets the group identity of the process (see setgid(2)).
   * `serialization` {string} Specify the kind of serialization used for sending
     messages between processes. Possible values are `'json'` and `'advanced'`.
     See [Advanced serialization][] for more details. **Default:** `'json'`.
@@ -564,10 +564,10 @@ changes:
     When this option is provided, it overrides `silent`. If the array variant
     is used, it must contain exactly one item with value `'ipc'` or an error
     will be thrown. For instance `[0, 1, 2, 'ipc']`.
-  * `uid` {number} Sets the user identity of the process (see setuid(2)).
+  * `uid` {integer} Sets the user identity of the process (see setuid(2)).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. **Default:** `false`.
-  * `timeout` {number} In milliseconds the maximum amount of time the process
+  * `timeout` {integer} In milliseconds the maximum amount of time the process
     is allowed to run. **Default:** `undefined`.
 * Returns: {ChildProcess}
 
@@ -700,8 +700,8 @@ changes:
   * `detached` {boolean} Prepare child process to run independently of
     its parent process. Specific behavior depends on the platform (see
     [`options.detached`][]).
-  * `uid` {number} Sets the user identity of the process (see setuid(2)).
-  * `gid` {number} Sets the group identity of the process (see setgid(2)).
+  * `uid` {integer} Sets the user identity of the process (see setuid(2)).
+  * `gid` {integer} Sets the group identity of the process (see setgid(2)).
   * `serialization` {string} Specify the kind of serialization used for sending
     messages between processes. Possible values are `'json'` and `'advanced'`.
     See [Advanced serialization][] for more details. **Default:** `'json'`.
@@ -716,7 +716,7 @@ changes:
     normally be created on Windows systems. **Default:** `false`.
   * `signal` {AbortSignal} allows aborting the child process using an
     AbortSignal.
-  * `timeout` {number} In milliseconds the maximum amount of time the process
+  * `timeout` {integer} In milliseconds the maximum amount of time the process
     is allowed to run. **Default:** `undefined`.
   * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed by timeout or abort signal. **Default:** `'SIGTERM'`.
@@ -1179,13 +1179,13 @@ changes:
     be output to the parent process' stderr unless `stdio` is specified.
     **Default:** `'pipe'`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
-  * `uid` {number} Sets the user identity of the process (see setuid(2)).
-  * `gid` {number} Sets the group identity of the process (see setgid(2)).
-  * `timeout` {number} In milliseconds the maximum amount of time the process
+  * `uid` {integer} Sets the user identity of the process (see setuid(2)).
+  * `gid` {integer} Sets the group identity of the process (see setgid(2)).
+  * `timeout` {integer} In milliseconds the maximum amount of time the process
     is allowed to run. **Default:** `undefined`.
   * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. **Default:** `'SIGTERM'`.
-  * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
+  * `maxBuffer` {integer} Largest amount of data in bytes allowed on stdout or
     stderr. If exceeded, the child process is terminated. See caveat at
     [`maxBuffer` and Unicode][]. **Default:** `1024 * 1024`.
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
@@ -1309,13 +1309,13 @@ changes:
   * `shell` {string} Shell to execute the command with. See
     [Shell requirements][] and [Default Windows shell][]. **Default:**
     `'/bin/sh'` on Unix, `process.env.ComSpec` on Windows.
-  * `uid` {number} Sets the user identity of the process. (See setuid(2)).
-  * `gid` {number} Sets the group identity of the process. (See setgid(2)).
-  * `timeout` {number} In milliseconds the maximum amount of time the process
+  * `uid` {integer} Sets the user identity of the process. (See setuid(2)).
+  * `gid` {integer} Sets the group identity of the process. (See setgid(2)).
+  * `timeout` {integer} In milliseconds the maximum amount of time the process
     is allowed to run. **Default:** `undefined`.
   * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. **Default:** `'SIGTERM'`.
-  * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
+  * `maxBuffer` {integer} Largest amount of data in bytes allowed on stdout or
     stderr. If exceeded, the child process is terminated and any output is
     truncated. See caveat at [`maxBuffer` and Unicode][].
     **Default:** `1024 * 1024`.
@@ -1383,13 +1383,13 @@ changes:
   * `stdio` {string|Array} Child's stdio configuration.
     See [`child_process.spawn()`][]'s [`stdio`][]. **Default:** `'pipe'`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
-  * `uid` {number} Sets the user identity of the process (see setuid(2)).
-  * `gid` {number} Sets the group identity of the process (see setgid(2)).
-  * `timeout` {number} In milliseconds the maximum amount of time the process
+  * `uid` {integer} Sets the user identity of the process (see setuid(2)).
+  * `gid` {integer} Sets the group identity of the process (see setgid(2)).
+  * `timeout` {integer} In milliseconds the maximum amount of time the process
     is allowed to run. **Default:** `undefined`.
   * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. **Default:** `'SIGTERM'`.
-  * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
+  * `maxBuffer` {integer} Largest amount of data in bytes allowed on stdout or
     stderr. If exceeded, the child process is terminated and any output is
     truncated. See caveat at [`maxBuffer` and Unicode][].
     **Default:** `1024 * 1024`.
@@ -1405,11 +1405,11 @@ changes:
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
 * Returns: {Object}
-  * `pid` {number} Pid of the child process.
+  * `pid` {integer} Pid of the child process.
   * `output` {Array} Array of results from stdio output.
   * `stdout` {Buffer|string} The contents of `output[1]`.
   * `stderr` {Buffer|string} The contents of `output[2]`.
-  * `status` {number|null} The exit code of the subprocess, or `null` if the
+  * `status` {integer|null} The exit code of the subprocess, or `null` if the
     subprocess terminated due to a signal.
   * `signal` {string|null} The signal used to kill the subprocess, or `null` if
     the subprocess did not terminate due to a signal.
@@ -1448,7 +1448,7 @@ instances of `ChildProcess`.
 added: v0.7.7
 -->
 
-* `code` {number} The exit code if the child process exited on its own, or
+* `code` {integer} The exit code if the child process exited on its own, or
   `null` if the child process terminated due to a signal.
 * `signal` {string} The signal by which the child process was terminated, or
   `null` if the child process did not terminated due to a signal.
@@ -1533,7 +1533,7 @@ See also [`subprocess.kill()`][] and [`subprocess.send()`][].
 added: v0.1.90
 -->
 
-* `code` {number} The exit code if the child process exited on its own, or
+* `code` {integer} The exit code if the child process exited on its own, or
   `null` if the child process terminated due to a signal.
 * `signal` {string} The signal by which the child process was terminated, or
   `null` if the child process did not terminated due to a signal.
@@ -1673,7 +1673,7 @@ If the child process is still running, the field will be `null`.
 added: v0.1.90
 -->
 
-* `signal` {number|string}
+* `signal` {integer|string}
 * Returns: {boolean}
 
 The `subprocess.kill()` method sends a signal to the child process. If no

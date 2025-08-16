@@ -29,7 +29,7 @@ added: v0.10.0
 
 * `x` {string} The description of the string.
 * `y` {boolean} Should I stay or should I go?
-* `z` {number} How many zebras to bring. **Default:** `100`.
+* `z` {integer} How many zebras to bring. **Default:** `100`.
 
 A description of the function.
 

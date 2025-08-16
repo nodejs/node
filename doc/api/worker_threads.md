@@ -486,14 +486,14 @@ added:
 
 > Stability: 1.1 - Active development
 
-* `threadId` {number} The target thread ID. If the thread ID is invalid, a
+* `threadId` {integer} The target thread ID. If the thread ID is invalid, a
   [`ERR_WORKER_MESSAGING_FAILED`][] error will be thrown. If the target thread ID is the current thread ID,
   a [`ERR_WORKER_MESSAGING_SAME_THREAD`][] error will be thrown.
 * `value` {any} The value to send.
 * `transferList` {Object\[]} If one or more `MessagePort`-like objects are passed in `value`,
   a `transferList` is required for those items or [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][] is thrown.
   See [`port.postMessage()`][] for more information.
-* `timeout` {number} Time to wait for the message to be delivered in milliseconds.
+* `timeout` {integer} Time to wait for the message to be delivered in milliseconds.
   By default it's `undefined`, which means wait forever. If the operation times out,
   a [`ERR_WORKER_MESSAGING_TIMEOUT`][] error is thrown.
 * Returns: {Promise} A promise which is fulfilled if the message was successfully processed by destination thread.
@@ -643,10 +643,10 @@ added:
 -->
 
 * Type: {Object}
-  * `maxYoungGenerationSizeMb` {number}
-  * `maxOldGenerationSizeMb` {number}
-  * `codeRangeSizeMb` {number}
-  * `stackSizeMb` {number}
+  * `maxYoungGenerationSizeMb` {integer}
+  * `maxOldGenerationSizeMb` {integer}
+  * `codeRangeSizeMb` {integer}
+  * `stackSizeMb` {integer}
 
 Provides the set of JS engine resource constraints inside this Worker thread.
 If the `resourceLimits` option was passed to the [`Worker`][] constructor,
@@ -1686,15 +1686,15 @@ changes:
     instance. These limits only affect the JS engine, and no external data,
     including no `ArrayBuffer`s. Even if these limits are set, the process may
     still abort if it encounters a global out-of-memory situation.
-    * `maxOldGenerationSizeMb` {number} The maximum size of the main heap in
+    * `maxOldGenerationSizeMb` {integer} The maximum size of the main heap in
       MB. If the command-line argument [`--max-old-space-size`][] is set, it
       overrides this setting.
-    * `maxYoungGenerationSizeMb` {number} The maximum size of a heap space for
+    * `maxYoungGenerationSizeMb` {integer} The maximum size of a heap space for
       recently created objects. If the command-line argument
       [`--max-semi-space-size`][] is set, it overrides this setting.
-    * `codeRangeSizeMb` {number} The size of a pre-allocated memory range
+    * `codeRangeSizeMb` {integer} The size of a pre-allocated memory range
       used for generated code.
-    * `stackSizeMb` {number} The default maximum stack size for the thread.
+    * `stackSizeMb` {integer} The default maximum stack size for the thread.
       Small values may lead to unusable Worker instances. **Default:** `4`.
   * `name` {string} An optional `name` to be replaced in the thread name
     and to the worker title for debugging/identification purposes,
@@ -1851,9 +1851,9 @@ added:
 * `utilization2` {Object} The result of a previous call to
   `eventLoopUtilization()` prior to `utilization1`.
 * Returns: {Object}
-  * `idle` {number}
-  * `active` {number}
-  * `utilization` {number}
+  * `idle` {integer}
+  * `active` {integer}
+  * `utilization` {integer}
 
 The same call as [`perf_hooks` `eventLoopUtilization()`][], except the values
 of the worker instance are returned.
@@ -1946,10 +1946,10 @@ added:
 -->
 
 * Type: {Object}
-  * `maxYoungGenerationSizeMb` {number}
-  * `maxOldGenerationSizeMb` {number}
-  * `codeRangeSizeMb` {number}
-  * `stackSizeMb` {number}
+  * `maxYoungGenerationSizeMb` {integer}
+  * `maxOldGenerationSizeMb` {integer}
+  * `codeRangeSizeMb` {integer}
+  * `stackSizeMb` {integer}
 
 Provides the set of JS engine resource constraints for this Worker thread.
 If the `resourceLimits` option was passed to the [`Worker`][] constructor,

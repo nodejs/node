@@ -335,7 +335,7 @@ changes:
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `true`
   * `start` {integer}
-  * `highWaterMark` {number} **Default:** `16384`
+  * `highWaterMark` {integer} **Default:** `16384`
   * `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
 * Returns: {fs.WriteStream}
@@ -375,7 +375,7 @@ Unlike `filehandle.sync` this method does not flush modified metadata.
 added: v10.0.0
 -->
 
-* Type: {number} The numeric file descriptor managed by the {FileHandle} object.
+* Type: {integer} The numeric file descriptor managed by the {FileHandle} object.
 
 #### `filehandle.read(buffer, offset, length, position)`
 
@@ -692,8 +692,8 @@ If `len` is negative then `0` will be used.
 added: v10.0.0
 -->
 
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
+* `atime` {integer|string|Date}
+* `mtime` {integer|string|Date}
 * Returns: {Promise}
 
 Change the file system timestamps of the object referenced by the {FileHandle}
@@ -1175,8 +1175,8 @@ added:
 -->
 
 * `path` {string|Buffer|URL}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
+* `atime` {integer|string|Date}
+* `mtime` {integer|string|Date}
 * Returns: {Promise}  Fulfills with `undefined` upon success.
 
 Changes the access and modification times of a file in the same way as
@@ -1360,7 +1360,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `flags` {string|number} See [support of file system `flags`][].
+* `flags` {string|integer} See [support of file system `flags`][].
   **Default:** `'r'`.
 * `mode` {string|integer} Sets the file mode (permission and sticky bits)
   if the file is created. **Default:** `0o666` (readable and writable)
@@ -1395,7 +1395,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `bufferSize` {number} Number of directory entries that are buffered
+  * `bufferSize` {integer} Number of directory entries that are buffered
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
   * `recursive` {boolean} Resolved `Dir` will be an {AsyncIterable}
@@ -1794,8 +1794,8 @@ added: v10.0.0
 -->
 
 * `path` {string|Buffer|URL}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
+* `atime` {integer|string|Date}
+* `mtime` {integer|string|Date}
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Change the file system timestamps of the object referenced by `path`.
@@ -1827,7 +1827,7 @@ added:
     filename passed to the listener. **Default:** `'utf8'`.
   * `signal` {AbortSignal} An {AbortSignal} used to signal when the watcher
     should stop.
-  * `maxQueue` {number} Specifies the number of events to queue between iterations
+  * `maxQueue` {integer} Specifies the number of events to queue between iterations
     of the {AsyncIterator} returned. **Default:** `2048`.
   * `overflow` {string} Either `'ignore'` or `'throw'` when there are more events to be
     queued than `maxQueue` allows. `'ignore'` means overflow events are dropped and a
@@ -2203,7 +2203,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `path` {string|Buffer|URL|number} filename or file descriptor
+* `path` {string|Buffer|URL|integer} filename or file descriptor
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -2736,7 +2736,7 @@ changes:
   * `start` {integer}
   * `fs` {Object|null} **Default:** `null`
   * `signal` {AbortSignal|null} **Default:** `null`
-  * `highWaterMark` {number} **Default:** `16384`
+  * `highWaterMark` {integer} **Default:** `16384`
   * `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
 * Returns: {fs.WriteStream}
@@ -3170,8 +3170,8 @@ changes:
 -->
 
 * `fd` {integer}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
+* `atime` {integer|string|Date}
+* `mtime` {integer|string|Date}
 * `callback` {Function}
   * `err` {Error}
 
@@ -3324,8 +3324,8 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
+* `atime` {integer|string|Date}
+* `mtime` {integer|string|Date}
 * `callback` {Function}
   * `err` {Error}
 
@@ -3615,7 +3615,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `flags` {string|number} See [support of file system `flags`][].
+* `flags` {string|integer} See [support of file system `flags`][].
   **Default:** `'r'`.
 * `mode` {string|integer} **Default:** `0o666` (readable and writable)
 * `callback` {Function}
@@ -3705,7 +3705,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `bufferSize` {number} Number of directory entries that are buffered
+  * `bufferSize` {integer} Number of directory entries that are buffered
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
   * `recursive` {boolean} **Default:** `false`
@@ -4751,8 +4751,8 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
+* `atime` {integer|string|Date}
+* `mtime` {integer|string|Date}
 * `callback` {Function}
   * `err` {Error}
 
@@ -5396,7 +5396,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `path` {string|Buffer|URL|number} filename or file descriptor
+* `path` {string|Buffer|URL|integer} filename or file descriptor
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -5730,8 +5730,8 @@ changes:
 -->
 
 * `fd` {integer}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
+* `atime` {integer|string|Date}
+* `mtime` {integer|string|Date}
 
 Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 
@@ -5827,8 +5827,8 @@ added:
 -->
 
 * `path` {string|Buffer|URL}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
+* `atime` {integer|string|Date}
+* `mtime` {integer|string|Date}
 
 Change the file system timestamps of the symbolic link referenced by `path`.
 Returns `undefined`, or throws an exception when parameters are incorrect or
@@ -5998,7 +5998,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `bufferSize` {number} Number of directory entries that are buffered
+  * `bufferSize` {integer} Number of directory entries that are buffered
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
   * `recursive` {boolean} **Default:** `false`
@@ -6030,10 +6030,10 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `flags` {string|number} **Default:** `'r'`.
+* `flags` {string|integer} **Default:** `'r'`.
   See [support of file system `flags`][].
 * `mode` {string|integer} **Default:** `0o666`
-* Returns: {number}
+* Returns: {integer}
 
 Returns an integer representing the file descriptor.
 
@@ -6166,7 +6166,7 @@ changes:
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer|bigint|null} **Default:** `null`
-* Returns: {number}
+* Returns: {integer}
 
 Returns the number of `bytesRead`.
 
@@ -6194,7 +6194,7 @@ changes:
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
   * `position` {integer|bigint|null} **Default:** `null`
-* Returns: {number}
+* Returns: {integer}
 
 Returns the number of `bytesRead`.
 
@@ -6215,7 +6215,7 @@ added:
 * `fd` {integer}
 * `buffers` {ArrayBufferView\[]}
 * `position` {integer|null} **Default:** `null`
-* Returns: {number} The number of bytes read.
+* Returns: {integer} The number of bytes read.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.readv()`][].
@@ -6508,8 +6508,8 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
+* `atime` {integer|string|Date}
+* `mtime` {integer|string|Date}
 * Returns: `undefined`.
 
 For detailed information, see the documentation of the asynchronous version of
@@ -6595,7 +6595,7 @@ changes:
 * `offset` {integer} **Default:** `0`
 * `length` {integer} **Default:** `buffer.byteLength - offset`
 * `position` {integer|null} **Default:** `null`
-* Returns: {number} The number of bytes written.
+* Returns: {integer} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.write(fd, buffer...)`][].
@@ -6614,7 +6614,7 @@ added:
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
   * `position` {integer|null} **Default:** `null`
-* Returns: {number} The number of bytes written.
+* Returns: {integer} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.write(fd, buffer...)`][].
@@ -6637,7 +6637,7 @@ changes:
 * `string` {string}
 * `position` {integer|null} **Default:** `null`
 * `encoding` {string} **Default:** `'utf8'`
-* Returns: {number} The number of bytes written.
+* Returns: {integer} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.write(fd, string...)`][].
@@ -6651,7 +6651,7 @@ added: v12.9.0
 * `fd` {integer}
 * `buffers` {ArrayBufferView\[]}
 * `position` {integer|null} **Default:** `null`
-* Returns: {number} The number of bytes written.
+* Returns: {integer} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.writev()`][].
@@ -7164,7 +7164,7 @@ Fires immediately after `'open'`.
 added: v6.4.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The number of bytes that have been read so far.
 
@@ -7349,49 +7349,49 @@ This method is only valid when using [`fs.lstat()`][].
 
 #### `stats.dev`
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 The numeric identifier of the device containing the file.
 
 #### `stats.ino`
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 The file system specific "Inode" number for the file.
 
 #### `stats.mode`
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 A bit-field describing the file type and mode.
 
 #### `stats.nlink`
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 The number of hard-links that exist for the file.
 
 #### `stats.uid`
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 The numeric user identifier of the user that owns the file (POSIX).
 
 #### `stats.gid`
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 The numeric group identifier of the group that owns the file (POSIX).
 
 #### `stats.rdev`
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 A numeric device identifier if the file represents a device.
 
 #### `stats.size`
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 The size of the file in bytes.
 
@@ -7400,13 +7400,13 @@ this will be `0`.
 
 #### `stats.blksize`
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 The file system block size for i/o operations.
 
 #### `stats.blocks`
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 The number of blocks allocated for this file.
 
@@ -7416,7 +7416,7 @@ The number of blocks allocated for this file.
 added: v8.1.0
 -->
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 The timestamp indicating the last time this file was accessed expressed in
 milliseconds since the POSIX Epoch.
@@ -7427,7 +7427,7 @@ milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 The timestamp indicating the last time this file was modified expressed in
 milliseconds since the POSIX Epoch.
@@ -7438,7 +7438,7 @@ milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 The timestamp indicating the last time the file status was changed expressed
 in milliseconds since the POSIX Epoch.
@@ -7449,7 +7449,7 @@ in milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 The timestamp indicating the creation time of this file expressed in
 milliseconds since the POSIX Epoch.
@@ -7598,7 +7598,7 @@ Provides information about a mounted file system.
 
 Objects returned from [`fs.statfs()`][] and its synchronous counterpart are of
 this type. If `bigint` in the `options` passed to those methods is `true`, the
-numeric values will be `bigint` instead of `number`.
+numeric values will be `bigint` instead of `integer`.
 
 ```console
 StatFs {
@@ -7634,7 +7634,7 @@ added:
   - v18.15.0
 -->
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 Free blocks available to unprivileged users.
 
@@ -7646,7 +7646,7 @@ added:
   - v18.15.0
 -->
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 Free blocks in file system.
 
@@ -7658,7 +7658,7 @@ added:
   - v18.15.0
 -->
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 Total data blocks in file system.
 
@@ -7670,7 +7670,7 @@ added:
   - v18.15.0
 -->
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 Optimal transfer block size.
 
@@ -7682,7 +7682,7 @@ added:
   - v18.15.0
 -->
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 Free file nodes in file system.
 
@@ -7694,7 +7694,7 @@ added:
   - v18.15.0
 -->
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 Total file nodes in file system.
 
@@ -7706,7 +7706,7 @@ added:
   - v18.15.0
 -->
 
-* Type: {number|bigint}
+* Type: {integer|bigint}
 
 Type of file system.
 
@@ -7765,23 +7765,23 @@ of bytes written is passed as the first argument to the event handler.
     `'utf8'`.
   * `dest`: {string} A path to a file to be written to (mode controlled by the
     append option).
-  * `fd`: {number} A file descriptor, something that is returned by `fs.open()`
+  * `fd`: {integer} A file descriptor, something that is returned by `fs.open()`
     or `fs.openSync()`.
   * `fs`: {Object} An object that has the same API as the `fs` module, useful
     for mocking, testing, or customizing the behavior of the stream.
   * `fsync`: {boolean} Perform a `fs.fsyncSync()` every time a write is
     completed.
-  * `maxLength`: {number} The maximum length of the internal buffer. If a write
+  * `maxLength`: {integer} The maximum length of the internal buffer. If a write
     operation would cause the buffer to exceed `maxLength`, the data written is
     dropped and a drop event is emitted with the dropped data
-  * `maxWrite`: {number} The maximum number of bytes that can be written;
+  * `maxWrite`: {integer} The maximum number of bytes that can be written;
     **Default**: `16384`
-  * `minLength`: {number} The minimum length of the internal buffer that is
+  * `minLength`: {integer} The minimum length of the internal buffer that is
     required to be full before flushing.
   * `mkdir`: {boolean} Ensure directory for `dest` file exists when true.
     **Default**: `false`.
-  * `mode`: {number|string} Specify the creating file mode (see `fs.open()`).
-  * `periodicFlush`: {number} Calls flush every `periodicFlush` milliseconds.
+  * `mode`: {integer|string} Specify the creating file mode (see `fs.open()`).
+  * `periodicFlush`: {integer} Calls flush every `periodicFlush` milliseconds.
   * `retryEAGAIN` {Function} A function that will be called when `write()`,
     `writeSync()`, or `flushSync()` encounters an `EAGAIN` or `EBUSY` error.
     If the return value is `true` the operation will be retried, otherwise it
@@ -7790,8 +7790,8 @@ of bytes written is passed as the first argument to the event handler.
     and `remainingBufferLen` is the length of the remaining buffer that the
     stream did not try to write.
     * `err` {any} An error or `null`.
-    * `writeBufferLen` {number}
-    * `remainingBufferLen`: {number}
+    * `writeBufferLen` {integer}
+    * `remainingBufferLen`: {integer}
   * `sync`: {boolean} Perform writes synchronously.
 
 #### `utf8Stream.append`
@@ -7813,7 +7813,7 @@ Close the stream gracefully, flushing the internal buffer before closing.
 
 #### `utf8Stream.fd`
 
-* {number} The file descriptor that is being written to.
+* {integer} The file descriptor that is being written to.
 
 #### `utf8Stream.file`
 
@@ -7838,13 +7838,13 @@ Flushes the buffered data synchronously. This is a costly operation.
 
 #### `utf8Stream.maxLength`
 
-* {number} The maximum length of the internal buffer. If a write
+* {integer} The maximum length of the internal buffer. If a write
   operation would cause the buffer to exceed `maxLength`, the data written is
   dropped and a drop event is emitted with the dropped data.
 
 #### `utf8Stream.minLength`
 
-* {number} The minimum length of the internal buffer that is required to be
+* {integer} The minimum length of the internal buffer that is required to be
   full before flushing.
 
 #### `utf8Stream.mkdir`
@@ -7855,11 +7855,11 @@ Flushes the buffered data synchronously. This is a costly operation.
 
 #### `utf8Stream.mode`
 
-* {number|string} The mode of the file that is being written to.
+* {integer|string} The mode of the file that is being written to.
 
 #### `utf8Stream.periodicFlush`
 
-* {number} The number of milliseconds between flushes. If set to `0`, no
+* {integer} The number of milliseconds between flushes. If set to `0`, no
   periodic flushes will be performed.
 
 #### `utf8Stream.reopen(file)`

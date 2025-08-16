@@ -548,8 +548,8 @@ added:
   - v14.18.0
 -->
 
-* `start` {number} The starting index.
-* `end` {number} The ending index.
+* `start` {integer} The starting index.
+* `end` {integer} The ending index.
 * `type` {string} The content-type for the new `Blob`
 
 Creates and returns a new `Blob` containing a subset of this `Blob` objects
@@ -5132,7 +5132,7 @@ added:
     to `'native'`, line endings in string source parts will be converted to
     the platform native line-ending as specified by `require('node:os').EOL`.
   * `type` {string} The File content-type.
-  * `lastModified` {number} The last modified date of the file.
+  * `lastModified` {integer} The last modified date of the file.
     **Default:** `Date.now()`.
 
 ### `file.name`
@@ -5155,7 +5155,7 @@ added:
   - v18.13.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The last modified date of the `File`.
 

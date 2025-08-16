@@ -158,7 +158,7 @@ process.on('exit', (code) => {
 added: v0.5.10
 -->
 
-* `message` { Object | boolean | number | string | null } a parsed JSON object
+* `message` { Object | boolean | integer | string | null } a parsed JSON object
   or a serializable primitive value.
 * `sendHandle` {net.Server|net.Socket} a [`net.Server`][] or [`net.Socket`][]
   object, or undefined.
@@ -247,7 +247,7 @@ added:
 -->
 
 * `value` {any} A value transmitted using [`postMessageToThread()`][].
-* `source` {number} The transmitting worker thread ID or `0` for the main thread.
+* `source` {integer} The transmitting worker thread ID or `0` for the main thread.
 
 The `'workerMessage'` event is emitted for any incoming message send by the other
 party by using [`postMessageToThread()`][].
@@ -907,7 +907,7 @@ changes:
     description: Change stability index for this feature from Experimental to Stable.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 Gets the amount of free memory that is still available to the process
 (in bytes).
@@ -1081,7 +1081,7 @@ changes:
     description: Aligned return value with `uv_get_constrained_memory`.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 Gets the amount of memory available to the process (in bytes) based on
 limits imposed by the OS. If there is no such constraint, or the constraint
@@ -1168,7 +1168,7 @@ console.log(`Current directory: ${cwd()}`);
 added: v0.7.2
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The port used by the Node.js debugger when enabled.
 
@@ -2598,8 +2598,8 @@ setTimeout(() => {
 added: v0.9.4
 -->
 
-* `user` {string|number} The user name or numeric identifier.
-* `extraGroup` {string|number} A group name or numeric identifier.
+* `user` {string|integer} The user name or numeric identifier.
+* `extraGroup` {string|integer} A group name or numeric identifier.
 
 The `process.initgroups()` method reads the `/etc/group` file and initializes
 the group access list, using all groups of which the user is a member. This is
@@ -2638,8 +2638,8 @@ This feature is not available in [`Worker`][] threads.
 added: v0.0.6
 -->
 
-* `pid` {number} A process ID
-* `signal` {string|number} The signal to send, either as a string or number.
+* `pid` {integer} A process ID
+* `signal` {string|integer} The signal to send, either as a string or number.
   **Default:** `'SIGTERM'`.
 
 The `process.kill()` method sends the `signal` to the process identified by
@@ -3763,7 +3763,7 @@ not be the same as what is originally sent.
 added: v2.0.0
 -->
 
-* `id` {string|number} A group name or ID
+* `id` {string|integer} A group name or ID
 
 The `process.setegid()` method sets the effective group identity of the process.
 (See setegid(2).) The `id` can be passed as either a numeric ID or a group
@@ -3808,7 +3808,7 @@ This feature is not available in [`Worker`][] threads.
 added: v2.0.0
 -->
 
-* `id` {string|number} A user name or ID
+* `id` {string|integer} A user name or ID
 
 The `process.seteuid()` method sets the effective user identity of the process.
 (See seteuid(2).) The `id` can be passed as either a numeric ID or a username
@@ -3853,7 +3853,7 @@ This feature is not available in [`Worker`][] threads.
 added: v0.1.31
 -->
 
-* `id` {string|number} The group name or ID
+* `id` {string|integer} The group name or ID
 
 The `process.setgid()` method sets the group identity of the process. (See
 setgid(2).) The `id` can be passed as either a numeric ID or a group name
@@ -4060,7 +4060,7 @@ a [Writable][] stream.
 
 ### `process.stderr.fd`
 
-* Type: {number}
+* Type: {integer}
 
 This property refers to the value of underlying file descriptor of
 `process.stderr`. The value is fixed at `2`. In [`Worker`][] threads,
@@ -4087,7 +4087,7 @@ must call `process.stdin.resume()` to read from it. Note also that calling
 
 ### `process.stdin.fd`
 
-* Type: {number}
+* Type: {integer}
 
 This property refers to the value of underlying file descriptor of
 `process.stdin`. The value is fixed at `0`. In [`Worker`][] threads,
@@ -4121,7 +4121,7 @@ stdin.pipe(stdout);
 
 ### `process.stdout.fd`
 
-* Type: {number}
+* Type: {integer}
 
 This property refers to the value of underlying file descriptor of
 `process.stdout`. The value is fixed at `1`. In [`Worker`][] threads,
@@ -4344,7 +4344,7 @@ to add `ref()` and `unref()` methods but still need to support that behavior.
 added: v0.5.0
 -->
 
-* Returns: {number}
+* Returns: {integer}
 
 The `process.uptime()` method returns the number of seconds the current Node.js
 process has been running.

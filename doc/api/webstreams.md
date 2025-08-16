@@ -140,18 +140,18 @@ added: v16.5.0
     * `reason` {any}
     * Returns: A promise fulfilled with `undefined`.
   * `type` {string} Must be `'bytes'` or `undefined`.
-  * `autoAllocateChunkSize` {number} Used only when `type` is equal to
+  * `autoAllocateChunkSize` {integer} Used only when `type` is equal to
     `'bytes'`. When set to a non-zero value a view buffer is automatically
     allocated to `ReadableByteStreamController.byobRequest`. When not set
     one must use stream's internal queues to transfer data via the default
     reader `ReadableStreamDefaultReader`.
 * `strategy` {Object}
-  * `highWaterMark` {number} The maximum internal queue size before backpressure
+  * `highWaterMark` {integer} The maximum internal queue size before backpressure
     is applied.
   * `size` {Function} A user-defined function used to identify the size of each
     chunk of data.
     * `chunk` {any}
-    * Returns: {number}
+    * Returns: {integer}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -679,7 +679,7 @@ changes:
 
 * `view` {Buffer|TypedArray|DataView}
 * `options` {Object}
-  * `min` {number} When set, the returned promise will only be
+  * `min` {integer} When set, the returned promise will only be
     fulfilled as soon as `min` number of elements are available.
     When not set, the promise fulfills when at least one element
     is available.
@@ -735,7 +735,7 @@ Closes the {ReadableStream} to which this controller is associated.
 added: v16.5.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 Returns the amount of data remaining to fill the {ReadableStream}'s
 queue.
@@ -796,7 +796,7 @@ Closes the {ReadableStream} to which this controller is associated.
 added: v16.5.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 Returns the amount of data remaining to fill the {ReadableStream}'s
 queue.
@@ -847,7 +847,7 @@ been provided.
 added: v16.5.0
 -->
 
-* `bytesWritten` {number}
+* `bytesWritten` {integer}
 
 Signals that a `bytesWritten` number of bytes have been written
 to `readableStreamBYOBRequest.view`.
@@ -923,12 +923,12 @@ added: v16.5.0
   * `type` {any} The `type` option is reserved for future use and _must_ be
     undefined.
 * `strategy` {Object}
-  * `highWaterMark` {number} The maximum internal queue size before backpressure
+  * `highWaterMark` {integer} The maximum internal queue size before backpressure
     is applied.
   * `size` {Function} A user-defined function used to identify the size of each
     chunk of data.
     * `chunk` {any}
-    * Returns: {number}
+    * Returns: {integer}
 
 #### `writableStream.abort([reason])`
 
@@ -1050,7 +1050,7 @@ added: v16.5.0
 added: v16.5.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The amount of data required to fill the {WritableStream}'s queue.
 
@@ -1171,19 +1171,19 @@ added: v16.5.0
   * `writableType` {any} the `writableType` option is reserved for future use
     and _must_ be `undefined`.
 * `writableStrategy` {Object}
-  * `highWaterMark` {number} The maximum internal queue size before backpressure
+  * `highWaterMark` {integer} The maximum internal queue size before backpressure
     is applied.
   * `size` {Function} A user-defined function used to identify the size of each
     chunk of data.
     * `chunk` {any}
-    * Returns: {number}
+    * Returns: {integer}
 * `readableStrategy` {Object}
-  * `highWaterMark` {number} The maximum internal queue size before backpressure
+  * `highWaterMark` {integer} The maximum internal queue size before backpressure
     is applied.
   * `size` {Function} A user-defined function used to identify the size of each
     chunk of data.
     * `chunk` {any}
-    * Returns: {number}
+    * Returns: {integer}
 
 #### `transformStream.readable`
 
@@ -1237,7 +1237,7 @@ of the `TransformStream`.
 added: v16.5.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The amount of data required to fill the readable side's queue.
 
@@ -1289,7 +1289,7 @@ added: v16.5.0
 -->
 
 * `init` {Object}
-  * `highWaterMark` {number}
+  * `highWaterMark` {integer}
 
 #### `byteLengthQueuingStrategy.highWaterMark`
 
@@ -1297,7 +1297,7 @@ added: v16.5.0
 added: v16.5.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 #### `byteLengthQueuingStrategy.size`
 
@@ -1307,7 +1307,7 @@ added: v16.5.0
 
 * Type: {Function}
   * `chunk` {any}
-  * Returns: {number}
+  * Returns: {integer}
 
 ### Class: `CountQueuingStrategy`
 
@@ -1326,7 +1326,7 @@ added: v16.5.0
 -->
 
 * `init` {Object}
-  * `highWaterMark` {number}
+  * `highWaterMark` {integer}
 
 #### `countQueuingStrategy.highWaterMark`
 
@@ -1334,7 +1334,7 @@ added: v16.5.0
 added: v16.5.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 #### `countQueuingStrategy.size`
 
@@ -1344,7 +1344,7 @@ added: v16.5.0
 
 * Type: {Function}
   * `chunk` {any}
-  * Returns: {number}
+  * Returns: {integer}
 
 ### Class: `TextEncoderStream`
 

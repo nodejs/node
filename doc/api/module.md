@@ -1685,14 +1685,14 @@ changes:
 -->
 
 * `payload` {Object}
-* `lineLengths` {number\[]}
+* `lineLengths` {integer\[]}
 
 Creates a new `sourceMap` instance.
 
 `payload` is an object with keys matching the [Source map format][]:
 
 * `file` {string}
-* `version` {number}
+* `version` {integer}
 * `sources` {string\[]}
 * `sourcesContent` {string\[]}
 * `names` {string\[]}
@@ -1710,9 +1710,9 @@ Getter for the payload used to construct the [`SourceMap`][] instance.
 
 #### `sourceMap.findEntry(lineOffset, columnOffset)`
 
-* `lineOffset` {number} The zero-indexed line number offset in
+* `lineOffset` {integer} The zero-indexed line number offset in
   the generated source
-* `columnOffset` {number} The zero-indexed column number offset
+* `columnOffset` {integer} The zero-indexed column number offset
   in the generated source
 * Returns: {Object}
 
@@ -1722,15 +1722,15 @@ original file if found, or an empty object if not.
 
 The object returned contains the following keys:
 
-* `generatedLine` {number} The line offset of the start of the
+* `generatedLine` {integer} The line offset of the start of the
   range in the generated source
-* `generatedColumn` {number} The column offset of start of the
+* `generatedColumn` {integer} The column offset of start of the
   range in the generated source
 * `originalSource` {string} The file name of the original source,
   as reported in the SourceMap
-* `originalLine` {number} The line offset of the start of the
+* `originalLine` {integer} The line offset of the start of the
   range in the original source
-* `originalColumn` {number} The column offset of start of the
+* `originalColumn` {integer} The column offset of start of the
   range in the original source
 * `name` {string}
 
@@ -1752,9 +1752,9 @@ added:
   - v18.18.0
 -->
 
-* `lineNumber` {number} The 1-indexed line number of the call
+* `lineNumber` {integer} The 1-indexed line number of the call
   site in the generated source
-* `columnNumber` {number} The 1-indexed column number
+* `columnNumber` {integer} The 1-indexed column number
   of the call site in the generated source
 * Returns: {Object}
 
@@ -1770,9 +1770,9 @@ returned object contains the following keys:
   source map, if one was provided
 * `fileName` {string} The file name of the original source, as
   reported in the SourceMap
-* `lineNumber` {number} The 1-indexed lineNumber of the
+* `lineNumber` {integer} The 1-indexed lineNumber of the
   corresponding call site in the original source
-* `columnNumber` {number} The 1-indexed columnNumber of the
+* `columnNumber` {integer} The 1-indexed columnNumber of the
   corresponding call site in the original source
 
 [CommonJS]: modules.md

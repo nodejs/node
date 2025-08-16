@@ -1515,7 +1515,7 @@ changes:
     contains illegal characters. Currently, only spaces are rejected but that
     may change in the future.
   * `href` {string} The serialized URL.
-  * `port` {number} Port of remote server.
+  * `port` {integer} Port of remote server.
   * `auth` {string} Basic authentication i.e. `'user:password'` to compute an
     Authorization header.
 

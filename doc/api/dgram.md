@@ -129,8 +129,8 @@ The event handler function is passed two arguments: `msg` and `rinfo`.
 * `rinfo` {Object} Remote address information.
   * `address` {string} The sender address.
   * `family` {string} The address family (`'IPv4'` or `'IPv6'`).
-  * `port` {number} The sender port.
-  * `size` {number} The message size.
+  * `port` {integer} The sender port.
+  * `size` {integer} The message size.
 
 If the source address of the incoming packet is an IPv6 link-local
 address, the interface name is added to the `address`. For
@@ -464,7 +464,7 @@ drop membership on all valid interfaces.
 added: v8.7.0
 -->
 
-* Returns: {number} the `SO_RCVBUF` socket receive buffer size in bytes.
+* Returns: {integer} the `SO_RCVBUF` socket receive buffer size in bytes.
 
 This method throws [`ERR_SOCKET_BUFFER_SIZE`][] if called on an unbound socket.
 
@@ -474,7 +474,7 @@ This method throws [`ERR_SOCKET_BUFFER_SIZE`][] if called on an unbound socket.
 added: v8.7.0
 -->
 
-* Returns: {number} the `SO_SNDBUF` socket send buffer size in bytes.
+* Returns: {integer} the `SO_SNDBUF` socket send buffer size in bytes.
 
 This method throws [`ERR_SOCKET_BUFFER_SIZE`][] if called on an unbound socket.
 
@@ -486,7 +486,7 @@ added:
   - v16.19.0
 -->
 
-* Returns: {number} Number of bytes queued for sending.
+* Returns: {integer} Number of bytes queued for sending.
 
 ### `socket.getSendQueueCount()`
 
@@ -496,7 +496,7 @@ added:
   - v16.19.0
 -->
 
-* Returns: {number} Number of send requests currently in the queue awaiting
+* Returns: {integer} Number of send requests currently in the queue awaiting
   to be processed.
 
 ### `socket.ref()`
@@ -957,8 +957,8 @@ changes:
   * `ipv6Only` {boolean} Setting `ipv6Only` to `true` will
     disable dual-stack support, i.e., binding to address `::` won't make
     `0.0.0.0` be bound. **Default:** `false`.
-  * `recvBufferSize` {number} Sets the `SO_RCVBUF` socket value.
-  * `sendBufferSize` {number} Sets the `SO_SNDBUF` socket value.
+  * `recvBufferSize` {integer} Sets the `SO_RCVBUF` socket value.
+  * `sendBufferSize` {integer} Sets the `SO_SNDBUF` socket value.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
   * `signal` {AbortSignal} An AbortSignal that may be used to close a socket.
   * `receiveBlockList` {net.BlockList} `receiveBlockList` can be used for discarding

@@ -86,13 +86,13 @@ The array will be empty if no CPU information is available, such as if the
 The properties included on each object include:
 
 * `model` {string}
-* `speed` {number} (in MHz)
+* `speed` {integer} (in MHz)
 * `times` {Object}
-  * `user` {number} The number of milliseconds the CPU has spent in user mode.
-  * `nice` {number} The number of milliseconds the CPU has spent in nice mode.
-  * `sys` {number} The number of milliseconds the CPU has spent in sys mode.
-  * `idle` {number} The number of milliseconds the CPU has spent in idle mode.
-  * `irq` {number} The number of milliseconds the CPU has spent in irq mode.
+  * `user` {integer} The number of milliseconds the CPU has spent in user mode.
+  * `nice` {integer} The number of milliseconds the CPU has spent in nice mode.
+  * `sys` {integer} The number of milliseconds the CPU has spent in sys mode.
+  * `idle` {integer} The number of milliseconds the CPU has spent in idle mode.
+  * `irq` {integer} The number of milliseconds the CPU has spent in irq mode.
 
 <!-- eslint-disable @stylistic/js/semi -->
 
@@ -235,7 +235,7 @@ Returns the host name of the operating system as a string.
 added: v0.3.3
 -->
 
-* Returns: {number\[]}
+* Returns: {integer\[]}
 
 Returns an array containing the 1, 5, and 15 minute load averages.
 
@@ -292,7 +292,7 @@ The properties available on the assigned network address object include:
 * `mac` {string} The MAC address of the network interface
 * `internal` {boolean} `true` if the network interface is a loopback or
   similar interface that is not remotely accessible; otherwise `false`
-* `scopeid` {number} The numeric IPv6 scope ID (only specified when `family`
+* `scopeid` {integer} The numeric IPv6 scope ID (only specified when `family`
   is `IPv6`)
 * `cidr` {string} The assigned IPv4 or IPv6 address with the routing prefix
   in CIDR notation. If the `netmask` is invalid, this property is set

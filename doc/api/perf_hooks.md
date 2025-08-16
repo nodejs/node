@@ -127,9 +127,9 @@ added:
 * `utilization2` {Object} The result of a previous call to
   `eventLoopUtilization()` prior to `utilization1`.
 * Returns: {Object}
-  * `idle` {number}
-  * `active` {number}
-  * `utilization` {number}
+  * `idle` {integer}
+  * `active` {integer}
+  * `utilization` {integer}
 
 The `eventLoopUtilization()` method returns an object that contains the
 cumulative duration of time the event loop has been both idle and active as a
@@ -261,7 +261,7 @@ changes:
 * `name` {string}
 * `options` {Object}
   * `detail` {any} Additional optional detail to include with the mark.
-  * `startTime` {number} An optional timestamp to be used as the mark time.
+  * `startTime` {integer} An optional timestamp to be used as the mark time.
     **Default**: `performance.now()`.
 
 Creates a new `PerformanceMark` entry in the Performance Timeline. A
@@ -294,7 +294,7 @@ changes:
 * `global` {Object}
 * `cacheMode` {string} The cache mode must be an empty string ('') or 'local'
 * `bodyInfo` {Object} [Fetch Response Body Info][]
-* `responseStatus` {number} The response's status code
+* `responseStatus` {integer} The response's status code
 * `deliveryType` {string} The delivery type.  **Default:** `''`.
 
 _This property is an extension by Node.js. It is not available in Web browsers._
@@ -332,10 +332,10 @@ changes:
 * `name` {string}
 * `startMarkOrOptions` {string|Object} Optional.
   * `detail` {any} Additional optional detail to include with the measure.
-  * `duration` {number} Duration between start and end times.
-  * `end` {number|string} Timestamp to be used as the end time, or a string
+  * `duration` {integer} Duration between start and end times.
+  * `end` {integer|string} Timestamp to be used as the end time, or a string
     identifying a previously recorded mark.
-  * `start` {number|string} Timestamp to be used as the start time, or a string
+  * `start` {integer|string} Timestamp to be used as the start time, or a string
     identifying a previously recorded mark.
 * `endMark` {string} Optional. Must be omitted if `startMarkOrOptions` is an
   {Object}.
@@ -387,7 +387,7 @@ changes:
                  the receiver.
 -->
 
-* Returns: {number}
+* Returns: {integer}
 
 Returns the current high resolution millisecond timestamp, where 0 represents
 the start of the current `node` process.
@@ -414,7 +414,7 @@ By default the max buffer size is set to 250.
 added: v8.5.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The [`timeOrigin`][] specifies the high resolution millisecond timestamp at
 which the current `node` process began, measured in Unix time.
@@ -541,7 +541,7 @@ changes:
                  `PerformanceEntry` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The total number of milliseconds elapsed for this entry. This value will not
 be meaningful for all Performance Entry types.
@@ -598,7 +598,7 @@ changes:
                  `PerformanceEntry` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp marking the starting time of the
 Performance Entry.
@@ -703,7 +703,7 @@ changes:
 
 > Stability: 0 - Deprecated: Use `performanceNodeEntry.detail` instead.
 
-* Type: {number}
+* Type: {integer}
 
 When `performanceEntry.entryType` is equal to `'gc'`, the `performance.flags`
 property contains additional information about garbage collection operation.
@@ -730,7 +730,7 @@ changes:
 
 > Stability: 0 - Deprecated: Use `performanceNodeEntry.detail` instead.
 
-* Type: {number}
+* Type: {integer}
 
 When `performanceEntry.entryType` is equal to `'gc'`, the `performance.kind`
 property identifies the type of garbage collection operation that occurred.
@@ -746,12 +746,12 @@ The value may be one of:
 When `performanceEntry.type` is equal to `'gc'`, the
 `performanceNodeEntry.detail` property will be an {Object} with two properties:
 
-* `kind` {number} One of:
+* `kind` {integer} One of:
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_MAJOR`
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_MINOR`
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_INCREMENTAL`
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_WEAKCB`
-* `flags` {number} One of:
+* `flags` {integer} One of:
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_NO`
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_CONSTRUCT_RETAINED`
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_FORCED`
@@ -788,34 +788,34 @@ additional performance information.
 If `performanceEntry.name` is equal to `Http2Stream`, the `detail`
 will contain the following properties:
 
-* `bytesRead` {number} The number of `DATA` frame bytes received for this
+* `bytesRead` {integer} The number of `DATA` frame bytes received for this
   `Http2Stream`.
-* `bytesWritten` {number} The number of `DATA` frame bytes sent for this
+* `bytesWritten` {integer} The number of `DATA` frame bytes sent for this
   `Http2Stream`.
-* `id` {number} The identifier of the associated `Http2Stream`
-* `timeToFirstByte` {number} The number of milliseconds elapsed between the
+* `id` {integer} The identifier of the associated `Http2Stream`
+* `timeToFirstByte` {integer} The number of milliseconds elapsed between the
   `PerformanceEntry` `startTime` and the reception of the first `DATA` frame.
-* `timeToFirstByteSent` {number} The number of milliseconds elapsed between
+* `timeToFirstByteSent` {integer} The number of milliseconds elapsed between
   the `PerformanceEntry` `startTime` and sending of the first `DATA` frame.
-* `timeToFirstHeader` {number} The number of milliseconds elapsed between the
+* `timeToFirstHeader` {integer} The number of milliseconds elapsed between the
   `PerformanceEntry` `startTime` and the reception of the first header.
 
 If `performanceEntry.name` is equal to `Http2Session`, the `detail` will
 contain the following properties:
 
-* `bytesRead` {number} The number of bytes received for this `Http2Session`.
-* `bytesWritten` {number} The number of bytes sent for this `Http2Session`.
-* `framesReceived` {number} The number of HTTP/2 frames received by the
+* `bytesRead` {integer} The number of bytes received for this `Http2Session`.
+* `bytesWritten` {integer} The number of bytes sent for this `Http2Session`.
+* `framesReceived` {integer} The number of HTTP/2 frames received by the
   `Http2Session`.
-* `framesSent` {number} The number of HTTP/2 frames sent by the `Http2Session`.
-* `maxConcurrentStreams` {number} The maximum number of streams concurrently
+* `framesSent` {integer} The number of HTTP/2 frames sent by the `Http2Session`.
+* `maxConcurrentStreams` {integer} The maximum number of streams concurrently
   open during the lifetime of the `Http2Session`.
-* `pingRTT` {number} The number of milliseconds elapsed since the transmission
+* `pingRTT` {integer} The number of milliseconds elapsed since the transmission
   of a `PING` frame and the reception of its acknowledgment. Only present if
   a `PING` frame has been sent on the `Http2Session`.
-* `streamAverageDuration` {number} The average duration (in milliseconds) for
+* `streamAverageDuration` {integer} The average duration (in milliseconds) for
   all `Http2Stream` instances.
-* `streamCount` {number} The number of `Http2Stream` instances processed by
+* `streamCount` {integer} The number of `Http2Stream` instances processed by
   the `Http2Session`.
 * `type` {string} Either `'server'` or `'client'` to identify the type of
   `Http2Session`.
@@ -871,7 +871,7 @@ is not exposed to users.
 added: v8.5.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp at which the Node.js process
 completed bootstrapping. If bootstrapping has not yet finished, the property
@@ -883,7 +883,7 @@ has the value of -1.
 added: v8.5.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp at which the Node.js environment was
 initialized.
@@ -896,7 +896,7 @@ added:
   - v12.19.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp of the amount of time the event loop
 has been idle within the event loop's event provider (e.g. `epoll_wait`). This
@@ -910,7 +910,7 @@ value of 0.
 added: v8.5.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp at which the Node.js event loop
 exited. If the event loop has not yet exited, the property has the value of -1.
@@ -922,7 +922,7 @@ It can only have a value of not -1 in a handler of the [`'exit'`][] event.
 added: v8.5.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp at which the Node.js event loop
 started. If the event loop has not yet started (e.g., in the first tick of the
@@ -934,7 +934,7 @@ main script), the property has the value of -1.
 added: v8.5.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp at which the Node.js process was
 initialized.
@@ -948,9 +948,9 @@ added:
 -->
 
 * Returns: {Object}
-  * `loopCount` {number} Number of event loop iterations.
-  * `events` {number} Number of events that have been processed by the event handler.
-  * `eventsWaiting` {number} Number of events that were waiting to be processed when the event provider was called.
+  * `loopCount` {integer} Number of event loop iterations.
+  * `events` {integer} Number of events that have been processed by the event handler.
+  * `eventsWaiting` {integer} Number of events that were waiting to be processed when the event provider was called.
 
 This is a wrapper to the `uv_metrics_info` function.
 It returns the current set of event loop metrics.
@@ -981,7 +981,7 @@ setImmediate(() => {
 added: v8.5.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp at which the V8 platform was
 initialized.
@@ -1014,7 +1014,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp at immediately before dispatching
 the `fetch` request. If the resource is not intercepted by a worker the property
@@ -1033,7 +1033,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp that represents the start time
 of the fetch which initiates the redirect.
@@ -1051,7 +1051,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp that will be created immediately after
 receiving the last byte of the response of the last redirect.
@@ -1069,7 +1069,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp immediately before the Node.js starts
 to fetch the resource.
@@ -1087,7 +1087,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp immediately before the Node.js starts
 the domain name lookup for the resource.
@@ -1105,7 +1105,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp representing the time immediately
 after the Node.js finished the domain name lookup for the resource.
@@ -1123,7 +1123,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp representing the time immediately
 before Node.js starts to establish the connection to the server to retrieve
@@ -1142,7 +1142,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp representing the time immediately
 after Node.js finishes establishing the connection to the server to retrieve
@@ -1161,7 +1161,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp representing the time immediately
 before Node.js starts the handshake process to secure the current connection.
@@ -1179,7 +1179,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp representing the time immediately
 before Node.js receives the first byte of the response from the server.
@@ -1197,7 +1197,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The high resolution millisecond timestamp representing the time immediately
 after Node.js receives the last byte of the resource or immediately before
@@ -1216,7 +1216,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 A number representing the size (in octets) of the fetched resource. The size
 includes the response header fields plus the response payload body.
@@ -1234,7 +1234,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 A number representing the size (in octets) received from the fetch
 (HTTP or cache), of the payload body, before removing any applied
@@ -1253,7 +1253,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* Type: {number}
+* Type: {integer}
 
 A number representing the size (in octets) received from the fetch
 (HTTP or cache), of the message body, after removing any applied
@@ -1711,12 +1711,12 @@ added:
 -->
 
 * `options` {Object}
-  * `lowest` {number|bigint} The lowest discernible value. Must be an integer
+  * `lowest` {integer|bigint} The lowest discernible value. Must be an integer
     value greater than 0. **Default:** `1`.
-  * `highest` {number|bigint} The highest recordable value. Must be an integer
+  * `highest` {integer|bigint} The highest recordable value. Must be an integer
     value that is equal to or greater than two times `lowest`.
     **Default:** `Number.MAX_SAFE_INTEGER`.
-  * `figures` {number} The number of accuracy digits. Must be a number between
+  * `figures` {integer} The number of accuracy digits. Must be a number between
     `1` and `5`. **Default:** `3`.
 * Returns: {RecordableHistogram}
 
@@ -1729,7 +1729,7 @@ added: v11.10.0
 -->
 
 * `options` {Object}
-  * `resolution` {number} The sampling rate in milliseconds. Must be greater
+  * `resolution` {integer} The sampling rate in milliseconds. Must be greater
     than zero. **Default:** `10`.
 * Returns: {IntervalHistogram}
 
@@ -1789,7 +1789,7 @@ added:
   - v16.14.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The number of samples recorded by the histogram.
 
@@ -1811,7 +1811,7 @@ The number of samples recorded by the histogram.
 added: v11.10.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The number of times the event loop delay exceeded the maximum 1 hour event
 loop delay threshold.
@@ -1835,7 +1835,7 @@ loop delay threshold.
 added: v11.10.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The maximum recorded event loop delay.
 
@@ -1857,7 +1857,7 @@ The maximum recorded event loop delay.
 added: v11.10.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The mean of the recorded event loop delays.
 
@@ -1867,7 +1867,7 @@ The mean of the recorded event loop delays.
 added: v11.10.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The minimum recorded event loop delay.
 
@@ -1889,8 +1889,8 @@ The minimum recorded event loop delay.
 added: v11.10.0
 -->
 
-* `percentile` {number} A percentile value in the range (0, 100].
-* Returns: {number}
+* `percentile` {integer} A percentile value in the range (0, 100].
+* Returns: {integer}
 
 Returns the value at the given percentile.
 
@@ -1902,7 +1902,7 @@ added:
   - v16.14.0
 -->
 
-* `percentile` {number} A percentile value in the range (0, 100].
+* `percentile` {integer} A percentile value in the range (0, 100].
 * Returns: {bigint}
 
 Returns the value at the given percentile.
@@ -1943,7 +1943,7 @@ Resets the collected histogram data.
 added: v11.10.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The standard deviation of the recorded event loop delays.
 
@@ -2024,7 +2024,7 @@ added:
   - v14.18.0
 -->
 
-* `val` {number|bigint} The amount to record in the histogram.
+* `val` {integer|bigint} The amount to record in the histogram.
 
 ### `histogram.recordDelta()`
 

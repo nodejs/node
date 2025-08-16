@@ -1283,7 +1283,7 @@ added:
 -->
 
 * `emitterOrTarget` {EventEmitter|EventTarget}
-* Returns: {number}
+* Returns: {integer}
 
 Returns the currently set max amount of listeners.
 
@@ -1801,7 +1801,7 @@ process.nextTick(() => ac.abort());
 added: v15.4.0
 -->
 
-* `n` {number} A non-negative number. The maximum number of listeners per
+* `n` {integer} A non-negative number. The maximum number of listeners per
   `EventTarget` event.
 * `...eventsTargets` {EventTarget\[]|EventEmitter\[]} Zero or more {EventTarget}
   or {EventEmitter} instances. If none are specified, `n` is set as the default
@@ -1972,7 +1972,7 @@ same options as `EventEmitter` and `AsyncResource` themselves.
     [automatic capturing of promise rejection][capturerejections].
     **Default:** `false`.
   * `name` {string} The type of async event. **Default:** [`new.target.name`][].
-  * `triggerAsyncId` {number} The ID of the execution context that created this
+  * `triggerAsyncId` {integer} The ID of the execution context that created this
     async event. **Default:** `executionAsyncId()`.
   * `requireManualDestroy` {boolean} If set to `true`, disables `emitDestroy`
     when the object is garbage collected. This usually does not need to be set
@@ -1984,7 +1984,7 @@ same options as `EventEmitter` and `AsyncResource` themselves.
 
 ### `eventemitterasyncresource.asyncId`
 
-* Type: {number} The unique `asyncId` assigned to the resource.
+* Type: {integer} The unique `asyncId` assigned to the resource.
 
 ### `eventemitterasyncresource.asyncResource`
 
@@ -2002,7 +2002,7 @@ never be called.
 
 ### `eventemitterasyncresource.triggerAsyncId`
 
-* Type: {number} The same `triggerAsyncId` that is passed to the
+* Type: {integer} The same `triggerAsyncId` that is passed to the
   `AsyncResource` constructor.
 
 <a id="event-target-and-event-api"></a>
@@ -2231,7 +2231,7 @@ called.
 added: v14.5.0
 -->
 
-* Type: {number} Returns `0` while an event is not being dispatched, `2` while
+* Type: {integer} Returns `0` while an event is not being dispatched, `2` while
   it is being dispatched.
 
 This is not used in Node.js and is provided purely for completeness.
@@ -2326,7 +2326,7 @@ added: v14.5.0
 added: v14.5.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The millisecond timestamp when the `Event` object was created.
 
@@ -2532,7 +2532,7 @@ added: v14.5.0
 
 * `type` {string}
 
-* Returns: {number}
+* Returns: {integer}
 
 Node.js-specific extension to the `EventTarget` class that returns the number
 of event listeners registered for the `type`.
@@ -2543,7 +2543,7 @@ of event listeners registered for the `type`.
 added: v14.5.0
 -->
 
-* `n` {number}
+* `n` {integer}
 
 Node.js-specific extension to the `EventTarget` class that sets the number
 of max event listeners as `n`.
@@ -2554,7 +2554,7 @@ of max event listeners as `n`.
 added: v14.5.0
 -->
 
-* Returns: {number}
+* Returns: {integer}
 
 Node.js-specific extension to the `EventTarget` class that returns the number
 of max event listeners.
