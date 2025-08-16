@@ -127,7 +127,7 @@ class KeyObjectData final : public MemoryRetainer {
   KeyObjectData(KeyType type,
                 std::shared_ptr<Mutex> mutex,
                 std::shared_ptr<Data> data)
-      : key_type_(type), mutex_(mutex), data_(data) {}
+      : key_type_(type), mutex_(std::move(mutex)), data_(std::move(data)) {}
 };
 
 class KeyObjectHandle : public BaseObject {
