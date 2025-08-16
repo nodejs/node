@@ -422,9 +422,6 @@ namespace heap {
 v8::Maybe<void> WriteSnapshot(Environment* env,
                               const char* filename,
                               v8::HeapProfiler::HeapSnapshotOptions options);
-}
-
-namespace heap {
 
 void DeleteHeapSnapshot(const v8::HeapSnapshot* snapshot);
 using HeapSnapshotPointer =
@@ -432,6 +429,10 @@ using HeapSnapshotPointer =
 
 BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
     Environment* env, HeapSnapshotPointer&& snapshot);
+
+v8::HeapProfiler::HeapSnapshotOptions GetHeapSnapshotOptions(
+    v8::Local<v8::Value> options);
+
 }  // namespace heap
 
 node_module napi_module_to_node_module(const napi_module* mod);
@@ -459,11 +460,6 @@ std::ostream& operator<<(std::ostream& output,
 }
 
 bool linux_at_secure();
-
-namespace heap {
-v8::HeapProfiler::HeapSnapshotOptions GetHeapSnapshotOptions(
-    v8::Local<v8::Value> options);
-}  // namespace heap
 
 enum encoding ParseEncoding(v8::Isolate* isolate,
                             v8::Local<v8::Value> encoding_v,
