@@ -12,6 +12,7 @@
 #include "permission/permission.h"
 #include "util-inl.h"
 #include "v8-cppgc.h"
+#include "v8-profiler.h"
 
 #include <memory>
 #include <string>
@@ -23,6 +24,9 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
+using v8::CpuProfile;
+using v8::CpuProfilingResult;
+using v8::CpuProfilingStatus;
 using v8::Float64Array;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -495,7 +499,6 @@ Worker::~Worker() {
   CHECK(stopped_);
   CHECK_NULL(env_);
   CHECK(!tid_.has_value());
-
   Debug(this, "Worker %llu destroyed", thread_id_.id);
 }
 
@@ -897,6 +900,132 @@ void Worker::CpuUsage(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+class WorkerCpuProfileTaker final : public AsyncWrap {
+ public:
+  WorkerCpuProfileTaker(Environment* env, Local<Object> obj)
+      : AsyncWrap(env, obj, AsyncWrap::PROVIDER_WORKERCPUPROFILE) {}
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(WorkerCpuProfileTaker)
+  SET_SELF_SIZE(WorkerCpuProfileTaker)
+};
+
+void Worker::StartCpuProfile(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  Environment* env = w->env();
+
+  CHECK(args[0]->IsString());
+  node::Utf8Value name(env->isolate(), args[0]);
+
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_cpu_profile_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+
+  BaseObjectPtr<WorkerCpuProfileTaker> taker =
+      MakeDetachedBaseObject<WorkerCpuProfileTaker>(env, wrap);
+
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        name = name.ToString(),
+                                        env](Environment* worker_env) mutable {
+    CpuProfilingResult result = worker_env->StartCpuProfile(name);
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker),
+         status = result.status](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
+          Local<Value> argv[] = {
+              Null(isolate),  // error
+          };
+          if (status == CpuProfilingStatus::kAlreadyStarted) {
+            argv[0] = ERR_CPU_PROFILE_ALREADY_STARTED(
+                isolate, "CPU profile already started");
+          } else if (status == CpuProfilingStatus::kErrorTooManyProfilers) {
+            argv[0] = ERR_CPU_PROFILE_TOO_MANY(
+                isolate, "There are too many CPU profiles");
+          }
+          taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
+
+void Worker::StopCpuProfile(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+
+  Environment* env = w->env();
+  CHECK(args[0]->IsString());
+  node::Utf8Value name(env->isolate(), args[0]);
+
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_cpu_profile_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+
+  BaseObjectPtr<WorkerCpuProfileTaker> taker =
+      MakeDetachedBaseObject<WorkerCpuProfileTaker>(env, wrap);
+
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        name = name.ToString(),
+                                        env](Environment* worker_env) mutable {
+    bool found = false;
+    auto json_out_stream = std::make_unique<node::JSONOutputStream>();
+    CpuProfile* profile = worker_env->StopCpuProfile(name);
+    if (profile) {
+      profile->Serialize(json_out_stream.get(),
+                         CpuProfile::SerializationFormat::kJSON);
+      profile->Delete();
+      found = true;
+    }
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker),
+         json_out_stream = std::move(json_out_stream),
+         found](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
+          Local<Value> argv[] = {
+              Null(isolate),       // error
+              Undefined(isolate),  // profile
+          };
+          if (found) {
+            Local<Value> result;
+            if (!ToV8Value(env->context(),
+                           json_out_stream->out_stream().str(),
+                           isolate)
+                     .ToLocal(&result)) {
+              return;
+            }
+            argv[1] = result;
+          } else {
+            argv[0] =
+                ERR_CPU_PROFILE_NOT_STARTED(isolate, "CPU profile not started");
+          }
+          taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
+
 class WorkerHeapStatisticsTaker : public AsyncWrap {
  public:
   WorkerHeapStatisticsTaker(Environment* env, Local<Object> obj)
@@ -1189,6 +1318,8 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
     SetProtoMethod(isolate, w, "loopStartTime", Worker::LoopStartTime);
     SetProtoMethod(isolate, w, "getHeapStatistics", Worker::GetHeapStatistics);
     SetProtoMethod(isolate, w, "cpuUsage", Worker::CpuUsage);
+    SetProtoMethod(isolate, w, "startCpuProfile", Worker::StartCpuProfile);
+    SetProtoMethod(isolate, w, "stopCpuProfile", Worker::StopCpuProfile);
 
     SetConstructorFunction(isolate, target, "Worker", w);
   }
@@ -1232,6 +1363,20 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
         FIXED_ONE_BYTE_STRING(isolate, "WorkerCpuUsageTaker");
     wst->SetClassName(wst_string);
     isolate_data->set_worker_cpu_usage_taker_template(wst->InstanceTemplate());
+  }
+
+  {
+    Local<FunctionTemplate> wst = NewFunctionTemplate(isolate, nullptr);
+
+    wst->InstanceTemplate()->SetInternalFieldCount(
+        WorkerCpuProfileTaker::kInternalFieldCount);
+    wst->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+
+    Local<String> wst_string =
+        FIXED_ONE_BYTE_STRING(isolate, "WorkerCpuProfileTaker");
+    wst->SetClassName(wst_string);
+    isolate_data->set_worker_cpu_profile_taker_template(
+        wst->InstanceTemplate());
   }
 
   SetMethod(isolate, target, "getEnvMessagePort", GetEnvMessagePort);
@@ -1311,6 +1456,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::LoopStartTime);
   registry->Register(Worker::GetHeapStatistics);
   registry->Register(Worker::CpuUsage);
+  registry->Register(Worker::StartCpuProfile);
+  registry->Register(Worker::StopCpuProfile);
 }
 
 }  // anonymous namespace

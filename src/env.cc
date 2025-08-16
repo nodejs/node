@@ -1062,6 +1062,13 @@ Environment::~Environment() {
   }
 
   delete external_memory_accounter_;
+  if (cpu_profiler_) {
+    for (auto& it : pending_profiles_) {
+      cpu_profiler_->Stop(it.second);
+    }
+    cpu_profiler_->Dispose();
+    cpu_profiler_ = nullptr;
+  }
 }
 
 void Environment::InitializeLibuv() {
@@ -2225,4 +2232,33 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
 void Environment::RunWeakRefCleanup() {
   isolate()->ClearKeptObjects();
 }
+
+v8::CpuProfilingResult Environment::StartCpuProfile(std::string_view name) {
+  HandleScope handle_scope(isolate());
+  if (!cpu_profiler_) {
+    cpu_profiler_ = v8::CpuProfiler::New(isolate());
+  }
+  Local<Value> title =
+      node::ToV8Value(context(), name, isolate()).ToLocalChecked();
+  v8::CpuProfilingResult result =
+      cpu_profiler_->Start(title.As<String>(), true);
+  if (result.status == v8::CpuProfilingStatus::kStarted) {
+    pending_profiles_.emplace(name, result.id);
+  }
+  return result;
+}
+
+v8::CpuProfile* Environment::StopCpuProfile(std::string_view name) {
+  if (!cpu_profiler_) {
+    return nullptr;
+  }
+  auto it = pending_profiles_.find(std::string(name));
+  if (it == pending_profiles_.end()) {
+    return nullptr;
+  }
+  v8::CpuProfile* profile = cpu_profiler_->Stop(it->second);
+  pending_profiles_.erase(it);
+  return profile;
+}
+
 }  // namespace node
