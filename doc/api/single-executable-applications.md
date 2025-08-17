@@ -179,6 +179,7 @@ The configuration currently reads the following top-level fields:
   "disableExperimentalSEAWarning": true, // Default: false
   "useSnapshot": false,  // Default: false
   "useCodeCache": true, // Default: false
+  "execArgv": ["--no-warnings", "--max-old-space-size=4096"], // Optional
   "assets": {  // Optional
     "a.dat": "/path/to/a.dat",
     "b.txt": "/path/to/b.txt"
@@ -275,6 +276,43 @@ scratch, Node.js would use the code cache to speed up the compilation, then
 execute the script, which would improve the startup performance.
 
 **Note:** `import()` does not work when `useCodeCache` is `true`.
+
+### Execution arguments
+
+The `execArgv` field can be used to specify Node.js-specific
+arguments that will be automatically applied when the single
+executable application starts. This allows application developers
+to configure Node.js runtime options without requiring end users
+to be aware of these flags.
+
+For example, the following configuration:
+
+```json
+{
+  "main": "/path/to/bundled/script.js",
+  "output": "/path/to/write/the/generated/blob.blob",
+  "execArgv": ["--no-warnings", "--max-old-space-size=2048"]
+}
+```
+
+will instruct the SEA to be launched with the `--no-warnings` and
+`--max-old-space-size=2048` flags. In the scripts embedded in the executable, these flags
+can be accessed using the `process.execArgv` property:
+
+```js
+// If the executable is launched with `sea user-arg1 user-arg2`
+console.log(process.execArgv);
+// Prints: ['--no-warnings', '--max-old-space-size=2048']
+console.log(process.argv);
+// Prints ['/path/to/sea', 'path/to/sea', 'user-arg1', 'user-arg2']
+```
+
+The user-provided arguments are in the `process.argv` array starting from index 2,
+similar to what would happen if the application is started with:
+
+```console
+node --no-warnings --max-old-space-size=2048 /path/to/bundled/script.js user-arg1 user-arg2
+```
 
 ## In the injected main script
 
