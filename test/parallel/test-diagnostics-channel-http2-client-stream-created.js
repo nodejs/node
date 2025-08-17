@@ -18,6 +18,9 @@ const { Duplex } = require('stream');
 
 const clientHttp2StreamCreationCount = 2;
 
+let countdown;
+let port;
+
 dc.subscribe('http2.client.stream.created', common.mustCall(({ stream, headers }) => {
   // Since ClientHttp2Stream is not exported from any module, this just checks
   // if the stream is an instance of Duplex and the constructor name is
@@ -25,6 +28,28 @@ dc.subscribe('http2.client.stream.created', common.mustCall(({ stream, headers }
   assert.ok(stream instanceof Duplex);
   assert.strictEqual(stream.constructor.name, 'ClientHttp2Stream');
   assert.ok(headers && !Array.isArray(headers) && typeof headers === 'object');
+  if (countdown.remaining === clientHttp2StreamCreationCount) {
+    // The request stream headers.
+    assert.deepStrictEqual(headers, {
+      '__proto__': null,
+      ':method': 'GET',
+      ':authority': `localhost:${port}`,
+      ':scheme': 'http',
+      ':path': '/',
+      'requestHeader': 'requestValue',
+    });
+  } else {
+    // The push stream headers.
+    assert.deepStrictEqual(headers, {
+      '__proto__': null,
+      ':method': 'GET',
+      ':authority': `localhost:${port}`,
+      ':scheme': 'http',
+      ':path': '/',
+      [http2.sensitiveHeaders]: [],
+      'pushheader': 'pushValue',
+    });
+  }
 }, clientHttp2StreamCreationCount));
 
 const server = http2.createServer();
@@ -32,22 +57,22 @@ server.on('stream', common.mustCall((stream) => {
   stream.respond();
   stream.end();
 
-  stream.pushStream({}, common.mustSucceed((pushStream) => {
+  stream.pushStream({ 'pushHeader': 'pushValue' }, common.mustSucceed((pushStream) => {
     pushStream.respond();
     pushStream.end();
   }, 1));
 }, 1));
 
 server.listen(0, common.mustCall(() => {
-  const port = server.address().port;
+  port = server.address().port;
   const client = http2.connect(`http://localhost:${port}`);
 
-  const countdown = new Countdown(clientHttp2StreamCreationCount, () => {
+  countdown = new Countdown(clientHttp2StreamCreationCount, () => {
     client.close();
     server.close();
   });
 
-  const stream = client.request({});
+  const stream = client.request(['requestHeader', 'requestValue']);
   stream.on('response', common.mustCall(() => {
     countdown.dec();
   }));
