@@ -1,7 +1,6 @@
 'use strict'
 
 const { kProxy, kClose, kDestroy, kDispatch } = require('../core/symbols')
-const { URL } = require('node:url')
 const Agent = require('./agent')
 const Pool = require('./pool')
 const DispatcherBase = require('./dispatcher-base')
@@ -208,7 +207,7 @@ class ProxyAgent extends DispatcherBase {
   }
 
   /**
-   * @param {import('../types/proxy-agent').ProxyAgent.Options | string | URL} opts
+   * @param {import('../../types/proxy-agent').ProxyAgent.Options | string | URL} opts
    * @returns {URL}
    */
   #getUrl (opts) {

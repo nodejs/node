@@ -1,4 +1,4 @@
 'use strict'
 /* istanbul ignore file */
 
-require('https-pem/install')
+require('@metcoder95/https-pem/install')

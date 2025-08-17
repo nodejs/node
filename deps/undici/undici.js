@@ -5477,7 +5477,7 @@ var require_formdata = __commonJS({
         __name(this, "FormData");
       }
       #state = [];
-      constructor(form) {
+      constructor(form = void 0) {
         webidl.util.markAsUncloneable(this);
         if (form !== void 0) {
           throw webidl.errors.conversionFailed({
@@ -8782,7 +8782,6 @@ var require_proxy_agent = __commonJS({
   "lib/dispatcher/proxy-agent.js"(exports2, module2) {
     "use strict";
     var { kProxy, kClose, kDestroy, kDispatch } = require_symbols();
-    var { URL: URL2 } = require("node:url");
     var Agent = require_agent();
     var Pool = require_pool();
     var DispatcherBase = require_dispatcher_base();
@@ -8848,7 +8847,7 @@ var require_proxy_agent = __commonJS({
         } = opts;
         opts.path = origin + path;
         if (!("host" in headers) && !("Host" in headers)) {
-          const { host } = new URL2(origin);
+          const { host } = new URL(origin);
           headers.host = host;
         }
         opts.headers = { ...this[kProxyHeaders], ...headers };
@@ -8866,7 +8865,7 @@ var require_proxy_agent = __commonJS({
         __name(this, "ProxyAgent");
       }
       constructor(opts) {
-        if (!opts || typeof opts === "object" && !(opts instanceof URL2) && !opts.uri) {
+        if (!opts || typeof opts === "object" && !(opts instanceof URL) && !opts.uri) {
           throw new InvalidArgumentError("Proxy uri is mandatory");
         }
         const { clientFactory = defaultFactory } = opts;
@@ -8895,7 +8894,7 @@ var require_proxy_agent = __commonJS({
         this[kConnectEndpoint] = buildConnector({ ...opts.requestTls });
         const agentFactory = opts.factory || defaultAgentFactory;
         const factory = /* @__PURE__ */ __name((origin2, options) => {
-          const { protocol: protocol2 } = new URL2(origin2);
+          const { protocol: protocol2 } = new URL(origin2);
           if (!this[kTunnelProxy] && protocol2 === "http:" && this[kProxy].protocol === "http:") {
             return new Http1ProxyWrapper(this[kProxy].uri, {
               headers: this[kProxyHeaders],
@@ -8956,7 +8955,7 @@ var require_proxy_agent = __commonJS({
         const headers = buildHeaders(opts.headers);
         throwIfProxyAuthIsSent(headers);
         if (headers && !("host" in headers) && !("Host" in headers)) {
-          const { host } = new URL2(opts.origin);
+          const { host } = new URL(opts.origin);
           headers.host = host;
         }
         return this[kAgent].dispatch(
@@ -8968,16 +8967,16 @@ var require_proxy_agent = __commonJS({
         );
       }
       /**
-       * @param {import('../types/proxy-agent').ProxyAgent.Options | string | URL} opts
+       * @param {import('../../types/proxy-agent').ProxyAgent.Options | string | URL} opts
        * @returns {URL}
        */
       #getUrl(opts) {
         if (typeof opts === "string") {
-          return new URL2(opts);
-        } else if (opts instanceof URL2) {
+          return new URL(opts);
+        } else if (opts instanceof URL) {
           return opts;
         } else {
-          return new URL2(opts.uri);
+          return new URL(opts.uri);
         }
       }
       async [kClose]() {
@@ -9642,7 +9641,7 @@ var require_response = __commonJS({
     var { URLSerializer } = require_data_url();
     var { kConstruct } = require_symbols();
     var assert = require("node:assert");
-    var { types } = require("node:util");
+    var { isArrayBuffer } = nodeUtil.types;
     var textEncoder = new TextEncoder("utf-8");
     var Response = class _Response {
       static {
@@ -9769,6 +9768,9 @@ var require_response = __commonJS({
           });
         }
         const clonedResponse = cloneResponse(this.#state);
+        if (this.#state.body?.stream) {
+          streamRegistry.register(this, new WeakRef(this.#state.body.stream));
+        }
         return fromInnerResponse(clonedResponse, getHeadersGuard(this.#headers));
       }
       [nodeUtil.inspect.custom](depth, options) {
@@ -9853,7 +9855,6 @@ var require_response = __commonJS({
       const newResponse = makeResponse({ ...response, body: null });
       if (response.body != null) {
         newResponse.body = cloneBody(response.body);
-        streamRegistry.register(newResponse, new WeakRef(response.body.stream));
       }
       return newResponse;
     }
@@ -9999,7 +10000,7 @@ var require_response = __commonJS({
       if (webidl.is.Blob(V)) {
         return V;
       }
-      if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
+      if (ArrayBuffer.isView(V) || isArrayBuffer(V)) {
         return V;
       }
       if (webidl.is.FormData(V)) {
@@ -11632,7 +11633,7 @@ var require_fetch = __commonJS({
             fetchParams.controller.terminate(e);
           }
         }, "processBodyError");
-        requestBody = async function* () {
+        requestBody = (async function* () {
           try {
             for await (const bytes of request.body.stream) {
               yield* processBodyChunk(bytes);
@@ -11641,7 +11642,7 @@ var require_fetch = __commonJS({
           } catch (err) {
             processBodyError(err);
           }
-        }();
+        })();
       }
       try {
         const { body, status, statusText, headersList, socket } = await dispatch({ body: requestBody });
@@ -13147,6 +13148,7 @@ var require_sender = __commonJS({
 var require_websocket = __commonJS({
   "lib/web/websocket/websocket.js"(exports2, module2) {
     "use strict";
+    var { isArrayBuffer } = require("node:util/types");
     var { webidl } = require_webidl();
     var { URLSerializer } = require_data_url();
     var { environmentSettingsObject } = require_util2();
@@ -13166,7 +13168,6 @@ var require_websocket = __commonJS({
     var { ByteParser } = require_receiver();
     var { kEnumerableProperty } = require_util();
     var { getGlobalDispatcher: getGlobalDispatcher2 } = require_global2();
-    var { types } = require("node:util");
     var { ErrorEvent: ErrorEvent2, CloseEvent: CloseEvent2, createFastMessageEvent: createFastMessageEvent2 } = require_events();
     var { SendQueue } = require_sender();
     var { WebsocketFrameSend } = require_frame();
@@ -13306,7 +13307,7 @@ var require_websocket = __commonJS({
           this.#sendQueue.add(buffer, () => {
             this.#bufferedAmount -= buffer.byteLength;
           }, sendHints.text);
-        } else if (types.isArrayBuffer(data)) {
+        } else if (isArrayBuffer(data)) {
           this.#bufferedAmount += data.byteLength;
           this.#sendQueue.add(data, () => {
             this.#bufferedAmount -= data.byteLength;
@@ -13440,11 +13441,17 @@ var require_websocket = __commonJS({
         }
         fireEvent("open", this);
         if (channels.open.hasSubscribers) {
+          const headers = response.headersList.entries;
           channels.open.publish({
             address: response.socket.address(),
             protocol: this.#protocol,
             extensions: this.#extensions,
-            websocket: this
+            websocket: this,
+            handshakeResponse: {
+              status: response.status,
+              statusText: response.statusText,
+              headers
+            }
           });
         }
       }
@@ -13611,7 +13618,7 @@ var require_websocket = __commonJS({
         if (webidl.is.Blob(V)) {
           return V;
         }
-        if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
+        if (ArrayBuffer.isView(V) || isArrayBuffer(V)) {
           return V;
         }
       }
@@ -13951,10 +13958,10 @@ var require_eventsource = __commonJS({
         }
         url = webidl.converters.USVString(url);
         eventSourceInitDict = webidl.converters.EventSourceInitDict(eventSourceInitDict, prefix, "eventSourceInitDict");
-        this.#dispatcher = eventSourceInitDict.dispatcher;
+        this.#dispatcher = eventSourceInitDict.node.dispatcher || eventSourceInitDict.dispatcher;
         this.#state = {
           lastEventId: "",
-          reconnectionTime: defaultReconnectionTime
+          reconnectionTime: eventSourceInitDict.node.reconnectionTime
         };
         const settings = environmentSettingsObject;
         let urlRecord;
@@ -14180,6 +14187,22 @@ var require_eventsource = __commonJS({
         key: "dispatcher",
         // undici only
         converter: webidl.converters.any
+      },
+      {
+        key: "node",
+        // undici only
+        converter: webidl.dictionaryConverter([
+          {
+            key: "reconnectionTime",
+            converter: webidl.converters["unsigned long"],
+            defaultValue: /* @__PURE__ */ __name(() => defaultReconnectionTime, "defaultValue")
+          },
+          {
+            key: "dispatcher",
+            converter: webidl.converters.any
+          }
+        ]),
+        defaultValue: /* @__PURE__ */ __name(() => ({}), "defaultValue")
       }
     ]);
     module2.exports = {

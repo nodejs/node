@@ -1,5 +1,6 @@
 'use strict'
 
+const { isArrayBuffer } = require('node:util/types')
 const { webidl } = require('../webidl')
 const { URLSerializer } = require('../fetch/data-url')
 const { environmentSettingsObject } = require('../fetch/util')
@@ -19,7 +20,6 @@ const { establishWebSocketConnection, closeWebSocketConnection, failWebsocketCon
 const { ByteParser } = require('./receiver')
 const { kEnumerableProperty } = require('../../core/util')
 const { getGlobalDispatcher } = require('../../global')
-const { types } = require('node:util')
 const { ErrorEvent, CloseEvent, createFastMessageEvent } = require('./events')
 const { SendQueue } = require('./sender')
 const { WebsocketFrameSend } = require('./frame')
@@ -257,7 +257,7 @@ class WebSocket extends EventTarget {
       this.#sendQueue.add(buffer, () => {
         this.#bufferedAmount -= buffer.byteLength
       }, sendHints.text)
-    } else if (types.isArrayBuffer(data)) {
+    } else if (isArrayBuffer(data)) {
       // If the WebSocket connection is established, and the WebSocket
       // closing handshake has not yet started, then the user agent must
       // send a WebSocket Message comprised of data using a binary frame
@@ -482,11 +482,18 @@ class WebSocket extends EventTarget {
     fireEvent('open', this)
 
     if (channels.open.hasSubscribers) {
+      // Convert headers to a plain object for the event
+      const headers = response.headersList.entries
       channels.open.publish({
         address: response.socket.address(),
         protocol: this.#protocol,
         extensions: this.#extensions,
-        websocket: this
+        websocket: this,
+        handshakeResponse: {
+          status: response.status,
+          statusText: response.statusText,
+          headers
+        }
       })
     }
   }
@@ -728,7 +735,7 @@ webidl.converters.WebSocketSendData = function (V) {
       return V
     }
 
-    if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
+    if (ArrayBuffer.isView(V) || isArrayBuffer(V)) {
       return V
     }
   }
