@@ -78,6 +78,51 @@ it still gets the benefits of the ABI stability provided by the C API.
 When using `node-addon-api` instead of the C APIs, start with the API [docs][]
 for `node-addon-api`.
 
+## Rust
+
+Node-API is also accessible from Rust through the [`NAPI-RS`][] project.
+`NAPI-RS` provides safe Rust bindings to Node-API, allowing developers to write
+native Node.js modules in Rust while maintaining ABI stability across Node.js
+versions. The project offers both low-level bindings that closely mirror the
+Node-API C interface and high-level, idiomatic Rust APIs that leverage Rust's
+type system and memory safety guarantees.
+
+Similar to the C++ wrapper, `NAPI-RS` simplifies the development process.
+For example, creating an object with a property in `NAPI-RS`:
+
+```rust
+#[napi(object)]
+pub struct MyObject {
+    foo: String,
+}
+
+#[napi]
+pub fn create_object() -> MyObject {
+    MyObject {
+        foo: "bar".to_string(),
+    }
+}
+```
+
+This will automatically generate the following TypeScript definition:
+
+```typescript
+export interface MyObject {
+    foo: string;
+}
+
+export declare function createObject(): MyObject;
+```
+
+The `NAPI-RS` ecosystem includes:
+- Build tooling that simplifies the compilation and packaging process
+- TypeScript type generation for better IDE support
+- Cross-platform compilation support, including `WebAssembly`
+
+When using `NAPI-RS` for Rust-based Node.js addons, refer to the
+[NAPI-RS documentation](https://napi.rs) for comprehensive
+guides and examples.
+
 The [Node-API Resource](https://nodejs.github.io/node-addon-examples/) offers
 an excellent orientation and tips for developers just getting started with
 Node-API and `node-addon-api`. Additional media resources can be found on the
@@ -6843,6 +6888,7 @@ the add-on's file name during loading.
 [`napi_unwrap`]: #napi_unwrap
 [`napi_wrap`]: #napi_wrap
 [`node-addon-api`]: https://github.com/nodejs/node-addon-api
+[`NAPI-RS`]: https://github.com/napi-rs/napi-rs
 [`node_api.h`]: https://github.com/nodejs/node/blob/HEAD/src/node_api.h
 [`node_api_basic_finalize`]: #node_api_basic_finalize
 [`node_api_create_external_string_latin1`]: #node_api_create_external_string_latin1
