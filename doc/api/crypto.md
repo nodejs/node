@@ -75,7 +75,7 @@ try {
 
 ## Asymmetric key types
 
-The following table lists the asymmetric key types recognized the [`KeyObject`][] API:
+The following table lists the asymmetric key types recognized by the [`KeyObject`][] API:
 
 | Key Type                    | Description    | OID                     |
 | --------------------------- | -------------- | ----------------------- |
