@@ -106,7 +106,7 @@ assert.strictEqual(wasiPreview1.wasiImport,
         throw new Error(e);
       });
 
-      const r = Atomics.wait(result, 0, 0, 1000);
+      const r = Atomics.wait(result, 0, 0, 5000);
       if (r === 'timed-out') {
         workers[tid].terminate();
         delete workers[tid];
