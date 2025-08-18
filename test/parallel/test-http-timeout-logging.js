@@ -9,5 +9,4 @@ server.timeout = 1;  // Force quick timeout
 
 server.listen(0, () => {
   const req = http.request(`http://localhost:${server.address().port}`);
-  // Add assertions to capture and verify debug output (e.g., via console spy)
 });
