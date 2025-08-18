@@ -2507,9 +2507,7 @@ added: v11.4.0
 ## `tls.DEFAULT_CIPHERS`
 
 <!-- YAML
-added:
- - v19.8.0
- - v18.16.0
+added: v0.11.3
 -->
 
 * Type: {string} The default value of the `ciphers` option of
