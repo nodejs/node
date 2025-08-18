@@ -16,3 +16,5 @@ test-wasi-getrusage: SKIP
 test-wasi-readdir: SKIP
 
 [$system==linux]
+# https://github.com/nodejs/node/issues/59146
+test-wasi-pthread: PASS, FLAKY
