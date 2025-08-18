@@ -6,13 +6,18 @@ import { describe, it } from 'node:test';
 import { hostname } from 'node:os';
 import { chdir, cwd } from 'node:process';
 import { fileURLToPath } from 'node:url';
-import internalTTy from 'internal/tty';
+
+let internalTTy;
+async function lazyInternalTTy() {
+  internalTTy ??= (await import('internal/tty')).default;
+  return internalTTy;
+}
 
 const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
   process.config.variables.node_shared_openssl;
 
-const canColorize = internalTTy.getColorDepth() > 2;
+const canColorize = (await lazyInternalTTy()).getColorDepth() > 2;
 const skipCoverageColors = !canColorize;
 
 function replaceTestDuration(str) {
