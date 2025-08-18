@@ -59,6 +59,18 @@ if (!process.features.openssl_is_boringssl) {
   common.printSkipMessage('Skipping unsupported AES-KW test case');
 }
 
+if (hasOpenSSL(3)) {
+  kWrappingData['AES-OCB'] = {
+    generate: { length: 128 },
+    wrap: {
+      iv: new Uint8Array(15),
+      additionalData: new Uint8Array(16),
+      tagLength: 128
+    },
+    pair: false
+  };
+}
+
 function generateWrappingKeys() {
   return Promise.all(Object.keys(kWrappingData).map(async (name) => {
     const keys = await subtle.generateKey(
