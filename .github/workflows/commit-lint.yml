@@ -2,14 +2,20 @@ name: First commit message adheres to guidelines
 
 on: [pull_request]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 env:
   NODE_VERSION: lts/*
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   lint-commit-message:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - name: Compute number of commits in the PR
@@ -29,4 +35,25 @@ jobs:
       - name: Validate commit message
         run: |
           echo "::add-matcher::.github/workflows/commit-lint-problem-matcher.json"
-          git rev-parse HEAD~${{ steps.nb-of-commits.outputs.minusOne }} | xargs npx -q core-validate-commit --no-validate-metadata --tap
+          # Capture output for later use and still fail the step on validation errors
+          set -o pipefail
+          git rev-parse HEAD~${{ steps.nb-of-commits.outputs.minusOne }} \
+            | xargs npx -q core-validate-commit --no-validate-metadata --tap \
+            | tee validation_output.txt
+
+      - name: Comment lint results on PR (on failure)
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Preparing PR comment with commit lint output"
+          printf "Commit lint failed.\n\n<details><summary>Output</summary>\n\n" > body.txt
+          printf '```text\n' >> body.txt
+          cat validation_output.txt >> body.txt || true
+          printf '\n```\n\n</details>' >> body.txt
+          jq -n --rawfile body body.txt '{body: $body}' > body.json
+          curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" \
+               -H "Accept: application/vnd.github+json" \
+               -X POST \
+               -d @body.json \
+               "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
