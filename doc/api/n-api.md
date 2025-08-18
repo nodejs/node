@@ -80,7 +80,7 @@ for `node-addon-api`.
 
 ## Rust
 
-Node-API is also accessible from Rust through the [`NAPI-RS`][] project.
+Node-API is also accessible from Rust through the [NAPI-RS][] project.
 `NAPI-RS` provides safe Rust bindings to Node-API, allowing developers to write
 native Node.js modules in Rust while maintaining ABI stability across Node.js
 versions. The project offers both low-level bindings that closely mirror the
@@ -106,7 +106,7 @@ pub fn create_object() -> MyObject {
 
 This will automatically generate the following TypeScript definition:
 
-```typescript
+```ts
 export interface MyObject {
     foo: string;
 }
@@ -115,9 +115,10 @@ export declare function createObject(): MyObject;
 ```
 
 The `NAPI-RS` ecosystem includes:
-- Build tooling that simplifies the compilation and packaging process
-- TypeScript type generation for better IDE support
-- Cross-platform compilation support, including `WebAssembly`
+
+* Build tooling that simplifies the compilation and packaging process
+* TypeScript type generation for better IDE support
+* Cross-platform compilation support, including `WebAssembly`
 
 When using `NAPI-RS` for Rust-based Node.js addons, refer to the
 [NAPI-RS documentation](https://napi.rs) for comprehensive
@@ -6789,6 +6790,7 @@ the add-on's file name during loading.
 [GYP]: https://gyp.gsrc.io
 [GitHub releases]: https://help.github.com/en/github/administering-a-repository/about-releases
 [LLVM]: https://llvm.org
+[NAPI-RS]: https://github.com/napi-rs/napi-rs
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [Node-API Media]: https://github.com/nodejs/abi-stable-node/blob/HEAD/node-api-media.md
 [Object lifetime management]: #object-lifetime-management
@@ -6888,7 +6890,6 @@ the add-on's file name during loading.
 [`napi_unwrap`]: #napi_unwrap
 [`napi_wrap`]: #napi_wrap
 [`node-addon-api`]: https://github.com/nodejs/node-addon-api
-[`NAPI-RS`]: https://github.com/napi-rs/napi-rs
 [`node_api.h`]: https://github.com/nodejs/node/blob/HEAD/src/node_api.h
 [`node_api_basic_finalize`]: #node_api_basic_finalize
 [`node_api_create_external_string_latin1`]: #node_api_create_external_string_latin1
