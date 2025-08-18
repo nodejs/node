@@ -1,4 +1,3 @@
-const assert = require('assert');
 const http = require('http');
 const { debuglog } = require('util');
 
