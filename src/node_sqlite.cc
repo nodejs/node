@@ -2761,7 +2761,8 @@ static void Initialize(Local<Object> target,
   Local<String> sqlite_type_key = FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
   Local<v8::Symbol> sqlite_type_symbol =
       v8::Symbol::For(isolate, sqlite_type_key);
-  Local<String> database_sync_string = FIXED_ONE_BYTE_STRING(isolate, "node:sqlite");
+  Local<String> database_sync_string =
+      FIXED_ONE_BYTE_STRING(isolate, "node:sqlite");
   db_tmpl->InstanceTemplate()->Set(sqlite_type_symbol, database_sync_string);
 
   SetConstructorFunction(context, target, "DatabaseSync", db_tmpl);
