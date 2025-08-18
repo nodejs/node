@@ -1108,6 +1108,9 @@ changes:
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+    If a string array is provided, each string should be a glob pattern that
+    specifies paths to exclude. Note: Negation patterns (e.g., '!foo.js') are
+    not supported.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 * Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
