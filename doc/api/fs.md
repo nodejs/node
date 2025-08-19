@@ -1836,7 +1836,7 @@ added:
     queued than `maxQueue` allows. `'ignore'` means overflow events are dropped and a
     warning is emitted, while `'throw'` means to throw an exception. **Default:** `'ignore'`.
 * Returns: {AsyncIterator} of objects with the properties:
-  * `eventType` {string} The type of change
+  * `eventType` {string} The type of change: `'change'` or `'rename'`
   * `filename` {string|Buffer|null} The name of the file changed.
 
 Returns an async iterator that watches for changes on `filename`, where `filename`
