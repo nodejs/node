@@ -590,7 +590,7 @@ added: v1.0.0
 
 * `buffer` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `options` {Object} [`stream.transform` options][]
-  * `plaintextLength` {number}
+  * `plaintextLength` {integer}
   * `encoding` {string} The string encoding to use when `buffer` is a string.
 * Returns: {Cipheriv} The same `Cipheriv` instance for method chaining.
 
@@ -890,7 +890,7 @@ changes:
 
 * `buffer` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `options` {Object} [`stream.transform` options][]
-  * `plaintextLength` {number}
+  * `plaintextLength` {integer}
   * `encoding` {string} String encoding to use when `buffer` is a string.
 * Returns: {Decipheriv} The same Decipher for method chaining.
 
@@ -2021,13 +2021,13 @@ changes:
 -->
 
 * Type: {Object}
-  * `modulusLength` {number} Key size in bits (RSA, DSA).
+  * `modulusLength` {integer} Key size in bits (RSA, DSA).
   * `publicExponent` {bigint} Public exponent (RSA).
   * `hashAlgorithm` {string} Name of the message digest (RSA-PSS).
   * `mgf1HashAlgorithm` {string} Name of the message digest used by
     MGF1 (RSA-PSS).
-  * `saltLength` {number} Minimal salt length in bytes (RSA-PSS).
-  * `divisorLength` {number} Size of `q` in bits (DSA).
+  * `saltLength` {integer} Minimal salt length in bytes (RSA-PSS).
+  * `divisorLength` {integer} Size of `q` in bits (DSA).
   * `namedCurve` {string} Name of the curve (EC).
 
 This property exists only on asymmetric keys. Depending on the type of the key,
@@ -2152,7 +2152,7 @@ PKCS#1 and SEC1 encryption.
 added: v11.6.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 For secret keys, this property represents the size of the key in bytes. This
 property is `undefined` for asymmetric keys.
@@ -2986,7 +2986,7 @@ changes:
   A possible prime encoded as a sequence of big endian octets of arbitrary
   length.
 * `options` {Object}
-  * `checks` {number} The number of Miller-Rabin probabilistic primality
+  * `checks` {integer} The number of Miller-Rabin probabilistic primality
     iterations to perform. When the value is `0` (zero), a number of checks
     is used that yields a false positive rate of at most 2<sup>-64</sup> for
     random input. Care must be used when selecting a number of checks. Refer
@@ -3009,7 +3009,7 @@ added: v15.8.0
   A possible prime encoded as a sequence of big endian octets of arbitrary
   length.
 * `options` {Object}
-  * `checks` {number} The number of Miller-Rabin probabilistic primality
+  * `checks` {integer} The number of Miller-Rabin probabilistic primality
     iterations to perform. When the value is `0` (zero), a number of checks
     is used that yields a false positive rate of at most 2<sup>-64</sup> for
     random input. Care must be used when selecting a number of checks. Refer
@@ -3194,7 +3194,7 @@ changes:
 
 * `prime` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `primeEncoding` {string} The [encoding][] of the `prime` string.
-* `generator` {number|string|ArrayBuffer|Buffer|TypedArray|DataView}
+* `generator` {integer|string|ArrayBuffer|Buffer|TypedArray|DataView}
   **Default:** `2`
 * `generatorEncoding` {string} The [encoding][] of the `generator` string.
 * Returns: {DiffieHellman}
@@ -3202,14 +3202,14 @@ changes:
 Creates a `DiffieHellman` key exchange object using the supplied `prime` and an
 optional specific `generator`.
 
-The `generator` argument can be a number, string, or [`Buffer`][]. If
+The `generator` argument can be a integer, string, or [`Buffer`][]. If
 `generator` is not specified, the value `2` is used.
 
 If `primeEncoding` is specified, `prime` is expected to be a string; otherwise
 a [`Buffer`][], `TypedArray`, or `DataView` is expected.
 
 If `generatorEncoding` is specified, `generator` is expected to be a string;
-otherwise a number, [`Buffer`][], `TypedArray`, or `DataView` is expected.
+otherwise a integer, [`Buffer`][], `TypedArray`, or `DataView` is expected.
 
 ### `crypto.createDiffieHellman(primeLength[, generator])`
 
@@ -3217,8 +3217,8 @@ otherwise a number, [`Buffer`][], `TypedArray`, or `DataView` is expected.
 added: v0.5.0
 -->
 
-* `primeLength` {number}
-* `generator` {number} **Default:** `2`
+* `primeLength` {integer}
+* `generator` {integer} **Default:** `2`
 * Returns: {DiffieHellman}
 
 Creates a `DiffieHellman` key exchange object and generates a prime of
@@ -3632,7 +3632,7 @@ changes:
 * `type` {string} The intended use of the generated secret key. Currently
   accepted values are `'hmac'` and `'aes'`.
 * `options` {Object}
-  * `length` {number} The bit length of the key to generate. This must be a
+  * `length` {integer} The bit length of the key to generate. This must be a
     value greater than 0.
     * If `type` is `'hmac'`, the minimum is 8, and the maximum length is
       2<sup>31</sup>-1. If the value is not a multiple of 8, the generated
@@ -3713,17 +3713,17 @@ changes:
 * `type` {string} The asymmetric key type to generate. See the
   supported [asymmetric key types][].
 * `options` {Object}
-  * `modulusLength` {number} Key size in bits (RSA, DSA).
-  * `publicExponent` {number} Public exponent (RSA). **Default:** `0x10001`.
+  * `modulusLength` {integer} Key size in bits (RSA, DSA).
+  * `publicExponent` {integer} Public exponent (RSA). **Default:** `0x10001`.
   * `hashAlgorithm` {string} Name of the message digest (RSA-PSS).
   * `mgf1HashAlgorithm` {string} Name of the message digest used by
     MGF1 (RSA-PSS).
-  * `saltLength` {number} Minimal salt length in bytes (RSA-PSS).
-  * `divisorLength` {number} Size of `q` in bits (DSA).
+  * `saltLength` {integer} Minimal salt length in bytes (RSA-PSS).
+  * `divisorLength` {integer} Size of `q` in bits (DSA).
   * `namedCurve` {string} Name of the curve to use (EC).
   * `prime` {Buffer} The prime parameter (DH).
-  * `primeLength` {number} Prime length in bits (DH).
-  * `generator` {number} Custom generator (DH). **Default:** `2`.
+  * `primeLength` {integer} Prime length in bits (DH).
+  * `generator` {integer} Custom generator (DH). **Default:** `2`.
   * `groupName` {string} Diffie-Hellman group name (DH). See
     [`crypto.getDiffieHellman()`][].
   * `paramEncoding` {string} Must be `'named'` or `'explicit'` (EC).
@@ -3833,17 +3833,17 @@ changes:
 * `type` {string} The asymmetric key type to generate. See the
   supported [asymmetric key types][].
 * `options` {Object}
-  * `modulusLength` {number} Key size in bits (RSA, DSA).
-  * `publicExponent` {number} Public exponent (RSA). **Default:** `0x10001`.
+  * `modulusLength` {integer} Key size in bits (RSA, DSA).
+  * `publicExponent` {integer} Public exponent (RSA). **Default:** `0x10001`.
   * `hashAlgorithm` {string} Name of the message digest (RSA-PSS).
   * `mgf1HashAlgorithm` {string} Name of the message digest used by
     MGF1 (RSA-PSS).
-  * `saltLength` {number} Minimal salt length in bytes (RSA-PSS).
-  * `divisorLength` {number} Size of `q` in bits (DSA).
+  * `saltLength` {integer} Minimal salt length in bytes (RSA-PSS).
+  * `divisorLength` {integer} Size of `q` in bits (DSA).
   * `namedCurve` {string} Name of the curve to use (EC).
   * `prime` {Buffer} The prime parameter (DH).
-  * `primeLength` {number} Prime length in bits (DH).
-  * `generator` {number} Custom generator (DH). **Default:** `2`.
+  * `primeLength` {integer} Prime length in bits (DH).
+  * `generator` {integer} Custom generator (DH). **Default:** `2`.
   * `groupName` {string} Diffie-Hellman group name (DH). See
     [`crypto.getDiffieHellman()`][].
   * `paramEncoding` {string} Must be `'named'` or `'explicit'` (EC).
@@ -3924,7 +3924,7 @@ added: v15.0.0
 * `type` {string} The intended use of the generated secret key. Currently
   accepted values are `'hmac'` and `'aes'`.
 * `options` {Object}
-  * `length` {number} The bit length of the key to generate.
+  * `length` {integer} The bit length of the key to generate.
     * If `type` is `'hmac'`, the minimum is 8, and the maximum length is
       2<sup>31</sup>-1. If the value is not a multiple of 8, the generated
       key will be truncated to `Math.floor(length / 8)`.
@@ -3967,7 +3967,7 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `size` {number} The size (in bits) of the prime to generate.
+* `size` {integer} The size (in bits) of the prime to generate.
 * `options` {Object}
   * `add` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
   * `rem` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
@@ -4017,7 +4017,7 @@ the process unresponsive.
 added: v15.8.0
 -->
 
-* `size` {number} The size (in bits) of the prime to generate.
+* `size` {integer} The size (in bits) of the prime to generate.
 * `options` {Object}
   * `add` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
   * `rem` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
@@ -4065,19 +4065,19 @@ the process unresponsive.
 added: v15.0.0
 -->
 
-* `nameOrNid` {string|number} The name or nid of the cipher to query.
+* `nameOrNid` {string|integer} The name or nid of the cipher to query.
 * `options` {Object}
-  * `keyLength` {number} A test key length.
-  * `ivLength` {number} A test IV length.
+  * `keyLength` {integer} A test key length.
+  * `ivLength` {integer} A test IV length.
 * Returns: {Object}
   * `name` {string} The name of the cipher
-  * `nid` {number} The nid of the cipher
-  * `blockSize` {number} The block size of the cipher in bytes. This property
+  * `nid` {integer} The nid of the cipher
+  * `blockSize` {integer} The block size of the cipher in bytes. This property
     is omitted when `mode` is `'stream'`.
-  * `ivLength` {number} The expected or default initialization vector length in
+  * `ivLength` {integer} The expected or default initialization vector length in
     bytes. This property is omitted if the cipher does not use an initialization
     vector.
-  * `keyLength` {number} The expected or default key length in bytes.
+  * `keyLength` {integer} The expected or default key length in bytes.
   * `mode` {string} The cipher mode. One of `'cbc'`, `'ccm'`, `'cfb'`, `'ctr'`,
     `'ecb'`, `'gcm'`, `'ocb'`, `'ofb'`, `'stream'`, `'wrap'`, `'xts'`.
 
@@ -4200,7 +4200,7 @@ console.log(aliceSecret === bobSecret);
 added: v10.0.0
 -->
 
-* Returns: {number} `1` if and only if a FIPS compliant crypto provider is
+* Returns: {integer} `1` if and only if a FIPS compliant crypto provider is
   currently in use, `0` otherwise. A future semver-major release may change
   the return type of this API to a {boolean}.
 
@@ -4265,7 +4265,7 @@ changes:
 * `options` {Object|string}
   * `outputEncoding` {string} [Encoding][encoding] used to encode the
     returned digest. **Default:** `'hex'`.
-  * `outputLength` {number} For XOF hash functions such as 'shake256',
+  * `outputLength` {integer} For XOF hash functions such as 'shake256',
     the outputLength option can be used to specify the desired output length in bytes.
 * Returns: {string|Buffer}
 
@@ -4339,7 +4339,7 @@ changes:
   be provided but can be zero-length.
 * `info` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional info value.
   Must be provided but can be zero-length, and cannot be more than 1024 bytes.
-* `keylen` {number} The length of the key to generate. Must be greater than 0.
+* `keylen` {integer} The length of the key to generate. Must be greater than 0.
   The maximum allowable value is `255` times the number of bytes produced by
   the selected digest function (e.g. `sha512` generates 64-byte hashes, making
   the maximum HKDF output 16320 bytes).
@@ -4399,7 +4399,7 @@ changes:
   be provided but can be zero-length.
 * `info` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional info value.
   Must be provided but can be zero-length, and cannot be more than 1024 bytes.
-* `keylen` {number} The length of the key to generate. Must be greater than 0.
+* `keylen` {integer} The length of the key to generate. Must be greater than 0.
   The maximum allowable value is `255` times the number of bytes produced by
   the selected digest function (e.g. `sha512` generates 64-byte hashes, making
   the maximum HKDF output 16320 bytes).
@@ -4467,8 +4467,8 @@ changes:
 
 * `password` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView}
-* `iterations` {number}
-* `keylen` {number}
+* `iterations` {integer}
+* `keylen` {integer}
 * `digest` {string}
 * `callback` {Function}
   * `err` {Error}
@@ -4485,7 +4485,7 @@ otherwise `err` will be `null`. By default, the successfully generated
 `derivedKey` will be passed to the callback as a [`Buffer`][]. An error will be
 thrown if any of the input arguments specify invalid values or types.
 
-The `iterations` argument must be a number set as high as possible. The
+The `iterations` argument must be a integer set as high as possible. The
 higher the number of iterations, the more secure the derived key will be,
 but will take a longer amount of time to complete.
 
@@ -4545,8 +4545,8 @@ changes:
 
 * `password` {string|Buffer|TypedArray|DataView}
 * `salt` {string|Buffer|TypedArray|DataView}
-* `iterations` {number}
-* `keylen` {number}
+* `iterations` {integer}
+* `keylen` {integer}
 * `digest` {string}
 * Returns: {Buffer}
 
@@ -4558,7 +4558,7 @@ applied to derive a key of the requested byte length (`keylen`) from the
 If an error occurs an `Error` will be thrown, otherwise the derived key will be
 returned as a [`Buffer`][].
 
-The `iterations` argument must be a number set as high as possible. The
+The `iterations` argument must be a integer set as high as possible. The
 higher the number of iterations, the more secure the derived key will be,
 but will take a longer amount of time to complete.
 
@@ -4802,7 +4802,7 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `size` {number} The number of bytes to generate.  The `size` must
+* `size` {integer} The number of bytes to generate.  The `size` must
   not be larger than `2**31 - 1`.
 * `callback` {Function}
   * `err` {Error}
@@ -4810,7 +4810,7 @@ changes:
 * Returns: {Buffer} if the `callback` function is not provided.
 
 Generates cryptographically strong pseudorandom data. The `size` argument
-is a number indicating the number of bytes to generate.
+is a integer indicating the number of bytes to generate.
 
 If a `callback` function is provided, the bytes are generated asynchronously
 and the `callback` function is invoked with two arguments: `err` and `buf`.
@@ -4901,8 +4901,8 @@ changes:
 
 * `buffer` {ArrayBuffer|Buffer|TypedArray|DataView} Must be supplied. The
   size of the provided `buffer` must not be larger than `2**31 - 1`.
-* `offset` {number} **Default:** `0`
-* `size` {number} **Default:** `buffer.length - offset`. The `size` must
+* `offset` {integer} **Default:** `0`
+* `size` {integer} **Default:** `buffer.length - offset`. The `size` must
   not be larger than `2**31 - 1`.
 * `callback` {Function} `function(err, buf) {}`.
 
@@ -5038,8 +5038,8 @@ changes:
 
 * `buffer` {ArrayBuffer|Buffer|TypedArray|DataView} Must be supplied. The
   size of the provided `buffer` must not be larger than `2**31 - 1`.
-* `offset` {number} **Default:** `0`
-* `size` {number} **Default:** `buffer.length - offset`. The `size` must
+* `offset` {integer} **Default:** `0`
+* `size` {integer} **Default:** `buffer.length - offset`. The `size` must
   not be larger than `2**31 - 1`.
 * Returns: {ArrayBuffer|Buffer|TypedArray|DataView} The object passed as
   `buffer` argument.
@@ -5248,16 +5248,16 @@ changes:
 
 * `password` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView}
-* `keylen` {number}
+* `keylen` {integer}
 * `options` {Object}
-  * `cost` {number} CPU/memory cost parameter. Must be a power of two greater
+  * `cost` {integer} CPU/memory cost parameter. Must be a power of two greater
     than one. **Default:** `16384`.
-  * `blockSize` {number} Block size parameter. **Default:** `8`.
-  * `parallelization` {number} Parallelization parameter. **Default:** `1`.
-  * `N` {number} Alias for `cost`. Only one of both may be specified.
-  * `r` {number} Alias for `blockSize`. Only one of both may be specified.
-  * `p` {number} Alias for `parallelization`. Only one of both may be specified.
-  * `maxmem` {number} Memory upper bound. It is an error when (approximately)
+  * `blockSize` {integer} Block size parameter. **Default:** `8`.
+  * `parallelization` {integer} Parallelization parameter. **Default:** `1`.
+  * `N` {integer} Alias for `cost`. Only one of both may be specified.
+  * `r` {integer} Alias for `blockSize`. Only one of both may be specified.
+  * `p` {integer} Alias for `parallelization`. Only one of both may be specified.
+  * `maxmem` {integer} Memory upper bound. It is an error when (approximately)
     `128 * N * r > maxmem`. **Default:** `32 * 1024 * 1024`.
 * `callback` {Function}
   * `err` {Error}
@@ -5332,16 +5332,16 @@ changes:
 
 * `password` {string|Buffer|TypedArray|DataView}
 * `salt` {string|Buffer|TypedArray|DataView}
-* `keylen` {number}
+* `keylen` {integer}
 * `options` {Object}
-  * `cost` {number} CPU/memory cost parameter. Must be a power of two greater
+  * `cost` {integer} CPU/memory cost parameter. Must be a power of two greater
     than one. **Default:** `16384`.
-  * `blockSize` {number} Block size parameter. **Default:** `8`.
-  * `parallelization` {number} Parallelization parameter. **Default:** `1`.
-  * `N` {number} Alias for `cost`. Only one of both may be specified.
-  * `r` {number} Alias for `blockSize`. Only one of both may be specified.
-  * `p` {number} Alias for `parallelization`. Only one of both may be specified.
-  * `maxmem` {number} Memory upper bound. It is an error when (approximately)
+  * `blockSize` {integer} Block size parameter. **Default:** `8`.
+  * `parallelization` {integer} Parallelization parameter. **Default:** `1`.
+  * `N` {integer} Alias for `cost`. Only one of both may be specified.
+  * `r` {integer} Alias for `blockSize`. Only one of both may be specified.
+  * `p` {integer} Alias for `parallelization`. Only one of both may be specified.
+  * `maxmem` {integer} Memory upper bound. It is an error when (approximately)
     `128 * N * r > maxmem`. **Default:** `32 * 1024 * 1024`.
 * Returns: {Buffer}
 
@@ -5394,11 +5394,11 @@ added: v15.6.0
 -->
 
 * Returns: {Object}
-  * `total` {number} The total allocated secure heap size as specified
+  * `total` {integer} The total allocated secure heap size as specified
     using the `--secure-heap=n` command-line flag.
-  * `min` {number} The minimum allocation from the secure heap as
+  * `min` {integer} The minimum allocation from the secure heap as
     specified using the `--secure-heap-min` command-line flag.
-  * `used` {number} The total number of bytes currently allocated from
+  * `used` {integer} The total number of bytes currently allocated from
     the secure heap.
   * `utilization` {number} The calculated ratio of `used` to `total`
     allocated bytes.

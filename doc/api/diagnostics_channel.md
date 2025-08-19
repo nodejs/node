@@ -873,7 +873,7 @@ added:
 -->
 
 * `fn` {Function} callback using function to wrap a trace around
-* `position` {number} Zero-indexed argument position of expected callback
+* `position` {integer} Zero-indexed argument position of expected callback
   (defaults to last argument if `undefined` is passed)
 * `context` {Object} Shared object to correlate trace events through (defaults
   to `{}` if `undefined` is passed)
@@ -1228,7 +1228,7 @@ Emitted when an error occurs during the processing of a stream on the client.
 
 * `stream` {ClientHttp2Stream}
 * `headers` {HTTP/2 Headers Object}
-* `flags` {number}
+* `flags` {integer}
 
 Emitted when a stream is received on the client.
 
@@ -1264,7 +1264,7 @@ Emitted when an error occurs during the processing of a stream on the server.
 
 * `stream` {ServerHttp2Stream}
 * `headers` {HTTP/2 Headers Object}
-* `flags` {number}
+* `flags` {integer}
 
 Emitted when a stream is sent on the server.
 

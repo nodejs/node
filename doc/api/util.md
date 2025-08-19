@@ -340,7 +340,7 @@ added:
 * `expected` {Array|string} The second value to compare
 
 * Returns: {Array} An array of difference entries. Each entry is an array with two elements:
-  * `0` {number} Operation code: `-1` for delete, `0` for no-op/unchanged, `1` for insert
+  * `0` {integer} Operation code: `-1` for delete, `0` for no-op/unchanged, `1` for insert
   * `1` {string} The value associated with the operation
 
 * Algorithm complexity: O(N\*D), where:
@@ -540,7 +540,7 @@ changes:
 
 > Stability: 1.1 - Active development
 
-* `frameCount` {number} Optional number of frames to capture as call site objects.
+* `frameCount` {integer} Optional number of frames to capture as call site objects.
   **Default:** `10`. Allowable range is between 1 and 200.
 * `options` {Object} Optional
   * `sourceMap` {boolean} Reconstruct the original location in the stacktrace from the source-map.
@@ -550,8 +550,8 @@ changes:
   * `scriptName` {string} Returns the name of the resource that contains the script for the
     function for this call site.
   * `scriptId` {string} Returns the unique id of the script, as in Chrome DevTools protocol [`Runtime.ScriptId`][].
-  * `lineNumber` {number} Returns the JavaScript script line number (1-based).
-  * `columnNumber` {number} Returns the JavaScript script column number (1-based).
+  * `lineNumber` {integer} Returns the JavaScript script line number (1-based).
+  * `columnNumber` {integer} Returns the JavaScript script column number (1-based).
 
 Returns an array of call site objects containing the stack of
 the caller function.
@@ -681,7 +681,7 @@ const callSites = getCallSites({ sourceMap: true });
 added: v9.7.0
 -->
 
-* `err` {number}
+* `err` {integer}
 * Returns: {string}
 
 Returns the string name for a numeric error code that comes from a Node.js API.
@@ -725,7 +725,7 @@ added:
   - v22.12.0
 -->
 
-* `err` {number}
+* `err` {integer}
 * Returns: {string}
 
 Returns the string message for a numeric error code that comes from a Node.js
@@ -936,7 +936,7 @@ changes:
     properties are included in the formatted result. {WeakMap} and
     {WeakSet} entries are also included as well as user defined prototype
     properties (excluding method properties). **Default:** `false`.
-  * `depth` {number} Specifies the number of times to recurse while formatting
+  * `depth` {integer} Specifies the number of times to recurse while formatting
     `object`. This is useful for inspecting large objects. To recurse up to
     the maximum call stack size pass `Infinity` or `null`.
     **Default:** `2`.
@@ -2045,7 +2045,7 @@ The returned tokens have properties describing:
 
 * all tokens
   * `kind` {string} One of 'option', 'positional', or 'option-terminator'.
-  * `index` {number} Index of element in `args` containing token. So the
+  * `index` {integer} Index of element in `args` containing token. So the
     source argument for a token is `args[token.index]`.
 * option tokens
   * `name` {string} Long name of option.
@@ -2679,8 +2679,8 @@ added: v12.11.0
 * `src` {string} The text to encode.
 * `dest` {Uint8Array} The array to hold the encode result.
 * Returns: {Object}
-  * `read` {number} The read Unicode code units of src.
-  * `written` {number} The written UTF-8 bytes of dest.
+  * `read` {integer} The read Unicode code units of src.
+  * `written` {integer} The written UTF-8 bytes of dest.
 
 UTF-8 encodes the `src` string to the `dest` Uint8Array and returns an object
 containing the read Unicode code units and written UTF-8 bytes.

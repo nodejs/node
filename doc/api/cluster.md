@@ -188,7 +188,7 @@ Within a worker, `process.on('error')` may also be used.
 added: v0.11.2
 -->
 
-* `code` {number} The exit code, if it exited normally.
+* `code` {integer} The exit code, if it exited normally.
 * `signal` {string} The name of the signal (e.g. `'SIGHUP'`) that caused
   the process to be killed.
 
@@ -679,7 +679,7 @@ added: v0.7.9
 -->
 
 * `worker` {cluster.Worker}
-* `code` {number} The exit code, if it exited normally.
+* `code` {integer} The exit code, if it exited normally.
 * `signal` {string} The name of the signal (e.g. `'SIGHUP'`) that caused
   the process to be killed.
 
@@ -937,11 +937,11 @@ changes:
     cluster module relies on IPC to function, this configuration must contain an
     `'ipc'` entry. When this option is provided, it overrides `silent`. See
     [`child_process.spawn()`][]'s [`stdio`][].
-  * `uid` {number} Sets the user identity of the process. (See setuid(2).)
-  * `gid` {number} Sets the group identity of the process. (See setgid(2).)
-  * `inspectPort` {number|Function} Sets inspector port of worker.
-    This can be a number, or a function that takes no arguments and returns a
-    number. By default each worker gets its own port, incremented from the
+  * `uid` {integer} Sets the user identity of the process. (See setuid(2).)
+  * `gid` {integer} Sets the group identity of the process. (See setgid(2).)
+  * `inspectPort` {integer|Function} Sets inspector port of worker.
+    This can be a integer, or a function that takes no arguments and returns a
+    integer. By default each worker gets its own port, incremented from the
     primary's `process.debugPort`.
   * `windowsHide` {boolean} Hide the forked processes console window that would
     normally be created on Windows systems. **Default:** `false`.

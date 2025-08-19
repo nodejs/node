@@ -121,7 +121,7 @@ added:
 -->
 
 * `net` {string|net.SocketAddress} The network IPv4 or IPv6 address.
-* `prefix` {number} The number of CIDR prefix bits. For IPv4, this
+* `prefix` {integer} The number of CIDR prefix bits. For IPv4, this
   must be a value between `0` and `32`. For IPv6, this must be between
   `0` and `128`.
 * `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
@@ -235,8 +235,8 @@ added:
     `'ipv6'`.
   * `family` {string} One of either `'ipv4'` or `'ipv6'`.
     **Default**: `'ipv4'`.
-  * `flowlabel` {number} An IPv6 flow-label used only if `family` is `'ipv6'`.
-  * `port` {number} An IP port.
+  * `flowlabel` {integer} An IPv6 flow-label used only if `family` is `'ipv6'`.
+  * `port` {integer} An IP port.
 
 ### `socketaddress.address`
 
@@ -266,7 +266,7 @@ added:
   - v14.18.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 ### `socketaddress.port`
 
@@ -276,7 +276,7 @@ added:
   - v14.18.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 ### `SocketAddress.parse(input)`
 
@@ -366,10 +366,10 @@ TCP server, the argument is as follows, otherwise the argument is `undefined`.
 
 * `data` {Object} The argument passed to event listener.
   * `localAddress` {string}  Local address.
-  * `localPort` {number} Local port.
+  * `localPort` {integer} Local port.
   * `localFamily` {string} Local family.
   * `remoteAddress` {string} Remote address.
-  * `remotePort` {number} Remote port.
+  * `remotePort` {integer} Remote port.
   * `remoteFamily` {string} Remote IP family. `'IPv4'` or `'IPv6'`.
 
 ### `server.address()`
@@ -511,7 +511,7 @@ added: v0.5.10
 -->
 
 * `handle` {Object}
-* `backlog` {number} Common parameter of [`server.listen()`][] functions
+* `backlog` {integer} Common parameter of [`server.listen()`][] functions
 * `callback` {Function}
 * Returns: {net.Server}
 
@@ -543,7 +543,7 @@ changes:
 -->
 
 * `options` {Object} Required. Supports the following properties:
-  * `backlog` {number} Common parameter of [`server.listen()`][]
+  * `backlog` {integer} Common parameter of [`server.listen()`][]
     functions.
   * `exclusive` {boolean} **Default:** `false`
   * `host` {string}
@@ -557,7 +557,7 @@ changes:
     Solaris 11.4, and AIX 7.2.5+. **Default:** `false`.
   * `path` {string} Will be ignored if `port` is specified. See
     [Identifying paths for IPC connections][].
-  * `port` {number}
+  * `port` {integer}
   * `readableAll` {boolean} For IPC servers makes the pipe readable
     for all users. **Default:** `false`.
   * `signal` {AbortSignal} An AbortSignal that may be used to close a listening
@@ -618,7 +618,7 @@ added: v0.1.90
 
 * `path` {string} Path the server should listen to. See
   [Identifying paths for IPC connections][].
-* `backlog` {number} Common parameter of [`server.listen()`][] functions.
+* `backlog` {integer} Common parameter of [`server.listen()`][] functions.
 * `callback` {Function}.
 * Returns: {net.Server}
 
@@ -630,9 +630,9 @@ Start an [IPC][] server listening for connections on the given `path`.
 added: v0.1.90
 -->
 
-* `port` {number}
+* `port` {integer}
 * `host` {string}
-* `backlog` {number} Common parameter of [`server.listen()`][] functions.
+* `backlog` {integer} Common parameter of [`server.listen()`][] functions.
 * `callback` {Function}.
 * Returns: {net.Server}
 
@@ -755,7 +755,7 @@ changes:
     automatically end the writable side when the readable side ends. See
     [`net.createServer()`][] and the [`'end'`][] event for details. **Default:**
     `false`.
-  * `fd` {number} If specified, wrap around an existing socket with
+  * `fd` {integer} If specified, wrap around an existing socket with
     the given file descriptor, otherwise a new socket will be created.
   * `onread` {Object} If specified, incoming data is stored in a single `buffer`
     and passed to the supplied `callback` when data arrives on the socket.
@@ -812,8 +812,8 @@ added:
 -->
 
 * `ip` {string} The IP which the socket is attempting to connect to.
-* `port` {number} The port which the socket is attempting to connect to.
-* `family` {number} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
+* `port` {integer} The port which the socket is attempting to connect to.
+* `family` {integer} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
 
 Emitted when a new connection attempt is started. This may be emitted multiple times
 if the family autoselection algorithm is enabled in [`socket.connect(options)`][].
@@ -827,8 +827,8 @@ added:
 -->
 
 * `ip` {string} The IP which the socket attempted to connect to.
-* `port` {number} The port which the socket attempted to connect to.
-* `family` {number} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
+* `port` {integer} The port which the socket attempted to connect to.
+* `family` {integer} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
 * `error` {Error} The error associated with the failure.
 
 Emitted when a connection attempt failed. This may be emitted multiple times
@@ -843,8 +843,8 @@ added:
 -->
 
 * `ip` {string} The IP which the socket attempted to connect to.
-* `port` {number} The port which the socket attempted to connect to.
-* `family` {number} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
+* `port` {integer} The port which the socket attempted to connect to.
+* `family` {integer} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
 
 Emitted when a connection attempt timed out. This is only emitted (and may be
 emitted multiple times) if the family autoselection algorithm is enabled
@@ -917,7 +917,7 @@ Not applicable to Unix sockets.
 
 * `err` {Error|null} The error object. See [`dns.lookup()`][].
 * `address` {string} The IP address.
-* `family` {number|null} The address type. See [`dns.lookup()`][].
+* `family` {integer|null} The address type. See [`dns.lookup()`][].
 * `host` {string} The host name.
 
 ### Event: `'ready'`
@@ -1110,27 +1110,27 @@ For TCP connections, available `options` are:
   connection succeeds. If all connections attempts fails, a single
   `AggregateError` with all failed attempts is emitted. **Default:**
   [`net.getDefaultAutoSelectFamily()`][].
-* `autoSelectFamilyAttemptTimeout` {number}: The amount of time in milliseconds
+* `autoSelectFamilyAttemptTimeout` {integer}: The amount of time in milliseconds
   to wait for a connection attempt to finish before trying the next address when
   using the `autoSelectFamily` option. If set to a positive integer less than
   `10`, then the value `10` will be used instead. **Default:**
   [`net.getDefaultAutoSelectFamilyAttemptTimeout()`][].
-* `family` {number}: Version of IP stack. Must be `4`, `6`, or `0`. The value
+* `family` {integer}: Version of IP stack. Must be `4`, `6`, or `0`. The value
   `0` indicates that both IPv4 and IPv6 addresses are allowed. **Default:** `0`.
-* `hints` {number} Optional [`dns.lookup()` hints][].
+* `hints` {integer} Optional [`dns.lookup()` hints][].
 * `host` {string} Host the socket should connect to. **Default:** `'localhost'`.
 * `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality on
   the socket immediately after the connection is established, similarly on what
   is done in [`socket.setKeepAlive()`][]. **Default:** `false`.
-* `keepAliveInitialDelay` {number} If set to a positive number, it sets the
+* `keepAliveInitialDelay` {integer} If set to a positive number, it sets the
   initial delay before the first keepalive probe is sent on an idle socket.
   **Default:** `0`.
 * `localAddress` {string} Local address the socket should connect from.
-* `localPort` {number} Local port the socket should connect from.
+* `localPort` {integer} Local port the socket should connect from.
 * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
 * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's algorithm
   immediately after the socket is established. **Default:** `false`.
-* `port` {number} Required. Port the socket should connect to.
+* `port` {integer} Required. Port the socket should connect to.
 * `blockList` {net.BlockList} `blockList` can be used for disabling outbound
   access to specific IP addresses, IP ranges, or IP subnets.
 
@@ -1160,7 +1160,7 @@ called with `{ path: path }` as `options`.
 added: v0.1.90
 -->
 
-* `port` {number} Port the client should connect to.
+* `port` {integer} Port the client should connect to.
 * `host` {string} Host the client should connect to.
 * `connectListener` {Function} Common parameter of [`socket.connect()`][]
   methods. Will be added as a listener for the [`'connect'`][] event once.
@@ -1383,7 +1383,7 @@ changes:
 -->
 
 * `enable` {boolean} **Default:** `false`
-* `initialDelay` {number} **Default:** `0`
+* `initialDelay` {integer} **Default:** `0`
 * Returns: {net.Socket} The socket itself.
 
 Enable/disable keep-alive functionality, and optionally set the initial
@@ -1433,7 +1433,7 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `timeout` {number}
+* `timeout` {integer}
 * `callback` {Function}
 * Returns: {net.Socket} The socket itself.
 
@@ -1463,7 +1463,7 @@ The optional `callback` parameter will be added as a one-time listener for the
 added: v10.7.0
 -->
 
-* Type: {number|undefined}
+* Type: {integer|undefined}
 
 The socket timeout in milliseconds as set by [`socket.setTimeout()`][].
 It is `undefined` if a timeout has not been set.
@@ -1564,7 +1564,7 @@ Alias to
 added: v0.1.90
 -->
 
-* `port` {number}
+* `port` {integer}
 * `host` {string}
 * `connectListener` {Function}
 * Returns: {net.Socket}
@@ -1613,7 +1613,7 @@ and [`socket.connect(options[, connectListener])`][`socket.connect(options)`].
 
 Additional options:
 
-* `timeout` {number} If set, will be used to call
+* `timeout` {integer} If set, will be used to call
   [`socket.setTimeout(timeout)`][] after the socket is created, but before
   it starts the connection.
 
@@ -1722,7 +1722,7 @@ then returns the `net.Socket` that starts the connection.
 added: v0.1.90
 -->
 
-* `port` {number} Port the socket should connect to. Will be passed to
+* `port` {integer} Port the socket should connect to. Will be passed to
   [`socket.connect(port[, host][, connectListener])`][`socket.connect(port)`].
 * `host` {string} Host the socket should connect to. Will be passed to
   [`socket.connect(port[, host][, connectListener])`][`socket.connect(port)`].
@@ -1762,14 +1762,14 @@ changes:
   * `allowHalfOpen` {boolean} If set to `false`, then the socket will
     automatically end the writable side when the readable side ends.
     **Default:** `false`.
-  * `highWaterMark` {number} Optionally overrides all [`net.Socket`][]s'
+  * `highWaterMark` {integer} Optionally overrides all [`net.Socket`][]s'
     `readableHighWaterMark` and `writableHighWaterMark`.
     **Default:** See [`stream.getDefaultHighWaterMark()`][].
   * `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality
     on the socket immediately after a new incoming connection is received,
     similarly on what is done in [`socket.setKeepAlive()`][]. **Default:**
     `false`.
-  * `keepAliveInitialDelay` {number} If set to a positive number, it sets the
+  * `keepAliveInitialDelay` {integer} If set to a positive number, it sets the
     initial delay before the first keepalive probe is sent on an idle socket.
     **Default:** `0`.
   * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's
@@ -1904,7 +1904,7 @@ Gets the current default value of the `autoSelectFamilyAttemptTimeout` option of
 The initial default value is `250` or the value specified via the command line
 option `--network-family-autoselection-attempt-timeout`.
 
-* Returns: {number} The current default value of the `autoSelectFamilyAttemptTimeout` option.
+* Returns: {integer} The current default value of the `autoSelectFamilyAttemptTimeout` option.
 
 ## `net.setDefaultAutoSelectFamilyAttemptTimeout(value)`
 
@@ -1916,7 +1916,7 @@ added:
 
 Sets the default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
 
-* `value` {number} The new default value, which must be a positive number. If the number is less than `10`,
+* `value` {integer} The new default value, which must be a positive number. If the number is less than `10`,
   the value `10` is used instead. The initial default value is `250` or the value specified via the command line
   option `--network-family-autoselection-attempt-timeout`.
 

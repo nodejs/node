@@ -438,7 +438,7 @@ changes:
     description: inspector.open() now returns a `Disposable` object.
 -->
 
-* `port` {number} Port to listen on for inspector connections. Optional.
+* `port` {integer} Port to listen on for inspector connections. Optional.
   **Default:** what was specified on the CLI.
 * `host` {string} Host to listen on for inspector connections. Optional.
   **Default:** what was specified on the CLI.

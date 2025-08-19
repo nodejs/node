@@ -107,7 +107,7 @@ changes:
     description: The `options` argument is supported.
 -->
 
-* `fd` {number} A file descriptor associated with a TTY.
+* `fd` {integer} A file descriptor associated with a TTY.
 * `options` {Object} Options passed to parent `net.Socket`,
   see `options` of [`net.Socket` constructor][].
 * Returns: {tty.ReadStream}
@@ -120,7 +120,7 @@ Creates a `ReadStream` for `fd` associated with a TTY.
 added: v0.5.8
 -->
 
-* `fd` {number} A file descriptor associated with a TTY.
+* `fd` {integer} A file descriptor associated with a TTY.
 * Returns: {tty.WriteStream}
 
 Creates a `WriteStream` for `fd` associated with a TTY.
@@ -152,7 +152,7 @@ changes:
     description: The stream's write() callback and return value are exposed.
 -->
 
-* `dir` {number}
+* `dir` {integer}
   * `-1`: to the left from cursor
   * `1`: to the right from cursor
   * `0`: the entire line
@@ -201,8 +201,8 @@ changes:
     description: The stream's write() callback and return value are exposed.
 -->
 
-* `x` {number}
-* `y` {number}
+* `x` {integer}
+* `y` {integer}
 * `callback` {Function} Invoked once the operation completes.
 * Returns: {boolean} `false` if the stream wishes for the calling code to wait
   for the `'drain'` event to be emitted before continuing to write additional
@@ -220,7 +220,7 @@ added: v9.9.0
 * `env` {Object} An object containing the environment variables to check. This
   enables simulating the usage of a specific terminal. **Default:**
   `process.env`.
-* Returns: {number}
+* Returns: {integer}
 
 Returns:
 
@@ -252,7 +252,7 @@ Disabling color support is also possible by using the `NO_COLOR` and
 added: v0.7.7
 -->
 
-* Returns: {number\[]}
+* Returns: {integer\[]}
 
 `writeStream.getWindowSize()` returns the size of the TTY
 corresponding to this `WriteStream`. The array is of the type
@@ -309,8 +309,8 @@ changes:
     description: The stream's write() callback and return value are exposed.
 -->
 
-* `dx` {number}
-* `dy` {number}
+* `dx` {integer}
+* `dy` {integer}
 * `callback` {Function} Invoked once the operation completes.
 * Returns: {boolean} `false` if the stream wishes for the calling code to wait
   for the `'drain'` event to be emitted before continuing to write additional
@@ -334,7 +334,7 @@ is updated whenever the `'resize'` event is emitted.
 added: v0.5.8
 -->
 
-* `fd` {number} A numeric file descriptor
+* `fd` {integer} A numeric file descriptor
 * Returns: {boolean}
 
 The `tty.isatty()` method returns `true` if the given `fd` is associated with

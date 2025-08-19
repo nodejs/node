@@ -497,7 +497,7 @@ asyncResource.triggerAsyncId();
 
 * `type` {string} The type of async event.
 * `options` {Object}
-  * `triggerAsyncId` {number} The ID of the execution context that created this
+  * `triggerAsyncId` {integer} The ID of the execution context that created this
     async event. **Default:** `executionAsyncId()`.
   * `requireManualDestroy` {boolean} If set to `true`, disables `emitDestroy`
     when the object is garbage collected. This usually does not need to be set
@@ -614,11 +614,11 @@ never be called.
 
 ### `asyncResource.asyncId()`
 
-* Returns: {number} The unique `asyncId` assigned to the resource.
+* Returns: {integer} The unique `asyncId` assigned to the resource.
 
 ### `asyncResource.triggerAsyncId()`
 
-* Returns: {number} The same `triggerAsyncId` that is passed to the
+* Returns: {integer} The same `triggerAsyncId` that is passed to the
   `AsyncResource` constructor.
 
 <a id="async-resource-worker-pool"></a>

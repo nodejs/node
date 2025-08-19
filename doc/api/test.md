@@ -1413,7 +1413,7 @@ changes:
 
 * `options` {Object} Configuration options for running tests. The following
   properties are supported:
-  * `concurrency` {number|boolean} If a number is provided,
+  * `concurrency` {integer|boolean} If a number is provided,
     then that many test processes would run in parallel, where each process
     corresponds to one test file.
     If `true`, it would run `os.availableParallelism() - 1` test files in
@@ -1431,7 +1431,7 @@ changes:
   * `globPatterns` {Array} An array containing the list of glob patterns to
     match test files. This option cannot be used together with `files`.
     **Default:** Same as [running tests from the command line][].
-  * `inspectPort` {number|Function} Sets inspector port of test child process.
+  * `inspectPort` {integer|Function} Sets inspector port of test child process.
     This can be a number, or a function that takes no arguments and returns a
     number. If a nullish value is provided, each process gets its own port,
     incremented from the primary's `process.debugPort`. This option is ignored
@@ -1465,15 +1465,15 @@ changes:
     For each test that is executed, any corresponding test hooks, such as
     `beforeEach()`, are also run.
     **Default:** `undefined`.
-  * `timeout` {number} A number of milliseconds the test execution will
+  * `timeout` {integer} A number of milliseconds the test execution will
     fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
   * `watch` {boolean} Whether to run in watch mode or not. **Default:** `false`.
   * `shard` {Object} Running tests in a specific shard. **Default:** `undefined`.
-    * `index` {number} is a positive integer between 1 and `<total>`
+    * `index` {integer} is a positive integer between 1 and `<total>`
       that specifies the index of the shard to run. This option is _required_.
-    * `total` {number} is a positive integer that specifies the total number
+    * `total` {integer} is a positive integer that specifies the total number
       of shards to split the test files to. This option is _required_.
   * `rerunFailuresFilePath` {string} A file path where the test runner will
     store the state of the tests to allow rerunning only the failed tests on a next run.
@@ -1618,7 +1618,7 @@ changes:
   does not have a name.
 * `options` {Object} Configuration options for the test. The following
   properties are supported:
-  * `concurrency` {number|boolean} If a number is provided,
+  * `concurrency` {integer|boolean} If a number is provided,
     then that many tests would run in parallel within the application thread.
     If `true`, all scheduled asynchronous tests run concurrently within the
     thread. If `false`, only one test runs at a time.
@@ -1634,10 +1634,10 @@ changes:
   * `todo` {boolean|string} If truthy, the test marked as `TODO`. If a string
     is provided, that string is displayed in the test results as the reason why
     the test is `TODO`. **Default:** `false`.
-  * `timeout` {number} A number of milliseconds the test will fail after.
+  * `timeout` {integer} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
-  * `plan` {number} The number of assertions and subtests expected to be run in the test.
+  * `plan` {integer} The number of assertions and subtests expected to be run in the test.
     If the number of assertions run in the test does not match the number
     specified in the plan, the test will fail.
     **Default:** `undefined`.
@@ -1776,7 +1776,7 @@ added:
 * `options` {Object} Configuration options for the hook. The following
   properties are supported:
   * `signal` {AbortSignal} Allows aborting an in-progress hook.
-  * `timeout` {number} A number of milliseconds the hook will fail after.
+  * `timeout` {integer} A number of milliseconds the hook will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
@@ -1806,7 +1806,7 @@ added:
 * `options` {Object} Configuration options for the hook. The following
   properties are supported:
   * `signal` {AbortSignal} Allows aborting an in-progress hook.
-  * `timeout` {number} A number of milliseconds the hook will fail after.
+  * `timeout` {integer} A number of milliseconds the hook will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
@@ -1839,7 +1839,7 @@ added:
 * `options` {Object} Configuration options for the hook. The following
   properties are supported:
   * `signal` {AbortSignal} Allows aborting an in-progress hook.
-  * `timeout` {number} A number of milliseconds the hook will fail after.
+  * `timeout` {integer} A number of milliseconds the hook will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
@@ -1869,7 +1869,7 @@ added:
 * `options` {Object} Configuration options for the hook. The following
   properties are supported:
   * `signal` {AbortSignal} Allows aborting an in-progress hook.
-  * `timeout` {number} A number of milliseconds the hook will fail after.
+  * `timeout` {integer} A number of milliseconds the hook will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
@@ -2542,7 +2542,7 @@ Enables timer mocking for the specified timers.
     If no array is provided, all time related APIs (`'setInterval'`, `'clearInterval'`,
     `'setTimeout'`, `'clearTimeout'`, `'setImmediate'`, `'clearImmediate'`, and
     `'Date'`) will be mocked by default.
-  * `now` {number | Date} An optional number or Date object representing the
+  * `now` {integer | Date} An optional number or Date object representing the
     initial time (in milliseconds) to use as the value
     for `Date.now()`. **Default:** `0`.
 
@@ -2641,7 +2641,7 @@ added:
 
 Advances time for all mocked timers.
 
-* `milliseconds` {number} The amount of time, in milliseconds,
+* `milliseconds` {integer} The amount of time, in milliseconds,
   to advance the timers. **Default:** `1`.
 
 **Note:** This diverges from how `setTimeout` in Node.js behaves and accepts
@@ -3131,58 +3131,58 @@ are defined, while others are emitted in the order that the tests execute.
     * `files` {Array} An array of coverage reports for individual files. Each
       report is an object with the following schema:
       * `path` {string} The absolute path of the file.
-      * `totalLineCount` {number} The total number of lines.
-      * `totalBranchCount` {number} The total number of branches.
-      * `totalFunctionCount` {number} The total number of functions.
-      * `coveredLineCount` {number} The number of covered lines.
-      * `coveredBranchCount` {number} The number of covered branches.
-      * `coveredFunctionCount` {number} The number of covered functions.
+      * `totalLineCount` {integer} The total number of lines.
+      * `totalBranchCount` {integer} The total number of branches.
+      * `totalFunctionCount` {integer} The total number of functions.
+      * `coveredLineCount` {integer} The number of covered lines.
+      * `coveredBranchCount` {integer} The number of covered branches.
+      * `coveredFunctionCount` {integer} The number of covered functions.
       * `coveredLinePercent` {number} The percentage of lines covered.
       * `coveredBranchPercent` {number} The percentage of branches covered.
       * `coveredFunctionPercent` {number} The percentage of functions covered.
       * `functions` {Array} An array of functions representing function
         coverage.
         * `name` {string} The name of the function.
-        * `line` {number} The line number where the function is defined.
-        * `count` {number} The number of times the function was called.
+        * `line` {integer} The line number where the function is defined.
+        * `count` {integer} The number of times the function was called.
       * `branches` {Array} An array of branches representing branch coverage.
-        * `line` {number} The line number where the branch is defined.
-        * `count` {number} The number of times the branch was taken.
+        * `line` {integer} The line number where the branch is defined.
+        * `count` {integer} The number of times the branch was taken.
       * `lines` {Array} An array of lines representing line
         numbers and the number of times they were covered.
-        * `line` {number} The line number.
-        * `count` {number} The number of times the line was covered.
+        * `line` {integer} The line number.
+        * `count` {integer} The number of times the line was covered.
     * `thresholds` {Object} An object containing whether or not the coverage for
       each coverage type.
-      * `function` {number} The function coverage threshold.
-      * `branch` {number} The branch coverage threshold.
-      * `line` {number} The line coverage threshold.
+      * `function` {integer} The function coverage threshold.
+      * `branch` {integer} The branch coverage threshold.
+      * `line` {integer} The line coverage threshold.
     * `totals` {Object} An object containing a summary of coverage for all
       files.
-      * `totalLineCount` {number} The total number of lines.
-      * `totalBranchCount` {number} The total number of branches.
-      * `totalFunctionCount` {number} The total number of functions.
-      * `coveredLineCount` {number} The number of covered lines.
-      * `coveredBranchCount` {number} The number of covered branches.
-      * `coveredFunctionCount` {number} The number of covered functions.
+      * `totalLineCount` {integer} The total number of lines.
+      * `totalBranchCount` {integer} The total number of branches.
+      * `totalFunctionCount` {integer} The total number of functions.
+      * `coveredLineCount` {integer} The number of covered lines.
+      * `coveredBranchCount` {integer} The number of covered branches.
+      * `coveredFunctionCount` {integer} The number of covered functions.
       * `coveredLinePercent` {number} The percentage of lines covered.
       * `coveredBranchPercent` {number} The percentage of branches covered.
       * `coveredFunctionPercent` {number} The percentage of functions covered.
     * `workingDirectory` {string} The working directory when code coverage
       began. This is useful for displaying relative path names in case the tests
       changed the working directory of the Node.js process.
-  * `nesting` {number} The nesting level of the test.
+  * `nesting` {integer} The nesting level of the test.
 
 Emitted when code coverage is enabled and all tests have completed.
 
 ### Event: `'test:complete'`
 
 * `data` {Object}
-  * `column` {number|undefined} The column number where the test is defined, or
+  * `column` {integer|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `details` {Object} Additional execution metadata.
     * `passed` {boolean} Whether the test passed or not.
-    * `duration_ms` {number} The duration of the test in milliseconds.
+    * `duration_ms` {integer} The duration of the test in milliseconds.
     * `error` {Error|undefined} An error wrapping the error thrown by the test
       if it did not pass.
       * `cause` {Error} The actual error thrown by the test.
@@ -3190,11 +3190,11 @@ Emitted when code coverage is enabled and all tests have completed.
       this is a suite.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
-  * `line` {number|undefined} The line number where the test is defined, or
+  * `line` {integer|undefined} The line number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
-  * `nesting` {number} The nesting level of the test.
-  * `testNumber` {number} The ordinal number of the test.
+  * `nesting` {integer} The nesting level of the test.
+  * `testNumber` {integer} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
 
@@ -3206,14 +3206,14 @@ The corresponding declaration ordered events are `'test:pass'` and `'test:fail'`
 ### Event: `'test:dequeue'`
 
 * `data` {Object}
-  * `column` {number|undefined} The column number where the test is defined, or
+  * `column` {integer|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
-  * `line` {number|undefined} The line number where the test is defined, or
+  * `line` {integer|undefined} The line number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
-  * `nesting` {number} The nesting level of the test.
+  * `nesting` {integer} The nesting level of the test.
   * `type` {string} The test type. Either `'suite'` or `'test'`.
 
 Emitted when a test is dequeued, right before it is executed.
@@ -3223,14 +3223,14 @@ defined. The corresponding declaration ordered event is `'test:start'`.
 ### Event: `'test:diagnostic'`
 
 * `data` {Object}
-  * `column` {number|undefined} The column number where the test is defined, or
+  * `column` {integer|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
-  * `line` {number|undefined} The line number where the test is defined, or
+  * `line` {integer|undefined} The line number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `message` {string} The diagnostic message.
-  * `nesting` {number} The nesting level of the test.
+  * `nesting` {integer} The nesting level of the test.
   * `level` {string} The severity level of the diagnostic message.
     Possible values are:
     * `'info'`: Informational messages.
@@ -3244,14 +3244,14 @@ defined.
 ### Event: `'test:enqueue'`
 
 * `data` {Object}
-  * `column` {number|undefined} The column number where the test is defined, or
+  * `column` {integer|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
-  * `line` {number|undefined} The line number where the test is defined, or
+  * `line` {integer|undefined} The line number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
-  * `nesting` {number} The nesting level of the test.
+  * `nesting` {integer} The nesting level of the test.
   * `type` {string} The test type. Either `'suite'` or `'test'`.
 
 Emitted when a test is enqueued for execution.
@@ -3259,10 +3259,10 @@ Emitted when a test is enqueued for execution.
 ### Event: `'test:fail'`
 
 * `data` {Object}
-  * `column` {number|undefined} The column number where the test is defined, or
+  * `column` {integer|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `details` {Object} Additional execution metadata.
-    * `duration_ms` {number} The duration of the test in milliseconds.
+    * `duration_ms` {integer} The duration of the test in milliseconds.
     * `error` {Error} An error wrapping the error thrown by the test.
       * `cause` {Error} The actual error thrown by the test.
     * `type` {string|undefined} The type of the test, used to denote whether
@@ -3271,11 +3271,11 @@ Emitted when a test is enqueued for execution.
       present only when using the [`--test-rerun-failures`][] flag.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
-  * `line` {number|undefined} The line number where the test is defined, or
+  * `line` {integer|undefined} The line number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
-  * `nesting` {number} The nesting level of the test.
-  * `testNumber` {number} The ordinal number of the test.
+  * `nesting` {integer} The nesting level of the test.
+  * `testNumber` {integer} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
 
@@ -3287,10 +3287,10 @@ The corresponding execution ordered event is `'test:complete'`.
 ### Event: `'test:pass'`
 
 * `data` {Object}
-  * `column` {number|undefined} The column number where the test is defined, or
+  * `column` {integer|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `details` {Object} Additional execution metadata.
-    * `duration_ms` {number} The duration of the test in milliseconds.
+    * `duration_ms` {integer} The duration of the test in milliseconds.
     * `type` {string|undefined} The type of the test, used to denote whether
       this is a suite.
     * `attempt` {number|undefined} The attempt number of the test run,
@@ -3299,11 +3299,11 @@ The corresponding execution ordered event is `'test:complete'`.
       present only when using the [`--test-rerun-failures`][] flag.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
-  * `line` {number|undefined} The line number where the test is defined, or
+  * `line` {integer|undefined} The line number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
-  * `nesting` {number} The nesting level of the test.
-  * `testNumber` {number} The ordinal number of the test.
+  * `nesting` {integer} The nesting level of the test.
+  * `testNumber` {integer} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
 
@@ -3315,14 +3315,14 @@ The corresponding execution ordered event is `'test:complete'`.
 ### Event: `'test:plan'`
 
 * `data` {Object}
-  * `column` {number|undefined} The column number where the test is defined, or
+  * `column` {integer|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
-  * `line` {number|undefined} The line number where the test is defined, or
+  * `line` {integer|undefined} The line number where the test is defined, or
     `undefined` if the test was run through the REPL.
-  * `nesting` {number} The nesting level of the test.
-  * `count` {number} The number of subtests that have ran.
+  * `nesting` {integer} The nesting level of the test.
+  * `count` {integer} The number of subtests that have ran.
 
 Emitted when all subtests have completed for a given test.
 This event is guaranteed to be emitted in the same order as the tests are
@@ -3331,14 +3331,14 @@ defined.
 ### Event: `'test:start'`
 
 * `data` {Object}
-  * `column` {number|undefined} The column number where the test is defined, or
+  * `column` {integer|undefined} The column number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
-  * `line` {number|undefined} The line number where the test is defined, or
+  * `line` {integer|undefined} The line number where the test is defined, or
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
-  * `nesting` {number} The nesting level of the test.
+  * `nesting` {integer} The nesting level of the test.
 
 Emitted when a test starts reporting its own and its subtests status.
 This event is guaranteed to be emitted in the same order as the tests are
@@ -3371,15 +3371,15 @@ defined.
 
 * `data` {Object}
   * `counts` {Object} An object containing the counts of various test results.
-    * `cancelled` {number} The total number of cancelled tests.
-    * `failed` {number} The total number of failed tests.
-    * `passed` {number} The total number of passed tests.
-    * `skipped` {number} The total number of skipped tests.
-    * `suites` {number} The total number of suites run.
-    * `tests` {number} The total number of tests run, excluding suites.
-    * `todo` {number} The total number of TODO tests.
-    * `topLevel` {number} The total number of top level tests and suites.
-  * `duration_ms` {number} The duration of the test run in milliseconds.
+    * `cancelled` {integer} The total number of cancelled tests.
+    * `failed` {integer} The total number of failed tests.
+    * `passed` {integer} The total number of passed tests.
+    * `skipped` {integer} The total number of skipped tests.
+    * `suites` {integer} The total number of suites run.
+    * `tests` {integer} The total number of tests run, excluding suites.
+    * `todo` {integer} The total number of TODO tests.
+    * `topLevel` {integer} The total number of top level tests and suites.
+  * `duration_ms` {integer} The duration of the test run in milliseconds.
   * `file` {string|undefined} The path of the test file that generated the
     summary. If the summary corresponds to multiple files, this value is
     `undefined`.
@@ -3433,7 +3433,7 @@ added:
 * `options` {Object} Configuration options for the hook. The following
   properties are supported:
   * `signal` {AbortSignal} Allows aborting an in-progress hook.
-  * `timeout` {number} A number of milliseconds the hook will fail after.
+  * `timeout` {integer} A number of milliseconds the hook will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
@@ -3455,7 +3455,7 @@ added:
 * `options` {Object} Configuration options for the hook. The following
   properties are supported:
   * `signal` {AbortSignal} Allows aborting an in-progress hook.
-  * `timeout` {number} A number of milliseconds the hook will fail after.
+  * `timeout` {integer} A number of milliseconds the hook will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
@@ -3489,7 +3489,7 @@ added:
 * `options` {Object} Configuration options for the hook. The following
   properties are supported:
   * `signal` {AbortSignal} Allows aborting an in-progress hook.
-  * `timeout` {number} A number of milliseconds the hook will fail after.
+  * `timeout` {integer} A number of milliseconds the hook will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
@@ -3518,7 +3518,7 @@ added:
 * `options` {Object} Configuration options for the hook. The following
   properties are supported:
   * `signal` {AbortSignal} Allows aborting an in-progress hook.
-  * `timeout` {number} A number of milliseconds the hook will fail after.
+  * `timeout` {integer} A number of milliseconds the hook will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
@@ -3697,9 +3697,9 @@ changes:
     description: This function is no longer experimental.
 -->
 
-* `count` {number} The number of assertions and subtests that are expected to run.
+* `count` {integer} The number of assertions and subtests that are expected to run.
 * `options` {Object} Additional options for the plan.
-  * `wait` {boolean|number} The wait time for the plan:
+  * `wait` {boolean|integer} The wait time for the plan:
     * If `true`, the plan waits indefinitely for all assertions and subtests to run.
     * If `false`, the plan performs an immediate check after the test function completes,
       without waiting for any pending assertions or subtests.
@@ -3877,7 +3877,7 @@ changes:
   `fn` does not have a name.
 * `options` {Object} Configuration options for the subtest. The following
   properties are supported:
-  * `concurrency` {number|boolean|null} If a number is provided,
+  * `concurrency` {integer|boolean|null} If a number is provided,
     then that many tests would run in parallel within the application thread.
     If `true`, it would run all subtests in parallel.
     If `false`, it would only run one test at a time.
@@ -3893,10 +3893,10 @@ changes:
   * `todo` {boolean|string} If truthy, the test marked as `TODO`. If a string
     is provided, that string is displayed in the test results as the reason why
     the test is `TODO`. **Default:** `false`.
-  * `timeout` {number} A number of milliseconds the test will fail after.
+  * `timeout` {integer} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
-  * `plan` {number} The number of assertions and subtests expected to be run in the test.
+  * `plan` {integer} The number of assertions and subtests expected to be run in the test.
     If the number of assertions run in the test does not match the number
     specified in the plan, the test will fail.
     **Default:** `undefined`.
@@ -3935,9 +3935,9 @@ added:
   function does not accept any arguments, and is allowed to return any value.
 * `options` {Object} An optional configuration object for the polling operation.
   The following properties are supported:
-  * `interval` {number} The number of milliseconds to wait after an unsuccessful
+  * `interval` {integer} The number of milliseconds to wait after an unsuccessful
     invocation of `condition` before trying again. **Default:** `50`.
-  * `timeout` {number} The poll timeout in milliseconds. If `condition` has not
+  * `timeout` {integer} The poll timeout in milliseconds. If `condition` has not
     succeeded by the time this elapses, an error occurs. **Default:** `1000`.
 * Returns: {Promise} Fulfilled with the value returned by `condition`.
 
