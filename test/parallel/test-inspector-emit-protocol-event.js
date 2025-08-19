@@ -88,6 +88,34 @@ const EXPECTED_EVENTS = {
         errorText: 'Failed to load resource'
       }
     },
+    {
+      name: 'webSocketCreated',
+      params: {
+        requestId: 'websocket-id-1',
+        url: 'ws://example.com:8080',
+      }
+
+    },
+    {
+      name: 'webSocketHandshakeResponseReceived',
+      params: {
+        requestId: 'websocket-id-1',
+        response: {
+          status: 101,
+          statusText: 'Switching Protocols',
+          headers: {},
+        },
+        timestamp: 1000,
+      }
+    },
+    {
+      name: 'webSocketClosed',
+      params: {
+        requestId: 'websocket-id-1',
+        timestamp: 1000,
+
+      }
+    },
   ]
 };
 
@@ -124,7 +152,7 @@ const runAsyncTest = async () => {
         continue;
       }
       session.on(`${domain}.${event.name}`, common.mustCall(({ params }) => {
-        if (event.name === 'requestWillBeSent') {
+        if (event.name === 'requestWillBeSent' || event.name === 'webSocketCreated') {
           // Initiator is automatically captured and contains caller info.
           // No need to validate it.
           delete params.initiator;
