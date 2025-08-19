@@ -311,14 +311,20 @@ if (hasOpenSSL(3, 5)) {
     assert.deepStrictEqual(privateKey.usages, privateUsages);
     assert.strictEqual(publicKey.algorithm.name, name);
     assert.strictEqual(publicKey.algorithm.modulusLength, modulusLength);
-    assert.deepStrictEqual(publicKey.algorithm.publicExponent, publicExponent);
+    assert(publicKey.algorithm.publicExponent instanceof Uint8Array);
+    assert.notStrictEqual(publicKey.algorithm.publicExponent, publicExponent);
+    assert(!Buffer.isBuffer(publicKey.algorithm.publicExponent));
+    assert.deepStrictEqual(publicKey.algorithm.publicExponent, new Uint8Array(publicExponent));
     assert.strictEqual(
       KeyObject.from(publicKey).asymmetricKeyDetails.publicExponent,
       bigIntArrayToUnsignedBigInt(publicExponent));
     assert.strictEqual(publicKey.algorithm.hash.name, hash);
     assert.strictEqual(privateKey.algorithm.name, name);
     assert.strictEqual(privateKey.algorithm.modulusLength, modulusLength);
-    assert.deepStrictEqual(privateKey.algorithm.publicExponent, publicExponent);
+    assert(privateKey.algorithm.publicExponent instanceof Uint8Array);
+    assert.notStrictEqual(privateKey.algorithm.publicExponent, publicExponent);
+    assert(!Buffer.isBuffer(privateKey.algorithm.publicExponent));
+    assert.deepStrictEqual(privateKey.algorithm.publicExponent, new Uint8Array(publicExponent));
     assert.strictEqual(
       KeyObject.from(privateKey).asymmetricKeyDetails.publicExponent,
       bigIntArrayToUnsignedBigInt(publicExponent));
