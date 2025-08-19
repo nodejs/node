@@ -3696,6 +3696,18 @@ specified proxy.
 This can also be enabled using the [`--use-env-proxy`][] command-line flag.
 When both are set, `--use-env-proxy` takes precedence.
 
+### `NODE_USE_SYSTEM_CA=1`
+
+<!-- YAML
+added: v24.6.0
+-->
+
+Node.js uses the trusted CA certificates present in the system store along with
+the `--use-bundled-ca` option and the `NODE_EXTRA_CA_CERTS` environment variable.
+
+This can also be enabled using the [`--use-system-ca`][] command-line flag.
+When both are set, `--use-system-ca` takes precedence.
+
 ### `NODE_V8_COVERAGE=dir`
 
 When set, Node.js will begin outputting [V8 JavaScript code coverage][] and
@@ -4025,6 +4037,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--redirect-warnings`]: #--redirect-warningsfile
 [`--require`]: #-r---require-module
 [`--use-env-proxy`]: #--use-env-proxy
+[`--use-system-ca`]: #--use-system-ca
 [`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html

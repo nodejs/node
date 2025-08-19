@@ -9,7 +9,7 @@
 
 namespace node {
 namespace crypto {
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
 bool ExportJwkMlDsaKey(Environment* env,
                        const KeyObjectData& key,
                        v8::Local<v8::Object> target);

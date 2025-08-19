@@ -127,7 +127,7 @@ class KeyObjectData final : public MemoryRetainer {
   KeyObjectData(KeyType type,
                 std::shared_ptr<Mutex> mutex,
                 std::shared_ptr<Data> data)
-      : key_type_(type), mutex_(mutex), data_(data) {}
+      : key_type_(type), mutex_(std::move(mutex)), data_(std::move(data)) {}
 };
 
 class KeyObjectHandle : public BaseObject {
@@ -152,7 +152,7 @@ class KeyObjectHandle : public BaseObject {
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InitECRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InitEDRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
   static void InitMlDsaRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif
   static void InitJWK(const v8::FunctionCallbackInfo<v8::Value>& args);

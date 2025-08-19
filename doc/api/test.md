@@ -520,6 +520,24 @@ each other in ways that are not possible when isolation is enabled. For example,
 if a test relies on global state, it is possible for that state to be modified
 by a test originating from another file.
 
+#### Child process option inheritance
+
+When running tests in process isolation mode (the default), spawned child processes
+inherit Node.js options from the parent process, including those specified in
+[configuration files][]. However, certain flags are filtered out to enable proper
+test runner functionality:
+
+* `--test` - Prevented to avoid recursive test execution
+* `--experimental-test-coverage` - Managed by the test runner
+* `--watch` - Watch mode is handled at the parent level
+* `--experimental-default-config-file` - Config file loading is handled by the parent
+* `--test-reporter` - Reporting is managed by the parent process
+* `--test-reporter-destination` - Output destinations are controlled by the parent
+* `--experimental-config-file` - Config file paths are managed by the parent
+
+All other Node.js options from command line arguments, environment variables,
+and configuration files are inherited by the child processes.
+
 ## Collecting code coverage
 
 > Stability: 1 - Experimental
@@ -3950,6 +3968,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
 [code coverage]: #collecting-code-coverage
+[configuration files]: cli.md#--experimental-config-fileconfig
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [running tests from the command line]: #running-tests-from-the-command-line

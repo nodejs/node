@@ -739,6 +739,16 @@ fs.access('file/that/does/not/exist', (err) => {
 });
 ```
 
+## `util.setTraceSigInt(enable)`
+
+<!-- YAML
+added: v24.6.0
+-->
+
+* `enable` {boolean}
+
+Enable or disable printing a stack trace on `SIGINT`. The API is only available on the main thread.
+
 ## `util.inherits(constructor, superConstructor)`
 
 <!-- YAML

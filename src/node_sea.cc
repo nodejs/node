@@ -3,7 +3,6 @@
 #include "blob_serializer_deserializer-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
-#include "json_parser.h"
 #include "node_contextify.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
@@ -11,6 +10,7 @@
 #include "node_snapshot_builder.h"
 #include "node_union_bytes.h"
 #include "node_v8_platform-inl.h"
+#include "simdjson.h"
 #include "util-inl.h"
 
 // The POSTJECT_SENTINEL_FUSE macro is a string of random characters selected by
@@ -123,6 +123,18 @@ size_t SeaSerializer::Write(const SeaResource& sea) {
       written_total += WriteStringView(content, StringLogMode::kAddressOnly);
     }
   }
+
+  if (static_cast<bool>(sea.flags & SeaFlags::kIncludeExecArgv)) {
+    Debug("Write SEA resource exec argv size %zu\n", sea.exec_argv.size());
+    written_total += WriteArithmetic<size_t>(sea.exec_argv.size());
+    for (const auto& arg : sea.exec_argv) {
+      Debug("Write SEA resource exec arg %s at %p, size=%zu\n",
+            arg.data(),
+            arg.data(),
+            arg.size());
+      written_total += WriteStringView(arg, StringLogMode::kAddressAndContent);
+    }
+  }
   return written_total;
 }
 
@@ -185,7 +197,22 @@ SeaResource SeaDeserializer::Read() {
       assets.emplace(key, content);
     }
   }
-  return {flags, code_path, code, code_cache, assets};
+
+  std::vector<std::string_view> exec_argv;
+  if (static_cast<bool>(flags & SeaFlags::kIncludeExecArgv)) {
+    size_t exec_argv_size = ReadArithmetic<size_t>();
+    Debug("Read SEA resource exec args size %zu\n", exec_argv_size);
+    exec_argv.reserve(exec_argv_size);
+    for (size_t i = 0; i < exec_argv_size; ++i) {
+      std::string_view arg = ReadStringView(StringLogMode::kAddressAndContent);
+      Debug("Read SEA resource exec arg %s at %p, size=%zu\n",
+            arg.data(),
+            arg.data(),
+            arg.size());
+      exec_argv.emplace_back(arg);
+    }
+  }
+  return {flags, code_path, code, code_cache, assets, exec_argv};
 }
 
 std::string_view FindSingleExecutableBlob() {
@@ -269,8 +296,27 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
   // entry point file path.
   if (IsSingleExecutable()) {
     static std::vector<char*> new_argv;
-    new_argv.reserve(argc + 2);
+    static std::vector<std::string> exec_argv_storage;
+
+    SeaResource sea_resource = FindSingleExecutableResource();
+
+    new_argv.clear();
+    exec_argv_storage.clear();
+
+    // Reserve space for argv[0], exec argv, original argv, and nullptr
+    new_argv.reserve(argc + sea_resource.exec_argv.size() + 2);
     new_argv.emplace_back(argv[0]);
+
+    // Insert exec argv from SEA config
+    if (!sea_resource.exec_argv.empty()) {
+      exec_argv_storage.reserve(sea_resource.exec_argv.size());
+      for (const auto& arg : sea_resource.exec_argv) {
+        exec_argv_storage.emplace_back(arg);
+        new_argv.emplace_back(exec_argv_storage.back().data());
+      }
+    }
+
+    // Add actual run time arguments.
     new_argv.insert(new_argv.end(), argv, argv + argc);
     new_argv.emplace_back(nullptr);
     argc = new_argv.size() - 1;
@@ -287,6 +333,7 @@ struct SeaConfig {
   std::string output_path;
   SeaFlags flags = SeaFlags::kDefault;
   std::unordered_map<std::string, std::string> assets;
+  std::vector<std::string> exec_argv;
 };
 
 std::optional<SeaConfig> ParseSingleExecutableConfig(
@@ -303,14 +350,142 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
   }
 
   SeaConfig result;
-  JSONParser parser;
-  if (!parser.Parse(config)) {
-    FPrintF(stderr, "Cannot parse JSON from %s\n", config_path);
+
+  simdjson::ondemand::parser parser;
+  simdjson::ondemand::document document;
+  simdjson::ondemand::object main_object;
+  simdjson::error_code error =
+      parser.iterate(simdjson::pad(config)).get(document);
+
+  if (!error) {
+    error = document.get_object().get(main_object);
+  }
+  if (error) {
+    FPrintF(stderr,
+            "Cannot parse JSON from %s: %s\n",
+            config_path,
+            simdjson::error_message(error));
     return std::nullopt;
   }
 
-  result.main_path =
-      parser.GetTopLevelStringField("main").value_or(std::string());
+  bool use_snapshot_value = false;
+  bool use_code_cache_value = false;
+
+  for (auto field : main_object) {
+    std::string_view key;
+    if (field.unescaped_key().get(key)) {
+      FPrintF(stderr, "Cannot read key from %s\n", config_path);
+      return std::nullopt;
+    }
+    if (key == "main") {
+      if (field.value().get_string().get(result.main_path) ||
+          result.main_path.empty()) {
+        FPrintF(stderr,
+                "\"main\" field of %s is not a non-empty string\n",
+                config_path);
+        return std::nullopt;
+      }
+    } else if (key == "output") {
+      if (field.value().get_string().get(result.output_path) ||
+          result.output_path.empty()) {
+        FPrintF(stderr,
+                "\"output\" field of %s is not a non-empty string\n",
+                config_path);
+        return std::nullopt;
+      }
+    } else if (key == "disableExperimentalSEAWarning") {
+      bool disable_experimental_sea_warning;
+      if (field.value().get_bool().get(disable_experimental_sea_warning)) {
+        FPrintF(
+            stderr,
+            "\"disableExperimentalSEAWarning\" field of %s is not a Boolean\n",
+            config_path);
+        return std::nullopt;
+      }
+      if (disable_experimental_sea_warning) {
+        result.flags |= SeaFlags::kDisableExperimentalSeaWarning;
+      }
+    } else if (key == "useSnapshot") {
+      if (field.value().get_bool().get(use_snapshot_value)) {
+        FPrintF(stderr,
+                "\"useSnapshot\" field of %s is not a Boolean\n",
+                config_path);
+        return std::nullopt;
+      }
+      if (use_snapshot_value) {
+        result.flags |= SeaFlags::kUseSnapshot;
+      }
+    } else if (key == "useCodeCache") {
+      if (field.value().get_bool().get(use_code_cache_value)) {
+        FPrintF(stderr,
+                "\"useCodeCache\" field of %s is not a Boolean\n",
+                config_path);
+        return std::nullopt;
+      }
+      if (use_code_cache_value) {
+        result.flags |= SeaFlags::kUseCodeCache;
+      }
+    } else if (key == "assets") {
+      simdjson::ondemand::object assets_object;
+      if (field.value().get_object().get(assets_object)) {
+        FPrintF(stderr,
+                "\"assets\" field of %s is not a map of strings\n",
+                config_path);
+        return std::nullopt;
+      }
+      simdjson::ondemand::value asset_value;
+      for (auto asset_field : assets_object) {
+        std::string_view key_str;
+        std::string_view value_str;
+        if (asset_field.unescaped_key().get(key_str) ||
+            asset_field.value().get(asset_value) ||
+            asset_value.get_string().get(value_str)) {
+          FPrintF(stderr,
+                  "\"assets\" field of %s is not a map of strings\n",
+                  config_path);
+          return std::nullopt;
+        }
+
+        result.assets.emplace(key_str, value_str);
+      }
+
+      if (!result.assets.empty()) {
+        result.flags |= SeaFlags::kIncludeAssets;
+      }
+    } else if (key == "execArgv") {
+      simdjson::ondemand::array exec_argv_array;
+      if (field.value().get_array().get(exec_argv_array)) {
+        FPrintF(stderr,
+                "\"execArgv\" field of %s is not an array of strings\n",
+                config_path);
+        return std::nullopt;
+      }
+      std::vector<std::string> exec_argv;
+      for (auto argv : exec_argv_array) {
+        std::string_view argv_str;
+        if (argv.get_string().get(argv_str)) {
+          FPrintF(stderr,
+                  "\"execArgv\" field of %s is not an array of strings\n",
+                  config_path);
+          return std::nullopt;
+        }
+        exec_argv.emplace_back(argv_str);
+      }
+      if (!exec_argv.empty()) {
+        result.flags |= SeaFlags::kIncludeExecArgv;
+        result.exec_argv = std::move(exec_argv);
+      }
+    }
+  }
+
+  if (static_cast<bool>(result.flags & SeaFlags::kUseSnapshot) &&
+      static_cast<bool>(result.flags & SeaFlags::kUseCodeCache)) {
+    // TODO(joyeecheung): code cache in snapshot should be configured by
+    // separate snapshot configurations.
+    FPrintF(stderr,
+            "\"useCodeCache\" is redundant when \"useSnapshot\" is true\n");
+  }
+
   if (result.main_path.empty()) {
     FPrintF(stderr,
             "\"main\" field of %s is not a non-empty string\n",
@@ -318,64 +493,11 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
     return std::nullopt;
   }
 
-  result.output_path =
-      parser.GetTopLevelStringField("output").value_or(std::string());
   if (result.output_path.empty()) {
     FPrintF(stderr,
             "\"output\" field of %s is not a non-empty string\n",
             config_path);
     return std::nullopt;
-  }
-
-  std::optional<bool> disable_experimental_sea_warning =
-      parser.GetTopLevelBoolField("disableExperimentalSEAWarning");
-  if (!disable_experimental_sea_warning.has_value()) {
-    FPrintF(stderr,
-            "\"disableExperimentalSEAWarning\" field of %s is not a Boolean\n",
-            config_path);
-    return std::nullopt;
-  }
-  if (disable_experimental_sea_warning.value()) {
-    result.flags |= SeaFlags::kDisableExperimentalSeaWarning;
-  }
-
-  std::optional<bool> use_snapshot = parser.GetTopLevelBoolField("useSnapshot");
-  if (!use_snapshot.has_value()) {
-    FPrintF(
-        stderr, "\"useSnapshot\" field of %s is not a Boolean\n", config_path);
-    return std::nullopt;
-  }
-  if (use_snapshot.value()) {
-    result.flags |= SeaFlags::kUseSnapshot;
-  }
-
-  std::optional<bool> use_code_cache =
-      parser.GetTopLevelBoolField("useCodeCache");
-  if (!use_code_cache.has_value()) {
-    FPrintF(
-        stderr, "\"useCodeCache\" field of %s is not a Boolean\n", config_path);
-    return std::nullopt;
-  }
-  if (use_code_cache.value()) {
-    if (use_snapshot.value()) {
-      // TODO(joyeecheung): code cache in snapshot should be configured by
-      // separate snapshot configurations.
-      FPrintF(stderr,
-              "\"useCodeCache\" is redundant when \"useSnapshot\" is true\n");
-    } else {
-      result.flags |= SeaFlags::kUseCodeCache;
-    }
-  }
-
-  auto assets_opt = parser.GetTopLevelStringDict("assets");
-  if (!assets_opt.has_value()) {
-    FPrintF(stderr,
-            "\"assets\" field of %s is not a map of strings\n",
-            config_path);
-    return std::nullopt;
-  } else if (!assets_opt.value().empty()) {
-    result.flags |= SeaFlags::kIncludeAssets;
-    result.assets = std::move(assets_opt.value());
   }
 
   return result;
@@ -546,6 +668,10 @@ ExitCode GenerateSingleExecutableBlob(
   for (auto const& [key, content] : assets) {
     assets_view.emplace(key, content);
   }
+  std::vector<std::string_view> exec_argv_view;
+  for (const auto& arg : config.exec_argv) {
+    exec_argv_view.emplace_back(arg);
+  }
   SeaResource sea{
       config.flags,
       config.main_path,
@@ -553,7 +679,8 @@ ExitCode GenerateSingleExecutableBlob(
           ? std::string_view{snapshot_blob.data(), snapshot_blob.size()}
           : std::string_view{main_script.data(), main_script.size()},
       optional_sv_code_cache,
-      assets_view};
+      assets_view,
+      exec_argv_view};
 
   SeaSerializer serializer;
   serializer.Write(sea);

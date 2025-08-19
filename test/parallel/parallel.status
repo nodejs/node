@@ -24,8 +24,11 @@ test-snapshot-incompatible: SKIP
 test-async-context-frame: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54534
 test-runner-run-watch: PASS, FLAKY
-# https://github.com/nodejs/node/issues/56794
-test-fs-cp: PASS, FLAKY
+# https://github.com/nodejs/node/pull/59408#issuecomment-3170650933
+test-fs-cp-sync-error-on-exist: PASS, FLAKY
+test-fs-cp-sync-symlink-points-to-dest-error: PASS, FLAKY
+test-fs-cp-async-symlink-points-to-dest: PASS, FLAKY
+test-fs-cp-sync-unicode-folder-names: PASS, FLAKY
 
 # https://github.com/nodejs/node/issues/56751
 test-without-async-context-frame: PASS, FLAKY

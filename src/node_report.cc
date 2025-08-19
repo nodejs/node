@@ -233,11 +233,11 @@ static void WriteNodeReport(Isolate* isolate,
     size_t expected_results = 0;
 
     env->ForEachWorker([&](Worker* w) {
-      expected_results += w->RequestInterrupt([&](Environment* env) {
+      expected_results += w->RequestInterrupt([&, w = w](Environment* env) {
         std::ostringstream os;
-
-        GetNodeReport(
-            env, "Worker thread subreport", trigger, Local<Value>(), os);
+        std::string name =
+            "Worker thread subreport [" + std::string(w->name()) + "]";
+        GetNodeReport(env, name.c_str(), trigger, Local<Value>(), os);
 
         Mutex::ScopedLock lock(workers_mutex);
         worker_infos.emplace_back(os.str());
@@ -797,24 +797,7 @@ static void PrintComponentVersions(JSONWriter* writer) {
 
   writer->json_objectstart("componentVersions");
 
-#define V(key) +1
-  std::pair<std::string_view, std::string_view>
-      versions_array[NODE_VERSIONS_KEYS(V)];
-#undef V
-  auto* slot = &versions_array[0];
-
-#define V(key)                                                                 \
-  do {                                                                         \
-    *slot++ = std::pair<std::string_view, std::string_view>(                   \
-        #key, per_process::metadata.versions.key);                             \
-  } while (0);
-  NODE_VERSIONS_KEYS(V)
-#undef V
-
-  std::ranges::sort(versions_array,
-                    [](auto& a, auto& b) { return a.first < b.first; });
-
-  for (const auto& version : versions_array) {
+  for (const auto& version : per_process::metadata.versions.pairs()) {
     writer->json_keyvalue(version.first, version.second);
   }
 

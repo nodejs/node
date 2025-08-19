@@ -118,6 +118,9 @@
   V(crypto_ml_dsa_44_string, "ml-dsa-44")                                      \
   V(crypto_ml_dsa_65_string, "ml-dsa-65")                                      \
   V(crypto_ml_dsa_87_string, "ml-dsa-87")                                      \
+  V(crypto_ml_kem_512_string, "ml-kem-512")                                    \
+  V(crypto_ml_kem_768_string, "ml-kem-768")                                    \
+  V(crypto_ml_kem_1024_string, "ml-kem-1024")                                  \
   V(crypto_x25519_string, "x25519")                                            \
   V(crypto_x448_string, "x448")                                                \
   V(crypto_rsa_string, "rsa")                                                  \

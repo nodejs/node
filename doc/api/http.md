@@ -117,6 +117,10 @@ http.get({
 added: v0.3.4
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59315
+    description: Add support for `agentKeepAliveTimeoutBuffer`.
+  - version:
     - v24.5.0
     pr-url: https://github.com/nodejs/node/pull/58980
     description: Add support for `proxyEnv`.
@@ -156,6 +160,12 @@ changes:
     the [initial delay][]
     for TCP Keep-Alive packets. Ignored when the
     `keepAlive` option is `false` or `undefined`. **Default:** `1000`.
+  * `agentKeepAliveTimeoutBuffer` {number} Milliseconds to subtract from
+    the server-provided `keep-alive: timeout=...` hint when determining socket
+    expiration time. This buffer helps ensure the agent closes the socket
+    slightly before the server does, reducing the chance of sending a request
+    on a socket that’s about to be closed by the server.
+    **Default:** `1000`.
   * `maxSockets` {number} Maximum number of sockets to allow per host.
     If the same host opens multiple concurrent connections, each request
     will use new socket until the `maxSockets` value is reached.
@@ -1962,7 +1972,7 @@ affects new connections to the server, not any existing connections.
 ### `server.keepAliveTimeoutBuffer`
 
 <!-- YAML
-added: REPLACEME
+added: v24.6.0
 -->
 
 * Type: {number} Timeout in milliseconds. **Default:** `1000` (1 second).

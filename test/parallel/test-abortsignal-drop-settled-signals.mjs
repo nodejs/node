@@ -104,17 +104,17 @@ const limit = 10_000;
 
 describe('when there is a long-lived signal', () => {
   it('drops settled dependant signals', (t, done) => {
-    makeSubsequentCalls(limit, (signal, depandantSignalsKey) => {
+    makeSubsequentCalls(limit, (signal, dependantSignalsKey) => {
       setImmediate(() => {
-        t.assert.strictEqual(signal[depandantSignalsKey].size, 0);
+        t.assert.strictEqual(signal[dependantSignalsKey].size, 0);
         done();
       });
     });
   });
 
   it('keeps all active dependant signals', (t, done) => {
-    makeSubsequentCalls(limit, (signal, depandantSignalsKey) => {
-      t.assert.strictEqual(signal[depandantSignalsKey].size, limit);
+    makeSubsequentCalls(limit, (signal, dependantSignalsKey) => {
+      t.assert.strictEqual(signal[dependantSignalsKey].size, limit);
 
       done();
     }, true);

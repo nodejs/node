@@ -6,6 +6,10 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
+const ciphers = crypto.getCiphers();
+if (!ciphers.includes('des3-wrap'))
+  common.skip('des3-wrap cipher is not available');
+
 // Test case for des-ede3 wrap/unwrap. des3-wrap needs extra 2x blocksize
 // then plaintext to store ciphertext.
 const test = {

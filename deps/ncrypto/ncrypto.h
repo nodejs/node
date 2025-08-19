@@ -28,11 +28,17 @@
 #include <openssl/fips.h>
 #endif  // OPENSSL_FIPS
 
-#if OPENSSL_VERSION_MAJOR >= 3
-#define OSSL3_CONST const
-#if OPENSSL_VERSION_MINOR >= 5
+// Define OPENSSL_WITH_PQC for post-quantum cryptography support
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+#define OPENSSL_WITH_PQC 1
+#define EVP_PKEY_ML_KEM_512 NID_ML_KEM_512
+#define EVP_PKEY_ML_KEM_768 NID_ML_KEM_768
+#define EVP_PKEY_ML_KEM_1024 NID_ML_KEM_1024
 #include <openssl/core_names.h>
 #endif
+
+#if OPENSSL_VERSION_MAJOR >= 3
+#define OSSL3_CONST const
 #else
 #define OSSL3_CONST
 #endif
@@ -820,7 +826,7 @@ class EVPKeyPointer final {
                                     const Buffer<const unsigned char>& data);
   static EVPKeyPointer NewRawPrivate(int id,
                                      const Buffer<const unsigned char>& data);
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
   static EVPKeyPointer NewRawSeed(int id,
                                   const Buffer<const unsigned char>& data);
 #endif
@@ -917,7 +923,7 @@ class EVPKeyPointer final {
   DataPointer rawPrivateKey() const;
   BIOPointer derPublicKey() const;
 
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
   DataPointer rawSeed() const;
 #endif
 

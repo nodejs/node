@@ -110,6 +110,18 @@ all: \
   ml_dsa_87_private_seed_only.pem \
   ml_dsa_87_private_priv_only.pem \
   ml_dsa_87_public.pem \
+  ml_kem_512_private.pem \
+  ml_kem_512_private_seed_only.pem \
+  ml_kem_512_private_priv_only.pem \
+  ml_kem_512_public.pem \
+  ml_kem_768_private.pem \
+  ml_kem_768_private_seed_only.pem \
+  ml_kem_768_private_priv_only.pem \
+  ml_kem_768_public.pem \
+  ml_kem_1024_private.pem \
+  ml_kem_1024_private_seed_only.pem \
+  ml_kem_1024_private_priv_only.pem \
+  ml_kem_1024_public.pem \
 
 #
 # Create Certificate Authority: ca1
@@ -902,6 +914,42 @@ ml_dsa_87_private_priv_only.pem: ml_dsa_87_private.pem
 
 ml_dsa_87_public.pem: ml_dsa_87_private.pem
 	openssl pkey -in ml_dsa_87_private.pem -pubout -out ml_dsa_87_public.pem
+
+ml_kem_512_private.pem:
+	openssl genpkey -algorithm ml-kem-512 -out ml_kem_512_private.pem
+
+ml_kem_512_private_seed_only.pem: ml_kem_512_private.pem
+	openssl pkey -in ml_kem_512_private.pem -provparam ml-kem.output_formats=seed-only -out ml_kem_512_private_seed_only.pem
+
+ml_kem_512_private_priv_only.pem: ml_kem_512_private.pem
+	openssl pkey -in ml_kem_512_private.pem -provparam ml-kem.output_formats=priv-only -out ml_kem_512_private_priv_only.pem
+
+ml_kem_512_public.pem: ml_kem_512_private.pem
+	openssl pkey -in ml_kem_512_private.pem -pubout -out ml_kem_512_public.pem
+
+ml_kem_768_private.pem:
+	openssl genpkey -algorithm ml-kem-768 -out ml_kem_768_private.pem
+
+ml_kem_768_private_seed_only.pem: ml_kem_768_private.pem
+	openssl pkey -in ml_kem_768_private.pem -provparam ml-kem.output_formats=seed-only -out ml_kem_768_private_seed_only.pem
+
+ml_kem_768_private_priv_only.pem: ml_kem_768_private.pem
+	openssl pkey -in ml_kem_768_private.pem -provparam ml-kem.output_formats=priv-only -out ml_kem_768_private_priv_only.pem
+
+ml_kem_768_public.pem: ml_kem_768_private.pem
+	openssl pkey -in ml_kem_768_private.pem -pubout -out ml_kem_768_public.pem
+
+ml_kem_1024_private.pem:
+	openssl genpkey -algorithm ml-kem-1024 -out ml_kem_1024_private.pem
+
+ml_kem_1024_private_seed_only.pem: ml_kem_1024_private.pem
+	openssl pkey -in ml_kem_1024_private.pem -provparam ml-kem.output_formats=seed-only -out ml_kem_1024_private_seed_only.pem
+
+ml_kem_1024_private_priv_only.pem: ml_kem_1024_private.pem
+	openssl pkey -in ml_kem_1024_private.pem -provparam ml-kem.output_formats=priv-only -out ml_kem_1024_private_priv_only.pem
+
+ml_kem_1024_public.pem: ml_kem_1024_private.pem
+	openssl pkey -in ml_kem_1024_private.pem -pubout -out ml_kem_1024_public.pem
 
 x448_private.pem:
 	openssl genpkey -algorithm x448 -out x448_private.pem
