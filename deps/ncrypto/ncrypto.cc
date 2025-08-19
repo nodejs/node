@@ -10,7 +10,12 @@
 #include <algorithm>
 #include <cstring>
 #if OPENSSL_VERSION_MAJOR >= 3
+#include <openssl/core_names.h>
+#include <openssl/params.h>
 #include <openssl/provider.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L
+#include <openssl/thread.h>
+#endif
 #endif
 #if OPENSSL_WITH_PQC
 struct PQCMapping {
@@ -1867,6 +1872,102 @@ DataPointer pbkdf2(const Digest& md,
 
   return {};
 }
+
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L
+#ifndef OPENSSL_NO_ARGON2
+DataPointer argon2(const Buffer<const char>& pass,
+                   const Buffer<const unsigned char>& salt,
+                   uint32_t lanes,
+                   size_t length,
+                   uint32_t memcost,
+                   uint32_t iter,
+                   uint32_t version,
+                   const Buffer<const unsigned char>& secret,
+                   const Buffer<const unsigned char>& ad,
+                   Argon2Type type) {
+  ClearErrorOnReturn clearErrorOnReturn;
+
+  std::string_view algorithm;
+  switch (type) {
+    case Argon2Type::ARGON2I:
+      algorithm = "ARGON2I";
+      break;
+    case Argon2Type::ARGON2D:
+      algorithm = "ARGON2D";
+      break;
+    case Argon2Type::ARGON2ID:
+      algorithm = "ARGON2ID";
+      break;
+    default:
+      // Invalid Argon2 type
+      return {};
+  }
+
+  // creates a new library context to avoid locking when running concurrently
+  auto ctx = DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free>{OSSL_LIB_CTX_new()};
+  if (!ctx) {
+    return {};
+  }
+
+  // required if threads > 1
+  if (lanes > 1 && OSSL_set_max_threads(ctx.get(), lanes) != 1) {
+    return {};
+  }
+
+  auto kdf = DeleteFnPtr<EVP_KDF, EVP_KDF_free>{
+      EVP_KDF_fetch(ctx.get(), algorithm.data(), nullptr)};
+  if (!kdf) {
+    return {};
+  }
+
+  auto kctx =
+      DeleteFnPtr<EVP_KDF_CTX, EVP_KDF_CTX_free>{EVP_KDF_CTX_new(kdf.get())};
+  if (!kctx) {
+    return {};
+  }
+
+  std::vector<OSSL_PARAM> params;
+  params.reserve(9);
+
+  params.push_back(OSSL_PARAM_construct_octet_string(
+      OSSL_KDF_PARAM_PASSWORD,
+      const_cast<char*>(pass.len > 0 ? pass.data : ""),
+      pass.len));
+  params.push_back(OSSL_PARAM_construct_octet_string(
+      OSSL_KDF_PARAM_SALT, const_cast<unsigned char*>(salt.data), salt.len));
+  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_THREADS, &lanes));
+  params.push_back(
+      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes));
+  params.push_back(
+      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &memcost));
+  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ITER, &iter));
+
+  if (ad.len != 0) {
+    params.push_back(OSSL_PARAM_construct_octet_string(
+        OSSL_KDF_PARAM_ARGON2_AD, const_cast<unsigned char*>(ad.data), ad.len));
+  }
+
+  if (secret.len != 0) {
+    params.push_back(OSSL_PARAM_construct_octet_string(
+        OSSL_KDF_PARAM_SECRET,
+        const_cast<unsigned char*>(secret.data),
+        secret.len));
+  }
+
+  params.push_back(OSSL_PARAM_construct_end());
+
+  auto dp = DataPointer::Alloc(length);
+  if (dp && EVP_KDF_derive(kctx.get(),
+                           reinterpret_cast<unsigned char*>(dp.get()),
+                           length,
+                           params.data()) == 1) {
+    return dp;
+  }
+
+  return {};
+}
+#endif
+#endif
 
 // ============================================================================
 
