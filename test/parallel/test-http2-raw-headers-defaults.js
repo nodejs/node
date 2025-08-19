@@ -23,6 +23,16 @@ const http2 = require('http2');
       'x-FOO', 'bar',
       'x', '2',
     ]);
+
+    assert.partialDeepStrictEqual(stream.sentHeaders, {
+      '__proto__': null,
+      ':status': 200,
+      'x': [ '1', '2' ],
+      'x-FOO': 'bar',
+    });
+
+    assert.strictEqual(typeof stream.sentHeaders.date, 'string');
+
     stream.end();
   }));
 
