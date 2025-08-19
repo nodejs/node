@@ -1,6 +1,6 @@
 CC = /opt/wasi-sdk/bin/clang
 TARGET = wasm32-wasi
-SYSROOT =
+SYSROOT = /opt/wasi-sdk/share/wasi-sysroot
 CFLAGS = -D_WASI_EMULATED_PROCESS_CLOCKS -lwasi-emulated-process-clocks
 
 OBJ = $(patsubst c/%.c, wasm/%.wasm, $(wildcard c/*.c))
@@ -12,6 +12,6 @@ wasm/pthread.wasm : c/pthread.c
 wasm/%.wasm : c/%.c
 	$(CC) $< $(CFLAGS) --target=$(TARGET) --sysroot=$(SYSROOT) -s -o $@
 
-.PHONY clean:
+.PHONY: clean
+clean:
 	rm -f $(OBJ)
-`
