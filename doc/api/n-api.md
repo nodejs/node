@@ -41,8 +41,8 @@ to write addons in other programming languages on top of Node-API. Refer
 to [language and engine bindings][] for more programming languages and engines
 support details.
 
-[`node-addon-api`][] is the official C++ binding provides more efficient way to
-write C++ code that calls Node-API. This wrapper provides an inlinable C++ API.
+[`node-addon-api`][] is the official C++ binding that provides a more efficient way to
+write C++ code that calls Node-API. This wrapper is a header-only library that offers an inlinable C++ API.
 Binaries built with `node-addon-api` will depend on the symbols of the Node-API
 C-based functions exported by Node.js. The following code snippet is an example
 of `node-addon-api`:
