@@ -73,6 +73,28 @@ try {
 }
 ```
 
+## Asymmetric key types
+
+The following table lists the asymmetric key types recognized by the [`KeyObject`][] API:
+
+| Key Type                    | Description    | OID                     |
+| --------------------------- | -------------- | ----------------------- |
+| `'dh'`                      | Diffie-Hellman | 1.2.840.113549.1.3.1    |
+| `'dsa'`                     | DSA            | 1.2.840.10040.4.1       |
+| `'ec'`                      | Elliptic curve | 1.2.840.10045.2.1       |
+| `'ed25519'`                 | Ed25519        | 1.3.101.112             |
+| `'ed448'`                   | Ed448          | 1.3.101.113             |
+| `'ml-dsa-44'`[^openssl35]   | ML-DSA-44      | 2.16.840.1.101.3.4.3.17 |
+| `'ml-dsa-65'`[^openssl35]   | ML-DSA-65      | 2.16.840.1.101.3.4.3.18 |
+| `'ml-dsa-87'`[^openssl35]   | ML-DSA-87      | 2.16.840.1.101.3.4.3.19 |
+| `'ml-kem-1024'`[^openssl35] | ML-KEM-1024    | 2.16.840.1.101.3.4.4.3  |
+| `'ml-kem-512'`[^openssl35]  | ML-KEM-512     | 2.16.840.1.101.3.4.4.1  |
+| `'ml-kem-768'`[^openssl35]  | ML-KEM-768     | 2.16.840.1.101.3.4.4.2  |
+| `'rsa-pss'`                 | RSA PSS        | 1.2.840.113549.1.1.10   |
+| `'rsa'`                     | RSA            | 1.2.840.113549.1.1.1    |
+| `'x25519'`                  | X25519         | 1.3.101.110             |
+| `'x448'`                    | X448           | 1.3.101.111             |
+
 ## Class: `Certificate`
 
 <!-- YAML
@@ -2052,24 +2074,8 @@ changes:
 
 * Type: {string}
 
-For asymmetric keys, this property represents the type of the key. Supported key
-types are:
-
-* `'rsa'` (OID 1.2.840.113549.1.1.1)
-* `'rsa-pss'` (OID 1.2.840.113549.1.1.10)
-* `'dsa'` (OID 1.2.840.10040.4.1)
-* `'ec'` (OID 1.2.840.10045.2.1)
-* `'x25519'` (OID 1.3.101.110)
-* `'x448'` (OID 1.3.101.111)
-* `'ed25519'` (OID 1.3.101.112)
-* `'ed448'` (OID 1.3.101.113)
-* `'dh'` (OID 1.2.840.113549.1.3.1)
-* `'ml-dsa-44'`[^openssl35] (OID 2.16.840.1.101.3.4.3.17)
-* `'ml-dsa-65'`[^openssl35] (OID 2.16.840.1.101.3.4.3.18)
-* `'ml-dsa-87'`[^openssl35] (OID 2.16.840.1.101.3.4.3.19)
-* `'ml-kem-512'`[^openssl35] (OID 2.16.840.1.101.3.4.4.1)
-* `'ml-kem-768'`[^openssl35] (OID 2.16.840.1.101.3.4.4.2)
-* `'ml-kem-1024'`[^openssl35] (OID 2.16.840.1.101.3.4.4.3)
+For asymmetric keys, this property represents the type of the key. See the
+supported [asymmetric key types][].
 
 This property is `undefined` for unrecognized `KeyObject` types and symmetric
 keys.
@@ -3590,9 +3596,9 @@ changes:
   * `secret` {Buffer}
 * Returns: {Buffer} if the `callback` function is not provided.
 
-Computes the Diffie-Hellman secret based on a `privateKey` and a `publicKey`.
-Both keys must have the same `asymmetricKeyType`, which must be one of `'dh'`
-(for Diffie-Hellman), `'ec'`, `'x448'`, or `'x25519'` (for ECDH).
+Computes the Diffie-Hellman shared secret based on a `privateKey` and a `publicKey`.
+Both keys must have the same `asymmetricKeyType` and must support either the DH or
+ECDH operation.
 
 If the `callback` function is provided this function uses libuv's threadpool.
 
@@ -3704,9 +3710,8 @@ changes:
                  produce key objects if no encoding was specified.
 -->
 
-* `type` {string} Must be `'rsa'`, `'rsa-pss'`, `'dsa'`, `'ec'`, `'ed25519'`,
-  `'ed448'`, `'x25519'`, `'x448'`, `'dh'`, `'ml-dsa-44'`[^openssl35],
-  `'ml-dsa-65'`[^openssl35], or `'ml-dsa-87'`[^openssl35].
+* `type` {string} The asymmetric key type to generate. See the
+  supported [asymmetric key types][].
 * `options` {Object}
   * `modulusLength` {number} Key size in bits (RSA, DSA).
   * `publicExponent` {number} Public exponent (RSA). **Default:** `0x10001`.
@@ -3825,9 +3830,8 @@ changes:
                  produce key objects if no encoding was specified.
 -->
 
-* `type` {string} Must be `'rsa'`, `'rsa-pss'`, `'dsa'`, `'ec'`, `'ed25519'`,
-  `'ed448'`, `'x25519'`, `'x448'`, `'dh'`, `'ml-dsa-44'`[^openssl35],
-  `'ml-dsa-65'`[^openssl35], or `'ml-dsa-87'`[^openssl35].
+* `type` {string} The asymmetric key type to generate. See the
+  supported [asymmetric key types][].
 * `options` {Object}
   * `modulusLength` {number} Key size in bits (RSA, DSA).
   * `publicExponent` {number} Public exponent (RSA). **Default:** `0x10001`.
@@ -6280,6 +6284,7 @@ See the [list of SSL OP Flags][] for details.
 [`verify.verify()`]: #verifyverifyobject-signature-signatureencoding
 [`x509.fingerprint256`]: #x509fingerprint256
 [`x509.verify(publicKey)`]: #x509verifypublickey
+[asymmetric key types]: #asymmetric-key-types
 [caveats when using strings as inputs to cryptographic APIs]: #using-strings-as-inputs-to-cryptographic-apis
 [certificate object]: tls.md#certificate-object
 [encoding]: buffer.md#buffers-and-character-encodings
