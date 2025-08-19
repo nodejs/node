@@ -78,35 +78,14 @@ assert.strictEqual(wasiPreview1.wasiImport,
         result,
       };
 
-      let worker;
-      let retryCount = 0;
-      const maxRetries = 3;
-      
-      // Retry Worker creation if it fails due to resource constraints
-      while (retryCount <= maxRetries) {
-        try {
-          worker = new Worker(__filename, {
-            name,
-            argv: process.argv.slice(2),
-            execArgv: [
-              '--experimental-wasi-unstable-preview1',
-            ],
-            workerData,
-          });
-          break; // Success
-        } catch (e) {
-          if (retryCount < maxRetries && (e.code === 'ERR_WORKER_INIT_FAILED' || e.message.includes('resource'))) {
-            retryCount++;
-            // Synchronous delay using busy wait (not ideal but works for tests)
-            const start = Date.now();
-            while (Date.now() - start < 100 * retryCount) {
-              // Busy wait
-            }
-          } else {
-            throw e; // Re-throw if not recoverable or max retries reached
-          }
-        }
-      }
+      const worker = new Worker(__filename, {
+        name,
+        argv: process.argv.slice(2),
+        execArgv: [
+          '--experimental-wasi-unstable-preview1',
+        ],
+        workerData,
+      });
       
       workers[tid] = worker;
 
@@ -128,7 +107,7 @@ assert.strictEqual(wasiPreview1.wasiImport,
         throw new Error(e);
       });
 
-      const r = Atomics.wait(result, 0, 0, 5000);
+      const r = Atomics.wait(result, 0, 0, 1000);
       if (r === 'timed-out') {
         workers[tid].terminate();
         delete workers[tid];

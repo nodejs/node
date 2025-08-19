@@ -15,10 +15,10 @@ int main() {
   int result = 0;
   int r;
   int retry_count = 0;
-  const int max_retries = 5;
+  const int max_retries = 3;
 
   // Retry pthread_create if it fails due to resource exhaustion
-  do {
+  for (retry_count = 0; retry_count <= max_retries; retry_count++) {
     r = pthread_create(&thread, NULL, worker, &result);
     if (r == 0) {
       break; // Success
@@ -26,13 +26,16 @@ int main() {
     
     // If it's a resource issue (EAGAIN/ENOMEM), retry with a small delay
     if ((r == EAGAIN || r == ENOMEM) && retry_count < max_retries) {
-      retry_count++;
-      usleep(100000 * retry_count); // Exponential backoff: 100ms, 200ms, etc.
+      // Exponential backoff: 50ms, 100ms, 200ms
+      usleep(50000 * (1 << retry_count));
     } else {
       // Non-recoverable error or max retries reached
-      assert(r == 0);
+      break;
     }
-  } while (r != 0 && retry_count <= max_retries);
+  }
+  
+  // Assert after all retries are exhausted
+  assert(r == 0);
 
   r = pthread_join(thread, NULL);
   assert(r == 0);

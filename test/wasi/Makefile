@@ -14,3 +14,4 @@ wasm/%.wasm : c/%.c
 
 .PHONY clean:
 	rm -f $(OBJ)
+`
