@@ -1,0 +1,13 @@
+{
+  "format_version": "1.0",
+  "patches": [
+    {
+      "name": "V8 Trap Handler Fix",
+      "target_file": "./deps/v8/src/trap-handler/trap-handler.h",
+      "patch_file": "./android-patches/trap-handler.h.patch",
+      "platforms": ["Linux"],
+      "description": "Related to https://github.com/nodejs/node/issues/36287",
+      "required": true
+    }
+  ]
+}
