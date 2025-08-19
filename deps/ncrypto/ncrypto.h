@@ -1589,13 +1589,13 @@ class KEM final {
         : ciphertext(std::move(ct)), shared_key(std::move(sk)) {}
   };
 
-  // Encapsulate a shared secret using KEM with a public key
-  // Returns both the ciphertext and shared secret
+  // Encapsulate a shared secret using KEM with a public key.
+  // Returns both the ciphertext and shared secret.
   static std::optional<EncapsulateResult> Encapsulate(
       const EVPKeyPointer& public_key);
 
-  // Decapsulate a shared secret using KEM with a private key and ciphertext
-  // Returns the shared secret
+  // Decapsulate a shared secret using KEM with a private key and ciphertext.
+  // Returns the shared secret.
   static DataPointer Decapsulate(const EVPKeyPointer& private_key,
                                  const Buffer<const void>& ciphertext);
 

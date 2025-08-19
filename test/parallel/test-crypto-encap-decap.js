@@ -14,8 +14,10 @@ if (!hasOpenSSL(3)) {
   return;
 }
 
-assert.throws(() => crypto.encapsulate(), { code: 'ERR_CRYPTO_KEY_REQUIRED' });
-assert.throws(() => crypto.decapsulate(), { code: 'ERR_CRYPTO_KEY_REQUIRED' });
+assert.throws(() => crypto.encapsulate(), { code: 'ERR_INVALID_ARG_TYPE',
+                                            message: /The "key" argument must be of type/ });
+assert.throws(() => crypto.decapsulate(), { code: 'ERR_INVALID_ARG_TYPE',
+                                            message: /The "key" argument must be of type/ });
 
 const keys = {
   'rsa': {

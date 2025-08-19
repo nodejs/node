@@ -1076,16 +1076,6 @@ added: REPLACEME
 Attempted to use KEM operations while Node.js was not compiled with
 OpenSSL with KEM support.
 
-<a id="ERR_CRYPTO_KEY_REQUIRED"></a>
-
-### `ERR_CRYPTO_KEY_REQUIRED`
-
-<!-- YAML
-added: REPLACEME
--->
-
-A `key` was not provided.
-
 <a id="ERR_CRYPTO_OPERATION_FAILED"></a>
 
 ### `ERR_CRYPTO_OPERATION_FAILED`

@@ -174,7 +174,7 @@ MaybeLocal<Value> KEMEncapsulateTraits::EncodeOutput(
     return MaybeLocal<Value>();
   }
 
-  // Return an array [sharedKey, ciphertext]
+  // Return an array [sharedKey, ciphertext].
   Local<Array> result = Array::New(env->isolate(), 2);
   if (result->Set(env->context(), 0, shared_key_obj).IsNothing() ||
       result->Set(env->context(), 1, ciphertext_obj).IsNothing()) {
