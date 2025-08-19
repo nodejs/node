@@ -279,6 +279,10 @@ An alias of [`assert.ok()`][].
 added: v0.1.21
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59448
+    description: Promises are not considered equal anymore if they are not of
+                 the same instance.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57627
     description: Invalid dates are now considered equal.
   - version: v24.0.0
@@ -366,8 +370,10 @@ are also recursively evaluated by the following rules.
 * Implementation does not test the [`[[Prototype]]`][prototype-spec] of
   objects.
 * {Symbol} properties are not compared.
-* {WeakMap} and {WeakSet} comparison does not rely on their values
-  but only on their instances.
+* {WeakMap}, {WeakSet} and {Promise} instances are **not** compared
+  structurally. They are only equal if they reference the same object. Any
+  comparison between different `WeakMap`, `WeakSet`, or `Promise` instances
+  will result in inequality, even if they contain the same content.
 * {RegExp} lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
 
@@ -473,6 +479,10 @@ parameter is an instance of {Error} then it will be thrown instead of the
 added: v1.2.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59448
+    description: Promises are not considered equal anymore if they are not of
+                 the same instance.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57627
     description: Invalid dates are now considered equal.
   - version: v24.0.0
@@ -540,10 +550,10 @@ are recursively evaluated also by the following rules.
 * {Map} keys and {Set} items are compared unordered.
 * Recursion stops when both sides differ or either side encounters a circular
   reference.
-* {WeakMap} and {WeakSet} instances are **not** compared structurally.
-  They are only equal if they reference the same object. Any comparison between
-  different `WeakMap` or `WeakSet` instances will result in inequality,
-  even if they contain the same entries.
+* {WeakMap}, {WeakSet} and {Promise} instances are **not** compared
+  structurally. They are only equal if they reference the same object. Any
+  comparison between different `WeakMap`, `WeakSet`, or `Promise` instances
+  will result in inequality, even if they contain the same content.
 * {RegExp} lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
 
@@ -2231,6 +2241,10 @@ added:
   - v22.13.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59448
+    description: Promises are not considered equal anymore if they are not of
+                 the same instance.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57627
     description: Invalid dates are now considered equal.
   - version:
@@ -2268,10 +2282,10 @@ behaving as a super set of it.
 * {Map} keys and {Set} items are compared unordered.
 * Recursion stops when both sides differ or both sides encounter a circular
   reference.
-* {WeakMap} and {WeakSet} instances are **not** compared structurally.
-  They are only equal if they reference the same object. Any comparison between
-  different `WeakMap` or `WeakSet` instances will result in inequality,
-  even if they contain the same entries.
+* {WeakMap}, {WeakSet} and {Promise} instances are **not** compared
+  structurally. They are only equal if they reference the same object. Any
+  comparison between different `WeakMap`, `WeakSet`, or `Promise` instances
+  will result in inequality, even if they contain the same content.
 * {RegExp} lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
 * Holes in sparse arrays are ignored.
