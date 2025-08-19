@@ -2327,12 +2327,10 @@ changes:
   * `type` {string} The type of CA certificates to return. One of `"default"`, `"system"`, `"bundled"`, or `"extra"`.
     **Default:** `"default"`.
   * `format` {string} The format of returned certificates. One of `"string"`, `"buffer"`, or `"x509"`.
-    **Default**: `"string"`.
-    * `"string"`: Returns PEM-encoded strings by default. See `encoding` for DER.
-    * `"buffer"`: Returns an array of certificate data as `Buffer` objects.
+    **Default:** `"string"`.
+    * `"string"`: Returns an array of PEM-encoded certificate strings.
+    * `"buffer"`: Returns an array of certificate data as `Buffer` objects in DER format.
     * `"x509"`: Returns an array of [`X509Certificate`][x509certificate] instances.
-  * `encoding` {string} When `format` is `"string"`, the encoding of the returned strings.
-    One of `"pem"` (PEM-encoded) or `"der"` (base64 DER). **Default:** `"pem"`.
 
 * Returns: {Array}
   An array of certificate data in the specified format (Buffer or X509Certificate).
