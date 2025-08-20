@@ -337,6 +337,7 @@
       'src/crypto/crypto_context.cc',
       'src/crypto/crypto_ec.cc',
       'src/crypto/crypto_ml_dsa.cc',
+      'src/crypto/crypto_kem.cc',
       'src/crypto/crypto_hmac.cc',
       'src/crypto/crypto_random.cc',
       'src/crypto/crypto_rsa.cc',

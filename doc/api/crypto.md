@@ -3741,6 +3741,40 @@ the corresponding digest algorithm. This does not work for all signature
 algorithms, such as `'ecdsa-with-SHA256'`, so it is best to always use digest
 algorithm names.
 
+### `crypto.decapsulate(key, ciphertext[, callback])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.2 - Release candidate
+
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} Private Key
+* `ciphertext` {ArrayBuffer|Buffer|TypedArray|DataView}
+* `callback` {Function}
+  * `err` {Error}
+  * `sharedKey` {Buffer}
+* Returns: {Buffer} if the `callback` function is not provided.
+
+<!--lint enable maximum-line-length remark-lint-->
+
+Key decapsulation using a KEM algorithm with a private key.
+
+Supported key types and their KEM algorithms are:
+
+* `'rsa'`[^openssl30] RSA Secret Value Encapsulation
+* `'ec'`[^openssl32] DHKEM(P-256, HKDF-SHA256), DHKEM(P-384, HKDF-SHA256), DHKEM(P-521, HKDF-SHA256)
+* `'x25519'`[^openssl32] DHKEM(X25519, HKDF-SHA256)
+* `'x448'`[^openssl32] DHKEM(X448, HKDF-SHA512)
+* `'ml-kem-512'`[^openssl35] ML-KEM
+* `'ml-kem-768'`[^openssl35] ML-KEM
+* `'ml-kem-1024'`[^openssl35] ML-KEM
+
+If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
+passed to [`crypto.createPrivateKey()`][].
+
+If the `callback` function is provided this function uses libuv's threadpool.
+
 ### `crypto.diffieHellman(options[, callback])`
 
 <!-- YAML
@@ -3764,6 +3798,43 @@ changes:
 Computes the Diffie-Hellman shared secret based on a `privateKey` and a `publicKey`.
 Both keys must have the same `asymmetricKeyType` and must support either the DH or
 ECDH operation.
+
+If the `callback` function is provided this function uses libuv's threadpool.
+
+### `crypto.encapsulate(key[, callback])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.2 - Release candidate
+
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} Public Key
+* `callback` {Function}
+  * `err` {Error}
+  * `result` {Object}
+    * `sharedKey` {Buffer}
+    * `ciphertext` {Buffer}
+* Returns: {Object} if the `callback` function is not provided.
+  * `sharedKey` {Buffer}
+  * `ciphertext` {Buffer}
+
+<!--lint enable maximum-line-length remark-lint-->
+
+Key encapsulation using a KEM algorithm with a public key.
+
+Supported key types and their KEM algorithms are:
+
+* `'rsa'`[^openssl30] RSA Secret Value Encapsulation
+* `'ec'`[^openssl32] DHKEM(P-256, HKDF-SHA256), DHKEM(P-384, HKDF-SHA256), DHKEM(P-521, HKDF-SHA256)
+* `'x25519'`[^openssl32] DHKEM(X25519, HKDF-SHA256)
+* `'x448'`[^openssl32] DHKEM(X448, HKDF-SHA512)
+* `'ml-kem-512'`[^openssl35] ML-KEM
+* `'ml-kem-768'`[^openssl35] ML-KEM
+* `'ml-kem-1024'`[^openssl35] ML-KEM
+
+If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
+passed to [`crypto.createPublicKey()`][].
 
 If the `callback` function is provided this function uses libuv's threadpool.
 
@@ -6365,6 +6436,10 @@ See the [list of SSL OP Flags][] for details.
     process.</td>
   </tr>
 </table>
+
+[^openssl30]: Requires OpenSSL >= 3.0
+
+[^openssl32]: Requires OpenSSL >= 3.2
 
 [^openssl35]: Requires OpenSSL >= 3.5
 
