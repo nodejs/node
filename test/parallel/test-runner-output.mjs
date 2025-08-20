@@ -7,17 +7,12 @@ import { hostname } from 'node:os';
 import { chdir, cwd } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-let internalTTy;
-async function lazyInternalTTy() {
-  internalTTy ??= (await import('internal/tty')).default;
-  return internalTTy;
-}
-
 const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
   process.config.variables.node_shared_openssl;
 
-const canColorize = (await lazyInternalTTy()).getColorDepth() > 2;
+// We're using dynamic import here to not break `NODE_REGENERATE_SNAPSHOTS`.
+const canColorize = (await import('internal/tty')).default.getColorDepth() > 2;
 const skipCoverageColors = !canColorize;
 
 function replaceTestDuration(str) {
