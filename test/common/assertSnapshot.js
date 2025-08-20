@@ -84,7 +84,7 @@ async function spawnAndAssert(filename, transform = (x) => x, { tty = false, ...
     test({ skip: 'Skipping pseudo-tty tests, as pseudo terminals are not available on Windows.' });
     return;
   }
-  let flags = common.parseTestFlags(filename);
+  let { flags } = common.parseTestMetadata(filename);
   if (options.flags) {
     flags = [...options.flags, ...flags];
   }
