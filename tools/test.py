@@ -791,8 +791,7 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False,
   # We append NODE_SKIP_FLAG_CHECK (ref: test/common/index.js)
   # to avoid parsing the test files twice when looking for
   # flags or environment variables defined via // Flags: and // Env:
-  if not "NODE_SKIP_FLAG_CHECK" in env_copy:
-    env_copy["NODE_SKIP_FLAG_CHECK"] = "true"
+  env_copy["NODE_SKIP_FLAG_CHECK"] = "true"
 
   preexec_fn = None
 
