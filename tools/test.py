@@ -788,6 +788,11 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False,
   for key, value in env.items():
     env_copy[key] = value
 
+  # We append NODE_SKIP_FLAG_CHECK (ref: test/common/index.js)
+  # to avoid parsing the test files twice when looking for
+  # flags or environment variables defined via // Flags: and // Env:
+  env_copy["NODE_SKIP_FLAG_CHECK"] = "true"
+
   preexec_fn = None
 
   def disableCoreFiles():
