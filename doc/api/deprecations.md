@@ -4074,6 +4074,7 @@ changes:
   - version:
       - v24.4.0
       - v22.18.0
+      - v20.19.5
     pr-url: https://github.com/nodejs/node/pull/58942
     description: Documentation-only deprecation with support for `--pending-deprecation`.
 -->
