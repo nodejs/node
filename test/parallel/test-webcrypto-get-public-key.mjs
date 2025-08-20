@@ -41,11 +41,16 @@ for await (const { privateKey } of [
     name: 'SyntaxError',
     message: /Unsupported key usage/
   });
+
+  await assert.rejects(() => subtle.getPublicKey(publicKey, publicKey.usages), {
+    name: 'InvalidAccessError',
+    message: 'key must be a private key'
+  });
 }
 
 const secretKey = await subtle.generateKey(
   { name: 'AES-CBC', length: 128 }, true, ['encrypt', 'decrypt']);
 await assert.rejects(() => subtle.getPublicKey(secretKey, ['encrypt', 'decrypt']), {
-  name: 'InvalidAccessError',
+  name: 'NotSupportedError',
   message: 'key must be a private key'
 });
