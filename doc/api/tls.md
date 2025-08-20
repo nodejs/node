@@ -2508,7 +2508,7 @@ added: v0.11.3
 [`tls.connect()`]: #tlsconnectoptions-callback
 [`tls.createSecureContext()`]: #tlscreatesecurecontextoptions
 [`tls.createServer()`]: #tlscreateserveroptions-secureconnectionlistener
-[`tls.getCACertificates()`]: #tlsgetcacertificatestype
+[`tls.getCACertificates()`]: #tlsgetcacertificatesoptions
 [`tls.getCiphers()`]: #tlsgetciphers
 [`tls.rootCertificates`]: #tlsrootcertificates
 [`x509.checkHost()`]: crypto.md#x509checkhostname-options
