@@ -874,6 +874,10 @@ changes:
 Calls `filehandle.close()` and returns a promise that fulfills when the
 filehandle is closed.
 
+This method enables the filehandle to be used with [`await using`][], which
+will automatically close the file when the scope exits. For more information,
+see the [MDN documentation on `using` statements][`using`].
+
 ### `fsPromises.access(path[, mode])`
 
 <!-- YAML
@@ -1342,10 +1346,11 @@ directory cannot be deleted, disposal will throw an error. The object has an
 async `remove()` method which will perform the same task.
 
 Both this function and the disposal function on the resulting object are
-async, so it should be used with `await` + `await using` as in
+async, so it should be used with `await` + [`await using`][] as in
 `await using dir = await fsPromises.mkdtempDisposable('prefix')`.
 
-<!-- TODO: link MDN docs for disposables once https://github.com/mdn/content/pull/38027 lands -->
+See the [MDN documentation on `using` statements][`using`] for more information about
+explicit resource management.
 
 For detailed information, see the documentation of [`fsPromises.mkdtemp()`][].
 
@@ -5971,12 +5976,13 @@ removed if it still exists. If the directory cannot be deleted, disposal will
 throw an error. The object has a `remove()` method which will perform the same
 task.
 
-<!-- TODO: link MDN docs for disposables once https://github.com/mdn/content/pull/38027 lands -->
+See the [MDN documentation on `using` statements][`using`] for more information about
+explicit resource management.
 
 For detailed information, see the documentation of [`fs.mkdtemp()`][].
 
 There is no callback-based version of this API because it is designed for use
-with the `using` syntax.
+with the [`using`][] syntax.
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
@@ -6838,6 +6844,10 @@ changes:
 Calls `dir.close()` if the directory handle is open, and returns a promise that
 fulfills when disposal is complete.
 
+This method enables the directory to be used with [`await using`][], which
+will automatically close the directory when the scope exits. For more
+information, see the [MDN documentation on `using` statements][`using`].
+
 #### `dir[Symbol.dispose]()`
 
 <!-- YAML
@@ -6852,6 +6862,10 @@ changes:
 
 Calls `dir.closeSync()` if the directory handle is open, and returns
 `undefined`.
+
+This method enables the directory to be used with [`using`][], which
+will automatically close the directory when the scope exits. For more
+information, see the [MDN documentation on `using` statements][`using`].
 
 ### Class: `fs.Dirent`
 
@@ -7893,6 +7907,10 @@ the `data` argument must be a {Buffer}.
 
 Calls `utf8Stream.destroy()`.
 
+This method enables the stream to be used with [`using`][], which
+will automatically destroy the stream when the scope exits. For more
+information, see the [MDN documentation on `using` statements][`using`].
+
 ### Class: `fs.WriteStream`
 
 <!-- YAML
@@ -8708,6 +8726,7 @@ the file contents.
 [`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
 [`ReadDirectoryChangesW`]: https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-readdirectorychangesw
 [`UV_THREADPOOL_SIZE`]: cli.md#uv_threadpool_sizesize
+[`await using`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/await_using
 [`event ports`]: https://illumos.org/man/port_create
 [`filehandle.createReadStream()`]: #filehandlecreatereadstreamoptions
 [`filehandle.createWriteStream()`]: #filehandlecreatewritestreamoptions
@@ -8760,6 +8779,7 @@ the file contents.
 [`fsPromises.utimes()`]: #fspromisesutimespath-atime-mtime
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
+[`using`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/using
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [bigints]: https://tc39.github.io/proposal-bigint
 [caveats]: #caveats
