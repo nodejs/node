@@ -405,7 +405,7 @@ implementations. Specifically, the {TypedArray} variants accept a second
 argument that is a mapping function that is invoked on every element of the
 typed array:
 
-* `TypedArray.from(source[, mapFn[, thisArg]])`
+* [`TypedArray.from(source[, mapFn[, thisArg]])`][`TypedArray.from()`]
 
 The `Buffer.from()` method, however, does not support the use of a mapping
 function:
