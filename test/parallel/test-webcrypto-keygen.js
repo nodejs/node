@@ -608,9 +608,6 @@ if (hasOpenSSL(3, 5)) {
         case 'SHA-256': length = 512; break;
         case 'SHA-384': length = 1024; break;
         case 'SHA-512': length = 1024; break;
-        case 'SHA3-256': length = 1088; break;
-        case 'SHA3-384': length = 832; break;
-        case 'SHA3-512': length = 576; break;
       }
     }
 
@@ -636,20 +633,24 @@ if (hasOpenSSL(3, 5)) {
   }
 
   const kTests = [
-    [ undefined, 'SHA-1', ['sign', 'verify']],
-    [ undefined, 'SHA-256', ['sign', 'verify']],
-    [ undefined, 'SHA-384', ['sign', 'verify']],
-    [ undefined, 'SHA-512', ['sign', 'verify']],
-    [ 128, 'SHA-256', ['sign', 'verify']],
-    [ 1024, 'SHA-512', ['sign', 'verify']],
+    [undefined, 'SHA-1', ['sign', 'verify']],
+    [undefined, 'SHA-256', ['sign', 'verify']],
+    [undefined, 'SHA-384', ['sign', 'verify']],
+    [undefined, 'SHA-512', ['sign', 'verify']],
+    [128, 'SHA-256', ['sign', 'verify']],
+    [1024, 'SHA-512', ['sign', 'verify']],
   ];
 
   if (!process.features.openssl_is_boringssl) {
     kTests.push(
-
-      [ undefined, 'SHA3-256', ['sign', 'verify']],
-      [ undefined, 'SHA3-384', ['sign', 'verify']],
-      [ undefined, 'SHA3-512', ['sign', 'verify']],
+      [256, 'SHA3-256', ['sign', 'verify']],
+      [384, 'SHA3-384', ['sign', 'verify']],
+      [512, 'SHA3-512', ['sign', 'verify']],
+      // This interaction is not defined for now.
+      // https://github.com/WICG/webcrypto-modern-algos/issues/23
+      // [undefined, 'SHA3-256', ['sign', 'verify']],
+      // [undefined, 'SHA3-384', ['sign', 'verify']],
+      // [undefined, 'SHA3-512', ['sign', 'verify']],
     );
   } else {
     common.printSkipMessage('Skipping unsupported SHA-3 test cases');
