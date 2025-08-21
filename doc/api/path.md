@@ -289,9 +289,11 @@ path.format({
 added:
   - v22.5.0
   - v20.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/TODO
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `path` {string} The path to glob-match against.
 * `pattern` {string} The glob to check the path against.
