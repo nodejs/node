@@ -1478,6 +1478,9 @@ changes:
 <!-- YAML
 added: v17.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59464
+    description: format now accepts `brotli` value.
   - version:
     - v21.2.0
     - v20.12.0
@@ -1485,7 +1488,7 @@ changes:
     description: format now accepts `deflate-raw` value.
 -->
 
-* `format` {string} One of `'deflate'`, `'deflate-raw'`, or `'gzip'`.
+* `format` {string} One of `'deflate'`, `'deflate-raw'`, `'gzip'`, or `'brotli'`.
 
 #### `compressionStream.readable`
 
@@ -1518,6 +1521,9 @@ changes:
 <!-- YAML
 added: v17.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59464
+    description: format now accepts `brotli` value.
   - version:
     - v21.2.0
     - v20.12.0
@@ -1525,7 +1531,7 @@ changes:
     description: format now accepts `deflate-raw` value.
 -->
 
-* `format` {string} One of `'deflate'`, `'deflate-raw'`, or `'gzip'`.
+* `format` {string} One of `'deflate'`, `'deflate-raw'`, `'gzip'`, or `'brotli'`.
 
 #### `decompressionStream.readable`
 
