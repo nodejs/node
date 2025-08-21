@@ -654,7 +654,7 @@ added: v15.0.0
 * Type: {boolean}
 
 When `true`, the {CryptoKey} can be extracted using either
-`subtleCrypto.exportKey()` or `subtleCrypto.wrapKey()`.
+[`subtle.exportKey()`][] or [`subtle.wrapKey()`][].
 
 Read-only.
 
@@ -846,7 +846,7 @@ changes:
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 Using the method and parameters specified in `algorithm` and the keying
-material provided by `key`, `subtle.decrypt()` attempts to decipher the
+material provided by `key`, this method attempts to decipher the
 provided `data`. If successful, the returned promise will be resolved with
 an {ArrayBuffer} containing the plaintext result.
 
@@ -888,7 +888,7 @@ changes:
 <!--lint enable maximum-line-length remark-lint-->
 
 Using the method and parameters specified in `algorithm` and the keying
-material provided by `baseKey`, `subtle.deriveBits()` attempts to generate
+material provided by `baseKey`, this method attempts to generate
 `length` bits.
 
 When `length` is not provided or `null` the maximum number of bits for a given
@@ -930,12 +930,12 @@ changes:
 <!--lint enable maximum-line-length remark-lint-->
 
 Using the method and parameters specified in `algorithm`, and the keying
-material provided by `baseKey`, `subtle.deriveKey()` attempts to generate
+material provided by `baseKey`, this method attempts to generate
 a new {CryptoKey} based on the method and parameters in `derivedKeyAlgorithm`.
 
-Calling `subtle.deriveKey()` is equivalent to calling `subtle.deriveBits()` to
+Calling this method is equivalent to calling [`subtle.deriveBits()`][] to
 generate raw keying material, then passing the result into the
-`subtle.importKey()` method using the `deriveKeyAlgorithm`, `extractable`, and
+[`subtle.importKey()`][] method using the `deriveKeyAlgorithm`, `extractable`, and
 `keyUsages` parameters as input.
 
 The algorithms currently supported include:
@@ -963,7 +963,7 @@ changes:
 * `data` {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
-Using the method identified by `algorithm`, `subtle.digest()` attempts to
+Using the method identified by `algorithm`, this method attempts to
 generate a digest of `data`. If successful, the returned promise is resolved
 with an {ArrayBuffer} containing the computed digest.
 
@@ -1040,7 +1040,7 @@ changes:
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 Using the method and parameters specified by `algorithm` and the keying
-material provided by `key`, `subtle.encrypt()` attempts to encipher `data`.
+material provided by `key`, this method attempts to encipher `data`.
 If successful, the returned promise is resolved with an {ArrayBuffer}
 containing the encrypted result.
 
@@ -1230,7 +1230,7 @@ changes:
 * `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey} upon success.
 
-The `subtle.importKey()` method attempts to interpret the provided `keyData`
+The [`subtle.importKey()`][] method attempts to interpret the provided `keyData`
 as the given `format` to create a {CryptoKey} instance using the provided
 `algorithm`, `extractable`, and `keyUsages` arguments. If the import is
 successful, the returned promise will be resolved with the created {CryptoKey}.
@@ -1291,7 +1291,7 @@ changes:
 <!--lint enable maximum-line-length remark-lint-->
 
 Using the method and parameters given by `algorithm` and the keying material
-provided by `key`, `subtle.sign()` attempts to generate a cryptographic
+provided by `key`, this method attempts to generate a cryptographic
 signature of `data`. If successful, the returned promise is resolved with
 an {ArrayBuffer} containing the generated signature.
 
@@ -1337,11 +1337,11 @@ changes:
 * Returns: {Promise} Fulfills with a {CryptoKey} upon success.
 
 In cryptography, "wrapping a key" refers to exporting and then encrypting the
-keying material. The `subtle.unwrapKey()` method attempts to decrypt a wrapped
+keying material. This method attempts to decrypt a wrapped
 key and create a {CryptoKey} instance. It is equivalent to calling
-`subtle.decrypt()` first on the encrypted key data (using the `wrappedKey`,
+[`subtle.decrypt()`][] first on the encrypted key data (using the `wrappedKey`,
 `unwrapAlgo`, and `unwrappingKey` arguments as input) then passing the results
-in to the `subtle.importKey()` method using the `unwrappedKeyAlgo`,
+to the [`subtle.importKey()`][] method using the `unwrappedKeyAlgo`,
 `extractable`, and `keyUsages` arguments as inputs. If successful, the returned
 promise is resolved with a {CryptoKey} object.
 
@@ -1406,7 +1406,7 @@ changes:
 <!--lint enable maximum-line-length remark-lint-->
 
 Using the method and parameters given in `algorithm` and the keying material
-provided by `key`, `subtle.verify()` attempts to verify that `signature` is
+provided by `key`, this method attempts to verify that `signature` is
 a valid cryptographic signature of `data`. The returned promise is resolved
 with either `true` or `false`.
 
@@ -1447,12 +1447,12 @@ changes:
 <!--lint enable maximum-line-length remark-lint-->
 
 In cryptography, "wrapping a key" refers to exporting and then encrypting the
-keying material. The `subtle.wrapKey()` method exports the keying material into
+keying material. This method exports the keying material into
 the format identified by `format`, then encrypts it using the method and
 parameters specified by `wrapAlgo` and the keying material provided by
-`wrappingKey`. It is the equivalent to calling `subtle.exportKey()` using
+`wrappingKey`. It is the equivalent to calling [`subtle.exportKey()`][] using
 `format` and `key` as the arguments, then passing the result to the
-`subtle.encrypt()` method using `wrappingKey` and `wrapAlgo` as inputs. If
+[`subtle.encrypt()`][] method using `wrappingKey` and `wrapAlgo` as inputs. If
 successful, the returned promise will be resolved with an {ArrayBuffer}
 containing the encrypted key data.
 
