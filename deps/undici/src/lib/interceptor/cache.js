@@ -6,7 +6,7 @@ const util = require('../core/util')
 const CacheHandler = require('../handler/cache-handler')
 const MemoryCacheStore = require('../cache/memory-cache-store')
 const CacheRevalidationHandler = require('../handler/cache-revalidation-handler')
-const { assertCacheStore, assertCacheMethods, makeCacheKey, normaliseHeaders, parseCacheControlHeader } = require('../util/cache.js')
+const { assertCacheStore, assertCacheMethods, makeCacheKey, normalizeHeaders, parseCacheControlHeader } = require('../util/cache.js')
 const { AbortError } = require('../core/errors.js')
 
 /**
@@ -326,7 +326,7 @@ module.exports = (opts = {}) => {
 
       opts = {
         ...opts,
-        headers: normaliseHeaders(opts)
+        headers: normalizeHeaders(opts)
       }
 
       const reqCacheControl = opts.headers?.['cache-control']

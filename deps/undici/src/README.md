@@ -622,11 +622,11 @@ and `undici.Agent`) which will enable the family autoselection algorithm when es
 
 Undici aligns with the Node.js LTS schedule. The following table shows the supported versions:
 
-| Version | Node.js     | End of Life |
-|---------|-------------|-------------|
-| 5.x     | v18.x       | 2024-04-30  |
-| 6.x     | v20.x v22.x | 2026-04-30  |
-| 7.x     | v24.x       | 2027-04-30  |
+| Undici Version | Bundled in Node.js | Node.js Versions Supported | End of Life |
+|----------------|-------------------|----------------------------|-------------|
+| 5.x           | 18.x              | ≥14.0 (tested: 14, 16, 18) | 2024-04-30  |
+| 6.x           | 20.x, 22.x       | ≥18.17 (tested: 18, 20, 21, 22) | 2026-04-30  |
+| 7.x           | 24.x              | ≥20.18.1 (tested: 20, 22, 24) | 2027-04-30  |
 
 ## License
 

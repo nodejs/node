@@ -6,7 +6,7 @@ const { states, opcodes, sentCloseFrameState } = require('../constants')
 const { webidl } = require('../../webidl')
 const { getURLRecord, isValidSubprotocol, isEstablished, utf8Decode } = require('../util')
 const { establishWebSocketConnection, failWebsocketConnection, closeWebSocketConnection } = require('../connection')
-const { types } = require('node:util')
+const { isArrayBuffer } = require('node:util/types')
 const { channels } = require('../../../core/diagnostics')
 const { WebsocketFrameSend } = require('../frame')
 const { ByteParser } = require('../receiver')
@@ -210,7 +210,7 @@ class WebSocketStream {
     let opcode = null
 
     // 4. If chunk is a BufferSource ,
-    if (ArrayBuffer.isView(chunk) || types.isArrayBuffer(chunk)) {
+    if (ArrayBuffer.isView(chunk) || isArrayBuffer(chunk)) {
       // 4.1. Set data to a copy of the bytes given chunk .
       data = new Uint8Array(ArrayBuffer.isView(chunk) ? new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength) : chunk)
 

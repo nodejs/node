@@ -22,7 +22,8 @@ const { webidl } = require('../webidl')
 const { URLSerializer } = require('./data-url')
 const { kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
-const { types } = require('node:util')
+
+const { isArrayBuffer } = nodeUtil.types
 
 const textEncoder = new TextEncoder('utf-8')
 
@@ -243,6 +244,11 @@ class Response {
     // 2. Let clonedResponse be the result of cloning this’s response.
     const clonedResponse = cloneResponse(this.#state)
 
+    // Note: To re-register because of a new stream.
+    if (this.#state.body?.stream) {
+      streamRegistry.register(this, new WeakRef(this.#state.body.stream))
+    }
+
     // 3. Return the result of creating a Response object, given
     // clonedResponse, this’s headers’s guard, and this’s relevant Realm.
     return fromInnerResponse(clonedResponse, getHeadersGuard(this.#headers))
@@ -353,8 +359,6 @@ function cloneResponse (response) {
   // result of cloning response’s body.
   if (response.body != null) {
     newResponse.body = cloneBody(response.body)
-
-    streamRegistry.register(newResponse, new WeakRef(response.body.stream))
   }
 
   // 4. Return newResponse.
@@ -576,7 +580,7 @@ webidl.converters.XMLHttpRequestBodyInit = function (V, prefix, name) {
     return V
   }
 
-  if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
+  if (ArrayBuffer.isView(V) || isArrayBuffer(V)) {
     return V
   }
 

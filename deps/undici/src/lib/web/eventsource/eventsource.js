@@ -124,10 +124,10 @@ class EventSource extends EventTarget {
     url = webidl.converters.USVString(url)
     eventSourceInitDict = webidl.converters.EventSourceInitDict(eventSourceInitDict, prefix, 'eventSourceInitDict')
 
-    this.#dispatcher = eventSourceInitDict.dispatcher
+    this.#dispatcher = eventSourceInitDict.node.dispatcher || eventSourceInitDict.dispatcher
     this.#state = {
       lastEventId: '',
-      reconnectionTime: defaultReconnectionTime
+      reconnectionTime: eventSourceInitDict.node.reconnectionTime
     }
 
     // 2. Let settings be ev's relevant settings object.
@@ -472,6 +472,21 @@ webidl.converters.EventSourceInitDict = webidl.dictionaryConverter([
   {
     key: 'dispatcher', // undici only
     converter: webidl.converters.any
+  },
+  {
+    key: 'node', // undici only
+    converter: webidl.dictionaryConverter([
+      {
+        key: 'reconnectionTime',
+        converter: webidl.converters['unsigned long'],
+        defaultValue: () => defaultReconnectionTime
+      },
+      {
+        key: 'dispatcher',
+        converter: webidl.converters.any
+      }
+    ]),
+    defaultValue: () => ({})
   }
 ])
 
