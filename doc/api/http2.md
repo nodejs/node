@@ -1080,6 +1080,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Following the deprecation of priority signaling as of RFC 9113,
                  `weight` option is deprecated.
+  - version:
+      - v24.0.0
+      - v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57917
+    description: Allow passing headers in raw array format.
 -->
 
 * `headers` {HTTP/2 Headers Object|Array}
@@ -1851,13 +1856,17 @@ and will throw an error.
 added: v8.4.0
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59455
+    description: Allow passing headers in raw array format.
+  - version:
     - v14.5.0
     - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/33160
     description: Allow explicitly setting date headers.
 -->
 
-* `headers` {HTTP/2 Headers Object}
+* `headers` {HTTP/2 Headers Object|Array}
 * `options` {Object}
   * `endStream` {boolean} Set to `true` to indicate that the response will not
     include payload data.
