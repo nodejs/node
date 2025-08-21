@@ -291,7 +291,7 @@ added:
   - v20.17.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/TODO
+    pr-url: https://github.com/nodejs/node/pull/59572
     description: Marking the API stable.
 -->
 
