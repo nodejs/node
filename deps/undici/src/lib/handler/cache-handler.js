@@ -15,6 +15,15 @@ const HEURISTICALLY_CACHEABLE_STATUS_CODES = [
   200, 203, 204, 206, 300, 301, 308, 404, 405, 410, 414, 501
 ]
 
+// Status codes which semantic is not handled by the cache
+// https://datatracker.ietf.org/doc/html/rfc9111#section-3
+// This list should not grow beyond 206 and 304 unless the RFC is updated
+// by a newer one including more. Please introduce another list if
+// implementing caching of responses with the 'must-understand' directive.
+const NOT_UNDERSTOOD_STATUS_CODES = [
+  206, 304
+]
+
 const MAX_RESPONSE_AGE = 2147483647000
 
 /**
@@ -241,10 +250,19 @@ class CacheHandler {
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives} cacheControlDirectives
  */
 function canCacheResponse (cacheType, statusCode, resHeaders, cacheControlDirectives) {
-  // Allow caching for status codes 200 and 307 (original behavior)
-  // Also allow caching for other status codes that are heuristically cacheable
-  // when they have explicit cache directives
-  if (statusCode !== 200 && statusCode !== 307 && !HEURISTICALLY_CACHEABLE_STATUS_CODES.includes(statusCode)) {
+  // Status code must be final and understood.
+  if (statusCode < 200 || NOT_UNDERSTOOD_STATUS_CODES.includes(statusCode)) {
+    return false
+  }
+  // Responses with neither status codes that are heuristically cacheable, nor "explicit enough" caching
+  // directives, are not cacheable. "Explicit enough": see https://www.rfc-editor.org/rfc/rfc9111.html#section-3
+  if (!HEURISTICALLY_CACHEABLE_STATUS_CODES.includes(statusCode) && !resHeaders['expires'] &&
+    !cacheControlDirectives.public &&
+    cacheControlDirectives['max-age'] === undefined &&
+    // RFC 9111: a private response directive, if the cache is not shared
+    !(cacheControlDirectives.private && cacheType === 'private') &&
+    !(cacheControlDirectives['s-maxage'] !== undefined && cacheType === 'shared')
+  ) {
     return false
   }
 

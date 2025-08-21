@@ -18,7 +18,7 @@ const { createDeferredPromise } = require('../../util/promise')
  * @property {'delete' | 'put'} type
  * @property {any} request
  * @property {any} response
- * @property {import('../../types/cache').CacheQueryOptions} options
+ * @property {import('../../../types/cache').CacheQueryOptions} options
  */
 
 /**
@@ -452,7 +452,7 @@ class Cache {
   /**
    * @see https://w3c.github.io/ServiceWorker/#dom-cache-keys
    * @param {any} request
-   * @param {import('../../types/cache').CacheQueryOptions} options
+   * @param {import('../../../types/cache').CacheQueryOptions} options
    * @returns {Promise<readonly Request[]>}
    */
   async keys (request = undefined, options = {}) {
@@ -670,7 +670,7 @@ class Cache {
   /**
    * @see https://w3c.github.io/ServiceWorker/#query-cache
    * @param {any} requestQuery
-   * @param {import('../../types/cache').CacheQueryOptions} options
+   * @param {import('../../../types/cache').CacheQueryOptions} options
    * @param {requestResponseList} targetStorage
    * @returns {requestResponseList}
    */
@@ -695,7 +695,7 @@ class Cache {
    * @param {any} requestQuery
    * @param {any} request
    * @param {any | null} response
-   * @param {import('../../types/cache').CacheQueryOptions | undefined} options
+   * @param {import('../../../types/cache').CacheQueryOptions | undefined} options
    * @returns {boolean}
    */
   #requestMatchesCachedItem (requestQuery, request, response = null, options) {
