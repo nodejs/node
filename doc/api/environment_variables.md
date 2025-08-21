@@ -96,10 +96,10 @@ For example:
     MY_VAR_B   =    '   my variable b   '
 ```
 
-will be treaded identically to:
+will be treated identically to:
 
 ```text
-MY_VAR_A = my variable
+MY_VAR_A = my variable a
 MY_VAR_B = '   my variable b   '
 ```
 
