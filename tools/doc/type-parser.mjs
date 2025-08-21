@@ -93,6 +93,8 @@ const customTypesMap = {
   'CryptoKey': 'webcrypto.html#class-cryptokey',
   'CryptoKeyPair': 'webcrypto.html#class-cryptokeypair',
   'Crypto': 'webcrypto.html#class-crypto',
+  'EncapsulatedBits': 'webcrypto.html#class-encapsulatedbits',
+  'EncapsulatedKey': 'webcrypto.html#class-encapsulatedkey',
   'SubtleCrypto': 'webcrypto.html#class-subtlecrypto',
   'RsaOaepParams': 'webcrypto.html#class-rsaoaepparams',
   'AesCtrParams': 'webcrypto.html#class-aesctrparams',
