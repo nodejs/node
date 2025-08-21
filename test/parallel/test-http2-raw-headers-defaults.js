@@ -10,30 +10,28 @@ const http2 = require('http2');
   const server = http2.createServer();
   server.on('stream', common.mustCall((stream, _headers, _flags, rawHeaders) => {
     assert.deepStrictEqual(rawHeaders, [
-      ':path', '/foobar',
+      ':method', 'GET',
+      ':authority', `localhost:${server.address().port}`,
       ':scheme', 'http',
-      ':authority', `test.invalid:${server.address().port}`,
-      ':method', 'POST',
+      ':path', '/',
       'a', 'b',
       'x-foo', 'bar', // Lowercased as required for HTTP/2
       'a', 'c', // Duplicate header order preserved
     ]);
-
     stream.respond([
-      ':status', '404',
       'x', '1',
       'x-FOO', 'bar',
       'x', '2',
-      'DATE', '0000',
     ]);
 
-    assert.deepStrictEqual(stream.sentHeaders, {
+    assert.partialDeepStrictEqual(stream.sentHeaders, {
       '__proto__': null,
-      ':status': '404',
+      ':status': 200,
       'x': [ '1', '2' ],
       'x-FOO': 'bar',
-      'DATE': '0000',
     });
+
+    assert.strictEqual(typeof stream.sentHeaders.date, 'string');
 
     stream.end();
   }));
@@ -44,10 +42,6 @@ const http2 = require('http2');
     const client = http2.connect(`http://localhost:${port}`);
 
     const req = client.request([
-      ':path', '/foobar',
-      ':scheme', 'http',
-      ':authority', `test.invalid:${server.address().port}`,
-      ':method', 'POST',
       'a', 'b',
       'x-FOO', 'bar',
       'a', 'c',
@@ -55,22 +49,26 @@ const http2 = require('http2');
 
     assert.deepStrictEqual(req.sentHeaders, {
       '__proto__': null,
-      ':path': '/foobar',
+      ':path': '/',
       ':scheme': 'http',
-      ':authority': `test.invalid:${server.address().port}`,
-      ':method': 'POST',
+      ':authority': `localhost:${server.address().port}`,
+      ':method': 'GET',
       'a': [ 'b', 'c' ],
       'x-FOO': 'bar',
     });
 
     req.on('response', common.mustCall((_headers, _flags, rawHeaders) => {
-      assert.deepStrictEqual(rawHeaders, [
-        ':status', '404',
+      assert.strictEqual(rawHeaders.length, 10);
+      assert.deepStrictEqual(rawHeaders.slice(0, 8), [
+        ':status', '200',
         'x', '1',
         'x-foo', 'bar', // Lowercased as required for HTTP/2
         'x', '2', // Duplicate header order preserved
-        'date', '0000', // Server doesn't automatically set its own value
       ]);
+
+      assert.strictEqual(rawHeaders[8], 'date');
+      assert.strictEqual(typeof rawHeaders[9], 'string');
+
       client.close();
       server.close();
     }));
