@@ -268,6 +268,10 @@ inline std::string RequiresArgumentErr(const std::string& arg) {
   return arg + " requires an argument";
 }
 
+inline std::string UnexpectedArgumentErr(const std::string& arg) {
+  return arg + " does not take an argument";
+}
+
 inline std::string NegationImpliesBooleanError(const std::string& arg) {
   return arg + " is an invalid negation because it is not a boolean option";
 }
@@ -475,6 +479,10 @@ void OptionsParser<Options>::Parse(
             value = value.substr(1);  // Treat \- as escaping an -.
         }
       }
+    } else if (info.type == kBoolean && equals_index != std::string::npos) {
+      // Boolean options don't accept arguments
+      errors->push_back(UnexpectedArgumentErr(name));
+      break;
     }
 
     switch (info.type) {
