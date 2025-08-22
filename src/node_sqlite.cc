@@ -1941,7 +1941,9 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
   }
 
   for (int i = anon_start; i < args.Length(); ++i) {
-    while (sqlite3_bind_parameter_name(statement_, anon_idx) != nullptr) {
+    while (1) {
+      const char* param = sqlite3_bind_parameter_name(statement_, anon_idx);
+      if (param == nullptr || param[0] == '?') break;
       anon_idx++;
     }
 
