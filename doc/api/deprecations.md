@@ -2463,7 +2463,7 @@ changes:
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22519
     description: Deprecation revoked.
-                 Status changed to a documentation-only deprecation.
+                 Status changed to a documentation-only deprecation
                  with `--pending-deprecation` support.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/23017
