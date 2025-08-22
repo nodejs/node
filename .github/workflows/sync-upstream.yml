@@ -1,0 +1,146 @@
+name: Sync with upstream Node.js repository
+
+on:
+  schedule:
+    # Run daily at 6:00 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      force_sync:
+        description: 'Force sync even if there are conflicts'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: lts/*
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    if: github.repository == 'dharani-dharan-11023/node'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/nodejs/node.git || true
+          git remote set-url upstream https://github.com/nodejs/node.git
+          
+      - name: Fetch upstream changes
+        run: |
+          git fetch upstream
+          git fetch origin
+          
+      - name: Check for updates and setup branches
+        id: check_updates
+        run: |
+          # Get the latest commit from upstream main
+          UPSTREAM_SHA=$(git rev-parse upstream/main)
+          echo "upstream_sha=$UPSTREAM_SHA" >> $GITHUB_OUTPUT
+          
+          # Check if we have a local main branch
+          if git show-ref --verify --quiet refs/heads/main; then
+            LOCAL_SHA=$(git rev-parse main)
+            echo "Found local main branch"
+          elif git show-ref --verify --quiet refs/remotes/origin/main; then
+            LOCAL_SHA=$(git rev-parse origin/main)
+            echo "Found remote main branch, creating local tracking branch"
+            git checkout -b main origin/main
+          else
+            echo "No main branch found, will create new one from upstream"
+            LOCAL_SHA=""
+            git checkout -b main upstream/main
+            echo "created_new_main=true" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "local_sha=$LOCAL_SHA" >> $GITHUB_OUTPUT
+          
+          if [ -n "$LOCAL_SHA" ] && [ "$UPSTREAM_SHA" = "$LOCAL_SHA" ]; then
+            echo "up_to_date=true" >> $GITHUB_OUTPUT
+            echo "Repository is already up to date with upstream"
+          else
+            echo "up_to_date=false" >> $GITHUB_OUTPUT
+            echo "New changes found in upstream or new main branch created"
+          fi
+          
+      - name: Attempt fast-forward merge or setup main
+        if: steps.check_updates.outputs.up_to_date == 'false'
+        id: fast_forward
+        run: |
+          # If we created a new main branch, we're already synced
+          if [ "${{ steps.check_updates.outputs.created_new_main }}" = "true" ]; then
+            echo "merge_success=true" >> $GITHUB_OUTPUT
+            echo "New main branch created from upstream"
+          else
+            # Try to fast-forward merge existing main
+            git checkout main
+            if git merge --ff-only upstream/main; then
+              echo "merge_success=true" >> $GITHUB_OUTPUT
+              echo "Successfully fast-forwarded to upstream"
+            else
+              echo "merge_success=false" >> $GITHUB_OUTPUT
+              echo "Fast-forward merge failed, conflicts may exist"
+            fi
+          fi
+        continue-on-error: true
+        
+      - name: Push changes to origin
+        if: steps.check_updates.outputs.up_to_date == 'false' && steps.fast_forward.outputs.merge_success == 'true'
+        run: |
+          git push origin main --force-with-lease
+          echo "Successfully synced with upstream!"
+          
+      - name: Create sync PR for conflicts
+        if: steps.check_updates.outputs.up_to_date == 'false' && steps.fast_forward.outputs.merge_success == 'false'
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e  # v7.0.8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: automated-sync/upstream-main
+          delete-branch: true
+          title: 'sync: Update from upstream Node.js repository'
+          body: |
+            ## Automated Upstream Sync
+            
+            This PR was automatically created to sync changes from the upstream Node.js repository.
+            
+            **Upstream commit**: `${{ steps.check_updates.outputs.upstream_sha }}`
+            **Previous commit**: `${{ steps.check_updates.outputs.local_sha }}`
+            
+            ⚠️ **Manual intervention required**: This PR was created because automatic fast-forward merge failed, likely due to conflicts or divergent history.
+            
+            ### Next steps:
+            1. Review the changes carefully
+            2. Resolve any conflicts if present
+            3. Test the changes if needed
+            4. Merge this PR to complete the sync
+            
+            This sync ensures the fork stays up-to-date with the latest Node.js developments.
+          labels: |
+            automated-sync
+            upstream
+          draft: false
+          
+      - name: Log sync status
+        run: |
+          if [ "${{ steps.check_updates.outputs.up_to_date }}" = "true" ]; then
+            echo "✅ Repository is up to date with upstream"
+          elif [ "${{ steps.fast_forward.outputs.merge_success }}" = "true" ]; then
+            echo "✅ Successfully synced with upstream via fast-forward"
+          else
+            echo "⚠️ Created PR for manual sync due to conflicts"
+          fi
