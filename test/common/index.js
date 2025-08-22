@@ -116,34 +116,38 @@ if (process.argv.length === 2 &&
     require('cluster').isPrimary &&
     fs.existsSync(process.argv[1])) {
   const { flags, envs } = parseTestMetadata();
-  for (const flag of flags) {
-    if (!process.execArgv.includes(flag) &&
-        // If the binary is build without `intl` the inspect option is
-        // invalid. The test itself should handle this case.
-        (process.features.inspector || !flag.startsWith('--inspect'))) {
-      console.log(
-        'NOTE: The test started as a child_process using these flags:',
-        inspect(flags),
-        'And these environment variables:',
-        inspect(envs),
-        'Use NODE_SKIP_FLAG_CHECK to run the test with the original flags.',
-      );
-      const { spawnSync } = require('child_process');
-      const args = [...flags, ...process.execArgv, ...process.argv.slice(1)];
-      const options = {
-        encoding: 'utf8',
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          ...envs,
-        },
-      };
-      const result = spawnSync(process.execPath, args, options);
-      if (result.signal) {
-        process.kill(0, result.signal);
-      } else {
-        process.exit(result.status);
-      }
+
+  const flagsTriggerSpawn = flags.some((flag) => (
+    !process.execArgv.includes(flag) &&
+    // If the binary is build without `intl` the inspect option is
+    // invalid. The test itself should handle this case.
+    (process.features.inspector || !flag.startsWith('--inspect'))
+  ));
+  const envsTriggerSpawn = Object.keys(envs).some((key) => process.env[key] !== envs[key]);
+
+  if (flagsTriggerSpawn || envsTriggerSpawn) {
+    console.log(
+      'NOTE: The test started as a child_process using these flags:',
+      inspect(flags),
+      'And these environment variables:',
+      inspect(envs),
+      'Use NODE_SKIP_FLAG_CHECK to run the test with the original flags.',
+    );
+    const { spawnSync } = require('child_process');
+    const args = [...flags, ...process.execArgv, ...process.argv.slice(1)];
+    const options = {
+      encoding: 'utf8',
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        ...envs,
+      },
+    };
+    const result = spawnSync(process.execPath, args, options);
+    if (result.signal) {
+      process.kill(0, result.signal);
+    } else {
+      process.exit(result.status);
     }
   }
 }
