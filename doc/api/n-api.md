@@ -33,22 +33,27 @@ properties:
   using `napi_get_last_error_info`. More information can be found in the error
   handling section [Error handling][].
 
+## Writing addons in various programming languages
+
 Node-API is a C API that ensures ABI stability across Node.js versions
-and different compiler levels. A C++ API can be easier to use.
-To support using C++, the project maintains a
-C++ wrapper module called [`node-addon-api`][].
-This wrapper provides an inlinable C++ API. Binaries built
-with `node-addon-api` will depend on the symbols for the Node-API C-based
-functions exported by Node.js. `node-addon-api` is a more
-efficient way to write code that calls Node-API. Take, for example, the
-following `node-addon-api` code. The first section shows the
-`node-addon-api` code and the second section shows what actually gets
-used in the addon.
+and different compiler levels. With this stability guarantee, it is possible
+to write addons in other programming languages on top of Node-API. Refer
+to [language and engine bindings][] for more programming languages and engines
+support details.
+
+[`node-addon-api`][] is the official C++ binding that provides a more efficient way to
+write C++ code that calls Node-API. This wrapper is a header-only library that offers an inlinable C++ API.
+Binaries built with `node-addon-api` will depend on the symbols of the Node-API
+C-based functions exported by Node.js. The following code snippet is an example
+of `node-addon-api`:
 
 ```cpp
 Object obj = Object::New(env);
 obj["foo"] = String::New(env, "bar");
 ```
+
+The above `node-addon-api` C++ code is equivalent to the following C-based
+Node-API code:
 
 ```cpp
 napi_status status;
@@ -72,8 +77,9 @@ if (status != napi_ok) {
 }
 ```
 
-The end result is that the addon only uses the exported C APIs. As a result,
-it still gets the benefits of the ABI stability provided by the C API.
+The end result is that the addon only uses the exported C APIs. Even though
+the addon is written in C++, it still gets the benefits of the ABI stability
+provided by the C Node-API.
 
 When using `node-addon-api` instead of the C APIs, start with the API [docs][]
 for `node-addon-api`.
@@ -6887,6 +6893,7 @@ the add-on's file name during loading.
 [externals]: #napi_create_external
 [global scope]: globals.md
 [gyp-next]: https://github.com/nodejs/gyp-next
+[language and engine bindings]: https://github.com/nodejs/abi-stable-node/blob/doc/node-api-engine-bindings.md
 [module scope]: modules.md#the-module-scope
 [node-gyp]: https://github.com/nodejs/node-gyp
 [node-pre-gyp]: https://github.com/mapbox/node-pre-gyp
