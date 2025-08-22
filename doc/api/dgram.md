@@ -968,6 +968,8 @@ changes:
     specified by the NAT.
   * `sendBlockList` {net.BlockList} `sendBlockList` can be used for disabling outbound
     access to specific IP addresses, IP ranges, or IP subnets.
+  * `msgCount` {integer} `msgCount` can be used to receive multiple messages at once via `recvmmsg`.
+    **Default:** `0`, disabled.
 * `callback` {Function} Attached as a listener for `'message'` events. Optional.
 * Returns: {dgram.Socket}
 
