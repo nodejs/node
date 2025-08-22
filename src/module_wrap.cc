@@ -604,22 +604,12 @@ void ModuleWrap::GetModuleRequests(const FunctionCallbackInfo<Value>& args) {
 
 // moduleWrap.link(moduleWraps)
 void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
-  Realm* realm = Realm::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
 
   ModuleWrap* dependent;
   ASSIGN_OR_RETURN_UNWRAP(&dependent, args.This());
 
   CHECK_EQ(args.Length(), 1);
-
-  Local<Data> linked_requests =
-      args.This()->GetInternalField(kLinkedRequestsSlot);
-  if (linked_requests->IsValue() &&
-      !linked_requests.As<Value>()->IsUndefined()) {
-    // If the module is already linked, we should not link it again.
-    THROW_ERR_VM_MODULE_LINK_FAILURE(realm->env(), "module is already linked");
-    return;
-  }
 
   Local<FixedArray> requests =
       dependent->module_.Get(isolate)->GetModuleRequests();
