@@ -3851,7 +3851,7 @@ It is recommended to use the `new` qualifier instead. This applies to all Zlib c
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/TODO
+    pr-url: https://github.com/nodejs/node/pull/59495
     description: End-of-Life.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/54869
