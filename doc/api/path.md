@@ -283,7 +283,7 @@ path.format({
 // Returns: 'C:\\path\\dir\\file.txt'
 ```
 
-## `path.matchesGlob(path, pattern)`
+## `path.matchesGlob(path, pattern[, options])`
 
 <!-- YAML
 added:
@@ -295,16 +295,42 @@ added:
 
 * `path` {string} The path to glob-match against.
 * `pattern` {string} The glob to check the path against.
+* `options` {Object}
+  * `exclude` {string|string\[]|Function} Patterns to exclude from matching.
 * Returns: {boolean} Whether or not the `path` matched the `pattern`.
 
-The `path.matchesGlob()` method determines if `path` matches the `pattern`.
+The `path.matchesGlob()` method determines if `path` matches the `pattern`,
+optionally excluding paths that match the `exclude` patterns.
 
 For example:
 
 ```js
 path.matchesGlob('/foo/bar', '/foo/*'); // true
 path.matchesGlob('/foo/bar*', 'foo/bird'); // false
+
+// Using exclude with string
+path.matchesGlob('/foo/bar', '/foo/*', { exclude: '/foo/bar' }); // false
+path.matchesGlob('/foo/baz', '/foo/*', { exclude: '/foo/bar' }); // true
+
+// Using exclude with array
+path.matchesGlob('/foo/bar', '/foo/*', {
+  exclude: ['/foo/bar', '/foo/baz'],
+}); // false
+
+// Using exclude with function
+path.matchesGlob('/foo/bar', '/foo/*', {
+  exclude: (path) => path.includes('bar'),
+}); // false
 ```
+
+The `exclude` option can be:
+
+* A string pattern that will exclude matching paths
+* An array of string patterns
+* A function that receives the path and returns `true` to exclude it
+
+Unlike `fs.glob()`, the `exclude` patterns in `path.matchesGlob()` are
+matched against the input path directly, without path resolution.
 
 A [`TypeError`][] is thrown if `path` or `pattern` are not strings.
 
