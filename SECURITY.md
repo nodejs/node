@@ -109,8 +109,8 @@ hardware combinations (Tier 1, Tier 2, and Experimental). For platforms
 classified as "Experimental" in the [supported platforms](BUILDING.md#supported-platforms)
 documentation:
 
-* Security vulnerabilities will **not** be accepted as valid security issues
-* Problems on experimental platforms will be treated as normal bugs
+* Security vulnerabilities that only affect experimental platforms will **not** be accepted as valid security issues.
+* Any issues on experimental platforms will be treated as normal bugs.
 * No CVEs will be issued for issues that only affect experimental platforms
 * Bug bounty rewards are not available for experimental platform-specific issues
 
