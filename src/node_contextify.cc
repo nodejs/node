@@ -994,13 +994,15 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   Local<ArrayBufferView> cached_data_buf;
   bool produce_cached_data = false;
   Local<Context> parsing_context = context;
+  ScriptCompiler::CompileOptions compile_options =
+      ScriptCompiler::kNoCompileOptions;
 
   Local<Symbol> id_symbol;
   if (argc > 2) {
     // new ContextifyScript(code, filename, lineOffset, columnOffset,
     //                      cachedData, produceCachedData, parsingContext,
-    //                      hostDefinedOptionId)
-    CHECK_EQ(argc, 8);
+    //                      hostDefinedOptionId, compileOptions)
+    CHECK_GE(argc, 8);
     CHECK(args[2]->IsNumber());
     line_offset = args[2].As<Int32>()->Value();
     CHECK(args[3]->IsNumber());
@@ -1021,6 +1023,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
     }
     CHECK(args[7]->IsSymbol());
     id_symbol = args[7].As<Symbol>();
+
+    if (!args[8]->IsUndefined()) {
+      CHECK(args[8]->IsInt32());
+      compile_options = static_cast<ScriptCompiler::CompileOptions>(
+          args[8].As<Int32>()->Value());
+    }
   }
 
   ContextifyScript* contextify_script = New(env, args.This());
@@ -1057,8 +1065,6 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
                       false,           // is ES Module
                       host_defined_options);
   ScriptCompiler::Source source(code, origin, cached_data);
-  ScriptCompiler::CompileOptions compile_options =
-      ScriptCompiler::kNoCompileOptions;
 
   if (source.GetCachedData() != nullptr)
     compile_options = ScriptCompiler::kConsumeCodeCache;
@@ -1479,7 +1485,14 @@ void ContextifyFunction::CompileFunction(
   if (source.GetCachedData() != nullptr) {
     options = ScriptCompiler::kConsumeCodeCache;
   } else {
-    options = ScriptCompiler::kNoCompileOptions;
+    // Argument 11: compile options
+    if (args[10]->IsUndefined()) {
+      options = ScriptCompiler::kNoCompileOptions;
+    } else {
+      CHECK(args[10]->IsInt32());
+      options = static_cast<ScriptCompiler::CompileOptions>(
+          args[10].As<Int32>()->Value());
+    }
   }
 
   Context::Scope scope(parsing_context);
@@ -2047,6 +2060,17 @@ static void CreatePerContextProperties(Local<Object> target,
   }
 
   READONLY_PROPERTY(constants, "measureMemory", measure_memory);
+
+  {
+    Local<Object> compile_options = Object::New(env->isolate());
+    ScriptCompiler::CompileOptions NO_COMPILE_OPTIONS =
+        ScriptCompiler::kNoCompileOptions;
+    ScriptCompiler::CompileOptions EAGER_COMPILE =
+        ScriptCompiler::kEagerCompile;
+    NODE_DEFINE_CONSTANT(compile_options, NO_COMPILE_OPTIONS);
+    NODE_DEFINE_CONSTANT(compile_options, EAGER_COMPILE);
+    READONLY_PROPERTY(constants, "COMPILE_OPTIONS", compile_options);
+  }
 
   target->Set(context, env->constants_string(), constants).Check();
 }
