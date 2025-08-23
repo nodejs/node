@@ -281,6 +281,15 @@ suite('DatabaseSync() constructor', () => {
       { changes: 1, lastInsertRowid: 1 },
     );
   });
+
+  test('has sqlite-type symbol property', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    t.after(() => { db.close(); });
+
+    const sqliteTypeSymbol = Symbol.for('sqlite-type');
+    t.assert.strictEqual(db[sqliteTypeSymbol], 'node:sqlite');
+  });
 });
 
 suite('DatabaseSync.prototype.open()', () => {
