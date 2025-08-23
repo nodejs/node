@@ -1,7 +1,11 @@
 'use strict';
 require('../common');
 const { strictEqual } = require('node:assert');
-const { suite, test } = require('node:test');
+const { before, suite, test } = require('node:test');
+
+before((t) => {
+  strictEqual(t.fullName, '<root>');
+});
 
 suite('suite', (t) => {
   strictEqual(t.fullName, 'suite');
