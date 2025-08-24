@@ -2991,5 +2991,47 @@
     "pattern": [{ "pathname": "/([\\d&&[0-1]])" }],
     "inputs": [{ "pathname": "/3" }],
     "expected_match": null
+  },
+  {
+    "pattern": [{ "protocol": "http", "hostname": "example.com/ignoredpath" }],
+    "inputs": ["http://example.com/"],
+    "expected_obj": {
+      "protocol": "http",
+      "hostname": "example.com",
+      "pathname": "*"
+    },
+    "expected_match": {
+      "protocol": { "input": "http", "groups": {} },
+      "hostname": { "input": "example.com", "groups": {} },
+      "pathname": { "input": "/", "groups": { "0": "/" } }
+    }
+  },
+  {
+    "pattern": [{ "protocol": "http", "hostname": "example.com\\?ignoredsearch" }],
+    "inputs": ["http://example.com/"],
+    "expected_obj": {
+      "protocol": "http",
+      "hostname": "example.com",
+      "search": "*"
+    },
+    "expected_match": {
+      "protocol": { "input": "http", "groups": {} },
+      "hostname": { "input": "example.com", "groups": {} },
+      "pathname": { "input": "/", "groups": { "0": "/" } }
+    }
+  },
+  {
+    "pattern": [{ "protocol": "http", "hostname": "example.com#ignoredhash" }],
+    "inputs": ["http://example.com/"],
+    "expected_obj": {
+      "protocol": "http",
+      "hostname": "example.com",
+      "hash": "*"
+    },
+    "expected_match": {
+      "protocol": { "input": "http", "groups": {} },
+      "hostname": { "input": "example.com", "groups": {} },
+      "pathname": { "input": "/", "groups": { "0": "/" } }
+    }
   }
 ]
