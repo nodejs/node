@@ -173,6 +173,19 @@ if (!process.features.openssl_is_boringssl) {
   common.printSkipMessage('Skipping unsupported test cases');
 }
 
+if (hasOpenSSL(3)) {
+  vectors['AES-OCB'] = {
+    algorithm: { length: 256 },
+    result: 'CryptoKey',
+    usages: [
+      'encrypt',
+      'decrypt',
+      'wrapKey',
+      'unwrapKey',
+    ],
+  };
+}
+
 if (hasOpenSSL(3, 5)) {
   for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
     vectors[name] = {

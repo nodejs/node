@@ -6,6 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
+const { hasOpenSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 
 function getDeriveKeyInfo(name, length, hash, ...usages) {
@@ -34,7 +35,16 @@ if (!process.features.openssl_is_boringssl) {
     ['HMAC', 256, 'SHA3-512', 'sign', 'verify'],
   );
 } else {
-  common.printSkipMessage('Skipping unsupported AES-KW test cases');
+  common.printSkipMessage('Skipping unsupported test cases');
+}
+
+if (hasOpenSSL(3)) {
+  kDerivedKeyTypes.push(
+    ['AES-OCB', 128, undefined, 'encrypt', 'decrypt'],
+    ['AES-OCB', 256, undefined, 'encrypt', 'decrypt'],
+  );
+} else {
+  common.printSkipMessage('Skipping unsupported test cases');
 }
 
 const kDerivedKeys = {
@@ -464,7 +474,7 @@ async function testDeriveKey(
     true,
     usages);
 
-  const bits = await subtle.exportKey('raw', key);
+  const bits = await subtle.exportKey(key.algorithm.name === 'AES-OCB' ? 'raw-secret' : 'raw', key);
 
   assert.strictEqual(
     Buffer.from(bits).toString('hex'),

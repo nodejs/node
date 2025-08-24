@@ -373,6 +373,9 @@ class Cipher final {
   static const Cipher AES_128_KW;
   static const Cipher AES_192_KW;
   static const Cipher AES_256_KW;
+  static const Cipher AES_128_OCB;
+  static const Cipher AES_192_OCB;
+  static const Cipher AES_256_OCB;
   static const Cipher CHACHA20_POLY1305;
 
   struct CipherParams {
@@ -738,6 +741,7 @@ class CipherCtxPointer final {
   int getNid() const;
 
   bool isGcmMode() const;
+  bool isOcbMode() const;
   bool isCcmMode() const;
   bool isWrapMode() const;
   bool isChaCha20Poly1305() const;
