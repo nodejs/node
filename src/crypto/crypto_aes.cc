@@ -61,7 +61,8 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
     return WebCryptoCipherStatus::FAILED;
   }
 
-  if (params.cipher.isGcmMode() && !ctx.setIvLength(params.iv.size())) {
+  if ((params.cipher.isGcmMode() || params.cipher.isOcbMode()) &&
+      !ctx.setIvLength(params.iv.size())) {
     return WebCryptoCipherStatus::FAILED;
   }
 
@@ -76,11 +77,20 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
 
   size_t tag_len = 0;
 
-  if (params.cipher.isGcmMode()) {
+  if (params.cipher.isGcmMode() || params.cipher.isOcbMode()) {
     switch (cipher_mode) {
       case kWebCryptoCipherDecrypt: {
         // If in decrypt mode, the auth tag must be set in the params.tag.
         CHECK(params.tag);
+
+        // For OCB mode, we need to set the auth tag length before setting the
+        // tag
+        if (params.cipher.isOcbMode()) {
+          if (!ctx.setAeadTagLength(params.tag.size())) {
+            return WebCryptoCipherStatus::FAILED;
+          }
+        }
+
         ncrypto::Buffer<const char> buffer = {
             .data = params.tag.data<char>(),
             .len = params.tag.size(),
@@ -91,12 +101,19 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
         break;
       }
       case kWebCryptoCipherEncrypt: {
-        // In decrypt mode, we grab the tag length here. We'll use it to
+        // In encrypt mode, we grab the tag length here. We'll use it to
         // ensure that that allocated buffer has enough room for both the
         // final block and the auth tag. Unlike our other AES-GCM implementation
         // in CipherBase, in WebCrypto, the auth tag is concatenated to the end
         // of the generated ciphertext and returned in the same ArrayBuffer.
         tag_len = params.length;
+
+        // For OCB mode, we need to set the auth tag length
+        if (params.cipher.isOcbMode()) {
+          if (!ctx.setAeadTagLength(tag_len)) {
+            return WebCryptoCipherStatus::FAILED;
+          }
+        }
         break;
       }
       default:
@@ -112,8 +129,8 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
       .data = params.additional_data.data<unsigned char>(),
       .len = params.additional_data.size(),
   };
-  if (params.cipher.isGcmMode() && params.additional_data.size() &&
-      !ctx.update(buffer, nullptr, &out_len)) {
+  if ((params.cipher.isGcmMode() || params.cipher.isOcbMode()) &&
+      params.additional_data.size() && !ctx.update(buffer, nullptr, &out_len)) {
     return WebCryptoCipherStatus::FAILED;
   }
 
@@ -147,9 +164,9 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   }
   total += out_len;
 
-  // If using AES_GCM, grab the generated auth tag and append
+  // If using AES_GCM or AES_OCB, grab the generated auth tag and append
   // it to the end of the ciphertext.
-  if (encrypt && params.cipher.isGcmMode()) {
+  if (encrypt && (params.cipher.isGcmMode() || params.cipher.isOcbMode())) {
     if (!ctx.getAeadTag(tag_len, ptr + total)) {
       return WebCryptoCipherStatus::FAILED;
     }
@@ -492,7 +509,7 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
       if (!ValidateCounter(env, args[offset + 2], params)) {
         return Nothing<void>();
       }
-    } else if (params->cipher.isGcmMode()) {
+    } else if (params->cipher.isGcmMode() || params->cipher.isOcbMode()) {
       if (!ValidateAuthTag(env, mode, cipher_mode, args[offset + 2], params) ||
           !ValidateAdditionalData(env, mode, args[offset + 3], params)) {
         return Nothing<void>();
@@ -502,9 +519,18 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
     UseDefaultIV(params);
   }
 
-  if (params->iv.size() < static_cast<size_t>(params->cipher.getIvLength())) {
-    THROW_ERR_CRYPTO_INVALID_IV(env);
-    return Nothing<void>();
+  // For OCB mode, allow variable IV lengths (1-15 bytes)
+  if (params->cipher.isOcbMode()) {
+    if (params->iv.size() == 0 || params->iv.size() > 15) {
+      THROW_ERR_CRYPTO_INVALID_IV(env);
+      return Nothing<void>();
+    }
+  } else {
+    // For other modes, check against the cipher's expected IV length
+    if (params->iv.size() < static_cast<size_t>(params->cipher.getIvLength())) {
+      THROW_ERR_CRYPTO_INVALID_IV(env);
+      return Nothing<void>();
+    }
   }
 
   return JustVoid();

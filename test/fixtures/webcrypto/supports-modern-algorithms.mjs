@@ -6,6 +6,7 @@ const pqc = hasOpenSSL(3, 5);
 const shake128 = crypto.getHashes().includes('shake128');
 const shake256 = crypto.getHashes().includes('shake256');
 const chacha = crypto.getCiphers().includes('chacha20-poly1305');
+const ocb = hasOpenSSL(3);
 
 export const vectors = {
   'digest': [
@@ -35,6 +36,7 @@ export const vectors = {
     [pqc, 'ML-KEM-768'],
     [pqc, 'ML-KEM-1024'],
     [chacha, 'ChaCha20-Poly1305'],
+    [ocb, { name: 'AES-OCB', length: 128 }],
   ],
   'importKey': [
     [pqc, 'ML-DSA-44'],
@@ -44,6 +46,7 @@ export const vectors = {
     [pqc, 'ML-KEM-768'],
     [pqc, 'ML-KEM-1024'],
     [chacha, 'ChaCha20-Poly1305'],
+    [ocb, { name: 'AES-OCB', length: 128 }],
   ],
   'exportKey': [
     [pqc, 'ML-DSA-44'],
@@ -53,6 +56,7 @@ export const vectors = {
     [pqc, 'ML-KEM-768'],
     [pqc, 'ML-KEM-1024'],
     [chacha, 'ChaCha20-Poly1305'],
+    [ocb, 'AES-OCB'],
   ],
   'getPublicKey': [
     [true, 'RSA-OAEP'],
@@ -73,6 +77,7 @@ export const vectors = {
     [false, 'AES-CTR'],
     [false, 'AES-CBC'],
     [false, 'AES-GCM'],
+    [false, 'AES-OCB'],
     [false, 'AES-KW'],
     [false, 'ChaCha20-Poly1305'],
   ],
@@ -82,6 +87,13 @@ export const vectors = {
     [chacha, { name: 'ChaCha20-Poly1305', iv: Buffer.alloc(12), tagLength: 128 }],
     [false, { name: 'ChaCha20-Poly1305', iv: Buffer.alloc(12), tagLength: 64 }],
     [false, 'ChaCha20-Poly1305'],
+    [ocb, { name: 'AES-OCB', iv: Buffer.alloc(15) }],
+    [false, { name: 'AES-OCB', iv: Buffer.alloc(16) }],
+    [ocb, { name: 'AES-OCB', iv: Buffer.alloc(12), tagLength: 128 }],
+    [ocb, { name: 'AES-OCB', iv: Buffer.alloc(12), tagLength: 96 }],
+    [ocb, { name: 'AES-OCB', iv: Buffer.alloc(12), tagLength: 64 }],
+    [false, { name: 'AES-OCB', iv: Buffer.alloc(12), tagLength: 32 }],
+    [false, 'AES-OCB'],
   ],
   'encapsulateBits': [
     [pqc, 'ML-KEM-512'],

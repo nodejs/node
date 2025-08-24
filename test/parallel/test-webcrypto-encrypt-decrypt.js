@@ -6,6 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
+const { hasOpenSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 
 // This is only a partial test. The WebCrypto Web Platform Tests
@@ -180,4 +181,33 @@ if (!process.features.openssl_is_boringssl) {
   }
 
   test().then(common.mustCall());
+}
+
+// Test Encrypt/Decrypt AES-OCB
+if (hasOpenSSL(3)) {
+  const buf = globalThis.crypto.getRandomValues(new Uint8Array(50));
+  const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
+
+  async function test() {
+    const key = await subtle.generateKey({
+      name: 'AES-OCB',
+      length: 256
+    }, true, ['encrypt', 'decrypt']);
+
+    const ciphertext = await subtle.encrypt(
+      { name: 'AES-OCB', iv }, key, buf,
+    );
+
+    const plaintext = await subtle.decrypt(
+      { name: 'AES-OCB', iv }, key, ciphertext,
+    );
+
+    assert.strictEqual(
+      Buffer.from(plaintext).toString('hex'),
+      Buffer.from(buf).toString('hex'));
+  }
+
+  test().then(common.mustCall());
+} else {
+  common.printSkipMessage('Skipping unsupported AES-OCB test cases');
 }
