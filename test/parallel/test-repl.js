@@ -330,7 +330,7 @@ const errorTests = [
   // Multiline object
   {
     send: '{}),({}',
-    expect: '... ',
+    expect: '| ',
   },
   {
     send: '}',
