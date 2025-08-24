@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.20.3](https://github.com/nodejs/gyp-next/compare/v0.20.2...v0.20.3) (2025-08-20)
+
+
+### Bug Fixes
+
+* compilation failure on the OpenHarmony platform ([#301](https://github.com/nodejs/gyp-next/issues/301)) ([0cf7a14](https://github.com/nodejs/gyp-next/commit/0cf7a142be06f686b8b42849791de902f177cf9f))
+* make xcode_emulation handle `xcodebuild` not in the `PATH` ([#303](https://github.com/nodejs/gyp-next/issues/303)) ([8224dee](https://github.com/nodejs/gyp-next/commit/8224deef984add7e7afe846cfb82c9d3fa6da1fb))
+
 ## [0.20.2](https://github.com/nodejs/gyp-next/compare/v0.20.1...v0.20.2) (2025-06-22)
 
 
