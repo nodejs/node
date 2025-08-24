@@ -21,6 +21,10 @@ if (!common.hasIntl) {
   common.skip('missing Intl');
 }
 
+if (process.config.variables.icu_small) {
+  common.skip('this test assumes full ICU build');
+}
+
 if (process.config.variables.node_quic) {
   common.skip('this test assumes default configuration options');
 }
