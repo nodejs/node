@@ -49,14 +49,6 @@
   "transferable/transfer-with-messageport.window.js": {
     "skip": "Browser-specific test"
   },
-  "transferable/transform-stream-members.any.js": {
-    "fail": {
-      "expected": [
-        "Transferring [object TransformStream],[object ReadableStream] should fail",
-        "Transferring [object TransformStream],[object WritableStream] should fail"
-      ]
-    }
-  },
   "transform-streams/invalid-realm.tentative.window.js": {
     "skip": "Browser-specific test"
   }
