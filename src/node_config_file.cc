@@ -38,11 +38,12 @@ std::optional<std::string_view> ConfigReader::GetDataFromArgs(
 }
 
 ParseResult ConfigReader::ProcessOptionValue(
-    const std::pair<std::string, options_parser::OptionType>& option_info,
+    const std::pair<std::string, options_parser::OptionMappingDetails>&
+        option_details,
     simdjson::ondemand::value* option_value,
     std::vector<std::string>* output) {
-  const std::string& option_name = option_info.first;
-  const options_parser::OptionType option_type = option_info.second;
+  const std::string& option_name = option_details.first;
+  const options_parser::OptionType option_type = option_details.second.type;
 
   switch (option_type) {
     case options_parser::OptionType::kBoolean: {
@@ -153,7 +154,8 @@ ParseResult ConfigReader::ParseOptions(
     std::unordered_set<std::string>* unique_options,
     const std::string& namespace_name) {
   // Determine which options map to use and output vector
-  std::unordered_map<std::string, options_parser::OptionType> options_map;
+  std::unordered_map<std::string, options_parser::OptionMappingDetails>
+      options_map;
   std::vector<std::string>* output_vector;
 
   if (namespace_name == "nodeOptions") {
