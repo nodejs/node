@@ -406,11 +406,17 @@ enum OptionType {
   kHostPort,
   kStringList,
 };
-std::unordered_map<std::string, OptionType> MapEnvOptionsFlagInputType();
-std::unordered_map<std::string, OptionType> MapOptionsByNamespace(
+struct OptionMappingDetails {
+  OptionType type;
+  std::string help_text;
+};
+std::unordered_map<std::string, OptionMappingDetails>
+MapEnvOptionsFlagInputType();
+std::unordered_map<std::string, OptionMappingDetails> MapOptionsByNamespace(
     std::string namespace_name);
-std::unordered_map<std::string,
-                   std::unordered_map<std::string, options_parser::OptionType>>
+std::unordered_map<
+    std::string,
+    std::unordered_map<std::string, options_parser::OptionMappingDetails>>
 MapNamespaceOptionsAssociations();
 std::vector<std::string> MapAvailableNamespaces();
 
@@ -649,10 +655,10 @@ class OptionsParser {
   friend void GetCLIOptionsInfo(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   friend std::string GetBashCompletion();
-  friend std::unordered_map<std::string, OptionType>
+  friend std::unordered_map<std::string, OptionMappingDetails>
   MapEnvOptionsFlagInputType();
-  friend std::unordered_map<std::string, OptionType> MapOptionsByNamespace(
-      std::string namespace_name);
+  friend std::unordered_map<std::string, OptionMappingDetails>
+  MapOptionsByNamespace(std::string namespace_name);
   friend std::vector<std::string> MapAvailableNamespaces();
   friend void GetEnvOptionsInputType(
       const v8::FunctionCallbackInfo<v8::Value>& args);
