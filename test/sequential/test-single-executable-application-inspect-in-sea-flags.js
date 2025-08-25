@@ -44,7 +44,7 @@ spawnSyncAndExitWithoutError(
 assert(existsSync(seaPrepBlob));
 
 // Generate the SEA executable
-generateSEA(outputFile, process.execPath, seaPrepBlob, true);
+generateSEA(outputFile, process.execPath, seaPrepBlob);
 
 // Spawn the SEA with inspect option
 spawnSyncAndAssert(
