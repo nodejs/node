@@ -644,7 +644,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
     if (report == 0) return;
     CHECK_IMPLIES(report < 0, zlib_memory_ >= static_cast<size_t>(-report));
     zlib_memory_ += report;
-    AsyncWrap::env()->external_memory_accounter()->Increase(
+    AsyncWrap::env()->external_memory_accounter()->Update(
         AsyncWrap::env()->isolate(), report);
   }
 
