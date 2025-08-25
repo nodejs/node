@@ -39,7 +39,7 @@ const kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 
 function newParser(type) {
   const parser = new HTTPParser();
-  parser.initialize(type, {});
+  parser.initialize(type);
 
   parser.headers = [];
   parser.url = '';
@@ -96,7 +96,7 @@ function expectBody(expected) {
     throw new Error('hello world');
   };
 
-  parser.initialize(REQUEST, {});
+  parser.initialize(REQUEST);
 
   assert.throws(
     () => { parser.execute(request, 0, request.length); },
@@ -518,14 +518,6 @@ function expectBody(expected) {
     '0\r\n'
   );
 
-  const req2 = Buffer.from(
-    'POST /that HTTP/1.0\r\n' +
-    'Content-Type: text/plain\r\n' +
-    'Content-Length: 4\r\n' +
-    '\r\n' +
-    'pong'
-  );
-
   const onHeadersComplete1 = (versionMajor, versionMinor, headers,
                               method, url) => {
     assert.strictEqual(method, methods.indexOf('PUT'));
@@ -537,27 +529,10 @@ function expectBody(expected) {
       ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);
   };
 
-  const onHeadersComplete2 = (versionMajor, versionMinor, headers,
-                              method, url) => {
-    assert.strictEqual(method, methods.indexOf('POST'));
-    assert.strictEqual(url, '/that');
-    assert.strictEqual(versionMajor, 1);
-    assert.strictEqual(versionMinor, 0);
-    assert.deepStrictEqual(
-      headers,
-      ['Content-Type', 'text/plain', 'Content-Length', '4']
-    );
-  };
-
   const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = onHeadersComplete1;
   parser[kOnBody] = expectBody('ping');
   parser.execute(req1, 0, req1.length);
-
-  parser.initialize(REQUEST, req2);
-  parser[kOnBody] = expectBody('pong');
-  parser[kOnHeadersComplete] = onHeadersComplete2;
-  parser.execute(req2, 0, req2.length);
 }
 
 // Test parser 'this' safety
