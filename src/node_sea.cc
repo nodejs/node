@@ -7,6 +7,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "node_options.h"
 #include "node_snapshot_builder.h"
 #include "node_union_bytes.h"
 #include "node_v8_platform-inl.h"
@@ -86,6 +87,11 @@ size_t SeaSerializer::Write(const SeaResource& sea) {
   uint32_t flags = static_cast<uint32_t>(sea.flags);
   Debug("Write SEA flags %x\n", flags);
   written_total += WriteArithmetic<uint32_t>(flags);
+
+  Debug("Write SEA resource exec argv extension %u\n",
+        static_cast<uint8_t>(sea.exec_argv_extension));
+  written_total +=
+      WriteArithmetic<uint8_t>(static_cast<uint8_t>(sea.exec_argv_extension));
   DCHECK_EQ(written_total, SeaResource::kHeaderSize);
 
   Debug("Write SEA code path %p, size=%zu\n",
@@ -158,6 +164,11 @@ SeaResource SeaDeserializer::Read() {
   CHECK_EQ(magic, kMagic);
   SeaFlags flags(static_cast<SeaFlags>(ReadArithmetic<uint32_t>()));
   Debug("Read SEA flags %x\n", static_cast<uint32_t>(flags));
+
+  uint8_t extension_value = ReadArithmetic<uint8_t>();
+  SeaExecArgvExtension exec_argv_extension =
+      static_cast<SeaExecArgvExtension>(extension_value);
+  Debug("Read SEA resource exec argv extension %u\n", extension_value);
   CHECK_EQ(read_total, SeaResource::kHeaderSize);
 
   std::string_view code_path =
@@ -212,7 +223,13 @@ SeaResource SeaDeserializer::Read() {
       exec_argv.emplace_back(arg);
     }
   }
-  return {flags, code_path, code, code_cache, assets, exec_argv};
+  return {flags,
+          exec_argv_extension,
+          code_path,
+          code,
+          code_cache,
+          assets,
+          exec_argv};
 }
 
 std::string_view FindSingleExecutableBlob() {
@@ -297,26 +314,55 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
   if (IsSingleExecutable()) {
     static std::vector<char*> new_argv;
     static std::vector<std::string> exec_argv_storage;
+    static std::vector<std::string> cli_extension_args;
 
     SeaResource sea_resource = FindSingleExecutableResource();
 
     new_argv.clear();
     exec_argv_storage.clear();
+    cli_extension_args.clear();
 
-    // Reserve space for argv[0], exec argv, original argv, and nullptr
-    new_argv.reserve(argc + sea_resource.exec_argv.size() + 2);
+    // Handle CLI extension mode for --node-options
+    if (sea_resource.exec_argv_extension == SeaExecArgvExtension::kCli) {
+      // Extract --node-options and filter argv
+      for (int i = 1; i < argc; ++i) {
+        if (strncmp(argv[i], "--node-options=", 15) == 0) {
+          std::string node_options = argv[i] + 15;
+          std::vector<std::string> errors;
+          cli_extension_args = ParseNodeOptionsEnvVar(node_options, &errors);
+          // Remove this argument by shifting the rest
+          for (int j = i; j < argc - 1; ++j) {
+            argv[j] = argv[j + 1];
+          }
+          argc--;
+          i--;  // Adjust index since we removed an element
+        }
+      }
+    }
+
+    // Reserve space for argv[0], exec argv, cli extension args, original argv,
+    // and nullptr
+    new_argv.reserve(argc + sea_resource.exec_argv.size() +
+                     cli_extension_args.size() + 2);
     new_argv.emplace_back(argv[0]);
 
     // Insert exec argv from SEA config
     if (!sea_resource.exec_argv.empty()) {
-      exec_argv_storage.reserve(sea_resource.exec_argv.size());
+      exec_argv_storage.reserve(sea_resource.exec_argv.size() +
+                                cli_extension_args.size());
       for (const auto& arg : sea_resource.exec_argv) {
         exec_argv_storage.emplace_back(arg);
         new_argv.emplace_back(exec_argv_storage.back().data());
       }
     }
 
-    // Add actual run time arguments.
+    // Insert CLI extension args
+    for (const auto& arg : cli_extension_args) {
+      exec_argv_storage.emplace_back(arg);
+      new_argv.emplace_back(exec_argv_storage.back().data());
+    }
+
+    // Add actual run time arguments
     new_argv.insert(new_argv.end(), argv, argv + argc);
     new_argv.emplace_back(nullptr);
     argc = new_argv.size() - 1;
@@ -332,6 +378,7 @@ struct SeaConfig {
   std::string main_path;
   std::string output_path;
   SeaFlags flags = SeaFlags::kDefault;
+  SeaExecArgvExtension exec_argv_extension = SeaExecArgvExtension::kEnv;
   std::unordered_map<std::string, std::string> assets;
   std::vector<std::string> exec_argv;
 };
@@ -474,6 +521,27 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
       if (!exec_argv.empty()) {
         result.flags |= SeaFlags::kIncludeExecArgv;
         result.exec_argv = std::move(exec_argv);
+      }
+    } else if (key == "execArgvExtension") {
+      std::string_view extension_str;
+      if (field.value().get_string().get(extension_str)) {
+        FPrintF(stderr,
+                "\"execArgvExtension\" field of %s is not a string\n",
+                config_path);
+        return std::nullopt;
+      }
+      if (extension_str == "none") {
+        result.exec_argv_extension = SeaExecArgvExtension::kNone;
+      } else if (extension_str == "env") {
+        result.exec_argv_extension = SeaExecArgvExtension::kEnv;
+      } else if (extension_str == "cli") {
+        result.exec_argv_extension = SeaExecArgvExtension::kCli;
+      } else {
+        FPrintF(stderr,
+                "\"execArgvExtension\" field of %s must be one of "
+                "\"none\", \"env\", or \"cli\"\n",
+                config_path);
+        return std::nullopt;
       }
     }
   }
@@ -674,6 +742,7 @@ ExitCode GenerateSingleExecutableBlob(
   }
   SeaResource sea{
       config.flags,
+      config.exec_argv_extension,
       config.main_path,
       builds_snapshot_from_main
           ? std::string_view{snapshot_blob.data(), snapshot_blob.size()}
