@@ -814,6 +814,23 @@ static std::vector<X509*>& GetSystemStoreCACertificates() {
   return system_store_certs;
 }
 
+static void LoadSystemCACertificates(void* data) {
+  GetSystemStoreCACertificates();
+}
+
+static uv_thread_t system_ca_thread;
+static bool system_ca_thread_started = false;
+int LoadSystemCACertificatesOffThread() {
+  // This is only run once during the initialization of the process, so
+  // it is safe to use a static thread here.
+  int r =
+      uv_thread_create(&system_ca_thread, LoadSystemCACertificates, nullptr);
+  if (r == 0) {
+    system_ca_thread_started = true;
+  }
+  return r;
+}
+
 static std::vector<X509*> InitializeExtraCACertificates() {
   std::vector<X509*> extra_certs;
   unsigned long err = LoadCertsFromFile(  // NOLINT(runtime/int)
@@ -924,6 +941,10 @@ void CleanupCachedRootCertificates() {
     for (X509* cert : GetExtraCACertificates()) {
       X509_free(cert);
     }
+  }
+  if (system_ca_thread_started) {
+    uv_thread_join(&system_ca_thread);
+    system_ca_thread_started = false;
   }
 }
 
