@@ -61,6 +61,8 @@ test-single-executable-application-disable-experimental-sea-warning: SKIP
 test-single-executable-application-empty: SKIP
 test-single-executable-application-exec-argv: SKIP
 test-single-executable-application-exec-argv-empty: SKIP
+test-single-executable-application-inspect-in-sea-flags: SKIP
+test-single-executable-application-inspect: SKIP
 test-single-executable-application-snapshot: SKIP
 test-single-executable-application-snapshot-and-code-cache: SKIP
 test-single-executable-application-snapshot-worker: SKIP
