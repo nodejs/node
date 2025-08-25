@@ -2,7 +2,10 @@
 // This tests that SEA can load addons packaged as assets by writing them to disk
 // and loading them via process.dlopen().
 const common = require('../../common');
-const { generateSEA } = require('../../common/sea');
+const { generateSEA, skipIfSingleExecutableIsNotSupported } = require('../../common/sea');
+
+skipIfSingleExecutableIsNotSupported();
+
 const assert = require('assert');
 
 const tmpdir = require('../../common/tmpdir');
