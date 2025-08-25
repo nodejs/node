@@ -45,6 +45,7 @@ void InitCryptoOnce();
 void InitCrypto(v8::Local<v8::Object> target);
 
 extern void UseExtraCaCerts(std::string_view file);
+extern int LoadSystemCACertificatesOffThread();
 void CleanupCachedRootCertificates();
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u);
