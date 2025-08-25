@@ -940,7 +940,17 @@ static ExitCode InitializeNodeWithArgsInternal(
   }
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
-  if (!(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv)) {
+  bool should_parse_node_options =
+      !(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv);
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  if (sea::IsSingleExecutable()) {
+    sea::SeaResource sea_resource = sea::FindSingleExecutableResource();
+    if (sea_resource.exec_argv_extension != sea::SeaExecArgvExtension::kEnv) {
+      should_parse_node_options = false;
+    }
+  }
+#endif
+  if (should_parse_node_options) {
     // NODE_OPTIONS environment variable is preferred over the file one.
     if (credentials::SafeGetenv("NODE_OPTIONS", &node_options) ||
         !node_options.empty()) {
