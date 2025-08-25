@@ -12,3 +12,7 @@ prefix node-api
 # https://github.com/nodejs/node/issues/43457
 test_fatal/test_threads: PASS,FLAKY
 test_fatal/test_threads_report: PASS,FLAKY
+
+[$system==linux && $arch==ppc64]
+# https://github.com/nodejs/node/issues/59561
+test_sea_addon/test: SKIP
