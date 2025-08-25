@@ -756,9 +756,11 @@ changes:
   * `target` {string} Name of the target database. This can be `'main'` (the default primary database) or any other
     database that have been added with [`ATTACH DATABASE`][] **Default:** `'main'`.
   * `rate` {number} Number of pages to be transmitted in each batch of the backup. **Default:** `100`.
-  * `progress` {Function} Callback function that will be called with the number of pages copied and the total number of
-    pages.
-* Returns: {Promise} A promise that resolves when the backup is completed and rejects if an error occurs.
+  * `progress` {Function} An optional callback function that will be called after each backup step. The argument passed
+    to this callback is an {Object} with `remainingPages` and `totalPages` properties, describing the current progress
+    of the backup operation.
+* Returns: {Promise} A promise that fulfills with the total number of backed-up pages upon completion, or rejects if an
+  error occurs.
 
 This method makes a database backup. This method abstracts the [`sqlite3_backup_init()`][], [`sqlite3_backup_step()`][]
 and [`sqlite3_backup_finish()`][] functions.
