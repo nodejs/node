@@ -6,7 +6,7 @@ const { generateSEA } = require('../../common/sea');
 const assert = require('assert');
 
 const tmpdir = require('../../common/tmpdir');
-const { copyFileSync, writeFileSync, existsSync } = require('fs');
+const { copyFileSync, writeFileSync, existsSync, rmSync } = require('fs');
 const {
   spawnSyncAndExitWithoutError,
   spawnSyncAndAssert,
@@ -19,20 +19,18 @@ tmpdir.refresh();
 
 // Copy test fixture to working directory
 const addonPath = join(__dirname, 'build', common.buildType, 'binding.node');
-copyFileSync(addonPath, tmpdir.resolve('binding.node'));
+const copiedAddonPath = tmpdir.resolve('binding.node');
+copyFileSync(addonPath, copiedAddonPath);
 writeFileSync(tmpdir.resolve('sea.js'), `
 const sea = require('node:sea');
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 
-const dir = fs.mkdtempSync(os.tmpdir());
-const addonPath = path.join(dir, 'hello.node');
+const addonPath = path.join(process.cwd(), 'hello.node');
 fs.writeFileSync(addonPath, new Uint8Array(sea.getRawAsset('hello.node')));
 const mod = {exports: {}}
 process.dlopen(mod, addonPath);
 console.log('hello,', mod.exports.hello());
-fs.rmSync(dir, { recursive: true });
 `, 'utf-8');
 
 writeFileSync(configFile, `
@@ -45,13 +43,19 @@ writeFileSync(configFile, `
   }
 }
 `, 'utf8');
+
 spawnSyncAndExitWithoutError(
   process.execPath,
   ['--experimental-sea-config', 'sea-config.json'],
   { cwd: tmpdir.path },
 );
 assert(existsSync(seaPrepBlob));
+
 generateSEA(outputFile, process.execPath, seaPrepBlob);
+
+// Remove the copied addon after it's been packaged into the SEA blob
+rmSync(copiedAddonPath, { force: true });
+
 spawnSyncAndAssert(
   outputFile,
   [],
@@ -60,6 +64,7 @@ spawnSyncAndAssert(
       ...process.env,
       NODE_DEBUG_NATIVE: 'SEA',
     },
+    cwd: tmpdir.path,
   },
   {
     stdout: /hello, world/,

@@ -1,6 +1,6 @@
 #include <node_api.h>
-#include "../../js-native-api/common.h"
 #include <string.h>
+#include "../../js-native-api/common.h"
 
 static napi_value Method(napi_env env, napi_callback_info info) {
   napi_value world;
