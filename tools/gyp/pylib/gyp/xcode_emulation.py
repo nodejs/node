@@ -521,7 +521,7 @@ class XcodeSettings:
         # most sensible route and should still do the right thing.
         try:
             return GetStdoutQuiet(["xcrun", "--sdk", sdk, infoitem])
-        except GypError:
+        except (GypError, OSError):
             pass
 
     def _SdkRoot(self, configname):
@@ -1354,7 +1354,7 @@ class XcodeSettings:
             return default_sdk_root
         try:
             all_sdks = GetStdout(["xcodebuild", "-showsdks"])
-        except GypError:
+        except (GypError, OSError):
             # If xcodebuild fails, there will be no valid SDKs
             return ""
         for line in all_sdks.splitlines():
@@ -1508,7 +1508,8 @@ def XcodeVersion():
             raise GypError("xcodebuild returned unexpected results")
         version = version_list[0].split()[-1]  # Last word on first line
         build = version_list[-1].split()[-1]  # Last word on last line
-    except GypError:  # Xcode not installed so look for XCode Command Line Tools
+    except (GypError, OSError):
+        # Xcode not installed so look for XCode Command Line Tools
         version = CLTVersion()  # macOS Catalina returns 11.0.0.0.1.1567737322
         if not version:
             raise GypError("No Xcode or CLT version detected!")
@@ -1541,14 +1542,14 @@ def CLTVersion():
         try:
             output = GetStdout(["/usr/sbin/pkgutil", "--pkg-info", key])
             return re.search(regex, output).groupdict()["version"]
-        except GypError:
+        except (GypError, OSError):
             continue
 
     regex = re.compile(r"Command Line Tools for Xcode\s+(?P<version>\S+)")
     try:
         output = GetStdout(["/usr/sbin/softwareupdate", "--history"])
         return re.search(regex, output).groupdict()["version"]
-    except GypError:
+    except (GypError, OSError):
         return None
 
 
