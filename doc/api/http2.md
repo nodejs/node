@@ -365,8 +365,7 @@ added: v8.4.0
 * `stream` {Http2Stream} A reference to the stream
 * `headers` {HTTP/2 Headers Object} An object describing the headers
 * `flags` {number} The associated numeric flags
-* `rawHeaders` {Array} An array containing the raw header names followed by
-  their respective values.
+* `rawHeaders` {HTTP/2 Raw Headers} An array containing the raw headers
 
 The `'stream'` event is emitted when a new `Http2Stream` is created.
 
@@ -1089,7 +1088,7 @@ changes:
     description: Allow passing headers in raw array format.
 -->
 
-* `headers` {HTTP/2 Headers Object|Array}
+* `headers` {HTTP/2 Headers Object|HTTP/2 Raw Headers}
 
 * `options` {Object}
   * `endStream` {boolean} `true` if the `Http2Stream` _writable_ side should
@@ -1681,11 +1680,12 @@ added: v8.4.0
 
 * `headers` {HTTP/2 Headers Object}
 * `flags` {number}
+* `rawHeaders` {HTTP/2 Raw Headers}
 
 The `'headers'` event is emitted when an additional block of headers is received
 for a stream, such as when a block of `1xx` informational headers is received.
-The listener callback is passed the [HTTP/2 Headers Object][] and flags
-associated with the headers.
+The listener callback is passed the [HTTP/2 Headers Object][], flags associated
+with the headers, and the headers in raw format (see [HTTP/2 Raw Headers][]).
 
 ```js
 stream.on('headers', (headers, flags) => {
@@ -1720,11 +1720,13 @@ added: v8.4.0
 
 * `headers` {HTTP/2 Headers Object}
 * `flags` {number}
+* `rawHeaders` {HTTP/2 Raw Headers}
 
 The `'response'` event is emitted when a response `HEADERS` frame has been
 received for this stream from the connected HTTP/2 server. The listener is
-invoked with two arguments: an `Object` containing the received
-[HTTP/2 Headers Object][], and flags associated with the headers.
+invoked with three arguments: an `Object` containing the received
+[HTTP/2 Headers Object][], flags associated with the headers, and the headers
+in raw format (see [HTTP/2 Raw Headers][]).
 
 ```mjs
 import { connect } from 'node:http2';
@@ -1872,7 +1874,7 @@ changes:
     description: Allow explicitly setting date headers.
 -->
 
-* `headers` {HTTP/2 Headers Object|Array}
+* `headers` {HTTP/2 Headers Object|HTTP/2 Raw Headers}
 * `options` {Object}
   * `endStream` {boolean} Set to `true` to indicate that the response will not
     include payload data.
@@ -2356,8 +2358,7 @@ added: v8.4.0
 * `stream` {Http2Stream} A reference to the stream
 * `headers` {HTTP/2 Headers Object} An object describing the headers
 * `flags` {number} The associated numeric flags
-* `rawHeaders` {Array} An array containing the raw header names followed by
-  their respective values.
+* `rawHeaders` {HTTP/2 Raw Headers} An array containing the raw headers
 
 The `'stream'` event is emitted when a `'stream'` event has been emitted by
 an `Http2Session` associated with the server.
@@ -2612,8 +2613,7 @@ added: v8.4.0
 * `stream` {Http2Stream} A reference to the stream
 * `headers` {HTTP/2 Headers Object} An object describing the headers
 * `flags` {number} The associated numeric flags
-* `rawHeaders` {Array} An array containing the raw header names followed by
-  their respective values.
+* `rawHeaders` {HTTP/2 Raw Headers} An array containing the raw headers
 
 The `'stream'` event is emitted when a `'stream'` event has been emitted by
 an `Http2Session` associated with the server.
@@ -3456,6 +3456,21 @@ server.on('stream', (stream, headers) => {
 });
 ```
 
+#### Raw headers
+
+In some APIs, in addition to object format, headers can also be passed or
+accessed as a raw flat array, preserving details of ordering and
+duplicate keys to match the raw transmission format.
+
+In this format the keys and values are in the same list. It is _not_ a
+list of tuples. So, the even-numbered offsets are key values, and the
+odd-numbered offsets are the associated values. Duplicate headers are
+not merged and so each key-value pair will appear separately.
+
+This can be useful for cases such as proxies, where existing headers
+should be exactly forwarded as received, or as a performance
+optimization when the headers are already available in raw format.
+
 #### Sensitive headers
 
 HTTP2 headers can be marked as sensitive, which means that the HTTP/2
@@ -3481,6 +3496,10 @@ this flag is set automatically.
 
 This property is also set for received headers. It will contain the names of
 all headers marked as sensitive, including ones marked that way automatically.
+
+For raw headers, this should still be set as a property on the array, like
+`rawHeadersArray[http2.sensitiveHeaders] = ['cookie']`, not as a separate key
+and value pair within the array itself.
 
 ### Settings object
 
@@ -4078,15 +4097,9 @@ The request method as a string. Read-only. Examples: `'GET'`, `'DELETE'`.
 added: v8.4.0
 -->
 
-* Type: {string\[]}
+* Type: {HTTP/2 Raw Headers}
 
 The raw request/response headers list exactly as they were received.
-
-The keys and values are in the same list. It is _not_ a
-list of tuples. So, the even-numbered offsets are key values, and the
-odd-numbered offsets are the associated values.
-
-Header names are not lowercased, and duplicates are not merged.
 
 ```js
 // Prints something like:
@@ -4768,7 +4781,7 @@ changes:
 
 * `statusCode` {number}
 * `statusMessage` {string}
-* `headers` {Object|Array}
+* `headers` {HTTP/2 Headers Object|HTTP/2 Raw Headers}
 * Returns: {http2.Http2ServerResponse}
 
 Sends a response header to the request. The status code is a 3-digit HTTP
@@ -4912,6 +4925,7 @@ you need to implement any fall-back behavior yourself.
 [HTTP/1]: http.md
 [HTTP/2]: https://tools.ietf.org/html/rfc7540
 [HTTP/2 Headers Object]: #headers-object
+[HTTP/2 Raw Headers]: #raw-headers
 [HTTP/2 Settings Object]: #settings-object
 [HTTP/2 Unencrypted]: https://http2.github.io/faq/#does-http2-require-encryption
 [HTTPS]: https.md
