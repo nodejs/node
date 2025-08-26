@@ -1880,7 +1880,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 self.flavor not in ("mac", "openbsd", "netbsd", "win")
                 and not self.is_standalone_static_library
             ):
-                if self.flavor in ("linux", "android"):
+                if self.flavor in ("linux", "android", "openharmony"):
                     self.WriteMakeRule(
                         [self.output_binary],
                         link_deps,
@@ -1894,7 +1894,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                         part_of_all,
                         postbuilds=postbuilds,
                     )
-            elif self.flavor in ("linux", "android"):
+            elif self.flavor in ("linux", "android", "openharmony"):
                 self.WriteMakeRule(
                     [self.output_binary],
                     link_deps,
