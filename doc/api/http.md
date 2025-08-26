@@ -117,7 +117,7 @@ http.get({
 added: v0.3.4
 changes:
   - version:
-    - REPLACEME
+    - v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59315
     description: Add support for `agentKeepAliveTimeoutBuffer`.
   - version:

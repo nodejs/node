@@ -2061,7 +2061,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59537
     description: Add support for SLH-DSA keys.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59461
     description: Add support for ML-KEM keys.
   - version: v24.6.0
@@ -2988,7 +2988,7 @@ Does not perform any other validation checks on the certificate.
 ### `crypto.argon2(algorithm, parameters, callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -3074,7 +3074,7 @@ argon2('argon2id', parameters, (err, derivedKey) => {
 ### `crypto.argon2Sync(algorithm, parameters)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -3759,7 +3759,7 @@ algorithm names.
 ### `crypto.decapsulate(key, ciphertext[, callback])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -3819,7 +3819,7 @@ If the `callback` function is provided this function uses libuv's threadpool.
 ### `crypto.encapsulate(key[, callback])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -3929,7 +3929,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59537
     description: Add support for SLH-DSA key pairs.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59461
     description: Add support for ML-KEM key pairs.
   - version: v24.6.0
@@ -4057,7 +4057,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59537
     description: Add support for SLH-DSA key pairs.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59461
     description: Add support for ML-KEM key pairs.
   - version: v24.6.0

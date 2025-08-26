@@ -1070,7 +1070,7 @@ Key's Asymmetric Key Type is not registered for use in the
 ### `ERR_CRYPTO_KEM_NOT_SUPPORTED`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 Attempted to use KEM operations while Node.js was not compiled with
