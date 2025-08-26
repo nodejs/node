@@ -1359,7 +1359,9 @@ const Type* ImplementationVisitor::Visit(ReturnStatement* stmt) {
            "type";
       ReportError(s.str());
     }
-    GenerateLabelGoto(end);
+    if (end != nullptr) {
+      GenerateLabelGoto(end);
+    }
   }
   current_callable->IncrementReturns();
   return TypeOracle::GetNeverType();
