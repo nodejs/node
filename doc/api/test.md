@@ -1382,7 +1382,7 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59443
     description: Added a rerunFailuresFilePath option.
   - version: v23.0.0

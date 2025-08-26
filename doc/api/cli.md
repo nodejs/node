@@ -2605,7 +2605,7 @@ The destination for the corresponding test reporter. See the documentation on
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.7.0
 -->
 
 A path to a file allowing the test runner to persist the state of the test

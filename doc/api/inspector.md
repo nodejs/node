@@ -602,7 +602,7 @@ HTTP request has failed to load.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.7.0
 -->
 
 * `params` {Object}
@@ -616,7 +616,7 @@ a WebSocket connection has been initiated.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.7.0
 -->
 
 * `params` {Object}
@@ -630,7 +630,7 @@ This event indicates that the WebSocket handshake response has been received.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.7.0
 -->
 
 * `params` {Object}

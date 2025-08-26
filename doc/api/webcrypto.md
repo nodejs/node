@@ -2,22 +2,22 @@
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59539
     description: AES-OCB algorithm is now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59569
     description: ML-KEM algorithms are now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ChaCha20-Poly1305 algorithm is now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: SHA-3 algorithms are now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: SHAKE algorithms are now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ML-DSA algorithms are now supported.
   - version:
@@ -767,7 +767,7 @@ added: v15.0.0
 ### Static method: `SubtleCrypto.supports(operation, algorithm[, lengthOrAdditionalAlgorithm])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 > Stability: 1.1 - Active development
@@ -788,7 +788,7 @@ which can be used to detect whether a given algorithm identifier
 ### `subtle.decapsulateBits(decapsulationAlgorithm, decapsulationKey, ciphertext)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 > Stability: 1.1 - Active development
@@ -807,7 +807,7 @@ The algorithms currently supported include:
 ### `subtle.decapsulateKey(decapsulationAlgorithm, decapsulationKey, ciphertext, sharedKeyAlgorithm, extractable, usages)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 > Stability: 1.1 - Active development
@@ -831,10 +831,10 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59539
     description: AES-OCB algorithm is now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ChaCha20-Poly1305 algorithm is now supported.
 -->
@@ -950,10 +950,10 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: SHA-3 algorithms are now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: SHAKE algorithms are now supported.
 -->
@@ -984,7 +984,7 @@ whose value is one of the above.
 ### `subtle.encapsulateBits(encapsulationAlgorithm, encapsulationKey)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1002,7 +1002,7 @@ The algorithms currently supported include:
 ### `subtle.encapsulateKey(encapsulationAlgorithm, encapsulationKey, sharedKeyAlgorithm, extractable, usages)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1025,10 +1025,10 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59539
     description: AES-OCB algorithm is now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ChaCha20-Poly1305 algorithm is now supported.
 -->
@@ -1057,13 +1057,13 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59569
     description: ML-KEM algorithms are now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ChaCha20-Poly1305 algorithm is now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ML-DSA algorithms are now supported.
   - version:
@@ -1120,7 +1120,7 @@ specification.
 ### `subtle.getPublicKey(key, keyUsages)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1136,13 +1136,13 @@ Derives the public key from a given private key.
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59569
     description: ML-KEM algorithms are now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ChaCha20-Poly1305 algorithm is now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ML-DSA algorithms are now supported.
 -->
@@ -1195,13 +1195,13 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59569
     description: ML-KEM algorithms are now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ChaCha20-Poly1305 algorithm is now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ML-DSA algorithms are now supported.
   - version:
@@ -1270,7 +1270,7 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ML-DSA algorithms are now supported.
   - version:
@@ -1311,10 +1311,10 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59539
     description: AES-OCB algorithm is now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ChaCha20-Poly1305 algorithm is now supported.
 -->
@@ -1384,7 +1384,7 @@ The unwrapped key algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ML-DSA algorithms are now supported.
   - version:
@@ -1426,10 +1426,10 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59539
     description: AES-OCB algorithm is now supported.
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ChaCha20-Poly1305 algorithm is now supported.
 -->
@@ -1668,13 +1668,13 @@ added: v15.0.0
 ### Class: `ContextParams`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 #### `contextParams.name`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 * Type: {string} Must be `'ML-DSA-44'`[^modern-algos], `'ML-DSA-65'`[^modern-algos], or `'ML-DSA-87'`[^modern-algos].
@@ -1682,7 +1682,7 @@ added: REPLACEME
 #### `contextParams.context`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
@@ -1695,13 +1695,13 @@ which is equivalent to not providing context at all.
 ### Class: `CShakeParams`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 #### `cShakeParams.customization`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
@@ -1713,7 +1713,7 @@ which is equivalent to not providing customization at all.
 #### `cShakeParams.functionName`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
@@ -1726,7 +1726,7 @@ which is equivalent to not providing functionName at all.
 #### `cShakeParams.length`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 * Type: {number} represents the requested output length in bits.
@@ -1734,7 +1734,7 @@ added: REPLACEME
 #### `cShakeParams.name`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 * Type: {string} Must be `'cSHAKE128'`[^modern-algos] or `'cSHAKE256'`[^modern-algos]
@@ -1777,7 +1777,7 @@ added: v15.0.0
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: SHA-3 algorithms are now supported.
 -->
@@ -1905,13 +1905,13 @@ which is equivalent to not providing context at all.
 ### Class: `EncapsulatedBits`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 #### `encapsulatedBits.ciphertext`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 * Type: {ArrayBuffer}
@@ -1919,7 +1919,7 @@ added: REPLACEME
 #### `encapsulatedBits.sharedKey`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 * Type: {ArrayBuffer}
@@ -1927,13 +1927,13 @@ added: REPLACEME
 ### Class: `EncapsulatedKey`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 #### `encapsulatedKey.ciphertext`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 * Type: {ArrayBuffer}
@@ -1941,7 +1941,7 @@ added: REPLACEME
 #### `encapsulatedKey.sharedKey`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 * Type: {CryptoKey}
@@ -1957,7 +1957,7 @@ added: v15.0.0
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: SHA-3 algorithms are now supported.
 -->
@@ -2020,7 +2020,7 @@ added: v15.0.0
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: SHA-3 algorithms are now supported.
 -->
@@ -2102,7 +2102,7 @@ added: v15.0.0
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: SHA-3 algorithms are now supported.
 -->
@@ -2167,7 +2167,7 @@ added: v15.0.0
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: SHA-3 algorithms are now supported.
 -->
@@ -2226,7 +2226,7 @@ added: v15.0.0
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: SHA-3 algorithms are now supported.
 -->
@@ -2308,7 +2308,7 @@ added: v15.0.0
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: SHA-3 algorithms are now supported.
 -->
