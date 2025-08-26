@@ -649,6 +649,7 @@ This event indicates that a WebSocket connection has been closed.
 <!-- YAML
 added:
   - v24.5.0
+  - v22.19.0
 -->
 
 > Stability: 1.1 - Active Development

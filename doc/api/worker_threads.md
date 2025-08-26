@@ -1775,7 +1775,8 @@ JavaScript code.
 
 <!-- YAML
 added:
-- v24.6.0
+ - v24.6.0
+ - v22.19.0
 -->
 
 * Returns: {Promise}
