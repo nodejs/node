@@ -29,6 +29,7 @@
 #include <vector>
 
 using node::ExitCode;
+using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::Context;
@@ -807,6 +808,25 @@ void GetAsset(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ab);
 }
 
+void GetAssetKeys(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 0);
+  Isolate* isolate = args.GetIsolate();
+  SeaResource sea_resource = FindSingleExecutableResource();
+
+  Local<Context> context = isolate->GetCurrentContext();
+  LocalVector<Value> keys(isolate);
+  keys.reserve(sea_resource.assets.size());
+  for (const auto& [key, _] : sea_resource.assets) {
+    Local<Value> key_str;
+    if (!ToV8Value(context, key).ToLocal(&key_str)) {
+      return;
+    }
+    keys.push_back(key_str);
+  }
+  Local<Array> result = Array::New(isolate, keys.data(), keys.size());
+  args.GetReturnValue().Set(result);
+}
+
 MaybeLocal<Value> LoadSingleExecutableApplication(
     const StartExecutionCallbackInfo& info) {
   // Here we are currently relying on the fact that in NodeMainInstance::Run(),
@@ -858,12 +878,14 @@ void Initialize(Local<Object> target,
             "isExperimentalSeaWarningNeeded",
             IsExperimentalSeaWarningNeeded);
   SetMethod(context, target, "getAsset", GetAsset);
+  SetMethod(context, target, "getAssetKeys", GetAssetKeys);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsSea);
   registry->Register(IsExperimentalSeaWarningNeeded);
   registry->Register(GetAsset);
+  registry->Register(GetAssetKeys);
 }
 
 }  // namespace sea
