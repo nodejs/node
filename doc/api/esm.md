@@ -674,7 +674,7 @@ imported from the same path.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.19.0
     pr-url: https://github.com/nodejs/node/pull/57038
     description: Wasm modules no longer require the `--experimental-wasm-modules` flag.
 -->
@@ -713,7 +713,7 @@ would provide the exports interface for the instantiation of `module.wasm`.
 ### JavaScript String Builtins
 
 <!-- YAML
-added: REPLACEME
+added: v22.19.0
 -->
 
 When importing WebAssembly modules, the
@@ -755,7 +755,7 @@ or virtualized unless recompiling the module using the direct
 ### Reserved Wasm Namespaces
 
 <!-- YAML
-added: REPLACEME
+added: v22.19.0
 -->
 
 When importing WebAssembly modules through the ESM Integration, they cannot use

@@ -2345,7 +2345,7 @@ The server can be tested by connecting to it using the example client from
 ## `tls.setDefaultCACertificates(certs)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.19.0
 -->
 
 * `certs` {string\[]|ArrayBufferView\[]} An array of CA certificates in PEM format.

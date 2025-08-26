@@ -1600,7 +1600,7 @@ JavaScript code.
 
 <!-- YAML
 added:
-- REPLACEME
+- v22.19.0
 -->
 
 * Returns: {Promise}

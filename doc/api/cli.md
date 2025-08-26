@@ -1050,7 +1050,7 @@ Previously gated the entire `import.meta.resolve` feature.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v22.19.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -3593,7 +3593,7 @@ variable is strongly discouraged.
 ### `NODE_USE_SYSTEM_CA=1`
 
 <!-- YAML
-added: REPLACEME
+added: v22.19.0
 -->
 
 Node.js uses the trusted CA certificates present in the system store along with

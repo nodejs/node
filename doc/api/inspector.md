@@ -598,7 +598,7 @@ HTTP request has failed to load.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v22.19.0
 -->
 
 > Stability: 1.1 - Active Development

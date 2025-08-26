@@ -1940,7 +1940,7 @@ affects new connections to the server, not any existing connections.
 ### `server.keepAliveTimeoutBuffer`
 
 <!-- YAML
-added: REPLACEME
+added: v22.19.0
 -->
 
 * Type: {number} Timeout in milliseconds. **Default:** `1000` (1 second).
