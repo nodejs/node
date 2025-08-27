@@ -198,6 +198,18 @@ if (hasOpenSSL(3, 5)) {
   }
 }
 
+if (hasOpenSSL(3, 1)) {
+  for (const name of ['KMAC128', 'KMAC256']) {
+    vectors[name] = {
+      result: 'CryptoKey',
+      usages: [
+        'sign',
+        'verify',
+      ],
+    };
+  }
+}
+
 // Test invalid algorithms
 {
   async function test(algorithm) {

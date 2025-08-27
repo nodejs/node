@@ -40,6 +40,7 @@
 #include "crypto/crypto_hash.h"
 #include "crypto/crypto_hkdf.h"
 #include "crypto/crypto_hmac.h"
+#include "crypto/crypto_kmac.h"
 #if OPENSSL_VERSION_MAJOR >= 3
 #include "crypto/crypto_kem.h"
 #endif
