@@ -790,9 +790,9 @@ added: REPLACEME
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `operation` {string} "encrypt", "decrypt", "sign", "verify", "digest", "generateKey", "deriveKey", "deriveBits", "importKey", "exportKey", "getPublicKey", "wrapKey", or "unwrapKey"
+* `operation` {string} "encrypt", "decrypt", "sign", "verify", "digest", "generateKey", "deriveKey", "deriveBits", "importKey", "exportKey", "getPublicKey", "wrapKey", "unwrapKey", "encapsulateBits", "encapsulateKey", "decapsulateBits", or "decapsulateKey"
 * `algorithm` {string|Algorithm}
-* `lengthOrAdditionalAlgorithm` {null|number|string|Algorithm|undefined} Depending on the operation this is either ignored, the value of the length argument when operation is "deriveBits", the algorithm of key to be derived when operation is "deriveKey", the algorithm of key to be exported before wrapping when operation is "wrapKey", or the algorithm of key to be imported after unwrapping when operation is "unwrapKey". **Default:** `null` when operation is "deriveBits", `undefined` otherwise.
+* `lengthOrAdditionalAlgorithm` {null|number|string|Algorithm|undefined} Depending on the operation this is either ignored, the value of the length argument when operation is "deriveBits", the algorithm of key to be derived when operation is "deriveKey", the algorithm of key to be exported before wrapping when operation is "wrapKey", the algorithm of key to be imported after unwrapping when operation is "unwrapKey", or the algorithm of key to be imported after en/decapsulating a key when operation is "encapsulateKey" or "decapsulateKey". **Default:** `null` when operation is "deriveBits", `undefined` otherwise.
 * Returns: {boolean} Indicating whether the implementation supports the given operation
 
 <!--lint enable maximum-line-length remark-lint-->
@@ -800,6 +800,8 @@ added: REPLACEME
 Allows feature detection in Web Crypto API,
 which can be used to detect whether a given algorithm identifier
 (including its parameters) is supported for the given operation.
+
+See [Checking for runtime algorithm support][] for an example use of this method.
 
 ### `subtle.decapsulateBits(decapsulationAlgorithm, decapsulationKey, ciphertext)`
 
@@ -813,6 +815,10 @@ added: REPLACEME
 * `decapsulationKey` {CryptoKey}
 * `ciphertext` {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with {ArrayBuffer} upon success.
+
+A message recipient uses their asymmetric private key to decrypt an
+"encapsulated key" (ciphertext), thereby recovering a temporary symmetric
+key (represented as {ArrayBuffer}) which is then used to decrypt a message.
 
 The algorithms currently supported include:
 
@@ -835,6 +841,10 @@ added: REPLACEME
 * `extractable` {boolean}
 * `usages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with {CryptoKey} upon success.
+
+A message recipient uses their asymmetric private key to decrypt an
+"encapsulated key" (ciphertext), thereby recovering a temporary symmetric
+key (represented as {CryptoKey}) which is then used to decrypt a message.
 
 The algorithms currently supported include:
 
@@ -1021,6 +1031,9 @@ added: REPLACEME
 * `encapsulationKey` {CryptoKey}
 * Returns: {Promise} Fulfills with {EncapsulatedBits} upon success.
 
+Uses a message recipient's asymmetric public key to encrypt a temporary symmetric key.
+This encrypted key is the "encapsulated key" represented as {EncapsulatedBits}.
+
 The algorithms currently supported include:
 
 * `'ML-KEM-512'`[^modern-algos]
@@ -1041,6 +1054,9 @@ added: REPLACEME
 * `extractable` {boolean}
 * `usages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with {EncapsulatedKey} upon success.
+
+Uses a message recipient's asymmetric public key to encrypt a temporary symmetric key.
+This encrypted key is the "encapsulated key" represented as {EncapsulatedKey}.
 
 The algorithms currently supported include:
 
@@ -2023,6 +2039,11 @@ which is equivalent to not providing context at all.
 added: REPLACEME
 -->
 
+A temporary symmetric secret key (represented as {ArrayBuffer}) for message encryption
+and the ciphertext (that can be transmitted to the message recipient along with the
+message) encrypted by this shared key. The recipient uses their private key to determine
+what the shared key is which then allows them to decrypt the message.
+
 #### `encapsulatedBits.ciphertext`
 
 <!-- YAML
@@ -2044,6 +2065,11 @@ added: REPLACEME
 <!-- YAML
 added: REPLACEME
 -->
+
+A temporary symmetric secret key (represented as {CryptoKey}) for message encryption
+and the ciphertext (that can be transmitted to the message recipient along with the
+message) encrypted by this shared key. The recipient uses their private key to determine
+what the shared key is which then allows them to decrypt the message.
 
 #### `encapsulatedKey.ciphertext`
 
@@ -2538,6 +2564,7 @@ The length (in bytes) of the random salt to use.
 
 [^openssl35]: Requires OpenSSL >= 3.5
 
+[Checking for runtime algorithm support]: #checking-for-runtime-algorithm-support
 [JSON Web Key]: https://tools.ietf.org/html/rfc7517
 [Key usages]: #cryptokeyusages
 [Modern Algorithms in the Web Cryptography API]: #modern-algorithms-in-the-web-cryptography-api
