@@ -1313,7 +1313,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm` {string|Algorithm|RsaPssParams|EcdsaParams|Ed448Params|ContextParams}
+* `algorithm` {string|Algorithm|RsaPssParams|EcdsaParams|ContextParams}
 * `key` {CryptoKey}
 * `data` {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
@@ -1427,7 +1427,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm` {string|Algorithm|RsaPssParams|EcdsaParams|Ed448Params|ContextParams}
+* `algorithm` {string|Algorithm|RsaPssParams|EcdsaParams|ContextParams}
 * `key` {CryptoKey}
 * `signature` {ArrayBuffer|TypedArray|DataView|Buffer}
 * `data` {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -1792,20 +1792,23 @@ added: REPLACEME
 added: REPLACEME
 -->
 
-* Type: {string} Must be `'ML-DSA-44'`[^modern-algos], `'ML-DSA-65'`[^modern-algos], or `'ML-DSA-87'`[^modern-algos].
+* Type: {string} Must be `Ed448`[^secure-curves], `'ML-DSA-44'`[^modern-algos],
+  `'ML-DSA-65'`[^modern-algos], or `'ML-DSA-87'`[^modern-algos].
 
 #### `contextParams.context`
 
 <!-- YAML
 added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59570
+    description: Non-empty context is now supported.
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
 The `context` member represents the optional context data to associate with
 the message.
-The Node.js Web Crypto API implementation only supports zero-length context
-which is equivalent to not providing context at all.
 
 ### Class: `CShakeParams`
 
@@ -1985,37 +1988,6 @@ added: v15.0.0
 -->
 
 * Type: {string} Must be one of `'P-256'`, `'P-384'`, `'P-521'`.
-
-### Class: `Ed448Params`
-
-<!-- YAML
-added: v15.0.0
--->
-
-#### `ed448Params.name`
-
-<!-- YAML
-added:
-  - v18.4.0
-  - v16.17.0
--->
-
-* Type: {string} Must be `'Ed448'`[^secure-curves].
-
-#### `ed448Params.context`
-
-<!-- YAML
-added:
-  - v18.4.0
-  - v16.17.0
--->
-
-* Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
-
-The `context` member represents the optional context data to associate with
-the message.
-The Node.js Web Crypto API implementation only supports zero-length context
-which is equivalent to not providing context at all.
 
 ### Class: `EncapsulatedBits`
 
