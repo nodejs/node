@@ -5,7 +5,7 @@ const { getCallSites } = require('node:util');
 const assert = require('node:assert');
 
 const bench = common.createBenchmark(main, {
-  n: [1e6],
+  n: [100],
   method: ['ErrorCallSites', 'ErrorCallSitesSerialized', 'CPP'],
 });
 
