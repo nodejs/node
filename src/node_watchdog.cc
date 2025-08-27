@@ -80,6 +80,7 @@ Watchdog::~Watchdog() {
 
 
 void Watchdog::Run(void* arg) {
+  uv_thread_setname("Watchdog");
   Watchdog* wd = static_cast<Watchdog*>(arg);
 
   // UV_RUN_DEFAULT the loop will be stopped either by the async or the
@@ -229,9 +230,9 @@ void TraceSigintWatchdog::HandleInterrupt() {
 
 #ifdef __POSIX__
 void* SigintWatchdogHelper::RunSigintWatchdog(void* arg) {
+  uv_thread_setname("SigintWatchdog");
   // Inside the helper thread.
   bool is_stopping;
-
   do {
     uv_sem_wait(&instance.sem_);
     is_stopping = InformWatchdogsAboutSignal();
