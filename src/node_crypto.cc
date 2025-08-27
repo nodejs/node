@@ -66,17 +66,13 @@ namespace crypto {
 #define ARGON2_NAMESPACE_LIST(V)
 #endif  // !OPENSSL_NO_ARGON2 && OpenSSL >= 3.2
 
-#if OPENSSL_VERSION_NUMBER >= 0x30100000L
-#define KMAC_NAMESPACE_LIST(V) V(Kmac)
-#else
-#define KMAC_NAMESPACE_LIST(V)
-#endif  // OpenSSL >= 3.1
-
-// KEM functionality requires OpenSSL 3.0.0 or later
+// KEM and KMAC functionality requires OpenSSL 3.0.0 or later
 #if OPENSSL_VERSION_MAJOR >= 3
 #define KEM_NAMESPACE_LIST(V) V(KEM)
+#define KMAC_NAMESPACE_LIST(V) V(Kmac)
 #else
 #define KEM_NAMESPACE_LIST(V)
+#define KMAC_NAMESPACE_LIST(V)
 #endif
 
 #ifdef OPENSSL_NO_SCRYPT

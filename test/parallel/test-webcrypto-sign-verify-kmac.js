@@ -7,8 +7,8 @@ if (!common.hasCrypto)
 
 const { hasOpenSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3, 1))
-  common.skip('requires OpenSSL >= 3.1');
+if (!hasOpenSSL(3))
+  common.skip('requires OpenSSL >= 3');
 
 const assert = require('assert');
 const { subtle } = globalThis.crypto;

@@ -4413,7 +4413,7 @@ HMACCtxPointer HMACCtxPointer::New() {
   return HMACCtxPointer(HMAC_CTX_new());
 }
 
-#if OPENSSL_VERSION_NUMBER >= 0x30100000L
+#if OPENSSL_VERSION_MAJOR >= 3
 EVPMacPointer::EVPMacPointer(EVP_MAC* mac) : mac_(mac) {}
 
 EVPMacPointer::EVPMacPointer(EVPMacPointer&& other) noexcept
@@ -4501,7 +4501,7 @@ EVPMacCtxPointer EVPMacCtxPointer::New(EVP_MAC* mac) {
   if (!mac) return EVPMacCtxPointer();
   return EVPMacCtxPointer(EVP_MAC_CTX_new(mac));
 }
-#endif  // OPENSSL_VERSION_NUMBER >= 0x30100000L
+#endif  // OPENSSL_VERSION_MAJOR >= 3
 
 DataPointer hashDigest(const Buffer<const unsigned char>& buf,
                        const EVP_MD* md) {

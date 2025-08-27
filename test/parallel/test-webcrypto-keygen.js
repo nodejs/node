@@ -184,12 +184,10 @@ if (hasOpenSSL(3)) {
       'unwrapKey',
     ],
   };
-}
 
-if (hasOpenSSL(3, 5)) {
-  for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
+  for (const name of ['KMAC128', 'KMAC256']) {
     vectors[name] = {
-      result: 'CryptoKeyPair',
+      result: 'CryptoKey',
       usages: [
         'sign',
         'verify',
@@ -198,10 +196,10 @@ if (hasOpenSSL(3, 5)) {
   }
 }
 
-if (hasOpenSSL(3, 1)) {
-  for (const name of ['KMAC128', 'KMAC256']) {
+if (hasOpenSSL(3, 5)) {
+  for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
     vectors[name] = {
-      result: 'CryptoKey',
+      result: 'CryptoKeyPair',
       usages: [
         'sign',
         'verify',

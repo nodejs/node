@@ -168,7 +168,7 @@ const { KeyObject } = require('crypto');
     // [{ name: 'HMAC', hash: 'SHA3-512' }, 'sign', 512],
   ];
 
-  if (hasOpenSSL(3, 1)) {
+  if (hasOpenSSL(3)) {
     vectors.push(
       ['KMAC128', 'sign', 128],
       [{ name: 'KMAC128', length: 384 }, 'sign', 384],
@@ -221,7 +221,7 @@ const { KeyObject } = require('crypto');
     // [{ name: 'HMAC', hash: 'SHA3-512' }, 'sign', 512],
   ];
 
-  if (hasOpenSSL(3, 1)) {
+  if (hasOpenSSL(3)) {
     vectors.push(
       ['KMAC128', 'sign', 128],
       [{ name: 'KMAC128', length: 384 }, 'sign', 384],

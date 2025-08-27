@@ -3,7 +3,7 @@
 #include "node_internals.h"
 #include "threadpoolwork-inl.h"
 
-#if OPENSSL_VERSION_NUMBER >= 0x30100000L
+#if OPENSSL_VERSION_MAJOR >= 3
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include "crypto/crypto_keys.h"

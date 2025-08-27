@@ -1453,7 +1453,7 @@ class HMACCtxPointer final {
   DeleteFnPtr<HMAC_CTX, HMAC_CTX_free> ctx_;
 };
 
-#if OPENSSL_VERSION_NUMBER >= 0x30100000L
+#if OPENSSL_VERSION_MAJOR >= 3
 class EVPMacPointer final {
  public:
   EVPMacPointer() = default;
@@ -1501,7 +1501,7 @@ class EVPMacCtxPointer final {
  private:
   DeleteFnPtr<EVP_MAC_CTX, EVP_MAC_CTX_free> ctx_;
 };
-#endif  // OPENSSL_VERSION_NUMBER >= 0x30100000L
+#endif  // OPENSSL_VERSION_MAJOR >= 3
 
 #ifndef OPENSSL_NO_ENGINE
 class EnginePointer final {

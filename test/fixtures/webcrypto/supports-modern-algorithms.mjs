@@ -8,7 +8,7 @@ const shake128 = crypto.getHashes().includes('shake128');
 const shake256 = crypto.getHashes().includes('shake256');
 const chacha = crypto.getCiphers().includes('chacha20-poly1305');
 const ocb = hasOpenSSL(3);
-const kmac = hasOpenSSL(3, 1);
+const kmac = hasOpenSSL(3);
 
 const { subtle } = globalThis.crypto;
 const X25519 = await subtle.generateKey('X25519', false, ['deriveBits', 'deriveKey']);

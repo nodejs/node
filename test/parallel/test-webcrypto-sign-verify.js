@@ -108,7 +108,7 @@ const { subtle } = globalThis.crypto;
 }
 
 // Test Sign/Verify KMAC
-if (hasOpenSSL(3, 1)) {
+if (hasOpenSSL(3)) {
   async function test(name, data) {
     const ec = new TextEncoder();
 

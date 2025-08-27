@@ -167,7 +167,7 @@ const { createPrivateKey, createPublicKey, createSecretKey } = require('crypto')
 }
 
 // Import/Export KMAC Secret Key
-if (hasOpenSSL(3, 1)) {
+if (hasOpenSSL(3)) {
   async function test(name) {
     const keyData = globalThis.crypto.getRandomValues(new Uint8Array(32));
     const key = await subtle.importKey(

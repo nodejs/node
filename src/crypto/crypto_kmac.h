@@ -10,8 +10,8 @@
 
 namespace node::crypto {
 
-// KMAC (Keccak Message Authentication Code) is available in OpenSSL 3.1+.
-#if OPENSSL_VERSION_NUMBER >= 0x30100000L
+// KMAC (Keccak Message Authentication Code) is available since OpenSSL 3.0.
+#if OPENSSL_VERSION_MAJOR >= 3
 
 struct KmacConfig final : public MemoryRetainer {
   CryptoJobMode job_mode;

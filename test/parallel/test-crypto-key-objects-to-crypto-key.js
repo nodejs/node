@@ -206,7 +206,7 @@ if (hasOpenSSL(3, 5)) {
   }
 }
 
-if (hasOpenSSL(3, 1)) {
+if (hasOpenSSL(3)) {
   for (const algorithm of ['KMAC128', 'KMAC256']) {
     const hmac = createSecretKey(randomBytes(32));
     const usages = ['sign', 'verify'];

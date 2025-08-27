@@ -120,8 +120,8 @@ Algorithms:
 * `'ChaCha20-Poly1305'`
 * `'cSHAKE128'`
 * `'cSHAKE256'`
-* `'KMAC128'`[^openssl31]
-* `'KMAC256'`[^openssl31]
+* `'KMAC128'`[^openssl30]
+* `'KMAC256'`[^openssl30]
 * `'ML-DSA-44'`[^openssl35]
 * `'ML-DSA-65'`[^openssl35]
 * `'ML-DSA-87'`[^openssl35]
@@ -2683,8 +2683,6 @@ The length (in bytes) of the random salt to use.
 [^modern-algos]: See [Modern Algorithms in the Web Cryptography API][]
 
 [^openssl30]: Requires OpenSSL >= 3.0
-
-[^openssl31]: Requires OpenSSL >= 3.1
 
 [^openssl32]: Requires OpenSSL >= 3.2
 
