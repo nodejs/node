@@ -3,16 +3,26 @@
 const common = require('../common');
 const assert = require('assert');
 
-const bench = common.createBenchmark(main, {
-  n: [1e5],
-  modifyPrototype: [1, 0],
-  emitWarningSync: [1, 0],
-}, {
-  flags: ['--expose-internals'],
-});
+const bench = common.createBenchmark(
+  main,
+  {
+    n: [1000],
+    modifyPrototype: [1, 0],
+    emitWarningSync: [1, 0],
+  },
+  {
+    flags: ['--expose-internals'],
+  },
+);
 
 function simpleFunction(x) {
-  return x * 2 + (new Array(1000)).fill(0).map((_, i) => i).reduce((a, b) => a + b, 0);
+  return (
+    x * 2 +
+    new Array(1000)
+      .fill(0)
+      .map((_, i) => i)
+      .reduce((a, b) => a + b, 0)
+  );
 }
 
 function main({ n, modifyPrototype, emitWarningSync }) {
