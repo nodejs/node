@@ -96,8 +96,6 @@
       'src/js_stream.cc',
       'src/json_utils.cc',
       'src/js_udp_wrap.cc',
-      'src/json_parser.h',
-      'src/json_parser.cc',
       'src/module_wrap.cc',
       'src/node.cc',
       'src/node_api.cc',
