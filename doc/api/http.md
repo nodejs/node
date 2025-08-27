@@ -2641,7 +2641,7 @@ will check whether `Content-Length` and the length of the body which has
 been transmitted are equal or not.
 
 Attempting to set a header field name or value that contains invalid characters
-will result in a \[`Error`]\[] being thrown.
+will result in a [`TypeError`][] being thrown.
 
 ### `response.writeProcessing()`
 
