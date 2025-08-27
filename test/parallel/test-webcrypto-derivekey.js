@@ -1,10 +1,11 @@
-// Flags: --expose-internals --no-warnings
 'use strict';
 
 const common = require('../common');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
+
+const { hasOpenSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
@@ -167,6 +168,15 @@ const { KeyObject } = require('crypto');
     // [{ name: 'HMAC', hash: 'SHA3-512' }, 'sign', 512],
   ];
 
+  if (hasOpenSSL(3)) {
+    vectors.push(
+      ['KMAC128', 'sign', 128],
+      [{ name: 'KMAC128', length: 384 }, 'sign', 384],
+      ['KMAC256', 'sign', 256],
+      [{ name: 'KMAC256', length: 384 }, 'sign', 384],
+    );
+  }
+
   (async () => {
     const keyPair = await subtle.generateKey({ name: 'ECDH', namedCurve: 'P-521' }, false, ['deriveKey']);
     for (const [derivedKeyAlgorithm, usage, expected] of vectors) {
@@ -183,7 +193,7 @@ const { KeyObject } = require('crypto');
       } else {
         assert.strictEqual(result.status, 'fulfilled');
         const derived = result.value;
-        if (derived.algorithm.name === 'HMAC') {
+        if (derived.algorithm.name === 'HMAC' || derived.algorithm.name.startsWith('KMAC')) {
           assert.strictEqual(derived.algorithm.length, expected);
         } else {
           // KDFs cannot be exportable and do not indicate their length
@@ -210,6 +220,15 @@ const { KeyObject } = require('crypto');
     // [{ name: 'HMAC', hash: 'SHA3-384' }, 'sign', 384],
     // [{ name: 'HMAC', hash: 'SHA3-512' }, 'sign', 512],
   ];
+
+  if (hasOpenSSL(3)) {
+    vectors.push(
+      ['KMAC128', 'sign', 128],
+      [{ name: 'KMAC128', length: 384 }, 'sign', 384],
+      ['KMAC256', 'sign', 256],
+      [{ name: 'KMAC256', length: 384 }, 'sign', 384],
+    );
+  }
 
   (async () => {
     for (const [derivedKeyAlgorithm, usage, expected] of vectors) {

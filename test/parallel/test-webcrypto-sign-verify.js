@@ -107,6 +107,30 @@ const { subtle } = globalThis.crypto;
   test('hello world').then(common.mustCall());
 }
 
+// Test Sign/Verify KMAC
+if (hasOpenSSL(3)) {
+  async function test(name, data) {
+    const ec = new TextEncoder();
+
+    const key = await subtle.generateKey({
+      name,
+    }, true, ['sign', 'verify']);
+
+    const signature = await subtle.sign({
+      name,
+      length: 256,
+    }, key, ec.encode(data));
+
+    assert(await subtle.verify({
+      name,
+      length: 256,
+    }, key, signature, ec.encode(data)));
+  }
+
+  test('KMAC128', 'hello world').then(common.mustCall());
+  test('KMAC256', 'hello world').then(common.mustCall());
+}
+
 // Test Sign/Verify Ed25519
 {
   async function test(data) {

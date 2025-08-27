@@ -229,6 +229,8 @@ class DataPointer;
 class DHPointer;
 class ECKeyPointer;
 class EVPKeyPointer;
+class EVPMacCtxPointer;
+class EVPMacPointer;
 class EVPMDCtxPointer;
 class SSLCtxPointer;
 class SSLPointer;
@@ -1450,6 +1452,56 @@ class HMACCtxPointer final {
  private:
   DeleteFnPtr<HMAC_CTX, HMAC_CTX_free> ctx_;
 };
+
+#if OPENSSL_VERSION_MAJOR >= 3
+class EVPMacPointer final {
+ public:
+  EVPMacPointer() = default;
+  explicit EVPMacPointer(EVP_MAC* mac);
+  EVPMacPointer(EVPMacPointer&& other) noexcept;
+  EVPMacPointer& operator=(EVPMacPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(EVPMacPointer)
+  ~EVPMacPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return mac_ == nullptr; }
+  inline operator bool() const { return mac_ != nullptr; }
+  inline EVP_MAC* get() const { return mac_.get(); }
+  inline operator EVP_MAC*() const { return mac_.get(); }
+  void reset(EVP_MAC* mac = nullptr);
+  EVP_MAC* release();
+
+  static EVPMacPointer Fetch(const char* algorithm);
+
+ private:
+  DeleteFnPtr<EVP_MAC, EVP_MAC_free> mac_;
+};
+
+class EVPMacCtxPointer final {
+ public:
+  EVPMacCtxPointer() = default;
+  explicit EVPMacCtxPointer(EVP_MAC_CTX* ctx);
+  EVPMacCtxPointer(EVPMacCtxPointer&& other) noexcept;
+  EVPMacCtxPointer& operator=(EVPMacCtxPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(EVPMacCtxPointer)
+  ~EVPMacCtxPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return ctx_ == nullptr; }
+  inline operator bool() const { return ctx_ != nullptr; }
+  inline EVP_MAC_CTX* get() const { return ctx_.get(); }
+  inline operator EVP_MAC_CTX*() const { return ctx_.get(); }
+  void reset(EVP_MAC_CTX* ctx = nullptr);
+  EVP_MAC_CTX* release();
+
+  bool init(const Buffer<const void>& key, const OSSL_PARAM* params = nullptr);
+  bool update(const Buffer<const void>& data);
+  DataPointer final(size_t length);
+
+  static EVPMacCtxPointer New(EVP_MAC* mac);
+
+ private:
+  DeleteFnPtr<EVP_MAC_CTX, EVP_MAC_CTX_free> ctx_;
+};
+#endif  // OPENSSL_VERSION_MAJOR >= 3
 
 #ifndef OPENSSL_NO_ENGINE
 class EnginePointer final {
