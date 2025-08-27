@@ -16,6 +16,7 @@ X509 certificate list addition functions
 =head1 DESCRIPTION
 
 X509_add_cert() adds a certificate I<cert> to the given list I<sk>.
+It is an error for the I<cert> argument to be NULL.
 
 X509_add_certs() adds a list of certificate I<certs> to the given list I<sk>.
 The I<certs> argument may be NULL, which implies no effect.
@@ -66,7 +67,7 @@ were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

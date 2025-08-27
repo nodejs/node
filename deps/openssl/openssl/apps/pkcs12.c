@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -305,7 +305,8 @@ int pkcs12_main(int argc, char **argv)
             if (canames == NULL
                 && (canames = sk_OPENSSL_STRING_new_null()) == NULL)
                 goto end;
-            sk_OPENSSL_STRING_push(canames, opt_arg());
+            if (sk_OPENSSL_STRING_push(canames, opt_arg()) <= 0)
+                goto end;
             break;
         case OPT_IN:
             infile = opt_arg();

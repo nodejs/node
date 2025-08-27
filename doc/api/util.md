@@ -286,7 +286,7 @@ corresponding argument. Supported specifiers are:
 
 * `%s`: `String` will be used to convert all values except `BigInt`, `Object`
   and `-0`. `BigInt` values will be represented with an `n` and Objects that
-  have no user defined `toString` function are inspected using `util.inspect()`
+  have neither a user defined `toString` function nor `Symbol.toPrimitive` function are inspected using `util.inspect()`
   with options `{ depth: 0, colors: false, compact: 3 }`.
 * `%d`: `Number` will be used to convert all values except `BigInt` and
   `Symbol`.

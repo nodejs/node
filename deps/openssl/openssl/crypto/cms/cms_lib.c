@@ -22,6 +22,7 @@
 static STACK_OF(CMS_CertificateChoices)
 **cms_get0_certificate_choices(CMS_ContentInfo *cms);
 
+IMPLEMENT_ASN1_ALLOC_FUNCTIONS(CMS_ContentInfo)
 IMPLEMENT_ASN1_PRINT_FUNCTION(CMS_ContentInfo)
 
 CMS_ContentInfo *d2i_CMS_ContentInfo(CMS_ContentInfo **a,
@@ -66,20 +67,6 @@ CMS_ContentInfo *CMS_ContentInfo_new_ex(OSSL_LIB_CTX *libctx, const char *propq)
         }
     }
     return ci;
-}
-
-CMS_ContentInfo *CMS_ContentInfo_new(void)
-{
-    return CMS_ContentInfo_new_ex(NULL, NULL);
-}
-
-void CMS_ContentInfo_free(CMS_ContentInfo *cms)
-{
-    if (cms != NULL) {
-        ossl_cms_env_enc_content_free(cms);
-        OPENSSL_free(cms->ctx.propq);
-        ASN1_item_free((ASN1_VALUE *)cms, ASN1_ITEM_rptr(CMS_ContentInfo));
-    }
 }
 
 const CMS_CTX *ossl_cms_get0_cmsctx(const CMS_ContentInfo *cms)

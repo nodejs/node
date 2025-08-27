@@ -1161,7 +1161,7 @@ int i2o_ECPublicKey(const EC_KEY *a, unsigned char **out)
     size_t buf_len = 0;
     int new_buffer = 0;
 
-    if (a == NULL) {
+    if (a == NULL || a->pub_key == NULL) {
         ERR_raise(ERR_LIB_EC, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }

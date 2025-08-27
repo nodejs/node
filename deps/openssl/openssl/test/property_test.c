@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -50,30 +50,37 @@ static void down_ref(void *p)
 
 static int test_property_string(void)
 {
-    OSSL_METHOD_STORE *store;
+    OSSL_LIB_CTX *ctx;
+    OSSL_METHOD_STORE *store = NULL;
     int res = 0;
     OSSL_PROPERTY_IDX i, j;
 
-    if (TEST_ptr(store = ossl_method_store_new(NULL))
-        && TEST_int_eq(ossl_property_name(NULL, "fnord", 0), 0)
-        && TEST_int_ne(ossl_property_name(NULL, "fnord", 1), 0)
-        && TEST_int_ne(ossl_property_name(NULL, "name", 1), 0)
+    /*-
+     * Use our own library context because we depend on ordering from a
+     * pristine state.
+     */
+    if (TEST_ptr(ctx = OSSL_LIB_CTX_new())
+        && TEST_ptr(store = ossl_method_store_new(ctx))
+        && TEST_int_eq(ossl_property_name(ctx, "fnord", 0), 0)
+        && TEST_int_ne(ossl_property_name(ctx, "fnord", 1), 0)
+        && TEST_int_ne(ossl_property_name(ctx, "name", 1), 0)
         /* Property value checks */
-        && TEST_int_eq(ossl_property_value(NULL, "fnord", 0), 0)
-        && TEST_int_ne(i = ossl_property_value(NULL, "no", 0), 0)
-        && TEST_int_ne(j = ossl_property_value(NULL, "yes", 0), 0)
+        && TEST_int_eq(ossl_property_value(ctx, "fnord", 0), 0)
+        && TEST_int_ne(i = ossl_property_value(ctx, "no", 0), 0)
+        && TEST_int_ne(j = ossl_property_value(ctx, "yes", 0), 0)
         && TEST_int_ne(i, j)
-        && TEST_int_eq(ossl_property_value(NULL, "yes", 1), j)
-        && TEST_int_eq(ossl_property_value(NULL, "no", 1), i)
-        && TEST_int_ne(i = ossl_property_value(NULL, "illuminati", 1), 0)
-        && TEST_int_eq(j = ossl_property_value(NULL, "fnord", 1), i + 1)
-        && TEST_int_eq(ossl_property_value(NULL, "fnord", 1), j)
+        && TEST_int_eq(ossl_property_value(ctx, "yes", 1), j)
+        && TEST_int_eq(ossl_property_value(ctx, "no", 1), i)
+        && TEST_int_ne(i = ossl_property_value(ctx, "illuminati", 1), 0)
+        && TEST_int_eq(j = ossl_property_value(ctx, "fnord", 1), i + 1)
+        && TEST_int_eq(ossl_property_value(ctx, "fnord", 1), j)
         /* Check name and values are distinct */
-        && TEST_int_eq(ossl_property_value(NULL, "cold", 0), 0)
-        && TEST_int_ne(ossl_property_name(NULL, "fnord", 0),
-                       ossl_property_value(NULL, "fnord", 0)))
+        && TEST_int_eq(ossl_property_value(ctx, "cold", 0), 0)
+        && TEST_int_ne(ossl_property_name(ctx, "fnord", 0),
+                       ossl_property_value(ctx, "fnord", 0)))
         res = 1;
     ossl_method_store_free(store);
+    OSSL_LIB_CTX_free(ctx);
     return res;
 }
 

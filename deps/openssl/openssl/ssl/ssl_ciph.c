@@ -2240,37 +2240,3 @@ const char *OSSL_default_ciphersuites(void)
            "TLS_CHACHA20_POLY1305_SHA256:"
            "TLS_AES_128_GCM_SHA256";
 }
-
-#ifndef OPENSSL_NO_QUIC
-int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *c)
-{
-    switch (c->algorithm2 & (0xFF << TLS1_PRF_DGST_SHIFT)) {
-    default:
-        break;
-    case TLS1_PRF_SHA1_MD5: /* TLS1_PRF */
-        return NID_md5_sha1;
-    case TLS1_PRF_SHA256:
-        return NID_sha256;
-    case TLS1_PRF_SHA384:
-        return NID_sha384;
-    case TLS1_PRF_GOST94:
-        return NID_id_GostR3411_94_prf;
-    case TLS1_PRF_GOST12_256:
-        return NID_id_GostR3411_2012_256;
-    case TLS1_PRF_GOST12_512:
-        return NID_id_GostR3411_2012_512;
-    }
-    /* TLSv1.3 ciphers don't specify separate PRF */
-    switch (c->algorithm2 & SSL_HANDSHAKE_MAC_MASK) {
-    default:
-        break;
-    case SSL_HANDSHAKE_MAC_MD5_SHA1: /* SSL_HANDSHAKE_MAC_DEFAULT */
-        return NID_md5_sha1;
-    case SSL_HANDSHAKE_MAC_SHA256:
-        return NID_sha256;
-    case SSL_HANDSHAKE_MAC_SHA384:
-        return NID_sha384;
-    }
-    return NID_undef;
-}
-#endif

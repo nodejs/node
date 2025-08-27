@@ -1200,6 +1200,10 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
 
 const llhttp_settings_t Parser::settings = {
     Proxy<Call, &Parser::on_message_begin>::Raw,
+
+    // on_protocol
+    nullptr,
+
     Proxy<DataCall, &Parser::on_url>::Raw,
     Proxy<DataCall, &Parser::on_status>::Raw,
 
@@ -1220,6 +1224,8 @@ const llhttp_settings_t Parser::settings = {
     Proxy<DataCall, &Parser::on_body>::Raw,
     Proxy<Call, &Parser::on_message_complete>::Raw,
 
+    // on_protocol_complete
+    nullptr,
     // on_url_complete
     nullptr,
     // on_status_complete

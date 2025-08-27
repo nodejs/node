@@ -15,6 +15,7 @@
 #include "bn_local.h"
 
 #ifndef OPENSSL_NO_EC2M
+# include <openssl/ec.h>
 
 /*
  * Maximum number of iterations before BN_GF2m_mod_solve_quad_arr should
@@ -1140,16 +1141,26 @@ int BN_GF2m_mod_solve_quad(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
 /*
  * Convert the bit-string representation of a polynomial ( \sum_{i=0}^n a_i *
  * x^i) into an array of integers corresponding to the bits with non-zero
- * coefficient.  Array is terminated with -1. Up to max elements of the array
- * will be filled.  Return value is total number of array elements that would
- * be filled if array was large enough.
+ * coefficient.  The array is intended to be suitable for use with
+ * `BN_GF2m_mod_arr()`, and so the constant term of the polynomial must not be
+ * zero.  This translates to a requirement that the input BIGNUM `a` is odd.
+ *
+ * Given sufficient room, the array is terminated with -1.  Up to max elements
+ * of the array will be filled.
+ *
+ * The return value is total number of array elements that would be filled if
+ * array was large enough, including the terminating `-1`.  It is `0` when `a`
+ * is not odd or the constant term is zero contrary to requirement.
+ *
+ * The return value is also `0` when the leading exponent exceeds
+ * `OPENSSL_ECC_MAX_FIELD_BITS`, this guards against CPU exhaustion attacks,
  */
 int BN_GF2m_poly2arr(const BIGNUM *a, int p[], int max)
 {
     int i, j, k = 0;
     BN_ULONG mask;
 
-    if (BN_is_zero(a))
+    if (!BN_is_odd(a))
         return 0;
 
     for (i = a->top - 1; i >= 0; i--) {
@@ -1167,12 +1178,13 @@ int BN_GF2m_poly2arr(const BIGNUM *a, int p[], int max)
         }
     }
 
-    if (k < max) {
-        p[k] = -1;
-        k++;
-    }
+    if (k > 0 && p[0] > OPENSSL_ECC_MAX_FIELD_BITS)
+        return 0;
 
-    return k;
+    if (k < max)
+        p[k] = -1;
+
+    return k + 1;
 }
 
 /*

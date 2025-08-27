@@ -10,11 +10,11 @@ openssl-s_client - SSL/TLS client program
 B<openssl> B<s_client>
 [B<-help>]
 [B<-ssl_config> I<section>]
-[B<-connect> I<host:port>]
+[B<-connect> I<host>:I<port>]
 [B<-host> I<hostname>]
 [B<-port> I<port>]
-[B<-bind> I<host:port>]
-[B<-proxy> I<host:port>]
+[B<-bind> I<host>:I<port>]
+[B<-proxy> I<host>:I<port>]
 [B<-proxy_user> I<userid>]
 [B<-proxy_pass> I<arg>]
 [B<-unix> I<path>]
@@ -157,6 +157,7 @@ This specifies the host and optional port to connect to. It is possible to
 select the host and port using the optional target positional argument instead.
 If neither this nor the target positional argument are specified then an attempt
 is made to connect to the local host on port 4433.
+If the host string is an IPv6 address, it must be enclosed in C<[> and C<]>.
 
 =item B<-host> I<hostname>
 
@@ -166,17 +167,19 @@ Host to connect to; use B<-connect> instead.
 
 Connect to the specified port; use B<-connect> instead.
 
-=item B<-bind> I<host:port>
+=item B<-bind> I<host>:I<port>
 
 This specifies the host address and or port to bind as the source for the
 connection.  For Unix-domain sockets the port is ignored and the host is
 used as the source socket address.
+If the host string is an IPv6 address, it must be enclosed in C<[> and C<]>.
 
-=item B<-proxy> I<host:port>
+=item B<-proxy> I<host>:I<port>
 
 When used with the B<-connect> flag, the program uses the host and port
 specified with this flag and issues an HTTP CONNECT command to connect
 to the desired server.
+If the host string is an IPv6 address, it must be enclosed in C<[> and C<]>.
 
 =item B<-proxy_user> I<userid>
 
@@ -260,7 +263,9 @@ See L<openssl-format-options(1)> for details.
 
 =item B<-crl_download>
 
-Download CRL from distribution points in the certificate.
+Download CRL from distribution points in the certificate. Note that this option
+is ignored if B<-crl_check> option is not provided. Note that the maximum size
+of CRL is limited by L<X509_CRL_load_http(3)> function.
 
 =item B<-key> I<filename>|I<uri>
 
@@ -282,14 +287,20 @@ see L<openssl-passphrase-options(1)>.
 
 The verify depth to use. This specifies the maximum length of the
 server certificate chain and turns on server certificate verification.
-Currently the verify operation continues after errors so all the problems
+Unless the B<-verify_return_error> option is given,
+the verify operation continues after errors so all the problems
 with a certificate chain can be seen. As a side effect the connection
 will never fail due to a server certificate verify failure.
 
+By default, validation of server certificates and their chain
+is done w.r.t. the (D)TLS Server (C<sslserver>) purpose.
+For details see L<openssl-verification-options(1)/Certificate Extensions>.
+
 =item B<-verify_return_error>
 
-Return verification errors instead of continuing. This will typically
-abort the handshake with a fatal error.
+Turns on server certificate verification, like with B<-verify>,
+but returns verification errors instead of continuing.
+This will typically abort the handshake with a fatal error.
 
 =item B<-verify_quiet>
 
@@ -799,10 +810,11 @@ proceed unless the B<-verify_return_error> option is used.
 
 =item I<host>:I<port>
 
-Rather than providing B<-connect>, the target hostname and optional port may
+Rather than providing B<-connect>, the target host and optional port may
 be provided as a single positional argument after all options. If neither this
 nor B<-connect> are provided, falls back to attempting to connect to
 I<localhost> on port I<4433>.
+If the host string is an IPv6 address, it must be enclosed in C<[> and C<]>.
 
 =back
 
@@ -880,6 +892,51 @@ option: any verify errors are then returned aborting the handshake.
 
 The B<-bind> option may be useful if the server or a firewall requires
 connections to come from some particular address and or port.
+
+=head2 Note on Non-Interactive Use
+
+When B<s_client> is run in a non-interactive environment (e.g., a cron job or
+a script without a valid I<stdin>), it may close the connection prematurely,
+especially with TLS 1.3. To prevent this, you can use the B<-ign_eof> flag,
+which keeps B<s_client> running even after reaching EOF from I<stdin>.
+
+For example:
+
+ openssl s_client -connect <server address>:443 -tls1_3
+                  -sess_out /path/to/tls_session_params_file
+                  -ign_eof </dev/null
+
+However, relying solely on B<-ign_eof> can lead to issues if the server keeps
+the connection open, expecting the client to close first. In such cases, the
+client may hang indefinitely. This behavior is not uncommon, particularly with
+protocols where the server waits for a graceful disconnect from the client.
+
+For example, when connecting to an SMTP server, the session may pause if the
+server expects a QUIT command before closing:
+
+ $ openssl s_client -brief -ign_eof -starttls smtp
+                    -connect <server address>:25 </dev/null
+ CONNECTION ESTABLISHED
+ Protocol version: TLSv1.3
+ Ciphersuite: TLS_AES_256_GCM_SHA384
+ ...
+ 250 CHUNKING
+ [long pause]
+
+To avoid such hangs, it's better to use an application-level command to
+initiate a clean disconnect. For SMTP, you can send a QUIT command:
+
+ printf 'QUIT\r\n' | openssl s_client -connect <server address>:25
+                                      -starttls smtp -brief -ign_eof
+
+Similarly, for HTTP/1.1 connections, including a `Connection: close` header
+ensures the server closes the connection after responding:
+
+ printf 'GET / HTTP/1.1\r\nHost: <server address>\r\nConnection: close\r\n\r\n'
+     | openssl s_client -connect <server address>:443 -brief
+
+These approaches help manage the connection closure gracefully and prevent
+hangs caused by the server waiting for the client to initiate the disconnect.
 
 =head1 BUGS
 

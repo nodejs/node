@@ -220,14 +220,17 @@ BIO *http_server_init_bio(const char *prog, const char *port)
 {
     BIO *acbio = NULL, *bufbio;
     int asock;
+    char name[40];
 
+    snprintf(name, sizeof(name), "[::]:%s", port); /* port may be "0" */
     bufbio = BIO_new(BIO_f_buffer());
     if (bufbio == NULL)
         goto err;
     acbio = BIO_new(BIO_s_accept());
     if (acbio == NULL
-        || BIO_set_bind_mode(acbio, BIO_BIND_REUSEADDR) < 0
-        || BIO_set_accept_port(acbio, port) < 0) {
+        || BIO_set_accept_ip_family(acbio, BIO_FAMILY_IPANY) <= 0 /* IPv4/6 */
+        || BIO_set_bind_mode(acbio, BIO_BIND_REUSEADDR) <= 0
+        || BIO_set_accept_name(acbio, name) <= 0) {
         log_message(prog, LOG_ERR, "Error setting up accept BIO");
         goto err;
     }

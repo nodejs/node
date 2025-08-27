@@ -11,6 +11,8 @@ Support for computing the B<TLS1> PRF through the B<EVP_KDF> API.
 The EVP_KDF-TLS1_PRF algorithm implements the PRF used by TLS versions up to
 and including TLS 1.2.
 
+The output is considered to be keying material.
+
 =head2 Identity
 
 "TLS1-PRF" is the name for this implementation; it

@@ -35,7 +35,6 @@
 
 # net
 
-/deps/ada @nodejs/url
 /deps/cares @nodejs/net
 /doc/api/dgram.md @nodejs/net
 /doc/api/dns.md @nodejs/net
@@ -47,14 +46,11 @@
 /lib/internal/js_stream_socket.js @nodejs/net
 /lib/internal/net.js @nodejs/net
 /lib/internal/socket_list.js @nodejs/net
-/lib/internal/url.js @nodejs/url
 /lib/net.js @nodejs/net
-/lib/url.js @nodejs/url
 /src/cares_wrap.cc @nodejs/net
 /src/connect_wrap.* @nodejs/net
 /src/connection_wrap.* @nodejs/net
 /src/node_sockaddr* @nodejs/net
-/src/node_url.* @nodejs/url
 /src/tcp_wrap.* @nodejs/net
 /src/udp_wrap.* @nodejs/net
 
@@ -186,3 +182,10 @@
 /lib/internal/navigator.js @nodejs/web-standards
 /test/fixtures/wpt/ @nodejs/web-standards
 /test/wpt/ @nodejs/web-standards
+
+# URL
+/deps/ada @nodejs/url
+/lib/internal/url.js @nodejs/url
+/lib/url.js @nodejs/url
+/src/node_url.* @nodejs/url
+/test/fixtures/wpt/url @nodejs/url

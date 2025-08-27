@@ -724,9 +724,9 @@ void ChannelWrap::Setup() {
   }
 
   /* We do the call to ares_init_option for caller. */
-  const int optmask =
-      ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS |
-      ARES_OPT_SOCK_STATE_CB | ARES_OPT_TRIES;
+  const int optmask = ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS |
+                      ARES_OPT_SOCK_STATE_CB | ARES_OPT_TRIES |
+                      ARES_OPT_QUERY_CACHE;
   r = ares_init_options(&channel_, &options, optmask);
 
   if (r != ARES_SUCCESS) {
@@ -1319,6 +1319,8 @@ int SoaTraits::Parse(
   if (status != ARES_SUCCESS)
     return status;
 
+  auto cleanup = OnScopeLeave([&]() { ares_free_data(soa_out); });
+
   Local<Object> soa_record = Object::New(env->isolate());
 
   soa_record->Set(env->context(),
@@ -1344,8 +1346,6 @@ int SoaTraits::Parse(
                   env->minttl_string(),
                   Integer::NewFromUnsigned(
                       env->isolate(), soa_out->minttl)).Check();
-
-  ares_free_data(soa_out);
 
   wrap->CallOnComplete(soa_record);
   return ARES_SUCCESS;

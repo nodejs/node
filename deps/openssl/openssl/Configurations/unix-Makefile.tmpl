@@ -1688,7 +1688,7 @@ EOF
       } elsif ($makedep_scheme eq 'gcc' && !grep /\.rc$/, @srcs) {
           $recipe .= <<"EOF";
 $obj: $deps
-	$cmd $incs $defs $cmdflags -MMD -MF $dep.tmp -MT \$\@ -c -o \$\@ $srcs
+	$cmd $incs $defs $cmdflags -MMD -MF $dep.tmp -c -o \$\@ $srcs
 	\@touch $dep.tmp
 	\@if cmp $dep.tmp $dep > /dev/null 2> /dev/null; then \\
 		rm -f $dep.tmp; \\

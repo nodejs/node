@@ -72,7 +72,9 @@ When reporting security vulnerabilities, reporters must adhere to the following 
 
 3. **Responsible Testing**: When testing potential vulnerabilities:
    * Use isolated, controlled environments.
-   * Do not test on production systems.
+   * Do not test on production systems without prior authorization. Contact
+     the Node.js Technical Steering Committee (<tsc@iojs.org>) for permission or open
+     a HackerOne report.
    * Do not attempt to access or modify other users' data.
    * Immediately stop testing if unauthorized access is gained accidentally.
 
@@ -138,6 +140,9 @@ can trigger actions other than those documented for the APIs, there is likely
 a security vulnerability. Examples of unwanted actions are polluting globals,
 causing an unrecoverable crash, or any other unexpected side effects that can
 lead to a loss of confidentiality, integrity, or availability.
+
+For example, if trusted input (like secure application code) is correct,
+then untrusted input must not lead to arbitrary JavaScript code execution.
 
 **Node.js trusts everything else**. Examples include:
 

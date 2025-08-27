@@ -4935,3 +4935,13 @@ Ctrl.mode = mode:EXTRACT_AND_EXPAND
 Ctrl.digest = digest:SHA256
 Result = KDF_CTRL_ERROR
 
+# Test that salt of arbitrary length works
+FIPSversion = >=3.4.0
+KDF = TLS13-KDF
+Ctrl.mode = mode:EXTRACT_ONLY
+Ctrl.digest = digest:SHA2-256
+Ctrl.key = hexkey:f8af6aea2d397baf2948a25b2834200692cff17eee9165e4e27babee9edefd05
+Ctrl.salt = hexsalt:00010203040506070809000102030405060708090001020304050607080900010203040506070809
+Ctrl.prefix = hexprefix:746c73313320
+Ctrl.label = hexlabel:64657269766564
+Output = ef0aa4925ab6f4588759e15dfadcf7602ca7aa39ebb092bd7ab48f6a68c54449

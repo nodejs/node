@@ -58,7 +58,7 @@ class SessionTicket final : public MemoryRetainer {
 };
 
 // SessionTicket::AppData is a utility class that is used only during the
-// generation or access of TLS stateless sesson tickets. It exists solely to
+// generation or access of TLS stateless session tickets. It exists solely to
 // provide a easier way for Session::Application instances to set relevant
 // metadata in the session ticket when it is created, and the exract and
 // subsequently verify that data when a ticket is received and is being

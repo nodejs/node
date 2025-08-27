@@ -21,6 +21,20 @@ Date:   Thu May 12 03:29:52 2022 +0000
     Commit-Queue: Alex Danilo <adanilo@chromium.org>
     Cr-Commit-Position: refs/heads/main@{#1002476}
 
+commit 5a56f75b0da23a10f2c6d9068029a00e53425ddf
+Author: Hans Wennborg <hans@chromium.org>
+Date:   Fri May 16 15:48:19 2025 +0200
+
+    [minizip] Set filename length when using the Unicode Path Extra field
+
+    This is a follow-up to crrev.com/1002476 which added support for parsing
+    the Unicode Path Extra field, which overrides the regular filename. It
+    also needs to update the filename length.
+
+    Bug: 40623474
+    Change-Id: Ifab65f470736b45b1b51a1cc130a5753a2b20583
+    Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/6553931
+
 diff --git a/third_party/zlib/contrib/minizip/unzip.c b/third_party/zlib/contrib/minizip/unzip.c
 index c8a01b23efd42..42677cff82c96 100644
 --- a/third_party/zlib/contrib/minizip/unzip.c
@@ -92,6 +106,8 @@ index c8a01b23efd42..42677cff82c96 100644
 +                    else
 +                    {
 +                        uLong uSizeRead;
++
++                        file_info.size_filename = fileNameSize;
 +
 +                        if (fileNameSize < fileNameBufferSize)
 +                        {

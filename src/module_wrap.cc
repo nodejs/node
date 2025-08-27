@@ -24,6 +24,7 @@ using v8::Array;
 using v8::ArrayBufferView;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::Exception;
 using v8::FixedArray;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -32,15 +33,22 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
+using v8::JustVoid;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Message;
 using v8::MicrotaskQueue;
 using v8::Module;
 using v8::ModuleRequest;
+using v8::Name;
+using v8::Nothing;
+using v8::Null;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PrimitiveArray;
 using v8::Promise;
+using v8::PromiseRejectEvent;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
@@ -584,6 +592,43 @@ void ModuleWrap::InstantiateSync(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(module->IsGraphAsync());
 }
 
+Maybe<void> ThrowIfPromiseRejected(Realm* realm, Local<Promise> promise) {
+  Isolate* isolate = realm->isolate();
+  Local<Context> context = realm->context();
+  if (promise->State() != Promise::PromiseState::kRejected) {
+    return JustVoid();
+  }
+  // The rejected promise is created by V8, so we don't get a chance to mark
+  // it as resolved before the rejection happens from evaluation. But we can
+  // tell the promise rejection callback to treat it as a promise rejected
+  // before handler was added which would remove it from the unhandled
+  // rejection handling, since we are converting it into an error and throw
+  // from here directly.
+  Local<Value> type =
+      Integer::New(isolate,
+                   static_cast<int32_t>(
+                       PromiseRejectEvent::kPromiseHandlerAddedAfterReject));
+  Local<Value> args[] = {type, promise, Undefined(isolate)};
+  if (realm->promise_reject_callback()
+          ->Call(context, Undefined(isolate), arraysize(args), args)
+          .IsEmpty()) {
+    return Nothing<void>();
+  }
+  Local<Value> exception = promise->Result();
+  Local<Message> message = Exception::CreateMessage(isolate, exception);
+  AppendExceptionLine(
+      realm->env(), exception, message, ErrorHandlingMode::MODULE_ERROR);
+  isolate->ThrowException(exception);
+  return Nothing<void>();
+}
+
+void ThrowIfPromiseRejected(const FunctionCallbackInfo<Value>& args) {
+  if (!args[0]->IsPromise()) {
+    return;
+  }
+  ThrowIfPromiseRejected(Realm::GetCurrent(args), args[0].As<Promise>());
+}
+
 void ModuleWrap::EvaluateSync(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
@@ -608,29 +653,7 @@ void ModuleWrap::EvaluateSync(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(result->IsPromise());
   Local<Promise> promise = result.As<Promise>();
-  if (promise->State() == Promise::PromiseState::kRejected) {
-    // The rejected promise is created by V8, so we don't get a chance to mark
-    // it as resolved before the rejection happens from evaluation. But we can
-    // tell the promise rejection callback to treat it as a promise rejected
-    // before handler was added which would remove it from the unhandled
-    // rejection handling, since we are converting it into an error and throw
-    // from here directly.
-    Local<Value> type = v8::Integer::New(
-        isolate,
-        static_cast<int32_t>(
-            v8::PromiseRejectEvent::kPromiseHandlerAddedAfterReject));
-    Local<Value> args[] = {type, promise, Undefined(isolate)};
-    if (env->promise_reject_callback()
-            ->Call(context, Undefined(isolate), arraysize(args), args)
-            .IsEmpty()) {
-      return;
-    }
-    Local<Value> exception = promise->Result();
-    Local<v8::Message> message =
-        v8::Exception::CreateMessage(isolate, exception);
-    AppendExceptionLine(
-        env, exception, message, ErrorHandlingMode::MODULE_ERROR);
-    isolate->ThrowException(exception);
+  if (ThrowIfPromiseRejected(realm, promise).IsNothing()) {
     return;
   }
 
@@ -648,7 +671,7 @@ void ModuleWrap::EvaluateSync(const FunctionCallbackInfo<Value>& args) {
         FPrintF(stderr, "%s\n", reason);
       }
     }
-    THROW_ERR_REQUIRE_ASYNC_MODULE(env);
+    THROW_ERR_REQUIRE_ASYNC_MODULE(env, args[0], args[1]);
     return;
   }
 
@@ -670,15 +693,14 @@ void ModuleWrap::GetNamespaceSync(const FunctionCallbackInfo<Value>& args) {
       return realm->env()->ThrowError(
           "Cannot get namespace, module has not been instantiated");
     case v8::Module::Status::kInstantiated:
+    case v8::Module::Status::kEvaluating:
     case v8::Module::Status::kEvaluated:
     case v8::Module::Status::kErrored:
       break;
-    case v8::Module::Status::kEvaluating:
-      UNREACHABLE();
   }
 
   if (module->IsGraphAsync()) {
-    return THROW_ERR_REQUIRE_ASYNC_MODULE(realm->env());
+    return THROW_ERR_REQUIRE_ASYNC_MODULE(realm->env(), args[0], args[1]);
   }
   Local<Value> result = module->GetModuleNamespace();
   args.GetReturnValue().Set(result);
@@ -718,6 +740,16 @@ void ModuleWrap::GetStatus(const FunctionCallbackInfo<Value>& args) {
   Local<Module> module = obj->module_.Get(isolate);
 
   args.GetReturnValue().Set(module->GetStatus());
+}
+
+void ModuleWrap::IsGraphAsync(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+
+  Local<Module> module = obj->module_.Get(isolate);
+
+  args.GetReturnValue().Set(module->IsGraphAsync());
 }
 
 void ModuleWrap::GetError(const FunctionCallbackInfo<Value>& args) {
@@ -817,16 +849,23 @@ static MaybeLocal<Promise> ImportModuleDynamically(
   };
 
   Local<Value> result;
-  if (import_callback->Call(
-        context,
-        Undefined(isolate),
-        arraysize(import_args),
-        import_args).ToLocal(&result)) {
-    CHECK(result->IsPromise());
-    return handle_scope.Escape(result.As<Promise>());
+  if (!import_callback
+           ->Call(
+               context, Undefined(isolate), arraysize(import_args), import_args)
+           .ToLocal(&result)) {
+    return {};
   }
 
-  return MaybeLocal<Promise>();
+  // Wrap the returned value in a promise created in the referrer context to
+  // avoid dynamic scopes.
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver)) {
+    return {};
+  }
+  if (resolver->Resolve(context, result).IsNothing()) {
+    return {};
+  }
+  return handle_scope.Escape(resolver->GetPromise());
 }
 
 void ModuleWrap::SetImportModuleDynamicallyCallback(
@@ -1060,6 +1099,7 @@ void ModuleWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
       isolate, tpl, "createCachedData", CreateCachedData);
   SetProtoMethodNoSideEffect(isolate, tpl, "getNamespace", GetNamespace);
   SetProtoMethodNoSideEffect(isolate, tpl, "getStatus", GetStatus);
+  SetProtoMethodNoSideEffect(isolate, tpl, "isGraphAsync", IsGraphAsync);
   SetProtoMethodNoSideEffect(isolate, tpl, "getError", GetError);
   SetConstructorFunction(isolate, target, "ModuleWrap", tpl);
   isolate_data->set_module_wrap_constructor_template(tpl);
@@ -1076,6 +1116,7 @@ void ModuleWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
             target,
             "createRequiredModuleFacade",
             CreateRequiredModuleFacade);
+  SetMethod(isolate, target, "throwIfPromiseRejected", ThrowIfPromiseRejected);
 }
 
 void ModuleWrap::CreatePerContextProperties(Local<Object> target,
@@ -1115,11 +1156,13 @@ void ModuleWrap::RegisterExternalReferences(
   registry->Register(GetNamespace);
   registry->Register(GetStatus);
   registry->Register(GetError);
+  registry->Register(IsGraphAsync);
 
   registry->Register(CreateRequiredModuleFacade);
 
   registry->Register(SetImportModuleDynamicallyCallback);
   registry->Register(SetInitializeImportMetaObjectCallback);
+  registry->Register(ThrowIfPromiseRejected);
 }
 }  // namespace loader
 }  // namespace node

@@ -1,9 +1,9 @@
 Name: zlib
 Short Name: zlib
 URL: http://zlib.net/
-Version: 1.3.0.1
-Revision: ac8f12c97d1afd9bafa9c710f827d40a407d3266
-CPEPrefix: cpe:/a:zlib:zlib:1.3.0.1
+Version: 1.3.1
+Revision: 51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf
+CPEPrefix: cpe:/a:zlib:zlib:1.3.1
 Security Critical: yes
 Shipped: yes
 License: Zlib
@@ -21,14 +21,17 @@ also implements the zlib (RFC 1950) and gzip (RFC 1952) wrapper formats.
 Local Modifications:
  - Only source code from the zlib distribution used to build the zlib and
    minizip libraries are present. Many other files have been omitted. Only *.c
-   and *.h files from the upstream root directory and contrib/minizip were
-   imported.
+   and *.h files from the upstream root directory, contrib/minizip and
+   examples/zpipe.c were imported.
+ - The files named '*simd*' are original x86/Arm/RISC-V specific optimizations.
  - The contents of the google directory are original Chromium-specific
    additions.
+ - The contents of the 'contrib' of directory are either Chromium-specific
+   additions or heavily patched zlib files (e.g. inffast_chunk*).
  - Added chromeconf.h
  - Plus the changes in 'patches' folder.
  - Code in contrib/ other than contrib/minizip was added to match zlib's
    contributor layout.
- - In sync with 1.2.13 official release
+ - In sync with 1.3.1 official release
  - ZIP reader modified to allow for progress callbacks during extraction.
  - ZIP reader modified to add detection of AES encrypted content.

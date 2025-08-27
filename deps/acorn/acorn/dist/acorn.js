@@ -493,6 +493,7 @@
       SCOPE_SUPER = 64,
       SCOPE_DIRECT_SUPER = 128,
       SCOPE_CLASS_STATIC_BLOCK = 256,
+      SCOPE_CLASS_FIELD_INIT = 512,
       SCOPE_VAR = SCOPE_TOP | SCOPE_FUNCTION | SCOPE_CLASS_STATIC_BLOCK;
 
   function functionFlags(async, generator) {
@@ -603,15 +604,16 @@
 
   prototypeAccessors.inFunction.get = function () { return (this.currentVarScope().flags & SCOPE_FUNCTION) > 0 };
 
-  prototypeAccessors.inGenerator.get = function () { return (this.currentVarScope().flags & SCOPE_GENERATOR) > 0 && !this.currentVarScope().inClassFieldInit };
+  prototypeAccessors.inGenerator.get = function () { return (this.currentVarScope().flags & SCOPE_GENERATOR) > 0 };
 
-  prototypeAccessors.inAsync.get = function () { return (this.currentVarScope().flags & SCOPE_ASYNC) > 0 && !this.currentVarScope().inClassFieldInit };
+  prototypeAccessors.inAsync.get = function () { return (this.currentVarScope().flags & SCOPE_ASYNC) > 0 };
 
   prototypeAccessors.canAwait.get = function () {
     for (var i = this.scopeStack.length - 1; i >= 0; i--) {
-      var scope = this.scopeStack[i];
-      if (scope.inClassFieldInit || scope.flags & SCOPE_CLASS_STATIC_BLOCK) { return false }
-      if (scope.flags & SCOPE_FUNCTION) { return (scope.flags & SCOPE_ASYNC) > 0 }
+      var ref = this.scopeStack[i];
+        var flags = ref.flags;
+      if (flags & (SCOPE_CLASS_STATIC_BLOCK | SCOPE_CLASS_FIELD_INIT)) { return false }
+      if (flags & SCOPE_FUNCTION) { return (flags & SCOPE_ASYNC) > 0 }
     }
     return (this.inModule && this.options.ecmaVersion >= 13) || this.options.allowAwaitOutsideFunction
   };
@@ -619,8 +621,7 @@
   prototypeAccessors.allowSuper.get = function () {
     var ref = this.currentThisScope();
       var flags = ref.flags;
-      var inClassFieldInit = ref.inClassFieldInit;
-    return (flags & SCOPE_SUPER) > 0 || inClassFieldInit || this.options.allowSuperOutsideMethod
+    return (flags & SCOPE_SUPER) > 0 || this.options.allowSuperOutsideMethod
   };
 
   prototypeAccessors.allowDirectSuper.get = function () { return (this.currentThisScope().flags & SCOPE_DIRECT_SUPER) > 0 };
@@ -628,10 +629,13 @@
   prototypeAccessors.treatFunctionsAsVar.get = function () { return this.treatFunctionsAsVarInScope(this.currentScope()) };
 
   prototypeAccessors.allowNewDotTarget.get = function () {
-    var ref = this.currentThisScope();
-      var flags = ref.flags;
-      var inClassFieldInit = ref.inClassFieldInit;
-    return (flags & (SCOPE_FUNCTION | SCOPE_CLASS_STATIC_BLOCK)) > 0 || inClassFieldInit
+    for (var i = this.scopeStack.length - 1; i >= 0; i--) {
+      var ref = this.scopeStack[i];
+        var flags = ref.flags;
+      if (flags & (SCOPE_CLASS_STATIC_BLOCK | SCOPE_CLASS_FIELD_INIT) ||
+          ((flags & SCOPE_FUNCTION) && !(flags & SCOPE_ARROW))) { return true }
+    }
+    return false
   };
 
   prototypeAccessors.inClassStaticBlock.get = function () {
@@ -883,6 +887,49 @@
        !(isIdentifierChar(after = this.input.charCodeAt(next + 8)) || after > 0xd7ff && after < 0xdc00))
   };
 
+  pp$8.isUsingKeyword = function(isAwaitUsing, isFor) {
+    if (this.options.ecmaVersion < 17 || !this.isContextual(isAwaitUsing ? "await" : "using"))
+      { return false }
+
+    skipWhiteSpace.lastIndex = this.pos;
+    var skip = skipWhiteSpace.exec(this.input);
+    var next = this.pos + skip[0].length;
+
+    if (lineBreak.test(this.input.slice(this.pos, next))) { return false }
+
+    if (isAwaitUsing) {
+      var awaitEndPos = next + 5 /* await */, after;
+      if (this.input.slice(next, awaitEndPos) !== "using" ||
+        awaitEndPos === this.input.length ||
+        isIdentifierChar(after = this.input.charCodeAt(awaitEndPos)) ||
+        (after > 0xd7ff && after < 0xdc00)
+      ) { return false }
+
+      skipWhiteSpace.lastIndex = awaitEndPos;
+      var skipAfterUsing = skipWhiteSpace.exec(this.input);
+      if (skipAfterUsing && lineBreak.test(this.input.slice(awaitEndPos, awaitEndPos + skipAfterUsing[0].length))) { return false }
+    }
+
+    if (isFor) {
+      var ofEndPos = next + 2 /* of */, after$1;
+      if (this.input.slice(next, ofEndPos) === "of") {
+        if (ofEndPos === this.input.length ||
+          (!isIdentifierChar(after$1 = this.input.charCodeAt(ofEndPos)) && !(after$1 > 0xd7ff && after$1 < 0xdc00))) { return false }
+      }
+    }
+
+    var ch = this.input.charCodeAt(next);
+    return isIdentifierStart(ch, true) || ch === 92 // '\'
+  };
+
+  pp$8.isAwaitUsing = function(isFor) {
+    return this.isUsingKeyword(true, isFor)
+  };
+
+  pp$8.isUsing = function(isFor) {
+    return this.isUsingKeyword(false, isFor)
+  };
+
   // Parse a single statement.
   //
   // If expecting a statement and finding a slash operator, parse a
@@ -957,6 +1004,23 @@
         if (context) { this.unexpected(); }
         this.next();
         return this.parseFunctionStatement(node, true, !context)
+      }
+
+      var usingKind = this.isAwaitUsing(false) ? "await using" : this.isUsing(false) ? "using" : null;
+      if (usingKind) {
+        if (topLevel && this.options.sourceType === "script") {
+          this.raise(this.start, "Using declaration cannot appear in the top level when source type is `script`");
+        }
+        if (usingKind === "await using") {
+          if (!this.canAwait) {
+            this.raise(this.start, "Await using cannot appear outside of async function");
+          }
+          this.next();
+        }
+        this.next();
+        this.parseVar(node, false, usingKind);
+        this.semicolon();
+        return this.finishNode(node, "VariableDeclaration")
       }
 
       var maybeName = this.value, expr = this.parseExpression();
@@ -1034,18 +1098,19 @@
       this.next();
       this.parseVar(init$1, true, kind);
       this.finishNode(init$1, "VariableDeclaration");
-      if ((this.type === types$1._in || (this.options.ecmaVersion >= 6 && this.isContextual("of"))) && init$1.declarations.length === 1) {
-        if (this.options.ecmaVersion >= 9) {
-          if (this.type === types$1._in) {
-            if (awaitAt > -1) { this.unexpected(awaitAt); }
-          } else { node.await = awaitAt > -1; }
-        }
-        return this.parseForIn(node, init$1)
-      }
-      if (awaitAt > -1) { this.unexpected(awaitAt); }
-      return this.parseFor(node, init$1)
+      return this.parseForAfterInit(node, init$1, awaitAt)
     }
     var startsWithLet = this.isContextual("let"), isForOf = false;
+
+    var usingKind = this.isUsing(true) ? "using" : this.isAwaitUsing(true) ? "await using" : null;
+    if (usingKind) {
+      var init$2 = this.startNode();
+      this.next();
+      if (usingKind === "await using") { this.next(); }
+      this.parseVar(init$2, true, usingKind);
+      this.finishNode(init$2, "VariableDeclaration");
+      return this.parseForAfterInit(node, init$2, awaitAt)
+    }
     var containsEsc = this.containsEsc;
     var refDestructuringErrors = new DestructuringErrors;
     var initPos = this.start;
@@ -1066,6 +1131,20 @@
       return this.parseForIn(node, init)
     } else {
       this.checkExpressionErrors(refDestructuringErrors, true);
+    }
+    if (awaitAt > -1) { this.unexpected(awaitAt); }
+    return this.parseFor(node, init)
+  };
+
+  // Helper method to parse for loop after variable initialization
+  pp$8.parseForAfterInit = function(node, init, awaitAt) {
+    if ((this.type === types$1._in || (this.options.ecmaVersion >= 6 && this.isContextual("of"))) && init.declarations.length === 1) {
+      if (this.options.ecmaVersion >= 9) {
+        if (this.type === types$1._in) {
+          if (awaitAt > -1) { this.unexpected(awaitAt); }
+        } else { node.await = awaitAt > -1; }
+      }
+      return this.parseForIn(node, init)
     }
     if (awaitAt > -1) { this.unexpected(awaitAt); }
     return this.parseFor(node, init)
@@ -1327,6 +1406,8 @@
         decl.init = this.parseMaybeAssign(isFor);
       } else if (!allowMissingInitializer && kind === "const" && !(this.type === types$1._in || (this.options.ecmaVersion >= 6 && this.isContextual("of")))) {
         this.unexpected();
+      } else if (!allowMissingInitializer && (kind === "using" || kind === "await using") && this.options.ecmaVersion >= 17 && this.type !== types$1._in && !this.isContextual("of")) {
+        this.raise(this.lastTokEnd, ("Missing initializer in " + kind + " declaration"));
       } else if (!allowMissingInitializer && decl.id.type !== "Identifier" && !(isFor && (this.type === types$1._in || this.isContextual("of")))) {
         this.raise(this.lastTokEnd, "Complex binding patterns require an initialization value");
       } else {
@@ -1339,7 +1420,10 @@
   };
 
   pp$8.parseVarId = function(decl, kind) {
-    decl.id = this.parseBindingAtom();
+    decl.id = kind === "using" || kind === "await using"
+      ? this.parseIdent()
+      : this.parseBindingAtom();
+
     this.checkLValPattern(decl.id, kind === "var" ? BIND_VAR : BIND_LEXICAL, false);
   };
 
@@ -1558,11 +1642,9 @@
 
     if (this.eat(types$1.eq)) {
       // To raise SyntaxError if 'arguments' exists in the initializer.
-      var scope = this.currentThisScope();
-      var inClassFieldInit = scope.inClassFieldInit;
-      scope.inClassFieldInit = true;
+      this.enterScope(SCOPE_CLASS_FIELD_INIT | SCOPE_SUPER);
       field.value = this.parseMaybeAssign();
-      scope.inClassFieldInit = inClassFieldInit;
+      this.exitScope();
     } else {
       field.value = null;
     }
@@ -1704,6 +1786,8 @@
         { this.checkExport(exports, node.declaration.id, node.declaration.id.start); }
       node.specifiers = [];
       node.source = null;
+      if (this.options.ecmaVersion >= 16)
+        { node.attributes = []; }
     } else { // export { x, y as z } [from '...']
       node.declaration = null;
       node.specifiers = this.parseExportSpecifiers(exports);
@@ -1727,6 +1811,8 @@
         }
 
         node.source = null;
+        if (this.options.ecmaVersion >= 16)
+          { node.attributes = []; }
       }
       this.semicolon();
     }
@@ -3068,7 +3154,8 @@
     var node = this.startNode();
     node.value = value;
     node.raw = this.input.slice(this.start, this.end);
-    if (node.raw.charCodeAt(node.raw.length - 1) === 110) { node.bigint = node.raw.slice(0, -1).replace(/_/g, ""); }
+    if (node.raw.charCodeAt(node.raw.length - 1) === 110)
+      { node.bigint = node.value != null ? node.value.toString() : node.raw.slice(0, -1).replace(/_/g, ""); }
     this.next();
     return this.finishNode(node, "Literal")
   };
@@ -3306,9 +3393,10 @@
   };
 
   pp$5.parseGetterSetter = function(prop) {
-    prop.kind = prop.key.name;
+    var kind = prop.key.name;
     this.parsePropertyName(prop);
     prop.value = this.parseMethod(false);
+    prop.kind = kind;
     var paramCount = prop.kind === "get" ? 0 : 1;
     if (prop.value.params.length !== paramCount) {
       var start = prop.value.start;
@@ -3331,9 +3419,9 @@
       prop.kind = "init";
     } else if (this.options.ecmaVersion >= 6 && this.type === types$1.parenL) {
       if (isPattern) { this.unexpected(); }
-      prop.kind = "init";
       prop.method = true;
       prop.value = this.parseMethod(isGenerator, isAsync);
+      prop.kind = "init";
     } else if (!isPattern && !containsEsc &&
                this.options.ecmaVersion >= 5 && !prop.computed && prop.key.type === "Identifier" &&
                (prop.key.name === "get" || prop.key.name === "set") &&
@@ -3345,7 +3433,6 @@
       this.checkUnreserved(prop.key);
       if (prop.key.name === "await" && !this.awaitIdentPos)
         { this.awaitIdentPos = startPos; }
-      prop.kind = "init";
       if (isPattern) {
         prop.value = this.parseMaybeDefault(startPos, startLoc, this.copyNode(prop.key));
       } else if (this.type === types$1.eq && refDestructuringErrors) {
@@ -3355,6 +3442,7 @@
       } else {
         prop.value = this.copyNode(prop.key);
       }
+      prop.kind = "init";
       prop.shorthand = true;
     } else { this.unexpected(); }
   };
@@ -3530,7 +3618,7 @@
       { this.raiseRecoverable(start, "Cannot use 'yield' as identifier inside a generator"); }
     if (this.inAsync && name === "await")
       { this.raiseRecoverable(start, "Cannot use 'await' as identifier inside an async function"); }
-    if (this.currentThisScope().inClassFieldInit && name === "arguments")
+    if (!(this.currentThisScope().flags & SCOPE_VAR) && name === "arguments")
       { this.raiseRecoverable(start, "Cannot use 'arguments' in class field initializer"); }
     if (this.inClassStaticBlock && (name === "arguments" || name === "await"))
       { this.raise(start, ("Cannot use " + name + " in class static initialization block")); }
@@ -3643,6 +3731,9 @@
   pp$4.raise = function(pos, message) {
     var loc = getLineInfo(this.input, pos);
     message += " (" + loc.line + ":" + loc.column + ")";
+    if (this.sourceFile) {
+      message += " in " + this.sourceFile;
+    }
     var err = new SyntaxError(message);
     err.pos = pos; err.loc = loc; err.raisedAt = this.pos;
     throw err
@@ -3666,8 +3757,6 @@
     this.lexical = [];
     // A list of lexically-declared FunctionDeclaration names in the current lexical scope
     this.functions = [];
-    // A switch to disallow the identifier reference 'arguments'
-    this.inClassFieldInit = false;
   };
 
   // The functions in this module keep track of declared variables in the current scope in order to detect duplicate variable names.
@@ -3737,7 +3826,7 @@
   pp$3.currentVarScope = function() {
     for (var i = this.scopeStack.length - 1;; i--) {
       var scope = this.scopeStack[i];
-      if (scope.flags & SCOPE_VAR) { return scope }
+      if (scope.flags & (SCOPE_VAR | SCOPE_CLASS_FIELD_INIT | SCOPE_CLASS_STATIC_BLOCK)) { return scope }
     }
   };
 
@@ -3745,7 +3834,8 @@
   pp$3.currentThisScope = function() {
     for (var i = this.scopeStack.length - 1;; i--) {
       var scope = this.scopeStack[i];
-      if (scope.flags & SCOPE_VAR && !(scope.flags & SCOPE_ARROW)) { return scope }
+      if (scope.flags & (SCOPE_VAR | SCOPE_CLASS_FIELD_INIT | SCOPE_CLASS_STATIC_BLOCK) &&
+          !(scope.flags & SCOPE_ARROW)) { return scope }
     }
   };
 
@@ -6095,11 +6185,9 @@
   // Please use the [github bug tracker][ghbt] to report issues.
   //
   // [ghbt]: https://github.com/acornjs/acorn/issues
-  //
-  // [walk]: util/walk.js
 
 
-  var version = "8.14.0";
+  var version = "8.15.0";
 
   Parser.acorn = {
     Parser: Parser,

@@ -92,11 +92,13 @@ int X509_sign_ctx(X509 *x, EVP_MD_CTX *ctx)
 static ASN1_VALUE *simple_get_asn1(const char *url, BIO *bio, BIO *rbio,
                                    int timeout, const ASN1_ITEM *it)
 {
+    size_t max_resp_len = (it == ASN1_ITEM_rptr(X509_CRL)) ?
+        OSSL_HTTP_DEFAULT_MAX_CRL_LEN : OSSL_HTTP_DEFAULT_MAX_RESP_LEN;
     BIO *mem = OSSL_HTTP_get(url, NULL /* proxy */, NULL /* no_proxy */,
                              bio, rbio, NULL /* cb */, NULL /* arg */,
                              1024 /* buf_size */, NULL /* headers */,
                              NULL /* expected_ct */, 1 /* expect_asn1 */,
-                             OSSL_HTTP_DEFAULT_MAX_RESP_LEN, timeout);
+                             max_resp_len, timeout);
     ASN1_VALUE *res = ASN1_item_d2i_bio(it, mem, NULL);
 
     BIO_free(mem);
