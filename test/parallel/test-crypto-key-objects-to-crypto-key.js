@@ -86,7 +86,7 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
           hmac.toCryptoKey({ name: algorithm, hash: 'SHA-256', length: 0 }, true, usages);
         }, {
           name: 'DataError',
-          message: 'Zero-length key is not supported',
+          message: 'HmacImportParams.length cannot be 0',
         });
         const cryptoKey = hmac.toCryptoKey({ name: algorithm, hash }, extractable, usages);
         assertCryptoKey(cryptoKey, hmac, algorithm, extractable, usages);
@@ -202,6 +202,41 @@ if (hasOpenSSL(3, 5)) {
         assertCryptoKey(cryptoKey, key, name, extractable, usages);
         assert.strictEqual(cryptoKey.algorithm.name, name);
       }
+    }
+  }
+}
+
+if (hasOpenSSL(3)) {
+  for (const algorithm of ['KMAC128', 'KMAC256']) {
+    const hmac = createSecretKey(randomBytes(32));
+    const usages = ['sign', 'verify'];
+
+    assert.throws(() => {
+      createSecretKey(Buffer.alloc(0)).toCryptoKey({ name: algorithm }, true, usages);
+    }, {
+      name: 'DataError',
+      message: 'Zero-length key is not supported',
+    });
+
+    assert.throws(() => {
+      hmac.toCryptoKey({
+        name: algorithm,
+      }, true, []);
+    }, {
+      name: 'SyntaxError',
+      message: 'Usages cannot be empty when importing a secret key.'
+    });
+
+    for (const extractable of [true, false]) {
+      assert.throws(() => {
+        hmac.toCryptoKey({ name: algorithm, length: 0 }, true, usages);
+      }, {
+        name: 'DataError',
+        message: 'KmacImportParams.length cannot be 0',
+      });
+      const cryptoKey = hmac.toCryptoKey({ name: algorithm }, extractable, usages);
+      assertCryptoKey(cryptoKey, hmac, algorithm, extractable, usages);
+      assert.strictEqual(cryptoKey.algorithm.length, 256);
     }
   }
 }
