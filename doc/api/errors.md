@@ -2289,8 +2289,8 @@ this error will not occur with standard builds of Node.js.
 
 ### `ERR_MODULE_LINK_MISMATCH`
 
-A module can not be linked due to a mismatch of the requested modules, and the
-list of given dependency modules.
+A module can not be linked because the same module requests in it are not
+resolved to the same module.
 
 <a id="ERR_MODULE_NOT_FOUND"></a>
 

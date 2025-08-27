@@ -953,7 +953,22 @@ Link module dependencies. This method must be called before evaluation, and
 can only be called once per module.
 
 The order of the module instances in the `modules` array should correspond to the order of
-[`sourceTextModule.moduleRequests`][] being resolved.
+[`sourceTextModule.moduleRequests`][] being resolved. If two module requests have the same
+specifier and import attributes, they must be resolved with the same module instance or an
+`ERR_MODULE_LINK_MISMATCH` would be thrown. For example, when linking requests for this
+module:
+
+<!-- eslint-disable no-duplicate-imports -->
+
+```mjs
+import foo from 'foo';
+import source Foo from 'foo';
+```
+
+<!-- eslint-enable no-duplicate-imports -->
+
+The `modules` array must contain two references to the same instance, because the two
+module requests are identical but in two phases.
 
 If the module has no dependencies, the `modules` array can be empty.
 
