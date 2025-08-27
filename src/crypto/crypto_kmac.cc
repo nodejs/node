@@ -4,6 +4,7 @@
 #include "threadpoolwork-inl.h"
 
 #if OPENSSL_VERSION_NUMBER >= 0x30100000L
+#include <openssl/core_names.h>
 #include <openssl/params.h>
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_sig.h"

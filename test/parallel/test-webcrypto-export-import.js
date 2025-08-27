@@ -99,7 +99,6 @@ const { createPrivateKey, createPublicKey, createSecretKey } = require('crypto')
         hash: 'SHA-256'
       }, true, ['sign', 'verify']);
 
-
     assert.strictEqual(key.algorithm, key.algorithm);
     assert.strictEqual(key.usages, key.usages);
 
@@ -113,10 +112,43 @@ const { createPrivateKey, createPublicKey, createSecretKey } = require('crypto')
     assert.deepStrictEqual(jwk.key_ops, ['sign', 'verify']);
     assert(jwk.ext);
     assert.strictEqual(jwk.kty, 'oct');
+    assert.strictEqual(jwk.alg, 'HS256');
 
     assert.deepStrictEqual(
       Buffer.from(jwk.k, 'base64').toString('hex'),
       Buffer.from(raw).toString('hex'));
+
+    await subtle.importKey(
+      'jwk',
+      jwk,
+      {
+        name: 'HMAC',
+        hash: 'SHA-256'
+      },
+      true,
+      ['sign', 'verify']);
+
+    await subtle.importKey(
+      'jwk',
+      { ...jwk, alg: undefined },
+      {
+        name: 'HMAC',
+        hash: 'SHA-256'
+      },
+      true,
+      ['sign', 'verify']);
+
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: 'HS384' },
+        {
+          name: 'HMAC',
+          hash: 'SHA-256'
+        },
+        true,
+        ['sign', 'verify']),
+      { name: 'DataError', message: 'JWK "alg" does not match the requested algorithm' });
 
     await assert.rejects(
       subtle.importKey(
@@ -160,6 +192,35 @@ if (hasOpenSSL(3, 1)) {
     assert.deepStrictEqual(
       Buffer.from(jwk.k, 'base64').toString('hex'),
       Buffer.from(raw).toString('hex'));
+
+    await subtle.importKey(
+      'jwk',
+      jwk,
+      name,
+      true,
+      ['sign', 'verify']);
+
+    await subtle.importKey(
+      'jwk',
+      { ...jwk, alg: undefined },
+      name,
+      true,
+      ['sign', 'verify']);
+
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: name === 'KMAC128' ? 'K256' : 'K128' },
+        name,
+        true,
+        ['sign', 'verify']),
+      { name: 'DataError', message: 'JWK "alg" does not match the requested algorithm' });
+
+    await assert.rejects(
+      subtle.importKey(
+        'raw',
+        keyData, name, true, ['sign', 'verify']),
+      { name: 'NotSupportedError', message: `Unable to import ${name} using raw format` });
 
     await assert.rejects(
       subtle.importKey(
