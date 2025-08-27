@@ -1194,7 +1194,7 @@ changes:
 Type: End-of-Life
 
 The `util.isNullOrUndefined()` API has been removed. Please use
-`arg == null` instead.
+`arg === null || arg === undefined` instead.
 
 ### DEP0052: `util.isNumber()`
 
