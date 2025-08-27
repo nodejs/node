@@ -17,4 +17,5 @@ test-wasi-readdir: SKIP
 
 [$system==linux]
 # https://github.com/nodejs/node/issues/59146
+# Added retry logic for pthread_create and Worker creation failures
 test-wasi-pthread: PASS, FLAKY

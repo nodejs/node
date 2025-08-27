@@ -86,6 +86,7 @@ assert.strictEqual(wasiPreview1.wasiImport,
         ],
         workerData,
       });
+      
       workers[tid] = worker;
 
       worker.on('message', ({ cmd, startArg, threadId, tid }) => {
