@@ -81,7 +81,6 @@ class DatabaseOpenConfiguration {
   bool allow_unknown_named_params_ = false;
 };
 
-class StatementSync;
 class Statement;
 class BackupJob;
 
@@ -118,7 +117,7 @@ class Database : public BaseObject {
   void AddAsyncTask(ThreadPoolWork* async_task);
   void RemoveAsyncTask(ThreadPoolWork* async_task);
   void FinalizeBackups();
-  void UntrackStatement(StatementSync* statement);
+  void UntrackStatement(Statement* statement);
   bool IsOpen();
   bool use_big_ints() const { return open_config_.get_use_big_ints(); }
   bool return_arrays() const { return open_config_.get_return_arrays(); }
@@ -128,6 +127,7 @@ class Database : public BaseObject {
   bool allow_unknown_named_params() const {
     return open_config_.get_allow_unknown_named_params();
   }
+  bool async() const { return open_config_.get_async(); }
   sqlite3* Connection();
 
   // In some situations, such as when using custom functions, it is possible
@@ -154,23 +154,23 @@ class Database : public BaseObject {
   std::set<BackupJob*> backups_;
   std::set<ThreadPoolWork*> async_tasks_;
   std::set<sqlite3_session*> sessions_;
-  std::unordered_set<StatementSync*> statements_;
+  std::unordered_set<Statement*> statements_;
 
   friend class Session;
 };
 
 class DatabaseSync : public Database { };
 
-class StatementSync : public BaseObject {
+class Statement : public BaseObject {
  public:
-  StatementSync(Environment* env,
+  Statement(Environment* env,
                 v8::Local<v8::Object> object,
                 BaseObjectPtr<Database> db,
                 sqlite3_stmt* stmt);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
-  static BaseObjectPtr<StatementSync> Create(Environment* env,
+  static BaseObjectPtr<Statement> Create(Environment* env,
                                              BaseObjectPtr<Database> db,
                                              sqlite3_stmt* stmt);
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -187,14 +187,17 @@ class StatementSync : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReadBigInts(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReturnArrays(const v8::FunctionCallbackInfo<v8::Value>& args);
+  // TODO: turn both method below to private again
+  v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
+  v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
   void Finalize();
   bool IsFinalized();
 
-  SET_MEMORY_INFO_NAME(StatementSync)
-  SET_SELF_SIZE(StatementSync)
+  SET_MEMORY_INFO_NAME(Statement)
+  SET_SELF_SIZE(Statement)
 
  private:
-  ~StatementSync() override;
+  ~Statement() override;
   BaseObjectPtr<Database> db_;
   sqlite3_stmt* statement_;
   bool return_arrays_ = false;
@@ -204,31 +207,29 @@ class StatementSync : public BaseObject {
   std::optional<std::map<std::string, std::string>> bare_named_params_;
   bool BindParams(const v8::FunctionCallbackInfo<v8::Value>& args);
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
-  v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
-  v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
 
-  friend class StatementSyncIterator;
+  friend class StatementIterator;
 };
 
-class StatementSyncIterator : public BaseObject {
+class StatementIterator : public BaseObject {
  public:
-  StatementSyncIterator(Environment* env,
+  StatementIterator(Environment* env,
                         v8::Local<v8::Object> object,
-                        BaseObjectPtr<StatementSync> stmt);
+                        BaseObjectPtr<Statement> stmt);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
-  static BaseObjectPtr<StatementSyncIterator> Create(
-      Environment* env, BaseObjectPtr<StatementSync> stmt);
+  static BaseObjectPtr<StatementIterator> Create(
+      Environment* env, BaseObjectPtr<Statement> stmt);
   static void Next(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Return(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  SET_MEMORY_INFO_NAME(StatementSyncIterator)
-  SET_SELF_SIZE(StatementSyncIterator)
+  SET_MEMORY_INFO_NAME(StatementIterator)
+  SET_SELF_SIZE(StatementIterator)
 
  private:
-  ~StatementSyncIterator() override;
-  BaseObjectPtr<StatementSync> stmt_;
+  ~StatementIterator() override;
+  BaseObjectPtr<Statement> stmt_;
   bool done_;
 };
 
