@@ -22,6 +22,7 @@ using errors::TryCatchScope;
 using node::contextify::ContextifyContext;
 using v8::Array;
 using v8::ArrayBufferView;
+using v8::Boolean;
 using v8::Context;
 using v8::Data;
 using v8::EscapableHandleScope;
@@ -409,6 +410,13 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
         return;
       }
     }
+  }
+
+  if (that->Set(context,
+                realm->isolate_data()->synthetic_string(),
+                Boolean::New(isolate, synthetic))
+          .IsNothing()) {
+    return;
   }
 
   if (!that->Set(context, realm->isolate_data()->url_string(), url)
