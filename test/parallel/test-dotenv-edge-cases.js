@@ -4,10 +4,12 @@ const common = require('../common');
 const assert = require('node:assert');
 const path = require('node:path');
 const { describe, it } = require('node:test');
-const { parseEnv } = require('node:util');
-const fixtures = require('../common/fixtures');
+const { parseEnv, loadEnvFile } = require('node:util');
 
 const validEnvFilePath = '../fixtures/dotenv/valid.env';
+const multilineEnvFilePath = '../fixtures/dotenv/multiline.env';
+const linesWithOnlySpacesEnvFilePath = '../fixtures/dotenv/lines-with-only-spaces.env';
+const eofWithoutValueEnvFilePath = '../fixtures/dotenv/eof-without-value.env';
 const nodeOptionsEnvFilePath = '../fixtures/dotenv/node-options.env';
 const noFinalNewlineEnvFilePath = '../fixtures/dotenv/no-final-newline.env';
 const noFinalNewlineSingleQuotesEnvFilePath = '../fixtures/dotenv/no-final-newline-single-quotes.env';
@@ -106,54 +108,24 @@ describe('.env supports edge cases', () => {
 
   it('should handle multiline quoted values', async () => {
     // Ref: https://github.com/nodejs/node/issues/52248
-    const code = `
-      process.loadEnvFile('./multiline.env');
-      require('node:assert').ok(process.env.JWT_PUBLIC_KEY);
-    `.trim();
-    const child = await common.spawnPromisified(
-      process.execPath,
-      [ '--eval', code ],
-      { cwd: fixtures.path('dotenv') },
-    );
-    assert.strictEqual(child.stdout, '');
-    assert.strictEqual(child.stderr, '');
-    assert.strictEqual(child.code, 0);
+    const obj = loadEnvFile(path.resolve(__dirname, multilineEnvFilePath));
+    assert.match(obj.JWT_PUBLIC_KEY, /-----BEGIN PUBLIC KEY-----\n[\s\S]*\n-----END PUBLIC KEY-----*/);
   });
 
   it('should handle empty value without a newline at the EOF', async () => {
     // Ref: https://github.com/nodejs/node/issues/52466
-    const code = `
-      process.loadEnvFile('./eof-without-value.env');
-      assert.strictEqual(process.env.BASIC, 'value');
-      assert.strictEqual(process.env.EMPTY, '');
-    `.trim();
-    const child = await common.spawnPromisified(
-      process.execPath,
-      [ '--eval', code ],
-      { cwd: fixtures.path('dotenv') },
-    );
-    assert.strictEqual(child.stdout, '');
-    assert.strictEqual(child.stderr, '');
-    assert.strictEqual(child.code, 0);
+    const obj = loadEnvFile(path.resolve(__dirname, eofWithoutValueEnvFilePath));
+    assert.strictEqual(obj.BASIC, 'value');
+    assert.strictEqual(obj.EMPTY, '');
   });
 
   it('should handle lines that come after lines with only spaces (and tabs)', async () => {
     // Ref: https://github.com/nodejs/node/issues/56686
-    const code = `
-      process.loadEnvFile('./lines-with-only-spaces.env');
-      assert.strictEqual(process.env.EMPTY_LINE, 'value after an empty line');
-      assert.strictEqual(process.env.SPACES_LINE, 'value after a line with just some spaces');
-      assert.strictEqual(process.env.TABS_LINE, 'value after a line with just some tabs');
-      assert.strictEqual(process.env.SPACES_TABS_LINE, 'value after a line with just some spaces and tabs');
-    `.trim();
-    const child = await common.spawnPromisified(
-      process.execPath,
-      [ '--eval', code ],
-      { cwd: fixtures.path('dotenv') },
-    );
-    assert.strictEqual(child.stdout, '');
-    assert.strictEqual(child.stderr, '');
-    assert.strictEqual(child.code, 0);
+    const obj = loadEnvFile(path.resolve(__dirname, linesWithOnlySpacesEnvFilePath));
+    assert.strictEqual(obj.EMPTY_LINE, 'value after an empty line');
+    assert.strictEqual(obj.SPACES_LINE, 'value after a line with just some spaces');
+    assert.strictEqual(obj.TABS_LINE, 'value after a line with just some tabs');
+    assert.strictEqual(obj.SPACES_TABS_LINE, 'value after a line with just some spaces and tabs');
   });
 
   it('should handle when --env-file is passed along with --', async () => {
