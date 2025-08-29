@@ -48,6 +48,7 @@
 #include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
+#include "v8-profiler.h"
 #include "v8.h"
 
 #if HAVE_OPENSSL
@@ -1070,6 +1071,9 @@ class Environment final : public MemoryRetainer {
 
   inline void RemoveHeapSnapshotNearHeapLimitCallback(size_t heap_limit);
 
+  v8::CpuProfilingResult StartCpuProfile(std::string_view name);
+  v8::CpuProfile* StopCpuProfile(std::string_view name);
+
   // Field identifiers for exit_info_
   enum ExitInfoField {
     kExiting = 0,
@@ -1276,6 +1280,9 @@ class Environment final : public MemoryRetainer {
 
   std::unordered_map<std::uintptr_t, v8::Global<v8::Value>>
       async_resource_context_frames_;
+
+  v8::CpuProfiler* cpu_profiler_ = nullptr;
+  std::unordered_map<std::string, v8::ProfilerId> pending_profiles_;
 };
 
 }  // namespace node
