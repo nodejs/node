@@ -327,14 +327,14 @@ v8::Maybe<void> FromV8Array(v8::Local<v8::Context> context,
                             std::vector<v8::Global<v8::Value>>* out) {
   uint32_t count = js_array->Length();
   out->reserve(count);
-  ArrayIterationData data{out, context->GetIsolate()};
+  ArrayIterationData data{out, v8::Isolate::GetCurrent()};
   return js_array->Iterate(context, PushItemToVector, &data);
 }
 
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     std::string_view str,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   if (str.size() >= static_cast<size_t>(v8::String::kMaxLength)) [[unlikely]] {
     // V8 only has a TODO comment about adding an exception when the maximum
     // string size is exceeded.
@@ -350,7 +350,7 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     v8_inspector::StringView str,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   if (str.length() >= static_cast<size_t>(v8::String::kMaxLength))
       [[unlikely]] {
     // V8 only has a TODO comment about adding an exception when the maximum
@@ -377,7 +377,7 @@ template <typename T>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     const std::vector<T>& vec,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::EscapableHandleScope handle_scope(isolate);
 
   MaybeStackBuffer<v8::Local<v8::Value>, 128> arr(vec.size());
@@ -394,7 +394,7 @@ template <typename T>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     const std::set<T>& set,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Set> set_js = v8::Set::New(isolate);
   v8::HandleScope handle_scope(isolate);
 
@@ -413,7 +413,7 @@ template <typename T, std::size_t U>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     const std::ranges::elements_view<T, U>& vec,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::EscapableHandleScope handle_scope(isolate);
 
   MaybeStackBuffer<v8::Local<v8::Value>, 128> arr(vec.size());
@@ -432,7 +432,7 @@ template <typename T, typename U>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     const std::unordered_map<T, U>& map,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::EscapableHandleScope handle_scope(isolate);
 
   v8::Local<v8::Map> ret = v8::Map::New(isolate);
@@ -475,7 +475,7 @@ template <typename T, typename>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     const T& number,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   return ConvertNumberToV8Value(isolate, number);
 }
 
@@ -488,7 +488,7 @@ v8::Local<v8::Array> ToV8ValuePrimitiveArray(v8::Local<v8::Context> context,
           std::is_floating_point_v<T>,
       "Only primitive types (bool, integral, floating-point) are supported.");
 
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::EscapableHandleScope handle_scope(isolate);
 
   v8::LocalVector<v8::Value> elements(isolate);

@@ -223,7 +223,7 @@ static void Method(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // Initialize this addon to be context-aware.
 NODE_MODULE_INIT(/* exports, module, context */) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
 
   // Create a new instance of `AddonData` for this instance of the addon and
   // tie its life cycle to that of the Node.js environment.
@@ -320,7 +320,7 @@ static void sanity_check(void*) {
 
 // Initialize this addon to be context-aware.
 NODE_MODULE_INIT(/* exports, module, context */) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
 
   AddEnvironmentCleanupHook(isolate, sanity_check, nullptr);
   AddEnvironmentCleanupHook(isolate, cleanup_cb2, cookie);
@@ -879,7 +879,7 @@ MyObject::~MyObject() {
 }
 
 void MyObject::Init(Local<Object> exports) {
-  Isolate* isolate = exports->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<Context> context = isolate->GetCurrentContext();
 
   Local<ObjectTemplate> addon_data_tpl = ObjectTemplate::New(isolate);
@@ -1013,7 +1013,7 @@ void CreateObject(const FunctionCallbackInfo<Value>& args) {
 }
 
 void InitAll(Local<Object> exports, Local<Object> module) {
-  MyObject::Init(exports->GetIsolate());
+  MyObject::Init();
 
   NODE_SET_METHOD(module, "exports", CreateObject);
 }
@@ -1039,7 +1039,7 @@ namespace demo {
 
 class MyObject : public node::ObjectWrap {
  public:
-  static void Init(v8::Isolate* isolate);
+  static void Init();
   static void NewInstance(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
@@ -1089,7 +1089,8 @@ MyObject::MyObject(double value) : value_(value) {
 MyObject::~MyObject() {
 }
 
-void MyObject::Init(Isolate* isolate) {
+void MyObject::Init() {
+  Isolate* isolate = Isolate::GetCurrent();
   // Prepare constructor template
   Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, New);
   tpl->SetClassName(String::NewFromUtf8(isolate, "MyObject").ToLocalChecked());
@@ -1235,7 +1236,7 @@ void Add(const FunctionCallbackInfo<Value>& args) {
 }
 
 void InitAll(Local<Object> exports) {
-  MyObject::Init(exports->GetIsolate());
+  MyObject::Init();
 
   NODE_SET_METHOD(exports, "createObject", CreateObject);
   NODE_SET_METHOD(exports, "add", Add);
@@ -1261,7 +1262,7 @@ namespace demo {
 
 class MyObject : public node::ObjectWrap {
  public:
-  static void Init(v8::Isolate* isolate);
+  static void Init();
   static void NewInstance(const v8::FunctionCallbackInfo<v8::Value>& args);
   inline double value() const { return value_; }
 
@@ -1310,7 +1311,8 @@ MyObject::MyObject(double value) : value_(value) {
 MyObject::~MyObject() {
 }
 
-void MyObject::Init(Isolate* isolate) {
+void MyObject::Init() {
+  Isolate* isolate = Isolate::GetCurrent();
   // Prepare constructor template
   Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, New);
   tpl->SetClassName(String::NewFromUtf8(isolate, "MyObject").ToLocalChecked());

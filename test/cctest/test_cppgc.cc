@@ -30,7 +30,7 @@ class CppGCed : public v8::Object::Wrappable {
 
   static v8::Local<v8::Function> GetConstructor(
       v8::Local<v8::Context> context) {
-    auto ft = v8::FunctionTemplate::New(context->GetIsolate(), New);
+    auto ft = v8::FunctionTemplate::New(v8::Isolate::GetCurrent(), New);
     return ft->GetFunction(context).ToLocalChecked();
   }
 

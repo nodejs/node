@@ -5,7 +5,7 @@
 static void InitModule(v8::Local<v8::Object> exports,
                        v8::Local<v8::Value> module_val,
                        v8::Local<v8::Context> context) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Object> module = module_val.As<v8::Object>();
   module
       ->Set(context,
