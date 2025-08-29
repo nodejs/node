@@ -12,9 +12,13 @@ const test = require('node:test');
 test('SourceTextModule.moduleRequests should return module requests', (t) => {
   const m = new SourceTextModule(`
     import { foo } from './foo.js';
+    import * as FooDuplicate from './foo.js';
     import { bar } from './bar.json' with { type: 'json' };
+    import * as BarDuplicate from './bar.json' with { type: 'json' };
     import { quz } from './quz.js' with { attr1: 'quz' };
+    import * as QuzDuplicate from './quz.js' with { attr1: 'quz' };
     import { quz as quz2 } from './quz.js' with { attr2: 'quark', attr3: 'baz' };
+    import * as Quz2Duplicate from './quz.js' with { attr2: 'quark', attr3: 'baz' };
     export { foo, bar, quz, quz2 };
   `);
 
