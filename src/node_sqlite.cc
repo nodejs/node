@@ -2019,7 +2019,7 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
 
   if (args[0]->IsObject() && !args[0]->IsArrayBufferView()) {
     Local<Object> obj = args[0].As<Object>();
-    Local<Context> context = obj->GetIsolate()->GetCurrentContext();
+    Local<Context> context = Isolate::GetCurrent()->GetCurrentContext();
     Local<Array> keys;
     if (!obj->GetOwnPropertyNames(context).ToLocal(&keys)) {
       return false;

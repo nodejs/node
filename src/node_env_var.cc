@@ -311,7 +311,7 @@ std::shared_ptr<KVStore> KVStore::CreateMapKVStore() {
 
 Maybe<void> KVStore::AssignFromObject(Local<Context> context,
                                       Local<Object> entries) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
   Local<Array> keys;
   if (!entries->GetOwnPropertyNames(context).ToLocal(&keys))

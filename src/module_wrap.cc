@@ -99,7 +99,7 @@ ModuleCacheKey ModuleCacheKey::From(Local<Context> context,
                                     Local<String> specifier,
                                     Local<FixedArray> import_attributes) {
   CHECK_EQ(import_attributes->Length() % elements_per_attribute, 0);
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   std::size_t h1 = specifier->GetIdentityHash();
   size_t num_attributes = import_attributes->Length() / elements_per_attribute;
   ImportAttributeVector attributes;
@@ -1022,7 +1022,7 @@ MaybeLocal<Module> ModuleWrap::ResolveModuleCallback(
     return {};
   }
   DCHECK_NOT_NULL(resolved_module);
-  return resolved_module->module_.Get(context->GetIsolate());
+  return resolved_module->module_.Get(Isolate::GetCurrent());
 }
 
 // static
@@ -1046,7 +1046,7 @@ MaybeLocal<Object> ModuleWrap::ResolveSourceCallback(
     Local<String> url = resolved_module->object()
                             ->GetInternalField(ModuleWrap::kURLSlot)
                             .As<String>();
-    THROW_ERR_SOURCE_PHASE_NOT_DEFINED(context->GetIsolate(), url);
+    THROW_ERR_SOURCE_PHASE_NOT_DEFINED(Isolate::GetCurrent(), url);
     return {};
   }
   CHECK(module_source_object->IsObject());
@@ -1059,7 +1059,7 @@ Maybe<ModuleWrap*> ModuleWrap::ResolveModule(
     Local<String> specifier,
     Local<FixedArray> import_attributes,
     Local<Module> referrer) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) {
     THROW_ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE(isolate);
@@ -1104,7 +1104,7 @@ static MaybeLocal<Promise> ImportModuleDynamicallyWithPhase(
     Local<String> specifier,
     ModuleImportPhase phase,
     Local<FixedArray> import_attributes) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) {
     THROW_ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE(isolate);
@@ -1343,7 +1343,7 @@ MaybeLocal<Module> LinkRequireFacadeWithOriginal(
     Local<FixedArray> import_attributes,
     Local<Module> referrer) {
   Environment* env = Environment::GetCurrent(context);
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   CHECK(specifier->Equals(context, env->original_string()).ToChecked());
   CHECK(!env->temporary_required_module_facade_original.IsEmpty());
   return env->temporary_required_module_facade_original.Get(isolate);

@@ -112,7 +112,7 @@ namespace {
 
 // Convert an int to a V8 Name (String or Symbol).
 MaybeLocal<String> Uint32ToName(Local<Context> context, uint32_t index) {
-  return Uint32::New(context->GetIsolate(), index)->ToString(context);
+  return Uint32::New(Isolate::GetCurrent(), index)->ToString(context);
 }
 
 }  // anonymous namespace
@@ -676,7 +676,7 @@ Intercepted ContextifyContext::PropertyDefinerCallback(
   }
 
   Local<Context> context = ctx->context();
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
 
   PropertyAttribute attributes = PropertyAttribute::None;
   bool is_declared =
@@ -1656,7 +1656,7 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(
     bool* cache_rejected,
     bool is_cjs_scope,
     ScriptCompiler::CachedData* cached_data) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope scope(isolate);
 
   Local<Symbol> symbol = env->vm_dynamic_import_default_internal();
