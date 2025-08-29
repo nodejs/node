@@ -915,9 +915,6 @@ void Worker::StartCpuProfile(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
   Environment* env = w->env();
 
-  CHECK(args[0]->IsString());
-  node::Utf8Value name(env->isolate(), args[0]);
-
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
   Local<Object> wrap;
   if (!env->worker_cpu_profile_taker_template()
@@ -930,25 +927,23 @@ void Worker::StartCpuProfile(const FunctionCallbackInfo<Value>& args) {
       MakeDetachedBaseObject<WorkerCpuProfileTaker>(env, wrap);
 
   bool scheduled = w->RequestInterrupt([taker = std::move(taker),
-                                        name = name.ToString(),
                                         env](Environment* worker_env) mutable {
-    CpuProfilingResult result = worker_env->StartCpuProfile(name);
+    CpuProfilingResult result = worker_env->StartCpuProfile();
     env->SetImmediateThreadsafe(
-        [taker = std::move(taker),
-         status = result.status](Environment* env) mutable {
+        [taker = std::move(taker), result = result](Environment* env) mutable {
           Isolate* isolate = env->isolate();
           HandleScope handle_scope(isolate);
           Context::Scope context_scope(env->context());
           AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
           Local<Value> argv[] = {
-              Null(isolate),  // error
+              Null(isolate),       // error
+              Undefined(isolate),  // profile id
           };
-          if (status == CpuProfilingStatus::kAlreadyStarted) {
-            argv[0] = ERR_CPU_PROFILE_ALREADY_STARTED(
-                isolate, "CPU profile already started");
-          } else if (status == CpuProfilingStatus::kErrorTooManyProfilers) {
+          if (result.status == CpuProfilingStatus::kErrorTooManyProfilers) {
             argv[0] = ERR_CPU_PROFILE_TOO_MANY(
                 isolate, "There are too many CPU profiles");
+          } else if (result.status == CpuProfilingStatus::kStarted) {
+            argv[1] = Number::New(isolate, result.id);
           }
           taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
         },
@@ -965,8 +960,8 @@ void Worker::StopCpuProfile(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
 
   Environment* env = w->env();
-  CHECK(args[0]->IsString());
-  node::Utf8Value name(env->isolate(), args[0]);
+  CHECK(args[0]->IsUint32());
+  uint32_t profile_id = args[0]->Uint32Value(env->context()).FromJust();
 
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
   Local<Object> wrap;
@@ -980,11 +975,11 @@ void Worker::StopCpuProfile(const FunctionCallbackInfo<Value>& args) {
       MakeDetachedBaseObject<WorkerCpuProfileTaker>(env, wrap);
 
   bool scheduled = w->RequestInterrupt([taker = std::move(taker),
-                                        name = name.ToString(),
+                                        profile_id = profile_id,
                                         env](Environment* worker_env) mutable {
     bool found = false;
     auto json_out_stream = std::make_unique<node::JSONOutputStream>();
-    CpuProfile* profile = worker_env->StopCpuProfile(name);
+    CpuProfile* profile = worker_env->StopCpuProfile(profile_id);
     if (profile) {
       profile->Serialize(json_out_stream.get(),
                          CpuProfile::SerializationFormat::kJSON);
