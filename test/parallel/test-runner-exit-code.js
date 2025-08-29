@@ -50,10 +50,10 @@ if (process.argv[2] === 'child') {
     });
   } else if (process.argv[3] === 'run-signal-false') {
     run({ files: [fixtures.path('test-runner', 'never_ending_async.js')] });
-    console.log('child started');    
+    console.log('child started');
   } else if (process.argv[3] === 'run-signal-true') {
     run({ files: [fixtures.path('test-runner', 'never_ending_async.js')], hookSignal: true });
-    console.log('child started');    
+    console.log('child started');
   } else assert.fail('unreachable');
 } else {
   let child = spawnSync(process.execPath, [__filename, 'child', 'pass']);
