@@ -25,7 +25,7 @@ async function runAndKill(file) {
   assert.strictEqual(code, 1);
 }
 
-async function spawnAndKillProgrammatic(childArgs, { code: expectedCode, signal: expectedSignal }) {
+async function spawnAndKill(childArgs, { code: expectedCode, signal: expectedSignal }) {
   if (common.isWindows) {
     common.printSkipMessage('signals are not supported on windows');
     return;
@@ -88,11 +88,11 @@ if (process.argv[2] === 'child') {
   runAndKill(fixtures.path('test-runner', 'never_ending_async.js')).then(common.mustCall());
 
   (async () => {
-    await spawnAndKillProgrammatic(
+    await spawnAndKill(
       [__filename, 'child', 'run-signal-false'],
       { signal: 'SIGINT', code: null },
     );
-    await spawnAndKillProgrammatic(
+    await spawnAndKill(
       [__filename, 'child', 'run-signal-true'],
       { signal: null, code: 0 },
     );
