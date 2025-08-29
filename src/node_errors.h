@@ -108,6 +108,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_MISSING_PASSPHRASE, TypeError)                                         \
   V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                    \
   V(ERR_MODULE_NOT_FOUND, Error)                                               \
+  V(ERR_MODULE_LINK_MISMATCH, TypeError)                                       \
   V(ERR_NON_CONTEXT_AWARE_DISABLED, Error)                                     \
   V(ERR_OPERATION_FAILED, TypeError)                                           \
   V(ERR_OPTIONS_BEFORE_BOOTSTRAPPING, Error)                                   \
