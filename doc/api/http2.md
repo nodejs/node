@@ -3471,6 +3471,17 @@ This can be useful for cases such as proxies, where existing headers
 should be exactly forwarded as received, or as a performance
 optimization when the headers are already available in raw format.
 
+```js
+const rawHeaders = [
+  ':status',
+  '404',
+  'content-type',
+  'text/plain',
+];
+
+stream.respond(rawHeaders);
+```
+
 #### Sensitive headers
 
 HTTP2 headers can be marked as sensitive, which means that the HTTP/2
