@@ -52,7 +52,7 @@ if (process.argv[2] === 'child') {
     run({ files: [fixtures.path('test-runner', 'never_ending_async.js')] });
     console.log('child started');    
   } else if (process.argv[3] === 'run-signal-true') {
-    run({ files: [fixtures.path('test-runner', 'never_ending_async.js')], signal: true });
+    run({ files: [fixtures.path('test-runner', 'never_ending_async.js')], hookSignal: true });
     console.log('child started');    
   } else assert.fail('unreachable');
 } else {
@@ -94,7 +94,7 @@ if (process.argv[2] === 'child') {
     );
     await spawnAndKillProgrammatic(
       [__filename, 'child', 'run-signal-true'],
-      { signal: null, code: 1 },
+      { signal: null, code: 0 },
     );
   })().then(common.mustCall());
 }
