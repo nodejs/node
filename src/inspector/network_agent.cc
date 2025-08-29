@@ -16,6 +16,7 @@ namespace inspector {
 
 using v8::EscapableHandleScope;
 using v8::HandleScope;
+using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -29,31 +30,31 @@ using v8::Value;
 Maybe<protocol::String> ObjectGetProtocolString(v8::Local<v8::Context> context,
                                                 Local<Object> object,
                                                 Local<v8::String> property) {
-  HandleScope handle_scope(context->GetIsolate());
+  HandleScope handle_scope(Isolate::GetCurrent());
   Local<Value> value;
   if (!object->Get(context, property).ToLocal(&value) || !value->IsString()) {
     return Nothing<protocol::String>();
   }
   Local<v8::String> str = value.As<v8::String>();
-  return Just(ToProtocolString(context->GetIsolate(), str));
+  return Just(ToProtocolString(Isolate::GetCurrent(), str));
 }
 
 // Get a protocol string property from the object.
 Maybe<protocol::String> ObjectGetProtocolString(v8::Local<v8::Context> context,
                                                 Local<Object> object,
                                                 const char* property) {
-  HandleScope handle_scope(context->GetIsolate());
+  HandleScope handle_scope(Isolate::GetCurrent());
   return ObjectGetProtocolString(
-      context, object, OneByteString(context->GetIsolate(), property));
+      context, object, OneByteString(Isolate::GetCurrent(), property));
 }
 
 // Get a protocol double property from the object.
 Maybe<double> ObjectGetDouble(v8::Local<v8::Context> context,
                               Local<Object> object,
                               const char* property) {
-  HandleScope handle_scope(context->GetIsolate());
+  HandleScope handle_scope(Isolate::GetCurrent());
   Local<Value> value;
-  if (!object->Get(context, OneByteString(context->GetIsolate(), property))
+  if (!object->Get(context, OneByteString(Isolate::GetCurrent(), property))
            .ToLocal(&value) ||
       !value->IsNumber()) {
     return Nothing<double>();
@@ -65,9 +66,9 @@ Maybe<double> ObjectGetDouble(v8::Local<v8::Context> context,
 Maybe<int> ObjectGetInt(v8::Local<v8::Context> context,
                         Local<Object> object,
                         const char* property) {
-  HandleScope handle_scope(context->GetIsolate());
+  HandleScope handle_scope(Isolate::GetCurrent());
   Local<Value> value;
-  if (!object->Get(context, OneByteString(context->GetIsolate(), property))
+  if (!object->Get(context, OneByteString(Isolate::GetCurrent(), property))
            .ToLocal(&value) ||
       !value->IsInt32()) {
     return Nothing<int>();
@@ -79,9 +80,9 @@ Maybe<int> ObjectGetInt(v8::Local<v8::Context> context,
 Maybe<bool> ObjectGetBool(v8::Local<v8::Context> context,
                           Local<Object> object,
                           const char* property) {
-  HandleScope handle_scope(context->GetIsolate());
+  HandleScope handle_scope(Isolate::GetCurrent());
   Local<Value> value;
-  if (!object->Get(context, OneByteString(context->GetIsolate(), property))
+  if (!object->Get(context, OneByteString(Isolate::GetCurrent(), property))
            .ToLocal(&value) ||
       !value->IsBoolean()) {
     return Nothing<bool>();
@@ -93,9 +94,9 @@ Maybe<bool> ObjectGetBool(v8::Local<v8::Context> context,
 MaybeLocal<v8::Object> ObjectGetObject(v8::Local<v8::Context> context,
                                        Local<Object> object,
                                        const char* property) {
-  EscapableHandleScope handle_scope(context->GetIsolate());
+  EscapableHandleScope handle_scope(Isolate::GetCurrent());
   Local<Value> value;
-  if (!object->Get(context, OneByteString(context->GetIsolate(), property))
+  if (!object->Get(context, OneByteString(Isolate::GetCurrent(), property))
            .ToLocal(&value) ||
       !value->IsObject()) {
     return {};
@@ -106,7 +107,7 @@ MaybeLocal<v8::Object> ObjectGetObject(v8::Local<v8::Context> context,
 // Create a protocol::Network::Headers from the v8 object.
 std::unique_ptr<protocol::Network::Headers> createHeadersFromObject(
     v8::Local<v8::Context> context, Local<Object> headers_obj) {
-  HandleScope handle_scope(context->GetIsolate());
+  HandleScope handle_scope(Isolate::GetCurrent());
 
   std::unique_ptr<protocol::DictionaryValue> dict =
       protocol::DictionaryValue::create();
@@ -127,7 +128,7 @@ std::unique_ptr<protocol::Network::Headers> createHeadersFromObject(
              .To(&property_value)) {
       return {};
     }
-    dict->setString(ToProtocolString(context->GetIsolate(), property_name),
+    dict->setString(ToProtocolString(Isolate::GetCurrent(), property_name),
                     property_value);
   }
 
@@ -137,7 +138,7 @@ std::unique_ptr<protocol::Network::Headers> createHeadersFromObject(
 // Create a protocol::Network::Request from the v8 object.
 std::unique_ptr<protocol::Network::Request> createRequestFromObject(
     v8::Local<v8::Context> context, Local<Object> request) {
-  HandleScope handle_scope(context->GetIsolate());
+  HandleScope handle_scope(Isolate::GetCurrent());
   protocol::String url;
   if (!ObjectGetProtocolString(context, request, "url").To(&url)) {
     return {};
@@ -169,7 +170,7 @@ std::unique_ptr<protocol::Network::Request> createRequestFromObject(
 // Create a protocol::Network::Response from the v8 object.
 std::unique_ptr<protocol::Network::Response> createResponseFromObject(
     v8::Local<v8::Context> context, Local<Object> response) {
-  HandleScope handle_scope(context->GetIsolate());
+  HandleScope handle_scope(Isolate::GetCurrent());
   protocol::String url;
   if (!ObjectGetProtocolString(context, response, "url").To(&url)) {
     return {};
@@ -210,7 +211,7 @@ std::unique_ptr<protocol::Network::Response> createResponseFromObject(
 
 std::unique_ptr<protocol::Network::WebSocketResponse> createWebSocketResponse(
     v8::Local<v8::Context> context, Local<Object> response) {
-  HandleScope handle_scope(context->GetIsolate());
+  HandleScope handle_scope(Isolate::GetCurrent());
   int status;
   if (!ObjectGetInt(context, response, "status").To(&status)) {
     return {};

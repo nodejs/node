@@ -400,7 +400,7 @@ static void PrintJavaScriptErrorProperties(JSONWriter* writer,
   if (!error.IsEmpty() && error->IsObject()) {
     TryCatch try_catch(isolate);
     Local<Object> error_obj = error.As<Object>();
-    Local<Context> context = error_obj->GetIsolate()->GetCurrentContext();
+    Local<Context> context = Isolate::GetCurrent()->GetCurrentContext();
     Local<Array> keys;
     if (!error_obj->GetOwnPropertyNames(context).ToLocal(&keys)) {
       return writer->json_objectend();  // the end of 'errorProperties'
