@@ -69,10 +69,10 @@ if (process.argv[2] === '--docker') {
 }
 
 const hasApk = (function () {
-  try { execSync('command -v apk'); return true } catch (error) { return false }
+  try { execSync('command -v apk'); return true } catch { return false }
 })()
 const hasOptimizer = (function () {
-  try { execSync(`${WASM_OPT} --version`); return true } catch (error) { return false }
+  try { execSync(`${WASM_OPT} --version`); return true } catch { return false }
 })()
 if (hasApk) {
   // Gather information about the tools used for the build

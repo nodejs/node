@@ -1,2 +1,2 @@
-import { IntDict } from './constants';
-export declare function enumToMap(obj: IntDict, filter?: ReadonlyArray<number>, exceptions?: ReadonlyArray<number>): IntDict;
+import type { IntDict } from './constants';
+export declare function enumToMap(obj: IntDict, filter?: readonly number[], exceptions?: readonly number[]): IntDict;
