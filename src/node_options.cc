@@ -10,6 +10,7 @@
 #include "uv.h"
 #if HAVE_OPENSSL
 #include "openssl/opensslv.h"
+#include "quic/guard.h"
 #endif
 
 #include <algorithm>
@@ -550,12 +551,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             true);
   AddOption("--experimental-quic",
-            "" /* undocumented until its development */,
-#ifdef NODE_OPENSSL_HAS_QUIC
+#ifndef OPENSSL_NO_QUIC
+            "experimental QUIC support",
             &EnvironmentOptions::experimental_quic,
 #else
-            // Option is a no-op if the NODE_OPENSSL_HAS_QUIC
-            // compile flag is not enabled
+            "" /* undocumented when no-op */,
             NoOp{},
 #endif
             kAllowedInEnvvar);

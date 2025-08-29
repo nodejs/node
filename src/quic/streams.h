@@ -1,7 +1,6 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <aliased_struct.h>
 #include <async_wrap.h>
@@ -148,13 +147,8 @@ class Stream final : public AsyncWrap,
 
   static Stream* From(void* stream_user_data);
 
-  static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
-  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-      Environment* env);
-  static void InitPerIsolate(IsolateData* data,
-                             v8::Local<v8::ObjectTemplate> target);
-  static void InitPerContext(Realm* realm, v8::Local<v8::Object> target);
-  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+  JS_CONSTRUCTOR(Stream);
+  JS_BINDING_INIT_BOILERPLATE();
 
   // Creates a new non-pending stream.
   static BaseObjectPtr<Stream> Create(
@@ -320,8 +314,8 @@ class Stream final : public AsyncWrap,
   std::optional<std::unique_ptr<PendingStream>> maybe_pending_stream_ =
       std::nullopt;
   std::vector<std::unique_ptr<PendingHeaders>> pending_headers_queue_;
-  uint64_t pending_close_read_code_ = NGTCP2_APP_NOERROR;
-  uint64_t pending_close_write_code_ = NGTCP2_APP_NOERROR;
+  uint64_t pending_close_read_code_ = 0;
+  uint64_t pending_close_write_code_ = 0;
 
   struct PendingPriority {
     StreamPriority priority;
@@ -366,5 +360,4 @@ class Stream final : public AsyncWrap,
 
 }  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
