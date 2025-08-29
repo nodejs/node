@@ -739,7 +739,7 @@ inline v8::MaybeLocal<v8::Value> ToV8Value(
 // Variation on NODE_DEFINE_CONSTANT that sets a String value.
 #define NODE_DEFINE_STRING_CONSTANT(target, name, constant)                    \
   do {                                                                         \
-    v8::Isolate* isolate = target->GetIsolate();                               \
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();                          \
     v8::Local<v8::String> constant_name =                                      \
         v8::String::NewFromUtf8(isolate, name).ToLocalChecked();               \
     v8::Local<v8::String> constant_value =                                     \

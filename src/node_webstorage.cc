@@ -57,7 +57,7 @@ using v8::Value;
   } while (0)
 
 static void ThrowQuotaExceededException(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   auto dom_exception_str = FIXED_ONE_BYTE_STRING(isolate, "DOMException");
   auto err_name = FIXED_ONE_BYTE_STRING(isolate, "QuotaExceededError");
   auto err_message =
@@ -433,7 +433,7 @@ Maybe<void> Storage::Store(Local<Name> key, Local<Value> value) {
 }
 
 static MaybeLocal<String> Uint32ToName(Local<Context> context, uint32_t index) {
-  return Uint32::New(context->GetIsolate(), index)->ToString(context);
+  return Uint32::New(Isolate::GetCurrent(), index)->ToString(context);
 }
 
 static void Clear(const FunctionCallbackInfo<Value>& info) {
