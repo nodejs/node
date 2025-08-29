@@ -49,6 +49,7 @@
 #include "util.h"
 #include "uv.h"
 #include "v8-external-memory-accounter.h"
+#include "v8-profiler.h"
 #include "v8.h"
 
 #if HAVE_OPENSSL
@@ -1051,6 +1052,9 @@ class Environment final : public MemoryRetainer {
 
   inline void RemoveHeapSnapshotNearHeapLimitCallback(size_t heap_limit);
 
+  v8::CpuProfilingResult StartCpuProfile(std::string_view name);
+  v8::CpuProfile* StopCpuProfile(std::string_view name);
+
   // Field identifiers for exit_info_
   enum ExitInfoField {
     kExiting = 0,
@@ -1248,6 +1252,9 @@ class Environment final : public MemoryRetainer {
   // track of the BackingStore for a given pointer.
   std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>
       released_allocated_buffers_;
+
+  v8::CpuProfiler* cpu_profiler_ = nullptr;
+  std::unordered_map<std::string, v8::ProfilerId> pending_profiles_;
 };
 
 }  // namespace node

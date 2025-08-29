@@ -826,6 +826,36 @@ when an error occurs (and is caught) during the creation of the
 context, for example, when the allocation fails or the maximum call stack
 size is reached when the context is created.
 
+<a id="ERR_CPU_PROFILE_ALREADY_STARTED"></a>
+
+### `ERR_CPU_PROFILE_ALREADY_STARTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The CPU profile with the given name is already started.
+
+<a id="ERR_CPU_PROFILE_NOT_STARTED"></a>
+
+### `ERR_CPU_PROFILE_NOT_STARTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The CPU profile with the given name is not started.
+
+<a id="ERR_CPU_PROFILE_TOO_MANY"></a>
+
+### `ERR_CPU_PROFILE_TOO_MANY`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+There are too many CPU profiles being collected.
+
 <a id="ERR_CRYPTO_ARGON2_NOT_SUPPORTED"></a>
 
 ### `ERR_CRYPTO_ARGON2_NOT_SUPPORTED`
