@@ -2,7 +2,7 @@
 const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
-const { spawnSync, spawn } = require('child_process');
+const { spawnSync, spawn } = require('node:child_process');
 const { once } = require('events');
 const { finished } = require('stream/promises');
 
@@ -25,18 +25,35 @@ async function runAndKill(file) {
   assert.strictEqual(code, 1);
 }
 
+async function spawnAndKillProgrammatic(childArgs, { code: expectedCode, signal: expectedSignal }) {
+  if (common.isWindows) {
+    common.printSkipMessage('signals are not supported on windows');
+    return;
+  }
+  const child = spawn(process.execPath, childArgs);
+  child.stdout.once('data', () => child.kill('SIGINT'));
+  const [code, signal] = await once(child, 'exit');
+  assert.strictEqual(signal, expectedSignal);
+  assert.strictEqual(code, expectedCode);
+}
+
 if (process.argv[2] === 'child') {
-  const test = require('node:test');
+  const { test, run } = require('node:test');
 
   if (process.argv[3] === 'pass') {
     test('passing test', () => {
       assert.strictEqual(true, true);
     });
   } else if (process.argv[3] === 'fail') {
-    assert.strictEqual(process.argv[3], 'fail');
     test('failing test', () => {
       assert.strictEqual(true, false);
     });
+  } else if (process.argv[3] === 'run-signal-false') {
+    run({ files: [fixtures.path('test-runner', 'never_ending_async.js')] });
+    console.log('child started');    
+  } else if (process.argv[3] === 'run-signal-true') {
+    run({ files: [fixtures.path('test-runner', 'never_ending_async.js')], signal: true });
+    console.log('child started');    
   } else assert.fail('unreachable');
 } else {
   let child = spawnSync(process.execPath, [__filename, 'child', 'pass']);
@@ -69,4 +86,15 @@ if (process.argv[2] === 'child') {
 
   runAndKill(fixtures.path('test-runner', 'never_ending_sync.js')).then(common.mustCall());
   runAndKill(fixtures.path('test-runner', 'never_ending_async.js')).then(common.mustCall());
+
+  (async () => {
+    await spawnAndKillProgrammatic(
+      [__filename, 'child', 'run-signal-false'],
+      { signal: 'SIGINT', code: null },
+    );
+    await spawnAndKillProgrammatic(
+      [__filename, 'child', 'run-signal-true'],
+      { signal: null, code: 1 },
+    );
+  })().then(common.mustCall());
 }
