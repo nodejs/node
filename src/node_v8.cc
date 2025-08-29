@@ -28,6 +28,7 @@
 #include "node_external_reference.h"
 #include "util-inl.h"
 #include "v8.h"
+#include "v8-profiler.h"
 
 namespace node {
 namespace v8_utils {
@@ -35,6 +36,9 @@ using v8::Array;
 using v8::BigInt;
 using v8::CFunction;
 using v8::Context;
+using v8::CpuProfile;
+using v8::CpuProfiler;
+using v8::CpuProfilingStatus;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -47,6 +51,8 @@ using v8::Local;
 using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Name;
+using v8::NewStringType;
+using v8::Number;
 using v8::Object;
 using v8::ScriptCompiler;
 using v8::String;
@@ -241,6 +247,66 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   String::Utf8Value flags(args.GetIsolate(), args[0]);
   V8::SetFlagsFromString(*flags, static_cast<size_t>(flags.length()));
+}
+
+class JSONOutputStream : public v8::OutputStream {
+  public:
+   JSONOutputStream() {}
+
+   int GetChunkSize() override { return 65536; }
+
+   void EndOfStream() override {}
+
+   WriteResult WriteAsciiChunk(char* data, const int size) override {
+     out_stream_.write(data, size);
+     return kContinue;
+   }
+
+   std::ostringstream& out_stream() { return out_stream_; }
+
+  private:
+   std::ostringstream out_stream_;
+};
+
+void StartCpuProfile(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsString());
+  Isolate* isolate = env->isolate();
+  String::Utf8Value name(isolate, args[0]);
+  Local<String> title = String::NewFromUtf8(isolate,
+                                            *name,
+                                            NewStringType::kNormal,
+                                            name.length())
+                                            .ToLocalChecked();
+  CpuProfilingStatus status = env->cpu_profiler()->StartProfiling(title, true);
+  args.GetReturnValue().Set(Number::New(isolate, static_cast<double>(status)));
+}
+
+void StopCpuProfile(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsString());
+  Isolate* isolate = env->isolate();
+  String::Utf8Value name(isolate, args[0]);
+  Local<String> title = String::NewFromUtf8(isolate,
+                                            *name,
+                                            NewStringType::kNormal,
+                                            name.length())
+                                            .ToLocalChecked();
+  CpuProfile* profile = env->cpu_profiler()->StopProfiling(title);
+  if (profile) {
+    auto json_out_stream = std::make_unique<JSONOutputStream>();
+    profile->Serialize(json_out_stream.get(),
+                        CpuProfile::SerializationFormat::kJSON);
+    profile->Delete();
+    Local<Value> ret;
+    if (ToV8Value(env->context(), json_out_stream->out_stream().str(), isolate).ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
+    } else {
+      args.GetReturnValue().Set(Number::New(isolate, -2));
+    }
+  } else {
+    args.GetReturnValue().Set(Number::New(isolate, -1));
+  }
 }
 
 static void IsStringOneByteRepresentation(
@@ -682,6 +748,9 @@ void Initialize(Local<Object> target,
   // Export symbols used by v8.setFlagsFromString()
   SetMethod(context, target, "setFlagsFromString", SetFlagsFromString);
 
+  SetMethod(context, target, "startCpuProfile", StartCpuProfile);
+  SetMethod(context, target, "stopCpuProfile", StopCpuProfile);
+
   // Export symbols used by v8.isStringOneByteRepresentation()
   SetFastMethodNoSideEffect(context,
                             target,
@@ -726,6 +795,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetCppHeapStatistics);
   registry->Register(IsStringOneByteRepresentation);
   registry->Register(fast_is_string_one_byte_representation_);
+  registry->Register(StartCpuProfile);
+  registry->Register(StopCpuProfile);
 }
 
 }  // namespace v8_utils

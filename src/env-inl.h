@@ -916,6 +916,13 @@ inline void Environment::RemoveHeapSnapshotNearHeapLimitCallback(
                                         heap_limit);
 }
 
+inline v8::CpuProfiler* Environment::cpu_profiler() {
+  if (!cpu_profiler_) {
+    cpu_profiler_ = v8::CpuProfiler::New(isolate_);
+  }
+  return cpu_profiler_;
+}
+
 }  // namespace node
 
 // These two files depend on each other. Including base_object-inl.h after this
