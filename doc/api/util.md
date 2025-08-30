@@ -2122,7 +2122,7 @@ const options = {
   help: {
     type: 'boolean',
     short: 'h',
-    help: 'Prints command line options',
+    help: 'Prints usage information',
   },
   output: {
     type: 'string',
