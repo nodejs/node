@@ -1317,6 +1317,7 @@ t.test('oidc token exchange - no provenance', t => {
 })
 
 t.test('oidc token exchange - provenance', (t) => {
+  const githubPrivateIdToken = githubIdToken({ visibility: 'private' })
   const githubPublicIdToken = githubIdToken({ visibility: 'public' })
   const gitlabPublicIdToken = gitlabIdToken({ visibility: 'public' })
   const SIGSTORE_ID_TOKEN = sigstoreIdToken()
@@ -1340,6 +1341,7 @@ t.test('oidc token exchange - provenance', (t) => {
       token: 'exchange-token',
     },
     provenance: true,
+    oidcVisibilityOptions: { public: true },
   }))
 
   t.test('default registry success gitlab', oidcPublishTest({
@@ -1357,6 +1359,7 @@ t.test('oidc token exchange - provenance', (t) => {
       token: 'exchange-token',
     },
     provenance: true,
+    oidcVisibilityOptions: { public: true },
   }))
 
   t.test('default registry success gitlab without SIGSTORE_ID_TOKEN', oidcPublishTest({
@@ -1376,6 +1379,10 @@ t.test('oidc token exchange - provenance', (t) => {
     provenance: false,
   }))
 
+  /**
+   * when the user sets provenance to true or false
+   * the OIDC flow should not concern itself with provenance at all
+   */
   t.test('setting provenance true in config should enable provenance', oidcPublishTest({
     oidcOptions: { github: true },
     config: {
@@ -1474,6 +1481,96 @@ t.test('oidc token exchange - provenance', (t) => {
     ],
     provenance: false,
   }))
+
+  t.test('attempt to publish a private package with OIDC provenance should be false', oidcPublishTest({
+    oidcOptions: { github: true },
+    config: {
+      '//registry.npmjs.org/:_authToken': 'existing-fallback-token',
+    },
+    mockGithubOidcOptions: {
+      audience: 'npm:registry.npmjs.org',
+      idToken: githubPublicIdToken,
+    },
+    mockOidcTokenExchangeOptions: {
+      idToken: githubPublicIdToken,
+      body: {
+        token: 'exchange-token',
+      },
+    },
+    publishOptions: {
+      token: 'exchange-token',
+    },
+    provenance: false,
+    oidcVisibilityOptions: { public: false },
+  }))
+
+  /** this call shows that if the repo is private, the visibility check will not be called */
+  t.test('attempt to publish a private repository with OIDC provenance should be false', oidcPublishTest({
+    oidcOptions: { github: true },
+    config: {
+      '//registry.npmjs.org/:_authToken': 'existing-fallback-token',
+    },
+    mockGithubOidcOptions: {
+      audience: 'npm:registry.npmjs.org',
+      idToken: githubPrivateIdToken,
+    },
+    mockOidcTokenExchangeOptions: {
+      idToken: githubPrivateIdToken,
+      body: {
+        token: 'exchange-token',
+      },
+    },
+    publishOptions: {
+      token: 'exchange-token',
+    },
+    provenance: false,
+  }))
+
+  const provenanceFailures = [[
+    new Error('Valid error'),
+    'verbose oidc Failed to set provenance with message: Valid error',
+  ], [
+    'Valid error',
+    'verbose oidc Failed to set provenance with message: Unknown error',
+  ]]
+
+  provenanceFailures.forEach(([error, logMessage], index) => {
+    t.test(`provenance visibility check failure, coverage for try-catch ${index}`, async t => {
+      const { npm, logs, joinedOutput } = await mockOidc(t, {
+        load: {
+          mocks: {
+            libnpmaccess: {
+              getVisibility: () => {
+                throw error
+              },
+            },
+          },
+        },
+        oidcOptions: { github: true },
+        config: {
+          '//registry.npmjs.org/:_authToken': 'existing-fallback-token',
+        },
+        mockGithubOidcOptions: {
+          audience: 'npm:registry.npmjs.org',
+          idToken: githubPublicIdToken,
+        },
+        mockOidcTokenExchangeOptions: {
+          idToken: githubPublicIdToken,
+          body: {
+            token: 'exchange-token',
+          },
+        },
+        publishOptions: {
+          token: 'exchange-token',
+        },
+        provenance: false,
+      })
+
+      await npm.exec('publish', [])
+      t.match(joinedOutput(), '+ @npmcli/test-package@1.0.0')
+      t.ok(logs.includes(logMessage))
+    })
+  })
 
   t.end()
 })
