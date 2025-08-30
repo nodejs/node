@@ -221,7 +221,10 @@ executable, users can retrieve the assets using the [`sea.getAsset()`][] and
 The single-executable application can access the assets as follows:
 
 ```cjs
-const { getAsset, getAssetAsBlob, getRawAsset } = require('node:sea');
+const { getAsset, getAssetAsBlob, getRawAsset, getAssetKeys } = require('node:sea');
+// Get all asset keys.
+const keys = getAssetKeys();
+console.log(keys); // ['a.jpg', 'b.txt']
 // Returns a copy of the data in an ArrayBuffer.
 const image = getAsset('a.jpg');
 // Returns a string decoded from the asset as UTF8.
@@ -232,8 +235,8 @@ const blob = getAssetAsBlob('a.jpg');
 const raw = getRawAsset('a.jpg');
 ```
 
-See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][] and [`sea.getRawAsset()`][]
-APIs for more information.
+See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][],
+[`sea.getRawAsset()`][] and [`sea.getAssetKeys()`][] APIs for more information.
 
 ### Startup snapshot support
 
@@ -429,6 +432,19 @@ writes to the returned array buffer is likely to result in a crash.
   `assets` field in the single-executable application configuration.
 * Returns: {ArrayBuffer}
 
+### `sea.getAssetKeys()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns {string\[]} An array containing all the keys of the assets
+  embedded in the executable. If no assets are embedded, returns an empty array.
+
+This method can be used to retrieve an array of all the keys of assets
+embedded into the single-executable application.
+An error is thrown when not running inside a single-executable application.
+
 ### `require(id)` in the injected main script is not file based
 
 `require()` in the injected main script is not the same as the [`require()`][]
@@ -503,6 +519,7 @@ to help us document them.
 [`require.main`]: modules.md#accessing-the-main-module
 [`sea.getAsset()`]: #seagetassetkey-encoding
 [`sea.getAssetAsBlob()`]: #seagetassetasblobkey-options
+[`sea.getAssetKeys()`]: #seagetassetkeys
 [`sea.getRawAsset()`]: #seagetrawassetkey
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
