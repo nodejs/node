@@ -1958,19 +1958,16 @@ this matches its values.
 
 If the worker has stopped, the return value is an empty object.
 
-### `worker.startCpuProfile(name)`
+### `worker.startCpuProfile()`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* name: {string}
 * Returns: {Promise}
 
-Starting a CPU profile with the given `name`, then return a Promise that fulfills
-with an error or an object which has a `stop` method. Calling the `stop` method will
-stop collecting the profile, then return a Promise that fulfills with an error or the
-profile data.
+Starting a CPU profile then return a Promise that fulfills with an error
+or an `CPUProfileHandle` object. This API supports `await using` syntax.
 
 ```cjs
 const { Worker } = require('node:worker_threads');
@@ -1981,10 +1978,26 @@ const worker = new Worker(`
   `, { eval: true });
 
 worker.on('online', async () => {
-  const handle = await worker.startCpuProfile('demo');
+  const handle = await worker.startCpuProfile();
   const profile = await handle.stop();
   console.log(profile);
   worker.terminate();
+});
+```
+
+`await using` example.
+
+```cjs
+const { Worker } = require('node::worker_threads');
+
+const w = new Worker(`
+  const { parentPort } = require('worker_threads');
+  parentPort.on('message', () => {});
+  `, { eval: true });
+
+w.on('online', async () => {
+  // Stop profile automatically when return and profile will be discarded
+  await using handle = await w.startCpuProfile();
 });
 ```
 
