@@ -58,9 +58,8 @@ bool AllowWasmCodeGenerationCallback(Local<Context> context,
 
 bool ShouldAbortOnUncaughtException(Isolate* isolate) {
   DebugSealHandleScope scope(isolate);
-  Environment* env = Environment::GetCurrent(isolate);
-  return env != nullptr &&
-         (env->is_main_thread() || !env->is_stopping()) &&
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
+  return env != nullptr && (env->is_main_thread() || !env->is_stopping()) &&
          env->abort_on_uncaught_exception() &&
          env->should_abort_on_uncaught_toggle()[0] &&
          !env->inside_should_not_abort_on_uncaught_scope();
