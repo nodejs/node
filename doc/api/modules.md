@@ -1114,7 +1114,7 @@ exports = { hello: false };  // Not exported, only available in the module
 When the `module.exports` property is being completely replaced by a new
 object, it is common to also reassign `exports`:
 
-<!-- eslint-disable func-name-matching -->
+<!-- eslint-disable node-core/func-name-matching -->
 
 ```js
 module.exports = exports = function Constructor() {
