@@ -8,10 +8,10 @@ static int finalization_count = 0;
 NestedWrap::NestedWrap() {}
 
 NestedWrap::~NestedWrap() {
-  napi_delete_reference(env_, wrapper_);
+  napi_delete_reference(static_cast<node_api_basic_env>(env_), wrapper_);
 
   // Delete the nested reference as well.
-  napi_delete_reference(env_, nested_);
+  napi_delete_reference(static_cast<node_api_basic_env>(env_), nested_);
 }
 
 void NestedWrap::Destructor(node_api_basic_env env,
