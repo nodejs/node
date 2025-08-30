@@ -2111,9 +2111,9 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
       StatementSyncIterator::Create(env, BaseObjectPtr<StatementSync>(stmt));
 
   if (iter->object()
-          ->GetPrototype()
+          ->GetPrototypeV2()
           .As<Object>()
-          ->SetPrototype(context, js_iterator_prototype)
+          ->SetPrototypeV2(context, js_iterator_prototype)
           .IsNothing()) {
     return;
   }
