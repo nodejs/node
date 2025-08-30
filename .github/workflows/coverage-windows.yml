@@ -43,7 +43,7 @@ permissions:
 jobs:
   coverage-windows:
     if: github.event.pull_request.draft == false
-    runs-on: windows-2022
+    runs-on: windows-2025
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
