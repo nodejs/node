@@ -3165,6 +3165,13 @@ napi_status NAPI_CDECL napi_create_typedarray(napi_env env,
       CREATE_TYPED_ARRAY(
           env, BigUint64Array, 8, buffer, byte_offset, length, typedArray);
       break;
+    case napi_float16_array:
+      if (env->module_api_version != NAPI_VERSION_EXPERIMENTAL) {
+        return napi_set_last_error(env, napi_invalid_arg);
+      }
+      CREATE_TYPED_ARRAY(
+          env, Float16Array, 2, buffer, byte_offset, length, typedArray);
+      break;
     default:
       return napi_set_last_error(env, napi_invalid_arg);
   }
@@ -3203,6 +3210,8 @@ napi_status NAPI_CDECL napi_get_typedarray_info(napi_env env,
       *type = napi_int32_array;
     } else if (value->IsUint32Array()) {
       *type = napi_uint32_array;
+    } else if (value->IsFloat16Array()) {
+      *type = napi_float16_array;
     } else if (value->IsFloat32Array()) {
       *type = napi_float32_array;
     } else if (value->IsFloat64Array()) {
