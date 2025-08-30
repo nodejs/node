@@ -523,9 +523,9 @@ TEST(function test_resolveTlsa_failure(done) {
 
 TEST(async function test_resolveTxt(done) {
   function validateResult(result) {
-    assert.ok(Array.isArray(result[0]));
-    assert.strictEqual(result.length, 1);
-    assert(result[0][0].startsWith('v=spf1'));
+    assert.ok(result.length > 0);
+    assert.ok(result.every((elem) => Array.isArray(elem) && elem.length === 1));
+    assert.ok(result.some((elem) => elem[0].startsWith('v=spf1')));
   }
 
   validateResult(await dnsPromises.resolveTxt(addresses.TXT_HOST));
