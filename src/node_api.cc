@@ -309,17 +309,21 @@ class ThreadSafeFunction {
   }
 
   void EmptyQueueAndMaybeDelete() {
+    std::queue<void*> drain_queue;
     {
       node::Mutex::ScopedLock lock(this->mutex);
-      for (; !queue.empty(); queue.pop()) {
-        call_js_cb(nullptr, nullptr, context, queue.front());
-      }
+      queue.swap(drain_queue);
+    }
+    for (; !drain_queue.empty(); drain_queue.pop()) {
+      call_js_cb(nullptr, nullptr, context, drain_queue.front());
+    }
+    {
+      node::Mutex::ScopedLock lock(this->mutex);
       if (thread_count > 0) {
         // At this point this TSFN is effectively done, but we need to keep
         // it alive for other threads that still have pointers to it until
         // they release them.
         // But we already release all the resources that we can at this point
-        queue = {};
         ReleaseResources();
         return;
       }
