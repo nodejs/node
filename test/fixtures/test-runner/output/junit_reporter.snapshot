@@ -6,7 +6,7 @@
 	<testcase name="sync pass todo with message" time="*" classname="test">
 		<skipped type="todo" message="this is a passing todo"/>
 	</testcase>
-	<testcase name="sync fail todo" time="*" classname="test" failure="thrown from sync fail todo">
+	<testcase name="sync fail todo" time="*" classname="test">
 		<skipped type="todo" message="true"/>
 		<failure type="testCodeFailure" message="thrown from sync fail todo">
 [Error [ERR_TEST_FAILURE]: thrown from sync fail todo] {
@@ -23,7 +23,7 @@
 }
 		</failure>
 	</testcase>
-	<testcase name="sync fail todo with message" time="*" classname="test" failure="thrown from sync fail todo with message">
+	<testcase name="sync fail todo with message" time="*" classname="test">
 		<skipped type="todo" message="this is a failing todo"/>
 		<failure type="testCodeFailure" message="thrown from sync fail todo with message">
 [Error [ERR_TEST_FAILURE]: thrown from sync fail todo with message] {
@@ -48,7 +48,7 @@
 	</testcase>
 	<testcase name="sync pass" time="*" classname="test"/>
 	<!-- this test should pass -->
-	<testcase name="sync throw fail" time="*" classname="test" failure="thrown from sync throw fail">
+	<testcase name="sync throw fail" time="*" classname="test">
 		<failure type="testCodeFailure" message="thrown from sync throw fail">
 [Error [ERR_TEST_FAILURE]: thrown from sync throw fail] {
   code: 'ERR_TEST_FAILURE',
@@ -68,7 +68,7 @@
 		<skipped type="skipped" message="true"/>
 	</testcase>
 	<testcase name="async pass" time="*" classname="test"/>
-	<testcase name="async throw fail" time="*" classname="test" failure="thrown from async throw fail">
+	<testcase name="async throw fail" time="*" classname="test">
 		<failure type="testCodeFailure" message="thrown from async throw fail">
 [Error [ERR_TEST_FAILURE]: thrown from async throw fail] {
   code: 'ERR_TEST_FAILURE',
@@ -84,7 +84,7 @@
 }
 		</failure>
 	</testcase>
-	<testcase name="async skip fail" time="*" classname="test" failure="thrown from async throw fail">
+	<testcase name="async skip fail" time="*" classname="test">
 		<skipped type="skipped" message="true"/>
 		<failure type="testCodeFailure" message="thrown from async throw fail">
 [Error [ERR_TEST_FAILURE]: thrown from async throw fail] {
@@ -101,7 +101,7 @@
 }
 		</failure>
 	</testcase>
-	<testcase name="async assertion fail" time="*" classname="test" failure="Expected values to be strictly equal:true !== false">
+	<testcase name="async assertion fail" time="*" classname="test">
 		<failure type="testCodeFailure" message="Expected values to be strictly equal:true !== false">
 [Error [ERR_TEST_FAILURE]: Expected values to be strictly equal:
 
@@ -131,7 +131,7 @@ true !== false
 		</failure>
 	</testcase>
 	<testcase name="resolve pass" time="*" classname="test"/>
-	<testcase name="reject fail" time="*" classname="test" failure="rejected from reject fail">
+	<testcase name="reject fail" time="*" classname="test">
 		<failure type="testCodeFailure" message="rejected from reject fail">
 [Error [ERR_TEST_FAILURE]: rejected from reject fail] {
   code: 'ERR_TEST_FAILURE',
@@ -153,7 +153,7 @@ true !== false
 	<testcase name="immediate reject - passes but warns" time="*" classname="test"/>
 	<testcase name="immediate resolve pass" time="*" classname="test"/>
 	<testsuite name="subtest sync throw fail" time="*" disabled="0" errors="0" tests="1" failures="1" skipped="0" hostname="HOSTNAME">
-		<testcase name="+sync throw fail" time="*" classname="test" failure="thrown from subtest sync throw fail">
+		<testcase name="+sync throw fail" time="*" classname="test">
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fail">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
     *
@@ -176,7 +176,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
 		</testcase>
 		<!-- this subtest should make its parent test fail -->
 	</testsuite>
-	<testcase name="sync throw non-error fail" time="*" classname="test" failure="Symbol(thrown symbol from sync throw non-error fail)">
+	<testcase name="sync throw non-error fail" time="*" classname="test">
 		<failure type="testCodeFailure" message="Symbol(thrown symbol from sync throw non-error fail)">
 [Error [ERR_TEST_FAILURE]: Symbol(thrown symbol from sync throw non-error fail)] { code: 'ERR_TEST_FAILURE', failureType: 'testCodeFailure', cause: Symbol(thrown symbol from sync throw non-error fail) }
 		</failure>
@@ -200,7 +200,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
 	<testcase name="sync skip option with message" time="*" classname="test">
 		<skipped type="skipped" message="this is skipped"/>
 	</testcase>
-	<testcase name="sync skip option is false fail" time="*" classname="test" failure="this should be executed">
+	<testcase name="sync skip option is false fail" time="*" classname="test">
 		<failure type="testCodeFailure" message="this should be executed">
 [Error [ERR_TEST_FAILURE]: this should be executed] {
   code: 'ERR_TEST_FAILURE',
@@ -231,7 +231,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
 		<skipped type="skipped" message="true"/>
 	</testcase>
 	<testcase name="callback pass" time="*" classname="test"/>
-	<testcase name="callback fail" time="*" classname="test" failure="callback failure">
+	<testcase name="callback fail" time="*" classname="test">
 		<failure type="testCodeFailure" message="callback failure">
 [Error [ERR_TEST_FAILURE]: callback failure] {
   code: 'ERR_TEST_FAILURE',
@@ -245,12 +245,12 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
 	<testcase name="sync t is this in test" time="*" classname="test"/>
 	<testcase name="async t is this in test" time="*" classname="test"/>
 	<testcase name="callback t is this in test" time="*" classname="test"/>
-	<testcase name="callback also returns a Promise" time="*" classname="test" failure="passed a callback but also returned a Promise">
+	<testcase name="callback also returns a Promise" time="*" classname="test">
 		<failure type="callbackAndPromisePresent" message="passed a callback but also returned a Promise">
 [Error [ERR_TEST_FAILURE]: passed a callback but also returned a Promise] { code: 'ERR_TEST_FAILURE', failureType: 'callbackAndPromisePresent', cause: 'passed a callback but also returned a Promise' }
 		</failure>
 	</testcase>
-	<testcase name="callback throw" time="*" classname="test" failure="thrown from callback throw">
+	<testcase name="callback throw" time="*" classname="test">
 		<failure type="testCodeFailure" message="thrown from callback throw">
 [Error [ERR_TEST_FAILURE]: thrown from callback throw] {
   code: 'ERR_TEST_FAILURE',
@@ -266,7 +266,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
 }
 		</failure>
 	</testcase>
-	<testcase name="callback called twice" time="*" classname="test" failure="callback invoked multiple times">
+	<testcase name="callback called twice" time="*" classname="test">
 		<failure type="multipleCallbackInvocations" message="callback invoked multiple times">
 Error [ERR_TEST_FAILURE]: callback invoked multiple times
     *
@@ -278,7 +278,7 @@ Error [ERR_TEST_FAILURE]: callback invoked multiple times
 		</failure>
 	</testcase>
 	<testcase name="callback called twice in different ticks" time="*" classname="test"/>
-	<testcase name="callback called twice in future tick" time="*" classname="test" failure="callback invoked multiple times">
+	<testcase name="callback called twice in future tick" time="*" classname="test">
 		<failure type="uncaughtException" message="callback invoked multiple times">
 Error [ERR_TEST_FAILURE]: callback invoked multiple times
     * {
@@ -293,7 +293,7 @@ Error [ERR_TEST_FAILURE]: callback invoked multiple times
 }
 		</failure>
 	</testcase>
-	<testcase name="callback async throw" time="*" classname="test" failure="thrown from callback async throw">
+	<testcase name="callback async throw" time="*" classname="test">
 		<failure type="uncaughtException" message="thrown from callback async throw">
 Error [ERR_TEST_FAILURE]: thrown from callback async throw
     * {
@@ -311,12 +311,12 @@ Error [ERR_TEST_FAILURE]: thrown from callback async throw
 		<testcase name="running subtest 3" time="*" classname="test"/>
 		<testcase name="running subtest 4" time="*" classname="test"/>
 	</testsuite>
-	<testcase name="custom inspect symbol fail" time="*" classname="test" failure="customized">
+	<testcase name="custom inspect symbol fail" time="*" classname="test">
 		<failure type="testCodeFailure" message="customized">
 [Error [ERR_TEST_FAILURE]: customized] { code: 'ERR_TEST_FAILURE', failureType: 'testCodeFailure', cause: customized }
 		</failure>
 	</testcase>
-	<testcase name="custom inspect symbol that throws fail" time="*" classname="test" failure="{  foo: 1,  Symbol(nodejs.util.inspect.custom): [Function: [nodejs.util.inspect.custom]]}">
+	<testcase name="custom inspect symbol that throws fail" time="*" classname="test">
 		<failure type="testCodeFailure" message="{  foo: 1,  Symbol(nodejs.util.inspect.custom): [Function: [nodejs.util.inspect.custom]]}">
 [Error [ERR_TEST_FAILURE]: {
   foo: 1,
@@ -329,7 +329,7 @@ Error [ERR_TEST_FAILURE]: thrown from callback async throw
 		</failure>
 	</testcase>
 	<testsuite name="subtest sync throw fails" time="*" disabled="0" errors="0" tests="2" failures="2" skipped="0" hostname="HOSTNAME">
-		<testcase name="sync throw fails at first" time="*" classname="test" failure="thrown from subtest sync throw fails at first">
+		<testcase name="sync throw fails at first" time="*" classname="test">
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fails at first">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at first
     *
@@ -350,7 +350,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at first
 }
 			</failure>
 		</testcase>
-		<testcase name="sync throw fails at second" time="*" classname="test" failure="thrown from subtest sync throw fails at second">
+		<testcase name="sync throw fails at second" time="*" classname="test">
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fails at second">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at second
     * {
@@ -369,12 +369,12 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at second
 			</failure>
 		</testcase>
 	</testsuite>
-	<testcase name="timed out async test" time="*" classname="test" failure="test timed out after 5ms">
+	<testcase name="timed out async test" time="*" classname="test">
 		<failure type="testTimeoutFailure" message="test timed out after 5ms">
 [Error [ERR_TEST_FAILURE]: test timed out after 5ms] { code: 'ERR_TEST_FAILURE', failureType: 'testTimeoutFailure', cause: 'test timed out after 5ms' }
 		</failure>
 	</testcase>
-	<testcase name="timed out callback test" time="*" classname="test" failure="test timed out after 5ms">
+	<testcase name="timed out callback test" time="*" classname="test">
 		<failure type="testTimeoutFailure" message="test timed out after 5ms">
 [Error [ERR_TEST_FAILURE]: test timed out after 5ms] { code: 'ERR_TEST_FAILURE', failureType: 'testTimeoutFailure', cause: 'test timed out after 5ms' }
 		</failure>
@@ -382,12 +382,12 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at second
 	<testcase name="large timeout async test is ok" time="*" classname="test"/>
 	<testcase name="large timeout callback test is ok" time="*" classname="test"/>
 	<testcase name="successful thenable" time="*" classname="test"/>
-	<testcase name="rejected thenable" time="*" classname="test" failure="custom error">
+	<testcase name="rejected thenable" time="*" classname="test">
 		<failure type="testCodeFailure" message="custom error">
 [Error [ERR_TEST_FAILURE]: custom error] { code: 'ERR_TEST_FAILURE', failureType: 'testCodeFailure', cause: 'custom error' }
 		</failure>
 	</testcase>
-	<testcase name="unfinished test with uncaughtException" time="*" classname="test" failure="foo">
+	<testcase name="unfinished test with uncaughtException" time="*" classname="test">
 		<failure type="uncaughtException" message="foo">
 Error [ERR_TEST_FAILURE]: foo
     * {
@@ -400,7 +400,7 @@ Error [ERR_TEST_FAILURE]: foo
 }
 		</failure>
 	</testcase>
-	<testcase name="unfinished test with unhandledRejection" time="*" classname="test" failure="bar">
+	<testcase name="unfinished test with unhandledRejection" time="*" classname="test">
 		<failure type="unhandledRejection" message="bar">
 Error [ERR_TEST_FAILURE]: bar
     * {
@@ -413,7 +413,7 @@ Error [ERR_TEST_FAILURE]: bar
 }
 		</failure>
 	</testcase>
-	<testcase name="assertion errors display actual and expected properly" time="*" classname="test" failure="Expected values to be loosely deep-equal:{  bar: 1,  baz: {    date: 1970-01-01T00:00:00.000Z,    null: null,    number: 1,    string: 'Hello',    undefined: undefined  },  boo: [    1  ],  foo: 1}should loosely deep-equal{  baz: {    date: 1970-01-01T00:00:00.000Z,    null: null,    number: 1,    string: 'Hello',    undefined: undefined  },  boo: [    1  ],  circular: &lt;ref *1> {    bar: 2,    c: [Circular *1]  }}">
+	<testcase name="assertion errors display actual and expected properly" time="*" classname="test">
 		<failure type="testCodeFailure" message="Expected values to be loosely deep-equal:{  bar: 1,  baz: {    date: 1970-01-01T00:00:00.000Z,    null: null,    number: 1,    string: 'Hello',    undefined: undefined  },  boo: [    1  ],  foo: 1}should loosely deep-equal{  baz: {    date: 1970-01-01T00:00:00.000Z,    null: null,    number: 1,    string: 'Hello',    undefined: undefined  },  boo: [    1  ],  circular: &lt;ref *1> {    bar: 2,    c: [Circular *1]  }}">
 [Error [ERR_TEST_FAILURE]: Expected values to be loosely deep-equal:
 
@@ -498,7 +498,7 @@ should loosely deep-equal
 }
 		</failure>
 	</testcase>
-	<testcase name="invalid subtest fail" time="*" classname="test" failure="test could not be started because its parent finished">
+	<testcase name="invalid subtest fail" time="*" classname="test">
 		<failure type="parentAlreadyFinished" message="test could not be started because its parent finished">
 Error [ERR_TEST_FAILURE]: test could not be started because its parent finished
     * {
