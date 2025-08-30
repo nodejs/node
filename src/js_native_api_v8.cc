@@ -2773,7 +2773,11 @@ napi_status NAPI_CDECL napi_create_reference(napi_env env,
 // there are other references to it.
 // For a napi_reference returned from `napi_wrap`, this must be called in the
 // finalizer.
-napi_status NAPI_CDECL napi_delete_reference(napi_env env, napi_ref ref) {
+// Deletes a reference. The referenced value is released, and may be GC'd unless
+// there are other references to it.
+// For a napi_reference returned from `napi_wrap`, this must be called in the
+// finalizer.
+napi_status NAPI_CDECL napi_delete_reference(node_api_basic_env env, napi_ref ref) {
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
   // JS exceptions.
   CHECK_ENV(env);

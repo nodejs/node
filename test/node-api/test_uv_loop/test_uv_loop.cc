@@ -65,7 +65,7 @@ napi_value SetImmediateBinding(napi_env env, napi_callback_info info) {
     NODE_API_CALL(env, napi_open_handle_scope(env, &scope));
     NODE_API_CALL(env, napi_get_undefined(env, &undefined));
     NODE_API_CALL(env, napi_get_reference_value(env, cbref, &callback));
-    NODE_API_CALL(env, napi_delete_reference(env, cbref));
+  NODE_API_CALL(env, napi_delete_reference(static_cast<node_api_basic_env>(env), cbref));
     NODE_API_CALL(env,
         napi_call_function(env, undefined, callback, 0, nullptr, nullptr));
     NODE_API_CALL(env, napi_close_handle_scope(env, scope));
