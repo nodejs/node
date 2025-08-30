@@ -36,6 +36,12 @@ size_t ngtcp2_buf_cap(const ngtcp2_buf *buf) {
   return (size_t)(buf->end - buf->begin);
 }
 
+void ngtcp2_buf_trunc(ngtcp2_buf *buf, size_t len) {
+  if (ngtcp2_buf_len(buf) > len) {
+    buf->last = buf->pos + len;
+  }
+}
+
 int ngtcp2_buf_chain_new(ngtcp2_buf_chain **pbufchain, size_t len,
                          const ngtcp2_mem *mem) {
   *pbufchain = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_buf_chain) + len);

@@ -1,7 +1,8 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2016 ngtcp2 contributors
+ * Copyright (c) 2025 ngtcp2 contributors
+ * Copyright (c) 2023 nghttp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,30 +23,55 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_VERSION_H
-#define NGTCP2_VERSION_H
+#include "ngtcp2_ratelim.h"
 
-/**
- * @macrosection
- *
- * Library version macros
- */
+#include <assert.h>
 
-/**
- * @macro
- *
- * Version number of the ngtcp2 library release.
- */
-#define NGTCP2_VERSION "1.15.0"
+#include "ngtcp2_macro.h"
 
-/**
- * @macro
- *
- * Numerical representation of the version number of the ngtcp2
- * library release. This is a 24 bit number with 8 bits for major
- * number, 8 bits for minor and 8 bits for patch. Version 1.2.3
- * becomes 0x010203.
- */
-#define NGTCP2_VERSION_NUM 0x010f00
+void ngtcp2_ratelim_init(ngtcp2_ratelim *rlim, uint64_t burst, uint64_t rate,
+                         ngtcp2_tstamp ts) {
+  *rlim = (ngtcp2_ratelim){
+    .burst = burst,
+    .rate = rate,
+    .tokens = burst,
+    .ts = ts,
+  };
+}
 
-#endif /* !defined(NGTCP2_VERSION_H) */
+/* ratelim_update updates rlim->tokens with the current |ts|. */
+static void ratelim_update(ngtcp2_ratelim *rlim, ngtcp2_tstamp ts) {
+  uint64_t d, gain;
+
+  assert(ts >= rlim->ts);
+
+  if (ts == rlim->ts) {
+    return;
+  }
+
+  d = ts - rlim->ts;
+  rlim->ts = ts;
+
+  gain = rlim->rate * d + rlim->carry;
+
+  rlim->tokens += gain / NGTCP2_SECONDS;
+
+  if (rlim->tokens < rlim->burst) {
+    rlim->carry = gain % NGTCP2_SECONDS;
+  } else {
+    rlim->tokens = rlim->burst;
+    rlim->carry = 0;
+  }
+}
+
+int ngtcp2_ratelim_drain(ngtcp2_ratelim *rlim, uint64_t n, ngtcp2_tstamp ts) {
+  ratelim_update(rlim, ts);
+
+  if (rlim->tokens < n) {
+    return -1;
+  }
+
+  rlim->tokens -= n;
+
+  return 0;
+}

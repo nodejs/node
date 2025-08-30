@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2016 ngtcp2 contributors
+ * Copyright (c) 2025 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,30 +22,33 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_VERSION_H
-#define NGTCP2_VERSION_H
+#ifndef NGTCP2_PCG_H
+#define NGTCP2_PCG_H
 
-/**
- * @macrosection
- *
- * Library version macros
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif /* defined(HAVE_CONFIG_H) */
+
+#include <ngtcp2/ngtcp2.h>
+
+typedef struct ngtcp2_pcg32 {
+  uint64_t state;
+} ngtcp2_pcg32;
+
+/*
+ * ngtcp2_pcg32_init initializes |pcg| with |seed|.
  */
+void ngtcp2_pcg32_init(ngtcp2_pcg32 *pcg, uint64_t seed);
 
-/**
- * @macro
- *
- * Version number of the ngtcp2 library release.
+/*
+ * ngtcp2_pcg32_rand returns a random value in [0, UINT32_MAX].
  */
-#define NGTCP2_VERSION "1.15.0"
+uint32_t ngtcp2_pcg32_rand(ngtcp2_pcg32 *pcg);
 
-/**
- * @macro
- *
- * Numerical representation of the version number of the ngtcp2
- * library release. This is a 24 bit number with 8 bits for major
- * number, 8 bits for minor and 8 bits for patch. Version 1.2.3
- * becomes 0x010203.
+/*
+ * ngtcp2_pcg32_rand_n returns a random value in [0, n).  |n| must not
+ * be zero.
  */
-#define NGTCP2_VERSION_NUM 0x010f00
+uint32_t ngtcp2_pcg32_rand_n(ngtcp2_pcg32 *pcg, uint32_t n);
 
-#endif /* !defined(NGTCP2_VERSION_H) */
+#endif /* !defined(NGTCP2_PCG_H) */
