@@ -208,6 +208,7 @@
   V(gid_string, "gid")                                                         \
   V(groups_string, "groups")                                                   \
   V(has_regexp_groups_string, "hasRegExpGroups")                               \
+  V(has_top_level_await_string, "hasTopLevelAwait")                            \
   V(hash_string, "hash")                                                       \
   V(h2_string, "h2")                                                           \
   V(handle_string, "handle")                                                   \
