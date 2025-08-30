@@ -2,11 +2,15 @@
 
 const common = require('../common');
 
-const bench = common.createBenchmark(main, {
-  n: [5e6],
-  pos: ['start', 'middle', 'end'],
-  size: [10, 100, 500],
-}, { flags: ['--expose-internals'] });
+const bench = common.createBenchmark(
+  main,
+  {
+    n: [1000],
+    pos: ['start', 'middle', 'end'],
+    size: [10, 100, 500],
+  },
+  { flags: ['--expose-internals'] },
+);
 
 function main({ n, pos, size }) {
   const { spliceOne } = require('internal/util');

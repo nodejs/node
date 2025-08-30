@@ -25,14 +25,18 @@ const args = {
   },
 };
 
-const bench = common.createBenchmark(main, {
-  type: Object.keys(args),
-  version: ['native', 'js'],
-  argument: ['true', 'false-primitive', 'false-object'],
-  n: [1e6],
-}, {
-  flags: ['--expose-internals', '--no-warnings'],
-});
+const bench = common.createBenchmark(
+  main,
+  {
+    type: Object.keys(args),
+    version: ['native', 'js'],
+    argument: ['true', 'false-primitive', 'false-object'],
+    n: [1000],
+  },
+  {
+    flags: ['--expose-internals', '--no-warnings'],
+  },
+);
 
 function main({ type, argument, version, n }) {
   const util = common.binding('util');

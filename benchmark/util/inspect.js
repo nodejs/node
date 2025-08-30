@@ -9,7 +9,7 @@ const opts = {
   none: undefined,
 };
 const bench = common.createBenchmark(main, {
-  n: [8e4],
+  n: [1000],
   method: [
     'Object',
     'Object_empty',
@@ -47,18 +47,22 @@ function main({ method, n, option }) {
       benchmark(n, {}, options);
       break;
     case 'Object_deep_ln':
-      if (options)
-        options.depth = Infinity;
-      obj = { first:
-              { second:
-                { third:
-                  { a: 'first',
-                    b: 'second',
-                    c: 'third',
-                    d: 'fourth',
-                    e: 'fifth',
-                    f: 'sixth',
-                    g: 'seventh' } } } };
+      if (options) options.depth = Infinity;
+      obj = {
+        first: {
+          second: {
+            third: {
+              a: 'first',
+              b: 'second',
+              c: 'third',
+              d: 'fourth',
+              e: 'fifth',
+              f: 'sixth',
+              g: 'seventh',
+            },
+          },
+        },
+      };
       benchmark(n, obj, options || { depth: Infinity });
       break;
     case 'String':
@@ -81,14 +85,28 @@ function main({ method, n, option }) {
       benchmark(n, new Error('error'), options);
       break;
     case 'Array':
-      benchmark(n, Array(50).fill().map((_, i) => i), options);
+      benchmark(
+        n,
+        Array(50)
+          .fill()
+          .map((_, i) => i),
+        options,
+      );
       break;
     case 'TypedArray':
-      obj = new Uint8Array(Array(50).fill().map((_, i) => i));
+      obj = new Uint8Array(
+        Array(50)
+          .fill()
+          .map((_, i) => i),
+      );
       benchmark(n, obj, options);
       break;
     case 'TypedArray_extra':
-      obj = new Uint8Array(Array(50).fill().map((_, i) => i));
+      obj = new Uint8Array(
+        Array(50)
+          .fill()
+          .map((_, i) => i),
+      );
       obj.foo = 'bar';
       obj[Symbol('baz')] = 5;
       benchmark(n, obj, options);

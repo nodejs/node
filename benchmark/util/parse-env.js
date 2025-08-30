@@ -7,10 +7,13 @@ const util = require('node:util');
 const assert = require('node:assert');
 
 const bench = createBenchmark(main, {
-  n: 3e4,
+  n: 10,
 });
 
-const env = fs.readFileSync(path.resolve(__dirname, '../fixtures/valid.env'), 'utf-8');
+const env = fs.readFileSync(
+  path.resolve(__dirname, '../fixtures/valid.env'),
+  'utf-8',
+);
 
 function main({ n }) {
   let noDead;

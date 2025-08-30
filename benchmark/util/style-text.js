@@ -9,7 +9,7 @@ const bench = common.createBenchmark(main, {
   messageType: ['string', 'number', 'boolean', 'invalid'],
   format: ['red', 'italic', 'invalid'],
   validateStream: [1, 0],
-  n: [1e3],
+  n: [100],
 });
 
 function main({ messageType, format, validateStream, n }) {
