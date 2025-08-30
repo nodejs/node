@@ -174,6 +174,8 @@ class StatementSync : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReadBigInts(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReturnArrays(const v8::FunctionCallbackInfo<v8::Value>& args);
+  v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
+  v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
   void Finalize();
   bool IsFinalized();
 
@@ -191,8 +193,6 @@ class StatementSync : public BaseObject {
   std::optional<std::map<std::string, std::string>> bare_named_params_;
   bool BindParams(const v8::FunctionCallbackInfo<v8::Value>& args);
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
-  v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
-  v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
 
   friend class StatementSyncIterator;
 };
