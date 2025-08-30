@@ -206,8 +206,8 @@ are enabled by default.
 ### Type stripping in dependencies
 
 To discourage package authors from publishing packages written in TypeScript,
-Node.js will by default refuse to handle TypeScript files inside folders under
-a `node_modules` path.
+Node.js refuses to handle TypeScript files inside folders under a `node_modules`
+path.
 
 ### Paths aliases
 
