@@ -2326,14 +2326,17 @@ changes:
   If an object, it may contain:
   * `type` {string} The type of CA certificates to return. One of `"default"`, `"system"`, `"bundled"`, or `"extra"`.
     **Default:** `"default"`.
-  * `format` {string} The format of returned certificates. One of `"string"`, `"buffer"`, or `"x509"`.
-    **Default:** `"string"`.
-    * `"string"`: Returns an array of PEM-encoded certificate strings.
-    * `"buffer"`: Returns an array of certificate data as `Buffer` objects in DER format.
+  * `format` {string} The format of returned certificates. One of `"pem"`, `"der"`, or `"x509"`.
+    **Default:** `"pem"`.
+    * `"pem"` (alias: `"string"`): Returns an array of PEM-encoded certificate strings.
+    * `"der"` (alias: `"buffer"`): Returns an array of certificate data as `Buffer` objects in DER format.
     * `"x509"`: Returns an array of [`X509Certificate`][x509certificate] instances.
 
 * Returns: {Array}
-  An array of certificate data in the specified format (Buffer or X509Certificate).
+  An array of certificate data in the specified format:
+  * PEM strings when `format` is `"pem"` (or `"string"`).
+  * `Buffer` objects containing DER data when `format` is `"der"` (or `"buffer"`).
+  * [`X509Certificate`][x509certificate] instances when `format` is `"x509"`.
 
 * `"default"`: return the CA certificates that will be used by the Node.js TLS clients by default.
   * When [`--use-bundled-ca`][] is enabled (default), or [`--use-openssl-ca`][] is not enabled,
