@@ -35,11 +35,14 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
+using v8::JustVoid;
 using v8::Local;
 using v8::LocalVector;
+using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::NewStringType;
+using v8::Nothing;
 using v8::Null;
 using v8::Number;
 using v8::Object;
@@ -2017,17 +2020,18 @@ MaybeLocal<Name> StatementSync::ColumnNameToName(const int column) {
 
 void StatementSync::MemoryInfo(MemoryTracker* tracker) const {}
 
-std::optional<LocalVector<Value>> ExtractRowValues(Isolate* isolate,
-                                                   int num_cols,
-                                                   StatementSync* stmt) {
-  LocalVector<Value> row_values(isolate);
-  row_values.reserve(num_cols);
+Maybe<void> ExtractRowValues(Isolate* isolate,
+                             int num_cols,
+                             StatementSync* stmt,
+                             LocalVector<Value>* row_values) {
+  row_values->clear();
+  row_values->reserve(num_cols);
   for (int i = 0; i < num_cols; ++i) {
     Local<Value> val;
-    if (!stmt->ColumnToValue(i).ToLocal(&val)) return std::nullopt;
-    row_values.emplace_back(val);
+    if (!stmt->ColumnToValue(i).ToLocal(&val)) return Nothing<void>();
+    row_values->emplace_back(val);
   }
-  return row_values;
+  return JustVoid();
 }
 
 void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
@@ -2051,10 +2055,10 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   LocalVector<Name> row_keys(isolate);
 
   while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
-    auto maybe_row_values = ExtractRowValues(env->isolate(), num_cols, stmt);
-    if (!maybe_row_values.has_value()) return;
+    auto maybe_row_values =
+        ExtractRowValues(env->isolate(), num_cols, stmt, &row_values);
+    if (maybe_row_values.IsNothing()) return;
 
-    row_values = std::move(maybe_row_values.value());
     if (stmt->return_arrays_) {
       Local<Array> row_array =
           Array::New(isolate, row_values.data(), row_values.size());
@@ -2550,10 +2554,8 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
   LocalVector<Value> row_values(isolate);
 
   auto maybe_row_values =
-      ExtractRowValues(isolate, num_cols, iter->stmt_.get());
-  if (!maybe_row_values.has_value()) return;
-
-  row_values = std::move(maybe_row_values.value());
+      ExtractRowValues(isolate, num_cols, iter->stmt_.get(), &row_values);
+  if (maybe_row_values.IsNothing()) return;
 
   if (iter->stmt_->return_arrays_) {
     row_value = Array::New(isolate, row_values.data(), row_values.size());
