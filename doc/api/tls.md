@@ -2330,7 +2330,7 @@ changes:
     **Default:** `"string"`.
     * `"string"`: Returns an array of PEM-encoded certificate strings.
     * `"buffer"`: Returns an array of certificate data as `Buffer` objects in DER format.
-    * `"x509"`: Returns an array of [`X509Certificate`][x509certificate] instances.
+    * `"x509"`: Returns an array of \[`X509Certificate`]\[x509certificate] instances.
 
 * Returns: {Array}
   An array of certificate data in the specified format (Buffer or X509Certificate).
@@ -2517,4 +2517,4 @@ added: v0.11.3
 [cipher list format]: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html#CIPHER-LIST-FORMAT
 [forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [perfect forward secrecy]: #perfect-forward-secrecy
-[x509certificate]: https://nodejs.org/api/crypto.html#class-x509certificate
+[`X509Certificate`]: #class-x509certificate
