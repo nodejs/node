@@ -26,3 +26,7 @@ testWasiPreview1(['preopen_populates']);
 testWasiPreview1(['stat']);
 testWasiPreview1(['sock']);
 testWasiPreview1(['write_file']);
+
+if (process.env.NODES !== 'win2016-COMPILED_BY-vs2022-x86') {
+  testWasiPreview1(['--target=wasm32-wasip1-threads', 'pthread']);
+}
