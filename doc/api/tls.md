@@ -2517,4 +2517,4 @@ added: v0.11.3
 [cipher list format]: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html#CIPHER-LIST-FORMAT
 [forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [perfect forward secrecy]: #perfect-forward-secrecy
-[x509certificate]: #class-x509certificate
+[x509certificate]: crypto.md#class-x509certificate
