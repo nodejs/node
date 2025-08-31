@@ -199,6 +199,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 
   size_t max_young_gen_size = 1;
   std::unordered_map<const char*, v8::Eternal<v8::String>> static_str_map;
+  std::set<uint64_t> worker_notifications_;
 
   inline v8::Isolate* isolate() const;
   IsolateData(const IsolateData&) = delete;

@@ -34,6 +34,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::Locker;
 using v8::Maybe;
 using v8::Name;
@@ -221,6 +222,8 @@ class WorkerThreadData {
   }
 
   ~WorkerThreadData() {
+    Worker::UnregisterAllNotifications(isolate_data_.get());
+
     Debug(w_, "Worker %llu dispose isolate", w_->thread_id_.id);
     Isolate* isolate;
     {
@@ -1281,6 +1284,127 @@ void Worker::LoopStartTime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(loop_start_time / 1e6);
 }
 
+void Worker::GetNotifications(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  LocalVector<Value> notifications(isolate);
+
+  for (auto notification_id : env->isolate_data()->worker_notifications_) {
+    notifications.push_back(v8::BigInt::New(isolate, notification_id));
+  }
+
+  args.GetReturnValue().Set(
+      Array::New(isolate, notifications.data(), notifications.size()));
+}
+
+void Worker::RegisterNotification(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsFunction());
+
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  NotificationData* notification =
+      new NotificationData(env->thread_id(), env, args[0].As<v8::Function>());
+
+  notification->Register(env->isolate_data());
+  args.GetReturnValue().Set(v8::BigInt::New(isolate, notification->id_));
+}
+
+void Worker::SendNotification(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsBigInt());
+
+  uint64_t notification_id = args[0].As<v8::BigInt>()->Uint64Value();
+  NotificationData* notification = workers_notifications_[notification_id];
+
+  if (notification == nullptr) {
+    return THROW_ERR_INVALID_NOTIFICATION(
+        args.GetIsolate(), "Invalid notification %llun", notification_id);
+  }
+
+  uv_async_send(&notification->async_);
+}
+
+void Worker::UnregisterNotification(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsBigInt());
+
+  Environment* env = Environment::GetCurrent(args);
+  uint64_t notification_id = args[0].As<v8::BigInt>()->Uint64Value();
+  NotificationData* notification = workers_notifications_[notification_id];
+
+  if (notification == nullptr || notification->thread_id_ != env->thread_id()) {
+    return THROW_ERR_INVALID_NOTIFICATION(
+        args.GetIsolate(), "Invalid notification %un", notification_id);
+  }
+
+  notification->Unregister(env->isolate_data());
+}
+
+void Worker::UnregisterNotifications(const FunctionCallbackInfo<Value>& args) {
+  UnregisterAllNotifications(Environment::GetCurrent(args)->isolate_data());
+}
+
+void Worker::UnregisterAllNotifications(IsolateData* isolate_data) {
+  for (auto notification_id : isolate_data->worker_notifications_) {
+    workers_notifications_[notification_id]->Unregister(isolate_data);
+  }
+
+  // Wait for the uv_close callbacks to trigger
+  if (!isolate_data->worker_notifications_.empty()) {
+    uv_run(isolate_data->event_loop(), UV_RUN_ONCE);
+  }
+
+  isolate_data->worker_notifications_.clear();
+}
+
+NotificationData::NotificationData(uint64_t thread_id,
+                                   Environment* env,
+                                   v8::Local<v8::Function> callback)
+    : id_(++notifications_counter_), thread_id_(thread_id), env_(env) {
+  this->async_.data = this;
+  this->callback_.Reset(env->isolate(), callback);
+}
+
+NotificationData::~NotificationData() {
+  workers_notifications_.erase(this->id_);
+
+  if (!this->callback_.IsEmpty()) {
+    this->callback_.Reset();
+  }
+}
+
+void NotificationData::Register(IsolateData* isolate_data) {
+  isolate_data->worker_notifications_.insert(this->id_);
+  workers_notifications_.emplace(this->id_, this);
+
+  uv_async_init(env_->event_loop(), &this->async_, [](uv_async_t* handle) {
+    reinterpret_cast<NotificationData*>(handle->data)->Execute();
+  });
+}
+
+void NotificationData::Unregister(IsolateData* isolate_data) {
+  uv_close(reinterpret_cast<uv_handle_t*>(&this->async_),
+           [](uv_handle_t* handle) {
+             NotificationData* notification =
+                 reinterpret_cast<NotificationData*>(handle->data);
+             delete notification;
+           });
+
+  // Wait for the uv_close callbacks to trigger
+  uv_run(isolate_data->event_loop(), UV_RUN_ONCE);
+
+  isolate_data->worker_notifications_.erase(this->id_);
+  workers_notifications_.erase(this->id_);
+}
+
+void NotificationData::Execute() {
+  this->env_->SetImmediate(
+      [this](Environment* env) {
+        v8::Isolate* isolate = this->env_->isolate();
+        this->callback_.Get(isolate)->Call(
+            isolate->GetCurrentContext(), Null(isolate), 0, nullptr);
+      },
+      CallbackFlags::kUnrefed);
+}
+
 namespace {
 
 // Return the MessagePort that is global for this Environment and communicates
@@ -1380,6 +1504,19 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
   }
 
   SetMethod(isolate, target, "getEnvMessagePort", GetEnvMessagePort);
+
+  SetMethod(isolate, target, "getNotifications", Worker::GetNotifications);
+  SetMethod(
+      isolate, target, "registerNotification", Worker::RegisterNotification);
+  SetMethod(isolate, target, "sendNotification", Worker::SendNotification);
+  SetMethod(isolate,
+            target,
+            "unregisterNotification",
+            Worker::UnregisterNotification);
+  SetMethod(isolate,
+            target,
+            "unregisterNotifications",
+            Worker::UnregisterNotifications);
 }
 
 void CreateWorkerPerContextProperties(Local<Object> target,
@@ -1458,6 +1595,11 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::CpuUsage);
   registry->Register(Worker::StartCpuProfile);
   registry->Register(Worker::StopCpuProfile);
+  registry->Register(Worker::GetNotifications);
+  registry->Register(Worker::RegisterNotification);
+  registry->Register(Worker::SendNotification);
+  registry->Register(Worker::UnregisterNotification);
+  registry->Register(Worker::UnregisterNotifications);
 }
 
 }  // anonymous namespace

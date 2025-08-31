@@ -654,6 +654,34 @@ this matches its values.
 
 If this is used in the main thread, its value is an empty object.
 
+## `worker.getNotifications()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Array<bigint>} A list of notifications registered in the current thread.
+
+Return the list of all notifications registered in the current thread via
+[`worker.registerNotification(callback)`](#workerregisternotificationcallback).
+
+## `worker.registerNotification(callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `callback` {Function} A function to execute when the notification is received.
+* Returns: {bigint} The notification ID
+
+Register a callback associated to a notification.
+
+A notification is a number which can be safely transferred and used in other threads to trigger
+the associated callback via [`sendNotification(id`)](#workersendnotificationid).
+
+The notification must be unregistered using [`unregisterNotification(id)`](#workerunregisternotificationid)
+or [`unregisterNotifications()`](#workerunregisternotifications).
+
 ## `worker.SHARE_ENV`
 
 <!-- YAML
@@ -684,6 +712,17 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
     console.log(process.env.SET_IN_WORKER);  // Prints 'foo'.
   });
 ```
+
+## `worker.sendNotification(id)`
+
+* `id` {bigint}: The notification ID
+
+Triggers the notification previously registered via [`worker.registerNotification(callback)`](#workerregisternotificationcallback).
+
+The callback in receiving thread will invoked via [`setImmediate`](./timers.md#setimmediatecallback-args).
+
+It will throw an error if the notification is not found.  It is safe to invoke a notification
+registered in the same thread.
 
 ## `worker.setEnvironmentData(key[, value])`
 
@@ -731,6 +770,27 @@ added: v24.6.0
 
 A string identifier for the current thread or null if the thread is not running.
 On the corresponding worker object (if there is any), it is available as [`worker.threadName`][].
+
+## `worker.unregisterNotification(id)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `id` {number}
+
+Unregister a notification previously registered with [`worker.registerNotification(callback)`](#workerregisternotificationcallback).
+
+It will throw an error if the notification is not found. The notification must be unregistered from the same
+worker thread that registered it.
+
+## `worker.unregisterNotifications()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Unregister all the notifications previously registered with [`worker.registerNotification(callback)`](#workerregisternotificationcallback).
 
 ## `worker.workerData`
 
