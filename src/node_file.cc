@@ -3245,8 +3245,8 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
         errorno, dereference ? "stat" : "lstat", nullptr, src.out());
   }
   auto dest_status =
-      dereference ? std::filesystem::symlink_status(dest_path, error_code)
-                  : std::filesystem::status(dest_path, error_code);
+      dereference ? std::filesystem::status(dest_path, error_code)
+                  : std::filesystem::symlink_status(dest_path, error_code);
 
   bool dest_exists = !error_code && dest_status.type() !=
                                         std::filesystem::file_type::not_found;
