@@ -1502,6 +1502,8 @@ changes:
   * `functionCoverage` {number} Require a minimum percent of covered functions. If code
     coverage does not reach the threshold specified, the process will exit with code `1`.
     **Default:** `0`.
+  * `hookSignal` {boolean} Configures the test runner to handle termination signals like `SIGINT` and  `SIGTERM`.
+    **Default:** `true`.
 * Returns: {TestsStream}
 
 **Note:** `shard` is used to horizontally parallelize test running across
