@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.20.4](https://github.com/nodejs/gyp-next/compare/v0.20.3...v0.20.4) (2025-08-25)
+
+
+### Bug Fixes
+
+* **cli:** remove duplicate usage ([#308](https://github.com/nodejs/gyp-next/issues/308)) ([0996f60](https://github.com/nodejs/gyp-next/commit/0996f60e9bc83ec9d7b31e39bebd23f8dc990130))
+* **docs:** Add running gyp via uv ([#306](https://github.com/nodejs/gyp-next/issues/306)) ([0e43f61](https://github.com/nodejs/gyp-next/commit/0e43f61da8154f9b460ccba9ce4c0a25d2383ac4))
+
 ## [0.20.3](https://github.com/nodejs/gyp-next/compare/v0.20.2...v0.20.3) (2025-08-20)
 
 

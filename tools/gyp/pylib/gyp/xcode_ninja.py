@@ -21,7 +21,7 @@ import gyp.generator.ninja
 
 
 def _WriteWorkspace(main_gyp, sources_gyp, params):
-    """ Create a workspace to wrap main and sources gyp paths. """
+    """Create a workspace to wrap main and sources gyp paths."""
     (build_file_root, build_file_ext) = os.path.splitext(main_gyp)
     workspace_path = build_file_root + ".xcworkspace"
     options = params["options"]
@@ -57,7 +57,7 @@ def _WriteWorkspace(main_gyp, sources_gyp, params):
 
 
 def _TargetFromSpec(old_spec, params):
-    """ Create fake target for xcode-ninja wrapper. """
+    """Create fake target for xcode-ninja wrapper."""
     # Determine ninja top level build dir (e.g. /path/to/out).
     ninja_toplevel = None
     jobs = 0
@@ -102,9 +102,9 @@ def _TargetFromSpec(old_spec, params):
                     new_xcode_settings[key] = old_xcode_settings[key]
 
             ninja_target["configurations"][config] = {}
-            ninja_target["configurations"][config][
-                "xcode_settings"
-            ] = new_xcode_settings
+            ninja_target["configurations"][config]["xcode_settings"] = (
+                new_xcode_settings
+            )
 
     ninja_target["mac_bundle"] = old_spec.get("mac_bundle", 0)
     ninja_target["mac_xctest_bundle"] = old_spec.get("mac_xctest_bundle", 0)
@@ -137,13 +137,13 @@ def _TargetFromSpec(old_spec, params):
 def IsValidTargetForWrapper(target_extras, executable_target_pattern, spec):
     """Limit targets for Xcode wrapper.
 
-  Xcode sometimes performs poorly with too many targets, so only include
-  proper executable targets, with filters to customize.
-  Arguments:
-    target_extras: Regular expression to always add, matching any target.
-    executable_target_pattern: Regular expression limiting executable targets.
-    spec: Specifications for target.
-  """
+    Xcode sometimes performs poorly with too many targets, so only include
+    proper executable targets, with filters to customize.
+    Arguments:
+      target_extras: Regular expression to always add, matching any target.
+      executable_target_pattern: Regular expression limiting executable targets.
+      spec: Specifications for target.
+    """
     target_name = spec.get("target_name")
     # Always include targets matching target_extras.
     if target_extras is not None and re.search(target_extras, target_name):
@@ -154,7 +154,6 @@ def IsValidTargetForWrapper(target_extras, executable_target_pattern, spec):
         spec.get("type", "") == "executable"
         and spec.get("product_extension", "") != "bundle"
     ):
-
         # If there is a filter and the target does not match, exclude the target.
         if executable_target_pattern is not None:
             if not re.search(executable_target_pattern, target_name):
@@ -166,14 +165,14 @@ def IsValidTargetForWrapper(target_extras, executable_target_pattern, spec):
 def CreateWrapper(target_list, target_dicts, data, params):
     """Initialize targets for the ninja wrapper.
 
-  This sets up the necessary variables in the targets to generate Xcode projects
-  that use ninja as an external builder.
-  Arguments:
-    target_list: List of target pairs: 'base/base.gyp:base'.
-    target_dicts: Dict of target properties keyed on target pair.
-    data: Dict of flattened build files keyed on gyp path.
-    params: Dict of global options for gyp.
-  """
+    This sets up the necessary variables in the targets to generate Xcode projects
+    that use ninja as an external builder.
+    Arguments:
+      target_list: List of target pairs: 'base/base.gyp:base'.
+      target_dicts: Dict of target properties keyed on target pair.
+      data: Dict of flattened build files keyed on gyp path.
+      params: Dict of global options for gyp.
+    """
     orig_gyp = params["build_files"][0]
     for gyp_name, gyp_dict in data.items():
         if gyp_name == orig_gyp:

@@ -5,7 +5,6 @@
 
 """gyptest.py -- test runner for GYP tests."""
 
-
 import argparse
 import os
 import platform

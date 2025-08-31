@@ -1303,7 +1303,7 @@ class NinjaWriter:
             ninja_file.build(gch, cmd, input, variables=[(var_name, lang_flag)])
 
     def WriteLink(self, spec, config_name, config, link_deps, compile_deps):
-        """Write out a link step. Fills out target.binary. """
+        """Write out a link step. Fills out target.binary."""
         if self.flavor != "mac" or len(self.archs) == 1:
             return self.WriteLinkForArch(
                 self.ninja, spec, config_name, config, link_deps, compile_deps
@@ -1347,7 +1347,7 @@ class NinjaWriter:
     def WriteLinkForArch(
         self, ninja_file, spec, config_name, config, link_deps, compile_deps, arch=None
     ):
-        """Write out a link step. Fills out target.binary. """
+        """Write out a link step. Fills out target.binary."""
         command = {
             "executable": "link",
             "loadable_module": "solink_module",
@@ -1755,11 +1755,9 @@ class NinjaWriter:
             + " && ".join([ninja_syntax.escape(command) for command in postbuilds])
         )
         command_string = (
-            commands
-            + "); G=$$?; "
+            commands + "); G=$$?; "
             # Remove the final output if any postbuild failed.
-            "((exit $$G) || rm -rf %s) " % output
-            + "&& exit $$G)"
+            "((exit $$G) || rm -rf %s) " % output + "&& exit $$G)"
         )
         if is_command_start:
             return "(" + command_string + " && "
@@ -1948,7 +1946,8 @@ class NinjaWriter:
                 )
             else:
                 rspfile_content = gyp.msvs_emulation.EncodeRspFileList(
-                    args, win_shell_flags.quote)
+                    args, win_shell_flags.quote
+                )
             command = (
                 "%s gyp-win-tool action-wrapper $arch " % sys.executable
                 + rspfile
@@ -2085,6 +2084,7 @@ def GetDefaultConcurrentLinks():
         return pool_size
 
     if sys.platform in ("win32", "cygwin"):
+
         class MEMORYSTATUSEX(ctypes.Structure):
             _fields_ = [
                 ("dwLength", ctypes.c_ulong),
@@ -2104,8 +2104,8 @@ def GetDefaultConcurrentLinks():
 
         # VS 2015 uses 20% more working set than VS 2013 and can consume all RAM
         # on a 64 GiB machine.
-        mem_limit = max(1, stat.ullTotalPhys // (5 * (2 ** 30)))  # total / 5GiB
-        hard_cap = max(1, int(os.environ.get("GYP_LINK_CONCURRENCY_MAX") or 2 ** 32))
+        mem_limit = max(1, stat.ullTotalPhys // (5 * (2**30)))  # total / 5GiB
+        hard_cap = max(1, int(os.environ.get("GYP_LINK_CONCURRENCY_MAX") or 2**32))
         return min(mem_limit, hard_cap)
     elif sys.platform.startswith("linux"):
         if os.path.exists("/proc/meminfo"):
@@ -2116,14 +2116,14 @@ def GetDefaultConcurrentLinks():
                     if not match:
                         continue
                     # Allow 8Gb per link on Linux because Gold is quite memory hungry
-                    return max(1, int(match.group(1)) // (8 * (2 ** 20)))
+                    return max(1, int(match.group(1)) // (8 * (2**20)))
         return 1
     elif sys.platform == "darwin":
         try:
             avail_bytes = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"]))
             # A static library debug build of Chromium's unit_tests takes ~2.7GB, so
             # 4GB per ld process allows for some more bloat.
-            return max(1, avail_bytes // (4 * (2 ** 30)))  # total / 4GB
+            return max(1, avail_bytes // (4 * (2**30)))  # total / 4GB
         except subprocess.CalledProcessError:
             return 1
     else:
@@ -2411,8 +2411,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
             "cc_s",
             description="CC $out",
             command=(
-                "$cc $defines $includes $cflags $cflags_c "
-                "$cflags_pch_c -c $in -o $out"
+                "$cc $defines $includes $cflags $cflags_c $cflags_pch_c -c $in -o $out"
             ),
         )
         master_ninja.rule(
@@ -2523,8 +2522,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
             "solink",
             description="SOLINK $lib",
             restat=True,
-            command=mtime_preserving_solink_base
-            % {"suffix": "@$link_file_list"},
+            command=mtime_preserving_solink_base % {"suffix": "@$link_file_list"},
             rspfile="$link_file_list",
             rspfile_content=(
                 "-Wl,--whole-archive $in $solibs -Wl,--no-whole-archive $libs"
@@ -2709,7 +2707,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
             command="$env %(python)s gyp-mac-tool compile-ios-framework-header-map "
             "$out $framework $in && $env %(python)s gyp-mac-tool "
             "copy-ios-framework-headers $framework $copy_headers"
-            % {'python': sys.executable},
+            % {"python": sys.executable},
         )
         master_ninja.rule(
             "mac_tool",
