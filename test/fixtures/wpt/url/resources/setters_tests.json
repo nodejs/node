@@ -1195,6 +1195,15 @@
                 "host": "test",
                 "hostname": "test"
             }
+        },
+        {
+            "href": "foo://path/to",
+            "new_value": ":80",
+            "expected": {
+                "href": "foo://path/to",
+                "host": "path",
+                "port": ""
+            }
         }
     ],
     "hostname": [
@@ -1909,6 +1918,20 @@
             "expected": {
                 "port": "4"
             }
+        },
+        {
+            "href": "https://domain.com:3000",
+            "new_value": "\n\t80\n\t80\n\t",
+            "expected": {
+                "port": "8080"
+            }
+        },
+        {
+            "href": "https://domain.com:3000",
+            "new_value": "\n\n\t\t",
+            "expected": {
+                "port": "3000"
+            }
         }
     ],
     "pathname": [
@@ -2190,6 +2213,14 @@
             "expected": {
                 "href": "http://example.net/%00",
                 "pathname": "/%00"
+            }
+        },
+        {
+            "href": "foo://path/to",
+            "new_value": "/..",
+            "expected": {
+                "href": "foo://path/",
+                "pathname": "/"
             }
         }
     ],
