@@ -5,7 +5,9 @@ static int finalize_count = 0;
 
 MyObject::MyObject() : env_(nullptr), wrapper_(nullptr) {}
 
-MyObject::~MyObject() { napi_delete_reference(static_cast<node_api_basic_env>(env_), wrapper_); }
+MyObject::~MyObject() {
+  napi_delete_reference(static_cast<node_api_basic_env>(env_), wrapper_);
+}
 
 void MyObject::Destructor(napi_env env,
                           void* nativeObject,
