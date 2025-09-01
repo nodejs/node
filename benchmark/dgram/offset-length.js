@@ -9,7 +9,7 @@ const PORT = common.PORT;
 // Keep it reasonably high (>10) otherwise you're benchmarking the speed of
 // event loop cycles more than anything else.
 const bench = common.createBenchmark(main, {
-  len: [1, 64, 256, 1024],
+  len: [1, 512, 1024],
   n: [100],
   type: ['send', 'recv'],
   dur: [5],
