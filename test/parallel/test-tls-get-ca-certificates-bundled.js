@@ -9,7 +9,7 @@ const tls = require('tls');
 const { assertIsCAArray } = require('../common/tls');
 
 const certs = tls.getCACertificates('bundled');
-assert.deepStrictEqual(certs, tls.getCACertificates({ type: 'bundled', format: 'pem' }));
+assert.deepStrictEqual(certs, tls.getCACertificates({ type: 'bundled' }));
 assertIsCAArray(certs);
 
 assert.deepStrictEqual(certs, tls.rootCertificates);
