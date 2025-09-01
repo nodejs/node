@@ -37,6 +37,7 @@
 #include <cstdlib>
 
 #include <string>
+#include <variant>
 #include <vector>
 
 struct sockaddr;
