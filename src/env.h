@@ -1049,8 +1049,8 @@ class Environment final : public MemoryRetainer {
 
   inline void RemoveHeapSnapshotNearHeapLimitCallback(size_t heap_limit);
 
-  v8::CpuProfilingResult StartCpuProfile(std::string_view name);
-  v8::CpuProfile* StopCpuProfile(std::string_view name);
+  v8::CpuProfilingResult StartCpuProfile();
+  v8::CpuProfile* StopCpuProfile(v8::ProfilerId profile_id);
 
   // Field identifiers for exit_info_
   enum ExitInfoField {
@@ -1250,7 +1250,7 @@ class Environment final : public MemoryRetainer {
       released_allocated_buffers_;
 
   v8::CpuProfiler* cpu_profiler_ = nullptr;
-  std::unordered_map<std::string, v8::ProfilerId> pending_profiles_;
+  std::vector<v8::ProfilerId> pending_profiles_;
 };
 
 }  // namespace node
