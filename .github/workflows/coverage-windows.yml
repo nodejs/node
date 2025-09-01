@@ -53,7 +53,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install deps
-        run: choco install nasm
+        run: choco install nasm -y
       - name: Environment Information
         run: npx envinfo
       - name: Build
