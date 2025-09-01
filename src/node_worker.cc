@@ -1399,8 +1399,8 @@ void NotificationData::Execute() {
   this->env_->SetImmediate(
       [this](Environment* env) {
         v8::Isolate* isolate = this->env_->isolate();
-        this->callback_.Get(isolate)->Call(
-            isolate->GetCurrentContext(), Null(isolate), 0, nullptr);
+        USE(this->callback_.Get(isolate)->Call(
+            isolate->GetCurrentContext(), Null(isolate), 0, nullptr));
       },
       CallbackFlags::kUnrefed);
 }

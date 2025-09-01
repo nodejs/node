@@ -660,6 +660,8 @@ If this is used in the main thread, its value is an empty object.
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 * Returns: {Array<bigint>} A list of notifications registered in the current thread.
 
 Return the list of all notifications registered in the current thread via
@@ -670,6 +672,8 @@ Return the list of all notifications registered in the current thread via
 <!-- YAML
 added: REPLACEME
 -->
+
+> Stability: 1 - Experimental
 
 * `callback` {Function} A function to execute when the notification is received.
 * Returns: {bigint} The notification ID
@@ -714,6 +718,12 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
 ```
 
 ## `worker.sendNotification(id)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
 
 * `id` {bigint}: The notification ID
 
@@ -777,6 +787,8 @@ On the corresponding worker object (if there is any), it is available as [`worke
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 * `id` {number}
 
 Unregister a notification previously registered with [`worker.registerNotification(callback)`](#workerregisternotificationcallback).
@@ -789,6 +801,8 @@ worker thread that registered it.
 <!-- YAML
 added: REPLACEME
 -->
+
+> Stability: 1 - Experimental
 
 Unregister all the notifications previously registered with [`worker.registerNotification(callback)`](#workerregisternotificationcallback).
 
