@@ -17,10 +17,15 @@ declare namespace InternalWorkerBinding {
     takeHeapSnapshot(): object;
     getHeapStatistics(): Promise<object>;
     cpuUsage(): Promise<object>;
-    startCpuProfile(name): Promise<object>;
+    startCpuProfile(): Promise<CPUProfileHandle>;
     loopIdleTime(): number;
     loopStartTime(): number;
   }
+}
+
+export interface CPUProfileHandle {
+  stop(): Promise<string>;
+  [Symbol.asyncDispose](): Promise<void>;
 }
 
 export interface WorkerBinding {
