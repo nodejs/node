@@ -119,8 +119,6 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::Module> module,
       v8::Local<v8::Object> meta);
 
-  static void HasTopLevelAwait(const v8::FunctionCallbackInfo<v8::Value>& args);
-
   v8::Local<v8::Context> context() const;
   v8::Maybe<bool> CheckUnsettledTopLevelAwait();
 
