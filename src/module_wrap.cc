@@ -22,6 +22,7 @@ using errors::TryCatchScope;
 using node::contextify::ContextifyContext;
 using v8::Array;
 using v8::ArrayBufferView;
+using v8::Boolean;
 using v8::Context;
 using v8::Data;
 using v8::EscapableHandleScope;
@@ -411,6 +412,13 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
         THROW_ERR_VM_MODULE_CACHED_DATA_REJECTED(
             realm, "cachedData buffer was rejected");
         try_catch.ReThrow();
+        return;
+      }
+
+      if (that->Set(context,
+                    realm->env()->has_top_level_await_string(),
+                    Boolean::New(isolate, module->HasTopLevelAwait()))
+              .IsNothing()) {
         return;
       }
 
@@ -999,27 +1007,6 @@ void ModuleWrap::IsGraphAsync(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(module->IsGraphAsync());
 }
 
-void ModuleWrap::HasTopLevelAwait(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  ModuleWrap* obj;
-  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
-
-  Local<Module> module = obj->module_.Get(isolate);
-
-  // Check if module is valid
-  if (module.IsEmpty()) {
-    args.GetReturnValue().Set(false);
-    return;
-  }
-
-  // For source text modules, check if the graph is async
-  // For synthetic modules, it's always false
-  bool has_top_level_await =
-      module->IsSourceTextModule() && module->IsGraphAsync();
-
-  args.GetReturnValue().Set(has_top_level_await);
-}
-
 void ModuleWrap::GetError(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   ModuleWrap* obj;
@@ -1443,8 +1430,6 @@ void ModuleWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetProtoMethodNoSideEffect(isolate, tpl, "getNamespace", GetNamespace);
   SetProtoMethodNoSideEffect(isolate, tpl, "getStatus", GetStatus);
   SetProtoMethodNoSideEffect(isolate, tpl, "isGraphAsync", IsGraphAsync);
-  SetProtoMethodNoSideEffect(
-      isolate, tpl, "hasTopLevelAwait", HasTopLevelAwait);
   SetProtoMethodNoSideEffect(isolate, tpl, "getError", GetError);
   SetConstructorFunction(isolate, target, "ModuleWrap", tpl);
   isolate_data->set_module_wrap_constructor_template(tpl);
@@ -1507,7 +1492,6 @@ void ModuleWrap::RegisterExternalReferences(
   registry->Register(GetStatus);
   registry->Register(GetError);
   registry->Register(IsGraphAsync);
-  registry->Register(HasTopLevelAwait);
 
   registry->Register(CreateRequiredModuleFacade);
 
