@@ -364,6 +364,9 @@ if (hasCrypto) {
   knownGlobals.add(globalThis.SubtleCrypto);
 }
 
+const { Worker } = require('node:worker_threads');
+knownGlobals.add(Worker);
+
 function allowGlobals(...allowlist) {
   for (const val of allowlist) {
     knownGlobals.add(val);
