@@ -922,7 +922,7 @@ assert.strictEqual(util.inspect({ __proto__: Date.prototype }), 'Date {}');
   testColorStyle('null', null);
   testColorStyle('string', 'test string');
   testColorStyle('date', new Date());
-  testColorStyle('regexp', /regexp/);
+  // RegExp now uses token-level highlighting; verified in a dedicated test file.
 }
 
 // An object with "hasOwnProperty" overwritten should not throw.

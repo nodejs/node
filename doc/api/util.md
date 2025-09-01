@@ -847,7 +847,7 @@ added: v0.3.0
 changes:
   - version:
     - REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXXXX
+    pr-url: https://github.com/nodejs/node/pull/59710
     description: The util.inspect.styles.regexp style is now a method that is
                  invoked for coloring the stringified regular expression.
   - version:
