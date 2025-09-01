@@ -121,6 +121,7 @@ class ModuleWrap : public BaseObject {
 
   v8::Local<v8::Context> context() const;
   v8::Maybe<bool> CheckUnsettledTopLevelAwait();
+  bool HasAsyncGraph();
 
   SET_MEMORY_INFO_NAME(ModuleWrap)
   SET_SELF_SIZE(ModuleWrap)
@@ -168,9 +169,7 @@ class ModuleWrap : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetModuleRequests(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void InstantiateSync(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EvaluateSync(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetNamespaceSync(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetModuleSourceObject(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetModuleSourceObject(
@@ -180,7 +179,7 @@ class ModuleWrap : public BaseObject {
   static void Instantiate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Evaluate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetNamespace(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsGraphAsync(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HasAsyncGraph(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetStatus(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetError(const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -219,6 +218,9 @@ class ModuleWrap : public BaseObject {
   contextify::ContextifyContext* contextify_context_ = nullptr;
   bool synthetic_ = false;
   bool linked_ = false;
+  // This depends on the module to be instantiated so it begins with a
+  // nullopt value.
+  std::optional<bool> has_async_graph_ = std::nullopt;
   int module_hash_;
 };
 
