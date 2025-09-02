@@ -35,11 +35,14 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
+using v8::JustVoid;
 using v8::Local;
 using v8::LocalVector;
+using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::NewStringType;
+using v8::Nothing;
 using v8::Null;
 using v8::Number;
 using v8::Object;
@@ -2017,6 +2020,20 @@ MaybeLocal<Name> StatementSync::ColumnNameToName(const int column) {
 
 void StatementSync::MemoryInfo(MemoryTracker* tracker) const {}
 
+Maybe<void> ExtractRowValues(Isolate* isolate,
+                             int num_cols,
+                             StatementSync* stmt,
+                             LocalVector<Value>* row_values) {
+  row_values->clear();
+  row_values->reserve(num_cols);
+  for (int i = 0; i < num_cols; ++i) {
+    Local<Value> val;
+    if (!stmt->ColumnToValue(i).ToLocal(&val)) return Nothing<void>();
+    row_values->emplace_back(val);
+  }
+  return JustVoid();
+}
+
 void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
@@ -2034,24 +2051,19 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   int num_cols = sqlite3_column_count(stmt->statement_);
   LocalVector<Value> rows(isolate);
+  LocalVector<Value> row_values(isolate);
+  LocalVector<Name> row_keys(isolate);
 
-  if (stmt->return_arrays_) {
-    while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
-      LocalVector<Value> array_values(isolate);
-      array_values.reserve(num_cols);
-      for (int i = 0; i < num_cols; ++i) {
-        Local<Value> val;
-        if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
-        array_values.emplace_back(val);
-      }
+  while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
+    auto maybe_row_values =
+        ExtractRowValues(env->isolate(), num_cols, stmt, &row_values);
+    if (maybe_row_values.IsNothing()) return;
+
+    if (stmt->return_arrays_) {
       Local<Array> row_array =
-          Array::New(isolate, array_values.data(), array_values.size());
+          Array::New(isolate, row_values.data(), row_values.size());
       rows.emplace_back(row_array);
-    }
-  } else {
-    LocalVector<Name> row_keys(isolate);
-
-    while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
+    } else {
       if (row_keys.size() == 0) {
         row_keys.reserve(num_cols);
         for (int i = 0; i < num_cols; ++i) {
@@ -2059,14 +2071,6 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
           if (!stmt->ColumnNameToName(i).ToLocal(&key)) return;
           row_keys.emplace_back(key);
         }
-      }
-
-      LocalVector<Value> row_values(isolate);
-      row_values.reserve(num_cols);
-      for (int i = 0; i < num_cols; ++i) {
-        Local<Value> val;
-        if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
-        row_values.emplace_back(val);
       }
 
       DCHECK_EQ(row_keys.size(), row_values.size());
@@ -2546,28 +2550,21 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
 
   int num_cols = sqlite3_column_count(iter->stmt_->statement_);
   Local<Value> row_value;
+  LocalVector<Name> row_keys(isolate);
+  LocalVector<Value> row_values(isolate);
+
+  auto maybe_row_values =
+      ExtractRowValues(isolate, num_cols, iter->stmt_.get(), &row_values);
+  if (maybe_row_values.IsNothing()) return;
 
   if (iter->stmt_->return_arrays_) {
-    LocalVector<Value> array_values(isolate);
-    array_values.reserve(num_cols);
-    for (int i = 0; i < num_cols; ++i) {
-      Local<Value> val;
-      if (!iter->stmt_->ColumnToValue(i).ToLocal(&val)) return;
-      array_values.emplace_back(val);
-    }
-    row_value = Array::New(isolate, array_values.data(), array_values.size());
+    row_value = Array::New(isolate, row_values.data(), row_values.size());
   } else {
-    LocalVector<Name> row_keys(isolate);
-    LocalVector<Value> row_values(isolate);
     row_keys.reserve(num_cols);
-    row_values.reserve(num_cols);
     for (int i = 0; i < num_cols; ++i) {
       Local<Name> key;
       if (!iter->stmt_->ColumnNameToName(i).ToLocal(&key)) return;
-      Local<Value> val;
-      if (!iter->stmt_->ColumnToValue(i).ToLocal(&val)) return;
       row_keys.emplace_back(key);
-      row_values.emplace_back(val);
     }
 
     DCHECK_EQ(row_keys.size(), row_values.size());
