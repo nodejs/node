@@ -4209,7 +4209,9 @@ Thrown:
 ## `process.threadCpuUsage([previousValue])`
 
 <!-- YAML
-added: v23.9.0
+added:
+ - v23.9.0
+ - v22.19.0
 -->
 
 * `previousValue` {Object} A previous return value from calling

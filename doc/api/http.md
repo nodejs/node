@@ -117,7 +117,7 @@ http.get({
 added: v0.3.4
 changes:
   - version:
-    - REPLACEME
+    - v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59315
     description: Add support for `agentKeepAliveTimeoutBuffer`.
   - version:
@@ -1972,7 +1972,9 @@ affects new connections to the server, not any existing connections.
 ### `server.keepAliveTimeoutBuffer`
 
 <!-- YAML
-added: v24.6.0
+added:
+ - v24.6.0
+ - v22.19.0
 -->
 
 * Type: {number} Timeout in milliseconds. **Default:** `1000` (1 second).
@@ -2641,7 +2643,7 @@ will check whether `Content-Length` and the length of the body which has
 been transmitted are equal or not.
 
 Attempting to set a header field name or value that contains invalid characters
-will result in a \[`Error`]\[] being thrown.
+will result in a [`TypeError`][] being thrown.
 
 ### `response.writeProcessing()`
 

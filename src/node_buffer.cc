@@ -1037,8 +1037,11 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
     if (needle_data == nullptr) {
       return args.GetReturnValue().Set(-1);
     }
-    needle->WriteOneByte(
-        isolate, needle_data, 0, needle_length, String::NO_NULL_TERMINATION);
+    StringBytes::Write(isolate,
+                       reinterpret_cast<char*>(needle_data),
+                       needle_length,
+                       needle,
+                       enc);
 
     result = nbytes::SearchString(reinterpret_cast<const uint8_t*>(haystack),
                                   haystack_length,
@@ -1302,11 +1305,7 @@ static void Btoa(const FunctionCallbackInfo<Value>& args) {
         simdutf::binary_to_base64(ext->data(), ext->length(), buffer.out());
   } else if (input->IsOneByte()) {
     MaybeStackBuffer<uint8_t> stack_buf(input->Length());
-    input->WriteOneByte(env->isolate(),
-                        stack_buf.out(),
-                        0,
-                        input->Length(),
-                        String::NO_NULL_TERMINATION);
+    input->WriteOneByteV2(env->isolate(), 0, input->Length(), stack_buf.out());
 
     size_t expected_length =
         simdutf::base64_length_from_binary(input->Length());
@@ -1362,11 +1361,8 @@ static void Atob(const FunctionCallbackInfo<Value>& args) {
         ext->data(), ext->length(), buffer.out(), simdutf::base64_default);
   } else if (input->IsOneByte()) {
     MaybeStackBuffer<uint8_t> stack_buf(input->Length());
-    input->WriteOneByte(args.GetIsolate(),
-                        stack_buf.out(),
-                        0,
-                        input->Length(),
-                        String::NO_NULL_TERMINATION);
+    input->WriteOneByteV2(
+        args.GetIsolate(), 0, input->Length(), stack_buf.out());
     const char* data = reinterpret_cast<const char*>(*stack_buf);
     size_t expected_length =
         simdutf::maximal_binary_length_from_base64(data, input->Length());

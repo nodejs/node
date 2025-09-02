@@ -708,7 +708,9 @@ imported from the same path.
 
 <!-- YAML
 changes:
-  - version: v24.5.0
+  - version:
+     - v24.5.0
+     - v22.19.0
     pr-url: https://github.com/nodejs/node/pull/57038
     description: Wasm modules no longer require the `--experimental-wasm-modules` flag.
 -->
@@ -759,7 +761,9 @@ const instance = await WebAssembly.instantiate(dynamicLibrary, importObject);
 > Stability: 1.2 - Release candidate
 
 <!-- YAML
-added: v24.5.0
+added:
+ - v24.5.0
+ - v22.19.0
 -->
 
 When importing WebAssembly modules, the
@@ -832,7 +836,9 @@ would provide the exports interface for the instantiation of `library.wasm`.
 ### Reserved Wasm Namespaces
 
 <!-- YAML
-added: v24.5.0
+added:
+ - v24.5.0
+ - v22.19.0
 -->
 
 When importing WebAssembly module instances, they cannot use import module

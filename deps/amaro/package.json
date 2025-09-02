@@ -1,6 +1,6 @@
 {
 	"name": "amaro",
-	"version": "1.1.1",
+	"version": "1.1.2",
 	"description": "Node.js TypeScript wrapper",
 	"license": "MIT",
 	"type": "commonjs",

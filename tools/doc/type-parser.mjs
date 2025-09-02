@@ -105,6 +105,7 @@ const customTypesMap = {
   'HkdfParams': 'webcrypto.html#class-hkdfparams',
   'KeyAlgorithm': 'webcrypto.html#class-keyalgorithm',
   'Pbkdf2Params': 'webcrypto.html#class-pbkdf2params',
+  'Argon2Params': 'webcrypto.html#class-argon2params',
   'HmacKeyAlgorithm': 'webcrypto.html#class-hmackeyalgorithm',
   'HmacKeyGenParams': 'webcrypto.html#class-hmackeygenparams',
   'AesKeyAlgorithm': 'webcrypto.html#class-aeskeyalgorithm',
@@ -172,6 +173,7 @@ const customTypesMap = {
   'ClientHttp2Session': 'http2.html#class-clienthttp2session',
   'ClientHttp2Stream': 'http2.html#class-clienthttp2stream',
   'HTTP/2 Headers Object': 'http2.html#headers-object',
+  'HTTP/2 Raw Headers': 'http2.html#raw-headers',
   'HTTP/2 Settings Object': 'http2.html#settings-object',
   'http2.Http2ServerRequest': 'http2.html#class-http2http2serverrequest',
   'http2.Http2ServerResponse':
@@ -342,6 +344,7 @@ const customTypesMap = {
   'Lock': 'worker_threads.html#class-lock',
   'LockManager': 'worker_threads.html#class-lockmanager',
   'LockManagerSnapshot': 'https://developer.mozilla.org/en-US/docs/Web/API/LockManagerSnapshot',
+  'CPUProfileHandle': 'v8.html#class-cpuprofilehandle',
 };
 
 const arrayPart = /(?:\[])+$/;

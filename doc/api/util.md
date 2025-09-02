@@ -742,7 +742,9 @@ fs.access('file/that/does/not/exist', (err) => {
 ## `util.setTraceSigInt(enable)`
 
 <!-- YAML
-added: v24.6.0
+added:
+ - v24.6.0
+ - v22.19.0
 -->
 
 * `enable` {boolean}

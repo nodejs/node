@@ -1085,6 +1085,10 @@ Type: End-of-Life
 The `util.isDate()` API has been removed. Please use
 `arg instanceof Date` instead.
 
+Also for stronger approaches, consider using:
+`Date.prototype.toString.call(arg) === '[object Date]' && !isNaN(arg)`.
+This can also be used in a `try/catch` block to handle invalid date objects.
+
 ### DEP0048: `util.isError()`
 
 <!-- YAML
@@ -1109,9 +1113,7 @@ changes:
 
 Type: End-of-Life
 
-The `util.isError()` API has been removed. Please use
-`Object.prototype.toString(arg) === '[object Error]' || arg instanceof Error`
-instead.
+The `util.isError()` API has been removed. Please use `Error.isError(arg)`.
 
 ### DEP0049: `util.isFunction()`
 
@@ -1272,9 +1274,7 @@ changes:
 
 Type: End-of-Life
 
-The `util.isPrimitive()` API has been removed. Please use
-`arg === null || (typeof arg !=='object' && typeof arg !== 'function')`
-instead.
+The `util.isPrimitive()` API has been removed. Please use `Object(arg) !== arg` instead.
 
 ### DEP0055: `util.isRegExp()`
 
@@ -4086,7 +4086,9 @@ Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLeng
 
 <!-- YAML
 changes:
-  - version: v24.6.0
+  - version:
+     - v24.6.0
+     - v22.19.0
     pr-url: https://github.com/nodejs/node/pull/59293
     description: Documentation-only deprecation.
 -->

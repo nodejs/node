@@ -1775,7 +1775,8 @@ JavaScript code.
 
 <!-- YAML
 added:
-- v24.6.0
+ - v24.6.0
+ - v22.19.0
 -->
 
 * Returns: {Promise}
@@ -1956,6 +1957,49 @@ If the `resourceLimits` option was passed to the [`Worker`][] constructor,
 this matches its values.
 
 If the worker has stopped, the return value is an empty object.
+
+### `worker.startCpuProfile()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise}
+
+Starting a CPU profile then return a Promise that fulfills with an error
+or an `CPUProfileHandle` object. This API supports `await using` syntax.
+
+```cjs
+const { Worker } = require('node:worker_threads');
+
+const worker = new Worker(`
+  const { parentPort } = require('worker_threads');
+  parentPort.on('message', () => {});
+  `, { eval: true });
+
+worker.on('online', async () => {
+  const handle = await worker.startCpuProfile();
+  const profile = await handle.stop();
+  console.log(profile);
+  worker.terminate();
+});
+```
+
+`await using` example.
+
+```cjs
+const { Worker } = require('node::worker_threads');
+
+const w = new Worker(`
+  const { parentPort } = require('worker_threads');
+  parentPort.on('message', () => {});
+  `, { eval: true });
+
+w.on('online', async () => {
+  // Stop profile automatically when return and profile will be discarded
+  await using handle = await w.startCpuProfile();
+});
+```
 
 ### `worker.stderr`
 

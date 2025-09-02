@@ -121,6 +121,18 @@
   V(crypto_ml_kem_512_string, "ml-kem-512")                                    \
   V(crypto_ml_kem_768_string, "ml-kem-768")                                    \
   V(crypto_ml_kem_1024_string, "ml-kem-1024")                                  \
+  V(crypto_slh_dsa_sha2_128f_string, "slh-dsa-sha2-128f")                      \
+  V(crypto_slh_dsa_sha2_128s_string, "slh-dsa-sha2-128s")                      \
+  V(crypto_slh_dsa_sha2_192f_string, "slh-dsa-sha2-192f")                      \
+  V(crypto_slh_dsa_sha2_192s_string, "slh-dsa-sha2-192s")                      \
+  V(crypto_slh_dsa_sha2_256f_string, "slh-dsa-sha2-256f")                      \
+  V(crypto_slh_dsa_sha2_256s_string, "slh-dsa-sha2-256s")                      \
+  V(crypto_slh_dsa_shake_128f_string, "slh-dsa-shake-128f")                    \
+  V(crypto_slh_dsa_shake_128s_string, "slh-dsa-shake-128s")                    \
+  V(crypto_slh_dsa_shake_192f_string, "slh-dsa-shake-192f")                    \
+  V(crypto_slh_dsa_shake_192s_string, "slh-dsa-shake-192s")                    \
+  V(crypto_slh_dsa_shake_256f_string, "slh-dsa-shake-256f")                    \
+  V(crypto_slh_dsa_shake_256s_string, "slh-dsa-shake-256s")                    \
   V(crypto_x25519_string, "x25519")                                            \
   V(crypto_x448_string, "x448")                                                \
   V(crypto_rsa_string, "rsa")                                                  \
@@ -196,6 +208,7 @@
   V(gid_string, "gid")                                                         \
   V(groups_string, "groups")                                                   \
   V(has_regexp_groups_string, "hasRegExpGroups")                               \
+  V(has_top_level_await_string, "hasTopLevelAwait")                            \
   V(hash_string, "hash")                                                       \
   V(h2_string, "h2")                                                           \
   V(handle_string, "handle")                                                   \
@@ -486,6 +499,7 @@
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
   V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(write_wrap_template, v8::ObjectTemplate)                                   \
+  V(worker_cpu_profile_taker_template, v8::ObjectTemplate)                     \
   V(worker_cpu_usage_taker_template, v8::ObjectTemplate)                       \
   V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)                   \
   V(worker_heap_statistics_taker_template, v8::ObjectTemplate)                 \

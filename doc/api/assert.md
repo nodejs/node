@@ -220,7 +220,9 @@ try {
 ## Class: `assert.Assert`
 
 <!-- YAML
-added: v24.6.0
+added:
+ - v24.6.0
+ - v22.19.0
 -->
 
 The `Assert` class allows creating independent assertion instances with custom options.

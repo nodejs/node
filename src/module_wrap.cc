@@ -22,6 +22,7 @@ using errors::TryCatchScope;
 using node::contextify::ContextifyContext;
 using v8::Array;
 using v8::ArrayBufferView;
+using v8::Boolean;
 using v8::Context;
 using v8::Data;
 using v8::EscapableHandleScope;
@@ -70,6 +71,25 @@ inline bool DataIsString(Local<Data> data) {
 void ModuleCacheKey::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("specifier", specifier);
   tracker->TrackField("import_attributes", import_attributes);
+}
+
+std::string ModuleCacheKey::ToString() const {
+  std::string result = "ModuleCacheKey(\"" + specifier + "\"";
+  if (!import_attributes.empty()) {
+    result += ", {";
+    bool first = true;
+    for (const auto& attr : import_attributes) {
+      if (first) {
+        first = false;
+      } else {
+        result += ", ";
+      }
+      result += attr.first + ": " + attr.second;
+    }
+    result += "}";
+  }
+  result += ")";
+  return result;
 }
 
 template <int elements_per_attribute>
@@ -396,6 +416,13 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
       }
 
       if (that->Set(context,
+                    realm->env()->has_top_level_await_string(),
+                    Boolean::New(isolate, module->HasTopLevelAwait()))
+              .IsNothing()) {
+        return;
+      }
+
+      if (that->Set(context,
                     realm->env()->source_url_string(),
                     module->GetUnboundModuleScript()->GetSourceURL())
               .IsNothing()) {
@@ -605,6 +632,8 @@ void ModuleWrap::GetModuleRequests(const FunctionCallbackInfo<Value>& args) {
 // moduleWrap.link(moduleWraps)
 void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
+  Realm* realm = Realm::GetCurrent(args);
+  Local<Context> context = realm->context();
 
   ModuleWrap* dependent;
   ASSIGN_OR_RETURN_UNWRAP(&dependent, args.This());
@@ -615,6 +644,30 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
       dependent->module_.Get(isolate)->GetModuleRequests();
   Local<Array> modules = args[0].As<Array>();
   CHECK_EQ(modules->Length(), static_cast<uint32_t>(requests->Length()));
+
+  for (int i = 0; i < requests->Length(); i++) {
+    ModuleCacheKey module_cache_key = ModuleCacheKey::From(
+        context, requests->Get(context, i).As<ModuleRequest>());
+    DCHECK(dependent->resolve_cache_.contains(module_cache_key));
+
+    Local<Value> module_i;
+    Local<Value> module_cache_i;
+    uint32_t coalesced_index = dependent->resolve_cache_[module_cache_key];
+    if (!modules->Get(context, i).ToLocal(&module_i) ||
+        !modules->Get(context, coalesced_index).ToLocal(&module_cache_i) ||
+        !module_i->StrictEquals(module_cache_i)) {
+      // If the module is different from the one of the same request, throw an
+      // error.
+      THROW_ERR_MODULE_LINK_MISMATCH(
+          realm->env(),
+          "Module request '%s' at index %d must be linked "
+          "to the same module requested at index %d",
+          module_cache_key.ToString(),
+          i,
+          coalesced_index);
+      return;
+    }
+  }
 
   args.This()->SetInternalField(kLinkedRequestsSlot, modules);
   dependent->linked_ = true;
@@ -627,6 +680,12 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
   Local<Context> context = obj->context();
   Local<Module> module = obj->module_.Get(isolate);
+
+  if (!obj->IsLinked()) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(realm->env(), "module is not linked");
+    return;
+  }
+
   TryCatchScope try_catch(realm->env());
   USE(module->InstantiateModule(
       context, ResolveModuleCallback, ResolveSourceCallback));
@@ -946,27 +1005,6 @@ void ModuleWrap::IsGraphAsync(const FunctionCallbackInfo<Value>& args) {
   Local<Module> module = obj->module_.Get(isolate);
 
   args.GetReturnValue().Set(module->IsGraphAsync());
-}
-
-void ModuleWrap::HasTopLevelAwait(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  ModuleWrap* obj;
-  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
-
-  Local<Module> module = obj->module_.Get(isolate);
-
-  // Check if module is valid
-  if (module.IsEmpty()) {
-    args.GetReturnValue().Set(false);
-    return;
-  }
-
-  // For source text modules, check if the graph is async
-  // For synthetic modules, it's always false
-  bool has_top_level_await =
-      module->IsSourceTextModule() && module->IsGraphAsync();
-
-  args.GetReturnValue().Set(has_top_level_await);
 }
 
 void ModuleWrap::GetError(const FunctionCallbackInfo<Value>& args) {
@@ -1392,8 +1430,6 @@ void ModuleWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetProtoMethodNoSideEffect(isolate, tpl, "getNamespace", GetNamespace);
   SetProtoMethodNoSideEffect(isolate, tpl, "getStatus", GetStatus);
   SetProtoMethodNoSideEffect(isolate, tpl, "isGraphAsync", IsGraphAsync);
-  SetProtoMethodNoSideEffect(
-      isolate, tpl, "hasTopLevelAwait", HasTopLevelAwait);
   SetProtoMethodNoSideEffect(isolate, tpl, "getError", GetError);
   SetConstructorFunction(isolate, target, "ModuleWrap", tpl);
   isolate_data->set_module_wrap_constructor_template(tpl);
@@ -1456,7 +1492,6 @@ void ModuleWrap::RegisterExternalReferences(
   registry->Register(GetStatus);
   registry->Register(GetError);
   registry->Register(IsGraphAsync);
-  registry->Register(HasTopLevelAwait);
 
   registry->Register(CreateRequiredModuleFacade);
 

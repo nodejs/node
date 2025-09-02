@@ -48,6 +48,8 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_CLOSED_MESSAGE_PORT, Error)                                            \
   V(ERR_CONSTRUCT_CALL_REQUIRED, TypeError)                                    \
   V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                     \
+  V(ERR_CPU_PROFILE_NOT_STARTED, Error)                                        \
+  V(ERR_CPU_PROFILE_TOO_MANY, Error)                                           \
   V(ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED, Error)                             \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, Error)                                   \
   V(ERR_CRYPTO_INVALID_ARGON2_PARAMS, TypeError)                               \
@@ -108,6 +110,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_MISSING_PASSPHRASE, TypeError)                                         \
   V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                    \
   V(ERR_MODULE_NOT_FOUND, Error)                                               \
+  V(ERR_MODULE_LINK_MISMATCH, TypeError)                                       \
   V(ERR_NON_CONTEXT_AWARE_DISABLED, Error)                                     \
   V(ERR_OPERATION_FAILED, TypeError)                                           \
   V(ERR_OPTIONS_BEFORE_BOOTSTRAPPING, Error)                                   \

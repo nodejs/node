@@ -767,6 +767,8 @@ maintaining the Node.js project.
   **Akhil Marsonya** <<akhil.marsonya27@gmail.com>> (he/him)
 * [meixg](https://github.com/meixg) -
   **Xuguang Mei** <<meixuguang@gmail.com>> (he/him)
+* [milesguicent](https://github.com/milesguicent) -
+  **Miles Guicent** <<guicent@pm.me>> (he/him)
 * [preveen-stack](https://github.com/preveen-stack) -
   **Preveen Padmanabhan** <<wide4head@gmail.com>> (he/him)
 * [RaisinTen](https://github.com/RaisinTen) -

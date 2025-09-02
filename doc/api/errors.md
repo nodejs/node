@@ -826,6 +826,36 @@ when an error occurs (and is caught) during the creation of the
 context, for example, when the allocation fails or the maximum call stack
 size is reached when the context is created.
 
+<a id="ERR_CPU_PROFILE_ALREADY_STARTED"></a>
+
+### `ERR_CPU_PROFILE_ALREADY_STARTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The CPU profile with the given name is already started.
+
+<a id="ERR_CPU_PROFILE_NOT_STARTED"></a>
+
+### `ERR_CPU_PROFILE_NOT_STARTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The CPU profile with the given name is not started.
+
+<a id="ERR_CPU_PROFILE_TOO_MANY"></a>
+
+### `ERR_CPU_PROFILE_TOO_MANY`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+There are too many CPU profiles being collected.
+
 <a id="ERR_CRYPTO_ARGON2_NOT_SUPPORTED"></a>
 
 ### `ERR_CRYPTO_ARGON2_NOT_SUPPORTED`
@@ -1070,7 +1100,7 @@ Key's Asymmetric Key Type is not registered for use in the
 ### `ERR_CRYPTO_KEM_NOT_SUPPORTED`
 
 <!-- YAML
-added: REPLACEME
+added: v24.7.0
 -->
 
 Attempted to use KEM operations while Node.js was not compiled with
@@ -2284,6 +2314,13 @@ An attempt was made to read an encrypted key without specifying a passphrase.
 The V8 platform used by this instance of Node.js does not support creating
 Workers. This is caused by lack of embedder support for Workers. In particular,
 this error will not occur with standard builds of Node.js.
+
+<a id="ERR_MODULE_LINK_MISMATCH"></a>
+
+### `ERR_MODULE_LINK_MISMATCH`
+
+A module can not be linked because the same module requests in it are not
+resolved to the same module.
 
 <a id="ERR_MODULE_NOT_FOUND"></a>
 

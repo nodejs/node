@@ -606,7 +606,7 @@ HTTP request has failed to load.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.7.0
 -->
 
 * `params` {Object}
@@ -620,7 +620,7 @@ a WebSocket connection has been initiated.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.7.0
 -->
 
 * `params` {Object}
@@ -634,7 +634,7 @@ This event indicates that the WebSocket handshake response has been received.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.7.0
 -->
 
 * `params` {Object}
@@ -649,6 +649,7 @@ This event indicates that a WebSocket connection has been closed.
 <!-- YAML
 added:
   - v24.5.0
+  - v22.19.0
 -->
 
 > Stability: 1.1 - Active Development

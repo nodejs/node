@@ -1077,6 +1077,7 @@ Previously gated the entire `import.meta.resolve` feature.
 <!-- YAML
 added:
   - v24.5.0
+  - v22.19.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -2651,7 +2652,7 @@ The destination for the corresponding test reporter. See the documentation on
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.7.0
 -->
 
 A path to a file allowing the test runner to persist the state of the test
@@ -3714,7 +3715,9 @@ When both are set, `--use-env-proxy` takes precedence.
 ### `NODE_USE_SYSTEM_CA=1`
 
 <!-- YAML
-added: v24.6.0
+added:
+ - v24.6.0
+ - v22.19.0
 -->
 
 Node.js uses the trusted CA certificates present in the system store along with

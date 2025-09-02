@@ -422,10 +422,6 @@ void Parse(
 // TODO(addaleax): Make that unnecessary.
 
 DebugOptionsParser::DebugOptionsParser() {
-#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  if (sea::IsSingleExecutable()) return;
-#endif
-
   AddOption("--inspect-port",
             "set host:port for inspector",
             &DebugOptions::host_port,

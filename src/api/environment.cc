@@ -1,4 +1,7 @@
 #include <cstdlib>
+#if HAVE_OPENSSL
+#include "crypto/crypto_util.h"
+#endif  // HAVE_OPENSSL
 #include "env_properties.h"
 #include "node.h"
 #include "node_builtins.h"
@@ -1004,6 +1007,11 @@ void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code) {
   // in node_v8_platform-inl.h
   uv_library_shutdown();
   DisposePlatform();
+
+#if HAVE_OPENSSL
+  crypto::CleanupCachedRootCertificates();
+#endif  // HAVE_OPENSSL
+
   Exit(exit_code);
 }
 

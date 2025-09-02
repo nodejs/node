@@ -28,7 +28,6 @@ not be able to find the header file directories described in the generated
 CMakeLists.txt file.
 """
 
-
 import multiprocessing
 import os
 import signal
@@ -97,11 +96,11 @@ def Linkable(filename):
 def NormjoinPathForceCMakeSource(base_path, rel_path):
     """Resolves rel_path against base_path and returns the result.
 
-  If rel_path is an absolute path it is returned unchanged.
-  Otherwise it is resolved against base_path and normalized.
-  If the result is a relative path, it is forced to be relative to the
-  CMakeLists.txt.
-  """
+    If rel_path is an absolute path it is returned unchanged.
+    Otherwise it is resolved against base_path and normalized.
+    If the result is a relative path, it is forced to be relative to the
+    CMakeLists.txt.
+    """
     if os.path.isabs(rel_path):
         return rel_path
     if any(rel_path.startswith(var) for var in FULL_PATH_VARS):
@@ -114,10 +113,10 @@ def NormjoinPathForceCMakeSource(base_path, rel_path):
 
 def NormjoinPath(base_path, rel_path):
     """Resolves rel_path against base_path and returns the result.
-  TODO: what is this really used for?
-  If rel_path begins with '$' it is returned unchanged.
-  Otherwise it is resolved against base_path if relative, then normalized.
-  """
+    TODO: what is this really used for?
+    If rel_path begins with '$' it is returned unchanged.
+    Otherwise it is resolved against base_path if relative, then normalized.
+    """
     if rel_path.startswith("$") and not rel_path.startswith("${configuration}"):
         return rel_path
     return os.path.normpath(os.path.join(base_path, rel_path))
@@ -126,19 +125,19 @@ def NormjoinPath(base_path, rel_path):
 def CMakeStringEscape(a):
     """Escapes the string 'a' for use inside a CMake string.
 
-  This means escaping
-  '\' otherwise it may be seen as modifying the next character
-  '"' otherwise it will end the string
-  ';' otherwise the string becomes a list
+    This means escaping
+    '\' otherwise it may be seen as modifying the next character
+    '"' otherwise it will end the string
+    ';' otherwise the string becomes a list
 
-  The following do not need to be escaped
-  '#' when the lexer is in string state, this does not start a comment
+    The following do not need to be escaped
+    '#' when the lexer is in string state, this does not start a comment
 
-  The following are yet unknown
-  '$' generator variables (like ${obj}) must not be escaped,
-      but text $ should be escaped
-      what is wanted is to know which $ come from generator variables
-  """
+    The following are yet unknown
+    '$' generator variables (like ${obj}) must not be escaped,
+        but text $ should be escaped
+        what is wanted is to know which $ come from generator variables
+    """
     return a.replace("\\", "\\\\").replace(";", "\\;").replace('"', '\\"')
 
 
@@ -237,25 +236,25 @@ cmake_target_type_from_gyp_target_type = {
 def StringToCMakeTargetName(a):
     """Converts the given string 'a' to a valid CMake target name.
 
-  All invalid characters are replaced by '_'.
-  Invalid for cmake: ' ', '/', '(', ')', '"'
-  Invalid for make: ':'
-  Invalid for unknown reasons but cause failures: '.'
-  """
+    All invalid characters are replaced by '_'.
+    Invalid for cmake: ' ', '/', '(', ')', '"'
+    Invalid for make: ':'
+    Invalid for unknown reasons but cause failures: '.'
+    """
     return a.translate(_maketrans(' /():."', "_______"))
 
 
 def WriteActions(target_name, actions, extra_sources, extra_deps, path_to_gyp, output):
     """Write CMake for the 'actions' in the target.
 
-  Args:
-    target_name: the name of the CMake target being generated.
-    actions: the Gyp 'actions' dict for this target.
-    extra_sources: [(<cmake_src>, <src>)] to append with generated source files.
-    extra_deps: [<cmake_target>] to append with generated targets.
-    path_to_gyp: relative path from CMakeLists.txt being generated to
-        the Gyp file in which the target being generated is defined.
-  """
+    Args:
+      target_name: the name of the CMake target being generated.
+      actions: the Gyp 'actions' dict for this target.
+      extra_sources: [(<cmake_src>, <src>)] to append with generated source files.
+      extra_deps: [<cmake_target>] to append with generated targets.
+      path_to_gyp: relative path from CMakeLists.txt being generated to
+          the Gyp file in which the target being generated is defined.
+    """
     for action in actions:
         action_name = StringToCMakeTargetName(action["action_name"])
         action_target_name = f"{target_name}__{action_name}"
@@ -337,14 +336,14 @@ def NormjoinRulePathForceCMakeSource(base_path, rel_path, rule_source):
 def WriteRules(target_name, rules, extra_sources, extra_deps, path_to_gyp, output):
     """Write CMake for the 'rules' in the target.
 
-  Args:
-    target_name: the name of the CMake target being generated.
-    actions: the Gyp 'actions' dict for this target.
-    extra_sources: [(<cmake_src>, <src>)] to append with generated source files.
-    extra_deps: [<cmake_target>] to append with generated targets.
-    path_to_gyp: relative path from CMakeLists.txt being generated to
-        the Gyp file in which the target being generated is defined.
-  """
+    Args:
+      target_name: the name of the CMake target being generated.
+      actions: the Gyp 'actions' dict for this target.
+      extra_sources: [(<cmake_src>, <src>)] to append with generated source files.
+      extra_deps: [<cmake_target>] to append with generated targets.
+      path_to_gyp: relative path from CMakeLists.txt being generated to
+          the Gyp file in which the target being generated is defined.
+    """
     for rule in rules:
         rule_name = StringToCMakeTargetName(target_name + "__" + rule["rule_name"])
 
@@ -455,13 +454,13 @@ def WriteRules(target_name, rules, extra_sources, extra_deps, path_to_gyp, outpu
 def WriteCopies(target_name, copies, extra_deps, path_to_gyp, output):
     """Write CMake for the 'copies' in the target.
 
-  Args:
-    target_name: the name of the CMake target being generated.
-    actions: the Gyp 'actions' dict for this target.
-    extra_deps: [<cmake_target>] to append with generated targets.
-    path_to_gyp: relative path from CMakeLists.txt being generated to
-        the Gyp file in which the target being generated is defined.
-  """
+    Args:
+      target_name: the name of the CMake target being generated.
+      actions: the Gyp 'actions' dict for this target.
+      extra_deps: [<cmake_target>] to append with generated targets.
+      path_to_gyp: relative path from CMakeLists.txt being generated to
+          the Gyp file in which the target being generated is defined.
+    """
     copy_name = target_name + "__copies"
 
     # CMake gets upset with custom targets with OUTPUT which specify no output.
@@ -585,23 +584,23 @@ def CreateCMakeTargetFullName(qualified_target):
 class CMakeNamer:
     """Converts Gyp target names into CMake target names.
 
-  CMake requires that target names be globally unique. One way to ensure
-  this is to fully qualify the names of the targets. Unfortunately, this
-  ends up with all targets looking like "chrome_chrome_gyp_chrome" instead
-  of just "chrome". If this generator were only interested in building, it
-  would be possible to fully qualify all target names, then create
-  unqualified target names which depend on all qualified targets which
-  should have had that name. This is more or less what the 'make' generator
-  does with aliases. However, one goal of this generator is to create CMake
-  files for use with IDEs, and fully qualified names are not as user
-  friendly.
+    CMake requires that target names be globally unique. One way to ensure
+    this is to fully qualify the names of the targets. Unfortunately, this
+    ends up with all targets looking like "chrome_chrome_gyp_chrome" instead
+    of just "chrome". If this generator were only interested in building, it
+    would be possible to fully qualify all target names, then create
+    unqualified target names which depend on all qualified targets which
+    should have had that name. This is more or less what the 'make' generator
+    does with aliases. However, one goal of this generator is to create CMake
+    files for use with IDEs, and fully qualified names are not as user
+    friendly.
 
-  Since target name collision is rare, we do the above only when required.
+    Since target name collision is rare, we do the above only when required.
 
-  Toolset variants are always qualified from the base, as this is required for
-  building. However, it also makes sense for an IDE, as it is possible for
-  defines to be different.
-  """
+    Toolset variants are always qualified from the base, as this is required for
+    building. However, it also makes sense for an IDE, as it is possible for
+    defines to be different.
+    """
 
     def __init__(self, target_list):
         self.cmake_target_base_names_conflicting = set()

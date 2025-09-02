@@ -96,8 +96,6 @@
       'src/js_stream.cc',
       'src/json_utils.cc',
       'src/js_udp_wrap.cc',
-      'src/json_parser.h',
-      'src/json_parser.cc',
       'src/module_wrap.cc',
       'src/node.cc',
       'src/node_api.cc',
@@ -1098,7 +1096,6 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
       'includes': [
         'node.gypi'
@@ -1109,7 +1106,6 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
         'test/cctest',
       ],
       'defines': [
@@ -1122,6 +1118,10 @@
         'test/fuzzers/fuzz_ClientHelloParser.cc',
       ],
       'conditions': [
+        [ 'node_shared_uvwasi=="false"', {
+          'dependencies': [ 'deps/uvwasi/uvwasi.gyp:uvwasi' ],
+          'include_dirs': [ 'deps/uvwasi/include' ],
+        }],
         ['OS=="linux" or OS=="openharmony"', {
           'ldflags': [ '-fsanitize=fuzzer' ]
         }],
@@ -1142,7 +1142,6 @@
         '<(node_lib_target_name)',
         'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/nbytes/nbytes.gyp:nbytes',
       ],
       'includes': [
@@ -1154,7 +1153,6 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
         'test/cctest',
       ],
       'defines': [
@@ -1167,6 +1165,10 @@
         'test/fuzzers/fuzz_strings.cc',
       ],
       'conditions': [
+        [ 'node_shared_uvwasi=="false"', {
+          'dependencies': [ 'deps/uvwasi/uvwasi.gyp:uvwasi' ],
+          'include_dirs': [ 'deps/uvwasi/include' ],
+        }],
         ['OS=="linux" or OS=="openharmony"', {
           'ldflags': [ '-fsanitize=fuzzer' ]
         }],
