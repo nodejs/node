@@ -1988,7 +1988,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
 
 #ifdef _WIN32
-  if (slashCheck) {
+  if (slashCheck && !path.ToStringView().ends_with("\\")) {
     size_t new_length = path.length() + 1;
     path.AllocateSufficientStorage(new_length + 1);
     path.SetLengthAndZeroTerminate(new_length);
