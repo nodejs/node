@@ -1041,6 +1041,46 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
   }
 }
 
+void GetErrorSourcePositions(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
+  Realm* realm = Realm::GetCurrent(args);
+  Local<Context> context = realm->context();
+
+  CHECK(args[0]->IsObject());
+
+  Local<Message> msg = Exception::CreateMessage(isolate, args[0]);
+
+  // Message::GetEndColumn may not reflect the actual end column in all cases.
+  // So only expose startColumn to JS land.
+  Local<v8::Name> names[] = {
+      OneByteString(isolate, "sourceLine"),
+      OneByteString(isolate, "scriptResourceName"),
+      OneByteString(isolate, "lineNumber"),
+      OneByteString(isolate, "startColumn"),
+  };
+
+  Local<String> source_line;
+  if (!msg->GetSourceLine(context).ToLocal(&source_line)) {
+    return;
+  }
+  int line_number;
+  if (!msg->GetLineNumber(context).To(&line_number)) {
+    return;
+  }
+
+  Local<Value> values[] = {
+      source_line,
+      msg->GetScriptOrigin().ResourceName(),
+      v8::Integer::New(isolate, line_number),
+      v8::Integer::New(isolate, msg->GetStartColumn()),
+  };
+  Local<Object> info =
+      Object::New(isolate, v8::Null(isolate), names, values, arraysize(names));
+
+  args.GetReturnValue().Set(info);
+}
+
 void SetPrepareStackTraceCallback(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   CHECK(args[0]->IsFunction());
@@ -1106,6 +1146,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetEnhanceStackForFatalException);
   registry->Register(NoSideEffectsToString);
   registry->Register(TriggerUncaughtException);
+  registry->Register(GetErrorSourcePositions);
 }
 
 void Initialize(Local<Object> target,
@@ -1133,6 +1174,8 @@ void Initialize(Local<Object> target,
       context, target, "noSideEffectsToString", NoSideEffectsToString);
   SetMethod(
       context, target, "triggerUncaughtException", TriggerUncaughtException);
+  SetMethod(
+      context, target, "getErrorSourcePositions", GetErrorSourcePositions);
 
   Isolate* isolate = context->GetIsolate();
   Local<Object> exit_codes = Object::New(isolate);
