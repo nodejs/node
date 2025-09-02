@@ -7,7 +7,7 @@ MyObject::MyObject() : env_(nullptr), wrapper_(nullptr) {}
 
 MyObject::~MyObject() {
   finalize_count++;
-  napi_delete_reference(static_cast<node_api_basic_env>(env_), wrapper_);
+  napi_delete_reference(env_, wrapper_);
 }
 
 void MyObject::Destructor(

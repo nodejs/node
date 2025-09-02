@@ -171,8 +171,7 @@ napi_value InitializeLocalNapiRefBinding(napi_env env, napi_value exports) {
   napi_ref ref{};
   if (node_api_version == NAPI_VERSION_EXPERIMENTAL) {
     CHECK_EQ(napi_create_reference(env, key, 1, &ref), napi_ok);
-    CHECK_EQ(napi_delete_reference(static_cast<node_api_basic_env>(env), ref),
-             napi_ok);
+    CHECK_EQ(napi_delete_reference(env, ref), napi_ok);
   } else {
     CHECK_EQ(napi_create_reference(env, key, 1, &ref), napi_invalid_arg);
   }

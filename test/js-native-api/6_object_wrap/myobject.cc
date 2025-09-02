@@ -215,9 +215,7 @@ napi_value ObjectWrapDanglingReferenceTest(napi_env env,
 
   if (out == nullptr) {
     // If the napi_ref has been invalidated, delete it.
-    NODE_API_CALL(env,
-                  napi_delete_reference(static_cast<node_api_basic_env>(env),
-                                        dangling_ref));
+    NODE_API_CALL(env, napi_delete_reference(env, dangling_ref));
     NODE_API_CALL(env, napi_get_boolean(env, true, &ret));
   } else {
     // The dangling napi_ref is still valid.
