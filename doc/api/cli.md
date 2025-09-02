@@ -660,7 +660,7 @@ added:
   - v22.14.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/59706
+    pr-url: https://github.com/nodejs/node/pull/59707
     description: The option is now stable.
 -->
 
