@@ -564,12 +564,12 @@ _xcode_variable_re = re.compile(r"(\$\((.*?)\))")
 def ExpandXcodeVariables(string, expansions):
     """Expands Xcode-style $(VARIABLES) in string per the expansions dict.
 
-  In some rare cases, it is appropriate to expand Xcode variables when a
-  project file is generated.  For any substring $(VAR) in string, if VAR is a
-  key in the expansions dict, $(VAR) will be replaced with expansions[VAR].
-  Any $(VAR) substring in string for which VAR is not a key in the expansions
-  dict will remain in the returned string.
-  """
+    In some rare cases, it is appropriate to expand Xcode variables when a
+    project file is generated.  For any substring $(VAR) in string, if VAR is a
+    key in the expansions dict, $(VAR) will be replaced with expansions[VAR].
+    Any $(VAR) substring in string for which VAR is not a key in the expansions
+    dict will remain in the returned string.
+    """
 
     matches = _xcode_variable_re.findall(string)
     if matches is None:
@@ -592,9 +592,9 @@ _xcode_define_re = re.compile(r"([\\\"\' ])")
 
 def EscapeXcodeDefine(s):
     """We must escape the defines that we give to XCode so that it knows not to
-     split on spaces and to respect backslash and quote literals. However, we
-     must not quote the define, or Xcode will incorrectly interpret variables
-     especially $(inherited)."""
+    split on spaces and to respect backslash and quote literals. However, we
+    must not quote the define, or Xcode will incorrectly interpret variables
+    especially $(inherited)."""
     return re.sub(_xcode_define_re, r"\\\1", s)
 
 
@@ -679,9 +679,9 @@ def GenerateOutput(target_list, target_dicts, data, params):
             project_attributes["BuildIndependentTargetsInParallel"] = "YES"
         if upgrade_check_project_version:
             project_attributes["LastUpgradeCheck"] = upgrade_check_project_version
-            project_attributes[
-                "LastTestingUpgradeCheck"
-            ] = upgrade_check_project_version
+            project_attributes["LastTestingUpgradeCheck"] = (
+                upgrade_check_project_version
+            )
             project_attributes["LastSwiftUpdateCheck"] = upgrade_check_project_version
         pbxp.SetProperty("attributes", project_attributes)
 
@@ -734,8 +734,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
             "loadable_module+xcuitest": "com.apple.product-type.bundle.ui-testing",
             "shared_library+bundle": "com.apple.product-type.framework",
             "executable+extension+bundle": "com.apple.product-type.app-extension",
-            "executable+watch+extension+bundle":
-                "com.apple.product-type.watchkit-extension",
+            "executable+watch+extension+bundle": "com.apple.product-type.watchkit-extension",  # noqa: E501
             "executable+watch+bundle": "com.apple.product-type.application.watchapp",
             "mac_kernel_extension+bundle": "com.apple.product-type.kernel-extension",
         }
@@ -780,8 +779,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
                 type_bundle_key += "+watch+extension+bundle"
             elif is_watch_app:
                 assert is_bundle, (
-                    "ios_watch_app flag requires mac_bundle "
-                    "(target %s)" % target_name
+                    "ios_watch_app flag requires mac_bundle (target %s)" % target_name
                 )
                 type_bundle_key += "+watch+bundle"
             elif is_bundle:
@@ -1103,7 +1101,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
                         eol = " \\"
                     makefile.write(f"    {concrete_output}{eol}\n")
 
-                for (rule_source, concrete_outputs, message, action) in zip(
+                for rule_source, concrete_outputs, message, action in zip(
                     rule["rule_sources"],
                     concrete_outputs_by_rule_source,
                     messages,
