@@ -26,3 +26,8 @@ for (const cert of systemSet) {
 }
 
 assert.deepStrictEqual(systemCerts, tls.getCACertificates({ type: 'system', format: 'string' }));
+
+const certs = tls.getCACertificates('bundled');
+assertIsCAArray(certs);
+
+assert.deepStrictEqual(certs, tls.rootCertificates);
