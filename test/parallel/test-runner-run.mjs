@@ -98,6 +98,21 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     for await (const _ of stream);
   });
 
+  it('should propagate timeout correctly, preferring the overridden value for children', async () => {
+    const stream = run(
+      {
+        timeout: 1,
+        files: [
+          fixtures.path('test-runner', 'timeout', 'parent-with-timeout.mjs'),
+        ]
+      });
+
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(2));
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
   it('should be piped with dot', async () => {
     const result = await run({
       files: [join(testFixtures, 'default-behavior/test/random.cjs')]
