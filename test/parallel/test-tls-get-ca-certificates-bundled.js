@@ -15,3 +15,8 @@ assertIsCAArray(certs);
 assert.deepStrictEqual(certs, tls.rootCertificates);
 
 assert.deepStrictEqual(certs, tls.getCACertificates({ type: 'bundled', format: 'string' }));
+
+const certs2 = tls.getCACertificates('bundled');
+assertIsCAArray(certs2);
+
+assert.deepStrictEqual(certs2, tls.rootCertificates);
