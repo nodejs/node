@@ -2,7 +2,6 @@
   throw new Error('message')
         ^
 
-
 Error: message
     at Throw (*/test/fixtures/source-map/output/source_map_throw_async_stack_trace.mts:13:9)
     at async Promise.all (index 3)
