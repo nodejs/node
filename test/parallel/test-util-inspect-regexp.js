@@ -9,7 +9,7 @@ util.inspect.defaultOptions.breakLength = Infinity;
 
 function expectColored([regexp, expected]) {
   if (common.hasIntl && !regexp) {
-    return
+    return;
   }
   const colored = util.inspect(regexp, { colors: true });
   const plain = util.inspect(regexp, { colors: false });
@@ -24,11 +24,12 @@ function expectColored([regexp, expected]) {
 
 function createRegExp(string, flags) {
   if (!common.hasIntl) {
-    return new RegExp(string, flags)
+    return new RegExp(string, flags);
   }
 }
 
 /* eslint-disable node-core/no-unescaped-regexp-dot */
+/* eslint-disable @stylistic/js/max-len */
 
 // Comprehensive set of regexes covering branches in highlightRegExp
 const tests = [
@@ -104,7 +105,7 @@ const tests = [
   [/(?<=Mr\.|Mrs.)\s[A-Z]\w+/, '\x1B[32m/\x1B[39m\x1B[31m(\x1B[39m\x1B[31m?<=\x1B[39m\x1B[36mM\x1B[39m\x1B[36mr\x1B[39m\x1B[36m\\.\x1B[39m\x1B[32m|\x1B[39m\x1B[36mM\x1B[39m\x1B[36mr\x1B[39m\x1B[36ms\x1B[39m\x1B[35m.\x1B[39m\x1B[31m)\x1B[39m\x1B[33m\\s\x1B[39m\x1B[31m[\x1B[39m\x1B[33mA\x1B[39m\x1B[36m-\x1B[39m\x1B[33mZ\x1B[39m\x1B[31m]\x1B[39m\x1B[33m\\w\x1B[39m\x1B[35m+\x1B[39m\x1B[32m/\x1B[39m'],
   [/a/giu, '\x1B[32m/\x1B[39m\x1B[33ma\x1B[39m\x1B[32m/\x1B[39m\x1B[31mgiu\x1B[39m'],
   [/\p{Let(?<quote>["'])(?:\.|(?!\k<quote>)[\s\S])*\k<quote>$/, `\x1B[32m/\x1B[39m\x1B[33m\\p{\x1B[39m\x1B[33mL\x1B[39m\x1B[33me\x1B[39m\x1B[33mt\x1B[39m\x1B[31m(\x1B[39m\x1B[31m?<\x1B[39m\x1B[33mquote\x1B[39m\x1B[31m>\x1B[39m\x1B[33m[\x1B[39m\x1B[36m"\x1B[39m\x1B[36m'\x1B[39m\x1B[33m]\x1B[39m\x1B[31m)\x1B[39m\x1B[31m(\x1B[39m\x1B[31m?:\x1B[39m\x1B[36m\\.\x1B[39m\x1B[32m|\x1B[39m\x1B[33m(\x1B[39m\x1B[33m?!\x1B[39m\x1B[33m\\k<\x1B[39m\x1B[36mquote\x1B[39m\x1B[33m>\x1B[39m\x1B[33m)\x1B[39m\x1B[33m[\x1B[39m\x1B[36m\\s\x1B[39m\x1B[36m\\S\x1B[39m\x1B[33m]\x1B[39m\x1B[31m)\x1B[39m\x1B[35m*\x1B[39m\x1B[32m\\k<\x1B[39m\x1B[31mquote\x1B[39m\x1B[32m>\x1B[39m\x1B[35m$\x1B[39m\x1B[32m/\x1B[39m`],
-  [/^p{Lu}p{Ll}+(?:sp{Lu}p{Ll}+)+$/, '\x1B[32m/\x1B[39m\x1B[35m^\x1B[39m\x1B[33mp\x1B[39m\x1B[33m{\x1B[39m\x1B[33mL\x1B[39m\x1B[33mu\x1B[39m\x1B[33m}\x1B[39m\x1B[33mp\x1B[39m\x1B[33m{\x1B[39m\x1B[33mL\x1B[39m\x1B[33ml\x1B[39m\x1B[33m}\x1B[39m\x1B[35m+\x1B[39m\x1B[31m(\x1B[39m\x1B[31m?:\x1B[39m\x1B[36ms\x1B[39m\x1B[36mp\x1B[39m\x1B[36m{\x1B[39m\x1B[36mL\x1B[39m\x1B[36mu\x1B[39m\x1B[36m}\x1B[39m\x1B[36mp\x1B[39m\x1B[36m{\x1B[39m\x1B[36mL\x1B[39m\x1B[36ml\x1B[39m\x1B[36m}\x1B[39m\x1B[32m+\x1B[39m\x1B[31m)\x1B[39m\x1B[35m+\x1B[39m\x1B[35m$\x1B[39m\x1B[32m/\x1B[39m']
+  [/^p{Lu}p{Ll}+(?:sp{Lu}p{Ll}+)+$/, '\x1B[32m/\x1B[39m\x1B[35m^\x1B[39m\x1B[33mp\x1B[39m\x1B[33m{\x1B[39m\x1B[33mL\x1B[39m\x1B[33mu\x1B[39m\x1B[33m}\x1B[39m\x1B[33mp\x1B[39m\x1B[33m{\x1B[39m\x1B[33mL\x1B[39m\x1B[33ml\x1B[39m\x1B[33m}\x1B[39m\x1B[35m+\x1B[39m\x1B[31m(\x1B[39m\x1B[31m?:\x1B[39m\x1B[36ms\x1B[39m\x1B[36mp\x1B[39m\x1B[36m{\x1B[39m\x1B[36mL\x1B[39m\x1B[36mu\x1B[39m\x1B[36m}\x1B[39m\x1B[36mp\x1B[39m\x1B[36m{\x1B[39m\x1B[36mL\x1B[39m\x1B[36ml\x1B[39m\x1B[36m}\x1B[39m\x1B[32m+\x1B[39m\x1B[31m)\x1B[39m\x1B[35m+\x1B[39m\x1B[35m$\x1B[39m\x1B[32m/\x1B[39m'],
 ];
 
 for (const test of tests) {
@@ -139,7 +140,6 @@ for (const test of brokenTests) {
 
   assert.strictEqual(
     customColors,
-    // eslint-disable-next-line @stylistic/js/max-len
     '\x1B[31m/\x1B[39m\x1B[33m(\x1B[39m\x1B[33m?<\x1B[39m\x1B[36myear\x1B[39m\x1B[33m>\x1B[39m\x1B[31m\\d\x1B[39m\x1B[36m{\x1B[39m\x1B[33m4\x1B[39m\x1B[36m}\x1B[39m\x1B[33m)\x1B[39m\x1B[36m-\x1B[39m\x1B[36m\\d\x1B[39m\x1B[33m{\x1B[39m\x1B[31m2\x1B[39m\x1B[33m}\x1B[39m\x1B[33m|\x1B[39m\x1B[36m\\d\x1B[39m\x1B[33m{\x1B[39m\x1B[31m2\x1B[39m\x1B[33m}\x1B[39m\x1B[36m-\x1B[39m\x1B[33m(\x1B[39m\x1B[33m?<\x1B[39m\x1B[36myear\x1B[39m\x1B[33m>\x1B[39m\x1B[31m\\d\x1B[39m\x1B[36m{\x1B[39m\x1B[33m4\x1B[39m\x1B[36m}\x1B[39m\x1B[33m)\x1B[39m\x1B[31m/\x1B[39m'
   );
 
