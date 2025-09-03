@@ -3,7 +3,6 @@ reachable
     throw Error('an exception');
     ^
 
-
 Error: an exception
     at branch (*/test/fixtures/source-map/typescript-throw.ts:18:11)
     at Object.<anonymous> (*/test/fixtures/source-map/typescript-throw.ts:24:1)
