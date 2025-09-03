@@ -1,4 +1,4 @@
-.TH "NPMRC" "5" "July 2025" "NPM@11.5.1" ""
+.TH "NPMRC" "5" "September 2025" "NPM@11.6.0" ""
 .SH "NAME"
 \fBnpmrc\fR - The npm config files
 .SS "Description"
@@ -23,11 +23,12 @@ npm builtin config file (\fB/path/to/npm/npmrc\fR)
 .RE 0
 
 .P
-All npm config files are an ini-formatted list of \fBkey = value\fR parameters. Environment variables can be replaced using \fB${VARIABLE_NAME}\fR. For example:
+All npm config files are an ini-formatted list of \fBkey = value\fR parameters. Environment variables can be replaced using \fB${VARIABLE_NAME}\fR. By default if the variable is not defined, it is left unreplaced. By adding \fB?\fR after variable name they can be forced to evaluate to an empty string instead. For example:
 .P
 .RS 2
 .nf
 cache = ${HOME}/.npm-packages
+node-options = "${NODE_OPTIONS?} --use-system-ca"
 .fi
 .RE
 .P
