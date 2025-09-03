@@ -91,8 +91,12 @@ exports.createProxyServer = function(options = {}) {
 
     proxyReq.on('error', (err) => {
       logs.push({ error: err, source: 'proxy request' });
-      res.write('HTTP/1.1 500 Connection Error\r\n\r\n');
-      res.end('Proxy error: ' + err.message);
+      // The proxy client might have already closed the connection
+      // when the upstream connection fails.
+      if (!res.writableEnded) {
+        res.write('HTTP/1.1 500 Connection Error\r\n\r\n');
+        res.end('Proxy error: ' + err.message);
+      }
     });
   });
 
