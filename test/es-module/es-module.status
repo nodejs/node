@@ -13,3 +13,7 @@ test-esm-loader-http-imports: PASS,FLAKY
 [$arch==arm || $arch==arm64]
 # https://github.com/nodejs/node/issues/47297
 test-wasm-web-api: SKIP
+
+[$system==macos]
+# https://github.com/nodejs/node/pull/59551#issuecomment-3248510249
+test-http-imports: SKIP
