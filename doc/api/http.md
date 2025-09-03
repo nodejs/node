@@ -3555,6 +3555,9 @@ Found'`.
 added: v0.1.13
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59778
+    description: Add optimizeEmptyRequests option.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59824
     description: The `shouldUpgradeCallback` option is now supported.
   - version:
@@ -3658,6 +3661,12 @@ changes:
     using `; `.
   * `rejectNonStandardBodyWrites` {boolean} If set to `true`, an error is thrown
     when writing to an HTTP response which does not have a body.
+    **Default:** `false`.
+  * `optimizeEmptyRequests` {boolean} If set to `true`, requests without `Content-Length`
+    or `Transfer-Encoding` headers (indicating no body) will have their lifecycle events
+    immediately emitted. For `HEAD` and `GET` requests, this optimization is applied
+    regardless of headers. This improves performance for requests without bodies
+    across all HTTP methods.
     **Default:** `false`.
 
 * `requestListener` {Function}
