@@ -1851,6 +1851,16 @@ function getURL(req) {
 }
 ```
 
+The example above assumes well-formed headers are forwarded from a reverse
+proxy to your Node.js server. If you are not using a reverse proxy, you should
+use the example below:
+
+```js
+function getURL(req) {
+  return new URL(req.url || '/', 'https://example.com');
+}
+```
+
 ### `url.resolve(from, to)`
 
 <!-- YAML
