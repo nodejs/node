@@ -478,3 +478,46 @@ test('Assert class non strict with simple diff', () => {
     );
   }
 });
+
+// Shared setup for skipPrototypeComparison tests
+{
+  const message = 'Expected values to be strictly deep-equal:\n' +
+  '+ actual - expected\n' +
+  '\n' +
+  '  [\n' +
+  '    1,\n' +
+  '    2,\n' +
+  '    3,\n' +
+  '    4,\n' +
+  '    5,\n' +
+  '+   6,\n' +
+  '-   9,\n' +
+  '    7\n' +
+  '  ]\n';
+
+  function CoolClass(name) { this.name = name; }
+
+  function AwesomeClass(name) { this.name = name; }
+  const person = new CoolClass('Assert is inspiring');
+  const user = new AwesomeClass('Assert is inspiring');
+
+  test('Assert class strict with skipPrototypeComparison', () => {
+    const assertInstance = new Assert({ skipPrototypeComparison: true });
+
+    assert.throws(
+      () => assertInstance.deepEqual([1, 2, 3, 4, 5, 6, 7], [1, 2, 3, 4, 5, 9, 7]),
+      { message }
+    );
+    assertInstance.deepEqual(person, user);
+  });
+
+  test('Assert class non strict with skipPrototypeComparison', () => {
+    const assertInstance = new Assert({ strict: false, skipPrototypeComparison: true });
+
+    assert.throws(
+      () => assertInstance.deepStrictEqual([1, 2, 3, 4, 5, 6, 7], [1, 2, 3, 4, 5, 9, 7]),
+      { message }
+    );
+    assertInstance.deepStrictEqual(person, user);
+  });
+}
