@@ -37,6 +37,7 @@
 #include <cstdlib>
 
 #include <string>
+#include <variant>
 #include <vector>
 
 struct sockaddr;
@@ -245,9 +246,14 @@ class InternalCallbackScope {
     // compatibility issues, but it shouldn't.)
     kSkipTaskQueues = 2
   };
+  // You need to either guarantee that this `InternalCallbackScope` is
+  // stack-allocated itself, OR that `object` is a pointer to a stack-allocated
+  // `v8::Local<v8::Object>` which outlives this scope (e.g. for the
+  // public `CallbackScope` which indirectly allocates an instance of
+  // this class for ABI stability purposes).
   InternalCallbackScope(
       Environment* env,
-      v8::Local<v8::Object> object,
+      std::variant<v8::Local<v8::Object>, v8::Local<v8::Object>*> object,
       const async_context& asyncContext,
       int flags = kNoFlags,
       v8::Local<v8::Value> context_frame = v8::Local<v8::Value>());
@@ -263,7 +269,8 @@ class InternalCallbackScope {
  private:
   Environment* env_;
   async_context async_context_;
-  v8::Local<v8::Object> object_;
+  v8::Local<v8::Object> object_storage_;
+  v8::Local<v8::Object>* object_;
   bool skip_hooks_;
   bool skip_task_queues_;
   bool failed_ = false;

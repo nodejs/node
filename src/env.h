@@ -59,6 +59,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <list>
 #include <memory>
@@ -324,7 +325,7 @@ class AsyncHooks : public MemoryRetainer {
   // `pop_async_context()` or `clear_async_id_stack()` are called.
   void push_async_context(double async_id,
                           double trigger_async_id,
-                          v8::Local<v8::Object> execution_async_resource);
+                          v8::Local<v8::Object>* execution_async_resource);
   bool pop_async_context(double async_id);
   void clear_async_id_stack();  // Used in fatal exceptions.
 
@@ -386,15 +387,9 @@ class AsyncHooks : public MemoryRetainer {
 
   v8::Global<v8::Array> js_execution_async_resources_;
 
-  // TODO(@jasnell): Note that this is technically illegal use of
-  // v8::Locals which should be kept on the stack. Here, the entries
-  // in this object grows and shrinks with the C stack, and entries
-  // will be in the right handle scopes, but v8::Locals are supposed
-  // to remain on the stack and not the heap. For general purposes
-  // this *should* be ok but may need to be looked at further should
-  // v8 become stricter in the future about v8::Locals being held in
-  // the stack.
-  v8::LocalVector<v8::Object> native_execution_async_resources_;
+  // We avoid storing the handles directly here, because they are already
+  // properly allocated on the stack, we just need access to them here.
+  std::deque<v8::Local<v8::Object>*> native_execution_async_resources_;
 
   // Non-empty during deserialization
   const SerializeInfo* info_ = nullptr;

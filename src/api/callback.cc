@@ -48,17 +48,26 @@ InternalCallbackScope::InternalCallbackScope(AsyncWrap* async_wrap, int flags)
           flags,
           async_wrap->context_frame()) {}
 
-InternalCallbackScope::InternalCallbackScope(Environment* env,
-                                             Local<Object> object,
-                                             const async_context& asyncContext,
-                                             int flags,
-                                             Local<Value> context_frame)
+InternalCallbackScope::InternalCallbackScope(
+    Environment* env,
+    std::variant<Local<Object>, Local<Object>*> object,
+    const async_context& asyncContext,
+    int flags,
+    Local<Value> context_frame)
     : env_(env),
       async_context_(asyncContext),
-      object_(object),
       skip_hooks_(flags & kSkipAsyncHooks),
       skip_task_queues_(flags & kSkipTaskQueues) {
   CHECK_NOT_NULL(env);
+
+  if (std::holds_alternative<Local<Object>>(object)) {
+    object_storage_ = std::get<Local<Object>>(object);
+    object_ = &object_storage_;
+  } else {
+    object_ = std::get<Local<Object>*>(object);
+    CHECK_NOT_NULL(object_);
+  }
+
   env->PushAsyncCallbackScope();
 
   if (!env->can_call_into_js()) {
@@ -85,7 +94,7 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
       isolate, async_context_frame::exchange(isolate, context_frame));
 
   env->async_hooks()->push_async_context(
-    async_context_.async_id, async_context_.trigger_async_id, object);
+      async_context_.async_id, async_context_.trigger_async_id, object_);
 
   pushed_ids_ = true;
 
