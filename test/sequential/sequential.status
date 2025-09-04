@@ -57,6 +57,8 @@ test-watch-mode-inspect: SKIP
 test-single-executable-application: SKIP
 test-single-executable-application-assets: SKIP
 test-single-executable-application-assets-raw: SKIP
+test-single-executable-application-asset-keys-empty: SKIP
+test-single-executable-application-asset-keys: SKIP
 test-single-executable-application-disable-experimental-sea-warning: SKIP
 test-single-executable-application-empty: SKIP
 test-single-executable-application-exec-argv: SKIP
