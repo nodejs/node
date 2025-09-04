@@ -1716,6 +1716,16 @@ and incorrect handling of usernames and passwords. Do not use with untrusted
 input. CVEs are not issued for `url.parse()` vulnerabilities. Use the
 [WHATWG URL][] API instead.
 
+The example above assumes well-formed headers are forwarded from a reverse
+proxy to your Node.js server. If you are not using a reverse proxy, you should
+use the example below:
+
+```js
+function getURL(req) {
+  return new URL(req.url || '/', 'https://example.com');
+}
+```
+
 ### `url.resolve(from, to)`
 
 <!-- YAML
