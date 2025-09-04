@@ -275,6 +275,9 @@
         "max-http-header-size": {
           "type": "number"
         },
+        "max-old-space-size-percentage": {
+          "type": "string"
+        },
         "network-family-autoselection": {
           "type": "boolean"
         },
