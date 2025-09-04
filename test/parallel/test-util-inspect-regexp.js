@@ -8,7 +8,7 @@ util.inspect.defaultOptions.compact = 5;
 util.inspect.defaultOptions.breakLength = Infinity;
 
 function expectColored([regexp, expected]) {
-  if (common.hasIntl && !regexp) {
+  if (!common.hasIntl && !regexp) {
     return;
   }
   const colored = util.inspect(regexp, { colors: true });
@@ -23,7 +23,7 @@ function expectColored([regexp, expected]) {
 }
 
 function createRegExp(string, flags) {
-  if (!common.hasIntl) {
+  if (common.hasIntl) {
     return new RegExp(string, flags);
   }
 }
