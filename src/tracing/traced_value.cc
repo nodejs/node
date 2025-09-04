@@ -9,6 +9,7 @@
 #include <unicode/utypes.h>
 #endif
 
+#include <cmath>
 #include <sstream>
 
 #include "node_metadata.h"
