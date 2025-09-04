@@ -122,7 +122,8 @@ void Environment::ResetPromiseHooks(Local<Function> init,
 // Remember to keep this code aligned with pushAsyncContext() in JS.
 void AsyncHooks::push_async_context(double async_id,
                                     double trigger_async_id,
-                                    Local<Object> resource) {
+                                    Local<Object>* resource) {
+  CHECK_IMPLIES(resource != nullptr, !resource->IsEmpty());
   // Since async_hooks is experimental, do only perform the check
   // when async_hooks is enabled.
   if (fields_[kCheck] > 0) {
@@ -140,14 +141,14 @@ void AsyncHooks::push_async_context(double async_id,
 
 #ifdef DEBUG
   for (uint32_t i = offset; i < native_execution_async_resources_.size(); i++)
-    CHECK(native_execution_async_resources_[i].IsEmpty());
+    CHECK_NULL(native_execution_async_resources_[i]);
 #endif
 
   // When this call comes from JS (as a way of increasing the stack size),
   // `resource` will be empty, because JS caches these values anyway.
-  if (!resource.IsEmpty()) {
+  if (resource != nullptr) {
     native_execution_async_resources_.resize(offset + 1);
-    // Caveat: This is a v8::Local<> assignment, we do not keep a v8::Global<>!
+    // Caveat: This is a v8::Local<>* assignment, we do not keep a v8::Global<>!
     native_execution_async_resources_[offset] = resource;
   }
 }
@@ -172,11 +173,11 @@ bool AsyncHooks::pop_async_context(double async_id) {
   fields_[kStackLength] = offset;
 
   if (offset < native_execution_async_resources_.size() &&
-      !native_execution_async_resources_[offset].IsEmpty()) [[likely]] {
+      native_execution_async_resources_[offset] != nullptr) [[likely]] {
 #ifdef DEBUG
     for (uint32_t i = offset + 1; i < native_execution_async_resources_.size();
          i++) {
-      CHECK(native_execution_async_resources_[i].IsEmpty());
+      CHECK_NULL(native_execution_async_resources_[i]);
     }
 #endif
     native_execution_async_resources_.resize(offset);
@@ -1721,7 +1722,6 @@ AsyncHooks::AsyncHooks(Isolate* isolate, const SerializeInfo* info)
       fields_(isolate, kFieldsCount, MAYBE_FIELD_PTR(info, fields)),
       async_id_fields_(
           isolate, kUidFieldsCount, MAYBE_FIELD_PTR(info, async_id_fields)),
-      native_execution_async_resources_(isolate),
       info_(info) {
   HandleScope handle_scope(isolate);
   if (info == nullptr) {
@@ -1810,10 +1810,9 @@ AsyncHooks::SerializeInfo AsyncHooks::Serialize(Local<Context> context,
       native_execution_async_resources_.size());
   for (size_t i = 0; i < native_execution_async_resources_.size(); i++) {
     info.native_execution_async_resources[i] =
-        native_execution_async_resources_[i].IsEmpty() ? SIZE_MAX :
-            creator->AddData(
-                context,
-                native_execution_async_resources_[i]);
+        native_execution_async_resources_[i] == nullptr
+            ? SIZE_MAX
+            : creator->AddData(context, *native_execution_async_resources_[i]);
   }
 
   // At the moment, promise hooks are not supported in the startup snapshot.
