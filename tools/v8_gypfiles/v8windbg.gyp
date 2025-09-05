@@ -77,6 +77,15 @@
           'RuntimeTypeInfo': 'true',
         },
       },
+      'configurations': {
+        'Release': { # Override target_defaults.Release in common.gypi
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeTypeInfo': 'true',
+            },
+          },
+        },
+      },
     },  # v8_debug_helper
     {
       'target_name': 'gen_heap_constants',
