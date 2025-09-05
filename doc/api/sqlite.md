@@ -450,7 +450,7 @@ Closes the database connection. If the database connection is already closed
 then this is a no-op.
 
 This method is invoked automatically when the database is used with the `using`
-statement for explicit resource management:
+statement:
 
 ```mjs
 import { DatabaseSync } from 'node:sqlite';
