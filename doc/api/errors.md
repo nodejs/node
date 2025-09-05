@@ -2183,8 +2183,8 @@ contains the URL that failed to parse.
 
 ### `ERR_INVALID_URL_PATTERN`
 
-An invalid URLPattern was passed to the [WHATWG][WHATWG URL API] \[`URLPattern`
-constructor]\[`new URLPattern(input)`] to be parsed.
+An invalid URLPattern was passed to the [WHATWG][WHATWG URL API]
+[`URLPattern` constructor][`new URLPattern(input)`] to be parsed.
 
 <a id="ERR_INVALID_URL_SCHEME"></a>
 
@@ -4406,6 +4406,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`net.Socket.write()`]: net.md#socketwritedata-encoding-callback
 [`net`]: net.md
 [`new URL(input)`]: url.md#new-urlinput-base
+[`new URLPattern(input)`]: url.md#new-urlpatternstring-baseurl-options
 [`new URLSearchParams(iterable)`]: url.md#new-urlsearchparamsiterable
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
