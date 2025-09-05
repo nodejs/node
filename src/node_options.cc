@@ -1134,6 +1134,7 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             "help system profilers to translate JavaScript interpreted frames",
             V8Option{},
             kAllowedInEnvvar);
+  AddOption("--max-heap-size", "", V8Option{}, kAllowedInEnvvar);
   AddOption("--max-old-space-size", "", V8Option{}, kAllowedInEnvvar);
   AddOption("--max-old-space-size-percentage",
             "set V8's max old space size as a percentage of available memory "
