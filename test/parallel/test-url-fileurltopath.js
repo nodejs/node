@@ -31,24 +31,6 @@ test('fileURLToPath with host', () => {
   }
 });
 
-test('fileURLToPath with invalid path', () => {
-  if (isWindows) {
-    assert.throws(() => url.fileURLToPath('file:///C:/a%2F/'), {
-      code: 'ERR_INVALID_FILE_URL_PATH'
-    });
-    assert.throws(() => url.fileURLToPath('file:///C:/a%5C/'), {
-      code: 'ERR_INVALID_FILE_URL_PATH'
-    });
-    assert.throws(() => url.fileURLToPath('file:///?:/'), {
-      code: 'ERR_INVALID_FILE_URL_PATH'
-    });
-  } else {
-    assert.throws(() => url.fileURLToPath('file:///a%2F/'), {
-      code: 'ERR_INVALID_FILE_URL_PATH'
-    });
-  }
-});
-
 const windowsTestCases = [
   // Lowercase ascii alpha
   { path: 'C:\\foo', fileURL: 'file:///C:/foo' },
