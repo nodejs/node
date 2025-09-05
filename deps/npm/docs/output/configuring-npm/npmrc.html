@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npmrc----1151">
+<h1 id="----npmrc----1160">
     <span>npmrc</span>
-    <span class="version">@11.5.1</span>
+    <span class="version">@11.6.0</span>
 </h1>
 <span class="description">The npm config files</span>
 </header>
@@ -169,9 +169,12 @@ user and global npmrc files.</p>
 <li>npm builtin config file (<code>/path/to/npm/npmrc</code>)</li>
 </ul>
 <p>All npm config files are an ini-formatted list of <code>key = value</code> parameters.
-Environment variables can be replaced using <code>${VARIABLE_NAME}</code>. For
+Environment variables can be replaced using <code>${VARIABLE_NAME}</code>. By default
+if the variable is not defined, it is left unreplaced. By adding <code>?</code> after
+variable name they can be forced to evaluate to an empty string instead. For
 example:</p>
 <pre><code class="language-bash">cache = ${HOME}/.npm-packages
+node-options = "${NODE_OPTIONS?} --use-system-ca"
 </code></pre>
 <p>Each of these files is loaded, and config options are resolved in priority
 order.  For example, a setting in the userconfig file would override the

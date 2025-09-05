@@ -25,11 +25,14 @@ The four relevant files are:
 * npm builtin config file (`/path/to/npm/npmrc`)
 
 All npm config files are an ini-formatted list of `key = value` parameters.
-Environment variables can be replaced using `${VARIABLE_NAME}`. For
+Environment variables can be replaced using `${VARIABLE_NAME}`. By default
+if the variable is not defined, it is left unreplaced. By adding `?` after
+variable name they can be forced to evaluate to an empty string instead. For
 example:
 
 ```bash
 cache = ${HOME}/.npm-packages
+node-options = "${NODE_OPTIONS?} --use-system-ca"
 ```
 
 Each of these files is loaded, and config options are resolved in priority
