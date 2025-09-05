@@ -73,9 +73,8 @@ function test(environ, shouldWrite, section, forceColors = false) {
       const addCodes = (arr) => [`\x1B[${arr[0]}m`, `\x1B[${arr[1]}m`];
       const num = addCodes(colors[styles.number]);
       const str = addCodes(colors[styles.string]);
-      const regexp = addCodes(colors[styles.regexp]);
       const start = `${section.toUpperCase()} ${num[0]}${child.pid}${num[1]}`;
-      const debugging = `${regexp[0]}/debugging/${regexp[1]}`;
+      const debugging = styles.regexp('/debugging/');
       expectErr =
         `${start}: this { is: ${str[0]}'a'${str[1]} } ${debugging}\n` +
         `${start}: num=1 str=a obj={"foo":"bar"}\n`;

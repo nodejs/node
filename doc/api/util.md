@@ -848,6 +848,11 @@ stream.write('With ES6');
 added: v0.3.0
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59710
+    description: The util.inspect.styles.regexp style is now a method that is
+                 invoked for coloring the stringified regular expression.
+  - version:
     - v17.3.0
     - v16.14.0
     pr-url: https://github.com/nodejs/node/pull/41003
@@ -1297,7 +1302,12 @@ The default styles and associated colors are:
 * `name`: (no styling)
 * `null`: `bold`
 * `number`: `yellow`
-* `regexp`: `red`
+* `regexp`: A method that colors character classes, groups, assertions, and
+  other parts for improved readability. To customize the coloring, change the
+  `colors` property. It is set to
+  `['red', 'green', 'yellow', 'cyan', 'magenta']` by default and may be
+  adjusted as needed. The array is repetitively iterated through depending on
+  the "depth".
 * `special`: `cyan` (e.g., `Proxies`)
 * `string`: `green`
 * `symbol`: `green`
@@ -1308,6 +1318,17 @@ terminals. To verify color support use [`tty.hasColors()`][].
 
 Predefined control codes are listed below (grouped as "Modifiers", "Foreground
 colors", and "Background colors").
+
+#### Complex custom coloring
+
+It is possible to define a method as style. It receives the stringified value
+of the input. It is invoked in case coloring is active and the type is
+inspected.
+
+Example: `util.inspect.styles.regexp(value)`
+
+* `value` {string} The string representation of the input type.
+* Returns: {string} The adjusted representation of `object`.
 
 #### Modifiers
 
