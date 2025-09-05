@@ -28,7 +28,7 @@ an in-memory database, write data to the database, and then read the data back.
 
 ```mjs
 import { DatabaseSync } from 'node:sqlite';
-using database = new DatabaseSync(':memory:');
+const database = new DatabaseSync(':memory:');
 
 // Execute SQL statements from strings.
 database.exec(`
@@ -206,7 +206,7 @@ db.prepare('SELECT sumint(y) as total FROM t3').get(); // { total: 21 }
 ```mjs
 import { DatabaseSync } from 'node:sqlite';
 
-using db = new DatabaseSync(':memory:');
+const db = new DatabaseSync(':memory:');
 db.exec(`
   CREATE TABLE t3(x, y);
   INSERT INTO t3 VALUES ('a', 4),
@@ -417,8 +417,8 @@ open. This method is a wrapper around [`sqlite3changeset_apply()`][].
 ```mjs
 import { DatabaseSync } from 'node:sqlite';
 
-using sourceDb = new DatabaseSync(':memory:');
-using targetDb = new DatabaseSync(':memory:');
+const sourceDb = new DatabaseSync(':memory:');
+const targetDb = new DatabaseSync(':memory:');
 
 sourceDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 targetDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
@@ -804,7 +804,7 @@ the backup process to restart.
 const { backup, DatabaseSync } = require('node:sqlite');
 
 (async () => {
-  using sourceDb = new DatabaseSync('source.db');
+  const sourceDb = new DatabaseSync('source.db');
   const totalPagesTransferred = await backup(sourceDb, 'backup.db', {
     rate: 1, // Copy one page at a time.
     progress: ({ totalPages, remainingPages }) => {
@@ -819,7 +819,7 @@ const { backup, DatabaseSync } = require('node:sqlite');
 ```mjs
 import { backup, DatabaseSync } from 'node:sqlite';
 
-using sourceDb = new DatabaseSync('source.db');
+const sourceDb = new DatabaseSync('source.db');
 const totalPagesTransferred = await backup(sourceDb, 'backup.db', {
   rate: 1, // Copy one page at a time.
   progress: ({ totalPages, remainingPages }) => {
