@@ -1,5 +1,7 @@
 #!/usr/bin/env pwsh
 
+Set-StrictMode -Version 'Latest'
+
 $NODE_EXE="$PSScriptRoot/node.exe"
 if (-not (Test-Path $NODE_EXE)) {
   $NODE_EXE="$PSScriptRoot/node"
@@ -27,7 +29,7 @@ if ($MyInvocation.ExpectingInput) { # takes pipeline input
 } elseif (-not $MyInvocation.Line) { # used "-File" argument
   & $NODE_EXE $NPX_CLI_JS $args
 } else { # used "-Command" argument
-  if ($MyInvocation.Statement) {
+  if (($MyInvocation | Get-Member -Name 'Statement') -and $MyInvocation.Statement) {
     $NPX_ORIGINAL_COMMAND = $MyInvocation.Statement
   } else {
     $NPX_ORIGINAL_COMMAND = (
@@ -38,9 +40,9 @@ if ($MyInvocation.ExpectingInput) { # takes pipeline input
   $NODE_EXE = $NODE_EXE.Replace("``", "````")
   $NPX_CLI_JS = $NPX_CLI_JS.Replace("``", "````")
 
-  $NPX_NO_REDIRECTS_COMMAND = [Management.Automation.Language.Parser]::ParseInput($NPX_ORIGINAL_COMMAND, [ref] $null, [ref] $null).
-    EndBlock.Statements.PipelineElements.CommandElements.Extent.Text -join ' '
-  $NPX_ARGS = $NPX_NO_REDIRECTS_COMMAND.Substring($MyInvocation.InvocationName.Length).Trim()
+  $NPX_COMMAND_ARRAY = [Management.Automation.Language.Parser]::ParseInput($NPX_ORIGINAL_COMMAND, [ref] $null, [ref] $null).
+    EndBlock.Statements.PipelineElements.CommandElements.Extent.Text
+  $NPX_ARGS = ($NPX_COMMAND_ARRAY | Select-Object -Skip 1) -join ' '
 
   Invoke-Expression "& `"$NODE_EXE`" `"$NPX_CLI_JS`" $NPX_ARGS"
 }
