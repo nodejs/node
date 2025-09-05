@@ -28,7 +28,7 @@ an in-memory database, write data to the database, and then read the data back.
 
 ```mjs
 import { DatabaseSync } from 'node:sqlite';
-const database = new DatabaseSync(':memory:');
+using database = new DatabaseSync(':memory:');
 
 // Execute SQL statements from strings.
 database.exec(`
@@ -206,7 +206,7 @@ db.prepare('SELECT sumint(y) as total FROM t3').get(); // { total: 21 }
 ```mjs
 import { DatabaseSync } from 'node:sqlite';
 
-const db = new DatabaseSync(':memory:');
+using db = new DatabaseSync(':memory:');
 db.exec(`
   CREATE TABLE t3(x, y);
   INSERT INTO t3 VALUES ('a', 4),
@@ -414,9 +414,11 @@ added:
 An exception is thrown if the database is not
 open. This method is a wrapper around [`sqlite3changeset_apply()`][].
 
-```js
-const sourceDb = new DatabaseSync(':memory:');
-const targetDb = new DatabaseSync(':memory:');
+```mjs
+import { DatabaseSync } from 'node:sqlite';
+
+using sourceDb = new DatabaseSync(':memory:');
+using targetDb = new DatabaseSync(':memory:');
 
 sourceDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 targetDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
@@ -446,6 +448,19 @@ changes:
 
 Closes the database connection. If the database connection is already closed
 then this is a no-op.
+
+This method is invoked automatically when the database is used with the `using`
+statement for explicit resource management:
+
+```mjs
+import { DatabaseSync } from 'node:sqlite';
+
+{
+  using db = new DatabaseSync('file.db');
+  db.exec('CREATE TABLE t (id INTEGER)');
+  db.exec('INSERT INTO t VALUES (1)');
+} // Database is closed automatically here
+```
 
 ## Class: `Session`
 
@@ -789,7 +804,7 @@ the backup process to restart.
 const { backup, DatabaseSync } = require('node:sqlite');
 
 (async () => {
-  const sourceDb = new DatabaseSync('source.db');
+  using sourceDb = new DatabaseSync('source.db');
   const totalPagesTransferred = await backup(sourceDb, 'backup.db', {
     rate: 1, // Copy one page at a time.
     progress: ({ totalPages, remainingPages }) => {
@@ -804,7 +819,7 @@ const { backup, DatabaseSync } = require('node:sqlite');
 ```mjs
 import { backup, DatabaseSync } from 'node:sqlite';
 
-const sourceDb = new DatabaseSync('source.db');
+using sourceDb = new DatabaseSync('source.db');
 const totalPagesTransferred = await backup(sourceDb, 'backup.db', {
   rate: 1, // Copy one page at a time.
   progress: ({ totalPages, remainingPages }) => {
