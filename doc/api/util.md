@@ -1581,9 +1581,17 @@ enumerable properties are deeply strictly equal.
 ```js
 const util = require('node:util');
 
-function Foo(a) { this.a = a; }
+class Foo {
+  constructor(a) {
+    this.a = a;
+  }
+}
 
-function Bar(a) { this.a = a; }
+class Bar {
+  constructor(a) {
+    this.a = a;
+  }
+}
 
 const foo = new Foo(1);
 const bar = new Bar(1);
