@@ -33,7 +33,7 @@ KmacConfig::KmacConfig(KmacConfig&& other) noexcept
       data(std::move(other.data)),
       signature(std::move(other.signature)),
       customization(std::move(other.customization)),
-      algorithm_name(std::move(other.algorithm_name)),
+      variant(other.variant),
       length(other.length) {}
 
 KmacConfig& KmacConfig::operator=(KmacConfig&& other) noexcept {
@@ -72,11 +72,16 @@ Maybe<void> KmacTraits::AdditionalConfig(
 
   CHECK(args[offset + 2]->IsString());  // Algorithm name
   Utf8Value algorithm_name(env->isolate(), args[offset + 2]);
-  params->algorithm_name = std::string(*algorithm_name);
+  std::string algorithm_str = algorithm_name.ToString();
 
-  // Validate algorithm name.
-  CHECK(params->algorithm_name == "KMAC128" ||
-        params->algorithm_name == "KMAC256");
+  // Convert string to enum and validate
+  if (algorithm_str == OSSL_MAC_NAME_KMAC128) {
+    params->variant = KmacVariant::KMAC128;
+  } else if (algorithm_str == OSSL_MAC_NAME_KMAC256) {
+    params->variant = KmacVariant::KMAC256;
+  } else {
+    UNREACHABLE();
+  }
 
   // Customization string (may be empty or undefined).
   if (!args[offset + 3]->IsUndefined()) {
@@ -131,12 +136,10 @@ bool KmacTraits::DeriveBits(Environment* env,
     return false;
   }
 
-  const char* algorithm = params.algorithm_name.c_str();
-  CHECK(params.algorithm_name == "KMAC128" ||
-        params.algorithm_name == "KMAC256");
-
   // Fetch the KMAC algorithm
-  auto mac = EVPMacPointer::Fetch(algorithm);
+  auto mac = EVPMacPointer::Fetch((params.variant == KmacVariant::KMAC128)
+                                      ? OSSL_MAC_NAME_KMAC128
+                                      : OSSL_MAC_NAME_KMAC256);
   if (!mac) {
     return false;
   }
