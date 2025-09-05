@@ -21,6 +21,7 @@
 #include <string_view>
 #include <vector>
 
+#ifndef NODE_OPTIONS_STANDALONE
 using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -36,12 +37,16 @@ using v8::Object;
 using v8::String;
 using v8::Undefined;
 using v8::Value;
+#endif  // NODE_OPTIONS_STANDALONE
+
 namespace node {
 
+#ifndef NODE_OPTIONS_STANDALONE
 namespace per_process {
 Mutex cli_options_mutex;
 std::shared_ptr<PerProcessOptions> cli_options{new PerProcessOptions()};
 }  // namespace per_process
+#endif  // NODE_OPTIONS_STANDALONE
 
 void DebugOptions::CheckOptions(std::vector<std::string>* errors,
                                 std::vector<std::string>* argv) {
@@ -292,64 +297,6 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
 }
 
 namespace options_parser {
-
-// Helper function to convert option types to their string representation
-// and add them to a V8 Map
-static bool AddOptionTypeToMap(Isolate* isolate,
-                               Local<Context> context,
-                               Local<Map> map,
-                               const std::string& option_name,
-                               const OptionType& option_type) {
-  std::string type;
-  switch (static_cast<int>(option_type)) {
-    case 0:   // No-op
-    case 1:   // V8 flags
-      break;  // V8 and NoOp flags are not supported
-
-    case 2:
-      type = "boolean";
-      break;
-    case 3:  // integer
-    case 4:  // unsigned integer
-    case 6:  // host port
-      type = "number";
-      break;
-    case 5:  // string
-      type = "string";
-      break;
-    case 7:  // string array
-      type = "array";
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  if (type.empty()) {
-    return true;  // Skip this entry but continue processing
-  }
-
-  Local<String> option_key;
-  if (!String::NewFromUtf8(isolate,
-                           option_name.data(),
-                           v8::NewStringType::kNormal,
-                           option_name.size())
-           .ToLocal(&option_key)) {
-    return true;  // Skip this entry but continue processing
-  }
-
-  Local<String> type_value;
-  if (!String::NewFromUtf8(
-           isolate, type.data(), v8::NewStringType::kNormal, type.size())
-           .ToLocal(&type_value)) {
-    return true;  // Skip this entry but continue processing
-  }
-
-  if (map->Set(context, option_key, type_value).IsEmpty()) {
-    return false;  // Error occurred, stop processing
-  }
-
-  return true;
-}
 
 class DebugOptionsParser : public OptionsParser<DebugOptions> {
  public:
@@ -1445,6 +1392,65 @@ HostPort SplitHostPort(const std::string& arg,
                     ParseAndValidatePort(arg.substr(colon + 1), errors) };
 }
 
+#ifndef NODE_OPTIONS_STANDALONE
+// Helper function to convert option types to their string representation
+// and add them to a V8 Map
+static bool AddOptionTypeToMap(Isolate* isolate,
+                               Local<Context> context,
+                               Local<Map> map,
+                               const std::string& option_name,
+                               const OptionType& option_type) {
+  std::string type;
+  switch (static_cast<int>(option_type)) {
+    case 0:   // No-op
+    case 1:   // V8 flags
+      break;  // V8 and NoOp flags are not supported
+
+    case 2:
+      type = "boolean";
+      break;
+    case 3:  // integer
+    case 4:  // unsigned integer
+    case 6:  // host port
+      type = "number";
+      break;
+    case 5:  // string
+      type = "string";
+      break;
+    case 7:  // string array
+      type = "array";
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  if (type.empty()) {
+    return true;  // Skip this entry but continue processing
+  }
+
+  Local<String> option_key;
+  if (!String::NewFromUtf8(isolate,
+                           option_name.data(),
+                           v8::NewStringType::kNormal,
+                           option_name.size())
+           .ToLocal(&option_key)) {
+    return true;  // Skip this entry but continue processing
+  }
+
+  Local<String> type_value;
+  if (!String::NewFromUtf8(
+           isolate, type.data(), v8::NewStringType::kNormal, type.size())
+           .ToLocal(&type_value)) {
+    return true;  // Skip this entry but continue processing
+  }
+
+  if (map->Set(context, option_key, type_value).IsEmpty()) {
+    return false;  // Error occurred, stop processing
+  }
+
+  return true;
+}
+
 std::string GetBashCompletion() {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
   const auto& parser = _ppop_instance;
@@ -2033,14 +2039,17 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetEnvOptionsInputType);
   registry->Register(GetNamespaceOptionsInputType);
 }
+#endif  // NODE_OPTIONS_STANDALONE
 }  // namespace options_parser
 
+#ifndef NODE_OPTIONS_STANDALONE
 void HandleEnvOptions(std::shared_ptr<EnvironmentOptions> env_options) {
   HandleEnvOptions(env_options, [](const char* name) {
     std::string text;
     return credentials::SafeGetenv(name, &text) ? text : "";
   });
 }
+#endif  // NODE_OPTIONS_STANDALONE
 
 void HandleEnvOptions(std::shared_ptr<EnvironmentOptions> env_options,
                       std::function<std::string(const char*)> opt_getter) {
@@ -2100,6 +2109,8 @@ std::vector<std::string> ParseNodeOptionsEnvVar(
 }
 }  // namespace node
 
+#ifndef NODE_OPTIONS_STANDALONE
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(options, node::options_parser::Initialize)
 NODE_BINDING_EXTERNAL_REFERENCE(
     options, node::options_parser::RegisterExternalReferences)
+#endif  // NODE_OPTIONS_STANDALONE
