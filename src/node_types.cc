@@ -14,31 +14,31 @@ namespace node {
 namespace {
 
 #define VALUE_METHOD_MAP(V)                                                    \
-  V(External)                                                                  \
-  V(Date)                                                                      \
   V(ArgumentsObject)                                                           \
+  V(ArrayBuffer)                                                               \
+  V(AsyncFunction)                                                             \
   V(BigIntObject)                                                              \
   V(BooleanObject)                                                             \
-  V(NumberObject)                                                              \
-  V(StringObject)                                                              \
-  V(SymbolObject)                                                              \
-  V(NativeError)                                                               \
-  V(RegExp)                                                                    \
-  V(AsyncFunction)                                                             \
+  V(DataView)                                                                  \
+  V(Date)                                                                      \
+  V(External)                                                                  \
   V(GeneratorFunction)                                                         \
   V(GeneratorObject)                                                           \
-  V(Promise)                                                                   \
   V(Map)                                                                       \
-  V(Set)                                                                       \
   V(MapIterator)                                                               \
-  V(SetIterator)                                                               \
-  V(WeakMap)                                                                   \
-  V(WeakSet)                                                                   \
-  V(ArrayBuffer)                                                               \
-  V(DataView)                                                                  \
-  V(SharedArrayBuffer)                                                         \
+  V(ModuleNamespaceObject)                                                     \
+  V(NativeError)                                                               \
+  V(NumberObject)                                                              \
+  V(Promise)                                                                   \
   V(Proxy)                                                                     \
-  V(ModuleNamespaceObject)
+  V(RegExp)                                                                    \
+  V(Set)                                                                       \
+  V(SetIterator)                                                               \
+  V(SharedArrayBuffer)                                                         \
+  V(StringObject)                                                              \
+  V(SymbolObject)                                                              \
+  V(WeakMap)                                                                   \
+  V(WeakSet)
 
 #define V(type)                                                                \
   static void Is##type(const FunctionCallbackInfo<Value>& args) {              \
