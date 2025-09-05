@@ -14,11 +14,11 @@ if (isInsideDirWithUnusualChars) {
 tmpdir.refresh();
 
 {
-  const src = nextdir();
+  const src = nextdir('FIRST_DIRECTORY');
   mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
   const dest = fixtures.path('copy/kitchen-sink/README.md');
   assert.throws(
     () => cpSync(src, dest),
-    { code: 'ERR_FS_CP_DIR_TO_NON_DIR' }
+    { code: 'ERR_FS_CP_DIR_TO_NON_DIR', message: /non-directory .*README\.md with directory .*FIRST_DIRECTORY/ }
   );
 }
