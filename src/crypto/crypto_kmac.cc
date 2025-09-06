@@ -72,7 +72,7 @@ Maybe<void> KmacTraits::AdditionalConfig(
 
   CHECK(args[offset + 2]->IsString());  // Algorithm name
   Utf8Value algorithm_name(env->isolate(), args[offset + 2]);
-  std::string algorithm_str = algorithm_name.ToString();
+  std::string_view algorithm_str = algorithm_name.ToStringView();
 
   // Convert string to enum and validate
   if (algorithm_str == OSSL_MAC_NAME_KMAC128) {
