@@ -68,7 +68,7 @@ if (isMainThread) {
 
 // Errors from cleanup are thrown
 // It is difficult to arrange for rmdir to fail on windows
-if (!common.isWindows) {
+if (!common.isWindows && process.getuid() !== 0) {
   const base = fs.mkdtempDisposableSync(tmpdir.resolve('foo.'));
 
   // On Unix we can prevent removal by making the parent directory read-only
