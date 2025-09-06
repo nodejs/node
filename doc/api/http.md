@@ -3537,6 +3537,9 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59778
+    description: Add fastDump option.
   - version:
     - v20.1.0
     - v18.17.0
@@ -3631,6 +3634,11 @@ changes:
     using `; `.
   * `rejectNonStandardBodyWrites` {boolean} If set to `true`, an error is thrown
     when writing to an HTTP response which does not have a body.
+    **Default:** `false`.
+  * `fastDump` {boolean} If set to `true`, request body for `HEAD` and `GET`
+    requests will be immediatly dumped and the `end` and `close` events for
+    `IncomingMessage` will be emitted before the server emits `'request'`. This
+    enables some optimizations that would otherwise not be possible.
     **Default:** `false`.
 
 * `requestListener` {Function}
