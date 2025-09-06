@@ -40,6 +40,7 @@ exports.ERROR = {
     CB_CHUNK_EXTENSION_NAME_COMPLETE: 34,
     CB_CHUNK_EXTENSION_VALUE_COMPLETE: 35,
     CB_RESET: 31,
+    CB_PROTOCOL_COMPLETE: 38,
 };
 exports.TYPE = {
     BOTH: 0, // default
@@ -495,4 +496,36 @@ exports.SPECIAL_HEADERS = {
     'transfer-encoding': exports.HEADER_STATE.TRANSFER_ENCODING,
     'upgrade': exports.HEADER_STATE.UPGRADE,
 };
-//# sourceMappingURL=constants.js.map
+exports.default = {
+    ERROR: exports.ERROR,
+    TYPE: exports.TYPE,
+    FLAGS: exports.FLAGS,
+    LENIENT_FLAGS: exports.LENIENT_FLAGS,
+    METHODS: exports.METHODS,
+    STATUSES: exports.STATUSES,
+    FINISH: exports.FINISH,
+    HEADER_STATE: exports.HEADER_STATE,
+    ALPHA: exports.ALPHA,
+    NUM_MAP: exports.NUM_MAP,
+    HEX_MAP: exports.HEX_MAP,
+    NUM: exports.NUM,
+    ALPHANUM: exports.ALPHANUM,
+    MARK: exports.MARK,
+    USERINFO_CHARS: exports.USERINFO_CHARS,
+    URL_CHAR: exports.URL_CHAR,
+    HEX: exports.HEX,
+    TOKEN: exports.TOKEN,
+    HEADER_CHARS: exports.HEADER_CHARS,
+    CONNECTION_TOKEN_CHARS: exports.CONNECTION_TOKEN_CHARS,
+    QUOTED_STRING: exports.QUOTED_STRING,
+    HTAB_SP_VCHAR_OBS_TEXT: exports.HTAB_SP_VCHAR_OBS_TEXT,
+    MAJOR: exports.MAJOR,
+    MINOR: exports.MINOR,
+    SPECIAL_HEADERS: exports.SPECIAL_HEADERS,
+    METHODS_HTTP: exports.METHODS_HTTP,
+    METHODS_ICE: exports.METHODS_ICE,
+    METHODS_RTSP: exports.METHODS_RTSP,
+    METHOD_MAP: exports.METHOD_MAP,
+    H_METHOD_MAP: exports.H_METHOD_MAP,
+    STATUSES_HTTP: exports.STATUSES_HTTP,
+};

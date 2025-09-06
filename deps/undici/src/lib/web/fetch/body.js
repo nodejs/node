@@ -125,7 +125,7 @@ function extractBody (object, keepalive = false) {
     const prefix = `--${boundary}\r\nContent-Disposition: form-data`
 
     /*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */
-    const escape = (str) =>
+    const formdataEscape = (str) =>
       str.replace(/\n/g, '%0A').replace(/\r/g, '%0D').replace(/"/g, '%22')
     const normalizeLinefeeds = (value) => value.replace(/\r?\n|\r/g, '\r\n')
 
@@ -143,13 +143,13 @@ function extractBody (object, keepalive = false) {
     for (const [name, value] of object) {
       if (typeof value === 'string') {
         const chunk = textEncoder.encode(prefix +
-          `; name="${escape(normalizeLinefeeds(name))}"` +
+          `; name="${formdataEscape(normalizeLinefeeds(name))}"` +
           `\r\n\r\n${normalizeLinefeeds(value)}\r\n`)
         blobParts.push(chunk)
         length += chunk.byteLength
       } else {
-        const chunk = textEncoder.encode(`${prefix}; name="${escape(normalizeLinefeeds(name))}"` +
-          (value.name ? `; filename="${escape(value.name)}"` : '') + '\r\n' +
+        const chunk = textEncoder.encode(`${prefix}; name="${formdataEscape(normalizeLinefeeds(name))}"` +
+          (value.name ? `; filename="${formdataEscape(value.name)}"` : '') + '\r\n' +
           `Content-Type: ${
             value.type || 'application/octet-stream'
           }\r\n\r\n`)
