@@ -3,6 +3,9 @@
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59647
+    description: KMAC algorithms are now supported.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59544
     description: Argon2 algorithms are now supported.
   - version: v24.7.0
@@ -116,6 +119,8 @@ Algorithms:
 * `'ChaCha20-Poly1305'`
 * `'cSHAKE128'`
 * `'cSHAKE256'`
+* `'KMAC128'`[^openssl30]
+* `'KMAC256'`[^openssl30]
 * `'ML-DSA-44'`[^openssl35]
 * `'ML-DSA-65'`[^openssl35]
 * `'ML-DSA-87'`[^openssl35]
@@ -521,6 +526,8 @@ implementation and the APIs supported for each:
 | `'Ed448'`[^secure-curves]            | ✔                          | ✔                        | ✔                        | ✔                           |
 | `'HKDF'`                             |                            |                          | ✔                        |                             |
 | `'HMAC'`                             | ✔                          | ✔                        | ✔                        |                             |
+| `'KMAC128'`[^modern-algos]           | ✔                          | ✔                        | ✔                        |                             |
+| `'KMAC256'`[^modern-algos]           | ✔                          | ✔                        | ✔                        |                             |
 | `'ML-DSA-44'`[^modern-algos]         | ✔                          | ✔                        | ✔                        | ✔                           |
 | `'ML-DSA-65'`[^modern-algos]         | ✔                          | ✔                        | ✔                        | ✔                           |
 | `'ML-DSA-87'`[^modern-algos]         | ✔                          | ✔                        | ✔                        | ✔                           |
@@ -565,6 +572,8 @@ implementation and the APIs supported for each:
 | `'Ed448'`[^secure-curves]            |            | ✔                  |                        |              |                   |        |
 | `'HKDF'`                             |            |                    | ✔                      |              |                   |        |
 | `'HMAC'`                             |            | ✔                  |                        |              |                   |        |
+| `'KMAC128'`[^modern-algos]           |            | ✔                  |                        |              |                   |        |
+| `'KMAC256'`[^modern-algos]           |            | ✔                  |                        |              |                   |        |
 | `'ML-DSA-44'`[^modern-algos]         |            | ✔                  |                        |              |                   |        |
 | `'ML-DSA-65'`[^modern-algos]         |            | ✔                  |                        |              |                   |        |
 | `'ML-DSA-87'`[^modern-algos]         |            | ✔                  |                        |              |                   |        |
@@ -647,7 +656,7 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* Type: {KeyAlgorithm|RsaHashedKeyAlgorithm|EcKeyAlgorithm|AesKeyAlgorithm|HmacKeyAlgorithm}
+* Type: {KeyAlgorithm|RsaHashedKeyAlgorithm|EcKeyAlgorithm|AesKeyAlgorithm|HmacKeyAlgorithm|KmacKeyAlgorithm}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -735,6 +744,8 @@ Valid key usages depend on the key algorithm (identified by
 | `'Ed448'`[^secure-curves]            |            | ✔                  |                        |              |                   |
 | `'HDKF'`                             |            |                    | ✔                      |              |                   |
 | `'HMAC'`                             |            | ✔                  |                        |              |                   |
+| `'KMAC128'`[^modern-algos]           |            | ✔                  |                        |              |                   |
+| `'KMAC256'`[^modern-algos]           |            | ✔                  |                        |              |                   |
 | `'ML-DSA-44'`[^modern-algos]         |            | ✔                  |                        |              |                   |
 | `'ML-DSA-65'`[^modern-algos]         |            | ✔                  |                        |              |                   |
 | `'ML-DSA-87'`[^modern-algos]         |            | ✔                  |                        |              |                   |
@@ -830,7 +841,7 @@ added: v24.7.0
 * `decapsulationAlgorithm` {string|Algorithm}
 * `decapsulationKey` {CryptoKey}
 * `ciphertext` {ArrayBuffer|TypedArray|DataView|Buffer}
-* `sharedKeyAlgorithm` {string|Algorithm|HmacImportParams|AesDerivedKeyParams}
+* `sharedKeyAlgorithm` {string|Algorithm|HmacImportParams|AesDerivedKeyParams|KmacImportParams}
 * `extractable` {boolean}
 * `usages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with {CryptoKey} upon success.
@@ -945,7 +956,7 @@ changes:
 
 * `algorithm` {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params|Argon2Params}
 * `baseKey` {CryptoKey}
-* `derivedKeyAlgorithm` {string|Algorithm|HmacImportParams|AesDerivedKeyParams}
+* `derivedKeyAlgorithm` {string|Algorithm|HmacImportParams|AesDerivedKeyParams|KmacImportParams}
 * `extractable` {boolean}
 * `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey} upon success.
@@ -1036,7 +1047,7 @@ added: v24.7.0
 
 * `encapsulationAlgorithm` {string|Algorithm}
 * `encapsulationKey` {CryptoKey}
-* `sharedKeyAlgorithm` {string|Algorithm|HmacImportParams|AesDerivedKeyParams}
+* `sharedKeyAlgorithm` {string|Algorithm|HmacImportParams|AesDerivedKeyParams|KmacImportParams}
 * `extractable` {boolean}
 * `usages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with {EncapsulatedKey} upon success.
@@ -1084,6 +1095,9 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59647
+    description: KMAC algorithms are now supported.
   - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59569
     description: ML-KEM algorithms are now supported.
@@ -1134,6 +1148,8 @@ specification.
 | `'Ed25519'`                          | ✔        | ✔         | ✔       | ✔       |                | ✔              |              |
 | `'Ed448'`[^secure-curves]            | ✔        | ✔         | ✔       | ✔       |                | ✔              |              |
 | `'HMAC'`                             |          |           | ✔       | ✔       | ✔              |                |              |
+| `'KMAC128'`[^modern-algos]           |          |           | ✔       |         | ✔              |                |              |
+| `'KMAC256'`[^modern-algos]           |          |           | ✔       |         | ✔              |                |              |
 | `'ML-DSA-44'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
 | `'ML-DSA-65'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
 | `'ML-DSA-87'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
@@ -1163,6 +1179,9 @@ Derives the public key from a given private key.
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59647
+    description: KMAC algorithms are now supported.
   - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59569
     description: ML-KEM algorithms are now supported.
@@ -1176,7 +1195,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm` {string|Algorithm|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams}
+* `algorithm` {string|Algorithm|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams|KmacKeyGenParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -1216,12 +1235,17 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 * `'AES-OCB'`[^modern-algos]
 * `'ChaCha20-Poly1305'`[^modern-algos]
 * `'HMAC'`
+* `'KMAC128'`[^modern-algos]
+* `'KMAC256'`[^modern-algos]
 
 ### `subtle.importKey(format, keyData, algorithm, extractable, keyUsages)`
 
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59647
+    description: KMAC algorithms are now supported.
   - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59569
     description: ML-KEM algorithms are now supported.
@@ -1248,7 +1272,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm` {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
+* `algorithm` {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams|KmacImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -1282,6 +1306,8 @@ The algorithms currently supported include:
 | `'Ed448'`[^secure-curves]            | ✔        | ✔         | ✔       | ✔       |                | ✔              |              |
 | `'HDKF'`                             |          |           |         | ✔       | ✔              |                |              |
 | `'HMAC'`                             |          |           | ✔       | ✔       | ✔              |                |              |
+| `'KMAC128'`[^modern-algos]           |          |           | ✔       |         | ✔              |                |              |
+| `'KMAC256'`[^modern-algos]           |          |           | ✔       |         | ✔              |                |              |
 | `'ML-DSA-44'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
 | `'ML-DSA-65'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
 | `'ML-DSA-87'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
@@ -1300,6 +1326,9 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59647
+    description: KMAC algorithms are now supported.
   - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ML-DSA algorithms are now supported.
@@ -1312,7 +1341,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm` {string|Algorithm|RsaPssParams|EcdsaParams|Ed448Params|ContextParams}
+* `algorithm` {string|Algorithm|RsaPssParams|EcdsaParams|Ed448Params|ContextParams|KmacParams}
 * `key` {CryptoKey}
 * `data` {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
@@ -1330,6 +1359,8 @@ The algorithms currently supported include:
 * `'Ed25519'`
 * `'Ed448'`[^secure-curves]
 * `'HMAC'`
+* `'KMAC128'`[^modern-algos]
+* `'KMAC256'`[^modern-algos]
 * `'ML-DSA-44'`[^modern-algos]
 * `'ML-DSA-65'`[^modern-algos]
 * `'ML-DSA-87'`[^modern-algos]
@@ -1357,7 +1388,7 @@ changes:
 <!--lint disable maximum-line-length remark-lint-->
 
 * `unwrapAlgo` {string|Algorithm|RsaOaepParams|AesCtrParams|AesCbcParams|AeadParams}
-* `unwrappedKeyAlgo` {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
+* `unwrappedKeyAlgo` {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams|KmacImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -1397,6 +1428,8 @@ The unwrapped key algorithms supported include:
 * `'Ed25519'`
 * `'Ed448'`[^secure-curves]
 * `'HMAC'`
+* `'KMAC128'`[^secure-curves]
+* `'KMAC256'`[^secure-curves]
 * `'ML-DSA-44'`[^modern-algos]
 * `'ML-DSA-65'`[^modern-algos]
 * `'ML-DSA-87'`[^modern-algos]
@@ -1414,6 +1447,9 @@ The unwrapped key algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59647
+    description: KMAC algorithms are now supported.
   - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: ML-DSA algorithms are now supported.
@@ -1445,6 +1481,8 @@ The algorithms currently supported include:
 * `'Ed25519'`
 * `'Ed448'`[^secure-curves]
 * `'HMAC'`
+* `'KMAC128'`[^secure-curves]
+* `'KMAC256'`[^secure-curves]
 * `'ML-DSA-44'`[^modern-algos]
 * `'ML-DSA-65'`[^modern-algos]
 * `'ML-DSA-87'`[^modern-algos]
@@ -2269,6 +2307,115 @@ added: v15.0.0
 -->
 
 * Type: {string}
+
+### Class: `KmacImportParams`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `kmacImportParams.length`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The optional number of bits in the KMAC key. This is optional and should
+be omitted for most cases.
+
+#### `kmacImportParams.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} Must be `'KMAC128'` or `'KMAC256'`.
+
+### Class: `KmacKeyAlgorithm`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `kmacKeyAlgorithm.length`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The length of the KMAC key in bits.
+
+#### `kmacKeyAlgorithm.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+### Class: `KmacKeyGenParams`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `kmacKeyGenParams.length`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The number of bits to generate for the KMAC key. If omitted,
+the length will be determined by the KMAC algorithm used.
+This is optional and should be omitted for most cases.
+
+#### `kmacKeyGenParams.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} Must be `'KMAC128'` or `'KMAC256'`.
+
+### Class: `KmacParams`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `kmacParams.algorithm`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} Must be `'KMAC128'` or `'KMAC256'`.
+
+#### `kmacParams.customization`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
+
+The `customization` member represents the optional customization string.
+
+#### `kmacParams.length`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The length of the output in bytes. This must be a positive integer.
 
 ### Class: `Pbkdf2Params`
 
