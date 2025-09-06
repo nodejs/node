@@ -73,6 +73,7 @@ jobs:
         with:
           name: tarballs
           path: tarballs
+          compression-level: 0
   test-tarball-linux:
     needs: build-tarball
     runs-on: ubuntu-24.04
