@@ -131,3 +131,26 @@ process.on('exit', () => {
     assert.deepStrictEqual(Buffer.from(result.value), dataToRead);
   }));
 }
+
+// Duplex.toWeb BYOB
+{
+  const dataToRead = Buffer.from('hello');
+  const dataToWrite = Buffer.from('world');
+
+  const duplex = Duplex({
+    read() {
+      this.push(dataToRead);
+      this.push(null);
+    },
+    write: common.mustCall((chunk) => {
+      assert.strictEqual(chunk, dataToWrite);
+    })
+  });
+
+  const { writable, readable } = Duplex.toWeb(duplex, { type: 'bytes' });
+  writable.getWriter().write(dataToWrite);
+  const data = new Uint8Array(dataToRead.length);
+  readable.getReader({ mode: 'byob' }).read(data).then(common.mustCall((result) => {
+    assert.deepStrictEqual(Buffer.from(result.value), dataToRead);
+  }));
+}
