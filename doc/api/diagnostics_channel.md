@@ -373,12 +373,16 @@ channel.publish({
 added:
  - v15.1.0
  - v14.17.0
-deprecated:
- - v18.7.0
- - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59758
+    description: Deprecation revoked.
+  - version:
+    - v18.7.0
+    - v16.17.0
+    pr-url: https://github.com/nodejs/node/pull/44943
+    description: Documentation-only deprecation.
 -->
-
-> Stability: 0 - Deprecated: Use [`diagnostics_channel.subscribe(name, onMessage)`][]
 
 * `onMessage` {Function} The handler to receive channel messages
   * `message` {any} The message data
@@ -414,10 +418,15 @@ channel.subscribe((message, name) => {
 added:
  - v15.1.0
  - v14.17.0
-deprecated:
- - v18.7.0
- - v16.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59758
+    description: Deprecation revoked.
+  - version:
+    - v18.7.0
+    - v16.17.0
+    pr-url: https://github.com/nodejs/node/pull/44943
+    description: Documentation-only deprecation.
   - version:
     - v17.1.0
     - v16.14.0
@@ -425,8 +434,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/40433
     description: Added return value. Added to channels without subscribers.
 -->
-
-> Stability: 0 - Deprecated: Use [`diagnostics_channel.unsubscribe(name, onMessage)`][]
 
 * `onMessage` {Function} The previous subscribed handler to remove
 * Returns: {boolean} `true` if the handler was found, `false` otherwise.
@@ -1423,7 +1430,6 @@ Emitted when a new thread is created.
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
 [`diagnostics_channel.tracingChannel()`]: #diagnostics_channeltracingchannelnameorchannels
-[`diagnostics_channel.unsubscribe(name, onMessage)`]: #diagnostics_channelunsubscribename-onmessage
 [`end` event]: #endevent
 [`error` event]: #errorevent
 [`net.Server.listen()`]: net.md#serverlisten
