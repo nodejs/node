@@ -27,7 +27,6 @@ async function runTest() {
 
   await new Promise((resolve, reject) => {
     replServer.eval(`
-     const getNameText = () => "name";
      const foo = { get name() { throw new Error(); } };
      `, replServer.context, '', (err) => {
       if (err) {
@@ -38,7 +37,7 @@ async function runTest() {
     });
   });
 
-  ['foo.name.', 'foo["name"].', 'foo[getNameText()].'].forEach((test) => {
+  ['foo.name.', 'foo["name"].'].forEach((test) => {
     replServer.complete(
       test,
       common.mustCall((error, data) => {

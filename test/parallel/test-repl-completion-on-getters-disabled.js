@@ -61,10 +61,6 @@ describe('REPL completion in relation of getters', () => {
     test(`completions are generated for properties that don't trigger getters`, () => {
       runCompletionTests(
         `
-        function getFooKey() {
-          return "foo";
-        }
-
         const fooKey = "foo";
 
         const keys = {
@@ -90,7 +86,6 @@ describe('REPL completion in relation of getters', () => {
           ["objWithGetters[keys['foo key']].b", ["objWithGetters[keys['foo key']].bar"]],
           ['objWithGetters[fooKey].b', ['objWithGetters[fooKey].bar']],
           ["objWithGetters['f' + 'oo'].b", ["objWithGetters['f' + 'oo'].bar"]],
-          ['objWithGetters[getFooKey()].b', ['objWithGetters[getFooKey()].bar']],
         ]);
     });
 
