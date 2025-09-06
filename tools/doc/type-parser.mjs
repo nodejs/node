@@ -125,6 +125,10 @@ const customTypesMap = {
   'Ed448Params': 'webcrypto.html#class-ed448params',
   'ContextParams': 'webcrypto.html#class-contextparams',
   'CShakeParams': 'webcrypto.html#class-cshakeparams',
+  'KmacImportParams': 'webcrypto.html#class-kmacimportparams',
+  'KmacKeyAlgorithm': 'webcrypto.html#class-kmackeyalgorithm',
+  'KmacKeyGenParams': 'webcrypto.html#class-kmackeygenparams',
+  'KmacParams': 'webcrypto.html#class-kmacparams',
 
   'dgram.Socket': 'dgram.html#class-dgramsocket',
 
