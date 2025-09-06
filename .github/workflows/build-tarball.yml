@@ -77,6 +77,13 @@ jobs:
     needs: build-tarball
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/actions
+            tools/eslint
+            tools/eslint-rules
       - name: Install Clang ${{ env.CLANG_VERSION }}
         uses: ./.github/actions/install-clang
         with:
@@ -103,12 +110,6 @@ jobs:
       - name: Build
         run: |
           make -C "$TAR_DIR" build-ci -j4 V=1
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
-        with:
-          persist-credentials: false
-          sparse-checkout: |
-            tools/eslint
-            tools/eslint-rules
       - name: Copy directories needed for testing
         run: |
           cp -r tools/eslint $TAR_DIR/tools
