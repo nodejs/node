@@ -31,9 +31,6 @@ env:
   PYTHON_VERSION: '3.12'
   FLAKY_TESTS: keep_retrying
   CLANG_VERSION: '19'
-  CC: sccache clang-19
-  CXX: sccache clang++-19
-  SCCACHE_GHA_ENABLED: 'true'
 
 permissions:
   contents: read
@@ -68,6 +65,10 @@ jobs:
   test-tarball-linux:
     needs: build-tarball
     runs-on: ubuntu-24.04
+    env:
+      CC: sccache clang-19
+      CXX: sccache clang++-19
+      SCCACHE_GHA_ENABLED: 'true'
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
