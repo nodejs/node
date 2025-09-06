@@ -30,7 +30,8 @@
   V(module_export_names_private_symbol, "node:module_export_names")            \
   V(module_circular_visited_private_symbol, "node:module_circular_visited")    \
   V(module_export_private_symbol, "node:module_export")                        \
-  V(module_parent_private_symbol, "node:module_parent")                        \
+  V(module_first_parent_private_symbol, "node:module_first_parent")            \
+  V(module_last_parent_private_symbol, "node:module_last_parent")              \
   V(napi_type_tag, "node:napi:type_tag")                                       \
   V(napi_wrapper, "node:napi:wrapper")                                         \
   V(untransferable_object_private_symbol, "node:untransferableObject")         \
@@ -409,6 +410,7 @@
   V(stream_count_string, "streamCount")                                        \
   V(subject_string, "subject")                                                 \
   V(subjectaltname_string, "subjectaltname")                                   \
+  V(synthetic_string, "synthetic")                                             \
   V(syscall_string, "syscall")                                                 \
   V(table_string, "table")                                                     \
   V(target_string, "target")                                                   \
