@@ -85,6 +85,9 @@
     [ 'node_enable_d8=="true"', {
       'dependencies': [ 'tools/v8_gypfiles/d8.gyp:d8' ],
     }],
+    [ 'node_enable_v8windbg=="true"', {
+      'dependencies': [ 'tools/v8_gypfiles/v8windbg.gyp:build_v8windbg' ],
+    }],
     [ 'node_use_bundled_v8=="true"', {
       'dependencies': [
         'tools/v8_gypfiles/v8.gyp:v8_snapshot',
