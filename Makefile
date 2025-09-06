@@ -1184,18 +1184,6 @@ endif
 .PHONY: pkg
 pkg: $(PKG) ## Build the macOS installer for releases.
 
-.PHONY: corepack-update
-corepack-update: ## Update Corepack to the latest version.
-	mkdir -p /tmp/node-corepack
-	curl -qLo /tmp/node-corepack/package.tgz "$$($(call available-node,$(NPM) view corepack dist.tarball))"
-
-	rm -rf deps/corepack && mkdir deps/corepack
-	cd deps/corepack && tar xf /tmp/node-corepack/package.tgz --strip-components=1
-	chmod +x deps/corepack/shims/*
-
-	$(call available-node,'-p' \
-			 'require(`./deps/corepack/package.json`).version')
-
 .PHONY: pkg-upload
 # Note: this is strictly for release builds on release machines only.
 pkg-upload: pkg

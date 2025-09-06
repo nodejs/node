@@ -119,27 +119,6 @@ def npm_files(options, action):
     'npx': 'bin/npx-cli.js',
   })
 
-def corepack_files(options, action):
-  package_files(options, action, 'corepack', {
-    'corepack': 'dist/corepack.js',
-#   Not the default just yet:
-#   'yarn': 'dist/yarn.js',
-#   'yarnpkg': 'dist/yarn.js',
-#   'pnpm': 'dist/pnpm.js',
-#   'pnpx': 'dist/pnpx.js',
-  })
-
-  # On z/OS, we install node-gyp for convenience, as some vendors don't have
-  # external access and may want to build native addons.
-  if sys.platform == 'zos':
-    link_path = abspath(options.install_path, 'bin/node-gyp')
-    if action == uninstall:
-      action(options, [link_path], 'bin/node-gyp')
-    elif action == install:
-      try_symlink(options, '../lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js', link_path)
-    else:
-      assert 0 # unhandled action type
-
 def subdir_files(options, path, dest, action):
   source_path, _ = mkpaths(options, path, dest)
   ret = {}
@@ -205,9 +184,6 @@ def files(options, action):
 
   if 'true' == options.variables.get('node_install_npm'):
     npm_files(options, action)
-
-  if 'true' == options.variables.get('node_install_corepack'):
-    corepack_files(options, action)
 
   headers(options, action)
 

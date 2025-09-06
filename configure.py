@@ -807,12 +807,6 @@ parser.add_argument('--without-npm',
     default=None,
     help='do not install the bundled npm (package manager)')
 
-parser.add_argument('--with-corepack',
-    action='store_true',
-    dest='with_corepack',
-    default=None,
-    help='do install the bundled Corepack (experimental, will be removed without notice)')
-
 parser.add_argument('--control-flow-guard',
     action='store_true',
     dest='enable_cfg',
@@ -1512,7 +1506,6 @@ def configure_node(o):
     o['variables']['OS'] = 'android'
   o['variables']['node_prefix'] = options.prefix
   o['variables']['node_install_npm'] = b(not options.without_npm)
-  o['variables']['node_install_corepack'] = b(options.with_corepack)
   o['variables']['control_flow_guard'] = b(options.enable_cfg)
   o['variables']['node_use_amaro'] = b(not options.without_amaro)
   o['variables']['debug_node'] = b(options.debug_node)
