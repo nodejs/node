@@ -142,6 +142,18 @@ size_t SeaSerializer::Write(const SeaResource& sea) {
       written_total += WriteStringView(arg, StringLogMode::kAddressAndContent);
     }
   }
+
+  if (static_cast<bool>(sea.flags & SeaFlags::kIncludeUserArgv)) {
+    Debug("Write SEA resource user argv size %zu\n", sea.user_argv.size());
+    written_total += WriteArithmetic<size_t>(sea.user_argv.size());
+    for (const auto& arg : sea.user_argv) {
+      Debug("Write SEA resource user arg %s at %p, size=%zu\n",
+            arg.data(),
+            arg.data(),
+            arg.size());
+      written_total += WriteStringView(arg, StringLogMode::kAddressAndContent);
+    }
+  }
   return written_total;
 }
 
@@ -224,13 +236,29 @@ SeaResource SeaDeserializer::Read() {
       exec_argv.emplace_back(arg);
     }
   }
+
+  std::vector<std::string_view> user_argv;
+  if (static_cast<bool>(flags & SeaFlags::kIncludeUserArgv)) {
+    size_t user_argv_size = ReadArithmetic<size_t>();
+    Debug("Read SEA resource user args size %zu\n", user_argv_size);
+    user_argv.reserve(user_argv_size);
+    for (size_t i = 0; i < user_argv_size; ++i) {
+      std::string_view arg = ReadStringView(StringLogMode::kAddressAndContent);
+      Debug("Read SEA resource user arg %s at %p, size=%zu\n",
+            arg.data(),
+            arg.data(),
+            arg.size());
+      user_argv.emplace_back(arg);
+    }
+  }
   return {flags,
           exec_argv_extension,
           code_path,
           code,
           code_cache,
           assets,
-          exec_argv};
+          exec_argv,
+          user_argv};
 }
 
 std::string_view FindSingleExecutableBlob() {
@@ -316,12 +344,14 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
     static std::vector<char*> new_argv;
     static std::vector<std::string> exec_argv_storage;
     static std::vector<std::string> cli_extension_args;
+    static std::vector<std::string> user_argv_storage;
 
     SeaResource sea_resource = FindSingleExecutableResource();
 
     new_argv.clear();
     exec_argv_storage.clear();
     cli_extension_args.clear();
+    user_argv_storage.clear();
 
     // Handle CLI extension mode for --node-options
     if (sea_resource.exec_argv_extension == SeaExecArgvExtension::kCli) {
@@ -341,10 +371,11 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
       }
     }
 
-    // Reserve space for argv[0], exec argv, cli extension args, original argv,
-    // and nullptr
+    // Reserve space for two argv[0] , exec argv, cli extension args, user argv,
+    // original argv and nullptr
     new_argv.reserve(argc + sea_resource.exec_argv.size() +
-                     cli_extension_args.size() + 2);
+                     cli_extension_args.size() + sea_resource.user_argv.size() +
+                     3);
     new_argv.emplace_back(argv[0]);
 
     // Insert exec argv from SEA config
@@ -363,8 +394,18 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
       new_argv.emplace_back(exec_argv_storage.back().data());
     }
 
-    // Add actual run time arguments
-    new_argv.insert(new_argv.end(), argv, argv + argc);
+    new_argv.emplace_back(argv[0]);
+    // Insert user argv from SEA config
+    if (!sea_resource.user_argv.empty()) {
+      user_argv_storage.reserve(sea_resource.user_argv.size());
+      for (const auto& arg : sea_resource.user_argv) {
+        user_argv_storage.emplace_back(arg);
+        new_argv.emplace_back(user_argv_storage.back().data());
+      }
+    }
+
+    // Add actual run time arguments.
+    new_argv.insert(new_argv.end(), argv + 1, argv + argc);
     new_argv.emplace_back(nullptr);
     argc = new_argv.size() - 1;
     argv = new_argv.data();
@@ -382,6 +423,7 @@ struct SeaConfig {
   SeaExecArgvExtension exec_argv_extension = SeaExecArgvExtension::kEnv;
   std::unordered_map<std::string, std::string> assets;
   std::vector<std::string> exec_argv;
+  std::vector<std::string> user_argv;
 };
 
 std::optional<SeaConfig> ParseSingleExecutableConfig(
@@ -544,6 +586,35 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
                 config_path);
         return std::nullopt;
       }
+    } else if (key == "argv") {
+      simdjson::ondemand::array argv_array;
+      FPrintF(stderr, "\"argv\" start \n");
+
+      if (field.value().get_array().get(argv_array)) {
+        FPrintF(stderr,
+                "\"argv\" field of %s is not an array of strings\n",
+                config_path);
+        return std::nullopt;
+      }
+      std::vector<std::string> user_argv;
+
+      for (auto argv : argv_array) {
+        FPrintF(stderr, "\"argv\"\n");
+
+        std::string_view argv_str;
+        if (argv.get_string().get(argv_str)) {
+          FPrintF(stderr,
+                  "\"argv\" field of %s is not an array of strings\n",
+                  config_path);
+          return std::nullopt;
+        }
+        FPrintF(stderr, "\"argv\" : %s \n", argv_str);
+        user_argv.emplace_back(argv_str);
+      }
+      if (!user_argv.empty()) {
+        result.flags |= SeaFlags::kIncludeUserArgv;
+        result.user_argv = std::move(user_argv);
+      }
     }
   }
 
@@ -579,9 +650,11 @@ ExitCode GenerateSnapshotForSEA(const SeaConfig& config,
                                 const SnapshotConfig& snapshot_config,
                                 std::vector<char>* snapshot_blob) {
   SnapshotData snapshot;
-  // TODO(joyeecheung): make the arguments configurable through the JSON
-  // config or a programmatic API.
   std::vector<std::string> patched_args = {args[0], config.main_path};
+  if (!config.user_argv.empty()) {
+    patched_args.insert(
+        patched_args.end(), config.user_argv.begin(), config.user_argv.end());
+  }
   ExitCode exit_code = SnapshotBuilder::Generate(&snapshot,
                                                  patched_args,
                                                  exec_args,
@@ -741,6 +814,10 @@ ExitCode GenerateSingleExecutableBlob(
   for (const auto& arg : config.exec_argv) {
     exec_argv_view.emplace_back(arg);
   }
+  std::vector<std::string_view> user_argv_view;
+  for (const auto& arg : config.user_argv) {
+    user_argv_view.emplace_back(arg);
+  }
   SeaResource sea{
       config.flags,
       config.exec_argv_extension,
@@ -750,7 +827,8 @@ ExitCode GenerateSingleExecutableBlob(
           : std::string_view{main_script.data(), main_script.size()},
       optional_sv_code_cache,
       assets_view,
-      exec_argv_view};
+      exec_argv_view,
+      user_argv_view};
 
   SeaSerializer serializer;
   serializer.Write(sea);

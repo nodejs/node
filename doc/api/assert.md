@@ -314,6 +314,8 @@ An alias of [`assert.ok()`][].
 
 ## `assert.deepEqual(actual, expected[, message])`
 
+<!--lint disable nodejs-yaml-comments-->
+
 <!-- YAML
 added: v0.1.21
 changes:
