@@ -42,6 +42,7 @@
 #include "crypto/crypto_hmac.h"
 #if OPENSSL_VERSION_MAJOR >= 3
 #include "crypto/crypto_kem.h"
+#include "crypto/crypto_kmac.h"
 #endif
 #include "crypto/crypto_keygen.h"
 #include "crypto/crypto_keys.h"

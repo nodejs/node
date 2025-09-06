@@ -184,6 +184,16 @@ if (hasOpenSSL(3)) {
       'unwrapKey',
     ],
   };
+
+  for (const name of ['KMAC128', 'KMAC256']) {
+    vectors[name] = {
+      result: 'CryptoKey',
+      usages: [
+        'sign',
+        'verify',
+      ],
+    };
+  }
 }
 
 if (hasOpenSSL(3, 5)) {
