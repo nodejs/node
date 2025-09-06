@@ -2,7 +2,6 @@
   throw err
   ^
 
-
 Error: an error!
     at functionD (*/test/fixtures/source-map/enclosing-call-site.js:16:17)
     at functionC (*/test/fixtures/source-map/enclosing-call-site.js:10:3)

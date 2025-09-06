@@ -2,7 +2,6 @@
 	alert "I knew it!"
 	^
 
-
 ReferenceError: alert is not defined
     at Object.eval (*/synthesized/workspace/tabs-source-url.coffee:26:2)
     at eval (*/synthesized/workspace/tabs-source-url.coffee:1:14)
