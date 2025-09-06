@@ -84,6 +84,14 @@ class Worker : public AsyncWrap {
   static void CpuUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StartCpuProfile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopCpuProfile(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetNotifications(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RegisterNotification(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SendNotification(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void UnregisterNotification(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void UnregisterNotifications(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
   bool CreateEnvMessagePort(Environment* env);
@@ -142,6 +150,29 @@ class Worker : public AsyncWrap {
   const SnapshotData* snapshot_data_ = nullptr;
   const bool is_internal_;
   friend class WorkerThreadData;
+
+  static void UnregisterAllNotifications(IsolateData* isolate_data);
+};
+
+class NotificationData {
+  friend class Worker;
+
+ public:
+  NotificationData(uint64_t thread_id,
+                   Environment* env,
+                   v8::Local<v8::Function> callback);
+  ~NotificationData();
+  void Register(IsolateData* isolate_data);
+  void Unregister(IsolateData* isolate_data);
+  void Execute();
+
+ private:
+  uint64_t id_;
+  uint64_t thread_id_;
+  uv_async_t async_;
+  Environment* env_;
+  v8::Global<v8::Function> callback_;
+  std::function<void()> OnClose;
 };
 
 template <typename Fn>
@@ -151,6 +182,9 @@ bool Worker::RequestInterrupt(Fn&& cb) {
   env_->RequestInterrupt(std::move(cb));
   return true;
 }
+
+static std::unordered_map<uint64_t, NotificationData*> workers_notifications_;
+static std::atomic<uint64_t> notifications_counter_{0};
 
 }  // namespace worker
 }  // namespace node

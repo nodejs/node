@@ -98,6 +98,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_INVALID_PACKAGE_CONFIG, Error)                                         \
   V(ERR_INVALID_OBJECT_DEFINE_PROPERTY, TypeError)                             \
   V(ERR_INVALID_MODULE, Error)                                                 \
+  V(ERR_INVALID_NOTIFICATION, Error)                                           \
   V(ERR_INVALID_STATE, Error)                                                  \
   V(ERR_INVALID_THIS, TypeError)                                               \
   V(ERR_INVALID_URL, TypeError)                                                \
@@ -217,6 +218,7 @@ ERRORS_WITH_CODE(V)
   V(ERR_INVALID_ADDRESS, "Invalid socket address")                             \
   V(ERR_INVALID_INVOCATION, "Invalid invocation")                              \
   V(ERR_INVALID_MODULE, "No such module")                                      \
+  V(ERR_INVALID_NOTIFICATION, "Invalid notification")                          \
   V(ERR_INVALID_STATE, "Invalid state")                                        \
   V(ERR_INVALID_THIS, "Value of \"this\" is the wrong type")                   \
   V(ERR_INVALID_URL_SCHEME, "The URL must be of scheme file:")                 \
