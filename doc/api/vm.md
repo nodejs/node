@@ -58,6 +58,10 @@ executed in specific contexts.
 <!-- YAML
 added: v0.3.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59599
+    description: Added support for `compileOptions`.
+
   - version:
     - v21.7.0
     - v20.12.0
@@ -107,6 +111,9 @@ changes:
     experimental modules API. We do not recommend using it in a production
     environment. For detailed information, see
     [Support of dynamic `import()` in compilation APIs][].
+  * `compileOptions` {number} Specifies the compile options that are used to
+    compile the code when `cachedData` is `undefined`,
+    see [`vm.constants.COMPILE_OPTIONS`][]. **Default:** `undefined`.
 
 If `options` is a string, then it specifies the filename.
 
@@ -1157,6 +1164,10 @@ A `ModuleRequest` represents the request to import a module with given import at
 <!-- YAML
 added: v10.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59599
+    description: Added support for `compileOptions`.
+
   - version:
     - v21.7.0
     - v20.12.0
@@ -1191,8 +1202,10 @@ changes:
 -->
 
 * `code` {string} The body of the function to compile.
+
 * `params` {string\[]} An array of strings containing all parameters for the
   function.
+
 * `options` {Object}
   * `filename` {string} Specifies the filename used in stack traces produced
     by this script. **Default:** `''`.
@@ -1218,6 +1231,10 @@ changes:
     experimental modules API. We do not recommend using it in a production
     environment. For detailed information, see
     [Support of dynamic `import()` in compilation APIs][].
+  * `compileOptions` {number} Specifies the compile options that are used to
+    compile the code when `cachedData` is `undefined`,
+    see [`vm.constants.COMPILE_OPTIONS`][]. **Default:** `undefined`.
+
 * Returns: {Function}
 
 Compiles the given code into the provided context (if no context is
@@ -1235,6 +1252,18 @@ added:
 * Type: {Object}
 
 Returns an object containing commonly used constants for VM operations.
+
+### `vm.constants.COMPILE_OPTIONS`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+The options that are used to compile the code. The value may be one of:
+
+* `vm.constants.COMPILE_OPTIONS.NO_COMPILE_OPTIONS`: Using default compile options.
+* `vm.constants.COMPILE_OPTIONS.EAGER_COMPILE`: Compiling the code eagerly.
 
 ### `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`
 
@@ -2148,6 +2177,7 @@ const { Script, SyntheticModule } = require('node:vm');
 [`sourceTextModule.moduleRequests`]: #sourcetextmodulemodulerequests
 [`url.origin`]: url.md#urlorigin
 [`vm.compileFunction()`]: #vmcompilefunctioncode-params-options
+[`vm.constants.COMPILE_OPTIONS`]: #vmconstantscompile_options
 [`vm.constants.DONT_CONTEXTIFY`]: #vmconstantsdont_contextify
 [`vm.createContext()`]: #vmcreatecontextcontextobject-options
 [`vm.runInContext()`]: #vmrunincontextcode-contextifiedobject-options
