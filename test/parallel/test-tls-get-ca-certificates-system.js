@@ -31,3 +31,4 @@ const certs = tls.getCACertificates('bundled');
 assertIsCAArray(certs);
 
 assert.deepStrictEqual(certs, tls.rootCertificates);
+assert.strictEqual(systemCerts, tls.getCACertificates({ type: 'system', format: 'string' }));
