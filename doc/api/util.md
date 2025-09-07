@@ -2051,13 +2051,19 @@ changes:
     the tokens in different ways.
     **Default:** `false`.
   * `help` {string} General help text to display at the beginning of help output.
+  * `addHelpOption` {boolean} Whether to automatically add a help option to the
+    options if general help text is provided and no existing help option is defined.
+    The auto-added help option uses `-h` short flag and `--help` long flag.
+    **Default:** `true` if `help` is provided, `false` otherwise.
+  * `returnHelpText` {boolean} Whether to return formatted help text in the result.
+    **Default:** `true` if `help` is provided or `addHelpOption` is `true`, `false` otherwise.
 
 * Returns: {Object} The parsed command line arguments:
   * `values` {Object} A mapping of parsed option names with their {string}
     or {boolean} values.
-    * `help` {string | undefined} Formatted help text for all options provided. Only included if general `help` text
-      is available.
   * `positionals` {string\[]} Positional arguments.
+  * `helpText` {string | undefined} Formatted help text for all options provided.
+    Only included if `returnHelpText` is `true`.
   * `tokens` {Object\[] | undefined} See [parseArgs tokens](#parseargs-tokens)
     section. Only returned if `config` includes `tokens: true`.
 
@@ -2107,81 +2113,146 @@ console.log(values, positionals);
 
 ### `parseArgs` help text
 
-`parseArgs` supports automatic formatted help text generation for command-line options. To use this feature, provide
-general help text using the `help` config property, and also
-a `help` property to each option can be optionally included.
+`parseArgs` supports automatic formatted help text generation for command-line options. When
+general help text is provided, a help option is automatically added unless disabled or already present.
+
+#### Simple usage
+
+By default, providing general help text automatically adds a help option (`-h, --help`) and
+returns formatted help text in `result.helpText`:
 
 ```mjs
 import { parseArgs } from 'node:util';
 
 const options = {
-  verbose: {
+  foo: {
     type: 'boolean',
-    short: 'v',
+    short: 'f',
+    help: 'use the foo filter',
   },
-  help: {
-    type: 'boolean',
-    short: 'h',
-    help: 'Prints usage information',
-  },
-  output: {
+  bar: {
     type: 'string',
-    help: 'Output directory',
+    help: 'use the specified bar filter',
   },
 };
 
-// Get serialized help text in result
 const result = parseArgs({
+  help: 'utility to control filters',
   options,
-  help: 'My CLI Tool v1.0\n\nProcess files with various options.',
 });
 
-if (result.printUsage) {
-  console.log(result.printUsage);
+if (result.values.help) {
+  console.log(result.helpText);
   // Prints:
-  // My CLI Tool v1.0
-  //
-  // Process files with various options.
-  // -v, --verbose
-  // -h, --help.               Prints command line options
-  // --output <arg>            Output directory
+  // utility to control filters
+  // -f, --foo                     use the foo filter
+  // --bar <arg>                   use the specified bar filter
+  // -h, --help                    Show help
 }
 ```
 
-```cjs
-const { parseArgs } = require('node:util');
+#### Custom help option
+
+You can override the auto-added help option by defining your own:
+
+```mjs
+import { parseArgs } from 'node:util';
 
 const options = {
-  verbose: {
+  foo: {
     type: 'boolean',
-    short: 'v',
+    short: 'f',
+    help: 'use the foo filter',
+  },
+  bar: {
+    type: 'string',
+    help: 'use the specified bar filter',
   },
   help: {
     type: 'boolean',
-    short: 'h',
-    help: 'Prints command line options',
-  },
-  output: {
-    type: 'string',
-    help: 'Output directory',
+    short: '?',
+    help: 'display help',
   },
 };
 
-// Get serialized help text in result
 const result = parseArgs({
+  help: 'utility to control filters',
   options,
-  help: 'My CLI Tool v1.0\n\nProcess files with various options.',
 });
 
-if (result.printUsage) {
-  console.log(result.printUsage);
+if (result.values.help) {
+  console.log(result.helpText);
   // Prints:
-  // My CLI Tool v1.0
-  //
-  // Process files with various options.
-  // -v, --verbose
-  // -h, --help.               Prints command line options
-  // --output <arg>            Output directory
+  // utility to control filters
+  // -f, --foo                     use the foo filter
+  // --bar <arg>                   use the specified bar filter
+  // -?, --help                    display help
+}
+```
+
+#### Advanced configuration
+
+Use `addHelpOption` and `returnHelpText` to customize help behavior:
+
+```mjs
+import { parseArgs } from 'node:util';
+
+const options = {
+  foo: {
+    type: 'boolean',
+    short: 'f',
+    help: 'use the foo filter',
+  },
+  assist: {
+    type: 'boolean',
+    short: '?',
+    help: 'display help',
+  },
+};
+
+const result = parseArgs({
+  addHelpOption: false, // Suppress auto help option
+  returnHelpText: true, // Generate help text anyway
+  options,
+});
+
+if (result.values.assist) {
+  console.log(result.helpText);
+  // Prints:
+  // -f, --foo                     use the foo filter
+  // -?, --assist                  display help
+}
+```
+
+#### Deferred help generation
+
+For performance, you can postpone help text generation until needed:
+
+```mjs
+import { parseArgs } from 'node:util';
+
+const options = {
+  foo: {
+    type: 'boolean',
+    short: 'f',
+    help: 'use the foo filter',
+  },
+};
+
+// First parse without generating help text
+const result = parseArgs({
+  addHelpOption: true,
+  returnHelpText: false,
+  options,
+});
+
+if (result.values.help) {
+  // Generate help text only when needed
+  const { helpText } = parseArgs({
+    help: 'utility to control filters',
+    options,
+  });
+  console.log(helpText);
 }
 ```
 
