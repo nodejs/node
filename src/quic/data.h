@@ -62,16 +62,16 @@ class Store final : public MemoryRetainer {
   // is not detachable or detaching failed (likely due to a detach key
   // mismatch).
   static v8::Maybe<Store> From(
-    v8::Local<v8::ArrayBuffer> buffer,
-    v8::Local<v8::Value> detach_key = v8::Local<v8::Value>());
+      v8::Local<v8::ArrayBuffer> buffer,
+      v8::Local<v8::Value> detach_key = v8::Local<v8::Value>());
 
   // Creates a Store from the contents of an ArrayBufferView, always detaching
   // it in the process. An empty Maybe will be returned if the ArrayBuffer
   // is not detachable or detaching failed (likely due to a detach key
   // mismatch).
   static v8::Maybe<Store> From(
-    v8::Local<v8::ArrayBufferView> view,
-    v8::Local<v8::Value> detach_key = v8::Local<v8::Value>());
+      v8::Local<v8::ArrayBufferView> view,
+      v8::Local<v8::Value> detach_key = v8::Local<v8::Value>());
 
   v8::Local<v8::Uint8Array> ToUint8Array(Environment* env) const;
   inline v8::Local<v8::Uint8Array> ToUint8Array(Realm* realm) const {

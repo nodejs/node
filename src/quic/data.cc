@@ -88,9 +88,7 @@ Store::Store(std::unique_ptr<BackingStore> store, size_t length, size_t offset)
   CHECK_LE(length_, store_->ByteLength() - offset_);
 }
 
-Maybe<Store> Store::From(
-    Local<ArrayBuffer> buffer,
-    Local<Value> detach_key) {
+Maybe<Store> Store::From(Local<ArrayBuffer> buffer, Local<Value> detach_key) {
   if (!buffer->IsDetachable()) {
     return Nothing<Store>();
   }
@@ -103,9 +101,7 @@ Maybe<Store> Store::From(
   return Just(Store(std::move(backing), length, 0));
 }
 
-Maybe<Store> Store::From(
-    Local<ArrayBufferView> view,
-    Local<Value> detach_key) {
+Maybe<Store> Store::From(Local<ArrayBufferView> view, Local<Value> detach_key) {
   if (!view->Buffer()->IsDetachable()) {
     return Nothing<Store>();
   }
