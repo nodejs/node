@@ -14,7 +14,6 @@ const { HeadersList } = require('./headers')
 const { Request, cloneRequest, getRequestDispatcher, getRequestState } = require('./request')
 const zlib = require('node:zlib')
 const {
-  bytesMatch,
   makePolicyContainer,
   clonePolicyContainer,
   requestBadPort,
@@ -62,6 +61,7 @@ const { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = requ
 const { getGlobalDispatcher } = require('../../global')
 const { webidl } = require('../webidl')
 const { STATUS_CODES } = require('node:http')
+const { bytesMatch } = require('../subresource-integrity/subresource-integrity')
 const { createDeferredPromise } = require('../../util/promise')
 const GET_OR_HEAD = ['GET', 'HEAD']
 
