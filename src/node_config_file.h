@@ -46,7 +46,8 @@ class ConfigReader {
 
   // Process a single option value based on its type
   ParseResult ProcessOptionValue(
-      const std::pair<std::string, options_parser::OptionType>& option_info,
+      const std::pair<std::string, options_parser::OptionMappingDetails>&
+          option_details,
       simdjson::ondemand::value* option_value,
       std::vector<std::string>* output);
 
@@ -54,7 +55,8 @@ class ConfigReader {
   std::vector<std::string> namespace_options_;
 
   // Cache for fast lookup of environment options
-  std::unordered_map<std::string, options_parser::OptionType> env_options_map_;
+  std::unordered_map<std::string, options_parser::OptionMappingDetails>
+      env_options_map_;
   bool env_options_initialized_ = false;
 };
 
