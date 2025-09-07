@@ -1,7 +1,6 @@
 'use strict';
 
 // Flags: --expose-internals
-
 const common = require('../common');
 const stream = require('stream');
 const REPL = require('internal/repl');
@@ -244,16 +243,14 @@ const tests = [
       // 230 + 2 + 4 + 14
       '\x1B[1G', '\x1B[0J',
       `${prompt}${' '.repeat(230)} aut`, '\x1B[237G',
-      ' // ocompleteMe', '\x1B[237G',
-      '\n// 123', '\x1B[237G',
-      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      ' // ocompleteMe', '\x1B[237G', ' // ocompleteMe',
+      '\x1B[237G',
       '\x1B[0K',
       // 2. UP
       '\x1B[1G', '\x1B[0J',
       `${prompt}${' '.repeat(229)} aut`, '\x1B[236G',
-      ' // ocompleteMe', '\x1B[236G',
-      '\n// 123', '\x1B[236G',
-      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      ' // ocompleteMe', '\x1B[236G', ' // ocompleteMe',
+      '\x1B[236G',
       // Preview cleanup
       '\x1B[0K',
       // 3. UP
@@ -337,13 +334,12 @@ const tests = [
       BACKSPACE,
       LEFT,
       LEFT,
-      'A',
-      BACKSPACE,
       GO_TO_END,
       BACKSPACE,
       WORD_LEFT,
       WORD_RIGHT,
       ESCAPE,
+      RIGHT,
       ENTER,
       UP,
       LEFT,
@@ -362,15 +358,11 @@ const tests = [
       '\x1B[1G', '\x1B[0J', prompt, '\x1B[3G', 'a',
       // 'u'
       'u', ' // tocompleteMe', '\x1B[5G',
-      '\n// 123', '\x1B[5G',
-      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      '\x1B[0K',
       // 't' - Cleanup
-      '\x1B[0K',
       't', ' // ocompleteMe', '\x1B[6G',
-      '\n// 123', '\x1B[6G',
-      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
-      // 1. Right. Cleanup
       '\x1B[0K',
+      // 1. Right. Cleanup
       'ocompleteMe',
       '\n// 123', '\x1B[17G',
       '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
@@ -378,8 +370,7 @@ const tests = [
       '\x1B[1G', '\x1B[0J', `${prompt}autocompleteM`, '\x1B[16G',
       // Autocomplete and refresh?
       ' // e', '\x1B[16G',
-      '\n// 123', '\x1B[16G',
-      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      ' // e', '\x1B[16G',
       // 3. Left. Cleanup
       '\x1B[0K',
       '\x1B[1D', '\x1B[16G', ' // e', '\x1B[15G',
@@ -388,15 +379,8 @@ const tests = [
       '\x1B[1D', '\x1B[16G', ' // e', '\x1B[14G',
       // 5. 'A' - Cleanup
       '\x1B[16G', '\x1B[0K', '\x1B[14G',
-      // Refresh
-      '\x1B[1G', '\x1B[0J', `${prompt}autocompletAeM`, '\x1B[15G',
-      // 6. Backspace. Refresh
-      '\x1B[1G', '\x1B[0J', `${prompt}autocompleteM`,
-      '\x1B[14G', '\x1B[16G', ' // e',
-      '\x1B[14G', '\x1B[16G', ' // e',
-      '\x1B[14G', '\x1B[16G',
+      '\x1B[2C',
       // 7. Go to end. Cleanup
-      '\x1B[0K', '\x1B[14G', '\x1B[2C',
       'e',
       '\n// 123', '\x1B[17G',
       '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
@@ -404,44 +388,42 @@ const tests = [
       '\x1B[1G', '\x1B[0J', `${prompt}autocompleteM`, '\x1B[16G',
       // Autocomplete
       ' // e', '\x1B[16G',
-      '\n// 123', '\x1B[16G',
-      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      ' // e', '\x1B[16G',
       // 9. Word left. Cleanup
       '\x1B[0K', '\x1B[13D', '\x1B[16G', ' // e', '\x1B[3G', '\x1B[16G',
       // 10. Word right. Cleanup
       '\x1B[0K', '\x1B[3G', '\x1B[13C', ' // e', '\x1B[16G',
-      '\n// 123', '\x1B[16G',
-      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
       // 11. ESCAPE
       '\x1B[0K',
+      'e',
+      '\n// 123', '\x1B[17G',
+      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
       // 12. ENTER
       '\r\n',
-      'Uncaught ReferenceError: autocompleteM is not defined\n',
+      '123\n',
       '\x1B[1G', '\x1B[0J',
       // 13. UP
       prompt, '\x1B[3G', '\x1B[1G', '\x1B[0J',
-      `${prompt}autocompleteM`, '\x1B[16G',
-      ' // e', '\x1B[16G',
-      '\n// 123', '\x1B[16G',
+      `${prompt}autocompleteMe`, '\x1B[17G',
+      '\n// 123', '\x1B[17G',
       '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
       // 14. LEFT
-      '\x1B[0K', '\x1B[1D', '\x1B[16G',
-      ' // e', '\x1B[15G', '\x1B[16G',
+      '\x1B[1D',
+      '\n// 123', '\x1B[16G',
+      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
       // 15. ENTER
-      '\x1B[0K', '\x1B[15G', '\x1B[1C',
+      '\x1B[1C',
       '\r\n',
-      'Uncaught ReferenceError: autocompleteM is not defined\n',
+      '123\n',
       '\x1B[1G', '\x1B[0J',
       prompt, '\x1B[3G',
       // 16. UP
       '\x1B[1G', '\x1B[0J',
-      `${prompt}autocompleteM`, '\x1B[16G',
-      ' // e', '\x1B[16G',
-      '\n// 123', '\x1B[16G',
+      `${prompt}autocompleteMe`, '\x1B[17G',
+      '\n// 123', '\x1B[17G',
       '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
-      '\x1B[0K',
       // 17. ENTER
-      'e', '\r\n',
+      '\r\n',
       '123\n',
       '\x1B[1G', '\x1B[0J',
       prompt, '\x1B[3G',
@@ -586,9 +568,8 @@ const tests = [
     expected: [
       prompt, ...'const util = {}',
       'undefined\n',
-      prompt, ...'ut', ...(prev ? [' // il', '\n// {}',
-                                   'il', '\n// {}'] : ['il']),
-      '{}\n',
+      prompt, ...'ut', ...(prev ? [' // il', 'il',
+                                   '\n// {}', '{}\n'] : ['il']),
       prompt,
     ],
     clean: false
