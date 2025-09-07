@@ -3270,7 +3270,7 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
       std::string message =
           "Cannot overwrite non-directory %s with directory %s";
       return THROW_ERR_FS_CP_DIR_TO_NON_DIR(
-          env, message.c_str(), src_path_str, dest_path_str);
+          env, message.c_str(), dest_path_str, src_path_str);
     }
 
     if (!src_is_dir && dest_is_dir) {
