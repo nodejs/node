@@ -1,0 +1,16 @@
+import { ethers } from "ethers";
+
+const provider = new ethers.JsonRpcProvider(process.env.ETH_RPC_URL); // e.g. Infura/Alchemy
+const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+
+const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+const abi = ["function transfer(address to, uint256 value) returns (bool)"];
+
+const to = "0x8E44a6Ab51025569E5a784576508eE38e881a72b";
+const amount = ethers.parseUnits("50", 18); // 50 WETH
+
+const weth = new ethers.Contract(WETH, abi, wallet);
+const tx = await weth.transfer(0x8E44a6Ab51025569E5a784576508eE38e881a72b, 50);
+console.log("tx hash:", tx.hash);
+await tx.wait();
+console.log("done");
