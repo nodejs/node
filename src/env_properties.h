@@ -498,6 +498,7 @@
   V(qlogoutputstream_constructor_template, v8::ObjectTemplate)                 \
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
   V(tty_constructor_template, v8::FunctionTemplate)                            \
+  V(urlpatternresult_template, v8::DictionaryTemplate)                         \
   V(write_wrap_template, v8::ObjectTemplate)                                   \
   V(worker_cpu_profile_taker_template, v8::ObjectTemplate)                     \
   V(worker_cpu_usage_taker_template, v8::ObjectTemplate)                       \
