@@ -35,8 +35,35 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  build-tarball:
     if: github.event.pull_request.draft == false
+    name: ${{ github.event_name == 'workflow_dispatch' && 'Skipped job' || 'Build slim tarball' }}
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        with:
+          persist-credentials: false
+
+      - name: Make tarball
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        run: |
+          export DATESTRING=$(date "+%Y-%m-%d")
+          export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
+          ./configure && make tar -j4 SKIP_XZ=1 SKIP_SHARED_DEPS=1
+        env:
+          DISTTYPE: nightly
+
+      - name: Upload tarball artifact
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: tarballs
+          path: '*.tar.gz'
+          compression-level: 0
+
+  build:
+    needs: build-tarball
     strategy:
       fail-fast: false
       matrix:
@@ -52,9 +79,17 @@ jobs:
     name: '${{ matrix.system }}: with shared libraries'
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v5.0.0
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         with:
-          persist-credentials: false
+          name: tarballs
+          path: tarballs
+
+      - name: Extract tarball
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        run: |
+          tar xzf tarballs/*.tar.gz -C "$RUNNER_TEMP"
+          echo "TAR_DIR=$RUNNER_TEMP/$(basename tarballs/*.tar.gz .tar.gz)" >> "$GITHUB_ENV"
 
       - uses: cachix/install-nix-action@7be5dee1421f63d07e71ce6e0a9f8a4b07c2a487  # v31.6.1
         with:
@@ -69,11 +104,18 @@ jobs:
             core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
+      - name: Load shell.nix
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          mv "$TAR_DIR"/*.nix .
+          mkdir tools
+          mv "$TAR_DIR"/tools/nix tools/.
+
       - name: Build Node.js and run tests
         run: |
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
-            --pure --keep FLAKY_TESTS \
+            --pure --keep TAR_DIR --keep FLAKY_TESTS \
             --keep SCCACHE_GHA_VERSION --keep ACTIONS_CACHE_SERVICE_V2 --keep ACTIONS_RESULTS_URL --keep ACTIONS_RUNTIME_TOKEN \
             --arg loadJSBuiltinsDynamically false \
             --arg ccache '(import <nixpkgs> {}).sccache' \
@@ -81,5 +123,5 @@ jobs:
             --arg benchmarkTools '[]' \
             ${{ endsWith(matrix.system, '-darwin') && '--arg extraConfigFlags ''["--without-inspector"]'' \' || '\' }}
             --run '
-                make run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9 --skip-tests=$CI_SKIP_TESTS"
+                make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9 --skip-tests=$CI_SKIP_TESTS"
             '
