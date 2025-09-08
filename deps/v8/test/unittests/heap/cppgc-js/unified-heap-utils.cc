@@ -22,22 +22,21 @@ namespace internal {
 v8::Local<v8::Object> WrapperHelper::CreateWrapper(
     v8::Local<v8::Context> context, void* wrappable_object,
     const char* class_name) {
-  v8::EscapableHandleScope scope(context->GetIsolate());
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::EscapableHandleScope scope(isolate);
   v8::Local<v8::FunctionTemplate> function_t =
-      v8::FunctionTemplate::New(context->GetIsolate());
+      v8::FunctionTemplate::New(isolate);
   if (class_name && strlen(class_name) != 0) {
     function_t->SetClassName(
-        v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), class_name)
-            .ToLocalChecked());
+        v8::String::NewFromUtf8(isolate, class_name).ToLocalChecked());
   }
   v8::Local<v8::Function> function =
       function_t->GetFunction(context).ToLocalChecked();
   v8::Local<v8::Object> instance =
       function->NewInstance(context).ToLocalChecked();
-  SetWrappableConnection(context->GetIsolate(), instance, wrappable_object);
+  SetWrappableConnection(isolate, instance, wrappable_object);
   CHECK(!instance.IsEmpty());
-  CHECK_EQ(wrappable_object,
-           ReadWrappablePointer(context->GetIsolate(), instance));
+  CHECK_EQ(wrappable_object, ReadWrappablePointer(isolate, instance));
   i::DirectHandle<i::JSReceiver> js_obj =
       v8::Utils::OpenDirectHandle(*instance);
   CHECK_EQ(i::JS_API_OBJECT_TYPE, js_obj->map()->instance_type());

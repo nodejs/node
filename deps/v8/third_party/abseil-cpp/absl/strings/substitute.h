@@ -187,12 +187,13 @@ class Arg {
 
   // vector<bool>::reference and const_reference require special help to convert
   // to `Arg` because it requires two user defined conversions.
-  template <typename T,
-            absl::enable_if_t<
-                std::is_class<T>::value &&
-                (std::is_same<T, std::vector<bool>::reference>::value ||
-                 std::is_same<T, std::vector<bool>::const_reference>::value)>* =
-                nullptr>
+  template <
+      typename T,
+      std::enable_if_t<
+          std::is_class<T>::value &&
+              (std::is_same<T, std::vector<bool>::reference>::value ||
+               std::is_same<T, std::vector<bool>::const_reference>::value),
+          bool> = true>
   Arg(T value)  // NOLINT(google-explicit-constructor)
       : Arg(static_cast<bool>(value)) {}
 
@@ -237,7 +238,7 @@ constexpr int CalculateOneBit(const char* absl_nonnull format) {
                                           : (1 << (*format - '0'));
 }
 
-constexpr const char* SkipNumber(const char* absl_nonnull format) {
+constexpr const char* absl_nonnull SkipNumber(const char* absl_nonnull format) {
   return !*format ? format : (format + 1);
 }
 

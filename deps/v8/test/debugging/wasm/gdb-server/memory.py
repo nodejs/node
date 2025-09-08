@@ -12,14 +12,14 @@ import gdb_rsp
 import test_files.test_memory as test_memory
 
 # These are set up by Main().
-COMMAND = None
+command = None
 
 class Tests(unittest.TestCase):
   # Test that reading from an unreadable address gives a sensible error.
   def CheckReadMemoryAtInvalidAddr(self, connection):
     mem_addr = 0xffffffff
     result = connection.RspRequest('m%x,%x' % (mem_addr, 1))
-    self.assertEquals(result, 'E02')
+    self.assertEqual(result, 'E02')
 
   def RunToWasm(self, connection, breakpoint_addr):
     # Set a breakpoint.
@@ -35,7 +35,7 @@ class Tests(unittest.TestCase):
     self.assertEqual(reply, 'OK')
 
   def test_reading_and_writing_memory(self):
-    with gdb_rsp.LaunchDebugStub(COMMAND) as connection:
+    with gdb_rsp.LaunchDebugStub(command) as connection:
       module_load_addr = gdb_rsp.GetLoadedModuleAddress(connection)
       breakpoint_addr = module_load_addr + test_memory.FUNC0_START_ADDR
       self.RunToWasm(connection, breakpoint_addr)
@@ -51,14 +51,14 @@ class Tests(unittest.TestCase):
       module_id = module_load_addr >> 32
       reply = connection.RspRequest('qWasmMem:%d;%x;%x' % (module_id, 32, 4))
       value = struct.unpack('I', gdb_rsp.DecodeHex(reply))[0]
-      self.assertEquals(int(value), 0)
+      self.assertEqual(int(value), 0)
 
       # Check reading instance memory at an invalid range.
       reply = connection.RspRequest('qWasmMem:%d;%x;%x' % (module_id, 0xf0000000, 4))
       self.assertEqual(reply, 'E03')
 
   def test_reading_and_writing_data_section(self):
-    with gdb_rsp.LaunchDebugStub(COMMAND) as connection:
+    with gdb_rsp.LaunchDebugStub(command) as connection:
       module_load_addr = gdb_rsp.GetLoadedModuleAddress(connection)
       breakpoint_addr = module_load_addr + test_memory.FUNC0_START_ADDR
       self.RunToWasm(connection, breakpoint_addr)
@@ -67,14 +67,14 @@ class Tests(unittest.TestCase):
       module_id = module_load_addr >> 32
       reply = connection.RspRequest('qWasmData:%d;%x;%x' % (module_id, test_memory.DATA_OFFSET, test_memory.DATA_SIZE))
       value = struct.unpack('I', gdb_rsp.DecodeHex(reply))[0]
-      self.assertEquals(int(value), test_memory.DATA_CONTENT)
+      self.assertEqual(int(value), test_memory.DATA_CONTENT)
 
       # Check reading instance memory at an invalid range.
       reply = connection.RspRequest('qWasmData:%d;%x;%x' % (module_id, 0xf0000000, 4))
       self.assertEqual(reply, 'E03')
 
   def test_wasm_global(self):
-    with gdb_rsp.LaunchDebugStub(COMMAND) as connection:
+    with gdb_rsp.LaunchDebugStub(command) as connection:
       module_load_addr = gdb_rsp.GetLoadedModuleAddress(connection)
       breakpoint_addr = module_load_addr + test_memory.FUNC0_START_ADDR
       self.RunToWasm(connection, breakpoint_addr)
@@ -89,7 +89,7 @@ class Tests(unittest.TestCase):
       self.assertEqual("E03", reply)
 
   def test_wasm_call_stack(self):
-    with gdb_rsp.LaunchDebugStub(COMMAND) as connection:
+    with gdb_rsp.LaunchDebugStub(command) as connection:
       module_load_addr = gdb_rsp.GetLoadedModuleAddress(connection)
       breakpoint_addr = module_load_addr + test_memory.FUNC0_START_ADDR
       self.RunToWasm(connection, breakpoint_addr)
@@ -105,8 +105,8 @@ def Main():
   index = sys.argv.index('--')
   args = sys.argv[index + 1:]
   # The remaining arguments go to unittest.main().
-  global COMMAND
-  COMMAND = args
+  global command
+  command = args
   unittest.main(argv=sys.argv[:index])
 
 if __name__ == '__main__':

@@ -59,7 +59,8 @@ class Deoptimizer : public Malloced {
   static bool DeoptExitIsInsideOsrLoop(Isolate* isolate,
                                        Tagged<JSFunction> function,
                                        BytecodeOffset deopt_exit_offset,
-                                       BytecodeOffset osr_offset);
+                                       BytecodeOffset osr_offset,
+                                       CodeKind code_kind);
   static DeoptInfo GetDeoptInfo(Tagged<Code> code, Address from);
   DeoptInfo GetDeoptInfo() const {
     return Deoptimizer::GetDeoptInfo(compiled_code_, from_);
@@ -125,6 +126,7 @@ class Deoptimizer : public Malloced {
   ~Deoptimizer();
 
   void MaterializeHeapObjects();
+  void ProcessDeoptReason(DeoptimizeReason reason);
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
@@ -177,6 +179,13 @@ class Deoptimizer : public Malloced {
   // Patch the generated code to jump to a safepoint entry. This is used only
   // when Shadow Stack is enabled.
   static void PatchToJump(Address pc, Address new_pc);
+
+  // Overwrites the code range from start to end with trapping instructions. The
+  // RelocIterator is needed to avoid overwriting GC-relevant reloc info. If the
+  // GC-relevant code segments get overwritten with zap values, the GC would
+  // interpret the zap value as references and behave incorrectly. Note that the
+  // GC may access the code object concurrently to code zapping.
+  static void ZapCode(Address start, Address end, RelocIterator& it);
 
  private:
   void QueueValueForMaterialization(Address output_address, Tagged<Object> obj,
@@ -309,11 +318,10 @@ class Deoptimizer : public Malloced {
   std::optional<AccountingAllocator> alloc_;
   std::optional<Zone> zone_;
 #endif
-#if V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
+#if V8_ENABLE_WEBASSEMBLY
   // Wasm deoptimizations should not access the heap at all. All deopt data is
   // stored off-heap.
-  std::optional<SandboxHardwareSupport::BlockAccessScope>
-      no_heap_access_during_wasm_deopt_;
+  std::optional<DisallowSandboxAccess> no_sandbox_access_during_wasm_deopt_;
 #endif
 
   friend class DeoptimizedFrameInfo;

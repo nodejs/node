@@ -140,7 +140,13 @@ CompilationResult CompileSync(Isolate* isolate,
         Object::ToString(isolate, error).ToHandleChecked();
     return CompilationResult::ForFailure(error_msg->ToCString().get());
   }
-  return CompilationResult::ForSuccess(module_object->module());
+  return CompilationResult::ForSuccess(
+      module_object->native_module()->module());
+}
+
+V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
+  v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
+  return 0;
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

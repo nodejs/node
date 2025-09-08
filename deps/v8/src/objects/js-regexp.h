@@ -34,11 +34,12 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
       uint32_t backtrack_limit = kNoBacktrackLimit);
 
   static MaybeDirectHandle<JSRegExp> Initialize(
-      DirectHandle<JSRegExp> regexp, DirectHandle<String> source, Flags flags,
+      Isolate* isolate, DirectHandle<JSRegExp> regexp,
+      DirectHandle<String> source, Flags flags,
       uint32_t backtrack_limit = kNoBacktrackLimit);
   static MaybeDirectHandle<JSRegExp> Initialize(
-      DirectHandle<JSRegExp> regexp, DirectHandle<String> source,
-      DirectHandle<String> flags_string);
+      Isolate* isolate, DirectHandle<JSRegExp> regexp,
+      DirectHandle<String> source, DirectHandle<String> flags_string);
 
   DECL_ACCESSORS(last_index, Tagged<Object>)
 
@@ -262,6 +263,14 @@ class IrRegExpData : public RegExpData {
   DECL_INT_ACCESSORS(ticks_until_tier_up)
   DECL_INT_ACCESSORS(backtrack_limit)
 
+  DECL_PRIMITIVE_ACCESSORS(bit_field, uint32_t)
+  DECL_BOOLEAN_ACCESSORS(can_be_zero_length)
+  DECL_BOOLEAN_ACCESSORS(is_linear_executable)
+
+  struct Bits {
+    DEFINE_TORQUE_GENERATED_IR_REG_EXP_DATA_BIT_FIELD()
+  };
+
   bool CanTierUp();
   bool MarkedForTierUp();
   void ResetLastTierUpTick();
@@ -289,6 +298,7 @@ class IrRegExpData : public RegExpData {
   V(kCaptureCountOffset, kTaggedSize)             \
   V(kTicksUntilTierUpOffset, kTaggedSize)         \
   V(kBacktrackLimitOffset, kTaggedSize)           \
+  V(kBitFieldOffset, kTaggedSize)                 \
   V(kHeaderSize, 0)                               \
   V(kSize, 0)
 

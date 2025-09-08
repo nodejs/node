@@ -210,7 +210,7 @@ class Types {
       }
       case 1: {  // constant
         int i = rng_->NextInt(static_cast<int>(values.size()));
-        if (IsHeapNumber(*values[i])) {
+        if (!IsAnyHole(*values[i]) && IsHeapNumber(*values[i])) {
           return Type::Constant(Cast<HeapNumber>(*values[i])->value(), zone_);
         }
         return Type::Constant(js_heap_broker(), values[i], zone_);

@@ -26,6 +26,8 @@ include_rules = [
   "+src/heap/factory-inl.h",
   # TODO(v8:10496): Don't expose so much (through transitive includes) outside
   # of heap/.
+  "+src/heap/gc-callbacks.h",
+  "+src/heap/gc-callbacks-inl.h",
   "+src/heap/gc-tracer.h",
   "+src/heap/gc-tracer-inl.h",
   "+src/heap/heap.h",
@@ -45,7 +47,7 @@ include_rules = [
   "+src/heap/mutable-page-metadata-inl.h",
   "+src/heap/memory-chunk.h",
   "+src/heap/page-metadata-inl.h",
-  "+src/heap/page-pool.h",
+  "+src/heap/memory-pool.h",
   "+src/heap/paged-spaces-inl.h",
   "+src/heap/parked-scope-inl.h",
   "+src/heap/parked-scope.h",
@@ -128,5 +130,14 @@ specific_include_rules = {
   ],
   "snapshot\.cc": [
     "+src/heap/read-only-promotion.h",
+  ],
+  "string-hasher-inl\.h": [
+    "+third_party/rapidhash-v8/rapidhash.h",
+  ],
+  "heap\.cc": [
+    "+third_party/rapidhash-v8/secret.h",
+  ],
+  "hash-seed-inl\.h": [
+    "+third_party/rapidhash-v8/secret.h",
   ],
 }

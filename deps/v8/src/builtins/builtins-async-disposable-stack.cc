@@ -7,6 +7,7 @@
 #include "src/base/macros.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/heap-object.h"
@@ -83,8 +84,8 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
   DirectHandle<JSPromise> promise = isolate->factory()->NewJSPromise();
 
   //        c. Let result be Completion(Call(method, O)).
-  DirectHandle<JSFunction> sync_method(
-      Cast<JSFunction>(isolate->context()->GetNoCell(static_cast<int>(
+  DirectHandle<JSCallable> sync_method(
+      Cast<JSCallable>(isolate->context()->GetNoCell(static_cast<int>(
           JSDisposableStackBase::AsyncDisposeFromSyncDisposeContextSlots::
               kMethod))),
       isolate);
@@ -100,7 +101,7 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
   } else {
     Tagged<Object> exception = isolate->exception();
     if (!isolate->is_catchable_by_javascript(exception)) {
-      return {};
+      return ReadOnlyRoots(isolate).exception();
     }
     //        d. IfAbruptRejectPromise(result, promiseCapability).
     isolate->clear_internal_exception();

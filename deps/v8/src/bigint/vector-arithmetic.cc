@@ -14,7 +14,7 @@ digit_t AddAndReturnOverflow(RWDigits Z, Digits X) {
   X.Normalize();
   if (X.len() == 0) return 0;
   digit_t carry = 0;
-  int i = 0;
+  uint32_t i = 0;
   for (; i < X.len(); i++) {
     Z[i] = digit_add3(Z[i], X[i], carry, &carry);
   }
@@ -28,7 +28,7 @@ digit_t SubAndReturnBorrow(RWDigits Z, Digits X) {
   X.Normalize();
   if (X.len() == 0) return 0;
   digit_t borrow = 0;
-  int i = 0;
+  uint32_t i = 0;
   for (; i < X.len(); i++) {
     Z[i] = digit_sub2(Z[i], X[i], borrow, &borrow);
   }
@@ -42,7 +42,7 @@ void Add(RWDigits Z, Digits X, Digits Y) {
   if (X.len() < Y.len()) {
     return Add(Z, Y, X);
   }
-  int i = 0;
+  uint32_t i = 0;
   digit_t carry = 0;
   for (; i < Y.len(); i++) {
     Z[i] = digit_add3(X[i], Y[i], carry, &carry);
@@ -60,7 +60,7 @@ void Subtract(RWDigits Z, Digits X, Digits Y) {
   X.Normalize();
   Y.Normalize();
   DCHECK(X.len() >= Y.len());
-  int i = 0;
+  uint32_t i = 0;
   digit_t borrow = 0;
   for (; i < Y.len(); i++) {
     Z[i] = digit_sub2(X[i], Y[i], borrow, &borrow);
@@ -75,7 +75,7 @@ void Subtract(RWDigits Z, Digits X, Digits Y) {
 digit_t AddAndReturnCarry(RWDigits Z, Digits X, Digits Y) {
   DCHECK(Z.len() >= Y.len() && X.len() >= Y.len());
   digit_t carry = 0;
-  for (int i = 0; i < Y.len(); i++) {
+  for (uint32_t i = 0; i < Y.len(); i++) {
     Z[i] = digit_add3(X[i], Y[i], carry, &carry);
   }
   return carry;
@@ -84,7 +84,7 @@ digit_t AddAndReturnCarry(RWDigits Z, Digits X, Digits Y) {
 digit_t SubtractAndReturnBorrow(RWDigits Z, Digits X, Digits Y) {
   DCHECK(Z.len() >= Y.len() && X.len() >= Y.len());
   digit_t borrow = 0;
-  for (int i = 0; i < Y.len(); i++) {
+  for (uint32_t i = 0; i < Y.len(); i++) {
     Z[i] = digit_sub2(X[i], Y[i], borrow, &borrow);
   }
   return borrow;
@@ -120,7 +120,7 @@ bool SubtractSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
 
 void AddOne(RWDigits Z, Digits X) {
   digit_t carry = 1;
-  int i = 0;
+  uint32_t i = 0;
   for (; carry > 0 && i < X.len(); i++) Z[i] = digit_add2(X[i], carry, &carry);
   if (carry > 0) Z[i++] = carry;
   for (; i < X.len(); i++) Z[i] = X[i];
@@ -129,7 +129,7 @@ void AddOne(RWDigits Z, Digits X) {
 
 void SubtractOne(RWDigits Z, Digits X) {
   digit_t borrow = 1;
-  int i = 0;
+  uint32_t i = 0;
   for (; borrow > 0; i++) Z[i] = digit_sub(X[i], borrow, &borrow);
   for (; i < X.len(); i++) Z[i] = X[i];
   for (; i < Z.len(); i++) Z[i] = 0;

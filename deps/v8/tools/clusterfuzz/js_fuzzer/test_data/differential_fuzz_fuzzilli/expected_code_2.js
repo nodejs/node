@@ -8,7 +8,6 @@ print("I'm a resource.");
 // Original: differential_fuzz/fake_resource.js
 print("I'm a resource.");
 
-/* DifferentialFuzzMutator: Print variables and exceptions from section */
 try {
   print("Hash: " + __hash);
   print("Caught: " + __caught);
@@ -19,7 +18,6 @@ let __v_0 = {
   a: 1,
   b: 2
 };
-/* DifferentialFuzzMutator: Extra variable printing */
 __prettyPrintExtra(__v_0);
 const __v_1 = 29234234234234;
 function __f_0(__v_2) {
@@ -29,19 +27,13 @@ function __f_0(__v_2) {
   try {
     __v_2++;
     __v_4 = __v_5;
-    /* DifferentialFuzzMutator: Extra variable printing */
-    __prettyPrintExtra(__v_4);
     __v_5.prop = {};
     __v_5.prop = {};
-    /* DifferentialFuzzMutator: Extra variable printing */
-    __prettyPrintExtra(__v_5);
     __v_5.prop = {};
     __v_5.prop = {};
     __v_5.prop = {};
   } catch (__v_6) {
     __v_2 = __v_3;
-    /* DifferentialFuzzMutator: Extra variable printing */
-    __prettyPrintExtra(__v_2);
   }
   return {
     a: __v_2,
@@ -53,7 +45,6 @@ function __f_0(__v_2) {
 __f_0(__v_1);
 %OptimizeFunctionOnNextCall(__f_0);
 __f_0(__v_0.a);
-/* DifferentialFuzzMutator: Print variables and exceptions from section */
 try {
   print("Hash: " + __hash);
   print("Caught: " + __caught);

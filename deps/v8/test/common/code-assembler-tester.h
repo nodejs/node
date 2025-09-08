@@ -40,7 +40,7 @@ class CodeAssemblerTester {
 
   // Test generating code for a JS function (e.g. builtins).
   CodeAssemblerTester(Isolate* isolate, int parameter_count,
-                      CodeKind kind = CodeKind::BUILTIN,
+                      CodeKind kind = CodeKind::FOR_TESTING,
                       const char* name = "test")
       : isolate_(isolate),
         job_(CodeAssemblerCompilationJob::NewJobForTesting(

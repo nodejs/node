@@ -75,7 +75,7 @@ bool CallSiteInfo::IsToplevel() const {
 
 // static
 int CallSiteInfo::GetLineNumber(DirectHandle<CallSiteInfo> info) {
-  Isolate* isolate = info->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
     return 1;
@@ -95,7 +95,7 @@ int CallSiteInfo::GetLineNumber(DirectHandle<CallSiteInfo> info) {
 
 // static
 int CallSiteInfo::GetColumnNumber(DirectHandle<CallSiteInfo> callsite_info) {
-  Isolate* isolate = callsite_info->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   int position = GetSourcePosition(callsite_info);
 #if V8_ENABLE_WEBASSEMBLY
   if (callsite_info->IsWasm() && !callsite_info->IsAsmJsWasm()) {
@@ -118,7 +118,7 @@ int CallSiteInfo::GetColumnNumber(DirectHandle<CallSiteInfo> callsite_info) {
 
 // static
 int CallSiteInfo::GetEnclosingLineNumber(DirectHandle<CallSiteInfo> info) {
-  Isolate* isolate = info->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
     return 1;
@@ -143,7 +143,7 @@ int CallSiteInfo::GetEnclosingLineNumber(DirectHandle<CallSiteInfo> info) {
 
 // static
 int CallSiteInfo::GetEnclosingColumnNumber(DirectHandle<CallSiteInfo> info) {
-  Isolate* isolate = info->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
     auto* module = info->GetWasmInstance()->module();
@@ -179,14 +179,14 @@ Tagged<Object> CallSiteInfo::GetScriptName() const {
   if (auto script = GetScript()) {
     return script.value()->name();
   }
-  return ReadOnlyRoots(GetIsolate()).null_value();
+  return ReadOnlyRoots(Isolate::Current()).null_value();
 }
 
 Tagged<Object> CallSiteInfo::GetScriptNameOrSourceURL() const {
   if (auto script = GetScript()) {
     return script.value()->GetNameOrSourceURL();
   }
-  return ReadOnlyRoots(GetIsolate()).null_value();
+  return ReadOnlyRoots(Isolate::Current()).null_value();
 }
 
 Tagged<Object> CallSiteInfo::GetScriptSource() const {
@@ -195,21 +195,21 @@ Tagged<Object> CallSiteInfo::GetScriptSource() const {
       return script.value()->source();
     }
   }
-  return ReadOnlyRoots(GetIsolate()).null_value();
+  return ReadOnlyRoots(Isolate::Current()).null_value();
 }
 
 Tagged<Object> CallSiteInfo::GetScriptSourceMappingURL() const {
   if (auto script = GetScript()) {
     return script.value()->source_mapping_url();
   }
-  return ReadOnlyRoots(GetIsolate()).null_value();
+  return ReadOnlyRoots(Isolate::Current()).null_value();
 }
 
 // static
 DirectHandle<String> CallSiteInfo::GetScriptHash(
     DirectHandle<CallSiteInfo> info) {
   DirectHandle<Script> script;
-  Isolate* isolate = info->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   if (!GetScript(isolate, info).ToHandle(&script)) {
     return isolate->factory()->empty_string();
   }
@@ -278,7 +278,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate,
 // static
 Handle<PrimitiveHeapObject> CallSiteInfo::GetEvalOrigin(
     DirectHandle<CallSiteInfo> info) {
-  auto isolate = info->GetIsolate();
+  auto isolate = Isolate::Current();
   DirectHandle<Script> script;
   if (!GetScript(isolate, info).ToHandle(&script) ||
       script->compilation_type() != Script::CompilationType::kEval) {
@@ -290,7 +290,7 @@ Handle<PrimitiveHeapObject> CallSiteInfo::GetEvalOrigin(
 // static
 DirectHandle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
     DirectHandle<CallSiteInfo> info) {
-  Isolate* isolate = info->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
     DirectHandle<WasmModuleObject> module_object(
@@ -332,7 +332,7 @@ DirectHandle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
 // static
 DirectHandle<String> CallSiteInfo::GetFunctionDebugName(
     DirectHandle<CallSiteInfo> info) {
-  Isolate* isolate = info->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
     return GetWasmFunctionDebugName(
@@ -451,7 +451,7 @@ Tagged<PrimitiveHeapObject> InferMethodName(Isolate* isolate,
 // static
 DirectHandle<Object> CallSiteInfo::GetMethodName(
     DirectHandle<CallSiteInfo> info) {
-  Isolate* isolate = info->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<Object> receiver_or_instance(info->receiver_or_instance(),
                                             isolate);
 #if V8_ENABLE_WEBASSEMBLY
@@ -518,7 +518,7 @@ DirectHandle<Object> CallSiteInfo::GetMethodName(
 // static
 DirectHandle<Object> CallSiteInfo::GetTypeName(
     DirectHandle<CallSiteInfo> info) {
-  Isolate* isolate = info->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   if (!info->IsMethodCall()) {
     return isolate->factory()->null_value();
   }
@@ -554,7 +554,7 @@ Tagged<WasmInstanceObject> CallSiteInfo::GetWasmInstance() const {
 // static
 DirectHandle<Object> CallSiteInfo::GetWasmModuleName(
     DirectHandle<CallSiteInfo> info) {
-  Isolate* isolate = info->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   if (info->IsWasm()) {
     DirectHandle<String> name;
     auto module_object =
@@ -586,7 +586,7 @@ int CallSiteInfo::GetSourcePosition(DirectHandle<CallSiteInfo> info) {
 // static
 bool CallSiteInfo::ComputeLocation(DirectHandle<CallSiteInfo> info,
                                    MessageLocation* location) {
-  Isolate* isolate = info->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
     int pos = GetSourcePosition(info);
@@ -619,7 +619,7 @@ bool CallSiteInfo::ComputeLocation(DirectHandle<CallSiteInfo> info,
 // static
 int CallSiteInfo::ComputeSourcePosition(DirectHandle<CallSiteInfo> info,
                                         int offset) {
-  Isolate* isolate = info->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 #if V8_ENABLE_WEBASSEMBLY
 #if V8_ENABLE_DRUMBRAKE
   if (info->IsWasmInterpretedFrame()) {
@@ -654,7 +654,7 @@ std::optional<Tagged<Script>> CallSiteInfo::GetScript() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasm()) {
     return GetWasmInstance()
-        ->trusted_data(GetIsolate())
+        ->trusted_data(Isolate::Current())
         ->module_object()
         ->script();
   }

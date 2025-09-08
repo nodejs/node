@@ -129,7 +129,7 @@ class WasmValue {
 
   static WasmValue ForUintPtr(uintptr_t value) {
     using type =
-        std::conditional<kSystemPointerSize == 8, uint64_t, uint32_t>::type;
+        std::conditional_t<kSystemPointerSize == 8, uint64_t, uint32_t>;
     return WasmValue{type{value}};
   }
 
@@ -152,9 +152,14 @@ class WasmValue {
       case kS128: {
         std::stringstream stream;
         stream << "0x" << std::hex;
-        for (int8_t uint8_t : bit_pattern_) {
-          if (!(uint8_t & 0xf0)) stream << '0';
-          stream << uint8_t;
+        std::vector<uint8_t> native_pattern(
+            bit_pattern_, bit_pattern_ + arraysize(bit_pattern_));
+#if V8_TARGET_LITTLE_ENDIAN
+        std::reverse(native_pattern.begin(), native_pattern.end());
+#endif
+        for (uint8_t byte : native_pattern) {
+          if (!(byte & 0xf0)) stream << '0';
+          stream << static_cast<uint32_t>(byte);
         }
         return stream.str();
       }

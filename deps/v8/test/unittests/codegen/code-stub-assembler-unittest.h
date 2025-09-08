@@ -13,7 +13,7 @@ namespace internal {
 
 class CodeStubAssemblerTest : public TestWithContextAndZone {
  public:
-  CodeStubAssemblerTest() : TestWithContextAndZone(kCompressGraphZone) {}
+  CodeStubAssemblerTest() = default;
   ~CodeStubAssemblerTest() override = default;
 };
 

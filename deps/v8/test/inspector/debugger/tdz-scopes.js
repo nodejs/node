@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-always-turbofan
 
 let {session, contextGroup, Protocol} =
     InspectorTest.start('Test scopes with variables in TDZ.');

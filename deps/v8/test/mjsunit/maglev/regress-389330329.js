@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --no-maglev-loop-peeling
-// Flags: --maglev --no-always-turbofan
+// Flags: --maglev
 
 let obj = { y: 19.5 };
 let arr = [, 2.5];

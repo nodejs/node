@@ -4,12 +4,14 @@
 
 // TODO(saelo): Consider also moving this into trusted space as
 // UncompiledDataWithPreparseData is now in trusted space.
+@cppObjectLayoutDefinition
 extern class PreparseData extends HeapObject {
   // TODO(v8:8983): Add declaration for variable-sized region.
   data_length: int32;
   children_length: int32;
 }
 
+@cppObjectLayoutDefinition
 extern class InterpreterData extends ExposedTrustedObject {
   bytecode_array: ProtectedPointer<BytecodeArray>;
   interpreter_trampoline: ProtectedPointer<Code>;
@@ -75,7 +77,7 @@ extern class SharedFunctionInfo extends HeapObject {
   // renaming this field as untrusted_function_data may be a bit awkward.
   untrusted_function_data: Object;
   name_or_scope_info: String|NoSharedNameSentinel|ScopeInfo;
-  outer_scope_info_or_feedback_metadata: HeapObject;
+  outer_scope_info_or_feedback_metadata: ScopeInfo|FeedbackMetadata|TheHole;
   script: Script|Undefined;
   // [length]: The function length - usually the number of declared parameters
   // (always without the receiver). The value is only reliable when the function
@@ -153,31 +155,28 @@ macro IsSharedFunctionInfoDontAdaptArguments(sfi: SharedFunctionInfo): bool {
 }
 
 @abstract
+@cppObjectLayoutDefinition
 extern class UncompiledData extends ExposedTrustedObject {
   inferred_name: String;
   start_position: int32;
   end_position: int32;
 }
 
-@generateUniqueMap
-@generateFactoryFunction
+@cppObjectLayoutDefinition
 extern class UncompiledDataWithoutPreparseData extends UncompiledData {}
 
-@generateUniqueMap
-@generateFactoryFunction
+@cppObjectLayoutDefinition
 extern class UncompiledDataWithPreparseData extends UncompiledData {
   preparse_data: PreparseData;
 }
 
-@generateUniqueMap
-@generateFactoryFunction
+@cppObjectLayoutDefinition
 extern class UncompiledDataWithoutPreparseDataWithJob extends
     UncompiledDataWithoutPreparseData {
   job: RawPtr;
 }
 
-@generateUniqueMap
-@generateFactoryFunction
+@cppObjectLayoutDefinition
 extern class UncompiledDataWithPreparseDataAndJob extends
     UncompiledDataWithPreparseData {
   job: RawPtr;

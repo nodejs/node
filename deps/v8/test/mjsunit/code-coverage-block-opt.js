@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-turbofan --turbofan
+// Flags: --allow-natives-syntax --turbofan
 // Flags: --no-stress-flush-code --turbo-inlining
 // Flags: --expose-gc
 // Files: test/mjsunit/code-coverage-utils.js
@@ -11,7 +11,7 @@
 
   if (isNeverOptimizeLiteMode()) {
     print("Warning: skipping test that requires optimization in Lite mode.");
-    testRunner.quit(0);
+    quit(0);
   }
 
   %DebugToggleBlockCoverage(true);

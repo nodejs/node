@@ -9,6 +9,7 @@ group("gn_all") {
 
   data_deps = [
     "benchmarks:v8_benchmarks",
+    "bigint:bigint_shell",
     "filecheck:v8_filecheck",
     "fuzzer:v8_fuzzer",
     "intl:v8_intl",
@@ -20,7 +21,6 @@ group("gn_all") {
   ]
 
   deps = [
-    "bigint:bigint_shell",
     "inspector:inspector-test",
     "mkgrokdump:mkgrokdump",
   ]
@@ -91,6 +91,7 @@ group("v8_bot_default") {
   testonly = true
 
   data_deps = [
+    "bigint:bigint_shell",
     "cctest:cctest",
     "debugger:v8_debugger",
     "filecheck:v8_filecheck",

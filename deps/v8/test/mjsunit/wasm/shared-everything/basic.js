@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-shared --no-wasm-inlining-call-indirect
+// Flags: --experimental-wasm-shared --no-wasm-inlining
 // Flags: --expose-gc --allow-natives-syntax
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
@@ -109,6 +109,19 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertEquals(value0, instance.exports.consumer(array_obj, 0));
   assertEquals(value1, instance.exports.consumer(array_obj, 1));
+})();
+
+(function Pause() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("pause", kSig_v_v)
+    .addBody([kAtomicPrefix, kExprPause])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+  // There isn't much we can test here as the pause instruction does not have
+  // any observable side effects.
+  assertSame(undefined, instance.exports.pause());
 })();
 
 /* TODO(42204563): Reinstate these tests as we support the respective features.

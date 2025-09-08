@@ -73,8 +73,8 @@ bool ShouldValidateFlagValue(FlagFastTypeId flag_type_id) {
 // need to acquire these locks themselves.
 class MutexRelock {
  public:
-  explicit MutexRelock(absl::Mutex& mu) : mu_(mu) { mu_.Unlock(); }
-  ~MutexRelock() { mu_.Lock(); }
+  explicit MutexRelock(absl::Mutex& mu) : mu_(mu) { mu_.unlock(); }
+  ~MutexRelock() { mu_.lock(); }
 
   MutexRelock(const MutexRelock&) = delete;
   MutexRelock& operator=(const MutexRelock&) = delete;
@@ -88,9 +88,9 @@ class MutexRelock {
 // we move the memory to the freelist where it lives indefinitely, so it can
 // still be safely accessed. This also prevents leak checkers from complaining
 // about the leaked memory that can no longer be accessed through any pointer.
-absl::Mutex* FreelistMutex() {
+absl::Mutex& FreelistMutex() {
   static absl::NoDestructor<absl::Mutex> mutex;
-  return mutex.get();
+  return *mutex;
 }
 ABSL_CONST_INIT std::vector<void*>* s_freelist ABSL_GUARDED_BY(FreelistMutex())
     ABSL_PT_GUARDED_BY(FreelistMutex()) = nullptr;
@@ -248,12 +248,12 @@ void FlagImpl::Init() {
   seq_lock_.MarkInitialized();
 }
 
-absl::Mutex* FlagImpl::DataGuard() const {
+absl::Mutex& FlagImpl::DataGuard() const {
   absl::call_once(const_cast<FlagImpl*>(this)->init_control_, &FlagImpl::Init,
                   const_cast<FlagImpl*>(this));
 
   // data_guard_ is initialized inside Init.
-  return reinterpret_cast<absl::Mutex*>(&data_guard_);
+  return *reinterpret_cast<absl::Mutex*>(&data_guard_);
 }
 
 void FlagImpl::AssertValidType(FlagFastTypeId rhs_type_id,
@@ -375,7 +375,7 @@ std::string FlagImpl::DefaultValue() const {
 }
 
 std::string FlagImpl::CurrentValue() const {
-  auto* guard = DataGuard();  // Make sure flag initialized
+  auto& guard = DataGuard();  // Make sure flag initialized
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kValueAndInitBit:
     case FlagValueStorageKind::kOneWordAtomic: {
@@ -429,8 +429,8 @@ void FlagImpl::InvokeCallback() const {
   // and it also can be different by the time the callback invocation is
   // completed. Requires that *primary_lock be held in exclusive mode; it may be
   // released and reacquired by the implementation.
-  MutexRelock relock(*DataGuard());
-  absl::MutexLock lock(&callback_->guard);
+  MutexRelock relock(DataGuard());
+  absl::MutexLock lock(callback_->guard);
   cb();
 }
 
@@ -535,7 +535,7 @@ std::unique_ptr<void, DynValueDeleter> FlagImpl::TryParse(
 }
 
 void FlagImpl::Read(void* dst) const {
-  auto* guard = DataGuard();  // Make sure flag initialized
+  auto& guard = DataGuard();  // Make sure flag initialized
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kValueAndInitBit:
     case FlagValueStorageKind::kOneWordAtomic: {
@@ -567,14 +567,14 @@ void FlagImpl::Read(void* dst) const {
 int64_t FlagImpl::ReadOneWord() const {
   assert(ValueStorageKind() == FlagValueStorageKind::kOneWordAtomic ||
          ValueStorageKind() == FlagValueStorageKind::kValueAndInitBit);
-  auto* guard = DataGuard();  // Make sure flag initialized
+  auto& guard = DataGuard();  // Make sure flag initialized
   (void)guard;
   return OneWordValue().load(std::memory_order_acquire);
 }
 
 bool FlagImpl::ReadOneBool() const {
   assert(ValueStorageKind() == FlagValueStorageKind::kValueAndInitBit);
-  auto* guard = DataGuard();  // Make sure flag initialized
+  auto& guard = DataGuard();  // Make sure flag initialized
   (void)guard;
   return absl::bit_cast<FlagValueAndInitBit<bool>>(
              OneWordValue().load(std::memory_order_acquire))

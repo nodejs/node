@@ -124,16 +124,14 @@ def GuessPowerProcessorVersion():
     _LIBC.getauxval.argtypes = [ctypes.c_ulong]
     _LIBC.getauxval.restype = ctypes.c_char_p
     at_platform = _LIBC.getauxval(AT_PLATFORM).decode('utf-8').lower()
-    if at_platform.startswith('power6'):
-      return 6
-    elif at_platform.startswith('power7'):
-      return 7
-    elif at_platform.startswith('power8'):
+    if at_platform.startswith('power8'):
       return 8
     elif at_platform.startswith('power9'):
       return 9
     elif at_platform.startswith('power10'):
       return 10
+    elif at_platform.startswith('power11'):
+      return 11
     else:
       raise Exception('Unable to guess power processor version')
   elif os == 'aix':

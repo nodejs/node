@@ -123,24 +123,21 @@ enum SectionCode : int8_t {
   // The following sections are custom sections, and are identified using a
   // string rather than an integer. Their enumeration values are not guaranteed
   // to be consistent.
-  kNameSectionCode,               // Name section (encoded as a string)
-  kSourceMappingURLSectionCode,   // Source Map URL section
-  kDebugInfoSectionCode,          // DWARF section .debug_info
-  kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
-  kBuildIdSectionCode,            // Unique build id to match the symbol file
-  kInstTraceSectionCode,          // Instruction trace section
-  kCompilationHintsSectionCode,   // Compilation hints section
-  kBranchHintsSectionCode,        // Branch hints section
+  kNameSectionCode,                 // Name section (encoded as a string)
+  kSourceMappingURLSectionCode,     // Source Map URL section
+  kDebugInfoSectionCode,            // DWARF section .debug_info
+  kExternalDebugInfoSectionCode,    // Section encoding the external symbol path
+  kBuildIdSectionCode,              // Unique build id to match the symbol file
+  kInstTraceSectionCode,            // Instruction trace section
+  kBranchHintsSectionCode,          // Branch hints section
+  kCompilationPrioritySectionCode,  // Compilation priority section
+  kDescriptorsSectionCode,          // Descriptors section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
   kLastKnownModuleSection = kStringRefSectionCode,
   kFirstUnorderedSection = kDataCountSectionCode,
 };
-
-// Binary encoding of compilation hints.
-constexpr uint8_t kDefaultCompilationHint = 0x0;
-constexpr uint8_t kNoCompilationHint = kMaxUInt8;
 
 // Binary encoding of name section kinds.
 enum NameSectionKindCode : uint8_t {
@@ -174,6 +171,8 @@ enum SwitchKind : uint8_t {
   kSwitch = 0x1,
   kLastSwitchKind = kSwitch,
 };
+
+enum MemoryOrdering : uint8_t { kAtomicSeqCst, kAtomicAcqRel };
 
 constexpr size_t kWasmPageSize = 0x10000;
 constexpr uint32_t kWasmPageSizeLog2 = 16;
@@ -219,6 +218,14 @@ constexpr int kMaxPolymorphism = 4;
 // A struct field beyond this limit needs an explicit null check (trapping null
 // access not guaranteed to behave properly).
 constexpr int kMaxStructFieldIndexForImplicitNullCheck = 4000;
+
+// Compilation-hints proposal: This optimization-priority value signifies that
+// the function is only executed once, thus we only compile it eagerly with the
+// baseline tier. Greater values are not supported.
+constexpr int kOptimizationPriorityExecutedOnceSentinel = 127;
+// Compilation-hints proposal: This value signifies that an optimization
+// priority was not specified.
+constexpr int kOptimizationPriorityNotSpecifiedSentinel = -1;
 
 #if V8_TARGET_ARCH_X64
 constexpr int32_t kOSRTargetOffset = 4 * kSystemPointerSize;

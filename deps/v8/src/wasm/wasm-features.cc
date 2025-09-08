@@ -51,6 +51,9 @@ WasmEnabledFeatures WasmEnabledFeatures::FromContext(
     if (isolate->IsWasmJSPIEnabled(context)) {
       features.Add(WasmEnabledFeature::jspi);
     }
+    if (isolate->IsWasmCustomDescriptorsEnabled(context)) {
+      features.Add(WasmEnabledFeature::custom_descriptors);
+    }
   }
   // This space intentionally left blank for future Wasm origin trials.
   return features;

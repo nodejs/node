@@ -15,6 +15,16 @@
 
 #define V8_COMPILER_TURBOSHAFT_ASSEMBLER_MACROS_DEFINED 1
 
+#if defined(__clang__) || !defined(V8_CC_GNU)
+#define NO_SHADOW                                    \
+  _Pragma("GCC diagnostic push")                     \
+      _Pragma("GCC diagnostic ignored \"-Wshadow\"")
+#define RE_SHADOW _Pragma("GCC diagnostic pop")
+#else
+#define NO_SHADOW
+#define RE_SHADOW
+#endif
+
 #define TSA_DCHECK(assembler, condition) \
   (assembler)->Asm().Dcheck(condition, #condition, __FILE__, __LINE__ )
 #ifdef ENABLE_SLOW_DCHECKS
@@ -28,8 +38,10 @@
 #define TSA_SLOW_DCHECK(assembler, ...) ((void)0)
 #endif
 
-#define LIKELY(...) ConditionWithHint(__VA_ARGS__, BranchHint::kTrue)
-#define UNLIKELY(...) ConditionWithHint(__VA_ARGS__, BranchHint::kFalse)
+#define LIKELY(...) \
+  compiler::turboshaft::ConditionWithHint(__VA_ARGS__, BranchHint::kTrue)
+#define UNLIKELY(...) \
+  compiler::turboshaft::ConditionWithHint(__VA_ARGS__, BranchHint::kFalse)
 
 #define BIND(label, ...)                                                  \
   auto [CONCAT(is_bound_, __LINE__), ##__VA_ARGS__] =                     \
@@ -42,32 +54,34 @@
         Asm().ControlFlowHelper_EndLoop(loop_label),                           \
         CONCAT(run_loop_, __LINE__) = false)
 
-#define WHILE(...)                                                            \
-    for (auto [CONCAT(run_loop_, __LINE__), loop_header_xx, loop_exit_xx]     \
-              = Asm().ControlFlowHelper_While([&]() {                         \
-           return Asm().resolve(ConstOrV<Word32>(__VA_ARGS__));               \
-         });                                                                  \
-         CONCAT(run_loop_, __LINE__);                                         \
-         Asm().ControlFlowHelper_EndWhileLoop(loop_header_xx, loop_exit_xx),  \
-              CONCAT(run_loop_, __LINE__) = false)
-#define FOREACH_IMPL_2(arg, iterable)                                    \
-  for (auto [CONCAT(run_loop_, __LINE__), iterable_xx, loop_header_yy,   \
-             loop_exit_xx, current_iterator_xx, arg] =                   \
-           Asm().ControlFlowHelper_Foreach(iterable);                    \
-       CONCAT(run_loop_, __LINE__);                                      \
-       Asm().ControlFlowHelper_EndForeachLoop(                           \
-           std::move(iterable_xx), loop_header_yy, loop_exit_xx,         \
-           current_iterator_xx),                                         \
-       CONCAT(run_loop_, __LINE__) = false)
-#define FOREACH_IMPL_3(arg0, arg1, iterable)                             \
-  for (auto [CONCAT(run_loop_, __LINE__), iterable_xx, loop_header_yy,   \
-             loop_exit_xx, current_iterator_xx, arg0, arg1] =            \
-           Asm().ControlFlowHelper_Foreach(iterable);                    \
-       CONCAT(run_loop_, __LINE__);                                      \
-       Asm().ControlFlowHelper_EndForeachLoop(                           \
-           std::move(iterable_xx), loop_header_yy, loop_exit_xx,         \
-           current_iterator_xx),                                         \
-       CONCAT(run_loop_, __LINE__) = false)
+#define WHILE(...)                                                           \
+  for (NO_SHADOW auto [CONCAT(run_loop_, __LINE__), loop_header_xx,          \
+                       loop_exit_xx] = Asm().ControlFlowHelper_While([&]() { \
+         return Asm().resolve(ConstOrV<Word32>(__VA_ARGS__));                \
+       }) RE_SHADOW;                                                         \
+       CONCAT(run_loop_, __LINE__);                                          \
+       Asm().ControlFlowHelper_EndWhileLoop(loop_header_xx, loop_exit_xx),   \
+                       CONCAT(run_loop_, __LINE__) = false)
+#define FOREACH_IMPL_2(arg, iterable)                                       \
+  for (NO_SHADOW auto [CONCAT(run_loop_, __LINE__), iterable_xx,            \
+                       loop_header_yy, loop_exit_xx, current_iterator_xx,   \
+                       arg] = Asm().ControlFlowHelper_Foreach(iterable)     \
+                                  RE_SHADOW;                                \
+       CONCAT(run_loop_, __LINE__);                                         \
+       Asm().ControlFlowHelper_EndForeachLoop(std::move(iterable_xx),       \
+                                              loop_header_yy, loop_exit_xx, \
+                                              current_iterator_xx),         \
+                       CONCAT(run_loop_, __LINE__) = false)
+#define FOREACH_IMPL_3(arg0, arg1, iterable)                                   \
+  for (NO_SHADOW auto [CONCAT(run_loop_, __LINE__), iterable_xx,               \
+                       loop_header_yy, loop_exit_xx, current_iterator_xx,      \
+                       arg0, arg1] = Asm().ControlFlowHelper_Foreach(iterable) \
+                                         RE_SHADOW;                            \
+       CONCAT(run_loop_, __LINE__);                                            \
+       Asm().ControlFlowHelper_EndForeachLoop(std::move(iterable_xx),          \
+                                              loop_header_yy, loop_exit_xx,    \
+                                              current_iterator_xx),            \
+                             CONCAT(run_loop_, __LINE__) = false)
 // TODO(nicohartmann): Add more `FOREACH_IMPL_N` versions when we see need.
 #define FOREACH(...)                                                  \
     CONCAT(FOREACH_IMPL_, COUNT_MACRO_ARGS(__VA_ARGS__))(__VA_ARGS__)
@@ -83,50 +97,26 @@
 #define GOTO_IF_NOT(cond, label, ...)                           \
   Asm().ControlFlowHelper_GotoIfNot(cond, label, {__VA_ARGS__})
 
-// Clang/GCC helpfully warn us about dangling else in nested if statements. This
-// dangling is intentional for the way these macros work, so suppress the
-// warning with Pragmas. Clang and GCC helpfully disagree on where the warning
-// is (on the if or the else), so they need separate macros.
 #if defined(__clang__)
 // TODO(chromium:377144577): re-enable force-unrolling once this has been fixed
 // in LLVM.
 #define FORCE_UNROLL_LOOP
-#define SUPPRESSED_DANGLING_ELSE_WARNING_IF(...) if (__VA_ARGS__)
-#define SUPPRESSED_DANGLING_ELSE_WARNING_ELSE                             \
-  _Pragma("GCC diagnostic push")                                          \
-      _Pragma("GCC diagnostic ignored \"-Wdangling-else\"") else _Pragma( \
-          "GCC diagnostic pop")
-#elif defined(__GNUC__)
-#define FORCE_UNROLL_LOOP
-#define SUPPRESSED_DANGLING_ELSE_WARNING_IF(...)                             \
-  _Pragma("GCC diagnostic push")                                             \
-      _Pragma("GCC diagnostic ignored \"-Wdangling-else\"") if (__VA_ARGS__) \
-          _Pragma("GCC diagnostic pop")
-#define SUPPRESSED_DANGLING_ELSE_WARNING_ELSE else
 #else
 #define FORCE_UNROLL_LOOP
-#define SUPPRESSED_DANGLING_ELSE_WARNING_IF(...) if (__VA_ARGS__)
-#define SUPPRESSED_DANGLING_ELSE_WARNING_ELSE else
 #endif
-
-#define NO_SHADOW                \
-  _Pragma("GCC diagnostic push") \
-      _Pragma("GCC diagnostic ignored \"-Wshadow\"")
-#define RE_SHADOW _Pragma("GCC diagnostic pop")
 
 // IF/ELSE macros. These expand to a real C++ if-else, so that we can get
 // similar block syntax behaviour (with an optional `ELSE`). Since C++ will only
 // evaluate one side of the if-else, wrap it in a for loop that executes the
 // if-else three times: once for each side of the branch, and once to close the
 // if. Each iteration also emits a goto-end if the corresponding branch target
-// was bound. An if around the for loop encapsulates the state -- this is
-// outside the for loop to make it easier for the compiler to unroll the three
-// loop iterations.
+// was bound. A SCOPED_VARIABLE around the for loop encapsulates the state --
+// this is outside the for loop to make it easier for the compiler to unroll the
+// three loop iterations.
 #define IF(...)                                                                \
   NO_SHADOW                                                                    \
-  SUPPRESSED_DANGLING_ELSE_WARNING_IF(                                         \
-      typename std::decay_t<decltype(Asm())>::ControlFlowHelper_IfState state; \
-      true)                                                                    \
+  SCOPED_VARIABLE(                                                             \
+      typename std::decay_t<decltype(Asm())>::ControlFlowHelper_IfState state) \
   FORCE_UNROLL_LOOP                                                            \
   for (int iteration = 0, bound = false; iteration < 3;                        \
        (bound ? Asm().ControlFlowHelper_FinishIfBlock(&state) : (void)0),      \
@@ -141,9 +131,8 @@
 
 #define IF_NOT(...)                                                            \
   NO_SHADOW                                                                    \
-  SUPPRESSED_DANGLING_ELSE_WARNING_IF(                                         \
-      typename std::decay_t<decltype(Asm())>::ControlFlowHelper_IfState state; \
-      true)                                                                    \
+  SCOPED_VARIABLE(                                                             \
+      typename std::decay_t<decltype(Asm())>::ControlFlowHelper_IfState state) \
   FORCE_UNROLL_LOOP                                                            \
   for (int iteration = 0, bound = false; iteration < 3;                        \
        (bound ? Asm().ControlFlowHelper_FinishIfBlock(&state) : (void)0),      \

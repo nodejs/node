@@ -4,8 +4,6 @@
 
 import os
 import signal
-import subprocess
-import sys
 
 from contextlib import contextmanager
 
@@ -38,7 +36,7 @@ class DefaultOSContext:
     pass
 
   def platform_shell(self, shell, args, outdir):
-    return outdir.resolve() / shell
+    return outdir / shell
 
   @property
   def device_type(self):
@@ -76,7 +74,7 @@ class WindowsContext(DesktopContext):
     terminate_process_windows(process)
 
   def platform_shell(self, shell, args, outdir):
-    return outdir.resolve() / f'{shell}.exe'
+    return outdir / f'{shell}.exe'
 
 
 class AndroidOSContext(DefaultOSContext):
@@ -111,14 +109,14 @@ class IOSContext(DefaultOSContext):
     # builders and testers.
     # At the moment Chromium's iossim tool is being used, which is a wrapper
     # around 'simctl' macOS command utility.
-    iossim = outdir.resolve() / "iossim -d 'iPhone X' "
+    iossim = outdir / "iossim -d 'iPhone X' "
 
     if isinstance(appargs, list):
       appargs = ' '.join(map(str, appargs))
     if appargs != "":
       iossim = f'{iossim}-c '
       appargs = '\"' + appargs + '\"'
-    app = outdir.resolve() / f'{shell}.app'
+    app = outdir / f'{shell}.app'
     return f'{iossim}{appargs} {app}'
 
 # TODO(liviurau): Add documentation with diagrams to describe how context and

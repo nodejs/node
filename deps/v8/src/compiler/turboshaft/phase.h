@@ -24,6 +24,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/compiler/turboshaft/zone-with-name.h"
+#include "src/interpreter/interpreter.h"
 #include "src/logging/runtime-call-stats.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
@@ -118,10 +119,11 @@ struct ComponentWithZone {
 
 struct BuiltinComponent {
   const CallDescriptor* call_descriptor;
-  std::optional<BytecodeHandlerData> bytecode_handler_data;
+  std::optional<interpreter::BytecodeHandlerData> bytecode_handler_data;
 
-  BuiltinComponent(const CallDescriptor* call_descriptor,
-                   std::optional<BytecodeHandlerData> bytecode_handler_data)
+  BuiltinComponent(
+      const CallDescriptor* call_descriptor,
+      std::optional<interpreter::BytecodeHandlerData> bytecode_handler_data)
       : call_descriptor(call_descriptor),
         bytecode_handler_data(std::move(bytecode_handler_data)) {}
 };
@@ -215,7 +217,8 @@ class V8_EXPORT_PRIVATE PipelineData {
 
   void InitializeBuiltinComponent(
       const CallDescriptor* call_descriptor,
-      std::optional<BytecodeHandlerData> bytecode_handler_data = {}) {
+      std::optional<interpreter::BytecodeHandlerData> bytecode_handler_data =
+          {}) {
     DCHECK(!builtin_component_.has_value());
     builtin_component_.emplace(call_descriptor,
                                std::move(bytecode_handler_data));
@@ -341,7 +344,7 @@ class V8_EXPORT_PRIVATE PipelineData {
     DCHECK(builtin_component_.has_value());
     return builtin_component_->call_descriptor;
   }
-  std::optional<BytecodeHandlerData>& bytecode_handler_data() {
+  std::optional<interpreter::BytecodeHandlerData>& bytecode_handler_data() {
     DCHECK(builtin_component_.has_value());
     return builtin_component_->bytecode_handler_data;
   }

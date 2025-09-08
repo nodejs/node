@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbo-optimize-apply --turbofan
-// Flags: --no-always-turbofan
 
 // These tests do not work well if we flush the feedback vector, which causes
 // deoptimization.
@@ -18,7 +17,10 @@
 // Test deopt when array map changes.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true;
   function sum_js(a, b, c) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c;

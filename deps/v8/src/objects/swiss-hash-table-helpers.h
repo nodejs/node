@@ -120,7 +120,7 @@ class ProbeSequence {
 //   for (int i : BitMask<uint64_t, 8, 3>(0x0000000080800000)) -> yields 2, 3
 template <class T, int SignificantBits, int Shift = 0>
 class BitMask {
-  static_assert(std::is_unsigned<T>::value);
+  static_assert(std::is_unsigned_v<T>);
   static_assert(Shift == 0 || Shift == 3);
 
  public:

@@ -4,6 +4,8 @@
 
 #include "src/compiler/machine-graph.h"
 
+#include <bit>
+
 #include "src/codegen/external-reference.h"
 
 namespace v8 {
@@ -99,6 +101,10 @@ Node* MachineGraph::Float32Constant(float value) {
 }
 
 Node* MachineGraph::Float64Constant(double value) {
+  return Float64Constant(Float64::FromBits(std::bit_cast<uint64_t>(value)));
+}
+
+Node* MachineGraph::Float64Constant(Float64 value) {
   Node** loc = cache_.FindFloat64Constant(value);
   if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->Float64Constant(value));

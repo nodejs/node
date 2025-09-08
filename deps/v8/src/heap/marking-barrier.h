@@ -74,8 +74,11 @@ class MarkingBarrier {
 #if DEBUG
   void AssertMarkingIsActivated() const;
   void AssertSharedMarkingIsActivated() const;
-  bool IsMarked(const Tagged<HeapObject> value) const;
 #endif  // DEBUG
+
+#if V8_VERIFY_WRITE_BARRIERS
+  bool IsMarked(const Tagged<HeapObject> value) const;
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
  private:
   inline void MarkValueShared(Tagged<HeapObject> value);

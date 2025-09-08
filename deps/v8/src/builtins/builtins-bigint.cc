@@ -106,8 +106,8 @@ Tagged<Object> BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
   if (!IsUndefined(*radix, isolate)) {
     // 4. Else, let radixNumber be ? ToInteger(radix).
     double radix_double;
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, radix_double, Object::IntegerValue(isolate, radix));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix_double,
+                                       Object::IntegerValue(isolate, radix));
     // 5. If radixNumber < 2 or radixNumber > 36, throw a RangeError exception.
     if (radix_double < 2 || radix_double > 36) {
       THROW_NEW_ERROR_RETURN_FAILURE(

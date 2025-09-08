@@ -51,7 +51,7 @@ void V8SerializationDuplicateTracker::SetKnownSerializedValue(
   m_v8ObjectToSerializedDictionary =
       m_v8ObjectToSerializedDictionary
           ->Set(m_context, v8Value,
-                v8::External::New(m_context->GetIsolate(), serializedValue))
+                v8::External::New(v8::Isolate::GetCurrent(), serializedValue))
           .ToLocalChecked();
 }
 
@@ -73,5 +73,6 @@ V8SerializationDuplicateTracker::V8SerializationDuplicateTracker(
     v8::Local<v8::Context> context)
     : m_context(context),
       m_counter(1),
-      m_v8ObjectToSerializedDictionary(v8::Map::New(context->GetIsolate())) {}
+      m_v8ObjectToSerializedDictionary(
+          v8::Map::New(v8::Isolate::GetCurrent())) {}
 }  // namespace v8_inspector

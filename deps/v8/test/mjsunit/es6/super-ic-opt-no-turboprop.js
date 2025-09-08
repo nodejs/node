@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --super-ic --turbofan
-// Flags: --no-always-turbofan --deopt-every-n-times=0
+// Flags: --deopt-every-n-times=0
 
 // This file contains tests which are disabled for TurboProp. TurboProp deopts
 // differently than TurboFan, so the assertions about when a function is

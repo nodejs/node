@@ -186,8 +186,9 @@ class ABSL_ATTRIBUTE_VIEW Span {
   // type C.
   template <typename C>
   using EnableIfConvertibleFrom =
-      typename std::enable_if<span_internal::HasData<T, C>::value &&
-                              span_internal::HasSize<C>::value>::type;
+      std::enable_if_t<!std::is_same_v<Span, std::remove_reference_t<C>> &&
+                       span_internal::HasData<T, C>::value &&
+                       span_internal::HasSize<C>::value>;
 
   // Used to SFINAE-enable a function when the slice elements are const.
   template <typename U>
@@ -202,10 +203,11 @@ class ABSL_ATTRIBUTE_VIEW Span {
  public:
   using element_type = T;
   using value_type = absl::remove_cv_t<T>;
-  // TODO(b/316099902) - pointer should be Nullable<T*>, but this makes it hard
-  // to recognize foreach loops as safe.
-  using pointer = T*;
-  using const_pointer = const T*;
+  // TODO(b/316099902) - pointer should be absl_nullable, but this makes it hard
+  // to recognize foreach loops as safe. absl_nullability_unknown is currently
+  // used to suppress -Wnullability-completeness warnings.
+  using pointer = T* absl_nullability_unknown;
+  using const_pointer = const T* absl_nullability_unknown;
   using reference = T&;
   using const_reference = const T&;
   using iterator = pointer;
@@ -498,8 +500,7 @@ class ABSL_ATTRIBUTE_VIEW Span {
   // Support for absl::Hash.
   template <typename H>
   friend H AbslHashValue(H h, Span v) {
-    return H::combine(H::combine_contiguous(std::move(h), v.data(), v.size()),
-                      hash_internal::WeaklyMixedInteger{v.size()});
+    return H::combine_contiguous(std::move(h), v.data(), v.size());
   }
 
  private:
@@ -725,24 +726,38 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool operator>=(Span<T> a, const U& b) {
 //   }
 //
 template <int&... ExplicitArgumentBarrier, typename T>
-constexpr Span<T> MakeSpan(T* absl_nullable ptr, size_t size) noexcept {
+constexpr Span<T> MakeSpan(T* absl_nullable ptr ABSL_ATTRIBUTE_LIFETIME_BOUND,
+                           size_t size) noexcept {
   return Span<T>(ptr, size);
 }
 
 template <int&... ExplicitArgumentBarrier, typename T>
-Span<T> MakeSpan(T* absl_nullable begin, T* absl_nullable end) noexcept {
+Span<T> MakeSpan(T* absl_nullable begin ABSL_ATTRIBUTE_LIFETIME_BOUND,
+                 T* absl_nullable end) noexcept {
   ABSL_HARDENING_ASSERT(begin <= end);
   return Span<T>(begin, static_cast<size_t>(end - begin));
 }
 
 template <int&... ExplicitArgumentBarrier, typename C>
 constexpr auto MakeSpan(C& c) noexcept  // NOLINT(runtime/references)
-    -> decltype(absl::MakeSpan(span_internal::GetData(c), c.size())) {
+    -> std::enable_if_t<span_internal::IsView<C>::value,
+                        decltype(absl::MakeSpan(span_internal::GetData(c),
+                                                c.size()))> {
+  return MakeSpan(span_internal::GetData(c), c.size());
+}
+
+template <int&... ExplicitArgumentBarrier, typename C>
+constexpr auto MakeSpan(
+    C& c ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept  // NOLINT(runtime/references)
+    -> std::enable_if_t<!span_internal::IsView<C>::value,
+                        decltype(absl::MakeSpan(span_internal::GetData(c),
+                                                c.size()))> {
   return MakeSpan(span_internal::GetData(c), c.size());
 }
 
 template <int&... ExplicitArgumentBarrier, typename T, size_t N>
-constexpr Span<T> MakeSpan(T (&array)[N]) noexcept {
+constexpr Span<T> MakeSpan(
+    T (&array ABSL_ATTRIBUTE_LIFETIME_BOUND)[N]) noexcept {
   return Span<T>(array, N);
 }
 
@@ -771,25 +786,36 @@ constexpr Span<T> MakeSpan(T (&array)[N]) noexcept {
 //   ProcessInts(absl::MakeConstSpan(std::vector<int>{ 0, 0, 0 }));
 //
 template <int&... ExplicitArgumentBarrier, typename T>
-constexpr Span<const T> MakeConstSpan(T* absl_nullable ptr,
-                                      size_t size) noexcept {
+constexpr Span<const T> MakeConstSpan(
+    T* absl_nullable ptr ABSL_ATTRIBUTE_LIFETIME_BOUND, size_t size) noexcept {
   return Span<const T>(ptr, size);
 }
 
 template <int&... ExplicitArgumentBarrier, typename T>
-Span<const T> MakeConstSpan(T* absl_nullable begin,
+Span<const T> MakeConstSpan(T* absl_nullable begin
+                                ABSL_ATTRIBUTE_LIFETIME_BOUND,
                             T* absl_nullable end) noexcept {
   ABSL_HARDENING_ASSERT(begin <= end);
   return Span<const T>(begin, end - begin);
 }
 
 template <int&... ExplicitArgumentBarrier, typename C>
-constexpr auto MakeConstSpan(const C& c) noexcept -> decltype(MakeSpan(c)) {
+constexpr auto MakeConstSpan(const C& c) noexcept
+    -> std::enable_if_t<span_internal::IsView<C>::value,
+                        decltype(MakeSpan(c))> {
+  return MakeSpan(c);
+}
+
+template <int&... ExplicitArgumentBarrier, typename C>
+constexpr auto MakeConstSpan(const C& c ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept
+    -> std::enable_if_t<!span_internal::IsView<C>::value,
+                        decltype(MakeSpan(c))> {
   return MakeSpan(c);
 }
 
 template <int&... ExplicitArgumentBarrier, typename T, size_t N>
-constexpr Span<const T> MakeConstSpan(const T (&array)[N]) noexcept {
+constexpr Span<const T> MakeConstSpan(
+    const T (&array ABSL_ATTRIBUTE_LIFETIME_BOUND)[N]) noexcept {
   return Span<const T>(array, N);
 }
 ABSL_NAMESPACE_END

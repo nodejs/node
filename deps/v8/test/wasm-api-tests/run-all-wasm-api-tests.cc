@@ -13,6 +13,7 @@ int main(int argc, char** argv) {
   // in an broken environment on windows.
   GTEST_FLAG_SET(catch_exceptions, false);
   testing::InitGoogleMock(&argc, argv);
+  // TODO(350324877): Investigate enabling sandbox hardware support here.
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
   if (V8_TRAP_HANDLER_SUPPORTED) {

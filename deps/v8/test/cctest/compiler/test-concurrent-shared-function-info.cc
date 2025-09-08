@@ -37,14 +37,12 @@ void ExpectSharedFunctionInfoState(Isolate* isolate,
   switch (expectedState) {
     case SfiState::Compiled:
       CHECK(IsBytecodeArray(function_data) ||
-            (IsCode(function_data) &&
-             Cast<Code>(function_data)->kind() == CodeKind::BASELINE));
+            CheckedCast<Code>(function_data)->kind() == CodeKind::BASELINE);
       CHECK(IsScript(script));
       break;
     case SfiState::DebugInfo: {
       CHECK(IsBytecodeArray(function_data) ||
-            (IsCode(function_data) &&
-             Cast<Code>(function_data)->kind() == CodeKind::BASELINE));
+            CheckedCast<Code>(function_data)->kind() == CodeKind::BASELINE);
       CHECK(IsScript(script));
       Tagged<DebugInfo> debug_info = sfi->GetDebugInfo(isolate);
       CHECK(!debug_info->HasInstrumentedBytecodeArray());
@@ -73,6 +71,7 @@ class BackgroundCompilationThread final : public v8::base::Thread {
         job_(job) {}
 
   void Run() override {
+    base::FlushDenormalsScope denormals_scope(isolate_->flush_denormals());
     RuntimeCallStats stats(RuntimeCallStats::kWorkerThread);
     LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
     sema_execute_start_->Wait();

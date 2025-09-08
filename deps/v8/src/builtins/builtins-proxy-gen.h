@@ -17,7 +17,7 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
   TNode<JSProxy> AllocateProxy(TNode<Context> context, TNode<JSReceiver> target,
-                               TNode<JSReceiver> handler);
+                               TNode<JSReceiver> handler, TNode<Int32T> flags);
   TNode<JSFunction> AllocateProxyRevokeFunction(TNode<Context> context,
                                                 TNode<JSProxy> proxy);
 

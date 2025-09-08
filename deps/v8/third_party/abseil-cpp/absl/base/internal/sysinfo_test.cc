@@ -59,7 +59,7 @@ TEST(SysinfoTest, GetTID) {
       threads.push_back(std::thread([&]() {
         pid_t id = GetTID();
         {
-          MutexLock lock(&mutex);
+          MutexLock lock(mutex);
           ASSERT_TRUE(tids.find(id) == tids.end());
           tids.insert(id);
         }

@@ -11,6 +11,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
+#include "src/execution/protectors-inl.h"
 #include "src/execution/tiering-manager.h"
 #include "src/handles/maybe-handles.h"
 #include "src/logging/counters.h"
@@ -443,15 +444,9 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   // TODO(v8:13070): Align allocations in the builtins that call this.
   int size = ALIGN_TO_ALLOCATION_ALIGNMENT(args.smi_value_at(0));
   int flags = args.smi_value_at(1);
-  AllocationAlignment alignment =
-      AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
+  AllocationAlignment alignment = static_cast<AllocationAlignment>(flags);
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
-
-  // When this is called from WasmGC code, clear the "thread in wasm" flag,
-  // which is important in case any GC needs to happen.
-  // TODO(40192807): Find a better fix, likely by replacing the global flag.
-  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
 
   // TODO(v8:9472): Until double-aligned allocation is fixed for new-space
   // allocations, don't request it.
@@ -469,13 +464,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
   int size = ALIGN_TO_ALLOCATION_ALIGNMENT(args.smi_value_at(0));
   int flags = args.smi_value_at(1);
 
-  // When this is called from WasmGC code, clear the "thread in wasm" flag,
-  // which is important in case any GC needs to happen.
-  // TODO(40192807): Find a better fix, likely by replacing the global flag.
-  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
-
-  AllocationAlignment alignment =
-      AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
+  AllocationAlignment alignment = static_cast<AllocationAlignment>(flags);
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
   return *isolate->factory()->NewFillerObject(
@@ -488,22 +477,16 @@ RUNTIME_FUNCTION(Runtime_AllocateInSharedHeap) {
   // TODO(v8:13070): Align allocations in the builtins that call this.
   int size = ALIGN_TO_ALLOCATION_ALIGNMENT(args.smi_value_at(0));
   int flags = args.smi_value_at(1);
-  AllocationAlignment alignment =
-      AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
+  AllocationAlignment alignment = static_cast<AllocationAlignment>(flags);
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
 
-#if V8_ENABLE_WEBASSEMBLY
-  // When this is called from WasmGC code, clear the "thread in wasm" flag,
-  // which is important in case any GC needs to happen.
-  // TODO(chromium:1236668): Find a better fix, likely by replacing the global
-  // flag.
-  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  return *isolate->factory()->NewFillerObject(size, alignment,
-                                              AllocationType::kSharedOld,
-                                              AllocationOrigin::kGeneratedCode);
+  Tagged<HeapObject> result = *isolate->factory()->NewFillerObject(
+      size, alignment, AllocationType::kSharedOld,
+      AllocationOrigin::kGeneratedCode);
+  DCHECK(IsAligned(result->address(),
+                   alignment == kDoubleAligned ? kDoubleSize : kTaggedSize));
+  return result;
 }
 
 RUNTIME_FUNCTION(Runtime_AllocateByteArray) {
@@ -657,12 +640,13 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   }
   return ReadOnlyRoots(isolate).undefined_value();
 #else   // V8_RUNTIME_CALL_STATS
+  // RCS has to be enabled with v8_enable_runtime_call_stats = true.
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kInvalid,
                             isolate->factory()->NewStringFromAsciiChecked(
                                 "Runtime Call"),
                             isolate->factory()->NewStringFromAsciiChecked(
-                                "RCS was disabled at compile-time")));
+                                "RCS was disabled at compile-time.")));
 #endif  // V8_RUNTIME_CALL_STATS
 }
 
@@ -789,7 +773,17 @@ RUNTIME_FUNCTION(Runtime_NotifyContextCellStateWillChange) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_InvalidateStringWrapperToPrimitiveProtector) {
+  DCHECK_EQ(0, args.length());
+  Protectors::InvalidateStringWrapperToPrimitive(isolate);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_AddLhsIsStringConstantInternalize) {
+  UNREACHABLE();  // Lowered to a builtin call instead.
+}
+
+RUNTIME_FUNCTION(Runtime_AddRhsIsStringConstantInternalize) {
   UNREACHABLE();  // Lowered to a builtin call instead.
 }
 

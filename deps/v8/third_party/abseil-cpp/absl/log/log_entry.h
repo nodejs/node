@@ -25,6 +25,7 @@
 #define ABSL_LOG_LOG_ENTRY_H_
 
 #include <cstddef>
+#include <ostream>
 #include <string>
 
 #include "absl/base/attributes.h"
@@ -213,6 +214,7 @@ class LogEntry final {
 
   friend class log_internal::LogEntryTestPeer;
   friend class log_internal::LogMessage;
+  friend void PrintTo(const absl::LogEntry& entry, std::ostream* os);
 };
 
 ABSL_NAMESPACE_END
