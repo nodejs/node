@@ -155,7 +155,7 @@ Depending on the host platform, the selection of toolchains may vary.
 
 | Operating System | Compiler Versions                                              |
 | ---------------- | -------------------------------------------------------------- |
-| Linux            | GCC >= 12.2                                                    |
+| Linux            | GCC >= 12.2 or Clang >= 19.1                                   |
 | Windows          | Visual Studio >= 2022 with the Windows 10 SDK on a 64-bit host |
 | macOS            | Xcode >= 16.3 (Apple LLVM >= 19)                               |
 
@@ -163,17 +163,17 @@ Depending on the host platform, the selection of toolchains may vary.
 
 Binaries at <https://nodejs.org/download/release/> are produced on:
 
-| Binary package          | Platform and Toolchain                                    |
-| ----------------------- | --------------------------------------------------------- |
-| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 12[^5]                   |
-| darwin-x64              | macOS 13, Xcode 16 with -mmacosx-version-min=13.5         |
-| darwin-arm64 (and .pkg) | macOS 13 (arm64), Xcode 16 with -mmacosx-version-min=13.5 |
-| linux-arm64             | RHEL 8 with gcc-toolset-12[^6]                            |
-| linux-ppc64le           | RHEL 8 with gcc-toolset-12[^6]                            |
-| linux-s390x             | RHEL 8 with gcc-toolset-12[^6]                            |
-| linux-x64               | RHEL 8 with gcc-toolset-12[^6]                            |
-| win-arm64               | Windows Server 2022 (x64) with Visual Studio 2022         |
-| win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022         |
+| Binary package          | Platform and Toolchain                                        |
+| ----------------------- | ------------------------------------------------------------- |
+| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 12[^5]                       |
+| darwin-x64              | macOS 13, Xcode 16 with -mmacosx-version-min=13.5             |
+| darwin-arm64 (and .pkg) | macOS 13 (arm64), Xcode 16 with -mmacosx-version-min=13.5     |
+| linux-arm64             | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-ppc64le           | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-s390x             | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-x64               | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
+| win-arm64               | Windows Server 2022 (x64) with Visual Studio 2022             |
+| win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022             |
 
 <!--lint disable final-definition-->
 
@@ -232,7 +232,7 @@ Consult previous versions of this document for older versions of Node.js:
 
 #### Unix prerequisites
 
-* `gcc` and `g++` >= 12.2 or newer
+* `gcc` and `g++` >= 12.2 or `clang` and `clang++` >= 19.1
 * GNU Make 3.81 or newer
 * [A supported version of Python][Python versions]
   * For test coverage, your Python installation must include pip.
