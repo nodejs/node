@@ -399,7 +399,7 @@ ADDONS_HEADERS_PREREQS := tools/install.py \
 	$(wildcard deps/uv/include/*/*.h) \
 	$(wildcard deps/v8/include/*.h) \
 	$(wildcard deps/v8/include/*/*.h) \
-	deps/zlib/zconf.h deps/zlib/zlib.h \
+	$(wildcard deps/zlib/z*.h) \
 	src/node.h src/node_api.h src/js_native_api.h src/js_native_api_types.h \
 	src/node_api_types.h src/node_buffer.h src/node_object_wrap.h \
 	src/node_version.h
@@ -1032,6 +1032,11 @@ override DESTCPU=x86
 endif
 
 TARNAME=node-$(FULLVERSION)
+# Supply SKIP_SHARED_DEPS=1 to explicitly skip all dependencies that can be included as shared deps
+SKIP_SHARED_DEPS ?= 0
+ifeq ($(SKIP_SHARED_DEPS), 1)
+TARNAME:=$(TARNAME)-slim
+endif
 TARBALL=$(TARNAME).tar
 # Custom user-specified variation, use it directly
 ifdef VARIATION
@@ -1215,12 +1220,31 @@ $(TARBALL): release-only doc-only
 	$(RM) -r $(TARNAME)/.mailmap
 	$(RM) -r $(TARNAME)/deps/corepack
 	$(RM) $(TARNAME)/test/parallel/test-corepack-version.js
+ifeq ($(SKIP_SHARED_DEPS), 1)
+	$(RM) -r $(TARNAME)/deps/ada
+	$(RM) -r $(TARNAME)/deps/brotli
+	$(RM) -r $(TARNAME)/deps/cares
+	$(RM) -r $(TARNAME)/deps/icu-small
+	$(RM) -r $(TARNAME)/deps/icu-tmp
+	$(RM) -r $(TARNAME)/deps/llhttp
+	$(RM) -r $(TARNAME)/deps/nghttp2
+	$(RM) -r $(TARNAME)/deps/ngtcp2
+	find $(TARNAME)/deps/openssl -maxdepth 1 -type f ! -name 'nodejs-openssl.cnf' -exec $(RM) {} +
+	find $(TARNAME)/deps/openssl -mindepth 1 -maxdepth 1 -type d -exec $(RM) -r {} +
+	$(RM) -r $(TARNAME)/deps/simdjson
+	$(RM) -r $(TARNAME)/deps/sqlite
+	$(RM) -r $(TARNAME)/deps/uv
+	$(RM) -r $(TARNAME)/deps/uvwasi
+	$(RM) -r $(TARNAME)/deps/zlib
+	$(RM) -r $(TARNAME)/deps/zstd
+else
 	$(RM) -r $(TARNAME)/deps/openssl/openssl/demos
 	$(RM) -r $(TARNAME)/deps/openssl/openssl/doc
 	$(RM) -r $(TARNAME)/deps/openssl/openssl/test
 	$(RM) -r $(TARNAME)/deps/uv/docs
 	$(RM) -r $(TARNAME)/deps/uv/samples
 	$(RM) -r $(TARNAME)/deps/uv/test
+endif
 	$(RM) -r $(TARNAME)/deps/v8/samples
 	$(RM) -r $(TARNAME)/deps/v8/tools/profviz
 	$(RM) -r $(TARNAME)/deps/v8/tools/run-tests.py
