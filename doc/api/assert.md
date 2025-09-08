@@ -232,7 +232,7 @@ The `Assert` class allows creating independent assertion instances with custom o
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/59762
     description: Added `skipPrototypeComparison` option.
 -->
 
