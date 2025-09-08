@@ -480,6 +480,7 @@
   V(http2ping_constructor_template, v8::ObjectTemplate)                        \
   V(i18n_converter_template, v8::ObjectTemplate)                               \
   V(intervalhistogram_constructor_template, v8::FunctionTemplate)              \
+  V(iter_template, v8::DictionaryTemplate)                                     \
   V(js_transferable_constructor_template, v8::FunctionTemplate)                \
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
   V(lock_holder_constructor_template, v8::FunctionTemplate)                    \
@@ -496,6 +497,7 @@
   V(shutdown_wrap_template, v8::ObjectTemplate)                                \
   V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
   V(space_stats_template, v8::DictionaryTemplate)                              \
+  V(sqlite_column_template, v8::DictionaryTemplate)                            \
   V(sqlite_statement_sync_constructor_template, v8::FunctionTemplate)          \
   V(sqlite_statement_sync_iterator_constructor_template, v8::FunctionTemplate) \
   V(sqlite_session_constructor_template, v8::FunctionTemplate)                 \

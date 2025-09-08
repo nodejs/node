@@ -168,7 +168,7 @@ suite('StatementSync.prototype.iterate()', () => {
     ]);
     t.assert.deepStrictEqual(
       iterator.next(),
-      { __proto__: null, done: true, value: null },
+      { done: true, value: null },
     );
   });
 });
@@ -561,7 +561,7 @@ suite('StatementSync.prototype.iterate() with array output', () => {
     ]);
     t.assert.deepStrictEqual(
       iterator.next(),
-      { __proto__: null, done: true, value: null },
+      { done: true, value: null },
     );
   });
 });

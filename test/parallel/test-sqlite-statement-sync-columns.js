@@ -18,7 +18,6 @@ suite('StatementSync.prototype.columns()', () => {
     const stmt = db.prepare('SELECT col1, col2, col3, col4, col5 FROM test');
     assert.deepStrictEqual(stmt.columns(), [
       {
-        __proto__: null,
         column: 'col1',
         database: 'main',
         name: 'col1',
@@ -26,7 +25,6 @@ suite('StatementSync.prototype.columns()', () => {
         type: 'INTEGER',
       },
       {
-        __proto__: null,
         column: 'col2',
         database: 'main',
         name: 'col2',
@@ -34,7 +32,6 @@ suite('StatementSync.prototype.columns()', () => {
         type: 'REAL',
       },
       {
-        __proto__: null,
         column: 'col3',
         database: 'main',
         name: 'col3',
@@ -42,7 +39,6 @@ suite('StatementSync.prototype.columns()', () => {
         type: 'TEXT',
       },
       {
-        __proto__: null,
         column: 'col4',
         database: 'main',
         name: 'col4',
@@ -50,7 +46,6 @@ suite('StatementSync.prototype.columns()', () => {
         type: 'BLOB',
       },
       {
-        __proto__: null,
         column: 'col5',
         database: 'main',
         name: 'col5',
@@ -69,7 +64,6 @@ suite('StatementSync.prototype.columns()', () => {
     const stmt = db.prepare('SELECT value1, value2 FROM test1, test2');
     assert.deepStrictEqual(stmt.columns(), [
       {
-        __proto__: null,
         column: 'value1',
         database: 'main',
         name: 'value1',
@@ -77,7 +71,6 @@ suite('StatementSync.prototype.columns()', () => {
         type: 'INTEGER',
       },
       {
-        __proto__: null,
         column: 'value2',
         database: 'main',
         name: 'value2',
@@ -93,7 +86,6 @@ suite('StatementSync.prototype.columns()', () => {
     const stmt = db.prepare('SELECT value AS foo FROM test');
     assert.deepStrictEqual(stmt.columns(), [
       {
-        __proto__: null,
         column: 'value',
         database: 'main',
         name: 'foo',
@@ -109,7 +101,6 @@ suite('StatementSync.prototype.columns()', () => {
     const stmt = db.prepare('SELECT value + 1, value FROM test');
     assert.deepStrictEqual(stmt.columns(), [
       {
-        __proto__: null,
         column: null,
         database: null,
         name: 'value + 1',
@@ -117,7 +108,6 @@ suite('StatementSync.prototype.columns()', () => {
         type: null,
       },
       {
-        __proto__: null,
         column: 'value',
         database: 'main',
         name: 'value',
@@ -133,7 +123,6 @@ suite('StatementSync.prototype.columns()', () => {
     const stmt = db.prepare('SELECT * FROM (SELECT * FROM test)');
     assert.deepStrictEqual(stmt.columns(), [
       {
-        __proto__: null,
         column: 'value',
         database: 'main',
         name: 'value',
