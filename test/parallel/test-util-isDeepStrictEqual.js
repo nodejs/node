@@ -94,9 +94,9 @@ function notUtilIsDeepStrict(a, b) {
   utilIsDeepStrict(a, b);
 }
 
-// Handle `skipPrototypeComparison` option for isDeepStrictEqual
+// Handle `skipPrototypeComparison` for isDeepStrictEqual
 {
-  test('util.isDeepStrictEqual with skipPrototypeComparison option', () => {
+  test('util.isDeepStrictEqual with skipPrototypeComparison', () => {
     function ClassA(value) { this.value = value; }
 
     function ClassB(value) { this.value = value; }
@@ -105,22 +105,22 @@ function notUtilIsDeepStrict(a, b) {
     const objB = new ClassB(42);
 
     assert.strictEqual(util.isDeepStrictEqual(objA, objB), false);
-    assert.strictEqual(util.isDeepStrictEqual(objA, objB, { skipPrototypeComparison: true }), true);
+    assert.strictEqual(util.isDeepStrictEqual(objA, objB, true), true);
 
     const objC = new ClassB(99);
-    assert.strictEqual(util.isDeepStrictEqual(objA, objC, { skipPrototypeComparison: true }), false);
+    assert.strictEqual(util.isDeepStrictEqual(objA, objC, true), false);
 
     const nestedA = { obj: new ClassA('test'), num: 123 };
     const nestedB = { obj: new ClassB('test'), num: 123 };
 
     assert.strictEqual(util.isDeepStrictEqual(nestedA, nestedB), false);
-    assert.strictEqual(util.isDeepStrictEqual(nestedA, nestedB, { skipPrototypeComparison: true }), true);
+    assert.strictEqual(util.isDeepStrictEqual(nestedA, nestedB, true), true);
 
     const uint8Array = new Uint8Array([1, 2, 3]);
     const buffer = Buffer.from([1, 2, 3]);
 
     assert.strictEqual(util.isDeepStrictEqual(uint8Array, buffer), false);
-    assert.strictEqual(util.isDeepStrictEqual(uint8Array, buffer, { skipPrototypeComparison: true }), true);
+    assert.strictEqual(util.isDeepStrictEqual(uint8Array, buffer, true), true);
   });
 
   test('util.isDeepStrictEqual skipPrototypeComparison with complex scenarios', () => {
@@ -135,24 +135,23 @@ function notUtilIsDeepStrict(a, b) {
     const legacyParent = new LegacyParent(1);
 
     assert.strictEqual(util.isDeepStrictEqual(modernParent, legacyParent), false);
-    assert.strictEqual(util.isDeepStrictEqual(modernParent, legacyParent, { skipPrototypeComparison: true }), true);
+    assert.strictEqual(util.isDeepStrictEqual(modernParent, legacyParent, true), true);
 
     const modern = new Child(1, 2);
     const legacy = new LegacyChild(1, 2);
 
     assert.strictEqual(util.isDeepStrictEqual(modern, legacy), false);
-    assert.strictEqual(util.isDeepStrictEqual(modern, legacy, { skipPrototypeComparison: true }), true);
+    assert.strictEqual(util.isDeepStrictEqual(modern, legacy, true), true);
 
     const literal = { name: 'test', values: [1, 2, 3] };
     function Constructor(name, values) { this.name = name; this.values = values; }
     const constructed = new Constructor('test', [1, 2, 3]);
 
     assert.strictEqual(util.isDeepStrictEqual(literal, constructed), false);
-    assert.strictEqual(util.isDeepStrictEqual(literal, constructed, { skipPrototypeComparison: true }), true);
+    assert.strictEqual(util.isDeepStrictEqual(literal, constructed, true), true);
 
-    assert.strictEqual(util.isDeepStrictEqual(literal, constructed, {}), false);
-    assert.strictEqual(util.isDeepStrictEqual(literal, constructed, { skipPrototypeComparison: false }), false);
-    assert.strictEqual(util.isDeepStrictEqual(literal, constructed, { skipPrototypeComparison: null }), false);
-    assert.strictEqual(util.isDeepStrictEqual(literal, constructed, { skipPrototypeComparison: undefined }), false);
+    assert.strictEqual(util.isDeepStrictEqual(literal, constructed, false), false);
+    assert.strictEqual(util.isDeepStrictEqual(literal, constructed, null), false);
+    assert.strictEqual(util.isDeepStrictEqual(literal, constructed, undefined), false);
   });
 }

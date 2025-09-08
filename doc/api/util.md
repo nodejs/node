@@ -1565,16 +1565,15 @@ changes:
 
 * `val1` {any}
 * `val2` {any}
-* `options` {Object}
-  * `skipPrototypeComparison` {boolean} If `true`, prototype and constructor
-    comparison is skipped during deep strict equality check. **Default:** `false`.
+* `skipPrototypeComparison` {boolean} If `true`, prototype and constructor
+  comparison is skipped during deep strict equality check. **Default:** `false`.
 * Returns: {boolean}
 
 Returns `true` if there is deep strict equality between `val1` and `val2`.
 Otherwise, returns `false`.
 
 By default, deep strict equality includes comparison of object prototypes and
-constructors. When `options.skipPrototypeComparison` is `true`, objects with
+constructors. When `skipPrototypeComparison` is `true`, objects with
 different prototypes or constructors can still be considered equal if their
 enumerable properties are deeply strictly equal.
 
@@ -1600,7 +1599,7 @@ const bar = new Bar(1);
 console.log(util.isDeepStrictEqual(foo, bar));
 // false
 
-console.log(util.isDeepStrictEqual(foo, bar, { skipPrototypeComparison: true }));
+console.log(util.isDeepStrictEqual(foo, bar, true));
 // true
 ```
 
