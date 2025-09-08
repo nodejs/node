@@ -32,13 +32,13 @@ using v8::Float64Array;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
 using v8::Maybe;
 using v8::MaybeLocal;
-using v8::Name;
 using v8::NewStringType;
 using v8::Null;
 using v8::Number;
@@ -878,7 +878,7 @@ void Worker::CpuUsage(const FunctionCallbackInfo<Value>& args) {
           } else {
             auto tmpl = env->cpu_usage_template();
             if (tmpl.IsEmpty()) {
-              std::string_view names[] = {
+              static constexpr std::string_view names[] = {
                   "user",
                   "system",
               };
@@ -894,7 +894,10 @@ void Worker::CpuUsage(const FunctionCallbackInfo<Value>& args) {
                             1e6 * cpu_usage_stats->ru_stime.tv_sec +
                                 cpu_usage_stats->ru_stime.tv_usec),
             };
-            argv[1] = tmpl->NewInstance(env->context(), values);
+            if (!NewDictionaryInstanceNullProto(env->context(), tmpl, values)
+                     .ToLocal(&argv[1])) {
+              return;
+            }
           }
 
           taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
@@ -1063,7 +1066,7 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
                                         env](Environment* worker_env) mutable {
     // We create a unique pointer to HeapStatistics so that the actual object
     // it's not copied in the lambda, but only the pointer is.
-    auto heap_stats = std::make_unique<v8::HeapStatistics>();
+    auto heap_stats = std::make_unique<HeapStatistics>();
     worker_env->isolate()->GetHeapStatistics(heap_stats.get());
 
     // Here, the worker thread temporarily owns the WorkerHeapStatisticsTaker
@@ -1096,7 +1099,7 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
                 "used_global_handles_size",
                 "external_memory",
             };
-            tmpl = v8::DictionaryTemplate::New(isolate, heap_stats_names);
+            tmpl = DictionaryTemplate::New(isolate, heap_stats_names);
             env->set_heap_statistics_template(tmpl);
           }
 
@@ -1117,10 +1120,13 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
               Number::New(isolate, heap_stats->used_global_handles_size()),
               Number::New(isolate, heap_stats->external_memory())};
 
-          DCHECK_EQ(arraysize(heap_stats_names), arraysize(heap_stats_values));
-
-          Local<Value> args[] = {
-              tmpl->NewInstance(env->context(), heap_stats_values)};
+          Local<Object> obj;
+          if (!NewDictionaryInstanceNullProto(
+                   env->context(), tmpl, heap_stats_values)
+                   .ToLocal(&obj)) {
+            return;
+          }
+          Local<Value> args[] = {obj};
           taker->get()->MakeCallback(
               env->ondone_string(), arraysize(args), args);
           // implicitly delete `taker`

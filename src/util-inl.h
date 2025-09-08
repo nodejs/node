@@ -704,6 +704,31 @@ inline std::wstring ConvertToWideString(const std::string& str,
 }
 #endif  // _WIN32
 
+inline v8::MaybeLocal<v8::Object> NewDictionaryInstance(
+    v8::Local<v8::Context> context,
+    v8::Local<v8::DictionaryTemplate> tmpl,
+    v8::MemorySpan<v8::MaybeLocal<v8::Value>> property_values) {
+  for (auto& value : property_values) {
+    if (value.IsEmpty()) return v8::MaybeLocal<v8::Object>();
+  }
+  return tmpl->NewInstance(context, property_values);
+}
+
+inline v8::MaybeLocal<v8::Object> NewDictionaryInstanceNullProto(
+    v8::Local<v8::Context> context,
+    v8::Local<v8::DictionaryTemplate> tmpl,
+    v8::MemorySpan<v8::MaybeLocal<v8::Value>> property_values) {
+  for (auto& value : property_values) {
+    if (value.IsEmpty()) return v8::MaybeLocal<v8::Object>();
+  }
+  v8::Local<v8::Object> obj = tmpl->NewInstance(context, property_values);
+  if (obj->SetPrototypeV2(context, v8::Null(context->GetIsolate()))
+          .IsNothing()) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+  return obj;
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

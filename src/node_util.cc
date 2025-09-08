@@ -267,13 +267,14 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
 
   auto callsite_template = env->callsite_template();
   if (callsite_template.IsEmpty()) {
-    std::string_view names[] = {"functionName",
-                                "scriptId",
-                                "scriptName",
-                                "lineNumber",
-                                "columnNumber",
-                                // TODO(legendecas): deprecate CallSite.column.
-                                "column"};
+    static constexpr std::string_view names[] = {
+        "functionName",
+        "scriptId",
+        "scriptName",
+        "lineNumber",
+        "columnNumber",
+        // TODO(legendecas): deprecate CallSite.column.
+        "column"};
     callsite_template = DictionaryTemplate::New(isolate, names);
     env->set_callsite_template(callsite_template);
   }
@@ -304,8 +305,13 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
         Integer::NewFromUnsigned(isolate, stack_frame->GetColumn()),
     };
 
-    callsite_objects.push_back(
-        callsite_template->NewInstance(env->context(), values));
+    Local<Object> callsite;
+    if (!NewDictionaryInstanceNullProto(
+             env->context(), callsite_template, values)
+             .ToLocal(&callsite)) {
+      return;
+    }
+    callsite_objects.push_back(callsite);
   }
 
   Local<Array> callsites =

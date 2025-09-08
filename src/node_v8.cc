@@ -47,7 +47,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::LocalVector;
 using v8::MaybeLocal;
-using v8::Name;
 using v8::Object;
 using v8::ScriptCompiler;
 using v8::String;
@@ -338,16 +337,18 @@ static MaybeLocal<Object> ConvertHeapStatsToJSObject(
   auto space_stats_tmpl = env->space_stats_template();
   auto heap_stats_tmpl = env->v8_heap_statistics_template();
   if (object_stats_template.IsEmpty()) {
-    std::string_view object_stats_names[] = {"allocated_bytes", "object_count"};
+    static constexpr std::string_view object_stats_names[] = {"allocated_bytes",
+                                                              "object_count"};
     object_stats_template =
         DictionaryTemplate::New(isolate, object_stats_names);
     env->set_object_stats_template(object_stats_template);
   }
   if (page_stats_tmpl.IsEmpty()) {
-    std::string_view page_stats_names[] = {"committed_size_bytes",
-                                           "resident_size_bytes",
-                                           "used_size_bytes",
-                                           "object_statistics"};
+    static constexpr std::string_view page_stats_names[] = {
+        "committed_size_bytes",
+        "resident_size_bytes",
+        "used_size_bytes",
+        "object_statistics"};
     page_stats_tmpl = DictionaryTemplate::New(isolate, page_stats_names);
     env->set_page_stats_template(page_stats_tmpl);
   }
@@ -359,21 +360,23 @@ static MaybeLocal<Object> ConvertHeapStatsToJSObject(
     env->set_free_list_statistics_template(free_list_statistics_template);
   }
   if (space_stats_tmpl.IsEmpty()) {
-    std::string_view space_stats_names[] = {"name",
-                                            "committed_size_bytes",
-                                            "resident_size_bytes",
-                                            "used_size_bytes",
-                                            "page_stats",
-                                            "free_list_stats"};
+    static constexpr std::string_view space_stats_names[] = {
+        "name",
+        "committed_size_bytes",
+        "resident_size_bytes",
+        "used_size_bytes",
+        "page_stats",
+        "free_list_stats"};
     space_stats_tmpl = DictionaryTemplate::New(isolate, space_stats_names);
     env->set_space_stats_template(space_stats_tmpl);
   }
   if (heap_stats_tmpl.IsEmpty()) {
-    std::string_view heap_statistics_names[] = {"committed_size_bytes",
-                                                "resident_size_bytes",
-                                                "used_size_bytes",
-                                                "space_statistics",
-                                                "type_names"};
+    static constexpr std::string_view heap_statistics_names[] = {
+        "committed_size_bytes",
+        "resident_size_bytes",
+        "used_size_bytes",
+        "space_statistics",
+        "type_names"};
     heap_stats_tmpl = DictionaryTemplate::New(isolate, heap_statistics_names);
     env->set_v8_heap_statistics_template(heap_stats_tmpl);
   }
@@ -398,8 +401,12 @@ static MaybeLocal<Object> ConvertHeapStatsToJSObject(
                 isolate, static_cast<uint32_t>(object_stats.allocated_bytes)),
             Uint32::NewFromUnsigned(
                 isolate, static_cast<uint32_t>(object_stats.object_count))};
-        Local<Object> object_stats_object =
-            object_stats_template->NewInstance(context, object_stats_values);
+        Local<Object> object_stats_object;
+        if (!NewDictionaryInstanceNullProto(
+                 context, object_stats_template, object_stats_values)
+                 .ToLocal(&object_stats_object)) {
+          return MaybeLocal<Object>();
+        }
         object_statistics_array.emplace_back(object_stats_object);
       }
 
@@ -414,8 +421,13 @@ static MaybeLocal<Object> ConvertHeapStatsToJSObject(
           Array::New(isolate,
                      object_statistics_array.data(),
                      object_statistics_array.size())};
-      page_statistics_array.emplace_back(
-          page_stats_tmpl->NewInstance(context, page_stats_values));
+      Local<Object> page_stats_object;
+      if (!NewDictionaryInstanceNullProto(
+               context, page_stats_tmpl, page_stats_values)
+               .ToLocal(&page_stats_object)) {
+        return MaybeLocal<Object>();
+      }
+      page_statistics_array.emplace_back(page_stats_object);
     }
 
     // Free List Statistics
@@ -427,9 +439,13 @@ static MaybeLocal<Object> ConvertHeapStatsToJSObject(
         ToV8ValuePrimitiveArray(
             context, space_stats.free_list_stats.free_size, isolate)};
 
-    Local<Object> free_list_statistics_obj =
-        free_list_statistics_template->NewInstance(context,
-                                                   free_list_statistics_values);
+    Local<Object> free_list_statistics_obj;
+    if (!NewDictionaryInstanceNullProto(context,
+                                        free_list_statistics_template,
+                                        free_list_statistics_values)
+             .ToLocal(&free_list_statistics_obj)) {
+      return MaybeLocal<Object>();
+    }
 
     // Set Space Statistics
     Local<Value> name_value;
@@ -453,8 +469,13 @@ static MaybeLocal<Object> ConvertHeapStatsToJSObject(
                    page_statistics_array.size()),
         free_list_statistics_obj,
     };
-    space_statistics_array.emplace_back(
-        space_stats_tmpl->NewInstance(context, space_stats_values));
+    Local<Object> space_stats_object;
+    if (!NewDictionaryInstanceNullProto(
+             context, space_stats_tmpl, space_stats_values)
+             .ToLocal(&space_stats_object)) {
+      return MaybeLocal<Object>();
+    }
+    space_statistics_array.emplace_back(space_stats_object);
   }
 
   Local<Value> type_names_value;
@@ -474,7 +495,8 @@ static MaybeLocal<Object> ConvertHeapStatsToJSObject(
                  space_statistics_array.size()),
       type_names_value};
 
-  return heap_stats_tmpl->NewInstance(context, heap_statistics_values);
+  return NewDictionaryInstanceNullProto(
+      context, heap_stats_tmpl, heap_statistics_values);
 }
 
 static void GetCppHeapStatistics(const FunctionCallbackInfo<Value>& args) {

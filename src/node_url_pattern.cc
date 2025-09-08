@@ -61,7 +61,6 @@ using v8::FunctionTemplate;
 using v8::Global;
 using v8::Isolate;
 using v8::Local;
-using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::NewStringType;
@@ -400,7 +399,7 @@ MaybeLocal<Value> URLPattern::URLPatternResult::ToJSValue(
 
   auto tmpl = env->urlpatternresult_template();
   if (tmpl.IsEmpty()) {
-    std::string_view namesVec[] = {
+    static constexpr std::string_view namesVec[] = {
         "inputs",
         "protocol",
         "username",
@@ -416,10 +415,8 @@ MaybeLocal<Value> URLPattern::URLPatternResult::ToJSValue(
   }
 
   size_t index = 0;
-  auto context = isolate->GetCurrentContext();
-
   MaybeLocal<Value> vals[] = {
-      Array::New(context,
+      Array::New(env->context(),
                  result.inputs.size(),
                  [&index, &inputs = result.inputs, env]() {
                    auto& input = inputs[index++];
@@ -440,9 +437,8 @@ MaybeLocal<Value> URLPattern::URLPatternResult::ToJSValue(
       URLPatternComponentResult::ToJSObject(env, result.port),
       URLPatternComponentResult::ToJSObject(env, result.pathname),
       URLPatternComponentResult::ToJSObject(env, result.search),
-      URLPatternComponentResult::ToJSObject(env, result.hash),
-  };
-  return tmpl->NewInstance(env->context(), vals);
+      URLPatternComponentResult::ToJSObject(env, result.hash)};
+  return NewDictionaryInstanceNullProto(env->context(), tmpl, vals);
 }
 
 std::optional<ada::url_pattern_options>

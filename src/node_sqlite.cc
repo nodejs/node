@@ -124,7 +124,7 @@ namespace {
 Local<DictionaryTemplate> getLazyIterTemplate(Environment* env) {
   auto iter_template = env->iter_template();
   if (iter_template.IsEmpty()) {
-    std::string_view iter_keys[] = {"done", "value"};
+    static constexpr std::string_view iter_keys[] = {"done", "value"};
     iter_template = DictionaryTemplate::New(env->isolate(), iter_keys);
     env->set_iter_template(iter_template);
   }
@@ -2254,12 +2254,11 @@ void StatementSync::Columns(const FunctionCallbackInfo<Value>& args) {
   LocalVector<Value> cols(isolate);
   auto sqlite_column_template = env->sqlite_column_template();
   if (sqlite_column_template.IsEmpty()) {
-    std::string_view col_keys[] = {
+    static constexpr std::string_view col_keys[] = {
         "column", "database", "name", "table", "type"};
     sqlite_column_template = DictionaryTemplate::New(isolate, col_keys);
     env->set_sqlite_column_template(sqlite_column_template);
   }
-  Local<Value> value;
 
   cols.reserve(num_cols);
   for (int i = 0; i < num_cols; ++i) {
@@ -2275,8 +2274,13 @@ void StatementSync::Columns(const FunctionCallbackInfo<Value>& args) {
             isolate, sqlite3_column_decltype(stmt->statement_, i)),
     };
 
-    cols.emplace_back(
-        sqlite_column_template->NewInstance(env->context(), values));
+    Local<Object> col;
+    if (!NewDictionaryInstanceNullProto(
+             env->context(), sqlite_column_template, values)
+             .ToLocal(&col)) {
+      return;
+    }
+    cols.emplace_back(col);
   }
 
   args.GetReturnValue().Set(Array::New(isolate, cols.data(), cols.size()));
@@ -2516,8 +2520,11 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
         Boolean::New(isolate, true),
         Null(isolate),
     };
-    args.GetReturnValue().Set(
-        iter_template->NewInstance(env->context(), values));
+    Local<Object> result;
+    if (NewDictionaryInstanceNullProto(env->context(), iter_template, values)
+            .ToLocal(&result)) {
+      args.GetReturnValue().Set(result);
+    }
     return;
   }
 
@@ -2527,8 +2534,11 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
         env->isolate(), iter->stmt_->db_.get(), r, SQLITE_DONE, void());
     sqlite3_reset(iter->stmt_->statement_);
     MaybeLocal<Value> values[] = {Boolean::New(isolate, true), Null(isolate)};
-    args.GetReturnValue().Set(
-        iter_template->NewInstance(env->context(), values));
+    Local<Object> result;
+    if (NewDictionaryInstanceNullProto(env->context(), iter_template, values)
+            .ToLocal(&result)) {
+      args.GetReturnValue().Set(result);
+    }
     return;
   }
 
@@ -2557,7 +2567,11 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
   }
 
   MaybeLocal<Value> values[] = {Boolean::New(isolate, false), row_value};
-  args.GetReturnValue().Set(iter_template->NewInstance(env->context(), values));
+  Local<Object> result;
+  if (NewDictionaryInstanceNullProto(env->context(), iter_template, values)
+          .ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
 }
 
 void StatementSyncIterator::Return(const FunctionCallbackInfo<Value>& args) {
@@ -2574,8 +2588,11 @@ void StatementSyncIterator::Return(const FunctionCallbackInfo<Value>& args) {
   auto iter_template = getLazyIterTemplate(env);
   MaybeLocal<Value> values[] = {Boolean::New(isolate, true), Null(isolate)};
 
-  Local<Object> result = iter_template->NewInstance(env->context(), values);
-  args.GetReturnValue().Set(result);
+  Local<Object> result;
+  if (NewDictionaryInstanceNullProto(env->context(), iter_template, values)
+          .ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
 }
 
 Session::Session(Environment* env,
