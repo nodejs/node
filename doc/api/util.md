@@ -1559,7 +1559,7 @@ console.log(arr); // logs the full array
 added: v9.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/59762
     description: Added `options` parameter to allow skipping prototype comparison.
 -->
 
