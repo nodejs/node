@@ -2062,6 +2062,24 @@ MaybeLocal<Name> StatementExecutionHelper::ColumnNameToName(Environment* env,
 
 void StatementSync::MemoryInfo(MemoryTracker* tracker) const {}
 
+Maybe<void> ExtractRowValues(Environment* env,
+                             sqlite3_stmt* stmt,
+                             int num_cols,
+                             bool use_big_ints,
+                             LocalVector<Value>* row_values) {
+  row_values->clear();
+  row_values->reserve(num_cols);
+  for (int i = 0; i < num_cols; ++i) {
+    Local<Value> val;
+    if (!StatementExecutionHelper::ColumnToValue(env, stmt, i, use_big_ints)
+             .ToLocal(&val)) {
+      return Nothing<void>();
+    }
+    row_values->emplace_back(val);
+  }
+  return JustVoid();
+}
+
 Local<Value> StatementExecutionHelper::All(Environment* env,
                                            DatabaseSync* db,
                                            sqlite3_stmt* stmt,
@@ -2074,24 +2092,17 @@ Local<Value> StatementExecutionHelper::All(Environment* env,
   LocalVector<Value> row_values(isolate);
   LocalVector<Name> row_keys(isolate);
 
-  if (return_arrays) {
-    while ((r = sqlite3_step(stmt)) == SQLITE_ROW) {
-      LocalVector<Value> array_values(isolate);
-      array_values.reserve(num_cols);
-      for (int i = 0; i < num_cols; ++i) {
-        Local<Value> val;
-        if (!ColumnToValue(env, stmt, i, use_big_ints).ToLocal(&val))
-          return Undefined(isolate);
-        array_values.emplace_back(val);
-      }
-      Local<Array> row_array =
-          Array::New(isolate, array_values.data(), array_values.size());
-      rows.emplace_back(row_array);
+  while ((r = sqlite3_step(stmt)) == SQLITE_ROW) {
+    if (ExtractRowValues(env, stmt, num_cols, use_big_ints, &row_values)
+            .IsNothing()) {
+      return Undefined(isolate);
     }
-  } else {
-    LocalVector<Name> row_keys(isolate);
 
-    while ((r = sqlite3_step(stmt)) == SQLITE_ROW) {
+    if (return_arrays) {
+      Local<Array> row_array =
+          Array::New(isolate, row_values.data(), row_values.size());
+      rows.emplace_back(row_array);
+    } else {
       if (row_keys.size() == 0) {
         row_keys.reserve(num_cols);
         for (int i = 0; i < num_cols; ++i) {
@@ -2101,16 +2112,6 @@ Local<Value> StatementExecutionHelper::All(Environment* env,
           row_keys.emplace_back(key);
         }
       }
-
-      LocalVector<Value> row_values(isolate);
-      row_values.reserve(num_cols);
-      for (int i = 0; i < num_cols; ++i) {
-        Local<Value> val;
-        if (!ColumnToValue(env, stmt, i, use_big_ints).ToLocal(&val))
-          return Undefined(isolate);
-        row_values.emplace_back(val);
-      }
-
       DCHECK_EQ(row_keys.size(), row_values.size());
       Local<Object> row_obj = Object::New(
           isolate, Null(isolate), row_keys.data(), row_values.data(), num_cols);
@@ -2211,36 +2212,26 @@ Local<Value> StatementExecutionHelper::Get(Environment* env,
     return Undefined(isolate);
   }
 
+  LocalVector<Value> row_values(isolate);
+  if (ExtractRowValues(env, stmt, num_cols, use_big_ints, &row_values)
+          .IsNothing()) {
+    return Undefined(isolate);
+  }
+
   if (return_arrays) {
-    LocalVector<Value> array_values(isolate);
-    array_values.reserve(num_cols);
-    for (int i = 0; i < num_cols; ++i) {
-      MaybeLocal<Value> val =
-          StatementExecutionHelper::ColumnToValue(env, stmt, i, use_big_ints);
-      if (val.IsEmpty()) return Undefined(isolate);
-      array_values.emplace_back(val.ToLocalChecked());
-    }
-    return Array::New(isolate, array_values.data(), array_values.size());
+    return Array::New(isolate, row_values.data(), row_values.size());
   } else {
     LocalVector<Name> keys(isolate);
     keys.reserve(num_cols);
-    LocalVector<Value> values(isolate);
-    values.reserve(num_cols);
-
     for (int i = 0; i < num_cols; ++i) {
-      MaybeLocal<Name> key =
-          StatementExecutionHelper::ColumnNameToName(env, stmt, i);
+      MaybeLocal<Name> key = ColumnNameToName(env, stmt, i);
       if (key.IsEmpty()) return Undefined(isolate);
-      MaybeLocal<Value> val =
-          StatementExecutionHelper::ColumnToValue(env, stmt, i, use_big_ints);
-      if (val.IsEmpty()) return Undefined(isolate);
       keys.emplace_back(key.ToLocalChecked());
-      values.emplace_back(val.ToLocalChecked());
     }
 
-    DCHECK_EQ(keys.size(), values.size());
+    DCHECK_EQ(keys.size(), row_values.size());
     return Object::New(
-        isolate, Null(isolate), keys.data(), values.data(), num_cols);
+        isolate, Null(isolate), keys.data(), row_values.data(), num_cols);
   }
 }
 
@@ -2945,15 +2936,13 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
   LocalVector<Name> row_keys(isolate);
   LocalVector<Value> row_values(isolate);
 
-  row_values.reserve(num_cols);
-  for (int i = 0; i < num_cols; ++i) {
-    Local<Value> val;
-    if (!StatementExecutionHelper::ColumnToValue(
-             env, iter->stmt_->statement_, i, iter->stmt_->use_big_ints_)
-             .ToLocal(&val)) {
-      return;
-    }
-    row_values.emplace_back(val);
+  if (ExtractRowValues(env,
+                       iter->stmt_->statement_,
+                       num_cols,
+                       iter->stmt_->use_big_ints_,
+                       &row_values)
+          .IsNothing()) {
+    return;
   }
 
   if (iter->stmt_->return_arrays_) {
