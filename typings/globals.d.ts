@@ -21,6 +21,7 @@ import { TimersBinding } from './internalBinding/timers';
 import { TypesBinding } from './internalBinding/types';
 import { URLBinding } from './internalBinding/url';
 import { UtilBinding } from './internalBinding/util';
+import { UVBinding } from './internalBinding/uv';
 import { WASIBinding } from './internalBinding/wasi';
 import { WorkerBinding } from './internalBinding/worker';
 import { ModulesBinding } from './internalBinding/modules';
@@ -51,6 +52,7 @@ interface InternalBindingMap {
   types: TypesBinding;
   url: URLBinding;
   util: UtilBinding;
+  uv: UVBinding;
   wasi: WASIBinding;
   worker: WorkerBinding;
   zlib: ZlibBinding;
