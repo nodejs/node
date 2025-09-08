@@ -1678,7 +1678,6 @@ Maybe<int> ReverseTraits::Parse(QueryReverseWrap* wrap,
 namespace {
 template <class Wrap>
 static void Query(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   ChannelWrap* channel;
   ASSIGN_OR_RETURN_UNWRAP(&channel, args.This());
 
@@ -1690,7 +1689,7 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   Local<String> string = args[1].As<String>();
   auto wrap = std::make_unique<Wrap>(channel, req_wrap_obj);
 
-  node::Utf8Value utf8name(env->isolate(), string);
+  node::Utf8Value utf8name(args.GetIsolate(), string);
   auto plain_name = utf8name.ToStringView();
   std::string name = ada::idna::to_ascii(plain_name);
   channel->ModifyActivityQueryCount(1);
@@ -1704,7 +1703,6 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(err);
 }
-
 
 void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   auto cleanup = OnScopeLeave([&]() { uv_freeaddrinfo(res); });
