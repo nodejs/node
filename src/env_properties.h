@@ -468,9 +468,11 @@
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
   V(fdentry_constructor_template, v8::FunctionTemplate)                        \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
+  V(free_list_statistics_template, v8::DictionaryTemplate)                     \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
   V(handle_wrap_ctor_template, v8::FunctionTemplate)                           \
   V(heap_statistics_template, v8::DictionaryTemplate)                          \
+  V(v8_heap_statistics_template, v8::DictionaryTemplate)                       \
   V(histogram_ctor_template, v8::FunctionTemplate)                             \
   V(http2settings_constructor_template, v8::ObjectTemplate)                    \
   V(http2stream_constructor_template, v8::ObjectTemplate)                      \
@@ -483,6 +485,8 @@
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(module_wrap_constructor_template, v8::FunctionTemplate)                    \
   V(microtask_queue_ctor_template, v8::FunctionTemplate)                       \
+  V(object_stats_template, v8::DictionaryTemplate)                            \
+  V(page_stats_template, v8::DictionaryTemplate)                               \
   V(pipe_constructor_template, v8::FunctionTemplate)                           \
   V(promise_wrap_template, v8::ObjectTemplate)                                 \
   V(sab_lifetimepartner_constructor_template, v8::FunctionTemplate)            \
@@ -490,6 +494,7 @@
   V(secure_context_constructor_template, v8::FunctionTemplate)                 \
   V(shutdown_wrap_template, v8::ObjectTemplate)                                \
   V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
+  V(space_stats_template, v8::DictionaryTemplate)                              \
   V(sqlite_statement_sync_constructor_template, v8::FunctionTemplate)          \
   V(sqlite_statement_sync_iterator_constructor_template, v8::FunctionTemplate) \
   V(sqlite_session_constructor_template, v8::FunctionTemplate)                 \
