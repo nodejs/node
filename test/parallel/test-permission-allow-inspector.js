@@ -3,6 +3,8 @@
 
 const common = require('../common');
 
+common.skipIfInspectorDisabled();
+
 const { Session } = require('node:inspector/promises');
 const assert = require('node:assert');
 
