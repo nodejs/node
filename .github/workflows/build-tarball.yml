@@ -116,8 +116,8 @@ jobs:
             tools/eslint-rules
       - name: Move directories needed for testing
         run: |
-          mv tools/eslint $TAR_DIR/tools
-          mv tools/eslint-rules $TAR_DIR/tools
+          mv tools/eslint "$TAR_DIR/tools"
+          mv tools/eslint-rules "$TAR_DIR/tools"
       - name: Test
         run: |
           make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p dots --measure-flakiness 9"
