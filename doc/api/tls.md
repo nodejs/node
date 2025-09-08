@@ -454,7 +454,7 @@ are not enabled by default since they offer less security.
 The OpenSSL library enforces security levels to control the minimum acceptable
 level of security for cryptographic operations. OpenSSL's security levels range
 from 0 to 5, with each level imposing stricter security requirements. The default
-security level is 1, which is generally suitable for most modern applications.
+security level is 2, which is generally suitable for most modern applications.
 However, some legacy features and protocols, such as TLSv1, require a lower
 security level (`SECLEVEL=0`) to function properly. For more detailed information,
 please refer to the [OpenSSL documentation on security levels][].
