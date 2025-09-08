@@ -1103,9 +1103,19 @@ void Environment::InitializeLibuv() {
         Context::Scope context_scope(env->context());
         env->RunAndClearNativeImmediates();
       }));
+
+  CHECK_EQ(
+      0,
+      uv_async_init(event_loop(), &notifications_async_, [](uv_async_t* async) {
+        Environment* env =
+            ContainerOf(&Environment::notifications_async_, async);
+        env->DispatchNotifications();
+      }));
+
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
+  uv_unref(reinterpret_cast<uv_handle_t*>(&notifications_async_));
 
   {
     Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
@@ -1215,6 +1225,7 @@ void Environment::ClosePerEnvHandles() {
   close_and_finish(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   close_and_finish(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
   close_and_finish(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
+  close_and_finish(reinterpret_cast<uv_handle_t*>(&notifications_async_));
 }
 
 void Environment::CleanupHandles() {
@@ -2260,4 +2271,97 @@ v8::CpuProfile* Environment::StopCpuProfile(v8::ProfilerId profile_id) {
   return profile;
 }
 
+Mutex Environment::notifications_mutex_;
+uint64_t Environment::next_notification_id_(0);
+std::unordered_map<uint64_t, Environment*> Environment::notifications_;
+
+void Environment::RegisterNotification(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(args[0]->IsFunction());
+
+  Mutex::ScopedLock lock(notifications_mutex_);
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  uint64_t id = ++Environment::next_notification_id_;
+  notifications_.emplace(id, env);
+
+  v8::Global<v8::Function> global;
+  global.Reset(isolate, args[0].As<v8::Function>());
+  env->notifications_callbacks_.emplace(id, std::move(global));
+
+  args.GetReturnValue().Set(v8::BigInt::New(isolate, id));
+}
+
+void Environment::UnregisterNotification(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(args[0]->IsBigInt());
+
+  bool lossless = false;
+  uint64_t id = args[0].As<v8::BigInt>()->Uint64Value(&lossless);
+
+  if (!lossless) {
+    std::cout << "LOSSLESS TRUE\n";
+    return THROW_ERR_INVALID_NOTIFICATION(
+        args.GetIsolate(), "Invalid notification %un", id);
+  }
+
+  Mutex::ScopedLock lock(notifications_mutex_);
+  Environment* env = Environment::GetCurrent(args);
+
+  if (env->notifications_callbacks_.erase(id) == 0) {
+    return THROW_ERR_INVALID_NOTIFICATION(
+        args.GetIsolate(), "Invalid notification %llun", id);
+  }
+
+  env->notifications_queue_.erase(id);
+  notifications_.erase(id);
+}
+
+void Environment::GetNotifications(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Mutex::ScopedLock lock(notifications_mutex_);
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  v8::LocalVector<Value> ids(isolate);
+  for (auto& pairs : env->notifications_callbacks_) {
+    ids.push_back(v8::BigInt::New(isolate, pairs.first));
+  }
+
+  args.GetReturnValue().Set(Array::New(isolate, ids.data(), ids.size()));
+}
+
+void Environment::SendNotification(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(args[0]->IsBigInt());
+
+  uint64_t id = args[0].As<v8::BigInt>()->Uint64Value();
+  Environment* env = notifications_[id];
+
+  if (env == nullptr) {
+    return THROW_ERR_INVALID_NOTIFICATION(
+        args.GetIsolate(), "Invalid notification %llun", id);
+  }
+
+  Mutex::ScopedLock lock(notifications_mutex_);
+  env->notifications_queue_.insert(id);
+  uv_async_send(&env->notifications_async_);
+}
+
+void Environment::DispatchNotifications() {
+  Isolate* isolate = this->isolate();
+  v8::Local<v8::Object> process = process_object();
+  Mutex::ScopedLock lock(notifications_mutex_);
+  HandleScope handle_scope(isolate);
+
+  for (auto id : notifications_queue_) {
+    v8::Local<v8::Function> callback =
+        notifications_callbacks_[id].Get(isolate);
+    MakeCallback(isolate, process, callback, 0, nullptr, {0, 0})
+        .ToLocalChecked();
+  }
+
+  notifications_queue_.clear();
+}
 }  // namespace node

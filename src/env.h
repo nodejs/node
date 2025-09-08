@@ -1067,6 +1067,15 @@ class Environment final : public MemoryRetainer {
 
   v8::Global<v8::Module> temporary_required_module_facade_original;
 
+  void DispatchNotifications();
+
+  static void RegisterNotification(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void UnregisterNotification(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetNotifications(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SendNotification(const v8::FunctionCallbackInfo<v8::Value>& args);
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>,
                                                      v8::Local<v8::Value>),
@@ -1087,6 +1096,7 @@ class Environment final : public MemoryRetainer {
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
   uv_async_t task_queues_async_;
+  uv_async_t notifications_async_;
   int64_t task_queues_async_refs_ = 0;
 
   // These may be read by ctors and should be listed before complex fields.
@@ -1246,6 +1256,13 @@ class Environment final : public MemoryRetainer {
 
   v8::CpuProfiler* cpu_profiler_ = nullptr;
   std::vector<v8::ProfilerId> pending_profiles_;
+
+  static Mutex notifications_mutex_;
+  static uint64_t next_notification_id_;
+  static std::unordered_map<uint64_t, Environment*> notifications_;
+  std::unordered_map<uint64_t, v8::Global<v8::Function>>
+      notifications_callbacks_;
+  std::set<uint64_t> notifications_queue_;
 };
 
 }  // namespace node
