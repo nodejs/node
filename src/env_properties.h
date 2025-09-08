@@ -457,6 +457,7 @@
   V(blob_constructor_template, v8::FunctionTemplate)                           \
   V(blob_reader_constructor_template, v8::FunctionTemplate)                    \
   V(blocklist_constructor_template, v8::FunctionTemplate)                      \
+  V(callsite_template, v8::DictionaryTemplate)                                 \
   V(contextify_global_template, v8::ObjectTemplate)                            \
   V(contextify_wrapper_template, v8::ObjectTemplate)                           \
   V(cpu_usage_template, v8::DictionaryTemplate)                                \
@@ -485,7 +486,7 @@
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(module_wrap_constructor_template, v8::FunctionTemplate)                    \
   V(microtask_queue_ctor_template, v8::FunctionTemplate)                       \
-  V(object_stats_template, v8::DictionaryTemplate)                            \
+  V(object_stats_template, v8::DictionaryTemplate)                             \
   V(page_stats_template, v8::DictionaryTemplate)                               \
   V(pipe_constructor_template, v8::FunctionTemplate)                           \
   V(promise_wrap_template, v8::ObjectTemplate)                                 \
