@@ -563,6 +563,101 @@ SafePromiseAll(array, someFunction); // Same as the above, but more efficient.
 
 </details>
 
+### Async functions
+
+<details>
+
+<summary>Awaiting or returning a Promise within the body of an async function
+         depends on user-mutable <code>%Promise.prototype%</code>
+         properties</summary>
+
+Within an async function body, the expression `await v` is internally expanded
+into code that looks similar to the following:
+
+```js
+let promise;
+// If `v` is a builtin Promise, the following occurs here:
+// 1. Lookup `constructor` property on `v`
+// 2. Lookup `constructor` property on `%Promise.prototype%` (user-mutable)
+if (isPromise(v) && v.constructor === Promise) {
+  promise = v;
+} else {
+  promise = new Promise((resolve, reject) => {
+    // If the `constructor` lookup was hijacked, and we reach this point with
+    // a builtin Promise, the following occurs here:
+    // 1. Lookup `then` property on `v`
+    // 2. Lookup `then` property on `%Promise.prototype%` (user-mutable)
+    if (v !== null && typeof v === 'object' && typeof v.then === 'function') {
+      v.then(resolve, reject);
+    } else {
+      resolve(v);
+    }
+  });
+}
+AsynchronouslyReturnOrThrowPromiseResult(promise);
+```
+
+Within an async function body, the statement `return v` is internally expanded
+into code that looks similar to the following:
+
+```js
+return new Promise((resolve, reject) => {
+  // If v is a builtin Promise, the following occurs here:
+  // 1. Lookup `then` property on `v`
+  // 2. Lookup `then` property on `%Promise.prototype%` (user-mutable)
+  if (v !== null && typeof v === 'object' && typeof v.then === 'function') {
+    v.then(resolve, reject);
+  } else {
+    resolve(v);
+  }
+});
+```
+
+The following code snippet illustrates how user-land code could intercept and
+alter the resolved value of builtin Promises awaited by, or returned from,
+async functions:
+
+```js
+// Core
+async function doSomethingAsync() {
+  const examplePromise = PromiseResolve('original value');
+  const result = await examplePromise;
+  return result;
+}
+
+// User-land
+((originalThen) => {
+  // Set `%Promise.prototype%.constructor` to a different value, to ensure that
+  // the `constructor` property check fails.
+  Promise.prototype.constructor = Promise.bind(null);
+
+  // Set `%Promise.prototype%.then` to a malicious function.
+  Promise.prototype.then = function(originalResolve, reject) {
+    const fakeResolve = (value) => {
+      console.log(`* Intercepted:\t${value}`);
+      originalResolve('fake value');
+    };
+    return originalThen.call(this, fakeResolve, reject);
+  };
+})(Promise.prototype.then);
+
+// Core
+PromisePrototypeThen(doSomethingAsync(),
+                     (result) => console.log(`* Result:\t${result}`));
+
+// Outputs:
+// * Intercepted:  original value
+// * Result:       fake value
+```
+
+There are some areas of the library, such as the crypto API, where the results
+of internal async function calls should not be vulnerable to interception. In
+these scenarios, ES6-style async/await should be avoided; the safer alternative
+is to revert to using thenable-style Promise chaining, using the primordial
+`PromisePrototypeThen`.
+
+</details>
+
 ### (Async) Generator functions
 
 Generators and async generators returned by generator functions and async
