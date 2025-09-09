@@ -40,6 +40,8 @@ assert.strictEqual(
   '..\\..\\..\\..\\baz'
 );
 assert.strictEqual(path.win32.normalize('foo/bar\\baz'), 'foo\\bar\\baz');
+assert.strictEqual(path.win32.normalize('\\\\.\\foo'), '\\\\.\\foo');
+assert.strictEqual(path.win32.normalize('\\\\.\\foo\\'), '\\\\.\\foo\\');
 
 // Tests related to CVE-2024-36139. Path traversal should not result in changing
 // the root directory on Windows.
@@ -58,10 +60,10 @@ assert.strictEqual(path.win32.normalize('/test/../??/D:/Test'), '\\??\\D:\\Test'
 assert.strictEqual(path.win32.normalize('/test/../?/D:/Test'), '\\?\\D:\\Test');
 assert.strictEqual(path.win32.normalize('//test/../??/D:/Test'), '\\\\test\\..\\??\\D:\\Test');
 assert.strictEqual(path.win32.normalize('//test/../?/D:/Test'), '\\\\test\\..\\?\\D:\\Test');
-assert.strictEqual(path.win32.normalize('\\\\?\\test/../?/D:/Test'), '\\\\?\\test\\?\\D:\\Test');
-assert.strictEqual(path.win32.normalize('\\\\?\\test/../../?/D:/Test'), '\\\\?\\test\\?\\D:\\Test');
-assert.strictEqual(path.win32.normalize('\\\\.\\test/../?/D:/Test'), '\\\\.\\test\\?\\D:\\Test');
-assert.strictEqual(path.win32.normalize('\\\\.\\test/../../?/D:/Test'), '\\\\.\\test\\?\\D:\\Test');
+assert.strictEqual(path.win32.normalize('\\\\?\\test/../?/D:/Test'), '\\\\?\\?\\D:\\Test');
+assert.strictEqual(path.win32.normalize('\\\\?\\test/../../?/D:/Test'), '\\\\?\\?\\D:\\Test');
+assert.strictEqual(path.win32.normalize('\\\\.\\test/../?/D:/Test'), '\\\\.\\?\\D:\\Test');
+assert.strictEqual(path.win32.normalize('\\\\.\\test/../../?/D:/Test'), '\\\\.\\?\\D:\\Test');
 assert.strictEqual(path.win32.normalize('//server/share/dir/../../../?/D:/file'),
                    '\\\\server\\share\\?\\D:\\file');
 assert.strictEqual(path.win32.normalize('//server/goodshare/../badshare/file'),
