@@ -1660,19 +1660,21 @@ T CallOnSequence(v8::Isolate* isolate, Local<Value> value, F callback) {
   }
 }
 
+static inline uint32_t CRC32Impl(Isolate* isolate,
+                                 Local<Value> data,
+                                 uint32_t value) {
+  return CallOnSequence<uint32_t>(
+      isolate, data, [&](const char* ptr, size_t size) -> uint32_t {
+        return static_cast<uint32_t>(
+            crc32(value, reinterpret_cast<const Bytef*>(ptr), size));
+      });
+}
+
 static void CRC32(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsArrayBufferView() || args[0]->IsString());
   CHECK(args[1]->IsUint32());
   uint32_t value = args[1].As<v8::Uint32>()->Value();
-
-  uint32_t result = CallOnSequence<uint32_t>(
-      args.GetIsolate(),
-      args[0],
-      [&](const char* data, size_t size) -> uint32_t {
-        return crc32(value, reinterpret_cast<const Bytef*>(data), size);
-      });
-
-  args.GetReturnValue().Set(result);
+  args.GetReturnValue().Set(CRC32Impl(args.GetIsolate(), args[0], value));
 }
 
 static uint32_t FastCRC32(v8::Local<v8::Value> receiver,
@@ -1682,16 +1684,7 @@ static uint32_t FastCRC32(v8::Local<v8::Value> receiver,
                           v8::FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("zlib.crc32");
   v8::HandleScope handle_scope(options.isolate);
-  CHECK(data->IsArrayBufferView() || data->IsString());
-  if (data->IsArrayBufferView()) {
-    SPREAD_BUFFER_ARG(data, buf);
-    return static_cast<uint32_t>(
-        crc32(value, reinterpret_cast<const Bytef*>(buf_data), buf_length));
-  }
-  v8::Local<v8::String> s = data.As<v8::String>();
-  Utf8Value utf8(options.isolate, s);
-  return static_cast<uint32_t>(
-      crc32(value, reinterpret_cast<const Bytef*>(utf8.out()), utf8.length()));
+  return CRC32Impl(options.isolate, data, value);
 }
 
 static CFunction fast_crc32_(CFunction::Make(FastCRC32));
