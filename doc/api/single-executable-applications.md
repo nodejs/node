@@ -435,7 +435,7 @@ writes to the returned array buffer is likely to result in a crash.
 ### `sea.getAssetKeys()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.8.0
 -->
 
 * Returns {string\[]} An array containing all the keys of the assets

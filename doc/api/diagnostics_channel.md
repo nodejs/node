@@ -374,7 +374,7 @@ added:
  - v15.1.0
  - v14.17.0
 changes:
-  - version: REPLACEME
+  - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59758
     description: Deprecation revoked.
   - version:
@@ -419,7 +419,7 @@ added:
  - v15.1.0
  - v14.17.0
 changes:
-  - version: REPLACEME
+  - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59758
     description: Deprecation revoked.
   - version:

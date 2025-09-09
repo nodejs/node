@@ -629,7 +629,7 @@ added:
   - v23.7.0
   - v22.14.0
 changes:
-  - version: REPLACEME
+  - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59707
     description: The option is no longer experimental.
 -->

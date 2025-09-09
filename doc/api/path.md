@@ -290,7 +290,7 @@ added:
   - v22.5.0
   - v20.17.0
 changes:
-  - version: REPLACEME
+  - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59572
     description: Marking the API stable.
 -->
