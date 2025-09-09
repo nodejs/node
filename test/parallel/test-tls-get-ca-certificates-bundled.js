@@ -1,5 +1,6 @@
 'use strict';
-// Test that tls.getCACertificates() returns the bundled certificates correctly.
+// This tests that tls.getCACertificates() returns the bundled
+// certificates correctly.
 
 const common = require('../common');
 if (!common.hasCrypto) common.skip('missing crypto');
@@ -9,15 +10,11 @@ const tls = require('tls');
 const { assertIsCAArray } = require('../common/tls');
 
 const certs = tls.getCACertificates('bundled');
-assert.deepStrictEqual(certs, tls.getCACertificates({ type: 'bundled' }));
 assertIsCAArray(certs);
 
-assert.deepStrictEqual(certs, tls.rootCertificates);
+// It's the same as tls.rootCertificates - both are
+// Mozilla CA stores across platform.
+assert.strictEqual(certs, tls.rootCertificates);
 
-assert.deepStrictEqual(certs, tls.getCACertificates({ type: 'bundled', format: 'string' }));
-
-const certs2 = tls.getCACertificates('bundled');
-assertIsCAArray(certs2);
-
-assert.deepStrictEqual(certs2, tls.rootCertificates);
-assert.strictEqual(certs, tls.getCACertificates({ type: 'bundled', format: 'string' }));
+// It's cached on subsequent accesses.
+assert.strictEqual(certs, tls.getCACertificates('bundled'));
