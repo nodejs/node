@@ -59,7 +59,7 @@ void* NgLibMemoryManager<Class, T>::ReallocImpl(void* ptr,
     // Environment*/Isolate* parameter and call the V8 method transparently.
     const int64_t new_size = size - previous_size;
     manager->IncreaseAllocatedSize(new_size);
-    manager->env()->external_memory_accounter()->Increase(
+    manager->env()->external_memory_accounter()->Update(
         manager->env()->isolate(), new_size);
     *reinterpret_cast<size_t*>(mem) = size;
     mem += sizeof(size_t);
