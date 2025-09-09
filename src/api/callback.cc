@@ -26,10 +26,10 @@ CallbackScope::CallbackScope(Isolate* isolate,
 CallbackScope::CallbackScope(Environment* env,
                              Local<Object> object,
                              async_context asyncContext)
-  : private_(new InternalCallbackScope(env,
-                                       object,
-                                       asyncContext)),
-    try_catch_(env->isolate()) {
+    : resource_storage_(object),
+      private_(
+          new InternalCallbackScope(env, &resource_storage_, asyncContext)),
+      try_catch_(env->isolate()) {
   try_catch_.SetVerbose(true);
 }
 
