@@ -1444,6 +1444,12 @@ class NODE_EXTERN CallbackScope {
   CallbackScope(Environment* env,
                 v8::Local<v8::Object> resource,
                 async_context asyncContext);
+  // `resource` needs to outlive the scope in this case.
+  // This is for the rare situation in which `CallbackScope` cannot be
+  // stack-allocated. `resource` needs to outlive this scope.
+  CallbackScope(Environment* env,
+                v8::Global<v8::Object>* resource,
+                async_context asyncContext);
   ~CallbackScope();
 
   void operator=(const CallbackScope&) = delete;
@@ -1452,8 +1458,11 @@ class NODE_EXTERN CallbackScope {
   CallbackScope(CallbackScope&&) = delete;
 
  private:
-  void* reserved_;
-  v8::Local<v8::Object> resource_storage_;
+  void* resource_storage_global_;
+  union {
+    v8::Local<v8::Object> local;
+    v8::Global<v8::Object>* global_ptr;
+  } resource_storage_;
   InternalCallbackScope* private_;
   v8::TryCatch try_catch_;
 };
