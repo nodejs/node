@@ -628,9 +628,11 @@ property throw an exception with the code `ERR_PROTO_ACCESS`.
 added:
   - v23.7.0
   - v22.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59707
+    description: The option is no longer experimental.
 -->
-
-> Stability: 1.2 - Release candidate
 
 Disable the ability of starting a debugging session by sending a
 `SIGUSR1` signal to the process.
