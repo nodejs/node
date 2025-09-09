@@ -10,6 +10,9 @@ const server = http.createServer({
   optimizeEmptyRequests: true
 }, (req, res) => {
   reqs++;
+  req.on('data', common.mustNotCall());
+  req.on('end', common.mustNotCall());
+
   assert.strictEqual(req._dumped, true);
   assert.strictEqual(req._readableState.ended, true);
   assert.strictEqual(req._readableState.endEmitted, true);

@@ -3636,10 +3636,9 @@ changes:
     when writing to an HTTP response which does not have a body.
     **Default:** `false`.
   * `optimizeEmptyRequests` {boolean} If set to `true`, requests without `Content-Length`
-    or `Transfer-Encoding` headers (indicating no body) will have their lifecycle events
-    immediately emitted. For `HEAD` and `GET` requests, this optimization is applied
-    regardless of headers. This improves performance for requests without bodies
-    across all HTTP methods.
+    or `Transfer-Encoding` headers (indicating no body) will be initialized with an
+    already-ended body stream, so they will never emit any stream events
+    (like `data` or `end`). You can use `req.readableEnded` to detect this case.
     **Default:** `false`.
 
 * `requestListener` {Function}
