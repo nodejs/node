@@ -3359,7 +3359,7 @@ Convert them to primitive strings.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59758
     description: Deprecation revoked.
   - version:

@@ -2058,7 +2058,7 @@ Other key details might be exposed via this API using additional attributes.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59537
     description: Add support for SLH-DSA keys.
   - version: v24.7.0
@@ -3926,7 +3926,7 @@ underlying hash function. See [`crypto.createHmac()`][] for more information.
 <!-- YAML
 added: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59537
     description: Add support for SLH-DSA key pairs.
   - version: v24.7.0
@@ -4054,7 +4054,7 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 <!-- YAML
 added: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59537
     description: Add support for SLH-DSA key pairs.
   - version: v24.7.0
@@ -5712,10 +5712,10 @@ Throws an error if FIPS mode is not available.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59570
     description: Add support for ML-DSA, Ed448, and SLH-DSA context parameter.
-  - version: REPLACEME
+  - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59537
     description: Add support for SLH-DSA signing.
   - version: v24.6.0
@@ -5837,10 +5837,10 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59570
     description: Add support for ML-DSA, Ed448, and SLH-DSA context parameter.
-  - version: REPLACEME
+  - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59537
     description: Add support for SLH-DSA signature verification.
   - version: v24.6.0
