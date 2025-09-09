@@ -1,5 +1,7 @@
 'use strict';
-// Test that tls.getCACertificates() returns the default certificates correctly.
+
+// This tests that tls.getCACertificates() returns the default
+// certificates correctly.
 
 const common = require('../common');
 if (!common.hasCrypto) common.skip('missing crypto');
@@ -8,16 +10,8 @@ const assert = require('assert');
 const tls = require('tls');
 const { assertIsCAArray } = require('../common/tls');
 
-const certs = tls.getCACertificates({ format: 'string' });
+const certs = tls.getCACertificates();
 assertIsCAArray(certs);
 
-const certs2 = tls.getCACertificates({ type: 'default', format: 'string' });
-assert.deepStrictEqual(certs, certs2);
-
-assert.deepStrictEqual(certs, tls.getCACertificates({ type: 'default', format: 'string' }));
-
-const certs3 = tls.getCACertificates('default');
-assertIsCAArray(certs3);
-
-assert.deepStrictEqual(certs3, tls.rootCertificates);
-assert.strictEqual(certs2, tls.getCACertificates({ type: 'default', format: 'string' }));
+// It's cached on subsequent accesses.
+assert.strictEqual(certs, tls.getCACertificates('default'));

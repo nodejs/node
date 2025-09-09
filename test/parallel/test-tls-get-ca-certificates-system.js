@@ -1,6 +1,7 @@
 'use strict';
 // Flags: --use-system-ca
-// Test that tls.getCACertificates() returns system certificates correctly.
+// This tests that tls.getCACertificates() returns the system
+// certificates correctly.
 
 const common = require('../common');
 if (!common.hasCrypto) common.skip('missing crypto');
@@ -9,26 +10,23 @@ const assert = require('assert');
 const tls = require('tls');
 const { assertIsCAArray } = require('../common/tls');
 
-const systemCerts = tls.getCACertificates({ type: 'system', format: 'string' });
-
+const systemCerts = tls.getCACertificates('system');
+// Usually Windows come with some certificates installed by default.
+// This can't be said about other systems, in that case check that
+// at least systemCerts is an array (which may be empty).
 if (common.isWindows) {
   assertIsCAArray(systemCerts);
 } else {
   assert(Array.isArray(systemCerts));
 }
 
-const defaultCerts = tls.getCACertificates({ format: 'string' });
+// When --use-system-ca is true, default is a superset of system
+// certificates.
+const defaultCerts = tls.getCACertificates('default');
 assert(defaultCerts.length >= systemCerts.length);
 const defaultSet = new Set(defaultCerts);
 const systemSet = new Set(systemCerts);
-for (const cert of systemSet) {
-  assert(defaultSet.has(cert));
-}
+assert.deepStrictEqual(defaultSet.intersection(systemSet), systemSet);
 
-assert.deepStrictEqual(systemCerts, tls.getCACertificates({ type: 'system', format: 'string' }));
-
-const certs = tls.getCACertificates('bundled');
-assertIsCAArray(certs);
-
-assert.deepStrictEqual(certs, tls.rootCertificates);
-assert.strictEqual(systemCerts, tls.getCACertificates({ type: 'system', format: 'string' }));
+// It's cached on subsequent accesses.
+assert.strictEqual(systemCerts, tls.getCACertificates('system'));
