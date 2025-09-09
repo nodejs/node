@@ -45,27 +45,14 @@ class Agent extends DispatcherBase {
     }
 
     this[kOnConnect] = (origin, targets) => {
-      const result = this[kClients].get(origin)
-      if (result) {
-        result.count += 1
-      }
       this.emit('connect', origin, [this, ...targets])
     }
 
     this[kOnDisconnect] = (origin, targets, err) => {
-      const result = this[kClients].get(origin)
-      if (result) {
-        result.count -= 1
-        if (result.count <= 0) {
-          this[kClients].delete(origin)
-          result.dispatcher.destroy()
-        }
-      }
       this.emit('disconnect', origin, [this, ...targets], err)
     }
 
     this[kOnConnectionError] = (origin, targets, err) => {
-      // TODO: should this decrement result.count here?
       this.emit('connectionError', origin, [this, ...targets], err)
     }
   }
@@ -89,11 +76,33 @@ class Agent extends DispatcherBase {
     const result = this[kClients].get(key)
     let dispatcher = result && result.dispatcher
     if (!dispatcher) {
+      const closeClientIfUnused = (connected) => {
+        const result = this[kClients].get(key)
+        if (result) {
+          if (connected) result.count -= 1
+          if (result.count <= 0) {
+            this[kClients].delete(key)
+            result.dispatcher.close()
+          }
+        }
+      }
       dispatcher = this[kFactory](opts.origin, this[kOptions])
         .on('drain', this[kOnDrain])
-        .on('connect', this[kOnConnect])
-        .on('disconnect', this[kOnDisconnect])
-        .on('connectionError', this[kOnConnectionError])
+        .on('connect', (origin, targets) => {
+          const result = this[kClients].get(key)
+          if (result) {
+            result.count += 1
+          }
+          this[kOnConnect](origin, targets)
+        })
+        .on('disconnect', (origin, targets, err) => {
+          closeClientIfUnused(true)
+          this[kOnDisconnect](origin, targets, err)
+        })
+        .on('connectionError', (origin, targets, err) => {
+          closeClientIfUnused(false)
+          this[kOnConnectionError](origin, targets, err)
+        })
 
       this[kClients].set(key, { count: 0, dispatcher })
     }

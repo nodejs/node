@@ -103,12 +103,23 @@ function isBlobLike (object) {
 }
 
 /**
+ * @param {string} url The path to check for query strings or fragments.
+ * @returns {boolean} Returns true if the path contains a query string or fragment.
+ */
+function pathHasQueryOrFragment (url) {
+  return (
+    url.includes('?') ||
+    url.includes('#')
+  )
+}
+
+/**
  * @param {string} url The URL to add the query params to
  * @param {import('node:querystring').ParsedUrlQueryInput} queryParams The object to serialize into a URL query string
  * @returns {string} The URL with the query params added
  */
 function serializePathWithQuery (url, queryParams) {
-  if (url.includes('?') || url.includes('#')) {
+  if (pathHasQueryOrFragment(url)) {
     throw new Error('Query params cannot be passed when url already contains "?" or "#".')
   }
 
@@ -924,6 +935,7 @@ module.exports = {
   assertRequestHandler,
   getSocketInfo,
   isFormDataLike,
+  pathHasQueryOrFragment,
   serializePathWithQuery,
   addAbortListener,
   isValidHTTPToken,

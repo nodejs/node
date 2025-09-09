@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "7.14.0",
+  "version": "7.15.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -69,7 +69,7 @@
     "lint:fix": "eslint --fix --cache",
     "test": "npm run test:javascript && cross-env NODE_V8_COVERAGE=  npm run test:typescript",
     "test:javascript": "npm run test:javascript:no-jest && npm run test:jest",
-    "test:javascript:no-jest": "npm run generate-pem && npm run test:unit && npm run test:node-fetch && npm run test:cache && npm run test:cache-interceptor && npm run test:interceptors && npm run test:fetch && npm run test:cookies && npm run test:eventsource && npm run test:wpt && npm run test:websocket && npm run test:node-test && npm run test:cache-tests",
+    "test:javascript:no-jest": "npm run generate-pem && npm run test:unit && npm run test:node-fetch && npm run test:cache && npm run test:cache-interceptor && npm run test:interceptors && npm run test:fetch && npm run test:cookies && npm run test:eventsource && npm run test:subresource-integrity && npm run test:wpt && npm run test:websocket && npm run test:node-test && npm run test:cache-tests",
     "test:javascript:without-intl": "npm run test:javascript:no-jest",
     "test:busboy": "borp -p \"test/busboy/*.js\"",
     "test:cache": "borp -p \"test/cache/*.js\"",
@@ -79,6 +79,7 @@
     "test:eventsource": "npm run build:node && borp --expose-gc -p \"test/eventsource/*.js\"",
     "test:fuzzing": "node test/fuzzing/fuzzing.test.js",
     "test:fetch": "npm run build:node && borp --timeout 180000 --expose-gc --concurrency 1 -p \"test/fetch/*.js\" && npm run test:webidl && npm run test:busboy",
+    "test:subresource-integrity": "borp -p \"test/subresource-integrity/*.js\"",
     "test:h2": "npm run test:h2:core && npm run test:h2:fetch",
     "test:h2:core": "borp -p \"test/+(http2|h2)*.js\"",
     "test:h2:fetch": "npm run build:node && borp -p \"test/fetch/http2*.js\"",
@@ -107,7 +108,7 @@
     "prepare": "husky && node ./scripts/platform-shell.js"
   },
   "devDependencies": {
-    "@fastify/busboy": "3.1.1",
+    "@fastify/busboy": "3.2.0",
     "@matteo.collina/tspl": "^0.2.0",
     "@metcoder95/https-pem": "^1.0.0",
     "@sinonjs/fake-timers": "^12.0.0",

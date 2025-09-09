@@ -66,7 +66,7 @@ function lazyllhttp () {
   let mod
   try {
     mod = new WebAssembly.Module(require('../llhttp/llhttp_simd-wasm.js'))
-  } catch (e) {
+  } catch {
     /* istanbul ignore next */
 
     // We could check if the error was caused by the simd option not

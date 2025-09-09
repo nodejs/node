@@ -1,7 +1,8 @@
 'use strict'
 
 const {
-  safeHTTPMethods
+  safeHTTPMethods,
+  pathHasQueryOrFragment
 } = require('../core/util')
 
 const { serializePathWithQuery } = require('../core/util')
@@ -14,12 +15,10 @@ function makeCacheKey (opts) {
     throw new Error('opts.origin is undefined')
   }
 
-  let fullPath
-  try {
-    fullPath = serializePathWithQuery(opts.path || '/', opts.query)
-  } catch (error) {
-    // If fails (path already has query params), use as-is
-    fullPath = opts.path || '/'
+  let fullPath = opts.path || '/'
+
+  if (opts.query && !pathHasQueryOrFragment(opts.path)) {
+    fullPath = serializePathWithQuery(fullPath, opts.query)
   }
 
   return {
