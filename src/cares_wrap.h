@@ -18,6 +18,7 @@
 #include "v8.h"
 #include "uv.h"
 
+#include <optional>
 #include <unordered_set>
 
 #ifdef __POSIX__
@@ -156,7 +157,8 @@ class ChannelWrap final : public AsyncWrap {
               v8::Local<v8::Object> object,
               int timeout,
               int tries,
-              int max_timeout);
+              int max_timeout,
+              std::optional<bool> rotate);
   ~ChannelWrap() override;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -192,6 +194,7 @@ class ChannelWrap final : public AsyncWrap {
   int timeout_;
   int tries_;
   int max_timeout_;
+  std::optional<bool> rotate_;
   int active_query_count_ = 0;
   NodeAresTask::List task_list_;
 };

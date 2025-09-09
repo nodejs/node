@@ -62,6 +62,7 @@ namespace cares_wrap {
 
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
@@ -791,11 +792,13 @@ ChannelWrap::ChannelWrap(Environment* env,
                          Local<Object> object,
                          int timeout,
                          int tries,
-                         int max_timeout)
+                         int max_timeout,
+                         std::optional<bool> rotate)
     : AsyncWrap(env, object, PROVIDER_DNSCHANNEL),
       timeout_(timeout),
       tries_(tries),
-      max_timeout_(max_timeout) {
+      max_timeout_(max_timeout),
+      rotate_(rotate) {
   MakeWeak();
 
   Setup();
@@ -809,15 +812,21 @@ void ChannelWrap::MemoryInfo(MemoryTracker* tracker) const {
 
 void ChannelWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  CHECK_EQ(args.Length(), 3);
+  CHECK_GE(args.Length(), 3);
   CHECK(args[0]->IsInt32());
   CHECK(args[1]->IsInt32());
   CHECK(args[2]->IsInt32());
+
   const int timeout = args[0].As<Int32>()->Value();
   const int tries = args[1].As<Int32>()->Value();
   const int max_timeout = args[2].As<Int32>()->Value();
+  std::optional<bool> rotate;
+  if (!args[3]->IsUndefined()) {
+    CHECK(args[3]->IsBoolean());
+    rotate = args[3].As<Boolean>()->Value();
+  }
   Environment* env = Environment::GetCurrent(args);
-  new ChannelWrap(env, args.This(), timeout, tries, max_timeout);
+  new ChannelWrap(env, args.This(), timeout, tries, max_timeout, rotate);
 }
 
 GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
@@ -889,7 +898,13 @@ void ChannelWrap::Setup() {
     options.maxtimeout = max_timeout_;
     optmask |= ARES_OPT_MAXTIMEOUTMS;
   }
-
+  if (rotate_.has_value()) {
+    if (rotate_.value()) {
+      optmask |= ARES_OPT_ROTATE;
+    } else {
+      optmask |= ARES_OPT_NOROTATE;
+    }
+  }
   r = ares_init_options(&channel_, &options, optmask);
 
   if (r != ARES_SUCCESS) {
