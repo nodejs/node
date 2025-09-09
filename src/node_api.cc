@@ -584,10 +584,9 @@ class AsyncContext {
 
   inline napi_callback_scope OpenCallbackScope() {
     EnsureReference();
-    napi_callback_scope it =
-        reinterpret_cast<napi_callback_scope>(new CallbackScope(this));
+    auto scope = new HeapAllocatedCallbackScope(this);
     env_->open_callback_scopes++;
-    return it;
+    return scope->to_opaque();
   }
 
   inline void EnsureReference() {
@@ -609,8 +608,7 @@ class AsyncContext {
 
   static inline void CloseCallbackScope(node_napi_env env,
                                         napi_callback_scope s) {
-    CallbackScope* callback_scope = reinterpret_cast<CallbackScope*>(s);
-    delete callback_scope;
+    delete HeapAllocatedCallbackScope::FromOpaque(s);
     env->open_callback_scopes--;
   }
 
@@ -621,13 +619,26 @@ class AsyncContext {
   }
 
  private:
-  class CallbackScope : public node::CallbackScope {
+  class HeapAllocatedCallbackScope final {
    public:
-    explicit CallbackScope(AsyncContext* async_context)
-        : node::CallbackScope(async_context->node_env(),
-                              async_context->resource_.Get(
-                                  async_context->node_env()->isolate()),
-                              async_context->async_context()) {}
+    napi_callback_scope to_opaque() {
+      return reinterpret_cast<napi_callback_scope>(this);
+    }
+    static HeapAllocatedCallbackScope* FromOpaque(napi_callback_scope s) {
+      return reinterpret_cast<HeapAllocatedCallbackScope*>(s);
+    }
+
+    explicit HeapAllocatedCallbackScope(AsyncContext* async_context)
+        : resource_storage_(async_context->node_env()->isolate(),
+                            async_context->resource_.Get(
+                                async_context->node_env()->isolate())),
+          cs_(async_context->node_env(),
+              &resource_storage_,
+              async_context->async_context()) {}
+
+   private:
+    v8::Global<v8::Object> resource_storage_;
+    node::CallbackScope cs_;
   };
 
   node_napi_env env_;
