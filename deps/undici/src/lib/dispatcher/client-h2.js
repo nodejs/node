@@ -77,7 +77,7 @@ function parseH2Headers (headers) {
   return result
 }
 
-async function connectH2 (client, socket) {
+function connectH2 (client, socket) {
   client[kSocket] = socket
 
   const session = http2.connect(client[kUrl], {
@@ -279,7 +279,7 @@ function shouldSendContentLength (method) {
 function writeH2 (client, request) {
   const requestTimeout = request.bodyTimeout ?? client[kBodyTimeout]
   const session = client[kHTTP2Session]
-  const { method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request
+  const { method, path, host, upgrade, expectContinue, signal, protocol, headers: reqHeaders } = request
   let { body } = request
 
   if (upgrade) {
@@ -291,6 +291,16 @@ function writeH2 (client, request) {
   for (let n = 0; n < reqHeaders.length; n += 2) {
     const key = reqHeaders[n + 0]
     const val = reqHeaders[n + 1]
+
+    if (key === 'cookie') {
+      if (headers[key] != null) {
+        headers[key] = Array.isArray(headers[key]) ? (headers[key].push(val), headers[key]) : [headers[key], val]
+      } else {
+        headers[key] = val
+      }
+
+      continue
+    }
 
     if (Array.isArray(val)) {
       for (let i = 0; i < val.length; i++) {
@@ -387,7 +397,7 @@ function writeH2 (client, request) {
   // :path and :scheme headers must be omitted when sending CONNECT
 
   headers[HTTP2_HEADER_PATH] = path
-  headers[HTTP2_HEADER_SCHEME] = 'https'
+  headers[HTTP2_HEADER_SCHEME] = protocol === 'http:' ? 'http' : 'https'
 
   // https://tools.ietf.org/html/rfc7231#section-4.3.1
   // https://tools.ietf.org/html/rfc7231#section-4.3.2

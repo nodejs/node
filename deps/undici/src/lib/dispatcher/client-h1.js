@@ -64,11 +64,26 @@ function lazyllhttp () {
   const llhttpWasmData = process.env.JEST_WORKER_ID ? require('../llhttp/llhttp-wasm.js') : undefined
 
   let mod
-  try {
-    mod = new WebAssembly.Module(require('../llhttp/llhttp_simd-wasm.js'))
-  } catch (e) {
-    /* istanbul ignore next */
 
+  // We disable wasm SIMD on ppc64 as it seems to be broken on Power 9 architectures.
+  let useWasmSIMD = process.arch !== 'ppc64'
+  // The Env Variable UNDICI_NO_WASM_SIMD allows explicitly overriding the default behavior
+  if (process.env.UNDICI_NO_WASM_SIMD === '1') {
+    useWasmSIMD = true
+  } else if (process.env.UNDICI_NO_WASM_SIMD === '0') {
+    useWasmSIMD = false
+  }
+
+  if (useWasmSIMD) {
+    try {
+      mod = new WebAssembly.Module(require('../llhttp/llhttp_simd-wasm.js'))
+      /* istanbul ignore next */
+    } catch {
+    }
+  }
+
+  /* istanbul ignore next */
+  if (!mod) {
     // We could check if the error was caused by the simd option not
     // being enabled, but the occurring of this other error
     // * https://github.com/emscripten-core/emscripten/issues/11495
@@ -325,10 +340,6 @@ class Parser {
         currentBufferRef = chunk
         currentParser = this
         ret = llhttp.llhttp_execute(this.ptr, currentBufferPtr, chunk.length)
-        /* eslint-disable-next-line no-useless-catch */
-      } catch (err) {
-        /* istanbul ignore next: difficult to make a test case for */
-        throw err
       } finally {
         currentParser = null
         currentBufferRef = null
@@ -760,7 +771,7 @@ function onParserTimeout (parser) {
  * @param {import('net').Socket} socket
  * @returns
  */
-async function connectH1 (client, socket) {
+function connectH1 (client, socket) {
   client[kSocket] = socket
 
   if (!llhttpInstance) {

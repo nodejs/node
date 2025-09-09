@@ -14,7 +14,6 @@ const { HeadersList } = require('./headers')
 const { Request, cloneRequest, getRequestDispatcher, getRequestState } = require('./request')
 const zlib = require('node:zlib')
 const {
-  bytesMatch,
   makePolicyContainer,
   clonePolicyContainer,
   requestBadPort,
@@ -62,7 +61,11 @@ const { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = requ
 const { getGlobalDispatcher } = require('../../global')
 const { webidl } = require('../webidl')
 const { STATUS_CODES } = require('node:http')
+const { bytesMatch } = require('../subresource-integrity/subresource-integrity')
 const { createDeferredPromise } = require('../../util/promise')
+
+const hasZstd = typeof zlib.createZstdDecompress === 'function'
+
 const GET_OR_HEAD = ['GET', 'HEAD']
 
 const defaultUserAgent = typeof __UNDICI_IS_NODE__ !== 'undefined' || typeof esbuildDetection !== 'undefined'
@@ -2104,33 +2107,29 @@ async function httpNetworkFetch (
             return false
           }
 
-          /** @type {string[]} */
-          let codings = []
-
           const headersList = new HeadersList()
 
           for (let i = 0; i < rawHeaders.length; i += 2) {
             headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString('latin1'), true)
           }
-          const contentEncoding = headersList.get('content-encoding', true)
-          if (contentEncoding) {
-            // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
-            // "All content-coding values are case-insensitive..."
-            codings = contentEncoding.toLowerCase().split(',').map((x) => x.trim())
-          }
           const location = headersList.get('location', true)
 
           this.body = new Readable({ read: resume })
 
-          const decoders = []
-
           const willFollow = location && request.redirect === 'follow' &&
             redirectStatusSet.has(status)
 
+          const decoders = []
+
           // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
-          if (codings.length !== 0 && request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !willFollow) {
+          if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !willFollow) {
+            // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
+            const contentEncoding = headersList.get('content-encoding', true)
+            // "All content-coding values are case-insensitive..."
+            /** @type {string[]} */
+            const codings = contentEncoding ? contentEncoding.toLowerCase().split(',') : []
             for (let i = codings.length - 1; i >= 0; --i) {
-              const coding = codings[i]
+              const coding = codings[i].trim()
               // https://www.rfc-editor.org/rfc/rfc9112.html#section-7.2
               if (coding === 'x-gzip' || coding === 'gzip') {
                 decoders.push(zlib.createGunzip({
@@ -2151,8 +2150,8 @@ async function httpNetworkFetch (
                   flush: zlib.constants.BROTLI_OPERATION_FLUSH,
                   finishFlush: zlib.constants.BROTLI_OPERATION_FLUSH
                 }))
-              } else if (coding === 'zstd' && typeof zlib.createZstdDecompress === 'function') {
-                // Node.js v23.8.0+ and v22.15.0+ supports Zstandard
+              } else if (coding === 'zstd' && hasZstd) {
+              // Node.js v23.8.0+ and v22.15.0+ supports Zstandard
                 decoders.push(zlib.createZstdDecompress({
                   flush: zlib.constants.ZSTD_e_continue,
                   finishFlush: zlib.constants.ZSTD_e_end

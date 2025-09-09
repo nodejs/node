@@ -94,33 +94,49 @@ Create a commit which includes all of the updated files in lib/llhttp.
 
 `undici` runs a subset of the [`web-platform-tests`](https://github.com/web-platform-tests/wpt).
 
-### Requirements:
-- [Node core utils](https://github.com/nodejs/node-core-utils) setup with credentials.
-
-To update every test, run the following commands. Typically you would only need to update the tests in a specific directory.
+### Steps:
 
 ```bash
-git node wpt resources
-git node wpt interfaces
-git node wpt common
-git node wpt fetch
-git node wpt xhr
-git node wpt websockets
-git node wpt mimesniff
-git node wpt storage
-git node wpt service-workers
-git node wpt eventsource
+git submodule update --init --recursive
 ```
 
-#### Run the tests
+### Run the tests
 
 Run the tests to ensure that any new failures are marked as such.
 
-You can mark tests as failing in their corresponding [status](./test/wpt/status) file.
+Before running the tests for the first time, you must setup the testing environment.
+```bash
+cd test/web-platform-tests
+node wpt-runner.mjs setup
+```
+
+To run all tests:
 
 ```bash
 npm run test:wpt
 ```
+
+To run a subset of tests:
+```bash
+cd test/web-platform-tests
+node wpt-runner.mjs run [filter] [filterb]
+```
+
+To run a single file:
+```bash
+cd test/web-platform-tests
+node wpt-runner.mjs run /path/to/test
+```
+
+### Debugging
+
+Verbose logging can be enabled by setting the [`NODE_DEBUG`](https://nodejs.org/api/cli.html#node_debugmodule) flag:
+
+```bash
+npx cross-env NODE_DEBUG=UNDICI_WPT node --run test:wpt
+```
+
+(`npx cross-env` can be omitted on Linux and Mac)
 
 <a id="lint"></a>
 ### Lint

@@ -57,6 +57,22 @@ function needsRevalidation (result, cacheControlDirectives) {
 }
 
 /**
+ * Check if we're within the stale-while-revalidate window for a stale response
+ * @param {import('../../types/cache-interceptor.d.ts').default.GetResult} result
+ * @returns {boolean}
+ */
+function withinStaleWhileRevalidateWindow (result) {
+  const staleWhileRevalidate = result.cacheControlDirectives?.['stale-while-revalidate']
+  if (!staleWhileRevalidate) {
+    return false
+  }
+
+  const now = Date.now()
+  const staleWhileRevalidateExpiry = result.staleAt + (staleWhileRevalidate * 1000)
+  return now <= staleWhileRevalidateExpiry
+}
+
+/**
  * @param {DispatchFn} dispatch
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheHandlerOptions} globalOpts
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheKey} cacheKey
@@ -229,6 +245,51 @@ function handleResult (
       // If body is a stream we can't revalidate...
       // TODO (fix): This could be less strict...
       return dispatch(opts, new CacheHandler(globalOpts, cacheKey, handler))
+    }
+
+    // RFC 5861: If we're within stale-while-revalidate window, serve stale immediately
+    // and revalidate in background
+    if (withinStaleWhileRevalidateWindow(result)) {
+      // Serve stale response immediately
+      sendCachedValue(handler, opts, result, age, null, true)
+
+      // Start background revalidation (fire-and-forget)
+      queueMicrotask(() => {
+        let headers = {
+          ...opts.headers,
+          'if-modified-since': new Date(result.cachedAt).toUTCString()
+        }
+
+        if (result.etag) {
+          headers['if-none-match'] = result.etag
+        }
+
+        if (result.vary) {
+          headers = {
+            ...headers,
+            ...result.vary
+          }
+        }
+
+        // Background revalidation - update cache if we get new data
+        dispatch(
+          {
+            ...opts,
+            headers
+          },
+          new CacheHandler(globalOpts, cacheKey, {
+            // Silent handler that just updates the cache
+            onRequestStart () {},
+            onRequestUpgrade () {},
+            onResponseStart () {},
+            onResponseData () {},
+            onResponseEnd () {},
+            onResponseError () {}
+          })
+        )
+      })
+
+      return true
     }
 
     let withinStaleIfErrorThreshold = false

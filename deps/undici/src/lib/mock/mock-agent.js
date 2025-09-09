@@ -29,16 +29,16 @@ const PendingInterceptorsFormatter = require('./pending-interceptors-formatter')
 const { MockCallHistory } = require('./mock-call-history')
 
 class MockAgent extends Dispatcher {
-  constructor (opts) {
+  constructor (opts = {}) {
     super(opts)
 
     const mockOptions = buildAndValidateMockOptions(opts)
 
     this[kNetConnect] = true
     this[kIsMockActive] = true
-    this[kMockAgentIsCallHistoryEnabled] = mockOptions?.enableCallHistory ?? false
-    this[kMockAgentAcceptsNonStandardSearchParameters] = mockOptions?.acceptNonStandardSearchParameters ?? false
-    this[kIgnoreTrailingSlash] = mockOptions?.ignoreTrailingSlash ?? false
+    this[kMockAgentIsCallHistoryEnabled] = mockOptions.enableCallHistory ?? false
+    this[kMockAgentAcceptsNonStandardSearchParameters] = mockOptions.acceptNonStandardSearchParameters ?? false
+    this[kIgnoreTrailingSlash] = mockOptions.ignoreTrailingSlash ?? false
 
     // Instantiate Agent and encapsulate
     if (opts?.agent && typeof opts.agent.dispatch !== 'function') {
