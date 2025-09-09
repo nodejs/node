@@ -328,6 +328,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
     if (JSTransferable::IsJSTransferable(env_, context_, object)) {
       BaseObjectPtr<JSTransferable> js_transferable =
           JSTransferable::Wrap(env_, object);
+      if (!js_transferable) return Nothing<bool>();
       return WriteHostObject(js_transferable);
     }
 
@@ -550,6 +551,7 @@ Maybe<bool> Message::Serialize(Environment* env,
         return Nothing<bool>();
       }
       host_object = JSTransferable::Wrap(env, entry);
+      if (!host_object) return Nothing<bool>();
     }
 
     if (env->message_port_constructor_template()->HasInstance(entry) &&
@@ -1245,27 +1247,38 @@ Local<FunctionTemplate> GetMessagePortConstructorTemplate(
 BaseObjectPtr<JSTransferable> JSTransferable::Wrap(Environment* env,
                                                    Local<Object> target) {
   Local<Context> context = env->context();
-  Local<Value> wrapper_val =
-      target->GetPrivate(context, env->js_transferable_wrapper_private_symbol())
-          .ToLocalChecked();
+  Local<Value> wrapper_val;
+  if (!target
+           ->GetPrivate(context, env->js_transferable_wrapper_private_symbol())
+           .ToLocal(&wrapper_val)) {
+    return {};
+  }
   DCHECK(wrapper_val->IsObject() || wrapper_val->IsUndefined());
   BaseObjectPtr<JSTransferable> wrapper;
   if (wrapper_val->IsObject()) {
     wrapper =
         BaseObjectPtr<JSTransferable>{Unwrap<JSTransferable>(wrapper_val)};
   } else {
-    Local<Object> wrapper_obj = env->js_transferable_constructor_template()
-                                    ->GetFunction(context)
-                                    .ToLocalChecked()
-                                    ->NewInstance(context)
-                                    .ToLocalChecked();
+    Local<Function> ctor;
+    if (!env->js_transferable_constructor_template()
+             ->GetFunction(context)
+             .ToLocal(&ctor)) {
+      return {};
+    }
+    Local<Object> wrapper_obj;
+    if (!ctor->NewInstance(context).ToLocal(&wrapper_obj)) {
+      return {};
+    }
     // Make sure the JSTransferable wrapper object is not garbage collected
     // until the strong BaseObjectPtr's reference count is decreased to 0.
     wrapper = MakeDetachedBaseObject<JSTransferable>(env, wrapper_obj, target);
-    target
-        ->SetPrivate(
-            context, env->js_transferable_wrapper_private_symbol(), wrapper_obj)
-        .ToChecked();
+    if (target
+            ->SetPrivate(context,
+                         env->js_transferable_wrapper_private_symbol(),
+                         wrapper_obj)
+            .IsNothing()) {
+      return {};
+    }
   }
   return wrapper;
 }
@@ -1396,7 +1409,9 @@ Maybe<BaseObjectPtrList> JSTransferable::NestedTransferables() const {
     if (!JSTransferable::IsJSTransferable(env(), context, obj)) {
       continue;
     }
-    ret.emplace_back(JSTransferable::Wrap(env(), obj));
+    auto wrapped = JSTransferable::Wrap(env(), obj);
+    if (!wrapped) return Nothing<BaseObjectPtrList>();
+    ret.emplace_back(wrapped);
   }
   return Just(ret);
 }
