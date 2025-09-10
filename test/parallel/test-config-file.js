@@ -350,7 +350,7 @@ test('broken value in node_options', async () => {
   strictEqual(result.code, 9);
 });
 
-test('should use node.config.json as default', async () => {
+test('should use package.json as default', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-default-config-file',
@@ -363,7 +363,7 @@ test('should use node.config.json as default', async () => {
   strictEqual(result.code, 0);
 });
 
-test('should override node.config.json when specificied', async () => {
+test('should override package.json when specificied', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-default-config-file',
@@ -383,7 +383,7 @@ test('should throw an error when the file is non readable', {
   skip: isWindows || process.getuid() === 0,
 }, async () => {
   tmpdir.refresh();
-  const dest = join(tmpdir.path, 'node.config.json');
+  const dest = join(tmpdir.path, 'package.json');
   writeFileSync(dest, JSON.stringify({
     nodeOptions: { 'max-http-header-size': 10 }
   }));
@@ -395,7 +395,7 @@ test('should throw an error when the file is non readable', {
   ], {
     cwd: tmpdir.path,
   });
-  match(result.stderr, /Cannot read configuration from node\.config\.json: permission denied/);
+  match(result.stderr, /Cannot read configuration from package\.json: permission denied/);
   strictEqual(result.stdout, '');
   strictEqual(result.code, 9);
 });

@@ -1040,7 +1040,7 @@ added:
 > Stability: 1.0 - Early development
 
 If the `--experimental-default-config-file` flag is present, Node.js will look for a
-`node.config.json` file in the current working directory and load it as a
+`package.json` file in the current working directory and load it as a
 as configuration file.
 
 ### `--experimental-eventsource`

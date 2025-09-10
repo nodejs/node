@@ -31,7 +31,7 @@ std::optional<std::string_view> ConfigReader::GetDataFromArgs(
   }
 
   if (has_default_config_file) {
-    return "node.config.json";
+    return "package.json";
   }
 
   return std::nullopt;
