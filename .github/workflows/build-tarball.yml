@@ -51,16 +51,14 @@ jobs:
       - name: Make tarball
         run: |
           export DISTTYPE=nightly
-          export DATESTRING=`date "+%Y-%m-%d"`
+          export DATESTRING=$(date "+%Y-%m-%d")
           export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
-          ./configure && make tar -j8 SKIP_XZ=1
-          mkdir tarballs
-          mv *.tar.gz tarballs
+          ./configure && make tar -j4 SKIP_XZ=1
       - name: Upload tarball artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: tarballs
-          path: tarballs
+          path: '*.tar.gz'
           compression-level: 0
   test-tarball-linux:
     needs: build-tarball
@@ -92,11 +90,10 @@ jobs:
           path: tarballs
       - name: Extract tarball
         run: |
-          tar xzf tarballs/*.tar.gz -C $RUNNER_TEMP
-          echo "TAR_DIR=$RUNNER_TEMP/`basename tarballs/*.tar.gz .tar.gz`" >> $GITHUB_ENV
+          tar xzf tarballs/*.tar.gz -C "$RUNNER_TEMP"
+          echo "TAR_DIR=$RUNNER_TEMP/$(basename tarballs/*.tar.gz .tar.gz)" >> "$GITHUB_ENV"
       - name: Build
-        run: |
-          make -C "$TAR_DIR" build-ci -j4 V=1
+        run: make -C "$TAR_DIR" build-ci -j4 V=1
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
@@ -108,5 +105,4 @@ jobs:
           mv tools/eslint "$TAR_DIR/tools"
           mv tools/eslint-rules "$TAR_DIR/tools"
       - name: Test
-        run: |
-          make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p dots --measure-flakiness 9"
+        run: make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p dots --measure-flakiness 9"
