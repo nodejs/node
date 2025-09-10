@@ -14,7 +14,7 @@ const microtaskMode = 'afterEvaluate';
 
 (async () => {
   const mustNotCall1 = common.mustNotCall();
-  const mustNotCall2 = common.mustNotCall();
+  const mustCall1 = common.mustCall();
 
   const inner = {};
 
@@ -28,7 +28,6 @@ const microtaskMode = 'afterEvaluate';
   await module.link(mustNotCall1);
   await module.evaluate();
 
-  // This is Issue 59541, the next statement is not executed, of course
-  // it should be.
-  mustNotCall2();
-})().then(common.mustNotCall());
+  // Prior to the fix for Issue 59541, the next statement was never executed.
+  mustCall1();
+})().then(common.mustCall());
