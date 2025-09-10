@@ -18,12 +18,18 @@ declare namespace InternalWorkerBinding {
     getHeapStatistics(): Promise<object>;
     cpuUsage(): Promise<object>;
     startCpuProfile(): Promise<CPUProfileHandle>;
+    startHeapProfile(): Promise<HeapProfileHandle>;
     loopIdleTime(): number;
     loopStartTime(): number;
   }
 }
 
 export interface CPUProfileHandle {
+  stop(): Promise<string>;
+  [Symbol.asyncDispose](): Promise<void>;
+}
+
+export interface HeapProfileHandle {
   stop(): Promise<string>;
   [Symbol.asyncDispose](): Promise<void>;
 }
