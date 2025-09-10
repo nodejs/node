@@ -260,6 +260,7 @@ class EnvironmentOptions : public Options {
 
   bool experimental_strip_types = true;
   bool experimental_transform_types = false;
+  std::string experimental_ext;  // Value of --experimental-ext
 
   std::vector<std::string> user_argv;
 

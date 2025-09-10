@@ -173,6 +173,16 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     }
   }
 
+  if (!experimental_ext.empty()) {
+    if (experimental_ext != "js" && experimental_ext != "mjs" &&
+        experimental_ext != "cjs" && experimental_ext != "ts" &&
+        experimental_ext != "cts" && experimental_ext != "mts") {
+      errors->push_back(
+          "--experimental-ext must be \"js\", \"mjs\", \"cjs\", \"ts\", "
+          "\"cts\" or \"mts\"");
+    }
+  }
+
   if (syntax_check_only && has_eval_string) {
     errors->push_back("either --check or --eval can be used, not both");
   }
@@ -1050,6 +1060,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--import",
             "ES module to preload (option can be repeated)",
             &EnvironmentOptions::preload_esm_modules,
+            kAllowedInEnvvar);
+  AddOption("--experimental-ext",
+            "Override extension format on entrypoint",
+            &EnvironmentOptions::experimental_ext,
             kAllowedInEnvvar);
   AddOption("--experimental-strip-types",
             "Experimental type-stripping for TypeScript files.",

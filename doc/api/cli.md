@@ -1053,6 +1053,19 @@ added:
 
 Enable exposition of [EventSource Web API][] on the global scope.
 
+### `--experimental-ext=ext`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Overrides the default entrypoint file extension resolution with a custom file extension.
+This is particularly useful for entrypoints that don't have a file extension.
+The allowed values are `js`, `cjs`, `mjs`, `ts`, `cts`, `mts`.
+The `ts` values are not available with the flag `--no-experimental-strip-types`.
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -3449,6 +3462,7 @@ one is included in the list below.
 * `--experimental-addon-modules`
 * `--experimental-detect-module`
 * `--experimental-eventsource`
+* `--experimental-ext`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`

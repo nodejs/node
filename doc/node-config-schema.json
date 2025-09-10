@@ -136,6 +136,9 @@
         "experimental-eventsource": {
           "type": "boolean"
         },
+        "experimental-ext": {
+          "type": "string"
+        },
         "experimental-global-navigator": {
           "type": "boolean"
         },
