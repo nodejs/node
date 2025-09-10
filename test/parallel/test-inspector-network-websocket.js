@@ -11,6 +11,8 @@ const WebSocketServer = require('../common/websocket-server');
 const inspector = require('node:inspector/promises');
 const dc = require('diagnostics_channel');
 
+const nameRE = 'undici' in process.versions ? /^node:internal\/deps\/undici\/undici$/u : /undici/u;
+
 const session = new inspector.Session();
 session.connect();
 
@@ -18,9 +20,9 @@ dc.channel('undici:websocket:socket_error').subscribe((message) => {
   console.error('WebSocket error:', message);
 });
 
-function findFrameInInitiator(scriptName, initiator) {
+function findFrameInInitiator(regex, initiator) {
   const frame = initiator.stack.callFrames.find((it) => {
-    return it.url === scriptName;
+    return regex.test(it.url);
   });
   return frame;
 }
@@ -39,7 +41,7 @@ async function test() {
     assert.ok(message.params.requestId);
     assert.strictEqual(typeof message.params.initiator, 'object');
     assert.strictEqual(message.params.initiator.type, 'script');
-    assert.ok(findFrameInInitiator('node:internal/deps/undici/undici', message.params.initiator));
+    assert.ok(findFrameInInitiator(nameRE, message.params.initiator));
     requestId = message.params.requestId;
   }));
 
