@@ -4113,7 +4113,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: Documentation-only
 
 Allowing a [`fs.Dir`][] object to be closed on garbage collection is
 deprecated. In the future, doing so might result in a thrown error that will
