@@ -479,7 +479,7 @@ test('Assert class non strict with simple diff', () => {
   }
 });
 
-// Shared setup for skipPrototypeComparison tests
+// Shared setup for skipPrototype tests
 {
   const message = 'Expected values to be strictly deep-equal:\n' +
   '+ actual - expected\n' +
@@ -507,8 +507,8 @@ test('Assert class non strict with simple diff', () => {
   const modern = new Modern(42);
   const legacy = new Legacy(42);
 
-  test('Assert class strict with skipPrototypeComparison', () => {
-    const assertInstance = new Assert({ skipPrototypeComparison: true });
+  test('Assert class strict with skipPrototype', () => {
+    const assertInstance = new Assert({ skipPrototype: true });
 
     assert.throws(
       () => assertInstance.deepEqual([1, 2, 3, 4, 5, 6, 7], [1, 2, 3, 4, 5, 9, 7]),
@@ -535,8 +535,8 @@ test('Assert class non strict with simple diff', () => {
     assertInstance.deepStrictEqual(arr, buf);
   });
 
-  test('Assert class non strict with skipPrototypeComparison', () => {
-    const assertInstance = new Assert({ strict: false, skipPrototypeComparison: true });
+  test('Assert class non strict with skipPrototype', () => {
+    const assertInstance = new Assert({ strict: false, skipPrototype: true });
 
     assert.throws(
       () => assertInstance.deepStrictEqual([1, 2, 3, 4, 5, 6, 7], [1, 2, 3, 4, 5, 9, 7]),
@@ -547,8 +547,8 @@ test('Assert class non strict with simple diff', () => {
     assertInstance.deepStrictEqual(modern, legacy);
   });
 
-  test('Assert class skipPrototypeComparison with complex objects', () => {
-    const assertInstance = new Assert({ skipPrototypeComparison: true });
+  test('Assert class skipPrototype with complex objects', () => {
+    const assertInstance = new Assert({ skipPrototype: true });
 
     function ComplexAwesomeClass(name, age) {
       this.name = name;
@@ -582,8 +582,8 @@ test('Assert class non strict with simple diff', () => {
     );
   });
 
-  test('Assert class skipPrototypeComparison with arrays and special objects', () => {
-    const assertInstance = new Assert({ skipPrototypeComparison: true });
+  test('Assert class skipPrototype with arrays and special objects', () => {
+    const assertInstance = new Assert({ skipPrototype: true });
 
     const arr1 = [1, 2, 3];
     const arr2 = new Array(1, 2, 3);
@@ -604,8 +604,8 @@ test('Assert class non strict with simple diff', () => {
     );
   });
 
-  test('Assert class skipPrototypeComparison with notDeepStrictEqual', () => {
-    const assertInstance = new Assert({ skipPrototypeComparison: true });
+  test('Assert class skipPrototype with notDeepStrictEqual', () => {
+    const assertInstance = new Assert({ skipPrototype: true });
 
     assert.throws(
       () => assertInstance.notDeepStrictEqual(cool, awesome),
@@ -615,12 +615,12 @@ test('Assert class non strict with simple diff', () => {
     const notAwesome = new AwesomeClass('Not so awesome');
     assertInstance.notDeepStrictEqual(cool, notAwesome);
 
-    const defaultAssertInstance = new Assert({ skipPrototypeComparison: false });
+    const defaultAssertInstance = new Assert({ skipPrototype: false });
     defaultAssertInstance.notDeepStrictEqual(cool, awesome);
   });
 
-  test('Assert class skipPrototypeComparison with mixed types', () => {
-    const assertInstance = new Assert({ skipPrototypeComparison: true });
+  test('Assert class skipPrototype with mixed types', () => {
+    const assertInstance = new Assert({ skipPrototype: true });
 
     const obj1 = { value: 42, nested: { prop: 'test' } };
 

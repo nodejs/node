@@ -233,7 +233,7 @@ The `Assert` class allows creating independent assertion instances with custom o
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59762
-    description: Added `skipPrototypeComparison` option.
+    description: Added `skipPrototype` option.
 -->
 
 * `options` {Object}
@@ -241,7 +241,7 @@ changes:
     Accepted values: `'simple'`, `'full'`.
   * `strict` {boolean} If set to `true`, non-strict methods behave like their
     corresponding strict methods. Defaults to `true`.
-  * `skipPrototypeComparison` {boolean} If set to `true`, skips prototype and constructor
+  * `skipPrototype` {boolean} If set to `true`, skips prototype and constructor
     comparison in deep equality checks. Defaults to `false`.
 
 Creates a new assertion instance. The `diff` option controls the verbosity of diffs in assertion error messages.
@@ -255,7 +255,7 @@ assertInstance.deepStrictEqual({ a: 1 }, { a: 2 });
 
 **Important**: When destructuring assertion methods from an `Assert` instance,
 the methods lose their connection to the instance's configuration options (such
-as `diff`, `strict`, and `skipPrototypeComparison` settings).
+as `diff`, `strict`, and `skipPrototype` settings).
 The destructured methods will fall back to default behavior instead.
 
 ```js
@@ -269,7 +269,7 @@ const { strictEqual } = myAssert;
 strictEqual({ a: 1 }, { b: { c: 1 } });
 ```
 
-The `skipPrototypeComparison` option affects all deep equality methods:
+The `skipPrototype` option affects all deep equality methods:
 
 ```js
 class Foo {
@@ -292,7 +292,7 @@ const assert1 = new Assert();
 assert1.deepStrictEqual(foo, bar); // AssertionError
 
 // Skip prototype comparison - passes if properties are equal
-const assert2 = new Assert({ skipPrototypeComparison: true });
+const assert2 = new Assert({ skipPrototype: true });
 assert2.deepStrictEqual(foo, bar); // OK
 ```
 

@@ -1565,7 +1565,7 @@ changes:
 
 * `val1` {any}
 * `val2` {any}
-* `skipPrototypeComparison` {boolean} If `true`, prototype and constructor
+* `skipPrototype` {boolean} If `true`, prototype and constructor
   comparison is skipped during deep strict equality check. **Default:** `false`.
 * Returns: {boolean}
 
@@ -1573,7 +1573,7 @@ Returns `true` if there is deep strict equality between `val1` and `val2`.
 Otherwise, returns `false`.
 
 By default, deep strict equality includes comparison of object prototypes and
-constructors. When `skipPrototypeComparison` is `true`, objects with
+constructors. When `skipPrototype` is `true`, objects with
 different prototypes or constructors can still be considered equal if their
 enumerable properties are deeply strictly equal.
 

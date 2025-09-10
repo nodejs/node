@@ -94,9 +94,9 @@ function notUtilIsDeepStrict(a, b) {
   utilIsDeepStrict(a, b);
 }
 
-// Handle `skipPrototypeComparison` for isDeepStrictEqual
+// Handle `skipPrototype` for isDeepStrictEqual
 {
-  test('util.isDeepStrictEqual with skipPrototypeComparison', () => {
+  test('util.isDeepStrictEqual with skipPrototype', () => {
     function ClassA(value) { this.value = value; }
 
     function ClassB(value) { this.value = value; }
@@ -123,7 +123,7 @@ function notUtilIsDeepStrict(a, b) {
     assert.strictEqual(util.isDeepStrictEqual(uint8Array, buffer, true), true);
   });
 
-  test('util.isDeepStrictEqual skipPrototypeComparison with complex scenarios', () => {
+  test('util.isDeepStrictEqual skipPrototype with complex scenarios', () => {
     class Parent { constructor(x) { this.x = x; } }
     class Child extends Parent { constructor(x, y) { super(x); this.y = y; } }
 
