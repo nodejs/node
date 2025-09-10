@@ -2,16 +2,23 @@
 
 Node.js is an open-source, cross-platform JavaScript runtime environment.
 
-For information on using Node.js, see the [Node.js website][].
+For detailed guides and documentation, visit the [official Node.js website][].
 
-The Node.js project uses an [open governance model](./GOVERNANCE.md). The
-[OpenJS Foundation][] provides support for the project.
+The project follows an open governance model
+ and receives support from the [OpenJS Foundation][].
 
-Contributors are expected to act in a collaborative manner to move
-the project forward. We encourage the constructive exchange of contrary
-opinions and compromise. The [TSC](./GOVERNANCE.md#technical-steering-committee)
-reserves the right to limit or block contributors who repeatedly act in ways
-that discourage, exhaust, or otherwise negatively affect other participants.
+We expect contributors to collaborate constructively, share diverse perspectives, and work toward consensus. Healthy debate is encouraged, but repeated behavior that discourages, drains, or negatively impacts others may result in limited participation. The Technical Steering Committee (TSC)
+ holds the authority to enforce these standards.
+
+✨ Key improvements I made:
+
+Broke long sentences into smaller, clearer ones.
+
+Used direct, action-oriented words (e.g., expect, encourage).
+
+Improved readability by restructuring paragraphs logically.
+
+Added a smooth flow from what Node.js is → where to learn more → how the project is governed → community expectations.
 
 **This project has a [Code of Conduct][].**
 
