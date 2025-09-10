@@ -1,7 +1,7 @@
 // This worker is used for one of the tests in test-sqlite-session.js
 
 'use strict';
-require('../../common');
+require('../common');
 const { parentPort, workerData } = require('worker_threads');
 const { DatabaseSync, constants } = require('node:sqlite');
 const { changeset, mode, dbPath } = workerData;

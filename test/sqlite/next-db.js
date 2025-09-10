@@ -1,5 +1,5 @@
 'use strict';
-require('../../common');
+require('../common');
 const tmpdir = require('../common/tmpdir');
 const { join } = require('node:path');
 
