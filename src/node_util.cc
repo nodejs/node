@@ -15,6 +15,7 @@ using v8::BigInt;
 using v8::Boolean;
 using v8::CFunction;
 using v8::Context;
+using v8::DictionaryTemplate;
 using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::IndexFilter;
@@ -23,6 +24,7 @@ using v8::Isolate;
 using v8::KeyCollectionMode;
 using v8::Local;
 using v8::LocalVector;
+using v8::MaybeLocal;
 using v8::Name;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -263,6 +265,20 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
   const int frame_count = stack->GetFrameCount();
   LocalVector<Value> callsite_objects(isolate);
 
+  auto callsite_template = env->callsite_template();
+  if (callsite_template.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "functionName",
+        "scriptId",
+        "scriptName",
+        "lineNumber",
+        "columnNumber",
+        // TODO(legendecas): deprecate CallSite.column.
+        "column"};
+    callsite_template = DictionaryTemplate::New(isolate, names);
+    env->set_callsite_template(callsite_template);
+  }
+
   // Frame 0 is node:util. It should be skipped.
   for (int i = 1; i < frame_count; ++i) {
     Local<StackFrame> stack_frame = stack->GetFrame(isolate, i);
@@ -279,16 +295,7 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
 
     std::string script_id = std::to_string(stack_frame->GetScriptId());
 
-    Local<Name> names[] = {
-        env->function_name_string(),
-        env->script_id_string(),
-        env->script_name_string(),
-        env->line_number_string(),
-        env->column_number_string(),
-        // TODO(legendecas): deprecate CallSite.column.
-        env->column_string(),
-    };
-    Local<Value> values[] = {
+    MaybeLocal<Value> values[] = {
         function_name,
         OneByteString(isolate, script_id),
         script_name,
@@ -297,10 +304,14 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
         // TODO(legendecas): deprecate CallSite.column.
         Integer::NewFromUnsigned(isolate, stack_frame->GetColumn()),
     };
-    Local<Object> obj = Object::New(
-        isolate, v8::Null(isolate), names, values, arraysize(names));
 
-    callsite_objects.push_back(obj);
+    Local<Object> callsite;
+    if (!NewDictionaryInstanceNullProto(
+             env->context(), callsite_template, values)
+             .ToLocal(&callsite)) {
+      return;
+    }
+    callsite_objects.push_back(callsite);
   }
 
   Local<Array> callsites =

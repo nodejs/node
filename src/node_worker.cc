@@ -27,16 +27,18 @@ using v8::Context;
 using v8::CpuProfile;
 using v8::CpuProfilingResult;
 using v8::CpuProfilingStatus;
+using v8::DictionaryTemplate;
 using v8::Float64Array;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
 using v8::Maybe;
-using v8::Name;
+using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Null;
 using v8::Number;
@@ -874,11 +876,17 @@ void Worker::CpuUsage(const FunctionCallbackInfo<Value>& args) {
             argv[0] = UVException(
                 isolate, err, "uv_getrusage_thread", nullptr, nullptr, nullptr);
           } else {
-            Local<Name> names[] = {
-                FIXED_ONE_BYTE_STRING(isolate, "user"),
-                FIXED_ONE_BYTE_STRING(isolate, "system"),
-            };
-            Local<Value> values[] = {
+            auto tmpl = env->cpu_usage_template();
+            if (tmpl.IsEmpty()) {
+              static constexpr std::string_view names[] = {
+                  "user",
+                  "system",
+              };
+              tmpl = DictionaryTemplate::New(isolate, names);
+              env->set_cpu_usage_template(tmpl);
+            }
+
+            MaybeLocal<Value> values[] = {
                 Number::New(isolate,
                             1e6 * cpu_usage_stats->ru_utime.tv_sec +
                                 cpu_usage_stats->ru_utime.tv_usec),
@@ -886,8 +894,10 @@ void Worker::CpuUsage(const FunctionCallbackInfo<Value>& args) {
                             1e6 * cpu_usage_stats->ru_stime.tv_sec +
                                 cpu_usage_stats->ru_stime.tv_usec),
             };
-            argv[1] = Object::New(
-                isolate, Null(isolate), names, values, arraysize(names));
+            if (!NewDictionaryInstanceNullProto(env->context(), tmpl, values)
+                     .ToLocal(&argv[1])) {
+              return;
+            }
           }
 
           taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
@@ -1056,7 +1066,7 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
                                         env](Environment* worker_env) mutable {
     // We create a unique pointer to HeapStatistics so that the actual object
     // it's not copied in the lambda, but only the pointer is.
-    auto heap_stats = std::make_unique<v8::HeapStatistics>();
+    auto heap_stats = std::make_unique<HeapStatistics>();
     worker_env->isolate()->GetHeapStatistics(heap_stats.get());
 
     // Here, the worker thread temporarily owns the WorkerHeapStatisticsTaker
@@ -1071,24 +1081,30 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
 
           AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker->get());
 
-          Local<v8::Name> heap_stats_names[] = {
-              FIXED_ONE_BYTE_STRING(isolate, "total_heap_size"),
-              FIXED_ONE_BYTE_STRING(isolate, "total_heap_size_executable"),
-              FIXED_ONE_BYTE_STRING(isolate, "total_physical_size"),
-              FIXED_ONE_BYTE_STRING(isolate, "total_available_size"),
-              FIXED_ONE_BYTE_STRING(isolate, "used_heap_size"),
-              FIXED_ONE_BYTE_STRING(isolate, "heap_size_limit"),
-              FIXED_ONE_BYTE_STRING(isolate, "malloced_memory"),
-              FIXED_ONE_BYTE_STRING(isolate, "peak_malloced_memory"),
-              FIXED_ONE_BYTE_STRING(isolate, "does_zap_garbage"),
-              FIXED_ONE_BYTE_STRING(isolate, "number_of_native_contexts"),
-              FIXED_ONE_BYTE_STRING(isolate, "number_of_detached_contexts"),
-              FIXED_ONE_BYTE_STRING(isolate, "total_global_handles_size"),
-              FIXED_ONE_BYTE_STRING(isolate, "used_global_handles_size"),
-              FIXED_ONE_BYTE_STRING(isolate, "external_memory")};
+          auto tmpl = env->heap_statistics_template();
+          if (tmpl.IsEmpty()) {
+            std::string_view heap_stats_names[] = {
+                "total_heap_size",
+                "total_heap_size_executable",
+                "total_physical_size",
+                "total_available_size",
+                "used_heap_size",
+                "heap_size_limit",
+                "malloced_memory",
+                "peak_malloced_memory",
+                "does_zap_garbage",
+                "number_of_native_contexts",
+                "number_of_detached_contexts",
+                "total_global_handles_size",
+                "used_global_handles_size",
+                "external_memory",
+            };
+            tmpl = DictionaryTemplate::New(isolate, heap_stats_names);
+            env->set_heap_statistics_template(tmpl);
+          }
 
           // Define an array of property values
-          Local<Value> heap_stats_values[] = {
+          MaybeLocal<Value> heap_stats_values[] = {
               Number::New(isolate, heap_stats->total_heap_size()),
               Number::New(isolate, heap_stats->total_heap_size_executable()),
               Number::New(isolate, heap_stats->total_physical_size()),
@@ -1104,16 +1120,13 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
               Number::New(isolate, heap_stats->used_global_handles_size()),
               Number::New(isolate, heap_stats->external_memory())};
 
-          DCHECK_EQ(arraysize(heap_stats_names), arraysize(heap_stats_values));
-
-          // Create the object with the property names and values
-          Local<Object> stats = Object::New(isolate,
-                                            Null(isolate),
-                                            heap_stats_names,
-                                            heap_stats_values,
-                                            arraysize(heap_stats_names));
-
-          Local<Value> args[] = {stats};
+          Local<Object> obj;
+          if (!NewDictionaryInstanceNullProto(
+                   env->context(), tmpl, heap_stats_values)
+                   .ToLocal(&obj)) {
+            return;
+          }
+          Local<Value> args[] = {obj};
           taker->get()->MakeCallback(
               env->ondone_string(), arraysize(args), args);
           // implicitly delete `taker`
