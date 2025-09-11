@@ -124,7 +124,7 @@ const assert = require('assert');
     }));
 
     sock.end('' +
-      'PUT / HTTP/1.1\r\n' +
+      'GET / HTTP/1.1\r\n' +
       `Host: localhost:${port}\r\n` +
       'Transfer-Encoding: chunked\r\n\r\n' +
       '2;' + 'A'.repeat(10000) + '=bar\r\nAA\r\n' +

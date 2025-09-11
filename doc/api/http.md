@@ -3638,7 +3638,8 @@ changes:
   * `optimizeEmptyRequests` {boolean} If set to `true`, requests without `Content-Length`
     or `Transfer-Encoding` headers (indicating no body) will be initialized with an
     already-ended body stream, so they will never emit any stream events
-    (like `data` or `end`). You can use `req.readableEnded` to detect this case.
+    (like `'data'` or `'end'`). You can use `req.readableEnded` to detect this case.
+    This option is still under experimental phase.
     **Default:** `false`.
 
 * `requestListener` {Function}
