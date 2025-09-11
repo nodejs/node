@@ -101,22 +101,14 @@ class HistogramImpl {
   static void GetPercentilesBigInt(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void FastReset(v8::Local<v8::Value> unused,
-                        v8::Local<v8::Value> receiver);
-  static double FastGetCount(v8::Local<v8::Value> unused,
-                             v8::Local<v8::Value> receiver);
-  static double FastGetMin(v8::Local<v8::Value> unused,
-                           v8::Local<v8::Value> receiver);
-  static double FastGetMax(v8::Local<v8::Value> unused,
-                           v8::Local<v8::Value> receiver);
-  static double FastGetMean(v8::Local<v8::Value> unused,
-                            v8::Local<v8::Value> receiver);
-  static double FastGetExceeds(v8::Local<v8::Value> unused,
-                               v8::Local<v8::Value> receiver);
-  static double FastGetStddev(v8::Local<v8::Value> unused,
-                              v8::Local<v8::Value> receiver);
-  static double FastGetPercentile(v8::Local<v8::Value> unused,
-                                  v8::Local<v8::Value> receiver,
+  static void FastReset(v8::Local<v8::Value> receiver);
+  static double FastGetCount(v8::Local<v8::Value> receiver);
+  static double FastGetMin(v8::Local<v8::Value> receiver);
+  static double FastGetMax(v8::Local<v8::Value> receiver);
+  static double FastGetMean(v8::Local<v8::Value> receiver);
+  static double FastGetExceeds(v8::Local<v8::Value> receiver);
+  static double FastGetStddev(v8::Local<v8::Value> receiver);
+  static double FastGetPercentile(v8::Local<v8::Value> receiver,
                                   const double percentile);
 
   static void AddMethods(v8::Isolate* isolate,
@@ -165,13 +157,8 @@ class HistogramBase final : public BaseObject, public HistogramImpl {
   static void RecordDelta(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Add(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void FastRecord(
-      v8::Local<v8::Value> unused,
-      v8::Local<v8::Value> receiver,
-      const int64_t value,
-      v8::FastApiCallbackOptions& options);  // NOLINT(runtime/references)
-  static void FastRecordDelta(v8::Local<v8::Value> unused,
-                              v8::Local<v8::Value> receiver);
+  static void FastRecord(v8::Local<v8::Value> receiver, const int64_t value);
+  static void FastRecordDelta(v8::Local<v8::Value> receiver);
 
   HistogramBase(
       Environment* env,
@@ -243,11 +230,8 @@ class IntervalHistogram final : public HandleWrap, public HistogramImpl {
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void FastStart(v8::Local<v8::Value> unused,
-                        v8::Local<v8::Value> receiver,
-                        bool reset);
-  static void FastStop(v8::Local<v8::Value> unused,
-                       v8::Local<v8::Value> receiver);
+  static void FastStart(v8::Local<v8::Value> receiver, bool reset);
+  static void FastStop(v8::Local<v8::Value> receiver);
 
   BaseObject::TransferMode GetTransferMode() const override {
     return TransferMode::kCloneable;
