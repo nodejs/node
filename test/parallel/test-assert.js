@@ -1738,5 +1738,27 @@ test('Ambiguous error messages fail', () => {
   );
 });
 
+test('Functions as error message', () => {
+  function errorMessage(actual, expected) {
+    return `Nice message including ${actual} and ${expected}`;
+  }
+
+  assert.throws(
+    () => assert.equal('foo', 'bar', errorMessage),
+    {
+      code: 'ERR_ASSERTION',
+      message: /Nice message including foo and bar/
+    }
+  );
+
+  assert.throws(
+    () => assert.doesNotMatch('foo', /foo/, errorMessage),
+    {
+      code: 'ERR_ASSERTION',
+      message: /Nice message including foo and \/foo\//
+    }
+  );
+});
+
 /* eslint-enable no-restricted-syntax */
 /* eslint-enable no-restricted-properties */
