@@ -1648,7 +1648,7 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
 }
 
 struct ConflictCallbackContext {
-  std::function<bool(std::string)> filterCallback;
+  std::function<bool(std::string_view)> filterCallback;
   std::function<int(int)> conflictCallback;
 };
 
