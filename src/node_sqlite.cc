@@ -1742,7 +1742,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
 
       Local<Function> filterFunc = filterValue.As<Function>();
 
-      context.filterCallback = [env, filterFunc](std::string item) -> bool {
+      context.filterCallback = [env, filterFunc](std::string_view item) -> bool {
         // TODO(@jasnell): The use of ToLocalChecked here means that if
         // the filter function throws an error the process will crash.
         // The filterCallback should be updated to avoid the check and
