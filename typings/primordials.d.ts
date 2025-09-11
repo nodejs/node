@@ -36,6 +36,7 @@ type TypedArrayContentType<T extends TypedArray> = T extends { [k: number]: infe
  * ```js
  * primordials.StringPrototypeStartsWith('thing', 'hello')
  * ```
+ * @returns {void}
  */
 declare namespace primordials {
   export function uncurryThis<T extends (...args: unknown[]) => unknown>(fn: T): UncurryThis<T>;
@@ -161,12 +162,12 @@ declare namespace primordials {
   export const ArrayPrototypeToString: UncurryThis<typeof Array.prototype.toString>;
   export const ArrayPrototypeSymbolIterator: UncurryMethod<typeof Array.prototype, typeof Symbol.iterator>;
   export import ArrayBuffer = globalThis.ArrayBuffer;
-  export const ArrayBufferPrototype: typeof ArrayBuffer.prototype
-  export const ArrayBufferIsView: typeof ArrayBuffer.isView
+  export const ArrayBufferPrototype: typeof ArrayBuffer.prototype;
+  export const ArrayBufferIsView: typeof ArrayBuffer.isView;
   export const ArrayBufferPrototypeGetDetached: UncurryGetter<typeof ArrayBuffer.prototype, 'detached'>;
-  export const ArrayBufferPrototypeSlice: UncurryThis<typeof ArrayBuffer.prototype.slice>
-  export const ArrayBufferPrototypeTransfer: UncurryThis<typeof ArrayBuffer.prototype.transfer>
-  export const ArrayBufferPrototypeGetByteLength: UncurryGetter<typeof ArrayBuffer.prototype , "byteLength">;
+  export const ArrayBufferPrototypeSlice: UncurryThis<typeof ArrayBuffer.prototype.slice>;
+  export const ArrayBufferPrototypeTransfer: UncurryThis<typeof ArrayBuffer.prototype.transfer>;
+  export const ArrayBufferPrototypeGetByteLength: UncurryGetter<typeof ArrayBuffer.prototype, 'byteLength'>;
   export const AsyncIteratorPrototype: AsyncIterable<any>;
   export import BigInt = globalThis.BigInt;
   export const BigIntPrototype: typeof BigInt.prototype;
@@ -273,14 +274,14 @@ declare namespace primordials {
   export const Float64ArrayPrototype: typeof Float64Array.prototype;
   export const Float64ArrayBYTES_PER_ELEMENT: typeof Float64Array.BYTES_PER_ELEMENT;
   export import Function = globalThis.Function;
-  export const FunctionLength: typeof Function.length
-  export const FunctionName: typeof Function.name
-  export const FunctionPrototype: typeof Function.prototype
-  export const FunctionPrototypeApply: UncurryThis<typeof Function.prototype.apply>
-  export const FunctionPrototypeBind: UncurryThis<typeof Function.prototype.bind>
-  export const FunctionPrototypeCall: UncurryThis<typeof Function.prototype.call>
-  export const FunctionPrototypeSymbolHasInstance: UncurryMethod<typeof Function.prototype, typeof Symbol.hasInstance>
-  export const FunctionPrototypeToString: UncurryThis<typeof Function.prototype.toString>
+  export const FunctionLength: typeof Function.length;
+  export const FunctionName: typeof Function.name;
+  export const FunctionPrototype: typeof Function.prototype;
+  export const FunctionPrototypeApply: UncurryThis<typeof Function.prototype.apply>;
+  export const FunctionPrototypeBind: UncurryThis<typeof Function.prototype.bind>;
+  export const FunctionPrototypeCall: UncurryThis<typeof Function.prototype.call>;
+  export const FunctionPrototypeSymbolHasInstance: UncurryMethod<typeof Function.prototype, typeof Symbol.hasInstance>;
+  export const FunctionPrototypeToString: UncurryThis<typeof Function.prototype.toString>;
   export import Int16Array = globalThis.Int16Array;
   export const Int16ArrayPrototype: typeof Int16Array.prototype;
   export const Int16ArrayBYTES_PER_ELEMENT: typeof Int16Array.BYTES_PER_ELEMENT;
@@ -358,21 +359,21 @@ declare namespace primordials {
   export import ReferenceError = globalThis.ReferenceError;
   export const ReferenceErrorPrototype: typeof ReferenceError.prototype;
   export import RegExp = globalThis.RegExp;
-  export const RegExpPrototype: typeof RegExp.prototype
-  export const RegExpPrototypeExec: UncurryThis<typeof RegExp.prototype.exec>
-  export const RegExpPrototypeCompile: UncurryThis<typeof RegExp.prototype.compile>
-  export const RegExpPrototypeToString: UncurryThis<typeof RegExp.prototype.toString>
-  export const RegExpPrototypeTest: UncurryThis<typeof RegExp.prototype.test>
-  export const RegExpPrototypeGetDotAll: UncurryGetter<typeof RegExp.prototype, "dotAll">;
-  export const RegExpPrototypeGetFlags: UncurryGetter<typeof RegExp.prototype, "flags">;
-  export const RegExpPrototypeGetGlobal: UncurryGetter<typeof RegExp.prototype, "global">;
-  export const RegExpPrototypeGetIgnoreCase: UncurryGetter<typeof RegExp.prototype, "ignoreCase">;
-  export const RegExpPrototypeGetMultiline: UncurryGetter<typeof RegExp.prototype, "multiline">;
-  export const RegExpPrototypeGetSource: UncurryGetter<typeof RegExp.prototype, "source">;
-  export const RegExpPrototypeGetSticky: UncurryGetter<typeof RegExp.prototype, "sticky">;
-  export const RegExpPrototypeGetUnicode: UncurryGetter<typeof RegExp.prototype, "unicode">;
-  export const RegExpPrototypeSymbolReplace: UncurryMethod<typeof RegExp.prototype, typeof Symbol.replace>
-  export const RegExpPrototypeSymbolSplit: UncurryMethod<typeof RegExp.prototype, typeof Symbol.split>
+  export const RegExpPrototype: typeof RegExp.prototype;
+  export const RegExpPrototypeExec: UncurryThis<typeof RegExp.prototype.exec>;
+  export const RegExpPrototypeCompile: UncurryThis<typeof RegExp.prototype.compile>;
+  export const RegExpPrototypeToString: UncurryThis<typeof RegExp.prototype.toString>;
+  export const RegExpPrototypeTest: UncurryThis<typeof RegExp.prototype.test>;
+  export const RegExpPrototypeGetDotAll: UncurryGetter<typeof RegExp.prototype, 'dotAll'>;
+  export const RegExpPrototypeGetFlags: UncurryGetter<typeof RegExp.prototype, 'flags'>;
+  export const RegExpPrototypeGetGlobal: UncurryGetter<typeof RegExp.prototype, 'global'>;
+  export const RegExpPrototypeGetIgnoreCase: UncurryGetter<typeof RegExp.prototype, 'ignoreCase'>;
+  export const RegExpPrototypeGetMultiline: UncurryGetter<typeof RegExp.prototype, 'multiline'>;
+  export const RegExpPrototypeGetSource: UncurryGetter<typeof RegExp.prototype, 'source'>;
+  export const RegExpPrototypeGetSticky: UncurryGetter<typeof RegExp.prototype, 'sticky'>;
+  export const RegExpPrototypeGetUnicode: UncurryGetter<typeof RegExp.prototype, 'unicode'>;
+  export const RegExpPrototypeSymbolReplace: UncurryMethod<typeof RegExp.prototype, typeof Symbol.replace>;
+  export const RegExpPrototypeSymbolSplit: UncurryMethod<typeof RegExp.prototype, typeof Symbol.split>;
   export import Set = globalThis.Set;
   export const SetLength: typeof Set.length;
   export const SetName: typeof Set.name;

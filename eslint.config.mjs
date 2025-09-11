@@ -430,6 +430,7 @@ export default [
       '@typescript-eslint/no-require-imports': 'off',
       // We use ignore comments throughout the codebase
       '@typescript-eslint/ban-ts-comment': 'off',
+      '@stylistic/js/operator-linebreak': 'off',
     },
   },
   {
