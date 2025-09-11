@@ -1,18 +1,39 @@
 #include "node_sqlite.h"
-#include <path.h>
+
+#include <algorithm>
+#include <cinttypes>
+#include <cstdlib>
+#include <cstring>
+#include <functional>
+#include <memory>
+#include <string_view>
+
+#include "ada.h"
 #include "base_object-inl.h"
-#include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
+#include "node_binding.h"
 #include "node_errors.h"
-#include "node_mem-inl.h"
-#include "node_url.h"
+#include "node_internals.h"
+#include "path.h"
+#include "permission/permission.h"
+#include "permission/permission_base.h"
 #include "sqlite3.h"
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
-
-#include <cinttypes>
+#include "v8-array-buffer.h"
+#include "v8-container.h"
+#include "v8-context.h"
+#include "v8-exception.h"
+#include "v8-function-callback.h"
+#include "v8-function.h"
+#include "v8-isolate.h"
+#include "v8-maybe.h"
+#include "v8-memory-span.h"
+#include "v8-object.h"
+#include "v8-promise.h"
+#include "v8-typed-array.h"
 
 namespace node {
 namespace sqlite {
@@ -218,8 +239,6 @@ void JSValueToSQLiteResult(Isolate* isolate,
         -1);
   }
 }
-
-class DatabaseSync;
 
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, DatabaseSync* db) {
   if (db->ShouldIgnoreSQLiteError()) {

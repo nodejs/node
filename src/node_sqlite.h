@@ -3,15 +3,33 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "base_object.h"
-#include "node_mem.h"
-#include "sqlite3.h"
-#include "util.h"
-
 #include <map>
+#include <optional>
+#include <set>
+#include <string>
 #include <unordered_set>
+#include <utility>
+
+#include "base_object.h"
+#include "memory_tracker.h"
+#include "sqlite3.h"
+#include "v8-local-handle.h"
+#include "v8-persistent-handle.h"
+#include "v8-primitive.h"
+#include "v8-template.h"
+#include "v8-value.h"
+
+namespace v8 {
+class Function;
+template <typename T>
+class FunctionCallbackInfo;
+class Object;
+}  // namespace v8
 
 namespace node {
+
+class Environment;
+
 namespace sqlite {
 
 class DatabaseOpenConfiguration {
