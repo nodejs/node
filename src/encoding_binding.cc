@@ -115,8 +115,7 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
 // Encode a single string to a UTF-8 Uint8Array (not Buffer).
 // Used in TextEncoder.prototype.encode.
 void BindingData::EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
+  Isolate* isolate = args.GetIsolate();
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());
 

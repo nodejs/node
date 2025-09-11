@@ -82,8 +82,7 @@ static void GetCompact(const FunctionCallbackInfo<Value>& info) {
 
 static void SetCompact(const FunctionCallbackInfo<Value>& info) {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
-  Environment* env = Environment::GetCurrent(info);
-  Isolate* isolate = env->isolate();
+  Isolate* isolate = info.GetIsolate();
   bool compact = info[0]->ToBoolean(isolate)->Value();
   per_process::cli_options->report_compact = compact;
 }
@@ -122,9 +121,8 @@ static void GetDirectory(const FunctionCallbackInfo<Value>& info) {
 
 static void SetDirectory(const FunctionCallbackInfo<Value>& info) {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
-  Environment* env = Environment::GetCurrent(info);
   CHECK(info[0]->IsString());
-  Utf8Value dir(env->isolate(), info[0].As<String>());
+  Utf8Value dir(info.GetIsolate(), info[0].As<String>());
   per_process::cli_options->report_directory = *dir;
 }
 
@@ -140,9 +138,8 @@ static void GetFilename(const FunctionCallbackInfo<Value>& info) {
 
 static void SetFilename(const FunctionCallbackInfo<Value>& info) {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
-  Environment* env = Environment::GetCurrent(info);
   CHECK(info[0]->IsString());
-  Utf8Value name(env->isolate(), info[0].As<String>());
+  Utf8Value name(info.GetIsolate(), info[0].As<String>());
   per_process::cli_options->report_filename = *name;
 }
 

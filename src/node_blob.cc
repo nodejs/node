@@ -47,7 +47,6 @@ namespace {
 void Concat(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
-  Environment* env = Environment::GetCurrent(context);
 
   CHECK(args[0]->IsArray());
   Local<Array> array = args[0].As<Array>();
@@ -84,7 +83,7 @@ void Concat(const FunctionCallbackInfo<Value>& args) {
   }
 
   std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
-      env->isolate(), total, BackingStoreInitializationMode::kUninitialized);
+      isolate, total, BackingStoreInitializationMode::kUninitialized);
   uint8_t* ptr = static_cast<uint8_t*>(store->Data());
   for (size_t n = 0; n < views.size(); n++) {
     uint8_t* from =
@@ -93,7 +92,7 @@ void Concat(const FunctionCallbackInfo<Value>& args) {
     ptr += views[n].length;
   }
 
-  args.GetReturnValue().Set(ArrayBuffer::New(env->isolate(), std::move(store)));
+  args.GetReturnValue().Set(ArrayBuffer::New(isolate, std::move(store)));
 }
 
 void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {

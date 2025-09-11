@@ -107,8 +107,7 @@ static void GetOSInformation(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
+  Isolate* isolate = args.GetIsolate();
 
   uv_cpu_info_t* cpu_infos;
   int count;

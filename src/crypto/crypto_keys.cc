@@ -805,12 +805,11 @@ void KeyObjectHandle::InitECRaw(const FunctionCallbackInfo<Value>& args) {
 }
 
 void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
 
   CHECK(args[0]->IsString());
-  Utf8Value name(env->isolate(), args[0]);
+  Utf8Value name(args.GetIsolate(), args[0]);
 
   ArrayBufferOrViewContents<unsigned char> key_data(args[1]);
   KeyType type = FromV8Value<KeyType>(args[2]);
@@ -850,12 +849,11 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
 
 #if OPENSSL_WITH_PQC
 void KeyObjectHandle::InitPqcRaw(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
 
   CHECK(args[0]->IsString());
-  Utf8Value name(env->isolate(), args[0]);
+  Utf8Value name(args.GetIsolate(), args[0]);
 
   ArrayBufferOrViewContents<unsigned char> key_data(args[1]);
   KeyType type = FromV8Value<KeyType>(args[2]);
