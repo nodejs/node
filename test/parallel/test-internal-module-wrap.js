@@ -8,6 +8,10 @@ const { ModuleWrap } = internalBinding('module_wrap');
 
 async function testModuleWrap() {
   const unlinked = new ModuleWrap('unlinked', undefined, 'export * from "bar";', 0, 0);
+  // `moduleWrap.hasAsyncGraph` is only available after been instantiated.
+  assert.throws(() => unlinked.hasAsyncGraph, {
+    code: 'ERR_MODULE_NOT_INSTANTIATED',
+  });
   assert.throws(() => {
     unlinked.instantiate();
   }, {
@@ -29,14 +33,45 @@ async function testModuleWrap() {
   assert.strictEqual(moduleRequests.length, 1);
   assert.strictEqual(moduleRequests[0].specifier, 'bar');
 
+  // `moduleWrap.hasAsyncGraph` is only available after been instantiated.
+  assert.throws(() => foo.hasAsyncGraph, {
+    code: 'ERR_MODULE_NOT_INSTANTIATED',
+  });
   foo.link([bar]);
   foo.instantiate();
+  // `moduleWrap.hasAsyncGraph` is accessible after been instantiated.
+  assert.strictEqual(bar.hasAsyncGraph, false);
+  assert.strictEqual(foo.hasAsyncGraph, false);
 
   assert.strictEqual(await foo.evaluate(-1, false), undefined);
   assert.strictEqual(foo.getNamespace().five, 5);
 
   // Check that the module requests are the same after linking, instantiate, and evaluation.
   assert.deepStrictEqual(moduleRequests, foo.getModuleRequests());
+}
+
+async function testAsyncGraph() {
+  const foo = new ModuleWrap('foo', undefined, 'export * from "bar";', 0, 0);
+  const bar = new ModuleWrap('bar', undefined, 'await undefined; export const five = 5', 0, 0);
+
+  const moduleRequests = foo.getModuleRequests();
+  assert.strictEqual(moduleRequests.length, 1);
+  assert.strictEqual(moduleRequests[0].specifier, 'bar');
+
+  // `moduleWrap.hasAsyncGraph` is only available after been instantiated.
+  assert.throws(() => foo.hasAsyncGraph, {
+    code: 'ERR_MODULE_NOT_INSTANTIATED',
+  });
+  foo.link([bar]);
+  foo.instantiate();
+  // `moduleWrap.hasAsyncGraph` is accessible after been instantiated.
+  assert.strictEqual(bar.hasAsyncGraph, true);
+  assert.strictEqual(foo.hasAsyncGraph, true);
+
+  const evalPromise = foo.evaluate(-1, false);
+  assert.throws(() => foo.getNamespace().five, ReferenceError);
+  assert.strictEqual(await evalPromise, undefined);
+  assert.strictEqual(foo.getNamespace().five, 5);
 }
 
 // Verify that linking two module with a same ModuleCacheKey throws an error.
@@ -62,5 +97,6 @@ function testLinkMismatch() {
 
 (async () => {
   await testModuleWrap();
+  await testAsyncGraph();
   testLinkMismatch();
 })().then(common.mustCall());
