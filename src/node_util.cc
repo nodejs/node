@@ -410,9 +410,7 @@ static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
   // enumerable: Whether the property should be enumerable.
   CHECK(args.Length() == 3 || args[3]->IsBoolean());
 
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  auto context = isolate->GetCurrentContext();
+  auto context = args.GetIsolate()->GetCurrentContext();
 
   auto target = args[0].As<Object>();
   Local<Value> id = args[1];

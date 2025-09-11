@@ -1781,15 +1781,14 @@ void DatabaseSync::EnableLoadExtension(
     const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
-  Environment* env = Environment::GetCurrent(args);
+  auto isolate = args.GetIsolate();
   if (!args[0]->IsBoolean()) {
-    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+    THROW_ERR_INVALID_ARG_TYPE(isolate,
                                "The \"allow\" argument must be a boolean.");
     return;
   }
 
   const int enable = args[0].As<Boolean>()->Value();
-  auto isolate = env->isolate();
 
   if (db->allow_load_extension_ == false && enable == true) {
     THROW_ERR_INVALID_STATE(
