@@ -18,9 +18,11 @@ declare class SnapshotRecorder {
 }
 
 declare namespace SnapshotRecorder {
+  type SnapshotRecorderMode = 'record' | 'playback' | 'update'
+
   export interface Options {
     snapshotPath?: string
-    mode?: 'record' | 'playback' | 'update'
+    mode?: SnapshotRecorderMode
     maxSnapshots?: number
     autoFlush?: boolean
     flushInterval?: number
@@ -77,7 +79,7 @@ declare class SnapshotAgent extends MockAgent {
   saveSnapshots (filePath?: string): Promise<void>
   loadSnapshots (filePath?: string): Promise<void>
   getRecorder (): SnapshotRecorder
-  getMode (): 'record' | 'playback' | 'update'
+  getMode (): SnapshotRecorder.SnapshotRecorderMode
   clearSnapshots (): void
   resetCallCounts (): void
   deleteSnapshot (requestOpts: any): boolean
@@ -87,7 +89,7 @@ declare class SnapshotAgent extends MockAgent {
 
 declare namespace SnapshotAgent {
   export interface Options extends MockAgent.Options {
-    mode?: 'record' | 'playback' | 'update'
+    mode?: SnapshotRecorder.SnapshotRecorderMode
     snapshotPath?: string
     maxSnapshots?: number
     autoFlush?: boolean

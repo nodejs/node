@@ -37,10 +37,11 @@ class Http1ProxyWrapper extends DispatcherBase {
   #client
 
   constructor (proxyUrl, { headers = {}, connect, factory }) {
-    super()
     if (!proxyUrl) {
       throw new InvalidArgumentError('Proxy URL is mandatory')
     }
+
+    super()
 
     this[kProxyHeaders] = headers
     if (factory) {
@@ -80,11 +81,11 @@ class Http1ProxyWrapper extends DispatcherBase {
     return this.#client[kDispatch](opts, handler)
   }
 
-  async [kClose] () {
+  [kClose] () {
     return this.#client.close()
   }
 
-  async [kDestroy] (err) {
+  [kDestroy] (err) {
     return this.#client.destroy(err)
   }
 }
@@ -220,14 +221,18 @@ class ProxyAgent extends DispatcherBase {
     }
   }
 
-  async [kClose] () {
-    await this[kAgent].close()
-    await this[kClient].close()
+  [kClose] () {
+    return Promise.all([
+      this[kAgent].close(),
+      this[kClient].close()
+    ])
   }
 
-  async [kDestroy] () {
-    await this[kAgent].destroy()
-    await this[kClient].destroy()
+  [kDestroy] () {
+    return Promise.all([
+      this[kAgent].destroy(),
+      this[kClient].destroy()
+    ])
   }
 }
 

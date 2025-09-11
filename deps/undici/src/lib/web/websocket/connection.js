@@ -303,11 +303,12 @@ function failWebsocketConnection (handler, code, reason, cause) {
 
   handler.controller.abort()
 
-  if (handler.socket?.destroyed === false) {
+  if (!handler.socket) {
+    // If the connection was not established, we must still emit an 'error' and 'close' events
+    handler.onSocketClose()
+  } else if (handler.socket.destroyed === false) {
     handler.socket.destroy()
   }
-
-  handler.onFail(code, reason, cause)
 }
 
 module.exports = {
