@@ -45,6 +45,9 @@
             }
           ]
         },
+        "allow-inspector": {
+          "type": "boolean"
+        },
         "allow-wasi": {
           "type": "boolean"
         },
