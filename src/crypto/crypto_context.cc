@@ -837,6 +837,23 @@ static std::vector<X509*>& GetExtraCACertificates() {
 
 static void LoadCACertificates(void* data) {
   per_process::Debug(DebugCategory::CRYPTO,
+                     "Started loading bundled root certificates off-thread\n");
+  GetBundledRootCertificates();
+
+  if (!extra_root_certs_file.empty()) {
+    per_process::Debug(DebugCategory::CRYPTO,
+                       "Started loading extra root certificates off-thread\n");
+    GetExtraCACertificates();
+  }
+
+  {
+    Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
+    if (!per_process::cli_options->use_system_ca) {
+      return;
+    }
+  }
+
+  per_process::Debug(DebugCategory::CRYPTO,
                      "Started loading system root certificates off-thread\n");
   GetSystemStoreCACertificates();
 }
@@ -854,9 +871,12 @@ void StartLoadingCertificatesOffThread(
   // Get*CACertificates() functions has a function-local static and any
   // actual user of it will wait for that to complete initialization.
 
+  // --use-openssl-ca is mutually exclusive with --use-bundled-ca and
+  // --use-system-ca. If it's set, no need to optimize with off-thread
+  // loading.
   {
     Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
-    if (!per_process::cli_options->use_system_ca) {
+    if (!per_process::cli_options->ssl_openssl_cert_store) {
       return;
     }
   }
