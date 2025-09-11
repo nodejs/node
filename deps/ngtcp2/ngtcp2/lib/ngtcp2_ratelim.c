@@ -1,7 +1,8 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2017 ngtcp2 contributors
+ * Copyright (c) 2025 ngtcp2 contributors
+ * Copyright (c) 2023 nghttp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,41 +23,55 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "ngtcp2_buf.h"
-#include "ngtcp2_mem.h"
+#include "ngtcp2_ratelim.h"
 
-void ngtcp2_buf_init(ngtcp2_buf *buf, uint8_t *begin, size_t len) {
-  buf->begin = buf->pos = buf->last = begin;
-  buf->end = begin + len;
+#include <assert.h>
+
+#include "ngtcp2_macro.h"
+
+void ngtcp2_ratelim_init(ngtcp2_ratelim *rlim, uint64_t burst, uint64_t rate,
+                         ngtcp2_tstamp ts) {
+  *rlim = (ngtcp2_ratelim){
+    .burst = burst,
+    .rate = rate,
+    .tokens = burst,
+    .ts = ts,
+  };
 }
 
-void ngtcp2_buf_reset(ngtcp2_buf *buf) { buf->pos = buf->last = buf->begin; }
+/* ratelim_update updates rlim->tokens with the current |ts|. */
+static void ratelim_update(ngtcp2_ratelim *rlim, ngtcp2_tstamp ts) {
+  uint64_t d, gain;
 
-size_t ngtcp2_buf_cap(const ngtcp2_buf *buf) {
-  return (size_t)(buf->end - buf->begin);
-}
+  assert(ts >= rlim->ts);
 
-void ngtcp2_buf_trunc(ngtcp2_buf *buf, size_t len) {
-  if (ngtcp2_buf_len(buf) > len) {
-    buf->last = buf->pos + len;
+  if (ts == rlim->ts) {
+    return;
+  }
+
+  d = ts - rlim->ts;
+  rlim->ts = ts;
+
+  gain = rlim->rate * d + rlim->carry;
+
+  rlim->tokens += gain / NGTCP2_SECONDS;
+
+  if (rlim->tokens < rlim->burst) {
+    rlim->carry = gain % NGTCP2_SECONDS;
+  } else {
+    rlim->tokens = rlim->burst;
+    rlim->carry = 0;
   }
 }
 
-int ngtcp2_buf_chain_new(ngtcp2_buf_chain **pbufchain, size_t len,
-                         const ngtcp2_mem *mem) {
-  *pbufchain = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_buf_chain) + len);
-  if (*pbufchain == NULL) {
-    return NGTCP2_ERR_NOMEM;
+int ngtcp2_ratelim_drain(ngtcp2_ratelim *rlim, uint64_t n, ngtcp2_tstamp ts) {
+  ratelim_update(rlim, ts);
+
+  if (rlim->tokens < n) {
+    return -1;
   }
 
-  (*pbufchain)->next = NULL;
-
-  ngtcp2_buf_init(&(*pbufchain)->buf,
-                  (uint8_t *)(*pbufchain) + sizeof(ngtcp2_buf_chain), len);
+  rlim->tokens -= n;
 
   return 0;
-}
-
-void ngtcp2_buf_chain_del(ngtcp2_buf_chain *bufchain, const ngtcp2_mem *mem) {
-  ngtcp2_mem_free(mem, bufchain);
 }
