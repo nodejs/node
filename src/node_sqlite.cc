@@ -1748,8 +1748,9 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
         // The filterCallback should be updated to avoid the check and
         // propagate the error correctly.
         Local<Value> argv[] = {String::NewFromUtf8(env->isolate(),
-                                                   item.c_str(),
-                                                   NewStringType::kNormal)
+                                                   item.data(),
+                                                   NewStringType::kNormal,
+                                                   static_cast<int>(item.size()))
                                    .ToLocalChecked()};
         Local<Value> result =
             filterFunc->Call(env->context(), Null(env->isolate()), 1, argv)
