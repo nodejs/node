@@ -603,9 +603,9 @@ class AsyncContext {
     }
 
     explicit HeapAllocatedCallbackScope(AsyncContext* async_context)
-        cs_(async_context->node_env(),
-            &async_context->resource_storage_,
-            async_context->async_context()) {}
+        : cs_(async_context->node_env(),
+              &async_context->resource_storage_,
+              async_context->async_context()) {}
 
    private:
     node::CallbackScope cs_;
