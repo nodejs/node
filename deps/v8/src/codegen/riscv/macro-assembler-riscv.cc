@@ -5370,14 +5370,12 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   // trigger GC, since the callee function will return to it.
 
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(this);
-  int kNumInstructions = v8_flags.riscv_c_extension ? 5 : 6;
-  Label start;
+  Label start, end;
 
   // Make 'ra' point to the correct return location, just after the 'jalr t6'
   // instruction that does the call, and store 'ra' at the top of the stack.
   bind(&start);
-  auipc(ra, 0);  // Set 'ra' the current 'pc'.
-  AddWord(ra, ra, kNumInstructions * kInstrSize);
+  LoadAddress(ra, &end);
   StoreWord(ra, MemOperand(sp));      // Reserved in EnterExitFrame.
   AddWord(sp, sp, -kCArgsSlotsSize);  // Preserves stack alignment.
 
@@ -5385,9 +5383,9 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   Mv(t6, target);  // Function pointer in 't6' to conform to ABI for PIC.
   jalr(t6);
 
-  // Make sure the stored 'ra' points to this position. This way, the 'ra'
-  // value we stored on the stack matches the value of 'ra' during the call.
-  DCHECK_EQ(kNumInstructions, InstructionsGeneratedSince(&start));
+  // The 'ra' value we stored on the stack matches the value of 'ra' during the
+  // call.
+  bind(&end);
 }
 
 void MacroAssembler::Ret(Condition cond, Register rs, const Operand& rt) {
@@ -7358,7 +7356,11 @@ int MacroAssembler::CallCFunctionHelper(
       AddWord(sp, sp, Operand(stack_passed_arguments * kSystemPointerSize));
     }
     if (kMaxSizeOfMoveAfterFastCall > pc_offset() - before_offset) {
-      nop();
+      // If the RCV extension is enabled, we may have to emit multiple NOPs to
+      // have enough space for patching in the deopt trampoline.
+      do {
+        NOP();
+      } while (pc_offset() - before_offset != kMaxSizeOfMoveAfterFastCall);
     }
     // We assume that with the nop padding, the move instruction uses
     // kMaxSizeOfMoveAfterFastCall bytes. When we patch in the deopt trampoline,

@@ -554,11 +554,22 @@ void ConstantPool::EmitAndClear(Jump require_jump) {
   EmitPrologue(require_alignment);
   if (require_alignment == Alignment::kRequired) assm_->DataAlign(kInt64Size);
   EmitEntries();
+  // Emit padding data to ensure the constant pool size matches the expected
+  // constant count during disassembly.
+  if (v8_flags.riscv_c_extension) {
+    int code_size = assm_->SizeOfCodeGeneratedSince(&size_check);
+    DCHECK_LE(code_size, size);
+
+    while (code_size < size) {
+      assm_->db(0xcc);
+      code_size++;
+    }
+  }
   assm_->RecordComment("]");
   assm_->bind(&after_pool);
   DEBUG_PRINTF("\tConstant Pool end\n")
 
-  DCHECK_LE(assm_->SizeOfCodeGeneratedSince(&size_check) - size, 3);
+  DCHECK_EQ(size, assm_->SizeOfCodeGeneratedSince(&size_check));
   Clear();
 }
 
@@ -666,7 +677,16 @@ bool ConstantPool::ShouldEmitNow(Jump require_jump, size_t margin) const {
 int ConstantPool::ComputeSize(Jump require_jump,
                               Alignment require_alignment) const {
   int size_up_to_marker = PrologueSize(require_jump);
-  int alignment = require_alignment == Alignment::kRequired ? kInstrSize : 0;
+  // With RVC enabled, constant pool alignment must use kInt64Size to ensure
+  // sufficient padding space for 8-byte alignment; otherwise, alignment may
+  // fail.
+  //
+  // Example:
+  //   pc_offset = 0x22
+  //   Aligned(0x22, kInt64Size) = 0x28 → 6 bytes of padding needed.
+  int alignment = require_alignment == Alignment::kRequired
+                      ? (v8_flags.riscv_c_extension ? kInt64Size : kInstrSize)
+                      : 0;
   size_t size_after_marker =
       Entry32Count() * kInt32Size + alignment + Entry64Count() * kInt64Size;
   return size_up_to_marker + static_cast<int>(size_after_marker);
@@ -674,9 +694,13 @@ int ConstantPool::ComputeSize(Jump require_jump,
 
 Alignment ConstantPool::IsAlignmentRequiredIfEmittedAt(Jump require_jump,
                                                        int pc_offset) const {
+  // When the RVC extension is enabled, constant pool entries must be aligned to
+  // kInstrSize to prevent unaligned 32-bit memory accesses.
   int size_up_to_marker = PrologueSize(require_jump);
-  if (Entry64Count() != 0 &&
-      !IsAligned(pc_offset + size_up_to_marker, kInt64Size)) {
+  if ((Entry64Count() != 0 &&
+       !IsAligned(pc_offset + size_up_to_marker, kInt64Size)) ||
+      (Entry32Count() != 0 && v8_flags.riscv_c_extension &&
+       !IsAligned(pc_offset + size_up_to_marker, kInstrSize))) {
     return Alignment::kRequired;
   }
   return Alignment::kOmitted;
