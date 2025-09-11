@@ -2,10 +2,10 @@
 const { describe, it, after } = require('node:test');
 const { setTimeout } = require('node:timers');
 
-const timeoutRefs = [];
+describe('--test-timeout is set to 100ms', () => {
+  const timeoutRefs = [];
 
-describe('--test-timeout is set to 20ms', () => {
-  it('should timeout after 20ms', async () => {
+  it('should timeout after 100ms', async () => {
     const { promise, resolve } = Promise.withResolvers();
     timeoutRefs.push(setTimeout(() => {
       resolve();
@@ -35,5 +35,24 @@ describe('--test-timeout is set to 20ms', () => {
     for (const timeoutRef of timeoutRefs) {
       clearTimeout(timeoutRef);
     }
+  });
+});
+
+
+describe('should inherit timeout options to children', { timeout: 1 }, () => {
+  const timeoutRefs = [];
+
+  after(() => {
+    for (const timeoutRef of timeoutRefs) {
+      clearTimeout(timeoutRef);
+    }
+  });
+
+  it('should timeout after 1ms', async () => {
+    const { promise, resolve } = Promise.withResolvers();
+    timeoutRefs.push(setTimeout(() => {
+      resolve();
+    }, 20000));
+    await promise;
   });
 });
