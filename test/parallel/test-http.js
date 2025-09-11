@@ -52,18 +52,12 @@ const server = http.Server(common.mustCall((req, res) => {
   if (expectedRequests.length === 0)
     server.close();
 
-  if (req.readableEnded) {
+  req.on('end', () => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write(`The path was ${url.parse(req.url).pathname}`);
     res.end();
-  } else {
-    req.on('end', () => {
-      res.writeHead(200, { 'Content-Type': 'text/plain' });
-      res.write(`The path was ${url.parse(req.url).pathname}`);
-      res.end();
-    });
-    req.resume();
-  }
+  });
+  req.resume();
 }, 3));
 server.listen(0);
 

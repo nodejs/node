@@ -6,18 +6,20 @@ const http = require('http');
 const net = require('net');
 
 let reqs = 0;
+let optimizedReqs = 0;
 const server = http.createServer({
   optimizeEmptyRequests: true
 }, (req, res) => {
   reqs++;
-  req.on('data', common.mustNotCall());
-  req.on('end', common.mustNotCall());
+  if (req._dumped) {
+    optimizedReqs++;
+    req.on('data', common.mustNotCall());
+    req.on('end', common.mustNotCall());
 
-  assert.strictEqual(req._dumped, true);
-  assert.strictEqual(req._readableState.ended, true);
-  assert.strictEqual(req._readableState.endEmitted, true);
-  assert.strictEqual(req._readableState.destroyed, true);
-
+    assert.strictEqual(req._dumped, true);
+    assert.strictEqual(req.readableEnded, true);
+    assert.strictEqual(req.destroyed, true);
+  }
   res.writeHead(200);
   res.end('ok');
 });
@@ -38,9 +40,27 @@ server.listen(0, common.mustCall(async () => {
   // DELETE request without body headers (should be optimized)
   const deleteWithoutBodyHeaders = 'DELETE / HTTP/1.1\r\nHost: localhost\r\n\r\n';
   await makeRequest(deleteWithoutBodyHeaders);
+
+  // POST request with Content-Length header (should not be optimized)
+  const postWithContentLength = 'POST / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n';
+  await makeRequest(postWithContentLength);
+
+  // GET request with Content-Length header (should not be optimized)
+  const getWithContentLength = 'GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n';
+  await makeRequest(getWithContentLength);
+
+  // POST request with Transfer-Encoding header (should not be optimized)
+  const postWithTransferEncoding = 'POST / HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\n';
+  await makeRequest(postWithTransferEncoding);
+
+  // GET request with Transfer-Encoding header (should not be optimized)
+  const getWithTransferEncoding = 'GET / HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\n';
+  await makeRequest(getWithTransferEncoding);
+
   server.close();
 
-  assert.strictEqual(reqs, 4);
+  assert.strictEqual(reqs, 8, `Expected 8 requests but got ${reqs}`);
+  assert.strictEqual(optimizedReqs, 4, `Expected 4 optimized requests but got ${optimizedReqs}`);
 }));
 
 function makeRequest(str) {
