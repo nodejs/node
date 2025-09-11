@@ -705,10 +705,9 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   if (CRYPTO_secure_malloc_initialized())
     args.GetReturnValue().Set(
-        BigInt::New(env->isolate(), CRYPTO_secure_used()));
+        BigInt::New(args.GetIsolate(), CRYPTO_secure_used()));
 }
 }  // namespace
 
