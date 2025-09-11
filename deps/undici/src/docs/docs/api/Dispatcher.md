@@ -1094,6 +1094,65 @@ await client.request({
 });
 ```
 
+##### `decompress`
+
+⚠️ The decompress interceptor is experimental and subject to change.
+
+The `decompress` interceptor automatically decompresses response bodies that are compressed with gzip, deflate, brotli, or zstd compression. It removes the `content-encoding` and `content-length` headers from decompressed responses and supports RFC-9110 compliant multiple encodings.
+
+**Options**
+
+- `skipErrorResponses` - Whether to skip decompression for error responses (status codes >= 400). Default: `true`.
+- `skipStatusCodes` - Array of status codes to skip decompression for. Default: `[204, 304]`.
+
+**Example - Basic Decompress Interceptor**
+
+```js
+const { Client, interceptors } = require("undici");
+const { decompress } = interceptors;
+
+const client = new Client("http://example.com").compose(
+  decompress()
+);
+
+// Automatically decompresses gzip/deflate/brotli/zstd responses
+const response = await client.request({
+  method: "GET",
+  path: "/"
+});
+```
+
+**Example - Custom Options**
+
+```js
+const { Client, interceptors } = require("undici");
+const { decompress } = interceptors;
+
+const client = new Client("http://example.com").compose(
+  decompress({
+    skipErrorResponses: false, // Decompress 5xx responses
+    skipStatusCodes: [204, 304, 201] // Skip these status codes
+  })
+);
+```
+
+**Supported Encodings**
+
+- `gzip` / `x-gzip` - GZIP compression
+- `deflate` / `x-compress` - DEFLATE compression  
+- `br` - Brotli compression
+- `zstd` - Zstandard compression
+- Multiple encodings (e.g., `gzip, deflate`) are supported per RFC-9110
+
+**Behavior**
+
+- Skips decompression for status codes < 200 or >= 400 (configurable)
+- Skips decompression for 204 No Content and 304 Not Modified by default
+- Removes `content-encoding` and `content-length` headers when decompressing
+- Passes through unsupported encodings unchanged
+- Handles case-insensitive encoding names
+- Supports streaming decompression without buffering
+
 ##### `Cache Interceptor`
 
 The `cache` interceptor implements client-side response caching as described in
