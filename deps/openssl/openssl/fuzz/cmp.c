@@ -155,6 +155,18 @@ static int process_pollReq(OSSL_CMP_SRV_CTX *srv_ctx,
     return 0;
 }
 
+static int clean_transaction(ossl_unused OSSL_CMP_SRV_CTX *srv_ctx,
+                             ossl_unused const ASN1_OCTET_STRING *id)
+{
+    return 1;
+}
+
+static int delayed_delivery(ossl_unused OSSL_CMP_SRV_CTX *srv_ctx,
+                            ossl_unused const OSSL_CMP_MSG *req)
+{
+    return 0;
+}
+
 int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 {
     OSSL_CMP_MSG *msg;
@@ -183,7 +195,9 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
                                        print_noop)
             && OSSL_CMP_SRV_CTX_init(srv_ctx, NULL, process_cert_request,
                                      process_rr, process_genm, process_error,
-                                     process_certConf, process_pollReq))
+                                     process_certConf, process_pollReq)
+            && OSSL_CMP_SRV_CTX_init_trans(srv_ctx, delayed_delivery,
+                                           clean_transaction))
             OSSL_CMP_MSG_free(OSSL_CMP_SRV_process_request(srv_ctx, msg));
 
         OSSL_CMP_CTX_free(client_ctx);

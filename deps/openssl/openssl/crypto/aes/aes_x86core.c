@@ -63,12 +63,13 @@
 #if 1
 static void prefetch256(const void *table)
 {
-    volatile unsigned long *t=(void *)table,ret;
+    volatile unsigned long *t = (void *)table, ret;
     unsigned long sum;
     int i;
 
     /* 32 is common least cache-line size */
-    for (sum=0,i=0;i<256/sizeof(t[0]);i+=32/sizeof(t[0]))   sum ^= t[i];
+    for (sum = 0, i = 0; i < 256/sizeof(t[0]); i += 32/sizeof(t[0]))
+        sum ^= t[i];
 
     ret = sum;
 }
@@ -80,13 +81,10 @@ static void prefetch256(const void *table)
 #define GETU32(p) (*((u32*)(p)))
 
 #if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
-typedef unsigned __int64 u64;
 #define U64(C)  C##UI64
 #elif defined(__arch64__)
-typedef unsigned long u64;
 #define U64(C)  C##UL
 #else
-typedef unsigned long long u64;
 #define U64(C)  C##ULL
 #endif
 

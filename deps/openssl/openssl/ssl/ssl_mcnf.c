@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,6 +26,7 @@ static int ssl_do_config(SSL *s, SSL_CTX *ctx, const char *name, int system)
     size_t i, idx, cmd_count;
     int err = 1;
     unsigned int flags;
+    unsigned int conf_diagnostics = 0;
     const SSL_METHOD *meth;
     const SSL_CONF_CMD *cmds;
     OSSL_LIB_CTX *prev_libctx = NULL;
@@ -46,8 +47,11 @@ static int ssl_do_config(SSL *s, SSL_CTX *ctx, const char *name, int system)
     }
     cmds = conf_ssl_get(idx, &name, &cmd_count);
     cctx = SSL_CONF_CTX_new();
-    if (cctx == NULL)
+    if (cctx == NULL) {
+        /* this is a fatal error, always report */
+        system = 0;
         goto err;
+    }
     flags = SSL_CONF_FLAG_FILE;
     if (!system)
         flags |= SSL_CONF_FLAG_CERTIFICATE | SSL_CONF_FLAG_REQUIRE_PRIVATE;
@@ -60,6 +64,9 @@ static int ssl_do_config(SSL *s, SSL_CTX *ctx, const char *name, int system)
         SSL_CONF_CTX_set_ssl_ctx(cctx, ctx);
         libctx = ctx->libctx;
     }
+    conf_diagnostics = OSSL_LIB_CTX_get_conf_diagnostics(libctx);
+    if (conf_diagnostics)
+        flags |= SSL_CONF_FLAG_SHOW_ERRORS;
     if (meth->ssl_accept != ssl_undefined_function)
         flags |= SSL_CONF_FLAG_SERVER;
     if (meth->ssl_connect != ssl_undefined_function)
@@ -81,7 +88,7 @@ static int ssl_do_config(SSL *s, SSL_CTX *ctx, const char *name, int system)
  err:
     OSSL_LIB_CTX_set0_default(prev_libctx);
     SSL_CONF_CTX_free(cctx);
-    return err == 0;
+    return err == 0 || (system && !conf_diagnostics);
 }
 
 int SSL_config(SSL *s, const char *name)
@@ -94,7 +101,7 @@ int SSL_CTX_config(SSL_CTX *ctx, const char *name)
     return ssl_do_config(NULL, ctx, name, 0);
 }
 
-void ssl_ctx_system_config(SSL_CTX *ctx)
+int ssl_ctx_system_config(SSL_CTX *ctx)
 {
-    ssl_do_config(NULL, ctx, NULL, 1);
+    return ssl_do_config(NULL, ctx, NULL, 1);
 }

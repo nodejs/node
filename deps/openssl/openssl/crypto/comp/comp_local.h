@@ -12,12 +12,12 @@ struct comp_method_st {
     const char *name;           /* A text string to identify the library */
     int (*init) (COMP_CTX *ctx);
     void (*finish) (COMP_CTX *ctx);
-    int (*compress) (COMP_CTX *ctx,
-                     unsigned char *out, unsigned int olen,
-                     unsigned char *in, unsigned int ilen);
-    int (*expand) (COMP_CTX *ctx,
-                   unsigned char *out, unsigned int olen,
-                   unsigned char *in, unsigned int ilen);
+    ossl_ssize_t (*compress) (COMP_CTX *ctx,
+                             unsigned char *out, size_t olen,
+                             unsigned char *in, size_t ilen);
+    ossl_ssize_t (*expand) (COMP_CTX *ctx,
+                            unsigned char *out, size_t olen,
+                            unsigned char *in, size_t ilen);
 };
 
 struct comp_ctx_st {

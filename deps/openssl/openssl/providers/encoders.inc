@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -57,13 +57,39 @@ ENCODER_TEXT("DSA", dsa, yes),
 #endif
 #ifndef OPENSSL_NO_EC
 ENCODER_TEXT("EC", ec, yes),
+# ifndef OPENSSL_NO_ECX
 ENCODER_TEXT("ED25519", ed25519, yes),
 ENCODER_TEXT("ED448", ed448, yes),
 ENCODER_TEXT("X25519", x25519, yes),
 ENCODER_TEXT("X448", x448, yes),
+# endif
 # ifndef OPENSSL_NO_SM2
 ENCODER_TEXT("SM2", sm2, no),
 # endif
+#endif
+#ifndef OPENSSL_NO_ML_KEM
+ENCODER_TEXT("ML-KEM-512", ml_kem_512, yes),
+ENCODER_TEXT("ML-KEM-768", ml_kem_768, yes),
+ENCODER_TEXT("ML-KEM-1024", ml_kem_1024, yes),
+#endif
+#ifndef OPENSSL_NO_ML_DSA
+ENCODER_TEXT("ML-DSA-44", ml_dsa_44, yes),
+ENCODER_TEXT("ML-DSA-65", ml_dsa_65, yes),
+ENCODER_TEXT("ML-DSA-87", ml_dsa_87, yes),
+#endif
+#ifndef OPENSSL_NO_SLH_DSA
+ENCODER_TEXT("SLH-DSA-SHA2-128s", slh_dsa_sha2_128s, yes),
+ENCODER_TEXT("SLH-DSA-SHA2-128f", slh_dsa_sha2_128f, yes),
+ENCODER_TEXT("SLH-DSA-SHA2-192s", slh_dsa_sha2_192s, yes),
+ENCODER_TEXT("SLH-DSA-SHA2-192f", slh_dsa_sha2_192f, yes),
+ENCODER_TEXT("SLH-DSA-SHA2-256s", slh_dsa_sha2_256s, yes),
+ENCODER_TEXT("SLH-DSA-SHA2-256f", slh_dsa_sha2_256f, yes),
+ENCODER_TEXT("SLH-DSA-SHAKE-128s", slh_dsa_shake_128s, yes),
+ENCODER_TEXT("SLH-DSA-SHAKE-128f", slh_dsa_shake_128f, yes),
+ENCODER_TEXT("SLH-DSA-SHAKE-192s", slh_dsa_shake_192s, yes),
+ENCODER_TEXT("SLH-DSA-SHAKE-192f", slh_dsa_shake_192f, yes),
+ENCODER_TEXT("SLH-DSA-SHAKE-256s", slh_dsa_shake_256s, yes),
+ENCODER_TEXT("SLH-DSA-SHAKE-256f", slh_dsa_shake_256f, yes),
 #endif
 
 /*
@@ -181,6 +207,17 @@ ENCODER_w_structure("EC", ec, yes, pem, PrivateKeyInfo),
 ENCODER_w_structure("EC", ec, yes, der, SubjectPublicKeyInfo),
 ENCODER_w_structure("EC", ec, yes, pem, SubjectPublicKeyInfo),
 
+# ifndef OPENSSL_NO_SM2
+ENCODER_w_structure("SM2", sm2, no, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("SM2", sm2, no, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("SM2", sm2, no, der, PrivateKeyInfo),
+ENCODER_w_structure("SM2", sm2, no, pem, PrivateKeyInfo),
+ENCODER_w_structure("SM2", sm2, no, der, SubjectPublicKeyInfo),
+ENCODER_w_structure("SM2", sm2, no, pem, SubjectPublicKeyInfo),
+# endif
+#endif
+
+#ifndef OPENSSL_NO_ECX
 ENCODER_w_structure("X25519", x25519, yes, der, EncryptedPrivateKeyInfo),
 ENCODER_w_structure("X25519", x25519, yes, pem, EncryptedPrivateKeyInfo),
 ENCODER_w_structure("X25519", x25519, yes, der, PrivateKeyInfo),
@@ -208,16 +245,132 @@ ENCODER_w_structure("ED448", ed448, yes, der, PrivateKeyInfo),
 ENCODER_w_structure("ED448", ed448, yes, pem, PrivateKeyInfo),
 ENCODER_w_structure("ED448", ed448, yes, der, SubjectPublicKeyInfo),
 ENCODER_w_structure("ED448", ed448, yes, pem, SubjectPublicKeyInfo),
-
-# ifndef OPENSSL_NO_SM2
-ENCODER_w_structure("SM2", sm2, no, der, EncryptedPrivateKeyInfo),
-ENCODER_w_structure("SM2", sm2, no, pem, EncryptedPrivateKeyInfo),
-ENCODER_w_structure("SM2", sm2, no, der, PrivateKeyInfo),
-ENCODER_w_structure("SM2", sm2, no, pem, PrivateKeyInfo),
-ENCODER_w_structure("SM2", sm2, no, der, SubjectPublicKeyInfo),
-ENCODER_w_structure("SM2", sm2, no, pem, SubjectPublicKeyInfo),
-# endif
 #endif
+#ifndef OPENSSL_NO_SLH_DSA
+ENCODER_w_structure( "SLH-DSA-SHA2-128s", slh_dsa_sha2_128s, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-128f", slh_dsa_sha2_128f, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-192s", slh_dsa_sha2_192s, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-192f", slh_dsa_sha2_192f, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-256s", slh_dsa_sha2_256s, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-256f", slh_dsa_sha2_256f, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-128s", slh_dsa_shake_128s, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-128f", slh_dsa_shake_128f, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-192s", slh_dsa_shake_192s, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-192f", slh_dsa_shake_192f, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-256s", slh_dsa_shake_256s, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-256f", slh_dsa_shake_256f, yes, der, EncryptedPrivateKeyInfo),
+
+ENCODER_w_structure( "SLH-DSA-SHA2-128s", slh_dsa_sha2_128s, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-128f", slh_dsa_sha2_128f, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-192s", slh_dsa_sha2_192s, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-192f", slh_dsa_sha2_192f, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-256s", slh_dsa_sha2_256s, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-256f", slh_dsa_sha2_256f, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-128s", slh_dsa_shake_128s, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-128f", slh_dsa_shake_128f, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-192s", slh_dsa_shake_192s, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-192f", slh_dsa_shake_192f, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-256s", slh_dsa_shake_256s, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-256f", slh_dsa_shake_256f, yes, pem, EncryptedPrivateKeyInfo),
+
+ENCODER_w_structure( "SLH-DSA-SHA2-128s", slh_dsa_sha2_128s, yes, der, PrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-128f", slh_dsa_sha2_128f, yes, der, PrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-192s", slh_dsa_sha2_192s, yes, der, PrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-192f", slh_dsa_sha2_192f, yes, der, PrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-256s", slh_dsa_sha2_256s, yes, der, PrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-256f", slh_dsa_sha2_256f, yes, der, PrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-128s", slh_dsa_shake_128s, yes, der, PrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-128f", slh_dsa_shake_128f, yes, der, PrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-192s", slh_dsa_shake_192s, yes, der, PrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-192f", slh_dsa_shake_192f, yes, der, PrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-256s", slh_dsa_shake_256s, yes, der, PrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-256f", slh_dsa_shake_256f, yes, der, PrivateKeyInfo),
+
+ENCODER_w_structure( "SLH-DSA-SHA2-128s", slh_dsa_sha2_128s, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-128f", slh_dsa_sha2_128f, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-192s", slh_dsa_sha2_192s, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-192f", slh_dsa_sha2_192f, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-256s", slh_dsa_sha2_256s, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-256f", slh_dsa_sha2_256f, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-128s", slh_dsa_shake_128s, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-128f", slh_dsa_shake_128f, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-192s", slh_dsa_shake_192s, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-192f", slh_dsa_shake_192f, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-256s", slh_dsa_shake_256s, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-256f", slh_dsa_shake_256f, yes, pem, PrivateKeyInfo),
+
+ENCODER_w_structure( "SLH-DSA-SHA2-128s", slh_dsa_sha2_128s, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-128f", slh_dsa_sha2_128f, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-192s", slh_dsa_sha2_192s, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-192f", slh_dsa_sha2_192f, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-256s", slh_dsa_sha2_256s, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-256f", slh_dsa_sha2_256f, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-128s", slh_dsa_shake_128s, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-128f", slh_dsa_shake_128f, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-192s", slh_dsa_shake_192s, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-192f", slh_dsa_shake_192f, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-256s", slh_dsa_shake_256s, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-256f", slh_dsa_shake_256f, yes, der, SubjectPublicKeyInfo),
+
+ENCODER_w_structure( "SLH-DSA-SHA2-128s", slh_dsa_sha2_128s, yes, pem, SubjectPublicKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-128f", slh_dsa_sha2_128f, yes, pem, SubjectPublicKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-192s", slh_dsa_sha2_192s, yes, pem, SubjectPublicKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-192f", slh_dsa_sha2_192f, yes, pem, SubjectPublicKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-256s", slh_dsa_sha2_256s, yes, pem, SubjectPublicKeyInfo),
+ENCODER_w_structure( "SLH-DSA-SHA2-256f", slh_dsa_sha2_256f, yes, pem, SubjectPublicKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-128s", slh_dsa_shake_128s, yes, pem, SubjectPublicKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-128f", slh_dsa_shake_128f, yes, pem, SubjectPublicKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-192s", slh_dsa_shake_192s, yes, pem, SubjectPublicKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-192f", slh_dsa_shake_192f, yes, pem, SubjectPublicKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-256s", slh_dsa_shake_256s, yes, pem, SubjectPublicKeyInfo),
+ENCODER_w_structure("SLH-DSA-SHAKE-256f", slh_dsa_shake_256f, yes, pem, SubjectPublicKeyInfo),
+#endif
+
+#ifndef OPENSSL_NO_ML_KEM
+ENCODER_w_structure("ML-KEM-512", ml_kem_512, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("ML-KEM-512", ml_kem_512, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("ML-KEM-512", ml_kem_512, yes, der, PrivateKeyInfo),
+ENCODER_w_structure("ML-KEM-512", ml_kem_512, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure("ML-KEM-512", ml_kem_512, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure("ML-KEM-512", ml_kem_512, yes, pem, SubjectPublicKeyInfo),
+
+ENCODER_w_structure("ML-KEM-768", ml_kem_768, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("ML-KEM-768", ml_kem_768, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("ML-KEM-768", ml_kem_768, yes, der, PrivateKeyInfo),
+ENCODER_w_structure("ML-KEM-768", ml_kem_768, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure("ML-KEM-768", ml_kem_768, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure("ML-KEM-768", ml_kem_768, yes, pem, SubjectPublicKeyInfo),
+
+ENCODER_w_structure("ML-KEM-1024", ml_kem_1024, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("ML-KEM-1024", ml_kem_1024, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("ML-KEM-1024", ml_kem_1024, yes, der, PrivateKeyInfo),
+ENCODER_w_structure("ML-KEM-1024", ml_kem_1024, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure("ML-KEM-1024", ml_kem_1024, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure("ML-KEM-1024", ml_kem_1024, yes, pem, SubjectPublicKeyInfo),
+#endif
+
+# ifndef OPENSSL_NO_ML_DSA
+ENCODER_w_structure("ML-DSA-44", ml_dsa_44, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("ML-DSA-44", ml_dsa_44, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("ML-DSA-44", ml_dsa_44, yes, der, PrivateKeyInfo),
+ENCODER_w_structure("ML-DSA-44", ml_dsa_44, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure("ML-DSA-44", ml_dsa_44, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure("ML-DSA-44", ml_dsa_44, yes, pem, SubjectPublicKeyInfo),
+
+ENCODER_w_structure("ML-DSA-65", ml_dsa_65, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("ML-DSA-65", ml_dsa_65, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("ML-DSA-65", ml_dsa_65, yes, der, PrivateKeyInfo),
+ENCODER_w_structure("ML-DSA-65", ml_dsa_65, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure("ML-DSA-65", ml_dsa_65, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure("ML-DSA-65", ml_dsa_65, yes, pem, SubjectPublicKeyInfo),
+
+ENCODER_w_structure("ML-DSA-87", ml_dsa_87, yes, der, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("ML-DSA-87", ml_dsa_87, yes, pem, EncryptedPrivateKeyInfo),
+ENCODER_w_structure("ML-DSA-87", ml_dsa_87, yes, der, PrivateKeyInfo),
+ENCODER_w_structure("ML-DSA-87", ml_dsa_87, yes, pem, PrivateKeyInfo),
+ENCODER_w_structure("ML-DSA-87", ml_dsa_87, yes, der, SubjectPublicKeyInfo),
+ENCODER_w_structure("ML-DSA-87", ml_dsa_87, yes, pem, SubjectPublicKeyInfo),
+# endif /* OPENSSL_NO_ML_DSA */
 
 /*
  * Entries for key type specific output formats.  These are exactly the

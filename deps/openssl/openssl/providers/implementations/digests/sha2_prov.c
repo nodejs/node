@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,7 +17,6 @@
 #include <openssl/core_dispatch.h>
 #include <openssl/evp.h>
 #include <openssl/sha.h>
-#include <openssl/evp.h>
 #include <openssl/params.h>
 #include <openssl/core_names.h>
 #include "prov/digestcommon.h"
@@ -47,7 +46,7 @@ static int sha1_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 
     if (ctx == NULL)
         return 0;
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
     p = OSSL_PARAM_locate_const(params, OSSL_DIGEST_PARAM_SSL3_MS);
@@ -72,7 +71,12 @@ IMPLEMENT_digest_functions(sha224, SHA256_CTX,
 IMPLEMENT_digest_functions(sha256, SHA256_CTX,
                            SHA256_CBLOCK, SHA256_DIGEST_LENGTH, SHA2_FLAGS,
                            SHA256_Init, SHA256_Update, SHA256_Final)
-
+#ifndef FIPS_MODULE
+/* ossl_sha256_192_functions */
+IMPLEMENT_digest_functions(sha256_192, SHA256_CTX,
+                           SHA256_CBLOCK, SHA256_192_DIGEST_LENGTH, SHA2_FLAGS,
+                           ossl_sha256_192_init, SHA256_Update, SHA256_Final)
+#endif
 /* ossl_sha384_functions */
 IMPLEMENT_digest_functions(sha384, SHA512_CTX,
                            SHA512_CBLOCK, SHA384_DIGEST_LENGTH, SHA2_FLAGS,
@@ -92,4 +96,3 @@ IMPLEMENT_digest_functions(sha512_224, SHA512_CTX,
 IMPLEMENT_digest_functions(sha512_256, SHA512_CTX,
                            SHA512_CBLOCK, SHA256_DIGEST_LENGTH, SHA2_FLAGS,
                            sha512_256_init, SHA512_Update, SHA512_Final)
-

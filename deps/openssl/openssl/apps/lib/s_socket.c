@@ -37,15 +37,10 @@ typedef unsigned int u_int;
 
 #ifndef OPENSSL_NO_SOCK
 
+# include "internal/e_os.h"
 # include "apps.h"
 # include "s_apps.h"
-# include "internal/sockets.h"
-
-# if defined(__TANDEM)
-#  if defined(OPENSSL_TANDEM_FLOSS)
-#   include <floss.h(floss_read)>
-#  endif
-# endif
+# include "internal/sockets.h" /* for openssl_fdset() */
 
 # include <openssl/bio.h>
 # include <openssl/err.h>
@@ -56,7 +51,7 @@ BIO_ADDR *ourpeer = NULL;
 /*
  * init_client - helper routine to set up socket communication
  * @sock: pointer to storage of resulting socket.
- * @host: the host name or path (for AF_UNIX) to connect to.
+ * @host: the hostname or path (for AF_UNIX) to connect to.
  * @port: the port to connect to (ignored for AF_UNIX).
  * @bindhost: source host or path (for AF_UNIX).
  * @bindport: source port (ignored for AF_UNIX).
@@ -64,6 +59,9 @@ BIO_ADDR *ourpeer = NULL;
  *  AF_UNSPEC
  * @type: socket type, must be SOCK_STREAM or SOCK_DGRAM
  * @protocol: socket protocol, e.g. IPPROTO_TCP or IPPROTO_UDP (or 0 for any)
+ * @tfo: flag to enable TCP Fast Open
+ * @doconn: whether we should call BIO_connect() on the socket
+ * @ba_ret: BIO_ADDR for the remote peer, to be freed by caller
  *
  * This will create a socket and use it to connect to a host:port, or if
  * family == AF_UNIX, to the path found in host.
@@ -76,7 +74,8 @@ BIO_ADDR *ourpeer = NULL;
  */
 int init_client(int *sock, const char *host, const char *port,
                 const char *bindhost, const char *bindport,
-                int family, int type, int protocol)
+                int family, int type, int protocol, int tfo, int doconn,
+                BIO_ADDR **ba_ret)
 {
     BIO_ADDRINFO *res = NULL;
     BIO_ADDRINFO *bindaddr = NULL;
@@ -84,6 +83,7 @@ int init_client(int *sock, const char *host, const char *port,
     const BIO_ADDRINFO *bi = NULL;
     int found = 0;
     int ret;
+    int options = 0;
 
     if (BIO_sock_init() != 1)
         return 0;
@@ -160,12 +160,28 @@ int init_client(int *sock, const char *host, const char *port,
             BIO_free(tmpbio);
         }
 #endif
+        if (BIO_ADDRINFO_protocol(ai) == IPPROTO_TCP) {
+            options |= BIO_SOCK_NODELAY;
+            if (tfo)
+                options |= BIO_SOCK_TFO;
+        }
 
-        if (!BIO_connect(*sock, BIO_ADDRINFO_address(ai),
-                         BIO_ADDRINFO_protocol(ai) == IPPROTO_TCP ? BIO_SOCK_NODELAY : 0)) {
+        if (doconn && !BIO_connect(*sock, BIO_ADDRINFO_address(ai), options)) {
             BIO_closesocket(*sock);
             *sock = INVALID_SOCKET;
             continue;
+        }
+
+        /* Save the address */
+        if (tfo || !doconn) {
+            if (ba_ret == NULL) {
+                BIO_printf(bio_err, "Internal error\n");
+                BIO_closesocket(*sock);
+                *sock = INVALID_SOCKET;
+                goto out;
+            }
+
+            *ba_ret = BIO_ADDR_dup(BIO_ADDRINFO_address(ai));
         }
 
         /* Success, don't try any more addresses */
@@ -188,6 +204,13 @@ int init_client(int *sock, const char *host, const char *port,
         }
         ERR_print_errors(bio_err);
     } else {
+        char *hostname = NULL;
+
+        hostname = BIO_ADDR_hostname_string(BIO_ADDRINFO_address(ai), 1);
+        if (hostname != NULL) {
+            BIO_printf(bio_err, "Connecting to %s\n", hostname);
+            OPENSSL_free(hostname);
+        }
         /* Remove any stale errors from previous connection attempts */
         ERR_clear_error();
         ret = 1;
@@ -200,6 +223,25 @@ out:
     return ret;
 }
 
+void get_sock_info_address(int asock, char **hostname, char **service)
+{
+    union BIO_sock_info_u info;
+
+    if (hostname != NULL)
+        *hostname = NULL;
+    if (service != NULL)
+        *service = NULL;
+
+    if ((info.addr = BIO_ADDR_new()) != NULL
+            && BIO_sock_info(asock, BIO_SOCK_INFO_ADDRESS, &info)) {
+        if (hostname != NULL)
+            *hostname = BIO_ADDR_hostname_string(info.addr, 1);
+        if (service != NULL)
+            *service = BIO_ADDR_service_string(info.addr, 1);
+    }
+    BIO_ADDR_free(info.addr);
+}
+
 int report_server_accept(BIO *out, int asock, int with_address, int with_pid)
 {
     int success = 1;
@@ -207,30 +249,24 @@ int report_server_accept(BIO *out, int asock, int with_address, int with_pid)
     if (BIO_printf(out, "ACCEPT") <= 0)
         return 0;
     if (with_address) {
-        union BIO_sock_info_u info;
-        char *hostname = NULL;
-        char *service = NULL;
+        char *hostname, *service;
 
-        if ((info.addr = BIO_ADDR_new()) != NULL
-            && BIO_sock_info(asock, BIO_SOCK_INFO_ADDRESS, &info)
-            && (hostname = BIO_ADDR_hostname_string(info.addr, 1)) != NULL
-            && (service = BIO_ADDR_service_string(info.addr, 1)) != NULL) {
+        get_sock_info_address(asock, &hostname, &service);
+        success = hostname != NULL && service != NULL;
+        if (success)
             success = BIO_printf(out,
                                  strchr(hostname, ':') == NULL
                                  ? /* IPv4 */ " %s:%s"
                                  : /* IPv6 */ " [%s]:%s",
                                  hostname, service) > 0;
-        } else {
+        else
             (void)BIO_printf(out, "unknown:error\n");
-            success = 0;
-        }
         OPENSSL_free(hostname);
         OPENSSL_free(service);
-        BIO_ADDR_free(info.addr);
     }
     if (with_pid)
-        success = success && BIO_printf(out, " PID=%d", getpid()) > 0;
-    success = success && BIO_printf(out, "\n") > 0;
+        success *= BIO_printf(out, " PID=%d", getpid()) > 0;
+    success *= BIO_printf(out, "\n") > 0;
     (void)BIO_flush(out);
 
     return success;
@@ -239,7 +275,7 @@ int report_server_accept(BIO *out, int asock, int with_address, int with_pid)
 /*
  * do_server - helper routine to perform a server operation
  * @accept_sock: pointer to storage of resulting socket.
- * @host: the host name or path (for AF_UNIX) to connect to.
+ * @host: the hostname or path (for AF_UNIX) to connect to.
  * @port: the port to connect to (ignored for AF_UNIX).
  * @family: desired socket family, may be AF_INET, AF_INET6, AF_UNIX or
  *  AF_UNSPEC
@@ -258,7 +294,8 @@ int report_server_accept(BIO *out, int asock, int with_address, int with_pid)
  */
 int do_server(int *accept_sock, const char *host, const char *port,
               int family, int type, int protocol, do_server_cb cb,
-              unsigned char *context, int naccept, BIO *bio_s_out)
+              unsigned char *context, int naccept, BIO *bio_s_out,
+              int tfo)
 {
     int asock = 0;
     int sock;
@@ -292,6 +329,8 @@ int do_server(int *accept_sock, const char *host, const char *port,
     sock_protocol = BIO_ADDRINFO_protocol(res);
     sock_address = BIO_ADDRINFO_address(res);
     next = BIO_ADDRINFO_next(res);
+    if (tfo && sock_type == SOCK_STREAM)
+        sock_options |= BIO_SOCK_TFO;
 #ifdef AF_INET6
     if (sock_family == AF_INET6)
         sock_options |= BIO_SOCK_V6_ONLY;

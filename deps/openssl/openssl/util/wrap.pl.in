@@ -55,6 +55,7 @@ my $std_engines = catdir($there, 'engines');
 my $std_providers = catdir($there, 'providers');
 my $std_openssl_conf = catdir($there, 'apps/openssl.cnf');
 my $unix_shlib_wrap = catfile($there, 'util/shlib_wrap.sh');
+my $std_openssl_conf_include;
 
 if ($ARGV[0] eq '-fips') {
     $std_openssl_conf = {-
@@ -64,19 +65,48 @@ if ($ARGV[0] eq '-fips') {
          -};
     shift;
 
-    my $std_openssl_conf_include = catdir($there, 'providers');
-    $ENV{OPENSSL_CONF_INCLUDE} = $std_openssl_conf_include
-        if ($ENV{OPENSSL_CONF_INCLUDE} // '') eq ''
-            && -d $std_openssl_conf_include;
+    $std_openssl_conf_include = catdir($there, 'providers');
 }
 
-$ENV{OPENSSL_ENGINES} = $std_engines
-    if ($ENV{OPENSSL_ENGINES} // '') eq '' && -d $std_engines;
-$ENV{OPENSSL_MODULES} = $std_providers
-    if ($ENV{OPENSSL_MODULES} // '') eq '' && -d $std_providers;
-$ENV{OPENSSL_CONF} = $std_openssl_conf
-    if ($ENV{OPENSSL_CONF} // '') eq '' && -f $std_openssl_conf;
+if ($ARGV[0] eq '-jitter') {
+    $std_openssl_conf = {-
+         use Cwd qw(abs_path);
 
+         "'" . abs_path(catfile($config{sourcedir}, 'test/default-and-jitter.cnf')) . "'";
+         -};
+    shift;
+
+    $std_openssl_conf_include = catdir($there, 'providers');
+}
+
+
+local $ENV{OPENSSL_CONF_INCLUDE} = $std_openssl_conf_include
+    if defined $std_openssl_conf_include
+       &&($ENV{OPENSSL_CONF_INCLUDE} // '') eq ''
+       && -d $std_openssl_conf_include;
+local $ENV{OPENSSL_ENGINES} = $std_engines
+    if ($ENV{OPENSSL_ENGINES} // '') eq '' && -d $std_engines;
+local $ENV{OPENSSL_MODULES} = $std_providers
+    if ($ENV{OPENSSL_MODULES} // '') eq '' && -d $std_providers;
+local $ENV{OPENSSL_CONF} = $std_openssl_conf
+    if ($ENV{OPENSSL_CONF} // '') eq '' && -f $std_openssl_conf;
+{-
+     # For VMS, we define logical names to get the libraries properly
+     # defined.
+     use File::Spec::Functions qw(rel2abs);
+
+     if ($^O eq "VMS") {
+         my $bldtop = rel2abs($config{builddir});
+         my %names =
+             map { platform->sharedname($_) => $bldtop.platform->sharedlib($_) }
+             grep { !$unified_info{attributes}->{libraries}->{$_}->{noinst} }
+             @{$unified_info{libraries}};
+
+         foreach (sort keys %names) {
+             $OUT .= "local \$ENV\{'$_'\} = '$names{$_}';\n";
+         }
+     }
+-}
 my $use_system = 0;
 my @cmd;
 

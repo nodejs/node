@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,11 @@
  */
 
 #include <stddef.h>
-#include <string.h>
 #include <stdio.h>
 #include <openssl/e_os2.h>
 #include "crypto/punycode.h"
+#include "internal/common.h" /* for HAS_PREFIX */
+#include "internal/packet.h" /* for WPACKET */
 
 static const unsigned int base = 36;
 static const unsigned int tmin = 1;
@@ -239,12 +240,12 @@ static int codepoint2utf8(unsigned char *out, unsigned long utf)
 
 /*-
  * Return values:
- * 1 - ok, *outlen contains valid buf length
- * 0 - ok but buf was too short, *outlen contains valid buf length
- * -1 - bad string passed
+ * 1 - ok
+ * 0 - ok but buf was too short
+ * -1 - bad string passed or other error
  */
 
-int ossl_a2ulabel(const char *in, char *out, size_t *outlen)
+int ossl_a2ulabel(const char *in, char *out, size_t outlen)
 {
     /*-
      * Domain name has some parts consisting of ASCII chars joined with dot.
@@ -252,81 +253,60 @@ int ossl_a2ulabel(const char *in, char *out, size_t *outlen)
      * If it does not start with xn--,    it becomes U-label as is.
      * Otherwise we try to decode it.
      */
-    char *outptr = out;
     const char *inptr = in;
-    size_t size = 0, maxsize;
     int result = 1;
-    unsigned int i, j;
+    unsigned int i;
     unsigned int buf[LABEL_BUF_SIZE];      /* It's a hostname */
+    WPACKET pkt;
 
-    if (out == NULL) {
-        result = 0;
-        maxsize = 0;
-    } else {
-        maxsize = *outlen;
-    }
+    /* Internal API, so should not fail */
+    if (!ossl_assert(out != NULL))
+        return -1;
 
-#define PUSHC(c)                    \
-    do                              \
-        if (size++ < maxsize)       \
-            *outptr++ = c;          \
-        else                        \
-            result = 0;             \
-    while (0)
+    if (!WPACKET_init_static_len(&pkt, (unsigned char *)out, outlen, 0))
+        return -1;
 
     while (1) {
         char *tmpptr = strchr(inptr, '.');
         size_t delta = tmpptr != NULL ? (size_t)(tmpptr - inptr) : strlen(inptr);
 
-        if (strncmp(inptr, "xn--", 4) != 0) {
-            for (i = 0; i < delta + 1; i++)
-                PUSHC(inptr[i]);
+        if (!HAS_PREFIX(inptr, "xn--")) {
+            if (!WPACKET_memcpy(&pkt, inptr, delta))
+                result = 0;
         } else {
             unsigned int bufsize = LABEL_BUF_SIZE;
 
-            if (ossl_punycode_decode(inptr + 4, delta - 4, buf, &bufsize) <= 0)
-                return -1;
+            if (ossl_punycode_decode(inptr + 4, delta - 4, buf, &bufsize) <= 0) {
+                result = -1;
+                goto end;
+            }
 
             for (i = 0; i < bufsize; i++) {
                 unsigned char seed[6];
                 size_t utfsize = codepoint2utf8(seed, buf[i]);
 
-                if (utfsize == 0)
-                    return -1;
+                if (utfsize == 0) {
+                    result = -1;
+                    goto end;
+                }
 
-                for (j = 0; j < utfsize; j++)
-                    PUSHC(seed[j]);
+                if (!WPACKET_memcpy(&pkt, seed, utfsize))
+                    result = 0;
             }
-
-            PUSHC(tmpptr != NULL ? '.' : '\0');
         }
 
         if (tmpptr == NULL)
             break;
 
+        if (!WPACKET_put_bytes_u8(&pkt, '.'))
+            result = 0;
+
         inptr = tmpptr + 1;
     }
-#undef PUSHC
 
-    *outlen = size;
+    if (!WPACKET_put_bytes_u8(&pkt, '\0'))
+        result = 0;
+ end:
+    WPACKET_cleanup(&pkt);
     return result;
-}
-
-/*-
- * a MUST be A-label
- * u MUST be U-label
- * Returns 0 if compared values are equal
- * 1 if not
- * -1 in case of errors
- */
-
-int ossl_a2ucompare(const char *a, const char *u)
-{
-    char a_ulabel[LABEL_BUF_SIZE + 1];
-    size_t a_size = sizeof(a_ulabel);
-
-    if (ossl_a2ulabel(a, a_ulabel, &a_size) <= 0)
-        return -1;
-
-    return strcmp(a_ulabel, u) != 0;
 }

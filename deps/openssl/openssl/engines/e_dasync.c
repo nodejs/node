@@ -13,7 +13,7 @@
 /*
  * SHA-1 low level APIs are deprecated for public use, but still ok for
  * internal use.  Note, that due to symbols not being exported, only the
- * #defines and strucures can be accessed, in this case SHA_CBLOCK and
+ * #defines and structures can be accessed, in this case SHA_CBLOCK and
  * sizeof(SHA_CTX).
  */
 #include "internal/deprecated.h"
@@ -226,7 +226,6 @@ static int dasync_cipher_nids[] = {
 static int bind_dasync(ENGINE *e)
 {
     /* Setup RSA */
-    ;
     if ((dasync_rsa_orig = EVP_PKEY_meth_find(EVP_PKEY_RSA)) == NULL
         || (dasync_rsa = EVP_PKEY_meth_new(EVP_PKEY_RSA,
                                            EVP_PKEY_FLAG_AUTOARGLEN)) == NULL)
@@ -520,7 +519,7 @@ static void dummy_pause_job(void) {
     ASYNC_JOB *job;
     ASYNC_WAIT_CTX *waitctx;
     ASYNC_callback_fn callback;
-    void * callback_arg;
+    void *callback_arg;
     OSSL_ASYNC_FD pipefds[2] = {0, 0};
     OSSL_ASYNC_FD *writefd;
 #if defined(ASYNC_WIN)
@@ -724,11 +723,8 @@ static int dasync_cipher_init_key_helper(EVP_CIPHER_CTX *ctx,
             && EVP_CIPHER_impl_ctx_size(cipher) != 0) {
         pipe_ctx->inner_cipher_data = OPENSSL_zalloc(
             EVP_CIPHER_impl_ctx_size(cipher));
-        if (pipe_ctx->inner_cipher_data == NULL) {
-            DASYNCerr(DASYNC_F_DASYNC_CIPHER_INIT_KEY_HELPER,
-                        ERR_R_MALLOC_FAILURE);
+        if (pipe_ctx->inner_cipher_data == NULL)
             return 0;
-        }
     }
 
     pipe_ctx->numpipes = 0;

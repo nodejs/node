@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -55,7 +55,6 @@ static int aes_gcm_initkey(PROV_GCM_CTX *ctx, const unsigned char *key,
         GCM_HW_SET_KEY_CTR_FN(ks, AES_set_encrypt_key, AES_encrypt, NULL);
 # endif /* AES_CTR_ASM */
     }
-    ctx->key_set = 1;
     return 1;
 }
 
@@ -100,7 +99,7 @@ static int generic_aes_gcm_cipher_update(PROV_GCM_CTX *ctx, const unsigned char 
                 size_t res = (16 - ctx->gcm.mres) % 16;
 
                 if (CRYPTO_gcm128_decrypt(&ctx->gcm, in, out, res))
-                    return -1;
+                    return 0;
 
                 bulk = AES_gcm_decrypt(in + res, out + res, len - res,
                                        ctx->gcm.key,
@@ -141,6 +140,12 @@ static const PROV_GCM_HW aes_gcm = {
 # include "cipher_aes_gcm_hw_t4.inc"
 #elif defined(AES_PMULL_CAPABLE) && defined(AES_GCM_ASM)
 # include "cipher_aes_gcm_hw_armv8.inc"
+#elif defined(PPC_AES_GCM_CAPABLE) && defined(_ARCH_PPC64)
+# include "cipher_aes_gcm_hw_ppc.inc"
+#elif defined(OPENSSL_CPUID_OBJ) && defined(__riscv) && __riscv_xlen == 64
+# include "cipher_aes_gcm_hw_rv64i.inc"
+#elif defined(OPENSSL_CPUID_OBJ) && defined(__riscv) && __riscv_xlen == 32
+# include "cipher_aes_gcm_hw_rv32i.inc"
 #else
 const PROV_GCM_HW *ossl_prov_aes_hw_gcm(size_t keybits)
 {

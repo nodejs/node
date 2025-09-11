@@ -396,6 +396,7 @@ SHA3_squeeze:
 	lghi	%r14,8
 	st	%r5,5*4(%r15)
 	la	%r1,0(%r2)
+	cijne	%r6,0,.Lnext_block
 
 	j	.Loop_squeeze
 
@@ -413,6 +414,7 @@ SHA3_squeeze:
 
 	brct	%r5,.Loop_squeeze	# bsz--
 
+.Lnext_block:
 	stm	%r3,%r4,3*4(%r15)
 	bras	%r14,.LKeccakF1600
 	lm	%r3,%r5,3*4(%r15)

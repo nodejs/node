@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,16 +12,19 @@
  * internal use.
  */
 #include "internal/deprecated.h"
+#include "internal/common.h"
 
 #include <string.h> /* strcmp */
 #include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
 #include <openssl/bn.h>
 #include <openssl/err.h>
+#include <openssl/self_test.h>
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
 #include "prov/provider_ctx.h"
 #include "crypto/dh.h"
+#include "internal/fips.h"
 #include "internal/sizes.h"
 
 static OSSL_FUNC_keymgmt_new_fn dh_newdata;
@@ -206,6 +209,18 @@ static int dh_import(void *keydata, int selection, const OSSL_PARAM params[])
             selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY ? 1 : 0;
 
         ok = ok && ossl_dh_key_fromdata(dh, params, include_private);
+#ifdef FIPS_MODULE
+        /*
+         * FIPS 140-3 IG 10.3.A additional comment 1 mandates that a pairwise
+         * consistency check be undertaken on key import.  The required test
+         * is described in SP 800-56Ar3 5.6.2.1.4.
+         */
+        if (ok > 0 && !ossl_fips_self_testing()) {
+            ok = ossl_dh_check_pairwise(dh, 1);
+            if (ok <= 0)
+                ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
+        }
+#endif  /* FIPS_MODULE */
     }
 
     return ok;
@@ -387,9 +402,11 @@ static int dh_validate_public(const DH *dh, int checktype)
     if (pub_key == NULL)
         return 0;
 
-    /* The partial test is only valid for named group's with q = (p - 1) / 2 */
-    if (checktype == OSSL_KEYMGMT_VALIDATE_QUICK_CHECK
-        && ossl_dh_is_named_safe_prime_group(dh))
+    /*
+     * The partial test is only valid for named group's with q = (p - 1) / 2
+     * but for that case it is also fully sufficient to check the key validity.
+     */
+    if (ossl_dh_is_named_safe_prime_group(dh))
         return ossl_dh_check_pub_key_partial(dh, pub_key, &res);
 
     return DH_check_pub_key_ex(dh, pub_key);
@@ -403,7 +420,7 @@ static int dh_validate_private(const DH *dh)
     DH_get0_key(dh, NULL, &priv_key);
     if (priv_key == NULL)
         return 0;
-    return ossl_dh_check_priv_key(dh, priv_key, &status);;
+    return ossl_dh_check_priv_key(dh, priv_key, &status);
 }
 
 static int dh_validate(const void *keydata, int selection, int checktype)
@@ -437,7 +454,7 @@ static int dh_validate(const void *keydata, int selection, int checktype)
 
     if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR)
             == OSSL_KEYMGMT_SELECT_KEYPAIR)
-        ok = ok && ossl_dh_check_pairwise(dh);
+        ok = ok && ossl_dh_check_pairwise(dh, 0);
     return ok;
 }
 
@@ -524,20 +541,23 @@ static int dh_gen_common_set_params(void *genctx, const OSSL_PARAM params[])
 {
     struct dh_gen_ctx *gctx = genctx;
     const OSSL_PARAM *p;
+    int gen_type = -1;
 
     if (gctx == NULL)
         return 0;
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
     p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_FFC_TYPE);
     if (p != NULL) {
         if (p->data_type != OSSL_PARAM_UTF8_STRING
-            || ((gctx->gen_type =
+            || ((gen_type =
                  dh_gen_type_name2id_w_default(p->data, gctx->dh_type)) == -1)) {
             ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);
             return 0;
         }
+        if (gen_type != -1)
+            gctx->gen_type = gen_type;
     }
     p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_GROUP_NAME);
     if (p != NULL) {
@@ -699,12 +719,25 @@ static void *dh_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
         return NULL;
 
     /*
-     * If a group name is selected then the type is group regardless of what the
+     * If a group name is selected then the type is group regardless of what
      * the user selected. This overrides rather than errors for backwards
      * compatibility.
      */
     if (gctx->group_nid != NID_undef)
         gctx->gen_type = DH_PARAMGEN_TYPE_GROUP;
+
+    /*
+     * Do a bounds check on context gen_type. Must be in range:
+     * DH_PARAMGEN_TYPE_GENERATOR <= gen_type <= DH_PARAMGEN_TYPE_GROUP
+     * Noted here as this needs to be adjusted if a new group type is
+     * added.
+     */
+    if (!ossl_assert((gctx->gen_type >= DH_PARAMGEN_TYPE_GENERATOR)
+                    && (gctx->gen_type <= DH_PARAMGEN_TYPE_GROUP))) {
+        ERR_raise_data(ERR_LIB_PROV, ERR_R_INTERNAL_ERROR,
+                       "gen_type set to unsupported value %d", gctx->gen_type);
+        return NULL;
+    }
 
     /* For parameter generation - If there is a group name just create it */
     if (gctx->gen_type == DH_PARAMGEN_TYPE_GROUP
@@ -738,10 +771,8 @@ static void *dh_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
         } else if (gctx->hindex != 0) {
             ossl_ffc_params_set_h(ffc, gctx->hindex);
         }
-        if (gctx->mdname != NULL) {
-            if (!ossl_ffc_set_digest(ffc, gctx->mdname, gctx->mdprops))
-                goto end;
-        }
+        if (gctx->mdname != NULL)
+            ossl_ffc_set_digest(ffc, gctx->mdname, gctx->mdprops);
         gctx->cb = osslcb;
         gctx->cbarg = cbarg;
         gencb = BN_GENCB_new();
@@ -846,7 +877,7 @@ const OSSL_DISPATCH ossl_dh_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_EXPORT, (void (*)(void))dh_export },
     { OSSL_FUNC_KEYMGMT_EXPORT_TYPES, (void (*)(void))dh_export_types },
     { OSSL_FUNC_KEYMGMT_DUP, (void (*)(void))dh_dup },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };
 
 /* For any DH key, we use the "DH" algorithms regardless of sub-type. */
@@ -880,5 +911,5 @@ const OSSL_DISPATCH ossl_dhx_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_QUERY_OPERATION_NAME,
       (void (*)(void))dhx_query_operation_name },
     { OSSL_FUNC_KEYMGMT_DUP, (void (*)(void))dh_dup },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };

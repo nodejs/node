@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,11 +7,15 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "ciphercommon_aead.h"
+#ifndef OSSL_PROV_CIPHERCOMMON_CCM_H
+# define OSSL_PROV_CIPHERCOMMON_CCM_H
+# pragma once
+
+# include "ciphercommon_aead.h"
 
 typedef struct prov_ccm_hw_st PROV_CCM_HW;
 
-#if defined(OPENSSL_CPUID_OBJ) && defined(__s390__)
+# if defined(OPENSSL_CPUID_OBJ) && defined(__s390__)
 /*-
  * KMAC-AES parameter block - begin
  * (see z/Architecture Principles of Operation >= SA22-7832-08)
@@ -24,7 +28,7 @@ typedef struct S390X_kmac_params_st {
     unsigned char k[32];
 } S390X_KMAC_PARAMS;
 /* KMAC-AES parameter block - end */
-#endif
+# endif
 
 /* Base structure that is shared by AES & ARIA for CCM MODE */
 typedef struct prov_ccm_st {
@@ -98,3 +102,5 @@ int ossl_ccm_generic_auth_encrypt(PROV_CCM_CTX *ctx, const unsigned char *in,
 int ossl_ccm_generic_auth_decrypt(PROV_CCM_CTX *ctx, const unsigned char *in,
                                   unsigned char *out, size_t len,
                                   unsigned char *expected_tag, size_t taglen);
+
+#endif

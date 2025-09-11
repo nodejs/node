@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,7 +17,6 @@
  */
 struct ossl_core_bio_st {
     CRYPTO_REF_COUNT ref_cnt;
-    CRYPTO_RWLOCK *ref_lock;
     BIO *bio;
 };
 
@@ -25,11 +24,10 @@ static OSSL_CORE_BIO *core_bio_new(void)
 {
     OSSL_CORE_BIO *cb = OPENSSL_malloc(sizeof(*cb));
 
-    if (cb == NULL || (cb->ref_lock = CRYPTO_THREAD_lock_new()) == NULL) {
+    if (cb == NULL || !CRYPTO_NEW_REF(&cb->ref_cnt, 1)) {
         OPENSSL_free(cb);
         return NULL;
     }
-    cb->ref_cnt = 1;
     return cb;
 }
 
@@ -37,7 +35,7 @@ int ossl_core_bio_up_ref(OSSL_CORE_BIO *cb)
 {
     int ref = 0;
 
-    return CRYPTO_UP_REF(&cb->ref_cnt, &ref, cb->ref_lock);
+    return CRYPTO_UP_REF(&cb->ref_cnt, &ref);
 }
 
 int ossl_core_bio_free(OSSL_CORE_BIO *cb)
@@ -45,10 +43,10 @@ int ossl_core_bio_free(OSSL_CORE_BIO *cb)
     int ref = 0, res = 1;
 
     if (cb != NULL) {
-        CRYPTO_DOWN_REF(&cb->ref_cnt, &ref, cb->ref_lock);
+        CRYPTO_DOWN_REF(&cb->ref_cnt, &ref);
         if (ref <= 0) {
             res = BIO_free(cb->bio);
-            CRYPTO_THREAD_lock_free(cb->ref_lock);
+            CRYPTO_FREE_REF(&cb->ref_cnt);
             OPENSSL_free(cb);
         }
     }

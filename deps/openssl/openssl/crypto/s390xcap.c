@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2010-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,6 +15,15 @@
 #include "internal/cryptlib.h"
 #include "crypto/ctype.h"
 #include "s390x_arch.h"
+
+#if defined(OPENSSL_SYS_LINUX) && !defined(FIPS_MODULE)
+# include <sys/types.h>
+# include <sys/stat.h>
+# include <fcntl.h>
+# include <asm/zcrypt.h>
+# include <sys/ioctl.h>
+# include <unistd.h>
+#endif
 
 #if defined(__GLIBC__) && defined(__GLIBC_PREREQ)
 # if __GLIBC_PREREQ(2, 16)
@@ -48,13 +57,15 @@
             cap->NAME[1] = ~cap->NAME[1];                               \
     }
 
-#define TOK_CPU(NAME)                                                   \
+#define TOK_CPU_ALIAS(NAME, STRUCT_NAME)                                \
     (sscanf(tok_begin,                                                  \
             " %" STR(LEN) "s %" STR(LEN) "s ",                          \
             tok[0], tok[1]) == 1                                        \
      && !strcmp(tok[0], #NAME)) {                                       \
-            memcpy(cap, &NAME, sizeof(*cap));                           \
+            memcpy(cap, &STRUCT_NAME, sizeof(*cap));                    \
     }
+
+#define TOK_CPU(NAME) TOK_CPU_ALIAS(NAME, NAME)
 
 #ifndef OSSL_IMPLEMENT_GETAUXVAL
 static sigjmp_buf ill_jmp;
@@ -67,12 +78,33 @@ void OPENSSL_vx_probe(void);
 #endif
 
 static const char *env;
-static int parse_env(struct OPENSSL_s390xcap_st *cap);
+static int parse_env(struct OPENSSL_s390xcap_st *cap, int *cex);
 
 void OPENSSL_s390x_facilities(void);
 void OPENSSL_s390x_functions(void);
 
 struct OPENSSL_s390xcap_st OPENSSL_s390xcap_P;
+
+#ifdef S390X_MOD_EXP
+int OPENSSL_s390xcex;
+int OPENSSL_s390xcex_nodev;
+
+#if defined(__GNUC__)
+__attribute__ ((visibility("hidden")))
+#endif
+void OPENSSL_s390x_cleanup(void);
+
+#if defined(__GNUC__)
+__attribute__ ((visibility("hidden")))
+#endif
+void OPENSSL_s390x_cleanup(void)
+{
+    if (OPENSSL_s390xcex != -1) {
+        (void)close(OPENSSL_s390xcex);
+        OPENSSL_s390xcex = -1;
+    }
+}
+#endif
 
 #if defined(__GNUC__) && defined(__linux)
 __attribute__ ((visibility("hidden")))
@@ -80,6 +112,7 @@ __attribute__ ((visibility("hidden")))
 void OPENSSL_cpuid_setup(void)
 {
     struct OPENSSL_s390xcap_st cap;
+    int cex = 1;
 
     if (OPENSSL_s390xcap_P.stfle[0])
         return;
@@ -140,7 +173,7 @@ void OPENSSL_cpuid_setup(void)
 
     env = getenv("OPENSSL_s390xcap");
     if (env != NULL) {
-        if (!parse_env(&cap))
+        if (!parse_env(&cap, &cex))
             env = NULL;
     }
 
@@ -178,9 +211,19 @@ void OPENSSL_cpuid_setup(void)
         OPENSSL_s390xcap_P.kdsa[0] &= cap.kdsa[0];
         OPENSSL_s390xcap_P.kdsa[1] &= cap.kdsa[1];
     }
+
+#ifdef S390X_MOD_EXP
+    if (cex == 0) {
+        OPENSSL_s390xcex = -1;
+    } else {
+        OPENSSL_s390xcex = open("/dev/z90crypt", O_RDWR | O_CLOEXEC);
+        OPENSSL_atexit(OPENSSL_s390x_cleanup);
+    }
+    OPENSSL_s390xcex_nodev = 0;
+#endif
 }
 
-static int parse_env(struct OPENSSL_s390xcap_st *cap)
+static int parse_env(struct OPENSSL_s390xcap_st *cap, int *cex)
 {
     /*-
      * CPU model data
@@ -670,6 +713,11 @@ static int parse_env(struct OPENSSL_s390xcap_st *cap)
                        0ULL},
     };
 
+    /*-
+     * z16 (2022) - z/Architecture POP
+     * Implements MSA and MSA1-9 (same as z15, no need to repeat).
+     */
+
     char *tok_begin, *tok_end, *buff, tok[S390X_STFLE_MAX][LEN + 1];
     int rc, off, i, n;
 
@@ -724,6 +772,14 @@ static int parse_env(struct OPENSSL_s390xcap_st *cap)
         else if TOK_CPU(z13)
         else if TOK_CPU(z14)
         else if TOK_CPU(z15)
+        else if TOK_CPU_ALIAS(z16, z15)
+
+        /* nocex to deactivate cex support */
+        else if (sscanf(tok_begin, " %" STR(LEN) "s %" STR(LEN) "s ",
+                        tok[0], tok[1]) == 1
+                && !strcmp(tok[0], "nocex")) {
+            *cex = 0;
+        }
 
         /* whitespace(ignored) or invalid tokens */
         else {

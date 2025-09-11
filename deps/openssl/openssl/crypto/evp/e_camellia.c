@@ -193,7 +193,7 @@ static int camellia_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                              const unsigned char *iv, int enc)
 {
     int ret, mode;
-    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
+    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY, ctx);
 
     ret = Camellia_set_key(key, EVP_CIPHER_CTX_get_key_length(ctx) * 8,
                            &dat->ks);
@@ -220,7 +220,7 @@ static int camellia_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 static int camellia_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                const unsigned char *in, size_t len)
 {
-    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
+    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY, ctx);
 
     if (dat->stream.cbc)
         (*dat->stream.cbc) (in, out, len, &dat->ks, ctx->iv,
@@ -238,7 +238,7 @@ static int camellia_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     size_t bl = EVP_CIPHER_CTX_get_block_size(ctx);
     size_t i;
-    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
+    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY, ctx);
 
     if (len < bl)
         return 1;
@@ -252,7 +252,7 @@ static int camellia_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 static int camellia_ofb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                const unsigned char *in, size_t len)
 {
-    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
+    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY, ctx);
 
     int num = EVP_CIPHER_CTX_get_num(ctx);
     CRYPTO_ofb128_encrypt(in, out, len, &dat->ks, ctx->iv, &num, dat->block);
@@ -263,7 +263,7 @@ static int camellia_ofb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 static int camellia_cfb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                const unsigned char *in, size_t len)
 {
-    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
+    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY, ctx);
 
     int num = EVP_CIPHER_CTX_get_num(ctx);
     CRYPTO_cfb128_encrypt(in, out, len, &dat->ks, ctx->iv, &num,
@@ -275,7 +275,7 @@ static int camellia_cfb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 static int camellia_cfb8_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                 const unsigned char *in, size_t len)
 {
-    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
+    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY, ctx);
 
     int num = EVP_CIPHER_CTX_get_num(ctx);
     CRYPTO_cfb128_8_encrypt(in, out, len, &dat->ks, ctx->iv, &num,
@@ -287,7 +287,7 @@ static int camellia_cfb8_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 static int camellia_cfb1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                 const unsigned char *in, size_t len)
 {
-    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
+    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY, ctx);
 
     if (EVP_CIPHER_CTX_test_flags(ctx, EVP_CIPH_FLAG_LENGTH_BITS)) {
         int num = EVP_CIPHER_CTX_get_num(ctx);
@@ -326,7 +326,7 @@ static int camellia_ctr_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     int snum = EVP_CIPHER_CTX_get_num(ctx);
     unsigned int num;
-    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY,ctx);
+    EVP_CAMELLIA_KEY *dat = EVP_C_DATA(EVP_CAMELLIA_KEY, ctx);
 
     if (snum < 0)
         return 0;

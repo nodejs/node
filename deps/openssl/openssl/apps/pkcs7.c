@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,8 +23,8 @@
 typedef enum OPTION_choice {
     OPT_COMMON,
     OPT_INFORM, OPT_OUTFORM, OPT_IN, OPT_OUT, OPT_NOOUT,
-    OPT_TEXT, OPT_PRINT, OPT_PRINT_CERTS, OPT_ENGINE,
-    OPT_PROV_ENUM
+    OPT_TEXT, OPT_PRINT, OPT_PRINT_CERTS, OPT_QUIET,
+    OPT_ENGINE, OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS pkcs7_options[] = {
@@ -46,6 +46,8 @@ const OPTIONS pkcs7_options[] = {
     {"print", OPT_PRINT, '-', "Print out all fields of the PKCS7 structure"},
     {"print_certs", OPT_PRINT_CERTS, '-',
      "Print_certs  print any certs or crl in the input"},
+    {"quiet", OPT_QUIET, '-',
+     "When used with -print_certs, it produces a cleaner output"},
 
     OPT_PROV_OPTIONS,
     {NULL}
@@ -58,7 +60,7 @@ int pkcs7_main(int argc, char **argv)
     BIO *in = NULL, *out = NULL;
     int informat = FORMAT_PEM, outformat = FORMAT_PEM;
     char *infile = NULL, *outfile = NULL, *prog;
-    int i, print_certs = 0, text = 0, noout = 0, p7_print = 0, ret = 1;
+    int i, print_certs = 0, text = 0, noout = 0, p7_print = 0, quiet = 0, ret = 1;
     OPTION_CHOICE o;
     OSSL_LIB_CTX *libctx = app_get0_libctx();
 
@@ -100,6 +102,9 @@ int pkcs7_main(int argc, char **argv)
         case OPT_PRINT_CERTS:
             print_certs = 1;
             break;
+        case OPT_QUIET:
+            quiet = 1;
+            break;
         case OPT_ENGINE:
             e = setup_engine(opt_arg(), 0);
             break;
@@ -111,8 +116,7 @@ int pkcs7_main(int argc, char **argv)
     }
 
     /* No extra arguments. */
-    argc = opt_num_rest();
-    if (argc != 0)
+    if (!opt_check_rest_arg(NULL))
         goto opthelp;
 
     in = bio_open_default(infile, 'r', informat);
@@ -172,7 +176,7 @@ int pkcs7_main(int argc, char **argv)
                 x = sk_X509_value(certs, i);
                 if (text)
                     X509_print(out, x);
-                else
+                else if (!quiet)
                     dump_cert_text(out, x);
 
                 if (!noout)

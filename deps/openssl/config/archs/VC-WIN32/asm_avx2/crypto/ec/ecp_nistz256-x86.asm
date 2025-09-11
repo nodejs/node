@@ -5125,4 +5125,4 @@ L$013pic:
 	pop	ebp
 	ret
 segment	.bss
-common	_OPENSSL_ia32cap_P 16
+common	_OPENSSL_ia32cap_P 40

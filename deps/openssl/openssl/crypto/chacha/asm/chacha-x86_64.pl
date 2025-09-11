@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -102,6 +102,7 @@ $code.=<<___;
 
 .extern OPENSSL_ia32cap_P
 
+.section .rodata align=64
 .align	64
 .Lzero:
 .long	0,0,0,0
@@ -133,6 +134,7 @@ $code.=<<___;
 .Lsigma:
 .asciz	"expand 32-byte k"
 .asciz	"ChaCha20 for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
+.previous
 ___
 
 sub AUTOLOAD()          # thunk [simplified] 32-bit style perlasm

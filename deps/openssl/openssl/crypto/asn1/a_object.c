@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -31,10 +31,8 @@ int i2d_ASN1_OBJECT(const ASN1_OBJECT *a, unsigned char **pp)
         return objsize;
 
     if (*pp == NULL) {
-        if ((p = allocated = OPENSSL_malloc(objsize)) == NULL) {
-            ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+        if ((p = allocated = OPENSSL_malloc(objsize)) == NULL)
             return 0;
-        }
     } else {
         p = *pp;
     }
@@ -135,10 +133,8 @@ int a2d_ASN1_OBJECT(unsigned char *out, int olen, const char *buf, int num)
                     OPENSSL_free(tmp);
                 tmpsize = blsize + 32;
                 tmp = OPENSSL_malloc(tmpsize);
-                if (tmp == NULL) {
-                    ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+                if (tmp == NULL)
                     goto err;
-                }
             }
             while (blsize--) {
                 BN_ULONG t = BN_div_word(bl, 0x80L);
@@ -196,15 +192,14 @@ int i2a_ASN1_OBJECT(BIO *bp, const ASN1_OBJECT *a)
             ERR_raise(ERR_LIB_ASN1, ASN1_R_LENGTH_TOO_LONG);
             return -1;
         }
-        if ((p = OPENSSL_malloc(i + 1)) == NULL) {
-            ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+        if ((p = OPENSSL_malloc(i + 1)) == NULL)
             return -1;
-        }
         i2t_ASN1_OBJECT(p, i + 1, a);
     }
     if (i <= 0) {
         i = BIO_write(bp, "<INVALID>", 9);
-        i += BIO_dump(bp, (const char *)a->data, a->length);
+        if (i > 0)
+            i += BIO_dump(bp, (const char *)a->data, a->length);
         return i;
     }
     BIO_write(bp, p, i);
@@ -308,10 +303,8 @@ ASN1_OBJECT *ossl_c2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
         ret->length = 0;
         OPENSSL_free(data);
         data = OPENSSL_malloc(length);
-        if (data == NULL) {
-            i = ERR_R_MALLOC_FAILURE;
+        if (data == NULL)
             goto err;
-        }
         ret->flags |= ASN1_OBJECT_FLAG_DYNAMIC_DATA;
     }
     memcpy(data, p, length);
@@ -345,10 +338,8 @@ ASN1_OBJECT *ASN1_OBJECT_new(void)
     ASN1_OBJECT *ret;
 
     ret = OPENSSL_zalloc(sizeof(*ret));
-    if (ret == NULL) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+    if (ret == NULL)
         return NULL;
-    }
     ret->flags = ASN1_OBJECT_FLAG_DYNAMIC;
     return ret;
 }

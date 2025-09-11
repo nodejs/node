@@ -115,12 +115,12 @@ BN_ULONG bn_sub_part_words(BN_ULONG *r,
                     r[1] = a[1];
                     if (--dl <= 0)
                         break;
-                    /* fall thru */
+                    /* fall through */
                 case 2:
                     r[2] = a[2];
                     if (--dl <= 0)
                         break;
-                    /* fall thru */
+                    /* fall through */
                 case 3:
                     r[3] = a[3];
                     if (--dl <= 0)

@@ -27,7 +27,7 @@ use OpenSSL::config;
 my $orig_death_handler = $SIG{__DIE__};
 $SIG{__DIE__} = \&death_handler;
 
-my $usage="Usage: Configure [no-<cipher> ...] [enable-<cipher> ...] [-Dxxx] [-lxxx] [-Lxxx] [-fxxx] [-Kxxx] [no-hw-xxx|no-hw] [[no-]threads] [[no-]shared] [[no-]zlib|zlib-dynamic] [no-asm] [no-egd] [sctp] [386] [--prefix=DIR] [--openssldir=OPENSSLDIR] [--with-xxx[=vvv]] [--config=FILE] os/compiler[:flags]\n";
+my $usage="Usage: Configure [no-<feature> ...] [enable-<feature> ...] [-Dxxx] [-lxxx] [-Lxxx] [-fxxx] [-Kxxx] [no-hw-xxx|no-hw] [[no-]threads] [[no-]thread-pool] [[no-]default-thread-pool] [[no-]shared] [[no-]zlib|zlib-dynamic] [no-asm] [no-egd] [sctp] [386] [--prefix=DIR] [--openssldir=OPENSSLDIR] [--with-xxx[=vvv]] [--config=FILE] os/compiler[:flags]\n";
 
 my $banner = <<"EOF";
 
@@ -77,10 +77,23 @@ EOF
 #               Generic OpenSSL-style methods relating to this support
 #               are always compiled but return NULL if the hardware
 #               support isn't compiled.
+#
+# enable-demos  Enable the building of the example code in the demos directory
+# enable-h3demo Enable the http3 demo, which currently only links to the
+#               external nghttp3 library on unix platforms
+#
+# enable-hqinterop
+#               Enable the building of the hq-interop code for construction
+#               of the interop container
+#
 # no-hw         do not compile support for any crypto hardware.
 # [no-]threads  [don't] try to create a library that is suitable for
 #               multithreaded applications (default is "threads" if we
 #               know how to do it)
+# [no-]thread-pool
+#               [don't] allow thread pool functionality
+# [no-]default-thread-pool
+#               [don't] allow default thread pool functionality
 # [no-]shared   [don't] try to create shared libraries when supported.
 # [no-]pic      [don't] try to build position independent code when supported.
 #               If disabled, it also disables shared and dynamic-engine.
@@ -88,8 +101,9 @@ EOF
 # no-egd        do not compile support for the entropy-gathering daemon APIs
 # [no-]zlib     [don't] compile support for zlib compression.
 # zlib-dynamic  Like "zlib", but the zlib library is expected to be a shared
-#               library and will be loaded in run-time by the OpenSSL library.
+#               library and will be loaded at run-time by the OpenSSL library.
 # sctp          include SCTP support
+# no-quic       disable QUIC support
 # no-uplink     Don't build support for UPLINK interface.
 # enable-weak-ssl-ciphers
 #               Enable weak ciphers that are disabled by default.
@@ -162,7 +176,7 @@ my @gcc_devteam_warn = qw(
     -Wsign-compare
     -Wshadow
     -Wformat
-    -Wtype-limits
+    -Wno-type-limits
     -Wundef
     -Werror
     -Wmissing-prototypes
@@ -182,6 +196,8 @@ my @clang_devteam_warn = qw(
     -Wno-parentheses-equality
     -Wno-language-extension-token
     -Wno-extended-offsetof
+    -Wno-missing-braces
+    -Wno-tautological-constant-out-of-range-compare
     -Wconditional-uninitialized
     -Wincompatible-pointer-types-discards-qualifiers
     -Wmissing-variable-declarations
@@ -378,6 +394,12 @@ if (defined env($local_config_envname)) {
     }
 }
 
+# Fail if no configuration is apparent
+if (!%table) {
+    print "Failed to find any os/compiler configurations. Please make sure the Configurations directory is included.\n";
+    &usage;
+}
+
 # Save away perl command information
 $config{perl_cmd} = $^X;
 $config{perl_version} = $Config{version};
@@ -401,6 +423,8 @@ my @dtls = qw(dtls1 dtls1_2);
 my @disablables = (
     "acvp-tests",
     "afalgeng",
+    "apps",
+    "argon2",
     "aria",
     "asan",
     "asm",
@@ -411,11 +435,14 @@ my @disablables = (
     "autoload-config",
     "bf",
     "blake2",
+    "brotli",
+    "brotli-dynamic",
     "buildtest-c++",
     "bulk",
     "cached-fetch",
     "camellia",
     "capieng",
+    "winstore",
     "cast",
     "chacha",
     "cmac",
@@ -424,11 +451,16 @@ my @disablables = (
     "comp",
     "crypto-mdebug",
     "ct",
+    "default-thread-pool",
+    "demos",
+    "h3demo",
+    "hqinterop",
     "deprecated",
     "des",
     "devcryptoeng",
     "dgram",
     "dh",
+    "docs",
     "dsa",
     "dso",
     "dtls",
@@ -438,6 +470,7 @@ my @disablables = (
     "ec_nistp_64_gcc_128",
     "ecdh",
     "ecdsa",
+    "ecx",
     "egd",
     "engine",
     "err",
@@ -445,10 +478,15 @@ my @disablables = (
     "filenames",
     "fips",
     "fips-securitychecks",
+    "fips-post",
+    "fips-jitter",
     "fuzz-afl",
     "fuzz-libfuzzer",
     "gost",
+    "http",
     "idea",
+    "integrity-only-ciphers",
+    "jitter",
     "ktls",
     "legacy",
     "loadereng",
@@ -456,6 +494,8 @@ my @disablables = (
     "md2",
     "md4",
     "mdc2",
+    "ml-dsa",
+    "ml-kem",
     "module",
     "msan",
     "multiblock",
@@ -464,10 +504,13 @@ my @disablables = (
     "ocsp",
     "padlockeng",
     "pic",
+    "pie",
     "pinshared",
     "poly1305",
     "posix-io",
     "psk",
+    "quic",
+    "unstable-qlog",
     "rc2",
     "rc4",
     "rc5",
@@ -481,7 +524,9 @@ my @disablables = (
     "shared",
     "siphash",
     "siv",
+    "slh-dsa",
     "sm2",
+    "sm2-precomp",
     "sm3",
     "sm4",
     "sock",
@@ -492,9 +537,13 @@ my @disablables = (
     "ssl-trace",
     "static-engine",
     "stdio",
+    "sslkeylog",
     "tests",
+    "tfo",
+    "thread-pool",
     "threads",
     "tls",
+    "tls-deprecated-ec",
     "trace",
     "ts",
     "ubsan",
@@ -505,6 +554,8 @@ my @disablables = (
     "whirlpool",
     "zlib",
     "zlib-dynamic",
+    "zstd",
+    "zstd-dynamic",
     );
 foreach my $proto ((@tls, @dtls))
         {
@@ -535,16 +586,24 @@ my %deprecated_disablables = (
 
 our %disabled = ( # "what"         => "comment"
                   "fips"                => "default",
+                  "fips-jitter"         => "default",
                   "asan"                => "default",
+                  "brotli"              => "default",
+                  "brotli-dynamic"      => "default",
                   "buildtest-c++"       => "default",
                   "crypto-mdebug"       => "default",
                   "crypto-mdebug-backtrace" => "default",
+                  "demos"               => "default",
+                  "h3demo"              => "default",
+                  "hqinterop"           => "default",
                   "devcryptoeng"        => "default",
                   "ec_nistp_64_gcc_128" => "default",
                   "egd"                 => "default",
                   "external-tests"      => "default",
                   "fuzz-afl"            => "default",
                   "fuzz-libfuzzer"      => "default",
+                  "pie"                 => "default",
+                  "jitter"              => "default",
                   "ktls"                => "default",
                   "md2"                 => "default",
                   "msan"                => "default",
@@ -552,31 +611,36 @@ our %disabled = ( # "what"         => "comment"
                   "sctp"                => "default",
                   "ssl3"                => "default",
                   "ssl3-method"         => "default",
+                  "sslkeylog"           => "default",
+                  "tfo"                 => "default",
                   "trace"               => "default",
                   "ubsan"               => "default",
                   "unit-test"           => "default",
                   "weak-ssl-ciphers"    => "default",
                   "zlib"                => "default",
                   "zlib-dynamic"        => "default",
+                  "zstd"                => "default",
+                  "zstd-dynamic"        => "default",
                 );
 
 # Note: => pair form used for aesthetics, not to truly make a hash table
 my @disable_cascades = (
     # "what"            => [ "cascade", ... ]
     "bulk"              => [ "shared", "dso",
-                             "aria", "async", "autoload-config",
+                             "aria", "async", "atexit", "autoload-config",
                              "blake2", "bf", "camellia", "cast", "chacha",
                              "cmac", "cms", "cmp", "comp", "ct",
                              "des", "dgram", "dh", "dsa",
                              "ec", "engine",
                              "filenames",
                              "idea", "ktls",
-                             "md4", "multiblock", "nextprotoneg",
-                             "ocsp", "ocb", "poly1305", "psk",
+                             "md4", "ml-dsa", "ml-kem", "multiblock",
+                             "nextprotoneg", "ocsp", "ocb", "poly1305", "psk",
                              "rc2", "rc4", "rmd160",
                              "seed", "siphash", "siv",
                              "sm3", "sm4", "srp",
                              "srtp", "ssl3-method", "ssl-trace",
+                             "tfo",
                              "ts", "ui-console", "whirlpool",
                              "fips-securitychecks" ],
     sub { $config{processor} eq "386" }
@@ -584,10 +648,13 @@ my @disable_cascades = (
     "ssl"               => [ "ssl3" ],
     "ssl3-method"       => [ "ssl3" ],
     "zlib"              => [ "zlib-dynamic" ],
+    "brotli"            => [ "brotli-dynamic" ],
+    "zstd"              => [ "zstd-dynamic" ],
     "des"               => [ "mdc2" ],
-    "ec"                => [ "ec2m", "ecdsa", "ecdh", "sm2", "gost" ],
-    "dgram"             => [ "dtls", "sctp" ],
-    "sock"              => [ "dgram" ],
+    "deprecated"        => [ "tls-deprecated-ec" ],
+    "ec"                => [ qw(ec2m ecdsa ecdh sm2 gost ecx tls-deprecated-ec) ],
+    "dgram"             => [ "dtls", "quic", "sctp" ],
+    "sock"              => [ "dgram", "tfo" ],
     "dtls"              => [ @dtls ],
     sub { 0 == scalar grep { !$disabled{$_} } @dtls }
                         => [ "dtls" ],
@@ -595,6 +662,8 @@ my @disable_cascades = (
     "tls"               => [ @tls ],
     sub { 0 == scalar grep { !$disabled{$_} } @tls }
                         => [ "tls" ],
+    "tls1_3"            => [ "quic" ],
+    "quic"              => [ "unstable-qlog" ],
 
     "crypto-mdebug"     => [ "crypto-mdebug-backtrace" ],
 
@@ -603,7 +672,7 @@ my @disable_cascades = (
     # Without shared libraries, dynamic engines aren't possible.
     # This is due to them having to link with libcrypto and register features
     # using the ENGINE functionality, and since that relies on global tables,
-    # those *have* to be exacty the same as the ones accessed from the app,
+    # those *have* to be exactly the same as the ones accessed from the app,
     # which cannot be guaranteed if shared libraries aren't present.
     # (note that even with shared libraries, both the app and dynamic engines
     # must be linked with the same library)
@@ -626,7 +695,7 @@ my @disable_cascades = (
     "stdio"             => [ "apps", "capieng", "egd" ],
     "apps"              => [ "tests" ],
     "tests"             => [ "external-tests" ],
-    "comp"              => [ "zlib" ],
+    "comp"              => [ "zlib", "brotli", "zstd" ],
     "sm3"               => [ "sm2" ],
     sub { !$disabled{"unit-test"} } => [ "heartbeats" ],
 
@@ -637,9 +706,17 @@ my @disable_cascades = (
 
     "cmp"               => [ "crmf" ],
 
-    "fips"              => [ "fips-securitychecks", "acvp-tests" ],
+    "fips"              => [ "fips-securitychecks", "fips-post", "acvp-tests",
+                             "fips-jitter" ],
 
-    "deprecated-3.0"    => [ "engine", "srp" ]
+    "threads"           => [ "thread-pool" ],
+    "thread-pool"       => [ "default-thread-pool" ],
+
+    "blake2"            => [ "argon2" ],
+
+    "deprecated-3.0"    => [ "engine", "srp" ],
+
+    "http"              => [ "ocsp" ]
     );
 
 # Avoid protocol support holes.  Also disable all versions below N, if version
@@ -699,6 +776,7 @@ my %user = (
     RANLIB      => env('RANLIB'),
     RC          => env('RC') || env('WINDRES'),
     RCFLAGS     => [ env('RCFLAGS') || () ],
+    OBJCOPY     => undef,
     RM          => undef,
    );
 # Info about what "make variables" may be prefixed with the cross compiler
@@ -708,6 +786,7 @@ my @user_crossable = qw ( AR AS CC CXX CPP LD MT RANLIB RC );
 # input, as opposed to the VAR=string option that override the corresponding
 # config target attributes
 my %useradd = (
+    ASFLAGS     => [],
     CPPDEFINES  => [],
     CPPINCLUDES => [],
     CPPFLAGS    => [],
@@ -758,7 +837,7 @@ my %cmdvars = ();               # Stores FOO='blah' type arguments
 my %unsupported_options = ();
 my %deprecated_options = ();
 # If you change this, update apps/version.c
-my @known_seed_sources = qw(getrandom devrandom os egd none rdcpu librandom);
+my @known_seed_sources = qw(getrandom devrandom os egd none rdcpu);
 my @seed_sources = ();
 while (@argvcopy)
         {
@@ -884,6 +963,23 @@ while (@argvcopy)
                         {
                         delete $disabled{"zlib"};
                         }
+                elsif ($1 eq "brotli-dynamic")
+                        {
+                        delete $disabled{"brotli"};
+                        }
+                elsif ($1 eq "pie")
+                        {
+                        delete $disabled{"pie"};
+                        }
+                elsif ($1 eq "zstd-dynamic")
+                        {
+                        delete $disabled{"zstd"};
+                        }
+                elsif ($1 eq "fips-jitter")
+                        {
+                        delete $disabled{"fips"};
+                        delete $disabled{"jitter"};
+                        }
                 my $algo = $1;
                 delete $disabled{$algo};
 
@@ -950,6 +1046,14 @@ while (@argvcopy)
                         {
                         $config{openssldir}=$1;
                         }
+                elsif (/^--with-jitter-include=(.*)$/)
+                        {
+                        $withargs{jitter_include}=$1;
+                        }
+                elsif (/^--with-jitter-lib=(.*)$/)
+                        {
+                        $withargs{jitter_lib}=$1;
+                        }
                 elsif (/^--with-zlib-lib=(.*)$/)
                         {
                         $withargs{zlib_lib}=$1;
@@ -957,6 +1061,22 @@ while (@argvcopy)
                 elsif (/^--with-zlib-include=(.*)$/)
                         {
                         $withargs{zlib_include}=$1;
+                        }
+                elsif (/^--with-brotli-lib=(.*)$/)
+                        {
+                        $withargs{brotli_lib}=$1;
+                        }
+                elsif (/^--with-brotli-include=(.*)$/)
+                        {
+                        $withargs{brotli_include}=$1;
+                        }
+                elsif (/^--with-zstd-lib=(.*)$/)
+                        {
+                        $withargs{zstd_lib}=$1;
+                        }
+                elsif (/^--with-zstd-include=(.*)$/)
+                        {
+                        $withargs{zstd_include}=$1;
                         }
                 elsif (/^--with-fuzzer-lib=(.*)$/)
                         {
@@ -1226,10 +1346,14 @@ if (scalar(grep { $_ eq 'none' } @seed_sources) > 0) {
 
 ============================== WARNING ===============================
 You have selected the --with-rand-seed=none option, which effectively
-disables automatic reseeding of the OpenSSL random generator.
+disables automatic reseeding of the OpenSSL SEED-SRC random generator.
 All operations depending on the random generator such as creating keys
 will not work unless the random generator is seeded manually by the
 application.
+
+Instead of manually seeding, a different random generator can be set
+at runtime in openssl.cnf or configured at build time with
+-DOPENSSL_DEFAULT_SEED_SRC.
 
 Please read the 'Note on random number generation' section in the
 INSTALL.md instructions and the RAND_DRBG(7) manual page for more
@@ -1241,6 +1365,11 @@ _____
 push @{$config{openssl_feature_defines}},
      map { (my $x = $_) =~ tr|[\-a-z]|[_A-Z]|; "OPENSSL_RAND_SEED_$x" }
         @seed_sources;
+
+my $provider_string = $disabled{"fips-post"} ? "non-compliant FIPS Provider" : "FIPS Provider";
+
+$config{FIPS_VENDOR} =
+    (defined $version{FIPS_VENDOR} ? "$version{FIPS_VENDOR} $provider_string for OpenSSL" : "OpenSSL $provider_string");
 
 # Backward compatibility?
 if ($target =~ m/^CygWin32(-.*)$/) {
@@ -1484,6 +1613,10 @@ unless($disabled{threads}) {
     push @{$config{openssl_feature_defines}}, "OPENSSL_THREADS";
 }
 
+if ($disabled{"unstable-qlog"}) {
+    $disabled{"qlog"} = 1;
+}
+
 my $no_shared_warn=0;
 if (($target{shared_target} // '') eq "")
         {
@@ -1548,7 +1681,7 @@ my %predefined_CXX = $config{CXX}
 
 unless ($disabled{asm}) {
     # big endian systems can use ELFv2 ABI
-    if ($target eq "linux-ppc64") {
+    if ($target eq "linux-ppc64" || $target eq "BSD-ppc64") {
         $target{perlasm_scheme} = "linux64v2" if ($predefined_C{_CALL_ELF} == 2);
     }
 }
@@ -1679,20 +1812,7 @@ $config{CFLAGS} = [ map { $_ eq '--ossl-strict-warnings'
 unless ($disabled{afalgeng}) {
     $config{afalgeng}="";
     if (grep { $_ eq 'afalgeng' } @{$target{enable}}) {
-        my $minver = 4*10000 + 1*100 + 0;
-        if ($config{CROSS_COMPILE} eq "") {
-            my $verstr = `uname -r`;
-            my ($ma, $mi1, $mi2) = split("\\.", $verstr);
-            ($mi2) = $mi2 =~ /(\d+)/;
-            my $ver = $ma*10000 + $mi1*100 + $mi2;
-            if ($ver < $minver) {
-                disable('too-old-kernel', 'afalgeng');
-            } else {
-                push @{$config{engdirs}}, "afalg";
-            }
-        } else {
-            disable('cross-compiling', 'afalgeng');
-        }
+        push @{$config{engdirs}}, "afalg";
     } else {
         disable('not-linux', 'afalgeng');
     }
@@ -1728,6 +1848,12 @@ unless ($disabled{ktls}) {
         }
     } else {
         disable('not-linux-or-freebsd', 'ktls');
+    }
+}
+
+unless ($disabled{winstore}) {
+    unless ($target =~ /^(?:Cygwin|mingw|VC-|BC-)/) {
+        disable('not-windows', 'winstore');
     }
 }
 
@@ -1792,7 +1918,7 @@ my %skipdir = ();
 my %disabled_info = ();         # For configdata.pm
 foreach my $what (sort keys %disabled) {
     # There are deprecated disablables that translate to themselves.
-    # They cause disabling cascades, but should otherwise not regiter.
+    # They cause disabling cascades, but should otherwise not register.
     next if $deprecated_disablables{$what};
     # The generated $disabled{"deprecated-x.y"} entries are special
     # and treated properly elsewhere
@@ -1802,7 +1928,7 @@ foreach my $what (sort keys %disabled) {
 
     if (!grep { $what eq $_ } ( 'buildtest-c++', 'fips', 'threads', 'shared',
                                 'module', 'pic', 'dynamic-engine', 'makedepend',
-                                'zlib-dynamic', 'zlib', 'sse2', 'legacy' )) {
+                                'sse2', 'legacy' )) {
         (my $WHAT = uc $what) =~ s|-|_|g;
         my $skipdir = $what;
 
@@ -1815,7 +1941,7 @@ foreach my $what (sort keys %disabled) {
 
         $skipdir{engines} = $what if $what eq 'engine';
         $skipdir{"crypto/$skipdir"} = $what
-            unless $what eq 'async' || $what eq 'err' || $what eq 'dso';
+            unless $what eq 'async' || $what eq 'err' || $what eq 'dso' || $what eq 'http';
     }
 }
 
@@ -2393,17 +2519,40 @@ EOF
             } elsif ($dest eq '') {
                 $ddest = '';
             } else {
-                $ddest = cleanfile($sourced, $_, $blddir, 1);
+                $ddest = cleanfile($sourced, $dest, $blddir, 1);
 
                 # If the destination doesn't exist in source, it can only be
                 # a generated file in the build tree.
                 if ($ddest eq $src_configdata || ! -f $ddest) {
-                    $ddest = cleanfile($buildd, $_, $blddir);
+                    $ddest = cleanfile($buildd, $dest, $blddir);
                 }
             }
-            foreach (@{$depends{$dest}}) {
-                my $d = cleanfile($sourced, $_, $blddir, 1);
-                my $d2 = cleanfile($buildd, $_, $blddir);
+            foreach my $f (@{$depends{$dest}}) {
+                # If the dependency destination is generated, dependencies
+                # may have an extra syntax to separate the intended inclusion
+                # directory from the module to be loaded: a | instead of a
+                # / as directory separator.
+                # Do note that this has to be handled in the build file
+                # template as well.
+                # $i = inclusion path in source directory
+                # $i2 = inclusion path in build directory
+                # $m = module path (within the inclusion path)
+                # $i = full module path in source directory
+                # $i2 = full module path in build directory
+                my $i; my $i2; my $m; my $d; my $d2;
+                if ($unified_info{generate}->{$ddest}
+                    && $f =~ m/^(.*?)\|(.*)$/) {
+                    $i = $1;
+                    $m = $2;
+                    # We must be very careful to modify $i last
+                    $d = cleanfile($sourced, "$i/$m", $blddir, 1);
+                    $d2 = cleanfile($buildd, "$i/$m", $blddir);
+                    $i2 = cleandir($buildd, $i, $blddir);
+                    $i = cleandir($sourced, $i, $blddir, 1);
+                } else {
+                    $d = cleanfile($sourced, $f, $blddir, 1);
+                    $d2 = cleanfile($buildd, $f, $blddir);
+                }
 
                 # If we know it's generated, or assume it is because we can't
                 # find it in the source tree, we set file we depend on to be
@@ -2413,13 +2562,20 @@ EOF
                         keys %{$unified_info{generate}})
                     || ! -f $d) {
                     $d = $d2;
+                    $i = $i2;
+                }
+                if ($i) {
+                    # Put together the computed inclusion dir with the
+                    # original module name.  Do note that we conserve the
+                    # Unixly path syntax for the module path.
+                    $d = "$i|$m";
                 }
                 $unified_info{depends}->{$ddest}->{$d} = 1;
 
                 # Fix up associated attributes
                 $unified_info{attributes}->{depends}->{$ddest}->{$d} =
-                    $attributes{depends}->{$dest}->{$_}
-                    if defined $attributes{depends}->{$dest}->{$_};
+                    $attributes{depends}->{$dest}->{$f}
+                    if defined $attributes{depends}->{$dest}->{$f};
             }
         }
 
@@ -2589,7 +2745,9 @@ EOF
         next if $dest eq "";
         foreach my $d (keys %{$unified_info{depends}->{$dest}}) {
             next unless $d =~ /\.(h|pm)$/;
-            my $i = dirname($d);
+            # Take into account when a dependency uses the inclusion|module
+            # syntax
+            my $i = $d =~ m/\|/ ? $` : dirname($d);
             my $spot =
                 $d eq "configdata.pm" || defined($unified_info{generate}->{$d})
                 ? 'build' : 'source';

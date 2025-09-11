@@ -2,14 +2,14 @@ default	rel
 %define XMMWORD
 %define YMMWORD
 %define ZMMWORD
+
 EXTERN	OPENSSL_cpuid_setup
 
 section	.CRT$XCU rdata align=8
 		DQ	OPENSSL_cpuid_setup
 
 
-common	OPENSSL_ia32cap_P 16
-
+common	OPENSSL_ia32cap_P 40
 section	.text code align=64
 
 
@@ -175,6 +175,7 @@ $L$generic:
 	mov	eax,7
 	xor	ecx,ecx
 	cpuid
+	movd	xmm1,eax
 	bt	r9d,26
 	jc	NEAR $L$notknights
 	and	ebx,0xfff7ffff
@@ -185,9 +186,31 @@ $L$notknights:
 	jne	NEAR $L$notskylakex
 	and	ebx,0xfffeffff
 
+
 $L$notskylakex:
 	mov	DWORD[8+rdi],ebx
 	mov	DWORD[12+rdi],ecx
+	mov	DWORD[16+rdi],edx
+
+	movd	eax,xmm1
+	cmp	eax,0x1
+	jb	NEAR $L$no_extended_info
+	mov	eax,0x7
+	mov	ecx,0x1
+	cpuid
+	mov	DWORD[20+rdi],eax
+	mov	DWORD[24+rdi],edx
+	mov	DWORD[28+rdi],ebx
+	mov	DWORD[32+rdi],ecx
+
+	and	edx,0x80000
+	cmp	edx,0x0
+	je	NEAR $L$no_extended_info
+	mov	eax,0x24
+	mov	ecx,0x0
+	cpuid
+	mov	DWORD[36+rdi],ebx
+
 $L$no_extended_info:
 
 	bt	r9d,27
@@ -206,6 +229,9 @@ DB	0x0f,0x01,0xd0
 	cmp	eax,6
 	je	NEAR $L$done
 $L$clear_avx:
+	and	DWORD[20+rdi],0xff7fffff
+
+
 	mov	eax,0xefffe7ff
 	and	r9d,eax
 	mov	eax,0x3fdeffdf
