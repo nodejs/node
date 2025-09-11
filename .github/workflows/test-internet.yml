@@ -43,7 +43,7 @@ permissions:
 
 jobs:
   test-internet:
-    if: github.repository == 'nodejs/node' || github.event_name != 'schedule'
+    if: github.event_name == 'schedule' && github.repository == 'nodejs/node' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
