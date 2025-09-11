@@ -26,6 +26,7 @@
         # is able to create a malicious DLL in one of the default search paths.
         'OPENSSL_NO_HW',
         'OPENSSL_API_COMPAT=0x10100001L',
+        'OPENSSL_TLS_SECURITY_LEVEL=1',
         'STATIC_LEGACY',
         #'OPENSSL_NO_DEPRECATED',
       ],
@@ -62,6 +63,7 @@
       'include_dirs+': ['openssl/apps/include'],
       'defines': [
         'OPENSSL_API_COMPAT=0x10100001L',
+        'OPENSSL_TLS_SECURITY_LEVEL=1',
         #'OPENSSL_NO_DEPRECATED',
       ],
       'conditions': [
