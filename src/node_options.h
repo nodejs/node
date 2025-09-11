@@ -141,6 +141,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> allow_fs_read;
   std::vector<std::string> allow_fs_write;
   bool allow_addons = false;
+  bool allow_inspector = false;
   bool allow_child_process = false;
   bool allow_net = false;
   bool allow_wasi = false;

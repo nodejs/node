@@ -275,6 +275,36 @@ When passing a single flag with a comma a warning will be displayed.
 
 Examples can be found in the [File System Permissions][] documentation.
 
+### `--allow-inspector`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+When using the [Permission Model][], the process will not be able to connect
+through inspector protocol.
+
+Attempts to do so will throw an `ERR_ACCESS_DENIED` unless the
+user explicitly passes the `--allow-inspector` flag when starting Node.js.
+
+Example:
+
+```js
+const { Session } = require('node:inspector/promises');
+
+const session = new Session();
+session.connect();
+```
+
+```console
+$ node --permission index.js
+Error: connect ERR_ACCESS_DENIED Access to this API has been restricted. Use --allow-inspector to manage permissions.
+  code: 'ERR_ACCESS_DENIED',
+}
+```
+
 ### `--allow-net`
 
 <!-- YAML
@@ -3427,6 +3457,7 @@ one is included in the list below.
 * `--allow-child-process`
 * `--allow-fs-read`
 * `--allow-fs-write`
+* `--allow-inspector`
 * `--allow-net`
 * `--allow-wasi`
 * `--allow-worker`
