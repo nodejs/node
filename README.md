@@ -1,4 +1,24 @@
-# Node.js
+# Node.jsname: CI
+on:
+  push:
+    branches: [ main ]
+jobs:
+  container-test-job:
+    runs-on: ubuntu-latest
+    container:
+      image: node:18
+      env:
+        NODE_ENV: development
+      ports:
+        - 80
+      volumes:
+        - my_docker_volume:/volume_mount
+      options: --cpus 1
+    steps:
+      - name: Check for dockerenv file
+        run: (ls /.dockerenv && echo Found dockerenv) || (echo No dockerenv)
+
+        
 
 Node.js is an open-source, cross-platform JavaScript runtime environment.
 
