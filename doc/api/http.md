@@ -1688,8 +1688,11 @@ changes:
 * `head` {Buffer} The first packet of the upgraded stream (may be empty)
 
 Emitted each time a client's HTTP upgrade request is accepted. By default
-all HTTP upgrade requests are ignored unless you listen to this event, in which
-case they are all accepted. You can control this more precisely by using the
+all HTTP upgrade requests are ignored (i.e. only regular `'request'` events
+are emitted, sticking with the normal HTTP request/response flow) unless you
+listen to this event, in which case they are all accepted (i.e. the `'upgrade'`
+event is emitted instead, and future communication must handled directly
+through the raw socket). You can control this more precisely by using the
 server `shouldUpgradeCallback` option.
 
 Listening to this event is optional and clients cannot insist on a protocol
@@ -1700,7 +1703,8 @@ event listener, meaning it will need to be bound in order to handle data
 sent to the server on that socket.
 
 If an upgrade is accepted by `shouldUpgradeCallback` but no event handler
-is registered, the socket is destroyed.
+is registered then the socket is destroyed, resulting in an immediate
+connection closure for the client.
 
 This event is guaranteed to be passed an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specifies a socket
@@ -3642,12 +3646,13 @@ changes:
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
     to be used. Useful for extending the original `ServerResponse`. **Default:**
     `ServerResponse`.
-  * `shouldUpgradeCallback` {Function} A callback which receives an incoming
-    request and returns a boolean, to control which upgrade attempts should be
-    accepted. Accepted upgrades will fire an `'upgrade'` event (or their sockets
-    will be destroyed, if no listener is registered) while rejected upgrades will
-    fire a `'request'` event like any non-upgrade request. This options defaults
-    to `() => server.listenerCount('upgrade') > 0`.
+  * `shouldUpgradeCallback(request)` {Function} A callback which receives an
+    incoming request and returns a boolean, to control which upgrade attempts
+    should be accepted. Accepted upgrades will fire an `'upgrade'` event (or
+    their sockets will be destroyed, if no listener is registered) while
+    rejected upgrades will fire a `'request'` event like any non-upgrade
+    request. This options defaults to
+    `() => server.listenerCount('upgrade') > 0`.
   * `uniqueHeaders` {Array} A list of response headers that should be sent only
     once. If the header's value is an array, the items will be joined
     using `; `.
