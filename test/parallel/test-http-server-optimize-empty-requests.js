@@ -66,7 +66,6 @@ server.listen(0, common.mustCall(async () => {
 function makeRequest(str) {
   return new Promise((resolve) => {
     const client = net.connect({ port: server.address().port }, common.mustCall(() => {
-      client.on('data', common.mustCall());
       client.on('end', common.mustCall(() => {
         resolve();
       }));
