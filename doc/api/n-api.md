@@ -5927,7 +5927,7 @@ napiVersion: 1
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59828
-    description: The `async_resource` object will not be held as a strong reference.
+    description: The `async_resource` object will now be held as a strong reference.
 -->
 
 ```c
