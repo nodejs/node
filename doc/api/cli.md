@@ -3341,6 +3341,11 @@ added: v22.1.0
 Enable the [module compile cache][] for the Node.js instance. See the documentation of
 [module compile cache][] for details.
 
+### `NODE_COMPILE_CACHE_PORTABLE=1`
+
+When set to 1, the [module compile cache][]  can be reused across different directory
+locations as long as the module layout relative to the cache directory remains the same.
+
 ### `NODE_DEBUG=module[,…]`
 
 <!-- YAML
