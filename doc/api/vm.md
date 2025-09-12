@@ -920,6 +920,33 @@ to disallow any changes to it.
 Corresponds to the `[[RequestedModules]]` field of [Cyclic Module Record][]s in
 the ECMAScript specification.
 
+### `sourceTextModule.getHasAsyncGraph()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the module has a dependency graph that contains top-level
+`await` expressions, otherwise returns `false`.
+
+This requires the module to be instantiated first. If the module is not
+instantiated yet, an error will be thrown.
+
+### `sourceTextModule.hasTopLevelAwait`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Indicates whether the module contains any top-level `await` expressions.
+
+This corresponds to the field `[[HasTLA]]` in [Cyclic Module Record][] in the
+ECMAScript specification.
+
 ### `sourceTextModule.instantiate()`
 
 <!-- YAML
