@@ -1,14 +1,15 @@
 'use strict';
 
 const common = require('../common');
-const { Readable, Writable, Duplex, finished } = require('stream');
+const { Readable, Writable } = require('stream');
+const { finished } = require('stream/promises');
 
 const bench = common.createBenchmark(main, {
   n: [1e5],
-  streamType: ['readable', 'writable', 'duplex'],
+  streamType: ['readable', 'writable'],
 });
 
-function main({ n, streamType }) {
+async function main({ n, streamType }) {
   bench.start();
 
   for (let i = 0; i < n; i++) {
@@ -17,21 +18,15 @@ function main({ n, streamType }) {
     switch (streamType) {
       case 'readable':
         stream = new Readable({ read() { this.push(null); } });
+        stream.resume();
         break;
       case 'writable':
         stream = new Writable({ write(chunk, enc, cb) { cb(); } });
         stream.end();
         break;
-      case 'duplex':
-        stream = new Duplex({
-          read() { this.push(null); },
-          write(chunk, enc, cb) { cb(); },
-        });
-        stream.end();
-        break;
     }
 
-    finished(stream, () => {});
+    await finished(stream);
   }
 
   bench.end(n);
