@@ -1484,8 +1484,8 @@ if (typeof Symbol !== 'undefined') {
   class ObjectSubclass {}
   class ArraySubclass extends Array {}
   class SetSubclass extends Set {}
-  class SubclassMap extends Map {}
-  class APromiseSubclass extends Promise {}
+  class MapSubclass extends Map {}
+  class PromiseSubclass extends Promise {}
   class SymbolNameClass {
     static name = Symbol('name');
   }
@@ -1497,11 +1497,11 @@ if (typeof Symbol !== 'undefined') {
   assert.strictEqual(util.inspect(new ArraySubclass(1, 2, 3)),
                      'ArraySubclass(3) [ 1, 2, 3 ]');
   assert.strictEqual(util.inspect(new SetSubclass([1, 2, 3])),
-                     'SetSubclass(3) { 1, 2, 3 }');
-  assert.strictEqual(util.inspect(new SubclassMap([['foo', 42]])),
-                     "SubclassMap(1) { 'foo' => 42 }");
-  assert.strictEqual(util.inspect(new APromiseSubclass(() => {})),
-                     'APromiseSubclass { <pending> }');
+                     'SetSubclass(3) [Set] { 1, 2, 3 }');
+  assert.strictEqual(util.inspect(new MapSubclass([['foo', 42]])),
+                     "MapSubclass(1) [Map] { 'foo' => 42 }");
+  assert.strictEqual(util.inspect(new PromiseSubclass(() => {})),
+                     'PromiseSubclass [Promise] { <pending> }');
   assert.strictEqual(util.inspect(new SymbolNameClass()),
                      'Symbol(name) {}');
   assert.strictEqual(
@@ -1512,6 +1512,38 @@ if (typeof Symbol !== 'undefined') {
     util.inspect(Object.setPrototypeOf(x, null)),
     '[ObjectSubclass: null prototype] { foo: 42 }'
   );
+
+  class CustomClass {}
+  Object.defineProperty(CustomClass.prototype, Symbol.toStringTag, {
+    value: 'Custom',
+    configurable: true
+  });
+  assert.strictEqual(util.inspect(new CustomClass()),
+                     'CustomClass [Custom] {}');
+
+  class MapClass extends Map {}
+  Object.defineProperty(MapClass.prototype, Symbol.toStringTag, {
+    value: 'Map',
+    configurable: true
+  });
+  assert.strictEqual(util.inspect(new MapClass([['key', 'value']])),
+                     "MapClass(1) [Map] { 'key' => 'value' }");
+
+  class FooSet extends Set {}
+  Object.defineProperty(FooSet.prototype, Symbol.toStringTag, {
+    value: 'Set',
+    configurable: true
+  });
+  assert.strictEqual(util.inspect(new FooSet([1, 2, 3])),
+                     'FooSet(3) { 1, 2, 3 }');
+
+  class Settings extends Set {}
+  Object.defineProperty(Settings.prototype, Symbol.toStringTag, {
+    value: 'Set',
+    configurable: true
+  });
+  assert.strictEqual(util.inspect(new Settings([1, 2, 3])),
+                     'Settings(3) [Set] { 1, 2, 3 }');
 }
 
 // Empty and circular before depth.
