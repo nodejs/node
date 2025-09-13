@@ -1219,9 +1219,9 @@ changes:
 * `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey|CryptoKeyPair} upon success.
 
-Using the method and parameters provided in `algorithm`, `subtle.generateKey()`
-attempts to generate new keying material. Depending the method used, the method
-may generate either a single {CryptoKey} or a {CryptoKeyPair}.
+Using the parameters provided in `algorithm`, this method
+attempts to generate new keying material. Depending on the algorithm used
+either a single {CryptoKey} or a {CryptoKeyPair} is generated.
 
 The {CryptoKeyPair} (public and private key) generating algorithms supported
 include:
@@ -1296,10 +1296,11 @@ changes:
 * `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey} upon success.
 
-The [`subtle.importKey()`][] method attempts to interpret the provided `keyData`
+This method attempts to interpret the provided `keyData`
 as the given `format` to create a {CryptoKey} instance using the provided
 `algorithm`, `extractable`, and `keyUsages` arguments. If the import is
-successful, the returned promise will be resolved with the created {CryptoKey}.
+successful, the returned promise will be resolved with a {CryptoKey}
+representation of the key material.
 
 If importing KDF algorithm keys, `extractable` must be `false`.
 
