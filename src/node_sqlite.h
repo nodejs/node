@@ -43,6 +43,14 @@ class DatabaseOpenConfiguration {
 
   inline bool get_use_big_ints() const { return use_big_ints_; }
 
+  inline void set_use_null_as_undefined(bool flag) {
+    use_null_as_undefined_ = flag;
+  }
+
+  inline bool get_use_null_as_undefined() const {
+    return use_null_as_undefined_;
+  }
+
   inline void set_return_arrays(bool flag) { return_arrays_ = flag; }
 
   inline bool get_return_arrays() const { return return_arrays_; }
@@ -70,6 +78,7 @@ class DatabaseOpenConfiguration {
   bool enable_dqs_ = false;
   int timeout_ = 0;
   bool use_big_ints_ = false;
+  bool use_null_as_undefined_ = false;
   bool return_arrays_ = false;
   bool allow_bare_named_params_ = true;
   bool allow_unknown_named_params_ = false;
@@ -110,7 +119,12 @@ class DatabaseSync : public BaseObject {
   void FinalizeBackups();
   void UntrackStatement(StatementSync* statement);
   bool IsOpen();
-  bool use_big_ints() const { return open_config_.get_use_big_ints(); }
+  bool use_big_ints() const {
+    return open_config_.get_use_big_ints();
+  }
+  bool use_null_as_undefined() const {
+    return open_config_.get_use_null_as_undefined();
+  }
   bool return_arrays() const { return open_config_.get_return_arrays(); }
   bool allow_bare_named_params() const {
     return open_config_.get_allow_bare_named_params();
@@ -173,6 +187,8 @@ class StatementSync : public BaseObject {
   static void SetAllowUnknownNamedParameters(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReadBigInts(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetReadNullAsUndefined(
+    const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReturnArrays(const v8::FunctionCallbackInfo<v8::Value>& args);
   v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
   v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
@@ -188,6 +204,7 @@ class StatementSync : public BaseObject {
   sqlite3_stmt* statement_;
   bool return_arrays_ = false;
   bool use_big_ints_;
+  bool use_null_as_undefined_ = false;
   bool allow_bare_named_params_;
   bool allow_unknown_named_params_;
   std::optional<std::map<std::string, std::string>> bare_named_params_;
@@ -253,7 +270,9 @@ class UserDefinedFunction {
   UserDefinedFunction(Environment* env,
                       v8::Local<v8::Function> fn,
                       DatabaseSync* db,
-                      bool use_bigint_args);
+                      bool use_bigint_args,
+                      bool use_null_as_undefined_args
+                    );
   ~UserDefinedFunction();
   static void xFunc(sqlite3_context* ctx, int argc, sqlite3_value** argv);
   static void xDestroy(void* self);
@@ -263,6 +282,7 @@ class UserDefinedFunction {
   v8::Global<v8::Function> fn_;
   DatabaseSync* db_;
   bool use_bigint_args_;
+  bool use_null_as_undefined_args_;
 };
 
 }  // namespace sqlite

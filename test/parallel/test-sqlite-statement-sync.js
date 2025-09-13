@@ -305,6 +305,62 @@ suite('StatementSync.prototype.expandedSQL', () => {
   });
 });
 
+suite('StatementSync.prototype.setReadNullAsUndefined', () => {
+  test('Null can be read as undefined', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(is_null TEXT DEFAULT NULL) STRICT;
+      INSERT INTO data(is_null) VALUES(NULL);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT is_null FROM DATA');
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: null });
+    t.assert.strictEqual(Object.hasOwn(query.get(), 'is_null'), true);
+    t.assert.strictEqual('is_null' in query.get(), true);
+
+    query.setReadNullAsUndefined(true);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: undefined });
+    t.assert.strictEqual(Object.hasOwn(query.get(), 'is_null'), true);
+    t.assert.strictEqual('is_null' in query.get(), true);
+  });
+
+  test('does not affect non-null values', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(is_not_null TEXT) STRICT;
+      INSERT INTO data(is_not_null) VALUES('This is not null');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT is_not_null FROM DATA');
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_not_null: 'This is not null' });
+    t.assert.strictEqual(
+      Object.hasOwn(query.get(), 'is_not_null'), true);
+    t.assert.strictEqual(query.setReadNullAsUndefined(true), undefined);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_not_null: 'This is not null' });
+  });
+  test('throws when input is not a boolean', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(is_not_null TEXT) STRICT;
+      INSERT INTO data(is_not_null) VALUES('This is not null');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const stmt = db.prepare('SELECT is_not_null FROM data');
+    t.assert.throws(() => {
+      stmt.setReadNullAsUndefined();
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "readNullAsUndefined" argument must be a boolean/,
+    });
+  });
+});
+
 suite('StatementSync.prototype.setReadBigInts()', () => {
   test('BigInts support can be toggled', (t) => {
     const db = new DatabaseSync(nextDb());
@@ -357,8 +413,7 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
 
   test('BigInt is required for reading large integers', (t) => {
     const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
-    const bad = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
+    t.after(() => { db.close(); }); const bad = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
     t.assert.throws(() => {
       bad.get();
     }, {
@@ -410,6 +465,26 @@ suite('StatementSync.prototype.get() with array output', () => {
 
     query.setReturnArrays(false);
     t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
+  });
+
+  test('null to undefined in array rows with setReadNullAsUndefined()', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: null });
+
+    query.setReturnArrays(true);
+    query.setReadNullAsUndefined(true);
+    t.assert.deepStrictEqual(query.get(), [1, undefined]);
+
+    query.setReturnArrays(false);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: undefined });
   });
 
   test('returns array rows with BigInts when both flags are set', (t) => {
