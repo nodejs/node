@@ -27,8 +27,8 @@ using Ngtcp2Source = bob::SourceImpl<ngtcp2_vec>;
 // or concurrency limits are temporarily reached) then the request to open the
 // stream is represented as a queued PendingStream.
 //
-// The PendingStream instance itself is held by the stream but sits in a linked
-// list in the session.
+// The PendingStream instance itself is owned by the stream created but a
+// reference sits in a linked list in the session.
 //
 // The PendingStream request can be canceled by dropping the PendingStream
 // instance before it can be fulfilled, at which point it is removed from the
@@ -45,7 +45,7 @@ class PendingStream final {
 
   // Called when the stream has been opened. Transitions the stream from a
   // pending state to an opened state.
-  void fulfill(int64_t id);
+  void fulfill(stream_id id);
 
   // Called when opening the stream fails or is canceled. Transitions the
   // stream into a closed/destroyed state.
@@ -153,7 +153,7 @@ class Stream final : public AsyncWrap,
   // Creates a new non-pending stream.
   static BaseObjectPtr<Stream> Create(
       Session* session,
-      int64_t id,
+      stream_id id,
       std::shared_ptr<DataQueue> source = nullptr);
 
   // Creates a new pending stream.
@@ -166,7 +166,7 @@ class Stream final : public AsyncWrap,
   // Call Create to create new instances of Stream.
   Stream(BaseObjectWeakPtr<Session> session,
          v8::Local<v8::Object> obj,
-         int64_t id,
+         stream_id id,
          std::shared_ptr<DataQueue> source);
 
   // Creates the stream in a pending state. The constructor is only public
@@ -180,7 +180,7 @@ class Stream final : public AsyncWrap,
   ~Stream() override;
 
   // While the stream is still pending, the id will be -1.
-  int64_t id() const;
+  stream_id id() const;
 
   // While the stream is still pending, the origin will be invalid.
   Side origin() const;
@@ -297,7 +297,7 @@ class Stream final : public AsyncWrap,
 
   // When a pending stream is finally opened, the NotifyStreamOpened method
   // will be called and the id will be assigned.
-  void NotifyStreamOpened(int64_t id);
+  void NotifyStreamOpened(stream_id id);
   void EnqueuePendingHeaders(HeadersKind kind,
                              v8::Local<v8::Array> headers,
                              HeadersFlags flags);

@@ -71,7 +71,7 @@ namespace quic {
   V(STREAM_OPEN_ALLOWED, stream_open_allowed, uint8_t)                         \
   V(PRIORITY_SUPPORTED, priority_supported, uint8_t)                           \
   V(WRAPPED, wrapped, uint8_t)                                                 \
-  V(LAST_DATAGRAM_ID, last_datagram_id, uint64_t)
+  V(LAST_DATAGRAM_ID, last_datagram_id, datagram_id)
 
 #define SESSION_STATS(V)                                                       \
   V(CREATED_AT, created_at)                                                    \
@@ -815,7 +815,7 @@ struct Session::Impl final : public MemoryRetainer {
   // Internal ngtcp2 callbacks
 
   static int on_acknowledge_stream_data_offset(ngtcp2_conn* conn,
-                                               int64_t stream_id,
+                                               stream_id stream_id,
                                                uint64_t offset,
                                                uint64_t datalen,
                                                void* user_data,
@@ -835,7 +835,7 @@ struct Session::Impl final : public MemoryRetainer {
   }
 
   static int on_acknowledge_datagram(ngtcp2_conn* conn,
-                                     uint64_t dgram_id,
+                                     datagram_id dgram_id,
                                      void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
     session->DatagramStatus(dgram_id, DatagramStatus::ACKNOWLEDGED);
@@ -905,7 +905,7 @@ struct Session::Impl final : public MemoryRetainer {
   }
 
   static int on_extend_max_stream_data(ngtcp2_conn* conn,
-                                       int64_t stream_id,
+                                       stream_id stream_id,
                                        uint64_t max_data,
                                        void* user_data,
                                        void* stream_user_data) {
@@ -938,7 +938,7 @@ struct Session::Impl final : public MemoryRetainer {
   }
 
   static int on_lost_datagram(ngtcp2_conn* conn,
-                              uint64_t dgram_id,
+                              datagram_id dgram_id,
                               void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
     session->DatagramStatus(dgram_id, DatagramStatus::LOST);
@@ -1022,7 +1022,7 @@ struct Session::Impl final : public MemoryRetainer {
 
   static int on_receive_stream_data(ngtcp2_conn* conn,
                                     uint32_t flags,
-                                    int64_t stream_id,
+                                    stream_id stream_id,
                                     uint64_t offset,
                                     const uint8_t* data,
                                     size_t datalen,
@@ -1105,8 +1105,8 @@ struct Session::Impl final : public MemoryRetainer {
 
   static int on_stream_close(ngtcp2_conn* conn,
                              uint32_t flags,
-                             int64_t stream_id,
-                             uint64_t app_error_code,
+                             stream_id stream_id,
+                             error_code app_error_code,
                              void* user_data,
                              void* stream_user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
@@ -1121,9 +1121,9 @@ struct Session::Impl final : public MemoryRetainer {
   }
 
   static int on_stream_reset(ngtcp2_conn* conn,
-                             int64_t stream_id,
+                             stream_id stream_id,
                              uint64_t final_size,
-                             uint64_t app_error_code,
+                             error_code app_error_code,
                              void* user_data,
                              void* stream_user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
@@ -1135,8 +1135,8 @@ struct Session::Impl final : public MemoryRetainer {
   }
 
   static int on_stream_stop_sending(ngtcp2_conn* conn,
-                                    int64_t stream_id,
-                                    uint64_t app_error_code,
+                                    stream_id stream_id,
+                                    error_code app_error_code,
                                     void* user_data,
                                     void* stream_user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
@@ -1718,7 +1718,7 @@ void Session::Send(const BaseObjectPtr<Packet>& packet,
   Send(packet);
 }
 
-uint64_t Session::SendDatagram(Store&& data) {
+datagram_id Session::SendDatagram(Store&& data) {
   DCHECK(!is_destroyed());
 
   // Sending a datagram is best effort. If we cannot send it for any reason,
@@ -1754,7 +1754,7 @@ uint64_t Session::SendDatagram(Store&& data) {
   ngtcp2_vec vec = data;
   PathStorage path;
   int flags = NGTCP2_WRITE_DATAGRAM_FLAG_MORE;
-  uint64_t did = impl_->state_->last_datagram_id + 1;
+  datagram_id did = impl_->state_->last_datagram_id + 1;
 
   Debug(this, "Sending %zu-byte datagram %" PRIu64, data.length(), did);
 
@@ -1924,7 +1924,7 @@ void Session::UpdatePath(const PathStorage& storage) {
         impl_->remote_address_);
 }
 
-BaseObjectPtr<Stream> Session::FindStream(int64_t id) const {
+BaseObjectPtr<Stream> Session::FindStream(stream_id id) const {
   if (is_destroyed()) return {};
   auto it = impl_->streams_.find(id);
   if (it == std::end(impl_->streams_)) return {};
@@ -1932,7 +1932,7 @@ BaseObjectPtr<Stream> Session::FindStream(int64_t id) const {
 }
 
 BaseObjectPtr<Stream> Session::CreateStream(
-    int64_t id,
+    stream_id id,
     CreateStreamOption option,
     std::shared_ptr<DataQueue> data_source) {
   if (!can_create_streams()) [[unlikely]]
@@ -1965,7 +1965,7 @@ MaybeLocal<Object> Session::OpenStream(Direction direction,
     return {};
   }
 
-  int64_t id = -1;
+  stream_id id = -1;
   auto open = [&] {
     switch (direction) {
       case Direction::BIDIRECTIONAL: {
@@ -2061,7 +2061,7 @@ void Session::AddStream(BaseObjectPtr<Stream> stream,
   }
 }
 
-void Session::RemoveStream(int64_t id) {
+void Session::RemoveStream(stream_id id) {
   DCHECK(!is_destroyed());
   Debug(this, "Removing stream %" PRIi64 " from session", id);
   if (!is_in_draining_period() && !is_in_closing_period() &&
@@ -2093,13 +2093,13 @@ void Session::RemoveStream(int64_t id) {
   }
 }
 
-void Session::ResumeStream(int64_t id) {
+void Session::ResumeStream(stream_id id) {
   DCHECK(!is_destroyed());
   SendPendingDataScope send_scope(this);
   application().ResumeStream(id);
 }
 
-void Session::ShutdownStream(int64_t id, QuicError error) {
+void Session::ShutdownStream(stream_id id, QuicError error) {
   DCHECK(!is_destroyed());
   Debug(this, "Shutting down stream %" PRIi64 " with error %s", id, error);
   SendPendingDataScope send_scope(this);
@@ -2111,7 +2111,7 @@ void Session::ShutdownStream(int64_t id, QuicError error) {
                                   : application().GetNoErrorCode());
 }
 
-void Session::ShutdownStreamWrite(int64_t id, QuicError code) {
+void Session::ShutdownStreamWrite(stream_id id, QuicError code) {
   DCHECK(!is_destroyed());
   Debug(this, "Shutting down stream %" PRIi64 " write with error %s", id, code);
   SendPendingDataScope send_scope(this);
@@ -2123,7 +2123,7 @@ void Session::ShutdownStreamWrite(int64_t id, QuicError code) {
                                         : application().GetNoErrorCode());
 }
 
-void Session::StreamDataBlocked(int64_t id) {
+void Session::StreamDataBlocked(stream_id id) {
   DCHECK(!is_destroyed());
   auto& stats_ = impl_->stats_;
   STAT_INCREMENT(Stats, block_count);
@@ -2217,7 +2217,7 @@ void Session::set_priority_supported(bool on) {
   impl_->state_->priority_supported = on ? 1 : 0;
 }
 
-void Session::ExtendStreamOffset(int64_t id, size_t amount) {
+void Session::ExtendStreamOffset(stream_id id, size_t amount) {
   DCHECK(!is_destroyed());
   Debug(this, "Extending stream %" PRIi64 " offset by %zu bytes", id, amount);
   ngtcp2_conn_extend_max_stream_offset(*this, id, amount);
@@ -2341,7 +2341,8 @@ void Session::UpdateTimer() {
   impl_->timer_.Update(timeout == 0 ? 1 : timeout);
 }
 
-void Session::DatagramStatus(uint64_t datagramId, quic::DatagramStatus status) {
+void Session::DatagramStatus(datagram_id datagramId,
+                             quic::DatagramStatus status) {
   DCHECK(!is_destroyed());
   auto& stats_ = impl_->stats_;
   switch (status) {
@@ -2478,7 +2479,7 @@ void Session::ProcessPendingBidiStreams() {
   // It shouldn't be possible to get here if can_create_streams() is false.
   DCHECK(can_create_streams());
 
-  int64_t id;
+  stream_id id;
 
   while (!impl_->pending_bidi_stream_queue_.IsEmpty()) {
     if (ngtcp2_conn_get_streams_bidi_left(*this) == 0) {
@@ -2511,7 +2512,7 @@ void Session::ProcessPendingUniStreams() {
   // It shouldn't be possible to get here if can_create_streams() is false.
   DCHECK(can_create_streams());
 
-  int64_t id;
+  stream_id id;
 
   while (!impl_->pending_uni_stream_queue_.IsEmpty()) {
     if (ngtcp2_conn_get_streams_uni_left(*this) == 0) {
@@ -2583,7 +2584,7 @@ void Session::EmitDatagram(Store&& datagram, DatagramReceivedFlags flag) {
                argv);
 }
 
-void Session::EmitDatagramStatus(uint64_t id, quic::DatagramStatus status) {
+void Session::EmitDatagramStatus(datagram_id id, quic::DatagramStatus status) {
   DCHECK(!is_destroyed());
 
   if (!env()->can_call_into_js()) return;

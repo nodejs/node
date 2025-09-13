@@ -316,6 +316,8 @@ constexpr auto kSocketAddressInfoTimeout = 60 * NGTCP2_SECONDS;
 constexpr size_t kMaxVectorCount = 16;
 
 using error_code = uint64_t;
+using stream_id = int64_t;
+using datagram_id = uint64_t;
 
 class DebugIndentScope final {
  public:
