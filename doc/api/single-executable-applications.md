@@ -241,11 +241,11 @@ See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][],
 ### Startup snapshot support
 
 The `useSnapshot` field can be used to enable startup snapshot support. In this
-case the `main` script would not be when the final executable is launched.
+case, the `main` script would not be executed when the final executable is launched.
 Instead, it would be run when the single executable application preparation
 blob is generated on the building machine. The generated preparation blob would
 then include a snapshot capturing the states initialized by the `main` script.
-The final executable with the preparation blob injected would deserialize
+The final executable, with the preparation blob injected, would deserialize
 the snapshot at run time.
 
 When `useSnapshot` is true, the main script must invoke the
