@@ -2328,6 +2328,19 @@ The references returned by `process.getBuiltinModule(id)` always point to
 the built-in module corresponding to `id` even if users modify
 [`require.cache`][] so that `require(id)` returns something else.
 
+## `process.getNotifications()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {Array<bigint>} A list of notifications registered in the current thread.
+
+Return the list of all notifications registered in the current thread via
+[`process.registerNotification(callback)`](#processregisternotificationcallback).
+
 ## `process.getegid()`
 
 <!-- YAML
@@ -3100,6 +3113,21 @@ the [`'warning'` event][process_warning] and the
 [`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
 
+## `process.notify(id)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `id` {bigint}: The notification ID
+
+Triggers the notification previously registered via [`process.registerNotification(callback)`](#processregisternotificationcallback).
+
+It will throw an error if the notification is not found.  It is safe to invoke a notification
+registered in the same thread.
+
 ## `process.permission`
 
 <!-- YAML
@@ -3252,6 +3280,24 @@ implemented by using `ref()` and `unref()` methods directly on the objects.
 This pattern, however, is being deprecated in favor of the "Refable protocol"
 in order to better support Web Platform API types whose APIs cannot be modified
 to add `ref()` and `unref()` methods but still need to support that behavior.
+
+## `process.registerNotification(callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `callback` {Function} A function to execute when the notification is received.
+* Returns: {bigint} The notification ID
+
+Register a callback associated to a notification.
+
+A notification is a number which can be safely transferred and used in other threads to trigger
+the associated callback via [`process.notify(id`)](#processnotifyid).
+
+The notification can be unregistered using [`process.unregisterNotification(id)`](#processunregisternotificationid).
 
 ## `process.release`
 
@@ -4339,6 +4385,21 @@ implemented by using `ref()` and `unref()` methods directly on the objects.
 This pattern, however, is being deprecated in favor of the "Refable protocol"
 in order to better support Web Platform API types whose APIs cannot be modified
 to add `ref()` and `unref()` methods but still need to support that behavior.
+
+## `process.unregisterNotification(id)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `id` {number}
+
+Unregister a notification previously registered with [`process.registerNotification(callback)`](#processregisternotificationcallback).
+
+It will throw an error if the notification is not found. The notification must be unregistered from the same thread
+that registered it.
 
 ## `process.uptime()`
 
