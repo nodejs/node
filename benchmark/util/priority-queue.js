@@ -6,7 +6,7 @@ const bench = common.createBenchmark(main, {
   n: [1e5],
 }, { flags: ['--expose-internals'] });
 
-function main({ n, type }) {
+function main({ n }) {
   const PriorityQueue = require('internal/priority_queue');
   const queue = new PriorityQueue();
   bench.start();
