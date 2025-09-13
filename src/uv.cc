@@ -71,12 +71,13 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (env->options()->pending_deprecation && env->EmitErrNameWarning()) {
     if (ProcessEmitDeprecationWarning(
-        env,
-        "Directly calling process.binding('uv').errname(<val>) is being"
-        " deprecated. "
-        "Please make sure to use util.getSystemErrorName() instead.",
-        "DEP0119").IsNothing())
-    return;
+            env,
+            "Directly calling process.binding('uv').errname(<val>) is being"
+            " deprecated. "
+            "Please make sure to use util.getSystemErrorName() instead.",
+            "DEP0119")
+            .IsNothing())
+      return;
   }
   int err = args[0].As<v8::Int32>()->Value();
   CHECK_LT(err, 0);
@@ -86,9 +87,8 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
 }
 
 void GetErrMap(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
 
   // This can't return a SafeMap, because the uv binding can be referenced
   // by user code by using `process.binding('uv').getErrorMap()`:
