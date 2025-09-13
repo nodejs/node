@@ -1,18 +1,10 @@
 'use strict';
 const { spawnPromisified, skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
-const tmpdir = require('../common/tmpdir');
-const { join } = require('node:path');
 const { DatabaseSync, constants } = require('node:sqlite');
 const { suite, test } = require('node:test');
 const { pathToFileURL } = require('node:url');
-let cnt = 0;
-
-tmpdir.refresh();
-
-function nextDb() {
-  return join(tmpdir.path, `database-${cnt++}.db`);
-}
+const { nextDb } = require('../sqlite/next-db.js');
 
 suite('accessing the node:sqlite module', () => {
   test('cannot be accessed without the node: scheme', (t) => {
