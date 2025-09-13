@@ -63,7 +63,7 @@ exports.createProxyServer = function(options = {}) {
     });
 
     res.on('error', (err) => {
-      logs.push({ error: err, source: 'proxy response' });
+      logs.push({ error: err, source: 'client response for request' });
     });
 
     req.pipe(proxyReq, { end: true });
@@ -75,7 +75,7 @@ exports.createProxyServer = function(options = {}) {
     const [hostname, port] = req.url.split(':');
 
     res.on('error', (err) => {
-      logs.push({ error: err, source: 'proxy response' });
+      logs.push({ error: err, source: 'client response for connect' });
     });
 
     const proxyReq = net.connect(port, hostname, () => {
@@ -90,7 +90,7 @@ exports.createProxyServer = function(options = {}) {
     });
 
     proxyReq.on('error', (err) => {
-      logs.push({ error: err, source: 'proxy request' });
+      logs.push({ error: err, source: 'proxy connect' });
       // The proxy client might have already closed the connection
       // when the upstream connection fails.
       if (!res.writableEnded) {
