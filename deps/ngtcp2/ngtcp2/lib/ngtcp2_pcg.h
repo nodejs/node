@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2017 ngtcp2 contributors
+ * Copyright (c) 2025 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,41 +22,33 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "ngtcp2_buf.h"
-#include "ngtcp2_mem.h"
+#ifndef NGTCP2_PCG_H
+#define NGTCP2_PCG_H
 
-void ngtcp2_buf_init(ngtcp2_buf *buf, uint8_t *begin, size_t len) {
-  buf->begin = buf->pos = buf->last = begin;
-  buf->end = begin + len;
-}
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif /* defined(HAVE_CONFIG_H) */
 
-void ngtcp2_buf_reset(ngtcp2_buf *buf) { buf->pos = buf->last = buf->begin; }
+#include <ngtcp2/ngtcp2.h>
 
-size_t ngtcp2_buf_cap(const ngtcp2_buf *buf) {
-  return (size_t)(buf->end - buf->begin);
-}
+typedef struct ngtcp2_pcg32 {
+  uint64_t state;
+} ngtcp2_pcg32;
 
-void ngtcp2_buf_trunc(ngtcp2_buf *buf, size_t len) {
-  if (ngtcp2_buf_len(buf) > len) {
-    buf->last = buf->pos + len;
-  }
-}
+/*
+ * ngtcp2_pcg32_init initializes |pcg| with |seed|.
+ */
+void ngtcp2_pcg32_init(ngtcp2_pcg32 *pcg, uint64_t seed);
 
-int ngtcp2_buf_chain_new(ngtcp2_buf_chain **pbufchain, size_t len,
-                         const ngtcp2_mem *mem) {
-  *pbufchain = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_buf_chain) + len);
-  if (*pbufchain == NULL) {
-    return NGTCP2_ERR_NOMEM;
-  }
+/*
+ * ngtcp2_pcg32_rand returns a random value in [0, UINT32_MAX].
+ */
+uint32_t ngtcp2_pcg32_rand(ngtcp2_pcg32 *pcg);
 
-  (*pbufchain)->next = NULL;
+/*
+ * ngtcp2_pcg32_rand_n returns a random value in [0, n).  |n| must not
+ * be zero.
+ */
+uint32_t ngtcp2_pcg32_rand_n(ngtcp2_pcg32 *pcg, uint32_t n);
 
-  ngtcp2_buf_init(&(*pbufchain)->buf,
-                  (uint8_t *)(*pbufchain) + sizeof(ngtcp2_buf_chain), len);
-
-  return 0;
-}
-
-void ngtcp2_buf_chain_del(ngtcp2_buf_chain *bufchain, const ngtcp2_mem *mem) {
-  ngtcp2_mem_free(mem, bufchain);
-}
+#endif /* !defined(NGTCP2_PCG_H) */
