@@ -85,6 +85,88 @@ assert.strictEqual(util.inspect(async () => {}), '[AsyncFunction (anonymous)]');
   );
 }
 
+// Null constructor scenarios
+{
+  function fnNull() {}
+  Object.setPrototypeOf(fnNull, null);
+  assert.strictEqual(
+    util.inspect(fnNull),
+    '[Function (null prototype): fnNull]'
+  );
+
+  function fnNullAndStringTag() {}
+  Object.defineProperty(fnNullAndStringTag, Symbol.toStringTag, {
+    value: 'CustomTag',
+    configurable: true
+  });
+  Object.setPrototypeOf(fnNullAndStringTag, null);
+  assert.strictEqual(
+    util.inspect(fnNullAndStringTag),
+    '[Function (null prototype): fnNullAndStringTag] [CustomTag]'
+  );
+
+  function fnAnonymous() {}
+  Object.defineProperty(fnAnonymous, Symbol.toStringTag, {
+    value: 'AnonymousCustom',
+    configurable: true
+  });
+  Object.setPrototypeOf(fnAnonymous, null);
+  assert.strictEqual(
+    util.inspect(fnAnonymous),
+    '[Function (null prototype): fnAnonymous] [AnonymousCustom]'
+  );
+
+  const fnArrow = () => {};
+  Object.setPrototypeOf(fnArrow, null);
+  assert.strictEqual(
+    util.inspect(fnArrow),
+    '[Function (null prototype): fnArrow]'
+  );
+
+  async function fnAsync() {}
+  Object.defineProperty(fnAsync, Symbol.toStringTag, {
+    value: 'AsyncCustom',
+    configurable: true
+  });
+  Object.setPrototypeOf(fnAsync, null);
+  assert.strictEqual(
+    util.inspect(fnAsync),
+    '[AsyncFunction (null prototype): fnAsync] [AsyncCustom]'
+  );
+
+  class TestClass {}
+  Object.defineProperty(TestClass, Symbol.toStringTag, {
+    value: 'ClassTag',
+    configurable: true
+  });
+  Object.setPrototypeOf(TestClass, null);
+  assert.strictEqual(
+    util.inspect(TestClass),
+    '[class TestClass [ClassTag] extends [null prototype]]'
+  );
+
+  function fnMatchConstructor() {}
+  Object.defineProperty(fnMatchConstructor, Symbol.toStringTag, {
+    value: 'Function',
+    configurable: true
+  });
+  assert.strictEqual(
+    util.inspect(fnMatchConstructor),
+    '[Function: fnMatchConstructor]'
+  );
+
+  function fnNullMatchConstructor() {}
+  Object.defineProperty(fnNullMatchConstructor, Symbol.toStringTag, {
+    value: 'Function',
+    configurable: true
+  });
+  Object.setPrototypeOf(fnNullMatchConstructor, null);
+  assert.strictEqual(
+    util.inspect(fnNullMatchConstructor),
+    '[Function (null prototype): fnNullMatchConstructor] [Function]'
+  );
+}
+
 assert.strictEqual(util.inspect(undefined), 'undefined');
 assert.strictEqual(util.inspect(null), 'null');
 assert.strictEqual(util.inspect(/foo(bar\n)?/gi), '/foo(bar\\n)?/gi');
@@ -1430,6 +1512,38 @@ if (typeof Symbol !== 'undefined') {
     util.inspect(Object.setPrototypeOf(x, null)),
     '[ObjectSubclass: null prototype] { foo: 42 }'
   );
+
+  class CustomClass {}
+  Object.defineProperty(CustomClass.prototype, Symbol.toStringTag, {
+    value: 'Custom',
+    configurable: true
+  });
+  assert.strictEqual(util.inspect(new CustomClass()),
+                     'CustomClass [Custom] {}');
+
+  class MapClass extends Map {}
+  Object.defineProperty(MapClass.prototype, Symbol.toStringTag, {
+    value: 'Map',
+    configurable: true
+  });
+  assert.strictEqual(util.inspect(new MapClass([['key', 'value']])),
+                     "MapClass(1) [Map] { 'key' => 'value' }");
+
+  class FooSet extends Set {}
+  Object.defineProperty(FooSet.prototype, Symbol.toStringTag, {
+    value: 'Set',
+    configurable: true
+  });
+  assert.strictEqual(util.inspect(new FooSet([1, 2, 3])),
+                     'FooSet(3) { 1, 2, 3 }');
+
+  class Settings extends Set {}
+  Object.defineProperty(Settings.prototype, Symbol.toStringTag, {
+    value: 'Set',
+    configurable: true
+  });
+  assert.strictEqual(util.inspect(new Settings([1, 2, 3])),
+                     'Settings(3) [Set] { 1, 2, 3 }');
 }
 
 // Empty and circular before depth.
