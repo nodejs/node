@@ -3537,6 +3537,9 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59778
+    description: Add optimizeEmptyRequests option.
   - version:
     - v20.1.0
     - v18.17.0
@@ -3631,6 +3634,12 @@ changes:
     using `; `.
   * `rejectNonStandardBodyWrites` {boolean} If set to `true`, an error is thrown
     when writing to an HTTP response which does not have a body.
+    **Default:** `false`.
+  * `optimizeEmptyRequests` {boolean} If set to `true`, requests without `Content-Length`
+    or `Transfer-Encoding` headers (indicating no body) will be initialized with an
+    already-ended body stream, so they will never emit any stream events
+    (like `'data'` or `'end'`). You can use `req.readableEnded` to detect this case.
+    This option is still under experimental phase.
     **Default:** `false`.
 
 * `requestListener` {Function}
