@@ -8,6 +8,7 @@ This file documents various terms and definitions used throughout the Node.js co
 * **API**: [Application Programming Interface][] - A set of rules and protocols that allows different software
   applications to communicate with each other. APIs are used to enable integration between different systems.
 * **ASAP**: As Soon As Possible.
+* **ASLR**: Address Space Layout Randomization. A security technique that randomizes memory addresses to prevent certain attacks.
 * **BE**: Big [Endian][] - A Byte Order where the largest bit comes first. The opposite of **LE**.
 * **Bootstrap**: Early phase in the Node.js process startup - sets up the execution environment and loads internal
   modules.
@@ -44,6 +45,8 @@ This file documents various terms and definitions used throughout the Node.js co
 * **IETF**: [Internet Engineering Task Force][] - An international community responsible for developing and promoting
   Internet standards.
 * **IIRC**: If I Recall Correctly.
+* **AFAICT**: As Far As I Can Tell.
+* **AFAIK**: As Far As I Know.
 * **IIUC**: If I Understand Correctly.
 * **IMHO**: In My Humble/Honest Opinion.
 * **IMO**: In My Opinion.
@@ -104,6 +107,9 @@ This file documents various terms and definitions used throughout the Node.js co
 * **WHATWG**: [Web Hypertext Application Technology Working Group][] - Community developing web standards.
 * **WIP**: Work In Progress - Unfinished work that may be worth an early look.
 * **WPT**: [web-platform-tests][] - Test suite for web platform APIs.
+* **Backport**: The process of applying a fix or feature from a newer branch to an older supported branch (e.g., applying a security fix to an LTS release).
+* **BE** ([Big Endian]): Byte order in which the most significant byte is stored first in memory. Opposite of **LE** (Little Endian).
+* **Breaking change**: Any change that is not backward compatible and may require users to change their code.
 
 [Application Binary Interface]: https://en.wikipedia.org/wiki/Application_binary_interface
 [Application Programming Interface]: https://en.wikipedia.org/wiki/Application_programming_interface
