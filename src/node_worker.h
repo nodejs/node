@@ -5,6 +5,7 @@
 
 #include <optional>
 #include <unordered_map>
+#include "json_utils.h"
 #include "node_exit_code.h"
 #include "node_messaging.h"
 #include "uv.h"
@@ -84,6 +85,8 @@ class Worker : public AsyncWrap {
   static void CpuUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StartCpuProfile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopCpuProfile(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void StartHeapProfile(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void StopHeapProfile(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
   bool CreateEnvMessagePort(Environment* env);
