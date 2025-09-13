@@ -32,6 +32,7 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::random_random
     absl::sample_recorder
     absl::time
     GTest::gmock_main
@@ -91,3 +92,40 @@ absl_cc_test(
     GTest::gmock_main
 )
 
+# Internal-only target, do not depend on directly
+absl_cc_library(
+  NAME
+    profile_builder
+  HDRS
+    "internal/profile_builder.h"
+  SRCS
+    "internal/profile_builder.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+    absl::core_headers
+    absl::raw_logging_internal
+    absl::flat_hash_map
+    absl::btree
+    absl::strings
+    absl::span
+)
+
+absl_cc_library(
+  NAME
+    hashtable_profiler
+  HDRS
+    "hashtable.h"
+  SRCS
+    "hashtable.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::profile_builder
+    absl::config
+    absl::core_headers
+    absl::strings
+    absl::span
+    absl::hashtablez_sampler
+)

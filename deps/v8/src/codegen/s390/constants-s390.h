@@ -1543,7 +1543,9 @@ using SixByteInstr = uint64_t;
   V(clhhr, CLHHR, 0xB9CF)     /* type = RRE   COMPARE LOGICAL HIGH (32)  */    \
   V(chlr, CHLR, 0xB9DD)       /* type = RRE   COMPARE HIGH (32)  */            \
   V(clhlr, CLHLR, 0xB9DF)     /* type = RRE   COMPARE LOGICAL HIGH (32)  */    \
-  V(popcnt, POPCNT_Z, 0xB9E1) /* type = RRE   POPULATION COUNT  */
+  V(popcnt, POPCNT_Z, 0xB9E1) /* type = RRE   POPULATION COUNT  */             \
+  V(clzg, CLZG, 0xB968)       /* type = RRE   COUNT LEADING ZEROS  */          \
+  V(ctzg, CTZG, 0xB969)       /* type = RRE   COUNT TRAILING ZEROS  */
 
 #define S390_RIE_C_OPCODE_LIST(V)                                             \
   V(cgij, CGIJ,                                                               \
@@ -2533,6 +2535,10 @@ class DoubleRegisters {
  private:
   static const char* names_[kNumDoubleRegisters];
 };
+
+// The maximum size of the stack restore after a fast API call that pops the
+// stack parameters of the call off the stack.
+constexpr int kMaxSizeOfMoveAfterFastCall = 6;
 
 }  // namespace internal
 }  // namespace v8

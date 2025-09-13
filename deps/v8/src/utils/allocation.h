@@ -152,10 +152,10 @@ V8_EXPORT_PRIVATE void* GetRandomMmapAddr();
 // AllocatePageSize(). Returns the address of the allocated memory, with the
 // specified size and alignment, or nullptr on failure.
 V8_EXPORT_PRIVATE
-V8_WARN_UNUSED_RESULT void* AllocatePages(v8::PageAllocator* page_allocator,
-                                          void* address, size_t size,
-                                          size_t alignment,
-                                          PageAllocator::Permission access);
+V8_WARN_UNUSED_RESULT void* AllocatePages(
+    v8::PageAllocator* page_allocator, size_t size, size_t alignment,
+    PageAllocator::Permission access,
+    v8::PageAllocator::AllocationHint hint = {});
 
 // Frees memory allocated by a call to AllocatePages. |address| and |size| must
 // be multiples of AllocatePageSize().
@@ -203,8 +203,8 @@ class VirtualMemory final {
   // size. The |size| must be aligned with |page_allocator|'s commit page size.
   // This may not be at the position returned by address().
   V8_EXPORT_PRIVATE VirtualMemory(
-      v8::PageAllocator* page_allocator, size_t size, void* hint,
-      size_t alignment = 1,
+      v8::PageAllocator* page_allocator, size_t size,
+      PageAllocator::AllocationHint hint = {}, size_t alignment = 1,
       PageAllocator::Permission permissions = PageAllocator::kNoAccess);
 
   // Construct a virtual memory by assigning it some already mapped address

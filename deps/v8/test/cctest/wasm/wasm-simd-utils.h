@@ -10,7 +10,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-opcodes.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 #include "src/compiler/turboshaft/wasm-revec-phase.h"
@@ -72,7 +72,6 @@ class TSSimd256VerifyScope {
           TSSimd256VerifyScope::VerifyHaveAnySimd256Op,
       ExpectedResult expected = ExpectedResult::kPass)
       : expected_(expected) {
-
     std::function<void(const compiler::turboshaft::Graph&)> handler =
         [raw_handler, this](const compiler::turboshaft::Graph& graph) {
           check_pass_ = raw_handler(graph);
@@ -208,8 +207,8 @@ void RunI64x2ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                          Int64ShiftOp expected_op);
 
 // Generic expected value functions.
-template <typename T, typename = typename std::enable_if<
-                          std::is_floating_point<T>::value>::type>
+template <typename T,
+          typename = typename std::enable_if_t<std::is_floating_point_v<T>>>
 T Negate(T a) {
   return -a;
 }
@@ -348,8 +347,12 @@ void RunI64x4BinOpRevecTest(WasmOpcode opcode, Int64BinOp expected_op,
                             compiler::IrOpcode::Value revec_opcode);
 void RunF64x4BinOpRevecTest(WasmOpcode opcode, DoubleBinOp expected_op,
                             compiler::IrOpcode::Value revec_opcode);
+void RunF64x4CompareOpRevecTest(WasmOpcode opcode, DoubleBinOp expected_op,
+                                compiler::IrOpcode::Value revec_opcode);
 void RunF32x8BinOpRevecTest(WasmOpcode opcode, FloatBinOp expected_op,
                             compiler::IrOpcode::Value revec_opcode);
+void RunF32x8CompareOpRevecTest(WasmOpcode opcode, FloatBinOp expected_op,
+                                compiler::IrOpcode::Value revec_opcode);
 
 void RunI16x16ShiftOpRevecTest(WasmOpcode opcode, Int16ShiftOp expected_op,
                                compiler::IrOpcode::Value revec_opcode);

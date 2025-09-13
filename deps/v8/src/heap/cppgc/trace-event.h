@@ -166,13 +166,12 @@ static V8_INLINE uint64_t AddTraceEventImpl(
 // structures so that it is portable to third_party libraries.
 // This is the base implementation for integer types (including bool) and enums.
 template <typename T>
-static V8_INLINE typename std::enable_if<
-    std::is_integral<T>::value || std::is_enum<T>::value, void>::type
-SetTraceValue(T arg, unsigned char* type, uint64_t* value) {
-  *type = std::is_same<T, bool>::value
-              ? TRACE_VALUE_TYPE_BOOL
-              : std::is_signed<T>::value ? TRACE_VALUE_TYPE_INT
-                                         : TRACE_VALUE_TYPE_UINT;
+static V8_INLINE
+    typename std::enable_if_t<std::is_integral_v<T> || std::is_enum_v<T>, void>
+    SetTraceValue(T arg, unsigned char* type, uint64_t* value) {
+  *type = std::is_same_v<T, bool> ? TRACE_VALUE_TYPE_BOOL
+          : std::is_signed_v<T>   ? TRACE_VALUE_TYPE_INT
+                                  : TRACE_VALUE_TYPE_UINT;
   *value = static_cast<uint64_t>(arg);
 }
 

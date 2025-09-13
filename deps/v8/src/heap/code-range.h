@@ -8,10 +8,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include "include/v8-internal.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/utils/allocation.h"
-#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {

@@ -254,7 +254,7 @@ Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
 
 DirectHandle<Code> WrapWithCFunction(Isolate* isolate, Handle<Code> inner,
                                      CallDescriptor* call_descriptor) {
-  Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
+  Zone zone(isolate->allocator(), ZONE_NAME);
   int param_count = static_cast<int>(call_descriptor->ParameterCount());
   GraphAndBuilders caller(&zone);
   {
@@ -420,7 +420,7 @@ class Computer {
     Handle<Code> inner;
     {
       // Build the graph for the computation.
-      Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
+      Zone zone(isolate->allocator(), ZONE_NAME);
       TFGraph graph(&zone);
       RawMachineAssembler raw(isolate, &graph, desc);
       build(desc, &raw);
@@ -435,7 +435,7 @@ class Computer {
       DirectHandle<Code> wrapper;
       {
         // Wrap the above code with a callable function that passes constants.
-        Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
+        Zone zone(isolate->allocator(), ZONE_NAME);
         TFGraph graph(&zone);
         CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
@@ -469,7 +469,7 @@ class Computer {
       DirectHandle<Code> wrapper;
       {
         // Wrap the above code with a callable function that loads from {input}.
-        Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
+        Zone zone(isolate->allocator(), ZONE_NAME);
         TFGraph graph(&zone);
         CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
@@ -510,7 +510,7 @@ class Computer {
 static void TestInt32Sub(CallDescriptor* desc) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
-  Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
+  Zone zone(isolate->allocator(), ZONE_NAME);
   GraphAndBuilders inner(&zone);
   {
     // Build the add function.
@@ -552,7 +552,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
   Handle<Code> inner;
   {
     // Writes all parameters into the output buffer.
-    Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
+    Zone zone(isolate->allocator(), ZONE_NAME);
     TFGraph graph(&zone);
     RawMachineAssembler raw(isolate, &graph, desc);
     Node* base = raw.PointerConstant(output);
@@ -569,7 +569,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
   DirectHandle<Code> wrapper;
   {
     // Loads parameters from the input buffer and calls the above code.
-    Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
+    Zone zone(isolate->allocator(), ZONE_NAME);
     TFGraph graph(&zone);
     CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
     RawMachineAssembler raw(isolate, &graph, cdesc);
@@ -943,7 +943,7 @@ static void Build_Select_With_Call(CallDescriptor* desc,
   {
     Isolate* isolate = CcTest::InitIsolateOnce();
     // Build the actual select.
-    Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
+    Zone zone(isolate->allocator(), ZONE_NAME);
     TFGraph graph(&zone);
     RawMachineAssembler r(isolate, &graph, desc);
     r.Return(r.Parameter(which));
@@ -1039,7 +1039,7 @@ void MixedParamTest(int start) {
     Handle<Code> select;
     {
       // build the select.
-      Zone select_zone(&allocator, ZONE_NAME, kCompressGraphZone);
+      Zone select_zone(&allocator, ZONE_NAME);
       TFGraph graph(&select_zone);
       RawMachineAssembler raw(isolate, &graph, desc);
       raw.Return(raw.Parameter(which));
@@ -1056,7 +1056,7 @@ void MixedParamTest(int start) {
       CSignatureOf<int32_t> csig;
       {
         // Wrap the select code with a callable function that passes constants.
-        Zone wrap_zone(&allocator, ZONE_NAME, kCompressGraphZone);
+        Zone wrap_zone(&allocator, ZONE_NAME);
         TFGraph graph(&wrap_zone);
         CallDescriptor* cdesc =
             Linkage::GetSimplifiedCDescriptor(&wrap_zone, &csig);
@@ -1141,7 +1141,7 @@ void TestStackSlot(MachineType slot_type, T expected) {
   Allocator ralloc(rarray_gp, 1, rarray_fp, 1);
   RegisterConfig config(palloc, ralloc);
 
-  Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
+  Zone zone(isolate->allocator(), ZONE_NAME);
   HandleScope scope(isolate);
   MachineSignature::Builder builder(&zone, 1, 12);
   builder.AddReturn(MachineType::Int32());

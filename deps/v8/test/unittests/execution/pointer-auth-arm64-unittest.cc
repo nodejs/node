@@ -152,9 +152,11 @@ TEST_F(PointerAuthArm64Test, ReplacePCAfterGC) {
 
   // Allocate a page and mark it inaccessible, to simulate a code address to a
   // page that was reclaimed after a GC.
-  Address pc = reinterpret_cast<Address>(v8::internal::AllocatePages(
-      page_allocator, page_allocator->GetRandomMmapAddr(), page_size, page_size,
-      PageAllocator::Permission::kReadWrite));
+  auto hint = PageAllocator::AllocationHint().WithAddress(
+      page_allocator->GetRandomMmapAddr());
+  Address pc = reinterpret_cast<Address>(
+      v8::internal::AllocatePages(page_allocator, page_size, page_size,
+                                  PageAllocator::Permission::kReadWrite, hint));
   CHECK(SetPermissions(page_allocator, pc, page_size,
                        PageAllocator::Permission::kNoAccess));
 

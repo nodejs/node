@@ -92,6 +92,7 @@ class V8_EXPORT_PRIVATE OperationTyper {
   Type CheckBounds(Type index, Type length);
   Type CheckFloat64Hole(Type type);
   Type CheckNumber(Type type);
+  Type CheckNumberOrUndefined(Type type);
   Type CheckNumberFitsInt32(Type type);
   Type ConvertTaggedHoleToUndefined(Type type);
 

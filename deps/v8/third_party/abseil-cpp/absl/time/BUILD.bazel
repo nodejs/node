@@ -14,6 +14,9 @@
 # limitations under the License.
 #
 
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
@@ -99,6 +102,7 @@ cc_test(
         "//absl/base:core_headers",
         "//absl/hash:hash_testing",
         "//absl/numeric:int128",
+        "//absl/random",
         "//absl/strings:str_format",
         "//absl/time/internal/cctz:time_zone",
         "@googletest//:gtest",
@@ -117,6 +121,7 @@ cc_test(
         "no_test_android_arm",
         "no_test_android_arm64",
         "no_test_android_x86",
+        "no_test_ios_sim_arm64",
         "no_test_ios_x86_64",
         "no_test_lexan",
         "no_test_loonix",

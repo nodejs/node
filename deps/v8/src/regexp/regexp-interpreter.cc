@@ -172,6 +172,7 @@ class BacktrackStack {
 class InterpreterRegisters {
  public:
   using RegisterT = int;
+  static constexpr int kNoMatchValue = -1;
 
   InterpreterRegisters(int total_register_count, RegisterT* output_registers,
                        int output_register_count)
@@ -188,7 +189,7 @@ class InterpreterRegisters {
     DCHECK_NOT_NULL(output_registers);
 
     // Initialize the output register region to -1 signifying 'no match'.
-    std::memset(registers_.data(), -1,
+    std::memset(registers_.data(), kNoMatchValue,
                 output_register_count * sizeof(RegisterT));
     USE(total_register_count_);
   }
@@ -300,7 +301,7 @@ IrregexpInterpreter::Result HandleInterrupts(
         AllowGarbageCollection yes_gc;
         result = isolate->stack_guard()->HandleInterrupts();
       }
-      if (IsException(result, isolate)) {
+      if (IsExceptionHole(result, isolate)) {
         return IrregexpInterpreter::EXCEPTION;
       }
 
@@ -417,13 +418,12 @@ IrregexpInterpreter::Result RawMatch(
 // Fill dispatch table from last defined bytecode up to the next power of two
 // with BREAK (invalid operation).
 // TODO(pthier): Find a way to fill up automatically (at compile time)
-// 59 real bytecodes -> 5 fillers
+// 60 real bytecodes -> 4 fillers
 #define BYTECODE_FILLER_ITERATOR(V) \
   V(BREAK) /* 1 */                  \
   V(BREAK) /* 2 */                  \
   V(BREAK) /* 3 */                  \
-  V(BREAK) /* 4 */                  \
-  V(BREAK) /* 5 */
+  V(BREAK) /* 4 */
 
 #define COUNT(...) +1
   static constexpr int kRegExpBytecodeFillerCount =
@@ -503,6 +503,16 @@ IrregexpInterpreter::Result RawMatch(
       registers[LoadPacked24Unsigned(insn)] = Load32Aligned(pc + 4);
       DISPATCH();
     }
+    BYTECODE(CLEAR_REGISTERS) {
+      ADVANCE(CLEAR_REGISTERS);
+      uint16_t from_reg = Load16AlignedUnsigned(pc + 4);
+      uint16_t to_reg = Load16AlignedUnsigned(pc + 6);
+      SBXCHECK_LE(from_reg, to_reg);
+      for (uint16_t i = from_reg; i <= to_reg; ++i) {
+        registers[i] = InterpreterRegisters::kNoMatchValue;
+      }
+      DISPATCH();
+    }
     BYTECODE(ADVANCE_REGISTER) {
       ADVANCE(ADVANCE_REGISTER);
       registers[LoadPacked24Unsigned(insn)] += Load32Aligned(pc + 4);
@@ -578,12 +588,12 @@ IrregexpInterpreter::Result RawMatch(
       ADVANCE_CURRENT_POSITION(LoadPacked24Signed(insn));
       DISPATCH();
     }
-    BYTECODE(CHECK_GREEDY) {
+    BYTECODE(CHECK_FIXED_LENGTH) {
       if (current == backtrack_stack.peek()) {
         SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
         backtrack_stack.pop();
       } else {
-        ADVANCE(CHECK_GREEDY);
+        ADVANCE(CHECK_FIXED_LENGTH);
       }
       DISPATCH();
     }
@@ -923,7 +933,7 @@ IrregexpInterpreter::Result RawMatch(
     }
     BYTECODE(CHECK_CURRENT_POSITION) {
       int pos = current + LoadPacked24Signed(insn);
-      if (pos > subject.length() || pos < 0) {
+      if (pos >= subject.length() || pos < 0) {
         SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
       } else {
         ADVANCE(CHECK_CURRENT_POSITION);
@@ -1177,10 +1187,17 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
 
 // This method is called through an external reference from RegExpExecInternal
 // builtin.
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+// Hardware sandboxing is incompatible with ASAN, see crbug.com/432168626.
+DISABLE_ASAN
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 int IrregexpInterpreter::MatchForCallFromJs(
     Address subject, int32_t start_position, Address, Address,
     int* output_registers, int32_t output_register_count,
     RegExp::CallOrigin call_origin, Isolate* isolate, Address regexp_data) {
+  // TODO(422992937): investigate running the interpreter in sandboxed mode.
+  ExitSandboxScope unsandboxed;
+
   DCHECK_NOT_NULL(isolate);
   DCHECK_NOT_NULL(output_registers);
   DCHECK(call_origin == RegExp::CallOrigin::kFromJs);
@@ -1192,7 +1209,7 @@ int IrregexpInterpreter::MatchForCallFromJs(
 
   Tagged<String> subject_string = Cast<String>(Tagged<Object>(subject));
   Tagged<IrRegExpData> regexp_data_obj =
-      Cast<IrRegExpData>(Tagged<Object>(regexp_data));
+      SbxCast<IrRegExpData>(Tagged<Object>(regexp_data));
 
   if (regexp_data_obj->MarkedForTierUp()) {
     // Returning RETRY will re-enter through runtime, where actual recompilation

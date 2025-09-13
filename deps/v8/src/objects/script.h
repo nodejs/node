@@ -41,7 +41,6 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // script list.
   static constexpr int kTemporaryScriptId = -2;
 
-  NEVER_READ_ONLY_SPACE
   // Script types.
   enum class Type {
     kNative = 0,

@@ -25,9 +25,10 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
                                          size_t chunk_size, Address area_start,
                                          Address area_end,
                                          VirtualMemory reservation,
-                                         PageSize page_size)
+                                         PageSize page_size,
+                                         Executability executability)
     : MemoryChunkMetadata(heap, space, chunk_size, area_start, area_end,
-                          std::move(reservation)) {
+                          std::move(reservation), executability) {
   DCHECK_NE(space->identity(), RO_SPACE);
 
   if (page_size == PageSize::kRegular) {
@@ -35,10 +36,6 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
     active_system_pages_->Init(
         sizeof(MemoryChunk), MemoryAllocator::GetCommitPageSizeBits(), size());
   }
-
-  // We do not track active system pages for large pages and use this fact for
-  // `IsLargePage()`.
-  DCHECK_EQ(page_size == PageSize::kLarge, IsLargePage());
 
   // TODO(sroettger): The following fields are accessed most often (AFAICT) and
   // are moved to the end to occupy the same cache line as the slot set array.
@@ -59,59 +56,132 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
   static_assert(kOffsetOfFirstFastField / 64 == kOffsetOfLastFastField / 64);
 }
 
-MemoryChunk::MainThreadFlags MutablePageMetadata::InitialFlags(
-    Executability executable) const {
-  MemoryChunk::MainThreadFlags flags = MemoryChunk::NO_FLAGS;
+// static
+MemoryChunk::MainThreadFlags MutablePageMetadata::OldGenerationPageFlags(
+    MarkingMode marking_mode, AllocationSpace space) {
+  MemoryChunk::MainThreadFlags flags_to_set = MemoryChunk::NO_FLAGS;
 
-  if (owner()->identity() == NEW_SPACE || owner()->identity() == NEW_LO_SPACE) {
-    flags |= MemoryChunk::YoungGenerationPageFlags(
-        heap()->incremental_marking()->marking_mode());
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+  if constexpr (v8_flags.sticky_mark_bits.value()) {
+    if (space != OLD_SPACE) {
+      flags_to_set |= MemoryChunk::STICKY_MARK_BIT_CONTAINS_ONLY_OLD;
+    }
+  }
+#endif  // V8_ENABLE_STICKY_MARK_BITS_BOOL
+
+  if (marking_mode == MarkingMode::kMajorMarking) {
+    flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING |
+                    MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
+                    MemoryChunk::INCREMENTAL_MARKING;
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+    flags_to_set |= MemoryChunk::STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS;
+#endif
+  } else if (IsAnyWritableSharedSpace(space)) {
+    // We need to track pointers into the SHARED_SPACE for OLD_TO_SHARED.
+    flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
   } else {
-    flags |= MemoryChunk::OldGenerationPageFlags(
-        heap()->incremental_marking()->marking_mode(), owner()->identity());
+    flags_to_set |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING;
+    if (marking_mode == MarkingMode::kMinorMarking) {
+      flags_to_set |= MemoryChunk::INCREMENTAL_MARKING;
+    }
   }
 
-  if (executable == EXECUTABLE) {
-    flags |= MemoryChunk::IS_EXECUTABLE;
-    // Executable chunks are also trusted as they contain machine code and live
-    // outside the sandbox (when it is enabled). While mostly symbolic, this is
-    // needed for two reasons:
-    // 1. We have the invariant that IsTrustedObject(obj) implies
-    //    IsTrustedSpaceObject(obj), where IsTrustedSpaceObject checks the
-    //   MemoryChunk::IS_TRUSTED flag on the host chunk. As InstructionStream
-    //   objects are
-    //    trusted, their host chunks must also be marked as such.
-    // 2. References between trusted objects must use the TRUSTED_TO_TRUSTED
-    //    remembered set. However, that will only be used if both the host
-    //    and the value chunk are marked as IS_TRUSTED.
-    flags |= MemoryChunk::IS_TRUSTED;
+  return flags_to_set;
+}
+
+// static
+MemoryChunk::MainThreadFlags MutablePageMetadata::YoungGenerationPageFlags(
+    MarkingMode marking_mode) {
+  MemoryChunk::MainThreadFlags flags =
+      MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
+  if (marking_mode != MarkingMode::kNoMarking) {
+    flags |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING;
+    flags |= MemoryChunk::INCREMENTAL_MARKING;
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+    if (marking_mode == MarkingMode::kMajorMarking) {
+      flags |= MemoryChunk::STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS;
+    }
+#endif
+  }
+  return flags;
+}
+
+MemoryChunk::MainThreadFlags MutablePageMetadata::ComputeInitialFlags(
+    Executability executable) const {
+  const AllocationSpace space = owner()->identity();
+  MemoryChunk::MainThreadFlags flags = MemoryChunk::NO_FLAGS;
+
+  if (IsAnyNewSpace(space)) {
+    flags |=
+        YoungGenerationPageFlags(heap()->incremental_marking()->marking_mode());
+  } else {
+    flags |= OldGenerationPageFlags(
+        heap()->incremental_marking()->marking_mode(), space);
+    if (!IsAnyLargeSpace(space) &&
+        heap()->incremental_marking()->black_allocation() &&
+        v8_flags.black_allocated_pages) {
+      // Disable the write barrier for objects pointing to this page. We don't
+      // need to trigger the barrier for pointers to old black-allocated pages,
+      // since those are never considered for evacuation. However, we have to
+      // keep the old->shared remembered set across multiple GCs, so those
+      // pointers still need to be recorded.
+      if (!IsAnyWritableSharedSpace(space)) {
+        flags &= ~MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
+      }
+      // And mark the page as black allocated.
+      flags |= MemoryChunk::BLACK_ALLOCATED;
+    }
   }
 
   // All pages of a shared heap need to be marked with this flag.
-  if (InSharedSpace()) {
+  if (IsAnyWritableSharedSpace(space)) {
     flags |= MemoryChunk::IN_WRITABLE_SHARED_SPACE;
   }
-
-  // All pages belonging to a trusted space need to be marked with this flag.
-  if (InTrustedSpace()) {
-    flags |= MemoryChunk::IS_TRUSTED;
-  }
-
-  // "Trusted" chunks should never be located inside the sandbox as they
-  // couldn't be trusted in that case.
-  DCHECK_IMPLIES(flags & MemoryChunk::IS_TRUSTED,
-                 !InsideSandbox(ChunkAddress()));
 
   return flags;
 }
 
-size_t MutablePageMetadata::CommittedPhysicalMemory() const {
-  if (!base::OS::HasLazyCommits() || Chunk()->IsLargePage()) return size();
-  return active_system_pages_->Size(MemoryAllocator::GetCommitPageSizeBits());
+void MutablePageMetadata::SetOldGenerationPageFlags(MarkingMode marking_mode) {
+  const auto owner = owner_identity();
+  MemoryChunk::MainThreadFlags flags_to_set =
+      OldGenerationPageFlags(marking_mode, owner);
+  MemoryChunk::MainThreadFlags flags_to_clear = MemoryChunk::NO_FLAGS;
+
+  if (marking_mode != MarkingMode::kMajorMarking) {
+    if (IsAnyWritableSharedSpace(owner)) {
+      // No need to track OLD_TO_NEW or OLD_TO_SHARED within the shared space.
+      flags_to_clear |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
+                        MemoryChunk::INCREMENTAL_MARKING;
+    } else {
+      flags_to_clear |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
+      if (marking_mode != MarkingMode::kMinorMarking) {
+        flags_to_clear |= MemoryChunk::INCREMENTAL_MARKING;
+      }
+    }
+  }
+
+  SetFlagsNonExecutable(flags_to_set, flags_to_set);
+  ClearFlagsNonExecutable(flags_to_clear);
 }
 
-// -----------------------------------------------------------------------------
-// MutablePageMetadata implementation
+void MutablePageMetadata::SetYoungGenerationPageFlags(
+    MarkingMode marking_mode) {
+  const MemoryChunk::MainThreadFlags flags_to_set =
+      YoungGenerationPageFlags(marking_mode);
+  MemoryChunk::MainThreadFlags flags_to_clear = MemoryChunk::NO_FLAGS;
+  if (marking_mode == MarkingMode::kNoMarking) {
+    flags_to_clear |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING;
+    flags_to_clear |= MemoryChunk::INCREMENTAL_MARKING;
+  }
+
+  SetFlagsNonExecutable(flags_to_set, flags_to_set);
+  ClearFlagsNonExecutable(flags_to_clear);
+}
+
+size_t MutablePageMetadata::CommittedPhysicalMemory() const {
+  if (!base::OS::HasLazyCommits() || is_large()) return size();
+  return active_system_pages_->Size(MemoryAllocator::GetCommitPageSizeBits());
+}
 
 void MutablePageMetadata::ReleaseAllocatedMemoryNeededForWritableChunk() {
   DCHECK(SweepingDone());
@@ -131,7 +201,7 @@ void MutablePageMetadata::ReleaseAllocatedMemoryNeededForWritableChunk() {
   ReleaseTypedSlotSet(OLD_TO_OLD);
   ReleaseTypedSlotSet(OLD_TO_SHARED);
 
-  if (!Chunk()->IsLargePage()) {
+  if (!is_large()) {
     PageMetadata* page = static_cast<PageMetadata*>(this);
     page->ReleaseFreeListCategories();
   }
@@ -206,5 +276,25 @@ bool MutablePageMetadata::IsLivenessClear() const {
   CHECK_IMPLIES(marking_bitmap()->IsClean(), live_bytes() == 0);
   return marking_bitmap()->IsClean();
 }
+
+void MutablePageMetadata::SetFlagMaybeExecutable(MemoryChunk::Flag flag) {
+  if (is_executable()) {
+    RwxMemoryWriteScope scope("Set a MemoryChunk flag in executable memory.");
+    SetFlagUnlocked(flag);
+  } else {
+    SetFlagUnlocked(flag);
+  }
+}
+
+void MutablePageMetadata::ClearFlagMaybeExecutable(MemoryChunk::Flag flag) {
+  if (is_executable()) {
+    RwxMemoryWriteScope scope("Set a MemoryChunk flag in executable memory.");
+    ClearFlagUnlocked(flag);
+  } else {
+    ClearFlagUnlocked(flag);
+  }
+}
+
+void MutablePageMetadata::MarkNeverEvacuate() { set_never_evacuate(); }
 
 }  // namespace v8::internal

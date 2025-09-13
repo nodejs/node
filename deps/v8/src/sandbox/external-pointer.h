@@ -53,6 +53,10 @@ template <ExternalPointerTagRange tag_range>
 V8_INLINE Address ReadExternalPointerField(Address field_address,
                                            IsolateForSandbox isolate);
 
+V8_INLINE Address ReadExternalPointerField(Address field_address,
+                                           IsolateForSandbox isolate,
+                                           ExternalPointerTagRange tag_range);
+
 // If the sandbox is enabled: reads the ExternalPointerHandle from the field and
 // stores the external pointer to the corresponding entry in the external
 // pointer table. If the sandbox is disabled: stores the external pointer to the

@@ -8,9 +8,11 @@
 #include "src/base/flags.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-definitions.h"
+#include "src/codegen/cpu-features.h"
 #include "src/common/globals.h"
 #include "src/objects/type-hints.h"
 #include "src/sandbox/code-entrypoint-tag.h"
+#include "src/sandbox/code-sandboxing-mode.h"
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-pointer-table.h"
@@ -49,12 +51,12 @@ enum class Builtin : int32_t {
   kNoBuiltinId = -1,
 #define DEF_ENUM(Name, ...) k##Name,
   BUILTIN_LIST(DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM,
-               DEF_ENUM, DEF_ENUM, DEF_ENUM)
+               DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM)
 #undef DEF_ENUM
 #define EXTRACT_NAME(Name, ...) k##Name,
   // Define kFirstBytecodeHandler,
-  kFirstBytecodeHandler =
-      FirstFromVarArgs(BUILTIN_LIST_BYTECODE_HANDLERS(EXTRACT_NAME) 0)
+  kFirstBytecodeHandler = FirstFromVarArgs(
+      BUILTIN_LIST_BYTECODE_HANDLERS(EXTRACT_NAME, EXTRACT_NAME) 0)
 #undef EXTRACT_NAME
 };
 enum class TieringBuiltin : int32_t {
@@ -73,13 +75,44 @@ V8_INLINE bool IsValidTieringBuiltin(TieringBuiltin builtin) {
 }
 
 V8_INLINE constexpr bool operator<(Builtin a, Builtin b) {
-  using type = typename std::underlying_type<Builtin>::type;
+  using type = std::underlying_type_t<Builtin>;
   return static_cast<type>(a) < static_cast<type>(b);
 }
 
-V8_INLINE Builtin operator++(Builtin& builtin) {
-  using type = typename std::underlying_type<Builtin>::type;
+V8_INLINE constexpr Builtin operator++(Builtin& builtin) {
+  using type = std::underlying_type_t<Builtin>;
   return builtin = static_cast<Builtin>(static_cast<type>(builtin) + 1);
+}
+
+V8_INLINE constexpr Builtin operator--(Builtin& builtin) {
+  using type = std::underlying_type_t<Builtin>;
+  return builtin = static_cast<Builtin>(static_cast<type>(builtin) - 1);
+}
+
+V8_INLINE constexpr Builtin operator+(const Builtin& builtin,
+                                      const int offset) {
+  using type = std::underlying_type_t<Builtin>;
+  type b = static_cast<type>(builtin) + offset;
+  return static_cast<Builtin>(b);
+}
+
+V8_INLINE constexpr Builtin operator-(const Builtin& builtin,
+                                      const int offset) {
+  using type = std::underlying_type_t<Builtin>;
+  type b = static_cast<type>(builtin) - offset;
+  return static_cast<Builtin>(b);
+}
+
+V8_INLINE constexpr Builtin& operator+=(Builtin& builtin, const int offset) {
+  using type = std::underlying_type_t<Builtin>;
+  builtin = static_cast<Builtin>(static_cast<type>(builtin) + offset);
+  return builtin;
+}
+
+V8_INLINE constexpr Builtin& operator-=(Builtin& builtin, const int offset) {
+  using type = std::underlying_type_t<Builtin>;
+  builtin = static_cast<Builtin>(static_cast<type>(builtin) - offset);
+  return builtin;
 }
 
 class Builtins {
@@ -104,7 +137,7 @@ class Builtins {
 #define ADD_ONE(Name, ...) +1
   static constexpr int kBuiltinCount =
       0 BUILTIN_LIST(ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE,
-                     ADD_ONE, ADD_ONE, ADD_ONE);
+                     ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE);
   static constexpr int kBuiltinTier0Count = 0 BUILTIN_LIST_TIER0(
       ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE);
 #undef ADD_ONE
@@ -124,6 +157,80 @@ class Builtins {
   static constexpr bool kBytecodeHandlersAreSortedLast =
       kLastBytecodeHandlerPlusOne == kBuiltinCount;
   static_assert(kBytecodeHandlersAreSortedLast);
+
+#if V8_ENABLE_GEARBOX
+  static inline constexpr bool HasGenericSuffix(std::string_view s) {
+    return s.ends_with("_Generic");
+  }
+
+  static inline constexpr bool HasISXSuffix(std::string_view s) {
+    return s.ends_with("_ISX");
+  }
+
+  static inline constexpr bool IsISXVariant(Builtin builtin) {
+    switch (builtin) {
+#define CASE(Name, ...)  \
+  case Builtin::k##Name: \
+    return HasISXSuffix(#Name);
+
+      BUILTIN_LIST(CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE)
+#undef CASE
+      default:
+        return false;
+    }
+  }
+
+  static inline constexpr bool IsGenericVariant(Builtin builtin) {
+    switch (builtin) {
+#define CASE(Name, ...)  \
+  case Builtin::k##Name: \
+    return HasGenericSuffix(#Name);
+
+      BUILTIN_LIST(CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE)
+#undef CASE
+      default:
+        return false;
+    }
+  }
+
+  static inline constexpr bool IsGearboxPlaceholder(Builtin builtin) {
+    return IsISXVariant(builtin + kGearboxISXBuiltinIdOffset);
+  }
+
+  static inline constexpr Builtin GetGearboxPlaceholderFromVariant(
+      Builtin builtin) {
+    DCHECK(IsGenericVariant(builtin) || IsISXVariant(builtin) ||
+           IsGearboxPlaceholder(builtin));
+    if (IsISXVariant(builtin)) {
+      builtin -= kGearboxISXBuiltinIdOffset;
+      DCHECK_LE(builtin, Builtins::kLast);
+      return builtin;
+    } else if (IsGenericVariant(builtin)) {
+      builtin -= kGearboxGenericBuiltinIdOffset;
+      DCHECK_LE(builtin, Builtins::kLast);
+      return builtin;
+    } else {
+      return builtin;
+    }
+  }
+
+  static inline constexpr Builtin GetISXVariantFromGearboxPlaceholder(
+      Builtin builtin) {
+    DCHECK(IsGearboxPlaceholder(builtin));
+    return builtin + kGearboxISXBuiltinIdOffset;
+  }
+
+  static inline constexpr Builtin GetGenericVariantFromGearboxPlaceholder(
+      Builtin builtin) {
+    DCHECK(IsGearboxPlaceholder(builtin));
+    return builtin + kGearboxGenericBuiltinIdOffset;
+  }
+
+  // Now we just use only SSE4_1 as the condition for enabling ISX.
+  static inline bool CpuHasISXSupport() {
+    return CpuFeatures::IsSupported(SSE4_1);
+  }
+#endif  // V8_ENABLE_GEARBOX
 
   static constexpr bool IsBuiltinId(Builtin builtin) {
     return builtin != Builtin::kNoBuiltinId;
@@ -147,7 +254,7 @@ class Builtins {
   }
 
   // The different builtin kinds are documented in builtins-definitions.h.
-  enum Kind { CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, BCH, ASM };
+  enum Kind { CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, BCH_TSA, BCH, ASM };
 
   static BytecodeOffset GetContinuationBytecodeOffset(Builtin builtin);
   static Builtin GetBuiltinFromBytecodeOffset(BytecodeOffset);
@@ -240,11 +347,24 @@ class Builtins {
   // builtin_entry_table, initialized earlier via {InitializeIsolateDataTables}.
   static inline Address EntryOf(Builtin builtin, Isolate* isolate);
 
+  // Return the builtin entry inside the embedded data. Only used for Wasm where
+  // we want to use them in isolate-independent context.
+  V8_EXPORT_PRIVATE static Address EmbeddedEntryOf(Builtin builtin);
+
   V8_EXPORT_PRIVATE static Kind KindOf(Builtin builtin);
   static const char* KindNameOf(Builtin builtin);
 
   // The tag for the builtins entrypoint.
   V8_EXPORT_PRIVATE static CodeEntrypointTag EntrypointTagFor(Builtin builtin);
+
+  // Returns the sandboxing mode of the given builtin.
+  //
+  // Note that this indicates the sandboxing mode that the builtin expects at
+  // the start of its execution (in a sense part of its calling convention).
+  // Some builtins change the sandboxing mode (for example, JSEntry expects to
+  // be invoked in unsandboxed execution mode, then transitions into sandboxed
+  // execution mode), which is not represented here.
+  static CodeSandboxingMode SandboxingModeOf(Builtin builtin);
 
   V8_EXPORT_PRIVATE static bool IsCpp(Builtin builtin);
 
@@ -408,7 +528,8 @@ class Builtins {
                               compiler::turboshaft::Graph& graph, Zone* zone);
 
   BUILTIN_LIST(IGNORE_BUILTIN, DECLARE_TS, DECLARE_TF, DECLARE_TS, DECLARE_TF,
-               DECLARE_TF, DECLARE_TF, IGNORE_BUILTIN, DECLARE_ASM)
+               DECLARE_TF, DECLARE_TF, IGNORE_BUILTIN, IGNORE_BUILTIN,
+               DECLARE_ASM)
 
 #undef DECLARE_ASM
 #undef DECLARE_TF
@@ -454,6 +575,12 @@ V8_INLINE constexpr bool IsBaselineTrampolineBuiltin(Builtin builtin_id) {
 
 Builtin ExampleBuiltinForTorqueFunctionPointerType(
     size_t function_pointer_type_id);
+
+#ifdef DEBUG
+// BuiltinCanAllocate is generated by mksnapshot in
+// gen/src/builtins/builtins-effects.cc.
+bool BuiltinCanAllocate(Builtin builtin);
+#endif
 
 }  // namespace internal
 }  // namespace v8

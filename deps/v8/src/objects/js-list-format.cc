@@ -59,7 +59,7 @@ UListFormatterType GetIcuType(JSListFormat::Type type) {
 
 MaybeDirectHandle<JSListFormat> JSListFormat::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
-    DirectHandle<Object> input_options) {
+    DirectHandle<Object> input_options, const char* service) {
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -68,7 +68,6 @@ MaybeDirectHandle<JSListFormat> JSListFormat::New(
       maybe_requested_locales.FromJust();
 
   DirectHandle<JSReceiver> options;
-  const char* service = "Intl.ListFormat";
   // 4. Let options be GetOptionsObject(_options_).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
                              GetOptionsObject(isolate, input_options, service));
@@ -100,16 +99,20 @@ MaybeDirectHandle<JSListFormat> JSListFormat::New(
   // 12. Let t be GetOption(options, "type", "string", «"conjunction",
   //    "disjunction", "unit"», "conjunction").
   Maybe<Type> maybe_type = GetStringOption<Type>(
-      isolate, options, "type", service, {"conjunction", "disjunction", "unit"},
-      {Type::CONJUNCTION, Type::DISJUNCTION, Type::UNIT}, Type::CONJUNCTION);
+      isolate, options, isolate->factory()->type_string(), service,
+      std::to_array<const std::string_view>(
+          {"conjunction", "disjunction", "unit"}),
+      std::array{Type::CONJUNCTION, Type::DISJUNCTION, Type::UNIT},
+      Type::CONJUNCTION);
   MAYBE_RETURN(maybe_type, MaybeDirectHandle<JSListFormat>());
   Type type_enum = maybe_type.FromJust();
 
   // 14. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   Maybe<Style> maybe_style = GetStringOption<Style>(
-      isolate, options, "style", service, {"long", "short", "narrow"},
-      {Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
+      isolate, options, isolate->factory()->style_string(), service,
+      std::to_array<const std::string_view>({"long", "short", "narrow"}),
+      std::array{Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
   MAYBE_RETURN(maybe_style, MaybeDirectHandle<JSListFormat>());
   Style style_enum = maybe_style.FromJust();
 

@@ -40,18 +40,18 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, Func test_generator) {
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   // handle floating-point parameters
-  if (std::is_same<float, INPUT_T>::value) {
+  if (std::is_same_v<float, INPUT_T>) {
     assm.fmv_w_x(fa0, a0);
-  } else if (std::is_same<double, INPUT_T>::value) {
+  } else if (std::is_same_v<double, INPUT_T>) {
     UNIMPLEMENTED();
   }
 
   test_generator(assm);
 
   // handle floating-point result
-  if (std::is_same<float, OUTPUT_T>::value) {
+  if (std::is_same_v<float, OUTPUT_T>) {
     assm.fmv_x_w(a0, fa0);
-  } else if (std::is_same<double, OUTPUT_T>::value) {
+  } else if (std::is_same_v<double, OUTPUT_T>) {
     UNIMPLEMENTED();
   }
   assm.jr(ra);
@@ -61,14 +61,12 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, Func test_generator) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  using OINT_T = typename std::conditional<
-      std::is_integral<OUTPUT_T>::value, OUTPUT_T,
-      typename std::conditional<sizeof(OUTPUT_T) == 4, int32_t,
-                                int64_t>::type>::type;
-  using IINT_T = typename std::conditional<
-      std::is_integral<INPUT_T>::value, INPUT_T,
-      typename std::conditional<sizeof(INPUT_T) == 4, int32_t,
-                                int64_t>::type>::type;
+  using OINT_T = std::conditional_t<
+      std::is_integral_v<OUTPUT_T>, OUTPUT_T,
+      std::conditional_t<sizeof(OUTPUT_T) == 4, int32_t, int64_t>>;
+  using IINT_T = std::conditional_t<
+      std::is_integral_v<INPUT_T>, INPUT_T,
+      std::conditional_t<sizeof(INPUT_T) == 4, int32_t, int64_t>>;
 
   auto f = GeneratedCode<OINT_T(IINT_T)>::FromCode(isolate, *code);
 
@@ -86,19 +84,19 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, Func test_generator) {
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   // handle floating-point parameters
-  if (std::is_same<float, INPUT_T>::value) {
+  if (std::is_same_v<float, INPUT_T>) {
     assm.fmv_w_x(fa0, a0);
     assm.fmv_w_x(fa1, a1);
-  } else if (std::is_same<double, INPUT_T>::value) {
+  } else if (std::is_same_v<double, INPUT_T>) {
     UNIMPLEMENTED();
   }
 
   test_generator(assm);
 
   // handle floating-point result
-  if (std::is_same<float, OUTPUT_T>::value) {
+  if (std::is_same_v<float, OUTPUT_T>) {
     assm.fmv_x_w(a0, fa0);
-  } else if (std::is_same<double, OUTPUT_T>::value) {
+  } else if (std::is_same_v<double, OUTPUT_T>) {
     UNIMPLEMENTED();
   }
   assm.jr(ra);
@@ -108,14 +106,12 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, Func test_generator) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  using OINT_T = typename std::conditional<
-      std::is_integral<OUTPUT_T>::value, OUTPUT_T,
-      typename std::conditional<sizeof(OUTPUT_T) == 4, int32_t,
-                                int64_t>::type>::type;
-  using IINT_T = typename std::conditional<
-      std::is_integral<INPUT_T>::value, INPUT_T,
-      typename std::conditional<sizeof(INPUT_T) == 4, int32_t,
-                                int64_t>::type>::type;
+  using OINT_T = std::conditional_t<
+      std::is_integral_v<OUTPUT_T>, OUTPUT_T,
+      std::conditional_t<sizeof(OUTPUT_T) == 4, int32_t, int64_t>>;
+  using IINT_T = std::conditional_t<
+      std::is_integral_v<INPUT_T>, INPUT_T,
+      std::conditional_t<sizeof(INPUT_T) == 4, int32_t, int64_t>>;
   auto f = GeneratedCode<OINT_T(IINT_T, IINT_T)>::FromCode(isolate, *code);
 
   auto res =
@@ -134,20 +130,20 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, INPUT_T input2,
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   // handle floating-point parameters
-  if (std::is_same<float, INPUT_T>::value) {
+  if (std::is_same_v<float, INPUT_T>) {
     assm.fmv_w_x(fa0, a0);
     assm.fmv_w_x(fa1, a1);
     assm.fmv_w_x(fa2, a2);
-  } else if (std::is_same<double, INPUT_T>::value) {
+  } else if (std::is_same_v<double, INPUT_T>) {
     UNIMPLEMENTED();
   }
 
   test_generator(assm);
 
   // handle floating-point result
-  if (std::is_same<float, OUTPUT_T>::value) {
+  if (std::is_same_v<float, OUTPUT_T>) {
     assm.fmv_x_w(a0, fa0);
-  } else if (std::is_same<double, OUTPUT_T>::value) {
+  } else if (std::is_same_v<double, OUTPUT_T>) {
     UNIMPLEMENTED();
   }
   assm.jr(ra);
@@ -157,14 +153,12 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, INPUT_T input2,
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  using OINT_T = typename std::conditional<
-      std::is_integral<OUTPUT_T>::value, OUTPUT_T,
-      typename std::conditional<sizeof(OUTPUT_T) == 4, int32_t,
-                                int64_t>::type>::type;
-  using IINT_T = typename std::conditional<
-      std::is_integral<INPUT_T>::value, INPUT_T,
-      typename std::conditional<sizeof(INPUT_T) == 4, int32_t,
-                                int64_t>::type>::type;
+  using OINT_T = std::conditional_t<
+      std::is_integral_v<OUTPUT_T>, OUTPUT_T,
+      std::conditional_t<sizeof(OUTPUT_T) == 4, int32_t, int64_t>>;
+  using IINT_T = std::conditional_t<
+      std::is_integral_v<INPUT_T>, INPUT_T,
+      std::conditional_t<sizeof(INPUT_T) == 4, int32_t, int64_t>>;
   auto f =
       GeneratedCode<OINT_T(IINT_T, IINT_T, IINT_T)>::FromCode(isolate, *code);
 
@@ -183,17 +177,17 @@ void GenAndRunTestForLoadStore(T value, Func test_generator) {
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  if (std::is_same<float, T>::value) {
+  if (std::is_same_v<float, T>) {
     assm.fmv_w_x(fa0, a1);
-  } else if (std::is_same<double, T>::value) {
+  } else if (std::is_same_v<double, T>) {
     UNIMPLEMENTED();
   }
 
   test_generator(assm);
 
-  if (std::is_same<float, T>::value) {
+  if (std::is_same_v<float, T>) {
     assm.fmv_x_w(a0, fa0);
-  } else if (std::is_same<double, T>::value) {
+  } else if (std::is_same_v<double, T>) {
     UNIMPLEMENTED();
   }
   assm.jr(ra);
@@ -203,9 +197,9 @@ void GenAndRunTestForLoadStore(T value, Func test_generator) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  using INT_T = typename std::conditional<
-      std::is_integral<T>::value, T,
-      typename std::conditional<sizeof(T) == 4, int32_t, int64_t>::type>::type;
+  using INT_T = typename std::conditional_t<
+      std::is_integral_v<T>, T,
+      typename std::conditional_t<sizeof(T) == 4, int32_t, int64_t>>;
 
   auto f =
       GeneratedCode<INT_T(void* base, INT_T val)>::FromCode(isolate, *code);
@@ -224,22 +218,22 @@ void GenAndRunTestForLRSC(T value, Func test_generator) {
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  if (std::is_same<float, T>::value) {
+  if (std::is_same_v<float, T>) {
     assm.fmv_w_x(fa0, a1);
-  } else if (std::is_same<double, T>::value) {
+  } else if (std::is_same_v<double, T>) {
     UNIMPLEMENTED();
   }
 
-  if (std::is_same<int32_t, T>::value) {
+  if (std::is_same_v<int32_t, T>) {
     assm.sw(a1, a0, 0);
-  } else if (std::is_same<int64_t, T>::value) {
+  } else if (std::is_same_v<int64_t, T>) {
     UNREACHABLE();
   }
   test_generator(assm);
 
-  if (std::is_same<float, T>::value) {
+  if (std::is_same_v<float, T>) {
     assm.fmv_x_w(a0, fa0);
-  } else if (std::is_same<double, T>::value) {
+  } else if (std::is_same_v<double, T>) {
     UNIMPLEMENTED();
   }
   assm.jr(ra);
@@ -251,8 +245,7 @@ void GenAndRunTestForLRSC(T value, Func test_generator) {
 #if defined(DEBUG)
   Print(*code);
 #endif
-  using INT_T =
-      typename std::conditional<sizeof(T) == 4, int32_t, int64_t>::type;
+  using INT_T = std::conditional_t<sizeof(T) == 4, int32_t, int64_t>;
 
   T tmp = 0;
   auto f =
@@ -272,36 +265,34 @@ OUTPUT_T GenAndRunTestForAMO(INPUT_T input0, INPUT_T input1,
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   // handle floating-point parameters
-  if (std::is_same<float, INPUT_T>::value) {
+  if (std::is_same_v<float, INPUT_T>) {
     assm.fmv_w_x(fa0, a1);
     assm.fmv_w_x(fa1, a2);
-  } else if (std::is_same<double, INPUT_T>::value) {
+  } else if (std::is_same_v<double, INPUT_T>) {
     UNIMPLEMENTED();
   }
 
   // store base integer
-  if (std::is_same<int32_t, INPUT_T>::value ||
-      std::is_same<uint32_t, INPUT_T>::value) {
+  if (std::is_same_v<int32_t, INPUT_T> || std::is_same_v<uint32_t, INPUT_T>) {
     assm.sw(a1, a0, 0);
-  } else if (std::is_same<int64_t, INPUT_T>::value ||
-             std::is_same<uint64_t, INPUT_T>::value) {
+  } else if (std::is_same_v<int64_t, INPUT_T> ||
+             std::is_same_v<uint64_t, INPUT_T>) {
     UNREACHABLE();
   }
   test_generator(assm);
 
   // handle floating-point result
-  if (std::is_same<float, OUTPUT_T>::value) {
+  if (std::is_same_v<float, OUTPUT_T>) {
     assm.fmv_x_w(a0, fa0);
-  } else if (std::is_same<double, OUTPUT_T>::value) {
+  } else if (std::is_same_v<double, OUTPUT_T>) {
     UNIMPLEMENTED();
   }
 
   // load written integer
-  if (std::is_same<int32_t, INPUT_T>::value ||
-      std::is_same<uint32_t, INPUT_T>::value) {
+  if (std::is_same_v<int32_t, INPUT_T> || std::is_same_v<uint32_t, INPUT_T>) {
     assm.lw(a0, a0, 0);
-  } else if (std::is_same<int64_t, INPUT_T>::value ||
-             std::is_same<uint64_t, INPUT_T>::value) {
+  } else if (std::is_same_v<int64_t, INPUT_T> ||
+             std::is_same_v<uint64_t, INPUT_T>) {
     UNREACHABLE();
   }
 

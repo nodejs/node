@@ -26,7 +26,7 @@ namespace internal {
 
 MaybeDirectHandle<JSSegmenter> JSSegmenter::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
-    DirectHandle<Object> input_options) {
+    DirectHandle<Object> input_options, const char* service) {
   // 4. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -35,7 +35,6 @@ MaybeDirectHandle<JSSegmenter> JSSegmenter::New(
       maybe_requested_locales.FromJust();
 
   DirectHandle<JSReceiver> options;
-  const char* service = "Intl.Segmenter";
   // 5. Let options be GetOptionsObject(_options_).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
                              GetOptionsObject(isolate, input_options, service));
@@ -67,9 +66,10 @@ MaybeDirectHandle<JSSegmenter> JSSegmenter::New(
   // 13. Let granularity be ? GetOption(options, "granularity", "string", «
   // "grapheme", "word", "sentence" », "grapheme").
   Maybe<Granularity> maybe_granularity = GetStringOption<Granularity>(
-      isolate, options, "granularity", service,
-      {"grapheme", "word", "sentence"},
-      {Granularity::GRAPHEME, Granularity::WORD, Granularity::SENTENCE},
+      isolate, options, isolate->factory()->granularity_string(), service,
+      std::to_array<const std::string_view>({"grapheme", "word", "sentence"}),
+      std::array{Granularity::GRAPHEME, Granularity::WORD,
+                 Granularity::SENTENCE},
       Granularity::GRAPHEME);
   MAYBE_RETURN(maybe_granularity, MaybeDirectHandle<JSSegmenter>());
   Granularity granularity_enum = maybe_granularity.FromJust();

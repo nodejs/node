@@ -263,7 +263,7 @@ class TestSequence {
   void CheckCopy() { runner_.CheckCopy(); }
 
   static constexpr bool IsRuntimeTest() {
-    return std::is_same<TestRunner, RuntimeTestRunner>::value;
+    return std::is_same_v<TestRunner, RuntimeTestRunner>;
   }
 
   void VerifyHeap() { runner_.VerifyHeap(); }

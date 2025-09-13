@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-gc --allow-natives-syntax --concurrent-recompilation
-// Flags: --turbofan --no-always-turbofan
+// Flags: --turbofan
 
 function test(fun) {
   %PrepareFunctionForOptimization(fun);

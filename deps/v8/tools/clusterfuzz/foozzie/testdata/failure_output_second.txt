@@ -8,9 +8,9 @@
 # Compared x64 with ia32
 #
 # Common flags:
---correctness-fuzzer-suppressions --expose-gc --fuzzing --allow-natives-for-differential-fuzzing --invoke-weak-callbacks --omit-quit --harmony --js-staging --wasm-staging --no-wasm-async-compilation --wasm-max-mem-pages=32767 --suppress-asm-messages --random-seed 12345
+--correctness-fuzzer-suppressions --expose-gc --fuzzing --allow-natives-for-differential-fuzzing --invoke-weak-callbacks --omit-quit --harmony --experimental-fuzzing --js-staging --wasm-staging --no-wasm-async-compilation --wasm-max-mem-pages=32767 --suppress-asm-messages --random-seed 12345
 # Baseline flags:
---turbo-filter=~ --no-turbofan --no-sparkplug --liftoff --no-wasm-tier-up --no-maglev
+--turbo-filter=~ --no-turbofan --no-sparkplug --liftoff-only --no-wasm-tier-up --no-maglev
 # Comparison flags:
 --very-bad-flag
 #

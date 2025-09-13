@@ -21,7 +21,7 @@
 
 #else  // !THREAD_SANITIZER
 
-#if defined(V8_CC_MSVC)
+#if defined(V8_CC_MSVC) && !defined(__clang__)
 // MSVC does not support inline assembly via __asm__ and provides compiler
 // intrinsics instead. Check if there is a usable intrinsic.
 //
@@ -33,7 +33,7 @@
 #elif defined(V8_HOST_ARCH_ARM64) || \
     (defined(V8_HOST_ARCH_ARM) && __ARM_ARCH >= 6)
 #include <intrin.h>
-#define YIELD_PROCESSOR __yield()
+#define YIELD_PROCESSOR __isb(_ARM64_BARRIER_SY)
 #endif  // V8_HOST_ARCH
 
 #else  // !V8_CC_MSVC
@@ -42,7 +42,7 @@
 #define YIELD_PROCESSOR __asm__ __volatile__("pause")
 #elif defined(V8_HOST_ARCH_ARM64) || \
     (defined(V8_HOST_ARCH_ARM) && __ARM_ARCH >= 6)
-#define YIELD_PROCESSOR __asm__ __volatile__("yield")
+#define YIELD_PROCESSOR __asm__ __volatile__("isb" ::: "memory")
 #elif defined(V8_HOST_ARCH_MIPS64EL) && __mips_isa_rev >= 2
 // Don't bother doing using .word here since r2 is the lowest supported mips64
 // that Chromium supports.

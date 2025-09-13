@@ -155,16 +155,6 @@ Node* GraphAssembler::SetStackPointer(Node* node) {
 }
 #endif
 
-TNode<HeapNumber> JSGraphAssembler::AllocateHeapNumber(Node* value) {
-  AllocationBuilder a(jsgraph(), broker(), effect(), control());
-  a.Allocate(sizeof(HeapNumber), AllocationType::kYoung, Type::OtherInternal());
-  a.Store(AccessBuilder::ForMap(), broker()->heap_number_map());
-  a.Store(AccessBuilder::ForHeapNumberValue(), value);
-  Node* new_heap_number = a.Finish();
-  UpdateEffectControlWith(new_heap_number);
-  return TNode<HeapNumber>::UncheckedCast(new_heap_number);
-}
-
 Node* GraphAssembler::LoadHeapNumberValue(Node* heap_number) {
   return Load(MachineType::Float64(), heap_number,
               IntPtrConstant(offsetof(HeapNumber, value_) - kHeapObjectTag));
@@ -525,6 +515,15 @@ void JSGraphAssembler::Assert(TNode<Word32T> cond, const char* condition_string,
       cond, effect(), control()));
 }
 
+void JSGraphAssembler::DetachContextCell(TNode<Object> context,
+                                         TNode<Object> new_value, int index,
+                                         FrameState frame_state) {
+  AddNode<Object>(graph()->NewNode(javascript()->DetachContextCell(index),
+                                   context, new_value, NoContextConstant(),
+                                   static_cast<Node*>(frame_state), effect(),
+                                   control()));
+}
+
 TNode<Boolean> JSGraphAssembler::NumberIsFloat64Hole(TNode<Number> value) {
   return AddNode<Boolean>(
       graph()->NewNode(simplified()->NumberIsFloat64Hole(), value));
@@ -627,8 +626,19 @@ class ArrayBufferViewAccessBuilder {
     // Case 1: Normal (backed by AB/SAB) or non-length tracking backed by GSAB
     // (can't go oob once constructed)
     auto GsabFixedOrNormal = [&]() {
-      return MachineLoadField<UintPtrT>(AccessBuilder::ForJSTypedArrayLength(),
-                                        view, UseInfo::Word());
+      TNode<UintPtrT> byte_length = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteLength(), view,
+          UseInfo::Word());
+      if (auto size_opt = TryComputeStaticElementSize()) {
+        return a.UintPtrDiv(byte_length, a.UintPtrConstant(*size_opt));
+      } else {
+        TNode<Map> typed_array_map = a.LoadField<Map>(
+            AccessBuilder::ForMap(WriteBarrierKind::kNoWriteBarrier), view);
+        TNode<Uint32T> elements_kind = a.LoadElementsKind(typed_array_map);
+        TNode<Uint32T> element_size =
+            a.LookupByteSizeForElementsKind(elements_kind);
+        return a.UintPtrDiv(byte_length, a.ChangeUint32ToUintPtr(element_size));
+      }
     };
 
     // If we statically know we cannot have rab/gsab backed, we can simply
@@ -1055,12 +1065,6 @@ TNode<Object> JSGraphAssembler::JSCallRuntime2(Runtime::FunctionId function_id,
         graph()->NewNode(javascript()->CallRuntime(function_id, 2), arg0, arg1,
                          context, frame_state, effect(), control()));
   });
-}
-
-Node* JSGraphAssembler::Chained(const Operator* op, Node* input) {
-  DCHECK_EQ(op->ValueInputCount(), 1);
-  return AddNode(
-      graph()->NewNode(common()->Chained(op), input, effect(), control()));
 }
 
 Node* GraphAssembler::TypeGuard(Type type, Node* value) {

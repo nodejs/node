@@ -6,6 +6,7 @@
 #include "src/wasm/fuzzing/random-module-generation.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/zone/zone.h"
+#include "test/fuzzer/fuzzer-support.h"
 #include "test/fuzzer/wasm/fuzzer-common.h"
 
 namespace v8::internal::wasm::fuzzing {
@@ -22,6 +23,17 @@ class WasmCompileAllFuzzer : public WasmExecutionFuzzer {
     return true;
   }
 };
+
+V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
+  // shared_heap and shared_string_table are needed for
+  // shared-everything-threads fuzzing.
+  i::v8_flags.shared_heap = true;
+  i::v8_flags.shared_string_table = true;
+  i::v8_flags.experimental_wasm_shared = true;
+
+  v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
+  return 0;
+}
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   constexpr bool kRequireValid = true;

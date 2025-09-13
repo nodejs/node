@@ -50,6 +50,7 @@ TEST(StreamingFormatTest, LogAsLiteral) {
   stream << LoggingDefaults << absl::LogAsLiteral(not_a_literal);
 
   absl::ScopedMockLog sink;
+  EXPECT_CALL(sink, Send).Times(0);
 
   EXPECT_CALL(sink, Send(AllOf(TextMessage(MatchesOstream(stream)),
                                TextMessage(Eq("hello world")),

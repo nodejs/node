@@ -83,6 +83,7 @@ class V8_EXPORT_PRIVATE ConstantExpressionInterface {
     return computed_value_;
   }
   bool end_found() const { return end_found_; }
+  bool ends_with_struct_new() const { return ends_with_struct_new_; }
   bool has_error() const { return error_ != MessageTemplate::kNone; }
   MessageTemplate error() const {
     DCHECK(has_error());
@@ -100,6 +101,7 @@ class V8_EXPORT_PRIVATE ConstantExpressionInterface {
                            const Value& descriptor);
 
   bool end_found_ = false;
+  bool ends_with_struct_new_ = false;
   WasmValue computed_value_;
   MessageTemplate error_ = MessageTemplate::kNone;
   const WasmModule* module_;

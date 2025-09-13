@@ -146,6 +146,10 @@ class V8_EXPORT_PRIVATE LoadElimination final
         // We are tracking too many objects, which leads to bad performance.
         // Delete one to avoid the map from becoming bigger.
         that->info_for_node_.erase(that->info_for_node_.begin());
+        if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+          std::cout << "Bailing out in Load Elimination because of "
+                       "kMaxTrackedFields or kMaxTrackedObjects\n";
+        }
       }
       that->info_for_node_[object] = info;
       return that;
@@ -216,6 +220,10 @@ class V8_EXPORT_PRIVATE LoadElimination final
       DCHECK_LE(0, begin);
       DCHECK_LE(1, size);
       if (end_ > static_cast<int>(kMaxTrackedFieldsPerObject)) {
+        if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+          std::cout << "Bailing out in Load Elimination because of "
+                       "kMaxTrackedFieldsPerObject\n";
+        }
         *this = IndexRange::Invalid();
       }
     }

@@ -35,7 +35,8 @@ class JSInliner final : public AdvancedReducer {
   JSInliner(Editor* editor, Zone* local_zone, OptimizedCompilationInfo* info,
             JSGraph* jsgraph, JSHeapBroker* broker,
             SourcePositionTable* source_positions,
-            NodeOriginTable* node_origins, const wasm::WasmModule* wasm_module,
+            NodeOriginTable* node_origins,
+            const wasm::NativeModule* wasm_native_module,
             JsWasmCallsSidetable* js_wasm_calls_sidetable,
             bool inline_wasm_fct_if_supported)
       : AdvancedReducer(editor),
@@ -45,14 +46,15 @@ class JSInliner final : public AdvancedReducer {
         broker_(broker),
         source_positions_(source_positions),
         node_origins_(node_origins),
-        wasm_module_(wasm_module),
+        wasm_native_module_(wasm_native_module),
         js_wasm_calls_sidetable_(js_wasm_calls_sidetable),
         inline_wasm_fct_if_supported_(inline_wasm_fct_if_supported) {
     // In case WebAssembly is disabled.
-    USE(wasm_module_);
+    USE(wasm_native_module_);
     USE(inline_wasm_fct_if_supported_);
     USE(js_wasm_calls_sidetable_);
-    DCHECK_IMPLIES(inline_wasm_fct_if_supported_, wasm_module_ != nullptr);
+    DCHECK_IMPLIES(inline_wasm_fct_if_supported_,
+                   wasm_native_module_ != nullptr);
   }
 
   const char* reducer_name() const override { return "JSInliner"; }
@@ -95,7 +97,7 @@ class JSInliner final : public AdvancedReducer {
   JSHeapBroker* const broker_;
   SourcePositionTable* const source_positions_;
   NodeOriginTable* const node_origins_;
-  const wasm::WasmModule* wasm_module_;
+  const wasm::NativeModule* wasm_native_module_;
   JsWasmCallsSidetable* js_wasm_calls_sidetable_;
 
   // Inline not only the wasm wrapper but also the wasm function itself if

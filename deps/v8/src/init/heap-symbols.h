@@ -31,7 +31,6 @@
   V(_, decimal_string, "decimal")                                   \
   V(_, dialect_string, "dialect")                                   \
   V(_, digital_string, "digital")                                   \
-  V(_, direction_string, "direction")                               \
   V(_, endRange_string, "endRange")                                 \
   V(_, engineering_string, "engineering")                           \
   V(_, exceptZero_string, "exceptZero")                             \
@@ -45,6 +44,7 @@
   V(_, firstDayOfWeek_string, "firstDayOfWeek")                     \
   V(_, floor_string, "floor")                                       \
   V(_, format_string, "format")                                     \
+  V(_, formatMatcher_string, "formatMatcher")                       \
   V(_, fraction_string, "fraction")                                 \
   V(_, fractionalDigits_string, "fractionalDigits")                 \
   V(_, fractionalSecond_string, "fractionalSecond")                 \
@@ -78,6 +78,7 @@
   V(_, list_string, "list")                                         \
   V(_, literal_string, "literal")                                   \
   V(_, locale_string, "locale")                                     \
+  V(_, localeMatcher_string, "localeMatcher")                       \
   V(_, loose_string, "loose")                                       \
   V(_, lower_string, "lower")                                       \
   V(_, ltr_string, "ltr")                                           \
@@ -112,7 +113,6 @@
   V(_, quarter_string, "quarter")                                   \
   V(_, region_string, "region")                                     \
   V(_, relatedYear_string, "relatedYear")                           \
-  V(_, roundingMode_string, "roundingMode")                         \
   V(_, roundingPriority_string, "roundingPriority")                 \
   V(_, rtl_string, "rtl")                                           \
   V(_, scientific_string, "scientific")                             \
@@ -133,7 +133,6 @@
   V(_, textInfo_string, "textInfo")                                 \
   V(_, timeStyle_string, "timeStyle")                               \
   V(_, timeZones_string, "timeZones")                               \
-  V(_, timeZoneName_string, "timeZoneName")                         \
   V(_, trailingZeroDisplay_string, "trailingZeroDisplay")           \
   V(_, trunc_string, "trunc")                                       \
   V(_, two_digit_string, "2-digit")                                 \
@@ -156,12 +155,13 @@
 // Internalized strings to be allocated early on the read only heap and early in
 // the roots table. Used to give this string a RootIndex < 32.
 #define EXTRA_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \
-  V(_, empty_string, "")
+  V(_, empty_string, "")                                         \
+  V(_, prototype_string, "prototype")                            \
+  V(_, name_string, "name")                                      \
+  V(_, length_string, "length")
 
 // Internalized strings to be allocated early on the read only heap
 #define IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \
-  V(_, prototype_string, "prototype")                      \
-  V(_, name_string, "name")                                \
   V(_, enumerable_string, "enumerable")                    \
   V(_, configurable_string, "configurable")                \
   V(_, value_string, "value")                              \
@@ -600,6 +600,8 @@
   V(_, byte_offset_string, "byteOffset")                                      \
   V(_, CompileError_string, "CompileError")                                   \
   V(_, calendar_string, "calendar")                                           \
+  V(_, calendarId_string, "calendarId")                                       \
+  V(_, calendarName_string, "calendarName")                                   \
   V(_, callee_string, "callee")                                               \
   V(_, caller_string, "caller")                                               \
   V(_, cause_string, "cause")                                                 \
@@ -628,6 +630,8 @@
   V(_, defineProperty_string, "defineProperty")                               \
   V(_, deleteProperty_string, "deleteProperty")                               \
   V(_, detached_string, "detached")                                           \
+  V(_, direction_string, "direction")                                         \
+  V(_, disambiguation_string, "disambiguation")                               \
   V(_, disjunction_string, "disjunction")                                     \
   V(_, disposed_string, "disposed")                                           \
   V(_, done_string, "done")                                                   \
@@ -646,10 +650,8 @@
   V(_, Error_string, "Error")                                                 \
   V(_, EvalError_string, "EvalError")                                         \
   V(_, element_string, "element")                                             \
-  V(_, epochMicroseconds_string, "epochMicroseconds")                         \
   V(_, epochMilliseconds_string, "epochMilliseconds")                         \
   V(_, epochNanoseconds_string, "epochNanoseconds")                           \
-  V(_, epochSeconds_string, "epochSeconds")                                   \
   V(_, era_string, "era")                                                     \
   V(_, eraYear_string, "eraYear")                                             \
   V(_, error_string, "error")                                                 \
@@ -678,6 +680,7 @@
   V(_, getOwnPropertyDescriptor_string, "getOwnPropertyDescriptor")           \
   V(_, getPossibleInstantsFor_string, "getPossibleInstantsFor")               \
   V(_, getPrototypeOf_string, "getPrototypeOf")                               \
+  V(_, getTimeZoneTransition_string, "getTimeZoneTransition")                 \
   V(_, global_string, "global")                                               \
   V(_, globalThis_string, "globalThis")                                       \
   V(_, groups_string, "groups")                                               \
@@ -799,6 +802,7 @@
   V(_, return_string, "return")                                               \
   V(_, revoke_string, "revoke")                                               \
   V(_, roundingIncrement_string, "roundingIncrement")                         \
+  V(_, roundingMode_string, "roundingMode")                                   \
   V(_, RuntimeError_string, "RuntimeError")                                   \
   V(_, WebAssemblyException_string, "WebAssembly.Exception")                  \
   V(_, WebAssemblyModule_string, "WebAssembly.Module")                        \
@@ -847,6 +851,8 @@
   V(_, throw_string, "throw")                                                 \
   V(_, timed_out_string, "timed-out")                                         \
   V(_, timeZone_string, "timeZone")                                           \
+  V(_, timeZoneId_string, "timeZoneId")                                       \
+  V(_, timeZoneName_string, "timeZoneName")                                   \
   V(_, toJSON_string, "toJSON")                                               \
   V(_, toString_string, "toString")                                           \
   V(_, true_string, "true")                                                   \
@@ -875,7 +881,8 @@
   V(_, written_string, "written")                                             \
   V(_, yearMonthFromFields_string, "yearMonthFromFields")                     \
   V(_, year_string, "year")                                                   \
-  V(_, years_string, "years")
+  V(_, years_string, "years")                                                 \
+  V(_, yearOfWeek_string, "yearOfWeek")
 
 #define INTERNALIZED_STRING_LIST_GENERATOR(V, _)           \
   EXTRA_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \
@@ -917,6 +924,7 @@
   V(_, strict_function_transition_symbol)                 \
   V(_, template_literal_function_literal_id_symbol)       \
   V(_, template_literal_slot_id_symbol)                   \
+  V(_, wasm_asm_single_function_symbol)                   \
   V(_, wasm_cross_instance_call_symbol)                   \
   V(_, wasm_exception_tag_symbol)                         \
   V(_, wasm_exception_values_symbol)                      \
@@ -949,7 +957,6 @@
 // These Names have to be allocated consecutively for fast checks,
 #define INTERNALIZED_STRING_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
   V(_, constructor_string, "constructor")                      \
-  V(_, length_string, "length")                                \
   V(_, next_string, "next")                                    \
   V(_, resolve_string, "resolve")                              \
   V(_, then_string, "then")                                    \

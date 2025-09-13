@@ -12,7 +12,10 @@
 #include <optional>
 
 #include "src/common/globals.h"
+#include "src/flags/flags.h"
+#include "src/objects/visitors.h"
 #include "src/utils/allocation.h"
+#include "src/wasm/value-type.h"
 
 namespace v8 {
 class Isolate;
@@ -28,6 +31,7 @@ struct JumpBuffer {
   Address pc;
   void* stack_limit;
   StackMemory* parent = nullptr;
+
   // We track the state below to prevent stack corruptions under the sandbox
   // security model.
   // Assuming that the external pointer to the jump buffer has been corrupted
@@ -78,6 +82,7 @@ class StackMemory {
 #endif
     return memory_limit - kStackBaseSafetyOffset;
   }
+  bool IsValidContinuation(Tagged<WasmContinuationObject> cont);
   JumpBuffer* jmpbuf() { return &jmpbuf_; }
   bool Contains(Address addr) {
     if (!owned_) {
@@ -113,8 +118,10 @@ class StackMemory {
       segment = segment->next_segment_;
     }
   }
+  void Iterate(v8::internal::RootVisitor* v, Isolate* isolate);
+
   Address old_fp() { return active_segment_->old_fp; }
-  bool Grow(Address current_fp);
+  bool Grow(Address current_fp, size_t min_size);
   Address Shrink();
   void ShrinkTo(Address stack_address);
   void Reset();
@@ -157,11 +164,25 @@ class StackMemory {
     stack_switch_info_.source_fp = kNullAddress;
   }
 
-#ifdef DEBUG
-  static constexpr int kJSLimitOffsetKB = 80;
-#else
-  static constexpr int kJSLimitOffsetKB = 40;
-#endif
+  void set_func_ref(Tagged<WasmFuncRef> func_ref) { func_ref_ = func_ref; }
+  static int func_ref_offset() { return OFFSET_OF(StackMemory, func_ref_); }
+
+  static int JSCentralStackLimitMarginKB() { return DEBUG_BOOL ? 80 : 40; }
+
+  static int JSGrowableStackLimitMarginKB() {
+    if (!v8_flags.experimental_wasm_growable_stacks) {
+      return JSCentralStackLimitMarginKB();
+    }
+    // The limiting factor for this margin is the stack space used by outgoing
+    // stack parameters in wasm. They can take up to 16KB (1000 simd
+    // parameters, minus register parameters) and are not taken into account
+    // by stack checks.
+    // TODO(42204615): look into changing the stack check to take outgoing
+    // stack parameters into account.
+    static_assert(kMaxValueTypeSize == 16);
+    static_assert(kV8MaxWasmFunctionParams == 1000);
+    return 20;
+  }
 
   friend class StackPool;
 
@@ -197,6 +218,8 @@ class StackMemory {
   StackSwitchInfo stack_switch_info_;
   StackSegment* first_segment_ = nullptr;
   StackSegment* active_segment_ = nullptr;
+  Tagged<WasmContinuationObject> current_cont_ = {};
+  Tagged<WasmFuncRef> func_ref_ = {};
 };
 
 constexpr int kStackSpOffset =

@@ -167,22 +167,22 @@ struct FileMappingHint {
 // We are using SpinLock and not a Mutex here, because we may be called
 // from inside Mutex::Lock itself, and it prohibits recursive calls.
 // This happens in e.g. base/stacktrace_syscall_unittest.
-// Moreover, we are using only TryLock(), if the decorator list
+// Moreover, we are using only try_lock(), if the decorator list
 // is being modified (is busy), we skip all decorators, and possibly
 // loose some info. Sorry, that's the best we could do.
 ABSL_CONST_INIT absl::base_internal::SpinLock g_decorators_mu(
-    absl::kConstInit, absl::base_internal::SCHEDULE_KERNEL_ONLY);
+    absl::base_internal::SCHEDULE_KERNEL_ONLY);
 
 const int kMaxFileMappingHints = 8;
 int g_num_file_mapping_hints;
 FileMappingHint g_file_mapping_hints[kMaxFileMappingHints];
 // Protects g_file_mapping_hints.
 ABSL_CONST_INIT absl::base_internal::SpinLock g_file_mapping_mu(
-    absl::kConstInit, absl::base_internal::SCHEDULE_KERNEL_ONLY);
+    absl::base_internal::SCHEDULE_KERNEL_ONLY);
 
 // Async-signal-safe function to zero a buffer.
 // memset() is not guaranteed to be async-signal-safe.
-static void SafeMemZero(void* p, size_t size) {
+static void SafeMemZero(void *p, size_t size) {
   unsigned char *c = static_cast<unsigned char *>(p);
   while (size--) {
     *c++ = 0;
@@ -233,29 +233,6 @@ struct SymbolCacheLine {
 };
 
 // ---------------------------------------------------------------
-// An async-signal-safe arena for LowLevelAlloc
-static std::atomic<base_internal::LowLevelAlloc::Arena *> g_sig_safe_arena;
-
-static base_internal::LowLevelAlloc::Arena *SigSafeArena() {
-  return g_sig_safe_arena.load(std::memory_order_acquire);
-}
-
-static void InitSigSafeArena() {
-  if (SigSafeArena() == nullptr) {
-    base_internal::LowLevelAlloc::Arena *new_arena =
-        base_internal::LowLevelAlloc::NewArena(
-            base_internal::LowLevelAlloc::kAsyncSignalSafe);
-    base_internal::LowLevelAlloc::Arena *old_value = nullptr;
-    if (!g_sig_safe_arena.compare_exchange_strong(old_value, new_arena,
-                                                  std::memory_order_release,
-                                                  std::memory_order_relaxed)) {
-      // We lost a race to allocate an arena; deallocate.
-      base_internal::LowLevelAlloc::DeleteArena(new_arena);
-    }
-  }
-}
-
-// ---------------------------------------------------------------
 // An AddrMap is a vector of ObjFile, using SigSafeArena() for allocation.
 
 class AddrMap {
@@ -287,7 +264,7 @@ ObjFile *AddrMap::Add() {
     size_t new_allocated = allocated_ * 2 + 50;
     ObjFile *new_obj_ =
         static_cast<ObjFile *>(base_internal::LowLevelAlloc::AllocWithArena(
-            new_allocated * sizeof(*new_obj_), SigSafeArena()));
+            new_allocated * sizeof(*new_obj_), base_internal::SigSafeArena()));
     if (obj_) {
       memcpy(new_obj_, obj_, allocated_ * sizeof(*new_obj_));
       base_internal::LowLevelAlloc::Free(obj_);
@@ -335,8 +312,9 @@ class Symbolizer {
  private:
   char *CopyString(const char *s) {
     size_t len = strlen(s);
-    char *dst = static_cast<char *>(
-        base_internal::LowLevelAlloc::AllocWithArena(len + 1, SigSafeArena()));
+    char *dst =
+        static_cast<char *>(base_internal::LowLevelAlloc::AllocWithArena(
+            len + 1, base_internal::SigSafeArena()));
     ABSL_RAW_CHECK(dst != nullptr, "out of memory");
     memcpy(dst, s, len + 1);
     return dst;
@@ -441,14 +419,14 @@ static size_t SymbolizerSize() {
 // Return (and set null) g_cached_symbolized_state if it is not null.
 // Otherwise return a new symbolizer.
 static Symbolizer *AllocateSymbolizer() {
-  InitSigSafeArena();
+  base_internal::InitSigSafeArena();
   Symbolizer *symbolizer =
       g_cached_symbolizer.exchange(nullptr, std::memory_order_acquire);
   if (symbolizer != nullptr) {
     return symbolizer;
   }
   return new (base_internal::LowLevelAlloc::AllocWithArena(
-      SymbolizerSize(), SigSafeArena())) Symbolizer();
+      SymbolizerSize(), base_internal::SigSafeArena())) Symbolizer();
 }
 
 // Set g_cached_symbolize_state to s if it is null, otherwise
@@ -1469,14 +1447,15 @@ static bool MaybeInitializeObjFile(ObjFile *obj) {
       constexpr int interesting = PF_X | PF_R;
 #endif
 
-      if (phdr.p_type != PT_LOAD
-          || (phdr.p_flags & interesting) != interesting) {
+      if (phdr.p_type != PT_LOAD ||
+          (phdr.p_flags & interesting) != interesting) {
         // Not a LOAD segment, not executable code, and not a function
         // descriptor.
         continue;
       }
       if (num_interesting_load_segments < obj->phdr.size()) {
-        memcpy(&obj->phdr[num_interesting_load_segments++], &phdr, sizeof(phdr));
+        memcpy(&obj->phdr[num_interesting_load_segments++], &phdr,
+               sizeof(phdr));
       } else {
         ABSL_RAW_LOG(
             WARNING, "%s: too many interesting LOAD segments: %zu >= %zu",
@@ -1525,7 +1504,8 @@ const char *Symbolizer::GetUncachedSymbol(const void *pc) {
             ABSL_RAW_CHECK(p.p_type == PT_NULL, "unexpected p_type");
             break;
           }
-          if (pc < reinterpret_cast<void *>(start_addr + p.p_vaddr + p.p_memsz)) {
+          if (pc <
+              reinterpret_cast<void *>(start_addr + p.p_vaddr + p.p_memsz)) {
             phdr = &p;
             break;
           }
@@ -1569,7 +1549,7 @@ const char *Symbolizer::GetUncachedSymbol(const void *pc) {
 #endif
   }
 
-  if (g_decorators_mu.TryLock()) {
+  if (g_decorators_mu.try_lock()) {
     if (g_num_decorators > 0) {
       SymbolDecoratorArgs decorator_args = {
           pc,       relocation,       fd,     symbol_buf_, sizeof(symbol_buf_),
@@ -1579,7 +1559,7 @@ const char *Symbolizer::GetUncachedSymbol(const void *pc) {
         g_decorators[i].fn(&decorator_args);
       }
     }
-    g_decorators_mu.Unlock();
+    g_decorators_mu.unlock();
   }
   if (symbol_buf_[0] == '\0') {
     return nullptr;
@@ -1625,17 +1605,17 @@ const char *Symbolizer::GetSymbol(const void *pc) {
 }
 
 bool RemoveAllSymbolDecorators(void) {
-  if (!g_decorators_mu.TryLock()) {
+  if (!g_decorators_mu.try_lock()) {
     // Someone else is using decorators. Get out.
     return false;
   }
   g_num_decorators = 0;
-  g_decorators_mu.Unlock();
+  g_decorators_mu.unlock();
   return true;
 }
 
 bool RemoveSymbolDecorator(int ticket) {
-  if (!g_decorators_mu.TryLock()) {
+  if (!g_decorators_mu.try_lock()) {
     // Someone else is using decorators. Get out.
     return false;
   }
@@ -1649,14 +1629,14 @@ bool RemoveSymbolDecorator(int ticket) {
       break;
     }
   }
-  g_decorators_mu.Unlock();
+  g_decorators_mu.unlock();
   return true;  // Decorator is known to be removed.
 }
 
 int InstallSymbolDecorator(SymbolDecorator decorator, void *arg) {
   static int ticket = 0;
 
-  if (!g_decorators_mu.TryLock()) {
+  if (!g_decorators_mu.try_lock()) {
     // Someone else is using decorators. Get out.
     return -2;
   }
@@ -1667,18 +1647,18 @@ int InstallSymbolDecorator(SymbolDecorator decorator, void *arg) {
     g_decorators[g_num_decorators] = {decorator, arg, ticket++};
     ++g_num_decorators;
   }
-  g_decorators_mu.Unlock();
+  g_decorators_mu.unlock();
   return ret;
 }
 
-bool RegisterFileMappingHint(const void *start, const void *end, uint64_t offset,
-                             const char *filename) {
+bool RegisterFileMappingHint(const void *start, const void *end,
+                             uint64_t offset, const char *filename) {
   SAFE_ASSERT(start <= end);
   SAFE_ASSERT(filename != nullptr);
 
-  InitSigSafeArena();
+  base_internal::InitSigSafeArena();
 
-  if (!g_file_mapping_mu.TryLock()) {
+  if (!g_file_mapping_mu.try_lock()) {
     return false;
   }
 
@@ -1688,8 +1668,9 @@ bool RegisterFileMappingHint(const void *start, const void *end, uint64_t offset
   } else {
     // TODO(ckennelly): Move this into a string copy routine.
     size_t len = strlen(filename);
-    char *dst = static_cast<char *>(
-        base_internal::LowLevelAlloc::AllocWithArena(len + 1, SigSafeArena()));
+    char *dst =
+        static_cast<char *>(base_internal::LowLevelAlloc::AllocWithArena(
+            len + 1, base_internal::SigSafeArena()));
     ABSL_RAW_CHECK(dst != nullptr, "out of memory");
     memcpy(dst, filename, len + 1);
 
@@ -1700,13 +1681,13 @@ bool RegisterFileMappingHint(const void *start, const void *end, uint64_t offset
     hint.filename = dst;
   }
 
-  g_file_mapping_mu.Unlock();
+  g_file_mapping_mu.unlock();
   return ret;
 }
 
 bool GetFileMappingHint(const void **start, const void **end, uint64_t *offset,
                         const char **filename) {
-  if (!g_file_mapping_mu.TryLock()) {
+  if (!g_file_mapping_mu.try_lock()) {
     return false;
   }
   bool found = false;
@@ -1729,7 +1710,7 @@ bool GetFileMappingHint(const void **start, const void **end, uint64_t *offset,
       break;
     }
   }
-  g_file_mapping_mu.Unlock();
+  g_file_mapping_mu.unlock();
   return found;
 }
 
@@ -1765,7 +1746,8 @@ ABSL_NAMESPACE_END
 }  // namespace absl
 
 extern "C" bool AbslInternalGetFileMappingHint(const void **start,
-                                               const void **end, uint64_t *offset,
+                                               const void **end,
+                                               uint64_t *offset,
                                                const char **filename) {
   return absl::debugging_internal::GetFileMappingHint(start, end, offset,
                                                       filename);

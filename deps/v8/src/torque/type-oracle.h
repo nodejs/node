@@ -249,8 +249,10 @@ class TypeOracle : public base::ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(STRONG_TAGGED_TYPE_STRING);
   }
 
-  static const Type* GetUninitializedType() {
-    return Get().GetBuiltinType(UNINITIALIZED_TYPE_STRING);
+  static const Type* GetHoleType() { return Get().GetBuiltinType("Hole"); }
+
+  static const Type* GetTheHoleType() {
+    return Get().GetBuiltinType("TheHole");
   }
 
   static const Type* GetUninitializedHeapObjectType() {

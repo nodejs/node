@@ -54,7 +54,7 @@ static Queue& GlobalQueue() {
 CordzHandle::CordzHandle(bool is_snapshot) : is_snapshot_(is_snapshot) {
   Queue& global_queue = GlobalQueue();
   if (is_snapshot) {
-    MutexLock lock(&global_queue.mutex);
+    MutexLock lock(global_queue.mutex);
     CordzHandle* dq_tail = global_queue.dq_tail.load(std::memory_order_acquire);
     if (dq_tail != nullptr) {
       dq_prev_ = dq_tail;
@@ -69,7 +69,7 @@ CordzHandle::~CordzHandle() {
   if (is_snapshot_) {
     std::vector<CordzHandle*> to_delete;
     {
-      MutexLock lock(&global_queue.mutex);
+      MutexLock lock(global_queue.mutex);
       CordzHandle* next = dq_next_;
       if (dq_prev_ == nullptr) {
         // We were head of the queue, delete every CordzHandle until we reach
@@ -103,7 +103,7 @@ void CordzHandle::Delete(CordzHandle* handle) {
   if (handle) {
     Queue& queue = GlobalQueue();
     if (!handle->SafeToDelete()) {
-      MutexLock lock(&queue.mutex);
+      MutexLock lock(queue.mutex);
       CordzHandle* dq_tail = queue.dq_tail.load(std::memory_order_acquire);
       if (dq_tail != nullptr) {
         handle->dq_prev_ = dq_tail;
@@ -119,7 +119,7 @@ void CordzHandle::Delete(CordzHandle* handle) {
 std::vector<const CordzHandle*> CordzHandle::DiagnosticsGetDeleteQueue() {
   std::vector<const CordzHandle*> handles;
   Queue& global_queue = GlobalQueue();
-  MutexLock lock(&global_queue.mutex);
+  MutexLock lock(global_queue.mutex);
   CordzHandle* dq_tail = global_queue.dq_tail.load(std::memory_order_acquire);
   for (const CordzHandle* p = dq_tail; p; p = p->dq_prev_) {
     handles.push_back(p);
@@ -134,7 +134,7 @@ bool CordzHandle::DiagnosticsHandleIsSafeToInspect(
   if (handle->is_snapshot_) return false;
   bool snapshot_found = false;
   Queue& global_queue = GlobalQueue();
-  MutexLock lock(&global_queue.mutex);
+  MutexLock lock(global_queue.mutex);
   for (const CordzHandle* p = global_queue.dq_tail; p; p = p->dq_prev_) {
     if (p == handle) return !snapshot_found;
     if (p == this) snapshot_found = true;
@@ -151,7 +151,7 @@ CordzHandle::DiagnosticsGetSafeToInspectDeletedHandles() {
   }
 
   Queue& global_queue = GlobalQueue();
-  MutexLock lock(&global_queue.mutex);
+  MutexLock lock(global_queue.mutex);
   for (const CordzHandle* p = dq_next_; p != nullptr; p = p->dq_next_) {
     if (!p->is_snapshot()) {
       handles.push_back(p);

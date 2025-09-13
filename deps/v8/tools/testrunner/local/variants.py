@@ -48,7 +48,8 @@ ALL_VARIANT_FLAGS = {
         "--maglev", "--stress-maglev", "--maglev-non-eager-inlining",
         "--optimize-on-next-call-optimizes-to-maglev"
     ]],
-    "conservative_pinning": [[
+    "conservative_stack_scanning": [[
+        "--conservative-stack-scanning",
         "--scavenger-conservative-object-pinning",
         "--stress-scavenger-conservative-object-pinning"
     ]],
@@ -125,8 +126,8 @@ ALL_VARIANT_FLAGS = {
 # disabled (i.e. not part of the binary), or when all codegen is disallowed (in
 # jitless mode).
 kIncompatibleFlagsForNoTurbofan = [
-    "--turbofan", "--always-turbofan", "--liftoff", "--validate-asm",
-    "--maglev", "--stress-concurrent-inlining"
+    "--turbofan", "--liftoff", "--validate-asm", "--maglev",
+    "--stress-concurrent-inlining"
 ]
 
 # Flags that lead to a contradiction with the flags provided by the respective
@@ -147,7 +148,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         ],
     "nooptimization": [
         "--turbofan",
-        "--always-turbofan",
         "--turboshaft",
         "--turboshaft-wasm-in-js-inlining",
         "--maglev",
@@ -194,7 +194,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--jitless",
         "--no-maglev",
         "--turbofan",
-        "--always-turbofan",
         "--stress-concurrent-inlining",
     ],
     "stress_maglev": ["--jitless"],
@@ -204,7 +203,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--jitless",
         "--no-maglev",
         "--turbofan",
-        "--always-turbofan",
         "--stress-concurrent-inlining",
     ],
     "stress_maglev_tests_with_turbofan": ["--jitless"],
@@ -295,6 +293,7 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
 # The conflicts might be directly contradictory flags or be caused by the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
+    "--flush-bytecode": ["--jit-fuzzing"],
     "--concurrent-recompilation": [
         "--predictable", "--assert-types", "--turboshaft-assert-types",
         "--single-threaded"

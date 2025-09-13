@@ -5,10 +5,10 @@
 #ifndef V8_EXECUTION_VM_STATE_H_
 #define V8_EXECUTION_VM_STATE_H_
 
+#include "include/v8-internal.h"
 #include "include/v8-unwinder.h"
 #include "src/common/globals.h"
 #include "src/logging/counters-scopes.h"
-#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {

@@ -257,15 +257,9 @@ bool Operand::AddressUsesRegister(Register reg) const {
   }
 }
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
-  for (auto& request : heap_number_requests_) {
-    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    Handle<HeapNumber> object =
-        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-            request.heap_number());
-    WriteUnalignedValue(pc, object);
-  }
+void Assembler::PatchInHeapNumberRequest(Address pc,
+                                         Handle<HeapNumber> heap_number) {
+  WriteUnalignedValue(pc, heap_number);
 }
 
 // Partial Constant Pool.
@@ -1325,6 +1319,20 @@ void Assembler::lfence() {
   emit(0x0F);
   emit(0xAE);
   emit(0xE8);
+}
+
+void Assembler::rdpkru() {
+  EnsureSpace ensure_space(this);
+  emit(0x0F);
+  emit(0x01);
+  emit(0xEE);
+}
+
+void Assembler::wrpkru() {
+  EnsureSpace ensure_space(this);
+  emit(0x0F);
+  emit(0x01);
+  emit(0xEF);
 }
 
 void Assembler::cpuid() {

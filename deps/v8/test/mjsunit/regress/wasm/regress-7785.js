@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Force TurboFan code for serialization.
-// Flags: --allow-natives-syntax --no-liftoff --no-wasm-lazy-compilation
+// Flags: --no-liftoff --no-wasm-lazy-compilation
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -15,8 +15,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var wire_bytes = builder.toBuffer();
   var module = new WebAssembly.Module(wire_bytes);
-  var buffer = %SerializeWasmModule(module);
-  module = %DeserializeWasmModule(buffer, wire_bytes);
+  var buffer = d8.wasm.serializeModule(module);
+  module = d8.wasm.deserializeModule(buffer, wire_bytes);
   var instance = new WebAssembly.Instance(module);
 
   assertEquals(null, instance.exports.main());
@@ -30,8 +30,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var wire_bytes = builder.toBuffer();
   var module = new WebAssembly.Module(wire_bytes);
-  var buffer = %SerializeWasmModule(module);
-  module = %DeserializeWasmModule(buffer, wire_bytes);
+  var buffer = d8.wasm.serializeModule(module);
+  module = d8.wasm.deserializeModule(buffer, wire_bytes);
   var instance = new WebAssembly.Instance(module);
 
   assertEquals(0, instance.exports.main({'hello' : 'world'}));

@@ -15,6 +15,9 @@
 #
 
 load("@bazel_skylib//lib:selects.bzl", "selects")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 # Internal-only implementation classes for Abseil Random
 load(
@@ -799,6 +802,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = [
         "benchmark",
+        "no_test_ios_sim_arm64",
         "no_test_ios_x86_64",
         "no_test_loonix",  # Crashing.
         "no_test_wasm",

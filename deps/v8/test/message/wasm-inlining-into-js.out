@@ -1,7 +1,7 @@
 TestInlining
 Considering {ADDRESS} {{ADDRESS} <SharedFunctionInfo inner>} for inlining with {ADDRESS} {{ADDRESS} <FeedbackVector[9]>}
 1 candidate(s) for inlining:
-- candidate: JSCall node #83 with frequency 1, 1 target(s):
+- candidate: JSCall node #83 with frequency 1, has_heapnum_param:0, 1 target(s):
   - target: {ADDRESS} {{ADDRESS} <SharedFunctionInfo inner>}, bytecode size: 47
 Inlining {ADDRESS} {{ADDRESS} <SharedFunctionInfo inner>} into {ADDRESS} {{ADDRESS} <SharedFunctionInfo jsFct>}
 Considering wasm function [2] <no name> of module {ADDRESS} for inlining

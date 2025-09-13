@@ -155,7 +155,7 @@ class CppgcMixin : public cppgc::GarbageCollectedMixin, public MemoryRetainer {
  */
 #define CPPGC_MIXIN(Klass)                                                     \
   public /* NOLINT(whitespace/indent) */                                       \
-  cppgc::GarbageCollected<Klass>, public cppgc::NameProvider, public CppgcMixin
+  v8::Object::Wrappable, public CppgcMixin
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 

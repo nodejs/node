@@ -18,6 +18,7 @@ extern class JSFinalizationRegistry extends JSObject {
   flags: SmiTagged<FinalizationRegistryFlags>;
 }
 
+@cppObjectLayoutDefinition
 extern class WeakCell extends HeapObject {
   finalization_registry: Undefined|JSFinalizationRegistry;
   target: Undefined|JSReceiver|Symbol;
@@ -39,6 +40,7 @@ extern class WeakCell extends HeapObject {
   key_list_next: Undefined|WeakCell;
 }
 
+@cppObjectDefinition
 extern class JSWeakRef extends JSObject {
   target: Undefined|JSReceiver|Symbol;
 }

@@ -18,7 +18,7 @@ class LiveObjectRange final {
  public:
   class iterator final {
    public:
-    using value_type = std::pair<Tagged<HeapObject>, int /* size */>;
+    using value_type = std::pair<Tagged<HeapObject>, SafeHeapObjectSize>;
     using pointer = const value_type*;
     using reference = const value_type&;
     using iterator_category = std::forward_iterator_tag;
@@ -35,7 +35,9 @@ class LiveObjectRange final {
     bool operator!=(iterator other) const { return !(*this == other); }
 
     value_type operator*() {
-      return std::make_pair(current_object_, current_size_);
+      return std::make_pair(
+          current_object_,
+          SafeHeapObjectSize(static_cast<uint32_t>(current_size_)));
     }
 
    private:

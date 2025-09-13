@@ -16,7 +16,7 @@ const int kIllegalBytecodeHandlerEncoding = 255;
 
 void WriteBytecode(std::ofstream& out, Bytecode bytecode,
                    OperandScale operand_scale, int* count, int offset_table[],
-                   int table_index) {
+                   int table_index, bool has_tsa_version) {
   DCHECK_NOT_NULL(count);
   if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
     std::string name = Bytecodes::ToString(bytecode, operand_scale, "");
@@ -28,9 +28,13 @@ void WriteBytecode(std::ofstream& out, Bytecode bytecode,
       name = "ShortStar";
     }
 
-    out << " \\\n  V(" << name << "Handler, interpreter::OperandScale::k"
-        << operand_scale << ", interpreter::Bytecode::k"
-        << Bytecodes::ToString(bytecode) << ")";
+    if (has_tsa_version) {
+      out << " \\\n  IF_TSA(V_TSA, V, ";
+    } else {
+      out << " \\\n  V(";
+    }
+    out << name << "Handler, interpreter::OperandScale::k" << operand_scale
+        << ", interpreter::Bytecode::k" << Bytecodes::ToString(bytecode) << ")";
     offset_table[table_index] = *count;
     (*count)++;
   } else {
@@ -49,7 +53,18 @@ void WriteHeader(const char* header_filename) {
       << "#define V8_BUILTINS_GENERATED_BYTECODES_BUILTINS_LIST\n\n"
       << "namespace v8 {\n"
       << "namespace internal {\n\n"
-      << "#define BUILTIN_LIST_BYTECODE_HANDLERS(V)";
+      << "#ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS\n"
+      << "// EXPAND is needed to work around MSVC's broken __VA_ARGS__ "
+         "expansion.\n"
+      << "#define IF_TSA(TSA_MACRO, CSA_MACRO, ...) "
+         "EXPAND(TSA_MACRO(__VA_ARGS__))\n"
+      << "#else\n"
+      << "// EXPAND is needed to work around MSVC's broken __VA_ARGS__ "
+         "expansion.\n"
+      << "#define IF_TSA(TSA_MACRO, CSA_MACRO, ...) "
+         "EXPAND(CSA_MACRO(__VA_ARGS__))\n"
+      << "#endif\n\n"
+      << "#define BUILTIN_LIST_BYTECODE_HANDLERS(V_TSA, V)";
 
   constexpr int kTableSize =
       BytecodeOperands::kOperandScaleCount * Bytecodes::kBytecodeCount;
@@ -59,15 +74,18 @@ void WriteHeader(const char* header_filename) {
 
 #define ADD_BYTECODES(Name, ...)                                             \
   WriteBytecode(out, Bytecode::k##Name, operand_scale, &count, offset_table, \
-                index++);
+                index++, false);
+#define ADD_BYTECODES_WITH_TSA_VERSION(Name, ...)                            \
+  WriteBytecode(out, Bytecode::k##Name, operand_scale, &count, offset_table, \
+                index++, true);
   OperandScale operand_scale = OperandScale::kSingle;
-  BYTECODE_LIST(ADD_BYTECODES, ADD_BYTECODES)
+  BYTECODE_LIST(ADD_BYTECODES, ADD_BYTECODES_WITH_TSA_VERSION)
   int single_count = count;
   operand_scale = OperandScale::kDouble;
-  BYTECODE_LIST(ADD_BYTECODES, ADD_BYTECODES)
+  BYTECODE_LIST(ADD_BYTECODES, ADD_BYTECODES_WITH_TSA_VERSION)
   int wide_count = count - single_count;
   operand_scale = OperandScale::kQuadruple;
-  BYTECODE_LIST(ADD_BYTECODES, ADD_BYTECODES)
+  BYTECODE_LIST(ADD_BYTECODES, ADD_BYTECODES_WITH_TSA_VERSION)
 #undef ADD_BYTECODES
   int extra_wide_count = count - wide_count - single_count;
   CHECK_GT(single_count, wide_count);
@@ -97,6 +115,7 @@ void WriteHeader(const char* header_filename) {
   }
 
   out << "};\n\n"
+      << "#undef IF_TSA\n\n"
       << "}  // namespace internal\n"
       << "}  // namespace v8\n"
       << "#endif  // V8_BUILTINS_GENERATED_BYTECODES_BUILTINS_LIST\n";

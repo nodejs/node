@@ -184,11 +184,11 @@ inline bool operator!=(const CharacterRange& lhs, const CharacterRange& rhs) {
   return !operator==(lhs, rhs);
 }
 
-#define DECL_BOILERPLATE(Name)                                         \
-  void* Accept(RegExpVisitor* visitor, void* data) override;           \
-  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) \
-      override;                                                        \
-  RegExp##Name* As##Name() override;                                   \
+#define DECL_BOILERPLATE(Name)                                             \
+  void* Accept(RegExpVisitor* visitor, void* data) override;               \
+  RegExpNode* ToNodeImpl(RegExpCompiler* compiler, RegExpNode* on_success) \
+      override;                                                            \
+  RegExp##Name* As##Name() override;                                       \
   bool Is##Name() override
 
 class RegExpTree : public ZoneObject {
@@ -196,8 +196,9 @@ class RegExpTree : public ZoneObject {
   static const int kInfinity = kMaxInt;
   virtual ~RegExpTree() = default;
   virtual void* Accept(RegExpVisitor* visitor, void* data) = 0;
-  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
-                             RegExpNode* on_success) = 0;
+  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success);
+  virtual RegExpNode* ToNodeImpl(RegExpCompiler* compiler,
+                                 RegExpNode* on_success) = 0;
   virtual bool IsTextElement() { return false; }
   virtual bool IsAnchoredAtStart() { return false; }
   virtual bool IsAnchoredAtEnd() { return false; }
@@ -536,6 +537,9 @@ class RegExpText final : public RegExpTree {
     length_ += elm.length();
   }
   ZoneList<TextElement>* elements() { return &elements_; }
+
+  bool StartsWithAtom() const;
+  RegExpAtom* FirstAtom() const;
 
  private:
   ZoneList<TextElement> elements_;

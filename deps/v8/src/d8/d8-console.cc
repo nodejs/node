@@ -11,6 +11,7 @@
 #include "include/v8-profiler.h"
 #include "src/d8/d8.h"
 #include "src/execution/isolate.h"
+#include "src/utils/output-stream.h"
 
 namespace v8 {
 
@@ -41,38 +42,7 @@ void WriteToFile(const char* prefix, FILE* file, Isolate* isolate,
   fflush(file);
 }
 
-class FileOutputStream : public v8::OutputStream {
- public:
-  explicit FileOutputStream(const char* filename)
-      : os_(filename, std::ios_base::out | std::ios_base::trunc) {}
-
-  WriteResult WriteAsciiChunk(char* data, int size) override {
-    os_.write(data, size);
-    return kContinue;
-  }
-
-  void EndOfStream() override { os_.close(); }
-
- private:
-  std::ofstream os_;
-};
-
 static constexpr const char* kCpuProfileOutputFilename = "v8.prof";
-
-class StringOutputStream : public v8::OutputStream {
- public:
-  WriteResult WriteAsciiChunk(char* data, int size) override {
-    os_.write(data, size);
-    return kContinue;
-  }
-
-  void EndOfStream() override {}
-
-  std::string result() { return os_.str(); }
-
- private:
-  std::ostringstream os_;
-};
 
 std::optional<std::string> GetTimerLabel(
     const debug::ConsoleCallArguments& args) {
@@ -152,11 +122,11 @@ void D8Console::ProfileEnd(const debug::ConsoleCallArguments& args,
   profiler_active_ = false;
   if (!profile) return;
   if (Shell::HasOnProfileEndListener(isolate_)) {
-    StringOutputStream out;
+    i::StringOutputStream out;
     profile->Serialize(&out);
-    Shell::TriggerOnProfileEndListener(isolate_, out.result());
+    Shell::TriggerOnProfileEndListener(isolate_, out.str());
   } else {
-    FileOutputStream out(kCpuProfileOutputFilename);
+    i::FileOutputStream out(kCpuProfileOutputFilename);
     profile->Serialize(&out);
   }
   profile->Delete();

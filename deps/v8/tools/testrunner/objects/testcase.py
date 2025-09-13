@@ -97,7 +97,7 @@ class TestCase(object):
     # Path (pathlib) with the relative test path, e.g. 'test-api/foo'.
     self.path = Path(path)
 
-    # Sting with a posix path to identify test in the status file and
+    # String with a posix path to identify test in the status file and
     # at the command line.
     self.name = name
 
@@ -328,6 +328,10 @@ class TestCase(object):
     return self.test_config.framework_name
 
   @property
+  def fuzz_rare(self):
+    return statusfile.FUZZ_RARE in self._statusfile_outcomes
+
+  @property
   def shard_id(self):
     return self.test_config.shard_id
 
@@ -386,7 +390,14 @@ class TestCase(object):
       - files [empty by default]
       - all flags
     """
-    return (self._get_files_params() + self.get_flags())
+    files = self._get_files_params()
+    flags = self.get_flags()
+    cwd = Path.cwd()
+    is_cwd_relative = lambda f: f.is_absolute() and f.is_relative_to(cwd)
+    make_relative = lambda f: Path(f).relative_to(cwd) if is_cwd_relative(
+        Path(f)) else f
+    relative_files = [make_relative(f) for f in files]
+    return relative_files + flags
 
   def get_flags(self):
     """Gets all flags and combines them in the following order:
@@ -496,8 +507,9 @@ class TestCase(object):
   def _create_cmd(self, ctx, params, env, timeout):
     return ctx.command(
         cmd_prefix=self.test_config.command_prefix,
-        shell=ctx.platform_shell(self.get_shell(), params,
-                                 self.test_config.shell_dir),
+        shell=ctx.platform_shell(
+            self.get_shell(), params,
+            self.test_config.shell_dir.relative_to(Path.cwd())),
         args=params,
         env=env,
         timeout=timeout,
@@ -617,7 +629,8 @@ class TestCase(object):
       for resource in self._get_resources_for_file(next_resource):
         # Only add files that exist on disc. The pattens we check for give some
         # false positives otherwise.
-        if resource not in result and resource.exists():
+        if (resource not in result and resource.exists() and
+            not resource.is_dir()):
           to_check.append(resource)
     return sorted(list(result))
 

@@ -49,6 +49,10 @@ class PretenuringHandler final {
   static inline void UpdateAllocationSite(
       Heap* heap, Tagged<Map> map, Tagged<HeapObject> object, int object_size,
       PretenuringFeedbackMap* pretenuring_feedback);
+  static inline void UpdateAllocationSite(
+      Heap* heap, Tagged<Map> map, Tagged<HeapObject> object,
+      SafeHeapObjectSize object_size,
+      PretenuringFeedbackMap* pretenuring_feedback);
 
   // Merges local pretenuring feedback into the global one. Note that this
   // method needs to be called after evacuation, as allocation sites may be

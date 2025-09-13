@@ -24,13 +24,14 @@ SUPPORTED_BUILDER_SPEC_KEYS = [
 # This is not an exhaustive list. It only reflects what we currently use. If
 # there's need to specify a different dimension, just add it here.
 SUPPORTED_SWARMING_DIMENSIONS = [
-  'cores',
-  'cpu',
-  'device_os',
-  'device_type',
-  'gpu',
-  'os',
-  'pool',
+    'cores',
+    'cpu',
+    'device_os',
+    'device_type',
+    'gpu',
+    'host_class',
+    'os',
+    'pool',
 ]
 
 # This is not an exhaustive list. It only reflects what we currently use. If

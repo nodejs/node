@@ -15,6 +15,7 @@
 #endif
 
 #include <fp16/bitcasts.h>
+#include <fp16/macros.h>
 
 
 /*
@@ -106,6 +107,19 @@ static inline uint32_t fp16_ieee_to_fp32_bits(uint16_t h) {
  * floating-point operations and bitcasts between integer and floating-point variables.
  */
 static inline float fp16_ieee_to_fp32_value(uint16_t h) {
+#if FP16_USE_FLOAT16_TYPE
+	union {
+		uint16_t as_bits;
+		_Float16 as_value;
+	} fp16 = { h };
+	return (float) fp16.as_value;
+#elif FP16_USE_FP16_TYPE
+	union {
+		uint16_t as_bits;
+		__fp16 as_value;
+	} fp16 = { h };
+	return (float) fp16.as_value;
+#else
 	/*
 	 * Extend the half-precision floating-point number to 32 bits and shift to the upper part of the 32-bit word:
 	 *      +---+-----+------------+-------------------+
@@ -211,6 +225,7 @@ static inline float fp16_ieee_to_fp32_value(uint16_t h) {
 	const uint32_t result = sign |
 		(two_w < denormalized_cutoff ? fp32_to_bits(denormalized_value) : fp32_to_bits(normalized_value));
 	return fp32_from_bits(result);
+#endif
 }
 
 /*
@@ -221,6 +236,19 @@ static inline float fp16_ieee_to_fp32_value(uint16_t h) {
  * floating-point operations and bitcasts between integer and floating-point variables.
  */
 static inline uint16_t fp16_ieee_from_fp32_value(float f) {
+#if FP16_USE_FLOAT16_TYPE
+	union {
+		_Float16 as_value;
+		uint16_t as_bits;
+	} fp16 = { (_Float16) f };
+	return fp16.as_bits;
+#elif FP16_USE_FP16_TYPE
+	union {
+		__fp16 as_value;
+		uint16_t as_bits;
+	} fp16 = { (__fp16) f };
+	return fp16.as_bits;
+#else
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) || defined(__GNUC__) && !defined(__STRICT_ANSI__)
 	const float scale_to_inf = 0x1.0p+112f;
 	const float scale_to_zero = 0x1.0p-110f;
@@ -228,7 +256,12 @@ static inline uint16_t fp16_ieee_from_fp32_value(float f) {
 	const float scale_to_inf = fp32_from_bits(UINT32_C(0x77800000));
 	const float scale_to_zero = fp32_from_bits(UINT32_C(0x08800000));
 #endif
-	float base = (fabsf(f) * scale_to_inf) * scale_to_zero;
+#if defined(_MSC_VER) && defined(_M_IX86_FP) && (_M_IX86_FP == 0) || defined(__GNUC__) && defined(__FLT_EVAL_METHOD__) && (__FLT_EVAL_METHOD__ != 0)
+	const volatile float saturated_f = fabsf(f) * scale_to_inf;
+#else
+	const float saturated_f = fabsf(f) * scale_to_inf;
+#endif
+	float base = saturated_f * scale_to_zero;
 
 	const uint32_t w = fp32_to_bits(f);
 	const uint32_t shl1_w = w + w;
@@ -244,6 +277,7 @@ static inline uint16_t fp16_ieee_from_fp32_value(float f) {
 	const uint32_t mantissa_bits = bits & UINT32_C(0x00000FFF);
 	const uint32_t nonsign = exp_bits + mantissa_bits;
 	return (sign >> 16) | (shl1_w > UINT32_C(0xFF000000) ? UINT16_C(0x7E00) : nonsign);
+#endif
 }
 
 /*

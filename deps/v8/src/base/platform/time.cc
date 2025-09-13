@@ -736,14 +736,14 @@ bool TimeTicks::IsHighResolution() {
 TimeTicks TimeTicks::Now() {
   int64_t ticks;
 #if V8_OS_DARWIN
-  static struct mach_timebase_info info;
+  static struct mach_timebase_info info = {};
   if (info.denom == 0) {
     kern_return_t result = mach_timebase_info(&info);
     DCHECK_EQ(KERN_SUCCESS, result);
     USE(result);
   }
-  ticks = (mach_absolute_time() / Time::kNanosecondsPerMicrosecond *
-           info.numer / info.denom);
+  ticks = mach_absolute_time() * info.numer /
+          (Time::kNanosecondsPerMicrosecond * info.denom);
 #elif V8_OS_SOLARIS
   ticks = (gethrtime() / Time::kNanosecondsPerMicrosecond);
 #elif V8_OS_FUCHSIA
