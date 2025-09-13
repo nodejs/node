@@ -1,5 +1,5 @@
 // This tests the behavior of ESM in require.cache when it's loaded from require.
-
+'use strict';
 require('../common');
 const assert = require('node:assert');
 const fixtures = require('../common/fixtures');
