@@ -138,14 +138,14 @@ void ngtcp2_rob_free(ngtcp2_rob *rob);
  * ngtcp2_rob_push adds new data pointed by |data| of length |datalen|
  * at the stream offset |offset|.
  *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
+ * This function returns the number of data newly buffered if it
+ * succeeds, or one of the following negative error codes:
  *
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_rob_push(ngtcp2_rob *rob, uint64_t offset, const uint8_t *data,
-                    size_t datalen);
+ngtcp2_ssize ngtcp2_rob_push(ngtcp2_rob *rob, uint64_t offset,
+                             const uint8_t *data, size_t datalen);
 
 /*
  * ngtcp2_rob_remove_prefix removes gap up to |offset|, exclusive.  It
