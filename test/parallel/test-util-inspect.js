@@ -1646,7 +1646,7 @@ util.inspect(process);
     }
   }
 
-  assert.throws(() => util.inspect(new ThrowingClass()), /toStringTag error/);
+  assert.strictEqual(util.inspect(new ThrowingClass()), 'ThrowingClass {}');
 
   const y = {
     get [Symbol.toStringTag]() {
@@ -1655,7 +1655,11 @@ util.inspect(process);
   };
   const x = { y };
   y.x = x;
-  assert.throws(() => util.inspect(x), /TypeError: Converting circular structure to JSON/);
+
+  assert.strictEqual(
+    util.inspect(x),
+    '<ref *1> {\n  y: { x: [Circular *1], Symbol(Symbol.toStringTag): [Getter] }\n}'
+  );
 
   class NotStringClass {
     get [Symbol.toStringTag]() {
