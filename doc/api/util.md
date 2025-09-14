@@ -1551,18 +1551,55 @@ inspect.defaultOptions.maxArrayLength = null;
 console.log(arr); // logs the full array
 ```
 
-## `util.isDeepStrictEqual(val1, val2)`
+## `util.isDeepStrictEqual(val1, val2[, options])`
 
 <!-- YAML
 added: v9.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59762
+    description: Added `options` parameter to allow skipping prototype comparison.
 -->
 
 * `val1` {any}
 * `val2` {any}
+* `skipPrototype` {boolean} If `true`, prototype and constructor
+  comparison is skipped during deep strict equality check. **Default:** `false`.
 * Returns: {boolean}
 
 Returns `true` if there is deep strict equality between `val1` and `val2`.
 Otherwise, returns `false`.
+
+By default, deep strict equality includes comparison of object prototypes and
+constructors. When `skipPrototype` is `true`, objects with
+different prototypes or constructors can still be considered equal if their
+enumerable properties are deeply strictly equal.
+
+```js
+const util = require('node:util');
+
+class Foo {
+  constructor(a) {
+    this.a = a;
+  }
+}
+
+class Bar {
+  constructor(a) {
+    this.a = a;
+  }
+}
+
+const foo = new Foo(1);
+const bar = new Bar(1);
+
+// Different constructors, same properties
+console.log(util.isDeepStrictEqual(foo, bar));
+// false
+
+console.log(util.isDeepStrictEqual(foo, bar, true));
+// true
+```
 
 See [`assert.deepStrictEqual()`][] for more information about deep strict
 equality.
