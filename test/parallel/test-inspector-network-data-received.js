@@ -11,6 +11,9 @@ const assert = require('node:assert');
 const { waitUntil } = require('../common/inspector-helper');
 const { setTimeout } = require('node:timers/promises');
 
+// The complete payload string received by the network agent
+const payloadString = `Hello, world${'.'.repeat(4096)}`;
+
 const session = new inspector.Session();
 session.connect();
 session.post('Network.enable');
@@ -67,9 +70,20 @@ async function triggerNetworkEvents(requestId, charset) {
   });
   await setTimeout(1);
 
-  Network.loadingFinished({
+  // Test inspector binary conversions with large input
+  const chunk3 = Buffer.allocUnsafe(4096).fill('.');
+  Network.dataReceived({
     requestId,
     timestamp: 5,
+    dataLength: chunk3.byteLength,
+    encodedDataLength: chunk3.byteLength,
+    data: chunk3,
+  });
+  await setTimeout(1);
+
+  Network.loadingFinished({
+    requestId,
+    timestamp: 6,
   });
 }
 
@@ -116,7 +130,7 @@ test('should stream Network.dataReceived with data chunks', async () => {
 
   const data = Buffer.concat(chunks);
   assert.strictEqual(data.byteLength, totalDataLength, data);
-  assert.strictEqual(data.toString('utf8'), 'Hello, world');
+  assert.strictEqual(data.toString('utf8'), payloadString);
 });
 
 test('Network.streamResourceContent should send all buffered chunks', async () => {
@@ -131,7 +145,7 @@ test('Network.streamResourceContent should send all buffered chunks', async () =
   const { bufferedData } = await session.post('Network.streamResourceContent', {
     requestId,
   });
-  assert.strictEqual(Buffer.from(bufferedData, 'base64').toString('utf8'), 'Hello, world');
+  assert.strictEqual(Buffer.from(bufferedData, 'base64').toString('utf8'), payloadString);
 });
 
 test('Network.streamResourceContent should reject if request id not found', async () => {
@@ -158,7 +172,7 @@ test('Network.getResponseBody should send all buffered binary data', async () =>
     requestId,
   });
   assert.strictEqual(base64Encoded, true);
-  assert.strictEqual(body, Buffer.from('Hello, world').toString('base64'));
+  assert.strictEqual(body, Buffer.from(payloadString).toString('base64'));
 });
 
 test('Network.getResponseBody should send all buffered text data', async () => {
@@ -174,5 +188,5 @@ test('Network.getResponseBody should send all buffered text data', async () => {
     requestId,
   });
   assert.strictEqual(base64Encoded, false);
-  assert.strictEqual(body, 'Hello, world');
+  assert.strictEqual(body, payloadString);
 });
