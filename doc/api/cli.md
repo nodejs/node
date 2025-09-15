@@ -278,7 +278,7 @@ Examples can be found in the [File System Permissions][] documentation.
 ### `--allow-inspector`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 > Stability: 1.0 - Early development
@@ -308,7 +308,7 @@ Error: connect ERR_ACCESS_DENIED Access to this API has been restricted. Use --a
 ### `--allow-net`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1177,7 +1177,7 @@ top-level awaits, and print their location to help users find them.
 ### `--experimental-quic`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1980,7 +1980,7 @@ Silence all process warnings (including deprecations).
 ### `--no-webstorage`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 Disable [`Web Storage`][] support.
