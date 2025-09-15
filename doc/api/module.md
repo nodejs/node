@@ -503,10 +503,10 @@ The following constants are returned as the `status` field in the object returne
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58797
     description: Add `portable` option to enable portable compile cache.
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59931
     description: Rename the unreleased `path` option to `directory` to maintain consistency.
 -->
