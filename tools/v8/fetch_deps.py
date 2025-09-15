@@ -16,7 +16,7 @@ import os
 import subprocess
 import sys
 
-import node_common
+from . import node_common
 
 GCLIENT_SOLUTION = [
   { "name"        : "v8",
@@ -77,9 +77,15 @@ def FetchDeps(v8_path):
     env = os.environ.copy()
     # gclient needs to have depot_tools in the PATH.
     env["PATH"] = depot_tools + os.pathsep + env["PATH"]
-    gclient = os.path.join(depot_tools, "gclient.py")
+
+    if os.name == 'nt':
+      gclient = [os.path.join(depot_tools, "gclient.bat")]
+      env["DEPOT_TOOLS_WIN_TOOLCHAIN"] = "0"
+    else:
+      gclient = [sys.executable, os.path.join(depot_tools, "gclient.py")]
+
     spec = "solutions = %s" % GCLIENT_SOLUTION
-    subprocess.check_call([sys.executable, gclient, "sync", "--spec", spec],
+    subprocess.check_call([*gclient, "sync", "--spec", spec],
                            cwd=os.path.join(v8_path, os.path.pardir),
                            env=env)
   except:
