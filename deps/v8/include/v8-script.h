@@ -220,6 +220,13 @@ class V8_EXPORT Module : public Data {
       Local<Context> context, Local<String> specifier,
       Local<FixedArray> import_attributes, Local<Module> referrer);
 
+  using ResolveModuleByIndexCallback = MaybeLocal<Module> (*)(
+      Local<Context> context, size_t module_request_index,
+      Local<Module> referrer);
+  using ResolveSourceByIndexCallback = MaybeLocal<Object> (*)(
+      Local<Context> context, size_t module_request_index,
+      Local<Module> referrer);
+
   /**
    * Instantiates the module and its dependencies.
    *
@@ -230,6 +237,16 @@ class V8_EXPORT Module : public Data {
   V8_WARN_UNUSED_RESULT Maybe<bool> InstantiateModule(
       Local<Context> context, ResolveModuleCallback module_callback,
       ResolveSourceCallback source_callback = nullptr);
+
+  /**
+   * Similar to the variant that takes ResolveModuleCallback and
+   * ResolveSourceCallback, but uses the index into the array that is returned
+   * by GetModuleRequests() instead of the specifier and import attributes to
+   * identify the requests.
+   */
+  V8_WARN_UNUSED_RESULT Maybe<bool> InstantiateModule(
+      Local<Context> context, ResolveModuleByIndexCallback module_callback,
+      ResolveSourceByIndexCallback source_callback = nullptr);
 
   /**
    * Evaluates the module and its dependencies.
