@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -98,7 +98,7 @@ static void hmac_free(void *vmacctx)
     if (macctx != NULL) {
         HMAC_CTX_free(macctx->ctx);
         ossl_prov_digest_reset(&macctx->digest);
-        OPENSSL_secure_clear_free(macctx->key, macctx->keylen);
+        OPENSSL_clear_free(macctx->key, macctx->keylen);
         OPENSSL_free(macctx);
     }
 }
@@ -127,13 +127,13 @@ static void *hmac_dup(void *vsrc)
         return NULL;
     }
     if (src->key != NULL) {
-        /* There is no "secure" OPENSSL_memdup */
-        dst->key = OPENSSL_secure_malloc(src->keylen > 0 ? src->keylen : 1);
+        dst->key = OPENSSL_malloc(src->keylen > 0 ? src->keylen : 1);
         if (dst->key == NULL) {
             hmac_free(dst);
             return 0;
         }
-        memcpy(dst->key, src->key, src->keylen);
+        if (src->keylen > 0)
+            memcpy(dst->key, src->key, src->keylen);
     }
     return dst;
 }
@@ -178,13 +178,14 @@ static int hmac_setkey(struct hmac_data_st *macctx,
 #endif
 
     if (macctx->key != NULL)
-        OPENSSL_secure_clear_free(macctx->key, macctx->keylen);
+        OPENSSL_clear_free(macctx->key, macctx->keylen);
     /* Keep a copy of the key in case we need it for TLS HMAC */
-    macctx->key = OPENSSL_secure_malloc(keylen > 0 ? keylen : 1);
+    macctx->key = OPENSSL_malloc(keylen > 0 ? keylen : 1);
     if (macctx->key == NULL)
         return 0;
 
-    memcpy(macctx->key, key, keylen);
+    if (keylen > 0)
+        memcpy(macctx->key, key, keylen);
     macctx->keylen = keylen;
 
     digest = ossl_prov_digest_md(&macctx->digest);

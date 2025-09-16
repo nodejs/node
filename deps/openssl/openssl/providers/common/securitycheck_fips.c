@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -98,18 +98,33 @@ int ossl_fips_ind_digest_exch_check(OSSL_FIPS_IND *ind, int id,
 int ossl_fips_ind_digest_sign_check(OSSL_FIPS_IND *ind, int id,
                                     OSSL_LIB_CTX *libctx,
                                     int nid, int sha1_allowed,
+                                    int sha512_trunc_allowed,
                                     const char *desc,
                                     OSSL_FIPS_IND_CHECK_CB *config_check_f)
 {
     int approved;
+    const char *op = "none";
 
-    if (nid == NID_undef)
+    switch (nid) {
+    case NID_undef:
         approved = 0;
-    else
-        approved = sha1_allowed || nid != NID_sha1;
+        break;
+    case NID_sha512_224:
+    case NID_sha512_256:
+        approved = sha512_trunc_allowed;
+        op = "Digest Truncated SHA512";
+        break;
+    case NID_sha1:
+        approved = sha1_allowed;
+        op = "Digest SHA1";
+        break;
+    default:
+        approved = 1;
+        break;
+    }
 
     if (!approved) {
-        if (!ossl_FIPS_IND_on_unapproved(ind, id, libctx, desc, "Digest SHA1",
+        if (!ossl_FIPS_IND_on_unapproved(ind, id, libctx, desc, op,
                                          config_check_f)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_DIGEST);
             return 0;

@@ -23,6 +23,16 @@ OpenSSL Releases
 OpenSSL 3.5
 -----------
 
+### Major changes between OpenSSL 3.5.2 and OpenSSL 3.5.3 [16 Sep 2025]
+
+  * Added FIPS 140-3 PCT on DH key generation.
+
+    *Nikola Pajkovsky*
+
+  * Fixed the synthesised `OPENSSL_VERSION_NUMBER`.
+
+    *Richard Levitte*
+
 ### Major changes between OpenSSL 3.5.1 and OpenSSL 3.5.2 [5 Aug 2025]
 
   * none
