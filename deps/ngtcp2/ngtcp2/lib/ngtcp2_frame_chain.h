@@ -90,10 +90,6 @@ ngtcp2_objalloc_decl(frame_chain, ngtcp2_frame_chain, oplent)
 int ngtcp2_bind_frame_chains(ngtcp2_frame_chain *a, ngtcp2_frame_chain *b,
                              const ngtcp2_mem *mem);
 
-/* NGTCP2_MAX_STREAM_DATACNT is the maximum number of ngtcp2_vec that
-   a ngtcp2_stream can include. */
-#define NGTCP2_MAX_STREAM_DATACNT 256
-
 /*
  * ngtcp2_frame_chain_objalloc_new allocates ngtcp2_frame_chain using
  * |objalloc|.
