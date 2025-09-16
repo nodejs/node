@@ -4109,11 +4109,14 @@ an internal nodejs implementation rather than a public facing API, use `node:htt
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58850
+    description: Runtime deprecation.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59839
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Allowing a [`fs.Dir`][] object to be closed on garbage collection is
 deprecated. In the future, doing so might result in a thrown error that will
