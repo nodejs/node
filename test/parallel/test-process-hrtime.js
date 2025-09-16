@@ -19,9 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Flags: --allow-natives-syntax --expose-internals --no-warnings
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
+
+const { internalBinding } = require('internal/test/binding');
 
 // The default behavior, return an Array "tuple" of numbers
 const tuple = process.hrtime();
@@ -72,3 +75,13 @@ function validateTuple(tuple) {
 
 const diff = process.hrtime([0, 1e9 - 1]);
 assert(diff[1] >= 0); // https://github.com/nodejs/node/issues/4751
+
+eval('%PrepareFunctionForOptimization(process.hrtime)');
+assert(process.hrtime());
+eval('%OptimizeFunctionOnNextCall(process.hrtime)');
+assert(process.hrtime());
+
+if (common.isDebug) {
+  const { getV8FastApiCallCount } = internalBinding('debug');
+  assert.strictEqual(getV8FastApiCallCount('process.hrtime'), 1);
+}
