@@ -197,7 +197,7 @@ void EVP_SKEYMGMT_do_all_provided(OSSL_LIB_CTX *libctx,
                                   void (*fn)(EVP_SKEYMGMT *skeymgmt, void *arg),
                                   void *arg)
 {
-    evp_generic_do_all(libctx, OSSL_OP_KEYMGMT,
+    evp_generic_do_all(libctx, OSSL_OP_SKEYMGMT,
                        (void (*)(void *, void *))fn, arg,
                        skeymgmt_from_algorithm,
                        (int (*)(void *))EVP_SKEYMGMT_up_ref,
