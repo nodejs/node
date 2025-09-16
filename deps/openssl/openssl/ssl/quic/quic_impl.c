@@ -4769,6 +4769,7 @@ void ossl_quic_free_token_store(SSL_TOKEN_STORE *hdl)
     ossl_crypto_mutex_free(&hdl->mutex);
     lh_QUIC_TOKEN_doall(hdl->cache, free_this_token);
     lh_QUIC_TOKEN_free(hdl->cache);
+    CRYPTO_FREE_REF(&hdl->references);
     OPENSSL_free(hdl);
     return;
 }

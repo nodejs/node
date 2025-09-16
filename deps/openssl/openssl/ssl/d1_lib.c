@@ -863,7 +863,7 @@ int dtls1_shutdown(SSL *s)
     BIO *wbio;
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL_ONLY(s);
 
-    if (s == NULL)
+    if (sc == NULL)
         return -1;
 
     wbio = SSL_get_wbio(s);

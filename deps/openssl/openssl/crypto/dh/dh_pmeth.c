@@ -408,7 +408,7 @@ static int pkey_dh_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
     }
     dh = (DH *)EVP_PKEY_get0_DH(ctx->pkey);
     dhpub = EVP_PKEY_get0_DH(ctx->peerkey);
-    if (dhpub == NULL) {
+    if (dhpub == NULL || dh == NULL) {
         ERR_raise(ERR_LIB_DH, DH_R_KEYS_NOT_SET);
         return 0;
     }

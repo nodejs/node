@@ -745,7 +745,7 @@ int ossl_rsa_key_pairwise_test(RSA *rsa)
     OSSL_SELF_TEST_get_callback(rsa->libctx, &stcb, &stcbarg);
     res = rsa_keygen_pairwise_test(rsa, stcb, stcbarg);
     if (res <= 0)
-        ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
+        ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT_IMPORT);
     return res;
 }
 #endif  /* FIPS_MODULE */
