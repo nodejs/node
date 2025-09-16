@@ -2266,14 +2266,34 @@ int Module::GetIdentityHash() const {
   return self->hash();
 }
 
+Maybe<bool> Module::InstantiateModule(
+    Local<Context> context, ResolveModuleByIndexCallback module_callback,
+    ResolveSourceByIndexCallback source_callback) {
+  auto i_isolate = i::Isolate::Current();
+  EnterV8Scope<> api_scope{i_isolate, context,
+                           RCCId::kAPI_Module_InstantiateModule};
+
+  i::Module::UserResolveCallbacks callbacks;
+  callbacks.module_callback_by_index = module_callback;
+  callbacks.source_callback_by_index = source_callback;
+  if (!i::Module::Instantiate(i_isolate, Utils::OpenHandle(this), context,
+                              callbacks)) {
+    return {};
+  }
+  return Just(true);
+}
+
 Maybe<bool> Module::InstantiateModule(Local<Context> context,
                                       ResolveModuleCallback module_callback,
                                       ResolveSourceCallback source_callback) {
   auto i_isolate = i::Isolate::Current();
   EnterV8Scope<> api_scope{i_isolate, context,
                            RCCId::kAPI_Module_InstantiateModule};
+  i::Module::UserResolveCallbacks callbacks;
+  callbacks.module_callback = module_callback;
+  callbacks.source_callback = source_callback;
   if (!i::Module::Instantiate(i_isolate, Utils::OpenHandle(this), context,
-                              module_callback, source_callback)) {
+                              callbacks)) {
     return {};
   }
   return Just(true);
