@@ -56,6 +56,7 @@ using v8::ObjectTemplate;
 using v8::PrimitiveArray;
 using v8::Promise;
 using v8::PromiseRejectEvent;
+using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
@@ -1391,7 +1392,10 @@ void ModuleWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetConstructorFunction(isolate, target, "ModuleWrap", tpl);
 
   tpl->InstanceTemplate()->SetLazyDataProperty(
-      FIXED_ONE_BYTE_STRING(isolate, "hasAsyncGraph"), HasAsyncGraph);
+      FIXED_ONE_BYTE_STRING(isolate, "hasAsyncGraph"),
+      HasAsyncGraph,
+      Local<Value>(),
+      PropertyAttribute::DontEnum);
 
   isolate_data->set_module_wrap_constructor_template(tpl);
 
