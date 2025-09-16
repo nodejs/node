@@ -223,7 +223,7 @@ static int ecx_import(void *keydata, int selection, const OSSL_PARAM params[])
         if (key->haspubkey && key->privkey != NULL) {
             ok = ecd_fips140_pairwise_test(key, key->type, 1);
             if (ok <= 0)
-                ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
+                ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT_IMPORT);
         }
 #endif  /* FIPS_MODULE */
     return ok;

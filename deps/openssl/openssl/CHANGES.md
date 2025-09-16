@@ -28,6 +28,56 @@ OpenSSL Releases
 OpenSSL 3.5
 -----------
 
+### Changes between 3.5.2 and 3.5.3 [16 Sep 2025]
+
+ * Avoided a potential race condition introduced in 3.5.1, where
+   `OSSL_STORE_CTX` kept open during lookup while potentially being used
+   by multiple threads simultaneously, that could lead to potential crashes
+   when multiple concurrent TLS connections are served.
+
+   *Matt Caswell*
+
+ * The FIPS provider no longer performs a PCT on key import for RSA, DH,
+   and EC keys (that was introduced in 3.5.2), following the latest update
+   on that requirement in FIPS 140-3 IG 10.3.A additional comment 1.
+
+   *Dr Paul Dale*
+
+ * Secure memory allocation calls are no longer used for HMAC keys.
+
+   *Dr Paul Dale*
+
+ * `openssl req` no longer generates certificates with an empty extension list
+   when SKID/AKID are set to `none` during generation.
+
+   *David Benjamin*
+
+ * The man page date is now derived from the release date provided
+   in `VERSION.dat` and not the current date for the released builds.
+
+   *Enji Cooper*
+
+ * Hardened the provider implementation of the RSA public key "encrypt"
+   operation to add a missing check that the caller-indicated output buffer
+   size is at least as large as the byte count of the RSA modulus.  The issue
+   was reported by Arash Ale Ebrahim from SYSPWN.
+
+   This operation is typically invoked via `EVP_PKEY_encrypt(3)`.  Callers that
+   in fact provide a sufficiently large buffer, but fail to correctly indicate
+   its size may now encounter unexpected errors.  In applications that attempt
+   RSA public encryption into a buffer that is too small, an out-of-bounds
+   write is now avoided and an error is reported instead.
+
+   *Viktor Dukhovni*
+
+ * Added FIPS 140-3 PCT on DH key generation.
+
+   *Nikola Pajkovsky*
+
+ * Fixed the synthesised `OPENSSL_VERSION_NUMBER`.
+
+   *Richard Levitte*
+
 ### Changes between 3.5.1 and 3.5.2 [5 Aug 2025]
 
  * The FIPS provider now performs a PCT on key import for RSA, EC and ECX.

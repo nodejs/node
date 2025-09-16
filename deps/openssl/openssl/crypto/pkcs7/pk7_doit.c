@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -361,8 +361,11 @@ BIO *PKCS7_dataInit(PKCS7 *p7, BIO *bio)
                 if (xalg->parameter == NULL)
                     goto err;
             }
-            if (EVP_CIPHER_param_to_asn1(ctx, xalg->parameter) <= 0)
+            if (EVP_CIPHER_param_to_asn1(ctx, xalg->parameter) <= 0) {
+                ASN1_TYPE_free(xalg->parameter);
+                xalg->parameter = NULL;
                 goto err;
+            }
         }
 
         /* Lets do the pub key stuff :-) */
