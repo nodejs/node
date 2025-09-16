@@ -346,9 +346,10 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
 bool SourceTextModule::PrepareInstantiate(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     v8::Local<v8::Context> context,
-    v8::Module::ResolveModuleCallback module_callback,
-    v8::Module::ResolveSourceCallback source_callback) {
-  DCHECK_NE(module_callback, nullptr);
+    const Module::UserResolveCallbacks& callbacks) {
+  // One of the callbacks must be set, otherwise we cannot resolve.
+  DCHECK_IMPLIES(callbacks.module_callback == nullptr,
+                 callbacks.module_callback_by_index != nullptr);
   // Obtain requested modules.
   DirectHandle<SourceTextModuleInfo> module_info(module->info(), isolate);
   DirectHandle<FixedArray> module_requests(module_info->module_requests(),
@@ -364,11 +365,23 @@ bool SourceTextModule::PrepareInstantiate(
     switch (module_request->phase()) {
       case ModuleImportPhase::kEvaluation: {
         v8::Local<v8::Module> api_requested_module;
-        if (!module_callback(context, v8::Utils::ToLocal(specifier),
-                             v8::Utils::FixedArrayToLocal(import_attributes),
-                             v8::Utils::ToLocal(Cast<Module>(module)))
-                 .ToLocal(&api_requested_module)) {
-          return false;
+        if (callbacks.module_callback != nullptr) {
+          if (!callbacks
+                   .module_callback(
+                       context, v8::Utils::ToLocal(specifier),
+                       v8::Utils::FixedArrayToLocal(import_attributes),
+                       v8::Utils::ToLocal(Cast<Module>(module)))
+                   .ToLocal(&api_requested_module)) {
+            return false;
+          }
+        } else {
+          DCHECK_NOT_NULL(callbacks.module_callback_by_index);
+          if (!callbacks
+                   .module_callback_by_index(
+                       context, i, v8::Utils::ToLocal(Cast<Module>(module)))
+                   .ToLocal(&api_requested_module)) {
+            return false;
+          }
         }
         DirectHandle<Module> requested_module =
             Utils::OpenDirectHandle(*api_requested_module);
@@ -378,11 +391,23 @@ bool SourceTextModule::PrepareInstantiate(
       case ModuleImportPhase::kSource: {
         DCHECK(v8_flags.js_source_phase_imports);
         v8::Local<v8::Object> api_requested_module_source;
-        if (!source_callback(context, v8::Utils::ToLocal(specifier),
-                             v8::Utils::FixedArrayToLocal(import_attributes),
-                             v8::Utils::ToLocal(Cast<Module>(module)))
-                 .ToLocal(&api_requested_module_source)) {
-          return false;
+        if (callbacks.source_callback != nullptr) {
+          if (!callbacks
+                   .source_callback(
+                       context, v8::Utils::ToLocal(specifier),
+                       v8::Utils::FixedArrayToLocal(import_attributes),
+                       v8::Utils::ToLocal(Cast<Module>(module)))
+                   .ToLocal(&api_requested_module_source)) {
+            return false;
+          }
+        } else {
+          DCHECK_NOT_NULL(callbacks.source_callback_by_index);
+          if (!callbacks
+                   .source_callback_by_index(
+                       context, i, v8::Utils::ToLocal(Cast<Module>(module)))
+                   .ToLocal(&api_requested_module_source)) {
+            return false;
+          }
         }
         DirectHandle<JSReceiver> requested_module_source =
             Utils::OpenDirectHandle(*api_requested_module_source);
@@ -404,7 +429,7 @@ bool SourceTextModule::PrepareInstantiate(
     DirectHandle<Module> requested_module(
         Cast<Module>(requested_modules->get(i)), isolate);
     if (!Module::PrepareInstantiate(isolate, requested_module, context,
-                                    module_callback, source_callback)) {
+                                    callbacks)) {
       return false;
     }
   }
