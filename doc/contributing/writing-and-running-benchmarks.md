@@ -742,3 +742,59 @@ Supported options keys are:
 [node-benchmark-compare]: https://github.com/targos/node-benchmark-compare
 [t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes%2C_unequal_variances_%28sX1_%3E_2sX2_or_sX2_%3E_2sX1%29
 [wrk]: https://github.com/wg/wrk
+
+### Creating Benchmark Tests
+
+It is recommended to create a new test file when a new benchmark is introduced
+so it can be easily made creating the new test file in `test/benchmark`.
+
+When calling the `runBenchmark`, provide the benchmark group name
+(which is the folder name in the `benchmark/` folder) as the first parameter,
+and optionally pass environment variables as the second parameter.
+
+```js
+'use strict';
+
+require('../common'); // Import the common module - required for all benchmark files
+
+const runBenchmark = require('../common/benchmark');
+
+runBenchmark('buffers', { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+```
+
+The environment variable `NODEJS_BENCHMARK_ZERO_ALLOWED` is required
+when tests execute so quickly that they may produce errors or inconsistent results.
+Setting this variable instructs the benchmark to disregard such issues.
+
+Test execution behavior depends on the `NODE_RUN_ALL_BENCH_TESTS` environment variable.
+When set to **true**, benchmarks run with minimal iterations (`n=1`, `rounds=1`).
+This approach bypasses performance analysis to verify that tests can complete without failures.
+Despite the minimal iterations, execution remains time-consuming
+as all configurations must be tested.
+
+When `NODE_RUN_ALL_BENCH_TESTS` is not set,
+only a single configuration per benchmark executes.
+While this dramatically reduces execution time, it provides limited coverage
+and cannot guarantee that all configurations function properly.
+
+This PR introduces the usage of a new environment variable `NODE_RUN_ALL_BENCH_TESTS`, which can be set to run all benchmark configurations in tests to cover more scenarios where benchmarks might fail.
+This PR also documents how to write benchmark tests and provides more details about the environment variables:
+
+* NODE_RUN_ALL_BENCH_TESTS
+* NODEJS_BENCHMARK_ZERO_ALLOWED
+
+Benchmark tests were added for the following groups:
+
+* abort_controller
+* error
+* https
+* perf_hooks
+* permission
+* sqlite
+* test_runner
+* websocket
+
+Additionally, some inconsistent test files were renamed:
+
+test/benchmark/test-benchmark-async-hooks.js → test/benchmark/test-benchmark-async_hooks.js
+test/benchmark/test-benchmark-child-process.js → test/benchmark/test-benchmark-child_process.js
