@@ -562,8 +562,10 @@ OSSL_PROVIDER *ossl_provider_new(OSSL_LIB_CTX *libctx, const char *name,
             template.parameters = sk_INFOPAIR_deep_copy(p->parameters,
                                                         infopair_copy,
                                                         infopair_free);
-            if (template.parameters == NULL)
+            if (template.parameters == NULL) {
+                CRYPTO_THREAD_unlock(store->lock);
                 return NULL;
+            }
             break;
         }
         CRYPTO_THREAD_unlock(store->lock);

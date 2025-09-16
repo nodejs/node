@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -134,6 +134,7 @@ int ossl_fips_ind_digest_exch_check(OSSL_FIPS_IND *ind, int id, OSSL_LIB_CTX *li
 int ossl_fips_ind_digest_sign_check(OSSL_FIPS_IND *ind, int id,
                                     OSSL_LIB_CTX *libctx,
                                     int nid, int sha1_allowed,
+                                    int sha512_trunc_allowed,
                                     const char *desc,
                                     OSSL_FIPS_IND_CHECK_CB *config_check_f);
 
