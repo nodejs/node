@@ -735,14 +735,6 @@ Supported options keys are:
 * `benchmarker` - benchmarker to use, defaults to the first available http
   benchmarker
 
-[autocannon]: https://github.com/mcollina/autocannon
-[benchmark-ci]: https://github.com/nodejs/benchmarking/blob/HEAD/docs/core_benchmarks.md
-[git-for-windows]: https://git-scm.com/download/win
-[nghttp2.org]: https://nghttp2.org
-[node-benchmark-compare]: https://github.com/targos/node-benchmark-compare
-[t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes%2C_unequal_variances_%28sX1_%3E_2sX2_or_sX2_%3E_2sX1%29
-[wrk]: https://github.com/wg/wrk
-
 ### Creating Benchmark Tests
 
 It is recommended to create a new test file when a new benchmark is introduced
@@ -777,24 +769,33 @@ only a single configuration per benchmark executes.
 While this dramatically reduces execution time, it provides limited coverage
 and cannot guarantee that all configurations function properly.
 
-This PR introduces the usage of a new environment variable `NODE_RUN_ALL_BENCH_TESTS`, which can be set to run all benchmark configurations in tests to cover more scenarios where benchmarks might fail.
+This PR introduces the usage of a new environment variable `NODE_RUN_ALL_BENCH_TESTS`,
+which can be set to run all benchmark configurations in tests to cover more scenarios where benchmarks might fail.
 This PR also documents how to write benchmark tests and provides more details about the environment variables:
 
-* NODE_RUN_ALL_BENCH_TESTS
-* NODEJS_BENCHMARK_ZERO_ALLOWED
+* NODE\_RUN\_ALL\_BENCH\_TESTS
+* NODEJS\_BENCHMARK\_ZERO\_ALLOWED
 
 Benchmark tests were added for the following groups:
 
-* abort_controller
+* abort\_controller
 * error
 * https
-* perf_hooks
+* perf\_hooks
 * permission
 * sqlite
-* test_runner
+* test\_runner
 * websocket
 
 Additionally, some inconsistent test files were renamed:
 
-test/benchmark/test-benchmark-async-hooks.js → test/benchmark/test-benchmark-async_hooks.js
-test/benchmark/test-benchmark-child-process.js → test/benchmark/test-benchmark-child_process.js
+test/benchmark/test-benchmark-async-hooks.js → test/benchmark/test-benchmark-async\_hooks.js
+test/benchmark/test-benchmark-child-process.js → test/benchmark/test-benchmark-child\_process.js
+
+[autocannon]: https://github.com/mcollina/autocannon
+[benchmark-ci]: https://github.com/nodejs/benchmarking/blob/HEAD/docs/core_benchmarks.md
+[git-for-windows]: https://git-scm.com/download/win
+[nghttp2.org]: https://nghttp2.org
+[node-benchmark-compare]: https://github.com/targos/node-benchmark-compare
+[t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes%2C_unequal_variances_%28sX1_%3E_2sX2_or_sX2_%3E_2sX1%29
+[wrk]: https://github.com/wg/wrk
