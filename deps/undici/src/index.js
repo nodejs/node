@@ -46,8 +46,7 @@ module.exports.interceptors = {
   retry: require('./lib/interceptor/retry'),
   dump: require('./lib/interceptor/dump'),
   dns: require('./lib/interceptor/dns'),
-  cache: require('./lib/interceptor/cache'),
-  decompress: require('./lib/interceptor/decompress')
+  cache: require('./lib/interceptor/cache')
 }
 
 module.exports.cacheStores = {
@@ -117,14 +116,16 @@ module.exports.setGlobalDispatcher = setGlobalDispatcher
 module.exports.getGlobalDispatcher = getGlobalDispatcher
 
 const fetchImpl = require('./lib/web/fetch').fetch
-
-module.exports.fetch = function fetch (init, options = undefined) {
-  return fetchImpl(init, options).catch(err => {
+module.exports.fetch = async function fetch (init, options = undefined) {
+  try {
+    return await fetchImpl(init, options)
+  } catch (err) {
     if (err && typeof err === 'object') {
       Error.captureStackTrace(err)
     }
+
     throw err
-  })
+  }
 }
 module.exports.Headers = require('./lib/web/fetch/headers').Headers
 module.exports.Response = require('./lib/web/fetch/response').Response
@@ -139,6 +140,8 @@ module.exports.getGlobalOrigin = getGlobalOrigin
 const { CacheStorage } = require('./lib/web/cache/cachestorage')
 const { kConstruct } = require('./lib/core/symbols')
 
+// Cache & CacheStorage are tightly coupled with fetch. Even if it may run
+// in an older version of Node, it doesn't have any use without fetch.
 module.exports.caches = new CacheStorage(kConstruct)
 
 const { deleteCookie, getCookies, getSetCookies, setCookie, parseCookie } = require('./lib/web/cookies')

@@ -18,55 +18,54 @@ const kAddClient = Symbol('add client')
 const kRemoveClient = Symbol('remove client')
 
 class PoolBase extends DispatcherBase {
-  [kQueue] = new FixedQueue();
+  constructor () {
+    super()
 
-  [kQueued] = 0;
+    this[kQueue] = new FixedQueue()
+    this[kClients] = []
+    this[kQueued] = 0
 
-  [kClients] = [];
+    const pool = this
 
-  [kNeedDrain] = false;
+    this[kOnDrain] = function onDrain (origin, targets) {
+      const queue = pool[kQueue]
 
-  [kOnDrain] (client, origin, targets) {
-    const queue = this[kQueue]
+      let needDrain = false
 
-    let needDrain = false
-
-    while (!needDrain) {
-      const item = queue.shift()
-      if (!item) {
-        break
+      while (!needDrain) {
+        const item = queue.shift()
+        if (!item) {
+          break
+        }
+        pool[kQueued]--
+        needDrain = !this.dispatch(item.opts, item.handler)
       }
-      this[kQueued]--
-      needDrain = !client.dispatch(item.opts, item.handler)
-    }
 
-    client[kNeedDrain] = needDrain
+      this[kNeedDrain] = needDrain
 
-    if (!needDrain && this[kNeedDrain]) {
-      this[kNeedDrain] = false
-      this.emit('drain', origin, [this, ...targets])
-    }
-
-    if (this[kClosedResolve] && queue.isEmpty()) {
-      const closeAll = new Array(this[kClients].length)
-      for (let i = 0; i < this[kClients].length; i++) {
-        closeAll[i] = this[kClients][i].close()
+      if (!this[kNeedDrain] && pool[kNeedDrain]) {
+        pool[kNeedDrain] = false
+        pool.emit('drain', origin, [pool, ...targets])
       }
-      Promise.all(closeAll)
-        .then(this[kClosedResolve])
+
+      if (pool[kClosedResolve] && queue.isEmpty()) {
+        Promise
+          .all(pool[kClients].map(c => c.close()))
+          .then(pool[kClosedResolve])
+      }
     }
-  }
 
-  [kOnConnect] = (origin, targets) => {
-    this.emit('connect', origin, [this, ...targets])
-  };
+    this[kOnConnect] = (origin, targets) => {
+      pool.emit('connect', origin, [pool, ...targets])
+    }
 
-  [kOnDisconnect] = (origin, targets, err) => {
-    this.emit('disconnect', origin, [this, ...targets], err)
-  };
+    this[kOnDisconnect] = (origin, targets, err) => {
+      pool.emit('disconnect', origin, [pool, ...targets], err)
+    }
 
-  [kOnConnectionError] = (origin, targets, err) => {
-    this.emit('connectionError', origin, [this, ...targets], err)
+    this[kOnConnectionError] = (origin, targets, err) => {
+      pool.emit('connectionError', origin, [pool, ...targets], err)
+    }
   }
 
   get [kBusy] () {
@@ -74,19 +73,11 @@ class PoolBase extends DispatcherBase {
   }
 
   get [kConnected] () {
-    let ret = 0
-    for (const { [kConnected]: connected } of this[kClients]) {
-      ret += connected
-    }
-    return ret
+    return this[kClients].filter(client => client[kConnected]).length
   }
 
   get [kFree] () {
-    let ret = 0
-    for (const { [kConnected]: connected, [kNeedDrain]: needDrain } of this[kClients]) {
-      ret += connected && !needDrain
-    }
-    return ret
+    return this[kClients].filter(client => client[kConnected] && !client[kNeedDrain]).length
   }
 
   get [kPending] () {
@@ -117,21 +108,17 @@ class PoolBase extends DispatcherBase {
     return new PoolStats(this)
   }
 
-  [kClose] () {
+  async [kClose] () {
     if (this[kQueue].isEmpty()) {
-      const closeAll = new Array(this[kClients].length)
-      for (let i = 0; i < this[kClients].length; i++) {
-        closeAll[i] = this[kClients][i].close()
-      }
-      return Promise.all(closeAll)
+      await Promise.all(this[kClients].map(c => c.close()))
     } else {
-      return new Promise((resolve) => {
+      await new Promise((resolve) => {
         this[kClosedResolve] = resolve
       })
     }
   }
 
-  [kDestroy] (err) {
+  async [kDestroy] (err) {
     while (true) {
       const item = this[kQueue].shift()
       if (!item) {
@@ -140,11 +127,7 @@ class PoolBase extends DispatcherBase {
       item.handler.onError(err)
     }
 
-    const destroyAll = new Array(this[kClients].length)
-    for (let i = 0; i < this[kClients].length; i++) {
-      destroyAll[i] = this[kClients][i].destroy(err)
-    }
-    return Promise.all(destroyAll)
+    await Promise.all(this[kClients].map(c => c.destroy(err)))
   }
 
   [kDispatch] (opts, handler) {
@@ -164,7 +147,7 @@ class PoolBase extends DispatcherBase {
 
   [kAddClient] (client) {
     client
-      .on('drain', this[kOnDrain].bind(this, client))
+      .on('drain', this[kOnDrain])
       .on('connect', this[kOnConnect])
       .on('disconnect', this[kOnDisconnect])
       .on('connectionError', this[kOnConnectionError])
@@ -174,7 +157,7 @@ class PoolBase extends DispatcherBase {
     if (this[kNeedDrain]) {
       queueMicrotask(() => {
         if (this[kNeedDrain]) {
-          this[kOnDrain](client, client[kUrl], [client, this])
+          this[kOnDrain](client[kUrl], [this, client])
         }
       })
     }

@@ -262,26 +262,24 @@ class BodyReadable extends Readable {
    * @param {AbortSignal} [opts.signal] An AbortSignal to cancel the dump.
    * @returns {Promise<null>}
    */
-  dump (opts) {
+  async dump (opts) {
     const signal = opts?.signal
 
     if (signal != null && (typeof signal !== 'object' || !('aborted' in signal))) {
-      return Promise.reject(new InvalidArgumentError('signal must be an AbortSignal'))
+      throw new InvalidArgumentError('signal must be an AbortSignal')
     }
 
     const limit = opts?.limit && Number.isFinite(opts.limit)
       ? opts.limit
       : 128 * 1024
 
-    if (signal?.aborted) {
-      return Promise.reject(signal.reason ?? new AbortError())
-    }
+    signal?.throwIfAborted()
 
     if (this._readableState.closeEmitted) {
-      return Promise.resolve(null)
+      return null
     }
 
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       if (
         (this[kContentLength] && (this[kContentLength] > limit)) ||
         this[kBytesRead] > limit

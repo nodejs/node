@@ -1452,8 +1452,6 @@ class NODE_EXTERN CallbackScope {
   CallbackScope(CallbackScope&&) = delete;
 
  private:
-  void* reserved_;
-  v8::Local<v8::Object> resource_storage_;
   InternalCallbackScope* private_;
   v8::TryCatch try_catch_;
 };

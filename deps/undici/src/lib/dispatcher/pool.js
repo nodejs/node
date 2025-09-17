@@ -51,6 +51,8 @@ class Pool extends PoolBase {
       throw new InvalidArgumentError('connect must be a function or an object')
     }
 
+    super()
+
     if (typeof connect !== 'function') {
       connect = buildConnector({
         ...tls,
@@ -62,8 +64,6 @@ class Pool extends PoolBase {
         ...connect
       })
     }
-
-    super()
 
     this[kConnections] = connections || null
     this[kUrl] = util.parseOrigin(origin)

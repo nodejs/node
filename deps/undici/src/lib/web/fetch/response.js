@@ -23,6 +23,8 @@ const { URLSerializer } = require('./data-url')
 const { kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
 
+const { isArrayBuffer } = nodeUtil.types
+
 const textEncoder = new TextEncoder('utf-8')
 
 // https://fetch.spec.whatwg.org/#response-class
@@ -118,7 +120,7 @@ class Response {
     }
 
     if (body !== null) {
-      body = webidl.converters.BodyInit(body, 'Response', 'body')
+      body = webidl.converters.BodyInit(body)
     }
 
     init = webidl.converters.ResponseInit(init)
@@ -578,7 +580,7 @@ webidl.converters.XMLHttpRequestBodyInit = function (V, prefix, name) {
     return V
   }
 
-  if (webidl.is.BufferSource(V)) {
+  if (ArrayBuffer.isView(V) || isArrayBuffer(V)) {
     return V
   }
 

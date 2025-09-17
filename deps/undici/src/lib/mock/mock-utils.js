@@ -367,7 +367,7 @@ function buildMockDispatch () {
       try {
         mockDispatch.call(this, opts, handler)
       } catch (error) {
-        if (error.code === 'UND_MOCK_ERR_MOCK_NOT_MATCHED') {
+        if (error instanceof MockNotMatchedError) {
           const netConnect = agent[kGetNetConnect]()
           if (netConnect === false) {
             throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`)
@@ -398,21 +398,19 @@ function checkNetConnect (netConnect, origin) {
 }
 
 function buildAndValidateMockOptions (opts) {
-  const { agent, ...mockOptions } = opts
+  if (opts) {
+    const { agent, ...mockOptions } = opts
 
-  if ('enableCallHistory' in mockOptions && typeof mockOptions.enableCallHistory !== 'boolean') {
-    throw new InvalidArgumentError('options.enableCallHistory must to be a boolean')
+    if ('enableCallHistory' in mockOptions && typeof mockOptions.enableCallHistory !== 'boolean') {
+      throw new InvalidArgumentError('options.enableCallHistory must to be a boolean')
+    }
+
+    if ('acceptNonStandardSearchParameters' in mockOptions && typeof mockOptions.acceptNonStandardSearchParameters !== 'boolean') {
+      throw new InvalidArgumentError('options.acceptNonStandardSearchParameters must to be a boolean')
+    }
+
+    return mockOptions
   }
-
-  if ('acceptNonStandardSearchParameters' in mockOptions && typeof mockOptions.acceptNonStandardSearchParameters !== 'boolean') {
-    throw new InvalidArgumentError('options.acceptNonStandardSearchParameters must to be a boolean')
-  }
-
-  if ('ignoreTrailingSlash' in mockOptions && typeof mockOptions.ignoreTrailingSlash !== 'boolean') {
-    throw new InvalidArgumentError('options.ignoreTrailingSlash must to be a boolean')
-  }
-
-  return mockOptions
 }
 
 module.exports = {

@@ -8,7 +8,7 @@ if (cluster.isPrimary) {
     payload: ['string', 'object'],
     sendsPerBroadcast: [1, 10],
     serialization: ['json', 'advanced'],
-    n: [1e3],
+    n: [1e5],
   });
 
   function main({

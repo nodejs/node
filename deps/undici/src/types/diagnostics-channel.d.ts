@@ -16,6 +16,7 @@ declare namespace DiagnosticsChannel {
     statusText: string;
     headers: Array<Buffer>;
   }
+  type Error = unknown
   interface ConnectParams {
     host: URL['host'];
     hostname: URL['hostname'];

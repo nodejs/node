@@ -72,7 +72,8 @@ void Realm::CreateProperties() {
   CHECK(primordials->IsObject());
   set_primordials(primordials.As<Object>());
 
-  Local<String> prototype_string = env_->prototype_string();
+  Local<String> prototype_string =
+      FIXED_ONE_BYTE_STRING(isolate(), "prototype");
 
 #define V(EnvPropertyName, PrimordialsPropertyName)                            \
   {                                                                            \

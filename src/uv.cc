@@ -60,11 +60,12 @@ using v8::String;
 using v8::Value;
 
 void GetErrMessage(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   int err = args[0].As<v8::Int32>()->Value();
   CHECK_LT(err, 0);
   char message[50];
   uv_strerror_r(err, message, sizeof(message));
-  args.GetReturnValue().Set(OneByteString(args.GetIsolate(), message));
+  args.GetReturnValue().Set(OneByteString(env->isolate(), message));
 }
 
 void ErrName(const FunctionCallbackInfo<Value>& args) {

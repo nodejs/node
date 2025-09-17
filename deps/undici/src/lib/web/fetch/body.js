@@ -60,7 +60,7 @@ function extractBody (object, keepalive = false) {
     // 4. Otherwise, set stream to a new ReadableStream object, and set
     //    up stream with byte reading support.
     stream = new ReadableStream({
-      pull (controller) {
+      async pull (controller) {
         const buffer = typeof source === 'string' ? textEncoder.encode(source) : source
 
         if (buffer.byteLength) {
@@ -110,16 +110,22 @@ function extractBody (object, keepalive = false) {
 
     // Set type to `application/x-www-form-urlencoded;charset=UTF-8`.
     type = 'application/x-www-form-urlencoded;charset=UTF-8'
-  } else if (webidl.is.BufferSource(object)) {
-    source = isArrayBuffer(object)
-      ? new Uint8Array(object.slice())
-      : new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength))
+  } else if (isArrayBuffer(object)) {
+    // BufferSource/ArrayBuffer
+
+    // Set source to a copy of the bytes held by object.
+    source = new Uint8Array(object.slice())
+  } else if (ArrayBuffer.isView(object)) {
+    // BufferSource/ArrayBufferView
+
+    // Set source to a copy of the bytes held by object.
+    source = new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength))
   } else if (webidl.is.FormData(object)) {
     const boundary = `----formdata-undici-0${`${random(1e11)}`.padStart(11, '0')}`
     const prefix = `--${boundary}\r\nContent-Disposition: form-data`
 
     /*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */
-    const formdataEscape = (str) =>
+    const escape = (str) =>
       str.replace(/\n/g, '%0A').replace(/\r/g, '%0D').replace(/"/g, '%22')
     const normalizeLinefeeds = (value) => value.replace(/\r?\n|\r/g, '\r\n')
 
@@ -137,13 +143,13 @@ function extractBody (object, keepalive = false) {
     for (const [name, value] of object) {
       if (typeof value === 'string') {
         const chunk = textEncoder.encode(prefix +
-          `; name="${formdataEscape(normalizeLinefeeds(name))}"` +
+          `; name="${escape(normalizeLinefeeds(name))}"` +
           `\r\n\r\n${normalizeLinefeeds(value)}\r\n`)
         blobParts.push(chunk)
         length += chunk.byteLength
       } else {
-        const chunk = textEncoder.encode(`${prefix}; name="${formdataEscape(normalizeLinefeeds(name))}"` +
-          (value.name ? `; filename="${formdataEscape(value.name)}"` : '') + '\r\n' +
+        const chunk = textEncoder.encode(`${prefix}; name="${escape(normalizeLinefeeds(name))}"` +
+          (value.name ? `; filename="${escape(value.name)}"` : '') + '\r\n' +
           `Content-Type: ${
             value.type || 'application/octet-stream'
           }\r\n\r\n`)
@@ -314,6 +320,12 @@ function cloneBody (body) {
   }
 }
 
+function throwIfAborted (state) {
+  if (state.aborted) {
+    throw new DOMException('The operation was aborted.', 'AbortError')
+  }
+}
+
 function bodyMixinMethods (instance, getInternalState) {
   const methods = {
     blob () {
@@ -431,30 +443,24 @@ function mixinBody (prototype, getInternalState) {
  * @param {any} instance
  * @param {(target: any) => any} getInternalState
  */
-function consumeBody (object, convertBytesToJSValue, instance, getInternalState) {
-  try {
-    webidl.brandCheck(object, instance)
-  } catch (e) {
-    return Promise.reject(e)
-  }
+async function consumeBody (object, convertBytesToJSValue, instance, getInternalState) {
+  webidl.brandCheck(object, instance)
 
   const state = getInternalState(object)
 
   // 1. If object is unusable, then return a promise rejected
   //    with a TypeError.
   if (bodyUnusable(state)) {
-    return Promise.reject(new TypeError('Body is unusable: Body has already been read'))
+    throw new TypeError('Body is unusable: Body has already been read')
   }
 
-  if (state.aborted) {
-    return Promise.reject(new DOMException('The operation was aborted.', 'AbortError'))
-  }
+  throwIfAborted(state)
 
   // 2. Let promise be a new promise.
   const promise = createDeferredPromise()
 
   // 3. Let errorSteps given error be to reject promise with error.
-  const errorSteps = promise.reject
+  const errorSteps = (error) => promise.reject(error)
 
   // 4. Let successSteps given a byte sequence data be to resolve
   //    promise with the result of running convertBytesToJSValue

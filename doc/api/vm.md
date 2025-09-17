@@ -923,7 +923,7 @@ the ECMAScript specification.
 ### `sourceTextModule.instantiate()`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Returns: {undefined}
@@ -941,7 +941,7 @@ modules in the cycle before calling this method.
 ### `sourceTextModule.linkRequests(modules)`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * `modules` {vm.Module\[]} Array of `vm.Module` objects that this module depends on.
@@ -1103,7 +1103,7 @@ added:
  - v13.0.0
  - v12.16.0
 changes:
-  - version: v24.8.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59000
     description: No longer need to call `syntheticModule.link()` before
                  calling this method.

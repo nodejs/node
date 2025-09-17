@@ -51,8 +51,7 @@ flag.
 When starting Node.js with `--permission`,
 the ability to access the file system through the `fs` module, access the network,
 spawn processes, use `node:worker_threads`, use native addons, use WASI, and
-enable the runtime inspector will be restricted (the listener for SIGUSR1 won't
-be created).
+enable the runtime inspector will be restricted.
 
 ```console
 $ node --permission index.js

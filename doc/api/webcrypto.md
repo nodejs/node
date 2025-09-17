@@ -2,10 +2,10 @@
 
 <!-- YAML
 changes:
-  - version: v24.8.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59647
     description: KMAC algorithms are now supported.
-  - version: v24.8.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59544
     description: Argon2 algorithms are now supported.
   - version: v24.7.0
@@ -900,7 +900,7 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v24.8.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59544
     description: Argon2 algorithms are now supported.
   - version:
@@ -953,7 +953,7 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v24.8.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59544
     description: Argon2 algorithms are now supported.
   - version:
@@ -1112,7 +1112,7 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v24.8.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59647
     description: KMAC algorithms are now supported.
   - version: v24.7.0
@@ -1196,7 +1196,7 @@ Derives the public key from a given private key.
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v24.8.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59647
     description: KMAC algorithms are now supported.
   - version: v24.7.0
@@ -1220,9 +1220,9 @@ changes:
 * `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey|CryptoKeyPair} upon success.
 
-Using the parameters provided in `algorithm`, this method
-attempts to generate new keying material. Depending on the algorithm used
-either a single {CryptoKey} or a {CryptoKeyPair} is generated.
+Using the method and parameters provided in `algorithm`, `subtle.generateKey()`
+attempts to generate new keying material. Depending the method used, the method
+may generate either a single {CryptoKey} or a {CryptoKeyPair}.
 
 The {CryptoKeyPair} (public and private key) generating algorithms supported
 include:
@@ -1260,7 +1260,7 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v24.8.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59647
     description: KMAC algorithms are now supported.
   - version: v24.7.0
@@ -1297,11 +1297,10 @@ changes:
 * `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey} upon success.
 
-This method attempts to interpret the provided `keyData`
+The [`subtle.importKey()`][] method attempts to interpret the provided `keyData`
 as the given `format` to create a {CryptoKey} instance using the provided
 `algorithm`, `extractable`, and `keyUsages` arguments. If the import is
-successful, the returned promise will be resolved with a {CryptoKey}
-representation of the key material.
+successful, the returned promise will be resolved with the created {CryptoKey}.
 
 If importing KDF algorithm keys, `extractable` must be `false`.
 
@@ -1344,7 +1343,7 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v24.8.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59647
     description: KMAC algorithms are now supported.
   - version: v24.7.0
@@ -1465,7 +1464,7 @@ The unwrapped key algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v24.8.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59647
     description: KMAC algorithms are now supported.
   - version: v24.7.0
@@ -1754,13 +1753,13 @@ added: v15.0.0
 ### Class: `Argon2Params`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 #### `argon2Params.associatedData`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -1770,7 +1769,7 @@ Represents the optional associated data.
 #### `argon2Params.memory`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {number}
@@ -1780,7 +1779,7 @@ Represents the memory size in kibibytes. It must be at least 8 times the degree 
 #### `argon2Params.name`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {string} Must be one of `'Argon2d'`, `'Argon2i'`, or `'Argon2id'`.
@@ -1788,7 +1787,7 @@ added: v24.8.0
 #### `argon2Params.nonce`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -1798,7 +1797,7 @@ Represents the nonce, which is a salt for password hashing applications.
 #### `argon2Params.parallelism`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {number}
@@ -1808,7 +1807,7 @@ Represents the degree of parallelism.
 #### `argon2Params.passes`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {number}
@@ -1818,7 +1817,7 @@ Represents the number of passes.
 #### `argon2Params.secretValue`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -1828,7 +1827,7 @@ Represents the optional secret value.
 #### `argon2Params.version`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {number}
@@ -1855,7 +1854,7 @@ added: v24.7.0
 <!-- YAML
 added: v24.7.0
 changes:
-  - version: v24.8.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59570
     description: Non-empty context is now supported.
 -->
@@ -2311,13 +2310,13 @@ added: v15.0.0
 ### Class: `KmacImportParams`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 #### `kmacImportParams.length`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {number}
@@ -2328,7 +2327,7 @@ be omitted for most cases.
 #### `kmacImportParams.name`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {string} Must be `'KMAC128'` or `'KMAC256'`.
@@ -2336,13 +2335,13 @@ added: v24.8.0
 ### Class: `KmacKeyAlgorithm`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 #### `kmacKeyAlgorithm.length`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {number}
@@ -2352,7 +2351,7 @@ The length of the KMAC key in bits.
 #### `kmacKeyAlgorithm.name`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {string}
@@ -2360,13 +2359,13 @@ added: v24.8.0
 ### Class: `KmacKeyGenParams`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 #### `kmacKeyGenParams.length`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {number}
@@ -2378,7 +2377,7 @@ This is optional and should be omitted for most cases.
 #### `kmacKeyGenParams.name`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {string} Must be `'KMAC128'` or `'KMAC256'`.
@@ -2386,13 +2385,13 @@ added: v24.8.0
 ### Class: `KmacParams`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 #### `kmacParams.algorithm`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {string} Must be `'KMAC128'` or `'KMAC256'`.
@@ -2400,7 +2399,7 @@ added: v24.8.0
 #### `kmacParams.customization`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
@@ -2410,7 +2409,7 @@ The `customization` member represents the optional customization string.
 #### `kmacParams.length`
 
 <!-- YAML
-added: v24.8.0
+added: REPLACEME
 -->
 
 * Type: {number}
