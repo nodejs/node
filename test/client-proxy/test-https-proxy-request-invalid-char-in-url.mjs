@@ -21,9 +21,10 @@ const server = https.createServer({
   cert: fixtures.readKey('agent8-cert.pem'),
   key: fixtures.readKey('agent8-key.pem'),
 }, (req, res) => {
+  console.log(`[Upstream server] responding to request for ${inspect(req.url)}`);
   requests.add(`https://localhost:${server.address().port}${req.url}`);
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end(`Response for ${req.url}`);
+  res.end(`Response for ${inspect(req.url)}`);
 });
 
 server.listen(0);
@@ -54,7 +55,7 @@ https.globalAgent = new https.Agent({
 
 const severHost = `localhost:${server.address().port}`;
 
-let counter = testCases.length;
+let counter = 0;
 const expectedUrls = new Set();
 const expectedProxyLogs = new Set();
 for (const testCase of testCases) {
@@ -69,15 +70,20 @@ for (const testCase of testCases) {
   https.request(url, (res) => {
     res.on('error', common.mustNotCall());
     res.setEncoding('utf8');
-    res.on('data', () => {});
-    res.on('end', common.mustCall(() => {
-      console.log(`#${counter--} eneded response for: ${inspect(url)}`);
+    res.on('data', (data) => {
+      console.log(`[Proxy client] Received response from server for ${inspect(url)}: ${data.toString()}`);
+    });
+    res.on('close', common.mustCall(() => {
+      console.log(`[Proxy client] #${++counter} closed request for: ${inspect(url)}`);
       // Finished all test cases.
-      if (counter === 0) {
-        proxy.close();
-        server.close();
-        assert.deepStrictEqual(requests, expectedUrls);
-        assert.deepStrictEqual(new Set(logs), expectedProxyLogs);
+      if (counter === testCases.length) {
+        setImmediate(() => {
+          console.log('All requests completed, shutting down.');
+          proxy.close();
+          server.close();
+          assert.deepStrictEqual(requests, expectedUrls);
+          assert.deepStrictEqual(new Set(logs), expectedProxyLogs);
+        });
       }
     }));
   }).on('error', common.mustNotCall()).end();
