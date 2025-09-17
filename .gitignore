@@ -21,6 +21,7 @@
 !.nycrc
 !.yamllint.yaml
 !.configurations/
+!/.npmrc
 
 # === Rules for root dir ===
 /core
