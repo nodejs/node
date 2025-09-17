@@ -351,6 +351,53 @@ added: v22.5.0
 Compiles a SQL statement into a [prepared statement][]. This method is a wrapper
 around [`sqlite3_prepare_v2()`][].
 
+### `database.createSQLTagStore([maxSize])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `maxSize` {integer} The maximum number of prepared statements to cache.
+  **Default:** `1000`.
+* Returns: {SQLTagStore} A new SQL tag store for caching prepared statements.
+
+Creates a new `SQLTagStore`, which is an LRU (Least Recently Used) cache for
+storing prepared statements. This allows for the efficient reuse of prepared
+statements by tagging them with a unique identifier.
+
+When a tagged SQL literal is executed, the `SQLTagStore` checks if a prepared
+statement for that specific SQL string already exists in the cache. If it does,
+the cached statement is used. If not, a new prepared statement is created,
+executed, and then stored in the cache for future use. This mechanism helps to
+avoid the overhead of repeatedly parsing and preparing the same SQL statements.
+
+```mjs
+import { DatabaseSync } from 'node:sqlite';
+
+const db = new DatabaseSync(':memory:');
+const sql = db.createSQLTagStore();
+
+db.exec('CREATE TABLE users (id INT, name TEXT)');
+
+// Using the 'run' method to insert data.
+// The tagged literal is used to identify the prepared statement.
+sql.run`INSERT INTO users VALUES (1, 'Alice')`;
+sql.run`INSERT INTO users VALUES (2, 'Bob')`;
+
+// Using the 'get' method to retrieve a single row.
+const id = 1;
+const user = sql.get`SELECT * FROM users WHERE id = ${id}`;
+console.log(user); // { id: 1, name: 'Alice' }
+
+// Using the 'all' method to retrieve all rows.
+const allUsers = sql.all`SELECT * FROM users ORDER BY id`;
+console.log(allUsers);
+// [
+//   { id: 1, name: 'Alice' },
+//   { id: 2, name: 'Bob' }
+// ]
+```
+
 ### `database.createSession([options])`
 
 <!-- YAML
@@ -493,6 +540,120 @@ create it. Prepared statements are parameterizable, and can be invoked multiple
 times with different bound values. Parameters also offer protection against
 [SQL injection][] attacks. For these reasons, prepared statements are preferred
 over hand-crafted SQL strings when handling user input.
+
+## Class: `SQLTagStore`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+This class represents a single LRU (Least Recently Used) cache for storing
+prepared statements.
+
+Instances of this class are created via the database.createSQLTagStore() method,
+not by using a constructor. The store caches prepared statements based on the
+provided SQL query string. When the same query is seen again, the store
+retrieves the cached statement and safely applies the new values through
+parameter binding, thereby preventing attacks like SQL injection.
+
+The cache has a maxSize that defaults to 1000 statements, but a custom size can
+be provided (e.g., database.createSQLTagStore(100)). All APIs exposed by this
+class execute synchronously.
+
+### `sqlTagStore.all(sqlTemplate[, ...values])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
+* `...values` {any} Values to be interpolated into the template literal.
+* Returns: {Array} An array of objects representing the rows returned by the query.
+
+Executes the given SQL query and returns all resulting rows as an array of objects.
+
+### `sqlTagStore.get(sqlTemplate[, ...values])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
+* `...values` {any} Values to be interpolated into the template literal.
+* Returns: {Object | undefined} An object representing the first row returned by
+  the query, or `undefined` if no rows are returned.
+
+Executes the given SQL query and returns the first resulting row as an object.
+
+### `sqlTagStore.iterate(sqlTemplate[, ...values])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
+* `...values` {any} Values to be interpolated into the template literal.
+* Returns: {Iterator} An iterator that yields objects representing the rows returned by the query.
+
+Executes the given SQL query and returns an iterator over the resulting rows.
+
+### `sqlTagStore.run(sqlTemplate[, ...values])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
+* `...values` {any} Values to be interpolated into the template literal.
+* Returns: {Object} An object containing information about the execution, including `changes` and `lastInsertRowid`.
+
+Executes the given SQL query, which is expected to not return any rows (e.g., INSERT, UPDATE, DELETE).
+
+### `sqlTagStore.size()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {integer} The number of prepared statements currently in the cache.
+
+A read-only property that returns the number of prepared statements currently in the cache.
+
+### `sqlTagStore.capacity`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {integer} The maximum number of prepared statements the cache can hold.
+
+A read-only property that returns the maximum number of prepared statements the cache can hold.
+
+### `sqlTagStore.db`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {DatabaseSync} The `DatabaseSync` instance that created this `SQLTagStore`.
+
+A read-only property that returns the `DatabaseSync` object associated with this `SQLTagStore`.
+
+### `sqlTagStore.reset()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Resets the LRU cache, clearing all stored prepared statements.
+
+### `sqlTagStore.clear()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An alias for `sqlTagStore.reset()`.
 
 ### `statement.all([namedParameters][, ...anonymousParameters])`
 
