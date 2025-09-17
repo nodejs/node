@@ -61,6 +61,7 @@ using v8::FunctionTemplate;
 using v8::Global;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::NewStringType;
@@ -284,27 +285,56 @@ MaybeLocal<Value> URLPattern::URLPatternInit::ToJsObject(
     Environment* env, const ada::url_pattern_init& init) {
   auto isolate = env->isolate();
   auto context = env->context();
-  auto result = Object::New(isolate);
 
-  const auto trySet = [&](auto name, const std::optional<std::string>& val) {
-    if (!val) return true;
-    Local<Value> temp;
-    return ToV8Value(context, *val).ToLocal(&temp) &&
-           result->Set(context, name, temp).IsJust();
+  auto tmpl = env->urlpatterninit_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view namesVec[] = {
+        "protocol",
+        "username",
+        "password",
+        "hostname",
+        "port",
+        "pathname",
+        "search",
+        "hash",
+        "baseURL",
+    };
+    tmpl = DictionaryTemplate::New(isolate, namesVec);
+    env->set_urlpatterninit_template(tmpl);
+  }
+
+  MaybeLocal<Value> values[] = {
+      Undefined(isolate),  // protocol
+      Undefined(isolate),  // username
+      Undefined(isolate),  // password
+      Undefined(isolate),  // hostname
+      Undefined(isolate),  // port
+      Undefined(isolate),  // pathname
+      Undefined(isolate),  // search
+      Undefined(isolate),  // hash
+      Undefined(isolate),  // baseURL
   };
 
-  if (!trySet(env->protocol_string(), init.protocol) ||
-      !trySet(env->username_string(), init.username) ||
-      !trySet(env->password_string(), init.password) ||
-      !trySet(env->hostname_string(), init.hostname) ||
-      !trySet(env->port_string(), init.port) ||
-      !trySet(env->pathname_string(), init.pathname) ||
-      !trySet(env->search_string(), init.search) ||
-      !trySet(env->hash_string(), init.hash) ||
-      !trySet(env->base_url_string(), init.base_url)) {
+  int idx = 0;
+  Local<Value> temp;
+  const auto trySet = [&](const std::optional<std::string>& val) {
+    if (val.has_value()) {
+      if (!ToV8Value(context, *val).ToLocal(&temp)) {
+        return false;
+      }
+      values[idx] = temp;
+    }
+    idx++;
+    return true;
+  };
+
+  if (!trySet(init.protocol) || !trySet(init.username) ||
+      !trySet(init.password) || !trySet(init.hostname) || !trySet(init.port) ||
+      !trySet(init.pathname) || !trySet(init.search) || !trySet(init.hash) ||
+      !trySet(init.base_url)) {
     return {};
   }
-  return result;
+  return NewDictionaryInstance(env->context(), tmpl, values);
 }
 
 std::optional<ada::url_pattern_init> URLPattern::URLPatternInit::FromJsObject(
@@ -364,12 +394,16 @@ MaybeLocal<Object> URLPattern::URLPatternComponentResult::ToJSObject(
     Environment* env, const ada::url_pattern_component_result& result) {
   auto isolate = env->isolate();
   auto context = env->context();
-  auto parsed_group = Object::New(isolate);
+  LocalVector<Name> group_names(isolate);
+  LocalVector<Value> group_values(isolate);
+  group_names.reserve(result.groups.size());
+  group_values.reserve(result.groups.size());
   for (const auto& [group_key, group_value] : result.groups) {
     Local<Value> key;
     if (!ToV8Value(context, group_key).ToLocal(&key)) {
       return {};
     }
+    group_names.push_back(key.As<Name>());
     Local<Value> value;
     if (group_value) {
       if (!ToV8Value(env->context(), *group_value).ToLocal(&value)) {
@@ -378,19 +412,30 @@ MaybeLocal<Object> URLPattern::URLPatternComponentResult::ToJSObject(
     } else {
       value = Undefined(isolate);
     }
-    if (parsed_group->Set(context, key, value).IsNothing()) {
-      return {};
-    }
+    group_values.push_back(value);
   }
+  auto parsed_group = Object::New(isolate,
+                                  Object::New(isolate),
+                                  group_names.data(),
+                                  group_values.data(),
+                                  group_names.size());
+
   Local<Value> input;
   if (!ToV8Value(env->context(), result.input).ToLocal(&input)) {
     return {};
   }
-  Local<Name> names[] = {env->input_string(), env->groups_string()};
-  Local<Value> values[] = {input, parsed_group};
-  DCHECK_EQ(arraysize(names), arraysize(values));
-  return Object::New(
-      isolate, Object::New(isolate), names, values, arraysize(names));
+
+  auto tmpl = env->urlpatterncomponentresult_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view namesVec[] = {
+        "input",
+        "groups",
+    };
+    tmpl = DictionaryTemplate::New(isolate, namesVec);
+    env->set_urlpatterncomponentresult_template(tmpl);
+  }
+  MaybeLocal<Value> values[] = {input, parsed_group};
+  return NewDictionaryInstance(env->context(), tmpl, values);
 }
 
 MaybeLocal<Value> URLPattern::URLPatternResult::ToJSValue(
