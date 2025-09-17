@@ -5,7 +5,7 @@ const { Readable, Writable } = require('stream');
 const { finished } = require('stream/promises');
 
 const bench = common.createBenchmark(main, {
-  n: [1e5],
+  n: [1e7],
   streamType: ['readable', 'writable'],
 });
 
