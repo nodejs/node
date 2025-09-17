@@ -12,8 +12,10 @@ const internalAsyncHooks = require('internal/async_hooks');
 const readable = new Readable();
 
 finished(readable, common.mustCall(() => {
-    strictEqual(internalAsyncHooks.getHookArrays()[0].length === 0, true, 'Should not have active user async hook');
-    strictEqual(AsyncContextFrame.current() || internalAsyncHooks.getHookArrays()[0].length > 0, false, 'Default callback path should be used');
+  strictEqual(internalAsyncHooks.getHookArrays()[0].length === 0,
+              true, 'Should not have active user async hook');
+  strictEqual(AsyncContextFrame.current() || internalAsyncHooks.getHookArrays()[0].length > 0,
+              false, 'Default callback path should be used');
 }));
 
 readable.destroy();

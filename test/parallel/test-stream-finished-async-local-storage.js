@@ -15,7 +15,8 @@ const readable = new Readable();
 
 als.run('test-context-1', () => {
   finished(readable, common.mustCall(() => {
-    strictEqual(AsyncContextFrame.enabled || internalAsyncHooks.getHookArrays()[0].length > 0, true, 'test-context-1', 'One of AsyncContextFrame or async hooks criteria should be met');
+    strictEqual(AsyncContextFrame.enabled || internalAsyncHooks.getHookArrays()[0].length > 0,
+                true, 'One of AsyncContextFrame or async hooks criteria should be met');
     strictEqual(als.getStore(), 'test-context-1', 'ALS context should be preserved');
   }));
 });

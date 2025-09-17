@@ -14,7 +14,8 @@ createHook({}).enable();
 const readable = new Readable();
 
 finished(readable, common.mustCall(() => {
-    strictEqual(internalAsyncHooks.getHookArrays()[0].length > 0, true, 'Should have active user async hook');
+  strictEqual(internalAsyncHooks.getHookArrays()[0].length > 0,
+              true, 'Should have active user async hook');
 }));
 
 readable.destroy();
