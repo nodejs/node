@@ -4,4 +4,4 @@ require('../common');
 
 const runBenchmark = require('../common/benchmark');
 
-runBenchmark('test_runner');
+runBenchmark('test_runner', { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
