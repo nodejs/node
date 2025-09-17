@@ -1232,9 +1232,7 @@ void DatabaseSync::CustomFunction(const FunctionCallbackInfo<Value>& args) {
     argc = -1;
   } else {
     Local<Value> js_len;
-    if (!fn->Get(env->context(),
-                 FIXED_ONE_BYTE_STRING(env->isolate(), "length"))
-             .ToLocal(&js_len)) {
+    if (!fn->Get(env->context(), env->length_string()).ToLocal(&js_len)) {
       return;
     }
     argc = js_len.As<Int32>()->Value();
@@ -1465,7 +1463,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
 
     Local<Object> options = args[0].As<Object>();
 
-    Local<String> table_key = FIXED_ONE_BYTE_STRING(env->isolate(), "table");
+    Local<String> table_key = env->table_string();
     bool hasIt;
     if (!options->HasOwnProperty(env->context(), table_key).To(&hasIt)) {
       return;

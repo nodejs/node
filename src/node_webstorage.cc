@@ -738,11 +738,10 @@ static void Initialize(Local<Object> target,
 
   Local<FunctionTemplate> length_getter =
       FunctionTemplate::New(isolate, StorageLengthGetter);
-  ctor_tmpl->PrototypeTemplate()->SetAccessorProperty(
-      FIXED_ONE_BYTE_STRING(isolate, "length"),
-      length_getter,
-      Local<FunctionTemplate>(),
-      DontDelete);
+  ctor_tmpl->PrototypeTemplate()->SetAccessorProperty(env->length_string(),
+                                                      length_getter,
+                                                      Local<FunctionTemplate>(),
+                                                      DontDelete);
 
   SetProtoMethod(isolate, ctor_tmpl, "clear", Clear);
   SetProtoMethodNoSideEffect(isolate, ctor_tmpl, "getItem", GetItem);
