@@ -1671,6 +1671,11 @@ per connection (in the case of HTTP Keep-Alive connections).
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59824
+    description: Whether this event is fired can now be controlled by the
+                 `shouldUpgradeCallback` and sockets will be destroyed
+                 if upgraded while no event handler is listening.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19981
     description: Not listening to this event no longer causes the socket
@@ -1682,12 +1687,24 @@ changes:
 * `socket` {stream.Duplex} Network socket between the server and client
 * `head` {Buffer} The first packet of the upgraded stream (may be empty)
 
-Emitted each time a client requests an HTTP upgrade. Listening to this event
-is optional and clients cannot insist on a protocol change.
+Emitted each time a client's HTTP upgrade request is accepted. By default
+all HTTP upgrade requests are ignored (i.e. only regular `'request'` events
+are emitted, sticking with the normal HTTP request/response flow) unless you
+listen to this event, in which case they are all accepted (i.e. the `'upgrade'`
+event is emitted instead, and future communication must handled directly
+through the raw socket). You can control this more precisely by using the
+server `shouldUpgradeCallback` option.
+
+Listening to this event is optional and clients cannot insist on a protocol
+change.
 
 After this event is emitted, the request's socket will not have a `'data'`
 event listener, meaning it will need to be bound in order to handle data
 sent to the server on that socket.
+
+If an upgrade is accepted by `shouldUpgradeCallback` but no event handler
+is registered then the socket is destroyed, resulting in an immediate
+connection closure for the client.
 
 This event is guaranteed to be passed an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specifies a socket
@@ -3535,6 +3552,9 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59824
+    description: The `shouldUpgradeCallback` option is now supported.
   - version:
     - v20.1.0
     - v18.17.0
@@ -3624,6 +3644,13 @@ changes:
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
     to be used. Useful for extending the original `ServerResponse`. **Default:**
     `ServerResponse`.
+  * `shouldUpgradeCallback(request)` {Function} A callback which receives an
+    incoming request and returns a boolean, to control which upgrade attempts
+    should be accepted. Accepted upgrades will fire an `'upgrade'` event (or
+    their sockets will be destroyed, if no listener is registered) while
+    rejected upgrades will fire a `'request'` event like any non-upgrade
+    request. This options defaults to
+    `() => server.listenerCount('upgrade') > 0`.
   * `uniqueHeaders` {Array} A list of response headers that should be sent only
     once. If the header's value is an array, the items will be joined
     using `; `.
