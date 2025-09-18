@@ -455,9 +455,10 @@ void HistogramImpl::GetCount(const FunctionCallbackInfo<Value>& args) {
 }
 
 void HistogramImpl::GetCountBigInt(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
   args.GetReturnValue().Set(
-      BigInt::NewFromUnsigned(args.GetIsolate(), (*histogram)->Count()));
+      BigInt::NewFromUnsigned(env->isolate(), (*histogram)->Count()));
 }
 
 void HistogramImpl::GetMin(const FunctionCallbackInfo<Value>& args) {
@@ -467,9 +468,9 @@ void HistogramImpl::GetMin(const FunctionCallbackInfo<Value>& args) {
 }
 
 void HistogramImpl::GetMinBigInt(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
-  args.GetReturnValue().Set(
-      BigInt::New(args.GetIsolate(), (*histogram)->Min()));
+  args.GetReturnValue().Set(BigInt::New(env->isolate(), (*histogram)->Min()));
 }
 
 void HistogramImpl::GetMax(const FunctionCallbackInfo<Value>& args) {
@@ -479,9 +480,9 @@ void HistogramImpl::GetMax(const FunctionCallbackInfo<Value>& args) {
 }
 
 void HistogramImpl::GetMaxBigInt(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
-  args.GetReturnValue().Set(
-      BigInt::New(args.GetIsolate(), (*histogram)->Max()));
+  args.GetReturnValue().Set(BigInt::New(env->isolate(), (*histogram)->Max()));
 }
 
 void HistogramImpl::GetMean(const FunctionCallbackInfo<Value>& args) {
@@ -496,9 +497,10 @@ void HistogramImpl::GetExceeds(const FunctionCallbackInfo<Value>& args) {
 }
 
 void HistogramImpl::GetExceedsBigInt(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
   args.GetReturnValue().Set(
-      BigInt::New(args.GetIsolate(), (*histogram)->Exceeds()));
+      BigInt::New(env->isolate(), (*histogram)->Exceeds()));
 }
 
 void HistogramImpl::GetStddev(const FunctionCallbackInfo<Value>& args) {
@@ -516,11 +518,12 @@ void HistogramImpl::GetPercentile(const FunctionCallbackInfo<Value>& args) {
 
 void HistogramImpl::GetPercentileBigInt(
     const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
   CHECK(args[0]->IsNumber());
   double percentile = args[0].As<Number>()->Value();
   int64_t value = (*histogram)->Percentile(percentile);
-  args.GetReturnValue().Set(BigInt::New(args.GetIsolate(), value));
+  args.GetReturnValue().Set(BigInt::New(env->isolate(), value));
 }
 
 void HistogramImpl::GetPercentiles(const FunctionCallbackInfo<Value>& args) {

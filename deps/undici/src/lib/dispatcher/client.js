@@ -296,7 +296,8 @@ class Client extends DispatcherBase {
   }
 
   [kDispatch] (opts, handler) {
-    const request = new Request(this[kUrl].origin, opts, handler)
+    const origin = opts.origin || this[kUrl].origin
+    const request = new Request(origin, opts, handler)
 
     this[kQueue].push(request)
     if (this[kResuming]) {
@@ -316,7 +317,7 @@ class Client extends DispatcherBase {
     return this[kNeedDrain] < 2
   }
 
-  [kClose] () {
+  async [kClose] () {
     // TODO: for H2 we need to gracefully flush the remaining enqueued
     // request and close each stream.
     return new Promise((resolve) => {
@@ -328,7 +329,7 @@ class Client extends DispatcherBase {
     })
   }
 
-  [kDestroy] (err) {
+  async [kDestroy] (err) {
     return new Promise((resolve) => {
       const requests = this[kQueue].splice(this[kPendingIdx])
       for (let i = 0; i < requests.length; i++) {
@@ -380,9 +381,9 @@ function onError (client, err) {
 
 /**
  * @param {Client} client
- * @returns {void}
+ * @returns
  */
-function connect (client) {
+async function connect (client) {
   assert(!client[kConnecting])
   assert(!client[kHTTPContext])
 
@@ -416,23 +417,26 @@ function connect (client) {
     })
   }
 
-  client[kConnector]({
-    host,
-    hostname,
-    protocol,
-    port,
-    servername: client[kServerName],
-    localAddress: client[kLocalAddress]
-  }, (err, socket) => {
-    if (err) {
-      handleConnectError(client, err, { host, hostname, protocol, port })
-      client[kResume]()
-      return
-    }
+  try {
+    const socket = await new Promise((resolve, reject) => {
+      client[kConnector]({
+        host,
+        hostname,
+        protocol,
+        port,
+        servername: client[kServerName],
+        localAddress: client[kLocalAddress]
+      }, (err, socket) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(socket)
+        }
+      })
+    })
 
     if (client.destroyed) {
       util.destroy(socket.on('error', noop), new ClientDestroyedError())
-      client[kResume]()
       return
     }
 
@@ -440,13 +444,11 @@ function connect (client) {
 
     try {
       client[kHTTPContext] = socket.alpnProtocol === 'h2'
-        ? connectH2(client, socket)
-        : connectH1(client, socket)
+        ? await connectH2(client, socket)
+        : await connectH1(client, socket)
     } catch (err) {
       socket.destroy().on('error', noop)
-      handleConnectError(client, err, { host, hostname, protocol, port })
-      client[kResume]()
-      return
+      throw err
     }
 
     client[kConnecting] = false
@@ -471,46 +473,44 @@ function connect (client) {
         socket
       })
     }
-
     client.emit('connect', client[kUrl], [client])
-    client[kResume]()
-  })
-}
-
-function handleConnectError (client, err, { host, hostname, protocol, port }) {
-  if (client.destroyed) {
-    return
-  }
-
-  client[kConnecting] = false
-
-  if (channels.connectError.hasSubscribers) {
-    channels.connectError.publish({
-      connectParams: {
-        host,
-        hostname,
-        protocol,
-        port,
-        version: client[kHTTPContext]?.version,
-        servername: client[kServerName],
-        localAddress: client[kLocalAddress]
-      },
-      connector: client[kConnector],
-      error: err
-    })
-  }
-
-  if (err.code === 'ERR_TLS_CERT_ALTNAME_INVALID') {
-    assert(client[kRunning] === 0)
-    while (client[kPending] > 0 && client[kQueue][client[kPendingIdx]].servername === client[kServerName]) {
-      const request = client[kQueue][client[kPendingIdx]++]
-      util.errorRequest(client, request, err)
+  } catch (err) {
+    if (client.destroyed) {
+      return
     }
-  } else {
-    onError(client, err)
+
+    client[kConnecting] = false
+
+    if (channels.connectError.hasSubscribers) {
+      channels.connectError.publish({
+        connectParams: {
+          host,
+          hostname,
+          protocol,
+          port,
+          version: client[kHTTPContext]?.version,
+          servername: client[kServerName],
+          localAddress: client[kLocalAddress]
+        },
+        connector: client[kConnector],
+        error: err
+      })
+    }
+
+    if (err.code === 'ERR_TLS_CERT_ALTNAME_INVALID') {
+      assert(client[kRunning] === 0)
+      while (client[kPending] > 0 && client[kQueue][client[kPendingIdx]].servername === client[kServerName]) {
+        const request = client[kQueue][client[kPendingIdx]++]
+        util.errorRequest(client, request, err)
+      }
+    } else {
+      onError(client, err)
+    }
+
+    client.emit('connectionError', client[kUrl], [client], err)
   }
 
-  client.emit('connectionError', client[kUrl], [client], err)
+  client[kResume]()
 }
 
 function emitDrain (client) {

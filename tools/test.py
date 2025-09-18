@@ -174,7 +174,7 @@ class ProgressIndicator(object):
       raise
     self.Done()
     return {
-      'allPassed': not self.failed and not self.shutdown_event.is_set(),
+      'allPassed': not self.failed,
       'failed': self.failed,
     }
 
@@ -1843,12 +1843,11 @@ def Main():
 
   if result['allPassed']:
     print("\nAll tests passed.")
-  elif result['failed']:
+  else:
     print("\nFailed tests:")
     for failure in result['failed']:
       print(EscapeCommand(failure.command))
-  else:
-    print("\nTest aborted.")
+
   return exitcode
 
 

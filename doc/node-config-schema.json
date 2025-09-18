@@ -45,9 +45,6 @@
             }
           ]
         },
-        "allow-inspector": {
-          "type": "boolean"
-        },
         "allow-net": {
           "type": "boolean"
         },

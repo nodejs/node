@@ -912,10 +912,8 @@ Environment::Environment(IsolateData* isolate_data,
       options_->allow_native_addons = false;
       permission()->Apply(this, {"*"}, permission::PermissionScope::kAddon);
     }
-    if (!options_->allow_inspector) {
-      flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
-      permission()->Apply(this, {"*"}, permission::PermissionScope::kInspector);
-    }
+    flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
+    permission()->Apply(this, {"*"}, permission::PermissionScope::kInspector);
     if (!options_->allow_child_process) {
       permission()->Apply(
           this, {"*"}, permission::PermissionScope::kChildProcess);
@@ -1128,21 +1126,11 @@ void Environment::InitializeCompileCache() {
       dir_from_env.empty()) {
     return;
   }
-  std::string portable_env;
-  bool portable = credentials::SafeGetenv(
-                      "NODE_COMPILE_CACHE_PORTABLE", &portable_env, this) &&
-                  !portable_env.empty() && portable_env == "1";
-  if (portable) {
-    Debug(this,
-          DebugCategory::COMPILE_CACHE,
-          "[compile cache] using relative path\n");
-  }
-  EnableCompileCache(dir_from_env,
-                     portable ? EnableOption::PORTABLE : EnableOption::DEFAULT);
+  EnableCompileCache(dir_from_env);
 }
 
 CompileCacheEnableResult Environment::EnableCompileCache(
-    const std::string& cache_dir, EnableOption option) {
+    const std::string& cache_dir) {
   CompileCacheEnableResult result;
   std::string disable_env;
   if (credentials::SafeGetenv(
@@ -1159,7 +1147,7 @@ CompileCacheEnableResult Environment::EnableCompileCache(
   if (!compile_cache_handler_) {
     std::unique_ptr<CompileCacheHandler> handler =
         std::make_unique<CompileCacheHandler>(this);
-    result = handler->Enable(this, cache_dir, option);
+    result = handler->Enable(this, cache_dir);
     if (result.status == CompileCacheEnableStatus::ENABLED) {
       compile_cache_handler_ = std::move(handler);
       AtExit(

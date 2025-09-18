@@ -10,6 +10,11 @@ type SequenceConverter<T> = (object: unknown, iterable?: IterableIterator<T>) =>
 
 type RecordConverter<K extends string, V> = (object: unknown) => Record<K, V>
 
+interface ConvertToIntOpts {
+  clamp?: boolean
+  enforceRange?: boolean
+}
+
 interface WebidlErrors {
   /**
    * @description Instantiate an error
@@ -69,7 +74,7 @@ interface WebidlUtil {
     V: unknown,
     bitLength: number,
     signedness: 'signed' | 'unsigned',
-    flags?: number
+    opts?: ConvertToIntOpts
   ): number
 
   /**
@@ -89,17 +94,15 @@ interface WebidlUtil {
    * This is only effective in some newer Node.js versions.
    */
   markAsUncloneable (V: any): void
-
-  IsResizableArrayBuffer (V: ArrayBufferLike): boolean
-
-  HasFlag (flag: number, attributes: number): boolean
 }
 
 interface WebidlConverters {
   /**
    * @see https://webidl.spec.whatwg.org/#es-DOMString
    */
-  DOMString (V: unknown, prefix: string, argument: string, flags?: number): string
+  DOMString (V: unknown, prefix: string, argument: string, opts?: {
+    legacyNullToEmptyString: boolean
+  }): string
 
   /**
    * @see https://webidl.spec.whatwg.org/#es-ByteString
@@ -139,78 +142,39 @@ interface WebidlConverters {
   /**
    * @see https://webidl.spec.whatwg.org/#es-unsigned-short
    */
-  ['unsigned short'] (V: unknown, flags?: number): number
+  ['unsigned short'] (V: unknown, opts?: ConvertToIntOpts): number
 
   /**
    * @see https://webidl.spec.whatwg.org/#idl-ArrayBuffer
    */
-  ArrayBuffer (
-    V: unknown,
-    prefix: string,
-    argument: string,
-    options?: { allowResizable: boolean }
-  ): ArrayBuffer
-
-  /**
-   * @see https://webidl.spec.whatwg.org/#idl-SharedArrayBuffer
-   */
-  SharedArrayBuffer (
-    V: unknown,
-    prefix: string,
-    argument: string,
-    options?: { allowResizable: boolean }
-  ): SharedArrayBuffer
+  ArrayBuffer (V: unknown): ArrayBufferLike
+  ArrayBuffer (V: unknown, opts: { allowShared: false }): ArrayBuffer
 
   /**
    * @see https://webidl.spec.whatwg.org/#es-buffer-source-types
    */
   TypedArray (
     V: unknown,
-    T: new () => NodeJS.TypedArray,
-    prefix: string,
-    argument: string,
-    flags?: number
-  ): NodeJS.TypedArray
+    TypedArray: NodeJS.TypedArray | ArrayBufferLike
+  ): NodeJS.TypedArray | ArrayBufferLike
+  TypedArray (
+    V: unknown,
+    TypedArray: NodeJS.TypedArray | ArrayBufferLike,
+    opts?: { allowShared: false }
+  ): NodeJS.TypedArray | ArrayBuffer
 
   /**
    * @see https://webidl.spec.whatwg.org/#es-buffer-source-types
    */
-  DataView (
-    V: unknown,
-    prefix: string,
-    argument: string,
-    flags?: number
-  ): DataView
-
-  /**
-   * @see https://webidl.spec.whatwg.org/#es-buffer-source-types
-   */
-  ArrayBufferView (
-    V: unknown,
-    prefix: string,
-    argument: string,
-    flags?: number
-  ): NodeJS.ArrayBufferView
+  DataView (V: unknown, opts?: { allowShared: boolean }): DataView
 
   /**
    * @see https://webidl.spec.whatwg.org/#BufferSource
    */
   BufferSource (
     V: unknown,
-    prefix: string,
-    argument: string,
-    flags?: number
-  ): ArrayBuffer | NodeJS.ArrayBufferView
-
-  /**
-   * @see https://webidl.spec.whatwg.org/#AllowSharedBufferSource
-   */
-  AllowSharedBufferSource (
-    V: unknown,
-    prefix: string,
-    argument: string,
-    flags?: number
-  ): ArrayBuffer | SharedArrayBuffer | NodeJS.ArrayBufferView
+    opts?: { allowShared: boolean }
+  ): NodeJS.TypedArray | ArrayBufferLike | DataView
 
   ['sequence<ByteString>']: SequenceConverter<string>
 
@@ -227,13 +191,6 @@ interface WebidlConverters {
    * @see https://fetch.spec.whatwg.org/#requestinit
    */
   RequestInit (V: unknown): undici.RequestInit
-
-  /**
-   * @see https://html.spec.whatwg.org/multipage/webappapis.html#eventhandlernonnull
-   */
-  EventHandlerNonNull (V: unknown): Function | null
-
-  WebSocketStreamWrite (V: unknown): ArrayBuffer | NodeJS.TypedArray | string
 
   [Key: string]: (...args: any[]) => unknown
 }
@@ -253,10 +210,6 @@ interface WebidlIs {
   AbortSignal: WebidlIsFunction<AbortSignal>
   MessagePort: WebidlIsFunction<MessagePort>
   USVString: WebidlIsFunction<string>
-  /**
-   * @see https://webidl.spec.whatwg.org/#BufferSource
-   */
-  BufferSource: WebidlIsFunction<ArrayBuffer | NodeJS.TypedArray>
 }
 
 export interface Webidl {
@@ -264,7 +217,6 @@ export interface Webidl {
   util: WebidlUtil
   converters: WebidlConverters
   is: WebidlIs
-  attributes: WebIDLExtendedAttributes
 
   /**
    * @description Performs a brand-check on {@param V} to ensure it is a
@@ -325,17 +277,4 @@ export interface Webidl {
   ): (V: unknown) => ReturnType<typeof converter> | null
 
   argumentLengthCheck (args: { length: number }, min: number, context: string): void
-}
-
-interface WebIDLExtendedAttributes {
-  /** https://webidl.spec.whatwg.org/#Clamp */
-  Clamp: number
-  /** https://webidl.spec.whatwg.org/#EnforceRange */
-  EnforceRange: number
-  /** https://webidl.spec.whatwg.org/#AllowShared */
-  AllowShared: number
-  /** https://webidl.spec.whatwg.org/#AllowResizable */
-  AllowResizable: number
-  /** https://webidl.spec.whatwg.org/#LegacyNullToEmptyString */
-  LegacyNullToEmptyString: number
 }

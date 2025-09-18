@@ -714,8 +714,9 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   args.GetReturnValue().Set(
-      BigInt::New(args.GetIsolate(), DataPointer::GetSecureHeapUsed()));
+      BigInt::New(env->isolate(), DataPointer::GetSecureHeapUsed()));
 }
 }  // namespace
 

@@ -160,34 +160,33 @@ constexpr ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
 
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            const char* data,
-                                           int length,
-                                           v8::NewStringType type) {
-  return v8::String::NewFromOneByte(
-             isolate, reinterpret_cast<const uint8_t*>(data), type, length)
-      .ToLocalChecked();
+                                           int length) {
+  return v8::String::NewFromOneByte(isolate,
+                                    reinterpret_cast<const uint8_t*>(data),
+                                    v8::NewStringType::kNormal,
+                                    length).ToLocalChecked();
 }
 
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            const signed char* data,
-                                           int length,
-                                           v8::NewStringType type) {
-  return v8::String::NewFromOneByte(
-             isolate, reinterpret_cast<const uint8_t*>(data), type, length)
-      .ToLocalChecked();
+                                           int length) {
+  return v8::String::NewFromOneByte(isolate,
+                                    reinterpret_cast<const uint8_t*>(data),
+                                    v8::NewStringType::kNormal,
+                                    length).ToLocalChecked();
 }
 
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            const unsigned char* data,
-                                           int length,
-                                           v8::NewStringType type) {
-  return v8::String::NewFromOneByte(isolate, data, type, length)
+                                           int length) {
+  return v8::String::NewFromOneByte(
+             isolate, data, v8::NewStringType::kNormal, length)
       .ToLocalChecked();
 }
 
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
-                                           std::string_view str,
-                                           v8::NewStringType type) {
-  return OneByteString(isolate, str.data(), str.size(), type);
+                                           std::string_view str) {
+  return OneByteString(isolate, str.data(), str.size());
 }
 
 char ToLower(char c) {
@@ -704,31 +703,6 @@ inline std::wstring ConvertToWideString(const std::string& str,
   return wstrTo;
 }
 #endif  // _WIN32
-
-inline v8::MaybeLocal<v8::Object> NewDictionaryInstance(
-    v8::Local<v8::Context> context,
-    v8::Local<v8::DictionaryTemplate> tmpl,
-    v8::MemorySpan<v8::MaybeLocal<v8::Value>> property_values) {
-  for (auto& value : property_values) {
-    if (value.IsEmpty()) return v8::MaybeLocal<v8::Object>();
-  }
-  return tmpl->NewInstance(context, property_values);
-}
-
-inline v8::MaybeLocal<v8::Object> NewDictionaryInstanceNullProto(
-    v8::Local<v8::Context> context,
-    v8::Local<v8::DictionaryTemplate> tmpl,
-    v8::MemorySpan<v8::MaybeLocal<v8::Value>> property_values) {
-  for (auto& value : property_values) {
-    if (value.IsEmpty()) return v8::MaybeLocal<v8::Object>();
-  }
-  v8::Local<v8::Object> obj = tmpl->NewInstance(context, property_values);
-  if (obj->SetPrototypeV2(context, v8::Null(context->GetIsolate()))
-          .IsNothing()) {
-    return v8::MaybeLocal<v8::Object>();
-  }
-  return obj;
-}
 
 }  // namespace node
 

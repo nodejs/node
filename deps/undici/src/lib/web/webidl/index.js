@@ -160,7 +160,7 @@ webidl.util.TypeValueToString = function (o) {
 webidl.util.markAsUncloneable = markAsUncloneable || (() => {})
 
 // https://webidl.spec.whatwg.org/#abstract-opdef-converttoint
-webidl.util.ConvertToInt = function (V, bitLength, signedness, flags) {
+webidl.util.ConvertToInt = function (V, bitLength, signedness, opts) {
   let upperBound
   let lowerBound
 
@@ -204,7 +204,7 @@ webidl.util.ConvertToInt = function (V, bitLength, signedness, flags) {
 
   // 6. If the conversion is to an IDL type associated
   //    with the [EnforceRange] extended attribute, then:
-  if (webidl.util.HasFlag(flags, webidl.attributes.EnforceRange)) {
+  if (opts?.enforceRange === true) {
     // 1. If x is NaN, +∞, or −∞, then throw a TypeError.
     if (
       Number.isNaN(x) ||
@@ -236,7 +236,7 @@ webidl.util.ConvertToInt = function (V, bitLength, signedness, flags) {
   // 7. If x is not NaN and the conversion is to an IDL
   //    type associated with the [Clamp] extended
   //    attribute, then:
-  if (!Number.isNaN(x) && webidl.util.HasFlag(flags, webidl.attributes.Clamp)) {
+  if (!Number.isNaN(x) && opts?.clamp === true) {
     // 1. Set x to min(max(x, lowerBound), upperBound).
     x = Math.min(Math.max(x, lowerBound), upperBound)
 
@@ -308,25 +308,6 @@ webidl.util.Stringify = function (V) {
     default:
       return `${V}`
   }
-}
-
-webidl.util.IsResizableArrayBuffer = function (V) {
-  if (types.isArrayBuffer(V)) {
-    return V.resizable
-  }
-
-  if (types.isSharedArrayBuffer(V)) {
-    return V.growable
-  }
-
-  throw webidl.errors.exception({
-    header: 'IsResizableArrayBuffer',
-    message: `"${webidl.util.Stringify(V)}" is not an array buffer.`
-  })
-}
-
-webidl.util.HasFlag = function (flags, attributes) {
-  return typeof flags === 'number' && (flags & attributes) === attributes
 }
 
 // https://webidl.spec.whatwg.org/#es-sequence
@@ -533,20 +514,13 @@ webidl.is.URL = webidl.util.MakeTypeAssertion(URL)
 webidl.is.AbortSignal = webidl.util.MakeTypeAssertion(AbortSignal)
 webidl.is.MessagePort = webidl.util.MakeTypeAssertion(MessagePort)
 
-webidl.is.BufferSource = function (V) {
-  return types.isArrayBuffer(V) || (
-    ArrayBuffer.isView(V) &&
-    types.isArrayBuffer(V.buffer)
-  )
-}
-
 // https://webidl.spec.whatwg.org/#es-DOMString
-webidl.converters.DOMString = function (V, prefix, argument, flags) {
+webidl.converters.DOMString = function (V, prefix, argument, opts) {
   // 1. If V is null and the conversion is to an IDL type
   //    associated with the [LegacyNullToEmptyString]
   //    extended attribute, then return the DOMString value
   //    that represents the empty string.
-  if (V === null && webidl.util.HasFlag(flags, webidl.attributes.LegacyNullToEmptyString)) {
+  if (V === null && opts?.legacyNullToEmptyString) {
     return ''
   }
 
@@ -625,7 +599,7 @@ webidl.converters.any = function (V) {
 // https://webidl.spec.whatwg.org/#es-long-long
 webidl.converters['long long'] = function (V, prefix, argument) {
   // 1. Let x be ? ConvertToInt(V, 64, "signed").
-  const x = webidl.util.ConvertToInt(V, 64, 'signed', 0, prefix, argument)
+  const x = webidl.util.ConvertToInt(V, 64, 'signed', undefined, prefix, argument)
 
   // 2. Return the IDL long long value that represents
   //    the same numeric value as x.
@@ -635,7 +609,7 @@ webidl.converters['long long'] = function (V, prefix, argument) {
 // https://webidl.spec.whatwg.org/#es-unsigned-long-long
 webidl.converters['unsigned long long'] = function (V, prefix, argument) {
   // 1. Let x be ? ConvertToInt(V, 64, "unsigned").
-  const x = webidl.util.ConvertToInt(V, 64, 'unsigned', 0, prefix, argument)
+  const x = webidl.util.ConvertToInt(V, 64, 'unsigned', undefined, prefix, argument)
 
   // 2. Return the IDL unsigned long long value that
   //    represents the same numeric value as x.
@@ -645,7 +619,7 @@ webidl.converters['unsigned long long'] = function (V, prefix, argument) {
 // https://webidl.spec.whatwg.org/#es-unsigned-long
 webidl.converters['unsigned long'] = function (V, prefix, argument) {
   // 1. Let x be ? ConvertToInt(V, 32, "unsigned").
-  const x = webidl.util.ConvertToInt(V, 32, 'unsigned', 0, prefix, argument)
+  const x = webidl.util.ConvertToInt(V, 32, 'unsigned', undefined, prefix, argument)
 
   // 2. Return the IDL unsigned long value that
   //    represents the same numeric value as x.
@@ -653,9 +627,9 @@ webidl.converters['unsigned long'] = function (V, prefix, argument) {
 }
 
 // https://webidl.spec.whatwg.org/#es-unsigned-short
-webidl.converters['unsigned short'] = function (V, prefix, argument, flags) {
+webidl.converters['unsigned short'] = function (V, prefix, argument, opts) {
   // 1. Let x be ? ConvertToInt(V, 16, "unsigned").
-  const x = webidl.util.ConvertToInt(V, 16, 'unsigned', flags, prefix, argument)
+  const x = webidl.util.ConvertToInt(V, 16, 'unsigned', opts, prefix, argument)
 
   // 2. Return the IDL unsigned short value that represents
   //    the same numeric value as x.
@@ -663,16 +637,15 @@ webidl.converters['unsigned short'] = function (V, prefix, argument, flags) {
 }
 
 // https://webidl.spec.whatwg.org/#idl-ArrayBuffer
-webidl.converters.ArrayBuffer = function (V, prefix, argument, flags) {
-  // 1. If V is not an Object, or V does not have an
+webidl.converters.ArrayBuffer = function (V, prefix, argument, opts) {
+  // 1. If Type(V) is not Object, or V does not have an
   //    [[ArrayBufferData]] internal slot, then throw a
   //    TypeError.
-  // 2. If IsSharedArrayBuffer(V) is true, then throw a
-  //    TypeError.
   // see: https://tc39.es/ecma262/#sec-properties-of-the-arraybuffer-instances
+  // see: https://tc39.es/ecma262/#sec-properties-of-the-sharedarraybuffer-instances
   if (
     webidl.util.Type(V) !== OBJECT ||
-    !types.isArrayBuffer(V)
+    !types.isAnyArrayBuffer(V)
   ) {
     throw webidl.errors.conversionFailed({
       prefix,
@@ -681,14 +654,25 @@ webidl.converters.ArrayBuffer = function (V, prefix, argument, flags) {
     })
   }
 
+  // 2. If the conversion is not to an IDL type associated
+  //    with the [AllowShared] extended attribute, and
+  //    IsSharedArrayBuffer(V) is true, then throw a
+  //    TypeError.
+  if (opts?.allowShared === false && types.isSharedArrayBuffer(V)) {
+    throw webidl.errors.exception({
+      header: 'ArrayBuffer',
+      message: 'SharedArrayBuffer is not allowed.'
+    })
+  }
+
   // 3. If the conversion is not to an IDL type associated
   //    with the [AllowResizable] extended attribute, and
   //    IsResizableArrayBuffer(V) is true, then throw a
   //    TypeError.
-  if (!webidl.util.HasFlag(flags, webidl.attributes.AllowResizable) && webidl.util.IsResizableArrayBuffer(V)) {
+  if (V.resizable || V.growable) {
     throw webidl.errors.exception({
-      header: prefix,
-      message: `${argument} cannot be a resizable ArrayBuffer.`
+      header: 'ArrayBuffer',
+      message: 'Received a resizable ArrayBuffer.'
     })
   }
 
@@ -697,43 +681,7 @@ webidl.converters.ArrayBuffer = function (V, prefix, argument, flags) {
   return V
 }
 
-// https://webidl.spec.whatwg.org/#idl-SharedArrayBuffer
-webidl.converters.SharedArrayBuffer = function (V, prefix, argument, flags) {
-  // 1. If V is not an Object, or V does not have an
-  //    [[ArrayBufferData]] internal slot, then throw a
-  //    TypeError.
-  // 2. If IsSharedArrayBuffer(V) is false, then throw a
-  //    TypeError.
-  // see: https://tc39.es/ecma262/#sec-properties-of-the-sharedarraybuffer-instances
-  if (
-    webidl.util.Type(V) !== OBJECT ||
-    !types.isSharedArrayBuffer(V)
-  ) {
-    throw webidl.errors.conversionFailed({
-      prefix,
-      argument: `${argument} ("${webidl.util.Stringify(V)}")`,
-      types: ['SharedArrayBuffer']
-    })
-  }
-
-  // 3. If the conversion is not to an IDL type associated
-  //    with the [AllowResizable] extended attribute, and
-  //    IsResizableArrayBuffer(V) is true, then throw a
-  //    TypeError.
-  if (!webidl.util.HasFlag(flags, webidl.attributes.AllowResizable) && webidl.util.IsResizableArrayBuffer(V)) {
-    throw webidl.errors.exception({
-      header: prefix,
-      message: `${argument} cannot be a resizable SharedArrayBuffer.`
-    })
-  }
-
-  // 4. Return the IDL SharedArrayBuffer value that is a
-  //    reference to the same object as V.
-  return V
-}
-
-// https://webidl.spec.whatwg.org/#dfn-typed-array-type
-webidl.converters.TypedArray = function (V, T, prefix, argument, flags) {
+webidl.converters.TypedArray = function (V, T, prefix, name, opts) {
   // 1. Let T be the IDL type V is being converted to.
 
   // 2. If Type(V) is not Object, or V does not have a
@@ -746,7 +694,7 @@ webidl.converters.TypedArray = function (V, T, prefix, argument, flags) {
   ) {
     throw webidl.errors.conversionFailed({
       prefix,
-      argument: `${argument} ("${webidl.util.Stringify(V)}")`,
+      argument: `${name} ("${webidl.util.Stringify(V)}")`,
       types: [T.name]
     })
   }
@@ -755,10 +703,10 @@ webidl.converters.TypedArray = function (V, T, prefix, argument, flags) {
   //    with the [AllowShared] extended attribute, and
   //    IsSharedArrayBuffer(V.[[ViewedArrayBuffer]]) is
   //    true, then throw a TypeError.
-  if (!webidl.util.HasFlag(flags, webidl.attributes.AllowShared) && types.isSharedArrayBuffer(V.buffer)) {
+  if (opts?.allowShared === false && types.isSharedArrayBuffer(V.buffer)) {
     throw webidl.errors.exception({
-      header: prefix,
-      message: `${argument} cannot be a view on a shared array buffer.`
+      header: 'ArrayBuffer',
+      message: 'SharedArrayBuffer is not allowed.'
     })
   }
 
@@ -766,10 +714,10 @@ webidl.converters.TypedArray = function (V, T, prefix, argument, flags) {
   //    with the [AllowResizable] extended attribute, and
   //    IsResizableArrayBuffer(V.[[ViewedArrayBuffer]]) is
   //    true, then throw a TypeError.
-  if (!webidl.util.HasFlag(flags, webidl.attributes.AllowResizable) && webidl.util.IsResizableArrayBuffer(V.buffer)) {
+  if (V.buffer.resizable || V.buffer.growable) {
     throw webidl.errors.exception({
-      header: prefix,
-      message: `${argument} cannot be a view on a resizable array buffer.`
+      header: 'ArrayBuffer',
+      message: 'Received a resizable ArrayBuffer.'
     })
   }
 
@@ -778,15 +726,13 @@ webidl.converters.TypedArray = function (V, T, prefix, argument, flags) {
   return V
 }
 
-// https://webidl.spec.whatwg.org/#idl-DataView
-webidl.converters.DataView = function (V, prefix, argument, flags) {
+webidl.converters.DataView = function (V, prefix, name, opts) {
   // 1. If Type(V) is not Object, or V does not have a
   //    [[DataView]] internal slot, then throw a TypeError.
   if (webidl.util.Type(V) !== OBJECT || !types.isDataView(V)) {
-    throw webidl.errors.conversionFailed({
-      prefix,
-      argument: `${argument} ("${webidl.util.Stringify(V)}")`,
-      types: ['DataView']
+    throw webidl.errors.exception({
+      header: prefix,
+      message: `${name} is not a DataView.`
     })
   }
 
@@ -794,10 +740,10 @@ webidl.converters.DataView = function (V, prefix, argument, flags) {
   //    with the [AllowShared] extended attribute, and
   //    IsSharedArrayBuffer(V.[[ViewedArrayBuffer]]) is true,
   //    then throw a TypeError.
-  if (!webidl.util.HasFlag(flags, webidl.attributes.AllowShared) && types.isSharedArrayBuffer(V.buffer)) {
+  if (opts?.allowShared === false && types.isSharedArrayBuffer(V.buffer)) {
     throw webidl.errors.exception({
-      header: prefix,
-      message: `${argument} cannot be a view on a shared array buffer.`
+      header: 'ArrayBuffer',
+      message: 'SharedArrayBuffer is not allowed.'
     })
   }
 
@@ -805,95 +751,16 @@ webidl.converters.DataView = function (V, prefix, argument, flags) {
   //    with the [AllowResizable] extended attribute, and
   //    IsResizableArrayBuffer(V.[[ViewedArrayBuffer]]) is
   //    true, then throw a TypeError.
-  if (!webidl.util.HasFlag(flags, webidl.attributes.AllowResizable) && webidl.util.IsResizableArrayBuffer(V.buffer)) {
+  if (V.buffer.resizable || V.buffer.growable) {
     throw webidl.errors.exception({
-      header: prefix,
-      message: `${argument} cannot be a view on a resizable array buffer.`
+      header: 'ArrayBuffer',
+      message: 'Received a resizable ArrayBuffer.'
     })
   }
 
   // 4. Return the IDL DataView value that is a reference
   //    to the same object as V.
   return V
-}
-
-// https://webidl.spec.whatwg.org/#ArrayBufferView
-webidl.converters.ArrayBufferView = function (V, prefix, argument, flags) {
-  if (
-    webidl.util.Type(V) !== OBJECT ||
-    !types.isArrayBufferView(V)
-  ) {
-    throw webidl.errors.conversionFailed({
-      prefix,
-      argument: `${argument} ("${webidl.util.Stringify(V)}")`,
-      types: ['ArrayBufferView']
-    })
-  }
-
-  if (!webidl.util.HasFlag(flags, webidl.attributes.AllowShared) && types.isSharedArrayBuffer(V.buffer)) {
-    throw webidl.errors.exception({
-      header: prefix,
-      message: `${argument} cannot be a view on a shared array buffer.`
-    })
-  }
-
-  if (!webidl.util.HasFlag(flags, webidl.attributes.AllowResizable) && webidl.util.IsResizableArrayBuffer(V.buffer)) {
-    throw webidl.errors.exception({
-      header: prefix,
-      message: `${argument} cannot be a view on a resizable array buffer.`
-    })
-  }
-
-  return V
-}
-
-// https://webidl.spec.whatwg.org/#BufferSource
-webidl.converters.BufferSource = function (V, prefix, argument, flags) {
-  if (types.isArrayBuffer(V)) {
-    return webidl.converters.ArrayBuffer(V, prefix, argument, flags)
-  }
-
-  if (types.isArrayBufferView(V)) {
-    flags &= ~webidl.attributes.AllowShared
-
-    return webidl.converters.ArrayBufferView(V, prefix, argument, flags)
-  }
-
-  // Make this explicit for easier debugging
-  if (types.isSharedArrayBuffer(V)) {
-    throw webidl.errors.exception({
-      header: prefix,
-      message: `${argument} cannot be a SharedArrayBuffer.`
-    })
-  }
-
-  throw webidl.errors.conversionFailed({
-    prefix,
-    argument: `${argument} ("${webidl.util.Stringify(V)}")`,
-    types: ['ArrayBuffer', 'ArrayBufferView']
-  })
-}
-
-// https://webidl.spec.whatwg.org/#AllowSharedBufferSource
-webidl.converters.AllowSharedBufferSource = function (V, prefix, argument, flags) {
-  if (types.isArrayBuffer(V)) {
-    return webidl.converters.ArrayBuffer(V, prefix, argument, flags)
-  }
-
-  if (types.isSharedArrayBuffer(V)) {
-    return webidl.converters.SharedArrayBuffer(V, prefix, argument, flags)
-  }
-
-  if (types.isArrayBufferView(V)) {
-    flags |= webidl.attributes.AllowShared
-    return webidl.converters.ArrayBufferView(V, prefix, argument, flags)
-  }
-
-  throw webidl.errors.conversionFailed({
-    prefix,
-    argument: `${argument} ("${webidl.util.Stringify(V)}")`,
-    types: ['ArrayBuffer', 'SharedArrayBuffer', 'ArrayBufferView']
-  })
 }
 
 webidl.converters['sequence<ByteString>'] = webidl.sequenceConverter(
@@ -915,34 +782,6 @@ webidl.converters.AbortSignal = webidl.interfaceConverter(
   webidl.is.AbortSignal,
   'AbortSignal'
 )
-
-/**
- * [LegacyTreatNonObjectAsNull]
- * callback EventHandlerNonNull = any (Event event);
- * typedef EventHandlerNonNull? EventHandler;
- * @param {*} V
- */
-webidl.converters.EventHandlerNonNull = function (V) {
-  if (webidl.util.Type(V) !== OBJECT) {
-    return null
-  }
-
-  // [I]f the value is not an object, it will be converted to null, and if the value is not callable,
-  // it will be converted to a callback function value that does nothing when called.
-  if (typeof V === 'function') {
-    return V
-  }
-
-  return () => {}
-}
-
-webidl.attributes = {
-  Clamp: 1 << 0,
-  EnforceRange: 1 << 1,
-  AllowShared: 1 << 2,
-  AllowResizable: 1 << 3,
-  LegacyNullToEmptyString: 1 << 4
-}
 
 module.exports = {
   webidl

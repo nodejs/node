@@ -56,7 +56,6 @@ using v8::ObjectTemplate;
 using v8::PrimitiveArray;
 using v8::Promise;
 using v8::PromiseRejectEvent;
-using v8::PropertyCallbackInfo;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
@@ -159,8 +158,6 @@ ModuleWrap::ModuleWrap(Realm* realm,
 
   if (!synthetic_evaluation_step->IsUndefined()) {
     synthetic_ = true;
-    // Synthetic modules have no dependencies.
-    linked_ = true;
   }
   MakeWeak();
   module_.SetWeak();
@@ -243,7 +240,7 @@ Maybe<bool> ModuleWrap::CheckUnsettledTopLevelAwait() {
     return Just(true);
   }
 
-  if (!HasAsyncGraph()) {  // There is no TLA, no need to check.
+  if (!module->IsGraphAsync()) {  // There is no TLA, no need to check.
     return Just(true);
   }
 
@@ -264,16 +261,6 @@ Maybe<bool> ModuleWrap::CheckUnsettledTopLevelAwait() {
   }
 
   return Just(false);
-}
-
-bool ModuleWrap::HasAsyncGraph() {
-  if (!has_async_graph_.has_value()) {
-    Isolate* isolate = env()->isolate();
-    HandleScope scope(isolate);
-
-    has_async_graph_ = module_.Get(isolate)->IsGraphAsync();
-  }
-  return has_async_graph_.value();
 }
 
 Local<PrimitiveArray> ModuleWrap::GetHostDefinedOptions(
@@ -700,28 +687,25 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
   Local<Context> context = obj->context();
   Local<Module> module = obj->module_.Get(isolate);
-  Environment* env = realm->env();
 
   if (!obj->IsLinked()) {
-    THROW_ERR_VM_MODULE_LINK_FAILURE(env, "module is not linked");
+    THROW_ERR_VM_MODULE_LINK_FAILURE(realm->env(), "module is not linked");
     return;
   }
 
-  {
-    TryCatchScope try_catch(env);
-    USE(module->InstantiateModule(
-        context, ResolveModuleCallback, ResolveSourceCallback));
+  TryCatchScope try_catch(realm->env());
+  USE(module->InstantiateModule(
+      context, ResolveModuleCallback, ResolveSourceCallback));
 
-    if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
-      CHECK(!try_catch.Message().IsEmpty());
-      CHECK(!try_catch.Exception().IsEmpty());
-      AppendExceptionLine(env,
-                          try_catch.Exception(),
-                          try_catch.Message(),
-                          ErrorHandlingMode::MODULE_ERROR);
-      try_catch.ReThrow();
-      return;
-    }
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    CHECK(!try_catch.Message().IsEmpty());
+    CHECK(!try_catch.Exception().IsEmpty());
+    AppendExceptionLine(realm->env(),
+                        try_catch.Exception(),
+                        try_catch.Message(),
+                        ErrorHandlingMode::MODULE_ERROR);
+    try_catch.ReThrow();
+    return;
   }
 }
 
@@ -806,6 +790,37 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void ModuleWrap::InstantiateSync(const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+  Local<Context> context = obj->context();
+  Local<Module> module = obj->module_.Get(isolate);
+  Environment* env = realm->env();
+
+  {
+    TryCatchScope try_catch(env);
+    USE(module->InstantiateModule(
+        context, ResolveModuleCallback, ResolveSourceCallback));
+
+    if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+      CHECK(!try_catch.Message().IsEmpty());
+      CHECK(!try_catch.Exception().IsEmpty());
+      AppendExceptionLine(env,
+                          try_catch.Exception(),
+                          try_catch.Message(),
+                          ErrorHandlingMode::MODULE_ERROR);
+      try_catch.ReThrow();
+      return;
+    }
+  }
+
+  // TODO(joyeecheung): record Module::HasTopLevelAwait() in every ModuleWrap
+  // and infer the asynchronicity from a module's children during linking.
+  args.GetReturnValue().Set(module->IsGraphAsync());
+}
+
 Maybe<void> ThrowIfPromiseRejected(Realm* realm, Local<Promise> promise) {
   Isolate* isolate = realm->isolate();
   Local<Context> context = realm->context();
@@ -871,7 +886,7 @@ void ModuleWrap::EvaluateSync(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (obj->HasAsyncGraph()) {
+  if (module->IsGraphAsync()) {
     CHECK(env->options()->print_required_tla);
     auto stalled_messages =
         std::get<1>(module->GetStalledTopLevelAwaitMessages(isolate));
@@ -893,6 +908,32 @@ void ModuleWrap::EvaluateSync(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(module->GetModuleNamespace());
 }
 
+void ModuleWrap::GetNamespaceSync(const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+  Local<Module> module = obj->module_.Get(isolate);
+
+  switch (module->GetStatus()) {
+    case Module::Status::kUninstantiated:
+    case Module::Status::kInstantiating:
+      return realm->env()->ThrowError(
+          "Cannot get namespace, module has not been instantiated");
+    case Module::Status::kInstantiated:
+    case Module::Status::kEvaluating:
+    case Module::Status::kEvaluated:
+    case Module::Status::kErrored:
+      break;
+  }
+
+  if (module->IsGraphAsync()) {
+    return THROW_ERR_REQUIRE_ASYNC_MODULE(realm->env(), args[0], args[1]);
+  }
+  Local<Value> result = module->GetModuleNamespace();
+  args.GetReturnValue().Set(result);
+}
+
 void ModuleWrap::GetNamespace(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
@@ -900,8 +941,19 @@ void ModuleWrap::GetNamespace(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
 
   Local<Module> module = obj->module_.Get(isolate);
-  if (module->GetStatus() < Module::kInstantiated) {
-    return THROW_ERR_MODULE_NOT_INSTANTIATED(realm->env());
+
+  switch (module->GetStatus()) {
+    case Module::Status::kUninstantiated:
+    case Module::Status::kInstantiating:
+      return realm->env()->ThrowError(
+          "cannot get namespace, module has not been instantiated");
+    case Module::Status::kInstantiated:
+    case Module::Status::kEvaluating:
+    case Module::Status::kEvaluated:
+    case Module::Status::kErrored:
+      break;
+    default:
+      UNREACHABLE();
   }
 
   Local<Value> result = module->GetModuleNamespace();
@@ -952,6 +1004,16 @@ void ModuleWrap::GetStatus(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(module->GetStatus());
 }
 
+void ModuleWrap::IsGraphAsync(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+
+  Local<Module> module = obj->module_.Get(isolate);
+
+  args.GetReturnValue().Set(module->IsGraphAsync());
+}
+
 void ModuleWrap::GetError(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   ModuleWrap* obj;
@@ -959,21 +1021,6 @@ void ModuleWrap::GetError(const FunctionCallbackInfo<Value>& args) {
 
   Local<Module> module = obj->module_.Get(isolate);
   args.GetReturnValue().Set(module->GetException());
-}
-
-void ModuleWrap::HasAsyncGraph(Local<Name> property,
-                               const PropertyCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  Environment* env = Environment::GetCurrent(isolate);
-  ModuleWrap* obj;
-  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
-
-  Local<Module> module = obj->module_.Get(isolate);
-  if (module->GetStatus() < Module::kInstantiated) {
-    return THROW_ERR_MODULE_NOT_INSTANTIATED(env);
-  }
-
-  args.GetReturnValue().Set(obj->HasAsyncGraph());
 }
 
 // static
@@ -1377,8 +1424,10 @@ void ModuleWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
 
   SetProtoMethod(isolate, tpl, "link", Link);
   SetProtoMethod(isolate, tpl, "getModuleRequests", GetModuleRequests);
-  SetProtoMethod(isolate, tpl, "instantiate", Instantiate);
+  SetProtoMethod(isolate, tpl, "instantiateSync", InstantiateSync);
   SetProtoMethod(isolate, tpl, "evaluateSync", EvaluateSync);
+  SetProtoMethod(isolate, tpl, "getNamespaceSync", GetNamespaceSync);
+  SetProtoMethod(isolate, tpl, "instantiate", Instantiate);
   SetProtoMethod(isolate, tpl, "evaluate", Evaluate);
   SetProtoMethod(isolate, tpl, "setExport", SetSyntheticExport);
   SetProtoMethod(isolate, tpl, "setModuleSourceObject", SetModuleSourceObject);
@@ -1387,12 +1436,9 @@ void ModuleWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
       isolate, tpl, "createCachedData", CreateCachedData);
   SetProtoMethodNoSideEffect(isolate, tpl, "getNamespace", GetNamespace);
   SetProtoMethodNoSideEffect(isolate, tpl, "getStatus", GetStatus);
+  SetProtoMethodNoSideEffect(isolate, tpl, "isGraphAsync", IsGraphAsync);
   SetProtoMethodNoSideEffect(isolate, tpl, "getError", GetError);
   SetConstructorFunction(isolate, target, "ModuleWrap", tpl);
-
-  tpl->InstanceTemplate()->SetLazyDataProperty(
-      FIXED_ONE_BYTE_STRING(isolate, "hasAsyncGraph"), HasAsyncGraph);
-
   isolate_data->set_module_wrap_constructor_template(tpl);
 
   SetMethod(isolate,
@@ -1440,7 +1486,9 @@ void ModuleWrap::RegisterExternalReferences(
 
   registry->Register(Link);
   registry->Register(GetModuleRequests);
+  registry->Register(InstantiateSync);
   registry->Register(EvaluateSync);
+  registry->Register(GetNamespaceSync);
   registry->Register(Instantiate);
   registry->Register(Evaluate);
   registry->Register(SetSyntheticExport);
@@ -1450,7 +1498,7 @@ void ModuleWrap::RegisterExternalReferences(
   registry->Register(GetNamespace);
   registry->Register(GetStatus);
   registry->Register(GetError);
-  registry->Register(HasAsyncGraph);
+  registry->Register(IsGraphAsync);
 
   registry->Register(CreateRequiredModuleFacade);
 

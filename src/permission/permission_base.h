@@ -27,8 +27,7 @@ namespace permission {
 #define WORKER_THREADS_PERMISSIONS(V)                                          \
   V(WorkerThreads, "worker", PermissionsRoot, "--allow-worker")
 
-#define INSPECTOR_PERMISSIONS(V)                                               \
-  V(Inspector, "inspector", PermissionsRoot, "--allow-inspector")
+#define INSPECTOR_PERMISSIONS(V) V(Inspector, "inspector", PermissionsRoot, "")
 
 #define NET_PERMISSIONS(V) V(Net, "net", PermissionsRoot, "--allow-net")
 

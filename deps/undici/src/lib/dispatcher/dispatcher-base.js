@@ -13,24 +13,19 @@ const kOnDestroyed = Symbol('onDestroyed')
 const kOnClosed = Symbol('onClosed')
 
 class DispatcherBase extends Dispatcher {
-  /** @type {boolean} */
-  [kDestroyed] = false;
+  constructor () {
+    super()
 
-  /** @type {Array|null} */
-  [kOnDestroyed] = null;
+    this[kDestroyed] = false
+    this[kOnDestroyed] = null
+    this[kClosed] = false
+    this[kOnClosed] = []
+  }
 
-  /** @type {boolean} */
-  [kClosed] = false;
-
-  /** @type {Array} */
-  [kOnClosed] = []
-
-  /** @returns {boolean} */
   get destroyed () {
     return this[kDestroyed]
   }
 
-  /** @returns {boolean} */
   get closed () {
     return this[kClosed]
   }

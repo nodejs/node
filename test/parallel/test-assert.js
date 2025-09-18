@@ -624,7 +624,7 @@ test('Test strict assert', () => {
       code: 'ERR_ASSERTION',
       constructor: strict.AssertionError,
       message: 'The expression evaluated to a falsy value:\n\n  ' +
-               'strict.ok(\n'
+               "strict.ok(\n    typeof 123 === 'string'\n  )\n"
     }
   );
   Error.stackTraceLimit = tmpLimit;
@@ -1017,20 +1017,20 @@ test('Additional asserts', () => {
     }
   );
 
-  // Works in eval. Source code in eval can be shown.
+  // Works in eval.
   assert.throws(
     () => new Function('assert', 'assert(1 === 2);')(assert),
     {
       code: 'ERR_ASSERTION',
       constructor: assert.AssertionError,
-      message: 'The expression evaluated to a falsy value:\n\n  assert(1 === 2)\n'
+      message: 'false == true'
     }
   );
   assert.throws(
     () => eval('console.log("FOO");\nassert.ok(1 === 2);'),
     {
       code: 'ERR_ASSERTION',
-      message: 'The expression evaluated to a falsy value:\n\n  assert.ok(1 === 2)\n'
+      message: 'false == true'
     }
   );
 

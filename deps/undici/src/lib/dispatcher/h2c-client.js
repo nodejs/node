@@ -12,6 +12,8 @@ class H2CClient extends DispatcherBase {
   #client = null
 
   constructor (origin, clientOpts) {
+    super()
+
     if (typeof origin === 'string') {
       origin = new URL(origin)
     }
@@ -44,8 +46,6 @@ class H2CClient extends DispatcherBase {
         'h2c-client: pipelining cannot be greater than maxConcurrentStreams'
       )
     }
-
-    super()
 
     this.#client = new Client(origin, {
       ...opts,
@@ -110,12 +110,12 @@ class H2CClient extends DispatcherBase {
     return this.#client.dispatch(opts, handler)
   }
 
-  [kClose] () {
-    return this.#client.close()
+  async [kClose] () {
+    await this.#client.close()
   }
 
-  [kDestroy] () {
-    return this.#client.destroy()
+  async [kDestroy] () {
+    await this.#client.destroy()
   }
 }
 

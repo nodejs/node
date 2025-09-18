@@ -17,8 +17,7 @@ const {
   serializePathWithQuery,
   assertRequestHandler,
   getServerName,
-  normalizedMethodRecords,
-  getProtocolFromUrlString
+  normalizedMethodRecords
 } = require('./util')
 const { channels } = require('./diagnostics.js')
 const { headerNameLowerCasedRecord } = require('./constants')
@@ -142,10 +141,7 @@ class Request {
 
     this.path = query ? serializePathWithQuery(path, query) : path
 
-    // TODO: shall we maybe standardize it to an URL object?
     this.origin = origin
-
-    this.protocol = getProtocolFromUrlString(origin)
 
     this.idempotent = idempotent == null
       ? method === 'HEAD' || method === 'GET'

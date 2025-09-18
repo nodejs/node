@@ -23,7 +23,15 @@ function isASCIINumber (value) {
   return true
 }
 
+// https://github.com/nodejs/undici/issues/2664
+function delay (ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
 module.exports = {
   isValidLastEventId,
-  isASCIINumber
+  isASCIINumber,
+  delay
 }

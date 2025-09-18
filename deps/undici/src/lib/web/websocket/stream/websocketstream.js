@@ -6,6 +6,7 @@ const { states, opcodes, sentCloseFrameState } = require('../constants')
 const { webidl } = require('../../webidl')
 const { getURLRecord, isValidSubprotocol, isEstablished, utf8Decode } = require('../util')
 const { establishWebSocketConnection, failWebsocketConnection, closeWebSocketConnection } = require('../connection')
+const { isArrayBuffer } = require('node:util/types')
 const { channels } = require('../../../core/diagnostics')
 const { WebsocketFrameSend } = require('../frame')
 const { ByteParser } = require('../receiver')
@@ -45,6 +46,7 @@ class WebSocketStream {
   #handler = {
     // https://whatpr.org/websockets/48/7b748d3...d5570f3.html#feedback-to-websocket-stream-from-the-protocol
     onConnectionEstablished: (response, extensions) => this.#onConnectionEstablished(response, extensions),
+    onFail: (_code, _reason) => {},
     onMessage: (opcode, data) => this.#onMessage(opcode, data),
     onParserError: (err) => failWebsocketConnection(this.#handler, null, err.message),
     onParserDrain: () => this.#handler.socket.resume(),
@@ -198,9 +200,6 @@ class WebSocketStream {
   }
 
   #write (chunk) {
-    // See /websockets/stream/tentative/write.any.html
-    chunk = webidl.converters.WebSocketStreamWrite(chunk)
-
     // 1. Let promise be a new promise created in stream ’s relevant realm .
     const promise = createDeferredPromise()
 
@@ -211,9 +210,9 @@ class WebSocketStream {
     let opcode = null
 
     // 4. If chunk is a BufferSource ,
-    if (webidl.is.BufferSource(chunk)) {
+    if (ArrayBuffer.isView(chunk) || isArrayBuffer(chunk)) {
       // 4.1. Set data to a copy of the bytes given chunk .
-      data = new Uint8Array(ArrayBuffer.isView(chunk) ? new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength) : chunk.slice())
+      data = new Uint8Array(ArrayBuffer.isView(chunk) ? new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength) : chunk)
 
       // 4.2. Set opcode to a binary frame opcode.
       opcode = opcodes.BINARY
@@ -228,7 +227,7 @@ class WebSocketStream {
         string = webidl.converters.DOMString(chunk)
       } catch (e) {
         promise.reject(e)
-        return promise.promise
+        return
       }
 
       // 5.2. Set data to the result of UTF-8 encoding string .
@@ -251,7 +250,7 @@ class WebSocketStream {
     }
 
     // 6.3. Queue a global task on the WebSocket task source given stream ’s relevant global object to resolve promise with undefined.
-    return promise.promise
+    return promise
   }
 
   /** @type {import('../websocket').Handler['onConnectionEstablished']} */
@@ -477,7 +476,7 @@ webidl.converters.WebSocketStreamOptions = webidl.dictionaryConverter([
 webidl.converters.WebSocketCloseInfo = webidl.dictionaryConverter([
   {
     key: 'closeCode',
-    converter: (V) => webidl.converters['unsigned short'](V, webidl.attributes.EnforceRange)
+    converter: (V) => webidl.converters['unsigned short'](V, { enforceRange: true })
   },
   {
     key: 'reason',
@@ -485,13 +484,5 @@ webidl.converters.WebSocketCloseInfo = webidl.dictionaryConverter([
     defaultValue: () => ''
   }
 ])
-
-webidl.converters.WebSocketStreamWrite = function (V) {
-  if (typeof V === 'string') {
-    return webidl.converters.USVString(V)
-  }
-
-  return webidl.converters.BufferSource(V)
-}
 
 module.exports = { WebSocketStream }
