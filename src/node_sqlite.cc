@@ -3244,7 +3244,6 @@ static void Initialize(Local<Object> target,
   SetProtoMethod(isolate, db_tmpl, "function", DatabaseSync::CustomFunction);
   SetProtoMethod(
       isolate, db_tmpl, "createTagStore", DatabaseSync::CreateTagStore);
-  SetProtoMethod(isolate, db_tmpl, "setAuthorizer", DatabaseSync::SetAuthorizer);
   SetProtoMethodNoSideEffect(
       isolate, db_tmpl, "location", DatabaseSync::Location);
   SetProtoMethod(
