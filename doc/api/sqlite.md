@@ -360,7 +360,7 @@ db.setAuthorizer((actionCode) => {
 });
 
 // This will work
-db.prepare('SELECT 1').get()
+db.prepare('SELECT 1').get();
 
 // This will throw an error due to authorization denial
 try {
@@ -383,7 +383,7 @@ db.setAuthorizer((actionCode) => {
 });
 
 // This will work
-db.prepare('SELECT 1').get()
+db.prepare('SELECT 1').get();
 
 // This will throw an error due to authorization denial
 try {
