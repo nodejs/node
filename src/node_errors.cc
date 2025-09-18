@@ -553,7 +553,7 @@ static void ReportFatalException(Environment* env,
   }
 
   if (env->isolate_data()->options()->report_uncaught_exception) {
-    TriggerNodeReport(env, report_message.c_str(), "Exception", "", error);
+    TriggerNodeReport(env, report_message, "Exception", "", error);
   }
 
   if (env->options()->trace_uncaught) {
