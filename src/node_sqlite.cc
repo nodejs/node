@@ -689,17 +689,17 @@ int AuthorizerFunction::xAuthorizer(void* user_data,
   // Convert SQLite authorizer parameters to JavaScript values
   js_argv.emplace_back(Integer::New(isolate, action_code));
   js_argv.emplace_back(
-    NullableSQLiteStringToValue(isolate, param1).ToLocalChecked());
+      NullableSQLiteStringToValue(isolate, param1).ToLocalChecked());
   js_argv.emplace_back(
-    NullableSQLiteStringToValue(isolate, param2).ToLocalChecked());
+      NullableSQLiteStringToValue(isolate, param2).ToLocalChecked());
   js_argv.emplace_back(
-    NullableSQLiteStringToValue(isolate, param3).ToLocalChecked());
+      NullableSQLiteStringToValue(isolate, param3).ToLocalChecked());
   js_argv.emplace_back(
-    NullableSQLiteStringToValue(isolate, param4).ToLocalChecked());
+      NullableSQLiteStringToValue(isolate, param4).ToLocalChecked());
 
   TryCatch try_catch(isolate);
-  MaybeLocal<Value> retval = fn->Call(
-    context, Undefined(isolate), js_argv.size(), js_argv.data());
+  MaybeLocal<Value> retval =
+      fn->Call(context, Undefined(isolate), js_argv.size(), js_argv.data());
 
   if (try_catch.HasCaught()) {
     // If there's an exception in the callback, deny the operation
@@ -1926,7 +1926,7 @@ void DatabaseSync::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  if ( args[0]->IsNull() ) {
+  if (args[0]->IsNull()) {
     // Clear the authorizer
     sqlite3_set_authorizer(db->connection_, nullptr, nullptr);
     return;
@@ -1934,17 +1934,15 @@ void DatabaseSync::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
 
   if (!args[0]->IsFunction()) {
     THROW_ERR_INVALID_ARG_TYPE(
-        isolate,
-        "The \"callback\" argument must be a function or null.");
+        isolate, "The \"callback\" argument must be a function or null.");
     return;
   }
 
   Local<Function> fn = args[0].As<Function>();
   AuthorizerFunction* user_data = new AuthorizerFunction(env, fn, db);
 
-  int r = sqlite3_set_authorizer(db->connection_,
-                                 AuthorizerFunction::xAuthorizer,
-                                 user_data);
+  int r = sqlite3_set_authorizer(
+      db->connection_, AuthorizerFunction::xAuthorizer, user_data);
 
   if (r != SQLITE_OK) {
     delete user_data;
@@ -3264,10 +3262,8 @@ static void Initialize(Local<Object> target,
                  DatabaseSync::EnableLoadExtension);
   SetProtoMethod(
       isolate, db_tmpl, "loadExtension", DatabaseSync::LoadExtension);
-  SetProtoMethod(isolate,
-                 db_tmpl,
-                 "setAuthorizer",
-                 DatabaseSync::SetAuthorizer);
+  SetProtoMethod(
+      isolate, db_tmpl, "setAuthorizer", DatabaseSync::SetAuthorizer);
   SetSideEffectFreeGetter(isolate,
                           db_tmpl,
                           FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
