@@ -318,6 +318,81 @@ added:
 This method is used to create SQLite user-defined functions. This method is a
 wrapper around [`sqlite3_create_function_v2()`][].
 
+### `database.setAuthorizer(callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `callback` {Function|null} The authorizer function to set, or `null` to
+  clear the current authorizer.
+
+Sets an authorizer callback that SQLite will invoke whenever it attempts to
+access data or modify the database schema through prepared statements.
+This can be used to implement security policies, audit access, or restrict certain operations.
+This method is a wrapper around [`sqlite3_set_authorizer()`][].
+
+When invoked, the callback receives five arguments:
+
+* `actionCode` {number} The type of operation being performed (e.g.,
+  `SQLITE_INSERT`, `SQLITE_UPDATE`, `SQLITE_SELECT`).
+* `arg1` {string|null} The first argument (context-dependent, often a table name).
+* `arg2` {string|null} The second argument (context-dependent, often a column name).
+* `dbName` {string|null} The name of the database.
+* `triggerOrView` {string|null} The name of the trigger or view causing the access.
+
+The callback must return one of the following constants:
+
+* `SQLITE_OK` - Allow the operation.
+* `SQLITE_DENY` - Deny the operation (causes an error).
+* `SQLITE_IGNORE` - Ignore the operation (silently skip).
+
+```cjs
+const { DatabaseSync, constants } = require('node:sqlite');
+const db = new DatabaseSync(':memory:');
+
+// Set up an authorizer that denies all table creation
+db.setAuthorizer((actionCode) => {
+  if (actionCode === constants.SQLITE_CREATE_TABLE) {
+    return constants.SQLITE_DENY;
+  }
+  return constants.SQLITE_OK;
+});
+
+// This will work
+db.prepare('SELECT 1').get()
+
+// This will throw an error due to authorization denial
+try {
+  db.exec('CREATE TABLE blocked (id INTEGER)');
+} catch (err) {
+  console.log('Operation blocked:', err.message);
+}
+```
+
+```mjs
+import { DatabaseSync, constants } from 'node:sqlite';
+const db = new DatabaseSync(':memory:');
+
+// Set up an authorizer that denies all table creation
+db.setAuthorizer((actionCode) => {
+  if (actionCode === constants.SQLITE_CREATE_TABLE) {
+    return constants.SQLITE_DENY;
+  }
+  return constants.SQLITE_OK;
+});
+
+// This will work
+db.prepare('SELECT 1').get()
+
+// This will throw an error due to authorization denial
+try {
+  db.exec('CREATE TABLE blocked (id INTEGER)');
+} catch (err) {
+  console.log('Operation blocked:', err.message);
+}
+```
+
 ### `database.isOpen`
 
 <!-- YAML
@@ -1078,6 +1153,7 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
 [`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
 [`sqlite3_load_extension()`]: https://www.sqlite.org/c3ref/load_extension.html
 [`sqlite3_prepare_v2()`]: https://www.sqlite.org/c3ref/prepare.html
+[`sqlite3_set_authorizer()`]: https://www.sqlite.org/c3ref/set_authorizer.html
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
 [`sqlite3changeset_apply()`]: https://www.sqlite.org/session/sqlite3changeset_apply.html
 [`sqlite3session_attach()`]: https://www.sqlite.org/session/sqlite3session_attach.html
