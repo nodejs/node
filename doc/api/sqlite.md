@@ -1153,7 +1153,7 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
 [`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
 [`sqlite3_load_extension()`]: https://www.sqlite.org/c3ref/load_extension.html
 [`sqlite3_prepare_v2()`]: https://www.sqlite.org/c3ref/prepare.html
-[`sqlite3_set_authorizer()`]: https://www.sqlite.org/c3ref/set_authorizer.html
+[`sqlite3_set_authorizer()`]: https://sqlite.org/c3ref/set_authorizer.html
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
 [`sqlite3changeset_apply()`]: https://www.sqlite.org/session/sqlite3changeset_apply.html
 [`sqlite3session_attach()`]: https://www.sqlite.org/session/sqlite3session_attach.html
