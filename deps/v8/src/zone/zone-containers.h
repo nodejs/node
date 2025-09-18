@@ -69,7 +69,7 @@ class ZoneVector {
   ZoneVector(size_t size, Zone* zone) : zone_(zone) {
     data_ = size > 0 ? zone->AllocateArray<T>(size) : nullptr;
     end_ = capacity_ = data_ + size;
-    for (T* p = data_; p < end_; p++) emplace(p);
+    for (T* p = data_; p < end_; p++) emplace_at(p);
   }
 
   // Constructs a new vector and fills it with {size} elements, each
@@ -77,7 +77,7 @@ class ZoneVector {
   ZoneVector(size_t size, T def, Zone* zone) : zone_(zone) {
     data_ = size > 0 ? zone->AllocateArray<T>(size) : nullptr;
     end_ = capacity_ = data_ + size;
-    for (T* p = data_; p < end_; p++) emplace(p, def);
+    for (T* p = data_; p < end_; p++) emplace_at(p, def);
   }
 
   // Constructs a new vector and fills it with the contents of the given
@@ -104,7 +104,7 @@ class ZoneVector {
       size_t size = last - first;
       data_ = size > 0 ? zone->AllocateArray<T>(size) : nullptr;
       end_ = capacity_ = data_ + size;
-      for (T* p = data_; p < end_; p++) emplace(p, *first++);
+      for (T* p = data_; p < end_; p++) emplace_at(p, *first++);
     } else {
       while (first != last) push_back(*first++);
     }
@@ -136,13 +136,13 @@ class ZoneVector {
         end_ = dst + size;
       } else if constexpr (std::is_copy_assignable_v<T>) {
         while (dst < end_ && src < other.end_) *dst++ = *src++;
-        while (src < other.end_) emplace(dst++, *src++);
+        while (src < other.end_) emplace_at(dst++, *src++);
         T* old_end = end_;
         end_ = dst;
         for (T* p = end_; p < old_end; p++) p->~T();
       } else {
         for (T* p = data_; p < end_; p++) p->~T();
-        while (src < other.end_) emplace(dst++, *src++);
+        while (src < other.end_) emplace_at(dst++, *src++);
         end_ = dst;
       }
     } else {
@@ -190,6 +190,12 @@ class ZoneVector {
     return *this;
   }
 
+  base::Vector<T> Release() && {
+    base::Vector<T> ret = base::VectorOf(*this);
+    data_ = end_ = capacity_ = nullptr;
+    return ret;
+  }
+
   void swap(ZoneVector<T>& other) noexcept {
     DCHECK_EQ(zone_, other.zone_);
     std::swap(data_, other.data_);
@@ -200,7 +206,7 @@ class ZoneVector {
   void resize(size_t new_size) {
     EnsureCapacity(new_size);
     T* new_end = data_ + new_size;
-    for (T* p = end_; p < new_end; p++) emplace(p);
+    for (T* p = end_; p < new_end; p++) emplace_at(p);
     for (T* p = new_end; p < end_; p++) p->~T();
     end_ = new_end;
   }
@@ -208,7 +214,7 @@ class ZoneVector {
   void resize(size_t new_size, const T& value) {
     EnsureCapacity(new_size);
     T* new_end = data_ + new_size;
-    for (T* p = end_; p < new_end; p++) emplace(p, value);
+    for (T* p = end_; p < new_end; p++) emplace_at(p, value);
     for (T* p = new_end; p < end_; p++) p->~T();
     end_ = new_end;
   }
@@ -225,7 +231,7 @@ class ZoneVector {
       clear();
       EnsureCapacity(new_size);
       T* new_end = data_ + new_size;
-      for (T* p = data_; p < new_end; p++) emplace(p, value);
+      for (T* p = data_; p < new_end; p++) emplace_at(p, value);
       end_ = new_end;
     }
   }
@@ -302,7 +308,7 @@ class ZoneVector {
 
   void push_back(const T& value) {
     EnsureOneMoreCapacity();
-    emplace(end_++, value);
+    emplace_at(end_++, value);
   }
   void push_back(T&& value) { emplace_back(std::move(value)); }
 
@@ -340,7 +346,7 @@ class ZoneVector {
       position = end_;
       while (first != last) {
         EnsureOneMoreCapacity();
-        emplace(end_++, *first++);
+        emplace_at(end_++, *first++);
       }
     } else {
       UNIMPLEMENTED();
@@ -363,8 +369,19 @@ class ZoneVector {
       CopyingOverwrite(dst++, &value);
     }
     stop = position + count;
-    while (dst < stop) emplace(dst++, value);
+    while (dst < stop) emplace_at(dst++, value);
     return position;
+  }
+
+  template <typename... Args>
+  T* emplace(const T* pos, Args&&... args) {
+    size_t assignable;
+    T* dst = PrepareForInsertion(pos, 1, &assignable);
+    if (assignable == 1) {
+      dst->~T();
+    }
+    emplace_at(dst, args...);
+    return dst;
   }
 
   T* erase(const T* pos) {
@@ -400,11 +417,13 @@ class ZoneVector {
     Grow(minimum);
   }
 
-  V8_INLINE void CopyToNewStorage(T* dst, const T* src) { emplace(dst, *src); }
+  V8_INLINE void CopyToNewStorage(T* dst, const T* src) {
+    emplace_at(dst, *src);
+  }
 
   V8_INLINE void MoveToNewStorage(T* dst, T* src) {
     if constexpr (std::is_move_constructible_v<T>) {
-      emplace(dst, std::move(*src));
+      emplace_at(dst, std::move(*src));
     } else {
       CopyToNewStorage(dst, src);
     }
@@ -568,7 +587,7 @@ class ZoneVector {
   }
 
   template <typename... Args>
-  void emplace(T* target, Args&&... args) {
+  void emplace_at(T* target, Args&&... args) {
     new (target) T(std::forward<Args>(args)...);
   }
 

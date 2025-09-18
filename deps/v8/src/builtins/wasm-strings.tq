@@ -227,3 +227,14 @@ transitioning javascript builtin WebAssemblyStringCompare(
     Trap(context, MessageTemplate::kWasmTrapIllegalCast);
   }
 }
+
+// TODO(jkummerow): These should eventually go into a file of their own.
+extern runtime WasmConfigureAllPrototypes(
+    Context, Object, Object, Object, Object): JSAny;
+
+transitioning javascript builtin WebAssemblyConfigureAllPrototypes(
+    js-implicit context: Context)(prototypes: JSAny, functions: JSAny,
+    data: JSAny, constructors: JSAny): JSAny {
+  return WasmConfigureAllPrototypes(
+      context, prototypes, functions, data, constructors);
+}

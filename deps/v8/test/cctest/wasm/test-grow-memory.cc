@@ -86,7 +86,6 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
 
     ZoneBuffer buffer(&zone);
     builder->WriteTo(&buffer);
-    testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "Test");
     const DirectHandle<WasmInstanceObject> instance =
         CompileAndInstantiateForTesting(isolate, &thrower,

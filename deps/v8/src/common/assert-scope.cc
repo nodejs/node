@@ -5,7 +5,7 @@
 #include "src/common/assert-scope.h"
 
 #include "src/base/enum-set.h"
-#include "src/execution/isolate.h"
+#include "src/execution/isolate-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -61,6 +61,8 @@ bool PerThreadAssertScope<kAllow, kTypes...>::IsAllowed() {
 }
 
 #define PER_ISOLATE_ASSERT_SCOPE_DEFINITION(ScopeType, field, enable)      \
+  ScopeType::ScopeType() : ScopeType(Isolate::Current()) {}                \
+                                                                           \
   ScopeType::ScopeType(Isolate* isolate)                                   \
       : isolate_(isolate), old_data_(isolate->field()) {                   \
     DCHECK_NOT_NULL(isolate);                                              \

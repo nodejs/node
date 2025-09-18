@@ -5,7 +5,8 @@
 namespace collections {
 
 extern macro CollectionsBuiltinsAssembler::AddValueToKeyedGroup(
-    OrderedHashMap, Object, Object, String): OrderedHashMap;
+    implicit context: Context)(OrderedHashMap, Object, Object,
+    String): OrderedHashMap;
 
 extern macro CollectionsBuiltinsAssembler::NormalizeNumberKey(JSAny): JSAny;
 

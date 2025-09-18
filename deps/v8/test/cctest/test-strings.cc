@@ -2150,6 +2150,7 @@ TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
     WorkerThread(v8::base::Mutex& m, v8::base::ConditionVariable& cv)
         : Thread(v8::base::Thread::Options("WorkerThread")), m_(m), cv_(cv) {}
     void Run() override {
+      v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
       v8::Isolate::CreateParams create_params;
       create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
       isolate = v8::Isolate::New(create_params);
@@ -2196,7 +2197,10 @@ TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
     static void NotifyCallback(
         const v8::FunctionCallbackInfo<v8::Value>& args) {
       auto self = Unwrap(args.Data());
-      self->did_enter_loop_ = true;
+      {
+        v8::base::MutexGuard guard(self->m_);
+        self->did_enter_loop_ = true;
+      }
       self->NotifyCV();
     }
     bool did_enter_loop_{false};

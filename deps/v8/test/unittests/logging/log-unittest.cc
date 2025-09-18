@@ -536,7 +536,7 @@ TEST_F(LogAllTest, LogAll) {
     CHECK(logger.ContainsLine({"code-creation,Script", ":1:1"}));
     CHECK(logger.ContainsLine({"code-creation,JS,", "testAddFn"}));
 
-    if (i::v8_flags.turbofan && !i::v8_flags.always_turbofan) {
+    if (i::v8_flags.turbofan) {
       CHECK(logger.ContainsLine({"code-deopt,", "not a Smi"}));
       CHECK(logger.ContainsLine({"timer-event-start", "V8.DeoptimizeCode"}));
       CHECK(logger.ContainsLine({"timer-event-end", "V8.DeoptimizeCode"}));
@@ -582,7 +582,6 @@ class LogInterpretedFramesNativeStackWithSerializationTest
     i::v8_flags.logfile = i::LogFile::kLogToTemporaryFile;
     i::v8_flags.logfile_per_isolate = false;
     i::v8_flags.interpreted_frames_native_stack = true;
-    i::v8_flags.always_turbofan = false;
     TestWithPlatform::SetUpTestSuite();
   }
 
@@ -1136,9 +1135,6 @@ class LogFunctionEventsTest : public LogTest {
 };
 
 TEST_F(LogFunctionEventsTest, LogFunctionEvents) {
-  // --always-turbofan will break the fine-grained log order.
-  if (i::v8_flags.always_turbofan) return;
-
   {
     ScopedLoggerInitializer logger(isolate());
 

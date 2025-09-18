@@ -51,7 +51,8 @@ extern class WasmImportData extends TrustedObject {
       ProtectedPointer<WasmInternalFunction|WasmDispatchTable>;
   native_context: NativeContext;
   callable: JSReceiver|Undefined;
-  wrapper_budget: Smi;
+  // Contains a Smi; boxed so that generated code can update the value.
+  wrapper_budget: Cell;
   // The signature is needed for the generic wasm-to-js wrapper.
   sig: RawFunctionSigPtr;
   // See BitFields defined in the C++ class for details.
@@ -134,6 +135,10 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   wrapper_budget: Cell;
   canonical_type_index: Smi;
 
+  // Experimental: set this to non-zero to let the JS-side receiver be passed
+  // as Wasm-side first parameter.
+  receiver_is_first_param: Smi;
+
   // {packed_args_size} and {c_wrapper_code} are for fast calling from C++.
   // The contract is that they are lazily populated, and either both will be
   // present or neither.
@@ -161,16 +166,20 @@ extern class WasmCapiFunctionData extends WasmFunctionData {
 }
 
 extern class WasmResumeData extends HeapObject {
-  suspender: WasmSuspenderObject;
+  trusted_suspender: TrustedPointer<WasmSuspenderObject>;
   on_resume: Smi;  // See wasm::OnResume enum.
 }
 
-extern class WasmSuspenderObject extends HeapObject {
+extern class WasmSuspenderObject extends ExposedTrustedObject {
   stack: ExternalPointer;
-  parent: WasmSuspenderObject|Undefined;
+  parent: ProtectedPointer<WasmSuspenderObject>;
   promise: JSPromise;
   resume: JSObject|Undefined;
   reject: JSObject|Undefined;
+}
+
+extern class WasmContinuationObject extends HeapObject {
+  stack: ExternalPointer;
 }
 
 extern class WasmExceptionTag extends Struct {

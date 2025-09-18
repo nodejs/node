@@ -589,9 +589,10 @@ ABSL_ATTRIBUTE_CONST_FUNCTION Duration Seconds(T n) {
     }
     return time_internal::MakePosDoubleDuration(n);
   } else {
-    if (std::isnan(n))
-      return std::signbit(n) ? -InfiniteDuration() : InfiniteDuration();
-    if (n <= (std::numeric_limits<int64_t>::min)()) return -InfiniteDuration();
+    if (std::isnan(n)) return -InfiniteDuration();
+    if (n <= static_cast<T>((std::numeric_limits<int64_t>::min)())) {
+      return -InfiniteDuration();
+    }
     return -time_internal::MakePosDoubleDuration(-n);
   }
 }
@@ -1869,8 +1870,9 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Nanoseconds(Duration d) {
       time_internal::GetRepHi(d) >> 33 == 0) {
     return (time_internal::GetRepHi(d) * 1000 * 1000 * 1000) +
            (time_internal::GetRepLo(d) / time_internal::kTicksPerNanosecond);
+  } else {
+    return d / Nanoseconds(1);
   }
-  return d / Nanoseconds(1);
 }
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Microseconds(
@@ -1880,8 +1882,9 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Microseconds(
     return (time_internal::GetRepHi(d) * 1000 * 1000) +
            (time_internal::GetRepLo(d) /
             (time_internal::kTicksPerNanosecond * 1000));
+  } else {
+    return d / Microseconds(1);
   }
-  return d / Microseconds(1);
 }
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Milliseconds(
@@ -1891,8 +1894,9 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Milliseconds(
     return (time_internal::GetRepHi(d) * 1000) +
            (time_internal::GetRepLo(d) /
             (time_internal::kTicksPerNanosecond * 1000 * 1000));
+  } else {
+    return d / Milliseconds(1);
   }
-  return d / Milliseconds(1);
 }
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Seconds(Duration d) {

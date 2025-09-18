@@ -28,7 +28,8 @@ namespace internal {
   V(INTERPRETED_FUNCTION)  \
   V(BASELINE)              \
   V(MAGLEV)                \
-  V(TURBOFAN_JS)
+  V(TURBOFAN_JS)           \
+  V(WASM_STACK_ENTRY)
 
 enum class CodeKind : uint8_t {
 #define DEFINE_CODE_KIND_ENUM(name) name,

@@ -28,7 +28,7 @@ def print_failure_header(test, is_flaky=False):
   print(output.encode(encoding, errors='replace').decode(encoding))
 
 
-def formatted_result_output(result, relative=False):
+def formatted_result_output(result):
   lines = []
   if result.output.stderr:
     lines.append("--- stderr ---")
@@ -36,7 +36,7 @@ def formatted_result_output(result, relative=False):
   if result.output.stdout:
     lines.append("--- stdout ---")
     lines.append(result.output.stdout.strip())
-  lines.append("Command: %s" % result.cmd.to_string(relative))
+  lines.append("Command: %s" % result.cmd.to_string())
   if result.output.HasCrashed():
     lines.append("exit code: %s" % result.output.exit_code_string)
     lines.append("--- CRASHED ---")
@@ -253,8 +253,7 @@ class CompactProgressIndicator(ProgressIndicator):
         self.printFormatted('stderr', stderr)
       if result.error_details:
         self.printFormatted('failure', result.error_details)
-      self.printFormatted('command',
-                          "Command: %s" % result.cmd.to_string(relative=True))
+      self.printFormatted('command', "Command: %s" % result.cmd.to_string())
       if output.HasCrashed():
         self.printFormatted('failure',
                             "exit code: %s" % output.exit_code_string)
@@ -420,9 +419,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
 
   def _test_record(self, test, result, run):
     record = util.base_test_record(test, result, run)
-    record.update(
-        command=result.cmd.to_string(relative=True),
-    )
+    record.update(command=result.cmd.to_string())
     return record
 
   def finished(self):

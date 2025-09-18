@@ -119,6 +119,11 @@ struct ObjectTypeOf {};
   struct ObjectTypeOf<Name> {                                 \
     static constexpr ObjectType value = ObjectType::kOddball; \
   };
+#define OBJECT_TYPE_HOLE_CASE(Name, ...)                   \
+  template <>                                              \
+  struct ObjectTypeOf<Name> {                              \
+    static constexpr ObjectType value = ObjectType::kHole; \
+  };
 OBJECT_TYPE_CASE(Object)
 OBJECT_TYPE_CASE(Smi)
 OBJECT_TYPE_CASE(TaggedIndex)
@@ -134,6 +139,7 @@ OBJECT_TYPE_ODDBALL_CASE(Null)
 OBJECT_TYPE_ODDBALL_CASE(Undefined)
 OBJECT_TYPE_ODDBALL_CASE(True)
 OBJECT_TYPE_ODDBALL_CASE(False)
+HOLE_LIST(OBJECT_TYPE_HOLE_CASE)
 #undef OBJECT_TYPE_CASE
 #undef OBJECT_TYPE_STRUCT_CASE
 #undef OBJECT_TYPE_TEMPLATE_CASE
@@ -490,19 +496,18 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
     template <class A>
     operator TNode<A>() {
-      static_assert(!std::is_same<A, Tagged<MaybeObject>>::value,
+      static_assert(!std::is_same_v<A, Tagged<MaybeObject>>,
                     "Can't cast to Tagged<MaybeObject>, use explicit "
                     "conversion functions. ");
 
       static_assert(types_have_common_values<A, PreviousType>::value,
                     "Incompatible types: this cast can never succeed.");
-      static_assert(std::is_convertible<TNode<A>, TNode<MaybeObject>>::value ||
-                        std::is_convertible<TNode<A>, TNode<Object>>::value,
+      static_assert(std::is_convertible_v<TNode<A>, TNode<MaybeObject>> ||
+                        std::is_convertible_v<TNode<A>, TNode<Object>>,
                     "Coercion to untagged values cannot be "
                     "checked.");
       static_assert(
-          !FromTyped ||
-              !std::is_convertible<TNode<PreviousType>, TNode<A>>::value,
+          !FromTyped || !std::is_convertible_v<TNode<PreviousType>, TNode<A>>,
           "Unnecessary CAST: types are convertible.");
 #ifdef DEBUG
       if (v8_flags.slow_debug_code) {
@@ -610,7 +615,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Smi> SmiConstant(int value);
   template <typename E>
   TNode<Smi> SmiConstant(E value)
-    requires std::is_enum<E>::value
+    requires std::is_enum_v<E>
   {
     static_assert(sizeof(E) <= sizeof(int));
     return SmiConstant(static_cast<int>(value));
@@ -697,9 +702,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   template <class T>
   TNode<T> Parameter(int value,
-                     const SourceLocation& loc = SourceLocation::Current()) {
+                     SourceLocation loc = SourceLocation::Current()) {
     static_assert(
-        std::is_convertible<TNode<T>, TNode<Object>>::value,
+        std::is_convertible_v<TNode<T>, TNode<Object>>,
         "Parameter is only for tagged types. Use UncheckedParameter instead.");
     std::stringstream message;
     message << "Parameter " << value;
@@ -746,13 +751,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Hack for supporting SourceLocation alongside template packs.
   struct MessageWithSourceLocation {
     const char* message;
-    const SourceLocation& loc;
+    SourceLocation loc;
 
     // Allow implicit construction, necessary for the hack.
     // NOLINTNEXTLINE
-    MessageWithSourceLocation(
-        const char* message,
-        const SourceLocation& loc = SourceLocation::Current())
+    MessageWithSourceLocation(const char* message,
+                              SourceLocation loc = SourceLocation::Current())
         : message(message), loc(loc) {}
   };
   template <class... Args>
@@ -843,6 +847,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   void Switch(Node* index, Label* default_label, const int32_t* case_values,
               Label** case_labels, size_t case_count);
+  template <typename Value>
+  void Switch(Node* index, Label* default_label,
+              const std::initializer_list<std::pair<Value, Label*>>& cases);
 
   // Access to the frame pointer.
   TNode<RawPtrT> LoadFramePointer();
@@ -1298,10 +1305,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Projections
   template <int index, class T1, class T2>
-  TNode<typename std::tuple_element<index, std::tuple<T1, T2>>::type>
-  Projection(TNode<PairT<T1, T2>> value) {
-    return UncheckedCast<
-        typename std::tuple_element<index, std::tuple<T1, T2>>::type>(
+  TNode<std::tuple_element_t<index, std::tuple<T1, T2>>> Projection(
+      TNode<PairT<T1, T2>> value) {
+    return UncheckedCast<std::tuple_element_t<index, std::tuple<T1, T2>>>(
         Projection(index, value));
   }
 

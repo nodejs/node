@@ -91,7 +91,7 @@ class V8_EXPORT Visitor {
    */
   template <typename T>
   void Trace(const Member<T>& member) {
-    const T* value = member.GetRawAtomic();
+    const T* value = member.GetAtomic();
     CPPGC_DCHECK(value != kSentinelPointer);
     TraceImpl(value);
   }
@@ -109,7 +109,7 @@ class V8_EXPORT Visitor {
     static_assert(!internal::IsAllocatedOnCompactableSpace<T>::value,
                   "Weak references to compactable objects are not allowed");
 
-    const T* value = weak_member.GetRawAtomic();
+    const T* value = weak_member.GetAtomic();
 
     // Bailout assumes that WeakMember emits write barrier.
     if (!value) {
@@ -129,7 +129,7 @@ class V8_EXPORT Visitor {
    */
   template <typename T>
   void Trace(const subtle::UncompressedMember<T>& member) {
-    const T* value = member.GetRawAtomic();
+    const T* value = member.GetAtomic();
     CPPGC_DCHECK(value != kSentinelPointer);
     TraceImpl(value);
   }
@@ -232,12 +232,12 @@ class V8_EXPORT Visitor {
   template <typename KeyType, typename ValueType>
   void TraceEphemeron(const WeakMember<KeyType>& weak_member_key,
                       const Member<ValueType>* member_value) {
-    const KeyType* key = weak_member_key.GetRawAtomic();
+    const KeyType* key = weak_member_key.GetAtomic();
     if (!key) return;
 
     // `value` must always be non-null.
     CPPGC_DCHECK(member_value);
-    const ValueType* value = member_value->GetRawAtomic();
+    const ValueType* value = member_value->GetAtomic();
     if (!value) return;
 
     // KeyType and ValueType may refer to GarbageCollectedMixin.
@@ -267,7 +267,7 @@ class V8_EXPORT Visitor {
                       const ValueType* value) {
     static_assert(!IsGarbageCollectedOrMixinTypeV<ValueType>,
                   "garbage-collected types must use WeakMember and Member");
-    const KeyType* key = weak_member_key.GetRawAtomic();
+    const KeyType* key = weak_member_key.GetAtomic();
     if (!key) return;
 
     // `value` must always be non-null.
@@ -293,7 +293,7 @@ class V8_EXPORT Visitor {
    */
   template <typename T>
   void TraceStrongly(const WeakMember<T>& weak_member) {
-    const T* value = weak_member.GetRawAtomic();
+    const T* value = weak_member.GetAtomic();
     CPPGC_DCHECK(value != kSentinelPointer);
     TraceImpl(value);
   }
@@ -368,6 +368,11 @@ class V8_EXPORT Visitor {
     // By default tracing is not deferred.
     return false;
   }
+
+  /**
+   * Checks whether the visitor is running concurrently to the mutator or not.
+   */
+  virtual bool IsConcurrent() const { return false; }
 
  protected:
   virtual void Visit(const void* self, TraceDescriptor) {}
@@ -497,9 +502,9 @@ class V8_EXPORT RootVisitor {
   }
 
  protected:
-  virtual void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) {}
+  virtual void VisitRoot(const void*, TraceDescriptor, SourceLocation) {}
   virtual void VisitWeakRoot(const void* self, TraceDescriptor, WeakCallback,
-                             const void* weak_root, const SourceLocation&) {}
+                             const void* weak_root, SourceLocation) {}
 
  private:
   template <typename AnyPersistentType>

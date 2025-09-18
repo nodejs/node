@@ -26,6 +26,8 @@ const int kSubjectStringLength = arraysize(kOneByteSubjectString) - 1;
 static_assert(arraysize(kOneByteSubjectString) ==
               arraysize(kTwoByteSubjectString));
 
+namespace base = v8::base;
+
 class OneByteVectorResource : public String::ExternalOneByteStringResource {
  public:
   explicit OneByteVectorResource(base::Vector<const char> vector)
@@ -62,7 +64,7 @@ class InterruptTest {
   InterruptTest()
       : i_thread(this),
         env_(),
-        isolate_(env_->GetIsolate()),
+        isolate_(env_.isolate()),
         sem_(0),
         ran_test_body_(false),
         ran_to_completion_(false) {}
@@ -111,7 +113,7 @@ class InterruptTest {
     // We executed on a two-byte subject so far, so we expect only bytecode for
     // two-byte to be present.
     i::Tagged<i::IrRegExpData> re_data =
-        Cast<i::IrRegExpData>(regexp->data(i_isolate));
+        CheckedCast<i::IrRegExpData>(regexp->data(i_isolate));
     CHECK(!re_data->has_latin1_bytecode());
     CHECK(re_data->has_uc16_bytecode());
 
@@ -184,7 +186,7 @@ class InterruptTest {
     env_->Global()
         ->Set(env_.local(), v8_str("subject_string"), subject)
         .FromJust();
-    subject_string_handle_.Reset(env_->GetIsolate(), subject);
+    subject_string_handle_.Reset(env_.isolate(), subject);
   }
 
   Local<String> GetSubjectString() const {
@@ -208,7 +210,7 @@ class InterruptTest {
 
     DCHECK(!subject_string_handle_.IsEmpty());
 
-    TryCatch try_catch(env_->GetIsolate());
+    TryCatch try_catch(env_.isolate());
 
     isolate_->RequestInterrupt(&SignalSemaphore, this);
     MaybeLocal<Object> result = regexp_handle_.Get(isolate_)->Exec(
@@ -343,6 +345,6 @@ TEST(InterruptAndTransitionSubjectFromTwoByteToOneByte) {
   i::DirectHandle<i::JSRegExp> regexp =
       Utils::OpenDirectHandle(*test.GetRegExp());
   i::Tagged<i::IrRegExpData> data =
-      Cast<i::IrRegExpData>(regexp->data(i_isolate));
+      CheckedCast<i::IrRegExpData>(regexp->data(i_isolate));
   CHECK(data->has_latin1_bytecode());
 }

@@ -11,5 +11,7 @@ function foo(__v_0) {
   return 1 in foo.arguments;
 }
 
-// This leads to precision differences in optimized code.
+// Precision differences across architectures.
 print(192 ** -0.5);
+let a = 5;
+a **= 2;

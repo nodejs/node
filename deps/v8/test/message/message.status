@@ -47,6 +47,7 @@
   'wasm-trace-memory-liftoff': [SKIP],
   'wasm-trace-memory64-liftoff': [SKIP],
   'wasm-trace-liftoff': [SKIP],
+  'wasm-trace-globals-liftoff': [SKIP],
 }], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm and arch != s390x
 
 ['variant == code_serializer', {
@@ -115,6 +116,8 @@
   'wasm-trace-memory-liftoff': [SKIP],
   'wasm-trace-memory64': [SKIP],
   'wasm-trace-memory64-liftoff': [SKIP],
+  'wasm-trace-globals': [SKIP],
+  'wasm-trace-globals-liftoff': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################

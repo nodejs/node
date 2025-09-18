@@ -461,9 +461,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                            Label* rebox_double, ExitPoint* exit_point);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  void EmitAccessCheck(TNode<Context> expected_native_context,
-                       TNode<Context> context, TNode<Object> receiver,
-                       Label* can_access, Label* miss);
+  void EmitAccessCheck(TNode<NativeContext> expected_native_context,
+                       TNode<Context> context,
+                       TNode<Object> lookup_start_object, Label* can_access,
+                       Label* miss);
 
   void HandleLoadICSmiHandlerLoadNamedCase(
       const LazyLoadICParameters* p, TNode<Object> holder,
@@ -516,8 +517,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                  std::optional<TNode<Float64T>> double_value,
                                  Representation representation, Label* miss);
 
-  void CheckPrototypeValidityCell(TNode<Object> maybe_validity_cell,
-                                  Label* miss);
+  TNode<MaybeObject> CheckPrototypeValidityCell(
+      TNode<Object> maybe_validity_cell, Label* miss);
   void HandleStoreICNativeDataProperty(const StoreICParameters* p,
                                        TNode<HeapObject> holder,
                                        TNode<Word32T> handler_word);

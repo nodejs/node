@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan --no-lazy-feedback-allocation
+// Flags: --allow-natives-syntax --turbofan --no-lazy-feedback-allocation
 
 // TODO(v8:10195): Fix these tests s.t. we assert deoptimization occurs when
 // expected (e.g. in a %DeoptimizeNow call), then remove
@@ -862,7 +862,9 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
 
 (function ReduceNonCallableOpt() {
   let done = false;
-  let f = (a, current) => {
+  // Introduce an indirection, so that we don't depend on ContextCells constness.
+  let f = null;
+  f = (a, current) => {
     return a + Number(current);
   };
   let array = [1,'2',3];
@@ -1220,7 +1222,9 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
 
 (function ReduceNonCallableOpt() {
   let done = false;
-  let f = (a, current) => {
+  // Introduce an indirection, so that we don't depend on ContextCells constness.
+  let f = null;
+  f = (a, current) => {
     return a + Number(current);
   };
   let array = [1,'2',3];

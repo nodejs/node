@@ -87,6 +87,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_AbsDouble:
     case kS390_Cntlz32:
     case kS390_Cntlz64:
+    case kS390_Cnttz64:
     case kS390_Popcnt32:
     case kS390_Popcnt64:
     case kS390_Cmp32:

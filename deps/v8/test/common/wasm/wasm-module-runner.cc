@@ -161,6 +161,4 @@ int32_t CallWasmFunctionForTesting(
   return -1;
 }
 
-void SetupIsolateForWasmModule(Isolate* isolate) { WasmJs::Install(isolate); }
-
 }  // namespace v8::internal::wasm::testing

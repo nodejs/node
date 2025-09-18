@@ -212,9 +212,10 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
       AllocationType::kOld, &handles);
 
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*handles.front());
+  auto* page = MutablePageMetadata::FromHeapObject(*handles.front());
 
   CHECK(heap->InSpace(*handles.front(), OLD_SPACE));
-  chunk->SetFlagNonExecutable(MemoryChunk::PINNED);
+  page->set_is_pinned_for_testing(true);
 
   heap::InvokeMajorGC(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
@@ -224,7 +225,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
     CHECK_EQ(chunk, MemoryChunk::FromHeapObject(*object));
   }
 
-  chunk->ClearFlagNonExecutable(MemoryChunk::PINNED);
+  page->set_is_pinned_for_testing(false);
 
   heap::InvokeMajorGC(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);

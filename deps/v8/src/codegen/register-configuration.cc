@@ -89,8 +89,6 @@ static int get_num_allocatable_double_registers() {
           : (ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(REGISTER_COUNT) 0);
 #elif V8_TARGET_ARCH_ARM64
       kMaxAllocatableDoubleRegisterCount;
-#elif V8_TARGET_ARCH_MIPS
-      kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_MIPS64
       kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_LOONG64

@@ -144,7 +144,7 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       Zone zone(&allocator, ZONE_NAME);
       CallDescriptor* desc =
           CreateCallDescriptor(&zone, count, param_count, type);
-      HandleAndZoneScope handles(kCompressGraphZone);
+      HandleAndZoneScope handles;
       RawMachineAssembler m(
           handles.main_isolate(),
           handles.main_zone()->New<TFGraph>(handles.main_zone()), desc,
@@ -270,7 +270,7 @@ void ReturnLastValue(MachineType type) {
 
     CallDescriptor* desc = CreateCallDescriptor(&zone, return_count, 0, type);
 
-    HandleAndZoneScope handles(kCompressGraphZone);
+    HandleAndZoneScope handles;
     RawMachineAssembler m(
         handles.main_isolate(),
         handles.main_zone()->New<TFGraph>(handles.main_zone()), desc,
@@ -341,7 +341,7 @@ void ReturnSumOfReturns(MachineType type) {
 
     CallDescriptor* desc = CreateCallDescriptor(&zone, return_count, 0, type);
 
-    HandleAndZoneScope handles(kCompressGraphZone);
+    HandleAndZoneScope handles;
     RawMachineAssembler m(
         handles.main_isolate(),
         handles.main_zone()->New<TFGraph>(handles.main_zone()), desc,

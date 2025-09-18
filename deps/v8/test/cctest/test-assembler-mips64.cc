@@ -6287,12 +6287,12 @@ void helper_madd_msub_maddf_msubf(F func) {
       {-x2, -y2, -z2, 0.0, 0.0},
   };
 
-  if (std::is_same<T, float>::value) {
+  if (std::is_same_v<T, float>) {
     __ Lwc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
     __ Lwc1(f6, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fs)));
     __ Lwc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
     __ Lwc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
-  } else if (std::is_same<T, double>::value) {
+  } else if (std::is_same_v<T, double>) {
     __ Ldc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
     __ Ldc1(f6, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fs)));
     __ Ldc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
@@ -6923,16 +6923,16 @@ void run_msa_insert(int64_t rs_value, int n, msa_reg_t* w) {
   __ li(t1, rs_value);
   __ fill_w(w0, t0);
 
-  if (std::is_same<T, int8_t>::value) {
+  if (std::is_same_v<T, int8_t>) {
     DCHECK_LT(n, 16);
     __ insert_b(w0, n, t1);
-  } else if (std::is_same<T, int16_t>::value) {
+  } else if (std::is_same_v<T, int16_t>) {
     DCHECK_LT(n, 8);
     __ insert_h(w0, n, t1);
-  } else if (std::is_same<T, int32_t>::value) {
+  } else if (std::is_same_v<T, int32_t>) {
     DCHECK_LT(n, 4);
     __ insert_w(w0, n, t1);
-  } else if (std::is_same<T, int64_t>::value) {
+  } else if (std::is_same_v<T, int64_t>) {
     DCHECK_LT(n, 2);
     __ insert_d(w0, n, t1);
   } else {
@@ -10113,7 +10113,7 @@ TEST(MSA_3R_instructions) {
   }
 
 #define SUBSUS_U_DF(T, lanes, mask)                           \
-  using uT = typename std::make_unsigned<T>::type;            \
+  using uT = std::make_unsigned_t<T>;                         \
   int size_in_bits = kMSARegSize / lanes;                     \
   for (int i = 0; i < 2; i++) {                               \
     uint64_t res = 0;                                         \
@@ -10142,7 +10142,7 @@ TEST(MSA_3R_instructions) {
   }
 
 #define SUBSUU_S_DF(T, lanes, mask)                        \
-  using uT = typename std::make_unsigned<T>::type;         \
+  using uT = std::make_unsigned_t<T>;                      \
   int size_in_bits = kMSARegSize / lanes;                  \
   for (int i = 0; i < 2; i++) {                            \
     uint64_t res = 0;                                      \

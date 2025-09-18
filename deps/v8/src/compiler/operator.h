@@ -6,6 +6,7 @@
 #define V8_COMPILER_OPERATOR_H_
 
 #include <ostream>
+#include <type_traits>
 
 #include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
@@ -131,6 +132,19 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
 
   void PrintPropsTo(std::ostream& os) const;
 
+#if defined(DEBUG) && !defined(COMPONENT_BUILD)
+  // Tag for checking whether the subclass matches when downcasting. Each
+  // subclass (which are mostly template specializations of Operator1) can
+  // define a static ClassTag which will have a per-class pointer identity.
+  // Limit this to non-component builds, so that we don't have dynamic
+  // linker identity issues.
+  struct ClassTag_t {};
+  virtual const ClassTag_t* ClassTag() const {
+    static constexpr ClassTag_t kCanonicalClassTag = {};
+    return &kCanonicalClassTag;
+  }
+#endif
+
  protected:
   virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const;
 
@@ -138,11 +152,11 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
   const char* mnemonic_;
   Opcode opcode_;
   Properties properties_;
+  uint8_t effect_out_;  // Stored out of order for better field packing.
   uint32_t value_in_;
   uint32_t effect_in_;
   uint32_t control_in_;
   uint32_t value_out_;
-  uint8_t effect_out_;
   uint32_t control_out_;
 };
 
@@ -155,37 +169,43 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 template <typename T>
 struct OpEqualTo : public std::equal_to<T> {};
 
-
 // Default hashing function for below Operator1<*> class.
 template <typename T>
 struct OpHash : public base::hash<T> {};
-
 
 // A templatized implementation of Operator that has one static parameter of
 // type {T} with the proper default equality and hashing functions.
 template <typename T, typename Pred = OpEqualTo<T>, typename Hash = OpHash<T>>
 class Operator1 : public Operator {
+  // Expect Pred and Hash to be empty classes (stateless functors), so that we
+  // don't have to store values for them.
+  static_assert(std::is_empty_v<Pred>);
+  static_assert(std::is_empty_v<Hash>);
+
  public:
+  static const Operator1* Cast(const Operator* op) {
+#if defined(DEBUG) && !defined(COMPONENT_BUILD)
+    DCHECK_EQ(op->ClassTag(), &kCanonicalClassTag);
+#endif
+    return static_cast<const Operator1*>(op);
+  }
+
   Operator1(Opcode opcode, Properties properties, const char* mnemonic,
             size_t value_in, size_t effect_in, size_t control_in,
             size_t value_out, size_t effect_out, size_t control_out,
-            T parameter, Pred const& pred = Pred(), Hash const& hash = Hash())
+            T parameter)
       : Operator(opcode, properties, mnemonic, value_in, effect_in, control_in,
                  value_out, effect_out, control_out),
-        parameter_(parameter),
-        pred_(pred),
-        hash_(hash) {}
+        parameter_(parameter) {}
 
   T const& parameter() const { return parameter_; }
 
   bool Equals(const Operator* other) const final {
     if (opcode() != other->opcode()) return false;
-    const Operator1<T, Pred, Hash>* that =
-        reinterpret_cast<const Operator1<T, Pred, Hash>*>(other);
-    return this->pred_(this->parameter(), that->parameter());
+    return Pred{}(this->parameter(), Cast(other)->parameter());
   }
   size_t HashCode() const final {
-    return base::hash_combine(this->opcode(), this->hash_(this->parameter()));
+    return base::hash_combine(this->opcode(), Hash{}(this->parameter()));
   }
   // For most parameter types, we have only a verbose way to print them, namely
   // ostream << parameter. But for some types it is particularly useful to have
@@ -202,18 +222,23 @@ class Operator1 : public Operator {
     PrintParameter(os, verbose);
   }
 
+#if defined(DEBUG) && !defined(COMPONENT_BUILD)
+  const ClassTag_t* ClassTag() const final { return &kCanonicalClassTag; }
+#endif
+
  private:
+#if defined(DEBUG) && !defined(COMPONENT_BUILD)
+  static constexpr ClassTag_t kCanonicalClassTag = {};
+#endif
+
   T const parameter_;
-  Pred const pred_;
-  Hash const hash_;
 };
 
 
 // Helper to extract parameters from Operator1<*> operator.
 template <typename T>
 inline T const& OpParameter(const Operator* op) {
-  return reinterpret_cast<const Operator1<T, OpEqualTo<T>, OpHash<T>>*>(op)
-      ->parameter();
+  return Operator1<T>::Cast(op)->parameter();
 }
 
 

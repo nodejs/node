@@ -202,8 +202,9 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   //
   // Utility used by Object.groupBy and Map.groupBy.
   const TNode<OrderedHashMap> AddValueToKeyedGroup(
-      const TNode<OrderedHashMap> groups, const TNode<Object> key,
-      const TNode<Object> value, const TNode<String> methodName);
+      const TNode<Context> context, const TNode<OrderedHashMap> groups,
+      const TNode<Object> key, const TNode<Object> value,
+      const TNode<String> methodName);
 
   // Normalizes -0 to +0.
   const TNode<JSAny> NormalizeNumberKey(const TNode<JSAny> key);

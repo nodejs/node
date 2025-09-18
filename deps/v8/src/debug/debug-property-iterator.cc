@@ -212,7 +212,7 @@ bool DebugPropertyIterator::should_move_to_next_stage() const {
 namespace {
 base::Flags<debug::NativeAccessorType, int> GetNativeAccessorDescriptorInternal(
     DirectHandle<JSReceiver> object, DirectHandle<Name> name) {
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   PropertyKey key(isolate, name);
   if (key.is_element()) return debug::NativeAccessorType::None;
   LookupIterator it(isolate, object, key, LookupIterator::OWN);

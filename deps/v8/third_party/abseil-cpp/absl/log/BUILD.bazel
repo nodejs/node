@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
@@ -152,6 +154,7 @@ cc_library(
 
 cc_library(
     name = "log_entry",
+    srcs = ["log_entry.cc"],
     hdrs = ["log_entry.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -160,6 +163,7 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/base:log_severity",
         "//absl/log/internal:config",
+        "//absl/log/internal:proto",
         "//absl/strings",
         "//absl/time",
         "//absl/types:span",

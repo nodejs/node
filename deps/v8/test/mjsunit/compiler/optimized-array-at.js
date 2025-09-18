@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbo-inline-array-builtins --turbofan
-// Flags: --no-always-turbofan
 
 // Out of bounds
 (() => {

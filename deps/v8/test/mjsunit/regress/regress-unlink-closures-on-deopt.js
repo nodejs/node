@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --noalways-turbofan
-
+// Flags: --allow-natives-syntax
 function foo() {
   function g(o) {
     return o.f;

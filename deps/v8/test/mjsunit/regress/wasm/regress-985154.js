@@ -12,7 +12,7 @@
     return Module;
   })()().f;
   let p = Object.getOwnPropertyNames(f);
-  assertArrayEquals(["length", "name", "arguments", "caller", "prototype"], p);
+  assertArrayEquals(["length", "name", "prototype"], p);
   assertEquals(null, f.arguments);
   assertEquals(null, f.caller);
 })();

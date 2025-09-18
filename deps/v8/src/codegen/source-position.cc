@@ -63,8 +63,7 @@ std::vector<SourcePositionInfo> SourcePosition::InliningStack(
 
 std::vector<SourcePositionInfo> SourcePosition::InliningStack(
     Isolate* isolate, Tagged<Code> code) const {
-  Tagged<DeoptimizationData> deopt_data =
-      Cast<DeoptimizationData>(code->deoptimization_data());
+  Handle<DeoptimizationData> deopt_data(code->deoptimization_data(), isolate);
   SourcePosition pos = *this;
   std::vector<SourcePositionInfo> stack;
   while (pos.isInlined()) {
@@ -84,8 +83,7 @@ std::vector<SourcePositionInfo> SourcePosition::InliningStack(
 SourcePositionInfo SourcePosition::FirstInfo(Isolate* isolate,
                                              Tagged<Code> code) const {
   DisallowGarbageCollection no_gc;
-  Tagged<DeoptimizationData> deopt_data =
-      Cast<DeoptimizationData>(code->deoptimization_data());
+  Tagged<DeoptimizationData> deopt_data = code->deoptimization_data();
   SourcePosition pos = *this;
   if (pos.isInlined()) {
     InliningPosition inl =
@@ -129,8 +127,7 @@ void SourcePosition::PrintJson(std::ostream& out) const {
 }
 
 void SourcePosition::Print(std::ostream& out, Tagged<Code> code) const {
-  Tagged<DeoptimizationData> deopt_data =
-      Cast<DeoptimizationData>(code->deoptimization_data());
+  Tagged<DeoptimizationData> deopt_data = code->deoptimization_data();
   if (!isInlined()) {
     Tagged<SharedFunctionInfo> function(deopt_data->GetSharedFunctionInfo());
     Print(out, function);

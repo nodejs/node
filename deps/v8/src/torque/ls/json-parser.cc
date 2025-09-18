@@ -48,7 +48,7 @@ std::optional<ParseResult> MakeNullLiteral(ParseResultIterator* child_results) {
 std::optional<ParseResult> MakeNumberLiteral(
     ParseResultIterator* child_results) {
   auto number = child_results->NextAs<std::string>();
-  double d = std::stod(number.c_str());
+  double d = std::stod(number);
   return ParseResult{JsonValue::From(d)};
 }
 

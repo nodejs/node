@@ -835,7 +835,7 @@ int DisassemblerX64::ShiftInstruction(uint8_t* data) {
   }
   count += PrintRightOperand(data + count);
   if (op == 0xD2) {
-    AppendToBuffer(", cl");
+    AppendToBuffer(",cl");
   } else {
     int imm8 = -1;
     if (op == 0xD0) {
@@ -845,7 +845,7 @@ int DisassemblerX64::ShiftInstruction(uint8_t* data) {
       imm8 = *(data + count);
       count++;
     }
-    AppendToBuffer(", %d", imm8);
+    AppendToBuffer(",%d", imm8);
   }
   return count;
 }
@@ -1210,7 +1210,7 @@ int DisassemblerX64::AVXInstruction(uint8_t* data) {
         AppendToBuffer("vcmpss %s,%s,", NameOfAVXRegister(regop),
                        NameOfAVXRegister(vvvv));
         current += PrintRightAVXOperand(current);
-        AppendToBuffer(", (%s)", cmp_pseudo_op[*current]);
+        AppendToBuffer(",(%s)", cmp_pseudo_op[*current]);
         current += 1;
         break;
       default:
@@ -1272,7 +1272,7 @@ int DisassemblerX64::AVXInstruction(uint8_t* data) {
         AppendToBuffer("vcmpsd %s,%s,", NameOfAVXRegister(regop),
                        NameOfAVXRegister(vvvv));
         current += PrintRightAVXOperand(current);
-        AppendToBuffer(", (%s)", cmp_pseudo_op[*current]);
+        AppendToBuffer(",(%s)", cmp_pseudo_op[*current]);
         current += 1;
         break;
 #define DISASM_SSE2_INSTRUCTION_LIST_SD(instruction, _1, _2, opcode)     \
@@ -1465,7 +1465,7 @@ int DisassemblerX64::AVXInstruction(uint8_t* data) {
         AppendToBuffer("vcmpps %s,%s,", NameOfAVXRegister(regop),
                        NameOfAVXRegister(vvvv));
         current += PrintRightAVXOperand(current);
-        AppendToBuffer(", (%s)", cmp_pseudo_op[*current]);
+        AppendToBuffer(",(%s)", cmp_pseudo_op[*current]);
         current += 1;
         break;
       }
@@ -1561,7 +1561,7 @@ int DisassemblerX64::AVXInstruction(uint8_t* data) {
         AppendToBuffer("vcmppd %s,%s,", NameOfAVXRegister(regop),
                        NameOfAVXRegister(vvvv));
         current += PrintRightAVXOperand(current);
-        AppendToBuffer(", (%s)", cmp_pseudo_op[*current]);
+        AppendToBuffer(",(%s)", cmp_pseudo_op[*current]);
         current += 1;
         break;
       }
@@ -1957,7 +1957,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(uint8_t* data) {
     } else if (opcode == 0xC2) {
       AppendToBuffer("cmppd %s,", NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
-      AppendToBuffer(", (%s)", cmp_pseudo_op[*current++]);
+      AppendToBuffer(",(%s)", cmp_pseudo_op[*current++]);
     } else if (opcode == 0xC4) {
       current += PrintOperands("pinsrw", XMMREG_OPER_OP_ORDER, current);
       AppendToBuffer(",0x%x", (*current++) & 7);
@@ -2138,9 +2138,9 @@ int DisassemblerX64::TwoByteOpcodeInstruction(uint8_t* data) {
     current += PrintOperands("xadd", OPER_REG_OP_ORDER, current);
   } else if (opcode == 0xC2) {
     // cmpps xmm, xmm/m128, imm8
-    AppendToBuffer("cmpps %s, ", NameOfXMMRegister(regop));
+    AppendToBuffer("cmpps %s,", NameOfXMMRegister(regop));
     current += PrintRightXMMOperand(current);
-    AppendToBuffer(", %s", cmp_pseudo_op[*current]);
+    AppendToBuffer(",%s", cmp_pseudo_op[*current]);
     current += 1;
   } else if (opcode == 0xC6) {
     // shufps xmm, xmm/m128, imm8

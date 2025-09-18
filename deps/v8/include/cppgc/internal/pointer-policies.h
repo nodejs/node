@@ -203,11 +203,11 @@ using DefaultCrossThreadPersistentCheckingPolicy = DisabledCheckingPolicy;
 
 class KeepLocationPolicy {
  public:
-  constexpr const SourceLocation& Location() const { return location_; }
+  constexpr SourceLocation Location() const { return location_; }
 
  protected:
   constexpr KeepLocationPolicy() = default;
-  constexpr explicit KeepLocationPolicy(const SourceLocation& location)
+  constexpr explicit KeepLocationPolicy(SourceLocation location)
       : location_(location) {}
 
   // KeepLocationPolicy must not copy underlying source locations.
@@ -228,7 +228,7 @@ class IgnoreLocationPolicy {
 
  protected:
   constexpr IgnoreLocationPolicy() = default;
-  constexpr explicit IgnoreLocationPolicy(const SourceLocation&) {}
+  constexpr explicit IgnoreLocationPolicy(SourceLocation) {}
 };
 
 #if CPPGC_SUPPORTS_OBJECT_NAMES

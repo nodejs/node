@@ -117,6 +117,7 @@ class JSSpeculativeBinopBuilder final {
       case CompareOperationHint::kBigInt64:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kStringOrOddball:
       case CompareOperationHint::kInternalizedString:
         break;
     }
@@ -135,6 +136,7 @@ class JSSpeculativeBinopBuilder final {
       case CompareOperationHint::kSymbol:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kStringOrOddball:
       case CompareOperationHint::kInternalizedString:
         return false;
       case CompareOperationHint::kBigInt:
@@ -575,19 +577,6 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceToNumberOperation(
         jsgraph()->simplified()->SpeculativeToNumber(hint, FeedbackSource()),
         input, effect, control);
     return LoweringResult::SideEffectFree(node, node, control);
-  }
-  return LoweringResult::NoChange();
-}
-
-JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceCallOperation(
-    const Operator* op, Node* const* args, int arg_count, Node* effect,
-    Node* control, FeedbackSlot slot) const {
-  DCHECK(op->opcode() == IrOpcode::kJSCall ||
-         op->opcode() == IrOpcode::kJSCallWithSpread);
-  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
-          slot, effect, control,
-          DeoptimizeReason::kInsufficientTypeFeedbackForCall)) {
-    return LoweringResult::Exit(node);
   }
   return LoweringResult::NoChange();
 }

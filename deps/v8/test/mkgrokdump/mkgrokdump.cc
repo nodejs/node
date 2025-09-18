@@ -144,7 +144,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       i::ReadOnlyHeapObjectIterator ro_iterator(read_only_heap);
       for (i::Tagged<i::HeapObject> object = ro_iterator.Next();
            !object.is_null(); object = ro_iterator.Next()) {
-        if (!IsMap(object)) continue;
+        if (IsAnyHole(object) || !IsMap(object)) continue;
         DumpKnownMap(out, heap, i::ToString(i::RO_SPACE), object);
       }
 
@@ -166,7 +166,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       for (i::Tagged<i::HeapObject> object = ro_iterator.Next();
            !object.is_null(); object = ro_iterator.Next()) {
         // Skip read-only heap maps, they will be reported elsewhere.
-        if (IsMap(object)) continue;
+        if (!IsAnyHole(object) && IsMap(object)) continue;
         DumpKnownObject(out, heap, i::ToString(i::RO_SPACE), object);
       }
 

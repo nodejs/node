@@ -38,7 +38,6 @@ from testrunner.outproc import base as outproc
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 ENV_PATTERN = re.compile(r"//\s+Environment Variables:(.*)")
-SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 NO_HARNESS_PATTERN = re.compile(r"^// NO HARNESS$", flags=re.MULTILINE)
 
 
@@ -95,10 +94,6 @@ class TestCase(testcase.D8TestCase):
     files = [ os.path.normpath(os.path.join(self.suite.root, '..', '..', f))
               for f in files_list ]
     testfilename = str(self._get_source_path())
-    if SELF_SCRIPT_PATTERN.search(source):
-      files = (
-        ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")] +
-        files)
 
     if NO_HARNESS_PATTERN.search(source):
       mjsunit_files = []
@@ -127,13 +122,13 @@ class TestCase(testcase.D8TestCase):
     return self._source_flags
 
   def _get_files_params(self):
-    files = list(self._source_files)
+    files = []
     if not self.test_config.no_harness:
       files += self._mjsunit_files
+    files += list(self._source_files)
     files += self._files_suffix
     if self.test_config.isolates:
       files += ['--isolate'] + files
-
     return files
 
   def _get_cmd_env(self):

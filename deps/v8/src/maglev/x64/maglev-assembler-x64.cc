@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/logging.h"
+#include "src/codegen/assembler.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
@@ -13,6 +14,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/instance-type.h"
 
 namespace v8 {
 namespace internal {
@@ -57,6 +59,19 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
                       size_in_bytes, done);
   // Store new top and tag object.
   __ movq(__ ExternalReferenceAsOperand(top), new_top);
+#if V8_VERIFY_WRITE_BARRIERS
+  if (v8_flags.verify_write_barriers) {
+    ExternalReference last_young_allocation =
+        ExternalReference::last_young_allocation_address(isolate);
+
+    if (alloc_type == AllocationType::kYoung) {
+      __ movq(__ ExternalReferenceAsOperand(last_young_allocation), object);
+    } else {
+      __ movq(__ ExternalReferenceAsOperand(last_young_allocation),
+              Immediate(0));
+    }
+  }
+#endif  // V8_VERIFY_WRITE_BARRIERS
   __ addq(object, Immediate(kHeapObjectTag));
   __ bind(*done);
 }
@@ -140,6 +155,8 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     RegisterSnapshot& register_snapshot, Register result, Register string,
     Register index, Register scratch1, Register scratch2,
     Label* result_fits_one_byte) {
+  ASM_CODE_COMMENT(this);
+
   ZoneLabelRef done(this);
   Label seq_string;
   Label cons_string;
@@ -296,8 +313,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // The result of one-byte string will be the same for both modes
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
-    movzxbl(result, FieldOperand(string, index, times_1,
-                                 OFFSET_OF_DATA_START(SeqOneByteString)));
+    SeqOneByteStringCharCodeAt(result, string, index);
     jmp(result_fits_one_byte);
     bind(&two_byte_string);
 
@@ -357,6 +373,39 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       movl(index, Immediate(0xdeadbeef));
     }
   }
+}
+
+void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
+                                                 Register string,
+                                                 Register index) {
+  ASM_CODE_COMMENT(this);
+  if (v8_flags.debug_code) {
+    TemporaryRegisterScope scope(this);
+    Register scratch = scope.AcquireScratch();
+
+    // Check if {string} is a string.
+    AssertNotSmi(string);
+    LoadMap(scratch, string);
+    CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                             LAST_STRING_TYPE);
+    Check(kUnsignedLessThanEqual, AbortReason::kUnexpectedValue);
+
+    // Check if {string} is a sequential one-byte string.
+    AndInt32(scratch, kStringRepresentationAndEncodingMask);
+    CompareInt32AndAssert(scratch, kSeqOneByteStringTag, kEqual,
+                          AbortReason::kUnexpectedValue);
+
+    LoadInt32(scratch, FieldMemOperand(string, offsetof(String, length_)));
+    CompareInt32AndAssert(index, scratch, kUnsignedLessThan,
+                          AbortReason::kUnexpectedValue);
+  }
+
+  movzxbl(result, FieldOperand(string, index, times_1,
+                               OFFSET_OF_DATA_START(SeqOneByteString)));
+}
+
+void MaglevAssembler::CountLeadingZerosInt32(Register dst, Register src) {
+  Lzcntl(dst, src);
 }
 
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
@@ -507,6 +556,10 @@ void MaglevAssembler::Prologue(Graph* graph) {
   DCHECK(!graph->is_osr());
 
   CodeEntry();
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  AssertInSandboxedExecutionMode();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   BailoutIfDeoptimized(rbx);
 

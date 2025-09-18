@@ -48,7 +48,7 @@ class WasmGraphAssembler : public GraphAssembler {
   }
 
   Node* GetBuiltinPointerTarget(Builtin builtin) {
-    static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
+    static_assert(std::is_same_v<Smi, BuiltinPtr>, "BuiltinPtr must be Smi");
     return NumberConstant(static_cast<int>(builtin));
   }
 

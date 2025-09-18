@@ -21,6 +21,16 @@ const max_index_value = `value ${max_index}`;
 
 let cache_break = 0;
 
+var __sequence = 0;
+// Allocate arrays without AllocationSites.
+function make_array_string(literal) {
+  __sequence = __sequence + 1;
+  return "/* " + __sequence + " */  " + literal;
+}
+function make_array(literal) {
+  return eval(make_array_string(literal));
+}
+
 function newClosure(name, generic = false) {
   if (generic) {
     return new Function(
@@ -44,7 +54,7 @@ function MakeHoley(array) {
 }
 
 function SmiSetup() {
-  array = [];
+  array = make_array('[]');
   for (let i = 0; i < array_size; i++) array.push(i);
   // TODO(v8:10105): May still create holey arrays (allocation sites?).
   // assert(%HasFastPackedElements(array));
@@ -52,14 +62,14 @@ function SmiSetup() {
 }
 
 function HoleySmiSetup() {
-  array = [];
+  array = make_array('[]');
   for (let i = 0; i < array_size; i++) array.push(i);
   MakeHoley(array);
   assert(%HasSmiElements(array));
 }
 
 function DoubleSetup() {
-  array = [];
+  array = make_array('[]');
   for (let i = 0; i < array_size; i++) array.push(i + 0.5);
   // TODO(v8:10105): May still create holey arrays (allocation sites?).
   // assert(%HasFastPackedElements(array));
@@ -67,14 +77,14 @@ function DoubleSetup() {
 }
 
 function HoleyDoubleSetup() {
-  array = [];
+  array = make_array('[]');
   for (let i = 0; i < array_size; i++) array.push(i + 0.5);
   MakeHoley(array);
   assert(%HasDoubleElements(array));
 }
 
 function FastSetup() {
-  array = [];
+  array = make_array('[]');
   for (let i = 0; i < array_size; i++) array.push(`value ${i}`);
   // TODO(v8:10105): May still create holey arrays (allocation sites?).
   // assert(%HasFastPackedElements(array));
@@ -82,14 +92,14 @@ function FastSetup() {
 }
 
 function HoleyFastSetup() {
-  array = [];
+  array = make_array('[]');
   for (let i = 0; i < array_size; i++) array.push(`value ${i}`);
   MakeHoley(array);
   assert(%HasObjectElements(array));
 }
 
 function DictionarySetup() {
-  array = [];
+  array = make_array('[]');
   // Add a large index to force dictionary elements.
   array[2**30] = 10;
   // Spread out {array_size} elements.

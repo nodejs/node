@@ -134,7 +134,7 @@ UNINITIALIZED_TEST(InPlaceInternalizableStringsAreShared) {
   CHECK(!HeapLayout::InAnySharedSpace(*young_two_byte_seq));
 
   // Internalized strings are shared.
-  uint64_t seed = HashSeed(i_isolate1);
+  HashSeed seed = HashSeed(i_isolate1);
   DirectHandle<String> one_byte_intern = factory1->NewOneByteInternalizedString(
       base::OneByteVector(raw_one_byte),
       StringHasher::HashSequentialString<char>(raw_one_byte, 3, seed));
@@ -2119,21 +2119,26 @@ class WorkerIsolateThread : public v8::base::Thread {
 
     {
       v8::Isolate::Scope isolate_scope(client);
-      HandleScope handle_scope(i_client);
-      DirectHandle<String> shared_string = factory->NewStringFromAsciiChecked(
-          "foobar", AllocationType::kSharedOld);
-      CHECK(HeapLayout::InWritableSharedSpace(*shared_string));
-      v8::Local<v8::String> lh_shared_string = Utils::ToLocal(shared_string);
-      gh_shared_string.Reset(test_->main_isolate(), lh_shared_string);
-      gh_shared_string.SetWeak();
-    }
 
-    {
-      // We need to invoke GC without stack, otherwise some objects may survive.
-      DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-          i_client->heap());
-      i_client->heap()->CollectGarbageShared(i_client->main_thread_local_heap(),
-                                             GarbageCollectionReason::kTesting);
+      {
+        HandleScope handle_scope(i_client);
+        DirectHandle<String> shared_string = factory->NewStringFromAsciiChecked(
+            "foobar", AllocationType::kSharedOld);
+        CHECK(HeapLayout::InWritableSharedSpace(*shared_string));
+        v8::Local<v8::String> lh_shared_string = Utils::ToLocal(shared_string);
+        gh_shared_string.Reset(test_->main_isolate(), lh_shared_string);
+        gh_shared_string.SetWeak();
+      }
+
+      {
+        // We need to invoke GC without stack, otherwise some objects may
+        // survive.
+        DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+            i_client->heap());
+        i_client->heap()->CollectGarbageShared(
+            i_client->main_thread_local_heap(),
+            GarbageCollectionReason::kTesting);
+      }
     }
 
     CHECK(gh_shared_string.IsEmpty());
@@ -2689,6 +2694,102 @@ UNINITIALIZED_TEST(ProtectExternalStringTableAddString) {
   }
 
   // Wait for client isolate to finish the minor GC and dispose of its isolate.
+  while (test.main_isolate_wakeup_counter() < 1) {
+    v8::platform::PumpMessageLoop(
+        i::V8::GetCurrentPlatform(), test.main_isolate(),
+        v8::platform::MessageLoopBehavior::kWaitForWork);
+  }
+
+  thread.Join();
+}
+
+// This client isolate thread and the following test are equivalent to
+// `HeapTest.ConservativePinningScopeMarkCompactRetainsObjectReachableFromStack`
+// in heap-unittest.cc but for client isolates and shared heap GCs.
+class ClientIsolateThreadForConservativePinningScope : public v8::base::Thread {
+ public:
+  // Expects a ManualGCScope to be in scope while `Run()` is executed.
+  ClientIsolateThreadForConservativePinningScope(const char* name,
+                                                 MultiClientIsolateTest* test,
+                                                 const ManualGCScope& witness)
+      : v8::base::Thread(base::Thread::Options(name)), test_(test) {}
+
+  void Run() override {
+    v8::Isolate* client = test_->NewClientIsolate();
+    Isolate* i_client = reinterpret_cast<Isolate*>(client);
+    Isolate* shared_isolate = i_client->shared_space_isolate();
+    Heap* shared_heap = shared_isolate->heap();
+    Factory* factory = i_client->factory();
+    Heap* heap = i_client->heap();
+
+    {
+      v8::Isolate::Scope isolate_scope(client);
+      HandleScope handle_scope(i_client);
+
+      ConservativePinningScope conservative_pinning_scope(heap);
+
+      // The main isolate's conservative stack visitor will find this on the
+      // client isolate's stack, so `object` will be retained and not move
+      // during GC.
+      Address object_address;
+      // Use a `Global` to check whether `object` is actually retained. There
+      // should be no other references to it.
+      v8::Global<v8::String> global;
+      {
+        HandleScope nested_handle_scope(i_client);
+
+        const char raw_one_byte[] = "foo";
+        Handle<String> shared_string = factory->NewStringFromAsciiChecked(
+            raw_one_byte, AllocationType::kSharedOld);
+        CHECK(shared_heap->Contains(*shared_string));
+        // Set a weak Global reference to `str` to check that it isn't
+        // reclaimed. Scavenger should not strongify weak Globals.
+        global.Reset(client, Utils::ToLocal(shared_string));
+        global.SetWeak();
+        object_address = shared_string->address();
+      }
+
+      CHECK(!global.IsEmpty());
+      CHECK(global.IsWeak());
+      i_client->heap()->CollectGarbageShared(i_client->main_thread_local_heap(),
+                                             GarbageCollectionReason::kTesting);
+      CHECK(global.IsWeak());
+      CHECK(!global.IsEmpty());
+      // Make sure `object_address` isn't optimized away.
+      CHECK_EQ((*Utils::OpenDirectHandle(*global.Get(client)))->address(),
+               object_address);
+    }
+
+    client->Dispose();
+
+    V8::GetCurrentPlatform()
+        ->GetForegroundTaskRunner(test_->main_isolate())
+        ->PostTask(std::make_unique<WakeupTask>(
+            test_->i_main_isolate(), test_->main_isolate_wakeup_counter()));
+  }
+
+ private:
+  MultiClientIsolateTest* test_;
+};
+
+UNINITIALIZED_TEST(ConservativePinningScopeInClientIsolate) {
+  // `v8_flags.conservative_stack_scanning` is constexpr in some builds.
+  if (v8_flags.conservative_stack_scanning) {
+    return;
+  }
+  v8_flags.shared_string_table = true;
+  v8_flags.scavenger_conservative_object_pinning = false;
+  v8_flags.precise_object_pinning = false;
+  v8_flags.scavenger_precise_object_pinning = false;
+  i::FlagList::EnforceFlagImplications();
+
+  MultiClientIsolateTest test;
+  ManualGCScope manual_gc_scope(test.i_main_isolate());
+
+  ClientIsolateThreadForConservativePinningScope thread("worker", &test,
+                                                        manual_gc_scope);
+  CHECK(thread.Start());
+
   while (test.main_isolate_wakeup_counter() < 1) {
     v8::platform::PumpMessageLoop(
         i::V8::GetCurrentPlatform(), test.main_isolate(),

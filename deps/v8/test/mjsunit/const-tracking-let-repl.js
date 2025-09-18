@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --script-context-cells --allow-natives-syntax
-// Flags: --turbofan --no-always-turbofan --maglev --no-stress-maglev
+// Flags: --turbofan --maglev --no-stress-maglev
 // Flags: --sparkplug --no-always-sparkplug
 
 %RuntimeEvaluateREPL('let a = 42;');

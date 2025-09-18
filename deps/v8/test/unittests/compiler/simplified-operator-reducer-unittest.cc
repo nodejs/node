@@ -324,16 +324,15 @@ TEST_F(SimplifiedOperatorReducerTest,
   EXPECT_EQ(param0, reduction.replacement());
 }
 
-
 // -----------------------------------------------------------------------------
-// TruncateTaggedToWord32
+// TruncateNumberOrOddballToWord32
 
 TEST_F(SimplifiedOperatorReducerTest,
        TruncateTaggedToWord3WithChangeFloat64ToTagged) {
   Node* param0 = Parameter(0);
   TRACED_FOREACH(CheckForMinusZeroMode, mode, kCheckForMinusZeroModes) {
     Reduction reduction = Reduce(graph()->NewNode(
-        simplified()->TruncateTaggedToWord32(),
+        simplified()->TruncateNumberOrOddballToWord32(),
         graph()->NewNode(simplified()->ChangeFloat64ToTagged(mode), param0)));
     ASSERT_TRUE(reduction.Changed());
     EXPECT_THAT(reduction.replacement(), IsTruncateFloat64ToWord32(param0));
@@ -343,7 +342,7 @@ TEST_F(SimplifiedOperatorReducerTest,
 TEST_F(SimplifiedOperatorReducerTest, TruncateTaggedToWord32WithConstant) {
   TRACED_FOREACH(double, n, kFloat64Values) {
     Reduction reduction = Reduce(graph()->NewNode(
-        simplified()->TruncateTaggedToWord32(), NumberConstant(n)));
+        simplified()->TruncateNumberOrOddballToWord32(), NumberConstant(n)));
     ASSERT_TRUE(reduction.Changed());
     EXPECT_THAT(reduction.replacement(), IsInt32Constant(DoubleToInt32(n)));
   }
