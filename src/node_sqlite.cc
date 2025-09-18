@@ -1921,7 +1921,7 @@ void DatabaseSync::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  if (args.Length() == 0 || args[0]->IsNull() || args[0]->IsUndefined()) {
+  if ( args[0]->IsNull() ) {
     // Clear the authorizer
     sqlite3_set_authorizer(db->connection_, nullptr, nullptr);
     return;
@@ -1929,7 +1929,7 @@ void DatabaseSync::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
 
   if (!args[0]->IsFunction()) {
     THROW_ERR_INVALID_ARG_TYPE(isolate,
-                               "The \"callback\" argument must be a function.");
+                               "The \"callback\" argument must be a function or null.");
     return;
   }
 
