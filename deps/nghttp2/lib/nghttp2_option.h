@@ -72,6 +72,7 @@ typedef enum {
   NGHTTP2_OPT_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION = 1 << 14,
   NGHTTP2_OPT_STREAM_RESET_RATE_LIMIT = 1 << 15,
   NGHTTP2_OPT_MAX_CONTINUATIONS = 1 << 16,
+  NGHTTP2_OPT_GLITCH_RATE_LIMIT = 1 << 17,
 } nghttp2_option_flag;
 
 /**
@@ -83,6 +84,11 @@ struct nghttp2_option {
    */
   uint64_t stream_reset_burst;
   uint64_t stream_reset_rate;
+  /**
+   * NGHTTP2_OPT_GLITCH_RATE_LIMIT
+   */
+  uint64_t glitch_burst;
+  uint64_t glitch_rate;
   /**
    * NGHTTP2_OPT_MAX_SEND_HEADER_BLOCK_LENGTH
    */
