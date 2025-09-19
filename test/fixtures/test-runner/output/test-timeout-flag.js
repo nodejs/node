@@ -37,3 +37,14 @@ describe('--test-timeout is set to 20ms', () => {
     }
   });
 });
+
+
+describe('should inherit timeout options to children', { timeout: 10 }, () => {
+  it('should timeout after 10ms', async () => {
+    const { promise, resolve } = Promise.withResolvers();
+    timeoutRefs.push(setTimeout(() => {
+      resolve();
+    }, 20000));
+    await promise;
+  });
+});
