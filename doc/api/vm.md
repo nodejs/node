@@ -1946,6 +1946,68 @@ inside a `vm.Context`, functions passed to them will be added to global queues,
 which are shared by all contexts. Therefore, callbacks passed to those functions
 are not controllable through the timeout either.
 
+### When `microtaskMode` is `'afterEvaluate'`, beware sharing Promises between Contexts
+
+In `'afterEvaluate'` mode, the `Context` has its own microtask queue, separate
+from the global microtask queue used by the outer (main) context. While this
+mode is necessary to enforce `timeout` and enable `breakOnSigint` with
+asynchronous tasks, it also makes sharing promises between contexts challenging.
+
+In the example below, a promise is created in the inner context and shared with
+the outer context. When the outer context `await` on the promise, the execution
+flow of the outer context is disrupted in a surprising way: the log statement
+is never executed.
+
+```mjs
+import * as vm from 'node:vm';
+
+const inner_context = vm.createContext({}, { microtaskMode: 'afterEvaluate' });
+
+// runInContext() returns a Promise created in the inner context.
+const inner_promise = vm.runInContext(
+  'Promise.resolve()',
+  context,
+);
+
+// As part of performing `await`, the JavaScript runtime must enqueue a task
+// on the microtask queue of the context where `inner_promise` was created.
+// A task is added on the inner microtask queue, but **it will not be run
+// automatically**: this task will remain pending indefinitely.
+//
+// Since the outer microtask queue is empty, execution in the outer module
+// falls through, and the log statement below is never executed.
+await inner_promise;
+
+console.log('this will NOT be printed');
+```
+
+To successfully share promises between contexts with different microtask queues,
+it is necessary to ensure that tasks on the inner microtask queue will be run
+**whenever** the outer context enqueues a task on the inner microtask queue.
+
+The tasks on the microtask queue of a given context are run whenever
+`runInContext()` or `SourceTextModule.evaluate()` are invoked on a script or
+module using this context. In our example, the normal execution flow can be
+restored by scheduling a second call to `runInContext()` _before_ `await
+inner_promise`.
+
+```mjs
+// Schedule `runInContext()` to manually drain the inner context microtask
+// queue; it will run after the `await` statement below.
+setImmediate(() => {
+  vm.runInContext('', context);
+});
+
+await inner_promise;
+
+console.log('OK');
+```
+
+**Note:** Strictly speaking, in this mode, `node:vm` departs from the letter of
+the ECMAScript specification for [enqueing jobs][], by allowing asynchronous
+tasks from different contexts to run in a different order than they were
+enqueued.
+
 ## Support of dynamic `import()` in compilation APIs
 
 The following APIs support an `importModuleDynamically` option to enable dynamic
@@ -2183,6 +2245,7 @@ const { Script, SyntheticModule } = require('node:vm');
 [`vm.runInContext()`]: #vmrunincontextcode-contextifiedobject-options
 [`vm.runInThisContext()`]: #vmruninthiscontextcode-options
 [contextified]: #what-does-it-mean-to-contextify-an-object
+[enqueing jobs]: https://tc39.es/ecma262/#sec-hostenqueuepromisejob
 [global object]: https://tc39.es/ecma262/#sec-global-object
 [indirect `eval()` call]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#direct_and_indirect_eval
 [origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin
