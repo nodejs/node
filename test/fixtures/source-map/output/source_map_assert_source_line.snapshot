@@ -7,7 +7,7 @@ AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
     *
     *
     *
-    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
     *
     *
     *
