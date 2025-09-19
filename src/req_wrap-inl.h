@@ -111,7 +111,7 @@ struct CallLibuvFunction<ReqT, void(*)(ReqT*, Args...)> {
 template <typename ReqT, typename T>
 struct MakeLibuvRequestCallback {
   static T For(ReqWrap<ReqT>* req_wrap, T v) {
-    static_assert(!is_callable<T>::value,
+    static_assert(!is_callable<T>,
                   "MakeLibuvRequestCallback missed a callback");
     return v;
   }
