@@ -1152,6 +1152,20 @@ added: v0.1.16
 
 The fully resolved filename of the module.
 
+### `module.format`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string|undefined}
+
+The [detected format][Determining module system] of the module. Possible values are documented
+in [`load` customization hooks][].
+
+This property is not guaranteed to be defined on the `module` object, nor to be accurate. If
+it's undefined, it's likely that Node.js does not yet know the module format.
+
 ### `module.id`
 
 <!-- YAML
@@ -1277,6 +1291,7 @@ This section was moved to
 [`__dirname`]: #__dirname
 [`__filename`]: #__filename
 [`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
+[`load` customization hooks]: module.md#loadurl-context-nextload
 [`module.builtinModules`]: module.md#modulebuiltinmodules
 [`module.children`]: #modulechildren
 [`module.id`]: #moduleid
