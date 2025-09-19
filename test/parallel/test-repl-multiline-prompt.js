@@ -22,11 +22,9 @@ function runPromptTest(promptStr, { useColors }) {
     input: inputStream,
     output: outputStream,
     terminal: true,
-    useColors
+    useColors,
+    multilinePrompt: promptStr,
   });
-
-  // Set the custom multiline prompt
-  r.setMultilinePrompt(promptStr);
 
   r.on('exit', common.mustCall(() => {
     const lines = output.split('\n');
