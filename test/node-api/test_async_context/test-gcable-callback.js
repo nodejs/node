@@ -50,13 +50,10 @@ setImmediate(() => {
   assert.strictEqual(hook_result.destroy_called, false);
   makeCallback(asyncResource, process, () => {
     const executionAsyncResource = async_hooks.executionAsyncResource();
-    // Assuming the executionAsyncResource was created for the absence of the
-    // initial `{ foo: 'bar' }`.
-    // This is the worst path of `napi_async_context` related API of
-    // recovering from the condition and not break the executionAsyncResource
-    // shape, although the executionAsyncResource might not be correct.
+    // Previous versions of Node-API would have gargbage-collected
+    // the `asyncResource` object, now we can just assert that it is intact.
     assert.strictEqual(typeof executionAsyncResource, 'object');
-    assert.strictEqual(executionAsyncResource.foo, undefined);
+    assert.strictEqual(executionAsyncResource.foo, 'bar');
     destroyAsyncResource(asyncResource);
     setImmediate(() => {
       assert.strictEqual(hook_result.destroy_called, true);

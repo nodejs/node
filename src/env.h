@@ -68,6 +68,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 #include <vector>
 
 namespace node {
@@ -323,9 +324,11 @@ class AsyncHooks : public MemoryRetainer {
   // NB: This call does not take (co-)ownership of `execution_async_resource`.
   // The lifetime of the `v8::Local<>` pointee must last until
   // `pop_async_context()` or `clear_async_id_stack()` are called.
-  void push_async_context(double async_id,
-                          double trigger_async_id,
-                          v8::Local<v8::Object>* execution_async_resource);
+  void push_async_context(
+      double async_id,
+      double trigger_async_id,
+      std::variant<v8::Local<v8::Object>*, v8::Global<v8::Object>*>
+          execution_async_resource);
   bool pop_async_context(double async_id);
   void clear_async_id_stack();  // Used in fatal exceptions.
 
@@ -389,7 +392,12 @@ class AsyncHooks : public MemoryRetainer {
 
   // We avoid storing the handles directly here, because they are already
   // properly allocated on the stack, we just need access to them here.
-  std::deque<v8::Local<v8::Object>*> native_execution_async_resources_;
+  // The `v8::Global<>` variant is here because the Node-API API design
+  // does not allow us to make sure that we exclusively store this value
+  // on the stack, so we accept the small perf hit that comes with
+  // global handles in that case.
+  std::deque<std::variant<v8::Local<v8::Object>*, v8::Global<v8::Object>*>>
+      native_execution_async_resources_;
 
   // Non-empty during deserialization
   const SerializeInfo* info_ = nullptr;
