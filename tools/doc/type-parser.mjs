@@ -46,6 +46,8 @@ const customTypesMap = {
   'bigint': `${jsDocPrefix}Reference/Global_Objects/BigInt`,
   'WebAssembly.Instance':
     `${jsDocPrefix}Reference/Global_Objects/WebAssembly/Instance`,
+  'WebAssembly.Memory':
+    `${jsDocPrefix}Reference/Global_Objects/WebAssembly/Memory`,
 
   'Blob': 'buffer.html#class-blob',
   'File': 'buffer.html#class-file',
