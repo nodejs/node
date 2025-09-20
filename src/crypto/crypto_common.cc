@@ -37,7 +37,7 @@ using ncrypto::X509Pointer;
 using ncrypto::X509View;
 using v8::ArrayBuffer;
 using v8::BackingStoreInitializationMode;
-using v8::Context;
+using v8::DictionaryTemplate;
 using v8::EscapableHandleScope;
 using v8::Integer;
 using v8::Local;
@@ -180,52 +180,53 @@ Local<Value> maybeString(Environment* env,
 MaybeLocal<Object> GetCipherInfo(Environment* env, const SSLPointer& ssl) {
   if (ssl.getCipher() == nullptr) return MaybeLocal<Object>();
   EscapableHandleScope scope(env->isolate());
-  Local<Object> info = Object::New(env->isolate());
 
-  if (info->Set(env->context(),
-                env->name_string(),
-                maybeString(env, ssl.getCipherName()))
-          .IsNothing() ||
-      info->Set(env->context(),
-                env->standard_name_string(),
-                maybeString(env, ssl.getCipherStandardName()))
-          .IsNothing() ||
-      info->Set(env->context(),
-                env->version_string(),
-                maybeString(env, ssl.getCipherVersion()))
-          .IsNothing()) {
-    return MaybeLocal<Object>();
+  auto tmpl = env->cipherinfo_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "name", "standardName", "version"};
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_cipherinfo_template(tmpl);
   }
 
-  return scope.Escape(info);
+  MaybeLocal<Value> values[] = {
+      maybeString(env, ssl.getCipherName()),
+      maybeString(env, ssl.getCipherStandardName()),
+      maybeString(env, ssl.getCipherVersion()),
+  };
+
+  return scope.EscapeMaybe(NewDictionaryInstance(env->context(), tmpl, values));
 }
 
 MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
   CHECK(!ssl.isServer());
 
   EscapableHandleScope scope(env->isolate());
-  Local<Object> info = Object::New(env->isolate());
+
+  auto tmpl = env->ephemeral_key_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {"type", "name", "size"};
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_ephemeral_key_template(tmpl);
+  }
+
+  MaybeLocal<Value> values[] = {
+      Undefined(env->isolate()),  // type
+      Undefined(env->isolate()),  // name
+      Undefined(env->isolate()),  // size
+  };
   EVPKeyPointer key = ssl.getPeerTempKey();
-  if (!key) return scope.Escape(info);
-
-  Local<Context> context = env->context();
-
-  int kid = key.id();
-  switch (kid) {
-    case EVP_PKEY_DH:
-      if (info->Set(context, env->type_string(), env->dh_string())
-              .IsNothing() ||
-          info->Set(context,
-                    env->size_string(),
-                    Integer::New(env->isolate(), key.bits()))
-              .IsNothing()) {
-        return MaybeLocal<Object>();
+  if (EVPKeyPointer key = ssl.getPeerTempKey()) {
+    int kid = key.id();
+    switch (kid) {
+      case EVP_PKEY_DH: {
+        values[0] = env->dh_string();
+        values[2] = Integer::New(env->isolate(), key.bits());
+        break;
       }
-      break;
-    case EVP_PKEY_EC:
-    case EVP_PKEY_X25519:
-    case EVP_PKEY_X448:
-      {
+      case EVP_PKEY_EC:
+      case EVP_PKEY_X25519:
+      case EVP_PKEY_X448: {
         const char* curve_name;
         if (kid == EVP_PKEY_EC) {
           int nid = ECKeyPointer::GetGroupName(key);
@@ -233,23 +234,15 @@ MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
         } else {
           curve_name = OBJ_nid2sn(kid);
         }
-        if (info->Set(context, env->type_string(), env->ecdh_string())
-                .IsNothing() ||
-            info->Set(context,
-                      env->name_string(),
-                      OneByteString(env->isolate(), curve_name))
-                .IsNothing() ||
-            info->Set(context,
-                      env->size_string(),
-                      Integer::New(env->isolate(), key.bits()))
-                .IsNothing()) {
-          return MaybeLocal<Object>();
-        }
+        values[0] = env->ecdh_string();
+        values[1] = OneByteString(env->isolate(), curve_name);
+        values[2] = Integer::New(env->isolate(), key.bits());
+        break;
       }
-      break;
+    }
   }
 
-  return scope.Escape(info);
+  return scope.EscapeMaybe(NewDictionaryInstance(env->context(), tmpl, values));
 }
 
 MaybeLocal<Object> ECPointToBuffer(Environment* env,

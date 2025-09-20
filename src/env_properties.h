@@ -77,18 +77,15 @@
   V(allow_unknown_named_params_string, "allowUnknownNamedParameters")          \
   V(alpn_callback_string, "ALPNCallback")                                      \
   V(args_string, "args")                                                       \
-  V(asn1curve_string, "asn1Curve")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
   V(attributes_string, "attributes")                                           \
   V(backup_string, "backup")                                                   \
   V(base_string, "base")                                                       \
   V(base_url_string, "baseURL")                                                \
-  V(bits_string, "bits")                                                       \
   V(buffer_string, "buffer")                                                   \
   V(bytes_parsed_string, "bytesParsed")                                        \
   V(bytes_read_string, "bytesRead")                                            \
   V(bytes_written_string, "bytesWritten")                                      \
-  V(ca_string, "ca")                                                           \
   V(cached_data_produced_string, "cachedDataProduced")                         \
   V(cached_data_rejected_string, "cachedDataRejected")                         \
   V(cached_data_string, "cachedData")                                          \
@@ -175,7 +172,6 @@
   V(expire_string, "expire")                                                   \
   V(exponent_string, "exponent")                                               \
   V(exports_string, "exports")                                                 \
-  V(ext_key_usage_string, "ext_key_usage")                                     \
   V(external_stream_string, "_externalStream")                                 \
   V(family_string, "family")                                                   \
   V(fatal_exception_string, "_fatalException")                                 \
@@ -184,9 +180,6 @@
   V(file_string, "file")                                                       \
   V(filename_string, "filename")                                               \
   V(filter_string, "filter")                                                   \
-  V(fingerprint256_string, "fingerprint256")                                   \
-  V(fingerprint512_string, "fingerprint512")                                   \
-  V(fingerprint_string, "fingerprint")                                         \
   V(flags_string, "flags")                                                     \
   V(flowlabel_string, "flowlabel")                                             \
   V(frames_received_string, "framesReceived")                                  \
@@ -215,14 +208,12 @@
   V(identity_string, "identity")                                               \
   V(ignore_case_string, "ignoreCase")                                          \
   V(ignore_string, "ignore")                                                   \
-  V(infoaccess_string, "infoAccess")                                           \
   V(inherit_string, "inherit")                                                 \
   V(input_string, "input")                                                     \
   V(inverse_string, "inverse")                                                 \
   V(ipv4_string, "IPv4")                                                       \
   V(ipv6_string, "IPv6")                                                       \
   V(isclosing_string, "isClosing")                                             \
-  V(issuer_string, "issuer")                                                   \
   V(issuercert_string, "issuerCertificate")                                    \
   V(iterator_string, "Iterator")                                               \
   V(jwk_akp_string, "AKP")                                                     \
@@ -266,12 +257,10 @@
   V(minttl_string, "minttl")                                                   \
   V(mode_string, "mode")                                                       \
   V(module_string, "module")                                                   \
-  V(modulus_string, "modulus")                                                 \
   V(modulus_length_string, "modulusLength")                                    \
   V(name_string, "name")                                                       \
   V(named_curve_string, "namedCurve")                                          \
   V(next_string, "next")                                                       \
-  V(nistcurve_string, "nistCurve")                                             \
   V(node_string, "node")                                                       \
   V(nsname_string, "nsname")                                                   \
   V(object_string, "Object")                                                   \
@@ -329,7 +318,6 @@
   V(protocol_string, "protocol")                                               \
   V(prototype_string, "prototype")                                             \
   V(psk_string, "psk")                                                         \
-  V(pubkey_string, "pubkey")                                                   \
   V(public_exponent_string, "publicExponent")                                  \
   V(rate_string, "rate")                                                       \
   V(raw_string, "raw")                                                         \
@@ -355,7 +343,6 @@
   V(salt_length_string, "saltLength")                                          \
   V(search_string, "search")                                                   \
   V(selector_string, "selector")                                               \
-  V(serial_number_string, "serialNumber")                                      \
   V(serial_string, "serial")                                                   \
   V(servername_string, "servername")                                           \
   V(service_string, "service")                                                 \
@@ -381,8 +368,6 @@
   V(step_string, "step")                                                       \
   V(stream_average_duration_string, "streamAverageDuration")                   \
   V(stream_count_string, "streamCount")                                        \
-  V(subject_string, "subject")                                                 \
-  V(subjectaltname_string, "subjectaltname")                                   \
   V(synthetic_string, "synthetic")                                             \
   V(syscall_string, "syscall")                                                 \
   V(table_string, "table")                                                     \
@@ -405,8 +390,6 @@
   V(unknown_string, "<unknown>")                                               \
   V(url_string, "url")                                                         \
   V(username_string, "username")                                               \
-  V(valid_from_string, "valid_from")                                           \
-  V(valid_to_string, "valid_to")                                               \
   V(value_string, "value")                                                     \
   V(verify_error_string, "verifyError")                                        \
   V(version_string, "version")                                                 \
@@ -425,12 +408,14 @@
   V(blob_reader_constructor_template, v8::FunctionTemplate)                    \
   V(blocklist_constructor_template, v8::FunctionTemplate)                      \
   V(callsite_template, v8::DictionaryTemplate)                                 \
+  V(cipherinfo_template, v8::DictionaryTemplate)                               \
   V(contextify_global_template, v8::ObjectTemplate)                            \
   V(contextify_wrapper_template, v8::ObjectTemplate)                           \
   V(cpu_usage_template, v8::DictionaryTemplate)                                \
   V(crypto_key_object_handle_constructor, v8::FunctionTemplate)                \
   V(env_proxy_template, v8::ObjectTemplate)                                    \
   V(env_proxy_ctor_template, v8::FunctionTemplate)                             \
+  V(ephemeral_key_template, v8::DictionaryTemplate)                            \
   V(dir_instance_template, v8::ObjectTemplate)                                 \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
@@ -475,7 +460,8 @@
   V(worker_cpu_usage_taker_template, v8::ObjectTemplate)                       \
   V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)                   \
   V(worker_heap_statistics_taker_template, v8::ObjectTemplate)                 \
-  V(x509_constructor_template, v8::FunctionTemplate)
+  V(x509_constructor_template, v8::FunctionTemplate)                           \
+  V(x509_dictionary_template, v8::DictionaryTemplate)
 
 #define PER_REALM_STRONG_PERSISTENT_VALUES(V)                                  \
   V(async_hooks_after_function, v8::Function)                                  \

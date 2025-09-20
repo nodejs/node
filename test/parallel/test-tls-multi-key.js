@@ -161,6 +161,7 @@ function test(options) {
         standardName: 'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384',
         version: 'TLSv1.2',
       });
+
       assert.strictEqual(ecdsa.getPeerCertificate().subject.CN, eccCN);
       assert.strictEqual(ecdsa.getPeerCertificate().asn1Curve, 'prime256v1');
       ecdsa.end();
