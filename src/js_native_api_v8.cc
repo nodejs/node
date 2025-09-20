@@ -1591,13 +1591,13 @@ napi_status NAPI_CDECL napi_create_object(napi_env env, napi_value* result) {
   return napi_clear_last_error(env);
 }
 
-napi_status NAPI_CDECL napi_create_object_with_properties(
-              napi_env env,
-              napi_value prototype_or_null,
-              napi_value* property_names,
-              napi_value* property_values,
-              size_t property_count,
-              napi_value* result) {
+napi_status NAPI_CDECL
+napi_create_object_with_properties(napi_env env,
+                                   napi_value prototype_or_null,
+                                   napi_value* property_names,
+                                   napi_value* property_values,
+                                   size_t property_count,
+                                   napi_value* result) {
   CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, result);
 
@@ -1607,7 +1607,7 @@ napi_status NAPI_CDECL napi_create_object_with_properties(
   }
 
   v8::Local<v8::Value> v8_prototype_or_null =
-    v8impl::V8LocalValueFromJsValue(prototype_or_null);
+      v8impl::V8LocalValueFromJsValue(prototype_or_null);
 
   v8::Local<v8::Object> obj;
 
@@ -1629,11 +1629,8 @@ napi_status NAPI_CDECL napi_create_object_with_properties(
                           v8_values.data(),
                           property_count);
   } else {
-    obj = v8::Object::New(env->isolate,
-                          v8_prototype_or_null,
-                          nullptr,
-                          nullptr,
-                          0);
+    obj = v8::Object::New(
+        env->isolate, v8_prototype_or_null, nullptr, nullptr, 0);
   }
 
   RETURN_STATUS_IF_FALSE(env, !obj.IsEmpty(), napi_generic_failure);

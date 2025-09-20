@@ -1,5 +1,5 @@
-#include <node_api.h>
 #include <assert.h>
+#include <node_api.h>
 
 // Creating with many options because complains are when ~20 properties
 static void CreateTestProperties(napi_env env,
@@ -72,12 +72,8 @@ static napi_value CreateObjectWithPropertiesNew(napi_env env,
 
   for (uint32_t i = 0; i < count; i++) {
     napi_value obj;
-    napi_create_object_with_properties(env,
-                                       null_prototype,
-                                       names,
-                                       values,
-                                       20,
-                                       &obj);
+    napi_create_object_with_properties(
+        env, null_prototype, names, values, 20, &obj);
   }
 
   napi_call_function(env, bench_obj, end_fn, 1, &count_val, nullptr);
@@ -138,13 +134,24 @@ static napi_value CreateObjectWithPropertiesOld(napi_env env,
 
 NAPI_MODULE_INIT() {
   napi_property_descriptor desc[] = {
-    { "createObjectWithPropertiesNew", 0, CreateObjectWithPropertiesNew, 0, 0,
-      0, napi_default, 0 },
-    { "createObjectWithPropertiesOld", 0, CreateObjectWithPropertiesOld, 0, 0,
-      0, napi_default, 0 },
+      {"createObjectWithPropertiesNew",
+       0,
+       CreateObjectWithPropertiesNew,
+       0,
+       0,
+       0,
+       napi_default,
+       0},
+      {"createObjectWithPropertiesOld",
+       0,
+       CreateObjectWithPropertiesOld,
+       0,
+       0,
+       0,
+       napi_default,
+       0},
   };
 
   napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
   return exports;
 }
-
