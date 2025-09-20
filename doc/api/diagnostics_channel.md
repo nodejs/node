@@ -831,14 +831,15 @@ added:
 * `context` {Object} Shared object to correlate trace events through
 * `thisArg` {any} The receiver to be used for the function call
 * `...args` {any} Optional arguments to pass to the function
-* Returns: {Promise} Chained from promise returned by the given function
+* Returns: {any} The return value of the given function
 
 Trace a promise-returning function call. This will always produce a
 [`start` event][] and [`end` event][] around the synchronous portion of the
-function execution, and will produce an [`asyncStart` event][] and
-[`asyncEnd` event][] when a promise continuation is reached. It may also
-produce an [`error` event][] if the given function throws an error or the
-returned promise rejects. This will run the given function using
+function execution. If the return value is a {Promise} or [thenable][], it will
+also produce an [`asyncStart` event][] and [`asyncEnd` event][] when the
+returned promise is fulfilled or rejected. It may also produce an
+[`error` event][] if the given function throws an error or the returned promise
+rejects. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
 
@@ -1436,3 +1437,4 @@ Emitted when a new thread is created.
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
 [context loss]: async_context.md#troubleshooting-context-loss
+[thenable]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables
