@@ -51,10 +51,9 @@ CHAR_TEST(16, IsUnicodeSurrogate, (ch & 0xF800) == 0xD800)
 // If a UTF-16 surrogate is a low/trailing one.
 CHAR_TEST(16, IsUnicodeSurrogateTrail, (ch & 0x400) != 0)
 
-static void GetOwnNonIndexProperties(
-    const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
+static void GetOwnNonIndexProperties(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsUint32());
@@ -65,18 +64,18 @@ static void GetOwnNonIndexProperties(
 
   PropertyFilter filter = FromV8Value<PropertyFilter>(args[1]);
 
-  if (!object->GetPropertyNames(
-        context, KeyCollectionMode::kOwnOnly,
-        filter,
-        IndexFilter::kSkipIndices)
-          .ToLocal(&properties)) {
+  if (!object
+           ->GetPropertyNames(context,
+                              KeyCollectionMode::kOwnOnly,
+                              filter,
+                              IndexFilter::kSkipIndices)
+           .ToLocal(&properties)) {
     return;
   }
   args.GetReturnValue().Set(properties);
 }
 
-static void GetConstructorName(
-    const FunctionCallbackInfo<Value>& args) {
+static void GetConstructorName(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
 
   Local<Object> object = args[0].As<Object>();
@@ -85,8 +84,7 @@ static void GetConstructorName(
   args.GetReturnValue().Set(name);
 }
 
-static void GetExternalValue(
-    const FunctionCallbackInfo<Value>& args) {
+static void GetExternalValue(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsExternal());
   Isolate* isolate = args.GetIsolate();
   Local<External> external = args[0].As<External>();
@@ -99,15 +97,14 @@ static void GetExternalValue(
 
 static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
   // Return undefined if it's not a Promise.
-  if (!args[0]->IsPromise())
-    return;
+  if (!args[0]->IsPromise()) return;
 
   auto isolate = args.GetIsolate();
 
   Local<Promise> promise = args[0].As<Promise>();
 
   int state = promise->State();
-  Local<Value> values[2] = { Integer::New(isolate, state) };
+  Local<Value> values[2] = {Integer::New(isolate, state)};
   size_t number_of_values = 1;
   if (state != Promise::PromiseState::kPending)
     values[number_of_values++] = promise->Result();
@@ -117,8 +114,7 @@ static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
 
 static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   // Return undefined if it's not a proxy.
-  if (!args[0]->IsProxy())
-    return;
+  if (!args[0]->IsProxy()) return;
 
   Local<Proxy> proxy = args[0].As<Proxy>();
 
@@ -126,10 +122,7 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   // the util binding layer. It's accessed in the wild and `esm` would break in
   // case the check is removed.
   if (args.Length() == 1 || args[1]->IsTrue()) {
-    Local<Value> ret[] = {
-      proxy->GetTarget(),
-      proxy->GetHandler()
-    };
+    Local<Value> ret[] = {proxy->GetTarget(), proxy->GetHandler()};
 
     args.GetReturnValue().Set(
         Array::New(args.GetIsolate(), ret, arraysize(ret)));
@@ -165,24 +158,18 @@ static void GetCallerLocation(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
-  if (!args[0]->IsObject())
-    return;
+  if (!args[0]->IsObject()) return;
 
-  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
   bool is_key_value;
   Local<Array> entries;
   if (!args[0].As<Object>()->PreviewEntries(&is_key_value).ToLocal(&entries))
     return;
   // Fast path for WeakMap and WeakSet.
-  if (args.Length() == 1)
-    return args.GetReturnValue().Set(entries);
+  if (args.Length() == 1) return args.GetReturnValue().Set(entries);
 
-  Local<Value> ret[] = {
-    entries,
-    Boolean::New(env->isolate(), is_key_value)
-  };
-  return args.GetReturnValue().Set(
-      Array::New(env->isolate(), ret, arraysize(ret)));
+  Local<Value> ret[] = {entries, Boolean::New(isolate, is_key_value)};
+  return args.GetReturnValue().Set(Array::New(isolate, ret, arraysize(ret)));
 }
 
 static void Sleep(const FunctionCallbackInfo<Value>& args) {
@@ -222,9 +209,9 @@ static uint32_t GetUVHandleTypeCode(const uv_handle_type type) {
 }
 
 static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   int fd;
-  if (!args[0]->Int32Value(env->context()).To(&fd)) return;
+  if (!args[0]->Int32Value(args.GetIsolate()->GetCurrentContext()).To(&fd))
+    return;
   CHECK_GE(fd, 0);
 
   uv_handle_type t = uv_guess_handle(fd);
