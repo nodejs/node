@@ -448,30 +448,52 @@ void CreateHeapSnapshotStream(const FunctionCallbackInfo<Value>& args) {
 void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
-  CHECK_EQ(args.Length(), 2);
+  CHECK_EQ(args.Length(), 3);
   Local<Value> filename_v = args[0];
   auto options = GetHeapSnapshotOptions(args[1]);
+  bool has_path = !args[2]->IsUndefined() && !args[2]->IsNull();
+  std::string final_filename;
+  BufferValue path_v(isolate, args[2]);
+  ToNamespacedPath(env, &path_v);
 
   if (filename_v->IsUndefined()) {
     DiagnosticFilename name(env, "Heap", "heapsnapshot");
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env,
-        permission::PermissionScope::kFileSystemWrite,
-        Environment::GetCwd(env->exec_path()));
-    if (WriteSnapshot(env, *name, options).IsNothing()) return;
-    if (String::NewFromUtf8(isolate, *name).ToLocal(&filename_v)) {
-      args.GetReturnValue().Set(filename_v);
+    if (!has_path) {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env,
+          permission::PermissionScope::kFileSystemWrite,
+          Environment::GetCwd(env->exec_path()));
+      final_filename = *name;
+    } else {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env,
+          permission::PermissionScope::kFileSystemWrite,
+          path_v.ToStringView());
+      final_filename = path_v.ToString() + "/" +
+                       *name;  // NOLINT(readability/pointer_notation)
     }
-    return;
+  } else {
+    BufferValue filename(isolate, filename_v);
+    CHECK_NOT_NULL(*filename);
+
+    if (has_path) {
+      final_filename = path_v.ToString() + "/" + filename.ToString();
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env, permission::PermissionScope::kFileSystemWrite, final_filename);
+    } else {
+      ToNamespacedPath(env, &filename);
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env,
+          permission::PermissionScope::kFileSystemWrite,
+          filename.ToStringView());
+      final_filename = filename.ToString();
+    }
   }
 
-  BufferValue path(isolate, filename_v);
-  CHECK_NOT_NULL(*path);
-  ToNamespacedPath(env, &path);
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
-  if (WriteSnapshot(env, *path, options).IsNothing()) return;
-  return args.GetReturnValue().Set(filename_v);
+  if (WriteSnapshot(env, final_filename.c_str(), options).IsNothing()) return;
+
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(isolate, final_filename.c_str()).ToLocalChecked());
 }
 
 void Initialize(Local<Object> target,
