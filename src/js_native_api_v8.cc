@@ -1591,6 +1591,56 @@ napi_status NAPI_CDECL napi_create_object(napi_env env, napi_value* result) {
   return napi_clear_last_error(env);
 }
 
+napi_status NAPI_CDECL napi_create_object_with_properties(
+              napi_env env,
+              napi_value prototype_or_null,
+              napi_value* property_names,
+              napi_value* property_values,
+              size_t property_count,
+              napi_value* result) {
+  CHECK_ENV_NOT_IN_GC(env);
+  CHECK_ARG(env, result);
+
+  if (property_count > 0) {
+    CHECK_ARG(env, property_names);
+    CHECK_ARG(env, property_values);
+  }
+
+  v8::Local<v8::Value> v8_prototype_or_null =
+    v8impl::V8LocalValueFromJsValue(prototype_or_null);
+
+  v8::Local<v8::Object> obj;
+
+  if (property_count > 0) {
+    v8::LocalVector<v8::Name> v8_names(env->isolate, property_count);
+    v8::LocalVector<v8::Value> v8_values(env->isolate, property_count);
+
+    for (size_t i = 0; i < property_count; i++) {
+      v8::Local<v8::Value> name_value =
+          v8impl::V8LocalValueFromJsValue(property_names[i]);
+      RETURN_STATUS_IF_FALSE(env, name_value->IsName(), napi_name_expected);
+      v8_names[i] = name_value.As<v8::Name>();
+      v8_values[i] = v8impl::V8LocalValueFromJsValue(property_values[i]);
+    }
+
+    obj = v8::Object::New(env->isolate,
+                          v8_prototype_or_null,
+                          v8_names.data(),
+                          v8_values.data(),
+                          property_count);
+  } else {
+    obj = v8::Object::New(env->isolate,
+                          v8_prototype_or_null,
+                          nullptr,
+                          nullptr,
+                          0);
+  }
+
+  RETURN_STATUS_IF_FALSE(env, !obj.IsEmpty(), napi_generic_failure);
+  *result = v8impl::JsValueFromV8LocalValue(obj);
+  return napi_clear_last_error(env);
+}
+
 napi_status NAPI_CDECL napi_create_array(napi_env env, napi_value* result) {
   CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, result);

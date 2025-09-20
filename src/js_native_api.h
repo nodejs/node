@@ -628,6 +628,13 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_object_freeze(napi_env env,
                                                       napi_value object);
 NAPI_EXTERN napi_status NAPI_CDECL napi_object_seal(napi_env env,
                                                     napi_value object);
+NAPI_EXTERN napi_status NAPI_CDECL napi_create_object_with_properties(
+      napi_env env,
+      napi_value prototype_or_null,
+      napi_value* property_names,
+      napi_value* property_values,
+      size_t property_count,
+      napi_value* result);
 #endif  // NAPI_VERSION >= 8
 
 EXTERN_C_END
