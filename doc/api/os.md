@@ -508,6 +508,32 @@ On POSIX systems, the operating system release is determined by calling
 available, `GetVersionExW()` will be used. See
 <https://en.wikipedia.org/wiki/Uname#Examples> for more information.
 
+## `os.guessFileDescriptorType(fd)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fd` {integer} The file descriptor number to try and guess the type of.
+
+* Returns: {string|null}
+
+Returns the type of the file descriptor passed in, or `null` if the provided file descriptor
+is invalid.
+A common use case for this function is checking whether standard input is passed into your process,
+and if it is, if it can be consumed by the process. For example, on Unix systems, if the type is `TTY`, it means
+you can prompt the user for new data while the process is running, and if it's `FILE` or `PIPE`, it means there is data
+available, but you shouldn't try to prompt for more.
+
+Currently, the following types for a file descriptor can be returned:
+
+* `'TCP'`
+* `'TTY'`
+* `'UDP'`
+* `'FILE'`
+* `'PIPE'`
+* `'UNKNOWN'`
+
 ## OS constants
 
 The following constants are exported by `os.constants`.
