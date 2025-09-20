@@ -818,6 +818,13 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
   // anymore.
   v8_args.emplace_back("--no-harmony-import-assertions");
 
+  if (!per_process::cli_options->per_isolate->max_old_space_size_percentage
+           .empty()) {
+    v8_args.emplace_back(
+        "--max_old_space_size=" +
+        per_process::cli_options->per_isolate->max_old_space_size);
+  }
+
   auto env_opts = per_process::cli_options->per_isolate->per_env;
   if (std::find(v8_args.begin(), v8_args.end(),
                 "--abort-on-uncaught-exception") != v8_args.end() ||
