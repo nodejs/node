@@ -104,6 +104,19 @@ transitioning builtin CreateAsyncFromSyncIteratorBaseline(syncIterator: JSAny):
   return CreateAsyncFromSyncIterator(context, syncIterator);
 }
 
+struct ForOfNextResult {
+  value: Object;
+  done: Object;
+}
+
+extern transitioning macro ForOfNextHelper(Context, Object, Object):
+    ForOfNextResult;
+
+transitioning builtin ForOfNextBaseline(
+    context: Context, iterator: JSAny, next: JSFunction): ForOfNextResult {
+  return ForOfNextHelper(context, iterator, next);
+}
+
 @export
 transitioning macro GetIteratorRecordAfterCreateAsyncFromSyncIterator(
     context: Context, asyncIterator: IteratorRecord): IteratorRecord {

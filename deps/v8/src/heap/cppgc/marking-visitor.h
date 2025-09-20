@@ -59,6 +59,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarkingVisitor final
  protected:
   bool DeferTraceToMutatorThreadIfConcurrent(const void*, TraceCallback,
                                              size_t) final;
+  bool IsConcurrent() const final { return true; }
 };
 
 class V8_EXPORT_PRIVATE RootMarkingVisitor : public RootVisitorBase {
@@ -67,9 +68,9 @@ class V8_EXPORT_PRIVATE RootMarkingVisitor : public RootVisitorBase {
   ~RootMarkingVisitor() override = default;
 
  protected:
-  void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) final;
+  void VisitRoot(const void*, TraceDescriptor, SourceLocation) final;
   void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback, const void*,
-                     const SourceLocation&) final;
+                     SourceLocation) final;
 
   MutatorMarkingState& mutator_marking_state_;
 };

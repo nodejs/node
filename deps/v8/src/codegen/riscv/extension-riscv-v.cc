@@ -419,9 +419,11 @@ DEFINE_OPMVV_VIE(vsext_vf2, 0b00111)
 void AssemblerRISCVV::vsetvli(Register rd, Register rs1, VSew vsew, Vlmul vlmul,
                               TailAgnosticType tail, MaskAgnosticType mask) {
   int32_t zimm = GenZimm(vsew, vlmul, tail, mask);
-  Instr instr = OP_V | ((rd.code() & 0x1F) << kRvvRdShift) | (0x7 << 12) |
-                ((rs1.code() & 0x1F) << kRvvRs1Shift) |
-                (((uint32_t)zimm << kRvvZimmShift) & kRvvZimmMask) | 0x0 << 31;
+  Instr instr =
+      OP_V | ((rd.code() & 0x1F) << kRvvRdShift) | (0x7 << 12) |
+      ((rs1.code() & 0x1F) << kRvvRs1Shift) |
+      ((static_cast<uint32_t>(zimm) << kRvvZimmShift) & kRvvZimmMask) |
+      0x0 << 31;
   emit(instr);
 }
 
@@ -430,9 +432,11 @@ void AssemblerRISCVV::vsetivli(Register rd, uint8_t uimm, VSew vsew,
                                MaskAgnosticType mask) {
   DCHECK(is_uint5(uimm));
   int32_t zimm = GenZimm(vsew, vlmul, tail, mask) & 0x3FF;
-  Instr instr = OP_V | ((rd.code() & 0x1F) << kRvvRdShift) | (0x7 << 12) |
-                ((uimm & 0x1F) << kRvvUimmShift) |
-                (((uint32_t)zimm << kRvvZimmShift) & kRvvZimmMask) | 0x3 << 30;
+  Instr instr =
+      OP_V | ((rd.code() & 0x1F) << kRvvRdShift) | (0x7 << 12) |
+      ((uimm & 0x1F) << kRvvUimmShift) |
+      ((static_cast<uint32_t>(zimm) << kRvvZimmShift) & kRvvZimmMask) |
+      0x3 << 30;
   emit(instr);
 }
 
@@ -539,10 +543,11 @@ void AssemblerRISCVV::GenInstrV(uint8_t funct6, Register rd, Register rs1,
 void AssemblerRISCVV::GenInstrV(uint8_t funct6, VRegister vd, int8_t imm5,
                                 VRegister vs2, MaskType mask) {
   DCHECK(is_uint5(imm5) || is_int5(imm5));
-  Instr instr = (funct6 << kRvvFunct6Shift) | OP_IVI | (mask << kRvvVmShift) |
-                ((vd.code() & 0x1F) << kRvvVdShift) |
-                (((uint32_t)imm5 << kRvvImm5Shift) & kRvvImm5Mask) |
-                ((vs2.code() & 0x1F) << kRvvVs2Shift);
+  Instr instr =
+      (funct6 << kRvvFunct6Shift) | OP_IVI | (mask << kRvvVmShift) |
+      ((vd.code() & 0x1F) << kRvvVdShift) |
+      ((static_cast<uint32_t>(imm5) << kRvvImm5Shift) & kRvvImm5Mask) |
+      ((vs2.code() & 0x1F) << kRvvVs2Shift);
   emit(instr);
 }
 

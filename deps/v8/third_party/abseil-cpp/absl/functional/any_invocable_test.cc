@@ -15,13 +15,17 @@
 #include "absl/functional/any_invocable.h"
 
 #include <cstddef>
+#include <cstdlib>
+#include <functional>
 #include <initializer_list>
+#include <iterator>
 #include <memory>
 #include <numeric>
 #include <type_traits>
 
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
+#include "absl/base/nullability.h"
 #include "absl/meta/type_traits.h"
 #include "absl/utility/utility.h"
 
@@ -652,8 +656,8 @@ TYPED_TEST_P(AnyInvTestBasic, InPlaceVoidCovarianceConstruction) {
 TYPED_TEST_P(AnyInvTestBasic, MoveConstructionFromEmpty) {
   using AnyInvType = typename TypeParam::AnyInvType;
 
-  AnyInvType source_fun;
-  AnyInvType fun(std::move(source_fun));
+  absl_nullable AnyInvType source_fun;
+  absl_nullable AnyInvType fun(std::move(source_fun));
 
   EXPECT_FALSE(static_cast<bool>(fun));
 

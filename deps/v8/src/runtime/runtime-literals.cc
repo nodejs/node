@@ -3,14 +3,23 @@
 // found in the LICENSE file.
 
 #include "src/ast/ast.h"
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/handles/maybe-handles.h"
 #include "src/objects/allocation-site-scopes-inl.h"
+#include "src/objects/casting.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/lookup.h"
+#include "src/objects/objects.h"
+#include "src/objects/property-descriptor-object.h"
+#include "src/objects/property-descriptor.h"
+#include "src/objects/property-details.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -112,6 +121,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
             copy->map(isolate), details.field_index(),
             details.representation());
         Tagged<Object> raw = copy->RawFastPropertyAt(isolate, index);
+        if (IsUninitializedHole(raw)) continue;
         if (IsJSObject(raw, isolate)) {
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -129,6 +139,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
             copy->property_dictionary_swiss(isolate), isolate);
         for (InternalIndex i : dict->IterateEntries()) {
           Tagged<Object> raw = dict->ValueAt(i);
+          if (IsUninitializedHole(raw)) continue;
           if (!IsJSObject(raw, isolate)) continue;
           DCHECK(IsName(dict->KeyAt(i)));
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
@@ -141,6 +152,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
                                           isolate);
         for (InternalIndex i : dict->IterateEntries()) {
           Tagged<Object> raw = dict->ValueAt(isolate, i);
+          if (IsUninitializedHole(raw)) continue;
           if (!IsJSObject(raw, isolate)) continue;
           DCHECK(IsName(dict->KeyAt(isolate, i)));
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
@@ -171,12 +183,13 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       if (elements->map() == ReadOnlyRoots(isolate).fixed_cow_array_map()) {
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
-          DCHECK(!IsJSObject(elements->get(i)));
+          DCHECK(IsTheHole(elements->get(i)) || !IsJSObject(elements->get(i)));
         }
 #endif
       } else {
         for (int i = 0; i < elements->length(); i++) {
           Tagged<Object> raw = elements->get(i);
+          if (IsTheHole(raw)) continue;
           if (!IsJSObject(raw, isolate)) continue;
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -191,6 +204,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           copy->element_dictionary(isolate), isolate);
       for (InternalIndex i : element_dictionary->IterateEntries()) {
         Tagged<Object> raw = element_dictionary->ValueAt(isolate, i);
+        if (IsTheHole(raw)) continue;
         if (!IsJSObject(raw, isolate)) continue;
         Handle<JSObject> value(Cast<JSObject>(raw), isolate);
         ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -403,7 +417,7 @@ Handle<JSObject> CreateObjectLiteral(
                              isolate);
     Handle<Object> value(object_boilerplate_description->value(index), isolate);
 
-    if (IsHeapObject(*value)) {
+    if (IsHeapObject(*value) && !IsUninitializedHole(*value, isolate)) {
       if (IsArrayBoilerplateDescription(Cast<HeapObject>(*value), isolate)) {
         auto array_boilerplate = Cast<ArrayBoilerplateDescription>(value);
         value = CreateArrayLiteral(isolate, array_boilerplate, allocation);
@@ -419,7 +433,7 @@ Handle<JSObject> CreateObjectLiteral(
     uint32_t element_index = 0;
     if (Object::ToArrayIndex(*key, &element_index)) {
       // Array index (uint32).
-      if (IsUninitialized(*value, isolate)) {
+      if (IsUninitializedHole(*value, isolate)) {
         value = handle(Smi::zero(), isolate);
       }
       JSObject::SetOwnElementIgnoreAttributes(boilerplate, element_index, value,
@@ -431,13 +445,6 @@ Handle<JSObject> CreateObjectLiteral(
       JSObject::SetOwnPropertyIgnoreAttributes(boilerplate, name, value, NONE)
           .Check();
     }
-  }
-
-  if (map->is_dictionary_map() && !has_null_prototype) {
-    // TODO(cbruni): avoid making the boilerplate fast again, the clone stub
-    // supports dict-mode objects directly.
-    JSObject::MigrateSlowToFast(
-        boilerplate, boilerplate->map()->UnusedPropertyFields(), "FastLiteral");
   }
   return boilerplate;
 }
@@ -466,7 +473,8 @@ Handle<JSObject> CreateArrayLiteral(
       if (DEBUG_BOOL) {
         auto fixed_array_values = Cast<FixedArray>(copied_elements_values);
         for (int i = 0; i < fixed_array_values->length(); i++) {
-          DCHECK(!IsFixedArray(fixed_array_values->get(i)));
+          DCHECK_IMPLIES(!IsAnyHole(fixed_array_values->get(i)),
+                         !IsFixedArray(fixed_array_values->get(i)));
         }
       }
     } else {
@@ -478,24 +486,24 @@ Handle<JSObject> CreateArrayLiteral(
       for (int i = 0; i < fixed_array_values->length(); i++) {
         Tagged<Object> value = fixed_array_values_copy->get(i);
         Tagged<HeapObject> value_heap_object;
-        if (value.GetHeapObject(isolate, &value_heap_object)) {
-          if (IsArrayBoilerplateDescription(value_heap_object, isolate)) {
-            HandleScope sub_scope(isolate);
-            DirectHandle<ArrayBoilerplateDescription> boilerplate(
-                Cast<ArrayBoilerplateDescription>(value_heap_object), isolate);
-            DirectHandle<JSObject> result =
-                CreateArrayLiteral(isolate, boilerplate, allocation);
-            fixed_array_values_copy->set(i, *result);
+        if (!value.GetHeapObject(isolate, &value_heap_object)) continue;
+        if (IsAnyHole(value_heap_object)) continue;
 
-          } else if (IsObjectBoilerplateDescription(value_heap_object,
-                                                    isolate)) {
-            HandleScope sub_scope(isolate);
-            DirectHandle<ObjectBoilerplateDescription> boilerplate(
-                Cast<ObjectBoilerplateDescription>(value_heap_object), isolate);
-            DirectHandle<JSObject> result = CreateObjectLiteral(
-                isolate, boilerplate, boilerplate->flags(), allocation);
-            fixed_array_values_copy->set(i, *result);
-          }
+        if (IsArrayBoilerplateDescription(value_heap_object, isolate)) {
+          HandleScope sub_scope(isolate);
+          DirectHandle<ArrayBoilerplateDescription> boilerplate(
+              Cast<ArrayBoilerplateDescription>(value_heap_object), isolate);
+          DirectHandle<JSObject> result =
+              CreateArrayLiteral(isolate, boilerplate, allocation);
+          fixed_array_values_copy->set(i, *result);
+
+        } else if (IsObjectBoilerplateDescription(value_heap_object, isolate)) {
+          HandleScope sub_scope(isolate);
+          DirectHandle<ObjectBoilerplateDescription> boilerplate(
+              Cast<ObjectBoilerplateDescription>(value_heap_object), isolate);
+          DirectHandle<JSObject> result = CreateObjectLiteral(
+              isolate, boilerplate, boilerplate->flags(), allocation);
+          fixed_array_values_copy->set(i, *result);
         }
       }
     }
@@ -584,6 +592,131 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteral<ObjectLiteralHelper>(
                    isolate, maybe_vector, literals_index, description, flags));
+}
+
+static MaybeDirectHandle<Object> SetPrototypePropertiesSlow(
+    Isolate* isolate, DirectHandle<Context> context, DirectHandle<JSObject> obj,
+    Handle<ObjectBoilerplateDescription> object_boilerplate_description) {
+  MaybeHandle<Object> result;
+
+  int length = object_boilerplate_description->boilerplate_properties_count();
+  for (int index = 0; index < length; index++) {
+    DirectHandle<Object> proto;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, proto,
+        Runtime::GetObjectProperty(isolate, obj,
+                                   isolate->factory()->prototype_string()));
+
+    DirectHandle<Object> key(object_boilerplate_description->name(index),
+                             isolate);
+    Handle<Object> value(object_boilerplate_description->value(index), isolate);
+
+    if (Handle<SharedFunctionInfo> shared;
+        TryCast<SharedFunctionInfo>(value, &shared)) {
+      value = Factory::JSFunctionBuilder{isolate, shared, context}
+                  .set_allocation_type(AllocationType::kYoung)
+                  .Build();
+    }
+
+    RETURN_ON_EXCEPTION(
+        isolate, Runtime::SetObjectProperty(isolate, Cast<JSAny>(proto), key,
+                                            value, StoreOrigin::kNamed));
+
+    result = value;
+  }
+
+  return result.ToHandleChecked();
+}
+
+RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  DirectHandle<Context> context(isolate->context(), isolate);
+  DirectHandle<JSObject> obj = args.at<JSObject>(0);  // acc JS Object
+  Handle<ObjectBoilerplateDescription> object_boilerplate_description =
+      args.at<ObjectBoilerplateDescription>(1);
+
+  // Proxy and any non-function not welcome
+  if (!IsJSFunction(*obj)) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, SetPrototypePropertiesSlow(isolate, context, obj,
+                                            object_boilerplate_description));
+  }
+
+  DirectHandle<JSFunction> acc_fun = Cast<JSFunction>(obj);
+  if (!acc_fun->has_prototype_slot()) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, SetPrototypePropertiesSlow(isolate, context, obj,
+                                            object_boilerplate_description));
+  }
+
+  DirectHandle<Object> prototype =
+      JSFunction::GetFunctionPrototype(isolate, acc_fun);
+
+  DCHECK(
+      prototype.equals(Runtime::GetObjectProperty(
+                           isolate, obj, isolate->factory()->prototype_string())
+                           .ToHandleChecked()));
+
+  if (IsNull(*prototype)) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, SetPrototypePropertiesSlow(isolate, context, obj,
+                                            object_boilerplate_description));
+  }
+
+  DirectHandle<JSObject> js_proto;
+  if (!TryCast<JSObject>(prototype, &js_proto)) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, SetPrototypePropertiesSlow(isolate, context, obj,
+                                            object_boilerplate_description));
+  }
+
+  // Make sure None of the keys we are writing to are setters/getters
+  // TODO(rherouart): if prototype is empty we can skip these checks
+  int length = object_boilerplate_description->boilerplate_properties_count();
+  for (int index = 0; index < length; index++) {
+    PropertyDescriptor desc;
+    DirectHandle<Object> key(object_boilerplate_description->name(index),
+                             isolate);
+    PropertyKey lookup_key(isolate, key);
+
+    LookupIterator it(isolate, js_proto, lookup_key,
+                      LookupIterator::PROTOTYPE_CHAIN);
+
+    if (it.state() == LookupIterator::NOT_FOUND) {
+      continue;
+    }
+    if (it.state() != LookupIterator::DATA || it.IsReadOnly()) {
+      RETURN_RESULT_OR_FAILURE(
+          isolate, SetPrototypePropertiesSlow(isolate, context, obj,
+                                              object_boilerplate_description));
+    }
+  }
+
+  // It should now be safe to perform a fast merge
+  MaybeHandle<Object> result;
+  for (int index = 0; index < length; index++) {
+    DirectHandle<Object> key(object_boilerplate_description->name(index),
+                             isolate);
+    Handle<Object> value(object_boilerplate_description->value(index), isolate);
+
+    if (Handle<SharedFunctionInfo> shared;
+        TryCast<SharedFunctionInfo>(value, &shared)) {
+      // TODO(rherouart): Add a feedback cell to the JSFunction
+      value = Factory::JSFunctionBuilder{isolate, shared, context}
+                  .set_allocation_type(AllocationType::kYoung)
+                  .Build();
+    }
+
+    DirectHandle<String> name = Cast<String>(key);
+    DCHECK(!name->IsArrayIndex());
+    JSObject::SetOwnPropertyIgnoreAttributes(js_proto, name, value, NONE)
+        .Check();
+
+    result = value;
+  }
+
+  return *result.ToHandleChecked();
 }
 
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {

@@ -14,7 +14,7 @@ namespace compiler {
 
 class CodeGenTest : public TestWithIsolateAndZone {
  public:
-  CodeGenTest() : TestWithIsolateAndZone(kCompressGraphZone) {}
+  CodeGenTest() = default;
 
  protected:
   void RunSmiConstant(int32_t v) {

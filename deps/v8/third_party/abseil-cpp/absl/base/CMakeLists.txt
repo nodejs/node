@@ -72,8 +72,6 @@ absl_cc_library(
     nullability
   HDRS
     "nullability.h"
-  SRCS
-    "internal/nullability_deprecated.h"
   DEPS
     absl::config
     absl::core_headers

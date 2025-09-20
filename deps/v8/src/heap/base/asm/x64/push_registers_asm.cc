@@ -36,8 +36,15 @@ asm(
     "PushAllRegistersAndIterateStack:                   \n"
 #endif  // !__APPLE__
     // rbp is callee-saved. Maintain proper frame pointer for debugging.
+    "  .cfi_startproc                                   \n"
     "  push %rbp                                        \n"
+    // CFA (Canonical Frame Address) starts 16 bytes above stack pointer.
+    "  .cfi_def_cfa_offset 16                           \n"
+    // Previous value of rbp is saved 16 bytes below CFA.
+    "  .cfi_offset rbp, -16                             \n"
     "  mov %rsp, %rbp                                   \n"
+    // rbp is now used to compute CFA address (rbp+16).
+    "  .cfi_def_cfa_register rbp                        \n"
     // Dummy for alignment.
     "  push $0xCDCDCD                                   \n"
     "  push %rbx                                        \n"
@@ -63,4 +70,4 @@ asm(
     ".size PushAllRegistersAndIterateStack, "
     ".Lfunc_end0-PushAllRegistersAndIterateStack        \n"
 #endif  // !defined(__APPLE__)
-    );
+    ".cfi_endproc                                      \n");

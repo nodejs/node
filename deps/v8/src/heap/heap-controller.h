@@ -14,9 +14,6 @@ namespace v8 {
 namespace internal {
 
 struct BaseControllerTrait {
-  static constexpr size_t kMinSize = 128u * Heap::kHeapLimitMultiplier * MB;
-  static constexpr size_t kMaxSize = 1024u * Heap::kHeapLimitMultiplier * MB;
-
   static constexpr double kMinGrowingFactor = 1.1;
   static constexpr double kMaxGrowingFactor = 4.0;
   static constexpr double kConservativeGrowingFactor = 1.3;
@@ -49,7 +46,8 @@ class V8_EXPORT_PRIVATE MemoryController : public AllStatic {
                                      Heap::HeapGrowingMode growing_mode);
 
  private:
-  static double MaxGrowingFactor(size_t max_heap_size);
+  static double MaxGrowingFactor(uint64_t physical_memory,
+                                 size_t max_heap_size);
   static double DynamicGrowingFactor(std::optional<double> gc_speed,
                                      double mutator_speed, double max_factor);
 

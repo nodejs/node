@@ -175,18 +175,17 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 77
+bytecode array length: 75
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
-                B(Mov), R(closure), R(2),
-                B(Mov), R(this), R(3),
-  /*    0 E> */ B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(2), U8(2),
-                B(Star0),
                 B(LdaConstant), U8(1),
                 B(Star2),
                 B(Mov), R(closure), R(3),
-                B(CallRuntime), U16(Runtime::kDeclareModuleExports), R(2), U8(2),
-                B(Ldar), R(0),
+  /*    0 E> */ B(CallRuntime), U16(Runtime::kDeclareModuleExports), R(2), U8(2),
+                B(Mov), R(closure), R(2),
+                B(Mov), R(this), R(3),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(2), U8(2),
+                B(Star0),
   /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(2), U8(0),
                 B(ResumeGenerator), R(0), R(0), U8(2),
                 B(Star2),
@@ -210,7 +209,7 @@ bytecodes: [
   /*   50 S> */ B(Return),
 ]
 constant pool: [
-  Smi [33],
+  Smi [31],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
@@ -226,18 +225,17 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 81
+bytecode array length: 79
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
-                B(Mov), R(closure), R(2),
-                B(Mov), R(this), R(3),
-  /*    0 E> */ B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(2), U8(2),
-                B(Star0),
                 B(LdaConstant), U8(1),
                 B(Star2),
                 B(Mov), R(closure), R(3),
-                B(CallRuntime), U16(Runtime::kDeclareModuleExports), R(2), U8(2),
-                B(Ldar), R(0),
+  /*    0 E> */ B(CallRuntime), U16(Runtime::kDeclareModuleExports), R(2), U8(2),
+                B(Mov), R(closure), R(2),
+                B(Mov), R(this), R(3),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(2), U8(2),
+                B(Star0),
   /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(2), U8(0),
                 B(ResumeGenerator), R(0), R(0), U8(2),
                 B(Star2),
@@ -261,7 +259,7 @@ bytecodes: [
   /*   52 S> */ B(Return),
 ]
 constant pool: [
-  Smi [33],
+  Smi [31],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
@@ -275,18 +273,17 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 61
+bytecode array length: 59
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
-                B(Mov), R(closure), R(1),
-                B(Mov), R(this), R(2),
-  /*    0 E> */ B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(1), U8(2),
-                B(Star0),
                 B(LdaConstant), U8(1),
                 B(Star1),
                 B(Mov), R(closure), R(2),
-                B(CallRuntime), U16(Runtime::kDeclareModuleExports), R(1), U8(2),
-                B(Ldar), R(0),
+  /*    0 E> */ B(CallRuntime), U16(Runtime::kDeclareModuleExports), R(1), U8(2),
+                B(Mov), R(closure), R(1),
+                B(Mov), R(this), R(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(1), U8(2),
+                B(Star0),
   /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(1), U8(0),
                 B(ResumeGenerator), R(0), R(0), U8(1),
                 B(Star1),
@@ -302,7 +299,7 @@ bytecodes: [
   /*   33 S> */ B(Return),
 ]
 constant pool: [
-  Smi [33],
+  Smi [31],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
@@ -317,18 +314,17 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 77
+bytecode array length: 75
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
-                B(Mov), R(closure), R(1),
-                B(Mov), R(this), R(2),
-  /*    0 E> */ B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(1), U8(2),
-                B(Star0),
                 B(LdaConstant), U8(1),
                 B(Star1),
                 B(Mov), R(closure), R(2),
-                B(CallRuntime), U16(Runtime::kDeclareModuleExports), R(1), U8(2),
-                B(Ldar), R(0),
+  /*    0 E> */ B(CallRuntime), U16(Runtime::kDeclareModuleExports), R(1), U8(2),
+                B(Mov), R(closure), R(1),
+                B(Mov), R(this), R(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(1), U8(2),
+                B(Star0),
   /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(1), U8(0),
                 B(ResumeGenerator), R(0), R(0), U8(1),
                 B(Star1),
@@ -352,7 +348,7 @@ bytecodes: [
   /*   27 S> */ B(Return),
 ]
 constant pool: [
-  Smi [33],
+  Smi [31],
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
@@ -435,18 +431,17 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 67
+bytecode array length: 65
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
-                B(Mov), R(closure), R(2),
-                B(Mov), R(this), R(3),
-  /*    0 E> */ B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(2), U8(2),
-                B(Star0),
                 B(LdaZero),
                 B(Star2),
-                B(CallRuntime), U16(Runtime::kGetModuleNamespace), R(2), U8(1),
+  /*    0 E> */ B(CallRuntime), U16(Runtime::kGetModuleNamespace), R(2), U8(1),
                 B(Star1),
-                B(Ldar), R(0),
+                B(Mov), R(closure), R(2),
+                B(Mov), R(this), R(3),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(2), U8(2),
+                B(Star0),
   /*    0 E> */ B(SuspendGenerator), R(0), R(0), U8(2), U8(0),
                 B(ResumeGenerator), R(0), R(0), U8(2),
                 B(Star2),
@@ -465,7 +460,7 @@ bytecodes: [
   /*   46 S> */ B(Return),
 ]
 constant pool: [
-  Smi [30],
+  Smi [28],
   Smi [10],
   Smi [7],
   INTERNALIZED_ONE_BYTE_STRING_TYPE ["f"],

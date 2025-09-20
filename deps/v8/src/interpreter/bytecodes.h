@@ -39,6 +39,17 @@ namespace interpreter {
   V(Star1, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)  \
   V(Star0, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)
 
+#define CALL_PROPERTY_BYTECODES(V)                                            \
+  V(CallProperty, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)         \
+  V(CallProperty0, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
+    OperandType::kReg, OperandType::kIdx)                                     \
+  V(CallProperty1, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
+    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                  \
+  V(CallProperty2, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
+    OperandType::kReg, OperandType::kReg, OperandType::kReg,                  \
+    OperandType::kIdx)
+
 // The list of bytecodes which have unique handlers (no other bytecode is
 // executed using identical code).
 // Format is V(<bytecode>, <implicit_register_use>, <operands>).
@@ -178,6 +189,8 @@ namespace interpreter {
   V(DefineKeyedOwnPropertyInLiteral, ImplicitRegisterUse::kReadAccumulator,    \
     OperandType::kReg, OperandType::kReg, OperandType::kFlag8,                 \
     OperandType::kIdx)                                                         \
+  V(SetPrototypeProperties, ImplicitRegisterUse::kReadAndClobberAccumulator,   \
+    OperandType::kIdx)                                                         \
                                                                                \
   /* Binary Operators */                                                       \
   V(Add, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \
@@ -206,9 +219,10 @@ namespace interpreter {
     OperandType::kReg, OperandType::kIdx)                                      \
                                                                                \
   /* Specialized binary operators. */                                          \
-  V(Add_LhsIsStringConstant_Internalize,                                       \
-    ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,             \
-    OperandType::kIdx)                                                         \
+  V(Add_StringConstant_Internalize,                                            \
+    ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg /* lhs */,   \
+    OperandType::kIdx /* feedback_slot */,                                     \
+    OperandType::kFlag8 /* AddStringConstantAndInternalizeVariant */)          \
                                                                                \
   /* Binary operators with immediate operands */                               \
   V(AddSmi, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kImm,     \
@@ -260,15 +274,7 @@ namespace interpreter {
   V(CallAnyReceiver, ImplicitRegisterUse::kWriteAccumulator,                   \
     OperandType::kReg, OperandType::kRegList, OperandType::kRegCount,          \
     OperandType::kIdx)                                                         \
-  V(CallProperty, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,   \
-    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
-  V(CallProperty0, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
-    OperandType::kReg, OperandType::kIdx)                                      \
-  V(CallProperty1, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
-    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
-  V(CallProperty2, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
-    OperandType::kReg, OperandType::kReg, OperandType::kReg,                   \
-    OperandType::kIdx)                                                         \
+  CALL_PROPERTY_BYTECODES(V)                                                   \
   V(CallUndefinedReceiver, ImplicitRegisterUse::kWriteAccumulator,             \
     OperandType::kReg, OperandType::kRegList, OperandType::kRegCount,          \
     OperandType::kIdx)                                                         \
@@ -358,6 +364,8 @@ namespace interpreter {
     OperandType::kReg, OperandType::kIdx)                                      \
   V(CreateFunctionContext, ImplicitRegisterUse::kWriteAccumulator,             \
     OperandType::kIdx, OperandType::kUImm)                                     \
+  V(CreateFunctionContextWithCells, ImplicitRegisterUse::kWriteAccumulator,    \
+    OperandType::kIdx, OperandType::kUImm)                                     \
   V(CreateEvalContext, ImplicitRegisterUse::kWriteAccumulator,                 \
     OperandType::kIdx, OperandType::kUImm)                                     \
   V(CreateWithContext, ImplicitRegisterUse::kWriteAccumulator,                 \
@@ -434,6 +442,10 @@ namespace interpreter {
   V(ForInNext, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,      \
     OperandType::kReg, OperandType::kRegPair, OperandType::kIdx)               \
   V(ForInStep, ImplicitRegisterUse::kNone, OperandType::kRegInOut)             \
+                                                                               \
+  /* Optimizing For..of */                                                     \
+  V(ForOfNext, ImplicitRegisterUse::kNone, OperandType::kReg,                  \
+    OperandType::kReg, OperandType::kRegOutPair)                               \
                                                                                \
   /* Update the pending message */                                             \
   V(SetPendingMessage, ImplicitRegisterUse::kReadWriteAccumulator)             \

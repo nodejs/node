@@ -131,7 +131,8 @@ class RelocInfo {
     // JSDispatchTable.
     JS_DISPATCH_HANDLE,
 
-    // An off-heap instruction stream target. See http://goo.gl/Z2HUiM.
+    // An off-heap instruction stream target. See:
+    // https://docs.google.com/document/d/1XmiXT54FQ0qqroWzRc8nzrpSSo_xoyFRkVgmonONEJk
     // TODO(ishell): rename to BUILTIN_ENTRY.
     OFF_HEAP_TARGET,  // FIRST_BUILTIN_ENTRY_MODE
     // An un-embedded off-heap instruction stream target.

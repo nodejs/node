@@ -323,7 +323,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_Peek:
     case kPPC_LoadDecompressTaggedSigned:
     case kPPC_LoadDecompressTagged:
-    case kPPC_LoadDecodeSandboxedPointer:
     case kPPC_S128Load8Splat:
     case kPPC_S128Load16Splat:
     case kPPC_S128Load32Splat:
@@ -352,8 +351,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_StoreDouble:
     case kPPC_StoreSimd128:
     case kPPC_StoreCompressTagged:
-    case kPPC_StoreIndirectPointer:
-    case kPPC_StoreEncodeSandboxedPointer:
     case kPPC_Push:
     case kPPC_PushFrame:
     case kPPC_StoreToStackSlot:

@@ -8,6 +8,7 @@
 #include <limits>
 #include <optional>
 
+#include "include/v8-internal.h"
 #include "src/ast/modules.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
@@ -19,10 +20,9 @@
 #include "src/objects/dependent-code.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/module-inl.h"
-#include "src/objects/property-cell.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/string-set-inl.h"
 #include "src/utils/boxed-float.h"
-#include "v8-internal.h"
 
 namespace v8::internal {
 
@@ -214,18 +214,16 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it, bool is_with_context) {
   if (!is_with_context || found.IsNothing() || !found.FromJust()) return found;
 
   DirectHandle<Object> unscopables;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, unscopables,
       JSReceiver::GetProperty(isolate, Cast<JSReceiver>(it->GetReceiver()),
-                              isolate->factory()->unscopables_symbol()),
-      Nothing<bool>());
+                              isolate->factory()->unscopables_symbol()));
   if (!IsJSReceiver(*unscopables)) return Just(true);
   DirectHandle<Object> blocklist;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, blocklist,
       JSReceiver::GetProperty(isolate, Cast<JSReceiver>(unscopables),
-                              it->name()),
-      Nothing<bool>());
+                              it->name()));
   return Just(!Object::BooleanValue(*blocklist, isolate));
 }
 
@@ -241,7 +239,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
                                InitializationFlag* init_flag,
                                VariableMode* variable_mode,
                                bool* is_sloppy_function_name) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
   bool has_seen_debug_evaluate_context = false;
@@ -462,9 +460,9 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         IsEphemeronHashTable(isolate->heap()->locals_block_list_cache())) {
       DirectHandle<ScopeInfo> scope_info =
           direct_handle(context->scope_info(), isolate);
-      Tagged<Object> maybe_outer_block_list =
+      Tagged<UnionOf<TheHole, StringSet>> maybe_outer_block_list =
           isolate->LocalsBlockListCacheGet(scope_info);
-      if (IsStringSet(maybe_outer_block_list) &&
+      if (!IsTheHole(maybe_outer_block_list) &&
           Cast<StringSet>(maybe_outer_block_list)->Has(isolate, name)) {
         if (v8_flags.trace_contexts) {
           PrintF(" - name is blocklisted. Aborting.\n");
@@ -527,7 +525,7 @@ DirectHandle<Object> Context::Get(DirectHandle<Context> context, int index,
                                   Isolate* isolate) {
   DirectHandle<Object> value =
       handle(context->get(index, kRelaxedLoad), isolate);
-  if (!Is<ContextCell>(value)) {
+  if (IsTheHole(*value) || !Is<ContextCell>(value)) {
     return value;
   }
   DCHECK(context->HasContextCells());
@@ -537,6 +535,9 @@ DirectHandle<Object> Context::Get(DirectHandle<Context> context, int index,
     case ContextCell::kSmi:
       return handle(cell->tagged_value(), isolate);
     case ContextCell::kInt32:
+      if (Smi::IsValid(cell->int32_value())) {
+        return handle(Smi::FromInt(cell->int32_value()), isolate);
+      }
       return isolate->factory()->NewHeapNumber(
           static_cast<double>(cell->int32_value()));
     case ContextCell::kFloat64:
@@ -566,6 +567,19 @@ void Context::Set(DirectHandle<Context> context, int index,
 
   if (!Is<ContextCell>(old_value)) {
     context->set(index, *new_value);
+    return;
+  }
+
+  if (IsUndefinedContextCell(*old_value, isolate)) {
+    if (IsUndefined(*new_value)) return;
+    if (IsTheHole(*new_value)) {
+      // This can happened in let-variable in function contexts.
+      context->set(index, *new_value);
+      return;
+    }
+    DirectHandle<ContextCell> cell =
+        isolate->factory()->NewContextCell(Cast<JSAny>(new_value));
+    context->set(index, *cell);
     return;
   }
 
@@ -658,7 +672,7 @@ bool NativeContext::HasTemplateLiteralObject(Tagged<JSArray> array) {
 }
 
 Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = Isolate::Current();
   Handle<Object> result(error_message_for_code_gen_from_strings(), isolate);
   if (!IsUndefined(*result, isolate)) return result;
   return isolate->factory()->NewStringFromStaticChars(
@@ -666,7 +680,7 @@ Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
 }
 
 DirectHandle<Object> Context::ErrorMessageForWasmCodeGeneration() {
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<Object> result(error_message_for_wasm_code_gen(), isolate);
   if (!IsUndefined(*result, isolate)) return result;
   return isolate->factory()->NewStringFromStaticChars(
@@ -720,7 +734,7 @@ bool Context::IsBootstrappingOrValidParentContext(Tagged<Object> object,
                                                   Tagged<Context> child) {
   // During bootstrapping we allow all objects to pass as
   // contexts. This is necessary to fix circular dependencies.
-  if (child->GetIsolate()->bootstrapper()->IsActive()) return true;
+  if (Isolate::Current()->bootstrapper()->IsActive()) return true;
   if (!IsContext(object)) return false;
   Tagged<Context> context = Cast<Context>(object);
   return IsNativeContext(context) || context->IsScriptContext() ||
@@ -761,7 +775,7 @@ static_assert(NativeContext::kSize ==
 void NativeContext::RunPromiseHook(PromiseHookType type,
                                    DirectHandle<JSPromise> promise,
                                    DirectHandle<Object> parent) {
-  Isolate* isolate = promise->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DCHECK(isolate->HasContextPromiseHooks());
   int contextSlot;
 

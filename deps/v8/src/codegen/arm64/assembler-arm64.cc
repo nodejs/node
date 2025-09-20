@@ -84,6 +84,9 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 #if defined(__ARM_FEATURE_HBC)
   features |= 1u << HBC;
 #endif
+#if defined(__ARM_FEATURE_MOPS)
+  features |= 1u << MOPS;
+#endif
   return features;
 }
 
@@ -147,6 +150,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
   if (cpu.has_cssc()) {
     runtime |= 1u << CSSC;
+  }
+  if (cpu.has_mops()) {
+    runtime |= 1u << MOPS;
   }
 
   // Use the best of the features found by CPU detection and those inferred from
@@ -247,9 +253,14 @@ bool RelocInfo::IsCodedSpecially() {
 
 bool RelocInfo::IsInConstantPool() {
   Instruction* instr = reinterpret_cast<Instruction*>(pc_);
-  DCHECK_IMPLIES(instr->IsLdrLiteralW(), COMPRESS_POINTERS_BOOL);
-  return instr->IsLdrLiteralX() ||
-         (COMPRESS_POINTERS_BOOL && instr->IsLdrLiteralW());
+  if (instr->IsLdrLiteralX()) return true;
+  if (!instr->IsLdrLiteralW()) return false;
+#ifdef DEBUG
+  uint32_t value = *reinterpret_cast<uint32_t*>(instr->ImmPCOffsetTarget());
+  DCHECK(COMPRESS_POINTERS_BOOL ||
+         JSDispatchTable::MaybeValidJSDispatchHandle(value));
+#endif  // DEBUG
+  return true;
 }
 
 uint32_t RelocInfo::wasm_call_tag() const {
@@ -431,16 +442,10 @@ win64_unwindinfo::BuiltinUnwindInfo Assembler::GetUnwindInfo() const {
 }
 #endif
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
-  for (auto& request : heap_number_requests_) {
-    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    Handle<HeapObject> object =
-        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-            request.heap_number());
-    EmbeddedObjectIndex index = AddEmbeddedObject(object);
-    set_embedded_object_index_referenced_from(pc, index);
-  }
+void Assembler::PatchInHeapNumberRequest(Address pc,
+                                         Handle<HeapNumber> object) {
+  EmbeddedObjectIndex index = AddEmbeddedObject(object);
+  set_embedded_object_index_referenced_from(pc, index);
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
@@ -506,6 +511,12 @@ void Assembler::CodeTargetAlign() {
   Align(8);
 #endif
 }
+
+void Assembler::SwitchTargetAlign() { CodeTargetAlign(); }
+
+void Assembler::BranchTargetAlign() { CodeTargetAlign(); }
+
+void Assembler::LoopHeaderAlign() { CodeTargetAlign(); }
 
 void Assembler::CheckLabelLinkChain(Label const* label) {
 #ifdef DEBUG
@@ -1340,6 +1351,32 @@ void Assembler::ctz(const Register& rd, const Register& rn) {
 
   Emit(0x5ac01800 | SF(rd) | Rd(rd) | Rn(rn));
 }
+
+#define MINMAX(V)                        \
+  V(smax, 0x11c00000, 0x1ac06000, true)  \
+  V(smin, 0x11c80000, 0x1ac06800, true)  \
+  V(umax, 0x11c40000, 0x1ac06400, false) \
+  V(umin, 0x11cc0000, 0x1ac06c00, false)
+
+#define DEFINE_ASM_FUNC(FN, IMMOP, REGOP, SIGNED)                          \
+  void Assembler::FN(const Register& rd, const Register& rn,               \
+                     const Operand& op) {                                  \
+    DCHECK(IsEnabled(CSSC));                                               \
+    DCHECK(rd.IsSameSizeAndType(rn));                                      \
+    Instr i = SF(rd) | Rd(rd) | Rn(rn);                                    \
+    if (op.IsImmediate()) {                                                \
+      int64_t imm = op.ImmediateValue();                                   \
+      i |= SIGNED ? ImmField<17, 10>(imm) : ImmUnsignedField<17, 10>(imm); \
+      Emit(IMMOP | i);                                                     \
+    } else {                                                               \
+      DCHECK(op.IsPlainRegister());                                        \
+      DCHECK(op.reg().IsSameSizeAndType(rd));                              \
+      Emit(REGOP | i | Rm(op.reg()));                                      \
+    }                                                                      \
+  }
+MINMAX(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+#undef MINMAX
 
 void Assembler::pacib1716() { Emit(PACIB1716); }
 void Assembler::autib1716() { Emit(AUTIB1716); }
@@ -2498,6 +2535,52 @@ void Assembler::mov(const VRegister& vd, int vd_index, const VRegister& vn,
 
 void Assembler::mvn(const Register& rd, const Operand& operand) {
   orn(rd, AppropriateZeroRegFor(rd), operand);
+}
+
+void Assembler::cpy(MemCpyOp op, const Register& rd, const Register& rs,
+                    const Register& rn) {
+  Emit(op | Rd(rd) | Rs(rs) | Rn(rn));
+}
+
+// Copy prologue
+void Assembler::cpyp(const Register& rd, const Register& rs,
+                     const Register& rn) {
+  cpy(CPYP, rd, rs, rn);
+}
+
+// Copy main
+void Assembler::cpym(const Register& rd, const Register& rs,
+                     const Register& rn) {
+  cpy(CPYM, rd, rs, rn);
+}
+
+// Copy epilogue
+void Assembler::cpye(const Register& rd, const Register& rs,
+                     const Register& rn) {
+  cpy(CPYE, rd, rs, rn);
+}
+
+void Assembler::set(MemSetOp op, const Register& rd, const Register& rn,
+                    const Register& rs) {
+  Emit(op | Rd(rd) | Rn(rn) | Rs(rs));
+}
+
+// Set prologue
+void Assembler::setp(const Register& rd, const Register& rn,
+                     const Register& rs) {
+  set(SETP, rd, rn, rs);
+}
+
+// Set main
+void Assembler::setm(const Register& rd, const Register& rn,
+                     const Register& rs) {
+  set(SETM, rd, rn, rs);
+}
+
+// Set epilogue
+void Assembler::sete(const Register& rd, const Register& rn,
+                     const Register& rs) {
+  set(SETE, rd, rn, rs);
 }
 
 void Assembler::mrs(const Register& rt, SystemRegister sysreg) {

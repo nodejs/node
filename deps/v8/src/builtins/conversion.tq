@@ -191,6 +191,22 @@ transitioning macro CallExoticToPrimitive(
 
 transitioning builtin NonPrimitiveToPrimitive_Default(
     implicit context: Context)(input: JSReceiver): JSPrimitive {
+  try {
+    // If it's a JSArray without properties and with unmodified prototype
+    // chain then
+    //  - we can skip lookup for @@toPrimitive - it'll not succeed anyway,
+    //  - we can skip lookup for toString - we know it'll be the
+    //    Array.prototype.toString,
+    //  - we can skip lookup for "join" property (done by toString()), we know
+    //    it'll be the Array.prototype.join,
+    // and thus we can short-cut directly to the middle of Array.prototype.join
+    // implementation.
+    const array = Cast<JSArrayForFastToString>(input) otherwise NonJSArray;
+    return array::ArrayPrototypeToString_Inline(array);
+  } label NonJSArray {
+    // Fall through.
+  }
+
   const exoticToPrimitive: JSAny = TryGetExoticToPrimitive(input)
       otherwise return OrdinaryToPrimitive_Number_Inline(input);
   return CallExoticToPrimitive(
@@ -207,6 +223,22 @@ transitioning builtin NonPrimitiveToPrimitive_Number(
 
 transitioning macro NonPrimitiveToPrimitive_String_Inline(
     implicit context: Context)(input: JSReceiver): JSPrimitive {
+  try {
+    // If it's a JSArray without properties and with unmodified prototype
+    // chain then
+    //  - we can skip lookup for @@toPrimitive - it'll not succeed anyway,
+    //  - we can skip lookup for toString - we know it'll be the
+    //    Array.prototype.toString,
+    //  - we can skip lookup for "join" property (done by toString()), we know
+    //    it'll be the Array.prototype.join,
+    // and thus we can short-cut directly to the middle of Array.prototype.join
+    // implementation.
+    const array = Cast<JSArrayForFastToString>(input) otherwise NonJSArray;
+    return array::ArrayPrototypeToString_Inline(array);
+  } label NonJSArray {
+    // Fall through.
+  }
+
   const exoticToPrimitive: JSAny = TryGetExoticToPrimitive(input)
       otherwise return OrdinaryToPrimitive_String_Inline(input);
   return CallExoticToPrimitive(

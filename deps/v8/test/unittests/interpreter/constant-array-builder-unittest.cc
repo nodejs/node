@@ -309,10 +309,10 @@ TEST_F(ConstantArrayBuilderTest, HolesWithUnusedReservations) {
     CHECK(Object::SameValue(constant_array->get(i),
                             *isolate()->factory()->the_hole_value()));
   }
-  CHECK(!Object::SameValue(constant_array->get(kNumberOfHoles - 1),
-                           *isolate()->factory()->the_hole_value()));
-  CHECK(!Object::SameValue(constant_array->get(k8BitCapacity),
-                           *isolate()->factory()->the_hole_value()));
+  CHECK_NE(constant_array->get(kNumberOfHoles - 1),
+           *isolate()->factory()->the_hole_value());
+  CHECK_NE(constant_array->get(k8BitCapacity),
+           *isolate()->factory()->the_hole_value());
 }
 
 TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {

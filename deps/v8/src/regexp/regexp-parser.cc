@@ -279,9 +279,9 @@ RegExpTree* RegExpTextBuilder::PopLastAtom() {
 
 RegExpTree* RegExpTextBuilder::ToRegExp() {
   FlushText();
-  size_t num_alternatives = terms_->size();
-  if (num_alternatives == 0) return zone()->New<RegExpEmpty>();
-  if (num_alternatives == 1) return terms_->back();
+  size_t number_of_terms = terms_->size();
+  if (number_of_terms == 0) return zone()->New<RegExpEmpty>();
+  if (number_of_terms == 1) return terms_->back();
   return zone()->New<RegExpAlternative>(zone()->New<ZoneList<RegExpTree*>>(
       base::VectorOf(terms_->begin(), terms_->size()), zone()));
 }
@@ -1645,7 +1645,7 @@ bool RegExpParserImpl<CharT>::CreateNamedCaptureAtIndex(
         DCHECK_NOT_NULL(named_capture_indices);
         DCHECK(!named_capture_indices->is_empty());
         for (int named_index : *named_capture_indices) {
-          if (named_index < non_participating_capture_group_interval.first ||
+          if (named_index <= non_participating_capture_group_interval.first ||
               named_index > non_participating_capture_group_interval.second) {
             ReportError(RegExpError::kDuplicateCaptureGroupName);
             return false;
@@ -1655,6 +1655,15 @@ bool RegExpParserImpl<CharT>::CreateNamedCaptureAtIndex(
         ReportError(RegExpError::kDuplicateCaptureGroupName);
         return false;
       }
+    }
+  }
+  if (v8_flags.js_regexp_duplicate_named_groups) {
+    // Check for nested named captures. This is necessary to find duplicate
+    // named captures within the same disjunct.
+    RegExpParserState* parent_state = state->previous_state();
+    if (parent_state && parent_state->IsInsideCaptureGroup(name)) {
+      ReportError(RegExpError::kDuplicateCaptureGroupName);
+      return false;
     }
   }
 

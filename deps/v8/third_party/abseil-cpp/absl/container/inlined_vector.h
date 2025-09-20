@@ -1008,9 +1008,17 @@ bool operator>=(const absl::InlinedVector<T, N, A>& a,
 // call this directly.
 template <typename H, typename T, size_t N, typename A>
 H AbslHashValue(H h, const absl::InlinedVector<T, N, A>& a) {
-  auto size = a.size();
-  return H::combine(H::combine_contiguous(std::move(h), a.data(), size),
-                    hash_internal::WeaklyMixedInteger{size});
+  return H::combine_contiguous(std::move(h), a.data(), a.size());
+}
+
+template <typename T, size_t N, typename A, typename Predicate>
+constexpr typename InlinedVector<T, N, A>::size_type erase_if(
+    InlinedVector<T, N, A>& v, Predicate pred) {
+  const auto it = std::remove_if(v.begin(), v.end(), std::move(pred));
+  const auto removed = static_cast<typename InlinedVector<T, N, A>::size_type>(
+      std::distance(it, v.end()));
+  v.erase(it, v.end());
+  return removed;
 }
 
 ABSL_NAMESPACE_END

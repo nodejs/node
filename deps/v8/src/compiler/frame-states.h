@@ -233,6 +233,8 @@ std::ostream& operator<<(std::ostream&, FrameStateInfo const&);
 
 enum class ContinuationFrameStateMode { EAGER, LAZY, LAZY_WITH_CATCH };
 
+uint8_t DeoptimizerParameterCountFor(ContinuationFrameStateMode mode);
+
 class FrameState;
 
 FrameState CreateStubBuiltinContinuationFrameState(

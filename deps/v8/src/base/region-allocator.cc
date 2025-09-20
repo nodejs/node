@@ -75,6 +75,18 @@ RegionAllocator::Region* RegionAllocator::FreeListFindRegion(size_t size) {
   return iter == free_regions_.end() ? nullptr : *iter;
 }
 
+RegionAllocator::Region* RegionAllocator::FreeListFindLargestRegion(
+    size_t size) {
+  Region* region = nullptr;
+  for (Region* free_region : free_regions_) {
+    if (free_region->size() < size) continue;
+    if (!region || free_region->size() > region->size()) {
+      region = free_region;
+    }
+  }
+  return region;
+}
+
 void RegionAllocator::FreeListRemoveRegion(Region* region) {
   DCHECK(region->is_free());
   auto iter = free_regions_.find(region);
@@ -130,11 +142,20 @@ void RegionAllocator::Merge(AllRegionsSet::iterator prev_iter,
   delete next;
 }
 
-RegionAllocator::Address RegionAllocator::AllocateRegion(size_t size) {
+RegionAllocator::Address RegionAllocator::AllocateRegion(
+    size_t size, AllocationStrategy allocation_strategy) {
   DCHECK_NE(size, 0);
   DCHECK(IsAligned(size, page_size_));
 
-  Region* region = FreeListFindRegion(size);
+  Region* region = nullptr;
+
+  if (allocation_strategy == AllocationStrategy::kFirstFit) {
+    region = FreeListFindRegion(size);
+  } else {
+    DCHECK_EQ(allocation_strategy, AllocationStrategy::kLargestFit);
+    region = FreeListFindLargestRegion(size);
+  }
+
   if (region == nullptr) return kAllocationFailure;
 
   if (region->size() != size) {

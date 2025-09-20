@@ -10,11 +10,11 @@
 namespace cppgc {
 namespace internal {
 
-void DCheckImpl(const char* message, const SourceLocation& loc) {
+void DCheckImpl(const char* message, SourceLocation loc) {
   V8_Dcheck(loc.FileName(), static_cast<int>(loc.Line()), message);
 }
 
-void FatalImpl(const char* message, const SourceLocation& loc) {
+void FatalImpl(const char* message, SourceLocation loc) {
 #if DEBUG
   V8_Fatal(loc.FileName(), static_cast<int>(loc.Line()), "Check failed: %s.",
            message);

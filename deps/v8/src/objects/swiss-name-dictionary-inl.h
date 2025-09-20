@@ -316,6 +316,9 @@ std::optional<Tagged<Object>> SwissNameDictionary::TryValueAt(
   Isolate* isolate;
   GetIsolateFromHeapObject(*this, &isolate);
   DCHECK_NE(isolate, nullptr);
+  // TODO(431584880): Replace `GetIsolateFromHeapObject` by
+  // `Isolate::Current()`.
+  DCHECK_EQ(isolate, Isolate::TryGetCurrent());
   SLOW_DCHECK(!isolate->heap()->IsPendingAllocation(Tagged(*this)));
 #endif  // DEBUG
   // We can read Capacity() in a non-atomic way since we are reading an
@@ -444,9 +447,8 @@ int SwissNameDictionary::GetMetaTableField(int field_index) {
 template <typename T>
 void SwissNameDictionary::SetMetaTableField(Tagged<ByteArray> meta_table,
                                             int field_index, int value) {
-  static_assert((std::is_same<T, uint8_t>::value) ||
-                (std::is_same<T, uint16_t>::value) ||
-                (std::is_same<T, uint32_t>::value));
+  static_assert((std::is_same_v<T, uint8_t>) || (std::is_same_v<T, uint16_t>) ||
+                (std::is_same_v<T, uint32_t>));
   DCHECK_LE(value, std::numeric_limits<T>::max());
   DCHECK_LT(meta_table->begin() + field_index * sizeof(T), meta_table->end());
   T* raw_data = reinterpret_cast<T*>(meta_table->begin());
@@ -457,9 +459,8 @@ void SwissNameDictionary::SetMetaTableField(Tagged<ByteArray> meta_table,
 template <typename T>
 int SwissNameDictionary::GetMetaTableField(Tagged<ByteArray> meta_table,
                                            int field_index) {
-  static_assert((std::is_same<T, uint8_t>::value) ||
-                (std::is_same<T, uint16_t>::value) ||
-                (std::is_same<T, uint32_t>::value));
+  static_assert((std::is_same_v<T, uint8_t>) || (std::is_same_v<T, uint16_t>) ||
+                (std::is_same_v<T, uint32_t>));
   DCHECK_LT(meta_table->begin() + field_index * sizeof(T), meta_table->end());
   T* raw_data = reinterpret_cast<T*>(meta_table->begin());
   return raw_data[field_index];
@@ -578,8 +579,10 @@ void SwissNameDictionary::Initialize(IsolateT* isolate,
 
   memset(CtrlTable(), Ctrl::kEmpty, CtrlTableSize(capacity));
 
-  MemsetTagged(RawField(DataTableStartOffset()), roots.the_hole_value(),
-               capacity * kDataTableEntryCount);
+  if (capacity > 0) {
+    MemsetTagged(RawField(DataTableStartOffset()), roots.the_hole_value(),
+                 capacity * kDataTableEntryCount);
+  }
 
   set_meta_table(meta_table);
 
@@ -660,6 +663,9 @@ SwissNameDictionary::IterateEntriesOrdered() {
   Isolate* isolate;
   GetIsolateFromHeapObject(*this, &isolate);
   DCHECK_NE(isolate, nullptr);
+  // TODO(431584880): Replace `GetIsolateFromHeapObject` by
+  // `Isolate::Current()`.
+  DCHECK_EQ(isolate, Isolate::TryGetCurrent());
   return IndexIterable(direct_handle(*this, isolate));
 }
 

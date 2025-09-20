@@ -3,6 +3,6 @@
 // found in the LICENSE file.
 
 Object.prototype.length = 3642395160;
-const array = new Float32Array(2**27);
+const array = new Float32Array(d8.constants.maxFixedArrayCapacity+1);
 
 assertThrows(() => {for (const key in array) {}}, RangeError);

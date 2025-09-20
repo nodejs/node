@@ -98,6 +98,10 @@ struct ExternalPointerTableEntry {
   // Invalidates the source entry.
   inline void Evacuate(ExternalPointerTableEntry& dest, EvacuateMarkMode mode);
 
+  // Copy the content of the given entry into this entry.
+  // The source entry remains valid.
+  inline void CopyFrom(const ExternalPointerTableEntry& src);
+
   // Mark this entry as alive during table garbage collection.
   inline void Mark();
 
@@ -392,6 +396,10 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   // This method is atomic and can be called from background threads.
   inline ExternalPointerHandle AllocateAndInitializeEntry(
       Space* space, Address initial_value, ExternalPointerTag tag);
+
+  // Duplicates an entry, returning a handle to the new entry.
+  inline ExternalPointerHandle DuplicateEntry(Space* space,
+                                              ExternalPointerHandle handle);
 
   // Marks the specified entry as alive.
   //

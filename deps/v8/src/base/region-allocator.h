@@ -40,6 +40,14 @@ class V8_BASE_EXPORT RegionAllocator final {
     kAllocated,
   };
 
+  enum class AllocationStrategy {
+    // Allocates in the first large enough free region.
+    kFirstFit,
+
+    // Allocates in the largest free region.
+    kLargestFit,
+  };
+
   RegionAllocator(Address address, size_t size, size_t page_size);
   RegionAllocator(const RegionAllocator&) = delete;
   RegionAllocator& operator=(const RegionAllocator&) = delete;
@@ -68,7 +76,8 @@ class V8_BASE_EXPORT RegionAllocator final {
 
   // Allocates region of |size| (must be |page_size|-aligned). Returns
   // the address of the region on success or kAllocationFailure.
-  Address AllocateRegion(size_t size);
+  Address AllocateRegion(size_t size, AllocationStrategy allocation_strategy =
+                                          AllocationStrategy::kFirstFit);
   // Same as above but tries to randomize the region displacement.
   Address AllocateRegion(RandomNumberGenerator* rng, size_t size);
 
@@ -202,6 +211,9 @@ class V8_BASE_EXPORT RegionAllocator final {
 
   // Finds best-fit free region for given size.
   Region* FreeListFindRegion(size_t size);
+
+  // Finds largest free region for given size.
+  Region* FreeListFindLargestRegion(size_t size);
 
   // Removes given region from the set of free regions.
   void FreeListRemoveRegion(Region* region);

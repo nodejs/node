@@ -145,18 +145,19 @@ TEST_F(IntlTest, FlattenRegionsToParts) {
 TEST_F(IntlTest, GetStringOption) {
   DirectHandle<JSObject> options =
       i_isolate()->factory()->NewJSObjectWithNullProto();
-  {
-    // No value found
-    std::unique_ptr<char[]> result = nullptr;
-    Maybe<bool> found =
-        GetStringOption(i_isolate(), options, "foo", std::vector<const char*>{},
-                        "service", &result);
-    CHECK(!found.FromJust());
-    CHECK_NULL(result);
-  }
 
   DirectHandle<String> key =
       i_isolate()->factory()->NewStringFromAsciiChecked("foo");
+  {
+    // No value found
+    DirectHandle<String> result;
+    Maybe<bool> found =
+        GetStringOption(i_isolate(), options, key, "service", &result);
+
+    CHECK(!found.FromJust());
+    CHECK(result.is_null());
+  }
+
   LookupIterator it(i_isolate(), options, key);
   CHECK(Object::SetProperty(
             &it, DirectHandle<Smi>(Smi::FromInt(42), i_isolate()),
@@ -165,52 +166,50 @@ TEST_F(IntlTest, GetStringOption) {
 
   {
     // Value found
-    std::unique_ptr<char[]> result = nullptr;
+    DirectHandle<String> result;
     Maybe<bool> found =
-        GetStringOption(i_isolate(), options, "foo", std::vector<const char*>{},
-                        "service", &result);
+        GetStringOption(i_isolate(), options, key, "service", &result);
+
     CHECK(found.FromJust());
-    CHECK_NOT_NULL(result);
-    CHECK_EQ(0, strcmp("42", result.get()));
+    std::string s = result->ToStdString();
+    CHECK_EQ(s, "42");
   }
 
   {
     // No expected value in values array
-    std::unique_ptr<char[]> result = nullptr;
-    Maybe<bool> found =
-        GetStringOption(i_isolate(), options, "foo",
-                        std::vector<const char*>{"bar"}, "service", &result);
+    auto values = std::to_array<const std::string_view>({"bar"});
+    Maybe<std::string_view> found = GetStringOption<std::string_view>(
+        i_isolate(), options, key, "service", values, values, std::nullopt);
     CHECK(i_isolate()->has_exception());
     CHECK(found.IsNothing());
-    CHECK_NULL(result);
     i_isolate()->clear_exception();
   }
 
   {
     // Expected value in values array
-    std::unique_ptr<char[]> result = nullptr;
-    Maybe<bool> found =
-        GetStringOption(i_isolate(), options, "foo",
-                        std::vector<const char*>{"42"}, "service", &result);
-    CHECK(found.FromJust());
-    CHECK_NOT_NULL(result);
-    CHECK_EQ(0, strcmp("42", result.get()));
+    auto values = std::to_array<const std::string_view>({"42"});
+
+    Maybe<std::string_view> found = GetStringOption<std::string_view>(
+        i_isolate(), options, key, "service", values, values, std::nullopt);
+    CHECK(found.IsJust());
+    CHECK_EQ(found.FromJust(), "42");
   }
 }
 
 TEST_F(IntlTest, GetBoolOption) {
   DirectHandle<JSObject> options =
       i_isolate()->factory()->NewJSObjectWithNullProto();
+  DirectHandle<String> key =
+      i_isolate()->factory()->NewStringFromAsciiChecked("foo");
+
   {
     bool result = false;
     Maybe<bool> found =
-        GetBoolOption(i_isolate(), options, "foo", "service", &result);
+        GetBoolOption(i_isolate(), options, key, "service", &result);
     CHECK(!found.FromJust());
     CHECK(!result);
   }
 
-  DirectHandle<String> key =
-      i_isolate()->factory()->NewStringFromAsciiChecked("foo");
   {
     LookupIterator it(i_isolate(), options, key);
     DirectHandle<Object> false_value(
@@ -221,7 +220,7 @@ TEST_F(IntlTest, GetBoolOption) {
         .Assert();
     bool result = false;
     Maybe<bool> found =
-        GetBoolOption(i_isolate(), options, "foo", "service", &result);
+        GetBoolOption(i_isolate(), options, key, "service", &result);
     CHECK(found.FromJust());
     CHECK(!result);
   }
@@ -236,7 +235,7 @@ TEST_F(IntlTest, GetBoolOption) {
         .Assert();
     bool result = false;
     Maybe<bool> found =
-        GetBoolOption(i_isolate(), options, "foo", "service", &result);
+        GetBoolOption(i_isolate(), options, key, "service", &result);
     CHECK(found.FromJust());
     CHECK(result);
   }

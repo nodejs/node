@@ -436,8 +436,7 @@ class WithInternalIsolateMixin : public TMixin {
 template <typename TMixin>
 class WithZoneMixin : public TMixin {
  public:
-  explicit WithZoneMixin(bool support_zone_compression = false)
-      : zone_(&allocator_, ZONE_NAME, support_zone_compression) {}
+  WithZoneMixin() : zone_(&allocator_, ZONE_NAME) {}
   WithZoneMixin(const WithZoneMixin&) = delete;
   WithZoneMixin& operator=(const WithZoneMixin&) = delete;
 
@@ -578,7 +577,8 @@ class FeedbackVectorHelper {
       : vector_(vector) {
     int slot_count = vector->length();
     slots_.reserve(slot_count);
-    FeedbackMetadataIterator iter(vector->metadata());
+    DisallowGarbageCollection no_gc;
+    FeedbackMetadataIterator iter(vector->metadata(), no_gc);
     while (iter.HasNext()) {
       FeedbackSlot slot = iter.Next();
       slots_.push_back(slot);

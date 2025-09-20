@@ -22,7 +22,7 @@ using v8::String;
 using v8::Value;
 
 Realm::Realm(Environment* env, v8::Local<v8::Context> context, Kind kind)
-    : env_(env), isolate_(context->GetIsolate()), kind_(kind) {
+    : env_(env), isolate_(Isolate::GetCurrent()), kind_(kind) {
   context_.Reset(isolate_, context);
   env->AssignToContext(context, this, ContextInfo(""));
   // The environment can also purge empty wrappers in the check callback,

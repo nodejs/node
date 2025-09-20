@@ -88,6 +88,12 @@ Node* GetAlias(Node* node) {
   }
 }
 
+wasm::TypeInModule Intersection(wasm::TypeInModule type1,
+                                wasm::TypeInModule type2) {
+  DCHECK_EQ(type1.module, type2.module);
+  return wasm::Intersection(type1.type, type2.type, type1.module);
+}
+
 }  // namespace
 
 Node* WasmGCOperatorReducer::SetType(Node* node, wasm::ValueType type) {
@@ -138,7 +144,7 @@ wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(
     type_from_state = state.LookupState(object);
   }
   if (!type_from_state.IsSet()) return type_from_node;
-  return wasm::Intersection(type_from_node, type_from_state.type);
+  return compiler::Intersection(type_from_node, type_from_state.type);
 }
 
 Reduction WasmGCOperatorReducer::ReduceWasmStructOperation(Node* node) {
@@ -216,10 +222,8 @@ Reduction WasmGCOperatorReducer::ReduceIf(Node* node, bool condition) {
       wasm::ValueType to_type =
           OpParameter<WasmTypeCheckConfig>(condition_node->op()).to;
 
-      // TODO(12166): Think about {module_} below if we have cross-module
-      // inlining.
       wasm::TypeInModule new_type =
-          wasm::Intersection(object_type, {to_type, module_});
+          wasm::Intersection(object_type.type, to_type, module_);
       return UpdateNodeAndAliasesTypes(node, parent_state, object, new_type,
                                        true);
     }
@@ -360,7 +364,7 @@ Reduction WasmGCOperatorReducer::ReduceTypeGuard(Node* node) {
   if (!guarded_type.IsWasm()) return NoChange();
 
   wasm::TypeInModule new_type =
-      wasm::Intersection(object_type, guarded_type.AsWasm());
+      compiler::Intersection(object_type, guarded_type.AsWasm());
 
   return UpdateNodeAndAliasesTypes(node, GetState(control), node, new_type,
                                    false);
@@ -377,12 +381,12 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
   if (object_type.type.is_uninhabited()) return NoChange();
   if (InDeadBranch(rtt)) return NoChange();
   wasm::TypeInModule rtt_type = NodeProperties::GetType(rtt).AsWasm();
+  DCHECK_EQ(object_type.module, rtt_type.module);
   bool to_nullable =
       OpParameter<WasmTypeCheckConfig>(node->op()).to.is_nullable();
 
   if (wasm::IsHeapSubtypeOf(object_type.type.heap_type(),
-                            rtt_type.type.heap_type(), object_type.module,
-                            rtt_type.module)) {
+                            rtt_type.type.heap_type(), object_type.module)) {
     if (to_nullable) {
       // Type cast will always succeed. Turn it into a TypeGuard to not lose any
       // type information.
@@ -403,8 +407,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
   }
 
   if (wasm::HeapTypesUnrelated(object_type.type.heap_type(),
-                               rtt_type.type.heap_type(), object_type.module,
-                               rtt_type.module)) {
+                               rtt_type.type.heap_type(), object_type.module)) {
     gasm_.InitializeEffectControl(effect, control);
     // A cast between unrelated types can only succeed if the argument is null.
     // Otherwise, it always fails.
@@ -421,8 +424,6 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
     return Replace(null_node);
   }
 
-  // TODO(12166): Think about modules below if we have cross-module inlining.
-
   // Update the from-type in the type cast.
   WasmTypeCheckConfig current_config =
       OpParameter<WasmTypeCheckConfig>(node->op());
@@ -431,7 +432,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
                                       current_config.exactness}));
 
   wasm::TypeInModule new_type =
-      wasm::Intersection(object_type, {rtt_type.type.AsNullable(), module_});
+      wasm::Intersection(object_type.type, rtt_type.type.AsNullable(), module_);
 
   return UpdateNodeAndAliasesTypes(node, GetState(control), node, new_type,
                                    false);
@@ -468,8 +469,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCastAbstract(Node* node) {
   }
 
   if (wasm::HeapTypesUnrelated(object_type.type.heap_type(),
-                               config.to.heap_type(), object_type.module,
-                               object_type.module)) {
+                               config.to.heap_type(), object_type.module)) {
     gasm_.InitializeEffectControl(effect, control);
     // A cast between unrelated types can only succeed if the argument is null.
     // Otherwise, it always fails.
@@ -492,7 +492,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCastAbstract(Node* node) {
                 {object_type.type, config.to, config.exactness}));
 
   wasm::TypeInModule new_type =
-      wasm::Intersection(object_type, {config.to, module_});
+      wasm::Intersection(object_type.type, config.to, module_);
 
   return UpdateNodeAndAliasesTypes(node, GetState(control), node, new_type,
                                    false);
@@ -509,10 +509,10 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
   if (object_type.type.is_uninhabited()) return NoChange();
   if (InDeadBranch(rtt)) return NoChange();
   wasm::TypeInModule rtt_type = NodeProperties::GetType(rtt).AsWasm();
+  DCHECK_EQ(object_type.module, rtt_type.module);
 
   if (wasm::IsHeapSubtypeOf(object_type.type.heap_type(),
-                            rtt_type.type.heap_type(), object_type.module,
-                            rtt_type.module)) {
+                            rtt_type.type.heap_type(), object_type.module)) {
     bool null_succeeds =
         OpParameter<WasmTypeCheckConfig>(node->op()).to.is_nullable();
     // Type cast will fail only on null.
@@ -527,8 +527,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
   }
 
   if (wasm::HeapTypesUnrelated(object_type.type.heap_type(),
-                               rtt_type.type.heap_type(), object_type.module,
-                               rtt_type.module)) {
+                               rtt_type.type.heap_type(), object_type.module)) {
     bool null_succeeds =
         OpParameter<WasmTypeCheckConfig>(node->op()).to.is_nullable();
     Node* condition = nullptr;
@@ -590,8 +589,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheckAbstract(Node* node) {
                             object_type.module);
   if (!implicit_internalize &&
       wasm::HeapTypesUnrelated(object_type.type.heap_type(),
-                               config.to.heap_type(), object_type.module,
-                               object_type.module)) {
+                               config.to.heap_type(), object_type.module)) {
     Node* condition = nullptr;
     if (null_succeeds && object_type.type.is_nullable()) {
       // The cast only succeeds in case of null.

@@ -40,22 +40,23 @@ struct WasmModule;
 // Calls to Wasm imports are handled in several different ways, depending on the
 // type of the target function/callable and whether the signature matches the
 // argument arity.
-// TODO(jkummerow): Merge kJSFunctionArity{Match,Mismatch}, we don't really
-// need the distinction any more.
 enum class ImportCallKind : uint8_t {
-  kLinkError,                // static Wasm->Wasm type error
-  kRuntimeTypeError,         // runtime Wasm->JS type error
-  kWasmToCapi,               // fast Wasm->C-API call
-  kWasmToJSFastApi,          // fast Wasm->JS Fast API C call
-  kWasmToWasm,               // fast Wasm->Wasm call
-  kJSFunctionArityMatch,     // fast Wasm->JS call
-  kJSFunctionArityMismatch,  // Wasm->JS, needs adapter frame
+  kLinkError,         // static Wasm->Wasm type error
+  kRuntimeTypeError,  // runtime Wasm->JS type error
+  kWasmToCapi,        // fast Wasm->C-API call
+  kWasmToJSFastApi,   // fast Wasm->JS Fast API C call
+  kWasmToWasm,        // fast Wasm->Wasm call
+  kJSFunction,        // fast Wasm->JS call
   // For everything else, there's the call builtin.
   kUseCallBuiltin
 };
 
-constexpr ImportCallKind kDefaultImportCallKind =
-    ImportCallKind::kJSFunctionArityMatch;
+enum PrecreateExternal : bool {
+  kOnlyInternalFunction = false,
+  kPrecreateExternal = true,
+};
+
+constexpr ImportCallKind kDefaultImportCallKind = ImportCallKind::kJSFunction;
 
 // Resolves which import call wrapper is required for the given JS callable.
 // Provides the kind of wrapper needed, the ultimate target callable, and the
@@ -110,11 +111,15 @@ MaybeDirectHandle<WasmInstanceObject> InstantiateToInstanceObject(
 // {instance}. If successful, returns the empty {Optional}, otherwise an
 // {Optional} that contains the error message. Exits early if the segment is
 // already initialized.
+// {precreate_external_functions} is a non-binding hint that it would be
+// beneficial for performance to create the corresponding WasmExportedFunctions
+// along with any internal funcrefs.
 std::optional<MessageTemplate> InitializeElementSegment(
     Zone* zone, Isolate* isolate,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
-    uint32_t segment_index);
+    uint32_t segment_index,
+    PrecreateExternal precreate_external_functions = kOnlyInternalFunction);
 
 V8_EXPORT_PRIVATE void CreateMapForType(
     Isolate* isolate, const WasmModule* module, ModuleTypeIndex type_index,
@@ -127,6 +132,8 @@ struct WrapperCompilationInfo {
   wasm::ImportCallKind import_kind = kDefaultImportCallKind;
   int expected_arity = 0;
   wasm::Suspend suspend = kNoSuspend;
+  // For js-wasm wrappers:
+  bool receiver_is_first_param = false;
 };
 
 }  // namespace wasm

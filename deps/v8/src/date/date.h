@@ -36,9 +36,6 @@ class V8_EXPORT_PRIVATE DateCache {
 
   // Sentinel that denotes an invalid local offset.
   static const int kInvalidLocalOffsetInMs = kMaxInt;
-  // Sentinel that denotes an invalid cache stamp.
-  // It is an invariant of DateCache that cache stamp is non-negative.
-  static const int kInvalidStamp = -1;
 
   DateCache();
 
@@ -163,13 +160,6 @@ class V8_EXPORT_PRIVATE DateCache {
   void BreakDownTime(int64_t time_ms, int* year, int* month, int* day,
                      int* weekday, int* hour, int* min, int* sec, int* ms);
 
-  // Cache stamp is used for invalidating caches in JSDate.
-  // We increment the stamp each time when the timezone information changes.
-  // JSDate objects perform stamp check and invalidate their caches if
-  // their saved stamp is not equal to the current stamp.
-  Tagged<Smi> stamp() { return stamp_; }
-  void* stamp_address() { return &stamp_; }
-
   // These functions are virtual so that we can override them when testing.
   virtual int GetDaylightSavingsOffsetFromOS(int64_t time_sec) {
     double time_ms = static_cast<double>(time_sec * 1000);
@@ -224,8 +214,6 @@ class V8_EXPORT_PRIVATE DateCache {
   bool InvalidSegment(CacheItem* segment) {
     return segment->start_ms > segment->end_ms;
   }
-
-  Tagged<Smi> stamp_;
 
   // Daylight Saving Time cache.
   CacheItem cache_[kCacheSize];

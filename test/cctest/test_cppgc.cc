@@ -10,7 +10,7 @@
 // This tests that Node.js can work with an existing CppHeap.
 
 // Mimic a class that does not know about Node.js.
-class CppGCed : public cppgc::GarbageCollected<CppGCed> {
+class CppGCed : public v8::Object::Wrappable {
  public:
   static int kConstructCount;
   static int kDestructCount;
@@ -30,7 +30,7 @@ class CppGCed : public cppgc::GarbageCollected<CppGCed> {
 
   static v8::Local<v8::Function> GetConstructor(
       v8::Local<v8::Context> context) {
-    auto ft = v8::FunctionTemplate::New(context->GetIsolate(), New);
+    auto ft = v8::FunctionTemplate::New(v8::Isolate::GetCurrent(), New);
     return ft->GetFunction(context).ToLocalChecked();
   }
 

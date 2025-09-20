@@ -116,6 +116,8 @@ class SourcePosition final {
     value_ = InliningIdField::update(value_, inlining_id + 1);
   }
 
+  static constexpr int MaxInliningId() { return InliningIdField::kMax; }
+
   static const int kNotInlined = -1;
   static_assert(kNoSourcePosition == -1);
 

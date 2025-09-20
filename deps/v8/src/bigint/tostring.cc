@@ -82,7 +82,7 @@ char* DivideByMagic(RWDigits rest, Digits input, char* output) {
       kHalfDigitBits * kBitsPerCharTableMultiplier / max_bits_per_char;
   constexpr digit_t chunk_divisor = digit_pow_rec(radix, chunk_chars);
   digit_t remainder = 0;
-  for (int i = input.len() - 1; i >= 0; i--) {
+  for (uint32_t i = input.len(); i-- > 0;) {
     digit_t d = input[i];
     digit_t upper = (remainder << kHalfDigitBits) | (d >> kHalfDigitBits);
     digit_t u_result = upper / chunk_divisor;
@@ -132,7 +132,7 @@ class ToStringFormatter {
   }
 
   void Start();
-  int Finish();
+  uint32_t Finish();
 
   void Classic() {
     if (digits_.len() == 0) {
@@ -225,15 +225,15 @@ void ToStringFormatter::Start() {
   DCHECK(chunk_divisor_ != 0);
 }
 
-int ToStringFormatter::Finish() {
+uint32_t ToStringFormatter::Finish() {
   DCHECK(out_ >= out_start_);
   DCHECK(out_ < out_end_);  // At least one character was written.
   while (out_ < out_end_ && *out_ == '0') out_++;
   if (sign_) *(--out_) = '-';
-  int excess = 0;
+  uint32_t excess = 0;
   if (out_ > out_start_) {
     size_t actual_length = out_end_ - out_;
-    excess = static_cast<int>(out_ - out_start_);
+    excess = static_cast<uint32_t>(out_ - out_start_);
     std::memmove(out_start_, out_, actual_length);
   }
   return excess;
@@ -245,7 +245,7 @@ void ToStringFormatter::BasePowerOfTwo() {
   digit_t digit = 0;
   // Keeps track of how many unprocessed bits there are in {digit}.
   int available_bits = 0;
-  for (int i = 0; i < digits_.len() - 1; i++) {
+  for (uint32_t i = 0; i < digits_.len() - 1; i++) {
     digit_t new_digit = digits_[i];
     // Take any leftover bits from the last iteration into account.
     int current = (digit | (new_digit << available_bits)) & char_mask;
@@ -320,12 +320,12 @@ void ToStringFormatter::BasePowerOfTwo() {
 class RecursionLevel {
  public:
   static RecursionLevel* CreateLevels(digit_t base_divisor, int base_char_count,
-                                      int target_bit_length,
+                                      uint32_t target_bit_length,
                                       ProcessorImpl* processor);
   ~RecursionLevel() { delete next_; }
 
-  void ComputeInverse(ProcessorImpl* proc, int dividend_length = 0);
-  Digits GetInverse(int dividend_length);
+  void ComputeInverse(ProcessorImpl* proc, uint32_t dividend_length = 0);
+  Digits GetInverse(uint32_t dividend_length);
 
  private:
   friend class ToStringFormatter;
@@ -358,7 +358,7 @@ class RecursionLevel {
 // static
 RecursionLevel* RecursionLevel::CreateLevels(digit_t base_divisor,
                                              int base_char_count,
-                                             int target_bit_length,
+                                             uint32_t target_bit_length,
                                              ProcessorImpl* processor) {
   RecursionLevel* level = new RecursionLevel(base_divisor, base_char_count);
   // We can stop creating levels when the next level's divisor, which is the
@@ -394,13 +394,13 @@ RecursionLevel* RecursionLevel::CreateLevels(digit_t base_divisor,
 // The top level might get by with a smaller inverse than we could maximally
 // compute, so the caller should provide the dividend length.
 void RecursionLevel::ComputeInverse(ProcessorImpl* processor,
-                                    int dividend_length) {
-  int inverse_len = divisor_.len();
+                                    uint32_t dividend_length) {
+  uint32_t inverse_len = divisor_.len();
   if (dividend_length != 0) {
     inverse_len = dividend_length - divisor_.len();
     DCHECK(inverse_len <= divisor_.len());
   }
-  int scratch_len = InvertScratchSpace(inverse_len);
+  uint32_t scratch_len = InvertScratchSpace(inverse_len);
   ScratchDigits scratch(scratch_len);
   Storage* inv_storage = new Storage(inverse_len + 1);
   inverse_storage_.reset(inv_storage);
@@ -411,9 +411,9 @@ void RecursionLevel::ComputeInverse(ProcessorImpl* processor,
   inverse_ = inverse_initializer;
 }
 
-Digits RecursionLevel::GetInverse(int dividend_length) {
+Digits RecursionLevel::GetInverse(uint32_t dividend_length) {
   DCHECK(inverse_.len() != 0);
-  int inverse_len = dividend_length - divisor_.len();
+  uint32_t inverse_len = dividend_length - divisor_.len();
   // If the bits in memory are reliable, then we always have enough digits
   // in the inverse available. This is a Release-mode CHECK because malicious
   // concurrent heap mutation can throw off the decisions made by the recursive
@@ -427,7 +427,7 @@ void ToStringFormatter::Fast() {
   // would be technically optimal, but vulnerable to a malicious worker that
   // uses an in-sandbox corruption primitive to concurrently toggle the MSD bits
   // between the invocations of {CreateLevels} and {ProcessLevel}.
-  int target_bit_length = digits_.len() * kDigitBits;
+  uint32_t target_bit_length = digits_.len() * kDigitBits;
   std::unique_ptr<RecursionLevel> recursion_levels(RecursionLevel::CreateLevels(
       chunk_divisor_, chunk_chars_, target_bit_length, processor_));
   if (processor_->should_terminate()) return;
@@ -512,12 +512,12 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
   ScratchDigits left(chunk.len() - level->divisor_.len() + 1);
 
   // Step 4: Divide to split {chunk} into {left} and {right}.
-  int inverse_len = chunk.len() - level->divisor_.len();
+  uint32_t inverse_len = chunk.len() - level->divisor_.len();
   if (inverse_len == 0) {
     processor_->DivideSchoolbook(left, right, chunk, level->divisor_);
   } else if (level->divisor_.len() == 1) {
     processor_->DivideSingle(left, right.digits(), chunk, level->divisor_[0]);
-    for (int i = 1; i < right.len(); i++) right[i] = 0;
+    for (uint32_t i = 1; i < right.len(); i++) right[i] = 0;
   } else {
     ScratchDigits scratch(DivideBarrettScratchSpace(chunk.len()));
     // The top level only computes its inverse when {chunk.len()} is
@@ -582,7 +582,7 @@ void ProcessorImpl::ToStringImpl(char* out, uint32_t* out_length, Digits X,
     formatter.Start();
     formatter.Classic();
   }
-  int excess = formatter.Finish();
+  uint32_t excess = formatter.Finish();
   *out_length -= excess;
   memset(out + *out_length, 0, excess);
 }

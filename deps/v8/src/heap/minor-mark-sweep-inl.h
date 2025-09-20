@@ -146,8 +146,8 @@ V8_INLINE SlotCallbackResult
 YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::CheckAndMarkObject(
     Visitor* visitor, TSlot slot) {
   static_assert(
-      std::is_same<TSlot, FullMaybeObjectSlot>::value ||
-          std::is_same<TSlot, MaybeObjectSlot>::value,
+      std::is_same_v<TSlot, FullMaybeObjectSlot> ||
+          std::is_same_v<TSlot, MaybeObjectSlot>,
       "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
   return visitor->VisitObjectViaSlotInRememberedSet(slot) ? KEEP_SLOT
                                                           : REMOVE_SLOT;

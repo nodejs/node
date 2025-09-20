@@ -5,6 +5,7 @@
 #include "src/regexp/regexp-result-vector.h"
 
 #include "src/execution/isolate.h"
+#include "src/sandbox/sandbox-malloc.h"
 
 namespace v8 {
 namespace internal {
@@ -50,7 +51,17 @@ int32_t* RegExpResultVectorScope::Initialize(int size) {
 // static
 int32_t* RegExpResultVector::Allocate(Isolate* isolate, uint32_t size) {
   DisallowGarbageCollection no_gc;
-  auto vector = new int32_t[size];
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // TODO(428659277): this vector must be accessible to sandboxed code. Since
+  // it only contains 32-bit offsets into the source string, it should be fine
+  // to always allocate it inside the sandox once we have a performant
+  // general-purpose in-sandbox memory allocator (see crbug.com/427464384). We
+  // should double-check that it's safe to do that and probably change the type
+  // to uint32_t to avoid accidental sign extension to size_t or similar bugs.
+  int32_t* vector = SandboxAllocArray<int32_t>(size);
+#else
+  int32_t* vector = new int32_t[size];
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   isolate->active_dynamic_regexp_result_vectors().insert(vector);
   return vector;
 }
@@ -61,7 +72,11 @@ void RegExpResultVector::Free(Isolate* isolate, int32_t* vector) {
   DisallowGarbageCollection no_gc;
   DCHECK_NOT_NULL(vector);
   isolate->active_dynamic_regexp_result_vectors().erase(vector);
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  SandboxFree(vector);
+#else
   delete[] vector;
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 }
 
 }  // namespace internal

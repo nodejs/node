@@ -10,7 +10,6 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 #include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-objects.h"
 
 namespace v8::internal::wasm {
 

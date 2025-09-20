@@ -105,7 +105,7 @@ MaybeLocal<Value> ToV8Value(Local<Context> context, BIOPointer&& bio) {
     return {};
   BUF_MEM* mem = bio;
   Local<Value> ret;
-  if (!String::NewFromUtf8(context->GetIsolate(),
+  if (!String::NewFromUtf8(Isolate::GetCurrent(),
                            mem->data,
                            NewStringType::kNormal,
                            mem->length)
@@ -119,7 +119,7 @@ MaybeLocal<Value> ToV8Value(Local<Context> context, const BIOPointer& bio) {
     return {};
   BUF_MEM* mem = bio;
   Local<Value> ret;
-  if (!String::NewFromUtf8(context->GetIsolate(),
+  if (!String::NewFromUtf8(Isolate::GetCurrent(),
                            mem->data,
                            NewStringType::kNormal,
                            mem->length)

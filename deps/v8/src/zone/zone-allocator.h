@@ -31,20 +31,10 @@ class ZoneAllocator {
   // ZoneVector and friends or for ParallelMove.
   ZoneAllocator() : ZoneAllocator(nullptr) { UNREACHABLE(); }
 #endif
-  explicit ZoneAllocator(Zone* zone) : zone_(zone) {
-    // If we are going to allocate compressed pointers in the zone it must
-    // support compression.
-    DCHECK_IMPLIES(is_compressed_pointer<T>::value,
-                   zone_->supports_compression());
-  }
+  explicit ZoneAllocator(Zone* zone) : zone_(zone) {}
   template <typename U>
   ZoneAllocator(const ZoneAllocator<U>& other) V8_NOEXCEPT
-      : ZoneAllocator<T>(other.zone()) {
-    // If we are going to allocate compressed pointers in the zone it must
-    // support compression.
-    DCHECK_IMPLIES(is_compressed_pointer<T>::value,
-                   zone_->supports_compression());
-  }
+      : ZoneAllocator<T>(other.zone()) {}
 
   T* allocate(size_t length) { return zone_->AllocateArray<T>(length); }
   void deallocate(T* p, size_t length) { zone_->DeleteArray<T>(p, length); }

@@ -89,14 +89,12 @@ class V8_EXPORT_PRIVATE MarkerBase {
   // Re-enable concurrent marking assuming it isn't enabled yet in GC cycle.
   void ReEnableConcurrentMarking();
 
-  // Makes marking progress.  A `marked_bytes_limit` of 0 means that the limit
-  // is determined by the internal marking scheduler.
-  //
-  // TODO(chromium:1056170): Remove TimeDelta argument when unified heap no
-  // longer uses it.
-  bool AdvanceMarkingWithLimits(
-      v8::base::TimeDelta = kMaximumIncrementalStepDuration,
-      size_t marked_bytes_limit = 0);
+  // Makes marking progress. The deadlines are only checked every few objects.
+  // - `max_duration`: A maximum marking duration.
+  // - `marked_bytes_limit`: Only process this many bytes. Ignored for
+  //   processing concurrent bailout objects.
+  bool AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
+                                size_t marked_bytes_limit);
 
   // Returns the size of the bytes marked in the last invocation of
   // `AdvanceMarkingWithLimits()`.
@@ -173,11 +171,11 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   // Processes the worklists with given deadlines. The deadlines are only
   // checked every few objects.
+  // - `time_deadline`: Time deadline that is always respected.
   // - `marked_bytes_deadline`: Only process this many bytes. Ignored for
   //   processing concurrent bailout objects.
-  // - `time_deadline`: Time deadline that is always respected.
-  bool ProcessWorklistsWithDeadline(size_t marked_bytes_deadline,
-                                    v8::base::TimeTicks time_deadline);
+  bool ProcessWorklistsWithDeadline(v8::base::TimeTicks time_deadline,
+                                    size_t marked_bytes_deadline);
   void AdvanceMarkingWithLimitsEpilogue();
 
   void VisitLocalRoots(StackState);

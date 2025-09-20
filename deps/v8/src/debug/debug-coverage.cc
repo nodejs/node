@@ -14,6 +14,12 @@
 #include "src/execution/isolate.h"
 #include "src/objects/objects.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/names-provider.h"
+#include "src/wasm/string-builder.h"
+#include "src/wasm/wasm-code-coverage.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 
@@ -616,24 +622,102 @@ std::unique_ptr<Coverage> Coverage::CollectBestEffort(Isolate* isolate) {
   return Collect(isolate, v8::debug::CoverageMode::kBestEffort);
 }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+
+std::unique_ptr<Coverage> Coverage::CollectWasmData(Isolate* isolate) {
+  // Unsupported if jitless mode is enabled at build-time since related
+  // optimizations deactivate invocation count updates.
+  CHECK(!V8_JITLESS_BOOL);
+
+  // Iterate shared function infos of every script and build a mapping
+  // between source ranges and invocation counts.
+  std::unique_ptr<Coverage> result(new Coverage());
+
+  // We cannot allocate inside the iterator, so we temporarily store function
+  // names as std::strings in this vector.
+  std::vector<std::string> function_names;
+  {
+    Script::Iterator script_it(isolate);
+    for (Tagged<Script> script = script_it.Next(); !script.is_null();
+         script = script_it.Next()) {
+      if (script->type() != Script::Type::kWasm) continue;
+
+      // Create and add new script data.
+      result->emplace_back(handle(script, isolate));
+      std::vector<CoverageFunction>* functions = &result->back().functions;
+      const wasm::NativeModule* native_module = script->wasm_native_module();
+      const wasm::WasmModule* wasm_module = native_module->module();
+      const wasm::WasmModuleCoverageData* coverage_data =
+          native_module->coverage_data().get();
+      for (int declared_function_index = 0;
+           declared_function_index <
+           static_cast<int>(coverage_data->function_count());
+           declared_function_index++) {
+        const int function_index =
+            declared_function_index + wasm_module->num_imported_functions;
+        wasm::StringBuilder sb;
+        wasm::NamesProvider names_provider(wasm_module,
+                                           native_module->wire_bytes());
+        names_provider.PrintFunctionName(sb, function_index,
+                                         wasm::NamesProvider::kDevTools);
+        function_names.emplace_back(sb.start(), sb.length());
+        CoverageFunction function(0, 0, 0, isolate->factory()->empty_string());
+        const wasm::WasmFunctionCoverageData* function_coverage =
+            coverage_data->GetFunctionCoverageData(declared_function_index);
+        if (function_coverage) {
+          const base::Vector<const wasm::WasmCodeRange> code_ranges =
+              function_coverage->code_ranges();
+          for (size_t i_code_range = 0; i_code_range < code_ranges.size();
+               i_code_range++) {
+            wasm::WasmCodeRange code_range = code_ranges[i_code_range];
+            const base::Vector<uint32_t> counters =
+                function_coverage->counters();
+            DCHECK_LT(i_code_range, counters.size());
+            function.blocks.emplace_back(code_range.start, code_range.end,
+                                         counters[i_code_range]);
+          }
+        }
+        functions->emplace_back(function);
+      }
+
+      // Remove entries for scripts that have no coverage.
+      if (functions->empty()) result->pop_back();
+    }
+  }
+
+  size_t i_name = 0;
+  for (CoverageScript& script : *result) {
+    for (CoverageFunction& function : script.functions) {
+      function.name = isolate->factory()->InternalizeString(
+          function_names[i_name].c_str(), function_names[i_name].length());
+      i_name++;
+    }
+  }
+  DCHECK_EQ(function_names.size(), i_name);
+
+  return result;
+}
+
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 std::unique_ptr<Coverage> Coverage::Collect(
-    Isolate* isolate, v8::debug::CoverageMode collectionMode) {
+    Isolate* isolate, v8::debug::CoverageMode collection_mode) {
   // Unsupported if jitless mode is enabled at build-time since related
   // optimizations deactivate invocation count updates.
   CHECK(!V8_JITLESS_BOOL);
 
   // Collect call counts for all functions.
   SharedToCounterMap counter_map;
-  CollectAndMaybeResetCounts(isolate, &counter_map, collectionMode);
+  CollectAndMaybeResetCounts(isolate, &counter_map, collection_mode);
 
   // Iterate shared function infos of every script and build a mapping
   // between source ranges and invocation counts.
   std::unique_ptr<Coverage> result(new Coverage());
 
   std::vector<Handle<Script>> scripts;
-  Script::Iterator scriptIt(isolate);
-  for (Tagged<Script> script = scriptIt.Next(); !script.is_null();
-       script = scriptIt.Next()) {
+  Script::Iterator script_it(isolate);
+  for (Tagged<Script> script = script_it.Next(); !script.is_null();
+       script = script_it.Next()) {
     if (script->IsUserJavaScript()) scripts.push_back(handle(script, isolate));
   }
 
@@ -695,7 +779,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
       }
 
       if (count != 0) {
-        switch (collectionMode) {
+        switch (collection_mode) {
           case v8::debug::CoverageMode::kBlockCount:
           case v8::debug::CoverageMode::kPreciseCount:
             break;
@@ -713,8 +797,8 @@ std::unique_ptr<Coverage> Coverage::Collect(
       Handle<String> name = SharedFunctionInfo::DebugName(isolate, info);
       CoverageFunction function(start, end, count, name);
 
-      if (IsBlockMode(collectionMode) && info->HasCoverageInfo(isolate)) {
-        CollectBlockCoverage(isolate, &function, *info, collectionMode);
+      if (IsBlockMode(collection_mode) && info->HasCoverageInfo(isolate)) {
+        CollectBlockCoverage(isolate, &function, *info, collection_mode);
       }
 
       // Only include a function range if itself or its parent function is

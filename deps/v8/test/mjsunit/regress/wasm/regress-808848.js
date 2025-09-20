@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Force TurboFan code for serialization.
-// Flags: --allow-natives-syntax --no-liftoff --no-wasm-lazy-compilation
+// Flags: --no-liftoff --no-wasm-lazy-compilation
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -47,12 +47,12 @@ let m1_bytes = builder.toBuffer();
 let m1 = new WebAssembly.Module(m1_bytes);
 
 // Serialize the module and postMessage it to another thread.
-let serialized_m1 = %SerializeWasmModule(m1);
+let serialized_m1 = d8.wasm.serializeModule(m1);
 
 let worker_onmessage = function({data:msg}) {
   let {serialized_m1, m1_bytes} = msg;
 
-  let m1_clone = %DeserializeWasmModule(serialized_m1, m1_bytes);
+  let m1_clone = d8.wasm.deserializeModule(serialized_m1, m1_bytes);
   let imports = {mod: {get: () => 3, call: () => {}}};
   let i2 = new WebAssembly.Instance(m1_clone, imports);
   i2.exports.main();

@@ -1519,6 +1519,14 @@ InstructionOperand* ConstraintBuilder::AllocateFixed(
       DCHECK_IMPLIES(is_input || is_output,
                      data()->config()->IsAllocatableSimd128Code(
                          operand->fixed_register_index()));
+#ifdef V8_TARGET_ARCH_X64
+      // The ExtractF128 node with lane 0 to Simd128 maybe elided as alias to
+      // the corresponding Simd256 ymm register on x64.
+    } else if (rep == MachineRepresentation::kSimd256) {
+      DCHECK_IMPLIES(is_input || is_output,
+                     data()->config()->IsAllocatableSimd256Code(
+                         operand->fixed_register_index()));
+#endif
     } else {
       UNREACHABLE();
     }

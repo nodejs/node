@@ -48,7 +48,7 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
   static std::atomic<uint64_t> rejectionsHandledAfter{0};
 
   Local<Promise> promise = message.GetPromise();
-  Isolate* isolate = promise->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   PromiseRejectEvent event = message.GetEvent();
 
   Environment* env = Environment::GetCurrent(isolate);

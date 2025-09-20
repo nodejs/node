@@ -9,6 +9,10 @@ const kHeapObjectTag = 0x1;
 assertSame(typeof Sandbox.base, 'number');
 assertSame(typeof Sandbox.byteLength, 'number');
 
+function getBuiltinId(name) {
+  return Sandbox.getBuiltinNames().indexOf(name);
+}
+
 let memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
 
 let obj = {a: 42};
@@ -85,3 +89,19 @@ for (let prop of Object.getOwnPropertyNames(this)) {
 for (let addr = 0; addr <= 0x1000; addr++) {
   Sandbox.isValidObjectAt(addr);
 }
+
+//
+// Sandbox.getBuiltinNames
+// Sandbox.setFunctionCodeToBuiltin
+//
+(function TestSandboxSetFunctionCodeToBuiltin() {
+  function f(obj) {}
+
+  // Make f() behave like Object.getPrototypeOf().
+  Sandbox.setFunctionCodeToBuiltin(f, getBuiltinId("ObjectGetPrototypeOf"));
+
+  let p = {x:42};
+  let o = Object.create(p);
+
+  assertSame(f(o), p);
+})();

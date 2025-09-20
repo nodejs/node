@@ -95,17 +95,17 @@ void EmbedderDataSlot::store_tagged(Tagged<JSObject> object,
 #endif
 }
 
-bool EmbedderDataSlot::ToAlignedPointer(IsolateForSandbox isolate,
-                                        void** out_pointer) const {
+bool EmbedderDataSlot::ToAlignedPointer(
+    IsolateForSandbox isolate, void** out_pointer,
+    ExternalPointerTagRange tag_range) const {
   // We don't care about atomicity of access here because embedder slots
   // are accessed this way only from the main thread via API during "mutator"
   // phase which is propely synched with GC (concurrent marker may still look
   // at the tagged part of the embedder slot but read-only access is ok).
 #ifdef V8_ENABLE_SANDBOX
   // The raw part must always contain a valid external pointer table index.
-  *out_pointer = reinterpret_cast<void*>(
-      ReadExternalPointerField<kEmbedderDataSlotPayloadTag>(
-          address() + kExternalPointerOffset, isolate));
+  *out_pointer = reinterpret_cast<void*>(ReadExternalPointerField(
+      address() + kExternalPointerOffset, isolate, tag_range));
   return true;
 #else
   Address raw_value;
@@ -123,9 +123,21 @@ bool EmbedderDataSlot::ToAlignedPointer(IsolateForSandbox isolate,
 #endif  // V8_ENABLE_SANDBOX
 }
 
+bool EmbedderDataSlot::ToGenericAlignedPointer(IsolateForSandbox isolate,
+                                               void** out_pointer) const {
+  return ToAlignedPointer(
+      isolate, out_pointer, {kFirstEmbedderDataTag, kLastEmbedderDataTag});
+}
+
+bool EmbedderDataSlot::DeprecatedToAlignedPointer(IsolateForSandbox isolate,
+                                                  void** out_pointer) const {
+  return ToAlignedPointer(
+      isolate, out_pointer, {kFirstEmbedderDataTag, kLastEmbedderDataTag});
+}
+
 bool EmbedderDataSlot::store_aligned_pointer(IsolateForSandbox isolate,
-                                             Tagged<HeapObject> host,
-                                             void* ptr) {
+                                             Tagged<HeapObject> host, void* ptr,
+                                             ExternalPointerTag tag) {
   Address value = reinterpret_cast<Address>(ptr);
   if (!HAS_SMI_TAG(value)) return false;
 #ifdef V8_ENABLE_SANDBOX
@@ -139,8 +151,7 @@ bool EmbedderDataSlot::store_aligned_pointer(IsolateForSandbox isolate,
   // determine whether the slot needs to be initialized, in which case a write
   // barrier can be performed here.
   size_t offset = address() - host.address() + kExternalPointerOffset;
-  host->WriteLazilyInitializedExternalPointerField<kEmbedderDataSlotPayloadTag>(
-      offset, isolate, value);
+  host->WriteLazilyInitializedExternalPointerField(offset, isolate, value, tag);
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
   return true;
 #else
@@ -148,6 +159,35 @@ bool EmbedderDataSlot::store_aligned_pointer(IsolateForSandbox isolate,
   return true;
 #endif  // V8_ENABLE_SANDBOX
 }
+
+#ifdef V8_ENABLE_SANDBOX
+bool EmbedderDataSlot::store_handle(IsolateForSandbox isolate,
+                                    Tagged<HeapObject> host,
+                                    ExternalPointerHandle handle) {
+  DCHECK_NE(handle, kNullExternalPointerHandle);
+  ExternalPointerTable& table =
+      isolate.GetExternalPointerTableFor(kEmbedderDataSlotPayloadTag);
+  ExternalPointerTable::Space* space = isolate.GetExternalPointerTableSpaceFor(
+      kEmbedderDataSlotPayloadTag, host.address());
+
+  ExternalPointerHandle new_handle = table.DuplicateEntry(space, handle);
+  if (new_handle == kNullExternalPointerHandle) return false;
+
+  auto location = reinterpret_cast<ExternalPointerHandle*>(
+      address() + kExternalPointerOffset);
+  DCHECK_EQ(base::AsAtomic32::Relaxed_Load(location),
+            kNullExternalPointerHandle);
+  base::AsAtomic32::Release_Store(location, new_handle);
+  size_t offset = address() - host.address() + kExternalPointerOffset;
+  // Use `offset` to avoid compilation issues for gn arg
+  // `v8_disable_write_barriers = true`.
+  USE(offset);
+  EXTERNAL_POINTER_WRITE_BARRIER(host, static_cast<int>(offset),
+                                 kEmbedderDataSlotPayloadTag);
+  ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
+  return true;
+}
+#endif  // V8_ENABLE_SANDBOX
 
 EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
     IsolateForSandbox isolate, const DisallowGarbageCollection& no_gc) const {

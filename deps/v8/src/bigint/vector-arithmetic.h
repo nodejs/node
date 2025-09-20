@@ -22,7 +22,7 @@ digit_t SubAndReturnBorrow(RWDigits Z, Digits X);
 // X += y.
 inline void Add(RWDigits X, digit_t y) {
   digit_t carry = y;
-  int i = 0;
+  uint32_t i = 0;
   do {
     X[i] = digit_add2(X[i], carry, &carry);
     i++;
@@ -32,7 +32,7 @@ inline void Add(RWDigits X, digit_t y) {
 // X -= y.
 inline void Subtract(RWDigits X, digit_t y) {
   digit_t borrow = y;
-  int i = 0;
+  uint32_t i = 0;
   do {
     X[i] = digit_sub(X[i], borrow, &borrow);
     i++;
@@ -53,7 +53,7 @@ inline bool GreaterThanOrEqual(Digits A, Digits B) {
   return Compare(A, B) >= 0;
 }
 
-inline int BitLength(Digits X) {
+inline uint32_t BitLength(Digits X) {
   return X.len() * kDigitBits - CountLeadingZeros(X.msd());
 }
 

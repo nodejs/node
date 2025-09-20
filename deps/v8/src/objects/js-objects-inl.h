@@ -60,8 +60,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSPrimitiveWrapper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSStringIterator)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSValidIteratorWrapper)
 
-NEVER_READ_ONLY_SPACE_IMPL(JSReceiver)
-
 DEF_GETTER(JSObject, elements, Tagged<FixedArrayBase>) {
   return TaggedField<FixedArrayBase, kElementsOffset>::load(cage_base, *this);
 }
@@ -182,8 +180,8 @@ void JSObject::EnsureCanContainElements(Isolate* isolate,
                                         DirectHandle<JSObject> object,
                                         TSlot objects, uint32_t count,
                                         EnsureElementsMode mode) {
-  static_assert(std::is_same<TSlot, FullObjectSlot>::value ||
-                    std::is_same<TSlot, ObjectSlot>::value,
+  static_assert(std::is_same_v<TSlot, FullObjectSlot> ||
+                    std::is_same_v<TSlot, ObjectSlot>,
                 "Only ObjectSlot and FullObjectSlot are expected here");
   ElementsKind current_kind = object->GetElementsKind();
   ElementsKind target_kind = current_kind;
@@ -193,18 +191,32 @@ void JSObject::EnsureCanContainElements(Isolate* isolate,
     bool is_holey = IsHoleyElementsKind(current_kind);
     if (current_kind == HOLEY_ELEMENTS) return;
     Tagged<Object> the_hole = GetReadOnlyRoots().the_hole_value();
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    Tagged<Undefined> undefined = GetReadOnlyRoots().undefined_value();
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     for (uint32_t i = 0; i < count; ++i, ++objects) {
       Tagged<Object> current = *objects;
-      if (current == the_hole
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-          || current == undefined
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-      ) {
+      if (current == the_hole) {
         is_holey = true;
         target_kind = GetHoleyElementsKind(target_kind);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      } else if (IsUndefined(current)) {
+        if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS) {
+          if (IsSmiElementsKind(target_kind)) {
+            target_kind = HOLEY_DOUBLE_ELEMENTS;
+          } else if (target_kind == PACKED_DOUBLE_ELEMENTS) {
+            target_kind = HOLEY_DOUBLE_ELEMENTS;
+          } else {
+            DCHECK(target_kind == PACKED_ELEMENTS ||
+                   target_kind == HOLEY_ELEMENTS ||
+                   target_kind == HOLEY_DOUBLE_ELEMENTS);
+          }
+        } else if (is_holey) {
+          if (IsSmiElementsKind(target_kind)) {
+            target_kind = HOLEY_ELEMENTS;
+            break;
+          }
+        } else {
+          target_kind = PACKED_ELEMENTS;
+        }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       } else if (!IsSmi(current)) {
         if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && IsNumber(current)) {
           if (IsSmiElementsKind(target_kind)) {
@@ -260,10 +272,10 @@ void JSObject::EnsureCanContainElements(Isolate* isolate,
   }
 }
 
-void JSObject::SetMapAndElements(DirectHandle<JSObject> object,
+void JSObject::SetMapAndElements(Isolate* isolate,
+                                 DirectHandle<JSObject> object,
                                  DirectHandle<Map> new_map,
                                  DirectHandle<FixedArrayBase> value) {
-  Isolate* isolate = object->GetIsolate();
   JSObject::MigrateToMap(isolate, object, new_map);
   DCHECK((object->map()->has_fast_smi_or_object_elements() ||
           (*value == ReadOnlyRoots(isolate).empty_fixed_array()) ||
@@ -498,7 +510,7 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
     uint64_t bits;
     if (IsSmi(value)) {
       bits = base::bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
-    } else if (IsUninitialized(value)) {
+    } else if (IsUninitializedHole(value)) {
       bits = kHoleNanInt64;
     } else {
       DCHECK(IsHeapNumber(value));
@@ -896,12 +908,24 @@ DEF_GETTER(JSReceiver, property_array, Tagged<PropertyArray>) {
   return Cast<PropertyArray>(prop);
 }
 
+void JSObject::EnsureWritableFastElements(Isolate* isolate,
+                                          DirectHandle<JSObject> object) {
+  DCHECK(object->HasSmiOrObjectElements() ||
+         object->HasFastStringWrapperElements() ||
+         object->HasAnyNonextensibleElements());
+  Tagged<FixedArray> raw_elems = Cast<FixedArray>(object->elements());
+  if (V8_UNLIKELY(raw_elems->map() ==
+                  ReadOnlyRoots(isolate).fixed_cow_array_map())) {
+    MakeElementsWritable(isolate, object);
+  }
+}
+
 std::optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
   DisallowGarbageCollection no_gc;
   Tagged<Map> meta_map = map()->map();
   DCHECK(IsMapMap(meta_map));
   Tagged<Object> maybe_native_context = meta_map->native_context_or_null();
-  if (IsNull(maybe_native_context)) return {};
+  if (V8_UNLIKELY(IsNull(maybe_native_context))) return {};
   DCHECK(IsNativeContext(maybe_native_context));
   return Cast<NativeContext>(maybe_native_context);
 }
@@ -986,12 +1010,13 @@ Tagged<NativeContext> JSGlobalObject::native_context() {
   return *GetCreationContext();
 }
 
-bool JSGlobalObject::IsDetached() {
-  return global_proxy()->IsDetachedFrom(*this);
+bool JSGlobalObject::IsDetached(Isolate* isolate) {
+  return global_proxy()->IsDetachedFrom(isolate, *this);
 }
 
-bool JSGlobalProxy::IsDetachedFrom(Tagged<JSGlobalObject> global) const {
-  const PrototypeIterator iter(this->GetIsolate(), Tagged<JSReceiver>(*this));
+bool JSGlobalProxy::IsDetachedFrom(Isolate* isolate,
+                                   Tagged<JSGlobalObject> global) const {
+  const PrototypeIterator iter(isolate, Tagged<JSReceiver>(*this));
   return iter.GetCurrent() != global;
 }
 

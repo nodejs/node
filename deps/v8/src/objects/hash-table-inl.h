@@ -12,6 +12,7 @@
 #include "src/heap/heap.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/roots/roots-inl.h"
 
@@ -28,7 +29,7 @@ void EphemeronHashTable::set_key(int index, Tagged<Object> value) {
   DCHECK_LT(index, this->length());
   objects()[index].Relaxed_Store_no_write_barrier(value);
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  DCHECK(HeapLayout::IsOwnedByAnyHeap(this));
+  DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(this));
   WriteBarrier::ForEphemeronHashTable(
       Tagged(this), ObjectSlot(&objects()[index]), value, UPDATE_WRITE_BARRIER);
 #endif
@@ -45,21 +46,21 @@ void EphemeronHashTable::set_key(int index, Tagged<Object> value,
 #if V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
   mode = UPDATE_WRITE_BARRIER;
 #endif
-  DCHECK(HeapLayout::IsOwnedByAnyHeap(this));
+  DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(this));
   WriteBarrier::ForEphemeronHashTable(
       Tagged(this), ObjectSlot(&objects()[index]), value, mode);
 #endif
 }
 
-int HashTableBase::NumberOfElements() const {
+uint32_t HashTableBase::NumberOfElements() const {
   return Cast<Smi>(get(kNumberOfElementsIndex)).value();
 }
 
-int HashTableBase::NumberOfDeletedElements() const {
+uint32_t HashTableBase::NumberOfDeletedElements() const {
   return Cast<Smi>(get(kNumberOfDeletedElementsIndex)).value();
 }
 
-int HashTableBase::Capacity() const {
+uint32_t HashTableBase::Capacity() const {
   return Cast<Smi>(get(kCapacityIndex)).value();
 }
 
@@ -82,12 +83,12 @@ void HashTableBase::ElementsRemoved(int n) {
 }
 
 // static
-int HashTableBase::ComputeCapacity(int at_least_space_for) {
+uint32_t HashTableBase::ComputeCapacity(uint32_t at_least_space_for) {
   // Add 50% slack to make slot collisions sufficiently unlikely.
   // See matching computation in HashTable::HasSufficientCapacityToAdd().
   // Must be kept in sync with CodeStubAssembler::HashTableComputeCapacity().
-  int raw_cap = at_least_space_for + (at_least_space_for >> 1);
-  int capacity = base::bits::RoundUpToPowerOfTwo32(raw_cap);
+  uint32_t raw_cap = at_least_space_for + (at_least_space_for >> 1);
+  uint32_t capacity = base::bits::RoundUpToPowerOfTwo32(raw_cap);
   return std::max({capacity, kMinCapacity});
 }
 
@@ -140,8 +141,15 @@ InternalIndex HashTable<Derived, Shape>::FindEntry(PtrComprCageBase cage_base,
   DisallowGarbageCollection no_gc;
   uint32_t capacity = Capacity();
   uint32_t count = 1;
+#if V8_STATIC_ROOTS_BOOL
+#define IS_UNDEFINED(x) IsUndefined(x)
+#define IS_THE_HOLE(x) IsTheHole(x)
+#else
   Tagged<Object> undefined = roots.undefined_value();
   Tagged<Object> the_hole = roots.the_hole_value();
+#define IS_UNDEFINED(x) (x) == undefined
+#define IS_THE_HOLE(x) (x) == the_hole
+#endif
   DCHECK_EQ(TodoShape::Hash(roots, key), static_cast<uint32_t>(hash));
   // EnsureCapacity will guarantee the hash table is never full.
   for (InternalIndex entry = FirstProbe(hash, capacity);;
@@ -149,10 +157,12 @@ InternalIndex HashTable<Derived, Shape>::FindEntry(PtrComprCageBase cage_base,
     Tagged<Object> element = KeyAt(cage_base, entry);
     // Empty entry. Uses raw unchecked accessors because it is called by the
     // string table during bootstrapping.
-    if (element == undefined) return InternalIndex::NotFound();
-    if (TodoShape::kMatchNeedsHoleCheck && element == the_hole) continue;
+    if (IS_UNDEFINED(element)) return InternalIndex::NotFound();
+    if (TodoShape::kMatchNeedsHoleCheck && IS_THE_HOLE(element)) continue;
     if (TodoShape::IsMatch(key, element)) return entry;
   }
+#undef IS_UNDEFINED
+#undef IS_THE_HOLE
 }
 
 template <typename Derived, typename Shape>
@@ -166,8 +176,7 @@ InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(IsolateT* isolate,
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::IsKey(ReadOnlyRoots roots, Tagged<Object> k) {
   // TODO(leszeks): Dictionaries that don't delete could skip the hole check.
-  return k != roots.unchecked_undefined_value() &&
-         k != roots.unchecked_the_hole_value();
+  return !IsUndefined(k, roots) && !IsTheHole(k, roots);
 }
 
 template <typename Derived, typename Shape>
@@ -236,7 +245,7 @@ void HashTable<Derived, Shape>::set_key(int index, Tagged<Object> value,
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::SetCapacity(int capacity) {
+void HashTable<Derived, Shape>::SetCapacity(uint32_t capacity) {
   // To scale a computed hash code to fit within the hash table, we
   // use bit-wise AND with a mask, so the capacity must be positive
   // and non-zero.

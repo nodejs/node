@@ -31,26 +31,42 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category::Group("devtools.timeline,v8"),
     perfetto::Category::Group("devtools.timeline,"
                               TRACE_DISABLED_BY_DEFAULT("v8.gc")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("cppgc")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("devtools.timeline")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.compile")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.gc")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.inspector")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.ic_stats")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.maglev")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats_sampling")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.turbofan")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan")),
-    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.zone_stats")),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("cppgc")).SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8")).SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.compile")).SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.gc")).SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.inspector"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.ic_stats"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.maglev"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats_sampling"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.turbofan"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan"))
+        .SetTags("slow"),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.zone_stats"))
+        .SetTags("slow"),
     perfetto::Category::Group("v8,devtools.timeline"),
     perfetto::Category::Group(TRACE_DISABLED_BY_DEFAULT("v8.turbofan") ","
                               TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan")),

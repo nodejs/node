@@ -61,11 +61,10 @@ class AsanUnpoisonScope final {
 
 #define DISABLE_ASAN
 
-#define ASAN_POISON_MEMORY_REGION(start, size)                      \
-  static_assert(std::is_pointer<decltype(start)>::value,            \
-                "static type violation");                           \
-  static_assert(std::is_convertible<decltype(size), size_t>::value, \
-                "static type violation");                           \
+#define ASAN_POISON_MEMORY_REGION(start, size)                                \
+  static_assert(std::is_pointer_v<decltype(start)>, "static type violation"); \
+  static_assert(std::is_convertible_v<decltype(size), size_t>,                \
+                "static type violation");                                     \
   USE(start, size)
 
 #define ASAN_UNPOISON_MEMORY_REGION(start, size) \

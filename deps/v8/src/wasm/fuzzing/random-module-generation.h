@@ -13,6 +13,7 @@
 #include "src/base/export-template.h"
 #include "src/base/logging.h"
 #include "src/base/vector.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8::internal {
 class Zone;
@@ -25,12 +26,39 @@ namespace v8::internal::wasm::fuzzing {
 // ones.
 enum WasmModuleGenerationOption { kGenerateSIMD, kGenerateWasmGC };
 
+struct ExportData {
+  std::string name;
+  const FunctionSig* sig;
+  ModuleTypeIndex sig_index;
+  std::string module_name;
+  uint32_t index = 0;
+
+  ExportData(std::string name, const FunctionSig* sig,
+             std::string module_name = "", uint32_t index = 0)
+      : name(std::move(name)),
+        sig(sig),
+        module_name(std::move(module_name)),
+        index(index) {}
+};
+
 struct WasmModuleGenerationOptions
     : public base::EnumSet<WasmModuleGenerationOption> {
+  // Implicitly construct from a `base::EnumSet` (this allows to use `EnumSet`'s
+  // operators on a `WasmModuleGenerationOptions` object).
+  constexpr WasmModuleGenerationOptions(
+      base::EnumSet<WasmModuleGenerationOption> options)
+      : base::EnumSet<WasmModuleGenerationOption>(options) {}
+
   bool generate_simd() const { return contains(kGenerateSIMD); }
   bool generate_wasm_gc() const { return contains(kGenerateWasmGC); }
 
   static constexpr WasmModuleGenerationOptions MVP() { return {{}}; }
+  static constexpr WasmModuleGenerationOptions Simd() {
+    return {{kGenerateSIMD}};
+  }
+  static constexpr WasmModuleGenerationOptions WasmGC() {
+    return {{kGenerateWasmGC}};
+  }
   static constexpr WasmModuleGenerationOptions All() {
     return {{kGenerateSIMD, kGenerateWasmGC}};
   }
@@ -41,7 +69,9 @@ struct WasmModuleGenerationOptions
 // The bytes will be allocated in the zone.
 // Defined in random-module-generation.cc.
 V8_EXPORT_PRIVATE base::Vector<uint8_t> GenerateRandomWasmModule(
-    Zone*, WasmModuleGenerationOptions, base::Vector<const uint8_t> data);
+    Zone*, WasmModuleGenerationOptions, base::Vector<const uint8_t> data,
+    std::vector<ExportData>* exports = nullptr,
+    std::vector<ExportData>* imports = nullptr);
 
 V8_EXPORT_PRIVATE base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
     Zone*, base::Vector<const uint8_t> data, size_t* count);
@@ -49,6 +79,9 @@ V8_EXPORT_PRIVATE base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
 V8_EXPORT_PRIVATE base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     Zone*, base::Vector<const uint8_t> data, std::vector<std::string>& callees,
     std::vector<std::string>& inlinees);
+
+V8_EXPORT_PRIVATE base::Vector<uint8_t> GenerateWasmModuleForRevec(
+    Zone*, base::Vector<const uint8_t> data);
 #endif
 
 }  // namespace v8::internal::wasm::fuzzing
