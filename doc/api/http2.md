@@ -2792,6 +2792,9 @@ Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59917
+    description: Added the `strictSingleValueFields` option.
   - version:
       - v23.0.0
       - v22.10.0
@@ -2929,6 +2932,10 @@ changes:
     and trailing whitespace validation for HTTP/2 header field names and values
     as per [RFC-9113](https://www.rfc-editor.org/rfc/rfc9113.html#section-8.2.1).
     **Default:** `true`.
+  * `strictSingleValueFields` {boolean} If `true`, strict validation is used
+    for headers and trailers defined as having only a single value, such that
+    an error is thrown if multiple values are provided.
+    **Default:** `true`.
   * `...options` {Object} Any [`net.createServer()`][] option can be provided.
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2Server}
@@ -2986,6 +2993,9 @@ server.listen(8000);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59917
+    description: Added the `strictSingleValueFields` option.
   - version:
       - v15.10.0
       - v14.16.0
@@ -3103,6 +3113,10 @@ changes:
   * `strictFieldWhitespaceValidation` {boolean} If `true`, it turns on strict leading
     and trailing whitespace validation for HTTP/2 header field names and values
     as per [RFC-9113](https://www.rfc-editor.org/rfc/rfc9113.html#section-8.2.1).
+    **Default:** `true`.
+  * `strictSingleValueFields` {boolean} If `true`, strict validation is used
+    for headers and trailers defined as having only a single value, such that
+    an error is thrown if multiple values are provided.
     **Default:** `true`.
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2SecureServer}
