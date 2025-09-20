@@ -266,8 +266,18 @@
         'HAVE_CONFIG_H',
         'WITH_EXAMPLE_OSSL',
         'EV_STANDALONE=1',
+        'HAVE_UNISTD_H',
+        'HAVE_ARPA_INET_H',
+        'HAVE_NETINET_IN_H',
+        'HAVE_NETINET_IP_H',
       ],
       'conditions': [
+        ['OS=="aix" or OS=="win"', {
+          # AIX does not support some of the networking features used in
+          # the test server. Windows also lacks the Unix-specific headers
+          # and system calls required by the ngtcp2 examples.
+          'type': 'none',  # Disable as executable on AIX and Windows
+        }],
         ['OS=="mac"', {
           'defines': [
             '__APPLE_USE_RFC_3542',
@@ -280,25 +290,6 @@
           'link_settings': {
             'libraries': [ '-lsocket', '-lnsl' ],
           },
-        }],
-        ['OS=="win"', {
-          'defines': [
-            'WIN32',
-            '_WINDOWS',
-          ],
-          'msvs_settings': {
-            'VCCLCompilerTool': {
-              'CompileAs': '1'
-            },
-          },
-        }],
-        ['OS!="win"', {
-          'defines': [
-            'HAVE_UNISTD_H',
-            'HAVE_ARPA_INET_H',
-            'HAVE_NETINET_IN_H',
-            'HAVE_NETINET_IP_H',
-          ],
         }],
         [ 'OS=="linux" or OS=="openharmony"', {
           'link_settings': {
@@ -333,8 +324,18 @@
         'HAVE_CONFIG_H',
         'WITH_EXAMPLE_OSSL',
         'EV_STANDALONE=1',
+        'HAVE_UNISTD_H',
+        'HAVE_ARPA_INET_H',
+        'HAVE_NETINET_IN_H',
+        'HAVE_NETINET_IP_H',
       ],
       'conditions': [
+        ['OS=="aix" or OS=="win"', {
+          # AIX does not support some of the networking features used in
+          # the test client. Windows also lacks the Unix-specific headers
+          # and system calls required by the ngtcp2 examples.
+          'type': 'none',  # Disable as executable on AIX and Windows
+        }],
         ['OS=="mac"', {
           'defines': [
             '__APPLE_USE_RFC_3542',
@@ -347,25 +348,6 @@
           'link_settings': {
             'libraries': [ '-lsocket', '-lnsl' ],
           },
-        }],
-        ['OS=="win"', {
-          'defines': [
-            'WIN32',
-            '_WINDOWS',
-          ],
-          'msvs_settings': {
-            'VCCLCompilerTool': {
-              'CompileAs': '1'
-            },
-          },
-        }],
-        ['OS!="win"', {
-          'defines': [
-            'HAVE_UNISTD_H',
-            'HAVE_ARPA_INET_H',
-            'HAVE_NETINET_IN_H',
-            'HAVE_NETINET_IP_H',
-          ],
         }],
         [ 'OS=="linux" or OS=="openharmony"', {
           'link_settings': {
