@@ -4371,6 +4371,8 @@ The `NO_PROXY` environment variable supports several formats:
 * `*.example.com` - Wildcard domain match
 * `192.168.1.100` - Exact IP address match
 * `192.168.1.1-192.168.1.100` - IP address range
+* `::1` or `[::1]` - Exact IPv6 address match
+* `::1-::100` - IPv6 address range
 * `example.com:8080` - Hostname with specific port
 
 Multiple entries should be separated by commas.
