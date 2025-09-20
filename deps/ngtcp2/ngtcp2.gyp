@@ -125,7 +125,7 @@
             },
           },
         }],
-        ['OS=="linux" or OS=="android"', {
+        ['OS=="linux" or OS=="android" or OS=="openharmony"', {
           'defines': [
             'HAVE_ARPA_INET_H',
             'HAVE_NETINET_IN_H',
@@ -207,7 +207,7 @@
         ['OS!="win"', {
           'defines': ['HAVE_UNISTD_H']
         }],
-        ['OS=="linux" or OS=="android"', {
+        ['OS=="linux" or OS=="android" or OS=="openharmony"', {
           'defines': [
             'HAVE_ARPA_INET_H',
             'HAVE_NETINET_IN_H',
