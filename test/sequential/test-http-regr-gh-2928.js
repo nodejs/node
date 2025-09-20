@@ -25,7 +25,7 @@ function execAndClose() {
   process.stdout.write('.');
 
   const parser = parsers.pop();
-  parser.initialize(HTTPParser.RESPONSE, {});
+  parser.initialize(HTTPParser.RESPONSE);
 
   const socket = net.connect(common.PORT, common.localhostIPv4);
   socket.on('error', (e) => {
