@@ -10,19 +10,20 @@ DEPS_DIR="$BASE_DIR/deps"
 # shellcheck disable=SC1091
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
-NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/ngtcp2/ngtcp2/releases',
-  process.env.GITHUB_TOKEN && {
-    headers: {
-      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`
-    },
-  });
-if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
-const releases = await res.json()
-const { tag_name } = releases.at(0);
-console.log(tag_name.replace('v', ''));
-EOF
-)"
+NEW_VERSION="1.15.1"
+# NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
+# const res = await fetch('https://api.github.com/repos/ngtcp2/ngtcp2/releases',
+#   process.env.GITHUB_TOKEN && {
+#     headers: {
+#       "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`
+#     },
+#   });
+# if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
+# const releases = await res.json()
+# const { tag_name } = releases.at(0);
+# console.log(tag_name.replace('v', ''));
+# EOF
+# )"
 
 NGTCP2_VERSION_H="$DEPS_DIR/ngtcp2/ngtcp2/lib/includes/ngtcp2/version.h"
 
@@ -42,18 +43,15 @@ cleanup () {
 trap cleanup INT TERM EXIT
 
 NGTCP2_REF="v$NEW_VERSION"
-NGTCP2_ZIP="ngtcp2-$NEW_VERSION"
 
 cd "$WORKSPACE"
 
 echo "Fetching ngtcp2 source archive..."
-curl -sL -o "$NGTCP2_ZIP.zip" "https://github.com/ngtcp2/ngtcp2/archive/refs/tags/$NGTCP2_REF.zip"
-log_and_verify_sha256sum "ngtcp2" "$NGTCP2_ZIP.zip"
-unzip "$NGTCP2_ZIP.zip"
-rm "$NGTCP2_ZIP.zip"
-mv "$NGTCP2_ZIP" ngtcp2
+git clone --depth 1 --branch "$NGTCP2_REF" https://github.com/ngtcp2/ngtcp2.git
 
 cd ngtcp2
+
+git submodule update --init --recursive
 
 autoreconf -i
 
@@ -61,10 +59,22 @@ autoreconf -i
 # ',-L/opt/local/lib' to LDFLAGS, and also pass
 # CPPFLAGS="-I/opt/local/include" to ./configure.
 
-./configure --prefix="$PWD/build" --enable-lib-only 
+./configure --prefix="$PWD/build" --enable-lib-only
 
 replace_dir "$DEPS_DIR/ngtcp2/ngtcp2/lib" "lib"
 replace_dir "$DEPS_DIR/ngtcp2/ngtcp2/crypto" "crypto"
+replace_dir "$DEPS_DIR/ngtcp2/ngtcp2/examples" "examples"
+replace_dir "$DEPS_DIR/ngtcp2/ngtcp2/third-party" "third-party"
+
+cd "$WORKSPACE"
+
+# Libev is a dependency of ngtcp2's examples. It really hasn't been updated
+# in a long time, sticking with the same version should be fine.
+curl -sL -o "libev.tar.gz" "https://dist.schmorp.de/libev/libev-4.33.tar.gz"
+tar xzf libev.tar.gz
+rm libev.tar.gz
+
+replace_dir "$DEPS_DIR/ngtcp2/ngtcp2/third-party/libev" "libev-4.33"
 
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need

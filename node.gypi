@@ -388,6 +388,8 @@
 
             # For tests
             './deps/openssl/openssl.gyp:openssl-cli',
+            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_server',
+            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_client',
           ],
           'conditions': [
             # -force_load or --whole-archive are not applicable for

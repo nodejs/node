@@ -87,6 +87,36 @@
       'nghttp3/lib/nghttp3_unreachable.c',
       'nghttp3/lib/nghttp3_vec.c',
       'nghttp3/lib/nghttp3_version.c',
+    ],
+    'ngtcp2_test_server_sources': [
+      'ngtcp2/examples/tls_server_session_ossl.cc',
+      'ngtcp2/examples/tls_server_context_ossl.cc',
+      'ngtcp2/examples/tls_session_base_ossl.cc',
+      'ngtcp2/examples/util_openssl.cc',
+      'ngtcp2/examples/http.cc',
+      'ngtcp2/examples/server_base.cc',
+      'ngtcp2/examples/shared.cc',
+      'ngtcp2/examples/server.cc',
+      'ngtcp2/examples/util.cc',
+      'ngtcp2/examples/debug.cc',
+      'ngtcp2/examples/siphash.cc',
+      'ngtcp2/third-party/urlparse/urlparse.c',
+      'ngtcp2/third-party/libev/ev.c',
+    ],
+    'ngtcp2_test_client_sources': [
+      'ngtcp2/examples/tls_client_session_ossl.cc',
+      'ngtcp2/examples/tls_client_context_ossl.cc',
+      'ngtcp2/examples/tls_session_base_ossl.cc',
+      'ngtcp2/examples/util_openssl.cc',
+      'ngtcp2/examples/http.cc',
+      'ngtcp2/examples/client_base.cc',
+      'ngtcp2/examples/shared.cc',
+      'ngtcp2/examples/client.cc',
+      'ngtcp2/examples/util.cc',
+      'ngtcp2/examples/debug.cc',
+      'ngtcp2/examples/siphash.cc',
+      'ngtcp2/third-party/urlparse/urlparse.c',
+      'ngtcp2/third-party/libev/ev.c',
     ]
   },
   'targets': [
@@ -131,19 +161,6 @@
             'HAVE_NETINET_IN_H',
           ],
         }],
-        # TODO: Support OpenSSL 3.5 shared library builds.
-        # The complexity here is that we need to use the ngtcp2 ossl
-        # adapter, which does not include any conditional checks to
-        # see if the version of OpenSSL used has the necessary QUIC
-        # APIs, so we need to ensure that we conditionally enable use
-        # of the adapter only when we know that the OpenSSL version we
-        # are compiling against has the necessary APIs. We can do that
-        # by checkig the OpenSSL version number but, currently, the
-        # code that does so checks only the VERSION.dat file that is
-        # bundled with the openssl dependency. We'll need to update
-        # that to support the shared library case, where the version
-        # of the shared library needs to be determined.
-        #
         # TODO: Support Boringssl here also. ngtcp2 provides an adapter
         # for Boringssl. If we can detect that boringssl is being used
         # here then we can use that adapter and also set the
@@ -224,6 +241,122 @@
       },
       'sources': [
         '<@(nghttp3_sources)'
+      ]
+    },
+    {
+      'target_name': 'ngtcp2_test_server',
+      'type': 'executable',
+      'cflags': [ '-Wno-everything' ],
+      'include_dirs': [
+        '',
+        'ngtcp2/examples/',
+        'ngtcp2/lib/includes/',
+        'ngtcp2/crypto/includes/',
+        'ngtcp2/third-party/urlparse/',
+        'ngtcp2/third-party/libev/',
+        '../../nghttp2/lib',
+      ],
+      'dependencies': [
+        'ngtcp2',
+        'nghttp3',
+        '../openssl/openssl.gyp:openssl',
+        '../nghttp2/nghttp2.gyp:sfparse',
+      ],
+      'defines': [
+        'HAVE_CONFIG_H',
+        'WITH_EXAMPLE_OSSL',
+        'EV_STANDALONE=1',
+        'HAVE_UNISTD_H',
+        'HAVE_ARPA_INET_H',
+        'HAVE_NETINET_IN_H',
+        'HAVE_NETINET_IP_H',
+      ],
+      'conditions': [
+        ['OS=="aix" or OS=="win"', {
+          # AIX does not support some of the networking features used in
+          # the test server. Windows also lacks the Unix-specific headers
+          # and system calls required by the ngtcp2 examples.
+          'type': 'none',  # Disable as executable on AIX and Windows
+        }],
+        ['OS=="mac"', {
+          'defines': [
+            '__APPLE_USE_RFC_3542',
+          ]
+        }],
+        ['OS=="solaris"', {
+          'defines': [
+            'IPTOS_ECN_MASK=0x03',
+          ],
+          'link_settings': {
+            'libraries': [ '-lsocket', '-lnsl' ],
+          },
+        }],
+        [ 'OS=="linux" or OS=="openharmony"', {
+          'link_settings': {
+            'libraries': [ '-ldl', '-lrt' ],
+          },
+        }],
+      ],
+      'sources': [
+        '<@(ngtcp2_test_server_sources)'
+      ]
+    },
+    {
+      'target_name': 'ngtcp2_test_client',
+      'type': 'executable',
+      'cflags': [ '-Wno-everything' ],
+      'include_dirs': [
+        '',
+        'ngtcp2/examples/',
+        'ngtcp2/lib/includes/',
+        'ngtcp2/crypto/includes/',
+        'ngtcp2/third-party/urlparse/',
+        'ngtcp2/third-party/libev/',
+        '../../nghttp2/lib',
+      ],
+      'dependencies': [
+        'ngtcp2',
+        'nghttp3',
+        '../openssl/openssl.gyp:openssl',
+        '../nghttp2/nghttp2.gyp:sfparse',
+      ],
+      'defines': [
+        'HAVE_CONFIG_H',
+        'WITH_EXAMPLE_OSSL',
+        'EV_STANDALONE=1',
+        'HAVE_UNISTD_H',
+        'HAVE_ARPA_INET_H',
+        'HAVE_NETINET_IN_H',
+        'HAVE_NETINET_IP_H',
+      ],
+      'conditions': [
+        ['OS=="aix" or OS=="win"', {
+          # AIX does not support some of the networking features used in
+          # the test client. Windows also lacks the Unix-specific headers
+          # and system calls required by the ngtcp2 examples.
+          'type': 'none',  # Disable as executable on AIX and Windows
+        }],
+        ['OS=="mac"', {
+          'defines': [
+            '__APPLE_USE_RFC_3542',
+          ]
+        }],
+        ['OS=="solaris"', {
+          'defines': [
+            'IPTOS_ECN_MASK=0x03',
+          ],
+          'link_settings': {
+            'libraries': [ '-lsocket', '-lnsl' ],
+          },
+        }],
+        [ 'OS=="linux" or OS=="openharmony"', {
+          'link_settings': {
+            'libraries': [ '-ldl', '-lrt' ],
+          },
+        }],
+      ],
+      'sources': [
+        '<@(ngtcp2_test_client_sources)'
       ]
     }
   ]
