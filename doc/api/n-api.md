@@ -2286,6 +2286,13 @@ object such that no properties can be set on it, and no prototype.
 
 #### `napi_typedarray_type`
 
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58879
+    description: Added `napi_float16_array` for Float16Array support.
+-->
+
 ```c
 typedef enum {
   napi_int8_array,
@@ -2299,6 +2306,7 @@ typedef enum {
   napi_float64_array,
   napi_bigint64_array,
   napi_biguint64_array,
+  napi_float16_array,
 } napi_typedarray_type;
 ```
 
