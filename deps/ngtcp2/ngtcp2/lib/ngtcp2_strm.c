@@ -123,9 +123,10 @@ static int strm_rob_heavily_fragmented(const ngtcp2_rob *rob) {
   return ngtcp2_ksl_len(&rob->gapksl) >= 1000;
 }
 
-int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
-                                size_t datalen, uint64_t offset) {
+ngtcp2_ssize ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
+                                         size_t datalen, uint64_t offset) {
   int rv;
+  ngtcp2_ssize nwrite;
 
   if (strm->rx.rob == NULL) {
     rv = strm_rob_init(strm);
@@ -138,16 +139,16 @@ int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
     }
   }
 
-  rv = ngtcp2_rob_push(strm->rx.rob, offset, data, datalen);
-  if (rv != 0) {
-    return rv;
+  nwrite = ngtcp2_rob_push(strm->rx.rob, offset, data, datalen);
+  if (nwrite < 0) {
+    return nwrite;
   }
 
   if (strm_rob_heavily_fragmented(strm->rx.rob)) {
     return NGTCP2_ERR_INTERNAL;
   }
 
-  return 0;
+  return nwrite;
 }
 
 void ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset) {

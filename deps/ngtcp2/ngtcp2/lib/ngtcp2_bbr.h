@@ -35,6 +35,7 @@
 #include "ngtcp2_window_filter.h"
 
 typedef struct ngtcp2_rst ngtcp2_rst;
+typedef struct ngtcp2_pcg32 ngtcp2_pcg32;
 
 typedef enum ngtcp2_bbr_state {
   NGTCP2_BBR_STATE_STARTUP,
@@ -62,8 +63,7 @@ typedef struct ngtcp2_cc_bbr {
 
   uint64_t initial_cwnd;
   ngtcp2_rst *rst;
-  ngtcp2_rand rand;
-  ngtcp2_rand_ctx rand_ctx;
+  ngtcp2_pcg32 *pcg;
 
   /* max_bw_filter for tracking the maximum recent delivery rate
     samples for estimating max_bw. */
@@ -136,7 +136,6 @@ typedef struct ngtcp2_cc_bbr {
 
 void ngtcp2_cc_bbr_init(ngtcp2_cc_bbr *bbr, ngtcp2_log *log,
                         ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
-                        ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
-                        const ngtcp2_rand_ctx *rand_ctx);
+                        ngtcp2_tstamp initial_ts, ngtcp2_pcg32 *pcg);
 
 #endif /* !defined(NGTCP2_BBR_H) */

@@ -27,8 +27,8 @@ using Ngtcp2Source = bob::SourceImpl<ngtcp2_vec>;
 // or concurrency limits are temporarily reached) then the request to open the
 // stream is represented as a queued PendingStream.
 //
-// The PendingStream instance itself is held by the stream but sits in a linked
-// list in the session.
+// The PendingStream instance itself is owned by the stream created but a
+// reference sits in a linked list in the session.
 //
 // The PendingStream request can be canceled by dropping the PendingStream
 // instance before it can be fulfilled, at which point it is removed from the
@@ -45,7 +45,7 @@ class PendingStream final {
 
   // Called when the stream has been opened. Transitions the stream from a
   // pending state to an opened state.
-  void fulfill(int64_t id);
+  void fulfill(stream_id id);
 
   // Called when opening the stream fails or is canceled. Transitions the
   // stream into a closed/destroyed state.
@@ -105,7 +105,13 @@ class PendingStream final {
 // data is buffered in memory makes it essential that the flow control for the
 // session and the stream are properly handled. For now, we are largely relying
 // on ngtcp2's default flow control mechanisms which generally should be doing
-// the right thing.
+// the right thing. From the JavaScript side, the application pushes data into
+// the stream's outbound queue and ngtcp2 pulls data from that queue as it is
+// able. The stream outbound has a high watermark. The JS side can choose to
+// continue writing data even after the high watermark is reached but this
+// risks using up large amounts of memory if the session is slow to send data
+// or the peer is slow to acknowledge receipt. The JavaScript side needs to
+// be aware of this risk and pay proper attention to the backpressure signals.
 //
 // A Stream may be in a fully closed state (No longer readable nor writable)
 // state but still have unacknowledged data in both the inbound and outbound
@@ -115,23 +121,29 @@ class PendingStream final {
 // (b) all queued data has been acknowledged.
 //
 // The Stream may be forcefully closed immediately using destroy(err). This
-// causes all queued outbound data and pending JavaScript writes are abandoned,
-// and causes the Stream to be immediately closed at the ngtcp2 level without
-// waiting for any outstanding acknowledgements. Keep in mind, however, that the
-// peer is not notified that the stream is destroyed and may attempt to continue
-// sending data and acknowledgements.
+// causes all queued outbound data to be cleared, pending JavaScript writes
+// to be abandoned, the Stream to be immediately closed at the ngtcp2 level
+// without waiting for any outstanding acknowledgements. Keep in mind, however,
+// that the peer is not notified that the stream is destroyed and may attempt
+// to continue sending data and acknowledgements until it is able to determine
+// that the stream is gone. Any data that has already been received and is in
+// the inbound queue is preserved and may be read by the application.
 //
 // QUIC streams in general do not have headers. Some QUIC applications, however,
-// may associate headers with the stream (HTTP/3 for instance).
+// may associate headers with the stream (HTTP/3 for instance). As a
+// convenience, the Stream class will hold onto these headers for the
+// application.
 //
 // Streams may be created in a pending state. This means that while the Stream
 // object is created, it has not yet been opened in ngtcp2 and therefore has
 // no official status yet. Certain operations can still be performed on the
-// stream object such as providing data and headers, and destroying the stream.
+// stream object such as providing data, adding headers, or destroying the
+// stream.
 //
 // When a stream is created the data source for the stream must be given.
 // If no data source is given, then the stream is assumed to not have any
-// outbound data. The data source can be fixed length or may support
+// outbound data. If the stream was created as bidirectional, the outbound
+// side will be closed. The data source can be fixed length or may support
 // streaming. What this means practically is, when a stream is opened,
 // you must already have a sense of whether that will provide data or
 // not. When in doubt, specify a streaming data source, which can produce
@@ -142,18 +154,24 @@ class Stream final : public AsyncWrap,
  public:
   using Header = NgHeaderBase<BindingData>;
 
+  // Acquire a DataQueue from the given value if it is valid. The return
+  // follows the typical V8 rules for Maybe types. If an error occurs,
+  // the Maybe will be empty and an exception will be set on the isolate.
   static v8::Maybe<std::shared_ptr<DataQueue>> GetDataQueueFromSource(
       Environment* env, v8::Local<v8::Value> value);
 
+  // The stream_user_data field is from ngtcp2 and will point to the
+  // Stream instance associated with the stream_id.
   static Stream* From(void* stream_user_data);
 
   JS_CONSTRUCTOR(Stream);
   JS_BINDING_INIT_BOILERPLATE();
 
-  // Creates a new non-pending stream.
+  // Creates a new non-pending stream. The directionality of the stream
+  // is inferred from the stream id.
   static BaseObjectPtr<Stream> Create(
       Session* session,
-      int64_t id,
+      stream_id id,
       std::shared_ptr<DataQueue> source = nullptr);
 
   // Creates a new pending stream.
@@ -166,7 +184,7 @@ class Stream final : public AsyncWrap,
   // Call Create to create new instances of Stream.
   Stream(BaseObjectWeakPtr<Session> session,
          v8::Local<v8::Object> obj,
-         int64_t id,
+         stream_id id,
          std::shared_ptr<DataQueue> source);
 
   // Creates the stream in a pending state. The constructor is only public
@@ -179,8 +197,9 @@ class Stream final : public AsyncWrap,
   DISALLOW_COPY_AND_MOVE(Stream)
   ~Stream() override;
 
-  // While the stream is still pending, the id will be -1.
-  int64_t id() const;
+  // While the stream is still pending, the id will be kMaxStreamId,
+  // inidicating the maximum possible stream id is kMaxStreamId - 1.
+  stream_id id() const;
 
   // While the stream is still pending, the origin will be invalid.
   Side origin() const;
@@ -208,6 +227,12 @@ class Stream final : public AsyncWrap,
   // Called by the session/application to indicate that the specified number
   // of bytes have been acknowledged by the peer.
   void Acknowledge(size_t datalen);
+
+  // Called by the session/application to indicate that the specified number
+  // of bytes have been transmitted to the peer.  This is an initial
+  // indication occuring the first time data is sent. It does not indicate
+  // that the data has been retransmitted due to loss or has been
+  // acknowledged to have been received by the peer.
   void Commit(size_t datalen);
 
   void EndWritable();
@@ -215,6 +240,10 @@ class Stream final : public AsyncWrap,
   void EntryRead(size_t amount) override;
 
   // Pulls data from the internal outbound DataQueue configured for this stream.
+  // This is called by the session/application when it is preparing to send
+  // data to the peer. There is no guarantee that the requested amount of data
+  // will actually be sent. The amount of data actually sent is indicated
+  // by the datalen argument to the Commit() method.
   int DoPull(bob::Next<ngtcp2_vec> next,
              int options,
              ngtcp2_vec* data,
@@ -282,7 +311,8 @@ class Stream final : public AsyncWrap,
   void EmitReset(const QuicError& error);
 
   // Notifies the JavaScript side that the application is ready to receive
-  // trailing headers.
+  // trailing headers. Any trailing headers must be sent immediately, and
+  // synchronously when this callback is triggered.
   void EmitWantTrailers();
 
   // Notifies the JavaScript side that sending data on the stream has been
@@ -292,12 +322,12 @@ class Stream final : public AsyncWrap,
   // Delivers the set of inbound headers that have been collected.
   void EmitHeaders();
 
-  void NotifyReadableEnded(uint64_t code);
-  void NotifyWritableEnded(uint64_t code);
+  void NotifyReadableEnded(error_code code);
+  void NotifyWritableEnded(error_code code);
 
   // When a pending stream is finally opened, the NotifyStreamOpened method
   // will be called and the id will be assigned.
-  void NotifyStreamOpened(int64_t id);
+  void NotifyStreamOpened(stream_id id);
   void EnqueuePendingHeaders(HeadersKind kind,
                              v8::Local<v8::Array> headers,
                              HeadersFlags flags);
@@ -314,8 +344,8 @@ class Stream final : public AsyncWrap,
   std::optional<std::unique_ptr<PendingStream>> maybe_pending_stream_ =
       std::nullopt;
   std::vector<std::unique_ptr<PendingHeaders>> pending_headers_queue_;
-  uint64_t pending_close_read_code_ = 0;
-  uint64_t pending_close_write_code_ = 0;
+  error_code pending_close_read_code_ = 0;
+  error_code pending_close_write_code_ = 0;
 
   struct PendingPriority {
     StreamPriority priority;

@@ -307,7 +307,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
  private:
   struct Impl;
 
-  using StreamsMap = std::unordered_map<int64_t, BaseObjectPtr<Stream>>;
+  using StreamsMap = std::unordered_map<stream_id, BaseObjectPtr<Stream>>;
   using QuicConnectionPointer = DeleteFnPtr<ngtcp2_conn, ngtcp2_conn_del>;
 
   struct PathValidationFlags final {
@@ -324,7 +324,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   void Send(const BaseObjectPtr<Packet>& packet);
   void Send(const BaseObjectPtr<Packet>& packet, const PathStorage& path);
-  uint64_t SendDatagram(Store&& data);
+  datagram_id SendDatagram(Store&& data);
 
   // A non-const variation to allow certain modifications.
   Config& config();
@@ -333,18 +333,18 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     NOTIFY,
     DO_NOT_NOTIFY,
   };
-  BaseObjectPtr<Stream> FindStream(int64_t id) const;
+  BaseObjectPtr<Stream> FindStream(stream_id id) const;
   BaseObjectPtr<Stream> CreateStream(
-      int64_t id,
+      stream_id id,
       CreateStreamOption option = CreateStreamOption::NOTIFY,
       std::shared_ptr<DataQueue> data_source = nullptr);
   void AddStream(BaseObjectPtr<Stream> stream,
                  CreateStreamOption option = CreateStreamOption::NOTIFY);
-  void RemoveStream(int64_t id);
-  void ResumeStream(int64_t id);
-  void StreamDataBlocked(int64_t id);
-  void ShutdownStream(int64_t id, QuicError error = QuicError());
-  void ShutdownStreamWrite(int64_t id, QuicError code = QuicError());
+  void RemoveStream(stream_id id);
+  void ResumeStream(stream_id id);
+  void StreamDataBlocked(stream_id id);
+  void ShutdownStream(stream_id id, QuicError error = QuicError());
+  void ShutdownStreamWrite(stream_id id, QuicError code = QuicError());
 
   // Use the configured CID::Factory to generate a new CID.
   CID new_cid(size_t len = CID::kMaxLength) const;
@@ -364,7 +364,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   v8::MaybeLocal<v8::Object> OpenStream(
       Direction direction, std::shared_ptr<DataQueue> data_source = nullptr);
 
-  void ExtendStreamOffset(int64_t id, size_t amount);
+  void ExtendStreamOffset(stream_id id, size_t amount);
   void ExtendOffset(size_t amount);
   void SetLastError(QuicError&& error);
   uint64_t max_data_left() const;
@@ -463,7 +463,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   void EmitClose(const QuicError& error = QuicError());
   void EmitDatagram(Store&& datagram, DatagramReceivedFlags flag);
-  void EmitDatagramStatus(uint64_t id, DatagramStatus status);
+  void EmitDatagramStatus(datagram_id id, DatagramStatus status);
   void EmitHandshakeComplete();
   void EmitKeylog(const char* line);
 
@@ -481,7 +481,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
                               const uint32_t* sv,
                               size_t nsv);
-  void DatagramStatus(uint64_t datagramId, DatagramStatus status);
+  void DatagramStatus(datagram_id datagramId, DatagramStatus status);
   void DatagramReceived(const uint8_t* data,
                         size_t datalen,
                         DatagramReceivedFlags flag);

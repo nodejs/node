@@ -11,8 +11,8 @@
 #include <node.h>
 #include <node_mem.h>
 #include <v8.h>
+#include <list>
 #include <unordered_map>
-#include <vector>
 #include "defs.h"
 
 namespace node::quic {
@@ -172,7 +172,7 @@ class BindingData final
   // Purge the packet free list to free up memory.
   JS_METHOD(FlushPacketFreelist);
 
-  std::vector<BaseObjectPtr<BaseObject>> packet_freelist;
+  std::list<BaseObjectPtr<BaseObject>> packet_freelist;
 
   std::unordered_map<Endpoint*, BaseObjectPtr<BaseObject>> listening_endpoints;
 

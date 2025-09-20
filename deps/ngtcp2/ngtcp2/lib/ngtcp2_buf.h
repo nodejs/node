@@ -70,15 +70,20 @@ static inline size_t ngtcp2_buf_left(const ngtcp2_buf *buf) {
  * ngtcp2_buf_len returns the number of bytes left to read.  In other
  * words, it returns buf->last - buf->pos.
  */
-static inline size_t ngtcp2_buf_len(const ngtcp2_buf *buf) {
-  return (size_t)(buf->last - buf->pos);
-}
+#define ngtcp2_buf_len(BUF) (size_t)((BUF)->last - (BUF)->pos)
 
 /*
  * ngtcp2_buf_cap returns the capacity of the buffer.  In other words,
  * it returns buf->end - buf->begin.
  */
 size_t ngtcp2_buf_cap(const ngtcp2_buf *buf);
+
+/*
+ * ngtcp2_buf_trunc truncates the number of bytes to read to at most
+ * |len|.  In other words, it sets buf->last = buf->pos + len if
+ * ngtcp2_buf_len(buf) > len.
+ */
+void ngtcp2_buf_trunc(ngtcp2_buf *buf, size_t len);
 
 /*
  * ngtcp2_buf_chain is a linked list of ngtcp2_buf.

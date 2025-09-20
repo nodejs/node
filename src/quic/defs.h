@@ -309,13 +309,16 @@ enum class DatagramStatus : uint8_t {
 CC_ALGOS(V)
 #undef V
 
+using error_code = uint64_t;
+using stream_id = int64_t;
+using datagram_id = uint64_t;
+
 constexpr size_t kDefaultMaxPacketLength = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
 constexpr uint64_t kMaxSizeT = std::numeric_limits<size_t>::max();
 constexpr uint64_t kMaxSafeJsInteger = 9007199254740991;
 constexpr auto kSocketAddressInfoTimeout = 60 * NGTCP2_SECONDS;
 constexpr size_t kMaxVectorCount = 16;
-
-using error_code = uint64_t;
+constexpr size_t kMaxStreamId = std::numeric_limits<stream_id>::max();
 
 class DebugIndentScope final {
  public:
