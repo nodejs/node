@@ -33,6 +33,7 @@ using v8::BackingStoreOnFailureMode;
 using v8::Boolean;
 using v8::Context;
 using v8::Date;
+using v8::DictionaryTemplate;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -46,6 +47,7 @@ using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
+using v8::Undefined;
 using v8::Value;
 
 namespace crypto {
@@ -735,116 +737,86 @@ MaybeLocal<Value> GetCurveName(Environment* env, const int nid) {
 
 MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
   EscapableHandleScope scope(env->isolate());
-  Local<Object> info = Object::New(env->isolate());
 
-  if (!Set<Value>(env,
-                  info,
-                  env->subject_string(),
-                  GetX509NameObject(env, cert.getSubjectName())) ||
-      !Set<Value>(env,
-                  info,
-                  env->issuer_string(),
-                  GetX509NameObject(env, cert.getIssuerName())) ||
-      !Set<Value>(env,
-                  info,
-                  env->subjectaltname_string(),
-                  GetSubjectAltNameString(env, cert)) ||
-      !Set<Value>(env,
-                  info,
-                  env->infoaccess_string(),
-                  GetInfoAccessString(env, cert)) ||
-      !Set<Boolean>(env,
-                    info,
-                    env->ca_string(),
-                    Boolean::New(env->isolate(), cert.isCA()))) [[unlikely]] {
-    return {};
+  auto tmpl = env->x509_dictionary_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "subject",
+        "issuer",
+        "subjectaltname",
+        "infoAccess",
+        "ca",
+        "modulus",
+        "exponent",
+        "pubkey",
+        "bits",
+        "valid_from",
+        "valid_to",
+        "fingerprint",
+        "fingerprint256",
+        "fingerprint512",
+        "ext_key_usage",
+        "serialNumber",
+        "raw",
+        "asn1Curve",
+        "nistCurve",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_x509_dictionary_template(tmpl);
   }
 
-  if (!cert.ifRsa([&](const ncrypto::Rsa& rsa) {
-        auto pub_key = rsa.getPublicKey();
-        if (!Set<Value>(env,
-                        info,
-                        env->modulus_string(),
-                        GetModulusString(env, pub_key.n)) ||
-            !Set<Value>(env,
-                        info,
-                        env->bits_string(),
-                        Integer::New(env->isolate(),
-                                     BignumPointer::GetBitCount(pub_key.n))) ||
-            !Set<Value>(env,
-                        info,
-                        env->exponent_string(),
-                        GetExponentString(env, pub_key.e)) ||
-            !Set<Object>(env, info, env->pubkey_string(), GetPubKey(env, rsa)))
-            [[unlikely]] {
-          return false;
-        }
-        return true;
-      })) [[unlikely]] {
-    return {};
-  }
+  MaybeLocal<Value> values[] = {
+      GetX509NameObject(env, cert.getSubjectName()),
+      GetX509NameObject(env, cert.getIssuerName()),
+      GetSubjectAltNameString(env, cert),
+      GetInfoAccessString(env, cert),
+      Boolean::New(env->isolate(), cert.isCA()),
+      Undefined(env->isolate()),  // modulus
+      Undefined(env->isolate()),  // exponent
+      Undefined(env->isolate()),  // pubkey
+      Undefined(env->isolate()),  // bits
+      GetValidFrom(env, cert),
+      GetValidTo(env, cert),
+      GetFingerprintDigest(env, Digest::SHA1, cert),
+      GetFingerprintDigest(env, Digest::SHA256, cert),
+      GetFingerprintDigest(env, Digest::SHA512, cert),
+      GetKeyUsage(env, cert),
+      GetSerialNumber(env, cert),
+      GetDer(env, cert),
+      Undefined(env->isolate()),  // asn1curve
+      Undefined(env->isolate()),  // nistcurve
+  };
 
-  if (!cert.ifEc([&](const ncrypto::Ec& ec) {
-        const auto group = ec.getGroup();
+  cert.ifRsa([&](const ncrypto::Rsa& rsa) {
+    auto pub_key = rsa.getPublicKey();
+    values[5] = GetModulusString(env, pub_key.n);   // modulus
+    values[6] = GetExponentString(env, pub_key.e);  // exponent
+    values[7] = GetPubKey(env, rsa);                // pubkey
+    values[8] = Integer::New(env->isolate(),
+                             BignumPointer::GetBitCount(pub_key.n));  // bits
+    // TODO(@jasnell): The true response is a left-over from the original
+    // non DictionaryTemplate-based implementation. It can be removed later.
+    return true;
+  });
 
-        if (!Set<Value>(
-                env, info, env->bits_string(), GetECGroupBits(env, group)) ||
-            !Set<Value>(
-                env, info, env->pubkey_string(), GetECPubKey(env, group, ec)))
-            [[unlikely]] {
-          return false;
-        }
+  cert.ifEc([&](const ncrypto::Ec& ec) {
+    const auto group = ec.getGroup();
+    values[7] = GetECPubKey(env, group, ec);  // pubkey
+    values[8] = GetECGroupBits(env, group);   // bits
+    const int nid = ec.getCurve();
+    if (nid != 0) {
+      // Curve is well-known, get its OID and NIST nick-name (if it has
+      // one).
+      values[17] = GetCurveName<OBJ_nid2sn>(env, nid);         // asn1curve
+      values[18] = GetCurveName<EC_curve_nid2nist>(env, nid);  // nistcurve
+    }
+    // Unnamed curves can be described by their mathematical properties,
+    // but aren't used much (at all?) with X.509/TLS. Support later if
+    // needed.
+    return true;
+  });
 
-        const int nid = ec.getCurve();
-        if (nid != 0) [[likely]] {
-          // Curve is well-known, get its OID and NIST nick-name (if it has
-          // one).
-
-          if (!Set<Value>(env,
-                          info,
-                          env->asn1curve_string(),
-                          GetCurveName<OBJ_nid2sn>(env, nid)) ||
-              !Set<Value>(env,
-                          info,
-                          env->nistcurve_string(),
-                          GetCurveName<EC_curve_nid2nist>(env, nid)))
-              [[unlikely]] {
-            return false;
-          }
-        }
-        // Unnamed curves can be described by their mathematical properties,
-        // but aren't used much (at all?) with X.509/TLS. Support later if
-        // needed.
-        return true;
-      })) [[unlikely]] {
-    return {};
-  }
-
-  if (!Set<Value>(
-          env, info, env->valid_from_string(), GetValidFrom(env, cert)) ||
-      !Set<Value>(env, info, env->valid_to_string(), GetValidTo(env, cert)) ||
-      !Set<Value>(env,
-                  info,
-                  env->fingerprint_string(),
-                  GetFingerprintDigest(env, Digest::SHA1, cert)) ||
-      !Set<Value>(env,
-                  info,
-                  env->fingerprint256_string(),
-                  GetFingerprintDigest(env, Digest::SHA256, cert)) ||
-      !Set<Value>(env,
-                  info,
-                  env->fingerprint512_string(),
-                  GetFingerprintDigest(env, Digest::SHA512, cert)) ||
-      !Set<Value>(
-          env, info, env->ext_key_usage_string(), GetKeyUsage(env, cert)) ||
-      !Set<Value>(
-          env, info, env->serial_number_string(), GetSerialNumber(env, cert)) ||
-      !Set<Value>(env, info, env->raw_string(), GetDer(env, cert)))
-      [[unlikely]] {
-    return {};
-  }
-
-  return scope.Escape(info);
+  return scope.EscapeMaybe(NewDictionaryInstance(env->context(), tmpl, values));
 }
 }  // namespace
 
