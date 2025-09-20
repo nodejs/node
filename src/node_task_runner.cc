@@ -17,7 +17,7 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
                              std::string_view command,
                              std::string_view path_env_var,
                              const PositionalArgs& positional_args)
-    : init_result(std::move(result)),
+    : init_result_(std::move(result)),
       package_json_path_(package_json_path),
       script_name_(script_name),
       path_env_var_(path_env_var) {
@@ -25,13 +25,13 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
 
   // Inherit stdin, stdout, and stderr from the parent process.
   options_.stdio_count = 3;
-  child_stdio[0].flags = UV_INHERIT_FD;
-  child_stdio[0].data.fd = 0;
-  child_stdio[1].flags = UV_INHERIT_FD;
-  child_stdio[1].data.fd = 1;
-  child_stdio[2].flags = UV_INHERIT_FD;
-  child_stdio[2].data.fd = 2;
-  options_.stdio = child_stdio;
+  child_stdio_[0].flags = UV_INHERIT_FD;
+  child_stdio_[0].data.fd = 0;
+  child_stdio_[1].flags = UV_INHERIT_FD;
+  child_stdio_[1].data.fd = 1;
+  child_stdio_[2].flags = UV_INHERIT_FD;
+  child_stdio_[2].data.fd = 2;
+  options_.stdio = child_stdio_;
   options_.exit_cb = ExitCallback;
 
 #ifdef _WIN32
@@ -80,8 +80,8 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
 
   auto argc = command_args_.size();
   CHECK_GE(argc, 1);
-  arg = std::unique_ptr<char*[]>(new char*[argc + 1]);
-  options_.args = arg.get();
+  arg_ = std::unique_ptr<char*[]>(new char*[argc + 1]);
+  options_.args = arg_.get();
   for (size_t i = 0; i < argc; ++i) {
     options_.args[i] = const_cast<char*>(command_args_[i].c_str());
   }
@@ -125,8 +125,8 @@ void ProcessRunner::SetEnvironmentVariables() {
   env_vars_.push_back("NODE_RUN_PACKAGE_JSON_PATH=" +
                       package_json_path_.string());
 
-  env = std::unique_ptr<char*[]>(new char*[env_vars_.size() + 1]);
-  options_.env = env.get();
+  env_ = std::unique_ptr<char*[]>(new char*[env_vars_.size() + 1]);
+  options_.env = env_.get();
   for (size_t i = 0; i < env_vars_.size(); i++) {
     options_.env[i] = const_cast<char*>(env_vars_[i].c_str());
   }
@@ -198,16 +198,16 @@ void ProcessRunner::ExitCallback(uv_process_t* handle,
 
 void ProcessRunner::OnExit(int64_t exit_status, int term_signal) {
   if (exit_status > 0) {
-    init_result->exit_code_ = ExitCode::kGenericUserError;
+    init_result_->exit_code_ = ExitCode::kGenericUserError;
   } else {
-    init_result->exit_code_ = ExitCode::kNoFailure;
+    init_result_->exit_code_ = ExitCode::kNoFailure;
   }
 }
 
 void ProcessRunner::Run() {
   // keeps the string alive until destructor
-  cwd = package_json_path_.parent_path().string();
-  options_.cwd = cwd.c_str();
+  cwd_ = package_json_path_.parent_path().string();
+  options_.cwd = cwd_.c_str();
   if (int r = uv_spawn(loop_, &process_, &options_)) {
     fprintf(stderr, "Error: %s\n", uv_strerror(r));
   }
