@@ -118,7 +118,7 @@ jobs:
               echo '       to fix the lint issues.'
               git diff
             elif git diff --quiet --exit-code; then
-              echo '       None of the issue is auto-fixable, so manual fixed for'
+              echo '       None of the issue is auto-fixable, so manual fixes for'
               echo '       all of the issues are required.'
             else
               echo '       Run:'
