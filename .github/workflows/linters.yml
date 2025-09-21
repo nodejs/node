@@ -107,8 +107,7 @@ jobs:
           set +e
           NODE=$(command -v node) make lint-js
           EXIT_CODE="$?"
-          if [ "$EXIT_CODE" != "0" ]
-          then
+          if [ "$EXIT_CODE" != "0" ]; then
             echo
             echo 'ERROR: The JavaScript lint validation failed (the errors are logged above).'
             echo '       Please fix the lint errors.'
@@ -116,15 +115,15 @@ jobs:
               echo '       Run:'
               echo '          make lint-js-fix'
               echo '       to fix the lint issues.'
-              git diff
+              git diff --no-pager
             elif git diff --quiet --exit-code; then
               echo '       None of the issue is auto-fixable, so manual fixes for'
               echo '       all of the issues are required.'
             else
               echo '       Run:'
               echo '          make lint-js-fix'
-              echo '       to fix the auto-fixable lint issues'
-              echo '       note that however some manual fixes are also required.'
+              echo '       to fix the auto-fixable lint issues.'
+              echo '       Note that some manual fixes are also required.'
             fi
             echo
             exit "$EXIT_CODE"
