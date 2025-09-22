@@ -118,6 +118,7 @@ added: v0.3.4
 changes:
   - version:
     - v24.7.0
+    - v22.20.0
     pr-url: https://github.com/nodejs/node/pull/59315
     description: Add support for `agentKeepAliveTimeoutBuffer`.
   - version:

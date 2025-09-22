@@ -330,7 +330,9 @@ with the [`--no-experimental-websocket`][] CLI flag.
 <!-- YAML
 added: v18.0.0
 changes:
- - version: v24.7.0
+ - version:
+   - v24.7.0
+   - v22.20.0
    pr-url: https://github.com/nodejs/node/pull/59464
    description: format now accepts `brotli` value.
  - version:
@@ -448,14 +450,16 @@ A browser-compatible implementation of {CustomEvent}.
 <!-- YAML
 added: v18.0.0
 changes:
- - version: v24.7.0
-   pr-url: https://github.com/nodejs/node/pull/59464
-   description: format now accepts `brotli` value.
- - version:
+  - version:
+    - v24.7.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59464
+    description: format now accepts `brotli` value.
+  - version:
     - v23.11.0
     - v22.15.0
-   pr-url: https://github.com/nodejs/node/pull/57510
-   description: Marking the API stable.
+    pr-url: https://github.com/nodejs/node/pull/57510
+    description: Marking the API stable.
 -->
 
 A browser-compatible implementation of [`DecompressionStream`][].

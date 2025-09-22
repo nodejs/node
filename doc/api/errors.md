@@ -831,7 +831,9 @@ size is reached when the context is created.
 ### `ERR_CPU_PROFILE_ALREADY_STARTED`
 
 <!-- YAML
-added: v24.8.0
+added:
+  - v24.8.0
+  - v22.20.0
 -->
 
 The CPU profile with the given name is already started.
@@ -841,7 +843,9 @@ The CPU profile with the given name is already started.
 ### `ERR_CPU_PROFILE_NOT_STARTED`
 
 <!-- YAML
-added: v24.8.0
+added:
+  - v24.8.0
+  - v22.20.0
 -->
 
 The CPU profile with the given name is not started.
@@ -851,7 +855,9 @@ The CPU profile with the given name is not started.
 ### `ERR_CPU_PROFILE_TOO_MANY`
 
 <!-- YAML
-added: v24.8.0
+added:
+  - v24.8.0
+  - v22.20.0
 -->
 
 There are too many CPU profiles being collected.
