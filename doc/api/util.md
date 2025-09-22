@@ -3758,33 +3758,6 @@ Node.js modules. The community found and used it anyway.
 It is deprecated and should not be used in new code. JavaScript comes with very
 similar built-in functionality through [`Object.assign()`][].
 
-### `util.isArray(object)`
-
-<!-- YAML
-added: v0.6.0
-deprecated: v4.0.0
--->
-
-> Stability: 0 - Deprecated: Use [`Array.isArray()`][] instead.
-
-* `object` {any}
-* Returns: {boolean}
-
-Alias for [`Array.isArray()`][].
-
-Returns `true` if the given `object` is an `Array`. Otherwise, returns `false`.
-
-```js
-const util = require('node:util');
-
-util.isArray([]);
-// Returns: true
-util.isArray(new Array());
-// Returns: true
-util.isArray({});
-// Returns: false
-```
-
 [Common System Errors]: errors.md#common-system-errors
 [Custom inspection functions on objects]: #custom-inspection-functions-on-objects
 [Custom promisified functions]: #custom-promisified-functions
@@ -3794,7 +3767,6 @@ util.isArray({});
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`'warning'`]: process.md#event-warning
-[`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView
 [`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
