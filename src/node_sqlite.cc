@@ -664,66 +664,6 @@ void UserDefinedFunction::xDestroy(void* self) {
   delete static_cast<UserDefinedFunction*>(self);
 }
 
-AuthorizerFunction::AuthorizerFunction(Environment* env,
-                                       Local<Function> fn,
-                                       DatabaseSync* db)
-    : env_(env), fn_(env->isolate(), fn), db_(db) {}
-
-AuthorizerFunction::~AuthorizerFunction() {}
-
-int AuthorizerFunction::xAuthorizer(void* user_data,
-                                    int action_code,
-                                    const char* param1,
-                                    const char* param2,
-                                    const char* param3,
-                                    const char* param4) {
-  AuthorizerFunction* self = static_cast<AuthorizerFunction*>(user_data);
-  Environment* env = self->env_;
-  Isolate* isolate = env->isolate();
-  HandleScope handle_scope(isolate);
-  Local<Context> context = env->context();
-
-  auto fn = self->fn_.Get(isolate);
-  LocalVector<Value> js_argv(isolate);
-
-  // Convert SQLite authorizer parameters to JavaScript values
-  js_argv.emplace_back(Integer::New(isolate, action_code));
-  js_argv.emplace_back(
-      NullableSQLiteStringToValue(isolate, param1).ToLocalChecked());
-  js_argv.emplace_back(
-      NullableSQLiteStringToValue(isolate, param2).ToLocalChecked());
-  js_argv.emplace_back(
-      NullableSQLiteStringToValue(isolate, param3).ToLocalChecked());
-  js_argv.emplace_back(
-      NullableSQLiteStringToValue(isolate, param4).ToLocalChecked());
-
-  TryCatch try_catch(isolate);
-  MaybeLocal<Value> retval =
-      fn->Call(context, Undefined(isolate), js_argv.size(), js_argv.data());
-
-  if (try_catch.HasCaught()) {
-    // If there's an exception in the callback, deny the operation
-    return SQLITE_DENY;
-  }
-
-  Local<Value> result;
-  if (!retval.ToLocal(&result)) {
-    return SQLITE_DENY;
-  }
-
-  if (result->IsNumber()) {
-    double num_result = result.As<Number>()->Value();
-    return static_cast<int>(num_result);
-  }
-
-  // Default to OK if the result isn't a number
-  return SQLITE_OK;
-}
-
-void AuthorizerFunction::xDestroy(void* self) {
-  delete static_cast<AuthorizerFunction*>(self);
-}
-
 DatabaseSync::DatabaseSync(Environment* env,
                            Local<Object> object,
                            DatabaseOpenConfiguration&& open_config,
@@ -1929,6 +1869,7 @@ void DatabaseSync::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
   if (args[0]->IsNull()) {
     // Clear the authorizer
     sqlite3_set_authorizer(db->connection_, nullptr, nullptr);
+    db->object()->SetInternalField(kAuthorizerCallback, Null(isolate));
     return;
   }
 
@@ -1939,15 +1880,72 @@ void DatabaseSync::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Function> fn = args[0].As<Function>();
-  AuthorizerFunction* user_data = new AuthorizerFunction(env, fn, db);
+
+  db->object()->SetInternalField(kAuthorizerCallback, fn);
 
   int r = sqlite3_set_authorizer(
-      db->connection_, AuthorizerFunction::xAuthorizer, user_data);
+      db->connection_, DatabaseSync::AuthorizerCallback, db);
 
   if (r != SQLITE_OK) {
-    delete user_data;
     CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_OK, void());
   }
+}
+
+int DatabaseSync::AuthorizerCallback(void* user_data,
+                                     int action_code,
+                                     const char* param1,
+                                     const char* param2,
+                                     const char* param3,
+                                     const char* param4) {
+  DatabaseSync* db = static_cast<DatabaseSync*>(user_data);
+  Environment* env = db->env();
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+  Local<Context> context = env->context();
+
+  Local<Value> cb =
+      db->object()->GetInternalField(kAuthorizerCallback).template As<Value>();
+
+  if (!cb->IsFunction()) {
+    return SQLITE_DENY;
+  }
+
+  Local<Function> callback = cb.As<Function>();
+  LocalVector<Value> js_argv(isolate);
+
+  // Convert SQLite authorizer parameters to JavaScript values
+  js_argv.emplace_back(Integer::New(isolate, action_code));
+  js_argv.emplace_back(
+      NullableSQLiteStringToValue(isolate, param1).ToLocalChecked());
+  js_argv.emplace_back(
+      NullableSQLiteStringToValue(isolate, param2).ToLocalChecked());
+  js_argv.emplace_back(
+      NullableSQLiteStringToValue(isolate, param3).ToLocalChecked());
+  js_argv.emplace_back(
+      NullableSQLiteStringToValue(isolate, param4).ToLocalChecked());
+
+  TryCatch try_catch(isolate);
+  MaybeLocal<Value> retval = callback->Call(
+      context, Undefined(isolate), js_argv.size(), js_argv.data());
+
+  if (try_catch.HasCaught()) {
+    // If there's an exception in the callback, deny the operation
+    // TODO: Rethrow exepction
+    return SQLITE_DENY;
+  }
+
+  Local<Value> result;
+  if (!retval.ToLocal(&result)) {
+    return SQLITE_DENY;
+  }
+
+  if (result->IsNumber()) {
+    double num_result = result.As<Number>()->Value();
+    return static_cast<int>(num_result);
+  }
+
+  // Default to OK if the result isn't a number
+  return SQLITE_OK;
 }
 
 StatementSync::StatementSync(Environment* env,

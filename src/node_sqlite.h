@@ -111,6 +111,11 @@ class StatementExecutionHelper {
 
 class DatabaseSync : public BaseObject {
  public:
+  enum InternalFields {
+    kAuthorizerCallback = BaseObject::kInternalFieldCount,
+    kInternalFieldCount
+  };
+
   DatabaseSync(Environment* env,
                v8::Local<v8::Object> object,
                DatabaseOpenConfiguration&& open_config,
@@ -137,6 +142,12 @@ class DatabaseSync : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoadExtension(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAuthorizer(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static int AuthorizerCallback(void* user_data,
+                                int action_code,
+                                const char* param1,
+                                const char* param2,
+                                const char* param3,
+                                const char* param4);
   void FinalizeStatements();
   void RemoveBackup(BackupJob* backup);
   void AddBackup(BackupJob* backup);
@@ -316,26 +327,6 @@ class SQLTagStore : public BaseObject {
   LRUCache<std::string, BaseObjectPtr<StatementSync>> sql_tags_;
   int capacity_;
   friend class StatementExecutionHelper;
-};
-
-class AuthorizerFunction {
- public:
-  AuthorizerFunction(Environment* env,
-                     v8::Local<v8::Function> fn,
-                     DatabaseSync* db);
-  ~AuthorizerFunction();
-  static int xAuthorizer(void* user_data,
-                         int action_code,
-                         const char* param1,
-                         const char* param2,
-                         const char* param3,
-                         const char* param4);
-  static void xDestroy(void* self);
-
- private:
-  Environment* env_;
-  v8::Global<v8::Function> fn_;
-  DatabaseSync* db_;
 };
 
 class UserDefinedFunction {
