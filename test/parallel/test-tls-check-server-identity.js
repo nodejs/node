@@ -62,6 +62,11 @@ const tests = [
     cert: { subject: { CN: '.a.com' } },
     error: 'Host: a.com. is not cert\'s CN: .a.com'
   },
+  {
+    host: 'bad.x.example.com',
+    cert: { subject: { CN: 'bad..example.com' } },
+    error: 'Host: bad.x.example.com. is not cert\'s CN: bad..example.com'
+  },
 
   // IP address in CN. Technically allowed but so rare that we reject
   // it anyway. If we ever do start allowing them, we should take care
@@ -117,23 +122,35 @@ const tests = [
     cert: { subject: { CN: '*n.b.com' } },
     error: 'Host: \n.b.com. is not cert\'s CN: *n.b.com'
   },
-  { host: 'b.a.com',
+  {
+    host: 'b.a.com',
     cert: {
       subjectaltname: 'DNS:omg.com',
       subject: { CN: '*.a.com' },
     },
     error: 'Host: b.a.com. is not in the cert\'s altnames: ' +
-           'DNS:omg.com' },
+      'DNS:omg.com'
+  },
   {
     host: 'b.a.com',
     cert: { subject: { CN: 'b*b.a.com' } },
     error: 'Host: b.a.com. is not cert\'s CN: b*b.a.com'
   },
+  {
+    host: 'bxa.a.com',
+    cert: { subject: { CN: 'b**.a.com' } },
+    error: 'Host: bxa.a.com. is not cert\'s CN: b**.a.com'
+  },
+  {
+    host: 'xbcd.a.com',
+    cert: { subject: { CN: 'ab*cd.a.com' } },
+    error: 'Host: xbcd.a.com. is not cert\'s CN: ab*cd.a.com'
+  },
 
   // Empty Cert
   {
     host: 'a.com',
-    cert: { },
+    cert: {},
     error: 'Cert does not contain a DNS name'
   },
 
@@ -158,6 +175,11 @@ const tests = [
       subject: { CN: ['foo.com', 'bar.com'] } // CN=foo.com; CN=bar.com;
     }
   },
+  {
+    host: 'a.com',
+    cert: { subject: { CN: [''] } },
+    error: 'Host: a.com. is not cert\'s CN: '
+  },
 
   // DNS names and CN
   {
@@ -166,7 +188,7 @@ const tests = [
       subject: { CN: 'b.com' }
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
-           'DNS:*'
+      'DNS:*'
   },
   {
     host: 'a.com', cert: {
@@ -174,7 +196,7 @@ const tests = [
       subject: { CN: 'b.com' }
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
-           'DNS:*.com'
+      'DNS:*.com'
   },
   {
     host: 'a.co.uk', cert: {
@@ -188,7 +210,7 @@ const tests = [
       subject: { CN: 'a.com' }
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
-           'DNS:*.a.com'
+      'DNS:*.a.com'
   },
   {
     host: 'a.com', cert: {
@@ -196,7 +218,7 @@ const tests = [
       subject: { CN: 'b.com' }
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
-           'DNS:*.a.com'
+      'DNS:*.a.com'
   },
   {
     host: 'a.com', cert: {
@@ -213,12 +235,52 @@ const tests = [
 
   // DNS names
   {
+    host: 'a.com',
+    cert: {
+      subjectaltname: 'DNS:',
+      subject: {}
+    },
+    error: 'Host: a.com. is not in the cert\'s altnames: DNS:'
+  },
+  {
+    host: 'bad.x.example.com',
+    cert: {
+      subjectaltname: 'DNS:bad..example.com',
+      subject: {}
+    },
+    error: 'Host: bad.x.example.com. is not in the cert\'s altnames: DNS:bad..example.com'
+  },
+  {
+    host: 'x.example.com',
+    cert: {
+      subjectaltname: 'DNS:caf\u00E9.example.com', // "café.example.com"
+      subject: {}
+    },
+    error: 'Host: x.example.com. is not in the cert\'s altnames: DNS:caf\u00E9.example.com'
+  },
+  {
+    host: 'xbcd.a.com',
+    cert: {
+      subjectaltname: 'DNS:ab*cd.a.com',
+      subject: {}
+    },
+    error: 'Host: xbcd.a.com. is not in the cert\'s altnames: DNS:ab*cd.a.com'
+  },
+  {
+    host: 'x.example.com',
+    cert: {
+      subjectaltname: 'DNS:bad label.com',
+      subject: {}
+    },
+    error: 'Host: x.example.com. is not in the cert\'s altnames: DNS:bad label.com'
+  },
+  {
     host: 'a.com', cert: {
       subjectaltname: 'DNS:*.a.com',
       subject: {}
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
-           'DNS:*.a.com'
+      'DNS:*.a.com'
   },
   {
     host: 'b.a.com', cert: {
@@ -232,7 +294,7 @@ const tests = [
       subject: {}
     },
     error: 'Host: c.b.a.com. is not in the cert\'s altnames: ' +
-           'DNS:*.a.com'
+      'DNS:*.a.com'
   },
   {
     host: 'b.a.com', cert: {
@@ -252,7 +314,7 @@ const tests = [
       subject: {}
     },
     error: 'Host: a.b.a.com. is not in the cert\'s altnames: ' +
-           'DNS:*b.a.com'
+      'DNS:*b.a.com'
   },
   // Multiple DNS names
   {
@@ -260,6 +322,14 @@ const tests = [
       subjectaltname: 'DNS:*b.a.com, DNS:a.b.a.com',
       subject: {}
     }
+  },
+  {
+    host: 'bxa.a.com',
+    cert: {
+      subjectaltname: 'DNS:b**.a.com',
+      subject: {}
+    },
+    error: 'Host: bxa.a.com. is not in the cert\'s altnames: DNS:b**.a.com'
   },
   // URI names
   {
@@ -296,7 +366,7 @@ const tests = [
       subject: {}
     },
     error: 'IP: 127.0.0.2 is not in the cert\'s list: ' +
-           '127.0.0.1'
+      '127.0.0.1'
   },
   {
     host: '127.0.0.1', cert: {
@@ -311,7 +381,7 @@ const tests = [
       subject: { CN: 'localhost' }
     },
     error: 'Host: localhost. is not in the cert\'s altnames: ' +
-           'DNS:a.com'
+      'DNS:a.com'
   },
   // IDNA
   {
@@ -325,14 +395,14 @@ const tests = [
     host: 'xn--bcher-kva.example.com',
     cert: { subject: { CN: 'xn--*.example.com' } },
     error: 'Host: xn--bcher-kva.example.com. is not cert\'s CN: ' +
-            'xn--*.example.com',
-  },
+      'xn--*.example.com',
+  }
 ];
 
-tests.forEach(function(test, i) {
+tests.forEach(function (test, i) {
   const err = tls.checkServerIdentity(test.host, test.cert);
   assert.strictEqual(err?.reason,
-                     test.error,
-                     `Test# ${i} failed: ${util.inspect(test)} \n` +
-                     `${test.error} != ${(err?.reason)}`);
+    test.error,
+    `Test# ${i} failed: ${util.inspect(test)} \n` +
+    `${test.error} != ${(err?.reason)}`);
 });
