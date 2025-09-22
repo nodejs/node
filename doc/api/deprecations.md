@@ -3272,7 +3272,7 @@ Convert them to primitive strings.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.20.0
     pr-url: https://github.com/nodejs/node/pull/59758
     description: Deprecation revoked.
   - version:

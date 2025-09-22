@@ -584,7 +584,7 @@ property throw an exception with the code `ERR_PROTO_ACCESS`.
 <!-- YAML
 added: v22.14.0
 changes:
-  - version: REPLACEME
+  - version: v22.20.0
     pr-url: https://github.com/nodejs/node/pull/59707
     description: The option is no longer experimental.
 -->
@@ -901,7 +901,7 @@ It is possible to run code containing inline types unless the
 ### `--experimental-addon-modules`
 
 <!-- YAML
-added: REPLACEME
+added: v22.20.0
 -->
 
 > Stability: 1.0 - Early development

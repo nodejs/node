@@ -1974,7 +1974,7 @@ Resets the implementation of the mock module.
 ## Class: `MockPropertyContext`
 
 <!-- YAML
-added: REPLACEME
+added: v22.20.0
 -->
 
 The `MockPropertyContext` class is used to inspect or manipulate the behavior
@@ -2257,7 +2257,7 @@ test('mocks a builtin module in both module systems', async (t) => {
 ### `mock.property(object, propertyName[, value])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.20.0
 -->
 
 * `object` {Object} The object whose value is being mocked.

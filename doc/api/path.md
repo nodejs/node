@@ -288,7 +288,7 @@ path.format({
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v22.20.0
     pr-url: https://github.com/nodejs/node/pull/59572
     description: Marking the API stable.
 -->

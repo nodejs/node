@@ -319,7 +319,7 @@ added: v0.0.1
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.20.0
    pr-url: https://github.com/nodejs/node/pull/59464
    description: format now accepts `brotli` value.
  - version: v22.15.0
@@ -430,7 +430,7 @@ A browser-compatible implementation of {CustomEvent}.
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.20.0
    pr-url: https://github.com/nodejs/node/pull/59464
    description: format now accepts `brotli` value.
  - version: v22.15.0

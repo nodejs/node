@@ -718,7 +718,7 @@ This value is unique for each [`Worker`][] instance inside a single process.
 ## `worker.threadName`
 
 <!-- YAML
-added: REPLACEME
+added: v22.20.0
 -->
 
 * {string|null}
@@ -1794,7 +1794,7 @@ If the worker has stopped, the return value is an empty object.
 ### `worker.startCpuProfile(name)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.20.0
 -->
 
 * name: {string}
@@ -1893,7 +1893,7 @@ This value is unique for each `Worker` instance inside a single process.
 ### `worker.threadName`
 
 <!-- YAML
-added: REPLACEME
+added: v22.20.0
 -->
 
 * {string|null}
