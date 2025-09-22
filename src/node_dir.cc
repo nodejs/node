@@ -164,13 +164,27 @@ inline void DirHandle::GCClose() {
   }
 
   // If the close was successful, we still want to emit a process warning
-  // to notify that the file descriptor was gc'd. We want to be noisy about
+  // to notify that the directory handle was gc'd. We want to be noisy about
   // this because not explicitly closing the DirHandle is a bug.
 
-  env()->SetImmediate([](Environment* env) {
-    ProcessEmitWarning(env,
-                       "Closing directory handle on garbage collection");
-  }, CallbackFlags::kUnrefed);
+  env()->SetImmediate(
+      [](Environment* env) {
+        ProcessEmitWarning(env,
+                           "Closing directory handle on garbage collection");
+        if (env->dir_gc_close_warning()) {
+          env->set_dir_gc_close_warning(false);
+          USE(ProcessEmitDeprecationWarning(
+              env,
+              "Closing a Dir object on garbage collection is deprecated. "
+              "Please close Dir objects explicitly using "
+              "Dir.prototype.close(), "
+              "or by using explicit resource management ('using' keyword). "
+              "In the future, an error will be thrown if a directory is closed "
+              "during garbage collection.",
+              "DEP0200"));
+        }
+      },
+      CallbackFlags::kUnrefed);
 }
 
 void AfterClose(uv_fs_t* req) {
