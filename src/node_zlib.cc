@@ -612,9 +612,11 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
     return AllocForBrotli(data, real_size);
   }
 
+  static constexpr size_t reserveSizeAndAlign =
+      std::max(sizeof(size_t), alignof(max_align_t));
+
   static void* AllocForBrotli(void* data, size_t size) {
-    constexpr size_t offset = std::max(sizeof(size_t), alignof(max_align_t));
-    size += offset;
+    size += reserveSizeAndAlign;
     CompressionStream* ctx = static_cast<CompressionStream*>(data);
     char* memory = UncheckedMalloc(size);
     if (memory == nullptr) [[unlikely]] {
@@ -623,7 +625,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
     *reinterpret_cast<size_t*>(memory) = size;
     ctx->unreported_allocations_.fetch_add(size,
                                            std::memory_order_relaxed);
-    return memory + offset;
+    return memory + reserveSizeAndAlign;
   }
 
   static void FreeForZlib(void* data, void* pointer) {
@@ -631,8 +633,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
       return;
     }
     CompressionStream* ctx = static_cast<CompressionStream*>(data);
-    constexpr size_t offset = std::max(sizeof(size_t), alignof(max_align_t));
-    char* real_pointer = static_cast<char*>(pointer) - offset;
+    char* real_pointer = static_cast<char*>(pointer) - reserveSizeAndAlign;
     size_t real_size = *reinterpret_cast<size_t*>(real_pointer);
     ctx->unreported_allocations_.fetch_sub(real_size,
                                            std::memory_order_relaxed);
