@@ -256,7 +256,6 @@ class ProcessWrap : public HandleWrap {
       int argc = js_argv->Length();
       CHECK_LT(argc, INT_MAX);  // Check for overflow.
       args_vals.reserve(argc);
-      options_args.resize(argc + 1);
       for (int i = 0; i < argc; i++) {
         Local<Value> val;
         if (!js_argv->Get(context, i).ToLocal(&val)) {
@@ -264,10 +263,13 @@ class ProcessWrap : public HandleWrap {
         }
         node::Utf8Value arg(env->isolate(), val);
         args_vals.emplace_back(arg.ToString());
-        options_args[i] = const_cast<char*>(args_vals.back().c_str());
+      }
+      options_args.resize(args_vals.size() + 1);
+      for (size_t i = 0; i < args_vals.size(); i++) {
+        options_args[i] = const_cast<char*>(args_vals[i].c_str());
         CHECK_NOT_NULL(options_args[i]);
       }
-      options_args[argc] = nullptr;
+      options_args.back() = nullptr;
       options.args = options_args.data();
     }
 
@@ -294,7 +296,6 @@ class ProcessWrap : public HandleWrap {
       int envc = env_opt->Length();
       CHECK_LT(envc, INT_MAX);            // Check for overflow.
       env_vals.reserve(envc);
-      options_env.resize(envc + 1);
       for (int i = 0; i < envc; i++) {
         Local<Value> val;
         if (!env_opt->Get(context, i).ToLocal(&val)) {
@@ -302,10 +303,13 @@ class ProcessWrap : public HandleWrap {
         }
         node::Utf8Value pair(env->isolate(), val);
         env_vals.emplace_back(pair.ToString());
-        options_env[i] = const_cast<char*>(env_vals.back().c_str());
+      }
+      options_env.resize(env_vals.size() + 1);
+      for (size_t i = 0; i < env_vals.size(); i++) {
+        options_env[i] = const_cast<char*>(env_vals[i].c_str());
         CHECK_NOT_NULL(options_env[i]);
       }
-      options_env[envc] = nullptr;
+      options_env.back() = nullptr;
       options.env = options_env.data();
     }
 
