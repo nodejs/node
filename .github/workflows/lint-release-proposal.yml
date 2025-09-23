@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.12'
+  PYTHON_VERSION: '3.14'
   NODE_VERSION: lts/*
 
 permissions:
