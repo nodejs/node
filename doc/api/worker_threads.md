@@ -1988,7 +1988,7 @@ worker.on('online', async () => {
 `await using` example.
 
 ```cjs
-const { Worker } = require('node::worker_threads');
+const { Worker } = require('node:worker_threads');
 
 const w = new Worker(`
   const { parentPort } = require('worker_threads');
@@ -2031,7 +2031,7 @@ worker.on('online', async () => {
 `await using` example.
 
 ```cjs
-const { Worker } = require('node::worker_threads');
+const { Worker } = require('node:worker_threads');
 
 const w = new Worker(`
   const { parentPort } = require('worker_threads');
