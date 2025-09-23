@@ -691,7 +691,10 @@ if (hasOpenSSL(3, 5)) {
 }
 
 // End user code cannot create CryptoKey directly
-assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
+assert.throws(() => new CryptoKey(), {
+  name: 'TypeError',
+  code: 'ERR_ILLEGAL_CONSTRUCTOR',
+});
 
 {
   const buffer = Buffer.from('Hello World');

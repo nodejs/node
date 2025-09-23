@@ -19,8 +19,9 @@ suite('StatementSync() constructor', () => {
     t.assert.throws(() => {
       new StatementSync();
     }, {
+      name: 'TypeError',
       code: 'ERR_ILLEGAL_CONSTRUCTOR',
-      message: /Illegal constructor/,
+      message: 'Illegal constructor',
     });
   });
 });
