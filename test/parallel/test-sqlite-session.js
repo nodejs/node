@@ -7,6 +7,9 @@ const {
   constants,
 } = require('node:sqlite');
 const { test, suite } = require('node:test');
+const { nextDb } = require('../sqlite/next-db.js');
+const { Worker } = require('worker_threads');
+const { once } = require('events');
 
 /**
  * Convenience wrapper around assert.deepStrictEqual that sets a null
@@ -554,4 +557,75 @@ test('session supports ERM', (t) => {
   t.assert.throws(() => afterDisposeSession.changeset(), {
     message: /session is not open/,
   });
+});
+
+test('concurrent applyChangeset with workers', async (t) => {
+  // Before adding this test, the callbacks were stored in static variables
+  // this could result in a crash
+  // this test is a regression test for that scenario
+
+  function modeToString(mode) {
+    if (mode === constants.SQLITE_CHANGESET_ABORT) return 'SQLITE_CHANGESET_ABORT';
+    if (mode === constants.SQLITE_CHANGESET_OMIT) return 'SQLITE_CHANGESET_OMIT';
+  }
+
+  const dbPath = nextDb();
+  const db1 = new DatabaseSync(dbPath);
+  const db2 = new DatabaseSync(':memory:');
+  const createTable = `
+    CREATE TABLE data(
+      key INTEGER PRIMARY KEY,
+      value TEXT
+    ) STRICT`;
+  db1.exec(createTable);
+  db2.exec(createTable);
+  db1.prepare('INSERT INTO data (key, value) VALUES (?, ?)').run(1, 'hello');
+  db1.close();
+  const session = db2.createSession();
+  db2.prepare('INSERT INTO data (key, value) VALUES (?, ?)').run(1, 'world');
+  const changeset = session.changeset(); // Changeset with conflict (for db1)
+
+  const iterations = 10;
+  for (let i = 0; i < iterations; i++) {
+    const workers = [];
+    const expectedResults = new Map([
+      [constants.SQLITE_CHANGESET_ABORT, false],
+      [constants.SQLITE_CHANGESET_OMIT, true]]
+    );
+
+    // Launch two workers (abort and omit modes)
+    for (const mode of [constants.SQLITE_CHANGESET_ABORT, constants.SQLITE_CHANGESET_OMIT]) {
+      const worker = new Worker(`${__dirname}/../sqlite/worker.js`, {
+        workerData: {
+          dbPath,
+          changeset,
+          mode
+        },
+      });
+      workers.push(worker);
+    }
+
+    const results = await Promise.all(workers.map(async (worker) => {
+      const [message] = await once(worker, 'message');
+      return message;
+    }));
+
+    // Verify each result
+    for (const res of results) {
+      if (res.errorMessage) {
+        if (res.errcode === 5) {  // SQLITE_BUSY
+          break; // ignore
+        }
+        t.assert.fail(`Worker error: ${res.error.message}`);
+      }
+      const expected = expectedResults.get(res.mode);
+      t.assert.strictEqual(
+        res.result,
+        expected,
+        `Iteration ${i}: Worker (${modeToString(res.mode)}) expected ${expected} but got ${res.result}`
+      );
+    }
+
+    workers.forEach((worker) => worker.terminate()); // Cleanup
+  }
 });
