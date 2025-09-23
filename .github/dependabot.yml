@@ -7,9 +7,9 @@ updates:
     schedule:
       interval: monthly
       cooldown:
-        - semver-major: 5
-        - semver-minor: 5
-        - semver-patch: 5
+        - semver-major-days: 5
+        - semver-minor-days: 5
+        - semver-patch-days: 5
 
     commit-message:
       prefix: meta
@@ -20,9 +20,9 @@ updates:
     schedule:
       interval: monthly
       cooldown:
-        - semver-major: 5
-        - semver-minor: 5
-        - semver-patch: 5
+        - semver-major-days: 5
+        - semver-minor-days: 5
+        - semver-patch-days: 5
     commit-message:
       prefix: tools
     open-pull-requests-limit: ${{secrets.OPEN_PR_LIMIT}}
@@ -37,9 +37,9 @@ updates:
     schedule:
       interval: monthly
       cooldown:
-        - semver-major: 5
-        - semver-minor: 5
-        - semver-patch: 5
+        - semver-major-days: 5
+        - semver-minor-days: 5
+        - semver-patch-days: 5
     commit-message:
       prefix: tools
     open-pull-requests-limit: ${{secrets.OPEN_PR_LIMIT}}
@@ -54,9 +54,9 @@ updates:
     schedule:
       interval: weekly
       cooldown:
-        - semver-major: 5
-        - semver-minor: 5
-        - semver-patch: 5
+        - semver-major-days: 5
+        - semver-minor-days: 5
+        - semver-patch-days: 5
     commit-message:
       prefix: tools
     open-pull-requests-limit: ${{secrets.OPEN_PR_LIMIT}}
