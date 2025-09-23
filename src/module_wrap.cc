@@ -757,8 +757,15 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   bool timed_out = false;
   bool received_signal = false;
   MaybeLocal<Value> result;
-  auto run = [&]() {
-    MaybeLocal<Value> result = module->Evaluate(context);
+  {
+    auto wd = timeout != -1
+                  ? std::make_optional<Watchdog>(isolate, timeout, &timed_out)
+                  : std::nullopt;
+    auto swd = break_on_sigint ? std::make_optional<SigintWatchdog>(
+                                     isolate, &received_signal)
+                               : std::nullopt;
+
+    result = module->Evaluate(context);
 
     Local<Value> res;
     if (result.ToLocal(&res) && microtask_queue) {
@@ -792,29 +799,15 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
       Local<Context> outer_context = isolate->GetCurrentContext();
       Local<Promise::Resolver> resolver;
       if (!Promise::Resolver::New(outer_context).ToLocal(&resolver)) {
-        return MaybeLocal<Value>();
+        result = {};
       }
       if (resolver->Resolve(outer_context, res).IsNothing()) {
-        return MaybeLocal<Value>();
+        result = {};
       }
       result = resolver->GetPromise();
 
       microtask_queue->PerformCheckpoint(isolate);
     }
-    return result;
-  };
-  if (break_on_sigint && timeout != -1) {
-    Watchdog wd(isolate, timeout, &timed_out);
-    SigintWatchdog swd(isolate, &received_signal);
-    result = run();
-  } else if (break_on_sigint) {
-    SigintWatchdog swd(isolate, &received_signal);
-    result = run();
-  } else if (timeout != -1) {
-    Watchdog wd(isolate, timeout, &timed_out);
-    result = run();
-  } else {
-    result = run();
   }
 
   if (result.IsEmpty()) {
