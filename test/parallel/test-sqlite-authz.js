@@ -71,7 +71,7 @@ suite('DatabaseSync.prototype.setAuthorizer()', () => {
     });
   });
 
-  it('blocks operations when authorizer throws error', () => {
+  it('rethrows error when authorizer throws error', () => {
     const db = new DatabaseSync(':memory:');
     db.setAuthorizer(() => {
       throw new Error('Unknown error');
@@ -80,12 +80,23 @@ suite('DatabaseSync.prototype.setAuthorizer()', () => {
     assert.throws(() => {
       db.exec('SELECT 1');
     }, {
-      code: 'ERR_SQLITE_ERROR',
-      message: /not authorized/
+      message: 'Unknown error'
     });
   });
 
-  it('blocks operations when authorizer returns NaN', () => {
+  it('throws error when authorizer returns nothing', () => {
+    const db = new DatabaseSync(':memory:');
+    db.setAuthorizer(() => {
+    });
+
+    assert.throws(() => {
+      db.exec('SELECT 1');
+    }, {
+      message: 'Authorizer callback must return an integer authorization code'
+    });
+  });
+
+  it('throws error when authorizer returns NaN', () => {
     const db = new DatabaseSync(':memory:');
     db.setAuthorizer(() => {
       return '1';
@@ -94,12 +105,11 @@ suite('DatabaseSync.prototype.setAuthorizer()', () => {
     assert.throws(() => {
       db.exec('SELECT 1');
     }, {
-      code: 'ERR_SQLITE_ERROR',
-      message: /not authorized/
+      message: 'Authorizer callback return value must be an integer'
     });
   });
 
-  it('blocks operations when authorizer returns a invalid code', () => {
+  it('throws error when authorizer returns a invalid code', () => {
     const db = new DatabaseSync(':memory:');
     db.setAuthorizer(() => {
       return 3;
@@ -108,8 +118,7 @@ suite('DatabaseSync.prototype.setAuthorizer()', () => {
     assert.throws(() => {
       db.exec('SELECT 1');
     }, {
-      code: 'ERR_SQLITE_ERROR',
-      message: /not authorized/
+      message: 'Authorizer callback returned invalid authorization code'
     });
   });
 

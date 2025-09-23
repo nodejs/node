@@ -171,6 +171,10 @@ class DatabaseSync : public BaseObject {
   void SetIgnoreNextSQLiteError(bool ignore);
   bool ShouldIgnoreSQLiteError();
 
+  bool HasPendingAuthorizerError() const;
+  void StoreAuthorizerError(v8::Local<v8::Value> error);
+  void RethrowPendingAuthorizerError();
+
   SET_MEMORY_INFO_NAME(DatabaseSync)
   SET_SELF_SIZE(DatabaseSync)
 
@@ -188,6 +192,9 @@ class DatabaseSync : public BaseObject {
   std::set<BackupJob*> backups_;
   std::set<sqlite3_session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
+
+  bool has_pending_authorizer_error_ = false;
+  v8::Global<v8::Value> pending_authorizer_error_;
 
   friend class Session;
   friend class SQLTagStore;

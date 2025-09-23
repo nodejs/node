@@ -233,6 +233,27 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, DatabaseSync* db) {
   }
 }
 
+bool DatabaseSync::HasPendingAuthorizerError() const {
+  return has_pending_authorizer_error_;
+}
+
+void DatabaseSync::StoreAuthorizerError(Local<Value> error) {
+  if (!has_pending_authorizer_error_) {
+    pending_authorizer_error_.Reset(env()->isolate(), error);
+    has_pending_authorizer_error_ = true;
+  }
+}
+
+void DatabaseSync::RethrowPendingAuthorizerError() {
+  if (has_pending_authorizer_error_) {
+    Isolate* isolate = env()->isolate();
+    Local<Value> err = pending_authorizer_error_.Get(isolate);
+    pending_authorizer_error_.Reset();
+    has_pending_authorizer_error_ = false;
+    isolate->ThrowException(err);
+  }
+}
+
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
   Local<Object> e;
   if (CreateSQLiteError(isolate, message).ToLocal(&e)) {
@@ -1126,6 +1147,15 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   Utf8Value sql(env->isolate(), args[0].As<String>());
   sqlite3_stmt* s = nullptr;
   int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, 0);
+
+  if (db->HasPendingAuthorizerError()) {
+    db->RethrowPendingAuthorizerError();
+    if (s != nullptr) {
+      sqlite3_finalize(s);
+    }
+    return;
+  }
+
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   BaseObjectPtr<StatementSync> stmt =
       StatementSync::Create(env, BaseObjectPtr<DatabaseSync>(db), s);
@@ -1147,6 +1177,10 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
 
   Utf8Value sql(env->isolate(), args[0].As<String>());
   int r = sqlite3_exec(db->connection_, *sql, nullptr, nullptr, nullptr);
+  if (db->HasPendingAuthorizerError()) {
+    db->RethrowPendingAuthorizerError();
+    return;
+  }
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 }
 
@@ -1906,9 +1940,7 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
   Local<Value> cb =
       db->object()->GetInternalField(kAuthorizerCallback).template As<Value>();
 
-  if (!cb->IsFunction()) {
-    return SQLITE_DENY;
-  }
+  CHECK(cb->IsFunction());
 
   Local<Function> callback = cb.As<Function>();
   LocalVector<Value> js_argv(isolate);
@@ -1929,29 +1961,43 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
       context, Undefined(isolate), js_argv.size(), js_argv.data());
 
   if (try_catch.HasCaught()) {
-    // If there's an exception in the callback, deny the operation
-    // TODO: Rethrow exception
+    db->StoreAuthorizerError(try_catch.Exception());
     return SQLITE_DENY;
   }
 
   Local<Value> result;
-  if (!retval.ToLocal(&result)) {
+  if (!retval.ToLocal(&result) || result->IsUndefined() || result->IsNull()) {
+    // Missing return value
+    Local<Value> err = Exception::TypeError(
+        String::NewFromUtf8(
+            isolate,
+            "Authorizer callback must return an integer authorization code")
+            .ToLocalChecked());
+    db->StoreAuthorizerError(err);
     return SQLITE_DENY;
   }
 
-  if (!result->IsNumber()) {
+  if (!result->IsInt32()) {
+    Local<Value> err = Exception::TypeError(
+        String::NewFromUtf8(
+            isolate, "Authorizer callback return value must be an integer")
+            .ToLocalChecked());
+    db->StoreAuthorizerError(err);
     return SQLITE_DENY;
   }
 
-  double num_result = result.As<Number>()->Value();
-  int int_result = static_cast<int>(num_result);
-
-  if (int_result == SQLITE_OK || int_result == SQLITE_DENY ||
-      int_result == SQLITE_IGNORE) {
-    return int_result;
+  int32_t int_result = result.As<Int32>()->Value();
+  if (int_result != SQLITE_OK && int_result != SQLITE_DENY &&
+      int_result != SQLITE_IGNORE) {
+    Local<Value> err = Exception::RangeError(
+        String::NewFromUtf8(
+            isolate, "Authorizer callback returned invalid authorization code")
+            .ToLocalChecked());
+    db->StoreAuthorizerError(err);
+    return SQLITE_DENY;
   }
 
-  return SQLITE_DENY;
+  return int_result;
 }
 
 StatementSync::StatementSync(Environment* env,
