@@ -3013,7 +3013,7 @@ is drained immediately after.
 
 So in CJS modules `process.nextTick()` callbacks are always run before `queueMicrotask()` ones.
 However since ESM modules are processed already as part of the microtask queue, there
-`queueMicrotask()` callbacks are always exectued before `process.nextTick()` ones since Node.js
+`queueMicrotask()` callbacks are always executed before `process.nextTick()` ones since Node.js
 is already in the process of draining the microtask queue.
 
 ```mjs
