@@ -85,6 +85,34 @@ suite('DatabaseSync.prototype.setAuthorizer()', () => {
     });
   });
 
+  it('blocks operations when authorizer returns NaN', () => {
+    const db = new DatabaseSync(':memory:');
+    db.setAuthorizer(() => {
+      return '1';
+    });
+
+    assert.throws(() => {
+      db.exec('SELECT 1');
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: /not authorized/
+    });
+  });
+
+  it('blocks operations when authorizer returns a invalid code', () => {
+    const db = new DatabaseSync(':memory:');
+    db.setAuthorizer(() => {
+      return 3;
+    });
+
+    assert.throws(() => {
+      db.exec('SELECT 1');
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: /not authorized/
+    });
+  });
+
   it('clears authorizer when set to null', (t) => {
     const authorizer = t.mock.fn(() => constants.SQLITE_OK);
     const db = new DatabaseSync(':memory:');
@@ -154,12 +182,5 @@ suite('DatabaseSync.prototype.setAuthorizer()', () => {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "callback" argument must be a function/
     });
-  });
-
-  it('accepts null as valid input for clearing authorizer', () => {
-    const db = new DatabaseSync(':memory:');
-
-    // does not throw
-    db.setAuthorizer(null);
   });
 });

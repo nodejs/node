@@ -1930,7 +1930,7 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
 
   if (try_catch.HasCaught()) {
     // If there's an exception in the callback, deny the operation
-    // TODO: Rethrow exepction
+    // TODO: Rethrow exception
     return SQLITE_DENY;
   }
 
@@ -1939,13 +1939,19 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
     return SQLITE_DENY;
   }
 
-  if (result->IsNumber()) {
-    double num_result = result.As<Number>()->Value();
-    return static_cast<int>(num_result);
+  if (!result->IsNumber()) {
+    return SQLITE_DENY;
   }
 
-  // Default to OK if the result isn't a number
-  return SQLITE_OK;
+  double num_result = result.As<Number>()->Value();
+  int int_result = static_cast<int>(num_result);
+
+  if (int_result == SQLITE_OK || int_result == SQLITE_DENY ||
+      int_result == SQLITE_IGNORE) {
+    return int_result;
+  }
+
+  return SQLITE_DENY;
 }
 
 StatementSync::StatementSync(Environment* env,
