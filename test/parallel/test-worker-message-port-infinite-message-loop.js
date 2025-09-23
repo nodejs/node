@@ -20,7 +20,7 @@ port1.on('message', common.mustCallAtLeast(() => {
 
   port2.postMessage(0);
   assert(count++ < 10000, `hit ${count} loop iterations`);
-}, 1));
+}));
 
 port2.postMessage(0);
 
