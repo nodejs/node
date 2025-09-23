@@ -81,6 +81,7 @@ namespace node {
   V(WORKER)                                                                    \
   V(WORKERCPUPROFILE)                                                          \
   V(WORKERCPUUSAGE)                                                            \
+  V(WORKERHEAPPROFILE)                                                         \
   V(WORKERHEAPSNAPSHOT)                                                        \
   V(WORKERHEAPSTATISTICS)                                                      \
   V(WRITEWRAP)                                                                 \
