@@ -20,6 +20,7 @@
 
 using node::kAllowedInEnvvar;
 using node::kDisallowedInEnvvar;
+using v8::AllocationProfile;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
@@ -32,6 +33,7 @@ using v8::Float64Array;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::HeapProfiler;
 using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
@@ -1031,6 +1033,169 @@ void Worker::StopCpuProfile(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+class WorkerHeapProfileTaker final : public AsyncWrap {
+ public:
+  WorkerHeapProfileTaker(Environment* env, Local<Object> obj)
+      : AsyncWrap(env, obj, AsyncWrap::PROVIDER_WORKERHEAPPROFILE) {}
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(WorkerHeapProfileTaker)
+  SET_SELF_SIZE(WorkerHeapProfileTaker)
+};
+
+void Worker::StartHeapProfile(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  Environment* env = w->env();
+
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_heap_profile_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+
+  BaseObjectPtr<WorkerHeapProfileTaker> taker =
+      MakeDetachedBaseObject<WorkerHeapProfileTaker>(env, wrap);
+
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
+    v8::HeapProfiler* profiler = worker_env->isolate()->GetHeapProfiler();
+    bool success = profiler->StartSamplingHeapProfiler();
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker),
+         success = success](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
+          Local<Value> argv[] = {
+              Null(isolate),  // error
+          };
+          if (!success) {
+            argv[0] = ERR_HEAP_PROFILE_HAVE_BEEN_STARTED(
+                isolate, "heap profiler have been started");
+          }
+          taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
+
+static void buildHeapProfileNode(Isolate* isolate,
+                                 const AllocationProfile::Node* node,
+                                 JSONWriter* writer) {
+  size_t selfSize = 0;
+  for (const auto& allocation : node->allocations)
+    selfSize += allocation.size * allocation.count;
+
+  writer->json_keyvalue("selfSize", selfSize);
+  writer->json_keyvalue("id", node->node_id);
+  writer->json_objectstart("callFrame");
+  writer->json_keyvalue("scriptId", node->script_id);
+  writer->json_keyvalue("lineNumber", node->line_number - 1);
+  writer->json_keyvalue("columnNumber", node->column_number - 1);
+  node::Utf8Value name(isolate, node->name);
+  node::Utf8Value script_name(isolate, node->script_name);
+  writer->json_keyvalue("functionName", *name);
+  writer->json_keyvalue("url", *script_name);
+  writer->json_objectend();
+
+  writer->json_arraystart("children");
+  for (const auto* child : node->children) {
+    writer->json_start();
+    buildHeapProfileNode(isolate, child, writer);
+    writer->json_end();
+  }
+  writer->json_arrayend();
+}
+
+static bool serializeProfile(Isolate* isolate, std::ostringstream& out_stream) {
+  HandleScope scope(isolate);
+  HeapProfiler* profiler = isolate->GetHeapProfiler();
+  std::unique_ptr<AllocationProfile> profile(profiler->GetAllocationProfile());
+  if (!profile) {
+    return false;
+  }
+  JSONWriter writer(out_stream, false);
+  writer.json_start();
+
+  writer.json_arraystart("samples");
+  for (const auto& sample : profile->GetSamples()) {
+    writer.json_start();
+    writer.json_keyvalue("size", sample.size * sample.count);
+    writer.json_keyvalue("nodeId", sample.node_id);
+    writer.json_keyvalue("ordinal", static_cast<double>(sample.sample_id));
+    writer.json_end();
+  }
+  writer.json_arrayend();
+
+  writer.json_objectstart("head");
+  buildHeapProfileNode(isolate, profile->GetRootNode(), &writer);
+  writer.json_objectend();
+
+  writer.json_end();
+  profiler->StopSamplingHeapProfiler();
+  return true;
+}
+
+void Worker::StopHeapProfile(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+
+  Environment* env = w->env();
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_heap_profile_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+
+  BaseObjectPtr<WorkerHeapProfileTaker> taker =
+      MakeDetachedBaseObject<WorkerHeapProfileTaker>(env, wrap);
+
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
+    std::ostringstream out_stream;
+    bool success = serializeProfile(worker_env->isolate(), out_stream);
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker),
+         out_stream = std::move(out_stream),
+         success = success](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
+          Local<Value> argv[] = {
+              Null(isolate),       // error
+              Undefined(isolate),  // profile
+          };
+          if (success) {
+            Local<Value> result;
+            if (!ToV8Value(env->context(), out_stream.str(), isolate)
+                     .ToLocal(&result)) {
+              return;
+            }
+            argv[1] = result;
+          } else {
+            argv[0] = ERR_HEAP_PROFILE_NOT_STARTED(isolate,
+                                                   "heap profile not started");
+          }
+          taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
 class WorkerHeapStatisticsTaker : public AsyncWrap {
  public:
   WorkerHeapStatisticsTaker(Environment* env, Local<Object> obj)
@@ -1328,6 +1493,8 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
     SetProtoMethod(isolate, w, "cpuUsage", Worker::CpuUsage);
     SetProtoMethod(isolate, w, "startCpuProfile", Worker::StartCpuProfile);
     SetProtoMethod(isolate, w, "stopCpuProfile", Worker::StopCpuProfile);
+    SetProtoMethod(isolate, w, "startHeapProfile", Worker::StartHeapProfile);
+    SetProtoMethod(isolate, w, "stopHeapProfile", Worker::StopHeapProfile);
 
     SetConstructorFunction(isolate, target, "Worker", w);
   }
@@ -1384,6 +1551,20 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
         FIXED_ONE_BYTE_STRING(isolate, "WorkerCpuProfileTaker");
     wst->SetClassName(wst_string);
     isolate_data->set_worker_cpu_profile_taker_template(
+        wst->InstanceTemplate());
+  }
+
+  {
+    Local<FunctionTemplate> wst = NewFunctionTemplate(isolate, nullptr);
+
+    wst->InstanceTemplate()->SetInternalFieldCount(
+        WorkerHeapProfileTaker::kInternalFieldCount);
+    wst->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+
+    Local<String> wst_string =
+        FIXED_ONE_BYTE_STRING(isolate, "WorkerHeapProfileTaker");
+    wst->SetClassName(wst_string);
+    isolate_data->set_worker_heap_profile_taker_template(
         wst->InstanceTemplate());
   }
 
@@ -1466,6 +1647,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::CpuUsage);
   registry->Register(Worker::StartCpuProfile);
   registry->Register(Worker::StopCpuProfile);
+  registry->Register(Worker::StartHeapProfile);
+  registry->Register(Worker::StopHeapProfile);
 }
 
 }  // anonymous namespace
