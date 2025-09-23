@@ -30,7 +30,8 @@ const config = {
 
 function agentFactory(handle, count) {
   const agent = new http.Agent();
-  agent.createConnection = common.mustCall((cfg) => {
+  agent.createConnection = common.mustCall((...cfg) => {
+    const normalized = net._normalizeArgs(cfg);
     const sock = new net.Socket();
 
     // Fake the handle so we can enforce returning an immediate error
@@ -39,29 +40,29 @@ function agentFactory(handle, count) {
     // Simulate just enough socket handle initialization
     sock[async_id_symbol] = newAsyncId();
 
-    sock.connect(cfg);
+    sock.connect(normalized);
     return sock;
   }, count);
 
   return agent;
 };
 
-const handleWithoutBind = {
+const handleWithoutBind = callCount => ({
   connect: common.mustCall((req, addr, port) => {
     return UV_ENETUNREACH;
-  }, 3), // Because two tests will use this
+  }, callCount), 
   readStart() { },
   close() { },
-};
+});
 
-const handleWithBind = {
+const handleWithBind = callCount => ({
   readStart() { },
   close() { },
-  bind: common.mustCall(() => UV_EADDRINUSE, 2), // Because two tests will use this handle
-};
+  bind: common.mustCall(() => UV_EADDRINUSE, callCount), 
+});
 
-const agentWithoutBind = agentFactory(handleWithoutBind, 3);
-const agentWithBind = agentFactory(handleWithBind, 2);
+const agentWithoutBind = agentFactory(handleWithoutBind(3), 3); // Because three tests will use this
+const agentWithBind = agentFactory(handleWithBind(2), 2); // Because two tests will use this handle
 
 console.log('test initiated: test-1', Date.now());
 http.get({
