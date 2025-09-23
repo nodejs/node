@@ -884,7 +884,7 @@ added: v22.9.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59925
-    description: The `--env-file-if-exists` flag is now stable.
+    description: The `--env-file-if-exists` flag is no longer experimental.
 -->
 
 Behavior is the same as [`--env-file`][], but an error is not thrown if the file
@@ -897,7 +897,7 @@ added: v20.6.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59925
-    description: The `--env-file` flag is now stable.
+    description: The `--env-file` flag is no longer experimental.
   - version:
     - v21.7.0
     - v20.12.0
