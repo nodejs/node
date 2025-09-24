@@ -21,3 +21,30 @@ TEST(NodeCrypto, NewRootCertStore) {
                                       "any errors on the OpenSSL error stack\n";
   X509_STORE_free(store);
 }
+
+/*
+ * This test verifies that OpenSSL memory tracking constants are properly
+ * defined.
+ */
+TEST(NodeCrypto, MemoryTrackingConstants) {
+  // Verify that our memory tracking constants are defined and reasonable
+  EXPECT_GT(node::crypto::kSizeOf_SSL_CTX, 0)
+      << "SSL_CTX size constant should be positive";
+  EXPECT_GT(node::crypto::kSizeOf_X509, 0)
+      << "X509 size constant should be positive";
+  EXPECT_GT(node::crypto::kSizeOf_EVP_MD_CTX, 0)
+      << "EVP_MD_CTX size constant should be positive";
+
+  // Verify reasonable size ranges (basic sanity check)
+  EXPECT_LT(node::crypto::kSizeOf_SSL_CTX, 10000)
+      << "SSL_CTX size should be reasonable";
+  EXPECT_LT(node::crypto::kSizeOf_X509, 10000)
+      << "X509 size should be reasonable";
+  EXPECT_LT(node::crypto::kSizeOf_EVP_MD_CTX, 1000)
+      << "EVP_MD_CTX size should be reasonable";
+
+  // Specific values we expect based on our implementation
+  EXPECT_EQ(node::crypto::kSizeOf_SSL_CTX, 240);
+  EXPECT_EQ(node::crypto::kSizeOf_X509, 128);
+  EXPECT_EQ(node::crypto::kSizeOf_EVP_MD_CTX, 48);
+}

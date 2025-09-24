@@ -67,8 +67,7 @@ class SecureContext final : public BaseObject {
   void SetX509StoreFlag(unsigned long flags);  // NOLINT(runtime/int)
   X509_STORE* GetCertStoreOwnedByThisSecureContext();
 
-  // TODO(joyeecheung): track the memory used by OpenSSL types
-  SET_NO_MEMORY_INFO()
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(SecureContext)
   SET_SELF_SIZE(SecureContext)
 
