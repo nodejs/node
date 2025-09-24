@@ -1865,6 +1865,7 @@ added: v8.4.0
 changes:
   - version:
     - v24.7.0
+    - v22.20.0
     pr-url: https://github.com/nodejs/node/pull/59455
     description: Allow passing headers in raw array format.
   - version:

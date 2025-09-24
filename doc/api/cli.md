@@ -659,7 +659,9 @@ added:
   - v23.7.0
   - v22.14.0
 changes:
-  - version: v24.8.0
+  - version:
+    - v24.8.0
+    - v22.20.0
     pr-url: https://github.com/nodejs/node/pull/59707
     description: The option is no longer experimental.
 -->
@@ -981,7 +983,9 @@ It is possible to run code containing inline types unless the
 ### `--experimental-addon-modules`
 
 <!-- YAML
-added: v23.6.0
+added:
+  - v23.6.0
+  - v22.20.0
 -->
 
 > Stability: 1.0 - Early development

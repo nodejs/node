@@ -724,7 +724,9 @@ This value is unique for each [`Worker`][] instance inside a single process.
 ## `worker.threadName`
 
 <!-- YAML
-added: v24.6.0
+added:
+  - v24.6.0
+  - v22.20.0
 -->
 
 * {string|null}
@@ -2004,7 +2006,7 @@ w.on('online', async () => {
 ### `worker.startHeapProfile()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.20.0
 -->
 
 * Returns: {Promise}
@@ -2116,7 +2118,9 @@ This value is unique for each `Worker` instance inside a single process.
 ### `worker.threadName`
 
 <!-- YAML
-added: v24.6.0
+added:
+  - v24.6.0
+  - v22.20.0
 -->
 
 * {string|null}
