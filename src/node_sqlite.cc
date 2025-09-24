@@ -234,23 +234,24 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, DatabaseSync* db) {
 }
 
 bool DatabaseSync::HasPendingAuthorizerError() const {
-  return has_pending_authorizer_error_;
+  Local<Value> error =
+      object()->GetInternalField(kPendingAuthorizerError).As<Value>();
+  return !error.IsEmpty() && !error->IsUndefined();
 }
 
 void DatabaseSync::StoreAuthorizerError(Local<Value> error) {
-  if (!has_pending_authorizer_error_) {
-    pending_authorizer_error_.Reset(env()->isolate(), error);
-    has_pending_authorizer_error_ = true;
+  if (!HasPendingAuthorizerError()) {
+    object()->SetInternalField(kPendingAuthorizerError, error);
   }
 }
 
 void DatabaseSync::RethrowPendingAuthorizerError() {
-  if (has_pending_authorizer_error_) {
-    Isolate* isolate = env()->isolate();
-    Local<Value> err = pending_authorizer_error_.Get(isolate);
-    pending_authorizer_error_.Reset();
-    has_pending_authorizer_error_ = false;
-    isolate->ThrowException(err);
+  if (HasPendingAuthorizerError()) {
+    Local<Value> error =
+        object()->GetInternalField(kPendingAuthorizerError).As<Value>();
+    object()->SetInternalField(kPendingAuthorizerError,
+                               Undefined(env()->isolate()));
+    env()->isolate()->ThrowException(error);
   }
 }
 

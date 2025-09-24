@@ -113,6 +113,7 @@ class DatabaseSync : public BaseObject {
  public:
   enum InternalFields {
     kAuthorizerCallback = BaseObject::kInternalFieldCount,
+    kPendingAuthorizerError,
     kInternalFieldCount
   };
 
@@ -192,9 +193,6 @@ class DatabaseSync : public BaseObject {
   std::set<BackupJob*> backups_;
   std::set<sqlite3_session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
-
-  bool has_pending_authorizer_error_ = false;
-  v8::Global<v8::Value> pending_authorizer_error_;
 
   friend class Session;
   friend class SQLTagStore;
