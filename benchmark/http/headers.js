@@ -27,7 +27,7 @@ function main({ len, n, duration }) {
     'Transfer-Encoding': 'chunked',
   };
 
-  const Is = [...Array(n / len).keys()];
+  const Is = [...Array(parseInt(n / len)).keys()];
   const Js = [...Array(len).keys()];
 
   for (const i of Is) {
