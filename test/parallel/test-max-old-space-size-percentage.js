@@ -2,7 +2,11 @@
 
 // This test validates the --max-old-space-size-percentage flag functionality
 
-require('../common');
+const common = require('../common');
+// This flag utilizes --max-old-space-size, which is unreliable on
+// 32-bit platforms due to integer overflow issues.
+common.skipIf32Bits();
+
 const assert = require('node:assert');
 const { spawnSync } = require('child_process');
 const os = require('os');

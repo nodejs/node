@@ -352,6 +352,9 @@ The
 .Ar percentage
 parameter must be a number greater than 0 and up to 100, representing the percentage
 of available system memory to allocate to the V8 heap.
+.Pp
+Note: This flag utilizes --max-old-space-size, which is unreliable on 32-bit platforms due to
+integer overflow issues.
 .
 .It Fl -napi-modules
 This option is a no-op.
