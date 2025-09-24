@@ -30,6 +30,8 @@ export async function resolve(specifier, context, next) {
     assert.deepStrictEqual(context.importAttributes, {
       type: 'json',
     });
+  } else {
+    throw new Error(`Unexpected resolve call: ${specifier}`);
   }
 
   // Ensure `context` has all and only the properties it's supposed to
