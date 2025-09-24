@@ -2974,7 +2974,7 @@ The date/time until which this certificate is valid, encapsulated in a `Date` ob
 ### `x509.signatureAlgorithm`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * Type: {string|undefined}
@@ -2984,7 +2984,7 @@ The algorithm used to sign the certificate or `undefined` if the signature algor
 ### `x509.signatureAlgorithmOid`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * Type: {string}

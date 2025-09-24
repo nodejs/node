@@ -1999,7 +1999,7 @@ w.on('online', async () => {
 ### `worker.startHeapProfile()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * Returns: {Promise}
