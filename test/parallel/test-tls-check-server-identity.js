@@ -129,7 +129,7 @@ const tests = [
       subject: { CN: '*.a.com' },
     },
     error: 'Host: b.a.com. is not in the cert\'s altnames: ' +
-      'DNS:omg.com'
+           'DNS:omg.com'
   },
   {
     host: 'b.a.com',
@@ -150,7 +150,7 @@ const tests = [
   // Empty Cert
   {
     host: 'a.com',
-    cert: {},
+    cert: { },
     error: 'Cert does not contain a DNS name'
   },
 
@@ -188,7 +188,7 @@ const tests = [
       subject: { CN: 'b.com' }
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
-      'DNS:*'
+           'DNS:*'
   },
   {
     host: 'a.com', cert: {
@@ -196,7 +196,7 @@ const tests = [
       subject: { CN: 'b.com' }
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
-      'DNS:*.com'
+           'DNS:*.com'
   },
   {
     host: 'a.co.uk', cert: {
@@ -280,7 +280,7 @@ const tests = [
       subject: {}
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
-      'DNS:*.a.com'
+           'DNS:*.a.com'
   },
   {
     host: 'b.a.com', cert: {
@@ -294,7 +294,7 @@ const tests = [
       subject: {}
     },
     error: 'Host: c.b.a.com. is not in the cert\'s altnames: ' +
-      'DNS:*.a.com'
+           'DNS:*.a.com'
   },
   {
     host: 'b.a.com', cert: {
@@ -314,7 +314,7 @@ const tests = [
       subject: {}
     },
     error: 'Host: a.b.a.com. is not in the cert\'s altnames: ' +
-      'DNS:*b.a.com'
+           'DNS:*b.a.com'
   },
   // Multiple DNS names
   {
@@ -366,7 +366,7 @@ const tests = [
       subject: {}
     },
     error: 'IP: 127.0.0.2 is not in the cert\'s list: ' +
-      '127.0.0.1'
+           '127.0.0.1'
   },
   {
     host: '127.0.0.1', cert: {
@@ -395,14 +395,14 @@ const tests = [
     host: 'xn--bcher-kva.example.com',
     cert: { subject: { CN: 'xn--*.example.com' } },
     error: 'Host: xn--bcher-kva.example.com. is not cert\'s CN: ' +
-      'xn--*.example.com',
-  }
+           'xn--*.example.com',
+  },
 ];
 
-tests.forEach(function (test, i) {
+tests.forEach(function(test, i) {
   const err = tls.checkServerIdentity(test.host, test.cert);
   assert.strictEqual(err?.reason,
-    test.error,
-    `Test# ${i} failed: ${util.inspect(test)} \n` +
-    `${test.error} != ${(err?.reason)}`);
+                     test.error,
+                     `Test# ${i} failed: ${util.inspect(test)} \n` +
+                     `${test.error} != ${(err?.reason)}`);
 });
