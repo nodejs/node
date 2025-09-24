@@ -4110,7 +4110,7 @@ an internal nodejs implementation rather than a public facing API, use `node:htt
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.9.0
     pr-url: https://github.com/nodejs/node/pull/59839
     description: Documentation-only deprecation.
 -->

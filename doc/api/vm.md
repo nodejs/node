@@ -925,7 +925,7 @@ the ECMAScript specification.
 ### `sourceTextModule.hasAsyncGraph()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * Returns: {boolean}
@@ -942,7 +942,7 @@ instantiated yet, an error will be thrown.
 ### `sourceTextModule.hasTopLevelAwait()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * Returns: {boolean}

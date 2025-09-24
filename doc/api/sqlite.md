@@ -364,7 +364,7 @@ around [`sqlite3_prepare_v2()`][].
 ### `database.createSQLTagStore([maxSize])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * `maxSize` {integer} The maximum number of prepared statements to cache.
@@ -554,7 +554,7 @@ over hand-crafted SQL strings when handling user input.
 ## Class: `SQLTagStore`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 This class represents a single LRU (Least Recently Used) cache for storing
@@ -573,7 +573,7 @@ class execute synchronously.
 ### `sqlTagStore.all(sqlTemplate[, ...values])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * `sqlTemplate` {Template Literal} A template literal containing the SQL query.
@@ -585,7 +585,7 @@ Executes the given SQL query and returns all resulting rows as an array of objec
 ### `sqlTagStore.get(sqlTemplate[, ...values])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * `sqlTemplate` {Template Literal} A template literal containing the SQL query.
@@ -598,7 +598,7 @@ Executes the given SQL query and returns the first resulting row as an object.
 ### `sqlTagStore.iterate(sqlTemplate[, ...values])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * `sqlTemplate` {Template Literal} A template literal containing the SQL query.
@@ -610,7 +610,7 @@ Executes the given SQL query and returns an iterator over the resulting rows.
 ### `sqlTagStore.run(sqlTemplate[, ...values])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * `sqlTemplate` {Template Literal} A template literal containing the SQL query.
@@ -622,7 +622,7 @@ Executes the given SQL query, which is expected to not return any rows (e.g., IN
 ### `sqlTagStore.size()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * Returns: {integer} The number of prepared statements currently in the cache.
@@ -632,7 +632,7 @@ A read-only property that returns the number of prepared statements currently in
 ### `sqlTagStore.capacity`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * Returns: {integer} The maximum number of prepared statements the cache can hold.
@@ -642,7 +642,7 @@ A read-only property that returns the maximum number of prepared statements the 
 ### `sqlTagStore.db`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * {DatabaseSync} The `DatabaseSync` instance that created this `SQLTagStore`.
@@ -652,7 +652,7 @@ A read-only property that returns the `DatabaseSync` object associated with this
 ### `sqlTagStore.reset()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 Resets the LRU cache, clearing all stored prepared statements.
@@ -660,7 +660,7 @@ Resets the LRU cache, clearing all stored prepared statements.
 ### `sqlTagStore.clear()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 An alias for `sqlTagStore.reset()`.

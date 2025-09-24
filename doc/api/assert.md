@@ -231,7 +231,7 @@ The `Assert` class allows creating independent assertion instances with custom o
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.9.0
     pr-url: https://github.com/nodejs/node/pull/59762
     description: Added `skipPrototype` option.
 -->

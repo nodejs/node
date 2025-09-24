@@ -3300,7 +3300,7 @@ Specification.
 added: v8.0.0
 napiVersion: 1
 changes:
-  - version: REPLACEME
+  - version: v24.9.0
     pr-url: https://github.com/nodejs/node/pull/59071
     description: Added support for `SharedArrayBuffer`.
 -->
@@ -4284,7 +4284,7 @@ Specification.
 ### `node_api_is_sharedarraybuffer`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -4304,7 +4304,7 @@ This API checks if the Object passed in is a `SharedArrayBuffer`.
 ### `node_api_create_sharedarraybuffer`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 > Stability: 1 - Experimental

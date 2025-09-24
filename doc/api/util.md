@@ -1579,7 +1579,7 @@ console.log(arr); // logs the full array
 <!-- YAML
 added: v9.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.9.0
     pr-url: https://github.com/nodejs/node/pull/59762
     description: Added `options` parameter to allow skipping prototype comparison.
 -->
