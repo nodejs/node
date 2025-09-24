@@ -4,8 +4,8 @@ import '../../../common/index.mjs';
 
 interface Foo {
   /** line
-   *
-   * blocks */
+  *
+  * blocks */
 }
 
 async function Throw() {

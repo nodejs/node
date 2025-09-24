@@ -25,6 +25,7 @@ const babelPluginSyntaxImportSource = resolveEslintTool('@babel/plugin-syntax-im
 const { default: jsdoc } = await importEslintTool('eslint-plugin-jsdoc');
 const { default: markdown } = await importEslintTool('eslint-plugin-markdown');
 const { default: stylisticJs } = await importEslintTool('@stylistic/eslint-plugin');
+const { default: tseslint } = await importEslintTool('typescript-eslint');
 
 nodeCore.RULES_DIR = fileURLToPath(new URL('./tools/eslint-rules', import.meta.url));
 
@@ -88,7 +89,7 @@ export default [
   js.configs.recommended,
   jsdoc.configs['flat/recommended'],
   {
-    files: ['**/*.{js,cjs}'],
+    files: ['**/*.{js,cjs,ts,cts}'],
     languageOptions: {
       // The default is `commonjs` but it's not supported by the Babel parser.
       sourceType: 'script',
@@ -363,7 +364,7 @@ export default [
     processor: 'markdown/markdown',
   },
   {
-    files: ['**/*.md/*.{js,cjs}'],
+    files: ['**/*.md/*.{js,cjs,ts,cts}'],
     languageOptions: {
       parserOptions: {
         ecmaFeatures: { impliedStrict: true },
@@ -380,38 +381,68 @@ export default [
     languageOptions: {
       sourceType: 'module',
     },
-    rules: { 'no-restricted-globals': [
-      'error',
-      {
-        name: '__filename',
-        message: 'Use import.meta.url instead.',
-      },
-      {
-        name: '__dirname',
-        message: 'Not available in ESM.',
-      },
-      {
-        name: 'exports',
-        message: 'Not available in ESM.',
-      },
-      {
-        name: 'module',
-        message: 'Not available in ESM.',
-      },
-      {
-        name: 'require',
-        message: 'Use import instead.',
-      },
-      {
-        name: 'Buffer',
-        message: "Import 'Buffer' instead of using the global.",
-      },
-      {
-        name: 'process',
-        message: "Import 'process' instead of using the global.",
-      },
-    ] },
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        {
+          name: '__filename',
+          message: 'Use import.meta.url instead.',
+        },
+        {
+          name: '__dirname',
+          message: 'Not available in ESM.',
+        },
+        {
+          name: 'exports',
+          message: 'Not available in ESM.',
+        },
+        {
+          name: 'module',
+          message: 'Not available in ESM.',
+        },
+        {
+          name: 'require',
+          message: 'Use import instead.',
+        },
+        {
+          name: 'Buffer',
+          message: "Import 'Buffer' instead of using the global.",
+        },
+        {
+          name: 'process',
+          message: "Import 'process' instead of using the global.",
+        },
+      ],
+    },
   },
+  // #region TypeScript rules
+  {
+
+    files: ['**/*.{ts,mts,cts}'],
+    ...tseslint.configs.base,
+    rules: {
+      ...tseslint.configs.eslintRecommended.rules,
+      // Index 0 contains the base configuration,
+      // index 1 provides eslint-specific overrides,
+      // and index 2 includes the recommended rules.
+      ...tseslint.configs.recommended[2].rules,
+      // This is handled by 'no-restricted-globals'
+      '@typescript-eslint/no-require-imports': 'off',
+      // We use ignore comments throughout the codebase
+      '@typescript-eslint/ban-ts-comment': 'off',
+      '@stylistic/js/operator-linebreak': 'off',
+    },
+  },
+  {
+    files: ['typings/**'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
+
+      'no-use-before-define': 'off',
+    },
+  },
+  // #endregion
   // #endregion
   // #region partials
   ...benchmarkConfig,

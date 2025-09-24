@@ -21,7 +21,7 @@ import { SymbolsBinding } from './internalBinding/symbols';
 import { TimersBinding } from './internalBinding/timers';
 import { TypesBinding } from './internalBinding/types';
 import { URLBinding } from './internalBinding/url';
-import { URLPatternBinding } from "./internalBinding/url_pattern";
+import { URLPatternBinding } from './internalBinding/url_pattern';
 import { UtilBinding } from './internalBinding/util';
 import { UVBinding } from './internalBinding/uv';
 import { WASIBinding } from './internalBinding/wasi';
@@ -64,7 +64,7 @@ interface InternalBindingMap {
 
 type InternalBindingKeys = keyof InternalBindingMap;
 
-declare function internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T]
+declare function internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T];
 
 declare global {
   type TypedArray =
