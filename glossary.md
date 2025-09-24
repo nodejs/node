@@ -97,8 +97,8 @@ This file documents various terms and definitions used throughout the Node.js co
 * **VM**: [The Node.js VM module][] - Provides a way of executing code within V8 Virtual Machine contexts.
 * **W3C**: [World Wide Web Consortium][] - An international community that develops standards and guidelines for
   various aspects of the web ecosystem.
-* **WASI**: [Web Assembly System Interface][] - Interface for WebAssembly.
-* **WASM**: Web Assembly - Binary instruction format for a stack-based virtual machine.
+* **WASI**: [WebAssembly System Interface][] - Interface for WebAssembly.
+* **WASM**: WebAssembly - Binary instruction format for a stack-based virtual machine.
 * **WDYT**: What Do You Think?
 * **WG**: Working Group - Autonomous teams in the project with specific focus areas.
 * **WHATWG**: [Web Hypertext Application Technology Working Group][] - Community developing web standards.
@@ -148,8 +148,8 @@ This file documents various terms and definitions used throughout the Node.js co
 [Unicode Transformation Format - 8-bit]: https://en.wikipedia.org/wiki/UTF-8
 [Uniform Resource Locator]: https://en.wikipedia.org/wiki/URL
 [User Interface]: https://en.wikipedia.org/wiki/User_interface
-[Web Assembly System Interface]: https://github.com/WebAssembly/WASI
 [Web Hypertext Application Technology Working Group]: https://en.wikipedia.org/wiki/WHATWG
+[WebAssembly System Interface]: https://github.com/WebAssembly/WASI
 [World Wide Web Consortium]: https://www.w3.org/
 [specification document for **ECMAScript**]: https://ecma-international.org/publications-and-standards/standards/ecma-262/
 [web-platform-tests]: https://github.com/web-platform-tests/wpt
