@@ -1967,21 +1967,12 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
   }
 
   Local<Value> result;
-  if (!retval.ToLocal(&result) || result->IsUndefined() || result->IsNull()) {
-    // Missing return value
+  if (!retval.ToLocal(&result) || result->IsUndefined() || result->IsNull() ||
+      !result->IsInt32()) {
     Local<Value> err = Exception::TypeError(
         String::NewFromUtf8(
             isolate,
             "Authorizer callback must return an integer authorization code")
-            .ToLocalChecked());
-    db->StoreAuthorizerError(err);
-    return SQLITE_DENY;
-  }
-
-  if (!result->IsInt32()) {
-    Local<Value> err = Exception::TypeError(
-        String::NewFromUtf8(
-            isolate, "Authorizer callback return value must be an integer")
             .ToLocalChecked());
     db->StoreAuthorizerError(err);
     return SQLITE_DENY;

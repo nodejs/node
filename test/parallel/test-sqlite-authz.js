@@ -105,7 +105,7 @@ suite('DatabaseSync.prototype.setAuthorizer()', () => {
     assert.throws(() => {
       db.exec('SELECT 1');
     }, {
-      message: 'Authorizer callback return value must be an integer'
+      message: 'Authorizer callback must return an integer authorization code'
     });
   });
 
