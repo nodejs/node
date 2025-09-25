@@ -391,7 +391,6 @@ namespace options_parser {
 
 HostPort SplitHostPort(const std::string& arg,
                        std::vector<std::string>* errors);
-void GetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
 std::string GetBashCompletion();
 
 enum OptionType {
@@ -640,6 +639,7 @@ class OptionsParser {
   template <typename OtherOptions>
   friend class OptionsParser;
 
+#ifndef NODE_OPTIONS_STANDALONE
   friend void GetCLIOptionsValues(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   friend void GetCLIOptionsInfo(
@@ -654,6 +654,7 @@ class OptionsParser {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   friend void GetOptionsAsFlags(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+#endif  // NODE_OPTIONS_STANDALONE
 };
 
 using StringVector = std::vector<std::string>;
@@ -665,6 +666,7 @@ void Parse(
 
 }  // namespace options_parser
 
+#ifndef NODE_OPTIONS_STANDALONE
 namespace per_process {
 
 extern Mutex cli_options_mutex;
@@ -673,6 +675,7 @@ extern NODE_EXTERN_PRIVATE std::shared_ptr<PerProcessOptions> cli_options;
 }  // namespace per_process
 
 void HandleEnvOptions(std::shared_ptr<EnvironmentOptions> env_options);
+#endif  // NODE_OPTIONS_STANDALONE
 void HandleEnvOptions(std::shared_ptr<EnvironmentOptions> env_options,
                       std::function<std::string(const char*)> opt_getter);
 
