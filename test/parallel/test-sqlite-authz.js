@@ -118,7 +118,7 @@ suite('DatabaseSync.prototype.setAuthorizer()', () => {
     assert.throws(() => {
       db.exec('SELECT 1');
     }, {
-      message: 'Authorizer callback returned invalid authorization code'
+      message: 'Authorizer callback returned a invalid authorization code'
     });
   });
 

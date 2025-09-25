@@ -1966,14 +1966,18 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
     return SQLITE_DENY;
   }
 
+  Local<String> error_message;
   Local<Value> result;
   if (!retval.ToLocal(&result) || result->IsUndefined() || result->IsNull() ||
       !result->IsInt32()) {
-    Local<Value> err = Exception::TypeError(
-        String::NewFromUtf8(
-            isolate,
-            "Authorizer callback must return an integer authorization code")
-            .ToLocalChecked());
+    if (!String::NewFromUtf8(
+             isolate,
+             "Authorizer callback must return an integer authorization code")
+             .ToLocal(&error_message)) {
+      return SQLITE_DENY;
+    }
+
+    Local<Value> err = Exception::TypeError(error_message);
     db->StoreAuthorizerError(err);
     return SQLITE_DENY;
   }
@@ -1981,10 +1985,14 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
   int32_t int_result = result.As<Int32>()->Value();
   if (int_result != SQLITE_OK && int_result != SQLITE_DENY &&
       int_result != SQLITE_IGNORE) {
-    Local<Value> err = Exception::RangeError(
-        String::NewFromUtf8(
-            isolate, "Authorizer callback returned invalid authorization code")
-            .ToLocalChecked());
+    if (!String::NewFromUtf8(
+             isolate,
+             "Authorizer callback returned a invalid authorization code")
+             .ToLocal(&error_message)) {
+      return SQLITE_DENY;
+    }
+
+    Local<Value> err = Exception::RangeError(error_message);
     db->StoreAuthorizerError(err);
     return SQLITE_DENY;
   }
