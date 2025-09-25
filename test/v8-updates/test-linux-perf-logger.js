@@ -42,7 +42,7 @@ tmpdir.refresh();
 const testCases = [
   {
     title: '--perf-basic-prof interpreted',
-    nodeFlags: ['--perf-basic-prof', '--no-turbo-inlining', '--no-opt'],
+    nodeFlags: ['--allow-natives-syntax', '--perf-basic-prof', '--no-turbo-inlining', '--no-opt'],
     matches: [
       'JS:~functionOne .+/linux-perf-logger.js',
       'JS:~functionTwo .+/linux-perf-logger.js',
@@ -55,8 +55,7 @@ const testCases = [
   },
   {
     title: '--perf-basic-prof compiled',
-    nodeFlags: ['--perf-basic-prof', '--no-turbo-inlining', '--always-turbofan',
-                '--minimum-invocations-before-optimization=0'],
+    nodeFlags: ['--allow-natives-syntax', '--perf-basic-prof', '--no-turbo-inlining'],
     matches: [
       String.raw`RegExp\.> src: 'test-regex' flags: 'gi'`,
       'JS:~functionOne .+/linux-perf-logger.js',
@@ -68,7 +67,7 @@ const testCases = [
   },
   {
     title: '--perf-basic-prof-only-functions interpreted',
-    nodeFlags: ['--perf-basic-prof-only-functions', '--no-turbo-inlining', '--no-opt'],
+    nodeFlags: ['--allow-natives-syntax', '--perf-basic-prof-only-functions', '--no-turbo-inlining', '--no-opt'],
     matches: [
       'JS:~functionOne .+/linux-perf-logger.js',
       'JS:~functionTwo .+/linux-perf-logger.js',
@@ -81,8 +80,7 @@ const testCases = [
   },
   {
     title: '--perf-basic-prof-only-functions compiled',
-    nodeFlags: ['--perf-basic-prof-only-functions', '--no-turbo-inlining', '--always-turbofan',
-                '--minimum-invocations-before-optimization=0'],
+    nodeFlags: ['--allow-natives-syntax', '--perf-basic-prof-only-functions', '--no-turbo-inlining'],
     matches: [
       'JS:~functionOne .+/linux-perf-logger.js',
       'JS:~functionTwo .+/linux-perf-logger.js',
