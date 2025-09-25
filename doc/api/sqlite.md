@@ -1123,6 +1123,182 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
   </tr>
 </table>
 
+#### Authorization constants
+
+The following constants are used with the [`database.setAuthorizer()`][] method.
+
+##### Authorization result codes
+
+One of the following constants must be returned from the authorizer callback
+function passed to [`database.setAuthorizer()`][].
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>SQLITE_OK</code></td>
+    <td>Allow the operation to proceed normally.</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_DENY</code></td>
+    <td>Deny the operation and cause an error to be returned.</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_IGNORE</code></td>
+    <td>Ignore the operation and continue as if it had never been requested.</td>
+  </tr>
+</table>
+
+##### Authorization action codes
+
+The following constants are passed as the first argument to the authorizer
+callback function to indicate what type of operation is being authorized.
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CREATE_INDEX</code></td>
+    <td>Create an index</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CREATE_TABLE</code></td>
+    <td>Create a table</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CREATE_TEMP_INDEX</code></td>
+    <td>Create a temporary index</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CREATE_TEMP_TABLE</code></td>
+    <td>Create a temporary table</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CREATE_TEMP_TRIGGER</code></td>
+    <td>Create a temporary trigger</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CREATE_TEMP_VIEW</code></td>
+    <td>Create a temporary view</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CREATE_TRIGGER</code></td>
+    <td>Create a trigger</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CREATE_VIEW</code></td>
+    <td>Create a view</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_DELETE</code></td>
+    <td>Delete from a table</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_DROP_INDEX</code></td>
+    <td>Drop an index</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_DROP_TABLE</code></td>
+    <td>Drop a table</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_DROP_TEMP_INDEX</code></td>
+    <td>Drop a temporary index</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_DROP_TEMP_TABLE</code></td>
+    <td>Drop a temporary table</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_DROP_TEMP_TRIGGER</code></td>
+    <td>Drop a temporary trigger</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_DROP_TEMP_VIEW</code></td>
+    <td>Drop a temporary view</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_DROP_TRIGGER</code></td>
+    <td>Drop a trigger</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_DROP_VIEW</code></td>
+    <td>Drop a view</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_INSERT</code></td>
+    <td>Insert into a table</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_PRAGMA</code></td>
+    <td>Execute a PRAGMA statement</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_READ</code></td>
+    <td>Read from a table</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_SELECT</code></td>
+    <td>Execute a SELECT statement</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_TRANSACTION</code></td>
+    <td>Begin, commit, or rollback a transaction</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_UPDATE</code></td>
+    <td>Update a table</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_ATTACH</code></td>
+    <td>Attach a database</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_DETACH</code></td>
+    <td>Detach a database</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_ALTER_TABLE</code></td>
+    <td>Alter a table</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_REINDEX</code></td>
+    <td>Reindex</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_ANALYZE</code></td>
+    <td>Analyze the database</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_CREATE_VTABLE</code></td>
+    <td>Create a virtual table</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_DROP_VTABLE</code></td>
+    <td>Drop a virtual table</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_FUNCTION</code></td>
+    <td>Use a function</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_SAVEPOINT</code></td>
+    <td>Create, release, or rollback a savepoint</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_COPY</code></td>
+    <td>Copy data (legacy)</td>
+  </tr>
+  <tr>
+    <td><code>SQLITE_RECURSIVE</code></td>
+    <td>Recursive query</td>
+  </tr>
+</table>
+
 [Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
 [Constants Passed To The Conflict Handler]: https://www.sqlite.org/session/c_changeset_conflict.html
 [Constants Returned From The Conflict Handler]: https://www.sqlite.org/session/c_changeset_abort.html
@@ -1134,6 +1310,7 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
 [`SQLITE_DIRECTONLY`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_MAX_FUNCTION_ARG`]: https://www.sqlite.org/limits.html#max_function_arg
 [`database.applyChangeset()`]: #databaseapplychangesetchangeset-options
+[`database.setAuthorizer()`]: #databasesetauthorizercallback
 [`sqlite3_backup_finish()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupfinish
 [`sqlite3_backup_init()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupinit
 [`sqlite3_backup_step()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupstep
