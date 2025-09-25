@@ -71,6 +71,89 @@ suite('DatabaseSync.prototype.setAuthorizer()', () => {
     });
   });
 
+  it('ignores SELECT operations when authorizer returns SQLITE_IGNORE', () => {
+    const db = createTestDatabase();
+    db.prepare('INSERT INTO users (id, name) VALUES (?, ?)').run(1, 'Alice');
+
+    db.setAuthorizer((actionCode) => {
+      if (actionCode === constants.SQLITE_SELECT) {
+        return constants.SQLITE_IGNORE;
+      }
+      return constants.SQLITE_OK;
+    });
+
+    // SELECT should be ignored and return no results
+    const result = db.prepare('SELECT * FROM users').all();
+    assert.deepStrictEqual(result, []);
+  });
+
+  it('ignores READ operations when authorizer returns SQLITE_IGNORE', () => {
+    const db = createTestDatabase();
+    db.prepare('INSERT INTO users (id, name) VALUES (?, ?)').run(1, 'Alice');
+
+    db.setAuthorizer((actionCode, arg1, arg2) => {
+      if (actionCode === constants.SQLITE_READ && arg1 === 'users' && arg2 === 'name') {
+        return constants.SQLITE_IGNORE;
+      }
+      return constants.SQLITE_OK;
+    });
+
+    // Reading the 'name' column should be ignored, returning NULL
+    const result = db.prepare('SELECT id, name FROM users WHERE id = 1').get();
+    assert.strictEqual(result.id, 1);
+    assert.strictEqual(result.name, null);
+  });
+
+  it('ignores INSERT operations when authorizer returns SQLITE_IGNORE', () => {
+    const db = createTestDatabase();
+
+    db.setAuthorizer((actionCode) => {
+      if (actionCode === constants.SQLITE_INSERT) {
+        return constants.SQLITE_IGNORE;
+      }
+      return constants.SQLITE_OK;
+    });
+
+    db.prepare('INSERT INTO users (id, name) VALUES (?, ?)').run(1, 'Alice');
+
+    // Verify no data was inserted
+    const count = db.prepare('SELECT COUNT(*) as count FROM users').get();
+    assert.strictEqual(count.count, 0);
+  });
+
+  it('ignores UPDATE operations when authorizer returns SQLITE_IGNORE', () => {
+    const db = createTestDatabase();
+    db.exec("INSERT INTO users (id, name) VALUES (1, 'Alice')");
+
+    db.setAuthorizer((actionCode) => {
+      if (actionCode === constants.SQLITE_UPDATE) {
+        return constants.SQLITE_IGNORE;
+      }
+      return constants.SQLITE_OK;
+    });
+
+    db.prepare('UPDATE users SET name = ? WHERE id = ?').run('Bob', 1);
+
+    // Verify data was not updated
+    const result = db.prepare('SELECT name FROM users WHERE id = 1').get();
+    assert.strictEqual(result.name, 'Alice');
+  });
+
+  it('ignores DELETE operations when authorizer returns SQLITE_IGNORE', () => {
+    const db = createTestDatabase();
+    db.exec("INSERT INTO users (id, name) VALUES (1, 'Alice')");
+
+    db.setAuthorizer(() => constants.SQLITE_IGNORE);
+
+    db.prepare('DELETE FROM users WHERE id = ?').run(1);
+
+    db.setAuthorizer(null);
+
+    // Verify data was not deleted
+    const count = db.prepare('SELECT COUNT(*) as count FROM users').get();
+    assert.strictEqual(count.count, 1);
+  });
+
   it('rethrows error when authorizer throws error', () => {
     const db = new DatabaseSync(':memory:');
     db.setAuthorizer(() => {
