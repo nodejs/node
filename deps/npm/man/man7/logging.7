@@ -1,4 +1,4 @@
-.TH "LOGGING" "7" "September 2025" "NPM@11.6.0" ""
+.TH "LOGGING" "7" "September 2025" "NPM@11.6.1" ""
 .SH "NAME"
 \fBLogging\fR - Why, What & How We Log
 .SS "Description"
@@ -69,7 +69,7 @@ The log levels listed above have various corresponding aliases, including:
 The \fBnpm\fR CLI began hiding the output of lifecycle scripts for \fBnpm install\fR as of \fBv7\fR. Notably, this means you will not see logs/output from packages that may be using "install scripts" to display information back to you or from your own project's scripts defined in \fBpackage.json\fR. If you'd like to change this behavior & log this output you can set \fBforeground-scripts\fR to \fBtrue\fR.
 .SS "Timing Information"
 .P
-The \fB\fB--timing\fR config\fR \fI\(la/using-npm/config#timing\(ra\fR can be set which does a few things:
+The \fB\[rs]fB--timing\[rs]fR config\fR \fI\(la/using-npm/config#timing\(ra\fR can be set which does a few things:
 .RS 0
 .IP 1. 4
 Always shows the full path to the debug log regardless of command exit status
