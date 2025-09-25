@@ -120,6 +120,12 @@ class LowLevelAlloc {
   LowLevelAlloc();      // no instances
 };
 
+// Returns a global async-signal-safe arena for LowLevelAlloc.
+LowLevelAlloc::Arena *SigSafeArena();
+
+// Ensures the global async-signal-safe arena for LowLevelAlloc is initialized.
+void InitSigSafeArena();
+
 }  // namespace base_internal
 ABSL_NAMESPACE_END
 }  // namespace absl

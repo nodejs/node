@@ -423,6 +423,9 @@ class ParallelWeakHandlesProcessor {
    private:
     template <bool IsMainThread>
     void RunImpl(JobDelegate* delegate) {
+      // Set the isolate to the heap isolate which is being processed. The
+      // handle processor may call the isolate sandbox-checks.
+      SetCurrentIsolateScope set_current_isolate(derived_.heap()->isolate());
       // The following logic parallelizes the handling of the doubly-linked
       // list. We basically race through the list from begin() with acquiring
       // exclusive access by incrementing a single counter.

@@ -18,12 +18,7 @@ class MutablePageMetadata;
 template <typename ConcreteState, AccessMode access_mode>
 class MarkingStateBase {
  public:
-  explicit MarkingStateBase(PtrComprCageBase cage_base)
-#if V8_COMPRESS_POINTERS
-      : cage_base_(cage_base)
-#endif
-  {
-  }
+  explicit MarkingStateBase(const Isolate* isolate);
 
   // The pointer compression cage base value used for decompression of all
   // tagged values except references to InstructionStream objects.
@@ -49,21 +44,21 @@ class MarkingStateBase {
 #if V8_COMPRESS_POINTERS
   const PtrComprCageBase cage_base_;
 #endif  // V8_COMPRESS_POINTERS
+  const Isolate* isolate_;
 };
 
 // This is used by marking visitors.
 class MarkingState final
     : public MarkingStateBase<MarkingState, AccessMode::ATOMIC> {
  public:
-  explicit MarkingState(PtrComprCageBase cage_base)
-      : MarkingStateBase(cage_base) {}
+  explicit MarkingState(const Isolate* isolate) : MarkingStateBase(isolate) {}
 };
 
 class NonAtomicMarkingState final
     : public MarkingStateBase<NonAtomicMarkingState, AccessMode::NON_ATOMIC> {
  public:
-  explicit NonAtomicMarkingState(PtrComprCageBase cage_base)
-      : MarkingStateBase(cage_base) {}
+  explicit NonAtomicMarkingState(const Isolate* isolate)
+      : MarkingStateBase(isolate) {}
 };
 
 }  // namespace internal

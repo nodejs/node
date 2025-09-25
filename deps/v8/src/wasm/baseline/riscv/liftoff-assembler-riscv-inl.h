@@ -25,13 +25,16 @@ inline MemOperand GetInstanceDataOperand() {
 }
 
 }  // namespace liftoff
+
+static constexpr int kPrepareStackFrameInstrSize = 2 * kInstrSize;
+
 int LiftoffAssembler::PrepareStackFrame() {
   int offset = pc_offset();
   // When the frame size is bigger than 4KB, we need two instructions for
   // stack checking, so we reserve space for this case.
   addi(sp, sp, 0);
   nop();
-  nop();
+  CHECK_EQ(kPrepareStackFrameInstrSize, pc_offset() - offset);
   return offset;
 }
 
@@ -77,8 +80,10 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
   LoadWord(budget_array, MemOperand(instance_data, kArrayOffset));
 
   int budget_arr_offset = kInt32Size * declared_func_index;
-  // Pick a random register from kLiftoffAssemblerGpCacheRegs.
-  // TODO(miladfarca): Use ScratchRegisterScope when available.
+  // TODO(kasperl@rivosinc.com): We cannot currently use {temps} to acquire a
+  // suitable scratch register because {CheckTierUp} is sometimes called from
+  // a context that only leaves us with a single available scratch register.
+  // For now, we use a hardcoded scratch register instead.
   Register budget = kScratchReg;
   MemOperand budget_addr(budget_array, budget_arr_offset);
   Lw(budget, budget_addr);
@@ -155,8 +160,10 @@ void LiftoffAssembler::PatchPrepareStackFrame(
 
   if (V8_LIKELY(frame_size < 4 * KB)) {
     // This is the standard case for small frames: just subtract from SP and be
-    // done with it.
+    // done with it. This generates more than one instruction, when the negated
+    // frame size doesn't fit in a signed 12-bit integer.
     patching_assembler.AddWord(sp, sp, Operand(-frame_size));
+    CHECK_GE(kPrepareStackFrameInstrSize, patching_assembler.pc_offset());
     return;
   }
 
@@ -177,6 +184,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
 
   int imm32 = pc_offset() - offset;
   patching_assembler.GenPCRelativeJump(kScratchReg, imm32);
+  CHECK_EQ(kPrepareStackFrameInstrSize, patching_assembler.pc_offset());
 
   // If the frame is bigger than the stack, we throw the stack overflow
   // exception unconditionally. Thereby we can avoid the integer overflow
@@ -199,7 +207,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     PushRegisters(regs_to_save);
     li(WasmHandleStackOverflowDescriptor::GapRegister(), frame_size);
     AddWord(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
-            Operand(stack_param_slots * kStackSlotSize +
+            Operand(stack_param_slots * kSystemPointerSize +
                     CommonFrameConstants::kFixedFrameSizeAboveFp));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
     safepoint_table_builder->DefineSafepoint(this);
@@ -212,16 +220,18 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     if (v8_flags.debug_code) stop();
   }
 
+  // Since we're using a raw branch offset in the following code, we have to
+  // protect against getting the trampoline pool emitted after computing the
+  // offset, but before emitting the jump.
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   bind(&continuation);
 
-  // Now allocate the stack space. Note that this might do more than just
-  // decrementing the SP;
+  // Now allocate the stack space.
   AddWord(sp, sp, Operand(-frame_size));
 
-  // Jump back to the start of the function, from {pc_offset()} to
-  // right after the reserved space for the {__ AddWord(sp, sp, -framesize)}
-  // (which is a Branch now).
-  int func_start_offset = offset + 2 * kInstrSize;
+  // Jump back to the start of the function, from {pc_offset()} to right after
+  // the reserved space in the prologue, which is a branch now.
+  int func_start_offset = offset + kPrepareStackFrameInstrSize;
   imm32 = func_start_offset - pc_offset();
   GenPCRelativeJump(kScratchReg, imm32);
 }
@@ -345,6 +355,8 @@ void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
                                      DoubleRegister rhs) {                   \
     instruction(dst, lhs, rhs);                                              \
   }
+
+
 #define FP_UNOP(name, instruction)                                             \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
     instruction(dst, src);                                                     \
@@ -2585,6 +2597,19 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
                                        LiftoffRegister src3) {
   return false;
 }
+
+void LiftoffAssembler::emit_inc_i32_at(Address address) {
+  UseScratchRegisterScope temps(this);
+  Register counter_addr = temps.Acquire();
+  Register value = temps.Acquire();
+  li(counter_addr, Operand(static_cast<uint64_t>(address)));
+  LoadWord(value, MemOperand(counter_addr, 0));
+  AddWord(value, value, Operand(1));
+  StoreWord(value, MemOperand(counter_addr, 0));
+}
+
+void LiftoffAssembler::AtomicFence() { sync(); }
+void LiftoffAssembler::Pause() { sync(); }
 
 }  // namespace v8::internal::wasm
 

@@ -472,7 +472,8 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
 Reduction JSCreateLowering::ReduceNewArray(
     Node* node, Node* length, MapRef initial_map, ElementsKind elements_kind,
     AllocationType allocation,
-    const SlackTrackingPrediction& slack_tracking_prediction) {
+    const SlackTrackingPrediction& slack_tracking_prediction,
+    const FeedbackSource& feedback) {
   DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -487,14 +488,14 @@ Reduction JSCreateLowering::ReduceNewArray(
   // Because CheckBounds performs implicit conversion from string to number, an
   // additional CheckNumber is required to behave correctly for calls with a
   // single string argument.
-  length = effect = graph()->NewNode(
-      simplified()->CheckNumber(FeedbackSource{}), length, effect, control);
+  length = effect = graph()->NewNode(simplified()->CheckNumber(feedback),
+                                     length, effect, control);
 
   // Check that the {limit} is an unsigned integer in the valid range.
   // This has to be kept in sync with src/runtime/runtime-array.cc,
   // where this limit is protected.
   length = effect = graph()->NewNode(
-      simplified()->CheckBounds(FeedbackSource()), length,
+      simplified()->CheckBounds(feedback), length,
       jsgraph()->ConstantNoHole(JSArray::kInitialMaxFastElementArray), effect,
       control);
 
@@ -528,7 +529,8 @@ Reduction JSCreateLowering::ReduceNewArray(
 Reduction JSCreateLowering::ReduceNewArray(
     Node* node, Node* length, int capacity, MapRef initial_map,
     ElementsKind elements_kind, AllocationType allocation,
-    const SlackTrackingPrediction& slack_tracking_prediction) {
+    const SlackTrackingPrediction& slack_tracking_prediction,
+    const FeedbackSource& feedback) {
   DCHECK(node->opcode() == IrOpcode::kJSCreateArray ||
          node->opcode() == IrOpcode::kJSCreateEmptyLiteralArray);
   DCHECK(NodeProperties::GetType(length).Is(Type::Number()));
@@ -577,7 +579,8 @@ Reduction JSCreateLowering::ReduceNewArray(
 Reduction JSCreateLowering::ReduceNewArray(
     Node* node, std::vector<Node*> values, MapRef initial_map,
     ElementsKind elements_kind, AllocationType allocation,
-    const SlackTrackingPrediction& slack_tracking_prediction) {
+    const SlackTrackingPrediction& slack_tracking_prediction,
+    const FeedbackSource& feedback) {
   DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -596,16 +599,15 @@ Reduction JSCreateLowering::ReduceNewArray(
   if (IsSmiElementsKind(elements_kind)) {
     for (auto& value : values) {
       if (!NodeProperties::GetType(value).Is(Type::SignedSmall())) {
-        value = effect = graph()->NewNode(
-            simplified()->CheckSmi(FeedbackSource()), value, effect, control);
+        value = effect = graph()->NewNode(simplified()->CheckSmi(feedback),
+                                          value, effect, control);
       }
     }
   } else if (IsDoubleElementsKind(elements_kind)) {
     for (auto& value : values) {
       if (!NodeProperties::GetType(value).Is(Type::Number())) {
-        value = effect =
-            graph()->NewNode(simplified()->CheckNumber(FeedbackSource()), value,
-                             effect, control);
+        value = effect = graph()->NewNode(simplified()->CheckNumber(feedback),
+                                          value, effect, control);
       }
       // Make sure we do not store signaling NaNs into double arrays.
       value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
@@ -664,18 +666,17 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
     allocation = dependencies()->DependOnPretenureMode(*site_ref);
     dependencies()->DependOnElementsKind(*site_ref);
   } else {
-    PropertyCellRef array_constructor_protector =
-        MakeRef(broker(), factory()->array_constructor_protector());
-    array_constructor_protector.CacheAsProtector(broker());
-    can_inline_call = array_constructor_protector.value(broker()).AsSmi() ==
-                      Protectors::kProtectorValid;
+    // If there is no allocation site, only inline the constructor when there is
+    // overall speculation feedback that can be disabled on a deopt.
+    can_inline_call = p.call_feedback().IsValid();
   }
 
   if (arity == 0) {
     Node* length = jsgraph()->ZeroConstant();
     int capacity = JSArray::kPreallocatedArrayElements;
     return ReduceNewArray(node, length, capacity, *initial_map, elements_kind,
-                          allocation, slack_tracking_prediction);
+                          allocation, slack_tracking_prediction,
+                          p.call_feedback());
   } else if (arity == 1) {
     Node* length = NodeProperties::GetValueInput(node, 2);
     Type length_type = NodeProperties::GetType(length);
@@ -687,7 +688,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
                                                             : PACKED_ELEMENTS);
       return ReduceNewArray(node, std::vector<Node*>{length}, *initial_map,
                             elements_kind, allocation,
-                            slack_tracking_prediction);
+                            slack_tracking_prediction, p.call_feedback());
     }
     if (length_type.Is(Type::SignedSmall()) && length_type.Min() >= 0 &&
         length_type.Max() <= kElementLoopUnrollLimit &&
@@ -697,11 +698,13 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       // typer bug leading to length > capacity.
       length = jsgraph()->ConstantNoHole(capacity);
       return ReduceNewArray(node, length, capacity, *initial_map, elements_kind,
-                            allocation, slack_tracking_prediction);
+                            allocation, slack_tracking_prediction,
+                            p.call_feedback());
     }
     if (length_type.Maybe(Type::UnsignedSmall()) && can_inline_call) {
       return ReduceNewArray(node, length, *initial_map, elements_kind,
-                            allocation, slack_tracking_prediction);
+                            allocation, slack_tracking_prediction,
+                            p.call_feedback());
     }
   } else if (arity <= JSArray::kInitialMaxFastElementArray) {
     // Gather the values to store into the newly created array.
@@ -745,7 +748,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       return NoChange();
     }
     return ReduceNewArray(node, values, *initial_map, elements_kind, allocation,
-                          slack_tracking_prediction);
+                          slack_tracking_prediction, p.call_feedback());
   }
   return NoChange();
 }
@@ -1181,7 +1184,7 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
         initial_map, initial_map.instance_size());
     return ReduceNewArray(node, length, 0, initial_map,
                           initial_map.elements_kind(), allocation,
-                          slack_tracking_prediction);
+                          slack_tracking_prediction, FeedbackSource());
   }
   return NoChange();
 }
@@ -1838,7 +1841,12 @@ std::optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     }
 
     Node* value;
-    if (boilerplate_value.IsJSObject()) {
+    if (boilerplate_value.equals(uninitialized_marker)) {
+      // It's fine to store the 'uninitialized' marker into a Smi field since
+      // it will get overwritten anyways and the store's MachineType (AnyTagged)
+      // is compatible with it.
+      value = jsgraph()->ConstantMaybeHole(boilerplate_value, broker());
+    } else if (boilerplate_value.IsJSObject()) {
       JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
       std::optional<Node*> maybe_value =
           TryAllocateFastLiteral(effect, control, boilerplate_object,
@@ -1855,12 +1863,6 @@ std::optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
                     jsgraph()->ConstantMaybeHole(number));
       value = effect = builder.Finish();
     } else {
-      // It's fine to store the 'uninitialized' marker into a Smi field since
-      // it will get overwritten anyways and the store's MachineType (AnyTagged)
-      // is compatible with it.
-      DCHECK_IMPLIES(property_details.representation().IsSmi() &&
-                         !boilerplate_value.IsSmi(),
-                     boilerplate_value.equals(uninitialized_marker));
       value = jsgraph()->ConstantMaybeHole(boilerplate_value, broker());
     }
     inobject_fields.push_back(std::make_pair(access, value));
@@ -1958,7 +1960,10 @@ std::optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
       if ((*max_properties)-- == 0) return {};
       OptionalObjectRef element_value = elements.TryGet(broker(), i);
       if (!element_value.has_value()) return {};
-      if (element_value->IsJSObject()) {
+      if (element_value->HoleType() != HoleType::kNone) {
+        elements_values[i] =
+            jsgraph()->ConstantMaybeHole(*element_value, broker());
+      } else if (element_value->IsJSObject()) {
         std::optional<Node*> object =
             TryAllocateFastLiteral(effect, control, element_value->AsJSObject(),
                                    allocation, max_depth - 1, max_properties);
@@ -1966,7 +1971,7 @@ std::optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
         elements_values[i] = effect = *object;
       } else {
         elements_values[i] =
-            jsgraph()->ConstantMaybeHole(*element_value, broker());
+            jsgraph()->ConstantNoHole(*element_value, broker());
       }
     }
   }

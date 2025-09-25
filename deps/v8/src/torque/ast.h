@@ -1256,9 +1256,9 @@ struct CppIncludeDeclaration : Declaration {
   std::string include_path;
 };
 
-#define ENUM_ITEM(name)                     \
-  case AstNode::Kind::k##name:              \
-    return std::is_base_of<T, name>::value; \
+#define ENUM_ITEM(name)                \
+  case AstNode::Kind::k##name:         \
+    return std::is_base_of_v<T, name>; \
     break;
 
 template <class T>

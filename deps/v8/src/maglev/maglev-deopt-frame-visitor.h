@@ -58,8 +58,17 @@ class DeoptInfoVisitor {
   void VisitSingleFrame(DeoptFrameT& frame, Function&& f) {
     auto updated_f = [&](ValueNodeT node) {
       DCHECK(!node->template Is<VirtualObject>());
-      if (node->template Is<Identity>()) {
-        node = node->input(0).node();
+      if (std::is_same_v<ValueNodeT, ValueNode*&>) {
+        // We modify the deopt frame to bypass the Identity node, we update the
+        // use_count for consistency.
+        while (node->template Is<Identity>() ||
+               node->template Is<ReturnedValue>()) {
+          node->remove_use();
+          node = node->input(0).node();
+          node->add_use();
+        }
+      } else {
+        node = node->UnwrapIdentities();
       }
       if (auto alloc = node->template TryCast<InlinedAllocation>()) {
         VirtualObject* vobject = virtual_objects_.FindAllocatedWith(alloc);
@@ -127,6 +136,16 @@ void LazyDeoptInfo::ForEachInput(Function&& f) {
 template <typename Function>
 void LazyDeoptInfo::ForEachInput(Function&& f) const {
   DeoptInfoVisitor<const LazyDeoptInfo>::ForLazy(this, f);
+}
+
+inline void EagerDeoptInfo::UnwrapIdentities() {
+  // The visitor automatically unwrap identities.
+  ForEachInput([&](ValueNode*) {});
+}
+
+inline void LazyDeoptInfo::UnwrapIdentities() {
+  // The visitor automatically unwrap identities.
+  ForEachInput([](ValueNode*) {});
 }
 
 }  // namespace maglev

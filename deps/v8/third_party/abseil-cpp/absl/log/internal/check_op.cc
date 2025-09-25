@@ -101,6 +101,8 @@ void MakeCheckOpValueString(std::ostream& os, const void* p) {
   }
 }
 
+void MakeCheckOpUnprintableString(std::ostream& os) { os << "UNPRINTABLE"; }
+
 // Helper functions for string comparisons.
 #define DEFINE_CHECK_STROP_IMPL(name, func, expected)                          \
   const char* absl_nullable Check##func##expected##Impl(                       \

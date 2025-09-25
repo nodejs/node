@@ -5,11 +5,7 @@
 #ifndef V8_HEAP_EPHEMERON_REMEMBERED_SET_H_
 #define V8_HEAP_EPHEMERON_REMEMBERED_SET_H_
 
-#if defined(_MSVC_STL_VERSION)
-#include <map>
-#else
 #include <unordered_map>
-#endif
 #include <unordered_set>
 
 #include "src/base/platform/mutex.h"
@@ -30,13 +26,8 @@ class EphemeronRememberedSet final {
                                            kEphemeronTableListSegmentSize>;
 
   using IndicesSet = std::unordered_set<int>;
-#if defined(_MSVC_STL_VERSION)
-  using TableMap = std::map<Tagged<EphemeronHashTable>, IndicesSet,
-                            Object::Comparer>;
-#else
   using TableMap = std::unordered_map<Tagged<EphemeronHashTable>, IndicesSet,
                                       Object::Hasher>;
-#endif
 
   void RecordEphemeronKeyWrite(Tagged<EphemeronHashTable> table,
                                Address key_slot);

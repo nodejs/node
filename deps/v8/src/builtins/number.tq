@@ -51,6 +51,7 @@ extern macro ZeroStringConstant(): String;
 extern macro InfinityStringConstant(): String;
 extern macro MinusInfinityStringConstant(): String;
 extern macro Log10OffsetTable(): RawPtr<uint64>;
+extern macro TryMatchPreallocatedNumberString(int32): String labels NotKnown;
 
 transitioning macro ThisNumberValue(
     implicit context: Context)(receiver: JSAny,
@@ -103,15 +104,15 @@ macro IntToDecimalStringImpl(
 
 @export
 macro IntToDecimalString(x: int32): String {
+  try {
+    return TryMatchPreallocatedNumberString(x) otherwise DoConvert;
+  } label DoConvert {
+    // Fallthrough
+  }
+
   if constexpr (Is64()) {
     const log10OffsetsTable: RawPtr<uint64> = Log10OffsetTable();
     if (x >= 0) {
-      if (x < 10) {
-        if (x == 0) {
-          return ZeroStringConstant();
-        }
-        return StringFromSingleCharCode(ToCharCode(Unsigned(x)));
-      }
       return IntToDecimalStringImpl(x, log10OffsetsTable, true);
     } else {
       return IntToDecimalStringImpl(x, log10OffsetsTable, false);

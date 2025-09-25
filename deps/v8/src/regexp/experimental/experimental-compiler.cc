@@ -773,10 +773,20 @@ class CompileVisitor : private RegExpVisitor {
                     std::numeric_limits<base::uc16>::max());
 
       base::uc32 from = (*ranges)[i].from();
+      base::uc32 to = (*ranges)[i].to();
+
+      // Special case for [^\x00-\uFFFF]: This will create a from value outside
+      // the supported codepoint range even in non-unicode mode. Since we can't
+      // match any character for this pattern in non-unicode mode, we fail.
+      if (from > kMaxSupportedCodepoint && to > kMaxSupportedCodepoint) {
+        DCHECK(negated);
+        assembler_.Fail();
+        return;
+      }
+
       DCHECK_LE(from, kMaxSupportedCodepoint);
       base::uc16 from_uc16 = static_cast<base::uc16>(from);
 
-      base::uc32 to = (*ranges)[i].to();
       DCHECK_IMPLIES(to > kMaxSupportedCodepoint, to == kMaxCodePoint);
       base::uc16 to_uc16 =
           static_cast<base::uc16>(std::min(to, kMaxSupportedCodepoint));

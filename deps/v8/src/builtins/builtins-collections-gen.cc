@@ -541,14 +541,17 @@ TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedArrayElement(
 TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(
     TNode<HeapObject> elements, TNode<IntPtrT> index) {
   TVARIABLE(Object, entry);
-  Label if_hole(this, Label::kDeferred), next(this);
-  TNode<Float64T> element =
-      LoadFixedDoubleArrayElement(CAST(elements), index, &if_hole);
+  Label if_hole_or_undefined(this, Label::kDeferred), next(this);
+  TNode<Float64T> element = LoadFixedDoubleArrayElement(
+      CAST(elements), index, &if_hole_or_undefined, &if_hole_or_undefined);
   {  // not hole
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    CSA_DCHECK(this, Word32Equal(Int32Constant(0), IsDoubleUndefined(element)));
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     entry = AllocateHeapNumberWithValue(element);
     Goto(&next);
   }
-  BIND(&if_hole);
+  BIND(&if_hole_or_undefined);
   {
     entry = UndefinedConstant();
     Goto(&next);
@@ -610,6 +613,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
     // Load the key from the entry.
     const TNode<Object> candidate_key =
         UnsafeLoadKeyFromOrderedHashTableEntry(table, entry_start);
+    GotoIf(IsHashTableHole(candidate_key), &continue_next_entry);
 
     key_compare(candidate_key, &if_key_found, &continue_next_entry);
 
@@ -2513,11 +2517,12 @@ TF_BUILTIN(FindOrderedHashSetEntry, CollectionsBuiltinsAssembler) {
 }
 
 const TNode<OrderedHashMap> CollectionsBuiltinsAssembler::AddValueToKeyedGroup(
-    const TNode<OrderedHashMap> groups, const TNode<Object> key,
-    const TNode<Object> value, const TNode<String> methodName) {
-  GrowCollection<OrderedHashMap> grow = [this, groups, methodName]() {
-    TNode<OrderedHashMap> new_groups = CAST(CallRuntime(
-        Runtime::kOrderedHashMapGrow, NoContextConstant(), groups, methodName));
+    const TNode<Context> context, const TNode<OrderedHashMap> groups,
+    const TNode<Object> key, const TNode<Object> value,
+    const TNode<String> methodName) {
+  GrowCollection<OrderedHashMap> grow = [&]() {
+    TNode<OrderedHashMap> new_groups = CAST(
+        CallRuntime(Runtime::kOrderedHashMapGrow, context, groups, methodName));
     // The groups OrderedHashMap is not escaped to user script while grouping
     // items, so there can't be live iterators. So we don't need to keep the
     // pointer from the old table to the new one.

@@ -432,6 +432,32 @@ TEST(RegionAllocatorTest, TryGrowRegionLimitedByOtherRegion) {
   CHECK_EQ(ra.free_size(), 50 * kPageSize);
 }
 
+TEST(RegionAllocatorTest, AllocatRegionWithGrowingHint) {
+  const size_t kPageSize = 4 * KB;
+  const size_t kPageCount = 80;
+  const size_t kSize = kPageSize * kPageCount;
+  const Address kBegin = static_cast<Address>(kPageSize * 153);
+
+  RegionAllocator ra(kBegin, kSize, kPageSize);
+
+  // Perform some allocations to split address space.
+  // Address space: 10 free | 10 allocated | 20 free | 10 allocated | 30 free
+  CHECK(ra.AllocateRegionAt(kBegin + 10 * kPageSize, 10 * kPageSize));
+  CHECK(ra.AllocateRegionAt(kBegin + 40 * kPageSize, 10 * kPageSize));
+
+  // Regular allocations will happen in the first large enough region.
+  CHECK_EQ(ra.AllocateRegion(10 * kPageSize), kBegin);
+  CHECK_EQ(ra.FreeRegion(kBegin), 10 * kPageSize);
+
+  // Now perform some allocation with growing hint to allocate in the largest
+  // free region:
+  CHECK_EQ(ra.AllocateRegion(10 * kPageSize,
+                             RegionAllocator::AllocationStrategy::kLargestFit),
+           kBegin + 50 * kPageSize);
+  CHECK(ra.TryGrowRegion(kBegin + 50 * kPageSize, 30 * kPageSize));
+  CHECK(!ra.TryGrowRegion(kBegin + 50 * kPageSize, 31 * kPageSize));
+}
+
 TEST(RegionAllocatorTest, AllocateExcluded) {
   const size_t kPageSize = 4 * KB;
   const size_t kPageCount = 64;

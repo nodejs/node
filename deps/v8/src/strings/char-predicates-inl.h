@@ -57,11 +57,17 @@ inline constexpr bool IsBinaryDigit(base::uc32 c) {
 
 inline constexpr bool IsAscii(base::uc32 c) { return !(c & ~0x7F); }
 
-inline constexpr bool IsAsciiLower(base::uc32 c) {
+template <typename Char>
+  requires(std::integral<Char> &&
+           std::numeric_limits<char>::max() <= std::numeric_limits<Char>::max())
+inline constexpr bool IsAsciiLower(Char c) {
   return base::IsInRange(c, 'a', 'z');
 }
 
-inline constexpr bool IsAsciiUpper(base::uc32 c) {
+template <typename Char>
+  requires(std::integral<Char> &&
+           std::numeric_limits<char>::max() <= std::numeric_limits<Char>::max())
+inline constexpr bool IsAsciiUpper(Char c) {
   return base::IsInRange(c, 'A', 'Z');
 }
 

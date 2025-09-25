@@ -29,9 +29,9 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
-static absl::Mutex* ProgramNameMutex() {
+static absl::Mutex& ProgramNameMutex() {
   static absl::NoDestructor<absl::Mutex> mutex;
-  return mutex.get();
+  return *mutex;
 }
 ABSL_CONST_INIT static std::string* program_name ABSL_GUARDED_BY(
     ProgramNameMutex()) ABSL_PT_GUARDED_BY(ProgramNameMutex()) = nullptr;

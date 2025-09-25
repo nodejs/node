@@ -16,6 +16,7 @@
 
 #include "include/v8-internal.h"
 #include "src/base/bits.h"
+#include "src/base/bounds.h"
 #include "src/base/memory.h"
 #include "src/base/numbers/double.h"
 #include "src/builtins/builtins.h"
@@ -33,12 +34,13 @@
 #include "src/objects/deoptimization-data.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
-#include "src/objects/hole-inl.h"
+#include "src/objects/hole.h"
 #include "src/objects/instance-type-checker.h"
 #include "src/objects/js-proxy-inl.h"  // TODO(jkummerow): Drop.
 #include "src/objects/keys.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/lookup-inl.h"  // TODO(jkummerow): Drop.
+#include "src/objects/number-string-cache-inl.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/property-details.h"
@@ -123,15 +125,10 @@ HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 IS_TYPE_FUNCTION_DEF(HashTableBase)
 IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
 IS_TYPE_FUNCTION_DEF(PropertyDictionary)
+IS_TYPE_FUNCTION_DEF(AnyHole)
 #undef IS_TYPE_FUNCTION_DEF
 
-bool IsAnyHole(Tagged<Object> obj, PtrComprCageBase cage_base) {
-  return IsHole(obj, cage_base);
-}
-
-bool IsAnyHole(Tagged<Object> obj) { return IsHole(obj); }
-
-#define IS_TYPE_FUNCTION_DEF(Type, Value, _)                     \
+#define IS_TYPE_FUNCTION_DEF(Type, ...)                          \
   bool Is##Type(Tagged<Object> obj, Isolate* isolate) {          \
     return Is##Type(obj, ReadOnlyRoots(isolate));                \
   }                                                              \
@@ -156,6 +153,7 @@ bool IsAnyHole(Tagged<Object> obj) { return IsHole(obj); }
   }
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 HOLE_LIST(IS_TYPE_FUNCTION_DEF)
+IS_TYPE_FUNCTION_DEF(UndefinedContextCell)
 #undef IS_TYPE_FUNCTION_DEF
 
 #if V8_STATIC_ROOTS_BOOL
@@ -173,7 +171,77 @@ HOLE_LIST(IS_TYPE_FUNCTION_DEF)
 #endif
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 HOLE_LIST(IS_TYPE_FUNCTION_DEF)
+IS_TYPE_FUNCTION_DEF(UndefinedContextCell, undefined_context_cell,
+                     UndefinedContextCell)
 #undef IS_TYPE_FUNCTION_DEF
+
+namespace detail {
+#if V8_STATIC_ROOTS_BOOL
+#define GET_HOLE_ROOT(Type, Value, CamelName) StaticReadOnlyRoot::k##CamelName,
+constexpr Tagged_t kMinStaticHoleValue = std::min({HOLE_LIST(GET_HOLE_ROOT)});
+constexpr Tagged_t kMaxStaticHoleValue = std::max({HOLE_LIST(GET_HOLE_ROOT)});
+#undef GET_HOLE_ROOT
+#endif
+
+// Helper for IsAnyHole and SafeIsAnyHole which doesn't check whether we're
+// doing a sane comparison for the space of the object -- callers are expected
+// to verify the space of the object, either before or after this call.
+inline bool IsAnyHoleNoSpaceCheck(Tagged<HeapObject> obj) {
+#if V8_STATIC_ROOTS_BOOL
+  // Use a direct cast to Tagged_t rather than CompressObject to allow
+  // space-indepenedent comparisons in here.
+  return base::IsInRange(static_cast<Tagged_t>(obj.ptr()), kMinStaticHoleValue,
+                         kMaxStaticHoleValue);
+#else
+  return obj->map()->instance_type() == HOLE_TYPE;
+#endif
+}
+}  // namespace detail
+
+bool IsAnyHole(Tagged<HeapObject> obj) {
+  if (detail::IsAnyHoleNoSpaceCheck(obj)) {
+#if defined(DEBUG) && V8_STATIC_ROOTS_BOOL
+    // Compressed object tests need to be done on a matching compression scheme.
+    // We allow trusted space comparisons, because the first 1MB is unmapped
+    // there anyway, so no trusted object can alias a hole.
+    //
+    // Only check this after the hole check succeeds, to make it cheaper in the
+    // common case that things aren't holes.
+    if (V8_UNLIKELY(!obj.IsInMainCageBase())) {
+      DCHECK(obj.IsInTrustedCageBase());
+      DCHECK_GT(TrustedSpaceCompressionScheme::CompressObject(obj.ptr()),
+                detail::kMaxStaticHoleValue);
+    }
+#endif
+    return true;
+  }
+  return false;
+}
+
+bool IsAnyHole(Tagged<HeapObject> obj, PtrComprCageBase) {
+  return IsAnyHole(obj);
+}
+
+bool SafeIsAnyHole(Tagged<HeapObject> obj) {
+  if (detail::IsAnyHoleNoSpaceCheck(obj)) {
+#if V8_STATIC_ROOTS_BOOL
+    // Only check this after the hole check succeeds, to make it cheaper in the
+    // common case that things aren't holes.
+    if (!obj.IsInMainCageBase()) return false;
+#endif
+    return true;
+  }
+  return false;
+}
+
+bool SafeIsAnyHole(Tagged<Object> obj) {
+  Tagged<HeapObject> ho;
+  return TryCast<HeapObject>(obj, &ho) && SafeIsAnyHole(ho);
+}
+
+bool IsHole(Tagged<HeapObject> obj) { return IsAnyHole(obj); }
+
+bool IsHole(Tagged<HeapObject> obj, PtrComprCageBase) { return IsAnyHole(obj); }
 
 bool IsNullOrUndefined(Tagged<Object> obj, Isolate* isolate) {
   return IsNullOrUndefined(obj, ReadOnlyRoots(isolate));
@@ -224,6 +292,7 @@ bool IsNoSharedNameSentinel(Tagged<Object> obj) {
 HEAP_OBJECT_ORDINARY_TYPE_LIST(IS_HELPER_DEF)
 HEAP_OBJECT_TRUSTED_TYPE_LIST(IS_HELPER_DEF)
 VIRTUAL_OBJECT_TYPE_LIST(IS_HELPER_DEF)
+HOLE_LIST(IS_HELPER_DEF)
 ODDBALL_LIST(IS_HELPER_DEF)
 
 #define IS_HELPER_DEF_STRUCT(NAME, Name, name) IS_HELPER_DEF(Name)
@@ -236,9 +305,40 @@ IS_HELPER_DEF(Number)
 template <typename... T>
 struct CastTraits<Union<T...>> {
   static inline bool AllowFrom(Tagged<Object> value) {
+    // Make sure to test for holes first, recursing into a check of the Union
+    // without a Hole.
+    if constexpr (base::has_type_v<Hole, T...>) {
+      return IsAnyHole(value) ||
+             CastTraits<typename Union<T...>::template Without<Hole>>::
+                 AllowFrom(value);
+    }
+#define CHECK_HOLE_IF_HAS_HOLE(Type, ...)                             \
+  if constexpr (base::has_type_v<Type, T...>) {                       \
+    return Is##Type(value) ||                                         \
+           CastTraits<typename Union<T...>::template Without<Type>>:: \
+               AllowFrom(value);                                      \
+  }
+    HOLE_LIST(CHECK_HOLE_IF_HAS_HOLE)
+#undef CHECK_HOLE_IF_HAS_HOLE
+
     return (Is<T>(value) || ...);
   }
   static inline bool AllowFrom(Tagged<HeapObject> value) {
+    // Make sure to test for holes first.
+    if constexpr (base::has_type_v<Hole, T...>) {
+      return IsAnyHole(value) ||
+             CastTraits<typename Union<T...>::template Without<Hole>>::
+                 AllowFrom(value);
+    }
+#define CHECK_HOLE_IF_HAS_HOLE(Type, ...)                             \
+  if constexpr (base::has_type_v<Type, T...>) {                       \
+    return Is##Type(value) ||                                         \
+           CastTraits<typename Union<T...>::template Without<Type>>:: \
+               AllowFrom(value);                                      \
+  }
+    HOLE_LIST(CHECK_HOLE_IF_HAS_HOLE)
+#undef CHECK_HOLE_IF_HAS_HOLE
+
     return (Is<T>(value) || ...);
   }
 };
@@ -521,14 +621,14 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsJSSegmentDataObjectWithIsWordLike) {
 #endif  // V8_INTL_SUPPORT
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
-  // Must be a (protected) fixed array.
-  if (!IsProtectedFixedArray(obj, cage_base)) return false;
+  Tagged<ProtectedFixedArray> array;
+  if (!TryCast(obj, &array)) return false;
 
   // There's no sure way to detect the difference between a fixed array and
   // a deoptimization data array.  Since this is used for asserts we can
   // check that the length is zero or else the fixed size plus a multiple of
   // the entry size.
-  int length = Cast<ProtectedFixedArray>(obj)->length();
+  int length = array->length();
   if (length == 0) return true;
 
   length -= DeoptimizationData::kFirstDeoptEntryIndex;
@@ -634,11 +734,17 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUndetectable) {
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsAccessCheckNeeded) {
   if (IsJSGlobalProxy(obj, cage_base)) {
     const Tagged<JSGlobalProxy> proxy = Cast<JSGlobalProxy>(obj);
-    Tagged<JSGlobalObject> global =
-        proxy->GetIsolate()->context()->global_object();
-    return proxy->IsDetachedFrom(global);
+    Isolate* isolate = Isolate::Current();
+    // TODO(ishell): compare security tokens here in order to allow ICs to
+    // take fast paths for cross context accesses.
+    Tagged<JSGlobalObject> global = isolate->context()->global_object();
+    return proxy->IsDetachedFrom(isolate, global);
   }
   return obj->map(cage_base)->is_access_check_needed();
+}
+
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSmiStringCache) {
+  return IsFixedArray(obj);
 }
 
 #define MAKE_STRUCT_PREDICATE(NAME, Name, name)                             \
@@ -688,8 +794,7 @@ double Object::NumberValue(Tagged<Smi> obj) {
 template <typename T, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 Maybe<double> Object::IntegerValue(Isolate* isolate, HandleType<T> input) {
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, input, ConvertToNumber(isolate, input), Nothing<double>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input));
   if (IsSmi(*input)) {
     return Just(static_cast<double>(Cast<Smi>(*input).value()));
   }
@@ -751,10 +856,11 @@ Representation Object::OptimalRepresentation(Tagged<Object> obj,
     return Representation::Smi();
   }
   Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
+  if (IsUninitializedHole(heap_object)) {
+    return Representation::None();
+  }
   if (IsHeapNumber(heap_object, cage_base)) {
     return Representation::Double();
-  } else if (IsUninitialized(heap_object)) {
-    return Representation::None();
   }
   return Representation::HeapObject();
 }
@@ -763,9 +869,13 @@ Representation Object::OptimalRepresentation(Tagged<Object> obj,
 ElementsKind Object::OptimalElementsKind(Tagged<Object> obj,
                                          PtrComprCageBase cage_base) {
   if (IsSmi(obj)) return PACKED_SMI_ELEMENTS;
-  if (IsHeapNumber(obj, cage_base)) return PACKED_DOUBLE_ELEMENTS;
+  Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
+  if (IsHeapNumber(heap_object, cage_base)) return PACKED_DOUBLE_ELEMENTS;
+  // if (IsUninitializedHole(heap_object)) {
+  //   return PACKED_SMI_ELEMENTS;
+  // }
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-  if (IsUndefined(obj, GetReadOnlyRoots())) {
+  if (IsUndefined(heap_object, GetReadOnlyRoots())) {
     return HOLEY_DOUBLE_ELEMENTS;
   }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
@@ -808,7 +918,7 @@ template <typename T, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<JSReceiver>::MaybeType Object::ToObject(
     Isolate* isolate, HandleType<T> object, const char* method_name) {
-  if (IsJSReceiver(*object)) return Cast<JSReceiver>(object);
+  if (V8_LIKELY(IsJSReceiver(*object))) return Cast<JSReceiver>(object);
   return ToObjectImpl(isolate, object, method_name);
 }
 
@@ -1031,8 +1141,14 @@ bool HeapObject::IsLazilyInitializedExternalPointerFieldInitialized(
 template <ExternalPointerTag tag>
 void HeapObject::WriteLazilyInitializedExternalPointerField(
     size_t offset, IsolateForSandbox isolate, Address value) {
+  WriteLazilyInitializedExternalPointerField(offset, isolate, value, tag);
+}
+
+void HeapObject::WriteLazilyInitializedExternalPointerField(
+    size_t offset, IsolateForSandbox isolate, Address value,
+    ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(tag != kExternalPointerNullTag);
+  DCHECK_NE(tag, kExternalPointerNullTag);
   ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
   auto location =
       reinterpret_cast<ExternalPointerHandle*>(field_address(offset));
@@ -1084,25 +1200,19 @@ void HeapObject::InitSelfIndirectPointerField(
   i::InitSelfIndirectPointerField(field_address(offset), isolate, *this, tag,
                                   opt_publishing_scope);
 }
+
+void HeapObjectLayout::InitSelfIndirectPointerField(
+    std::atomic<IndirectPointerHandle>* field_ptr, IsolateForSandbox isolate,
+    TrustedPointerPublishingScope* opt_publishing_scope) {
+  DCHECK(IsExposedTrustedObject(this));
+  InstanceType instance_type = map()->instance_type();
+  bool shared = HeapLayout::InAnySharedSpace(this);
+  IndirectPointerTag tag =
+      IndirectPointerTagFromInstanceType(instance_type, shared);
+  i::InitSelfIndirectPointerField(reinterpret_cast<Address>(field_ptr), isolate,
+                                  this, tag, opt_publishing_scope);
+}
 #endif  // V8_ENABLE_SANDBOX
-
-template <IndirectPointerTag tag>
-Tagged<ExposedTrustedObject> HeapObject::ReadTrustedPointerField(
-    size_t offset, IsolateForSandbox isolate) const {
-  // Currently, trusted pointer loads always use acquire semantics as the
-  // under-the-hood indirect pointer loads use acquire loads anyway.
-  return ReadTrustedPointerField<tag>(offset, isolate, kAcquireLoad);
-}
-
-template <IndirectPointerTag tag>
-Tagged<ExposedTrustedObject> HeapObject::ReadTrustedPointerField(
-    size_t offset, IsolateForSandbox isolate,
-    AcquireLoadTag acquire_load) const {
-  Tagged<Object> object =
-      ReadMaybeEmptyTrustedPointerField<tag>(offset, isolate, acquire_load);
-  DCHECK(IsExposedTrustedObject(object));
-  return Cast<ExposedTrustedObject>(object);
-}
 
 template <IndirectPointerTag tag>
 Tagged<Object> HeapObject::ReadMaybeEmptyTrustedPointerField(
@@ -1166,8 +1276,7 @@ void HeapObject::ClearTrustedPointerField(size_t offset, ReleaseStoreTag) {
 
 Tagged<Code> HeapObject::ReadCodePointerField(size_t offset,
                                               IsolateForSandbox isolate) const {
-  return Cast<Code>(
-      ReadTrustedPointerField<kCodeIndirectPointerTag>(offset, isolate));
+  return ReadTrustedPointerField<kCodeIndirectPointerTag>(offset, isolate);
 }
 
 void HeapObject::WriteCodePointerField(size_t offset, Tagged<Code> value) {
@@ -1328,6 +1437,33 @@ void HeapObject::VerifySmiField(int offset) {
 
 #endif
 
+// static
+bool JSArray::MayHaveReadOnlyLength(Tagged<Map> js_array_map) {
+  DCHECK(IsJSArrayMap(js_array_map));
+  if (V8_UNLIKELY(
+          js_array_map->instance_descriptors()->number_of_descriptors() == 0)) {
+    return true;
+  }
+  DCHECK(!js_array_map->is_dictionary_map());
+
+  // Fast path: "length" is the first fast property of arrays with non
+  // dictionary properties. Since it's not configurable, it's guaranteed to be
+  // the first in the descriptor array.
+  InternalIndex first(0);
+  DCHECK(js_array_map->instance_descriptors()->GetKey(first) ==
+         GetReadOnlyRoots().length_string());
+  return V8_UNLIKELY(
+      js_array_map->instance_descriptors()->GetDetails(first).IsReadOnly());
+}
+
+bool JSArray::HasReadOnlyLength(DirectHandle<JSArray> array) {
+  Tagged<Map> map = array->map();
+
+  // If map guarantees that there can't be a read-only length, we are done.
+  if (!MayHaveReadOnlyLength(map)) return false;
+  return V8_UNLIKELY(HasReadOnlyLengthSlowPath(array));
+}
+
 ReadOnlyRoots HeapObject::EarlyGetReadOnlyRoots() const {
   return ReadOnlyHeap::EarlyGetReadOnlyRoots(*this);
 }
@@ -1340,7 +1476,8 @@ Tagged<Map> HeapObject::map() const {
   // This method is never used for objects located in code space
   // (InstructionStream and free space fillers) and thus it is fine to use
   // auto-computed cage base value.
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !HeapLayout::InCodeSpace(*this));
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                 !TrustedHeapLayout::InCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map(cage_base);
 }
@@ -1464,7 +1601,7 @@ void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
   // This method might change object layout and therefore can't be used on
   // background threads.
   DCHECK_IMPLIES(mode != VerificationMode::kSafeMapTransition,
-                 !LocalHeap::Current());
+                 LocalHeap::Current()->is_main_thread());
   if (v8_flags.verify_heap && !value.is_null()) {
     if (mode == VerificationMode::kSafeMapTransition) {
       HeapVerifier::VerifySafeMapTransition(isolate->heap()->AsHeap(), *this,
@@ -1525,6 +1662,10 @@ DEF_ACQUIRE_GETTER(HeapObject, map, Tagged<Map>) {
   return map_word(cage_base, kAcquireLoad).ToMap();
 }
 
+ObjectSlot HeapObjectLayout::map_slot() const {
+  return Tagged<HeapObject>(this)->map_slot();
+}
+
 ObjectSlot HeapObject::map_slot() const {
   return ObjectSlot(MapField::address(*this));
 }
@@ -1533,7 +1674,8 @@ MapWord HeapObject::map_word(RelaxedLoadTag tag) const {
   // This method is never used for objects located in code space
   // (InstructionStream and free space fillers) and thus it is fine to use
   // auto-computed cage base value.
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !HeapLayout::InCodeSpace(*this));
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                 !TrustedHeapLayout::InCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map_word(cage_base, tag);
 }
@@ -1556,7 +1698,8 @@ MapWord HeapObject::map_word(AcquireLoadTag tag) const {
   // This method is never used for objects located in code space
   // (InstructionStream and free space fillers) and thus it is fine to use
   // auto-computed cage base value.
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !HeapLayout::InCodeSpace(*this));
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                 !TrustedHeapLayout::InCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map_word(cage_base, tag);
 }
@@ -1607,12 +1750,23 @@ int HeapObjectLayout::Size() const { return Tagged<HeapObject>(this)->Size(); }
 
 // TODO(v8:11880): consider dropping parameterless version.
 int HeapObject::Size() const {
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !HeapLayout::InCodeSpace(*this));
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                 !TrustedHeapLayout::InCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::Size(cage_base);
 }
 int HeapObject::Size(PtrComprCageBase cage_base) const {
   return SizeFromMap(map(cage_base));
+}
+
+SafeHeapObjectSize HeapObject::SafeSize() const {
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                 !TrustedHeapLayout::InCodeSpace(*this));
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return HeapObject::SafeSize(cage_base);
+}
+SafeHeapObjectSize HeapObject::SafeSize(PtrComprCageBase cage_base) const {
+  return SafeSizeFromMap(map(cage_base));
 }
 
 inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {
@@ -1672,40 +1826,67 @@ bool Object::ToIntegerIndex(Tagged<Object> obj, size_t* index) {
   return false;
 }
 
-WriteBarrierMode HeapObjectLayout::GetWriteBarrierMode(
+WriteBarrierModeScope HeapObjectLayout::GetWriteBarrierMode(
     const DisallowGarbageCollection& promise) {
-  return WriteBarrier::GetWriteBarrierModeForObject(this, promise);
+  return WriteBarrier::GetWriteBarrierModeForObject(Tagged(this), promise);
 }
 
-WriteBarrierMode HeapObject::GetWriteBarrierMode(
+WriteBarrierModeScope HeapObject::GetWriteBarrierMode(
     const DisallowGarbageCollection& promise) {
   return WriteBarrier::GetWriteBarrierModeForObject(*this, promise);
 }
 
 // static
-AllocationAlignment HeapObject::RequiredAlignment(Tagged<Map> map) {
+AllocationAlignment HeapObject::RequiredAlignment(AllocationSpace space,
+                                                  Tagged<Map> map) {
+  return RequiredAlignment(
+      IsAnyWritableSharedSpace(space) ? kInSharedSpace : kNotInSharedSpace,
+      map);
+}
+
+// static
+AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
+                                                  Tagged<Map> map) {
   // TODO(v8:4153): We should think about requiring double alignment
   // in general for ByteArray, since they are used as backing store for typed
   // arrays now.
   // TODO(ishell, v8:8875): Consider using aligned allocations for BigInt.
-  if (USE_ALLOCATION_ALIGNMENT_BOOL) {
+  if (USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL) {
     int instance_type = map->instance_type();
 
-    static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL ||
+    static_assert(!USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ||
                   (sizeof(FixedDoubleArray::Header) & kDoubleAlignmentMask) ==
                       kTaggedSize);
     if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) return kDoubleAligned;
 
-    static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL ||
+    static_assert(!USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ||
                   (offsetof(HeapNumber, value_) & kDoubleAlignmentMask) ==
                       kTaggedSize);
     if (instance_type == HEAP_NUMBER_TYPE) return kDoubleUnaligned;
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (in_shared_space && v8_flags.experimental_wasm_shared) [[unlikely]] {
+    int instance_type = map->instance_type();
+    if (instance_type == WASM_STRUCT_TYPE) {
+      // The map of a shared wasm struct needs to be in the shared space.
+      DCHECK(HeapLayout::InWritableSharedSpace(map));
+      return kDoubleAligned;
+    } else if (instance_type == WASM_ARRAY_TYPE) {
+      // The map of a shared wasm array needs to be in the shared space.
+      DCHECK(HeapLayout::InWritableSharedSpace(map));
+      return kDoubleUnaligned;
+    }
+  }
+#endif
   return kTaggedAligned;
 }
 
 bool HeapObject::CheckRequiredAlignment(PtrComprCageBase cage_base) const {
-  AllocationAlignment alignment = HeapObject::RequiredAlignment(map(cage_base));
+  const InSharedSpace in_shared_space = HeapLayout::InWritableSharedSpace(*this)
+                                            ? kInSharedSpace
+                                            : kNotInSharedSpace;
+  AllocationAlignment alignment =
+      HeapObject::RequiredAlignment(in_shared_space, map(cage_base));
   CHECK_EQ(0, Heap::GetFillToAlign(address(), alignment));
   return true;
 }
@@ -1857,7 +2038,7 @@ Tagged<Object> Object::GetSimpleHash(Tagged<Object> object) {
     return Smi::FromInt(hash);
   }
 
-  DCHECK(!InstanceTypeChecker::IsHole(instance_type));
+  DCHECK_NE(instance_type, HOLE_TYPE);
   DCHECK(IsJSReceiver(object));
   return object;
 }
@@ -1944,14 +2125,15 @@ bool Object::CanBeHeldWeakly(Tagged<Object> obj) {
     // TODO(v8:12547) Shared structs and arrays should only be able to point
     // to shared values in weak collections. For now, disallow them as weak
     // collection keys.
-    return (!v8_flags.harmony_struct ||
-            (!IsJSSharedStruct(obj) && !IsJSSharedArray(obj)))
 #if V8_ENABLE_WEBASSEMBLY
-           && (!v8_flags.experimental_wasm_shared ||
-               (!((IsWasmStruct(obj) || IsWasmArray(obj)) &&
-                  HeapLayout::InAnySharedSpace(Cast<HeapObject>(obj)))))
+    if (v8_flags.experimental_wasm_shared &&
+        (IsWasmStruct(obj) || IsWasmArray(obj)) &&
+        HeapLayout::InAnySharedSpace(Cast<HeapObject>(obj))) {
+      return false;
+    }
 #endif
-        ;
+    return (!v8_flags.harmony_struct ||
+            (!IsJSSharedStruct(obj) && !IsJSSharedArray(obj)));
   }
   return IsSymbol(obj) && !Cast<Symbol>(obj)->is_in_public_symbol_table();
 }

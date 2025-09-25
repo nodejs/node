@@ -664,7 +664,7 @@ void LiftoffAssembler::SpillAllRegisters() {
 
 void LiftoffAssembler::ClearRegister(
     Register reg, std::initializer_list<Register*> possible_uses,
-    LiftoffRegList pinned) {
+    LiftoffRegList& pinned) {
   if (reg == cache_state()->cached_instance_data) {
     cache_state()->ClearCachedInstanceRegister();
     // We can return immediately. The instance is only used to load information
@@ -687,7 +687,7 @@ void LiftoffAssembler::ClearRegister(
   for (Register* use : possible_uses) {
     if (reg != *use) continue;
     if (replacement == no_reg) {
-      replacement = GetUnusedRegister(kGpReg, pinned).gp();
+      replacement = pinned.set(GetUnusedRegister(kGpReg, pinned).gp());
       Move(replacement, reg, kIntPtrKind);
     }
     // We cannot leave this loop early. There may be multiple uses of {reg}.

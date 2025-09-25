@@ -390,131 +390,87 @@ class MachineOptimizationReducer : public Next {
     }
     if (float f32_k; rep == FloatRepresentation::Float32() &&
                      matcher_.MatchFloat32Constant(input, &f32_k)) {
-      if (std::isnan(f32_k) && !signalling_nan_possible) {
-        return __ Float32Constant(std::numeric_limits<float>::quiet_NaN());
-      }
+      float result;
+#define CONSTANT_F32_CASE(kind, op) \
+  case FloatUnaryOp::Kind::kind:    \
+    result = op;                    \
+    break;
       switch (kind) {
-        case FloatUnaryOp::Kind::kAbs:
-          return __ Float32Constant(std::abs(f32_k));
-        case FloatUnaryOp::Kind::kNegate:
-          return __ Float32Constant(-f32_k);
-        case FloatUnaryOp::Kind::kSilenceNaN:
-          DCHECK(!std::isnan(f32_k));
-          return __ Float32Constant(f32_k);
-        case FloatUnaryOp::Kind::kRoundDown:
-          return __ Float32Constant(std::floor(f32_k));
-        case FloatUnaryOp::Kind::kRoundUp:
-          return __ Float32Constant(std::ceil(f32_k));
-        case FloatUnaryOp::Kind::kRoundToZero:
-          return __ Float32Constant(std::trunc(f32_k));
-        case FloatUnaryOp::Kind::kRoundTiesEven:
-          DCHECK_EQ(std::nearbyint(1.5), 2);
-          DCHECK_EQ(std::nearbyint(2.5), 2);
-          return __ Float32Constant(std::nearbyint(f32_k));
-        case FloatUnaryOp::Kind::kLog:
-          return __ Float32Constant(base::ieee754::log(f32_k));
-        case FloatUnaryOp::Kind::kSqrt:
-          return __ Float32Constant(std::sqrt(f32_k));
-        case FloatUnaryOp::Kind::kExp:
-          return __ Float32Constant(base::ieee754::exp(f32_k));
-        case FloatUnaryOp::Kind::kExpm1:
-          return __ Float32Constant(base::ieee754::expm1(f32_k));
-        case FloatUnaryOp::Kind::kSin:
-          return __ Float32Constant(SIN_IMPL(f32_k));
-        case FloatUnaryOp::Kind::kCos:
-          return __ Float32Constant(COS_IMPL(f32_k));
-        case FloatUnaryOp::Kind::kSinh:
-          return __ Float32Constant(base::ieee754::sinh(f32_k));
-        case FloatUnaryOp::Kind::kCosh:
-          return __ Float32Constant(base::ieee754::cosh(f32_k));
-        case FloatUnaryOp::Kind::kAcos:
-          return __ Float32Constant(base::ieee754::acos(f32_k));
-        case FloatUnaryOp::Kind::kAsin:
-          return __ Float32Constant(base::ieee754::asin(f32_k));
-        case FloatUnaryOp::Kind::kAsinh:
-          return __ Float32Constant(base::ieee754::asinh(f32_k));
-        case FloatUnaryOp::Kind::kAcosh:
-          return __ Float32Constant(base::ieee754::acosh(f32_k));
-        case FloatUnaryOp::Kind::kTan:
-          return __ Float32Constant(base::ieee754::tan(f32_k));
-        case FloatUnaryOp::Kind::kTanh:
-          return __ Float32Constant(base::ieee754::tanh(f32_k));
-        case FloatUnaryOp::Kind::kLog2:
-          return __ Float32Constant(base::ieee754::log2(f32_k));
-        case FloatUnaryOp::Kind::kLog10:
-          return __ Float32Constant(base::ieee754::log10(f32_k));
-        case FloatUnaryOp::Kind::kLog1p:
-          return __ Float32Constant(base::ieee754::log1p(f32_k));
-        case FloatUnaryOp::Kind::kCbrt:
-          return __ Float32Constant(base::ieee754::cbrt(f32_k));
-        case FloatUnaryOp::Kind::kAtan:
-          return __ Float32Constant(base::ieee754::atan(f32_k));
-        case FloatUnaryOp::Kind::kAtanh:
-          return __ Float32Constant(base::ieee754::atanh(f32_k));
+        CONSTANT_F32_CASE(kAbs, std::abs(f32_k))
+        CONSTANT_F32_CASE(kNegate, -f32_k)
+        CONSTANT_F32_CASE(kSilenceNaN, f32_k)
+        CONSTANT_F32_CASE(kRoundDown, std::floor(f32_k))
+        CONSTANT_F32_CASE(kRoundUp, std::ceil(f32_k))
+        CONSTANT_F32_CASE(kRoundToZero, std::trunc(f32_k))
+        CONSTANT_F32_CASE(kRoundTiesEven, std::nearbyint(f32_k))
+        CONSTANT_F32_CASE(kLog, base::ieee754::log(f32_k))
+        CONSTANT_F32_CASE(kSqrt, std::sqrt(f32_k))
+        CONSTANT_F32_CASE(kExp, base::ieee754::exp(f32_k))
+        CONSTANT_F32_CASE(kExpm1, base::ieee754::expm1(f32_k))
+        CONSTANT_F32_CASE(kSin, SIN_IMPL(f32_k))
+        CONSTANT_F32_CASE(kCos, COS_IMPL(f32_k))
+        CONSTANT_F32_CASE(kSinh, base::ieee754::sinh(f32_k))
+        CONSTANT_F32_CASE(kCosh, base::ieee754::cosh(f32_k))
+        CONSTANT_F32_CASE(kAcos, base::ieee754::acos(f32_k))
+        CONSTANT_F32_CASE(kAsin, base::ieee754::asin(f32_k))
+        CONSTANT_F32_CASE(kAsinh, base::ieee754::asinh(f32_k))
+        CONSTANT_F32_CASE(kAcosh, base::ieee754::acosh(f32_k))
+        CONSTANT_F32_CASE(kTan, base::ieee754::tan(f32_k))
+        CONSTANT_F32_CASE(kTanh, base::ieee754::tanh(f32_k))
+        CONSTANT_F32_CASE(kLog2, base::ieee754::log2(f32_k))
+        CONSTANT_F32_CASE(kLog10, base::ieee754::log10(f32_k))
+        CONSTANT_F32_CASE(kLog1p, base::ieee754::log1p(f32_k))
+        CONSTANT_F32_CASE(kCbrt, base::ieee754::cbrt(f32_k))
+        CONSTANT_F32_CASE(kAtan, base::ieee754::atan(f32_k))
+        CONSTANT_F32_CASE(kAtanh, base::ieee754::atanh(f32_k))
+      }
+#undef CONSTANT_F32_CASE
+      DCHECK_IMPLIES(std::isnan(f32_k), std::isnan(result));
+      if (!std::isnan(result)) return __ Float32Constant(result);
+      if (!ensure_deterministic_nan) {
+        return __ Float32Constant(std::numeric_limits<float>::quiet_NaN());
       }
     } else if (double f64_k; rep == FloatRepresentation::Float64() &&
                              matcher_.MatchFloat64Constant(input, &f64_k)) {
-      if (std::isnan(f64_k) && !signalling_nan_possible) {
-        return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
-      }
+      double result;
+#define CONSTANT_F64_CASE(kind, op) \
+  case FloatUnaryOp::Kind::kind:    \
+    result = op;                    \
+    break;
       switch (kind) {
-        case FloatUnaryOp::Kind::kAbs:
-          return __ Float64Constant(std::abs(f64_k));
-        case FloatUnaryOp::Kind::kNegate:
-          return __ Float64Constant(-f64_k);
-        case FloatUnaryOp::Kind::kSilenceNaN:
-          DCHECK(!std::isnan(f64_k));
-          return __ Float64Constant(f64_k);
-        case FloatUnaryOp::Kind::kRoundDown:
-          return __ Float64Constant(std::floor(f64_k));
-        case FloatUnaryOp::Kind::kRoundUp:
-          return __ Float64Constant(std::ceil(f64_k));
-        case FloatUnaryOp::Kind::kRoundToZero:
-          return __ Float64Constant(std::trunc(f64_k));
-        case FloatUnaryOp::Kind::kRoundTiesEven:
-          DCHECK_EQ(std::nearbyint(1.5), 2);
-          DCHECK_EQ(std::nearbyint(2.5), 2);
-          return __ Float64Constant(std::nearbyint(f64_k));
-        case FloatUnaryOp::Kind::kLog:
-          return __ Float64Constant(base::ieee754::log(f64_k));
-        case FloatUnaryOp::Kind::kSqrt:
-          return __ Float64Constant(std::sqrt(f64_k));
-        case FloatUnaryOp::Kind::kExp:
-          return __ Float64Constant(base::ieee754::exp(f64_k));
-        case FloatUnaryOp::Kind::kExpm1:
-          return __ Float64Constant(base::ieee754::expm1(f64_k));
-        case FloatUnaryOp::Kind::kSin:
-          return __ Float64Constant(SIN_IMPL(f64_k));
-        case FloatUnaryOp::Kind::kCos:
-          return __ Float64Constant(COS_IMPL(f64_k));
-        case FloatUnaryOp::Kind::kSinh:
-          return __ Float64Constant(base::ieee754::sinh(f64_k));
-        case FloatUnaryOp::Kind::kCosh:
-          return __ Float64Constant(base::ieee754::cosh(f64_k));
-        case FloatUnaryOp::Kind::kAcos:
-          return __ Float64Constant(base::ieee754::acos(f64_k));
-        case FloatUnaryOp::Kind::kAsin:
-          return __ Float64Constant(base::ieee754::asin(f64_k));
-        case FloatUnaryOp::Kind::kAsinh:
-          return __ Float64Constant(base::ieee754::asinh(f64_k));
-        case FloatUnaryOp::Kind::kAcosh:
-          return __ Float64Constant(base::ieee754::acosh(f64_k));
-        case FloatUnaryOp::Kind::kTan:
-          return __ Float64Constant(base::ieee754::tan(f64_k));
-        case FloatUnaryOp::Kind::kTanh:
-          return __ Float64Constant(base::ieee754::tanh(f64_k));
-        case FloatUnaryOp::Kind::kLog2:
-          return __ Float64Constant(base::ieee754::log2(f64_k));
-        case FloatUnaryOp::Kind::kLog10:
-          return __ Float64Constant(base::ieee754::log10(f64_k));
-        case FloatUnaryOp::Kind::kLog1p:
-          return __ Float64Constant(base::ieee754::log1p(f64_k));
-        case FloatUnaryOp::Kind::kCbrt:
-          return __ Float64Constant(base::ieee754::cbrt(f64_k));
-        case FloatUnaryOp::Kind::kAtan:
-          return __ Float64Constant(base::ieee754::atan(f64_k));
-        case FloatUnaryOp::Kind::kAtanh:
-          return __ Float64Constant(base::ieee754::atanh(f64_k));
+        CONSTANT_F64_CASE(kAbs, std::abs(f64_k))
+        CONSTANT_F64_CASE(kNegate, -f64_k)
+        CONSTANT_F64_CASE(kSilenceNaN, f64_k)
+        CONSTANT_F64_CASE(kRoundDown, std::floor(f64_k))
+        CONSTANT_F64_CASE(kRoundUp, std::ceil(f64_k))
+        CONSTANT_F64_CASE(kRoundToZero, std::trunc(f64_k))
+        CONSTANT_F64_CASE(kRoundTiesEven, std::nearbyint(f64_k))
+        CONSTANT_F64_CASE(kLog, base::ieee754::log(f64_k))
+        CONSTANT_F64_CASE(kSqrt, std::sqrt(f64_k))
+        CONSTANT_F64_CASE(kExp, base::ieee754::exp(f64_k))
+        CONSTANT_F64_CASE(kExpm1, base::ieee754::expm1(f64_k))
+        CONSTANT_F64_CASE(kSin, SIN_IMPL(f64_k))
+        CONSTANT_F64_CASE(kCos, COS_IMPL(f64_k))
+        CONSTANT_F64_CASE(kSinh, base::ieee754::sinh(f64_k))
+        CONSTANT_F64_CASE(kCosh, base::ieee754::cosh(f64_k))
+        CONSTANT_F64_CASE(kAcos, base::ieee754::acos(f64_k))
+        CONSTANT_F64_CASE(kAsin, base::ieee754::asin(f64_k))
+        CONSTANT_F64_CASE(kAsinh, base::ieee754::asinh(f64_k))
+        CONSTANT_F64_CASE(kAcosh, base::ieee754::acosh(f64_k))
+        CONSTANT_F64_CASE(kTan, base::ieee754::tan(f64_k))
+        CONSTANT_F64_CASE(kTanh, base::ieee754::tanh(f64_k))
+        CONSTANT_F64_CASE(kLog2, base::ieee754::log2(f64_k))
+        CONSTANT_F64_CASE(kLog10, base::ieee754::log10(f64_k))
+        CONSTANT_F64_CASE(kLog1p, base::ieee754::log1p(f64_k))
+        CONSTANT_F64_CASE(kCbrt, base::ieee754::cbrt(f64_k))
+        CONSTANT_F64_CASE(kAtan, base::ieee754::atan(f64_k))
+        CONSTANT_F64_CASE(kAtanh, base::ieee754::atanh(f64_k))
+      }
+#undef CONSTANT_F64_CASE
+      DCHECK_IMPLIES(std::isnan(f64_k), std::isnan(result));
+      if (!std::isnan(result)) return __ Float64Constant(result);
+      if (!ensure_deterministic_nan) {
+        return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
       }
     }
     return Next::ReduceFloatUnary(input, kind, rep);
@@ -579,7 +535,7 @@ class MachineOptimizationReducer : public Next {
 
     // Place constant on the right for commutative operators.
     if (FloatBinopOp::IsCommutative(kind) && matcher_.Is<ConstantOp>(lhs) &&
-        !matcher_.Is<ConstantOp>(rhs)) {
+        !matcher_.Is<ConstantOp>(rhs) && !ensure_deterministic_nan) {
       return ReduceFloatBinop(rhs, lhs, kind, rep);
     }
 
@@ -587,58 +543,86 @@ class MachineOptimizationReducer : public Next {
     if (float k1, k2; rep == FloatRepresentation::Float32() &&
                       matcher_.MatchFloat32Constant(lhs, &k1) &&
                       matcher_.MatchFloat32Constant(rhs, &k2)) {
+      float result;
+#define CONSTANT_F32_CASE(kind, op) \
+  case Kind::kind:                  \
+    result = op;                    \
+    break;
       switch (kind) {
-        case Kind::kAdd:
-          return __ Float32Constant(k1 + k2);
-        case Kind::kMul:
-          return __ Float32Constant(k1 * k2);
-        case Kind::kSub:
-          return __ Float32Constant(k1 - k2);
-        case Kind::kMin:
-          return __ Float32Constant(JSMin(k1, k2));
-        case Kind::kMax:
-          return __ Float32Constant(JSMax(k1, k2));
-        case Kind::kDiv:
-          return __ Float32Constant(k1 / k2);
-        case Kind::kPower:
-          return __ Float32Constant(internal::math::pow(k1, k2));
-        case Kind::kAtan2:
-          return __ Float32Constant(base::ieee754::atan2(k1, k2));
+        CONSTANT_F32_CASE(kAdd, k1 + k2)
+        CONSTANT_F32_CASE(kMul, k1 * k2)
+        CONSTANT_F32_CASE(kSub, k1 - k2)
+        CONSTANT_F32_CASE(kMin, JSMin(k1, k2))
+        CONSTANT_F32_CASE(kMax, JSMax(k1, k2))
+        CONSTANT_F32_CASE(kDiv, k1 / k2)
+        CONSTANT_F32_CASE(kPower, i::math::pow(k1, k2))
+        CONSTANT_F32_CASE(kAtan2, base::ieee754::atan2(k1, k2));
         case Kind::kMod:
           UNREACHABLE();
+      }
+#undef CONSTANT_F32_CASE
+      DCHECK_IMPLIES(std::isnan(k1) || std::isnan(k2), std::isnan(result));
+      if (!std::isnan(result)) return __ Float32Constant(result);
+      if (!ensure_deterministic_nan) {
+        return __ Float32Constant(std::numeric_limits<float>::quiet_NaN());
       }
     }
     if (double k1, k2; rep == FloatRepresentation::Float64() &&
                        matcher_.MatchFloat64Constant(lhs, &k1) &&
                        matcher_.MatchFloat64Constant(rhs, &k2)) {
+      double result;
+#define CONSTANT_F64_CASE(kind, op) \
+  case Kind::kind:                  \
+    result = op;                    \
+    break;
       switch (kind) {
-        case Kind::kAdd:
-          return __ Float64Constant(k1 + k2);
-        case Kind::kMul:
-          return __ Float64Constant(k1 * k2);
-        case Kind::kSub:
-          return __ Float64Constant(k1 - k2);
-        case Kind::kMin:
-          return __ Float64Constant(JSMin(k1, k2));
-        case Kind::kMax:
-          return __ Float64Constant(JSMax(k1, k2));
-        case Kind::kDiv:
-          return __ Float64Constant(k1 / k2);
-        case Kind::kMod:
-          return __ Float64Constant(Modulo(k1, k2));
-        case Kind::kPower:
-          return __ Float64Constant(math::pow(k1, k2));
-        case Kind::kAtan2:
-          return __ Float64Constant(base::ieee754::atan2(k1, k2));
+        CONSTANT_F64_CASE(kAdd, k1 + k2)
+        CONSTANT_F64_CASE(kMul, k1 * k2)
+        CONSTANT_F64_CASE(kSub, k1 - k2)
+        CONSTANT_F64_CASE(kMin, JSMin(k1, k2))
+        CONSTANT_F64_CASE(kMax, JSMax(k1, k2))
+        CONSTANT_F64_CASE(kDiv, k1 / k2)
+        CONSTANT_F64_CASE(kMod, Modulo(k1, k2))
+        CONSTANT_F64_CASE(kPower, i::math::pow(k1, k2))
+        CONSTANT_F64_CASE(kAtan2, base::ieee754::atan2(k1, k2))
+      }
+#undef CONSTANT_F64_CASE
+      DCHECK_IMPLIES(
+          std::isnan(k1) || std::isnan(k2),
+          std::isnan(result) ||
+              (kind == Kind::kPower && k2 == 0) /* Special case: NaN^0 == 1 */);
+      if (!std::isnan(result)) return __ Float64Constant(result);
+      if (!ensure_deterministic_nan) {
+        return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
       }
     }
 
-    // lhs <op> NaN  =>  NaN
-    if (matcher_.MatchNaN(rhs) ||
-        (matcher_.MatchNaN(lhs) && kind != Kind::kPower)) {
-      // Return a quiet NaN since Wasm operations could have signalling NaN as
-      // input but not as output.
-      return __ FloatConstant(std::numeric_limits<double>::quiet_NaN(), rep);
+    // All NaN folding is disabled for Wasm; architectures disagree on which
+    // input to take in case both are NaN, sometimes it even depends on the
+    // exact NaN which one is propagated as the result.
+    // Even though the Wasm spec allows propagating any NaN input, we want
+    // determinism here for differential fuzzing across compilers.
+    if (!ensure_deterministic_nan) {
+      // NaN <op> rhs  =>  NaN (except for Kind::kPower).
+      // lhs <op> NaN  =>  NaN.
+      if (i::Float32 nan;
+          (matcher_.MatchFloat32Constant(lhs, &nan) && nan.is_nan() &&
+           kind != Kind::kPower) ||
+          (matcher_.MatchFloat32Constant(rhs, &nan) && nan.is_nan())) {
+        // Return a quiet NaN since Wasm operations could have signalling NaN as
+        // input but not as output.
+        return __ Float32Constant(std::numeric_limits<float>::quiet_NaN());
+      }
+
+      // Same for float64.
+      if (i::Float64 nan;
+          (matcher_.MatchFloat64Constant(lhs, &nan) && nan.is_nan() &&
+           kind != Kind::kPower) ||
+          (matcher_.MatchFloat64Constant(rhs, &nan) && nan.is_nan())) {
+        // Return a quiet NaN since Wasm operations could have signalling NaN as
+        // input but not as output.
+        return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
+      }
     }
 
     if (matcher_.Is<ConstantOp>(rhs)) {
@@ -652,6 +636,8 @@ class MachineOptimizationReducer : public Next {
           return __ FloatAdd(lhs, lhs, rep);
         }
         // lhs * -1  =>  -lhs
+        // Note: FloatNegate does not set the quiet bit so we cannot use this if
+        // signalling nans can happen.
         if (!signalling_nan_possible && matcher_.MatchFloat(rhs, -1.0)) {
           return __ FloatNegate(lhs, rep);
         }
@@ -663,6 +649,8 @@ class MachineOptimizationReducer : public Next {
           return lhs;
         }
         // lhs / -1  =>  -lhs
+        // Note: FloatNegate does not set the quiet bit so we cannot use this if
+        // signalling nans can happen.
         if (!signalling_nan_possible && matcher_.MatchFloat(rhs, -1.0)) {
           return __ FloatNegate(lhs, rep);
         }
@@ -826,8 +814,7 @@ class MachineOptimizationReducer : public Next {
       }
     }
 
-    if (kind == WordBinopOp::Kind::kBitwiseAnd &&
-        rep == WordRepresentation::Word32()) {
+    if (kind == Kind::kBitwiseAnd && rep == WordRepresentation::Word32()) {
       if (auto right_bitfield = detail::BitfieldCheck::Detect(
               matcher_, __ output_graph(), right)) {
         if (auto left_bitfield = detail::BitfieldCheck::Detect(
@@ -1051,11 +1038,11 @@ class MachineOptimizationReducer : public Next {
             }
           }
           break;
-        case WordBinopOp::Kind::kSignedDiv:
+        case Kind::kSignedDiv:
           return ReduceSignedDiv(left, right_value_signed, rep);
-        case WordBinopOp::Kind::kUnsignedDiv:
+        case Kind::kUnsignedDiv:
           return ReduceUnsignedDiv(left, right_value, rep);
-        case WordBinopOp::Kind::kSignedMod:
+        case Kind::kSignedMod:
           // left % 0  =>  0
           // left % 1  =>  0
           // left % -1  =>  0
@@ -1088,7 +1075,7 @@ class MachineOptimizationReducer : public Next {
           // multiplication, avoiding the expensive integer division.
           return __ WordSub(
               left, __ WordMul(__ IntDiv(left, right, rep), right, rep), rep);
-        case WordBinopOp::Kind::kUnsignedMod:
+        case Kind::kUnsignedMod:
           // left % 0  =>  0
           // left % 1  =>  0
           if (right_value == 0 || right_value == 1) {
@@ -1103,8 +1090,8 @@ class MachineOptimizationReducer : public Next {
           // multiplication, avoiding the expensive integer division.
           return __ WordSub(
               left, __ WordMul(right, __ UintDiv(left, right, rep), rep), rep);
-        case WordBinopOp::Kind::kSignedMulOverflownBits:
-        case WordBinopOp::Kind::kUnsignedMulOverflownBits:
+        case Kind::kSignedMulOverflownBits:
+        case Kind::kUnsignedMulOverflownBits:
           break;
       }
     }
@@ -1138,28 +1125,28 @@ class MachineOptimizationReducer : public Next {
       switch (kind) {
         // x & x  =>  x
         // x | x  =>  x
-        case WordBinopOp::Kind::kBitwiseAnd:
-        case WordBinopOp::Kind::kBitwiseOr:
+        case Kind::kBitwiseAnd:
+        case Kind::kBitwiseOr:
           return x;
         // x ^ x  =>  0
         // x - x  =>  0
         // x % x  =>  0
-        case WordBinopOp::Kind::kBitwiseXor:
-        case WordBinopOp::Kind::kSub:
-        case WordBinopOp::Kind::kSignedMod:
-        case WordBinopOp::Kind::kUnsignedMod:
+        case Kind::kBitwiseXor:
+        case Kind::kSub:
+        case Kind::kSignedMod:
+        case Kind::kUnsignedMod:
           return __ WordConstant(0, rep);
         // x / x  =>  x != 0
-        case WordBinopOp::Kind::kSignedDiv:
-        case WordBinopOp::Kind::kUnsignedDiv: {
+        case Kind::kSignedDiv:
+        case Kind::kUnsignedDiv: {
           V<Word> zero = __ WordConstant(0, rep);
           V<Word32> result = __ Word32Equal(__ Equal(left, zero, rep), 0);
           return __ ZeroExtendWord32ToRep(result, rep);
         }
-        case WordBinopOp::Kind::kAdd:
-        case WordBinopOp::Kind::kMul:
-        case WordBinopOp::Kind::kSignedMulOverflownBits:
-        case WordBinopOp::Kind::kUnsignedMulOverflownBits:
+        case Kind::kAdd:
+        case Kind::kMul:
+        case Kind::kSignedMulOverflownBits:
+        case Kind::kUnsignedMulOverflownBits:
           break;
       }
     }
@@ -1291,7 +1278,8 @@ class MachineOptimizationReducer : public Next {
             overflow = base::bits::SignedSubOverflow32(k1, k2, &res);
             break;
         }
-        return __ Tuple(__ Word32Constant(res), __ Word32Constant(overflow));
+        return __ MakeTuple(__ Word32Constant(res),
+                            __ Word32Constant(overflow));
       }
     } else {
       DCHECK_EQ(rep, WordRepresentation::Word64());
@@ -1310,7 +1298,8 @@ class MachineOptimizationReducer : public Next {
             overflow = base::bits::SignedSubOverflow64(k1, k2, &res);
             break;
         }
-        return __ Tuple(__ Word64Constant(res), __ Word32Constant(overflow));
+        return __ MakeTuple(__ Word64Constant(res),
+                            __ Word32Constant(overflow));
       }
     }
 
@@ -1318,18 +1307,19 @@ class MachineOptimizationReducer : public Next {
     // left - 0  =>  (left, false)
     if (kind == any_of(Kind::kSignedAdd, Kind::kSignedSub) &&
         matcher_.MatchZero(right)) {
-      return __ Tuple(left, __ Word32Constant(0));
+      return __ MakeTuple(left, __ Word32Constant(0));
     }
 
     if (kind == Kind::kSignedMul) {
       if (int64_t k; matcher_.MatchIntegralWordConstant(right, rep, &k)) {
         // left * 0  =>  (0, false)
         if (k == 0) {
-          return __ Tuple(__ WordConstant(0, rep), __ Word32Constant(false));
+          return __ MakeTuple(__ WordConstant(0, rep),
+                              __ Word32Constant(false));
         }
         // left * 1  =>  (left, false)
         if (k == 1) {
-          return __ Tuple(left, __ Word32Constant(false));
+          return __ MakeTuple(left, __ Word32Constant(false));
         }
         // left * -1  =>  0 - left
         if (k == -1) {
@@ -1342,14 +1332,49 @@ class MachineOptimizationReducer : public Next {
       }
     }
 
-    // UntagSmi(x) + UntagSmi(x)  =>  (x, false)
-    // (where UntagSmi(x) = x >> 1   with a ShiftOutZeros shift)
     if (kind == Kind::kSignedAdd && left == right) {
       uint16_t amount;
+      // UntagSmi(x) + UntagSmi(x)  =>  (x, false)
+      // (where UntagSmi(x) = x >> 1   with a ShiftOutZeros shift)
       if (V<Word32> x; matcher_.MatchConstantShiftRightArithmeticShiftOutZeros(
                            left, &x, WordRepresentation::Word32(), &amount) &&
                        amount == 1) {
-        return __ Tuple(x, __ Word32Constant(0));
+        return __ MakeTuple(x, __ Word32Constant(0));
+      }
+
+      // t1 = UntagSmi(x)
+      // t2 = t1 bitwise_op k
+      // t2 + t2
+      //   => x bitwise_op (k << 1)
+      // (where UntagSmi(x) = x >> 1  with a ShiftOutZeros shift)
+      WordBinopOp::Kind bitwise_op_kind;
+      if (V<Word32> t1, tk; matcher_.MatchWordBinop<Word32>(
+              left, &t1, &tk, &bitwise_op_kind, WordRepresentation::Word32())) {
+        if (V<Word32> x;
+            matcher_.MatchConstantShiftRightArithmeticShiftOutZeros(
+                t1, &x, WordRepresentation::Word32(), &amount) &&
+            amount == 1) {
+          if (int32_t k; matcher_.MatchIntegralWord32Constant(tk, &k)) {
+            switch (bitwise_op_kind) {
+              case WordBinopOp::Kind::kBitwiseAnd:
+              case WordBinopOp::Kind::kBitwiseOr:
+              case WordBinopOp::Kind::kBitwiseXor:
+                // If the topmost two bits are not identical then retagging
+                // the smi could cause an overflow, so we do not optimize that
+                // here.
+                if (((k >> 31) & 0b1) == ((k >> 30) & 0b1)) {
+                  return __ MakeTuple(
+                      __ WordBinop(x, __ Word32Constant(k << 1),
+                                   bitwise_op_kind,
+                                   WordRepresentation::Word32()),
+                      __ Word32Constant(0));
+                }
+                break;
+              default:
+                break;
+            }
+          }
+        }
       }
     }
 
@@ -2851,9 +2876,13 @@ class MachineOptimizationReducer : public Next {
   JSHeapBroker* broker = __ data() -> broker();
   const OperationMatcher& matcher_ = __ matcher();
 #if V8_ENABLE_WEBASSEMBLY
+  // Note: `signalling_nan_possible` and `ensure_deterministic_nan` are always
+  // the same value; we introduce both to better express intent at use sites.
   const bool signalling_nan_possible = __ data() -> is_wasm();
+  const bool ensure_deterministic_nan = signalling_nan_possible;
 #else
   static constexpr bool signalling_nan_possible = false;
+  static constexpr bool ensure_deterministic_nan = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 

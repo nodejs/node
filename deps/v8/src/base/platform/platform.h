@@ -163,6 +163,11 @@ class V8_BASE_EXPORT OS {
   // Check whether CET shadow stack is enabled.
   static bool IsHardwareEnforcedShadowStacksEnabled();
 
+  // Ensure that an alternative stack is available for signal handlers on the
+  // current thread on platforms that support this. If necessary, this function
+  // will allocate memory for an alternative stack and register it with the OS.
+  static void EnsureAlternativeSignalStackIsAvailableForCurrentThread();
+
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
   // strive for high-precision timer resolution, preferable
@@ -640,6 +645,8 @@ class V8_BASE_EXPORT Thread {
 
 // TODO(v8:10354): Make use of the stack utilities here in V8.
 class V8_BASE_EXPORT Stack {
+  struct PreventNonDefaultParameters {};
+
  public:
   // Convenience wrapper to use stack slots as unsigned values or void*
   // pointers.
@@ -665,15 +672,22 @@ class V8_BASE_EXPORT Stack {
   // return an address significantly above the actual current stack position.
   static V8_NOINLINE StackSlot GetCurrentStackPosition();
 
-  // Same as `GetCurrentStackPosition()` with the difference that it is always
-  // inlined and thus always returns the current frame's stack top.
-  static V8_INLINE StackSlot GetCurrentFrameAddress() {
 #if V8_CC_MSVC
-    return _AddressOfReturnAddress();
+#define DEFAULT_CURRENT_FRAME_ADDRESS _AddressOfReturnAddress()
 #else
-    return __builtin_frame_address(0);
+#define DEFAULT_CURRENT_FRAME_ADDRESS __builtin_frame_address(0)
 #endif
+
+  // Same as `GetCurrentStackPosition()` with the difference that it uses a
+  // default parameter value and thus always returns the current frame's stack
+  // top even if this method is not inlined.
+  static V8_INLINE StackSlot GetCurrentFrameAddress(
+      PreventNonDefaultParameters = PreventNonDefaultParameters(),
+      void* frame_address = DEFAULT_CURRENT_FRAME_ADDRESS) {
+    return frame_address;
   }
+
+#undef DEFAULT_CURRENT_FRAME_ADDRESS
 
   // Returns the real stack frame if slot is part of a fake frame, and slot
   // otherwise.

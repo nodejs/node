@@ -60,6 +60,8 @@ enum CpuFeature {
   HBC,
   // Common short sequence compression instructions
   CSSC,
+  // Standardization of memory operations
+  MOPS,
 
 #elif V8_TARGET_ARCH_MIPS64
   FPU,
@@ -76,6 +78,7 @@ enum CpuFeature {
   PPC_8_PLUS,
   PPC_9_PLUS,
   PPC_10_PLUS,
+  PPC_11_PLUS,
 
 #elif V8_TARGET_ARCH_S390X
   FPU,
@@ -85,7 +88,9 @@ enum CpuFeature {
   VECTOR_FACILITY,
   VECTOR_ENHANCE_FACILITY_1,
   VECTOR_ENHANCE_FACILITY_2,
+  VECTOR_ENHANCE_FACILITY_3,
   MISC_INSTR_EXT2,
+  MISC_INSTR_EXT4,
 
 #elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
   FPU,

@@ -557,22 +557,22 @@ TEST(OverflowInstructions) {
         __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
         __ Ld(t1, MemOperand(a0, offsetof(T, rhs)));
 
-        __ AddOverflow64(t2, t0, Operand(t1), a1);
+        __ AddOverflowWord(t2, t0, Operand(t1), a1);
         __ Sd(t2, MemOperand(a0, offsetof(T, output_add)));
         __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add)));
         __ mv(a1, zero_reg);
-        __ AddOverflow64(t0, t0, Operand(t1), a1);
+        __ AddOverflowWord(t0, t0, Operand(t1), a1);
         __ Sd(t0, MemOperand(a0, offsetof(T, output_add2)));
         __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add2)));
 
         __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
         __ Ld(t1, MemOperand(a0, offsetof(T, rhs)));
 
-        __ SubOverflow64(t2, t0, Operand(t1), a1);
+        __ SubOverflowWord(t2, t0, Operand(t1), a1);
         __ Sd(t2, MemOperand(a0, offsetof(T, output_sub)));
         __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub)));
         __ mv(a1, zero_reg);
-        __ SubOverflow64(t0, t0, Operand(t1), a1);
+        __ SubOverflowWord(t0, t0, Operand(t1), a1);
         __ Sd(t0, MemOperand(a0, offsetof(T, output_sub2)));
         __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub2)));
 

@@ -15,6 +15,7 @@ const fs = require('fs');
 
 const corpus = require('../corpus.js');
 const sourceHelpers = require('../source_helpers.js');
+const scriptMutator = require('../script_mutator.js');
 
 const BASE_DIR = path.join(path.dirname(__dirname), 'test_data');
 const DB_DIR = path.join(BASE_DIR, 'fake_db');
@@ -29,6 +30,16 @@ const HEADER = `// Copyright 2025 the V8 project authors. All rights reserved.
 // found in the LICENSE file.
 
 `;
+
+function zeroSettings() {
+  const settings = scriptMutator.defaultSettings();
+  for (const key of Object.keys(settings)) {
+    settings[key] = 0.0;
+  }
+  settings['engine'] = 'v8';
+  settings['testing'] = true;
+  return settings;
+}
 
 /**
  * Create a function that returns one of `probs` when called. It rotates
@@ -132,4 +143,5 @@ module.exports = {
   loadFuzzilliTestData: loadFuzzilliTestData,
   loadTestData: loadTestData,
   loadV8TestData: loadV8TestData,
+  zeroSettings: zeroSettings,
 }

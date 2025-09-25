@@ -8,10 +8,10 @@
 #include <cstdint>
 
 #include "include/v8-function-callback.h"
+#include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "v8-isolate.h"
 
 namespace v8 {
 
@@ -76,7 +76,8 @@ enum class CoverageMode {
   // precise binary coverage resets counters for incremental updates.
   kPreciseBinary,
   // Similar to the precise coverage modes but provides coverage at a
-  // lower granularity. Design doc: goo.gl/lA2swZ.
+  // lower granularity. Design doc:
+  // https://docs.google.com/document/d/1wCydi2HEZRF0skDeLb6CH0abZnTyVo5Vz5u-jhwi7es
   kBlockCount,
   kBlockBinary,
 };

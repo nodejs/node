@@ -1304,15 +1304,17 @@ const Operator* CommonOperatorBuilder::Float32Constant(float value) {
       value);                                       // parameter
 }
 
-
 const Operator* CommonOperatorBuilder::Float64Constant(double value) {
-  return zone()->New<Operator1<double>>(            // --
+  return Float64Constant(Float64::FromBits(base::bit_cast<uint64_t>(value)));
+}
+
+const Operator* CommonOperatorBuilder::Float64Constant(Float64 value) {
+  return zone()->New<Operator1<Float64>>(           // --
       IrOpcode::kFloat64Constant, Operator::kPure,  // opcode
       "Float64Constant",                            // name
       0, 0, 0, 1, 0, 0,                             // counts
       value);                                       // parameter
 }
-
 
 const Operator* CommonOperatorBuilder::ExternalConstant(
     const ExternalReference& value) {
@@ -1712,34 +1714,12 @@ CommonOperatorBuilder::CreateJSToWasmFrameStateFunctionInfo(
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-const Operator* CommonOperatorBuilder::Chained(const Operator* op) {
-  // Use Chained only for operators that are not on the effect chain already.
-  DCHECK_EQ(op->EffectInputCount(), 0);
-  DCHECK_EQ(op->ControlInputCount(), 0);
-  const char* mnemonic;
-  switch (op->opcode()) {
-    case IrOpcode::kChangeInt64ToBigInt:
-      mnemonic = "Chained[ChangeInt64ToBigInt]";
-      break;
-    case IrOpcode::kChangeUint64ToBigInt:
-      mnemonic = "Chained[ChangeUint64ToBigInt]";
-      break;
-    default:
-      UNREACHABLE();
-  }
-  // TODO(nicohartmann@): Need to store operator properties once we have to
-  // support Operator1 operators.
-  Operator::Properties properties = op->properties();
-  return zone()->New<Operator>(op->opcode(), properties, mnemonic,
-                               op->ValueInputCount(), 1, 1,
-                               op->ValueOutputCount(), 1, 0);
-}
-
-const Operator* CommonOperatorBuilder::DeadValue(MachineRepresentation rep) {
+const Operator* CommonOperatorBuilder::DeadValue(MachineRepresentation rep,
+                                                 int value_input_count) {
   return zone()->New<Operator1<MachineRepresentation>>(  // --
       IrOpcode::kDeadValue, Operator::kPure,             // opcode
       "DeadValue",                                       // name
-      1, 0, 0, 1, 0, 0,                                  // counts
+      value_input_count, 0, 0, 1, 0, 0,                  // counts
       rep);                                              // parameter
 }
 

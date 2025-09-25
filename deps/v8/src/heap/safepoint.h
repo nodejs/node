@@ -46,6 +46,24 @@ class IsolateSafepoint final {
 
   V8_EXPORT_PRIVATE void AssertMainThreadIsOnlyThread();
 
+  template <typename Callback>
+  bool RunIfCanAvoidGlobalSafepoint(Callback callback) {
+    // If there is shared space, a global safepoint is not possible, and there's
+    // no need to lock.
+    const bool should_lock = (shared_space_isolate() != nullptr);
+    if (should_lock) {
+      if (!local_heaps_mutex_.TryLock()) {
+        return false;
+      }
+      local_heaps_mutex_.AssertHeld();
+    }
+    callback();
+    if (should_lock) {
+      local_heaps_mutex_.Unlock();
+    }
+    return true;
+  }
+
  private:
   struct RunningLocalHeap {
     LocalHeap* local_heap;

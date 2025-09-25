@@ -102,6 +102,9 @@ v8_component("v8_debug_helper_internal") {
     "../..:v8_shared_internal_headers",
     "../..:v8_tracing",
   ]
+  if (v8_enable_temporal_support) {
+    deps += [ "//third_party/rust/temporal_capi" ]
+  }
 
   configs = [ ":internal_config" ]
   if (v8_enable_i18n_support) {

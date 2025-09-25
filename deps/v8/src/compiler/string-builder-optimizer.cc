@@ -209,11 +209,26 @@ std::optional<std::pair<int64_t, int64_t>> OneOrTwoByteAnalysis::TryGetRange(
     }                                                                 \
   }
       CONST_CASE(Float32Constant, Float32Matcher)
-      CONST_CASE(Float64Constant, Float64Matcher)
       CONST_CASE(Int32Constant, Int32Matcher)
       CONST_CASE(Int64Constant, Int64Matcher)
       CONST_CASE(NumberConstant, NumberMatcher)
 #undef CONST_CASE
+
+#define BOXED_CONST_CASE(op, matcher)                               \
+  case IrOpcode::k##op: {                                           \
+    matcher m(node);                                                \
+    if (m.HasResolvedValue()) {                                     \
+      if (m.ScalarValue() < 0 ||                                    \
+          m.ScalarValue() >= std::numeric_limits<int32_t>::min()) { \
+        return std::nullopt;                                        \
+      }                                                             \
+      return std::pair{m.ScalarValue(), m.ScalarValue()};           \
+    } else {                                                        \
+      return std::nullopt;                                          \
+    }                                                               \
+  }
+      BOXED_CONST_CASE(Float64Constant, Float64Matcher)
+#undef BOXED_CONST_CASE
 
     default:
       return std::nullopt;

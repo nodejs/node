@@ -14,8 +14,7 @@ namespace internal {
 namespace maglev {
 
 MaglevTest::MaglevTest()
-    : TestWithNativeContextAndZone(kCompressGraphZone),
-      broker_(isolate(), zone(), v8_flags.trace_heap_broker, CodeKind::MAGLEV),
+    : broker_(isolate(), zone(), v8_flags.trace_heap_broker, CodeKind::MAGLEV),
       broker_scope_(&broker_, isolate(), zone()),
       current_broker_(&broker_) {
   if (!PersistentHandlesScope::IsActive(isolate())) {

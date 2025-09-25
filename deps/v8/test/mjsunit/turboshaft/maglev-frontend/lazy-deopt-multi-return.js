@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbolev --turbofan
-// Flags: --no-always-turbofan
 
 // There is currently only one node in Maglev that can lazy deopt with multiple
 // return values: a builtin call to FindNonDefaultConstructorOrConstruct.

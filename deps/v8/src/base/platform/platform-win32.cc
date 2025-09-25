@@ -821,6 +821,12 @@ bool OS::IsHardwareEnforcedShadowStacksEnabled() {
 }
 
 // static
+void OS::EnsureAlternativeSignalStackIsAvailableForCurrentThread() {
+  // Not supported on Windows.
+  UNREACHABLE();
+}
+
+// static
 size_t OS::AllocatePageSize() {
   static size_t allocate_alignment = 0;
   if (allocate_alignment == 0) {

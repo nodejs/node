@@ -53,14 +53,19 @@ TEST_F(MemoryControllerTest, HeapGrowingFactor) {
 }
 
 TEST_F(MemoryControllerTest, MaxHeapGrowingFactor) {
-  CheckEqualRounded(1.3, V8Controller::MaxGrowingFactor(V8HeapTrait::kMinSize));
-  CheckEqualRounded(1.600,
-                    V8Controller::MaxGrowingFactor(V8HeapTrait::kMaxSize / 2));
-  CheckEqualRounded(2.0,
-                    V8Controller::MaxGrowingFactor(
-                        (V8HeapTrait::kMaxSize - Heap::kPointerMultiplier)));
-  CheckEqualRounded(4.0, V8Controller::MaxGrowingFactor(
-                             static_cast<size_t>(V8HeapTrait::kMaxSize)));
+  const uint64_t physical_memory = 0;
+  const size_t min_heap_size = i::Heap::DefaulMinHeapSize(physical_memory);
+  const size_t max_heap_size = i::Heap::DefaulMaxHeapSize(physical_memory);
+
+  CheckEqualRounded(
+      1.3, V8Controller::MaxGrowingFactor(physical_memory, min_heap_size));
+  CheckEqualRounded(1.600, V8Controller::MaxGrowingFactor(physical_memory,
+                                                          max_heap_size / 2));
+  CheckEqualRounded(
+      2.0, V8Controller::MaxGrowingFactor(
+               physical_memory, (max_heap_size - Heap::kPointerMultiplier)));
+  CheckEqualRounded(
+      4.0, V8Controller::MaxGrowingFactor(physical_memory, max_heap_size));
 }
 
 TEST_F(MemoryControllerTest, OldGenerationAllocationLimit) {

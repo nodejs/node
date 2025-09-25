@@ -45,7 +45,6 @@ class Null;
 // JSObject and JSProxy.
 class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
  public:
-  NEVER_READ_ONLY_SPACE
   // Returns true if there is no slow (ie, dictionary) backing store.
   DECL_GETTER(HasFastProperties, bool)
 
@@ -402,7 +401,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
 
   inline void initialize_elements();
-  static inline void SetMapAndElements(DirectHandle<JSObject> object,
+  static inline void SetMapAndElements(Isolate* isolate,
+                                       DirectHandle<JSObject> object,
                                        DirectHandle<Map> map,
                                        DirectHandle<FixedArrayBase> elements);
   DECL_GETTER(GetElementsKind, ElementsKind)
@@ -464,8 +464,10 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   DECL_GETTER(element_dictionary, Tagged<NumberDictionary>)
 
   // Requires: HasFastElements().
-  static void EnsureWritableFastElements(Isolate* isolate,
-                                         DirectHandle<JSObject> object);
+  static inline void EnsureWritableFastElements(Isolate* isolate,
+                                                DirectHandle<JSObject> object);
+  V8_NOINLINE V8_PRESERVE_MOST static void MakeElementsWritable(
+      Isolate* isolate, DirectHandle<JSObject> object);
 
   V8_WARN_UNUSED_RESULT static Maybe<InterceptorResult>
   SetPropertyWithInterceptor(LookupIterator* it,
@@ -490,7 +492,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
       PropertyAttributes attributes, Maybe<ShouldThrow> should_throw,
       AccessorInfoHandling handling = DONT_FORCE_FIELD,
       EnforceDefineSemantics semantics = EnforceDefineSemantics::kSet,
-      StoreOrigin store_origin = StoreOrigin::kNamed);
+      StoreOrigin store_origin = StoreOrigin::kNamed,
+      MaybeDirectHandle<Object> old_value = {});
 
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> V8_EXPORT_PRIVATE
   SetOwnPropertyIgnoreAttributes(DirectHandle<JSObject> object,
@@ -1184,7 +1187,8 @@ class JSIteratorResult : public JSObject {
 class JSGlobalProxy
     : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSSpecialObject> {
  public:
-  inline bool IsDetachedFrom(Tagged<JSGlobalObject> global) const;
+  inline bool IsDetachedFrom(Isolate* isolate,
+                             Tagged<JSGlobalObject> global) const;
   V8_EXPORT_PRIVATE bool IsDetached();
 
   static int SizeWithEmbedderFields(int embedder_field_count);
@@ -1205,7 +1209,7 @@ class JSGlobalObject
   static void InvalidatePropertyCell(DirectHandle<JSGlobalObject> object,
                                      DirectHandle<Name> name);
 
-  inline bool IsDetached();
+  inline bool IsDetached(Isolate* isolate);
   inline Tagged<NativeContext> native_context();
 
   // Dispatched behavior.
@@ -1232,8 +1236,8 @@ class DateCache;
 class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
  public:
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSDate> New(
-      DirectHandle<JSFunction> constructor, DirectHandle<JSReceiver> new_target,
-      double tv);
+      Isolate* isolate, DirectHandle<JSFunction> constructor,
+      DirectHandle<JSReceiver> new_target, double tv);
 
   // Returns the time value (UTC) identifying the current time in milliseconds.
   static int64_t CurrentTimeValue(Isolate* isolate);
@@ -1248,8 +1252,10 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
   static Address GetField(Isolate* isolate, Address raw_date,
                           Address smi_index);
 
-  void SetValue(double v);
+  void SetValue(Isolate* isolate, double v);
   void SetNanValue();
+
+  void UpdateFieldsAfterDeserialization(Isolate* isolate);
 
   // Dispatched behavior.
   DECL_PRINTER(JSDate)
@@ -1291,7 +1297,8 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
                              DateCache* date_cache);
 
   // Computes and caches the cacheable fields of the date.
-  inline void SetCachedFields(int64_t local_time_ms, DateCache* date_cache);
+  inline void SetCachedFields(Isolate* isolate, int64_t local_time_ms,
+                              DateCache* date_cache);
 
   TQ_OBJECT_CONSTRUCTORS(JSDate)
 };

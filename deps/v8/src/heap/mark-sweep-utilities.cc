@@ -48,7 +48,7 @@ void MarkingVerifierBase::VerifyMarkingOnPage(const PageMetadata* page,
     CHECK(IsMarked(object));
     CHECK(current >= next_object_must_be_here_or_later);
     VisitObject(heap_->isolate(), object, this);
-    next_object_must_be_here_or_later = current + size;
+    next_object_must_be_here_or_later = current + size.value();
     // The object is either part of a black area of black allocation or a
     // regular black object
     CHECK(bitmap(page)->AllBitsSetInRange(
@@ -180,7 +180,7 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
     // Old-to-shared slots may survive GC but there should never be any slots in
     // new or shared spaces.
     AllocationSpace id = chunk->owner_identity();
-    if (IsAnySharedSpace(id) || IsAnyNewSpace(id)) {
+    if (IsAnyWritableSharedSpace(id) || IsAnyNewSpace(id)) {
       DCHECK_NULL((chunk->slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
       DCHECK_NULL((chunk->typed_slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
       DCHECK_NULL(

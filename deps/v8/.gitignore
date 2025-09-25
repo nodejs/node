@@ -39,6 +39,15 @@
 .settings
 .torquelint-cache
 .vscode
+
+# Directories added by standalone gclient setup.
+/.cipd
+/.gclient
+/.gclient_entries
+/.gclient_previous_custom_vars
+/.gclient_previous_sync_commits
+/.gcs_entries
+
 /_*
 /base
 /build
@@ -68,6 +77,9 @@
 /third_party/colorama/src
 !/third_party/cpu_features
 /third_party/cpu_features/src
+!/third_party/dragonbox
+/third_party/dragonbox/src/*
+!/third_party/dragonbox/src/include
 !/third_party/fast_float
 /third_party/fast_float/src/*
 !/third_party/fast_float/src/include
@@ -89,6 +101,7 @@
 /third_party/jsoncpp/source
 !/third_party/llvm-libc
 /third_party/llvm-libc/src
+!/third_party/rapidhash-v8
 !/third_party/re2
 /third_party/re2/src
 !/third_party/siphash
@@ -116,6 +129,7 @@
 /tools/v8heapconst.py
 /tools/visual_studio/Debug
 /tools/visual_studio/Release
+/tools/win
 /v8.log.ll
 /xcodebuild
 GPATH

@@ -90,8 +90,7 @@ void FrameElider::MarkDeConstruction() {
           DCHECK_EQ(1U, block->SuccessorCount());
           const Instruction* last =
               InstructionAt(block->last_instruction_index());
-          if (last->IsThrow() || last->IsTailCall() ||
-              last->IsDeoptimizeCall()) {
+          if (last->IsTailCall() || last->IsDeoptimizeCall()) {
             // We need to keep the frame if we exit the block through any
             // of these.
             continue;

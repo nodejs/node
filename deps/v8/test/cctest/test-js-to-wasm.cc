@@ -426,7 +426,7 @@ class FastJSWasmCallTester {
         arg + ");";
 
     v8::Local<v8::Value> result_value =
-        CompileRunWithJSWasmCallNodeObserver(js_code.c_str());
+        CompileRunWithJSWasmCallNodeObserver(js_code);
     CHECK(CheckType<T>(result_value));
     T result = ConvertJSValue<T>::Get(result_value, env.local()).ToChecked();
     CHECK_EQ(result, expected_result);

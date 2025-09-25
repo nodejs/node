@@ -327,7 +327,7 @@ BUILTIN(AtomicsConditionNotify) {
     count = JSAtomicsCondition::kAllWaiters;
   } else {
     double count_double;
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, count_double, Object::IntegerValue(isolate, count_obj));
     if (count_double <= 0) {
       return Smi::zero();

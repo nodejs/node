@@ -325,6 +325,28 @@ class Simulator : public SimulatorBase {
 
   bool isNaN(double value) { return (value != value); }
 
+  template <typename T1, typename T2, typename T3>
+  T1 FPProcessNaNBinop(T1 fp_lhs, T1 fp_rhs,
+                       const std::function<T1(T1, T1)>& op_for_non_nan) {
+    T2 lhs = T2::FromBits(base::bit_cast<T3>(fp_lhs));
+    T2 rhs = T2::FromBits(base::bit_cast<T3>(fp_rhs));
+    if (lhs.is_nan() && !lhs.is_quiet_nan())
+      return lhs.to_quiet_nan().get_scalar();
+    if (rhs.is_nan() && !rhs.is_quiet_nan())
+      return rhs.to_quiet_nan().get_scalar();
+    if (lhs.is_nan()) return lhs.to_quiet_nan().get_scalar();
+    if (rhs.is_nan()) return rhs.to_quiet_nan().get_scalar();
+    return op_for_non_nan(fp_lhs, fp_rhs);
+  }
+
+  template <typename T1, typename T2, typename T3>
+  T1 FPProcessNaNUnop(T1 fp_input, int m3,
+                      const std::function<T1(T1, int)>& op_for_non_nan) {
+    T2 input = T2::FromBits(base::bit_cast<T3>(fp_input));
+    if (input.is_nan()) return input.to_quiet_nan().get_scalar();
+    return op_for_non_nan(fp_input, m3);
+  }
+
   // Set the condition code for bitwise operations
   // CC0 is set if value == 0.
   // CC1 is set if value != 0.
@@ -442,7 +464,7 @@ class Simulator : public SimulatorBase {
 
   // Simulator support for the stack.
   uint8_t* stack_;
-  static const size_t kStackProtectionSize = 256 * kSystemPointerSize;
+  static const size_t kStackProtectionSize = 20 * KB;
   // This includes a protection margin at each end of the stack area.
   static size_t AllocatedStackSize() {
     size_t stack_size = v8_flags.sim_stack_size * KB;
@@ -959,6 +981,8 @@ class Simulator : public SimulatorBase {
   EVALUATE(OGR);
   EVALUATE(XGR);
   EVALUATE(FLOGR);
+  EVALUATE(CLZG);
+  EVALUATE(CTZG);
   EVALUATE(LLGCR);
   EVALUATE(LLGHR);
   EVALUATE(MLGR);

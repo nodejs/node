@@ -32,7 +32,7 @@ ReadOnlyHeap::~ReadOnlyHeap() {
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
 #if V8_STATIC_DISPATCH_HANDLES_BOOL
-  jdt->DetachSpaceFromReadOnlySegment(&js_dispatch_table_space_);
+  jdt->DetachSpaceFromReadOnlySegments(&js_dispatch_table_space_);
 #endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
   jdt->TearDownSpace(&js_dispatch_table_space_);
 #endif
@@ -62,9 +62,9 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
       isolate->external_pointer_table().SetUpFromReadOnlyArtifacts(
           isolate->heap()->read_only_external_pointer_space(), artifacts);
 #endif  // V8_COMPRESS_POINTERS
+      artifacts->read_only_heap()->InitializeIsolateRoots(isolate);
     }
     artifacts->VerifyChecksum(read_only_snapshot_data, read_only_heap_created);
-    artifacts->read_only_heap()->InitializeIsolateRoots(isolate);
   } else {
     // This path should only be taken in mksnapshot, should only be run once
     // before tearing down the Isolate that holds this ReadOnlyArtifacts and
@@ -180,9 +180,9 @@ ReadOnlyHeap::ReadOnlyHeap(ReadOnlySpace* ro_space)
   // read-only code objects.
   js_dispatch_table_space_.set_allocate_black(true);
 #if V8_STATIC_DISPATCH_HANDLES_BOOL
-  jdt->AttachSpaceToReadOnlySegment(&js_dispatch_table_space_);
+  jdt->AttachSpaceToReadOnlySegments(&js_dispatch_table_space_);
   jdt->PreAllocateEntries(&js_dispatch_table_space_,
-                          JSBuiltinDispatchHandleRoot::kCount, true);
+                          JSBuiltinDispatchHandleRoot::kCount);
 #endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
 #endif  // V8_ENABLE_LEAPTIERING
 }
@@ -236,8 +236,16 @@ ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(
 
 Tagged<HeapObject> ReadOnlyHeapObjectIterator::Next() {
   while (current_page_ != ro_space_->pages().end()) {
-    Tagged<HeapObject> obj = page_iterator_.Next();
-    if (!obj.is_null()) return obj;
+    while (true) {
+      Tagged<HeapObject> obj = page_iterator_.Next();
+      if (obj.is_null()) break;
+
+      // Skip over the holes in the iterator, for uniform behaviour between
+      // configs where holes are and aren't unmapped.
+      if (IsAnyHole(obj)) continue;
+
+      return obj;
+    }
 
     ++current_page_;
     if (current_page_ == ro_space_->pages().end()) return Tagged<HeapObject>();
@@ -278,11 +286,11 @@ Tagged<HeapObject> ReadOnlyPageObjectIterator::Next() {
     current_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
 
     if (skip_free_space_or_filler_ == SkipFreeSpaceOrFiller::kYes &&
-        IsFreeSpaceOrFiller(object)) {
+        !IsAnyHole(object) && IsFreeSpaceOrFiller(object)) {
       continue;
     }
 
-    DCHECK_OBJECT_SIZE(object_size);
+    DCHECK_VALID_REGULAR_OBJECT_SIZE(object_size);
     return object;
   }
 }

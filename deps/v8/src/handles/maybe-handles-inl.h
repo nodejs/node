@@ -24,14 +24,9 @@ template <typename T>
 MaybeHandle<T>::MaybeHandle(Tagged<T> object, LocalHeap* local_heap)
     : MaybeHandle(handle(object, local_heap)) {}
 
-template <typename T, typename U>
-inline bool Is(MaybeIndirectHandle<U> value) {
-  IndirectHandle<U> handle;
-  return !value.ToHandle(&handle) || Is<T>(handle);
-}
 template <typename To, typename From>
 inline MaybeIndirectHandle<To> UncheckedCast(MaybeIndirectHandle<From> value) {
-  return MaybeIndirectHandle<To>(value.location_);
+  return MaybeIndirectHandle<To>(value.location());
 }
 
 template <typename T>
@@ -165,24 +160,12 @@ template <typename T>
 MaybeDirectHandle<T>::MaybeDirectHandle(Tagged<T> object, LocalHeap* local_heap)
     : MaybeDirectHandle(direct_handle(object, local_heap)) {}
 
-template <typename T, typename U>
-inline bool Is(MaybeDirectHandle<U> value) {
-  DirectHandle<U> handle;
-  return !value.ToHandle(&handle) || Is<T>(handle);
-}
-
 template <typename To, typename From>
 inline MaybeDirectHandle<To> UncheckedCast(MaybeDirectHandle<From> value) {
-  return MaybeDirectHandle<To>(value.location_);
+  return MaybeDirectHandle<To>(value.address());
 }
 
 #else
-
-template <typename T, typename U>
-inline bool Is(MaybeDirectHandle<U> value) {
-  DirectHandle<U> handle;
-  return !value.ToHandle(&handle) || Is<T>(handle);
-}
 
 template <typename To, typename From>
 inline MaybeDirectHandle<To> UncheckedCast(MaybeDirectHandle<From> value) {

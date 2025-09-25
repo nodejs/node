@@ -161,7 +161,8 @@ class SharedLargeOldSpaceAllocationThread final : public ParkingThread {
                 i_client_isolate->factory()->NewFixedArray(
                     kMaxRegularHeapObjectSize / kTaggedSize,
                     AllocationType::kSharedOld);
-            CHECK(MemoryChunk::FromHeapObject(*fixed_array)->IsLargePage());
+            CHECK(
+                MemoryChunkMetadata::FromHeapObject(*fixed_array)->is_large());
           }
 
           InvokeMajorGC(i_client_isolate);
@@ -209,7 +210,8 @@ class SharedTrustedLargeObjectSpaceAllocationThread final
             DirectHandle<TrustedByteArray> fixed_array =
                 i_client_isolate->factory()->NewTrustedByteArray(
                     kMaxRegularHeapObjectSize, AllocationType::kSharedTrusted);
-            CHECK(MemoryChunk::FromHeapObject(*fixed_array)->IsLargePage());
+            CHECK(
+                MemoryChunkMetadata::FromHeapObject(*fixed_array)->is_large());
           }
 
           InvokeMajorGC(i_client_isolate);
@@ -404,6 +406,9 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedMapSpace) {
 }
 
 TEST_F(SharedHeapNoClientsTest, SharedCollectionWithoutClients) {
+  // Set a "current isolate" so we can access pointer tables etc during GC.
+  ::i::SetCurrentIsolateScope isolate_scope{i_shared_space_isolate()};
+  ::i::SetCurrentLocalHeapScope thread_local_scope{i_shared_space_isolate()};
   ::v8::internal::InvokeMajorGC(i_shared_space_isolate());
 }
 

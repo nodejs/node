@@ -1154,7 +1154,9 @@ class MaxTotalDurationReachedError(Exception):
 
 
 def Main(argv):
-  parser = argparse.ArgumentParser()
+  parser = argparse.ArgumentParser(epilog="""example:
+      ./run_perf.py --d8-path=out/Release/d8 $V8_PERF/benchmarks/JetStream2/JetStream2.json
+    """)
   parser.add_argument('--arch',
                       help='The architecture to run tests for. Pass "auto" '
                       'to auto-detect.', default='x64',
@@ -1181,6 +1183,8 @@ def Main(argv):
   parser.add_argument(
       '--binary-override-path',
       '--d8-path',
+      '--d8',
+      metavar="D8_BINARY_PATH",
       help='JavaScript engine binary. By default, d8 under '
       'architecture-specific build dir. '
       'Not supported in conjunction with outdir-secondary.')

@@ -78,8 +78,8 @@ class InnerPointerResolutionTest
   int CreateLargePage(size_t size) {
     OldLargeObjectSpace* lo_space = heap()->lo_space();
     EXPECT_NE(nullptr, lo_space);
-    LargePageMetadata* page =
-        allocator()->AllocateLargePage(lo_space, size, NOT_EXECUTABLE);
+    LargePageMetadata* page = allocator()->AllocateLargePage(
+        lo_space, size, NOT_EXECUTABLE, AllocationHint());
     EXPECT_NE(nullptr, page);
     int page_id = next_page_id_++;
     DCHECK_EQ(pages_.end(), pages_.find(page_id));
@@ -598,6 +598,10 @@ using InnerPointerResolutionHeapTest =
 TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   if (v8_flags.single_generation) return;
 
+  // Use predictable mode to prevent shrinking new space and releasing unused
+  // pages, which this test expects will remain allocated.
+  v8_flags.predictable = true;
+
   ManualGCScope manual_gc_scope(isolate());
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
 
@@ -626,10 +630,10 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
     auto obj1 = *h1;
     auto obj2 = *h2;
     page1 = MemoryChunk::FromHeapObject(obj1);
-    EXPECT_TRUE(!page1->IsLargePage());
+    EXPECT_TRUE(!page1->Metadata()->is_large());
     EXPECT_TRUE(v8_flags.minor_ms || page1->IsToPage());
     page2 = MemoryChunk::FromHeapObject(obj2);
-    EXPECT_TRUE(!page2->IsLargePage());
+    EXPECT_TRUE(!page2->Metadata()->is_large());
     EXPECT_TRUE(v8_flags.minor_ms || page2->IsToPage());
     EXPECT_NE(page1, page2);
 
@@ -760,7 +764,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
     weak.SetWeak();
     auto obj = *h;
     auto page = MemoryChunk::FromHeapObject(obj);
-    EXPECT_TRUE(page->IsLargePage());
+    EXPECT_TRUE(page->Metadata()->is_large());
     EXPECT_EQ(AllocationSpace::NEW_LO_SPACE,
               MutablePageMetadata::cast(page->Metadata())->owner_identity());
     EXPECT_TRUE(v8_flags.minor_ms || page->IsToPage());
@@ -788,8 +792,8 @@ TEST_F(InnerPointerResolutionHeapTest, LargePageAfterEnd) {
   OldLargeObjectSpace* lo_space = heap()->lo_space();
   EXPECT_NE(nullptr, lo_space);
   const int size = 3 * (1 << kPageSizeBits) / 2;
-  LargePageMetadata* page =
-      allocator->AllocateLargePage(lo_space, size, NOT_EXECUTABLE);
+  LargePageMetadata* page = allocator->AllocateLargePage(
+      lo_space, size, NOT_EXECUTABLE, AllocationHint());
   EXPECT_NE(nullptr, page);
 
   // The end of the page area is expected not to coincide with the beginning of

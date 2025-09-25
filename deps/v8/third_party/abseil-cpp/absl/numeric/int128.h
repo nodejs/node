@@ -609,9 +609,15 @@ constexpr uint128 operator<<(uint128 lhs, int amount);
 constexpr uint128 operator>>(uint128 lhs, int amount);
 constexpr uint128 operator+(uint128 lhs, uint128 rhs);
 constexpr uint128 operator-(uint128 lhs, uint128 rhs);
+#if defined(ABSL_HAVE_INTRINSIC_INT128)
+constexpr uint128 operator*(uint128 lhs, uint128 rhs);
+constexpr uint128 operator/(uint128 lhs, uint128 rhs);
+constexpr uint128 operator%(uint128 lhs, uint128 rhs);
+#else   // ABSL_HAVE_INTRINSIC_INT128
 uint128 operator*(uint128 lhs, uint128 rhs);
 uint128 operator/(uint128 lhs, uint128 rhs);
 uint128 operator%(uint128 lhs, uint128 rhs);
+#endif  // ABSL_HAVE_INTRINSIC_INT128
 
 inline uint128& uint128::operator<<=(int amount) {
   *this = *this << amount;
@@ -1021,19 +1027,15 @@ constexpr uint128 operator-(uint128 lhs, uint128 rhs) {
 #endif
 }
 
+#if !defined(ABSL_HAVE_INTRINSIC_INT128)
 inline uint128 operator*(uint128 lhs, uint128 rhs) {
-#if defined(ABSL_HAVE_INTRINSIC_INT128)
-  // TODO(strel) Remove once alignment issues are resolved and unsigned __int128
-  // can be used for uint128 storage.
-  return static_cast<unsigned __int128>(lhs) *
-         static_cast<unsigned __int128>(rhs);
-#elif defined(_MSC_VER) && defined(_M_X64) && !defined(_M_ARM64EC)
+#if defined(_MSC_VER) && defined(_M_X64) && !defined(_M_ARM64EC)
   uint64_t carry;
   uint64_t low = _umul128(Uint128Low64(lhs), Uint128Low64(rhs), &carry);
   return MakeUint128(Uint128Low64(lhs) * Uint128High64(rhs) +
                          Uint128High64(lhs) * Uint128Low64(rhs) + carry,
                      low);
-#else   // ABSL_HAVE_INTRINSIC128
+#else   // _MSC_VER
   uint64_t a32 = Uint128Low64(lhs) >> 32;
   uint64_t a00 = Uint128Low64(lhs) & 0xffffffff;
   uint64_t b32 = Uint128Low64(rhs) >> 32;
@@ -1045,16 +1047,24 @@ inline uint128 operator*(uint128 lhs, uint128 rhs) {
   result += uint128(a32 * b00) << 32;
   result += uint128(a00 * b32) << 32;
   return result;
-#endif  // ABSL_HAVE_INTRINSIC128
+#endif  // _MSC_VER
 }
+#endif  // ABSL_HAVE_INTRINSIC_INT128
 
 #if defined(ABSL_HAVE_INTRINSIC_INT128)
-inline uint128 operator/(uint128 lhs, uint128 rhs) {
+constexpr uint128 operator*(uint128 lhs, uint128 rhs) {
+  // TODO(strel) Remove once alignment issues are resolved and unsigned __int128
+  // can be used for uint128 storage.
+  return static_cast<unsigned __int128>(lhs) *
+         static_cast<unsigned __int128>(rhs);
+}
+
+constexpr uint128 operator/(uint128 lhs, uint128 rhs) {
   return static_cast<unsigned __int128>(lhs) /
          static_cast<unsigned __int128>(rhs);
 }
 
-inline uint128 operator%(uint128 lhs, uint128 rhs) {
+constexpr uint128 operator%(uint128 lhs, uint128 rhs) {
   return static_cast<unsigned __int128>(lhs) %
          static_cast<unsigned __int128>(rhs);
 }
@@ -1112,9 +1122,15 @@ inline int128& int128::operator=(unsigned long long v) {
 constexpr int128 operator-(int128 v);
 constexpr int128 operator+(int128 lhs, int128 rhs);
 constexpr int128 operator-(int128 lhs, int128 rhs);
+#if defined(ABSL_HAVE_INTRINSIC_INT128)
+constexpr int128 operator*(int128 lhs, int128 rhs);
+constexpr int128 operator/(int128 lhs, int128 rhs);
+constexpr int128 operator%(int128 lhs, int128 rhs);
+#else
 int128 operator*(int128 lhs, int128 rhs);
 int128 operator/(int128 lhs, int128 rhs);
 int128 operator%(int128 lhs, int128 rhs);
+#endif  // ABSL_HAVE_INTRINSIC_INT128
 constexpr int128 operator|(int128 lhs, int128 rhs);
 constexpr int128 operator&(int128 lhs, int128 rhs);
 constexpr int128 operator^(int128 lhs, int128 rhs);

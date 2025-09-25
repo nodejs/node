@@ -68,14 +68,6 @@ namespace internal {
   /* Number of code GCs triggered per native module, collected on code GC. */  \
   HR(wasm_module_num_triggered_code_gcs,                                       \
      V8.WasmModuleNumberOfCodeGCsTriggered, 1, 128, 20)                        \
-  /* The amount of executable Liftoff code flushed on emergency GCs for */     \
-  /* allocations and on memory pressure. */                                    \
-  HR(wasm_flushed_liftoff_code_size_bytes, V8.WasmFlushedLiftoffCodeSizeBytes, \
-     0, GB, 101)                                                               \
-  /* The size of flushed Liftoff meta data on emergency GCs for allocations */ \
-  /* and on memory pressure. */                                                \
-  HR(wasm_flushed_liftoff_metadata_size_bytes,                                 \
-     V8.WasmFlushedLiftoffMetadataSizeBytes, 0, GB, 101)                       \
   /* Number of code spaces reserved per wasm module. */                        \
   HR(wasm_module_num_code_spaces, V8.WasmModuleNumberOfCodeSpaces, 1, 128, 20) \
   /* Number of deopts triggered in webassembly code. */                        \
@@ -354,6 +346,7 @@ namespace internal {
   /* Number of times the cache contained a reusable Script but not */          \
   /* the root SharedFunctionInfo. */                                           \
   SC(compilation_cache_partial_hits, V8.CompilationCachePartialHits)           \
+  SC(deopts, V8.Deopts)                                                        \
   SC(objs_since_last_young, V8.ObjsSinceLastYoung)                             \
   SC(objs_since_last_full, V8.ObjsSinceLastFull)                               \
   SC(gc_compactor_caused_by_request, V8.GCCompactorCausedByRequest)            \
@@ -389,12 +382,16 @@ namespace internal {
 
 // List of counters that can be incremented from generated code. We need them in
 // a separate list to be able to relocate them.
-#define STATS_COUNTER_NATIVE_CODE_LIST(SC)                         \
-  /* Number of write barriers executed at runtime. */              \
-  SC(write_barriers, V8.WriteBarriers)                             \
-  SC(regexp_entry_native, V8.RegExpEntryNative)                    \
-  SC(megamorphic_stub_cache_probes, V8.MegamorphicStubCacheProbes) \
-  SC(megamorphic_stub_cache_misses, V8.MegamorphicStubCacheMisses)
+#define STATS_COUNTER_NATIVE_CODE_LIST(SC)                                \
+  /* Number of write barriers executed at runtime. */                     \
+  SC(write_barriers, V8.WriteBarriers)                                    \
+  SC(regexp_entry_native, V8.RegExpEntryNative)                           \
+  SC(megamorphic_stub_cache_probes, V8.MegamorphicStubCacheProbes)        \
+  SC(megamorphic_stub_cache_misses, V8.MegamorphicStubCacheMisses)        \
+  SC(number_string_cache_smi_probes, V8.NumberStringCacheSmiProbes)       \
+  SC(number_string_cache_smi_misses, V8.NumberStringCacheSmiMisses)       \
+  SC(number_string_cache_double_probes, V8.NumberStringCacheDoubleProbes) \
+  SC(number_string_cache_double_misses, V8.NumberStringCacheDoubleMisses)
 
 }  // namespace internal
 }  // namespace v8

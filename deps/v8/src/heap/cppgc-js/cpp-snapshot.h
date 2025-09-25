@@ -6,6 +6,7 @@
 #define V8_HEAP_CPPGC_JS_CPP_SNAPSHOT_H_
 
 #include "src/base/macros.h"
+#include "src/profiler/heap-snapshot-common.h"
 
 namespace v8 {
 
@@ -18,7 +19,9 @@ class V8_EXPORT_PRIVATE CppGraphBuilder final {
  public:
   // Add the C++ snapshot to the existing |graph|. See CppGraphBuilderImpl for
   // algorithm internals.
-  static void Run(v8::Isolate* isolate, v8::EmbedderGraph* graph, void* data);
+  static void Run(
+      v8::Isolate* isolate, v8::EmbedderGraph* graph, void* data,
+      UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects);
 
   CppGraphBuilder() = delete;
 };

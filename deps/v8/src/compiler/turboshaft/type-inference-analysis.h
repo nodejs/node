@@ -158,12 +158,13 @@ class TypeInferenceAnalysis {
         case Opcode::kRetain:
         case Opcode::kUnreachable:
         case Opcode::kSwitch:
-        case Opcode::kTuple:
+        case Opcode::kMakeTuple:
         case Opcode::kStaticAssert:
         case Opcode::kDebugBreak:
         case Opcode::kDebugPrint:
 #if V8_ENABLE_WEBASSEMBLY
         case Opcode::kGlobalSet:
+        case Opcode::kWasmIncCoverageCounter:
         case Opcode::kTrapIf:
 #endif
         case Opcode::kCheckException:
@@ -296,6 +297,14 @@ class TypeInferenceAnalysis {
       SetType(index, Type::Any());
       return;
     }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    if (constant.kind == ConstantOp::Kind::kFloat64 &&
+        constant.float64().is_undefined_nan()) {
+      // TODO(nicohartmann): Ignore this case for now.
+      SetType(index, Type::Any());
+      return;
+    }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     Type type = Typer::TypeConstant(constant.kind, constant.storage);
     SetType(index, type);
   }

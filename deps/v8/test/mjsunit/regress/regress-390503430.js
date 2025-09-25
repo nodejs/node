@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbofan --no-always-turbofan
+// Flags: --turbofan
 // Flags: --typed-array-length-loading
 
 var ta = new Int8Array();

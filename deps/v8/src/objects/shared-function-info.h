@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "src/base/bit-field.h"
+#include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
@@ -21,6 +22,8 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct.h"
+#include "src/objects/tagged-field.h"
+#include "src/objects/trusted-object.h"
 #include "src/roots/roots.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 #include "torque-generated/bit-fields.h"
@@ -75,11 +78,13 @@ enum class CreateSourcePositions { kNo, kYes };
 // +-------------------------------+
 // | Inner PreparseData N          |
 // +-------------------------------+
-class PreparseData
-    : public TorqueGeneratedPreparseData<PreparseData, HeapObject> {
+V8_OBJECT class PreparseData : public HeapObjectLayout {
  public:
-  inline int inner_start_offset() const;
-  inline ObjectSlot inner_data_start() const;
+  int32_t data_length() const { return data_length_; }
+  void set_data_length(int32_t value) { data_length_ = value; }
+
+  int32_t children_length() const { return children_length_; }
+  void set_children_length(int32_t value) { children_length_ = value; }
 
   inline uint8_t get(int index) const;
   inline void set(int index, uint8_t value);
@@ -95,30 +100,56 @@ class PreparseData
   DECL_PRINTER(PreparseData)
   DECL_VERIFIER(PreparseData)
 
-  static const int kDataStartOffset = kSize;
-
   class BodyDescriptor;
 
-  static int InnerOffset(int data_length) {
-    return RoundUp(kDataStartOffset + data_length * kByteSize, kTaggedSize);
-  }
-
-  static int SizeFor(int data_length, int children_length) {
-    return InnerOffset(data_length) + children_length * kTaggedSize;
-  }
-
-  TQ_OBJECT_CONSTRUCTORS(PreparseData)
+  static inline int SizeFor(int data_length, int children_length);
 
  private:
-  inline Tagged<Object> get_child_raw(int index) const;
-};
+  friend class TorqueGeneratedPreparseDataAsserts;
+  template <typename Impl>
+  friend class FactoryBase;
+
+  static int ChildrenOffsetInData(int data_length) {
+    return RoundUp(data_length * kByteSize, kTaggedSize);
+  }
+
+  uint8_t* data() { return reinterpret_cast<uint8_t*>(data_and_children()); }
+  const uint8_t* data() const {
+    return reinterpret_cast<const uint8_t*>(data_and_children());
+  }
+  TaggedMember<PreparseData>* children() {
+    return reinterpret_cast<TaggedMember<PreparseData>*>(
+        &data_and_children()[ChildrenOffsetInData(data_length())]);
+  }
+  const TaggedMember<PreparseData>* children() const {
+    return reinterpret_cast<const TaggedMember<PreparseData>*>(
+        &data_and_children()[ChildrenOffsetInData(data_length())]);
+  }
+
+  inline int children_start_offset() const;
+
+  int32_t data_length_;
+  int32_t children_length_;
+  FLEXIBLE_ARRAY_MEMBER(char, data_and_children);
+} V8_OBJECT_END;
+
+static_assert(IsAligned(OFFSET_OF_DATA_START(PreparseData),
+                        alignof(TaggedMember<PreparseData>)));
 
 // Abstract class representing extra data for an uncompiled function, which is
 // not stored in the SharedFunctionInfo.
-class UncompiledData
-    : public TorqueGeneratedUncompiledData<UncompiledData,
-                                           ExposedTrustedObject> {
+V8_OBJECT class UncompiledData : public ExposedTrustedObjectLayout {
  public:
+  inline Tagged<String> inferred_name() const;
+  inline void set_inferred_name(Tagged<String> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int32_t start_position() const { return start_position_; }
+  inline void set_start_position(int32_t value) { start_position_ = value; }
+
+  inline int32_t end_position() const { return end_position_; }
+  inline void set_end_position(int32_t value) { end_position_ = value; }
+
   inline void InitAfterBytecodeFlush(
       Isolate* isolate, Tagged<String> inferred_name, int start_position,
       int end_position,
@@ -126,69 +157,103 @@ class UncompiledData
                          Tagged<HeapObject> target)>
           gc_notify_updated_slot);
 
-  TQ_OBJECT_CONSTRUCTORS(UncompiledData)
-};
+  DECL_VERIFIER(UncompiledData)
+
+  friend class Torque;
+  friend struct OffsetsForDebug;
+
+  TaggedMember<String> inferred_name_;
+  int32_t start_position_;
+  int32_t end_position_;
+} V8_OBJECT_END;
 
 // Class representing data for an uncompiled function that does not have any
 // data from the pre-parser, either because it's a leaf function or because the
 // pre-parser bailed out.
-class UncompiledDataWithoutPreparseData
-    : public TorqueGeneratedUncompiledDataWithoutPreparseData<
-          UncompiledDataWithoutPreparseData, UncompiledData> {
+V8_OBJECT class UncompiledDataWithoutPreparseData : public UncompiledData {
  public:
-  class BodyDescriptor;
+  DECL_PRINTER(UncompiledDataWithoutPreparseData)
+  DECL_VERIFIER(UncompiledDataWithoutPreparseData)
 
-  TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithoutPreparseData)
-};
+  class BodyDescriptor;
+} V8_OBJECT_END;
 
 // Class representing data for an uncompiled function that has pre-parsed scope
 // data.
-class UncompiledDataWithPreparseData
-    : public TorqueGeneratedUncompiledDataWithPreparseData<
-          UncompiledDataWithPreparseData, UncompiledData> {
+V8_OBJECT class UncompiledDataWithPreparseData : public UncompiledData {
  public:
+  inline Tagged<PreparseData> preparse_data() const;
+  inline void set_preparse_data(Tagged<PreparseData> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_PRINTER(UncompiledDataWithPreparseData)
+  DECL_VERIFIER(UncompiledDataWithPreparseData)
+
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithPreparseData)
-};
+  TaggedMember<PreparseData> preparse_data_;
+} V8_OBJECT_END;
 
 // Class representing data for an uncompiled function that does not have any
 // data from the pre-parser, either because it's a leaf function or because the
 // pre-parser bailed out, but has a job pointer.
-class UncompiledDataWithoutPreparseDataWithJob
-    : public TorqueGeneratedUncompiledDataWithoutPreparseDataWithJob<
-          UncompiledDataWithoutPreparseDataWithJob,
-          UncompiledDataWithoutPreparseData> {
+V8_OBJECT class UncompiledDataWithoutPreparseDataWithJob
+    : public UncompiledDataWithoutPreparseData {
  public:
+  inline Address job() const { return job_; }
+  inline void set_job(Address value) { job_ = value; }
+
+  DECL_PRINTER(UncompiledDataWithoutPreparseDataWithJob)
+  DECL_VERIFIER(UncompiledDataWithoutPreparseDataWithJob)
+
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithoutPreparseDataWithJob)
-};
+  Address job_;
+} V8_OBJECT_END;
 
 // Class representing data for an uncompiled function that has pre-parsed scope
 // data and a job pointer.
-class UncompiledDataWithPreparseDataAndJob
-    : public TorqueGeneratedUncompiledDataWithPreparseDataAndJob<
-          UncompiledDataWithPreparseDataAndJob,
-          UncompiledDataWithPreparseData> {
+V8_OBJECT class UncompiledDataWithPreparseDataAndJob
+    : public UncompiledDataWithPreparseData {
  public:
+  inline Address job() const { return job_; }
+  inline void set_job(Address value) { job_ = value; }
+
+  DECL_PRINTER(UncompiledDataWithPreparseDataAndJob)
+  DECL_VERIFIER(UncompiledDataWithPreparseDataAndJob)
+
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithPreparseDataAndJob)
-};
+  Address job_;
+} V8_OBJECT_END;
 
-class InterpreterData
-    : public TorqueGeneratedInterpreterData<InterpreterData,
-                                            ExposedTrustedObject> {
+V8_OBJECT class InterpreterData : public ExposedTrustedObjectLayout {
  public:
-  DECL_PROTECTED_POINTER_ACCESSORS(bytecode_array, BytecodeArray)
-  DECL_PROTECTED_POINTER_ACCESSORS(interpreter_trampoline, Code)
+  inline Tagged<BytecodeArray> bytecode_array() const;
+  inline void set_bytecode_array(Tagged<BytecodeArray> value,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline bool has_bytecode_array() const;
+  inline void clear_bytecode_array();
+
+  inline Tagged<Code> interpreter_trampoline() const;
+  inline void set_interpreter_trampoline(
+      Tagged<Code> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline bool has_interpreter_trampoline() const;
+  inline void clear_interpreter_trampoline();
+
+  DECL_VERIFIER(InterpreterData)
+  DECL_PRINTER(InterpreterData)
 
   class BodyDescriptor;
 
  private:
-  TQ_OBJECT_CONSTRUCTORS(InterpreterData)
-};
+  friend class TorqueGeneratedInterpreterDataAsserts;
+  friend class MacroAssembler;
+  friend class CodeStubAssembler;
+
+  ProtectedTaggedMember<BytecodeArray> bytecode_array_;
+  ProtectedTaggedMember<Code> interpreter_trampoline_;
+} V8_OBJECT_END;
 
 using NameOrScopeInfoT = UnionOf<Smi, String, ScopeInfo>;
 
@@ -273,9 +338,10 @@ class SharedFunctionInfo
 
   // [outer scope info | feedback metadata] Shared storage for outer scope info
   // (on uncompiled functions) and feedback metadata (on compiled functions).
-  DECL_ACCESSORS(raw_outer_scope_info_or_feedback_metadata, Tagged<HeapObject>)
+  DECL_ACCESSORS(raw_outer_scope_info_or_feedback_metadata,
+                 Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>)
   DECL_ACQUIRE_GETTER(raw_outer_scope_info_or_feedback_metadata,
-                      Tagged<HeapObject>)
+                      Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>)
  private:
   using TorqueGeneratedSharedFunctionInfo::
       outer_scope_info_or_feedback_metadata;
@@ -359,9 +425,9 @@ class SharedFunctionInfo
   template <typename T, IndirectPointerTag tag>
   inline Tagged<T> GetTrustedData(IsolateForSandbox isolate) const;
 
-  // Helper function when no Isolate is available. Prefer to use the variant
-  // with an isolate parameter if possible.
-  inline Tagged<Object> GetTrustedData() const;
+  // Some code may encounter unreachable unusable objects and needs to skip
+  // over them without crashing.
+  inline bool HasUnpublishedTrustedData(IsolateForSandbox isolate) const;
 
  private:
   // For the sandbox, the function's data is split across two fields, with the
@@ -421,10 +487,10 @@ class SharedFunctionInfo
 
 #if V8_ENABLE_WEBASSEMBLY
   inline bool HasAsmWasmData() const;
-  inline bool HasWasmFunctionData() const;
-  inline bool HasWasmExportedFunctionData() const;
-  inline bool HasWasmJSFunctionData() const;
-  inline bool HasWasmCapiFunctionData() const;
+  inline bool HasWasmFunctionData(IsolateForSandbox) const;
+  inline bool HasWasmExportedFunctionData(IsolateForSandbox) const;
+  inline bool HasWasmJSFunctionData(IsolateForSandbox) const;
+  inline bool HasWasmCapiFunctionData(IsolateForSandbox) const;
   inline bool HasWasmResumeData() const;
   DECL_ACCESSORS(asm_wasm_data, Tagged<AsmWasmData>)
 
@@ -443,18 +509,20 @@ class SharedFunctionInfo
   inline bool HasBuiltinId() const;
   DECL_PRIMITIVE_ACCESSORS(builtin_id, Builtin)
 
-  inline bool HasUncompiledData() const;
+  inline bool HasUncompiledData(IsolateForSandbox isolate) const;
   inline Tagged<UncompiledData> uncompiled_data(
       IsolateForSandbox isolate) const;
   inline void set_uncompiled_data(Tagged<UncompiledData> data,
                                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline bool HasUncompiledDataWithPreparseData() const;
+  inline bool HasUncompiledDataWithPreparseData(
+      IsolateForSandbox isolate) const;
   inline Tagged<UncompiledDataWithPreparseData>
   uncompiled_data_with_preparse_data(IsolateForSandbox isolate) const;
   inline void set_uncompiled_data_with_preparse_data(
       Tagged<UncompiledDataWithPreparseData> data,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline bool HasUncompiledDataWithoutPreparseData() const;
+  inline bool HasUncompiledDataWithoutPreparseData(
+      IsolateForSandbox isolate) const;
   inline void ClearUncompiledDataJobPointer(IsolateForSandbox isolate);
 
   // Clear out pre-parsed scope data from UncompiledDataWithPreparseData,
@@ -521,6 +589,7 @@ class SharedFunctionInfo
 
   // [flags] Bit field containing various flags about the function.
   DECL_RELAXED_INT32_ACCESSORS(flags)
+  DECL_RELAXED_INT32_ACCESSORS(function_literal_id)
   DECL_UINT8_ACCESSORS(flags2)
 
   DECL_UINT16_ACCESSORS(age)
@@ -605,7 +674,8 @@ class SharedFunctionInfo
   // Indicates whether optimizations have been disabled for this shared function
   // info. If we cannot optimize the function we disable optimization to avoid
   // spending time attempting to optimize it again.
-  inline bool optimization_disabled() const;
+  inline bool optimization_disabled(CodeKind kind) const;
+  inline bool all_optimization_disabled() const;
 
   // The reason why optimization was disabled.
   inline BailoutReason disabled_optimization_reason() const;
@@ -676,7 +746,7 @@ class SharedFunctionInfo
   };
   // Returns the first value that applies (see enum definition for the order).
   template <typename IsolateT>
-  Inlineability GetInlineability(IsolateT* isolate) const;
+  Inlineability GetInlineability(CodeKind code_kind, IsolateT* isolate) const;
 
   // Source size of this function.
   int SourceSize();
@@ -810,7 +880,7 @@ class SharedFunctionInfo
 
   // [outer scope info] The outer scope info, needed to lazily parse this
   // function.
-  DECL_ACCESSORS(outer_scope_info, Tagged<HeapObject>)
+  DECL_ACCESSORS(outer_scope_info, Tagged<UnionOf<ScopeInfo, TheHole>>)
 
   // [properties_are_final]: This bit is used to track if we have finished
   // parsing its properties. The properties final bit is only used by
@@ -886,6 +956,22 @@ class V8_NODISCARD IsCompiledScope {
 
  private:
   MaybeHandle<HeapObject> retain_code_ = {};
+  bool is_compiled_ = false;
+};
+
+// IsBaselineCompiledScope enables a caller to check if a function is baseline
+// compiled, and ensure it remains compiled (i.e., doesn't have it's baseline
+// code flushed) while the scope is retained.
+class V8_NODISCARD IsBaselineCompiledScope {
+ public:
+  inline IsBaselineCompiledScope(const Tagged<SharedFunctionInfo> shared,
+                                 Isolate* isolate);
+  inline IsBaselineCompiledScope() = default;
+
+  inline bool is_compiled() const { return is_compiled_; }
+
+ private:
+  MaybeHandle<Code> retain_code_ = {};
   bool is_compiled_ = false;
 };
 

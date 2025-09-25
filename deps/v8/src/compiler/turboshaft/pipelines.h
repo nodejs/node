@@ -140,7 +140,7 @@ class V8_EXPORT_PRIVATE Pipeline {
     BeginPhaseKind("V8.TFGraphCreation");
     turboshaft::Tracing::Scope tracing_scope(data_->info());
     std::optional<BailoutReason> bailout =
-        Run<turboshaft::MaglevGraphBuildingPhase>(linkage);
+        Run<turboshaft::TurbolevGraphBuildingPhase>(linkage);
     EndPhaseKind();
 
     if (bailout.has_value()) {
@@ -490,7 +490,7 @@ class V8_EXPORT_PRIVATE Pipeline {
       JsonPrintAllSourceWithPositions(json_of, data_->info(), data_->isolate());
       if (info()->has_bytecode_array()) {
         json_of << ",\n";
-        JsonPrintAllBytecodeSources(json_of, info());
+        JsonPrintAllBytecodeSources(json_of, info(), data_->isolate());
       }
       json_of << "\n}";
     }

@@ -246,8 +246,8 @@ void Snapshot::ClearReconstructableDataForSerialization(
           if (regexp->has_data()) {
             i::Tagged<i::RegExpData> data = regexp->data(isolate);
             if (data->HasCompiledCode()) {
-              DCHECK(Is<IrRegExpData>(regexp->data(isolate)));
-              Cast<IrRegExpData>(data)->DiscardCompiledCodeForSerialization();
+              TrustedCast<IrRegExpData>(data)
+                  ->DiscardCompiledCodeForSerialization();
             }
           }
         }
@@ -256,10 +256,8 @@ void Snapshot::ClearReconstructableDataForSerialization(
 
 #if V8_ENABLE_WEBASSEMBLY
     // Clear the cached js-to-wasm wrappers.
-    DirectHandle<WeakFixedArray> wrappers(
-        isolate->heap()->js_to_wasm_wrappers(), isolate);
-    MemsetTagged(wrappers->RawFieldOfFirstElement(), ClearedValue(isolate),
-                 wrappers->length());
+    isolate->heap()->SetJSToWasmWrappers(
+        ReadOnlyRoots(isolate).empty_weak_fixed_array());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Must happen after heap iteration since SFI::DiscardCompiled may allocate.
@@ -296,16 +294,12 @@ void Snapshot::ClearReconstructableDataForSerialization(
       }
 #ifdef DEBUG
       if (clear_recompilable_data) {
-#if V8_ENABLE_WEBASSEMBLY
-        DCHECK(fun->shared()->HasWasmExportedFunctionData() ||
-               fun->shared()->HasBuiltinId() ||
-               fun->shared()->IsApiFunction() ||
-               fun->shared()->HasUncompiledDataWithoutPreparseData());
-#else
         DCHECK(fun->shared()->HasBuiltinId() ||
                fun->shared()->IsApiFunction() ||
-               fun->shared()->HasUncompiledDataWithoutPreparseData());
+#if V8_ENABLE_WEBASSEMBLY
+               fun->shared()->HasWasmExportedFunctionData(isolate) ||
 #endif  // V8_ENABLE_WEBASSEMBLY
+               fun->shared()->HasUncompiledDataWithoutPreparseData(isolate));
       }
 #endif  // DEBUG
     }
@@ -332,7 +326,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
         if (fun->shared()->HasAsmWasmData()) {
           FATAL("asm.js functions are not supported in snapshots");
         }
-        if (fun->shared()->HasWasmExportedFunctionData()) {
+        if (fun->shared()->HasWasmExportedFunctionData(isolate)) {
           FATAL(
               "Exported WebAssembly functions are not supported in snapshots");
         }
@@ -951,7 +945,7 @@ void SnapshotCreatorImpl::SetDefaultContext(
   DCHECK(contexts_[kDefaultContextIndex].handle_location == nullptr);
   DCHECK(!context.is_null());
   DCHECK(!created());
-  CHECK_EQ(isolate_, context->GetIsolate());
+  CHECK(isolate_->heap()->Contains(*context));
   contexts_[kDefaultContextIndex].handle_location =
       isolate_->global_handles()->Create(*context).location();
   contexts_[kDefaultContextIndex].callback = callback;
@@ -962,7 +956,7 @@ size_t SnapshotCreatorImpl::AddContext(
     SerializeEmbedderFieldsCallback callback) {
   DCHECK(!context.is_null());
   DCHECK(!created());
-  CHECK_EQ(isolate_, context->GetIsolate());
+  CHECK(isolate_->heap()->Contains(*context));
   size_t index = contexts_.size() - kFirstAddtlContextIndex;
   contexts_.emplace_back(
       isolate_->global_handles()->Create(*context).location(), callback);
@@ -971,7 +965,7 @@ size_t SnapshotCreatorImpl::AddContext(
 
 size_t SnapshotCreatorImpl::AddData(DirectHandle<NativeContext> context,
                                     Address object) {
-  CHECK_EQ(isolate_, context->GetIsolate());
+  CHECK(isolate_->heap()->Contains(*context));
   DCHECK_NE(object, kNullAddress);
   DCHECK(!created());
   HandleScope scope(isolate_);

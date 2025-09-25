@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbolev --turbofan
-// Flags: --no-always-turbofan
 
 function check_int32_is_smi(a, b) {
   let v1 = a + 1_000_000_000;

@@ -161,14 +161,13 @@ MaybeDirectHandle<JSRegExp> JSRegExp::New(Isolate* isolate,
   // during compilation.
   regexp->clear_data();
 
-  return JSRegExp::Initialize(regexp, pattern, flags, backtrack_limit);
+  return JSRegExp::Initialize(isolate, regexp, pattern, flags, backtrack_limit);
 }
 
 // static
 MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(
-    DirectHandle<JSRegExp> regexp, DirectHandle<String> source,
-    DirectHandle<String> flags_string) {
-  Isolate* isolate = regexp->GetIsolate();
+    Isolate* isolate, DirectHandle<JSRegExp> regexp,
+    DirectHandle<String> source, DirectHandle<String> flags_string) {
   std::optional<Flags> flags = JSRegExp::FlagsFromString(isolate, flags_string);
   if (!flags.has_value() ||
       !RegExp::VerifyFlags(JSRegExp::AsRegExpFlags(flags.value()))) {
@@ -176,7 +175,7 @@ MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(
         isolate,
         NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string));
   }
-  return Initialize(regexp, source, flags.value());
+  return Initialize(isolate, regexp, source, flags.value());
 }
 
 namespace {
@@ -312,9 +311,22 @@ MaybeDirectHandle<String> EscapeRegExpSource(Isolate* isolate,
       one_byte ? CountAdditionalEscapeChars<uint8_t>(source, &needs_escapes)
                : CountAdditionalEscapeChars<base::uc16>(source, &needs_escapes);
   if (!needs_escapes) return source;
-  DCHECK_LE(static_cast<uint64_t>(source->length()) + additional_escape_chars,
+  uint32_t original_length = source->length();
+  uint32_t length = original_length + additional_escape_chars;
+  // The maximum |additional_escape_chars| is 5 * String::kMaxLength, so the
+  // maximum |length| is 6 * String::kMaxLength.
+  // It is guaranteed that 6 * String::kMaxLength doesn't overflow an uint32_t,
+  // therefore (signed) |length| will never be both: positive and less than
+  // |original_length|.
+  // Note that |length| as signed integer can be negative. This case is handled
+  // in the factory method and we raise an exception.
+  static_assert(uint64_t{String::kMaxLength} * 6 <
+                std::numeric_limits<decltype(length)>::max());
+  DCHECK_LE(additional_escape_chars, 5 * String::kMaxLength);
+  DCHECK_LE(length, 6 * String::kMaxLength);
+  DCHECK_LE(static_cast<uint64_t>(original_length) + additional_escape_chars,
             std::numeric_limits<uint32_t>::max());
-  uint32_t length = source->length() + additional_escape_chars;
+  DCHECK(static_cast<int>(length) < 0 || length >= original_length);
   if (one_byte) {
     DirectHandle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
@@ -331,11 +343,11 @@ MaybeDirectHandle<String> EscapeRegExpSource(Isolate* isolate,
 }  // namespace
 
 // static
-MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(DirectHandle<JSRegExp> regexp,
+MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(Isolate* isolate,
+                                                 DirectHandle<JSRegExp> regexp,
                                                  DirectHandle<String> source,
                                                  Flags flags,
                                                  uint32_t backtrack_limit) {
-  Isolate* isolate = regexp->GetIsolate();
   Factory* factory = isolate->factory();
   // If source is the empty string we set it to "(?:)" instead as
   // suggested by ECMA-262, 5th, section 15.10.4.1.
@@ -376,7 +388,7 @@ MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(DirectHandle<JSRegExp> regexp,
 
 bool RegExpData::HasCompiledCode() const {
   if (type_tag() != Type::IRREGEXP) return false;
-  Tagged<IrRegExpData> re_data = Cast<IrRegExpData>(*this);
+  Tagged<IrRegExpData> re_data = TrustedCast<IrRegExpData>(*this);
   return re_data->has_latin1_code() || re_data->has_uc16_code();
 }
 

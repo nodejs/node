@@ -629,13 +629,14 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
 
 // 6.2 ValidateExport
 void AsmJsParser::ValidateExport() {
-  // clang-format off
   EXPECT_TOKEN(TOK(return));
-  // clang-format on
   if (Check('{')) {
     for (;;) {
       base::Vector<const char> name = CopyCurrentIdentifierString();
       if (!scanner_.IsGlobal() && !scanner_.IsLocal()) {
+        FAIL("Illegal export name");
+      }
+      if (name == base::CStrVector("__proto__")) {
         FAIL("Illegal export name");
       }
       Consume();
@@ -775,9 +776,7 @@ void AsmJsParser::ValidateFunction() {
 
   bool last_statement_is_return = false;
   while (!failed_ && !Peek('}')) {
-    // clang-format off
     last_statement_is_return = Peek(TOK(return));
-    // clang-format on
     RECURSE(ValidateStatement());
   }
 
@@ -1041,9 +1040,7 @@ void AsmJsParser::ValidateStatement() {
     RECURSE(EmptyStatement());
   } else if (Peek(TOK(if))) {
     RECURSE(IfStatement());
-    // clang-format off
   } else if (Peek(TOK(return))) {
-    // clang-format on
     RECURSE(ReturnStatement());
   } else if (IterationStatement()) {
     // Handled in IterationStatement.
@@ -1118,9 +1115,7 @@ void AsmJsParser::IfStatement() {
 
 // 6.5.5 ReturnStatement
 void AsmJsParser::ReturnStatement() {
-  // clang-format off
   EXPECT_TOKEN(TOK(return));
-  // clang-format on
   if (!Peek(';') && !Peek('}')) {
     // TODO(bradnelson): See if this can be factored out.
     AsmType* ret;
@@ -1863,7 +1858,6 @@ AsmType* AsmJsParser::ShiftExpression() {
     switch (scanner_.Token()) {
       case TOK(SAR): {
         EXPECT_TOKENn(TOK(SAR));
-        heap_access_shift_position_ = kNoHeapAccessShift;
         // Remember position allowing this shift-expression to be used as part
         // of a heap access operation expecting `a >> n:NumericLiteral`.
         bool imm = false;
@@ -1882,7 +1876,10 @@ AsmType* AsmJsParser::ShiftExpression() {
         if (imm && old_pos == scanner_.Position()) {
           heap_access_shift_position_ = old_code;
           heap_access_shift_value_ = shift_imm;
+        } else {
+          heap_access_shift_position_ = kNoHeapAccessShift;
         }
+
         if (!(a->IsA(AsmType::Intish()) && b->IsA(AsmType::Intish()))) {
           FAILn("Expected intish for operator >>.");
         }

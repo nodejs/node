@@ -28,7 +28,6 @@ absl_cc_library(
     absl::core_headers
     absl::log_internal_check_op
     absl::log_internal_conditions
-    absl::log_internal_message
     absl::log_internal_strip
 )
 
@@ -218,6 +217,7 @@ absl_cc_library(
     absl::span
     absl::strerror
     absl::strings
+    absl::strings_internal
     absl::time
 )
 
@@ -395,6 +395,7 @@ absl_cc_library(
   DEPS
     absl::config
     absl::strings
+    absl::strings_internal
     absl::span
 )
 
@@ -558,6 +559,8 @@ absl_cc_library(
 absl_cc_library(
   NAME
     log_entry
+  SRCS
+    "log_entry.cc"
   HDRS
     "log_entry.h"
   COPTS
@@ -568,6 +571,7 @@ absl_cc_library(
     absl::config
     absl::core_headers
     absl::log_internal_config
+    absl::log_internal_proto
     absl::log_severity
     absl::span
     absl::strings

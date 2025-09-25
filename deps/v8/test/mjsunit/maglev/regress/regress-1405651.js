@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --harmony --no-always-turbofan --maglev
+// Flags: --allow-natives-syntax --harmony --maglev
 
 function assertMaglevved(f) {
   assertTrue(isMaglevved(f));

@@ -27,6 +27,22 @@ v8::Local<v8::FunctionTemplate> FuzzilliExtension::GetNativeFunctionTemplate(
   return v8::FunctionTemplate::New(isolate, FuzzilliExtension::Fuzzilli);
 }
 
+namespace {
+void perform_wild_write() {
+  // Access an invalid address.
+  // We want to use an "interesting" address for the access (instead of
+  // e.g. nullptr). In the (unlikely) case that the address is actually
+  // mapped, simply increment the pointer until it crashes.
+  // The cast ensures that this works correctly on both 32-bit and 64-bit.
+  Address addr = static_cast<Address>(0x414141414141ull);
+  char* ptr = reinterpret_cast<char*>(addr);
+  for (int i = 0; i < 1024; i++) {
+    *ptr = 'A';
+    ptr += 1 * i::MB;
+  }
+}
+}  // namespace
+
 // We have to assume that the fuzzer will be able to call this function e.g. by
 // enumerating the properties of the global object and eval'ing them. As such
 // this function is implemented in a way that requires passing some magic value
@@ -56,37 +72,34 @@ void FuzzilliExtension::Fuzzilli(const FunctionCallbackInfo<Value>& info) {
         DCHECK(false);
         break;
       case 3: {
-        // Access an invalid address.
-        // We want to use an "interesting" address for the access (instead of
-        // e.g. nullptr). In the (unlikely) case that the address is actually
-        // mapped, simply increment the pointer until it crashes.
-        // The cast ensures that this works correctly on both 32-bit and 64-bit.
-        Address addr = static_cast<Address>(0x414141414141ull);
-        char* ptr = reinterpret_cast<char*>(addr);
-        for (int i = 0; i < 1024; i++) {
-          *ptr = 'A';
-          ptr += 1 * i::MB;
-        }
+        perform_wild_write();
         break;
       }
       case 4: {
-        // Use-after-free, likely only crashes in ASan builds.
+        // Use-after-free, should be caught by ASan (if active).
         auto* vec = new std::vector<int>(4);
         delete vec;
         USE(vec->at(0));
+#ifndef V8_USE_ADDRESS_SANITIZER
+        // The testcase must also crash on non-asan builds.
+        perform_wild_write();
+#endif  // !V8_USE_ADDRESS_SANITIZER
         break;
       }
       case 5: {
-        // Out-of-bounds access (1), likely only crashes in ASan or
-        // "hardened"/"safe" libc++ builds.
+        // Out-of-bounds access (1), should be caught by libc++ hardening.
         std::vector<int> vec(5);
         USE(vec[5]);
         break;
       }
       case 6: {
-        // Out-of-bounds access (2), likely only crashes in ASan builds.
+        // Out-of-bounds access (2), should be caught by ASan (if active).
         std::vector<int> vec(6);
         memset(vec.data(), 42, 0x100);
+#ifndef V8_USE_ADDRESS_SANITIZER
+        // The testcase must also crash on non-asan builds.
+        perform_wild_write();
+#endif  // !V8_USE_ADDRESS_SANITIZER
         break;
       }
       case 7: {
