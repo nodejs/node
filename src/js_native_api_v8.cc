@@ -1609,29 +1609,22 @@ napi_create_object_with_properties(napi_env env,
   v8::Local<v8::Value> v8_prototype_or_null =
       v8impl::V8LocalValueFromJsValue(prototype_or_null);
 
-  v8::Local<v8::Object> obj;
+  v8::LocalVector<v8::Name> v8_names(env->isolate, property_count);
+  v8::LocalVector<v8::Value> v8_values(env->isolate, property_count);
 
-  if (property_count > 0) {
-    v8::LocalVector<v8::Name> v8_names(env->isolate, property_count);
-    v8::LocalVector<v8::Value> v8_values(env->isolate, property_count);
-
-    for (size_t i = 0; i < property_count; i++) {
-      v8::Local<v8::Value> name_value =
-          v8impl::V8LocalValueFromJsValue(property_names[i]);
-      RETURN_STATUS_IF_FALSE(env, name_value->IsName(), napi_name_expected);
-      v8_names[i] = name_value.As<v8::Name>();
-      v8_values[i] = v8impl::V8LocalValueFromJsValue(property_values[i]);
-    }
-
-    obj = v8::Object::New(env->isolate,
-                          v8_prototype_or_null,
-                          v8_names.data(),
-                          v8_values.data(),
-                          property_count);
-  } else {
-    obj = v8::Object::New(
-        env->isolate, v8_prototype_or_null, nullptr, nullptr, 0);
+  for (size_t i = 0; i < property_count; i++) {
+    v8::Local<v8::Value> name_value =
+        v8impl::V8LocalValueFromJsValue(property_names[i]);
+    RETURN_STATUS_IF_FALSE(env, name_value->IsName(), napi_name_expected);
+    v8_names[i] = name_value.As<v8::Name>();
+    v8_values[i] = v8impl::V8LocalValueFromJsValue(property_values[i]);
   }
+
+  v8::Local<v8::Object> obj = v8::Object::New(env->isolate,
+                                              v8_prototype_or_null,
+                                              v8_names.data(),
+                                              v8_values.data(),
+                                              property_count);
 
   RETURN_STATUS_IF_FALSE(env, !obj.IsEmpty(), napi_generic_failure);
   *result = v8impl::JsValueFromV8LocalValue(obj);
