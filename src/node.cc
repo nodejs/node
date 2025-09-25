@@ -782,9 +782,6 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
 
   v8_args.emplace_back("--js-source-phase-imports");
 
-  // WebAssembly JS Promise Integration
-  v8_args.emplace_back("--experimental-wasm-jspi");
-
 #ifdef __POSIX__
   // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the
   // performance penalty of frequent EINTR wakeups when the profiler is running.
