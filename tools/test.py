@@ -1677,9 +1677,6 @@ def Main():
   if options.check_deopts:
     options.node_args.append("--trace-opt")
     options.node_args.append("--trace-file-names")
-    # --always-turbofan is needed because many tests do not run long enough for
-    # the optimizer to kick in, so this flag will force it to run.
-    options.node_args.append("--always-turbofan")
     options.progress = "deopts"
 
   if options.error_reporter:
