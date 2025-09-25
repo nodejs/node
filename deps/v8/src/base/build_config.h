@@ -27,6 +27,15 @@
 #endif
 #endif
 
+// PKU support (and by extension support for JIT code protections based on PKU)
+// is currently only available on x64 Linux.
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+#define V8_HAS_PKU_SUPPORT 1
+#else
+#define V8_HAS_PKU_SUPPORT 0
+#endif
+#define V8_HAS_PKU_JIT_WRITE_PROTECT V8_HAS_PKU_SUPPORT
+
 // pthread_jit_write_protect is only available on arm64 Mac.
 #if defined(V8_HOST_ARCH_ARM64) && defined(V8_OS_MACOS)
 #define V8_HAS_PTHREAD_JIT_WRITE_PROTECT 1
@@ -43,11 +52,6 @@
 #define V8_HAS_BECORE_JIT_WRITE_PROTECT 0
 #endif
 
-#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
-#define V8_HAS_PKU_JIT_WRITE_PROTECT 1
-#else
-#define V8_HAS_PKU_JIT_WRITE_PROTECT 0
-#endif
 
 #if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
 #define V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK true

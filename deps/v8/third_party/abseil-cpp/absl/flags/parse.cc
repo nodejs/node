@@ -64,9 +64,9 @@ ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 namespace {
 
-absl::Mutex* ProcessingChecksMutex() {
+absl::Mutex& ProcessingChecksMutex() {
   static absl::NoDestructor<absl::Mutex> mutex;
-  return mutex.get();
+  return *mutex;
 }
 
 ABSL_CONST_INIT bool flagfile_needs_processing
@@ -76,9 +76,9 @@ ABSL_CONST_INIT bool fromenv_needs_processing
 ABSL_CONST_INIT bool tryfromenv_needs_processing
     ABSL_GUARDED_BY(ProcessingChecksMutex()) = false;
 
-absl::Mutex* SpecifiedFlagsMutex() {
+absl::Mutex& SpecifiedFlagsMutex() {
   static absl::NoDestructor<absl::Mutex> mutex;
-  return mutex.get();
+  return *mutex;
 }
 
 ABSL_CONST_INIT std::vector<const CommandLineFlag*>* specified_flags

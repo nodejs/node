@@ -40,6 +40,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/random/random.h"
 #include "absl/strings/str_format.h"
 #include "absl/time/time.h"
 
@@ -840,18 +841,18 @@ TEST(Duration, DivisionByZero) {
 
 TEST(Duration, NaN) {
   // Note that IEEE 754 does not define the behavior of a nan's sign when it is
-  // copied, so the code below allows for either + or - InfiniteDuration.
+  // copied. We return -InfiniteDuration in either case.
 #define TEST_NAN_HANDLING(NAME, NAN)           \
   do {                                         \
     const auto inf = absl::InfiniteDuration(); \
     auto x = NAME(NAN);                        \
-    EXPECT_TRUE(x == inf || x == -inf);        \
+    EXPECT_TRUE(x == -inf);                    \
     auto y = NAME(42);                         \
     y *= NAN;                                  \
-    EXPECT_TRUE(y == inf || y == -inf);        \
+    EXPECT_TRUE(y == -inf);                    \
     auto z = NAME(42);                         \
     z /= NAN;                                  \
-    EXPECT_TRUE(z == inf || z == -inf);        \
+    EXPECT_TRUE(z == -inf);                    \
   } while (0)
 
   const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -1514,9 +1515,7 @@ TEST(Duration, ToDoubleSecondsCheckEdgeCases) {
 }
 
 TEST(Duration, ToDoubleSecondsCheckRandom) {
-  std::random_device rd;
-  std::seed_seq seed({rd(), rd(), rd(), rd(), rd(), rd(), rd(), rd()});
-  std::mt19937_64 gen(seed);
+  absl::InsecureBitGen gen;
   // We want doubles distributed from 1/8ns up to 2^63, where
   // as many values are tested from 1ns to 2ns as from 1sec to 2sec,
   // so even distribute along a log-scale of those values, and

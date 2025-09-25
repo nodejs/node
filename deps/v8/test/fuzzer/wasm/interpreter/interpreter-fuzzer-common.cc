@@ -112,8 +112,6 @@ WasmInterpretationResult FastInterpretWasmModule(
       v8::internal::WasmTrustedInstanceData::GetOrCreateInterpreterObject(
           instance);
 
-  int* thread_in_wasm_code = trap_handler::GetThreadInWasmThreadLocalAddress();
-  *thread_in_wasm_code = true;
   // Assume an instance can run in only one thread.
   wasm::InterpreterHandle* handle =
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
@@ -126,7 +124,6 @@ WasmInterpretationResult FastInterpretWasmModule(
   }
   bool success = handle->wasm::InterpreterHandle::Execute(
       thread, 0, static_cast<uint32_t>(function_index), args, rets);
-  *thread_in_wasm_code = false;
 
   // Returned values should not be the hole value.
   if (success) {
@@ -176,7 +173,8 @@ Handle<JSFunction> GenerateJSFunction(Isolate* isolate) {
 MaybeDirectHandle<WasmTableObject> GenerateWasmTable(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
     uint32_t table_index) {
-  const WasmTable& table = module_object->module()->tables[table_index];
+  const WasmTable& table =
+      module_object->native_module()->module()->tables[table_index];
 
   uint32_t table_initial = 10;
   uint32_t table_maximum = 30;
@@ -214,16 +212,18 @@ Handle<String> ExtractUtf8StringFromModuleBytes(
       base::Vector<const char>::cast(name_vec));
 }
 
-DirectHandle<JSObject> CreateImportObject(
+Handle<JSObject> CreateImportObjectInternal(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object) {
   Handle<JSObject> ffi_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
   base::Vector<const uint8_t> wire_bytes =
       module_object->native_module()->wire_bytes();
-  for (size_t index = 0; index < module_object->module()->import_table.size();
+  for (size_t index = 0;
+       index < module_object->native_module()->module()->import_table.size();
        ++index) {
-    const WasmImport& import = module_object->module()->import_table[index];
+    const WasmImport& import =
+        module_object->native_module()->module()->import_table[index];
 
     Handle<String> module_name = ExtractUtf8StringFromModuleBytes(
         isolate, wire_bytes, import.module_name);
@@ -274,9 +274,11 @@ DirectHandle<JSObject> CreateImportObject(
         // Global
         const uint32_t offset = 0;
         const WasmGlobal& global =
-            module_object->module()->globals[import.index];
+            module_object->native_module()->module()->globals[import.index];
         DirectHandle<WasmTrustedInstanceData> trusted_data =
-            WasmTrustedInstanceData::New(isolate, module_object, false);
+            WasmTrustedInstanceData::New(isolate, module_object,
+                                         module_object->shared_native_module(),
+                                         false);
         MaybeDirectHandle<WasmGlobalObject> maybe_global_obj =
             WasmGlobalObject::New(isolate, trusted_data,
                                   MaybeHandle<JSArrayBuffer>(),
@@ -300,6 +302,11 @@ DirectHandle<JSObject> CreateImportObject(
   }
 
   return ffi_object;
+}
+
+DirectHandle<JSObject> CreateImportObject(
+    i::Isolate* isolate, DirectHandle<WasmModuleObject> module_object) {
+  return CreateImportObjectInternal(isolate, module_object);
 }
 
 bool InstantiateModule(Isolate* isolate,
@@ -383,10 +390,34 @@ std::vector<WasmValue> FastMakeDefaultInterpreterArguments(
   return arguments;
 }
 
+Address CreateSyntheticInterpreterEntryFrame(
+    void* frame_space, Address caller_fp,
+    DirectHandle<WasmInstanceObject> instance, uint32_t function_index) {
+  Address frame_ptr = reinterpret_cast<Address>(frame_space);
+
+  // Set up the frame with the minimal required content
+  // 1. Store the caller's frame pointer
+  *(reinterpret_cast<Address*>(frame_ptr)) = caller_fp;
+  // 2. Frame marker
+  *(reinterpret_cast<Address*>(frame_ptr + kSystemPointerSize)) =
+      StackFrame::TypeToMarker(StackFrame::WASM_INTERPRETER_ENTRY);
+  // 3. Store instance pointer
+  *(reinterpret_cast<DirectHandle<WasmInstanceObject>*>(
+      frame_ptr + 2 * kSystemPointerSize)) = instance;
+  // 4. Store function index
+  *(reinterpret_cast<uint32_t*>(frame_ptr + 3 * kSystemPointerSize)) =
+      function_index;
+
+  return frame_ptr;
+}
+
 void RunInstance(Isolate* isolate, std::mt19937_64 rand_generator,
                  DirectHandle<WasmModuleObject> module,
                  DirectHandle<WasmInstanceObject> instance) {
+  wasm::WasmInterpreterThread* thread =
+      wasm::WasmInterpreterThread::GetCurrentInterpreterThread(isolate);
   size_t num_exports = instance->module()->export_table.size();
+  Address prev_fp = reinterpret_cast<Address>(__builtin_frame_address(0));
   for (size_t i = 0; i < num_exports; ++i) {
     WasmExport exp = instance->module()->export_table[i];
 
@@ -397,8 +428,14 @@ void RunInstance(Isolate* isolate, std::mt19937_64 rand_generator,
         isolate, instance->module(), wfn.sig, rand_generator);
     std::vector<WasmValue> retvals(wfn.sig->return_count());
 
+    // Allocate space on stack for the synthetic frame
+    constexpr int kFrameSize = 4 * kSystemPointerSize;
+    void* frame_space = alloca(kFrameSize);
+    thread->set_fuzzer_entry_frame_pointer(CreateSyntheticInterpreterEntryFrame(
+        frame_space, prev_fp, instance, wfn.func_index));
     FastInterpretWasmModule(isolate, instance, wfn.func_index, arguments,
                             retvals);
+    thread->reset_fuzzer_entry_frame_pointer();
 
     isolate->clear_exception();
   }  // end handle loop
@@ -409,7 +446,8 @@ int FastInterpretAndExecuteModule(Isolate* isolate,
                                   std::mt19937_64 rand_generator) {
   // We do not instantiate the module if there is a start function, because a
   // start function can contain an infinite loop which we cannot handle.
-  if (module_object->module()->start_function_index >= 0) return -1;
+  if (module_object->native_module()->module()->start_function_index >= 0)
+    return -1;
 
   HandleScope handle_scope(isolate);  // Avoid leaking handles.
 
@@ -429,6 +467,65 @@ int FastInterpretAndExecuteModule(Isolate* isolate,
   return 0;
 }
 
+int FastInterpretAndExecuteModules(
+    i::Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
+    DirectHandle<WasmModuleObject> other_module_object,
+    std::mt19937_64 rand_generator) {
+  if (module_object->native_module()->module()->start_function_index >= 0)
+    return -1;
+  if (other_module_object->native_module()->module()->start_function_index >= 0)
+    return -1;
+
+  HandleScope handle_scope(isolate);  // Avoid leaking handles.
+
+  DirectHandle<JSObject> other_imports_obj =
+      CreateImportObject(isolate, other_module_object);
+
+  DirectHandle<WasmInstanceObject> other_instance;
+  if (!InstantiateModule(isolate, other_module_object, other_imports_obj,
+                         &other_instance)) {
+    return -1;
+  }
+
+  base::Vector<const uint8_t> other_wire_bytes =
+      other_module_object->native_module()->wire_bytes();
+
+  Handle<JSObject> imports_obj =
+      CreateImportObjectInternal(isolate, module_object);
+
+  for (size_t i = 0;
+       i < other_module_object->native_module()->module()->export_table.size();
+       ++i) {
+    WasmExport exp =
+        other_module_object->native_module()->module()->export_table[i];
+
+    if (exp.kind != kExternalFunction) continue;
+
+    Handle<String> field_name =
+        ExtractUtf8StringFromModuleBytes(isolate, other_wire_bytes, exp.name);
+    std::unique_ptr<char[]> name = field_name->ToCString();
+
+    MaybeDirectHandle<WasmExportedFunction> maybe_export =
+        testing::GetExportedFunction(isolate, other_instance, name.get());
+
+    Handle<String> module_name =
+        isolate->factory()->NewStringFromAsciiChecked("fuzzer_module");
+    Handle<JSObject> module_namespace =
+        GetOrCreateModuleNamespaceObject(isolate, imports_obj, module_name);
+    JSObject::DefinePropertyOrElementIgnoreAttributes(
+        module_namespace, field_name, maybe_export.ToHandleChecked())
+        .Assert();
+  }
+
+  DirectHandle<WasmInstanceObject> instance;
+  if (!InstantiateModule(isolate, module_object, imports_obj, &instance)) {
+    return -1;
+  }
+
+  RunInstance(isolate, rand_generator, module_object, instance);
+  return 0;
+}
+
 void InitializeDrumbrakeForFuzzing() {
   // We should always pass jitless for wasm-jitless.
   v8_flags.jitless = true;
@@ -442,6 +539,9 @@ void InitializeDrumbrakeForFuzzing() {
   // Avoid restarting the fuzzer process due to timeout when there is an
   // infinite loop.
   v8_flags.drumbrake_fuzzer_timeout = true;
+
+  // Enable the isolate to be in a state where it can be used for fuzzing.
+  i::v8_flags.drumbrake_fuzzing_mode = true;
 
   // We reduce the maximum memory size and table size of WebAssembly instances
   // to avoid OOMs in the fuzzer.
@@ -477,10 +577,15 @@ int LLVMFuzzerTestOneInputCommon(const uint8_t* data, size_t size,
   // wasm::fuzzing::EnableExperimentalWasmFeatures(isolate);
 
   v8::TryCatch try_catch(isolate);
-  testing::SetupIsolateForWasmModule(i_isolate);
 
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
+
+  // Clear recursive groups: The fuzzer creates random types in every run. These
+  // are saved as recursive groups as part of the type canonicalizer, but types
+  // from previous runs just waste memory.
+  ResetTypeCanonicalizer(isolate);
+
   wasm::ZoneBuffer buffer(&zone);
 
   if (!generate_module(i_isolate, &zone, {data, size}, &buffer)) {
@@ -514,6 +619,78 @@ int LLVMFuzzerTestOneInputCommon(const uint8_t* data, size_t size,
   support->PumpMessageLoop(v8::platform::MessageLoopBehavior::kDoNotWait);
   isolate->PerformMicrotaskCheckpoint();
   return module_result;
+}
+
+int LLVMFuzzerTestTwoModulesCommon(
+    const uint8_t* data, size_t size,
+    GenerateExportDataMultipleModulesFunc generate_module) {
+  auto rnd_gen = MersenneTwister(reinterpret_cast<const char*>(data), size);
+
+  wasm::fuzzing::InitializeDrumbrakeForFuzzing();
+
+  v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
+  v8::Isolate* isolate = support->GetIsolate();
+
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+
+  // Clear any pending exceptions from a prior run.
+  if (i_isolate->has_exception()) {
+    i_isolate->clear_exception();
+  }
+
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope handle_scope(isolate);
+  v8::Context::Scope context_scope(support->GetContext());
+
+  // Drumbrake may not support some experimental features yet.
+  // wasm::fuzzing::EnableExperimentalWasmFeatures(isolate);
+
+  v8::TryCatch try_catch(isolate);
+
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  // Clear recursive groups: The fuzzer creates random types in every run. These
+  // are saved as recursive groups as part of the type canonicalizer, but types
+  // from previous runs just waste memory.
+  ResetTypeCanonicalizer(isolate);
+
+  wasm::ZoneBuffer buffer(&zone);
+
+  std::vector<ExportData> exports;
+  if (!generate_module(i_isolate, &zone, {data, size}, &buffer, &exports,
+                       nullptr)) {
+    return 0;
+  }
+
+  wasm::ZoneBuffer buffer_2(&zone);
+  if (!generate_module(i_isolate, &zone, {data, size}, &buffer_2, nullptr,
+                       &exports)) {
+    return 0;
+  }
+
+  HandleScope scope(i_isolate);
+  wasm::ErrorThrower thrower(i_isolate, "wasm fuzzer");
+  DirectHandle<WasmModuleObject> module_object;
+  auto enabled_features = wasm::WasmEnabledFeatures::FromIsolate(i_isolate);
+  bool compiles = wasm::GetWasmEngine()
+                      ->SyncCompile(i_isolate, enabled_features,
+                                    fuzzing::CompileTimeImportsForFuzzing(),
+                                    &thrower, v8::base::OwnedCopyOf(buffer_2))
+                      .ToHandle(&module_object);
+  DirectHandle<WasmModuleObject> other_module_object;
+  bool compiles_2 = wasm::GetWasmEngine()
+                        ->SyncCompile(i_isolate, enabled_features,
+                                      fuzzing::CompileTimeImportsForFuzzing(),
+                                      &thrower, v8::base::OwnedCopyOf(buffer))
+                        .ToHandle(&other_module_object);
+  int execute_module_result = -1;
+  if (compiles && compiles_2) {
+    execute_module_result = FastInterpretAndExecuteModules(
+        i_isolate, module_object, other_module_object, rnd_gen);
+  }
+  thrower.Reset();
+  return execute_module_result;
 }
 
 }  // namespace v8::internal::wasm::fuzzing

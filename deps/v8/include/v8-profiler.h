@@ -71,6 +71,10 @@ class V8_EXPORT CpuProfileNode {
     /** The 1-based number of the source line where the function originates. */
     int line;
 
+    /** The 1-based number of the source column where the function originates.
+     */
+    int column;
+
     /** The count of samples associated with the source line. */
     unsigned int hit_count;
   };

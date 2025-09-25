@@ -11,6 +11,7 @@
   "is_ios": false,
   "lite_mode": false,
   "msan": false,
+  "sandbox_hardware_support": false,
   "simulator_run": false,
   "tsan": false,
   "ubsan": false,

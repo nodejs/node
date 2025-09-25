@@ -38,6 +38,7 @@
 #include <cstddef>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -46,10 +47,6 @@
 
 #ifdef __cpp_lib_span
 #include <span>  // NOLINT(build/c++20)
-#endif
-
-#ifdef ABSL_HAVE_STD_STRING_VIEW
-#include <string_view>
 #endif
 
 // Defines the default alignment. `__STDCPP_DEFAULT_NEW_ALIGNMENT__` is a C++17
@@ -327,10 +324,16 @@ using swap_internal::Swap;
 
 // absl::is_trivially_relocatable<T>
 //
+// https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p2786r11.html
+//
 // Detects whether a type is known to be "trivially relocatable" -- meaning it
 // can be relocated from one place to another as if by memcpy/memmove.
 // This implies that its object representation doesn't depend on its address,
 // and also none of its special member functions do anything strange.
+//
+// Note that when relocating the caller code should ensure that if the object is
+// polymorphic, the dynamic type is of the most derived type. Padding bytes
+// should not be copied.
 //
 // This trait is conservative. If it's true then the type is definitely
 // trivially relocatable, but if it's false then the type may or may not be. For
@@ -349,11 +352,7 @@ using swap_internal::Swap;
 //
 // Upstream documentation:
 //
-// https://clang.llvm.org/docs/LanguageExtensions.html#:~:text=__is_trivially_relocatable
-
-// If the compiler offers a builtin that tells us the answer, we can use that.
-// This covers all of the cases in the fallback below, plus types that opt in
-// using e.g. [[clang::trivial_abi]].
+// https://clang.llvm.org/docs/LanguageExtensions.html#:~:text=__builtin_is_cpp_trivially_relocatable
 //
 // Clang on Windows has the builtin, but it falsely claims types with a
 // user-provided destructor are trivial (http://b/275003464). So we opt out
@@ -378,15 +377,22 @@ using swap_internal::Swap;
 //
 // According to https://github.com/abseil/abseil-cpp/issues/1479, this does not
 // work with NVCC either.
-#if ABSL_HAVE_BUILTIN(__is_trivially_relocatable) && \
-    (defined(__cpp_impl_trivially_relocatable) ||    \
-     (!defined(__clang__) && !defined(__APPLE__) && !defined(__NVCC__)))
+#if ABSL_HAVE_BUILTIN(__builtin_is_cpp_trivially_relocatable)
+// https://github.com/llvm/llvm-project/pull/127636#pullrequestreview-2637005293
+// In the current implementation, __builtin_is_cpp_trivially_relocatable will
+// only return true for types that are trivially relocatable according to the
+// standard. Notably, this means that marking a type [[clang::trivial_abi]] aka
+// ABSL_HAVE_ATTRIBUTE_TRIVIAL_ABI will have no effect on this trait.
 template <class T>
 struct is_trivially_relocatable
-    : std::integral_constant<bool, __is_trivially_relocatable(T)> {};
+    : std::integral_constant<bool, __builtin_is_cpp_trivially_relocatable(T)> {
+};
 #elif ABSL_HAVE_BUILTIN(__is_trivially_relocatable) && defined(__clang__) && \
     !(defined(_WIN32) || defined(_WIN64)) && !defined(__APPLE__) &&          \
     !defined(__NVCC__)
+// https://github.com/llvm/llvm-project/pull/139061
+//  __is_trivially_relocatable is deprecated.
+// TODO(b/325479096): Remove this case.
 template <class T>
 struct is_trivially_relocatable
     : std::integral_constant<
@@ -507,10 +513,8 @@ template <typename T>
 struct IsView : std::integral_constant<bool, std::is_pointer<T>::value ||
                                                  IsViewImpl<T>::value> {};
 
-#ifdef ABSL_HAVE_STD_STRING_VIEW
 template <typename Char, typename Traits>
 struct IsView<std::basic_string_view<Char, Traits>> : std::true_type {};
-#endif
 
 #ifdef __cpp_lib_span
 template <typename T>

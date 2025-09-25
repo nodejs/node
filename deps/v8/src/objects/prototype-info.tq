@@ -6,6 +6,9 @@ bitfield struct PrototypeInfoFlags extends uint31 {
   should_be_fast: bool: 1 bit;
 }
 
+const kPrototypeInfoCachedHandlerCount: constexpr int31
+    generates 'PrototypeInfo::kCachedHandlerCount';
+
 extern class PrototypeInfo extends Struct {
   // [module_namespace]: A backpointer to JSModuleNamespace from its
   // PrototypeInfo (or undefined). This field is only used for JSModuleNamespace
@@ -29,4 +32,8 @@ extern class PrototypeInfo extends Struct {
   // for Object.create. The following contain entries used by GetDerivedMap
   // which feeds Reflect.construct, proxies and similar.
   derived_maps: WeakArrayList|Undefined;
+
+  // Cached handler for loads of non-existent properties through this
+  // prototype object.
+  cached_handler[kPrototypeInfoCachedHandlerCount]: LoadHandler|Zero;
 }

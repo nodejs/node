@@ -118,13 +118,29 @@ class EmbedderDataSlot
   // When the sandbox is enabled, calling this method when the raw part of the
   // slot does not contain valid external pointer table index is undefined
   // behaviour and most likely result in crashes.
-  V8_INLINE bool ToAlignedPointer(IsolateForSandbox isolate,
-                                  void** out_result) const;
+  V8_INLINE bool ToAlignedPointer(IsolateForSandbox isolate, void** out_result,
+                                  ExternalPointerTagRange tag_range) const;
+
+  V8_INLINE bool ToGenericAlignedPointer(IsolateForSandbox isolate,
+                                         void** out_result) const;
+
+  // Deprecated, either use ToAlignedPointer with a `tag_range`, or use
+  // `ToGenericAlignedPointer to indicate that the read pointer will not be
+  // dereferenced.
+  V8_INLINE bool DeprecatedToAlignedPointer(IsolateForSandbox isolate,
+                                            void** out_result) const;
 
   // Returns true if the pointer was successfully stored or false it the pointer
   // was improperly aligned.
   V8_INLINE V8_WARN_UNUSED_RESULT bool store_aligned_pointer(
-      IsolateForSandbox isolate, Tagged<HeapObject> host, void* ptr);
+      IsolateForSandbox isolate, Tagged<HeapObject> host, void* ptr,
+      ExternalPointerTag tag);
+
+#ifdef V8_ENABLE_SANDBOX
+  V8_INLINE V8_WARN_UNUSED_RESULT bool store_handle(
+      IsolateForSandbox isolate, Tagged<HeapObject> host,
+      ExternalPointerHandle handle);
+#endif  // V8_ENABLE_SANDBOX
 
   V8_INLINE bool MustClearDuringSerialization(
       const DisallowGarbageCollection& no_gc);

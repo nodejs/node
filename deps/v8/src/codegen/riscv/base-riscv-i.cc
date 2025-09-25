@@ -18,14 +18,16 @@ void AssemblerRISCVI::auipc(Register rd, int32_t imm20) {
 
 void AssemblerRISCVI::jal(Register rd, int32_t imm21) {
   GenInstrJ(JAL, rd, imm21);
+  // If we're linking, this could potentially be the location of a safepoint.
+  if (rd != zero_reg) RecordPcForSafepoint();
   ClearVectorunit();
-  BlockTrampolinePoolFor(1);
 }
 
 void AssemblerRISCVI::jalr(Register rd, Register rs1, int16_t imm12) {
   GenInstrI(0b000, JALR, rd, rs1, imm12);
+  // If we're linking, this could potentially be the location of a safepoint.
+  if (rd != zero_reg) RecordPcForSafepoint();
   ClearVectorunit();
-  BlockTrampolinePoolFor(1);
 }
 
 // Branches

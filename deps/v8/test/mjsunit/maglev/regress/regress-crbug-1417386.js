@@ -17,7 +17,7 @@ function f(x) {
              // if the input is a Number, and call into runtime if necessary to
              // to the truncation, so it can't deopt. After Phi untagging, this
              // should be replaced by a Float64->Int32 truncation
-             // (TruncateFloat64ToInt32), which shouldn't deopt either (because
+             // (TruncateHoleyFloat64ToInt32), which shouldn't deopt either (because
              // we can't replace a non-deopting node by a deopting one).
 }
 

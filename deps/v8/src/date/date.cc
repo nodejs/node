@@ -29,8 +29,7 @@ static const char kDaysInMonths[] = {31, 28, 31, 30, 31, 30,
                                      31, 31, 30, 31, 30, 31};
 
 DateCache::DateCache()
-    : stamp_(kNullAddress),
-      tz_cache_(
+    : tz_cache_(
 #ifdef V8_INTL_SUPPORT
           Intl::CreateTimeZoneCache()
 #else
@@ -42,12 +41,6 @@ DateCache::DateCache()
 
 void DateCache::ResetDateCache(
     base::TimezoneCache::TimeZoneDetection time_zone_detection) {
-  if (stamp_.value() >= Smi::kMaxValue) {
-    stamp_ = Smi::zero();
-  } else {
-    stamp_ = Smi::FromInt(stamp_.value() + 1);
-  }
-  DCHECK(stamp_ != Smi::FromInt(kInvalidStamp));
   for (int i = 0; i < kCacheSize; ++i) {
     ClearSegment(&cache_[i]);
   }

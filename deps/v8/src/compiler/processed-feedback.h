@@ -108,18 +108,23 @@ class KeyedAccessMode {
   bool IsStore() const;
   KeyedAccessLoadMode load_mode() const;
   KeyedAccessStoreMode store_mode() const;
+  // This is a hint indicating that the keyed IC was not in "elements mode".
+  // There may well be keys of any kind (string, integer, string representation
+  // of an integer, or "JSAny", really) that will need to be handled.
+  bool string_keys() const { return string_keys_; }
 
  private:
   AccessMode const access_mode_;
-  union LoadStoreMode {
-    LoadStoreMode(KeyedAccessLoadMode load_mode);
-    LoadStoreMode(KeyedAccessStoreMode store_mode);
-    KeyedAccessLoadMode load_mode;
-    KeyedAccessStoreMode store_mode;
-  } const load_store_mode_;
+  union {
+    KeyedAccessLoadMode load_mode_;    // If IsLoad().
+    KeyedAccessStoreMode store_mode_;  // If IsStore().
+  };
+  bool string_keys_;
 
-  KeyedAccessMode(AccessMode access_mode, KeyedAccessLoadMode load_mode);
-  KeyedAccessMode(AccessMode access_mode, KeyedAccessStoreMode store_mode);
+  KeyedAccessMode(AccessMode access_mode, KeyedAccessLoadMode load_mode,
+                  bool string_keys);
+  KeyedAccessMode(AccessMode access_mode, KeyedAccessStoreMode store_mode,
+                  bool string_keys);
 };
 
 class ElementAccessFeedback : public ProcessedFeedback {
@@ -224,6 +229,8 @@ class SingleValueFeedback : public ProcessedFeedback {
       : ProcessedFeedback(K, slot_kind), value_(value) {
     DCHECK(
         (K == kBinaryOperation && slot_kind == FeedbackSlotKind::kBinaryOp) ||
+        (K == kBinaryOperation &&
+         slot_kind == FeedbackSlotKind::kStringAddAndInternalize) ||
         (K == kTypeOf && slot_kind == FeedbackSlotKind::kTypeOf) ||
         (K == kCompareOperation && slot_kind == FeedbackSlotKind::kCompareOp) ||
         (K == kForIn && slot_kind == FeedbackSlotKind::kForIn) ||

@@ -382,7 +382,7 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCase(
 
   Tagged<Object> answer =
       ConvertCaseHelper(isolate, *s, *result, length, mapping);
-  if (IsException(answer, isolate) || IsString(answer)) return answer;
+  if (IsExceptionHole(answer, isolate) || IsString(answer)) return answer;
 
   DCHECK(IsSmi(answer));
   // In this case we need to retry with a new string of the given length.

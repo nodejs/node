@@ -47,23 +47,13 @@ void LocalFactory::ProcessNewScript(DirectHandle<Script> script,
 
 Tagged<HeapObject> LocalFactory::AllocateRaw(int size,
                                              AllocationType allocation,
-                                             AllocationAlignment alignment) {
+                                             AllocationAlignment alignment,
+                                             AllocationHint hint) {
   DCHECK(allocation == AllocationType::kOld ||
          allocation == AllocationType::kSharedOld ||
          allocation == AllocationType::kTrusted);
   return HeapObject::FromAddress(isolate()->heap()->AllocateRawOrFail(
-      size, allocation, AllocationOrigin::kRuntime, alignment));
-}
-
-int LocalFactory::NumberToStringCacheHash(Tagged<Smi>) { return 0; }
-
-int LocalFactory::NumberToStringCacheHash(double) { return 0; }
-
-void LocalFactory::NumberToStringCacheSet(DirectHandle<Object>, int,
-                                          DirectHandle<String>) {}
-
-Handle<Object> LocalFactory::NumberToStringCacheGet(Tagged<Object>, int) {
-  return undefined_value();
+      size, allocation, AllocationOrigin::kRuntime, alignment, hint));
 }
 
 }  // namespace internal

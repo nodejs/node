@@ -166,6 +166,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     return code_kind() == CodeKind::WASM_TO_JS_FUNCTION ||
            code_kind() == CodeKind::WASM_TO_CAPI_FUNCTION ||
            code_kind() == CodeKind::JS_TO_WASM_FUNCTION ||
+           code_kind() == CodeKind::WASM_STACK_ENTRY ||
            (code_kind() == CodeKind::BUILTIN &&
             (builtin() == Builtin::kJSToWasmWrapper ||
              builtin() == Builtin::kJSToWasmHandleReturns ||

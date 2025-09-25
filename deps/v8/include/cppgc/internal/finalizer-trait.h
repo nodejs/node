@@ -70,7 +70,7 @@ struct FinalizerTrait {
   // - a destructor.
   static constexpr bool kNonTrivialFinalizer =
       internal::HasFinalizeGarbageCollectedObject<T>::value ||
-      !std::is_trivially_destructible<typename std::remove_cv<T>::type>::value;
+      !std::is_trivially_destructible_v<std::remove_cv_t<T>>;
 
   static void Finalize(void* obj) {
     internal::FinalizerTraitImpl<T, kNonTrivialFinalizer>::Finalize(obj);

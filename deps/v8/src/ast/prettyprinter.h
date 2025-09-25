@@ -53,6 +53,8 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
   void Print(const char* str);
   void Print(DirectHandle<String> str);
 
+  bool ShouldPrint();
+
   void Find(AstNode* node, bool print = false);
 
   Isolate* isolate_;

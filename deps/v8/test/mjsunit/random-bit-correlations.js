@@ -6,7 +6,7 @@
 // flaky. Due to flag contradiction checking, this requires
 // --allow-overwriting-for-next-flag to avoid an error.
 // Flags: --allow-overwriting-for-next-flag --random-seed=20
-// Flags: --noalways-turbofan --predictable
+// Flags: --predictable
 
 (function() {
   var kHistory = 2;

@@ -17,20 +17,13 @@
 namespace v8 {
 namespace internal {
 
-inline Tagged<ClearedWeakValue> ClearedValue(PtrComprCageBase cage_base) {
-  // Construct cleared weak ref value.
-  Address value;
+inline Tagged<ClearedWeakValue> ClearedValue() {
 #ifdef V8_COMPRESS_POINTERS
-  // This is necessary to make pointer decompression computation also
-  // suitable for cleared weak references.
-  value =
-      V8HeapCompressionScheme::DecompressTagged(kClearedWeakHeapObjectLower32);
+  return Tagged<ClearedWeakValue>(
+      V8HeapCompressionScheme::DecompressTagged(kClearedWeakHeapObjectLower32));
 #else
-  value = kClearedWeakHeapObjectLower32;
+  return kClearedWeakValue;
 #endif
-  // The rest of the code will check only the lower 32-bits.
-  DCHECK_EQ(kClearedWeakHeapObjectLower32, static_cast<uint32_t>(value));
-  return Tagged<ClearedWeakValue>(value);
 }
 
 inline Tagged<ClearedWeakValue> ClearedTrustedValue() {
@@ -39,15 +32,15 @@ inline Tagged<ClearedWeakValue> ClearedTrustedValue() {
       TrustedSpaceCompressionScheme::DecompressTagged(
           kClearedWeakHeapObjectLower32));
 #else
-  return Tagged<ClearedWeakValue>(kClearedWeakHeapObjectLower32);
+  return kClearedWeakValue;
 #endif
 }
 
 template <typename THeapObjectSlot>
 void UpdateHeapObjectReferenceSlot(THeapObjectSlot slot,
                                    Tagged<HeapObject> value) {
-  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
-                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+  static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
+                    std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   Address old_value = (*slot).ptr();
   DCHECK(!HAS_SMI_TAG(old_value));

@@ -29,7 +29,7 @@ namespace internal {
 // builtin-riscv64
 #define ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V)  \
              V(a0)  V(a1)  V(a2)  V(a3) \
-             V(a4)  V(a5)  V(a6)  V(a7)  V(t0)  \
+             V(a4)  V(a5)  V(a6)  V(a7)  V(s1) V(s2)  \
              V(t1)  V(t2)  V(t4)  V(s7)  V(s8) V(s9) V(s10)
 
 #ifdef V8_COMPRESS_POINTERS
@@ -49,6 +49,13 @@ namespace internal {
   V(fs8) V(fs9) V(fs10) V(fs11) V(ft8) V(ft9) V(ft10) V(ft11)
 
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
+
+#define C_CALL_CALLEE_SAVE_REGISTERS \
+  fp, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11
+
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS \
+  fs0, fs1, fs2, fs3, fs4, fs5, fs6, fs7, fs8, fs9, fs10, fs11
+
 #define VECTOR_REGISTERS(V)                               \
   V(v0)  V(v1)  V(v2)  V(v3)  V(v4)  V(v5)  V(v6)  V(v7)  \
   V(v8)  V(v9)  V(v10) V(v11) V(v12) V(v13) V(v14) V(v15) \
@@ -58,7 +65,7 @@ namespace internal {
 #define ALLOCATABLE_SIMD128_REGISTERS(V)            \
   V(v1)  V(v2)  V(v3)  V(v4)  V(v5)  V(v6)  V(v7)   \
   V(v10) V(v11) V(v12) V(v13) V(v14) V(v15) V(v16)  \
-  V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v26)  \
+  V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v23)  \
   V(v27) V(v28) V(v29) V(v30) V(v31)
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                              \
@@ -292,7 +299,7 @@ constexpr Register kJSFunctionRegister = a1;
 constexpr Register kContextRegister = s7;
 constexpr Register kAllocateSizeRegister = a1;
 constexpr Register kInterpreterAccumulatorRegister = a0;
-constexpr Register kInterpreterBytecodeOffsetRegister = t0;
+constexpr Register kInterpreterBytecodeOffsetRegister = s2;
 constexpr Register kInterpreterBytecodeArrayRegister = t1;
 constexpr Register kInterpreterDispatchTableRegister = t2;
 
@@ -321,10 +328,15 @@ constexpr Register kSimulatorBreakArgument = t6;
 constexpr Register kMaglevFlagsRegister = t6;
 constexpr Register kMaglevExtraScratchRegister = t2;
 
+// kSimd128ScratchReg and kSimd128ScratchReg2 can be used as a register group.
 constexpr VRegister kSimd128ScratchReg = v24;
-constexpr VRegister kSimd128ScratchReg2 = v23;
+constexpr VRegister kSimd128ScratchReg2 = v25;
+// kSimd128ScratchReg3 and kSimd128ScratchReg4 are on even indices and can
+// be used as a register group as long as v9 and v27 are not overwritten,
+// as is the case for some `vcompress` operations.
 constexpr VRegister kSimd128ScratchReg3 = v8;
-constexpr VRegister kSimd128RegZero = v25;
+constexpr VRegister kSimd128ScratchReg4 = v26;
+constexpr VRegister kSimd128RegZero = kSimd128ScratchReg4;
 
 #ifdef V8_COMPRESS_POINTERS
 constexpr Register kPtrComprCageBaseRegister = s11;  // callee save

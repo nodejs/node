@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "src/common/simd128.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/deoptimizer/frame-translation-builder.h"
 #include "src/objects/deoptimization-data.h"
 #include "src/objects/feedback-vector.h"
@@ -217,6 +218,21 @@ class TranslatedFrame {
     kJavaScriptBuiltinContinuationWithCatch,
     kInvalid
   };
+
+  // The frame iteration assumes that for JavaScript frames (unoptimized
+  // functions and JS builtins continuations), the receiver is the first
+  // parameter. Optimizing compilers have to make sure to preserve this
+  // encoding.
+  static constexpr int kReceiverIsFirstParameterInJSFrames = true;
+
+  static bool IsJavaScriptFrame(Kind kind) {
+    return kind == kUnoptimizedFunction ||
+           IsJavaScriptBuiltinContinuationFrame(kind);
+  }
+  static bool IsJavaScriptBuiltinContinuationFrame(Kind kind) {
+    return kind == kJavaScriptBuiltinContinuation ||
+           kind == kJavaScriptBuiltinContinuationWithCatch;
+  }
 
   int GetValueCount() const;
 
@@ -493,7 +509,7 @@ class TranslatedState {
             int actual_argument_count);
 
   void VerifyMaterializedObjects();
-  bool DoUpdateFeedback();
+  bool DoUpdateFeedback(DeoptimizeReason reason);
 
  private:
   friend TranslatedValue;

@@ -39,15 +39,13 @@ function testMutators(settings, mutatorClass, inputFile, expectedFile) {
 
 describe('Differential fuzzing', () => {
   beforeEach(() => {
-    // Zero settings for all mutators.
-    this.settings = scriptMutator.defaultSettings();
-    for (const key of Object.keys(this.settings)) {
-      this.settings[key] = 0.0;
-    }
     // By default, deterministically use all mutations of differential
     // fuzzing.
+    this.settings = helpers.zeroSettings();
     this.settings['DIFF_FUZZ_EXTRA_PRINT'] = 1.0;
     this.settings['DIFF_FUZZ_TRACK_CAUGHT'] = 1.0;
+    this.settings['DIFF_FUZZ_BLOCK_PRINT'] = 0.0;
+    this.settings['DIFF_FUZZ_SKIP_FUNCTIONS'] = 0.0;
 
     // Fake fuzzer being called with --input_dir flag.
     this.oldInputDir = program.input_dir;
@@ -79,6 +77,25 @@ describe('Differential fuzzing', () => {
         DifferentialFuzzMutator,
         'mutations.js',
         'mutations_expected.js');
+  });
+
+  it('adds block printing', () => {
+    this.settings['DIFF_FUZZ_EXTRA_PRINT'] = 0.0;
+    this.settings['DIFF_FUZZ_BLOCK_PRINT'] = 1.0;
+    testMutators(
+        this.settings,
+        DifferentialFuzzMutator,
+        'mutations.js',
+        'mutations_block_expected.js');
+  });
+
+  it('skips functions', () => {
+    this.settings['DIFF_FUZZ_SKIP_FUNCTIONS'] = 1.0;
+    testMutators(
+        this.settings,
+        DifferentialFuzzMutator,
+        'mutations.js',
+        'mutations_skip_fun_expected.js');
   });
 
   it('does no extra printing', () => {

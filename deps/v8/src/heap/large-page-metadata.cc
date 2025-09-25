@@ -15,29 +15,29 @@ namespace internal {
 
 class Heap;
 
-LargePageMetadata::LargePageMetadata(Heap* heap, BaseSpace* space,
-                                     size_t chunk_size, Address area_start,
-                                     Address area_end,
-                                     VirtualMemory reservation,
-                                     Executability executable)
+LargePageMetadata::LargePageMetadata(
+    Heap* heap, BaseSpace* space, size_t chunk_size, Address area_start,
+    Address area_end, VirtualMemory reservation, Executability executable,
+    MemoryChunk::MainThreadFlags* trusted_flags)
     : MutablePageMetadata(heap, space, chunk_size, area_start, area_end,
-                          std::move(reservation), PageSize::kLarge) {
+                          std::move(reservation), PageSize::kLarge,
+                          executable) {
   static_assert(LargePageMetadata::kMaxCodePageSize <=
                 TypedSlotSet::kMaxOffset);
-
-  DCHECK(IsLargePage());
 
   if (executable && chunk_size > LargePageMetadata::kMaxCodePageSize) {
     FATAL("Code page is too large.");
   }
 
   list_node().Initialize();
-}
 
-MemoryChunk::MainThreadFlags LargePageMetadata::InitialFlags(
-    Executability executable) const {
-  return MutablePageMetadata::InitialFlags(executable) |
-         MemoryChunk::LARGE_PAGE;
+  set_is_large();
+  DCHECK(is_large());
+
+  trusted_main_thread_flags_ =
+      MutablePageMetadata::ComputeInitialFlags(executable) |
+      MemoryChunk::LARGE_PAGE;
+  *trusted_flags = trusted_main_thread_flags_;
 }
 
 void LargePageMetadata::ClearOutOfLiveRangeSlots(Address free_start) {
@@ -50,7 +50,7 @@ void LargePageMetadata::ClearOutOfLiveRangeSlots(Address free_start) {
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
   DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
 
-  DCHECK(!Chunk()->InTrustedSpace());
+  DCHECK(!is_trusted());
   DCHECK_NULL(slot_set<TRUSTED_TO_TRUSTED>());
   DCHECK_NULL(typed_slot_set<TRUSTED_TO_TRUSTED>());
   DCHECK_NULL(slot_set<TRUSTED_TO_SHARED_TRUSTED>());

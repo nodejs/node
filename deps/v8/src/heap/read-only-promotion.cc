@@ -223,10 +223,11 @@ class Committee final {
                                                     Isolate* isolate,
                                                     Tagged<HeapObject> o) {
     const InstanceType itype = o->map(isolate)->instance_type();
-#define V(TYPE)                                                             \
-  if (InstanceTypeChecker::Is##TYPE(itype)) {                               \
-    return GetPromoRecommendation##TYPE(committee, isolate, Cast<TYPE>(o)); \
-    /* NOLINTNEXTLINE(readability/braces) */                                \
+#define V(TYPE)                                                \
+  if (InstanceTypeChecker::Is##TYPE(itype)) {                  \
+    return GetPromoRecommendation##TYPE(committee, isolate,    \
+                                        TrustedCast<TYPE>(o)); \
+    /* NOLINTNEXTLINE(readability/braces) */                   \
   } else
     PROMO_CANDIDATE_TYPE_LIST(V)
     /* if { ... } else */ {
@@ -480,7 +481,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
                                   // TODO(saelo): is it worth logging something
                                   // in this case?
                                   jdt->SetCodeNoWriteBarrier(
-                                      handle, Cast<Code>(new_code));
+                                      handle, TrustedCast<Code>(new_code));
                                 });
 #endif  // V8_ENABLE_LEAPTIERING
   }
@@ -533,8 +534,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 #ifdef V8_ENABLE_SANDBOX
       for (auto [_src, dst] : *moves_) {
         promoted_objects_.emplace(dst);
-        if (IsCode(dst)) {
-          PromoteCodePointerEntryFor(Cast<Code>(dst));
+        if (Tagged<Code> code; TryCast(dst, &code)) {
+          PromoteCodePointerEntryFor(code);
         }
       }
 #endif  // V8_ENABLE_SANDBOX

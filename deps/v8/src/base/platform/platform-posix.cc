@@ -10,12 +10,14 @@
 #include <limits.h>
 #include <pthread.h>
 
+#include "src/base/fpu.h"
 #include "src/base/logging.h"
 #if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
 #include <pthread_np.h>  // for pthread_set_name_np
 #endif
 #include <fcntl.h>
 #include <sched.h>  // for sched_yield
+#include <signal.h>
 #include <stdio.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -80,19 +82,7 @@
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
-/*
- * NOTE: illumos starting with illumos#14418 (pushed April 20th, 2022)
- * prototypes madvise(3C) properly with a `void *` first argument.
- * The only way to detect this outside of configure-time checking is to
- * check for the existence of MEMCNTL_SHARED, which gets defined for the first
- * time in illumos#14418 under the same circumstances save _STRICT_POSIX, which
- * thankfully neither Solaris nor illumos builds of Node or V8 do.
- *
- * If some future illumos push changes the MEMCNTL_SHARED assumptions made
- * above, the illumos check below will have to be revisited.  This check
- * will work on both pre-and-post illumos#14418 illumos environments.
- */
-#if defined(V8_OS_SOLARIS) && !(defined(__illumos__) && defined(MEMCNTL_SHARED))
+#if defined(V8_OS_SOLARIS)
 #if (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE > 2) || defined(__EXTENSIONS__)
 extern "C" int madvise(caddr_t, size_t, int);
 #else
@@ -284,12 +274,48 @@ void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
 
 bool OS::IsHardwareEnforcedShadowStacksEnabled() { return false; }
 
+void OS::EnsureAlternativeSignalStackIsAvailableForCurrentThread() {
+// sigaltstack() is forbidden on tvOS and its usage causes build errors.
+#if !V8_OS_TVOS
+  stack_t ss, old_ss;
+  memset(&ss, 0, sizeof(stack_t));
+  memset(&old_ss, 0, sizeof(stack_t));
+
+  if (sigaltstack(nullptr, &old_ss) == -1) {
+    FATAL("sigaltstack failed with error %d: %s", errno, strerror(errno));
+  }
+
+  // If an alternative stack is already registered, there's nothing left to do.
+  if (!(old_ss.ss_flags & SS_DISABLE)) return;
+
+  // The default alternative stack size of SIGSTKSZ can be too small (e.g.
+  // 8192). For example the profiler signal handler requires a larger stack.
+  const size_t kStackSize = 1024 * 1024;
+  CHECK_GE(kStackSize, SIGSTKSZ);
+  // Allocate the alternative stack with guard regions on both sides to
+  // ensure that we catch stack overflows (and similar issues) on that stack.
+  const size_t kPageSize = AllocatePageSize();
+  const size_t kAllocationSize = kStackSize + 2 * kPageSize;
+  void* ptr = Allocate(nullptr, kAllocationSize, kPageSize,
+                       MemoryPermission::kNoAccess);
+  CHECK_NE(ptr, nullptr);
+  void* stack_ptr = reinterpret_cast<char*>(ptr) + kPageSize;
+  CHECK(SetPermissions(stack_ptr, kStackSize, MemoryPermission::kReadWrite));
+
+  ss.ss_sp = stack_ptr;
+  ss.ss_size = kStackSize;
+  ss.ss_flags = 0;
+
+  if (sigaltstack(&ss, nullptr) == -1) {
+    FATAL("sigaltstack failed with error %d: %s", errno, strerror(errno));
+  }
+#endif
+}
+
 int OS::ActivationFrameAlignment() {
 #if V8_TARGET_ARCH_ARM
   // On EABI ARM targets this is required for fp correctness in the
   // runtime system.
-  return 8;
-#elif V8_TARGET_ARCH_MIPS
   return 8;
 #elif V8_TARGET_ARCH_S390X
   return 8;
@@ -1204,6 +1230,10 @@ static void SetThreadName(const char* name) {
 }
 
 static void* ThreadEntry(void* arg) {
+  // Reset denormals state to default, in case we picked up a non-default one
+  // with the posix clone() call.
+  base::FPU::SetFlushDenormals(false);
+
   Thread* thread = reinterpret_cast<Thread*>(arg);
   // We take the lock here to make sure that pthread_create finished first since
   // we don't know which thread will run first (the original thread or the new

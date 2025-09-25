@@ -121,3 +121,83 @@ d8.file.execute('test/mjsunit/value-helper.js');
     }
   }
 })();
+
+(function I64x2Reverse() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction("scalar", kSig_l_ll).addBody([
+    kExprLocalGet, 0,
+    kExprLocalGet, 1,
+    kExprI64Add,
+  ]).exportFunc();
+  builder.addFunction("simd", kSig_l_llll).addLocals(kWasmS128, 1).addBody([
+    kExprLocalGet, 0,
+    kSimdPrefix, kExprI64x2Splat,                     // [local0, local0]
+    kExprLocalGet, 1,
+    kSimdPrefix, kExprI64x2ReplaceLane, 1,            // [local0, local1]
+    kExprLocalGet, 2,
+    kSimdPrefix, kExprI64x2Splat,                     // [local2, local2]
+    kExprLocalGet, 3,
+    kSimdPrefix, kExprI64x2ReplaceLane, 1,            // [local2, local3]
+    kSimdPrefix, kExprI8x16Shuffle,                   // 3, 2
+    0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+    kExprLocalTee, 4,
+    kSimdPrefix, kExprI64x2ExtractLane, 0,
+    kExprLocalGet, 4,
+    kSimdPrefix, kExprI64x2ExtractLane, 1,
+    kExprI64Add,
+  ]).exportFunc();
+  const wasm = builder.instantiate().exports;
+  for (let idxa = 0; idxa < uint64_array.length; ++idxa) {
+    for (let idxb = 0; idxb < uint64_array.length; ++idxb) {
+      const args = [uint64_array[idxa],
+                    uint64_array[idxb],
+                    uint64_array[(idxb + 1) % uint64_array.length],
+                    uint64_array[(idxa + 1) % uint64_array.length]];
+      const expected = BigInt.asUintN(64, wasm.scalar(args[2], args[3]));
+      const result = BigInt.asUintN(64, wasm.simd(...args));
+      assertEquals(expected, result);
+    }
+  }
+})();
+
+(function I64x2Duplicate() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction("scalar", kSig_l_ll).addBody([
+    kExprLocalGet, 0,
+    kExprLocalGet, 1,
+    kExprI64Add,
+  ]).exportFunc();
+  builder.addFunction("simd", kSig_l_llll).addLocals(kWasmS128, 1).addBody([
+    kExprLocalGet, 0,
+    kSimdPrefix, kExprI64x2Splat,                     // [local0, local0]
+    kExprLocalGet, 1,
+    kSimdPrefix, kExprI64x2ReplaceLane, 1,            // [local0, local1]
+    kExprLocalGet, 2,
+    kSimdPrefix, kExprI64x2Splat,                     // [local2, local2]
+    kExprLocalGet, 3,
+    kSimdPrefix, kExprI64x2ReplaceLane, 1,            // [local2, local3]
+    kSimdPrefix, kExprI8x16Shuffle,                   // 1, 1
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    kExprLocalTee, 4,
+    kSimdPrefix, kExprI64x2ExtractLane, 0,
+    kExprLocalGet, 4,
+    kSimdPrefix, kExprI64x2ExtractLane, 1,
+    kExprI64Add,
+  ]).exportFunc();
+  const wasm = builder.instantiate().exports;
+  for (let idxa = 0; idxa < uint64_array.length; ++idxa) {
+    for (let idxb = 0; idxb < uint64_array.length; ++idxb) {
+      const args = [uint64_array[idxa],
+                    uint64_array[idxb],
+                    uint64_array[(idxb + 1) % uint64_array.length],
+                    uint64_array[(idxa + 1) % uint64_array.length]];
+      const expected = BigInt.asUintN(64, wasm.scalar(args[1], args[1]));
+      const result = BigInt.asUintN(64, wasm.simd(...args));
+      assertEquals(expected, result);
+    }
+  }
+})();

@@ -23,7 +23,7 @@
 namespace v8 {
 namespace internal {
 
-#define xlen (uint8_t(sizeof(void*) * 8))
+#define xlen (static_cast<uint8_t>(sizeof(void*) * 8))
 // Forward declarations.
 enum class AbortReason : uint8_t;
 
@@ -147,9 +147,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // compression cage, enabled via --debug-code.
   void AssertSmiOrHeapObjectInMainCompressionCage(Register object)
       NOOP_UNLESS_DEBUG_CODE;
-
-  // Like Assert(), but always enabled.
-  void Check(Condition cond, AbortReason reason);
 
   // Like Assert(), but always enabled.
   void Check(Condition cc, AbortReason reason, Register rs, Operand rt);
@@ -317,7 +314,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
   static int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
                                        uint8_t* pc);
-  void PatchAndJump(Address target);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(const ExternalReference& reference);
   void Call(Register target, COND_ARGS);
@@ -1082,35 +1078,35 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
   void LoadFPRImmediate(FPURegister dst, uint32_t src);
   void LoadFPRImmediate(FPURegister dst, uint64_t src);
+  // AddOverflowWord sets overflow register to a negative value if
+  // overflow occurred, otherwise it is zero or positive
+  void AddOverflowWord(Register dst, Register left, const Operand& right,
+                       Register overflow);
+  // SubOverflowWord sets overflow register to a negative value if
+  // overflow occurred, otherwise it is zero or positive
+  void SubOverflowWord(Register dst, Register left, const Operand& right,
+                       Register overflow);
 #if V8_TARGET_ARCH_RISCV64
-  // AddOverflow64 sets overflow register to a negative value if
-  // overflow occured, otherwise it is zero or positive
-  void AddOverflow64(Register dst, Register left, const Operand& right,
+  // AddOverflow32 sets overflow register to a negative value if
+  // overflow occurred, otherwise it is zero or positive
+  void AddOverflow32(Register dst, Register left, const Operand& right,
                      Register overflow);
-  // SubOverflow64 sets overflow register to a negative value if
-  // overflow occured, otherwise it is zero or positive
-  void SubOverflow64(Register dst, Register left, const Operand& right,
+  // SubOverflow32 sets overflow register to a negative value if
+  // overflow occurred, otherwise it is zero or positive
+  void SubOverflow32(Register dst, Register left, const Operand& right,
                      Register overflow);
   // MIPS-style 32-bit unsigned mulh
   void Mulhu32(Register dst, Register left, const Operand& right,
                Register left_zero, Register right_zero);
 #elif V8_TARGET_ARCH_RISCV32
-  // AddOverflow sets overflow register to a negative value if
-  // overflow occured, otherwise it is zero or positive
-  void AddOverflow(Register dst, Register left, const Operand& right,
-                   Register overflow);
-  // SubOverflow sets overflow register to a negative value if
-  // overflow occured, otherwise it is zero or positive
-  void SubOverflow(Register dst, Register left, const Operand& right,
-                   Register overflow);
   // MIPS-style 32-bit unsigned mulh
   void Mulhu(Register dst, Register left, const Operand& right,
              Register left_zero, Register right_zero);
 #endif
-  // MulOverflow32 sets overflow register to zero if no overflow occured
+  // MulOverflow32 sets overflow register to zero if no overflow occurred
   void MulOverflow32(Register dst, Register left, const Operand& right,
                      Register overflow, bool sign_extend_inputs = true);
-  // MulOverflow64 sets overflow register to zero if no overflow occured
+  // MulOverflow64 sets overflow register to zero if no overflow occurred
   void MulOverflow64(Register dst, Register left, const Operand& right,
                      Register overflow);
   // Number of instructions needed for calculation of switch table entry address
@@ -1120,7 +1116,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // functor/function with 'Label *func(size_t index)' declaration.
   template <typename Func>
   void GenerateSwitchTable(Register index, size_t case_count,
-                           Func GetLabelFunction);
+                           Func GetLabelFunction, int case_value_base = 0,
+                           Register scratch = no_reg);
 
   // Load an object from the root table.
   void LoadRoot(Register destination, RootIndex index) final;
@@ -1128,10 +1125,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadCompressedTaggedRoot(Register destination, RootIndex index);
 
   void LoadMap(Register destination, Register object);
+  void LoadCompressedMap(Register dst, Register object);
 
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
-  void LoadCompressedMap(Register dst, Register object);
+
+  void LoadInterpreterDataBytecodeArray(Register destination,
+                                        Register interpreter_data);
+  void LoadInterpreterDataInterpreterTrampoline(Register destination,
+                                                Register interpreter_data);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
   void FPUCanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);
@@ -1226,6 +1228,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                VRegister v_scratch);
   void Round_d(VRegister dst, VRegister src, Register scratch,
                VRegister v_scratch);
+
+  void FaddS(FPURegister dst, FPURegister lhs, FPURegister rhs);
   // -------------------------------------------------------------------------
   // Smi utilities.
 
@@ -1241,7 +1245,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       Add32(dst, src, src);
     }
 #elif V8_TARGET_ARCH_RISCV32
-
     DCHECK(SmiValuesAre31Bits());
     // Smi is shifted left by 1
     Sll32(dst, src, kSmiShift);
@@ -1257,16 +1260,30 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // AssembleArchBinarySearchSwitchRange Use JumpIfEqual and JumpIfLessThan.
   // In V8_COMPRESS_POINTERS, the compare is done with the lower 32 bits of the
   // input.
-  void JumpIfEqual(Register a, int32_t b, Label* dest) {
+  // The sign extension has been moved to AssembleArchBinarySearchSwitch. When
+  // called from AssembleArchBinarySearchSwitchRange, the flag
+  // signext_if_compress_pointer is set to false, indicating that sign extension
+  // has already been handled upstream.
+  void JumpIfEqual(Register a, int32_t b, Label* dest,
+                   bool signext_if_compress_pointer = true) {
 #ifdef V8_COMPRESS_POINTERS
-    Sll32(a, a, 0);
+    if (signext_if_compress_pointer) {
+      SignExtendWord(a, a);
+    } else {
+      AssertSignExtended(a);
+    }
 #endif
     Branch(dest, eq, a, Operand(b));
   }
 
-  void JumpIfLessThan(Register a, int32_t b, Label* dest) {
+  void JumpIfLessThan(Register a, int32_t b, Label* dest,
+                      bool signext_if_compress_pointer = true) {
 #ifdef V8_COMPRESS_POINTERS
-    Sll32(a, a, 0);
+    if (signext_if_compress_pointer) {
+      SignExtendWord(a, a);
+    } else {
+      AssertSignExtended(a);
+    }
 #endif
     Branch(dest, lt, a, Operand(b));
   }
@@ -1455,7 +1472,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     Register scratch = temps.Acquire();
     AddWord(scratch, dst.rm(), dst.offset());
     trapper(pc_offset());
-    amoswap_w(true, true, zero_reg, src, scratch);
+    amoswap_w(true, true, zero_reg, scratch, src);
   }
 #endif
 
@@ -1502,11 +1519,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void WasmRvvS128const(VRegister dst, const uint8_t imms[16]);
 
   void LoadLane(
-      int sz, VRegister dst, uint8_t laneidx, MemOperand src,
-      Trapper&& trapper = [](int){});
+      VSew sew, VRegister dst, uint8_t laneidx, MemOperand src,
+      Trapper&& trapper = [](int) {});
   void StoreLane(
-      int sz, VRegister src, uint8_t laneidx, MemOperand dst,
-      Trapper&& trapper = [](int){});
+      VSew sew, VRegister src, uint8_t laneidx, MemOperand dst,
+      Trapper&& trapper = [](int) {});
 
   // It assumes that the arguments are located below the stack pointer.
   void LoadReceiver(Register dest) { LoadWord(dest, MemOperand(sp, 0)); }
@@ -1548,7 +1565,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                      Label::Distance distance = Label::kFar) {
     Branch(if_not_equal, ne, with, index, distance);
   }
-
+#if V8_STATIC_ROOTS_BOOL
+  // Fast variant which is guaranteed to not actually load the instance type
+  // from the map.
+  void BranchObjectTypeFast(Label* target, Condition cc, Register heap_object,
+                            Register compressed_map_scratch, InstanceType type);
+  void BranchInstanceTypeWithUniqueCompressedMap(Label* target, Condition cc,
+                                                 Register map, Register scratch,
+                                                 InstanceType type);
+#endif  // V8_STATIC_ROOTS_BOOL
   // Checks if value is in range [lower_limit, higher_limit] using a single
   // comparison.
   void JumpIfIsInRange(Register value, unsigned lower_limit,
@@ -1962,31 +1987,41 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
 template <typename Func>
 void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
-                                         Func GetLabelFunction) {
-  // Ensure that dd-ed labels following this instruction use 8 bytes aligned
-  // addresses.
-  BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 +
-                         kSwitchTablePrologueSize);
+                                         Func GetLabelFunction,
+                                         int case_value_base,
+                                         Register scratch) {
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Register scratch2 = temps.Acquire();
-
-  Align(8);
-  // Load the address from the jump table at index and jump to it
-  auipc(scratch, 0);  // Load the current PC into scratch
-  SllWord(scratch2, index,
-          kSystemPointerSizeLog2);  // scratch2 = offset of indexth entry
-  AddWord(scratch2, scratch2,
-          scratch);  // scratch2 = (saved PC) + (offset of indexth entry)
-  LoadWord(scratch2,
-           MemOperand(scratch2,
-                      6 * kInstrSize));  // Add the size of these 6 instructions
-                                         // to the offset, then load
-  jr(scratch2);  // Jump to the address loaded from the table
-  nop();         // For 16-byte alignment
-  for (size_t index = 0; index < case_count; ++index) {
-    dd(GetLabelFunction(index));
+  Register table = scratch;
+  if (table == no_reg) {
+    table = temps.Acquire();
   }
+  Label fallthrough, jump_table;
+  if (case_value_base != 0) {
+    SubWord(index, index, Operand(case_value_base));
+  }
+  Branch(&fallthrough, Condition::Ugreater_equal, index, Operand(case_count));
+  LoadAddress(table, &jump_table);
+  CalcScaledAddress(table, table, index, kSystemPointerSizeLog2);
+  LoadWord(table, MemOperand(table, 0));
+  Jump(table);
+  // Calculate label area size and let MASM know that it will be impossible to
+  // create the trampoline within the range. That forces MASM to create the
+  // trampoline right here if necessary, i.e. if label area is too large and
+  // all unbound forward branches cannot be bound over it.
+  int aligned_label_area_size =
+      static_cast<int>(case_count) * kUIntptrSize + kSystemPointerSize;
+  BlockTrampolinePoolScope block_trampoline_pool(this, aligned_label_area_size);
+  // Emit the jump table inline, under the assumption that it's not too big.
+  Align(kSystemPointerSize);
+  bind(&jump_table);
+  for (size_t i = 0; i < case_count; ++i) {
+#if defined(V8_TARGET_ARCH_RISCV64)
+    dq(GetLabelFunction(i));
+#elif defined(V8_TARGET_ARCH_RISCV32)
+    dd(GetLabelFunction(i));
+#endif
+  }
+  bind(&fallthrough);
 }
 
 struct MoveCycleState {

@@ -1672,7 +1672,7 @@ TEST(Regress_1171759) {
   CallDescriptor* desc = compiler::GetWasmCallDescriptor(
       &zone, builder.Get(), WasmCallKind::kWasmIndirectFunction);
 
-  HandleAndZoneScope handles(kCompressGraphZone);
+  HandleAndZoneScope handles;
   RawMachineAssembler m(handles.main_isolate(),
                         handles.main_zone()->New<TFGraph>(handles.main_zone()),
                         desc, MachineType::PointerRepresentation(),

@@ -9,3 +9,5 @@ function foo(__v_0) {
   return 1 in /* DifferentialFuzzSuppressions: Replaced .arguments */__v_0;
 }
 print(/* DifferentialFuzzSuppressions: Replaced ** */192 + -0.5);
+let a = 5;
+/* DifferentialFuzzSuppressions: Replaced **= */a += 2;

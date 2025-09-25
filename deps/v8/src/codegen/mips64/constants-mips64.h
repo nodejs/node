@@ -2024,6 +2024,11 @@ bool InstructionGetters<T>::IsForbiddenAfterBranchInstr(Instr instr) {
       return false;
   }
 }
+
+// The maximum size of the stack restore after a fast API call that pops the
+// stack parameters of the call off the stack.
+constexpr int kMaxSizeOfMoveAfterFastCall = 4;
+
 }  // namespace internal
 }  // namespace v8
 

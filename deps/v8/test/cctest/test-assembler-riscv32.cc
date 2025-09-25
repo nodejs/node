@@ -118,7 +118,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 // to move from GPR to FPR and back in all floating point tests
 #define UTEST_LOAD_STORE_F(ldname, stname, value_type, store_value) \
   TEST(RISCV_UTEST_##stname##ldname) {                              \
-    DCHECK(std::is_floating_point<value_type>::value);              \
+    DCHECK(std::is_floating_point_v<value_type>);                   \
                                                                     \
     CcTest::InitializeVM();                                         \
     auto fn = [](MacroAssembler& assm) {                            \
@@ -140,7 +140,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 
 #define UTEST_R1_FORM_WITH_RES_F(instr_name, type, rs1_fval, expected_fres) \
   TEST(RISCV_UTEST_##instr_name) {                                          \
-    DCHECK(std::is_floating_point<type>::value);                            \
+    DCHECK(std::is_floating_point_v<type>);                                 \
     CcTest::InitializeVM();                                                 \
     auto fn = [](MacroAssembler& assm) { __ instr_name(fa0, fa0); };        \
     auto res = GenAndRunTest<type, type>(rs1_fval, fn);                     \
@@ -150,7 +150,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 #define UTEST_R2_FORM_WITH_RES_F(instr_name, type, rs1_fval, rs2_fval,    \
                                  expected_fres)                           \
   TEST(RISCV_UTEST_##instr_name) {                                        \
-    DCHECK(std::is_floating_point<type>::value);                          \
+    DCHECK(std::is_floating_point_v<type>);                               \
     CcTest::InitializeVM();                                               \
     auto fn = [](MacroAssembler& assm) { __ instr_name(fa0, fa0, fa1); }; \
     auto res = GenAndRunTest<type, type>(rs1_fval, rs2_fval, fn);         \
@@ -160,7 +160,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 #define UTEST_R3_FORM_WITH_RES_F(instr_name, type, rs1_fval, rs2_fval,         \
                                  rs3_fval, expected_fres)                      \
   TEST(RISCV_UTEST_##instr_name) {                                             \
-    DCHECK(std::is_floating_point<type>::value);                               \
+    DCHECK(std::is_floating_point_v<type>);                                    \
     CcTest::InitializeVM();                                                    \
     auto fn = [](MacroAssembler& assm) { __ instr_name(fa0, fa0, fa1, fa2); }; \
     auto res = GenAndRunTest<type, type>(rs1_fval, rs2_fval, rs3_fval, fn);    \
@@ -179,8 +179,8 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 #define UTEST_CONV_F_FROM_I(instr_name, input_type, output_type, rs1_val, \
                             expected_fres)                                \
   TEST(RISCV_UTEST_##instr_name) {                                        \
-    DCHECK(std::is_integral<input_type>::value&&                          \
-               std::is_floating_point<output_type>::value);               \
+    DCHECK(std::is_integral_v<input_type> &&                              \
+           std::is_floating_point_v<output_type>);                        \
                                                                           \
     CcTest::InitializeVM();                                               \
     auto fn = [](MacroAssembler& assm) { __ instr_name(fa0, a0); };       \
@@ -191,8 +191,8 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 #define UTEST_CONV_I_FROM_F(instr_name, input_type, output_type,     \
                             rounding_mode, rs1_fval, expected_res)   \
   TEST(RISCV_UTEST_##instr_name) {                                   \
-    DCHECK(std::is_floating_point<input_type>::value&&               \
-               std::is_integral<output_type>::value);                \
+    DCHECK(std::is_floating_point_v<input_type> &&                   \
+           std::is_integral_v<output_type>);                         \
                                                                      \
     CcTest::InitializeVM();                                          \
     auto fn = [](MacroAssembler& assm) {                             \
@@ -203,13 +203,14 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
   }                                                                  \
                                                                      \
   TEST(RISCV_UTEST_dyn_##instr_name) {                               \
-    DCHECK(std::is_floating_point<input_type>::value&&               \
-               std::is_integral<output_type>::value);                \
+    DCHECK(std::is_floating_point_v<input_type> &&                   \
+           std::is_integral_v<output_type>);                         \
                                                                      \
     CcTest::InitializeVM();                                          \
     auto fn = [](MacroAssembler& assm) {                             \
-      __ csrwi(csr_frm, rounding_mode);                              \
+      __ csrrwi(t0, csr_frm, rounding_mode);                         \
       __ instr_name(a0, fa0, DYN);                                   \
+      __ csrw(csr_frm, t0);                                          \
     };                                                               \
     auto res = GenAndRunTest<output_type, input_type>(rs1_fval, fn); \
     CHECK_EQ(expected_res, res);                                     \
@@ -232,6 +233,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
     int64_t expected_res = 111;                                             \
     Label exit, error;                                                      \
     auto fn = [&exit, &error, expected_res](MacroAssembler& assm) {         \
+      __ csrr(t1, csr_reg);                                                 \
       /* test csr-write and csr-read */                                     \
       __ csrwi(csr_reg, csr_write_val);                                     \
       __ csrr(a0, csr_reg);                                                 \
@@ -256,6 +258,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
       __ RV_li(a0, 666);                                                    \
                                                                             \
       __ bind(&exit);                                                       \
+      __ csrw(csr_reg, t1);                                                 \
     };                                                                      \
     auto res = GenAndRunTest(fn);                                           \
     CHECK_EQ(expected_res, res);                                            \
@@ -266,6 +269,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
     Label exit, error;                                              \
     int64_t expected_res = 111;                                     \
     auto fn = [&exit, &error, expected_res](MacroAssembler& assm) { \
+      __ csrr(t1, csr_reg);                                         \
       /* test csr-write and csr-read */                             \
       __ RV_li(t0, csr_write_val);                                  \
       __ csrw(csr_reg, t0);                                         \
@@ -293,6 +297,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
       __ RV_li(a0, 666);                                            \
                                                                     \
       __ bind(&exit);                                               \
+      __ csrw(csr_reg, t1);                                         \
     };                                                              \
                                                                     \
     auto res = GenAndRunTest(fn);                                   \
@@ -389,8 +394,8 @@ UTEST_R2_FORM_WITH_RES(orn, int32_t, LARGE_UINT_UNDER_32_BIT,
 
 UTEST_R2_FORM_WITH_RES(xnor, int32_t, LARGE_UINT_UNDER_32_BIT,
                        LARGE_INT_UNDER_32_BIT,
-                       int32_t((~LARGE_UINT_UNDER_32_BIT) ^
-                               (~LARGE_INT_UNDER_32_BIT)))
+                       int32_t(~(LARGE_UINT_UNDER_32_BIT ^
+                                 LARGE_INT_UNDER_32_BIT)))
 
 UTEST_R1_FORM_WITH_RES(clz, int32_t, int32_t, 0b000011000100000000000, 15)
 UTEST_R1_FORM_WITH_RES(ctz, int32_t, int32_t, 0b000011000100000000000, 11)
@@ -1637,14 +1642,14 @@ TEST(jump_tables1) {
     __ Sw(ra, MemOperand(sp));
     __ Align(4);
     {
-      __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
+      MacroAssembler::BlockTrampolinePoolScope block(
+          &assm, (kNumCases + 5) * kInstrSize);
 
       __ auipc(ra, 0);
       __ slli(t3, a0, 2);
       __ add(t3, t3, ra);
-      __ Lw(t3, MemOperand(t3, 6 * kInstrSize));
+      __ Lw(t3, MemOperand(t3, 5 * kInstrSize));
       __ jr(t3);
-      __ nop();  // For 16-byte alignment
       for (int i = 0; i < kNumCases; ++i) {
         __ dd(&labels[i]);
       }
@@ -1696,14 +1701,14 @@ TEST(jump_tables2) {
     __ bind(&dispatch);
 
     {
-      __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
+      MacroAssembler::BlockTrampolinePoolScope block(
+          &assm, (kNumCases + 5) * kInstrSize);
 
       __ auipc(ra, 0);
       __ slli(t3, a0, 2);
       __ add(t3, t3, ra);
-      __ Lw(t3, MemOperand(t3, 6 * kInstrSize));
+      __ Lw(t3, MemOperand(t3, 5 * kInstrSize));
       __ jr(t3);
-      __ nop();  // For 16-byte alignment
       for (int i = 0; i < kNumCases; ++i) {
         __ dd(&labels[i]);
       }
@@ -1747,22 +1752,21 @@ TEST(jump_tables3) {
       __ bind(&labels[i]);
       obj = *values[i];
       imm32 = obj.ptr();
-      __ nop();  // For 8 byte alignment
       __ RV_li(a0, imm32);
-      __ nop();  // For 8 byte alignment
       __ j(&done);
     }
 
+    __ Align(4);
     __ bind(&dispatch);
+
     {
-      __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
-      __ Align(4);
+      MacroAssembler::BlockTrampolinePoolScope block(
+          &assm, (kNumCases + 5) * kInstrSize);
       __ auipc(ra, 0);
       __ slli(t3, a0, 2);
       __ add(t3, t3, ra);
-      __ Lw(t3, MemOperand(t3, 6 * kInstrSize));
+      __ Lw(t3, MemOperand(t3, 5 * kInstrSize));
       __ jr(t3);
-      __ nop();  // For 16-byte alignment
       for (int i = 0; i < kNumCases; ++i) {
         __ dd(&labels[i]);
       }
@@ -1806,7 +1810,6 @@ TEST(li_estimate) {
   }
 }
 
-#ifdef CAN_USE_RVV_INSTRUCTIONS
 #define UTEST_LOAD_STORE_RVV(ldname, stname, SEW, arry)                      \
   TEST(RISCV_UTEST_##stname##ldname##SEW) {                                  \
     if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                       \
@@ -3097,7 +3100,6 @@ TEST(RISCV_UTEST_WasmRvvS128const) {
 }
 
 #undef UTEST_VCPOP_M_WITH_WIDTH
-#endif  // CAN_USE_RVV_INSTRUCTIONS
 #undef __
 }  // namespace internal
 }  // namespace v8

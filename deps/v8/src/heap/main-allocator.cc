@@ -16,6 +16,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/main-allocator-inl.h"
+#include "src/heap/mark-compact-inl.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/page-metadata-inl.h"
 #include "src/heap/paged-spaces.h"
@@ -201,7 +202,7 @@ AllocationResult MainAllocator::AllocateRawSlow(int size_in_bytes,
                     !isolate_heap()->isolate()->InFastCCall());
 
   AllocationResult result =
-      USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned
+      alignment != kTaggedAligned
           ? AllocateRawSlowAligned(size_in_bytes, alignment, origin)
           : AllocateRawSlowUnaligned(size_in_bytes, origin);
   return result;
@@ -284,35 +285,29 @@ void MainAllocator::FreeLinearAllocationAreaAndResetFreeList() {
 
 void MainAllocator::MoveOriginalTopForward() {
   DCHECK(SupportsPendingAllocation());
-  base::MutexGuard guard(linear_area_original_data().linear_area_lock());
-  DCHECK_GE(top(), linear_area_original_data().get_original_top_acquire());
-  DCHECK_LE(top(), linear_area_original_data().get_original_limit_relaxed());
-  linear_area_original_data().set_original_top_release(top());
+  linear_area_original_data().SetTopAndLimit(top(), extended_limit());
 }
 
 void MainAllocator::ResetLab(Address start, Address end, Address extended_end) {
   DCHECK_LE(start, end);
   DCHECK_LE(end, extended_end);
+  DCHECK_IMPLIES(!supports_extending_lab(), end == extended_end);
 
   if (IsLabValid()) {
     MemoryChunkMetadata::UpdateHighWaterMark(top());
   }
 
   allocation_info().Reset(start, end);
+  extended_limit_ = extended_end;
 
   if (SupportsPendingAllocation()) {
-    base::MutexGuard guard(linear_area_original_data().linear_area_lock());
-    linear_area_original_data().set_original_limit_relaxed(extended_end);
-    linear_area_original_data().set_original_top_release(start);
+    linear_area_original_data().SetTopAndLimit(start, extended_end);
   }
 }
 
 bool MainAllocator::IsPendingAllocation(Address object_address) {
   DCHECK(SupportsPendingAllocation());
-  base::MutexGuard guard(linear_area_original_data().linear_area_lock());
-  Address top = original_top_acquire();
-  Address limit = original_limit_relaxed();
-  DCHECK_LE(top, limit);
+  auto [top, limit] = linear_area_original_data().GetTopAndLimitLocked();
   return top && top <= object_address && object_address < limit;
 }
 
@@ -346,7 +341,7 @@ void MainAllocator::FreeLinearAllocationArea() {
 
 void MainAllocator::ExtendLAB(Address limit) {
   DCHECK(supports_extending_lab());
-  DCHECK_LE(limit, original_limit_relaxed());
+  DCHECK_LE(limit, extended_limit());
   allocation_info().SetLimit(limit);
 }
 
@@ -404,11 +399,11 @@ void MainAllocator::Verify() const {
 
   if (SupportsPendingAllocation()) {
     // Ensure that original_top <= top <= limit <= original_limit.
-    DCHECK_LE(linear_area_original_data().get_original_top_acquire(),
-              allocation_info().top());
+    auto [original_top, original_limit] =
+        linear_area_original_data().GetTopAndLimit();
+    DCHECK_LE(original_top, allocation_info().top());
     DCHECK_LE(allocation_info().top(), allocation_info().limit());
-    DCHECK_LE(allocation_info().limit(),
-              linear_area_original_data().get_original_limit_relaxed());
+    DCHECK_LE(allocation_info().limit(), original_limit);
   } else {
     DCHECK_LE(allocation_info().top(), allocation_info().limit());
   }
@@ -734,7 +729,7 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
     if (page != nullptr) {
       // Make sure we don't evacuate into a black allocated page.
       DCHECK_IMPLIES(v8_flags.black_allocated_pages,
-                     !page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+                     !page->Chunk()->IsBlackAllocatedPage());
       space_->AddPage(page);
       if (TryAllocationFromFreeList(static_cast<size_t>(size_in_bytes), origin))
         return true;
@@ -841,8 +836,8 @@ bool PagedSpaceAllocatorPolicy::TryAllocationFromFreeList(
             size_in_bytes);
 
   size_t new_node_size = 0;
-  Tagged<FreeSpace> new_node =
-      space_->free_list_->Allocate(size_in_bytes, &new_node_size, origin);
+  Tagged<FreeSpace> new_node = space_->free_list_->Allocate(
+      space_->heap(), size_in_bytes, &new_node_size, origin);
   if (new_node.is_null()) return false;
   DCHECK_GE(new_node_size, size_in_bytes);
 
@@ -888,7 +883,7 @@ bool PagedSpaceAllocatorPolicy::TryExtendLAB(int size_in_bytes) {
   Address current_top = allocator_->top();
   if (current_top == kNullAddress) return false;
   Address current_limit = allocator_->limit();
-  Address max_limit = allocator_->original_limit_relaxed();
+  Address max_limit = allocator_->extended_limit();
   if (current_top + size_in_bytes > max_limit) {
     return false;
   }
@@ -924,9 +919,7 @@ void PagedSpaceAllocatorPolicy::FreeLinearAllocationAreaUnsynchronized() {
   Address current_top = allocator_->top();
   Address current_limit = allocator_->limit();
 
-  Address current_max_limit = allocator_->supports_extending_lab()
-                                  ? allocator_->original_limit_relaxed()
-                                  : current_limit;
+  Address current_max_limit = allocator_->extended_limit();
   DCHECK_IMPLIES(!allocator_->supports_extending_lab(),
                  current_max_limit == current_limit);
 
@@ -947,6 +940,24 @@ void PagedSpaceAllocatorPolicy::FreeLinearAllocationAreaUnsynchronized() {
                  space_heap()->marking_state()->IsUnmarked(
                      HeapObject::FromAddress(current_top)));
   space_->Free(current_top, current_max_limit - current_top);
+}
+
+std::pair<Address, Address> LinearAreaOriginalData::GetTopAndLimitLocked()
+    const {
+  base::MutexGuard guard(mutex_);
+  auto [top, limit] = GetTopAndLimit();
+  // This always holds because we load both fields while locking the mutex.
+  DCHECK_LE(top, limit);
+  return std::make_pair(top, limit);
+}
+
+void LinearAreaOriginalData::SetTopAndLimit(Address top, Address limit) {
+  base::MutexGuard guard(mutex_);
+  // The order of the two stores is important. See GetTopAndLimit().
+  original_limit_.store(limit, std::memory_order_relaxed);
+  // Use acquire/release semantics here to prevent subsequent stores to move
+  // before this store here.
+  original_top_.exchange(top, std::memory_order_acq_rel);
 }
 
 }  // namespace internal

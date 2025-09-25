@@ -13,31 +13,29 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <random>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "absl/base/config.h"
 #include "absl/numeric/int128.h"
+#include "absl/random/random.h"
 #include "benchmark/benchmark.h"
 
 namespace {
 
 constexpr size_t kSampleSize = 1000000;
 
-std::mt19937 MakeRandomEngine() {
-  std::random_device r;
-  std::seed_seq seed({r(), r(), r(), r(), r(), r(), r(), r()});
-  return std::mt19937(seed);
-}
-
 template <typename T,
           typename H = typename std::conditional<
               std::numeric_limits<T>::is_signed, int64_t, uint64_t>::type>
 std::vector<std::pair<T, T>> GetRandomClass128SampleUniformDivisor() {
   std::vector<std::pair<T, T>> values;
-  std::mt19937 random = MakeRandomEngine();
+  absl::InsecureBitGen random;
   std::uniform_int_distribution<H> uniform_h;
   values.reserve(kSampleSize);
   for (size_t i = 0; i < kSampleSize; ++i) {
@@ -77,7 +75,7 @@ template <typename T,
               std::numeric_limits<T>::is_signed, int64_t, uint64_t>::type>
 std::vector<std::pair<T, H>> GetRandomClass128SampleSmallDivisor() {
   std::vector<std::pair<T, H>> values;
-  std::mt19937 random = MakeRandomEngine();
+  absl::InsecureBitGen random;
   std::uniform_int_distribution<H> uniform_h;
   values.reserve(kSampleSize);
   for (size_t i = 0; i < kSampleSize; ++i) {
@@ -114,7 +112,7 @@ BENCHMARK_TEMPLATE(BM_RemainderClass128SmallDivisor, absl::int128);
 
 std::vector<std::pair<absl::uint128, absl::uint128>> GetRandomClass128Sample() {
   std::vector<std::pair<absl::uint128, absl::uint128>> values;
-  std::mt19937 random = MakeRandomEngine();
+  absl::InsecureBitGen random;
   std::uniform_int_distribution<uint64_t> uniform_uint64;
   values.reserve(kSampleSize);
   for (size_t i = 0; i < kSampleSize; ++i) {
@@ -155,7 +153,8 @@ template <typename T,
 class UniformIntDistribution128 {
  public:
   // NOLINTNEXTLINE: mimicking std::uniform_int_distribution API
-  T operator()(std::mt19937& generator) {
+  template <class URBG>
+  T operator()(URBG& generator) {
     return (static_cast<T>(dist64_(generator)) << 64) | dist64_(generator);
   }
 
@@ -168,7 +167,7 @@ template <typename T,
               std::is_same<T, __int128>::value, int64_t, uint64_t>::type>
 std::vector<std::pair<T, T>> GetRandomIntrinsic128SampleUniformDivisor() {
   std::vector<std::pair<T, T>> values;
-  std::mt19937 random = MakeRandomEngine();
+  absl::InsecureBitGen random;
   UniformIntDistribution128<T> uniform_128;
   values.reserve(kSampleSize);
   for (size_t i = 0; i < kSampleSize; ++i) {
@@ -209,7 +208,7 @@ template <typename T,
               std::is_same<T, __int128>::value, int64_t, uint64_t>::type>
 std::vector<std::pair<T, H>> GetRandomIntrinsic128SampleSmallDivisor() {
   std::vector<std::pair<T, H>> values;
-  std::mt19937 random = MakeRandomEngine();
+  absl::InsecureBitGen random;
   UniformIntDistribution128<T> uniform_int128;
   std::uniform_int_distribution<H> uniform_int64;
   values.reserve(kSampleSize);
@@ -246,9 +245,9 @@ BENCHMARK_TEMPLATE(BM_RemainderIntrinsic128SmallDivisor, unsigned __int128);
 BENCHMARK_TEMPLATE(BM_RemainderIntrinsic128SmallDivisor, __int128);
 
 std::vector<std::pair<unsigned __int128, unsigned __int128>>
-      GetRandomIntrinsic128Sample() {
+GetRandomIntrinsic128Sample() {
   std::vector<std::pair<unsigned __int128, unsigned __int128>> values;
-  std::mt19937 random = MakeRandomEngine();
+  absl::InsecureBitGen random;
   UniformIntDistribution128<unsigned __int128> uniform_uint128;
   values.reserve(kSampleSize);
   for (size_t i = 0; i < kSampleSize; ++i) {

@@ -13,8 +13,7 @@
 #include "src/compiler/turboshaft/memory-optimization-reducer.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
-#include "src/compiler/turboshaft/variable-reducer.h"
-#include "src/compiler/turboshaft/wasm-lowering-reducer.h"
+#include "src/compiler/turboshaft/wasm-code-coverage-reducer.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/roots/roots-inl.h"
 
@@ -25,7 +24,7 @@ void WasmOptimizePhase::Run(PipelineData* data, Zone* temp_zone) {
                               v8_flags.turboshaft_trace_reduction);
   CopyingPhase<LateEscapeAnalysisReducer, MachineOptimizationReducer,
                MemoryOptimizationReducer, BranchEliminationReducer,
-               LateLoadEliminationReducer,
+               LateLoadEliminationReducer, WasmCodeCoverageReducer,
                ValueNumberingReducer>::Run(data, temp_zone);
 }
 

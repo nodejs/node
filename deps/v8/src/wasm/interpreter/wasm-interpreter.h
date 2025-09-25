@@ -19,6 +19,7 @@
 #include "src/base/vector.h"
 #include "src/common/simd128.h"
 #include "src/logging/counters.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/interpreter/instruction-handlers.h"
 #include "src/wasm/interpreter/wasm-interpreter-objects.h"
@@ -435,12 +436,17 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
 
   const Isolate* GetIsolate() const { return isolate_; }
 
+  Address fuzzer_entry_frame_pointer() { return fuzzer_entry_frame_pointer_; }
+  void set_fuzzer_entry_frame_pointer(Address frame_address) {
+    fuzzer_entry_frame_pointer_ = frame_address;
+  }
+  void reset_fuzzer_entry_frame_pointer() {
+    fuzzer_entry_frame_pointer_ = kNullAddress;
+  }
+
   State state() const { return state_; }
 
   void Run() {
-    if (!trap_handler::IsThreadInWasm()) {
-      trap_handler::SetThreadInWasm();
-    }
     state_ = State::RUNNING;
   }
   void Stop() { state_ = State::STOPPED; }
@@ -553,6 +559,10 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
   Isolate* isolate_;
   State state_;
   TrapReason trap_reason_;
+  // In fuzzer mode, the interpreter is not called from a JS function, but
+  // directly from the fuzzer. We need to add a fake frame pointer that can be
+  // used to access the stack.
+  Address fuzzer_entry_frame_pointer_;
 
   static constexpr uint32_t kInitialStackSize = 1 * MB;
   static constexpr uint32_t kStackSizeIncrement = 1 * MB;
@@ -2098,16 +2108,6 @@ class WasmBytecodeGenerator {
 
   WasmBytecodeGenerator(const WasmBytecodeGenerator&) = delete;
   WasmBytecodeGenerator& operator=(const WasmBytecodeGenerator&) = delete;
-};
-
-// TODO(paolosev@microsoft.com) Duplicated from src/runtime/runtime-wasm.cc
-class V8_NODISCARD ClearThreadInWasmScope {
- public:
-  explicit ClearThreadInWasmScope(Isolate* isolate);
-  ~ClearThreadInWasmScope();
-
- private:
-  Isolate* isolate_;
 };
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING

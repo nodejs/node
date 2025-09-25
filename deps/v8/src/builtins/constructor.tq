@@ -31,7 +31,8 @@ const kFunctionScope:
     constexpr ScopeType generates 'ScopeType::FUNCTION_SCOPE';
 
 extern macro ConstructorBuiltinsAssembler::FastNewFunctionContext(
-    ScopeInfo, uint32, Context, constexpr ScopeType): Context;
+    ScopeInfo, uint32, Context, constexpr ScopeType,
+    constexpr ContextMode): Context;
 extern macro ConstructorBuiltinsAssembler::CreateRegExpLiteral(
     HeapObject, TaggedIndex, Object, Smi, Context): JSRegExp;
 extern macro ConstructorBuiltinsAssembler::CreateShallowArrayLiteral(
@@ -55,12 +56,20 @@ builtin FastNewClosureBaseline(
 
 builtin FastNewFunctionContextEval(
     implicit context: Context)(scopeInfo: ScopeInfo, slots: uint32): Context {
-  return FastNewFunctionContext(scopeInfo, slots, context, kEvalScope);
+  return FastNewFunctionContext(
+      scopeInfo, slots, context, kEvalScope, ContextMode::kNoContextCells);
 }
 
 builtin FastNewFunctionContextFunction(
     implicit context: Context)(scopeInfo: ScopeInfo, slots: uint32): Context {
-  return FastNewFunctionContext(scopeInfo, slots, context, kFunctionScope);
+  return FastNewFunctionContext(
+      scopeInfo, slots, context, kFunctionScope, ContextMode::kNoContextCells);
+}
+
+builtin FastNewFunctionContextFunctionWithCells(
+    implicit context: Context)(scopeInfo: ScopeInfo, slots: uint32): Context {
+  return FastNewFunctionContext(
+      scopeInfo, slots, context, kFunctionScope, ContextMode::kHasContextCells);
 }
 
 builtin CreateRegExpLiteral(

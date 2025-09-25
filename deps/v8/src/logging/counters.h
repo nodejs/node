@@ -99,6 +99,8 @@ class StatsTable {
 // This class is thread-safe.
 class StatsCounter {
  public:
+  const char* name() const { return name_; }
+
   void Set(int value) { GetPtr()->store(value, std::memory_order_relaxed); }
   int Get() { return GetPtr()->load(); }
 

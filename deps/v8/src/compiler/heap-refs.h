@@ -36,6 +36,10 @@ class ScriptContextTable;
 template <typename>
 class Signature;
 
+#define DECL_HOLE_TYPE(Name, name, Root) class Name;
+HOLE_LIST(DECL_HOLE_TYPE)
+#undef DECL_HOLE_TYPE
+
 namespace interpreter {
 class Register;
 }  // namespace interpreter
@@ -60,7 +64,13 @@ class PropertyAccessInfo;
 // distinct semantics for private class fields (in which private field
 // accesses must throw when storing a field which does not exist, or
 // adding/defining a field which already exists).
-enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas, kDefine };
+enum class AccessMode : uint8_t {
+  kLoad,
+  kStore,
+  kStoreInLiteral,
+  kHas,
+  kDefine
+};
 
 inline bool IsAnyStore(AccessMode mode) {
   return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral ||
@@ -122,6 +132,7 @@ enum class RefSerializationKind {
   NEVER_SERIALIZED(Symbol)                                                    \
   /* Subtypes of JSReceiver */                                                \
   BACKGROUND_SERIALIZED(JSObject)                                             \
+  BACKGROUND_SERIALIZED(JSProxy)                                              \
   /* Subtypes of HeapObject */                                                \
   NEVER_SERIALIZED(AccessorInfo)                                              \
   NEVER_SERIALIZED(AllocationSite)                                            \
@@ -223,8 +234,16 @@ template <>
 struct ref_traits<True> : public ref_traits<HeapObject> {};
 template <>
 struct ref_traits<False> : public ref_traits<HeapObject> {};
+
 template <>
 struct ref_traits<Hole> : public ref_traits<HeapObject> {};
+
+#define DEFINE_HOLE_TYPE(Name, name, Root) \
+  template <>                              \
+  struct ref_traits<Name> : public ref_traits<HeapObject> {};
+HOLE_LIST(DEFINE_HOLE_TYPE)
+#undef DEFINE_HOLE_TYPE
+
 template <>
 struct ref_traits<EnumCache> : public ref_traits<HeapObject> {};
 template <>
@@ -267,8 +286,6 @@ template <>
 struct ref_traits<Smi> : public ref_traits<Object> {};
 template <>
 struct ref_traits<Boolean> : public ref_traits<HeapObject> {};
-template <>
-struct ref_traits<JSProxy> : public ref_traits<JSReceiver> {};
 template <>
 struct ref_traits<JSWrappedFunction> : public ref_traits<JSFunction> {};
 
@@ -414,11 +431,13 @@ class V8_EXPORT_PRIVATE ObjectRef {
   bool IsHashTableHole() const;
   bool IsPromiseHole() const;
   bool IsNullOrUndefined() const;
+  bool IsUndefinedContextCell() const;
 
   std::optional<bool> TryGetBooleanValue(JSHeapBroker* broker) const;
   Maybe<double> OddballToNumber(JSHeapBroker* broker) const;
 
   bool should_access_heap() const;
+  bool is_read_only() const;
 
   ObjectData* data() const;
 
@@ -559,6 +578,18 @@ class JSReceiverRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(JSReceiver, HeapObjectRef)
 
   IndirectHandle<JSReceiver> object() const;
+};
+
+class JSProxyRef : public JSReceiverRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(JSProxy, JSReceiverRef)
+
+  IndirectHandle<JSProxy> object() const;
+
+  bool is_revocable() const;
+
+  OptionalObjectRef GetTarget(JSHeapBroker* broker) const;
+  OptionalObjectRef GetHandler(JSHeapBroker* broker) const;
 };
 
 class JSObjectRef : public JSReceiverRef {
@@ -744,6 +775,7 @@ class ContextRef : public HeapObjectRef {
   V(JSGlobalObject, global_object)               \
   V(JSGlobalProxy, global_proxy_object)          \
   V(JSObject, initial_array_prototype)           \
+  V(JSObject, initial_object_prototype)          \
   V(JSObject, promise_prototype)                 \
   V(Map, async_function_object_map)              \
   V(Map, block_context_map)                      \
@@ -905,12 +937,16 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool is_undetectable() const;
   bool is_callable() const;
   bool has_indexed_interceptor() const;
+  bool has_named_interceptor() const;
   int construction_counter() const;
   bool is_migration_target() const;
+  bool is_extensible() const;
   bool supports_fast_array_iteration(JSHeapBroker* broker) const;
   bool supports_fast_array_resize(JSHeapBroker* broker) const;
   bool is_abandoned_prototype_map() const;
+  bool IsOneByteStringMap() const;
   bool IsTwoByteStringMap() const;
+  bool IsSeqStringMap() const;
   bool IsThinStringMap() const;
   bool IsStringWrapperMap() const;
 
@@ -927,6 +963,8 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
 #undef DEF_TESTER
 
   bool IsBooleanMap(JSHeapBroker* broker) const;
+  bool IsNullMap(JSHeapBroker* broker) const;
+  bool IsUndefinedMap(JSHeapBroker* broker) const;
 
   HeapObjectRef GetBackPointer(JSHeapBroker* broker) const;
 
@@ -1133,7 +1171,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   BytecodeArrayRef GetBytecodeArray(JSHeapBroker* broker) const;
   bool HasBreakInfo(JSHeapBroker* broker) const;
   SharedFunctionInfo::Inlineability GetInlineability(
-      JSHeapBroker* broker) const;
+      CodeKind code_kind, JSHeapBroker* broker) const;
   OptionalFunctionTemplateInfoRef function_template_info(
       JSHeapBroker* broker) const;
   ScopeInfoRef scope_info(JSHeapBroker* broker) const;
@@ -1149,8 +1187,9 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
 #undef DECL_ACCESSOR
 
-  bool IsInlineable(JSHeapBroker* broker) const {
-    return GetInlineability(broker) == SharedFunctionInfo::kIsInlineable;
+  bool IsInlineable(CodeKind code_kind, JSHeapBroker* broker) const {
+    return GetInlineability(code_kind, broker) ==
+           SharedFunctionInfo::kIsInlineable;
   }
 };
 
@@ -1164,6 +1203,9 @@ class StringRef : public NameRef {
   // to use LookupIterator in a thread-safe way.
   OptionalObjectRef GetCharAsStringOrUndefined(JSHeapBroker* broker,
                                                uint32_t index) const;
+  // Returns ThinString::actual() if the current (uncached) map is a ThinString
+  // map, a self reference for all other strings.
+  StringRef UnpackIfThin(JSHeapBroker* broker);
 
   // When concurrently accessing non-read-only non-supported strings, we return
   // std::nullopt for these methods.
@@ -1174,11 +1216,11 @@ class StringRef : public NameRef {
   std::optional<double> ToNumber(JSHeapBroker* broker);
   std::optional<double> ToInt(JSHeapBroker* broker, int radix);
 
-  bool IsSeqString() const;
+  V8_EXPORT_PRIVATE bool IsSeqString() const;
   bool IsExternalString() const;
 
   bool IsContentAccessible() const;
-  bool IsOneByteRepresentation() const;
+  V8_EXPORT_PRIVATE bool IsOneByteRepresentation() const;
 
  private:
   // With concurrent inlining on, we currently support reading directly
@@ -1201,7 +1243,7 @@ class JSTypedArrayRef : public JSObjectRef {
   IndirectHandle<JSTypedArray> object() const;
 
   bool is_on_heap() const;
-  size_t length() const;
+  size_t length(JSHeapBroker* broker) const;
   size_t byte_length() const;
   ElementsKind elements_kind(JSHeapBroker* broker) const;
   void* data_ptr() const;

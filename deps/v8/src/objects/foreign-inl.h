@@ -32,7 +32,7 @@ Address Foreign::foreign_address(IsolateForSandbox isolate) const {
 
 template <ExternalPointerTag tag>
 Address Foreign::foreign_address() const {
-  IsolateForSandbox isolate = GetIsolateForSandbox(*this);
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   return ReadExternalPointerField<tag>(kForeignAddressOffset, isolate);
 }
 
@@ -64,7 +64,7 @@ ExternalPointerTag Foreign::GetTag() const {
       RawExternalPointerField(kForeignAddressOffset,
                               kAnyForeignExternalPointerTagRange)
           .Relaxed_LoadHandle();
-  IsolateForSandbox isolate = GetIsolateForSandbox(*this);
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   return isolate.GetExternalPointerTableTagFor(*this, handle);
 #endif  // V8_ENABLE_SANDBOX
   // Without the sandbox the address is stored untagged.

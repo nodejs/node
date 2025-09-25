@@ -381,42 +381,49 @@ TEST_F(MacroAssemblerX64Test, SmiTag) {
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
-  // Different target register.
+  // Different target registers. Make sure to check that using register rcx
+  // is okay even though that is also the src register in the calls to SmiTag.
+  Register targets[2] = {r8, rcx};
+  for (size_t i = 0; i < arraysize(targets); i++) {
+    Register target = targets[i];
+    CHECK_NE(rax, target);
+    CHECK_NE(rdx, target);
 
-  __ movq(rax, Immediate(6));  // Test number.
-  __ movq(rcx, Immediate(0));
-  __ SmiTag(r8, rcx);
-  __ Move(rdx, Smi::zero().ptr());
-  __ cmp_tagged(r8, rdx);
-  __ j(not_equal, &exit);
+    __ movq(rax, Immediate(6));  // Test number.
+    __ movq(rcx, Immediate(0));
+    __ SmiTag(target, rcx);
+    __ Move(rdx, Smi::zero().ptr());
+    __ cmp_tagged(target, rdx);
+    __ j(not_equal, &exit);
 
-  __ movq(rax, Immediate(7));  // Test number.
-  __ movq(rcx, Immediate(1024));
-  __ SmiTag(r8, rcx);
-  __ Move(rdx, Smi::FromInt(1024).ptr());
-  __ cmp_tagged(r8, rdx);
-  __ j(not_equal, &exit);
+    __ movq(rax, Immediate(7));  // Test number.
+    __ movq(rcx, Immediate(1024));
+    __ SmiTag(target, rcx);
+    __ Move(rdx, Smi::FromInt(1024).ptr());
+    __ cmp_tagged(target, rdx);
+    __ j(not_equal, &exit);
 
-  __ movq(rax, Immediate(8));  // Test number.
-  __ movq(rcx, Immediate(-1));
-  __ SmiTag(r8, rcx);
-  __ Move(rdx, Smi::FromInt(-1).ptr());
-  __ cmp_tagged(r8, rdx);
-  __ j(not_equal, &exit);
+    __ movq(rax, Immediate(8));  // Test number.
+    __ movq(rcx, Immediate(-1));
+    __ SmiTag(target, rcx);
+    __ Move(rdx, Smi::FromInt(-1).ptr());
+    __ cmp_tagged(target, rdx);
+    __ j(not_equal, &exit);
 
-  __ movq(rax, Immediate(9));  // Test number.
-  __ movq(rcx, Immediate(Smi::kMaxValue));
-  __ SmiTag(r8, rcx);
-  __ Move(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
-  __ cmp_tagged(r8, rdx);
-  __ j(not_equal, &exit);
+    __ movq(rax, Immediate(9));  // Test number.
+    __ movq(rcx, Immediate(Smi::kMaxValue));
+    __ SmiTag(target, rcx);
+    __ Move(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
+    __ cmp_tagged(target, rdx);
+    __ j(not_equal, &exit);
 
-  __ movq(rax, Immediate(10));  // Test number.
-  __ movq(rcx, Immediate(Smi::kMinValue));
-  __ SmiTag(r8, rcx);
-  __ Move(rdx, Smi::FromInt(Smi::kMinValue).ptr());
-  __ cmp_tagged(r8, rdx);
-  __ j(not_equal, &exit);
+    __ movq(rax, Immediate(10));  // Test number.
+    __ movq(rcx, Immediate(Smi::kMinValue));
+    __ SmiTag(target, rcx);
+    __ Move(rdx, Smi::FromInt(Smi::kMinValue).ptr());
+    __ cmp_tagged(target, rdx);
+    __ j(not_equal, &exit);
+  }
 
   __ xorq(rax, rax);  // Success.
   __ bind(&exit);
@@ -1162,6 +1169,122 @@ void TestFloat64x2Neg(MacroAssembler* masm, Label* exit, double x, double y) {
   __ addq(rsp, Immediate(kSimd128Size));
 }
 
+template <bool dst_same_as_src>
+void TestFloat64x4Neg(MacroAssembler* masm, Label* exit, double x, double y,
+                      double z, double w) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+
+  __ AllocateStackSpace(kSimd256Size);
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  __ Move(xmm1, x);
+  __ Movsd(Operand(rsp, 0 * kDoubleSize), xmm1);
+  __ Move(xmm2, y);
+  __ Movsd(Operand(rsp, 1 * kDoubleSize), xmm2);
+  __ Move(xmm3, z);
+  __ Movsd(Operand(rsp, 2 * kDoubleSize), xmm3);
+  __ Move(xmm4, w);
+  __ Movsd(Operand(rsp, 3 * kDoubleSize), xmm4);
+  __ vmovupd(ymm0, Operand(rsp, 0));
+
+  if (dst_same_as_src) {
+    __ Negpd(ymm0, ymm0, kScratchSimd256Reg);
+    __ vmovupd(Operand(rsp, 0), ymm0);
+  } else {
+    __ Negpd(ymm1, ymm0, kScratchSimd256Reg);
+    __ vmovupd(Operand(rsp, 0), ymm1);
+  }
+
+  __ incq(rax);
+  __ Move(xmm1, -x);
+  __ Ucomisd(xmm1, Operand(rsp, 0 * kDoubleSize));
+  __ j(not_equal, exit);
+  __ incq(rax);
+  __ Move(xmm2, -y);
+  __ Ucomisd(xmm2, Operand(rsp, 1 * kDoubleSize));
+  __ j(not_equal, exit);
+  __ incq(rax);
+  __ Move(xmm2, -z);
+  __ Ucomisd(xmm2, Operand(rsp, 2 * kDoubleSize));
+  __ j(not_equal, exit);
+  __ incq(rax);
+  __ Move(xmm2, -w);
+  __ Ucomisd(xmm2, Operand(rsp, 3 * kDoubleSize));
+  __ j(not_equal, exit);
+
+  __ addq(rsp, Immediate(kSimd256Size));
+}
+
+template <bool dst_same_as_src>
+void TestFloat32x8Neg(MacroAssembler* masm, Label* exit, float x, float y,
+                      float z, float w, float a, float b, float c, float d) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+
+  __ AllocateStackSpace(kSimd256Size);
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  __ Move(xmm1, x);
+  __ Movss(Operand(rsp, 0 * kFloatSize), xmm1);
+  __ Move(xmm2, y);
+  __ Movss(Operand(rsp, 1 * kFloatSize), xmm2);
+  __ Move(xmm3, z);
+  __ Movss(Operand(rsp, 2 * kFloatSize), xmm3);
+  __ Move(xmm4, w);
+  __ Movss(Operand(rsp, 3 * kFloatSize), xmm4);
+  __ Move(xmm5, a);
+  __ Movss(Operand(rsp, 4 * kFloatSize), xmm5);
+  __ Move(xmm6, b);
+  __ Movss(Operand(rsp, 5 * kFloatSize), xmm6);
+  __ Move(xmm7, c);
+  __ Movss(Operand(rsp, 6 * kFloatSize), xmm7);
+  __ Move(xmm8, d);
+  __ Movss(Operand(rsp, 7 * kFloatSize), xmm8);
+  __ vmovups(ymm0, Operand(rsp, 0));
+
+  if (dst_same_as_src) {
+    __ Negps(ymm0, ymm0, kScratchSimd256Reg);
+    __ vmovups(Operand(rsp, 0), ymm0);
+  } else {
+    __ Negps(ymm1, ymm0, kScratchSimd256Reg);
+    __ vmovups(Operand(rsp, 0), ymm1);
+  }
+
+  __ incq(rax);
+  __ Move(xmm1, -x);
+  __ Ucomiss(xmm1, Operand(rsp, 0 * kFloatSize));
+  __ j(not_equal, exit);
+  __ incq(rax);
+  __ Move(xmm2, -y);
+  __ Ucomiss(xmm2, Operand(rsp, 1 * kFloatSize));
+  __ j(not_equal, exit);
+  __ incq(rax);
+  __ Move(xmm3, -z);
+  __ Ucomiss(xmm3, Operand(rsp, 2 * kFloatSize));
+  __ j(not_equal, exit);
+  __ incq(rax);
+  __ Move(xmm4, -w);
+  __ Ucomiss(xmm4, Operand(rsp, 3 * kFloatSize));
+  __ j(not_equal, exit);
+  __ incq(rax);
+  __ Move(xmm5, -a);
+  __ Ucomiss(xmm5, Operand(rsp, 4 * kFloatSize));
+  __ j(not_equal, exit);
+  __ incq(rax);
+  __ Move(xmm6, -b);
+  __ Ucomiss(xmm6, Operand(rsp, 5 * kFloatSize));
+  __ j(not_equal, exit);
+  __ incq(rax);
+  __ Move(xmm7, -c);
+  __ Ucomiss(xmm7, Operand(rsp, 6 * kFloatSize));
+  __ j(not_equal, exit);
+  __ incq(rax);
+  __ Move(xmm8, -d);
+  __ Ucomiss(xmm8, Operand(rsp, 7 * kFloatSize));
+  __ j(not_equal, exit);
+
+  __ addq(rsp, Immediate(kSimd256Size));
+}
+
 TEST_F(MacroAssemblerX64Test, SIMDMacros) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
@@ -1182,6 +1305,15 @@ TEST_F(MacroAssemblerX64Test, SIMDMacros) {
   TestFloat32x4Neg(masm, &exit, 1.5, -1.5, 0.5, -0.5);
   TestFloat64x2Abs(masm, &exit, 1.75, -1.75);
   TestFloat64x2Neg(masm, &exit, 1.75, -1.75);
+
+  // There are two different paths in codegen, depend on the equality of dst and
+  // src register.
+  TestFloat64x4Neg<true>(masm, &exit, 1.75, -1.75, 0.5, -0.5);
+  TestFloat64x4Neg<false>(masm, &exit, 1.75, -1.75, 0.5, -0.5);
+  TestFloat32x8Neg<true>(masm, &exit, 1.75, -1.75, 0.5, -0.5, NaN, -NaN, inf,
+                         -inf);
+  TestFloat32x8Neg<false>(masm, &exit, 1.5, -1.5, 0.5, -0.5, NaN, -NaN, inf,
+                          -inf);
 
   __ xorq(rax, rax);  // Success.
   __ bind(&exit);

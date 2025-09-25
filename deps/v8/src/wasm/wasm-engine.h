@@ -237,9 +237,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, std::shared_ptr<NativeModule> shared_module,
       base::Vector<const char> source_url);
 
-  // Flushes all Liftoff code and returns the sizes of the removed
-  // (executable) code and the removed metadata.
-  std::pair<size_t, size_t> FlushLiftoffCode();
+  // Flushes all Liftoff code in all NativeModules.
+  void FlushLiftoffCode();
 
   // Returns the code size of all Liftoff compiled functions in all modules.
   size_t GetLiftoffCodeSizeForTesting();
@@ -394,9 +393,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   void DecodeAllNameSections(CanonicalTypeNamesProvider* target);
 
+#ifdef V8_ENABLE_TURBOFAN
   compiler::WasmCallDescriptors* call_descriptors() {
     return &call_descriptors_;
   }
+#endif
 
   // Returns an approximation of current off-heap memory used by this engine,
   // excluding code space.
@@ -493,7 +494,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   TypeCanonicalizer type_canonicalizer_;
 
+#ifdef V8_ENABLE_TURBOFAN
   compiler::WasmCallDescriptors call_descriptors_;
+#endif
 
   // This mutex protects all information which is mutated concurrently or
   // fields that are initialized lazily on the first access.

@@ -60,6 +60,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
     : public SharedMacroAssembler<MacroAssembler> {
  public:
   using SharedMacroAssembler<MacroAssembler>::SharedMacroAssembler;
+  using SharedMacroAssembler<MacroAssembler>::Negps;
+  using SharedMacroAssembler<MacroAssembler>::Negpd;
 
   void PushReturnAddressFrom(Register src) { pushq(src); }
   void PopReturnAddressTo(Register dst) { popq(dst); }
@@ -120,7 +122,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   int CallCFunction(
       Register function, int num_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
-      Label* return_location = nullptr);
+      Label* return_location = nullptr,
+      CodeSandboxingMode target_sandboxing_mode =
+          CodeSandboxingMode::kUnsandboxed);
 
   // Calculate the number of stack slots to reserve for arguments when calling a
   // C function.
@@ -307,6 +311,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void I32x8TruncF32x8U(YMMRegister dst, YMMRegister src, YMMRegister scratch1,
                         YMMRegister scratch2);
 
+  void Negpd(YMMRegister dst, YMMRegister src, YMMRegister scratch);
+  void Negps(YMMRegister dst, YMMRegister src, YMMRegister scratch);
+
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.
 
@@ -406,6 +413,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void LoadFeedbackVector(Register dst, Register closure, Label* fbv_undef,
                           Label::Distance distance);
+
+  void LoadInterpreterDataBytecodeArray(Register destination,
+                                        Register interpreter_data);
+  void LoadInterpreterDataInterpreterTrampoline(Register destination,
+                                                Register interpreter_data);
 
   void Move(Register dst, intptr_t x) {
     if (x == 0) {
@@ -721,7 +733,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // required by the build config.
   void CodeEntry();
   // Define an exception handler.
-  void ExceptionHandler() { CodeEntry(); }
+  void ExceptionHandler();
   // Define an exception handler and bind a label.
   void BindExceptionHandler(Label* label) { BindJumpTarget(label); }
   // Bind a jump target and mark it as a valid code entry.
@@ -772,6 +784,36 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // ---------------------------------------------------------------------------
   // V8 Sandbox support
 
+  // Enter/exit sandboxed execution mode for the current thread.
+  //
+  // When in sandboxed mode, and if hardware sandboxing support is active,
+  // out-of-sandbox memory cannot be written to (but can be read from). See
+  // SandboxHardwareSupport for more details.
+  void EnterSandbox();
+  void ExitSandbox();
+  void AssertInSandboxedExecutionMode();
+
+  // Helper functions for temporarily switching sandboxed execution mode if the
+  // current code runs in the a different sandboxing mode than the call target.
+  //
+  // These are mostly useful inside shared routines that are used for both
+  // sandboxed- and unsandboxed code. Examples include CallBuiltin and
+  // CallCFunction which may both need to temporarily switch out of sandboxed
+  // execution mode.
+  // SwitchSandboxingModeBeforeCallIfNeeded will return the old sandboxing mode
+  // which must then be passed into SwitchSandboxingModeAfterCallIfNeeded.
+  // These function will also change the global sandboxing_mode(). As such,
+  // there must not be any control-flow transfers in between the two function
+  // calls.
+  //
+  // TODO(428152530): In the future, we might want to replace this mechanism
+  // and instead use dedicated trampolines that perform the mode switching.
+  void SwitchSandboxingModeTo(CodeSandboxingMode mode);
+  CodeSandboxingMode SwitchSandboxingModeBeforeCallIfNeeded(
+      CodeSandboxingMode target_sandboxing_mode);
+  void SwitchSandboxingModeAfterCallIfNeeded(
+      CodeSandboxingMode previous_sandboxing_mode);
+
   // Transform a SandboxedPointer from/to its encoded form, which is used when
   // the pointer is stored on the heap and ensures that the pointer will always
   // point into the sandbox.
@@ -797,6 +839,15 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // pointer table. Otherwise they are regular tagged fields.
   void LoadTrustedPointerField(Register destination, Operand field_operand,
                                IndirectPointerTag tag, Register scratch);
+  // As above, but for kUnknownIndirectPointerTag. The type of the loaded object
+  // is unknown, so this helper will check for a series of expected types and
+  // jump to the given labels if the loaded object has a matching type. If the
+  // object has none of the expected types, the destination register will be
+  // zeroed and execution continues as fall-through.
+  void LoadTrustedUnknownPointerField(
+      Register destination, Operand field_operand, Register scratch,
+      const std::initializer_list<
+          std::tuple<InstanceType, Label*, Label::Distance>>& cases);
   // Store a trusted pointer field.
   void StoreTrustedPointerField(Operand dst_field_operand, Register value);
 
@@ -1068,12 +1119,13 @@ class V8_EXPORT_PRIVATE MacroAssembler
                           Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
-  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
-                                           Register closure, Register scratch1,
-                                           Register slot_address);
+  // TODO(olivf): Rename to GenerateTailCallToUpdatedFunction.
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
                                       JumpMode jump_mode = JumpMode::kJump);
 #ifndef V8_ENABLE_LEAPTIERING
+  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
+                                           Register closure, Register scratch1,
+                                           Register slot_address);
   Condition CheckFeedbackVectorFlagsNeedsProcessing(Register feedback_vector,
                                                     CodeKind current_code_kind);
   void CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(

@@ -12,6 +12,7 @@
 #include <optional>
 
 #include "src/base/memory.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/vector.h"
 #include "src/codegen/signature.h"
@@ -205,9 +206,6 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void SetName(base::Vector<const char> name);
   void AddAsmWasmOffset(size_t call_position, size_t to_number_position);
   void SetAsmFunctionStartPosition(size_t function_position);
-  void SetCompilationHint(WasmCompilationHintStrategy strategy,
-                          WasmCompilationHintTier baseline,
-                          WasmCompilationHintTier top_tier);
 
   size_t GetPosition() const { return body_.size(); }
   void FixupByte(size_t position, uint8_t value) {
@@ -251,7 +249,6 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   uint32_t last_asm_byte_offset_ = 0;
   uint32_t last_asm_source_position_ = 0;
   uint32_t asm_func_start_source_position_ = 0;
-  uint8_t hint_ = kNoCompilationHint;
 };
 
 class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
@@ -381,17 +378,20 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
                              base::Vector<const char> name);
   void ExportImportedFunction(base::Vector<const char> name, int import_index);
 
+  // Start a recursive type group; must be followed by `EndRecursiveTypeGroup()`
+  // after adding all types of the recursion group.
   void StartRecursiveTypeGroup() {
     DCHECK_EQ(current_recursive_group_start_, -1);
-    current_recursive_group_start_ = static_cast<int>(types_.size());
+    current_recursive_group_start_ = base::checked_cast<int>(types_.size());
   }
 
   void EndRecursiveTypeGroup() {
     // Make sure we are in a recursive group.
     DCHECK_NE(current_recursive_group_start_, -1);
-    recursive_groups_.emplace_back(
-        current_recursive_group_start_,
-        static_cast<uint32_t>(types_.size()) - current_recursive_group_start_);
+    uint32_t num_types_in_recgroup = base::checked_cast<uint32_t>(
+        types_.size() - current_recursive_group_start_);
+    recursive_groups_.emplace_back(current_recursive_group_start_,
+                                   num_types_in_recgroup);
     current_recursive_group_start_ = -1;
   }
 
@@ -411,6 +411,15 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     return types_[index].kind == TypeDefinition::kFunction;
   }
   bool IsSignature(ModuleTypeIndex index) { return IsSignature(index.index); }
+
+  // Useful both for retrieving generated types, and for setting rarely-used
+  // fields on recently added types.
+  // This is UNSAFE in the sense that the pointer becomes stale if more types
+  // are added. (We could devise a more robust mechanism, but for fuzzer-only
+  // code we don't want to over-engineer it.)
+  TypeDefinition& GetType_Unsafe(ModuleTypeIndex index) {
+    return types_[index.index];
+  }
 
   const FunctionSig* GetSignature(uint32_t index) {
     DCHECK(types_[index].kind == TypeDefinition::kFunction);
@@ -447,22 +456,26 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   }
 
   WasmFunctionBuilder* GetFunction(uint32_t index) { return functions_[index]; }
-  int NumTags() { return static_cast<int>(tags_.size()); }
+  int NumTags() { return base::checked_cast<int>(tags_.size()); }
 
-  int NumTypes() { return static_cast<int>(types_.size()); }
+  int NumTypes() { return base::checked_cast<int>(types_.size()); }
 
-  int NumTables() { return static_cast<int>(tables_.size()); }
+  int NumTables() { return base::checked_cast<int>(tables_.size()); }
 
-  int NumMemories() { return static_cast<int>(memories_.size()); }
+  int NumMemories() { return base::checked_cast<int>(memories_.size()); }
 
-  int NumGlobals() { return static_cast<int>(globals_.size()); }
+  int NumGlobals() { return base::checked_cast<int>(globals_.size()); }
 
   int NumImportedFunctions() {
-    return static_cast<int>(function_imports_.size());
+    return base::checked_cast<int>(function_imports_.size());
   }
-  int NumDeclaredFunctions() { return static_cast<int>(functions_.size()); }
+  int NumDeclaredFunctions() {
+    return base::checked_cast<int>(functions_.size());
+  }
 
-  int NumDataSegments() { return static_cast<int>(data_segments_.size()); }
+  int NumDataSegments() {
+    return base::checked_cast<int>(data_segments_.size());
+  }
 
   bool IsMemory64(uint32_t index) { return memories_[index].is_memory64(); }
 

@@ -41,6 +41,7 @@
 #include "src/base/free_deleter.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/platform/memory-protection-key.h"
 
 namespace v8 {
 namespace base {
@@ -204,6 +205,10 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // Record the fact that we are in the signal handler now, so that the rest
   // of StackTrace can behave in an async-signal-safe manner.
   in_signal_handler = 1;
+
+#if V8_HAS_PKU_SUPPORT
+  MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler();
+#endif
 
   PrintToStderr("Received signal ");
   char buf[1024] = {0};

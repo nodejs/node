@@ -173,10 +173,8 @@ void StoreBuiltinCallForNode(Node* n, Builtin builtin, int block_id,
       Node* callee = n->InputAt(0);
       Operator* op = const_cast<Operator*>(callee->op());
       if (op->opcode() == IrOpcode::kHeapConstant) {
-        IndirectHandle<HeapObject> para =
-            OpParameter<IndirectHandle<HeapObject>>(op);
-        if (IsCode(*para)) {
-          DirectHandle<Code> code = Cast<Code>(para);
+        IndirectHandle<HeapObject> para = OpParameter<Handle<HeapObject>>(op);
+        if (IndirectHandle<Code> code; TryCast(para, &code)) {
           if (code->is_builtin()) {
             bcc_profiler->AddBuiltinCall(builtin, code->builtin_id(), block_id);
             return;
@@ -241,8 +239,8 @@ bool IsBuiltinCall(const turboshaft::Operation& op,
   OperationMatcher matcher(graph);
   Handle<HeapObject> heap_constant;
   if (!matcher.MatchHeapConstant(callee_index, &heap_constant)) return false;
-  if (!IsCode(*heap_constant)) return false;
-  DirectHandle<Code> code = Cast<Code>(heap_constant);
+  Handle<Code> code;
+  if (!TryCast(heap_constant, &code)) return false;
   if (!code->is_builtin()) return false;
 
   *called_builtin = code->builtin_id();

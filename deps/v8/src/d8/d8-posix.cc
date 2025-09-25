@@ -215,23 +215,22 @@ class ExecArgs {
 // Gets the optional timeouts from the arguments to the system() call.
 static bool GetTimeouts(const v8::FunctionCallbackInfo<v8::Value>& info,
                         int* read_timeout, int* total_timeout) {
+  Isolate* isolate = info.GetIsolate();
   if (info.Length() > 3) {
     if (info[3]->IsNumber()) {
-      *total_timeout = info[3]
-                           ->Int32Value(info.GetIsolate()->GetCurrentContext())
-                           .FromJust();
+      *total_timeout =
+          info[3]->Int32Value(isolate->GetCurrentContext()).FromJust();
     } else {
-      info.GetIsolate()->ThrowError("system: Argument 4 must be a number");
+      isolate->ThrowError("system: Argument 4 must be a number");
       return false;
     }
   }
   if (info.Length() > 2) {
     if (info[2]->IsNumber()) {
-      *read_timeout = info[2]
-                          ->Int32Value(info.GetIsolate()->GetCurrentContext())
-                          .FromJust();
+      *read_timeout =
+          info[2]->Int32Value(isolate->GetCurrentContext()).FromJust();
     } else {
-      info.GetIsolate()->ThrowError("system: Argument 3 must be a number");
+      isolate->ThrowError("system: Argument 3 must be a number");
       return false;
     }
   }
@@ -324,6 +323,9 @@ static Local<Value> GetStdout(Isolate* isolate, int child_fd,
           String::NewFromUtf8(isolate, buffer, NewStringType::kNormal, length)
               .ToLocalChecked();
       accumulator = String::Concat(isolate, accumulator, addition);
+      if (accumulator.IsEmpty()) {
+        return isolate->ThrowError("String limit exceeded");
+      }
       fullness = bytes_read + fullness - length;
       memcpy(buffer, buffer + length, fullness);
     }
@@ -416,26 +418,27 @@ static bool WaitForChild(Isolate* isolate, int pid,
 // Implementation of the system() function (see d8.h for details).
 void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
-  HandleScope scope(info.GetIsolate());
+  Isolate* isolate = info.GetIsolate();
+  HandleScope scope(isolate);
   int read_timeout = -1;
   int total_timeout = -1;
   if (!GetTimeouts(info, &read_timeout, &total_timeout)) return;
   Local<Array> command_args;
   if (info.Length() > 1) {
     if (!info[1]->IsArray()) {
-      info.GetIsolate()->ThrowError("system: Argument 2 must be an array");
+      isolate->ThrowError("system: Argument 2 must be an array");
       return;
     }
     command_args = info[1].As<Array>();
   } else {
-    command_args = Array::New(info.GetIsolate(), 0);
+    command_args = Array::New(isolate, 0);
   }
   if (command_args->Length() > ExecArgs::kMaxArgs) {
-    info.GetIsolate()->ThrowError("Too many arguments to system()");
+    isolate->ThrowError("Too many arguments to system()");
     return;
   }
   if (info.Length() < 1) {
-    info.GetIsolate()->ThrowError("Too few arguments to system()");
+    isolate->ThrowError("Too few arguments to system()");
     return;
   }
 
@@ -443,18 +446,18 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& info) {
   gettimeofday(&start_time, nullptr);
 
   ExecArgs exec_args;
-  if (!exec_args.Init(info.GetIsolate(), info[0], command_args)) {
+  if (!exec_args.Init(isolate, info[0], command_args)) {
     return;
   }
   int exec_error_fds[2];
   int stdout_fds[2];
 
   if (pipe(exec_error_fds) != 0) {
-    info.GetIsolate()->ThrowError("pipe syscall failed.");
+    isolate->ThrowError("pipe syscall failed.");
     return;
   }
   if (pipe(stdout_fds) != 0) {
-    info.GetIsolate()->ThrowError("pipe syscall failed.");
+    isolate->ThrowError("pipe syscall failed.");
     return;
   }
 
@@ -471,7 +474,6 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& info) {
   OpenFDCloser error_read_closer(exec_error_fds[kReadFD]);
   OpenFDCloser stdout_read_closer(stdout_fds[kReadFD]);
 
-  Isolate* isolate = info.GetIsolate();
   if (!ChildLaunchedOK(isolate, exec_error_fds)) return;
 
   Local<Value> accumulator = GetStdout(isolate, stdout_fds[kReadFD], start_time,
@@ -492,35 +494,36 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void Shell::ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
   if (info.Length() != 1) {
-    info.GetIsolate()->ThrowError("chdir() takes one argument");
+    isolate->ThrowError("chdir() takes one argument");
     return;
   }
-  String::Utf8Value directory(info.GetIsolate(), info[0]);
+  String::Utf8Value directory(isolate, info[0]);
   if (*directory == nullptr) {
-    info.GetIsolate()->ThrowError(
-        "os.chdir(): String conversion of argument failed.");
+    isolate->ThrowError("os.chdir(): String conversion of argument failed.");
     return;
   }
   if (chdir(*directory) != 0) {
-    info.GetIsolate()->ThrowError(v8_strerror(info.GetIsolate(), errno));
+    isolate->ThrowError(v8_strerror(isolate, errno));
     return;
   }
 }
 
 void Shell::SetUMask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
   if (info.Length() != 1) {
-    info.GetIsolate()->ThrowError("umask() takes one argument");
+    isolate->ThrowError("umask() takes one argument");
     return;
   }
   if (info[0]->IsNumber()) {
-    int previous = umask(
-        info[0]->Int32Value(info.GetIsolate()->GetCurrentContext()).FromJust());
+    int previous =
+        umask(info[0]->Int32Value(isolate->GetCurrentContext()).FromJust());
     info.GetReturnValue().Set(previous);
     return;
   } else {
-    info.GetIsolate()->ThrowError("umask() argument must be numeric");
+    isolate->ThrowError("umask() argument must be numeric");
     return;
   }
 }
@@ -568,39 +571,37 @@ static bool mkdirp(Isolate* isolate, char* directory, mode_t mask) {
 
 void Shell::MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
   mode_t mask = 0777;
   if (info.Length() == 2) {
     if (info[1]->IsNumber()) {
-      mask = info[1]
-                 ->Int32Value(info.GetIsolate()->GetCurrentContext())
-                 .FromJust();
+      mask = info[1]->Int32Value(isolate->GetCurrentContext()).FromJust();
     } else {
-      info.GetIsolate()->ThrowError("mkdirp() second argument must be numeric");
+      isolate->ThrowError("mkdirp() second argument must be numeric");
       return;
     }
   } else if (info.Length() != 1) {
-    info.GetIsolate()->ThrowError("mkdirp() takes one or two arguments");
+    isolate->ThrowError("mkdirp() takes one or two arguments");
     return;
   }
-  String::Utf8Value directory(info.GetIsolate(), info[0]);
+  String::Utf8Value directory(isolate, info[0]);
   if (*directory == nullptr) {
-    info.GetIsolate()->ThrowError(
-        "os.mkdirp(): String conversion of argument failed.");
+    isolate->ThrowError("os.mkdirp(): String conversion of argument failed.");
     return;
   }
-  mkdirp(info.GetIsolate(), *directory, mask);
+  mkdirp(isolate, *directory, mask);
 }
 
 void Shell::RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
   if (info.Length() != 1) {
-    info.GetIsolate()->ThrowError("rmdir() takes one arguments");
+    isolate->ThrowError("rmdir() takes one arguments");
     return;
   }
-  String::Utf8Value directory(info.GetIsolate(), info[0]);
+  String::Utf8Value directory(isolate, info[0]);
   if (*directory == nullptr) {
-    info.GetIsolate()->ThrowError(
-        "os.rmdir(): String conversion of argument failed.");
+    isolate->ThrowError("os.rmdir(): String conversion of argument failed.");
     return;
   }
   rmdir(*directory);
@@ -608,19 +609,20 @@ void Shell::RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void Shell::SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
   if (info.Length() != 2) {
-    info.GetIsolate()->ThrowError("setenv() takes two arguments");
+    isolate->ThrowError("setenv() takes two arguments");
     return;
   }
-  String::Utf8Value var(info.GetIsolate(), info[0]);
-  String::Utf8Value value(info.GetIsolate(), info[1]);
+  String::Utf8Value var(isolate, info[0]);
+  String::Utf8Value value(isolate, info[1]);
   if (*var == nullptr) {
-    info.GetIsolate()->ThrowError(
+    isolate->ThrowError(
         "os.setenv(): String conversion of variable name failed.");
     return;
   }
   if (*value == nullptr) {
-    info.GetIsolate()->ThrowError(
+    isolate->ThrowError(
         "os.setenv(): String conversion of variable contents failed.");
     return;
   }
@@ -629,13 +631,14 @@ void Shell::SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
   if (info.Length() != 1) {
-    info.GetIsolate()->ThrowError("unsetenv() takes one argument");
+    isolate->ThrowError("unsetenv() takes one argument");
     return;
   }
-  String::Utf8Value var(info.GetIsolate(), info[0]);
+  String::Utf8Value var(isolate, info[0]);
   if (*var == nullptr) {
-    info.GetIsolate()->ThrowError(
+    isolate->ThrowError(
         "os.setenv(): String conversion of variable name failed.");
     return;
   }

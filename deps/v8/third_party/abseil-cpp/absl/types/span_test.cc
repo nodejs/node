@@ -41,6 +41,20 @@ static_assert(!absl::type_traits_internal::IsOwner<absl::Span<int>>::value &&
                   absl::type_traits_internal::IsView<absl::Span<int>>::value,
               "Span is a view, not an owner");
 
+using S = absl::Span<int>;
+
+static_assert(
+    std::is_trivially_destructible_v<S> && std::is_trivially_copyable_v<S> &&
+        std::is_trivially_assignable_v<S, S&> &&
+        std::is_trivially_copy_assignable_v<S> &&
+        std::is_trivially_move_assignable_v<S> &&
+        std::is_trivially_assignable_v<S, const S&&> &&
+        std::is_trivially_constructible_v<S, S&> &&
+        std::is_trivially_copy_constructible_v<S> &&
+        std::is_trivially_move_constructible_v<S> &&
+        std::is_trivially_constructible_v<S, const S&&>,
+    "Span should be trivial in everything except default-constructibility");
+
 MATCHER_P(DataIs, data,
           absl::StrCat("data() ", negation ? "isn't " : "is ",
                        testing::PrintToString(data))) {

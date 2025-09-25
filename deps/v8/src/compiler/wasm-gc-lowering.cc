@@ -67,8 +67,6 @@ Reduction WasmGCLowering::Reduce(Node* node) {
       return ReduceIsNotNull(node);
     case IrOpcode::kRttCanon:
       return ReduceRttCanon(node);
-    case IrOpcode::kTypeGuard:
-      return ReduceTypeGuard(node);
     case IrOpcode::kWasmAnyConvertExtern:
       return ReduceWasmAnyConvertExtern(node);
     case IrOpcode::kWasmExternConvertAny:
@@ -541,14 +539,6 @@ Reduction WasmGCLowering::ReduceRttCanon(Node* node) {
   return Replace(gasm_.LoadImmutable(
       MachineType::TaggedPointer(), maps_list,
       wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(type_index)));
-}
-
-Reduction WasmGCLowering::ReduceTypeGuard(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kTypeGuard);
-  Node* alias = NodeProperties::GetValueInput(node, 0);
-  ReplaceWithValue(node, alias);
-  node->Kill();
-  return Replace(alias);
 }
 
 namespace {

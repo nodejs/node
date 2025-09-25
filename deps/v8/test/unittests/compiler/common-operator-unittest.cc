@@ -308,7 +308,8 @@ TEST_F(CommonOperatorTest, Float32Constant) {
 TEST_F(CommonOperatorTest, Float64Constant) {
   TRACED_FOREACH(double, value, kFloatValues) {
     const Operator* op = common()->Float64Constant(value);
-    EXPECT_PRED2(base::bit_equal_to<double>(), value, OpParameter<double>(op));
+    EXPECT_PRED2(base::bit_equal_to<double>(), value,
+                 OpParameter<Float64>(op).get_scalar());
     EXPECT_EQ(0, op->ValueInputCount());
     EXPECT_EQ(0, OperatorProperties::GetTotalInputCount(op));
     EXPECT_EQ(0, op->ControlOutputCount());

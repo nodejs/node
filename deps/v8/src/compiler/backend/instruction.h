@@ -107,6 +107,10 @@ class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
   inline bool IsSimd128StackSlot() const;
   inline bool IsSimd256StackSlot() const;
 
+#if defined(V8_TARGET_ARCH_X64)
+  inline bool CanBeSimd128Register() const;
+#endif
+
   template <typename SubKindOperand>
   static SubKindOperand* New(Zone* zone, const SubKindOperand& op) {
     return zone->New<SubKindOperand>(op);
@@ -677,6 +681,20 @@ bool InstructionOperand::IsSimd128Register() const {
                                 MachineRepresentation::kSimd128;
 }
 
+#if defined(V8_TARGET_ARCH_X64)
+bool InstructionOperand::CanBeSimd128Register() const {
+  // IsSimd128Register is called for multiple purposes. Use this function when
+  // we need to use a simd128 register only. On x64, Simd256 and Simd128 share
+  // identical register code.
+  if (IsAnyRegister()) {
+    MachineRepresentation rep = LocationOperand::cast(this)->representation();
+    return rep == MachineRepresentation::kSimd128 ||
+           rep == MachineRepresentation::kSimd256;
+  }
+  return false;
+}
+#endif
+
 bool InstructionOperand::IsSimd256Register() const {
   return IsAnyRegister() && LocationOperand::cast(this)->representation() ==
                                 MachineRepresentation::kSimd256;
@@ -1030,6 +1048,10 @@ class V8_EXPORT_PRIVATE Instruction final {
     return FlagsModeField::decode(opcode()) == kFlags_trap;
   }
 
+  bool IsConditionalTrap() const {
+    return FlagsModeField::decode(opcode()) == kFlags_conditional_trap;
+  }
+
   bool IsJump() const { return arch_opcode() == ArchOpcode::kArchJmp; }
   bool IsRet() const { return arch_opcode() == ArchOpcode::kArchRet; }
   bool IsTailCall() const {
@@ -1038,9 +1060,6 @@ class V8_EXPORT_PRIVATE Instruction final {
 #else
     return arch_opcode() <= ArchOpcode::kArchTailCallAddress;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  }
-  bool IsThrow() const {
-    return arch_opcode() == ArchOpcode::kArchThrowTerminator;
   }
 
   static constexpr bool IsCallWithDescriptorFlags(InstructionCode arch_opcode) {
@@ -1744,10 +1763,11 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   }
   inline bool IsLoopHeader() const { return loop_end_.IsValid(); }
   inline bool IsTableSwitchTarget() const { return table_switch_target_; }
-  inline bool ShouldAlignCodeTarget() const { return code_target_alignment_; }
-  inline bool ShouldAlignLoopHeader() const { return loop_header_alignment_; }
+  inline bool ShouldAlignSwitchTarget() const { return align_switch_targets_; }
+  inline bool ShouldAlignBranchTarget() const { return align_branch_targets_; }
+  inline bool ShouldAlignLoopHeader() const { return align_loop_headers_; }
   inline bool IsLoopHeaderInAssemblyOrder() const {
-    return loop_header_alignment_;
+    return align_loop_headers_;
   }
   bool omitted_by_jump_threading() const { return omitted_by_jump_threading_; }
   void set_omitted_by_jump_threading() { omitted_by_jump_threading_ = true; }
@@ -1773,8 +1793,9 @@ class V8_EXPORT_PRIVATE InstructionBlock final
 
   void set_ao_number(RpoNumber ao_number) { ao_number_ = ao_number; }
 
-  void set_code_target_alignment(bool val) { code_target_alignment_ = val; }
-  void set_loop_header_alignment(bool val) { loop_header_alignment_ = val; }
+  void set_align_switch_targets(bool val) { align_switch_targets_ = val; }
+  void set_align_branch_targets(bool val) { align_branch_targets_ = val; }
+  void set_align_loop_headers(bool val) { align_loop_headers_ = val; }
 
   void set_table_switch_target(bool val) { table_switch_target_ = val; }
 
@@ -1803,10 +1824,12 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   bool handler_ : 1;         // Block is a handler entry point.
   bool table_switch_target_ : 1;  // Block is a table switch target, implying an
                                   //  indirect jump.
-  bool code_target_alignment_ : 1;  // insert code target alignment before this
-                                    // block
-  bool loop_header_alignment_ : 1;  // insert loop header alignment before this
-                                    // block
+  bool align_switch_targets_ : 1;  // insert switch target alignment before
+                                   // this block
+  bool align_branch_targets_ : 1;  // insert branch target alignment before
+                                   // this block
+  bool align_loop_headers_ : 1;    // insert loop header alignment before this
+                                   // block
   bool needs_frame_ : 1;
   bool must_construct_frame_ : 1;
   bool must_deconstruct_frame_ : 1;
@@ -2081,8 +2104,8 @@ constexpr size_t kCcmpOffsetOfLhs = 1;
 constexpr size_t kCcmpOffsetOfRhs = 2;
 constexpr size_t kCcmpOffsetOfDefaultFlags = 3;
 constexpr size_t kCcmpOffsetOfCompareCondition = 4;
-constexpr size_t kConditionalSetEndOffsetOfNumCcmps = 1;
-constexpr size_t kConditionalSetEndOffsetOfCondition = 2;
+constexpr size_t kConditionalTrapEndOffsetOfNumCcmps = 2;
+constexpr size_t kConditionalTrapEndOffsetOfCondition = 3;
 constexpr size_t kBranchEndOffsetOfFalseBlock = 1;
 constexpr size_t kBranchEndOffsetOfTrueBlock = 2;
 constexpr size_t kConditionalBranchEndOffsetOfNumCcmps = 3;

@@ -86,9 +86,8 @@ size_t ZoneStats::GetTotalAllocatedBytes() const {
   return total_deleted_bytes_ + GetCurrentAllocatedBytes();
 }
 
-Zone* ZoneStats::NewEmptyZone(const char* zone_name,
-                              bool support_zone_compression) {
-  Zone* zone = new Zone(allocator_, zone_name, support_zone_compression);
+Zone* ZoneStats::NewEmptyZone(const char* zone_name) {
+  Zone* zone = new Zone(allocator_, zone_name);
   zones_.push_back(zone);
   return zone;
 }

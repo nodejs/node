@@ -1443,6 +1443,13 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
   auto maybe_flags = Parameter<Object>(Descriptor::kFlags);
   auto context = Parameter<Context>(Descriptor::kContext);
 
+  // TODO(olivf): Since this is a legacy feature the hope is it is not heavily
+  // relied upon. In case it turns out to be too performance critical we might
+  // need to do something more clever here (e.g., a self-patching builtin) to
+  // avoid the cost of a runtime call.
+  CallRuntime(Runtime::kIncrementUseCounter, context,
+              SmiConstant(v8::Isolate::UseCounterFeature::kRegExpCompile));
+
   ThrowIfNotInstanceType(context, maybe_receiver, JS_REG_EXP_TYPE,
                          "RegExp.prototype.compile");
   const TNode<JSRegExp> receiver = CAST(maybe_receiver);

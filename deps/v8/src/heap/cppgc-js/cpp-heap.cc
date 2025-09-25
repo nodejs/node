@@ -226,8 +226,8 @@ UnifiedHeapConcurrentMarker::CreateConcurrentMarkingVisitor(
       heap(), v8_heap_, marking_state, collection_type_);
 }
 
-void FatalOutOfMemoryHandlerImpl(const std::string& reason,
-                                 const SourceLocation&, HeapBase* heap) {
+void FatalOutOfMemoryHandlerImpl(const std::string& reason, SourceLocation,
+                                 HeapBase* heap) {
   auto* cpp_heap = static_cast<v8::internal::CppHeap*>(heap);
   auto* isolate = cpp_heap->isolate();
   DCHECK_NOT_NULL(isolate);
@@ -241,7 +241,7 @@ void FatalOutOfMemoryHandlerImpl(const std::string& reason,
 }
 
 void GlobalFatalOutOfMemoryHandlerImpl(const std::string& reason,
-                                       const SourceLocation&, HeapBase* heap) {
+                                       SourceLocation, HeapBase* heap) {
   V8::FatalProcessOutOfMemory(nullptr, reason.c_str());
 }
 
@@ -316,6 +316,23 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
       return;
     }
     MarkerBase::AdvanceMarkingOnAllocationImpl();
+  }
+
+  bool AdvanceMarkingOnStep(v8::base::TimeDelta max_duration,
+                            std::optional<size_t> marked_bytes_limit,
+                            cppgc::EmbedderStackState stack_state) {
+    // This is similar to MarkerBase::IncrementalMarkingStep() with the
+    // difference that we accept a duration instead of using the default
+    // duration and that the bytes limit is
+    if (stack_state == StackState::kNoHeapPointers) {
+      mutator_marking_state_.FlushNotFullyConstructedObjects();
+    }
+    if (!marked_bytes_limit.has_value()) {
+      marked_bytes_limit.emplace(schedule().GetNextIncrementalStepDuration(
+          heap().stats_collector()->allocated_object_size()));
+    }
+    return MarkerBase::AdvanceMarkingWithLimits(max_duration,
+                                                *marked_bytes_limit);
   }
 
  protected:
@@ -462,10 +479,16 @@ CppHeap::MetricRecorderAdapter::ExtractLastIncrementalMarkEvent() {
 }
 
 void CppHeap::MetricRecorderAdapter::ClearCachedEvents() {
+  DCHECK(!last_young_gc_event_.has_value());
   incremental_mark_batched_events_.events.clear();
   incremental_sweep_batched_events_.events.clear();
   last_incremental_mark_event_.reset();
   last_full_gc_event_.reset();
+}
+
+void CppHeap::MetricRecorderAdapter::ClearCachedYoungEvents() {
+  DCHECK(incremental_mark_batched_events_.events.empty());
+  DCHECK(!last_incremental_mark_event_.has_value());
   last_young_gc_event_.reset();
 }
 
@@ -610,7 +633,8 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   static_cast<CppgcPlatformAdapter*>(platform())
       ->SetIsolate(reinterpret_cast<v8::Isolate*>(isolate_));
   if (auto* heap_profiler = heap()->heap_profiler()) {
-    heap_profiler->AddBuildEmbedderGraphCallback(&CppGraphBuilder::Run, this);
+    heap_profiler->SetInternalBuildEmbedderGraphCallback(&CppGraphBuilder::Run,
+                                                         this);
     heap_profiler->set_native_move_listener(
         std::make_unique<MoveListenerImpl>(heap_profiler, this));
   }
@@ -657,8 +681,7 @@ void CppHeap::DetachIsolate() {
   sweeping_on_mutator_thread_observer_.reset();
 
   if (auto* heap_profiler = heap()->heap_profiler()) {
-    heap_profiler->RemoveBuildEmbedderGraphCallback(&CppGraphBuilder::Run,
-                                                    this);
+    heap_profiler->SetInternalBuildEmbedderGraphCallback(nullptr, nullptr);
     heap_profiler->set_native_move_listener(nullptr);
   }
   SetMetricRecorder(nullptr);
@@ -850,7 +873,8 @@ size_t CppHeap::last_bytes_marked() const {
 }
 
 bool CppHeap::AdvanceMarking(v8::base::TimeDelta max_duration,
-                             size_t marked_bytes_limit) {
+                             std::optional<size_t> marked_bytes_limit,
+                             cppgc::EmbedderStackState stack_state) {
   if (!TracingInitialized()) {
     return true;
   }
@@ -864,8 +888,8 @@ bool CppHeap::AdvanceMarking(v8::base::TimeDelta max_duration,
     marker_->NotifyConcurrentMarkingOfWorkIfNeeded(
         cppgc::TaskPriority::kUserBlocking);
   }
-  marking_done_ =
-      marker_->AdvanceMarkingWithLimits(max_duration, marked_bytes_limit);
+  marking_done_ = marker_->To<UnifiedHeapMarker>().AdvanceMarkingOnStep(
+      max_duration, marked_bytes_limit, stack_state);
   DCHECK_IMPLIES(in_atomic_pause_, marking_done_);
   is_in_v8_marking_step_ = false;
   return marking_done_;
@@ -1113,9 +1137,11 @@ void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
     }
     EnterFinalPause(stack_state);
     EnterProcessGlobalAtomicPause();
-    CHECK(AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX));
+    CHECK(AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX,
+                         StackState::kMayContainHeapPointers));
     if (FinishConcurrentMarkingIfNeeded()) {
-      CHECK(AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX));
+      CHECK(AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX,
+                           StackState::kMayContainHeapPointers));
     }
     FinishMarkingAndProcessWeakness();
     CompactAndSweep();
