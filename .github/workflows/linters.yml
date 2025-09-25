@@ -111,7 +111,7 @@ jobs:
             echo
             echo 'ERROR: The JavaScript lint validation failed (the errors are logged above).'
             echo '       Please fix the lint errors.'
-            if make lint-js-fix > /dev/null 2>&1; then
+            if NODE=$(command -v node) make lint-js-fix > /dev/null 2>&1; then
               echo '       Run:'
               echo '          make lint-js-fix'
               echo '       to fix the lint issues.'
