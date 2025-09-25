@@ -2644,7 +2644,7 @@ added: REPLACEME
 napiVersion: 8
 -->
 
-```c
+```cpp
 napi_status napi_create_object_with_properties(napi_env env,
                                                napi_value prototype_or_null,
                                                const napi_value* property_names,
@@ -2654,8 +2654,9 @@ napi_status napi_create_object_with_properties(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] prototype_or_null`: The prototype object for the new object, or `null`
-  for no prototype.
+* `[in] prototype_or_null`: The prototype object for the new object. Can be a
+  `napi_value` representing a JavaScript object to use as the prototype, a
+  `napi_value` representing JavaScript `null`, or a `nullptr` that will be converted to `null`.
 * `[in] property_names`: Array of `napi_value` representing the property names.
 * `[in] property_values`: Array of `napi_value` representing the property values.
 * `[in] property_count`: Number of properties in the arrays.

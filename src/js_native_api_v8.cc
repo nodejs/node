@@ -1606,8 +1606,12 @@ napi_create_object_with_properties(napi_env env,
     CHECK_ARG(env, property_values);
   }
 
-  v8::Local<v8::Value> v8_prototype_or_null =
-      v8impl::V8LocalValueFromJsValue(prototype_or_null);
+  v8::Local<v8::Value> v8_prototype_or_null;
+  if (prototype_or_null == nullptr) {
+    v8_prototype_or_null = v8::Null(env->isolate);
+  } else {
+    v8_prototype_or_null = v8impl::V8LocalValueFromJsValue(prototype_or_null);
+  }
 
   v8::LocalVector<v8::Name> v8_names(env->isolate, property_count);
   v8::LocalVector<v8::Value> v8_values(env->isolate, property_count);
