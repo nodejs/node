@@ -51,7 +51,7 @@ TAP version 13
       type: 'test'
       location: '/test/fixtures/test-runner/output/abort.js:(LINE):7'
       failureType: 'testAborted'
-      error: 'This operation was aborted'
+      error: 'This operation was aborted.'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -73,7 +73,7 @@ TAP version 13
       type: 'test'
       location: '/test/fixtures/test-runner/output/abort.js:(LINE):7'
       failureType: 'testAborted'
-      error: 'This operation was aborted'
+      error: 'This operation was aborted.'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -95,7 +95,7 @@ TAP version 13
       type: 'test'
       location: '/test/fixtures/test-runner/output/abort.js:(LINE):7'
       failureType: 'testAborted'
-      error: 'This operation was aborted'
+      error: 'This operation was aborted.'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -133,7 +133,7 @@ not ok 2 - promise abort signal
   type: 'test'
   location: '/test/fixtures/test-runner/output/abort.js:(LINE):1'
   failureType: 'testAborted'
-  error: 'This operation was aborted'
+  error: 'This operation was aborted.'
   code: 20
   name: 'AbortError'
   stack: |-
@@ -200,7 +200,7 @@ not ok 2 - promise abort signal
       type: 'test'
       location: '/test/fixtures/test-runner/output/abort.js:(LINE):5'
       failureType: 'testAborted'
-      error: 'This operation was aborted'
+      error: 'This operation was aborted.'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -222,7 +222,7 @@ not ok 2 - promise abort signal
       type: 'test'
       location: '/test/fixtures/test-runner/output/abort.js:(LINE):5'
       failureType: 'testAborted'
-      error: 'This operation was aborted'
+      error: 'This operation was aborted.'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -244,7 +244,7 @@ not ok 2 - promise abort signal
       type: 'test'
       location: '/test/fixtures/test-runner/output/abort.js:(LINE):5'
       failureType: 'testAborted'
-      error: 'This operation was aborted'
+      error: 'This operation was aborted.'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -282,7 +282,7 @@ not ok 4 - callback abort signal
   type: 'test'
   location: '/test/fixtures/test-runner/output/abort.js:(LINE):1'
   failureType: 'testAborted'
-  error: 'This operation was aborted'
+  error: 'This operation was aborted.'
   code: 20
   name: 'AbortError'
   stack: |-
