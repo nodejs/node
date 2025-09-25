@@ -1,133 +1,92 @@
 #include <assert.h>
 #include <node_api.h>
+#include <string>
 
-// Creating with many options because complains are when ~20 properties
-static void CreateTestProperties(napi_env env,
-                                 napi_value names[20],
-                                 napi_value values[20]) {
-  napi_create_string_utf8(env, "foo", NAPI_AUTO_LENGTH, &names[0]);
-  napi_create_string_utf8(env, "value1", NAPI_AUTO_LENGTH, &values[0]);
-  napi_create_string_utf8(env, "alpha", NAPI_AUTO_LENGTH, &names[1]);
-  napi_create_int32(env, 100, &values[1]);
-  napi_create_string_utf8(env, "beta", NAPI_AUTO_LENGTH, &names[2]);
-  napi_get_boolean(env, true, &values[2]);
-  napi_create_string_utf8(env, "gamma", NAPI_AUTO_LENGTH, &names[3]);
-  napi_create_double(env, 3.14159, &values[3]);
-  napi_create_string_utf8(env, "delta", NAPI_AUTO_LENGTH, &names[4]);
-  napi_create_int32(env, 42, &values[4]);
-  napi_create_string_utf8(env, "epsilon", NAPI_AUTO_LENGTH, &names[5]);
-  napi_create_string_utf8(env, "test", NAPI_AUTO_LENGTH, &values[5]);
-  napi_create_string_utf8(env, "zeta", NAPI_AUTO_LENGTH, &names[6]);
-  napi_create_string_utf8(env, "data", NAPI_AUTO_LENGTH, &values[6]);
-  napi_create_string_utf8(env, "eta", NAPI_AUTO_LENGTH, &names[7]);
-  napi_create_string_utf8(env, "info", NAPI_AUTO_LENGTH, &values[7]);
-  napi_create_string_utf8(env, "theta", NAPI_AUTO_LENGTH, &names[8]);
-  napi_create_string_utf8(env, "sample", NAPI_AUTO_LENGTH, &values[8]);
-  napi_create_string_utf8(env, "iota", NAPI_AUTO_LENGTH, &names[9]);
-  napi_create_double(env, 2.71828, &values[9]);
-  napi_create_string_utf8(env, "kappa", NAPI_AUTO_LENGTH, &names[10]);
-  napi_create_string_utf8(env, "benchmark", NAPI_AUTO_LENGTH, &values[10]);
-  napi_create_string_utf8(env, "lambda", NAPI_AUTO_LENGTH, &names[11]);
-  napi_create_string_utf8(env, "result", NAPI_AUTO_LENGTH, &values[11]);
-  napi_create_string_utf8(env, "mu", NAPI_AUTO_LENGTH, &names[12]);
-  napi_create_string_utf8(env, "output", NAPI_AUTO_LENGTH, &values[12]);
-  napi_create_string_utf8(env, "nu", NAPI_AUTO_LENGTH, &names[13]);
-  napi_get_boolean(env, false, &values[13]);
-  napi_create_string_utf8(env, "xi", NAPI_AUTO_LENGTH, &names[14]);
-  napi_create_int32(env, 7, &values[14]);
-  napi_create_string_utf8(env, "omicron", NAPI_AUTO_LENGTH, &names[15]);
-  napi_create_double(env, 1.618, &values[15]);
-  napi_create_string_utf8(env, "pi", NAPI_AUTO_LENGTH, &names[16]);
-  napi_create_string_utf8(env, "config", NAPI_AUTO_LENGTH, &values[16]);
-  napi_create_string_utf8(env, "rho", NAPI_AUTO_LENGTH, &names[17]);
-  napi_create_int32(env, 999, &values[17]);
-  napi_create_string_utf8(env, "sigma", NAPI_AUTO_LENGTH, &names[18]);
-  napi_create_double(env, 0.577, &values[18]);
-  napi_create_string_utf8(env, "tau", NAPI_AUTO_LENGTH, &names[19]);
-  napi_get_boolean(env, true, &values[19]);
-}
+struct BenchmarkParams {
+  napi_value count_val;
+  napi_value bench_obj;
+  napi_value start_fn;
+  napi_value end_fn;
+  uint32_t count;
+};
 
-static napi_value CreateObjectWithPropertiesNew(napi_env env,
-                                                napi_callback_info info) {
+static BenchmarkParams ParseBenchmarkArgs(napi_env env,
+                                          const napi_callback_info info) {
+  BenchmarkParams params;
   size_t argc = 4;
   napi_value args[4];
   napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
 
-  napi_value count_val = args[0];
-  napi_value bench_obj = args[1];
-  napi_value start_fn = args[2];
-  napi_value end_fn = args[3];
+  params.count_val = args[0];
+  params.bench_obj = args[1];
+  params.start_fn = args[2];
+  params.end_fn = args[3];
 
-  uint32_t count;
-  napi_get_value_uint32(env, count_val, &count);
+  napi_get_value_uint32(env, params.count_val, &params.count);
+  return params;
+}
 
-  napi_value names[20];
-  napi_value values[20];
+static napi_value global_names[20];
+static napi_value global_values[20];
+static bool global_properties_initialized = false;
+
+// Creating with many options because complains are when ~20 properties
+static void InitializeTestProperties(napi_env env) {
+  if (global_properties_initialized) return;
+
+  for (int i = 0; i < 20; i++) {
+    std::string name = "foo" + std::to_string(i);
+    napi_create_string_utf8(
+        env, name.c_str(), NAPI_AUTO_LENGTH, &global_names[i]);
+    napi_create_string_utf8(
+        env, name.c_str(), NAPI_AUTO_LENGTH, &global_values[i]);
+  }
+  global_properties_initialized = true;
+}
+
+static napi_value CreateObjectWithPropertiesNew(napi_env env,
+                                                napi_callback_info info) {
+  BenchmarkParams params = ParseBenchmarkArgs(env, info);
+
+  InitializeTestProperties(env);
+
   napi_value null_prototype;
-
   napi_get_null(env, &null_prototype);
-  CreateTestProperties(env, names, values);
 
-  napi_call_function(env, bench_obj, start_fn, 0, nullptr, nullptr);
+  napi_call_function(
+      env, params.bench_obj, params.start_fn, 0, nullptr, nullptr);
 
-  for (uint32_t i = 0; i < count; i++) {
+  for (uint32_t i = 0; i < params.count; i++) {
     napi_value obj;
     napi_create_object_with_properties(
-        env, null_prototype, names, values, 20, &obj);
+        env, null_prototype, global_names, global_values, 20, &obj);
   }
 
-  napi_call_function(env, bench_obj, end_fn, 1, &count_val, nullptr);
+  napi_call_function(
+      env, params.bench_obj, params.end_fn, 1, &params.count_val, nullptr);
 
   return nullptr;
 }
 
 static napi_value CreateObjectWithPropertiesOld(napi_env env,
                                                 napi_callback_info info) {
-  size_t argc = 4;
-  napi_value args[4];
-  napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+  BenchmarkParams params = ParseBenchmarkArgs(env, info);
 
-  napi_value count_val = args[0];
-  napi_value bench_obj = args[1];
-  napi_value start_fn = args[2];
-  napi_value end_fn = args[3];
+  InitializeTestProperties(env);
 
-  uint32_t count;
-  napi_get_value_uint32(env, count_val, &count);
+  napi_call_function(
+      env, params.bench_obj, params.start_fn, 0, nullptr, nullptr);
 
-  napi_value names[20];
-  napi_value values[20];
-
-  CreateTestProperties(env, names, values);
-
-  napi_call_function(env, bench_obj, start_fn, 0, nullptr, nullptr);
-
-  for (uint32_t i = 0; i < count; i++) {
+  for (uint32_t i = 0; i < params.count; i++) {
     napi_value obj;
     napi_create_object(env, &obj);
-    napi_set_property(env, obj, names[0], values[0]);
-    napi_set_property(env, obj, names[1], values[1]);
-    napi_set_property(env, obj, names[2], values[2]);
-    napi_set_property(env, obj, names[3], values[3]);
-    napi_set_property(env, obj, names[4], values[4]);
-    napi_set_property(env, obj, names[5], values[5]);
-    napi_set_property(env, obj, names[6], values[6]);
-    napi_set_property(env, obj, names[7], values[7]);
-    napi_set_property(env, obj, names[8], values[8]);
-    napi_set_property(env, obj, names[9], values[9]);
-    napi_set_property(env, obj, names[10], values[10]);
-    napi_set_property(env, obj, names[11], values[11]);
-    napi_set_property(env, obj, names[12], values[12]);
-    napi_set_property(env, obj, names[13], values[13]);
-    napi_set_property(env, obj, names[14], values[14]);
-    napi_set_property(env, obj, names[15], values[15]);
-    napi_set_property(env, obj, names[16], values[16]);
-    napi_set_property(env, obj, names[17], values[17]);
-    napi_set_property(env, obj, names[18], values[18]);
-    napi_set_property(env, obj, names[19], values[19]);
+    for (int j = 0; j < 20; j++) {
+      napi_set_property(env, obj, global_names[j], global_values[j]);
+    }
   }
 
-  napi_call_function(env, bench_obj, end_fn, 1, &count_val, nullptr);
+  napi_call_function(
+      env, params.bench_obj, params.end_fn, 1, &params.count_val, nullptr);
 
   return nullptr;
 }
