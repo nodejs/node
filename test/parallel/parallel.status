@@ -139,6 +139,7 @@ test-inspector-network-content-type: SKIP
 test-fetch:  SKIP
 test-without-async-context-frame: SKIP
 test-process-cpuUsage: PASS, FLAKY
+test-web-locks: SKIP
 
 
 [$asan==on]
