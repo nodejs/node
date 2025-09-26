@@ -113,7 +113,6 @@ class DatabaseSync : public BaseObject {
  public:
   enum InternalFields {
     kAuthorizerCallback = BaseObject::kInternalFieldCount,
-    kPendingAuthorizerError,
     kInternalFieldCount
   };
 
@@ -172,9 +171,7 @@ class DatabaseSync : public BaseObject {
   void SetIgnoreNextSQLiteError(bool ignore);
   bool ShouldIgnoreSQLiteError();
 
-  bool HasPendingAuthorizerError() const;
-  void StoreAuthorizerError(v8::Local<v8::Value> error);
-  void RethrowPendingAuthorizerError();
+
 
   SET_MEMORY_INFO_NAME(DatabaseSync)
   SET_SELF_SIZE(DatabaseSync)

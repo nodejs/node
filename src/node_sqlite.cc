@@ -233,28 +233,6 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, DatabaseSync* db) {
   }
 }
 
-bool DatabaseSync::HasPendingAuthorizerError() const {
-  Local<Value> error =
-      object()->GetInternalField(kPendingAuthorizerError).As<Value>();
-  return !error.IsEmpty() && !error->IsUndefined();
-}
-
-void DatabaseSync::StoreAuthorizerError(Local<Value> error) {
-  if (!HasPendingAuthorizerError()) {
-    object()->SetInternalField(kPendingAuthorizerError, error);
-  }
-}
-
-void DatabaseSync::RethrowPendingAuthorizerError() {
-  if (HasPendingAuthorizerError()) {
-    Local<Value> error =
-        object()->GetInternalField(kPendingAuthorizerError).As<Value>();
-    object()->SetInternalField(kPendingAuthorizerError,
-                               Undefined(env()->isolate()));
-    env()->isolate()->ThrowException(error);
-  }
-}
-
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
   Local<Object> e;
   if (CreateSQLiteError(isolate, message).ToLocal(&e)) {
@@ -1149,14 +1127,6 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   sqlite3_stmt* s = nullptr;
   int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, 0);
 
-  if (db->HasPendingAuthorizerError()) {
-    db->RethrowPendingAuthorizerError();
-    if (s != nullptr) {
-      sqlite3_finalize(s);
-    }
-    return;
-  }
-
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   BaseObjectPtr<StatementSync> stmt =
       StatementSync::Create(env, BaseObjectPtr<DatabaseSync>(db), s);
@@ -1178,10 +1148,6 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
 
   Utf8Value sql(env->isolate(), args[0].As<String>());
   int r = sqlite3_exec(db->connection_, *sql, nullptr, nullptr, nullptr);
-  if (db->HasPendingAuthorizerError()) {
-    db->RethrowPendingAuthorizerError();
-    return;
-  }
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 }
 
@@ -1957,19 +1923,19 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
   js_argv.emplace_back(
       NullableSQLiteStringToValue(isolate, param4).ToLocalChecked());
 
-  TryCatch try_catch(isolate);
   MaybeLocal<Value> retval = callback->Call(
       context, Undefined(isolate), js_argv.size(), js_argv.data());
 
-  if (try_catch.HasCaught()) {
-    db->StoreAuthorizerError(try_catch.Exception());
+  Local<Value> result;
+
+  if (!retval.ToLocal(&result)) {
+    db->SetIgnoreNextSQLiteError(true);
     return SQLITE_DENY;
   }
 
   Local<String> error_message;
-  Local<Value> result;
-  if (!retval.ToLocal(&result) || result->IsUndefined() || result->IsNull() ||
-      !result->IsInt32()) {
+
+  if (!result->IsInt32()) {
     if (!String::NewFromUtf8(
              isolate,
              "Authorizer callback must return an integer authorization code")
@@ -1978,7 +1944,8 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
     }
 
     Local<Value> err = Exception::TypeError(error_message);
-    db->StoreAuthorizerError(err);
+    isolate->ThrowException(err);
+    db->SetIgnoreNextSQLiteError(true);
     return SQLITE_DENY;
   }
 
@@ -1993,7 +1960,8 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
     }
 
     Local<Value> err = Exception::RangeError(error_message);
-    db->StoreAuthorizerError(err);
+    isolate->ThrowException(err);
+    db->SetIgnoreNextSQLiteError(true);
     return SQLITE_DENY;
   }
 
