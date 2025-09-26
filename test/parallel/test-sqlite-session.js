@@ -366,6 +366,30 @@ suite('conflict resolution', () => {
   });
 });
 
+test('filter handler throws', (t) => {
+  const database1 = new DatabaseSync(':memory:');
+  const database2 = new DatabaseSync(':memory:');
+  const createTableSql = 'CREATE TABLE data1(key INTEGER PRIMARY KEY); CREATE TABLE data2(key INTEGER PRIMARY KEY);';
+  database1.exec(createTableSql);
+  database2.exec(createTableSql);
+
+  const session = database1.createSession();
+
+  database1.exec('INSERT INTO data1 (key) VALUES (1), (2), (3)');
+  database1.exec('INSERT INTO data2 (key) VALUES (1), (2), (3), (4), (5)');
+
+  t.assert.throws(() => {
+    database2.applyChangeset(session.changeset(), {
+      filter: (tableName) => {
+        throw new Error(`Error filtering table ${tableName}`);
+      }
+    });
+  }, {
+    name: 'Error',
+    message: 'Error filtering table data1'
+  });
+});
+
 test('database.createSession() - filter changes', (t) => {
   const database1 = new DatabaseSync(':memory:');
   const database2 = new DatabaseSync(':memory:');
