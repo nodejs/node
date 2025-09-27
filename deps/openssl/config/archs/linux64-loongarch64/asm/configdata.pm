@@ -160,7 +160,9 @@ our %config = (
     "build_metadata" => "",
     "build_type" => "release",
     "builddir" => ".",
-    "cflags" => [],
+    "cflags" => [
+        "-Wa,--noexecstack"
+    ],
     "conf_files" => [
         "Configurations/00-base-templates.conf",
         "Configurations/10-main.conf"
@@ -190,7 +192,6 @@ our %config = (
         "OPENSSL_THREADS",
         "OPENSSL_NO_AFALGENG",
         "OPENSSL_NO_ASAN",
-        "OPENSSL_NO_ASM",
         "OPENSSL_NO_BROTLI",
         "OPENSSL_NO_BROTLI_DYNAMIC",
         "OPENSSL_NO_COMP",
@@ -235,7 +236,7 @@ our %config = (
     ],
     "openssl_sys_defines" => [],
     "openssldir" => "",
-    "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-asm no-brotli no-brotli-dynamic no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-demos no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fips-jitter no-fuzz-afl no-fuzz-libfuzzer no-h3demo no-hqinterop no-jitter no-ktls no-loadereng no-md2 no-msan no-pie no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-sslkeylog no-tfo no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-winstore no-zlib no-zlib-dynamic no-zstd no-zstd-dynamic",
+    "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-brotli no-brotli-dynamic no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-demos no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fips-jitter no-fuzz-afl no-fuzz-libfuzzer no-h3demo no-hqinterop no-jitter no-ktls no-loadereng no-md2 no-msan no-pie no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-sslkeylog no-tfo no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-winstore no-zlib no-zlib-dynamic no-zstd no-zstd-dynamic",
     "patch" => "3",
     "perl_archname" => "loongarch64-linux-thread-multi",
     "perl_cmd" => "/usr/bin/perl5.40.0",
@@ -246,7 +247,6 @@ our %config = (
         "no-afalgeng",
         "enable-ssl-trace",
         "enable-fips",
-        "no-asm",
         "linux64-loongarch64"
     ],
     "perlenv" => {
@@ -255,7 +255,7 @@ our %config = (
         "AS" => undef,
         "ASFLAGS" => undef,
         "BUILDFILE" => undef,
-        "CC" => undef,
+        "CC" => "gcc",
         "CFLAGS" => undef,
         "CPP" => undef,
         "CPPDEFINES" => undef,
@@ -515,7 +515,6 @@ our @disablables_int = (
 our %disabled = (
     "afalgeng" => "option",
     "asan" => "default",
-    "asm" => "option",
     "brotli" => "default",
     "brotli-dynamic" => "default",
     "buildtest-c++" => "default",
@@ -1772,11 +1771,28 @@ our %unified_info = (
         }
     },
     "defines" => {
+        "libcrypto" => [
+            "MD5_ASM",
+            "OPENSSL_CPUID_OBJ",
+            "VPAES_ASM"
+        ],
         "providers/fips" => [
             "FIPS_MODULE"
         ],
+        "providers/libcommon.a" => [
+            "OPENSSL_CPUID_OBJ"
+        ],
+        "providers/libdefault.a" => [
+            "OPENSSL_CPUID_OBJ",
+            "VPAES_ASM"
+        ],
         "providers/libfips.a" => [
-            "FIPS_MODULE"
+            "FIPS_MODULE",
+            "OPENSSL_CPUID_OBJ",
+            "VPAES_ASM"
+        ],
+        "providers/liblegacy.a" => [
+            "MD5_ASM"
         ],
         "test/evp_extra_test" => [
             "STATIC_LEGACY"
@@ -9137,8 +9153,9 @@ our %unified_info = (
                 "crypto/libcrypto-lib-info.o",
                 "crypto/libcrypto-lib-init.o",
                 "crypto/libcrypto-lib-initthread.o",
+                "crypto/libcrypto-lib-loongarch64cpuid.o",
+                "crypto/libcrypto-lib-loongarchcap.o",
                 "crypto/libcrypto-lib-mem.o",
-                "crypto/libcrypto-lib-mem_clr.o",
                 "crypto/libcrypto-lib-mem_sec.o",
                 "crypto/libcrypto-lib-o_dir.o",
                 "crypto/libcrypto-lib-o_fopen.o",
@@ -9183,7 +9200,8 @@ our %unified_info = (
                 "crypto/libfips-lib-der_writer.o",
                 "crypto/libfips-lib-ex_data.o",
                 "crypto/libfips-lib-initthread.o",
-                "crypto/libfips-lib-mem_clr.o",
+                "crypto/libfips-lib-loongarch64cpuid.o",
+                "crypto/libfips-lib-loongarchcap.o",
                 "crypto/libfips-lib-o_str.o",
                 "crypto/libfips-lib-packet.o",
                 "crypto/libfips-lib-param_build.o",
@@ -9219,10 +9237,12 @@ our %unified_info = (
                 "crypto/aes/libcrypto-lib-aes_misc.o",
                 "crypto/aes/libcrypto-lib-aes_ofb.o",
                 "crypto/aes/libcrypto-lib-aes_wrap.o",
+                "crypto/aes/libcrypto-lib-vpaes-loongarch64.o",
                 "crypto/aes/libfips-lib-aes_cbc.o",
                 "crypto/aes/libfips-lib-aes_core.o",
                 "crypto/aes/libfips-lib-aes_ecb.o",
-                "crypto/aes/libfips-lib-aes_misc.o"
+                "crypto/aes/libfips-lib-aes_misc.o",
+                "crypto/aes/libfips-lib-vpaes-loongarch64.o"
             ],
             "products" => {
                 "lib" => [
@@ -9505,7 +9525,7 @@ our %unified_info = (
         },
         "crypto/chacha" => {
             "deps" => [
-                "crypto/chacha/libcrypto-lib-chacha_enc.o"
+                "crypto/chacha/libcrypto-lib-chacha-loongarch64.o"
             ],
             "products" => {
                 "lib" => [
@@ -10160,6 +10180,7 @@ our %unified_info = (
         },
         "crypto/md5" => {
             "deps" => [
+                "crypto/md5/libcrypto-lib-md5-loongarch64.o",
                 "crypto/md5/libcrypto-lib-md5_dgst.o",
                 "crypto/md5/libcrypto-lib-md5_one.o",
                 "crypto/md5/libcrypto-lib-md5_sha1.o"
@@ -19659,6 +19680,12 @@ our %unified_info = (
         "crypto/aes/bsaes-armv7.o" => [
             "crypto"
         ],
+        "crypto/aes/libcrypto-lib-vpaes-loongarch64.o" => [
+            "crypto"
+        ],
+        "crypto/aes/libfips-lib-vpaes-loongarch64.o" => [
+            "crypto"
+        ],
         "crypto/aes/vpaes-armv8.o" => [
             "crypto"
         ],
@@ -19728,6 +19755,9 @@ our %unified_info = (
         "crypto/chacha/chacha-s390x.o" => [
             "crypto"
         ],
+        "crypto/chacha/libcrypto-lib-chacha-loongarch64.o" => [
+            "crypto"
+        ],
         "crypto/cpuid.o" => [
             "."
         ],
@@ -19756,6 +19786,9 @@ our %unified_info = (
             "crypto"
         ],
         "crypto/ec/ecx_meth.o" => [
+            "crypto"
+        ],
+        "crypto/ec/ecx_s390x.o" => [
             "crypto"
         ],
         "crypto/ec/libcrypto-lib-ecx_key.o" => [
@@ -19837,6 +19870,9 @@ our %unified_info = (
         ],
         "crypto/libfips-lib-cpuid.o" => [
             "."
+        ],
+        "crypto/md5/libcrypto-lib-md5-loongarch64.o" => [
+            "crypto"
         ],
         "crypto/md5/md5-aarch64.o" => [
             "crypto"
@@ -23231,6 +23267,9 @@ our %unified_info = (
         "crypto/aes/libcrypto-lib-aes_wrap.o" => [
             "crypto/aes/aes_wrap.c"
         ],
+        "crypto/aes/libcrypto-lib-vpaes-loongarch64.o" => [
+            "crypto/aes/vpaes-loongarch64.S"
+        ],
         "crypto/aes/libfips-lib-aes_cbc.o" => [
             "crypto/aes/aes_cbc.c"
         ],
@@ -23242,6 +23281,9 @@ our %unified_info = (
         ],
         "crypto/aes/libfips-lib-aes_misc.o" => [
             "crypto/aes/aes_misc.c"
+        ],
+        "crypto/aes/libfips-lib-vpaes-loongarch64.o" => [
+            "crypto/aes/vpaes-loongarch64.S"
         ],
         "crypto/aria/libcrypto-lib-aria.o" => [
             "crypto/aria/aria.c"
@@ -23783,8 +23825,8 @@ our %unified_info = (
         "crypto/cast/libcrypto-lib-c_skey.o" => [
             "crypto/cast/c_skey.c"
         ],
-        "crypto/chacha/libcrypto-lib-chacha_enc.o" => [
-            "crypto/chacha/chacha_enc.c"
+        "crypto/chacha/libcrypto-lib-chacha-loongarch64.o" => [
+            "crypto/chacha/chacha-loongarch64.S"
         ],
         "crypto/cmac/libcrypto-lib-cmac.o" => [
             "crypto/cmac/cmac.c"
@@ -24986,11 +25028,14 @@ our %unified_info = (
         "crypto/libcrypto-lib-initthread.o" => [
             "crypto/initthread.c"
         ],
+        "crypto/libcrypto-lib-loongarch64cpuid.o" => [
+            "crypto/loongarch64cpuid.s"
+        ],
+        "crypto/libcrypto-lib-loongarchcap.o" => [
+            "crypto/loongarchcap.c"
+        ],
         "crypto/libcrypto-lib-mem.o" => [
             "crypto/mem.c"
-        ],
-        "crypto/libcrypto-lib-mem_clr.o" => [
-            "crypto/mem_clr.c"
         ],
         "crypto/libcrypto-lib-mem_sec.o" => [
             "crypto/mem_sec.c"
@@ -25124,8 +25169,11 @@ our %unified_info = (
         "crypto/libfips-lib-initthread.o" => [
             "crypto/initthread.c"
         ],
-        "crypto/libfips-lib-mem_clr.o" => [
-            "crypto/mem_clr.c"
+        "crypto/libfips-lib-loongarch64cpuid.o" => [
+            "crypto/loongarch64cpuid.s"
+        ],
+        "crypto/libfips-lib-loongarchcap.o" => [
+            "crypto/loongarchcap.c"
         ],
         "crypto/libfips-lib-o_str.o" => [
             "crypto/o_str.c"
@@ -25183,6 +25231,9 @@ our %unified_info = (
         ],
         "crypto/md4/libcrypto-lib-md4_one.o" => [
             "crypto/md4/md4_one.c"
+        ],
+        "crypto/md5/libcrypto-lib-md5-loongarch64.o" => [
+            "crypto/md5/md5-loongarch64.S"
         ],
         "crypto/md5/libcrypto-lib-md5_dgst.o" => [
             "crypto/md5/md5_dgst.c"
@@ -26620,6 +26671,7 @@ our %unified_info = (
             "crypto/aes/libcrypto-lib-aes_misc.o",
             "crypto/aes/libcrypto-lib-aes_ofb.o",
             "crypto/aes/libcrypto-lib-aes_wrap.o",
+            "crypto/aes/libcrypto-lib-vpaes-loongarch64.o",
             "crypto/aria/libcrypto-lib-aria.o",
             "crypto/asn1/libcrypto-lib-a_bitstr.o",
             "crypto/asn1/libcrypto-lib-a_d2i_fp.o",
@@ -26771,7 +26823,7 @@ our %unified_info = (
             "crypto/cast/libcrypto-lib-c_enc.o",
             "crypto/cast/libcrypto-lib-c_ofb64.o",
             "crypto/cast/libcrypto-lib-c_skey.o",
-            "crypto/chacha/libcrypto-lib-chacha_enc.o",
+            "crypto/chacha/libcrypto-lib-chacha-loongarch64.o",
             "crypto/cmac/libcrypto-lib-cmac.o",
             "crypto/cmp/libcrypto-lib-cmp_asn.o",
             "crypto/cmp/libcrypto-lib-cmp_client.o",
@@ -27086,8 +27138,9 @@ our %unified_info = (
             "crypto/libcrypto-lib-info.o",
             "crypto/libcrypto-lib-init.o",
             "crypto/libcrypto-lib-initthread.o",
+            "crypto/libcrypto-lib-loongarch64cpuid.o",
+            "crypto/libcrypto-lib-loongarchcap.o",
             "crypto/libcrypto-lib-mem.o",
-            "crypto/libcrypto-lib-mem_clr.o",
             "crypto/libcrypto-lib-mem_sec.o",
             "crypto/libcrypto-lib-o_dir.o",
             "crypto/libcrypto-lib-o_fopen.o",
@@ -27122,6 +27175,7 @@ our %unified_info = (
             "crypto/libcrypto-lib-uid.o",
             "crypto/md4/libcrypto-lib-md4_dgst.o",
             "crypto/md4/libcrypto-lib-md4_one.o",
+            "crypto/md5/libcrypto-lib-md5-loongarch64.o",
             "crypto/md5/libcrypto-lib-md5_dgst.o",
             "crypto/md5/libcrypto-lib-md5_one.o",
             "crypto/md5/libcrypto-lib-md5_sha1.o",
@@ -28580,6 +28634,7 @@ our %unified_info = (
             "crypto/aes/libfips-lib-aes_core.o",
             "crypto/aes/libfips-lib-aes_ecb.o",
             "crypto/aes/libfips-lib-aes_misc.o",
+            "crypto/aes/libfips-lib-vpaes-loongarch64.o",
             "crypto/bn/libfips-lib-bn_add.o",
             "crypto/bn/libfips-lib-bn_asm.o",
             "crypto/bn/libfips-lib-bn_blind.o",
@@ -28707,7 +28762,8 @@ our %unified_info = (
             "crypto/libfips-lib-der_writer.o",
             "crypto/libfips-lib-ex_data.o",
             "crypto/libfips-lib-initthread.o",
-            "crypto/libfips-lib-mem_clr.o",
+            "crypto/libfips-lib-loongarch64cpuid.o",
+            "crypto/libfips-lib-loongarchcap.o",
             "crypto/libfips-lib-o_str.o",
             "crypto/libfips-lib-packet.o",
             "crypto/libfips-lib-param_build.o",
@@ -30978,9 +31034,6 @@ my %disabled_info = (
     },
     "asan" => {
         "macro" => "OPENSSL_NO_ASAN"
-    },
-    "asm" => {
-        "macro" => "OPENSSL_NO_ASM"
     },
     "brotli" => {
         "macro" => "OPENSSL_NO_BROTLI"
