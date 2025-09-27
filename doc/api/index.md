@@ -19,6 +19,7 @@
 * [C++ embedder API](embedding.md)
 * [Child processes](child_process.md)
 * [Cluster](cluster.md)
+* [Code integrity](code_integrity.md)
 * [Command-line options](cli.md)
 * [Console](console.md)
 * [Crypto](crypto.md)
