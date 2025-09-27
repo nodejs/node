@@ -1,4 +1,4 @@
-.TH "NPM" "1" "September 2025" "NPM@11.6.0" ""
+.TH "NPM" "1" "September 2025" "NPM@11.6.1" ""
 .SH "NAME"
 \fBnpm\fR - javascript package manager
 .SS "Synopsis"
@@ -12,7 +12,7 @@ npm
 Note: This command is unaware of workspaces.
 .SS "Version"
 .P
-11.6.0
+11.6.1
 .SS "Description"
 .P
 npm is the package manager for the Node JavaScript platform. It puts modules in place so that node can find them, and manages dependency conflicts intelligently.
@@ -36,7 +36,7 @@ You can also run \fBnpm install blerg\fR to install the latest version of "blerg
 Use the \fBnpm search\fR command to show everything that's available in the public registry. Use \fBnpm ls\fR to show everything you've installed.
 .SS "Dependencies"
 .P
-If a package lists a dependency using a git URL, npm will install that dependency using the \fB\fBgit\fR\fR \fI\(lahttps://github.com/git-guides/install-git\(ra\fR command and will generate an error if it is not installed.
+If a package lists a dependency using a git URL, npm will install that dependency using the \fB\[rs]fBgit\[rs]fR\fR \fI\(lahttps://github.com/git-guides/install-git\(ra\fR command and will generate an error if it is not installed.
 .P
 If one of the packages npm tries to install is a native node module and requires compiling of C++ Code, npm will use \fBnode-gyp\fR \fI\(lahttps://github.com/nodejs/node-gyp\(ra\fR for that task. For a Unix system, \fBnode-gyp\fR \fI\(lahttps://github.com/nodejs/node-gyp\(ra\fR needs Python, make and a buildchain like GCC. On Windows, Python and Microsoft Visual Studio C++ are needed. For more information visit \fBthe node-gyp repository\fR \fI\(lahttps://github.com/nodejs/node-gyp\(ra\fR and the \fBnode-gyp Wiki\fR \fI\(lahttps://github.com/nodejs/node-gyp/wiki\(ra\fR.
 .SS "Directories"
@@ -58,7 +58,7 @@ Local mode is the default. Use \fB-g\fR or \fB--global\fR on any command to run 
 If you're using npm to develop and publish your code, check out the following help topics:
 .RS 0
 .IP \(bu 4
-json: Make a package.json file. See \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR.
+json: Make a package.json file. See \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR.
 .IP \(bu 4
 link: Links your current working code into Node's path, so that you don't have to reinstall every time you make a change. Use npm help link to do this.
 .IP \(bu 4

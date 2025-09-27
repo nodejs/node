@@ -1,4 +1,4 @@
-.TH "FOLDERS" "5" "September 2025" "NPM@11.6.0" ""
+.TH "FOLDERS" "5" "September 2025" "NPM@11.6.1" ""
 .SH "NAME"
 \fBfolders\fR - Folder Structures Used by npm
 .SS "Description"
@@ -22,7 +22,7 @@ If you need both, then install it in both places, or use \fBnpm link\fR.
 
 .SS "prefix Configuration"
 .P
-The \fB\fBprefix\fR config\fR \fI\(la/using-npm/config#prefix\(ra\fR defaults to the location where node is installed. On most systems, this is \fB/usr/local\fR. On Windows, it's \fB%AppData%\[rs]npm\fR. On Unix systems, it's one level up, since node is typically installed at \fB{prefix}/bin/node\fR rather than \fB{prefix}/node.exe\fR.
+The \fB\[rs]fBprefix\[rs]fR config\fR \fI\(la/using-npm/config#prefix\(ra\fR defaults to the location where node is installed. On most systems, this is \fB/usr/local\fR. On Windows, it's \fB%AppData%\[rs]npm\fR. On Unix systems, it's one level up, since node is typically installed at \fB{prefix}/bin/node\fR rather than \fB{prefix}/node.exe\fR.
 .P
 When the \fBglobal\fR flag is set, npm installs things into this prefix. When it is not set, it uses the root of the current package, or the current working directory if not in a package already.
 .SS "Node Modules"
@@ -50,7 +50,7 @@ Man pages are not installed on Windows systems.
 .P
 See npm help cache. Cache files are stored in \fB~/.npm\fR on Posix, or \fB%LocalAppData%/npm-cache\fR on Windows.
 .P
-This is controlled by the \fB\fBcache\fR config\fR \fI\(la/using-npm/config#cache\(ra\fR param.
+This is controlled by the \fB\[rs]fBcache\[rs]fR config\fR \fI\(la/using-npm/config#cache\(ra\fR param.
 .SS "More Information"
 .P
 When installing locally, npm first tries to find an appropriate \fBprefix\fR folder. This is so that \fBnpm install foo@1.2.3\fR will install to the sensible root of your package, even if you happen to have \fBcd\fRed into some other folder.
@@ -64,7 +64,7 @@ When you run \fBnpm install foo@1.2.3\fR, then the package is loaded into the ca
 Any bin files are symlinked to \fB./node_modules/.bin/\fR, so that they may be found by npm scripts when necessary.
 .SS "Global Installation"
 .P
-If the \fB\fBglobal\fR config\fR \fI\(la/using-npm/config#global\(ra\fR is set to true, then npm will install packages "globally".
+If the \fB\[rs]fBglobal\[rs]fR config\fR \fI\(la/using-npm/config#global\(ra\fR is set to true, then npm will install packages "globally".
 .P
 For global installation, packages are installed roughly the same way, but using the folders described above.
 .SS "Cycles, Conflicts, and Folder Parsimony"
@@ -125,7 +125,7 @@ For a graphical breakdown of what is installed where, use \fBnpm ls\fR.
 .P
 Upon publishing, npm will look in the \fBnode_modules\fR folder. If any of the items there are not in the \fBbundleDependencies\fR array, then they will not be included in the package tarball.
 .P
-This allows a package maintainer to install all of their dependencies (and dev dependencies) locally, but only re-publish those items that cannot be found elsewhere. See \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for more information.
+This allows a package maintainer to install all of their dependencies (and dev dependencies) locally, but only re-publish those items that cannot be found elsewhere. See \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for more information.
 .SS "See also"
 .RS 0
 .IP \(bu 4

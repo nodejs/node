@@ -122,31 +122,42 @@ class Gyp extends EventEmitter {
     }
 
     // support for inheriting config env variables from npm
-    const npmConfigPrefix = 'npm_config_'
-    Object.keys(process.env).forEach((name) => {
-      if (name.indexOf(npmConfigPrefix) !== 0) {
-        return
-      }
-      const val = process.env[name]
-      if (name === npmConfigPrefix + 'loglevel') {
-        log.logger.level = val
-      } else {
+    // npm will set environment variables in the following forms:
+    // - `npm_config_<key>` for values from npm's own config. Setting arbitrary
+    //   options on npm's config was deprecated in npm v11 but node-gyp still
+    //   supports it for backwards compatibility.
+    //   See https://github.com/nodejs/node-gyp/issues/3156
+    // - `npm_package_config_node_gyp_<key>` for values from the `config` object
+    //   in package.json. This is the preferred way to set options for node-gyp
+    //   since npm v11. The `node_gyp_` prefix is used to avoid conflicts with
+    //   other tools.
+    // The `npm_package_config_node_gyp_` prefix will take precedence over
+    // `npm_config_` keys.
+    const npmConfigPrefix = /^npm_config_/i
+    const npmPackageConfigPrefix = /^npm_package_config_node_gyp_/i
+
+    const configEnvKeys = Object.keys(process.env)
+      .filter((k) => npmConfigPrefix.test(k) || npmPackageConfigPrefix.test(k))
+      // sort so that npm_package_config_node_gyp_ keys come last and will override
+      .sort((a) => npmConfigPrefix.test(a) ? -1 : 1)
+
+    for (const key of configEnvKeys) {
       // add the user-defined options to the config
-        name = name.substring(npmConfigPrefix.length)
-        // gyp@741b7f1 enters an infinite loop when it encounters
-        // zero-length options so ensure those don't get through.
-        if (name) {
+      const name = npmConfigPrefix.test(key)
+        ? key.replace(npmConfigPrefix, '')
+        : key.replace(npmPackageConfigPrefix, '')
+      // gyp@741b7f1 enters an infinite loop when it encounters
+      // zero-length options so ensure those don't get through.
+      if (name) {
         // convert names like force_process_config to force-process-config
-          if (name.includes('_')) {
-            name = name.replace(/_/g, '-')
-          }
-          this.opts[name] = val
-        }
+        // and convert to lowercase
+        this.opts[name.replaceAll('_', '-').toLowerCase()] = process.env[key]
       }
-    })
+    }
 
     if (this.opts.loglevel) {
       log.logger.level = this.opts.loglevel
+      delete this.opts.loglevel
     }
     log.resume()
   }

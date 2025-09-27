@@ -1,6 +1,6 @@
 // mixin implementing the buildIdealTree method
 const localeCompare = require('@isaacs/string-locale-compare')('en')
-const rpj = require('read-package-json-fast')
+const PackageJson = require('@npmcli/package-json')
 const npa = require('npm-package-arg')
 const pacote = require('pacote')
 const cacache = require('cacache')
@@ -268,7 +268,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
       root = await this.#globalRootNode()
     } else {
       try {
-        const pkg = await rpj(this.path + '/package.json')
+        const { content: pkg } = await PackageJson.normalize(this.path)
         root = await this.#rootNodeFromPackage(pkg)
       } catch (err) {
         if (err.code === 'EJSONPARSE') {
@@ -448,7 +448,6 @@ module.exports = cls => class IdealTreeBuilder extends cls {
       const paths = await readdirScoped(nm).catch(() => [])
       for (const p of paths) {
         const name = p.replace(/\\/g, '/')
-        tree.package.dependencies = tree.package.dependencies || {}
         const updateName = this[_updateNames].includes(name)
         if (this[_updateAll] || updateName) {
           if (updateName) {
@@ -1288,14 +1287,15 @@ This is a one-time fix-up, please be patient...
       })
   }
 
-  #linkFromSpec (name, spec, parent) {
+  async #linkFromSpec (name, spec, parent) {
     const realpath = spec.fetchSpec
     const { installLinks, legacyPeerDeps } = this
-    return rpj(realpath + '/package.json').catch(() => ({})).then(pkg => {
-      const link = new Link({ name, parent, realpath, pkg, installLinks, legacyPeerDeps })
-      this.#linkNodes.add(link)
-      return link
+    const { content: pkg } = await PackageJson.normalize(realpath).catch(() => {
+      return { content: {} }
     })
+    const link = new Link({ name, parent, realpath, pkg, installLinks, legacyPeerDeps })
+    this.#linkNodes.add(link)
+    return link
   }
 
   // load all peer deps and meta-peer deps into the node's parent

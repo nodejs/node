@@ -1,48 +1,37 @@
 // mixin implementing the reify method
-const onExit = require('../signal-handling.js')
-const pacote = require('pacote')
-const AuditReport = require('../audit-report.js')
-const { subset, intersects } = require('semver')
-const npa = require('npm-package-arg')
-const semver = require('semver')
-const debug = require('../debug.js')
-const { walkUp } = require('walk-up-path')
-const { log, time } = require('proc-log')
-const rpj = require('read-package-json-fast')
-const hgi = require('hosted-git-info')
-
-const { dirname, resolve, relative, join } = require('node:path')
-const { depth: dfwalk } = require('treeverse')
-const {
-  lstat,
-  mkdir,
-  rm,
-  symlink,
-} = require('node:fs/promises')
-const { moveFile } = require('@npmcli/fs')
 const PackageJson = require('@npmcli/package-json')
+const hgi = require('hosted-git-info')
+const npa = require('npm-package-arg')
 const packageContents = require('@npmcli/installed-package-contents')
-const runScript = require('@npmcli/run-script')
-const { checkEngine, checkPlatform } = require('npm-install-checks')
-
-const treeCheck = require('../tree-check.js')
-const relpath = require('../relpath.js')
-const Diff = require('../diff.js')
-const retirePath = require('../retire-path.js')
+const pacote = require('pacote')
 const promiseAllRejectLate = require('promise-all-reject-late')
+const runScript = require('@npmcli/run-script')
 const { callLimit: promiseCallLimit } = require('promise-call-limit')
-const optionalSet = require('../optional-set.js')
-const calcDepFlags = require('../calc-dep-flags.js')
-const { saveTypeMap, hasSubKey } = require('../add-rm-pkg-deps.js')
+const { checkEngine, checkPlatform } = require('npm-install-checks')
+const { depth: dfwalk } = require('treeverse')
+const { dirname, resolve, relative, join } = require('node:path')
+const { log, time } = require('proc-log')
+const { lstat, mkdir, rm, symlink } = require('node:fs/promises')
+const { moveFile } = require('@npmcli/fs')
+const { subset, intersects } = require('semver')
+const { walkUp } = require('walk-up-path')
 
-const Shrinkwrap = require('../shrinkwrap.js')
-const { defaultLockfileVersion } = Shrinkwrap
+const AuditReport = require('../audit-report.js')
+const Diff = require('../diff.js')
+const calcDepFlags = require('../calc-dep-flags.js')
+const debug = require('../debug.js')
+const onExit = require('../signal-handling.js')
+const optionalSet = require('../optional-set.js')
+const relpath = require('../relpath.js')
+const retirePath = require('../retire-path.js')
+const treeCheck = require('../tree-check.js')
+const { defaultLockfileVersion } = require('../shrinkwrap.js')
+const { saveTypeMap, hasSubKey } = require('../add-rm-pkg-deps.js')
 
 // Part of steps (steps need refactoring before we can do anything about these)
 const _retireShallowNodes = Symbol.for('retireShallowNodes')
 const _loadBundlesAndUpdateTrees = Symbol.for('loadBundlesAndUpdateTrees')
 const _submitQuickAudit = Symbol('submitQuickAudit')
-const _addOmitsToTrashList = Symbol('addOmitsToTrashList')
 const _unpackNewModules = Symbol.for('unpackNewModules')
 const _build = Symbol.for('build')
 
@@ -85,6 +74,7 @@ module.exports = cls => class Reifier extends cls {
   #dryRun
   #nmValidated = new Set()
   #omit
+  #omitted
   #retiredPaths = {}
   #retiredUnchanged = {}
   #savePrefix
@@ -109,6 +99,7 @@ module.exports = cls => class Reifier extends cls {
     }
 
     this.#omit = new Set(options.omit)
+    this.#omitted = new Set()
 
     // start tracker block
     this.addTracker('reify')
@@ -141,6 +132,10 @@ module.exports = cls => class Reifier extends cls {
       this.idealTree = oldTree
     }
     await this[_saveIdealTree](options)
+    // clean omitted
+    for (const node of this.#omitted) {
+      node.parent = null
+    }
     // clean up any trash that is still in the tree
     for (const path of this[_trashList]) {
       const loc = relpath(this.idealTree.realpath, path)
@@ -315,7 +310,6 @@ module.exports = cls => class Reifier extends cls {
       ]],
       [_rollbackCreateSparseTree, [
         _createSparseTree,
-        _addOmitsToTrashList,
         _loadShrinkwrapsAndUpdateTrees,
         _loadBundlesAndUpdateTrees,
         _submitQuickAudit,
@@ -470,6 +464,8 @@ module.exports = cls => class Reifier extends cls {
     // find all the nodes that need to change between the actual
     // and ideal trees.
     this.diff = Diff.calculate({
+      omit: this.#omit,
+      omitted: this.#omitted,
       shrinkwrapInflated: this.#shrinkwrapInflated,
       filterNodes,
       actual: this.actualTree,
@@ -552,37 +548,6 @@ module.exports = cls => class Reifier extends cls {
       .then(() => {
         throw er
       })
-  }
-
-  // adding to the trash list will skip reifying, and delete them
-  // if they are currently in the tree and otherwise untouched.
-  [_addOmitsToTrashList] () {
-    if (!this.#omit.size) {
-      return
-    }
-
-    const timeEnd = time.start('reify:trashOmits')
-    for (const node of this.idealTree.inventory.values()) {
-      const { top } = node
-
-      // if the top is not the root or workspace then we do not want to omit it
-      if (!top.isProjectRoot && !top.isWorkspace) {
-        continue
-      }
-
-      // if a diff filter has been created, then we do not omit the node if the
-      // top node is not in that set
-      if (this.diff?.filterSet?.size && !this.diff.filterSet.has(top)) {
-        continue
-      }
-
-      // omit node if the dep type matches any omit flags that were set
-      if (node.shouldOmit(this.#omit)) {
-        this[_addNodeToTrashList](node)
-      }
-    }
-
-    timeEnd()
   }
 
   [_createSparseTree] () {
@@ -683,7 +648,6 @@ module.exports = cls => class Reifier extends cls {
       // reload the diff and sparse tree because the ideal tree changed
       .then(() => this[_diffTrees]())
       .then(() => this[_createSparseTree]())
-      .then(() => this[_addOmitsToTrashList]())
       .then(() => this[_loadShrinkwrapsAndUpdateTrees]())
       .then(timeEnd)
   }
@@ -691,15 +655,10 @@ module.exports = cls => class Reifier extends cls {
   // create a symlink for Links, extract for Nodes
   // return the node object, since we usually want that
   // handle optional dep failures here
-  // If node is in trash list, skip it
   // If reifying fails, and the node is optional, add it and its optionalSet
   // to the trash list
   // Always return the node.
   [_reifyNode] (node) {
-    if (this[_trashList].has(node.path)) {
-      return node
-    }
-
     const timeEnd = time.start(`reifyNode:${node.location}`)
     this.addTracker('reify', node.name, node.location)
 
@@ -803,7 +762,7 @@ module.exports = cls => class Reifier extends cls {
       })
       // store nodes don't use Node class so node.package doesn't get updated
       if (node.isInStore) {
-        const pkg = await rpj(join(node.path, 'package.json'))
+        const { content: pkg } = await PackageJson.normalize(node.path)
         node.package.scripts = pkg.scripts
       }
       return
@@ -1432,8 +1391,7 @@ module.exports = cls => class Reifier extends cls {
         if (options.saveType) {
           const depType = saveTypeMap.get(options.saveType)
           pkg[depType][name] = newSpec
-          // rpj will have moved it here if it was in both
-          // if it is empty it will be deleted later
+          // PackageJson.normalize will have moved it here if it was in both, if it is empty it will be deleted later
           if (options.saveType === 'prod' && pkg.optionalDependencies) {
             delete pkg.optionalDependencies[name]
           }
@@ -1474,7 +1432,7 @@ module.exports = cls => class Reifier extends cls {
     const exactVersion = node => {
       for (const edge of node.edgesIn) {
         try {
-          if (semver.subset(edge.spec, node.version)) {
+          if (subset(edge.spec, node.version)) {
             return false
           }
         } catch {

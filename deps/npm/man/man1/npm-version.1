@@ -1,4 +1,4 @@
-.TH "NPM-VERSION" "1" "September 2025" "NPM@11.6.0" ""
+.TH "NPM-VERSION" "1" "September 2025" "NPM@11.6.1" ""
 .SH "NAME"
 \fBnpm-version\fR - Bump a package version
 .SS "Synopsis"
@@ -156,7 +156,7 @@ The \fBnewversion\fR argument should be a valid semver string, a valid second ar
 .P
 If run in a git repo, it will also create a version commit and tag. This behavior is controlled by \fBgit-tag-version\fR (see below), and can be disabled on the command line by running \fBnpm --no-git-tag-version version\fR. It will fail if the working directory is not clean, unless the \fB-f\fR or \fB--force\fR flag is set.
 .P
-If supplied with \fB-m\fR or \fB\fB--message\fR config\fR \fI\(la/using-npm/config#message\(ra\fR option, npm will use it as a commit message when creating a version commit. If the \fBmessage\fR config contains \fB%s\fR then that will be replaced with the resulting version number. For example:
+If supplied with \fB-m\fR or \fB\[rs]fB--message\[rs]fR config\fR \fI\(la/using-npm/config#message\(ra\fR option, npm will use it as a commit message when creating a version commit. If the \fBmessage\fR config contains \fB%s\fR then that will be replaced with the resulting version number. For example:
 .P
 .RS 2
 .nf
@@ -164,7 +164,7 @@ npm version patch -m "Upgrade to %s for reasons"
 .fi
 .RE
 .P
-If the \fB\fBsign-git-tag\fR config\fR \fI\(la/using-npm/config#sign-git-tag\(ra\fR is set, then the tag will be signed using the \fB-s\fR flag to git. Note that you must have a default GPG key set up in your git config for this to work properly. For example:
+If the \fB\[rs]fBsign-git-tag\[rs]fR config\fR \fI\(la/using-npm/config#sign-git-tag\(ra\fR is set, then the tag will be signed using the \fB-s\fR flag to git. Note that you must have a default GPG key set up in your git config for this to work properly. For example:
 .P
 .RS 2
 .nf

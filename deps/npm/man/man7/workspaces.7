@@ -1,4 +1,4 @@
-.TH "WORKSPACES" "7" "September 2025" "NPM@11.6.0" ""
+.TH "WORKSPACES" "7" "September 2025" "NPM@11.6.1" ""
 .SH "NAME"
 \fBworkspaces\fR - Working with workspaces
 .SS "Description"
@@ -7,10 +7,10 @@
 .P
 This set of features makes up for a much more streamlined workflow handling linked packages from the local file system. It automates the linking process as part of \fBnpm install\fR and removes the need to manually use \fBnpm link\fR in order to add references to packages that should be symlinked into the current \fBnode_modules\fR folder.
 .P
-We also refer to these packages being auto-symlinked during \fBnpm install\fR as a single \fBworkspace\fR, meaning it's a nested package within the current local file system that is explicitly defined in the \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json#workspaces\(ra\fR \fBworkspaces\fR configuration.
+We also refer to these packages being auto-symlinked during \fBnpm install\fR as a single \fBworkspace\fR, meaning it's a nested package within the current local file system that is explicitly defined in the \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json#workspaces\(ra\fR \fBworkspaces\fR configuration.
 .SS "Defining workspaces"
 .P
-Workspaces are usually defined via the \fBworkspaces\fR property of the \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json#workspaces\(ra\fR file, e.g:
+Workspaces are usually defined via the \fBworkspaces\fR property of the \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json#workspaces\(ra\fR file, e.g:
 .P
 .RS 2
 .nf
@@ -64,7 +64,7 @@ npm init -w ./packages/a
 This command will create the missing folders and a new \fBpackage.json\fR file (if needed) while also making sure to properly configure the \fB"workspaces"\fR property of your root project \fBpackage.json\fR.
 .SS "Adding dependencies to a workspace"
 .P
-It's possible to directly add/remove/update dependencies of your workspaces using the \fB\fBworkspace\fR config\fR \fI\(la/using-npm/config#workspace\(ra\fR.
+It's possible to directly add/remove/update dependencies of your workspaces using the \fB\[rs]fBworkspace\[rs]fR config\fR \fI\(la/using-npm/config#workspace\(ra\fR.
 .P
 For example, assuming the following structure:
 .P

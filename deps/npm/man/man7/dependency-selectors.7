@@ -1,4 +1,4 @@
-.TH "QUERYING" "7" "September 2025" "NPM@11.6.0" ""
+.TH "QUERYING" "7" "September 2025" "NPM@11.6.1" ""
 .SH "NAME"
 \fBQuerying\fR - Dependency Selector Syntax & Querying
 .SS "Description"
@@ -61,7 +61,7 @@ the term "dependencies" is in reference to any \fBNode\fR found in a \fBtree\fR 
 .IP \(bu 4
 \fB.peer\fR dependency found in the \fBpeerDependencies\fR section of \fBpackage.json\fR
 .IP \(bu 4
-\fB.workspace\fR dependency found in the \fB\fBworkspaces\fR\fR \fI\(lahttps://docs.npmjs.com/cli/v8/using-npm/workspaces\(ra\fR section of \fBpackage.json\fR
+\fB.workspace\fR dependency found in the \fB\[rs]fBworkspaces\[rs]fR\fR \fI\(lahttps://docs.npmjs.com/cli/v8/using-npm/workspaces\(ra\fR section of \fBpackage.json\fR
 .IP \(bu 4
 \fB.bundled\fR dependency found in the \fBbundleDependencies\fR section of \fBpackage.json\fR, or is a child of said dependency
 .RE 0
@@ -69,21 +69,21 @@ the term "dependencies" is in reference to any \fBNode\fR found in a \fBtree\fR 
 .SS "Pseudo Selectors"
 .RS 0
 .IP \(bu 4
-\fB\fB:not(<selector>)\fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:not\(ra\fR
+\fB\[rs]fB:not(<selector>)\[rs]fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:not\(ra\fR
 .IP \(bu 4
-\fB\fB:has(<selector>)\fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:has\(ra\fR
+\fB\[rs]fB:has(<selector>)\[rs]fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:has\(ra\fR
 .IP \(bu 4
-\fB\fB:is(<selector list>)\fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:is\(ra\fR
+\fB\[rs]fB:is(<selector list>)\[rs]fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:is\(ra\fR
 .IP \(bu 4
-\fB\fB:root\fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:root\(ra\fR matches the root node/dependency
+\fB\[rs]fB:root\[rs]fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:root\(ra\fR matches the root node/dependency
 .IP \(bu 4
-\fB\fB:scope\fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:scope\(ra\fR matches node/dependency it was queried against
+\fB\[rs]fB:scope\[rs]fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:scope\(ra\fR matches node/dependency it was queried against
 .IP \(bu 4
-\fB\fB:empty\fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:empty\(ra\fR when a dependency has no dependencies
+\fB\[rs]fB:empty\[rs]fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:empty\(ra\fR when a dependency has no dependencies
 .IP \(bu 4
-\fB\fB:private\fR\fR \fI\(lahttps://docs.npmjs.com/cli/v8/configuring-npm/package-json#private\(ra\fR when a dependency is private
+\fB\[rs]fB:private\[rs]fR\fR \fI\(lahttps://docs.npmjs.com/cli/v8/configuring-npm/package-json#private\(ra\fR when a dependency is private
 .IP \(bu 4
-\fB:link\fR when a dependency is linked (for instance, workspaces or packages manually \fB\fBlinked\fR\fR \fI\(lahttps://docs.npmjs.com/cli/v8/commands/npm-link\(ra\fR
+\fB:link\fR when a dependency is linked (for instance, workspaces or packages manually \fB\[rs]fBlinked\[rs]fR\fR \fI\(lahttps://docs.npmjs.com/cli/v8/commands/npm-link\(ra\fR
 .IP \(bu 4
 \fB:deduped\fR when a dependency has been deduped (note that this does \fInot\fR always mean the dependency has been hoisted to the root of node_modules)
 .IP \(bu 4
@@ -95,7 +95,7 @@ the term "dependencies" is in reference to any \fBNode\fR found in a \fBtree\fR 
 .IP \(bu 4
 \fB:missing\fR when a dependency is not found on disk
 .IP \(bu 4
-\fB:semver(<spec>, \[lB]selector\[rB], \[lB]function\[rB])\fR match a valid \fB\fBnode-semver\fR\fR \fI\(lahttps://github.com/npm/node-semver\(ra\fR version or range to a selector
+\fB:semver(<spec>, \[lB]selector\[rB], \[lB]function\[rB])\fR match a valid \fB\[rs]fBnode-semver\[rs]fR\fR \fI\(lahttps://github.com/npm/node-semver\(ra\fR version or range to a selector
 .IP \(bu 4
 \fB:path(<path>)\fR \fBglob\fR \fI\(lahttps://www.npmjs.com/package/glob\(ra\fR matching based on dependencies path relative to the project
 .IP \(bu 4

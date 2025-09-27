@@ -109,7 +109,7 @@ function assembleStyles() {
 	// From https://github.com/Qix-/color-convert/blob/3f0e0d4e92e235796ccb17f6e85c72094a651f49/conversions.js
 	Object.defineProperties(styles, {
 		rgbToAnsi256: {
-			value: (red, green, blue) => {
+			value(red, green, blue) {
 				// We use the extended greyscale palette here, with the exception of
 				// black and white. normal palette only has 4 greyscale shades.
 				if (red === green && green === blue) {
@@ -132,7 +132,7 @@ function assembleStyles() {
 			enumerable: false,
 		},
 		hexToRgb: {
-			value: hex => {
+			value(hex) {
 				const matches = /[a-f\d]{6}|[a-f\d]{3}/i.exec(hex.toString(16));
 				if (!matches) {
 					return [0, 0, 0];
@@ -161,7 +161,7 @@ function assembleStyles() {
 			enumerable: false,
 		},
 		ansi256ToAnsi: {
-			value: code => {
+			value(code) {
 				if (code < 8) {
 					return 30 + code;
 				}

@@ -56,7 +56,7 @@ function joinPathWithBasePath(filename, directoryPath) {
 function joinPathWithRelativePath(root, options) {
 	return function(filename, directoryPath) {
 		const sameRoot = directoryPath.startsWith(root);
-		if (sameRoot) return directoryPath.replace(root, "") + filename;
+		if (sameRoot) return directoryPath.slice(root.length) + filename;
 		else return convertSlashes((0, path.relative)(root, directoryPath), options.pathSeparator) + options.pathSeparator + filename;
 	};
 }
@@ -151,11 +151,11 @@ function build$3(options) {
 //#endregion
 //#region src/api/functions/resolve-symlink.ts
 const resolveSymlinksAsync = function(path$1, state, callback$1) {
-	const { queue, options: { suppressErrors } } = state;
+	const { queue, fs: fs$1, options: { suppressErrors } } = state;
 	queue.enqueue();
-	fs.default.realpath(path$1, (error, resolvedPath) => {
+	fs$1.realpath(path$1, (error, resolvedPath) => {
 		if (error) return queue.dequeue(suppressErrors ? null : error, state);
-		fs.default.stat(resolvedPath, (error$1, stat) => {
+		fs$1.stat(resolvedPath, (error$1, stat) => {
 			if (error$1) return queue.dequeue(suppressErrors ? null : error$1, state);
 			if (stat.isDirectory() && isRecursive(path$1, resolvedPath, state)) return queue.dequeue(null, state);
 			callback$1(stat, resolvedPath);
@@ -164,11 +164,11 @@ const resolveSymlinksAsync = function(path$1, state, callback$1) {
 	});
 };
 const resolveSymlinks = function(path$1, state, callback$1) {
-	const { queue, options: { suppressErrors } } = state;
+	const { queue, fs: fs$1, options: { suppressErrors } } = state;
 	queue.enqueue();
 	try {
-		const resolvedPath = fs.default.realpathSync(path$1);
-		const stat = fs.default.statSync(resolvedPath);
+		const resolvedPath = fs$1.realpathSync(path$1);
+		const stat = fs$1.statSync(resolvedPath);
 		if (stat.isDirectory() && isRecursive(path$1, resolvedPath, state)) return;
 		callback$1(stat, resolvedPath);
 	} catch (e) {
@@ -243,21 +243,23 @@ function build$1(options, isSynchronous) {
 const readdirOpts = { withFileTypes: true };
 const walkAsync = (state, crawlPath, directoryPath, currentDepth, callback$1) => {
 	state.queue.enqueue();
-	if (currentDepth <= 0) return state.queue.dequeue(null, state);
+	if (currentDepth < 0) return state.queue.dequeue(null, state);
+	const { fs: fs$1 } = state;
 	state.visited.push(crawlPath);
 	state.counts.directories++;
-	fs.default.readdir(crawlPath || ".", readdirOpts, (error, entries = []) => {
+	fs$1.readdir(crawlPath || ".", readdirOpts, (error, entries = []) => {
 		callback$1(entries, directoryPath, currentDepth);
 		state.queue.dequeue(state.options.suppressErrors ? null : error, state);
 	});
 };
 const walkSync = (state, crawlPath, directoryPath, currentDepth, callback$1) => {
-	if (currentDepth <= 0) return;
+	const { fs: fs$1 } = state;
+	if (currentDepth < 0) return;
 	state.visited.push(crawlPath);
 	state.counts.directories++;
 	let entries = [];
 	try {
-		entries = fs.default.readdirSync(crawlPath || ".", readdirOpts);
+		entries = fs$1.readdirSync(crawlPath || ".", readdirOpts);
 	} catch (e) {
 		if (!state.options.suppressErrors) throw e;
 	}
@@ -321,6 +323,19 @@ var Counter = class {
 };
 
 //#endregion
+//#region src/api/aborter.ts
+/**
+* AbortController is not supported on Node 14 so we use this until we can drop
+* support for Node 14.
+*/
+var Aborter = class {
+	aborted = false;
+	abort() {
+		this.aborted = true;
+	}
+};
+
+//#endregion
 //#region src/api/walker.ts
 var Walker = class {
 	root;
@@ -347,7 +362,8 @@ var Walker = class {
 			queue: new Queue((error, state) => this.callbackInvoker(state, error, callback$1)),
 			symlinks: /* @__PURE__ */ new Map(),
 			visited: [""].slice(0, 0),
-			controller: new AbortController()
+			controller: new Aborter(),
+			fs: options.fs || fs
 		};
 		this.joinPath = build$7(this.root, options);
 		this.pushDirectory = build$6(this.root, options);
@@ -364,7 +380,7 @@ var Walker = class {
 	}
 	walk = (entries, directoryPath, depth) => {
 		const { paths, options: { filters, resolveSymlinks: resolveSymlinks$1, excludeSymlinks, exclude, maxFiles, signal, useRealPaths, pathSeparator }, controller } = this.state;
-		if (controller.signal.aborted || signal && signal.aborted || maxFiles && paths.length > maxFiles) return;
+		if (controller.aborted || signal && signal.aborted || maxFiles && paths.length > maxFiles) return;
 		const files = this.getArray(this.state.paths);
 		for (let i = 0; i < entries.length; ++i) {
 			const entry = entries[i];
@@ -439,12 +455,12 @@ var APIBuilder = class {
 
 //#endregion
 //#region src/builder/index.ts
-var pm = null;
+let pm = null;
 /* c8 ignore next 6 */
 try {
 	require.resolve("picomatch");
 	pm = require("picomatch");
-} catch (_e) {}
+} catch {}
 var Builder = class {
 	globCache = {};
 	options = {

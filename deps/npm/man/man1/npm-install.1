@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL" "1" "September 2025" "NPM@11.6.0" ""
+.TH "NPM-INSTALL" "1" "September 2025" "NPM@11.6.1" ""
 .SH "NAME"
 \fBnpm-install\fR - Install a package
 .SS "Synopsis"
@@ -28,7 +28,7 @@ See \fBpackage-lock.json\fR \fI\(la/configuring-npm/package-lock-json\(ra\fR and
 A \fBpackage\fR is:
 .RS 0
 .IP \(bu 4
-a) a folder containing a program described by a \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR file
+a) a folder containing a program described by a \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR file
 .IP \(bu 4
 b) a gzipped tarball containing (a)
 .IP \(bu 4
@@ -53,7 +53,7 @@ Install the dependencies to the local \fBnode_modules\fR folder.
 .P
 In global mode (ie, with \fB-g\fR or \fB--global\fR appended to the command), it installs the current package context (ie, the current working directory) as a global package.
 .P
-By default, \fBnpm install\fR will install all modules listed as dependencies in \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR.
+By default, \fBnpm install\fR will install all modules listed as dependencies in \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR.
 .P
 With the \fB--production\fR flag (or when the \fBNODE_ENV\fR environment variable is set to \fBproduction\fR), npm will not install modules listed in \fBdevDependencies\fR. To install all modules listed in both \fBdependencies\fR and \fBdevDependencies\fR when \fBNODE_ENV\fR environment variable is set to \fBproduction\fR, you can use \fB--production=false\fR.
 .RS 4
@@ -118,7 +118,7 @@ npm install https://github.com/indexzero/forever/tarball/v0.5.6
 .IP \(bu 4
 \fBnpm install \[lB]<@scope>/\[rB]<name>\fR:
 .P
-Do a \fB<name>@<tag>\fR install, where \fB<tag>\fR is the "tag" config. (See \fB\fBconfig\fR\fR \fI\(la/using-npm/config#tag\(ra\fR. The config's default value is \fBlatest\fR.)
+Do a \fB<name>@<tag>\fR install, where \fB<tag>\fR is the "tag" config. (See \fB\[rs]fBconfig\[rs]fR\fR \fI\(la/using-npm/config#tag\(ra\fR. The config's default value is \fBlatest\fR.)
 .P
 In most cases, this will install the version of the modules tagged as \fBlatest\fR on the npm registry.
 .P
@@ -176,7 +176,7 @@ npm install ansi-regex --save-bundle
 .IP \(bu 4
 \fBnpm install <alias>@npm:<name>\fR:
 .P
-Install a package under a custom alias. Allows multiple versions of a same-name package side-by-side, more convenient import names for packages with otherwise long ones, and using git forks replacements or forked npm packages as replacements. Aliasing works only on your project and does not rename packages in transitive dependencies. Aliases should follow the naming conventions stated in \fB\fBvalidate-npm-package-name\fR\fR \fI\(lahttps://www.npmjs.com/package/validate-npm-package-name#naming-rules\(ra\fR.
+Install a package under a custom alias. Allows multiple versions of a same-name package side-by-side, more convenient import names for packages with otherwise long ones, and using git forks replacements or forked npm packages as replacements. Aliasing works only on your project and does not rename packages in transitive dependencies. Aliases should follow the naming conventions stated in \fB\[rs]fBvalidate-npm-package-name\[rs]fR\fR \fI\(lahttps://www.npmjs.com/package/validate-npm-package-name#naming-rules\(ra\fR.
 .P
 Examples:
 .P
@@ -217,7 +217,7 @@ npm install @myorg/privatepackage@1.5.0
 .IP \(bu 4
 \fBnpm install \[lB]<@scope>/\[rB]<name>@<version range>\fR:
 .P
-Install a version of the package matching the specified version range. This will follow the same rules for resolving dependencies described in \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR.
+Install a version of the package matching the specified version range. This will follow the same rules for resolving dependencies described in \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR.
 .P
 Note that most version ranges must be put in quotes so that your shell will treat it as a single argument.
 .P

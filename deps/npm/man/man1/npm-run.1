@@ -1,4 +1,4 @@
-.TH "NPM-RUN" "1" "September 2025" "NPM@11.6.0" ""
+.TH "NPM-RUN" "1" "September 2025" "NPM@11.6.1" ""
 .SH "NAME"
 \fBnpm-run\fR - Run arbitrary package scripts
 .SS "Synopsis"
@@ -46,7 +46,7 @@ instead of
 .fi
 .RE
 .P
-The actual shell your script is run within is platform dependent. By default, on Unix-like systems it is the \fB/bin/sh\fR command, on Windows it is \fBcmd.exe\fR. The actual shell referred to by \fB/bin/sh\fR also depends on the system. You can customize the shell with the \fB\fBscript-shell\fR config\fR \fI\(la/using-npm/config#script-shell\(ra\fR.
+The actual shell your script is run within is platform dependent. By default, on Unix-like systems it is the \fB/bin/sh\fR command, on Windows it is \fBcmd.exe\fR. The actual shell referred to by \fB/bin/sh\fR also depends on the system. You can customize the shell with the \fB\[rs]fBscript-shell\[rs]fR config\fR \fI\(la/using-npm/config#script-shell\(ra\fR.
 .P
 Scripts are run from the root of the package folder, regardless of what the current working directory is when \fBnpm run\fR is called. If you want your script to use different behavior based on what subdirectory you're in, you can use the \fBINIT_CWD\fR environment variable, which holds the full path you were in when you ran \fBnpm run\fR.
 .P
@@ -55,7 +55,7 @@ Scripts are run from the root of the package folder, regardless of what the curr
 If you try to run a script without having a \fBnode_modules\fR directory and it fails, you will be given a warning to run \fBnpm install\fR, just in case you've forgotten.
 .SS "Workspaces support"
 .P
-You may use the \fB\fBworkspace\fR\fR \fI\(la/using-npm/config#workspace\(ra\fR or \fB\fBworkspaces\fR\fR \fI\(la/using-npm/config#workspaces\(ra\fR configs in order to run an arbitrary command from a package's \fB"scripts"\fR object in the context of the specified workspaces. If no \fB"command"\fR is provided, it will list the available scripts for each of these configured workspaces.
+You may use the \fB\[rs]fBworkspace\[rs]fR\fR \fI\(la/using-npm/config#workspace\(ra\fR or \fB\[rs]fBworkspaces\[rs]fR\fR \fI\(la/using-npm/config#workspaces\(ra\fR configs in order to run an arbitrary command from a package's \fB"scripts"\fR object in the context of the specified workspaces. If no \fB"command"\fR is provided, it will list the available scripts for each of these configured workspaces.
 .P
 Given a project with configured workspaces, e.g:
 .P
@@ -83,7 +83,7 @@ Assuming the workspace configuration is properly set up at the root level \fBpac
 .fi
 .RE
 .P
-And that each of the configured workspaces has a configured \fBtest\fR script, we can run tests in all of them using the \fB\fBworkspaces\fR config\fR \fI\(la/using-npm/config#workspaces\(ra\fR:
+And that each of the configured workspaces has a configured \fBtest\fR script, we can run tests in all of them using the \fB\[rs]fBworkspaces\[rs]fR config\fR \fI\(la/using-npm/config#workspaces\(ra\fR:
 .P
 .RS 2
 .nf

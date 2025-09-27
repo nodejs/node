@@ -1,4 +1,4 @@
-.TH "NPM-DIFF" "1" "September 2025" "NPM@11.6.0" ""
+.TH "NPM-DIFF" "1" "September 2025" "NPM@11.6.1" ""
 .SH "NAME"
 \fBnpm-diff\fR - The registry diff command
 .SS "Synopsis"
@@ -64,7 +64,7 @@ This workflow provides a handy way for package authors to see what package-track
 .IP \(bu 4
 \fBnpm diff --diff=<pkg-name>\fR (in a package directory):
 .P
-When using a single package name (with no version or tag specifier) as an argument, \fBnpm diff\fR will work in a similar way to \fB\fBnpm-outdated\fR\fR \fI\(lanpm-outdated\(ra\fR and reach for the registry to figure out what current published version of the package named \fB<pkg-name>\fR will satisfy its dependent declared semver-range. Once that specific version is known \fBnpm diff\fR will print diff patches comparing the current version of \fB<pkg-name>\fR found in the local file system with that specific version returned by the registry.
+When using a single package name (with no version or tag specifier) as an argument, \fBnpm diff\fR will work in a similar way to \fB\[rs]fBnpm-outdated\[rs]fR\fR \fI\(lanpm-outdated\(ra\fR and reach for the registry to figure out what current published version of the package named \fB<pkg-name>\fR will satisfy its dependent declared semver-range. Once that specific version is known \fBnpm diff\fR will print diff patches comparing the current version of \fB<pkg-name>\fR found in the local file system with that specific version returned by the registry.
 .P
 Given a package named \fBabbrev\fR that is currently installed:
 .P

@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "September 2025" "NPM@11.6.0" ""
+.TH "SCRIPTS" "7" "September 2025" "NPM@11.6.1" ""
 .SH "NAME"
 \fBscripts\fR - How npm handles the "scripts" field
 .SS "Description"
@@ -229,7 +229,7 @@ If there is a \fBrestart\fR script defined, these events are run, otherwise \fBs
 \fBpostrestart\fR
 .RE 0
 
-.SS "\fB\fBnpm run <user defined>\fR\fR \fI\(la/commands/npm-run\(ra\fR"
+.SS "\fB\[rs]fBnpm run <user defined>\[rs]fR\fR \fI\(la/commands/npm-run\(ra\fR"
 .RS 0
 .IP \(bu 4
 \fBpre<user-defined>\fR
@@ -347,7 +347,7 @@ then you could run \fBnpm start\fR to execute the \fBbar\fR script, which is exp
 .P
 The package.json fields are tacked onto the \fBnpm_package_\fR prefix. So, for instance, if you had \fB{"name":"foo", "version":"1.2.5"}\fR in your package.json file, then your package scripts would have the \fBnpm_package_name\fR environment variable set to "foo", and the \fBnpm_package_version\fR set to "1.2.5". You can access these variables in your code with \fBprocess.env.npm_package_name\fR and \fBprocess.env.npm_package_version\fR, and so on for other fields.
 .P
-See \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for more on package configs.
+See \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for more on package configs.
 .SS "current lifecycle event"
 .P
 Lastly, the \fBnpm_lifecycle_event\fR environment variable is set to whichever stage of the cycle is being executed. So, you could have a single script used for different parts of the process which switches based on what's currently happening.
@@ -391,7 +391,7 @@ If you want to run a make command, you can do so. This works just fine:
 .RE
 .SS "Exiting"
 .P
-Scripts are run by passing the line as a script argument to \fB/bin/sh\fR on POSIX systems or \fBcmd.exe\fR on Windows. You can control which shell is used by setting the \fB\fBscript-shell\fR\fR \fI\(la/using-npm/config#script-shell\(ra\fR configuration option.
+Scripts are run by passing the line as a script argument to \fB/bin/sh\fR on POSIX systems or \fBcmd.exe\fR on Windows. You can control which shell is used by setting the \fB\[rs]fBscript-shell\[rs]fR\fR \fI\(la/using-npm/config#script-shell\(ra\fR configuration option.
 .P
 If the script exits with a code other than 0, then this will abort the process.
 .P
@@ -401,7 +401,7 @@ Note that these script files don't have to be Node.js or even JavaScript program
 .IP \(bu 4
 Don't exit with a non-zero error code unless you \fIreally\fR mean it. If the failure is minor or only will prevent some optional features, then it's better to just print a warning and exit successfully.
 .IP \(bu 4
-Try not to use scripts to do what npm can do for you. Read through \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR to see all the things that you can specify and enable by simply describing your package appropriately. In general, this will lead to a more robust and consistent state.
+Try not to use scripts to do what npm can do for you. Read through \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR to see all the things that you can specify and enable by simply describing your package appropriately. In general, this will lead to a more robust and consistent state.
 .IP \(bu 4
 Inspect the env to determine where to put things. For instance, if the \fBnpm_config_binroot\fR environment variable is set to \fB/home/user/bin\fR, then don't try to install executables into \fB/usr/local/bin\fR. The user probably set it up that way for a reason.
 .IP \(bu 4

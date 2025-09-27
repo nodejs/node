@@ -1,6 +1,17 @@
 /// <reference types="node" />
+import * as nativeFs from "fs";
 import picomatch from "picomatch";
 
+//#region src/api/aborter.d.ts
+/**
+ * AbortController is not supported on Node 14 so we use this until we can drop
+ * support for Node 14.
+ */
+declare class Aborter {
+  aborted: boolean;
+  abort(): void;
+}
+//#endregion
 //#region src/api/queue.d.ts
 type OnQueueEmptyCallback = (error: Error | null, output: WalkerState) => void;
 /**
@@ -37,6 +48,14 @@ type GroupOutput = Group[];
 type OnlyCountsOutput = Counts;
 type PathsOutput = string[];
 type Output = OnlyCountsOutput | PathsOutput | GroupOutput;
+type FSLike = {
+  readdir: typeof nativeFs.readdir;
+  readdirSync: typeof nativeFs.readdirSync;
+  realpath: typeof nativeFs.realpath;
+  realpathSync: typeof nativeFs.realpathSync;
+  stat: typeof nativeFs.stat;
+  statSync: typeof nativeFs.statSync;
+};
 type WalkerState = {
   root: string;
   paths: string[];
@@ -44,7 +63,8 @@ type WalkerState = {
   counts: Counts;
   options: Options;
   queue: Queue;
-  controller: AbortController;
+  controller: Aborter;
+  fs: FSLike;
   symlinks: Map<string, string>;
   visited: string[];
 };
@@ -72,6 +92,7 @@ type Options<TGlobFunction = unknown> = {
   pathSeparator: PathSeparator;
   signal?: AbortSignal;
   globFunction?: TGlobFunction;
+  fs?: FSLike;
 };
 type GlobMatcher = (test: string) => boolean;
 type GlobFunction = (glob: string | string[], ...params: unknown[]) => GlobMatcher;
@@ -131,4 +152,4 @@ declare class Builder<TReturnType extends Output = PathsOutput, TGlobFunction = 
 //#region src/index.d.ts
 type Fdir = typeof Builder;
 //#endregion
-export { Counts, ExcludePredicate, Fdir, FilterPredicate, GlobFunction, GlobMatcher, GlobParams, Group, GroupOutput, OnlyCountsOutput, Options, Output, PathSeparator, PathsOutput, ResultCallback, WalkerState, Builder as fdir };
+export { Counts, ExcludePredicate, FSLike, Fdir, FilterPredicate, GlobFunction, GlobMatcher, GlobParams, Group, GroupOutput, OnlyCountsOutput, Options, Output, PathSeparator, PathsOutput, ResultCallback, WalkerState, Builder as fdir };

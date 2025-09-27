@@ -1,6 +1,6 @@
 {
   "name": "libnpmorg",
-  "version": "8.0.0",
+  "version": "8.0.1",
   "description": "Programmatic api for `npm org` commands",
   "author": "GitHub Inc.",
   "main": "lib/index.js",
@@ -29,7 +29,7 @@
   ],
   "devDependencies": {
     "@npmcli/eslint-config": "^5.0.1",
-    "@npmcli/template-oss": "4.24.4",
+    "@npmcli/template-oss": "4.25.1",
     "minipass": "^7.1.1",
     "nock": "^13.3.3",
     "tap": "^16.3.8"
@@ -43,14 +43,14 @@
   "homepage": "https://npmjs.com/package/libnpmorg",
   "dependencies": {
     "aproba": "^2.0.0",
-    "npm-registry-fetch": "^18.0.1"
+    "npm-registry-fetch": "^19.0.0"
   },
   "engines": {
     "node": "^20.17.0 || >=22.9.0"
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.24.4",
+    "version": "4.25.1",
     "content": "../../scripts/template-oss/index.js"
   },
   "tap": {

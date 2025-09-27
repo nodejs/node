@@ -96,9 +96,9 @@ to override default configs in a standard and consistent manner.
 
 ### Auth related configuration
 
-The settings `_auth`, `_authToken`, `username` and `_password` must all be
-scoped to a specific registry. This ensures that `npm` will never send
-credentials to the wrong host.
+The settings `_auth`, `_authToken`, `username`, `_password`, `certfile`,
+and `keyfile` must all be scoped to a specific registry. This ensures that
+`npm` will never send credentials to the wrong host.
 
 The full list is:
  - `_auth` (base64 authentication string)
@@ -107,6 +107,7 @@ The full list is:
  - `_password`
  - `email`
  - `cafile` (path to certificate authority file)
+ - `certfile` (path to certificate file)
  - `keyfile` (path to key file)
 
 In order to scope these values, they must be prefixed by a URI fragment.

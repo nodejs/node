@@ -1,6 +1,6 @@
 // Originally normalize-package-data
 
-const url = require('node:url')
+const { URL } = require('node:url')
 const hostedGitInfo = require('hosted-git-info')
 const validateLicense = require('validate-npm-package-license')
 
@@ -123,8 +123,7 @@ function normalizeData (data, changes) {
     if (typeof data.bugs === 'string') {
       if (isEmail(data.bugs)) {
         data.bugs = { email: data.bugs }
-        /* eslint-disable-next-line node/no-deprecated-api */
-      } else if (url.parse(data.bugs).protocol) {
+      } else if (URL.canParse(data.bugs)) {
         data.bugs = { url: data.bugs }
       } else {
         changes?.push(`Bug string field must be url, email, or {email,url}`)
@@ -140,8 +139,7 @@ function normalizeData (data, changes) {
       const oldBugs = data.bugs
       data.bugs = {}
       if (oldBugs.url) {
-        /* eslint-disable-next-line node/no-deprecated-api */
-        if (typeof (oldBugs.url) === 'string' && url.parse(oldBugs.url).protocol) {
+        if (URL.canParse(oldBugs.url)) {
           data.bugs.url = oldBugs.url
         } else {
           changes?.push('bugs.url field must be a string url. Deleted.')
@@ -216,8 +214,7 @@ function normalizeData (data, changes) {
       changes?.push('homepage field must be a string url. Deleted.')
       delete data.homepage
     } else {
-      /* eslint-disable-next-line node/no-deprecated-api */
-      if (!url.parse(data.homepage).protocol) {
+      if (!URL.canParse(data.homepage)) {
         data.homepage = 'http://' + data.homepage
       }
     }

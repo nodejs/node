@@ -1,4 +1,4 @@
-.TH "DEVELOPERS" "7" "September 2025" "NPM@11.6.0" ""
+.TH "DEVELOPERS" "7" "September 2025" "NPM@11.6.1" ""
 .SH "NAME"
 \fBdevelopers\fR - Developer Guide
 .SS "Description"
@@ -50,7 +50,7 @@ The \fBcommit-ish\fR can be any tag, sha, or branch which can be supplied as an 
 .P
 You need to have a \fBpackage.json\fR file in the root of your project to do much of anything with npm. That is basically the whole interface.
 .P
-See \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for details about what goes in that file. At the very least, you need:
+See \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for details about what goes in that file. At the very least, you need:
 .RS 0
 .IP \(bu 4
 name: This should be a string that identifies your project. Please do not use the name to specify that it runs on node, or is in JavaScript. You can use the "engines" field to explicitly state the versions of node (or whatever else) that your program requires, and it's pretty well assumed that it's JavaScript.
@@ -139,7 +139,7 @@ The following paths and files are never ignored, so adding them to \fB.npmignore
 .P
 If, given the structure of your project, you find \fB.npmignore\fR to be a maintenance headache, you might instead try populating the \fBfiles\fR property of \fBpackage.json\fR, which is an array of file or directory names that should be included in your package. Sometimes manually picking which items to allow is easier to manage than building a block list.
 .P
-See \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for more info on what can and can't be ignored.
+See \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for more info on what can and can't be ignored.
 .SS "Testing whether your \fB.npmignore\fR or \fBfiles\fR config works"
 .P
 If you want to double check that your package will include only the files you intend it to when published, you can run the \fBnpm pack\fR command locally which will generate a tarball in the working directory, the same way it does for publishing.
