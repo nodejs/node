@@ -28,7 +28,7 @@ class CheckImportsTest(unittest.TestCase):
                           'test', 'fixtures', 'tools', 'checkimports')
 
   def test_unused_and_unsorted(self):
-    with captured_output() as (out, err):
+    with captured_output() as (out, _err):
       self.assertEqual(is_valid(path.join(self.fixturesDir, 'invalid.cc')),
                        False)
       output = out.getvalue()
@@ -42,21 +42,21 @@ class CheckImportsTest(unittest.TestCase):
                     output);
 
   def test_unused_complex(self):
-    with captured_output() as (out, err):
+    with captured_output() as (out, _err):
       self.assertEqual(is_valid(path.join(self.fixturesDir, 'maybe.cc')),
                        False)
       output = out.getvalue()
       self.assertIn('does not use "Local"', output);
 
   def test_unused_simple(self):
-    with captured_output() as (out, err):
+    with captured_output() as (out, _err):
       self.assertEqual(is_valid(path.join(self.fixturesDir, 'unused.cc')),
                        False)
       output = out.getvalue()
       self.assertIn('does not use "Context"', output);
 
   def test_unsorted(self):
-    with captured_output() as (out, err):
+    with captured_output() as (out, _err):
       self.assertEqual(is_valid(path.join(self.fixturesDir, 'unsorted.cc')),
                        False)
       output = out.getvalue()
@@ -67,7 +67,7 @@ class CheckImportsTest(unittest.TestCase):
                     output);
 
   def test_valid(self):
-    with captured_output() as (out, err):
+    with captured_output() as (out, _err):
       self.assertEqual(is_valid(path.join(self.fixturesDir, 'valid.cc')),
                        True)
       output = out.getvalue()
