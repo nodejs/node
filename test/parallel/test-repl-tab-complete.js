@@ -22,11 +22,9 @@
 'use strict';
 
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
+const { startNewREPLServer } = require('../common/repl');
 const { describe, it } = require('node:test');
 const assert = require('assert');
-
-const repl = require('repl');
 
 function getNoResultsFunction() {
   return common.mustSucceed((data) => {
@@ -34,30 +32,15 @@ function getNoResultsFunction() {
   });
 }
 
-function prepareREPL() {
-  const input = new ArrayStream();
-  const replServer = repl.start({
-    prompt: '',
-    input,
-    output: process.stdout,
-    allowBlockingCompletions: true,
-  });
-
-  // Some errors are passed to the domain, but do not callback
-  replServer._domain.on('error', assert.ifError);
-
-  return { replServer, input };
-}
-
 describe('REPL tab completion (core functionality)', () => {
   it('does not break with variable declarations without an initialization', () => {
-    const { replServer } = prepareREPL();
+    const { replServer } = startNewREPLServer();
     replServer.complete('let a', getNoResultsFunction());
     replServer.close();
   });
 
   it('does not break in an object literal', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run(['var inner = {', 'one:1']);
 
@@ -74,7 +57,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('works with optional chaining', () => {
-    const { replServer } = prepareREPL();
+    const { replServer } = startNewREPLServer();
 
     replServer.complete(
       'console?.lo',
@@ -102,7 +85,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('returns object completions', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run(['var inner = {', 'one:1']);
 
@@ -119,7 +102,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('does not break in a ternary operator with ()', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run(['var inner = ( true ', '?', '{one: 1} : ']);
 
@@ -129,7 +112,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('works on literals', () => {
-    const { replServer } = prepareREPL();
+    const { replServer } = startNewREPLServer();
 
     replServer.complete(
       '``.a',
@@ -172,7 +155,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it("does not return a function's local variable", () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run(['var top = function() {', 'var inner = {one:1};', '}']);
 
@@ -182,7 +165,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it("does not return a function's local variable even when the function has parameters", () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run([
       'var top = function(one, two) {',
@@ -198,7 +181,7 @@ describe('REPL tab completion (core functionality)', () => {
 
   it("does not return a function's local variable" +
     'even if the scope is nested inside an immediately executed function', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run([
       'var top = function() {',
@@ -216,7 +199,7 @@ describe('REPL tab completion (core functionality)', () => {
   it("does not return a function's local variable" +
     'even if the scope is nested inside an immediately executed function' +
     '(the definition has the params and { on a separate line)', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run([
       'var top = function() {',
@@ -233,7 +216,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('currently does not work, but should not break (local inner)', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run([
       'var top = function() {',
@@ -250,7 +233,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('currently does not work, but should not break (local inner parens next line)', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run([
       'var top = function() {',
@@ -268,7 +251,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('works on non-Objects', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run(['var str = "test";']);
 
@@ -283,7 +266,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('should be case-insensitive if member part is lower-case', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run(['var foo = { barBar: 1, BARbuz: 2, barBLA: 3 };']);
 
@@ -301,7 +284,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('should be case-insensitive if member part is upper-case', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run(['var foo = { barBar: 1, BARbuz: 2, barBLA: 3 };']);
 
@@ -319,7 +302,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('should not break on spaces', () => {
-    const { replServer } = prepareREPL();
+    const { replServer } = startNewREPLServer();
 
     const spaceTimeout = setTimeout(function() {
       throw new Error('timeout');
@@ -338,7 +321,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it(`should pick up the global "toString" object, and any other properties up the "global" object's prototype chain`, () => {
-    const { replServer } = prepareREPL();
+    const { replServer } = startNewREPLServer();
 
     replServer.complete(
       'toSt',
@@ -351,7 +334,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('should make own properties shadow properties on the prototype', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run([
       'var x = Object.create(null);',
@@ -373,7 +356,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('works on context properties', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run(['var custom = "test";']);
 
@@ -388,7 +371,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it("doesn't crash REPL with half-baked proxy objects", () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run([
       'var proxy = new Proxy({}, {ownKeys: () => { throw new Error(); }});',
@@ -406,7 +389,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('does not include integer members of an Array', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run(['var ary = [1,2,3];']);
 
@@ -423,7 +406,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('does not include integer keys in an object', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run(['var obj = {1:"a","1a":"b",a:"b"};']);
 
@@ -440,7 +423,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('does not try to complete results of non-simple expressions', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run(['function a() {}']);
 
@@ -450,7 +433,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('works when prefixed with spaces', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run(['var obj = {1:"a","1a":"b",a:"b"};']);
 
@@ -467,7 +450,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('works inside assignments', () => {
-    const { replServer } = prepareREPL();
+    const { replServer } = startNewREPLServer();
 
     replServer.complete(
       'var log = console.lo',
@@ -480,7 +463,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('works for defined commands', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     replServer.complete(
       '.b',
@@ -503,7 +486,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('does not include __defineSetter__ and friends', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run(['var obj = {};']);
 
@@ -522,7 +505,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('works with builtin values', () => {
-    const { replServer } = prepareREPL();
+    const { replServer } = startNewREPLServer();
 
     replServer.complete(
       'I',
@@ -555,7 +538,7 @@ describe('REPL tab completion (core functionality)', () => {
   });
 
   it('works with lexically scoped variables', () => {
-    const { replServer, input } = prepareREPL();
+    const { replServer, input } = startNewREPLServer();
 
     input.run([
       'let lexicalLet = true;',

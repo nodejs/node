@@ -21,27 +21,19 @@
 
 'use strict';
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
-const repl = require('repl');
 const util = require('util');
+const { startNewREPLServer } = require('../common/repl');
 
 common.allowGlobals(42);
 
-// Create a dummy stream that does nothing
-const dummy = new ArrayStream();
-
 function testReset(cb) {
-  const r = repl.start({
-    input: dummy,
-    output: dummy,
-    useGlobal: false
-  });
-  r.context.foo = 42;
-  r.on('reset', common.mustCall(function(context) {
+  const { replServer } = startNewREPLServer();
+  replServer.context.foo = 42;
+  replServer.on('reset', common.mustCall(function(context) {
     assert(!!context, 'REPL did not emit a context with reset event');
-    assert.strictEqual(context, r.context, 'REPL emitted incorrect context. ' +
-    `context is ${util.inspect(context)}, expected ${util.inspect(r.context)}`);
+    assert.strictEqual(context, replServer.context, 'REPL emitted incorrect context. ' +
+    `context is ${util.inspect(context)}, expected ${util.inspect(replServer.context)}`);
     assert.strictEqual(
       context.foo,
       undefined,
@@ -51,17 +43,13 @@ function testReset(cb) {
     context.foo = 42;
     cb();
   }));
-  r.resetContext();
+  replServer.resetContext();
 }
 
 function testResetGlobal() {
-  const r = repl.start({
-    input: dummy,
-    output: dummy,
-    useGlobal: true
-  });
-  r.context.foo = 42;
-  r.on('reset', common.mustCall(function(context) {
+  const { replServer } = startNewREPLServer({ useGlobal: true });
+  replServer.context.foo = 42;
+  replServer.on('reset', common.mustCall(function(context) {
     assert.strictEqual(
       context.foo,
       42,
@@ -69,7 +57,7 @@ function testResetGlobal() {
       `context.foo is ${context.foo}, expected 42.`
     );
   }));
-  r.resetContext();
+  replServer.resetContext();
 }
 
 testReset(common.mustCall(testResetGlobal));

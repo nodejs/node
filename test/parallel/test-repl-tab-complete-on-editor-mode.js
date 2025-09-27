@@ -2,41 +2,28 @@
 
 const common = require('../common');
 const assert = require('assert');
-const ArrayStream = require('../common/arraystream');
-const repl = require('repl');
+const { startNewREPLServer } = require('../common/repl');
 
 // Tab completion in editor mode
 {
-  const editorStream = new ArrayStream();
-  const editor = repl.start({
-    stream: editorStream,
-    terminal: true,
-    useColors: false
-  });
+  const { replServer, input } = startNewREPLServer();
 
-  editorStream.run(['.clear']);
-  editorStream.run(['.editor']);
+  input.run(['.clear', '.editor']);
 
-  editor.completer('Uin', common.mustCall((_error, data) => {
+  replServer.completer('Uin', common.mustCall((_error, data) => {
     assert.deepStrictEqual(data, [['Uint'], 'Uin']);
   }));
 
-  editorStream.run(['.clear']);
-  editorStream.run(['.editor']);
+  input.run(['.clear', '.editor']);
 
-  editor.completer('var log = console.l', common.mustCall((_error, data) => {
+  replServer.completer('var log = console.l', common.mustCall((_error, data) => {
     assert.deepStrictEqual(data, [['console.log'], 'console.l']);
   }));
 }
 
 // Regression test for https://github.com/nodejs/node/issues/43528
 {
-  const stream = new ArrayStream();
-  const replServer = repl.start({
-    input: stream,
-    output: stream,
-    terminal: true,
-  });
+  const { replServer } = startNewREPLServer();
 
   // Editor mode
   replServer.write('.editor\n');
