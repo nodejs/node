@@ -794,23 +794,23 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> PrepareStackTraceCallback(
 // is included in the report.
 // Returns the filename of the written report.
 NODE_EXTERN std::string TriggerNodeReport(v8::Isolate* isolate,
-                                          const char* message,
-                                          const char* trigger,
-                                          const std::string& filename,
+                                          std::string_view message,
+                                          std::string_view trigger,
+                                          std::string_view filename,
                                           v8::Local<v8::Value> error);
 NODE_EXTERN std::string TriggerNodeReport(Environment* env,
-                                          const char* message,
-                                          const char* trigger,
-                                          const std::string& filename,
+                                          std::string_view message,
+                                          std::string_view trigger,
+                                          std::string_view filename,
                                           v8::Local<v8::Value> error);
 NODE_EXTERN void GetNodeReport(v8::Isolate* isolate,
-                               const char* message,
-                               const char* trigger,
+                               std::string_view message,
+                               std::string_view trigger,
                                v8::Local<v8::Value> error,
                                std::ostream& out);
 NODE_EXTERN void GetNodeReport(Environment* env,
-                               const char* message,
-                               const char* trigger,
+                               std::string_view message,
+                               std::string_view trigger,
                                v8::Local<v8::Value> error,
                                std::ostream& out);
 
