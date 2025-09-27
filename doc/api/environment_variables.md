@@ -18,7 +18,7 @@ For more details refer to the [`process.env` documentation][].
 
 Set of utilities for dealing with additional environment variables defined in `.env` files.
 
-> Stability: 1.1 - Active development
+> Stability: 2 - Stable
 
 <!--introduced_in=v20.12.0-->
 
