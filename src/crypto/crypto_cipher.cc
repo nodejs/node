@@ -128,7 +128,7 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
 
   // Lowercase the name in place before we create the JS string from it.
   std::string name_str(cipher.getName());
-  for (char& c : name_str) c = static_cast<char>(ToLower(c));
+  name_str = ToLower(name_str);
 
   values[0] = ToV8Value(env->context(), cipher.getModeLabel(), env->isolate());
   values[1] = ToV8Value(env->context(), name_str, env->isolate());
