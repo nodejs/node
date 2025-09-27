@@ -77,7 +77,7 @@ T ReverseBytes(T value, int block_bytes_log2) {
   static const uint8_t permute_table[3][8] = {{6, 7, 4, 5, 2, 3, 0, 1},
                                               {4, 5, 6, 7, 0, 1, 2, 3},
                                               {0, 1, 2, 3, 4, 5, 6, 7}};
-  typename std::make_unsigned<T>::type result = 0;
+  std::make_unsigned_t<T> result = 0;
   for (int i = 0; i < 8; i++) {
     result <<= 8;
     result |= bytes[permute_table[block_bytes_log2 - 1][i]];

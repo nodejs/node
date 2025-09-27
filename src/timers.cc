@@ -114,7 +114,7 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  v8::HandleScope scope(context->GetIsolate());
+  v8::HandleScope scope(Isolate::GetCurrent());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
   BindingData* binding = realm->AddBindingData<BindingData>(holder);

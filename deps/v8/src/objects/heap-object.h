@@ -27,6 +27,12 @@ class IndirectPointerSlot;
 class ExposedTrustedObject;
 class ObjectVisitor;
 class WritableFreeSpace;
+class WriteBarrierModeScope;
+
+// A safe HeapObject size is a uint32_t that's guaranteed to yield in OOB within
+// the sandbox. The alias exists to force appropriate conversions at the
+// callsites when V8 cannot enable stricter compiler flags in general.
+using SafeHeapObjectSize = base::StrongAlias<class HeapObjectSizeTag, uint32_t>;
 
 V8_OBJECT class HeapObjectLayout {
  public:
@@ -49,6 +55,8 @@ V8_OBJECT class HeapObjectLayout {
   template <typename IsolateT>
   inline void set_map_safe_transition(IsolateT* isolate, Tagged<Map> value,
                                       ReleaseStoreTag);
+
+  inline ObjectSlot map_slot() const;
 
   inline void set_map_safe_transition_no_write_barrier(
       Isolate* isolate, Tagged<Map> value, RelaxedStoreTag = kRelaxedStore);
@@ -92,14 +100,26 @@ V8_OBJECT class HeapObjectLayout {
   // Useful when the map pointer field is used for other purposes.
   // GC internal.
   V8_EXPORT_PRIVATE int SizeFromMap(Tagged<Map> map) const;
+  V8_EXPORT_PRIVATE SafeHeapObjectSize SafeSizeFromMap(Tagged<Map> map) const;
 
   // Return the write barrier mode for this. Callers of this function
   // must be able to present a reference to an DisallowGarbageCollection
   // object as a sign that they are not going to use this function
   // from code that allocates and thus invalidates the returned write
   // barrier mode.
-  inline WriteBarrierMode GetWriteBarrierMode(
+  inline WriteBarrierModeScope GetWriteBarrierMode(
       const DisallowGarbageCollection& promise);
+
+#if V8_ENABLE_SANDBOX
+  //
+  // Indirect pointers.
+  //
+  // These are only available when the sandbox is enabled, in which case they
+  // are the under-the-hood implementation of trusted pointers.
+  inline void InitSelfIndirectPointerField(
+      std::atomic<IndirectPointerHandle>* field, IsolateForSandbox isolate,
+      TrustedPointerPublishingScope* opt_publishing_scope);
+#endif  // V8_ENABLE_SANDBOX
 
 #ifdef OBJECT_PRINT
   void PrintHeader(std::ostream& os, const char* id);
@@ -140,6 +160,8 @@ template <typename T>
 struct ObjectTraits {
   using BodyDescriptor = typename T::BodyDescriptor;
 };
+
+enum InSharedSpace : bool { kInSharedSpace = true, kNotInSharedSpace = false };
 
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
@@ -229,11 +251,13 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   // Returns the heap object's size in bytes
   DECL_GETTER(Size, int)
+  DECL_GETTER(SafeSize, SafeHeapObjectSize)
 
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.
   // GC internal.
   V8_EXPORT_PRIVATE int SizeFromMap(Tagged<Map> map) const;
+  V8_EXPORT_PRIVATE SafeHeapObjectSize SafeSizeFromMap(Tagged<Map> map) const;
 
   template <class T>
   inline T ReadField(size_t offset) const
@@ -343,6 +367,9 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   template <ExternalPointerTag tag>
   inline void WriteLazilyInitializedExternalPointerField(
       size_t offset, IsolateForSandbox isolate, Address value);
+  inline void WriteLazilyInitializedExternalPointerField(
+      size_t offset, IsolateForSandbox isolate, Address value,
+      ExternalPointerTag tag);
 
   inline void SetupLazilyInitializedCppHeapPointerField(size_t offset);
   template <CppHeapPointerTag tag>
@@ -371,11 +398,61 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // ExposedTrustedObject as (only) these objects can be referenced through the
   // trusted pointer table.
   template <IndirectPointerTag tag>
-  inline Tagged<ExposedTrustedObject> ReadTrustedPointerField(
-      size_t offset, IsolateForSandbox isolate) const;
+  inline auto CastExposedTrustedObjectByTag(Tagged<Object> object) const {
+    if constexpr (tag == kCodeIndirectPointerTag) {
+      return TrustedCast<Code>(object);
+    }
+    if constexpr (tag == kBytecodeArrayIndirectPointerTag) {
+      return TrustedCast<BytecodeArray>(object);
+    }
+    if constexpr (tag == kInterpreterDataIndirectPointerTag) {
+      return TrustedCast<InterpreterData>(object);
+    }
+    if constexpr (tag == kUncompiledDataIndirectPointerTag) {
+      return TrustedCast<UncompiledData>(object);
+    }
+    if constexpr (tag == kRegExpDataIndirectPointerTag) {
+      return TrustedCast<RegExpData>(object);
+    }
+#if V8_ENABLE_WEBASSEMBLY
+    if constexpr (tag == kWasmDispatchTableIndirectPointerTag ||
+                  tag == kSharedWasmDispatchTableIndirectPointerTag) {
+      return TrustedCast<WasmDispatchTable>(object);
+    }
+    if constexpr (tag == kWasmTrustedInstanceDataIndirectPointerTag ||
+                  tag == kSharedWasmTrustedInstanceDataIndirectPointerTag) {
+      return TrustedCast<WasmTrustedInstanceData>(object);
+    }
+    if constexpr (tag == kWasmInternalFunctionIndirectPointerTag) {
+      return TrustedCast<WasmInternalFunction>(object);
+    }
+    if constexpr (tag == kWasmSuspenderIndirectPointerTag) {
+      return TrustedCast<WasmSuspenderObject>(object);
+    }
+    if constexpr (tag == kWasmFunctionDataIndirectPointerTag) {
+      return TrustedCast<WasmFunctionData>(object);
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+    UNREACHABLE();
+  }
+
   template <IndirectPointerTag tag>
-  inline Tagged<ExposedTrustedObject> ReadTrustedPointerField(
-      size_t offset, IsolateForSandbox isolate, AcquireLoadTag) const;
+  inline auto ReadTrustedPointerField(size_t offset,
+                                      IsolateForSandbox isolate) const {
+    // Currently, trusted pointer loads always use acquire semantics as the
+    // under-the-hood indirect pointer loads use acquire loads anyway.
+    return ReadTrustedPointerField<tag>(offset, isolate, kAcquireLoad);
+  }
+
+  template <IndirectPointerTag tag>
+  inline auto ReadTrustedPointerField(size_t offset, IsolateForSandbox isolate,
+                                      AcquireLoadTag acquire_load) const {
+    Tagged<Object> object =
+        ReadMaybeEmptyTrustedPointerField<tag>(offset, isolate, acquire_load);
+
+    return CastExposedTrustedObjectByTag<tag>(object);
+  }
+
   // Like ReadTrustedPointerField, but if the field is cleared, this will
   // return Smi::zero().
   template <IndirectPointerTag tag>
@@ -445,7 +522,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // object as a sign that they are not going to use this function
   // from code that allocates and thus invalidates the returned write
   // barrier mode.
-  inline WriteBarrierMode GetWriteBarrierMode(
+  inline WriteBarrierModeScope GetWriteBarrierMode(
       const DisallowGarbageCollection& promise);
 
   // Dispatched behavior.
@@ -469,7 +546,10 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   static void VerifyCodePointer(Isolate* isolate, Tagged<Object> p);
 #endif
 
-  static inline AllocationAlignment RequiredAlignment(Tagged<Map> map);
+  static inline AllocationAlignment RequiredAlignment(
+      InSharedSpace in_shared_space, Tagged<Map> map);
+  static inline AllocationAlignment RequiredAlignment(
+      AllocationSpace allocation_space, Tagged<Map> map);
   bool inline CheckRequiredAlignment(PtrComprCageBase cage_base) const;
 
   // Whether the object needs rehashing. That is the case if the object's
@@ -567,33 +647,39 @@ constexpr HeapObject Tagged<HeapObject>::ToRawPtr() const {
 #define IS_TYPE_FUNCTION_DECL(Type)                                            \
   V8_INLINE bool Is##Type(Tagged<HeapObject> obj);                             \
   V8_INLINE bool Is##Type(Tagged<HeapObject> obj, PtrComprCageBase cage_base); \
-  V8_INLINE bool Is##Type(HeapObject obj);                                     \
+  V8_INLINE bool Is##Type(HeapObject);                                         \
   V8_INLINE bool Is##Type(HeapObject obj, PtrComprCageBase cage_base);         \
   V8_INLINE bool Is##Type(const HeapObjectLayout* obj);                        \
-  V8_INLINE bool Is##Type(const HeapObjectLayout* obj,                         \
+  V8_INLINE bool Is##Type(const HeapObjectLayout* ob,                          \
                           PtrComprCageBase cage_base);
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(HashTableBase)
 IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
 IS_TYPE_FUNCTION_DECL(PropertyDictionary)
+IS_TYPE_FUNCTION_DECL(AnyHole)
 #undef IS_TYPE_FUNCTION_DECL
+
+// Predicate for IsAnyHole which can be used on any object type -- the standard
+// IsAnyHole check cannot be used for Code space objects.
+V8_INLINE bool SafeIsAnyHole(Tagged<HeapObject> obj);
 
 // Most calls to Is<Oddball> should go via the Tagged<Object> overloads, withst
 // an Isolate/LocalIsolate/ReadOnlyRoots parameter.
-#define IS_TYPE_FUNCTION_DECL(Type, Value, _)                             \
+#define IS_TYPE_FUNCTION_DECL(Type, ...)                                  \
   V8_INLINE bool Is##Type(Tagged<HeapObject> obj);                        \
   V8_INLINE bool Is##Type(HeapObject obj);                                \
   V8_INLINE bool Is##Type(const HeapObjectLayout* obj, Isolate* isolate); \
   V8_INLINE bool Is##Type(const HeapObjectLayout* obj);
 ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 HOLE_LIST(IS_TYPE_FUNCTION_DECL)
-IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
+IS_TYPE_FUNCTION_DECL(UndefinedContextCell)
+IS_TYPE_FUNCTION_DECL(NullOrUndefined)
 #undef IS_TYPE_FUNCTION_DECL
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name)                                \
   V8_INLINE bool Is##Name(Tagged<HeapObject> obj);                             \
   V8_INLINE bool Is##Name(Tagged<HeapObject> obj, PtrComprCageBase cage_base); \
-  V8_INLINE bool Is##Name(HeapObject obj);                                     \
+  V8_INLINE bool Is##Name(HeapObject);                                         \
   V8_INLINE bool Is##Name(HeapObject obj, PtrComprCageBase cage_base);         \
   V8_INLINE bool Is##Name(const HeapObjectLayout* obj);                        \
   V8_INLINE bool Is##Name(const HeapObjectLayout* obj,                         \

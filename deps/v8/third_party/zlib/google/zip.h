@@ -193,6 +193,19 @@ struct UnzipOptions {
   bool continue_on_error = false;
 };
 
+// Option of the Unzip function to control handling of symbolic link entries.
+enum class UnzipSymlinkOption {
+  // Don't preserve internal symbolic links. On POSIX, consider symbolic link
+  // entries as errors. On other platforms, links are not differentiated from
+  // regular files.
+  DONT_PRESERVE,
+#if defined(OS_POSIX)
+  // Preserve internal symbolic links. Links which point outside of the
+  // extraction directory or specify an absolute target are rejected.
+  PRESERVE,
+#endif
+};
+
 typedef base::RepeatingCallback<std::unique_ptr<WriterDelegate>(
     const base::FilePath&)>
     WriterFactory;
@@ -206,13 +219,16 @@ bool Unzip(const base::PlatformFile& zip_file,
            DirectoryCreator directory_creator,
            UnzipOptions options = {});
 
-// Unzips the contents of |zip_file| into |dest_dir|.
-// This function does not overwrite any existing file.
-// A filename collision will result in an error.
-// Therefore, |dest_dir| should initially be an empty directory.
-bool Unzip(const base::FilePath& zip_file,
-           const base::FilePath& dest_dir,
-           UnzipOptions options = {});
+// Unzips the contents of |zip_file| into |dest_dir|.  This function does not
+// overwrite any existing file.  A filename collision will result in an error.
+// Therefore, |dest_dir| should initially be an empty directory. If
+// |allow_symlinks| is set internal symbolics links will be preserved. Else,
+// symbolic link entries are considered errors.
+bool Unzip(
+    const base::FilePath& zip_file,
+    const base::FilePath& dest_dir,
+    UnzipOptions options = {},
+    UnzipSymlinkOption symlink_option = UnzipSymlinkOption::DONT_PRESERVE);
 
 }  // namespace zip
 

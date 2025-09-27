@@ -55,6 +55,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
+        "//absl/base:malloc_internal",
         "//absl/base:raw_logging_internal",
     ],
 )

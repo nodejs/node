@@ -283,7 +283,7 @@ void RegExpMacroAssemblerARM64::CheckCharacters(
   }
 }
 
-void RegExpMacroAssemblerARM64::CheckGreedyLoop(Label* on_equal) {
+void RegExpMacroAssemblerARM64::CheckFixedLengthLoop(Label* on_equal) {
   __ Ldr(w10, MemOperand(backtrack_stackpointer()));
   __ Cmp(current_input_offset(), w10);
   __ Cset(x11, eq);
@@ -1388,7 +1388,7 @@ void RegExpMacroAssemblerARM64::PushRegister(int register_index,
                                              StackCheckFlag check_stack_limit) {
   Register to_push = GetRegister(register_index, w10);
   Push(to_push);
-  if (check_stack_limit) {
+  if (check_stack_limit == StackCheckFlag::kCheckStackLimit) {
     CheckStackLimit();
   } else if (V8_UNLIKELY(v8_flags.slow_debug_code)) {
     AssertAboveStackLimitMinusSlack();
@@ -1555,7 +1555,7 @@ int RegExpMacroAssemblerARM64::CheckStackGuardState(
     int start_index, const uint8_t** input_start, const uint8_t** input_end,
     uintptr_t extra_space) {
   Tagged<InstructionStream> re_code =
-      Cast<InstructionStream>(Tagged<Object>(raw_code));
+      SbxCast<InstructionStream>(Tagged<Object>(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset), start_index,
       static_cast<RegExp::CallOrigin>(
@@ -1651,19 +1651,11 @@ void RegExpMacroAssemblerARM64::CompareAndBranchOrBacktrack(Register reg,
                                                             int immediate,
                                                             Condition condition,
                                                             Label* to) {
-  if ((immediate == 0) && ((condition == eq) || (condition == ne))) {
-    if (to == nullptr) {
-      to = &backtrack_label_;
-    }
-    if (condition == eq) {
-      __ Cbz(reg, to);
-    } else {
-      __ Cbnz(reg, to);
-    }
-  } else {
-    __ Cmp(reg, immediate);
-    BranchOrBacktrack(condition, to);
+  DCHECK_NE(condition, al);
+  if (to == nullptr) {
+    to = &backtrack_label_;
   }
+  __ CompareAndBranch(reg, immediate, condition, to);
 }
 
 void RegExpMacroAssemblerARM64::CallCFunctionFromIrregexpCode(

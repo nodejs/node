@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+extern macro ArrayBufferWasmMemorySymbol(): PrivateSymbol;
+
 namespace arraybuffer {
 
 // #sec-get-arraybuffer.prototype.bytelength
@@ -49,6 +51,20 @@ transitioning javascript builtin ArrayBufferPrototypeGetMaxByteLength(
   // 7. Return F(length);
 
   if (IsResizableArrayBuffer(o)) {
+    @if(V8_ENABLE_WEBASSEMBLY) {
+      if (HasProperty(o, ArrayBufferWasmMemorySymbol()) == True) {
+        // The expected value may not be representable in the {max_byte_length}
+        // field for wasm memories, so recompute it here. See the comment in
+        // {FixupResizableArrayBuffer}.
+        const wasmMemory = Cast<WasmMemoryObject>(
+            GetProperty(o, ArrayBufferWasmMemorySymbol()))
+            otherwise unreachable;
+        const maxByteLength =
+            SmiMul(wasmMemory.maximum_pages, SmiConstant(65536));
+        dcheck(maxByteLength <= kMaxSafeInteger);
+        return maxByteLength;
+      }
+    }
     return Convert<Number>(o.max_byte_length);
   }
   return Convert<Number>(o.byte_length);
@@ -116,6 +132,21 @@ transitioning javascript builtin SharedArrayBufferPrototypeGetMaxByteLength(
   //   a. Let length be O.[[ArrayBufferByteLength]].
   // 6. Return F(length);
   dcheck(IsResizableArrayBuffer(o) || o.max_byte_length == o.byte_length);
+  @if(V8_ENABLE_WEBASSEMBLY) {
+    if (IsResizableArrayBuffer(o) &&
+        HasProperty(o, ArrayBufferWasmMemorySymbol()) == True) {
+      // The expected value may not be representable in the {max_byte_length}
+      // field for wasm memories, so recompute it here. See the comment in
+      // {FixupResizableArrayBuffer}.
+      const wasmMemory =
+          Cast<WasmMemoryObject>(GetProperty(o, ArrayBufferWasmMemorySymbol()))
+          otherwise unreachable;
+      const maxByteLength =
+          SmiMul(wasmMemory.maximum_pages, SmiConstant(65536));
+      dcheck(maxByteLength <= kMaxSafeInteger);
+      return maxByteLength;
+    }
+  }
   return Convert<Number>(o.max_byte_length);
 }
 

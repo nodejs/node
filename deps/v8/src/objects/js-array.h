@@ -42,8 +42,10 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   // is set to a smi. This matches the set function on FixedArray.
   inline void set_length(Tagged<Smi> length);
 
-  static bool MayHaveReadOnlyLength(Tagged<Map> js_array_map);
-  static bool HasReadOnlyLength(DirectHandle<JSArray> array);
+  static inline bool MayHaveReadOnlyLength(Tagged<Map> js_array_map);
+  static inline bool HasReadOnlyLength(DirectHandle<JSArray> array);
+  V8_NOINLINE V8_PRESERVE_MOST static bool HasReadOnlyLengthSlowPath(
+      DirectHandle<JSArray> array);
   static bool WouldChangeReadOnlyLength(DirectHandle<JSArray> array,
                                         uint32_t index);
 
@@ -81,21 +83,23 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
       Maybe<ShouldThrow> should_throw);
 
   // Support for Array.prototype.join().
-  // Writes a fixed array of strings and separators to a single destination
-  // string. This helpers assumes the fixed array encodes separators in two
-  // ways:
+  // Writes a linked list of chunks of strings and separators to a single
+  // destination string. This helpers assumes the chynk encodes separators in
+  // two ways:
   //   1) Explicitly with a smi, whos value represents the number of repeated
   //      separators.
   //   2) Implicitly between two consecutive strings a single separator.
+  // The 0-th element stores a link to the next chunk (FixedArray or undefined).
   //
   // In addition repeated strings are represented by a negative smi, indicating
   // how many times the previously written string has to be repeated.
   //
   // Here are some input/output examples given the separator string is ',':
   //
-  //   [1, 'hello', 2, 'world', 1] => ',hello,,world,'
-  //   ['hello', 'world']          => 'hello,world'
-  //   ['hello', -2, 'world']      => 'hello,hello,hello,world'
+  //   [undefined, 1, 'hello', 2, 'world', 1] => ',hello,,world,'
+  //   [undefined, 'hello', 'world']          => 'hello,world'
+  //   [undefined, 'hello', -2, 'world']      => 'hello,hello,hello,world'
+  //   [[undefined, 'a', 'b'], 'c', 'd']      => 'a,b,c,d'
   //
   // To avoid any allocations, this helper assumes the destination string is the
   // exact length necessary to write the strings and separators from the fixed
@@ -105,8 +109,8 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   // - {raw_separator} and {raw_dest} are tagged String pointers.
   // - Returns a tagged String pointer.
   static Address ArrayJoinConcatToSequentialString(Isolate* isolate,
-                                                   Address raw_fixed_array,
-                                                   intptr_t length,
+                                                   Address raw_list_head,
+                                                   intptr_t last_chunk_length,
                                                    Address raw_separator,
                                                    Address raw_dest);
 

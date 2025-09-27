@@ -17,7 +17,6 @@ specific_include_rules = {
   "wrappers\.cc": [
     "+src/compiler/linkage.h",
     "+src/compiler/turboshaft/index.h",
-    "+src/compiler/turboshaft/wasm-assembler-helpers.h",
     "+src/compiler/turboshaft/define-assembler-macros.inc",
     "+src/compiler/turboshaft/assembler.h",
     "+src/compiler/turboshaft/dataview-lowering-reducer.h",
@@ -26,21 +25,20 @@ specific_include_rules = {
   ],
   "turboshaft-graph-interface\.h": [
     "+src/compiler/turboshaft/assembler.h",
-    "+src/compiler/turboshaft/dataview-lowering-reducer.h",
-    "+src/compiler/turboshaft/select-lowering-reducer.h",
-    "+src/compiler/turboshaft/variable-reducer.h",
+    "+src/compiler/turboshaft/wasm-assembler-helpers.h",
+  ],
+  "turboshaft-graph-interface-inl\.h": [
+    "+src/compiler/turboshaft/define-assembler-macros.inc",
+    "+src/compiler/turboshaft/undef-assembler-macros.inc",
   ],
   "turboshaft-graph-interface\.cc": [
-    "+src/compiler/turboshaft/assembler.h",
     "+src/compiler/turboshaft/builtin-call-descriptors.h",
-    "+src/compiler/turboshaft/dataview-lowering-reducer.h",
     "+src/compiler/turboshaft/define-assembler-macros.inc",
+    "+src/compiler/turboshaft/dataview-lowering-reducer.h",
     "+src/compiler/turboshaft/graph.h",
-    "+src/compiler/turboshaft/required-optimization-reducer.h",
     "+src/compiler/turboshaft/select-lowering-reducer.h",
     "+src/compiler/turboshaft/undef-assembler-macros.inc",
     "+src/compiler/turboshaft/variable-reducer.h",
-    "+src/compiler/turboshaft/wasm-assembler-helpers.h"
   ],
   "wasm-engine\.h": [
     # The WasmEngine may cache common call descriptors.
@@ -61,5 +59,19 @@ specific_include_rules = {
   ],
   "simd-shuffle\.h": [
     "+src/compiler/backend/instruction-codes.h",
+  ],
+  "wrappers\.h": [
+    "+src/compiler/linkage.h",
+    "+src/compiler/turboshaft/assembler.h",
+    "+src/compiler/turboshaft/define-assembler-macros.inc",
+    "+src/compiler/turboshaft/index.h",
+    "+src/compiler/turboshaft/operations.h",
+    "+src/compiler/turboshaft/wasm-assembler-helpers.h",
+    "+src/compiler/turboshaft/undef-assembler-macros.inc",
+  ],
+  "wrappers-inl\.h": [
+    "+src/compiler/turboshaft/define-assembler-macros.inc",
+    "+src/compiler/turboshaft/undef-assembler-macros.inc",
   ]
+
 }

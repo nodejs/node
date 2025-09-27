@@ -176,6 +176,18 @@ class V8_EXPORT_PRIVATE TypeCache final {
   Type const kJSDateYearType =
       Type::Union(CreateRange(-271821, 275760), Type::NaN(), zone());
 
+  static_assert(JSDate::kYear == 0);
+  static_assert(JSDate::kMonth == 1);
+  static_assert(JSDate::kDay == 2);
+  static_assert(JSDate::kWeekday == 3);
+  static_assert(JSDate::kHour == 4);
+  static_assert(JSDate::kMinute == 5);
+  static_assert(JSDate::kSecond == 6);
+  static_assert(JSDate::kFirstUncachedField == 7);
+  Type const kJSDateFields[JSDate::kFirstUncachedField] = {
+      kJSDateYearType, kJSDateMonthType,  kJSDateDayType,   kJSDateWeekdayType,
+      kJSDateHourType, kJSDateMinuteType, kJSDateSecondType};
+
   // The valid number of arguments for JavaScript functions. We can never
   // materialize more than the max size of a fixed array, because we require a
   // fixed array in spread/apply calls.

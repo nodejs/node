@@ -42,9 +42,10 @@ class TrustedObject : public HeapObject {
   // outside of the sandbox, where they are protected from an attacker. As
   // such, the slot accessors for these slots only exist on TrustedObjects but
   // not on other HeapObjects.
-  inline Tagged<TrustedObject> ReadProtectedPointerField(int offset) const;
-  inline Tagged<TrustedObject> ReadProtectedPointerField(int offset,
-                                                         AcquireLoadTag) const;
+  template <typename T = TrustedObject>
+  inline Tagged<T> ReadProtectedPointerField(int offset) const;
+  template <typename T = TrustedObject>
+  inline Tagged<T> ReadProtectedPointerField(int offset, AcquireLoadTag) const;
   inline void WriteProtectedPointerField(int offset,
                                          Tagged<TrustedObject> value);
   inline void WriteProtectedPointerField(int offset,
@@ -136,6 +137,24 @@ class ExposedTrustedObject : public TrustedObject {
 
   OBJECT_CONSTRUCTORS(ExposedTrustedObject, TrustedObject);
 };
+
+V8_OBJECT class ExposedTrustedObjectLayout : public TrustedObjectLayout {
+ public:
+  // Initializes this object by creating its pointer table entry.
+  inline void init_self_indirect_pointer(Isolate* isolate);
+  inline void init_self_indirect_pointer(LocalIsolate* isolate);
+
+  inline IndirectPointerHandle self_indirect_pointer_handle() const;
+
+  DECL_VERIFIER(ExposedTrustedObject)
+
+ private:
+#ifdef V8_ENABLE_SANDBOX
+  // The 'self' indirect pointer is only available when the sandbox is enabled.
+  // Otherwise, these objects are referenced through direct pointers.
+  std::atomic<IndirectPointerHandle> self_indirect_pointer_;
+#endif  // V8_ENABLE_SANDBOX
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

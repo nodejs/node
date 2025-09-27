@@ -171,56 +171,10 @@ inline bool IsTrapHandlerEnabled() {
   return g_is_trap_handler_enabled;
 }
 
-#if defined(V8_OS_AIX)
-// `thread_local` does not link on AIX:
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=100641
-extern __thread int g_thread_in_wasm_code;
-#else
-extern thread_local int g_thread_in_wasm_code;
-#endif
-
-// Return the address of the thread-local {g_thread_in_wasm_code} variable. This
-// pointer can be accessed and modified as long as the thread calling this
-// function exists. Only use if from the same thread do avoid race conditions.
-V8_NOINLINE TH_EXPORT_PRIVATE int* GetThreadInWasmThreadLocalAddress();
-
-// On Windows, asan installs its own exception handler which maps shadow
-// memory. Since our exception handler may be executed before the asan exception
-// handler, we have to make sure that asan shadow memory is not accessed here.
-TH_DISABLE_ASAN inline bool IsThreadInWasm() { return g_thread_in_wasm_code; }
-
-inline void SetThreadInWasm() {
-  if (IsTrapHandlerEnabled()) {
-    TH_DCHECK(!IsThreadInWasm());
-    g_thread_in_wasm_code = true;
-  }
-}
-
-inline void ClearThreadInWasm() {
-  if (IsTrapHandlerEnabled()) {
-    TH_DCHECK(IsThreadInWasm());
-    g_thread_in_wasm_code = false;
-  }
-}
-
 bool RegisterDefaultTrapHandler();
 TH_EXPORT_PRIVATE void RemoveTrapHandler();
 
 TH_EXPORT_PRIVATE size_t GetRecoveredTrapCount();
-
-// Check that the current thread does not have the "in wasm" flag set, without
-// any other side effects. Note that e.g. "!IsTrapHandlerEnabled() ||
-// !IsThreadInWasm()" has the side effect of disabling later
-// EnableTrapHandler(). We need to allow later enabling though, because
-// allocations can happen *before* initializing the trap handler, and we want to
-// execute this check there.
-#if defined(BUILDING_V8_SHARED_PRIVATE) || defined(USING_V8_SHARED_PRIVATE)
-TH_EXPORT_PRIVATE void AssertThreadNotInWasm();
-#else
-inline void AssertThreadNotInWasm() {
-  TH_DCHECK(!g_is_trap_handler_enabled || !g_thread_in_wasm_code);
-}
-#endif
 
 }  // namespace v8::internal::trap_handler
 

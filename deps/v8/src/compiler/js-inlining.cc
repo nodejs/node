@@ -24,6 +24,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -89,10 +90,9 @@ Reduction JSInliner::InlineJSWasmCall(Node* call, Node* new_target,
                                       Node* exception_target,
                                       const NodeVector& uncaught_subcalls) {
   JSWasmCallNode n(call);
-  return InlineCall(
-      call, new_target, context, frame_state, start, end, exception_target,
-      uncaught_subcalls,
-      static_cast<int>(n.Parameters().signature()->parameter_count()));
+  return InlineCall(call, new_target, context, frame_state, start, end,
+                    exception_target, uncaught_subcalls,
+                    n.Parameters().arity_without_implicit_args());
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -428,9 +428,9 @@ JSInliner::WasmInlineResult JSInliner::TryWasmInlining(
   TRACE("Considering wasm function ["
         << fct_index << "] "
         << WasmFunctionNameForTrace(native_module, fct_index) << " of module "
-        << wasm_call_params.module() << " for inlining");
+        << wasm_call_params.native_module() << " for inlining");
 
-  if (native_module->module() != wasm_module_) {
+  if (native_module != wasm_native_module_) {
     // Inlining of multiple wasm modules into the same JS function is not
     // supported.
     TRACE("- not inlining: another wasm module is already used for inlining");
@@ -445,7 +445,8 @@ JSInliner::WasmInlineResult JSInliner::TryWasmInlining(
     return {};
   }
 
-  const wasm::FunctionSig* sig = wasm_module_->functions[fct_index].sig;
+  const wasm::WasmModule* module = native_module->module();
+  const wasm::FunctionSig* sig = module->functions[fct_index].sig;
   TFGraph::SubgraphScope graph_scope(graph());
   WasmGraphBuilder builder(nullptr, zone(), jsgraph(), sig, source_positions_,
                            WasmGraphBuilder::kJSFunctionAbiMode, isolate(),
@@ -469,8 +470,11 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   JSWasmCallNode call_node(node);
   const JSWasmCallParameters& wasm_call_params = call_node.Parameters();
   int fct_index = wasm_call_params.function_index();
-  wasm::NativeModule* native_module = wasm_call_params.native_module();
-  const wasm::CanonicalSig* sig = wasm_call_params.signature();
+  const wasm::NativeModule* native_module = wasm_call_params.native_module();
+  const wasm::WasmModule* module = native_module->module();
+  const wasm::CanonicalSig* sig =
+      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
+          module->canonical_sig_id(module->functions[fct_index].sig_index));
 
   // Try "full" inlining of very simple wasm functions (mainly getters / setters
   // for wasm gc objects).
@@ -692,7 +696,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       MakeRef(broker(), info_->shared_info());
 
   SharedFunctionInfo::Inlineability inlineability =
-      shared_info->GetInlineability(broker());
+      shared_info->GetInlineability(CodeKind::TURBOFAN_JS, broker());
   if (inlineability != SharedFunctionInfo::kIsInlineable) {
     // The function is no longer inlineable. The only way this can happen is if
     // the function had its optimization disabled in the meantime, e.g. because

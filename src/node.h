@@ -1001,7 +1001,7 @@ NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
 
 #define NODE_DEFINE_CONSTANT(target, constant)                                 \
   do {                                                                         \
-    v8::Isolate* isolate = target->GetIsolate();                               \
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();                          \
     v8::Local<v8::Context> context = isolate->GetCurrentContext();             \
     v8::Local<v8::String> constant_name = v8::String::NewFromUtf8Literal(      \
         isolate, #constant, v8::NewStringType::kInternalized);                 \
@@ -1017,7 +1017,7 @@ NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
 
 #define NODE_DEFINE_HIDDEN_CONSTANT(target, constant)                          \
   do {                                                                         \
-    v8::Isolate* isolate = target->GetIsolate();                               \
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();                          \
     v8::Local<v8::Context> context = isolate->GetCurrentContext();             \
     v8::Local<v8::String> constant_name = v8::String::NewFromUtf8Literal(      \
         isolate, #constant, v8::NewStringType::kInternalized);                 \
@@ -1565,10 +1565,11 @@ void RegisterSignalHandler(int signal,
 // objects on Node.js versions without v8::Object::Wrap(). Addons created to
 // work with only Node.js versions with v8::Object::Wrap() should use that
 // instead.
-NODE_DEPRECATED("Use v8::Object::Wrap()",
-                NODE_EXTERN void SetCppgcReference(v8::Isolate* isolate,
-                                                   v8::Local<v8::Object> object,
-                                                   void* wrappable));
+NODE_DEPRECATED(
+    "Use v8::Object::Wrap()",
+    NODE_EXTERN void SetCppgcReference(v8::Isolate* isolate,
+                                       v8::Local<v8::Object> object,
+                                       v8::Object::Wrappable* wrappable));
 
 }  // namespace node
 

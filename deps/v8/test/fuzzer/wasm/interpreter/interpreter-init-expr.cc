@@ -231,13 +231,12 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   // Clear recursive groups: The fuzzer creates random types in every run. These
   // are saved as recursive groups as part of the type canonicalizer, but types
   // from previous runs just waste memory.
-  ResetTypeCanonicalizer(isolate, &zone);
+  ResetTypeCanonicalizer(isolate);
 
   size_t expression_count = 0;
   base::Vector<const uint8_t> bytes =
       GenerateWasmModuleForInitExpressions(&zone, data, &expression_count);
 
-  testing::SetupIsolateForWasmModule(i_isolate);
   ModuleWireBytes wire_bytes(bytes.begin(), bytes.end());
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
@@ -344,7 +343,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
                  IsNullOrWasmNull(*function_result));
         if (!IsNullOrWasmNull(*global_val)) {
           if (IsSubtypeOf(global->type(), kWasmFuncRef,
-                          module_object->module())) {
+                          module_object->native_module()->module())) {
             // For any function the global should be an internal function
             // whose external function equals the call result. (The call goes
             // through JS conversions while the global is accessed directly.)
@@ -361,7 +360,8 @@ void FuzzIt(base::Vector<const uint8_t> data) {
                 instance->trusted_data(i_isolate)->GetGlobalValue(
                     i_isolate, instance->module()->globals[i]);
             WasmValue func_value(function_result, global_value.type());
-            CheckEquivalent(global_value, func_value, *module_object->module());
+            CheckEquivalent(global_value, func_value,
+                            *module_object->native_module()->module());
           }
         }
         break;
@@ -373,6 +373,11 @@ void FuzzIt(base::Vector<const uint8_t> data) {
 }
 
 }  // anonymous namespace
+
+V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
+  v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
+  return 0;
+}
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   FuzzIt({data, size});

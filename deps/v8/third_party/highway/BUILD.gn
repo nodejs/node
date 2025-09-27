@@ -33,6 +33,11 @@ config("libhwy_external_config") {
     # enable emulation until highway aix support is ready.
     defines += [ "HWY_BROKEN_EMU128=0" ]
   }
+  if (target_cpu == "riscv64") {
+    # Runtime dispatch for RVV is broken in highway
+    # ref: https://github.com/google/highway/commit/c95cc0237d2f7a0
+    defines += [ "HWY_BROKEN_TARGETS=HWY_RVV" ]
+  }
 }
 
 source_set("libhwy") {

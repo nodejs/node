@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbolev --turbofan
-// Flags: --no-always-turbofan
 
 function store_f64_to_smi_field(v) {
   return {some_unique_name_U5d8Xe: Math.floor((v + 0xffffffff) - 0xfffffffe)}

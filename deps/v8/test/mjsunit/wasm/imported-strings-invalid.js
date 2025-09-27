@@ -31,10 +31,12 @@ let instance = (() => {
 
   let use_i16_array = builder.addImport(
       'wasm:js-string', 'fromCharCodeArray',
-      makeSig([wasmRefType(good_array_i16), kWasmI32, kWasmI32], [kRefExtern]));
+      makeSig([wasmRefNullType(good_array_i16), kWasmI32, kWasmI32],
+              [kRefExtern]));
   let use_i8_array = builder.addImport(
       'wasm:text-decoder', 'decodeStringFromUTF8Array',
-      makeSig([wasmRefType(good_array_i8), kWasmI32, kWasmI32], [kRefExtern]));
+      makeSig([wasmRefNullType(good_array_i8), kWasmI32, kWasmI32],
+              [kRefExtern]));
 
   builder.addExport('use_i16_array', use_i16_array);
   builder.addExport('use_i8_array', use_i8_array);

@@ -89,12 +89,15 @@ absl_source_set("log") {
 }
 
 absl_source_set("log_entry") {
+  sources = [ "log_entry.cc" ]
   public = [ "log_entry.h" ]
   deps = [
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:log_severity",
     "//third_party/abseil-cpp/absl/log/internal:config",
+    "//third_party/abseil-cpp/absl/log/internal:proto",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/time",
     "//third_party/abseil-cpp/absl/types:span",

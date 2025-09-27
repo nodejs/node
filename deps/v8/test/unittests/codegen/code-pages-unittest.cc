@@ -399,6 +399,15 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
 
   if (!i_isolate()->RequiresCodeRange() && !kHaveCodePages) return;
 
+  // This test isn't currently compatible with sandbox hardware support, mostly
+  // because the signal handler attempts to write to stack memory which is now
+  // protected with a PKEY to which the handler has no access.
+  // TODO(428680013): if we use an untrusted stack for sandboxed execution
+  // mode, then this test should just work again.
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  if (SandboxHardwareSupport::IsActive()) return;
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   // Create a big function that ends up in CODE_LO_SPACE.
   const int instruction_size = PageMetadata::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());

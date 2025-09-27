@@ -184,7 +184,6 @@
 #define ABSL_BASE_NULLABILITY_H_
 
 #include "absl/base/config.h"
-#include "absl/base/internal/nullability_deprecated.h"
 
 // ABSL_POINTERS_DEFAULT_NONNULL
 //

@@ -75,6 +75,18 @@ struct JSDispatchEntry {
   static constexpr uintptr_t kCodeObjectOffset = kSystemPointerSize;
   static constexpr size_t kParameterCountSize = 2;
 
+// On AIX and IBM i, mmap will give you back an address with the top bits set
+// unlike other platforms where the top bits are unset.
+// Therefore kObjectPointerOffset was introduced to ensure we account for
+// the top bits being set when performing pointer operations.
+#if defined(__PASE__)
+  static constexpr uintptr_t kObjectPointerOffset = 0x0700000000000000;
+#elif defined(_AIX)
+  static constexpr uintptr_t kObjectPointerOffset = 0x0a00000000000000;
+#else
+  static constexpr uintptr_t kObjectPointerOffset = 0;
+#endif
+
 #if defined(V8_TARGET_ARCH_64_BIT)
   // Freelist entries contain the index of the next free entry in their lower 32
   // bits and are tagged with this tag.
@@ -249,8 +261,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 
   // The following methods are used to pre allocate entries and then initialize
   // them later.
-  JSDispatchHandle PreAllocateEntries(Space* space, int num,
-                                      bool ensure_static_handles);
+  void PreAllocateEntries(Space* space, int num);
   bool PreAllocatedEntryNeedsInitialization(Space* space,
                                             JSDispatchHandle handle);
   void InitializePreAllocatedEntry(Space* space, JSDispatchHandle handle,
@@ -264,7 +275,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   }
 #endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
   static bool InReadOnlySegment(JSDispatchHandle handle) {
-    return HandleToIndex(handle) <= kEndOfInternalReadOnlySegment;
+    return HandleToIndex(handle) <= kEndOfReadOnlyIndex;
   }
   static int OffsetOfEntry(JSDispatchHandle handle) {
     return JSDispatchTable::HandleToIndex(handle)
@@ -299,9 +310,9 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // The base address of this table, for use in JIT compilers.
   Address base_address() const { return base(); }
 
-#ifdef DEBUG
+#if V8_VERIFY_WRITE_BARRIERS
   bool IsMarked(JSDispatchHandle handle);
-#endif  // DEBUG
+#endif  // V8_VERIFY_WRITE_BARRIERS
 #if defined(DEBUG) || defined(VERIFY_HEAP)
   inline void VerifyEntry(JSDispatchHandle handle, Space* space,
                           Space* ro_space);

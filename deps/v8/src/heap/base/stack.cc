@@ -82,7 +82,7 @@ void IterateAsanFakeFrameIfNecessary(StackVisitor* visitor,
     }
   }
 }
-#else
+#else   // !V8_USE_ADDRESS_SANITIZER
 void IterateAsanFakeFrameIfNecessary(StackVisitor* visitor,
                                      const Stack::Segment& segment,
                                      const void* address) {}
@@ -155,16 +155,32 @@ void IteratePointersInStack(StackVisitor* visitor,
 }  // namespace
 
 void Stack::IteratePointersForTesting(StackVisitor* visitor) {
-  SetMarkerAndCallback([this, visitor]() { IteratePointers(visitor); });
+  SetMarkerAndCallback([this, visitor]() {
+    IteratePointersUntilMarker(visitor);
+    IterateBackgroundStacks(visitor);
+  });
 }
 
 void Stack::IteratePointersUntilMarker(StackVisitor* visitor) const {
+  IteratePointersInSegment(visitor, current_segment_);
+}
+
+void Stack::IteratePointersFromAddressUntilMarker(StackVisitor* visitor,
+                                                  const void* address) const {
+  DCHECK_NOT_NULL(address);
+  DCHECK(current_segment_.Contains(address));
+  Segment segment = {address, current_segment_.top};
+  IteratePointersInSegment(visitor, segment);
+}
+
+void Stack::IteratePointersInSegment(StackVisitor* visitor,
+                                     Segment segment) const {
   // Temporarily stop checking MTE tags whilst scanning the stack (whilst V8
   // may not be tagging its portion of the stack, higher frames from the OS or
   // libc could be using stack tagging.)
   SuspendTagCheckingScope s;
-  IteratePointersInStack(visitor, current_segment_);
-  IteratePointersInUnsafeStackIfNecessary(visitor, current_segment_);
+  IteratePointersInStack(visitor, segment);
+  IteratePointersInUnsafeStackIfNecessary(visitor, segment);
   if (scan_simulator_callback_) {
     scan_simulator_callback_(visitor);
   }

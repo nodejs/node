@@ -308,8 +308,8 @@ struct FunctionsProxy : NamedDebugProxy<FunctionsProxy, kFunctionsProxy> {
     DirectHandle<WasmTrustedInstanceData> trusted_data{
         instance->trusted_data(isolate), isolate};
     DirectHandle<WasmFuncRef> func_ref =
-        WasmTrustedInstanceData::GetOrCreateFuncRef(isolate, trusted_data,
-                                                    index);
+        WasmTrustedInstanceData::GetOrCreateFuncRef(
+            isolate, trusted_data, index, wasm::kPrecreateExternal);
     DirectHandle<WasmInternalFunction> internal_function{
         func_ref->internal(isolate), isolate};
     return WasmInternalFunction::GetOrCreateExternal(internal_function);

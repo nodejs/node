@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "tools/debug_helper/debug-helper.h"
 #include "tools/v8windbg/base/utilities.h"
+#include "tools/v8windbg/src/cur-isolate.h"
 #include "tools/v8windbg/src/v8windbg-extension.h"
 
 namespace d = v8::debug_helper;
@@ -113,22 +114,27 @@ std::vector<Property> GetPropertiesAsVector(size_t num_properties,
 
 HRESULT GetMetadataPointerTableAddress(WRL::ComPtr<IDebugHostContext> context,
                                        uintptr_t* result) {
-  WRL::ComPtr<IDebugHostType> memory_chunk_type =
-      Extension::Current()->GetTypeFromV8Module(context,
-                                                u"v8::internal::MemoryChunk");
-  if (memory_chunk_type == nullptr) return E_FAIL;
-  WRL::ComPtr<IModelObject> memory_chunk_instance;
-  // This is sort of awkward, but the most ergonomic way to get a static field
-  // is by creating a typed object at a made-up address and then getting its
-  // field. Essentially this is doing:
-  //   ((MemoryChunk*)0)->metadata_pointer_table_
-  RETURN_IF_FAIL(sp_data_model_manager->CreateTypedObject(
-      context.Get(), Location{0}, memory_chunk_type.Get(),
-      &memory_chunk_instance));
+  WRL::ComPtr<IModelObject> isolate_instance_ptr;
+  RETURN_IF_FAIL(GetCurrentIsolate(isolate_instance_ptr));
+
+  WRL::ComPtr<IModelObject> isolate_instance;
+  RETURN_IF_FAIL(isolate_instance_ptr->Dereference(&isolate_instance));
+
+  // Access field {IsolateGroup* isolate_group_} in class {Isolate}.
+  WRL::ComPtr<IModelObject> isolate_group_pointer;
+  RETURN_IF_FAIL(isolate_instance->GetRawValue(SymbolKind::SymbolField,
+                                               L"isolate_group_", RawSearchNone,
+                                               &isolate_group_pointer));
+
+  WRL::ComPtr<IModelObject> isolate_group;
+  RETURN_IF_FAIL(isolate_group_pointer->Dereference(&isolate_group));
+
+  // Access field {metadata_pointer_table_} in class {IsolateGroup}.
   WRL::ComPtr<IModelObject> metadata_pointer_table;
-  RETURN_IF_FAIL(memory_chunk_instance->GetRawValue(
+  RETURN_IF_FAIL(isolate_group->GetRawValue(
       SymbolKind::SymbolField, L"metadata_pointer_table_", RawSearchNone,
       &metadata_pointer_table));
+
   Location location;
   RETURN_IF_FAIL(metadata_pointer_table->GetLocation(&location));
   *result = location.Offset;

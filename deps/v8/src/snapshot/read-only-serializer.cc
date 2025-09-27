@@ -32,9 +32,9 @@ class ObjectPreProcessor final {
 
   void PreProcessIfNeeded(Tagged<HeapObject> o) {
     const InstanceType itype = o->map(isolate_)->instance_type();
-#define V(TYPE)                               \
-  if (InstanceTypeChecker::Is##TYPE(itype)) { \
-    return PreProcess##TYPE(Cast<TYPE>(o));   \
+#define V(TYPE)                                    \
+  if (InstanceTypeChecker::Is##TYPE(itype)) {      \
+    return PreProcess##TYPE(TrustedCast<TYPE>(o)); \
   }
     PRE_PROCESS_TYPE_LIST(V)
 #undef V
@@ -97,12 +97,34 @@ class ObjectPreProcessor final {
             kFunctionTemplateInfoCallbackTag),
         o->callback(isolate_));  // Pass the non-redirected value.
   }
+#if V8_ENABLE_GEARBOX
+  V8_INLINE void ResetGearboxPlaceholderBuiltin(Tagged<Code> code) {
+    // In order to ensure predictable state of placeholder builtins Code
+    // objects after serialization we replace their fields with the contents
+    // of kIllegal builtin.
+    if (code->is_gearbox_placeholder_builtin()) {
+      Builtin variant_builtin_id = code->builtin_id();
+      Builtin placeholder_builtin_id =
+          Builtins::GetGearboxPlaceholderFromVariant(variant_builtin_id);
+      DCHECK_EQ(
+          isolate_->builtins()->code(placeholder_builtin_id)->builtin_id(),
+          code->builtin_id());
+      Tagged<Code> src = isolate_->builtins()->code(Builtin::kIllegal);
+      Code::CopyFieldsWithGearboxForSerialization(code, src, isolate_);
+      // We should use the placeholder id instead of kIllegal.
+      code->set_builtin_id(placeholder_builtin_id);
+    }
+  }
+#endif
   void PreProcessCode(Tagged<Code> o) {
     o->ClearInstructionStartForSerialization(isolate_);
     CHECK(!o->has_source_position_table_or_bytecode_offset_table());
     CHECK(!o->has_deoptimization_data_or_interpreter_data());
 #ifdef V8_ENABLE_LEAPTIERING
     CHECK_EQ(o->js_dispatch_handle(), kNullJSDispatchHandle);
+#endif
+#if V8_ENABLE_GEARBOX
+    ResetGearboxPlaceholderBuiltin(o);
 #endif
   }
 
@@ -424,7 +446,7 @@ class ReadOnlyHeapImageSerializer {
 
 std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> GetUnmappedRegions(
     Isolate* isolate) {
-#ifdef V8_STATIC_ROOTS
+#if defined(V8_STATIC_ROOTS) && defined(V8_ENABLE_WEBASSEMBLY)
   // WasmNull's payload is aligned to the OS page and consists of
   // WasmNull::kPayloadSize bytes of unmapped memory. To avoid inflating the
   // snapshot size and accessing uninitialized and/or unmapped memory, the
@@ -434,7 +456,7 @@ std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> GetUnmappedRegions(
   Tagged<HeapObject> wasm_null_padding = ro_roots.wasm_null_padding();
   CHECK(IsFreeSpace(wasm_null_padding));
   Address wasm_null_padding_start =
-      wasm_null_padding.address() + FreeSpace::kHeaderSize;
+      wasm_null_padding.address() + sizeof(FreeSpace);
   std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> unmapped;
   if (wasm_null.address() > wasm_null_padding_start) {
     unmapped.push_back({wasm_null_padding_start,
@@ -444,7 +466,7 @@ std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> GetUnmappedRegions(
   return unmapped;
 #else
   return {};
-#endif  // V8_STATIC_ROOTS
+#endif  // V8_STATIC_ROOTS && V8_ENABLE_WEBASSEMBLY
 }
 
 }  // namespace

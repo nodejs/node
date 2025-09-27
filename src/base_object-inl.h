@@ -55,7 +55,6 @@ v8::Local<v8::Object> BaseObject::object() const {
 v8::Local<v8::Object> BaseObject::object(v8::Isolate* isolate) const {
   v8::Local<v8::Object> handle = object();
 
-  DCHECK_EQ(handle->GetCreationContextChecked()->GetIsolate(), isolate);
   DCHECK_EQ(env()->isolate(), isolate);
 
   return handle;

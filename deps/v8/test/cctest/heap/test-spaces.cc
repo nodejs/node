@@ -41,8 +41,8 @@
 #include "src/heap/large-spaces.h"
 #include "src/heap/main-allocator.h"
 #include "src/heap/memory-allocator.h"
+#include "src/heap/memory-pool.h"
 #include "src/heap/mutable-page-metadata.h"
-#include "src/heap/page-pool.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/free-space.h"
@@ -70,7 +70,7 @@ class V8_NODISCARD TestMemoryAllocatorScope {
         isolate,
         page_allocator != nullptr ? page_allocator : isolate->page_allocator(),
         page_allocator != nullptr ? page_allocator : isolate->page_allocator(),
-        max_capacity));
+        isolate->isolate_group()->memory_pool(), max_capacity));
     if (page_allocator != nullptr) {
       isolate->heap()->memory_allocator_->data_page_allocator_ = page_allocator;
     }
@@ -134,8 +134,8 @@ static void VerifyMemoryChunk(Isolate* isolate, Heap* heap,
   size_t allocatable_memory_area_offset =
       MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space->identity());
 
-  MutablePageMetadata* memory_chunk =
-      memory_allocator->AllocateLargePage(space, area_size, executable);
+  MutablePageMetadata* memory_chunk = memory_allocator->AllocateLargePage(
+      space, area_size, executable, AllocationHint());
   size_t reserved_size =
       ((executable == EXECUTABLE))
           ? RoundUp(allocatable_memory_area_offset +
@@ -184,7 +184,7 @@ TEST(MutablePageMetadata) {
     // With CodeRange.
     bool jitless = isolate->jitless();
     VirtualMemory code_range_reservation(
-        page_allocator, code_range_size, nullptr,
+        page_allocator, code_range_size, PageAllocator::AllocationHint(),
         MemoryChunk::GetAlignmentForAllocation(),
         jitless ? PageAllocator::Permission::kNoAccess
                 : PageAllocator::Permission::kNoAccessWillJitLater);
@@ -322,8 +322,9 @@ TEST(SemiSpaceNewSpace) {
 
   size_t successful_allocations = 0;
   while (new_space->Available() >= kMaxRegularHeapObjectSize) {
-    AllocationResult allocation = allocator.AllocateRaw(
-        kMaxRegularHeapObjectSize, kTaggedAligned, AllocationOrigin::kRuntime);
+    AllocationResult allocation =
+        allocator.AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned,
+                              AllocationOrigin::kRuntime, AllocationHint());
     if (allocation.IsFailure()) break;
     successful_allocations++;
     Tagged<Object> obj = allocation.ToObjectChecked();
@@ -355,8 +356,9 @@ TEST(PagedNewSpace) {
 
   size_t successful_allocations = 0;
   while (true) {
-    AllocationResult allocation = allocator.AllocateRaw(
-        kMaxRegularHeapObjectSize, kTaggedAligned, AllocationOrigin::kRuntime);
+    AllocationResult allocation =
+        allocator.AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned,
+                              AllocationOrigin::kRuntime, AllocationHint());
     if (allocation.IsFailure()) break;
     successful_allocations++;
     Tagged<Object> obj = allocation.ToObjectChecked();
@@ -392,7 +394,7 @@ TEST(OldSpace) {
 
   while (true) {
     AllocationResult allocation = allocator.AllocateRaw(
-        obj_size, kTaggedAligned, AllocationOrigin::kRuntime);
+        obj_size, kTaggedAligned, AllocationOrigin::kRuntime, AllocationHint());
     if (allocation.IsFailure()) break;
     successful_allocations++;
     Tagged<Object> obj = allocation.ToObjectChecked();
@@ -422,8 +424,8 @@ TEST(OldLargeObjectSpace) {
   size_t successful_allocations = 0;
 
   while (true) {
-    AllocationResult allocation =
-        lo->AllocateRaw(heap->main_thread_local_heap(), lo_size);
+    AllocationResult allocation = lo->AllocateRaw(
+        heap->main_thread_local_heap(), lo_size, AllocationHint());
     if (allocation.IsFailure()) break;
     successful_allocations++;
     Tagged<Object> obj = allocation.ToObjectChecked();
@@ -434,14 +436,17 @@ TEST(OldLargeObjectSpace) {
     // All large objects have the same alignment because they start at the
     // same offset within a page. Fixed double arrays have the most strict
     // alignment requirements.
-    CHECK_EQ(0, Heap::GetFillToAlign(ho.address(),
-                                     HeapObject::RequiredAlignment(map)));
+    CHECK_EQ(0,
+             Heap::GetFillToAlign(ho.address(), HeapObject::RequiredAlignment(
+                                                    lo->identity(), map)));
     DirectHandle<HeapObject> keep_alive(ho, isolate);
   }
   CHECK_LT(0, successful_allocations);
 
   CHECK(!lo->IsEmpty());
-  CHECK(lo->AllocateRaw(heap->main_thread_local_heap(), lo_size).IsFailure());
+  CHECK(
+      lo->AllocateRaw(heap->main_thread_local_heap(), lo_size, AllocationHint())
+          .IsFailure());
 }
 
 #ifndef DEBUG
@@ -452,7 +457,6 @@ TEST(OldLargeObjectSpace) {
 // process (jumbo builds).
 TEST(SizeOfInitialHeap) {
   ManualGCScope manual_gc_scope;
-  if (i::v8_flags.always_turbofan) return;
   // Bootstrapping without a snapshot causes more allocations.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -535,7 +539,8 @@ HEAP_TEST(Regress777177) {
     AlwaysAllocateScopeForTesting always_allocate(heap);
     heap::SimulateFullSpace(old_space);
     AllocationResult result = old_space_allocator->AllocateRaw(
-        filler_size, kTaggedAligned, AllocationOrigin::kRuntime);
+        filler_size, kTaggedAligned, AllocationOrigin::kRuntime,
+        AllocationHint());
     Tagged<HeapObject> obj = result.ToObjectChecked();
     heap->CreateFillerObjectAt(obj.address(), filler_size);
   }
@@ -544,7 +549,8 @@ HEAP_TEST(Regress777177) {
     // Allocate all bytes of the linear allocation area. This moves top_ and
     // top_on_previous_step_ to the next page.
     AllocationResult result = old_space_allocator->AllocateRaw(
-        max_object_size, kTaggedAligned, AllocationOrigin::kRuntime);
+        max_object_size, kTaggedAligned, AllocationOrigin::kRuntime,
+        AllocationHint());
     Tagged<HeapObject> obj = result.ToObjectChecked();
     // Simulate allocation folding moving the top pointer back.
     old_space_allocator->ResetLab(
@@ -555,7 +561,8 @@ HEAP_TEST(Regress777177) {
   {
     // This triggers assert in crbug.com/777177.
     AllocationResult result = old_space_allocator->AllocateRaw(
-        filler_size, kTaggedAligned, AllocationOrigin::kRuntime);
+        filler_size, kTaggedAligned, AllocationOrigin::kRuntime,
+        AllocationHint());
     Tagged<HeapObject> obj = result.ToObjectChecked();
     heap->CreateFillerObjectAt(obj.address(), filler_size);
   }
@@ -587,7 +594,8 @@ HEAP_TEST(Regress791582) {
 
   {
     AllocationResult result = new_space_allocator->AllocateRaw(
-        until_page_end, kTaggedAligned, AllocationOrigin::kRuntime);
+        until_page_end, kTaggedAligned, AllocationOrigin::kRuntime,
+        AllocationHint());
     Tagged<HeapObject> obj = result.ToObjectChecked();
     heap->CreateFillerObjectAt(obj.address(), until_page_end);
     // Simulate allocation folding moving the top pointer back.
@@ -597,7 +605,7 @@ HEAP_TEST(Regress791582) {
   {
     // This triggers assert in crbug.com/791582
     AllocationResult result = new_space_allocator->AllocateRaw(
-        256, kTaggedAligned, AllocationOrigin::kRuntime);
+        256, kTaggedAligned, AllocationOrigin::kRuntime, AllocationHint());
     Tagged<HeapObject> obj = result.ToObjectChecked();
     heap->CreateFillerObjectAt(obj.address(), 256);
   }
@@ -725,19 +733,19 @@ TEST(ReadOnlySpaceMetrics_AlignedAllocations) {
   int object_size =
       static_cast<int>(MemoryAllocator::GetCommitPageSize() - kApiTaggedSize);
 
-  int alignment = USE_ALLOCATION_ALIGNMENT_BOOL ? kDoubleSize : kTaggedSize;
+  const int kExpectedAlignment = kDoubleSize;
 
   Tagged<HeapObject> object =
       faked_space->AllocateRaw(object_size, kDoubleAligned).ToObjectChecked();
-  CHECK_EQ(object.address() % alignment, 0);
+  CHECK_EQ(object.address() % kExpectedAlignment, 0);
   object =
       faked_space->AllocateRaw(object_size, kDoubleAligned).ToObjectChecked();
-  CHECK_EQ(object.address() % alignment, 0);
+  CHECK_EQ(object.address() % kExpectedAlignment, 0);
 
   // Calculate size of allocations based on area_start.
   Address area_start = faked_space->pages().back()->GetAreaStart();
-  Address top = RoundUp(area_start, alignment) + object_size;
-  top = RoundUp(top, alignment) + object_size;
+  Address top = RoundUp(area_start, kExpectedAlignment) + object_size;
+  top = RoundUp(top, kExpectedAlignment) + object_size;
   size_t expected_size = top - area_start;
 
   faked_space->ShrinkPages();

@@ -189,6 +189,12 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   }
 #endif  // defined(V8_TARGET_OS_IOS) || defined(V8_TARGET_OS_CHROMEOS)
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // Sandboxed code should never write to code space.
+  SandboxHardwareSupport::RegisterOutOfSandboxMemory(
+      base(), size(), PagePermissions::kNoAccess);
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   // On some platforms, specifically Win64, we need to reserve some pages at
   // the beginning of an executable space. See
   //   https://cs.chromium.org/chromium/src/components/crash/content/

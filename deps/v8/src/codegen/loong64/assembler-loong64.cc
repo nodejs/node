@@ -135,19 +135,13 @@ MemOperand::MemOperand(Register base, int32_t offset)
 MemOperand::MemOperand(Register base, Register index)
     : base_(base), index_(index), offset_(0) {}
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
-  for (auto& request : heap_number_requests_) {
-    Handle<HeapObject> object;
-    object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-        request.heap_number());
-    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    EmbeddedObjectIndex index = AddEmbeddedObject(object);
-    if (IsLu32i_d(instr_at(pc + 2 * kInstrSize))) {
-      set_target_value_at(pc, static_cast<uint64_t>(index));
-    } else {
-      set_target_compressed_value_at(pc, static_cast<uint32_t>(index));
-    }
+void Assembler::PatchInHeapNumberRequest(Address pc,
+                                         Handle<HeapNumber> object) {
+  EmbeddedObjectIndex index = AddEmbeddedObject(object);
+  if (IsLu32i_d(instr_at(pc + 2 * kInstrSize))) {
+    set_target_value_at(pc, static_cast<uint64_t>(index));
+  } else {
+    set_target_compressed_value_at(pc, static_cast<uint32_t>(index));
   }
 }
 

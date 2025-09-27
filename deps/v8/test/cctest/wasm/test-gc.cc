@@ -15,7 +15,7 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 #include "test/common/wasm/wasm-module-runner.h"
@@ -47,7 +47,6 @@ class WasmGCTester {
         isolate_(CcTest::InitIsolateOnce()),
         scope(isolate_),
         thrower(isolate_, "Test wasm GC") {
-    testing::SetupIsolateForWasmModule(isolate_);
   }
 
   uint8_t AddGlobal(ValueType type, bool mutability, WasmInitExpr init) {
@@ -86,7 +85,7 @@ class WasmGCTester {
                         ModuleTypeIndex supertype = kNoSuperType,
                         bool is_final = false) {
     StructType::Builder type_builder(
-        &zone_, static_cast<uint32_t>(fields.size()), false);
+        &zone_, static_cast<uint32_t>(fields.size()), false, false);
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }

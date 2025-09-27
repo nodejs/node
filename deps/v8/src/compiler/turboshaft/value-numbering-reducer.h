@@ -5,6 +5,9 @@
 #ifndef V8_COMPILER_TURBOSHAFT_VALUE_NUMBERING_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_VALUE_NUMBERING_REDUCER_H_
 
+#include <iostream>
+#include <limits>
+
 #include "src/base/logging.h"
 #include "src/base/vector.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -12,6 +15,8 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/reducer-traits.h"
+#include "src/compiler/turboshaft/sidetable.h"
+#include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
 
@@ -113,6 +118,8 @@ class ValueNumberingReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(ValueNumbering)
 
+  ValueNumberingReducer() : block_end_epochs_(Asm().phase_zone()) {}
+
   template <typename Op>
   static constexpr bool CanBeGVNed() {
     constexpr Opcode opcode = operation_to_opcode_v<Op>;
@@ -139,6 +146,7 @@ class ValueNumberingReducer : public Next {
     OpIndex next_index = Asm().output_graph().next_operation_index(); \
     USE(next_index);                                                  \
     OpIndex result = Next::Reduce##Name(args...);                     \
+    UpdateEpoch<Name##Op>(next_index);                                \
     if (ShouldSkipOptimizationStep()) return result;                  \
     if constexpr (!CanBeGVNed<Name##Op>()) return result;             \
     DCHECK_EQ(next_index, result);                                    \
@@ -147,11 +155,55 @@ class ValueNumberingReducer : public Next {
   TURBOSHAFT_OPERATION_LIST(EMIT_OP)
 #undef EMIT_OP
 
+  template <typename Op>
+  void UpdateEpoch(OpIndex idx) {
+    if constexpr (std::is_same_v<Op, RetainOp>) {
+      // RetainOp has CanWrite property but doesn't actually write.
+      return;
+    }
+    if (std::optional<OpEffects> effects = Op::EffectsIfStatic()) {
+      if (effects.value().can_write()) {
+        current_epoch_++;
+      }
+    } else {
+      const Op& op = Asm().Get(idx).template Cast<Op>();
+      if (op.Effects().can_write()) {
+        current_epoch_++;
+      }
+    }
+  }
+
   void Bind(Block* block) {
+    RecordOldEpochAndSetNew(block);
     Next::Bind(block);
     ResetToBlock(block);
     dominator_path_.push_back(block);
     depths_heads_.push_back(nullptr);
+  }
+
+  void RecordOldEpochAndSetNew(Block* block) {
+    // Recording epoch for previous block.
+    if (current_block_ != nullptr) {
+      block_end_epochs_[current_block_->index()] = current_epoch_;
+    }
+
+    int max_predecessor_epoch = 0;
+    for (Block* pred : block->Predecessors()) {
+      if (block_end_epochs_[pred->index()] != 0) {
+        max_predecessor_epoch = std::max<int>(max_predecessor_epoch,
+                                              block_end_epochs_[pred->index()]);
+      }
+    }
+    current_epoch_ = max_predecessor_epoch;
+    current_block_ = block;
+
+    if (block->IsLoop()) {
+      // We assume that the backedge might invalidate everything that requires
+      // an epoch check. So, we increment the current_epoch, thus guaranteeing
+      // that we won't replace any CanRead operation in the loop by an operation
+      // from before the loop.
+      current_epoch_++;
+    }
   }
 
   // Resets {table_} up to the first dominator of {block} that it contains.
@@ -181,6 +233,8 @@ class ValueNumberingReducer : public Next {
   ScopeCounter* gvn_disabled_scope() { return &disabled_scope_; }
 
  private:
+  static constexpr int kMaxEpoch = std::numeric_limits<int>::max();
+
   // TODO(dmercadier): Once the mapping from Operations to Blocks has been added
   // to turboshaft, remove the `block` field from the `Entry` structure.
   struct Entry {
@@ -188,9 +242,18 @@ class ValueNumberingReducer : public Next {
     BlockIndex block;
     size_t hash = 0;
     Entry* depth_neighboring_entry = nullptr;
+    int epoch = kMaxEpoch;
 
     bool IsEmpty() const { return hash == 0; }
   };
+
+  bool CanGVN(OpEffects effects) {
+    return effects.IsSubsetOf(OpEffects()
+                                  .CanDependOnChecks()
+                                  .CanChangeControlFlow()
+                                  .CanAllocateWithoutIdentity()
+                                  .CanReadMemory());
+  }
 
   template <class Op>
   OpIndex AddOrFind(OpIndex op_idx) {
@@ -198,10 +261,10 @@ class ValueNumberingReducer : public Next {
 
     const Op& op = Asm().output_graph().Get(op_idx).template Cast<Op>();
     if (std::is_same_v<Op, PendingLoopPhiOp> || op.IsBlockTerminator() ||
-        (!op.Effects().repetition_is_eliminatable() &&
-         !std::is_same_v<Op, DeoptimizeIfOp>)) {
-      // GVNing DeoptimizeIf is safe, despite its lack of
-      // repetition_is_eliminatable.
+        (!CanGVN(op.Effects()) && !std::is_same_v<Op, DeoptimizeIfOp>)) {
+      // GVNing DeoptimizeIf is safe, despite the fact that it has the CanDeopt
+      // property, which implies CanLeaveCurrentFunction, which is generally not
+      // safe to GVN.
       return op_idx;
     }
     RehashIfNeeded();
@@ -211,7 +274,7 @@ class ValueNumberingReducer : public Next {
     if (entry->IsEmpty()) {
       // {op} is not present in the state, inserting it.
       *entry = Entry{op_idx, Asm().current_block()->index(), hash,
-                     depths_heads_.back()};
+                     depths_heads_.back(), current_epoch_};
       depths_heads_.back() = entry;
       ++entry_count_;
       return op_idx;
@@ -225,8 +288,9 @@ class ValueNumberingReducer : public Next {
 
   template <class Op>
   Entry* Find(const Op& op, size_t* hash_ret = nullptr) {
-    constexpr bool same_block_only = std::is_same<Op, PhiOp>::value;
-    size_t hash = ComputeHash<same_block_only>(op);
+    bool needs_epoch_check = op.Effects().can_read_mutable_memory();
+    constexpr bool same_block_only = std::is_same_v<Op, PhiOp>;
+    size_t hash = ComputeHash<same_block_only>(op, needs_epoch_check);
     size_t start_index = hash & mask_;
     for (size_t i = start_index;; i = NextEntryIndex(i)) {
       Entry& entry = table_[i];
@@ -241,6 +305,7 @@ class ValueNumberingReducer : public Next {
         if (entry_op.Is<Op>() &&
             (!same_block_only ||
              entry.block == Asm().current_block()->index()) &&
+            (!needs_epoch_check || (current_epoch_ == entry.epoch)) &&
             entry_op.Cast<Op>().EqualsForGVN(op)) {
           return &entry;
         }
@@ -322,10 +387,13 @@ class ValueNumberingReducer : public Next {
   }
 
   template <bool same_block_only, class Op>
-  size_t ComputeHash(const Op& op) {
+  size_t ComputeHash(const Op& op, bool needs_epoch_check) {
     size_t hash = op.hash_value();
     if (same_block_only) {
       hash = fast_hash_combine(Asm().current_block()->index(), hash);
+    }
+    if (needs_epoch_check) {
+      hash = fast_hash_combine(current_epoch_, hash);
     }
     if (V8_UNLIKELY(hash == 0)) return 1;
     return hash;
@@ -349,6 +417,10 @@ class ValueNumberingReducer : public Next {
   size_t entry_count_ = 0;
   ZoneVector<Entry*> depths_heads_{Asm().phase_zone()};
   ScopeCounter disabled_scope_;
+  int current_epoch_ = 0;
+
+  Block* current_block_ = nullptr;
+  GrowingBlockSidetable<int> block_end_epochs_;
 };
 
 }  // namespace turboshaft

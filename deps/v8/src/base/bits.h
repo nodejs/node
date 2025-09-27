@@ -24,7 +24,7 @@ namespace bits {
 // CountPopulation(value) returns the number of bits set in |value|.
 template <typename T>
 constexpr inline unsigned CountPopulation(T value)
-  requires(std::is_unsigned<T>::value && sizeof(T) <= 8)
+  requires(std::is_unsigned_v<T> && sizeof(T) <= 8)
 {
   static_assert(sizeof(T) <= 8);
 #if V8_HAS_BUILTIN_POPCOUNT
@@ -98,7 +98,7 @@ inline constexpr std::make_signed_t<T> Signed(T value) {
 // {sizeof(T) * 8}.
 template <typename T, unsigned bits = sizeof(T) * 8>
 inline constexpr unsigned CountLeadingZeros(T value)
-  requires(std::is_unsigned<T>::value && sizeof(T) <= 8)
+  requires(std::is_unsigned_v<T> && sizeof(T) <= 8)
 {
   static_assert(bits > 0, "invalid instantiation");
 #if V8_HAS_BUILTIN_CLZ
@@ -142,7 +142,7 @@ constexpr unsigned CountLeadingSignBits(T value) {
 // |value| is guaranteed to be non-zero.
 template <typename T, unsigned bits = sizeof(T) * 8>
 inline constexpr unsigned CountTrailingZeros(T value)
-  requires(std::is_integral<T>::value && sizeof(T) <= 8)
+  requires(std::is_integral_v<T> && sizeof(T) <= 8)
 {
 #if V8_HAS_BUILTIN_CTZ
   return value == 0 ? bits
@@ -152,7 +152,7 @@ inline constexpr unsigned CountTrailingZeros(T value)
   // Fall back to popcount (see "Hacker's Delight" by Henry S. Warren, Jr.),
   // chapter 5-4. On x64, since is faster than counting in a loop and faster
   // than doing binary search.
-  using U = typename std::make_unsigned<T>::type;
+  using U = typename std::make_unsigned_t<T>;
   U u = value;
   return CountPopulation(static_cast<U>(~u & (u - 1u)));
 #endif
@@ -171,7 +171,7 @@ inline constexpr unsigned CountTrailingZeros64(uint64_t value) {
 // See CountTrailingZeros for an alternative version that allows |value| == 0.
 template <typename T, unsigned bits = sizeof(T) * 8>
 inline constexpr unsigned CountTrailingZerosNonZero(T value)
-  requires(std::is_integral<T>::value && sizeof(T) <= 8)
+  requires(std::is_integral_v<T> && sizeof(T) <= 8)
 {
   DCHECK_NE(0, value);
 #if V8_HAS_BUILTIN_CTZ
@@ -185,7 +185,7 @@ inline constexpr unsigned CountTrailingZerosNonZero(T value)
 // Returns true iff |value| is a power of 2.
 template <typename T>
 constexpr inline bool IsPowerOfTwo(T value)
-  requires(std::is_integral<T>::value || std::is_enum<T>::value)
+  requires(std::is_integral_v<T> || std::is_enum_v<T>)
 {
   return value > 0 && (value & (value - 1)) == 0;
 }
@@ -193,7 +193,7 @@ constexpr inline bool IsPowerOfTwo(T value)
 // Identical to {CountTrailingZeros}, but only works for powers of 2.
 template <typename T>
 inline constexpr int WhichPowerOfTwo(T value)
-  requires std::is_integral<T>::value
+  requires std::is_integral_v<T>
 {
   DCHECK(IsPowerOfTwo(value));
 #if V8_HAS_BUILTIN_CTZ
@@ -204,7 +204,7 @@ inline constexpr int WhichPowerOfTwo(T value)
   // Fall back to popcount (see "Hacker's Delight" by Henry S. Warren, Jr.),
   // chapter 5-4. On x64, since is faster than counting in a loop and faster
   // than doing binary search.
-  using U = typename std::make_unsigned<T>::type;
+  using U = typename std::make_unsigned_t<T>;
   U u = value;
   return CountPopulation(static_cast<U>(u - 1));
 #endif
@@ -289,6 +289,16 @@ inline constexpr uint64_t RotateRight64(uint64_t value, uint64_t shift) {
 inline constexpr uint64_t RotateLeft64(uint64_t value, uint64_t shift) {
   return (value << shift) | (value >> ((64 - shift) & 63));
 }
+
+// Clear the LSB of a value using Brian Kernighan's method.
+template <typename T>
+inline constexpr int ClearLsb(T value)
+  requires std::is_integral_v<T>
+{
+  return value & (value - T{1});
+}
+static_assert(ClearLsb(0) == 0);
+static_assert(ClearLsb(0b10010) == 0b10000);
 
 // SignedAddOverflow32(lhs,rhs,val) performs a signed summation of |lhs| and
 // |rhs| and stores the result into the variable pointed to by |val| and

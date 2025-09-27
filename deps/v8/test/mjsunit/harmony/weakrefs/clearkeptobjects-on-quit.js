@@ -8,4 +8,4 @@
 // uses the auto policy, upholds the assert when manually quitting.
 let obj = {};
 let wr = new WeakRef(obj);
-testRunner.quit();
+quit();

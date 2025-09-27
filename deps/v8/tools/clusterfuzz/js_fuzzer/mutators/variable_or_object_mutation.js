@@ -23,7 +23,7 @@ const CHOOSE_MAJOR_GC_PROB = 0.7;
 
 // Stub for testing.
 function chooseCallGC() {
-  return random.choose(0.3);
+  return random.choose(0.2);
 }
 
 /**

@@ -101,7 +101,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }
   Tagged<Object> interrupt_object = isolate->stack_guard()->HandleInterrupts();
-  if (IsException(interrupt_object, isolate)) {
+  if (IsExceptionHole(interrupt_object, isolate)) {
     return MakePair(interrupt_object,
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }
@@ -551,7 +551,8 @@ RUNTIME_FUNCTION(Runtime_CollectGarbage) {
 
 namespace {
 
-int ScriptLinePosition(DirectHandle<Script> script, int line) {
+int ScriptLinePosition(Isolate* isolate, DirectHandle<Script> script,
+                       int line) {
   if (line < 0) return -1;
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -561,7 +562,7 @@ int ScriptLinePosition(DirectHandle<Script> script, int line) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  Script::InitLineEnds(script->GetIsolate(), script);
+  Script::InitLineEnds(isolate, script);
 
   Tagged<FixedArray> line_ends_array = Cast<FixedArray>(script->line_ends());
   const int line_count = line_ends_array->length();
@@ -573,12 +574,12 @@ int ScriptLinePosition(DirectHandle<Script> script, int line) {
   return Smi::ToInt(line_ends_array->get(line - 1)) + 1;
 }
 
-int ScriptLinePositionWithOffset(DirectHandle<Script> script, int line,
-                                 int offset) {
+int ScriptLinePositionWithOffset(Isolate* isolate, DirectHandle<Script> script,
+                                 int line, int offset) {
   if (line < 0 || offset < 0) return -1;
 
   if (line == 0 || offset == 0)
-    return ScriptLinePosition(script, line) + offset;
+    return ScriptLinePosition(isolate, script, line) + offset;
 
   Script::PositionInfo info;
   if (!Script::GetPositionInfo(script, offset, &info,
@@ -587,7 +588,7 @@ int ScriptLinePositionWithOffset(DirectHandle<Script> script, int line,
   }
 
   const int total_line = info.line + line;
-  return ScriptLinePosition(script, total_line);
+  return ScriptLinePosition(isolate, script, total_line);
 }
 
 DirectHandle<Object> GetJSPositionInfo(DirectHandle<Script> script,
@@ -650,7 +651,8 @@ DirectHandle<Object> ScriptLocationFromLine(Isolate* isolate,
     if (line == 0) column -= script->column_offset();
   }
 
-  int line_position = ScriptLinePositionWithOffset(script, line, offset);
+  int line_position =
+      ScriptLinePositionWithOffset(isolate, script, line, offset);
   if (line_position < 0 || column < 0) return isolate->factory()->null_value();
 
   return GetJSPositionInfo(script, line_position + column,
@@ -790,6 +792,62 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   }
   return *factory->NewJSArrayWithElements(scripts_array, PACKED_ELEMENTS);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+RUNTIME_FUNCTION(Runtime_DebugCollectWasmCoverage) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+
+  // Collect Wasm coverage data.
+  std::unique_ptr<Coverage> coverage = Coverage::CollectWasmData(isolate);
+
+  Factory* factory = isolate->factory();
+  // Turn the returned data structure into JavaScript.
+  // Create an array of scripts.
+  int num_scripts = static_cast<int>(coverage->size());
+  DirectHandle<FixedArray> scripts_array = factory->NewFixedArray(num_scripts);
+  for (int i = 0; i < num_scripts; i++) {
+    HandleScope inner_scope(isolate);
+
+    const CoverageScript& script_data = coverage->at(i);
+    Handle<Script> script = script_data.script;
+    DCHECK_EQ(script->type(), Script::Type::kWasm);
+    const wasm::WasmModule* module = script->wasm_native_module()->module();
+
+    std::vector<CoverageBlock> ranges;
+    int num_functions = static_cast<int>(script_data.functions.size());
+    int code_start =
+        num_functions > 0
+            ? module->functions[module->num_imported_functions].code.offset()
+            : 0;
+    for (int j = 0; j < num_functions; j++) {
+      int function_index = module->num_imported_functions + j;
+      uint32_t function_start_offset =
+          module->functions[function_index].code.offset();
+      const auto& function_data = script_data.functions[j];
+      for (size_t k = 0; k < function_data.blocks.size(); k++) {
+        const auto& block_data = function_data.blocks[k];
+        ranges.emplace_back(
+            function_start_offset - code_start + block_data.start,
+            function_start_offset - code_start + block_data.end,
+            block_data.count);
+      }
+    }
+
+    int num_ranges = static_cast<int>(ranges.size());
+    DirectHandle<FixedArray> ranges_array = factory->NewFixedArray(num_ranges);
+    for (int j = 0; j < num_ranges; j++) {
+      DirectHandle<JSObject> range_object = MakeRangeObject(isolate, ranges[j]);
+      ranges_array->set(j, *range_object);
+    }
+
+    DirectHandle<JSArray> ranges_obj =
+        factory->NewJSArrayWithElements(ranges_array, PACKED_ELEMENTS);
+    scripts_array->set(i, *ranges_obj);
+  }
+  return *factory->NewJSArrayWithElements(scripts_array, PACKED_ELEMENTS);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
   SealHandleScope shs(isolate);

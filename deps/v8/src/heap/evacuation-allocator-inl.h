@@ -15,26 +15,33 @@ namespace v8 {
 namespace internal {
 
 AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
-                                               int object_size,
+                                               SafeHeapObjectSize object_size,
                                                AllocationAlignment alignment) {
+  // TODO(425150995): We should have uint versions for allocation to avoid
+  // introducing OOBs via sign-extended ints along the way.
   DCHECK_IMPLIES(!shared_space_allocator_, space != SHARED_SPACE);
   object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   switch (space) {
     case NEW_SPACE:
-      return new_space_allocator()->AllocateRaw(object_size, alignment,
-                                                AllocationOrigin::kGC);
+      return new_space_allocator()->AllocateRaw(object_size.value(), alignment,
+                                                AllocationOrigin::kGC,
+                                                AllocationHint());
     case OLD_SPACE:
-      return old_space_allocator()->AllocateRaw(object_size, alignment,
-                                                AllocationOrigin::kGC);
+      return old_space_allocator()->AllocateRaw(object_size.value(), alignment,
+                                                AllocationOrigin::kGC,
+                                                AllocationHint());
     case CODE_SPACE:
-      return code_space_allocator()->AllocateRaw(object_size, alignment,
-                                                 AllocationOrigin::kGC);
+      return code_space_allocator()->AllocateRaw(object_size.value(), alignment,
+                                                 AllocationOrigin::kGC,
+                                                 AllocationHint());
     case SHARED_SPACE:
-      return shared_space_allocator()->AllocateRaw(object_size, alignment,
-                                                   AllocationOrigin::kGC);
+      return shared_space_allocator()->AllocateRaw(
+          object_size.value(), alignment, AllocationOrigin::kGC,
+          AllocationHint());
     case TRUSTED_SPACE:
-      return trusted_space_allocator()->AllocateRaw(object_size, alignment,
-                                                    AllocationOrigin::kGC);
+      return trusted_space_allocator()->AllocateRaw(
+          object_size.value(), alignment, AllocationOrigin::kGC,
+          AllocationHint());
     default:
       UNREACHABLE();
   }

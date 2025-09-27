@@ -628,7 +628,7 @@ std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
 
 MaybeLocal<Object> GetPerContextExports(Local<Context> context,
                                         IsolateData* isolate_data) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope handle_scope(isolate);
 
   Local<Object> global = context->Global();
@@ -674,7 +674,7 @@ void ProtoThrower(const FunctionCallbackInfo<Value>& info) {
 // This runs at runtime, regardless of whether the context
 // is created from a snapshot.
 Maybe<void> InitializeContextRuntime(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
   // When `IsCodeGenerationFromStringsAllowed` is true, V8 takes the fast path
@@ -753,7 +753,7 @@ Maybe<void> InitializeContextRuntime(Local<Context> context) {
 }
 
 Maybe<void> InitializeBaseContextForSnapshot(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
   // Delete `Intl.v8BreakIterator`
@@ -778,7 +778,7 @@ Maybe<void> InitializeBaseContextForSnapshot(Local<Context> context) {
 }
 
 Maybe<void> InitializeMainContextForSnapshot(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
   // Initialize the default values.
@@ -796,7 +796,7 @@ Maybe<void> InitializeMainContextForSnapshot(Local<Context> context) {
 MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
                                             IsolateData* isolate_data) {
   CHECK(isolate_data);
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope scope(isolate);
   Context::Scope context_scope(context);
 
@@ -820,7 +820,7 @@ MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
 MaybeLocal<Object> InitializePerIsolateSymbols(Local<Context> context,
                                                IsolateData* isolate_data) {
   CHECK(isolate_data);
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope scope(isolate);
   Context::Scope context_scope(context);
 
@@ -846,7 +846,7 @@ MaybeLocal<Object> InitializePerIsolateSymbols(Local<Context> context,
 Maybe<void> InitializePrimordials(Local<Context> context,
                                   IsolateData* isolate_data) {
   // Run per-context JS files.
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Context::Scope context_scope(context);
   Local<Object> exports;
 

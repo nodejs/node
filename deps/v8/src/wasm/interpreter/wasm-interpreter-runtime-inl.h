@@ -162,7 +162,6 @@ inline bool WasmInterpreterRuntime::WasmStackCheck(
 
   if (stack_check.InterruptRequested()) {
     if (stack_check.HasOverflowed()) {
-      ClearThreadInWasmScope clear_wasm_flag(isolate_);
       SealHandleScope shs(isolate_);
       current_frame_.current_function_ = nullptr;
       SetTrap(TrapReason::kTrapUnreachable, code);
@@ -170,7 +169,6 @@ inline bool WasmInterpreterRuntime::WasmStackCheck(
       return false;
     }
     if (isolate_->stack_guard()->HasTerminationRequest()) {
-      ClearThreadInWasmScope clear_wasm_flag(isolate_);
       SealHandleScope shs(isolate_);
       current_frame_.current_function_ = nullptr;
       SetTrap(TrapReason::kTrapUnreachable, code);
@@ -184,7 +182,6 @@ inline bool WasmInterpreterRuntime::WasmStackCheck(
                   base::TimeTicks::Now() - fuzzer_start_time_ >
                       base::TimeDelta::FromMilliseconds(
                           v8_flags.drumbrake_fuzzer_timeout_limit_ms))) {
-    ClearThreadInWasmScope clear_wasm_flag(isolate_);
     SealHandleScope shs(isolate_);
     current_frame_.current_function_ = nullptr;
     SetTrap(TrapReason::kTrapUnreachable, code);

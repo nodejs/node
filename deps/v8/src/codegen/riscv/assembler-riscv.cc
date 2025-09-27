@@ -58,7 +58,7 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 
 #if (defined __riscv_vector) && (__riscv_v >= 1000000)
   answer |= 1u << RISCV_SIMD;
-#endif  // def CAN_USE_RVV_INSTRUCTIONS
+#endif  // def __riscv_vector && __riscv_v >= 1000000
 
 #if (defined __riscv_zba)
   answer |= 1u << ZBA;
@@ -72,9 +72,9 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   answer |= 1u << ZBS;
 #endif  // def __riscv_zbs
 
-#if (defined _riscv_zicond)
+#if (defined __riscv_zicond)
   answer |= 1u << ZICOND;
-#endif  // def _riscv_zicond
+#endif  // def __riscv_zicond
   return answer;
 }
 
@@ -206,7 +206,7 @@ uint32_t RelocInfo::wasm_call_tag() const {
   if (Assembler::IsAuipc(instr) && Assembler::IsJalr(instr1)) {
     DCHECK(reinterpret_cast<Instruction*>(pc_)->RdValue() ==
            reinterpret_cast<Instruction*>(pc_ + 4)->Rs1Value());
-    return Assembler::BrachlongOffset(instr, instr1);
+    return Assembler::BranchLongOffset(instr, instr1);
   } else {
     return static_cast<uint32_t>(
         Assembler::target_address_at(pc_, constant_pool_));
@@ -242,20 +242,14 @@ MemOperand::MemOperand(Register rm, int32_t unit, int32_t multiplier,
   offset_ = unit * multiplier + offset_addend;
 }
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
-  for (auto& request : heap_number_requests_) {
-    Handle<HeapObject> object =
-        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-            request.heap_number());
-    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
+void Assembler::PatchInHeapNumberRequest(Address pc,
+                                         Handle<HeapNumber> object) {
 #ifdef V8_TARGET_ARCH_RISCV64
-    EmbeddedObjectIndex index = AddEmbeddedObject(object);
-    set_embedded_object_index_referenced_from(pc, index);
+  EmbeddedObjectIndex index = AddEmbeddedObject(object);
+  set_embedded_object_index_referenced_from(pc, index);
 #else
-    set_target_value_at(pc, reinterpret_cast<uintptr_t>(object.location()));
+  set_target_value_at(pc, reinterpret_cast<uintptr_t>(object.location()));
 #endif
-  }
 }
 
 // -----------------------------------------------------------------------------
@@ -270,14 +264,10 @@ Assembler::Assembler(const AssemblerOptions& options,
       constpool_(this) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
-  last_trampoline_pool_end_ = 0;
-  no_trampoline_pool_before_ = 0;
   trampoline_pool_blocked_nesting_ = 0;
-  // We leave space (16 * kTrampolineSlotsSize)
-  // for BlockTrampolinePoolScope buffer.
   next_buffer_check_ = v8_flags.force_long_branches
                            ? kMaxInt
-                           : kMaxBranchOffset - kTrampolineSlotsSize * 16;
+                           : kMaxBranchOffset - BlockTrampolinePoolScope::kGap;
   internal_trampoline_exception_ = false;
   last_bound_pos_ = 0;
 
@@ -435,7 +425,7 @@ int Assembler::target_at(int pos, bool is_internal) {
       Instr instr_auipc = instr;
       Instr instr_I = instr_at(pos + 4);
       DCHECK(IsJalr(instr_I) || IsAddi(instr_I));
-      int32_t offset = BrachlongOffset(instr_auipc, instr_I);
+      int32_t offset = BranchLongOffset(instr_auipc, instr_I);
       if (offset == kEndOfJumpChain) return kEndOfChain;
       return offset + pos;
     }
@@ -489,7 +479,6 @@ int Assembler::target_at(int pos, bool is_internal) {
   int32_t imm12 = offset << kImm12Shift;
   return instr | (imm12 & kImm12Mask);
 }
-
 
 [[nodiscard]] static inline Instr SetJalOffset(int32_t pos, int32_t target_pos,
                                                Instr instr) {
@@ -578,29 +567,12 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
     } break;
     case JAL: {
       DCHECK(IsJal(instr));
-      intptr_t offset = target_pos - pos;
-      if (is_intn(offset, Assembler::kJumpOffsetBits)) {
-        instr = SetJalOffset(pos, target_pos, instr);
-        instr_at_put(pos, instr);
-      } else {
-        Instr instr_I = instr_at(pos + 4);
-        CHECK_EQ(instr_I, kNopByte);
-        CHECK(is_int32(offset + 0x800));
-        Instr instr_auipc = AUIPC | t6.code() << kRdShift;
-        instr_I = RO_JALR | (t6.code() << kRs1Shift) |
-                  (instruction->RdValue() << kRdShift);
-
-        int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
-        int32_t Lo12 = (int32_t)offset << 20 >> 20;
-
-        instr_auipc = SetHi20Offset(Hi20, instr_auipc);
-        instr_at_put(pos, instr_auipc);
-
-        instr_I = SetLo12Offset(Lo12, instr_I);
-        instr_at_put(pos + 4, instr_I);
-        DCHECK_EQ(offset, BrachlongOffset(Assembler::instr_at(pos),
-                                          Assembler::instr_at(pos + 4)));
-      }
+      // We only use the 'jal' instruction if we're certain the final offset
+      // will fit in the legal jump offset range, so we never need to patch
+      // this to an 'auipc; jalr' sequence.
+      DCHECK(is_intn(target_pos - pos, Assembler::kJumpOffsetBits));
+      instr = SetJalOffset(pos, target_pos, instr);
+      instr_at_put(pos, instr);
     } break;
     case LUI: {
       Address pc = reinterpret_cast<Address>(buffer_start_ + pos);
@@ -608,40 +580,29 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
           pc, reinterpret_cast<uintptr_t>(buffer_start_ + target_pos));
     } break;
     case AUIPC: {
+      // It would be possible to replace the two instruction 'auipc; jalr'
+      // sequence with 'jal; nop' if the offset was in the legal jump offset
+      // range, but it would introduce a subtle bug: There may be a safepoint
+      // recorded after the call and we must be sure that the return address
+      // stored in register ra matches the safepoint after any changes to the
+      // instructions. The use of 'jal' would move the value of register back
+      // with the size of instruction and break finding the correct safepoint.
       Instr instr_auipc = instr;
       Instr instr_I = instr_at(pos + 4);
-      Instruction* instruction_I = Instruction::At(buffer_start_ + pos + 4);
       DCHECK(IsJalr(instr_I) || IsAddi(instr_I));
 
       intptr_t offset = target_pos - pos;
-      if (is_int21(offset) && IsJalr(instr_I) &&
-          (instruction->RdValue() == instruction_I->Rs1Value())) {
-        if (v8_flags.riscv_debug) {
-          disassembleInstr(buffer_start_ + pos);
-          disassembleInstr(buffer_start_ + pos + 4);
-        }
-        DEBUG_PRINTF("\ttarget_at_put: Relpace by JAL pos:(%d) \n", pos);
-        DCHECK(is_int21(offset) && ((offset & 1) == 0));
-        Instr instr = JAL | (instruction_I->RdValue() << kRdShift);
-        instr = SetJalOffset(pos, target_pos, instr);
-        DCHECK(IsJal(instr));
-        DCHECK(JumpOffset(instr) == offset);
-        instr_at_put(pos, instr);
-        instr_at_put(pos + 4, kNopByte);
-      } else {
-        CHECK(is_int32(offset + 0x800));
+      CHECK(is_int32(offset + 0x800));
+      int32_t Hi20 = (static_cast<int32_t>(offset) + 0x800) >> 12;
+      int32_t Lo12 = static_cast<int32_t>(offset) << 20 >> 20;
 
-        int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
-        int32_t Lo12 = (int32_t)offset << 20 >> 20;
+      instr_auipc = SetHi20Offset(Hi20, instr_auipc);
+      instr_at_put(pos, instr_auipc);
 
-        instr_auipc = SetHi20Offset(Hi20, instr_auipc);
-        instr_at_put(pos, instr_auipc);
-
-        const int kImm31_20Mask = ((1 << 12) - 1) << 20;
-        const int kImm11_0Mask = ((1 << 12) - 1);
-        instr_I = (instr_I & ~kImm31_20Mask) | ((Lo12 & kImm11_0Mask) << 20);
-        instr_at_put(pos + 4, instr_I);
-      }
+      const int kImm31_20Mask = ((1 << 12) - 1) << 20;
+      const int kImm11_0Mask = ((1 << 12) - 1);
+      instr_I = (instr_I & ~kImm31_20Mask) | ((Lo12 & kImm11_0Mask) << 20);
+      instr_at_put(pos + 4, instr_I);
     } break;
     case RO_C_J: {
       ShortInstr short_instr = SetCJalOffset(pos, target_pos, instr);
@@ -720,8 +681,8 @@ void Assembler::bind_to(Label* L, int pos) {
             trampoline_pos = get_trampoline_entry(fixup_pos);
             CHECK_NE(trampoline_pos, kInvalidSlotPos);
           }
-          CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
+          CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
           target_at_put(fixup_pos, trampoline_pos, false);
           fixup_pos = trampoline_pos;
         }
@@ -792,7 +753,7 @@ int Assembler::BranchOffset(Instr instr) {
   return imm13;
 }
 
-int Assembler::BrachlongOffset(Instr auipc, Instr instr_I) {
+int Assembler::BranchLongOffset(Instr auipc, Instr instr_I) {
   DCHECK(reinterpret_cast<Instruction*>(&instr_I)->InstructionType() ==
          InstructionBase::kIType);
   DCHECK(IsAuipc(auipc));
@@ -804,19 +765,19 @@ int Assembler::BrachlongOffset(Instr auipc, Instr instr_I) {
   return offset;
 }
 
-int Assembler::PatchBranchlongOffset(Address pc, Instr instr_auipc,
+int Assembler::PatchBranchLongOffset(Address pc, Instr instr_auipc,
                                      Instr instr_jalr, int32_t offset,
                                      WritableJitAllocation* jit_allocation) {
   DCHECK(IsAuipc(instr_auipc));
   DCHECK(IsJalr(instr_jalr));
   CHECK(is_int32(offset + 0x800));
-  int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
-  int32_t Lo12 = (int32_t)offset << 20 >> 20;
+  int32_t Hi20 = (static_cast<int32_t>(offset) + 0x800) >> 12;
+  int32_t Lo12 = static_cast<int32_t>(offset) << 20 >> 20;
   instr_at_put(pc, SetHi20Offset(Hi20, instr_auipc), jit_allocation);
   instr_at_put(pc + kInstrSize, SetLo12Offset(Lo12, instr_jalr),
                jit_allocation);
-  DCHECK(offset ==
-         BrachlongOffset(Assembler::instr_at(pc), Assembler::instr_at(pc + 4)));
+  DCHECK(offset == BranchLongOffset(Assembler::instr_at(pc),
+                                    Assembler::instr_at(pc + 4)));
   return 2;
 }
 
@@ -946,7 +907,7 @@ void Assembler::label_at_put(Label* L, int at_offset) {
       DCHECK_EQ(imm18 & 3, 0);
       int32_t imm16 = imm18 >> 2;
       DCHECK(is_int16(imm16));
-      instr_at_put(at_offset, (int32_t)(imm16 & kImm16Mask));
+      instr_at_put(at_offset, static_cast<int32_t>(imm16 & kImm16Mask));
     } else {
       target_pos = kEndOfJumpChain;
       instr_at_put(at_offset, target_pos);
@@ -984,7 +945,7 @@ void Assembler::EBREAK() {
 void Assembler::nop() { addi(ToRegister(0), ToRegister(0), 0); }
 
 inline int64_t signExtend(uint64_t V, int N) {
-  return int64_t(V << (64 - N)) >> (64 - N);
+  return static_cast<int64_t>(V << (64 - N)) >> (64 - N);
 }
 
 #if V8_TARGET_ARCH_RISCV64
@@ -1024,7 +985,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
     int64_t high_20 = ((imm + 0x800) >> 12);
     int64_t low_12 = imm << 52 >> 52;
     if (high_20) {
-      lui(rd, (int32_t)high_20);
+      lui(rd, static_cast<int32_t>(high_20));
       if (low_12) {
         addi(rd, rd, low_12);
       }
@@ -1056,7 +1017,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
           // Adjust to 20 bits for the case of overflow
           high_20 &= 0xfffff;
           sim_low = ((high_20 << 12) << 32) >> 32;
-          lui(rd, (int32_t)high_20);
+          lui(rd, static_cast<int32_t>(high_20));
           if (low_12) {
             sim_low += (low_12 << 52 >> 52) | low_12;
             addi(rd, rd, low_12);
@@ -1090,7 +1051,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
       if (high_20) {
         // Adjust to 20 bits for the case of overflow
         high_20 &= 0xfffff;
-        lui(temp_reg, (int32_t)high_20);
+        lui(temp_reg, static_cast<int32_t>(high_20));
         if (low_12) {
           addi(temp_reg, temp_reg, low_12);
         }
@@ -1113,7 +1074,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
     if (high_20) {
       // Adjust to 20 bits for the case of overflow
       high_20 &= 0xfffff;
-      lui(rd, (int32_t)high_20);
+      lui(rd, static_cast<int32_t>(high_20));
       if (low_12) {
         addi(rd, rd, low_12);
       }
@@ -1141,13 +1102,13 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
       int32_t part;
       if ((i + 11) < 32) {
         // Pick 11 bits
-        part = ((uint32_t)(low_32 << i) >> i) >> (32 - (i + 11));
+        part = (static_cast<uint32_t>(low_32 << i) >> i) >> (32 - (i + 11));
         slli(rd, rd, shift_val + 11);
         ori(rd, rd, part);
         i += 10;
         mask >>= 11;
       } else {
-        part = (uint32_t)(low_32 << i) >> i;
+        part = static_cast<uint32_t>(low_32 << i) >> i;
         slli(rd, rd, shift_val + (32 - i));
         ori(rd, rd, part);
         break;
@@ -1167,7 +1128,7 @@ void Assembler::li_ptr(Register rd, int64_t imm) {
   int64_t high_31 = (imm >> 8) & 0x7fffffff;    // 31 bits
   int64_t high_20 = ((high_31 + 0x800) >> 12);  // 19 bits
   int64_t low_12 = high_31 & 0xfff;             // 12 bits
-  lui(rd, (int32_t)high_20);
+  lui(rd, static_cast<int32_t>(high_20));
   addi(rd, rd, low_12);  // 31 bits in rd.
   slli(rd, rd, 8);       // Space for next 8 bis
   ori(rd, rd, a8);       // 8 bits are put in.
@@ -1181,7 +1142,7 @@ void Assembler::li_ptr(Register rd, int64_t imm) {
   int64_t high_31 = (imm >> 17) & 0x7fffffff;   // 31 bits
   int64_t high_20 = ((high_31 + 0x800) >> 12);  // 19 bits
   int64_t low_12 = high_31 & 0xfff;             // 12 bits
-  lui(rd, (int32_t)high_20);
+  lui(rd, static_cast<int32_t>(high_20));
   addi(rd, rd, low_12);  // 31 bits in rd.
   slli(rd, rd, 11);      // Space for next 11 bis
   ori(rd, rd, b11);      // 11 bits are put in. 42 bit in rd
@@ -1390,9 +1351,9 @@ void Assembler::RelocateRelativeReference(
          RelocInfo::IsNearBuiltinEntry(rmode));
   if (IsAuipc(instr) && IsJalr(instr1)) {
     int32_t imm;
-    imm = BrachlongOffset(instr, instr1);
+    imm = BranchLongOffset(instr, instr1);
     imm -= pc_delta;
-    PatchBranchlongOffset(pc, instr, instr1, imm, jit_allocation);
+    PatchBranchLongOffset(pc, instr, instr1, imm, jit_allocation);
     return;
   } else {
     UNREACHABLE();
@@ -1467,7 +1428,11 @@ void Assembler::dq(uint64_t data) {
   EmitHelper(data);
 }
 
+#if defined(V8_TARGET_ARCH_RISCV64)
+void Assembler::dq(Label* label) {
+#elif defined(V8_TARGET_ARCH_RISCV32)
 void Assembler::dd(Label* label) {
+#endif
   uintptr_t data;
   if (!is_buffer_growth_blocked()) CheckBuffer();
   if (label->is_bound()) {
@@ -1489,75 +1454,75 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   reloc_info_writer.Write(&rinfo);
 }
 
-void Assembler::BlockTrampolinePoolFor(int instructions) {
-  DEBUG_PRINTF("\tBlockTrampolinePoolFor %d", instructions);
-  CheckTrampolinePoolQuick(instructions);
-  DEBUG_PRINTF("\tpc_offset %d,BlockTrampolinePoolBefore %d\n", pc_offset(),
-               pc_offset() + instructions * kInstrSize);
-  BlockTrampolinePoolBefore(pc_offset() + instructions * kInstrSize);
-}
-
 void Assembler::CheckTrampolinePool() {
+  if (trampoline_emitted_) return;
   // Some small sequences of instructions must not be broken up by the
-  // insertion of a trampoline pool; such sequences are protected by setting
-  // either trampoline_pool_blocked_nesting_ or no_trampoline_pool_before_,
-  // which are both checked here. Also, recursive calls to CheckTrampolinePool
-  // are blocked by trampoline_pool_blocked_nesting_.
-  DEBUG_PRINTF("\tpc_offset %d no_trampoline_pool_before:%d\n", pc_offset(),
-               no_trampoline_pool_before_);
+  // insertion of a trampoline pool; such sequences are protected by increasing
+  // trampoline_pool_blocked_nesting_. This is also used to block recursive
+  // calls to CheckTrampolinePool.
   DEBUG_PRINTF("\ttrampoline_pool_blocked_nesting:%d\n",
                trampoline_pool_blocked_nesting_);
-  if ((trampoline_pool_blocked_nesting_ > 0) ||
-      (pc_offset() < no_trampoline_pool_before_)) {
+  if (is_trampoline_pool_blocked()) {
     // Emission is currently blocked; make sure we try again as soon as
     // possible.
-    if (trampoline_pool_blocked_nesting_ > 0) {
-      next_buffer_check_ = pc_offset() + kInstrSize;
-    } else {
-      next_buffer_check_ = no_trampoline_pool_before_;
-    }
+    next_buffer_check_ = pc_offset() + kInstrSize;
     return;
   }
 
-  DCHECK(!trampoline_emitted_);
   DCHECK_GE(unbound_labels_count_, 0);
   if (unbound_labels_count_ > 0) {
     // First we emit jump, then we emit trampoline pool.
     {
-      DEBUG_PRINTF("inserting trampoline pool at %p (%d)\n",
+      int size = kTrampolinePoolOverhead +
+                 unbound_labels_count_ * kTrampolineSlotsSize;
+      DEBUG_PRINTF("inserting trampoline pool at %p (%d) with size %d\n",
                    reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
-                   pc_offset());
-      BlockTrampolinePoolScope block_trampoline_pool(this);
-      Label after_pool;
-      j(&after_pool);
+                   pc_offset(), size);
+      int pc_offset_for_safepoint_before = pc_offset_for_safepoint();
+      USE(pc_offset_for_safepoint_before);  // Only used in DCHECK below.
+
+      // Mark the trampoline pool as emitted eagerly to avoid recursive
+      // emissions occurring from the blocking scope.
+      trampoline_emitted_ = true;
+
+      // By construction, we know that any branch or jump up until this point
+      // can reach the last entry in the trampoline pool. Therefore, we can
+      // safely jump around the pool as long as the last entry isn't too big
+      // to allow skipping the pool with a single 'jump immediate' instruction.
+      static_assert(kMaxBranchOffset <= kMaxJumpOffset - kTrampolineSlotsSize);
+      int preamble_start = pc_offset();
+      USE(preamble_start);  // Only used in DCHECK.
+      BlockTrampolinePoolScope block_trampoline_pool(this, size);
+      j(size);
 
       int pool_start = pc_offset();
+      DCHECK_EQ(pool_start - preamble_start, kTrampolinePoolOverhead);
       for (int i = 0; i < unbound_labels_count_; i++) {
-        int32_t imm;
-        imm = branch_long_offset(&after_pool);
-        CHECK(is_int32(imm + 0x800));
-        int32_t Hi20 = (((int32_t)imm + 0x800) >> 12);
-        int32_t Lo12 = (int32_t)imm << 20 >> 20;
-        auipc(t6, Hi20);  // Read PC + Hi20 into t6
-        jr(t6, Lo12);     // jump PC + Hi20 + Lo12
+        // Emit a dummy far branch. It will be patched later when one of the
+        // unbound labels are bound.
+        auipc(t6, 0);  // Read pc into t6.
+        jr(t6, 0);     // Jump to t6 - the auipc instruction.
       }
-      // If unbound_labels_count_ is big enough, label after_pool will
-      // need a trampoline too, so we must create the trampoline before
-      // the bind operation to make sure function 'bind' can get this
-      // information.
-      trampoline_ = Trampoline(pool_start, unbound_labels_count_);
-      bind(&after_pool);
 
-      trampoline_emitted_ = true;
-      // As we are only going to emit trampoline once, we need to prevent any
-      // further emission.
+      trampoline_ = Trampoline(pool_start, unbound_labels_count_);
+      int pool_size = pc_offset() - pool_start;
+      USE(pool_size);  // Only used in DCHECK.
+      DCHECK_EQ(pool_size, unbound_labels_count_ * kTrampolineSlotsSize);
+
+      // Make sure we didn't mess with the recorded pc for the next safepoint
+      // as part of emitting the branch trampolines.
+      DCHECK_EQ(pc_offset_for_safepoint(), pc_offset_for_safepoint_before);
+
+      // As we are only going to emit the trampoline pool once, we do not have
+      // to check ever again. We set the next check position to something we
+      // will never reach.
       next_buffer_check_ = kMaxInt;
     }
   } else {
     // Number of branches to unbound label at this point is zero, so we can
     // move next buffer check to maximum.
     next_buffer_check_ =
-        pc_offset() + kMaxBranchOffset - kTrampolineSlotsSize * 16;
+        pc_offset() + kMaxBranchOffset - BlockTrampolinePoolScope::kGap;
   }
   return;
 }
@@ -1583,12 +1548,12 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       }
     } else {
       DCHECK(IsJalr(*reinterpret_cast<Instr*>(pc + 4)));
-      intptr_t imm = (intptr_t)target - (intptr_t)pc;
+      intptr_t imm = static_cast<intptr_t>(target) - static_cast<intptr_t>(pc);
       Instr instr = instr_at(pc);
       Instr instr1 = instr_at(pc + 1 * kInstrSize);
       DCHECK(is_int32(imm + 0x800));
-      int num = PatchBranchlongOffset(pc, instr, instr1, (int32_t)imm,
-                                      jit_allocation);
+      int num = PatchBranchLongOffset(
+          pc, instr, instr1, static_cast<int32_t>(imm), jit_allocation);
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
         FlushInstructionCache(pc, num * kInstrSize);
       }
@@ -1636,10 +1601,10 @@ Address Assembler::target_constant_address_at(Address pc) {
       IsSlli(*reinterpret_cast<Instr*>(instr2)) &&
       IsOri(*reinterpret_cast<Instr*>(instr3))) {
     // Assemble the 64 bit value.
-    int64_t addr = (int64_t)(instr0->Imm20UValue() << kImm20Shift) +
-                   (int64_t)instr1->Imm12Value();
+    int64_t addr = static_cast<int64_t>(instr0->Imm20UValue() << kImm20Shift) +
+                   static_cast<int64_t>(instr1->Imm12Value());
     addr <<= 8;
-    addr |= (int64_t)instr3->Imm12Value();
+    addr |= static_cast<int64_t>(instr3->Imm12Value());
 #else
   Instruction* instr0 = Instruction::At((unsigned char*)pc);
   Instruction* instr1 = Instruction::At((unsigned char*)(pc + 1 * kInstrSize));
@@ -1657,12 +1622,12 @@ Address Assembler::target_constant_address_at(Address pc) {
       IsSlli(*reinterpret_cast<Instr*>(instr4)) &&
       IsOri(*reinterpret_cast<Instr*>(instr5))) {
     // Assemble the 64 bit value.
-    int64_t addr = (int64_t)(instr0->Imm20UValue() << kImm20Shift) +
-                   (int64_t)instr1->Imm12Value();
+    int64_t addr = static_cast<int64_t>(instr0->Imm20UValue() << kImm20Shift) +
+                   static_cast<int64_t>(instr1->Imm12Value());
     addr <<= 11;
-    addr |= (int64_t)instr3->Imm12Value();
+    addr |= static_cast<int64_t>(instr3->Imm12Value());
     addr <<= 6;
-    addr |= (int64_t)instr5->Imm12Value();
+    addr |= static_cast<int64_t>(instr5->Imm12Value());
 #endif
     DEBUG_PRINTF("\taddr: %" PRIx64 "\n", addr);
     return static_cast<Address>(addr);
@@ -1691,7 +1656,7 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
                                     WritableJitAllocation* jit_allocation,
                                     ICacheFlushMode icache_flush_mode) {
   DEBUG_PRINTF("\tset_target_value_at: pc: %" PRIxPTR "\ttarget: %" PRIx64
-               "\told: %" PRIx64 "\n",
+               "\told: %" PRIxPTR "\n",
                pc, target, target_address_at(pc, static_cast<Address>(0)));
   uint32_t* p = reinterpret_cast<uint32_t*>(pc);
 #ifdef RISCV_USE_SV39
@@ -1709,12 +1674,15 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
   int64_t high_31 = (target >> 8) & 0x7fffffff;  // 31 bits
   int64_t high_20 = ((high_31 + 0x800) >> 12);   // 19 bits
   int64_t low_12 = high_31 & 0xfff;              // 12 bits
-  instr_at_put(pc, (*p & 0xfff) | ((int32_t)high_20 << 12), jit_allocation);
+  instr_at_put(pc, (*p & 0xfff) | (static_cast<int32_t>(high_20) << 12),
+               jit_allocation);
   instr_at_put(pc + 1 * kInstrSize,
-               (*(p + 1) & 0xfffff) | ((int32_t)low_12 << 20), jit_allocation);
+               (*(p + 1) & 0xfffff) | (static_cast<int32_t>(low_12) << 20),
+               jit_allocation);
   instr_at_put(pc + 2 * kInstrSize, (*(p + 2) & 0xfffff) | (8 << 20),
                jit_allocation);
-  instr_at_put(pc + 3 * kInstrSize, (*(p + 3) & 0xfffff) | ((int32_t)a8 << 20),
+  instr_at_put(pc + 3 * kInstrSize,
+               (*(p + 3) & 0xfffff) | (static_cast<int32_t>(a8) << 20),
                jit_allocation);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, 6 * kInstrSize);
@@ -1737,16 +1705,20 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
   int64_t high_31 = (target >> 17) & 0x7fffffff;  // 31 bits
   int64_t high_20 = ((high_31 + 0x800) >> 12);    // 19 bits
   int64_t low_12 = high_31 & 0xfff;               // 12 bits
-  instr_at_put(pc, (*p & 0xfff) | ((int32_t)high_20 << 12), jit_allocation);
+  instr_at_put(pc, (*p & 0xfff) | (static_cast<int32_t>(high_20) << 12),
+               jit_allocation);
   instr_at_put(pc + 1 * kInstrSize,
-               (*(p + 1) & 0xfffff) | ((int32_t)low_12 << 20), jit_allocation);
+               (*(p + 1) & 0xfffff) | (static_cast<int32_t>(low_12) << 20),
+               jit_allocation);
   instr_at_put(pc + 2 * kInstrSize, (*(p + 2) & 0xfffff) | (11 << 20),
                jit_allocation);
-  instr_at_put(pc + 3 * kInstrSize, (*(p + 3) & 0xfffff) | ((int32_t)b11 << 20),
+  instr_at_put(pc + 3 * kInstrSize,
+               (*(p + 3) & 0xfffff) | (static_cast<int32_t>(b11) << 20),
                jit_allocation);
   instr_at_put(pc + 4 * kInstrSize, (*(p + 4) & 0xfffff) | (6 << 20),
                jit_allocation);
-  instr_at_put(pc + 5 * kInstrSize, (*(p + 5) & 0xfffff) | ((int32_t)a6 << 20),
+  instr_at_put(pc + 5 * kInstrSize,
+               (*(p + 5) & 0xfffff) | (static_cast<int32_t>(a6) << 20),
                jit_allocation);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, 8 * kInstrSize);
@@ -1778,15 +1750,9 @@ void Assembler::set_target_value_at(Address pc, uint32_t target,
 bool Assembler::IsConstantPoolAt(Instruction* instr) {
   // The constant pool marker is made of two instructions. These instructions
   // will never be emitted by the JIT, so checking for the first one is enough:
-  // 0: ld x0, x0, #offset
+  // 0: auipc x0, #offset
   Instr instr_value = *reinterpret_cast<Instr*>(instr);
-#if V8_TARGET_ARCH_RISCV64
-  bool result = IsLd(instr_value) && (instr->Rs1Value() == kRegCode_zero_reg) &&
-                (instr->RdValue() == kRegCode_zero_reg);
-#elif V8_TARGET_ARCH_RISCV32
-  bool result = IsLw(instr_value) && (instr->Rs1Value() == kRegCode_zero_reg) &&
-                (instr->RdValue() == kRegCode_zero_reg);
-#endif
+  bool result = IsAuipc(instr_value) && (instr->RdValue() == kRegCode_zero_reg);
 #ifdef DEBUG
   // It is still worth asserting the marker is complete.
   // 1: j 0x0
@@ -1800,7 +1766,7 @@ bool Assembler::IsConstantPoolAt(Instruction* instr) {
 
 int Assembler::ConstantPoolSizeAt(Instruction* instr) {
   if (IsConstantPoolAt(instr)) {
-    return instr->Imm12Value();
+    return instr->Imm20UValue();
   } else {
     return -1;
   }
@@ -1888,14 +1854,12 @@ void ConstantPool::EmitPrologue(Alignment require_alignment) {
   // Recorded constant pool size is expressed in number of 32-bits words,
   // and includes prologue and alignment, but not the jump around the pool
   // and the size of the marker itself.
+  // word_count may exceed 12 bits, so auipc is used.
   const int marker_size = 1;
   int word_count =
       ComputeSize(Jump::kOmitted, require_alignment) / kInt32Size - marker_size;
-#if V8_TARGET_ARCH_RISCV64
-  assm_->ld(zero_reg, zero_reg, word_count);
-#elif V8_TARGET_ARCH_RISCV32
-  assm_->lw(zero_reg, zero_reg, word_count);
-#endif
+  DCHECK(is_int20(word_count));
+  assm_->auipc(zero_reg, word_count);
   assm_->EmitPoolGuard();
 }
 
@@ -1927,8 +1891,8 @@ void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
       reinterpret_cast<Address>(entry_offset) -
       reinterpret_cast<Address>(assm_->toAddress(load_offset)));
   CHECK(is_int32(distance + 0x800));
-  int32_t Hi20 = (((int32_t)distance + 0x800) >> 12);
-  int32_t Lo12 = (int32_t)distance << 20 >> 20;
+  int32_t Hi20 = (static_cast<int32_t>(distance) + 0x800) >> 12;
+  int32_t Lo12 = static_cast<int32_t>(distance) << 20 >> 20;
   assm_->instr_at_put(load_offset, SetHi20Offset(Hi20, instr_auipc));
   assm_->instr_at_put(load_offset + 4, SetLoadOffset(Lo12, instr_load));
 }
@@ -1937,7 +1901,7 @@ void ConstantPool::Check(Emission force_emit, Jump require_jump,
                          size_t margin) {
   // Some short sequence of instruction must not be broken up by constant pool
   // emission, such sequences are protected by a ConstPool::BlockScope.
-  if (IsBlocked()) {
+  if (IsBlocked() || assm_->is_trampoline_pool_blocked()) {
     // Something is wrong if emission is forced and blocked at the same time.
     DCHECK_EQ(force_emit, Emission::kIfNeeded);
     return;
@@ -1949,17 +1913,17 @@ void ConstantPool::Check(Emission force_emit, Jump require_jump,
   //  * emission is mandatory or opportune according to {ShouldEmitNow}.
   if (!IsEmpty() && (force_emit == Emission::kForced ||
                      ShouldEmitNow(require_jump, margin))) {
-    // Emit veneers for branches that would go out of range during emission of
-    // the constant pool.
-    int worst_case_size = ComputeSize(Jump::kRequired, Alignment::kRequired);
-
     // Check that the code buffer is large enough before emitting the constant
     // pool (this includes the gap to the relocation information).
+    int worst_case_size = ComputeSize(Jump::kRequired, Alignment::kRequired);
     int needed_space = worst_case_size + assm_->kGap;
     while (assm_->buffer_space() <= needed_space) {
       assm_->GrowBuffer();
     }
 
+    // Since we do not know how much space the constant pool is going to take
+    // up, we cannot handle getting here while the trampoline pool is blocked.
+    CHECK(!assm_->is_trampoline_pool_blocked());
     EmitAndClear(require_jump);
   }
   // Since a constant pool is (now) empty, move the check offset forward by
@@ -1992,8 +1956,9 @@ const size_t ConstantPool::kApproxMaxEntryCount = 512;
 //===----------------------------------------------------------------------===//
 void Assembler::RecursiveLi(Register rd, int64_t val) {
   if (val > 0 && RecursiveLiImplCount(val) > 2) {
-    unsigned LeadingZeros = base::bits::CountLeadingZeros((uint64_t)val);
-    uint64_t ShiftedVal = (uint64_t)val << LeadingZeros;
+    unsigned LeadingZeros =
+        base::bits::CountLeadingZeros(static_cast<uint64_t>(val));
+    uint64_t ShiftedVal = static_cast<uint64_t>(val) << LeadingZeros;
     int countFillZero = RecursiveLiImplCount(ShiftedVal) + 1;
     if (countFillZero < RecursiveLiImplCount(val)) {
       RecursiveLiImpl(rd, ShiftedVal);
@@ -2006,8 +1971,9 @@ void Assembler::RecursiveLi(Register rd, int64_t val) {
 
 int Assembler::RecursiveLiCount(int64_t val) {
   if (val > 0 && RecursiveLiImplCount(val) > 2) {
-    unsigned LeadingZeros = base::bits::CountLeadingZeros((uint64_t)val);
-    uint64_t ShiftedVal = (uint64_t)val << LeadingZeros;
+    unsigned LeadingZeros =
+        base::bits::CountLeadingZeros(static_cast<uint64_t>(val));
+    uint64_t ShiftedVal = static_cast<uint64_t>(val) << LeadingZeros;
     // Fill in the bits that will be shifted out with 1s. An example where
     // this helps is trailing one masks with 32 or more ones. This will
     // generate ADDI -1 and an SRLI.
@@ -2032,7 +1998,7 @@ void Assembler::RecursiveLiImpl(Register rd, int64_t Val) {
     int64_t Lo12 = Val << 52 >> 52;
 
     if (Hi20) {
-      lui(rd, (int32_t)Hi20);
+      lui(rd, static_cast<int32_t>(Hi20));
     }
 
     if (Lo12 || Hi20 == 0) {
@@ -2070,19 +2036,20 @@ void Assembler::RecursiveLiImpl(Register rd, int64_t Val) {
   // subsequently performed when the recursion returns.
 
   int64_t Lo12 = Val << 52 >> 52;
-  int64_t Hi52 = ((uint64_t)Val + 0x800ull) >> 12;
-  int ShiftAmount = 12 + base::bits::CountTrailingZeros((uint64_t)Hi52);
+  int64_t Hi52 = (static_cast<uint64_t>(Val) + 0x800ull) >> 12;
+  int ShiftAmount =
+      12 + base::bits::CountTrailingZeros(static_cast<uint64_t>(Hi52));
   Hi52 = signExtend(Hi52 >> (ShiftAmount - 12), 64 - ShiftAmount);
 
   // If the remaining bits don't fit in 12 bits, we might be able to reduce
   // the shift amount in order to use LUI which will zero the lower 12 bits.
   bool Unsigned = false;
   if (ShiftAmount > 12 && !is_int12(Hi52)) {
-    if (is_int32((uint64_t)Hi52 << 12)) {
+    if (is_int32(static_cast<uint64_t>(Hi52) << 12)) {
       // Reduce the shift amount and add zeros to the LSBs so it will match
       // LUI.
       ShiftAmount -= 12;
-      Hi52 = (uint64_t)Hi52 << 12;
+      Hi52 = static_cast<uint64_t>(Hi52) << 12;
     }
   }
   RecursiveLi(rd, Hi52);
@@ -2110,7 +2077,7 @@ int Assembler::RecursiveLiImplCount(int64_t Val) {
     int64_t Lo12 = Val << 52 >> 52;
 
     if (Hi20) {
-      // lui(rd, (int32_t)Hi20);
+      // lui(rd, static_cast<int32_t>(Hi20));
       count++;
     }
 
@@ -2147,19 +2114,20 @@ int Assembler::RecursiveLiImplCount(int64_t Val) {
   // subsequently performed when the recursion returns.
 
   int64_t Lo12 = Val << 52 >> 52;
-  int64_t Hi52 = ((uint64_t)Val + 0x800ull) >> 12;
-  int ShiftAmount = 12 + base::bits::CountTrailingZeros((uint64_t)Hi52);
+  int64_t Hi52 = (static_cast<uint64_t>(Val) + 0x800ull) >> 12;
+  int ShiftAmount =
+      12 + base::bits::CountTrailingZeros(static_cast<uint64_t>(Hi52));
   Hi52 = signExtend(Hi52 >> (ShiftAmount - 12), 64 - ShiftAmount);
 
   // If the remaining bits don't fit in 12 bits, we might be able to reduce
   // the shift amount in order to use LUI which will zero the lower 12 bits.
   bool Unsigned = false;
   if (ShiftAmount > 12 && !is_int12(Hi52)) {
-    if (is_int32((uint64_t)Hi52 << 12)) {
+    if (is_int32(static_cast<uint64_t>(Hi52) << 12)) {
       // Reduce the shift amount and add zeros to the LSBs so it will match
       // LUI.
       ShiftAmount -= 12;
-      Hi52 = (uint64_t)Hi52 << 12;
+      Hi52 = static_cast<uint64_t>(Hi52) << 12;
     }
   }
 

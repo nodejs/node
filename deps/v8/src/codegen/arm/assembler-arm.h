@@ -413,6 +413,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void DataAlign(int m);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
+  void SwitchTargetAlign() { CodeTargetAlign(); }
+  void BranchTargetAlign() { CodeTargetAlign(); }
   void LoopHeaderAlign() { CodeTargetAlign(); }
 
   // Branch instructions
@@ -1075,6 +1077,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
   };
 
+  // Clear any internal state to avoid check failures if we drop
+  // the assembly code.
+  void ClearInternalState() { pending_32_bit_constants_.clear(); }
+
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
 
@@ -1355,7 +1361,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
   void ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                             intptr_t value);
-  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
+  void PatchInHeapNumberRequest(Address pc, Handle<HeapNumber> object) override;
 
   int WriteCodeComments();
 
