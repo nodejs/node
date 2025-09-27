@@ -408,6 +408,7 @@
   V(blob_reader_constructor_template, v8::FunctionTemplate)                    \
   V(blocklist_constructor_template, v8::FunctionTemplate)                      \
   V(callsite_template, v8::DictionaryTemplate)                                 \
+  V(cipherinfo_detail_template, v8::DictionaryTemplate)                        \
   V(cipherinfo_template, v8::DictionaryTemplate)                               \
   V(contextify_global_template, v8::ObjectTemplate)                            \
   V(contextify_wrapper_template, v8::ObjectTemplate)                           \
