@@ -551,6 +551,12 @@ Type: End-of-Life
 The `os.tmpDir()` API was deprecated in Node.js 7.0.0 and has since been
 removed. Please use [`os.tmpdir()`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/tmpDir-to-tmpdir)):
+
+```bash
+npx codemod@latest @nodejs/tmpDir-to-tmpdir
+```
+
 ### DEP0023: `os.getNetworkInterfaces()`
 
 <!-- YAML
@@ -628,6 +634,12 @@ Type: End-of-Life
 
 `util.print()` has been removed. Please use [`console.log()`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-print-to-console-log)):
+
+```bash
+npx codemod@latest @nodejs/util-print-to-console-log
+```
+
 ### DEP0027: `util.puts()`
 
 <!-- YAML
@@ -648,6 +660,12 @@ changes:
 Type: End-of-Life
 
 `util.puts()` has been removed. Please use [`console.log()`][] instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-print-to-console-log)):
+
+```bash
+npx codemod@latest @nodejs/util-print-to-console-log
+```
 
 ### DEP0028: `util.debug()`
 
@@ -670,6 +688,12 @@ Type: End-of-Life
 
 `util.debug()` has been removed. Please use [`console.error()`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-debug-to-console-error)):
+
+```bash
+npx codemod@latest @nodejs/util-debug-to-console-error
+```
+
 ### DEP0029: `util.error()`
 
 <!-- YAML
@@ -690,6 +714,12 @@ changes:
 Type: End-of-Life
 
 `util.error()` has been removed. Please use [`console.error()`][] instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-print-to-console-log)):
+
+```bash
+npx codemod@latest @nodejs/util-print-to-console-log
+```
 
 ### DEP0030: `SlowBuffer`
 
@@ -1415,6 +1445,12 @@ consider the following alternatives based on your specific needs:
 By adopting one of these alternatives, you can transition away from `util.log()`
 and choose a logging strategy that aligns with the specific
 requirements and complexity of your application.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-log-to-console-log)):
+
+```bash
+npx codemod@latest @nodejs/util-log-to-console-log
+```
 
 ### DEP0060: `util._extend()`
 
@@ -2754,6 +2790,12 @@ Type: End-of-Life
 
 Use [`module.createRequire()`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/create-require-from-path)):
+
+```bash
+npx codemod@latest @nodejs/create-require-from-path
+```
+
 ### DEP0131: Legacy HTTP parser
 
 <!-- YAML
@@ -2914,6 +2956,12 @@ modules is unsupported.
 
 It is deprecated in favor of [`require.main`][], because it serves the same
 purpose and is only available on CommonJS environment.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/process-main-module)):
+
+```bash
+npx codemod@latest @nodejs/process-main-module
+```
 
 ### DEP0139: `process.umask()` with no arguments
 
@@ -3084,6 +3132,12 @@ to support a `recursive` option. That option has been removed.
 Use `fs.rm(path, { recursive: true, force: true })`,
 `fs.rmSync(path, { recursive: true, force: true })` or
 `fs.promises.rm(path, { recursive: true, force: true })` instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/rmdir)):
+
+```bash
+npx codemod@latest @nodejs/rmdir
+```
 
 ### DEP0148: Folder mappings in `"exports"` (trailing `"/"`)
 
@@ -3686,6 +3740,12 @@ Type: End-of-Life
 `F_OK`, `R_OK`, `W_OK` and `X_OK` getters exposed directly on `node:fs` were
 removed. Get them from `fs.constants` or `fs.promises.constants` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/fs-access-mode-constants)):
+
+```bash
+npx codemod@latest @nodejs/fs-access-mode-constants
+```
+
 ### DEP0177: `util.types.isWebAssemblyCompiledModule`
 
 <!-- YAML
@@ -4031,6 +4091,12 @@ Instantiating classes without the `new` qualifier exported by the `node:http` mo
 It is recommended to use the `new` qualifier instead. This applies to all http classes, such as
 `OutgoingMessage`, `IncomingMessage`, `ServerResponse` and `ClientRequest`.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/http-classes-with-new)):
+
+```bash
+npx codemod@latest @nodejs/http-classes-with-new
+```
+
 ### DEP0196: Calling `node:child_process` functions with `options.shell` as an empty string
 
 <!-- YAML
@@ -4069,6 +4135,12 @@ changes:
 Type: Documentation-only
 
 The [`util.types.isNativeError`][] API is deprecated. Please use [`Error.isError`][] instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/types-is-native-error)):
+
+```bash
+npx codemod@latest @nodejs/types-is-native-error
+```
 
 ### DEP0198: Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength`
 
