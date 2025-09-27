@@ -551,8 +551,7 @@ Type: End-of-Life
 The `os.tmpDir()` API was deprecated in Node.js 7.0.0 and has since been
 removed. Please use [`os.tmpdir()`][] instead.
 
-If you want an automated way to update your code you can use this codemod:
-
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/tmpDir-to-tmpdir)):
 ```bash
 npx codemod@latest @nodejs/tmpDir-to-tmpdir
 ```
@@ -634,8 +633,7 @@ Type: End-of-Life
 
 `util.print()` has been removed. Please use [`console.log()`][] instead.
 
-If you want an automated way to update you can use this codemod:
-
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-print-to-console-log)):
 ```bash
 npx codemod@latest @nodejs/util-print-to-console-log
 ```
@@ -661,8 +659,7 @@ Type: End-of-Life
 
 `util.puts()` has been removed. Please use [`console.log()`][] instead.
 
-If you want an automated way to update you can use this codemod:
-
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-print-to-console-log)):
 ```bash
 npx codemod@latest @nodejs/util-print-to-console-log
 ```
@@ -688,6 +685,7 @@ Type: End-of-Life
 
 `util.debug()` has been removed. Please use [`console.error()`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-debug-to-console-error)):
 ```bash
 npx codemod@latest @nodejs/util-debug-to-console-error
 ```
@@ -713,8 +711,7 @@ Type: End-of-Life
 
 `util.error()` has been removed. Please use [`console.error()`][] instead.
 
-If you want an automated way to update you can use this codemod:
-
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-print-to-console-log)):
 ```bash
 npx codemod@latest @nodejs/util-print-to-console-log
 ```
@@ -1444,8 +1441,7 @@ By adopting one of these alternatives, you can transition away from `util.log()`
 and choose a logging strategy that aligns with the specific
 requirements and complexity of your application.
 
-If you want an automated way to update you can use this codemod:
-
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-log-to-console-log)):
 ```bash
 npx codemod@latest @nodejs/util-log-to-console-log
 ```
@@ -2788,8 +2784,7 @@ Type: End-of-Life
 
 Use [`module.createRequire()`][] instead.
 
-If you want an automated way to update your code you can use this codemod:
-
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/create-require-from-path)):
 ```bash
 npx codemod@latest @nodejs/create-require-from-path
 ```
@@ -2955,8 +2950,7 @@ modules is unsupported.
 It is deprecated in favor of [`require.main`][], because it serves the same
 purpose and is only available on CommonJS environment.
 
-If you want an automated way to update you can use this codemod:
-
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/process-main-module)):
 ```bash
 npx codemod@latest @nodejs/process-main-module
 ```
@@ -3131,8 +3125,7 @@ Use `fs.rm(path, { recursive: true, force: true })`,
 `fs.rmSync(path, { recursive: true, force: true })` or
 `fs.promises.rm(path, { recursive: true, force: true })` instead.
 
-If you want an automated way to update you can use this codemod:
-
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/rmdir)):
 ```bash
 npx codemod@latest @nodejs/rmdir
 ```
@@ -3738,8 +3731,7 @@ Type: End-of-Life
 `F_OK`, `R_OK`, `W_OK` and `X_OK` getters exposed directly on `node:fs` were
 removed. Get them from `fs.constants` or `fs.promises.constants` instead.
 
-If you want an automated way to update your code you can use this codemod:
-
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/fs-access-mode-constants)):
 ```bash
 npx codemod@latest @nodejs/fs-access-mode-constants
 ```
@@ -4089,8 +4081,7 @@ Instantiating classes without the `new` qualifier exported by the `node:http` mo
 It is recommended to use the `new` qualifier instead. This applies to all http classes, such as
 `OutgoingMessage`, `IncomingMessage`, `ServerResponse` and `ClientRequest`.
 
-If you want to update your code automatically you can use this codemod:
-
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/http-classes-with-new)):
 ```bash
 npx codemod@latest @nodejs/http-classes-with-new
 ```
@@ -4134,8 +4125,7 @@ Type: Documentation-only
 
 The [`util.types.isNativeError`][] API is deprecated. Please use [`Error.isError`][] instead.
 
-If you want an automated way to update you can use this codemod:
-
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/types-is-native-error)):
 ```bash
 npx codemod@latest @nodejs/types-is-native-error
 ```
