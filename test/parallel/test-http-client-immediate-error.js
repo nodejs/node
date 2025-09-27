@@ -47,18 +47,18 @@ function agentFactory(handle, count) {
   return agent;
 };
 
-const handleWithoutBind = callCount => ({
+const handleWithoutBind = (callCount) => ({
   connect: common.mustCall((req, addr, port) => {
     return UV_ENETUNREACH;
-  }, callCount), 
+  }, callCount),
   readStart() { },
   close() { },
 });
 
-const handleWithBind = callCount => ({
+const handleWithBind = (callCount) => ({
   readStart() { },
   close() { },
-  bind: common.mustCall(() => UV_EADDRINUSE, callCount), 
+  bind: common.mustCall(() => UV_EADDRINUSE, callCount),
 });
 
 const agentWithoutBind = agentFactory(handleWithoutBind(3), 3); // Because three tests will use this
