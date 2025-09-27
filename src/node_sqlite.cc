@@ -1763,21 +1763,25 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
 
       Local<Function> filterFunc = filterValue.As<Function>();
 
-      context.filterCallback = [env,
-                                filterFunc](std::string_view item) -> bool {
-        // TODO(@jasnell): The use of ToLocalChecked here means that if
-        // the filter function throws an error the process will crash.
-        // The filterCallback should be updated to avoid the check and
-        // propagate the error correctly.
-        Local<Value> argv[] = {
-            String::NewFromUtf8(env->isolate(),
-                                item.data(),
-                                NewStringType::kNormal,
-                                static_cast<int>(item.size()))
-                .ToLocalChecked()};
-        Local<Value> result =
-            filterFunc->Call(env->context(), Null(env->isolate()), 1, argv)
-                .ToLocalChecked();
+      context.filterCallback =
+          [db, env, filterFunc](std::string_view item) -> bool {
+        Local<Value> argv[1];
+        if (!String::NewFromUtf8(env->isolate(),
+                                 item.data(),
+                                 NewStringType::kNormal,
+                                 static_cast<int>(item.size()))
+                 .ToLocal(&argv[0])) {
+          db->SetIgnoreNextSQLiteError(true);
+          return false;
+        }
+
+        Local<Value> result;
+        if (!filterFunc->Call(env->context(), Null(env->isolate()), 1, argv)
+                 .ToLocal(&result)) {
+          db->SetIgnoreNextSQLiteError(true);
+          return false;
+        }
+
         return result->BooleanValue(env->isolate());
       };
     }
@@ -2239,9 +2243,11 @@ Local<Value> StatementExecutionHelper::Get(Environment* env,
     LocalVector<Name> keys(isolate);
     keys.reserve(num_cols);
     for (int i = 0; i < num_cols; ++i) {
-      MaybeLocal<Name> key = ColumnNameToName(env, stmt, i);
-      if (key.IsEmpty()) return Undefined(isolate);
-      keys.emplace_back(key.ToLocalChecked());
+      Local<Name> key;
+      if (!ColumnNameToName(env, stmt, i).ToLocal(&key)) {
+        return Undefined(isolate);
+      }
+      keys.emplace_back(key);
     }
 
     DCHECK_EQ(keys.size(), row_values.size());
@@ -2755,12 +2761,8 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
 
   if (stmt == nullptr) {
     sqlite3_stmt* s = nullptr;
-    Local<String> sql_str =
-        String::NewFromUtf8(isolate, sql.c_str()).ToLocalChecked();
-    Utf8Value sql_utf8(isolate, sql_str);
-
     int r = sqlite3_prepare_v2(
-        session->database_->connection_, *sql_utf8, -1, &s, 0);
+        session->database_->connection_, sql.c_str(), -1, &s, 0);
 
     if (r != SQLITE_OK) {
       THROW_ERR_SQLITE_ERROR(isolate, "Failed to prepare statement");
