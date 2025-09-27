@@ -35,7 +35,7 @@ for (const bits of [-1, 0, 1]) {
     assert.throws(() => crypto.createDiffieHellman(bits), {
       code: 'ERR_OSSL_BN_BITS_TOO_SMALL',
       name: 'Error',
-      message: /bits too small/,
+      message: /bits[\s_]too[\s_]small/i,
     });
   }
 }
