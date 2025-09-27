@@ -26,6 +26,7 @@ using v8::ConstructorBehavior;
 using v8::Context;
 using v8::DictionaryTemplate;
 using v8::DontDelete;
+using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Function;
 using v8::FunctionCallback;
@@ -2209,12 +2210,13 @@ Maybe<void> ExtractRowValues(Environment* env,
   return JustVoid();
 }
 
-Local<Value> StatementExecutionHelper::All(Environment* env,
-                                           DatabaseSync* db,
-                                           sqlite3_stmt* stmt,
-                                           bool return_arrays,
-                                           bool use_big_ints) {
+MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
+                                                DatabaseSync* db,
+                                                sqlite3_stmt* stmt,
+                                                bool return_arrays,
+                                                bool use_big_ints) {
   Isolate* isolate = env->isolate();
+  EscapableHandleScope scope(isolate);
   int r;
   int num_cols = sqlite3_column_count(stmt);
   LocalVector<Value> rows(isolate);
@@ -2224,7 +2226,7 @@ Local<Value> StatementExecutionHelper::All(Environment* env,
   while ((r = sqlite3_step(stmt)) == SQLITE_ROW) {
     if (ExtractRowValues(env, stmt, num_cols, use_big_ints, &row_values)
             .IsNothing()) {
-      return Undefined(isolate);
+      return MaybeLocal<Value>();
     }
 
     if (return_arrays) {
@@ -2236,8 +2238,9 @@ Local<Value> StatementExecutionHelper::All(Environment* env,
         row_keys.reserve(num_cols);
         for (int i = 0; i < num_cols; ++i) {
           Local<Name> key;
-          if (!ColumnNameToName(env, stmt, i).ToLocal(&key))
-            return Undefined(isolate);
+          if (!ColumnNameToName(env, stmt, i).ToLocal(&key)) {
+            return MaybeLocal<Value>();
+          }
           row_keys.emplace_back(key);
         }
       }
@@ -2248,18 +2251,19 @@ Local<Value> StatementExecutionHelper::All(Environment* env,
     }
   }
 
-  CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_DONE, Undefined(isolate));
-  return Array::New(isolate, rows.data(), rows.size());
+  CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_DONE, MaybeLocal<Value>());
+  return scope.Escape(Array::New(isolate, rows.data(), rows.size()));
 }
 
-Local<Object> StatementExecutionHelper::Run(Environment* env,
-                                            DatabaseSync* db,
-                                            sqlite3_stmt* stmt,
-                                            bool use_big_ints) {
+MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
+                                                 DatabaseSync* db,
+                                                 sqlite3_stmt* stmt,
+                                                 bool use_big_ints) {
   Isolate* isolate = env->isolate();
+  EscapableHandleScope scope(isolate);
   sqlite3_step(stmt);
   int r = sqlite3_reset(stmt);
-  CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_OK, Object::New(isolate));
+  CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_OK, MaybeLocal<Object>());
   Local<Object> result = Object::New(isolate);
   sqlite3_int64 last_insert_rowid = sqlite3_last_insert_rowid(db->Connection());
   sqlite3_int64 changes = sqlite3_changes64(db->Connection());
@@ -2281,10 +2285,10 @@ Local<Object> StatementExecutionHelper::Run(Environment* env,
           .IsNothing() ||
       result->Set(env->context(), env->changes_string(), changes_val)
           .IsNothing()) {
-    return Object::New(isolate);
+    return MaybeLocal<Object>();
   }
 
-  return result;
+  return scope.Escape(result);
 }
 
 BaseObjectPtr<StatementSyncIterator> StatementExecutionHelper::Iterate(
@@ -2321,19 +2325,20 @@ BaseObjectPtr<StatementSyncIterator> StatementExecutionHelper::Iterate(
   return iter;
 }
 
-Local<Value> StatementExecutionHelper::Get(Environment* env,
-                                           DatabaseSync* db,
-                                           sqlite3_stmt* stmt,
-                                           bool return_arrays,
-                                           bool use_big_ints) {
+MaybeLocal<Value> StatementExecutionHelper::Get(Environment* env,
+                                                DatabaseSync* db,
+                                                sqlite3_stmt* stmt,
+                                                bool return_arrays,
+                                                bool use_big_ints) {
   Isolate* isolate = env->isolate();
+  EscapableHandleScope scope(isolate);
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt); });
 
   int r = sqlite3_step(stmt);
-  if (r == SQLITE_DONE) return Undefined(isolate);
+  if (r == SQLITE_DONE) return scope.Escape(Undefined(isolate));
   if (r != SQLITE_ROW) {
     THROW_ERR_SQLITE_ERROR(isolate, db);
-    return Undefined(isolate);
+    return MaybeLocal<Value>();
   }
 
   int num_cols = sqlite3_column_count(stmt);
@@ -2344,25 +2349,26 @@ Local<Value> StatementExecutionHelper::Get(Environment* env,
   LocalVector<Value> row_values(isolate);
   if (ExtractRowValues(env, stmt, num_cols, use_big_ints, &row_values)
           .IsNothing()) {
-    return Undefined(isolate);
+    return MaybeLocal<Value>();
   }
 
   if (return_arrays) {
-    return Array::New(isolate, row_values.data(), row_values.size());
+    return scope.Escape(
+        Array::New(isolate, row_values.data(), row_values.size()));
   } else {
     LocalVector<Name> keys(isolate);
     keys.reserve(num_cols);
     for (int i = 0; i < num_cols; ++i) {
       Local<Name> key;
       if (!ColumnNameToName(env, stmt, i).ToLocal(&key)) {
-        return Undefined(isolate);
+        return MaybeLocal<Value>();
       }
       keys.emplace_back(key);
     }
 
     DCHECK_EQ(keys.size(), row_values.size());
-    return Object::New(
-        isolate, Null(isolate), keys.data(), row_values.data(), num_cols);
+    return scope.Escape(Object::New(
+        isolate, Null(isolate), keys.data(), row_values.data(), num_cols));
   }
 }
 
@@ -2381,11 +2387,16 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   }
 
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
-  args.GetReturnValue().Set(StatementExecutionHelper::All(env,
-                                                          stmt->db_.get(),
-                                                          stmt->statement_,
-                                                          stmt->return_arrays_,
-                                                          stmt->use_big_ints_));
+
+  Local<Value> result;
+  if (StatementExecutionHelper::All(env,
+                                    stmt->db_.get(),
+                                    stmt->statement_,
+                                    stmt->return_arrays_,
+                                    stmt->use_big_ints_)
+          .ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
 }
 
 void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
@@ -2424,11 +2435,15 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  args.GetReturnValue().Set(StatementExecutionHelper::Get(env,
-                                                          stmt->db_.get(),
-                                                          stmt->statement_,
-                                                          stmt->return_arrays_,
-                                                          stmt->use_big_ints_));
+  Local<Value> result;
+  if (StatementExecutionHelper::Get(env,
+                                    stmt->db_.get(),
+                                    stmt->statement_,
+                                    stmt->return_arrays_,
+                                    stmt->use_big_ints_)
+          .ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
 }
 
 void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
@@ -2444,8 +2459,12 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  args.GetReturnValue().Set(StatementExecutionHelper::Run(
-      env, stmt->db_.get(), stmt->statement_, stmt->use_big_ints_));
+  Local<Object> result;
+  if (StatementExecutionHelper::Run(
+          env, stmt->db_.get(), stmt->statement_, stmt->use_big_ints_)
+          .ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
 }
 
 void StatementSync::Columns(const FunctionCallbackInfo<Value>& args) {
@@ -2691,8 +2710,12 @@ void SQLTagStore::Run(const FunctionCallbackInfo<Value>& info) {
     }
   }
 
-  info.GetReturnValue().Set(StatementExecutionHelper::Run(
-      env, stmt->db_.get(), stmt->statement_, stmt->use_big_ints_));
+  Local<Object> result;
+  if (StatementExecutionHelper::Run(
+          env, stmt->db_.get(), stmt->statement_, stmt->use_big_ints_)
+          .ToLocal(&result)) {
+    info.GetReturnValue().Set(result);
+  }
 }
 
 void SQLTagStore::Iterate(const FunctionCallbackInfo<Value>& args) {
@@ -2758,11 +2781,15 @@ void SQLTagStore::Get(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  args.GetReturnValue().Set(StatementExecutionHelper::Get(env,
-                                                          stmt->db_.get(),
-                                                          stmt->statement_,
-                                                          stmt->return_arrays_,
-                                                          stmt->use_big_ints_));
+  Local<Value> result;
+  if (StatementExecutionHelper::Get(env,
+                                    stmt->db_.get(),
+                                    stmt->statement_,
+                                    stmt->return_arrays_,
+                                    stmt->use_big_ints_)
+          .ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
 }
 
 void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
@@ -2794,11 +2821,15 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
   }
 
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
-  args.GetReturnValue().Set(StatementExecutionHelper::All(env,
-                                                          stmt->db_.get(),
-                                                          stmt->statement_,
-                                                          stmt->return_arrays_,
-                                                          stmt->use_big_ints_));
+  Local<Value> result;
+  if (StatementExecutionHelper::All(env,
+                                    stmt->db_.get(),
+                                    stmt->statement_,
+                                    stmt->return_arrays_,
+                                    stmt->use_big_ints_)
+          .ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
 }
 
 void SQLTagStore::Size(const FunctionCallbackInfo<Value>& info) {
@@ -2854,7 +2885,7 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
       return BaseObjectPtr<StatementSync>();
     }
     Utf8Value part(isolate, str_val);
-    sql += *part;
+    sql += part.ToStringView();
     if (i < n_params) {
       sql += "?";
     }
@@ -2872,7 +2903,7 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
   if (stmt == nullptr) {
     sqlite3_stmt* s = nullptr;
     int r = sqlite3_prepare_v2(
-        session->database_->connection_, sql.c_str(), -1, &s, 0);
+        session->database_->connection_, sql.data(), sql.size(), &s, 0);
 
     if (r != SQLITE_OK) {
       THROW_ERR_SQLITE_ERROR(isolate, "Failed to prepare statement");
