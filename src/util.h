@@ -682,6 +682,9 @@ inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            std::string_view str,
                                            v8::Isolate* isolate = nullptr);
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                           std::u16string_view str,
+                                           v8::Isolate* isolate = nullptr);
+inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            v8_inspector::StringView str,
                                            v8::Isolate* isolate);
 template <typename T, typename test_for_number =
