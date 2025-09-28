@@ -1368,7 +1368,7 @@ std::unique_ptr<TransferData> JSTransferable::TransferOrClone() const {
   }
   Utf8Value deserialize_info_str(env()->isolate(), deserialize_info);
   if (*deserialize_info_str == nullptr) return {};
-  return std::make_unique<Data>(*deserialize_info_str,
+  return std::make_unique<Data>(deserialize_info_str.ToString(),
                                 Global<Value>(env()->isolate(), data));
 }
 
