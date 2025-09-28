@@ -140,7 +140,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
 #define V(code, type)                                                          \
   template <typename... Args>                                                  \
   inline v8::Local<v8::Object> code(                                           \
-      v8::Isolate* isolate, const char* format, Args&&... args) {              \
+      v8::Isolate* isolate, std::string_view format, Args&&... args) {         \
     std::string message;                                                       \
     if (sizeof...(Args) == 0) {                                                \
       message = format;                                                        \
@@ -165,17 +165,18 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   }                                                                            \
   template <typename... Args>                                                  \
   inline void THROW_##code(                                                    \
-      v8::Isolate* isolate, const char* format, Args&&... args) {              \
+      v8::Isolate* isolate, std::string_view format, Args&&... args) {         \
     isolate->ThrowException(                                                   \
         code(isolate, format, std::forward<Args>(args)...));                   \
   }                                                                            \
   template <typename... Args>                                                  \
   inline void THROW_##code(                                                    \
-      Environment* env, const char* format, Args&&... args) {                  \
+      Environment* env, std::string_view format, Args&&... args) {             \
     THROW_##code(env->isolate(), format, std::forward<Args>(args)...);         \
   }                                                                            \
   template <typename... Args>                                                  \
-  inline void THROW_##code(Realm* realm, const char* format, Args&&... args) { \
+  inline void THROW_##code(                                                    \
+      Realm* realm, std::string_view format, Args&&... args) {                 \
     THROW_##code(realm->isolate(), format, std::forward<Args>(args)...);       \
   }
 ERRORS_WITH_CODE(V)
@@ -258,10 +259,8 @@ PREDEFINED_ERROR_MESSAGES(V)
 // Errors with predefined non-static messages
 inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
                                                int64_t timeout) {
-  std::ostringstream message;
-  message << "Script execution timed out after ";
-  message << timeout << "ms";
-  THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, message.str().c_str());
+  THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(
+      env, "Script execution timed out after %dms", timeout);
 }
 
 inline void THROW_ERR_REQUIRE_ASYNC_MODULE(
@@ -283,7 +282,7 @@ inline void THROW_ERR_REQUIRE_ASYNC_MODULE(
     message += "\n  Requiring ";
     message += utf8.ToStringView();
   }
-  THROW_ERR_REQUIRE_ASYNC_MODULE(env, message.c_str());
+  THROW_ERR_REQUIRE_ASYNC_MODULE(env, message);
 }
 
 inline v8::Local<v8::Object> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
