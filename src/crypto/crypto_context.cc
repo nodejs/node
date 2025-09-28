@@ -1460,7 +1460,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
       method = TLS_client_method();
     } else {
       THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(
-          env, "Unknown method: %s", *sslmethod);
+          env, "Unknown method: %s", sslmethod);
       return;
     }
   }

@@ -128,7 +128,7 @@ bool SetOption(Environment* env,
         } else {
           Utf8Value namestr(env->isolate(), name);
           THROW_ERR_INVALID_ARG_TYPE(
-              env, "%s value must be a key object", *namestr);
+              env, "%s value must be a key object", namestr);
           return false;
         }
       } else if constexpr (std::is_same<T, Store>::value) {
@@ -163,7 +163,7 @@ bool SetOption(Environment* env,
       } else {
         Utf8Value namestr(env->isolate(), name);
         THROW_ERR_INVALID_ARG_TYPE(
-            env, "%s value must be a key object", *namestr);
+            env, "%s value must be a key object", namestr);
         return false;
       }
     } else if constexpr (std::is_same<T, Store>::value) {
