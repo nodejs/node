@@ -1963,7 +1963,7 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
             continue;
           } else {
             THROW_ERR_INVALID_STATE(
-                env(), "Unknown named parameter '%s'", *utf8_key);
+                env(), "Unknown named parameter '%s'", utf8_key);
             return false;
           }
         }
