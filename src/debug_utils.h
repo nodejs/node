@@ -26,6 +26,8 @@ class Environment;
 
 template <typename T>
 inline std::string ToString(const T& value);
+template <typename T>
+inline auto ToStringOrStringView(const T& value);
 
 // C++-style variant of sprintf()/fprintf() that:
 // - Returns an std::string
