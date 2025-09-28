@@ -268,12 +268,12 @@ inline void THROW_ERR_REQUIRE_ASYNC_MODULE(
   if (!parent_filename.IsEmpty() && parent_filename->IsString()) {
     Utf8Value utf8(env->isolate(), parent_filename);
     message += "\n  From ";
-    message += utf8.out();
+    message += utf8.ToStringView();
   }
   if (!filename.IsEmpty() && filename->IsString()) {
     Utf8Value utf8(env->isolate(), filename);
     message += "\n  Requiring ";
-    message += +utf8.out();
+    message += utf8.ToStringView();
   }
   THROW_ERR_REQUIRE_ASYNC_MODULE(env, message.c_str());
 }
