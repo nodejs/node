@@ -357,6 +357,26 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
 }
 
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    std::u16string_view str,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (str.length() >= static_cast<size_t>(v8::String::kMaxLength))
+      [[unlikely]] {
+    // V8 only has a TODO comment about adding an exception when the maximum
+    // string size is exceeded.
+    ThrowErrStringTooLong(isolate);
+    return v8::MaybeLocal<v8::Value>();
+  }
+
+  return v8::String::NewFromTwoByte(
+             isolate,
+             reinterpret_cast<const uint16_t*>(str.data()),
+             v8::NewStringType::kNormal,
+             str.length())
+      .FromMaybe(v8::Local<v8::String>());
+}
+
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     v8_inspector::StringView str,
                                     v8::Isolate* isolate) {
   if (isolate == nullptr) isolate = context->GetIsolate();
