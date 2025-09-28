@@ -553,11 +553,6 @@ class Utf8Value : public MaybeStackBuffer<char> {
  public:
   explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
 
-  inline std::string ToString() const { return std::string(out(), length()); }
-  inline std::string_view ToStringView() const {
-    return std::string_view(out(), length());
-  }
-
   inline bool operator==(const char* a) const { return strcmp(out(), a) == 0; }
   inline bool operator!=(const char* a) const { return !(*this == a); }
 };
@@ -571,10 +566,6 @@ class BufferValue : public MaybeStackBuffer<char> {
  public:
   explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 
-  inline std::string ToString() const { return std::string(out(), length()); }
-  inline std::string_view ToStringView() const {
-    return std::string_view(out(), length());
-  }
   inline std::u8string_view ToU8StringView() const {
     return std::u8string_view(reinterpret_cast<const char8_t*>(out()),
                               length());
