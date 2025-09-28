@@ -23,12 +23,10 @@ using v8::Isolate;
 using v8::Local;
 using v8::LocalVector;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
 using v8::PropertyAttribute;
-using v8::String;
 using v8::Value;
 
 // Reject two promises and return `false` on failure.
@@ -51,19 +49,26 @@ Lock::Lock(Environment* env,
   released_promise_.Reset(env_->isolate(), released);
 }
 
+void Lock::MemoryInfo(node::MemoryTracker* tracker) const {
+  tracker->TrackFieldWithSize("name", name_.size());
+  tracker->TrackField("client_id", client_id_);
+  tracker->TrackField("waiting_promise", waiting_promise_);
+  tracker->TrackField("released_promise", released_promise_);
+}
+
 LockRequest::LockRequest(Environment* env,
                          Local<Promise::Resolver> waiting,
                          Local<Promise::Resolver> released,
                          Local<Function> callback,
                          const std::u16string& name,
                          Lock::Mode mode,
-                         const std::string& client_id,
+                         std::string client_id,
                          bool steal,
                          bool if_available)
     : env_(env),
       name_(name),
       mode_(mode),
-      client_id_(client_id),
+      client_id_(std::move(client_id)),
       steal_(steal),
       if_available_(if_available) {
   waiting_promise_.Reset(env_->isolate(), waiting);
@@ -85,6 +90,7 @@ Local<DictionaryTemplate> GetLockInfoTemplate(Environment* env) {
   return tmpl;
 }
 
+// The request here can be either a Lock or a LockRequest.
 static MaybeLocal<Object> CreateLockInfoObject(Environment* env,
                                                const auto& request) {
   auto tmpl = GetLockInfoTemplate(env);
@@ -573,21 +579,12 @@ void LockManager::Request(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[4]->IsBoolean());   // ifAvailable
   CHECK(args[5]->IsFunction());  // callback
 
-  Local<String> resource_name_str = args[0].As<String>();
-  TwoByteValue resource_name_utf16(isolate, resource_name_str);
-  std::u16string resource_name(
-      reinterpret_cast<const char16_t*>(*resource_name_utf16),
-      resource_name_utf16.length());
-  String::Utf8Value client_id_utf8(isolate, args[1]);
-  std::string client_id(*client_id_utf8);
-  String::Utf8Value mode_utf8(isolate, args[2]);
-  std::string mode_str(*mode_utf8);
+  TwoByteValue resource_name(isolate, args[0]);
+  Utf8Value client_id(isolate, args[1]);
+  Utf8Value mode(isolate, args[2]);
   bool steal = args[3]->BooleanValue(isolate);
   bool if_available = args[4]->BooleanValue(isolate);
   Local<Function> callback = args[5].As<Function>();
-
-  Lock::Mode lock_mode =
-      mode_str == "shared" ? Lock::Mode::Shared : Lock::Mode::Exclusive;
 
   Local<Promise::Resolver> waiting_promise;
   Local<Promise::Resolver> released_promise;
@@ -611,15 +608,17 @@ void LockManager::Request(const FunctionCallbackInfo<Value>& args) {
       env->AddCleanupHook(LockManager::OnEnvironmentCleanup, env);
     }
 
-    auto lock_request = std::make_unique<LockRequest>(env,
-                                                      waiting_promise,
-                                                      released_promise,
-                                                      callback,
-                                                      resource_name,
-                                                      lock_mode,
-                                                      client_id,
-                                                      steal,
-                                                      if_available);
+    auto lock_request = std::make_unique<LockRequest>(
+        env,
+        waiting_promise,
+        released_promise,
+        callback,
+        resource_name.ToU16String(),
+        mode.ToStringView() == "shared" ? Lock::Mode::Shared
+                                        : Lock::Mode::Exclusive,
+        client_id.ToString(),
+        steal,
+        if_available);
     // Steal requests get priority by going to front of queue
     if (steal) {
       manager->pending_queue_.emplace_front(std::move(lock_request));
@@ -840,6 +839,10 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(OnLockCallbackRejected);
   registry->Register(OnIfAvailableFulfill);
   registry->Register(OnIfAvailableReject);
+}
+
+void LockHolder::MemoryInfo(node::MemoryTracker* tracker) const {
+  tracker->TrackField("lock", lock_);
 }
 
 BaseObjectPtr<LockHolder> LockHolder::Create(Environment* env,
