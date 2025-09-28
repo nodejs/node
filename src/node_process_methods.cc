@@ -613,7 +613,7 @@ static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
     case dotenv.ParseResult::InvalidContent: {
       THROW_ERR_INVALID_ARG_TYPE(
-          env, "Contents of '%s' should be a valid string.", path.c_str());
+          env, "Contents of '%s' should be a valid string.", path);
       break;
     }
     case dotenv.ParseResult::FileError: {
