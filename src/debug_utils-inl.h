@@ -65,33 +65,42 @@ std::string ToBaseString(const T& value) {
   return ToStringHelper::BaseConvert<BASE_BITS>(value);
 }
 
-inline std::string SPrintFImpl(const char* format) {
-  const char* p = strchr(format, '%');
-  if (p == nullptr) [[unlikely]]
-    return format;
-  CHECK_EQ(p[1], '%');  // Only '%%' allowed when there are no arguments.
+inline std::string SPrintFImpl(std::string_view format) {
+  auto offset = format.find('%');
+  if (offset == std::string_view::npos) return std::string(format);
+  CHECK_LT(offset + 1, format.size());
+  CHECK_EQ(format[offset + 1],
+           '%');  // Only '%%' allowed when there are no arguments.
 
-  return std::string(format, p + 1) + SPrintFImpl(p + 2);
+  return std::string(format.substr(0, offset + 1)) +
+         SPrintFImpl(format.substr(offset + 2));
 }
 
 template <typename Arg, typename... Args>
 std::string COLD_NOINLINE SPrintFImpl(  // NOLINT(runtime/string)
-    const char* format, Arg&& arg, Args&&... args) {
-  const char* p = strchr(format, '%');
-  CHECK_NOT_NULL(p);  // If you hit this, you passed in too many arguments.
-  std::string ret(format, p);
+    std::string_view format,
+    Arg&& arg,
+    Args&&... args) {
+  auto offset = format.find('%');
+  CHECK_NE(offset, std::string_view::npos);  // If you hit this, you passed in
+                                             // too many arguments.
+  std::string ret(format.substr(0, offset));
   // Ignore long / size_t modifiers
-  while (strchr("lz", *++p) != nullptr) {}
-  switch (*p) {
+  while (++offset < format.size() &&
+         (format[offset] == 'l' || format[offset] == 'z')) {
+  }
+  switch (offset == format.size() ? '\0' : format[offset]) {
     case '%': {
-      return ret + '%' + SPrintFImpl(p + 1,
-                                     std::forward<Arg>(arg),
-                                     std::forward<Args>(args)...);
+      return ret + '%' +
+             SPrintFImpl(format.substr(offset + 1),
+                         std::forward<Arg>(arg),
+                         std::forward<Args>(args)...);
     }
     default: {
-      return ret + '%' + SPrintFImpl(p,
-                                     std::forward<Arg>(arg),
-                                     std::forward<Args>(args)...);
+      return ret + '%' +
+             SPrintFImpl(format.substr(offset),
+                         std::forward<Arg>(arg),
+                         std::forward<Args>(args)...);
     }
     case 'd':
     case 'i':
@@ -120,17 +129,21 @@ std::string COLD_NOINLINE SPrintFImpl(  // NOLINT(runtime/string)
       break;
     }
   }
-  return ret + SPrintFImpl(p + 1, std::forward<Args>(args)...);
+  return ret +
+         SPrintFImpl(format.substr(offset + 1), std::forward<Args>(args)...);
 }
 
 template <typename... Args>
 std::string COLD_NOINLINE SPrintF(  // NOLINT(runtime/string)
-    const char* format, Args&&... args) {
+    std::string_view format,
+    Args&&... args) {
   return SPrintFImpl(format, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
-void COLD_NOINLINE FPrintF(FILE* file, const char* format, Args&&... args) {
+void COLD_NOINLINE FPrintF(FILE* file,
+                           std::string_view format,
+                           Args&&... args) {
   FWrite(file, SPrintF(format, std::forward<Args>(args)...));
 }
 
