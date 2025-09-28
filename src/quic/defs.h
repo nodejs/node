@@ -39,7 +39,7 @@ bool SetOption(Environment* env,
   if (!object->Get(env->context(), name).ToLocal(&value)) return false;
   if (!value->IsUndefined()) {
     Utf8Value utf8(env->isolate(), value);
-    options->*member = *utf8;
+    options->*member = utf8.ToString();
   }
   return true;
 }
