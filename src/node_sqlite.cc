@@ -1763,13 +1763,9 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
 
       Local<Function> filterFunc = filterValue.As<Function>();
 
-      context.filterCallback =
-          [db, env, filterFunc](std::string_view item) -> bool {
+      context.filterCallback = [&](std::string_view item) -> bool {
         Local<Value> argv[1];
-        if (!String::NewFromUtf8(env->isolate(),
-                                 item.data(),
-                                 NewStringType::kNormal,
-                                 static_cast<int>(item.size()))
+        if (!ToV8Value(env->context(), item, env->isolate())
                  .ToLocal(&argv[0])) {
           db->SetIgnoreNextSQLiteError(true);
           return false;
