@@ -562,6 +562,15 @@ class Utf8Value : public MaybeStackBuffer<char> {
 class TwoByteValue : public MaybeStackBuffer<uint16_t> {
  public:
   explicit TwoByteValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
+
+  inline std::u16string ToU16String() const {
+    return std::u16string(reinterpret_cast<const char16_t*>(out()), length());
+  }
+
+  inline std::u16string_view ToU16StringView() const {
+    return std::u16string_view(reinterpret_cast<const char16_t*>(out()),
+                               length());
+  }
 };
 
 class BufferValue : public MaybeStackBuffer<char> {
