@@ -366,11 +366,13 @@ inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(v8::Isolate* isolate,
 
 // tolower() is locale-sensitive.  Use ToLower() instead.
 inline char ToLower(char c);
-inline std::string ToLower(const std::string& in);
+template <typename T>
+inline std::string ToLower(const T& in);
 
 // toupper() is locale-sensitive.  Use ToUpper() instead.
 inline char ToUpper(char c);
-inline std::string ToUpper(const std::string& in);
+template <typename T>
+inline std::string ToUpper(const T& in);
 
 // strcasecmp() is locale-sensitive.  Use StringEqualNoCase() instead.
 inline bool StringEqualNoCase(const char* a, const char* b);
