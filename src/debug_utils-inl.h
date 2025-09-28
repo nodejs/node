@@ -11,25 +11,41 @@
 
 namespace node {
 
+template <typename T>
+concept StringViewConvertible = requires(T a) {
+                                  {
+                                    a.ToStringView()
+                                    } -> std::convertible_to<std::string_view>;
+                                };
+template <typename T>
+concept StringConvertible = requires(T a) {
+                              {
+                                a.ToString()
+                                } -> std::convertible_to<std::string>;
+                            };
+
 struct ToStringHelper {
   template <typename T>
-  static std::string Convert(
-      const T& value,
-      std::string(T::* to_string)() const = &T::ToString) {
-    return (value.*to_string)();
+    requires(StringConvertible<T>) && (!StringViewConvertible<T>)
+  static std::string Convert(const T& value) {
+    return value.ToString();
   }
+  template <typename T>
+    requires StringViewConvertible<T>
+  static std::string_view Convert(const T& value) {
+    return value.ToStringView();
+  }
+
   template <typename T,
             typename test_for_number = typename std::
                 enable_if<std::is_arithmetic<T>::value, bool>::type,
             typename dummy = bool>
   static std::string Convert(const T& value) { return std::to_string(value); }
-  static std::string Convert(const char* value) {
+  static std::string_view Convert(const char* value) {
     return value != nullptr ? value : "(null)";
   }
   static std::string Convert(const std::string& value) { return value; }
-  static std::string Convert(std::string_view value) {
-    return std::string(value);
-  }
+  static std::string_view Convert(std::string_view value) { return value; }
   static std::string Convert(bool value) { return value ? "true" : "false"; }
   template <unsigned BASE_BITS,
             typename T,
@@ -50,18 +66,23 @@ struct ToStringHelper {
   template <unsigned BASE_BITS,
             typename T,
             typename = std::enable_if_t<!std::is_integral_v<T>>>
-  static std::string BaseConvert(T& value) {  // NOLINT(runtime/references)
+  static auto BaseConvert(T&& value) {
     return Convert(std::forward<T>(value));
   }
 };
 
 template <typename T>
-std::string ToString(const T& value) {
+auto ToStringOrStringView(const T& value) {
   return ToStringHelper::Convert(value);
 }
 
+template <typename T>
+std::string ToString(const T& value) {
+  return std::string(ToStringOrStringView(value));
+}
+
 template <unsigned BASE_BITS, typename T>
-std::string ToBaseString(const T& value) {
+auto ToBaseString(const T& value) {
   return ToStringHelper::BaseConvert<BASE_BITS>(value);
 }
 
@@ -106,7 +127,7 @@ std::string COLD_NOINLINE SPrintFImpl(  // NOLINT(runtime/string)
     case 'i':
     case 'u':
     case 's':
-      ret += ToString(arg);
+      ret += ToStringOrStringView(arg);
       break;
     case 'o':
       ret += ToBaseString<3>(arg);
