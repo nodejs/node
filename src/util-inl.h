@@ -194,10 +194,14 @@ char ToLower(char c) {
   return std::tolower(c, std::locale::classic());
 }
 
-std::string ToLower(const std::string& in) {
-  std::string out(in.size(), 0);
-  for (size_t i = 0; i < in.size(); ++i)
-    out[i] = ToLower(in[i]);
+template <typename T>
+std::string ToLower(const T& in) {
+  auto it = std::cbegin(in);
+  auto end = std::cend(in);
+  std::string out(std::distance(it, end), 0);
+  size_t i;
+  for (i = 0; it != end; ++it, ++i) out[i] = ToLower(*it);
+  DCHECK_EQ(i, out.size());
   return out;
 }
 
@@ -205,10 +209,14 @@ char ToUpper(char c) {
   return std::toupper(c, std::locale::classic());
 }
 
-std::string ToUpper(const std::string& in) {
-  std::string out(in.size(), 0);
-  for (size_t i = 0; i < in.size(); ++i)
-    out[i] = ToUpper(in[i]);
+template <typename T>
+std::string ToUpper(const T& in) {
+  auto it = std::cbegin(in);
+  auto end = std::cend(in);
+  std::string out(std::distance(it, end), 0);
+  size_t i;
+  for (i = 0; it != end; ++it, ++i) out[i] = ToUpper(*it);
+  DCHECK_EQ(i, out.size());
   return out;
 }
 
