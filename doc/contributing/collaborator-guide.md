@@ -911,7 +911,6 @@ might impact an LTS release.
 | upgrading V8                                                               | [@nodejs/V8](https://github.com/orgs/nodejs/teams/V8), [@nodejs/post-mortem](https://github.com/orgs/nodejs/teams/post-mortem)                                                                    |
 | Embedded use or delivery of Node.js                                        | [@nodejs/delivery-channels](https://github.com/orgs/nodejs/teams/delivery-channels)                                                                                                               |
 
-
 When things need extra attention, are controversial, or `semver-major`:
 @nodejs/tsc
 
