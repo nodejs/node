@@ -51,6 +51,11 @@ test(/F(?i:oo(?-i:b)a)r/, ['Foobar', 'FoObAr'], ['FooBar', 'FoobaR']);
 test(/F(?i:oo(?i:b)a)r/, ['Foobar', 'FoObAr', 'FOOBAr'], ['FoobaR']);
 test(/^[a-z](?-i:[a-z])$/i, ['ab', 'Ab'], ['aB']);
 test(/^(?i:[a-z])[a-z]$/, ['ab', 'Ab'], ['aB']);
+test(/(?i:foo|bar)/, ['FOO', 'FOo', 'Foo', 'fOO', 'BAR', 'BAr', 'Bar', 'bAR']);
+test(/(?i:foo|bar|baz)/, [
+  'FOO', 'FOo', 'Foo', 'fOO', 'BAR', 'BAr', 'Bar', 'bAR', 'BAZ', 'BAz', 'Baz',
+  'bAZ'
+]);
 test(
     /Foo(?i:B[\q{ĀĂĄ|AaA}--\q{āăą}])r/v, ['FooBaaar', 'FoobAAAr'],
     ['FooBĀĂĄr', 'FooBaaaR']);
