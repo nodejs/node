@@ -40,12 +40,12 @@ spawnSyncAndAssert(
       console.log(output);  // Logging for debugging.
       assert.match(output, /dir before enableCompileCache: undefined/);
       assert.match(output, /Compile cache enabled/);
-      assert.match(output, /dir after enableCompileCache: .*build\/\.compile_cache/);
+      assert.match(output, /dir after enableCompileCache: .*build[/\\]\.compile_cache/);
       return true;
     },
     stderr(output) {
       console.log(output);  // Logging for debugging.
-      assert.match(output, /reading cache from .*build\/\.compile_cache.* for CommonJS .*empty\.js/);
+      assert.match(output, /reading cache from .*build[/\\]\.compile_cache.* for CommonJS .*empty\.js/);
       assert.match(output, /empty\.js was not initialized, initializing the in-memory entry/);
       assert.match(output, /writing cache for .*empty\.js.*success/);
       return true;
@@ -76,12 +76,12 @@ spawnSyncAndAssert(
       console.log(output);  // Logging for debugging.
       assert.match(output, /dir before enableCompileCache: undefined/);
       assert.match(output, /Compile cache enabled/);
-      assert.match(output, /dir after enableCompileCache: .*build_moved\/\.compile_cache/);
+      assert.match(output, /dir after enableCompileCache: .*build_moved[/\\]\.compile_cache/);
       return true;
     },
     stderr(output) {
       console.log(output);  // Logging for debugging.
-      assert.match(output, /reading cache from .*build_moved\/\.compile_cache.* for CommonJS .*empty\.js/);
+      assert.match(output, /reading cache from .*build_moved[/\\]\.compile_cache.* for CommonJS .*empty\.js/);
       assert.match(output, /cache for .*empty\.js was accepted, keeping the in-memory entry/);
       assert.match(output, /.*skip .*empty\.js because cache was the same/);
       return true;
