@@ -380,13 +380,13 @@ test('filter handler throws', (t) => {
 
   t.assert.throws(() => {
     database2.applyChangeset(session.changeset(), {
-      filter: () => {
-        throw new Error('some error');
+      filter: (tableName) => {
+        throw new Error(`Error filtering table ${tableName}`);
       }
     });
   }, {
     name: 'Error',
-    message: 'some error'
+    message: 'Error filtering table data1'
   });
 });
 
