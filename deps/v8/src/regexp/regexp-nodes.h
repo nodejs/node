@@ -709,10 +709,10 @@ class ChoiceNode : public RegExpNode {
                              AlternativeGenerationList* alt_gens,
                              PreloadState* preloads,
                              FixedLengthLoopState* fixed_length_loop_state,
-                             int text_length);
+                             int text_length, RegExpFlags flags);
   void EmitChoices(RegExpCompiler* compiler,
                    AlternativeGenerationList* alt_gens, int first_choice,
-                   Trace* trace, PreloadState* preloads);
+                   Trace* trace, PreloadState* preloads, RegExpFlags flags);
 
   // If true, this node is never checked at the start of the input.
   // Allows a new trace to start with at_start() set to false.
