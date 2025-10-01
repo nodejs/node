@@ -2046,5 +2046,5 @@ int ossl_ml_kem_pubkey_cmp(const ML_KEM_KEY *key1, const ML_KEM_KEY *key2)
      * No match if just one of the public keys is not available, otherwise both
      * are unavailable, and for now such keys are considered equal.
      */
-    return (ossl_ml_kem_have_pubkey(key1) ^ ossl_ml_kem_have_pubkey(key2));
+    return (!(ossl_ml_kem_have_pubkey(key1) ^ ossl_ml_kem_have_pubkey(key2)));
 }

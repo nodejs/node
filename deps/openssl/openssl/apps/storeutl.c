@@ -331,14 +331,22 @@ int storeutl_main(int argc, char *argv[])
 static int indent_printf(int indent, BIO *bio, const char *format, ...)
 {
     va_list args;
-    int ret;
+    int ret, vret;
+
+    ret = BIO_printf(bio, "%*s", indent, "");
+    if (ret < 0)
+        return ret;
 
     va_start(args, format);
-
-    ret = BIO_printf(bio, "%*s", indent, "") + BIO_vprintf(bio, format, args);
-
+    vret = BIO_vprintf(bio, format, args);
     va_end(args);
-    return ret;
+
+    if (vret < 0)
+        return vret;
+    if (vret > INT_MAX - ret)
+        return INT_MAX;
+
+    return ret + vret;
 }
 
 static int process(const char *uri, const UI_METHOD *uimeth, PW_CB_DATA *uidata,
