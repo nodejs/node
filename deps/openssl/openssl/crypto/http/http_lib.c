@@ -263,6 +263,7 @@ static int use_proxy(const char *no_proxy, const char *server)
         /* strip leading '[' and trailing ']' from escaped IPv6 address */
         sl -= 2;
         strncpy(host, server + 1, sl);
+        host[sl] = '\0';
         server = host;
     }
 
