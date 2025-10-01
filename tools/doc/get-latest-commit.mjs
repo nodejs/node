@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const res = await fetch('https://api.github.com/repos/nodejs/api-docs-tooling/commits/main', {
+const res = await fetch('https://api.github.com/repos/nodejs/doc-kit/commits/main', {
   headers: {
     accept: 'application/vnd.github.VERSION.sha',
   },
