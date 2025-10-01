@@ -1146,15 +1146,14 @@ int EVP_PKEY_can_sign(const EVP_PKEY *pkey)
     } else {
         const OSSL_PROVIDER *prov = EVP_KEYMGMT_get0_provider(pkey->keymgmt);
         OSSL_LIB_CTX *libctx = ossl_provider_libctx(prov);
-        const char *supported_sig =
-            pkey->keymgmt->query_operation_name != NULL
-            ? pkey->keymgmt->query_operation_name(OSSL_OP_SIGNATURE)
-            : EVP_KEYMGMT_get0_name(pkey->keymgmt);
-        EVP_SIGNATURE *signature = NULL;
+        EVP_SIGNATURE *sig;
+        const char *name;
 
-        signature = EVP_SIGNATURE_fetch(libctx, supported_sig, NULL);
-        if (signature != NULL) {
-            EVP_SIGNATURE_free(signature);
+        name = evp_keymgmt_util_query_operation_name(pkey->keymgmt,
+                                                     OSSL_OP_SIGNATURE);
+        sig = EVP_SIGNATURE_fetch(libctx, name, NULL);
+        if (sig != NULL) {
+            EVP_SIGNATURE_free(sig);
             return 1;
         }
     }

@@ -408,7 +408,6 @@ static int x509_store_add(X509_STORE *store, void *x, int crl)
     }
 
     if (!X509_STORE_lock(store)) {
-        obj->type = X509_LU_NONE;
         X509_OBJECT_free(obj);
         return 0;
     }

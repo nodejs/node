@@ -202,9 +202,12 @@ int ossl_siv128_init(SIV128_CONTEXT *ctx, const unsigned char *key, int klen,
             || !EVP_MAC_final(mac_ctx, ctx->d.byte, &out_len,
                               sizeof(ctx->d.byte))) {
         EVP_CIPHER_CTX_free(ctx->cipher_ctx);
+        ctx->cipher_ctx = NULL;
         EVP_MAC_CTX_free(ctx->mac_ctx_init);
+        ctx->mac_ctx_init = NULL;
         EVP_MAC_CTX_free(mac_ctx);
         EVP_MAC_free(ctx->mac);
+        ctx->mac = NULL;
         return 0;
     }
     EVP_MAC_CTX_free(mac_ctx);
