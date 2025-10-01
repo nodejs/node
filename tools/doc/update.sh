@@ -22,4 +22,4 @@ latest_commit=$("$NODE" ./get-latest-commit.mjs)
 
 rm -rf node_modules/ package-lock.json
 
-"$NODE" "$NPM" install "git://github.com/nodejs/api-docs-tooling#$latest_commit"
+"$NODE" "$NPM" install "git://github.com/nodejs/doc-kit#$latest_commit"

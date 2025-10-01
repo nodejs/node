@@ -2,7 +2,6 @@
   "name": "doc",
   "private": true,
   "dependencies": {
-    "@node-core/api-docs-tooling": "github:nodejs/api-docs-tooling#6fa7d1bf00b52baa64ad2512b1f401857ad25dee",
-    "@nodejs/doc-kit": "github:nodejs/api-docs-tooling#2cce7ec1a34d0df31eed6c2abf7def8be2993cb4"
+    "@nodejs/doc-kit": "github:nodejs/doc-kit#189a0a88158f9feee8c7007b0250d637acdf77fd"
   }
 }
