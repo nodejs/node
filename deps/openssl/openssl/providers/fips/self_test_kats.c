@@ -813,6 +813,93 @@ err:
 #endif
 
 /*
+ * Test an encrypt or decrypt KAT..
+ *
+ * FIPS 140-2 IG D.9 states that separate KAT tests are needed for encrypt
+ * and decrypt..
+ */
+static int self_test_asym_cipher(const ST_KAT_ASYM_CIPHER *t, OSSL_SELF_TEST *st,
+                                 OSSL_LIB_CTX *libctx)
+{
+    int ret = 0;
+    OSSL_PARAM *keyparams = NULL, *initparams = NULL;
+    OSSL_PARAM_BLD *keybld = NULL, *initbld = NULL;
+    EVP_PKEY_CTX *encctx = NULL, *keyctx = NULL;
+    EVP_PKEY *key = NULL;
+    BN_CTX *bnctx = NULL;
+    unsigned char out[256];
+    size_t outlen = sizeof(out);
+
+    OSSL_SELF_TEST_onbegin(st, OSSL_SELF_TEST_TYPE_KAT_ASYM_CIPHER, t->desc);
+
+    bnctx = BN_CTX_new_ex(libctx);
+    if (bnctx == NULL)
+        goto err;
+
+    /* Load a public or private key from data */
+    keybld = OSSL_PARAM_BLD_new();
+    if (keybld == NULL
+        || !add_params(keybld, t->key, bnctx))
+        goto err;
+    keyparams = OSSL_PARAM_BLD_to_param(keybld);
+    keyctx = EVP_PKEY_CTX_new_from_name(libctx, t->algorithm, NULL);
+    if (keyctx == NULL || keyparams == NULL)
+        goto err;
+    if (EVP_PKEY_fromdata_init(keyctx) <= 0
+        || EVP_PKEY_fromdata(keyctx, &key, EVP_PKEY_KEYPAIR, keyparams) <= 0)
+        goto err;
+
+    /* Create a EVP_PKEY_CTX to use for the encrypt or decrypt operation */
+    encctx = EVP_PKEY_CTX_new_from_pkey(libctx, key, NULL);
+    if (encctx == NULL
+        || (t->encrypt && EVP_PKEY_encrypt_init(encctx) <= 0)
+        || (!t->encrypt && EVP_PKEY_decrypt_init(encctx) <= 0))
+        goto err;
+
+    /* Add any additional parameters such as padding */
+    if (t->postinit != NULL) {
+        initbld = OSSL_PARAM_BLD_new();
+        if (initbld == NULL)
+            goto err;
+        if (!add_params(initbld, t->postinit, bnctx))
+            goto err;
+        initparams = OSSL_PARAM_BLD_to_param(initbld);
+        if (initparams == NULL)
+            goto err;
+        if (EVP_PKEY_CTX_set_params(encctx, initparams) <= 0)
+            goto err;
+    }
+
+    if (t->encrypt) {
+        if (EVP_PKEY_encrypt(encctx, out, &outlen,
+                             t->in, t->in_len) <= 0)
+            goto err;
+    } else {
+        if (EVP_PKEY_decrypt(encctx, out, &outlen,
+                             t->in, t->in_len) <= 0)
+            goto err;
+    }
+    /* Check the KAT */
+    OSSL_SELF_TEST_oncorrupt_byte(st, out);
+    if (outlen != t->expected_len
+        || memcmp(out, t->expected, t->expected_len) != 0)
+        goto err;
+
+    ret = 1;
+err:
+    BN_CTX_free(bnctx);
+    EVP_PKEY_free(key);
+    EVP_PKEY_CTX_free(encctx);
+    EVP_PKEY_CTX_free(keyctx);
+    OSSL_PARAM_free(keyparams);
+    OSSL_PARAM_BLD_free(keybld);
+    OSSL_PARAM_free(initparams);
+    OSSL_PARAM_BLD_free(initbld);
+    OSSL_SELF_TEST_onend(st, ret);
+    return ret;
+}
+
+/*
  * Test a data driven list of KAT's for digest algorithms.
  * All tests are run regardless of if they fail or not.
  * Return 0 if any test fails.
@@ -850,6 +937,17 @@ static int self_test_kems(OSSL_SELF_TEST *st, OSSL_LIB_CTX *libctx)
             ret = 0;
     }
 #endif
+    return ret;
+}
+
+static int self_test_asym_ciphers(OSSL_SELF_TEST *st, OSSL_LIB_CTX *libctx)
+{
+    int i, ret = 1;
+
+    for (i = 0; i < (int)OSSL_NELEM(st_kat_asym_cipher_tests); ++i) {
+        if (!self_test_asym_cipher(&st_kat_asym_cipher_tests[i], st, libctx))
+            ret = 0;
+    }
     return ret;
 }
 
@@ -1091,6 +1189,8 @@ int SELF_TEST_kats(OSSL_SELF_TEST *st, OSSL_LIB_CTX *libctx)
     if (!self_test_asym_keygens(st, libctx))
         ret = 0;
     if (!self_test_kems(st, libctx))
+        ret = 0;
+    if (!self_test_asym_ciphers(st, libctx))
         ret = 0;
 
     RAND_set0_private(libctx, saved_rand);

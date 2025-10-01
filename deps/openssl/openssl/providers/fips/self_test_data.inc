@@ -1308,6 +1308,18 @@ static const ST_KAT_PARAM rsa_priv_key[] = {
     ST_KAT_PARAM_END()
 };
 
+/*-
+ * Using OSSL_PKEY_RSA_PAD_MODE_NONE directly in the expansion of the
+ * ST_KAT_PARAM_UTF8STRING macro below causes a failure on ancient
+ * HP/UX PA-RISC compilers.
+ */
+static const char pad_mode_none[] = OSSL_PKEY_RSA_PAD_MODE_NONE;
+
+static const ST_KAT_PARAM rsa_enc_params[] = {
+    ST_KAT_PARAM_UTF8STRING(OSSL_ASYM_CIPHER_PARAM_PAD_MODE, pad_mode_none),
+    ST_KAT_PARAM_END()
+};
+
 static const unsigned char rsa_sig_msg[] = "Hello World!";
 
 static const unsigned char rsa_expected_sig[256] = {
@@ -3497,3 +3509,33 @@ static const ST_KAT_ASYM_KEYGEN st_kat_asym_keygen_tests[] = {
 # endif
 };
 #endif /* !OPENSSL_NO_ML_DSA || !OPENSSL_NO_SLH_DSA */
+
+static const ST_KAT_ASYM_CIPHER st_kat_asym_cipher_tests[] = {
+    {
+        OSSL_SELF_TEST_DESC_ASYM_RSA_ENC,
+        "RSA",
+        1,
+        rsa_pub_key,
+        rsa_enc_params,
+        ITM(rsa_asym_plaintext_encrypt),
+        ITM(rsa_asym_expected_encrypt),
+    },
+    {
+        OSSL_SELF_TEST_DESC_ASYM_RSA_DEC,
+        "RSA",
+        0,
+        rsa_priv_key,
+        rsa_enc_params,
+        ITM(rsa_asym_expected_encrypt),
+        ITM(rsa_asym_plaintext_encrypt),
+    },
+    {
+        OSSL_SELF_TEST_DESC_ASYM_RSA_DEC,
+        "RSA",
+        0,
+        rsa_crt_key,
+        rsa_enc_params,
+        ITM(rsa_asym_expected_encrypt),
+        ITM(rsa_asym_plaintext_encrypt),
+    },
+};
