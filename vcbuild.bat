@@ -644,7 +644,7 @@ mkdir %config%\doc
 robocopy /e doc\api %config%\doc\api
 
 %npx_exe% ^
-  --prefix tools/doc api-docs-tooling generate ^
+  --prefix tools/doc doc-kit generate ^
   -t legacy-html-all legacy-json-all api-links ^
   -i doc/api/*.md ^
   -i lib/*.js ^
@@ -667,7 +667,7 @@ for /d %%F in (test\addons\??_*) do (
   rd /s /q %%F
 )
 :: generate
-"%npx_exe%" --prefix tools/doc api-docs-tooling generate -t addon-verify -i "%~dp0doc\api\addons.md" -o "%~dp0test\addons" --no-lint
+"%npx_exe%" --prefix tools/doc doc-kit generate -t addon-verify -i "%~dp0doc\api\addons.md" -o "%~dp0test\addons" --no-lint
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal
@@ -811,7 +811,7 @@ for /D %%D IN (doc\*) do (
   )
 )
 %node_exe% tools\lint-md\lint-md.mjs %lint_md_files%
-%npx_exe% --prefix tools\doc api-docs-tooling lint -i doc\api\*.md
+%npx_exe% --prefix tools\doc doc-kit lint -i doc\api\*.md
 ENDLOCAL
 goto format-md
 
