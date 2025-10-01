@@ -1494,7 +1494,7 @@ console.log(Buffer.isEncoding(''));
 // Prints: false
 ```
 
-### Class property: `Buffer.poolSize`
+### `Buffer.poolSize`
 
 <!-- YAML
 added: v0.11.3

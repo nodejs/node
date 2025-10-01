@@ -1651,7 +1651,7 @@ A MIME string is a structured string containing multiple meaningful
 components. When parsed, a `MIMEType` object is returned containing
 properties for each of these components.
 
-### Constructor: `new MIMEType(input)`
+### `new MIMEType(input)`
 
 * `input` {string} The input MIME to parse
 
@@ -1843,7 +1843,7 @@ added:
 The `MIMEParams` API provides read and write access to the parameters of a
 `MIMEType`.
 
-### Constructor: `new MIMEParams()`
+### `new MIMEParams()`
 
 Creates a new `MIMEParams` object by with empty parameters
 
