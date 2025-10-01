@@ -389,7 +389,7 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 		echo "Skipping .docbuildstamp (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r test/addons/??_*/; \
-		$(call available-node, $(NPX) --prefix tools/doc api-docs-tooling generate -t addon-verify -i doc/api/addons.md -o test/addons/ --skip-lint) \
+		$(call available-node, $(NPX) --prefix tools/doc doc-kit generate -t addon-verify -i doc/api/addons.md -o test/addons/) \
 		[ $$? -eq 0 ] && touch $@; \
 	fi
 
@@ -829,12 +829,11 @@ out/doc/api: doc/api
 # For generating individual doc files instead of all at once
 out/doc/api/%.html out/doc/api/%.json: doc/api/%.md tools/doc/node_modules | out/doc/api
 	$(call available-node, \
-		$(NPX) --prefix tools/doc api-docs-tooling generate \
+		$(NPX) --prefix tools/doc doc-kit generate \
 		-t $(subst .,legacy-, $(suffix $@)) \
 		-i $< \
 		--ignore $(skip_apidoc_files) \
 		-o $(@D) \
-		--skip-lint \
 		-c ./CHANGELOG.md \
 		-v $(VERSION) \
 		--index doc/api/index.md \
@@ -1385,7 +1384,7 @@ lint-md: lint-js-doc lint-docs | tools/.mdlintstamp ## Lint the markdown documen
 .PHONY: lint-docs
 lint-docs: tools/doc/node_modules
 	$(info Running API Doc linter...)
-	$(call available-node, $(NPX) --prefix tools/doc api-docs-tooling lint -i doc/api/*.md)
+	$(call available-node, $(NPX) --prefix tools/doc doc-kit lint -i doc/api/*.md)
 
 run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
 .PHONY: format-md
