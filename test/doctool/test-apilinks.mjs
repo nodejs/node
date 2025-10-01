@@ -26,7 +26,7 @@ fs.readdirSync(apilinks).forEach((fixture) => {
     [
       '--prefix',
       docToolingDir,
-      'api-docs-tooling',
+      'doc-kit',
       'generate',
       '-t',
       'api-links',
@@ -45,7 +45,7 @@ fs.readdirSync(apilinks).forEach((fixture) => {
   for (const [k, v] of Object.entries(expectedLinks)) {
     assert.ok(k in actualLinks, `link not found: ${k}`);
     assert.ok(actualLinks[k].endsWith('/' + v),
-              `link ${actualLinks[k]} expected to end with ${v}`);
+      `link ${actualLinks[k]} expected to end with ${v}`);
     delete actualLinks[k];
   }
 
