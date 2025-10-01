@@ -157,7 +157,7 @@ Depending on the host platform, the selection of toolchains may vary.
 | ---------------- | -------------------------------------------------------------- |
 | Linux            | GCC >= 12.2 or Clang >= 19.1                                   |
 | Windows          | Visual Studio >= 2022 with the Windows 10 SDK on a 64-bit host |
-| macOS            | Xcode >= 16.3 (Apple LLVM >= 19)                               |
+| macOS            | Xcode >= 16.4 (Apple LLVM >= 19)                               |
 
 ### Official binary platforms and toolchains
 
@@ -249,7 +249,7 @@ FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 
 #### macOS prerequisites
 
-* Xcode Command Line Tools >= 16.3 for macOS
+* Xcode Command Line Tools >= 16.4 for macOS
 * [A supported version of Python][Python versions]
   * For test coverage, your Python installation must include pip.
 
