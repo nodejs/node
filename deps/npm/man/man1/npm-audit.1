@@ -1,4 +1,4 @@
-.TH "NPM-AUDIT" "1" "September 2025" "NPM@11.6.0" ""
+.TH "NPM-AUDIT" "1" "September 2025" "NPM@11.6.1" ""
 .SH "NAME"
 \fBnpm-audit\fR - Run a security audit
 .SS "Synopsis"
@@ -102,7 +102,7 @@ As of version 7, npm uses the much faster \fBBulk Advisory\fR endpoint to optimi
 .P
 npm will generate a JSON payload with the name and list of versions of each package in the tree, and POST it to the default configured registry at the path \fB/-/npm/v1/security/advisories/bulk\fR.
 .P
-Any packages in the tree that do not have a \fBversion\fR field in their package.json file will be ignored. If any \fB--omit\fR options are specified (either via the \fB\fB--omit\fR config\fR \fI\(la/using-npm/config#omit\(ra\fR, or one of the shorthands such as \fB--production\fR, \fB--only=dev\fR, and so on), then packages will be omitted from the submitted payload as appropriate.
+Any packages in the tree that do not have a \fBversion\fR field in their package.json file will be ignored. If any \fB--omit\fR options are specified (either via the \fB\[rs]fB--omit\[rs]fR config\fR \fI\(la/using-npm/config#omit\(ra\fR, or one of the shorthands such as \fB--production\fR, \fB--only=dev\fR, and so on), then packages will be omitted from the submitted payload as appropriate.
 .P
 If the registry responds with an error, or with an invalid response, then npm will attempt to load advisory data from the \fBQuick Audit\fR endpoint.
 .P
@@ -138,7 +138,7 @@ However, in practice, this resulted in audits often failing to properly detect m
 This scrubbing has been removed from npm as of version 7.
 .SS "Calculating Meta-Vulnerabilities and Remediations"
 .P
-npm uses the \fB\fB@npmcli/metavuln-calculator\fR\fR \fI\(lahttp://npm.im/@npmcli/metavuln-calculator\(ra\fR module to turn a set of security advisories into a set of "vulnerability" objects. A "meta-vulnerability" is a dependency that is vulnerable by virtue of dependence on vulnerable versions of a vulnerable package.
+npm uses the \fB\[rs]fB@npmcli/metavuln-calculator\[rs]fR\fR \fI\(lahttp://npm.im/@npmcli/metavuln-calculator\(ra\fR module to turn a set of security advisories into a set of "vulnerability" objects. A "meta-vulnerability" is a dependency that is vulnerable by virtue of dependence on vulnerable versions of a vulnerable package.
 .P
 For example, if the package \fBfoo\fR is vulnerable in the range \fB>=1.0.2
 <2.0.0\fR, and the package \fBbar\fR depends on \fBfoo@^1.1.0\fR, then that version of \fBbar\fR can only be installed by installing a vulnerable version of \fBfoo\fR. In this case, \fBbar\fR is a "metavulnerability".
@@ -150,7 +150,7 @@ If the chain of metavulnerabilities extends all the way to the root project, and
 .P
 The \fBnpm audit\fR command will exit with a 0 exit code if no vulnerabilities were found. The \fBnpm audit fix\fR command will exit with 0 exit code if no vulnerabilities are found \fIor\fR if the remediation is able to successfully fix all vulnerabilities.
 .P
-If vulnerabilities were found the exit code will depend on the \fB\fBaudit-level\fR config\fR \fI\(la/using-npm/config#audit-level\(ra\fR.
+If vulnerabilities were found the exit code will depend on the \fB\[rs]fBaudit-level\[rs]fR config\fR \fI\(la/using-npm/config#audit-level\(ra\fR.
 .SS "Examples"
 .P
 Scan your project for vulnerabilities and automatically install any compatible updates to vulnerable dependencies:
