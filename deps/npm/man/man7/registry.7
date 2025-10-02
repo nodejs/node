@@ -1,4 +1,4 @@
-.TH "REGISTRY" "7" "September 2025" "NPM@11.6.0" ""
+.TH "REGISTRY" "7" "September 2025" "NPM@11.6.1" ""
 .SH "NAME"
 \fBregistry\fR - The JavaScript Package Registry
 .SS "Description"
@@ -11,7 +11,7 @@ You can configure npm to use any compatible registry you like, and even run your
 .P
 npm's package registry implementation supports several write APIs as well, to allow for publishing packages and managing user account information.
 .P
-The registry URL used is determined by the scope of the package (see npm help scope. If no scope is specified, the default registry is used, which is supplied by the \fB\fBregistry\fR config\fR \fI\(la/using-npm/config#registry\(ra\fR parameter. See npm help config, npm help npmrc, and npm help config for more on managing npm's configuration. Authentication configuration such as auth tokens and certificates are configured specifically scoped to an individual registry. See \fBAuth Related Configuration\fR \fI\(la/configuring-npm/npmrc#auth-related-configuration\(ra\fR
+The registry URL used is determined by the scope of the package (see npm help scope. If no scope is specified, the default registry is used, which is supplied by the \fB\[rs]fBregistry\[rs]fR config\fR \fI\(la/using-npm/config#registry\(ra\fR parameter. See npm help config, npm help npmrc, and npm help config for more on managing npm's configuration. Authentication configuration such as auth tokens and certificates are configured specifically scoped to an individual registry. See \fBAuth Related Configuration\fR \fI\(la/configuring-npm/npmrc#auth-related-configuration\(ra\fR
 .P
 When the default registry is used in a package-lock or shrinkwrap it has the special meaning of "the currently configured registry". If you create a lock file while using the default registry you can switch to another registry and npm will install packages from the new registry, but if you create a lock file while using a custom registry packages will be installed from that registry even after you change to another registry.
 .SS "Does npm send any information about me back to the registry?"
@@ -32,7 +32,7 @@ The npm registry does not try to correlate the information in these headers with
 .P
 Set \fB"private": true\fR in your \fBpackage.json\fR to prevent it from being published at all, or \fB"publishConfig":{"registry":"http://my-internal-registry.local"}\fR to force it to be published only to your internal/private registry.
 .P
-See \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for more info on what goes in the package.json file.
+See \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for more info on what goes in the package.json file.
 .SS "Where can I find my (and others') published packages?"
 .P
 \fI\(lahttps://www.npmjs.com/\(ra\fR

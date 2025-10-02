@@ -10,43 +10,43 @@ from functools import reduce
 
 
 def XmlToString(content, encoding="utf-8", pretty=False):
-    """ Writes the XML content to disk, touching the file only if it has changed.
+    """Writes the XML content to disk, touching the file only if it has changed.
 
-  Visual Studio files have a lot of pre-defined structures.  This function makes
-  it easy to represent these structures as Python data structures, instead of
-  having to create a lot of function calls.
+    Visual Studio files have a lot of pre-defined structures.  This function makes
+    it easy to represent these structures as Python data structures, instead of
+    having to create a lot of function calls.
 
-  Each XML element of the content is represented as a list composed of:
-  1. The name of the element, a string,
-  2. The attributes of the element, a dictionary (optional), and
-  3+. The content of the element, if any.  Strings are simple text nodes and
-      lists are child elements.
+    Each XML element of the content is represented as a list composed of:
+    1. The name of the element, a string,
+    2. The attributes of the element, a dictionary (optional), and
+    3+. The content of the element, if any.  Strings are simple text nodes and
+        lists are child elements.
 
-  Example 1:
-      <test/>
-  becomes
-      ['test']
+    Example 1:
+        <test/>
+    becomes
+        ['test']
 
-  Example 2:
-      <myelement a='value1' b='value2'>
-         <childtype>This is</childtype>
-         <childtype>it!</childtype>
-      </myelement>
+    Example 2:
+        <myelement a='value1' b='value2'>
+           <childtype>This is</childtype>
+           <childtype>it!</childtype>
+        </myelement>
 
-  becomes
-      ['myelement', {'a':'value1', 'b':'value2'},
-         ['childtype', 'This is'],
-         ['childtype', 'it!'],
-      ]
+    becomes
+        ['myelement', {'a':'value1', 'b':'value2'},
+           ['childtype', 'This is'],
+           ['childtype', 'it!'],
+        ]
 
-  Args:
-    content:  The structured content to be converted.
-    encoding: The encoding to report on the first XML line.
-    pretty: True if we want pretty printing with indents and new lines.
+    Args:
+      content:  The structured content to be converted.
+      encoding: The encoding to report on the first XML line.
+      pretty: True if we want pretty printing with indents and new lines.
 
-  Returns:
-    The XML content as a string.
-  """
+    Returns:
+      The XML content as a string.
+    """
     # We create a huge list of all the elements of the file.
     xml_parts = ['<?xml version="1.0" encoding="%s"?>' % encoding]
     if pretty:
@@ -58,14 +58,14 @@ def XmlToString(content, encoding="utf-8", pretty=False):
 
 
 def _ConstructContentList(xml_parts, specification, pretty, level=0):
-    """ Appends the XML parts corresponding to the specification.
+    """Appends the XML parts corresponding to the specification.
 
-  Args:
-    xml_parts: A list of XML parts to be appended to.
-    specification:  The specification of the element.  See EasyXml docs.
-    pretty: True if we want pretty printing with indents and new lines.
-    level: Indentation level.
-  """
+    Args:
+      xml_parts: A list of XML parts to be appended to.
+      specification:  The specification of the element.  See EasyXml docs.
+      pretty: True if we want pretty printing with indents and new lines.
+      level: Indentation level.
+    """
     # The first item in a specification is the name of the element.
     if pretty:
         indentation = "  " * level
@@ -107,16 +107,17 @@ def _ConstructContentList(xml_parts, specification, pretty, level=0):
         xml_parts.append("/>%s" % new_line)
 
 
-def WriteXmlIfChanged(content, path, encoding="utf-8", pretty=False,
-                      win32=(sys.platform == "win32")):
-    """ Writes the XML content to disk, touching the file only if it has changed.
+def WriteXmlIfChanged(
+    content, path, encoding="utf-8", pretty=False, win32=(sys.platform == "win32")
+):
+    """Writes the XML content to disk, touching the file only if it has changed.
 
-  Args:
-    content:  The structured content to be written.
-    path: Location of the file.
-    encoding: The encoding to report on the first line of the XML file.
-    pretty: True if we want pretty printing with indents and new lines.
-  """
+    Args:
+      content:  The structured content to be written.
+      path: Location of the file.
+      encoding: The encoding to report on the first line of the XML file.
+      pretty: True if we want pretty printing with indents and new lines.
+    """
     xml_string = XmlToString(content, encoding, pretty)
     if win32 and os.linesep != "\r\n":
         xml_string = xml_string.replace("\n", "\r\n")
@@ -157,7 +158,7 @@ _xml_escape_re = re.compile("(%s)" % "|".join(map(re.escape, _xml_escape_map.key
 
 
 def _XmlEscape(value, attr=False):
-    """ Escape a string for inclusion in XML."""
+    """Escape a string for inclusion in XML."""
 
     def replace(match):
         m = match.string[match.start() : match.end()]

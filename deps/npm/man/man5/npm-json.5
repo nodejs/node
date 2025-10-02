@@ -1,4 +1,4 @@
-.TH "PACKAGE.JSON" "5" "September 2025" "NPM@11.6.0" ""
+.TH "PACKAGE.JSON" "5" "September 2025" "NPM@11.6.1" ""
 .SH "NAME"
 \fBpackage.json\fR - Specifics of npm's package.json handling
 .SS "Description"
@@ -30,7 +30,7 @@ Some tips:
 .IP \(bu 4
 Don't use the same name as a core Node module.
 .IP \(bu 4
-Don't put "js" or "node" in the name. It's assumed that it's js, since you're writing a package.json file, and you can specify the engine using the "\fBengines\fR \fI(engines)\fR" field. (See below.)
+Don't put "js" or "node" in the name. It's assumed that it's js, since you're writing a package.json file, and you can specify the engine using the "\fI(engines)\fR" field. (See below.)
 .IP \(bu 4
 The name will probably be passed as an argument to require(), so it should be something short, but also reasonably descriptive.
 .IP \(bu 4
@@ -312,7 +312,7 @@ Some files are always ignored by default:
 .IP \(bu 4
 \fBnpm-debug.log\fR
 .IP \(bu 4
-\fBpackage-lock.json\fR (use \fB\fBnpm-shrinkwrap.json\fR\fR \fI\(la/configuring-npm/npm-shrinkwrap-json\(ra\fR if you wish it to be published)
+\fBpackage-lock.json\fR (use \fB\[rs]fBnpm-shrinkwrap.json\[rs]fR\fR \fI\(la/configuring-npm/npm-shrinkwrap-json\(ra\fR if you wish it to be published)
 .IP \(bu 4
 \fBpnpm-lock.yaml\fR
 .IP \(bu 4
@@ -405,7 +405,7 @@ would be the same as this:
 .P
 Please make sure that your file(s) referenced in \fBbin\fR starts with \fB#!/usr/bin/env node\fR, otherwise the scripts are started without the node executable!
 .P
-Note that you can also set the executable files using \fBdirectories.bin\fR \fI(directories.bin)\fR.
+Note that you can also set the executable files using \fI(directories.bin)\fR.
 .P
 See \fBfolders\fR \fI\(la/configuring-npm/folders#executables\(ra\fR for more info on executables.
 .SS "man"
@@ -591,9 +591,9 @@ See \fBsemver\fR \fI\(lahttps://github.com/npm/node-semver#versions\(ra\fR for m
 .IP \(bu 4
 \fBtag\fR A specific version tagged and published as \fBtag\fR See npm help dist-tag
 .IP \(bu 4
-\fBpath/path/path\fR See \fBLocal Paths\fR \fI(Local Paths)\fR below
+\fBpath/path/path\fR See \fI(Local Paths)\fR below
 .IP \(bu 4
-\fBnpm:@scope/pkg@version\fR Custom alias for a package See \fB\fBpackage-spec\fR\fR \fI\(la/using-npm/package-spec#aliases\(ra\fR
+\fBnpm:@scope/pkg@version\fR Custom alias for a package See \fB\[rs]fBpackage-spec\[rs]fR\fR \fI\(la/using-npm/package-spec#aliases\(ra\fR
 .RE 0
 
 .P
@@ -866,7 +866,7 @@ If you need to make specific changes to dependencies of your dependencies, for e
 .P
 Overrides provide a way to replace a package in your dependency tree with another version, or another package entirely. These changes can be scoped as specific or as vague as desired.
 .P
-Overrides are only considered in the root \fBpackage.json\fR file for a project. Overrides in installed dependencies (including npm help workspaces) are not considered in dependency tree resolution. Published packages may dictate their resolutions by pinning dependencies or using an \fB\fBnpm-shrinkwrap.json\fR\fR \fI\(la/configuring-npm/npm-shrinkwrap-json\(ra\fR file.
+Overrides are only considered in the root \fBpackage.json\fR file for a project. Overrides in installed dependencies (including npm help workspaces) are not considered in dependency tree resolution. Published packages may dictate their resolutions by pinning dependencies or using an \fB\[rs]fBnpm-shrinkwrap.json\[rs]fR\fR \fI\(la/configuring-npm/npm-shrinkwrap-json\(ra\fR file.
 .P
 To make sure the package \fB@npm/foo\fR is always installed as version \fB1.0.0\fR no matter what version your dependencies rely on:
 .P
@@ -988,7 +988,7 @@ You can also use the "engines" field to specify which versions of npm are capabl
 .fi
 .RE
 .P
-Unless the user has set the \fB\fBengine-strict\fR config\fR \fI\(la/using-npm/config#engine-strict\(ra\fR flag, this field is advisory only and will only produce warnings when your package is installed as a dependency.
+Unless the user has set the \fB\[rs]fBengine-strict\[rs]fR config\fR \fI\(la/using-npm/config#engine-strict\(ra\fR flag, this field is advisory only and will only produce warnings when your package is installed as a dependency.
 .SS "os"
 .P
 You can specify which operating systems your module will run on:

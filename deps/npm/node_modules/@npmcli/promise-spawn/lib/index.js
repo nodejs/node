@@ -70,7 +70,7 @@ const spawnWithShell = (cmd, args, opts, extra) => {
   // ahead of time so that we can escape arguments properly. we don't need coverage here.
   if (command === true) {
     // istanbul ignore next
-    command = process.platform === 'win32' ? process.env.ComSpec : 'sh'
+    command = process.platform === 'win32' ? (process.env.ComSpec || 'cmd.exe') : 'sh'
   }
 
   const options = { ...opts, shell: false }

@@ -398,14 +398,14 @@ const definitions = {
       \`\`\`
 
       It is _not_ the path to a certificate file, though you can set a registry-scoped
-      "cafile" path like "//other-registry.tld/:cafile=/path/to/cert.pem".
+      "certfile" path like "//other-registry.tld/:certfile=/path/to/cert.pem".
     `,
     deprecated: `
       \`key\` and \`cert\` are no longer used for most registry operations.
-      Use registry scoped \`keyfile\` and \`cafile\` instead.
+      Use registry scoped \`keyfile\` and \`certfile\` instead.
       Example:
       //other-registry.tld/:keyfile=/path/to/key.pem
-      //other-registry.tld/:cafile=/path/to/cert.crt
+      //other-registry.tld/:certfile=/path/to/cert.crt
     `,
     flatten,
   }),
@@ -1094,10 +1094,10 @@ const definitions = {
     `,
     deprecated: `
       \`key\` and \`cert\` are no longer used for most registry operations.
-      Use registry scoped \`keyfile\` and \`cafile\` instead.
+      Use registry scoped \`keyfile\` and \`certfile\` instead.
       Example:
       //other-registry.tld/:keyfile=/path/to/key.pem
-      //other-registry.tld/:cafile=/path/to/cert.crt
+      //other-registry.tld/:certfile=/path/to/cert.crt
     `,
     flatten,
   }),

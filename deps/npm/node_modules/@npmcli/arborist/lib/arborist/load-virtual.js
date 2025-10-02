@@ -1,16 +1,15 @@
+const { resolve } = require('node:path')
 // mixin providing the loadVirtual method
 const mapWorkspaces = require('@npmcli/map-workspaces')
-
-const { resolve } = require('node:path')
-
+const PackageJson = require('@npmcli/package-json')
 const nameFromFolder = require('@npmcli/name-from-folder')
+
 const consistentResolve = require('../consistent-resolve.js')
 const Shrinkwrap = require('../shrinkwrap.js')
 const Node = require('../node.js')
 const Link = require('../link.js')
 const relpath = require('../relpath.js')
 const calcDepFlags = require('../calc-dep-flags.js')
-const rpj = require('read-package-json-fast')
 const treeCheck = require('../tree-check.js')
 
 const flagsSuspect = Symbol.for('flagsSuspect')
@@ -54,21 +53,16 @@ module.exports = cls => class VirtualLoader extends cls {
 
     // when building the ideal tree, we pass in a root node to this function
     // otherwise, load it from the root package json or the lockfile
+    const pkg = await PackageJson.normalize(this.path).then(p => p.content).catch(() => s.data.packages[''] || {})
+    // TODO clean this up
     const {
-      root = await this.#loadRoot(s),
+      root = await this[setWorkspaces](this.#loadNode('', pkg, true)),
     } = options
-
     this.#rootOptionProvided = options.root
 
     await this.#loadFromShrinkwrap(s, root)
     root.assertRootOverrides()
     return treeCheck(this.virtualTree)
-  }
-
-  async #loadRoot (s) {
-    const pj = this.path + '/package.json'
-    const pkg = await rpj(pj).catch(() => s.data.packages['']) || {}
-    return this[setWorkspaces](this.#loadNode('', pkg, true))
   }
 
   async #loadFromShrinkwrap (s, root) {
@@ -219,11 +213,7 @@ To fix:
       // we always need to read the package.json for link targets
       // outside node_modules because they can be changed by the local user
       if (!link.target.parent) {
-        const pj = link.realpath + '/package.json'
-        const pkg = await rpj(pj).catch(() => null)
-        if (pkg) {
-          link.target.package = pkg
-        }
+        await PackageJson.normalize(link.realpath).then(p => link.target.package = p.content).catch(() => null)
       }
     }
   }
