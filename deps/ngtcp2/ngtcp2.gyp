@@ -272,7 +272,7 @@
         'HAVE_NETINET_IP_H',
       ],
       'conditions': [
-        ['OS=="aix" or OS=="win"', {
+        ['OS=="aix" or OS=="win" or OS=="os400"', {
           # AIX does not support some of the networking features used in
           # the test server. Windows also lacks the Unix-specific headers
           # and system calls required by the ngtcp2 examples.
@@ -330,7 +330,7 @@
         'HAVE_NETINET_IP_H',
       ],
       'conditions': [
-        ['OS=="aix" or OS=="win"', {
+        ['OS=="aix" or OS=="win" or OS=="os400"', {
           # AIX does not support some of the networking features used in
           # the test client. Windows also lacks the Unix-specific headers
           # and system calls required by the ngtcp2 examples.
