@@ -968,6 +968,7 @@ added:
 * Type: {boolean}
 
 Is `true` if the stream's buffer has been full and stream will emit `'drain'`.
+This flag does not update immediately after each write and remains `true` until the writable stream drains and the `drain` event is emitted.
 
 ##### `writable.writableObjectMode`
 
