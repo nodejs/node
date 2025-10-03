@@ -4,6 +4,8 @@
 #include "node_external_reference.h"
 #include "util-inl.h"
 #include "v8-fast-api-calls.h"
+#include <cmath>
+#include <climits>
 
 namespace node {
 namespace util {
@@ -251,6 +253,34 @@ static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void log(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+
+  // JavaScript side sends pre-formatted string, just write it
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+
+  Utf8Value str(isolate, args[0]);
+  std::string_view sv = str.ToStringView();
+
+  fwrite(sv.data(), 1, sv.length(), stdout);
+  fwrite("\n", 1, 1, stdout);
+}
+
+static void logRaw(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+
+  // For batch writes - no newline added
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+
+  Utf8Value str(isolate, args[0]);
+  std::string_view sv = str.ToStringView();
+
+  // Write raw string without adding newline
+  fwrite(sv.data(), 1, sv.length(), stdout);
+}
+
 static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -453,6 +483,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GuessHandleType);
   registry->Register(fast_guess_handle_type_);
   registry->Register(ParseEnv);
+  registry->Register(log);
+  registry->Register(logRaw);
   registry->Register(IsInsideNodeModules);
   registry->Register(DefineLazyProperties);
   registry->Register(DefineLazyPropertiesGetter);
@@ -555,6 +587,8 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "getCallSites", GetCallSites);
   SetMethod(context, target, "sleep", Sleep);
   SetMethod(context, target, "parseEnv", ParseEnv);
+  SetMethod(context, target, "log", log);
+  SetMethod(context, target, "logRaw", logRaw);
 
   SetMethod(
       context, target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);

@@ -1574,6 +1574,87 @@ inspect.defaultOptions.maxArrayLength = null;
 console.log(arr); // logs the full array
 ```
 
+## `util.log([...args])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `...args` {any}
+
+A high-performance logging function optimized for scenarios where output is
+redirected to files or pipes. The `util.log()` method formats its arguments
+using [`util.format()`][] and writes the result to `stdout` with a trailing
+newline.
+
+```mjs
+import { log } from 'node:util';
+
+log('Hello', 'World');
+// Prints: Hello World
+
+log('User %s logged in', 'alice');
+// Prints: User alice logged in
+```
+
+```cjs
+const { log } = require('node:util');
+
+log('Hello', 'World');
+// Prints: Hello World
+```
+
+### Performance characteristics
+
+The behavior differs based on the output destination:
+
+* **TTY (interactive terminal)**: Synchronous writes for immediate visibility
+* **Pipe/File (redirected output)**: Asynchronous buffering for performance
+  * 16KB buffer size
+  * 10ms flush interval
+  * Automatic flush on `process.beforeExit`
+
+This makes `util.log()` ideal for high-frequency logging when output is
+redirected, while maintaining the same behavior as `console.log()` for
+interactive use.
+
+```mjs
+import { log } from 'node:util';
+
+// High-frequency logging example
+// When redirected (node script.js > output.log):
+// - Buffered and batched for better performance
+// When run in terminal:
+// - Immediate output, same as console.log()
+
+for (let i = 0; i < 10000; i++) {
+  log('Processing item', i);
+}
+```
+
+### When to use `util.log()` vs `console.log()`
+
+Use `util.log()` when:
+
+* You have high-frequency logging (e.g., logging every request in a server)
+* Output is redirected to files or pipes
+* You want to reduce CPU usage from logging overhead
+
+Use `console.log()` when:
+
+* You need guaranteed immediate output before `process.exit()`
+* You're debugging and need synchronous behavior
+* You want consistency with browser JavaScript
+
+**Performance impact**: In high-frequency logging scenarios with redirected
+output, `util.log()` can significantly reduce logging overhead compared to
+`console.log()` through asynchronous buffering and batched writes.
+
+**Important**: Messages logged immediately before `process.exit()` may not be
+written when output is buffered. Use `console.log()` for critical final
+messages, or avoid calling `process.exit()` directly (let the process exit
+naturally).
+
 ## `util.isDeepStrictEqual(val1, val2[, options])`
 
 <!-- YAML
