@@ -27,7 +27,6 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   ~RegExpBytecodeGenerator() override;
   // The byte-code interpreter checks on each push anyway.
   int stack_limit_slack_slot_count() override { return 1; }
-  bool CanReadUnaligned() const override { return false; }
   void Bind(Label* label) override;
   void AdvanceCurrentPosition(int by) override;  // Signed cp change.
   void PopCurrentPosition() override;
@@ -48,6 +47,7 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   void ReadCurrentPositionFromRegister(int reg) override;
   void WriteStackPointerToRegister(int reg) override;
   void ReadStackPointerFromRegister(int reg) override;
+  void CheckPosition(int cp_offset, Label* on_outside_input) override;
   void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
                                 bool check_bounds, int characters,
                                 int eats_at_least) override;
@@ -56,7 +56,7 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
                               Label* on_equal) override;
   void CheckCharacterGT(base::uc16 limit, Label* on_greater) override;
   void CheckCharacterLT(base::uc16 limit, Label* on_less) override;
-  void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
+  void CheckFixedLengthLoop(Label* on_tos_equals_current_position) override;
   void CheckAtStart(int cp_offset, Label* on_at_start) override;
   void CheckNotAtStart(int cp_offset, Label* on_not_at_start) override;
   void CheckNotCharacter(unsigned c, Label* on_not_equal) override;
@@ -86,8 +86,27 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   }
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
   void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
-                           Handle<ByteArray> nibble_table,
-                           int advance_by) override;
+                           Handle<ByteArray> nibble_table, int advance_by,
+                           Label* on_match, Label* on_no_match) override;
+  void SkipUntilCharAnd(int cp_offset, int advance_by, unsigned character,
+                        unsigned mask, int eats_at_least, Label* on_match,
+                        Label* on_no_match) override;
+  void SkipUntilChar(int cp_offset, int advance_by, unsigned character,
+                     Label* on_match, Label* on_no_match) override;
+  void SkipUntilCharPosChecked(int cp_offset, int advance_by,
+                               unsigned character, int eats_at_least,
+                               Label* on_match, Label* on_no_match) override;
+  void SkipUntilCharOrChar(int cp_offset, int advance_by, unsigned char1,
+                           unsigned char2, Label* on_match,
+                           Label* on_no_match) override;
+  void SkipUntilGtOrNotBitInTable(int cp_offset, int advance_by,
+                                  unsigned character, Handle<ByteArray> table,
+                                  Label* on_match, Label* on_no_match) override;
+  void SkipUntilOneOfMasked(int cp_offset, int advance_by, unsigned both_chars,
+                            unsigned both_mask, int max_offset, unsigned chars1,
+                            unsigned mask1, unsigned chars2, unsigned mask2,
+                            Label* on_match1, Label* on_match2,
+                            Label* on_failure) override;
   void CheckNotBackReference(int start_reg, bool read_backward,
                              Label* on_no_match) override;
   void CheckNotBackReferenceIgnoreCase(int start_reg, bool read_backward,
@@ -96,6 +115,8 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   void IfRegisterLT(int register_index, int comparand, Label* if_lt) override;
   void IfRegisterGE(int register_index, int comparand, Label* if_ge) override;
   void IfRegisterEqPos(int register_index, Label* if_eq) override;
+  void RecordComment(std::string_view comment) override {}
+  MacroAssembler* masm() override { return nullptr; }
 
   IrregexpImplementation Implementation() override;
   DirectHandle<HeapObject> GetCode(DirectHandle<String> source,

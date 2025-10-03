@@ -21,6 +21,7 @@ transitioning builtin CreateHTML(
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.anchor
+@incrementUseCounter('v8::Isolate::kHtmlWrapperMethods')
 transitioning javascript builtin StringPrototypeAnchor(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {
@@ -29,6 +30,7 @@ transitioning javascript builtin StringPrototypeAnchor(
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.big
+@incrementUseCounter('v8::Isolate::kHtmlWrapperMethods')
 transitioning javascript builtin StringPrototypeBig(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {
@@ -37,6 +39,7 @@ transitioning javascript builtin StringPrototypeBig(
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.blink
+@incrementUseCounter('v8::Isolate::kHtmlWrapperMethods')
 transitioning javascript builtin StringPrototypeBlink(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {
@@ -45,6 +48,7 @@ transitioning javascript builtin StringPrototypeBlink(
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.bold
+@incrementUseCounter('v8::Isolate::kHtmlWrapperMethods')
 transitioning javascript builtin StringPrototypeBold(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {
@@ -53,6 +57,7 @@ transitioning javascript builtin StringPrototypeBold(
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.fontcolor
+@incrementUseCounter('v8::Isolate::kHtmlWrapperMethods')
 transitioning javascript builtin StringPrototypeFontcolor(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {
@@ -61,6 +66,7 @@ transitioning javascript builtin StringPrototypeFontcolor(
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.fontsize
+@incrementUseCounter('v8::Isolate::kHtmlWrapperMethods')
 transitioning javascript builtin StringPrototypeFontsize(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {
@@ -69,6 +75,7 @@ transitioning javascript builtin StringPrototypeFontsize(
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.fixed
+@incrementUseCounter('v8::Isolate::kHtmlWrapperMethods')
 transitioning javascript builtin StringPrototypeFixed(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {
@@ -77,6 +84,7 @@ transitioning javascript builtin StringPrototypeFixed(
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.italics
+@incrementUseCounter('v8::Isolate::kHtmlWrapperMethods')
 transitioning javascript builtin StringPrototypeItalics(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {
@@ -85,6 +93,7 @@ transitioning javascript builtin StringPrototypeItalics(
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.link
+@incrementUseCounter('v8::Isolate::kHtmlWrapperMethods')
 transitioning javascript builtin StringPrototypeLink(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {
@@ -93,6 +102,7 @@ transitioning javascript builtin StringPrototypeLink(
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.small
+@incrementUseCounter('v8::Isolate::kHtmlWrapperMethods')
 transitioning javascript builtin StringPrototypeSmall(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {
@@ -101,6 +111,7 @@ transitioning javascript builtin StringPrototypeSmall(
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.strike
+@incrementUseCounter('v8::Isolate::kHtmlWrapperMethods')
 transitioning javascript builtin StringPrototypeStrike(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {
@@ -110,6 +121,7 @@ transitioning javascript builtin StringPrototypeStrike(
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.sub
+@incrementUseCounter('v8::Isolate::kHtmlWrapperMethods')
 transitioning javascript builtin StringPrototypeSub(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {
@@ -118,6 +130,7 @@ transitioning javascript builtin StringPrototypeSub(
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.sup
+@incrementUseCounter('v8::Isolate::kHtmlWrapperMethods')
 transitioning javascript builtin StringPrototypeSup(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {

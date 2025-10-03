@@ -205,12 +205,12 @@ class V8_EXPORT_PRIVATE Operand {
 
   // Assert that the shared {is_label_operand} and {rex} fields have the same
   // type and offset in both union variants.
-  static_assert(std::is_same<decltype(LabelOperand::is_label_operand),
-                             decltype(MemoryOperand::is_label_operand)>::value);
+  static_assert(std::is_same_v<decltype(LabelOperand::is_label_operand),
+                               decltype(MemoryOperand::is_label_operand)>);
   static_assert(offsetof(LabelOperand, is_label_operand) ==
                 offsetof(MemoryOperand, is_label_operand));
-  static_assert(std::is_same<decltype(LabelOperand::rex),
-                             decltype(MemoryOperand::rex)>::value);
+  static_assert(std::is_same_v<decltype(LabelOperand::rex),
+                               decltype(MemoryOperand::rex)>);
   static_assert(offsetof(LabelOperand, rex) == offsetof(MemoryOperand, rex));
 
   static_assert(sizeof(MemoryOperand::len) == kSystemPointerSize,
@@ -531,6 +531,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
+  void ClearInternalState() {}
 
   // Read/Modify the code target in the relative branch/call instruction at pc.
   // On the x64 architecture, we use relative jumps with a 32-bit displacement
@@ -660,6 +661,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
+  void SwitchTargetAlign() { CodeTargetAlign(); }
+  void BranchTargetAlign() {}
   void LoopHeaderAlign();
 
   // Stack
@@ -1106,7 +1109,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // {pc_offset() + kIntraSegmentJmpInstrSize}).
   static constexpr int kIntraSegmentJmpInstrSize = 5;
   void near_call(intptr_t disp, RelocInfo::Mode rmode);
-  void near_call(Builtin buitin, RelocInfo::Mode rmode);
   void near_jmp(intptr_t disp, RelocInfo::Mode rmode);
   void near_j(Condition cc, intptr_t disp, RelocInfo::Mode rmode);
 
@@ -1245,6 +1247,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movhps(Operand dst, XMMRegister src);
 
   void shufps(XMMRegister dst, XMMRegister src, uint8_t imm8);
+  void shufpd(XMMRegister dst, XMMRegister src, uint8_t imm8);
 
   void cvttss2si(Register dst, Operand src);
   void cvttss2si(Register dst, XMMRegister src);
@@ -2448,6 +2451,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void lfence();
   void pause();
 
+  // Pkey support.
+  // Registers rcx and rdx must be zero, rax is the input/output value.
+  void rdpkru();
+  void wrpkru();
+
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();
@@ -3056,7 +3064,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   bool is_optimizable_farjmp(int idx);
 
-  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
+  void PatchInHeapNumberRequest(Address pc, Handle<HeapNumber> object) override;
 
   int WriteCodeComments();
   int WriteBuiltinJumpTableInfos();

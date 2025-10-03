@@ -141,6 +141,7 @@ void HandlerTable::SetRangeEnd(int index, int value) {
 
 void HandlerTable::SetRangeHandler(int index, int handler_offset,
                                    CatchPrediction prediction) {
+  CHECK(HandlerOffsetField::is_valid(handler_offset));
   int value = HandlerOffsetField::encode(handler_offset) |
               HandlerWasUsedField::encode(false) |
               HandlerPredictionField::encode(prediction);

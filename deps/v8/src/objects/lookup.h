@@ -15,10 +15,6 @@
 #include "src/objects/map.h"
 #include "src/objects/objects.h"
 
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/value-type.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 namespace v8::internal {
 
 class PropertyKey {
@@ -73,6 +69,10 @@ class V8_EXPORT_PRIVATE LookupIterator final {
     // The property was not found by the iterator (this is a terminal state,
     // iteration should not continue after hitting a not-found state).
     NOT_FOUND,
+    // This is an initial state of a lookup starting from primitive String.
+    // This case requires special handling since String is not a JSReceiver
+    // and we don't want to create a wrapper object just for this case.
+    STRING_LOOKUP_START_OBJECT,
     // Typed arrays have special handling for "canonical numeric index string"
     // (https://tc39.es/ecma262/#sec-canonicalnumericindexstring), where not
     // finding such an index (either because of OOB, or because it's not a valid
@@ -248,6 +248,9 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   DirectHandle<Object> GetAccessors() const;
   inline DirectHandle<InterceptorInfo> GetInterceptor() const;
   DirectHandle<InterceptorInfo> GetInterceptorForFailedAccessCheck() const;
+  Handle<Object> GetStringPropertyValue(
+      AllocationPolicy allocation_policy =
+          AllocationPolicy::kAllocationAllowed) const;
   Handle<Object> GetDataValue(AllocationPolicy allocation_policy =
                                   AllocationPolicy::kAllocationAllowed) const;
   void WriteDataValue(DirectHandle<Object> value, bool initializing_store);
@@ -258,10 +261,13 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   DirectHandle<Object> CompareAndSwapDataValue(DirectHandle<Object> expected,
                                                DirectHandle<Object> value,
                                                SeqCstAccessTag tag);
-  inline void UpdateProtector();
+  inline void UpdateProtector(MaybeDirectHandle<Object> value = {},
+                              MaybeDirectHandle<Object> old_value = {});
   static inline void UpdateProtector(Isolate* isolate,
                                      DirectHandle<JSAny> receiver,
-                                     DirectHandle<Name> name);
+                                     DirectHandle<Name> name,
+                                     MaybeDirectHandle<Object> value = {},
+                                     MaybeDirectHandle<Object> old_value = {});
 
   // Lookup a 'cached' private property for an accessor.
   // If not found returns false and leaves the LookupIterator unmodified.
@@ -292,7 +298,9 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   static void InternalUpdateProtector(Isolate* isolate,
                                       DirectHandle<JSAny> receiver,
-                                      DirectHandle<Name> name);
+                                      DirectHandle<Name> name,
+                                      MaybeDirectHandle<Object> value = {},
+                                      MaybeDirectHandle<Object> old_value = {});
 
   enum class InterceptorState {
     kUninitialized,
@@ -351,12 +359,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                                                    Configuration configuration,
                                                    DirectHandle<Name> name);
 
-  static MaybeDirectHandle<JSReceiver> GetRootForNonJSReceiver(
-      Isolate* isolate, DirectHandle<JSPrimitive> lookup_start_object,
-      size_t index, Configuration configuration);
-  static inline MaybeDirectHandle<JSReceiver> GetRoot(
-      Isolate* isolate, DirectHandle<JSAny> lookup_start_object, size_t index,
-      Configuration configuration);
+  Tagged<JSReceiver> GetRootForNonJSReceiver() const;
 
   State NotFound(Tagged<JSReceiver> const holder) const;
 

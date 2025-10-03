@@ -15,6 +15,7 @@
 #include "absl/log/die_if_null.h"
 
 #include "absl/base/config.h"
+#include "absl/base/nullability.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 
@@ -22,7 +23,8 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace log_internal {
 
-void DieBecauseNull(const char* file, int line, const char* exprtext) {
+void DieBecauseNull(const char* absl_nonnull file, int line,
+                    const char* absl_nonnull exprtext) {
   LOG(FATAL).AtLocation(file, line)
       << absl::StrCat("Check failed: '", exprtext, "' Must be non-null");
 }

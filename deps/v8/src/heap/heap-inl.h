@@ -19,6 +19,7 @@
 #include "src/common/code-memory-access-inl.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/isolate.h"
+#include "src/heap/code-range.h"
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
@@ -38,6 +39,7 @@
 #include "src/objects/slots-inl.h"
 #include "src/objects/visitors-inl.h"
 #include "src/roots/static-roots.h"
+#include "src/utils/allocation.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"
 
@@ -68,10 +70,12 @@ uint64_t Heap::external_memory() const { return external_memory_.total(); }
 
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 
-#define ROOT_ACCESSOR(Type, name, CamelName)                                   \
-  Tagged<Type> Heap::name() {                                                  \
-    return Cast<Type>(Tagged<Object>(roots_table()[RootIndex::k##CamelName])); \
+#define ROOT_ACCESSOR(Type, name, CamelName)                     \
+  Tagged<Type> Heap::name() {                                    \
+    return TrustedCast<Type>(                                    \
+        Tagged<Object>(roots_table()[RootIndex::k##CamelName])); \
   }
+
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
@@ -132,10 +136,19 @@ void Heap::SetFunctionsMarkedForManualOptimization(Tagged<Object> hash_table) {
       hash_table.ptr();
 }
 
+void Heap::SetSmiStringCache(Tagged<SmiStringCache> cache) {
+  set_smi_string_cache(cache);
+}
+
+void Heap::SetDoubleStringCache(Tagged<DoubleStringCache> cache) {
+  set_double_string_cache(cache);
+}
+
 #if V8_ENABLE_WEBASSEMBLY
-void Heap::SetWasmCanonicalRttsAndJSToWasmWrappers(
-    Tagged<WeakFixedArray> rtts, Tagged<WeakFixedArray> js_to_wasm_wrappers) {
+void Heap::SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts) {
   set_wasm_canonical_rtts(rtts);
+}
+void Heap::SetJSToWasmWrappers(Tagged<WeakFixedArray> js_to_wasm_wrappers) {
   set_js_to_wasm_wrappers(js_to_wasm_wrappers);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -147,26 +160,6 @@ PagedSpace* Heap::paged_space(int idx) const {
 }
 
 Space* Heap::space(int idx) const { return space_[idx].get(); }
-
-Address* Heap::NewSpaceAllocationTopAddress() {
-  return new_space_ || v8_flags.sticky_mark_bits
-             ? isolate()->isolate_data()->new_allocation_info_.top_address()
-             : nullptr;
-}
-
-Address* Heap::NewSpaceAllocationLimitAddress() {
-  return new_space_ || v8_flags.sticky_mark_bits
-             ? isolate()->isolate_data()->new_allocation_info_.limit_address()
-             : nullptr;
-}
-
-Address* Heap::OldSpaceAllocationTopAddress() {
-  return allocator()->old_space_allocator()->allocation_top_address();
-}
-
-Address* Heap::OldSpaceAllocationLimitAddress() {
-  return allocator()->old_space_allocator()->allocation_limit_address();
-}
 
 inline const base::AddressRegion& Heap::code_region() {
   static constexpr base::AddressRegion kEmptyRegion;
@@ -270,7 +263,11 @@ bool Heap::InOldSpace(Tagged<Object> object) {
 
 // static
 Heap* Heap::FromWritableHeapObject(Tagged<HeapObject> obj) {
-  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(obj);
+  // TODO(leszeks): It's probably not right to use the current Isolate to infer
+  // the current heap from an object, rather than reading the heap from the
+  // current isolate directly.
+  MemoryChunkMetadata* chunk =
+      MemoryChunkMetadata::FromHeapObject(Isolate::Current(), obj);
   // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
   // find a heap. The exception is when the ReadOnlySpace is writeable, during
   // bootstrapping, so explicitly allow this case.
@@ -280,9 +277,9 @@ Heap* Heap::FromWritableHeapObject(Tagged<HeapObject> obj) {
   return heap;
 }
 
-void Heap::CopyBlock(Address dst, Address src, int byte_size) {
+void Heap::CopyBlock(Address dst, Address src, size_t byte_size) {
   DCHECK(IsAligned(byte_size, kTaggedSize));
-  CopyTagged(dst, src, static_cast<size_t>(byte_size / kTaggedSize));
+  CopyTagged(dst, src, byte_size / kTaggedSize);
 }
 
 bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
@@ -291,7 +288,7 @@ bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   if (chunk->InReadOnlySpace()) return false;
 
-  BaseSpace* base_space = chunk->Metadata()->owner();
+  BaseSpace* base_space = chunk->Metadata(isolate())->owner();
   Address addr = object.address();
 
   switch (base_space->identity()) {
@@ -387,19 +384,6 @@ uint32_t Heap::GetNextTemplateSerialNumber() {
   DCHECK_NE(next_serial_number, TemplateInfo::kUninitializedSerialNumber);
   set_next_template_serial_number(Smi::FromInt(next_serial_number));
   return next_serial_number;
-}
-
-int Heap::MaxNumberToStringCacheSize() const {
-  // Compute the size of the number string cache based on the max newspace size.
-  // The number string cache has a minimum size based on twice the initial cache
-  // size to ensure that it is bigger after being made 'full size'.
-  size_t number_string_cache_size = max_semi_space_size_ / 512;
-  number_string_cache_size =
-      std::max(static_cast<size_t>(kInitialNumberStringCacheSize * 2),
-               std::min(static_cast<size_t>(0x4000), number_string_cache_size));
-  // There is a string and a number per entry so the length is twice the number
-  // of entries.
-  return static_cast<int>(number_string_cache_size * 2);
 }
 
 void Heap::IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,

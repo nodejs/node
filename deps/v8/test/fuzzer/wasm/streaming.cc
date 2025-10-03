@@ -11,8 +11,8 @@
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "test/common/wasm/fuzzer-common.h"
 #include "test/fuzzer/fuzzer-support.h"
-#include "test/fuzzer/wasm/fuzzer-common.h"
 
 namespace v8::internal::wasm::fuzzing {
 
@@ -140,7 +140,13 @@ CompilationResult CompileSync(Isolate* isolate,
         Object::ToString(isolate, error).ToHandleChecked();
     return CompilationResult::ForFailure(error_msg->ToCString().get());
   }
-  return CompilationResult::ForSuccess(module_object->module());
+  return CompilationResult::ForSuccess(
+      module_object->native_module()->module());
+}
+
+V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
+  v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
+  return 0;
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

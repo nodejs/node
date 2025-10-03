@@ -3,5 +3,17 @@
 // found in the LICENSE file.
 
 extern class Cell extends HeapObject {
-  value: Object;
+  maybe_value: MaybeObject;
+}
+
+// These strong accessors are for the cases when a Cell is known to contain
+// only Objects.
+operator '.value' macro LoadCellValue(cell: Cell): Object {
+  const value = cell.maybe_value;
+  dcheck(!IsWeakOrCleared(value));
+  return UnsafeCast<Object>(value);
+}
+
+operator '.value=' macro StoreCellValue(cell: Cell, value: Object): void {
+  cell.maybe_value = value;
 }

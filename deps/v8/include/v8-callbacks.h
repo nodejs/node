@@ -184,6 +184,7 @@ enum GCCallbackFlags {
   kGCCallbackFlagCollectAllAvailableGarbage = 1 << 4,
   kGCCallbackFlagCollectAllExternalMemory = 1 << 5,
   kGCCallbackScheduleIdleGarbageCollection = 1 << 6,
+  kGCCallbackFlagLastResort = 1 << 7,
 };
 
 using GCCallback = void (*)(GCType type, GCCallbackFlags flags);
@@ -321,15 +322,12 @@ using WasmAsyncResolvePromiseCallback = void (*)(
 using WasmLoadSourceMapCallback = Local<String> (*)(Isolate* isolate,
                                                     const char* name);
 
-// --- Callback for checking if WebAssembly imported strings are enabled ---
-using WasmImportedStringsEnabledCallback = bool (*)(Local<Context> context);
+// --- Callback for checking if WebAssembly Custom Descriptors are enabled ---
+using WasmCustomDescriptorsEnabledCallback = bool (*)(Local<Context> context);
 
 // --- Callback for checking if the SharedArrayBuffer constructor is enabled ---
 using SharedArrayBufferConstructorEnabledCallback =
     bool (*)(Local<Context> context);
-
-// --- Callback for checking if WebAssembly JSPI is enabled ---
-using WasmJSPIEnabledCallback = bool (*)(Local<Context> context);
 
 /**
  * Import phases in import requests.

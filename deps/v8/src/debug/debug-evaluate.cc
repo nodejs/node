@@ -267,7 +267,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       // blocklist.
       DirectHandle<ScopeInfo> function_scope_info(
           frame_inspector_.GetFunction()->shared()->scope_info(), isolate_);
-      DirectHandle<Object> block_list(
+      DirectHandle<UnionOf<TheHole, StringSet>> block_list(
           isolate_->LocalsBlockListCacheGet(function_scope_info), isolate_);
       CHECK(IsStringSet(*block_list));
       isolate_->LocalsBlockListCacheSet(scope_info, Handle<ScopeInfo>::null(),
@@ -478,6 +478,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kCreateBlockContext:
     case Bytecode::kCreateCatchContext:
     case Bytecode::kCreateFunctionContext:
+    case Bytecode::kCreateFunctionContextWithCells:
     case Bytecode::kCreateEvalContext:
     case Bytecode::kCreateWithContext:
     // Literals.
@@ -578,6 +579,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kArrayPrototypeFlat:
     case Builtin::kArrayPrototypeFlatMap:
     case Builtin::kArrayPrototypeJoin:
+    case Builtin::kArrayPrototypeJoinImpl:
     case Builtin::kArrayPrototypeKeys:
     case Builtin::kArrayPrototypeLastIndexOf:
     case Builtin::kArrayPrototypeSlice:
@@ -652,7 +654,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kDataViewPrototypeGetFloat64:
     case Builtin::kDataViewPrototypeGetBigInt64:
     case Builtin::kDataViewPrototypeGetBigUint64:
-    // Boolean bulitins.
+    // Boolean builtins.
     case Builtin::kBooleanConstructor:
     case Builtin::kBooleanPrototypeToString:
     case Builtin::kBooleanPrototypeValueOf:
@@ -867,6 +869,12 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kFastFunctionPrototypeBind:
     case Builtin::kFunctionPrototypeCall:
     case Builtin::kFunctionPrototypeApply:
+#ifndef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
+    case Builtin::kFunctionPrototypeLegacyArgumentsGetter:
+    case Builtin::kFunctionPrototypeLegacyArgumentsSetter:
+    case Builtin::kFunctionPrototypeLegacyCallerGetter:
+    case Builtin::kFunctionPrototypeLegacyCallerSetter:
+#endif  // !V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
     // Error builtins.
     case Builtin::kErrorConstructor:
     // RegExp builtins.
@@ -1046,8 +1054,11 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
       return DebugInfo::kRequiresRuntimeChecks;
 
     // Debugging builtins.
+    case Builtin::kDebugPrintWord32:
+    case Builtin::kDebugPrintWord64:
+    case Builtin::kDebugPrintFloat32:
     case Builtin::kDebugPrintFloat64:
-    case Builtin::kDebugPrintWordPtr:
+    case Builtin::kDebugPrintObject:
       return DebugInfo::kHasNoSideEffect;
 
     default:
@@ -1068,6 +1079,7 @@ bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
     case Bytecode::kStaInArrayLiteral:
     case Bytecode::kDefineKeyedOwnPropertyInLiteral:
     case Bytecode::kStaCurrentContextSlotNoCell:
+    case Bytecode::kForOfNext:
       return true;
     default:
       return interpreter::Bytecodes::IsCallRuntime(bytecode);
@@ -1175,7 +1187,6 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kCEntry_Return1_ArgvOnStack_BuiltinExit:
     case Builtin::kCEntry_Return1_ArgvInRegister_NoBuiltinExit:
     case Builtin::kCEntry_Return2_ArgvOnStack_NoBuiltinExit:
-    case Builtin::kCEntry_Return2_ArgvOnStack_BuiltinExit:
     case Builtin::kCEntry_Return2_ArgvInRegister_NoBuiltinExit:
     case Builtin::kWasmCEntry:
     case Builtin::kCloneFastJSArray:
@@ -1253,6 +1264,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kJoinStackPush:
       switch (caller) {
         case Builtin::kArrayPrototypeJoin:
+        case Builtin::kArrayPrototypeJoinImpl:
         case Builtin::kArrayPrototypeToLocaleString:
         case Builtin::kTypedArrayPrototypeJoin:
         case Builtin::kTypedArrayPrototypeToLocaleString:
@@ -1284,6 +1296,19 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
         default:
           return false;
       }
+    case Builtin::kCallWrappedFunction:
+    case Builtin::kCallBoundFunction:
+    case Builtin::kCallProxy:
+    case Builtin::kCallFunction_ReceiverIsAny:
+    case Builtin::kCallFunction_ReceiverIsNotNullOrUndefined:
+      switch (caller) {
+        case Builtin::kFunctionPrototypeCall:
+        case Builtin::kFunctionPrototypeApply:
+          return true;
+        default:
+          return false;
+      }
+
     case Builtin::kRegExpMatchFast:
       // This is not a problem. We force String.prototype.match to take the
       // slow path so that this call is not made.

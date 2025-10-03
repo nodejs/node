@@ -121,7 +121,8 @@ Tagged<Object> ConstructBuffer(Isolate* isolate,
   DirectHandle<JSObject> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSObject::New(target, new_target, {}, NewJSObjectType::kAPIWrapper));
+      JSObject::New(target, new_target, {},
+                    NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper));
   auto array_buffer = Cast<JSArrayBuffer>(result);
   const bool backing_store_creation_failed = !backing_store;
   array_buffer->Setup(shared, resizable, std::move(backing_store), isolate);
@@ -227,8 +228,8 @@ static Tagged<Object> SliceHelper(BuiltinArguments args, Isolate* isolate,
 
   // * Let relativeStart be ? ToInteger(start).
   double relative_start;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, relative_start, Object::IntegerValue(isolate, start));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, relative_start,
+                                     Object::IntegerValue(isolate, start));
 
   // * If relativeStart < 0, let first be max((len + relativeStart), 0); else
   //   let first be min(relativeStart, len).
@@ -242,8 +243,8 @@ static Tagged<Object> SliceHelper(BuiltinArguments args, Isolate* isolate,
   if (IsUndefined(*end, isolate)) {
     relative_end = len;
   } else {
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, relative_end, Object::IntegerValue(isolate, end));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, relative_end,
+                                       Object::IntegerValue(isolate, end));
   }
 
   // * If relativeEnd < 0, let final be max((len + relativeEnd), 0); else let

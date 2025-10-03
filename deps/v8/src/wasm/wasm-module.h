@@ -15,13 +15,10 @@
 
 #include "src/base/platform/mutex.h"
 #include "src/base/vector.h"
-#include "src/codegen/signature.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/branch-hint-map.h"
 #include "src/wasm/constant-expression.h"
-#include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-init-expr.h"
 #include "src/wasm/wasm-limits.h"
@@ -42,6 +39,12 @@ class WasmInterpreterRuntime;
 #endif  // V8_ENABLE_DRUMBRAKE
 class WellKnownImportsList;
 class TypeCanonicalizer;
+class ArrayType;
+class CanonicalArrayType;
+class ContType;
+class CanonicalContType;
+class CanonicalStructType;
+class StructType;
 
 enum class AddressType : uint8_t { kI32, kI64 };
 
@@ -101,6 +104,7 @@ struct WasmGlobal {
   bool shared = false;
   bool imported = false;
   bool exported = false;
+  bool initializer_ends_with_struct_new = false;
 };
 
 // Note: An exception tag signature only uses the params portion of a function
@@ -160,34 +164,8 @@ struct WasmMemory {
   bool is_memory64() const { return address_type == AddressType::kI64; }
 };
 
-inline void UpdateComputedInformation(WasmMemory* memory, ModuleOrigin origin) {
-  const uintptr_t platform_max_pages =
-      memory->is_memory64() ? wasm::max_mem64_pages() : wasm::max_mem32_pages();
-  memory->min_memory_size = static_cast<uintptr_t>(std::min<uint64_t>(
-                                platform_max_pages, memory->initial_pages)) *
-                            kWasmPageSize;
-  memory->max_memory_size = static_cast<uintptr_t>(std::min<uint64_t>(
-                                platform_max_pages, memory->maximum_pages)) *
-                            kWasmPageSize;
-
-  if (!v8_flags.wasm_bounds_checks) {
-    memory->bounds_checks = kNoBoundsChecks;
-  } else if (v8_flags.wasm_enforce_bounds_checks) {
-    // Explicit bounds checks requested via flag (for testing).
-    memory->bounds_checks = kExplicitBoundsChecks;
-  } else if (origin != kWasmOrigin) {
-    // Asm.js modules can't use trap handling.
-    memory->bounds_checks = kExplicitBoundsChecks;
-  } else if (memory->is_memory64() && !v8_flags.wasm_memory64_trap_handling) {
-    memory->bounds_checks = kExplicitBoundsChecks;
-  } else if (trap_handler::IsTrapHandlerEnabled()) {
-    if constexpr (kSystemPointerSize == 4) UNREACHABLE();
-    memory->bounds_checks = kTrapHandler;
-  } else {
-    // If the trap handler is not enabled, fall back to explicit bounds checks.
-    memory->bounds_checks = kExplicitBoundsChecks;
-  }
-}
+V8_EXPORT void UpdateComputedInformation(WasmMemory* memory,
+                                         ModuleOrigin origin);
 
 // Static representation of a wasm literal stringref.
 struct WasmStringRefLiteral {
@@ -292,26 +270,6 @@ struct WasmExport {
   WireBytesRef name;          // exported name.
   ImportExportKindCode kind;  // kind of the export.
   uint32_t index = 0;         // index into the respective space.
-};
-
-enum class WasmCompilationHintStrategy : uint8_t {
-  kDefault = 0,
-  kLazy = 1,
-  kEager = 2,
-  kLazyBaselineEagerTopTier = 3,
-};
-
-enum class WasmCompilationHintTier : uint8_t {
-  kDefault = 0,
-  kBaseline = 1,
-  kOptimized = 2,
-};
-
-// Static representation of a wasm compilation hint
-struct WasmCompilationHint {
-  WasmCompilationHintStrategy strategy;
-  WasmCompilationHintTier baseline_tier;
-  WasmCompilationHintTier top_tier;
 };
 
 #define SELECT_WASM_COUNTER(counters, origin, prefix, suffix)     \
@@ -444,10 +402,6 @@ class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
   std::unique_ptr<AsmJsOffsets> decoded_offsets_;
 };
 
-// Used as the supertype for a type at the top of the type hierarchy.
-constexpr ModuleTypeIndex kNoSuperType = ModuleTypeIndex::Invalid();
-constexpr ModuleTypeIndex kNoType = ModuleTypeIndex::Invalid();
-
 struct TypeDefinition {
   enum Kind : int8_t {
     kFunction = static_cast<int8_t>(RefTypeKind::kFunction),
@@ -489,19 +443,6 @@ struct TypeDefinition {
         is_shared(is_shared) {}
 
   constexpr TypeDefinition() = default;
-
-  bool operator==(const TypeDefinition& other) const {
-    if (supertype != other.supertype) return false;
-    if (kind != other.kind) return false;
-    if (is_final != other.is_final) return false;
-    if (is_shared != other.is_shared) return false;
-    if (descriptor != other.descriptor) return false;
-    if (describes != other.describes) return false;
-    if (kind == kFunction) return *function_sig == *other.function_sig;
-    if (kind == kStruct) return *struct_type == *other.struct_type;
-    DCHECK_EQ(kArray, kind);
-    return *array_type == *other.array_type;
-  }
 
   bool has_descriptor() const { return descriptor.valid(); }
   bool is_descriptor() const { return describes.valid(); }
@@ -701,6 +642,33 @@ struct WasmTable {
   bool is_table64() const { return address_type == AddressType::kI64; }
 };
 
+struct CompilationPriority {
+  uint32_t compilation_priority;
+  int optimization_priority;
+};
+using CompilationPriorities = std::unordered_map<uint32_t, CompilationPriority>;
+struct Uint32PairHash {
+  size_t operator()(const std::pair<uint32_t, uint32_t> pair) const {
+    return base::hash_value(pair);
+  }
+};
+// Maps from function index and byte offset in the function to frequency.
+using InstructionFrequencies =
+    std::unordered_map<std::pair<uint32_t, uint32_t>, uint8_t, Uint32PairHash>;
+struct CallTarget {
+  uint32_t function_index;
+  uint32_t call_frequency_percent;
+
+  bool operator==(const CallTarget& other) const {
+    return function_index == other.function_index &&
+           call_frequency_percent == other.call_frequency_percent;
+  }
+};
+using CallTargetVector = base::SmallVector<CallTarget, 4>;
+// Maps from function index and byte offset to a SmallVector of call targets.
+using CallTargets = std::unordered_map<std::pair<uint32_t, uint32_t>,
+                                       CallTargetVector, Uint32PairHash>;
+
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
   // ================ Fields ===================================================
@@ -737,6 +705,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // Position and size of the name section (payload only, i.e. without section
   // ID and length).
   WireBytesRef name_section = {0, 0};
+  // Position and size of the descriptors section.
+  WireBytesRef descriptors_section = {0, 0};
   // Set by the singleton TypeNamesProvider to avoid duplicate work.
   mutable std::atomic<bool> canonical_typenames_decoded = false;
   // Set to true if this module has wasm-gc types in its type section.
@@ -758,8 +728,10 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmTag> tags;
   std::vector<WasmStringRefLiteral> stringref_literals;
   std::vector<WasmElemSegment> elem_segments;
-  std::vector<WasmCompilationHint> compilation_hints;
   BranchHintInfo branch_hints;
+  CompilationPriorities compilation_priorities;
+  InstructionFrequencies instruction_frequencies;
+  CallTargets call_targets;
   // Pairs of module offsets and mark id.
   std::vector<std::pair<uint32_t, uint32_t>> inst_traces;
 
@@ -886,9 +858,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   CanonicalTypeIndex canonical_sig_id(ModuleTypeIndex index) const {
     DCHECK(has_signature(index));
-    size_t num_types = isorecursive_canonical_type_ids.size();
-    V8_ASSUME(index.index < num_types);
-    return isorecursive_canonical_type_ids[index.index];
+    return canonical_type_id(index);
   }
 
   uint64_t signature_hash(const TypeCanonicalizer*,
@@ -981,6 +951,13 @@ struct V8_EXPORT_PRIVATE WasmModule {
     return base::VectorOf(functions) + num_imported_functions;
   }
 
+  std::optional<CompilationPriority> GetCompilationPriority(
+      uint32_t func_index) const {
+    auto iterator = compilation_priorities.find(func_index);
+    if (iterator == compilation_priorities.end()) return {};
+    return iterator->second;
+  }
+
 #if V8_ENABLE_DRUMBRAKE
   void SetWasmInterpreter(
       std::shared_ptr<WasmInterpreterRuntime> interpreter) const {
@@ -1045,7 +1022,7 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
 
   // Checks the given reference is contained within the module bytes.
   bool BoundsCheck(WireBytesRef ref) const {
-    uint32_t size = static_cast<uint32_t>(module_bytes_.length());
+    size_t size = module_bytes_.size();
     return ref.offset() <= size && ref.length() <= size - ref.offset();
   }
 
@@ -1058,7 +1035,7 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
   base::Vector<const uint8_t> module_bytes() const { return module_bytes_; }
   const uint8_t* start() const { return module_bytes_.begin(); }
   const uint8_t* end() const { return module_bytes_.end(); }
-  size_t length() const { return module_bytes_.length(); }
+  size_t length() const { return module_bytes_.size(); }
 
  private:
   base::Vector<const uint8_t> module_bytes_;

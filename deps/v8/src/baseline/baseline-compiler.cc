@@ -321,6 +321,10 @@ void BaselineCompiler::GenerateCode() {
   DCHECK_EQ(__ pc_offset(), 0);
   __ CodeEntry();
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  __ AssertInSandboxedExecutionMode();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   {
     RCS_BASELINE_SCOPE(Visit);
     Prologue();
@@ -777,6 +781,8 @@ void BaselineCompiler::VisitLdaContextSlot() {
       context, index, depth,
       BaselineAssembler::CompressionMode::kForceDecompression);
   __ JumpIfSmi(kInterpreterAccumulatorRegister, &done);
+  __ JumpIfRoot(kInterpreterAccumulatorRegister, RootIndex::kTheHoleValue,
+                &done);
   __ JumpIfObjectTypeFast(kNotEqual, kInterpreterAccumulatorRegister,
                           CONTEXT_CELL_TYPE, &done, Label::kNear);
   // TODO(victorgomes): inline trivial constant value read from context cell.
@@ -808,6 +814,8 @@ void BaselineCompiler::VisitLdaCurrentContextSlot() {
   __ LoadTaggedField(kInterpreterAccumulatorRegister, context,
                      Context::OffsetOfElementAt(index));
   __ JumpIfSmi(kInterpreterAccumulatorRegister, &done);
+  __ JumpIfRoot(kInterpreterAccumulatorRegister, RootIndex::kTheHoleValue,
+                &done);
   __ JumpIfObjectTypeFast(kNotEqual, kInterpreterAccumulatorRegister,
                           CONTEXT_CELL_TYPE, &done, Label::kNear);
   // TODO(victorgomes): inline trivial constant value read from context cell.
@@ -1006,6 +1014,25 @@ void BaselineCompiler::VisitStaModuleVariable() {
   __ StaModuleVariable(scratch, value, cell_index, depth);
 }
 
+void BaselineCompiler::VisitSetPrototypeProperties() {
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register feedback_array = scratch_scope.AcquireScratch();
+  LoadClosureFeedbackArray(feedback_array);
+
+  CallRuntime(Runtime::kSetPrototypeProperties,
+              // The object upon whose prototype boilerplate shall be applied
+              kInterpreterAccumulatorRegister,
+              // ObjectBoilerplateDescription whose properties will be merged in
+              // to the above object
+              Constant<ObjectBoilerplateDescription>(0),
+              // Array of feedback cells. Needed to instantiate
+              // ShareFunctionInfo(s) from the boilerplate
+              feedback_array,
+              // Index of the feedback cell of the first ShareFunctionInfo. We
+              // may assume all other SFI to be tightly packed.
+              IndexAsSmi(1));
+}
+
 void BaselineCompiler::VisitSetNamedProperty() {
   // StoreIC is currently a base class for multiple property store operations
   // and contains mixed logic for named and keyed, set and define operations,
@@ -1076,9 +1103,23 @@ void BaselineCompiler::VisitAdd() {
       RegisterOperand(0), kInterpreterAccumulatorRegister, Index(1));
 }
 
-void BaselineCompiler::VisitAdd_LhsIsStringConstant_Internalize() {
-  CallBuiltin<Builtin::kAdd_LhsIsStringConstant_Internalize_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister, Index(1));
+void BaselineCompiler::VisitAdd_StringConstant_Internalize() {
+  using ASVariant = AddStringConstantAndInternalizeVariant;
+  uint8_t flags = Flag8(2);
+  const ASVariant as_variant = static_cast<ASVariant>(flags);
+  DCHECK(as_variant == ASVariant::kLhsIsStringConstant ||
+         as_variant == ASVariant::kRhsIsStringConstant);
+  static constexpr auto kTargetL =
+      Builtin::kAdd_LhsIsStringConstant_Internalize_Baseline;
+  static constexpr auto kTargetR =
+      Builtin::kAdd_RhsIsStringConstant_Internalize_Baseline;
+  if (as_variant == ASVariant::kLhsIsStringConstant) {
+    CallBuiltin<kTargetL>(RegisterOperand(0), kInterpreterAccumulatorRegister,
+                          Index(1));
+  } else {
+    CallBuiltin<kTargetR>(RegisterOperand(0), kInterpreterAccumulatorRegister,
+                          Index(1));
+  }
 }
 
 void BaselineCompiler::VisitSub() {
@@ -1990,6 +2031,15 @@ void BaselineCompiler::VisitCreateFunctionContext() {
   CallBuiltin<Builtin::kFastNewFunctionContextFunction>(info, slot_count);
 }
 
+void BaselineCompiler::VisitCreateFunctionContextWithCells() {
+  Handle<ScopeInfo> info = Constant<ScopeInfo>(0);
+  uint32_t slot_count = Uint(1);
+  DCHECK_LE(slot_count, ConstructorBuiltins::MaximumFunctionContextSlots());
+  DCHECK_EQ(info->scope_type(), ScopeType::FUNCTION_SCOPE);
+  CallBuiltin<Builtin::kFastNewFunctionContextFunctionWithCells>(info,
+                                                                 slot_count);
+}
+
 void BaselineCompiler::VisitCreateEvalContext() {
   Handle<ScopeInfo> info = Constant<ScopeInfo>(0);
   uint32_t slot_count = Uint(1);
@@ -2414,6 +2464,13 @@ void BaselineCompiler::VisitResumeGenerator() {
   CallBuiltin<Builtin::kResumeGeneratorBaseline>(
       generator_object,
       static_cast<int>(RegisterCount(2)));  // register_count
+}
+
+void BaselineCompiler::VisitForOfNext() {
+  SaveAccumulatorScope accumulator_scope(this, &basm_);
+  CallBuiltin<Builtin::kForOfNextBaseline>(RegisterOperand(0),   // object
+                                           RegisterOperand(1));  // next
+  StoreRegisterPair(2, kReturnRegister0, kReturnRegister1);
 }
 
 void BaselineCompiler::VisitGetIterator() {

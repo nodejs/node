@@ -724,7 +724,7 @@ struct type_sew_t<128> {
   CHECK(rvv_vsew() >= E8 && rvv_vsew() <= E64);                 \
   for (reg_t i = rvv_vstart(); i < rvv_vl(); ++i) {             \
     RVV_VI_LOOP_MASK_SKIP();                                    \
-    uint64_t mmask = uint64_t(1) << mpos;                       \
+    uint64_t mmask = static_cast<uint64_t>(1) << mpos;          \
     uint64_t& vdi = Rvvelt<uint64_t>(rvv_vd_reg(), midx, true); \
     uint64_t res = 0;
 
@@ -1114,7 +1114,7 @@ struct type_sew_t<128> {
 #define RVV_VI_VFP_LOOP_CMP_BASE                                \
   for (reg_t i = rvv_vstart(); i < rvv_vl(); ++i) {             \
     RVV_VI_LOOP_MASK_SKIP();                                    \
-    uint64_t mmask = uint64_t(1) << mpos;                       \
+    uint64_t mmask = static_cast<uint64_t>(1) << mpos;          \
     uint64_t& vdi = Rvvelt<uint64_t>(rvv_vd_reg(), midx, true); \
     uint64_t res = 0;
 
@@ -1279,16 +1279,15 @@ struct type_sew_t<128> {
   const reg_t nf = rvv_nf() + 1;                                               \
   const reg_t vl = is_mask_ldst ? ((rvv_vl() + 7) / 8) : rvv_vl();             \
   const int64_t baseAddr = rs1();                                              \
+  if (!ProbeMemory(baseAddr, vl * sizeof(elt_width##_t))) {                    \
+    return true;                                                               \
+  }                                                                            \
   for (reg_t i = 0; i < vl; ++i) {                                             \
     VI_ELEMENT_SKIP(i);                                                        \
     VI_STRIP(i);                                                               \
     set_rvv_vstart(i);                                                         \
     for (reg_t fn = 0; fn < nf; ++fn) {                                        \
       auto addr = baseAddr + (stride) + (offset) * sizeof(elt_width##_t);      \
-      if (!ProbeMemory(addr, sizeof(elt_width##_t))) {                         \
-        set_rvv_vstart(0);                                                     \
-        return true;                                                           \
-      }                                                                        \
       auto val = ReadMem<elt_width##_t>(addr, instr_.instr());                 \
       type_sew_t<sizeof(elt_width##_t) * 8>::type& vd =                        \
           Rvvelt<type_sew_t<sizeof(elt_width##_t) * 8>::type>(rvv_vd_reg(),    \
@@ -1298,29 +1297,26 @@ struct type_sew_t<128> {
   }                                                                            \
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
-    __int128_t value = Vregister_[rvv_vd_reg()];                               \
-    SNPrintF(trace_buf_,                                                       \
-             "%016" PRIx64 "%016" PRIx64 "    (%" PRId64 ")    vlen:%" PRId64  \
-             " <-- [addr: %" REGIx_FORMAT "]",                                 \
-             *(reinterpret_cast<int64_t*>(&value) + 1),                        \
-             *reinterpret_cast<int64_t*>(&value), icount_, rvv_vlen(),         \
-             (sreg_t)(get_register(rs1_reg())));                               \
+    int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
+    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.length()),          \
+             "    (%" PRId64 ")    vlen:%" PRId64 " <-- [addr: %" REGIx_FORMAT \
+             "]",                                                              \
+             icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));          \
   }
 
 #define RVV_VI_ST(stride, offset, elt_width, is_mask_ldst)                     \
   const reg_t nf = rvv_nf() + 1;                                               \
   const reg_t vl = is_mask_ldst ? ((rvv_vl() + 7) / 8) : rvv_vl();             \
   const int64_t baseAddr = rs1();                                              \
+  if (!ProbeMemory(baseAddr, vl * sizeof(elt_width##_t))) {                    \
+    return true;                                                               \
+  }                                                                            \
   for (reg_t i = 0; i < vl; ++i) {                                             \
     VI_STRIP(i)                                                                \
     VI_ELEMENT_SKIP(i);                                                        \
     set_rvv_vstart(i);                                                         \
     for (reg_t fn = 0; fn < nf; ++fn) {                                        \
       auto addr = baseAddr + (stride) + (offset) * sizeof(elt_width##_t);      \
-      if (!ProbeMemory(addr, sizeof(elt_width##_t))) {                         \
-        set_rvv_vstart(0);                                                     \
-        return true;                                                           \
-      }                                                                        \
       elt_width##_t vs1 = Rvvelt<type_sew_t<sizeof(elt_width##_t) * 8>::type>( \
           rvv_vs3_reg(), vreg_inx);                                            \
       WriteMem(addr, vs1, instr_.instr());                                     \
@@ -1328,13 +1324,11 @@ struct type_sew_t<128> {
   }                                                                            \
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
-    __int128_t value = Vregister_[rvv_vd_reg()];                               \
-    SNPrintF(trace_buf_,                                                       \
-             "%016" PRIx64 "%016" PRIx64 "    (%" PRId64 ")    vlen:%" PRId64  \
-             " --> [addr: %" REGIx_FORMAT "]",                                 \
-             *(reinterpret_cast<int64_t*>(&value) + 1),                        \
-             *reinterpret_cast<int64_t*>(&value), icount_, rvv_vlen(),         \
-             (sreg_t)(get_register(rs1_reg())));                               \
+    int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
+    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.length()),          \
+             "    (%" PRId64 ")    vlen:%" PRId64 " --> [addr: %" REGIx_FORMAT \
+             "]",                                                              \
+             icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));          \
   }
 
 #define VI_VFP_LOOP_SCALE_BASE                      \
@@ -1622,7 +1616,7 @@ class RiscvDebugger {
   float GetFPURegisterValueFloat(int regnum);
   double GetFPURegisterValueDouble(int regnum);
 #ifdef CAN_USE_RVV_INSTRUCTIONS
-  __int128_t GetVRegisterValue(int regnum);
+  VRegisterValue GetVRegisterValue(int regnum);
 #endif
   bool GetValue(const char* desc, sreg_t* value);
 };
@@ -1670,12 +1664,8 @@ double RiscvDebugger::GetFPURegisterValueDouble(int regnum) {
 }
 
 #ifdef CAN_USE_RVV_INSTRUCTIONS
-__int128_t RiscvDebugger::GetVRegisterValue(int regnum) {
-  if (regnum == kNumVRegisters) {
-    return sim_->get_pc();
-  } else {
-    return sim_->get_vregister(regnum);
-  }
+VRegisterValue RiscvDebugger::GetVRegisterValue(int regnum) {
+  return sim_->get_vregister(regnum);
 }
 #endif
 
@@ -1864,10 +1854,15 @@ void RiscvDebugger::Debug() {
                      FPURegisters::Name(fpuregnum), fvalue, dvalue);
 #ifdef CAN_USE_RVV_INSTRUCTIONS
             } else if (vregnum != kInvalidVRegister) {
-              __int128_t v = GetVRegisterValue(vregnum);
-              PrintF("\t%s:0x%016" PRIx64 "%016" PRIx64 "\n",
-                     VRegisters::Name(vregnum), (uint64_t)(v >> 64),
-                     (uint64_t)v);
+              VRegisterValue value = GetVRegisterValue(vregnum);
+              PrintF("\t%s:0x", VRegisters::Name(vregnum));
+              for (int i = VRegisterValue::kChunks - 1; i >= 0; i--) {
+                const char* format = i != VRegisterValue::kChunks - 1
+                                         ? "_%016" PRIx64
+                                         : "%016" PRIx64;
+                PrintF(format, value.chunks[i]);
+              }
+              PrintF("\n");
 #endif
             } else {
               PrintF("%s unrecognized\n", arg1);
@@ -2423,7 +2418,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate), builtins_(isolate) {
   last_debugger_input_ = nullptr;
 #ifdef CAN_USE_RVV_INSTRUCTIONS
   for (int i = 0; i < kNumVRegisters; ++i) {
-    Vregister_[i] = 0;
+    Vregister_[i] = {0};
   }
   vxrm_ = 0;
   vstart_ = 0;
@@ -2574,7 +2569,6 @@ Float32 Simulator::get_fpu_register_Float32(int fpureg,
                                             bool check_nanbox) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   if (check_nanbox && !is_boxed_float(FPUregisters_[fpureg])) {
-    std::cout << std::hex << FPUregisters_[fpureg] << std::endl;
     return Float32::FromBits(0x7fc00000);
   }
   return Float32::FromBits(FPUregisters_[fpureg] & 0xFFFF'FFFF);
@@ -2591,7 +2585,7 @@ Float64 Simulator::get_fpu_register_Float64(int fpureg) const {
 }
 
 #ifdef CAN_USE_RVV_INSTRUCTIONS
-__int128_t Simulator::get_vregister(int vreg) const {
+VRegisterValue Simulator::get_vregister(int vreg) const {
   DCHECK((vreg >= 0) && (vreg < kNumVRegisters));
   return Vregister_[vreg];
 }
@@ -2829,7 +2823,7 @@ void Simulator::TraceRegWr(T value, TraceType t) {
 template <typename T>
 void Simulator::TraceMemRd(sreg_t addr, T value, sreg_t reg_value) {
   if (v8_flags.trace_sim) {
-    if (std::is_integral<T>::value) {
+    if (std::is_integral_v<T>) {
       switch (sizeof(T)) {
         case 1:
           SNPrintF(trace_buf_,
@@ -2862,12 +2856,12 @@ void Simulator::TraceMemRd(sreg_t addr, T value, sreg_t reg_value) {
         default:
           UNREACHABLE();
       }
-    } else if (std::is_same<float, T>::value) {
+    } else if (std::is_same_v<float, T>) {
       SNPrintF(trace_buf_,
                "%016" REGIx_FORMAT "    (%" PRId64
                ")    flt:%e <-- [addr: %" REGIx_FORMAT "]",
                reg_value, icount_, static_cast<float>(value), addr);
-    } else if (std::is_same<double, T>::value) {
+    } else if (std::is_same_v<double, T>) {
       SNPrintF(trace_buf_,
                "%016" REGIx_FORMAT "    (%" PRId64
                ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
@@ -2925,7 +2919,7 @@ void Simulator::TraceMemWr(sreg_t addr, T value) {
                  static_cast<uint16_t>(value), addr);
         break;
       case 4:
-        if (std::is_integral<T>::value) {
+        if (std::is_integral_v<T>) {
           SNPrintF(trace_buf_,
                    "                    (%" PRIu64 ")    int32:%" PRId32
                    " uint32:%" PRIu32 " --> [addr: %" REGIx_FORMAT "]",
@@ -2940,7 +2934,7 @@ void Simulator::TraceMemWr(sreg_t addr, T value) {
         }
         break;
       case 8:
-        if (std::is_integral<T>::value) {
+        if (std::is_integral_v<T>) {
           SNPrintF(trace_buf_,
                    "                    (%" PRIu64 ")    int64:%" PRId64
                    " uint64:%" PRIu64 " --> [addr: %" REGIx_FORMAT "]",
@@ -3028,7 +3022,7 @@ void Simulator::WriteMem(sreg_t addr, T value, Instruction* instr) {
   }
 #endif
   T* ptr = reinterpret_cast<T*>(addr);
-  if (!std::is_same<double, T>::value) {
+  if (!std::is_same_v<double, T>) {
     TraceMemWr(addr, value);
   } else {
     TraceMemWrDouble(addr, value);
@@ -3380,10 +3374,10 @@ void Simulator::SoftwareInterrupt() {
             break;
           case ExternalReference::BUILTIN_INT_FP_CALL:
             PrintF("Call to host function  %s at %p with args %f",
-                    ExternalReferenceTable::NameOfIsolateIndependentAddress(
+                   ExternalReferenceTable::NameOfIsolateIndependentAddress(
                        pc, IsolateGroup::current()->external_ref_table()),
-                    reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
-                    dval0);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0);
             break;
           default:
             UNREACHABLE();
@@ -3712,11 +3706,11 @@ void Simulator::DecodeRVRType() {
       break;
     }
     case RO_SLT: {
-      set_rd(sreg_t(rs1()) < sreg_t(rs2()));
+      set_rd(rs1() < rs2());
       break;
     }
     case RO_SLTU: {
-      set_rd(reg_t(rs1()) < reg_t(rs2()));
+      set_rd(static_cast<reg_t>(rs1()) < static_cast<reg_t>(rs2()));
       break;
     }
     case RO_XOR: {
@@ -3746,7 +3740,7 @@ void Simulator::DecodeRVRType() {
       set_rd(rs1() | (~rs2()));
       break;
     case RO_XNOR:
-      set_rd((~rs1()) ^ (~rs2()));
+      set_rd(~(rs1() ^ rs2()));
       break;
 #ifdef V8_TARGET_ARCH_RISCV64
     case RO_ADDW: {
@@ -3765,11 +3759,11 @@ void Simulator::DecodeRVRType() {
       break;
     }
     case RO_SRLW: {
-      set_rd(sext32(uint32_t(rs1()) >> (rs2() & 0x1F)));
+      set_rd(sext32(static_cast<uint32_t>(rs1()) >> (rs2() & 0x1F)));
       break;
     }
     case RO_SRAW: {
-      set_rd(sext32(int32_t(rs1()) >> (rs2() & 0x1F)));
+      set_rd(sext32(static_cast<int32_t>(rs1()) >> (rs2() & 0x1F)));
       break;
     }
     case RO_SH1ADDUW: {
@@ -3921,25 +3915,29 @@ void Simulator::DecodeRVRType() {
       set_rd(rs1() < rs2() ? rs2() : rs1());
       break;
     case RO_MAXU:
-      set_rd(reg_t(rs1()) < reg_t(rs2()) ? rs2() : rs1());
+      set_rd(static_cast<reg_t>(rs1()) < static_cast<reg_t>(rs2()) ? rs2()
+                                                                   : rs1());
       break;
     case RO_MIN:
       set_rd(rs1() < rs2() ? rs1() : rs2());
       break;
     case RO_MINU:
-      set_rd(reg_t(rs1()) < reg_t(rs2()) ? rs1() : rs2());
+      set_rd(static_cast<reg_t>(rs1()) < static_cast<reg_t>(rs2()) ? rs1()
+                                                                   : rs2());
       break;
     case RO_ZEXTH:
-      set_rd(zext_xlen(uint16_t(rs1())));
+      set_rd(zext_xlen(static_cast<uint16_t>(rs1())));
       break;
     case RO_ROL: {
       sreg_t shamt = rs2() & (xlen - 1);
-      set_rd((reg_t(rs1()) << shamt) | (reg_t(rs1()) >> (xlen - shamt)));
+      set_rd((static_cast<reg_t>(rs1()) << shamt) |
+             (static_cast<reg_t>(rs1()) >> (xlen - shamt)));
       break;
     }
     case RO_ROR: {
       sreg_t shamt = rs2() & (xlen - 1);
-      set_rd((reg_t(rs1()) >> shamt) | (reg_t(rs1()) << (xlen - shamt)));
+      set_rd((static_cast<reg_t>(rs1()) >> shamt) |
+             (static_cast<reg_t>(rs1()) << (xlen - shamt)));
       break;
     }
     case RO_BCLR: {
@@ -4072,10 +4070,9 @@ double Simulator::RoundF2FHelper(double input_val, int rmode) {
 // are out-of-range, underflow, or NaN, and set appropriate fflags
 template <typename I_TYPE, typename F_TYPE>
 I_TYPE Simulator::RoundF2IHelper(F_TYPE original, int rmode) {
-  DCHECK(std::is_integral<I_TYPE>::value);
+  DCHECK(std::is_integral_v<I_TYPE>);
 
-  DCHECK((std::is_same<F_TYPE, float>::value ||
-          std::is_same<F_TYPE, double>::value));
+  DCHECK((std::is_same_v<F_TYPE, float> || std::is_same_v<F_TYPE, double>));
 
   I_TYPE max_i = std::numeric_limits<I_TYPE>::max();
   I_TYPE min_i = std::numeric_limits<I_TYPE>::min();
@@ -4111,7 +4108,7 @@ I_TYPE Simulator::RoundF2IHelper(F_TYPE original, int rmode) {
   // point is within the max range, we compare against (max_i+1) which would
   // have a single 1 w/ many trailing zeros
   float max_i_plus_1 =
-      std::is_same<uint64_t, I_TYPE>::value
+      std::is_same_v<uint64_t, I_TYPE>
           ? 0x1p64f  // uint64_t::max + 1 cannot be represented in integers,
                      // so use its float representation directly
           : static_cast<float>(static_cast<uint64_t>(max_i) + 1);
@@ -4127,8 +4124,7 @@ I_TYPE Simulator::RoundF2IHelper(F_TYPE original, int rmode) {
     return min_i;
   }
 
-  F_TYPE underflow_fval =
-      std::is_same<F_TYPE, float>::value ? FLT_MIN : DBL_MIN;
+  F_TYPE underflow_fval = std::is_same_v<F_TYPE, float> ? FLT_MIN : DBL_MIN;
   if (rounded < underflow_fval && rounded > -underflow_fval && rounded != 0) {
     set_fflags(kUnderflow);
   }
@@ -4158,7 +4154,7 @@ static int64_t FclassHelper(T value) {
 
 template <typename T>
 bool Simulator::CompareFHelper(T input1, T input2, FPUCondition cc) {
-  DCHECK(std::is_floating_point<T>::value);
+  DCHECK(std::is_floating_point_v<T>);
   bool result = false;
   switch (cc) {
     case LT:
@@ -4588,7 +4584,7 @@ void Simulator::DecodeRVRFPType() {
       }
       break;
     }
-    case RO_FMV: {  // RO_FCLASS_S
+    case RO_FMV_X_W: {  // RO_FCLASS_S
       switch (instr_.Funct3Value()) {
         case 0b000: {
           if (instr_.Rs2Value() == 0b00000) {
@@ -5161,14 +5157,14 @@ void Simulator::DecodeRVIType() {
     case RO_JALR: {
       set_rd(get_pc() + kInstrSize);
       // Note: No need to shift 2 for JALR's imm12, but set lowest bit to 0.
-      sreg_t next_pc = (rs1() + imm12()) & ~sreg_t(1);
+      sreg_t next_pc = (rs1() + imm12()) & ~static_cast<sreg_t>(1);
       set_pc(next_pc);
       if (v8_flags.trace_sim) {
-        Builtin builtin = LookUp((Address)get_pc());
+        Builtin builtin = LookUp(static_cast<Address>(get_pc()));
         if (builtin != Builtin::kNoBuiltinId) {
           auto code = builtins_.code(builtin);
           if ((rs1_reg() != ra || imm12() != 0)) {
-            if ((Address)get_pc() == code->instruction_start()) {
+            if (static_cast<Address>(get_pc()) == code->instruction_start()) {
               sreg_t arg0 = get_register(a0);
               sreg_t arg1 = get_register(a1);
               sreg_t arg2 = get_register(a2);
@@ -5262,11 +5258,11 @@ void Simulator::DecodeRVIType() {
       break;
     }
     case RO_SLTI: {
-      set_rd(sreg_t(rs1()) < sreg_t(imm12()));
+      set_rd(rs1() < static_cast<sreg_t>(imm12()));
       break;
     }
     case RO_SLTIU: {
-      set_rd(reg_t(rs1()) < reg_t(imm12()));
+      set_rd(static_cast<reg_t>(rs1()) < static_cast<reg_t>(imm12()));
       break;
     }
     case RO_XORI: {
@@ -5342,10 +5338,10 @@ void Simulator::DecodeRVIType() {
               break;
             }
             case 4:
-              set_rd(int8_t(rs1()));
+              set_rd(static_cast<int8_t>(rs1()));
               break;
             case 5:
-              set_rd(int16_t(rs1()));
+              set_rd(static_cast<int16_t>(rs1()));
               break;
             default:
               UNSUPPORTED_RISCV();
@@ -5392,7 +5388,8 @@ void Simulator::DecodeRVIType() {
 #else
           int16_t shamt = shamt5();
 #endif
-          set_rd((reg_t(rs1()) >> shamt) | (reg_t(rs1()) << (xlen - shamt)));
+          set_rd((static_cast<reg_t>(rs1()) >> shamt) |
+                 (static_cast<reg_t>(rs1()) << (xlen - shamt)));
           break;
         }
         case RO_REV8: {
@@ -5475,10 +5472,10 @@ void Simulator::DecodeRVIType() {
     case OP_SHRW: {  //  RO_SRAI
       switch (instr_.Funct7FieldRaw() | OP_SHRW) {
         case RO_SRLIW:
-          set_rd(sext32(uint32_t(rs1()) >> shamt5()));
+          set_rd(sext32(static_cast<uint32_t>(rs1()) >> shamt5()));
           break;
         case RO_SRAIW:
-          set_rd(sext32(int32_t(rs1()) >> shamt5()));
+          set_rd(sext32(static_cast<int32_t>(rs1()) >> shamt5()));
           break;
         case RO_RORIW: {
           reg_t extz_rs1 = zext32(rs1());
@@ -5503,6 +5500,15 @@ void Simulator::DecodeRVIType() {
         SoftwareInterrupt();
       } else {
         UNSUPPORTED();
+      }
+      break;
+    }
+    case RO_MOP: {
+      if ((instr_.InstructionBits() & kMopMask) == RO_MOP_R_N) {
+        set_rd(0);
+      } else {
+        CHECK((instr_.InstructionBits() & kMopMask) == RO_MOP_RR_N);
+        set_rd(0);
       }
       break;
     }
@@ -5802,6 +5808,7 @@ void Simulator::DecodeCIType() {
 #if V8_TARGET_ARCH_RISCV64
     case RO_C_LWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_lwsp();
+      if (!ProbeMemory(addr, sizeof(int32_t))) return;
       int64_t val = ReadMem<int32_t>(addr, instr_.instr());
       set_rvc_rd(sext_xlen(val), false);
       TraceMemRd(addr, val, get_register(rvc_rd_reg()));
@@ -5809,6 +5816,7 @@ void Simulator::DecodeCIType() {
     }
     case RO_C_LDSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_ldsp();
+      if (!ProbeMemory(addr, sizeof(int64_t))) return;
       int64_t val = ReadMem<int64_t>(addr, instr_.instr());
       set_rvc_rd(sext_xlen(val), false);
       TraceMemRd(addr, val, get_register(rvc_rd_reg()));
@@ -5817,6 +5825,7 @@ void Simulator::DecodeCIType() {
 #elif V8_TARGET_ARCH_RISCV32
     case RO_C_FLWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_ldsp();
+      if (!ProbeMemory(addr, sizeof(int32_t))) return;
       uint32_t val = ReadMem<uint32_t>(addr, instr_.instr());
       set_rvc_frd(Float32::FromBits(val), false);
       TraceMemRdFloat(addr, Float32::FromBits(val),
@@ -5825,6 +5834,7 @@ void Simulator::DecodeCIType() {
     }
     case RO_C_LWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_lwsp();
+      if (!ProbeMemory(addr, sizeof(int32_t))) return;
       int32_t val = ReadMem<int32_t>(addr, instr_.instr());
       set_rvc_rd(sext_xlen(val), false);
       TraceMemRd(addr, val, get_register(rvc_rd_reg()));
@@ -5884,6 +5894,7 @@ void Simulator::DecodeCLType() {
   switch (instr_.RvcOpcode()) {
     case RO_C_LW: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_w();
+      if (!ProbeMemory(addr, sizeof(int32_t))) return;
       int64_t val = ReadMem<int32_t>(addr, instr_.instr());
       set_rvc_rs2s(sext_xlen(val), false);
       TraceMemRd(addr, val, get_register(rvc_rs2s_reg()));
@@ -5891,6 +5902,7 @@ void Simulator::DecodeCLType() {
     }
     case RO_C_FLD: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_d();
+      if (!ProbeMemory(addr, sizeof(int64_t))) return;
       uint64_t val = ReadMem<uint64_t>(addr, instr_.instr());
       set_rvc_drs2s(Float64::FromBits(val), false);
       break;
@@ -5898,6 +5910,7 @@ void Simulator::DecodeCLType() {
 #if V8_TARGET_ARCH_RISCV64
     case RO_C_LD: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_d();
+      if (!ProbeMemory(addr, sizeof(int64_t))) return;
       int64_t val = ReadMem<int64_t>(addr, instr_.instr());
       set_rvc_rs2s(sext_xlen(val), false);
       TraceMemRd(addr, val, get_register(rvc_rs2s_reg()));
@@ -5906,6 +5919,7 @@ void Simulator::DecodeCLType() {
 #elif V8_TARGET_ARCH_RISCV32
     case RO_C_FLW: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_d();
+      if (!ProbeMemory(addr, sizeof(int32_t))) return;
       uint32_t val = ReadMem<uint32_t>(addr, instr_.instr());
       set_rvc_frs2s(Float32::FromBits(val), false);
       break;
@@ -5920,18 +5934,21 @@ void Simulator::DecodeCSType() {
   switch (instr_.RvcOpcode()) {
     case RO_C_SW: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_w();
+      if (!ProbeMemory(addr, sizeof(int32_t))) return;
       WriteMem<int32_t>(addr, (int32_t)rvc_rs2s(), instr_.instr());
       break;
     }
 #if V8_TARGET_ARCH_RISCV64
     case RO_C_SD: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_d();
+      if (!ProbeMemory(addr, sizeof(int64_t))) return;
       WriteMem<int64_t>(addr, (int64_t)rvc_rs2s(), instr_.instr());
       break;
     }
 #endif
     case RO_C_FSD: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_d();
+      if (!ProbeMemory(addr, sizeof(int64_t))) return;
       WriteMem<double>(addr, static_cast<double>(rvc_drs2s()), instr_.instr());
       break;
     }
@@ -5967,7 +5984,9 @@ void Simulator::DecodeCBType() {
       break;
     case RO_C_MISC_ALU:
       if (instr_.RvcFunct2BValue() == 0b00) {  // c.srli
-        set_rvc_rs1s(sext_xlen(sext_xlen(rvc_rs1s()) >> rvc_shamt6()));
+        // c.srli performs a logical right shift, so zero extension is needed
+        // instead of sign extension.
+        set_rvc_rs1s(sext_xlen(zext_xlen(rvc_rs1s()) >> rvc_shamt6()));
       } else if (instr_.RvcFunct2BValue() == 0b01) {  // c.srai
         require(rvc_shamt6() < xlen);
         set_rvc_rs1s(sext_xlen(sext_xlen(rvc_rs1s()) >> rvc_shamt6()));
@@ -6055,6 +6074,7 @@ T sat_subu(T x, T y, bool& sat) {
 #ifdef CAN_USE_RVV_INSTRUCTIONS
 void Simulator::DecodeRvvIVV() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_IVV);
+  DCHECK(vu_enabled_);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VADD_VV: {
       RVV_VI_VV_LOOP({ vd = vs1 + vs2; });
@@ -6358,6 +6378,7 @@ void Simulator::DecodeRvvIVV() {
 
 void Simulator::DecodeRvvIVI() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_IVI);
+  DCHECK(vu_enabled_);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VADD_VI: {
       RVV_VI_VI_LOOP({ vd = simm5 + vs2; })
@@ -6542,6 +6563,7 @@ void Simulator::DecodeRvvIVI() {
 
 void Simulator::DecodeRvvIVX() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_IVX);
+  DCHECK(vu_enabled_);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VADD_VX: {
       RVV_VI_VX_LOOP({ vd = rs1 + vs2; })
@@ -6806,6 +6828,7 @@ void Simulator::DecodeRvvIVX() {
 
 void Simulator::DecodeRvvMVV() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_MVV);
+  DCHECK(vu_enabled_);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VMUNARY0: {
       if (instr_.Vs1Value() == VID_V) {
@@ -7030,6 +7053,7 @@ void Simulator::DecodeRvvMVV() {
 
 void Simulator::DecodeRvvMVX() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_MVX);
+  DCHECK(vu_enabled_);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VRXUNARY0:
       // vmv.s.x
@@ -7138,6 +7162,7 @@ void Simulator::DecodeRvvMVX() {
 
 void Simulator::DecodeRvvFVV() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_FVV);
+  DCHECK(vu_enabled_);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VFDIV_VV: {
       RVV_VI_VFP_VV_LOOP(
@@ -7274,34 +7299,36 @@ void Simulator::DecodeRvvFVV() {
               })
           break;
         case VFCVT_F_XU_V:
-          RVV_VI_VFP_VF_LOOP({ UNIMPLEMENTED(); },
-                             {
-                               auto vs2_i = Rvvelt<uint32_t>(rvv_vs2_reg(), i);
-                               vd = static_cast<float>(vs2_i);
-                               USE(vs2);
-                               USE(fs1);
-                             },
-                             {
-                               auto vs2_i = Rvvelt<uint64_t>(rvv_vs2_reg(), i);
-                               vd = static_cast<double>(vs2_i);
-                               USE(vs2);
-                               USE(fs1);
-                             })
+          RVV_VI_VFP_VF_LOOP(
+              { UNIMPLEMENTED(); },
+              {
+                auto vs2_i = Rvvelt<uint32_t>(rvv_vs2_reg(), i);
+                vd = static_cast<float>(vs2_i);
+                USE(vs2);
+                USE(fs1);
+              },
+              {
+                auto vs2_i = Rvvelt<uint64_t>(rvv_vs2_reg(), i);
+                vd = static_cast<double>(vs2_i);
+                USE(vs2);
+                USE(fs1);
+              })
           break;
         case VFCVT_F_X_V:
-          RVV_VI_VFP_VF_LOOP({ UNIMPLEMENTED(); },
-                             {
-                               auto vs2_i = Rvvelt<int32_t>(rvv_vs2_reg(), i);
-                               vd = static_cast<float>(vs2_i);
-                               USE(vs2);
-                               USE(fs1);
-                             },
-                             {
-                               auto vs2_i = Rvvelt<int64_t>(rvv_vs2_reg(), i);
-                               vd = static_cast<double>(vs2_i);
-                               USE(vs2);
-                               USE(fs1);
-                             })
+          RVV_VI_VFP_VF_LOOP(
+              { UNIMPLEMENTED(); },
+              {
+                auto vs2_i = Rvvelt<int32_t>(rvv_vs2_reg(), i);
+                vd = static_cast<float>(vs2_i);
+                USE(vs2);
+                USE(fs1);
+              },
+              {
+                auto vs2_i = Rvvelt<int64_t>(rvv_vs2_reg(), i);
+                vd = static_cast<double>(vs2_i);
+                USE(vs2);
+                USE(fs1);
+              })
           break;
         case VFNCVT_F_F_W:
           RVV_VI_VFP_CVT_SCALE(
@@ -7336,59 +7363,64 @@ void Simulator::DecodeRvvFVV() {
               { ; }, { ; }, { ; }, false, (rvv_vsew() <= E32))
           break;
         case VFWCVT_F_X_V:
-          RVV_VI_VFP_CVT_SCALE({ UNREACHABLE(); },
-                               {
-                                 auto vs2 = Rvvelt<int16_t>(rvv_vs2_reg(), i);
-                                 Rvvelt<float32_t>(rvv_vd_reg(), i, true) =
-                                     static_cast<float>(vs2);
-                               },
-                               {
-                                 auto vs2 = Rvvelt<int32_t>(rvv_vs2_reg(), i);
-                                 Rvvelt<double>(rvv_vd_reg(), i, true) =
-                                     static_cast<double>(vs2);
-                               },
-                               { ; }, { ; }, { ; }, true, (rvv_vsew() >= E8))
+          RVV_VI_VFP_CVT_SCALE(
+              { UNREACHABLE(); },
+              {
+                auto vs2 = Rvvelt<int16_t>(rvv_vs2_reg(), i);
+                Rvvelt<float32_t>(rvv_vd_reg(), i, true) =
+                    static_cast<float>(vs2);
+              },
+              {
+                auto vs2 = Rvvelt<int32_t>(rvv_vs2_reg(), i);
+                Rvvelt<double>(rvv_vd_reg(), i, true) =
+                    static_cast<double>(vs2);
+              },
+              { ; }, { ; }, { ; }, true, (rvv_vsew() >= E8))
           break;
         case VFWCVT_F_XU_V:
-          RVV_VI_VFP_CVT_SCALE({ UNREACHABLE(); },
-                               {
-                                 auto vs2 = Rvvelt<uint16_t>(rvv_vs2_reg(), i);
-                                 Rvvelt<float32_t>(rvv_vd_reg(), i, true) =
-                                     static_cast<float>(vs2);
-                               },
-                               {
-                                 auto vs2 = Rvvelt<uint32_t>(rvv_vs2_reg(), i);
-                                 Rvvelt<double>(rvv_vd_reg(), i, true) =
-                                     static_cast<double>(vs2);
-                               },
-                               { ; }, { ; }, { ; }, true, (rvv_vsew() >= E8))
+          RVV_VI_VFP_CVT_SCALE(
+              { UNREACHABLE(); },
+              {
+                auto vs2 = Rvvelt<uint16_t>(rvv_vs2_reg(), i);
+                Rvvelt<float32_t>(rvv_vd_reg(), i, true) =
+                    static_cast<float>(vs2);
+              },
+              {
+                auto vs2 = Rvvelt<uint32_t>(rvv_vs2_reg(), i);
+                Rvvelt<double>(rvv_vd_reg(), i, true) =
+                    static_cast<double>(vs2);
+              },
+              { ; }, { ; }, { ; }, true, (rvv_vsew() >= E8))
           break;
         case VFWCVT_XU_F_V:
-          RVV_VI_VFP_CVT_SCALE({ UNREACHABLE(); }, { UNREACHABLE(); },
-                               {
-                                 auto vs2 = Rvvelt<float32_t>(rvv_vs2_reg(), i);
-                                 Rvvelt<uint64_t>(rvv_vd_reg(), i, true) =
-                                     static_cast<uint64_t>(vs2);
-                               },
-                               { ; }, { ; }, { ; }, true, (rvv_vsew() >= E16))
+          RVV_VI_VFP_CVT_SCALE(
+              { UNREACHABLE(); }, { UNREACHABLE(); },
+              {
+                auto vs2 = Rvvelt<float32_t>(rvv_vs2_reg(), i);
+                Rvvelt<uint64_t>(rvv_vd_reg(), i, true) =
+                    static_cast<uint64_t>(vs2);
+              },
+              { ; }, { ; }, { ; }, true, (rvv_vsew() >= E16))
           break;
         case VFWCVT_X_F_V:
-          RVV_VI_VFP_CVT_SCALE({ UNREACHABLE(); }, { UNREACHABLE(); },
-                               {
-                                 auto vs2 = Rvvelt<float32_t>(rvv_vs2_reg(), i);
-                                 Rvvelt<int64_t>(rvv_vd_reg(), i, true) =
-                                     static_cast<int64_t>(vs2);
-                               },
-                               { ; }, { ; }, { ; }, true, (rvv_vsew() >= E16))
+          RVV_VI_VFP_CVT_SCALE(
+              { UNREACHABLE(); }, { UNREACHABLE(); },
+              {
+                auto vs2 = Rvvelt<float32_t>(rvv_vs2_reg(), i);
+                Rvvelt<int64_t>(rvv_vd_reg(), i, true) =
+                    static_cast<int64_t>(vs2);
+              },
+              { ; }, { ; }, { ; }, true, (rvv_vsew() >= E16))
           break;
         case VFWCVT_F_F_V:
-          RVV_VI_VFP_CVT_SCALE({ UNREACHABLE(); }, { UNREACHABLE(); },
-                               {
-                                 auto vs2 = Rvvelt<float32_t>(rvv_vs2_reg(), i);
-                                 Rvvelt<double>(rvv_vd_reg(), i, true) =
-                                     static_cast<double>(vs2);
-                               },
-                               { ; }, { ; }, { ; }, true, (rvv_vsew() >= E16))
+          RVV_VI_VFP_CVT_SCALE(
+              { UNREACHABLE(); }, { UNREACHABLE(); },
+              {
+                auto vs2 = Rvvelt<float32_t>(rvv_vs2_reg(), i);
+                Rvvelt<double>(rvv_vd_reg(), i, true) =
+                    static_cast<double>(vs2);
+              },
+              { ; }, { ; }, { ; }, true, (rvv_vsew() >= E16))
           break;
         default:
           UNSUPPORTED_RISCV();
@@ -7401,7 +7433,7 @@ void Simulator::DecodeRvvFVV() {
               { UNIMPLEMENTED(); },
               {
                 int32_t& vd_i = Rvvelt<int32_t>(rvv_vd_reg(), i, true);
-                vd_i = int32_t(FclassHelper(vs2));
+                vd_i = static_cast<int32_t>(FclassHelper(vs2));
                 USE(fs1);
                 USE(vd);
               },
@@ -7413,15 +7445,16 @@ void Simulator::DecodeRvvFVV() {
               })
           break;
         case VFSQRT_V:
-          RVV_VI_VFP_VF_LOOP({ UNIMPLEMENTED(); },
-                             {
-                               vd = std::sqrt(vs2);
-                               USE(fs1);
-                             },
-                             {
-                               vd = std::sqrt(vs2);
-                               USE(fs1);
-                             })
+          RVV_VI_VFP_VF_LOOP(
+              { UNIMPLEMENTED(); },
+              {
+                vd = std::sqrt(vs2);
+                USE(fs1);
+              },
+              {
+                vd = std::sqrt(vs2);
+                USE(fs1);
+              })
           break;
         case VFRSQRT7_V:
           RVV_VI_VFP_VF_LOOP(
@@ -7452,29 +7485,30 @@ void Simulator::DecodeRvvFVV() {
       }
       break;
     case RO_V_VMFEQ_VV: {
-      RVV_VI_VFP_LOOP_CMP({ UNIMPLEMENTED(); },
-                          { res = CompareFHelper(vs2, vs1, EQ); },
-                          { res = CompareFHelper(vs2, vs1, EQ); }, true)
+      RVV_VI_VFP_LOOP_CMP(
+          { UNIMPLEMENTED(); }, { res = CompareFHelper(vs2, vs1, EQ); },
+          { res = CompareFHelper(vs2, vs1, EQ); }, true)
     } break;
     case RO_V_VMFNE_VV: {
-      RVV_VI_VFP_LOOP_CMP({ UNIMPLEMENTED(); },
-                          { res = CompareFHelper(vs2, vs1, NE); },
-                          { res = CompareFHelper(vs2, vs1, NE); }, true)
+      RVV_VI_VFP_LOOP_CMP(
+          { UNIMPLEMENTED(); }, { res = CompareFHelper(vs2, vs1, NE); },
+          { res = CompareFHelper(vs2, vs1, NE); }, true)
     } break;
     case RO_V_VMFLT_VV: {
-      RVV_VI_VFP_LOOP_CMP({ UNIMPLEMENTED(); },
-                          { res = CompareFHelper(vs2, vs1, LT); },
-                          { res = CompareFHelper(vs2, vs1, LT); }, true)
+      RVV_VI_VFP_LOOP_CMP(
+          { UNIMPLEMENTED(); }, { res = CompareFHelper(vs2, vs1, LT); },
+          { res = CompareFHelper(vs2, vs1, LT); }, true)
     } break;
     case RO_V_VMFLE_VV: {
-      RVV_VI_VFP_LOOP_CMP({ UNIMPLEMENTED(); },
-                          { res = CompareFHelper(vs2, vs1, LE); },
-                          { res = CompareFHelper(vs2, vs1, LE); }, true)
+      RVV_VI_VFP_LOOP_CMP(
+          { UNIMPLEMENTED(); }, { res = CompareFHelper(vs2, vs1, LE); },
+          { res = CompareFHelper(vs2, vs1, LE); }, true)
     } break;
     case RO_V_VFMAX_VV: {
-      RVV_VI_VFP_VV_LOOP({ UNIMPLEMENTED(); },
-                         { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMax); },
-                         { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMax); })
+      RVV_VI_VFP_VV_LOOP(
+          { UNIMPLEMENTED(); },
+          { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMax); },
+          { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMax); })
       break;
     }
     case RO_V_VFREDMAX_VV: {
@@ -7485,55 +7519,59 @@ void Simulator::DecodeRvvFVV() {
       break;
     }
     case RO_V_VFMIN_VV: {
-      RVV_VI_VFP_VV_LOOP({ UNIMPLEMENTED(); },
-                         { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMin); },
-                         { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMin); })
+      RVV_VI_VFP_VV_LOOP(
+          { UNIMPLEMENTED(); },
+          { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMin); },
+          { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMin); })
       break;
     }
     case RO_V_VFSGNJ_VV:
-      RVV_VFSGNJ_VV_VF_LOOP({ UNIMPLEMENTED(); },
-                            {
-                              vd = fsgnj32(Float32::FromBits(vs2),
-                                           Float32::FromBits(vs1), false, false)
-                                       .get_bits();
-                              USE(fs1);
-                            },
-                            {
-                              vd = fsgnj64(Float64::FromBits(vs2),
-                                           Float64::FromBits(vs1), false, false)
-                                       .get_bits();
-                              USE(fs1);
-                            })
+      RVV_VFSGNJ_VV_VF_LOOP(
+          { UNIMPLEMENTED(); },
+          {
+            vd = fsgnj32(Float32::FromBits(vs2), Float32::FromBits(vs1), false,
+                         false)
+                     .get_bits();
+            USE(fs1);
+          },
+          {
+            vd = fsgnj64(Float64::FromBits(vs2), Float64::FromBits(vs1), false,
+                         false)
+                     .get_bits();
+            USE(fs1);
+          })
       break;
     case RO_V_VFSGNJN_VV:
-      RVV_VFSGNJ_VV_VF_LOOP({ UNIMPLEMENTED(); },
-                            {
-                              vd = fsgnj32(Float32::FromBits(vs2),
-                                           Float32::FromBits(vs1), true, false)
-                                       .get_bits();
-                              USE(fs1);
-                            },
-                            {
-                              vd = fsgnj64(Float64::FromBits(vs2),
-                                           Float64::FromBits(vs1), true, false)
-                                       .get_bits();
-                              USE(fs1);
-                            })
+      RVV_VFSGNJ_VV_VF_LOOP(
+          { UNIMPLEMENTED(); },
+          {
+            vd = fsgnj32(Float32::FromBits(vs2), Float32::FromBits(vs1), true,
+                         false)
+                     .get_bits();
+            USE(fs1);
+          },
+          {
+            vd = fsgnj64(Float64::FromBits(vs2), Float64::FromBits(vs1), true,
+                         false)
+                     .get_bits();
+            USE(fs1);
+          })
       break;
     case RO_V_VFSGNJX_VV:
-      RVV_VFSGNJ_VV_VF_LOOP({ UNIMPLEMENTED(); },
-                            {
-                              vd = fsgnj32(Float32::FromBits(vs2),
-                                           Float32::FromBits(vs1), false, true)
-                                       .get_bits();
-                              USE(fs1);
-                            },
-                            {
-                              vd = fsgnj64(Float64::FromBits(vs2),
-                                           Float64::FromBits(vs1), false, true)
-                                       .get_bits();
-                              USE(fs1);
-                            })
+      RVV_VFSGNJ_VV_VF_LOOP(
+          { UNIMPLEMENTED(); },
+          {
+            vd = fsgnj32(Float32::FromBits(vs2), Float32::FromBits(vs1), false,
+                         true)
+                     .get_bits();
+            USE(fs1);
+          },
+          {
+            vd = fsgnj64(Float64::FromBits(vs2), Float64::FromBits(vs1), false,
+                         true)
+                     .get_bits();
+            USE(fs1);
+          })
       break;
     case RO_V_VFADD_VV:
       RVV_VI_VFP_VV_LOOP(
@@ -7776,6 +7814,7 @@ void Simulator::DecodeRvvFVV() {
 
 void Simulator::DecodeRvvFVF() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_FVF);
+  DCHECK(vu_enabled_);
   switch (instr_.InstructionBits() & kVTypeMask) {
     case RO_V_VFSGNJ_VF:
       RVV_VFSGNJ_VV_VF_LOOP(
@@ -8089,6 +8128,7 @@ void Simulator::DecodeVType() {
       set_rd(rvv_vl());
       set_rvv_vstart(0);
       rvv_trace_status();
+      vu_enabled_ = true;
       break;
     }
     case RO_V_VSETVL: {
@@ -8123,8 +8163,8 @@ void Simulator::DecodeVType() {
         set_rvv_vl(avl);
         set_rd(rvv_vl());
         rvv_trace_status();
-        break;
       }
+      vu_enabled_ = true;
       break;
     }
     default:

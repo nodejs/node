@@ -2,21 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/page-metadata-inl.h"
+#include "src/heap/page-metadata.h"
 
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/page-metadata-inl.h"
 #include "src/heap/paged-spaces.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 PageMetadata::PageMetadata(Heap* heap, BaseSpace* space, size_t size,
                            Address area_start, Address area_end,
-                           VirtualMemory reservation)
+                           VirtualMemory reservation,
+                           Executability executability,
+                           MemoryChunk::MainThreadFlags* trusted_flags)
     : MutablePageMetadata(heap, space, size, area_start, area_end,
-                          std::move(reservation), PageSize::kRegular) {
-  DCHECK(!IsLargePage());
+                          std::move(reservation), PageSize::kRegular,
+                          executability) {
+  DCHECK(!is_large());
+  trusted_main_thread_flags_ = ComputeInitialFlags(executability);
+  *trusted_flags = trusted_main_thread_flags_;
 }
 
 void PageMetadata::AllocateFreeListCategories() {
@@ -54,15 +59,14 @@ void PageMetadata::ReleaseFreeListCategories() {
 PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page,
                                             FreeMode free_mode) {
   DCHECK(old_page);
-  MemoryChunk* chunk = old_page->Chunk();
-  DCHECK(chunk->InNewSpace());
+  DCHECK(old_page->Chunk()->InNewSpace());
   old_page->ResetAgeInNewSpace();
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
-  chunk->ClearFlagsNonExecutable(MemoryChunk::kAllFlagsMask);
+  old_page->ClearFlagsNonExecutable(MemoryChunk::kAllFlagsMask);
   DCHECK_NE(old_space->identity(), SHARED_SPACE);
-  chunk->SetOldGenerationPageFlags(
-      old_page->heap()->incremental_marking()->marking_mode(), OLD_SPACE);
+  old_page->SetOldGenerationPageFlags(
+      old_page->heap()->incremental_marking()->marking_mode());
   PageMetadata* new_page = old_space->InitializePage(old_page);
   old_space->AddPromotedPage(new_page, free_mode);
   return new_page;
@@ -76,11 +80,10 @@ size_t PageMetadata::AvailableInFreeList() {
 }
 
 void PageMetadata::MarkNeverAllocateForTesting() {
-  MemoryChunk* chunk = Chunk();
   DCHECK(this->owner_identity() != NEW_SPACE);
-  DCHECK(!chunk->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE));
-  chunk->SetFlagSlow(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
-  chunk->SetFlagSlow(MemoryChunk::NEVER_EVACUATE);
+  DCHECK(!never_allocate_on_chunk());
+  set_never_allocate_on_chunk(true);
+  set_never_evacuate();
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
 }
 
@@ -114,5 +117,26 @@ void PageMetadata::DestroyBlackArea(Address start, Address end) {
   owner()->NotifyBlackAreaDestroyed(end - start);
 }
 
-}  // namespace internal
-}  // namespace v8
+void PageMetadata::MarkEvacuationCandidate() {
+  DCHECK(!never_evacuate());
+  DCHECK_NULL(slot_set<OLD_TO_OLD>());
+  DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
+  set_is_evacuation_candidate(true);
+  SetFlagMaybeExecutable(MemoryChunk::EVACUATION_CANDIDATE);
+  reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
+}
+
+void PageMetadata::ClearEvacuationCandidate() {
+  CHECK(evacuation_was_aborted());
+  set_evacuation_was_aborted(false);
+  set_is_evacuation_candidate(false);
+  ClearFlagMaybeExecutable(MemoryChunk::EVACUATION_CANDIDATE);
+  InitializeFreeListCategories();
+}
+
+void PageMetadata::AbortEvacuation() {
+  DCHECK(!evacuation_was_aborted());
+  set_evacuation_was_aborted(true);
+}
+
+}  // namespace v8::internal

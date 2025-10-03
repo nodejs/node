@@ -84,9 +84,9 @@ BasicBlockProfilerData::BasicBlockProfilerData(
 
 void BasicBlockProfilerData::CopyFromJSHeap(
     Tagged<OnHeapBasicBlockProfilerData> js_heap_data) {
-  function_name_ = js_heap_data->name()->ToCString().get();
-  schedule_ = js_heap_data->schedule()->ToCString().get();
-  code_ = js_heap_data->code()->ToCString().get();
+  function_name_ = js_heap_data->name()->ToStdString();
+  schedule_ = js_heap_data->schedule()->ToStdString();
+  code_ = js_heap_data->code()->ToStdString();
   Tagged<FixedUInt32Array> counts =
       Cast<FixedUInt32Array>(js_heap_data->counts());
   for (int i = 0; i < counts->length() / kBlockCountSlotSize; ++i) {

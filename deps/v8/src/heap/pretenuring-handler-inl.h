@@ -30,7 +30,7 @@ void PretenuringHandler::UpdateAllocationSite(
   DCHECK_IMPLIES(v8_flags.sticky_mark_bits || chunk->IsToPage(),
                  v8_flags.minor_ms);
   DCHECK_IMPLIES(!v8_flags.minor_ms && !HeapLayout::InYoungGeneration(object),
-                 chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
+                 chunk->Metadata(heap->isolate())->will_be_promoted());
 #endif
   if (V8_UNLIKELY(!v8_flags.allocation_site_pretenuring) ||
       !AllocationSite::CanTrack(map->instance_type())) {
@@ -48,6 +48,17 @@ void PretenuringHandler::UpdateAllocationSite(
   // till actually merging the data.
   Address key = memento_candidate->GetAllocationSiteUnchecked();
   (*pretenuring_feedback)[UncheckedCast<AllocationSite>(Tagged<Object>(key))]++;
+}
+
+// static
+void PretenuringHandler::UpdateAllocationSite(
+    Heap* heap, Tagged<Map> map, Tagged<HeapObject> object,
+    SafeHeapObjectSize object_size,
+    PretenuringFeedbackMap* pretenuring_feedback) {
+  // TODO(425150995): We should have uint versions for allocation to avoid
+  // introducing OOBs via sign-extended ints along the way.
+  UpdateAllocationSite(heap, map, object, object_size.value(),
+                       pretenuring_feedback);
 }
 
 // static

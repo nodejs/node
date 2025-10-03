@@ -106,7 +106,6 @@ class SourcePositionTest : public TestWithContext,
                                std::tuple<int, TestCaseData>> {
  public:
   static void SetUpTestSuite() {
-    v8_flags.always_turbofan = false;
     v8_flags.enable_lazy_source_positions = false;
     TestWithContext::SetUpTestSuite();
   }

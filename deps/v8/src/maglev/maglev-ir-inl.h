@@ -59,27 +59,29 @@ inline void DefineSameAsFirst(Node* node) {
   node->result().SetUnallocated(kNoVreg, 0);
 }
 
-inline void UseRegister(Input& input) {
-  input.SetUnallocated(compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
-                       compiler::UnallocatedOperand::USED_AT_END, kNoVreg);
+inline void UseRegister(Input input) {
+  input.location()->SetUnallocated(
+      compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
+      compiler::UnallocatedOperand::USED_AT_END, kNoVreg);
 }
-inline void UseAndClobberRegister(Input& input) {
-  input.SetUnallocated(compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
-                       compiler::UnallocatedOperand::USED_AT_START, kNoVreg);
+inline void UseAndClobberRegister(Input input) {
+  input.location()->SetUnallocated(
+      compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
+      compiler::UnallocatedOperand::USED_AT_START, kNoVreg);
 }
-inline void UseAny(Input& input) {
-  input.SetUnallocated(
+inline void UseAny(Input input) {
+  input.location()->SetUnallocated(
       compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
       compiler::UnallocatedOperand::USED_AT_END, kNoVreg);
 }
-inline void UseFixed(Input& input, Register reg) {
-  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER, reg.code(),
-                       kNoVreg);
+inline void UseFixed(Input input, Register reg) {
+  input.location()->SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER,
+                                   reg.code(), kNoVreg);
   input.node()->SetHint(input.operand());
 }
-inline void UseFixed(Input& input, DoubleRegister reg) {
-  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_FP_REGISTER,
-                       reg.code(), kNoVreg);
+inline void UseFixed(Input input, DoubleRegister reg) {
+  input.location()->SetUnallocated(
+      compiler::UnallocatedOperand::FIXED_FP_REGISTER, reg.code(), kNoVreg);
   input.node()->SetHint(input.operand());
 }
 
@@ -89,7 +91,8 @@ CallKnownJSFunction::CallKnownJSFunction(
     JSDispatchHandle dispatch_handle,
 #endif
     compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
-    ValueNode* context, ValueNode* receiver, ValueNode* new_target)
+    ValueNode* context, ValueNode* receiver, ValueNode* new_target,
+    const compiler::FeedbackSource& feedback_source)
     : Base(bitfield),
 #ifdef V8_ENABLE_LEAPTIERING
       dispatch_handle_(dispatch_handle),
@@ -103,11 +106,90 @@ CallKnownJSFunction::CallKnownJSFunction(
           shared_function_info
               .internal_formal_parameter_count_with_receiver_deprecated()
 #endif
-      ) {
+              ),
+      feedback_source_(feedback_source) {
   set_input(kClosureIndex, closure);
   set_input(kContextIndex, context);
   set_input(kReceiverIndex, receiver);
   set_input(kNewTargetIndex, new_target);
+}
+
+void NodeBase::UnwrapDeoptFrames() {
+  // Unwrap (and remove uses of its inputs) of Identity and ReturnedValue.
+  if (properties().can_eager_deopt() || properties().is_deopt_checkpoint()) {
+    eager_deopt_info()->Unwrap();
+  }
+  if (properties().can_lazy_deopt()) {
+    lazy_deopt_info()->Unwrap();
+  }
+}
+
+void NodeBase::OverwriteWith(Opcode new_opcode,
+                             std::optional<OpProperties> maybe_new_properties) {
+  OpProperties new_properties = maybe_new_properties.has_value()
+                                    ? maybe_new_properties.value()
+                                    : StaticPropertiesForOpcode(new_opcode);
+#ifdef DEBUG
+  CheckCanOverwriteWith(new_opcode, new_properties);
+#endif
+  set_opcode(new_opcode);
+  set_properties(new_properties);
+  if (new_opcode == Opcode::kDead) return;
+  int new_input_count = StaticInputCountForOpcode(new_opcode);
+  if (input_count() != new_input_count) {
+    bitfield_ = InputCountField::update(bitfield_, new_input_count);
+  }
+}
+
+void NodeBase::OverwriteWithIdentityTo(ValueNode* node) {
+  // OverwriteWith() checks if the node we're overwriting to has the same
+  // input count and the same properties. Here we don't need to do that, since
+  // overwriting with a node with property pure, we only need to check if
+  // there is at least 1 input. Since the first input is always the one
+  // closest to the input_base().
+  DCHECK_GE(input_count(), 1);
+  // Remove use of all inputs first.
+  for (Input input : inputs()) {
+    input.clear();
+  }
+  // Unfortunately we cannot remove uses from deopt frames, since these could be
+  // shared with other nodes. But we can remove uses from Identity and
+  // ReturnedValue nodes.
+  UnwrapDeoptFrames();
+
+  set_opcode(Opcode::kIdentity);
+  set_properties(StaticPropertiesForOpcode(Opcode::kIdentity));
+  bitfield_ = InputCountField::update(bitfield_, 1);
+  set_input(0, node);
+}
+
+void NodeBase::OverwriteWithReturnValue(ValueNode* node) {
+  DCHECK_EQ(opcode(), Opcode::kCallKnownJSFunction);
+  // This node might eventually be overwritten by conversion nodes which need
+  // a register snapshot.
+  DCHECK(properties().needs_register_snapshot());
+  if (node->is_tagged()) {
+    return OverwriteWithIdentityTo(node);
+  }
+
+  DCHECK_GE(input_count(), 1);
+  // Remove use of all inputs first.
+  for (Input input : inputs()) {
+    input.clear();
+  }
+  // Unfortunately we cannot remove uses from deopt frames, since these could be
+  // shared with other nodes. But we can remove uses from Identity and
+  // ReturnedValue nodes.
+  UnwrapDeoptFrames();
+
+  RegisterSnapshot registers = register_snapshot();
+  set_opcode(Opcode::kReturnedValue);
+  set_properties(StaticPropertiesForOpcode(Opcode::kReturnedValue));
+  bitfield_ = InputCountField::update(bitfield_, 1);
+  // After updating the input count, the possition of the register snapshot is
+  // wrong. We simply write a copy to the new location.
+  set_register_snapshot(registers);
+  set_input(0, node);
 }
 
 }  // namespace maglev

@@ -15,6 +15,7 @@
 #include "src/compiler/allocation-builder-inl.h"
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/common-utils.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/fast-api-calls.h"
 #include "src/compiler/frame-states.h"
@@ -145,7 +146,10 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
 std::optional<size_t> JSNativeContextSpecialization::GetMaxStringLength(
     JSHeapBroker* broker, Node* node) {
   HeapObjectMatcher matcher(node);
-  if (matcher.HasResolvedValue() && matcher.Ref(broker).IsString()) {
+  if (matcher.HasResolvedValue() &&
+      !matcher.Is(
+          broker->local_isolate_or_isolate()->factory()->the_hole_value()) &&
+      matcher.Ref(broker).IsString()) {
     StringRef input = matcher.Ref(broker).AsString();
     return input.length();
   }
@@ -177,14 +181,9 @@ Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
   // regressions and the stronger optimization should be re-implemented.
   NumberMatcher number_matcher(input);
   if (number_matcher.HasResolvedValue()) {
-    DirectHandle<Object> num_obj =
-        broker()
-            ->local_isolate_or_isolate()
-            ->factory()
-            ->NewNumber<AllocationType::kOld>(number_matcher.ResolvedValue());
     Handle<String> num_str =
-        broker()->local_isolate_or_isolate()->factory()->NumberToString(
-            num_obj);
+        broker()->local_isolate_or_isolate()->factory()->DoubleToString(
+            number_matcher.ResolvedValue());
     Node* reduced = graph()->NewNode(
         common()->HeapConstant(broker()->CanonicalPersistentHandle(num_str)));
 
@@ -202,11 +201,6 @@ Handle<String> JSNativeContextSpecialization::CreateStringConstant(Node* node) {
   DCHECK(IrOpcode::IsConstantOpcode(node->opcode()));
   NumberMatcher number_matcher(node);
   if (number_matcher.HasResolvedValue()) {
-    DirectHandle<Object> num_obj =
-        broker()
-            ->local_isolate_or_isolate()
-            ->factory()
-            ->NewNumber<AllocationType::kOld>(number_matcher.ResolvedValue());
     // Note that we do not store the result of NumberToString in
     // {created_strings_}, because the latter is used to know if strings are
     // safe to be used in the background, but we always have as additional
@@ -214,8 +208,8 @@ Handle<String> JSNativeContextSpecialization::CreateStringConstant(Node* node) {
     // case), and if this node is a kHeapNumber, then we know that we must have
     // created the string, and that there it is safe to read. So, we don't need
     // {created_strings_} in that case.
-    return broker()->local_isolate_or_isolate()->factory()->NumberToString(
-        num_obj);
+    return broker()->local_isolate_or_isolate()->factory()->DoubleToString(
+        number_matcher.ResolvedValue());
   } else {
     HeapObjectMatcher matcher(node);
     if (matcher.HasResolvedValue() && matcher.Ref(broker()).IsString()) {
@@ -350,103 +344,6 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionResolve(
   return Replace(promise);
 }
 
-// Concatenates {left} and {right}. The result is fairly similar to creating a
-// new ConsString with {left} and {right} and then flattening it, which we don't
-// do because String::Flatten does not support background threads. Rather than
-// implementing a full String::Flatten for background threads, we prefered to
-// implement this Concatenate function, which, unlike String::Flatten, doesn't
-// need to replace ConsStrings by ThinStrings.
-Handle<String> JSNativeContextSpecialization::Concatenate(
-    Handle<String> left, Handle<String> right) {
-  if (left->length() == 0) return right;
-  if (right->length() == 0) return left;
-
-  // Repeated concatenations have a quadratic cost (eg, "s+=a;s+=b;s+=c;...").
-  // Rather than doing static analysis to determine how many concatenations we
-  // there are and how many uses the result of each concatenation have, we
-  // generate ConsString when the result of the concatenation would have more
-  // than {kConstantStringFlattenMaxSize} characters, and flattened SeqString
-  // otherwise.
-  // TODO(dmercadier): ideally, we would like to get rid of this constant, and
-  // always flatten. This requires some care to avoid the quadratic worst-case.
-  constexpr int32_t kConstantStringFlattenMaxSize = 100;
-
-  int32_t length = left->length() + right->length();
-  if (length > kConstantStringFlattenMaxSize) {
-    // The generational write-barrier doesn't work in background threads, so,
-    // if {left} or {right} are in the young generation, we would have to copy
-    // them to the local heap (which is old) before creating the (old)
-    // ConsString. But, copying a ConsString instead of flattening it to a
-    // SeqString makes no sense here (since flattening would be faster and use
-    // less memory). Thus, if one of {left} or {right} is a young string, we'll
-    // build a SeqString rather than a ConsString, regardless of {length}.
-    // TODO(dmercadier, dinfuehr): always build a ConsString here once the
-    // generational write-barrier supports background threads.
-    if (!LocalHeap::Current() || (!HeapLayout::InYoungGeneration(*left) &&
-                                  !HeapLayout::InYoungGeneration(*right))) {
-      return broker()
-          ->local_isolate_or_isolate()
-          ->factory()
-          ->NewConsString(left, right, AllocationType::kOld)
-          .ToHandleChecked();
-    }
-  }
-
-  // If one of the string is not in readonly space, then we need a
-  // SharedStringAccessGuardIfNeeded before accessing its content.
-  bool require_guard = SharedStringAccessGuardIfNeeded::IsNeeded(
-                           *left, broker()->local_isolate_or_isolate()) ||
-                       SharedStringAccessGuardIfNeeded::IsNeeded(
-                           *right, broker()->local_isolate_or_isolate());
-
-  // Check string representation of both strings. This does not require the
-  // SharedStringAccessGuardIfNeeded as the representation is stable.
-  const bool result_is_one_byte_string =
-      left->IsOneByteRepresentation() && right->IsOneByteRepresentation();
-
-  if (result_is_one_byte_string) {
-    // {left} and {right} are 1-byte ==> the result will be 1-byte.
-    // Note that we need a canonical handle, because we insert in
-    // {created_strings_} the handle's address, which is kinda meaningless if
-    // the handle isn't canonical.
-    Handle<SeqOneByteString> flat = broker()->CanonicalPersistentHandle(
-        broker()
-            ->local_isolate_or_isolate()
-            ->factory()
-            ->NewRawOneByteString(length, AllocationType::kOld)
-            .ToHandleChecked());
-    created_strings_.insert(flat);
-    DisallowGarbageCollection no_gc;
-    SharedStringAccessGuardIfNeeded access_guard(
-        require_guard ? broker()->local_isolate_or_isolate() : nullptr);
-    String::WriteToFlat(*left, flat->GetChars(no_gc, access_guard), 0,
-                        left->length(), access_guard);
-    String::WriteToFlat(*right,
-                        flat->GetChars(no_gc, access_guard) + left->length(), 0,
-                        right->length(), access_guard);
-    return flat;
-  } else {
-    // One (or both) of {left} and {right} is 2-byte ==> the result will be
-    // 2-byte.
-    Handle<SeqTwoByteString> flat = broker()->CanonicalPersistentHandle(
-        broker()
-            ->local_isolate_or_isolate()
-            ->factory()
-            ->NewRawTwoByteString(length, AllocationType::kOld)
-            .ToHandleChecked());
-    created_strings_.insert(flat);
-    DisallowGarbageCollection no_gc;
-    SharedStringAccessGuardIfNeeded access_guard(
-        require_guard ? broker()->local_isolate_or_isolate() : nullptr);
-    String::WriteToFlat(*left, flat->GetChars(no_gc, access_guard), 0,
-                        left->length(), access_guard);
-    String::WriteToFlat(*right,
-                        flat->GetChars(no_gc, access_guard) + left->length(), 0,
-                        right->length(), access_guard);
-    return flat;
-  }
-}
-
 bool JSNativeContextSpecialization::StringCanSafelyBeRead(Node* const node,
                                                           Handle<String> str) {
   DCHECK(node->opcode() == IrOpcode::kHeapConstant ||
@@ -493,12 +390,9 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
           StringCanSafelyBeRead(rhs, right))) {
       // One of {lhs} or {rhs} is not safe to be read in the background.
 
-      if (left->length() + right->length() > ConsString::kMinLength &&
-          (!LocalHeap::Current() || (!HeapLayout::InYoungGeneration(*left) &&
-                                     !HeapLayout::InYoungGeneration(*right)))) {
+      if (left->length() + right->length() > ConsString::kMinLength) {
         // We can create a ConsString with {left} and {right}, without needing
-        // to read their content (and this ConsString will not introduce
-        // old-to-new pointers from the background).
+        // to read their content.
         Handle<String> concatenated =
             broker()
                 ->local_isolate_or_isolate()
@@ -513,14 +407,15 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
         // Concatenating those strings would not produce a ConsString but rather
         // a flat string (because the result is small). And, since the strings
         // are not safe to be read in the background, this wouldn't be safe.
-        // Or, one of the string is in the young generation, and since the
-        // generational barrier doesn't support background threads, we cannot
-        // create the ConsString.
         return NoChange();
       }
     }
 
-    Handle<String> concatenated = Concatenate(left, right);
+    // ConcatenateStrings won't fail, since we already checked the resulting
+    // string is not too long.
+    Handle<String> concatenated =
+        utils::ConcatenateStrings(left, right, broker()).ToHandleChecked();
+    created_strings_.insert(concatenated);
     Node* reduced = graph()->NewNode(common()->HeapConstant(
         broker()->CanonicalPersistentHandle(concatenated)));
 
@@ -1369,12 +1264,13 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
     if (feedback.immutable()) return NoChange();
     Node* effect = n.effect();
     Node* control = n.control();
+    Node* frame_state = n.frame_state();
     Node* script_context =
         jsgraph()->ConstantNoHole(feedback.script_context(), broker());
     if (v8_flags.script_context_cells) {
       effect = control =
           graph()->NewNode(javascript()->StoreContext(0, feedback.slot_index()),
-                           value, script_context, effect, control);
+                           value, script_context, frame_state, effect, control);
     } else {
       effect = graph()->NewNode(
           javascript()->StoreContextNoCell(0, feedback.slot_index()), value,
@@ -1584,7 +1480,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // Ensure that {key} matches the specified name (if {key} is given).
   if (key != nullptr) {
-    effect = BuildCheckEqualsName(feedback.name(), key, effect, control);
+    effect = BuildCheckEqualsName(feedback.original_name_maybe_thin(), key,
+                                  effect, control);
   }
 
   // Collect call nodes to rewire exception edges.
@@ -1599,7 +1496,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // Check for the monomorphic cases.
   if (access_infos.size() == 1) {
-    PropertyAccessInfo access_info = access_infos.front();
+    const PropertyAccessInfo& access_info = access_infos.front();
     if (receiver != lookup_start_object) {
       // Super property access. lookup_start_object is a JSReceiver or
       // null. It can't be a number, a string etc. So trying to build the
@@ -2273,6 +2170,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   Effect effect{NodeProperties::GetEffectInput(node)};
   Control control{NodeProperties::GetControlInput(node)};
   Node* context = NodeProperties::GetContextInput(node);
+  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
 
   // TODO(neis): It's odd that we do optimizations below that don't really care
   // about the feedback, but we don't do them when the feedback is megamorphic.
@@ -2280,6 +2178,11 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 
   ElementAccessFeedback const& refined_feedback =
       TryRefineElementAccessFeedback(feedback, receiver, effect);
+  LanguageMode language_mode = LanguageMode::kSloppy;
+  // Only stores (via Proxy) care about strict mode.
+  if (node->opcode() == IrOpcode::kJSSetKeyedProperty) {
+    language_mode = JSSetKeyedPropertyNode(node).Parameters().language_mode();
+  }
 
   AccessMode access_mode = refined_feedback.keyed_mode().access_mode();
   if ((access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas) &&
@@ -2330,6 +2233,10 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         // need to guard against changes to that below).
         if ((IsHoleyOrDictionaryElementsKind(receiver_map.elements_kind()) ||
              StoreModeCanGrow(feedback.keyed_mode().store_mode())) &&
+#if V8_ENABLE_WEBASSEMBLY
+            !(receiver_map.IsWasmObjectMap() &&
+              access_info.is_proxy_on_prototype()) &&
+#endif  // V8_ENABLE_WEBASSEMBLY
             !receiver_map.PrototypesElementsDoNotHaveAccessorsOrThrow(
                 broker(), &prototype_maps)) {
           return NoChange();
@@ -2358,10 +2265,18 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     }
   }
 
+  // Collect call nodes to rewire exception edges.
+  ZoneVector<Node*> if_exception_nodes(zone());
+  ZoneVector<Node*>* if_exceptions = nullptr;
+  Node* if_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &if_exception)) {
+    if_exceptions = &if_exception_nodes;
+  }
+
   // Check for the monomorphic case.
   PropertyAccessBuilder access_builder(jsgraph(), broker());
   if (access_infos.size() == 1) {
-    ElementAccessInfo access_info = access_infos.front();
+    const ElementAccessInfo& access_info = access_infos.front();
 
     if (!access_info.transition_sources().empty()) {
       DCHECK_EQ(access_info.lookup_start_object_maps().size(), 1);
@@ -2381,9 +2296,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     }
 
     // Access the actual element.
-    ValueEffectControl continuation =
-        BuildElementAccess(receiver, index, value, effect, control, context,
-                           access_info, feedback.keyed_mode());
+    ValueEffectControl continuation = BuildElementAccess(
+        receiver, index, value, effect, control, context, access_info,
+        language_mode, feedback.keyed_mode(), if_exceptions, frame_state);
     value = continuation.value();
     effect = continuation.effect();
     control = continuation.control();
@@ -2445,9 +2360,10 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       }
 
       // Access the actual element.
-      ValueEffectControl continuation = BuildElementAccess(
-          this_receiver, this_index, this_value, this_effect, this_control,
-          context, access_info, feedback.keyed_mode());
+      ValueEffectControl continuation =
+          BuildElementAccess(this_receiver, this_index, this_value, this_effect,
+                             this_control, context, access_info, language_mode,
+                             feedback.keyed_mode(), if_exceptions, frame_state);
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -2474,6 +2390,23 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       effect = graph()->NewNode(common()->EffectPhi(control_count),
                                 control_count + 1, &effects.front());
     }
+  }
+
+  // Properly rewire IfException edges if {node} is inside a try-block.
+  if (!if_exception_nodes.empty()) {
+    DCHECK_NOT_NULL(if_exception);
+    DCHECK_EQ(if_exceptions, &if_exception_nodes);
+    int const if_exception_count = static_cast<int>(if_exceptions->size());
+    Node* merge = graph()->NewNode(common()->Merge(if_exception_count),
+                                   if_exception_count, &if_exceptions->front());
+    if_exceptions->push_back(merge);
+    Node* ephi =
+        graph()->NewNode(common()->EffectPhi(if_exception_count),
+                         if_exception_count + 1, &if_exceptions->front());
+    Node* phi = graph()->NewNode(
+        common()->Phi(MachineRepresentation::kTagged, if_exception_count),
+        if_exception_count + 1, &if_exceptions->front());
+    ReplaceWithValue(if_exception, phi, ephi, merge);
   }
 
   ReplaceWithValue(node, value, effect, control);
@@ -3088,7 +3021,7 @@ JSNativeContextSpecialization::BuildPropertyLoad(
       }
 
     } else {
-      const ZoneVector<MapRef> maps = access_info.lookup_start_object_maps();
+      const ZoneVector<MapRef>& maps = access_info.lookup_start_object_maps();
       DCHECK_EQ(maps.size(), 1);
       value = graph()->NewNode(
           simplified()->TypedArrayLength(maps[0].elements_kind()),
@@ -3401,11 +3334,103 @@ Reduction JSNativeContextSpecialization::ReduceJSToObject(Node* node) {
   return Replace(receiver);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+JSNativeContextSpecialization::ValueEffectControl
+JSNativeContextSpecialization::BuildPrototypeProxyElementAccess(
+    Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+    Node* context, ElementAccessInfo const& access_info,
+    LanguageMode language_mode, KeyedAccessMode const& keyed_mode,
+    ZoneVector<Node*>* if_exceptions, Node* frame_state) {
+  Node* call_target =
+      jsgraph()->ConstantNoHole(access_info.accessor().value(), broker());
+  Node* proxy_target =
+      jsgraph()->ConstantNoHole(access_info.target().value(), broker());
+  Node* feedback = jsgraph()->UndefinedConstant();
+  // We can use a dummy receiver so long as we only support Wasm functions
+  // that disregard the call's receiver anyway.
+  DCHECK(!TrustedCast<WasmExportedFunctionData>(
+              Cast<JSFunction>(access_info.accessor().value().object())
+                  ->shared()
+                  ->GetTrustedData(isolate()))
+              ->receiver_is_first_param());
+  Node* call_receiver = jsgraph()->UndefinedConstant();
+  ConvertReceiverMode receiver_mode = ConvertReceiverMode::kNullOrUndefined;
+  // If the Wasm function takes the index as an {externref}, it can observe
+  // its type, so for spec compliance we must ensure that it shows up as a
+  // string. We could consider emitting a toString conversion, but deopting
+  // is probably good enough in practice.
+  if (access_info.string_keys()) {
+    index = effect = graph()->NewNode(
+        simplified()->CheckString(FeedbackSource()), index, effect, control);
+  }
+  Node* call = nullptr;
+  if (keyed_mode.access_mode() == AccessMode::kLoad) {
+    value = effect = control = graph()->NewNode(
+        jsgraph()->javascript()->Call(JSCallNode::ArityForArgc(3),
+                                      CallFrequency(), FeedbackSource(),
+                                      receiver_mode),
+        call_target, call_receiver,
+        // Parameters of the "get" trap: target, name, original receiver.
+        proxy_target, index, receiver,
+        // TF "internal" parameters:
+        feedback, context, frame_state, effect, control);
+  } else {
+    DCHECK_EQ(keyed_mode.access_mode(), AccessMode::kStore);
+    call = effect = control = graph()->NewNode(
+        jsgraph()->javascript()->Call(JSCallNode::ArityForArgc(4),
+                                      CallFrequency(), FeedbackSource(),
+                                      receiver_mode),
+        call_target, call_receiver,
+        // Parameters of the "set" trap: target, name, value, original receiver.
+        proxy_target, index, value, receiver,
+        // TF "internal" parameters:
+        feedback, context, frame_state, effect, control);
+  }
+  if (if_exceptions != nullptr) {
+    if_exceptions->push_back(
+        graph()->NewNode(common()->IfException(), effect, control));
+    control = graph()->NewNode(common()->IfSuccess(), control);
+  }
+  if (keyed_mode.access_mode() == AccessMode::kStore &&
+      language_mode == LanguageMode::kStrict) {
+    // In strict mode we have to throw if the trap returned a false-ish value:
+    //     if (ToBoolean(trap_result) == false) { throw; }
+    DCHECK_NOT_NULL(call);
+    Node* to_bool = graph()->NewNode(simplified()->ToBoolean(), call);
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), to_bool,
+                                   jsgraph()->FalseConstant());
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+    {
+      control = graph()->NewNode(common()->IfTrue(), branch);
+      Node* call_runtime = graph()->NewNode(
+          javascript()->CallRuntime(Runtime::kThrowTypeError, 3),
+          jsgraph()->ConstantNoHole(
+              static_cast<int>(MessageTemplate::kProxyTrapReturnedFalsishFor)),
+          jsgraph()->HeapConstantNoHole(factory()->set_string()), index,
+          context, frame_state, effect, control);
+      if (if_exceptions != nullptr) {
+        if_exceptions->push_back(graph()->NewNode(common()->IfException(),
+                                                  call_runtime, call_runtime));
+        control = graph()->NewNode(common()->IfSuccess(), call_runtime);
+      }
+      Node* throw_node =
+          graph()->NewNode(common()->Throw(), call_runtime, control);
+      MergeControlToEnd(graph(), common(), throw_node);
+    }
+
+    control = graph()->NewNode(common()->IfFalse(), branch);
+  }
+  return {value, effect, control};
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildElementAccess(
     Node* receiver, Node* index, Node* value, Node* effect, Node* control,
     Node* context, ElementAccessInfo const& access_info,
-    KeyedAccessMode const& keyed_mode) {
+    LanguageMode language_mode, KeyedAccessMode const& keyed_mode,
+    ZoneVector<Node*>* if_exceptions, Node* frame_state) {
   // TODO(bmeurer): We currently specialize based on elements kind. We should
   // also be able to properly support strings and other JSObjects here.
   ElementsKind elements_kind = access_info.elements_kind();
@@ -3418,6 +3443,15 @@ JSNativeContextSpecialization::BuildElementAccess(
         receiver, index, value, effect, control, context, elements_kind,
         keyed_mode);
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (receiver_maps.size() == 1 && receiver_maps.front().IsWasmObjectMap() &&
+      access_info.is_proxy_on_prototype()) {
+    return BuildPrototypeProxyElementAccess(
+        receiver, index, value, effect, control, context, access_info,
+        language_mode, keyed_mode, if_exceptions, frame_state);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Load the elements for the {receiver}.
   Node* elements = effect = graph()->NewNode(
@@ -3475,6 +3509,12 @@ JSNativeContextSpecialization::BuildElementAccess(
   MachineType element_machine_type = MachineType::AnyTagged();
   if (IsDoubleElementsKind(elements_kind)) {
     element_type = Type::Number();
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+      element_type =
+          Type::Union(element_type, Type::Undefined(), graph()->zone());
+    }
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     element_machine_type = MachineType::Float64();
   } else if (IsSmiElementsKind(elements_kind)) {
     element_type = Type::SignedSmall();
@@ -3537,8 +3577,13 @@ JSNativeContextSpecialization::BuildElementAccess(
           // Return the signaling NaN hole directly if all uses are
           // truncating.
           if (LoadModeHandlesHoles(keyed_mode.load_mode())) {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+            vtrue = graph()->NewNode(
+                simplified()->ChangeFloat64OrUndefinedOrHoleToTagged(), vtrue);
+#else
             vtrue = graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(),
                                      vtrue);
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
           } else {
             vtrue = etrue = graph()->NewNode(
                 simplified()->CheckFloat64Hole(
@@ -3587,8 +3632,13 @@ JSNativeContextSpecialization::BuildElementAccess(
           if (LoadModeHandlesHoles(keyed_mode.load_mode())) {
             // Return the signaling NaN hole directly if all uses are
             // truncating.
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+            value = graph()->NewNode(
+                simplified()->ChangeFloat64OrUndefinedOrHoleToTagged(), value);
+#else
             value = graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(),
                                      value);
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
           } else {
             value = effect = graph()->NewNode(
                 simplified()->CheckFloat64Hole(
@@ -3683,10 +3733,25 @@ JSNativeContextSpecialization::BuildElementAccess(
       value = effect = graph()->NewNode(
           simplified()->CheckSmi(FeedbackSource()), value, effect, control);
     } else if (IsDoubleElementsKind(elements_kind)) {
-      value = effect = graph()->NewNode(
-          simplified()->CheckNumber(FeedbackSource()), value, effect, control);
-      // Make sure we do not store signalling NaNs into double arrays.
-      value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+      if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+        value = effect = graph()->NewNode(
+            simplified()->CheckNumberOrUndefined(FeedbackSource()), value,
+            effect, control);
+        // Make sure we do not store signalling NaNs other than undefined.
+        value = graph()->NewNode(
+            simplified()->NumberSilenceNaN(SilenceNanMode::kPreserveUndefined),
+            value);
+      } else {
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+        value = effect =
+            graph()->NewNode(simplified()->CheckNumber(FeedbackSource()), value,
+                             effect, control);
+        // Make sure we do not store signalling NaNs into double arrays.
+        value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+      }
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     }
 
     // Ensure that copy-on-write backing store is writable.
@@ -3821,8 +3886,8 @@ JSNativeContextSpecialization::
       Node* dead = jsgraph_->Dead();
       return ValueEffectControl{dead, dead, dead};
     } else {
-      length =
-          jsgraph()->ConstantNoHole(static_cast<double>(typed_array->length()));
+      length = jsgraph()->ConstantNoHole(
+          typed_array->byte_length() >> ElementsKindToShiftSize(elements_kind));
 
       DCHECK(!typed_array->is_on_heap());
       // Load the (known) data pointer for the {receiver} and set
@@ -3927,7 +3992,8 @@ JSNativeContextSpecialization::
     // Check that the {index} is in the valid range for the {receiver}.
     index = effect = graph()->NewNode(
         simplified()->CheckBounds(FeedbackSource(),
-                                  CheckBoundsFlag::kConvertStringAndMinusZero),
+                                  CheckBoundsFlag::kConvertStringAndMinusZero |
+                                      CheckBoundsFlag::kAllow64BitBounds),
         index, length, effect, control);
     situation = kBoundsCheckDone;
   }
@@ -3956,7 +4022,8 @@ JSNativeContextSpecialization::
                 simplified()->CheckBounds(
                     FeedbackSource(),
                     CheckBoundsFlag::kConvertStringAndMinusZero |
-                        CheckBoundsFlag::kAbortOnOutOfBounds),
+                        CheckBoundsFlag::kAbortOnOutOfBounds |
+                        CheckBoundsFlag::kAllow64BitBounds),
                 index, length, etrue, if_true);
           }
 
@@ -4038,7 +4105,8 @@ JSNativeContextSpecialization::
                 simplified()->CheckBounds(
                     FeedbackSource(),
                     CheckBoundsFlag::kConvertStringAndMinusZero |
-                        CheckBoundsFlag::kAbortOnOutOfBounds),
+                        CheckBoundsFlag::kAbortOnOutOfBounds |
+                        CheckBoundsFlag::kAllow64BitBounds),
                 index, length, etrue, if_true);
           }
 

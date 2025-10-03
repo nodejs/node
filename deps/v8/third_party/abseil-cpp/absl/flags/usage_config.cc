@@ -105,9 +105,9 @@ std::string NormalizeFilename(absl::string_view filename) {
 
 // --------------------------------------------------------------------
 
-absl::Mutex* CustomUsageConfigMutex() {
+absl::Mutex& CustomUsageConfigMutex() {
   static absl::NoDestructor<absl::Mutex> mutex;
-  return mutex.get();
+  return *mutex;
 }
 ABSL_CONST_INIT FlagsUsageConfig* custom_usage_config
     ABSL_GUARDED_BY(CustomUsageConfigMutex())

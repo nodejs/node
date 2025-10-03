@@ -118,12 +118,14 @@ class StackHandler {
   V(EXIT, ExitFrame)                                                      \
   IF_WASM(V, WASM, WasmFrame)                                             \
   IF_WASM(V, WASM_TO_JS, WasmToJsFrame)                                   \
-  IF_WASM(V, WASM_TO_JS_FUNCTION, WasmToJsFunctionFrame)                  \
   IF_WASM(V, JS_TO_WASM, JsToWasmFrame)                                   \
-  IF_WASM(V, STACK_SWITCH, StackSwitchFrame)                              \
+  IF_WASM(V, WASM_JSPI, WasmJspiFrame)                                    \
   IF_WASM_DRUMBRAKE(V, WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame) \
   IF_WASM(V, WASM_DEBUG_BREAK, WasmDebugBreakFrame)                       \
   IF_WASM(V, C_WASM_ENTRY, CWasmEntryFrame)                               \
+  /* Can only appear as the first frame of a wasm stack: */               \
+  IF_WASM(V, WASM_STACK_ENTRY, WasmStackEntryFrame)                       \
+  IF_WASM(V, WASM_STACK_EXIT, WasmStackExitFrame)                         \
   IF_WASM(V, WASM_EXIT, WasmExitFrame)                                    \
   IF_WASM(V, WASM_LIFTOFF_SETUP, WasmLiftoffSetupFrame)                   \
   IF_WASM(V, WASM_SEGMENT_START, WasmSegmentStartFrame)                   \
@@ -258,9 +260,7 @@ class StackFrame {
   }
 #endif  // V8_ENABLE_DRUMBRAKE
   bool is_wasm_debug_break() const { return type() == WASM_DEBUG_BREAK; }
-  bool is_wasm_to_js() const {
-    return type() == WASM_TO_JS || type() == WASM_TO_JS_FUNCTION;
-  }
+  bool is_wasm_to_js() const { return type() == WASM_TO_JS; }
   bool is_js_to_wasm() const { return type() == JS_TO_WASM; }
 #endif  // V8_ENABLE_WEBASSEMBLY
   bool is_builtin() const { return type() == BUILTIN; }
@@ -708,7 +708,6 @@ class TypedFrame : public CommonFrame {
   void Iterate(RootVisitor* v) const override;
 
   void IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const;
-  void IterateParamsOfOptimizedWasmToJSWrapper(RootVisitor* v) const;
 
  protected:
   inline explicit TypedFrame(StackFrameIteratorBase* iterator);
@@ -1422,17 +1421,6 @@ class WasmToJsFrame : public WasmFrame {
   friend class StackFrameIteratorBase;
 };
 
-class WasmToJsFunctionFrame : public TypedFrame {
- public:
-  Type type() const override { return WASM_TO_JS_FUNCTION; }
-
- protected:
-  inline explicit WasmToJsFunctionFrame(StackFrameIteratorBase* iterator);
-
- private:
-  friend class StackFrameIteratorBase;
-};
-
 class JsToWasmFrame : public StubFrame {
  public:
   Type type() const override { return JS_TO_WASM; }
@@ -1446,14 +1434,38 @@ class JsToWasmFrame : public StubFrame {
   friend class StackFrameIteratorBase;
 };
 
-class StackSwitchFrame : public ExitFrame {
+class WasmJspiFrame : public ExitFrame {
  public:
-  Type type() const override { return STACK_SWITCH; }
+  Type type() const override { return WASM_JSPI; }
   void Iterate(RootVisitor* v) const override;
   static void GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf, State* state);
 
  protected:
-  inline explicit StackSwitchFrame(StackFrameIteratorBase* iterator);
+  inline explicit WasmJspiFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class WasmStackEntryFrame : public TypedFrame {
+ public:
+  Type type() const override { return WASM_STACK_ENTRY; }
+  void Iterate(RootVisitor* v) const override {}
+
+ protected:
+  inline explicit WasmStackEntryFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class WasmStackExitFrame : public TypedFrame {
+ public:
+  Type type() const override { return WASM_STACK_EXIT; }
+  void Iterate(RootVisitor* v) const override {}
+
+ protected:
+  inline explicit WasmStackExitFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;

@@ -43,11 +43,6 @@ RUNTIME_FUNCTION(Runtime_FormatListToParts) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
-  // When this is called from Wasm code, clear the "thread in wasm" flag,
-  // which is important in case any GC needs to happen.
-  // TODO(40192807): Find a better fix, likely by replacing the global flag.
-  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
-
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
   Handle<String> s = args.at<String>(0);
@@ -56,11 +51,6 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringToUpperCaseIntl) {
-  // When this is called from Wasm code, clear the "thread in wasm" flag,
-  // which is important in case any GC needs to happen.
-  // TODO(40192807): Find a better fix, likely by replacing the global flag.
-  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
-
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
   Handle<String> s = args.at<String>(0);
@@ -69,11 +59,6 @@ RUNTIME_FUNCTION(Runtime_StringToUpperCaseIntl) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringToLocaleLowerCase) {
-  // When this is called from Wasm code, clear the "thread in wasm" flag,
-  // which is important in case any GC needs to happen.
-  // TODO(40192807): Find a better fix, likely by replacing the global flag.
-  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
-
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 2);
   DirectHandle<String> s = args.at<String>(0);

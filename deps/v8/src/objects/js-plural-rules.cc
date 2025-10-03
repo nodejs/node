@@ -68,7 +68,7 @@ Handle<String> JSPluralRules::TypeAsString(Isolate* isolate) const {
 // static
 MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
-    DirectHandle<Object> options_obj) {
+    DirectHandle<Object> options_obj, const char* service) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -78,7 +78,6 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
 
   // 2. Set options to ? CoerceOptionsToObject(options).
   DirectHandle<JSReceiver> options;
-  const char* service = "Intl.PluralRules";
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options, CoerceOptionsToObject(isolate, options_obj, service));
 
@@ -93,8 +92,9 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
   // 7. Let t be ? GetOption(options, "type", "string", « "cardinal",
   // "ordinal" », "cardinal").
   Maybe<Type> maybe_type = GetStringOption<Type>(
-      isolate, options, "type", service, {"cardinal", "ordinal"},
-      {Type::CARDINAL, Type::ORDINAL}, Type::CARDINAL);
+      isolate, options, isolate->factory()->type_string(), service,
+      std::to_array<const std::string_view>({"cardinal", "ordinal"}),
+      std::array{Type::CARDINAL, Type::ORDINAL}, Type::CARDINAL);
   MAYBE_RETURN(maybe_type, MaybeDirectHandle<JSPluralRules>());
   Type type = maybe_type.FromJust();
 

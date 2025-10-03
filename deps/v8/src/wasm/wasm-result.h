@@ -67,8 +67,8 @@ class V8_EXPORT_PRIVATE WasmError {
 template <typename T>
 class Result {
  public:
-  static_assert(!std::is_same<T, WasmError>::value);
-  static_assert(!std::is_reference<T>::value,
+  static_assert(!std::is_same_v<T, WasmError>);
+  static_assert(!std::is_reference_v<T>,
                 "Holding a reference in a Result looks like a mistake; remove "
                 "this assertion if you know what you are doing");
 

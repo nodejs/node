@@ -274,12 +274,10 @@ class Sweeper {
   template <SweepingScope scope>
   class SweepingState {
     using ConcurrentSweeper =
-        typename std::conditional<scope == SweepingScope::kMinor,
-                                  ConcurrentMinorSweeper,
-                                  ConcurrentMajorSweeper>::type;
-    using SweeperJob =
-        typename std::conditional<scope == SweepingScope::kMinor,
-                                  MinorSweeperJob, MajorSweeperJob>::type;
+        std::conditional_t<scope == SweepingScope::kMinor,
+                           ConcurrentMinorSweeper, ConcurrentMajorSweeper>;
+    using SweeperJob = std::conditional_t<scope == SweepingScope::kMinor,
+                                          MinorSweeperJob, MajorSweeperJob>;
 
    public:
     explicit SweepingState(Sweeper* sweeper);

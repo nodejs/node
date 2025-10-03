@@ -8,13 +8,50 @@
 #include <unordered_map>
 #include <vector>
 
+#include "include/v8-internal.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/utils/allocation.h"
-#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {
+
+// Set of address regions that are made unaivailable for the underlying
+// allocator by acquiring them from the provided allocator and making them
+// unavailable.
+class V8_EXPORT_PRIVATE RedZones final {
+ public:
+  RedZones() = default;
+
+  // Initializes the red zones with an underlying allocator.
+  void Initialize(base::BoundedPageAllocator* allocator);
+
+  // Adds a `region` as red zone if it is contained (partially or full) in the
+  // region managed by the underlying allocator. The `region` must not be part
+  // of the red zone already. The allocator must still be able to allocate the
+  // region. Returns true if `region` was added as a red zone and false
+  // otherwise.
+  bool TryAdd(base::AddressRegion region);
+
+  // Removes a `needle` from the red zones if it is contained (partially or
+  // full) in the existing red zones. Returns true if `needle` was removed from
+  // the existing red zones, and false otherwise.
+  bool TryRemove(base::AddressRegion needle);
+
+  // Clears the red zones and throws away the allocator without touching the
+  // actual memory. After invoking `Reset()` it's impossible to manage the
+  // underlying red zones any longer.
+  void Reset() {
+    allocator_ = nullptr;
+    red_zones_.clear();
+  }
+
+  size_t num_red_zones() const { return red_zones_.size(); }
+
+ private:
+  base::BoundedPageAllocator* allocator_ = nullptr;
+  std::vector<base::AddressRegion> red_zones_;
+};
 
 // The process-wide singleton that keeps track of code range regions with the
 // intention to reuse free code range regions as a workaround for CFG memory
@@ -136,6 +173,9 @@ class CodeRange final : public VirtualMemoryCage {
   // When sharing a CodeRange among Isolates, calls to RemapEmbeddedBuiltins may
   // race during Isolate::Init.
   base::Mutex remap_embedded_builtins_mutex_;
+
+  // Red zones that we should not allocate in.
+  RedZones red_zones_;
 
 #if !defined(V8_OS_WIN) && !defined(V8_OS_IOS) && defined(DEBUG)
   bool immutable_ = false;

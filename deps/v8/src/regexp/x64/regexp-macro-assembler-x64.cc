@@ -214,7 +214,7 @@ void RegExpMacroAssemblerX64::CheckCharacterLT(base::uc16 limit,
   BranchOrBacktrack(less, on_less);
 }
 
-void RegExpMacroAssemblerX64::CheckGreedyLoop(Label* on_equal) {
+void RegExpMacroAssemblerX64::CheckFixedLengthLoop(Label* on_equal) {
   Label fallthrough;
   __ cmpl(rdi, Operand(backtrack_stackpointer(), 0));
   __ j(not_equal, &fallthrough);
@@ -601,8 +601,9 @@ void RegExpMacroAssemblerX64::CheckBitInTable(
 
 void RegExpMacroAssemblerX64::SkipUntilBitInTable(
     int cp_offset, Handle<ByteArray> table,
-    Handle<ByteArray> nibble_table_array, int advance_by) {
-  Label cont, scalar_repeat;
+    Handle<ByteArray> nibble_table_array, int advance_by, Label* on_match,
+    Label* on_no_match) {
+  Label scalar_repeat;
 
   const bool use_simd = SkipUntilBitInTableUseSimd(advance_by);
   if (use_simd) {
@@ -694,7 +695,7 @@ void RegExpMacroAssemblerX64::SkipUntilBitInTable(
       __ andl(r11, Immediate(0xfffe));
     }
     __ addq(rdi, r11);
-    __ jmp(&cont);
+    __ jmp(on_match);
     Bind(&scalar);
   }
 
@@ -703,7 +704,7 @@ void RegExpMacroAssemblerX64::SkipUntilBitInTable(
   __ Move(table_reg, table);
 
   Bind(&scalar_repeat);
-  CheckPosition(cp_offset, &cont);
+  CheckPosition(cp_offset, on_no_match);
   LoadCurrentCharacterUnchecked(cp_offset, 1);
   Register index = current_character();
   if (mode_ != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
@@ -714,11 +715,9 @@ void RegExpMacroAssemblerX64::SkipUntilBitInTable(
   __ cmpb(
       FieldOperand(table_reg, index, times_1, OFFSET_OF_DATA_START(ByteArray)),
       Immediate(0));
-  __ j(not_equal, &cont);
+  __ j(not_equal, on_match);
   AdvanceCurrentPosition(advance_by);
   __ jmp(&scalar_repeat);
-
-  __ bind(&cont);
 }
 
 bool RegExpMacroAssemblerX64::SkipUntilBitInTableUseSimd(int advance_by) {
@@ -729,6 +728,248 @@ bool RegExpMacroAssemblerX64::SkipUntilBitInTableUseSimd(int advance_by) {
   // better.
   return v8_flags.regexp_simd && advance_by * char_size() == 1 &&
          CpuFeatures::IsSupported(SSSE3);
+}
+
+namespace {
+
+void Pcmpeq(MacroAssembler* masm, XMMRegister dest, XMMRegister src1,
+            XMMRegister src2, int width) {
+  switch (width) {
+    case 1:
+      masm->Pcmpeqb(dest, src1, src2);
+      break;
+    case 2:
+      masm->Pcmpeqw(dest, src1, src2);
+      break;
+    case 4:
+      masm->Pcmpeqd(dest, src1, src2);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+}  // namespace
+
+void RegExpMacroAssemblerX64::SkipUntilOneOfMasked(
+    int cp_offset, int advance_by, unsigned both_chars, unsigned both_mask,
+    int max_offset, unsigned chars1, unsigned mask1, unsigned chars2,
+    unsigned mask2, Label* on_match1, Label* on_match2, Label* on_failure) {
+  Label scalar_repeat;
+  const bool use_simd = SkipUntilOneOfMaskedUseSimd(advance_by);
+  const int character_count =
+      4 - base::bits::CountLeadingZeros32(both_chars) / CHAR_BIT;
+  DCHECK_EQ(character_count,
+            4 - base::bits::CountLeadingZeros32(both_mask) / CHAR_BIT);
+  DCHECK_EQ(character_count, 4);  // TODO(pthier): Support other variants.
+  DCHECK_EQ(mode_, LATIN1);       // TODO(pthier): Support 2-byte.
+  if (use_simd) {
+    // We load the 16 characters from the subject into 4 different vector
+    // registers, each offset by 1. This is required as we want to check 4
+    // contiguous characters.
+    // E.g. "This is a sample subject" will be loaded as:
+    // input_vec1 = "This is a sample"
+    // input_vec2 = "his is a sample "
+    // input_vec3 = "is is a sample s"
+    // input_vec4 = "s is a sample su"
+    // We then check each of these vectors against both_mask and both_chars
+    // (each containing 4 characters). Whenever we find a match, we simply
+    // delegate the task of finding the exact match index to the scalar version
+    // (getting the correct index from vector registers is complicated and
+    // slower).
+    Label simd_repeat, scalar, scalar_after_simd, found;
+    static constexpr int kVectorSize = 16;
+    const int kCharsPerVector = kVectorSize / char_size();
+
+    // Fallback to scalar version if there are less than kCharsPerVector +
+    // character_count - 1 chars left in the subject. We subtract 1 from
+    // kCharsPerVector because CheckPosition assumes we are reading 1 character
+    // plus max_offset. So the -1 is the the character that is assumed to be
+    // read by default.
+    const int max_stride_offset =
+        max_offset + kCharsPerVector - 1 + character_count - 1;
+    CheckPosition(max_stride_offset, &scalar);
+
+    // Save callee-saved XMM registers.
+    // TODO(pthier): Consider saving callee-saved XMM registers in the
+    // prologue if more optimizations need them.
+    __ subq(rsp, Immediate(6 * kVectorSize));
+    __ movupd(Operand(rsp, 0), xmm6);
+    __ movupd(Operand(rsp, 1 * kVectorSize), xmm7);
+    __ movupd(Operand(rsp, 2 * kVectorSize), xmm8);
+    __ movupd(Operand(rsp, 3 * kVectorSize), xmm9);
+    __ movupd(Operand(rsp, 4 * kVectorSize), xmm10);
+    __ movupd(Operand(rsp, 5 * kVectorSize), xmm11);
+
+    // Load a 32-bit immediate and duplicate the value across all 4 lanes of a
+    // 128-bit XMM register.
+    // I.e. 0xAABBCCDD becomes 0xAABBCCDDAABBCCDDAABBCCDDAABBCCDD.
+    auto splat_imm32 = [this](XMMRegister dst, uint32_t imm) {
+      Register scratch = r11;
+      __ Move(scratch, (static_cast<uint64_t>(imm) << 32) | imm);
+      __ movq(dst, scratch);
+      if (CpuFeatures::IsSupported(SSE3)) {
+        CpuFeatureScope sse3_scope(masm(), SSE3);
+        __ Movddup(dst, dst);
+      } else {
+        __ shufpd(dst, dst, 0);
+      }
+    };
+
+    // Load constants.
+    XMMRegister both_mask_vec = xmm0;
+    splat_imm32(both_mask_vec, both_mask);
+    XMMRegister both_chars_vec = xmm1;
+    splat_imm32(both_chars_vec, both_chars);
+    XMMRegister mask1_vec = xmm2;
+    splat_imm32(mask1_vec, mask1);
+    XMMRegister chars1_vec = xmm3;
+    splat_imm32(chars1_vec, chars1);
+    XMMRegister mask2_vec = xmm4;
+    splat_imm32(mask2_vec, mask2);
+    XMMRegister chars2_vec = xmm5;
+    splat_imm32(chars2_vec, chars2);
+
+    Bind(&simd_repeat);
+
+    // Load next characters into vectors.
+    XMMRegister input_vec1 = xmm6;
+    XMMRegister input_vec2 = xmm7;
+    XMMRegister input_vec3 = xmm8;
+    XMMRegister input_vec4 = xmm9;
+
+    __ Movdqu(input_vec1, Operand(rsi, rdi, times_1, cp_offset));
+    __ Movdqu(input_vec2, Operand(rsi, rdi, times_1, cp_offset + 1));
+    __ Movdqu(input_vec3, Operand(rsi, rdi, times_1, cp_offset + 2));
+    __ Movdqu(input_vec4, Operand(rsi, rdi, times_1, cp_offset + 3));
+
+    // Helper to check if any of 4 input vectors matches. I.e. computes (input &
+    // mask) == characters for each input. If any input matched, |result| is set
+    // to a value != 0. We don't try to compute the exact match index, as this
+    // is rather expensive. Instead we use the scalar version to find the exact
+    // match index within a block.
+    XMMRegister result = xmm10;
+    auto AndCheck4CharsSimd =
+        [this, input_vec1, input_vec2, input_vec3, input_vec4, character_count](
+            XMMRegister res, XMMRegister characters, XMMRegister mask) {
+          XMMRegister tmp = xmm11;
+          if (CpuFeatures::IsSupported(AVX)) {
+            CpuFeatureScope avx_scope(masm(), AVX);
+            __ Andps(tmp, mask, input_vec1);
+            Pcmpeq(masm(), res, tmp, characters, character_count);
+            __ Andps(tmp, mask, input_vec2);
+            Pcmpeq(masm(), tmp, tmp, characters, character_count);
+            __ Orps(res, res, tmp);
+            __ Andps(tmp, mask, input_vec3);
+            Pcmpeq(masm(), tmp, tmp, characters, character_count);
+            __ Orps(res, res, tmp);
+            __ Andps(tmp, mask, input_vec4);
+            Pcmpeq(masm(), tmp, tmp, characters, character_count);
+            __ Orps(res, res, tmp);
+          } else {
+            __ Movdqa(tmp, mask);
+            __ Andps(tmp, tmp, input_vec1);
+            Pcmpeq(masm(), res, tmp, characters, character_count);
+            __ Movdqa(tmp, mask);
+            __ Andps(tmp, tmp, input_vec2);
+            Pcmpeq(masm(), tmp, tmp, characters, character_count);
+            __ Orps(res, res, tmp);
+            __ Movdqa(tmp, mask);
+            __ Andps(tmp, tmp, input_vec3);
+            Pcmpeq(masm(), tmp, tmp, characters, character_count);
+            __ Orps(res, res, tmp);
+            __ Movdqa(tmp, mask);
+            __ Andps(tmp, tmp, input_vec4);
+            Pcmpeq(masm(), tmp, tmp, characters, character_count);
+            __ Orps(res, res, tmp);
+          }
+        };
+
+    // Tests if any bit was set. Sets ZF to 0 if any bit was set.
+    auto TestAnySet = [this](XMMRegister reg) {
+      Register scratch = r11;
+      if (CpuFeatures::IsSupported(SSE4_1)) {
+        CpuFeatureScope sse4_scope(masm(), SSE4_1);
+        __ Ptest(reg, reg);
+      } else {
+        __ Pmovmskb(scratch, reg);
+        __ testl(scratch, scratch);
+      }
+    };
+
+    // Check both_chars with both_mask.
+    AndCheck4CharsSimd(result, both_chars_vec, both_mask_vec);
+    TestAnySet(result);
+    __ j(not_zero, &found);
+
+    AdvanceCurrentPosition(kCharsPerVector);
+    CheckPosition(max_stride_offset, &scalar_after_simd);
+    __ jmp(&simd_repeat);
+
+    Bind(&found);
+    // Check chars1 with mask1.
+    AndCheck4CharsSimd(result, chars1_vec, mask1_vec);
+    TestAnySet(result);
+    __ j(not_zero, &scalar_after_simd);
+    // Check chars2 with mask2.
+    AndCheck4CharsSimd(result, chars2_vec, mask2_vec);
+    TestAnySet(result);
+    __ j(not_zero, &scalar_after_simd);
+    AdvanceCurrentPosition(kCharsPerVector);
+    CheckPosition(max_stride_offset, &scalar_after_simd);
+    __ jmp(&simd_repeat);
+
+    Bind(&scalar_after_simd);
+    // Restore callee-saved XMM registers.
+    __ movupd(xmm11, Operand(rsp, 5 * kVectorSize));
+    __ movupd(xmm10, Operand(rsp, 4 * kVectorSize));
+    __ movupd(xmm9, Operand(rsp, 3 * kVectorSize));
+    __ movupd(xmm8, Operand(rsp, 2 * kVectorSize));
+    __ movupd(xmm7, Operand(rsp, 1 * kVectorSize));
+    __ movupd(xmm6, Operand(rsp, 0));
+    __ addq(rsp, Immediate(6 * kVectorSize));
+
+    Bind(&scalar);
+  }
+
+  // Scalar version.
+  {
+    Label found;
+    Bind(&scalar_repeat);
+    CheckPosition(max_offset, on_failure);
+    LoadCurrentCharacterUnchecked(cp_offset, character_count);
+
+    if (both_chars == 0) {
+      __ testl(current_character(), Immediate(both_mask));
+    } else {
+      __ Move(rax, both_mask);
+      __ andq(rax, current_character());
+      __ cmpl(rax, Immediate(both_chars));
+    }
+
+    __ j(equal, &found);
+    AdvanceCurrentPosition(advance_by);
+    __ jmp(&scalar_repeat);
+
+    Bind(&found);
+    __ Move(rax, mask1);
+    __ andq(rax, current_character());
+    __ cmpl(rax, Immediate(chars1));
+    __ j(equal, on_match1);
+
+    __ Move(rax, mask2);
+    __ andq(rax, current_character());
+    __ cmpl(rax, Immediate(chars2));
+    __ j(equal, on_match2);
+    AdvanceCurrentPosition(advance_by);
+    __ jmp(&scalar_repeat);
+  }
+}
+
+bool RegExpMacroAssemblerX64::SkipUntilOneOfMaskedUseSimd(int advance_by) {
+  // We only use SIMD instead of the scalar version if we advance by 1 byte
+  // in each iteration. For higher values the scalar version performs better.
+  return v8_flags.regexp_simd && advance_by * char_size() == 1;
 }
 
 bool RegExpMacroAssemblerX64::CheckSpecialClassRanges(StandardCharacterSet type,
@@ -908,6 +1149,10 @@ DirectHandle<HeapObject> RegExpMacroAssemblerX64::GetCode(
   // Tell the system that we have a stack frame. Because the type is MANUAL, no
   // physical frame is generated.
   FrameScope scope(&masm_, StackFrame::MANUAL);
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  __ AssertInSandboxedExecutionMode();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   // Actually emit code to start a new stack frame. This pushes the frame type
   // marker into the stack slot at kFrameTypeOffset.
@@ -1333,7 +1578,7 @@ void RegExpMacroAssemblerX64::PushRegister(int register_index,
                                            StackCheckFlag check_stack_limit) {
   __ movq(rax, register_location(register_index));
   Push(rax);
-  if (check_stack_limit) {
+  if (check_stack_limit == StackCheckFlag::kCheckStackLimit) {
     CheckStackLimit();
   } else if (V8_UNLIKELY(v8_flags.slow_debug_code)) {
     AssertAboveStackLimitMinusSlack();
@@ -1463,7 +1708,7 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
                                                   Address re_frame,
                                                   uintptr_t extra_space) {
   Tagged<InstructionStream> re_code =
-      Cast<InstructionStream>(Tagged<Object>(raw_code));
+      SbxCast<InstructionStream>(Tagged<Object>(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset),
       frame_entry<int>(re_frame, kStartIndexOffset),

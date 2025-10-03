@@ -423,14 +423,17 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
       break;
     case JS_DISPATCH_HANDLE: {
 #ifdef V8_ENABLE_LEAPTIERING
-    Tagged<Code> target_code =
-        IsolateGroup::current()->js_dispatch_table()->GetCode(
-            js_dispatch_handle());
-    os << " (" << CodeKindToString(target_code->kind());
-    if (Builtins::IsBuiltin(target_code)) {
-      os << " " << Builtins::name(target_code->builtin_id());
-    }
-    os << ")  (" << js_dispatch_handle() << ")";
+      JSDispatchHandle handle = js_dispatch_handle();
+      if (handle != kNullJSDispatchHandle) {
+        Tagged<Code> target_code =
+            IsolateGroup::current()->js_dispatch_table()->GetCode(handle);
+        os << " (" << CodeKindToString(target_code->kind());
+        if (Builtins::IsBuiltin(target_code)) {
+          os << " " << Builtins::name(target_code->builtin_id());
+        }
+        os << ")  (" << handle << ")";
+      }
+
     break;
 #else
     UNREACHABLE();

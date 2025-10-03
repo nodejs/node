@@ -43,6 +43,7 @@ ObjectVisitorWithCageBases::ObjectVisitorWithCageBases(Heap* heap)
     : ObjectVisitorWithCageBases(Isolate::FromHeap(heap)) {}
 
 template <typename Visitor>
+  requires(is_subtype_v<Visitor, RootVisitor>)
 inline void ClientRootVisitor<Visitor>::VisitRunningCode(
     FullObjectSlot code_slot, FullObjectSlot maybe_istream_slot) {
 #if DEBUG
@@ -55,6 +56,7 @@ inline void ClientRootVisitor<Visitor>::VisitRunningCode(
 
 // static
 template <typename Visitor>
+  requires(is_subtype_v<Visitor, RootVisitor>)
 bool ClientRootVisitor<Visitor>::IsSharedHeapObject(Tagged<Object> object) {
   return IsHeapObject(object) &&
          HeapLayout::InWritableSharedSpace(Cast<HeapObject>(object));

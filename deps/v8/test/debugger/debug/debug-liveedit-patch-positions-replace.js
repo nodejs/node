@@ -34,7 +34,7 @@
 // change they are 114 characters away from each other. New instance of Code is
 // required when those numbers cross the border value of 64 (in any direction).
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --inspector-live-edit
 Debug = debug.Debug
 
 eval(

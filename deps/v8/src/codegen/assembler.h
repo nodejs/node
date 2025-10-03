@@ -382,15 +382,17 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   int pc_offset() const { return static_cast<int>(pc_ - buffer_start_); }
 
-  int pc_offset_for_safepoint() {
-#if defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64)
-    // MIPS and LOONG need to use their own implementation to avoid trampoline's
-    // influence.
-    UNREACHABLE();
-#else
-    return pc_offset();
+  Address current_pc() const { return reinterpret_cast<Address>(pc_); }
+
+  void skip_bytes(int num_bytes) { pc_ += num_bytes; }
+
+// MIPS, LOONG, and RISC-V need to use their own implementations to avoid the
+// influence of branch trampolines. They provide their implementations in the
+// architecture-specific assembler subclasses.
+#if !defined(V8_TARGET_ARCH_MIPS64) && !defined(V8_TARGET_ARCH_LOONG64) && \
+    !defined(V8_TARGET_ARCH_RISCV32) && !defined(V8_TARGET_ARCH_RISCV64)
+  int pc_offset_for_safepoint() const { return pc_offset(); }
 #endif
-  }
 
   uint8_t* buffer_start() const { return buffer_->start(); }
   int buffer_size() const { return buffer_->size(); }
@@ -414,27 +416,11 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   // Record an inline code comment that can be used by a disassembler.
   // Use --code-comments to enable.
-  V8_INLINE void RecordComment(
-      const char* comment,
-      const SourceLocation& loc = SourceLocation::Current()) {
+  V8_INLINE void RecordComment(std::string_view comment,
+                               SourceLocation loc = SourceLocation::Current()) {
     // Set explicit dependency on --code-comments for dead-code elimination in
     // release builds.
-    if (!v8_flags.code_comments) return;
-    if (options().emit_code_comments) {
-      std::string comment_str(comment);
-      if (loc.FileName()) {
-        comment_str += " - " + loc.ToString();
-      }
-      code_comments_writer_.Add(pc_offset(), comment_str);
-    }
-  }
-
-  V8_INLINE void RecordComment(
-      std::string comment,
-      const SourceLocation& loc = SourceLocation::Current()) {
-    // Set explicit dependency on --code-comments for dead-code elimination in
-    // release builds.
-    if (!v8_flags.code_comments) return;
+    if (V8_LIKELY(!v8_flags.code_comments)) return;
     if (options().emit_code_comments) {
       std::string comment_str(comment);
       if (loc.FileName()) {
@@ -451,9 +437,8 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     // that returns a value convertible to std::string which is invoked lazily
     // when code comments are enabled.
     template <typename CommentGen>
-    V8_NODISCARD CodeComment(
-        Assembler* assembler, CommentGen&& comment,
-        const SourceLocation& loc = SourceLocation::Current())
+    V8_NODISCARD CodeComment(Assembler* assembler, CommentGen&& comment,
+                             SourceLocation loc = SourceLocation::Current())
         : assembler_(assembler) {
       if (!v8_flags.code_comments) return;
       if constexpr (std::is_invocable_v<CommentGen>) {
@@ -470,7 +455,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
    private:
     int depth() const;
-    void Open(const std::string& comment, const SourceLocation& loc);
+    void Open(const std::string& comment, SourceLocation loc);
     void Close();
     Assembler* assembler_;
   };
@@ -524,6 +509,10 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // allocate these objects and place them where they are expected (determined
   // by the pc offset associated with each request).
   void RequestHeapNumber(HeapNumberRequest request);
+
+  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
+  virtual void PatchInHeapNumberRequest(Address pc,
+                                        Handle<HeapNumber> object) = 0;
 
   bool ShouldRecordRelocInfo(RelocInfo::Mode rmode) const {
     DCHECK(!RelocInfo::IsNoInfo(rmode));
@@ -605,12 +594,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD CpuFeatureScope {
 };
 
 #ifdef V8_CODE_COMMENTS
-#if V8_SUPPORTS_SOURCE_LOCATION
-// We'll get the function name from the source location, no need to pass it in.
 #define ASM_CODE_COMMENT(asm) ASM_CODE_COMMENT_STRING(asm, "")
-#else
-#define ASM_CODE_COMMENT(asm) ASM_CODE_COMMENT_STRING(asm, __func__)
-#endif
 #define ASM_CODE_COMMENT_STRING(asm, comment) \
   AssemblerBase::CodeComment UNIQUE_IDENTIFIER(asm_code_comment)(asm, comment)
 #else

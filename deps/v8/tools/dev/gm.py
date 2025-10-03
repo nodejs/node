@@ -147,15 +147,30 @@ TESTSUITES_TARGETS = {
     "webkit": "d8"
 }
 
-out_dir_override = os.getenv("V8_GM_OUTDIR")
-if out_dir_override and Path(out_dir_override).is_file:
-  OUTDIR = Path(out_dir_override)
-else:
-  OUTDIR = Path("out")
+QUIET = sys.argv[0] == "quietgm"  # Overridden by "quiet" keyword.
+
+build_dir_prefix = os.getenv("V8_GM_BUILD_DIR_PREFIX")
 
 V8_DIR = Path(__file__).resolve().parent.parent.parent
 GCLIENT_FILE_PATH = V8_DIR.parent / ".gclient"
 RECLIENT_CERT_CACHE = V8_DIR / ".#gm_reclient_cert_cache"
+
+if (V8_DIR.parent / "chrome").exists():
+  CHROMIUM_DIR = V8_DIR.parent
+  GCLIENT_FILE_PATH = CHROMIUM_DIR / ".gclient"
+else:
+  CHROMIUM_DIR = None
+
+out_dir_override = os.getenv("V8_GM_OUTDIR")
+if out_dir_override and Path(out_dir_override).is_dir:
+  OUTDIR = Path(out_dir_override).absolute()
+  OUTDIR_BASENAME = OUTDIR.parts[-1]
+else:
+  OUTDIR_BASENAME = "out"
+  if CHROMIUM_DIR:
+    OUTDIR = Path(CHROMIUM_DIR / OUTDIR_BASENAME)
+  else:
+    OUTDIR = Path(V8_DIR / OUTDIR_BASENAME)
 
 BUILD_DISTRIBUTION_RE = re.compile(r"\nuse_(remoteexec|goma) = (false|true)")
 GOMA_DIR_LINE = re.compile(r"\ngoma_dir = \"[^\"]+\"")
@@ -181,8 +196,7 @@ def get_v8_solution(solutions):
 def detect_reclient():
   if not GCLIENT_FILE_PATH.exists():
     return Reclient.NONE
-  with open(GCLIENT_FILE_PATH) as f:
-    content = f.read()
+  content = GCLIENT_FILE_PATH.read_text()
   try:
     config_dict = {}
     exec(content, config_dict)
@@ -194,9 +208,9 @@ def detect_reclient():
     print("# Can't detect reclient due to missing v8 gclient solution.")
     return Reclient.NONE
   custom_vars = v8_solution.get("custom_vars", {})
-  if custom_vars.get("rbe_instance"):
+  if "rbe_instance" in custom_vars:
     return Reclient.CUSTOM
-  if custom_vars.get("download_remoteexec_cfg"):
+  if "download_remoteexec_cfg" in custom_vars:
     return Reclient.GOOGLE
   return Reclient.NONE
 
@@ -208,22 +222,23 @@ def detect_reclient_cert():
   # We cache the cert expiration time in a file, because that's much faster
   # to read than invoking `gcertstatus`.
   if RECLIENT_CERT_CACHE.exists():
-    with open(RECLIENT_CERT_CACHE, 'r') as f:
-      cached_time = int(f.read())
+    cached_time = int(RECLIENT_CERT_CACHE.read_text())
     if now < cached_time:
       return True
   cmd = ["gcertstatus", "-nocheck_ssh", "-format=simple"]
   ret = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   if ret.returncode != 0:
     return False
+  gcertstatus_output = ret.stdout.decode("utf-8").strip()
+  if not gcertstatus_output:
+    return False
   # Request fresh cert if less than an hour remains. Reproxy will refuse to
   # start when the certificate is close to expiring.
   MARGIN = 3600
-  lifetime = int(ret.stdout.decode("utf-8").strip().split(':')[1]) - MARGIN
+  lifetime = int(gcertstatus_output.split(":")[1]) - MARGIN
   if lifetime < 0:
     return False
-  with open(RECLIENT_CERT_CACHE, 'w') as f:
-    f.write(str(now + lifetime))
+  RECLIENT_CERT_CACHE.write_text(str(now + lifetime))
   return True
 
 
@@ -304,16 +319,29 @@ def print_completions_and_exit():
 
 
 def _call(cmd, silent=False):
-  if not silent:
+  if not silent and not QUIET:
     print(f"# {cmd}")
   return subprocess.call(cmd, shell=True)
 
 
-def _call_with_output_no_terminal(cmd):
-  return subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
+# Quiet mode means: only print in case of error.
+def _call_quiet(cmd):
+  p = subprocess.run(cmd, shell=True, capture_output=True)
+  stderr = p.stderr.decode('utf-8')
+  if stderr:
+    # Siso prints errors to stdout, so report that as well.
+    sys.stderr.write(p.stdout.decode('utf-8'))
+    sys.stderr.write(stderr)
+  # By not including stdout in the returned output, we implicitly skip the
+  # interactive "re-run mksnapshot in GDB" feature, which is just fitting
+  # for quiet mode.
+  return p.returncode, stderr
 
 
 def _call_with_output(cmd):
+  if QUIET:
+    return _call_quiet(cmd)
+
   print(f"# {cmd}")
   # The following trickery is required so that the 'cmd' thinks it's running
   # in a real terminal, while this script gets to intercept its output.
@@ -345,8 +373,7 @@ def _call_with_output(cmd):
 def _write(filename, content, log=True):
   if log:
     print(f"# echo > {filename} << EOF\n{content}EOF")
-  with filename.open("w") as f:
-    f.write(content)
+  filename.write_text(content)
 
 
 def _notify(summary, body):
@@ -362,6 +389,8 @@ def _get_machine():
 
 
 def get_path(arch, mode):
+  if build_dir_prefix:
+    return OUTDIR / f"{build_dir_prefix}-{arch}.{mode}"
   return OUTDIR / f"{arch}.{mode}"
 
 
@@ -401,9 +430,8 @@ class RawConfig:
 
   def update_build_distribution_args(self):
     args_gn = self.path / "args.gn"
-    assert args_gn.exists()
-    with open(args_gn) as f:
-      gn_args = f.read()
+    assert args_gn.exists(), f"args.gn does not exist: {args_gn}"
+    gn_args = args_gn.read_text()
     # Remove custom reclient config path (it will be added again as part of
     # the config line below if needed).
     new_gn_args = DEPRECATED_RBE_CFG_RE.sub("", gn_args)
@@ -424,28 +452,39 @@ class RawConfig:
       self.targets.remove('gn_args')
     if len(self.targets) == 0:
       return 0
+    # When printing, print a relative path for conciseness.
+    cwd = Path.cwd()
+    if cwd == V8_DIR:
+      try:
+        printable_path = self.path.relative_to(cwd)
+      except:
+        printable_path = self.path
+    else:
+      printable_path = self.path
     build_ninja = self.path / "build.ninja"
     if not build_ninja.exists():
-      code = _call(f"gn gen {self.path}")
+      code = _call(f"gn gen {printable_path}")
       if code != 0:
         return code
     elif self.clean:
-      code = _call(f"gn clean {self.path}")
+      code = _call(f"gn clean {printable_path}")
       if code != 0:
         return code
     targets = " ".join(self.targets)
+    quiet = "--quiet " if QUIET else ""
+    cmd = f"autoninja {quiet}-C {printable_path} {targets}"
+
     # The implementation of mksnapshot failure detection relies on
     # the "pty" module and GDB presence, so skip it on non-Linux.
     if not USE_PTY:
-      return _call(f"autoninja -C {self.path} {targets}")
+      return _call(cmd)
 
-    return_code, output = _call_with_output(
-        f"autoninja -C {self.path} {targets}")
+    return_code, output = _call_with_output(cmd)
     if return_code != 0 and "FAILED:" in output:
       if "snapshot_blob" in output:
         if "gen-static-roots.py" in output:
           _notify("V8 build requires your attention",
-                  "Please re-generate static roots...")
+                  "Please re-generate static roots.")
           return return_code
         csa_trap = re.compile("Specify option( --csa-trap-on-node=[^ ]*)")
         match = csa_trap.search(output)
@@ -475,7 +514,7 @@ class RawConfig:
       tests = ""
     else:
       tests = " ".join(self.tests)
-    run_tests = Path("tools") / "run-tests.py"
+    run_tests = V8_DIR / "tools" / "run-tests.py"
     test_runner_args = " ".join(self.testrunner_args)
     return _call(
         f'"{sys.executable }" {run_tests} --outdir={self.path} {tests} {test_runner_args}'
@@ -593,7 +632,8 @@ class ManagedConfig(RawConfig):
         ((host_arch == "x86_64" and self.arch == "x64") or
          (host_arch == "arm64" and self.arch == "arm64"))):
       mkgrokdump_bin = self.path / "mkgrokdump"
-      _call(f"{mkgrokdump_bin} > tools/v8heapconst.py")
+      heapconst_output = V8_DIR / "tools" / "v8heapconst.py"
+      _call(f"{mkgrokdump_bin} > {heapconst_output}")
     return super().run_tests()
 
 
@@ -631,7 +671,7 @@ class ArgumentParser(object):
         self.populate_configs(DEFAULT_ARCHES, DEFAULT_MODES, **impact)
 
   def maybe_parse_builddir(self, argstring):
-    outdir_prefix = str(OUTDIR) + os.path.sep
+    outdir_prefix = str(OUTDIR_BASENAME) + os.path.sep
     # {argstring} must have the shape "out/x", and the 'x' part must be
     # at least one character.
     if not argstring.startswith(outdir_prefix):
@@ -641,6 +681,7 @@ class ArgumentParser(object):
     # "out/foo.d8" -> path="out/foo", targets=["d8"]
     # "out/d8.cctest" -> path="out/d8", targets=["cctest"]
     # "out/x.y.d8.cctest" -> path="out/x.y", targets=["d8", "cctest"]
+    argstring = argstring.replace(outdir_prefix, "")
     words = argstring.split('.')
     path_end = len(words)
     targets = []
@@ -660,7 +701,7 @@ class ArgumentParser(object):
         break
       path_end -= 1
     targets = targets or DEFAULT_TARGETS
-    path = Path('.'.join(words[:path_end]))
+    path = OUTDIR / Path('.'.join(words[:path_end]))
     args_gn = path / "args.gn"
     # Only accept existing build output directories, otherwise fall back
     # to regular parsing.
@@ -678,6 +719,10 @@ class ArgumentParser(object):
       print_help_and_exit()
     if argstring == "--print-completions":
       print_completions_and_exit()
+    if argstring == "quiet":
+      global QUIET
+      QUIET = True
+      return
     arches = []
     modes = []
     targets = []
@@ -755,6 +800,9 @@ class ArgumentParser(object):
   def parse_arguments(self, argv):
     if len(argv) == 0:
       print_help_and_exit()
+    if len(argv) >= 2 and argv[0] == "args" and os.path.exists(argv[1]):
+      code = _call(f"gn args {argv[1]}")
+      sys.exit(code)
     for argstring in argv:
       self.parse_arg(argstring)
     self.process_global_actions()

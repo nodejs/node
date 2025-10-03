@@ -409,6 +409,11 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
   HeapObjectMatcher m(receiver);
   if (m.HasResolvedValue()) {
     HeapObjectRef ref = m.Ref(broker);
+    if (ref.IsTheHole()) {
+      // Holes should never make it past hole checks, so they will never
+      // provide helpful map inference.
+      return kNoMaps;
+    }
     // We don't use ICs for the Array.prototype and the Object.prototype
     // because the runtime has to be able to intercept them properly, so
     // we better make sure that TurboFan doesn't outsmart the system here
@@ -428,6 +433,16 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
   }
   InferMapsResult result = kReliableMaps;
   while (true) {
+#ifdef DEBUG
+    InferMapsResult prev_result = result;
+    bool write_might_change_aliasing_maps = true;
+#define WRITE_CANNOT_CHANGE_ALIASING_MAPS() \
+  write_might_change_aliasing_maps = false
+#else
+// Swallow the semicolon.
+#define WRITE_CANNOT_CHANGE_ALIASING_MAPS() ((void)0)
+#endif
+
     switch (effect->opcode()) {
       case IrOpcode::kTypeGuard: {
         DCHECK_EQ(1, effect->op()->EffectInputCount());
@@ -449,6 +464,16 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
           *maps_out = CheckMapsParametersOf(effect->op()).maps();
           return result;
         }
+        // This is subtle: CheckMaps with TryMigrateInstance _can_ write maps,
+        // but it can only transition away from deprecated maps, which should
+        // never be inferable maps, since we eagerly try to find the migration
+        // target of deprecated maps when we see them. It could be that a
+        // previous CheckMaps or other map inference node contains deprecated
+        // maps as of this check, because there could have been a concurrent
+        // deprecation, and this means that we can't CHECK this invariant here;
+        // but, then compilation would fail during finalization thanks to a
+        // CheckNoDeprecatedMaps check.
+        WRITE_CANNOT_CHANGE_ALIASING_MAPS();
         break;
       }
       case IrOpcode::kTransitionElementsKindOrCheckMap: {
@@ -483,6 +508,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
                                           .initial_map(broker)};
           return result;
         }
+        WRITE_CANNOT_CHANGE_ALIASING_MAPS();
         break;
       }
       case IrOpcode::kStoreField: {
@@ -502,6 +528,8 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
           // Without alias analysis we cannot tell whether this
           // StoreField[map] affects {receiver} or not.
           result = kUnreliableMaps;
+        } else {
+          WRITE_CANNOT_CHANGE_ALIASING_MAPS();
         }
         break;
       }
@@ -510,6 +538,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
       case IrOpcode::kStoreElement:
       case IrOpcode::kStoreTypedElement: {
         // These never change the map of objects.
+        WRITE_CANNOT_CHANGE_ALIASING_MAPS();
         break;
       }
       case IrOpcode::kFinishRegion: {
@@ -517,6 +546,8 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
         // to update the {receiver} that we are looking for, if the
         // {receiver} matches the current {effect}.
         if (IsSame(receiver, effect)) receiver = GetValueInput(effect, 0);
+        // This never change the map of objects.
+        WRITE_CANNOT_CHANGE_ALIASING_MAPS();
         break;
       }
       case IrOpcode::kEffectPhi: {
@@ -547,6 +578,16 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
         break;
       }
     }
+
+#undef WRITE_CANNOT_CHANGE_ALIASING_MAPS
+#ifdef DEBUG
+    if (effect->op()->HasProperty(Operator::kNoWrite) ||
+        !write_might_change_aliasing_maps) {
+      DCHECK_EQ(result, prev_result);
+    } else {
+      DCHECK_EQ(result, kUnreliableMaps);
+    }
+#endif
 
     // Stop walking the effect chain once we hit the definition of
     // the {receiver} along the {effect}s.

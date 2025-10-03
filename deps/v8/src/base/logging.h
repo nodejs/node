@@ -29,6 +29,8 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
 [[noreturn]] PRINTF_FORMAT(3, 4) V8_BASE_EXPORT V8_NOINLINE
     void V8_Fatal(const char* file, int line, const char* format, ...);
 #define FATAL(...) V8_Fatal(__FILE__, __LINE__, __VA_ARGS__)
+#define FATAL_WITH_LOC(loc, ...) \
+  V8_Fatal((loc).FileName(), static_cast<int>((loc).Line()), __VA_ARGS__)
 
 // The following can be used instead of FATAL() to prevent calling
 // IMMEDIATE_CRASH in official mode. Please only use if needed for testing.
@@ -45,6 +47,7 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
 // numbers. It saves binary size to drop the |file| & |line| as opposed to just
 // passing in "", 0 for them.
 #define FATAL(...) V8_Fatal(__VA_ARGS__)
+#define FATAL_WITH_LOC(loc, ...) FATAL(__VA_ARGS__)
 #else
 // FATAL(msg) -> IMMEDIATE_CRASH()
 // FATAL(msg, ...) -> V8_Fatal(msg, ...)
@@ -54,6 +57,7 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
   FATAL_HELPER(__VA_ARGS__, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, \
                V8_Fatal, FATAL_DISCARD_ARG)                                   \
   (__VA_ARGS__)
+#define FATAL_WITH_LOC(loc, ...) FATAL(__VA_ARGS__)
 #endif  // !defined(OFFICIAL_BUILD)
 #endif  // DEBUG
 
@@ -125,11 +129,11 @@ enum class OOMType {
 
 #ifdef DEBUG
 
-#define DCHECK_WITH_MSG_AND_LOC(condition, message, loc)                \
-  do {                                                                  \
-    if (V8_UNLIKELY(!(condition))) {                                    \
-      V8_Dcheck(loc.FileName(), static_cast<int>(loc.Line()), message); \
-    }                                                                   \
+#define DCHECK_WITH_MSG_AND_LOC(condition, message, loc)                    \
+  do {                                                                      \
+    if (V8_UNLIKELY(!(condition))) {                                        \
+      V8_Dcheck((loc).FileName(), static_cast<int>((loc).Line()), message); \
+    }                                                                       \
   } while (false)
 #define DCHECK_WITH_MSG(condition, message)   \
   do {                                        \
@@ -216,7 +220,7 @@ std::string PrintCheckOperand(T val) {
 // Define PrintCheckOperand<T> for each T which defines operator<< for ostream,
 // except types explicitly specialized below.
 template <typename T>
-  requires(!std::is_function_v<typename std::remove_pointer<T>::type> &&
+  requires(!std::is_function_v<std::remove_pointer_t<T>> &&
            !std::is_enum_v<T> && has_output_operator<T, CheckMessageStream>)
 std::string PrintCheckOperand(T val) {
   return detail::PrintToString(std::forward<T>(val));
@@ -330,21 +334,20 @@ EXPLICIT_CHECK_OP_INSTANTIATION(void const*)
 #undef EXPLICIT_CHECK_OP_INSTANTIATION
 
 // comparison_underlying_type provides the underlying integral type of an enum,
-// or std::decay<T>::type if T is not an enum. Booleans are converted to
+// or std::decay_t<T> if T is not an enum. Booleans are converted to
 // "unsigned int", to allow "unsigned int == bool" comparisons.
 template <typename T>
 struct comparison_underlying_type {
   // std::underlying_type must only be used with enum types, thus use this
   // {Dummy} type if the given type is not an enum.
   enum Dummy {};
-  using decay = typename std::decay<T>::type;
+  using decay = std::decay_t<T>;
   static constexpr bool is_enum = std::is_enum_v<decay>;
-  using underlying = typename std::underlying_type<
-      typename std::conditional<is_enum, decay, Dummy>::type>::type;
-  using type_or_bool =
-      typename std::conditional<is_enum, underlying, decay>::type;
-  using type = typename std::conditional<std::is_same_v<type_or_bool, bool>,
-                                         unsigned int, type_or_bool>::type;
+  using underlying =
+      std::underlying_type_t<std::conditional_t<is_enum, decay, Dummy>>;
+  using type_or_bool = std::conditional_t<is_enum, underlying, decay>;
+  using type = std::conditional_t<std::is_same_v<type_or_bool, bool>,
+                                  unsigned int, type_or_bool>;
 };
 // Cast a value to its underlying type
 #define MAKE_UNDERLYING(Type, value) \
@@ -391,9 +394,9 @@ DEFINE_CMP_IMPL(GT, >)
 
 // Specialize the compare functions for signed vs. unsigned comparisons (via the
 // `requires` clause).
-#define MAKE_UNSIGNED(Type, value)         \
-  static_cast<typename std::make_unsigned< \
-      typename comparison_underlying_type<Type>::type>::type>(value)
+#define MAKE_UNSIGNED(Type, value)           \
+  static_cast<typename std::make_unsigned_t< \
+      typename comparison_underlying_type<Type>::type>>(value)
 #define DEFINE_SIGNED_MISMATCH_COMP(CHECK, NAME, IMPL)         \
   template <typename Lhs, typename Rhs>                        \
     requires(CHECK<Lhs, Rhs>::value)                           \

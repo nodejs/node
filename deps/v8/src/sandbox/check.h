@@ -5,6 +5,8 @@
 #ifndef V8_SANDBOX_CHECK_H_
 #define V8_SANDBOX_CHECK_H_
 
+#include <optional>
+
 #include "src/sandbox/hardware-support.h"
 
 // When the sandbox is enabled, a SBXCHECK behaves exactly like a CHECK, but
@@ -22,7 +24,6 @@
 // corrupt memory inside the sandbox, but otherwise holds true.
 #ifdef V8_ENABLE_SANDBOX
 
-#ifdef DEBUG
 // It's unsafe to access sandbox memory during a SBXCHECK since such an access
 // will be inherently racy as we need to assume an attacker can modify the value
 // inside the sandbox right before and after the check. If you run into this,
@@ -31,22 +32,25 @@
 // doubt, feel free to add someone from the security team as a reviewer. If
 // sandbox hardware support is enabled, we'll block these accesses temporarily
 // in debug builds.
-#define BLOCK_SANDBOX_ACCESS_IN_DEBUG_MODE \
-  auto block_access = v8::internal::SandboxHardwareSupport::MaybeBlockAccess()
-#else
-#define BLOCK_SANDBOX_ACCESS_IN_DEBUG_MODE
-#endif
-
-#define SBXCHECK(condition)             \
-  do {                                  \
-    BLOCK_SANDBOX_ACCESS_IN_DEBUG_MODE; \
-    CHECK(condition);                   \
+// Wrap DisallowSandboxAccess into optional to allow the CHECK to be used in
+// constexpr contexts.
+// TODO: Remove it after switching to C++23.
+#define SBXCHECK(condition)                                               \
+  do {                                                                    \
+    std::optional<v8::internal::DisallowSandboxAccess> no_sandbox_access; \
+    if (!std::is_constant_evaluated()) {                                  \
+      no_sandbox_access.emplace();                                        \
+    }                                                                     \
+    CHECK(condition);                                                     \
   } while (false)
 
-#define SBXCHECK_WRAPPED(CONDITION, lhs, rhs) \
-  do {                                        \
-    BLOCK_SANDBOX_ACCESS_IN_DEBUG_MODE;       \
-    CHECK_##CONDITION(lhs, rhs);              \
+#define SBXCHECK_WRAPPED(CONDITION, lhs, rhs)                             \
+  do {                                                                    \
+    std::optional<v8::internal::DisallowSandboxAccess> no_sandbox_access; \
+    if (!std::is_constant_evaluated()) {                                  \
+      no_sandbox_access.emplace();                                        \
+    }                                                                     \
+    CHECK_##CONDITION(lhs, rhs);                                          \
   } while (false)
 
 #define SBXCHECK_EQ(lhs, rhs) SBXCHECK_WRAPPED(EQ, lhs, rhs)
@@ -57,16 +61,16 @@
 #define SBXCHECK_LE(lhs, rhs) SBXCHECK_WRAPPED(LE, lhs, rhs)
 #define SBXCHECK_BOUNDS(index, limit) SBXCHECK_WRAPPED(BOUNDS, index, limit)
 #define SBXCHECK_IMPLIES(when, then) SBXCHECK_WRAPPED(IMPLIES, when, then)
-#else
-#define SBXCHECK(condition) DCHECK(condition)
-#define SBXCHECK_EQ(lhs, rhs) DCHECK_EQ(lhs, rhs)
-#define SBXCHECK_NE(lhs, rhs) DCHECK_NE(lhs, rhs)
-#define SBXCHECK_GT(lhs, rhs) DCHECK_GT(lhs, rhs)
-#define SBXCHECK_GE(lhs, rhs) DCHECK_GE(lhs, rhs)
-#define SBXCHECK_LT(lhs, rhs) DCHECK_LT(lhs, rhs)
-#define SBXCHECK_LE(lhs, rhs) DCHECK_LE(lhs, rhs)
-#define SBXCHECK_BOUNDS(index, limit) DCHECK_BOUNDS(index, limit)
-#define SBXCHECK_IMPLIES(when, then) DCHECK_IMPLIES(when, then)
-#endif
+#else  // V8_ENABLE_SANDBOX
+#define SBXCHECK(condition) CHECK(condition)
+#define SBXCHECK_EQ(lhs, rhs) CHECK_EQ(lhs, rhs)
+#define SBXCHECK_NE(lhs, rhs) CHECK_NE(lhs, rhs)
+#define SBXCHECK_GT(lhs, rhs) CHECK_GT(lhs, rhs)
+#define SBXCHECK_GE(lhs, rhs) CHECK_GE(lhs, rhs)
+#define SBXCHECK_LT(lhs, rhs) CHECK_LT(lhs, rhs)
+#define SBXCHECK_LE(lhs, rhs) CHECK_LE(lhs, rhs)
+#define SBXCHECK_BOUNDS(index, limit) CHECK_BOUNDS(index, limit)
+#define SBXCHECK_IMPLIES(when, then) CHECK_IMPLIES(when, then)
+#endif  // V8_ENABLE_SANDBOX
 
 #endif  // V8_SANDBOX_CHECK_H_

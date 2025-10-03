@@ -23,7 +23,7 @@ MachineType kMachineTypes[] = {
 
 class LinkageTailCall : public TestWithZone {
  protected:
-  LinkageTailCall() : TestWithZone(kCompressGraphZone) {}
+  LinkageTailCall() = default;
 
   CallDescriptor* NewStandardCallDescriptor(LocationSignature* locations) {
     DCHECK(arraysize(kMachineTypes) >=
@@ -38,11 +38,13 @@ class LinkageTailCall : public TestWithZone {
       if (locations->GetReturn(i).IsCallerFrameSlot()) stack_returns++;
     }
     return zone()->New<CallDescriptor>(
-        CallDescriptor::kCallCodeObject, kDefaultCodeEntrypointTag,
-        MachineType::AnyTagged(),
-        LinkageLocation::ForAnyRegister(MachineType::Pointer()),
-        locations,  // location_sig
-        stack_arguments,
+        CallDescriptor::kCallCodeObject,  // kind
+        kCodeEntrypointTagForTesting,     // tag
+        MachineType::AnyTagged(),         // target MachineType
+        LinkageLocation::ForAnyRegister(
+            MachineType::Pointer()),       // target location
+        locations,                         // location_sig
+        stack_arguments,                   // stack_parameter_count
         Operator::kNoProperties,           // properties
         kNoCalleeSaved,                    // callee-saved
         kNoCalleeSavedFp,                  // callee-saved fp

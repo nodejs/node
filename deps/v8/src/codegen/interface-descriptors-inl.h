@@ -125,7 +125,8 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::Initialize(
   DCHECK_GE(return_double_registers.size(), DerivedDescriptor::kReturnCount);
   data->InitializeRegisters(
       DerivedDescriptor::flags(), DerivedDescriptor::kEntrypointTag,
-      DerivedDescriptor::kReturnCount, DerivedDescriptor::GetParameterCount(),
+      DerivedDescriptor::kSandboxingMode, DerivedDescriptor::kReturnCount,
+      DerivedDescriptor::GetParameterCount(),
       DerivedDescriptor::kStackArgumentOrder,
       DerivedDescriptor::GetRegisterParameterCount(), registers.data(),
       double_registers.data(), return_registers.data(),
@@ -314,7 +315,7 @@ constexpr RegList WriteBarrierDescriptor::ComputeSavedRegisters(
     saved_registers.set(SlotAddressRegister());
   }
 #elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_LOONG64 || \
-    V8_TARGET_ARCH_MIPS64
+    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
   if (object != ObjectRegister()) saved_registers.set(ObjectRegister());
   // The slot address is always clobbered.
   saved_registers.set(SlotAddressRegister());
@@ -533,6 +534,9 @@ OnStackReplacementDescriptor::ExpectedParameterCountRegister() {
 
 // static
 constexpr auto VoidDescriptor::registers() { return RegisterArray(); }
+
+// static
+constexpr auto JSEntryDescriptor::registers() { return RegisterArray(); }
 
 // static
 constexpr auto AllocateDescriptor::registers() {
@@ -807,15 +811,22 @@ constexpr auto WasmToJSWrapperDescriptor::return_double_registers() {
 #endif
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+constexpr auto WasmFXResumeDescriptor::registers() {
+  return RegisterArray(wasm::kGpParamRegisters[0]);
+}
+#endif
+
 #define DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER(Name, DescriptorName) \
   template <>                                                         \
   struct CallInterfaceDescriptorFor<Builtin::k##Name> {               \
     using type = DescriptorName##Descriptor;                          \
   };
 BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN,
-             /*TSC*/ DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER,
+             /*TFC_TSA*/ DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER,
              /*TFC*/ DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER, IGNORE_BUILTIN,
              /*TFH*/ DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER, IGNORE_BUILTIN,
+             IGNORE_BUILTIN,
              /*ASM*/ DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER)
 #undef DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER
 #define DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER(Name, ...) \

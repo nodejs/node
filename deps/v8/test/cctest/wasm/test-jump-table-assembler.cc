@@ -150,11 +150,6 @@ void CompileJumpTableThunk(Address thunk, Address jump_target) {
   __ Ld_w(scratch, MemOperand(scratch, 0));
   __ Branch(&exit, ne, scratch, Operand(zero_reg));
   __ Jump(jump_target, RelocInfo::NO_INFO);
-#elif V8_TARGET_ARCH_MIPS
-  __ li(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
-  __ lw(scratch, MemOperand(scratch, 0));
-  __ Branch(&exit, ne, scratch, Operand(zero_reg));
-  __ Jump(jump_target, RelocInfo::NO_INFO);
 #elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
   __ li(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ Lw(scratch, MemOperand(scratch, 0));
@@ -165,6 +160,13 @@ void CompileJumpTableThunk(Address thunk, Address jump_target) {
 #endif
   __ bind(&exit);
   __ Ret();
+
+#if V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
+  // On RISC-V, the instruction sequence above may leave non-emitted entries
+  // in the constant pool of the assembler. Make sure to give the assembler
+  // a chance to emit them.
+  masm.FinishCode();
+#endif
 
   FlushInstructionCache(thunk, kThunkBufferSize);
 #if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)

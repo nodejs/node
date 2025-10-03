@@ -26,7 +26,7 @@ function h() {
 }
 
 function isOptimized(f) {
-  return (%GetOptimizationStatus(f) & 16) ? "optimized" : "unoptimized";
+  return (%GetOptimizationStatus(f) & 8) ? "optimized" : "unoptimized";
 }
 
 %NeverOptimizeFunction(f); // Inline 'g' into 'h', but never 'f'.

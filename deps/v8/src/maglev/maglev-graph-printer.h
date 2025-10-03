@@ -33,8 +33,8 @@ class ProcessingState;
 
 class MaglevPrintingVisitor {
  public:
-  explicit MaglevPrintingVisitor(MaglevGraphLabeller* graph_labeller,
-                                 std::ostream& os);
+  explicit MaglevPrintingVisitor(std::ostream& os,
+                                 bool has_regalloc_data = false);
 
   void PreProcessGraph(Graph* graph);
   void PostProcessGraph(Graph* graph) {}
@@ -48,47 +48,17 @@ class MaglevPrintingVisitor {
   std::ostream& os() { return *os_for_additional_info_; }
 
  private:
-  MaglevGraphLabeller* graph_labeller_;
   std::ostream& os_;
   std::unique_ptr<std::ostream> os_for_additional_info_;
   std::set<BasicBlock*> loop_headers_;
   std::vector<BasicBlock*> targets_;
   NodeIdT max_node_id_ = kInvalidNodeId;
   MaglevGraphLabeller::Provenance existing_provenance_;
+  bool has_regalloc_data_;
 };
 
-void PrintGraph(std::ostream& os, MaglevCompilationInfo* compilation_info,
-                Graph* const graph);
-
-class PrintNode {
- public:
-  PrintNode(MaglevGraphLabeller* graph_labeller, const NodeBase* node,
-            bool skip_targets = false)
-      : graph_labeller_(graph_labeller),
-        node_(node),
-        skip_targets_(skip_targets) {}
-
-  void Print(std::ostream& os) const;
-
- private:
-  MaglevGraphLabeller* graph_labeller_;
-  const NodeBase* node_;
-  // This is used when tracing graph building, since targets might not exist
-  // yet.
-  const bool skip_targets_;
-};
-
-class PrintNodeLabel {
- public:
-  PrintNodeLabel(MaglevGraphLabeller* graph_labeller, const NodeBase* node)
-      : graph_labeller_(graph_labeller), node_(node) {}
-
-  void Print(std::ostream& os) const;
-
- private:
-  MaglevGraphLabeller* graph_labeller_;
-  const NodeBase* node_;
-};
+void PrintGraph(std::ostream& os, Graph* const graph,
+                bool has_regalloc_data = false);
 
 #else
 
@@ -96,9 +66,7 @@ class PrintNodeLabel {
 
 class MaglevPrintingVisitor {
  public:
-  explicit MaglevPrintingVisitor(MaglevGraphLabeller* graph_labeller,
-                                 std::ostream& os)
-      : os_(os) {}
+  explicit MaglevPrintingVisitor(std::ostream& os) : os_(os) {}
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
@@ -122,35 +90,10 @@ class MaglevPrintingVisitor {
   std::ostream& os_;
 };
 
-inline void PrintGraph(std::ostream& os,
-                       MaglevCompilationInfo* compilation_info,
-                       Graph* const graph) {}
-
-class PrintNode {
- public:
-  PrintNode(MaglevGraphLabeller* graph_labeller, const NodeBase* node,
-            bool skip_targets = false) {}
-  void Print(std::ostream& os) const {}
-};
-
-class PrintNodeLabel {
- public:
-  PrintNodeLabel(MaglevGraphLabeller* graph_labeller, const NodeBase* node) {}
-  void Print(std::ostream& os) const {}
-};
+inline void PrintGraph(std::ostream& os, Graph* const graph,
+                       bool has_regalloc_data = false) {}
 
 #endif  // V8_ENABLE_MAGLEV_GRAPH_PRINTER
-
-inline std::ostream& operator<<(std::ostream& os, const PrintNode& printer) {
-  printer.Print(os);
-  return os;
-}
-
-inline std::ostream& operator<<(std::ostream& os,
-                                const PrintNodeLabel& printer) {
-  printer.Print(os);
-  return os;
-}
 
 }  // namespace maglev
 }  // namespace internal

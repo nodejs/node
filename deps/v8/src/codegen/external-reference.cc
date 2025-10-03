@@ -11,6 +11,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
+#include "src/base/macros.h"
 #include "src/codegen/cpu-features.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
@@ -264,11 +265,6 @@ ExternalReference ExternalReference::Create(Runtime::FunctionId id) {
 }
 
 // static
-ExternalReference ExternalReference::Create(IsolateFieldId id) {
-  return ExternalReference(id);
-}
-
-// static
 ExternalReference ExternalReference::Create(const Runtime::Function* f) {
   return ExternalReference(
       Redirect(f->entry, BuiltinCallTypeForResultSize(f->result_size)));
@@ -304,6 +300,17 @@ ExternalReference ExternalReference::sandbox_base_address() {
 ExternalReference ExternalReference::sandbox_end_address() {
   return ExternalReference(Sandbox::current()->end_address());
 }
+
+#ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+ExternalReference ExternalReference::sandboxed_mode_pkey_mask_address() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  return ExternalReference(
+      SandboxHardwareSupport::sandboxed_mode_pkey_mask_address());
+#else
+  return ExternalReference(kNullAddress);
+#endif
+}
+#endif
 
 ExternalReference ExternalReference::empty_backing_store_buffer() {
   return ExternalReference(
@@ -473,14 +480,14 @@ uint32_t fp64_to_fp16_raw_bits(double input) { return DoubleToFloat16(input); }
 uint32_t fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch(uint32_t hi,
                                                        uint32_t lo) {
   uint64_t input = static_cast<uint64_t>(hi) << 32 | lo;
-  return DoubleToFloat16(std::bit_cast<double, uint64_t>(input));
+  return DoubleToFloat16(base::bit_cast<double, uint64_t>(input));
 }
 
 // Since floating point parameters and return value are not supported
 // for C-linkage functions on 32bit architectures, we should use raw bits.
 uint32_t fp16_raw_bits_ieee_to_fp32_raw_bits(uint32_t input) {
   float value = fp16_ieee_to_fp32_value(input);
-  return std::bit_cast<uint32_t, float>(value);
+  return base::bit_cast<uint32_t, float>(value);
 }
 
 FUNCTION_REFERENCE(ieee754_fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch,
@@ -506,6 +513,12 @@ FUNCTION_REFERENCE(shared_barrier_from_code_function,
 
 FUNCTION_REFERENCE(insert_remembered_set_function,
                    Heap::InsertIntoRememberedSetFromCode)
+
+FUNCTION_REFERENCE(verify_skipped_write_barrier,
+                   Heap::VerifySkippedWriteBarrier)
+
+FUNCTION_REFERENCE(verify_skipped_indirect_write_barrier,
+                   Heap::VerifySkippedIndirectWriteBarrier)
 
 namespace {
 
@@ -555,10 +568,6 @@ FUNCTION_REFERENCE(allocate_and_initialize_young_external_pointer_table_entry,
 
 FUNCTION_REFERENCE(get_date_field_function, JSDate::GetField)
 
-ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
-  return ExternalReference(isolate->date_cache()->stamp_address());
-}
-
 // static
 ExternalReference
 ExternalReference::runtime_function_table_address_for_unittests(
@@ -584,10 +593,6 @@ Address ExternalReference::UnwrapRedirection(Address redirection_trampoline) {
 #endif
 }
 
-ExternalReference ExternalReference::stress_deopt_count(Isolate* isolate) {
-  return ExternalReference(isolate->stress_deopt_count_address());
-}
-
 ExternalReference ExternalReference::force_slow_path(Isolate* isolate) {
   return ExternalReference(isolate->force_slow_path_address());
 }
@@ -603,8 +608,12 @@ FUNCTION_REFERENCE(ensure_valid_return_address,
 #endif  // V8_ENABLE_CET_SHADOW_STACK
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-FUNCTION_REFERENCE(wasm_switch_stacks, wasm::switch_stacks)
-FUNCTION_REFERENCE(wasm_return_switch, wasm::return_switch)
+FUNCTION_REFERENCE(wasm_start_stack, wasm::start_stack)
+FUNCTION_REFERENCE(wasm_suspender_has_js_frames, wasm::suspender_has_js_frames)
+FUNCTION_REFERENCE(wasm_suspend_stack, wasm::suspend_stack)
+FUNCTION_REFERENCE(wasm_resume_jspi_stack, wasm::resume_jspi_stack)
+FUNCTION_REFERENCE(wasm_resume_wasmfx_stack, wasm::resume_wasmfx_stack)
+FUNCTION_REFERENCE(wasm_return_stack, wasm::return_stack)
 FUNCTION_REFERENCE(wasm_switch_to_the_central_stack,
                    wasm::switch_to_the_central_stack)
 FUNCTION_REFERENCE(wasm_switch_from_the_central_stack,
@@ -730,6 +739,14 @@ void* allocate_buffer_impl(Isolate* isolate, size_t size) {
       isolate->heap()->cpp_heap()->GetAllocationHandle(),
       cppgc::AdditionalBytes(size));
   CHECK_NOT_NULL(result);
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // TODO(429341650): temporary and unsafe workaround as the buffer must be
+  // accessible to sandboxed code, in particular the generic JSToWasmWrapper.
+  Address addr = reinterpret_cast<Address>(result);
+  size_t page_offset = addr % kMinimumOSPageSize;
+  SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(
+      addr - page_offset, size + page_offset);
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   return result;
 }
 
@@ -808,24 +825,10 @@ ExternalReference ExternalReference::is_shared_space_isolate_flag_address(
       isolate->isolate_data()->is_shared_space_isolate_flag_address());
 }
 
-ExternalReference ExternalReference::new_space_allocation_top_address(
+ExternalReference ExternalReference::last_young_allocation_address(
     Isolate* isolate) {
-  return ExternalReference(isolate->heap()->NewSpaceAllocationTopAddress());
-}
-
-ExternalReference ExternalReference::new_space_allocation_limit_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->NewSpaceAllocationLimitAddress());
-}
-
-ExternalReference ExternalReference::old_space_allocation_top_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->OldSpaceAllocationTopAddress());
-}
-
-ExternalReference ExternalReference::old_space_allocation_limit_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->OldSpaceAllocationLimitAddress());
+  return ExternalReference(
+      isolate->isolate_data()->last_young_allocation_address());
 }
 
 ExternalReference ExternalReference::array_buffer_max_allocation_address(
@@ -903,10 +906,6 @@ ExternalReference ExternalReference::additive_safe_int_feedback_flag() {
 #else
   return ExternalReference();
 #endif  // V8_TARGET_ARCH_64_BIT
-}
-
-ExternalReference ExternalReference::address_of_script_context_cells_flag() {
-  return ExternalReference(&v8_flags.script_context_cells);
 }
 
 ExternalReference ExternalReference::address_of_load_from_stack_count(
@@ -1037,36 +1036,20 @@ ExternalReference::address_of_enable_experimental_regexp_engine() {
 
 namespace {
 
-static uintptr_t BaselinePCForBytecodeOffset(Address raw_code_obj,
-                                             int bytecode_offset,
-                                             Address raw_bytecode_array) {
-  Tagged<Code> code_obj = Cast<Code>(Tagged<Object>(raw_code_obj));
-  Tagged<BytecodeArray> bytecode_array =
-      Cast<BytecodeArray>(Tagged<Object>(raw_bytecode_array));
-  return code_obj->GetBaselineStartPCForBytecodeOffset(bytecode_offset,
-                                                       bytecode_array);
-}
-
 static uintptr_t BaselinePCForNextExecutedBytecode(Address raw_code_obj,
                                                    int bytecode_offset,
                                                    Address raw_bytecode_array) {
-  Tagged<Code> code_obj = Cast<Code>(Tagged<Object>(raw_code_obj));
+  Tagged<Code> code_obj = SbxCast<Code>(Tagged<Object>(raw_code_obj));
   Tagged<BytecodeArray> bytecode_array =
-      Cast<BytecodeArray>(Tagged<Object>(raw_bytecode_array));
+      SbxCast<BytecodeArray>(Tagged<Object>(raw_bytecode_array));
   return code_obj->GetBaselinePCForNextExecutedBytecode(bytecode_offset,
                                                         bytecode_array);
 }
 
 }  // namespace
 
-FUNCTION_REFERENCE(baseline_pc_for_bytecode_offset, BaselinePCForBytecodeOffset)
 FUNCTION_REFERENCE(baseline_pc_for_next_executed_bytecode,
                    BaselinePCForNextExecutedBytecode)
-
-ExternalReference ExternalReference::thread_in_wasm_flag_address_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->thread_in_wasm_flag_address_address());
-}
 
 ExternalReference ExternalReference::invoke_function_callback_generic() {
   Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallbackGeneric);
@@ -1406,7 +1389,8 @@ FUNCTION_REFERENCE(jsreceiver_create_identity_hash,
 
 static uint32_t ComputeSeededIntegerHash(Isolate* isolate, int32_t key) {
   DisallowGarbageCollection no_gc;
-  return ComputeSeededHash(static_cast<uint32_t>(key), HashSeed(isolate));
+  return ComputeSeededHash(static_cast<uint32_t>(key),
+                           HashSeed(isolate).seed());
 }
 
 FUNCTION_REFERENCE(compute_integer_hash, ComputeSeededIntegerHash)
@@ -1446,6 +1430,12 @@ FUNCTION_REFERENCE(global_dictionary_lookup_forwarded_string,
 FUNCTION_REFERENCE(global_dictionary_find_insertion_entry_forwarded_string,
                    (NameDictionaryLookupForwardedStringWithHandle<
                        GlobalDictionary, kFindInsertionEntry>))
+FUNCTION_REFERENCE(simple_name_dictionary_lookup_forwarded_string,
+                   (NameDictionaryLookupForwardedStringWithHandle<
+                       SimpleNameDictionary, kFindExisting>))
+FUNCTION_REFERENCE(simple_name_dictionary_find_insertion_entry_forwarded_string,
+                   (NameDictionaryLookupForwardedStringWithHandle<
+                       SimpleNameDictionary, kFindInsertionEntry>))
 
 template <typename Dictionary, LookupMode mode>
 static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
@@ -1937,9 +1927,9 @@ size_t hash_value(ExternalReference reference) {
 namespace {
 static constexpr const char* GetNameOfIsolateFieldId(IsolateFieldId id) {
   switch (id) {
-#define CASE(id, name, camel)    \
-  case IsolateFieldId::k##camel: \
-    return name;
+#define CASE(CamelName, name)        \
+  case IsolateFieldId::k##CamelName: \
+    return #name;
     EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(CASE)
 #undef CASE
 #define CASE(camel, size, name)  \

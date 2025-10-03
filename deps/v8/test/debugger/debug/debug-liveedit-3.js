@@ -30,7 +30,7 @@
 // hasen't been changed. However actually function became one level more nested
 // and must be recompiled because it uses variable from outer scope.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --inspector-live-edit
 
 Debug = debug.Debug
 

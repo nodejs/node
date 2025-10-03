@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/runtime/runtime.h"
+
 #include <stdio.h>
 
 #include <iomanip>
@@ -322,10 +324,8 @@ bool CanOptimizeFunction(CodeKind target_kind,
     return false;
   }
 
-  if (function->shared()->optimization_disabled() &&
-      function->shared()->disabled_optimization_reason() ==
-          BailoutReason::kNeverOptimize) {
-    return CrashUnlessFuzzingReturnFalse(isolate);
+  if (function->shared()->optimization_disabled(target_kind)) {
+    return false;
   }
 
   if (IsAsmWasmFunction(isolate, *function)) {
@@ -406,8 +406,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
 bool EnsureCompiledAndFeedbackVector(Isolate* isolate,
                                      DirectHandle<JSFunction> function,
                                      IsCompiledScope* is_compiled_scope) {
-  *is_compiled_scope =
-      function->shared()->is_compiled_scope(function->GetIsolate());
+  *is_compiled_scope = function->shared()->is_compiled_scope(isolate);
 
   // If function isn't compiled, compile it now.
   if (!is_compiled_scope->is_compiled()) {
@@ -622,10 +621,8 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
 
   // If optimization is disabled for the function, return without marking it for
   // manual optimization
-  if (function->shared()->optimization_disabled() &&
-      function->shared()->disabled_optimization_reason() ==
-          BailoutReason::kNeverOptimize) {
-    return CrashUnlessFuzzing(isolate);
+  if (function->shared()->all_optimization_disabled()) {
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   if (IsAsmWasmFunction(isolate, *function)) return CrashUnlessFuzzing(isolate);
@@ -729,9 +726,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     return CrashUnlessFuzzing(isolate);
   }
 
-  if (function->shared()->optimization_disabled() &&
-      function->shared()->disabled_optimization_reason() ==
-          BailoutReason::kNeverOptimize) {
+  if (function->shared()->all_optimization_disabled()) {
     return CrashUnlessFuzzing(isolate);
   }
 
@@ -909,9 +904,6 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   }
   if (!isolate->use_optimizer()) {
     status |= static_cast<int>(OptimizationStatus::kNeverOptimize);
-  }
-  if (v8_flags.always_turbofan || v8_flags.prepare_always_turbofan) {
-    status |= static_cast<int>(OptimizationStatus::kAlwaysOptimize);
   }
   if (v8_flags.deopt_every_n_times) {
     status |= static_cast<int>(OptimizationStatus::kMaybeDeopted);
@@ -1337,13 +1329,108 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   return args[0];
 }
 
-RUNTIME_FUNCTION(Runtime_DebugPrintPtr) {
+RUNTIME_FUNCTION(Runtime_DebugPrintGeneric) {
+  static constexpr int kNum16BitChunks = 4;
   SealHandleScope shs(isolate);
-  StdoutStream os;
-  if (args.length() != 1) {
+
+  // Args are: prefix, value_format,
+  //   smi:0, smi:0, smi:0, tagged            - if value_format is kTagged
+  //   <bits 63-48>, <bits 47-32>, <bits 31-16>, <bits 15-0>,  - otherwise
+  // stream.
+
+  if (args.length() != 2 + kNum16BitChunks + 1) {
     return CrashUnlessFuzzing(isolate);
   }
 
+  CHECK(IsSmi(args[1]));
+  DebugPrintValueType value_type =
+      static_cast<DebugPrintValueType>(Cast<Smi>(args[1]).value());
+  CHECK(IsSmi(args[6]));
+  int stream_int = Cast<Smi>(args[6]).value();
+  FILE* output_stream = stream_int == fileno(stderr) ? stderr : stdout;
+
+  if (IsString(args[0])) {
+    Tagged<String> prefix = Cast<String>(args[0]);
+    StringCharacterStream stream(prefix);
+    while (stream.HasMore()) {
+      uint16_t character = stream.GetNext();
+      PrintF(output_stream, "%c", character);
+    }
+  }
+
+  uint64_t value = 0;
+  if (value_type != DebugPrintValueType::kTagged) {
+    for (int i = 0; i < kNum16BitChunks; ++i) {
+      value <<= 16;
+      CHECK(IsSmi(args[2 + i]));
+      uint32_t chunk = Cast<Smi>(args[2 + i]).value();
+      // We encode 16 bit per chunk only!
+      CHECK_EQ(chunk & 0xFFFF0000, 0);
+      value |= chunk;
+    }
+  }
+
+  switch (value_type) {
+    case DebugPrintValueType::kWord32: {
+      PrintF(output_stream, "0x%" PRIx32 "\n", static_cast<uint32_t>(value));
+      break;
+    }
+    case DebugPrintValueType::kWord64: {
+      PrintF(output_stream, "0x%" PRIx64 "\n", value);
+      break;
+    }
+    case DebugPrintValueType::kFloat32: {
+      const float f = base::bit_cast<float>(static_cast<uint32_t>(value));
+      if (std::isnan(f)) {
+        PrintF(output_stream, "%g (0x%" PRIx32 ")\n", f,
+               static_cast<uint32_t>(value));
+      } else {
+        PrintF(output_stream, "%.20g\n", f);
+      }
+      break;
+    }
+    case DebugPrintValueType::kFloat64: {
+      const double d = base::bit_cast<double>(value);
+      if (std::isnan(d)) {
+        PrintF(output_stream, "%g (0x%" PRIx64 ")\n", d, value);
+      } else {
+        PrintF(output_stream, "%.20g\n", d);
+      }
+      break;
+    }
+    case DebugPrintValueType::kTagged: {
+      Tagged<Object> tagged = args[5];
+      CHECK(IsHeapObject(tagged));
+      if (IsString(tagged) && !IsString(args[0])) {
+        // We don't have a prefix and just print a string. In this case we don't
+        // print the full JS object but just the text.
+        Tagged<String> text = Cast<String>(tagged);
+        StringCharacterStream stream(text);
+        while (stream.HasMore()) {
+          uint16_t character = stream.GetNext();
+          PrintF(output_stream, "%c", character);
+        }
+        PrintF(output_stream, "\n");
+        fflush(output_stream);
+      } else {
+        Tagged<MaybeObject> maybe_object(tagged);
+        OFStream fstream(output_stream);
+        DebugPrintImpl(maybe_object, fstream);
+      }
+      break;
+    }
+  }
+  fflush(output_stream);
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugPrintPtr) {
+  SealHandleScope shs(isolate);
+  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
+  DCHECK_EQ(args.length(), 1);
+
+  StdoutStream os;
   Tagged<MaybeObject> maybe_object(*args.address_of_arg_at(0));
   if (!maybe_object.IsCleared()) {
     Tagged<Object> object = maybe_object.GetHeapObjectOrSmi();
@@ -1408,12 +1495,22 @@ RUNTIME_FUNCTION(Runtime_DebugPrintFloat) {
   if (!IsSmi(args[4]) || (Cast<Smi>(args[4]).value() == fileno(stderr))) {
     StderrStream os;
     std::streamsize precision = os.precision();
-    os << std::setprecision(20) << base::bit_cast<double>(value) << std::endl;
+    const double d = base::bit_cast<double>(value);
+    os << std::setprecision(20) << d;
+    if (std::isnan(d)) {
+      os << " (0x" << std::hex << value << std::dec << ")";
+    }
+    os << std::endl;
     os.precision(precision);
   } else {
     StdoutStream os;
     std::streamsize precision = os.precision();
-    os << std::setprecision(20) << base::bit_cast<double>(value) << std::endl;
+    const double d = base::bit_cast<double>(value);
+    os << std::setprecision(20) << d;
+    if (std::isnan(d)) {
+      os << " (0x" << std::hex << value << std::dec << ")";
+    }
+    os << std::endl;
     os.precision(precision);
   }
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1548,9 +1645,11 @@ RUNTIME_FUNCTION(Runtime_AbortCSADcheck) {
     base::OS::PrintError("The following harmless failure was encountered: %s\n",
                          message->ToCString().get());
   } else {
-    base::OS::PrintError("abort: CSA_DCHECK failed: %s\n",
-                         message->ToCString().get());
-    isolate->PrintStack(stderr);
+    std::unique_ptr<char[]> message_str = message->ToCString();
+    base::OS::PrintError("abort: CSA_DCHECK failed: %s\n\n", message_str.get());
+
+    isolate->PushStackTraceAndDie(reinterpret_cast<void*>(message->ptr()),
+                                  message_str.get());
   }
   base::OS::Abort();
   UNREACHABLE();
@@ -1641,7 +1740,8 @@ RUNTIME_FUNCTION(Runtime_InLargeObjectSpace) {
   }
   auto obj = Cast<HeapObject>(args[0]);
   return isolate->heap()->ToBoolean(
-      isolate->heap()->new_lo_space()->Contains(obj) ||
+      (isolate->heap()->new_lo_space() &&
+       isolate->heap()->new_lo_space()->Contains(obj)) ||
       isolate->heap()->code_lo_space()->Contains(obj) ||
       isolate->heap()->lo_space()->Contains(obj));
 }
@@ -1654,7 +1754,8 @@ RUNTIME_FUNCTION(Runtime_HasElementsInALargeObjectSpace) {
   auto array = Cast<JSArray>(args[0]);
   Tagged<FixedArrayBase> elements = array->elements();
   return isolate->heap()->ToBoolean(
-      isolate->heap()->new_lo_space()->Contains(elements) ||
+      (isolate->heap()->new_lo_space() &&
+       isolate->heap()->new_lo_space()->Contains(elements)) ||
       isolate->heap()->lo_space()->Contains(elements));
 }
 
@@ -1686,12 +1787,12 @@ RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
   if (!IsJSObject(arg)) return CrashUnlessFuzzing(isolate);
   Tagged<JSObject> object = Cast<JSObject>(arg);
 
-  Heap* heap = object->GetHeap();
   if (!v8_flags.sticky_mark_bits && !HeapLayout::InYoungGeneration(object)) {
     // Object is not in new space, thus there is no memento and nothing to do.
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   }
 
+  Heap* heap = isolate->heap();
   PretenuringHandler* pretenuring_handler = heap->pretenuring_handler();
   Tagged<AllocationMemento> memento = PretenuringHandler::FindAllocationMemento<
       PretenuringHandler::kForRuntime>(heap, object->map(), object);
@@ -1735,7 +1836,7 @@ RUNTIME_FUNCTION(Runtime_RegexpHasBytecode) {
   if (regexp->has_data()) {
     Tagged<RegExpData> data = regexp->data(isolate);
     if (data->type_tag() == RegExpData::Type::IRREGEXP) {
-      result = Cast<IrRegExpData>(data)->has_bytecode(is_latin1);
+      result = TrustedCast<IrRegExpData>(data)->has_bytecode(is_latin1);
     }
   }
   return isolate->heap()->ToBoolean(result);
@@ -1752,7 +1853,7 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
   if (regexp->has_data()) {
     Tagged<RegExpData> data = regexp->data(isolate);
     if (data->type_tag() == RegExpData::Type::IRREGEXP) {
-      result = Cast<IrRegExpData>(data)->has_code(is_latin1);
+      result = TrustedCast<IrRegExpData>(data)->has_code(is_latin1);
     }
   }
   return isolate->heap()->ToBoolean(result);
@@ -1835,12 +1936,6 @@ RUNTIME_FUNCTION(Runtime_IsConcatSpreadableProtector) {
   SealHandleScope shs(isolate);
   return isolate->heap()->ToBoolean(
       Protectors::IsIsConcatSpreadableLookupChainIntact(isolate));
-}
-
-RUNTIME_FUNCTION(Runtime_TypedArrayLengthProtector) {
-  SealHandleScope shs(isolate);
-  return isolate->heap()->ToBoolean(
-      Protectors::IsTypedArrayLengthLookupChainIntact(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_TypedArraySpeciesProtector) {
@@ -1983,7 +2078,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
                          int column) final {}
 #if V8_ENABLE_WEBASSEMBLY
     void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
-                         wasm::WasmName name, const char* source_url,
+                         wasm::WasmName name, std::string_view source_url,
                          int code_offset, int script_id) final {}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2172,7 +2267,7 @@ RUNTIME_FUNCTION(Runtime_SharedGC) {
 
 RUNTIME_FUNCTION(Runtime_AtomicsSynchronizationPrimitiveNumWaitersForTesting) {
   HandleScope scope(isolate);
-  if (args.length() != 1) {
+  if (args.length() != 1 || !IsJSSynchronizationPrimitive(*args.at(0))) {
     return CrashUnlessFuzzing(isolate);
   }
   DirectHandle<JSSynchronizationPrimitive> primitive =
@@ -2217,6 +2312,14 @@ RUNTIME_FUNCTION(Runtime_IsEfficiencyModeEnabled) {
     return ReadOnlyRoots(isolate).true_value();
   }
   return ReadOnlyRoots(isolate).false_value();
+}
+
+RUNTIME_FUNCTION(Runtime_IsUndefinedDoubleEnabled) {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+  return ReadOnlyRoots(isolate).true_value();
+#else
+  return ReadOnlyRoots(isolate).false_value();
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 }
 
 RUNTIME_FUNCTION(Runtime_SetBatterySaverMode) {
@@ -2267,11 +2370,19 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
   DirectHandle<FeedbackVector> feedback_vector =
       direct_handle(function->feedback_vector(), isolate);
 
+  if (!feedback_vector->has_metadata()) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  // Make sure the function stays compiled across the following allocations.
+  IsCompiledScope is_compiled_scope(
+      function->shared()->is_compiled_scope(isolate));
+  USE(is_compiled_scope);
+
   DirectHandle<FixedArray> result =
       isolate->factory()->NewFixedArray(feedback_vector->length());
   int result_ix = 0;
 
-  FeedbackMetadataIterator iter(feedback_vector->metadata());
+  FeedbackMetadataIterator iter(handle(feedback_vector->metadata(), isolate));
   while (iter.HasNext()) {
     FeedbackSlot slot = iter.Next();
     FeedbackSlotKind kind = iter.kind();
@@ -2304,25 +2415,6 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
   return ReadOnlyRoots(isolate).undefined_value();
 #endif  // OBJECT_PRINT
 #endif  // not V8_JITLESS
-}
-
-RUNTIME_FUNCTION(Runtime_CheckNoWriteBarrierNeeded) {
-#if defined(V8_ENABLE_DEBUG_CODE) && !V8_DISABLE_WRITE_BARRIERS_BOOL
-  DisallowGarbageCollection no_gc;
-  if (args.length() != 2) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  Tagged<Object> object = args[0];
-  if (!object.IsHeapObject()) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  auto heap_object = Cast<HeapObject>(object);
-  Tagged<Object> value = args[1];
-  CHECK(!WriteBarrier::IsRequired(heap_object, value));
-  return args[0];
-#else
-  UNREACHABLE();
-#endif
 }
 
 RUNTIME_FUNCTION(Runtime_ArrayBufferDetachForceWasm) {

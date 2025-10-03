@@ -141,7 +141,6 @@
   'test-run-load-store/*': [SKIP],
   'test-run-machops/*': [SKIP],
   'test-select-combine/*': [SKIP],
-  'test-instruction-scheduler/*': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -186,6 +185,10 @@
   'test-api/ExternalArrays': [PASS, SLOW],
   'test-api/Threading*': [SKIP],
   'test-cpu-profiler/MultipleIsolates': [PASS, ['not pointer_compression', SLOW]],
+
+   # https://crbug.com/420743936
+  'test-run-wasm-f16/RunWasmLiftoff_F16x8ConvertI16x8': [PASS, ['all_arm64_features', SKIP]],
+  'test-run-wasm-f16/RunWasmTurbofan_F16x8ConvertI16x8': [PASS, ['all_arm64_features', SKIP]],
 }],  # 'arch == arm64 and simulator_run'
 
 ['arch == arm64 and system == macos and not simulator_run', {
@@ -293,6 +296,7 @@
 ##############################################################################
 ['full_debug', {
   # Tests too slow in non-optimized debug mode.
+  'test-api/FastApiCalls': [SKIP],
   'test-api/InternalFieldsSubclassing': [SKIP],
   'test-api/Threading8': [SKIP],
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
@@ -301,7 +305,9 @@
   'test-serialize/ContextSerializerCustomContext': [SKIP],
   'test-serialize/SharedStrings': [SKIP],
   'test-serialize/StartupSerializerOnce': [SKIP],
+  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
+  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
 
   # https://issues.chromium.org/issues/407932138
   'test-cpu-profiler/NoProfilingProtectorCPUProfiler': [SKIP],
@@ -404,23 +410,23 @@
 
 ##############################################################################
 ['arch == riscv64 or (arch == riscv32)', {
-  # this test is unstable, sometimes fail when running w/ other tests.
+  # This test is unstable, sometimes fail when running w/ other tests.
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': [SKIP],
 
-
-  # Some wasm functionality is not implemented yet.
+  # Skipped for unknown reasons.
+  'test-serialize/StaticRootsPredictableSnapshot': ['pointer_compression', SKIP],
 
   # According to riscv's NaN generation and propagation scheme, the payload
   # is not guaranteed. So the test fails when src bits has payload.
   'test-run-wasm/RunWasmLiftoff_F32ReinterpretI32': [SKIP],
   'test-run-wasm/RunWasmTurbofan_F32ReinterpretI32': [SKIP],
 
-  'test-serialize/StaticRootsPredictableSnapshot': ['pointer_compression', SKIP],
-
+  # Some Wasm functionality is not implemented yet.
   'test-run-wasm-f16/*': [SKIP],
 }],  # 'arch == riscv64 or (arch == riscv32)'
+
 ['arch == riscv32', {
-  # Some wasm functionality is not implemented yet.
+  # Some Wasm functionality is not implemented yet.
   'test-run-wasm-64/*': [SKIP],
 }],  # 'arch == riscv32'
 
@@ -515,6 +521,11 @@
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
+['mode == debug and tsan', {
+  'test-serialize/StartupSerializer*': [PASS, NO_VARIANTS],
+}],  # mode == debug and tsan
+
+##############################################################################
 ['variant == no_wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],
@@ -581,6 +592,12 @@
 
   # --experimental-wasm-fp16
   'test-run-wasm-f16/*': [SKIP],
+
+  # -- Bug 435317720: Non-canonical NaNs are not propagated correctly in the Wasm interpreter.
+  'test-run-wasm/RunWasmInterpreter_Float32Add*': [SKIP],
+  'test-run-wasm/RunWasmInterpreter_Float32Sub*': [SKIP],
+  'test-run-wasm/RunWasmInterpreter_Float32Mul*': [SKIP],
+  'test-run-wasm/RunWasmInterpreter_Float32Div*': [SKIP],
 
  }],  # has_wasm_interpreter
 
@@ -768,41 +785,9 @@
 }],  # variant == assert_types
 
 ##############################################################################
-['variant == turboshaft', {
-  # The 'turboshaft' variant sets the '--no-liftoff' flag, which means that Wasm
-  # compiles directly to Turboshaft. This makes the cache no longer incremental,
-  # and these tests don't make sense.
-  # TODO(14108): Remove once we remove '--no-liftoff' from the 'turboshaft'
-  # variant.
-  'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
-  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
-}],  # variant == turboshaft
-
-##############################################################################
-['variant != turboshaft and variant != future', {
-  # Some ops' revectorization support only implemented in turboshaft.
-  'test-run-wasm-simd/RunWasmTurbofan_I16x16ExtMulI8x16S': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I16x16ExtMulI8x16U': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8ExtMulI16x8S': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8ExtMulI16x8U': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I64x4ExtMulI32x4S': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I64x4ExtMulI32x4U': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_F64x4Abs': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_F64x4Neg': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I8x32RelaxedLaneSelect': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I16x16RelaxedLaneSelect': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I32x8RelaxedLaneSelect': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I64x4RelaxedLaneSelect': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I32x8DotI8x32I7x32AddS': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I16x16DotI8x32I7x32S': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I32x8RelaxedTruncF32x8S': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I32x8RelaxedTruncF32x8U': [SKIP],
-}],  # variant != turboshaft and variant != future
-
-##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
 # for OptimizeFunctionOnNextCall or as a frontend for Turboshaft.
-['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)', {
+['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)', {
   # Maglev doesn't support compiler::NodeObserver machinery.
   'test-js-to-wasm/TestFastJSWasmCall_I32Arg': [FAIL],
   'test-js-to-wasm/TestFastJSWasmCall_Nop': [FAIL],
@@ -845,12 +830,12 @@
   'test-api/FastApiCallRecursionWithException': [FAIL],
   'test-api/FastApiCallWithThrowInReentrantCode': [FAIL],
   'test-api/FastApiCallsString': [FAIL],
-}],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)
+}],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)
 
 # Maglev is still missing some optimizations compared to Turbofan, which means
 # that some old Turbofan tests don't pass when using Maglev as a frontend for
 # Turboshaft.
-['variant == turbolev', {
+['variant in (turbolev, turbolev_future, stress_turbolev_future)', {
   'test-cpu-profiler/FastApiCPUProfiler': [SKIP],
   'test-run-unwinding-info/RunUnwindingInfo': [SKIP],
 }],
@@ -871,16 +856,36 @@
   'test-heap/TestInternalWeakLists': [SKIP],
 }],  # 'clang_coverage and mode == debug'
 
-['leaptiering', {
-  # Skip tests that test the old tiering behavior.
-  'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [SKIP],
-}],  # 'leaptiering'
-
 ##############################################################################
 
-['variant == conservative_pinning', {
+['variant == conservative_stack_scanning', {
   'test-run-wasm-64/RunWasmLiftoff_I64WasmRunner': [SLOW],
   'test-run-wasm-64/RunWasmTurbofan_I64WasmRunner': [SLOW],
   'test-strings/Traverse': [SLOW],
-}],  # variant == conservative_pinning
+}],  # variant == conservative_stack_scanning
+
+##############################################################################
+['sandbox_hardware_support', {
+  # The liftoff-for-fuzzing configuration is currently incompatible with
+  # sandbox hardware support. See https://crbug.com/431949927.
+  'test-liftoff-for-fuzzing/*': [SKIP],
+
+  # Tests that require the sampler/profiler, which doesn't work on older kernel
+  # versions if hardware sandboxing is active. See https://crbug.com/429173713.
+  'test-cpu-profiler/*': [SKIP],
+  'test-profile-generator/*': [SKIP],
+  'test-streaming-compilation/*': [SKIP],
+  'test-api/SimpleCallbackWithProfiler': [SKIP],
+  'test-api/FastReturnValuesWithProfiler': [SKIP],
+  'test-api/FunctionTemplateWithProfiler': [SKIP],
+  'test-api/CallICFastApi_TrivialSignatureWithProfiler': [SKIP],
+  'test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
+  'test-api/InterceptorCallICFastApi_TrivialSignatureWithProfiler': [SKIP],
+
+  # Tests that rely on Wasm trap handling, which is similarly not supported on
+  # older kernel versions. See again https://crbug.com/429173713.
+  'test-run-wasm-simd/*': [SKIP],
+  'test-run-wasm-relaxed-simd/*': [SKIP],
+}] # sandbox_hardware_support
+
 ]

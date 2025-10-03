@@ -2,6 +2,7 @@ Name: llvm-libc
 URL: https://libc.llvm.org/
 Version: N/A
 Revision: DEPS
+Update Mechanism: Manual
 License: MIT, University of Illinois/NCSA Open Source License
 License File: src/LICENSE.TXT
 Security Critical: yes

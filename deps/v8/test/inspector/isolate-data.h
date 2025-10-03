@@ -132,7 +132,7 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   void quitMessageLoopOnPause() override;
   void installAdditionalCommandLineAPI(v8::Local<v8::Context>,
                                        v8::Local<v8::Object>) override;
-  void consoleAPIMessage(int contextGroupId,
+  void consoleAPIMessage(int contextGroupId, int contextId,
                          v8::Isolate::MessageErrorLevel level,
                          const v8_inspector::StringView& message,
                          const v8_inspector::StringView& url,

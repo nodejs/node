@@ -198,7 +198,7 @@ class V8_EXPORT ArrayBuffer : public Object {
      * Convenience allocator.
      *
      * When the sandbox is enabled, this allocator will allocate its backing
-     * memory inside the sandbox that belongs to passed isolate group.
+     * memory inside the sandbox that belongs to the passed isolate group.
      * Otherwise, it will rely on malloc/free.
      *
      * Caller takes ownership, i.e. the returned object needs to be freed using

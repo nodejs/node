@@ -19,9 +19,8 @@ assertEquals([42, double_arr, 2], obj_arr);
 assertEquals([1.56, 42.25, 3.51], double_arr);
 
 // Resetting {obj_arr} and {double_arr}
-obj_arr[0] = 0;
-obj_arr[1] = {};
-double_arr[1] = 2.68;
+obj_arr = [0, {}, 2];
+double_arr = [1.56, 2.68, 3.51];
 
 %OptimizeFunctionOnNextCall(store_arr);
 store_arr(obj_arr, double_arr);

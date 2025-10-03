@@ -718,6 +718,111 @@ HWY_NOINLINE void TestAllIntFromFloat() {
   ForFloatTypes(ForPartialVectors<TestIntFromFloat>());
 }
 
+struct TestMaskedIntFromFloat {
+  template <typename TF, class DF>
+  HWY_NOINLINE void operator()(TF /*unused*/, const DF df) {
+    using TI = MakeSigned<TF>;
+    const Rebind<TI, DF> di;
+    const size_t N = Lanes(df);
+    auto expected = AllocateAligned<TI>(N);
+    auto bool_lanes = AllocateAligned<TI>(N);
+    HWY_ASSERT(expected && bool_lanes);
+
+    RandomState rng;
+    for (size_t rep = 0; rep < AdjustedReps(200); ++rep) {
+      for (size_t i = 0; i < N; ++i) {
+        bool_lanes[i] = (Random32(&rng) & 1024) ? TI(1) : TI(0);
+      }
+      const auto mask_i = Load(di, bool_lanes.get());
+      const auto mask = RebindMask(di, Gt(mask_i, Zero(di)));
+
+      // This requires a test different to that in TestMaskedFloatFromInt and
+      // TestMaskedFloatFromUint, due to differences in saturation handling
+      // between ConvertTo() and static_cast<>
+      HWY_ASSERT_VEC_EQ(di, IfThenElseZero(mask, Set(di, 1)),
+                        MaskedConvertTo(mask, di, Set(df, 1)));
+    }
+  }
+};
+
+struct TestMaskedFloatFromInt {
+  template <typename TF, class DF>
+  HWY_NOINLINE void operator()(TF /*unused*/, const DF df) {
+    using TI = MakeSigned<TF>;
+    const RebindToSigned<DF> di;
+    const size_t N = Lanes(df);
+    auto from = AllocateAligned<TI>(N);
+    auto expected = AllocateAligned<TF>(N);
+    auto bool_lanes = AllocateAligned<TI>(N);
+    HWY_ASSERT(from && expected && bool_lanes);
+
+    RandomState rng;
+    for (size_t rep = 0; rep < AdjustedReps(200); ++rep) {
+      for (size_t i = 0; i < N; ++i) {
+        const uint64_t bits = rng();
+        CopyBytes<sizeof(TF)>(&bits, &from[i]);  // not same size
+
+        bool_lanes[i] = (Random32(&rng) & 1024) ? TI(1) : TI(0);
+        if (bool_lanes[i]) {
+          expected[i] = ConvertScalarTo<TF>(from[i]);
+        } else {
+          expected[i] = ConvertScalarTo<TF>(0);
+        }
+      }
+      const auto mask_i = Load(di, bool_lanes.get());
+      const auto mask = RebindMask(df, Gt(mask_i, Zero(di)));
+
+      const auto v1 = Load(di, from.get());
+
+      // Float from int
+      HWY_ASSERT_VEC_EQ(df, expected.get(),
+                        MaskedConvertTo(mask, df, v1));
+    }
+  }
+};
+
+struct TestMaskedFloatFromUint {
+  template <typename TF, class DF>
+  HWY_NOINLINE void operator()(TF /*unused*/, const DF df) {
+    using TI = MakeUnsigned<TF>;
+    const RebindToUnsigned<DF> di;
+    const size_t N = Lanes(df);
+    auto from = AllocateAligned<TI>(N);
+    auto expected = AllocateAligned<TF>(N);
+    auto bool_lanes = AllocateAligned<TI>(N);
+    HWY_ASSERT(from && expected && bool_lanes);
+
+    RandomState rng;
+    for (size_t rep = 0; rep < AdjustedReps(200); ++rep) {
+      for (size_t i = 0; i < N; ++i) {
+        const uint64_t bits = rng();
+        CopyBytes<sizeof(TF)>(&bits, &from[i]);  // not same size
+
+        bool_lanes[i] = (Random32(&rng) & 1024) ? TI(1) : TI(0);
+        if (bool_lanes[i]) {
+          expected[i] = ConvertScalarTo<TF>(from[i]);
+        } else {
+          expected[i] = ConvertScalarTo<TF>(0);
+        }
+      }
+      const auto mask_i = Load(di, bool_lanes.get());
+      const auto mask = RebindMask(df, Gt(mask_i, Zero(di)));
+
+      const auto v1 = Load(di, from.get());
+
+      // Float from int
+      HWY_ASSERT_VEC_EQ(df, expected.get(),
+                        MaskedConvertTo(mask, df, v1));
+    }
+  }
+};
+
+HWY_NOINLINE void TestAllMaskedConvertTo() {
+  ForFloatTypes(ForPartialVectors<TestMaskedFloatFromInt>());
+  ForFloatTypes(ForPartialVectors<TestMaskedFloatFromUint>());
+  ForFloatTypes(ForPartialVectors<TestMaskedIntFromFloat>());
+}
+
 class TestUintFromFloat {
   template <typename TF, class DF>
   static HWY_NOINLINE void TestPowers(TF /*unused*/, const DF df) {
@@ -1458,6 +1563,7 @@ HWY_EXPORT_AND_TEST_P(HwyConvertTest, TestAllF16FromF64);
 HWY_EXPORT_AND_TEST_P(HwyConvertTest, TestAllBF16);
 HWY_EXPORT_AND_TEST_P(HwyConvertTest, TestAllConvertU8);
 HWY_EXPORT_AND_TEST_P(HwyConvertTest, TestAllIntFromFloat);
+HWY_EXPORT_AND_TEST_P(HwyConvertTest, TestAllMaskedConvertTo);
 HWY_EXPORT_AND_TEST_P(HwyConvertTest, TestAllUintFromFloat);
 HWY_EXPORT_AND_TEST_P(HwyConvertTest, TestAllFloatFromInt);
 HWY_EXPORT_AND_TEST_P(HwyConvertTest, TestAllFloatFromUint);

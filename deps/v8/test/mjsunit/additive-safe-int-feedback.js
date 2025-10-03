@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --additive-safe-int-feedback
-// Flags: --turbofan --no-always-turbofan
+// Flags: --turbofan
 
 const maxAdditiveSafeInteger = 4503599627370495; // 2^52 - 1
 const minAdditiveSafeInteger = - 4503599627370496; // - 2^52

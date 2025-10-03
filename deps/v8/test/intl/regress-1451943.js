@@ -7,13 +7,13 @@ let afterOct1582GregorianTransition = new Date('1583-01-01T00:00Z');
 
 // Gregorian (proleptic) calendar
 assertEquals(
-    beforeOct1582GregorianTransition.toLocaleDateString('en-US', { timeZone: 'UTC', calendar: 'gregory' }),
-    "1/1/1582");
+    "1/1/1582",
+    beforeOct1582GregorianTransition.toLocaleDateString('en-US', { timeZone: 'UTC', calendar: 'gregory' }));
 // ISO 8601 calendar output before Oct 1582 Gregorian transition
 assertEquals(
-    beforeOct1582GregorianTransition.toLocaleDateString('en-US', { timeZone: 'UTC', calendar: 'iso8601' }),
-    "1/1/1582");
+    "1/1/1582",
+    beforeOct1582GregorianTransition.toLocaleDateString('en-US', { timeZone: 'UTC', calendar: 'iso8601' }));
 // ISO 8601 calendar output after the Gregorian transition
 assertEquals(
-    afterOct1582GregorianTransition.toLocaleDateString('en-US', { timeZone: 'UTC', calendar: 'iso8601' }),
-    "1/1/1583");
+    "1/1/1583",
+    afterOct1582GregorianTransition.toLocaleDateString('en-US', { timeZone: 'UTC', calendar: 'iso8601' }));

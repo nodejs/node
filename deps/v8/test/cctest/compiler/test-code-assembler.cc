@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-function.h"
+#include "src/api/api-inl.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/compiler/code-assembler.h"
 #include "src/compiler/node-properties.h"
@@ -498,6 +500,48 @@ TEST(StaticAssert) {
   CodeAssembler m(asm_tester.state());
   m.StaticAssert(m.ReinterpretCast<BoolT>(m.Int32Constant(1)));
   USE(asm_tester.GenerateCode());
+}
+
+TEST(ClearStaleDispatchHandleEntry) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  HandleScope outer(isolate);
+
+  // This handle will keep alive the old optimized code below.
+  DirectHandle<Code> old_code;
+
+  {
+    HandleScope inner(isolate);
+    DirectHandle<Code> new_code;
+
+    {
+      CodeAssemblerTester asm_tester(isolate, JSParameterCount(1));
+      CodeAssembler m(asm_tester.state());
+      m.Return(SmiTag(&m, m.IntPtrConstant(42)));
+      new_code = asm_tester.GenerateCodeCloseAndEscape();
+    }
+
+    const char* source = "(function (a) {})";
+    Handle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CompileRun(source))));
+
+    {
+      Zone zone(isolate->allocator(), ZONE_NAME);
+      Optimize(function, &zone, isolate, 0);
+    }
+
+    old_code = direct_handle(function->code(isolate), isolate);
+    function->UpdateCode(isolate, *new_code);
+    old_code = inner.CloseAndEscape(old_code);
+
+    // The function has been updated with new code. The entry in the dispatch
+    // handle table now points to the new code. However, both the function and
+    // the new code object are not reachable after this scope closes and will
+    // be reclaimed by the GC. On the other hand, the old code escapes and
+    // will not be reclaimed.
+  }
+
+  // The GC should correctly clear the stale dispatch table entry.
+  isolate->heap()->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
 }
 
 }  // namespace compiler

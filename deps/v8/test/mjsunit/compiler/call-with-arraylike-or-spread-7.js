@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbo-optimize-apply --turbofan
-// Flags: --no-always-turbofan
 
 // These tests do not work well if we flush the feedback vector, which causes
 // deoptimization.
@@ -20,7 +19,10 @@
 // protector, which then remains invalidated.
 (function () {
   "use strict";
-  var log_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var log_got_interpreted = null;
+  log_got_interpreted = true;
   %NeverOptimizeFunction(assertEquals);
 
   function log(a) {

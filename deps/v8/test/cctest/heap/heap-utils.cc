@@ -111,11 +111,13 @@ void CreatePadding(Heap* heap, int padding_size, AllocationType allocation,
       if (length <= 0) {
         // Not enough room to create another FixedArray, so create a filler.
         if (allocation == i::AllocationType::kOld) {
-          heap->CreateFillerObjectAt(*heap->OldSpaceAllocationTopAddress(),
-                                     free_memory);
+          LinearAllocationArea* old_space =
+              &heap->isolate()->isolate_data()->old_allocation_info();
+          heap->CreateFillerObjectAt(old_space->top(), free_memory);
         } else {
-          heap->CreateFillerObjectAt(*heap->NewSpaceAllocationTopAddress(),
-                                     free_memory);
+          LinearAllocationArea* new_space =
+              &heap->isolate()->isolate_data()->new_allocation_info();
+          heap->CreateFillerObjectAt(new_space->top(), free_memory);
         }
         break;
       }
@@ -372,8 +374,7 @@ void ForceEvacuationCandidate(PageMetadata* page) {
   Isolate* isolate = page->owner()->heap()->isolate();
   SafepointScope safepoint(isolate, kGlobalSafepointForSharedSpaceIsolate);
   CHECK(v8_flags.manual_evacuation_candidates_selection);
-  page->Chunk()->SetFlagNonExecutable(
-      MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  page->set_forced_evacuation_candidate_for_testing(true);
   page->owner()->heap()->FreeLinearAllocationAreas();
 }
 

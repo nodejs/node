@@ -64,11 +64,16 @@ class V8_BASE_EXPORT EmulatedVirtualAddressSubspace final
 
   void FreeGuardRegion(Address address, size_t size) override;
 
+  std::optional<MemoryProtectionKeyId> ActiveMemoryProtectionKey() override {
+    return std::nullopt;
+  }
+
   bool CanAllocateSubspaces() override;
 
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
-      PagePermissions max_page_permissions) override;
+      PagePermissions max_page_permissions,
+      std::optional<MemoryProtectionKeyId> key) override;
 
   bool RecommitPages(Address address, size_t size,
                      PagePermissions permissions) override;

@@ -216,7 +216,7 @@ TEST(Split, APIExamples) {
     std::multimap<std::string, std::string> m =
         absl::StrSplit("a,1,b,2,a,3", ',');
     EXPECT_EQ(3, m.size());
-    auto it = m.find("a");
+    auto it = m.lower_bound("a");
     EXPECT_EQ("1", it->second);
     ++it;
     EXPECT_EQ("3", it->second);

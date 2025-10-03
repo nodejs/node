@@ -2,10 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import os
+import base64
 
-from testrunner.local import command
-from testrunner.local import utils
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 
@@ -15,7 +13,7 @@ ADDITIONAL_VARIANTS = set([
     "no_memory_protection_keys",
     "minor_ms",
     "stress_maglev",
-    "conservative_pinning",
+    "conservative_stack_scanning",
     "precise_pinning",
 ])
 SHELL = "v8_unittests"
@@ -35,14 +33,28 @@ class VariantsGenerator(testsuite.VariantsGenerator):
     return self._supported_variants
 
 
+class TestListerDummy():
+  """A one-off test case used for the look-up call that lists all the tests."""
+  def __init__(self, suite):
+    self.suite = suite
+
+  def get_android_resources(self):
+    # We require all golden files on the Android device when we list the tests.
+    expectations = self.suite.root / 'interpreter' / 'bytecode_expectations'
+    return list(expectations.glob('**/*.golden'))
+
+
 class TestLoader(testsuite.TestLoader):
   def _list_test_filenames(self):
     args = ['--gtest_list_tests'] + self.test_config.extra_flags
     shell = self.ctx.platform_shell(SHELL, args, self.test_config.shell_dir)
     output = None
-    for i in range(3): # Try 3 times in case of errors.
+    for i in range(3):  # Try 3 times in case of errors.
       cmd = self.ctx.command(
-          cmd_prefix=self.test_config.command_prefix, shell=shell, args=args)
+          cmd_prefix=self.test_config.command_prefix,
+          test_case=TestListerDummy(self.suite),
+          shell=shell,
+          args=args)
       output = cmd.execute()
       if output.exit_code == 0:
         break
@@ -101,10 +113,9 @@ class TestCase(testcase.TestCase):
 
   def _get_cmd_env(self):
     # FuzzTest uses this seed when running fuzz tests as normal gtests.
-    # Setting a fixed value guarantees predictable behavior from run to run.
-    # It's a base64 encoded vector of 8 zero bytes. In other unit tests this
-    # has no effect.
-    return {'FUZZTEST_PRNG_SEED': 43 * 'A'}
+    # We derive this base64 encoded seed from our random seed.
+    fuzztest_seed = base64.b64encode(str(self.random_seed).encode()).decode()
+    return {'FUZZTEST_PRNG_SEED': fuzztest_seed}
 
   def get_android_resources(self):
     # Bytecode-generator tests are the only ones requiring extra files on
