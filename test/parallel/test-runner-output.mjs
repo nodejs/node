@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
@@ -10,9 +11,8 @@ const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
   process.config.variables.node_shared_openssl;
 
-const canColorize = process.stderr?.isTTY && (
-  typeof process.stderr?.getColorDepth === 'function' ?
-    process.stderr?.getColorDepth() > 2 : true);
+// We're using dynamic import here to not break `NODE_REGENERATE_SNAPSHOTS`.
+const canColorize = (await import('internal/tty')).default.getColorDepth() > 2;
 const skipCoverageColors = !canColorize;
 
 function replaceTestDuration(str) {
@@ -37,7 +37,7 @@ function replaceJunitDuration(str) {
   return str
     .replaceAll(/time="[0-9.]+"/g, 'time="*"')
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
-    .replaceAll(hostname(), 'HOSTNAME')
+    .replaceAll(`hostname="${hostname()}"`, 'hostname="HOSTNAME"')
     .replace(stackTraceBasePath, '$3');
 }
 
@@ -70,7 +70,7 @@ const defaultTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
   removeWindowsPathEscaping,
-  snapshot.replaceFullPaths,
+  snapshot.transformProjectRoot(),
   snapshot.replaceWindowsPaths,
   replaceTestDuration,
   replaceTestLocationLine,
@@ -90,7 +90,7 @@ const junitTransform = snapshot.transform(
 const lcovTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
-  snapshot.replaceFullPaths,
+  snapshot.transformProjectRoot(),
   snapshot.replaceWindowsPaths,
   pickTestFileFromLcov
 );
@@ -235,6 +235,14 @@ const tests = [
     name: 'test-runner/output/test-runner-plan.js',
     flags: ['--test-reporter=tap'],
   },
+  {
+    name: 'test-runner/output/test-runner-watch-spec.mjs',
+    transform: specTransform,
+  },
+  {
+    name: 'test-runner/output/test-runner-plan-timeout.js',
+    flags: ['--test-reporter=tap', '--test-force-exit'],
+  },
   process.features.inspector ? {
     name: 'test-runner/output/coverage_failure.js',
     flags: ['--test-reporter=tap'],
@@ -289,12 +297,35 @@ const tests = [
     name: 'test-runner/output/coverage-width-infinity-uncovered-lines.mjs',
     flags: ['--test-reporter=tap'],
   } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-short-filename.mjs',
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=../output/**'],
+    cwd: fixtures.path('test-runner/coverage-snap'),
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/typescript-coverage.mts',
+    flags: ['--disable-warning=ExperimentalWarning',
+            '--test-reporter=tap',
+            '--experimental-transform-types',
+            '--experimental-test-module-mocks',
+            '--experimental-test-coverage',
+            '--test-coverage-exclude=!test/**']
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-with-mock.mjs',
+    flags: ['--disable-warning=ExperimentalWarning',
+            '--test-reporter=tap',
+            '--experimental-transform-types',
+            '--experimental-test-module-mocks',
+            '--experimental-test-coverage',
+            '--test-coverage-exclude=!test/**']
+  } : false,
 ]
 .filter(Boolean)
-.map(({ flags, name, tty, transform }) => ({
+.map(({ flags, name, tty, transform, cwd }) => ({
   name,
   fn: common.mustCall(async () => {
-    await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { tty, flags });
+    await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { tty, flags, cwd });
   }),
 }));
 

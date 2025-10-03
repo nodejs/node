@@ -113,9 +113,7 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
     } else if (sig_len != sig->ByteLength()) {
       std::unique_ptr<BackingStore> old_sig = std::move(sig);
       sig = ArrayBuffer::NewBackingStore(env->isolate(), sig_len);
-      memcpy(static_cast<char*>(sig->Data()),
-             static_cast<char*>(old_sig->Data()),
-             sig_len);
+      memcpy(sig->Data(), old_sig->Data(), sig_len);
     }
     return sig;
   }
@@ -703,11 +701,11 @@ Maybe<void> SignTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool SignTraits::DeriveBits(
-    Environment* env,
-    const SignConfiguration& params,
-    ByteSource* out) {
-  ClearErrorOnReturn clear_error_on_return;
+bool SignTraits::DeriveBits(Environment* env,
+                            const SignConfiguration& params,
+                            ByteSource* out,
+                            CryptoJobMode mode) {
+  bool can_throw = mode == CryptoJobMode::kCryptoJobSync;
   EVPMDCtxPointer context(EVP_MD_CTX_new());
   EVP_PKEY_CTX* ctx = nullptr;
 
@@ -717,14 +715,14 @@ bool SignTraits::DeriveBits(
     case SignConfiguration::kSign:
       if (!EVP_DigestSignInit(
               context.get(), &ctx, params.digest, nullptr, key.get())) {
-        crypto::CheckThrow(env, SignBase::Error::kSignInit);
+        if (can_throw) crypto::CheckThrow(env, SignBase::Error::kSignInit);
         return false;
       }
       break;
     case SignConfiguration::kVerify:
       if (!EVP_DigestVerifyInit(
               context.get(), &ctx, params.digest, nullptr, key.get())) {
-        crypto::CheckThrow(env, SignBase::Error::kSignInit);
+        if (can_throw) crypto::CheckThrow(env, SignBase::Error::kSignInit);
         return false;
       }
       break;
@@ -738,7 +736,7 @@ bool SignTraits::DeriveBits(
       ? Just<int>(params.salt_length) : Nothing<int>();
 
   if (!ApplyRSAOptions(key, ctx, padding, salt_length)) {
-    crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
+    if (can_throw) crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
     return false;
   }
 
@@ -752,7 +750,8 @@ bool SignTraits::DeriveBits(
             &len,
             params.data.data<unsigned char>(),
             params.data.size())) {
-          crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
+          if (can_throw)
+            crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
           return false;
         }
         ByteSource::Builder buf(len);
@@ -772,13 +771,15 @@ bool SignTraits::DeriveBits(
                 params.data.data<unsigned char>(),
                 params.data.size()) ||
             !EVP_DigestSignFinal(context.get(), nullptr, &len)) {
-          crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
+          if (can_throw)
+            crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
           return false;
         }
         ByteSource::Builder buf(len);
         if (!EVP_DigestSignFinal(
                 context.get(), buf.data<unsigned char>(), &len)) {
-          crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
+          if (can_throw)
+            crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
           return false;
         }
 

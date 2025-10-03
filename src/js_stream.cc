@@ -117,10 +117,13 @@ int JSStream::DoWrite(WriteWrap* w,
   HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());
 
+  int value_int = UV_EPROTO;
+
   MaybeStackBuffer<Local<Value>, 16> bufs_arr(count);
   for (size_t i = 0; i < count; i++) {
-    bufs_arr[i] =
-        Buffer::Copy(env(), bufs[i].base, bufs[i].len).ToLocalChecked();
+    if (!Buffer::Copy(env(), bufs[i].base, bufs[i].len).ToLocal(&bufs_arr[i])) {
+      return value_int;
+    }
   }
 
   Local<Value> argv[] = {
@@ -130,7 +133,6 @@ int JSStream::DoWrite(WriteWrap* w,
 
   TryCatchScope try_catch(env());
   Local<Value> value;
-  int value_int = UV_EPROTO;
   if (!MakeCallback(env()->onwrite_string(),
                     arraysize(argv),
                     argv).ToLocal(&value) ||

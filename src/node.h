@@ -67,7 +67,8 @@
 #endif
 
 #ifdef _WIN32
-# define SIGKILL 9
+#define SIGQUIT 3
+#define SIGKILL 9
 #endif
 
 #include "v8.h"  // NOLINT(build/include_order)
@@ -483,6 +484,7 @@ struct IsolateSettings {
   v8::Isolate::AbortOnUncaughtExceptionCallback
       should_abort_on_uncaught_exception_callback = nullptr;
   v8::FatalErrorCallback fatal_error_callback = nullptr;
+  v8::OOMErrorCallback oom_error_callback = nullptr;
   v8::PrepareStackTraceCallback prepare_stack_trace_callback = nullptr;
 
   // Miscellaneous callbacks
@@ -714,6 +716,16 @@ NODE_EXTERN Environment* CreateEnvironment(
     ThreadId thread_id = {} /* allocates a thread id automatically */,
     std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {});
 
+NODE_EXTERN Environment* CreateEnvironment(
+    IsolateData* isolate_data,
+    v8::Local<v8::Context> context,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    EnvironmentFlags::Flags flags,
+    ThreadId thread_id,
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle,
+    std::string_view thread_name);
+
 // Returns a handle that can be passed to `LoadEnvironment()`, making the
 // child Environment accessible to the inspector as if it were a Node.js Worker.
 // `child_thread_id` can be created using `AllocateEnvironmentThreadId()`
@@ -731,6 +743,12 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     ThreadId child_thread_id,
     const char* child_url,
     const char* name);
+
+NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
+    Environment* parent_env,
+    ThreadId child_thread_id,
+    std::string_view child_url,
+    std::string_view name);
 
 struct StartExecutionCallbackInfo {
   v8::Local<v8::Object> process_object;
@@ -1384,6 +1402,12 @@ NODE_EXTERN void RequestInterrupt(Environment* env,
  * zero then no execution has been set. This will happen if the user handles
  * I/O from native code. */
 NODE_EXTERN async_id AsyncHooksGetExecutionAsyncId(v8::Isolate* isolate);
+
+/* Returns the id of the current execution context. If the return value is
+ * zero then no execution has been set. This will happen if the user handles
+ * I/O from native code. */
+NODE_EXTERN async_id
+AsyncHooksGetExecutionAsyncId(v8::Local<v8::Context> context);
 
 /* Return same value as async_hooks.triggerAsyncId(); */
 NODE_EXTERN async_id AsyncHooksGetTriggerAsyncId(v8::Isolate* isolate);

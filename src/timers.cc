@@ -1,5 +1,7 @@
 #include "timers.h"
+
 #include "env-inl.h"
+#include "node_debug.h"
 #include "node_external_reference.h"
 #include "util-inl.h"
 #include "v8.h"
@@ -33,8 +35,8 @@ void BindingData::SlowGetLibuvNow(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Number::New(args.GetIsolate(), now));
 }
 
-double BindingData::FastGetLibuvNow(Local<Object> unused,
-                                    Local<Object> receiver) {
+double BindingData::FastGetLibuvNow(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("timers.getLibuvNow");
   return GetLibuvNowImpl(FromJSObject<BindingData>(receiver));
 }
 
@@ -43,9 +45,12 @@ double BindingData::GetLibuvNowImpl(BindingData* data) {
 }
 
 void BindingData::SlowScheduleTimer(const FunctionCallbackInfo<Value>& args) {
-  int64_t duration =
-      args[0]->IntegerValue(args.GetIsolate()->GetCurrentContext()).FromJust();
-  ScheduleTimerImpl(Realm::GetBindingData<BindingData>(args), duration);
+  int64_t duration;
+  if (args[0]
+          ->IntegerValue(args.GetIsolate()->GetCurrentContext())
+          .To(&duration)) {
+    ScheduleTimerImpl(Realm::GetBindingData<BindingData>(args), duration);
+  }
 }
 
 void BindingData::FastScheduleTimer(Local<Object> unused,
@@ -121,7 +126,7 @@ void BindingData::Deserialize(Local<Context> context,
 
 v8::CFunction BindingData::fast_get_libuv_now_(
     v8::CFunction::Make(FastGetLibuvNow));
-v8::CFunction BindingData::fast_schedule_timers_(
+v8::CFunction BindingData::fast_schedule_timer_(
     v8::CFunction::Make(FastScheduleTimer));
 v8::CFunction BindingData::fast_toggle_timer_ref_(
     v8::CFunction::Make(FastToggleTimerRef));
@@ -139,7 +144,7 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
                 target,
                 "scheduleTimer",
                 SlowScheduleTimer,
-                &fast_schedule_timers_);
+                &fast_schedule_timer_);
   SetFastMethod(isolate,
                 target,
                 "toggleTimerRef",
@@ -180,20 +185,16 @@ void BindingData::RegisterTimerExternalReferences(
   registry->Register(SetupTimers);
 
   registry->Register(SlowGetLibuvNow);
-  registry->Register(FastGetLibuvNow);
-  registry->Register(fast_get_libuv_now_.GetTypeInfo());
+  registry->Register(fast_get_libuv_now_);
 
   registry->Register(SlowScheduleTimer);
-  registry->Register(FastScheduleTimer);
-  registry->Register(fast_schedule_timers_.GetTypeInfo());
+  registry->Register(fast_schedule_timer_);
 
   registry->Register(SlowToggleTimerRef);
-  registry->Register(FastToggleTimerRef);
-  registry->Register(fast_toggle_timer_ref_.GetTypeInfo());
+  registry->Register(fast_toggle_timer_ref_);
 
   registry->Register(SlowToggleImmediateRef);
-  registry->Register(FastToggleImmediateRef);
-  registry->Register(fast_toggle_immediate_ref_.GetTypeInfo());
+  registry->Register(fast_toggle_immediate_ref_);
 }
 
 }  // namespace timers

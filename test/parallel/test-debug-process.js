@@ -16,6 +16,6 @@ cp.on('exit', common.mustCall(function() {
   try {
     process._debugProcess(cp.pid);
   } catch (error) {
-    assert.strictEqual(error.message, 'The system cannot find the file specified.');
+    assert.strictEqual(error.errno, 2);
   }
 }));

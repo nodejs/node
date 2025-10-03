@@ -518,15 +518,10 @@ SimpleTimeZone::getOffsetFromLocal(UDate date, UTimeZoneLocalOption nonExistingT
     }
 
     rawOffsetGMT = getRawOffset();
-    int32_t year, month, dom, dow, millis;
-    double dday = ClockMath::floorDivide(date, U_MILLIS_PER_DAY, &millis);
-    if (dday > INT32_MAX || dday < INT32_MIN) {
-        status = U_ILLEGAL_ARGUMENT_ERROR;
-        return;
-    }
-    int32_t day = dday;
+    int32_t year, millis;
+    int8_t month, dom, dow;
 
-    Grego::dayToFields(day, year, month, dom, dow, status);
+    Grego::timeToFields(date, year, month, dom, dow, millis, status);
     if (U_FAILURE(status)) return;
 
     savingsDST = getOffset(GregorianCalendar::AD, year, month, dom,
@@ -554,8 +549,7 @@ SimpleTimeZone::getOffsetFromLocal(UDate date, UTimeZoneLocalOption nonExistingT
         }
     }
     if (recalc) {
-        day = ClockMath::floorDivide(date, U_MILLIS_PER_DAY, &millis);
-        Grego::dayToFields(day, year, month, dom, dow, status);
+        Grego::timeToFields(date, year, month, dom, dow, millis, status);
         if (U_FAILURE(status)) return;
         savingsDST = getOffset(GregorianCalendar::AD, year, month, dom,
                           static_cast<uint8_t>(dow), millis,

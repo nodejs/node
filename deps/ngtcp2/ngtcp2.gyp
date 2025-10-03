@@ -13,6 +13,7 @@
       'ngtcp2/lib/ngtcp2_cid.c',
       'ngtcp2/lib/ngtcp2_conn.c',
       'ngtcp2/lib/ngtcp2_conv.c',
+      'ngtcp2/lib/ngtcp2_dcidtr.c',
       'ngtcp2/lib/ngtcp2_crypto.c',
       'ngtcp2/lib/ngtcp2_err.c',
       'ngtcp2/lib/ngtcp2_frame_chain.c',

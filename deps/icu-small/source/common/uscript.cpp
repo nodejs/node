@@ -59,6 +59,9 @@ getCodesFromLocale(const char *locale,
     if (U_FAILURE(*err)) { return 0; }
     icu::CharString lang;
     icu::CharString script;
+    if (locale == nullptr) {
+        locale = uloc_getDefault();
+    }
     ulocimp_getSubtags(locale, &lang, &script, nullptr, nullptr, nullptr, *err);
     if (U_FAILURE(*err)) { return 0; }
     // Multi-script languages, equivalent to the LocaleScript data

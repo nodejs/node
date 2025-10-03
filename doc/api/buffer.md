@@ -9,9 +9,9 @@
 `Buffer` objects are used to represent a fixed-length sequence of bytes. Many
 Node.js APIs support `Buffer`s.
 
-The `Buffer` class is a subclass of JavaScript's [`Uint8Array`][] class and
+The `Buffer` class is a subclass of JavaScript's {Uint8Array} class and
 extends it with methods that cover additional use cases. Node.js APIs accept
-plain [`Uint8Array`][]s wherever `Buffer`s are supported as well.
+plain {Uint8Array}s wherever `Buffer`s are supported as well.
 
 While the `Buffer` class is available within the global scope, it is still
 recommended to explicitly reference it via an import or require statement.
@@ -239,13 +239,13 @@ the characters.
 changes:
   - version: v3.0.0
     pr-url: https://github.com/nodejs/node/pull/2002
-    description: The `Buffer`s class now inherits from `Uint8Array`.
+    description: The `Buffer` class now inherits from `Uint8Array`.
 -->
 
-`Buffer` instances are also JavaScript [`Uint8Array`][] and [`TypedArray`][]
-instances. All [`TypedArray`][] methods are available on `Buffer`s. There are,
+`Buffer` instances are also JavaScript {Uint8Array} and {TypedArray}
+instances. All {TypedArray} methods are available on `Buffer`s. There are,
 however, subtle incompatibilities between the `Buffer` API and the
-[`TypedArray`][] API.
+{TypedArray} API.
 
 In particular:
 
@@ -258,9 +258,9 @@ In particular:
 * [`buf.toString()`][] is incompatible with its `TypedArray` equivalent.
 * A number of methods, e.g. [`buf.indexOf()`][], support additional arguments.
 
-There are two ways to create new [`TypedArray`][] instances from a `Buffer`:
+There are two ways to create new {TypedArray} instances from a `Buffer`:
 
-* Passing a `Buffer` to a [`TypedArray`][] constructor will copy the `Buffer`s
+* Passing a `Buffer` to a {TypedArray} constructor will copy the `Buffer`'s
   contents, interpreted as an array of integers, and not as a byte sequence
   of the target type.
 
@@ -286,8 +286,8 @@ console.log(uint32array);
 // Prints: Uint32Array(4) [ 1, 2, 3, 4 ]
 ```
 
-* Passing the `Buffer`s underlying [`ArrayBuffer`][] will create a
-  [`TypedArray`][] that shares its memory with the `Buffer`.
+* Passing the `Buffer`'s underlying {ArrayBuffer} will create a
+  {TypedArray} that shares its memory with the `Buffer`.
 
 ```mjs
 import { Buffer } from 'node:buffer';
@@ -318,7 +318,7 @@ console.log(uint16array);
 ```
 
 It is possible to create a new `Buffer` that shares the same allocated
-memory as a [`TypedArray`][] instance by using the `TypedArray` object's
+memory as a {TypedArray} instance by using the `TypedArray` object's
 `.buffer` property in the same way. [`Buffer.from()`][`Buffer.from(arrayBuf)`]
 behaves like `new Uint8Array()` in this context.
 
@@ -376,8 +376,8 @@ console.log(buf2);
 // Prints: <Buffer 88 13 70 17>
 ```
 
-When creating a `Buffer` using a [`TypedArray`][]'s `.buffer`, it is
-possible to use only a portion of the underlying [`ArrayBuffer`][] by passing in
+When creating a `Buffer` using a {TypedArray}'s `.buffer`, it is
+possible to use only a portion of the underlying {ArrayBuffer} by passing in
 `byteOffset` and `length` parameters.
 
 ```mjs
@@ -401,11 +401,11 @@ console.log(buf.length);
 ```
 
 The `Buffer.from()` and [`TypedArray.from()`][] have different signatures and
-implementations. Specifically, the [`TypedArray`][] variants accept a second
+implementations. Specifically, the {TypedArray} variants accept a second
 argument that is a mapping function that is invoked on every element of the
 typed array:
 
-* `TypedArray.from(source[, mapFn[, thisArg]])`
+* [`TypedArray.from(source[, mapFn[, thisArg]])`][`TypedArray.from()`]
 
 The `Buffer.from()` method, however, does not support the use of a mapping
 function:
@@ -464,7 +464,7 @@ changes:
     description: No longer experimental.
 -->
 
-A [`Blob`][] encapsulates immutable, raw data that can be safely shared across
+A {Blob} encapsulates immutable, raw data that can be safely shared across
 multiple worker threads.
 
 ### `new buffer.Blob([sources[, options]])`
@@ -967,9 +967,8 @@ console.log(`${str}: ${str.length} characters, ` +
 // Prints: ½ + ¼ = ¾: 9 characters, 12 bytes
 ```
 
-When `string` is a `Buffer`/[`DataView`][]/[`TypedArray`][]/[`ArrayBuffer`][]/
-[`SharedArrayBuffer`][], the byte length as reported by `.byteLength`
-is returned.
+When `string` is a {Buffer|DataView|TypedArray|ArrayBuffer|SharedArrayBuffer},
+the byte length as reported by `.byteLength` is returned.
 
 ### Static method: `Buffer.compare(buf1, buf2)`
 
@@ -1024,7 +1023,7 @@ changes:
     description: The elements of `list` can now be `Uint8Array`s.
 -->
 
-* `list` {Buffer\[] | Uint8Array\[]} List of `Buffer` or [`Uint8Array`][]
+* `list` {Buffer\[] | Uint8Array\[]} List of `Buffer` or {Uint8Array}
   instances to concatenate.
 * `totalLength` {integer} Total length of the `Buffer` instances in `list`
   when concatenated.
@@ -1098,7 +1097,7 @@ added:
 -->
 
 * `view` {TypedArray} The {TypedArray} to copy.
-* `offset` {integer} The starting offset within `view`. **Default:**: `0`.
+* `offset` {integer} The starting offset within `view`. **Default:** `0`.
 * `length` {integer} The number of elements from `view` to copy.
   **Default:** `view.length - offset`.
 * Returns: {Buffer}
@@ -1158,18 +1157,18 @@ appropriate for `Buffer.from()` variants.
 added: v5.10.0
 -->
 
-* `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An [`ArrayBuffer`][],
-  [`SharedArrayBuffer`][], for example the `.buffer` property of a
-  [`TypedArray`][].
+* `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An {ArrayBuffer},
+  {SharedArrayBuffer}, for example the `.buffer` property of a
+  {TypedArray}.
 * `byteOffset` {integer} Index of first byte to expose. **Default:** `0`.
 * `length` {integer} Number of bytes to expose.
   **Default:** `arrayBuffer.byteLength - byteOffset`.
 * Returns: {Buffer}
 
-This creates a view of the [`ArrayBuffer`][] without copying the underlying
+This creates a view of the {ArrayBuffer} without copying the underlying
 memory. For example, when passed a reference to the `.buffer` property of a
-[`TypedArray`][] instance, the newly created `Buffer` will share the same
-allocated memory as the [`TypedArray`][]'s underlying `ArrayBuffer`.
+{TypedArray} instance, the newly created `Buffer` will share the same
+allocated memory as the {TypedArray}'s underlying `ArrayBuffer`.
 
 ```mjs
 import { Buffer } from 'node:buffer';
@@ -1236,8 +1235,8 @@ console.log(buf.length);
 // Prints: 2
 ```
 
-A `TypeError` will be thrown if `arrayBuffer` is not an [`ArrayBuffer`][] or a
-[`SharedArrayBuffer`][] or another type appropriate for `Buffer.from()`
+A `TypeError` will be thrown if `arrayBuffer` is not an {ArrayBuffer} or a
+{SharedArrayBuffer} or another type appropriate for `Buffer.from()`
 variants.
 
 It is important to remember that a backing `ArrayBuffer` can cover a range
@@ -1275,7 +1274,7 @@ console.log(buf);
 added: v5.10.0
 -->
 
-* `buffer` {Buffer|Uint8Array} An existing `Buffer` or [`Uint8Array`][] from
+* `buffer` {Buffer|Uint8Array} An existing `Buffer` or {Uint8Array} from
   which to copy data.
 * Returns: {Buffer}
 
@@ -1500,7 +1499,7 @@ console.log(Buffer.isEncoding(''));
 added: v0.11.3
 -->
 
-* {integer} **Default:** `8192`
+* Type: {integer} **Default:** `8192`
 
 This is the size (in bytes) of pre-allocated internal `Buffer` instances used
 for pooling. This value may be modified.
@@ -1557,7 +1556,7 @@ console.log(buf.toString('utf8'));
 
 ### `buf.buffer`
 
-* {ArrayBuffer} The underlying `ArrayBuffer` object based on which this `Buffer`
+* Type: {ArrayBuffer} The underlying `ArrayBuffer` object based on which this `Buffer`
   object is created.
 
 This `ArrayBuffer` is not guaranteed to correspond exactly to the original
@@ -1585,7 +1584,7 @@ console.log(buffer.buffer === arrayBuffer);
 
 ### `buf.byteOffset`
 
-* {integer} The `byteOffset` of the `Buffer`s underlying `ArrayBuffer` object.
+* Type: {integer} The `byteOffset` of the `Buffer`'s underlying `ArrayBuffer` object.
 
 When setting `byteOffset` in `Buffer.from(ArrayBuffer, byteOffset, length)`,
 or sometimes when allocating a `Buffer` smaller than `Buffer.poolSize`, the
@@ -1635,7 +1634,7 @@ changes:
     description: Additional parameters for specifying offsets are supported now.
 -->
 
-* `target` {Buffer|Uint8Array} A `Buffer` or [`Uint8Array`][] with which to
+* `target` {Buffer|Uint8Array} A `Buffer` or {Uint8Array} with which to
   compare `buf`.
 * `targetStart` {integer} The offset within `target` at which to begin
   comparison. **Default:** `0`.
@@ -1740,7 +1739,7 @@ console.log(buf1.compare(buf2, 5, 6, 5));
 added: v0.1.90
 -->
 
-* `target` {Buffer|Uint8Array} A `Buffer` or [`Uint8Array`][] to copy into.
+* `target` {Buffer|Uint8Array} A `Buffer` or {Uint8Array} to copy into.
 * `targetStart` {integer} The offset within `target` at which to begin
   writing. **Default:** `0`.
 * `sourceStart` {integer} The offset within `buf` from which to begin copying.
@@ -1895,7 +1894,7 @@ changes:
     description: The arguments can now be `Uint8Array`s.
 -->
 
-* `otherBuffer` {Buffer|Uint8Array} A `Buffer` or [`Uint8Array`][] with which to
+* `otherBuffer` {Buffer|Uint8Array} A `Buffer` or {Uint8Array} with which to
   compare `buf`.
 * Returns: {boolean}
 
@@ -2140,7 +2139,7 @@ If `value` is:
 
 * a string, `value` is interpreted according to the character encoding in
   `encoding`.
-* a `Buffer` or [`Uint8Array`][], `value` will be used in its entirety.
+* a `Buffer` or {Uint8Array}, `value` will be used in its entirety.
   To compare a partial `Buffer`, use [`buf.subarray`][].
 * a number, `value` will be interpreted as an unsigned 8-bit integer
   value between `0` and `255`.
@@ -2426,7 +2425,7 @@ If `value` is an empty string or empty `Buffer`, `byteOffset` will be returned.
 added: v0.1.90
 -->
 
-* {integer}
+* Type: {integer}
 
 Returns the number of bytes in `buf`.
 
@@ -5009,8 +5008,8 @@ changes:
 > [`Buffer.from(arrayBuffer[, byteOffset[, length]])`][`Buffer.from(arrayBuf)`]
 > instead.
 
-* `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An [`ArrayBuffer`][],
-  [`SharedArrayBuffer`][] or the `.buffer` property of a [`TypedArray`][].
+* `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An {ArrayBuffer},
+  {SharedArrayBuffer} or the `.buffer` property of a {TypedArray}.
 * `byteOffset` {integer} Index of first byte to expose. **Default:** `0`.
 * `length` {integer} Number of bytes to expose.
   **Default:** `arrayBuffer.byteLength - byteOffset`.
@@ -5037,7 +5036,7 @@ changes:
 
 > Stability: 0 - Deprecated: Use [`Buffer.from(buffer)`][] instead.
 
-* `buffer` {Buffer|Uint8Array} An existing `Buffer` or [`Uint8Array`][] from
+* `buffer` {Buffer|Uint8Array} An existing `Buffer` or {Uint8Array} from
   which to copy data.
 
 See [`Buffer.from(buffer)`][].
@@ -5110,7 +5109,7 @@ changes:
 
 * Extends: {Blob}
 
-A [`File`][] provides information about files.
+A {File} provides information about files.
 
 ### `new buffer.File(sources, fileName[, options])`
 
@@ -5218,7 +5217,7 @@ added:
   - v18.15.0
 -->
 
-* input {Buffer | ArrayBuffer | TypedArray} The input to validate.
+* `input` {Buffer | ArrayBuffer | TypedArray} The input to validate.
 * Returns: {boolean}
 
 This function returns `true` if `input` contains only valid ASCII-encoded data,
@@ -5234,7 +5233,7 @@ added:
   - v18.14.0
 -->
 
-* input {Buffer | ArrayBuffer | TypedArray} The input to validate.
+* `input` {Buffer | ArrayBuffer | TypedArray} The input to validate.
 * Returns: {boolean}
 
 This function returns `true` if `input` contains only valid UTF-8-encoded data,
@@ -5248,7 +5247,7 @@ Throws if the `input` is a detached array buffer.
 added: v0.5.4
 -->
 
-* {integer} **Default:** `50`
+* Type: {integer} **Default:** `50`
 
 Returns the maximum number of bytes that will be returned when
 `buf.inspect()` is called. This can be overridden by user modules. See
@@ -5260,7 +5259,7 @@ Returns the maximum number of bytes that will be returned when
 added: v3.0.0
 -->
 
-* {integer} The largest size allowed for a single `Buffer` instance.
+* Type: {integer} The largest size allowed for a single `Buffer` instance.
 
 An alias for [`buffer.constants.MAX_LENGTH`][].
 
@@ -5270,7 +5269,7 @@ An alias for [`buffer.constants.MAX_LENGTH`][].
 added: v3.0.0
 -->
 
-* {integer} The largest length allowed for a single `string` instance.
+* Type: {integer} The largest length allowed for a single `string` instance.
 
 An alias for [`buffer.constants.MAX_STRING_LENGTH`][].
 
@@ -5278,9 +5277,11 @@ An alias for [`buffer.constants.MAX_STRING_LENGTH`][].
 
 <!-- YAML
 added: v16.7.0
+changes:
+ - version: v22.17.0
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `id` {string} A `'blob:nodedata:...` URL string returned by a prior call to
   `URL.createObjectURL()`.
@@ -5353,8 +5354,6 @@ instance.
 deprecated: v6.0.0
 -->
 
-> Stability: 0 - Deprecated: Use [`Buffer.allocUnsafeSlow()`][] instead.
-
 * `size` {integer} The desired length of the new `SlowBuffer`.
 
 See [`Buffer.allocUnsafeSlow()`][].
@@ -5384,7 +5383,7 @@ changes:
       2<sup>32</sup> - 1 on 64-bit architectures.
 -->
 
-* {integer} The largest size allowed for a single `Buffer` instance.
+* Type: {integer} The largest size allowed for a single `Buffer` instance.
 
 On 32-bit architectures, this value currently is 2<sup>30</sup> - 1 (about 1
 GiB).
@@ -5401,7 +5400,7 @@ This value is also available as [`buffer.kMaxLength`][].
 added: v8.2.0
 -->
 
-* {integer} The largest length allowed for a single `string` instance.
+* Type: {integer} The largest length allowed for a single `string` instance.
 
 Represents the largest `length` that a `string` primitive can have, counted
 in UTF-16 code units.
@@ -5427,7 +5426,7 @@ differently based on what arguments are provided:
   Buffer(num)` return a `Buffer` with initialized memory.
 * Passing a string, array, or `Buffer` as the first argument copies the
   passed object's data into the `Buffer`.
-* Passing an [`ArrayBuffer`][] or a [`SharedArrayBuffer`][] returns a `Buffer`
+* Passing an {ArrayBuffer} or a {SharedArrayBuffer} returns a `Buffer`
   that shares allocated memory with the given array buffer.
 
 Because the behavior of `new Buffer()` is different depending on the type of the
@@ -5461,7 +5460,7 @@ to one of these new APIs._
   provided octets.
 * [`Buffer.from(arrayBuffer[, byteOffset[, length]])`][`Buffer.from(arrayBuf)`]
   returns a new `Buffer` that _shares the same allocated memory_ as the given
-  [`ArrayBuffer`][].
+  {ArrayBuffer}.
 * [`Buffer.from(buffer)`][] returns a new `Buffer` that _contains a copy_ of the
   contents of the given `Buffer`.
 * [`Buffer.from(string[, encoding])`][`Buffer.from(string)`] returns a new
@@ -5523,8 +5522,6 @@ introducing security vulnerabilities into an application.
 [UTF-16]: https://en.wikipedia.org/wiki/UTF-16
 [UTF-8]: https://en.wikipedia.org/wiki/UTF-8
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
-[`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
-[`Blob`]: https://developer.mozilla.org/en-US/docs/Web/API/Blob
 [`Buffer.alloc()`]: #static-method-bufferallocsize-fill-encoding
 [`Buffer.allocUnsafe()`]: #static-method-bufferallocunsafesize
 [`Buffer.allocUnsafeSlow()`]: #static-method-bufferallocunsafeslowsize
@@ -5535,12 +5532,9 @@ introducing security vulnerabilities into an application.
 [`Buffer.from(buffer)`]: #static-method-bufferfrombuffer
 [`Buffer.from(string)`]: #static-method-bufferfromstring-encoding
 [`Buffer.poolSize`]: #class-property-bufferpoolsize
-[`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
 [`ERR_INVALID_BUFFER_SIZE`]: errors.md#err_invalid_buffer_size
 [`ERR_OUT_OF_RANGE`]: errors.md#err_out_of_range
-[`File`]: https://developer.mozilla.org/en-US/docs/Web/API/File
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
-[`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`String.prototype.indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf
 [`String.prototype.lastIndexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/lastIndexOf
 [`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
@@ -5548,8 +5542,6 @@ introducing security vulnerabilities into an application.
 [`TypedArray.prototype.set()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/set
 [`TypedArray.prototype.slice()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/slice
 [`TypedArray.prototype.subarray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/subarray
-[`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
-[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`buf.buffer`]: #bufbuffer
 [`buf.compare()`]: #bufcomparetarget-targetstart-targetend-sourcestart-sourceend
 [`buf.entries()`]: #bufentries

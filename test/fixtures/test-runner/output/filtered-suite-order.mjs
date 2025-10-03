@@ -5,7 +5,7 @@ after(() => { console.log('with global after()'); });
 await Promise.resolve();
 
 console.log('Execution order was:');
-const ll = (t) => { console.log(` * ${t.fullName}`) };
+const ll = (t) => { console.log(` * ${t.fullName}`); };
 
 describe('A', () => {
   test.only('A', ll);

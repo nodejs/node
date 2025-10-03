@@ -807,7 +807,7 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
   Utf8Value name(env->isolate(), args[0]);
 
   ArrayBufferOrViewContents<unsigned char> key_data(args[1]);
-  KeyType type = static_cast<KeyType>(args[2].As<Int32>()->Value());
+  KeyType type = FromV8Value<KeyType>(args[2]);
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
@@ -1066,6 +1066,7 @@ void NativeKeyObject::New(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsObject());
   KeyObjectHandle* handle = Unwrap<KeyObjectHandle>(args[0].As<Object>());
+  CHECK_NOT_NULL(handle);
   new NativeKeyObject(env, args.This(), handle->Data());
 }
 

@@ -17,6 +17,7 @@ using v8::FunctionCallbackInfo;
 using v8::IntegrityLevel;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::None;
@@ -79,7 +80,9 @@ void BuiltinLoader::GetNatives(Local<Name> property,
   auto source = env->builtin_loader()->source_.read();
   for (auto const& x : *source) {
     Local<String> key = OneByteString(isolate, x.first);
-    out->Set(context, key, x.second.ToStringChecked(isolate)).FromJust();
+    if (out->Set(context, key, x.second.ToStringChecked(isolate)).IsNothing()) {
+      return;
+    }
   }
   info.GetReturnValue().Set(out);
 }
@@ -120,8 +123,8 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 #if !HAVE_INSPECTOR
     "inspector", "inspector/promises", "internal/util/inspector",
         "internal/inspector/network", "internal/inspector/network_http",
-        "internal/inspector/network_undici", "internal/inspector_async_hook",
-        "internal/inspector_network_tracking",
+        "internal/inspector/network_http2", "internal/inspector/network_undici",
+        "internal/inspector_async_hook", "internal/inspector_network_tracking",
 #endif  // !HAVE_INSPECTOR
 
 #if !NODE_USE_V8_PLATFORM || !defined(NODE_HAVE_I18N_SUPPORT)
@@ -142,6 +145,9 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "sqlite",  // Experimental.
         "sys",     // Deprecated.
         "wasi",    // Experimental.
+#if !HAVE_SQLITE
+        "internal/webstorage",  // Experimental.
+#endif
         "internal/test/binding", "internal/v8_prof_polyfill",
         "internal/v8_prof_processor",
   };
@@ -266,7 +272,7 @@ void BuiltinLoader::AddExternalizedBuiltin(const char* id,
 MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
     Local<Context> context,
     const char* id,
-    std::vector<Local<String>>* parameters,
+    LocalVector<String>* parameters,
     Realm* optional_realm) {
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
@@ -301,7 +307,7 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
   if (should_eager_compile_) {
     options = ScriptCompiler::kEagerCompile;
   } else if (!to_eager_compile_.empty()) {
-    if (to_eager_compile_.find(id) != to_eager_compile_.end()) {
+    if (to_eager_compile_.contains(id)) {
       options = ScriptCompiler::kEagerCompile;
     }
   }
@@ -390,8 +396,8 @@ void BuiltinLoader::SaveCodeCache(const char* id, Local<Function> fun) {
 MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
                                                      const char* id,
                                                      Realm* optional_realm) {
-  std::vector<Local<String>> parameters;
   Isolate* isolate = context->GetIsolate();
+  LocalVector<String> parameters(isolate);
   // Detects parameters of the scripts based on module ids.
   // internal/bootstrap/realm: process, getLinkedBinding,
   //                           getInternalBinding, primordials
@@ -409,6 +415,8 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
     parameters = {
         FIXED_ONE_BYTE_STRING(isolate, "exports"),
         FIXED_ONE_BYTE_STRING(isolate, "primordials"),
+        FIXED_ONE_BYTE_STRING(isolate, "privateSymbols"),
+        FIXED_ONE_BYTE_STRING(isolate, "perIsolateSymbols"),
     };
   } else if (strncmp(id, "internal/main/", strlen("internal/main/")) == 0 ||
              strncmp(id,
@@ -505,7 +513,7 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
 MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
     Local<Context> context,
     const char* id,
-    std::vector<Local<String>>* parameters,
+    LocalVector<String>* parameters,
     Realm* optional_realm) {
   return LookupAndCompileInternal(context, id, parameters, optional_realm);
 }

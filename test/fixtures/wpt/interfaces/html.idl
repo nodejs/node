@@ -125,6 +125,7 @@ interface HTMLElement : Element {
   [CEReactions] attribute boolean spellcheck;
   [CEReactions] attribute DOMString writingSuggestions;
   [CEReactions] attribute DOMString autocapitalize;
+  [CEReactions] attribute boolean autocorrect;
 
   [CEReactions] attribute [LegacyNullToEmptyString] DOMString innerText;
   [CEReactions] attribute [LegacyNullToEmptyString] DOMString outerText;
@@ -132,10 +133,18 @@ interface HTMLElement : Element {
   ElementInternals attachInternals();
 
   // The popover API
-  undefined showPopover();
+  undefined showPopover(optional ShowPopoverOptions options = {});
   undefined hidePopover();
-  boolean togglePopover(optional boolean force);
+  boolean togglePopover(optional (TogglePopoverOptions or boolean) options = {});
   [CEReactions] attribute DOMString? popover;
+};
+
+dictionary ShowPopoverOptions {
+  HTMLElement source;
+};
+
+dictionary TogglePopoverOptions : ShowPopoverOptions {
+  boolean force;
 };
 
 HTMLElement includes GlobalEventHandlers;
@@ -880,10 +889,12 @@ interface HTMLInputElement : HTMLElement {
   [HTMLConstructor] constructor();
 
   [CEReactions] attribute DOMString accept;
+  [CEReactions] attribute boolean alpha;
   [CEReactions] attribute DOMString alt;
   [CEReactions] attribute DOMString autocomplete;
   [CEReactions] attribute boolean defaultChecked;
   attribute boolean checked;
+  [CEReactions] attribute DOMString colorSpace;
   [CEReactions] attribute DOMString dirName;
   [CEReactions] attribute boolean disabled;
   readonly attribute HTMLFormElement? form;
@@ -946,6 +957,8 @@ HTMLInputElement includes PopoverInvokerElement;
 interface HTMLButtonElement : HTMLElement {
   [HTMLConstructor] constructor();
 
+  [CEReactions] attribute DOMString command;
+  [CEReactions] attribute Element? commandForElement;
   [CEReactions] attribute boolean disabled;
   readonly attribute HTMLFormElement? form;
   [CEReactions] attribute USVString formAction;
@@ -1211,9 +1224,11 @@ interface HTMLDialogElement : HTMLElement {
 
   [CEReactions] attribute boolean open;
   attribute DOMString returnValue;
+  [CEReactions] attribute DOMString closedBy;
   [CEReactions] undefined show();
   [CEReactions] undefined showModal();
   [CEReactions] undefined close(optional DOMString returnValue);
+  [CEReactions] undefined requestClose(optional DOMString returnValue);
 };
 
 [Exposed=Window]
@@ -1246,6 +1261,7 @@ interface HTMLTemplateElement : HTMLElement {
   [CEReactions] attribute boolean shadowRootDelegatesFocus;
   [CEReactions] attribute boolean shadowRootClonable;
   [CEReactions] attribute boolean shadowRootSerializable;
+  [CEReactions] attribute DOMString shadowRootCustomElementRegistry;
 };
 
 [Exposed=Window]
@@ -1292,12 +1308,15 @@ typedef (HTMLOrSVGImageElement or
 
 enum PredefinedColorSpace { "srgb", "display-p3" };
 
+enum CanvasColorType { "unorm8", "float16" };
+
 enum CanvasFillRule { "nonzero", "evenodd" };
 
 dictionary CanvasRenderingContext2DSettings {
   boolean alpha = true;
   boolean desynchronized = false;
   PredefinedColorSpace colorSpace = "srgb";
+  CanvasColorType colorType = "unorm8";
   boolean willReadFrequently = false;
 };
 
@@ -1307,9 +1326,8 @@ enum ImageSmoothingQuality { "low", "medium", "high" };
 interface CanvasRenderingContext2D {
   // back-reference to the canvas
   readonly attribute HTMLCanvasElement canvas;
-
-  CanvasRenderingContext2DSettings getContextAttributes();
 };
+CanvasRenderingContext2D includes CanvasSettings;
 CanvasRenderingContext2D includes CanvasState;
 CanvasRenderingContext2D includes CanvasTransform;
 CanvasRenderingContext2D includes CanvasCompositing;
@@ -1326,6 +1344,11 @@ CanvasRenderingContext2D includes CanvasImageData;
 CanvasRenderingContext2D includes CanvasPathDrawingStyles;
 CanvasRenderingContext2D includes CanvasTextDrawingStyles;
 CanvasRenderingContext2D includes CanvasPath;
+
+interface mixin CanvasSettings {
+  // settings
+  CanvasRenderingContext2DSettings getContextAttributes();
+};
 
 interface mixin CanvasState {
   // state
@@ -1411,8 +1434,6 @@ interface mixin CanvasDrawPath {
 interface mixin CanvasUserInterface {
   undefined drawFocusIfNeeded(Element element);
   undefined drawFocusIfNeeded(Path2D path, Element element);
-  undefined scrollPathIntoView();
-  undefined scrollPathIntoView(Path2D path);
 };
 
 interface mixin CanvasText {
@@ -1432,10 +1453,10 @@ interface mixin CanvasDrawImage {
 interface mixin CanvasImageData {
   // pixel manipulation
   ImageData createImageData([EnforceRange] long sw, [EnforceRange] long sh, optional ImageDataSettings settings = {});
-  ImageData createImageData(ImageData imagedata);
+  ImageData createImageData(ImageData imageData);
   ImageData getImageData([EnforceRange] long sx, [EnforceRange] long sy, [EnforceRange] long sw, [EnforceRange] long sh, optional ImageDataSettings settings = {});
-  undefined putImageData(ImageData imagedata, [EnforceRange] long dx, [EnforceRange] long dy);
-  undefined putImageData(ImageData imagedata, [EnforceRange] long dx, [EnforceRange] long dy, [EnforceRange] long dirtyX, [EnforceRange] long dirtyY, [EnforceRange] long dirtyWidth, [EnforceRange] long dirtyHeight);
+  undefined putImageData(ImageData imageData, [EnforceRange] long dx, [EnforceRange] long dy);
+  undefined putImageData(ImageData imageData, [EnforceRange] long dx, [EnforceRange] long dy, [EnforceRange] long dirtyX, [EnforceRange] long dirtyY, [EnforceRange] long dirtyWidth, [EnforceRange] long dirtyHeight);
 };
 
 enum CanvasLineCap { "butt", "round", "square" };
@@ -1463,6 +1484,7 @@ interface mixin CanvasPathDrawingStyles {
 
 interface mixin CanvasTextDrawingStyles {
   // text
+  attribute DOMString lang; // (default: "inherit")
   attribute DOMString font; // (default 10px sans-serif)
   attribute CanvasTextAlign textAlign; // (default: "start")
   attribute CanvasTextBaseline textBaseline; // (default: "alphabetic")
@@ -1520,22 +1542,6 @@ interface TextMetrics {
   readonly attribute double ideographicBaseline;
 };
 
-dictionary ImageDataSettings {
-  PredefinedColorSpace colorSpace;
-};
-
-[Exposed=(Window,Worker),
- Serializable]
-interface ImageData {
-  constructor(unsigned long sw, unsigned long sh, optional ImageDataSettings settings = {});
-  constructor(Uint8ClampedArray data, unsigned long sw, optional unsigned long sh, optional ImageDataSettings settings = {});
-
-  readonly attribute unsigned long width;
-  readonly attribute unsigned long height;
-  readonly attribute Uint8ClampedArray data;
-  readonly attribute PredefinedColorSpace colorSpace;
-};
-
 [Exposed=(Window,Worker)]
 interface Path2D {
   constructor(optional (Path2D or DOMString) path);
@@ -1583,6 +1589,7 @@ interface OffscreenCanvasRenderingContext2D {
   readonly attribute OffscreenCanvas canvas;
 };
 
+OffscreenCanvasRenderingContext2D includes CanvasSettings;
 OffscreenCanvasRenderingContext2D includes CanvasState;
 OffscreenCanvasRenderingContext2D includes CanvasTransform;
 OffscreenCanvasRenderingContext2D includes CanvasCompositing;
@@ -1601,11 +1608,14 @@ OffscreenCanvasRenderingContext2D includes CanvasPath;
 
 [Exposed=Window]
 interface CustomElementRegistry {
+  constructor();
+
   [CEReactions] undefined define(DOMString name, CustomElementConstructor constructor, optional ElementDefinitionOptions options = {});
   (CustomElementConstructor or undefined) get(DOMString name);
   DOMString? getName(CustomElementConstructor constructor);
   Promise<CustomElementConstructor> whenDefined(DOMString name);
   [CEReactions] undefined upgrade(Node root);
+  undefined initialize(Node root);
 };
 
 callback CustomElementConstructor = HTMLElement ();
@@ -1689,6 +1699,18 @@ interface ToggleEvent : Event {
 dictionary ToggleEventInit : EventInit {
   DOMString oldState = "";
   DOMString newState = "";
+};
+
+[Exposed=Window]
+interface CommandEvent : Event {
+  constructor(DOMString type, optional CommandEventInit eventInitDict = {});
+  readonly attribute Element? source;
+  readonly attribute DOMString command;
+};
+
+dictionary CommandEventInit : EventInit {
+  Element? source = null;
+  DOMString command = "";
 };
 
 dictionary FocusOptions {
@@ -1976,6 +1998,7 @@ interface NavigateEvent : Event {
   readonly attribute DOMString? downloadRequest;
   readonly attribute any info;
   readonly attribute boolean hasUAVisualTransition;
+  readonly attribute Element? sourceElement;
 
   undefined intercept(optional NavigationInterceptOptions options = {});
   undefined scroll();
@@ -1992,6 +2015,7 @@ dictionary NavigateEventInit : EventInit {
   DOMString? downloadRequest = null;
   any info;
   boolean hasUAVisualTransition = false;
+  Element? sourceElement = null;
 };
 
 dictionary NavigationInterceptOptions {
@@ -2108,10 +2132,10 @@ interface NotRestoredReasonDetails {
 
 [Exposed=Window]
 interface NotRestoredReasons {
-  readonly attribute DOMString? src;
+  readonly attribute USVString? src;
   readonly attribute DOMString? id;
   readonly attribute DOMString? name;
-  readonly attribute DOMString? url;
+  readonly attribute USVString? url;
   readonly attribute FrozenArray<NotRestoredReasonDetails>? reasons;
   readonly attribute FrozenArray<NotRestoredReasons>? children;
   [Default] object toJSON();
@@ -2174,6 +2198,7 @@ interface mixin GlobalEventHandlers {
   attribute EventHandler onchange;
   attribute EventHandler onclick;
   attribute EventHandler onclose;
+  attribute EventHandler oncommand;
   attribute EventHandler oncontextlost;
   attribute EventHandler oncontextmenu;
   attribute EventHandler oncontextrestored;
@@ -2333,6 +2358,13 @@ partial interface Range {
 };
 
 [Exposed=Window]
+interface XMLSerializer {
+  constructor();
+
+  DOMString serializeToString(Node root);
+};
+
+[Exposed=Window]
 interface Navigator {
   // objects implementing this interface also implement the interfaces given below
 };
@@ -2420,6 +2452,28 @@ interface MimeType {
   readonly attribute DOMString description;
   readonly attribute DOMString suffixes;
   readonly attribute Plugin enabledPlugin;
+};
+
+typedef (Uint8ClampedArray or Float16Array) ImageDataArray;
+
+enum ImageDataPixelFormat { "rgba-unorm8", "rgba-float16" };
+
+dictionary ImageDataSettings {
+  PredefinedColorSpace colorSpace;
+  ImageDataPixelFormat pixelFormat = "rgba-unorm8";
+};
+
+[Exposed=(Window,Worker),
+ Serializable]
+interface ImageData {
+  constructor(unsigned long sw, unsigned long sh, optional ImageDataSettings settings = {});
+  constructor(ImageDataArray data, unsigned long sw, optional unsigned long sh, optional ImageDataSettings settings = {});
+
+  readonly attribute unsigned long width;
+  readonly attribute unsigned long height;
+  readonly attribute ImageDataArray data;
+  readonly attribute ImageDataPixelFormat pixelFormat;
+  readonly attribute PredefinedColorSpace colorSpace;
 };
 
 [Exposed=(Window,Worker), Serializable, Transferable]
@@ -2511,6 +2565,11 @@ interface MessageChannel {
   readonly attribute MessagePort port2;
 };
 
+interface mixin MessageEventTarget {
+  attribute EventHandler onmessage;
+  attribute EventHandler onmessageerror;
+};
+
 [Exposed=(Window,Worker,AudioWorklet), Transferable]
 interface MessagePort : EventTarget {
   undefined postMessage(any message, sequence<object> transfer);
@@ -2519,10 +2578,10 @@ interface MessagePort : EventTarget {
   undefined close();
 
   // event handlers
-  attribute EventHandler onmessage;
-  attribute EventHandler onmessageerror;
   attribute EventHandler onclose;
 };
+
+MessagePort includes MessageEventTarget;
 
 dictionary StructuredSerializeOptions {
   sequence<object> transfer = [];
@@ -2562,10 +2621,9 @@ interface DedicatedWorkerGlobalScope : WorkerGlobalScope {
   undefined postMessage(any message, optional StructuredSerializeOptions options = {});
 
   undefined close();
-
-  attribute EventHandler onmessage;
-  attribute EventHandler onmessageerror;
 };
+
+DedicatedWorkerGlobalScope includes MessageEventTarget;
 
 [Global=(Worker,SharedWorker),Exposed=SharedWorker]
 interface SharedWorkerGlobalScope : WorkerGlobalScope {
@@ -2588,8 +2646,6 @@ interface Worker : EventTarget {
 
   undefined postMessage(any message, sequence<object> transfer);
   undefined postMessage(any message, optional StructuredSerializeOptions options = {});
-  attribute EventHandler onmessage;
-  attribute EventHandler onmessageerror;
 };
 
 dictionary WorkerOptions {
@@ -2601,6 +2657,7 @@ dictionary WorkerOptions {
 enum WorkerType { "classic", "module" };
 
 Worker includes AbstractWorker;
+Worker includes MessageEventTarget;
 
 [Exposed=Window]
 interface SharedWorker : EventTarget {

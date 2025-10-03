@@ -48,6 +48,7 @@
 #include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
+#include "v8-profiler.h"
 #include "v8.h"
 
 #if HAVE_OPENSSL
@@ -57,6 +58,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <list>
 #include <memory>
@@ -344,7 +346,7 @@ class AsyncHooks : public MemoryRetainer {
   // `pop_async_context()` or `clear_async_id_stack()` are called.
   void push_async_context(double async_id,
                           double trigger_async_id,
-                          v8::Local<v8::Object> execution_async_resource);
+                          v8::Local<v8::Object>* execution_async_resource);
   bool pop_async_context(double async_id);
   void clear_async_id_stack();  // Used in fatal exceptions.
 
@@ -406,15 +408,9 @@ class AsyncHooks : public MemoryRetainer {
 
   v8::Global<v8::Array> js_execution_async_resources_;
 
-  // TODO(@jasnell): Note that this is technically illegal use of
-  // v8::Locals which should be kept on the stack. Here, the entries
-  // in this object grows and shrinks with the C stack, and entries
-  // will be in the right handle scopes, but v8::Locals are supposed
-  // to remain on the stack and not the heap. For general purposes
-  // this *should* be ok but may need to be looked at further should
-  // v8 become stricter in the future about v8::Locals being held in
-  // the stack.
-  v8::LocalVector<v8::Object> native_execution_async_resources_;
+  // We avoid storing the handles directly here, because they are already
+  // properly allocated on the stack, we just need access to them here.
+  std::deque<v8::Local<v8::Object>*> native_execution_async_resources_;
 
   // Non-empty during deserialization
   const SerializeInfo* info_ = nullptr;
@@ -681,7 +677,8 @@ class Environment final : public MemoryRetainer {
               const std::vector<std::string>& exec_args,
               const EnvSerializeInfo* env_info,
               EnvironmentFlags::Flags flags,
-              ThreadId thread_id);
+              ThreadId thread_id,
+              std::string_view thread_name = "");
   void InitializeMainContext(v8::Local<v8::Context> context,
                              const EnvSerializeInfo* env_info);
   ~Environment() override;
@@ -756,6 +753,8 @@ class Environment final : public MemoryRetainer {
   bool exiting() const;
   inline ExitCode exit_code(const ExitCode default_code) const;
 
+  inline void set_exit_code(const ExitCode code);
+
   // This stores whether the --abort-on-uncaught-exception flag was passed
   // to Node.
   inline bool abort_on_uncaught_exception() const;
@@ -784,12 +783,12 @@ class Environment final : public MemoryRetainer {
 
   inline performance::PerformanceState* performance_state();
 
-  void CollectUVExceptionInfo(v8::Local<v8::Value> context,
-                              int errorno,
-                              const char* syscall = nullptr,
-                              const char* message = nullptr,
-                              const char* path = nullptr,
-                              const char* dest = nullptr);
+  v8::Maybe<void> CollectUVExceptionInfo(v8::Local<v8::Value> context,
+                                         int errorno,
+                                         const char* syscall = nullptr,
+                                         const char* message = nullptr,
+                                         const char* path = nullptr,
+                                         const char* dest = nullptr);
 
   // If this flag is set, calls into JS (if they would be observable
   // from userland) must be avoided.  This flag does not indicate whether
@@ -824,6 +823,7 @@ class Environment final : public MemoryRetainer {
   inline bool should_start_debug_signal_handler() const;
   inline bool no_browser_globals() const;
   inline uint64_t thread_id() const;
+  inline std::string_view thread_name() const;
   inline worker::Worker* worker_context() const;
   Environment* worker_parent_env() const;
   inline void add_sub_worker_context(worker::Worker* context);
@@ -848,6 +848,9 @@ class Environment final : public MemoryRetainer {
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
   inline void ThrowRangeError(const char* errmsg);
+  inline void ThrowStdErrException(std::error_code error_code,
+                                   const char* syscall,
+                                   const char* path = nullptr);
   inline void ThrowErrnoException(int errorno,
                                   const char* syscall = nullptr,
                                   const char* message = nullptr,
@@ -1063,6 +1066,9 @@ class Environment final : public MemoryRetainer {
 
   inline void RemoveHeapSnapshotNearHeapLimitCallback(size_t heap_limit);
 
+  v8::CpuProfilingResult StartCpuProfile(std::string_view name);
+  v8::CpuProfile* StopCpuProfile(std::string_view name);
+
   // Field identifiers for exit_info_
   enum ExitInfoField {
     kExiting = 0,
@@ -1196,6 +1202,7 @@ class Environment final : public MemoryRetainer {
 
   uint64_t flags_;
   uint64_t thread_id_;
+  std::string thread_name_;
   std::unordered_set<worker::Worker*> sub_worker_contexts_;
 
 #if HAVE_INSPECTOR
@@ -1268,6 +1275,9 @@ class Environment final : public MemoryRetainer {
 
   std::unordered_map<std::uintptr_t, v8::Global<v8::Value>>
       async_resource_context_frames_;
+
+  v8::CpuProfiler* cpu_profiler_ = nullptr;
+  std::unordered_map<std::string, v8::ProfilerId> pending_profiles_;
 };
 
 }  // namespace node

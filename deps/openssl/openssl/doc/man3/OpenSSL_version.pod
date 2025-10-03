@@ -211,14 +211,6 @@ automatically configured but may be set via an environment variable.
 The value has the same syntax as the environment variable.
 For x86 the string looks like C<OPENSSL_ia32cap=0x123:0x456>.
 
-=item OPENSSL_INFO_QUIC
-
-This is only defined when compiling with a QUIC-enabled version of
-OpenSSL. At run time, this will return "QUIC" if QUIC is supported.
-
-This can be used as a build time flag to determine if OpenSSL has
-QUIC enabled.
-
 =back
 
 For an unknown I<t>, NULL is returned.

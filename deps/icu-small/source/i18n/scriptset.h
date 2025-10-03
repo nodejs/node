@@ -74,7 +74,7 @@ class U_I18N_API ScriptSet: public UMemory {
 
 U_NAMESPACE_END
 
-U_CAPI UBool U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uhash_compareScriptSet(const UElement key1, const UElement key2);
 
 U_CAPI int32_t U_EXPORT2

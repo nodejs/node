@@ -124,7 +124,8 @@ true !== false
     code: 'ERR_ASSERTION',
     actual: true,
     expected: false,
-    operator: 'strictEqual'
+    operator: 'strictEqual',
+    diff: 'simple'
   }
 }
 		</failure>
@@ -499,7 +500,8 @@ should loosely deep-equal
     code: 'ERR_ASSERTION',
     actual: [Object],
     expected: [Object],
-    operator: 'deepEqual'
+    operator: 'deepEqual',
+    diff: 'simple'
   }
 }
 		</failure>

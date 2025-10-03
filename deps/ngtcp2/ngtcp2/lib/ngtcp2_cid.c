@@ -141,8 +141,10 @@ int ngtcp2_dcid_verify_uniqueness(const ngtcp2_dcid *dcid, uint64_t seq,
 }
 
 int ngtcp2_dcid_verify_stateless_reset_token(const ngtcp2_dcid *dcid,
+                                             const ngtcp2_path *path,
                                              const uint8_t *token) {
-  return (dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) &&
+  return ngtcp2_path_eq(&dcid->ps.path, path) &&
+             (dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) &&
              ngtcp2_cmemeq(dcid->token, token, NGTCP2_STATELESS_RESET_TOKENLEN)
            ? 0
            : NGTCP2_ERR_INVALID_ARGUMENT;

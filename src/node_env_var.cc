@@ -258,7 +258,7 @@ void MapKVStore::Set(Isolate* isolate, Local<String> key, Local<String> value) {
 
 int32_t MapKVStore::Query(const char* key) const {
   Mutex::ScopedLock lock(mutex_);
-  return map_.find(key) == map_.end() ? -1 : 0;
+  return map_.contains(key) ? 0 : -1;
 }
 
 int32_t MapKVStore::Query(Isolate* isolate, Local<String> key) const {
@@ -417,14 +417,14 @@ static Intercepted EnvGetter(Local<Name> property,
   MaybeLocal<String> value_string =
       env->env_vars()->Get(env->isolate(), property.As<String>());
 
-  bool has_env = !value_string.IsEmpty();
   TraceEnvVar(env, "get", property.As<String>());
 
-  if (has_env) {
-    info.GetReturnValue().Set(value_string.ToLocalChecked());
-    return Intercepted::kYes;
+  Local<Value> ret;
+  if (!value_string.ToLocal(&ret)) {
+    return Intercepted::kNo;
   }
-  return Intercepted::kNo;
+  info.GetReturnValue().Set(ret);
+  return Intercepted::kYes;
 }
 
 static Intercepted EnvSetter(Local<Name> property,

@@ -508,8 +508,15 @@ V8_INLINE void PersistentBase<T>::SetWeak(
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-function-type"
+#endif
   api_internal::MakeWeak(this->slot(), parameter,
                          reinterpret_cast<Callback>(callback), type);
+#if __clang__
+#pragma clang diagnostic pop
+#endif
 #if (__GNUC__ >= 8) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif

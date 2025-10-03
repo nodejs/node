@@ -29,12 +29,15 @@ const repl = require('repl');
 const cp = require('child_process');
 
 assert.strictEqual(repl.repl, undefined);
+
 repl._builtinLibs; // eslint-disable-line no-unused-expressions
+repl.builtinModules; // eslint-disable-line no-unused-expressions
 
 common.expectWarning({
   DeprecationWarning: {
     DEP0142:
       'repl._builtinLibs is deprecated. Check module.builtinModules instead',
+    DEP0191: 'repl.builtinModules is deprecated. Check module.builtinModules instead',
     DEP0141: 'repl.inputStream and repl.outputStream are deprecated. ' +
              'Use repl.input and repl.output instead',
   }
@@ -133,6 +136,5 @@ r4.close();
   child.stdin.write(
     'assert.ok(util.inspect(repl.repl, {depth: -1}).includes("REPLServer"));\n'
   );
-  child.stdin.write('.exit');
-  child.stdin.end();
+  child.stdin.write('.exit\n');
 }

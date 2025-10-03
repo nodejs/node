@@ -1,5 +1,5 @@
 #!{- $config{HASHBANGPERL} -}
-# Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright (c) 2002 The OpenTSA Project. All rights reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use

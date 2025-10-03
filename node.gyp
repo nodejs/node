@@ -16,6 +16,7 @@
     'node_module_version%': '',
     'node_use_amaro%': 'true',
     'node_shared_brotli%': 'false',
+    'node_shared_zstd%': 'false',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_cares%': 'false',
@@ -24,6 +25,7 @@
     'node_shared_uvwasi%': 'false',
     'node_shared_nghttp2%': 'false',
     'node_use_openssl%': 'true',
+    'node_use_sqlite%': 'true',
     'node_shared_openssl%': 'false',
     'node_v8_options%': '',
     'node_enable_v8_vtunejit%': 'false',
@@ -94,8 +96,6 @@
       'src/js_stream.cc',
       'src/json_utils.cc',
       'src/js_udp_wrap.cc',
-      'src/json_parser.h',
-      'src/json_parser.cc',
       'src/module_wrap.cc',
       'src/node.cc',
       'src/node_api.cc',
@@ -104,6 +104,7 @@
       'src/node_buffer.cc',
       'src/node_builtins.cc',
       'src/node_config.cc',
+      'src/node_config_file.cc',
       'src/node_constants.cc',
       'src/node_contextify.cc',
       'src/node_credentials.cc',
@@ -138,7 +139,6 @@
       'src/node_shadow_realm.cc',
       'src/node_snapshotable.cc',
       'src/node_sockaddr.cc',
-      'src/node_sqlite.cc',
       'src/node_stat_watcher.cc',
       'src/node_symbols.cc',
       'src/node_task_queue.cc',
@@ -151,7 +151,6 @@
       'src/node_wasi.cc',
       'src/node_wasm_web_api.cc',
       'src/node_watchdog.cc',
-      'src/node_webstorage.cc',
       'src/node_worker.cc',
       'src/node_zlib.cc',
       'src/path.cc',
@@ -161,6 +160,7 @@
       'src/permission/permission.cc',
       'src/permission/wasi_permission.cc',
       'src/permission/worker_permission.cc',
+      'src/permission/addon_permission.cc',
       'src/pipe_wrap.cc',
       'src/process_wrap.cc',
       'src/signal_wrap.cc',
@@ -227,6 +227,7 @@
       'src/node_blob.h',
       'src/node_buffer.h',
       'src/node_builtins.h',
+      'src/node_config_file.h',
       'src/node_constants.h',
       'src/node_context_data.h',
       'src/node_contextify.h',
@@ -270,7 +271,6 @@
       'src/node_snapshot_builder.h',
       'src/node_sockaddr.h',
       'src/node_sockaddr-inl.h',
-      'src/node_sqlite.h',
       'src/node_stat_watcher.h',
       'src/node_union_bytes.h',
       'src/node_url.h',
@@ -279,7 +279,6 @@
       'src/node_v8_platform-inl.h',
       'src/node_wasi.h',
       'src/node_watchdog.h',
-      'src/node_webstorage.h',
       'src/node_worker.h',
       'src/path.h',
       'src/permission/child_process_permission.h',
@@ -288,6 +287,7 @@
       'src/permission/permission.h',
       'src/permission/wasi_permission.h',
       'src/permission/worker_permission.h',
+      'src/permission/addon_permission.h',
       'src/pipe_wrap.h',
       'src/req_wrap.h',
       'src/req_wrap-inl.h',
@@ -399,29 +399,6 @@
       'src/quic/transportparams.h',
       'src/quic/quic.cc',
     ],
-    'node_cctest_sources': [
-      'src/node_snapshot_stub.cc',
-      'test/cctest/node_test_fixture.cc',
-      'test/cctest/node_test_fixture.h',
-      'test/cctest/test_aliased_buffer.cc',
-      'test/cctest/test_base64.cc',
-      'test/cctest/test_base_object_ptr.cc',
-      'test/cctest/test_cppgc.cc',
-      'test/cctest/test_node_postmortem_metadata.cc',
-      'test/cctest/test_node_task_runner.cc',
-      'test/cctest/test_environment.cc',
-      'test/cctest/test_linked_binding.cc',
-      'test/cctest/test_node_api.cc',
-      'test/cctest/test_path.cc',
-      'test/cctest/test_per_process.cc',
-      'test/cctest/test_platform.cc',
-      'test/cctest/test_report.cc',
-      'test/cctest/test_json_utils.cc',
-      'test/cctest/test_sockaddr.cc',
-      'test/cctest/test_traced_value.cc',
-      'test/cctest/test_util.cc',
-      'test/cctest/test_dataqueue.cc',
-    ],
     'node_cctest_openssl_sources': [
       'test/cctest/test_crypto_clienthello.cc',
       'test/cctest/test_node_crypto.cc',
@@ -431,8 +408,15 @@
       'test/cctest/test_quic_tokens.cc',
     ],
     'node_cctest_inspector_sources': [
+      'test/cctest/inspector/test_node_protocol.cc',
       'test/cctest/test_inspector_socket.cc',
       'test/cctest/test_inspector_socket_server.cc',
+    ],
+    'node_sqlite_sources': [
+      'src/node_sqlite.cc',
+      'src/node_webstorage.cc',
+      'src/node_sqlite.h',
+      'src/node_webstorage.h',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'node_js2c_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_js2c<(EXECUTABLE_SUFFIX)',
@@ -529,7 +513,7 @@
       'target_name': 'node_text_start',
       'type': 'none',
       'conditions': [
-        [ 'OS in "linux freebsd solaris" and '
+        [ 'OS in "linux freebsd solaris openharmony" and '
           'target_arch=="x64"', {
           'type': 'static_library',
           'sources': [
@@ -647,7 +631,7 @@
             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', '-Wl,-rpath,@loader_path/../lib'],
           },
           'conditions': [
-            ['OS=="linux"', {
+            ['OS=="linux" or OS=="openharmony"', {
                'ldflags': [
                  '-Wl,-rpath,\\$$ORIGIN/../lib'
                ],
@@ -752,7 +736,7 @@
             'src/node_snapshot_stub.cc'
           ],
         }],
-        [ 'OS in "linux freebsd" and '
+        [ 'OS in "linux freebsd openharmony" and '
           'target_arch=="x64"', {
           'dependencies': [ 'node_text_start' ],
           'ldflags+': [
@@ -859,6 +843,7 @@
         'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
         'deps/nbytes/nbytes.gyp:nbytes',
+        'tools/v8_gypfiles/abseil.gyp:abseil',
         'node_js2c#host',
       ],
 
@@ -880,8 +865,6 @@
         'openssl_default_cipher_list%': '',
       },
 
-      'cflags': ['-Werror=unused-result'],
-
       'defines': [
         'NODE_ARCH="<(target_arch)"',
         'NODE_PLATFORM="<(OS)"',
@@ -902,6 +885,9 @@
             'NODE_OPENSSL_DEFAULT_CIPHER_LIST="<(openssl_default_cipher_list)"'
            ]
         }],
+        [ 'suppress_all_error_on_warn=="false"', {
+          'cflags': ['-Werror=unused-result'],
+        }],
         [ 'error_on_warn=="true"', {
           'cflags': ['-Werror'],
           'xcode_settings': {
@@ -915,6 +901,12 @@
           'sources': [
             'src/node_snapshot_stub.cc',
           ]
+        }],
+        [ 'node_use_sqlite=="true"', {
+          'sources': [
+            '<@(node_sqlite_sources)',
+          ],
+          'defines': [ 'HAVE_SQLITE=1' ],
         }],
         [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
           'product_extension': '<(shlib_suffix)',
@@ -960,7 +952,13 @@
             'deps/ncrypto/ncrypto.gyp:ncrypto',
           ],
         }],
-        [ 'OS in "linux freebsd mac solaris" and '
+        [ 'node_use_sqlite=="true"', {
+          'sources': [
+            '<@(node_sqlite_sources)',
+          ],
+          'defines': [ 'HAVE_SQLITE=1' ],
+        }],
+        [ 'OS in "linux freebsd mac solaris openharmony" and '
           'target_arch=="x64" and '
           'node_target_type=="executable"', {
           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
@@ -1069,11 +1067,11 @@
         'test/fuzzers/fuzz_env.cc',
       ],
       'conditions': [
-        ['OS=="linux"', {
+        ['OS=="linux" or OS=="openharmony"', {
           'ldflags': [ '-fsanitize=fuzzer' ]
         }],
         # Ensure that ossfuzz flag has been set and that we are on Linux
-        [ 'OS!="linux" or ossfuzz!="true"', {
+        [ 'OS not in "linux openharmony" or ossfuzz!="true"', {
           'type': 'none',
         }],
         # Avoid excessive LTO
@@ -1088,7 +1086,6 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
       'includes': [
         'node.gypi'
@@ -1099,7 +1096,6 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
         'test/cctest',
       ],
       'defines': [
@@ -1112,11 +1108,15 @@
         'test/fuzzers/fuzz_ClientHelloParser.cc',
       ],
       'conditions': [
-        ['OS=="linux"', {
+        [ 'node_shared_uvwasi=="false"', {
+          'dependencies': [ 'deps/uvwasi/uvwasi.gyp:uvwasi' ],
+          'include_dirs': [ 'deps/uvwasi/include' ],
+        }],
+        ['OS=="linux" or OS=="openharmony"', {
           'ldflags': [ '-fsanitize=fuzzer' ]
         }],
         # Ensure that ossfuzz flag has been set and that we are on Linux
-        [ 'OS!="linux" or ossfuzz!="true"', {
+        [ 'OS not in "linux openharmony" or ossfuzz!="true"', {
           'type': 'none',
         }],
         # Avoid excessive LTO
@@ -1132,7 +1132,6 @@
         '<(node_lib_target_name)',
         'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/nbytes/nbytes.gyp:nbytes',
       ],
       'includes': [
@@ -1144,7 +1143,6 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
         'test/cctest',
       ],
       'defines': [
@@ -1157,11 +1155,15 @@
         'test/fuzzers/fuzz_strings.cc',
       ],
       'conditions': [
-        ['OS=="linux"', {
+        [ 'node_shared_uvwasi=="false"', {
+          'dependencies': [ 'deps/uvwasi/uvwasi.gyp:uvwasi' ],
+          'include_dirs': [ 'deps/uvwasi/include' ],
+        }],
+        ['OS=="linux" or OS=="openharmony"', {
           'ldflags': [ '-fsanitize=fuzzer' ]
         }],
         # Ensure that ossfuzz flag has been set and that we are on Linux
-        [ 'OS!="linux" or ossfuzz!="true"', {
+        [ 'OS not in "linux openharmony" or ossfuzz!="true"', {
           'type': 'none',
         }],
         # Avoid excessive LTO
@@ -1180,6 +1182,7 @@
         'deps/googletest/googletest.gyp:gtest_main',
         'deps/histogram/histogram.gyp:histogram',
         'deps/nbytes/nbytes.gyp:nbytes',
+        'tools/v8_gypfiles/abseil.gyp:abseil',
       ],
 
       'includes': [
@@ -1211,17 +1214,26 @@
           'dependencies': [
             'deps/ncrypto/ncrypto.gyp:ncrypto',
           ],
-          'sources': [ '<@(node_cctest_openssl_sources)' ],
+        }, {
+          'sources!': [ '<@(node_cctest_openssl_sources)' ],
         }],
         ['v8_enable_inspector==1', {
           'defines': [
             'HAVE_INSPECTOR=1',
           ],
-          'sources': [ '<@(node_cctest_inspector_sources)' ],
+          'include_dirs': [
+            # TODO(legendecas): make node_inspector.gypi a dependable target.
+            '<(SHARED_INTERMEDIATE_DIR)', # for inspector
+            '<(SHARED_INTERMEDIATE_DIR)/src', # for inspector
+          ],
+          'dependencies': [
+            'deps/inspector_protocol/inspector_protocol.gyp:crdtp',
+          ],
         }, {
            'defines': [
              'HAVE_INSPECTOR=0',
-           ]
+           ],
+           'sources!': [ '<@(node_cctest_inspector_sources)' ],
         }],
         ['OS=="solaris"', {
           'ldflags': [ '-I<(SHARED_INTERMEDIATE_DIR)' ]
@@ -1327,6 +1339,13 @@
       ]
     }, # overlapped-checker
     {
+      'target_name': 'nop',
+      'type': 'executable',
+      'sources': [
+        'test/nop/nop.c',
+      ]
+    }, # nop
+    {
       'target_name': 'node_js2c',
       'type': 'executable',
       'toolsets': ['host'],
@@ -1347,7 +1366,7 @@
         [ 'node_shared_libuv=="false"', {
           'dependencies': [ 'deps/uv/uv.gyp:libuv#host' ],
         }],
-        [ 'OS in "linux mac"', {
+        [ 'OS in "linux mac openharmony"', {
           'defines': ['NODE_JS2C_USE_STRING_LITERALS'],
         }],
         [ 'debug_node=="true"', {

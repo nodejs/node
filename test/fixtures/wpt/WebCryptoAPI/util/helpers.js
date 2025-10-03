@@ -93,6 +93,10 @@ function objectToString(obj) {
 // Is key a CryptoKey object with correct algorithm, extractable, and usages?
 // Is it a secret, private, or public kind of key?
 function assert_goodCryptoKey(key, algorithm, extractable, usages, kind) {
+    if (typeof algorithm === "string") {
+        algorithm = { name: algorithm };
+    }
+
     var correctUsages = [];
 
     var registeredAlgorithmName;
@@ -203,6 +207,7 @@ function allAlgorithmSpecifiersFor(algorithmName) {
             results.push({name: algorithmName, namedCurve: curveName});
         });
     } else if (algorithmName.toUpperCase().substring(0, 1) === "X" || algorithmName.toUpperCase().substring(0, 2) === "ED") {
+        results.push(algorithmName);
         results.push({ name: algorithmName });
     }
 

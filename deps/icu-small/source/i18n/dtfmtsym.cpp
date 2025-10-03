@@ -402,9 +402,8 @@ void
 DateFormatSymbols::copyData(const DateFormatSymbols& other) {
     UErrorCode status = U_ZERO_ERROR;
     U_LOCALE_BASED(locBased, *this);
-    locBased.setLocaleIDs(
-        other.getLocale(ULOC_VALID_LOCALE, status),
-        other.getLocale(ULOC_ACTUAL_LOCALE, status));
+    locBased.setLocaleIDs(other.validLocale, other.actualLocale, status);
+    U_ASSERT(U_SUCCESS(status));
     assignArray(fEras, fErasCount, other.fEras, other.fErasCount);
     assignArray(fEraNames, fEraNamesCount, other.fEraNames, other.fEraNamesCount);
     assignArray(fNarrowEras, fNarrowErasCount, other.fNarrowEras, other.fNarrowErasCount);
@@ -497,6 +496,8 @@ DateFormatSymbols& DateFormatSymbols::operator=(const DateFormatSymbols& other)
 DateFormatSymbols::~DateFormatSymbols()
 {
     dispose();
+    delete actualLocale;
+    delete validLocale;
 }
 
 void DateFormatSymbols::dispose()
@@ -536,6 +537,10 @@ void DateFormatSymbols::dispose()
     delete[] fStandaloneWideDayPeriods;
     delete[] fStandaloneNarrowDayPeriods;
 
+    delete actualLocale;
+    actualLocale = nullptr;
+    delete validLocale;
+    validLocale = nullptr;
     disposeZoneStrings();
 }
 
@@ -2302,7 +2307,7 @@ DateFormatSymbols::initializeData(const Locale& locale, const char *type, UError
     // of it that we need except for the time-zone and localized-pattern data, which
     // are stored in a separate file
     locBased.setLocaleIDs(ures_getLocaleByType(cb.getAlias(), ULOC_VALID_LOCALE, &status),
-                          ures_getLocaleByType(cb.getAlias(), ULOC_ACTUAL_LOCALE, &status));
+                          ures_getLocaleByType(cb.getAlias(), ULOC_ACTUAL_LOCALE, &status), status);
 
     // Load eras
     initField(&fEras, fErasCount, calendarSink, buildResourcePath(path, gErasTag, gNamesAbbrTag, status), status);
@@ -2528,8 +2533,7 @@ DateFormatSymbols::initializeData(const Locale& locale, const char *type, UError
 
 Locale
 DateFormatSymbols::getLocale(ULocDataLocaleType type, UErrorCode& status) const {
-    U_LOCALE_BASED(locBased, *this);
-    return locBased.getLocale(type, status);
+    return LocaleBased::getLocale(validLocale, actualLocale, type, status);
 }
 
 U_NAMESPACE_END

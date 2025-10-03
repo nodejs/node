@@ -1,3 +1,5 @@
+'use strict'
+
 const parse = require('./parse')
 const prerelease = (version, options) => {
   const parsed = parse(version, options)

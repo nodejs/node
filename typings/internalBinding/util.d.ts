@@ -45,4 +45,23 @@ export interface UtilBinding {
   guessHandleType(fd: number): 'TCP' | 'TTY' | 'UDP' | 'FILE' | 'PIPE' | 'UNKNOWN';
   parseEnv(content: string): Record<string, string>;
   styleText(format: Array<string> | string, text: string): string;
+  isInsideNodeModules(frameLimit: number, defaultValue: unknown): boolean;
+
+  constants: {
+    kPending: 0;
+    kFulfilled: 1;
+    kRejected: 2;
+    kExiting: 0;
+    kExitCode: 1;
+    kHasExitCode: 2;
+    ALL_PROPERTIES: 0;
+    ONLY_WRITABLE: 1;
+    ONLY_ENUMERABLE: 2;
+    ONLY_CONFIGURABLE: 4;
+    SKIP_STRINGS: 8;
+    SKIP_SYMBOLS: 16;
+    kDisallowCloneAndTransfer: 0;
+    kTransferable: 1;
+    kCloneable: 2;
+  };
 }

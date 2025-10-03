@@ -121,8 +121,9 @@ const { subtle } = globalThis.crypto;
       name: 'Ed25519',
     }, publicKey, signature, ec.encode(data)));
   }
-
-  test('hello world').then(common.mustCall());
+  if (!process.features.openssl_is_boringssl) {
+    test('hello world').then(common.mustCall());
+  }
 }
 
 // Test Sign/Verify Ed448
@@ -142,5 +143,7 @@ const { subtle } = globalThis.crypto;
     }, publicKey, signature, ec.encode(data)));
   }
 
-  test('hello world').then(common.mustCall());
+  if (!process.features.openssl_is_boringssl) {
+    test('hello world').then(common.mustCall());
+  }
 }

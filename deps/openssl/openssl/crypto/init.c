@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,7 +10,7 @@
 /* We need to use some engine deprecated APIs */
 #define OPENSSL_SUPPRESS_DEPRECATED
 
-#include "e_os.h"
+#include "internal/e_os.h"
 #include "crypto/cryptlib.h"
 #include <openssl/err.h>
 #include "crypto/rand.h"
@@ -32,7 +32,9 @@
 #include "crypto/store.h"
 #include <openssl/cmp_util.h> /* for OSSL_CMP_log_close() */
 #include <openssl/trace.h>
+#include <openssl/ssl.h> /* for OPENSSL_INIT_(NO_)?LOAD_SSL_STRINGS */
 #include "crypto/ctype.h"
+#include "sslerr.h"
 
 static int stopped = 0;
 static uint64_t optsdone = 0;
@@ -188,14 +190,43 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_load_crypto_strings)
      * pulling in all the error strings during static linking
      */
 #if !defined(OPENSSL_NO_ERR) && !defined(OPENSSL_NO_AUTOERRINIT)
+    void *err;
+
+    if (!err_shelve_state(&err))
+        return 0;
+
     OSSL_TRACE(INIT, "ossl_err_load_crypto_strings()\n");
     ret = ossl_err_load_crypto_strings();
+
+    err_unshelve_state(err);
 #endif
     return ret;
 }
 
 DEFINE_RUN_ONCE_STATIC_ALT(ossl_init_no_load_crypto_strings,
                            ossl_init_load_crypto_strings)
+{
+    /* Do nothing in this case */
+    return 1;
+}
+
+static CRYPTO_ONCE ssl_strings = CRYPTO_ONCE_STATIC_INIT;
+
+DEFINE_RUN_ONCE_STATIC(ossl_init_load_ssl_strings)
+{
+    /*
+     * OPENSSL_NO_AUTOERRINIT is provided here to prevent at compile time
+     * pulling in all the error strings during static linking
+     */
+#if !defined(OPENSSL_NO_ERR) && !defined(OPENSSL_NO_AUTOERRINIT)
+    OSSL_TRACE(INIT, "ossl_init_load_ssl_strings: ossl_err_load_SSL_strings()\n");
+    ossl_err_load_SSL_strings();
+#endif
+    return 1;
+}
+
+DEFINE_RUN_ONCE_STATIC_ALT(ossl_init_no_load_ssl_strings,
+                           ossl_init_load_ssl_strings)
 {
     /* Do nothing in this case */
     return 1;
@@ -391,6 +422,10 @@ void OPENSSL_cleanup(void)
 #ifndef OPENSSL_NO_COMP
     OSSL_TRACE(INIT, "OPENSSL_cleanup: ossl_comp_zlib_cleanup()\n");
     ossl_comp_zlib_cleanup();
+    OSSL_TRACE(INIT, "OPENSSL_cleanup: ossl_comp_brotli_cleanup()\n");
+    ossl_comp_brotli_cleanup();
+    OSSL_TRACE(INIT, "OPENSSL_cleanup: ossl_comp_zstd_cleanup()\n");
+    ossl_comp_zstd_cleanup();
 #endif
 
     if (async_inited) {
@@ -551,6 +586,15 @@ int OPENSSL_init_crypto(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings)
             && !RUN_ONCE(&load_crypto_strings, ossl_init_load_crypto_strings))
         return 0;
 
+    if ((opts & OPENSSL_INIT_NO_LOAD_SSL_STRINGS)
+        && !RUN_ONCE_ALT(&ssl_strings, ossl_init_no_load_ssl_strings,
+                         ossl_init_load_ssl_strings))
+        return 0;
+
+    if ((opts & OPENSSL_INIT_LOAD_SSL_STRINGS)
+        && !RUN_ONCE(&ssl_strings, ossl_init_load_ssl_strings))
+        return 0;
+
     if ((opts & OPENSSL_INIT_NO_ADD_ALL_CIPHERS)
             && !RUN_ONCE_ALT(&add_all_ciphers, ossl_init_no_add_all_ciphers,
                              ossl_init_add_all_ciphers))
@@ -708,10 +752,8 @@ int OPENSSL_atexit(void (*handler)(void))
     }
 #endif
 
-    if ((newhand = OPENSSL_malloc(sizeof(*newhand))) == NULL) {
-        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+    if ((newhand = OPENSSL_malloc(sizeof(*newhand))) == NULL)
         return 0;
-    }
 
     newhand->handler = handler;
     newhand->next = stop_handlers;

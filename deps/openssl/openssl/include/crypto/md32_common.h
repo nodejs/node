@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -63,63 +63,89 @@
  *      #define HASH_BLOCK_DATA_ORDER   md5_block_data_order
  */
 
-#include <openssl/crypto.h>
+#ifndef OSSL_CRYPTO_MD32_COMMON_H
+# define OSSL_CRYPTO_MD32_COMMON_H
+# pragma once
 
-#if !defined(DATA_ORDER_IS_BIG_ENDIAN) && !defined(DATA_ORDER_IS_LITTLE_ENDIAN)
-# error "DATA_ORDER must be defined!"
+# include <openssl/crypto.h>
+
+# if !defined(DATA_ORDER_IS_BIG_ENDIAN) && !defined(DATA_ORDER_IS_LITTLE_ENDIAN)
+#  error "DATA_ORDER must be defined!"
+# endif
+
+# ifndef HASH_CBLOCK
+#  error "HASH_CBLOCK must be defined!"
+# endif
+# ifndef HASH_LONG
+#  error "HASH_LONG must be defined!"
+# endif
+# ifndef HASH_CTX
+#  error "HASH_CTX must be defined!"
+# endif
+
+# ifndef HASH_UPDATE
+#  error "HASH_UPDATE must be defined!"
+# endif
+# ifndef HASH_TRANSFORM
+#  error "HASH_TRANSFORM must be defined!"
+# endif
+# ifndef HASH_FINAL
+#  error "HASH_FINAL must be defined!"
+# endif
+
+# ifndef HASH_BLOCK_DATA_ORDER
+#  error "HASH_BLOCK_DATA_ORDER must be defined!"
+# endif
+
+# define ROTATE(a,n)     (((a)<<(n))|(((a)&0xffffffff)>>(32-(n))))
+
+#ifndef PEDANTIC
+# if defined(__GNUC__) && __GNUC__>=2 && \
+     !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM)
+#  if defined(__riscv_zbb) || defined(__riscv_zbkb)
+#   if __riscv_xlen == 64
+#   undef ROTATE
+#   define ROTATE(x, n) ({ MD32_REG_T ret;            \
+                       asm ("roriw %0, %1, %2"        \
+                       : "=r"(ret)                    \
+                       : "r"(x), "i"(32 - (n))); ret;})
+#   endif
+#   if __riscv_xlen == 32
+#   undef ROTATE
+#   define ROTATE(x, n) ({ MD32_REG_T ret;            \
+                       asm ("rori %0, %1, %2"         \
+                       : "=r"(ret)                    \
+                       : "r"(x), "i"(32 - (n))); ret;})
+#   endif
+#  endif
+# endif
 #endif
 
-#ifndef HASH_CBLOCK
-# error "HASH_CBLOCK must be defined!"
-#endif
-#ifndef HASH_LONG
-# error "HASH_LONG must be defined!"
-#endif
-#ifndef HASH_CTX
-# error "HASH_CTX must be defined!"
-#endif
+# if defined(DATA_ORDER_IS_BIG_ENDIAN)
 
-#ifndef HASH_UPDATE
-# error "HASH_UPDATE must be defined!"
-#endif
-#ifndef HASH_TRANSFORM
-# error "HASH_TRANSFORM must be defined!"
-#endif
-#ifndef HASH_FINAL
-# error "HASH_FINAL must be defined!"
-#endif
-
-#ifndef HASH_BLOCK_DATA_ORDER
-# error "HASH_BLOCK_DATA_ORDER must be defined!"
-#endif
-
-#define ROTATE(a,n)     (((a)<<(n))|(((a)&0xffffffff)>>(32-(n))))
-
-#if defined(DATA_ORDER_IS_BIG_ENDIAN)
-
-# define HOST_c2l(c,l)  (l =(((unsigned long)(*((c)++)))<<24),          \
+#  define HOST_c2l(c,l)  (l =(((unsigned long)(*((c)++)))<<24),          \
                          l|=(((unsigned long)(*((c)++)))<<16),          \
                          l|=(((unsigned long)(*((c)++)))<< 8),          \
                          l|=(((unsigned long)(*((c)++)))    )           )
-# define HOST_l2c(l,c)  (*((c)++)=(unsigned char)(((l)>>24)&0xff),      \
+#  define HOST_l2c(l,c)  (*((c)++)=(unsigned char)(((l)>>24)&0xff),      \
                          *((c)++)=(unsigned char)(((l)>>16)&0xff),      \
                          *((c)++)=(unsigned char)(((l)>> 8)&0xff),      \
                          *((c)++)=(unsigned char)(((l)    )&0xff),      \
                          l)
 
-#elif defined(DATA_ORDER_IS_LITTLE_ENDIAN)
+# elif defined(DATA_ORDER_IS_LITTLE_ENDIAN)
 
-# define HOST_c2l(c,l)  (l =(((unsigned long)(*((c)++)))    ),          \
+#  define HOST_c2l(c,l)  (l =(((unsigned long)(*((c)++)))    ),          \
                          l|=(((unsigned long)(*((c)++)))<< 8),          \
                          l|=(((unsigned long)(*((c)++)))<<16),          \
                          l|=(((unsigned long)(*((c)++)))<<24)           )
-# define HOST_l2c(l,c)  (*((c)++)=(unsigned char)(((l)    )&0xff),      \
+#  define HOST_l2c(l,c)  (*((c)++)=(unsigned char)(((l)    )&0xff),      \
                          *((c)++)=(unsigned char)(((l)>> 8)&0xff),      \
                          *((c)++)=(unsigned char)(((l)>>16)&0xff),      \
                          *((c)++)=(unsigned char)(((l)>>24)&0xff),      \
                          l)
 
-#endif
+# endif
 
 /*
  * Time for some action :-)
@@ -204,30 +230,30 @@ int HASH_FINAL(unsigned char *md, HASH_CTX *c)
     memset(p + n, 0, HASH_CBLOCK - 8 - n);
 
     p += HASH_CBLOCK - 8;
-#if   defined(DATA_ORDER_IS_BIG_ENDIAN)
+# if   defined(DATA_ORDER_IS_BIG_ENDIAN)
     (void)HOST_l2c(c->Nh, p);
     (void)HOST_l2c(c->Nl, p);
-#elif defined(DATA_ORDER_IS_LITTLE_ENDIAN)
+# elif defined(DATA_ORDER_IS_LITTLE_ENDIAN)
     (void)HOST_l2c(c->Nl, p);
     (void)HOST_l2c(c->Nh, p);
-#endif
+# endif
     p -= HASH_CBLOCK;
     HASH_BLOCK_DATA_ORDER(c, p, 1);
     c->num = 0;
     OPENSSL_cleanse(p, HASH_CBLOCK);
 
-#ifndef HASH_MAKE_STRING
-# error "HASH_MAKE_STRING must be defined!"
-#else
+# ifndef HASH_MAKE_STRING
+#  error "HASH_MAKE_STRING must be defined!"
+# else
     HASH_MAKE_STRING(c, md);
-#endif
+# endif
 
     return 1;
 }
 
-#ifndef MD32_REG_T
-# if defined(__alpha) || defined(__sparcv9) || defined(__mips)
-#  define MD32_REG_T long
+# ifndef MD32_REG_T
+#  if defined(__alpha) || defined(__sparcv9) || defined(__mips)
+#   define MD32_REG_T long
 /*
  * This comment was originally written for MD5, which is why it
  * discusses A-D. But it basically applies to all 32-bit digests,
@@ -244,13 +270,15 @@ int HASH_FINAL(unsigned char *md, HASH_CTX *c)
  * Well, to be honest it should say that this *prevents*
  * performance degradation.
  */
-# else
+#  else
 /*
  * Above is not absolute and there are LP64 compilers that
  * generate better code if MD32_REG_T is defined int. The above
  * pre-processor condition reflects the circumstances under which
  * the conclusion was made and is subject to further extension.
  */
-#  define MD32_REG_T int
+#   define MD32_REG_T int
+#  endif
 # endif
+
 #endif

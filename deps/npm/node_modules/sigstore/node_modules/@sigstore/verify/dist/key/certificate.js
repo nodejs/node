@@ -4,13 +4,10 @@ exports.CertificateChainVerifier = void 0;
 exports.verifyCertificateChain = verifyCertificateChain;
 const error_1 = require("../error");
 const trust_1 = require("../trust");
-function verifyCertificateChain(leaf, certificateAuthorities) {
+function verifyCertificateChain(timestamp, leaf, certificateAuthorities) {
     // Filter list of trusted CAs to those which are valid for the given
-    // leaf certificate.
-    const cas = (0, trust_1.filterCertAuthorities)(certificateAuthorities, {
-        start: leaf.notBefore,
-        end: leaf.notAfter,
-    });
+    // timestamp
+    const cas = (0, trust_1.filterCertAuthorities)(certificateAuthorities, timestamp);
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     let error;
     for (const ca of cas) {
@@ -18,6 +15,7 @@ function verifyCertificateChain(leaf, certificateAuthorities) {
             const verifier = new CertificateChainVerifier({
                 trustedCerts: ca.certChain,
                 untrustedCert: leaf,
+                timestamp,
             });
             return verifier.verify();
         }
@@ -41,12 +39,20 @@ class CertificateChainVerifier {
             ...opts.trustedCerts,
             opts.untrustedCert,
         ]);
+        this.timestamp = opts.timestamp;
     }
     verify() {
         // Construct certificate path from leaf to root
         const certificatePath = this.sort();
         // Perform validation checks on each certificate in the path
         this.checkPath(certificatePath);
+        const validForDate = certificatePath.every((cert) => cert.validForDate(this.timestamp));
+        if (!validForDate) {
+            throw new error_1.VerificationError({
+                code: 'CERTIFICATE_ERROR',
+                message: 'certificate is not valid or expired at the specified date',
+            });
+        }
         // Return verified certificate path
         return certificatePath;
     }

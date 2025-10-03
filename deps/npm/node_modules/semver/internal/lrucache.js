@@ -1,3 +1,5 @@
+'use strict'
+
 class LRUCache {
   constructor () {
     this.max = 1000

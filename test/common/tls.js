@@ -3,6 +3,7 @@
 'use strict';
 const crypto = require('crypto');
 const net = require('net');
+const assert = require('assert');
 
 exports.ccs = Buffer.from('140303000101', 'hex');
 
@@ -172,5 +173,49 @@ function P_hash(algo, secret, seed, size) {
   }
   return result;
 }
+
+exports.assertIsCAArray = function assertIsCAArray(certs) {
+  assert(Array.isArray(certs));
+  assert(certs.length > 0);
+
+  // The certificates looks PEM-encoded.
+  for (const cert of certs) {
+    const trimmed = cert.trim();
+    assert.match(trimmed, /^-----BEGIN CERTIFICATE-----/);
+    assert.match(trimmed, /-----END CERTIFICATE-----$/);
+  }
+};
+
+function extractMetadata(cert) {
+  const x509 = new crypto.X509Certificate(cert);
+  return {
+    serialNumber: x509.serialNumber,
+    issuer: x509.issuer,
+    subject: x509.subject,
+  };
+}
+
+// To compare two certificates, we can just compare serialNumber, issuer,
+// and subject like X509_comp(). We can't just compare two strings because
+// the line endings or order of the fields may differ after PEM serdes by
+// OpenSSL.
+exports.assertEqualCerts = function assertEqualCerts(a, b) {
+  const setA = new Set(a.map(extractMetadata));
+  const setB = new Set(b.map(extractMetadata));
+  assert.deepStrictEqual(setA, setB);
+};
+
+exports.includesCert = function includesCert(certs, cert) {
+  const metadata = extractMetadata(cert);
+  for (const c of certs) {
+    const cMetadata = extractMetadata(c);
+    if (cMetadata.serialNumber === metadata.serialNumber &&
+        cMetadata.issuer === metadata.issuer &&
+        cMetadata.subject === metadata.subject) {
+      return true;
+    }
+  }
+  return false;
+};
 
 exports.TestTLSSocket = TestTLSSocket;

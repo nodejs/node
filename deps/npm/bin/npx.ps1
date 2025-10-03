@@ -22,11 +22,27 @@ if (Test-Path $NPM_PREFIX_NPX_CLI_JS) {
   $NPX_CLI_JS=$NPM_PREFIX_NPX_CLI_JS
 }
 
-# Support pipeline input
-if ($MyInvocation.ExpectingInput) {
+if ($MyInvocation.ExpectingInput) { # takes pipeline input
   $input | & $NODE_EXE $NPX_CLI_JS $args
-} else {
+} elseif (-not $MyInvocation.Line) { # used "-File" argument
   & $NODE_EXE $NPX_CLI_JS $args
+} else { # used "-Command" argument
+  if ($MyInvocation.Statement) {
+    $NPX_ORIGINAL_COMMAND = $MyInvocation.Statement
+  } else {
+    $NPX_ORIGINAL_COMMAND = (
+      [Management.Automation.InvocationInfo].GetProperty('ScriptPosition', [Reflection.BindingFlags] 'Instance, NonPublic')
+    ).GetValue($MyInvocation).Text
+  }
+
+  $NODE_EXE = $NODE_EXE.Replace("``", "````")
+  $NPX_CLI_JS = $NPX_CLI_JS.Replace("``", "````")
+
+  $NPX_NO_REDIRECTS_COMMAND = [Management.Automation.Language.Parser]::ParseInput($NPX_ORIGINAL_COMMAND, [ref] $null, [ref] $null).
+    EndBlock.Statements.PipelineElements.CommandElements.Extent.Text -join ' '
+  $NPX_ARGS = $NPX_NO_REDIRECTS_COMMAND.Substring($MyInvocation.InvocationName.Length).Trim()
+
+  Invoke-Expression "& `"$NODE_EXE`" `"$NPX_CLI_JS`" $NPX_ARGS"
 }
 
 exit $LASTEXITCODE

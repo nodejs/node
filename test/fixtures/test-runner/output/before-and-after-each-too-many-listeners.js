@@ -1,5 +1,5 @@
 'use strict';
-const { beforeEach, afterEach, test} = require("node:test");
+const { beforeEach, afterEach, test } = require('node:test');
 beforeEach(() => {});
 afterEach(() => {});
 

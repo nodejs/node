@@ -66,8 +66,16 @@ int BuildSnapshot(int argc, char* argv[]) {
           std::vector<std::string>(argv, argv + argc),
           node::ProcessInitializationFlags::kGeneratePredictableSnapshot);
 
+  if (result->exit_code() != 0) {
+    for (const std::string& error : result->errors()) {
+      std::cerr << error << "\n";
+    }
+    std::cerr << "node_mksnapshot failed with exit code " << result->exit_code()
+              << "\n";
+    return static_cast<int>(result->exit_code());
+  }
+
   CHECK(!result->early_return());
-  CHECK_EQ(result->exit_code(), 0);
 
   std::string out_path;
   std::optional<std::string_view> builder_script_path = std::nullopt;

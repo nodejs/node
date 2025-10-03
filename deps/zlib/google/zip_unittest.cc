@@ -60,8 +60,9 @@ std::vector<std::string> GetRelativePaths(const base::FilePath& dir,
 bool CreateFile(const std::string& content,
                 base::FilePath* file_path,
                 base::File* file) {
-  if (!base::CreateTemporaryFile(file_path))
+  if (!base::CreateTemporaryFile(file_path)) {
     return false;
+  }
 
   if (!base::WriteFile(*file_path, content)) {
     return false;
@@ -93,8 +94,9 @@ class ProgressWriterDelegate : public zip::WriterDelegate {
  private:
   void LogProgressIfNecessary() {
     const base::TimeTicks now = base::TimeTicks::Now();
-    if (next_progress_report_time_ > now)
+    if (next_progress_report_time_ > now) {
       return;
+    }
 
     next_progress_report_time_ = now + progress_period_;
     LogProgress();
@@ -184,8 +186,9 @@ class VirtualFileSystem : public zip::FileAccessor {
     DCHECK(subdirs);
 
     const auto it = file_tree_.find(path);
-    if (it == file_tree_.end())
+    if (it == file_tree_.end()) {
       return false;
+    }
 
     for (const base::FilePath& file : it->second.files) {
       DCHECK(!file.empty());
@@ -204,8 +207,9 @@ class VirtualFileSystem : public zip::FileAccessor {
     DCHECK(!path.IsAbsolute());
     DCHECK(info);
 
-    if (!file_tree_.count(path))
+    if (!file_tree_.count(path)) {
       return false;
+    }
 
     info->is_directory = !files_.count(path);
     info->last_modified =
@@ -309,8 +313,9 @@ class ZipTest : public PlatformTest {
 
     size_t expected_count = 0;
     for (const base::FilePath& path : zip_contents_) {
-      if (expect_hidden_files || path.BaseName().value()[0] != '.')
+      if (expect_hidden_files || path.BaseName().value()[0] != '.') {
         ++expected_count;
+      }
     }
 
     EXPECT_EQ(expected_count, count);
@@ -788,8 +793,8 @@ TEST_F(ZipTest, UnzipMixedPaths) {
       "c/NUL",                    // Disappears on Windows
       "nul.very long extension",  // Disappears on Windows
 #ifndef OS_APPLE
-      "CASE",                     // Conflicts with "Case"
-      "case",                     // Conflicts with "Case"
+      "CASE",  // Conflicts with "Case"
+      "case",  // Conflicts with "Case"
 #endif
 #endif
       " NUL.txt",                  //
@@ -955,6 +960,90 @@ TEST_F(ZipTest, UnzipOnlyDirectories) {
   EXPECT_FALSE(base::PathExists(dir_foo_bar.AppendASCII("baz.txt")));
   EXPECT_FALSE(base::PathExists(dir_foo_bar.AppendASCII("quux.txt")));
 }
+
+#if defined(OS_POSIX)
+
+TEST_F(ZipTest, UnzipSymlinks) {
+  ASSERT_TRUE(zip::Unzip(GetDataDirectory().AppendASCII("symlinks.zip"),
+                         test_dir_, /*options=*/{},
+                         zip::UnzipSymlinkOption::PRESERVE));
+
+  EXPECT_TRUE(base::PathExists(test_dir_.AppendASCII("a.txt")));
+  EXPECT_TRUE(base::PathExists(test_dir_.AppendASCII("b.txt")));
+  EXPECT_TRUE(base::PathExists(test_dir_.AppendASCII("dir/c.txt")));
+  base::FilePath target;
+  ASSERT_TRUE(
+      base::ReadSymbolicLink(test_dir_.AppendASCII("dir/a_link"), &target));
+  EXPECT_EQ(target.AsUTF8Unsafe(), "../a.txt");
+  ASSERT_TRUE(base::ReadSymbolicLink(test_dir_.AppendASCII("b_link"), &target));
+  EXPECT_EQ(target.AsUTF8Unsafe(), "b.txt");
+  ASSERT_TRUE(base::ReadSymbolicLink(test_dir_.AppendASCII("c_link"), &target));
+  EXPECT_EQ(target.AsUTF8Unsafe(), "dir/c.txt");
+}
+
+TEST_F(ZipTest, UnzipRejectsSymlinks) {
+  EXPECT_FALSE(zip::Unzip(GetDataDirectory().AppendASCII("symlinks.zip"),
+                          test_dir_, /*options=*/{},
+                          zip::UnzipSymlinkOption::DONT_PRESERVE));
+}
+
+TEST_F(ZipTest, UnzipSkipsSymlinks) {
+  ASSERT_TRUE(zip::Unzip(GetDataDirectory().AppendASCII("symlinks.zip"),
+                         test_dir_,
+                         {
+                             .continue_on_error = true,
+                         },
+                         zip::UnzipSymlinkOption::DONT_PRESERVE));
+
+  EXPECT_TRUE(base::PathExists(test_dir_.AppendASCII("a.txt")));
+  EXPECT_TRUE(base::PathExists(test_dir_.AppendASCII("b.txt")));
+  EXPECT_TRUE(base::PathExists(test_dir_.AppendASCII("dir/c.txt")));
+  EXPECT_FALSE(base::PathExists(test_dir_.AppendASCII("dir/a_link")));
+  EXPECT_FALSE(base::PathExists(test_dir_.AppendASCII("b_link")));
+  EXPECT_FALSE(base::PathExists(test_dir_.AppendASCII("c_link")));
+}
+
+TEST_F(ZipTest, UnzipSymlinksRejectsEvilRelativePath) {
+  const base::FilePath zip_path =
+      GetDataDirectory().AppendASCII("symlink_evil_relative_path.zip");
+  ASSERT_TRUE(base::PathExists(zip_path));
+  EXPECT_FALSE(zip::Unzip(zip_path, test_dir_, /*options=*/{},
+                          zip::UnzipSymlinkOption::PRESERVE));
+}
+
+TEST_F(ZipTest, UnzipSymlinksRejectsAbsolutePath) {
+  const base::FilePath zip_path =
+      GetDataDirectory().AppendASCII("symlink_absolute_path.zip");
+  ASSERT_TRUE(base::PathExists(zip_path));
+  EXPECT_FALSE(zip::Unzip(zip_path, test_dir_, /*options=*/{},
+                          zip::UnzipSymlinkOption::PRESERVE));
+}
+
+TEST_F(ZipTest, UnzipSymlinksRejectsSymlinkTooLarge) {
+  const base::FilePath zip_path =
+      GetDataDirectory().AppendASCII("symlink_too_large.zip");
+  ASSERT_TRUE(base::PathExists(zip_path));
+  EXPECT_FALSE(zip::Unzip(zip_path, test_dir_, /*options=*/{},
+                          zip::UnzipSymlinkOption::PRESERVE));
+}
+
+TEST_F(ZipTest, UnzipSymlinksNoFollowOwnLink) {
+  const base::FilePath zip_path =
+      GetDataDirectory().AppendASCII("symlink_follow_own_link.zip");
+  ASSERT_TRUE(base::PathExists(zip_path));
+  EXPECT_FALSE(zip::Unzip(zip_path, test_dir_, /*options=*/{},
+                          zip::UnzipSymlinkOption::PRESERVE));
+}
+
+TEST_F(ZipTest, UnzipSymlinksRejectsDuplicateLink) {
+  const base::FilePath zip_path =
+      GetDataDirectory().AppendASCII("symlink_duplicate_link.zip");
+  ASSERT_TRUE(base::PathExists(zip_path));
+  EXPECT_FALSE(zip::Unzip(zip_path, test_dir_, /*options=*/{},
+                          zip::UnzipSymlinkOption::PRESERVE));
+}
+
+#endif  // defined(OS_POSIX)
 
 // Tests that a ZIP archive containing SJIS-encoded file names can be correctly
 // extracted if the encoding is specified.

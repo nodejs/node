@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -38,7 +38,7 @@ static const char *nid2name(int meth, const OSSL_ITEM *items, size_t items_n)
 }
 
 /*
- * The list of permitted hash functions are taken from 
+ * The list of permitted hash functions are taken from
  * https://tools.ietf.org/html/rfc8017#appendix-A.2.1:
  *
  * OAEP-PSSDigestAlgorithms    ALGORITHM-IDENTIFIER ::= {

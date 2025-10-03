@@ -13,7 +13,7 @@ const path = require('path');
 {
   const scriptFullPath = fixtures.path('debugger', 'three-lines.js');
   const script = path.relative(process.cwd(), scriptFullPath);
-  const cli = startCLI(['--port=0', script]);
+  const cli = startCLI([script]);
 
   function onFatal(error) {
     cli.quit();

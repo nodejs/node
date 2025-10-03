@@ -1,6 +1,6 @@
 {
   "name": "validate-npm-package-name",
-  "version": "6.0.0",
+  "version": "6.0.1",
   "description": "Give me a string and I'll tell you if it's a valid npm package name",
   "main": "lib/",
   "directories": {
@@ -8,7 +8,7 @@
   },
   "devDependencies": {
     "@npmcli/eslint-config": "^5.0.0",
-    "@npmcli/template-oss": "4.23.3",
+    "@npmcli/template-oss": "4.24.3",
     "tap": "^16.0.1"
   },
   "scripts": {
@@ -49,7 +49,7 @@
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.23.3",
+    "version": "4.24.3",
     "publish": true
   },
   "tap": {

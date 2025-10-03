@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2013-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2012, Intel Corporation. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -13,6 +13,7 @@
  */
 
 #include <openssl/opensslconf.h>
+#include "internal/common.h"
 #include "rsaz_exp.h"
 
 #ifndef RSAZ_ENABLED
@@ -31,16 +32,8 @@ void rsaz_1024_scatter5_avx2(void *tbl, const void *val, int i);
 void rsaz_1024_gather5_avx2(void *val, const void *tbl, int i);
 void rsaz_1024_red2norm_avx2(void *norm, const void *red);
 
-#if defined(__GNUC__)
-# define ALIGN64        __attribute__((aligned(64)))
-#elif defined(_MSC_VER)
-# define ALIGN64        __declspec(align(64))
-#elif defined(__SUNPRO_C)
-# define ALIGN64
+#if defined(__SUNPRO_C)
 # pragma align 64(one,two80)
-#else
-/* not fatal, might hurt performance a little */
-# define ALIGN64
 #endif
 
 ALIGN64 static const BN_ULONG one[40] = {

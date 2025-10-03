@@ -50,6 +50,7 @@ Print out a usage message.
 =item B<-connect> I<host>:I<port>
 
 This specifies the host and optional port to connect to.
+If the host string is an IPv6 address, it must be enclosed in C<[> and C<]>.
 
 =item B<-www> I<page>
 

@@ -224,13 +224,6 @@ void ssl_evp_md_free(const EVP_MD *md)
 {
 }
 
-#ifndef OPENSSL_NO_QUIC
-int quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level)
-{
-    return 1;
-}
-#endif
-
 /* End of mocked out code */
 
 static int test_secret(SSL *s, unsigned char *prk,

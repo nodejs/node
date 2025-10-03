@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -41,6 +41,7 @@ our($opt_p);
 our($opt_u);
 our($opt_v);
 our($opt_c);
+our($opt_i);
 
 # Print usage message and exit.
 sub help {
@@ -54,13 +55,14 @@ Find small errors (nits) in documentation.  Options:
     -m Name(s) of manuals to focus on. Default: man1,man3,man5,man7
     -n Print nits in POD pages
     -o Causes -e/-v to count symbols added since 1.1.1 as new (implies -v)
+    -i Checks for history entries available for symbols added since 3.0.0 as new
     -u Count undocumented functions
     -v Count new undocumented functions
 EOF
     exit;
 }
 
-getopts('cdehlm:nouv');
+getopts('cdehlm:noiuv');
 
 help() if $opt_h;
 $opt_u = 1 if $opt_d;
@@ -86,10 +88,10 @@ die "Argument of -m option may contain only man1, man3, man5, and/or man7"
 my @sections = ( split /[, ]/, $opt_m );
 
 my %mandatory_sections = (
-    '*' => [ 'NAME', 'DESCRIPTION', 'COPYRIGHT' ],
-    1   => [ 'SYNOPSIS', 'OPTIONS' ],
-    3   => [ 'SYNOPSIS', 'RETURN VALUES' ],
-    5   => [ ],
+    '*' => [ 'NAME', 'COPYRIGHT' ],
+    1   => [ 'DESCRIPTION', 'SYNOPSIS', 'OPTIONS' ],
+    3   => [ 'DESCRIPTION', 'SYNOPSIS', 'RETURN VALUES' ],
+    5   => [ 'DESCRIPTION' ],
     7   => [ ]
                          );
 
@@ -105,7 +107,9 @@ my $ignored = qr/(?| ^i2d_
                  |   ^sk_
                  |   ^SKM_DEFINE_STACK_OF_INTERNAL
                  |   ^lh_
-                 |   ^DEFINE_LHASH_OF_INTERNAL
+                 |   ^DEFINE_LHASH_OF_(INTERNAL|DEPRECATED)
+                 |   ^OSSL_HTO[BL]E(16|32|64)   # undefed
+                 |   ^OSSL_[BL]E(16|32|64)TOH   # undefed
                  )/x;
 
 # A common regexp for C symbol names
@@ -272,7 +276,9 @@ sub files {
 
 # Print error message, set $status.
 sub err {
-    print join(" ", @_), "\n";
+    my $t = join(" ", @_);
+    $t =~ s/\n//g;
+    print $t, "\n";
     $status = 1
 }
 
@@ -433,6 +439,29 @@ sub check_section_location {
         if $contents =~ /=head1 $before.*=head1 $section/ms;
 }
 
+# Check if HISTORY section is present and functionname ($2) is present in it
+# or a generic "(f)unction* added" term hints at several new functions in
+# the documentation (yes, this is an approximation only but it works :)
+sub find_functionname_in_history_section {
+    my $contents = shift;
+    my $functionname = shift;
+    my (undef, $rest) = split('=head1 HISTORY\s*', $contents);
+
+    if (not $rest) {
+        # No HISTORY section is a clear error now
+        return 0;
+    }
+    else {
+        my ($histsect, undef) = split('=head1 COPYRIGHT\s*', $rest);
+        if (index($histsect, $functionname) == -1) {
+            # OK, functionname is not in HISTORY section...
+            # last try: Check for presence of "*unction*added*"
+            return 0 if (not $histsect =~ /unction.*added.*/g);
+        }
+    }
+    return 1;
+}
+
 # Check if a =head1 is duplicated, or a =headX is duplicated within a
 # =head1.  Treats =head2 =head3 as equivalent -- it doesn't reset the head3
 # sets if it finds a =head2 -- but that is good enough for now. Also check
@@ -533,8 +562,10 @@ sub option_check {
     my $id = shift;
     my $filename = shift;
     my $contents = shift;
+    my $nodups = 1;
 
     my $synopsis = ($contents =~ /=head1\s+SYNOPSIS(.*?)=head1/s, $1);
+    $nodups = 0 if $synopsis =~ /=for\s+openssl\s+duplicate\s+options/s;
 
     # Some pages have more than one OPTIONS section, let's make sure
     # to get them all
@@ -550,19 +581,26 @@ sub option_check {
     }
 
     my @synopsis;
+    my %listed;
     while ( $synopsis =~ /$markup_re/msg ) {
         my $found = $&;
         push @synopsis, $found if $found =~ /^B<-/;
         print STDERR "$id:DEBUG[option_check] SYNOPSIS: found $found\n"
             if $debug;
         my $option_uw = normalise_option($id, $filename, $found);
-        err($id, "Malformed option [2] in SYNOPSIS: $found")
-            if defined $option_uw && $option_uw eq '';
+        if ( defined $option_uw ) {
+            err($id, "Malformed option [2] in SYNOPSIS: $found")
+                if $option_uw eq '';
+            err($id, "Duplicate option in SYNOPSIS $option_uw\n")
+                if $nodups && defined $listed{$option_uw};
+            $listed{$option_uw} = 1;
+        }
     }
 
     # In OPTIONS, we look for =item paragraphs.
     # (?=^\s*$) detects an empty line.
     my @options;
+    my %described;
     while ( $options =~ /=item\s+(.*?)(?=^\s*$)/msg ) {
         my $item = $&;
 
@@ -574,8 +612,13 @@ sub option_check {
                 if ($1 // '') ne '' && $found =~ /^B<\s*-/;
 
             my $option_uw = normalise_option($id, $filename, $found);
-            err($id, "Malformed option in OPTIONS: $found")
-                if defined $option_uw && $option_uw eq '';
+            if ( defined $option_uw ) {
+                err($id, "Malformed option in OPTIONS: $found")
+                    if $option_uw eq '';
+                err($id, "Duplicate option in OPTIONS $option_uw\n")
+                    if $nodups && defined $described{$option_uw};
+                $described{$option_uw} = 1;
+            }
             if ($found =~ /^B<-/) {
                 push @options, $found;
                 err($id, "OPTIONS entry $found missing from SYNOPSIS")
@@ -842,6 +885,8 @@ my %name_map = ();
 # Any of these values except 'public' may be prefixed with 'missing_'
 # to indicate that they are known to be missing.
 my %state;
+# history contains the same as state above for entries with version info != 3_0_0
+my %history;
 # %missing is affected by loading util/missing*.txt.  Values may be one of:
 # 'crypto' : belongs in libcrypto (loaded from libcrypto.num)
 # 'ssl' : belongs in libssl (loaded from libssl.num)
@@ -862,6 +907,12 @@ sub loadnum ($;$) {
         next if /^#/;
         next if /\bNOEXIST\b/;
         my @fields = split();
+        if ($type && ($type eq "crypto" || $type eq "ssl")) {
+            # 3rd field is version
+            if (not $fields[2] eq "3_0_0") {
+                $history{$fields[0].'(3)'} = $type.$fields[2];
+            }
+        }
         die "Malformed line $. in $file: $_"
             if scalar @fields != 2 && scalar @fields != 4;
         $state{$fields[0].'(3)'} = $type // 'internal';
@@ -952,6 +1003,8 @@ sub printem ($) {
     my $count = 0;
 
     foreach my $func ( grep { $state{$_} eq $type } sort keys %state ) {
+        err("$type:", "function $func not in any history section")
+            if ($opt_i && defined $history{$func});
         next if defined $name_map{$func}
             || defined $missing{$func};
 
@@ -984,6 +1037,15 @@ sub collectnames {
         my $name_sec = "$name($section)";
         if ( !defined $name_map{$name_sec} ) {
             $name_map{$name_sec} = $filename;
+            if ($history{$name_sec}) {
+                my $funcname = $name_sec;
+                my $contents = $podinfo{contents};
+                $funcname =~ s/\(.*//;
+                if (find_functionname_in_history_section($contents, $funcname)) {
+                    # mark this function as found/no longer of interest
+                    $history{$name_sec} = undef;
+                }
+            }
             $state{$name_sec} //=
                 ( $filename =~ /\/internal\// ? 'internal' : 'public' )
                 if $is_generic;
@@ -1083,7 +1145,7 @@ sub checkflags {
                 err("$cmd does not implement help for -$expect_helpstr") unless m/^\s*"/;
                 $expect_helpstr = "";
             }
-            if (m/\{\s*"([^"]+)"\s*,\s*OPT_[A-Z0-9_]+\s*,\s*('[-\/:<>cEfFlMnNpsuU]'|0)(.*)$/
+            if (m/\{\s*"([^"]+)"\s*,\s*OPT_[A-Z0-9_]+\s*,\s*('[-\/:<>cAEfFlMnNpsuU]'|0)(.*)$/
                     && !($cmd eq "s_client" && $1 eq "wdebug")) {
                 push @cmdopts, $1;
                 $expect_helpstr = $1;
@@ -1122,7 +1184,7 @@ sub checkflags {
         err("$doc: undocumented $cmd option -$_");
     }
 
-    # See what's in the command not the manpage.
+    # See what's in the manpage not the command.
     my @unimpl = sort grep { my $e = $_; !(grep /^\Q$e\E$/, @cmdopts) } keys %docopts;
     foreach ( @unimpl ) {
         next if $_ eq "-"; # Skip the -- end-of-flags marker

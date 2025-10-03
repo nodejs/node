@@ -53,10 +53,12 @@ MaybeLocal<Object> PipeWrap::Instantiate(Environment* env,
   EscapableHandleScope handle_scope(env->isolate());
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(parent);
   CHECK_EQ(false, env->pipe_constructor_template().IsEmpty());
-  Local<Function> constructor = env->pipe_constructor_template()
-                                    ->GetFunction(env->context())
-                                    .ToLocalChecked();
-  CHECK_EQ(false, constructor.IsEmpty());
+  Local<Function> constructor;
+  if (!env->pipe_constructor_template()
+           ->GetFunction(env->context())
+           .ToLocal(&constructor)) {
+    return {};
+  }
   Local<Value> type_value = Int32::New(env->isolate(), type);
   return handle_scope.EscapeMaybe(
       constructor->NewInstance(env->context(), 1, &type_value));

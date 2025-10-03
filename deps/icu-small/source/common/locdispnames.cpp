@@ -19,6 +19,8 @@
 *   that then do not depend on resource bundle code and display name data.
 */
 
+#include <string_view>
+
 #include "unicode/utypes.h"
 #include "unicode/brkiter.h"
 #include "unicode/locid.h"
@@ -359,7 +361,7 @@ _getStringOrCopyKey(const char *path, const char *locale,
     return u_terminateUChars(dest, destCapacity, length, &errorCode);
 }
 
-using UDisplayNameGetter = icu::CharString(const char*, UErrorCode&);
+using UDisplayNameGetter = icu::CharString(std::string_view, UErrorCode&);
 
 int32_t
 _getDisplayNameForComponent(const char *locale,
@@ -375,6 +377,10 @@ _getDisplayNameForComponent(const char *locale,
     if(destCapacity<0 || (destCapacity>0 && dest==nullptr)) {
         errorCode = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
+    }
+
+    if (locale == nullptr) {
+        locale = uloc_getDefault();
     }
 
     localStatus = U_ZERO_ERROR;

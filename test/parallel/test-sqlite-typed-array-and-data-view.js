@@ -1,5 +1,6 @@
 'use strict';
-require('../common');
+const { skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { join } = require('node:path');
 const { DatabaseSync } = require('node:sqlite');

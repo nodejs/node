@@ -6,11 +6,13 @@
 
 """Unit tests for the common.py file."""
 
-import gyp.common
-import unittest
-import sys
 import os
-from unittest.mock import patch, MagicMock
+import sys
+import unittest
+from unittest.mock import MagicMock, patch
+
+import gyp.common
+
 
 class TestTopologicallySorted(unittest.TestCase):
     def test_Valid(self):
@@ -109,14 +111,14 @@ class TestGetFlavor(unittest.TestCase):
                 return [defines, flavor]
 
         [defines1, _] = mock_run({}, "", [])
-        assert {} == defines1
+        assert defines1 == {}
 
         [defines2, flavor2] = mock_run(
             { "CC_target": "/opt/wasi-sdk/bin/clang" },
             "#define __wasm__ 1\n#define __wasi__ 1\n",
             ["/opt/wasi-sdk/bin/clang"]
         )
-        assert { "__wasm__": "1", "__wasi__": "1" } == defines2
+        assert defines2 == { "__wasm__": "1", "__wasi__": "1" }
         assert flavor2 == "wasi"
 
         [defines3, flavor3] = mock_run(
@@ -124,7 +126,7 @@ class TestGetFlavor(unittest.TestCase):
             "#define __wasm__ 1\n",
             ["/opt/wasi-sdk/bin/clang", "--target=wasm32"]
         )
-        assert { "__wasm__": "1" } == defines3
+        assert defines3 == { "__wasm__": "1" }
         assert flavor3 == "wasm"
 
         [defines4, flavor4] = mock_run(
@@ -132,7 +134,7 @@ class TestGetFlavor(unittest.TestCase):
             "#define __EMSCRIPTEN__ 1\n",
             ["/emsdk/upstream/emscripten/emcc"]
         )
-        assert { "__EMSCRIPTEN__": "1" } == defines4
+        assert defines4 == { "__EMSCRIPTEN__": "1" }
         assert flavor4 == "emscripten"
 
         # Test path which include white space
@@ -149,11 +151,11 @@ class TestGetFlavor(unittest.TestCase):
                 "-pthread"
             ]
         )
-        assert {
+        assert defines5 == {
             "__wasm__": "1",
             "__wasi__": "1",
             "_REENTRANT": "1"
-        } == defines5
+        }
         assert flavor5 == "wasi"
 
         original_sep = os.sep
@@ -164,7 +166,7 @@ class TestGetFlavor(unittest.TestCase):
             ["C:/Program Files/wasi-sdk/clang.exe"]
         )
         os.sep = original_sep
-        assert { "__wasm__": "1", "__wasi__": "1" } == defines6
+        assert defines6 == { "__wasm__": "1", "__wasi__": "1" }
         assert flavor6 == "wasi"
 
 if __name__ == "__main__":

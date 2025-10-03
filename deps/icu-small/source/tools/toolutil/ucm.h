@@ -227,7 +227,7 @@ ucm_checkValidity(UCMTable *ext, UCMStates *baseStates);
  */
 U_CAPI UBool U_EXPORT2
 ucm_checkBaseExt(UCMStates *baseStates, UCMTable *base, UCMTable *ext,
-                 UCMTable *moveTarget, UBool intersectBase);
+                 UCMTable *moveTarget, int8_t intersectBase);
 
 U_CAPI void U_EXPORT2
 ucm_printTable(UCMTable *table, FILE *f, UBool byUnicode);

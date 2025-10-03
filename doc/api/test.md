@@ -420,8 +420,8 @@ By default, Node.js will run all files matching these patterns:
 * `**/test.{cjs,mjs,js}`
 * `**/test/**/*.{cjs,mjs,js}`
 
-When [`--experimental-strip-types`][] is supplied, the following
-additional patterns are matched:
+Unless [`--no-experimental-strip-types`][] is supplied, the following
+additional patterns are also matched:
 
 * `**/*.test.{cts,mts,ts}`
 * `**/*-test.{cts,mts,ts}`
@@ -935,7 +935,7 @@ added: v22.3.0
 changes:
   - version: v23.4.0
     pr-url: https://github.com/nodejs/node/pull/55897
-    description: Snapsnot testing is no longer experimental.
+    description: Snapshot testing is no longer experimental.
 -->
 
 Snapshot tests allow arbitrary values to be serialized into string values and
@@ -1283,13 +1283,13 @@ changes:
     If `false`, it would only run one test file at a time.
     **Default:** `false`.
   * `files`: {Array} An array containing the list of files to run.
-    **Default:** matching files from [test runner execution model][].
+    **Default:** Same as [running tests from the command line][].
   * `forceExit`: {boolean} Configures the test runner to exit the process once
     all known tests have finished executing even if the event loop would
     otherwise remain active. **Default:** `false`.
-  * `globPatterns`: {Array} An array containing the list of glob patterns to
+  * `globPatterns` {Array} An array containing the list of glob patterns to
     match test files. This option cannot be used together with `files`.
-    **Default:** matching files from [test runner execution model][].
+    **Default:** Same as [running tests from the command line][].
   * `inspectPort` {number|Function} Sets inspector port of test child process.
     This can be a number, or a function that takes no arguments and returns a
     number. If a nullish value is provided, each process gets its own port,
@@ -1300,7 +1300,7 @@ changes:
     `'process'`, each test file is run in a separate child process. If set to
     `'none'`, all test files run in the current process. **Default:**
     `'process'`.
-  * `only`: {boolean} If truthy, the test context will only run tests that
+  * `only` {boolean} If truthy, the test context will only run tests that
     have the `only` option set
   * `setup` {Function} A function that accepts the `TestsStream` instance
     and can be used to setup listeners before any tests are run.
@@ -1816,7 +1816,7 @@ added:
   - v18.13.0
 -->
 
-* {Array}
+* Type: {Array}
 
 A getter that returns a copy of the internal array used to track calls to the
 mock. Each entry in the array is an object with the following properties.
@@ -1971,6 +1971,87 @@ added: v22.3.0
 
 Resets the implementation of the mock module.
 
+## Class: `MockPropertyContext`
+
+<!-- YAML
+added: v22.20.0
+-->
+
+The `MockPropertyContext` class is used to inspect or manipulate the behavior
+of property mocks created via the [`MockTracker`][] APIs.
+
+### `ctx.accesses`
+
+* {Array}
+
+A getter that returns a copy of the internal array used to track accesses (get/set) to
+the mocked property. Each entry in the array is an object with the following properties:
+
+* `type` {string} Either `'get'` or `'set'`, indicating the type of access.
+* `value` {any} The value that was read (for `'get'`) or written (for `'set'`).
+* `stack` {Error} An `Error` object whose stack can be used to determine the
+  callsite of the mocked function invocation.
+
+### `ctx.accessCount()`
+
+* Returns: {integer} The number of times that the property was accessed (read or written).
+
+This function returns the number of times that the property was accessed.
+This function is more efficient than checking `ctx.accesses.length` because
+`ctx.accesses` is a getter that creates a copy of the internal access tracking array.
+
+### `ctx.mockImplementation(value)`
+
+* `value` {any} The new value to be set as the mocked property value.
+
+This function is used to change the value returned by the mocked property getter.
+
+### `ctx.mockImplementationOnce(value[, onAccess])`
+
+* `value` {any} The value to be used as the mock's
+  implementation for the invocation number specified by `onAccess`.
+* `onAccess` {integer} The invocation number that will use `value`. If
+  the specified invocation has already occurred then an exception is thrown.
+  **Default:** The number of the next invocation.
+
+This function is used to change the behavior of an existing mock for a single
+invocation. Once invocation `onAccess` has occurred, the mock will revert to
+whatever behavior it would have used had `mockImplementationOnce()` not been
+called.
+
+The following example creates a mock function using `t.mock.property()`, calls the
+mock property, changes the mock implementation to a different value for the
+next invocation, and then resumes its previous behavior.
+
+```js
+test('changes a mock behavior once', (t) => {
+  const obj = { foo: 1 };
+
+  const prop = t.mock.property(obj, 'foo', 5);
+
+  assert.strictEqual(obj.foo, 5);
+  prop.mock.mockImplementationOnce(25);
+  assert.strictEqual(obj.foo, 25);
+  assert.strictEqual(obj.foo, 5);
+});
+```
+
+#### Caveat
+
+For consistency with the rest of the mocking API, this function treats both property gets and sets
+as accesses. If a property set occurs at the same access index, the "once" value will be consumed
+by the set operation, and the mocked property value will be changed to the "once" value. This may
+lead to unexpected behavior if you intend the "once" value to only be used for a get operation.
+
+### `ctx.resetAccesses()`
+
+Resets the access history of the mocked property.
+
+### `ctx.restore()`
+
+Resets the implementation of the mock property to its original behavior. The
+mock can still be used after calling this function.
+
 ## Class: `MockTracker`
 
 <!-- YAML
@@ -2108,6 +2189,11 @@ test('spies on an object method', (t) => {
 
 <!-- YAML
 added: v22.3.0
+changes:
+  - version:
+    - v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/58007
+    description: Support JSON modules.
 -->
 
 > Stability: 1.0 - Early development
@@ -2131,10 +2217,10 @@ added: v22.3.0
     mock will throw an exception when used as a CJS or builtin module.
 * Returns: {MockModuleContext} An object that can be used to manipulate the mock.
 
-This function is used to mock the exports of ECMAScript modules, CommonJS
-modules, and Node.js builtin modules. Any references to the original module
-prior to mocking are not impacted. In order to enable module mocking, Node.js must
-be started with the [`--experimental-test-module-mocks`][] command-line flag.
+This function is used to mock the exports of ECMAScript modules, CommonJS modules, JSON modules, and
+Node.js builtin modules. Any references to the original module prior to mocking are not impacted. In
+order to enable module mocking, Node.js must be started with the
+[`--experimental-test-module-mocks`][] command-line flag.
 
 The following example demonstrates how a mock is created for a module.
 
@@ -2165,6 +2251,43 @@ test('mocks a builtin module in both module systems', async (t) => {
   assert.strictEqual(typeof cjsImpl.cursorTo, 'function');
   assert.strictEqual(esmImpl.fn, undefined);
   assert.strictEqual(cjsImpl.fn, undefined);
+});
+```
+
+### `mock.property(object, propertyName[, value])`
+
+<!-- YAML
+added: v22.20.0
+-->
+
+* `object` {Object} The object whose value is being mocked.
+* `propertyName` {string|symbol} The identifier of the property on `object` to mock.
+* `value` {any} An optional value used as the mock value
+  for `object[propertyName]`. **Default:** The original property value.
+* Returns: {Proxy} A proxy to the mocked object. The mocked object contains a
+  special `mock` property, which is an instance of [`MockPropertyContext`][], and
+  can be used for inspecting and changing the behavior of the mocked property.
+
+Creates a mock for a property value on an object. This allows you to track and control access to a specific property,
+including how many times it is read (getter) or written (setter), and to restore the original value after mocking.
+
+```js
+test('mocks a property value', (t) => {
+  const obj = { foo: 42 };
+  const prop = t.mock.property(obj, 'foo', 100);
+
+  assert.strictEqual(obj.foo, 100);
+  assert.strictEqual(prop.mock.accessCount(), 1);
+  assert.strictEqual(prop.mock.accesses[0].type, 'get');
+  assert.strictEqual(prop.mock.accesses[0].value, 100);
+
+  obj.foo = 200;
+  assert.strictEqual(prop.mock.accessCount(), 2);
+  assert.strictEqual(prop.mock.accesses[1].type, 'set');
+  assert.strictEqual(prop.mock.accesses[1].value, 200);
+
+  prop.mock.restore();
+  assert.strictEqual(obj.foo, 42);
 });
 ```
 
@@ -2925,6 +3048,7 @@ The corresponding declaration ordered events are `'test:pass'` and `'test:fail'`
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `type` {string} The test type. Either `'suite'` or `'test'`.
 
 Emitted when a test is dequeued, right before it is executed.
 This event is not guaranteed to be emitted in the same order as the tests are
@@ -2941,6 +3065,11 @@ defined. The corresponding declaration ordered event is `'test:start'`.
     `undefined` if the test was run through the REPL.
   * `message` {string} The diagnostic message.
   * `nesting` {number} The nesting level of the test.
+  * `level` {string} The severity level of the diagnostic message.
+    Possible values are:
+    * `'info'`: Informational messages.
+    * `'warn'`: Warnings.
+    * `'error'`: Errors.
 
 Emitted when [`context.diagnostic`][] is called.
 This event is guaranteed to be emitted in the same order as the tests are
@@ -2957,6 +3086,7 @@ defined.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `type` {string} The test type. Either `'suite'` or `'test'`.
 
 Emitted when a test is enqueued for execution.
 
@@ -3367,18 +3497,36 @@ added:
 
 The name of the test.
 
-### `context.plan(count)`
+### `context.plan(count[,options])`
 
 <!-- YAML
 added:
   - v22.2.0
+  - v20.15.0
 changes:
-  - version: v22.13.0
+  - version:
+    - v23.9.0
+    - v22.15.0
+    pr-url: https://github.com/nodejs/node/pull/56765
+    description: Add the `options` parameter.
+  - version:
+    - v23.4.0
+    - v22.13.0
     pr-url: https://github.com/nodejs/node/pull/55895
     description: This function is no longer experimental.
 -->
 
 * `count` {number} The number of assertions and subtests that are expected to run.
+* `options` {Object} Additional options for the plan.
+  * `wait` {boolean|number} The wait time for the plan:
+    * If `true`, the plan waits indefinitely for all assertions and subtests to run.
+    * If `false`, the plan performs an immediate check after the test function completes,
+      without waiting for any pending assertions or subtests.
+      Any assertions or subtests that complete after this check will not be counted towards the plan.
+    * If a number, it specifies the maximum wait time in milliseconds
+      before timing out while waiting for expected assertions and subtests to be matched.
+      If the timeout is reached, the test will fail.
+      **Default:** `false`.
 
 This function is used to set the number of assertions and subtests that are expected to run
 within the test. If the number of assertions and subtests that run does not match the
@@ -3416,6 +3564,26 @@ test('planning with streams', (t, done) => {
   });
 });
 ```
+
+When using the `wait` option, you can control how long the test will wait for the expected assertions.
+For example, setting a maximum wait time ensures that the test will wait for asynchronous assertions
+to complete within the specified timeframe:
+
+```js
+test('plan with wait: 2000 waits for async assertions', (t) => {
+  t.plan(1, { wait: 2000 }); // Waits for up to 2 seconds for the assertion to complete.
+
+  const asyncActivity = () => {
+    setTimeout(() => {
+      t.assert.ok(true, 'Async assertion completed within the wait time');
+    }, 1000); // Completes after 1 second, within the 2-second wait time.
+  };
+
+  asyncActivity(); // The test will pass because the assertion is completed in time.
+});
+```
+
+Note: If a `wait` timeout is specified, it begins counting down only after the test function finishes executing.
 
 ### `context.runOnly(shouldRunOnlyTests)`
 
@@ -3639,10 +3807,10 @@ Can be used to abort test subtasks when the test has been aborted.
 
 [TAP]: https://testanything.org/
 [TTY]: tty.md
-[`--experimental-strip-types`]: cli.md#--experimental-strip-types
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--import`]: cli.md#--importmodule
+[`--no-experimental-strip-types`]: cli.md#--no-experimental-strip-types
 [`--test-concurrency`]: cli.md#--test-concurrency
 [`--test-coverage-include`]: cli.md#--test-coverage-include
 [`--test-name-pattern`]: cli.md#--test-name-pattern
@@ -3653,6 +3821,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`--test-update-snapshots`]: cli.md#--test-update-snapshots
 [`--test`]: cli.md#--test
 [`MockFunctionContext`]: #class-mockfunctioncontext
+[`MockPropertyContext`]: #class-mockpropertycontext
 [`MockTimers`]: #class-mocktimers
 [`MockTracker.method`]: #mockmethodobject-methodname-implementation-options
 [`MockTracker`]: #class-mocktracker
@@ -3671,6 +3840,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [code coverage]: #collecting-code-coverage
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
+[running tests from the command line]: #running-tests-from-the-command-line
 [stream.compose]: stream.md#streamcomposestreams
 [subtests]: #subtests
 [suite options]: #suitename-options-fn

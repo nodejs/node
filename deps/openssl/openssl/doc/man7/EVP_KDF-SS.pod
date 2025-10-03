@@ -11,6 +11,8 @@ SSKDF derives a key using input such as a shared secret key (that was generated
 during the execution of a key establishment scheme) and fixedinfo.
 SSKDF is also informally referred to as 'Concat KDF'.
 
+The output is considered to be keying material.
+
 =head2 Auxiliary function
 
 The implementation uses a selectable auxiliary function H, which can be one of:

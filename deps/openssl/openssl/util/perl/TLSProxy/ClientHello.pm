@@ -1,4 +1,4 @@
-# Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -9,30 +9,43 @@ use strict;
 
 package TLSProxy::ClientHello;
 
+use TLSProxy::Record;
+
 use vars '@ISA';
 push @ISA, 'TLSProxy::Message';
 
 sub new
 {
     my $class = shift;
-    my ($server,
+    my ($isdtls,
+        $server,
+        $msgseq,
+        $msgfrag,
+        $msgfragoffs,
         $data,
         $records,
         $startoffset,
         $message_frag_lens) = @_;
 
     my $self = $class->SUPER::new(
+        $isdtls,
         $server,
-        1,
+        TLSProxy::Message::MT_CLIENT_HELLO,
+        $msgseq,
+        $msgfrag,
+        $msgfragoffs,
         $data,
         $records,
         $startoffset,
         $message_frag_lens);
 
+    $self->{isdtls} = $isdtls;
     $self->{client_version} = 0;
     $self->{random} = [];
     $self->{session_id_len} = 0;
     $self->{session} = "";
+    $self->{legacy_cookie_len} = 0; #DTLS only
+    $self->{legacy_cookie} = ""; #DTLS only
     $self->{ciphersuite_len} = 0;
     $self->{ciphersuites} = [];
     $self->{comp_meth_len} = 0;
@@ -54,6 +67,14 @@ sub parse
     $ptr++;
     my $session = substr($self->data, $ptr, $session_id_len);
     $ptr += $session_id_len;
+    my $legacy_cookie_len = 0;
+    my $legacy_cookie = "";
+    if($self->{isdtls}) {
+        $legacy_cookie_len = unpack('C', substr($self->data, $ptr));
+        $ptr++;
+        $legacy_cookie = substr($self->data, $ptr, $legacy_cookie_len);
+        $ptr += $legacy_cookie_len;
+    }
     my $ciphersuite_len = unpack('n', substr($self->data, $ptr));
     $ptr += 2;
     my @ciphersuites = unpack('n*', substr($self->data, $ptr,
@@ -84,6 +105,8 @@ sub parse
     $self->random($random);
     $self->session_id_len($session_id_len);
     $self->session($session);
+    $self->legacy_cookie_len($legacy_cookie_len);
+    $self->legacy_cookie($legacy_cookie);
     $self->ciphersuite_len($ciphersuite_len);
     $self->ciphersuites(\@ciphersuites);
     $self->comp_meth_len($comp_meth_len);
@@ -93,8 +116,11 @@ sub parse
 
     $self->process_extensions();
 
-    print "    Client Version:".$client_version."\n";
+    print "    Client Version:".$TLSProxy::Record::tls_version{$client_version}."\n";
     print "    Session ID Len:".$session_id_len."\n";
+    if($self->{isdtls}) {
+        print "    Legacy Cookie Len:".$legacy_cookie_len."\n";
+    }
     print "    Ciphersuite len:".$ciphersuite_len."\n";
     print "    Compression Method Len:".$comp_meth_len."\n";
     print "    Extensions Len:".$extensions_len."\n";
@@ -138,6 +164,12 @@ sub set_message_contents
     $data .= $self->random;
     $data .= pack('C', $self->session_id_len);
     $data .= $self->session;
+    if($self->{isdtls}){
+        $data .= pack('C', $self->legacy_cookie_len);
+        if($self->legacy_cookie_len > 0) {
+            $data .= $self->legacy_cookie;
+        }
+    }
     $data .= pack('n', $self->ciphersuite_len);
     $data .= pack("n*", @{$self->ciphersuites});
     $data .= pack('C', $self->comp_meth_len);
@@ -196,6 +228,22 @@ sub session
       $self->{session} = shift;
     }
     return $self->{session};
+}
+sub legacy_cookie_len
+{
+    my $self = shift;
+    if (@_) {
+        $self->{legacy_cookie_len} = shift;
+    }
+    return $self->{legacy_cookie_len};
+}
+sub legacy_cookie
+{
+    my $self = shift;
+    if (@_) {
+        $self->{legacy_cookie} = shift;
+    }
+    return $self->{legacy_cookie};
 }
 sub ciphersuite_len
 {

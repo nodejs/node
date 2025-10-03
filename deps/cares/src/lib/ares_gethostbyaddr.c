@@ -120,7 +120,7 @@ static void next_lookup(struct addr_query *aquery)
 {
   const char     *p;
   ares_status_t   status;
-  struct hostent *host;
+  struct hostent *host = NULL;
   char           *name;
 
   for (p = aquery->remaining_lookups; *p; p++) {

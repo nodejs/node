@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,7 +13,6 @@
 #include "prov/provider_util.h"
 
 struct mac_key_st {
-    CRYPTO_RWLOCK *lock;
     OSSL_LIB_CTX *libctx;
     CRYPTO_REF_COUNT refcnt;
     unsigned char *priv_key;

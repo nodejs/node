@@ -51,6 +51,7 @@
 #include "ngtcp2_qlog.h"
 #include "ngtcp2_rst.h"
 #include "ngtcp2_conn_stat.h"
+#include "ngtcp2_dcidtr.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -78,18 +79,6 @@ typedef enum {
    accept. */
 #define NGTCP2_MAX_RETRIES 3
 
-/* NGTCP2_MAX_BOUND_DCID_POOL_SIZE is the maximum number of
-   destination connection ID which have been bound to a particular
-   path, but not yet used as primary path and path validation is not
-   performed from the local endpoint. */
-#define NGTCP2_MAX_BOUND_DCID_POOL_SIZE 4
-/* NGTCP2_MAX_DCID_POOL_SIZE is the maximum number of destination
-   connection ID the remote endpoint provides to store.  It must be
-   the power of 2. */
-#define NGTCP2_MAX_DCID_POOL_SIZE 8
-/* NGTCP2_MAX_DCID_RETIRED_SIZE is the maximum number of retired DCID
-   kept to catch in-flight packet on retired path. */
-#define NGTCP2_MAX_DCID_RETIRED_SIZE 2
 /* NGTCP2_MAX_SCID_POOL_SIZE is the maximum number of source
    connection ID the local endpoint provides to the remote endpoint.
    The chosen value was described in old draft.  Now a remote endpoint
@@ -239,11 +228,6 @@ typedef struct ngtcp2_pktns {
     /* pngap tracks received packet number in order to suppress
        duplicated packet number. */
     ngtcp2_gaptr pngap;
-    /* max_pkt_num is the largest packet number received so far. */
-    int64_t max_pkt_num;
-    /* max_pkt_ts is the timestamp when max_pkt_num packet is
-       received. */
-    ngtcp2_tstamp max_pkt_ts;
     /* max_ack_eliciting_pkt_num is the largest ack-eliciting packet
        number received so far. */
     int64_t max_ack_eliciting_pkt_num;
@@ -268,21 +252,6 @@ typedef struct ngtcp2_pktns {
      *   ngtcp2_pktns.
      */
     ngtcp2_pkt_chain *buffed_pkts;
-
-    struct {
-      /* ect0, ect1, and ce are the number of QUIC packets received
-         with those markings. */
-      size_t ect0;
-      size_t ect1;
-      size_t ce;
-      struct {
-        /* ect0, ect1, ce are the ECN counts received in the latest
-           ACK frame. */
-        uint64_t ect0;
-        uint64_t ect1;
-        uint64_t ce;
-      } ack;
-    } ecn;
   } rx;
 
   struct {
@@ -336,12 +305,6 @@ typedef struct ngtcp2_early_transport_params {
   uint64_t max_datagram_frame_size;
 } ngtcp2_early_transport_params;
 
-ngtcp2_static_ringbuf_def(dcid_bound, NGTCP2_MAX_BOUND_DCID_POOL_SIZE,
-                          sizeof(ngtcp2_dcid))
-ngtcp2_static_ringbuf_def(dcid_unused, NGTCP2_MAX_DCID_POOL_SIZE,
-                          sizeof(ngtcp2_dcid))
-ngtcp2_static_ringbuf_def(dcid_retired, NGTCP2_MAX_DCID_RETIRED_SIZE,
-                          sizeof(ngtcp2_dcid))
 ngtcp2_static_ringbuf_def(path_challenge, 4,
                           sizeof(ngtcp2_path_challenge_entry))
 
@@ -366,6 +329,8 @@ struct ngtcp2_conn {
      records it in order to verify retry_source_connection_id
      transport parameter.  Server does not use this field. */
   ngtcp2_cid retry_scid;
+  /* hs_local_addr is a local address used during handshake. */
+  ngtcp2_sockaddr_union hs_local_addr;
   ngtcp2_pktns *in_pktns;
   ngtcp2_pktns *hs_pktns;
   ngtcp2_pktns pktns;
@@ -373,31 +338,13 @@ struct ngtcp2_conn {
   struct {
     /* current is the current destination connection ID. */
     ngtcp2_dcid current;
-    /* bound is a set of destination connection IDs which are bound to
-       particular paths.  These paths are not validated yet. */
-    ngtcp2_static_ringbuf_dcid_bound bound;
-    /* unused is a set of unused CID received from peer. */
-    ngtcp2_static_ringbuf_dcid_unused unused;
-    /* retired is a set of CID retired by local endpoint.  Keep them
-       in 3*PTO to catch packets in flight along the old path. */
-    ngtcp2_static_ringbuf_dcid_retired retired;
+    ngtcp2_dcidtr dtr;
     /* seqgap tracks received sequence numbers in order to ignore
        retransmitted duplicated NEW_CONNECTION_ID frame. */
     ngtcp2_gaptr seqgap;
     /* retire_prior_to is the largest retire_prior_to received so
        far. */
     uint64_t retire_prior_to;
-    struct {
-      /* seqs contains sequence number of Connection ID whose
-         retirement is not acknowledged by the remote endpoint yet. */
-      uint64_t seqs[NGTCP2_MAX_DCID_POOL_SIZE * 2];
-      /* len is the number of sequence numbers that seq contains. */
-      size_t len;
-    } retire_unacked;
-    /* zerolen_seq is a pseudo sequence number of zero-length
-       Destination Connection ID in order to distinguish between
-       them. */
-    uint64_t zerolen_seq;
   } dcid;
 
   struct {
@@ -421,11 +368,6 @@ struct ngtcp2_conn {
   struct {
     /* strmq contains ngtcp2_strm which has frames to send. */
     ngtcp2_pq strmq;
-    /* ack is ACK frame.  The underlying buffer is reused. */
-    ngtcp2_frame *ack;
-    /* max_ack_ranges is the number of additional ngtcp2_ack_range
-       which ack can contain. */
-    size_t max_ack_ranges;
     /* offset is the offset the local endpoint has sent to the remote
        endpoint. */
     uint64_t offset;
@@ -458,6 +400,15 @@ struct ngtcp2_conn {
       /* next_ts is the time to send next packet.  It is UINT64_MAX if
          packet pacing is disabled or expired.*/
       ngtcp2_tstamp next_ts;
+      /* compensation is the amount of time that a local endpoint
+         waits too long for pacing.  This happens because there is an
+         overhead before start writing packets after pacing timer
+         expires.  If multiple QUIC connections are handled by a
+         single thread, which is typical use case for event loop based
+         servers, each processing of QUIC connection adds overhead,
+         for example, TLS handshake, and packet encryption/decryption,
+         etc. */
+      ngtcp2_duration compensation;
     } pacing;
   } tx;
 
@@ -478,6 +429,12 @@ struct ngtcp2_conn {
     ngtcp2_static_ringbuf_path_challenge path_challenge;
     /* ccerr is the received connection close error. */
     ngtcp2_ccerr ccerr;
+
+    struct {
+      /* pkt_num is the lowest incoming packet number of the packet
+         that server verified preferred address usage of client. */
+      int64_t pkt_num;
+    } preferred_addr;
   } rx;
 
   struct {
@@ -671,6 +628,9 @@ struct ngtcp2_conn {
   const ngtcp2_mem *mem;
   /* idle_ts is the time instant when idle timer started. */
   ngtcp2_tstamp idle_ts;
+  /* handshake_confirmed_ts is the time instant when handshake is
+     confirmed.  For server, it is confirmed when completed. */
+  ngtcp2_tstamp handshake_confirmed_ts;
   void *user_data;
   uint32_t client_chosen_version;
   uint32_t negotiated_version;
@@ -723,21 +683,6 @@ typedef struct ngtcp2_vmsg {
     ngtcp2_vmsg_datagram datagram;
   };
 } ngtcp2_vmsg;
-
-/*
- * ngtcp2_conn_sched_ack stores packet number |pkt_num| and its
- * reception timestamp |ts| in order to send its ACK.
- *
- * It returns 0 if it succeeds, or one of the following negative error
- * codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory
- * NGTCP2_ERR_PROTO
- *     Same packet number has already been added.
- */
-int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, ngtcp2_acktr *acktr,
-                          int64_t pkt_num, int active_ack, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_find_stream returns a stream whose stream ID is
@@ -1136,28 +1081,6 @@ int ngtcp2_conn_set_remote_transport_params(
  */
 int ngtcp2_conn_set_0rtt_remote_transport_params(
   ngtcp2_conn *conn, const ngtcp2_transport_params *params);
-
-/*
- * ngtcp2_conn_create_ack_frame creates ACK frame, and assigns its
- * pointer to |*pfr| if there are any received packets to acknowledge.
- * If there are no packets to acknowledge, this function returns 0,
- * and |*pfr| is untouched.  The caller is advised to set |*pfr| to
- * NULL before calling this function, and check it after this function
- * returns.
- *
- * Call ngtcp2_acktr_commit_ack after a created ACK frame is
- * successfully serialized into a packet.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-int ngtcp2_conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
-                                 ngtcp2_pktns *pktns, uint8_t type,
-                                 ngtcp2_tstamp ts, ngtcp2_duration ack_delay,
-                                 uint64_t ack_delay_exponent);
 
 /*
  * ngtcp2_conn_discard_initial_state discards state for Initial packet

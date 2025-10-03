@@ -126,7 +126,7 @@ compareEntries(const UHashTok p1, const UHashTok p2) {
     name2.pointer = b2->name;
     path1.pointer = b1->path;
     path2.pointer = b2->path;
-    return uhash_compareChars(name1, name2) & uhash_compareChars(path1, path2);
+    return uhash_compareChars(name1, name2) && uhash_compareChars(path1, path2);
 }
 
 static void 

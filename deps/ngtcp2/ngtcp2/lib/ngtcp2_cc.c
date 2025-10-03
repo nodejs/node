@@ -252,13 +252,15 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   uint64_t w_cubic, w_cubic_next, target, m;
   ngtcp2_duration rtt_thresh;
   int round_start;
+  int is_app_limited =
+    cubic->rst->rs.is_app_limited && !cubic->rst->is_cwnd_limited;
 
   if (in_congestion_recovery(cstat, ack->largest_pkt_sent_ts)) {
     return;
   }
 
   if (cubic->current.state == NGTCP2_CUBIC_STATE_CONGESTION_AVOIDANCE) {
-    if (cubic->rst->rs.is_app_limited && !cubic->rst->is_cwnd_limited) {
+    if (is_app_limited) {
       if (cubic->current.app_limited_start_ts == UINT64_MAX) {
         cubic->current.app_limited_start_ts = ts;
       }
@@ -271,7 +273,7 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
         ts - cubic->current.app_limited_start_ts;
       cubic->current.app_limited_start_ts = UINT64_MAX;
     }
-  } else if (cubic->rst->rs.is_app_limited && !cubic->rst->is_cwnd_limited) {
+  } else if (is_app_limited) {
     return;
   }
 

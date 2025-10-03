@@ -146,10 +146,10 @@ struct SignTraits final {
       unsigned int offset,
       SignConfiguration* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const SignConfiguration& params,
-      ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const SignConfiguration& params,
+                         ByteSource* out,
+                         CryptoJobMode mode);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
                                                 const SignConfiguration& params,

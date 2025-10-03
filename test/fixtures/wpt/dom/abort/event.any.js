@@ -1,3 +1,5 @@
+// META: global=window,dedicatedworker,shadowrealm
+
 test(t => {
   const c = new AbortController(),
         s = c.signal;
@@ -141,9 +143,12 @@ test(t => {
 
 test(t => {
   const reason = new Error('boom');
+  const message = reason.message;
   const signal = AbortSignal.abort(reason);
   assert_true(signal.aborted);
   assert_throws_exactly(reason, () => signal.throwIfAborted());
+  assert_equals(reason.message, message,
+                "abort.reason should not be changed by throwIfAborted()");
 }, "throwIfAborted() should throw abort.reason if signal aborted");
 
 test(t => {

@@ -826,6 +826,10 @@ class GTEST_API_ UnitTestImpl {
   bool catch_exceptions() const { return catch_exceptions_; }
 
  private:
+  // Returns true if a warning should be issued if no tests match the test
+  // filter flag.
+  bool ShouldWarnIfNoTestsMatchFilter() const;
+
   struct CompareTestSuitesByPointer {
     bool operator()(const TestSuite* lhs, const TestSuite* rhs) const {
       return lhs->name_ < rhs->name_;

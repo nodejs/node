@@ -2,6 +2,7 @@
 [eval]:1
 with(this){__filename}
 ^^^^
+The 'with' statement is not supported. All symbols in a 'with' block will have type 'any'.
 
 SyntaxError: Strict mode code may not include a with statement
 
@@ -35,7 +36,7 @@ Node.js *
 var ______________________________________________; throw 10
                                                     ^
 10
-(Use `node --trace-uncaught ...` to show where the exception was thrown)
+(Use `* --trace-uncaught ...` to show where the exception was thrown)
 
 Node.js *
 
@@ -43,7 +44,7 @@ Node.js *
 var ______________________________________________; throw 10
                                                     ^
 10
-(Use `node --trace-uncaught ...` to show where the exception was thrown)
+(Use `* --trace-uncaught ...` to show where the exception was thrown)
 
 Node.js *
 done

@@ -7,7 +7,7 @@ import startCLI from '../common/debugger.js';
 
 import assert from 'assert';
 
-const cli = startCLI(['--port=0', path('debugger/backtrace.js')]);
+const cli = startCLI([path('debugger/backtrace.js')]);
 
 try {
   await cli.waitForInitialBreak();

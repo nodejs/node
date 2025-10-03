@@ -6,7 +6,8 @@ import path from 'node:path';
 import assert from 'node:assert';
 import process from 'node:process';
 import { describe, it, beforeEach, afterEach } from 'node:test';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, appendFileSync } from 'node:fs';
+import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
 import { once } from 'node:events';
 import { spawn } from 'node:child_process';
@@ -49,6 +50,33 @@ describe('watch mode file watcher', () => {
     watcher.filterFile(file);
     await writeAndWaitForChanges(watcher, file);
     assert.strictEqual(changesCount, 1);
+  });
+
+  it('should watch changed files with same prefix path string', async () => {
+    mkdirSync(tmpdir.resolve('subdir'));
+    mkdirSync(tmpdir.resolve('sub'));
+    const file1 = tmpdir.resolve('subdir', 'file1.mjs');
+    const file2 = tmpdir.resolve('sub', 'file2.mjs');
+    writeFileSync(file2, 'export const hello = () => { return "hello world"; };');
+    writeFileSync(file1, 'import { hello } from "../sub/file2.mjs"; console.log(hello());');
+
+    const child = spawn(process.execPath,
+                        ['--watch', file1],
+                        { stdio: ['ignore', 'pipe', 'ignore'] });
+    let completeCount = 0;
+    for await (const line of createInterface(child.stdout)) {
+      if (!line.startsWith('Completed running')) {
+        continue;
+      }
+      completeCount++;
+      if (completeCount === 1) {
+        appendFileSync(file1, '\n // append 1');
+      }
+      // The file is reloaded due to file watching
+      if (completeCount === 2) {
+        child.kill();
+      }
+    }
   });
 
   it('should debounce changes', async () => {

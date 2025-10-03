@@ -6,7 +6,7 @@ import assert from 'node:assert';
 import { open } from 'node:fs/promises';
 import { argv } from 'node:process';
 
-const ghHandleLine = /^\* \[(.+)\]\(https:\/\/github\.com\/\1\) -$/;
+const ghHandleLine = /^\* \[(.+)\]\(https:\/\/github\.com\/(.+)\) -$/;
 const memberInfoLine = /^ {2}\*\*[^*]+\*\* <<[^@]+@.+\.[a-z]+>>( \(\w+(\/[^)/]+)+\))?( - \[Support me\]\(.+\))?$/;
 
 const lists = {
@@ -59,9 +59,11 @@ for await (const line of readme.readLines()) {
       );
     }
 
-    if (!ghHandleLine.test(line)) {
-      throw new Error(`${currentGithubHandle} is not formatted correctly (README.md:${lineNumber})`);
+    const match = line.match(ghHandleLine);
+    if (!match) {
+      throw new Error(`${line} should match ${ghHandleLine} (README.md:${lineNumber})`);
     }
+    assert.strictEqual(match[1], match[2], `GitHub handle does not match the URL (README.md:${lineNumber})`);
 
     if (
       currentList === 'TSC voting members' ||

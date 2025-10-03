@@ -321,7 +321,8 @@ ares_status_t ares_send_query(ares_server_t *requested_server /* Optional */,
 ares_status_t ares_requeue_query(ares_query_t *query, const ares_timeval_t *now,
                                  ares_status_t            status,
                                  ares_bool_t              inc_try_count,
-                                 const ares_dns_record_t *dnsrec);
+                                 const ares_dns_record_t *dnsrec,
+                                 ares_array_t           **requeue);
 
 /*! Count the number of labels (dots+1) in a domain */
 size_t        ares_name_label_cnt(const char *name);
@@ -455,8 +456,10 @@ ares_status_t ares_parse_ptr_reply_dnsrec(const ares_dns_record_t *dnsrec,
                                           const void *addr, int addrlen,
                                           int family, struct hostent **host);
 
+/* host address must be valid or NULL as will create or append */
 ares_status_t ares_addrinfo2hostent(const struct ares_addrinfo *ai, int family,
                                     struct hostent **host);
+
 ares_status_t ares_addrinfo2addrttl(const struct ares_addrinfo *ai, int family,
                                     size_t                req_naddrttls,
                                     struct ares_addrttl  *addrttls,
@@ -610,7 +613,8 @@ ares_status_t ares_cookie_apply(ares_dns_record_t *dnsrec, ares_conn_t *conn,
 ares_status_t ares_cookie_validate(ares_query_t            *query,
                                    const ares_dns_record_t *dnsresp,
                                    ares_conn_t             *conn,
-                                   const ares_timeval_t    *now);
+                                   const ares_timeval_t    *now,
+                                   ares_array_t           **requeue);
 
 ares_status_t ares_channel_threading_init(ares_channel_t *channel);
 void          ares_channel_threading_destroy(ares_channel_t *channel);

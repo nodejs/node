@@ -45,3 +45,51 @@ const { duplexPair } = require('stream');
   req.resume();
   req.end();
 }
+
+{
+  const server = http2.createServer();
+  server.on('stream', common.mustCall((stream, headers) => {
+    assert.deepStrictEqual(
+      headers[http2.sensitiveHeaders],
+      ['secret']
+    );
+    stream.respond({ ':status': 200 });
+    stream.end();
+  }));
+
+  const [ clientSide, serverSide ] = duplexPair();
+  server.emit('connection', serverSide);
+
+  const client = http2.connect('http://localhost:80', {
+    createConnection: common.mustCall(() => clientSide)
+  });
+
+  const rawHeaders = [
+    ':path', '/',
+    'secret', 'secret-value',
+  ];
+  rawHeaders[http2.sensitiveHeaders] = ['secret'];
+
+  const req = client.request(rawHeaders);
+
+  assert.deepStrictEqual(req.sentHeaders, {
+    '__proto__': null,
+    ':method': 'GET',
+    ':authority': 'localhost:80',
+    ':scheme': 'http',
+    ':path': '/',
+    'secret': 'secret-value',
+    [http2.sensitiveHeaders]: [ 'secret' ],
+  });
+
+  req.on('response', common.mustCall((headers) => {
+    assert.strictEqual(headers[':status'], 200);
+  }));
+
+  req.on('end', common.mustCall(() => {
+    clientSide.destroy();
+    clientSide.end();
+  }));
+  req.resume();
+  req.end();
+}

@@ -1,3 +1,5 @@
+'use strict'
+
 const SemVer = require('../classes/semver')
 const parse = require('./parse')
 const { safeRe: re, t } = require('../internal/re')

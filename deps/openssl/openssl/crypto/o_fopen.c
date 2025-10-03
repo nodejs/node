@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,7 +11,7 @@
 /*
  * Following definition aliases fopen to fopen64 on above mentioned
  * platforms. This makes it possible to open and sequentially access files
- * larger than 2GB from 32-bit application. It does not allow to traverse
+ * larger than 2GB from 32-bit application. It does not allow one to traverse
  * them beyond 2GB with fseek/ftell, but on the other hand *no* 32-bit
  * platform permits that, not with fseek/ftell. Not to mention that breaking
  * 2GB limit for seeking would require surgery to *our* API. But sequential
@@ -25,7 +25,7 @@
 #  endif
 # endif
 
-#include "e_os.h"
+#include "internal/e_os.h"
 #include "internal/cryptlib.h"
 
 #if !defined(OPENSSL_NO_STDIO)
@@ -39,8 +39,14 @@ FILE *openssl_fopen(const char *filename, const char *mode)
 {
     FILE *file = NULL;
 # if defined(_WIN32) && defined(CP_UTF8)
-    int sz, len_0 = (int)strlen(filename) + 1;
+    int sz, len_0;
     DWORD flags;
+# endif
+
+    if (filename == NULL)
+        return NULL;
+# if defined(_WIN32) && defined(CP_UTF8)
+    len_0 = (int)strlen(filename) + 1;
 
     /*
      * Basically there are three cases to cover: a) filename is
@@ -87,10 +93,8 @@ FILE *openssl_fopen(const char *filename, const char *mode)
             char *iterator;
             char lastchar;
 
-            if ((newname = OPENSSL_malloc(strlen(filename) + 1)) == NULL) {
-                ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+            if ((newname = OPENSSL_malloc(strlen(filename) + 1)) == NULL)
                 return NULL;
-            }
 
             for (iterator = newname, lastchar = '\0';
                 *filename; filename++, iterator++) {

@@ -56,7 +56,8 @@ static ares_status_t process_timeouts(ares_channel_t       *channel,
 static ares_status_t process_answer(ares_channel_t      *channel,
                                     const unsigned char *abuf, size_t alen,
                                     ares_conn_t          *conn,
-                                    const ares_timeval_t *now);
+                                    const ares_timeval_t *now,
+                                    ares_array_t        **requeue);
 static void handle_conn_error(ares_conn_t *conn, ares_bool_t critical_failure,
                               ares_status_t failure_status);
 static ares_bool_t same_questions(const ares_query_t      *query,
@@ -510,10 +511,38 @@ static ares_status_t read_conn_packets(ares_conn_t *conn)
   return ARES_SUCCESS;
 }
 
+/* Simple data structure to store a query that needs to be requeued with
+ * optional server */
+typedef struct {
+  unsigned short qid;
+  ares_server_t *server; /* optional */
+} ares_requeue_t;
+
+static ares_status_t ares_append_requeue(ares_array_t **requeue,
+                                         ares_query_t *query,
+                                         ares_server_t *server)
+{
+  ares_requeue_t entry;
+
+  if (*requeue == NULL) {
+    *requeue = ares_array_create(sizeof(ares_requeue_t), NULL);
+    if (*requeue == NULL) {
+      return ARES_ENOMEM;
+    }
+  }
+
+  ares_query_remove_from_conn(query);
+
+  entry.qid    = query->qid;
+  entry.server = server;
+  return ares_array_insertdata_last(*requeue, &entry);
+}
+
 static ares_status_t read_answers(ares_conn_t *conn, const ares_timeval_t *now)
 {
   ares_status_t   status;
   ares_channel_t *channel = conn->server->channel;
+  ares_array_t   *requeue = NULL;
 
   /* Process all queued answers */
   while (1) {
@@ -550,15 +579,43 @@ static ares_status_t read_answers(ares_conn_t *conn, const ares_timeval_t *now)
     data_len -= 2;
 
     /* We finished reading this answer; process it */
-    status = process_answer(channel, data, data_len, conn, now);
+    status = process_answer(channel, data, data_len, conn, now, &requeue);
     if (status != ARES_SUCCESS) {
       handle_conn_error(conn, ARES_TRUE, status);
-      return status;
+      goto cleanup;
     }
 
     /* Since we processed the answer, clear the tag so space can be reclaimed */
     ares_buf_tag_clear(conn->in_buf);
   }
+
+cleanup:
+
+  /* Flush requeue */
+  while (ares_array_len(requeue) > 0) {
+    ares_query_t  *query;
+    ares_requeue_t entry;
+    ares_status_t  internal_status;
+
+    internal_status = ares_array_claim_at(&entry, sizeof(entry), requeue, 0);
+    if (internal_status != ARES_SUCCESS) {
+      break;
+    }
+
+    /* Query disappeared */
+    query = ares_htable_szvp_get_direct(channel->queries_by_qid, entry.qid);
+    if (query == NULL) {
+      continue;
+    }
+
+    internal_status = ares_send_query(entry.server, query, now);
+    /* We only care about ARES_ENOMEM */
+    if (internal_status == ARES_ENOMEM) {
+      status = ARES_ENOMEM;
+    }
+  }
+  ares_array_destroy(requeue);
+
   return status;
 }
 
@@ -611,7 +668,8 @@ static ares_status_t process_timeouts(ares_channel_t       *channel,
 
     conn = query->conn;
     server_increment_failures(conn->server, query->using_tcp);
-    status = ares_requeue_query(query, now, ARES_ETIMEOUT, ARES_TRUE, NULL);
+    status = ares_requeue_query(query, now, ARES_ETIMEOUT, ARES_TRUE, NULL,
+                                NULL);
     if (status == ARES_ENOMEM) {
       goto done;
     }
@@ -701,7 +759,8 @@ static ares_bool_t issue_might_be_edns(const ares_dns_record_t *req,
 static ares_status_t process_answer(ares_channel_t      *channel,
                                     const unsigned char *abuf, size_t alen,
                                     ares_conn_t          *conn,
-                                    const ares_timeval_t *now)
+                                    const ares_timeval_t *now,
+                                    ares_array_t        **requeue)
 {
   ares_query_t      *query;
   /* Cache these as once ares_send_query() gets called, it may end up
@@ -745,7 +804,8 @@ static ares_status_t process_answer(ares_channel_t      *channel,
 
   /* Validate DNS cookie in response. This function may need to requeue the
    * query. */
-  if (ares_cookie_validate(query, rdnsrec, conn, now) != ARES_SUCCESS) {
+  if (ares_cookie_validate(query, rdnsrec, conn, now, requeue)
+      != ARES_SUCCESS) {
     /* Drop response and return */
     status = ARES_SUCCESS;
     goto cleanup;
@@ -768,9 +828,8 @@ static ares_status_t process_answer(ares_channel_t      *channel,
       goto cleanup;
     }
 
-    /* Send to same server */
-    ares_send_query(server, query, now);
-    status = ARES_SUCCESS;
+    /* Requeue to same server */
+    status = ares_append_requeue(requeue, query, server);
     goto cleanup;
   }
 
@@ -782,8 +841,9 @@ static ares_status_t process_answer(ares_channel_t      *channel,
       !(conn->flags & ARES_CONN_FLAG_TCP) &&
       !(channel->flags & ARES_FLAG_IGNTC)) {
     query->using_tcp = ARES_TRUE;
-    ares_send_query(NULL, query, now);
-    status = ARES_SUCCESS; /* Switched to TCP is ok */
+    status = ares_append_requeue(requeue, query, NULL);
+    /* Status will reflect success except on memory error, which is good since
+     * requeuing to TCP is ok */
     goto cleanup;
   }
 
@@ -809,11 +869,13 @@ static ares_status_t process_answer(ares_channel_t      *channel,
       }
 
       server_increment_failures(server, query->using_tcp);
-      ares_requeue_query(query, now, status, ARES_TRUE, rdnsrec);
+      status = ares_requeue_query(query, now, status, ARES_TRUE, rdnsrec, requeue);
 
-      /* Should any of these cause a connection termination?
-       * Maybe SERVER_FAILURE? */
-      status = ARES_SUCCESS;
+      if (status != ARES_ENOMEM) {
+        /* Should any of these cause a connection termination?
+         * Maybe SERVER_FAILURE? */
+        status = ARES_SUCCESS;
+      }
       goto cleanup;
     }
   }
@@ -854,10 +916,14 @@ static void handle_conn_error(ares_conn_t *conn, ares_bool_t critical_failure,
   ares_close_connection(conn, failure_status);
 }
 
+/* Requeue query will normally call ares_send_query() but in some circumstances
+ * this needs to be delayed, so if requeue is not NULL, it will add the query
+ * to the queue instead */
 ares_status_t ares_requeue_query(ares_query_t *query, const ares_timeval_t *now,
                                  ares_status_t            status,
                                  ares_bool_t              inc_try_count,
-                                 const ares_dns_record_t *dnsrec)
+                                 const ares_dns_record_t *dnsrec,
+                                 ares_array_t           **requeue)
 {
   ares_channel_t *channel   = query->channel;
   size_t          max_tries = ares_slist_len(channel->servers) * channel->tries;
@@ -873,6 +939,9 @@ ares_status_t ares_requeue_query(ares_query_t *query, const ares_timeval_t *now,
   }
 
   if (query->try_count < max_tries && !query->no_retries) {
+    if (requeue != NULL) {
+      return ares_append_requeue(requeue, query, NULL);
+    }
     return ares_send_query(NULL, query, now);
   }
 
@@ -1187,7 +1256,7 @@ ares_status_t ares_send_query(ares_server_t *requested_server,
       case ARES_ECONNREFUSED:
       case ARES_EBADFAMILY:
         server_increment_failures(server, query->using_tcp);
-        return ares_requeue_query(query, now, status, ARES_TRUE, NULL);
+        return ares_requeue_query(query, now, status, ARES_TRUE, NULL, NULL);
 
       /* Anything else is not retryable, likely ENOMEM */
       default:
@@ -1213,7 +1282,7 @@ ares_status_t ares_send_query(ares_server_t *requested_server,
     case ARES_ECONNREFUSED:
     case ARES_EBADFAMILY:
       handle_conn_error(conn, ARES_TRUE, status);
-      status = ares_requeue_query(query, now, status, ARES_TRUE, NULL);
+      status = ares_requeue_query(query, now, status, ARES_TRUE, NULL, NULL);
       if (status == ARES_ETIMEOUT) {
         status = ARES_ECONNREFUSED;
       }
@@ -1221,7 +1290,7 @@ ares_status_t ares_send_query(ares_server_t *requested_server,
 
     default:
       server_increment_failures(server, query->using_tcp);
-      status = ares_requeue_query(query, now, status, ARES_TRUE, NULL);
+      status = ares_requeue_query(query, now, status, ARES_TRUE, NULL, NULL);
       return status;
   }
 

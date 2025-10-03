@@ -11,10 +11,10 @@ cleanup() {
 
 download() {
   LATEST_TAG_NAME="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/quictls/openssl/git/matching-refs/tags/openssl-3.0');
+const res = await fetch('https://api.github.com/repos/openssl/openssl/git/matching-refs/tags/openssl-3.5');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
 const releases = await res.json()
-const latest = releases.findLast(({ ref }) => ref.includes('quic'));
+const latest = releases.at(-1);
 if(!latest) throw new Error(`Could not find latest release`);
 console.log(latest.ref.replace('refs/tags/',''));
 EOF
@@ -39,14 +39,14 @@ EOF
 
   OPENSSL_TARBALL="openssl.tar.gz"
 
-  curl -sL -o "$OPENSSL_TARBALL" "https://api.github.com/repos/quictls/openssl/tarball/$LATEST_TAG_NAME"
+  curl -sL -o "$OPENSSL_TARBALL" "https://api.github.com/repos/openssl/openssl/tarball/$LATEST_TAG_NAME"
 
   log_and_verify_sha256sum "openssl" "$OPENSSL_TARBALL"
 
   gzip -dc "$OPENSSL_TARBALL" | tar xf -
 
   rm "$OPENSSL_TARBALL"
-  mv quictls-openssl-* openssl
+  mv openssl-openssl-* openssl
   echo "Replacing existing OpenSSL..."
   rm -rf "$DEPS_DIR/openssl/openssl"
   mv "$WORKSPACE/openssl" "$DEPS_DIR/openssl/"
@@ -56,7 +56,7 @@ EOF
   echo "Please git add openssl, and commit the new version:"
   echo ""
   echo "$ git add -A deps/openssl/openssl"
-  echo "$ git commit -m \"deps: upgrade openssl sources to quictls/openssl-$NEW_VERSION\""
+  echo "$ git commit -m \"deps: upgrade openssl sources to openssl/openssl-$NEW_VERSION\""
   echo ""
   # The last line of the script should always print the new version,
   # as we need to add it to $GITHUB_ENV variable.
@@ -64,10 +64,8 @@ EOF
 }
 
 regenerate() {
-  command -v perl >/dev/null 2>&1 || { echo >&2 "Error: 'Perl' required but not installed."; exit 1; }
-  command -v nasm >/dev/null 2>&1 || { echo >&2 "Error: 'nasm' required but not installed."; exit 1; }
-  command -v as >/dev/null 2>&1 || { echo >&2 "Error: 'GNU as' required but not installed."; exit 1; }
-  perl -e "use Text::Template">/dev/null 2>&1 || { echo >&2 "Error: 'Text::Template' Perl module required but not installed."; exit 1; }
+  command -v docker >/dev/null 2>&1 || { echo >&2 "Error: 'docker' required but not installed."; exit 1; }
+  command -v make >/dev/null 2>&1 || { echo >&2 "Error: 'make' required but not installed."; exit 1; }
 
   echo "Regenerating platform-dependent files..."
 
@@ -76,7 +74,7 @@ regenerate() {
   # See https://github.com/nodejs/node/blob/main/doc/contributing/maintaining/maintaining-openssl.md#2-execute-make-in-depsopensslconfig-directory
   sed -i 's/#ifdef/%ifdef/g' "$DEPS_DIR/openssl/openssl/crypto/perlasm/x86asm.pl"
   sed -i 's/#endif/%endif/g' "$DEPS_DIR/openssl/openssl/crypto/perlasm/x86asm.pl"
-  make -C "$DEPS_DIR/openssl/config"
+  make -C "$BASE_DIR" gen-openssl
 
   echo "All done!"
   echo ""

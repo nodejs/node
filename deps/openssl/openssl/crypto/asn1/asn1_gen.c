@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,9 +7,10 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "internal/cryptlib.h"
 #include <openssl/asn1.h>
 #include <openssl/x509v3.h>
+#include "internal/cryptlib.h"
+#include "crypto/asn1.h"
 
 #define ASN1_GEN_FLAG           0x10000
 #define ASN1_GEN_FLAG_IMP       (ASN1_GEN_FLAG|1)
@@ -324,13 +325,13 @@ static int asn1_cb(const char *elem, int len, void *bitstr)
             ERR_raise(ERR_LIB_ASN1, ASN1_R_UNKNOWN_FORMAT);
             return -1;
         }
-        if (strncmp(vstart, "ASCII", 5) == 0)
+        if (HAS_PREFIX(vstart, "ASCII"))
             arg->format = ASN1_GEN_FORMAT_ASCII;
-        else if (strncmp(vstart, "UTF8", 4) == 0)
+        else if (HAS_PREFIX(vstart, "UTF8"))
             arg->format = ASN1_GEN_FORMAT_UTF8;
-        else if (strncmp(vstart, "HEX", 3) == 0)
+        else if (HAS_PREFIX(vstart, "HEX"))
             arg->format = ASN1_GEN_FORMAT_HEX;
-        else if (strncmp(vstart, "BITLIST", 7) == 0)
+        else if (HAS_PREFIX(vstart, "BITLIST"))
             arg->format = ASN1_GEN_FORMAT_BITLIST;
         else {
             ERR_raise(ERR_LIB_ASN1, ASN1_R_UNKNOWN_FORMAT);
@@ -498,7 +499,8 @@ static int append_exp(tag_exp_arg *arg, int exp_tag, int exp_class,
 static int asn1_str2tag(const char *tagstr, int len)
 {
     unsigned int i;
-    static const struct tag_name_st *tntmp, tnst[] = {
+    const struct tag_name_st *tntmp;
+    static const struct tag_name_st tnst[] = {
         ASN1_GEN_STR("BOOL", V_ASN1_BOOLEAN),
         ASN1_GEN_STR("BOOLEAN", V_ASN1_BOOLEAN),
         ASN1_GEN_STR("NULL", V_ASN1_NULL),
@@ -581,7 +583,7 @@ static ASN1_TYPE *asn1_str2type(const char *str, int format, int utype)
     int no_unused = 1;
 
     if ((atmp = ASN1_TYPE_new()) == NULL) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
         return NULL;
     }
 
@@ -642,11 +644,11 @@ static ASN1_TYPE *asn1_str2type(const char *str, int format, int utype)
             goto bad_form;
         }
         if ((atmp->value.asn1_string = ASN1_STRING_new()) == NULL) {
-            ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
             goto bad_str;
         }
         if (!ASN1_STRING_set(atmp->value.asn1_string, str, -1)) {
-            ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
             goto bad_str;
         }
         atmp->value.asn1_string->type = utype;
@@ -677,7 +679,7 @@ static ASN1_TYPE *asn1_str2type(const char *str, int format, int utype)
 
         if (ASN1_mbstring_copy(&atmp->value.asn1_string, (unsigned char *)str,
                                -1, format, ASN1_tag2bit(utype)) <= 0) {
-            ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
             goto bad_str;
         }
 
@@ -686,7 +688,7 @@ static ASN1_TYPE *asn1_str2type(const char *str, int format, int utype)
     case V_ASN1_BIT_STRING:
     case V_ASN1_OCTET_STRING:
         if ((atmp->value.asn1_string = ASN1_STRING_new()) == NULL) {
-            ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
             goto bad_form;
         }
 
@@ -700,7 +702,7 @@ static ASN1_TYPE *asn1_str2type(const char *str, int format, int utype)
             atmp->value.asn1_string->type = utype;
         } else if (format == ASN1_GEN_FORMAT_ASCII) {
             if (!ASN1_STRING_set(atmp->value.asn1_string, str, -1)) {
-                ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+                ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
                 goto bad_str;
             }
         } else if ((format == ASN1_GEN_FORMAT_BITLIST)
@@ -717,11 +719,8 @@ static ASN1_TYPE *asn1_str2type(const char *str, int format, int utype)
             goto bad_form;
         }
 
-        if ((utype == V_ASN1_BIT_STRING) && no_unused) {
-            atmp->value.asn1_string->flags
-                &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07);
-            atmp->value.asn1_string->flags |= ASN1_STRING_FLAG_BITS_LEFT;
-        }
+        if ((utype == V_ASN1_BIT_STRING) && no_unused)
+            ossl_asn1_string_set_bits_left(atmp->value.asn1_string, 0);
 
         break;
 
@@ -756,7 +755,7 @@ static int bitstr_cb(const char *elem, int len, void *bitstr)
         return 0;
     }
     if (!ASN1_BIT_STRING_set_bit(bitstr, bitnum, 1)) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
         return 0;
     }
     return 1;
@@ -768,7 +767,7 @@ static int mask_cb(const char *elem, int len, void *arg)
     int tag;
     if (elem == NULL)
         return 0;
-    if ((len == 3) && (strncmp(elem, "DIR", 3) == 0)) {
+    if (len == 3 && HAS_PREFIX(elem, "DIR")) {
         *pmask |= B_ASN1_DIRECTORYSTRING;
         return 1;
     }

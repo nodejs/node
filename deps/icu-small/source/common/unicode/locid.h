@@ -449,6 +449,11 @@ public:
      */
     static Locale U_EXPORT2 createFromName(const char *name);
 
+#ifndef U_HIDE_INTERNAL_API
+    /** @internal */
+    static Locale U_EXPORT2 createFromName(StringPiece name);
+#endif  /* U_HIDE_INTERNAL_API */
+
     /**
      * Creates a locale from the given string after canonicalizing
      * the string according to CLDR by calling uloc_canonicalize().
@@ -1133,7 +1138,9 @@ private:
      * @param cLocaleID The new locale name.
      * @param canonicalize whether to call uloc_canonicalize on cLocaleID
      */
-    Locale& init(const char* cLocaleID, UBool canonicalize);
+    Locale& init(const char* localeID, UBool canonicalize);
+    /** @internal */
+    Locale& init(StringPiece localeID, UBool canonicalize);
 
     /*
      * Internal constructor to allow construction of a locale object with

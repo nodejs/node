@@ -47,7 +47,10 @@ static int  gLastSerial = 0;
 //    Constructor.   Just set the fields to reasonable default values.
 //
 //-------------------------------------------------------------------------
-RBBINode::RBBINode(NodeType t) : UMemory() {
+RBBINode::RBBINode(NodeType t, UErrorCode& status) : UMemory() {
+    if (U_FAILURE(status)) {
+        return;
+    }
 #ifdef RBBI_DEBUG
     fSerialNum    = ++gLastSerial;
 #endif
@@ -65,10 +68,13 @@ RBBINode::RBBINode(NodeType t) : UMemory() {
     fVal          = 0;
     fPrecedence   = precZero;
 
-    UErrorCode     status = U_ZERO_ERROR;
-    fFirstPosSet  = new UVector(status);  // TODO - get a real status from somewhere
+    fFirstPosSet  = new UVector(status);
     fLastPosSet   = new UVector(status);
     fFollowPos    = new UVector(status);
+    if (U_SUCCESS(status) &&
+        (fFirstPosSet == nullptr || fLastPosSet == nullptr || fFollowPos == nullptr)) {
+        status =  U_MEMORY_ALLOCATION_ERROR;
+    }
     if      (t==opCat)    {fPrecedence = precOpCat;}
     else if (t==opOr)     {fPrecedence = precOpOr;}
     else if (t==opStart)  {fPrecedence = precStart;}
@@ -77,7 +83,10 @@ RBBINode::RBBINode(NodeType t) : UMemory() {
 }
 
 
-RBBINode::RBBINode(const RBBINode &other) : UMemory(other) {
+RBBINode::RBBINode(const RBBINode &other, UErrorCode& status) : UMemory(other) {
+    if (U_FAILURE(status)) {
+        return;
+    }
 #ifdef RBBI_DEBUG
     fSerialNum   = ++gLastSerial;
 #endif
@@ -94,10 +103,13 @@ RBBINode::RBBINode(const RBBINode &other) : UMemory(other) {
     fVal         = other.fVal;
     fRuleRoot    = false;
     fChainIn     = other.fChainIn;
-    UErrorCode     status = U_ZERO_ERROR;
     fFirstPosSet = new UVector(status);   // TODO - get a real status from somewhere
     fLastPosSet  = new UVector(status);
     fFollowPos   = new UVector(status);
+    if (U_SUCCESS(status) &&
+        (fFirstPosSet == nullptr || fLastPosSet == nullptr || fFollowPos == nullptr)) {
+        status =  U_MEMORY_ALLOCATION_ERROR;
+    }
 }
 
 
@@ -193,27 +205,54 @@ void RBBINode::NRDeleteNode(RBBINode *node) {
 //                  references in preparation for generating the DFA tables.
 //
 //-------------------------------------------------------------------------
-RBBINode *RBBINode::cloneTree() {
+constexpr int kRecursiveDepthLimit = 3500;
+RBBINode *RBBINode::cloneTree(UErrorCode &status, int depth) {
+    if (U_FAILURE(status)) {
+        return nullptr;
+    }
+    // If the depth of the stack is too deep, we return U_INPUT_TOO_LONG_ERROR
+    // to avoid stack overflow crash.
+    if (depth > kRecursiveDepthLimit) {
+        status = U_INPUT_TOO_LONG_ERROR;
+        return nullptr;
+    }
     RBBINode    *n;
 
     if (fType == RBBINode::varRef) {
         // If the current node is a variable reference, skip over it
         //   and clone the definition of the variable instead.
-        n = fLeftChild->cloneTree();
+        n = fLeftChild->cloneTree(status, depth+1);
+        if (U_FAILURE(status)) {
+            return nullptr;
+        }
     } else if (fType == RBBINode::uset) {
         n = this;
     } else {
-        n = new RBBINode(*this);
+        n = new RBBINode(*this, status);
+        if (U_FAILURE(status)) {
+            delete n;
+            return nullptr;
+        }
         // Check for null pointer.
-        if (n != nullptr) {
-            if (fLeftChild != nullptr) {
-                n->fLeftChild          = fLeftChild->cloneTree();
-                n->fLeftChild->fParent = n;
+        if (n == nullptr) {
+            status =  U_MEMORY_ALLOCATION_ERROR;
+            return nullptr;
+        }
+        if (fLeftChild != nullptr) {
+            n->fLeftChild          = fLeftChild->cloneTree(status, depth+1);
+            if (U_FAILURE(status)) {
+                delete n;
+                return nullptr;
             }
-            if (fRightChild != nullptr) {
-                n->fRightChild          = fRightChild->cloneTree();
-                n->fRightChild->fParent = n;
+            n->fLeftChild->fParent = n;
+        }
+        if (fRightChild != nullptr) {
+            n->fRightChild          = fRightChild->cloneTree(status, depth+1);
+            if (U_FAILURE(status)) {
+                delete n;
+                return nullptr;
             }
+            n->fRightChild->fParent = n;
         }
     }
     return n;
@@ -239,7 +278,6 @@ RBBINode *RBBINode::cloneTree() {
 //                      nested references are handled by cloneTree(), not here.
 //
 //-------------------------------------------------------------------------
-constexpr int kRecursiveDepthLimit = 3500;
 RBBINode *RBBINode::flattenVariables(UErrorCode& status, int depth) {
     if (U_FAILURE(status)) {
         return this;
@@ -251,21 +289,34 @@ RBBINode *RBBINode::flattenVariables(UErrorCode& status, int depth) {
         return this;
     }
     if (fType == varRef) {
-        RBBINode *retNode  = fLeftChild->cloneTree();
-        if (retNode != nullptr) {
-            retNode->fRuleRoot = this->fRuleRoot;
-            retNode->fChainIn  = this->fChainIn;
+        RBBINode *retNode  = fLeftChild->cloneTree(status, depth+1);
+        if (U_FAILURE(status)) {
+            return this;
         }
+        retNode->fRuleRoot = this->fRuleRoot;
+        retNode->fChainIn  = this->fChainIn;
         delete this;   // TODO: undefined behavior. Fix.
         return retNode;
     }
 
     if (fLeftChild != nullptr) {
         fLeftChild = fLeftChild->flattenVariables(status, depth+1);
+        if (fLeftChild == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+        }
+        if (U_FAILURE(status)) {
+            return this;
+        }
         fLeftChild->fParent  = this;
     }
     if (fRightChild != nullptr) {
         fRightChild = fRightChild->flattenVariables(status, depth+1);
+        if (fRightChild == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+        }
+        if (U_FAILURE(status)) {
+            return this;
+        }
         fRightChild->fParent = this;
     }
     return this;
@@ -280,7 +331,16 @@ RBBINode *RBBINode::flattenVariables(UErrorCode& status, int depth) {
 //                 the left child of the uset node.
 //
 //-------------------------------------------------------------------------
-void RBBINode::flattenSets() {
+void RBBINode::flattenSets(UErrorCode &status, int depth) {
+    if (U_FAILURE(status)) {
+        return;
+    }
+    // If the depth of the stack is too deep, we return U_INPUT_TOO_LONG_ERROR
+    // to avoid stack overflow crash.
+    if (depth > kRecursiveDepthLimit) {
+        status = U_INPUT_TOO_LONG_ERROR;
+        return;
+    }
     U_ASSERT(fType != setRef);
 
     if (fLeftChild != nullptr) {
@@ -288,11 +348,15 @@ void RBBINode::flattenSets() {
             RBBINode *setRefNode = fLeftChild;
             RBBINode *usetNode   = setRefNode->fLeftChild;
             RBBINode *replTree   = usetNode->fLeftChild;
-            fLeftChild           = replTree->cloneTree();
+            fLeftChild           = replTree->cloneTree(status, depth+1);
+            if (U_FAILURE(status)) {
+                delete setRefNode;
+                return;
+            }
             fLeftChild->fParent  = this;
             delete setRefNode;
         } else {
-            fLeftChild->flattenSets();
+            fLeftChild->flattenSets(status, depth+1);
         }
     }
 
@@ -301,11 +365,15 @@ void RBBINode::flattenSets() {
             RBBINode *setRefNode = fRightChild;
             RBBINode *usetNode   = setRefNode->fLeftChild;
             RBBINode *replTree   = usetNode->fLeftChild;
-            fRightChild           = replTree->cloneTree();
+            fRightChild           = replTree->cloneTree(status, depth+1);
+            if (U_FAILURE(status)) {
+                delete setRefNode;
+                return;
+            }
             fRightChild->fParent  = this;
             delete setRefNode;
         } else {
-            fRightChild->flattenSets();
+            fRightChild->flattenSets(status, depth+1);
         }
     }
 }

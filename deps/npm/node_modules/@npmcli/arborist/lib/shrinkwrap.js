@@ -817,7 +817,7 @@ class Shrinkwrap {
         if (!/^file:/.test(resolved)) {
           pathFixed = resolved
         } else {
-          pathFixed = `file:${resolve(this.path, resolved.slice(5)).replace(/#/g, '%23')}`
+          pathFixed = `file:${resolve(this.path, resolved.slice(5))}`
         }
       }
 
@@ -1011,7 +1011,7 @@ class Shrinkwrap {
     }
 
     if (node.isLink) {
-      lock.version = `file:${relpath(this.path, node.realpath).replace(/#/g, '%23')}`
+      lock.version = `file:${relpath(this.path, node.realpath)}`
     } else if (spec && (spec.type === 'file' || spec.type === 'remote')) {
       lock.version = spec.saveSpec
     } else if (spec && spec.type === 'git' || rSpec.type === 'git') {
@@ -1089,7 +1089,7 @@ class Shrinkwrap {
             // this especially shows up with workspace edges when the root
             // node is also a workspace in the set.
             const p = resolve(node.realpath, spec.slice('file:'.length))
-            set[k] = `file:${relpath(node.realpath, p).replace(/#/g, '%23')}`
+            set[k] = `file:${relpath(node.realpath, p)}`
           } else {
             set[k] = spec
           }

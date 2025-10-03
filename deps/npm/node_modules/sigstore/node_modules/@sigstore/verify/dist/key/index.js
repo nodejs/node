@@ -37,15 +37,10 @@ function verifyPublicKey(hint, timestamps, trustMaterial) {
 }
 function verifyCertificate(leaf, timestamps, trustMaterial) {
     // Check that leaf certificate chains to a trusted CA
-    const path = (0, certificate_1.verifyCertificateChain)(leaf, trustMaterial.certificateAuthorities);
-    // Check that ALL certificates are valid for ALL of the timestamps
-    const validForDate = timestamps.every((timestamp) => path.every((cert) => cert.validForDate(timestamp)));
-    if (!validForDate) {
-        throw new error_1.VerificationError({
-            code: 'CERTIFICATE_ERROR',
-            message: 'certificate is not valid or expired at the specified date',
-        });
-    }
+    let path = [];
+    timestamps.forEach((timestamp) => {
+        path = (0, certificate_1.verifyCertificateChain)(timestamp, leaf, trustMaterial.certificateAuthorities);
+    });
     return {
         scts: (0, sct_1.verifySCTs)(path[0], path[1], trustMaterial.ctlogs),
         signer: getSigner(path[0]),

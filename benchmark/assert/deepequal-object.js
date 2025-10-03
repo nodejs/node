@@ -4,12 +4,12 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  n: [25, 2e2],
+  n: [50, 2e2],
   size: [1e2, 1e4],
   method: ['deepEqual', 'notDeepEqual', 'deepStrictEqual', 'notDeepStrictEqual'],
 }, {
   combinationFilter: (p) => {
-    return p.size === 1e4 && p.n === 25 ||
+    return p.size === 1e4 && p.n === 50 ||
            p.size === 1e3 && p.n === 2e2 ||
            p.size === 1e2 && p.n === 2e3 ||
            p.size === 1;

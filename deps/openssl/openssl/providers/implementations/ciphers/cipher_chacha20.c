@@ -126,7 +126,7 @@ static int chacha20_set_ctx_params(void *vctx, const OSSL_PARAM params[])
     const OSSL_PARAM *p;
     size_t len;
 
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
     p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_KEYLEN);
@@ -214,13 +214,13 @@ const OSSL_DISPATCH ossl_chacha20_functions[] = {
     { OSSL_FUNC_CIPHER_FINAL, (void (*)(void))chacha20_final },
     { OSSL_FUNC_CIPHER_CIPHER, (void (*)(void))chacha20_cipher},
     { OSSL_FUNC_CIPHER_GET_PARAMS, (void (*)(void))chacha20_get_params },
-    { OSSL_FUNC_CIPHER_GETTABLE_PARAMS,(void (*)(void))chacha20_gettable_params },
+    { OSSL_FUNC_CIPHER_GETTABLE_PARAMS, (void (*)(void))chacha20_gettable_params },
     { OSSL_FUNC_CIPHER_GET_CTX_PARAMS, (void (*)(void))chacha20_get_ctx_params },
     { OSSL_FUNC_CIPHER_GETTABLE_CTX_PARAMS,
         (void (*)(void))chacha20_gettable_ctx_params },
     { OSSL_FUNC_CIPHER_SET_CTX_PARAMS, (void (*)(void))chacha20_set_ctx_params },
     { OSSL_FUNC_CIPHER_SETTABLE_CTX_PARAMS,
         (void (*)(void))chacha20_settable_ctx_params },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };
 

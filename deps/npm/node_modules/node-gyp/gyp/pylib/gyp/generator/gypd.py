@@ -31,9 +31,9 @@ to change.
 """
 
 
-import gyp.common
 import pprint
 
+import gyp.common
 
 # These variables should just be spit back out as variable references.
 _generator_identity_variables = [

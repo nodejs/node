@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -50,6 +50,8 @@
 #include "prov/providercommon.h"
 #include "prov/implementations.h"
 #include "prov/provider_util.h"
+#include "prov/securitycheck.h"
+#include "internal/params.h"
 
 typedef struct {
     void *provctx;
@@ -63,6 +65,7 @@ typedef struct {
     size_t salt_len;
     size_t out_len; /* optional KMAC parameter */
     int is_kmac;
+    OSSL_FIPS_IND_DECLARE
 } KDF_SSKDF;
 
 #define SSKDF_MAX_INLEN (1<<30)
@@ -73,14 +76,34 @@ typedef struct {
 static const unsigned char kmac_custom_str[] = { 0x4B, 0x44, 0x46 };
 
 static OSSL_FUNC_kdf_newctx_fn sskdf_new;
+static OSSL_FUNC_kdf_dupctx_fn sskdf_dup;
 static OSSL_FUNC_kdf_freectx_fn sskdf_free;
 static OSSL_FUNC_kdf_reset_fn sskdf_reset;
 static OSSL_FUNC_kdf_derive_fn sskdf_derive;
-static OSSL_FUNC_kdf_derive_fn x963kdf_derive;
 static OSSL_FUNC_kdf_settable_ctx_params_fn sskdf_settable_ctx_params;
 static OSSL_FUNC_kdf_set_ctx_params_fn sskdf_set_ctx_params;
 static OSSL_FUNC_kdf_gettable_ctx_params_fn sskdf_gettable_ctx_params;
 static OSSL_FUNC_kdf_get_ctx_params_fn sskdf_get_ctx_params;
+static OSSL_FUNC_kdf_derive_fn x963kdf_derive;
+static OSSL_FUNC_kdf_settable_ctx_params_fn x963kdf_settable_ctx_params;
+static OSSL_FUNC_kdf_set_ctx_params_fn x963kdf_set_ctx_params;
+static OSSL_FUNC_kdf_gettable_ctx_params_fn x963kdf_gettable_ctx_params;
+static OSSL_FUNC_kdf_get_ctx_params_fn x963kdf_get_ctx_params;
+
+/* Settable context parameters that are common across SSKDF and X963 KDF */
+#define SSKDF_COMMON_SETTABLES                                      \
+    OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SECRET, NULL, 0),        \
+    OSSL_PARAM_octet_string(OSSL_KDF_PARAM_KEY, NULL, 0),           \
+    OSSL_PARAM_octet_string(OSSL_KDF_PARAM_INFO, NULL, 0),          \
+    OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_PROPERTIES, NULL, 0),     \
+    OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_DIGEST, NULL, 0),         \
+    OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_MAC, NULL, 0),            \
+    OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SALT, NULL, 0),          \
+    OSSL_PARAM_size_t(OSSL_KDF_PARAM_MAC_SIZE, NULL)
+
+/* Gettable context parameters that are common across SSKDF and X963 KDF */
+#define SSKDF_COMMON_GETTABLES                                          \
+    OSSL_PARAM_size_t(OSSL_KDF_PARAM_SIZE, NULL)
 
 /*
  * Refer to https://csrc.nist.gov/publications/detail/sp/800-56c/rev-1/final
@@ -290,9 +313,10 @@ static void *sskdf_new(void *provctx)
     if (!ossl_prov_is_running())
         return NULL;
 
-    if ((ctx = OPENSSL_zalloc(sizeof(*ctx))) == NULL)
-        ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
-    ctx->provctx = provctx;
+    if ((ctx = OPENSSL_zalloc(sizeof(*ctx))) != NULL) {
+        ctx->provctx = provctx;
+        OSSL_FIPS_IND_INIT(ctx)
+    }
     return ctx;
 }
 
@@ -320,14 +344,35 @@ static void sskdf_free(void *vctx)
     }
 }
 
-static int sskdf_set_buffer(unsigned char **out, size_t *out_len,
-                            const OSSL_PARAM *p)
+static void *sskdf_dup(void *vctx)
 {
-    if (p->data == NULL || p->data_size == 0)
-        return 1;
-    OPENSSL_free(*out);
-    *out = NULL;
-    return OSSL_PARAM_get_octet_string(p, (void **)out, 0, out_len);
+    const KDF_SSKDF *src = (const KDF_SSKDF *)vctx;
+    KDF_SSKDF *dest;
+
+    dest = sskdf_new(src->provctx);
+    if (dest != NULL) {
+        if (src->macctx != NULL) {
+            dest->macctx = EVP_MAC_CTX_dup(src->macctx);
+            if (dest->macctx == NULL)
+                goto err;
+        }
+        if (!ossl_prov_memdup(src->info, src->info_len,
+                              &dest->info, &dest->info_len)
+                || !ossl_prov_memdup(src->salt, src->salt_len,
+                                     &dest->salt , &dest->salt_len)
+                || !ossl_prov_memdup(src->secret, src->secret_len,
+                                     &dest->secret, &dest->secret_len)
+                || !ossl_prov_digest_copy(&dest->digest, &src->digest))
+            goto err;
+        dest->out_len = src->out_len;
+        dest->is_kmac = src->is_kmac;
+        OSSL_FIPS_IND_COPY(dest, src)
+    }
+    return dest;
+
+ err:
+    sskdf_free(dest);
+    return NULL;
 }
 
 static size_t sskdf_size(KDF_SSKDF *ctx)
@@ -347,6 +392,24 @@ static size_t sskdf_size(KDF_SSKDF *ctx)
     return (len <= 0) ? 0 : (size_t)len;
 }
 
+#ifdef FIPS_MODULE
+static int fips_sskdf_key_check_passed(KDF_SSKDF *ctx)
+{
+    OSSL_LIB_CTX *libctx = PROV_LIBCTX_OF(ctx->provctx);
+    int key_approved = ossl_kdf_check_key_size(ctx->secret_len);
+
+    if (!key_approved) {
+        if (!OSSL_FIPS_IND_ON_UNAPPROVED(ctx, OSSL_FIPS_IND_SETTABLE0,
+                                         libctx, "SSKDF", "Key size",
+                                         ossl_fips_config_sskdf_key_check)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
+            return 0;
+        }
+    }
+    return 1;
+}
+#endif
+
 static int sskdf_derive(void *vctx, unsigned char *key, size_t keylen,
                         const OSSL_PARAM params[])
 {
@@ -359,6 +422,7 @@ static int sskdf_derive(void *vctx, unsigned char *key, size_t keylen,
         ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_SECRET);
         return 0;
     }
+
     md = ossl_prov_digest_md(&ctx->digest);
 
     if (ctx->macctx != NULL) {
@@ -393,10 +457,8 @@ static int sskdf_derive(void *vctx, unsigned char *key, size_t keylen,
         /* If no salt is set then use a default_salt of zeros */
         if (ctx->salt == NULL || ctx->salt_len <= 0) {
             ctx->salt = OPENSSL_zalloc(default_salt_len);
-            if (ctx->salt == NULL) {
-                ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
+            if (ctx->salt == NULL)
                 return 0;
-            }
             ctx->salt_len = default_salt_len;
         }
         ret = SSKDF_mac_kdm(ctx->macctx,
@@ -416,13 +478,54 @@ static int sskdf_derive(void *vctx, unsigned char *key, size_t keylen,
     }
 }
 
+#ifdef FIPS_MODULE
+static int fips_x963kdf_digest_check_passed(KDF_SSKDF *ctx, const EVP_MD *md)
+{
+    OSSL_LIB_CTX *libctx = PROV_LIBCTX_OF(ctx->provctx);
+    /*
+     * Perform digest check
+     *
+     * X963KDF is a KDF defined in ANSI-X9.63. According to ACVP specification
+     * section 7.3.1, only SHA-2 and SHA-3 can be regarded as valid hash
+     * functions.
+     */
+    int digest_unapproved = (ctx->is_kmac != 1) && EVP_MD_is_a(md, SN_sha1);
+
+    if (digest_unapproved) {
+        if (!OSSL_FIPS_IND_ON_UNAPPROVED(ctx, OSSL_FIPS_IND_SETTABLE0,
+                                         libctx, "X963KDF", "Digest",
+                                         ossl_fips_config_x963kdf_digest_check)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_DIGEST_NOT_ALLOWED);
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int fips_x963kdf_key_check_passed(KDF_SSKDF *ctx)
+{
+    OSSL_LIB_CTX *libctx = PROV_LIBCTX_OF(ctx->provctx);
+    int key_approved = ossl_kdf_check_key_size(ctx->secret_len);
+
+    if (!key_approved) {
+        if (!OSSL_FIPS_IND_ON_UNAPPROVED(ctx, OSSL_FIPS_IND_SETTABLE1,
+                                         libctx, "X963KDF", "Key size",
+                                         ossl_fips_config_x963kdf_key_check)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
+            return 0;
+        }
+    }
+    return 1;
+}
+#endif
+
 static int x963kdf_derive(void *vctx, unsigned char *key, size_t keylen,
                           const OSSL_PARAM params[])
 {
     KDF_SSKDF *ctx = (KDF_SSKDF *)vctx;
     const EVP_MD *md;
 
-    if (!ossl_prov_is_running() || !sskdf_set_ctx_params(ctx, params))
+    if (!ossl_prov_is_running() || !x963kdf_set_ctx_params(ctx, params))
         return 0;
 
     if (ctx->secret == NULL) {
@@ -446,42 +549,54 @@ static int x963kdf_derive(void *vctx, unsigned char *key, size_t keylen,
                           ctx->info, ctx->info_len, 1, key, keylen);
 }
 
-static int sskdf_set_ctx_params(void *vctx, const OSSL_PARAM params[])
+static int sskdf_common_set_ctx_params(KDF_SSKDF *ctx, const OSSL_PARAM params[])
 {
     const OSSL_PARAM *p;
-    KDF_SSKDF *ctx = vctx;
     OSSL_LIB_CTX *libctx = PROV_LIBCTX_OF(ctx->provctx);
+    const EVP_MD *md = NULL;
     size_t sz;
+    int r;
 
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
     if (!ossl_prov_macctx_load_from_params(&ctx->macctx, params,
                                            NULL, NULL, NULL, libctx))
         return 0;
-   if (ctx->macctx != NULL) {
-        if (EVP_MAC_is_a(EVP_MAC_CTX_get0_mac(ctx->macctx),
-                         OSSL_MAC_NAME_KMAC128)
-            || EVP_MAC_is_a(EVP_MAC_CTX_get0_mac(ctx->macctx),
-                            OSSL_MAC_NAME_KMAC256)) {
-            ctx->is_kmac = 1;
+    if (ctx->macctx != NULL) {
+         if (EVP_MAC_is_a(EVP_MAC_CTX_get0_mac(ctx->macctx),
+                          OSSL_MAC_NAME_KMAC128)
+             || EVP_MAC_is_a(EVP_MAC_CTX_get0_mac(ctx->macctx),
+                             OSSL_MAC_NAME_KMAC256)) {
+             ctx->is_kmac = 1;
+         }
+    }
+
+    if (OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_DIGEST) != NULL) {
+        if (!ossl_prov_digest_load_from_params(&ctx->digest, params, libctx))
+            return 0;
+
+        md = ossl_prov_digest_md(&ctx->digest);
+        if (EVP_MD_xof(md)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_XOF_DIGESTS_NOT_ALLOWED);
+            return 0;
         }
-   }
+    }
 
-   if (!ossl_prov_digest_load_from_params(&ctx->digest, params, libctx))
-       return 0;
+    r = ossl_param_get1_octet_string(params, OSSL_KDF_PARAM_SECRET,
+                                     &ctx->secret, &ctx->secret_len);
+    if (r == -1)
+        r = ossl_param_get1_octet_string(params, OSSL_KDF_PARAM_KEY,
+                                         &ctx->secret, &ctx->secret_len);
+    if (r == 0)
+        return 0;
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_SECRET)) != NULL
-        || (p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_KEY)) != NULL)
-        if (!sskdf_set_buffer(&ctx->secret, &ctx->secret_len, p))
-            return 0;
+    if (ossl_param_get1_concat_octet_string(params, OSSL_KDF_PARAM_INFO,
+                                            &ctx->info, &ctx->info_len, 0) == 0)
+        return 0;
 
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_INFO)) != NULL)
-        if (!sskdf_set_buffer(&ctx->info, &ctx->info_len, p))
-            return 0;
-
-    if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_SALT)) != NULL)
-        if (!sskdf_set_buffer(&ctx->salt, &ctx->salt_len, p))
+    if (ossl_param_get1_octet_string(params, OSSL_KDF_PARAM_SALT,
+                                     &ctx->salt, &ctx->salt_len) == 0)
             return 0;
 
     if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_MAC_SIZE))
@@ -493,38 +608,148 @@ static int sskdf_set_ctx_params(void *vctx, const OSSL_PARAM params[])
     return 1;
 }
 
+static int sskdf_set_ctx_params(void *vctx, const OSSL_PARAM params[])
+{
+    KDF_SSKDF *ctx = (KDF_SSKDF *)vctx;
+
+    if (ossl_param_is_empty(params))
+        return 1;
+
+    if (!OSSL_FIPS_IND_SET_CTX_PARAM(ctx, OSSL_FIPS_IND_SETTABLE0, params,
+                                     OSSL_KDF_PARAM_FIPS_KEY_CHECK))
+        return 0;
+
+    if (!sskdf_common_set_ctx_params(ctx, params))
+        return 0;
+
+#ifdef FIPS_MODULE
+    if ((OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_KEY) != NULL) ||
+        (OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_SECRET) != NULL))
+        if (!fips_sskdf_key_check_passed(ctx))
+            return 0;
+#endif
+
+    return 1;
+}
+
 static const OSSL_PARAM *sskdf_settable_ctx_params(ossl_unused void *ctx,
                                                    ossl_unused void *provctx)
 {
     static const OSSL_PARAM known_settable_ctx_params[] = {
-        OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SECRET, NULL, 0),
-        OSSL_PARAM_octet_string(OSSL_KDF_PARAM_KEY, NULL, 0),
-        OSSL_PARAM_octet_string(OSSL_KDF_PARAM_INFO, NULL, 0),
-        OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_PROPERTIES, NULL, 0),
-        OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_DIGEST, NULL, 0),
-        OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_MAC, NULL, 0),
-        OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SALT, NULL, 0),
-        OSSL_PARAM_size_t(OSSL_KDF_PARAM_MAC_SIZE, NULL),
+        SSKDF_COMMON_SETTABLES,
+        OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_KDF_PARAM_FIPS_KEY_CHECK)
         OSSL_PARAM_END
     };
     return known_settable_ctx_params;
 }
 
+static int sskdf_common_get_ctx_params(KDF_SSKDF *ctx, OSSL_PARAM params[])
+{
+    OSSL_PARAM *p;
+
+    if (ossl_param_is_empty(params))
+        return 1;
+
+    if ((p = OSSL_PARAM_locate(params, OSSL_KDF_PARAM_SIZE)) != NULL) {
+        if (!OSSL_PARAM_set_size_t(p, sskdf_size(ctx)))
+            return 0;
+    }
+
+    return 1;
+}
+
 static int sskdf_get_ctx_params(void *vctx, OSSL_PARAM params[])
 {
     KDF_SSKDF *ctx = (KDF_SSKDF *)vctx;
-    OSSL_PARAM *p;
 
-    if ((p = OSSL_PARAM_locate(params, OSSL_KDF_PARAM_SIZE)) != NULL)
-        return OSSL_PARAM_set_size_t(p, sskdf_size(ctx));
-    return -2;
+    if (ossl_param_is_empty(params))
+        return 1;
+
+    if (!sskdf_common_get_ctx_params(ctx, params))
+        return 0;
+
+    if (!OSSL_FIPS_IND_GET_CTX_PARAM(ctx, params))
+        return 0;
+
+    return 1;
 }
 
 static const OSSL_PARAM *sskdf_gettable_ctx_params(ossl_unused void *ctx,
                                                    ossl_unused void *provctx)
 {
     static const OSSL_PARAM known_gettable_ctx_params[] = {
-        OSSL_PARAM_size_t(OSSL_KDF_PARAM_SIZE, NULL),
+        SSKDF_COMMON_GETTABLES,
+        OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
+        OSSL_PARAM_END
+    };
+    return known_gettable_ctx_params;
+}
+
+static int x963kdf_set_ctx_params(void *vctx, const OSSL_PARAM params[])
+{
+    KDF_SSKDF *ctx = (KDF_SSKDF *)vctx;
+
+    if (ossl_param_is_empty(params))
+        return 1;
+
+    if (!OSSL_FIPS_IND_SET_CTX_PARAM(ctx, OSSL_FIPS_IND_SETTABLE0, params,
+                                     OSSL_KDF_PARAM_FIPS_DIGEST_CHECK))
+        return 0;
+    if (!OSSL_FIPS_IND_SET_CTX_PARAM(ctx, OSSL_FIPS_IND_SETTABLE1, params,
+                                     OSSL_KDF_PARAM_FIPS_KEY_CHECK))
+        return 0;
+
+    if (!sskdf_common_set_ctx_params(ctx, params))
+        return 0;
+
+#ifdef FIPS_MODULE
+    if (OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_DIGEST) != NULL) {
+        const EVP_MD *md = ossl_prov_digest_md(&ctx->digest);
+
+        if (!fips_x963kdf_digest_check_passed(ctx, md))
+            return 0;
+    }
+
+    if ((OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_KEY) != NULL) ||
+        (OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_SECRET) != NULL))
+        if (!fips_x963kdf_key_check_passed(ctx))
+            return 0;
+#endif
+
+    return 1;
+}
+
+static const OSSL_PARAM *x963kdf_settable_ctx_params(ossl_unused void *ctx,
+                                                     ossl_unused void *provctx)
+{
+    static const OSSL_PARAM known_settable_ctx_params[] = {
+        SSKDF_COMMON_SETTABLES,
+        OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_KDF_PARAM_FIPS_DIGEST_CHECK)
+        OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_KDF_PARAM_FIPS_KEY_CHECK)
+        OSSL_PARAM_END
+    };
+    return known_settable_ctx_params;
+}
+
+static int x963kdf_get_ctx_params(void *vctx, OSSL_PARAM params[])
+{
+    KDF_SSKDF *ctx = (KDF_SSKDF *)vctx;
+
+    if (!sskdf_common_get_ctx_params(ctx, params))
+        return 0;
+
+    if (!OSSL_FIPS_IND_GET_CTX_PARAM(ctx, params))
+        return 0;
+
+    return 1;
+}
+
+static const OSSL_PARAM *x963kdf_gettable_ctx_params(ossl_unused void *ctx,
+                                                     ossl_unused void *provctx)
+{
+    static const OSSL_PARAM known_gettable_ctx_params[] = {
+        SSKDF_COMMON_GETTABLES,
+        OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
         OSSL_PARAM_END
     };
     return known_gettable_ctx_params;
@@ -532,6 +757,7 @@ static const OSSL_PARAM *sskdf_gettable_ctx_params(ossl_unused void *ctx,
 
 const OSSL_DISPATCH ossl_kdf_sskdf_functions[] = {
     { OSSL_FUNC_KDF_NEWCTX, (void(*)(void))sskdf_new },
+    { OSSL_FUNC_KDF_DUPCTX, (void(*)(void))sskdf_dup },
     { OSSL_FUNC_KDF_FREECTX, (void(*)(void))sskdf_free },
     { OSSL_FUNC_KDF_RESET, (void(*)(void))sskdf_reset },
     { OSSL_FUNC_KDF_DERIVE, (void(*)(void))sskdf_derive },
@@ -541,19 +767,20 @@ const OSSL_DISPATCH ossl_kdf_sskdf_functions[] = {
     { OSSL_FUNC_KDF_GETTABLE_CTX_PARAMS,
       (void(*)(void))sskdf_gettable_ctx_params },
     { OSSL_FUNC_KDF_GET_CTX_PARAMS, (void(*)(void))sskdf_get_ctx_params },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };
 
 const OSSL_DISPATCH ossl_kdf_x963_kdf_functions[] = {
     { OSSL_FUNC_KDF_NEWCTX, (void(*)(void))sskdf_new },
+    { OSSL_FUNC_KDF_DUPCTX, (void(*)(void))sskdf_dup },
     { OSSL_FUNC_KDF_FREECTX, (void(*)(void))sskdf_free },
     { OSSL_FUNC_KDF_RESET, (void(*)(void))sskdf_reset },
     { OSSL_FUNC_KDF_DERIVE, (void(*)(void))x963kdf_derive },
     { OSSL_FUNC_KDF_SETTABLE_CTX_PARAMS,
-      (void(*)(void))sskdf_settable_ctx_params },
-    { OSSL_FUNC_KDF_SET_CTX_PARAMS, (void(*)(void))sskdf_set_ctx_params },
+      (void(*)(void))x963kdf_settable_ctx_params },
+    { OSSL_FUNC_KDF_SET_CTX_PARAMS, (void(*)(void))x963kdf_set_ctx_params },
     { OSSL_FUNC_KDF_GETTABLE_CTX_PARAMS,
-      (void(*)(void))sskdf_gettable_ctx_params },
-    { OSSL_FUNC_KDF_GET_CTX_PARAMS, (void(*)(void))sskdf_get_ctx_params },
-    { 0, NULL }
+      (void(*)(void))x963kdf_gettable_ctx_params },
+    { OSSL_FUNC_KDF_GET_CTX_PARAMS, (void(*)(void))x963kdf_get_ctx_params },
+    OSSL_DISPATCH_END
 };

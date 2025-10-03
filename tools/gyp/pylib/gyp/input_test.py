@@ -6,8 +6,9 @@
 
 """Unit tests for the input.py file."""
 
-import gyp.input
 import unittest
+
+import gyp.input
 
 
 class TestFindCycles(unittest.TestCase):

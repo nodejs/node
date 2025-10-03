@@ -97,8 +97,7 @@ int uv__io_fork(uv_loop_t* loop) {
 
 
 int uv__io_check_fd(uv_loop_t* loop, int fd) {
-  struct kevent ev;
-  int rc;
+  struct kevent ev[2];
   struct stat sb;
 #ifdef __APPLE__
   char path[MAXPATHLEN];
@@ -133,17 +132,12 @@ int uv__io_check_fd(uv_loop_t* loop, int fd) {
   }
 #endif
 
-  rc = 0;
-  EV_SET(&ev, fd, EVFILT_READ, EV_ADD, 0, 0, 0);
-  if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
-    rc = UV__ERR(errno);
+  EV_SET(ev, fd, EVFILT_READ, EV_ADD, 0, 0, 0);
+  EV_SET(ev + 1, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
+  if (kevent(loop->backend_fd, ev, 2, NULL, 0, NULL))
+    return UV__ERR(errno);
 
-  EV_SET(&ev, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
-  if (rc == 0)
-    if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
-      abort();
-
-  return rc;
+  return 0;
 }
 
 
@@ -367,6 +361,17 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         continue;
       }
 
+#if UV__KQUEUE_EVFILT_USER
+      if (ev->filter == EVFILT_USER) {
+        w = &loop->async_io_watcher;
+        assert(fd == w->fd);
+        uv__metrics_update_idle_time(loop);
+        w->cb(loop, w, w->events);
+        nevents++;
+        continue;
+      }
+#endif
+
       if (ev->filter == EVFILT_VNODE) {
         assert(w->events == POLLIN);
         assert(w->pevents == POLLIN);
@@ -564,6 +569,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
                       const char* path,
                       unsigned int flags) {
   int fd;
+  int r;
 #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
   struct stat statbuf;
 #endif
@@ -599,7 +605,6 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   if (0 == atomic_load_explicit(&uv__has_forked_with_cfrunloop,
                                 memory_order_relaxed)) {
-    int r;
     /* The fallback fd is no longer needed */
     uv__close_nocheckstdio(fd);
     handle->event_watcher.fd = -1;
@@ -615,11 +620,16 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 fallback:
 #endif /* #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070 */
 
-  uv__handle_start(handle);
-  uv__io_init(&handle->event_watcher, uv__fs_event, fd);
-  uv__io_start(handle->loop, &handle->event_watcher, POLLIN);
+  r = uv__io_init_start(handle->loop,
+                        &handle->event_watcher,
+                        uv__fs_event,
+                        fd,
+                        POLLIN);
 
-  return 0;
+  if (!r)
+    uv__handle_start(handle);
+
+  return r;
 }
 
 

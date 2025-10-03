@@ -6,4 +6,4 @@ eval(`
 
   throw new Error('error in anonymous script');
 
-`)
+`);

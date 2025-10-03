@@ -20,7 +20,7 @@ const consistentResolve = (resolved, fromPath, toPath, relPaths = false) => {
       raw,
     } = npa(resolved, fromPath)
     if (type === 'file' || type === 'directory') {
-      const cleanFetchSpec = fetchSpec.replace(/#/g, '%23')
+      const cleanFetchSpec = fetchSpec
       if (relPaths && toPath) {
         return `file:${relpath(toPath, cleanFetchSpec)}`
       }

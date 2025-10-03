@@ -141,8 +141,10 @@ v8::Local<v8::Array> AsyncHooks::js_execution_async_resources() {
 }
 
 v8::Local<v8::Object> AsyncHooks::native_execution_async_resource(size_t i) {
-  if (i >= native_execution_async_resources_.size()) return {};
-  return native_execution_async_resources_[i];
+  if (i >= native_execution_async_resources_.size() ||
+      native_execution_async_resources_[i] == nullptr)
+    return {};
+  return *native_execution_async_resources_[i];
 }
 
 inline v8::Local<v8::String> AsyncHooks::provider_string(int idx) {
@@ -374,6 +376,11 @@ inline ExitCode Environment::exit_code(const ExitCode default_code) const {
   return exit_info_[kHasExitCode] == 0
              ? default_code
              : static_cast<ExitCode>(exit_info_[kExitCode]);
+}
+
+inline void Environment::set_exit_code(const ExitCode code) {
+  exit_info_[kExitCode] = static_cast<int>(code);
+  exit_info_[kHasExitCode] = 1;
 }
 
 inline AliasedInt32Array& Environment::exit_info() {
@@ -724,6 +731,10 @@ inline uint64_t Environment::thread_id() const {
   return thread_id_;
 }
 
+inline std::string_view Environment::thread_name() const {
+  return thread_name_;
+}
+
 inline worker::Worker* Environment::worker_context() const {
   return isolate_data()->worker_context();
 }
@@ -798,6 +809,13 @@ inline void Environment::ThrowError(
     const char* errmsg) {
   v8::HandleScope handle_scope(isolate());
   isolate()->ThrowException(fun(OneByteString(isolate(), errmsg), {}));
+}
+
+inline void Environment::ThrowStdErrException(std::error_code error_code,
+                                              const char* syscall,
+                                              const char* path) {
+  ThrowErrnoException(
+      error_code.value(), syscall, error_code.message().c_str(), path);
 }
 
 inline void Environment::ThrowErrnoException(int errorno,

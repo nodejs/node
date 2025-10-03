@@ -4,11 +4,12 @@ const assert = require('assert');
 
 // Import of pure js (non-shared) deps for comparison
 const acorn = require('../../deps/acorn/acorn/package.json');
-const cjs_module_lexer = require('../../deps/cjs-module-lexer/package.json');
+const cjs_module_lexer = require('../../deps/cjs-module-lexer/src/package.json');
 
 const expected_keys = [
   'ares',
   'brotli',
+  'zstd',
   'modules',
   'uv',
   'v8',
@@ -20,11 +21,11 @@ const expected_keys = [
   'acorn',
   'simdjson',
   'simdutf',
-  'sqlite',
   'ada',
   'cjs_module_lexer',
   'nbytes',
 ];
+
 
 const hasUndici = process.config.variables.node_builtin_shareable_builtins.includes('deps/undici/undici.js');
 const hasAmaro = process.config.variables.node_builtin_shareable_builtins.includes('deps/amaro/dist/index.js');
@@ -55,6 +56,10 @@ if (common.hasIntl) {
   expected_keys.push('unicode');
 }
 
+if (common.hasSQLite) {
+  expected_keys.push('sqlite');
+}
+
 expected_keys.sort();
 expected_keys.unshift('node');
 
@@ -72,6 +77,7 @@ assert.match(process.versions.node, commonTemplate);
 assert.match(process.versions.uv, commonTemplate);
 assert.match(process.versions.nbytes, commonTemplate);
 assert.match(process.versions.zlib, /^\d+(?:\.\d+){1,3}(?:-.*)?$/);
+assert.match(process.versions.zstd, commonTemplate);
 
 if (hasUndici) {
   assert.match(process.versions.undici, commonTemplate);

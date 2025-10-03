@@ -1,4 +1,5 @@
-const jsDocPrefix = 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/';
+const mdnPrefix = 'https://developer.mozilla.org/en-US/docs/Web';
+const jsDocPrefix = `${mdnPrefix}/JavaScript/`;
 
 const jsDataStructuresUrl = `${jsDocPrefix}Data_structures`;
 const jsPrimitives = {
@@ -14,9 +15,14 @@ const jsPrimitives = {
 const jsGlobalObjectsUrl = `${jsDocPrefix}Reference/Global_Objects/`;
 const jsGlobalTypes = [
   'AggregateError', 'Array', 'ArrayBuffer', 'DataView', 'Date', 'Error',
-  'EvalError', 'Function', 'Map', 'Object', 'Promise', 'Proxy', 'RangeError',
-  'ReferenceError', 'RegExp', 'Set', 'SharedArrayBuffer', 'SyntaxError',
-  'TypeError', 'TypedArray', 'URIError', 'Uint8Array',
+  'EvalError', 'Function', 'Map', 'NaN', 'Object', 'Promise', 'Proxy', 'RangeError',
+  'ReferenceError', 'RegExp', 'Set', 'SharedArrayBuffer', 'SyntaxError', 'Symbol',
+  'TypeError', 'URIError', 'WeakMap', 'WeakSet',
+
+  'TypedArray',
+  'Float16Array', 'Float32Array', 'Float64Array',
+  'Int8Array', 'Int16Array', 'Int32Array',
+  'Uint8Array', 'Uint8ClampedArray', 'Uint16Array', 'Uint32Array',
 ];
 
 const customTypesMap = {
@@ -27,8 +33,7 @@ const customTypesMap = {
   'AbortController': 'globals.html#class-abortcontroller',
   'AbortSignal': 'globals.html#class-abortsignal',
 
-  'ArrayBufferView':
-    'https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView',
+  'ArrayBufferView': `${mdnPrefix}/API/ArrayBufferView`,
 
   'AsyncIterator': 'https://tc39.github.io/ecma262/#sec-asynciterator-interface',
 
@@ -82,22 +87,29 @@ const customTypesMap = {
   'Verify': 'crypto.html#class-verify',
   'crypto.constants': 'crypto.html#cryptoconstants',
 
+  'Algorithm': 'webcrypto.html#class-algorithm',
   'CryptoKey': 'webcrypto.html#class-cryptokey',
   'CryptoKeyPair': 'webcrypto.html#class-cryptokeypair',
   'Crypto': 'webcrypto.html#class-crypto',
   'SubtleCrypto': 'webcrypto.html#class-subtlecrypto',
   'RsaOaepParams': 'webcrypto.html#class-rsaoaepparams',
-  'AlgorithmIdentifier': 'webcrypto.html#class-algorithmidentifier',
   'AesCtrParams': 'webcrypto.html#class-aesctrparams',
   'AesCbcParams': 'webcrypto.html#class-aescbcparams',
+  'AesDerivedKeyParams': 'webcrypto.html#class-aesderivedkeyparams',
   'AesGcmParams': 'webcrypto.html#class-aesgcmparams',
   'EcdhKeyDeriveParams': 'webcrypto.html#class-ecdhkeyderiveparams',
   'HkdfParams': 'webcrypto.html#class-hkdfparams',
+  'KeyAlgorithm': 'webcrypto.html#class-keyalgorithm',
   'Pbkdf2Params': 'webcrypto.html#class-pbkdf2params',
+  'HmacKeyAlgorithm': 'webcrypto.html#class-hmackeyalgorithm',
   'HmacKeyGenParams': 'webcrypto.html#class-hmackeygenparams',
+  'AesKeyAlgorithm': 'webcrypto.html#class-aeskeyalgorithm',
   'AesKeyGenParams': 'webcrypto.html#class-aeskeygenparams',
+  'RsaHashedKeyAlgorithm':
+    'webcrypto.html#class-rsahashedkeyalgorithm',
   'RsaHashedKeyGenParams':
     'webcrypto.html#class-rsahashedkeygenparams',
+  'EcKeyAlgorithm': 'webcrypto.html#class-eckeyalgorithm',
   'EcKeyGenParams': 'webcrypto.html#class-eckeygenparams',
   'RsaHashedImportParams':
     'webcrypto.html#class-rsahashedimportparams',
@@ -112,6 +124,7 @@ const customTypesMap = {
   'Channel': 'diagnostics_channel.html#class-channel',
   'TracingChannel': 'diagnostics_channel.html#class-tracingchannel',
 
+  'DatabaseSync': 'sqlite.html#class-databasesync',
   'Domain': 'domain.html#class-domain',
 
   'errors.Error': 'errors.html#class-error',
@@ -123,6 +136,14 @@ const customTypesMap = {
   'Event': 'events.html#class-event',
   'CustomEvent': 'events.html#class-customevent',
   'EventListener': 'events.html#event-listener',
+
+  'CloseEvent': `${mdnPrefix}/API/CloseEvent`,
+  'EventSource': `${mdnPrefix}/API/EventSource`,
+  'MessageEvent': `${mdnPrefix}/API/MessageEvent`,
+
+  'DOMException': `${mdnPrefix}/API/DOMException`,
+  'Storage': `${mdnPrefix}/API/Storage`,
+  'WebSocket': `${mdnPrefix}/API/WebSocket`,
 
   'FileHandle': 'fs.html#class-filehandle',
   'fs.Dir': 'fs.html#class-fsdir',
@@ -144,6 +165,7 @@ const customTypesMap = {
   'ClientHttp2Session': 'http2.html#class-clienthttp2session',
   'ClientHttp2Stream': 'http2.html#class-clienthttp2stream',
   'HTTP/2 Headers Object': 'http2.html#headers-object',
+  'HTTP/2 Raw Headers': 'http2.html#raw-headers',
   'HTTP/2 Settings Object': 'http2.html#settings-object',
   'http2.Http2ServerRequest': 'http2.html#class-http2http2serverrequest',
   'http2.Http2ServerResponse':
@@ -235,6 +257,7 @@ const customTypesMap = {
   'vm.Module': 'vm.html#class-vmmodule',
   'vm.Script': 'vm.html#class-vmscript',
   'vm.SourceTextModule': 'vm.html#class-vmsourcetextmodule',
+  'ModuleRequest': 'vm.html#type-modulerequest',
   'vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER':
       'vm.html#vmconstantsuse_main_context_default_loader',
   'vm.constants.DONT_CONTEXTIFY':
@@ -246,6 +269,7 @@ const customTypesMap = {
   'X509Certificate': 'crypto.html#class-x509certificate',
 
   'zlib options': 'zlib.html#class-options',
+  'zstd options': 'zlib.html#class-zstdoptions',
 
   'ReadableStream':
     'webstreams.html#class-readablestream',

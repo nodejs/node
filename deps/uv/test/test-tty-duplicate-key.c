@@ -131,7 +131,7 @@ static void make_key_event_records(WORD virt_key, DWORD ctr_key_state,
 # undef KEV
 }
 
-TEST_IMPL(tty_duplicate_vt100_fn_key) {
+TEST_IMPL(tty_duplicate_vt100_fn_key_libuv) {
   int r;
   int ttyin_fd;
   uv_tty_t tty_in;
@@ -163,6 +163,10 @@ TEST_IMPL(tty_duplicate_vt100_fn_key) {
   r = uv_read_start((uv_stream_t*)&tty_in, tty_alloc, tty_read);
   ASSERT_OK(r);
 
+  /*
+   * libuv has chosen to emit ESC[[A, but other terminals, and even
+   * Windows itself use a different escape sequence, see the test below.
+   */
   expect_str = ESC"[[A";
   expect_nread = strlen(expect_str);
 
@@ -173,6 +177,62 @@ TEST_IMPL(tty_duplicate_vt100_fn_key) {
   /*
    * Send F1 keystrokes. Test of issue cause by #2114 that vt100 fn key
    * duplicate.
+   */
+  make_key_event_records(VK_F1, 0, TRUE, records);
+  WriteConsoleInputW(handle, records, ARRAY_SIZE(records), &written);
+  ASSERT_EQ(written, ARRAY_SIZE(records));
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  MAKE_VALGRIND_HAPPY(loop);
+  return 0;
+}
+
+TEST_IMPL(tty_duplicate_vt100_fn_key_winvt) {
+  int r;
+  int ttyin_fd;
+  uv_tty_t tty_in;
+  uv_loop_t* loop;
+  HANDLE handle;
+  INPUT_RECORD records[2];
+  DWORD written;
+
+  loop = uv_default_loop();
+
+  /* Make sure we have an FD that refers to a tty */
+  handle = CreateFileA("conin$",
+                       GENERIC_READ | GENERIC_WRITE,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE,
+                       NULL,
+                       OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL,
+                       NULL);
+  ASSERT_PTR_NE(handle, INVALID_HANDLE_VALUE);
+  ttyin_fd = _open_osfhandle((intptr_t) handle, 0);
+  ASSERT_GE(ttyin_fd, 0);
+  ASSERT_EQ(UV_TTY, uv_guess_handle(ttyin_fd));
+
+  r = uv_tty_init(uv_default_loop(), &tty_in, ttyin_fd, 1);  /* Readable. */
+  ASSERT_OK(r);
+  ASSERT(uv_is_readable((uv_stream_t*) &tty_in));
+  ASSERT(!uv_is_writable((uv_stream_t*) &tty_in));
+
+  r = uv_read_start((uv_stream_t*)&tty_in, tty_alloc, tty_read);
+  ASSERT_OK(r);
+
+  /*
+   * Some keys, like F1, get are assigned a different value by Windows
+   * in ENABLE_VIRTUAL_TERMINAL_INPUT mode vs. libuv in the test above.
+   */
+  expect_str = ESC"OP";
+  expect_nread = strlen(expect_str);
+
+  /* Turn on raw mode. */
+  r = uv_tty_set_mode(&tty_in, UV_TTY_MODE_RAW_VT);
+  ASSERT_OK(r);
+
+  /*
+   * Send F1 keystroke.
    */
   make_key_event_records(VK_F1, 0, TRUE, records);
   WriteConsoleInputW(handle, records, ARRAY_SIZE(records), &written);

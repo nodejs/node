@@ -14,7 +14,7 @@ const script = path.relative(process.cwd(), scriptFullPath);
 
 // Run after quit.
 const runTest = async () => {
-  const cli = startCLI(['--port=0', script]);
+  const cli = startCLI([script]);
   try {
     await cli.waitForInitialBreak();
     await cli.waitForPrompt();

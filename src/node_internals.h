@@ -37,6 +37,7 @@
 #include <cstdlib>
 
 #include <string>
+#include <variant>
 #include <vector>
 
 struct sockaddr;
@@ -113,7 +114,10 @@ std::string GetHumanReadableProcessName();
 v8::Maybe<void> InitializeBaseContextForSnapshot(
     v8::Local<v8::Context> context);
 v8::Maybe<void> InitializeContextRuntime(v8::Local<v8::Context> context);
-v8::Maybe<void> InitializePrimordials(v8::Local<v8::Context> context);
+v8::Maybe<void> InitializePrimordials(v8::Local<v8::Context> context,
+                                      IsolateData* isolate_data);
+v8::MaybeLocal<v8::Object> InitializePrivateSymbols(
+    v8::Local<v8::Context> context, IsolateData* isolate_data);
 
 class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  public:
@@ -242,9 +246,14 @@ class InternalCallbackScope {
     // compatibility issues, but it shouldn't.)
     kSkipTaskQueues = 2
   };
+  // You need to either guarantee that this `InternalCallbackScope` is
+  // stack-allocated itself, OR that `object` is a pointer to a stack-allocated
+  // `v8::Local<v8::Object>` which outlives this scope (e.g. for the
+  // public `CallbackScope` which indirectly allocates an instance of
+  // this class for ABI stability purposes).
   InternalCallbackScope(
       Environment* env,
-      v8::Local<v8::Object> object,
+      std::variant<v8::Local<v8::Object>, v8::Local<v8::Object>*> object,
       const async_context& asyncContext,
       int flags = kNoFlags,
       v8::Local<v8::Value> context_frame = v8::Local<v8::Value>());
@@ -260,7 +269,8 @@ class InternalCallbackScope {
  private:
   Environment* env_;
   async_context async_context_;
-  v8::Local<v8::Object> object_;
+  v8::Local<v8::Object> object_storage_;
+  v8::Local<v8::Object>* object_;
   bool skip_hooks_;
   bool skip_task_queues_;
   bool failed_ = false;
@@ -340,7 +350,8 @@ v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
 // was provided by the embedder.
 v8::MaybeLocal<v8::Value> StartExecution(Environment* env,
                                          StartExecutionCallback cb = nullptr);
-v8::MaybeLocal<v8::Object> GetPerContextExports(v8::Local<v8::Context> context);
+v8::MaybeLocal<v8::Object> GetPerContextExports(
+    v8::Local<v8::Context> context, IsolateData* isolate_data = nullptr);
 void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 class InitializationResultImpl final : public InitializationResult {

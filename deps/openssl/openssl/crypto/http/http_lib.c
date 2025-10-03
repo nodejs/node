@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,6 +14,13 @@
 #include <openssl/bio.h> /* for BIO_snprintf() */
 #include <openssl/err.h>
 #include "internal/cryptlib.h" /* for ossl_assert() */
+#ifndef OPENSSL_NO_SOCK
+# include "internal/bio_addr.h" /* for NI_MAXHOST */
+#endif
+#ifndef NI_MAXHOST
+# define NI_MAXHOST 255
+#endif
+#include "crypto/ctype.h" /* for ossl_isspace() */
 
 static void init_pstring(char **pstr)
 {
@@ -52,7 +59,7 @@ int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
     const char *user, *user_end;
     const char *host, *host_end;
     const char *port, *port_end;
-    unsigned int portnum;
+    unsigned int portnum = 0;
     const char *path, *path_end;
     const char *query, *query_end;
     const char *frag, *frag_end;
@@ -91,22 +98,16 @@ int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
     else
         host = p;
 
-    /* parse host name/address as far as needed here */
+    /* parse hostname/address as far as needed here */
     if (host[0] == '[') {
-        /* ipv6 literal, which may include ':' */
+        /* IPv6 literal, which may include ':' */
         host_end = strchr(host + 1, ']');
         if (host_end == NULL)
             goto parse_err;
         p = ++host_end;
     } else {
         /* look for start of optional port, path, query, or fragment */
-        host_end = strchr(host, ':');
-        if (host_end == NULL)
-            host_end = strchr(host, '/');
-        if (host_end == NULL)
-            host_end = strchr(host, '?');
-        if (host_end == NULL)
-            host_end = strchr(host, '#');
+        host_end = strpbrk(host, ":/?#");
         if (host_end == NULL) /* the remaining string is just the hostname */
             host_end = host + strlen(host);
         p = host_end;
@@ -189,6 +190,8 @@ int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
     return 0;
 }
 
+#ifndef OPENSSL_NO_HTTP
+
 int OSSL_HTTP_parse_url(const char *url, int *pssl, char **puser, char **phost,
                         char **pport, int *pport_num,
                         char **ppath, char **pquery, char **pfrag)
@@ -251,10 +254,17 @@ static int use_proxy(const char *no_proxy, const char *server)
 {
     size_t sl;
     const char *found = NULL;
+    char host[NI_MAXHOST];
 
     if (!ossl_assert(server != NULL))
         return 0;
     sl = strlen(server);
+    if (sl >= 2 && sl < sizeof(host) + 2 && server[0] == '[' && server[sl - 1] == ']') {
+        /* strip leading '[' and trailing ']' from escaped IPv6 address */
+        sl -= 2;
+        strncpy(host, server + 1, sl);
+        server = host;
+    }
 
     /*
      * using environment variable names, both lowercase and uppercase variants,
@@ -268,8 +278,8 @@ static int use_proxy(const char *no_proxy, const char *server)
     if (no_proxy != NULL)
         found = strstr(no_proxy, server);
     while (found != NULL
-           && ((found != no_proxy && found[-1] != ' ' && found[-1] != ',')
-               || (found[sl] != '\0' && found[sl] != ' ' && found[sl] != ',')))
+           && ((found != no_proxy && !ossl_isspace(found[-1]) && found[-1] != ',')
+               || (found[sl] != '\0' && !ossl_isspace(found[sl]) && found[sl] != ',')))
         found = strstr(found + 1, server);
     return found == NULL;
 }
@@ -285,9 +295,11 @@ const char *OSSL_HTTP_adapt_proxy(const char *proxy, const char *no_proxy,
     if (proxy == NULL)
         proxy = ossl_safe_getenv(use_ssl ? "https_proxy" : "http_proxy");
     if (proxy == NULL)
-        proxy = ossl_safe_getenv(use_ssl ? OPENSSL_HTTP_PROXY : OPENSSL_HTTPS_PROXY);
+        proxy = ossl_safe_getenv(use_ssl ? OPENSSL_HTTPS_PROXY : OPENSSL_HTTP_PROXY);
 
     if (proxy == NULL || *proxy == '\0' || !use_proxy(no_proxy, server))
         return NULL;
     return proxy;
 }
+
+#endif /* !defined(OPENSSL_NO_HTTP) */

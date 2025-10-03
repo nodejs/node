@@ -11,12 +11,15 @@
 #include "node.h"
 #include "simdjson.h"
 #include "simdutf.h"
+#if HAVE_SQLITE
 #include "sqlite3.h"
+#endif  // HAVE_SQLITE
 #include "undici_version.h"
 #include "util.h"
 #include "uv.h"
 #include "uvwasi.h"
 #include "v8.h"
+#include "zstd.h"
 
 #ifdef NODE_BUNDLED_ZLIB
 #include "zlib_version.h"
@@ -126,6 +129,7 @@ Metadata::Versions::Versions() {
   acorn = ACORN_VERSION;
   cjs_module_lexer = CJS_MODULE_LEXER_VERSION;
   uvwasi = UVWASI_VERSION_STRING;
+  zstd = ZSTD_VERSION_STRING;
 
 #ifndef NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH
 #if HAVE_AMARO
@@ -150,9 +154,33 @@ Metadata::Versions::Versions() {
 
   simdjson = SIMDJSON_VERSION;
   simdutf = SIMDUTF_VERSION;
+#if HAVE_SQLITE
   sqlite = SQLITE_VERSION;
+#endif  // HAVE_SQLITE
   ada = ADA_VERSION;
   nbytes = NBYTES_VERSION;
+}
+
+std::array<std::pair<std::string_view, std::string_view>,
+           NODE_VERSIONS_KEY_COUNT>
+Metadata::Versions::pairs() const {
+  std::array<std::pair<std::string_view, std::string_view>,
+             NODE_VERSIONS_KEY_COUNT>
+      versions_array;
+  auto slot = versions_array.begin();
+
+#define V(key)                                                                 \
+  do {                                                                         \
+    *slot++ = std::pair<std::string_view, std::string_view>(                   \
+        #key, per_process::metadata.versions.key);                             \
+  } while (0);
+  NODE_VERSIONS_KEYS(V)
+#undef V
+
+  std::ranges::sort(versions_array,
+                    [](auto& a, auto& b) { return a.first < b.first; });
+
+  return versions_array;
 }
 
 Metadata::Release::Release() : name(NODE_RELEASE) {

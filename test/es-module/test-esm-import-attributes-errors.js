@@ -28,7 +28,7 @@ async function test() {
 
   await rejects(
     import(jsModuleDataUrl, { with: { type: 'json', other: 'unsupported' } }),
-    { code: 'ERR_IMPORT_ATTRIBUTE_TYPE_INCOMPATIBLE' }
+    { code: 'ERR_IMPORT_ATTRIBUTE_UNSUPPORTED' }
   );
 
   await rejects(
@@ -48,7 +48,7 @@ async function test() {
 
   await rejects(
     import(jsonModuleDataUrl, { with: { foo: 'bar' } }),
-    { code: 'ERR_IMPORT_ATTRIBUTE_MISSING' }
+    { code: 'ERR_IMPORT_ATTRIBUTE_UNSUPPORTED' }
   );
 
   await rejects(

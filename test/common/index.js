@@ -54,6 +54,8 @@ const noop = () => {};
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
 
+const hasSQLite = Boolean(process.versions.sqlite);
+
 const hasQuic = hasCrypto && !!process.config.variables.openssl_quic;
 
 function parseTestFlags(filename = process.argv[1]) {
@@ -124,7 +126,7 @@ const isMacOS = process.platform === 'darwin';
 const isASan = process.config.variables.asan === 1;
 const isRiscv64 = process.arch === 'riscv64';
 const isDebug = process.features.debug;
-const isPi = (() => {
+function isPi() {
   try {
     // Normal Raspberry Pi detection is to find the `Raspberry Pi` string in
     // the contents of `/sys/firmware/devicetree/base/model` but that doesn't
@@ -136,7 +138,7 @@ const isPi = (() => {
   } catch {
     return false;
   }
-})();
+}
 
 // When using high concurrency or in the CI we need much more time for each connection attempt
 net.setDefaultAutoSelectFamilyAttemptTimeout(platformTimeout(net.getDefaultAutoSelectFamilyAttemptTimeout() * 10));
@@ -256,7 +258,7 @@ function platformTimeout(ms) {
   if (exports.isAIX || exports.isIBMi)
     return multipliers.two * ms; // Default localhost speed is slower on AIX
 
-  if (isPi)
+  if (isPi())
     return multipliers.two * ms;  // Raspberry Pi devices
 
   if (isRiscv64) {
@@ -682,6 +684,12 @@ function skipIf32Bits() {
   }
 }
 
+function skipIfSQLiteMissing() {
+  if (!hasSQLite) {
+    skip('missing SQLite');
+  }
+}
+
 function getArrayBufferViews(buf) {
   const { buffer, byteOffset, byteLength } = buf;
 
@@ -855,6 +863,17 @@ function expectRequiredModule(mod, expectation, checkESModule = true) {
   assert.deepStrictEqual(clone, { ...expectation });
 }
 
+function expectRequiredTLAError(err) {
+  const message = /require\(\) cannot be used on an ESM graph with top-level await/;
+  if (typeof err === 'string') {
+    assert.match(err, /ERR_REQUIRE_ASYNC_MODULE/);
+    assert.match(err, message);
+  } else {
+    assert.strictEqual(err.code, 'ERR_REQUIRE_ASYNC_MODULE');
+    assert.match(err.message, message);
+  }
+}
+
 const common = {
   allowGlobals,
   buildType,
@@ -864,6 +883,7 @@ const common = {
   escapePOSIXShell,
   expectsError,
   expectRequiredModule,
+  expectRequiredTLAError,
   expectWarning,
   getArrayBufferViews,
   getBufferSources,
@@ -871,6 +891,7 @@ const common = {
   hasIntl,
   hasCrypto,
   hasQuic,
+  hasSQLite,
   invalidArgTypeHelper,
   isAlive,
   isASan,
@@ -900,6 +921,7 @@ const common = {
   skipIf32Bits,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
+  skipIfSQLiteMissing,
   spawnPromisified,
 
   get enoughTestMem() {

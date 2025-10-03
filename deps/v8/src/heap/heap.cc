@@ -6252,12 +6252,13 @@ void Heap::AddRetainedMaps(Handle<NativeContext> context,
                            GlobalHandleVector<Map> maps) {
   Handle<WeakArrayList> array(WeakArrayList::cast(context->retained_maps()),
                               isolate());
-  if (array->IsFull()) {
+  int new_maps_size = static_cast<int>(maps.size()) * kRetainMapEntrySize;
+  if (array->length() + new_maps_size > array->capacity()) {
     CompactRetainedMaps(*array);
   }
   int cur_length = array->length();
-  array = WeakArrayList::EnsureSpace(
-      isolate(), array, cur_length + static_cast<int>(maps.size()) * 2);
+  array =
+      WeakArrayList::EnsureSpace(isolate(), array, cur_length + new_maps_size);
   if (*array != context->retained_maps()) {
     context->set_retained_maps(*array);
   }
@@ -6275,7 +6276,7 @@ void Heap::AddRetainedMaps(Handle<NativeContext> context,
       raw_array->Set(cur_length, MakeWeak(*map));
       raw_array->Set(cur_length + 1,
                      Smi::FromInt(v8_flags.retain_maps_for_n_gc));
-      cur_length += 2;
+      cur_length += kRetainMapEntrySize;
       raw_array->set_length(cur_length);
 
       map->set_is_in_retained_map_list(true);
@@ -6287,7 +6288,7 @@ void Heap::CompactRetainedMaps(Tagged<WeakArrayList> retained_maps) {
   int length = retained_maps->length();
   int new_length = 0;
   // This loop compacts the array by removing cleared weak cells.
-  for (int i = 0; i < length; i += 2) {
+  for (int i = 0; i < length; i += kRetainMapEntrySize) {
     Tagged<MaybeObject> maybe_object = retained_maps->Get(i);
     if (maybe_object.IsCleared()) {
       continue;
@@ -6301,7 +6302,7 @@ void Heap::CompactRetainedMaps(Tagged<WeakArrayList> retained_maps) {
       retained_maps->Set(new_length, maybe_object);
       retained_maps->Set(new_length + 1, age);
     }
-    new_length += 2;
+    new_length += kRetainMapEntrySize;
   }
   Tagged<HeapObject> undefined = ReadOnlyRoots(this).undefined_value();
   for (int i = new_length; i < length; i++) {

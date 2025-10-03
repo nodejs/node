@@ -13,7 +13,7 @@ const { once } = require('events');
   assert.strictEqual(fh.constructor.name, 'FileHandle');
 
   const kTransfer = Object.getOwnPropertySymbols(Object.getPrototypeOf(fh))
-    .filter((symbol) => symbol.description === 'messaging_transfer_symbol')[0];
+    .find((symbol) => symbol.description === 'messaging_transfer_symbol');
   assert.strictEqual(typeof kTransfer, 'symbol');
   fh[kTransfer] = () => {
     return {

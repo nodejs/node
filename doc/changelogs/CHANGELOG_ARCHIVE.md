@@ -14,6 +14,8 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#0.11.16">0.11.16</a><br/>
+<a href="#0.11.15">0.11.15</a><br/>
 <a href="#0.11.14">0.11.14</a><br/>
 <a href="#0.11.13">0.11.13</a><br/>
 <a href="#0.11.12">0.11.12</a><br/>
@@ -176,6 +178,90 @@
   * [0.12.x](CHANGELOG_V012.md)
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
+
+<a id="0.11.16"></a>
+
+## 2015.01.29, Version 0.11.16 (Unstable)
+
+* openssl: Upgrade to 1.0.1l
+* npm: Upgrade to 2.3.0
+* url: revert support of `path` for url.format" (Julien Gilli)
+* assert: use `util.inspect()` to create error messages (cjihrig)
+* net: throw on invalid socket timeouts (cjihrig)
+* url: fix parsing of ssh urls (Evan Lucas)
+
+<a id="0.11.15"></a>
+
+## 2015.01.20, Version 0.11.15 (Unstable)
+
+* v8: Upgrade to 3.28.73
+* uv: Upgrade to 1.0.2
+* npm: Upgrade to v2.1.6
+* uv: float patch to revert tty breakage (Trevor Norris)
+* v8: re-implement debugger-agent (Fedor Indutny)
+* v8: apply floating irhydra patch (Fedor Indutny)
+* v8: fix postmortem-metadata generator (Refael Ackermann)
+* debugger: fix unhandled error in setBreakpoint (Miroslav Bajtoš)
+* async-wrap: add event hooks (Trevor Norris)
+* async-wrap: expose async-wrap as binding (Trevor Norris)
+* buffer, doc: misc. fix and cleanup (Trevor Norris)
+* buffer: add generic functions for (u)int ops (Yazhong Liu)
+* buffer: fix and cleanup fill() (Trevor Norris)
+* buffer: mv floating point read/write checks to JS (Trevor Norris)
+* build, i18n: improve Intl build, add "--with-intl" (Steven R. Loomis)
+* build: add small-icu support for binary packages (Julien Gilli)
+* build: do not generate support for libuv's probes (Julien Gilli)
+* build: i18n: add icu config options (Steven R. Loomis)
+* build: i18n: support little-endian machines (Steven Loomis)
+* build: vcbuild fix "The input line is too long." (Alexis Campailla)
+* child\_process: improve `spawn()` argument handling (cjihrig)
+* cluster: avoid race enabling debugger in worker (Timothy J Fontaine)
+* cluster: `cluster.disconnect()` should check status (Sam Roberts)
+* cluster: do not signal children in debug mode (Fedor Indutny)
+* cluster: don't assert if worker has no handles (Sam Roberts)
+* core: fix usage of `uv_cwd` (Saúl Ibarra Corretgé)
+* core: replace `uv_fs_readdir` with `uv_fs_scandir` (Saúl Ibarra Corretgé)
+* crypto: `createDiffieHellman` throw for bad args (Trevor Norris)
+* crypto: lower RSS usage for TLSCallbacks (Fedor Indutny)
+* crypto: store thread id as pointer-sized (Alexis Campailla)
+* dns: propagate domain for c-ares methods (Chris Dickinson)
+* fs: fix symlink error message (Vladimir Kurchatkin)
+* http: Improve `_addHeaderLines` method (Jackson Tian)
+* http: cleanup `setHeader()` (Trevor Norris)
+* http: rename `flush` to `flushHeaders` (Timothy J Fontaine)
+* lib,src: fix `spawnSync` ignoring its 'env' option (Juanjo)
+* modules: adding load linked modules feature (Thorsten Lorenz)
+* net: Make `server.connections` un-enumerable (Patrick Mooney)
+* net: add `pauseOnConnect` option to `createServer()` (cjihrig)
+* net: make `connect()` input validation synchronous (cjihrig)
+* node: avoid automatic microtask runs (Vladimir Kurchatkin)
+* node: fix throws before timer module is loaded (Trevor Norris)
+* openssl: fix keypress requirement in apps on win32 (Fedor Indutny)
+* path: added `parse()` and `format()` functions (Rory Bradford)
+* path: allow calling platform specific methods (Timothy J Fontaine)
+* path: don't lower-cases drive letters (Bert Belder)
+* path: refactor `normalizeArray()` (Nathan Woltman)
+* process: pid can be a string in process.kill() (Sam Roberts)
+* readline: fix performance issue when large line (Jicheng Li)
+* readline: should not require an output stream. (Julien Gilli)
+* smalloc: check if obj has external data (Vladimir Kurchatkin)
+* smalloc: don't allow to dispose typed arrays (Vladimir Kurchatkin)
+* smalloc: fix bad assert for zero length data (Trevor Norris)
+* smalloc: fix copyOnto optimization (Vladimir Kurchatkin)
+* src: all wrap's now use actual FunctionTemplate (Trevor Norris)
+* src: fix VC++ warning C4244 (Rasmus Christian Pedersen)
+* src: remove Async Listener (Trevor Norris)
+* stream: switch `_writableState.buffer` to queue (Chris Dickinson)
+* streams: make setDefaultEncoding() throw (Brian White)
+* streams: set default encoding for writable streams (Johnny Ray)
+* tls: remove `tls.createSecurePair` code deprecation (Jackson Tian)
+* tls\_wrap: ignore `ZERO_RETURN` after `close_notify` (Fedor Indutny)
+* url: change hostname regex to negate invalid chars (Jonathan Johnson)
+* url: fixed encoding for slash switching emulation. (Evan Rutledge Borden)
+* url: improve parsing speed (CGavrila)
+* url: make query() consistent (Gabriel Wicke)
+* url: support `path` for `url.format` (Yazhong Liu)
+* util: add es6 Symbol support for `util.inspect` (gyson)
 
 <a id="0.11.14"></a>
 

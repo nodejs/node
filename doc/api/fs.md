@@ -199,8 +199,7 @@ changes:
 * `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
-    prior to closing it. **Default:** `false`.
+  * `signal` {AbortSignal|undefined} allows aborting an in-progress writeFile. **Default:** `undefined`
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Alias of [`filehandle.writeFile()`][].
@@ -376,7 +375,7 @@ Unlike `filehandle.sync` this method does not flush modified metadata.
 added: v10.0.0
 -->
 
-* {number} The numeric file descriptor managed by the {FileHandle} object.
+* Type: {number} The numeric file descriptor managed by the {FileHandle} object.
 
 #### `filehandle.read(buffer, offset, length, position)`
 
@@ -398,7 +397,7 @@ changes:
   from the file. If `null` or `-1`, data will be read from the current file
   position, and the position will be updated. If `position` is a non-negative
   integer, the current file position will remain unchanged.
-  **Default:**: `null`
+  **Default:** `null`
 * Returns: {Promise} Fulfills upon success with an object with two properties:
   * `bytesRead` {integer} The number of bytes read
   * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
@@ -482,6 +481,15 @@ number of bytes read is zero.
 <!-- YAML
 added: v17.0.0
 changes:
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/58548
+    description: Added the `autoClose` option.
+  - version: v22.15.0
+    pr-url: https://github.com/nodejs/node/pull/55461
+    description: Removed option to create a 'bytes' stream. Streams are now always 'bytes' streams.
   - version:
     - v20.0.0
     - v18.17.0
@@ -489,15 +497,13 @@ changes:
     description: Added option to create a 'bytes' stream.
 -->
 
-> Stability: 1 - Experimental
-
 * `options` {Object}
-  * `type` {string|undefined} Whether to open a normal or a `'bytes'` stream.
-    **Default:** `undefined`
-
+  * `autoClose` {boolean} When true, causes the {FileHandle} to be closed when the
+    stream is closed. **Default:** `false`
 * Returns: {ReadableStream}
 
-Returns a `ReadableStream` that may be used to read the files data.
+Returns a byte-oriented `ReadableStream` that may be used to read the file's
+contents.
 
 An error will be thrown if this method is called more than once or is called
 after the `FileHandle` is closed or closing.
@@ -741,7 +747,7 @@ added:
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer} **Default:** `null`
+  * `position` {integer|null} **Default:** `null`
 * Returns: {Promise}
 
 Write `buffer` to the file.
@@ -805,6 +811,7 @@ changes:
 * `options` {Object|string}
   * `encoding` {string|null} The expected character encoding when `data` is a
     string. **Default:** `'utf8'`
+  * `signal` {AbortSignal|undefined} allows aborting an in-progress writeFile. **Default:** `undefined`
 * Returns: {Promise}
 
 Asynchronously writes data to a file, replacing the file if it already exists.
@@ -860,7 +867,8 @@ added:
 
 > Stability: 1 - Experimental
 
-An alias for `filehandle.close()`.
+Calls `filehandle.close()` and returns a promise that fulfills when the
+filehandle is closed.
 
 ### `fsPromises.access(path[, mode])`
 
@@ -1074,6 +1082,12 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/58182
+    description: Add support for `URL` instances for `cwd` option.
   - version: v22.14.0
     pr-url: https://github.com/nodejs/node/pull/56489
     description: Add support for `exclude` option to accept glob patterns.
@@ -1082,14 +1096,15 @@ changes:
     description: Add support for `withFileTypes` as an option.
 -->
 
-> Stability: 1 - Experimental
-
 * `pattern` {string|string\[]}
 * `options` {Object}
-  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+    If a string array is provided, each string should be a glob pattern that
+    specifies paths to exclude. Note: Negation patterns (e.g., '!foo.js') are
+    not supported.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 * Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
@@ -1116,6 +1131,8 @@ const { glob } = require('node:fs/promises');
 <!-- YAML
 deprecated: v10.0.0
 -->
+
+> Stability: 0 - Deprecated
 
 * `path` {string|Buffer|URL}
 * `mode` {integer}
@@ -1777,6 +1794,11 @@ added:
     filename passed to the listener. **Default:** `'utf8'`.
   * `signal` {AbortSignal} An {AbortSignal} used to signal when the watcher
     should stop.
+  * `maxQueue` {number} Specifies the number of events to queue between iterations
+    of the {AsyncIterator} returned. **Default:** `2048`.
+  * `overflow` {string} Either `'ignore'` or `'throw'` when there are more events to be
+    queued than `maxQueue` allows. `'ignore'` means overflow events are dropped and a
+    warning is emitted, while `'throw'` means to throw an exception. **Default:** `'ignore'`.
 * Returns: {AsyncIterator} of objects with the properties:
   * `eventType` {string} The type of change
   * `filename` {string|Buffer|null} The name of the file changed.
@@ -1903,7 +1925,7 @@ added:
   - v16.17.0
 -->
 
-* {Object}
+* Type: {Object}
 
 Returns an object containing commonly used constants for file system
 operations. The object is the same as `fs.constants`. See [FS constants][]
@@ -3124,6 +3146,12 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/58182
+    description: Add support for `URL` instances for `cwd` option.
   - version: v22.14.0
     pr-url: https://github.com/nodejs/node/pull/56489
     description: Add support for `exclude` option to accept glob patterns.
@@ -3132,12 +3160,10 @@ changes:
     description: Add support for `withFileTypes` as an option.
 -->
 
-> Stability: 1 - Experimental
-
 * `pattern` {string|string\[]}
 
 * `options` {Object}
-  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -3190,6 +3216,8 @@ changes:
     description: The `callback` parameter is no longer optional. Not passing
                  it will emit a deprecation warning with id DEP0013.
 -->
+
+> Stability: 0 - Deprecated
 
 * `path` {string|Buffer|URL}
 * `mode` {integer}
@@ -3571,9 +3599,11 @@ Functions based on `fs.open()` exhibit this behavior as well:
 
 <!-- YAML
 added: v19.8.0
+changes:
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
@@ -4763,6 +4793,12 @@ unavailable in some situations.
 On Windows, no events will be emitted if the watched directory is moved or
 renamed. An `EPERM` error is reported when the watched directory is deleted.
 
+The `fs.watch` API does not provide any protection with respect
+to malicious actions on the file system. For example, on Windows it is
+implemented by monitoring changes in a directory versus specific files. This
+allows substitution of a file and fs reporting changes on the new file
+with the same filename.
+
 ##### Availability
 
 <!--type=misc-->
@@ -4974,7 +5010,7 @@ added:
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer} **Default:** `null`
+  * `position` {integer|null} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
   * `bytesWritten` {integer}
@@ -5664,6 +5700,12 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/58182
+    description: Add support for `URL` instances for `cwd` option.
   - version: v22.14.0
     pr-url: https://github.com/nodejs/node/pull/56489
     description: Add support for `exclude` option to accept glob patterns.
@@ -5672,11 +5714,9 @@ changes:
     description: Add support for `withFileTypes` as an option.
 -->
 
-> Stability: 1 - Experimental
-
 * `pattern` {string|string\[]}
 * `options` {Object}
-  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -5701,6 +5741,8 @@ console.log(globSync('**/*.js'));
 <!-- YAML
 deprecated: v0.4.7
 -->
+
+> Stability: 0 - Deprecated
 
 * `path` {string|Buffer|URL}
 * `mode` {integer}
@@ -6340,8 +6382,7 @@ changes:
 * `target` {string|Buffer|URL}
 * `path` {string|Buffer|URL}
 * `type` {string|null} **Default:** `null`
-
-Returns `undefined`.
+* Returns: `undefined`.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.symlink()`][].
@@ -6398,8 +6439,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `atime` {number|string|Date}
 * `mtime` {number|string|Date}
-
-Returns `undefined`.
+* Returns: `undefined`.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.utimes()`][].
@@ -6450,8 +6490,7 @@ changes:
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
   * `flush` {boolean} If all data is successfully written to the file, and
     `flush` is `true`, `fs.fsyncSync()` is used to flush the data.
-
-Returns `undefined`.
+* Returns: `undefined`.
 
 The `mode` option only affects the newly created file. See [`fs.open()`][]
 for more details.
@@ -6503,7 +6542,7 @@ added:
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer} **Default:** `null`
+  * `position` {integer|null} **Default:** `null`
 * Returns: {number} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
@@ -6626,7 +6665,7 @@ Subsequent reads will result in errors.
 added: v12.12.0
 -->
 
-* {string}
+* Type: {string}
 
 The read-only path of this directory as was provided to [`fs.opendir()`][],
 [`fs.opendirSync()`][], or [`fsPromises.opendir()`][].
@@ -6709,6 +6748,28 @@ Directory entries returned by this iterator are in no particular order as
 provided by the operating system's underlying directory mechanisms.
 Entries added or removed while iterating over the directory might not be
 included in the iteration results.
+
+#### `dir[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: v22.17.0
+-->
+
+> Stability: 1 - Experimental
+
+Calls `dir.close()` if the directory handle is open, and returns a promise that
+fulfills when disposal is complete.
+
+#### `dir[Symbol.Dispose]()`
+
+<!-- YAML
+added: v22.17.0
+-->
+
+> Stability: 1 - Experimental
+
+Calls `dir.closeSync()` if the directory handle is open, and returns
+`undefined`.
 
 ### Class: `fs.Dirent`
 
@@ -6802,7 +6863,7 @@ Returns `true` if the {fs.Dirent} object describes a symbolic link.
 added: v10.10.0
 -->
 
-* {string|Buffer}
+* Type: {string|Buffer}
 
 The file name that this {fs.Dirent} object refers to. The type of this
 value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
@@ -6815,11 +6876,13 @@ added:
   - v21.4.0
   - v20.12.0
   - v18.20.0
+changes:
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
 -->
 
-> Stability: 1 - Experimental
-
-* {string}
+* Type: {string}
 
 The path to the parent directory of the file this {fs.Dirent} object refers to.
 
@@ -7038,7 +7101,7 @@ Fires immediately after `'open'`.
 added: v6.4.0
 -->
 
-* {number}
+* Type: {number}
 
 The number of bytes that have been read so far.
 
@@ -7048,7 +7111,7 @@ The number of bytes that have been read so far.
 added: v0.1.93
 -->
 
-* {string|Buffer}
+* Type: {string|Buffer}
 
 The path to the file the stream is reading from as specified in the first
 argument to `fs.createReadStream()`. If `path` is passed as a string, then
@@ -7064,7 +7127,7 @@ added:
  - v10.16.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 This property is `true` if the underlying file has not been opened yet,
 i.e. before the `'ready'` event is emitted.
@@ -7221,49 +7284,49 @@ This method is only valid when using [`fs.lstat()`][].
 
 #### `stats.dev`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The numeric identifier of the device containing the file.
 
 #### `stats.ino`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The file system specific "Inode" number for the file.
 
 #### `stats.mode`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 A bit-field describing the file type and mode.
 
 #### `stats.nlink`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The number of hard-links that exist for the file.
 
 #### `stats.uid`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The numeric user identifier of the user that owns the file (POSIX).
 
 #### `stats.gid`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The numeric group identifier of the group that owns the file (POSIX).
 
 #### `stats.rdev`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 A numeric device identifier if the file represents a device.
 
 #### `stats.size`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The size of the file in bytes.
 
@@ -7272,13 +7335,13 @@ this will be `0`.
 
 #### `stats.blksize`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The file system block size for i/o operations.
 
 #### `stats.blocks`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The number of blocks allocated for this file.
 
@@ -7288,7 +7351,7 @@ The number of blocks allocated for this file.
 added: v8.1.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The timestamp indicating the last time this file was accessed expressed in
 milliseconds since the POSIX Epoch.
@@ -7299,7 +7362,7 @@ milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The timestamp indicating the last time this file was modified expressed in
 milliseconds since the POSIX Epoch.
@@ -7310,7 +7373,7 @@ milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The timestamp indicating the last time the file status was changed expressed
 in milliseconds since the POSIX Epoch.
@@ -7321,7 +7384,7 @@ in milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The timestamp indicating the creation time of this file expressed in
 milliseconds since the POSIX Epoch.
@@ -7332,7 +7395,7 @@ milliseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -7345,7 +7408,7 @@ nanoseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -7358,7 +7421,7 @@ nanoseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -7371,7 +7434,7 @@ in nanoseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -7384,7 +7447,7 @@ nanoseconds since the POSIX Epoch.
 added: v0.11.13
 -->
 
-* {Date}
+* Type: {Date}
 
 The timestamp indicating the last time this file was accessed.
 
@@ -7394,7 +7457,7 @@ The timestamp indicating the last time this file was accessed.
 added: v0.11.13
 -->
 
-* {Date}
+* Type: {Date}
 
 The timestamp indicating the last time this file was modified.
 
@@ -7404,7 +7467,7 @@ The timestamp indicating the last time this file was modified.
 added: v0.11.13
 -->
 
-* {Date}
+* Type: {Date}
 
 The timestamp indicating the last time the file status was changed.
 
@@ -7414,7 +7477,7 @@ The timestamp indicating the last time the file status was changed.
 added: v0.11.13
 -->
 
-* {Date}
+* Type: {Date}
 
 The timestamp indicating the creation time of this file.
 
@@ -7506,7 +7569,7 @@ added:
   - v18.15.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 Free blocks available to unprivileged users.
 
@@ -7518,7 +7581,7 @@ added:
   - v18.15.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 Free blocks in file system.
 
@@ -7530,7 +7593,7 @@ added:
   - v18.15.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 Total data blocks in file system.
 
@@ -7542,7 +7605,7 @@ added:
   - v18.15.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 Optimal transfer block size.
 
@@ -7554,7 +7617,7 @@ added:
   - v18.15.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 Free file nodes in file system.
 
@@ -7566,7 +7629,7 @@ added:
   - v18.15.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 Total file nodes in file system.
 
@@ -7578,7 +7641,7 @@ added:
   - v18.15.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 Type of file system.
 
@@ -7660,14 +7723,14 @@ argument to [`fs.createWriteStream()`][]. If `path` is passed as a string, then
 added: v11.2.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 This property is `true` if the underlying file has not been opened yet,
 i.e. before the `'ready'` event is emitted.
 
 ### `fs.constants`
 
-* {Object}
+* Type: {Object}
 
 Returns an object containing commonly used constants for file system
 operations.

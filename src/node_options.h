@@ -121,6 +121,7 @@ class EnvironmentOptions : public Options {
   bool require_module = true;
   std::string dns_result_order;
   bool enable_source_maps = false;
+  bool experimental_addon_modules = false;
   bool experimental_eventsource = false;
   bool experimental_fetch = true;
   bool experimental_websocket = true;
@@ -130,7 +131,6 @@ class EnvironmentOptions : public Options {
   bool experimental_global_customevent = true;
   bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
-  bool experimental_wasm_modules = false;
   bool experimental_import_meta_resolve = false;
   std::string input_type;  // Value of --input-type
   std::string type;        // Value of --experimental-default-type
@@ -171,6 +171,8 @@ class EnvironmentOptions : public Options {
   std::string cpu_prof_name;
   bool cpu_prof = false;
   bool experimental_network_inspection = false;
+  bool experimental_worker_inspection = false;
+  bool experimental_inspector_network_resource = false;
   std::string heap_prof_dir;
   std::string heap_prof_name;
   static const uint64_t kDefaultHeapProfInterval = 512 * 1024;
@@ -228,6 +230,7 @@ class EnvironmentOptions : public Options {
   bool watch_mode = false;
   bool watch_mode_report_to_parent = false;
   bool watch_mode_preserve_output = false;
+  std::string watch_mode_kill_signal = "SIGTERM";
   std::vector<std::string> watch_mode_paths;
 
   bool syntax_check_only = false;
@@ -250,13 +253,15 @@ class EnvironmentOptions : public Options {
 
   std::vector<std::string> preload_esm_modules;
 
-  bool experimental_strip_types = false;
+  bool experimental_strip_types = true;
   bool experimental_transform_types = false;
 
   std::vector<std::string> user_argv;
 
   bool report_exclude_env = false;
   bool report_exclude_network = false;
+  std::string experimental_config_file_path;
+  bool experimental_default_config_file = false;
 
   inline DebugOptions* get_debug_options() { return &debug_options_; }
   inline const DebugOptions& debug_options() const { return debug_options_; }
@@ -342,6 +347,7 @@ class PerProcessOptions : public Options {
   bool ssl_openssl_cert_store = false;
 #endif
   bool use_openssl_ca = false;
+  bool use_system_ca = false;
   bool use_bundled_ca = false;
   bool enable_fips_crypto = false;
   bool force_fips_crypto = false;
@@ -388,6 +394,7 @@ enum OptionType {
   kHostPort,
   kStringList,
 };
+std::unordered_map<std::string, OptionType> MapEnvOptionsFlagInputType();
 
 template <typename Options>
 class OptionsParser {
@@ -568,6 +575,10 @@ class OptionsParser {
   friend void GetCLIOptionsInfo(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   friend std::string GetBashCompletion();
+  friend std::unordered_map<std::string, OptionType>
+  MapEnvOptionsFlagInputType();
+  friend void GetEnvOptionsInputType(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 using StringVector = std::vector<std::string>;

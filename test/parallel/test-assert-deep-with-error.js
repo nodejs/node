@@ -3,6 +3,13 @@ require('../common');
 const assert = require('assert');
 const { test } = require('node:test');
 
+// Disable colored output to prevent color codes from breaking assertion
+// message comparisons. This should only be an issue when process.stdout
+// is a TTY.
+if (process.stdout.isTTY) {
+  process.env.NODE_DISABLE_COLORS = '1';
+}
+
 const defaultStartMessage = 'Expected values to be strictly deep-equal:\n' +
   '+ actual - expected\n' +
   '\n';

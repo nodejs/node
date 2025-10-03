@@ -1,3 +1,5 @@
+'use strict'
+
 const SemVer = require('../classes/semver')
 const Comparator = require('../classes/comparator')
 const { ANY } = Comparator

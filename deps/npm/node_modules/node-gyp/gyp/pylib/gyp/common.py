@@ -6,11 +6,10 @@ import errno
 import filecmp
 import os.path
 import re
-import tempfile
-import sys
-import subprocess
 import shlex
-
+import subprocess
+import sys
+import tempfile
 from collections.abc import MutableSet
 
 
@@ -35,7 +34,6 @@ class GypError(Exception):
   to the user.  The main entry point will catch and display this.
   """
 
-    pass
 
 
 def ExceptionAppend(e, msg):

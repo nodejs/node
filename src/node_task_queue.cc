@@ -100,10 +100,11 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
   if (!GetAssignedPromiseAsyncId(env, promise, env->trigger_async_id_symbol())
           .To(&trigger_async_id)) return;
 
+  Local<Object> promise_as_obj = promise;
   if (async_id != AsyncWrap::kInvalidAsyncId &&
       trigger_async_id != AsyncWrap::kInvalidAsyncId) {
     env->async_hooks()->push_async_context(
-        async_id, trigger_async_id, promise);
+        async_id, trigger_async_id, &promise_as_obj);
   }
 
   USE(callback->Call(

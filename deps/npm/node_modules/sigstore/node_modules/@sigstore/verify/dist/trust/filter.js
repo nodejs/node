@@ -2,9 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.filterCertAuthorities = filterCertAuthorities;
 exports.filterTLogAuthorities = filterTLogAuthorities;
-function filterCertAuthorities(certAuthorities, criteria) {
+function filterCertAuthorities(certAuthorities, timestamp) {
     return certAuthorities.filter((ca) => {
-        return (ca.validFor.start <= criteria.start && ca.validFor.end >= criteria.end);
+        return ca.validFor.start <= timestamp && ca.validFor.end >= timestamp;
     });
 }
 // Filter the list of tlog instances to only those which match the given log

@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,11 +23,15 @@ int PKCS7_add_attrib_smimecap(PKCS7_SIGNER_INFO *si,
     ASN1_STRING *seq;
 
     if ((seq = ASN1_STRING_new()) == NULL) {
-        ERR_raise(ERR_LIB_PKCS7, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS7, ERR_R_ASN1_LIB);
         return 0;
     }
     seq->length = ASN1_item_i2d((ASN1_VALUE *)cap, &seq->data,
                                 ASN1_ITEM_rptr(X509_ALGORS));
+    if (seq->length <= 0 || seq->data == NULL) {
+        ASN1_STRING_free(seq);
+        return 1;
+    }
     if (!PKCS7_add_signed_attribute(si, NID_SMIMECapabilities,
                                     V_ASN1_SEQUENCE, seq)) {
         ASN1_STRING_free(seq);
@@ -57,19 +61,22 @@ int PKCS7_simple_smimecap(STACK_OF(X509_ALGOR) *sk, int nid, int arg)
     X509_ALGOR *alg;
 
     if ((alg = X509_ALGOR_new()) == NULL) {
-        ERR_raise(ERR_LIB_PKCS7, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS7, ERR_R_ASN1_LIB);
         return 0;
     }
     ASN1_OBJECT_free(alg->algorithm);
     alg->algorithm = OBJ_nid2obj(nid);
     if (arg > 0) {
         if ((alg->parameter = ASN1_TYPE_new()) == NULL) {
+            ERR_raise(ERR_LIB_PKCS7, ERR_R_ASN1_LIB);
             goto err;
         }
         if ((nbit = ASN1_INTEGER_new()) == NULL) {
+            ERR_raise(ERR_LIB_PKCS7, ERR_R_ASN1_LIB);
             goto err;
         }
         if (!ASN1_INTEGER_set(nbit, arg)) {
+            ERR_raise(ERR_LIB_PKCS7, ERR_R_ASN1_LIB);
             goto err;
         }
         alg->parameter->value.integer = nbit;
@@ -77,11 +84,11 @@ int PKCS7_simple_smimecap(STACK_OF(X509_ALGOR) *sk, int nid, int arg)
         nbit = NULL;
     }
     if (!sk_X509_ALGOR_push(sk, alg)) {
+        ERR_raise(ERR_LIB_PKCS7, ERR_R_CRYPTO_LIB);
         goto err;
     }
     return 1;
 err:
-    ERR_raise(ERR_LIB_PKCS7, ERR_R_MALLOC_FAILURE);
     ASN1_INTEGER_free(nbit);
     X509_ALGOR_free(alg);
     return 0;
@@ -102,7 +109,7 @@ int PKCS7_add0_attrib_signing_time(PKCS7_SIGNER_INFO *si, ASN1_TIME *t)
     ASN1_TIME *tmp = NULL;
 
     if (t == NULL && (tmp = t = X509_gmtime_adj(NULL, 0)) == NULL) {
-        ERR_raise(ERR_LIB_PKCS7, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS7, ERR_R_X509_LIB);
         return 0;
     }
     if (!PKCS7_add_signed_attribute(si, NID_pkcs9_signingTime,

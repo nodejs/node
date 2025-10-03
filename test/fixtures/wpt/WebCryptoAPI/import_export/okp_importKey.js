@@ -11,7 +11,7 @@ function runTests(algorithmName) {
             ['spki', 'jwk', 'raw'].forEach(function(format) {
                 if (format === "jwk") { // Not all fields used for public keys
                     testFormat(format, algorithm, jwkData, algorithmName, usages, extractable);
-                    // Test for https://github.com/WICG/webcrypto-secure-curves/pull/24
+                    // Test for https://github.com/w3c/webcrypto/pull/401
                     if (extractable) {
                         testJwkAlgBehaviours(algorithm, jwkData.jwk, algorithmName, usages);
                     }
@@ -27,7 +27,7 @@ function runTests(algorithmName) {
             ['pkcs8', 'jwk'].forEach(function(format) {
                 testFormat(format, algorithm, data, algorithmName, usages, extractable);
 
-                // Test for https://github.com/WICG/webcrypto-secure-curves/pull/24
+                // Test for https://github.com/w3c/webcrypto/pull/401
                 if (format === "jwk" && extractable) {
                     testJwkAlgBehaviours(algorithm, data.jwk, algorithmName, usages);
                 }
@@ -67,27 +67,34 @@ function testFormat(format, algorithm, keyData, keySize, usages, extractable) {
     });
 }
 
-// Test importKey/exportKey "alg" behaviours, alg is ignored upon import and alg is missing for Ed25519 and Ed448 JWK export
-// https://github.com/WICG/webcrypto-secure-curves/pull/24
+// Test importKey/exportKey "alg" behaviours (https://github.com/w3c/webcrypto/pull/401)
+// - alg is ignored for ECDH import
+// - TODO: alg is checked to be the algorithm.name or EdDSA for Ed25519 and Ed448 import
+// - alg is missing for ECDH export
+// - alg is the algorithm name for Ed25519 and Ed448 export
 function testJwkAlgBehaviours(algorithm, keyData, crv, usages) {
     [algorithm, algorithm.name].forEach((alg) => {
-        promise_test(function(test) {
-            return subtle.importKey('jwk', { ...keyData, alg: 'this is ignored' }, alg, true, usages).
-                then(function(key) {
-                    assert_equals(key.constructor, CryptoKey, "Imported a CryptoKey object");
+        (crv.startsWith('Ed') ? [algorithm.name, 'EdDSA'] : ['this is ignored']).forEach((jwkAlg) => {
+            promise_test(function(test) {
+                return subtle.importKey('jwk', { ...keyData, alg: jwkAlg }, alg, true, usages).
+                    then(function(key) {
+                        assert_equals(key.constructor, CryptoKey, "Imported a CryptoKey object");
 
-                    return subtle.exportKey('jwk', key).
-                        then(function(result) {
-                            assert_equals(Object.keys(result).length, keyData.d ? 6 : 5, "Correct number of JWK members");
-                            assert_equals(result.alg, undefined, 'No JWK "alg" member is present');
-                            assert_true(equalJwk(keyData, result), "Round trip works");
-                        }, function(err) {
+                        return subtle.exportKey('jwk', key).
+                            then(function(result) {
+                                let expectedKeys = crv.startsWith('Ed') ? 6 : 5
+                                if (keyData.d) expectedKeys++
+                                assert_equals(Object.keys(result).length, expectedKeys, "Correct number of JWK members");
+                                assert_equals(result.alg, crv.startsWith('Ed') ? algorithm.name : undefined, 'Expected JWK "alg" member');
+                                assert_true(equalJwk(keyData, result), "Round trip works");
+                            }, function(err) {
+                            assert_unreached("Threw an unexpected error: " + err.toString());
+                            });
+                    }, function(err) {
                         assert_unreached("Threw an unexpected error: " + err.toString());
-                        });
-                }, function(err) {
-                    assert_unreached("Threw an unexpected error: " + err.toString());
-                });
-        }, "Good parameters with ignored JWK alg: " + crv.toString() + " " + parameterString('jwk', keyData, alg, true, usages));
+                    });
+            }, 'Good parameters with JWK alg' + (crv.startsWith('Ed') ? ` ${jwkAlg}: ` : ': ') + crv.toString() + " " + parameterString('jwk', keyData, alg, true, usages, jwkAlg));
+        });
     });
 }
 

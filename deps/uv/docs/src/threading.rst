@@ -78,6 +78,14 @@ Threads
 
     .. versionchanged:: 1.4.1 returns a UV_E* error code on failure
 
+.. c:function:: int uv_thread_detach(uv_thread_t* tid)
+
+    Detaches a thread. Detached threads automatically release their
+    resources upon termination, eliminating the need for the application to
+    call `uv_thread_join`.
+
+    .. versionadded:: 1.50.0
+
 .. c:function:: int uv_thread_create_ex(uv_thread_t* tid, const uv_thread_options_t* params, uv_thread_cb entry, void* arg)
 
     Like :c:func:`uv_thread_create`, but additionally specifies options for creating a new thread.
@@ -132,7 +140,29 @@ Threads
 .. c:function:: int uv_thread_join(uv_thread_t *tid)
 .. c:function:: int uv_thread_equal(const uv_thread_t* t1, const uv_thread_t* t2)
 
+.. c:function:: int uv_thread_setname(const char* name)
+
+    Sets the name of the current thread. Different platforms define different limits on the max number of characters
+    a thread name can be: Linux, IBM i (16), macOS (64), Windows (32767), and NetBSD (32), etc. `uv_thread_setname()`
+    will truncate it in case `name` is larger than the limit of the platform.
+
+    Not supported on Windows Server 2016, returns `UV_ENOSYS`.
+
+    .. versionadded:: 1.50.0
+
+.. c:function:: int uv_thread_getname(uv_thread_t* tid, char* name, size_t* size)
+
+    Gets the name of the thread specified by `tid`. The thread name is copied, with the trailing NUL, into the buffer
+    pointed to by `name`. The `size` parameter specifies the size of the buffer pointed to by `name`.
+    The buffer should be large enough to hold the name of the thread plus the trailing NUL, or it will be truncated to fit
+    with the trailing NUL.
+
+    Not supported on Windows Server 2016, returns `UV_ENOSYS`.
+
+    .. versionadded:: 1.50.0
+
 .. c:function:: int uv_thread_setpriority(uv_thread_t tid, int priority)
+
     If the function succeeds, the return value is 0.
     If the function fails, the return value is less than zero.
     Sets the scheduling priority of the thread specified by tid. It requires elevated
@@ -140,7 +170,9 @@ Threads
     The priority can be set to the following constants. UV_THREAD_PRIORITY_HIGHEST, 
     UV_THREAD_PRIORITY_ABOVE_NORMAL, UV_THREAD_PRIORITY_NORMAL, 
     UV_THREAD_PRIORITY_BELOW_NORMAL, UV_THREAD_PRIORITY_LOWEST.
+
 .. c:function:: int uv_thread_getpriority(uv_thread_t tid, int* priority)
+
     If the function succeeds, the return value is 0.
     If the function fails, the return value is less than zero.
     Retrieves the scheduling priority of the thread specified by tid. The value in the

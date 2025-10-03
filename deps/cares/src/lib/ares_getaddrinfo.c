@@ -418,9 +418,13 @@ done:
    * SHOULD recognize localhost names as special and SHOULD always return the
    * IP loopback address for address queries".
    * We will also ignore ALL errors when trying to resolve localhost, such
-   * as permissions errors reading /etc/hosts or a malformed /etc/hosts */
-  if (status != ARES_SUCCESS && status != ARES_ENOMEM &&
-      ares_is_localhost(hquery->name)) {
+   * as permissions errors reading /etc/hosts or a malformed /etc/hosts.
+   *
+   * Also, just because the query itself returned success from /etc/hosts
+   * lookup doesn't mean it returned everything it needed to for all requested
+   * address families. As long as we're not on a critical out of memory
+   * condition pass it through to fill in any other address classes. */
+  if (status != ARES_ENOMEM && ares_is_localhost(hquery->name)) {
     return ares_addrinfo_localhost(hquery->name, hquery->port, &hquery->hints,
                                    hquery->ai);
   }

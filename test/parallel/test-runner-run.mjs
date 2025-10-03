@@ -33,6 +33,24 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     for await (const _ of stream);
   });
 
+  it('should emit diagnostic events with level parameter', async () => {
+    const diagnosticEvents = [];
+
+    const stream = run({
+      files: [join(testFixtures, 'coverage.js')],
+      reporter: 'spec',
+    });
+
+    stream.on('test:diagnostic', (event) => {
+      diagnosticEvents.push(event);
+    });
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+    assert(diagnosticEvents.length > 0, 'No diagnostic events were emitted');
+    const infoEvent = diagnosticEvents.find((e) => e.level === 'info');
+    assert(infoEvent, 'No diagnostic events with level "info" were emitted');
+  });
+
   const argPrintingFile = join(testFixtures, 'print-arguments.js');
   it('should allow custom arguments via execArgv', async () => {
     const result = await run({ files: [argPrintingFile], execArgv: ['-p', '"Printed"'] }).compose(spec).toArray();
@@ -192,6 +210,33 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         controller.abort();
       }
     });
+  });
+
+  it('should include test type in enqueue, dequeue events', async (t) => {
+    const stream = await run({
+      files: [join(testFixtures, 'default-behavior/test/suite_and_test.cjs')],
+    });
+    t.plan(4);
+
+    stream.on('test:enqueue', common.mustCall((data) => {
+      if (data.name === 'this is a suite') {
+        t.assert.strictEqual(data.type, 'suite');
+      }
+      if (data.name === 'this is a test') {
+        t.assert.strictEqual(data.type, 'test');
+      }
+    }, 2));
+    stream.on('test:dequeue', common.mustCall((data) => {
+      if (data.name === 'this is a suite') {
+        t.assert.strictEqual(data.type, 'suite');
+      }
+      if (data.name === 'this is a test') {
+        t.assert.strictEqual(data.type, 'test');
+      }
+    }, 2));
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
   });
 
   describe('AbortSignal', () => {

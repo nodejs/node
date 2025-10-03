@@ -9,7 +9,7 @@ Error.stackTraceLimit = 5;
 assert.strictEqual(typeof Error.prepareStackTrace, 'function');
 const defaultPrepareStackTrace = Error.prepareStackTrace;
 Error.prepareStackTrace = (error, trace) => {
-  trace = trace.filter(it => {
+  trace = trace.filter((it) => {
     return it.getFunctionName() !== 'functionC';
   });
   return defaultPrepareStackTrace(error, trace);

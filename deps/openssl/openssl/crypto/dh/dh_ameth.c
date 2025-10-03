@@ -121,12 +121,12 @@ static int dh_pub_encode(X509_PUBKEY *pk, const EVP_PKEY *pkey)
 
     str = ASN1_STRING_new();
     if (str == NULL) {
-        ERR_raise(ERR_LIB_DH, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_DH, ERR_R_ASN1_LIB);
         goto err;
     }
     str->length = i2d_dhp(pkey, dh, &str->data);
     if (str->length <= 0) {
-        ERR_raise(ERR_LIB_DH, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_DH, ERR_R_ASN1_LIB);
         goto err;
     }
     ptype = V_ASN1_SEQUENCE;
@@ -140,7 +140,7 @@ static int dh_pub_encode(X509_PUBKEY *pk, const EVP_PKEY *pkey)
     ASN1_INTEGER_free(pub_key);
 
     if (penclen <= 0) {
-        ERR_raise(ERR_LIB_DH, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_DH, ERR_R_ASN1_LIB);
         goto err;
     }
 
@@ -184,13 +184,13 @@ static int dh_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
     params = ASN1_STRING_new();
 
     if (params == NULL) {
-        ERR_raise(ERR_LIB_DH, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_DH, ERR_R_ASN1_LIB);
         goto err;
     }
 
     params->length = i2d_dhp(pkey, pkey->pkey.dh, &params->data);
     if (params->length <= 0) {
-        ERR_raise(ERR_LIB_DH, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_DH, ERR_R_ASN1_LIB);
         goto err;
     }
     params->type = V_ASN1_SEQUENCE;
@@ -514,7 +514,7 @@ static int dh_pkey_import_from_type(const OSSL_PARAM params[], void *vpctx,
     DH *dh = ossl_dh_new_ex(pctx->libctx);
 
     if (dh == NULL) {
-        ERR_raise(ERR_LIB_DH, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_DH, ERR_R_DH_LIB);
         return 0;
     }
     DH_clear_flags(dh, DH_FLAG_TYPE_MASK);

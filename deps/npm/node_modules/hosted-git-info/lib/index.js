@@ -7,6 +7,26 @@ const parseUrl = require('./parse-url.js')
 
 const cache = new LRUCache({ max: 1000 })
 
+function unknownHostedUrl (url) {
+  try {
+    const {
+      protocol,
+      hostname,
+      pathname,
+    } = new URL(url)
+
+    if (!hostname) {
+      return null
+    }
+
+    const proto = /(?:git\+)http:$/.test(protocol) ? 'http:' : 'https:'
+    const path = pathname.replace(/\.git$/, '')
+    return `${proto}//${hostname}${path}`
+  } catch {
+    return null
+  }
+}
+
 class GitHost {
   constructor (type, user, auth, project, committish, defaultRepresentation, opts = {}) {
     Object.assign(this, GitHost.#gitHosts[type], {
@@ -54,6 +74,34 @@ class GitHost {
     }
 
     return cache.get(key)
+  }
+
+  static fromManifest (manifest, opts = {}) {
+    if (!manifest || typeof manifest !== 'object') {
+      return
+    }
+
+    const r = manifest.repository
+    // TODO: look into also checking the `bugs`/`homepage` URLs
+
+    const rurl = r && (
+      typeof r === 'string'
+        ? r
+        : typeof r === 'object' && typeof r.url === 'string'
+          ? r.url
+          : null
+    )
+
+    if (!rurl) {
+      throw new Error('no repository')
+    }
+
+    const info = (rurl && GitHost.fromUrl(rurl.replace(/^git\+/, ''), opts)) || null
+    if (info) {
+      return info
+    }
+    const unk = unknownHostedUrl(rurl)
+    return GitHost.fromUrl(unk, opts) || unk
   }
 
   static parseUrl (url) {

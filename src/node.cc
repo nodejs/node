@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
+#include "node_config_file.h"
 #include "node_dotenv.h"
 #include "node_task_runner.h"
 
@@ -118,6 +119,8 @@
 #include <unistd.h>        // STDIN_FILENO, STDERR_FILENO
 #endif
 
+#include "absl/synchronization/mutex.h"
+
 // ========== global C++ headers ==========
 
 #include <cerrno>
@@ -149,6 +152,9 @@ namespace per_process {
 // node_dotenv.h
 // Instance is used to store environment variables including NODE_OPTIONS.
 node::Dotenv dotenv_file = Dotenv();
+
+// node_config_file.h
+node::ConfigReader config_reader = ConfigReader();
 
 // node_revert.h
 // Bit flag used to track security reverts.
@@ -755,9 +761,11 @@ void ResetStdio() {
       while (err == -1 && errno == EINTR);  // NOLINT
       CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sa, nullptr));
 
-      // Normally we expect err == 0. But if macOS App Sandbox is enabled,
-      // tcsetattr will fail with err == -1 and errno == EPERM.
-      CHECK_IMPLIES(err != 0, err == -1 && errno == EPERM);
+      // We don't check the return value of tcsetattr() because it can fail
+      // for a number of reasons, none that we can do anything about. Examples:
+      // - if macOS App Sandbox is enabled, tcsetattr fails with EPERM
+      // - if the process group is orphaned, e.g. because the user logged out,
+      //   tcsetattr fails with EIO
     }
   }
 #endif  // __POSIX__
@@ -817,6 +825,11 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
                 "--abort_on_uncaught_exception") != v8_args.end()) {
     env_opts->abort_on_uncaught_exception = true;
   }
+
+  // Support stable Phase 5 WebAssembly proposals
+  v8_args.emplace_back("--experimental-wasm-imported-strings");
+  v8_args.emplace_back("--experimental-wasm-memory64");
+  v8_args.emplace_back("--experimental-wasm-exnref");
 
 #ifdef __POSIX__
   // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the
@@ -904,6 +917,15 @@ static ExitCode InitializeNodeWithArgsInternal(
   // default value.
   V8::SetFlagsFromString("--rehash-snapshot");
 
+#if HAVE_OPENSSL
+  // TODO(joyeecheung): make this a per-env option and move the normalization
+  // into HandleEnvOptions.
+  std::string use_system_ca;
+  if (credentials::SafeGetenv("NODE_USE_SYSTEM_CA", &use_system_ca) &&
+      use_system_ca == "1") {
+    per_process::cli_options->use_system_ca = true;
+  }
+#endif  // HAVE_OPENSSL
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
   std::string node_options;
@@ -936,8 +958,48 @@ static ExitCode InitializeNodeWithArgsInternal(
     per_process::dotenv_file.AssignNodeOptionsIfAvailable(&node_options);
   }
 
+  std::string node_options_from_config;
+  if (auto path = per_process::config_reader.GetDataFromArgs(*argv)) {
+    switch (per_process::config_reader.ParseConfig(*path)) {
+      case ParseResult::Valid:
+        break;
+      case ParseResult::InvalidContent:
+        errors->push_back(std::string(*path) + ": invalid content");
+        break;
+      case ParseResult::FileError:
+        errors->push_back(std::string(*path) + ": not found");
+        break;
+      default:
+        UNREACHABLE();
+    }
+    node_options_from_config = per_process::config_reader.AssignNodeOptions();
+    // (@marco-ippolito) Avoid reparsing the env options again
+    std::vector<std::string> env_argv_from_config =
+        ParseNodeOptionsEnvVar(node_options_from_config, errors);
+
+    // Check the number of flags in NODE_OPTIONS from the config file
+    // matches the parsed ones. This avoid users from sneaking in
+    // additional flags.
+    if (env_argv_from_config.size() !=
+        per_process::config_reader.GetFlagsSize()) {
+      errors->emplace_back("The number of NODE_OPTIONS doesn't match "
+                           "the number of flags in the config file");
+    }
+    node_options += node_options_from_config;
+  }
+
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
-  if (!(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv)) {
+  bool should_parse_node_options =
+      !(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv);
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  if (sea::IsSingleExecutable()) {
+    sea::SeaResource sea_resource = sea::FindSingleExecutableResource();
+    if (sea_resource.exec_argv_extension != sea::SeaExecArgvExtension::kEnv) {
+      should_parse_node_options = false;
+    }
+  }
+#endif
+  if (should_parse_node_options) {
     // NODE_OPTIONS environment variable is preferred over the file one.
     if (credentials::SafeGetenv("NODE_OPTIONS", &node_options) ||
         !node_options.empty()) {
@@ -1185,10 +1247,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     }
 #endif
     if (!crypto::ProcessFipsOptions()) {
-      // XXX: ERR_GET_REASON does not return something that is
-      // useful as an exit code at all.
-      result->exit_code_ =
-          static_cast<ExitCode>(ERR_GET_REASON(ERR_peek_error()));
+      result->exit_code_ = ExitCode::kGenericUserError;
       result->early_return_ = true;
       result->errors_.emplace_back(
           "OpenSSL error when trying to enable FIPS:\n" +
@@ -1196,6 +1255,20 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       return result;
     }
 
+    if (per_process::cli_options->use_system_ca) {
+      // Load the system CA certificates eagerly off the main thread to avoid
+      // blocking the main thread when the first TLS connection is made. We
+      // don't need to wait for the thread to finish with code here, as
+      // GetSystemStoreCACertificates() has a function-local static and any
+      // actual user of it will wait for that to complete initialization.
+      int r = crypto::LoadSystemCACertificatesOffThread();
+      if (r != 0) {
+        FPrintF(
+            stderr,
+            "Warning: Failed to load system CA certificates off thread: %s\n",
+            uv_strerror(r));
+      }
+    }
     // Ensure CSPRNG is properly seeded.
     CHECK(ncrypto::CSPRNG(nullptr, 0));
 
@@ -1224,6 +1297,11 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
 
   if (!(flags & ProcessInitializationFlags::kNoInitializeV8)) {
     V8::Initialize();
+
+    // Disable absl deadlock detection in V8 as it reports false-positive cases.
+    // TODO(legendecas): Replace this global disablement with case suppressions.
+    // https://github.com/nodejs/node-v8/issues/301
+    absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kIgnore);
   }
 
   if (!(flags & ProcessInitializationFlags::kNoInitializeCppgc)) {
@@ -1309,6 +1387,10 @@ void TearDownOncePerProcess() {
     // will never be fully cleaned up.
     per_process::v8_platform.Dispose();
   }
+
+#if HAVE_OPENSSL
+  crypto::CleanupCachedRootCertificates();
+#endif  // HAVE_OPENSSL
 }
 
 ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,

@@ -1,5 +1,6 @@
 'use strict';
-require('../common');
+const { skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { join } = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
@@ -74,6 +75,47 @@ suite('named parameters', () => {
       code: 'ERR_INVALID_STATE',
       message: 'Cannot create bare named parameter \'k\' because of ' +
                'conflicting names \'$k\' and \'@k\'.',
+    });
+  });
+});
+
+suite('StatementSync.prototype.setAllowUnknownNamedParameters()', () => {
+  test('unknown named parameter support can be toggled', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    t.assert.strictEqual(stmt.setAllowUnknownNamedParameters(true), undefined);
+    const params = { $a: 1, $b: 2, $k: 42, $y: 25, $v: 84, $z: 99 };
+    t.assert.deepStrictEqual(
+      stmt.run(params),
+      { changes: 1, lastInsertRowid: 1 },
+    );
+    t.assert.strictEqual(stmt.setAllowUnknownNamedParameters(false), undefined);
+    t.assert.throws(() => {
+      stmt.run(params);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /Unknown named parameter '\$a'/,
+    });
+  });
+
+  test('throws when input is not a boolean', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    t.assert.throws(() => {
+      stmt.setAllowUnknownNamedParameters();
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "enabled" argument must be a boolean/,
     });
   });
 });

@@ -1,4 +1,4 @@
-// Flags: --expose-internals --stack-size=64
+// Flags: --expose-internals
 'use strict';
 require('../common');
 const assert = require('assert');
@@ -59,7 +59,7 @@ class ErrorWithThowingCause extends Error {
 }
 class ErrorWithCyclicCause extends Error {
   get cause() {
-    return new ErrorWithCyclicCause();
+    return this;
   }
 }
 const errorWithCause = Object
@@ -83,14 +83,18 @@ assert.strictEqual(Object.hasOwn(cycle(errorWithCyclicCause), 'cause'), true);
 assert.deepStrictEqual(cycle(new ErrorWithCause('Error with cause')).cause, new Error('err'));
 assert.strictEqual(cycle(new ErrorWithThowingCause('Error with cause')).cause, undefined);
 assert.strictEqual(Object.hasOwn(cycle(new ErrorWithThowingCause('Error with cause')), 'cause'), false);
-// When the cause is cyclic, it is serialized until Maximum call stack size is reached
+// When the cause is cyclic, it is serialized as a dumb circular reference object.
 let depth = 0;
 let e = cycle(new ErrorWithCyclicCause('Error with cause'));
 while (e.cause) {
   e = e.cause;
   depth++;
 }
-assert(depth > 1);
+assert.strictEqual(depth, 1);
+assert.strictEqual(
+  inspect(cycle(new ErrorWithCyclicCause('Error with cause')).cause),
+  '[Circular object]',
+);
 
 
 {

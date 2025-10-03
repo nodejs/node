@@ -527,7 +527,7 @@ LSR LikelySubtags::makeMaximizedLsrFrom(const Locale &locale,
         return {};
     }
     const char *name = locale.getName();
-    if (uprv_isAtSign(name[0]) && name[1] == 'x' && name[2] == '=') {  // name.startsWith("@x=")
+    if (!returnInputIfUnmatch && uprv_isAtSign(name[0]) && name[1] == 'x' && name[2] == '=') {  // name.startsWith("@x=")
         // Private use language tag x-subtag-subtag... which CLDR changes to
         // und-x-subtag-subtag...
         return LSR(name, "", "", LSR::EXPLICIT_LSR);

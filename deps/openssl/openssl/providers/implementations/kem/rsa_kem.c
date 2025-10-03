@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,7 +13,6 @@
  */
 #include "internal/deprecated.h"
 #include "internal/nelem.h"
-
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/core_dispatch.h>
@@ -21,9 +20,10 @@
 #include <openssl/rsa.h>
 #include <openssl/params.h>
 #include <openssl/err.h>
-#include "crypto/rsa.h"
 #include <openssl/proverr.h>
+#include "crypto/rsa.h"
 #include "prov/provider_ctx.h"
+#include "prov/providercommon.h"
 #include "prov/implementations.h"
 #include "prov/securitycheck.h"
 
@@ -55,6 +55,7 @@ typedef struct {
     OSSL_LIB_CTX *libctx;
     RSA *rsa;
     int op;
+    OSSL_FIPS_IND_DECLARE
 } PROV_RSA_CTX;
 
 static const OSSL_ITEM rsakem_opname_id_map[] = {
@@ -82,12 +83,17 @@ static int rsakem_opname2id(const char *name)
 
 static void *rsakem_newctx(void *provctx)
 {
-    PROV_RSA_CTX *prsactx =  OPENSSL_zalloc(sizeof(PROV_RSA_CTX));
+    PROV_RSA_CTX *prsactx;
 
+    if (!ossl_prov_is_running())
+        return NULL;
+
+    prsactx =  OPENSSL_zalloc(sizeof(PROV_RSA_CTX));
     if (prsactx == NULL)
         return NULL;
     prsactx->libctx = PROV_LIBCTX_OF(provctx);
-    prsactx->op = KEM_OP_UNDEFINED;
+    prsactx->op = KEM_OP_RSASVE;
+    OSSL_FIPS_IND_INIT(prsactx)
 
     return prsactx;
 }
@@ -105,6 +111,9 @@ static void *rsakem_dupctx(void *vprsactx)
     PROV_RSA_CTX *srcctx = (PROV_RSA_CTX *)vprsactx;
     PROV_RSA_CTX *dstctx;
 
+    if (!ossl_prov_is_running())
+        return NULL;
+
     dstctx = OPENSSL_zalloc(sizeof(*srcctx));
     if (dstctx == NULL)
         return NULL;
@@ -118,44 +127,65 @@ static void *rsakem_dupctx(void *vprsactx)
 }
 
 static int rsakem_init(void *vprsactx, void *vrsa,
-                       const OSSL_PARAM params[], int operation)
+                       const OSSL_PARAM params[], int operation,
+                       const char *desc)
 {
     PROV_RSA_CTX *prsactx = (PROV_RSA_CTX *)vprsactx;
+    int protect = 0;
+
+    if (!ossl_prov_is_running())
+        return 0;
 
     if (prsactx == NULL || vrsa == NULL)
         return 0;
 
-    if (!ossl_rsa_check_key(prsactx->libctx, vrsa, operation))
+    if (!ossl_rsa_key_op_get_protect(vrsa, operation, &protect))
         return 0;
-
     if (!RSA_up_ref(vrsa))
         return 0;
     RSA_free(prsactx->rsa);
     prsactx->rsa = vrsa;
 
-    return rsakem_set_ctx_params(prsactx, params);
+    OSSL_FIPS_IND_SET_APPROVED(prsactx)
+    if (!rsakem_set_ctx_params(prsactx, params))
+        return 0;
+#ifdef FIPS_MODULE
+    if (!ossl_fips_ind_rsa_key_check(OSSL_FIPS_IND_GET(prsactx),
+                                     OSSL_FIPS_IND_SETTABLE0, prsactx->libctx,
+                                     prsactx->rsa, desc, protect))
+        return 0;
+#endif
+    return 1;
 }
 
 static int rsakem_encapsulate_init(void *vprsactx, void *vrsa,
                                    const OSSL_PARAM params[])
 {
-    return rsakem_init(vprsactx, vrsa, params, EVP_PKEY_OP_ENCAPSULATE);
+    return rsakem_init(vprsactx, vrsa, params, EVP_PKEY_OP_ENCAPSULATE,
+                       "RSA Encapsulate Init");
 }
 
 static int rsakem_decapsulate_init(void *vprsactx, void *vrsa,
                                    const OSSL_PARAM params[])
 {
-    return rsakem_init(vprsactx, vrsa, params, EVP_PKEY_OP_DECAPSULATE);
+    return rsakem_init(vprsactx, vrsa, params, EVP_PKEY_OP_DECAPSULATE,
+                       "RSA Decapsulate Init");
 }
 
 static int rsakem_get_ctx_params(void *vprsactx, OSSL_PARAM *params)
 {
     PROV_RSA_CTX *ctx = (PROV_RSA_CTX *)vprsactx;
 
-    return ctx != NULL;
+    if (ctx == NULL)
+        return 0;
+
+    if (!OSSL_FIPS_IND_GET_CTX_PARAM(ctx, params))
+        return 0;
+    return 1;
 }
 
 static const OSSL_PARAM known_gettable_rsakem_ctx_params[] = {
+    OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
     OSSL_PARAM_END
 };
 
@@ -173,10 +203,12 @@ static int rsakem_set_ctx_params(void *vprsactx, const OSSL_PARAM params[])
 
     if (prsactx == NULL)
         return 0;
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
-
+    if (!OSSL_FIPS_IND_SET_CTX_PARAM(prsactx, OSSL_FIPS_IND_SETTABLE0, params,
+                                     OSSL_KEM_PARAM_FIPS_KEY_CHECK))
+        return  0;
     p = OSSL_PARAM_locate_const(params, OSSL_KEM_PARAM_OPERATION);
     if (p != NULL) {
         if (p->data_type != OSSL_PARAM_UTF8_STRING)
@@ -191,6 +223,7 @@ static int rsakem_set_ctx_params(void *vprsactx, const OSSL_PARAM params[])
 
 static const OSSL_PARAM known_settable_rsakem_ctx_params[] = {
     OSSL_PARAM_utf8_string(OSSL_KEM_PARAM_OPERATION, NULL, 0),
+    OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_KEM_PARAM_FIPS_KEY_CHECK)
     OSSL_PARAM_END
 };
 
@@ -264,6 +297,17 @@ static int rsasve_generate(PROV_RSA_CTX *prsactx,
             *secretlen = nlen;
         return 1;
     }
+
+    /*
+     * If outlen is specified, then it must report the length
+     * of the out buffer on input so that we can confirm
+     * its size is sufficent for encapsulation
+     */
+    if (outlen != NULL && *outlen < nlen) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_OUTPUT_LENGTH);
+        return 0;
+    }
+
     /*
      * Step (2): Generate a random byte string z of nlen bytes where
      *            1 < z < n - 1
@@ -285,15 +329,33 @@ static int rsasve_generate(PROV_RSA_CTX *prsactx,
     return ret;
 }
 
-/*
- * NIST.SP.800-56Br2
+/**
+ * rsasve_recover - Recovers a secret value from ciphertext using an RSA
+ * private key.  Once, recovered, the secret value is considered to be a
+ * shared secret.  Algorithm is preformed as per
+ * NIST SP 800-56B Rev 2
  * 7.2.1.3 RSASVE Recovery Operation (RSASVE.RECOVER).
+ *
+ * This function performs RSA decryption using the private key from the
+ * provided RSA context (`prsactx`). It takes the input ciphertext, decrypts
+ * it, and writes the decrypted message to the output buffer.
+ *
+ * @prsactx:      The RSA context containing the private key.
+ * @out:          The output buffer to store the decrypted message.
+ * @outlen:       On input, the size of the output buffer. On successful
+ *                completion, the actual length of the decrypted message.
+ * @in:           The input buffer containing the ciphertext to be decrypted.
+ * @inlen:        The length of the input ciphertext in bytes.
+ *
+ * Returns 1 on success, or 0 on error. In case of error, appropriate
+ * error messages are raised using the ERR_raise function.
  */
 static int rsasve_recover(PROV_RSA_CTX *prsactx,
                           unsigned char *out, size_t *outlen,
                           const unsigned char *in, size_t inlen)
 {
     size_t nlen;
+    int ret;
 
     /* Step (1): get the byte length of n */
     nlen = RSA_size(prsactx->rsa);
@@ -307,19 +369,39 @@ static int rsasve_recover(PROV_RSA_CTX *prsactx,
         return 1;
     }
 
-    /* Step (2): check the input ciphertext 'inlen' matches the nlen */
+    /*
+     * Step (2): check the input ciphertext 'inlen' matches the nlen
+     * and that outlen is at least nlen bytes
+     */
     if (inlen != nlen) {
         ERR_raise(ERR_LIB_PROV, PROV_R_BAD_LENGTH);
         return 0;
     }
+
+    /*
+     * If outlen is specified, then it must report the length
+     * of the out buffer, so that we can confirm that it is of
+     * sufficient size to hold the output of decapsulation
+     */
+    if (outlen != NULL && *outlen < nlen) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_OUTPUT_LENGTH);
+        return 0;
+    }
+
     /* Step (3): out = RSADP((n,d), in) */
-    return (RSA_private_decrypt(inlen, in, out, prsactx->rsa, RSA_NO_PADDING) > 0);
+    ret = RSA_private_decrypt(inlen, in, out, prsactx->rsa, RSA_NO_PADDING);
+    if (ret > 0 && outlen != NULL)
+        *outlen = ret;
+    return ret > 0;
 }
 
 static int rsakem_generate(void *vprsactx, unsigned char *out, size_t *outlen,
                            unsigned char *secret, size_t *secretlen)
 {
     PROV_RSA_CTX *prsactx = (PROV_RSA_CTX *)vprsactx;
+
+    if (!ossl_prov_is_running())
+        return 0;
 
     switch (prsactx->op) {
         case KEM_OP_RSASVE:
@@ -333,6 +415,9 @@ static int rsakem_recover(void *vprsactx, unsigned char *out, size_t *outlen,
                           const unsigned char *in, size_t inlen)
 {
     PROV_RSA_CTX *prsactx = (PROV_RSA_CTX *)vprsactx;
+
+    if (!ossl_prov_is_running())
+        return 0;
 
     switch (prsactx->op) {
         case KEM_OP_RSASVE:
@@ -360,5 +445,5 @@ const OSSL_DISPATCH ossl_rsa_asym_kem_functions[] = {
       (void (*)(void))rsakem_set_ctx_params },
     { OSSL_FUNC_KEM_SETTABLE_CTX_PARAMS,
       (void (*)(void))rsakem_settable_ctx_params },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };

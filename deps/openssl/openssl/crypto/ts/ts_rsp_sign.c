@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "e_os.h"
+#include "internal/e_os.h"
 
 #include <openssl/objects.h>
 #include <openssl/ts.h>
@@ -15,6 +15,7 @@
 #include <openssl/crypto.h>
 #include "internal/cryptlib.h"
 #include "internal/sizes.h"
+#include "internal/time.h"
 #include "crypto/ess.h"
 #include "ts_local.h"
 
@@ -51,52 +52,33 @@ static ASN1_INTEGER *def_serial_cb(struct TS_resp_ctx *ctx, void *data)
     return serial;
 
  err:
-    ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
+    ERR_raise(ERR_LIB_TS, ERR_R_ASN1_LIB);
     TS_RESP_CTX_set_status_info(ctx, TS_STATUS_REJECTION,
                                 "Error during serial number generation.");
     ASN1_INTEGER_free(serial);
     return NULL;
 }
 
-#if defined(OPENSSL_SYS_UNIX)
-
 static int def_time_cb(struct TS_resp_ctx *ctx, void *data,
                        long *sec, long *usec)
 {
+    OSSL_TIME t;
     struct timeval tv;
-    if (gettimeofday(&tv, NULL) != 0) {
+
+    t = ossl_time_now();
+    if (ossl_time_is_zero(t)) {
         ERR_raise(ERR_LIB_TS, TS_R_TIME_SYSCALL_ERROR);
         TS_RESP_CTX_set_status_info(ctx, TS_STATUS_REJECTION,
                                     "Time is not available.");
         TS_RESP_CTX_add_failure_info(ctx, TS_INFO_TIME_NOT_AVAILABLE);
         return 0;
     }
-    *sec = tv.tv_sec;
-    *usec = tv.tv_usec;
+    tv = ossl_time_to_timeval(t);
+    *sec = (long int)tv.tv_sec;
+    *usec = (long int)tv.tv_usec;
 
     return 1;
 }
-
-#else
-
-static int def_time_cb(struct TS_resp_ctx *ctx, void *data,
-                       long *sec, long *usec)
-{
-    time_t t;
-    if (time(&t) == (time_t)-1) {
-        ERR_raise(ERR_LIB_TS, TS_R_TIME_SYSCALL_ERROR);
-        TS_RESP_CTX_set_status_info(ctx, TS_STATUS_REJECTION,
-                                    "Time is not available.");
-        TS_RESP_CTX_add_failure_info(ctx, TS_INFO_TIME_NOT_AVAILABLE);
-        return 0;
-    }
-    *sec = (long)t;
-    *usec = 0;
-
-    return 1;
-}
-
-#endif
 
 static int def_extension_cb(struct TS_resp_ctx *ctx, X509_EXTENSION *ext,
                             void *data)
@@ -113,16 +95,13 @@ TS_RESP_CTX *TS_RESP_CTX_new_ex(OSSL_LIB_CTX *libctx, const char *propq)
 {
     TS_RESP_CTX *ctx;
 
-    if ((ctx = OPENSSL_zalloc(sizeof(*ctx))) == NULL) {
-        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
+    if ((ctx = OPENSSL_zalloc(sizeof(*ctx))) == NULL)
         return NULL;
-    }
 
     if (propq != NULL) {
         ctx->propq = OPENSSL_strdup(propq);
         if (ctx->propq == NULL) {
             OPENSSL_free(ctx);
-            ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
             return NULL;
         }
     }
@@ -147,7 +126,7 @@ void TS_RESP_CTX_free(TS_RESP_CTX *ctx)
     OPENSSL_free(ctx->propq);
     X509_free(ctx->signer_cert);
     EVP_PKEY_free(ctx->signer_key);
-    sk_X509_pop_free(ctx->certs, X509_free);
+    OSSL_STACK_OF_X509_free(ctx->certs);
     sk_ASN1_OBJECT_pop_free(ctx->policies, ASN1_OBJECT_free);
     ASN1_OBJECT_free(ctx->default_policy);
     sk_EVP_MD_free(ctx->mds);   /* No EVP_MD_free method exists. */
@@ -163,17 +142,22 @@ int TS_RESP_CTX_set_signer_cert(TS_RESP_CTX *ctx, X509 *signer)
         ERR_raise(ERR_LIB_TS, TS_R_INVALID_SIGNER_CERTIFICATE_PURPOSE);
         return 0;
     }
+    if (!X509_up_ref(signer))
+        return 0;
+
     X509_free(ctx->signer_cert);
     ctx->signer_cert = signer;
-    X509_up_ref(ctx->signer_cert);
+
     return 1;
 }
 
 int TS_RESP_CTX_set_signer_key(TS_RESP_CTX *ctx, EVP_PKEY *key)
 {
+    if (!EVP_PKEY_up_ref(key))
+        return 0;
+
     EVP_PKEY_free(ctx->signer_key);
     ctx->signer_key = key;
-    EVP_PKEY_up_ref(ctx->signer_key);
 
     return 1;
 }
@@ -191,13 +175,13 @@ int TS_RESP_CTX_set_def_policy(TS_RESP_CTX *ctx, const ASN1_OBJECT *def_policy)
         goto err;
     return 1;
  err:
-    ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
+    ERR_raise(ERR_LIB_TS, ERR_R_OBJ_LIB);
     return 0;
 }
 
 int TS_RESP_CTX_set_certs(TS_RESP_CTX *ctx, STACK_OF(X509) *certs)
 {
-    sk_X509_pop_free(ctx->certs, X509_free);
+    OSSL_STACK_OF_X509_free(ctx->certs);
     ctx->certs = NULL;
 
     return certs == NULL || (ctx->certs = X509_chain_up_ref(certs)) != NULL;
@@ -208,16 +192,21 @@ int TS_RESP_CTX_add_policy(TS_RESP_CTX *ctx, const ASN1_OBJECT *policy)
     ASN1_OBJECT *copy = NULL;
 
     if (ctx->policies == NULL
-        && (ctx->policies = sk_ASN1_OBJECT_new_null()) == NULL)
+        && (ctx->policies = sk_ASN1_OBJECT_new_null()) == NULL) {
+        ERR_raise(ERR_LIB_TS, ERR_R_CRYPTO_LIB);
         goto err;
-    if ((copy = OBJ_dup(policy)) == NULL)
+    }
+    if ((copy = OBJ_dup(policy)) == NULL) {
+        ERR_raise(ERR_LIB_TS, ERR_R_OBJ_LIB);
         goto err;
-    if (!sk_ASN1_OBJECT_push(ctx->policies, copy))
+    }
+    if (!sk_ASN1_OBJECT_push(ctx->policies, copy)) {
+        ERR_raise(ERR_LIB_TS, ERR_R_CRYPTO_LIB);
         goto err;
+    }
 
     return 1;
  err:
-    ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
     ASN1_OBJECT_free(copy);
     return 0;
 }
@@ -232,7 +221,7 @@ int TS_RESP_CTX_add_md(TS_RESP_CTX *ctx, const EVP_MD *md)
 
     return 1;
  err:
-    ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
+    ERR_raise(ERR_LIB_TS, ERR_R_CRYPTO_LIB);
     return 0;
 }
 
@@ -265,7 +254,7 @@ int TS_RESP_CTX_set_accuracy(TS_RESP_CTX *ctx,
     return 1;
  err:
     TS_RESP_CTX_accuracy_free(ctx);
-    ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
+    ERR_raise(ERR_LIB_TS, ERR_R_ASN1_LIB);
     return 0;
 }
 
@@ -300,27 +289,37 @@ int TS_RESP_CTX_set_status_info(TS_RESP_CTX *ctx,
     ASN1_UTF8STRING *utf8_text = NULL;
     int ret = 0;
 
-    if ((si = TS_STATUS_INFO_new()) == NULL)
+    if ((si = TS_STATUS_INFO_new()) == NULL) {
+        ERR_raise(ERR_LIB_TS, ERR_R_TS_LIB);
         goto err;
-    if (!ASN1_INTEGER_set(si->status, status))
+    }
+    if (!ASN1_INTEGER_set(si->status, status)) {
+        ERR_raise(ERR_LIB_TS, ERR_R_ASN1_LIB);
         goto err;
+    }
     if (text) {
         if ((utf8_text = ASN1_UTF8STRING_new()) == NULL
-            || !ASN1_STRING_set(utf8_text, text, strlen(text)))
+            || !ASN1_STRING_set(utf8_text, text, strlen(text))) {
+            ERR_raise(ERR_LIB_TS, ERR_R_ASN1_LIB);
             goto err;
+        }
         if (si->text == NULL
-            && (si->text = sk_ASN1_UTF8STRING_new_null()) == NULL)
+            && (si->text = sk_ASN1_UTF8STRING_new_null()) == NULL) {
+            ERR_raise(ERR_LIB_TS, ERR_R_CRYPTO_LIB);
             goto err;
-        if (!sk_ASN1_UTF8STRING_push(si->text, utf8_text))
+        }
+        if (!sk_ASN1_UTF8STRING_push(si->text, utf8_text)) {
+            ERR_raise(ERR_LIB_TS, ERR_R_CRYPTO_LIB);
             goto err;
+        }
         utf8_text = NULL;       /* Ownership is lost. */
     }
-    if (!TS_RESP_set_status_info(ctx->response, si))
+    if (!TS_RESP_set_status_info(ctx->response, si)) {
+        ERR_raise(ERR_LIB_TS, ERR_R_TS_LIB);
         goto err;
+    }
     ret = 1;
  err:
-    if (!ret)
-        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
     TS_STATUS_INFO_free(si);
     ASN1_UTF8STRING_free(utf8_text);
     return ret;
@@ -348,7 +347,7 @@ int TS_RESP_CTX_add_failure_info(TS_RESP_CTX *ctx, int failure)
         goto err;
     return 1;
  err:
-    ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
+    ERR_raise(ERR_LIB_TS, ERR_R_ASN1_LIB);
     return 0;
 }
 
@@ -381,7 +380,7 @@ TS_RESP *TS_RESP_create_response(TS_RESP_CTX *ctx, BIO *req_bio)
     ts_RESP_CTX_init(ctx);
 
     if ((ctx->response = TS_RESP_new()) == NULL) {
-        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_TS_LIB);
         goto end;
     }
     if ((ctx->request = d2i_TS_REQ_bio(req_bio, NULL)) == NULL) {
@@ -451,7 +450,7 @@ static int ts_RESP_check_request(TS_RESP_CTX *ctx)
     char md_alg_name[OSSL_MAX_NAME_SIZE];
     const ASN1_OCTET_STRING *digest;
     const EVP_MD *md = NULL;
-    int i;
+    int i, md_size;
 
     if (TS_REQ_get_version(request) != 1) {
         TS_RESP_CTX_set_status_info(ctx, TS_STATUS_REJECTION,
@@ -476,6 +475,10 @@ static int ts_RESP_check_request(TS_RESP_CTX *ctx)
         return 0;
     }
 
+    md_size = EVP_MD_get_size(md);
+    if (md_size <= 0)
+        return 0;
+
     if (md_alg->parameter && ASN1_TYPE_get(md_alg->parameter) != V_ASN1_NULL) {
         TS_RESP_CTX_set_status_info(ctx, TS_STATUS_REJECTION,
                                     "Superfluous message digest "
@@ -484,7 +487,7 @@ static int ts_RESP_check_request(TS_RESP_CTX *ctx)
         return 0;
     }
     digest = msg_imprint->hashed_msg;
-    if (digest->length != EVP_MD_get_size(md)) {
+    if (digest->length != md_size) {
         TS_RESP_CTX_set_status_info(ctx, TS_STATUS_REJECTION,
                                     "Bad message digest.");
         TS_RESP_CTX_add_failure_info(ctx, TS_INFO_BAD_DATA_FORMAT);
@@ -645,8 +648,12 @@ static int ossl_ess_add1_signing_cert(PKCS7_SIGNER_INFO *si,
     }
 
     OPENSSL_free(pp);
-    return PKCS7_add_signed_attribute(si, NID_id_smime_aa_signingCertificate,
-                                      V_ASN1_SEQUENCE, seq);
+    if (!PKCS7_add_signed_attribute(si, NID_id_smime_aa_signingCertificate,
+                                    V_ASN1_SEQUENCE, seq)) {
+        ASN1_STRING_free(seq);
+        return 0;
+    }
+    return 1;
 }
 
 static int ossl_ess_add1_signing_cert_v2(PKCS7_SIGNER_INFO *si,
@@ -668,8 +675,12 @@ static int ossl_ess_add1_signing_cert_v2(PKCS7_SIGNER_INFO *si,
     }
 
     OPENSSL_free(pp);
-    return PKCS7_add_signed_attribute(si, NID_id_smime_aa_signingCertificateV2,
-                                      V_ASN1_SEQUENCE, seq);
+    if (!PKCS7_add_signed_attribute(si, NID_id_smime_aa_signingCertificateV2,
+                                    V_ASN1_SEQUENCE, seq)) {
+        ASN1_STRING_free(seq);
+        return 0;
+    }
+    return 1;
 }
 
 static int ts_RESP_sign(TS_RESP_CTX *ctx)
@@ -691,7 +702,7 @@ static int ts_RESP_sign(TS_RESP_CTX *ctx)
     }
 
     if ((p7 = PKCS7_new_ex(ctx->libctx, ctx->propq)) == NULL) {
-        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_ASN1_LIB);
         goto err;
     }
     if (!PKCS7_set_type(p7, NID_pkcs7_signed))
@@ -756,7 +767,7 @@ static int ts_RESP_sign(TS_RESP_CTX *ctx)
     if (!ts_TST_INFO_content_new(p7))
         goto err;
     if ((p7bio = PKCS7_dataInit(p7, NULL)) == NULL) {
-        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_TS, ERR_R_PKCS7_LIB);
         goto err;
     }
     if (!i2d_TS_TST_INFO_bio(p7bio, ctx->tst_info)) {

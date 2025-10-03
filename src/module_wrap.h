@@ -58,6 +58,7 @@ class ModuleWrap : public BaseObject {
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("resolve_cache", resolve_cache_);
   }
+  static void HasTopLevelAwait(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   v8::Local<v8::Context> context() const;
   v8::Maybe<bool> CheckUnsettledTopLevelAwait();
@@ -111,6 +112,7 @@ class ModuleWrap : public BaseObject {
   static void Instantiate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Evaluate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetNamespace(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsGraphAsync(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetStatus(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetError(const v8::FunctionCallbackInfo<v8::Value>& args);
 

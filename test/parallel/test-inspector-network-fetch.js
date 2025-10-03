@@ -1,4 +1,4 @@
-// Flags: --inspect=0 --experimental-network-inspection
+// Flags: --inspect=0 --experimental-network-inspection --expose-internals
 'use strict';
 const common = require('../common');
 
@@ -12,8 +12,8 @@ const https = require('node:https');
 const inspector = require('node:inspector/promises');
 
 // Disable certificate validation for the global fetch.
-const undici = require('../../deps/undici/src/index.js');
-undici.setGlobalDispatcher(new undici.Agent({
+const undici = require('internal/deps/undici/undici');
+undici.setGlobalDispatcher(new undici.EnvHttpProxyAgent({
   connect: {
     rejectUnauthorized: false,
   },
@@ -36,6 +36,7 @@ const setResponseHeaders = (res) => {
   res.setHeader('etag', 12345);
   res.setHeader('Set-Cookie', ['key1=value1', 'key2=value2']);
   res.setHeader('x-header2', ['value1', 'value2']);
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
 };
 
 const handleRequest = (req, res) => {
@@ -65,6 +66,13 @@ const terminate = () => {
   inspector.close();
 };
 
+function findFrameInInitiator(scriptName, initiator) {
+  const frame = initiator.stack.callFrames.find((it) => {
+    return it.url === scriptName;
+  });
+  return frame;
+}
+
 const testHttpGet = () => new Promise((resolve, reject) => {
   session.on('Network.requestWillBeSent', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
@@ -77,6 +85,10 @@ const testHttpGet = () => new Promise((resolve, reject) => {
     assert.strictEqual(params.request.headers['x-header1'], 'value1, value2');
     assert.strictEqual(typeof params.timestamp, 'number');
     assert.strictEqual(typeof params.wallTime, 'number');
+
+    assert.strictEqual(typeof params.initiator, 'object');
+    assert.strictEqual(params.initiator.type, 'script');
+    assert.ok(findFrameInInitiator(__filename, params.initiator));
   }));
   session.on('Network.responseReceived', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
@@ -90,6 +102,8 @@ const testHttpGet = () => new Promise((resolve, reject) => {
     assert.strictEqual(params.response.headers.etag, '12345');
     assert.strictEqual(params.response.headers['Set-Cookie'], 'key1=value1\nkey2=value2');
     assert.strictEqual(params.response.headers['x-header2'], 'value1, value2');
+    assert.strictEqual(params.response.mimeType, 'text/plain');
+    assert.strictEqual(params.response.charset, 'utf-8');
   }));
   session.on('Network.loadingFinished', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
@@ -127,6 +141,8 @@ const testHttpsGet = () => new Promise((resolve, reject) => {
     assert.strictEqual(params.response.headers.etag, '12345');
     assert.strictEqual(params.response.headers['Set-Cookie'], 'key1=value1\nkey2=value2');
     assert.strictEqual(params.response.headers['x-header2'], 'value1, value2');
+    assert.strictEqual(params.response.mimeType, 'text/plain');
+    assert.strictEqual(params.response.charset, 'utf-8');
   }));
   session.on('Network.loadingFinished', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));

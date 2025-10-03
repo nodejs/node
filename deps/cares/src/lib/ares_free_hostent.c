@@ -44,9 +44,10 @@ void ares_free_hostent(struct hostent *host)
   }
   ares_free(host->h_aliases);
   if (host->h_addr_list) {
-    ares_free(
-      host->h_addr_list[0]); /* no matter if there is one or many entries,
-                           there is only one malloc for all of them */
+    size_t i;
+    for (i=0; host->h_addr_list[i] != NULL; i++) {
+      ares_free(host->h_addr_list[i]);
+    }
     ares_free(host->h_addr_list);
   }
   ares_free(host);

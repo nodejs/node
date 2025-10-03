@@ -774,6 +774,7 @@ aesni_gcm_encrypt:
 	.byte	0xf3,0xc3
 .cfi_endproc	
 .size	aesni_gcm_encrypt,.-aesni_gcm_encrypt
+.section	.rodata
 .align	64
 .Lbswap_mask:
 .byte	15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
@@ -786,6 +787,7 @@ aesni_gcm_encrypt:
 .Lone_lsb:
 .byte	1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 .byte	65,69,83,45,78,73,32,71,67,77,32,109,111,100,117,108,101,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
+.previous	
 .align	64
 	.section ".note.gnu.property", "a"
 	.p2align 3

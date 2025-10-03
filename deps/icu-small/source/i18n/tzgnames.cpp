@@ -406,7 +406,7 @@ TZGNCore::initialize(const Locale& locale, UErrorCode& status) {
     int32_t regionLen = static_cast<int32_t>(uprv_strlen(region));
     if (regionLen == 0) {
         CharString loc = ulocimp_addLikelySubtags(fLocale.getName(), status);
-        ulocimp_getSubtags(loc.data(), nullptr, nullptr, &fTargetRegion, nullptr, nullptr, status);
+        ulocimp_getSubtags(loc.toStringPiece(), nullptr, nullptr, &fTargetRegion, nullptr, nullptr, status);
         if (U_FAILURE(status)) {
             cleanup();
             return;

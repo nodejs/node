@@ -39,6 +39,7 @@
 #include <ctype.h>
 
 #include <cassert>
+#include <functional>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -529,8 +530,7 @@ class ParameterizedTestSuiteInfo : public ParameterizedTestSuiteInfoBase {
   // prefix). test_base_name is the name of an individual test without
   // parameter index. For the test SequenceA/FooTest.DoBar/1 FooTest is
   // test suite base name and DoBar is test base name.
-  void AddTestPattern(const char*,
-                      const char* test_base_name,
+  void AddTestPattern(const char*, const char* test_base_name,
                       TestMetaFactoryBase<ParamType>* meta_factory,
                       CodeLocation code_location) {
     tests_.emplace_back(
@@ -952,11 +952,11 @@ class CartesianProductHolder {
   std::tuple<Gen...> generators_;
 };
 
-template <typename From, typename To>
+template <typename From, typename To, typename Func>
 class ParamGeneratorConverter : public ParamGeneratorInterface<To> {
  public:
-  ParamGeneratorConverter(ParamGenerator<From> gen)  // NOLINT
-      : generator_(std::move(gen)) {}
+  ParamGeneratorConverter(ParamGenerator<From> gen, Func converter)  // NOLINT
+      : generator_(std::move(gen)), converter_(std::move(converter)) {}
 
   ParamIteratorInterface<To>* Begin() const override {
     return new Iterator(this, generator_.begin(), generator_.end());
@@ -965,13 +965,21 @@ class ParamGeneratorConverter : public ParamGeneratorInterface<To> {
     return new Iterator(this, generator_.end(), generator_.end());
   }
 
+  // Returns the std::function wrapping the user-supplied converter callable. It
+  // is used by the iterator (see class Iterator below) to convert the object
+  // (of type FROM) returned by the ParamGenerator to an object of a type that
+  // can be static_cast to type TO.
+  const Func& TypeConverter() const { return converter_; }
+
  private:
   class Iterator : public ParamIteratorInterface<To> {
    public:
-    Iterator(const ParamGeneratorInterface<To>* base, ParamIterator<From> it,
+    Iterator(const ParamGeneratorConverter* base, ParamIterator<From> it,
              ParamIterator<From> end)
         : base_(base), it_(it), end_(end) {
-      if (it_ != end_) value_ = std::make_shared<To>(static_cast<To>(*it_));
+      if (it_ != end_)
+        value_ =
+            std::make_shared<To>(static_cast<To>(base->TypeConverter()(*it_)));
     }
     ~Iterator() override = default;
 
@@ -980,7 +988,9 @@ class ParamGeneratorConverter : public ParamGeneratorInterface<To> {
     }
     void Advance() override {
       ++it_;
-      if (it_ != end_) value_ = std::make_shared<To>(static_cast<To>(*it_));
+      if (it_ != end_)
+        value_ =
+            std::make_shared<To>(static_cast<To>(base_->TypeConverter()(*it_)));
     }
     ParamIteratorInterface<To>* Clone() const override {
       return new Iterator(*this);
@@ -1000,29 +1010,53 @@ class ParamGeneratorConverter : public ParamGeneratorInterface<To> {
    private:
     Iterator(const Iterator& other) = default;
 
-    const ParamGeneratorInterface<To>* const base_;
+    const ParamGeneratorConverter* const base_;
     ParamIterator<From> it_;
     ParamIterator<From> end_;
     std::shared_ptr<To> value_;
   };  // class ParamGeneratorConverter::Iterator
 
   ParamGenerator<From> generator_;
+  Func converter_;
 };  // class ParamGeneratorConverter
 
-template <class Gen>
+template <class GeneratedT,
+          typename StdFunction =
+              std::function<const GeneratedT&(const GeneratedT&)>>
 class ParamConverterGenerator {
  public:
-  ParamConverterGenerator(ParamGenerator<Gen> g)  // NOLINT
-      : generator_(std::move(g)) {}
+  ParamConverterGenerator(ParamGenerator<GeneratedT> g)  // NOLINT
+      : generator_(std::move(g)), converter_(Identity) {}
+
+  ParamConverterGenerator(ParamGenerator<GeneratedT> g, StdFunction converter)
+      : generator_(std::move(g)), converter_(std::move(converter)) {}
 
   template <typename T>
   operator ParamGenerator<T>() const {  // NOLINT
-    return ParamGenerator<T>(new ParamGeneratorConverter<Gen, T>(generator_));
+    return ParamGenerator<T>(
+        new ParamGeneratorConverter<GeneratedT, T, StdFunction>(generator_,
+                                                                converter_));
   }
 
  private:
-  ParamGenerator<Gen> generator_;
+  static const GeneratedT& Identity(const GeneratedT& v) { return v; }
+
+  ParamGenerator<GeneratedT> generator_;
+  StdFunction converter_;
 };
+
+// Template to determine the param type of a single-param std::function.
+template <typename T>
+struct FuncSingleParamType;
+template <typename R, typename P>
+struct FuncSingleParamType<std::function<R(P)>> {
+  using type = std::remove_cv_t<std::remove_reference_t<P>>;
+};
+
+template <typename T>
+struct IsSingleArgStdFunction : public std::false_type {};
+template <typename R, typename P>
+struct IsSingleArgStdFunction<std::function<R(P)>> : public std::true_type {};
 
 }  // namespace internal
 }  // namespace testing

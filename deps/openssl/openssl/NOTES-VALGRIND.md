@@ -1,9 +1,9 @@
 Notes on Valgrind
 =================
 
-Valgrind is a test harness that includes many tools such as memcheck,
+[Valgrind](https://valgrind.org/) is a test harness that includes many tools such as memcheck,
 which is commonly used to check for memory leaks, etc. The default tool
-run by Valgrind is memcheck. There are other tools available, but this
+run by Valgrind is memcheck. There are [other tools available](https://valgrind.org/info/tools.html), but this
 will focus on memcheck.
 
 Valgrind runs programs in a virtual machine, this means OpenSSL unit
@@ -13,11 +13,11 @@ Requirements
 ------------
 
 1. Platform supported by Valgrind
-   See <http://valgrind.org/info/platforms.html>
+   - See [Valgrind Supported Platforms](http://valgrind.org/info/platforms.html)
 2. Valgrind installed on the platform
-   See <http://valgrind.org/downloads/current.html>
+   - See [Valgrind Current Releases](http://valgrind.org/downloads/current.html)
 3. OpenSSL compiled
-   See [INSTALL.md](INSTALL.md)
+   - See [INSTALL.md](INSTALL.md)
 
 Running Tests
 -------------
@@ -32,7 +32,7 @@ to allow programs to find shared libraries. The variable can be modified
 to specify a different executable environment.
 
     EXE_SHELL=\
-    "`/bin/pwd`/util/wrap.pl valgrind --error-exitcode=1 --leak-check=full -q"
+    "$(/bin/pwd)/util/wrap.pl valgrind --error-exitcode=1 --leak-check=full -q"
 
 This will start up Valgrind with the default checker (`memcheck`).
 The `--error-exitcode=1` option specifies that Valgrind should exit with an
@@ -62,11 +62,11 @@ file [test/README.md](test/README.md).
 
 Example command line:
 
-    $ make test EXE_SHELL="`/bin/pwd`/util/wrap.pl valgrind --error-exitcode=1 \
+    $ make test EXE_SHELL="$(/bin/pwd)/util/wrap.pl valgrind --error-exitcode=1 \
         --leak-check=full -q" OPENSSL_ia32cap=":0"
 
 If an error occurs, you can then run the specific test via the `TESTS` variable
 with the `VERBOSE` or `VF` or `VFP` options to gather additional information.
 
-    $ make test VERBOSE=1 TESTS=test_test EXE_SHELL="`/bin/pwd`/util/wrap.pl \
+    $ make test VERBOSE=1 TESTS=test_test EXE_SHELL="$(/bin/pwd)/util/wrap.pl \
        valgrind --error-exitcode=1 --leak-check=full -q" OPENSSL_ia32cap=":0"

@@ -41,6 +41,7 @@ class PackageJson {
     'binRefs',
     'bundleDependencies',
     'bundleDependenciesFalse',
+    'fixName',
     'fixNameField',
     'fixVersionField',
     'fixRepositoryField',
@@ -252,7 +253,9 @@ class PackageJson {
       .replace(/\n/g, eol)
 
     if (fileContent.trim() !== this.#readFileContent.trim()) {
-      return await writeFile(this.filename, fileContent)
+      const written = await writeFile(this.filename, fileContent)
+      this.#readFileContent = fileContent
+      return written
     }
   }
 

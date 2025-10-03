@@ -170,7 +170,7 @@ void DecreaseSignalHandlerCount(int signum) {
 
 bool HasSignalJSHandler(int signum) {
   Mutex::ScopedLock lock(handled_signals_mutex);
-  return handled_signals.find(signum) != handled_signals.end();
+  return handled_signals.contains(signum);
 }
 }  // namespace node
 

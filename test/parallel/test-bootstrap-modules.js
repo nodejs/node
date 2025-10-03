@@ -98,6 +98,7 @@ expected.beforePreExec = new Set([
   'Internal Binding contextify',
   'NativeModule internal/vm',
   'NativeModule internal/modules/helpers',
+  'NativeModule internal/modules/customization_hooks',
   'NativeModule internal/modules/package_json_reader',
   'Internal Binding module_wrap',
   'NativeModule internal/modules/cjs/loader',
@@ -105,6 +106,8 @@ expected.beforePreExec = new Set([
   'Internal Binding wasm_web_api',
   'NativeModule internal/events/abort_listener',
   'NativeModule internal/modules/typescript',
+  'NativeModule internal/data_url',
+  'NativeModule internal/mime',
 ]);
 
 expected.atRunTime = new Set([

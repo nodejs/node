@@ -56,3 +56,7 @@ function next3() {
     }));
   }));
 }
+
+assert.throws(() => fs.WriteStream.prototype.autoClose, {
+  code: 'ERR_INVALID_THIS',
+});

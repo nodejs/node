@@ -37,7 +37,7 @@ static void ares_requeue_queries(ares_conn_t  *conn,
   ares_tvnow(&now);
 
   while ((query = ares_llist_first_val(conn->queries_to_conn)) != NULL) {
-    ares_requeue_query(query, &now, requeue_status, ARES_TRUE, NULL);
+    ares_requeue_query(query, &now, requeue_status, ARES_TRUE, NULL, NULL);
   }
 }
 

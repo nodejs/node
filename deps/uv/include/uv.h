@@ -58,6 +58,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <math.h>
 
 /* Internal type, do not use. */
 struct uv__queue {
@@ -157,6 +158,7 @@ struct uv__queue {
   XX(ESOCKTNOSUPPORT, "socket type not supported")                            \
   XX(ENODATA, "no data available")                                            \
   XX(EUNATCH, "protocol driver not attached")                                 \
+  XX(ENOEXEC, "exec format error")                                            \
 
 #define UV_HANDLE_TYPE_MAP(XX)                                                \
   XX(ASYNC, async)                                                            \
@@ -775,6 +777,12 @@ UV_EXTERN int uv_udp_try_send(uv_udp_t* handle,
                               const uv_buf_t bufs[],
                               unsigned int nbufs,
                               const struct sockaddr* addr);
+UV_EXTERN int uv_udp_try_send2(uv_udp_t* handle,
+                               unsigned int count,
+                               uv_buf_t* bufs[/*count*/],
+                               unsigned int nbufs[/*count*/],
+                               struct sockaddr* addrs[/*count*/],
+                               unsigned int flags);
 UV_EXTERN int uv_udp_recv_start(uv_udp_t* handle,
                                 uv_alloc_cb alloc_cb,
                                 uv_udp_recv_cb recv_cb);
@@ -798,10 +806,15 @@ struct uv_tty_s {
 typedef enum {
   /* Initial/normal terminal mode */
   UV_TTY_MODE_NORMAL,
-  /* Raw input mode (On Windows, ENABLE_WINDOW_INPUT is also enabled) */
+  /*
+   * Raw input mode (On Windows, ENABLE_WINDOW_INPUT is also enabled).
+   * May become equivalent to UV_TTY_MODE_RAW_VT in future libuv versions.
+   */
   UV_TTY_MODE_RAW,
   /* Binary-safe I/O mode for IPC (Unix-only) */
-  UV_TTY_MODE_IO
+  UV_TTY_MODE_IO,
+  /* Raw input mode. On Windows ENABLE_VIRTUAL_TERMINAL_INPUT is also set. */
+  UV_TTY_MODE_RAW_VT
 } uv_tty_mode_t;
 
 typedef enum {
@@ -1288,6 +1301,7 @@ typedef struct {
 } uv_rusage_t;
 
 UV_EXTERN int uv_getrusage(uv_rusage_t* rusage);
+UV_EXTERN int uv_getrusage_thread(uv_rusage_t* rusage);
 
 UV_EXTERN int uv_os_homedir(char* buffer, size_t* size);
 UV_EXTERN int uv_os_tmpdir(char* buffer, size_t* size);
@@ -1577,6 +1591,8 @@ UV_EXTERN int uv_fs_chmod(uv_loop_t* loop,
                           const char* path,
                           int mode,
                           uv_fs_cb cb);
+#define UV_FS_UTIME_NOW  (INFINITY)
+#define UV_FS_UTIME_OMIT (NAN)
 UV_EXTERN int uv_fs_utime(uv_loop_t* loop,
                           uv_fs_t* req,
                           const char* path,
@@ -1869,6 +1885,7 @@ UV_EXTERN int uv_gettimeofday(uv_timeval64_t* tv);
 typedef void (*uv_thread_cb)(void* arg);
 
 UV_EXTERN int uv_thread_create(uv_thread_t* tid, uv_thread_cb entry, void* arg);
+UV_EXTERN int uv_thread_detach(uv_thread_t* tid);
 
 typedef enum {
   UV_THREAD_NO_FLAGS = 0x00,
@@ -1898,6 +1915,9 @@ UV_EXTERN int uv_thread_getcpu(void);
 UV_EXTERN uv_thread_t uv_thread_self(void);
 UV_EXTERN int uv_thread_join(uv_thread_t *tid);
 UV_EXTERN int uv_thread_equal(const uv_thread_t* t1, const uv_thread_t* t2);
+UV_EXTERN int uv_thread_setname(const char* name);
+UV_EXTERN int uv_thread_getname(uv_thread_t* tid, char* name, size_t size);
+
 
 /* The presence of these unions force similar struct layout. */
 #define XX(_, name) uv_ ## name ## _t name;

@@ -19,6 +19,7 @@ This a list of all the dependencies:
 * [googletest][]
 * [histogram][]
 * [icu-small][]
+* [inspector\_protocol][inspector_protocol]
 * [libuv][]
 * [llhttp][]
 * [minimatch][]
@@ -35,6 +36,7 @@ This a list of all the dependencies:
 * [uvwasi][]
 * [V8][]
 * [zlib][]
+* [zstd][]
 
 Any code which meets one or more of these conditions should
 be managed as a dependency:
@@ -271,6 +273,12 @@ and Java libraries providing Unicode and Globalization
 support for software applications.
 See [maintaining-icu][] for more information.
 
+### inspector\_protocol
+
+The [inspector\_protocol](https://chromium.googlesource.com/deps/inspector_protocol/)
+is Chromium's of code generators and templates for the inspector protocol.
+See [this doc](../../../tools/inspector_protocol/README.md) for more information.
+
 ### libuv
 
 The [libuv](https://github.com/libuv/libuv) dependency is a
@@ -393,6 +401,11 @@ dependency lossless data-compression library,
 it comes from the Chromium team's zlib fork which incorporated
 performance improvements not currently available in standard zlib.
 
+### zstd
+
+The [zstd](https://github.com/facebook/zstd) dependency is used for compression
+according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
+
 [acorn]: #acorn
 [ada]: #ada
 [amaro]: #amaro
@@ -405,6 +418,7 @@ performance improvements not currently available in standard zlib.
 [googletest]: #googletest
 [histogram]: #histogram
 [icu-small]: #icu-small
+[inspector_protocol]: #inspector_protocol
 [libuv]: #libuv
 [llhttp]: #llhttp
 [maintaining-V8]: ./maintaining-V8.md
@@ -428,3 +442,4 @@ performance improvements not currently available in standard zlib.
 [uvwasi]: #uvwasi
 [v8]: #v8
 [zlib]: #zlib
+[zstd]: #zstd

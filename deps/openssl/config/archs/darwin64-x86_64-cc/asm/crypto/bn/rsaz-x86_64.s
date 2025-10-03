@@ -1979,7 +1979,9 @@ L$SEH_end_rsaz_512_gather4:
 
 
 
+.section	__DATA,__const
 .p2align	6
 L$inc:
 .long	0,0, 1,1
 .long	2,2, 2,2
+.text

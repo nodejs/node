@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "e_os.h"
+#include "internal/e_os.h"
 #include "internal/cryptlib.h"
 #include <stdio.h>
 #include <openssl/asn1t.h>
@@ -96,7 +96,7 @@ static TLS_FEATURE *v2i_TLS_FEATURE(const X509V3_EXT_METHOD *method,
     long tlsextid;
 
     if ((tlsf = sk_ASN1_INTEGER_new_null()) == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
         return NULL;
     }
 
@@ -125,7 +125,7 @@ static TLS_FEATURE *v2i_TLS_FEATURE(const X509V3_EXT_METHOD *method,
         if ((ai = ASN1_INTEGER_new()) == NULL
                 || !ASN1_INTEGER_set(ai, tlsextid)
                 || sk_ASN1_INTEGER_push(tlsf, ai) <= 0) {
-            ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
             goto err;
         }
         /* So it doesn't get purged if an error occurs next time around */

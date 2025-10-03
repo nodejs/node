@@ -15,15 +15,23 @@ push @ISA, 'TLSProxy::Message';
 sub new
 {
     my $class = shift;
-    my ($server,
+    my ($isdtls,
+        $server,
+        $msgseq,
+        $msgfrag,
+        $msgfragoffs,
         $data,
         $records,
         $startoffset,
         $message_frag_lens) = @_;
 
     my $self = $class->SUPER::new(
+        $isdtls,
         $server,
         TLSProxy::Message::MT_NEXT_PROTO,
+        $msgseq,
+        $msgfrag,
+        $msgfragoffs,
         $data,
         $records,
         $startoffset,

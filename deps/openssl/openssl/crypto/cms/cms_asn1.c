@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -51,6 +51,7 @@ static int cms_si_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
         EVP_PKEY_free(si->pkey);
         X509_free(si->signer);
         EVP_MD_CTX_free(si->mctx);
+        EVP_PKEY_CTX_free(si->pctx);
     }
     return 1;
 }
@@ -83,17 +84,28 @@ ASN1_NDEF_SEQUENCE(CMS_SignedData) = {
         ASN1_IMP_SET_OF_OPT(CMS_SignedData, crls, CMS_RevocationInfoChoice, 1),
         ASN1_SET_OF(CMS_SignedData, signerInfos, CMS_SignerInfo)
 } ASN1_NDEF_SEQUENCE_END(CMS_SignedData)
+IMPLEMENT_ASN1_ALLOC_FUNCTIONS(CMS_SignedData)
 
 ASN1_SEQUENCE(CMS_OriginatorInfo) = {
         ASN1_IMP_SET_OF_OPT(CMS_OriginatorInfo, certificates, CMS_CertificateChoices, 0),
         ASN1_IMP_SET_OF_OPT(CMS_OriginatorInfo, crls, CMS_RevocationInfoChoice, 1)
 } static_ASN1_SEQUENCE_END(CMS_OriginatorInfo)
 
-ASN1_NDEF_SEQUENCE(CMS_EncryptedContentInfo) = {
+static int cms_ec_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+                     void *exarg)
+{
+    CMS_EncryptedContentInfo *ec = (CMS_EncryptedContentInfo *)*pval;
+
+    if (operation == ASN1_OP_FREE_POST)
+        OPENSSL_clear_free(ec->key, ec->keylen);
+    return 1;
+}
+
+ASN1_NDEF_SEQUENCE_cb(CMS_EncryptedContentInfo, cms_ec_cb) = {
         ASN1_SIMPLE(CMS_EncryptedContentInfo, contentType, ASN1_OBJECT),
         ASN1_SIMPLE(CMS_EncryptedContentInfo, contentEncryptionAlgorithm, X509_ALGOR),
         ASN1_IMP_OPT(CMS_EncryptedContentInfo, encryptedContent, ASN1_OCTET_STRING_NDEF, 0)
-} static_ASN1_NDEF_SEQUENCE_END(CMS_EncryptedContentInfo)
+} ASN1_NDEF_SEQUENCE_END_cb(CMS_EncryptedContentInfo, CMS_EncryptedContentInfo)
 
 ASN1_SEQUENCE(CMS_KeyTransRecipientInfo) = {
         ASN1_EMBED(CMS_KeyTransRecipientInfo, version, INT32),
@@ -231,6 +243,7 @@ ASN1_NDEF_SEQUENCE(CMS_EnvelopedData) = {
         ASN1_SIMPLE(CMS_EnvelopedData, encryptedContentInfo, CMS_EncryptedContentInfo),
         ASN1_IMP_SET_OF_OPT(CMS_EnvelopedData, unprotectedAttrs, X509_ATTRIBUTE, 1)
 } ASN1_NDEF_SEQUENCE_END(CMS_EnvelopedData)
+IMPLEMENT_ASN1_DUP_FUNCTION(CMS_EnvelopedData)
 
 ASN1_NDEF_SEQUENCE(CMS_DigestedData) = {
         ASN1_EMBED(CMS_DigestedData, version, INT32),
@@ -304,7 +317,7 @@ static int cms_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
     case ASN1_OP_STREAM_PRE:
         if (CMS_stream(&sarg->boundary, cms) <= 0)
             return 0;
-        /* fall thru */
+        /* fall through */
     case ASN1_OP_DETACHED_PRE:
         sarg->ndef_bio = CMS_dataInit(cms, sarg->out);
         if (!sarg->ndef_bio)
@@ -315,6 +328,10 @@ static int cms_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
     case ASN1_OP_DETACHED_POST:
         if (CMS_dataFinal(cms, sarg->ndef_bio) <= 0)
             return 0;
+        break;
+
+    case ASN1_OP_FREE_POST:
+        OPENSSL_free(cms->ctx.propq);
         break;
 
     }

@@ -2782,7 +2782,7 @@ DEFINE_IMPLICATION(prof, log_code)
 
 DEFINE_BOOL(ll_prof, false, "Enable low-level linux profiler.")
 
-#if V8_OS_LINUX
+#if V8_OS_LINUX || V8_OS_DARWIN
 #define DEFINE_PERF_PROF_BOOL(nam, cmt) DEFINE_BOOL(nam, false, cmt)
 #define DEFINE_PERF_PROF_IMPLICATION DEFINE_IMPLICATION
 #else
@@ -2799,7 +2799,7 @@ DEFINE_BOOL(ll_prof, false, "Enable low-level linux profiler.")
 #endif
 
 DEFINE_PERF_PROF_BOOL(perf_basic_prof,
-                      "Enable perf linux profiler (basic support).")
+                      "Enable basic support for perf profiler.")
 DEFINE_NEG_IMPLICATION(perf_basic_prof, compact_code_space)
 DEFINE_STRING(perf_basic_prof_path, DEFAULT_PERF_BASIC_PROF_PATH,
               "directory to write perf-<pid>.map symbol file to")
@@ -2808,8 +2808,8 @@ DEFINE_PERF_PROF_BOOL(
     "Only report function code ranges to perf (i.e. no stubs).")
 DEFINE_PERF_PROF_IMPLICATION(perf_basic_prof_only_functions, perf_basic_prof)
 
-DEFINE_PERF_PROF_BOOL(
-    perf_prof, "Enable perf linux profiler (experimental annotate support).")
+DEFINE_PERF_PROF_BOOL(perf_prof,
+                      "Enable experimental annotate support for perf profiler.")
 DEFINE_STRING(perf_prof_path, DEFAULT_PERF_PROF_PATH,
               "directory to write jit-<pid>.dump symbol file to")
 DEFINE_PERF_PROF_BOOL(

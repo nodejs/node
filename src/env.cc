@@ -50,10 +50,12 @@ using v8::HeapProfiler;
 using v8::HeapSpaceStatistics;
 using v8::Integer;
 using v8::Isolate;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::NewStringType;
+using v8::Nothing;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -118,7 +120,8 @@ void Environment::ResetPromiseHooks(Local<Function> init,
 // Remember to keep this code aligned with pushAsyncContext() in JS.
 void AsyncHooks::push_async_context(double async_id,
                                     double trigger_async_id,
-                                    Local<Object> resource) {
+                                    Local<Object>* resource) {
+  CHECK_IMPLIES(resource != nullptr, !resource->IsEmpty());
   // Since async_hooks is experimental, do only perform the check
   // when async_hooks is enabled.
   if (fields_[kCheck] > 0) {
@@ -136,14 +139,14 @@ void AsyncHooks::push_async_context(double async_id,
 
 #ifdef DEBUG
   for (uint32_t i = offset; i < native_execution_async_resources_.size(); i++)
-    CHECK(native_execution_async_resources_[i].IsEmpty());
+    CHECK_NULL(native_execution_async_resources_[i]);
 #endif
 
   // When this call comes from JS (as a way of increasing the stack size),
   // `resource` will be empty, because JS caches these values anyway.
-  if (!resource.IsEmpty()) {
+  if (resource != nullptr) {
     native_execution_async_resources_.resize(offset + 1);
-    // Caveat: This is a v8::Local<> assignment, we do not keep a v8::Global<>!
+    // Caveat: This is a v8::Local<>* assignment, we do not keep a v8::Global<>!
     native_execution_async_resources_[offset] = resource;
   }
 }
@@ -168,11 +171,11 @@ bool AsyncHooks::pop_async_context(double async_id) {
   fields_[kStackLength] = offset;
 
   if (offset < native_execution_async_resources_.size() &&
-      !native_execution_async_resources_[offset].IsEmpty()) [[likely]] {
+      native_execution_async_resources_[offset] != nullptr) [[likely]] {
 #ifdef DEBUG
     for (uint32_t i = offset + 1; i < native_execution_async_resources_.size();
          i++) {
-      CHECK(native_execution_async_resources_[i].IsEmpty());
+      CHECK_NULL(native_execution_async_resources_[i]);
     }
 #endif
     native_execution_async_resources_.resize(offset);
@@ -619,6 +622,7 @@ IsolateData::IsolateData(Isolate* isolate,
 
 IsolateData::~IsolateData() {
   if (cpp_heap_ != nullptr) {
+    v8::Locker locker(isolate_);
     // The CppHeap must be detached before being terminated.
     isolate_->DetachCppHeap();
     cpp_heap_->Terminate();
@@ -800,7 +804,8 @@ Environment::Environment(IsolateData* isolate_data,
                          const std::vector<std::string>& exec_args,
                          const EnvSerializeInfo* env_info,
                          EnvironmentFlags::Flags flags,
-                         ThreadId thread_id)
+                         ThreadId thread_id,
+                         std::string_view thread_name)
     : isolate_(isolate),
       isolate_data_(isolate_data),
       async_hooks_(isolate, MAYBE_FIELD_PTR(env_info, async_hooks)),
@@ -826,7 +831,8 @@ Environment::Environment(IsolateData* isolate_data,
       flags_(flags),
       thread_id_(thread_id.id == static_cast<uint64_t>(-1)
                      ? AllocateEnvironmentThreadId().id
-                     : thread_id.id) {
+                     : thread_id.id),
+      thread_name_(thread_name) {
   constexpr bool is_shared_ro_heap =
 #ifdef NODE_V8_SHARED_RO_HEAP
       true;
@@ -913,18 +919,12 @@ Environment::Environment(IsolateData* isolate_data,
 
   if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACING_CATEGORY_NODE1(environment)) != 0) {
-    auto traced_value = tracing::TracedValue::Create();
-    traced_value->BeginArray("args");
-    for (const std::string& arg : args) traced_value->AppendString(arg);
-    traced_value->EndArray();
-    traced_value->BeginArray("exec_args");
-    for (const std::string& arg : exec_args) traced_value->AppendString(arg);
-    traced_value->EndArray();
+    tracing::EnvironmentArgs traced_value(args, exec_args);
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE1(environment),
                                       "Environment",
                                       this,
                                       "args",
-                                      std::move(traced_value));
+                                      tracing::CastTracedValue(traced_value));
   }
 
   if (options_->permission) {
@@ -934,6 +934,7 @@ Environment::Environment(IsolateData* isolate_data,
     // unless explicitly allowed by the user
     if (!options_->allow_addons) {
       options_->allow_native_addons = false;
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kAddon);
     }
     flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
     permission()->Apply(this, {"*"}, permission::PermissionScope::kInspector);
@@ -947,6 +948,25 @@ Environment::Environment(IsolateData* isolate_data,
     }
     if (!options_->allow_wasi) {
       permission()->Apply(this, {"*"}, permission::PermissionScope::kWASI);
+    }
+
+    // Implicit allow entrypoint to kFileSystemRead
+    if (!options_->has_eval_string && !options_->force_repl) {
+      std::string first_argv;
+      if (argv_.size() > 1) {
+        first_argv = argv_[1];
+      }
+
+      // Also implicit allow preloaded modules to kFileSystemRead
+      if (!options_->preload_cjs_modules.empty()) {
+        for (const std::string& mod : options_->preload_cjs_modules) {
+          options_->allow_fs_read.push_back(mod);
+        }
+      }
+
+      if (first_argv != "inspect") {
+        options_->allow_fs_read.push_back(first_argv);
+      }
     }
 
     if (!options_->allow_fs_read.empty()) {
@@ -1060,6 +1080,14 @@ Environment::~Environment() {
     for (binding::DLib& addon : loaded_addons_) {
       addon.Close();
     }
+  }
+
+  if (cpu_profiler_) {
+    for (auto& it : pending_profiles_) {
+      cpu_profiler_->Stop(it.second);
+    }
+    cpu_profiler_->Dispose();
+    cpu_profiler_ = nullptr;
   }
 }
 
@@ -1291,7 +1319,7 @@ void Environment::RunCleanup() {
     cleanable->Clean();
   }
 
-  while (!cleanup_queue_.empty() || principal_realm_->HasCleanupHooks() ||
+  while (!cleanup_queue_.empty() || principal_realm_->PendingCleanup() ||
          native_immediates_.size() > 0 ||
          native_immediates_threadsafe_.size() > 0 ||
          native_immediates_interrupts_.size() > 0) {
@@ -1591,54 +1619,66 @@ Local<Value> Environment::GetNow() {
   return Number::New(isolate(), static_cast<double>(now));
 }
 
-void CollectExceptionInfo(Environment* env,
-                          Local<Object> obj,
-                          int errorno,
-                          const char* err_string,
-                          const char* syscall,
-                          const char* message,
-                          const char* path,
-                          const char* dest) {
-  obj->Set(env->context(),
-           env->errno_string(),
-           Integer::New(env->isolate(), errorno)).Check();
-
-  obj->Set(env->context(), env->code_string(),
-           OneByteString(env->isolate(), err_string)).Check();
-
-  if (message != nullptr) {
-    obj->Set(env->context(), env->message_string(),
-             OneByteString(env->isolate(), message)).Check();
+Maybe<void> CollectExceptionInfo(Environment* env,
+                                 Local<Object> obj,
+                                 int errorno,
+                                 const char* err_string,
+                                 const char* syscall,
+                                 const char* message,
+                                 const char* path,
+                                 const char* dest) {
+  if (obj->Set(env->context(),
+               env->errno_string(),
+               Integer::New(env->isolate(), errorno))
+          .IsNothing() ||
+      obj->Set(env->context(),
+               env->code_string(),
+               OneByteString(env->isolate(), err_string))
+          .IsNothing() ||
+      (message != nullptr && obj->Set(env->context(),
+                                      env->message_string(),
+                                      OneByteString(env->isolate(), message))
+                                 .IsNothing())) {
+    return Nothing<void>();
   }
 
   Local<Value> path_buffer;
   if (path != nullptr) {
-    path_buffer =
-      Buffer::Copy(env->isolate(), path, strlen(path)).ToLocalChecked();
-    obj->Set(env->context(), env->path_string(), path_buffer).Check();
+    if (!Buffer::Copy(env->isolate(), path, strlen(path))
+             .ToLocal(&path_buffer) ||
+        obj->Set(env->context(), env->path_string(), path_buffer).IsNothing()) {
+      return Nothing<void>();
+    }
   }
 
   Local<Value> dest_buffer;
   if (dest != nullptr) {
-    dest_buffer =
-      Buffer::Copy(env->isolate(), dest, strlen(dest)).ToLocalChecked();
-    obj->Set(env->context(), env->dest_string(), dest_buffer).Check();
+    if (!Buffer::Copy(env->isolate(), dest, strlen(dest))
+             .ToLocal(&dest_buffer) ||
+        obj->Set(env->context(), env->dest_string(), dest_buffer).IsNothing()) {
+      return Nothing<void>();
+    }
   }
 
   if (syscall != nullptr) {
-    obj->Set(env->context(), env->syscall_string(),
-             OneByteString(env->isolate(), syscall)).Check();
+    if (obj->Set(env->context(),
+                 env->syscall_string(),
+                 OneByteString(env->isolate(), syscall))
+            .IsNothing()) {
+      return Nothing<void>();
+    }
   }
+
+  return JustVoid();
 }
 
-void Environment::CollectUVExceptionInfo(Local<Value> object,
-                                         int errorno,
-                                         const char* syscall,
-                                         const char* message,
-                                         const char* path,
-                                         const char* dest) {
-  if (!object->IsObject() || errorno == 0)
-    return;
+Maybe<void> Environment::CollectUVExceptionInfo(Local<Value> object,
+                                                int errorno,
+                                                const char* syscall,
+                                                const char* message,
+                                                const char* path,
+                                                const char* dest) {
+  if (!object->IsObject() || errorno == 0) return JustVoid();
 
   Local<Object> obj = object.As<Object>();
   const char* err_string = uv_err_name(errorno);
@@ -1647,7 +1687,7 @@ void Environment::CollectUVExceptionInfo(Local<Value> object,
     message = uv_strerror(errorno);
   }
 
-  CollectExceptionInfo(
+  return CollectExceptionInfo(
       this, obj, errorno, err_string, syscall, message, path, dest);
 }
 
@@ -1701,7 +1741,6 @@ AsyncHooks::AsyncHooks(Isolate* isolate, const SerializeInfo* info)
       fields_(isolate, kFieldsCount, MAYBE_FIELD_PTR(info, fields)),
       async_id_fields_(
           isolate, kUidFieldsCount, MAYBE_FIELD_PTR(info, async_id_fields)),
-      native_execution_async_resources_(isolate),
       info_(info) {
   HandleScope handle_scope(isolate);
   if (info == nullptr) {
@@ -1790,10 +1829,9 @@ AsyncHooks::SerializeInfo AsyncHooks::Serialize(Local<Context> context,
       native_execution_async_resources_.size());
   for (size_t i = 0; i < native_execution_async_resources_.size(); i++) {
     info.native_execution_async_resources[i] =
-        native_execution_async_resources_[i].IsEmpty() ? SIZE_MAX :
-            creator->AddData(
-                context,
-                native_execution_async_resources_[i]);
+        native_execution_async_resources_[i] == nullptr
+            ? SIZE_MAX
+            : creator->AddData(context, *native_execution_async_resources_[i]);
   }
 
   // At the moment, promise hooks are not supported in the startup snapshot.
@@ -2212,4 +2250,33 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
 void Environment::RunWeakRefCleanup() {
   isolate()->ClearKeptObjects();
 }
+
+v8::CpuProfilingResult Environment::StartCpuProfile(std::string_view name) {
+  HandleScope handle_scope(isolate());
+  if (!cpu_profiler_) {
+    cpu_profiler_ = v8::CpuProfiler::New(isolate());
+  }
+  Local<Value> title =
+      node::ToV8Value(context(), name, isolate()).ToLocalChecked();
+  v8::CpuProfilingResult result =
+      cpu_profiler_->Start(title.As<String>(), true);
+  if (result.status == v8::CpuProfilingStatus::kStarted) {
+    pending_profiles_.emplace(name, result.id);
+  }
+  return result;
+}
+
+v8::CpuProfile* Environment::StopCpuProfile(std::string_view name) {
+  if (!cpu_profiler_) {
+    return nullptr;
+  }
+  auto it = pending_profiles_.find(std::string(name));
+  if (it == pending_profiles_.end()) {
+    return nullptr;
+  }
+  v8::CpuProfile* profile = cpu_profiler_->Stop(it->second);
+  pending_profiles_.erase(it);
+  return profile;
+}
+
 }  // namespace node

@@ -7,18 +7,19 @@ const isServerPackage = require('./is-server-package.js')
 
 const runScriptPkg = async options => {
   const {
-    event,
-    path,
-    scriptShell,
+    args = [],
     binPaths = false,
     env = {},
-    stdio = 'pipe',
+    event,
+    nodeGyp,
+    path,
     pkg,
-    args = [],
-    stdioString,
+    scriptShell,
     // how long to wait for a process.kill signal
     // only exposed here so that we can make the test go a bit faster.
     signalTimeout = 500,
+    stdio = 'pipe',
+    stdioString,
   } = options
 
   const { scripts = {}, gypfile } = pkg
@@ -63,14 +64,15 @@ const runScriptPkg = async options => {
   }
 
   const [spawnShell, spawnArgs, spawnOpts] = makeSpawnArgs({
+    args,
+    binPaths,
+    cmd,
+    env: { ...env, ...packageEnvs(pkg) },
     event,
+    nodeGyp,
     path,
     scriptShell,
-    binPaths,
-    env: { ...env, ...packageEnvs(pkg) },
     stdio,
-    cmd,
-    args,
     stdioString,
   })
 

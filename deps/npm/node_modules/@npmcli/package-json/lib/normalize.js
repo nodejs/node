@@ -3,6 +3,7 @@ const clean = require('semver/functions/clean')
 const fs = require('node:fs/promises')
 const path = require('node:path')
 const { log } = require('proc-log')
+const moduleBuiltin = require('node:module')
 
 /**
  * @type {import('hosted-git-info')}
@@ -144,7 +145,7 @@ const normalize = async (pkg, { strict, steps, root, changes, allowLegacyCase })
   const pkgId = `${data.name ?? ''}@${data.version ?? ''}`
 
   // name and version are load bearing so we have to clean them up first
-  if (steps.includes('fixNameField') || steps.includes('normalizeData')) {
+  if (steps.includes('fixName') || steps.includes('fixNameField') || steps.includes('normalizeData')) {
     if (!data.name && !strict) {
       changes?.push('Missing "name" field was set to an empty string')
       data.name = ''
@@ -167,6 +168,13 @@ const normalize = async (pkg, { strict, steps, root, changes, allowLegacyCase })
         data.name.toLowerCase() === 'favicon.ico') {
         throw new Error('Invalid name: ' + JSON.stringify(data.name))
       }
+    }
+  }
+
+  if (steps.includes('fixName')) {
+    // Check for conflicts with builtin modules
+    if (moduleBuiltin.builtinModules.includes(data.name)) {
+      log.warn('package-json', pkgId, `Package name "${data.name}" conflicts with a Node.js built-in module name`)
     }
   }
 
@@ -348,7 +356,6 @@ const normalize = async (pkg, { strict, steps, root, changes, allowLegacyCase })
       changes?.push(`"readmeFilename" was set to ${readmeFile}`)
     }
     if (!data.readme) {
-      // this.warn('missingReadme')
       data.readme = 'ERROR: No README data found!'
     }
   }
@@ -488,7 +495,6 @@ const normalize = async (pkg, { strict, steps, root, changes, allowLegacyCase })
   // Some steps are isolated so we can do a limited subset of these in `fix`
   if (steps.includes('fixRepositoryField') || steps.includes('normalizeData')) {
     if (data.repositories) {
-      /* eslint-disable-next-line max-len */
       changes?.push(`"repository" was set to the first entry in "repositories" (${data.repository})`)
       data.repository = data.repositories[0]
     }
@@ -572,30 +578,10 @@ const normalize = async (pkg, { strict, steps, root, changes, allowLegacyCase })
     }
   }
 
+  // TODO some of this is duplicated in other steps here, a future breaking change may be able to remove the duplicates involved in this step
   if (steps.includes('normalizeData')) {
-    const legacyFixer = require('normalize-package-data/lib/fixer.js')
-    const legacyMakeWarning = require('normalize-package-data/lib/make_warning.js')
-    legacyFixer.warn = function () {
-      changes?.push(legacyMakeWarning.apply(null, arguments))
-    }
-
-    const legacySteps = [
-      'fixDescriptionField',
-      'fixModulesField',
-      'fixFilesField',
-      'fixManField',
-      'fixBugsField',
-      'fixKeywordsField',
-      'fixBundleDependenciesField',
-      'fixHomepageField',
-      'fixReadmeField',
-      'fixLicenseField',
-      'fixPeople',
-      'fixTypos',
-    ]
-    for (const legacyStep of legacySteps) {
-      legacyFixer[legacyStep](data)
-    }
+    const { normalizeData } = require('./normalize-data.js')
+    normalizeData(data, changes)
   }
 
   // Warn if the bin references don't point to anything.  This might be better

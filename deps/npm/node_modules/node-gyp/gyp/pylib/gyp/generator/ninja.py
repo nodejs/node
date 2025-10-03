@@ -10,20 +10,18 @@ import json
 import multiprocessing
 import os.path
 import re
-import signal
 import shutil
+import signal
 import subprocess
 import sys
+from io import StringIO
+
 import gyp
 import gyp.common
 import gyp.msvs_emulation
-import gyp.MSVSUtil as MSVSUtil
 import gyp.xcode_emulation
-
-from io import StringIO
-
+from gyp import MSVSUtil, ninja_syntax
 from gyp.common import GetEnvironFallback
-import gyp.ninja_syntax as ninja_syntax
 
 generator_default_variables = {
     "EXECUTABLE_PREFIX": "",
@@ -1465,7 +1463,7 @@ class NinjaWriter:
             # Respect environment variables related to build, but target-specific
             # flags can still override them.
             ldflags = env_ldflags + config.get("ldflags", [])
-            if is_executable and len(solibs):
+            if is_executable and solibs:
                 rpath = "lib/"
                 if self.toolset != "target":
                     rpath += self.toolset
@@ -1555,7 +1553,7 @@ class NinjaWriter:
             if pdbname:
                 output = [output, pdbname]
 
-        if len(solibs):
+        if solibs:
             extra_bindings.append(
                 ("solibs", gyp.common.EncodePOSIXShellList(sorted(solibs)))
             )
@@ -2085,7 +2083,7 @@ def CommandWithWrapper(cmd, wrappers, prog):
 
 def GetDefaultConcurrentLinks():
     """Returns a best-guess for a number of concurrent links."""
-    pool_size = int(os.environ.get("GYP_LINK_CONCURRENCY", 0))
+    pool_size = int(os.environ.get("GYP_LINK_CONCURRENCY") or 0)
     if pool_size:
         return pool_size
 
@@ -2112,7 +2110,7 @@ def GetDefaultConcurrentLinks():
         # VS 2015 uses 20% more working set than VS 2013 and can consume all RAM
         # on a 64 GiB machine.
         mem_limit = max(1, stat.ullTotalPhys // (5 * (2 ** 30)))  # total / 5GiB
-        hard_cap = max(1, int(os.environ.get("GYP_LINK_CONCURRENCY_MAX", 2 ** 32)))
+        hard_cap = max(1, int(os.environ.get("GYP_LINK_CONCURRENCY_MAX") or 2 ** 32))
         return min(mem_limit, hard_cap)
     elif sys.platform.startswith("linux"):
         if os.path.exists("/proc/meminfo"):
@@ -2535,7 +2533,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
             % {"suffix": "@$link_file_list"},
             rspfile="$link_file_list",
             rspfile_content=(
-                "-Wl,--whole-archive $in $solibs -Wl," "--no-whole-archive $libs"
+                "-Wl,--whole-archive $in $solibs -Wl,--no-whole-archive $libs"
             ),
             pool="link_pool",
         )
@@ -2595,9 +2593,9 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
             "alink",
             description="LIBTOOL-STATIC $out, POSTBUILDS",
             command="rm -f $out && "
-            "./gyp-mac-tool filter-libtool libtool $libtool_flags "
+            "%s gyp-mac-tool filter-libtool libtool $libtool_flags "
             "-static -o $out $in"
-            "$postbuilds",
+            "$postbuilds" % sys.executable,
         )
         master_ninja.rule(
             "lipo",
@@ -2684,7 +2682,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
         master_ninja.rule(
             "link",
             description="LINK $out, POSTBUILDS",
-            command=("$ld $ldflags -o $out " "$in $solibs $libs$postbuilds"),
+            command=("$ld $ldflags -o $out $in $solibs $libs$postbuilds"),
             pool="link_pool",
         )
         master_ninja.rule(
@@ -2698,41 +2696,44 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
         master_ninja.rule(
             "copy_infoplist",
             description="COPY INFOPLIST $in",
-            command="$env ./gyp-mac-tool copy-info-plist $in $out $binary $keys",
+            command="$env %s gyp-mac-tool copy-info-plist $in $out $binary $keys"
+            % sys.executable,
         )
         master_ninja.rule(
             "merge_infoplist",
             description="MERGE INFOPLISTS $in",
-            command="$env ./gyp-mac-tool merge-info-plist $out $in",
+            command="$env %s gyp-mac-tool merge-info-plist $out $in" % sys.executable,
         )
         master_ninja.rule(
             "compile_xcassets",
             description="COMPILE XCASSETS $in",
-            command="$env ./gyp-mac-tool compile-xcassets $keys $in",
+            command="$env %s gyp-mac-tool compile-xcassets $keys $in" % sys.executable,
         )
         master_ninja.rule(
             "compile_ios_framework_headers",
             description="COMPILE HEADER MAPS AND COPY FRAMEWORK HEADERS $in",
-            command="$env ./gyp-mac-tool compile-ios-framework-header-map $out "
-            "$framework $in && $env ./gyp-mac-tool "
-            "copy-ios-framework-headers $framework $copy_headers",
+            command="$env %(python)s gyp-mac-tool compile-ios-framework-header-map "
+            "$out $framework $in && $env %(python)s gyp-mac-tool "
+            "copy-ios-framework-headers $framework $copy_headers"
+            % {'python': sys.executable},
         )
         master_ninja.rule(
             "mac_tool",
             description="MACTOOL $mactool_cmd $in",
-            command="$env ./gyp-mac-tool $mactool_cmd $in $out $binary",
+            command="$env %s gyp-mac-tool $mactool_cmd $in $out $binary"
+            % sys.executable,
         )
         master_ninja.rule(
             "package_framework",
             description="PACKAGE FRAMEWORK $out, POSTBUILDS",
-            command="./gyp-mac-tool package-framework $out $version$postbuilds "
-            "&& touch $out",
+            command="%s gyp-mac-tool package-framework $out $version$postbuilds "
+            "&& touch $out" % sys.executable,
         )
         master_ninja.rule(
             "package_ios_framework",
             description="PACKAGE IOS FRAMEWORK $out, POSTBUILDS",
-            command="./gyp-mac-tool package-ios-framework $out $postbuilds "
-            "&& touch $out",
+            command="%s gyp-mac-tool package-ios-framework $out $postbuilds "
+            "&& touch $out" % sys.executable,
         )
     if flavor == "win":
         master_ninja.rule(

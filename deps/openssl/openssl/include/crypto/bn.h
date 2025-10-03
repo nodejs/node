@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -73,6 +73,9 @@ int bn_set_words(BIGNUM *a, const BN_ULONG *words, int num_words);
  */
 int bn_mul_mont_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
                           BN_MONT_CTX *mont, BN_CTX *ctx);
+int bn_mod_exp_mont_fixed_top(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
+                              const BIGNUM *m, BN_CTX *ctx,
+                              BN_MONT_CTX *in_mont);
 int bn_to_mont_fixed_top(BIGNUM *r, const BIGNUM *a, BN_MONT_CTX *mont,
                          BN_CTX *ctx);
 int bn_from_mont_fixed_top(BIGNUM *r, const BIGNUM *a, BN_MONT_CTX *mont,
@@ -103,6 +106,8 @@ int ossl_bn_gen_dsa_nonce_fixed_top(BIGNUM *out, const BIGNUM *range,
 
 int ossl_bn_miller_rabin_is_prime(const BIGNUM *w, int iterations, BN_CTX *ctx,
                                   BN_GENCB *cb, int enhanced, int *status);
+int ossl_bn_check_generated_prime(const BIGNUM *w, int checks, BN_CTX *ctx,
+                                  BN_GENCB *cb);
 
 const BIGNUM *ossl_bn_get0_small_factors(void);
 
@@ -122,4 +127,20 @@ OSSL_LIB_CTX *ossl_bn_get_libctx(BN_CTX *ctx);
 
 extern const BIGNUM ossl_bn_inv_sqrt_2;
 
+#if defined(OPENSSL_SYS_LINUX) && !defined(FIPS_MODULE) && defined (__s390x__) \
+    && !defined (OPENSSL_NO_ASM)
+# define S390X_MOD_EXP
 #endif
+
+int s390x_mod_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
+                const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx);
+int s390x_crt(BIGNUM *r, const BIGNUM *i, const BIGNUM *p, const BIGNUM *q,
+            const BIGNUM *dmp, const BIGNUM *dmq, const BIGNUM *iqmp);
+
+#endif
+
+int ossl_bn_mont_ctx_set(BN_MONT_CTX *ctx, const BIGNUM *modulus, int ri,
+                         const unsigned char *rr, size_t rrlen,
+                         uint32_t nlo, uint32_t nhi);
+
+int ossl_bn_mont_ctx_eq(const BN_MONT_CTX *m1, const BN_MONT_CTX *m2);

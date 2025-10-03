@@ -5270,7 +5270,7 @@ ecp_nistz256_point_add_affine:
 	popl	%ebp
 	ret
 .size	ecp_nistz256_point_add_affine,.-.L_ecp_nistz256_point_add_affine_begin
-.comm	OPENSSL_ia32cap_P,16,4
+.comm	OPENSSL_ia32cap_P,40,4
 
 	.section ".note.gnu.property", "a"
 	.p2align 2

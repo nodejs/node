@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -40,7 +40,8 @@ static const EVP_PBE_CTL builtin_pbe[] = {
     {EVP_PBE_TYPE_OUTER, NID_pbeWithSHA1AndRC2_CBC,
      NID_rc2_64_cbc, NID_sha1, PKCS5_PBE_keyivgen, PKCS5_PBE_keyivgen_ex},
 
-    {EVP_PBE_TYPE_OUTER, NID_id_pbkdf2, -1, -1, PKCS5_v2_PBKDF2_keyivgen},
+    {EVP_PBE_TYPE_OUTER, NID_id_pbkdf2, -1, -1, PKCS5_v2_PBKDF2_keyivgen,
+     PKCS5_v2_PBKDF2_keyivgen_ex},
 
     {EVP_PBE_TYPE_OUTER, NID_pbe_WithSHA1And128BitRC4,
      NID_rc4, NID_sha1, PKCS12_PBE_keyivgen, &PKCS12_PBE_keyivgen_ex},
@@ -77,8 +78,15 @@ static const EVP_PBE_CTL builtin_pbe[] = {
      NID_id_GostR3411_2012_256, 0},
     {EVP_PBE_TYPE_PRF, NID_id_tc26_hmac_gost_3411_2012_512, -1,
      NID_id_GostR3411_2012_512, 0},
+    {EVP_PBE_TYPE_PRF, NID_hmac_sha3_224, -1, NID_sha3_224, 0},
+    {EVP_PBE_TYPE_PRF, NID_hmac_sha3_256, -1, NID_sha3_256, 0},
+    {EVP_PBE_TYPE_PRF, NID_hmac_sha3_384, -1, NID_sha3_384, 0},
+    {EVP_PBE_TYPE_PRF, NID_hmac_sha3_512, -1, NID_sha3_512, 0},
     {EVP_PBE_TYPE_PRF, NID_hmacWithSHA512_224, -1, NID_sha512_224, 0},
     {EVP_PBE_TYPE_PRF, NID_hmacWithSHA512_256, -1, NID_sha512_256, 0},
+#ifndef OPENSSL_NO_SM3
+    {EVP_PBE_TYPE_PRF, NID_hmacWithSM3, -1, NID_sm3, 0},
+#endif
     {EVP_PBE_TYPE_KDF, NID_id_pbkdf2, -1, -1, PKCS5_v2_PBKDF2_keyivgen, &PKCS5_v2_PBKDF2_keyivgen_ex},
 #ifndef OPENSSL_NO_SCRYPT
     {EVP_PBE_TYPE_KDF, NID_id_scrypt, -1, -1, PKCS5_v2_scrypt_keyivgen, &PKCS5_v2_scrypt_keyivgen_ex}
@@ -192,12 +200,14 @@ static int pbe_cmp(const EVP_PBE_CTL *const *a, const EVP_PBE_CTL *const *b)
 int EVP_PBE_alg_add_type(int pbe_type, int pbe_nid, int cipher_nid,
                          int md_nid, EVP_PBE_KEYGEN *keygen)
 {
-    EVP_PBE_CTL *pbe_tmp;
+    EVP_PBE_CTL *pbe_tmp = NULL;
 
     if (pbe_algs == NULL) {
         pbe_algs = sk_EVP_PBE_CTL_new(pbe_cmp);
-        if (pbe_algs == NULL)
+        if (pbe_algs == NULL) {
+            ERR_raise(ERR_LIB_EVP, ERR_R_CRYPTO_LIB);
             goto err;
+        }
     }
 
     if ((pbe_tmp = OPENSSL_zalloc(sizeof(*pbe_tmp))) == NULL)
@@ -210,13 +220,13 @@ int EVP_PBE_alg_add_type(int pbe_type, int pbe_nid, int cipher_nid,
     pbe_tmp->keygen = keygen;
 
     if (!sk_EVP_PBE_CTL_push(pbe_algs, pbe_tmp)) {
-        OPENSSL_free(pbe_tmp);
+        ERR_raise(ERR_LIB_EVP, ERR_R_CRYPTO_LIB);
         goto err;
     }
     return 1;
 
  err:
-    ERR_raise(ERR_LIB_EVP, ERR_R_MALLOC_FAILURE);
+    OPENSSL_free(pbe_tmp);
     return 0;
 }
 
@@ -250,6 +260,8 @@ int EVP_PBE_find_ex(int type, int pbe_nid, int *pcnid, int *pmnid,
     pbelu.pbe_nid = pbe_nid;
 
     if (pbe_algs != NULL) {
+        /* Ideally, this would be done under lock */
+        sk_EVP_PBE_CTL_sort(pbe_algs);
         i = sk_EVP_PBE_CTL_find(pbe_algs, &pbelu);
         pbetmp = sk_EVP_PBE_CTL_value(pbe_algs, i);
     }

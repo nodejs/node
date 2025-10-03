@@ -184,10 +184,6 @@ typedef struct ngtcp2_rtb {
      count a packet whose packet number is greater than or equals to
      cc_pkt_num. */
   uint64_t cc_bytes_in_flight;
-  /* persistent_congestion_start_ts is the time when persistent
-     congestion evaluation is started.  It happens roughly after
-     handshake is confirmed. */
-  ngtcp2_tstamp persistent_congestion_start_ts;
   /* num_lost_pkts is the number entries in ents which has
      NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED flag set. */
   size_t num_lost_pkts;

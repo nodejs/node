@@ -101,14 +101,14 @@ Notes for UNIX-like platforms
  shared library face exactly the same problem with non-default locations.
  The OpenSSL config options mentioned above might or might not have bearing
  on linking of the target application. "Might" means that under some
- circumstances it would be sufficient to link with OpenSSL shared library
+ circumstances, it would be sufficient to link with OpenSSL shared library
  "naturally", i.e. with `-L/whatever/path -lssl -lcrypto`. But there are
  also cases when you'd have to explicitly specify runtime search path
  when linking your application. Consult your system documentation and use
  above section as inspiration...
 
  Shared OpenSSL builds also install static libraries. Linking with the
- latter is likely to require special care, because linkers usually look
+ latter is likely to require special care because linkers usually look
  for shared libraries first and tend to remain "blind" to static OpenSSL
  libraries. Referring to system documentation would suffice, if not for
  a corner case. On AIX static libraries (in shared build) are named

@@ -6784,7 +6784,7 @@ sha256_block_data_order:
 	popl	%ebp
 	ret
 .size	sha256_block_data_order,.-.L_sha256_block_data_order_begin
-.comm	OPENSSL_ia32cap_P,16,4
+.comm	OPENSSL_ia32cap_P,40,4
 
 	.section ".note.gnu.property", "a"
 	.p2align 2

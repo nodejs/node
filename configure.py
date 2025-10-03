@@ -20,9 +20,9 @@ os.chdir(Path(__file__).parent)
 original_argv = sys.argv[1:]
 
 # gcc and g++ as defaults matches what GYP's Makefile generator does,
-# except on OS X.
-CC = os.environ.get('CC', 'cc' if sys.platform == 'darwin' else 'gcc')
-CXX = os.environ.get('CXX', 'c++' if sys.platform == 'darwin' else 'g++')
+# except on macOS and Windows.
+CC = os.environ.get('CC', 'cc' if sys.platform == 'darwin' else 'clang' if sys.platform == 'win32' else 'gcc')
+CXX = os.environ.get('CXX', 'c++' if sys.platform == 'darwin' else 'clang' if sys.platform == 'win32' else 'g++')
 
 tools_path = Path('tools')
 
@@ -46,7 +46,7 @@ from utils import SearchFiles
 parser = argparse.ArgumentParser()
 
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
-            'android', 'aix', 'cloudabi', 'os400', 'ios')
+            'android', 'aix', 'cloudabi', 'os400', 'ios', 'openharmony')
 valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'mips64el', 'ppc',
               'ppc64', 'x64', 'x86', 'x86_64', 's390x', 'riscv64', 'loong64')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
@@ -147,6 +147,12 @@ parser.add_argument('--error-on-warn',
     dest='error_on_warn',
     default=None,
     help='Turn compiler warnings into errors for node core sources.')
+
+parser.add_argument('--suppress-all-error-on-warn',
+    action='store_true',
+    dest='suppress_all_error_on_warn',
+    default=False,
+    help='Suppress cases where compiler warnings are turned into errors by default.')
 
 parser.add_argument('--gdb',
     action='store_true',
@@ -567,6 +573,29 @@ shared_optgroup.add_argument('--shared-sqlite-libpath',
     dest='shared_sqlite_libpath',
     help='a directory to search for the shared sqlite DLL')
 
+shared_optgroup.add_argument('--shared-zstd',
+    action='store_true',
+    dest='shared_zstd',
+    default=None,
+    help='link to a shared zstd DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-zstd-includes',
+    action='store',
+    dest='shared_zstd_includes',
+    help='directory containing zstd header files')
+
+shared_optgroup.add_argument('--shared-zstd-libname',
+    action='store',
+    dest='shared_zstd_libname',
+    default='zstd',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-zstd-libpath',
+    action='store',
+    dest='shared_zstd_libpath',
+    help='a directory to search for the shared zstd DLL')
+
+parser.add_argument_group(shared_optgroup)
 
 for builtin in shareable_builtins:
   builtin_id = 'shared_builtin_' + builtin + '_path'
@@ -598,6 +627,12 @@ parser.add_argument('--enable-d8',
     dest='enable_d8',
     default=None,
     help=argparse.SUPPRESS)  # Unsupported, undocumented.
+
+parser.add_argument('--enable-v8windbg',
+    action='store_true',
+    dest='enable_v8windbg',
+    default=None,
+    help=argparse.SUPPRESS)  # Undocumented.
 
 parser.add_argument('--enable-trace-maps',
     action='store_true',
@@ -790,6 +825,12 @@ parser.add_argument('--without-corepack',
     default=None,
     help='do not install the bundled Corepack')
 
+parser.add_argument('--control-flow-guard',
+    action='store_true',
+    dest='enable_cfg',
+    default=None,
+    help='enable Control Flow Guard (CFG)')
+
 # Dummy option for backwards compatibility
 parser.add_argument('--without-report',
     action='store_true',
@@ -828,6 +869,12 @@ parser.add_argument('--without-node-options',
     dest='without_node_options',
     default=None,
     help='build without NODE_OPTIONS support')
+
+parser.add_argument('--without-sqlite',
+    action='store_true',
+    dest='without_sqlite',
+    default=None,
+    help='build without SQLite (disables SQLite and Web Storage API)')
 
 parser.add_argument('--ninja',
     action='store_true',
@@ -986,6 +1033,11 @@ parser.add_argument('--clang-cl',
     default=None,
     help='Configure for clang-cl on Windows. This flag sets the GYP "clang" ' +
          'variable to 1 and "llvm_version" to the specified value.')
+parser.add_argument('--use-ccache-win',
+    action='store_true',
+    dest='use_ccache_win',
+    default=None,
+    help='Use ccache for compiling on Windows. ')
 
 (options, args) = parser.parse_known_args()
 
@@ -1065,7 +1117,7 @@ def try_check_compiler(cc, lang):
     proc = subprocess.Popen(shlex.split(cc) + ['-E', '-P', '-x', lang, '-'],
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE)
   except OSError:
-    return (False, False, '', '')
+    return (False, False, '', '', False)
 
   with proc:
     proc.stdin.write(b'__clang__ __GNUC__ __GNUC_MINOR__ __GNUC_PATCHLEVEL__ '
@@ -1162,6 +1214,8 @@ def get_gas_version(cc):
 # check involves checking the build number against an allowlist.  I'm not
 # quite prepared to go that far yet.
 def check_compiler(o):
+  o['variables']['use_ccache_win'] = 0
+
   if sys.platform == 'win32':
     if options.clang_cl:
       o['variables']['clang'] = 1
@@ -1169,6 +1223,9 @@ def check_compiler(o):
     else:
       o['variables']['clang'] = 0
       o['variables']['llvm_version'] = '0.0'
+
+    if options.use_ccache_win:
+      o['variables']['use_ccache_win'] = 1
 
     if not options.openssl_no_asm and options.dest_cpu in ('x86', 'x64'):
       nasm_version = get_nasm_version('nasm')
@@ -1386,16 +1443,25 @@ def gcc_version_ge(version_checked):
 def configure_node_lib_files(o):
   o['variables']['node_library_files'] = SearchFiles('lib', 'js')
 
+def configure_node_cctest_sources(o):
+  o['variables']['node_cctest_sources'] = [ 'src/node_snapshot_stub.cc' ] + \
+    SearchFiles('test/cctest', 'cc') + \
+    SearchFiles('test/cctest', 'h')
+
 def configure_node(o):
   if options.dest_os == 'android':
     o['variables']['OS'] = 'android'
   o['variables']['node_prefix'] = options.prefix
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['variables']['node_install_corepack'] = b(not options.without_corepack)
+  o['variables']['control_flow_guard'] = b(options.enable_cfg)
   o['variables']['node_use_amaro'] = b(not options.without_amaro)
   o['variables']['debug_node'] = b(options.debug_node)
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
+  if options.error_on_warn and options.suppress_all_error_on_warn:
+    raise Exception('--error_on_warn is incompatible with --suppress_all_error_on_warn.')
   o['variables']['error_on_warn'] = b(options.error_on_warn)
+  o['variables']['suppress_all_error_on_warn'] = b(options.suppress_all_error_on_warn)
   o['variables']['use_prefix_to_find_headers'] = b(options.use_prefix_to_find_headers)
 
   host_arch = host_arch_win() if os.name == 'nt' else host_arch_cc()
@@ -1656,7 +1722,15 @@ def configure_v8(o, configs):
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
   o['variables']['v8_enable_maglev'] = 1 if options.v8_enable_maglev else 0
   o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
-  o['variables']['v8_enable_sandbox'] = 1 if options.enable_pointer_compression else 0
+  # Using the sandbox requires always allocating array buffer backing stores in the sandbox.
+  # We currently have many backing stores tied to pointers from C++ land that are not
+  # even necessarily dynamic (e.g. in static storage) for fast communication between JS and C++.
+  # Until we manage to get rid of all those, v8_enable_sandbox cannot be used.
+  # Note that enabling pointer compression without enabling sandbox is unsupported by V8,
+  # so this can be broken at any time.
+  o['variables']['v8_enable_sandbox'] = 0
+  o['variables']['v8_enable_pointer_compression_shared_cage'] = 1 if options.enable_pointer_compression else 0
+  o['variables']['v8_enable_external_code_space'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_shared_ro_heap'] = 0 if options.enable_pointer_compression or options.disable_shared_ro_heap else 1
   o['variables']['v8_enable_extensible_ro_snapshot'] = 0
@@ -1665,10 +1739,13 @@ def configure_v8(o, configs):
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
   o['variables']['node_enable_d8'] = b(options.enable_d8)
+  o['variables']['node_enable_v8windbg'] = b(options.enable_v8windbg)
   if options.enable_d8:
     o['variables']['test_isolation_mode'] = 'noop'  # Needed by d8.gyp.
   if options.without_bundled_v8 and options.enable_d8:
     raise Exception('--enable-d8 is incompatible with --without-bundled-v8.')
+  if options.without_bundled_v8 and options.enable_v8windbg:
+    raise Exception('--enable-v8windbg is incompatible with --without-bundled-v8.')
   if options.static_zoslib_gyp:
     o['variables']['static_zoslib_gyp'] = options.static_zoslib_gyp
   if flavor != 'linux' and options.v8_enable_hugepage:
@@ -1765,6 +1842,16 @@ def configure_openssl(o):
 
   configure_library('openssl', o)
 
+def configure_sqlite(o):
+  o['variables']['node_use_sqlite'] = b(not options.without_sqlite)
+  if options.without_sqlite:
+    def without_sqlite_error(option):
+      error(f'--without-sqlite is incompatible with {option}')
+    if options.shared_sqlite:
+      without_sqlite_error('--shared-sqlite')
+    return
+
+  configure_library('sqlite', o, pkgname='sqlite3')
 
 def configure_static(o):
   if options.fully_static or options.partly_static:
@@ -2195,6 +2282,7 @@ flavor = GetFlavor(flavor_params)
 
 configure_node(output)
 configure_node_lib_files(output)
+configure_node_cctest_sources(output)
 configure_napi(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)
@@ -2207,8 +2295,9 @@ configure_library('cares', output, pkgname='libcares')
 configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
-configure_library('sqlite', output, pkgname='sqlite3')
-configure_library('uvwasi', output, pkgname='libuvwasi')
+configure_sqlite(output);
+configure_library('uvwasi', output)
+configure_library('zstd', output, pkgname='libzstd')
 configure_v8(output, configurations)
 configure_openssl(output)
 configure_intl(output)

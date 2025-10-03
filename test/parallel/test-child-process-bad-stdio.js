@@ -3,7 +3,7 @@
 const common = require('../common');
 
 if (process.argv[2] === 'child') {
-  setTimeout(() => {}, common.platformTimeout(100));
+  setTimeout(() => {}, common.platformTimeout(1000));
   return;
 }
 

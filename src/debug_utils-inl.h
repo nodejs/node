@@ -5,6 +5,7 @@
 
 #include "debug_utils.h"
 #include "env.h"
+#include "util-inl.h"
 
 #include <type_traits>
 
@@ -49,7 +50,7 @@ struct ToStringHelper {
   template <unsigned BASE_BITS,
             typename T,
             typename = std::enable_if_t<!std::is_integral_v<T>>>
-  static std::string BaseConvert(T value) {
+  static std::string BaseConvert(T& value) {  // NOLINT(runtime/references)
     return Convert(std::forward<T>(value));
   }
 };

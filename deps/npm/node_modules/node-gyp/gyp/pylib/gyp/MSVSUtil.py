@@ -7,7 +7,6 @@
 import copy
 import os
 
-
 # A dictionary mapping supported target types to extensions.
 TARGET_TYPE_EXT = {
     "executable": "exe",

@@ -326,9 +326,9 @@ public:
      * calendar system.  Subclasses should override this method if they can
      * provide a more correct or more efficient implementation than the
      * default implementation in Calendar.
-     * @stable ICU 2.0
+     * @internal
      */
-    virtual int32_t handleGetYearLength(int32_t eyear) const override;
+    virtual int32_t handleGetYearLength(int32_t eyear, UErrorCode& status) const override;
 
     /**
      * Subclasses may override this method to compute several fields

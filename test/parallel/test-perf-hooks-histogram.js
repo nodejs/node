@@ -3,6 +3,7 @@
 const common = require('../common');
 
 const {
+  deepStrictEqual,
   ok,
   strictEqual,
   throws,
@@ -57,6 +58,10 @@ const { inspect } = require('util');
 
   strictEqual(h.percentileBigInt(1), 1n);
   strictEqual(h.percentileBigInt(100), 1n);
+
+  deepStrictEqual(h.percentiles, new Map([[0, 1], [100, 1]]));
+
+  deepStrictEqual(h.percentilesBigInt, new Map([[0, 1n], [100, 1n]]));
 
   const mc = new MessageChannel();
   mc.port1.onmessage = common.mustCall(({ data }) => {

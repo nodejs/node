@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -214,7 +214,7 @@ my %procedures = (
             #
             #   Hinweis: Einlesen der Datei:   {whatever header file}
             #
-            # To accomodate, we need to use a very general regular expression
+            # To accommodate, we need to use a very general regular expression
             # to parse those lines.
             #
             # Since there's no object file name at all in that information,

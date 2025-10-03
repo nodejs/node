@@ -87,7 +87,7 @@ found for the purposes of reference counting.
 =item I<asn1_cb>
 
 A callback that will be invoked at various points during the processing of
-the the B<ASN1_VALLUE>. See below for further details.
+the B<ASN1_VALUE>. See below for further details.
 
 =item I<enc_offset>
 
@@ -97,7 +97,7 @@ will be saved if the B<ASN1_AFLG_ENCODING> flag has been set.
 =item I<asn1_const_cb>
 
 A callback that will be invoked at various points during the processing of
-the the B<ASN1_VALLUE>. This is used in preference to the I<asn1_cb> callback if
+the B<ASN1_VALUE>. This is used in preference to the I<asn1_cb> callback if
 the B<ASN1_AFLG_CONST_CB> flag is set. See below for further details.
 
 =back
@@ -274,7 +274,7 @@ B<ASN1_OP_GET0_PROPQ> operation types were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,6 +15,8 @@
 
 #include <string.h>
 #include <stdio.h>
+
+#include <stdarg.h>
 
 /*
  * When built as an object file to link the application with, we get the
@@ -46,6 +48,7 @@ static OSSL_FUNC_core_get_params_fn *c_get_params = NULL;
 static OSSL_FUNC_core_new_error_fn *c_new_error;
 static OSSL_FUNC_core_set_error_debug_fn *c_set_error_debug;
 static OSSL_FUNC_core_vset_error_fn *c_vset_error;
+static OSSL_FUNC_BIO_vsnprintf_fn *c_BIO_vsnprintf;
 
 /* Tell the core what params we provide and what type they are */
 static const OSSL_PARAM p_param_types[] = {
@@ -59,6 +62,17 @@ static OSSL_FUNC_provider_gettable_params_fn p_gettable_params;
 static OSSL_FUNC_provider_get_params_fn p_get_params;
 static OSSL_FUNC_provider_get_reason_strings_fn p_get_reason_strings;
 static OSSL_FUNC_provider_teardown_fn p_teardown;
+
+static int local_snprintf(char *buf, size_t n, const char *format, ...)
+{
+    va_list args;
+    int ret;
+
+    va_start(args, format);
+    ret = (*c_BIO_vsnprintf)(buf, n, format, args);
+    va_end(args);
+    return ret;
+}
 
 static void p_set_error(int lib, int reason, const char *file, int line,
                         const char *func, const char *fmt, ...)
@@ -114,11 +128,11 @@ static int p_get_params(void *provctx, OSSL_PARAM params[])
                     const char *versionp = *(void **)counter_request[0].data;
                     const char *namep = *(void **)counter_request[1].data;
 
-                    sprintf(buf, "Hello OpenSSL %.20s, greetings from %s!",
-                            versionp, namep);
+                    local_snprintf(buf, sizeof(buf), "Hello OpenSSL %.20s, greetings from %s!",
+                                   versionp, namep);
                 }
             } else {
-                sprintf(buf, "Howdy stranger...");
+                local_snprintf(buf, sizeof(buf), "Howdy stranger...");
             }
 
             p->return_size = buf_l = strlen(buf) + 1;
@@ -216,12 +230,21 @@ static const OSSL_ITEM *p_get_reason_strings(void *_)
     return reason_strings;
 }
 
+static const OSSL_ALGORITHM *p_query(OSSL_PROVIDER *prov,
+                                     int operation_id,
+                                     int *no_cache)
+{
+    *no_cache = 1;
+    return NULL;
+}
+
 static const OSSL_DISPATCH p_test_table[] = {
     { OSSL_FUNC_PROVIDER_GETTABLE_PARAMS, (void (*)(void))p_gettable_params },
     { OSSL_FUNC_PROVIDER_GET_PARAMS, (void (*)(void))p_get_params },
     { OSSL_FUNC_PROVIDER_GET_REASON_STRINGS,
         (void (*)(void))p_get_reason_strings},
     { OSSL_FUNC_PROVIDER_TEARDOWN, (void (*)(void))p_teardown },
+    { OSSL_FUNC_PROVIDER_QUERY_OPERATION, (void (*)(void))p_query },
     { 0, NULL }
 };
 
@@ -249,6 +272,9 @@ int OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
             break;
         case OSSL_FUNC_CORE_VSET_ERROR:
             c_vset_error = OSSL_FUNC_core_vset_error(in);
+            break;
+        case OSSL_FUNC_BIO_VSNPRINTF:
+            c_BIO_vsnprintf = OSSL_FUNC_BIO_vsnprintf(in);
             break;
         default:
             /* Just ignore anything we don't understand */

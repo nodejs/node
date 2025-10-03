@@ -2,8 +2,9 @@ import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { resolve, dirname, sep, relative, join, isAbsolute } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
-import { glob, globSync, Dirent } from 'node:fs';
+import { glob, globSync, Dirent, chmodSync } from 'node:fs';
 import { test, describe } from 'node:test';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import assert from 'node:assert';
 
@@ -338,6 +339,39 @@ describe('fsPromises glob', function() {
   }
 });
 
+describe('glob - with file: URL as cwd', function() {
+  const promisified = promisify(glob);
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, async () => {
+      const actual = (await promisified(pattern, { cwd: pathToFileURL(fixtureDir) })).sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('globSync - with file: URL as cwd', function() {
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, () => {
+      const actual = globSync(pattern, { cwd: pathToFileURL(fixtureDir) }).sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('fsPromises.glob - with file: URL as cwd', function() {
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, async () => {
+      const actual = [];
+      for await (const item of asyncGlob(pattern, { cwd: pathToFileURL(fixtureDir) })) actual.push(item);
+      actual.sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
 const normalizeDirent = (dirent) => relative(fixtureDir, join(dirent.parentPath, dirent.name));
 // The call to `join()` with only one argument is important, as
 // it ensures that the proper path seperators are applied.
@@ -388,7 +422,7 @@ describe('fsPromises glob - withFileTypes', function() {
 });
 
 // [pattern, exclude option, expected result]
-const pattern2 = [
+const patterns2 = [
   ['a/{b,c}*', ['a/*c'], ['a/b', 'a/cb']],
   ['a/{a,b,c}*', ['a/*bc*', 'a/cb'], ['a/b', 'a/c']],
   ['a/**/[cg]', ['**/c'], ['a/abcdef/g', 'a/abcfed/g']],
@@ -427,6 +461,10 @@ const pattern2 = [
     [`${absDir}/*{a,q}*`, './a/*{c,b}*/*'],
     [`${absDir}/foo`, 'a/c', ...(common.isWindows ? [] : ['a/symlink/a/b/c'])],
   ],
+  [ 'a/**', () => true, [] ],
+  [ 'a/**', [ '*' ], [] ],
+  [ 'a/**', [ '**' ], [] ],
+  [ 'a/**', [ 'a/**' ], [] ],
 ];
 
 describe('globSync - exclude', function() {
@@ -436,7 +474,7 @@ describe('globSync - exclude', function() {
       assert.strictEqual(actual.length, 0);
     });
   }
-  for (const [pattern, exclude, expected] of pattern2) {
+  for (const [pattern, exclude, expected] of patterns2) {
     test(`${pattern} - exclude: ${exclude}`, () => {
       const actual = globSync(pattern, { cwd: fixtureDir, exclude }).sort();
       const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
@@ -453,7 +491,7 @@ describe('glob - exclude', function() {
       assert.strictEqual(actual.length, 0);
     });
   }
-  for (const [pattern, exclude, expected] of pattern2) {
+  for (const [pattern, exclude, expected] of patterns2) {
     test(`${pattern} - exclude: ${exclude}`, async () => {
       const actual = (await promisified(pattern, { cwd: fixtureDir, exclude })).sort();
       const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
@@ -471,7 +509,7 @@ describe('fsPromises glob - exclude', function() {
       assert.strictEqual(actual.length, 0);
     });
   }
-  for (const [pattern, exclude, expected] of pattern2) {
+  for (const [pattern, exclude, expected] of patterns2) {
     test(`${pattern} - exclude: ${exclude}`, async () => {
       const actual = [];
       for await (const item of asyncGlob(pattern, { cwd: fixtureDir, exclude })) actual.push(item);
@@ -479,4 +517,25 @@ describe('fsPromises glob - exclude', function() {
       assert.deepStrictEqual(actual.sort(), normalized);
     });
   }
+});
+
+describe('glob - with restricted directory', function() {
+  test('*', async () => {
+    const restrictedDir = tmpdir.resolve('restricted');
+    await mkdir(restrictedDir, { recursive: true });
+    chmodSync(restrictedDir, 0o000);
+    try {
+      const results = [];
+      for await (const match of asyncGlob('*', { cwd: restrictedDir })) {
+        results.push(match);
+      }
+      assert.ok(true, 'glob completed without throwing on readdir error');
+    } finally {
+      try {
+        chmodSync(restrictedDir, 0o755);
+      } catch {
+        // ignore
+      }
+    }
+  });
 });

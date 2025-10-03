@@ -173,7 +173,7 @@
         ],
         'include_dirs': [ 'include' ],
         'conditions': [
-          ['OS == "linux"', {
+          ['OS == "linux" or OS=="openharmony"', {
             'defines': [ '_POSIX_C_SOURCE=200112' ],
           }],
         ],
@@ -190,7 +190,7 @@
           '-Wno-unused-parameter',
           '-Wstrict-prototypes',
         ],
-        'OTHER_CFLAGS': [ '-g', '--std=gnu89' ],
+        'OTHER_CFLAGS': [ '-g', '--std=gnu11' ],
       },
       'conditions': [
         [ 'OS=="win"', {
@@ -220,7 +220,6 @@
             '<@(uv_sources_posix)',
           ],
           'link_settings': {
-            'libraries': [ '-lm' ],
             'conditions': [
               ['OS=="solaris"', {
                 'ldflags': [ '-pthreads' ],
@@ -230,6 +229,11 @@
               }],
               ['OS != "solaris" and OS != "android" and OS != "zos"', {
                 'ldflags': [ '-pthread' ],
+              }],
+              ['OS!="mac"', {
+                'libraries': [
+                  '-lm'
+                ],
               }],
             ],
           },
@@ -251,14 +255,14 @@
             }],
           ],
         }],
-        [ 'OS in "linux mac ios android zos"', {
+        [ 'OS in "linux mac ios android zos openharmony"', {
           'sources': [ 'src/unix/proctitle.c' ],
         }],
         [ 'OS != "zos"', {
           'cflags': [
             '-fvisibility=hidden',
             '-g',
-            '--std=gnu89',
+            '--std=gnu11',
             '-Wall',
             '-Wextra',
             '-Wno-unused-parameter',
@@ -275,7 +279,7 @@
             '_DARWIN_UNLIMITED_SELECT=1',
           ]
         }],
-        [ 'OS=="linux"', {
+        [ 'OS=="linux" or OS=="openharmony"', {
           'defines': [ '_GNU_SOURCE' ],
           'sources': [
             '<@(uv_sources_linux)',

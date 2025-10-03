@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,11 +17,25 @@
 static int pkey_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
                    void *exarg)
 {
-    /* Since the structure must still be valid use ASN1_OP_FREE_PRE */
-    if (operation == ASN1_OP_FREE_PRE) {
-        PKCS8_PRIV_KEY_INFO *key = (PKCS8_PRIV_KEY_INFO *)*pval;
+    PKCS8_PRIV_KEY_INFO *key;
+    int version;
+
+    switch (operation) {
+    case ASN1_OP_FREE_PRE:
+        /* The structure is still valid during ASN1_OP_FREE_PRE */
+        key = (PKCS8_PRIV_KEY_INFO *)*pval;
         if (key->pkey)
             OPENSSL_cleanse(key->pkey->data, key->pkey->length);
+        break;
+    case ASN1_OP_D2I_POST:
+        /* Insist on a valid version now that the structure is decoded */
+        key = (PKCS8_PRIV_KEY_INFO *)*pval;
+        version = ASN1_INTEGER_get(key->version);
+        if (version < 0 || version > 1)
+            return 0;
+        if (version == 0 && key->kpub != NULL)
+            return 0;
+        break;
     }
     return 1;
 }
@@ -30,7 +44,8 @@ ASN1_SEQUENCE_cb(PKCS8_PRIV_KEY_INFO, pkey_cb) = {
         ASN1_SIMPLE(PKCS8_PRIV_KEY_INFO, version, ASN1_INTEGER),
         ASN1_SIMPLE(PKCS8_PRIV_KEY_INFO, pkeyalg, X509_ALGOR),
         ASN1_SIMPLE(PKCS8_PRIV_KEY_INFO, pkey, ASN1_OCTET_STRING),
-        ASN1_IMP_SET_OF_OPT(PKCS8_PRIV_KEY_INFO, attributes, X509_ATTRIBUTE, 0)
+        ASN1_IMP_SET_OF_OPT(PKCS8_PRIV_KEY_INFO, attributes, X509_ATTRIBUTE, 0),
+        ASN1_IMP_OPT(PKCS8_PRIV_KEY_INFO, kpub, ASN1_BIT_STRING, 1)
 } ASN1_SEQUENCE_END_cb(PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO)
 
 IMPLEMENT_ASN1_FUNCTIONS(PKCS8_PRIV_KEY_INFO)
@@ -40,6 +55,9 @@ int PKCS8_pkey_set0(PKCS8_PRIV_KEY_INFO *priv, ASN1_OBJECT *aobj,
                     int ptype, void *pval, unsigned char *penc, int penclen)
 {
     if (version >= 0) {
+        /* We only support PKCS#8 v1 (0) and v2 (1). */
+        if (version > 1)
+            return 0;
         if (!ASN1_INTEGER_set(priv->version, version))
             return 0;
     }

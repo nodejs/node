@@ -11,7 +11,6 @@
  * CRMF implementation by Martin Peylo, Miikka Viljanen, and David von Oheimb.
  */
 
-
 #include <string.h>
 
 #include <openssl/rand.h>
@@ -22,7 +21,6 @@
 #include <openssl/asn1t.h>
 #include <openssl/crmf.h>
 #include <openssl/err.h>
-#include <openssl/evp.h>
 #include <openssl/params.h>
 #include <openssl/core_names.h>
 
@@ -125,6 +123,7 @@ OSSL_CRMF_PBMPARAMETER *OSSL_CRMF_pbmp_new(OSSL_LIB_CTX *libctx, size_t slen,
  * |outlen| if not NULL, will set variable to the length of the mac on success
  * returns 1 on success, 0 on error
  */
+/* could be combined with other MAC calculations in the library */
 int OSSL_CRMF_pbm_new(OSSL_LIB_CTX *libctx, const char *propq,
                       const OSSL_CRMF_PBMPARAMETER *pbmp,
                       const unsigned char *msg, size_t msglen,
@@ -201,10 +200,11 @@ int OSSL_CRMF_pbm_new(OSSL_LIB_CTX *libctx, const char *propq,
 
     if (!EVP_PBE_find(EVP_PBE_TYPE_PRF, mac_nid, NULL, &hmac_md_nid, NULL)
         || OBJ_obj2txt(hmac_mdname, sizeof(hmac_mdname),
-                        OBJ_nid2obj(hmac_md_nid), 0) <= 0) {
+                       OBJ_nid2obj(hmac_md_nid), 0) <= 0) {
         ERR_raise(ERR_LIB_CRMF, CRMF_R_UNSUPPORTED_ALGORITHM);
         goto err;
     }
+    /* could be generalized to allow non-HMAC: */
     if (EVP_Q_mac(libctx, "HMAC", propq, hmac_mdname, NULL, basekey, bklen,
                   msg, msglen, mac_res, EVP_MAX_MD_SIZE, outlen) == NULL)
         goto err;

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -24,10 +24,16 @@
 
 int EVP_PKEY_set1_RSA(EVP_PKEY *pkey, RSA *key)
 {
-    int ret = EVP_PKEY_assign_RSA(pkey, key);
+    int ret;
 
-    if (ret)
-        RSA_up_ref(key);
+    if (!RSA_up_ref(key))
+        return 0;
+
+    ret = EVP_PKEY_assign_RSA(pkey, key);
+
+    if (!ret)
+        RSA_free(key);
+
     return ret;
 }
 
@@ -49,8 +55,9 @@ RSA *EVP_PKEY_get1_RSA(EVP_PKEY *pkey)
 {
     RSA *ret = evp_pkey_get0_RSA_int(pkey);
 
-    if (ret != NULL)
-        RSA_up_ref(ret);
+    if (ret != NULL && !RSA_up_ref(ret))
+        ret = NULL;
+
     return ret;
 }
 

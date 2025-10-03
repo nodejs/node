@@ -1,3 +1,5 @@
+'use strict'
+
 const SPACE_CHARACTERS = /\s+/g
 
 // hoisted class for cyclic dependency

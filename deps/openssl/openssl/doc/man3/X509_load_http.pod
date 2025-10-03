@@ -27,6 +27,9 @@ see L<openssl_user_macros(7)>:
 X509_load_http() and X509_CRL_load_http() loads a certificate or a CRL,
 respectively, in ASN.1 format using HTTP from the given B<url>.
 
+Maximum size of the HTTP response is 100 kB for certificates and 32 MB for CRLs
+and hard coded in the functions.
+
 If B<bio> is given and B<rbio> is NULL then this BIO is used instead of an
 internal one for connecting, writing the request, and reading the response.
 If both B<bio> and B<rbio> are given (which may be memory BIOs, for instance)

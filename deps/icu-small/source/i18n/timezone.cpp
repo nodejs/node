@@ -730,15 +730,9 @@ void TimeZone::getOffset(UDate date, UBool local, int32_t& rawOffset,
     // (with 7 args) twice when local == true and DST is
     // detected in the initial call.
     for (int32_t pass=0; ; ++pass) {
-        int32_t year, month, dom, dow, millis;
-        double day = ClockMath::floorDivide(date, U_MILLIS_PER_DAY, &millis);
-
-        // out of the range
-        if (day < INT32_MIN || day > INT32_MAX) {
-            ec = U_ILLEGAL_ARGUMENT_ERROR;
-            return;
-        }
-        Grego::dayToFields(day, year, month, dom, dow, ec);
+        int32_t year, millis;
+        int8_t month, dom, dow;
+        Grego::timeToFields(date, year, month, dom, dow, millis, ec);
         if (U_FAILURE(ec)) return;
 
         dstOffset = getOffset(GregorianCalendar::AD, year, month, dom,
@@ -1057,7 +1051,7 @@ TimeZone::countEquivalentIDs(const UnicodeString& id) {
 
 // ---------------------------------------
 
-const UnicodeString U_EXPORT2
+UnicodeString U_EXPORT2
 TimeZone::getEquivalentID(const UnicodeString& id, int32_t index) {
     U_DEBUG_TZ_MSG(("gEI(%d)\n", index));
     UnicodeString result;

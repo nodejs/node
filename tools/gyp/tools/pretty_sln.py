@@ -6,16 +6,16 @@
 
 """Prints the information in a sln file in a diffable way.
 
-   It first outputs each projects in alphabetical order with their
-   dependencies.
+It first outputs each projects in alphabetical order with their
+dependencies.
 
-   Then it outputs a possible build order.
+Then it outputs a possible build order.
 """
-
 
 import os
 import re
 import sys
+
 import pretty_vcproj
 
 __author__ = "nsylvain (Nicolas Sylvain)"
@@ -112,13 +112,13 @@ def PrintDependencies(projects, deps):
     print("---------------------------------------")
     print("--                                   --")
 
-    for (project, dep_list) in sorted(deps.items()):
+    for project, dep_list in sorted(deps.items()):
         print("Project : %s" % project)
         print("Path : %s" % projects[project][0])
         if dep_list:
             for dep in dep_list:
                 print("  - %s" % dep)
-        print("")
+        print()
 
     print("--                                   --")
 
@@ -130,7 +130,7 @@ def PrintBuildOrder(projects, deps):
     print("--                                   --")
 
     built = []
-    for (project, _) in sorted(deps.items()):
+    for project, _ in sorted(deps.items()):
         if project not in built:
             BuildProject(project, built, projects, deps)
 
@@ -138,7 +138,6 @@ def PrintBuildOrder(projects, deps):
 
 
 def PrintVCProj(projects):
-
     for project in projects:
         print("-------------------------------------")
         print("-------------------------------------")

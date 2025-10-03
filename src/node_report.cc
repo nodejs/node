@@ -232,11 +232,11 @@ static void WriteNodeReport(Isolate* isolate,
     size_t expected_results = 0;
 
     env->ForEachWorker([&](Worker* w) {
-      expected_results += w->RequestInterrupt([&](Environment* env) {
+      expected_results += w->RequestInterrupt([&, w = w](Environment* env) {
         std::ostringstream os;
-
-        GetNodeReport(
-            env, "Worker thread subreport", trigger, Local<Value>(), os);
+        std::string name =
+            "Worker thread subreport [" + std::string(w->name()) + "]";
+        GetNodeReport(env, name.c_str(), trigger, Local<Value>(), os);
 
         Mutex::ScopedLock lock(workers_mutex);
         worker_infos.emplace_back(os.str());
@@ -676,9 +676,9 @@ static void PrintResourceUsage(JSONWriter* writer) {
     writer->json_objectend();
   }
   writer->json_objectend();
-#ifdef RUSAGE_THREAD
-  struct rusage stats;
-  if (getrusage(RUSAGE_THREAD, &stats) == 0) {
+
+  uv_rusage_t stats;
+  if (uv_getrusage_thread(&stats) == 0) {
     writer->json_objectstart("uvthreadResourceUsage");
     double user_cpu =
         stats.ru_utime.tv_sec + SEC_PER_MICROS * stats.ru_utime.tv_usec;
@@ -699,7 +699,6 @@ static void PrintResourceUsage(JSONWriter* writer) {
     writer->json_objectend();
     writer->json_objectend();
   }
-#endif  // RUSAGE_THREAD
 }
 
 static void PrintEnvironmentVariables(JSONWriter* writer) {
@@ -793,25 +792,7 @@ static void PrintComponentVersions(JSONWriter* writer) {
 
   writer->json_objectstart("componentVersions");
 
-#define V(key) +1
-  std::pair<std::string_view, std::string_view>
-      versions_array[NODE_VERSIONS_KEYS(V)];
-#undef V
-  auto* slot = &versions_array[0];
-
-#define V(key)                                                                 \
-  do {                                                                         \
-    *slot++ = std::pair<std::string_view, std::string_view>(                   \
-        #key, per_process::metadata.versions.key);                             \
-  } while (0);
-  NODE_VERSIONS_KEYS(V)
-#undef V
-
-  std::sort(&versions_array[0],
-            &versions_array[arraysize(versions_array)],
-            [](auto& a, auto& b) { return a.first < b.first; });
-
-  for (const auto& version : versions_array) {
+  for (const auto& version : per_process::metadata.versions.pairs()) {
     writer->json_keyvalue(version.first, version.second);
   }
 

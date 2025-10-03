@@ -76,6 +76,7 @@ TEST_F(NodeZeroIsolateTestFixture, IsolatePlatformDelegateTest) {
 
   // Try creating Context + IsolateData + Environment
   {
+    v8::Locker locker(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
 

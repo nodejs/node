@@ -117,6 +117,10 @@ http.get({
 added: v0.3.4
 changes:
   - version:
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59315
+    description: Add support for `agentKeepAliveTimeoutBuffer`.
+  - version:
       - v15.6.0
       - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36685
@@ -148,6 +152,12 @@ changes:
     the [initial delay][]
     for TCP Keep-Alive packets. Ignored when the
     `keepAlive` option is `false` or `undefined`. **Default:** `1000`.
+  * `agentKeepAliveTimeoutBuffer` {number} Milliseconds to subtract from
+    the server-provided `keep-alive: timeout=...` hint when determining socket
+    expiration time. This buffer helps ensure the agent closes the socket
+    slightly before the server does, reducing the chance of sending a request
+    on a socket that’s about to be closed by the server.
+    **Default:** `1000`.
   * `maxSockets` {number} Maximum number of sockets to allow per host.
     If the same host opens multiple concurrent connections, each request
     will use new socket until the `maxSockets` value is reached.
@@ -291,7 +301,7 @@ changes:
     description: The property now has a `null` prototype.
 -->
 
-* {Object}
+* Type: {Object}
 
 An object which contains arrays of sockets currently awaiting use by
 the agent when `keepAlive` is enabled. Do not modify.
@@ -332,7 +342,7 @@ that determine socket reusability.
 added: v0.11.7
 -->
 
-* {number}
+* Type: {number}
 
 By default set to 256. For agents with `keepAlive` enabled, this
 sets the maximum number of sockets that will be left open in the free
@@ -344,7 +354,7 @@ state.
 added: v0.3.6
 -->
 
-* {number}
+* Type: {number}
 
 By default set to `Infinity`. Determines how many concurrent sockets the agent
 can have open per origin. Origin is the returned value of [`agent.getName()`][].
@@ -357,7 +367,7 @@ added:
   - v12.19.0
 -->
 
-* {number}
+* Type: {number}
 
 By default set to `Infinity`. Determines how many concurrent sockets the agent
 can have open. Unlike `maxSockets`, this parameter applies across all origins.
@@ -372,7 +382,7 @@ changes:
     description: The property now has a `null` prototype.
 -->
 
-* {Object}
+* Type: {Object}
 
 An object which contains queues of requests that have not yet been assigned to
 sockets. Do not modify.
@@ -387,7 +397,7 @@ changes:
     description: The property now has a `null` prototype.
 -->
 
-* {Object}
+* Type: {Object}
 
 An object which contains arrays of sockets currently in use by the
 agent. Do not modify.
@@ -836,7 +846,7 @@ changes:
 
 > Stability: 0 - Deprecated. Check [`request.destroyed`][] instead.
 
-* {boolean}
+* Type: {boolean}
 
 The `request.aborted` property will be `true` if the request has
 been aborted.
@@ -850,7 +860,7 @@ deprecated: v13.0.0
 
 > Stability: 0 - Deprecated. Use [`request.socket`][].
 
-* {stream.Duplex}
+* Type: {stream.Duplex}
 
 See [`request.socket`][].
 
@@ -920,7 +930,7 @@ added:
   - v13.14.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` after [`request.destroy()`][] has been called.
 
@@ -937,7 +947,7 @@ deprecated:
 
 > Stability: 0 - Deprecated. Use [`request.writableEnded`][].
 
-* {boolean}
+* Type: {boolean}
 
 The `request.finished` property will be `true` if [`request.end()`][]
 has been called. `request.end()` will automatically be called if the
@@ -1069,7 +1079,7 @@ const hasContentType = request.hasHeader('content-type');
 
 ### `request.maxHeadersCount`
 
-* {number} **Default:** `2000`
+* Type: {number} **Default:** `2000`
 
 Limits maximum response headers count. If set to 0, no limit will be applied.
 
@@ -1079,7 +1089,7 @@ Limits maximum response headers count. If set to 0, no limit will be applied.
 added: v0.4.0
 -->
 
-* {string} The request path.
+* Type: {string} The request path.
 
 ### `request.method`
 
@@ -1087,7 +1097,7 @@ added: v0.4.0
 added: v0.1.97
 -->
 
-* {string} The request method.
+* Type: {string} The request method.
 
 ### `request.host`
 
@@ -1097,7 +1107,7 @@ added:
   - v12.19.0
 -->
 
-* {string} The request host.
+* Type: {string} The request host.
 
 ### `request.protocol`
 
@@ -1107,7 +1117,7 @@ added:
   - v12.19.0
 -->
 
-* {string} The request protocol.
+* Type: {string} The request protocol.
 
 ### `request.removeHeader(name)`
 
@@ -1131,7 +1141,7 @@ added:
  - v12.16.0
 -->
 
-* {boolean} Whether the request is send through a reused socket.
+* Type: {boolean} Whether the request is send through a reused socket.
 
 When sending request through a keep-alive enabled agent, the underlying socket
 might be reused. But if server closes connection at unfortunate time, client
@@ -1306,7 +1316,7 @@ Once a socket is assigned to this request and is connected
 added: v0.3.0
 -->
 
-* {stream.Duplex}
+* Type: {stream.Duplex}
 
 Reference to the underlying socket. Usually users will not want to access
 this property. In particular, the socket will not emit `'readable'` events
@@ -1362,7 +1372,7 @@ See [`writable.uncork()`][].
 added: v12.9.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` after [`request.end()`][] has been called. This property
 does not indicate whether the data has been flushed, for this use
@@ -1374,7 +1384,7 @@ does not indicate whether the data has been flushed, for this use
 added: v12.7.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` if all data has been flushed to the underlying system, immediately
 before the [`'finish'`][] event is emitted.
@@ -1790,7 +1800,7 @@ changes:
     description: The default is now set to the minimum between 60000 (60 seconds) or `requestTimeout`.
 -->
 
-* {number} **Default:** The minimum between [`server.requestTimeout`][] or `60000`.
+* Type: {number} **Default:** The minimum between [`server.requestTimeout`][] or `60000`.
 
 Limit the amount of time the parser will wait to receive the complete HTTP
 headers.
@@ -1813,7 +1823,7 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 added: v5.7.0
 -->
 
-* {boolean} Indicates whether or not the server is listening for connections.
+* Type: {boolean} Indicates whether or not the server is listening for connections.
 
 ### `server.maxHeadersCount`
 
@@ -1821,7 +1831,7 @@ added: v5.7.0
 added: v0.7.0
 -->
 
-* {number} **Default:** `2000`
+* Type: {number} **Default:** `2000`
 
 Limits maximum incoming headers count. If set to 0, no limit will be applied.
 
@@ -1836,7 +1846,7 @@ changes:
                  from no timeout to 300s (5 minutes).
 -->
 
-* {number} **Default:** `300000`
+* Type: {number} **Default:** `300000`
 
 Sets the timeout value in milliseconds for receiving the entire request from
 the client.
@@ -1879,7 +1889,7 @@ explicitly.
 added: v16.10.0
 -->
 
-* {number} Requests per socket. **Default:** 0 (no limit)
+* Type: {number} Requests per socket. **Default:** 0 (no limit)
 
 The maximum number of requests socket can handle
 before closing keep alive connection.
@@ -1900,7 +1910,7 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* {number} Timeout in milliseconds. **Default:** 0 (no timeout)
+* Type: {number} Timeout in milliseconds. **Default:** 0 (no timeout)
 
 The number of milliseconds of inactivity before a socket is presumed
 to have timed out.
@@ -1916,21 +1926,42 @@ value only affects new connections to the server, not any existing connections.
 added: v8.0.0
 -->
 
-* {number} Timeout in milliseconds. **Default:** `5000` (5 seconds).
+* Type: {number} Timeout in milliseconds. **Default:** `5000` (5 seconds).
 
 The number of milliseconds of inactivity a server needs to wait for additional
 incoming data, after it has finished writing the last response, before a socket
-will be destroyed. If the server receives new data before the keep-alive
-timeout has fired, it will reset the regular inactivity timeout, i.e.,
-[`server.timeout`][].
+will be destroyed.
+
+This timeout value is combined with the
+[`server.keepAliveTimeoutBuffer`][] option to determine the actual socket
+timeout, calculated as:
+socketTimeout = keepAliveTimeout + keepAliveTimeoutBuffer
+If the server receives new data before the keep-alive timeout has fired, it
+will reset the regular inactivity timeout, i.e., [`server.timeout`][].
 
 A value of `0` will disable the keep-alive timeout behavior on incoming
 connections.
-A value of `0` makes the http server behave similarly to Node.js versions prior
+A value of `0` makes the HTTP server behave similarly to Node.js versions prior
 to 8.0.0, which did not have a keep-alive timeout.
 
 The socket timeout logic is set up on connection, so changing this value only
 affects new connections to the server, not any existing connections.
+
+### `server.keepAliveTimeoutBuffer`
+
+<!-- YAML
+added: v22.19.0
+-->
+
+* Type: {number} Timeout in milliseconds. **Default:** `1000` (1 second).
+
+An additional buffer time added to the
+[`server.keepAliveTimeout`][] to extend the internal socket timeout.
+
+This buffer helps reduce connection reset (`ECONNRESET`) errors by increasing
+the socket timeout slightly beyond the advertised keep-alive timeout.
+
+This option applies only to new incoming connections.
 
 ### `server[Symbol.asyncDispose]()`
 
@@ -2012,7 +2043,7 @@ deprecated: v13.0.0
 
 > Stability: 0 - Deprecated. Use [`response.socket`][].
 
-* {stream.Duplex}
+* Type: {stream.Duplex}
 
 See [`response.socket`][].
 
@@ -2065,7 +2096,7 @@ deprecated:
 
 > Stability: 0 - Deprecated. Use [`response.writableEnded`][].
 
-* {boolean}
+* Type: {boolean}
 
 The `response.finished` property will be `true` if [`response.end()`][]
 has been called.
@@ -2171,7 +2202,7 @@ const hasContentType = response.hasHeader('content-type');
 added: v0.9.3
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Boolean (read-only). True if headers were sent, false otherwise.
 
@@ -2195,7 +2226,7 @@ response.removeHeader('Content-Encoding');
 added: v15.7.0
 -->
 
-* {http.IncomingMessage}
+* Type: {http.IncomingMessage}
 
 A reference to the original HTTP `request` object.
 
@@ -2205,7 +2236,7 @@ A reference to the original HTTP `request` object.
 added: v0.7.5
 -->
 
-* {boolean}
+* Type: {boolean}
 
 When true, the Date header will be automatically generated and sent in
 the response if it is not already present in the headers. Defaults to true.
@@ -2292,7 +2323,7 @@ timed out sockets must be handled explicitly.
 added: v0.3.0
 -->
 
-* {stream.Duplex}
+* Type: {stream.Duplex}
 
 Reference to the underlying socket. Usually users will not want to access
 this property. In particular, the socket will not emit `'readable'` events
@@ -2327,7 +2358,7 @@ type other than {net.Socket}.
 added: v0.4.0
 -->
 
-* {number} **Default:** `200`
+* Type: {number} **Default:** `200`
 
 When using implicit headers (not calling [`response.writeHead()`][] explicitly),
 this property controls the status code that will be sent to the client when
@@ -2346,7 +2377,7 @@ status code which was sent out.
 added: v0.11.8
 -->
 
-* {string}
+* Type: {string}
 
 When using implicit headers (not calling [`response.writeHead()`][] explicitly),
 this property controls the status message that will be sent to the client when
@@ -2368,7 +2399,7 @@ added:
   - v16.18.0
 -->
 
-* {boolean} **Default:** `false`
+* Type: {boolean} **Default:** `false`
 
 If set to `true`, Node.js will check whether the `Content-Length`
 header value and the size of the body, in bytes, are equal.
@@ -2391,7 +2422,7 @@ See [`writable.uncork()`][].
 added: v12.9.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` after [`response.end()`][] has been called. This property
 does not indicate whether the data has been flushed, for this use
@@ -2403,7 +2434,7 @@ does not indicate whether the data has been flushed, for this use
 added: v12.7.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` if all data has been flushed to the underlying system, immediately
 before the [`'finish'`][] event is emitted.
@@ -2586,7 +2617,7 @@ will check whether `Content-Length` and the length of the body which has
 been transmitted are equal or not.
 
 Attempting to set a header field name or value that contains invalid characters
-will result in a \[`Error`]\[] being thrown.
+will result in a [`TypeError`][] being thrown.
 
 ### `response.writeProcessing()`
 
@@ -2662,7 +2693,7 @@ deprecated:
 
 > Stability: 0 - Deprecated. Check `message.destroyed` from {stream.Readable}.
 
-* {boolean}
+* Type: {boolean}
 
 The `message.aborted` property will be `true` if the request has
 been aborted.
@@ -2673,7 +2704,7 @@ been aborted.
 added: v0.3.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The `message.complete` property will be `true` if a complete HTTP message has
 been received and successfully parsed.
@@ -2748,7 +2779,7 @@ changes:
       on the prototype and is no longer enumerable.
 -->
 
-* {Object}
+* Type: {Object}
 
 The request/response headers object.
 
@@ -2786,7 +2817,7 @@ added:
   - v16.17.0
 -->
 
-* {Object}
+* Type: {Object}
 
 Similar to [`message.headers`][], but there is no join logic and the values are
 always arrays of strings, even for headers received just once.
@@ -2806,7 +2837,7 @@ console.log(request.headersDistinct);
 added: v0.1.1
 -->
 
-* {string}
+* Type: {string}
 
 In case of server request, the HTTP version sent by the client. In the case of
 client response, the HTTP version of the connected-to server.
@@ -2821,7 +2852,7 @@ Also `message.httpVersionMajor` is the first integer and
 added: v0.1.1
 -->
 
-* {string}
+* Type: {string}
 
 **Only valid for request obtained from [`http.Server`][].**
 
@@ -2833,7 +2864,7 @@ The request method as a string. Read only. Examples: `'GET'`, `'DELETE'`.
 added: v0.11.6
 -->
 
-* {string\[]}
+* Type: {string\[]}
 
 The raw request/response headers list exactly as they were received.
 
@@ -2863,7 +2894,7 @@ console.log(request.rawHeaders);
 added: v0.11.6
 -->
 
-* {string\[]}
+* Type: {string\[]}
 
 The raw request/response trailer keys and values exactly as they were
 received. Only populated at the `'end'` event.
@@ -2886,7 +2917,7 @@ Calls `message.socket.setTimeout(msecs, callback)`.
 added: v0.3.0
 -->
 
-* {stream.Duplex}
+* Type: {stream.Duplex}
 
 The [`net.Socket`][] object associated with the connection.
 
@@ -2903,7 +2934,7 @@ type other than {net.Socket} or internally nulled.
 added: v0.1.1
 -->
 
-* {number}
+* Type: {number}
 
 **Only valid for response obtained from [`http.ClientRequest`][].**
 
@@ -2915,7 +2946,7 @@ The 3-digit HTTP response status code. E.G. `404`.
 added: v0.11.10
 -->
 
-* {string}
+* Type: {string}
 
 **Only valid for response obtained from [`http.ClientRequest`][].**
 
@@ -2928,7 +2959,7 @@ Error`.
 added: v0.3.0
 -->
 
-* {Object}
+* Type: {Object}
 
 The request/response trailers object. Only populated at the `'end'` event.
 
@@ -2940,7 +2971,7 @@ added:
   - v16.17.0
 -->
 
-* {Object}
+* Type: {Object}
 
 Similar to [`message.trailers`][], but there is no join logic and the values are
 always arrays of strings, even for headers received just once.
@@ -2952,7 +2983,7 @@ Only populated at the `'end'` event.
 added: v0.1.90
 -->
 
-* {string}
+* Type: {string}
 
 **Only valid for request obtained from [`http.Server`][].**
 
@@ -3236,7 +3267,7 @@ const hasContentType = outgoingMessage.hasHeader('content-type');
 added: v0.9.3
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Read-only. `true` if the headers were sent, otherwise `false`.
 
@@ -3322,13 +3353,13 @@ const server = http.createServer((req, res) => {
 });
 ```
 
-### `outgoingMessage.setTimeout(msesc[, callback])`
+### `outgoingMessage.setTimeout(msecs[, callback])`
 
 <!-- YAML
 added: v0.9.12
 -->
 
-* `msesc` {number}
+* `msecs` {number}
 * `callback` {Function} Optional function to be called when a timeout
   occurs. Same as binding to the `timeout` event.
 * Returns: {this}
@@ -3342,7 +3373,7 @@ Once a socket is associated with the message and is connected,
 added: v0.3.0
 -->
 
-* {stream.Duplex}
+* Type: {stream.Duplex}
 
 Reference to the underlying socket. Usually, users will not want to access
 this property.
@@ -3367,7 +3398,7 @@ added:
   - v12.16.0
 -->
 
-* {number}
+* Type: {number}
 
 The number of times `outgoingMessage.cork()` has been called.
 
@@ -3377,7 +3408,7 @@ The number of times `outgoingMessage.cork()` has been called.
 added: v12.9.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` if `outgoingMessage.end()` has been called. This property does
 not indicate whether the data has been flushed. For that purpose, use
@@ -3389,7 +3420,7 @@ not indicate whether the data has been flushed. For that purpose, use
 added: v12.7.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` if all data has been flushed to the underlying system.
 
@@ -3399,7 +3430,7 @@ Is `true` if all data has been flushed to the underlying system.
 added: v12.9.0
 -->
 
-* {number}
+* Type: {number}
 
 The `highWaterMark` of the underlying socket if assigned. Otherwise, the default
 buffer level when [`writable.write()`][] starts returning false (`16384`).
@@ -3410,7 +3441,7 @@ buffer level when [`writable.write()`][] starts returning false (`16384`).
 added: v12.9.0
 -->
 
-* {number}
+* Type: {number}
 
 The number of buffered bytes.
 
@@ -3420,7 +3451,7 @@ The number of buffered bytes.
 added: v12.9.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Always `false`.
 
@@ -3459,7 +3490,7 @@ memory. The `'drain'` event will be emitted when the buffer is free again.
 added: v0.11.8
 -->
 
-* {string\[]}
+* Type: {string\[]}
 
 A list of the HTTP methods that are supported by the parser.
 
@@ -3469,7 +3500,7 @@ A list of the HTTP methods that are supported by the parser.
 added: v0.1.22
 -->
 
-* {Object}
+* Type: {Object}
 
 A collection of all the standard HTTP response status codes, and the
 short description of each. For example, `http.STATUS_CODES[404] === 'Not
@@ -3740,7 +3771,7 @@ changes:
                  default.
 -->
 
-* {http.Agent}
+* Type: {http.Agent}
 
 Global instance of `Agent` which is used as the default for all HTTP client
 requests. Diverges from a default `Agent` configuration by having `keepAlive`
@@ -3754,7 +3785,7 @@ added:
  - v10.15.0
 -->
 
-* {number}
+* Type: {number}
 
 Read-only property specifying the maximum allowed size of HTTP headers in bytes.
 Defaults to 16 KiB. Configurable using the [`--max-http-header-size`][] CLI
@@ -3818,7 +3849,8 @@ changes:
   * `family` {number} IP address family to use when resolving `host` or
     `hostname`. Valid values are `4` or `6`. When unspecified, both IP v4 and
     v6 will be used.
-  * `headers` {Object} An object containing request headers.
+  * `headers` {Object|Array} An object or an array of strings containing request
+    headers. The array is in the same format as [`message.rawHeaders`][].
   * `hints` {number} Optional [`dns.lookup()` hints][].
   * `host` {string} A domain name or IP address of the server to issue the
     request to. **Default:** `'localhost'`.
@@ -4231,14 +4263,14 @@ added:
 
 Set the maximum number of idle HTTP parsers.
 
-## `WebSocket`
+## Class: `WebSocket`
 
 <!-- YAML
 added:
   - v22.5.0
 -->
 
-A browser-compatible implementation of [`WebSocket`][].
+A browser-compatible implementation of {WebSocket}.
 
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
@@ -4256,7 +4288,6 @@ A browser-compatible implementation of [`WebSocket`][].
 [`Headers`]: globals.md#class-headers
 [`TypeError`]: errors.md#class-typeerror
 [`URL`]: url.md#the-whatwg-url-api
-[`WebSocket`]: #websocket
 [`agent.createConnection()`]: #agentcreateconnectionoptions-callback
 [`agent.getName()`]: #agentgetnameoptions
 [`destroy()`]: #agentdestroy
@@ -4273,6 +4304,7 @@ A browser-compatible implementation of [`WebSocket`][].
 [`http.globalAgent`]: #httpglobalagent
 [`http.request()`]: #httprequestoptions-callback
 [`message.headers`]: #messageheaders
+[`message.rawHeaders`]: #messagerawheaders
 [`message.socket`]: #messagesocket
 [`message.trailers`]: #messagetrailers
 [`net.Server.close()`]: net.md#serverclosecallback
@@ -4309,6 +4341,7 @@ A browser-compatible implementation of [`WebSocket`][].
 [`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
 [`server.close()`]: #serverclosecallback
 [`server.headersTimeout`]: #serverheaderstimeout
+[`server.keepAliveTimeoutBuffer`]: #serverkeepalivetimeoutbuffer
 [`server.keepAliveTimeout`]: #serverkeepalivetimeout
 [`server.listen()`]: net.md#serverlisten
 [`server.requestTimeout`]: #serverrequesttimeout

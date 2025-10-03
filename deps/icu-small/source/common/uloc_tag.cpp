@@ -1043,7 +1043,7 @@ _initializeULanguageTag(ULanguageTag* langtag) {
 }
 
 void
-_appendLanguageToLanguageTag(const char* localeID, icu::ByteSink& sink, bool strict, UErrorCode& status) {
+_appendLanguageToLanguageTag(std::string_view localeID, icu::ByteSink& sink, bool strict, UErrorCode& status) {
     UErrorCode tmpStatus = U_ZERO_ERROR;
 
     if (U_FAILURE(status)) {
@@ -1088,7 +1088,7 @@ _appendLanguageToLanguageTag(const char* localeID, icu::ByteSink& sink, bool str
 }
 
 void
-_appendScriptToLanguageTag(const char* localeID, icu::ByteSink& sink, bool strict, UErrorCode& status) {
+_appendScriptToLanguageTag(std::string_view localeID, icu::ByteSink& sink, bool strict, UErrorCode& status) {
     UErrorCode tmpStatus = U_ZERO_ERROR;
 
     if (U_FAILURE(status)) {
@@ -1118,7 +1118,7 @@ _appendScriptToLanguageTag(const char* localeID, icu::ByteSink& sink, bool stric
 }
 
 void
-_appendRegionToLanguageTag(const char* localeID, icu::ByteSink& sink, bool strict, UErrorCode& status) {
+_appendRegionToLanguageTag(std::string_view localeID, icu::ByteSink& sink, bool strict, UErrorCode& status) {
     UErrorCode tmpStatus = U_ZERO_ERROR;
 
     if (U_FAILURE(status)) {
@@ -1169,7 +1169,7 @@ void _sortVariants(VariantListEntry* first) {
 }
 
 void
-_appendVariantsToLanguageTag(const char* localeID, icu::ByteSink& sink, bool strict, bool& hadPosix, UErrorCode& status) {
+_appendVariantsToLanguageTag(std::string_view localeID, icu::ByteSink& sink, bool strict, bool& hadPosix, UErrorCode& status) {
     if (U_FAILURE(status)) { return; }
 
     UErrorCode tmpStatus = U_ZERO_ERROR;
@@ -1872,7 +1872,7 @@ _appendKeywords(ULanguageTag* langtag, icu::ByteSink& sink, UErrorCode& status) 
 }
 
 void
-_appendPrivateuseToLanguageTag(const char* localeID, icu::ByteSink& sink, bool strict, bool /*hadPosix*/, UErrorCode& status) {
+_appendPrivateuseToLanguageTag(std::string_view localeID, icu::ByteSink& sink, bool strict, bool /*hadPosix*/, UErrorCode& status) {
     if (U_FAILURE(status)) { return; }
 
     UErrorCode tmpStatus = U_ZERO_ERROR;
@@ -2596,6 +2596,9 @@ ulocimp_toLanguageTag(const char* localeID,
     bool hadPosix = false;
     const char* pKeywordStart;
 
+    if (localeID == nullptr) {
+        localeID = uloc_getDefault();
+    }
     /* Note: uloc_canonicalize returns "en_US_POSIX" for input locale ID "".  See #6835 */
     icu::CharString canonical = ulocimp_canonicalize(localeID, tmpStatus);
     if (U_FAILURE(tmpStatus)) {
@@ -2604,7 +2607,7 @@ ulocimp_toLanguageTag(const char* localeID,
     }
 
     /* For handling special case - private use only tag */
-    pKeywordStart = locale_getKeywordsStart(canonical.data());
+    pKeywordStart = locale_getKeywordsStart(canonical.toStringPiece());
     if (pKeywordStart == canonical.data()) {
         int kwdCnt = 0;
         bool done = false;
@@ -2642,12 +2645,12 @@ ulocimp_toLanguageTag(const char* localeID,
         }
     }
 
-    _appendLanguageToLanguageTag(canonical.data(), sink, strict, status);
-    _appendScriptToLanguageTag(canonical.data(), sink, strict, status);
-    _appendRegionToLanguageTag(canonical.data(), sink, strict, status);
-    _appendVariantsToLanguageTag(canonical.data(), sink, strict, hadPosix, status);
+    _appendLanguageToLanguageTag(canonical.toStringPiece(), sink, strict, status);
+    _appendScriptToLanguageTag(canonical.toStringPiece(), sink, strict, status);
+    _appendRegionToLanguageTag(canonical.toStringPiece(), sink, strict, status);
+    _appendVariantsToLanguageTag(canonical.toStringPiece(), sink, strict, hadPosix, status);
     _appendKeywordsToLanguageTag(canonical.data(), sink, strict, hadPosix, status);
-    _appendPrivateuseToLanguageTag(canonical.data(), sink, strict, hadPosix, status);
+    _appendPrivateuseToLanguageTag(canonical.toStringPiece(), sink, strict, hadPosix, status);
 }
 
 

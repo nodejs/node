@@ -2,8 +2,6 @@
 
 <!--introduced_in=v20.0.0-->
 
-<!-- source_link=src/permission.cc -->
-
 Permissions can be used to control what system resources the
 Node.js process has access to or what actions the process can take
 with those resources.
@@ -38,7 +36,7 @@ changes:
     description: This feature is no longer experimental.
 -->
 
-> Stability: 2 - Stable.
+> Stability: 2 - Stable
 
 The Node.js Permission Model is a mechanism for restricting access to specific
 resources during execution.
@@ -102,12 +100,29 @@ $ node --permission --allow-fs-read=* --allow-fs-write=* index.js
 Hello world!
 ```
 
+By default the entrypoints of your application are included
+in the allowed file system read list. For example:
+
+```console
+$ node --permission index.js
+```
+
+* `index.js` will be included in the allowed file system read list
+
+```console
+$ node -r /path/to/custom-require.js --permission index.js.
+```
+
+* `/path/to/custom-require.js` will be included in the allowed file system read
+  list.
+* `index.js` will be included in the allowed file system read list.
+
 The valid arguments for both flags are:
 
 * `*` - To allow all `FileSystemRead` or `FileSystemWrite` operations,
   respectively.
-* Paths delimited by comma (`,`) to allow only matching `FileSystemRead` or
-  `FileSystemWrite` operations, respectively.
+* Relative paths to the current working directory.
+* Absolute paths.
 
 Example:
 
@@ -175,7 +190,7 @@ easy to configure permissions as needed when using `npx`.
 
 There are constraints you need to know before using this system:
 
-* The model does not inherit to a child node process or a worker thread.
+* The model does not inherit to a worker thread.
 * When using the Permission Model the following features will be restricted:
   * Native modules
   * Child process

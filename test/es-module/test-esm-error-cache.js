@@ -19,7 +19,9 @@ let error;
   await assert.rejects(
     () => import(file),
     (e) => {
-      assert.strictEqual(error, e);
+      // The module may be compiled again and a new SyntaxError would be thrown but
+      // with the same content.
+      assert.deepStrictEqual(error, e);
       return true;
     }
   );

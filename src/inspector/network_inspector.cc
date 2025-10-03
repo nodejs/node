@@ -3,9 +3,15 @@
 namespace node {
 namespace inspector {
 
-NetworkInspector::NetworkInspector(Environment* env)
-    : enabled_(false), env_(env) {
-  network_agent_ = std::make_unique<protocol::NetworkAgent>(this);
+NetworkInspector::NetworkInspector(
+    Environment* env,
+    v8_inspector::V8Inspector* v8_inspector,
+    std::shared_ptr<NetworkResourceManager> network_resource_manager)
+    : enabled_(false),
+      env_(env),
+      network_resource_manager_(std::move(network_resource_manager)) {
+  network_agent_ = std::make_unique<NetworkAgent>(
+      this, v8_inspector, env, network_resource_manager_);
 }
 NetworkInspector::~NetworkInspector() {
   network_agent_.reset();
@@ -19,12 +25,12 @@ bool NetworkInspector::canEmit(const std::string& domain) {
   return domain == "Network";
 }
 
-void NetworkInspector::emitNotification(
-    const std::string& domain,
-    const std::string& method,
-    std::unique_ptr<protocol::DictionaryValue> params) {
+void NetworkInspector::emitNotification(v8::Local<v8::Context> context,
+                                        const std::string& domain,
+                                        const std::string& method,
+                                        v8::Local<v8::Object> params) {
   if (domain == "Network") {
-    network_agent_->emitNotification(method, std::move(params));
+    network_agent_->emitNotification(context, method, params);
   } else {
     UNREACHABLE("Unknown domain");
   }

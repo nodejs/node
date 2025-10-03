@@ -124,11 +124,9 @@ errorValue(int32_t count, int8_t strict) {
  * >0  Obsolete "strict" behavior of UTF8_NEXT_CHAR_SAFE(..., true):
  *     Same as the obsolete "safe" behavior, but non-characters are also treated
  *     like illegal sequences.
- *
- * Note that a UBool is the same as an int8_t.
  */
 U_CAPI UChar32 U_EXPORT2
-utf8_nextCharSafeBody(const uint8_t *s, int32_t *pi, int32_t length, UChar32 c, UBool strict) {
+utf8_nextCharSafeBody(const uint8_t *s, int32_t *pi, int32_t length, UChar32 c, int8_t strict) {
     // *pi is one after byte c.
     int32_t i=*pi;
     // length can be negative for NUL-terminated strings: Read and validate one byte at a time.
@@ -233,7 +231,7 @@ utf8_appendCharSafeBody(uint8_t *s, int32_t i, int32_t length, UChar32 c, UBool 
 }
 
 U_CAPI UChar32 U_EXPORT2
-utf8_prevCharSafeBody(const uint8_t *s, int32_t start, int32_t *pi, UChar32 c, UBool strict) {
+utf8_prevCharSafeBody(const uint8_t *s, int32_t start, int32_t *pi, UChar32 c, int8_t strict) {
     // *pi is the index of byte c.
     int32_t i=*pi;
     if(U8_IS_TRAIL(c) && i>start) {

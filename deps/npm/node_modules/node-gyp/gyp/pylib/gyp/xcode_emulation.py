@@ -9,13 +9,14 @@ other build systems, such as make and ninja.
 
 
 import copy
-import gyp.common
 import os
 import os.path
 import re
 import shlex
 import subprocess
 import sys
+
+import gyp.common
 from gyp.common import GypError
 
 # Populated lazily by XcodeVersion, for efficiency, and to fix an issue when
@@ -471,17 +472,14 @@ class XcodeSettings:
         """Returns the name of the non-bundle binary represented by this target.
     E.g. hello_world. Only valid for non-bundles."""
         assert not self._IsBundle()
-        assert self.spec["type"] in (
+        assert self.spec["type"] in {
             "executable",
             "shared_library",
             "static_library",
             "loadable_module",
-        ), ("Unexpected type %s" % self.spec["type"])
+        }, ("Unexpected type %s" % self.spec["type"])
         target = self.spec["target_name"]
-        if self.spec["type"] == "static_library":
-            if target[:3] == "lib":
-                target = target[3:]
-        elif self.spec["type"] in ("loadable_module", "shared_library"):
+        if self.spec["type"] in {"loadable_module", "shared_library", "static_library"}:
             if target[:3] == "lib":
                 target = target[3:]
 
@@ -1127,8 +1125,8 @@ class XcodeSettings:
     be deployed to a device.  This should be run as the very last step of the
     build."""
         if not (
-            self.isIOS
-            and (self.spec["type"] == "executable" or self._IsXCTest())
+            (self.isIOS
+            and (self.spec["type"] == "executable" or self._IsXCTest()))
             or self.IsIosFramework()
         ):
             return []
@@ -1174,8 +1172,9 @@ class XcodeSettings:
                 # Then re-sign everything with 'preserve=True'
                 postbuilds.extend(
                     [
-                        '%s code-sign-bundle "%s" "%s" "%s" "%s" %s'
+                        '%s %s code-sign-bundle "%s" "%s" "%s" "%s" %s'
                         % (
+                            sys.executable,
                             os.path.join("${TARGET_BUILD_DIR}", "gyp-mac-tool"),
                             key,
                             settings.get("CODE_SIGN_ENTITLEMENTS", ""),
@@ -1190,8 +1189,9 @@ class XcodeSettings:
             for target in targets:
                 postbuilds.extend(
                     [
-                        '%s code-sign-bundle "%s" "%s" "%s" "%s" %s'
+                        '%s %s code-sign-bundle "%s" "%s" "%s" "%s" %s'
                         % (
+                            sys.executable,
                             os.path.join("${TARGET_BUILD_DIR}", "gyp-mac-tool"),
                             key,
                             settings.get("CODE_SIGN_ENTITLEMENTS", ""),
@@ -1204,8 +1204,9 @@ class XcodeSettings:
 
         postbuilds.extend(
             [
-                '%s code-sign-bundle "%s" "%s" "%s" "%s" %s'
+                '%s %s code-sign-bundle "%s" "%s" "%s" "%s" %s'
                 % (
+                    sys.executable,
                     os.path.join("${TARGET_BUILD_DIR}", "gyp-mac-tool"),
                     key,
                     settings.get("CODE_SIGN_ENTITLEMENTS", ""),
@@ -1858,7 +1859,7 @@ def _TopologicallySortedEnvVarKeys(env):
     regex = re.compile(r"\$\{([a-zA-Z0-9\-_]+)\}")
 
     def GetEdges(node):
-        # Use a definition of edges such that user_of_variable -> used_varible.
+        # Use a definition of edges such that user_of_variable -> used_variable.
         # This happens to be easier in this case, since a variable's
         # definition contains all variables it references in a single string.
         # We can then reverse the result of the topological sort at the end.

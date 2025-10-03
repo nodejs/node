@@ -1,6 +1,6 @@
 {
   "name": "minipass-fetch",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "An implementation of window.fetch in Node.js using Minipass streams",
   "license": "MIT",
   "main": "lib/index.js",

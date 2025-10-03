@@ -7,15 +7,15 @@ This module helps emulate Visual Studio 2008 behavior on top of other
 build systems, primarily ninja.
 """
 
-import collections
 import os
 import re
 import subprocess
 import sys
+from collections import namedtuple
 
-from gyp.common import OrderedSet
 import gyp.MSVSUtil
 import gyp.MSVSVersion
+from gyp.common import OrderedSet
 
 windows_quoter_regex = re.compile(r'(\\*)"')
 
@@ -933,7 +933,7 @@ class MsvsSettings:
         )
         return cmd
 
-    RuleShellFlags = collections.namedtuple("RuleShellFlags", ["cygwin", "quote"])
+    RuleShellFlags = namedtuple("RuleShellFlags", ["cygwin", "quote"])  # noqa: PYI024
 
     def GetRuleShellFlags(self, rule):
         """Return RuleShellFlags about how the given rule should be run. This

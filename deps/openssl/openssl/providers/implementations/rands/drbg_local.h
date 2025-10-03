@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,6 +18,7 @@
 # include "internal/nelem.h"
 # include "internal/numbers.h"
 # include "prov/provider_ctx.h"
+# include "prov/securitycheck.h"
 
 /* How many times to read the TSC as a randomness source. */
 # define TSC_READ_COUNT                 4
@@ -31,16 +32,6 @@
 # define TIME_INTERVAL                           (60*60)   /* 1 hour */
 
 /*
- * The number of bytes that constitutes an atomic lump of entropy with respect
- * to the FIPS 140-2 section 4.9.2 Conditional Tests.  The size is somewhat
- * arbitrary, the smaller the value, the less entropy is consumed on first
- * read but the higher the probability of the test failing by accident.
- *
- * The value is in bytes.
- */
-#define CRNGT_BUFSIZ    16
-
-/*
  * Maximum input size for the DRBG (entropy, nonce, personalization string)
  *
  * NIST SP800 90Ar1 allows a maximum of (1 << 35) bits i.e., (1 << 32) bytes.
@@ -50,13 +41,8 @@
 # define DRBG_MAX_LENGTH                         INT32_MAX
 
 /* The default nonce */
-#ifdef CHARSET_EBCDIC
-# define DRBG_DEFAULT_PERS_STRING      { 0x4f, 0x70, 0x65, 0x6e, 0x53, 0x53, \
-     0x4c, 0x20, 0x4e, 0x49, 0x53, 0x54, 0x20, 0x53, 0x50, 0x20, 0x38, 0x30, \
-     0x30, 0x2d, 0x39, 0x30, 0x41, 0x20, 0x44, 0x52, 0x42, 0x47, 0x00};
-#else
-# define DRBG_DEFAULT_PERS_STRING                "OpenSSL NIST SP 800-90A DRBG"
-#endif
+/* ASCII: "OpenSSL NIST SP 800-90A DRBG", in hex for EBCDIC compatibility */
+#define DRBG_DEFAULT_PERS_STRING "\x4f\x70\x65\x6e\x53\x53\x4c\x20\x4e\x49\x53\x54\x20\x53\x50\x20\x38\x30\x30\x2d\x39\x30\x41\x20\x44\x52\x42\x47"
 
 typedef struct prov_drbg_st PROV_DRBG;
 
@@ -74,7 +60,7 @@ struct prov_drbg_st {
     CRYPTO_RWLOCK *lock;
     PROV_CTX *provctx;
 
-    /* Virtual functions are cache here */
+    /* Virtual functions are cached here */
     int (*instantiate)(PROV_DRBG *drbg,
                        const unsigned char *entropy, size_t entropylen,
                        const unsigned char *nonce, size_t noncelen,
@@ -94,8 +80,6 @@ struct prov_drbg_st {
     OSSL_FUNC_rand_nonce_fn *parent_nonce;
     OSSL_FUNC_rand_get_seed_fn *parent_get_seed;
     OSSL_FUNC_rand_clear_seed_fn *parent_clear_seed;
-
-    const OSSL_DISPATCH *parent_dispatch;
 
     /*
      * Stores the return value of openssl_get_fork_id() as of when we last
@@ -176,6 +160,8 @@ struct prov_drbg_st {
     OSSL_CALLBACK *cleanup_entropy_fn;
     OSSL_INOUT_CALLBACK *get_nonce_fn;
     OSSL_CALLBACK *cleanup_nonce_fn;
+
+    OSSL_FIPS_IND_DECLARE
 };
 
 PROV_DRBG *ossl_rand_drbg_new
@@ -212,13 +198,13 @@ OSSL_FUNC_rand_get_seed_fn ossl_drbg_get_seed;
 OSSL_FUNC_rand_clear_seed_fn ossl_drbg_clear_seed;
 
 /* Verify that an array of numeric values is all zero */
-#define PROV_DRBG_VERYIFY_ZEROIZATION(v)    \
+#define PROV_DRBG_VERIFY_ZEROIZATION(v)     \
     {                                       \
         size_t i;                           \
                                             \
         for (i = 0; i < OSSL_NELEM(v); i++) \
             if ((v)[i] != 0)                \
-                return 0;                   \
+                goto err;                   \
     }
 
 /* locking api */
@@ -228,9 +214,11 @@ OSSL_FUNC_rand_unlock_fn ossl_drbg_unlock;
 
 /* Common parameters for all of our DRBGs */
 int ossl_drbg_get_ctx_params(PROV_DRBG *drbg, OSSL_PARAM params[]);
+int ossl_drbg_get_ctx_params_no_lock(PROV_DRBG *drbg, OSSL_PARAM params[],
+                                     int *complete);
 int ossl_drbg_set_ctx_params(PROV_DRBG *drbg, const OSSL_PARAM params[]);
 
-#define OSSL_PARAM_DRBG_SETTABLE_CTX_COMMON                                      \
+#define OSSL_PARAM_DRBG_SETTABLE_CTX_COMMON                             \
     OSSL_PARAM_uint(OSSL_DRBG_PARAM_RESEED_REQUESTS, NULL),             \
     OSSL_PARAM_uint64(OSSL_DRBG_PARAM_RESEED_TIME_INTERVAL, NULL)
 
@@ -249,12 +237,7 @@ int ossl_drbg_set_ctx_params(PROV_DRBG *drbg, const OSSL_PARAM params[]);
     OSSL_PARAM_uint(OSSL_DRBG_PARAM_RESEED_REQUESTS, NULL),             \
     OSSL_PARAM_uint64(OSSL_DRBG_PARAM_RESEED_TIME_INTERVAL, NULL)
 
-/* Continuous test "entropy" calls */
-size_t ossl_crngt_get_entropy(PROV_DRBG *drbg,
-                              unsigned char **pout,
-                              int entropy, size_t min_len, size_t max_len,
-                              int prediction_resistance);
-void ossl_crngt_cleanup_entropy(PROV_DRBG *drbg,
-                                unsigned char *out, size_t outlen);
+/* Confirm digest is allowed to be used with a DRBG */
+int ossl_drbg_verify_digest(PROV_DRBG *drbg, OSSL_LIB_CTX *libctx, const EVP_MD *md);
 
 #endif

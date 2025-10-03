@@ -79,12 +79,16 @@ SocketAddress::SocketAddress(const SocketAddress& addr) {
 }
 
 SocketAddress& SocketAddress::operator=(const sockaddr* addr) {
-  memcpy(&address_, addr, GetLength(addr));
+  if (reinterpret_cast<const sockaddr*>(&address_) != addr) {
+    memcpy(&address_, addr, GetLength(addr));
+  }
   return *this;
 }
 
 SocketAddress& SocketAddress::operator=(const SocketAddress& addr) {
-  memcpy(&address_, &addr.address_, addr.length());
+  if (this != &addr) {
+    memcpy(&address_, &addr.address_, addr.length());
+  }
   return *this;
 }
 

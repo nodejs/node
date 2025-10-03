@@ -22,16 +22,28 @@ class PerIsolatePlatformData;
 template <class T>
 class TaskQueue {
  public:
+  class Locked {
+   public:
+    void Push(std::unique_ptr<T> task);
+    std::unique_ptr<T> Pop();
+    std::unique_ptr<T> BlockingPop();
+    void NotifyOfCompletion();
+    void BlockingDrain();
+    void Stop();
+    std::queue<std::unique_ptr<T>> PopAll();
+
+   private:
+    friend class TaskQueue;
+    explicit Locked(TaskQueue* queue);
+
+    TaskQueue* queue_;
+    Mutex::ScopedLock lock_;
+  };
+
   TaskQueue();
   ~TaskQueue() = default;
 
-  void Push(std::unique_ptr<T> task);
-  std::unique_ptr<T> Pop();
-  std::unique_ptr<T> BlockingPop();
-  std::queue<std::unique_ptr<T>> PopAll();
-  void NotifyOfCompletion();
-  void BlockingDrain();
-  void Stop();
+  Locked Lock() { return Locked(this); }
 
  private:
   Mutex lock_;
@@ -49,13 +61,22 @@ struct DelayedTask {
   std::shared_ptr<PerIsolatePlatformData> platform_data;
 };
 
+enum class PlatformDebugLogLevel {
+  kNone = 0,
+  kMinimal = 1,
+  kVerbose = 2,
+};
+
 // This acts as the foreground task runner for a given Isolate.
 class PerIsolatePlatformData :
     public IsolatePlatformDelegate,
     public v8::TaskRunner,
     public std::enable_shared_from_this<PerIsolatePlatformData> {
  public:
-  PerIsolatePlatformData(v8::Isolate* isolate, uv_loop_t* loop);
+  PerIsolatePlatformData(
+      v8::Isolate* isolate,
+      uv_loop_t* loop,
+      PlatformDebugLogLevel debug_log_level = PlatformDebugLogLevel::kNone);
   ~PerIsolatePlatformData() override;
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner() override;
@@ -90,6 +111,8 @@ class PerIsolatePlatformData :
   void RunForegroundTask(std::unique_ptr<v8::Task> task);
   static void RunForegroundTask(uv_timer_t* timer);
 
+  uv_async_t* flush_tasks_ = nullptr;
+
   struct ShutdownCallback {
     void (*cb)(void*);
     void* data;
@@ -102,7 +125,9 @@ class PerIsolatePlatformData :
 
   v8::Isolate* const isolate_;
   uv_loop_t* const loop_;
-  uv_async_t* flush_tasks_ = nullptr;
+
+  // When acquiring locks for both task queues, lock foreground_tasks_
+  // first then foreground_delayed_tasks_ to avoid deadlocks.
   TaskQueue<v8::Task> foreground_tasks_;
   TaskQueue<DelayedTask> foreground_delayed_tasks_;
 
@@ -110,12 +135,14 @@ class PerIsolatePlatformData :
   typedef std::unique_ptr<DelayedTask, void(*)(DelayedTask*)>
       DelayedTaskPointer;
   std::vector<DelayedTaskPointer> scheduled_delayed_tasks_;
+  PlatformDebugLogLevel debug_log_level_ = PlatformDebugLogLevel::kNone;
 };
 
 // This acts as the single worker thread task runner for all Isolates.
 class WorkerThreadsTaskRunner {
  public:
-  explicit WorkerThreadsTaskRunner(int thread_pool_size);
+  explicit WorkerThreadsTaskRunner(int thread_pool_size,
+                                   PlatformDebugLogLevel debug_log_level);
 
   void PostTask(std::unique_ptr<v8::Task> task);
   void PostDelayedTask(std::unique_ptr<v8::Task> task,
@@ -127,12 +154,21 @@ class WorkerThreadsTaskRunner {
   int NumberOfWorkerThreads() const;
 
  private:
+  // A queue shared by all threads. The consumers are the worker threads which
+  // take tasks from it to run in PlatformWorkerThread(). The producers can be
+  // any thread. Both the foreground thread and the worker threads can push
+  // tasks into the queue via v8::Platform::PostTaskOnWorkerThread() which
+  // eventually calls PostTask() on this class. When any thread calls
+  // v8::Platform::PostDelayedTaskOnWorkerThread(), the DelayedTaskScheduler
+  // thread will schedule a timer that pushes the delayed tasks back into this
+  // queue when the timer expires.
   TaskQueue<v8::Task> pending_worker_tasks_;
 
   class DelayedTaskScheduler;
   std::unique_ptr<DelayedTaskScheduler> delayed_task_scheduler_;
 
   std::vector<std::unique_ptr<uv_thread_t>> threads_;
+  PlatformDebugLogLevel debug_log_level_ = PlatformDebugLogLevel::kNone;
 };
 
 class NodePlatform : public MultiIsolatePlatform {
@@ -192,6 +228,7 @@ class NodePlatform : public MultiIsolatePlatform {
   v8::PageAllocator* page_allocator_;
   std::shared_ptr<WorkerThreadsTaskRunner> worker_thread_task_runner_;
   bool has_shut_down_ = false;
+  PlatformDebugLogLevel debug_log_level_ = PlatformDebugLogLevel::kNone;
 };
 
 }  // namespace node

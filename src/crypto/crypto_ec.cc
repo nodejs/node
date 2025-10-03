@@ -450,7 +450,8 @@ Maybe<void> ECDHBitsTraits::AdditionalConfig(
 
 bool ECDHBitsTraits::DeriveBits(Environment* env,
                                 const ECDHBitsConfig& params,
-                                ByteSource* out) {
+                                ByteSource* out,
+                                CryptoJobMode mode) {
   size_t len = 0;
   const auto& m_privkey = params.private_.GetAsymmetricKey();
   const auto& m_pubkey = params.public_.GetAsymmetricKey();
@@ -937,6 +938,7 @@ size_t GroupOrderSize(const EVPKeyPointer& key) {
   const EC_KEY* ec = key;
   CHECK_NOT_NULL(ec);
   auto order = BignumPointer::New();
+  CHECK(order);
   CHECK(EC_GROUP_get_order(ECKeyPointer::GetGroup(ec), order.get(), nullptr));
   return order.byteLength();
 }

@@ -8,6 +8,8 @@ test('expected methods are on t.assert', (t) => {
     'AssertionError',
     'CallTracker',
     'strict',
+    'Assert',
+    'options',
   ];
   const assertKeys = Object.keys(assert).filter((key) => !uncopiedKeys.includes(key));
   const expectedKeys = ['snapshot', 'fileSnapshot'].concat(assertKeys).sort();

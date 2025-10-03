@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -193,7 +193,5 @@ char *ossl_algorithm_get1_first_name(const OSSL_ALGORITHM *algo)
         first_name_len = first_name_end - algo->algorithm_names;
 
     ret = OPENSSL_strndup(algo->algorithm_names, first_name_len);
-    if (ret == NULL)
-        ERR_raise(ERR_LIB_EVP, ERR_R_MALLOC_FAILURE);
     return ret;
 }

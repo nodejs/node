@@ -45,6 +45,7 @@
 
 U_NAMESPACE_BEGIN
 
+class CharString;
 /**
  * Base class for all formats.  This is an abstract base class which
  * specifies the protocol for classes which convert other objects or
@@ -297,8 +298,8 @@ protected:
                             UParseError& parseError);
 
  private:
-    char actualLocale[ULOC_FULLNAME_CAPACITY];
-    char validLocale[ULOC_FULLNAME_CAPACITY];
+    CharString* actualLocale = nullptr;
+    CharString* validLocale = nullptr;
 };
 
 U_NAMESPACE_END

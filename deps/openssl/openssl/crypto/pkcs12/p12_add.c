@@ -24,16 +24,16 @@ PKCS12_SAFEBAG *PKCS12_item_pack_safebag(void *obj, const ASN1_ITEM *it,
     PKCS12_SAFEBAG *safebag;
 
     if ((bag = PKCS12_BAGS_new()) == NULL) {
-        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS12, ERR_R_ASN1_LIB);
         return NULL;
     }
     bag->type = OBJ_nid2obj(nid1);
     if (!ASN1_item_pack(obj, it, &bag->value.octet)) {
-        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS12, ERR_R_ASN1_LIB);
         goto err;
     }
     if ((safebag = PKCS12_SAFEBAG_new()) == NULL) {
-        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS12, ERR_R_ASN1_LIB);
         goto err;
     }
     safebag->value.bag = bag;
@@ -51,12 +51,12 @@ PKCS7 *PKCS12_pack_p7data(STACK_OF(PKCS12_SAFEBAG) *sk)
     PKCS7 *p7;
 
     if ((p7 = PKCS7_new()) == NULL) {
-        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS12, ERR_R_ASN1_LIB);
         return NULL;
     }
     p7->type = OBJ_nid2obj(NID_pkcs7_data);
     if ((p7->d.data = ASN1_OCTET_STRING_new()) == NULL) {
-        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS12, ERR_R_ASN1_LIB);
         goto err;
     }
 
@@ -84,7 +84,9 @@ STACK_OF(PKCS12_SAFEBAG) *PKCS12_unpack_p7data(PKCS7 *p7)
         return NULL;
     }
 
-    return ASN1_item_unpack(p7->d.data, ASN1_ITEM_rptr(PKCS12_SAFEBAGS));
+    return ASN1_item_unpack_ex(p7->d.data, ASN1_ITEM_rptr(PKCS12_SAFEBAGS),
+                               ossl_pkcs7_ctx_get0_libctx(&p7->ctx),
+                               ossl_pkcs7_ctx_get0_propq(&p7->ctx));
 }
 
 /* Turn a stack of SAFEBAGS into a PKCS#7 encrypted data ContentInfo */
@@ -100,7 +102,7 @@ PKCS7 *PKCS12_pack_p7encdata_ex(int pbe_nid, const char *pass, int passlen,
     EVP_CIPHER *pbe_ciph_fetch = NULL;
 
     if ((p7 = PKCS7_new_ex(ctx, propq)) == NULL) {
-        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS12, ERR_R_ASN1_LIB);
         return NULL;
     }
     if (!PKCS7_set_type(p7, NID_pkcs7_encrypted)) {
@@ -121,7 +123,7 @@ PKCS7 *PKCS12_pack_p7encdata_ex(int pbe_nid, const char *pass, int passlen,
     }
 
     if (pbe == NULL) {
-        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS12, ERR_R_ASN1_LIB);
         goto err;
     }
     X509_ALGOR_free(p7->d.encrypted->enc_data->algorithm);
@@ -193,6 +195,7 @@ int PKCS12_pack_authsafes(PKCS12 *p12, STACK_OF(PKCS7) *safes)
 STACK_OF(PKCS7) *PKCS12_unpack_authsafes(const PKCS12 *p12)
 {
     STACK_OF(PKCS7) *p7s;
+    PKCS7_CTX *p7ctx;
     PKCS7 *p7;
     int i;
 
@@ -206,8 +209,11 @@ STACK_OF(PKCS7) *PKCS12_unpack_authsafes(const PKCS12 *p12)
         return NULL;
     }
 
-    p7s = ASN1_item_unpack(p12->authsafes->d.data,
-                           ASN1_ITEM_rptr(PKCS12_AUTHSAFES));
+    p7ctx = &p12->authsafes->ctx;
+    p7s = ASN1_item_unpack_ex(p12->authsafes->d.data,
+                              ASN1_ITEM_rptr(PKCS12_AUTHSAFES),
+                              ossl_pkcs7_ctx_get0_libctx(p7ctx),
+                              ossl_pkcs7_ctx_get0_propq(p7ctx));
     if (p7s != NULL) {
         for (i = 0; i < sk_PKCS7_num(p7s); i++) {
             p7 = sk_PKCS7_value(p7s, i);

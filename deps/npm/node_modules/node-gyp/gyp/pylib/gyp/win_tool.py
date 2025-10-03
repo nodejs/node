@@ -13,9 +13,9 @@ These functions are executed via gyp-win-tool when using the ninja generator.
 import os
 import re
 import shutil
-import subprocess
 import stat
 import string
+import subprocess
 import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

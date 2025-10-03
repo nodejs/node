@@ -523,10 +523,10 @@ MaybeLocal<Value> DHBitsTraits::EncodeOutput(Environment* env,
   return out->ToArrayBuffer(env);
 }
 
-bool DHBitsTraits::DeriveBits(
-    Environment* env,
-    const DHBitsConfig& params,
-    ByteSource* out) {
+bool DHBitsTraits::DeriveBits(Environment* env,
+                              const DHBitsConfig& params,
+                              ByteSource* out,
+                              CryptoJobMode mode) {
   *out = StatelessDiffieHellmanThreadsafe(params.private_key.GetAsymmetricKey(),
                                           params.public_key.GetAsymmetricKey());
   return true;

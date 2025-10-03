@@ -1,6 +1,29 @@
 # Node.js Core Test Common Modules
 
 This directory contains modules used to test the Node.js implementation.
+All tests must begin by requiring the `common` module:
+
+```js
+require('../common');
+```
+
+This is not just a convenience for exporting helper functions etc; it also performs
+several other tasks:
+
+* Verifies that no unintended globals have been leaked to ensure that tests
+  don't accidentally pollute the global namespace.
+
+* Some tests assume a default umask of `0o022`. To enforce this assumption,
+  the common module sets the umask at startup. Tests that require a
+  different umask can override this setting after loading the module.
+
+* Some tests specify runtime flags (example, `--expose-internals`) via a
+  comment at the top of the file: `// Flags: --expose-internals`.
+  If the test is run without those flags, the common module automatically
+  spawns a child process with proper flags. This ensures that the tests
+  always run under the expected conditions. Because of this behaviour, the
+  common module must be loaded first so that any code below it is not
+  executed until the process has been re-spawned with the correct flags.
 
 ## Table of contents
 
@@ -234,6 +257,12 @@ Indicates if [internationalization][] is supported.
 
 Indicates whether `IPv6` is supported on this platform.
 
+### `hasSQLite`
+
+* [\<boolean>][<boolean>]
+
+Indicates whether SQLite is available.
+
 ### `inFreeBSDJail`
 
 * [\<boolean>][<boolean>]
@@ -456,6 +485,11 @@ at `tools/eslint/node_modules/eslint`
 ### `skipIfInspectorDisabled()`
 
 Skip the rest of the tests in the current file when the Inspector
+was disabled at compile time.
+
+### `skipIfSQLiteMissing()`
+
+Skip the rest of the tests in the current file when the SQLite
 was disabled at compile time.
 
 ### `skipIf32Bits()`
@@ -807,7 +841,7 @@ frames for testing of HTTP/2 endpoints
 const http2 = require('../common/http2');
 ```
 
-### Class: Frame
+### Class: `Frame`
 
 The `http2.Frame` is a base class that creates a `Buffer` containing a
 serialized HTTP/2 frame header.
@@ -827,7 +861,7 @@ socket.write(frame.data);
 
 The serialized `Buffer` may be retrieved using the `frame.data` property.
 
-### Class: HeadersFrame
+### Class: `HeadersFrame`
 
 The `http2.HeadersFrame` is a subclass of `http2.Frame` that serializes a
 `HEADERS` frame.
@@ -846,7 +880,7 @@ const frame = new http2.HeadersFrame(id, payload, padlen, final);
 socket.write(frame.data);
 ```
 
-### Class: SettingsFrame
+### Class: `SettingsFrame`
 
 The `http2.SettingsFrame` is a subclass of `http2.Frame` that serializes an
 empty `SETTINGS` frame.
@@ -1104,7 +1138,7 @@ See the source code for definitions. Please avoid using it in new
 code - the current usage of this port in tests is being migrated to
 the original WPT harness, see [the WPT tests README][].
 
-### Class: WPTRunner
+### Class: `WPTRunner`
 
 A driver class for running WPT with the WPT harness in a worker thread.
 

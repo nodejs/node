@@ -311,7 +311,7 @@ describe('timeouts', () => {
 
   it('timed out callback test', { timeout: 5 }, (t, done) => {
     setTimeout(() => {
-        // Empty timer so the process doesn't exit before the timeout triggers.
+      // Empty timer so the process doesn't exit before the timeout triggers.
     }, 5);
     setTimeout(done, 30_000_000).unref();
   });
@@ -372,20 +372,20 @@ describe('rejected thenable', () => {
   };
 });
 
-describe("async describe function", async () => {
+describe('async describe function', async () => {
   await null;
 
-  await it("it inside describe 1", async () => {
-    await null
+  await it('it inside describe 1', async () => {
+    await null;
   });
-  await it("it inside describe 2", async () => {
+  await it('it inside describe 2', async () => {
     await null;
   });
 
-  describe("inner describe", async () => {
+  describe('inner describe', async () => {
     await null;
 
-    it("it inside inner describe", async () => {
+    it('it inside inner describe', async () => {
       await null;
     });
   });

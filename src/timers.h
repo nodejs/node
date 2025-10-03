@@ -26,8 +26,7 @@ class BindingData : public SnapshotableObject {
   static void SetupTimers(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void SlowGetLibuvNow(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static double FastGetLibuvNow(v8::Local<v8::Object> unused,
-                                v8::Local<v8::Object> receiver);
+  static double FastGetLibuvNow(v8::Local<v8::Value> receiver);
   static double GetLibuvNowImpl(BindingData* data);
 
   static void SlowScheduleTimer(
@@ -62,7 +61,7 @@ class BindingData : public SnapshotableObject {
 
  private:
   static v8::CFunction fast_get_libuv_now_;
-  static v8::CFunction fast_schedule_timers_;
+  static v8::CFunction fast_schedule_timer_;
   static v8::CFunction fast_toggle_timer_ref_;
   static v8::CFunction fast_toggle_immediate_ref_;
 };

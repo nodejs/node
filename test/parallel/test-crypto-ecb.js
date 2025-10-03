@@ -37,6 +37,10 @@ if (hasOpenSSL3) {
     'OpenSSl 3.x');
 }
 
+if (!crypto.getCiphers().includes('BF-ECB')) {
+  common.skip('BF-ECB cipher is not available');
+}
+
 const assert = require('assert');
 
 // Testing whether EVP_CipherInit_ex is functioning correctly.
