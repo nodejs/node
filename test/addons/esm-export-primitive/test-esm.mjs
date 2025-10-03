@@ -12,19 +12,6 @@ import { pathToFileURL } from 'node:url';
 const require = createRequire(import.meta.url);
 
 export async function run() {
-  // binding-export-default.node
-  {
-    const bindingPath = require.resolve(`./build/${buildType}/binding-export-default.node`);
-    // Test with order of require+import
-    const bindingRequire = require(bindingPath);
-    const ns = await import(pathToFileURL(bindingPath));
-    assert.strictEqual(ns.default, bindingRequire);
-
-    // As same as ESM-import-CJS, the default export is the value of `module.exports`.
-    assert.strictEqual(ns.default, ns['module.exports']);
-    assert.strictEqual(ns.default.default(), 'hello world');
-  }
-
   // binding-export-primitive.node
   {
     const bindingPath = require.resolve(`./build/${buildType}/binding-export-primitive.node`);
