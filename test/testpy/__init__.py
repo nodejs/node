@@ -160,9 +160,7 @@ class AddonTestConfiguration(SimpleTestConfiguration):
     result = []
     for subpath in os.listdir(path):
       if os.path.isdir(os.path.join(path, subpath)):
-        for f in os.listdir(os.path.join(path, subpath)):
-          if SelectTest(f):
-            result.append([subpath, f[:-3]])
+        result.extend([subpath, f[:-3]] for f in os.listdir(os.path.join(path, subpath)) if SelectTest(f))
     return result
 
   def ListTests(self, current_path, path, arch, mode):
