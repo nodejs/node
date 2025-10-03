@@ -162,7 +162,10 @@ function extractBody (object, keepalive = false) {
       }
     }
 
-    const chunk = textEncoder.encode(`--${boundary}--`)
+    // CRLF is appended to the body to function with legacy servers and match other implementations.
+    // https://github.com/curl/curl/blob/3434c6b46e682452973972e8313613dfa58cd690/lib/mime.c#L1029-L1030
+    // https://github.com/form-data/form-data/issues/63
+    const chunk = textEncoder.encode(`--${boundary}--\r\n`)
     blobParts.push(chunk)
     length += chunk.byteLength
     if (hasUnknownSizeValue) {
@@ -292,10 +295,6 @@ function cloneBody (instance, body) {
 
   // 1. Let « out1, out2 » be the result of teeing body’s stream.
   const [out1, out2] = body.stream.tee()
-
-  if (hasFinalizationRegistry) {
-    streamRegistry.register(instance, new WeakRef(out1))
-  }
 
   // 2. Set body’s stream to out1.
   body.stream = out1
