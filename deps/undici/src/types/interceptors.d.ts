@@ -28,4 +28,5 @@ declare namespace Interceptors {
   export function retry(opts?: RetryInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
   export function redirect(opts?: RedirectInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
   export function responseError(opts?: ResponseErrorInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
+  export function dns (opts?: DNSInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
 }
