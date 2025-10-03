@@ -883,9 +883,11 @@ node --entry-url 'data:text/javascript,console.log("Hello")'
 
 <!-- YAML
 added: v22.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59925
+    description: The `--env-file-if-exists` flag is no longer experimental.
 -->
-
-> Stability: 1.1 - Active development
 
 Behavior is the same as [`--env-file`][], but an error is not thrown if the file
 does not exist.
@@ -895,14 +897,15 @@ does not exist.
 <!-- YAML
 added: v20.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59925
+    description: The `--env-file` flag is no longer experimental.
   - version:
     - v21.7.0
     - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51289
     description: Add support to multi-line values.
 -->
-
-> Stability: 1.1 - Active development
 
 Loads environment variables from a file relative to the current directory,
 making them available to applications on `process.env`. The [environment
