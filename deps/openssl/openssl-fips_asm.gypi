@@ -71,6 +71,8 @@
       'includes': ['config/archs/linux-x86_64/asm/openssl-fips.gypi'],
     }, 'target_arch=="mips64el" and OS=="linux"', {
       'includes': ['config/archs/linux64-mips64/asm/openssl-fips.gypi'],
+    }, 'target_arch=="loong64" and OS=="linux"', {
+      'includes': ['config/archs/linux64-loongarch64/asm/openssl-fips.gypi'],
     }, {
       # Other architectures don't use assembly
       'includes': ['config/archs/linux-x86_64/asm/openssl-fips.gypi'],

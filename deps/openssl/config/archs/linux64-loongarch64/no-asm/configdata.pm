@@ -36,7 +36,7 @@ our %config = (
     "LDFLAGS" => [],
     "LDLIBS" => [],
     "OBJCOPY" => "objcopy",
-    "PERL" => "/usr/bin/perl",
+    "PERL" => "/usr/bin/perl5.40.0",
     "RANLIB" => "ranlib",
     "RC" => "windres",
     "RCFLAGS" => [],
@@ -237,9 +237,9 @@ our %config = (
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-asm no-brotli no-brotli-dynamic no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-demos no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fips-jitter no-fuzz-afl no-fuzz-libfuzzer no-h3demo no-hqinterop no-jitter no-ktls no-loadereng no-md2 no-msan no-pie no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-sslkeylog no-tfo no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-winstore no-zlib no-zlib-dynamic no-zstd no-zstd-dynamic",
     "patch" => "3",
-    "perl_archname" => "x86_64-linux-gnu-thread-multi",
-    "perl_cmd" => "/usr/bin/perl",
-    "perl_version" => "5.34.0",
+    "perl_archname" => "loongarch64-linux-thread-multi",
+    "perl_cmd" => "/usr/bin/perl5.40.0",
+    "perl_version" => "5.40.0",
     "perlargv" => [
         "no-comp",
         "no-shared",
@@ -1036,28 +1036,16 @@ our %unified_info = (
             "test/bftest" => {
                 "noinst" => "1"
             },
-            "test/bio_addr_test" => {
-                "noinst" => "1"
-            },
-            "test/bio_base64_test" => {
-                "noinst" => "1"
-            },
             "test/bio_callback_test" => {
                 "noinst" => "1"
             },
             "test/bio_core_test" => {
                 "noinst" => "1"
             },
-            "test/bio_dgram_test" => {
-                "noinst" => "1"
-            },
             "test/bio_enc_test" => {
                 "noinst" => "1"
             },
             "test/bio_memleak_test" => {
-                "noinst" => "1"
-            },
-            "test/bio_meth_test" => {
                 "noinst" => "1"
             },
             "test/bio_prefix_text" => {
@@ -1069,9 +1057,6 @@ our %unified_info = (
             "test/bio_readbuffer_test" => {
                 "noinst" => "1"
             },
-            "test/bio_tfo_test" => {
-                "noinst" => "1"
-            },
             "test/bioprinttest" => {
                 "noinst" => "1"
             },
@@ -1079,9 +1064,6 @@ our %unified_info = (
                 "noinst" => "1"
             },
             "test/bntest" => {
-                "noinst" => "1"
-            },
-            "test/build_wincrypt_test" => {
                 "noinst" => "1"
             },
             "test/buildtest_c_aes" => {
@@ -1303,12 +1285,6 @@ our %unified_info = (
             "test/buildtest_c_whrlpool" => {
                 "noinst" => "1"
             },
-            "test/byteorder_test" => {
-                "noinst" => "1"
-            },
-            "test/ca_internals_test" => {
-                "noinst" => "1"
-            },
             "test/casttest" => {
                 "noinst" => "1"
             },
@@ -1393,9 +1369,6 @@ our %unified_info = (
             "test/danetest" => {
                 "noinst" => "1"
             },
-            "test/decoder_propq_test" => {
-                "noinst" => "1"
-            },
             "test/defltfips_test" => {
                 "noinst" => "1"
             },
@@ -1468,22 +1441,13 @@ our %unified_info = (
             "test/evp_pkey_ctx_new_from_name" => {
                 "noinst" => "1"
             },
-            "test/evp_pkey_dhkem_test" => {
-                "noinst" => "1"
-            },
             "test/evp_pkey_dparams_test" => {
                 "noinst" => "1"
             },
             "test/evp_pkey_provided_test" => {
                 "noinst" => "1"
             },
-            "test/evp_skey_test" => {
-                "noinst" => "1"
-            },
             "test/evp_test" => {
-                "noinst" => "1"
-            },
-            "test/evp_xof_test" => {
                 "noinst" => "1"
             },
             "test/exdatatest" => {
@@ -1513,9 +1477,6 @@ our %unified_info = (
             "test/hmactest" => {
                 "noinst" => "1"
             },
-            "test/hpke_test" => {
-                "noinst" => "1"
-            },
             "test/http_test" => {
                 "noinst" => "1"
             },
@@ -1525,16 +1486,10 @@ our %unified_info = (
             "test/igetest" => {
                 "noinst" => "1"
             },
-            "test/json_test" => {
-                "noinst" => "1"
-            },
             "test/keymgmt_internal_test" => {
                 "noinst" => "1"
             },
             "test/lhash_test" => {
-                "noinst" => "1"
-            },
-            "test/list_test" => {
                 "noinst" => "1"
             },
             "test/localetest" => {
@@ -1546,19 +1501,7 @@ our %unified_info = (
             "test/mdc2test" => {
                 "noinst" => "1"
             },
-            "test/membio_test" => {
-                "noinst" => "1"
-            },
             "test/memleaktest" => {
-                "noinst" => "1"
-            },
-            "test/ml_dsa_test" => {
-                "noinst" => "1"
-            },
-            "test/ml_kem_evp_extra_test" => {
-                "noinst" => "1"
-            },
-            "test/ml_kem_internal_test" => {
                 "noinst" => "1"
             },
             "test/modes_internal_test" => {
@@ -1577,9 +1520,6 @@ our %unified_info = (
                 "noinst" => "1"
             },
             "test/packettest" => {
-                "noinst" => "1"
-            },
-            "test/pairwise_fail_test" => {
                 "noinst" => "1"
             },
             "test/param_build_test" => {
@@ -1606,9 +1546,6 @@ our %unified_info = (
             "test/pemtest" => {
                 "noinst" => "1"
             },
-            "test/pkcs12_api_test" => {
-                "noinst" => "1"
-            },
             "test/pkcs12_format_test" => {
                 "noinst" => "1"
             },
@@ -1624,9 +1561,6 @@ our %unified_info = (
             "test/poly1305_internal_test" => {
                 "noinst" => "1"
             },
-            "test/priority_queue_test" => {
-                "noinst" => "1"
-            },
             "test/property_test" => {
                 "noinst" => "1"
             },
@@ -1634,9 +1568,6 @@ our %unified_info = (
                 "noinst" => "1"
             },
             "test/provfetchtest" => {
-                "noinst" => "1"
-            },
-            "test/provider_default_search_path_test" => {
                 "noinst" => "1"
             },
             "test/provider_fallback_test" => {
@@ -1657,72 +1588,6 @@ our %unified_info = (
             "test/punycode_test" => {
                 "noinst" => "1"
             },
-            "test/quic_ackm_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_cc_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_cfq_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_client_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_fc_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_fifd_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_lcidm_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_multistream_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_newcid_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_qlog_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_radix_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_rcidm_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_record_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_srt_gen_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_srtm_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_stream_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_tserver_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_txp_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_txpim_test" => {
-                "noinst" => "1"
-            },
-            "test/quic_wire_test" => {
-                "noinst" => "1"
-            },
-            "test/quicapitest" => {
-                "noinst" => "1"
-            },
-            "test/quicfaultstest" => {
-                "noinst" => "1"
-            },
             "test/rand_status_test" => {
                 "noinst" => "1"
             },
@@ -1738,13 +1603,10 @@ our %unified_info = (
             "test/rc5test" => {
                 "noinst" => "1"
             },
-            "test/rdcpu_sanitytest" => {
+            "test/rdrand_sanitytest" => {
                 "noinst" => "1"
             },
             "test/recordlentest" => {
-                "noinst" => "1"
-            },
-            "test/rpktest" => {
                 "noinst" => "1"
             },
             "test/rsa_complex" => {
@@ -1757,12 +1619,6 @@ our %unified_info = (
                 "noinst" => "1"
             },
             "test/rsa_test" => {
-                "noinst" => "1"
-            },
-            "test/rsa_x931_test" => {
-                "noinst" => "1"
-            },
-            "test/safe_math_test" => {
                 "noinst" => "1"
             },
             "test/sanitytest" => {
@@ -1778,9 +1634,6 @@ our %unified_info = (
                 "noinst" => "1"
             },
             "test/siphash_internal_test" => {
-                "noinst" => "1"
-            },
-            "test/slh_dsa_test" => {
                 "noinst" => "1"
             },
             "test/sm2_internal_test" => {
@@ -1804,9 +1657,6 @@ our %unified_info = (
             "test/ssl_ctx_test" => {
                 "noinst" => "1"
             },
-            "test/ssl_handshake_rtt_test" => {
-                "noinst" => "1"
-            },
             "test/ssl_old_test" => {
                 "noinst" => "1"
             },
@@ -1828,16 +1678,10 @@ our %unified_info = (
             "test/stack_test" => {
                 "noinst" => "1"
             },
-            "test/strtoultest" => {
-                "noinst" => "1"
-            },
             "test/sysdefaulttest" => {
                 "noinst" => "1"
             },
             "test/test_test" => {
-                "noinst" => "1"
-            },
-            "test/threadpool_test" => {
                 "noinst" => "1"
             },
             "test/threadstest" => {
@@ -1849,16 +1693,10 @@ our %unified_info = (
             "test/time_offset_test" => {
                 "noinst" => "1"
             },
-            "test/time_test" => {
-                "noinst" => "1"
-            },
             "test/tls13ccstest" => {
                 "noinst" => "1"
             },
             "test/tls13encryptiontest" => {
-                "noinst" => "1"
-            },
-            "test/tls13groupselection_test" => {
                 "noinst" => "1"
             },
             "test/trace_api_test" => {
@@ -1888,9 +1726,6 @@ our %unified_info = (
             "test/wpackettest" => {
                 "noinst" => "1"
             },
-            "test/x509_acert_test" => {
-                "noinst" => "1"
-            },
             "test/x509_check_cert_pkey_test" => {
                 "noinst" => "1"
             },
@@ -1898,15 +1733,6 @@ our %unified_info = (
                 "noinst" => "1"
             },
             "test/x509_internal_test" => {
-                "noinst" => "1"
-            },
-            "test/x509_load_cert_file_test" => {
-                "noinst" => "1"
-            },
-            "test/x509_req_test" => {
-                "noinst" => "1"
-            },
-            "test/x509_test" => {
                 "noinst" => "1"
             },
             "test/x509_time_test" => {
@@ -1951,9 +1777,6 @@ our %unified_info = (
         ],
         "providers/libfips.a" => [
             "FIPS_MODULE"
-        ],
-        "test/endecode_test" => [
-            "STATIC_LEGACY"
         ],
         "test/evp_extra_test" => [
             "STATIC_LEGACY"
@@ -2010,9 +1833,6 @@ our %unified_info = (
         "OpenSSLConfigVersion.cmake" => [
             "OpenSSLConfig.cmake",
             "builddata.pm"
-        ],
-        "apps/ca_internals_test-bin-ca.o" => [
-            "apps/progs.h"
         ],
         "apps/lib/cmp_client_test-bin-cmp_mock_srv.o" => [
             "apps/progs.h"
@@ -8277,14 +8097,6 @@ our %unified_info = (
             "libcrypto",
             "test/libtestutil.a"
         ],
-        "test/bio_addr_test" => [
-            "libcrypto",
-            "test/libtestutil.a"
-        ],
-        "test/bio_base64_test" => [
-            "libcrypto",
-            "test/libtestutil.a"
-        ],
         "test/bio_callback_test" => [
             "libcrypto",
             "test/libtestutil.a"
@@ -8293,19 +8105,11 @@ our %unified_info = (
             "libcrypto",
             "test/libtestutil.a"
         ],
-        "test/bio_dgram_test" => [
-            "libcrypto",
-            "test/libtestutil.a"
-        ],
         "test/bio_enc_test" => [
             "libcrypto",
             "test/libtestutil.a"
         ],
         "test/bio_memleak_test" => [
-            "libcrypto",
-            "test/libtestutil.a"
-        ],
-        "test/bio_meth_test" => [
             "libcrypto",
             "test/libtestutil.a"
         ],
@@ -8321,10 +8125,6 @@ our %unified_info = (
             "libcrypto",
             "test/libtestutil.a"
         ],
-        "test/bio_tfo_test" => [
-            "libcrypto",
-            "test/libtestutil.a"
-        ],
         "test/bioprinttest" => [
             "libcrypto",
             "test/libtestutil.a"
@@ -8336,10 +8136,6 @@ our %unified_info = (
         "test/bntest" => [
             "libcrypto",
             "test/libtestutil.a"
-        ],
-        "test/build_wincrypt_test" => [
-            "libcrypto",
-            "libssl"
         ],
         "test/buildtest_c_aes" => [
             "libcrypto",
@@ -8633,21 +8429,8 @@ our %unified_info = (
             "libcrypto",
             "libssl"
         ],
-        "test/byteorder_test" => [
-            "libcrypto.a",
-            "test/libtestutil.a"
-        ],
-        "test/ca_internals_test" => [
-            "libssl",
-            "test/libtestutil.a"
-        ],
         "test/casttest" => [
             "libcrypto",
-            "test/libtestutil.a"
-        ],
-        "test/cert_comp_test" => [
-            "libcrypto.a",
-            "libssl.a",
             "test/libtestutil.a"
         ],
         "test/chacha_internal_test" => [
@@ -8763,10 +8546,6 @@ our %unified_info = (
             "libssl",
             "test/libtestutil.a"
         ],
-        "test/decoder_propq_test" => [
-            "libcrypto.a",
-            "test/libtestutil.a"
-        ],
         "test/defltfips_test" => [
             "libcrypto",
             "test/libtestutil.a"
@@ -8823,8 +8602,6 @@ our %unified_info = (
         ],
         "test/endecode_test" => [
             "libcrypto.a",
-            "providers/libcommon.a",
-            "providers/liblegacy.a",
             "test/libtestutil.a"
         ],
         "test/endecoder_legacy_test" => [
@@ -8868,10 +8645,6 @@ our %unified_info = (
         "test/evp_pkey_ctx_new_from_name" => [
             "libcrypto"
         ],
-        "test/evp_pkey_dhkem_test" => [
-            "libcrypto.a",
-            "test/libtestutil.a"
-        ],
         "test/evp_pkey_dparams_test" => [
             "libcrypto",
             "test/libtestutil.a"
@@ -8880,15 +8653,7 @@ our %unified_info = (
             "libcrypto.a",
             "test/libtestutil.a"
         ],
-        "test/evp_skey_test" => [
-            "libcrypto",
-            "test/libtestutil.a"
-        ],
         "test/evp_test" => [
-            "libcrypto",
-            "test/libtestutil.a"
-        ],
-        "test/evp_xof_test" => [
             "libcrypto",
             "test/libtestutil.a"
         ],
@@ -8930,10 +8695,6 @@ our %unified_info = (
             "libcrypto.a",
             "test/libtestutil.a"
         ],
-        "test/hpke_test" => [
-            "libcrypto.a",
-            "test/libtestutil.a"
-        ],
         "test/http_test" => [
             "libcrypto",
             "test/libtestutil.a"
@@ -8946,24 +8707,16 @@ our %unified_info = (
             "libcrypto",
             "test/libtestutil.a"
         ],
-        "test/json_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
         "test/keymgmt_internal_test" => [
             "libcrypto.a",
             "test/libtestutil.a"
         ],
         "test/lhash_test" => [
-            "libcrypto.a",
+            "libcrypto",
             "test/libtestutil.a"
         ],
         "test/libtestutil.a" => [
             "libcrypto"
-        ],
-        "test/list_test" => [
-            "test/libtestutil.a"
         ],
         "test/localetest" => [
             "libcrypto",
@@ -8977,24 +8730,8 @@ our %unified_info = (
             "libcrypto",
             "test/libtestutil.a"
         ],
-        "test/membio_test" => [
-            "libcrypto",
-            "test/libtestutil.a"
-        ],
         "test/memleaktest" => [
             "libcrypto",
-            "test/libtestutil.a"
-        ],
-        "test/ml_dsa_test" => [
-            "libcrypto.a",
-            "test/libtestutil.a"
-        ],
-        "test/ml_kem_evp_extra_test" => [
-            "libcrypto.a",
-            "test/libtestutil.a"
-        ],
-        "test/ml_kem_internal_test" => [
-            "libcrypto.a",
             "test/libtestutil.a"
         ],
         "test/modes_internal_test" => [
@@ -9019,10 +8756,6 @@ our %unified_info = (
         ],
         "test/packettest" => [
             "libcrypto",
-            "test/libtestutil.a"
-        ],
-        "test/pairwise_fail_test" => [
-            "libcrypto.a",
             "test/libtestutil.a"
         ],
         "test/param_build_test" => [
@@ -9057,10 +8790,6 @@ our %unified_info = (
             "libcrypto",
             "test/libtestutil.a"
         ],
-        "test/pkcs12_api_test" => [
-            "libcrypto",
-            "test/libtestutil.a"
-        ],
         "test/pkcs12_format_test" => [
             "libcrypto",
             "test/libtestutil.a"
@@ -9081,11 +8810,6 @@ our %unified_info = (
             "libcrypto.a",
             "test/libtestutil.a"
         ],
-        "test/priority_queue_test" => [
-            "libcrypto",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
         "test/property_test" => [
             "libcrypto.a",
             "test/libtestutil.a"
@@ -9096,10 +8820,6 @@ our %unified_info = (
         ],
         "test/provfetchtest" => [
             "libcrypto.a",
-            "test/libtestutil.a"
-        ],
-        "test/provider_default_search_path_test" => [
-            "libcrypto",
             "test/libtestutil.a"
         ],
         "test/provider_fallback_test" => [
@@ -9126,122 +8846,12 @@ our %unified_info = (
             "libcrypto.a",
             "test/libtestutil.a"
         ],
-        "test/quic_ackm_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_cc_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_cfq_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_client_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_fc_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_fifd_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_lcidm_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_multistream_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_newcid_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_qlog_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_radix_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_rcidm_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_record_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_srt_gen_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_srtm_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_stream_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_tserver_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_txp_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_txpim_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quic_wire_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quicapitest" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/quicfaultstest" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
         "test/rand_status_test" => [
             "libcrypto",
             "test/libtestutil.a"
         ],
         "test/rand_test" => [
-            "libcrypto.a",
+            "libcrypto",
             "test/libtestutil.a"
         ],
         "test/rc2test" => [
@@ -9256,16 +8866,11 @@ our %unified_info = (
             "libcrypto.a",
             "test/libtestutil.a"
         ],
-        "test/rdcpu_sanitytest" => [
+        "test/rdrand_sanitytest" => [
             "libcrypto.a",
             "test/libtestutil.a"
         ],
         "test/recordlentest" => [
-            "libcrypto",
-            "libssl",
-            "test/libtestutil.a"
-        ],
-        "test/rpktest" => [
             "libcrypto",
             "libssl",
             "test/libtestutil.a"
@@ -9282,16 +8887,8 @@ our %unified_info = (
             "libcrypto.a",
             "test/libtestutil.a"
         ],
-        "test/rsa_x931_test" => [
-            "libcrypto.a",
-            "test/libtestutil.a"
-        ],
-        "test/safe_math_test" => [
-            "libcrypto",
-            "test/libtestutil.a"
-        ],
         "test/sanitytest" => [
-            "libcrypto.a",
+            "libcrypto",
             "test/libtestutil.a"
         ],
         "test/secmemtest" => [
@@ -9308,10 +8905,6 @@ our %unified_info = (
             "test/libtestutil.a"
         ],
         "test/siphash_internal_test" => [
-            "libcrypto.a",
-            "test/libtestutil.a"
-        ],
-        "test/slh_dsa_test" => [
             "libcrypto.a",
             "test/libtestutil.a"
         ],
@@ -9344,11 +8937,6 @@ our %unified_info = (
             "libssl",
             "test/libtestutil.a"
         ],
-        "test/ssl_handshake_rtt_test" => [
-            "libcrypto.a",
-            "libssl.a",
-            "test/libtestutil.a"
-        ],
         "test/ssl_old_test" => [
             "libcrypto.a",
             "libssl.a",
@@ -9365,8 +8953,8 @@ our %unified_info = (
             "test/libtestutil.a"
         ],
         "test/sslapitest" => [
-            "libcrypto.a",
-            "libssl.a",
+            "libcrypto",
+            "libssl",
             "test/libtestutil.a"
         ],
         "test/sslbuffertest" => [
@@ -9383,10 +8971,6 @@ our %unified_info = (
             "libcrypto",
             "test/libtestutil.a"
         ],
-        "test/strtoultest" => [
-            "libcrypto",
-            "test/libtestutil.a"
-        ],
         "test/sysdefaulttest" => [
             "libcrypto",
             "libssl",
@@ -9396,12 +8980,8 @@ our %unified_info = (
             "libcrypto",
             "test/libtestutil.a"
         ],
-        "test/threadpool_test" => [
-            "libcrypto.a",
-            "test/libtestutil.a"
-        ],
         "test/threadstest" => [
-            "libcrypto.a",
+            "libcrypto",
             "test/libtestutil.a"
         ],
         "test/threadstest_fips" => [
@@ -9412,10 +8992,6 @@ our %unified_info = (
             "libcrypto",
             "test/libtestutil.a"
         ],
-        "test/time_test" => [
-            "libcrypto.a",
-            "test/libtestutil.a"
-        ],
         "test/tls13ccstest" => [
             "libcrypto",
             "libssl",
@@ -9424,11 +9000,6 @@ our %unified_info = (
         "test/tls13encryptiontest" => [
             "libcrypto.a",
             "libssl.a",
-            "test/libtestutil.a"
-        ],
-        "test/tls13groupselection_test" => [
-            "libcrypto",
-            "libssl",
             "test/libtestutil.a"
         ],
         "test/trace_api_test" => [
@@ -9468,10 +9039,6 @@ our %unified_info = (
             "libssl.a",
             "test/libtestutil.a"
         ],
-        "test/x509_acert_test" => [
-            "libcrypto",
-            "test/libtestutil.a"
-        ],
         "test/x509_check_cert_pkey_test" => [
             "libcrypto",
             "test/libtestutil.a"
@@ -9482,18 +9049,6 @@ our %unified_info = (
         ],
         "test/x509_internal_test" => [
             "libcrypto.a",
-            "test/libtestutil.a"
-        ],
-        "test/x509_load_cert_file_test" => [
-            "libcrypto",
-            "test/libtestutil.a"
-        ],
-        "test/x509_req_test" => [
-            "libcrypto",
-            "test/libtestutil.a"
-        ],
-        "test/x509_test" => [
-            "libcrypto",
             "test/libtestutil.a"
         ],
         "test/x509_time_test" => [
@@ -9510,13 +9065,9 @@ our %unified_info = (
     },
     "dirinfo" => {
         "apps" => {
-            "deps" => [
-                "apps/ca_internals_test-bin-ca.o"
-            ],
             "products" => {
                 "bin" => [
-                    "apps/openssl",
-                    "test/ca_internals_test"
+                    "apps/openssl"
                 ],
                 "script" => [
                     "apps/CA.pl",
@@ -9527,14 +9078,6 @@ our %unified_info = (
         "apps/lib" => {
             "deps" => [
                 "apps/lib/openssl-bin-cmp_mock_srv.o",
-                "apps/lib/ca_internals_test-bin-app_libctx.o",
-                "apps/lib/ca_internals_test-bin-app_provider.o",
-                "apps/lib/ca_internals_test-bin-app_rand.o",
-                "apps/lib/ca_internals_test-bin-app_x509.o",
-                "apps/lib/ca_internals_test-bin-apps.o",
-                "apps/lib/ca_internals_test-bin-apps_ui.o",
-                "apps/lib/ca_internals_test-bin-engine.o",
-                "apps/lib/ca_internals_test-bin-fmt.o",
                 "apps/lib/cmp_client_test-bin-cmp_mock_srv.o",
                 "apps/lib/uitest-bin-apps_ui.o",
                 "apps/lib/libapps-lib-app_libctx.o",
@@ -9561,7 +9104,6 @@ our %unified_info = (
             "products" => {
                 "bin" => [
                     "apps/openssl",
-                    "test/ca_internals_test",
                     "test/cmp_client_test",
                     "test/uitest"
                 ],
@@ -9573,9 +9115,6 @@ our %unified_info = (
         },
         "crypto" => {
             "deps" => [
-                "crypto/asn1_time_test-bin-ctype.o",
-                "crypto/ca_internals_test-bin-ctype.o",
-                "crypto/packettest-bin-quic_vlint.o",
                 "crypto/libcrypto-lib-asn1_dsa.o",
                 "crypto/libcrypto-lib-bsearch.o",
                 "crypto/libcrypto-lib-comp_methods.o",
@@ -9664,11 +9203,6 @@ our %unified_info = (
                 "crypto/libfips-lib-time.o"
             ],
             "products" => {
-                "bin" => [
-                    "test/asn1_time_test",
-                    "test/ca_internals_test",
-                    "test/packettest"
-                ],
                 "lib" => [
                     "libcrypto",
                     "providers/libfips.a"
@@ -9709,8 +9243,6 @@ our %unified_info = (
         },
         "crypto/asn1" => {
             "deps" => [
-                "crypto/asn1/asn1_time_test-bin-a_time.o",
-                "crypto/asn1/ca_internals_test-bin-a_time.o",
                 "crypto/asn1/libcrypto-lib-a_bitstr.o",
                 "crypto/asn1/libcrypto-lib-a_d2i_fp.o",
                 "crypto/asn1/libcrypto-lib-a_digest.o",
@@ -9777,10 +9309,6 @@ our %unified_info = (
                 "crypto/asn1/libcrypto-lib-x_val.o"
             ],
             "products" => {
-                "bin" => [
-                    "test/asn1_time_test",
-                    "test/ca_internals_test"
-                ],
                 "lib" => [
                     "libcrypto"
                 ]
@@ -11347,7 +10875,6 @@ our %unified_info = (
         },
         "providers" => {
             "deps" => [
-                "providers/endecode_test-bin-legacyprov.o",
                 "providers/evp_extra_test-bin-legacyprov.o",
                 "providers/libcrypto-lib-baseprov.o",
                 "providers/libcrypto-lib-defltprov.o",
@@ -11357,7 +10884,6 @@ our %unified_info = (
             ],
             "products" => {
                 "bin" => [
-                    "test/endecode_test",
                     "test/evp_extra_test"
                 ],
                 "dso" => [
@@ -12003,40 +11529,9 @@ our %unified_info = (
                 "test/helpers/dtlstest-bin-ssltestlib.o",
                 "test/helpers/endecode_test-bin-predefined_dhparams.o",
                 "test/helpers/fatalerrtest-bin-ssltestlib.o",
-                "test/helpers/json_test-bin-noisydgrambio.o",
-                "test/helpers/json_test-bin-pktsplitbio.o",
-                "test/helpers/json_test-bin-quictestlib.o",
-                "test/helpers/json_test-bin-ssltestlib.o",
-                "test/helpers/pkcs12_api_test-bin-pkcs12.o",
                 "test/helpers/pkcs12_format_test-bin-pkcs12.o",
-                "test/helpers/quic_multistream_test-bin-noisydgrambio.o",
-                "test/helpers/quic_multistream_test-bin-pktsplitbio.o",
-                "test/helpers/quic_multistream_test-bin-quictestlib.o",
-                "test/helpers/quic_multistream_test-bin-ssltestlib.o",
-                "test/helpers/quic_newcid_test-bin-noisydgrambio.o",
-                "test/helpers/quic_newcid_test-bin-pktsplitbio.o",
-                "test/helpers/quic_newcid_test-bin-quictestlib.o",
-                "test/helpers/quic_newcid_test-bin-ssltestlib.o",
-                "test/helpers/quic_radix_test-bin-noisydgrambio.o",
-                "test/helpers/quic_radix_test-bin-pktsplitbio.o",
-                "test/helpers/quic_radix_test-bin-quictestlib.o",
-                "test/helpers/quic_radix_test-bin-ssltestlib.o",
-                "test/helpers/quic_srt_gen_test-bin-noisydgrambio.o",
-                "test/helpers/quic_srt_gen_test-bin-pktsplitbio.o",
-                "test/helpers/quic_srt_gen_test-bin-quictestlib.o",
-                "test/helpers/quic_srt_gen_test-bin-ssltestlib.o",
-                "test/helpers/quicapitest-bin-noisydgrambio.o",
-                "test/helpers/quicapitest-bin-pktsplitbio.o",
-                "test/helpers/quicapitest-bin-quictestlib.o",
-                "test/helpers/quicapitest-bin-ssltestlib.o",
-                "test/helpers/quicfaultstest-bin-noisydgrambio.o",
-                "test/helpers/quicfaultstest-bin-pktsplitbio.o",
-                "test/helpers/quicfaultstest-bin-quictestlib.o",
-                "test/helpers/quicfaultstest-bin-ssltestlib.o",
                 "test/helpers/recordlentest-bin-ssltestlib.o",
-                "test/helpers/rpktest-bin-ssltestlib.o",
                 "test/helpers/servername_test-bin-ssltestlib.o",
-                "test/helpers/ssl_handshake_rtt_test-bin-ssltestlib.o",
                 "test/helpers/ssl_old_test-bin-predefined_dhparams.o",
                 "test/helpers/ssl_test-bin-handshake.o",
                 "test/helpers/ssl_test-bin-handshake_srp.o",
@@ -12045,8 +11540,7 @@ our %unified_info = (
                 "test/helpers/sslapitest-bin-ssltestlib.o",
                 "test/helpers/sslbuffertest-bin-ssltestlib.o",
                 "test/helpers/sslcorrupttest-bin-ssltestlib.o",
-                "test/helpers/tls13ccstest-bin-ssltestlib.o",
-                "test/helpers/tls13groupselection_test-bin-ssltestlib.o"
+                "test/helpers/tls13ccstest-bin-ssltestlib.o"
             ],
             "products" => {
                 "bin" => [
@@ -12064,37 +11558,16 @@ our %unified_info = (
                     "test/dtlstest",
                     "test/endecode_test",
                     "test/fatalerrtest",
-                    "test/json_test",
-                    "test/pkcs12_api_test",
                     "test/pkcs12_format_test",
-                    "test/quic_multistream_test",
-                    "test/quic_newcid_test",
-                    "test/quic_radix_test",
-                    "test/quic_srt_gen_test",
-                    "test/quicapitest",
-                    "test/quicfaultstest",
                     "test/recordlentest",
-                    "test/rpktest",
                     "test/servername_test",
-                    "test/ssl_handshake_rtt_test",
                     "test/ssl_old_test",
                     "test/ssl_test",
                     "test/ssl_test_ctx_test",
                     "test/sslapitest",
                     "test/sslbuffertest",
                     "test/sslcorrupttest",
-                    "test/tls13ccstest",
-                    "test/tls13groupselection_test"
-                ]
-            }
-        },
-        "test/radix" => {
-            "deps" => [
-                "test/radix/quic_radix_test-bin-quic_radix.o"
-            ],
-            "products" => {
-                "bin" => [
-                    "test/quic_radix_test"
+                    "test/tls13ccstest"
                 ]
             }
         },
@@ -12106,7 +11579,6 @@ our %unified_info = (
                 "test/testutil/libtestutil-lib-driver.o",
                 "test/testutil/libtestutil-lib-fake_random.o",
                 "test/testutil/libtestutil-lib-format_output.o",
-                "test/testutil/libtestutil-lib-helper.o",
                 "test/testutil/libtestutil-lib-load.o",
                 "test/testutil/libtestutil-lib-main.o",
                 "test/testutil/libtestutil-lib-options.o",
@@ -19817,9 +19289,6 @@ our %unified_info = (
         "apps/ca.o" => [
             "apps"
         ],
-        "apps/ca_internals_test-bin-ca.o" => [
-            "apps"
-        ],
         "apps/ciphers.o" => [
             "apps"
         ],
@@ -21154,14 +20623,6 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/bio_addr_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/bio_base64_test" => [
-            "include",
-            "apps/include"
-        ],
         "test/bio_callback_test" => [
             "include",
             "apps/include"
@@ -21170,20 +20631,11 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/bio_dgram_test" => [
-            "include",
-            "apps/include",
-            "."
-        ],
         "test/bio_enc_test" => [
             "include",
             "apps/include"
         ],
         "test/bio_memleak_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/bio_meth_test" => [
             "include",
             "apps/include"
         ],
@@ -21200,11 +20652,6 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/bio_tfo_test" => [
-            "include",
-            "apps/include",
-            "."
-        ],
         "test/bioprinttest" => [
             "include",
             "apps/include"
@@ -21218,9 +20665,6 @@ our %unified_info = (
         "test/bntest" => [
             "include",
             "apps/include"
-        ],
-        "test/build_wincrypt_test" => [
-            "include"
         ],
         "test/buildtest_c_aes" => [
             "include"
@@ -21441,23 +20885,9 @@ our %unified_info = (
         "test/buildtest_c_whrlpool" => [
             "include"
         ],
-        "test/byteorder_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/ca_internals_test" => [
-            ".",
-            "include",
-            "apps/include"
-        ],
         "test/casttest" => [
             "include",
             "apps/include"
-        ],
-        "test/cert_comp_test" => [
-            "include",
-            "apps/include",
-            "."
         ],
         "test/chacha_internal_test" => [
             ".",
@@ -21582,11 +21012,6 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/decoder_propq_test" => [
-            ".",
-            "include",
-            "apps/include"
-        ],
         "test/defltfips_test" => [
             "include",
             "apps/include"
@@ -21602,8 +21027,7 @@ our %unified_info = (
         "test/drbgtest" => [
             "include",
             "apps/include",
-            "providers/common/include",
-            "providers/fips/include"
+            "providers/common/include"
         ],
         "test/dsa_no_digest_size_test" => [
             "include",
@@ -21646,9 +21070,7 @@ our %unified_info = (
         "test/endecode_test" => [
             ".",
             "include",
-            "apps/include",
-            "providers/common/include",
-            "providers/implementations/include"
+            "apps/include"
         ],
         "test/endecoder_legacy_test" => [
             ".",
@@ -21693,10 +21115,6 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/evp_pkey_dhkem_test" => [
-            "include",
-            "apps/include"
-        ],
         "test/evp_pkey_dparams_test" => [
             "include",
             "apps/include"
@@ -21705,15 +21123,7 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/evp_skey_test" => [
-            "include",
-            "apps/include"
-        ],
         "test/evp_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/evp_xof_test" => [
             "include",
             "apps/include"
         ],
@@ -21817,15 +21227,7 @@ our %unified_info = (
             ".",
             "include"
         ],
-        "test/helpers/json_test-bin-ssltestlib.o" => [
-            ".",
-            "include"
-        ],
         "test/helpers/pkcs12.o" => [
-            ".",
-            "include"
-        ],
-        "test/helpers/pkcs12_api_test-bin-pkcs12.o" => [
             ".",
             "include"
         ],
@@ -21833,43 +21235,11 @@ our %unified_info = (
             ".",
             "include"
         ],
-        "test/helpers/quic_multistream_test-bin-ssltestlib.o" => [
-            ".",
-            "include"
-        ],
-        "test/helpers/quic_newcid_test-bin-ssltestlib.o" => [
-            ".",
-            "include"
-        ],
-        "test/helpers/quic_radix_test-bin-ssltestlib.o" => [
-            ".",
-            "include"
-        ],
-        "test/helpers/quic_srt_gen_test-bin-ssltestlib.o" => [
-            ".",
-            "include"
-        ],
-        "test/helpers/quicapitest-bin-ssltestlib.o" => [
-            ".",
-            "include"
-        ],
-        "test/helpers/quicfaultstest-bin-ssltestlib.o" => [
-            ".",
-            "include"
-        ],
         "test/helpers/recordlentest-bin-ssltestlib.o" => [
             ".",
             "include"
         ],
-        "test/helpers/rpktest-bin-ssltestlib.o" => [
-            ".",
-            "include"
-        ],
         "test/helpers/servername_test-bin-ssltestlib.o" => [
-            ".",
-            "include"
-        ],
-        "test/helpers/ssl_handshake_rtt_test-bin-ssltestlib.o" => [
             ".",
             "include"
         ],
@@ -21906,20 +21276,12 @@ our %unified_info = (
             ".",
             "include"
         ],
-        "test/helpers/tls13groupselection_test-bin-ssltestlib.o" => [
-            ".",
-            "include"
-        ],
         "test/hexstr_test" => [
             ".",
             "include",
             "apps/include"
         ],
         "test/hmactest" => [
-            "include",
-            "apps/include"
-        ],
-        "test/hpke_test" => [
             "include",
             "apps/include"
         ],
@@ -21932,10 +21294,6 @@ our %unified_info = (
             "apps/include"
         ],
         "test/igetest" => [
-            "include",
-            "apps/include"
-        ],
-        "test/json_test" => [
             "include",
             "apps/include"
         ],
@@ -21953,10 +21311,6 @@ our %unified_info = (
             "apps/include",
             "."
         ],
-        "test/list_test" => [
-            "include",
-            "apps/include"
-        ],
         "test/localetest" => [
             "include",
             "apps/include"
@@ -21970,24 +21324,7 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/membio_test" => [
-            "include",
-            "apps/include",
-            "."
-        ],
         "test/memleaktest" => [
-            "include",
-            "apps/include"
-        ],
-        "test/ml_dsa_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/ml_kem_evp_extra_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/ml_kem_internal_test" => [
             "include",
             "apps/include"
         ],
@@ -22025,10 +21362,6 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/pairwise_fail_test" => [
-            "include",
-            "apps/include"
-        ],
         "test/param_build_test" => [
             "include",
             "apps/include"
@@ -22062,10 +21395,6 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/pkcs12_api_test" => [
-            "include",
-            "apps/include"
-        ],
         "test/pkcs12_format_test" => [
             "include",
             "apps/include"
@@ -22087,10 +21416,6 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/priority_queue_test" => [
-            "include",
-            "apps/include"
-        ],
         "test/property_test" => [
             ".",
             "include",
@@ -22101,10 +21426,6 @@ our %unified_info = (
             "apps/include"
         ],
         "test/provfetchtest" => [
-            "include",
-            "apps/include"
-        ],
-        "test/provider_default_search_path_test" => [
             "include",
             "apps/include"
         ],
@@ -22134,97 +21455,6 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/quic_ackm_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_cc_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_cfq_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_client_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_fc_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_fifd_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_lcidm_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_multistream_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_newcid_test" => [
-            "include",
-            "apps/include",
-            "."
-        ],
-        "test/quic_qlog_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_radix_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_rcidm_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_record_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_srt_gen_test" => [
-            "include",
-            "apps/include",
-            "."
-        ],
-        "test/quic_srtm_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_stream_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_tserver_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_txp_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_txpim_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quic_wire_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quicapitest" => [
-            "include",
-            "apps/include"
-        ],
-        "test/quicfaultstest" => [
-            "include",
-            "apps/include",
-            "."
-        ],
         "test/rand_status_test" => [
             "include",
             "apps/include"
@@ -22245,19 +21475,13 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/rdcpu_sanitytest" => [
+        "test/rdrand_sanitytest" => [
             "include",
-            "apps/include",
-            "crypto"
+            "apps/include"
         ],
         "test/recordlentest" => [
             "include",
             "apps/include"
-        ],
-        "test/rpktest" => [
-            "include",
-            "apps/include",
-            "."
         ],
         "test/rsa_complex" => [
             "include",
@@ -22274,15 +21498,6 @@ our %unified_info = (
             "apps/include"
         ],
         "test/rsa_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/rsa_x931_test" => [
-            ".",
-            "include",
-            "apps/include"
-        ],
-        "test/safe_math_test" => [
             "include",
             "apps/include"
         ],
@@ -22304,10 +21519,6 @@ our %unified_info = (
         ],
         "test/siphash_internal_test" => [
             ".",
-            "include",
-            "apps/include"
-        ],
-        "test/slh_dsa_test" => [
             "include",
             "apps/include"
         ],
@@ -22341,11 +21552,6 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/ssl_handshake_rtt_test" => [
-            "include",
-            "apps/include",
-            "."
-        ],
         "test/ssl_old_test" => [
             ".",
             "include",
@@ -22362,7 +21568,6 @@ our %unified_info = (
         "test/sslapitest" => [
             "include",
             "apps/include",
-            "providers/common/include",
             "."
         ],
         "test/sslbuffertest" => [
@@ -22377,10 +21582,6 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/strtoultest" => [
-            "include",
-            "apps/include"
-        ],
         "test/sysdefaulttest" => [
             "include",
             "apps/include"
@@ -22389,13 +21590,7 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/threadpool_test" => [
-            ".",
-            "include",
-            "apps/include"
-        ],
         "test/threadstest" => [
-            ".",
             "include",
             "apps/include"
         ],
@@ -22407,20 +21602,12 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/time_test" => [
-            "include",
-            "apps/include"
-        ],
         "test/tls13ccstest" => [
             "include",
             "apps/include"
         ],
         "test/tls13encryptiontest" => [
             ".",
-            "include",
-            "apps/include"
-        ],
-        "test/tls13groupselection_test" => [
             "include",
             "apps/include"
         ],
@@ -22462,10 +21649,6 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/x509_acert_test" => [
-            "include",
-            "apps/include"
-        ],
         "test/x509_check_cert_pkey_test" => [
             "include",
             "apps/include"
@@ -22476,18 +21659,6 @@ our %unified_info = (
         ],
         "test/x509_internal_test" => [
             ".",
-            "include",
-            "apps/include"
-        ],
-        "test/x509_load_cert_file_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/x509_req_test" => [
-            "include",
-            "apps/include"
-        ],
-        "test/x509_test" => [
             "include",
             "apps/include"
         ],
@@ -23472,22 +22643,16 @@ our %unified_info = (
         "test/asynctest",
         "test/bad_dtls_test",
         "test/bftest",
-        "test/bio_addr_test",
-        "test/bio_base64_test",
         "test/bio_callback_test",
         "test/bio_core_test",
-        "test/bio_dgram_test",
         "test/bio_enc_test",
         "test/bio_memleak_test",
-        "test/bio_meth_test",
         "test/bio_prefix_text",
         "test/bio_pw_callback_test",
         "test/bio_readbuffer_test",
-        "test/bio_tfo_test",
         "test/bioprinttest",
         "test/bn_internal_test",
         "test/bntest",
-        "test/build_wincrypt_test",
         "test/buildtest_c_aes",
         "test/buildtest_c_async",
         "test/buildtest_c_blowfish",
@@ -23561,8 +22726,6 @@ our %unified_info = (
         "test/buildtest_c_txt_db",
         "test/buildtest_c_types",
         "test/buildtest_c_whrlpool",
-        "test/byteorder_test",
-        "test/ca_internals_test",
         "test/casttest",
         "test/chacha_internal_test",
         "test/cipher_overhead_test",
@@ -23591,7 +22754,6 @@ our %unified_info = (
         "test/curve448_internal_test",
         "test/d2i_test",
         "test/danetest",
-        "test/decoder_propq_test",
         "test/defltfips_test",
         "test/destest",
         "test/dhtest",
@@ -23616,12 +22778,9 @@ our %unified_info = (
         "test/evp_kdf_test",
         "test/evp_libctx_test",
         "test/evp_pkey_ctx_new_from_name",
-        "test/evp_pkey_dhkem_test",
         "test/evp_pkey_dparams_test",
         "test/evp_pkey_provided_test",
-        "test/evp_skey_test",
         "test/evp_test",
-        "test/evp_xof_test",
         "test/exdatatest",
         "test/exptest",
         "test/ext_internal_test",
@@ -23631,29 +22790,21 @@ our %unified_info = (
         "test/gmdifftest",
         "test/hexstr_test",
         "test/hmactest",
-        "test/hpke_test",
         "test/http_test",
         "test/ideatest",
         "test/igetest",
-        "test/json_test",
         "test/keymgmt_internal_test",
         "test/lhash_test",
-        "test/list_test",
         "test/localetest",
         "test/mdc2_internal_test",
         "test/mdc2test",
-        "test/membio_test",
         "test/memleaktest",
-        "test/ml_dsa_test",
-        "test/ml_kem_evp_extra_test",
-        "test/ml_kem_internal_test",
         "test/modes_internal_test",
         "test/namemap_internal_test",
         "test/nodefltctxtest",
         "test/ocspapitest",
         "test/ossl_store_test",
         "test/packettest",
-        "test/pairwise_fail_test",
         "test/param_build_test",
         "test/params_api_test",
         "test/params_conversion_test",
@@ -23662,65 +22813,36 @@ our %unified_info = (
         "test/pbetest",
         "test/pem_read_depr_test",
         "test/pemtest",
-        "test/pkcs12_api_test",
         "test/pkcs12_format_test",
         "test/pkcs7_test",
         "test/pkey_meth_kdf_test",
         "test/pkey_meth_test",
         "test/poly1305_internal_test",
-        "test/priority_queue_test",
         "test/property_test",
         "test/prov_config_test",
         "test/provfetchtest",
-        "test/provider_default_search_path_test",
         "test/provider_fallback_test",
         "test/provider_internal_test",
         "test/provider_pkey_test",
         "test/provider_status_test",
         "test/provider_test",
         "test/punycode_test",
-        "test/quic_ackm_test",
-        "test/quic_cc_test",
-        "test/quic_cfq_test",
-        "test/quic_client_test",
-        "test/quic_fc_test",
-        "test/quic_fifd_test",
-        "test/quic_lcidm_test",
-        "test/quic_multistream_test",
-        "test/quic_newcid_test",
-        "test/quic_qlog_test",
-        "test/quic_radix_test",
-        "test/quic_rcidm_test",
-        "test/quic_record_test",
-        "test/quic_srt_gen_test",
-        "test/quic_srtm_test",
-        "test/quic_stream_test",
-        "test/quic_tserver_test",
-        "test/quic_txp_test",
-        "test/quic_txpim_test",
-        "test/quic_wire_test",
-        "test/quicapitest",
-        "test/quicfaultstest",
         "test/rand_status_test",
         "test/rand_test",
         "test/rc2test",
         "test/rc4test",
         "test/rc5test",
-        "test/rdcpu_sanitytest",
+        "test/rdrand_sanitytest",
         "test/recordlentest",
-        "test/rpktest",
         "test/rsa_complex",
         "test/rsa_mp_test",
         "test/rsa_sp800_56b_test",
         "test/rsa_test",
-        "test/rsa_x931_test",
-        "test/safe_math_test",
         "test/sanitytest",
         "test/secmemtest",
         "test/servername_test",
         "test/sha_test",
         "test/siphash_internal_test",
-        "test/slh_dsa_test",
         "test/sm2_internal_test",
         "test/sm3_internal_test",
         "test/sm4_internal_test",
@@ -23728,7 +22850,6 @@ our %unified_info = (
         "test/srptest",
         "test/ssl_cert_table_internal_test",
         "test/ssl_ctx_test",
-        "test/ssl_handshake_rtt_test",
         "test/ssl_old_test",
         "test/ssl_test",
         "test/ssl_test_ctx_test",
@@ -23736,17 +22857,13 @@ our %unified_info = (
         "test/sslbuffertest",
         "test/sslcorrupttest",
         "test/stack_test",
-        "test/strtoultest",
         "test/sysdefaulttest",
         "test/test_test",
-        "test/threadpool_test",
         "test/threadstest",
         "test/threadstest_fips",
         "test/time_offset_test",
-        "test/time_test",
         "test/tls13ccstest",
         "test/tls13encryptiontest",
-        "test/tls13groupselection_test",
         "test/trace_api_test",
         "test/uitest",
         "test/upcallstest",
@@ -23756,13 +22873,9 @@ our %unified_info = (
         "test/verify_extra_test",
         "test/versions",
         "test/wpackettest",
-        "test/x509_acert_test",
         "test/x509_check_cert_pkey_test",
         "test/x509_dup_cert_test",
         "test/x509_internal_test",
-        "test/x509_load_cert_file_test",
-        "test/x509_req_test",
-        "test/x509_test",
         "test/x509_time_test",
         "test/x509aux"
     ],
@@ -23777,33 +22890,6 @@ our %unified_info = (
     "sources" => {
         "apps/CA.pl" => [
             "apps/CA.pl.in"
-        ],
-        "apps/ca_internals_test-bin-ca.o" => [
-            "apps/ca.c"
-        ],
-        "apps/lib/ca_internals_test-bin-app_libctx.o" => [
-            "apps/lib/app_libctx.c"
-        ],
-        "apps/lib/ca_internals_test-bin-app_provider.o" => [
-            "apps/lib/app_provider.c"
-        ],
-        "apps/lib/ca_internals_test-bin-app_rand.o" => [
-            "apps/lib/app_rand.c"
-        ],
-        "apps/lib/ca_internals_test-bin-app_x509.o" => [
-            "apps/lib/app_x509.c"
-        ],
-        "apps/lib/ca_internals_test-bin-apps.o" => [
-            "apps/lib/apps.c"
-        ],
-        "apps/lib/ca_internals_test-bin-apps_ui.o" => [
-            "apps/lib/apps_ui.c"
-        ],
-        "apps/lib/ca_internals_test-bin-engine.o" => [
-            "apps/lib/engine.c"
-        ],
-        "apps/lib/ca_internals_test-bin-fmt.o" => [
-            "apps/lib/fmt.c"
         ],
         "apps/lib/cmp_client_test-bin-cmp_mock_srv.o" => [
             "apps/lib/cmp_mock_srv.c"
@@ -24160,12 +23246,6 @@ our %unified_info = (
         "crypto/aria/libcrypto-lib-aria.o" => [
             "crypto/aria/aria.c"
         ],
-        "crypto/asn1/asn1_time_test-bin-a_time.o" => [
-            "crypto/asn1/a_time.c"
-        ],
-        "crypto/asn1/ca_internals_test-bin-a_time.o" => [
-            "crypto/asn1/a_time.c"
-        ],
         "crypto/asn1/libcrypto-lib-a_bitstr.o" => [
             "crypto/asn1/a_bitstr.c"
         ],
@@ -24357,9 +23437,6 @@ our %unified_info = (
         ],
         "crypto/asn1/libcrypto-lib-x_val.o" => [
             "crypto/asn1/x_val.c"
-        ],
-        "crypto/asn1_time_test-bin-ctype.o" => [
-            "crypto/ctype.c"
         ],
         "crypto/async/arch/libcrypto-lib-async_null.o" => [
             "crypto/async/arch/async_null.c"
@@ -24669,9 +23746,6 @@ our %unified_info = (
         ],
         "crypto/buffer/libfips-lib-buffer.o" => [
             "crypto/buffer/buffer.c"
-        ],
-        "crypto/ca_internals_test-bin-ctype.o" => [
-            "crypto/ctype.c"
         ],
         "crypto/camellia/libcrypto-lib-camellia.o" => [
             "crypto/camellia/camellia.c"
@@ -26286,9 +25360,6 @@ our %unified_info = (
         ],
         "crypto/ocsp/libcrypto-lib-v3_ocsp.o" => [
             "crypto/ocsp/v3_ocsp.c"
-        ],
-        "crypto/packettest-bin-quic_vlint.o" => [
-            "crypto/quic_vlint.c"
         ],
         "crypto/pem/libcrypto-lib-pem_all.o" => [
             "crypto/pem/pem_all.c"
@@ -28554,9 +27625,6 @@ our %unified_info = (
         "providers/common/libfips-lib-securitycheck_fips.o" => [
             "providers/common/securitycheck_fips.c"
         ],
-        "providers/endecode_test-bin-legacyprov.o" => [
-            "providers/legacyprov.c"
-        ],
         "providers/evp_extra_test-bin-legacyprov.o" => [
             "providers/legacyprov.c"
         ],
@@ -30195,8 +29263,6 @@ our %unified_info = (
             "test/asn1_string_table_test.c"
         ],
         "test/asn1_time_test" => [
-            "crypto/asn1/asn1_time_test-bin-a_time.o",
-            "crypto/asn1_time_test-bin-ctype.o",
             "test/asn1_time_test-bin-asn1_time_test.o"
         ],
         "test/asn1_time_test-bin-asn1_time_test.o" => [
@@ -30227,18 +29293,6 @@ our %unified_info = (
         "test/bftest-bin-bftest.o" => [
             "test/bftest.c"
         ],
-        "test/bio_addr_test" => [
-            "test/bio_addr_test-bin-bio_addr_test.o"
-        ],
-        "test/bio_addr_test-bin-bio_addr_test.o" => [
-            "test/bio_addr_test.c"
-        ],
-        "test/bio_base64_test" => [
-            "test/bio_base64_test-bin-bio_base64_test.o"
-        ],
-        "test/bio_base64_test-bin-bio_base64_test.o" => [
-            "test/bio_base64_test.c"
-        ],
         "test/bio_callback_test" => [
             "test/bio_callback_test-bin-bio_callback_test.o"
         ],
@@ -30251,12 +29305,6 @@ our %unified_info = (
         "test/bio_core_test-bin-bio_core_test.o" => [
             "test/bio_core_test.c"
         ],
-        "test/bio_dgram_test" => [
-            "test/bio_dgram_test-bin-bio_dgram_test.o"
-        ],
-        "test/bio_dgram_test-bin-bio_dgram_test.o" => [
-            "test/bio_dgram_test.c"
-        ],
         "test/bio_enc_test" => [
             "test/bio_enc_test-bin-bio_enc_test.o"
         ],
@@ -30268,12 +29316,6 @@ our %unified_info = (
         ],
         "test/bio_memleak_test-bin-bio_memleak_test.o" => [
             "test/bio_memleak_test.c"
-        ],
-        "test/bio_meth_test" => [
-            "test/bio_meth_test-bin-bio_meth_test.o"
-        ],
-        "test/bio_meth_test-bin-bio_meth_test.o" => [
-            "test/bio_meth_test.c"
         ],
         "test/bio_prefix_text" => [
             "test/bio_prefix_text-bin-bio_prefix_text.o"
@@ -30293,12 +29335,6 @@ our %unified_info = (
         "test/bio_readbuffer_test-bin-bio_readbuffer_test.o" => [
             "test/bio_readbuffer_test.c"
         ],
-        "test/bio_tfo_test" => [
-            "test/bio_tfo_test-bin-bio_tfo_test.o"
-        ],
-        "test/bio_tfo_test-bin-bio_tfo_test.o" => [
-            "test/bio_tfo_test.c"
-        ],
         "test/bioprinttest" => [
             "test/bioprinttest-bin-bioprinttest.o"
         ],
@@ -30316,12 +29352,6 @@ our %unified_info = (
         ],
         "test/bntest-bin-bntest.o" => [
             "test/bntest.c"
-        ],
-        "test/build_wincrypt_test" => [
-            "test/build_wincrypt_test-bin-build_wincrypt_test.o"
-        ],
-        "test/build_wincrypt_test-bin-build_wincrypt_test.o" => [
-            "test/build_wincrypt_test.c"
         ],
         "test/buildtest_c_aes" => [
             "test/buildtest_c_aes-bin-buildtest_aes.o"
@@ -30761,29 +29791,6 @@ our %unified_info = (
         "test/buildtest_c_whrlpool-bin-buildtest_whrlpool.o" => [
             "test/buildtest_whrlpool.c"
         ],
-        "test/byteorder_test" => [
-            "test/byteorder_test-bin-byteorder_test.o"
-        ],
-        "test/byteorder_test-bin-byteorder_test.o" => [
-            "test/byteorder_test.c"
-        ],
-        "test/ca_internals_test" => [
-            "apps/ca_internals_test-bin-ca.o",
-            "apps/lib/ca_internals_test-bin-app_libctx.o",
-            "apps/lib/ca_internals_test-bin-app_provider.o",
-            "apps/lib/ca_internals_test-bin-app_rand.o",
-            "apps/lib/ca_internals_test-bin-app_x509.o",
-            "apps/lib/ca_internals_test-bin-apps.o",
-            "apps/lib/ca_internals_test-bin-apps_ui.o",
-            "apps/lib/ca_internals_test-bin-engine.o",
-            "apps/lib/ca_internals_test-bin-fmt.o",
-            "crypto/asn1/ca_internals_test-bin-a_time.o",
-            "crypto/ca_internals_test-bin-ctype.o",
-            "test/ca_internals_test-bin-ca_internals_test.o"
-        ],
-        "test/ca_internals_test-bin-ca_internals_test.o" => [
-            "test/ca_internals_test.c"
-        ],
         "test/casttest" => [
             "test/casttest-bin-casttest.o"
         ],
@@ -30962,12 +29969,6 @@ our %unified_info = (
         "test/danetest-bin-danetest.o" => [
             "test/danetest.c"
         ],
-        "test/decoder_propq_test" => [
-            "test/decoder_propq_test-bin-decoder_propq_test.o"
-        ],
-        "test/decoder_propq_test-bin-decoder_propq_test.o" => [
-            "test/decoder_propq_test.c"
-        ],
         "test/defltfips_test" => [
             "test/defltfips_test-bin-defltfips_test.o"
         ],
@@ -31049,7 +30050,6 @@ our %unified_info = (
             "test/ectest.c"
         ],
         "test/endecode_test" => [
-            "providers/endecode_test-bin-legacyprov.o",
             "test/endecode_test-bin-endecode_test.o",
             "test/helpers/endecode_test-bin-predefined_dhparams.o"
         ],
@@ -31082,28 +30082,16 @@ our %unified_info = (
         ],
         "test/evp_extra_test" => [
             "providers/evp_extra_test-bin-legacyprov.o",
-            "test/evp_extra_test-bin-evp_extra_test.o",
-            "test/evp_extra_test-bin-fake_pipelineprov.o",
-            "test/evp_extra_test-bin-fake_rsaprov.o"
+            "test/evp_extra_test-bin-evp_extra_test.o"
         ],
         "test/evp_extra_test-bin-evp_extra_test.o" => [
             "test/evp_extra_test.c"
         ],
-        "test/evp_extra_test-bin-fake_pipelineprov.o" => [
-            "test/fake_pipelineprov.c"
-        ],
-        "test/evp_extra_test-bin-fake_rsaprov.o" => [
-            "test/fake_rsaprov.c"
-        ],
         "test/evp_extra_test2" => [
-            "test/evp_extra_test2-bin-evp_extra_test2.o",
-            "test/evp_extra_test2-bin-tls-provider.o"
+            "test/evp_extra_test2-bin-evp_extra_test2.o"
         ],
         "test/evp_extra_test2-bin-evp_extra_test2.o" => [
             "test/evp_extra_test2.c"
-        ],
-        "test/evp_extra_test2-bin-tls-provider.o" => [
-            "test/tls-provider.c"
         ],
         "test/evp_fetch_prov_test" => [
             "test/evp_fetch_prov_test-bin-evp_fetch_prov_test.o"
@@ -31129,12 +30117,6 @@ our %unified_info = (
         "test/evp_pkey_ctx_new_from_name-bin-evp_pkey_ctx_new_from_name.o" => [
             "test/evp_pkey_ctx_new_from_name.c"
         ],
-        "test/evp_pkey_dhkem_test" => [
-            "test/evp_pkey_dhkem_test-bin-evp_pkey_dhkem_test.o"
-        ],
-        "test/evp_pkey_dhkem_test-bin-evp_pkey_dhkem_test.o" => [
-            "test/evp_pkey_dhkem_test.c"
-        ],
         "test/evp_pkey_dparams_test" => [
             "test/evp_pkey_dparams_test-bin-evp_pkey_dparams_test.o"
         ],
@@ -31147,27 +30129,11 @@ our %unified_info = (
         "test/evp_pkey_provided_test-bin-evp_pkey_provided_test.o" => [
             "test/evp_pkey_provided_test.c"
         ],
-        "test/evp_skey_test" => [
-            "test/evp_skey_test-bin-evp_skey_test.o",
-            "test/evp_skey_test-bin-fake_cipherprov.o"
-        ],
-        "test/evp_skey_test-bin-evp_skey_test.o" => [
-            "test/evp_skey_test.c"
-        ],
-        "test/evp_skey_test-bin-fake_cipherprov.o" => [
-            "test/fake_cipherprov.c"
-        ],
         "test/evp_test" => [
             "test/evp_test-bin-evp_test.o"
         ],
         "test/evp_test-bin-evp_test.o" => [
             "test/evp_test.c"
-        ],
-        "test/evp_xof_test" => [
-            "test/evp_xof_test-bin-evp_xof_test.o"
-        ],
-        "test/evp_xof_test-bin-evp_xof_test.o" => [
-            "test/evp_xof_test.c"
         ],
         "test/exdatatest" => [
             "test/exdatatest-bin-exdatatest.o"
@@ -31254,106 +30220,13 @@ our %unified_info = (
         "test/helpers/fatalerrtest-bin-ssltestlib.o" => [
             "test/helpers/ssltestlib.c"
         ],
-        "test/helpers/json_test-bin-noisydgrambio.o" => [
-            "test/helpers/noisydgrambio.c"
-        ],
-        "test/helpers/json_test-bin-pktsplitbio.o" => [
-            "test/helpers/pktsplitbio.c"
-        ],
-        "test/helpers/json_test-bin-quictestlib.o" => [
-            "test/helpers/quictestlib.c"
-        ],
-        "test/helpers/json_test-bin-ssltestlib.o" => [
-            "test/helpers/ssltestlib.c"
-        ],
-        "test/helpers/pkcs12_api_test-bin-pkcs12.o" => [
-            "test/helpers/pkcs12.c"
-        ],
         "test/helpers/pkcs12_format_test-bin-pkcs12.o" => [
             "test/helpers/pkcs12.c"
-        ],
-        "test/helpers/quic_multistream_test-bin-noisydgrambio.o" => [
-            "test/helpers/noisydgrambio.c"
-        ],
-        "test/helpers/quic_multistream_test-bin-pktsplitbio.o" => [
-            "test/helpers/pktsplitbio.c"
-        ],
-        "test/helpers/quic_multistream_test-bin-quictestlib.o" => [
-            "test/helpers/quictestlib.c"
-        ],
-        "test/helpers/quic_multistream_test-bin-ssltestlib.o" => [
-            "test/helpers/ssltestlib.c"
-        ],
-        "test/helpers/quic_newcid_test-bin-noisydgrambio.o" => [
-            "test/helpers/noisydgrambio.c"
-        ],
-        "test/helpers/quic_newcid_test-bin-pktsplitbio.o" => [
-            "test/helpers/pktsplitbio.c"
-        ],
-        "test/helpers/quic_newcid_test-bin-quictestlib.o" => [
-            "test/helpers/quictestlib.c"
-        ],
-        "test/helpers/quic_newcid_test-bin-ssltestlib.o" => [
-            "test/helpers/ssltestlib.c"
-        ],
-        "test/helpers/quic_radix_test-bin-noisydgrambio.o" => [
-            "test/helpers/noisydgrambio.c"
-        ],
-        "test/helpers/quic_radix_test-bin-pktsplitbio.o" => [
-            "test/helpers/pktsplitbio.c"
-        ],
-        "test/helpers/quic_radix_test-bin-quictestlib.o" => [
-            "test/helpers/quictestlib.c"
-        ],
-        "test/helpers/quic_radix_test-bin-ssltestlib.o" => [
-            "test/helpers/ssltestlib.c"
-        ],
-        "test/helpers/quic_srt_gen_test-bin-noisydgrambio.o" => [
-            "test/helpers/noisydgrambio.c"
-        ],
-        "test/helpers/quic_srt_gen_test-bin-pktsplitbio.o" => [
-            "test/helpers/pktsplitbio.c"
-        ],
-        "test/helpers/quic_srt_gen_test-bin-quictestlib.o" => [
-            "test/helpers/quictestlib.c"
-        ],
-        "test/helpers/quic_srt_gen_test-bin-ssltestlib.o" => [
-            "test/helpers/ssltestlib.c"
-        ],
-        "test/helpers/quicapitest-bin-noisydgrambio.o" => [
-            "test/helpers/noisydgrambio.c"
-        ],
-        "test/helpers/quicapitest-bin-pktsplitbio.o" => [
-            "test/helpers/pktsplitbio.c"
-        ],
-        "test/helpers/quicapitest-bin-quictestlib.o" => [
-            "test/helpers/quictestlib.c"
-        ],
-        "test/helpers/quicapitest-bin-ssltestlib.o" => [
-            "test/helpers/ssltestlib.c"
-        ],
-        "test/helpers/quicfaultstest-bin-noisydgrambio.o" => [
-            "test/helpers/noisydgrambio.c"
-        ],
-        "test/helpers/quicfaultstest-bin-pktsplitbio.o" => [
-            "test/helpers/pktsplitbio.c"
-        ],
-        "test/helpers/quicfaultstest-bin-quictestlib.o" => [
-            "test/helpers/quictestlib.c"
-        ],
-        "test/helpers/quicfaultstest-bin-ssltestlib.o" => [
-            "test/helpers/ssltestlib.c"
         ],
         "test/helpers/recordlentest-bin-ssltestlib.o" => [
             "test/helpers/ssltestlib.c"
         ],
-        "test/helpers/rpktest-bin-ssltestlib.o" => [
-            "test/helpers/ssltestlib.c"
-        ],
         "test/helpers/servername_test-bin-ssltestlib.o" => [
-            "test/helpers/ssltestlib.c"
-        ],
-        "test/helpers/ssl_handshake_rtt_test-bin-ssltestlib.o" => [
             "test/helpers/ssltestlib.c"
         ],
         "test/helpers/ssl_old_test-bin-predefined_dhparams.o" => [
@@ -31383,9 +30256,6 @@ our %unified_info = (
         "test/helpers/tls13ccstest-bin-ssltestlib.o" => [
             "test/helpers/ssltestlib.c"
         ],
-        "test/helpers/tls13groupselection_test-bin-ssltestlib.o" => [
-            "test/helpers/ssltestlib.c"
-        ],
         "test/hexstr_test" => [
             "test/hexstr_test-bin-hexstr_test.o"
         ],
@@ -31397,12 +30267,6 @@ our %unified_info = (
         ],
         "test/hmactest-bin-hmactest.o" => [
             "test/hmactest.c"
-        ],
-        "test/hpke_test" => [
-            "test/hpke_test-bin-hpke_test.o"
-        ],
-        "test/hpke_test-bin-hpke_test.o" => [
-            "test/hpke_test.c"
         ],
         "test/http_test" => [
             "test/http_test-bin-http_test.o"
@@ -31421,16 +30285,6 @@ our %unified_info = (
         ],
         "test/igetest-bin-igetest.o" => [
             "test/igetest.c"
-        ],
-        "test/json_test" => [
-            "test/helpers/json_test-bin-noisydgrambio.o",
-            "test/helpers/json_test-bin-pktsplitbio.o",
-            "test/helpers/json_test-bin-quictestlib.o",
-            "test/helpers/json_test-bin-ssltestlib.o",
-            "test/json_test-bin-json_test.o"
-        ],
-        "test/json_test-bin-json_test.o" => [
-            "test/json_test.c"
         ],
         "test/keymgmt_internal_test" => [
             "test/keymgmt_internal_test-bin-keymgmt_internal_test.o"
@@ -31452,7 +30306,6 @@ our %unified_info = (
             "test/testutil/libtestutil-lib-driver.o",
             "test/testutil/libtestutil-lib-fake_random.o",
             "test/testutil/libtestutil-lib-format_output.o",
-            "test/testutil/libtestutil-lib-helper.o",
             "test/testutil/libtestutil-lib-load.o",
             "test/testutil/libtestutil-lib-main.o",
             "test/testutil/libtestutil-lib-options.o",
@@ -31464,12 +30317,6 @@ our %unified_info = (
             "test/testutil/libtestutil-lib-test_options.o",
             "test/testutil/libtestutil-lib-tests.o",
             "test/testutil/libtestutil-lib-testutil_init.o"
-        ],
-        "test/list_test" => [
-            "test/list_test-bin-list_test.o"
-        ],
-        "test/list_test-bin-list_test.o" => [
-            "test/list_test.c"
         ],
         "test/localetest" => [
             "test/localetest-bin-localetest.o"
@@ -31489,35 +30336,11 @@ our %unified_info = (
         "test/mdc2test-bin-mdc2test.o" => [
             "test/mdc2test.c"
         ],
-        "test/membio_test" => [
-            "test/membio_test-bin-membio_test.o"
-        ],
-        "test/membio_test-bin-membio_test.o" => [
-            "test/membio_test.c"
-        ],
         "test/memleaktest" => [
             "test/memleaktest-bin-memleaktest.o"
         ],
         "test/memleaktest-bin-memleaktest.o" => [
             "test/memleaktest.c"
-        ],
-        "test/ml_dsa_test" => [
-            "test/ml_dsa_test-bin-ml_dsa_test.o"
-        ],
-        "test/ml_dsa_test-bin-ml_dsa_test.o" => [
-            "test/ml_dsa_test.c"
-        ],
-        "test/ml_kem_evp_extra_test" => [
-            "test/ml_kem_evp_extra_test-bin-ml_kem_evp_extra_test.o"
-        ],
-        "test/ml_kem_evp_extra_test-bin-ml_kem_evp_extra_test.o" => [
-            "test/ml_kem_evp_extra_test.c"
-        ],
-        "test/ml_kem_internal_test" => [
-            "test/ml_kem_internal_test-bin-ml_kem_internal_test.o"
-        ],
-        "test/ml_kem_internal_test-bin-ml_kem_internal_test.o" => [
-            "test/ml_kem_internal_test.c"
         ],
         "test/modes_internal_test" => [
             "test/modes_internal_test-bin-modes_internal_test.o"
@@ -31564,17 +30387,10 @@ our %unified_info = (
             "test/p_test.c"
         ],
         "test/packettest" => [
-            "crypto/packettest-bin-quic_vlint.o",
             "test/packettest-bin-packettest.o"
         ],
         "test/packettest-bin-packettest.o" => [
             "test/packettest.c"
-        ],
-        "test/pairwise_fail_test" => [
-            "test/pairwise_fail_test-bin-pairwise_fail_test.o"
-        ],
-        "test/pairwise_fail_test-bin-pairwise_fail_test.o" => [
-            "test/pairwise_fail_test.c"
         ],
         "test/param_build_test" => [
             "test/param_build_test-bin-param_build_test.o"
@@ -31624,13 +30440,6 @@ our %unified_info = (
         "test/pemtest-bin-pemtest.o" => [
             "test/pemtest.c"
         ],
-        "test/pkcs12_api_test" => [
-            "test/helpers/pkcs12_api_test-bin-pkcs12.o",
-            "test/pkcs12_api_test-bin-pkcs12_api_test.o"
-        ],
-        "test/pkcs12_api_test-bin-pkcs12_api_test.o" => [
-            "test/pkcs12_api_test.c"
-        ],
         "test/pkcs12_format_test" => [
             "test/helpers/pkcs12_format_test-bin-pkcs12.o",
             "test/pkcs12_format_test-bin-pkcs12_format_test.o"
@@ -31662,12 +30471,6 @@ our %unified_info = (
         "test/poly1305_internal_test-bin-poly1305_internal_test.o" => [
             "test/poly1305_internal_test.c"
         ],
-        "test/priority_queue_test" => [
-            "test/priority_queue_test-bin-priority_queue_test.o"
-        ],
-        "test/priority_queue_test-bin-priority_queue_test.o" => [
-            "test/priority_queue_test.c"
-        ],
         "test/property_test" => [
             "test/property_test-bin-property_test.o"
         ],
@@ -31685,12 +30488,6 @@ our %unified_info = (
         ],
         "test/provfetchtest-bin-provfetchtest.o" => [
             "test/provfetchtest.c"
-        ],
-        "test/provider_default_search_path_test" => [
-            "test/provider_default_search_path_test-bin-provider_default_search_path_test.o"
-        ],
-        "test/provider_default_search_path_test-bin-provider_default_search_path_test.o" => [
-            "test/provider_default_search_path_test.c"
         ],
         "test/provider_fallback_test" => [
             "test/provider_fallback_test-bin-provider_fallback_test.o"
@@ -31740,174 +30537,6 @@ our %unified_info = (
         "test/punycode_test-bin-punycode_test.o" => [
             "test/punycode_test.c"
         ],
-        "test/quic_ackm_test" => [
-            "test/quic_ackm_test-bin-cc_dummy.o",
-            "test/quic_ackm_test-bin-quic_ackm_test.o"
-        ],
-        "test/quic_ackm_test-bin-cc_dummy.o" => [
-            "test/cc_dummy.c"
-        ],
-        "test/quic_ackm_test-bin-quic_ackm_test.o" => [
-            "test/quic_ackm_test.c"
-        ],
-        "test/quic_cc_test" => [
-            "test/quic_cc_test-bin-quic_cc_test.o"
-        ],
-        "test/quic_cc_test-bin-quic_cc_test.o" => [
-            "test/quic_cc_test.c"
-        ],
-        "test/quic_cfq_test" => [
-            "test/quic_cfq_test-bin-quic_cfq_test.o"
-        ],
-        "test/quic_cfq_test-bin-quic_cfq_test.o" => [
-            "test/quic_cfq_test.c"
-        ],
-        "test/quic_client_test" => [
-            "test/quic_client_test-bin-quic_client_test.o"
-        ],
-        "test/quic_client_test-bin-quic_client_test.o" => [
-            "test/quic_client_test.c"
-        ],
-        "test/quic_fc_test" => [
-            "test/quic_fc_test-bin-quic_fc_test.o"
-        ],
-        "test/quic_fc_test-bin-quic_fc_test.o" => [
-            "test/quic_fc_test.c"
-        ],
-        "test/quic_fifd_test" => [
-            "test/quic_fifd_test-bin-cc_dummy.o",
-            "test/quic_fifd_test-bin-quic_fifd_test.o"
-        ],
-        "test/quic_fifd_test-bin-cc_dummy.o" => [
-            "test/cc_dummy.c"
-        ],
-        "test/quic_fifd_test-bin-quic_fifd_test.o" => [
-            "test/quic_fifd_test.c"
-        ],
-        "test/quic_lcidm_test" => [
-            "test/quic_lcidm_test-bin-quic_lcidm_test.o"
-        ],
-        "test/quic_lcidm_test-bin-quic_lcidm_test.o" => [
-            "test/quic_lcidm_test.c"
-        ],
-        "test/quic_multistream_test" => [
-            "test/helpers/quic_multistream_test-bin-noisydgrambio.o",
-            "test/helpers/quic_multistream_test-bin-pktsplitbio.o",
-            "test/helpers/quic_multistream_test-bin-quictestlib.o",
-            "test/helpers/quic_multistream_test-bin-ssltestlib.o",
-            "test/quic_multistream_test-bin-quic_multistream_test.o"
-        ],
-        "test/quic_multistream_test-bin-quic_multistream_test.o" => [
-            "test/quic_multistream_test.c"
-        ],
-        "test/quic_newcid_test" => [
-            "test/helpers/quic_newcid_test-bin-noisydgrambio.o",
-            "test/helpers/quic_newcid_test-bin-pktsplitbio.o",
-            "test/helpers/quic_newcid_test-bin-quictestlib.o",
-            "test/helpers/quic_newcid_test-bin-ssltestlib.o",
-            "test/quic_newcid_test-bin-quic_newcid_test.o"
-        ],
-        "test/quic_newcid_test-bin-quic_newcid_test.o" => [
-            "test/quic_newcid_test.c"
-        ],
-        "test/quic_qlog_test" => [
-            "test/quic_qlog_test-bin-quic_qlog_test.o"
-        ],
-        "test/quic_qlog_test-bin-quic_qlog_test.o" => [
-            "test/quic_qlog_test.c"
-        ],
-        "test/quic_radix_test" => [
-            "test/helpers/quic_radix_test-bin-noisydgrambio.o",
-            "test/helpers/quic_radix_test-bin-pktsplitbio.o",
-            "test/helpers/quic_radix_test-bin-quictestlib.o",
-            "test/helpers/quic_radix_test-bin-ssltestlib.o",
-            "test/radix/quic_radix_test-bin-quic_radix.o"
-        ],
-        "test/quic_rcidm_test" => [
-            "test/quic_rcidm_test-bin-quic_rcidm_test.o"
-        ],
-        "test/quic_rcidm_test-bin-quic_rcidm_test.o" => [
-            "test/quic_rcidm_test.c"
-        ],
-        "test/quic_record_test" => [
-            "test/quic_record_test-bin-quic_record_test.o"
-        ],
-        "test/quic_record_test-bin-quic_record_test.o" => [
-            "test/quic_record_test.c"
-        ],
-        "test/quic_srt_gen_test" => [
-            "test/helpers/quic_srt_gen_test-bin-noisydgrambio.o",
-            "test/helpers/quic_srt_gen_test-bin-pktsplitbio.o",
-            "test/helpers/quic_srt_gen_test-bin-quictestlib.o",
-            "test/helpers/quic_srt_gen_test-bin-ssltestlib.o",
-            "test/quic_srt_gen_test-bin-quic_srt_gen_test.o"
-        ],
-        "test/quic_srt_gen_test-bin-quic_srt_gen_test.o" => [
-            "test/quic_srt_gen_test.c"
-        ],
-        "test/quic_srtm_test" => [
-            "test/quic_srtm_test-bin-quic_srtm_test.o"
-        ],
-        "test/quic_srtm_test-bin-quic_srtm_test.o" => [
-            "test/quic_srtm_test.c"
-        ],
-        "test/quic_stream_test" => [
-            "test/quic_stream_test-bin-quic_stream_test.o"
-        ],
-        "test/quic_stream_test-bin-quic_stream_test.o" => [
-            "test/quic_stream_test.c"
-        ],
-        "test/quic_tserver_test" => [
-            "test/quic_tserver_test-bin-quic_tserver_test.o"
-        ],
-        "test/quic_tserver_test-bin-quic_tserver_test.o" => [
-            "test/quic_tserver_test.c"
-        ],
-        "test/quic_txp_test" => [
-            "test/quic_txp_test-bin-cc_dummy.o",
-            "test/quic_txp_test-bin-quic_txp_test.o"
-        ],
-        "test/quic_txp_test-bin-cc_dummy.o" => [
-            "test/cc_dummy.c"
-        ],
-        "test/quic_txp_test-bin-quic_txp_test.o" => [
-            "test/quic_txp_test.c"
-        ],
-        "test/quic_txpim_test" => [
-            "test/quic_txpim_test-bin-quic_txpim_test.o"
-        ],
-        "test/quic_txpim_test-bin-quic_txpim_test.o" => [
-            "test/quic_txpim_test.c"
-        ],
-        "test/quic_wire_test" => [
-            "test/quic_wire_test-bin-quic_wire_test.o"
-        ],
-        "test/quic_wire_test-bin-quic_wire_test.o" => [
-            "test/quic_wire_test.c"
-        ],
-        "test/quicapitest" => [
-            "test/helpers/quicapitest-bin-noisydgrambio.o",
-            "test/helpers/quicapitest-bin-pktsplitbio.o",
-            "test/helpers/quicapitest-bin-quictestlib.o",
-            "test/helpers/quicapitest-bin-ssltestlib.o",
-            "test/quicapitest-bin-quicapitest.o"
-        ],
-        "test/quicapitest-bin-quicapitest.o" => [
-            "test/quicapitest.c"
-        ],
-        "test/quicfaultstest" => [
-            "test/helpers/quicfaultstest-bin-noisydgrambio.o",
-            "test/helpers/quicfaultstest-bin-pktsplitbio.o",
-            "test/helpers/quicfaultstest-bin-quictestlib.o",
-            "test/helpers/quicfaultstest-bin-ssltestlib.o",
-            "test/quicfaultstest-bin-quicfaultstest.o"
-        ],
-        "test/quicfaultstest-bin-quicfaultstest.o" => [
-            "test/quicfaultstest.c"
-        ],
-        "test/radix/quic_radix_test-bin-quic_radix.o" => [
-            "test/radix/quic_radix.c"
-        ],
         "test/rand_status_test" => [
             "test/rand_status_test-bin-rand_status_test.o"
         ],
@@ -31938,11 +30567,11 @@ our %unified_info = (
         "test/rc5test-bin-rc5test.o" => [
             "test/rc5test.c"
         ],
-        "test/rdcpu_sanitytest" => [
-            "test/rdcpu_sanitytest-bin-rdcpu_sanitytest.o"
+        "test/rdrand_sanitytest" => [
+            "test/rdrand_sanitytest-bin-rdrand_sanitytest.o"
         ],
-        "test/rdcpu_sanitytest-bin-rdcpu_sanitytest.o" => [
-            "test/rdcpu_sanitytest.c"
+        "test/rdrand_sanitytest-bin-rdrand_sanitytest.o" => [
+            "test/rdrand_sanitytest.c"
         ],
         "test/recordlentest" => [
             "test/helpers/recordlentest-bin-ssltestlib.o",
@@ -31950,13 +30579,6 @@ our %unified_info = (
         ],
         "test/recordlentest-bin-recordlentest.o" => [
             "test/recordlentest.c"
-        ],
-        "test/rpktest" => [
-            "test/helpers/rpktest-bin-ssltestlib.o",
-            "test/rpktest-bin-rpktest.o"
-        ],
-        "test/rpktest-bin-rpktest.o" => [
-            "test/rpktest.c"
         ],
         "test/rsa_complex" => [
             "test/rsa_complex-bin-rsa_complex.o"
@@ -31981,18 +30603,6 @@ our %unified_info = (
         ],
         "test/rsa_test-bin-rsa_test.o" => [
             "test/rsa_test.c"
-        ],
-        "test/rsa_x931_test" => [
-            "test/rsa_x931_test-bin-rsa_x931_test.o"
-        ],
-        "test/rsa_x931_test-bin-rsa_x931_test.o" => [
-            "test/rsa_x931_test.c"
-        ],
-        "test/safe_math_test" => [
-            "test/safe_math_test-bin-safe_math_test.o"
-        ],
-        "test/safe_math_test-bin-safe_math_test.o" => [
-            "test/safe_math_test.c"
         ],
         "test/sanitytest" => [
             "test/sanitytest-bin-sanitytest.o"
@@ -32024,12 +30634,6 @@ our %unified_info = (
         ],
         "test/siphash_internal_test-bin-siphash_internal_test.o" => [
             "test/siphash_internal_test.c"
-        ],
-        "test/slh_dsa_test" => [
-            "test/slh_dsa_test-bin-slh_dsa_test.o"
-        ],
-        "test/slh_dsa_test-bin-slh_dsa_test.o" => [
-            "test/slh_dsa_test.c"
         ],
         "test/sm2_internal_test" => [
             "test/sm2_internal_test-bin-sm2_internal_test.o"
@@ -32072,13 +30676,6 @@ our %unified_info = (
         ],
         "test/ssl_ctx_test-bin-ssl_ctx_test.o" => [
             "test/ssl_ctx_test.c"
-        ],
-        "test/ssl_handshake_rtt_test" => [
-            "test/helpers/ssl_handshake_rtt_test-bin-ssltestlib.o",
-            "test/ssl_handshake_rtt_test-bin-ssl_handshake_rtt_test.o"
-        ],
-        "test/ssl_handshake_rtt_test-bin-ssl_handshake_rtt_test.o" => [
-            "test/ssl_handshake_rtt_test.c"
         ],
         "test/ssl_old_test" => [
             "test/helpers/ssl_old_test-bin-predefined_dhparams.o",
@@ -32138,12 +30735,6 @@ our %unified_info = (
         "test/stack_test-bin-stack_test.o" => [
             "test/stack_test.c"
         ],
-        "test/strtoultest" => [
-            "test/strtoultest-bin-strtoultest.o"
-        ],
-        "test/strtoultest-bin-strtoultest.o" => [
-            "test/strtoultest.c"
-        ],
         "test/sysdefaulttest" => [
             "test/sysdefaulttest-bin-sysdefaulttest.o"
         ],
@@ -32173,9 +30764,6 @@ our %unified_info = (
         ],
         "test/testutil/libtestutil-lib-format_output.o" => [
             "test/testutil/format_output.c"
-        ],
-        "test/testutil/libtestutil-lib-helper.o" => [
-            "test/testutil/helper.c"
         ],
         "test/testutil/libtestutil-lib-load.o" => [
             "test/testutil/load.c"
@@ -32210,12 +30798,6 @@ our %unified_info = (
         "test/testutil/libtestutil-lib-testutil_init.o" => [
             "test/testutil/testutil_init.c"
         ],
-        "test/threadpool_test" => [
-            "test/threadpool_test-bin-threadpool_test.o"
-        ],
-        "test/threadpool_test-bin-threadpool_test.o" => [
-            "test/threadpool_test.c"
-        ],
         "test/threadstest" => [
             "test/threadstest-bin-threadstest.o"
         ],
@@ -32234,12 +30816,6 @@ our %unified_info = (
         "test/time_offset_test-bin-time_offset_test.o" => [
             "test/time_offset_test.c"
         ],
-        "test/time_test" => [
-            "test/time_test-bin-time_test.o"
-        ],
-        "test/time_test-bin-time_test.o" => [
-            "test/time_test.c"
-        ],
         "test/tls13ccstest" => [
             "test/helpers/tls13ccstest-bin-ssltestlib.o",
             "test/tls13ccstest-bin-tls13ccstest.o"
@@ -32252,13 +30828,6 @@ our %unified_info = (
         ],
         "test/tls13encryptiontest-bin-tls13encryptiontest.o" => [
             "test/tls13encryptiontest.c"
-        ],
-        "test/tls13groupselection_test" => [
-            "test/helpers/tls13groupselection_test-bin-ssltestlib.o",
-            "test/tls13groupselection_test-bin-tls13groupselection_test.o"
-        ],
-        "test/tls13groupselection_test-bin-tls13groupselection_test.o" => [
-            "test/tls13groupselection_test.c"
         ],
         "test/trace_api_test" => [
             "test/trace_api_test-bin-trace_api_test.o"
@@ -32315,12 +30884,6 @@ our %unified_info = (
         "test/wpackettest-bin-wpackettest.o" => [
             "test/wpackettest.c"
         ],
-        "test/x509_acert_test" => [
-            "test/x509_acert_test-bin-x509_acert_test.o"
-        ],
-        "test/x509_acert_test-bin-x509_acert_test.o" => [
-            "test/x509_acert_test.c"
-        ],
         "test/x509_check_cert_pkey_test" => [
             "test/x509_check_cert_pkey_test-bin-x509_check_cert_pkey_test.o"
         ],
@@ -32338,24 +30901,6 @@ our %unified_info = (
         ],
         "test/x509_internal_test-bin-x509_internal_test.o" => [
             "test/x509_internal_test.c"
-        ],
-        "test/x509_load_cert_file_test" => [
-            "test/x509_load_cert_file_test-bin-x509_load_cert_file_test.o"
-        ],
-        "test/x509_load_cert_file_test-bin-x509_load_cert_file_test.o" => [
-            "test/x509_load_cert_file_test.c"
-        ],
-        "test/x509_req_test" => [
-            "test/x509_req_test-bin-x509_req_test.o"
-        ],
-        "test/x509_req_test-bin-x509_req_test.o" => [
-            "test/x509_req_test.c"
-        ],
-        "test/x509_test" => [
-            "test/x509_test-bin-x509_test.o"
-        ],
-        "test/x509_test-bin-x509_test.o" => [
-            "test/x509_test.c"
         ],
         "test/x509_time_test" => [
             "test/x509_time_test-bin-x509_time_test.o"
@@ -32569,8 +31114,8 @@ unless (caller) {
     use File::Copy;
     use Pod::Usage;
 
-    use lib '/node/deps/openssl/openssl/util/perl';
-    use OpenSSL::fallback '/node/deps/openssl/openssl/external/perl/MODULES.txt';
+    use lib '/root/work/build-slack/build-nodejs/make-nodejs-asm/deps/openssl/openssl/util/perl';
+    use OpenSSL::fallback '/root/work/build-slack/build-nodejs/make-nodejs-asm/deps/openssl/openssl/external/perl/MODULES.txt';
 
     my $here = dirname($0);
 
@@ -32597,7 +31142,7 @@ unless (caller) {
             );
 
         use lib '.';
-        use lib '/node/deps/openssl/openssl/Configurations';
+        use lib '/root/work/build-slack/build-nodejs/make-nodejs-asm/deps/openssl/openssl/Configurations';
         use gentemplate;
 
         open my $buildfile_template_fh, ">$buildfile_template"
@@ -32614,8 +31159,8 @@ unless (caller) {
 
         my $prepend = <<'_____';
 use File::Spec::Functions;
-use lib '/node/deps/openssl/openssl/util/perl';
-use lib '/node/deps/openssl/openssl/Configurations';
+use lib '/root/work/build-slack/build-nodejs/make-nodejs-asm/deps/openssl/openssl/util/perl';
+use lib '/root/work/build-slack/build-nodejs/make-nodejs-asm/deps/openssl/openssl/Configurations';
 use lib '.';
 use platform;
 _____
