@@ -45,6 +45,7 @@ using v8::Array;
 using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
+using v8::DictionaryTemplate;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -1088,35 +1089,28 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
     new_cached_data.reset(ScriptCompiler::CreateCodeCache(v8_script));
   }
 
+  auto self = args.This();
+
   if (contextify_script->object()
           ->SetPrivate(context, env->host_defined_option_symbol(), id_symbol)
-          .IsNothing()) {
-    return;
-  }
-
-  if (StoreCodeCacheResult(env,
-                           args.This(),
+          .IsNothing() ||
+      StoreCodeCacheResult(env,
+                           self,
                            compile_options,
                            source,
                            produce_cached_data,
                            std::move(new_cached_data))
+          .IsNothing() ||
+      self->Set(env->context(),
+                env->source_url_string(),
+                v8_script->GetSourceURL())
+          .IsNothing() ||
+      self->Set(env->context(),
+                env->source_map_url_string(),
+                v8_script->GetSourceMappingURL())
           .IsNothing()) {
     return;
   }
-
-  if (args.This()
-          ->Set(env->context(),
-                env->source_url_string(),
-                v8_script->GetSourceURL())
-          .IsNothing())
-    return;
-
-  if (args.This()
-          ->Set(env->context(),
-                env->source_map_url_string(),
-                v8_script->GetSourceMappingURL())
-          .IsNothing())
-    return;
 
   TRACE_EVENT_END0(TRACING_CATEGORY_NODE2(vm, script), "ContextifyScript::New");
 }
@@ -1566,25 +1560,35 @@ MaybeLocal<Object> ContextifyFunction::CompileFunctionAndCacheResult(
     return {};
   }
 
-  Isolate* isolate = env->isolate();
-  Local<Object> result = Object::New(isolate);
-  if (result->Set(parsing_context, env->function_string(), fn).IsNothing())
-    return {};
-
-  // ScriptOrigin::ResourceName() returns SourceURL magic comment content if
-  // present.
-  if (result
-          ->Set(parsing_context,
-                env->source_url_string(),
-                fn->GetScriptOrigin().ResourceName())
-          .IsNothing()) {
-    return {};
+  auto tmpl = env->compiled_function_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "function",
+        "sourceURL",
+        "sourceMapURL",
+        "cachedDataRejected",
+        "cachedDataProduced",
+        "cachedData",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_compiled_function_template(tmpl);
   }
-  if (result
-          ->Set(parsing_context,
-                env->source_map_url_string(),
-                fn->GetScriptOrigin().SourceMapUrl())
-          .IsNothing()) {
+
+  auto scriptOrigin = fn->GetScriptOrigin();
+  MaybeLocal<Value> values[] = {
+      fn,
+      // ScriptOrigin::ResourceName() returns SourceURL magic comment content if
+      // present.
+      scriptOrigin.ResourceName(),
+      scriptOrigin.SourceMapUrl(),
+      // These are conditionally filled in by StoreCodeCacheResult below.
+      Undefined(env->isolate()),  // cachedDataRejected
+      Undefined(env->isolate()),  // cachedDataProduced
+      Undefined(env->isolate()),  // cachedData
+  };
+
+  Local<Object> result;
+  if (!NewDictionaryInstance(env->context(), tmpl, values).ToLocal(&result)) {
     return {};
   }
 
@@ -1799,12 +1803,12 @@ static void CompileFunctionForCJSLoader(
     // be reparsed as ESM.
     Utf8Value filename_utf8(isolate, filename);
     std::string url = url::FromFilePath(filename_utf8.ToStringView());
-    Local<String> url_value;
-    if (!String::NewFromUtf8(isolate, url.c_str()).ToLocal(&url_value)) {
+    Local<Value> url_value;
+    if (!ToV8Value(context, url).ToLocal(&url_value)) {
       return;
     }
-    can_parse_as_esm =
-        ShouldRetryAsESM(realm, cjs_message->Get(), code, url_value);
+    can_parse_as_esm = ShouldRetryAsESM(
+        realm, cjs_message->Get(), code, url_value.As<String>());
     if (!can_parse_as_esm) {
       // The syntax error is not related to ESM, throw the original error.
       isolate->ThrowException(cjs_exception);
@@ -1827,15 +1831,22 @@ static void CompileFunctionForCJSLoader(
     }
   }
 
+  auto tmpl = env->compiled_function_cjs_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "cachedDataRejected",
+        "sourceMapURL",
+        "sourceURL",
+        "function",
+        "canParseAsESM",
+    };
+    tmpl = DictionaryTemplate::New(isolate, names);
+    env->set_compiled_function_cjs_template(tmpl);
+  }
+
   Local<Value> undefined = v8::Undefined(isolate);
-  Local<Name> names[] = {
-      env->cached_data_rejected_string(),
-      env->source_map_url_string(),
-      env->source_url_string(),
-      env->function_string(),
-      FIXED_ONE_BYTE_STRING(isolate, "canParseAsESM"),
-  };
-  Local<Value> values[] = {
+
+  MaybeLocal<Value> values[] = {
       Boolean::New(isolate, cache_rejected),
       fn.IsEmpty() ? undefined : fn->GetScriptOrigin().SourceMapUrl(),
       // ScriptOrigin::ResourceName() returns SourceURL magic comment content if
@@ -1844,9 +1855,10 @@ static void CompileFunctionForCJSLoader(
       fn.IsEmpty() ? undefined : fn.As<Value>(),
       Boolean::New(isolate, can_parse_as_esm),
   };
-  Local<Object> result = Object::New(
-      isolate, v8::Null(isolate), &names[0], &values[0], arraysize(names));
-  args.GetReturnValue().Set(result);
+  Local<Object> result;
+  if (NewDictionaryInstance(env->context(), tmpl, values).ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
 }
 
 bool ShouldRetryAsESM(Realm* realm,
