@@ -2,6 +2,12 @@
 
 <!--introduced_in=v0.10.0-->
 
+<!-- YAML
+llm_description: >
+  The tty module handles terminal (TTY) interactions, providing classes to
+  manage readable and writable streams for terminal IO.
+-->
+
 > Stability: 2 - Stable
 
 <!-- source_link=lib/tty.js -->
