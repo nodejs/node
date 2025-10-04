@@ -1,5 +1,6 @@
 // Flags: --experimental-quic
-import { hasQuic, isAIX, isWindows, skip } from '../common/index.mjs';
+import { hasQuic, isAIX, isWindows, skip, getPort } from '../common/index.mjs';
+import { rejects } from 'node:assert';
 
 if (!hasQuic) {
   skip('QUIC support is not enabled');
@@ -15,20 +16,17 @@ if (isWindows) {
   skip('QUIC third-party tests are disabled on Windows');
 }
 
-const { default: QuicTestServer } = await import('../common/quic/test-server.mjs');
-const fixtures = await import('../common/fixtures.mjs');
+const { default: QuicTestClient } = await import('../common/quic/test-client.mjs');
 
-const server = new QuicTestServer();
-const fixturesPath = fixtures.path();
+const client = new QuicTestClient();
 
 // If this completes without throwing, the test passes.
-await server.help({ stdio: 'ignore' });
+await client.help({ stdio: 'ignore' });
 
 setTimeout(() => {
-  server.stop();
+  client.stop();
 }, 100);
 
-await server.run('localhost', '12345',
-                 `${fixturesPath}/keys/agent1-key.pem`,
-                 `${fixturesPath}/keys/agent1-cert.pem`,
-                 { stdio: 'inherit' });
+// We expect this to fail since there's no server running.
+await rejects(client.run('localhost', getPort(), undefined, { stdio: 'ignore' }),
+              { message: /Process exited with code 1 and signal null/ });
