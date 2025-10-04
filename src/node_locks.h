@@ -15,7 +15,7 @@
 
 namespace node::worker::locks {
 
-class Lock final {
+class Lock final : public MemoryRetainer {
  public:
   enum class Mode { Shared, Exclusive };
 
@@ -53,6 +53,10 @@ class Lock final {
     return released_promise_.Get(env_->isolate());
   }
 
+  void MemoryInfo(node::MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(Lock)
+  SET_SELF_SIZE(Lock)
+
  private:
   Environment* env_;
   std::u16string name_;
@@ -79,7 +83,7 @@ class LockHolder final : public BaseObject {
 
   std::shared_ptr<Lock> lock() const { return lock_; }
 
-  SET_NO_MEMORY_INFO()
+  void MemoryInfo(node::MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(LockHolder)
   SET_SELF_SIZE(LockHolder)
 
@@ -101,7 +105,7 @@ class LockRequest final {
               v8::Local<v8::Function> callback,
               const std::u16string& name,
               Lock::Mode mode,
-              const std::string& client_id,
+              std::string client_id,
               bool steal,
               bool if_available);
   ~LockRequest() = default;

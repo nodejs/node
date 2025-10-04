@@ -93,7 +93,6 @@
   V(change_string, "change")                                                   \
   V(changes_string, "changes")                                                 \
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")           \
-  V(client_id_string, "clientId")                                              \
   V(clone_unsupported_type_str, "Cannot clone object of unsupported type.")    \
   V(clone_transfer_needed_str,                                                 \
     "Object that needs transfer was found in message but not listed in "       \
@@ -169,6 +168,7 @@
   V(events_waiting, "eventsWaiting")                                           \
   V(events, "events")                                                          \
   V(exchange_string, "exchange")                                               \
+  V(exclusive_string, "exclusive")                                             \
   V(expire_string, "expire")                                                   \
   V(exponent_string, "exponent")                                               \
   V(exports_string, "exports")                                                 \
@@ -196,7 +196,6 @@
   V(h2_string, "h2")                                                           \
   V(handle_string, "handle")                                                   \
   V(hash_algorithm_string, "hashAlgorithm")                                    \
-  V(held_string, "held")                                                       \
   V(help_text_string, "helpText")                                              \
   V(homedir_string, "homedir")                                                 \
   V(host_string, "host")                                                       \
@@ -255,7 +254,6 @@
   V(messageerror_string, "messageerror")                                       \
   V(mgf1_hash_algorithm_string, "mgf1HashAlgorithm")                           \
   V(minttl_string, "minttl")                                                   \
-  V(mode_string, "mode")                                                       \
   V(module_string, "module")                                                   \
   V(modulus_length_string, "modulusLength")                                    \
   V(name_string, "name")                                                       \
@@ -298,7 +296,6 @@
   V(path_string, "path")                                                       \
   V(pathname_string, "pathname")                                               \
   V(pending_handle_string, "pendingHandle")                                    \
-  V(pending_string, "pending")                                                 \
   V(permission_string, "permission")                                           \
   V(phase_string, "phase")                                                     \
   V(pid_string, "pid")                                                         \
@@ -348,6 +345,7 @@
   V(service_string, "service")                                                 \
   V(session_id_string, "sessionId")                                            \
   V(set_string, "set")                                                         \
+  V(shared_string, "shared")                                                   \
   V(shell_string, "shell")                                                     \
   V(signal_string, "signal")                                                   \
   V(sink_string, "sink")                                                       \
@@ -435,6 +433,8 @@
   V(js_transferable_constructor_template, v8::FunctionTemplate)                \
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
   V(lock_holder_constructor_template, v8::FunctionTemplate)                    \
+  V(lock_info_template, v8::DictionaryTemplate)                                \
+  V(lock_query_template, v8::DictionaryTemplate)                               \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(module_wrap_constructor_template, v8::FunctionTemplate)                    \
   V(object_stats_template, v8::DictionaryTemplate)                             \
