@@ -34,7 +34,6 @@ fs.readdirSync(apilinks).forEach((fixture) => {
       input,
       '-o',
       outputPath,
-      '--no-lint',
     ],
     { encoding: 'utf-8' },
   );
@@ -45,7 +44,7 @@ fs.readdirSync(apilinks).forEach((fixture) => {
   for (const [k, v] of Object.entries(expectedLinks)) {
     assert.ok(k in actualLinks, `link not found: ${k}`);
     assert.ok(actualLinks[k].endsWith('/' + v),
-      `link ${actualLinks[k]} expected to end with ${v}`);
+              `link ${actualLinks[k]} expected to end with ${v}`);
     delete actualLinks[k];
   }
 
