@@ -42,18 +42,19 @@ cleanup () {
 trap cleanup INT TERM EXIT
 
 NGHTTP2_REF="v$NEW_VERSION"
-NGHTTP2_TARBALL="nghttp2-$NEW_VERSION.tar.gz"
+NGHTTP2_TARBALL="nghttp2-$NEW_VERSION.tar.xz"
 
 cd "$WORKSPACE"
 
 echo "Fetching nghttp2 source archive"
 curl -sL -o "$NGHTTP2_TARBALL" "https://github.com/nghttp2/nghttp2/releases/download/$NGHTTP2_REF/$NGHTTP2_TARBALL"
 
-DEPOSITED_CHECKSUM=$(curl -sL "https://github.com/nghttp2/nghttp2/releases/download/$NGHTTP2_REF/checksums.txt" | grep "$NGHTTP2_TARBALL")
+echo "Verifying PGP signature"
+curl -sL "https://github.com/nghttp2/nghttp2/releases/download/${NGHTTP2_REF}/${NGHTTP2_TARBALL}.asc" \
+| gpgv --keyring "$BASE_DIR/tools/dep_updaters/nghttp.kbx" "$NGHTTP2_TARBALL"
 
-log_and_verify_sha256sum "nghttp2" "$NGHTTP2_TARBALL" "$DEPOSITED_CHECKSUM"
-
-gzip -dc "$NGHTTP2_TARBALL" | tar xf -
+echo "Unpacking archive"
+tar xJf "$NGHTTP2_TARBALL"
 rm "$NGHTTP2_TARBALL"
 mv "nghttp2-$NEW_VERSION" nghttp2
 
