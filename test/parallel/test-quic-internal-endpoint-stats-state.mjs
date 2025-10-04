@@ -23,20 +23,23 @@ const {
 const {
   kFinishClose,
   kPrivateConstructor,
-  kState,
 } = (await import('internal/quic/symbols')).default;
+const {
+  getQuicEndpointState,
+} = (await import('internal/quic/quic')).default;
 
 {
   const endpoint = new QuicEndpoint();
+  const state = getQuicEndpointState(endpoint);
 
-  strictEqual(endpoint[kState].isBound, false);
-  strictEqual(endpoint[kState].isReceiving, false);
-  strictEqual(endpoint[kState].isListening, false);
-  strictEqual(endpoint[kState].isClosing, false);
-  strictEqual(endpoint[kState].isBusy, false);
-  strictEqual(endpoint[kState].pendingCallbacks, 0n);
+  strictEqual(state.isBound, false);
+  strictEqual(state.isReceiving, false);
+  strictEqual(state.isListening, false);
+  strictEqual(state.isClosing, false);
+  strictEqual(state.isBusy, false);
+  strictEqual(state.pendingCallbacks, 0n);
 
-  deepStrictEqual(JSON.parse(JSON.stringify(endpoint[kState])), {
+  deepStrictEqual(JSON.parse(JSON.stringify(state)), {
     isBound: false,
     isReceiving: false,
     isListening: false,
@@ -46,23 +49,25 @@ const {
   });
 
   endpoint.busy = true;
-  strictEqual(endpoint[kState].isBusy, true);
+  strictEqual(state.isBusy, true);
   endpoint.busy = false;
-  strictEqual(endpoint[kState].isBusy, false);
-  strictEqual(typeof inspect(endpoint[kState]), 'string');
+  strictEqual(state.isBusy, false);
+  strictEqual(typeof inspect(state), 'string');
 }
 
 {
   // It is not bound after close.
   const endpoint = new QuicEndpoint();
-  endpoint[kState][kFinishClose]();
-  strictEqual(endpoint[kState].isBound, undefined);
+  const state = getQuicEndpointState(endpoint);
+  state[kFinishClose]();
+  strictEqual(state.isBound, undefined);
 }
 
 {
   // State constructor argument is ArrayBuffer
   const endpoint = new QuicEndpoint();
-  const StateCons = endpoint[kState].constructor;
+  const state = getQuicEndpointState(endpoint);
+  const StateCons = state.constructor;
   throws(() => new StateCons(kPrivateConstructor, 1), {
     code: 'ERR_INVALID_ARG_TYPE'
   });

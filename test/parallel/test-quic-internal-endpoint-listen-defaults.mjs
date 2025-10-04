@@ -17,16 +17,16 @@ if (!hasQuic) {
 // Import after the hasQuic check
 const { listen, QuicEndpoint } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
-const { kState } = (await import('internal/quic/symbols')).default;
+const { getQuicEndpointState } = (await import('internal/quic/quic')).default;
 
 const keys = createPrivateKey(readKey('agent1-key.pem'));
 const certs = readKey('agent1-cert.pem');
 
 const endpoint = new QuicEndpoint();
-
-ok(!endpoint[kState].isBound);
-ok(!endpoint[kState].isReceiving);
-ok(!endpoint[kState].isListening);
+const state = getQuicEndpointState(endpoint);
+ok(!state.isBound);
+ok(!state.isReceiving);
+ok(!state.isListening);
 
 strictEqual(endpoint.address, undefined);
 
@@ -42,10 +42,9 @@ await listen(() => {}, { keys, certs, endpoint });
 await rejects(listen(() => {}, { keys, certs, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
-
-ok(endpoint[kState].isBound);
-ok(endpoint[kState].isReceiving);
-ok(endpoint[kState].isListening);
+ok(state.isBound);
+ok(state.isReceiving);
+ok(state.isListening);
 
 const address = endpoint.address;
 ok(address instanceof SocketAddress);
