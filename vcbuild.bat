@@ -622,7 +622,6 @@ robocopy /e doc\api %config%\doc\api
   -i doc/api/*.md ^
   -i lib/*.js ^
   -o out/doc/api/ ^
-  --no-lint ^
   -c file://%~dp0\CHANGELOG.md ^
   -v %NODE_VERSION%
 
@@ -640,7 +639,7 @@ for /d %%F in (test\addons\??_*) do (
   rd /s /q %%F
 )
 :: generate
-"%npx_exe%" --prefix tools/doc doc-kit generate -t addon-verify -i "%~dp0doc\api\addons.md" -o "%~dp0test\addons" --no-lint
+"%npx_exe%" --prefix tools/doc doc-kit generate -t addon-verify -i "%~dp0doc\api\addons.md" -o "%~dp0test\addons"
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal
