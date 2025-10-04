@@ -79,6 +79,7 @@ class JSBinopReduction final {
       case CompareOperationHint::kBigInt64:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kStringOrOddball:
       case CompareOperationHint::kInternalizedString:
         break;
     }
@@ -98,6 +99,7 @@ class JSBinopReduction final {
       case CompareOperationHint::kSymbol:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kStringOrOddball:
       case CompareOperationHint::kInternalizedString:
         return false;
       case CompareOperationHint::kBigInt:
@@ -137,6 +139,13 @@ class JSBinopReduction final {
            BothInputsMaybe(Type::String());
   }
 
+  bool IsStringOrOddballCompareOperation() {
+    DCHECK_EQ(1, node_->op()->EffectOutputCount());
+    return (GetCompareOperationHint(node_) ==
+            CompareOperationHint::kStringOrOddball) &&
+           BothInputsMaybe(Type::StringOrOddball());
+  }
+
   bool IsSymbolCompareOperation() {
     DCHECK_EQ(1, node_->op()->EffectOutputCount());
     return (GetCompareOperationHint(node_) == CompareOperationHint::kSymbol) &&
@@ -148,7 +157,7 @@ class JSBinopReduction final {
   // minimum length.
   bool ShouldCreateConsString() {
     DCHECK_EQ(IrOpcode::kJSAdd, node_->opcode());
-    DCHECK(OneInputIs(Type::String()));
+    DCHECK(OneInputIs(Type::StringOrStringWrapper()));
     if (node_->InputAt(1)->opcode() == IrOpcode::kNewConsString) {
       // If the right hand side is a ConsString, then we can create a
       // ConsString. This doesn't work with the left hand side, since the right
@@ -157,13 +166,21 @@ class JSBinopReduction final {
       // that here.
       return true;
     }
-    if (BothInputsAre(Type::String()) ||
+    // We don't look inside JSStringWrappers, but if the other side is a long
+    // enough string, that's enough to trigger cons string creation.
+    if (BothInputsAre(Type::StringOrStringWrapper()) ||
         GetBinaryOperationHint(node_) == BinaryOperationHint::kString) {
       HeapObjectBinopMatcher m(node_);
       JSHeapBroker* broker = lowering_->broker();
       if (m.right().HasResolvedValue() && m.right().Ref(broker).IsString()) {
         StringRef right_string = m.right().Ref(broker).AsString();
         if (right_string.length() >= ConsString::kMinLength) return true;
+        if (right_string.length() > 0 &&
+            m.left().opcode() == IrOpcode::kNewConsString) {
+          // Left is a ConsString and right is not the empty string, so we can
+          // create a ConsString.
+          return true;
+        }
       }
       if (m.left().HasResolvedValue() && m.left().Ref(broker).IsString()) {
         StringRef left_string = m.left().Ref(broker).AsString();
@@ -266,6 +283,23 @@ class JSBinopReduction final {
       Node* right_input =
           graph()->NewNode(simplified()->CheckString(FeedbackSource()), right(),
                            effect(), control());
+      node_->ReplaceInput(1, right_input);
+      update_effect(right_input);
+    }
+  }
+
+  void CheckInputsToStringOrOddball() {
+    if (!left_type().Is(Type::StringOrOddball())) {
+      Node* left_input =
+          graph()->NewNode(simplified()->CheckStringOrOddball(FeedbackSource()),
+                           left(), effect(), control());
+      node_->ReplaceInput(0, left_input);
+      update_effect(left_input);
+    }
+    if (!right_type().Is(Type::StringOrOddball())) {
+      Node* right_input =
+          graph()->NewNode(simplified()->CheckStringOrOddball(FeedbackSource()),
+                           right(), effect(), control());
       node_->ReplaceInput(1, right_input);
       update_effect(right_input);
     }
@@ -684,7 +718,7 @@ Node* JSTypedLowering::UnwrapStringWrapper(Node* string_or_wrapper,
 
   Node* vfalse = efalse = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSPrimitiveWrapperValue()),
-      string_or_wrapper, *effect, *control);
+      string_or_wrapper, *effect, if_false);
 
   // The value read from a string wrapper is a string.
   vfalse = efalse = graph()->NewNode(common()->TypeGuard(Type::String()),
@@ -783,7 +817,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 
     // Generate the string addition.
     return GenerateStringAddition(node, left_string, right_string, context,
-                                  frame_state, &effect, &control, false);
+                                  frame_state, &effect, &control,
+                                  r.ShouldCreateConsString());
   }
 
   // We never get here when we had String feedback.
@@ -1041,7 +1076,10 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
   if (r.BothInputsAre(Type::String())) {
     return r.ChangeToPureOperator(simplified()->StringEqual());
   }
-
+  if (r.IsStringOrOddballCompareOperation()) {
+    r.CheckInputsToStringOrOddball();
+    return r.ChangeToPureOperator(simplified()->StringOrOddballStrictEqual());
+  }
   NumberOperationHint hint;
   BigIntOperationHint hint_bigint;
   if (r.BothInputsAre(Type::Signed32()) ||
@@ -1609,44 +1647,52 @@ Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
       gasm.SelectIf<Object>(gasm.ObjectIsSmi(value))
           .Then([&] { return value; })
           .Else([&] {
-            TNode<Map> value_map =
-                gasm.LoadMap(TNode<HeapObject>::UncheckedCast(value));
-            return gasm.SelectIf<Object>(gasm.IsContextCellMap(value_map))
-                .Then([&] {
-                  TNode<HeapObject> heap_value =
-                      TNode<HeapObject>::UncheckedCast(value);
-                  TNode<Int32T> state = gasm.LoadField<Int32T>(
-                      AccessBuilder::ForContextCellState(), heap_value);
-                  static_assert(ContextCell::State::kConst == 0);
-                  static_assert(ContextCell::State::kSmi == 1);
-                  return gasm
-                      .MachineSelectIf<Object>(gasm.Int32LessThanOrEqual(
-                          state, gasm.Int32Constant(ContextCell::kSmi)))
+            return gasm.SelectIf<Object>(gasm.IsTheHole(value))
+                .Then([&] { return value; })
+                .Else([&] {
+                  TNode<Map> value_map =
+                      gasm.LoadMap(TNode<HeapObject>::UncheckedCast(value));
+                  return gasm.SelectIf<Object>(gasm.IsContextCellMap(value_map))
                       .Then([&] {
-                        return gasm.LoadField<Object>(
-                            AccessBuilder::ForContextCellTaggedValue(),
-                            heap_value);
-                      })
-                      .Else([&] {
+                        TNode<HeapObject> heap_value =
+                            TNode<HeapObject>::UncheckedCast(value);
+                        TNode<Int32T> state = gasm.LoadField<Int32T>(
+                            AccessBuilder::ForContextCellState(), heap_value);
+                        static_assert(ContextCell::State::kConst == 0);
+                        static_assert(ContextCell::State::kSmi == 1);
                         return gasm
-                            .MachineSelectIf<Object>(gasm.Word32Equal(
-                                state, gasm.Int32Constant(ContextCell::kInt32)))
+                            .MachineSelectIf<Object>(gasm.Int32LessThanOrEqual(
+                                state, gasm.Int32Constant(ContextCell::kSmi)))
                             .Then([&] {
-                              return gasm.AllocateHeapNumber(gasm.LoadField(
-                                  AccessBuilder::ForContextCellInt32Value(),
-                                  value));
+                              return gasm.LoadField<Object>(
+                                  AccessBuilder::ForContextCellTaggedValue(),
+                                  heap_value);
                             })
                             .Else([&] {
-                              return gasm.AllocateHeapNumber(gasm.LoadField(
-                                  AccessBuilder::ForContextCellFloat64Value(),
-                                  value));
+                              return gasm
+                                  .MachineSelectIf<Object>(gasm.Word32Equal(
+                                      state,
+                                      gasm.Int32Constant(ContextCell::kInt32)))
+                                  .Then([&] {
+                                    return gasm.LoadField<Number>(
+                                        AccessBuilder::
+                                            ForContextCellInt32Value(),
+                                        heap_value);
+                                  })
+                                  .Else([&] {
+                                    return gasm.LoadField<Number>(
+                                        AccessBuilder::
+                                            ForContextCellFloat64Value(),
+                                        heap_value);
+                                  })
+                                  .Value();
                             })
                             .Value();
                       })
+                      .Else([&] { return value; })
+                      .ExpectFalse()
                       .Value();
                 })
-                .Else([&] { return value; })
-                .ExpectFalse()
                 .Value();
           })
           .Value();
@@ -1682,6 +1728,7 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
+  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
   JSGraphAssembler gasm(broker(), jsgraph(), jsgraph()->zone(),
                         BranchSemantics::kJS);
   gasm.InitializeEffectControl(effect, control);
@@ -1705,60 +1752,27 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
                         new_value);
       })
       .Else([&] {
-        TNode<Map> old_value_map =
-            gasm.LoadMap(TNode<HeapObject>::UncheckedCast(old_value));
-        gasm.If(gasm.IsContextCellMap(old_value_map))
+        gasm.If(gasm.IsTheHole(old_value))
             .Then([&] {
-              TNode<ContextCell> cell =
-                  TNode<ContextCell>::UncheckedCast(old_value);
-              TNode<Int32T> state = gasm.LoadField<Int32T>(
-                  AccessBuilder::ForContextCellState(), cell);
-              gasm
-                  .MachineIf(gasm.Word32Equal(
-                      state, gasm.Int32Constant(ContextCell::kFloat64)))
-                  .Then([&] {
-                    Node* number_value = gasm.CheckNumber(new_value);
-                    gasm.StoreField(AccessBuilder::ForContextCellFloat64Value(),
-                                    cell, number_value);
-                  })
-                  .Else([&] {
-                    gasm
-                        .MachineIf(gasm.Word32Equal(
-                            state, gasm.Int32Constant(ContextCell::kInt32)))
-                        .Then([&] {
-                          Node* number_value =
-                              gasm.CheckNumberFitsInt32(new_value);
-                          gasm.StoreField(
-                              AccessBuilder::ForContextCellInt32Value(), cell,
-                              number_value);
-                        })
-                        .Else([&] {
-                          gasm
-                              .MachineIf(gasm.Word32Equal(
-                                  state, gasm.Int32Constant(ContextCell::kSmi)))
-                              .Then([&] {
-                                Node* smi_value = gasm.CheckSmi(new_value);
-                                gasm.StoreField(
-                                    AccessBuilder::ForContextCellTaggedValue(),
-                                    cell, smi_value);
-                              })
-                              .Else([&] {
-                                TNode<Object> tagged_value = gasm.LoadField<
-                                    Object>(
-                                    AccessBuilder::ForContextCellTaggedValue(),
-                                    cell);
-                                gasm.CheckIf(gasm.ReferenceEqual(tagged_value,
-                                                                 new_value),
-                                             DeoptimizeReason::kWrongValue);
-                              });
-                        });
-                  });
-            })
-            .Else([&] {
               gasm.StoreField(AccessBuilder::ForContextSlot(access.index()),
                               context, new_value);
             })
-            .ExpectFalse();
+            .Else([&] {
+              TNode<Map> old_value_map =
+                  gasm.LoadMap(TNode<HeapObject>::UncheckedCast(old_value));
+              gasm.If(gasm.IsContextCellMap(old_value_map))
+                  .Then([&] {
+                    gasm.DetachContextCell(context, new_value,
+                                           static_cast<int>(access.index()),
+                                           frame_state);
+                  })
+                  .Else([&] {
+                    gasm.StoreField(
+                        AccessBuilder::ForContextSlot(access.index()), context,
+                        new_value);
+                  })
+                  .ExpectFalse();
+            });
       });
 
   ReplaceWithValue(node, gasm.effect(), gasm.effect(), gasm.control());
@@ -1913,12 +1927,10 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
   node->InsertInput(zone, cursor++, entry_node);
   node->InsertInput(zone, cursor++, argc_node);
 
-  static const int kReturnCount = 1;
   const char* debug_name = Builtins::name(builtin);
   Operator::Properties properties = node->op()->properties();
-  auto call_descriptor = Linkage::GetCEntryStubCallDescriptor(
-      zone, kReturnCount, argc, debug_name, properties, flags,
-      StackArgumentOrder::kJS);
+  auto call_descriptor = Linkage::GetCPPBuiltinCallDescriptor(
+      zone, argc, debug_name, properties, flags);
 
   NodeProperties::ChangeOp(node, jsgraph->common()->Call(call_descriptor));
 }
@@ -2095,10 +2107,16 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     }
 
     // Load the context from the {target}.
-    Node* context = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSFunctionContext()), target,
-        effect, control);
-    NodeProperties::ReplaceContextInput(node, context);
+    if (function) {
+      NodeProperties::ReplaceContextInput(
+          node,
+          jsgraph()->ConstantNoHole(function->context(broker()), broker()));
+    } else {
+      Node* context = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSFunctionContext()),
+          target, effect, control);
+      NodeProperties::ReplaceContextInput(node, context);
+    }
 
     // Update the effect dependency for the {node}.
     NodeProperties::ReplaceEffectInput(node, effect);

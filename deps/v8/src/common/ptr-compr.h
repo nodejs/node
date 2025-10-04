@@ -83,7 +83,11 @@ class TrustedCage : public AllStatic {
   static V8_EXPORT_PRIVATE Address base_non_inlined();
   static V8_EXPORT_PRIVATE void set_base_non_inlined(Address base);
 
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   static V8_EXPORT_PRIVATE uintptr_t base_ V8_CONSTINIT;
+#else
+  static thread_local uintptr_t base_ V8_CONSTINIT;
+#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 };
 using TrustedSpaceCompressionScheme = V8HeapCompressionSchemeImpl<TrustedCage>;
 #else
@@ -204,7 +208,7 @@ static inline V ReadMaybeUnalignedValue(Address p) {
 #endif
   // Bug(v8:8875) Double fields may be unaligned.
   constexpr bool unaligned_double_field =
-      std::is_same<V, double>::value && kDoubleSize > kTaggedSize;
+      std::is_same_v<V, double> && kDoubleSize > kTaggedSize;
   if (unaligned_double_field || v8_pointer_compression_unaligned) {
     return base::ReadUnalignedValue<V>(p);
   } else {
@@ -222,7 +226,7 @@ static inline void WriteMaybeUnalignedValue(Address p, V value) {
 #endif
   // Bug(v8:8875) Double fields may be unaligned.
   constexpr bool unaligned_double_field =
-      std::is_same<V, double>::value && kDoubleSize > kTaggedSize;
+      std::is_same_v<V, double> && kDoubleSize > kTaggedSize;
   if (unaligned_double_field || v8_pointer_compression_unaligned) {
     base::WriteUnalignedValue<V>(p, value);
   } else {
@@ -248,6 +252,7 @@ class V8_NODISCARD PtrComprCageAccessScope final {
 #endif  // V8_EXTERNAL_CODE_SPACE
   IsolateGroup* saved_current_isolate_group_;
 #ifdef V8_ENABLE_SANDBOX
+  const Address saved_trusted_cage_base_;
   Sandbox* saved_current_sandbox_;
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 };

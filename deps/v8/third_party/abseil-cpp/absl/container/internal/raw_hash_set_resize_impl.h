@@ -52,7 +52,6 @@ struct ProbedItemImpl {
   static constexpr IntType kMaxNewBits = kMaxOldBits + 1;
   static constexpr IntType kMaxNewCapacity = (IntType{1} << kMaxNewBits) - 1;
 
-  static constexpr IntType kH2Shift = (kTotalBits - kH2Bits);
   static_assert(kMaxNewBits + kMaxOldBits + kH2Bits == kTotalBits);
 
   ProbedItemImpl() = default;

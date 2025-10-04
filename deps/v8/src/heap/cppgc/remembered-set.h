@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_CPPGC_REMEMBERED_SET_H_
 #define V8_HEAP_CPPGC_REMEMBERED_SET_H_
 
+#include "include/v8config.h"
+
 #if defined(CPPGC_YOUNG_GENERATION)
 
 #include <set>

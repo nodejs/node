@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/regexp/regexp-macro-assembler.h"
-
 #include "src/codegen/assembler.h"
 #include "src/codegen/label.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/pointer-authentication.h"
 #include "src/execution/simulator.h"
+#include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/regexp/special-case.h"
 #include "src/strings/unicode-inl.h"
@@ -30,6 +29,11 @@ RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone)
 
 bool RegExpMacroAssembler::has_backtrack_limit() const {
   return backtrack_limit_ != JSRegExp::kNoBacktrackLimit;
+}
+
+bool RegExpMacroAssembler::CanReadUnaligned() const {
+  return kUnalignedReadSupported && v8_flags.enable_regexp_unaligned_accesses &&
+         !slow_safe();
 }
 
 // static
@@ -236,11 +240,6 @@ void RegExpMacroAssembler::CheckNotInSurrogatePair(int cp_offset,
   Bind(&ok);
 }
 
-void RegExpMacroAssembler::CheckPosition(int cp_offset,
-                                         Label* on_outside_input) {
-  LoadCurrentCharacter(cp_offset, on_outside_input, true);
-}
-
 void RegExpMacroAssembler::LoadCurrentCharacter(int cp_offset,
                                                 Label* on_end_of_input,
                                                 bool check_bounds,
@@ -273,10 +272,86 @@ void NativeRegExpMacroAssembler::LoadCurrentCharacterImpl(
   LoadCurrentCharacterUnchecked(cp_offset, characters);
 }
 
-bool NativeRegExpMacroAssembler::CanReadUnaligned() const {
-  return v8_flags.enable_regexp_unaligned_accesses && !slow_safe();
+void RegExpMacroAssembler::SkipUntilCharAnd(int cp_offset, int advance_by,
+                                            unsigned character, unsigned mask,
+                                            int eats_at_least, Label* on_match,
+                                            Label* on_no_match) {
+  Label loop;
+  Bind(&loop);
+  LoadCurrentCharacter(cp_offset, on_no_match, true, 1, eats_at_least);
+  CheckCharacterAfterAnd(character, mask, on_match);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&loop);
 }
 
+void RegExpMacroAssembler::SkipUntilChar(int cp_offset, int advance_by,
+                                         unsigned character, Label* on_match,
+                                         Label* on_no_match) {
+  Label loop;
+  Bind(&loop);
+  LoadCurrentCharacter(cp_offset, on_no_match, true);
+  CheckCharacter(character, on_match);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&loop);
+}
+
+void RegExpMacroAssembler::SkipUntilCharPosChecked(
+    int cp_offset, int advance_by, unsigned character, int eats_at_least,
+    Label* on_match, Label* on_no_match) {
+  Label loop;
+  Bind(&loop);
+  LoadCurrentCharacter(cp_offset, on_no_match, true, 1, eats_at_least);
+  CheckCharacter(character, on_match);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&loop);
+}
+
+void RegExpMacroAssembler::SkipUntilCharOrChar(int cp_offset, int advance_by,
+                                               unsigned char1, unsigned char2,
+                                               Label* on_match,
+                                               Label* on_no_match) {
+  Label loop;
+  Bind(&loop);
+  LoadCurrentCharacter(cp_offset, on_no_match, true);
+  CheckCharacter(char1, on_match);
+  CheckCharacter(char2, on_match);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&loop);
+}
+
+void RegExpMacroAssembler::SkipUntilGtOrNotBitInTable(
+    int cp_offset, int advance_by, unsigned character, Handle<ByteArray> table,
+    Label* on_match, Label* on_no_match) {
+  DCHECK(base::IsInRange(character, std::numeric_limits<base::uc16>::min(),
+                         std::numeric_limits<base::uc16>::max()));
+  Label loop, advance_and_continue;
+  Bind(&loop);
+  LoadCurrentCharacter(cp_offset, on_no_match, true);
+  CheckCharacterGT(character, on_match);
+  CheckBitInTable(table, &advance_and_continue);
+  GoTo(on_match);
+  Bind(&advance_and_continue);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&loop);
+}
+
+void RegExpMacroAssembler::SkipUntilOneOfMasked(
+    int cp_offset, int advance_by, unsigned both_chars, unsigned both_mask,
+    int max_offset, unsigned chars1, unsigned mask1, unsigned chars2,
+    unsigned mask2, Label* on_match1, Label* on_match2, Label* on_failure) {
+  Label loop, found;
+  Bind(&loop);
+  CheckPosition(max_offset, on_failure);
+  LoadCurrentCharacter(cp_offset, on_failure, false, 4);
+  CheckCharacterAfterAnd(both_chars, both_mask, &found);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&loop);
+  Bind(&found);
+  CheckCharacterAfterAnd(chars1, mask1, on_match1);
+  CheckCharacterAfterAnd(chars2, mask2, on_match2);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&loop);
+}
 #ifndef COMPILING_IRREGEXP_FOR_EXTERNAL_EMBEDDER
 
 // This method may only be called after an interrupt.
@@ -331,7 +406,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     } else if (check.InterruptRequested()) {
       AllowGarbageCollection yes_gc;
       Tagged<Object> result = isolate->stack_guard()->HandleInterrupts();
-      if (IsException(result, isolate)) return_value = EXCEPTION;
+      if (IsExceptionHole(result, isolate)) return_value = EXCEPTION;
     }
 
     // We are not using operator == here because it does a slow DCHECK
@@ -419,9 +494,8 @@ int NativeRegExpMacroAssembler::ExecuteForTesting(
     const uint8_t* input_end, int* output, int output_size, Isolate* isolate,
     Tagged<JSRegExp> regexp) {
   Tagged<RegExpData> data = regexp->data(isolate);
-  SBXCHECK(Is<IrRegExpData>(data));
   return Execute(input, start_offset, input_start, input_end, output,
-                 output_size, isolate, Cast<IrRegExpData>(data));
+                 output_size, isolate, SbxCast<IrRegExpData>(data));
 }
 
 // Returns a {Result} sentinel, or the number of successful matches.
@@ -442,9 +516,9 @@ int NativeRegExpMacroAssembler::Execute(
           int call_origin, Isolate* isolate, Address regexp_data);
 
   auto fn = GeneratedCode<RegexpMatcherSig>::FromCode(isolate, code);
-  int result =
-      fn.Call(input.ptr(), start_offset, input_start, input_end, output,
-              output_size, call_origin, isolate, regexp_data.ptr());
+  int result = fn.CallSandboxed(input.ptr(), start_offset, input_start,
+                                input_end, output, output_size, call_origin,
+                                isolate, regexp_data.ptr());
   DCHECK_GE(result, SMALLEST_REGEXP_RESULT);
 
   if (result == EXCEPTION && !isolate->has_exception()) {

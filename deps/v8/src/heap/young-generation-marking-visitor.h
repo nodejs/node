@@ -109,7 +109,7 @@ class YoungGenerationMarkingVisitor final
 
  private:
   bool TryMark(Tagged<HeapObject> obj) {
-    return MarkBit::From(obj).Set<AccessMode::ATOMIC>();
+    return MarkBit::From(isolate_, obj).template Set<AccessMode::ATOMIC>();
   }
 
   template <typename TSlot>

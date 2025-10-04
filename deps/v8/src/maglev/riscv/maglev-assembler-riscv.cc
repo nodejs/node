@@ -35,8 +35,8 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   if (v8_flags.single_generation) {
     alloc_type = AllocationType::kOld;
   }
-  ExternalReference top = SpaceAllocationTopAddress(isolate, alloc_type);
-  ExternalReference limit = SpaceAllocationLimitAddress(isolate, alloc_type);
+  IsolateFieldId top = SpaceAllocationTopAddress(alloc_type);
+  IsolateFieldId limit = SpaceAllocationLimitAddress(alloc_type);
 
   ZoneLabelRef done(masm);
   MaglevAssembler::TemporaryRegisterScope temps(masm);
@@ -48,9 +48,9 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   // {size_in_bytes}.
   Register new_top = object;
   // Check if there is enough space.
-  __ LoadWord(object, __ ExternalReferenceAsOperand(top, scratch));
+  __ LoadWord(object, __ ExternalReferenceAsOperand(top));
   __ AddWord(new_top, object, Operand(size_in_bytes));
-  __ LoadWord(scratch, __ ExternalReferenceAsOperand(limit, scratch));
+  __ LoadWord(scratch, __ ExternalReferenceAsOperand(limit));
 
   // Call runtime if new_top >= limit.
   __ MacroAssembler::Branch(
@@ -65,7 +65,23 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
       ge, new_top, Operand(scratch));
 
   // Store new top and tag object.
-  __ Move(__ ExternalReferenceAsOperand(top, scratch), new_top);
+  __ Move(__ ExternalReferenceAsOperand(top), new_top);
+#if V8_VERIFY_WRITE_BARRIERS
+  if (v8_flags.verify_write_barriers) {
+    ExternalReference last_young_allocation =
+        ExternalReference::last_young_allocation_address(isolate);
+
+    if (alloc_type == AllocationType::kYoung) {
+      __ SubWord(object, object, size_in_bytes);
+      __ StoreWord(object, __ ExternalReferenceAsOperand(last_young_allocation,
+                                                         scratch));
+      __ AddWord(object, object, size_in_bytes);
+    } else {
+      __ StoreWord(zero_reg, __ ExternalReferenceAsOperand(
+                                 last_young_allocation, scratch));
+    }
+  }
+#endif  // V8_VERIFY_WRITE_BARRIERS
   SubSizeAndTagObject(masm, object, size_in_bytes);
   __ bind(*done);
 }
@@ -230,22 +246,20 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
                                                  Label* eager_deopt_entry,
                                                  size_t lazy_deopt_count,
                                                  Label* lazy_deopt_entry) {
+  // On most platforms, we emit two shared tail calls to the eager and lazy
+  // deoptimization builtins and the individual exits just call them to save
+  // space. We do not currently do this on RISC-V, so we don't bind the two
+  // provided labels here. This matches how it is done in the RISC-V variant
+  // of CodeGenerator::PrepareForDeoptimizationExits.
+
+  // We do have to avoid getting the trampoline pool emitted in the middle
+  // of the deoptimization exits, because it destroys our ability to compute
+  // the deoptimization index based on the 'pc' and the offset of the start
+  // of the exits section.
   ForceConstantPoolEmissionWithoutJump();
-
-  DCHECK_GE(Deoptimizer::kLazyDeoptExitSize, Deoptimizer::kEagerDeoptExitSize);
-
-  MaglevAssembler::TemporaryRegisterScope scope(this);
-  Register scratch = scope.AcquireScratch();
-  if (eager_deopt_count > 0) {
-    bind(eager_deopt_entry);
-    LoadEntryFromBuiltin(Builtin::kDeoptimizationEntry_Eager, scratch);
-    MacroAssembler::Jump(scratch);
-  }
-  if (lazy_deopt_count > 0) {
-    bind(lazy_deopt_entry);
-    LoadEntryFromBuiltin(Builtin::kDeoptimizationEntry_Lazy, scratch);
-    MacroAssembler::Jump(scratch);
-  }
+  size_t total_size = eager_deopt_count * Deoptimizer::kEagerDeoptExitSize +
+                      lazy_deopt_count * Deoptimizer::kLazyDeoptExitSize;
+  CheckTrampolinePoolQuick(static_cast<int>(total_size));
 }
 
 void MaglevAssembler::LoadSingleCharacterString(Register result,
@@ -329,7 +343,7 @@ void MaglevAssembler::IsObjectType(Register object, Register scratch1,
         InstanceTypeChecker::UniqueMapOfInstanceType(type);
     Tagged_t expected_ptr = ReadOnlyRootPtr(*expected);
     li(scratch2, expected_ptr);
-    Sll32(scratch2, scratch2, Operand(0));
+    SignExtendWord(scratch2, scratch2);
     MacroAssembler::Branch(&ConditionMet, Condition::kEqual, scratch1,
                            Operand(scratch2), Label::kNear);
   } else {
@@ -350,6 +364,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     RegisterSnapshot& register_snapshot, Register result, Register string,
     Register index, Register instance_type, [[maybe_unused]] Register scratch2,
     Label* result_fits_one_byte) {
+  ASM_CODE_COMMENT(this);
   ZoneLabelRef done(this);
   Label seq_string;
   Label cons_string;
@@ -464,18 +479,14 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // The result of one-byte string will be the same for both modes
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
-    AddWord(result, string, Operand(index));
-    Lbu(result, MemOperand(result, OFFSET_OF_DATA_START(SeqOneByteString) -
-                                       kHeapObjectTag));
+    SeqOneByteStringCharCodeAt(result, string, index);
     MacroAssembler::Branch(result_fits_one_byte);
 
     bind(&two_byte_string);
     // {instance_type} is unused from this point, so we can use as scratch.
     Register scratch = instance_type;
 
-    Register scaled_index = scratch;
-    Sll32(scaled_index, index, Operand(1));
-    AddWord(result, string, Operand(scaled_index));
+    CalcScaledAddress(result, string, index, 1);
     Lhu(result, MemOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString) -
                                        kHeapObjectTag));
 
@@ -492,8 +503,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                              Label::kNear);
 
       Register second_code_point = scratch;
-      Sll32(second_code_point, index, Operand(1));
-      AddWord(second_code_point, string, second_code_point);
+      CalcScaledAddress(second_code_point, string, index, 1);
       Lhu(second_code_point,
           MemOperand(second_code_point,
                      OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
@@ -525,6 +535,42 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       Li(index, 0xdeadbeef);
     }
   }
+}
+
+void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
+                                                 Register string,
+                                                 Register index) {
+  ASM_CODE_COMMENT(this);
+  if (v8_flags.debug_code) {
+    TemporaryRegisterScope scope(this);
+    Register scratch = scope.AcquireScratch();
+    // Check if {string} is a string.
+    AssertNotSmi(string);
+    LoadMap(scratch, string);
+    Check(CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                                   LAST_STRING_TYPE),
+          AbortReason::kUnexpectedValue, MaglevAssembler::GetFlagsRegister(),
+          Operand(zero_reg));
+    // Check if {string} is a sequential one-byte string.
+    AndInt32(scratch, kStringRepresentationAndEncodingMask);
+    CompareInt32AndAssert(scratch, kSeqOneByteStringTag, kEqual,
+                          AbortReason::kUnexpectedValue);
+    LoadInt32(scratch, FieldMemOperand(string, offsetof(String, length_)));
+    // Use kMaglevFlagsRegister to avoid no enough scratch reg.
+    scope.IncludeScratch({kMaglevFlagsRegister});
+    CompareInt32AndAssert(index, scratch, kUnsignedLessThan,
+                          AbortReason::kUnexpectedValue);
+  }
+  TemporaryRegisterScope scope(this);
+  Register scratch = scope.AcquireScratch();
+  AddWord(scratch, index,
+          Operand(OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag));
+  AddWord(scratch, string, Operand(scratch));
+  Lbu(result, MemOperand(scratch, 0));
+}
+
+void MaglevAssembler::CountLeadingZerosInt32(Register dst, Register src) {
+  Clz32(dst, src);
 }
 
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
@@ -623,6 +669,14 @@ void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
   CompareF64(rcmp, EQ, value, converted_back);  // rcmp is 0 if not equal
   MacroAssembler::Branch(fail, eq, rcmp, Operand(zero_reg));
   Jump(success);
+}
+
+void MaglevAssembler::Move(ExternalReference dst, int32_t imm) {
+  TemporaryRegisterScope temps(this);
+  Register scratch_imm = temps.AcquireScratch();
+  Register scratch_dst = temps.AcquireScratch();
+  Move(scratch_imm, imm);
+  StoreWord(scratch_imm, ExternalReferenceAsOperand(dst, scratch_dst));
 }
 
 }  // namespace maglev

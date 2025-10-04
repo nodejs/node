@@ -47,6 +47,14 @@ Handle<Smi> LoadHandler::LoadSlow(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> LoadHandler::LoadGeneric(Isolate* isolate) {
+  return handle(LoadGeneric(), isolate);
+}
+
+Tagged<Smi> LoadHandler::LoadGeneric() {
+  return Smi::FromInt(KindBits::encode(Kind::kGeneric));
+}
+
 Handle<Smi> LoadHandler::LoadField(Isolate* isolate, FieldIndex field_index) {
   int config = KindBits::encode(Kind::kField) |
                IsInobjectBits::encode(field_index.is_inobject()) |
@@ -113,6 +121,17 @@ Handle<Smi> LoadHandler::LoadElement(Isolate* isolate,
                ElementsKindBits::encode(elements_kind) |
                AllowHandlingHole::encode(LoadModeHandlesHoles(load_mode)) |
                IsJsArrayBits::encode(is_js_array);
+  return handle(Smi::FromInt(config), isolate);
+}
+
+Handle<Smi> LoadHandler::TransitionAndLoadElement(
+    Isolate* isolate, ElementsKind kind_after_transition,
+    KeyedAccessLoadMode load_mode) {
+  int config = KindBits::encode(Kind::kElementWithTransition) |
+               AllowOutOfBoundsBits::encode(LoadModeHandlesOOB(load_mode)) |
+               ElementsKindBits::encode(kind_after_transition) |
+               AllowHandlingHole::encode(LoadModeHandlesHoles(load_mode)) |
+               IsJsArrayBits::encode(true);
   return handle(Smi::FromInt(config), isolate);
 }
 
@@ -207,6 +226,14 @@ Handle<Smi> StoreHandler::StoreSlow(Isolate* isolate,
   int config = KindBits::encode(Kind::kSlow) |
                KeyedAccessStoreModeBits::encode(store_mode);
   return handle(Smi::FromInt(config), isolate);
+}
+
+Handle<Smi> StoreHandler::StoreGeneric(Isolate* isolate) {
+  return handle(StoreGeneric(), isolate);
+}
+
+Tagged<Smi> StoreHandler::StoreGeneric() {
+  return Smi::FromInt(KindBits::encode(Kind::kGeneric));
 }
 
 Handle<Smi> StoreHandler::StoreProxy(Isolate* isolate) {

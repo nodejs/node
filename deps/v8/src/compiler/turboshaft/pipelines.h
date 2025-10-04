@@ -140,7 +140,7 @@ class V8_EXPORT_PRIVATE Pipeline {
     BeginPhaseKind("V8.TFGraphCreation");
     turboshaft::Tracing::Scope tracing_scope(data_->info());
     std::optional<BailoutReason> bailout =
-        Run<turboshaft::MaglevGraphBuildingPhase>(linkage);
+        Run<turboshaft::TurbolevGraphBuildingPhase>(linkage);
     EndPhaseKind();
 
     if (bailout.has_value()) {
@@ -184,7 +184,8 @@ class V8_EXPORT_PRIVATE Pipeline {
     // complete and cleaned-up, move its reducer into the beginning of the
     // `MachineLoweringPhase` since we can reuse the `DataViewLoweringReducer`
     // there and avoid a separate phase.
-    if (v8_flags.turboshaft_wasm_in_js_inlining) {
+    if (v8_flags.turboshaft_wasm_in_js_inlining ||
+        v8_flags.turbolev_inline_js_wasm_wrappers) {
       RUN_MAYBE_ABORT(turboshaft::WasmInJSInliningPhase);
     }
 #endif  // !V8_ENABLE_WEBASSEMBLY
@@ -490,7 +491,7 @@ class V8_EXPORT_PRIVATE Pipeline {
       JsonPrintAllSourceWithPositions(json_of, data_->info(), data_->isolate());
       if (info()->has_bytecode_array()) {
         json_of << ",\n";
-        JsonPrintAllBytecodeSources(json_of, info());
+        JsonPrintAllBytecodeSources(json_of, info(), data_->isolate());
       }
       json_of << "\n}";
     }

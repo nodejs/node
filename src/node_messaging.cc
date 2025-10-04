@@ -254,7 +254,7 @@ namespace {
 
 MaybeLocal<Function> GetEmitMessageFunction(Local<Context> context,
                                             IsolateData* isolate_data) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<Object> per_context_bindings;
   Local<Value> emit_message_val;
   if (!GetPerContextExports(context, isolate_data)
@@ -269,7 +269,7 @@ MaybeLocal<Function> GetEmitMessageFunction(Local<Context> context,
 }
 
 MaybeLocal<Function> GetDOMException(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<Object> per_context_bindings;
   Local<Value> domexception_ctor_val;
   if (!GetPerContextExports(context).ToLocal(&per_context_bindings) ||
@@ -284,7 +284,7 @@ MaybeLocal<Function> GetDOMException(Local<Context> context) {
 }
 
 void ThrowDataCloneException(Local<Context> context, Local<String> message) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<Value> argv[] = {message,
                          FIXED_ONE_BYTE_STRING(isolate, "DataCloneError")};
   Local<Value> exception;
@@ -1477,7 +1477,7 @@ BaseObjectPtr<BaseObject> JSTransferable::Data::Deserialize(
 
 Maybe<bool> JSTransferable::Data::FinalizeTransferWrite(
     Local<Context> context, ValueSerializer* serializer) {
-  HandleScope handle_scope(context->GetIsolate());
+  HandleScope handle_scope(Isolate::GetCurrent());
   auto ret = serializer->WriteValue(context, PersistentToLocal::Strong(data_));
   data_.Reset();
   return ret;

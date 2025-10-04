@@ -4,7 +4,8 @@ URL: https://github.com/abseil/abseil-cpp
 License: Apache-2.0
 License File: LICENSE
 Version: N/A
-Revision: e5e2a9de560c8190042bcf7a2425b2213c0a020f
+Revision: aef36c342b796a9fc932ea06ecbe3ce26bbd05a6
+Update Mechanism: Manual
 Security Critical: yes
 Shipped: yes
 

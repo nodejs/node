@@ -28,7 +28,7 @@ void FreeListCategory::Unlink(FreeList* owner) {
 
 void FreeListCategory::Reset(FreeList* owner) {
   Unlink(owner);
-  set_top(FreeSpace());
+  set_top(Tagged<FreeSpace>());
   available_ = 0;
 }
 
@@ -36,10 +36,11 @@ Tagged<FreeSpace> FreeListCategory::PickNodeFromList(size_t minimum_size,
                                                      size_t* node_size) {
   Tagged<FreeSpace> node = top();
   DCHECK(!node.is_null());
-  DCHECK(MemoryChunk::FromHeapObject(node)->CanAllocate());
+  DCHECK(MemoryChunkMetadata::FromHeapObject(Isolate::Current(), node)
+             ->CanAllocateOnChunk());
   if (static_cast<size_t>(node->Size()) < minimum_size) {
     *node_size = 0;
-    return FreeSpace();
+    return Tagged<FreeSpace>();
   }
   set_top(node->next());
   *node_size = node->Size();
@@ -47,12 +48,14 @@ Tagged<FreeSpace> FreeListCategory::PickNodeFromList(size_t minimum_size,
   return node;
 }
 
-Tagged<FreeSpace> FreeListCategory::SearchForNodeInList(size_t minimum_size,
+Tagged<FreeSpace> FreeListCategory::SearchForNodeInList(const Heap* heap,
+                                                        size_t minimum_size,
                                                         size_t* node_size) {
   Tagged<FreeSpace> prev_non_evac_node;
   for (Tagged<FreeSpace> cur_node = top(); !cur_node.is_null();
        cur_node = cur_node->next()) {
-    DCHECK(MemoryChunk::FromHeapObject(cur_node)->CanAllocate());
+    DCHECK(MemoryChunkMetadata::FromHeapObject(heap->isolate(), cur_node)
+               ->CanAllocateOnChunk());
     size_t size = cur_node->size(kRelaxedLoad);
     if (size >= minimum_size) {
       DCHECK_GE(available_, size);
@@ -61,14 +64,17 @@ Tagged<FreeSpace> FreeListCategory::SearchForNodeInList(size_t minimum_size,
         set_top(cur_node->next());
       }
       if (!prev_non_evac_node.is_null()) {
-        if (MemoryChunk::FromHeapObject(prev_non_evac_node)->executable()) {
+        if (MemoryChunk::FromHeapObject(prev_non_evac_node)
+                ->Metadata()
+                ->is_executable()) {
           WritableJitPage jit_page(prev_non_evac_node->address(),
                                    prev_non_evac_node->Size());
           WritableFreeSpace free_space = jit_page.FreeRange(
               prev_non_evac_node->address(), prev_non_evac_node->Size());
-          prev_non_evac_node->SetNext(free_space, cur_node->next());
+          prev_non_evac_node->SetNext(heap, free_space, cur_node->next());
         } else {
           prev_non_evac_node->SetNext(
+              heap,
               WritableFreeSpace::ForNonExecutableMemory(
                   prev_non_evac_node->address(), prev_non_evac_node->Size()),
               cur_node->next());
@@ -80,15 +86,16 @@ Tagged<FreeSpace> FreeListCategory::SearchForNodeInList(size_t minimum_size,
 
     prev_non_evac_node = cur_node;
   }
-  return FreeSpace();
+  return Tagged<FreeSpace>();
 }
 
-void FreeListCategory::Free(const WritableFreeSpace& writable_free_space,
+void FreeListCategory::Free(const Heap* heap,
+                            const WritableFreeSpace& writable_free_space,
                             FreeMode mode, FreeList* owner) {
   Tagged<FreeSpace> free_space =
       Cast<FreeSpace>(HeapObject::FromAddress(writable_free_space.Address()));
   DCHECK_EQ(free_space->Size(), writable_free_space.Size());
-  free_space->SetNext(writable_free_space, top());
+  free_space->SetNext(heap, writable_free_space, top());
   set_top(free_space);
   size_t size_in_bytes = writable_free_space.Size();
   available_ += size_in_bytes;
@@ -140,7 +147,7 @@ Tagged<FreeSpace> FreeList::TryFindNodeIn(FreeListCategoryType type,
                                           size_t minimum_size,
                                           size_t* node_size) {
   FreeListCategory* category = categories_[type];
-  if (category == nullptr) return FreeSpace();
+  if (category == nullptr) return Tagged<FreeSpace>();
   Tagged<FreeSpace> node = category->PickNodeFromList(minimum_size, node_size);
   if (!node.is_null()) {
     DecreaseAvailableBytes(*node_size);
@@ -152,14 +159,15 @@ Tagged<FreeSpace> FreeList::TryFindNodeIn(FreeListCategoryType type,
   return node;
 }
 
-Tagged<FreeSpace> FreeList::SearchForNodeInList(FreeListCategoryType type,
+Tagged<FreeSpace> FreeList::SearchForNodeInList(const Heap* heap,
+                                                FreeListCategoryType type,
                                                 size_t minimum_size,
                                                 size_t* node_size) {
   FreeListCategoryIterator it(this, type);
   Tagged<FreeSpace> node;
   while (it.HasNext()) {
     FreeListCategory* current = it.Next();
-    node = current->SearchForNodeInList(minimum_size, node_size);
+    node = current->SearchForNodeInList(heap, minimum_size, node_size);
     if (!node.is_null()) {
       DecreaseAvailableBytes(*node_size);
       VerifyAvailable();
@@ -172,10 +180,11 @@ Tagged<FreeSpace> FreeList::SearchForNodeInList(FreeListCategoryType type,
   return node;
 }
 
-size_t FreeList::Free(const WritableFreeSpace& free_space, FreeMode mode) {
+size_t FreeList::Free(const Isolate* isolate,
+                      const WritableFreeSpace& free_space, FreeMode mode) {
   Address start = free_space.Address();
   size_t size_in_bytes = free_space.Size();
-  PageMetadata* page = PageMetadata::FromAddress(start);
+  PageMetadata* page = PageMetadata::FromAddress(isolate, start);
   page->DecreaseAllocatedBytes(size_in_bytes);
 
   // Blocks have to be a minimum size to hold free list items.
@@ -187,7 +196,7 @@ size_t FreeList::Free(const WritableFreeSpace& free_space, FreeMode mode) {
   // Insert other blocks at the head of a free list of the appropriate
   // magnitude.
   FreeListCategoryType type = SelectFreeListCategoryType(size_in_bytes);
-  page->free_list_category(type)->Free(free_space, mode, this);
+  page->free_list_category(type)->Free(isolate->heap(), free_space, mode, this);
   DCHECK_EQ(page->AvailableInFreeList(),
             page->AvailableInFreeListFromAllocatedBytes());
   return 0;
@@ -220,7 +229,7 @@ PageMetadata* FreeListMany::GetPageForSize(size_t size_in_bytes) {
   return page;
 }
 
-Tagged<FreeSpace> FreeListMany::Allocate(size_t size_in_bytes,
+Tagged<FreeSpace> FreeListMany::Allocate(const Heap* heap, size_t size_in_bytes,
                                          size_t* node_size,
                                          AllocationOrigin origin) {
   DCHECK_GE(kMaxBlockSize, size_in_bytes);
@@ -233,7 +242,7 @@ Tagged<FreeSpace> FreeListMany::Allocate(size_t size_in_bytes,
 
   if (node.is_null()) {
     // Searching each element of the last category.
-    node = SearchForNodeInList(last_category_, size_in_bytes, node_size);
+    node = SearchForNodeInList(heap, last_category_, size_in_bytes, node_size);
   }
 
   if (!node.is_null()) {
@@ -288,11 +297,12 @@ void FreeListManyCached::RemoveCategory(FreeListCategory* category) {
 #endif
 }
 
-size_t FreeListManyCached::Free(const WritableFreeSpace& free_space,
+size_t FreeListManyCached::Free(const Isolate* isolate,
+                                const WritableFreeSpace& free_space,
                                 FreeMode mode) {
   Address start = free_space.Address();
   size_t size_in_bytes = free_space.Size();
-  PageMetadata* page = PageMetadata::FromAddress(start);
+  PageMetadata* page = PageMetadata::FromAddress(isolate, start);
   page->DecreaseAllocatedBytes(size_in_bytes);
 
   // Blocks have to be a minimum size to hold free list items.
@@ -304,7 +314,7 @@ size_t FreeListManyCached::Free(const WritableFreeSpace& free_space,
   // Insert other blocks at the head of a free list of the appropriate
   // magnitude.
   FreeListCategoryType type = SelectFreeListCategoryType(size_in_bytes);
-  page->free_list_category(type)->Free(free_space, mode, this);
+  page->free_list_category(type)->Free(isolate->heap(), free_space, mode, this);
 
   // Updating cache
   if (mode == kLinkCategory) {
@@ -320,7 +330,8 @@ size_t FreeListManyCached::Free(const WritableFreeSpace& free_space,
   return 0;
 }
 
-Tagged<FreeSpace> FreeListManyCached::Allocate(size_t size_in_bytes,
+Tagged<FreeSpace> FreeListManyCached::Allocate(const Heap* heap,
+                                               size_t size_in_bytes,
                                                size_t* node_size,
                                                AllocationOrigin origin) {
   USE(origin);
@@ -337,7 +348,7 @@ Tagged<FreeSpace> FreeListManyCached::Allocate(size_t size_in_bytes,
   if (node.is_null()) {
     // Searching each element of the last category.
     type = last_category_;
-    node = SearchForNodeInList(type, size_in_bytes, node_size);
+    node = SearchForNodeInList(heap, type, size_in_bytes, node_size);
   }
 
   // Updating cache
@@ -361,7 +372,8 @@ Tagged<FreeSpace> FreeListManyCached::Allocate(size_t size_in_bytes,
 // FreeListManyCachedFastPathBase implementation
 
 Tagged<FreeSpace> FreeListManyCachedFastPathBase::Allocate(
-    size_t size_in_bytes, size_t* node_size, AllocationOrigin origin) {
+    const Heap* heap, size_t size_in_bytes, size_t* node_size,
+    AllocationOrigin origin) {
   USE(origin);
   DCHECK_GE(kMaxBlockSize, size_in_bytes);
   Tagged<FreeSpace> node;
@@ -396,7 +408,7 @@ Tagged<FreeSpace> FreeListManyCachedFastPathBase::Allocate(
   if (node.is_null()) {
     // Searching each element of the last category.
     type = last_category_;
-    node = SearchForNodeInList(type, size_in_bytes, node_size);
+    node = SearchForNodeInList(heap, type, size_in_bytes, node_size);
   }
 
   // Finally, search the most precise category
@@ -425,13 +437,14 @@ Tagged<FreeSpace> FreeListManyCachedFastPathBase::Allocate(
 // ------------------------------------------------
 // FreeListManyCachedOrigin implementation
 
-Tagged<FreeSpace> FreeListManyCachedOrigin::Allocate(size_t size_in_bytes,
+Tagged<FreeSpace> FreeListManyCachedOrigin::Allocate(const Heap* heap,
+                                                     size_t size_in_bytes,
                                                      size_t* node_size,
                                                      AllocationOrigin origin) {
   if (origin == AllocationOrigin::kGC) {
-    return FreeListManyCached::Allocate(size_in_bytes, node_size, origin);
+    return FreeListManyCached::Allocate(heap, size_in_bytes, node_size, origin);
   } else {
-    return FreeListManyCachedFastPath::Allocate(size_in_bytes, node_size,
+    return FreeListManyCachedFastPath::Allocate(heap, size_in_bytes, node_size,
                                                 origin);
   }
 }
@@ -454,7 +467,7 @@ void FreeList::ResetForNonBlackAllocatedPages() {
   ForAllFreeListCategories([this](FreeListCategory* category) {
     if (!category->is_empty()) {
       auto* chunk = MemoryChunk::FromHeapObject(category->top());
-      if (chunk->IsFlagSet(MemoryChunk::BLACK_ALLOCATED)) {
+      if (chunk->IsBlackAllocatedPage()) {
         category->Unlink(this);
         return;
       }

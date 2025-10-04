@@ -17,7 +17,8 @@
 // 2. Any changes must be reviewed by someone from the crash reporting
 //    or security team. See OWNERS for suggested reviewers.
 //
-// For more information, see https://goo.gl/yMeyUY.
+// For more information, see:
+// https://docs.google.com/document/d/17y4kxuHFrVxAiuCP_FFtFA2HP5sNPsCD10KEx17Hz6M
 //
 // This file contains most of the code that actually runs in a signal handler
 // context. Some additional code is used both inside and outside the signal
@@ -116,17 +117,11 @@ extern char probe_memory_continuation[]
 #endif  // V8_TRAP_HANDLER_VIA_SIMULATOR
 
 bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
-  // Ensure the faulting thread was actually running Wasm code. This should be
-  // the first check in the trap handler to guarantee that the
-  // g_thread_in_wasm_code flag is only set in wasm code. Otherwise a later
-  // signal handler is executed with the flag set.
-  if (!g_thread_in_wasm_code) return false;
+  // Check if it is safe to handle the signal.
+  if (TrapHandlerGuard::IsActiveOnCurrentThread()) return false;
 
-  // Clear g_thread_in_wasm_code, primarily to protect against nested faults.
-  // The only path that resets the flag to true is if we find a landing pad (in
-  // which case this function returns true). Otherwise we leave the flag unset
-  // since we do not return to wasm code.
-  g_thread_in_wasm_code = false;
+  // Activate the trap handler guard on this thread to avoid nested faults.
+  TrapHandlerGuard active_guard;
 
   // Bail out early in case we got called for the wrong kind of signal.
   if (signum != kOobSignal) return false;
@@ -143,10 +138,10 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
   // Unmask the oob signal, which is automatically masked during the execution
   // of this handler. This ensures that crashes generated in this function will
   // be handled by the crash reporter. Otherwise, the process might be killed
-  // with the crash going unreported. The scope object makes sure to restore the
-  // signal mask on return from this function. We put the scope object in a
-  // separate block to ensure that we restore the signal mask before we restore
-  // the g_thread_in_wasm_code flag.
+  // with the crash going unreported. The scope object makes sure to restore
+  // the signal mask on return from this function. We put the scope object in a
+  // separate block to ensure that we restore the signal mask before we
+  // deactivate the TrapHandlerGuard (via its destructor).
   {
     UnmaskOobSignalScope unmask_oob_signal;
 
@@ -213,11 +208,6 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
     *fault_address_reg = fault_addr;
 #endif
   }
-  // We will return to wasm code, so restore the g_thread_in_wasm_code flag.
-  // This should only be done once the signal is blocked again (outside the
-  // {UnmaskOobSignalScope}) to ensure that we do not catch a signal we raise
-  // inside of the handler.
-  g_thread_in_wasm_code = true;
   return true;
 }
 

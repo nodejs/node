@@ -22,7 +22,7 @@ class V8_EXPORT_PRIVATE Symbolizer {
 
   struct SymbolizedSample {
     ProfileStackTrace stack_trace;
-    int src_line;
+    LineAndColumn src_pos;
   };
 
   // Use the InstructionStreamMap to turn the raw addresses recorded in the

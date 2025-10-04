@@ -336,7 +336,8 @@ Tagged<Object> DisallowCallConstructor(BuiltinArguments args, Isolate* isolate,
   DirectHandle<Object> options = args.atOrUndefined(isolate, 2);
 
   // 3. Return New<T>(t, locales, options).
-  RETURN_RESULT_OR_FAILURE(isolate, T::New(isolate, map, locales, options));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           T::New(isolate, map, locales, options, method_name));
 }
 
 /**
@@ -1276,8 +1277,8 @@ BUILTIN(SegmentsPrototypeContaining) {
 
   // 6. Let n be ? ToInteger(index).
   double n;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, n, Object::IntegerValue(isolate, index));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, n,
+                                     Object::IntegerValue(isolate, index));
 
   RETURN_RESULT_OR_FAILURE(isolate,
                            JSSegments::Containing(isolate, segments, n));

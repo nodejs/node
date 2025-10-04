@@ -30,12 +30,12 @@ Operator::Operator(Opcode opcode, Properties properties, const char* mnemonic,
     : mnemonic_(mnemonic),
       opcode_(opcode),
       properties_(properties),
-      value_in_(CheckRange<uint32_t>(value_in)),
-      effect_in_(CheckRange<uint32_t>(effect_in)),
-      control_in_(CheckRange<uint32_t>(control_in)),
-      value_out_(CheckRange<uint32_t>(value_out)),
-      effect_out_(CheckRange<uint8_t>(effect_out)),
-      control_out_(CheckRange<uint32_t>(control_out)) {}
+      effect_out_{CheckRange<uint8_t>(effect_out)},
+      value_in_{CheckRange<uint32_t>(value_in)},
+      effect_in_{CheckRange<uint32_t>(effect_in)},
+      control_in_{CheckRange<uint32_t>(control_in)},
+      value_out_{CheckRange<uint32_t>(value_out)},
+      control_out_{CheckRange<uint32_t>(control_out)} {}
 
 std::ostream& operator<<(std::ostream& os, const Operator& op) {
   op.PrintTo(os);

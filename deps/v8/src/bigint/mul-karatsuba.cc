@@ -38,7 +38,7 @@ namespace {
 // The Karatsuba algorithm sometimes finishes more quickly when the
 // input length is rounded up a bit. This method encodes some heuristics
 // to accomplish this. The details have been determined experimentally.
-int RoundUpLen(int len) {
+uint32_t RoundUpLen(uint32_t len) {
   if (len <= 36) return RoundUp(len, 2);
   // Keep the 4 or 5 most significant non-zero bits.
   int shift = BitLength(len) - 5;
@@ -47,7 +47,7 @@ int RoundUpLen(int len) {
   }
   // Round up, unless we're only just above the threshold. This smoothes
   // the steps by which time goes up as input size increases.
-  int additive = ((1 << shift) - 1);
+  uint32_t additive = ((1 << shift) - 1);
   if (shift >= 2 && (len & additive) < (1 << (shift - 2))) {
     return len;
   }
@@ -55,9 +55,9 @@ int RoundUpLen(int len) {
 }
 
 // This method makes the final decision how much to bump up the input size.
-int KaratsubaLength(int n) {
+uint32_t KaratsubaLength(uint32_t n) {
   n = RoundUpLen(n);
-  int i = 0;
+  uint32_t i = 0;
   while (n > kKaratsubaThreshold) {
     n >>= 1;
     i++;
@@ -71,7 +71,7 @@ void KaratsubaSubtractionHelper(RWDigits result, Digits X, Digits Y,
   X.Normalize();
   Y.Normalize();
   digit_t borrow = 0;
-  int i = 0;
+  uint32_t i = 0;
   if (!GreaterThanOrEqual(X, Y)) {
     *sign = -(*sign);
     std::swap(X, Y);
@@ -92,8 +92,9 @@ void ProcessorImpl::MultiplyKaratsuba(RWDigits Z, Digits X, Digits Y) {
   DCHECK(X.len() >= Y.len());
   DCHECK(Y.len() >= kKaratsubaThreshold);
   DCHECK(Z.len() >= X.len() + Y.len());
-  int k = KaratsubaLength(Y.len());
-  int scratch_len = 4 * k;
+  uint32_t k = KaratsubaLength(Y.len());
+  static_assert(kMaxNumDigits <= UINT32_MAX / 4);
+  uint32_t scratch_len = 4 * k;
   ScratchDigits scratch(scratch_len);
   KaratsubaStart(Z, X, Y, scratch, k);
 }
@@ -101,10 +102,10 @@ void ProcessorImpl::MultiplyKaratsuba(RWDigits Z, Digits X, Digits Y) {
 // Entry point for Karatsuba-based multiplication, takes care of inputs
 // with unequal lengths by chopping the larger into chunks.
 void ProcessorImpl::KaratsubaStart(RWDigits Z, Digits X, Digits Y,
-                                   RWDigits scratch, int k) {
+                                   RWDigits scratch, uint32_t k) {
   KaratsubaMain(Z, X, Y, scratch, k);
   MAYBE_TERMINATE
-  for (int i = 2 * k; i < Z.len(); i++) Z[i] = 0;
+  for (uint32_t i = 2 * k; i < Z.len(); i++) Z[i] = 0;
   if (k < Y.len() || X.len() != Y.len()) {
     ScratchDigits T(2 * k);
     // Add X0 * Y1 * b.
@@ -118,7 +119,7 @@ void ProcessorImpl::KaratsubaStart(RWDigits Z, Digits X, Digits Y,
 
     // Add Xi * Y0 << i and Xi * Y1 * b << (i + k).
     Digits Y0(Y, 0, k);
-    for (int i = k; i < X.len(); i += k) {
+    for (uint32_t i = k; i < X.len(); i += k) {
       Digits Xi(X, i, k);
       KaratsubaChunk(T, Xi, Y0, scratch);
       MAYBE_TERMINATE
@@ -142,14 +143,14 @@ void ProcessorImpl::KaratsubaChunk(RWDigits Z, Digits X, Digits Y,
   if (X.len() < Y.len()) std::swap(X, Y);
   if (Y.len() == 1) return MultiplySingle(Z, X, Y[0]);
   if (Y.len() < kKaratsubaThreshold) return MultiplySchoolbook(Z, X, Y);
-  int k = KaratsubaLength(Y.len());
+  uint32_t k = KaratsubaLength(Y.len());
   DCHECK(scratch.len() >= 4 * k);
   return KaratsubaStart(Z, X, Y, scratch, k);
 }
 
 // The main recursive Karatsuba method.
 void ProcessorImpl::KaratsubaMain(RWDigits Z, Digits X, Digits Y,
-                                  RWDigits scratch, int n) {
+                                  RWDigits scratch, uint32_t n) {
   if (n < kKaratsubaThreshold) {
     X.Normalize();
     Y.Normalize();
@@ -161,7 +162,7 @@ void ProcessorImpl::KaratsubaMain(RWDigits Z, Digits X, Digits Y,
   }
   DCHECK(scratch.len() >= 4 * n);
   DCHECK((n & 1) == 0);
-  int n2 = n >> 1;
+  uint32_t n2 = n >> 1;
   Digits X0(X, 0, n2);
   Digits X1(X, n2, n2);
   Digits Y0(Y, 0, n2);
@@ -170,16 +171,16 @@ void ProcessorImpl::KaratsubaMain(RWDigits Z, Digits X, Digits Y,
   RWDigits P0(scratch, 0, n);
   KaratsubaMain(P0, X0, Y0, scratch_for_recursion, n2);
   MAYBE_TERMINATE
-  for (int i = 0; i < n; i++) Z[i] = P0[i];
+  for (uint32_t i = 0; i < n; i++) Z[i] = P0[i];
   RWDigits P2(scratch, n, n);
   KaratsubaMain(P2, X1, Y1, scratch_for_recursion, n2);
   MAYBE_TERMINATE
   RWDigits Z2 = Z + n;
-  int end = std::min(Z2.len(), P2.len());
-  for (int i = 0; i < end; i++) Z2[i] = P2[i];
-  for (int i = end; i < n; i++) {
-    DCHECK(P2[i] == 0);
-  }
+  uint32_t end = std::min(Z2.len(), P2.len());
+  for (uint32_t i = 0; i < end; i++) Z2[i] = P2[i];
+#if DEBUG
+  for (uint32_t i = end; i < n; i++) DCHECK(P2[i] == 0);
+#endif
   // The intermediate result can be one digit too large; the subtraction
   // below will fix this.
   digit_t overflow = AddAndReturnOverflow(Z + n2, P0);

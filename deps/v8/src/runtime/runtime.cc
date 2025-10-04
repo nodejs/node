@@ -13,32 +13,31 @@ namespace v8 {
 namespace internal {
 
 // Header of runtime functions.
-#define F(name, number_of_args, result_size)                    \
+#define F(name, number_of_args, result_size, ...)               \
   Address Runtime_##name(int args_length, Address* args_object, \
                          Isolate* isolate);
 FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 #undef F
 
-#define P(name, number_of_args, result_size)                       \
+#define P(name, number_of_args, result_size, ...)                  \
   ObjectPair Runtime_##name(int args_length, Address* args_object, \
                             Isolate* isolate);
 FOR_EACH_INTRINSIC_RETURN_PAIR(P)
 #undef P
 
-#define F(name, number_of_args, result_size)                                  \
-  {                                                                           \
-    Runtime::k##name, Runtime::RUNTIME, #name, FUNCTION_ADDR(Runtime_##name), \
-        number_of_args, result_size                                           \
-  }                                                                           \
-  ,
+// clang-format off
+#define F(name, number_of_args, result_size, ...) \
+  {                                                          \
+      Runtime::k##name, Runtime::RUNTIME,                    \
+      #name,        FUNCTION_ADDR(Runtime_##name),           \
+      number_of_args,   result_size},
 
-
-#define I(name, number_of_args, result_size)                       \
-  {                                                                \
-    Runtime::kInline##name, Runtime::INLINE, "_" #name,            \
-        FUNCTION_ADDR(Runtime_##name), number_of_args, result_size \
-  }                                                                \
-  ,
+#define I(name, number_of_args, result_size, ...) \
+  {                                                          \
+      Runtime::kInline##name, Runtime::INLINE,               \
+      "_" #name,        FUNCTION_ADDR(Runtime_##name),       \
+      number_of_args,   result_size},
+// clang-format on
 
 static const Runtime::Function kIntrinsicFunctions[] = {
     FOR_EACH_INTRINSIC(F) FOR_EACH_INLINE_INTRINSIC(I)};
@@ -65,8 +64,8 @@ struct IntrinsicFunctionIdentifier {
   }
 
   uint32_t Hash() {
-    return StringHasher::HashSequentialString<uint8_t>(
-        data_, length_, v8::internal::kZeroHashSeed);
+    return StringHasher::HashSequentialString<uint8_t>(data_, length_,
+                                                       HashSeed::Default());
   }
 
   const unsigned char* data_;
@@ -109,7 +108,7 @@ bool Runtime::NeedsExactContext(FunctionId id) {
     case Runtime::kReThrow:
     case Runtime::kReThrowWithMessage:
     case Runtime::kThrow:
-    case Runtime::kThrowApplyNonFunction:
+    case Runtime::kThrowTargetNonFunction:
     case Runtime::kThrowCalledNonCallable:
     case Runtime::kThrowConstAssignError:
     case Runtime::kThrowConstructorNonCallableError:
@@ -153,7 +152,7 @@ bool Runtime::IsNonReturning(FunctionId id) {
     case Runtime::kReThrow:
     case Runtime::kReThrowWithMessage:
     case Runtime::kThrow:
-    case Runtime::kThrowApplyNonFunction:
+    case Runtime::kThrowTargetNonFunction:
     case Runtime::kThrowCalledNonCallable:
     case Runtime::kThrowConstructedNonConstructable:
     case Runtime::kThrowConstructorReturnedNonObject:
@@ -257,8 +256,7 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
   }
 
   // Runtime functions disabled for all/most types of fuzzing.
-  // Reasons for a function to be in this list include that it is not useful
-  // for fuzzing (e.g. %DebugPrint) or not fuzzing-safe and therefore would
+  // These are mainly functions that are not fuzzing-safe and therefore would
   // cause false-positive crashes (e.g. %AbortJS).
   switch (id) {
     case Runtime::kAbort:
@@ -267,7 +265,7 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kSystemBreak:
     case Runtime::kBenchMaglev:
     case Runtime::kBenchTurbofan:
-    case Runtime::kDebugPrint:
+    case Runtime::kDebugPrintPtr:
     case Runtime::kDisassembleFunction:
     case Runtime::kGetFunctionForCurrentFrame:
     case Runtime::kGetCallable:
@@ -280,11 +278,10 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kWasmTraceEnter:
     case Runtime::kWasmTraceExit:
     case Runtime::kWasmTraceMemory:
+    case Runtime::kWasmTraceGlobal:
     case Runtime::kCheckIsOnCentralStack:
     case Runtime::kSetWasmInstantiateControls:
-    case Runtime::kWasmNull:
     case Runtime::kFreezeWasmLazyCompilation:
-    case Runtime::kDeserializeWasmModule:
 #endif  // V8_ENABLE_WEBASSEMBLY
     // TODO(353685107): investigate whether these should be exposed to fuzzers.
     case Runtime::kConstructDouble:
@@ -311,8 +308,8 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
 
   // The default case: test functions are exposed, everything else is not.
   switch (id) {
-#define F(name, nargs, ressize) case k##name:
-#define I(name, nargs, ressize) case kInline##name:
+#define F(name, nargs, ressize, ...) case k##name:
+#define I(name, nargs, ressize, ...) case kInline##name:
     FOR_EACH_INTRINSIC_TEST(F, I)
     IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)
 #undef I

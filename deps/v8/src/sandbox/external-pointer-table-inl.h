@@ -162,6 +162,15 @@ void ExternalPointerTableEntry::Evacuate(ExternalPointerTableEntry& dest,
   MakeZappedEntry();
 }
 
+void ExternalPointerTableEntry::CopyFrom(const ExternalPointerTableEntry& src) {
+  auto payload = src.payload_.load(std::memory_order_relaxed);
+  DCHECK(payload.ContainsPointer());
+  payload_.store(payload, std::memory_order_relaxed);
+#if defined(LEAK_SANITIZER)
+  raw_pointer_for_lsan_ = src.raw_pointer_for_lsan_;
+#endif  // LEAK_SANITIZER
+}
+
 Address ExternalPointerTable::Get(ExternalPointerHandle handle,
                                   ExternalPointerTagRange tag_range) const {
   uint32_t index = HandleToIndex(handle);
@@ -215,6 +224,22 @@ ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
   ExternalPointerHandle handle = IndexToHandle(index);
   TakeOwnershipOfManagedResourceIfNecessary(initial_value, handle, tag);
   return handle;
+}
+
+ExternalPointerHandle ExternalPointerTable::DuplicateEntry(
+    Space* space, ExternalPointerHandle handle) {
+  DCHECK_NE(handle, kNullExternalPointerHandle);
+  uint32_t old_index = HandleToIndex(handle);
+  uint32_t new_index = AllocateEntry(space);
+  if (new_index == 0) return kNullExternalPointerHandle;
+
+  // We do not call `TakeOwnershipOfManagedResourceIfNecessary` here as that
+  // method only has to be called for pointers owned by a `Managed` object, and
+  // for `Managed` objects it should never be necessary to duplicate the entry.
+  CHECK(!IsManagedExternalPointerType(at(old_index).GetExternalPointerTag()));
+
+  at(new_index).CopyFrom(at(old_index));
+  return IndexToHandle(new_index);
 }
 
 void ExternalPointerTable::Mark(Space* space, ExternalPointerHandle handle,

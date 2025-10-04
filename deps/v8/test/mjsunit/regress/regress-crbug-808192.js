@@ -4,7 +4,6 @@
 
 // Flags: --expose-gc
 // Stress-testing this test is very slow and doesn't provide useful coverage.
-// Flags: --noalways-turbofan
 
 const f = eval(`(function f(i) {
   if (i == 0) {

@@ -47,8 +47,9 @@ Maybe<CaseFirst> GetCaseFirst(Isolate* isolate,
                               DirectHandle<JSReceiver> options,
                               const char* method_name) {
   return GetStringOption<CaseFirst>(
-      isolate, options, "caseFirst", method_name, {"upper", "lower", "false"},
-      {CaseFirst::kUpper, CaseFirst::kLower, CaseFirst::kFalse},
+      isolate, options, isolate->factory()->caseFirst_string(), method_name,
+      std::to_array<const std::string_view>({"upper", "lower", "false"}),
+      std::array{CaseFirst::kUpper, CaseFirst::kLower, CaseFirst::kFalse},
       CaseFirst::kUndefined);
 }
 
@@ -296,8 +297,9 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   // 4. Let usage be ? GetOption(options, "usage", "string", « "sort",
   // "search" », "sort").
   Maybe<Usage> maybe_usage = GetStringOption<Usage>(
-      isolate, options, "usage", service, {"sort", "search"},
-      {Usage::SORT, Usage::SEARCH}, Usage::SORT);
+      isolate, options, isolate->factory()->usage_string(), service,
+      std::to_array<const std::string_view>({"sort", "search"}),
+      std::array{Usage::SORT, Usage::SEARCH}, Usage::SORT);
   MAYBE_RETURN(maybe_usage, MaybeHandle<JSCollator>());
   Usage usage = maybe_usage.FromJust();
 
@@ -311,23 +313,24 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
 
   // x. Let _collation_ be ? GetOption(_options_, *"collation"*, *"string"*,
   // *undefined*, *undefined*).
-  std::unique_ptr<char[]> collation_str = nullptr;
-  const std::vector<const char*> empty_values = {};
-  Maybe<bool> maybe_collation = GetStringOption(
-      isolate, options, "collation", empty_values, service, &collation_str);
+  DirectHandle<String> collation_str;
+  Maybe<bool> maybe_collation =
+      GetStringOption(isolate, options, isolate->factory()->collation_string(),
+                      service, &collation_str);
   MAYBE_RETURN(maybe_collation, MaybeHandle<JSCollator>());
+
+  // Unfortunately needs to be a std::string because of Intl::IsValidCollation
+  std::string collation_stdstr;
   // x. If _collation_ is not *undefined*, then
-  if (maybe_collation.FromJust() && collation_str != nullptr) {
+  if (maybe_collation.FromJust()) {
+    collation_stdstr = collation_str->ToStdString();
     // 1. If _collation_ does not match the Unicode Locale Identifier `type`
     // nonterminal, throw a *RangeError* exception.
-    if (!JSLocale::Is38AlphaNumList(collation_str.get())) {
-      THROW_NEW_ERROR_RETURN_VALUE(
+    if (!JSLocale::Is38AlphaNumList(collation_stdstr)) {
+      THROW_NEW_ERROR(
           isolate,
           NewRangeError(MessageTemplate::kInvalid,
-                        isolate->factory()->collation_string(),
-                        isolate->factory()->NewStringFromAsciiChecked(
-                            collation_str.get())),
-          MaybeHandle<JSCollator>());
+                        isolate->factory()->collation_string(), collation_str));
     }
   }
   // x. Set _opt_.[[co]] to _collation_.
@@ -344,7 +347,8 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   // 13. Set opt.[[kn]] to numeric.
   bool numeric;
   Maybe<bool> found_numeric =
-      GetBoolOption(isolate, options, "numeric", service, &numeric);
+      GetBoolOption(isolate, options, isolate->factory()->numeric_string(),
+                    service, &numeric);
   MAYBE_RETURN(found_numeric, MaybeHandle<JSCollator>());
 
   // 14. Let caseFirst be ? GetOption(options, "caseFirst", "string",
@@ -374,10 +378,10 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
 
   // 19. Let collation be r.[[co]].
   UErrorCode status = U_ZERO_ERROR;
-  if (collation_str != nullptr) {
+  if (maybe_collation.FromJust()) {
     auto co_extension_it = r.extensions.find("co");
     if (co_extension_it != r.extensions.end() &&
-        co_extension_it->second != collation_str.get()) {
+        co_extension_it->second != collation_stdstr) {
       icu_locale.setUnicodeKeywordValue("co", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
@@ -404,9 +408,9 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
     icu_locale.setUnicodeKeywordValue("co", "search", set_status);
     DCHECK(U_SUCCESS(set_status));
   } else {
-    if (collation_str != nullptr &&
-        Intl::IsValidCollation(icu_locale, collation_str.get())) {
-      icu_locale.setUnicodeKeywordValue("co", collation_str.get(), status);
+    if (maybe_collation.FromJust() &&
+        Intl::IsValidCollation(icu_locale, collation_stdstr)) {
+      icu_locale.setUnicodeKeywordValue("co", collation_stdstr, status);
       DCHECK(U_SUCCESS(status));
     }
   }
@@ -477,12 +481,13 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
 
   // 24. Let sensitivity be ? GetOption(options, "sensitivity",
   // "string", « "base", "accent", "case", "variant" », undefined).
-  Maybe<Sensitivity> maybe_sensitivity =
-      GetStringOption<Sensitivity>(isolate, options, "sensitivity", service,
-                                   {"base", "accent", "case", "variant"},
-                                   {Sensitivity::kBase, Sensitivity::kAccent,
-                                    Sensitivity::kCase, Sensitivity::kVariant},
-                                   Sensitivity::kUndefined);
+  Maybe<Sensitivity> maybe_sensitivity = GetStringOption<Sensitivity>(
+      isolate, options, isolate->factory()->sensitivity_string(), service,
+      std::to_array<const std::string_view>(
+          {"base", "accent", "case", "variant"}),
+      std::array{Sensitivity::kBase, Sensitivity::kAccent, Sensitivity::kCase,
+                 Sensitivity::kVariant},
+      Sensitivity::kUndefined);
   MAYBE_RETURN(maybe_sensitivity, MaybeHandle<JSCollator>());
   Sensitivity sensitivity = maybe_sensitivity.FromJust();
 
@@ -519,7 +524,8 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   // "ignorePunctuation", "boolean", undefined, false).
   bool ignore_punctuation = false;
   Maybe<bool> found_ignore_punctuation = GetBoolOption(
-      isolate, options, "ignorePunctuation", service, &ignore_punctuation);
+      isolate, options, isolate->factory()->ignorePunctuation_string(), service,
+      &ignore_punctuation);
   MAYBE_RETURN(found_ignore_punctuation, MaybeHandle<JSCollator>());
 
   // 28. Set collator.[[IgnorePunctuation]] to ignorePunctuation.

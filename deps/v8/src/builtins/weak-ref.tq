@@ -36,10 +36,16 @@ transitioning javascript builtin WeakRefConstructor(
   // "%WeakRefPrototype%", « [[WeakRefTarget]] »).
   const map = GetDerivedMap(target, UnsafeCast<JSReceiver>(newTarget));
   const weakRef = UnsafeCast<JSWeakRef>(AllocateFastOrSlowJSObjectFromMap(map));
+  // 5. Set weakRef.[[WeakRefTarget]] to target.
+  // We do step 5 and set the target before step 4 which calls
+  // `runtime::JSWeakRefAddToKeptObjects`, as that method can trigger GC and
+  // this reorder is otherwise not observable from JS. That way we can avoid
+  // promoting the `weakRef` from the young generation to the old generation,
+  // and don't need generational barriers for the reference from `weakRef` to
+  // `weakTarget`.
+  weakRef.target = weakTarget;
   // 4. Perfom ! AddToKeptObjects(target).
   runtime::JSWeakRefAddToKeptObjects(weakTarget);
-  // 5. Set weakRef.[[WeakRefTarget]] to target.
-  weakRef.target = weakTarget;
   // 6. Return weakRef.
   return weakRef;
 }

@@ -9,6 +9,7 @@ group("gn_all") {
 
   data_deps = [
     "benchmarks:v8_benchmarks",
+    "bigint:bigint_shell",
     "filecheck:v8_filecheck",
     "fuzzer:v8_fuzzer",
     "intl:v8_intl",
@@ -20,7 +21,6 @@ group("gn_all") {
   ]
 
   deps = [
-    "bigint:bigint_shell",
     "inspector:inspector-test",
     "mkgrokdump:mkgrokdump",
   ]
@@ -30,7 +30,11 @@ group("gn_all") {
       "wasm-js:v8_wasm_js",
       "wasm-spec-tests:v8_wasm_spec_tests",
     ]
-    deps += [ "wasm-api-tests:wasm_api_tests" ]
+    # TODO(https://crbug.com/445649941): Temporarily skipped on windows with
+    # arm64.
+    if (!is_win || v8_target_cpu != "arm64") {
+      deps += [ "wasm-api-tests:wasm_api_tests" ]
+    }
   }
 
   if (v8_fuzzilli) {
@@ -91,6 +95,7 @@ group("v8_bot_default") {
   testonly = true
 
   data_deps = [
+    "bigint:bigint_shell",
     "cctest:cctest",
     "debugger:v8_debugger",
     "filecheck:v8_filecheck",
@@ -106,10 +111,14 @@ group("v8_bot_default") {
 
   if (v8_enable_webassembly) {
     data_deps += [
-      "wasm-api-tests:wasm_api_tests",
       "wasm-js:v8_wasm_js",
       "wasm-spec-tests:v8_wasm_spec_tests",
     ]
+    # TODO(https://crbug.com/445649941): Temporarily skipped on windows with
+    # arm64.
+    if (!is_win || v8_target_cpu != "arm64") {
+      data_deps += [ "wasm-api-tests:wasm_api_tests" ]
+    }
   }
 }
 
@@ -131,10 +140,14 @@ group("v8_default") {
 
   if (v8_enable_webassembly) {
     data_deps += [
-      "wasm-api-tests:wasm_api_tests",
       "wasm-js:v8_wasm_js",
       "wasm-spec-tests:v8_wasm_spec_tests",
     ]
+    # TODO(https://crbug.com/445649941): Temporarily skipped on windows with
+    # arm64.
+    if (!is_win || v8_target_cpu != "arm64") {
+      data_deps += [ "wasm-api-tests:wasm_api_tests" ]
+    }
   }
 }
 

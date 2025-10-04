@@ -24,13 +24,15 @@ namespace internal {
 
 class RootScavengeVisitor;
 class Scavenger;
-class ScavengeVisitor;
+class ScavengerCopiedObjectVisitor;
 
 enum class CopyAndForwardResult {
   SUCCESS_YOUNG_GENERATION,
   SUCCESS_OLD_GENERATION,
   FAILURE
 };
+
+enum class ObjectAge { kOld, kYoung };
 
 using SurvivingNewLargeObjectsMap =
     std::unordered_map<Tagged<HeapObject>, Tagged<Map>, Object::Hasher>;
@@ -41,34 +43,34 @@ class ScavengerCollector;
 
 class Scavenger {
  public:
-  static constexpr int kCopiedListSegmentSize = 256;
-  static constexpr int kPinnedListSegmentSize = 64;
-  static constexpr int kPromotedListSegmentSize = 256;
+  static constexpr int kScavengedObjectListSegmentSize = 256;
+  static constexpr int kWeakObjectListSegmentSize = 64;
 
-  using CopiedList =
-      ::heap::base::Worklist<Tagged<HeapObject>, kCopiedListSegmentSize>;
-
-  using ObjectAndMap = std::pair<Tagged<HeapObject>, Tagged<Map>>;
-  using PinnedList =
-      ::heap::base::Worklist<ObjectAndMap, kPinnedListSegmentSize>;
-
-  struct PromotedListEntry {
+  struct ScavengedObjectListEntry {
     Tagged<HeapObject> heap_object;
     Tagged<Map> map;
-    int size;
+    SafeHeapObjectSize size;
   };
-  using PromotedList =
-      ::heap::base::Worklist<PromotedListEntry, kPromotedListSegmentSize>;
+
+  using ScavengedObjectList =
+      ::heap::base::Worklist<ScavengedObjectListEntry,
+                             kScavengedObjectListSegmentSize>;
+
+  using JSWeakRefsList =
+      ::heap::base::Worklist<Tagged<JSWeakRef>, kWeakObjectListSegmentSize>;
+  using WeakCellsList =
+      ::heap::base::Worklist<Tagged<WeakCell>, kWeakObjectListSegmentSize>;
 
   using EmptyChunksList = ::heap::base::Worklist<MutablePageMetadata*, 64>;
 
   Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
-            EmptyChunksList* empty_chunks, CopiedList* copied_list,
-            PinnedList* pinned_list, PromotedList* promoted_list,
-            EphemeronRememberedSet::TableList* ephemeron_table_list);
+            EmptyChunksList* empty_chunks, ScavengedObjectList* copied_list,
+            ScavengedObjectList* promoted_list,
+            EphemeronRememberedSet::TableList* ephemeron_table_list,
+            JSWeakRefsList* js_weak_refs_list, WeakCellsList* weak_cells_list);
 
   // Entry point for scavenging an old generation page. For scavenging single
-  // objects see RootScavengingVisitor and ScavengeVisitor below.
+  // objects see RootScavengingVisitor and ScavengerCopiedObjectVisitor below.
   void ScavengePage(MutablePageMetadata* page);
 
   // Processes remaining work (=objects) after single objects have been
@@ -84,9 +86,8 @@ class Scavenger {
   // Returns true if the object is a large young object, and false otherwise.
   bool PromoteIfLargeObject(Tagged<HeapObject> object);
 
-  void PinAndPushObject(MemoryChunk* chunk, Tagged<HeapObject> object,
-                        MapWord map_word);
-  void VisitPinnedObjects();
+  void PinAndPushObject(MutablePageMetadata* metadata,
+                        Tagged<HeapObject> object, MapWord map_word);
 
   size_t bytes_copied() const { return copied_size_; }
   size_t bytes_promoted() const { return promoted_size_; }
@@ -127,23 +128,32 @@ class Scavenger {
 
   // Copies |source| to |target| and sets the forwarding pointer in |source|.
   V8_INLINE bool MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
-                               Tagged<HeapObject> target, int size,
+                               Tagged<HeapObject> target,
+                               SafeHeapObjectSize size,
                                PromotionHeapChoice promotion_heap_choice);
 
   V8_INLINE SlotCallbackResult
   RememberedSetEntryNeeded(CopyAndForwardResult result);
 
+  template <typename THeapObjectSlot, typename OnSuccessCallback>
+  V8_INLINE bool TryMigrateObject(Tagged<Map> map, THeapObjectSlot slot,
+                                  Tagged<HeapObject> object,
+                                  SafeHeapObjectSize object_size,
+                                  AllocationSpace space,
+                                  PromotionHeapChoice promotion_heap_choice,
+                                  OnSuccessCallback on_success);
+
   template <typename THeapObjectSlot>
   V8_INLINE CopyAndForwardResult SemiSpaceCopyObject(
       Tagged<Map> map, THeapObjectSlot slot, Tagged<HeapObject> object,
-      int object_size, ObjectFields object_fields);
+      SafeHeapObjectSize object_size, ObjectFields object_fields);
 
   template <typename THeapObjectSlot,
             PromotionHeapChoice promotion_heap_choice = kPromoteIntoLocalHeap>
   V8_INLINE CopyAndForwardResult PromoteObject(Tagged<Map> map,
                                                THeapObjectSlot slot,
                                                Tagged<HeapObject> object,
-                                               int object_size,
+                                               SafeHeapObjectSize object_size,
                                                ObjectFields object_fields);
 
   template <typename THeapObjectSlot>
@@ -152,50 +162,57 @@ class Scavenger {
                                               Tagged<HeapObject> source);
 
   V8_INLINE bool HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
-                                   int object_size, ObjectFields object_fields);
+                                   SafeHeapObjectSize object_size,
+                                   ObjectFields object_fields);
 
   // Different cases for object evacuation.
   template <typename THeapObjectSlot,
             PromotionHeapChoice promotion_heap_choice = kPromoteIntoLocalHeap>
   V8_INLINE SlotCallbackResult EvacuateObjectDefault(
       Tagged<Map> map, THeapObjectSlot slot, Tagged<HeapObject> object,
-      int object_size, ObjectFields object_fields);
+      SafeHeapObjectSize object_size, ObjectFields object_fields);
 
   template <typename THeapObjectSlot>
   inline SlotCallbackResult EvacuateThinString(Tagged<Map> map,
                                                THeapObjectSlot slot,
                                                Tagged<ThinString> object,
-                                               int object_size);
+                                               SafeHeapObjectSize object_size);
 
   template <typename THeapObjectSlot>
-  inline SlotCallbackResult EvacuateShortcutCandidate(Tagged<Map> map,
-                                                      THeapObjectSlot slot,
-                                                      Tagged<ConsString> object,
-                                                      int object_size);
+  inline SlotCallbackResult EvacuateShortcutCandidate(
+      Tagged<Map> map, THeapObjectSlot slot, Tagged<ConsString> object,
+      SafeHeapObjectSize object_size);
 
   template <typename THeapObjectSlot>
   inline SlotCallbackResult EvacuateInPlaceInternalizableString(
       Tagged<Map> map, THeapObjectSlot slot, Tagged<String> string,
-      int object_size, ObjectFields object_fields);
+      SafeHeapObjectSize object_size, ObjectFields object_fields);
 
-  void IterateAndScavengePromotedObject(Tagged<HeapObject> target,
-                                        Tagged<Map> map, int size);
   void RememberPromotedEphemeron(Tagged<EphemeronHashTable> table, int index);
 
   V8_INLINE bool ShouldEagerlyProcessPromotedList() const;
 
   void PushPinnedObject(Tagged<HeapObject> object, Tagged<Map> map,
-                        int object_size);
+                        SafeHeapObjectSize object_size);
   void PushPinnedPromotedObject(Tagged<HeapObject> object, Tagged<Map> map,
-                                int object_size);
+                                SafeHeapObjectSize object_size);
+
+  template <ObjectAge>
+  V8_INLINE bool ShouldRecordWeakObject(Tagged<HeapObject> host,
+                                        ObjectSlot slot);
+  template <ObjectAge>
+  void RecordJSWeakRefIfNeeded(Tagged<JSWeakRef> js_weak_ref);
+  template <ObjectAge>
+  void RecordWeakCellIfNeeded(Tagged<WeakCell> weak_cell);
 
   ScavengerCollector* const collector_;
   Heap* const heap_;
   EmptyChunksList::Local local_empty_chunks_;
-  CopiedList::Local local_copied_list_;
-  PinnedList::Local local_pinned_list_;
-  PromotedList::Local local_promoted_list_;
+  ScavengedObjectList::Local local_copied_list_;
+  ScavengedObjectList::Local local_promoted_list_;
   EphemeronRememberedSet::TableList::Local local_ephemeron_table_list_;
+  JSWeakRefsList::Local local_js_weak_refs_list_;
+  WeakCellsList::Local local_weak_cells_list_;
   PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   EphemeronRememberedSet::TableMap local_ephemeron_remembered_set_;
   SurvivingNewLargeObjectsMap local_surviving_new_large_objects_;
@@ -208,9 +225,11 @@ class Scavenger {
   const bool mark_shared_heap_;
   const bool shortcut_strings_;
 
-  friend class IterateAndScavengePromotedObjectsVisitor;
   friend class RootScavengeVisitor;
-  friend class ScavengeVisitor;
+  template <typename ConcreteVisitor, ObjectAge>
+  friend class ScavengerObjectVisitorBase;
+  friend class ScavengerCopiedObjectVisitor;
+  friend class ScavengerPromotedObjectVisitor;
 };
 
 // Helper class for turning the scavenger into an object visitor that is also
@@ -236,7 +255,8 @@ class ScavengerCollector {
   struct PinnedObjectEntry {
     Address address;
     MapWord map_word;
-    size_t size;
+    SafeHeapObjectSize size;
+    MutablePageMetadata* metadata;
   };
   using PinnedObjects = std::vector<PinnedObjectEntry>;
 
@@ -256,9 +276,8 @@ class ScavengerCollector {
             std::vector<std::unique_ptr<Scavenger>>* scavengers,
             std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
                 old_to_new_chunks,
-            const Scavenger::CopiedList& copied_list,
-            const Scavenger::PinnedList& pinned_list,
-            const Scavenger::PromotedList& promoted_list);
+            const Scavenger::ScavengedObjectList& copied_list,
+            const Scavenger::ScavengedObjectList& promoted_list);
 
     void Run(JobDelegate* delegate) override;
     size_t GetMaxConcurrency(size_t worker_count) const override;
@@ -268,7 +287,6 @@ class ScavengerCollector {
    private:
     void ProcessItems(JobDelegate* delegate, Scavenger* scavenger);
     void ConcurrentScavengePages(Scavenger* scavenger);
-    void VisitPinnedObjects(Scavenger* scavenger);
 
     ScavengerCollector* collector_;
 
@@ -278,9 +296,8 @@ class ScavengerCollector {
     std::atomic<size_t> remaining_memory_chunks_{0};
     IndexGenerator generator_;
 
-    const Scavenger::CopiedList& copied_list_;
-    const Scavenger::PinnedList& pinned_list_;
-    const Scavenger::PromotedList& promoted_list_;
+    const Scavenger::ScavengedObjectList& copied_list_;
+    const Scavenger::ScavengedObjectList& promoted_list_;
 
     const uint64_t trace_id_;
   };
@@ -363,6 +380,12 @@ class ScavengerCollector {
   void ClearYoungEphemerons(
       EphemeronRememberedSet::TableList* ephemeron_table_list);
   void ClearOldEphemerons();
+
+  void ProcessWeakObjects(Scavenger::JSWeakRefsList&,
+                          Scavenger::WeakCellsList&);
+  void ProcessJSWeakRefs(Scavenger::JSWeakRefsList&);
+  void ProcessWeakCells(Scavenger::WeakCellsList&);
+
   void HandleSurvivingNewLargeObjects();
 
   void SweepArrayBufferExtensions();

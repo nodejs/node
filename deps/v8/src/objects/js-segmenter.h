@@ -37,7 +37,7 @@ class JSSegmenter : public TorqueGeneratedJSSegmenter<JSSegmenter, JSObject> {
   // options.
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSSegmenter> New(
       Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
-      DirectHandle<Object> options);
+      DirectHandle<Object> options, const char* method_name);
 
   V8_WARN_UNUSED_RESULT static DirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSSegmenter> segmenter_holder);

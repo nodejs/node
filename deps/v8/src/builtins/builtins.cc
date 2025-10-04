@@ -71,24 +71,28 @@ struct BuiltinMetadata {
 
 #define DECL_CPP(Name, Argc) \
   {#Name, Builtins::CPP, {FUNCTION_ADDR(Builtin_##Name)}},
-#define DECL_TSJ(Name, Count, ...) {#Name, Builtins::TSJ, {Count, 0}},
+#define DECL_TFJ_TSA(Name, Count, ...) {#Name, Builtins::TFJ_TSA, {Count, 0}},
 #define DECL_TFJ(Name, Count, ...) {#Name, Builtins::TFJ, {Count, 0}},
-#define DECL_TSC(Name, ...) {#Name, Builtins::TSC, {}},
+#define DECL_TFC_TSA(Name, ...) {#Name, Builtins::TFC_TSA, {}},
 #define DECL_TFC(Name, ...) {#Name, Builtins::TFC, {}},
 #define DECL_TFS(Name, ...) {#Name, Builtins::TFS, {}},
 #define DECL_TFH(Name, ...) {#Name, Builtins::TFH, {}},
+#define DECL_BCH_TSA(Name, OperandScale, Bytecode) \
+  {#Name, Builtins::BCH_TSA, {Bytecode, OperandScale}},
 #define DECL_BCH(Name, OperandScale, Bytecode) \
   {#Name, Builtins::BCH, {Bytecode, OperandScale}},
 #define DECL_ASM(Name, ...) {#Name, Builtins::ASM, {}},
 const BuiltinMetadata builtin_metadata[] = {
-    BUILTIN_LIST(DECL_CPP, DECL_TSJ, DECL_TFJ, DECL_TSC, DECL_TFC, DECL_TFS,
-                 DECL_TFH, DECL_BCH, DECL_ASM)};
+    BUILTIN_LIST(DECL_CPP, DECL_TFJ_TSA, DECL_TFJ, DECL_TFC_TSA, DECL_TFC,
+                 DECL_TFS, DECL_TFH, DECL_BCH_TSA, DECL_BCH, DECL_ASM)};
 #undef DECL_CPP
+#undef DECL_TFJ_TSA
 #undef DECL_TFJ
-#undef DECL_TSC
+#undef DECL_TFC_TSA
 #undef DECL_TFC
 #undef DECL_TFS
 #undef DECL_TFH
+#undef DECL_BCH_TSA
 #undef DECL_BCH
 #undef DECL_ASM
 
@@ -148,7 +152,7 @@ void Builtins::set_code(Builtin builtin, Tagged<Code> code) {
 
 Tagged<Code> Builtins::code(Builtin builtin) {
   Address ptr = isolate_->builtin_table()[Builtins::ToInt(builtin)];
-  return Cast<Code>(Tagged<Object>(ptr));
+  return TrustedCast<Code>(Tagged<Object>(ptr));
 }
 
 Handle<Code> Builtins::code_handle(Builtin builtin) {
@@ -158,7 +162,8 @@ Handle<Code> Builtins::code_handle(Builtin builtin) {
 
 // static
 int Builtins::GetStackParameterCount(Builtin builtin) {
-  DCHECK(Builtins::KindOf(builtin) == TSJ || Builtins::KindOf(builtin) == TFJ);
+  DCHECK(Builtins::KindOf(builtin) == TFJ_TSA ||
+         Builtins::KindOf(builtin) == TFJ);
   return builtin_metadata[ToInt(builtin)].data.parameter_count;
 }
 
@@ -197,13 +202,16 @@ CallInterfaceDescriptor Builtins::CallInterfaceDescriptorFor(Builtin builtin) {
     break;                                             \
   }
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
-                 CASE_OTHER, CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, CASE_OTHER)
+                 CASE_OTHER, CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN,
+                 IGNORE_BUILTIN, CASE_OTHER)
 #undef CASE_OTHER
     default:
       Builtins::Kind kind = Builtins::KindOf(builtin);
-      DCHECK_NE(BCH, kind);
-      if (kind == TSJ || kind == TFJ || kind == CPP) {
+      if (kind == TFJ_TSA || kind == TFJ || kind == CPP) {
         return JSTrampolineDescriptor{};
+      }
+      if (kind == BCH || kind == BCH_TSA) {
+        return InterpreterDispatchDescriptor{};
       }
       UNREACHABLE();
   }
@@ -218,7 +226,6 @@ Callable Builtins::CallableFor(Isolate* isolate, Builtin builtin) {
 
 // static
 bool Builtins::HasJSLinkage(Builtin builtin) {
-  DCHECK_NE(BCH, Builtins::KindOf(builtin));
   return CallInterfaceDescriptorFor(builtin) == JSTrampolineDescriptor{};
 }
 
@@ -352,6 +359,11 @@ Address Builtins::CppEntryOf(Builtin builtin) {
   return builtin_metadata[ToInt(builtin)].data.cpp_entry;
 }
 
+Address Builtins::EmbeddedEntryOf(Builtin builtin) {
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
+  return EmbeddedData::FromBlob().InstructionStartOf(builtin);
+}
+
 // static
 bool Builtins::IsBuiltin(const Tagged<Code> code) {
   return Builtins::IsBuiltinId(code->builtin_id());
@@ -384,8 +396,12 @@ void Builtins::InitializeIsolateDataTables(Isolate* isolate) {
   for (Builtin i = Builtins::kFirst; i <= Builtins::kLast; ++i) {
     DCHECK(Builtins::IsBuiltinId(isolate->builtins()->code(i)->builtin_id()));
     DCHECK(!isolate->builtins()->code(i)->has_instruction_stream());
+    Builtin builtin_id = i;
+#if V8_ENABLE_GEARBOX
+    builtin_id = isolate->builtins()->code(i)->builtin_id();
+#endif  // V8_ENABLE_GEARBOX
     isolate_data->builtin_entry_table()[ToInt(i)] =
-        embedded_data.InstructionStartOf(i);
+        embedded_data.InstructionStartOf(builtin_id);
   }
 
   // T0 tables.
@@ -479,12 +495,13 @@ const char* Builtins::KindNameOf(Builtin builtin) {
   // clang-format off
   switch (kind) {
     case CPP: return "CPP";
-    case TSJ: return "TSJ";
+    case TFJ_TSA: return "TFJ_TSA";
     case TFJ: return "TFJ";
-    case TSC: return "TSC";
+    case TFC_TSA: return "TFC_TSA";
     case TFC: return "TFC";
     case TFS: return "TFS";
     case TFH: return "TFH";
+    case BCH_TSA: return "BCH_TSA";
     case BCH: return "BCH";
     case ASM: return "ASM";
   }
@@ -499,35 +516,57 @@ bool Builtins::IsCpp(Builtin builtin) {
 
 // static
 CodeEntrypointTag Builtins::EntrypointTagFor(Builtin builtin) {
-  if (builtin == Builtin::kNoBuiltinId) {
-    // Special case needed for example for tests.
-    return kDefaultCodeEntrypointTag;
-  }
-
-#if V8_ENABLE_DRUMBRAKE
-  if (builtin == Builtin::kGenericJSToWasmInterpreterWrapper) {
-    return kJSEntrypointTag;
-  } else if (builtin == Builtin::kGenericWasmToJSInterpreterWrapper) {
-    return kWasmEntrypointTag;
-  }
-#endif  // V8_ENABLE_DRUMBRAKE
-
   Kind kind = Builtins::KindOf(builtin);
   switch (kind) {
     case CPP:
-    case TSJ:
+    case TFJ_TSA:
     case TFJ:
       return kJSEntrypointTag;
+    case BCH_TSA:
     case BCH:
       return kBytecodeHandlerEntrypointTag;
     case TFC:
-    case TSC:
+    case TFC_TSA:
     case TFS:
     case TFH:
     case ASM:
       return CallInterfaceDescriptorFor(builtin).tag();
   }
   UNREACHABLE();
+}
+
+// static
+CodeSandboxingMode Builtins::SandboxingModeOf(Builtin builtin) {
+  Kind kind = Builtins::KindOf(builtin);
+  switch (kind) {
+    case CPP:
+      // CPP builtins are invoked in sandboxed execution mode, but the CEntry
+      // trampoline will exit sandboxed mode before calling the actual C++ code.
+      // TODO(422994386): investigate running the C++ code in sandboxed mode.
+      return CodeSandboxingMode::kSandboxed;
+    case TFJ_TSA:
+    case TFJ:
+      // All builtins with JS linkage run sandboxed.
+      return CodeSandboxingMode::kSandboxed;
+    case TFH:
+    case BCH_TSA:
+    case BCH:
+      // Bytecode handlers and inline caches run sandboxed.
+      return CodeSandboxingMode::kSandboxed;
+    case TFS:
+      switch (builtin) {
+        // Microtask-related builtins run in privileged mode as they need write
+        // access to the MicrotaskQueue object.
+        case Builtin::kEnqueueMicrotask:
+          return CodeSandboxingMode::kUnsandboxed;
+        default:
+          return CodeSandboxingMode::kSandboxed;
+      }
+    case TFC_TSA:
+    case TFC:
+    case ASM:
+      return CallInterfaceDescriptorFor(builtin).sandboxing_mode();
+  }
 }
 
 // static

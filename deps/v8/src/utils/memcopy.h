@@ -10,14 +10,15 @@
 #include <string.h>
 
 #include <algorithm>
+#include <type_traits>
 
+#include "include/v8config.h"
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/utils/utils.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 using Address = uintptr_t;
 
@@ -78,7 +79,7 @@ V8_INLINE V8_CLANG_NO_SANITIZE("alignment") void OverlappingWrites(
 }
 
 V8_CLANG_NO_SANITIZE("alignment")
-inline void MemCopy(void* dst, const void* src, size_t count) {
+inline void SimdMemCopy(void* dst, const void* src, size_t count) {
   auto* dst_u = static_cast<uint8_t*>(dst);
   const auto* src_u = static_cast<const uint8_t*>(src);
   // Common cases. Handle before doing clz.
@@ -119,6 +120,12 @@ inline void MemCopy(void* dst, const void* src, size_t count) {
       return;
   }
 }
+
+inline void MemCopy(void* dst, const void* src, size_t count) {
+  // Wrap call to be able to easily identify SIMD usage in profiles.
+  SimdMemCopy(dst, src, count);
+}
+
 #else  // !defined(V8_OPTIMIZE_WITH_NEON)
 // Copy memory area to disjoint memory area.
 inline void MemCopy(void* dest, const void* src, size_t size) {
@@ -264,77 +271,6 @@ inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
   CopyImpl<kMinComplexMemCopy>(dst, src, num_bytes);
 }
 
-inline void MemsetUint32(uint32_t* dest, uint32_t value, size_t counter) {
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
-#define STOS "stosl"
-#endif
-
-#if defined(MEMORY_SANITIZER)
-  // MemorySanitizer does not understand inline assembly.
-#undef STOS
-#endif
-
-#if defined(__GNUC__) && defined(STOS)
-  asm volatile(
-      "cld;"
-      "rep ; " STOS
-      : "+&c"(counter), "+&D"(dest)
-      : "a"(value)
-      : "memory", "cc");
-#else
-  for (size_t i = 0; i < counter; i++) {
-    dest[i] = value;
-  }
-#endif
-
-#undef STOS
-}
-
-inline void MemsetPointer(Address* dest, Address value, size_t counter) {
-#if V8_HOST_ARCH_IA32
-#define STOS "stosl"
-#elif V8_HOST_ARCH_X64
-#define STOS "stosq"
-#endif
-
-#if defined(MEMORY_SANITIZER)
-  // MemorySanitizer does not understand inline assembly.
-#undef STOS
-#endif
-
-#if defined(__GNUC__) && defined(STOS)
-  asm volatile(
-      "cld;"
-      "rep ; " STOS
-      : "+&c"(counter), "+&D"(dest)
-      : "a"(value)
-      : "memory", "cc");
-#else
-  for (size_t i = 0; i < counter; i++) {
-    dest[i] = value;
-  }
-#endif
-
-#undef STOS
-}
-
-template <typename T, typename U>
-inline void MemsetPointer(T** dest, U* value, size_t counter) {
-#ifdef DEBUG
-  T* a = nullptr;
-  U* b = nullptr;
-  a = b;  // Fake assignment to check assignability.
-  USE(a);
-#endif  // DEBUG
-  MemsetPointer(reinterpret_cast<Address*>(dest),
-                reinterpret_cast<Address>(value), counter);
-}
-
-template <typename T>
-inline void MemsetPointer(T** dest, std::nullptr_t, size_t counter) {
-  MemsetPointer(reinterpret_cast<Address*>(dest), Address{0}, counter);
-}
-
 // Copy from 8bit/16bit chars to 8bit/16bit chars. Values are zero-extended if
 // needed. Ranges are not allowed to overlap.
 // The separate declaration is needed for the V8_NONNULL, which is not allowed
@@ -344,10 +280,10 @@ void CopyChars(DstType* dst, const SrcType* src, size_t count) V8_NONNULL(1, 2);
 
 template <typename SrcType, typename DstType>
 void CopyChars(DstType* dst, const SrcType* src, size_t count) {
-  static_assert(std::is_integral<SrcType>::value);
-  static_assert(std::is_integral<DstType>::value);
-  using SrcTypeUnsigned = typename std::make_unsigned<SrcType>::type;
-  using DstTypeUnsigned = typename std::make_unsigned<DstType>::type;
+  static_assert(std::is_integral_v<SrcType>);
+  static_assert(std::is_integral_v<DstType>);
+  using SrcTypeUnsigned = std::make_unsigned_t<SrcType>;
+  using DstTypeUnsigned = std::make_unsigned_t<DstType>;
 
 #ifdef DEBUG
   // Check for no overlap, otherwise {std::copy_n} cannot be used.
@@ -362,9 +298,9 @@ void CopyChars(DstType* dst, const SrcType* src, size_t count) {
   auto* src_u = reinterpret_cast<const SrcTypeUnsigned*>(src);
 
 #if defined(V8_OPTIMIZE_WITH_NEON)
-  if constexpr (sizeof(DstType) == 1 && sizeof(SrcType) == 1) {
+  if constexpr (std::is_same_v<DstTypeUnsigned, SrcTypeUnsigned>) {
     // Use simd optimized memcpy.
-    MemCopy(dst, src, count);
+    SimdMemCopy(dst_u, src_u, count * sizeof(DstTypeUnsigned));
     return;
   }
 #endif  // defined(V8_OPTIMIZE_WITH_NEON)
@@ -400,7 +336,26 @@ void CopyChars(DstType* dst, const SrcType* src, size_t count) {
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+// Fills `destination` with `count` `value`s.
+template <typename T, typename U>
+constexpr void Memset(T* destination, U value, size_t count)
+  requires std::is_trivially_assignable_v<T&, U>
+{
+  for (size_t i = 0; i < count; i++) {
+    destination[i] = value;
+  }
+}
+
+// Fills `destination` with `count` `value`s.
+template <typename T>
+inline void Relaxed_Memset(T* destination, T value, size_t count)
+  requires std::is_integral_v<T>
+{
+  for (size_t i = 0; i < count; i++) {
+    std::atomic_ref<T>(destination[i]).store(value, std::memory_order_relaxed);
+  }
+}
+
+}  // namespace v8::internal
 
 #endif  // V8_UTILS_MEMCOPY_H_

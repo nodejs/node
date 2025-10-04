@@ -4954,11 +4954,11 @@ void helper_fmadd_fmsub_fnmadd_fnmsub(F func) {
       {-x2, -y2, -z2, 0.0, 0.0, 0.0, 0.0},
   };
   // clang-format on
-  if (std::is_same<T, float>::value) {
+  if (std::is_same_v<T, float>) {
     __ Fld_s(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fj)));
     __ Fld_s(f9, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fk)));
     __ Fld_s(f10, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fa)));
-  } else if (std::is_same<T, double>::value) {
+  } else if (std::is_same_v<T, double>) {
     __ Fld_d(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fj)));
     __ Fld_d(f9, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fk)));
     __ Fld_d(f10, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fa)));

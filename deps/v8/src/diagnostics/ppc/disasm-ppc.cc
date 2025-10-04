@@ -992,6 +992,16 @@ void Decoder::DecodeExt2(Instruction* instr) {
       return;
     }
   }
+  switch (EXT2 | (instr->BitField(9, 1))) {
+    case ADDX: {
+      Format(instr, "add'o'.     'rt, 'ra, 'rb");
+      return;
+    }
+    case NEGX: {
+      Format(instr, "neg'o'.    'rt, 'ra");
+      return;
+    }
+  }
 
   // ?? are all of these xo_form?
   switch (EXT2 | (instr->BitField(10, 1))) {
@@ -1071,10 +1081,6 @@ void Decoder::DecodeExt2(Instruction* instr) {
       }
       return;
     }
-    case NEGX: {
-      Format(instr, "neg'.    'rt, 'ra");
-      return;
-    }
     case NORX: {
       Format(instr, "nor'.    'rt, 'ra, 'rb");
       return;
@@ -1111,10 +1117,6 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "divd'o'.   'rt, 'ra, 'rb");
       return;
     }
-    case ADDX: {
-      Format(instr, "add'o     'rt, 'ra, 'rb");
-      return;
-    }
     case XORX: {
       Format(instr, "xor'.    'ra, 'rs, 'rb");
       return;
@@ -1134,6 +1136,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
       } else {
         Format(instr, "mfspr   'rt ??");
       }
+      return;
+    }
+    case MCRXRX: {
+      Format(instr, "mcrxrx");
       return;
     }
     case MTSPR: {

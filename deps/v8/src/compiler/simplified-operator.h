@@ -9,6 +9,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/container-utils.h"
+#include "src/base/macros.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tnode.h"
 #include "src/common/globals.h"
@@ -47,7 +48,7 @@ struct WasmTypeCheckConfig;
 
 size_t hash_value(BaseTaggedness);
 
-std::ostream& operator<<(std::ostream&, BaseTaggedness);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BaseTaggedness);
 
 struct ConstFieldInfo {
   // the map that introduced the const field, if any. An access is considered
@@ -287,6 +288,7 @@ CheckParameters const& CheckParametersOf(Operator const*) V8_WARN_UNUSED_RESULT;
 enum class CheckBoundsFlag : uint8_t {
   kConvertStringAndMinusZero = 1 << 0,  // instead of deopting on such inputs
   kAbortOnOutOfBounds = 1 << 1,         // instead of deopting if input is OOB
+  kAllow64BitBounds = 1 << 2,           // the bounds may exceed 32 bit range
 };
 using CheckBoundsFlags = base::Flags<CheckBoundsFlag>;
 DEFINE_OPERATORS_FOR_FLAGS(CheckBoundsFlags)
@@ -711,7 +713,7 @@ UnicodeEncoding UnicodeEncodingOf(const Operator*) V8_WARN_UNUSED_RESULT;
 
 AbortReason AbortReasonOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-DeoptimizeReason DeoptimizeReasonOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+SilenceNanMode SilenceNanModeOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 class NewArgumentsElementsParameters {
  public:
@@ -881,7 +883,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* NumberToUint8Clamped();
   const Operator* Integral32OrMinusZeroToBigInt();
 
-  const Operator* NumberSilenceNaN();
+  const Operator* NumberSilenceNaN(
+      SilenceNanMode mode = SilenceNanMode::kSilenceUndefined);
 
   const Operator* BigIntAdd();
   const Operator* BigIntSubtract();
@@ -954,6 +957,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringEqual();
   const Operator* StringLessThan();
   const Operator* StringLessThanOrEqual();
+  const Operator* StringOrOddballStrictEqual();
   const Operator* StringCharCodeAt();
   const Operator* StringCodePointAt();
   const Operator* StringFromSingleCharCode();
@@ -989,6 +993,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ChangeTaggedToUint32();
   const Operator* ChangeTaggedToFloat64();
   const Operator* ChangeTaggedToTaggedSigned();
+  const Operator* ChangeNumberOrHoleToFloat64();
   const Operator* ChangeInt31ToTaggedSigned();
   const Operator* ChangeInt32ToTagged();
   const Operator* ChangeInt64ToTagged();
@@ -996,14 +1001,18 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ChangeUint64ToTagged();
   const Operator* ChangeFloat64ToTagged(CheckForMinusZeroMode);
   const Operator* ChangeFloat64ToTaggedPointer();
+  const Operator* ChangeFloat64OrUndefinedToTagged(CheckForMinusZeroMode);
   const Operator* ChangeFloat64HoleToTagged();
+  const Operator* ChangeFloat64OrUndefinedOrHoleToTagged();
   const Operator* ChangeTaggedToBit();
   const Operator* ChangeBitToTagged();
   const Operator* TruncateBigIntToWord64();
   const Operator* ChangeInt64ToBigInt();
   const Operator* ChangeUint64ToBigInt();
-  const Operator* TruncateTaggedToWord32();
+  const Operator* TruncateNumberOrOddballToWord32();
+  const Operator* TruncateNumberOrOddballOrHoleToWord32();
   const Operator* TruncateTaggedToFloat64();
+  const Operator* TruncateTaggedToFloat64PreserveUndefined();
   const Operator* TruncateTaggedToBit();
   const Operator* TruncateTaggedPointerToBit();
 
@@ -1029,12 +1038,14 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                             const FeedbackSource& = FeedbackSource());
   const Operator* CheckNotTaggedHole();
   const Operator* CheckNumber(const FeedbackSource& feedback);
+  const Operator* CheckNumberOrUndefined(const FeedbackSource& feedback);
   const Operator* CheckNumberFitsInt32(const FeedbackSource& feedback);
   const Operator* CheckReceiver();
   const Operator* CheckReceiverOrNullOrUndefined();
   const Operator* CheckSmi(const FeedbackSource& feedback);
   const Operator* CheckString(const FeedbackSource& feedback);
   const Operator* CheckStringOrStringWrapper(const FeedbackSource& feedback);
+  const Operator* CheckStringOrOddball(const FeedbackSource& feedback);
   const Operator* CheckSymbol();
 
   const Operator* CheckedFloat64ToInt32(CheckForMinusZeroMode,
@@ -1057,6 +1068,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedInt64Mod();
   const Operator* CheckedInt32ToTaggedSigned(const FeedbackSource& feedback);
   const Operator* CheckedInt64ToInt32(const FeedbackSource& feedback);
+  const Operator* CheckedInt64ToAdditiveSafeInteger(
+      const FeedbackSource& feedback);
   const Operator* CheckedInt64ToTaggedSigned(const FeedbackSource& feedback);
   const Operator* CheckedTaggedSignedToInt32(const FeedbackSource& feedback);
   const Operator* CheckedTaggedToFloat64(CheckTaggedInputMode,

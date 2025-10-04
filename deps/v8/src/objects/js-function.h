@@ -97,7 +97,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
  public:
   // [prototype_or_initial_map]:
   DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map,
-                                 Tagged<UnionOf<JSPrototype, Map, Hole>>)
+                                 Tagged<UnionOf<JSPrototype, Map, TheHole>>)
 
   void TraceOptimizationStatus(const char* reason, ...);
 
@@ -108,6 +108,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   // Fast binding requires length and name accessors.
   static const int kMinDescriptorsForFastBindAndWrap = 2;
+
+  static DirectHandle<Object> GetFunctionPrototype(
+      Isolate* isolate, DirectHandle<JSFunction> function);
 
   // [context]: The context for this function.
   inline Tagged<Context> context();
@@ -320,6 +323,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   // Resets function to clear compiled data after bytecode has been flushed.
   inline bool NeedsResetDueToFlushedBytecode(Isolate* isolate);
+  inline bool NeedsResetDueToFlushedBytecode(Isolate* isolate,
+                                             Tagged<SharedFunctionInfo> sfi,
+                                             Tagged<Code> code);
   inline void ResetIfCodeFlushed(
       Isolate* isolate,
       std::optional<

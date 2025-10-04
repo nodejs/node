@@ -28,11 +28,9 @@
 // We disable format checker under vscode intellisense compilation.
 // See https://github.com/microsoft/vscode-cpptools/issues/3683 for
 // more details.
-#if ABSL_HAVE_ATTRIBUTE(enable_if) && !defined(__native_client__) && \
-    !defined(__INTELLISENSE__)
+#if ABSL_HAVE_ATTRIBUTE(enable_if) && !defined(__INTELLISENSE__)
 #define ABSL_INTERNAL_ENABLE_FORMAT_CHECKER 1
-#endif  // ABSL_HAVE_ATTRIBUTE(enable_if) && !defined(__native_client__) &&
-        // !defined(__INTELLISENSE__)
+#endif  // ABSL_HAVE_ATTRIBUTE(enable_if) && !defined(__INTELLISENSE__)
 #endif  // ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
 namespace absl {

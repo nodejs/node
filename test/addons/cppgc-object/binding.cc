@@ -8,7 +8,7 @@
 #include <v8.h>
 #include <algorithm>
 
-class CppGCed : public cppgc::GarbageCollected<CppGCed> {
+class CppGCed : public v8::Object::Wrappable {
  public:
   static uint16_t states[2];
   static constexpr int kDestructCount = 0;
@@ -27,7 +27,7 @@ class CppGCed : public cppgc::GarbageCollected<CppGCed> {
 
   static v8::Local<v8::Function> GetConstructor(
       v8::Local<v8::Context> context) {
-    auto ft = v8::FunctionTemplate::New(context->GetIsolate(), New);
+    auto ft = v8::FunctionTemplate::New(v8::Isolate::GetCurrent(), New);
     return ft->GetFunction(context).ToLocalChecked();
   }
 

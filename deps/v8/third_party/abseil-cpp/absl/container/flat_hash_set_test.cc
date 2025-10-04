@@ -383,6 +383,20 @@ TEST(FlatHashSet, MoveOnlyKey) {
   EXPECT_THAT(s, UnorderedElementsAre(1, 2, 3));
 }
 
+TEST(FlatHashSet, IsDefaultHash) {
+  using absl::container_internal::hashtable_debug_internal::
+      HashtableDebugAccess;
+  EXPECT_EQ(HashtableDebugAccess<flat_hash_set<int>>::kIsDefaultHash, true);
+  EXPECT_EQ(HashtableDebugAccess<flat_hash_set<std::string>>::kIsDefaultHash,
+            true);
+
+  struct Hash {
+    size_t operator()(size_t i) const { return i; }
+  };
+  EXPECT_EQ((HashtableDebugAccess<flat_hash_set<size_t, Hash>>::kIsDefaultHash),
+            false);
+}
+
 }  // namespace
 }  // namespace container_internal
 ABSL_NAMESPACE_END

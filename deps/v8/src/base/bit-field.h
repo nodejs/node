@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <type_traits>
 
 #include "src/base/macros.h"
 
@@ -24,11 +25,20 @@ namespace base {
 template <class T, int shift, int size, class U = uint32_t>
 class BitField final {
  public:
-  static_assert(std::is_unsigned<U>::value);
+  static_assert(std::is_unsigned_v<U>);
   static_assert(shift < 8 * sizeof(U));  // Otherwise shifts by {shift} are UB.
   static_assert(size < 8 * sizeof(U));   // Otherwise shifts by {size} are UB.
   static_assert(shift + size <= 8 * sizeof(U));
   static_assert(size > 0);
+
+  // Make sure we don't create bitfields that are too large for their value.
+  // Carve out an exception for 32-bit size_t, for uniformity between 32-bit
+  // and 64-bit code.
+  static_assert(size <= 8 * sizeof(T) ||
+                    (std::is_same_v<T, size_t> && sizeof(size_t) == 4),
+                "Bitfield is unnecessarily big!");
+  static_assert(!std::is_same_v<T, bool> || size == 1,
+                "Bitfield is unnecessarily big!");
 
   using FieldType = T;
   using BaseType = U;
@@ -53,7 +63,22 @@ class BitField final {
 
   // Returns a type U with the bit field value encoded.
   static constexpr U encode(T value) {
-    DCHECK(is_valid(value));
+    if constexpr (std::is_enum_v<T> || sizeof(T) * 8 <= kSize ||
+                  std::is_same_v<T, bool>) {
+      // For enums, we trust that they are within the valid range, since they
+      // are typed and we assume that the enum itself has a valid value. DCHECK
+      // just in case (e.g. in case valid enum values are outside the bitfield
+      // size).
+      //
+      // Similarly, if T fits exactly in the bitfield (either in bytes, or
+      // because bools can be stored as 1 bit), we trust that they are valid.
+      DCHECK(is_valid(value));
+    } else {
+      // For non-enums (in practice, integers), we don't trust that they are
+      // valid, since we pass them around without static value interval
+      // information.
+      CHECK(is_valid(value));
+    }
     return static_cast<U>(value) << kShift;
   }
 
@@ -77,8 +102,7 @@ class BitField final {
 template <typename A, typename B>
 class BitFieldUnion final {
  public:
-  static_assert(
-      std::is_same<typename A::BaseType, typename B::BaseType>::value);
+  static_assert(std::is_same_v<typename A::BaseType, typename B::BaseType>);
   static_assert((A::kMask & B::kMask) == 0);
   static constexpr int kShift = std::min(A::kShift, B::kShift);
   static constexpr int kMask = A::kMask | B::kMask;

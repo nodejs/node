@@ -163,7 +163,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   // Returns the actual used time and actually marked bytes.
   std::pair<v8::base::TimeDelta, size_t> CppHeapStep(
-      v8::base::TimeDelta max_duration, size_t marked_bytes_limit);
+      v8::base::TimeDelta max_duration,
+      std::optional<size_t> marked_bytes_limit, StepOrigin step_origin);
 
   void Step(v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
             StepOrigin step_origin);

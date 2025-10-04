@@ -18,7 +18,7 @@ TEST_F(WeakArrayListTest, Compact) {
   Tagged<MaybeObject> some_object = *isolate()->factory()->empty_fixed_array();
   Tagged<MaybeObject> weak_ref = MakeWeak(some_object);
   Tagged<MaybeObject> smi = Smi::FromInt(0);
-  Tagged<MaybeObject> cleared_ref = ClearedValue(isolate());
+  Tagged<MaybeObject> cleared_ref = kClearedWeakValue;
   list->Set(0, weak_ref);
   list->Set(1, smi);
   list->Set(2, cleared_ref);
@@ -38,7 +38,7 @@ TEST_F(WeakArrayListTest, OutOfPlaceCompact) {
   Tagged<MaybeObject> some_object = *isolate()->factory()->empty_fixed_array();
   Tagged<MaybeObject> weak_ref = MakeWeak(some_object);
   Tagged<MaybeObject> smi = Smi::FromInt(0);
-  Tagged<MaybeObject> cleared_ref = ClearedValue(isolate());
+  Tagged<MaybeObject> cleared_ref = kClearedWeakValue;
   list->Set(0, weak_ref);
   list->Set(1, smi);
   list->Set(2, cleared_ref);

@@ -28,9 +28,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
                               Label* on_equal) override;
   void CheckCharacterGT(base::uc16 limit, Label* on_greater) override;
   void CheckCharacterLT(base::uc16 limit, Label* on_less) override;
-  // A "greedy loop" is a loop that is both greedy and with a simple
+  // A "fixed length loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
-  void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
+  void CheckFixedLengthLoop(Label* on_tos_equals_current_position) override;
   void CheckNotAtStart(int cp_offset, Label* on_not_at_start) override;
   void CheckNotBackReference(int start_reg, bool read_backward,
                              Label* on_no_match) override;
@@ -53,8 +53,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
                                      Label* on_not_in_range) override;
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
   void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
-                           Handle<ByteArray> nibble_table,
-                           int advance_by) override;
+                           Handle<ByteArray> nibble_table, int advance_by,
+                           Label* on_match, Label* on_no_match) override;
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
@@ -85,7 +85,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   void WriteCurrentPositionToRegister(int reg, int cp_offset) override;
   void ClearRegisters(int reg_from, int reg_to) override;
   void WriteStackPointerToRegister(int reg) override;
-  bool CanReadUnaligned() const override;
+
+  void RecordComment(std::string_view comment) override {
+    masm_->RecordComment(comment);
+  }
+  MacroAssembler* masm() override { return masm_.get(); }
 
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before

@@ -37,7 +37,7 @@ extern class JSFunction extends JSFunctionOrBoundFunctionOrWrappedFunction {
   context: Context;
   feedback_cell: FeedbackCell;
   // Space for the following field may or may not be allocated.
-  prototype_or_initial_map: JSReceiver|Map;
+  prototype_or_initial_map: JSReceiver|Map|TheHole;
 }
 
 // Class constructors are special, because they are callable, but [[Call]] will

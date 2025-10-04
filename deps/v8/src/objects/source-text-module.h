@@ -28,7 +28,6 @@ class StructBodyDescriptor;
 class SourceTextModule
     : public TorqueGeneratedSourceTextModule<SourceTextModule, Module> {
  public:
-  NEVER_READ_ONLY_SPACE
   DECL_VERIFIER(SourceTextModule)
   DECL_PRINTER(SourceTextModule)
 
@@ -173,8 +172,7 @@ class SourceTextModule
   static V8_WARN_UNUSED_RESULT bool PrepareInstantiate(
       Isolate* isolate, DirectHandle<SourceTextModule> module,
       v8::Local<v8::Context> context,
-      v8::Module::ResolveModuleCallback module_callback,
-      v8::Module::ResolveSourceCallback source_callback);
+      const Module::UserResolveCallbacks& callbacks);
   static V8_WARN_UNUSED_RESULT bool FinishInstantiate(
       Isolate* isolate, Handle<SourceTextModule> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index,
@@ -279,7 +277,6 @@ class SourceTextModuleInfo : public FixedArray {
 class ModuleRequest
     : public TorqueGeneratedModuleRequest<ModuleRequest, Struct> {
  public:
-  NEVER_READ_ONLY_SPACE
   DECL_VERIFIER(ModuleRequest)
 
   template <typename IsolateT>

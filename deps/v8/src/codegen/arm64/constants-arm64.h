@@ -605,6 +605,20 @@ constexpr AddSubWithCarryOp SBCS_w = AddSubWithCarryFixed | SUBS;
 constexpr AddSubWithCarryOp SBCS_x =
     AddSubWithCarryFixed | SUBS | SixtyFourBits;
 
+// Min/max immediate.
+using MinMaxImmediateOp = uint32_t;
+constexpr MinMaxImmediateOp MinMaxImmediateFixed = 0x11C00000;
+constexpr MinMaxImmediateOp MinMaxImmediateFMask = 0x7FF00000;
+constexpr MinMaxImmediateOp MinMaxImmediateMask = 0xFFFC0000;
+constexpr MinMaxImmediateOp SMAX_w_imm = MinMaxImmediateFixed;
+constexpr MinMaxImmediateOp SMAX_x_imm = SMAX_w_imm | SixtyFourBits;
+constexpr MinMaxImmediateOp UMAX_w_imm = MinMaxImmediateFixed | 0x00040000;
+constexpr MinMaxImmediateOp UMAX_x_imm = UMAX_w_imm | SixtyFourBits;
+constexpr MinMaxImmediateOp SMIN_w_imm = MinMaxImmediateFixed | 0x00080000;
+constexpr MinMaxImmediateOp SMIN_x_imm = SMIN_w_imm | SixtyFourBits;
+constexpr MinMaxImmediateOp UMIN_w_imm = MinMaxImmediateFixed | 0x000C0000;
+constexpr MinMaxImmediateOp UMIN_x_imm = UMIN_w_imm | SixtyFourBits;
+
 // Logical (immediate and shifted register).
 using LogicalOp = uint32_t;
 constexpr LogicalOp LogicalOpMask = 0x60200000;
@@ -764,6 +778,23 @@ constexpr ConditionalBranchOp B_cond = ConditionalBranchFixed | 0x00000000;
 constexpr ConditionalBranchOp ConditionalBranchConsistentFixed = 0x54000010;
 constexpr ConditionalBranchOp BC_cond =
     ConditionalBranchConsistentFixed | 0x00000000;
+
+// MOPS
+using MemCpyOp = uint32_t;
+constexpr MemCpyOp CpyFixed = 0x1D000400;
+constexpr MemCpyOp CpyFMask = 0xFF20FC00;
+constexpr MemCpyOp CpyMask = CpyFMask | 0x00E00000;
+constexpr MemCpyOp CPYP = CpyFixed | 0x00000000;
+constexpr MemCpyOp CPYM = CpyFixed | 0x00400000;
+constexpr MemCpyOp CPYE = CpyFixed | 0x00800000;
+
+using MemSetOp = uint32_t;
+constexpr MemSetOp SetFixed = 0x19C00400;
+constexpr MemSetOp SetFMask = 0xFFE03C00;
+constexpr MemSetOp SetMask = SetFMask | 0x0000C000;
+constexpr MemSetOp SETP = SetFixed | 0x00000000;
+constexpr MemSetOp SETM = SetFixed | 0x00004000;
+constexpr MemSetOp SETE = SetFixed | 0x00008000;
 
 // System.
 // System instruction encoding is complicated because some instructions use op
@@ -1259,6 +1290,18 @@ constexpr DataProcessing2SourceOp CRC32CW =
     DataProcessing2SourceFixed | 0x00005800;
 constexpr DataProcessing2SourceOp CRC32CX =
     DataProcessing2SourceFixed | SixtyFourBits | 0x00005C00;
+constexpr DataProcessing2SourceOp SMAX_w =
+    DataProcessing2SourceFixed | 0x0006000;
+constexpr DataProcessing2SourceOp SMAX_x = SMAX_w | SixtyFourBits;
+constexpr DataProcessing2SourceOp UMAX_w =
+    DataProcessing2SourceFixed | 0x0006400;
+constexpr DataProcessing2SourceOp UMAX_x = UMAX_w | SixtyFourBits;
+constexpr DataProcessing2SourceOp SMIN_w =
+    DataProcessing2SourceFixed | 0x0006800;
+constexpr DataProcessing2SourceOp SMIN_x = SMIN_w | SixtyFourBits;
+constexpr DataProcessing2SourceOp UMIN_w =
+    DataProcessing2SourceFixed | 0x0006C00;
+constexpr DataProcessing2SourceOp UMIN_x = UMIN_w | SixtyFourBits;
 
 // Data processing 3 source.
 using DataProcessing3SourceOp = uint32_t;
@@ -2611,6 +2654,10 @@ constexpr UnimplementedOp UnimplementedFMask = 0x00000000;
 using UnallocatedOp = uint32_t;
 constexpr UnallocatedOp UnallocatedFixed = 0x00000000;
 constexpr UnallocatedOp UnallocatedFMask = 0x00000000;
+
+// The maximum size of the stack restore after a fast API call that pops the
+// stack parameters of the call off the stack.
+constexpr int kMaxSizeOfMoveAfterFastCall = 4;
 
 }  // namespace internal
 }  // namespace v8

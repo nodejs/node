@@ -1128,11 +1128,18 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
         isolate_, new_map, new_map->NumberOfEnumerableProperties());
   }
 
-  // The old map has to still point to the old enum cache. This is because we
+#ifdef DEBUG
+  // As long as the old map's descriptors enum cache wasn't cleared by GC
+  // (as a result of trimming all enumerable properties in descriptors array)
+  // the old map has to still point to the old enum cache. This is because we
   // might have cached the enum indices, for iterating over objects with the old
   // map -- we don't want this enum cache to move ownership to the new branch,
   // because then it might get trimmed past the old map's field count.
-  DCHECK_EQ(old_map_->instance_descriptors()->enum_cache(), *old_enum_cache);
+  if (old_map_->instance_descriptors()->enum_cache() !=
+      ReadOnlyRoots(isolate_).empty_enum_cache()) {
+    DCHECK_EQ(old_map_->instance_descriptors()->enum_cache(), *old_enum_cache);
+  }
+#endif  // DEBUG
 
   if (has_integrity_level_transition_) {
     target_map_ = new_map;

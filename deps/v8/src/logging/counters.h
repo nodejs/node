@@ -99,6 +99,8 @@ class StatsTable {
 // This class is thread-safe.
 class StatsCounter {
  public:
+  const char* name() const { return name_; }
+
   void Set(int value) { GetPtr()->store(value, std::memory_order_relaxed); }
   int Get() { return GetPtr()->load(); }
 
@@ -591,37 +593,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
   STATS_COUNTER_LIST(SC)
   STATS_COUNTER_NATIVE_CODE_LIST(SC)
 #undef SC
-
-  // clang-format off
-  enum Id {
-#define RATE_ID(name, caption, max, res) k_##name,
-    NESTED_TIMED_HISTOGRAM_LIST(RATE_ID)
-    NESTED_TIMED_HISTOGRAM_LIST_SLOW(RATE_ID)
-    TIMED_HISTOGRAM_LIST(RATE_ID)
-#undef RATE_ID
-#define AGGREGATABLE_ID(name, caption) k_##name,
-    AGGREGATABLE_HISTOGRAM_TIMER_LIST(AGGREGATABLE_ID)
-#undef AGGREGATABLE_ID
-#define PERCENTAGE_ID(name, caption) k_##name,
-    HISTOGRAM_PERCENTAGE_LIST(PERCENTAGE_ID)
-#undef PERCENTAGE_ID
-#define MEMORY_ID(name, caption) k_##name,
-    HISTOGRAM_LEGACY_MEMORY_LIST(MEMORY_ID)
-#undef MEMORY_ID
-#define COUNTER_ID(name, caption) k_##name,
-    STATS_COUNTER_LIST(COUNTER_ID)
-    STATS_COUNTER_NATIVE_CODE_LIST(COUNTER_ID)
-#undef COUNTER_ID
-#define COUNTER_ID(name) kCountOf##name, kSizeOf##name,
-    INSTANCE_TYPE_LIST(COUNTER_ID)
-#undef COUNTER_ID
-#define COUNTER_ID(name) kCountOfCODE_TYPE_##name, \
-    kSizeOfCODE_TYPE_##name,
-    CODE_KIND_LIST(COUNTER_ID)
-#undef COUNTER_ID
-    stats_counter_count
-  };
-  // clang-format on
 
 #ifdef V8_RUNTIME_CALL_STATS
   RuntimeCallStats* runtime_call_stats() { return &runtime_call_stats_; }

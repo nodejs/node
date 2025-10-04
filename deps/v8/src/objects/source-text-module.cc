@@ -184,7 +184,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     DirectHandle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve, Module::ResolveSet* resolve_set) {
   Handle<Object> object(module->exports()->Lookup(export_name), isolate);
-  if (IsCell(*object)) {
+  if (!IsTheHole(*object) && IsCell(*object)) {
     // Already resolved (e.g. because it's a local export).
     return Cast<Cell>(object);
   }
@@ -212,35 +212,35 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     name_set->insert(export_name);
   }
 
-  if (IsSourceTextModuleInfoEntry(*object)) {
-    // Not yet resolved indirect export.
-    auto entry = Cast<SourceTextModuleInfoEntry>(object);
-    Handle<String> import_name(Cast<String>(entry->import_name()), isolate);
-    Handle<Script> script(module->GetScript(), isolate);
-    MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
-
-    Handle<Cell> cell;
-    if (!ResolveImport(isolate, module, import_name, entry->module_request(),
-                       new_loc, true, resolve_set)
-             .ToHandle(&cell)) {
-      DCHECK(isolate->has_exception());
-      return MaybeHandle<Cell>();
-    }
-
-    // The export table may have changed but the entry in question should be
-    // unchanged.
-    Handle<ObjectHashTable> exports(module->exports(), isolate);
-    DCHECK(IsSourceTextModuleInfoEntry(exports->Lookup(export_name)));
-
-    exports = ObjectHashTable::Put(exports, export_name, cell);
-    module->set_exports(*exports);
-    return cell;
+  if (IsTheHole(*object)) {
+    return SourceTextModule::ResolveExportUsingStarExports(
+        isolate, module, module_specifier, export_name, loc, must_resolve,
+        resolve_set);
   }
 
-  DCHECK(IsTheHole(*object, isolate));
-  return SourceTextModule::ResolveExportUsingStarExports(
-      isolate, module, module_specifier, export_name, loc, must_resolve,
-      resolve_set);
+  DCHECK(IsSourceTextModuleInfoEntry(*object));
+  // Not yet resolved indirect export.
+  auto entry = Cast<SourceTextModuleInfoEntry>(object);
+  Handle<String> import_name(Cast<String>(entry->import_name()), isolate);
+  Handle<Script> script(module->GetScript(), isolate);
+  MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
+
+  Handle<Cell> cell;
+  if (!ResolveImport(isolate, module, import_name, entry->module_request(),
+                     new_loc, true, resolve_set)
+           .ToHandle(&cell)) {
+    DCHECK(isolate->has_exception());
+    return MaybeHandle<Cell>();
+  }
+
+  // The export table may have changed but the entry in question should be
+  // unchanged.
+  Handle<ObjectHashTable> exports(module->exports(), isolate);
+  DCHECK(IsSourceTextModuleInfoEntry(exports->Lookup(export_name)));
+
+  exports = ObjectHashTable::Put(exports, export_name, cell);
+  module->set_exports(*exports);
+  return cell;
 }
 
 MaybeHandle<Cell> SourceTextModule::ResolveImport(
@@ -346,9 +346,10 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
 bool SourceTextModule::PrepareInstantiate(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     v8::Local<v8::Context> context,
-    v8::Module::ResolveModuleCallback module_callback,
-    v8::Module::ResolveSourceCallback source_callback) {
-  DCHECK_NE(module_callback, nullptr);
+    const Module::UserResolveCallbacks& callbacks) {
+  // One of the callbacks must be set, otherwise we cannot resolve.
+  DCHECK_IMPLIES(callbacks.module_callback == nullptr,
+                 callbacks.module_callback_by_index != nullptr);
   // Obtain requested modules.
   DirectHandle<SourceTextModuleInfo> module_info(module->info(), isolate);
   DirectHandle<FixedArray> module_requests(module_info->module_requests(),
@@ -364,11 +365,23 @@ bool SourceTextModule::PrepareInstantiate(
     switch (module_request->phase()) {
       case ModuleImportPhase::kEvaluation: {
         v8::Local<v8::Module> api_requested_module;
-        if (!module_callback(context, v8::Utils::ToLocal(specifier),
-                             v8::Utils::FixedArrayToLocal(import_attributes),
-                             v8::Utils::ToLocal(Cast<Module>(module)))
-                 .ToLocal(&api_requested_module)) {
-          return false;
+        if (callbacks.module_callback != nullptr) {
+          if (!callbacks
+                   .module_callback(
+                       context, v8::Utils::ToLocal(specifier),
+                       v8::Utils::FixedArrayToLocal(import_attributes),
+                       v8::Utils::ToLocal(Cast<Module>(module)))
+                   .ToLocal(&api_requested_module)) {
+            return false;
+          }
+        } else {
+          DCHECK_NOT_NULL(callbacks.module_callback_by_index);
+          if (!callbacks
+                   .module_callback_by_index(
+                       context, i, v8::Utils::ToLocal(Cast<Module>(module)))
+                   .ToLocal(&api_requested_module)) {
+            return false;
+          }
         }
         DirectHandle<Module> requested_module =
             Utils::OpenDirectHandle(*api_requested_module);
@@ -378,11 +391,23 @@ bool SourceTextModule::PrepareInstantiate(
       case ModuleImportPhase::kSource: {
         DCHECK(v8_flags.js_source_phase_imports);
         v8::Local<v8::Object> api_requested_module_source;
-        if (!source_callback(context, v8::Utils::ToLocal(specifier),
-                             v8::Utils::FixedArrayToLocal(import_attributes),
-                             v8::Utils::ToLocal(Cast<Module>(module)))
-                 .ToLocal(&api_requested_module_source)) {
-          return false;
+        if (callbacks.source_callback != nullptr) {
+          if (!callbacks
+                   .source_callback(
+                       context, v8::Utils::ToLocal(specifier),
+                       v8::Utils::FixedArrayToLocal(import_attributes),
+                       v8::Utils::ToLocal(Cast<Module>(module)))
+                   .ToLocal(&api_requested_module_source)) {
+            return false;
+          }
+        } else {
+          DCHECK_NOT_NULL(callbacks.source_callback_by_index);
+          if (!callbacks
+                   .source_callback_by_index(
+                       context, i, v8::Utils::ToLocal(Cast<Module>(module)))
+                   .ToLocal(&api_requested_module_source)) {
+            return false;
+          }
         }
         DirectHandle<JSReceiver> requested_module_source =
             Utils::OpenDirectHandle(*api_requested_module_source);
@@ -404,7 +429,7 @@ bool SourceTextModule::PrepareInstantiate(
     DirectHandle<Module> requested_module(
         Cast<Module>(requested_modules->get(i)), isolate);
     if (!Module::PrepareInstantiate(isolate, requested_module, context,
-                                    module_callback, source_callback)) {
+                                    callbacks)) {
       return false;
     }
   }
@@ -741,7 +766,15 @@ void SourceTextModule::GatherAvailableAncestors(
 
       // a. If execList does not contain m and
       //    m.[[CycleRoot]].[[EvaluationError]] is empty, then
-      if (m->GetCycleRoot(isolate)->status() != kErrored &&
+      // There may be a bug in the spec here. If an async parent module depends
+      // on an async child but also fails synchronously, it is not getting its
+      // cycle_root property set. If the child module later completes, this
+      // function will be called. The first condition (missing from the spec)
+      // prevents a type confusion here. See https://crbug.com/439986081.
+      DCHECK_IMPLIES(IsTheHole(m->cycle_root(), isolate),
+                     m->status() == kErrored);
+      if (!IsTheHole(m->cycle_root(), isolate) &&
+          m->GetCycleRoot(isolate)->status() != kErrored &&
           exec_list->find(m) == exec_list->end()) {
         // i. Assert: m.[[Status]] is EVALUATING-ASYNC.
         // ii. Assert: m.[[EvaluationError]] is empty.
@@ -787,8 +820,8 @@ DirectHandle<JSModuleNamespace> SourceTextModule::GetModuleNamespace(
 
 MaybeHandle<JSObject> SourceTextModule::GetImportMeta(
     Isolate* isolate, DirectHandle<SourceTextModule> module) {
-  Handle<UnionOf<JSObject, Hole>> import_meta(module->import_meta(kAcquireLoad),
-                                              isolate);
+  Handle<UnionOf<JSObject, TheHole>> import_meta(
+      module->import_meta(kAcquireLoad), isolate);
   if (IsTheHole(*import_meta, isolate)) {
     if (!isolate->RunHostInitializeImportMetaObjectCallback(module).ToHandle(
             &import_meta)) {
@@ -1088,16 +1121,16 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
           execute_async_module_context}
           .Build();
 
-  // 8. Perform ! PerformPromiseThen(capability.[[Promise]],
-  //                                 onFulfilled, onRejected).
+  // 8. Perform PerformPromiseThen(capability.[[Promise]],
+  //                               onFulfilled, onRejected).
   DirectHandle<Object> args[] = {on_fulfilled, on_rejected};
   if (V8_UNLIKELY(Execution::CallBuiltin(isolate, isolate->promise_then(),
                                          capability, base::VectorOf(args))
                       .is_null())) {
-    // TODO(349961173): We assume the builtin call can only fail with a
-    // termination exception. If this check fails in the wild investigate why
-    // the call fails. Otherwise turn this into a DCHECK in the future.
-    CHECK(isolate->is_execution_terminating());
+    // This may fail with a termination exception or if, for any weird reason,
+    // the promise has been rejected. See bugs: https://crbug.com/349961173 and
+    // https://crbug.com/442161248.
+    CHECK(isolate->has_exception());
     return Nothing<bool>();
   }
 

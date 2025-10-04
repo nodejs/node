@@ -1,8 +1,9 @@
 Name: zlib
 Short Name: zlib
-URL: http://zlib.net/
+URL: https://github.com/madler/zlib
 Version: 1.3.1
 Revision: 51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf
+Update Mechanism: Manual (https://crbug.com/422348588)
 CPEPrefix: cpe:/a:zlib:zlib:1.3.1
 Security Critical: yes
 Shipped: yes
@@ -19,8 +20,8 @@ library. zlib implements the "deflate" compression algorithm described by RFC
 also implements the zlib (RFC 1950) and gzip (RFC 1952) wrapper formats.
 
 Local Modifications:
- - Only source code from the zlib distribution used to build the zlib and
-   minizip libraries are present. Many other files have been omitted. Only *.c
+ - Only source code from the http://zlib.net distribution used to build the zlib
+   and minizip libraries are present. Many other files have been omitted. Only *.c
    and *.h files from the upstream root directory, contrib/minizip and
    examples/zpipe.c were imported.
  - The files named '*simd*' are original x86/Arm/RISC-V specific optimizations.

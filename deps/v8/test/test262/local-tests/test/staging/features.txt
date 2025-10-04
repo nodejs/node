@@ -31,10 +31,6 @@ Temporal
 # https://github.com/tc39/proposal-realms
 ShadowRealm
 
-# Intl.DurationFormat
-# https://github.com/tc39/proposal-intl-duration-format
-Intl.DurationFormat
-
 # Decorators
 # https://github.com/tc39/proposal-decorators
 decorators
@@ -50,17 +46,9 @@ Array.fromAsync
 # https://github.com/tc39/proposal-json-parse-with-source
 json-parse-with-source
 
-# RegExp.escape
-# https://github.com/tc39/proposal-regex-escaping
-RegExp.escape
-
 # Explicit Resource Management
 # https://github.com/tc39/proposal-explicit-resource-management
 explicit-resource-management
-
-# Float16Array + Math.f16round
-# https://github.com/tc39/proposal-float16array
-Float16Array
 
 # Math.sumPrecise
 # https://github.com/tc39/proposal-math-sum
@@ -80,10 +68,6 @@ uint8array-base64
 # https://github.com/tc39/proposal-atomics-microwait
 Atomics.pause
 
-# Error.isError
-# https://github.com/tc39/proposal-is-error
-Error.isError
-
 # Deferred import evaluation
 # https://tc39.es/proposal-defer-import-eval
 import-defer
@@ -95,6 +79,14 @@ iterator-sequencing
 # Time Zone Canonicalization
 # https://github.com/tc39/proposal-canonical-tz
 canonical-tz
+
+# Upsert
+# https://github.com/tc39/proposal-upsert
+upsert
+
+# Immutable Array Buffer
+# https://github.com/tc39/proposal-immutable-arraybuffer
+immutable-arraybuffer
 
 ## Standard language features
 #
@@ -150,11 +142,13 @@ destructuring-assignment
 destructuring-binding
 dynamic-import
 error-cause
+Error.isError
 exponentiation
 export-star-as-namespace-from-module  # https://github.com/tc39/ecma262/pull/1174
 FinalizationRegistry
 for-in-order
 for-of
+Float16Array
 Float32Array
 Float64Array
 generators
@@ -175,6 +169,7 @@ Intl.DateTimeFormat-formatRange
 Intl.DateTimeFormat-fractionalSecondDigits  # https://github.com/tc39/ecma402/pull/347
 Intl.DisplayNames
 Intl.DisplayNames-v2
+Intl.DurationFormat
 Intl.ListFormat
 Intl.Locale
 Intl.NumberFormat-unified
@@ -207,6 +202,7 @@ Reflect.construct
 Reflect.set
 Reflect.setPrototypeOf
 regexp-dotall
+RegExp.escape
 regexp-lookbehind
 regexp-match-indices
 regexp-modifiers

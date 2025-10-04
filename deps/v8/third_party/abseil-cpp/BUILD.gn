@@ -7,7 +7,6 @@
 # without these options will be part of the same program.
 
 import("//build/config/c++/c++.gni")
-import("//build/config/nacl/config.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/toolchain/toolchain.gni")
 import("//build_overrides/build.gni")
@@ -16,9 +15,6 @@ import("//third_party/abseil-cpp/absl.gni")
 config("absl_component_build") {
   defines = [ "ABSL_CONSUME_DLL" ]
 }
-
-assert(!is_nacl || is_nacl_saigo,
-       "base must not be built in most nacl toolchains")
 
 component("absl") {
   public_deps = [ ":absl_component_deps" ]
@@ -52,6 +48,15 @@ component("absl") {
         }
       }
     }
+  }
+  if (is_win) {
+    all_dependent_configs = [ "//tools/win/DebugVisualizers:absl" ]
+    inputs = [
+      # absl.natvis listed as an input here instead of in
+      # //tools/win/DebugVisualizers:absl to prevent unnecessary size increase
+      # in generated build files.
+      "//tools/win/DebugVisualizers/absl.natvis",
+    ]
   }
 }
 
@@ -102,6 +107,7 @@ group("absl_component_deps") {
     "//third_party/abseil-cpp/absl/status",
     "//third_party/abseil-cpp/absl/status:statusor",
     "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:charset",
     "//third_party/abseil-cpp/absl/strings:cord",
     "//third_party/abseil-cpp/absl/strings:has_ostream_operator",
     "//third_party/abseil-cpp/absl/strings:str_format",
@@ -129,13 +135,6 @@ group("absl_component_deps") {
 
   if (is_component_build) {
     public_deps += [ ":absl_full_deps" ]
-  }
-
-  # The following dependencies currently don't build with NaCl.
-  # TODO(https://crbug.com/1114625): Fix build errors and remove this section.
-  if (is_nacl) {
-    public_deps -=
-        [ "//third_party/abseil-cpp/absl/debugging:failure_signal_handler" ]
   }
 
   visibility = [ ":absl" ]
@@ -179,6 +178,7 @@ group("absl_full_deps") {
     # the flag registration mechanism is problematic in component builds.
     "//third_party/abseil-cpp/absl/flags:config",
     "//third_party/abseil-cpp/absl/flags:flag",
+    "//third_party/abseil-cpp/absl/flags:marshalling",
     "//third_party/abseil-cpp/absl/flags:parse",
     "//third_party/abseil-cpp/absl/flags:reflection",
     "//third_party/abseil-cpp/absl/flags:usage",
@@ -227,27 +227,7 @@ config("absl_default_cflags_cc") {
       "-Wnull-conversion",
       "-Wobjc-literal-conversion",
       "-Wstring-conversion",
-    ]
-    if (!is_nacl) {
-      cflags_cc += [ "-Wbitfield-enum-conversion" ]
-    }
-  }
-}
-
-config("absl_test_cflags_cc") {
-  cflags_cc = []
-  if (is_clang || !is_win) {
-    cflags_cc += [
-      "-Wno-conversion-null",
-      "-Wno-missing-declarations",
-      "-Wno-unused-function",
-      "-Wno-unused-parameter",
-      "-Wno-unused-private-field",
-    ]
-  }
-  if (is_win) {
-    cflags_cc += [
-      "/wd4101",  # unreferenced local variable
+      "-Wbitfield-enum-conversion",
     ]
   }
 }
@@ -282,8 +262,12 @@ if (absl_build_tests) {
         "absl/base:no_destructor_test",
         "absl/base:nullability_default_nonnull_test",
         "absl/base:nullability_test",
+        "absl/base:nullability_traits_test",
         "absl/base:poison_test",
         "absl/base:prefetch_test",
+        "absl/base:raw_logging_test",
+        "absl/base:sysinfo_test",
+        "absl/base:thread_identity_test",
         "absl/base:tracing_internal_strong_test",
         "absl/base:tracing_internal_weak_test",
         "absl/cleanup:cleanup_test",

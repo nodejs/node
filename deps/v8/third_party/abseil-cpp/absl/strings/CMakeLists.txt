@@ -243,6 +243,7 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::string_view
     absl::strings_internal
     absl::base
     absl::core_headers
@@ -518,6 +519,7 @@ absl_cc_library(
     absl::utility
     absl::int128
     absl::span
+    absl::strings_internal
 )
 
 absl_cc_test(
@@ -545,6 +547,7 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::random_random
     absl::str_format
     absl::str_format_internal
     absl::strings
@@ -660,7 +663,7 @@ absl_cc_library(
   SRCS
     "internal/pow10_helper.cc"
   COPTS
-    ${ABSL_TEST_COPTS}
+    ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::config
   TESTONLY

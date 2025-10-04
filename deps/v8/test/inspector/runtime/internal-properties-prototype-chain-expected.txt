@@ -25,7 +25,7 @@ Prototype chain for "globalThis":
     }
 }
 
-Prototype chain for "var weird = {}; weird.__proto__ = globalThis; weird;":
+Prototype chain for "var weird = {[Symbol.toStringTag]: 'Object'}; weird.__proto__ = globalThis; weird;":
 {
     className : Object
     description : Object

@@ -554,7 +554,7 @@ void BlobBindingData::Deserialize(Local<Context> context,
                                   int index,
                                   InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  HandleScope scope(context->GetIsolate());
+  HandleScope scope(Isolate::GetCurrent());
   Realm* realm = Realm::GetCurrent(context);
   BlobBindingData* binding = realm->AddBindingData<BlobBindingData>(holder);
   CHECK_NOT_NULL(binding);

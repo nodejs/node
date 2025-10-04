@@ -5,8 +5,11 @@
 // Flags: --allow-natives-syntax
 // Also enable all features that are used in the randomly generated module. This
 // should stay in sync with `EnableExperimentalWasmFeatures` in
-// `test/fuzzer/wasm/fuzzer-common.cc`.
-// Flags: --wasm-staging --wasm-allow-mixed-eh-for-testing
+// `test/common/wasm/fuzzer-common.cc`.
+// Flags: --experimental-fuzzing --wasm-staging
+// Enable mixed exception handling cases (legacy & exnref together) while
+// this isn't allowed in production (yet)
+// Flags: --wasm-allow-mixed-eh-for-testing
 
 (function TestGenerateRandomModule() {
   print(arguments.callee.name);

@@ -188,6 +188,13 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
   // TODO(lpy): add support for background compilation RCS trace.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
+  std::optional<base::ElapsedTimer> timer;
+  if (v8_flags.enable_bytecode_compiler_ablation &&
+      base::TimeTicks::IsHighResolution()) {
+    timer.emplace();
+    timer->Start();
+  }
+
   // Print AST if flag is enabled. Note, if compiling on a background thread
   // then ASTs from different functions may be intersperse when printed.
   {
@@ -201,6 +208,15 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
   if (generator()->HasStackOverflow()) {
     return FAILED;
   }
+
+  if (timer && timer->Elapsed().InNanoseconds() > 0) {
+    auto end = timer->Elapsed();
+    end += std::min(base::TimeDelta::FromSeconds(1),
+                    end * v8_flags.bytecode_compiler_ablation_amount);
+    while (timer->Elapsed() < end) {
+    }
+  }
+
   return SUCCEEDED;
 }
 

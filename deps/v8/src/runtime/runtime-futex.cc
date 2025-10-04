@@ -20,11 +20,11 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   DirectHandle<JSTypedArray> sta = args.at<JSTypedArray>(0);
   size_t index = NumberToSize(args[1]);
   CHECK(!sta->WasDetached());
-  CHECK(sta->GetBuffer()->is_shared());
+  CHECK(sta->GetBuffer(isolate)->is_shared());
   CHECK_LT(index, sta->GetLength());
   CHECK_EQ(sta->type(), kExternalInt32Array);
 
-  DirectHandle<JSArrayBuffer> array_buffer = sta->GetBuffer();
+  DirectHandle<JSArrayBuffer> array_buffer = sta->GetBuffer(isolate);
   size_t addr = (index << 2) + sta->byte_offset();
 
   return Smi::FromInt(
@@ -37,11 +37,11 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumUnresolvedAsyncPromisesForTesting) {
   DirectHandle<JSTypedArray> sta = args.at<JSTypedArray>(0);
   size_t index = NumberToSize(args[1]);
   CHECK(!sta->WasDetached());
-  CHECK(sta->GetBuffer()->is_shared());
+  CHECK(sta->GetBuffer(isolate)->is_shared());
   CHECK_LT(index, sta->GetLength());
   CHECK_EQ(sta->type(), kExternalInt32Array);
 
-  DirectHandle<JSArrayBuffer> array_buffer = sta->GetBuffer();
+  DirectHandle<JSArrayBuffer> array_buffer = sta->GetBuffer(isolate);
   size_t addr = (index << 2) + sta->byte_offset();
 
   return Smi::FromInt(FutexEmulation::NumUnresolvedAsyncPromisesForTesting(

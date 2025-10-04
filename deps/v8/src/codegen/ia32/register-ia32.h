@@ -49,6 +49,9 @@ namespace internal {
   V(xmm5)                               \
   V(xmm6)
 
+#define C_CALL_CALLEE_SAVE_REGISTERS esi, edi, ebx
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS
+
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,
   GENERAL_REGISTERS(REGISTER_CODE)

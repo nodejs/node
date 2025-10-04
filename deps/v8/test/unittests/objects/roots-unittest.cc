@@ -82,7 +82,7 @@ bool CanBeInReadOnlySpace(Factory* factory, Handle<Object> object) {
 
 // Some mutable roots may initially point to undefined until they are properly
 // initialized.
-bool IsUninitialized(DirectHandle<Object> object) {
+bool IsUninitializedHole(DirectHandle<Object> object) {
   return !IsTrustedObject(*object) && IsUndefined(*object);
 }
 }  // namespace
@@ -94,7 +94,7 @@ bool IsUninitialized(DirectHandle<Object> object) {
   Handle<Object> name = factory->name();                             \
   CHECK_EQ(*name, heap->name());                                     \
   if (IsHeapObject(*name) && !CanBeInReadOnlySpace(factory, name) && \
-      !IsUninitialized(name)) {                                      \
+      !IsUninitializedHole(name)) {                                  \
     CHECK_NE(RO_SPACE, GetSpaceFromObject(Cast<HeapObject>(*name))); \
   }
 
@@ -115,7 +115,7 @@ TEST_F(RootsTest, TestHeapNumberList) {
     auto obj = roots.object_at(pos);
     bool in_nr_range = pos >= RootIndex::kFirstHeapNumberRoot &&
                        pos <= RootIndex::kLastHeapNumberRoot;
-    CHECK_EQ(IsHeapNumber(obj), in_nr_range);
+    CHECK_EQ(!IsAnyHole(obj) && IsHeapNumber(obj), in_nr_range);
   }
 }
 

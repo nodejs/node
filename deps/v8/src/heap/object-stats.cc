@@ -55,6 +55,8 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
         raw_fields_count_(raw_fields_count) {}
 
   void RecordStats(Tagged<HeapObject> host) {
+    if (SafeIsAnyHole(host)) return;
+
     size_t old_pointer_fields_count = *tagged_fields_count_;
     VisitObject(heap_->isolate(), host, this);
     size_t tagged_fields_count_in_object =
@@ -515,6 +517,9 @@ void ObjectStatsCollectorImpl::RecordHashTableVirtualObjectStats(
 bool ObjectStatsCollectorImpl::RecordSimpleVirtualObjectStats(
     Tagged<HeapObject> parent, Tagged<HeapObject> obj,
     ObjectStats::VirtualInstanceType type) {
+  // Don't bother recording holes, they're anyway RO space and it's complicated
+  // with unmapped pages.
+  if (SafeIsAnyHole(obj)) return false;
   return RecordVirtualObjectStats(parent, obj, type, obj->Size(cage_base()),
                                   ObjectStats::kNoOverAllocation, kCheckCow);
 }
@@ -753,7 +758,8 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
   // Iterate over the feedback slots and log each one.
   if (!vector->shared_function_info()->HasFeedbackMetadata()) return;
 
-  FeedbackMetadataIterator it(vector->metadata());
+  DisallowGarbageCollection no_gc;
+  FeedbackMetadataIterator it(vector->metadata(), no_gc);
   while (it.HasNext()) {
     FeedbackSlot slot = it.Next();
     // Log the entry (or entries) taken up by this slot.
@@ -801,10 +807,12 @@ void ObjectStatsCollectorImpl::CollectStatistics(
         RecordVirtualFeedbackVectorDetails(Cast<FeedbackVector>(obj));
       } else if (InstanceTypeChecker::IsMap(instance_type)) {
         RecordVirtualMapDetails(Cast<Map>(obj));
-      } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
-        RecordVirtualBytecodeArrayDetails(Cast<BytecodeArray>(obj));
-      } else if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
-        RecordVirtualCodeDetails(Cast<InstructionStream>(obj));
+      } else if (Tagged<BytecodeArray> bytecode_array;
+                 TryCast(obj, &bytecode_array)) {
+        RecordVirtualBytecodeArrayDetails(bytecode_array);
+      } else if (Tagged<InstructionStream> instruction_stream;
+                 TryCast(obj, &instruction_stream)) {
+        RecordVirtualCodeDetails(instruction_stream);
       } else if (InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
         RecordVirtualFunctionTemplateInfoDetails(
             Cast<FunctionTemplateInfo>(obj));
@@ -867,7 +875,9 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   // FixedArray.
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->serialized_objects(),
                                  StatsEnum::SERIALIZED_OBJECTS_TYPE);
-  RecordSimpleVirtualObjectStats(HeapObject(), heap_->number_string_cache(),
+  RecordSimpleVirtualObjectStats(HeapObject(), heap_->smi_string_cache(),
+                                 StatsEnum::NUMBER_STRING_CACHE_TYPE);
+  RecordSimpleVirtualObjectStats(HeapObject(), heap_->double_string_cache(),
                                  StatsEnum::NUMBER_STRING_CACHE_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->string_split_cache(),
                                  StatsEnum::STRING_SPLIT_CACHE_TYPE);
@@ -1066,11 +1076,10 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
                                  StatsEnum::BYTECODE_ARRAY_CONSTANT_POOL_TYPE);
   // FixedArrays on constant pool are used for holding descriptor information.
   // They are shared with optimized code.
-  Tagged<TrustedFixedArray> constant_pool =
-      Cast<TrustedFixedArray>(bytecode->constant_pool());
+  Tagged<TrustedFixedArray> constant_pool = bytecode->constant_pool();
   for (int i = 0; i < constant_pool->length(); i++) {
     Tagged<Object> entry = constant_pool->get(i);
-    if (IsFixedArrayExact(entry)) {
+    if (!IsTheHole(entry) && IsFixedArrayExact(entry)) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           constant_pool, Cast<HeapObject>(entry),
           StatsEnum::EMBEDDED_OBJECT_TYPE);
@@ -1116,8 +1125,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(
     }
     RecordSimpleVirtualObjectStats(istream, code->deoptimization_data(),
                                    StatsEnum::DEOPTIMIZATION_DATA_TYPE);
-    Tagged<DeoptimizationData> input_data =
-        Cast<DeoptimizationData>(code->deoptimization_data());
+    Tagged<DeoptimizationData> input_data = code->deoptimization_data();
     if (input_data->length() > 0) {
       RecordSimpleVirtualObjectStats(code->deoptimization_data(),
                                      input_data->LiteralArray(),

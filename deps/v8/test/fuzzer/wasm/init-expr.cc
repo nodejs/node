@@ -19,9 +19,9 @@
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/common/flag-utils.h"
+#include "test/common/wasm/fuzzer-common.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
-#include "test/fuzzer/wasm/fuzzer-common.h"
 
 // This fuzzer fuzzes initializer expressions used e.g. in globals.
 // The fuzzer creates a set of globals with initializer expressions and a set of
@@ -62,144 +62,6 @@ DirectHandle<Object> GetExport(Isolate* isolate,
   return desc.value();
 }
 
-void CheckEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
-                     const WasmModule& module) {
-  DisallowGarbageCollection no_gc;
-  // Stack of elements to be checked.
-  std::vector<std::pair<WasmValue, WasmValue>> cmp = {{init_lhs, init_rhs}};
-  using TaggedT = decltype(Tagged<Object>().ptr());
-  // Map of lhs objects we have already seen to their rhs object on the first
-  // visit. This is needed to ensure a reasonable runtime for the check.
-  // Example:
-  //   (array.new $myArray 10 (array.new_default $myArray 10))
-  // This creates a nested array where each outer array element is the same
-  // inner array. Without memorizing the inner array, we'd end up performing
-  // 100+ comparisons.
-  std::unordered_map<TaggedT, TaggedT> lhs_map;
-  auto SeenAlready = [&lhs_map](Tagged<Object> lhs, Tagged<Object> rhs) {
-    auto [iter, inserted] = lhs_map.insert({lhs.ptr(), rhs.ptr()});
-    if (inserted) return false;
-    CHECK_EQ(iter->second, rhs.ptr());
-    return true;
-  };
-
-  auto CheckArray = [&cmp, &SeenAlready](Tagged<Object> lhs,
-                                         Tagged<Object> rhs) {
-    if (SeenAlready(lhs, rhs)) return;
-    CHECK(IsWasmArray(lhs));
-    CHECK(IsWasmArray(rhs));
-    Tagged<WasmArray> lhs_array = Cast<WasmArray>(lhs);
-    Tagged<WasmArray> rhs_array = Cast<WasmArray>(rhs);
-    CHECK_EQ(lhs_array->map(), rhs_array->map());
-    CHECK_EQ(lhs_array->length(), rhs_array->length());
-    cmp.reserve(cmp.size() + lhs_array->length());
-    for (uint32_t i = 0; i < lhs_array->length(); ++i) {
-      cmp.emplace_back(lhs_array->GetElement(i), rhs_array->GetElement(i));
-    }
-  };
-
-  auto CheckStruct = [&cmp, &SeenAlready](Tagged<Object> lhs,
-                                          Tagged<Object> rhs) {
-    if (SeenAlready(lhs, rhs)) return;
-    CHECK(IsWasmStruct(lhs));
-    CHECK(IsWasmStruct(rhs));
-    Tagged<WasmStruct> lhs_struct = Cast<WasmStruct>(lhs);
-    Tagged<WasmStruct> rhs_struct = Cast<WasmStruct>(rhs);
-    CHECK_EQ(lhs_struct->map(), rhs_struct->map());
-    const CanonicalStructType* type = GetTypeCanonicalizer()->LookupStruct(
-        lhs_struct->map()->wasm_type_info()->type_index());
-    uint32_t field_count = type->field_count();
-    for (uint32_t i = 0; i < field_count; ++i) {
-      cmp.emplace_back(lhs_struct->GetFieldValue(i),
-                       rhs_struct->GetFieldValue(i));
-    }
-  };
-
-  // Compare the function result with the global value.
-  while (!cmp.empty()) {
-    const auto [lhs, rhs] = cmp.back();
-    cmp.pop_back();
-    CHECK_EQ(lhs.type(), rhs.type());
-    switch (lhs.type().kind()) {
-      case ValueKind::kF32:
-        CHECK_FLOAT_EQ(lhs.to_f32(), rhs.to_f32());
-        break;
-      case ValueKind::kF64:
-        CHECK_FLOAT_EQ(lhs.to_f64(), rhs.to_f64());
-        break;
-      case ValueKind::kI8:
-        CHECK_EQ(lhs.to_i8(), rhs.to_i8());
-        break;
-      case ValueKind::kI16:
-        CHECK_EQ(lhs.to_i16(), rhs.to_i16());
-        break;
-      case ValueKind::kI32:
-        CHECK_EQ(lhs.to_i32(), rhs.to_i32());
-        break;
-      case ValueKind::kI64:
-        CHECK_EQ(lhs.to_i64(), rhs.to_i64());
-        break;
-      case ValueKind::kS128:
-        CHECK_EQ(lhs.to_s128(), lhs.to_s128());
-        break;
-      case ValueKind::kRef:
-      case ValueKind::kRefNull: {
-        Tagged<Object> lhs_ref = *lhs.to_ref();
-        Tagged<Object> rhs_ref = *rhs.to_ref();
-        CHECK_EQ(IsNull(lhs_ref), IsNull(rhs_ref));
-        CHECK_EQ(IsWasmNull(lhs_ref), IsWasmNull(rhs_ref));
-        switch (lhs.type().heap_representation_non_shared()) {
-          case HeapType::kFunc:
-          case HeapType::kI31:
-            CHECK_EQ(lhs_ref, rhs_ref);
-            break;
-          case HeapType::kNoFunc:
-          case HeapType::kNone:
-          case HeapType::kNoExn:
-            CHECK(IsWasmNull(lhs_ref));
-            CHECK(IsWasmNull(rhs_ref));
-            break;
-          case HeapType::kNoExtern:
-            CHECK(IsNull(lhs_ref));
-            CHECK(IsNull(rhs_ref));
-            break;
-          case HeapType::kExtern:
-          case HeapType::kAny:
-          case HeapType::kEq:
-          case HeapType::kArray:
-          case HeapType::kStruct:
-            if (IsNullOrWasmNull(lhs_ref)) break;
-            if (IsWasmStruct(lhs_ref)) {
-              CheckStruct(lhs_ref, rhs_ref);
-            } else if (IsWasmArray(lhs_ref)) {
-              CheckArray(lhs_ref, rhs_ref);
-            } else if (IsSmi(lhs_ref)) {
-              CHECK_EQ(lhs_ref, rhs_ref);
-            }
-            break;
-          default:
-            CHECK(lhs.type().has_index());
-            if (IsWasmNull(lhs_ref)) break;
-            CanonicalTypeIndex type_index = lhs.type().ref_index();
-            TypeCanonicalizer* types = GetTypeCanonicalizer();
-            if (types->IsFunctionSignature(type_index)) {
-              CHECK_EQ(lhs_ref, rhs_ref);
-            } else if (types->IsStruct(type_index)) {
-              CheckStruct(lhs_ref, rhs_ref);
-            } else if (types->IsArray(type_index)) {
-              CheckArray(lhs_ref, rhs_ref);
-            } else {
-              UNIMPLEMENTED();
-            }
-        }
-        break;
-      }
-      default:
-        UNIMPLEMENTED();
-    }
-  }
-}
-
 void FuzzIt(base::Vector<const uint8_t> data) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
@@ -228,13 +90,12 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   // Clear recursive groups: The fuzzer creates random types in every run. These
   // are saved as recursive groups as part of the type canonicalizer, but types
   // from previous runs just waste memory.
-  ResetTypeCanonicalizer(isolate, &zone);
+  ResetTypeCanonicalizer(isolate);
 
   size_t expression_count = 0;
   base::Vector<const uint8_t> bytes =
       GenerateWasmModuleForInitExpressions(&zone, data, &expression_count);
 
-  testing::SetupIsolateForWasmModule(i_isolate);
   ModuleWireBytes wire_bytes(bytes.begin(), bytes.end());
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
@@ -259,12 +120,12 @@ void FuzzIt(base::Vector<const uint8_t> data) {
 
   DirectHandle<WasmModuleObject> module_object =
       compiled_module.ToHandleChecked();
+  const WasmModule* module = module_object->native_module()->module();
   DirectHandle<WasmInstanceObject> instance =
       GetWasmEngine()
           ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
           .ToHandleChecked();
-  CHECK_EQ(expression_count,
-           module_object->native_module()->module()->num_declared_functions);
+  CHECK_EQ(expression_count, module->num_declared_functions);
 
   for (size_t i = 0; i < expression_count; ++i) {
     char buffer[22];
@@ -340,8 +201,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
         CHECK_EQ(IsNullOrWasmNull(*global_val),
                  IsNullOrWasmNull(*function_result));
         if (!IsNullOrWasmNull(*global_val)) {
-          if (IsSubtypeOf(global->type(), kWasmFuncRef,
-                          module_object->module())) {
+          if (IsSubtypeOf(global->type(), kWasmFuncRef, module)) {
             // For any function the global should be an internal function
             // whose external function equals the call result. (The call goes
             // through JS conversions while the global is accessed directly.)
@@ -358,7 +218,16 @@ void FuzzIt(base::Vector<const uint8_t> data) {
                 instance->trusted_data(i_isolate)->GetGlobalValue(
                     i_isolate, instance->module()->globals[i]);
             WasmValue func_value(function_result, global_value.type());
-            CheckEquivalent(global_value, func_value, *module_object->module());
+            if (!ValuesEquivalent(global_value, func_value, i_isolate)) {
+              std::stringstream str;
+              str << "Equality check failed for global #" << i
+                  << ". Global value: ";
+              PrintValue(str, global_value);
+              str << ", Function value:   ";
+              PrintValue(str, func_value);
+
+              FATAL("%s\n", str.str().c_str());
+            }
           }
         }
         break;
@@ -370,6 +239,11 @@ void FuzzIt(base::Vector<const uint8_t> data) {
 }
 
 }  // anonymous namespace
+
+V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
+  v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
+  return 0;
+}
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   FuzzIt({data, size});

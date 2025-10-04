@@ -481,7 +481,7 @@ Tagged<NativeContext> JSFunction::native_context() {
 }
 
 RELEASE_ACQUIRE_ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map,
-                                  (Tagged<UnionOf<JSPrototype, Map, Hole>>),
+                                  (Tagged<UnionOf<JSPrototype, Map, TheHole>>),
                                   kPrototypeOrInitialMapOffset,
                                   map()->has_prototype_slot())
 
@@ -495,13 +495,14 @@ DEF_GETTER(JSFunction, initial_map, Tagged<Map>) {
 
 DEF_GETTER(JSFunction, has_initial_map, bool) {
   DCHECK(has_prototype_slot(cage_base));
-  return IsMap(prototype_or_initial_map(cage_base, kAcquireLoad), cage_base);
+  Tagged<UnionOf<JSPrototype, Map, TheHole>> maybe_map =
+      prototype_or_initial_map(cage_base, kAcquireLoad);
+  return !IsTheHole(maybe_map) && IsMap(maybe_map, cage_base);
 }
 
 DEF_GETTER(JSFunction, has_instance_prototype, bool) {
   DCHECK(has_prototype_slot(cage_base));
-  return has_initial_map(cage_base) ||
-         !IsTheHole(prototype_or_initial_map(cage_base, kAcquireLoad));
+  return !IsTheHole(prototype_or_initial_map(cage_base, kAcquireLoad));
 }
 
 DEF_GETTER(JSFunction, has_prototype, bool) {
@@ -547,23 +548,17 @@ bool JSFunction::is_compiled(IsolateForSandbox isolate) const {
 }
 
 bool JSFunction::NeedsResetDueToFlushedBytecode(Isolate* isolate) {
-  // Do a raw read for shared and code fields here since this function may be
-  // called on a concurrent thread. JSFunction itself should be fully
-  // initialized here but the SharedFunctionInfo, Code objects may not be
-  // initialized. We read using acquire loads to defend against that.
-  // TODO(v8) the branches for !IsSharedFunctionInfo() and !IsCode() are
-  // probably dead code by now. Investigate removing them or replacing them
-  // with CHECKs.
-  Tagged<Object> maybe_shared =
-      ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
-  if (!IsSharedFunctionInfo(maybe_shared)) return false;
+  // The function is only used sequentially. Concurrent cases need to take care
+  // of loading the fields themselves.
+  Tagged<SharedFunctionInfo> sfi = TrustedCast<SharedFunctionInfo>(shared());
+  Tagged<Code> code = TrustedCast<Code>(raw_code(isolate));
+  return NeedsResetDueToFlushedBytecode(isolate, sfi, code);
+}
 
-  Tagged<Object> maybe_code = raw_code(isolate, kAcquireLoad);
-  if (!IsCode(maybe_code)) return false;
-  Tagged<Code> code = Cast<Code>(maybe_code);
-
-  Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(maybe_shared);
-  return !shared->is_compiled() &&
+bool JSFunction::NeedsResetDueToFlushedBytecode(Isolate* isolate,
+                                                Tagged<SharedFunctionInfo> sfi,
+                                                Tagged<Code> code) {
+  return !sfi->is_compiled() &&
          (code->builtin_id() != Builtin::kCompileLazy ||
           // With leaptiering we can have CompileLazy as the code object but
           // still an optimization trampoline installed.
