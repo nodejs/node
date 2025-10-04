@@ -26,6 +26,10 @@ Basic Unix tools are required for some benchmarks.
 [Git for Windows][git-for-windows] includes Git Bash and the necessary tools,
 which need to be included in the global Windows `PATH`.
 
+If you are using Nix, all the required tools are already listed in the
+`benchmarkTools` argument of the `shell.nix` file, so you can skip those
+prerequesites.
+
 ### HTTP benchmark requirements
 
 Most of the HTTP benchmarks require a benchmarker to be installed. This can be
