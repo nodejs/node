@@ -155,3 +155,10 @@ void nghttp2_option_set_max_continuations(nghttp2_option *option, size_t val) {
   option->opt_set_mask |= NGHTTP2_OPT_MAX_CONTINUATIONS;
   option->max_continuations = val;
 }
+
+void nghttp2_option_set_glitch_rate_limit(nghttp2_option *option,
+                                          uint64_t burst, uint64_t rate) {
+  option->opt_set_mask |= NGHTTP2_OPT_GLITCH_RATE_LIMIT;
+  option->glitch_burst = burst;
+  option->glitch_rate = rate;
+}
