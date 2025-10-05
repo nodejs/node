@@ -39,7 +39,7 @@ const options = {
 class Mediator extends stream.Writable {
   buf = '';
 
-  _write = common.mustCall((data, enc, cb) => {
+  _write = common.mustCallAtLeast((data, enc, cb) => {
     this.buf += data;
     setTimeout(cb, 0);
 

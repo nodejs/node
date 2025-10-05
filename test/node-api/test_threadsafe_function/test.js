@@ -79,7 +79,7 @@ function testUnref(queueSize) {
 
 new Promise(function testWithoutJSMarshaller(resolve) {
   let callCount = 0;
-  binding.StartThreadNoNative(function testCallback() {
+  binding.StartThreadNoNative(common.mustCallAtLeast(function testCallback() {
     callCount++;
 
     // The default call-into-JS implementation passes no arguments.
@@ -91,7 +91,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
         }, false);
       });
     }
-  }, false /* abort */, false /* launchSecondary */, binding.MAX_QUEUE_SIZE);
+  }), false /* abort */, false /* launchSecondary */, binding.MAX_QUEUE_SIZE);
 })
 
 // Start the thread in blocking mode, and assert that all values are passed.

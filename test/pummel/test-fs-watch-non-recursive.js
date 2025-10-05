@@ -39,11 +39,11 @@ const filepath = path.join(testsubdir, 'watch.txt');
 fs.mkdirSync(testsubdir, 0o700);
 
 const doWatch = common.mustCall(() => {
-  const watcher = fs.watch(testDir, { persistent: true }, common.mustCall((event, filename) => {
+  const watcher = fs.watch(testDir, { persistent: true }, common.mustCallAtLeast((event, filename) => {
     // This function may be called with the directory depending on timing but
     // must not be called with the file..
     assert.strictEqual(filename, 'testsubdir');
-  }));
+  }, 0));
   setTimeout(() => {
     fs.writeFileSync(filepath, 'test');
   }, 100);

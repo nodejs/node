@@ -34,7 +34,7 @@ const server = http.Server(common.mustCall((req, res) => {
   assert.strictEqual(req.connection, connection);
   res.writeHead(200);
   res.end('hello world\n');
-}));
+}, expected));
 
 server.once('connection', function(c) {
   connection = c;

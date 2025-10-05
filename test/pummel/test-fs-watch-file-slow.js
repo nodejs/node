@@ -55,7 +55,7 @@ fs.watchFile(FILENAME, { interval: TIMEOUT - 250 }, common.mustCall((curr, prev)
     default:
       assert(0);
   }
-}));
+}, 4));
 
 process.on('exit', function() {
   assert.strictEqual(nevents, 4);

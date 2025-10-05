@@ -62,7 +62,7 @@ function runClient(port, callback) {
     client.end();
   });
 
-  client.on('close', common.mustCall((had_error) => {
+  client.on('close', common.mustCall(function(had_error) {
     assert.strictEqual(had_error, false);
     assert.strictEqual(client.recved.length, bytes);
 

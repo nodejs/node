@@ -52,7 +52,7 @@ const doSpawn = common.mustCall((i) => {
       finished = true;
     }
   }));
-}, N);
+}, N + 1);
 
 doSpawn(0);
 
