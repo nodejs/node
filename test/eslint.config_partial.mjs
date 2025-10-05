@@ -156,6 +156,14 @@ export default [
   },
   {
     files: [
+      'test/{message,module-hooks,node-api,pummel,pseudo-tty,v8-updates,wasi}/**/*.{js,mjs,cjs}',
+    ],
+    rules: {
+      'node-core/must-call-assert': 'error',
+    },
+  },
+  {
+    files: [
       'test/{common,fixtures,wpt}/**/*.{js,mjs,cjs}',
       'test/eslint.config_partial.mjs',
     ],

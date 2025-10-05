@@ -44,9 +44,9 @@ function testWithJSMarshaller({
       array.push(value);
       if (array.length === quitAfter) {
         setImmediate(() => {
-          binding.StopThread(common.mustCall(() => {
+          binding.StopThread(() => {
             resolve(array);
-          }), !!abort);
+          }, !!abort);
         });
       }
     }, !!abort, !!launchSecondary, maxQueueSize);
@@ -86,9 +86,9 @@ new Promise(function testWithoutJSMarshaller(resolve) {
     assert.strictEqual(arguments.length, 0);
     if (callCount === binding.ARRAY_LENGTH) {
       setImmediate(() => {
-        binding.StopThread(common.mustCall(() => {
+        binding.StopThread(() => {
           resolve();
-        }), false);
+        }, false);
       });
     }
   }, false /* abort */, false /* launchSecondary */, binding.MAX_QUEUE_SIZE);
@@ -224,4 +224,6 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testUnref(binding.MAX_QUEUE_SIZE))
 
 // Start a child process with an infinite queue to test rapid teardown
-.then(() => testUnref(0));
+.then(() => testUnref(0))
+
+.then(common.mustCall());
