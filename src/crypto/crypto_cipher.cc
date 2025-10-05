@@ -24,6 +24,7 @@ using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
 using v8::Context;
+using v8::DictionaryTemplate;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -31,8 +32,10 @@ using v8::Int32;
 using v8::Isolate;
 using v8::Local;
 using v8::LocalVector;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::Uint32;
+using v8::Undefined;
 using v8::Value;
 
 namespace crypto {
@@ -40,35 +43,52 @@ namespace {
 // Collects and returns information on the given cipher
 void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK(args[0]->IsObject());
-  Local<Object> info = args[0].As<Object>();
 
-  CHECK(args[1]->IsString() || args[1]->IsInt32());
+  auto tmpl = env->cipherinfo_detail_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "mode",
+        "name",
+        "nid",
+        "keyLength",
+        "blockSize",
+        "ivLength",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_cipherinfo_detail_template(tmpl);
+  }
+  MaybeLocal<Value> values[] = {
+      Undefined(env->isolate()),  // mode
+      Undefined(env->isolate()),  // name
+      Undefined(env->isolate()),  // nid
+      Undefined(env->isolate()),  // keyLength
+      Undefined(env->isolate()),  // blockSize
+      Undefined(env->isolate()),  // ivLength
+  };
+
+  CHECK(args[0]->IsString() || args[0]->IsInt32());
 
   const auto cipher = ([&] {
-    if (args[1]->IsString()) {
-      Utf8Value name(env->isolate(), args[1]);
+    if (args[0]->IsString()) {
+      Utf8Value name(env->isolate(), args[0]);
       return Cipher::FromName(*name);
     } else {
-      int nid = args[1].As<Int32>()->Value();
+      int nid = args[0].As<Int32>()->Value();
       return Cipher::FromNid(nid);
     }
   })();
 
   if (!cipher) return;
 
-  int iv_length = cipher.getIvLength();
-  int key_length = cipher.getKeyLength();
-  int block_length = cipher.getBlockSize();
-  auto mode_label = cipher.getModeLabel();
-  auto name = cipher.getName();
+  size_t iv_length = cipher.getIvLength();
+  size_t key_length = cipher.getKeyLength();
 
   // If the testKeyLen and testIvLen arguments are specified,
   // then we will make an attempt to see if they are usable for
   // the cipher in question, returning undefined if they are not.
   // If they are, the info object will be returned with the values
   // given.
-  if (args[2]->IsInt32() || args[3]->IsInt32()) {
+  if (args[1]->IsUint32() || args[2]->IsUint32()) {
     // Test and input IV or key length to determine if it's acceptable.
     // If it is, then the getCipherInfo will succeed with the given
     // values.
@@ -77,16 +97,16 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
       return;
     }
 
-    if (args[2]->IsInt32()) {
-      int check_len = args[2].As<Int32>()->Value();
+    if (args[1]->IsUint32()) {
+      size_t check_len = args[1].As<Uint32>()->Value();
       if (!ctx.setKeyLength(check_len)) {
         return;
       }
       key_length = check_len;
     }
 
-    if (args[3]->IsInt32()) {
-      int check_len = args[3].As<Int32>()->Value();
+    if (args[2]->IsUint32()) {
+      size_t check_len = args[2].As<Uint32>()->Value();
       // For CCM modes, the IV may be between 7 and 13 bytes.
       // For GCM and OCB modes, we'll check by attempting to
       // set the value. For everything else, just check that
@@ -106,55 +126,30 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  if (mode_label.length() &&
-      info->Set(env->context(),
-                FIXED_ONE_BYTE_STRING(env->isolate(), "mode"),
-                OneByteString(
-                    env->isolate(), mode_label.data(), mode_label.length()))
-          .IsNothing()) {
-    return;
-  }
+  // Lowercase the name in place before we create the JS string from it.
+  std::string name_str(cipher.getName());
+  name_str = ToLower(name_str);
 
-  if (info->Set(env->context(),
-                env->name_string(),
-                OneByteString(env->isolate(), name))
-          .IsNothing()) {
-    return;
-  }
-
-  if (info->Set(env->context(),
-                FIXED_ONE_BYTE_STRING(env->isolate(), "nid"),
-                Int32::New(env->isolate(), cipher.getNid()))
-          .IsNothing()) {
-    return;
-  }
+  values[0] = ToV8Value(env->context(), cipher.getModeLabel(), env->isolate());
+  values[1] = ToV8Value(env->context(), name_str, env->isolate());
+  values[2] = Uint32::NewFromUnsigned(env->isolate(), cipher.getNid());
+  values[3] = Uint32::NewFromUnsigned(env->isolate(), key_length);
 
   // Stream ciphers do not have a meaningful block size
-  if (!cipher.isStreamMode() &&
-      info->Set(env->context(),
-                FIXED_ONE_BYTE_STRING(env->isolate(), "blockSize"),
-                Int32::New(env->isolate(), block_length))
-          .IsNothing()) {
-    return;
+  if (!cipher.isStreamMode()) {
+    values[4] = Uint32::NewFromUnsigned(env->isolate(), cipher.getBlockSize());
   }
 
   // Ciphers that do not use an IV shouldn't report a length
-  if (iv_length != 0 &&
-      info->Set(
-          env->context(),
-          FIXED_ONE_BYTE_STRING(env->isolate(), "ivLength"),
-          Int32::New(env->isolate(), iv_length)).IsNothing()) {
-    return;
+  if (iv_length != 0) {
+    values[5] = Uint32::NewFromUnsigned(env->isolate(), iv_length);
   }
 
-  if (info->Set(
-          env->context(),
-          FIXED_ONE_BYTE_STRING(env->isolate(), "keyLength"),
-          Int32::New(env->isolate(), key_length)).IsNothing()) {
-    return;
+  Local<Object> info;
+  if (NewDictionaryInstanceNullProto(env->context(), tmpl, values)
+          .ToLocal(&info)) {
+    args.GetReturnValue().Set(info);
   }
-
-  args.GetReturnValue().Set(info);
 }
 }  // namespace
 
