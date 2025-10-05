@@ -1494,7 +1494,7 @@ console.log(Buffer.isEncoding(''));
 // Prints: false
 ```
 
-### Class property: `Buffer.poolSize`
+### `Buffer.poolSize`
 
 <!-- YAML
 added: v0.11.3
@@ -5515,7 +5515,7 @@ introducing security vulnerabilities into an application.
 [`Buffer.from(arrayBuf)`]: #static-method-bufferfromarraybuffer-byteoffset-length
 [`Buffer.from(buffer)`]: #static-method-bufferfrombuffer
 [`Buffer.from(string)`]: #static-method-bufferfromstring-encoding
-[`Buffer.poolSize`]: #class-property-bufferpoolsize
+[`Buffer.poolSize`]: #bufferpoolsize
 [`ERR_INVALID_BUFFER_SIZE`]: errors.md#err_invalid_buffer_size
 [`ERR_OUT_OF_RANGE`]: errors.md#err_out_of_range
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
