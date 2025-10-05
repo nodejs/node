@@ -76,7 +76,7 @@ function runClient(port, callback) {
     } else {
       callback();
     }
-  }));
+  }, connections_per_client));
 }
 
 server.listen(0, function() {

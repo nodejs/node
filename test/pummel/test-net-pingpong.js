@@ -47,14 +47,14 @@ const pingPongTest = common.mustCall((host, on_complete) => {
     socket.setNoDelay();
     socket.timeout = 0;
 
-    socket.on('data', common.mustCall((data) => {
+    socket.on('data', common.mustCallAtLeast((data) => {
       console.log(`server got: ${JSON.stringify(data)}`);
       assert.strictEqual(socket.readyState, 'open');
       assert.strictEqual(count <= N, true);
       if (/PING/.test(data)) {
         socket.write('PONG');
       }
-    }));
+    }, N + 1));
 
     socket.on('end', common.mustCall(() => {
       assert.strictEqual(socket.readyState, 'writeOnly');
