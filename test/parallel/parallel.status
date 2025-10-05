@@ -79,6 +79,8 @@ test-cluster-dgram-1: SKIP
 [$arch==arm]
 # https://github.com/nodejs/node/issues/63835
 test-fs-utimes-y2K38: SKIP
+# https://github.com/nodejs/node/issues/54534
+test-runner-run-watch: PASS, FLAKY
 
 [$arch==arm || $arch==arm64]
 # https://github.com/nodejs/node/pull/31178
