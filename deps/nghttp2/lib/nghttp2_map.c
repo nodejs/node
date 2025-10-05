@@ -31,12 +31,13 @@
 
 #include "nghttp2_helper.h"
 
-#define NGHTTP2_INITIAL_TABLE_LENBITS 4
+#define NGHTTP2_INITIAL_HASHBITS 4
 
-void nghttp2_map_init(nghttp2_map *map, nghttp2_mem *mem) {
+void nghttp2_map_init(nghttp2_map *map, uint32_t seed, nghttp2_mem *mem) {
   map->mem = mem;
   map->hashbits = 0;
   map->table = NULL;
+  map->seed = seed;
   map->size = 0;
 }
 
@@ -77,8 +78,13 @@ int nghttp2_map_each(const nghttp2_map *map, int (*func)(void *data, void *ptr),
   return 0;
 }
 
-static size_t hash(nghttp2_map_key_type key, size_t bits) {
-  return (size_t)(((uint32_t)key * 2654435769u) >> (32 - bits));
+static size_t map_hash(const nghttp2_map *map, nghttp2_map_key_type key) {
+  /* hasher from
+     https://github.com/rust-lang/rustc-hash/blob/dc5c33f1283de2da64d8d7a06401d91aded03ad4/src/lib.rs
+     We do not perform finalization here because we use top bits
+     anyway. */
+  uint32_t h = ((uint32_t)key + map->seed) * 0x93d765dd;
+  return (size_t)((h * 2654435769u) >> (32 - map->hashbits));
 }
 
 static void map_bucket_swap(nghttp2_map_bucket *a, nghttp2_map_bucket *b) {
@@ -109,24 +115,28 @@ void nghttp2_map_print_distance(const nghttp2_map *map) {
       continue;
     }
 
-    idx = hash(bkt->key, map->hashbits);
+    idx = map_hash(map, bkt->key);
     fprintf(stderr, "@%zu hash=%zu key=%d base=%zu distance=%u\n", i,
-            hash(bkt->key, map->hashbits), bkt->key, idx, bkt->psl);
+            map_hash(map, bkt->key), bkt->key, idx, bkt->psl);
   }
 }
-#endif /* !WIN32 */
+#endif /* !defined(WIN32) */
 
-static int insert(nghttp2_map_bucket *table, size_t hashbits,
-                  nghttp2_map_key_type key, void *data) {
-  size_t idx = hash(key, hashbits);
-  nghttp2_map_bucket b = {0, key, data}, *bkt;
-  size_t mask = (1u << hashbits) - 1;
+static int map_insert(nghttp2_map *map, nghttp2_map_key_type key, void *data) {
+  size_t idx = map_hash(map, key);
+  nghttp2_map_bucket b = {
+    .key = key,
+    .data = data,
+  };
+  nghttp2_map_bucket *bkt;
+  size_t mask = (1u << map->hashbits) - 1;
 
   for (;;) {
-    bkt = &table[idx];
+    bkt = &map->table[idx];
 
     if (bkt->data == NULL) {
       *bkt = b;
+      ++map->size;
       return 0;
     }
 
@@ -147,15 +157,19 @@ static int insert(nghttp2_map_bucket *table, size_t hashbits,
 
 static int map_resize(nghttp2_map *map, size_t new_hashbits) {
   size_t i;
-  nghttp2_map_bucket *new_table;
   nghttp2_map_bucket *bkt;
   size_t tablelen;
   int rv;
+  nghttp2_map new_map = {
+    .table = nghttp2_mem_calloc(map->mem, 1u << new_hashbits,
+                                sizeof(nghttp2_map_bucket)),
+    .mem = map->mem,
+    .seed = map->seed,
+    .hashbits = new_hashbits,
+  };
   (void)rv;
 
-  new_table = nghttp2_mem_calloc(map->mem, 1u << new_hashbits,
-                                 sizeof(nghttp2_map_bucket));
-  if (new_table == NULL) {
+  if (new_map.table == NULL) {
     return NGHTTP2_ERR_NOMEM;
   }
 
@@ -168,15 +182,15 @@ static int map_resize(nghttp2_map *map, size_t new_hashbits) {
         continue;
       }
 
-      rv = insert(new_table, new_hashbits, bkt->key, bkt->data);
+      rv = map_insert(&new_map, bkt->key, bkt->data);
 
       assert(0 == rv);
     }
   }
 
   nghttp2_mem_free(map->mem, map->table);
+  map->table = new_map.table;
   map->hashbits = new_hashbits;
-  map->table = new_table;
 
   return 0;
 }
@@ -186,29 +200,27 @@ int nghttp2_map_insert(nghttp2_map *map, nghttp2_map_key_type key, void *data) {
 
   assert(data);
 
-  /* Load factor is 0.75 */
+  /* Load factor is 7/8 */
   /* Under the very initial condition, that is map->size == 0 and
-     map->hashbits == 0, 4 > 3 still holds nicely. */
-  if ((map->size + 1) * 4 > (1u << map->hashbits) * 3) {
+     map->hashbits == 0, 8 > 7 still holds nicely. */
+  if ((map->size + 1) * 8 > (1u << map->hashbits) * 7) {
     if (map->hashbits) {
       rv = map_resize(map, map->hashbits + 1);
       if (rv != 0) {
         return rv;
       }
     } else {
-      rv = map_resize(map, NGHTTP2_INITIAL_TABLE_LENBITS);
+      rv = map_resize(map, NGHTTP2_INITIAL_HASHBITS);
       if (rv != 0) {
         return rv;
       }
     }
   }
 
-  rv = insert(map->table, map->hashbits, key, data);
+  rv = map_insert(map, key, data);
   if (rv != 0) {
     return rv;
   }
-
-  ++map->size;
 
   return 0;
 }
@@ -223,7 +235,7 @@ void *nghttp2_map_find(const nghttp2_map *map, nghttp2_map_key_type key) {
     return NULL;
   }
 
-  idx = hash(key, map->hashbits);
+  idx = map_hash(map, key);
   mask = (1u << map->hashbits) - 1;
 
   for (;;) {
@@ -252,7 +264,7 @@ int nghttp2_map_remove(nghttp2_map *map, nghttp2_map_key_type key) {
     return NGHTTP2_ERR_INVALID_ARGUMENT;
   }
 
-  idx = hash(key, map->hashbits);
+  idx = map_hash(map, key);
   mask = (1u << map->hashbits) - 1;
 
   for (;;) {
