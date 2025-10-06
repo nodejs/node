@@ -318,7 +318,7 @@ constexpr uint64_t kMaxSizeT = std::numeric_limits<size_t>::max();
 constexpr uint64_t kMaxSafeJsInteger = 9007199254740991;
 constexpr auto kSocketAddressInfoTimeout = 60 * NGTCP2_SECONDS;
 constexpr size_t kMaxVectorCount = 16;
-constexpr size_t kMaxStreamId = std::numeric_limits<stream_id>::max();
+constexpr stream_id kMaxStreamId = std::numeric_limits<stream_id>::max();
 
 class DebugIndentScope final {
  public:
