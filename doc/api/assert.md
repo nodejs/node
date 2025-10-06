@@ -44,12 +44,12 @@ assertion mode, error messages for objects display the objects, often truncated.
 For assertion methods that accept an optional `message` parameter, the message
 may be provided in one of the following forms:
 
-- **string**: Used as-is. If additional arguments are supplied after the
+* **string**: Used as-is. If additional arguments are supplied after the
   `message` string, they are treated as printf-like substitutions (see
   [`util.format()`][]).
-- **Error**: If an `Error` instance is provided as `message`, that error is
+* **Error**: If an `Error` instance is provided as `message`, that error is
   thrown directly instead of an `AssertionError`.
-- **function**: A function of the form `(actual, expected) => string`. It is
+* **function**: A function of the form `(actual, expected) => string`. It is
   called only when the assertion fails and should return a string to be used as
   the error message. Non-string return values are ignored and the default
   message is used instead.
@@ -2543,5 +2543,6 @@ assert.partialDeepStrictEqual(
 [`assert.strictEqual()`]: #assertstrictequalactual-expected-message
 [`assert.throws()`]: #assertthrowsfn-error-message
 [`getColorDepth()`]: tty.md#writestreamgetcolordepthenv
+[`util.format()`]: util.md#utilformatformat-args
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots

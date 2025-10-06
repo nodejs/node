@@ -1,6 +1,6 @@
 Exiting with code=1
-node:assert:*
-  throw new AssertionError(obj);
+node:internal*assert*utils:*
+  throw error;
   ^
 
 AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
