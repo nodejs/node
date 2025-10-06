@@ -39,6 +39,27 @@ strict methods. For example, [`assert.deepEqual()`][] will behave like
 In strict assertion mode, error messages for objects display a diff. In legacy
 assertion mode, error messages for objects display the objects, often truncated.
 
+### Message parameter semantics
+
+For assertion methods that accept an optional `message` parameter, the message
+may be provided in one of the following forms:
+
+- **string**: Used as-is. If additional arguments are supplied after the
+  `message` string, they are treated as printf-like substitutions (see
+  [`util.format()`][]).
+- **Error**: If an `Error` instance is provided as `message`, that error is
+  thrown directly instead of an `AssertionError`.
+- **function**: A function of the form `(actual, expected) => string`. It is
+  called only when the assertion fails and should return a string to be used as
+  the error message. Non-string return values are ignored and the default
+  message is used instead.
+
+If additional arguments are passed along with an `Error` or a function as
+`message`, the call is rejected with `ERR_AMBIGUOUS_ARGUMENT`.
+
+If the first item is neither a string, `Error`, nor function, `ERR_INVALID_ARG_TYPE`
+is thrown.
+
 To use strict assertion mode:
 
 ```mjs
@@ -2357,7 +2378,7 @@ changes:
 
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {string|Error|Function}
 
 Tests for partial deep equality between the `actual` and `expected` parameters.
 "Deep" equality means that the enumerable "own" properties of child objects
