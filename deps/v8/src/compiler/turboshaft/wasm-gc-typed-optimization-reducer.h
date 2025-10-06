@@ -18,6 +18,13 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+inline bool IsCastToCustomDescriptor(const wasm::WasmModule* module,
+                                     WasmTypeCheckConfig config) {
+  return config.to.has_index() &&
+         module->type(config.to.ref_index()).has_descriptor() &&
+         config.exactness == compiler::kExactMatchOnly;
+}
+
 // The WasmGCTypedOptimizationReducer infers type information based on the input
 // graph and reduces type checks and casts based on that information.
 //
@@ -179,7 +186,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       bool to_nullable = cast_op.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(), cast_op.config.to.heap_type(),
                                 module_) &&
-          !IsCastToCustomDescriptor(cast_op.config)) {
+          !IsCastToCustomDescriptor(module_, cast_op.config)) {
         if (to_nullable || type.is_non_nullable()) {
           // The inferred type is already as specific as the cast target, the
           // cast is guaranteed to always succeed and can therefore be removed.
@@ -247,7 +254,7 @@ class WasmGCTypedOptimizationReducer : public Next {
                                 type_check.config.to.heap_type(), module_) &&
           // When checking for a particular custom descriptor, static types
           // cannot guarantee success.
-          !(IsCastToCustomDescriptor(type_check.config))) {
+          !(IsCastToCustomDescriptor(module_, type_check.config))) {
         if (to_nullable || type.is_non_nullable()) {
           // The inferred type is guaranteed to be a subtype of the checked
           // type.
@@ -435,12 +442,6 @@ class WasmGCTypedOptimizationReducer : public Next {
   }
 
  private:
-  bool IsCastToCustomDescriptor(WasmTypeCheckConfig config) {
-    return config.to.has_index() &&
-           module_->type(config.to.ref_index()).has_descriptor() &&
-           config.exactness == compiler::kExactMatchOnly;
-  }
-
   Graph& graph_ = __ modifiable_input_graph();
   const wasm::WasmModule* module_ = __ data() -> wasm_module();
   WasmGCTypeAnalyzer analyzer_{__ data(), graph_, __ phase_zone()};

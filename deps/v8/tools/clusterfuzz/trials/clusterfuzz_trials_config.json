@@ -67,6 +67,6 @@
     {"app_args": "--precise-object-pinning", "app_name": "d8", "probability": 0.1},
     {"app_args": "--ephemeron-fixpoint-iterations=0", "app_name": "d8", "probability": 0.1},
     {"app_args": "--experimental-wasm-revectorize", "app_name": "d8", "probability": 0.25},
-    {"app_args": "--additive-safe-int-feedback", "app_name": "d8", "probability": 0.5},
-    {"app_args": "--no-memory-pool", "app_name": "d8", "probability": 0.1}
+    {"app_args": "--no-memory-pool", "app_name": "d8", "probability": 0.1},
+    {"app_args": "--handle-weak-ref-weakly-in-minor-gc", "app_name": "d8", "probability": 0.1}
 ]

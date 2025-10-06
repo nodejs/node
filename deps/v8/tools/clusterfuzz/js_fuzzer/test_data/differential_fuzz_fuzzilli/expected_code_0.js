@@ -12,28 +12,25 @@ try {
   print("Hash: " + __hash);
   print("Caught: " + __caught);
 } catch (e) {}
-print("v8-foozzie source: fuzzilli_source");
-// Original: fuzzilli/fuzzdir-2/corpus/program_2.js
-let __v_0 = 0;
-if (Math.random() > 0.5) {
-  let __v_1 = "";
-  __v_0++;
-  if (__v_0) {
-    const __v_2 = 0;
-    __prettyPrintExtra(__v_2);
-    __v_1 = __v_2 + "";
-    __v_1 = __v_2 + "";
-    __v_1 = __v_2 + "";
-    __prettyPrintExtra(__v_1);
-    __v_0 = __v_1;
-    __prettyPrintExtra(__v_0);
-    __v_0 = __v_1;
-    __v_0 = __v_1;
-    __prettyPrintExtra(__v_2);
-  }
+print("v8-foozzie source: fuzzilli_diff_fuzz_source");
+// Original: fuzzilli/fuzzdir-diff-fuzz-2/corpus/program_3.js
+try {
+  boom;
+} catch (__v_0) {}
+try {
+  boom;
+} catch (__v_1) {
+  __caught++;
 }
+try {
+  boom;
+} catch (__v_2) {
+  __prettyPrintExtra(__v_2);
+}
+try {
+  boom;
+} catch (__v_3) {}
 try {
   print("Hash: " + __hash);
   print("Caught: " + __caught);
-  __prettyPrint(__v_0);
 } catch (e) {}

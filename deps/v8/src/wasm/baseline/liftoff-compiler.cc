@@ -30,7 +30,6 @@
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
-#include "src/wasm/memory-tracing.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/simd-shuffle.h"
 #include "src/wasm/wasm-code-coverage.h"
@@ -39,6 +38,7 @@
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "src/wasm/wasm-tracing.h"
 
 namespace v8::internal::wasm {
 
@@ -3250,6 +3250,9 @@ class LiftoffCompiler {
                                                           &base, &offset);
         __ LoadTaggedPointer(base, base, offset, 0);
         __ PushRegister(kind, LiftoffRegister(base));
+        if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+          TraceGlobalOperation(imm.index, false, decoder->position());
+        }
         return;
       }
 
@@ -3263,6 +3266,9 @@ class LiftoffCompiler {
                            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                                imm.global->offset));
       __ PushRegister(kind, LiftoffRegister(value));
+      if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+        TraceGlobalOperation(imm.index, false, decoder->position());
+      }
       return;
     }
     LiftoffRegList pinned;
@@ -3296,6 +3302,10 @@ class LiftoffCompiler {
         GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &pinned,
                                                           &base, &offset);
         __ StoreTaggedPointer(base, offset, 0, value, pinned);
+
+        if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+          TraceGlobalOperation(imm.index, true, decoder->position());
+        }
         return;
       }
 
@@ -3309,6 +3319,10 @@ class LiftoffCompiler {
                             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                                 imm.global->offset),
                             value, pinned);
+
+      if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+        TraceGlobalOperation(imm.index, true, decoder->position());
+      }
       return;
     }
     LiftoffRegList pinned;
@@ -7434,9 +7448,8 @@ class LiftoffCompiler {
   VarState GetFirstFieldIfPrototype(const StructType* struct_type,
                                     bool initial_values_on_stack,
                                     LiftoffRegList pinned) {
-    // If the first field might be a DescriptorOptions containing a
-    // JS prototype, we must pass it along. Otherwise, to satisfy the
-    // parameter count, we pass Smi(0).
+    // If the first field might be a JS prototype, we must pass it along.
+    // Otherwise, to satisfy the parameter count, we pass Smi(0).
     if (initial_values_on_stack &&
         struct_type->first_field_can_be_prototype()) {
       int slot = -struct_type->field_count();
@@ -8131,7 +8144,8 @@ class LiftoffCompiler {
     __ PushRegister(kI32, dst);
   }
 
-  void RefGetDesc(FullDecoder* decoder, const Value& ref_val, Value* desc_val) {
+  void RefGetDesc(FullDecoder* decoder, ModuleTypeIndex struct_index,
+                  const Value& ref_val, Value* desc_val) {
     LiftoffRegList pinned;
     LiftoffRegister ref = pinned.set(__ PopToRegister());
 
@@ -8443,6 +8457,7 @@ class LiftoffCompiler {
 
   void RefCastAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
                        Value* result_val, bool null_succeeds) {
+    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) return;
     switch (type.representation()) {
       case HeapType::kEq:
         if (v8_flags.experimental_wasm_shared &&

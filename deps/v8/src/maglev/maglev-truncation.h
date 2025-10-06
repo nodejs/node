@@ -46,6 +46,20 @@ class PropagateTruncationProcessor {
         UnsetCanTruncateToInt32ForDeoptFrameInput(node);
       });
     }
+
+    if (IsInt32BitwiseBinaryOperationNode(node->opcode())) {
+      return ProcessResult::kContinue;
+    }
+
+    // TODO(marja): Here we'd like to propagate can_truncate_to_int32 upwards so
+    // that all inputs of truncation-compatible Int32(Add|Subtract)WithOverflow
+    // can also truncate. But for that to be safe, we need better range analysis
+    // to make sure we don't go beyond the safe int range.
+
+    // TODO(marja): We can add a limited version of that, to support cases where
+    // one of the operands is a constant and thus we can be sure the result
+    // stays in the safe range.
+
     // If the output is not a Float64, then it cannot (or doesn't need)
     // to be truncated. Just propagate that all inputs should not be
     // truncated.
@@ -103,9 +117,7 @@ class PropagateTruncationProcessor {
   template <typename NodeT, int I>
   void UnsetCanTruncateToInt32ForFixedInputNodes(NodeT* node) {
     if constexpr (I < static_cast<int>(NodeT::kInputCount)) {
-      if constexpr (NodeT::kInputTypes[I] == ValueRepresentation::kFloat64 ||
-                    NodeT::kInputTypes[I] ==
-                        ValueRepresentation::kHoleyFloat64) {
+      if constexpr (NodeT::kInputTypes[I] != ValueRepresentation::kTagged) {
         node->NodeBase::input(I).node()->set_can_truncate_to_int32(false);
       }
       UnsetCanTruncateToInt32ForFixedInputNodes<NodeT, I + 1>(node);
@@ -133,7 +145,7 @@ class PropagateTruncationProcessor {
   void UnsetCanTruncateToInt32ForDeoptFrameInput(ValueNode* node) {
     // TODO(victorgomes): Technically if node is in the int32 range, this use
     // would still allow truncation.
-    if (node->is_float64_or_holey_float64()) {
+    if (!node->is_tagged()) {
       node->set_can_truncate_to_int32(false);
     }
   }
@@ -184,7 +196,30 @@ class TruncationProcessor {
   }
   PROCESS_TRUNC_CONV(TruncateHoleyFloat64ToInt32)
   PROCESS_TRUNC_CONV(UnsafeHoleyFloat64ToInt32)
-#undef PROCESS_BINOP
+#undef PROCESS_TRUNC_CONV
+
+#define PROCESS_INT32_ARITHMETIC_OPERATION_WITH_OVERFLOW(Op)      \
+  ProcessResult Process(Op* node, const ProcessingState& state) { \
+    PreProcessNode(node, state);                                  \
+    ProcessInt32ArithmeticOperationWithOverflow<Op>(node);        \
+    PostProcessNode(node);                                        \
+    return ProcessResult::kContinue;                              \
+  }
+  PROCESS_INT32_ARITHMETIC_OPERATION_WITH_OVERFLOW(Int32AddWithOverflow)
+  PROCESS_INT32_ARITHMETIC_OPERATION_WITH_OVERFLOW(Int32SubtractWithOverflow)
+#undef PROCESS_INT32_ARITHMETIC_OPERATION_WITH_OVERFLOW
+
+#define PROCESS_INT32_BITWISE_BINARY_OPERATION(Op)                       \
+  ProcessResult Process(Op* node, const ProcessingState& state) {        \
+    PreProcessNode(node, state);                                         \
+    ProcessResult result = ProcessInt32BitwiseBinaryOperation<Op>(node); \
+    PostProcessNode(node);                                               \
+    return result;                                                       \
+  }
+
+  INT32_BITWISE_BINARY_OPERATIONS_NODE_LIST(
+      PROCESS_INT32_BITWISE_BINARY_OPERATION)
+#undef PROCESS_INT32_BITWISE_BINARY_OPERATION
 
  private:
   MaglevReducer<TruncationProcessor> reducer_;
@@ -230,6 +265,41 @@ class TruncationProcessor {
       default:
         UNREACHABLE();
     }
+  }
+
+  template <typename NodeT>
+  void ProcessInt32ArithmeticOperationWithOverflow(NodeT* node) {
+    if (!node->can_truncate_to_int32()) return;
+
+    if (node->opcode() == Opcode::kInt32AddWithOverflow) {
+      node->OverwriteWith(Opcode::kInt32Add);
+    } else {
+      DCHECK_EQ(node->opcode(), Opcode::kInt32SubtractWithOverflow);
+      node->OverwriteWith(Opcode::kInt32Subtract);
+    }
+    // TODO(marja): To support Int32MultiplyWithOverflow and
+    // Int32DivideWithOverflow, we need to be able to reason about ranges.
+    //
+    // TODO(marja): We can add a limited version of that, to support cases where
+    // one of the operands is a constant and thus we can be sure the result
+    // stays in the safe range.
+  }
+
+  template <typename NodeT>
+  ProcessResult ProcessInt32BitwiseBinaryOperation(NodeT* node) {
+    if (IsCommutativeNode(Node::opcode_of<NodeT>)) {
+      std::optional<int32_t> left = node->TryGetInt32ConstantInput(0);
+      if (left && left == Int32Identity(Node::opcode_of<NodeT>)) {
+        node->OverwriteWithIdentityTo(GetUnwrappedInput(node, 1));
+        return ProcessResult::kRemove;
+      }
+    }
+    std::optional<int32_t> right = node->TryGetInt32ConstantInput(1);
+    if (right && right == Int32Identity(Node::opcode_of<NodeT>)) {
+      node->OverwriteWithIdentityTo(GetUnwrappedInput(node, 0));
+      return ProcessResult::kRemove;
+    }
+    return ProcessResult::kContinue;
   }
 
   ValueNode* GetTruncatedInt32Constant(double constant);

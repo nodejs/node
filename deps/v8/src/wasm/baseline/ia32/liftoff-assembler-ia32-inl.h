@@ -592,7 +592,16 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   mov(dst_op, src);
 
-  if (skip_write_barrier || v8_flags.disable_write_barriers) return;
+  if (v8_flags.disable_write_barriers) return;
+
+  if (skip_write_barrier) {
+    if (v8_flags.verify_write_barriers) {
+      CallVerifySkippedWriteBarrierStubSaveRegisters(dst_addr, src,
+                                                     SaveFPRegsMode::kSave);
+    }
+    return;
+  }
+
   EmitWriteBarrier(dst_addr, dst_op, src, pinned);
 }
 

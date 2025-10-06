@@ -477,6 +477,15 @@ uint32_t ComputeFlagListHash() {
     if (flag.PointsTo(&v8_flags.random_seed)) continue;
     if (flag.PointsTo(&v8_flags.predictable)) continue;
 
+    // These flags are not relevant for code caching and are often set by
+    // embedders to tune memory usage.
+    if (flag.PointsTo(&v8_flags.max_old_space_size) ||
+        flag.PointsTo(&v8_flags.min_semi_space_size) ||
+        flag.PointsTo(&v8_flags.max_semi_space_size) ||
+        flag.PointsTo(&v8_flags.max_heap_size)) {
+      continue;
+    }
+
     // The following flags are implied by --predictable (some negated).
     if (flag.PointsTo(&v8_flags.concurrent_sparkplug) ||
         flag.PointsTo(&v8_flags.concurrent_recompilation) ||
@@ -1124,6 +1133,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
                     turboshaft_wasm_in_js_inlining),
       CONTRADICTION(jit_fuzzing, max_lazy),
       CONTRADICTION(jitless, maglev_future),
+      CONTRADICTION(jitless, turbolev_future),
       CONTRADICTION(jitless, stress_concurrent_inlining),
       CONTRADICTION(jitless, stress_concurrent_inlining_attach_code),
       CONTRADICTION(jitless, stress_maglev),
@@ -1141,6 +1151,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
                     turboshaft_assert_types),
       CONTRADICTION(turboshaft, stress_concurrent_inlining),
       CONTRADICTION(turboshaft, stress_concurrent_inlining_attach_code),
+      CONTRADICTION(minor_ms, handle_weak_ref_weakly_in_minor_gc),
 
       // List of flags that shouldn't be used when --fuzzing or
       // --correctness-fuzzer-suppressions is passed. These flags will be reset

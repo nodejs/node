@@ -42,20 +42,26 @@ bool ValidStructSubtypeDefinition(ModuleTypeIndex subtype_index,
   }
   if (sub_def.descriptor.valid()) {
     // If a type has a descriptor, its supertype must either have no descriptor,
-    // or the supertype's descriptor must be a supertype of the subtype's
-    // descriptor.
+    // or the supertype's descriptor must be a declared supertype of the
+    // subtype's descriptor.
     if (super_def.descriptor.valid() &&
-        !IsHeapSubtypeOf(module->heap_type(sub_def.descriptor),
-                         module->heap_type(super_def.descriptor), module)) {
+        module->supertype(sub_def.descriptor) != super_def.descriptor) {
       return false;
     }
   } else {
     // If a type has no descriptor, its supertype must not have one either.
     if (super_def.descriptor.valid()) return false;
   }
-  // A type and its supertype must either both be descriptors, or both not.
-  if (sub_def.describes.valid() != super_def.describes.valid()) {
-    return false;
+  if (sub_def.describes.valid()) {
+    // If a type is a descriptor, its supertype must also be a descriptor, and
+    // must describe a declared supertype of the subtype's described type.
+    if (!super_def.describes.valid()) return false;
+    if (module->supertype(sub_def.describes) != super_def.describes) {
+      return false;
+    }
+  } else {
+    // A type and its supertype must either both be descriptors, or both not.
+    if (super_def.describes.valid()) return false;
   }
   return true;
 }

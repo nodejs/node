@@ -3542,6 +3542,232 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorS128HalfShuffleTest,
                          ::testing::ValuesIn(kHalfShuffles));
 
+namespace {
+
+struct I8x4ShuffleInst {
+  const char* constructor_name;
+  ArchOpcode first_arch_opcode;
+  ArchOpcode second_arch_opcode;
+  int lane_size;
+  const std::array<uint8_t, 4> shuffle;
+};
+
+std::ostream& operator<<(std::ostream& os, const I8x4ShuffleInst& inst) {
+  return os << inst.constructor_name
+            << (inst.lane_size > 0 ? "." + std::to_string(inst.lane_size) : "");
+}
+
+const I8x4ShuffleInst kDeinterleaveShuffles[] = {
+    {"Even, Even",
+     kArm64S128UnzipLeft,
+     kArm64S128UnzipLeft,
+     8,
+     {{0, 4, 8, 12}}},
+    {"Odd, Even",
+     kArm64S128UnzipRight,
+     kArm64S128UnzipLeft,
+     8,
+     {{1, 5, 9, 13}}},
+    {"Even, Odd",
+     kArm64S128UnzipLeft,
+     kArm64S128UnzipRight,
+     8,
+     {{2, 6, 10, 14}}},
+    {"Odd, Odd",
+     kArm64S128UnzipRight,
+     kArm64S128UnzipRight,
+     8,
+     {{3, 7, 11, 15}}},
+};
+
+}  // namespace
+
+using TurboshaftInstructionSelectorI8x4ShuffleTest =
+    TurboshaftInstructionSelectorTestWithParam<I8x4ShuffleInst>;
+
+TEST_P(TurboshaftInstructionSelectorI8x4ShuffleTest, S128Deinterleave4) {
+  const I8x4ShuffleInst inst = GetParam();
+  const MachineType type = MachineType::Simd128();
+  StreamBuilder m(this, type, type, type, type);
+  m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
+                            Simd128ShuffleOp::Kind::kI8x4,
+                            inst.shuffle.data()));
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(inst.first_arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(inst.lane_size, LaneSizeField::decode(s[0]->opcode()));
+  EXPECT_EQ(inst.second_arch_opcode, s[1]->arch_opcode());
+  EXPECT_EQ(inst.lane_size, LaneSizeField::decode(s[1]->opcode()));
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(1)));
+  EXPECT_EQ(1U, s[0]->OutputCount());
+}
+
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
+                         TurboshaftInstructionSelectorI8x4ShuffleTest,
+                         ::testing::ValuesIn(kDeinterleaveShuffles));
+
+namespace {
+
+struct DupAndShuffleInst {
+  const char* constructor_name;
+  ArchOpcode arch_opcode;
+  unsigned expected_num_insts;
+  int expected_param_index;
+  int lane_size;
+  int index;
+  bool is_swizzle;
+  const std::array<uint8_t, kSimd128Size> shuffle;
+};
+
+std::ostream& operator<<(std::ostream& os, const DupAndShuffleInst& inst) {
+  return os << inst.constructor_name;
+}
+
+const DupAndShuffleInst kDupAndShuffles[] = {
+    {"Dup 0 and UnzipLeft",
+     kArm64S128UnzipLeft,
+     2,
+     0,
+     16,
+     0,
+     true,
+     {{0, 1, 4, 5, 8, 9, 12, 13, 0, 1, 0, 1, 0, 1, 0, 1}}},
+    {"Dup 1 and UnzipLeft",
+     kArm64S128UnzipLeft,
+     2,
+     0,
+     16,
+     1,
+     true,
+     {{0, 1, 4, 5, 8, 9, 12, 13, 2, 3, 2, 3, 2, 3, 2, 3}}},
+    {"Dup 0 and UnzipRight",
+     kArm64S128UnzipRight,
+     2,
+     0,
+     16,
+     0,
+     true,
+     {{2, 3, 6, 7, 10, 11, 14, 15, 0, 1, 0, 1, 0, 1, 0, 1}}},
+    {"Dup 8 and UnzipRight",
+     kArm64S128UnzipRight,
+     3,
+     1,
+     16,
+     0,
+     false,
+     {{2, 3, 6, 7, 10, 11, 14, 15, 16, 17, 16, 17, 16, 17, 16, 17}}},
+    {"Dup and Deinterleave Bytes Even, Even",
+     kArm64I8x16Shuffle,
+     1,
+     0,
+     8,
+     0,
+     false,
+     {{0, 4, 8, 12, 16, 20, 24, 28, 0, 0, 0, 0, 0, 0, 0, 0}}},
+    {"Dup and Deinterleave Bytes Odd, Even",
+     kArm64I8x16Shuffle,
+     1,
+     0,
+     8,
+     0,
+     false,
+     {{1, 5, 9, 13, 17, 21, 25, 29, 0, 0, 0, 0, 0, 0, 0, 0}}},
+    {"Dup and Deinterleave Bytes Even, Odd",
+     kArm64I8x16Shuffle,
+     1,
+     0,
+     8,
+     0,
+     false,
+     {{2, 6, 10, 14, 18, 22, 26, 30, 0, 0, 0, 0, 0, 0, 0, 0}}},
+    {"Dup and Deinterleave Bytes Odd, Odd",
+     kArm64I8x16Shuffle,
+     1,
+     0,
+     8,
+     0,
+     false,
+     {{3, 7, 11, 15, 19, 23, 27, 31, 0, 0, 0, 0, 0, 0, 0, 0}}},
+    {"Dup and Deinterleave Shorts Even, Even",
+     kArm64I8x16Shuffle,
+     1,
+     0,
+     16,
+     0,
+     false,
+     {{0, 1, 8, 9, 16, 17, 24, 25, 0, 1, 0, 1, 0, 1, 0, 1}}},
+    {"Dup and Deinterleave Shorts Odd, Even",
+     kArm64I8x16Shuffle,
+     1,
+     0,
+     16,
+     0,
+     false,
+     {{2, 3, 10, 11, 18, 19, 26, 27, 0, 1, 0, 1, 0, 1, 0, 1}}},
+    {"Dup and Deinterleave Shorts Even, Odd",
+     kArm64I8x16Shuffle,
+     1,
+     0,
+     16,
+     0,
+     false,
+     {{4, 5, 12, 13, 20, 21, 28, 29, 0, 1, 0, 1, 0, 1, 0, 1}}},
+    {"Dup and Deinterleave Shorts Odd, Odd",
+     kArm64I8x16Shuffle,
+     1,
+     0,
+     16,
+     0,
+     false,
+     {{6, 7, 14, 15, 22, 23, 30, 31, 0, 1, 0, 1, 0, 1, 0, 1}}},
+};
+
+}  // namespace
+
+using TurboshaftInstructionSelectorDupAndShuffleTest =
+    TurboshaftInstructionSelectorTestWithParam<DupAndShuffleInst>;
+
+TEST_P(TurboshaftInstructionSelectorDupAndShuffleTest, DupAndShuffle) {
+  const DupAndShuffleInst inst = GetParam();
+  const MachineType type = MachineType::Simd128();
+  StreamBuilder m(this, type, type, type, type);
+  m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
+                            Simd128ShuffleOp::Kind::kI8x16,
+                            inst.shuffle.data()));
+  Stream s = m.Build();
+  EXPECT_EQ(inst.expected_num_insts, s.size());
+
+  if (inst.expected_num_insts > 1) {
+    EXPECT_EQ(kArm64S128Dup, s[0]->arch_opcode());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)),
+              s.ToVreg(m.Parameter(inst.expected_param_index)));
+    EXPECT_EQ(s.ToInt32(s[0]->InputAt(1)), inst.index);
+
+    EXPECT_EQ(inst.lane_size, LaneSizeField::decode(s[0]->opcode()));
+    EXPECT_EQ(inst.arch_opcode, s[1]->arch_opcode());
+    EXPECT_EQ(inst.lane_size, LaneSizeField::decode(s[1]->opcode()));
+
+    if (inst.expected_num_insts == 3) {
+      EXPECT_EQ(s.ToVreg(s[1]->InputAt(0)), s.ToVreg(m.Parameter(0)));
+      EXPECT_EQ(s.ToVreg(s[1]->InputAt(1)), s.ToVreg(m.Parameter(1)));
+      EXPECT_EQ(kArm64S128MoveLane, s[2]->arch_opcode());
+      EXPECT_EQ(1U, s[2]->OutputCount());
+    } else {
+      EXPECT_EQ(s.ToVreg(s[1]->InputAt(0)),
+                s.ToVreg(m.Parameter(inst.expected_param_index)));
+      EXPECT_EQ(s.ToVreg(s[1]->InputAt(1)), s.ToVreg(s[0]->Output()));
+      EXPECT_EQ(1U, s[1]->OutputCount());
+    }
+  } else {
+    EXPECT_EQ(inst.arch_opcode, s[0]->arch_opcode());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
+                         TurboshaftInstructionSelectorDupAndShuffleTest,
+                         ::testing::ValuesIn(kDupAndShuffles));
+
 TEST_F(TurboshaftInstructionSelectorTest, ReverseShuffle32x4Test) {
   const MachineType type = MachineType::Simd128();
   {

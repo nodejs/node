@@ -21,10 +21,10 @@ class FunctionTester : public InitializedHandleScope {
  public:
   explicit FunctionTester(const char* source, uint32_t flags = 0);
 
-  FunctionTester(DirectHandle<Code> code, int param_count);
-
-  // Assumes VoidDescriptor call interface.
-  explicit FunctionTester(DirectHandle<Code> code);
+  // Assumes JSTrampolineDescriptor call interface.
+  // TODO(ishell): deduce param count from Code object and make sure it works
+  // for kDontAdaptArgumentsSentinel.
+  explicit FunctionTester(DirectHandle<Code> code, int param_count = 0);
 
   Isolate* isolate;
   Handle<JSFunction> function;

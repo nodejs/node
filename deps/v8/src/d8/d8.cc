@@ -1668,11 +1668,13 @@ Maybe<bool> ChainDynamicImportPromise(Isolate* isolate, Local<Context> realm,
 }
 }  // namespace
 
-void Shell::DoHostImportModuleDynamically(void* import_data) {
-  DynamicImportData* import_data_ =
-      static_cast<DynamicImportData*>(import_data);
+void Shell::DoHostImportModuleDynamically(void* data) {
+  Isolate* current_isolate = reinterpret_cast<Isolate*>(i::Isolate::Current());
+  DynamicImportData* import_data =
+      PerIsolateData::Get(current_isolate)->LookupImportData(data);
+  CHECK_EQ(current_isolate, import_data->isolate);
 
-  Isolate* isolate(import_data_->isolate);
+  Isolate* isolate(import_data->isolate);
   Global<Context> global_realm;
   Global<Promise::Resolver> global_resolver;
   Global<Promise> global_result_promise;
@@ -1683,19 +1685,18 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
   {
     HandleScope handle_scope(isolate);
-    Local<Context> realm = import_data_->context.Get(isolate);
-    Local<Value> referrer = import_data_->referrer.Get(isolate);
-    Local<String> v8_specifier = import_data_->specifier.Get(isolate);
-    ModuleImportPhase phase = import_data_->phase;
+    Local<Context> realm = import_data->context.Get(isolate);
+    Local<Value> referrer = import_data->referrer.Get(isolate);
+    Local<String> v8_specifier = import_data->specifier.Get(isolate);
+    ModuleImportPhase phase = import_data->phase;
     Local<FixedArray> import_attributes =
-        import_data_->import_attributes.Get(isolate);
-    Local<Promise::Resolver> resolver = import_data_->resolver.Get(isolate);
+        import_data->import_attributes.Get(isolate);
+    Local<Promise::Resolver> resolver = import_data->resolver.Get(isolate);
 
     global_realm.Reset(isolate, realm);
     global_resolver.Reset(isolate, resolver);
 
-    PerIsolateData* data = PerIsolateData::Get(isolate);
-    data->DeleteDynamicImportData(import_data_);
+    PerIsolateData::Get(isolate)->DeleteDynamicImportData(import_data);
 
     Context::Scope context_scope(realm);
     std::string specifier = ToSTLString(isolate, v8_specifier);
@@ -1960,11 +1961,9 @@ PerIsolateData::~PerIsolateData() {
   if (i::v8_flags.expose_async_hooks) {
     delete async_hooks_wrapper_;  // This uses the isolate
   }
-#if defined(LEAK_SANITIZER)
   for (DynamicImportData* data : import_data_) {
     delete data;
   }
-#endif
 }
 
 void PerIsolateData::RemoveUnhandledPromise(Local<Promise> promise) {
@@ -2010,15 +2009,18 @@ int PerIsolateData::HandleUnhandledPromiseRejections() {
 }
 
 void PerIsolateData::AddDynamicImportData(DynamicImportData* data) {
-#if defined(LEAK_SANITIZER)
+  SBXCHECK_EQ(import_data_.end(), import_data_.find(data));
   import_data_.insert(data);
-#endif
 }
 void PerIsolateData::DeleteDynamicImportData(DynamicImportData* data) {
-#if defined(LEAK_SANITIZER)
+  SBXCHECK_NE(import_data_.end(), import_data_.find(data));
   import_data_.erase(data);
-#endif
   delete data;
+}
+DynamicImportData* PerIsolateData::LookupImportData(void* data) {
+  auto* result = static_cast<DynamicImportData*>(data);
+  SBXCHECK_NE(import_data_.end(), import_data_.find(result));
+  return result;
 }
 
 Local<FunctionTemplate> PerIsolateData::GetTestApiObjectCtor() const {
@@ -2798,12 +2800,6 @@ void Shell::InstallConditionalFeatures(
   isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
 }
 
-void Shell::EnableJSPI(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  Isolate* isolate = info.GetIsolate();
-  isolate->SetWasmJSPIEnabledCallback([](auto) { return true; });
-  isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
-}
-
 void Shell::SetFlushDenormals(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
   if (i::v8_flags.correctness_fuzzer_suppressions || i::v8_flags.fuzzing) {
@@ -2946,6 +2942,15 @@ void Shell::SerializerDeserialize(
 void Shell::WasmSerializeModule(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
+  if (i::v8_flags.fuzzing) {
+    // Serializing modules is "safe", but differential fuzzing will observe
+    // differences in the serialized bytes depending on compiler flags.
+    // Strictly speaking, guarding this block on
+    // v8_flags.correctness_fuzzer_suppressions would be enough; for symmetry
+    // with deserialization we use the more general --fuzzing flag.
+    info.GetReturnValue().Set(Undefined(isolate));
+    return;
+  }
   HandleScope handle_scope(isolate);
   if (!info[0]->IsWasmModuleObject()) {
     ThrowError(isolate, "First argument must be a WasmModuleObject");
@@ -2972,6 +2977,13 @@ void Shell::WasmSerializeModule(
 void Shell::WasmDeserializeModule(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
+  i::PrintF("NOTE: d8.wasm.deserializeModule() is not VRP eligible.\n");
+  if (i::v8_flags.fuzzing) {
+    // Deserializing random bytes could violate arbitrary invariants. This
+    // function is not fuzzer-safe, so just do nothing.
+    info.GetReturnValue().Set(Undefined(isolate));
+    return;
+  }
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope handle_scope(isolate);
   if (!info[0]->IsArrayBuffer()) {
@@ -4353,11 +4365,6 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
         isolate, "installConditionalFeatures",
         FunctionTemplate::New(isolate, Shell::InstallConditionalFeatures));
 
-    // Enable JavaScript Promise Integration at runtime, to simulate
-    // Origin Trial behavior.
-    test_template->Set(isolate, "enableJSPI",
-                       FunctionTemplate::New(isolate, Shell::EnableJSPI));
-
     test_template->Set(
         isolate, "setFlushDenormals",
         FunctionTemplate::New(isolate, Shell::SetFlushDenormals));
@@ -5332,7 +5339,8 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
  private:
   static v8_inspector::V8InspectorSession* GetSession(Local<Context> context) {
     InspectorClient* inspector_client = static_cast<InspectorClient*>(
-        context->GetAlignedPointerFromEmbedderData(kInspectorClientIndex));
+        context->GetAlignedPointerFromEmbedderData(kInspectorClientIndex,
+                                                   kInspectorClientTag));
     return inspector_client->session_.get();
   }
 

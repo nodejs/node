@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/runtime/runtime.h"
+
 #include <stdio.h>
 
 #include <iomanip>
@@ -1327,6 +1329,102 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   return args[0];
 }
 
+RUNTIME_FUNCTION(Runtime_DebugPrintGeneric) {
+  static constexpr int kNum16BitChunks = 4;
+  SealHandleScope shs(isolate);
+
+  // Args are: prefix, value_format,
+  //   smi:0, smi:0, smi:0, tagged            - if value_format is kTagged
+  //   <bits 63-48>, <bits 47-32>, <bits 31-16>, <bits 15-0>,  - otherwise
+  // stream.
+
+  if (args.length() != 2 + kNum16BitChunks + 1) {
+    return CrashUnlessFuzzing(isolate);
+  }
+
+  CHECK(IsSmi(args[1]));
+  DebugPrintValueType value_type =
+      static_cast<DebugPrintValueType>(Cast<Smi>(args[1]).value());
+  CHECK(IsSmi(args[6]));
+  int stream_int = Cast<Smi>(args[6]).value();
+  FILE* output_stream = stream_int == fileno(stderr) ? stderr : stdout;
+
+  if (IsString(args[0])) {
+    Tagged<String> prefix = Cast<String>(args[0]);
+    StringCharacterStream stream(prefix);
+    while (stream.HasMore()) {
+      uint16_t character = stream.GetNext();
+      PrintF(output_stream, "%c", character);
+    }
+  }
+
+  uint64_t value = 0;
+  if (value_type != DebugPrintValueType::kTagged) {
+    for (int i = 0; i < kNum16BitChunks; ++i) {
+      value <<= 16;
+      CHECK(IsSmi(args[2 + i]));
+      uint32_t chunk = Cast<Smi>(args[2 + i]).value();
+      // We encode 16 bit per chunk only!
+      CHECK_EQ(chunk & 0xFFFF0000, 0);
+      value |= chunk;
+    }
+  }
+
+  switch (value_type) {
+    case DebugPrintValueType::kWord32: {
+      PrintF(output_stream, "0x%" PRIx32 "\n", static_cast<uint32_t>(value));
+      break;
+    }
+    case DebugPrintValueType::kWord64: {
+      PrintF(output_stream, "0x%" PRIx64 "\n", value);
+      break;
+    }
+    case DebugPrintValueType::kFloat32: {
+      const float f = base::bit_cast<float>(static_cast<uint32_t>(value));
+      if (std::isnan(f)) {
+        PrintF(output_stream, "%g (0x%" PRIx32 ")\n", f,
+               static_cast<uint32_t>(value));
+      } else {
+        PrintF(output_stream, "%.20g\n", f);
+      }
+      break;
+    }
+    case DebugPrintValueType::kFloat64: {
+      const double d = base::bit_cast<double>(value);
+      if (std::isnan(d)) {
+        PrintF(output_stream, "%g (0x%" PRIx64 ")\n", d, value);
+      } else {
+        PrintF(output_stream, "%.20g\n", d);
+      }
+      break;
+    }
+    case DebugPrintValueType::kTagged: {
+      Tagged<Object> tagged = args[5];
+      CHECK(IsHeapObject(tagged));
+      if (IsString(tagged) && !IsString(args[0])) {
+        // We don't have a prefix and just print a string. In this case we don't
+        // print the full JS object but just the text.
+        Tagged<String> text = Cast<String>(tagged);
+        StringCharacterStream stream(text);
+        while (stream.HasMore()) {
+          uint16_t character = stream.GetNext();
+          PrintF(output_stream, "%c", character);
+        }
+        PrintF(output_stream, "\n");
+        fflush(output_stream);
+      } else {
+        Tagged<MaybeObject> maybe_object(tagged);
+        OFStream fstream(output_stream);
+        DebugPrintImpl(maybe_object, fstream);
+      }
+      break;
+    }
+  }
+  fflush(output_stream);
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_DebugPrintPtr) {
   SealHandleScope shs(isolate);
   // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
@@ -2216,12 +2314,12 @@ RUNTIME_FUNCTION(Runtime_IsEfficiencyModeEnabled) {
   return ReadOnlyRoots(isolate).false_value();
 }
 
-RUNTIME_FUNCTION(Runtime_IsExperimentalUndefinedDoubleEnabled) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+RUNTIME_FUNCTION(Runtime_IsUndefinedDoubleEnabled) {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   return ReadOnlyRoots(isolate).true_value();
 #else
   return ReadOnlyRoots(isolate).false_value();
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 }
 
 RUNTIME_FUNCTION(Runtime_SetBatterySaverMode) {
@@ -2317,25 +2415,6 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
   return ReadOnlyRoots(isolate).undefined_value();
 #endif  // OBJECT_PRINT
 #endif  // not V8_JITLESS
-}
-
-RUNTIME_FUNCTION(Runtime_CheckNoWriteBarrierNeeded) {
-#if V8_VERIFY_WRITE_BARRIERS
-  DisallowGarbageCollection no_gc;
-  if (args.length() != 2) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  Tagged<Object> object = args[0];
-  if (!object.IsHeapObject()) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  auto heap_object = Cast<HeapObject>(object);
-  Tagged<Object> value = args[1];
-  CHECK(!WriteBarrier::IsRequired(heap_object, value));
-  return args[0];
-#else
-  UNREACHABLE();
-#endif
 }
 
 RUNTIME_FUNCTION(Runtime_ArrayBufferDetachForceWasm) {

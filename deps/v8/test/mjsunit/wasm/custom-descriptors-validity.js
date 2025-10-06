@@ -119,7 +119,7 @@ CheckValid((builder) => {
   builder.addStruct({describes: 2, supertype: 1});   // 3
 });
 
-CheckValid((builder) => {
+CheckInvalid(/type 4 has invalid explicit supertype 2/, (builder) => {
   builder.addStruct({final: false});  // 0
 }, (builder) => {
   builder.addStruct({descriptor: 2});  // 1

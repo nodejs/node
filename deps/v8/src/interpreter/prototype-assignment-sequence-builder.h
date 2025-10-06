@@ -16,7 +16,7 @@ class ProtoAssignmentSeqBuilder final : public ZoneObject {
   static constexpr int kInitialPropertyCount = 64;
 
   explicit ProtoAssignmentSeqBuilder(
-      const base::SmallVector<std::pair<Property*, Expression*>,
+      const base::SmallVector<std::pair<const AstRawString*, Expression*>,
                               kInitialPropertyCount>& properties)
       : properties_(std::move(properties)) {}
 
@@ -54,7 +54,8 @@ class ProtoAssignmentSeqBuilder final : public ZoneObject {
                                                   Handle<Script> script);
 
  private:
-  base::SmallVector<std::pair<Property*, Expression*>, kInitialPropertyCount>
+  base::SmallVector<std::pair<const AstRawString*, Expression*>,
+                    kInitialPropertyCount>
       properties_;
   IndirectHandle<ObjectBoilerplateDescription> boilerplate_description_;
 };

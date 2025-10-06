@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <tuple>
 #include <utility>
 
 #include "absl/base/attributes.h"
@@ -108,6 +109,13 @@ size_t Resize1To3NewOffset(size_t hash, PerTableSeed seed) {
   return SingleGroupTableH1(hash, seed) & 2;
 }
 
+// Returns the address of the ith slot in slots where each slot occupies
+// slot_size.
+inline void* SlotAddress(void* slot_array, size_t slot, size_t slot_size) {
+  return static_cast<void*>(static_cast<char*>(slot_array) +
+                            (slot * slot_size));
+}
+
 // Returns the address of the slot `i` iterations after `slot` assuming each
 // slot has the specified size.
 inline void* NextSlot(void* slot, size_t slot_size, size_t i = 1) {
@@ -147,21 +155,31 @@ bool CommonFieldsGenerationInfoEnabled::should_rehash_for_bug_detection_on_move(
 
 namespace {
 
+// Probes an array of control bits using a probe sequence,
+// and returns the mask corresponding to the first group with a deleted or empty
+// slot.
+inline Group::NonIterableBitMaskType probe_till_first_non_full_group(
+    const ctrl_t* ctrl, probe_seq<Group::kWidth>& seq,
+    [[maybe_unused]] size_t capacity) {
+  while (true) {
+    GroupFullEmptyOrDeleted g{ctrl + seq.offset()};
+    auto mask = g.MaskEmptyOrDeleted();
+    if (mask) {
+      return mask;
+    }
+    seq.next();
+    ABSL_SWISSTABLE_ASSERT(seq.index() <= capacity && "full table!");
+  }
+}
+
 FindInfo find_first_non_full_from_h1(const ctrl_t* ctrl, size_t h1,
                                      size_t capacity) {
   auto seq = probe_h1(capacity, h1);
   if (IsEmptyOrDeleted(ctrl[seq.offset()])) {
     return {seq.offset(), /*probe_length=*/0};
   }
-  while (true) {
-    GroupFullEmptyOrDeleted g{ctrl + seq.offset()};
-    auto mask = g.MaskEmptyOrDeleted();
-    if (mask) {
-      return {seq.offset(mask.LowestBitSet()), seq.index()};
-    }
-    seq.next();
-    ABSL_SWISSTABLE_ASSERT(seq.index() <= capacity && "full table!");
-  }
+  auto mask = probe_till_first_non_full_group(ctrl, seq, capacity);
+  return {seq.offset(mask.LowestBitSet()), seq.index()};
 }
 
 // Probes an array of control bits using a probe sequence derived from `hash`,
@@ -174,6 +192,16 @@ FindInfo find_first_non_full_from_h1(const ctrl_t* ctrl, size_t h1,
 FindInfo find_first_non_full(const CommonFields& common, size_t hash) {
   return find_first_non_full_from_h1(common.control(), H1(hash),
                                      common.capacity());
+}
+
+// Same as `find_first_non_full`, but returns the mask corresponding to the
+// first group with a deleted or empty slot.
+std::pair<FindInfo, Group::NonIterableBitMaskType> find_first_non_full_group(
+    const CommonFields& common, size_t hash) {
+  auto seq = probe(common, hash);
+  auto mask =
+      probe_till_first_non_full_group(common.control(), seq, common.capacity());
+  return {{seq.offset(), seq.index()}, mask};
 }
 
 // Whether a table fits in half a group. A half-group table fits entirely into a
@@ -295,6 +323,69 @@ size_t FindFirstFullSlot(size_t start, size_t end, const ctrl_t* ctrl) {
 void PrepareInsertCommon(CommonFields& common) {
   common.increment_size();
   common.maybe_increment_generation_on_insert();
+}
+
+// Sets sanitizer poisoning for slot corresponding to control byte being set.
+inline void DoSanitizeOnSetCtrl(const CommonFields& c, size_t i, ctrl_t h,
+                                size_t slot_size) {
+  ABSL_SWISSTABLE_ASSERT(i < c.capacity());
+  auto* slot_i = static_cast<const char*>(c.slot_array()) + i * slot_size;
+  if (IsFull(h)) {
+    SanitizerUnpoisonMemoryRegion(slot_i, slot_size);
+  } else {
+    SanitizerPoisonMemoryRegion(slot_i, slot_size);
+  }
+}
+
+// Sets `ctrl[i]` to `h`.
+//
+// Unlike setting it directly, this function will perform bounds checks and
+// mirror the value to the cloned tail if necessary.
+inline void SetCtrl(const CommonFields& c, size_t i, ctrl_t h,
+                    size_t slot_size) {
+  ABSL_SWISSTABLE_ASSERT(!c.is_small());
+  DoSanitizeOnSetCtrl(c, i, h, slot_size);
+  ctrl_t* ctrl = c.control();
+  ctrl[i] = h;
+  ctrl[((i - NumClonedBytes()) & c.capacity()) +
+       (NumClonedBytes() & c.capacity())] = h;
+}
+// Overload for setting to an occupied `h2_t` rather than a special `ctrl_t`.
+inline void SetCtrl(const CommonFields& c, size_t i, h2_t h, size_t slot_size) {
+  SetCtrl(c, i, static_cast<ctrl_t>(h), slot_size);
+}
+
+// Like SetCtrl, but in a single group table, we can save some operations when
+// setting the cloned control byte.
+inline void SetCtrlInSingleGroupTable(const CommonFields& c, size_t i, ctrl_t h,
+                                      size_t slot_size) {
+  ABSL_SWISSTABLE_ASSERT(!c.is_small());
+  ABSL_SWISSTABLE_ASSERT(is_single_group(c.capacity()));
+  DoSanitizeOnSetCtrl(c, i, h, slot_size);
+  ctrl_t* ctrl = c.control();
+  ctrl[i] = h;
+  ctrl[i + c.capacity() + 1] = h;
+}
+// Overload for setting to an occupied `h2_t` rather than a special `ctrl_t`.
+inline void SetCtrlInSingleGroupTable(const CommonFields& c, size_t i, h2_t h,
+                                      size_t slot_size) {
+  SetCtrlInSingleGroupTable(c, i, static_cast<ctrl_t>(h), slot_size);
+}
+
+// Like SetCtrl, but in a table with capacity >= Group::kWidth - 1,
+// we can save some operations when setting the cloned control byte.
+inline void SetCtrlInLargeTable(const CommonFields& c, size_t i, ctrl_t h,
+                                size_t slot_size) {
+  ABSL_SWISSTABLE_ASSERT(c.capacity() >= Group::kWidth - 1);
+  DoSanitizeOnSetCtrl(c, i, h, slot_size);
+  ctrl_t* ctrl = c.control();
+  ctrl[i] = h;
+  ctrl[((i - NumClonedBytes()) & c.capacity()) + NumClonedBytes()] = h;
+}
+// Overload for setting to an occupied `h2_t` rather than a special `ctrl_t`.
+inline void SetCtrlInLargeTable(const CommonFields& c, size_t i, h2_t h,
+                                size_t slot_size) {
+  SetCtrlInLargeTable(c, i, static_cast<ctrl_t>(h), slot_size);
 }
 
 size_t DropDeletesWithoutResizeAndPrepareInsert(
@@ -679,7 +770,7 @@ void ResizeNonSooImpl(CommonFields& common,
   ABSL_SWISSTABLE_ASSERT(IsValidCapacity(new_capacity));
   ABSL_SWISSTABLE_ASSERT(new_capacity > policy.soo_capacity());
 
-  const size_t old_capacity = common.capacity();
+  [[maybe_unused]] const size_t old_capacity = common.capacity();
   [[maybe_unused]] ctrl_t* old_ctrl;
   [[maybe_unused]] void* old_slots;
   if constexpr (kMode == ResizeNonSooMode::kGuaranteedAllocated) {
@@ -688,7 +779,7 @@ void ResizeNonSooImpl(CommonFields& common,
   }
 
   const size_t slot_size = policy.slot_size;
-  const size_t slot_align = policy.slot_align;
+  [[maybe_unused]] const size_t slot_align = policy.slot_align;
   const bool has_infoz = infoz.IsSampled();
   void* alloc = policy.get_char_alloc(common);
 
@@ -1295,12 +1386,12 @@ std::pair<ctrl_t*, void*> Grow1To3AndPrepareInsert(
   ctrl_t* old_ctrl = common.control();
   void* old_slots = common.slot_array();
 
-  common.set_capacity(kNewCapacity);
   const size_t slot_size = policy.slot_size;
   const size_t slot_align = policy.slot_align;
   void* alloc = policy.get_char_alloc(common);
   HashtablezInfoHandle infoz = common.infoz();
   const bool has_infoz = infoz.IsSampled();
+  common.set_capacity(kNewCapacity);
 
   const auto [new_ctrl, new_slots] =
       AllocBackingArray(common, policy, kNewCapacity, has_infoz, alloc);
@@ -1854,7 +1945,9 @@ void ReserveTableToFitNewSize(CommonFields& common,
 namespace {
 size_t PrepareInsertLargeImpl(CommonFields& common,
                               const PolicyFunctions& __restrict policy,
-                              size_t hash, FindInfo target) {
+                              size_t hash,
+                              Group::NonIterableBitMaskType mask_empty,
+                              FindInfo target_group) {
   ABSL_SWISSTABLE_ASSERT(!common.is_small());
   const GrowthInfo growth_info = common.growth_info();
   // When there are no deleted slots in the table
@@ -1865,23 +1958,27 @@ size_t PrepareInsertLargeImpl(CommonFields& common,
   }
   PrepareInsertCommon(common);
   common.growth_info().OverwriteEmptyAsFull();
-  SetCtrl(common, target.offset, H2(hash), policy.slot_size);
-  common.infoz().RecordInsert(hash, target.probe_length);
-  return target.offset;
+  target_group.offset += mask_empty.LowestBitSet();
+  target_group.offset &= common.capacity();
+  SetCtrl(common, target_group.offset, H2(hash), policy.slot_size);
+  common.infoz().RecordInsert(hash, target_group.probe_length);
+  return target_group.offset;
 }
 }  // namespace
 
 size_t PrepareInsertLarge(CommonFields& common,
                           const PolicyFunctions& __restrict policy, size_t hash,
-                          FindInfo target) {
+                          Group::NonIterableBitMaskType mask_empty,
+                          FindInfo target_group) {
   // NOLINTNEXTLINE(misc-static-assert)
   ABSL_SWISSTABLE_ASSERT(!SwisstableGenerationsEnabled());
-  return PrepareInsertLargeImpl(common, policy, hash, target);
+  return PrepareInsertLargeImpl(common, policy, hash, mask_empty, target_group);
 }
 
 size_t PrepareInsertLargeGenerationsEnabled(
     CommonFields& common, const PolicyFunctions& policy, size_t hash,
-    FindInfo target, absl::FunctionRef<size_t(size_t)> recompute_hash) {
+    Group::NonIterableBitMaskType mask_empty, FindInfo target_group,
+    absl::FunctionRef<size_t(size_t)> recompute_hash) {
   // NOLINTNEXTLINE(misc-static-assert)
   ABSL_SWISSTABLE_ASSERT(SwisstableGenerationsEnabled());
   if (common.should_rehash_for_bug_detection_on_insert()) {
@@ -1890,9 +1987,10 @@ size_t PrepareInsertLargeGenerationsEnabled(
     ResizeAllocatedTableWithSeedChange(
         common, policy, common.growth_left() > 0 ? cap : NextCapacity(cap));
     hash = recompute_hash(common.seed().seed());
-    target = find_first_non_full(common, hash);
+    std::tie(target_group, mask_empty) =
+        find_first_non_full_group(common, hash);
   }
-  return PrepareInsertLargeImpl(common, policy, hash, target);
+  return PrepareInsertLargeImpl(common, policy, hash, mask_empty, target_group);
 }
 
 namespace {

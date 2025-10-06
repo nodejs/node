@@ -1593,8 +1593,9 @@ bool RegExpResultsCache_MatchGlobalAtom::TryGet(Isolate* isolate,
 }
 
 void RegExpResultsCache_MatchGlobalAtom::Clear(Heap* heap) {
-  MemsetTagged(heap->regexp_match_global_atom_cache()->RawFieldOfFirstElement(),
-               Smi::zero(), kSize);
+  Relaxed_MemsetTagged(
+      heap->regexp_match_global_atom_cache()->RawFieldOfFirstElement(),
+      Smi::zero(), kSize);
 }
 
 std::ostream& operator<<(std::ostream& os, RegExpFlags flags) {

@@ -1465,7 +1465,8 @@ class FastCApiObject {
       return nullptr;
     }
     FastCApiObject* wrapped = reinterpret_cast<FastCApiObject*>(
-        object->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex));
+        object->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex,
+                                                   kFastCApiTag));
     CHECK_NOT_NULL(wrapped);
     return wrapped;
   }

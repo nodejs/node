@@ -948,6 +948,25 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
   }
 }
 
+void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
+    Register object, Register value, SaveFPRegsMode fp_mode) {
+  ASM_CODE_COMMENT(this);
+  PushCallerSaved(fp_mode, ip, r0);
+  CallVerifySkippedWriteBarrierStub(object, value);
+  PopCallerSaved(fp_mode, ip, r0);
+}
+
+void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
+                                                       Register value) {
+  ASM_CODE_COMMENT(this);
+  push(value);
+  push(object);
+  pop(kCArgRegs[0]);
+  pop(kCArgRegs[1]);
+  PrepareCallCFunction(2, r0);
+  CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2);
+}
+
 // Will clobber 4 registers: object, address, scratch, ip.  The
 // register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
@@ -3981,6 +4000,7 @@ void MacroAssembler::I64x2Mul(Simd128Register dst, Simd128Register src1,
   if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
     vmulld(dst, src1, src2);
   } else {
+    DCHECK(scratch1 != r0);
     Register scratch_1 = scratch1;
     Register scratch_2 = scratch2;
     for (int i = 0; i < 2; i++) {
@@ -4333,6 +4353,7 @@ void MacroAssembler::I8x16BitMask(Register dst, Simd128Register src,
   if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
     vextractbm(dst, src);
   } else {
+    DCHECK(scratch1 != r0);
     mov(scratch1, Operand(0x8101820283038));
     mov(scratch2, Operand(0x4048505860687078));
     mtvsrdd(scratch3, scratch1, scratch2);
@@ -4385,6 +4406,7 @@ void MacroAssembler::I8x16Shuffle(Simd128Register dst, Simd128Register src1,
                                   Simd128Register src2, uint64_t high,
                                   uint64_t low, Register scratch1,
                                   Register scratch2, Simd128Register scratch3) {
+  DCHECK(scratch2 != r0);
   mov(scratch1, Operand(low));
   mov(scratch2, Operand(high));
   mtvsrdd(scratch3, scratch2, scratch1);
@@ -4673,6 +4695,7 @@ void MacroAssembler::S128Not(Simd128Register dst, Simd128Register src) {
 
 void MacroAssembler::S128Const(Simd128Register dst, uint64_t high, uint64_t low,
                                Register scratch1, Register scratch2) {
+  DCHECK(scratch2 != r0);
   mov(scratch1, Operand(low));
   mov(scratch2, Operand(high));
   mtvsrdd(dst, scratch2, scratch1);
@@ -4696,6 +4719,64 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
     return candidate;
   }
   UNREACHABLE();
+}
+
+void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
+                                                 Register value,
+                                                 Register scratch, Label* ok) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, scratch));
+  DCHECK(!AreAliased(value, scratch));
+
+  // The most common case: Static write barrier elimination is allowed on the
+  // last young allocation.
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch1 = temps.Acquire();
+    DCHECK(!AreAliased(scratch, scratch1));
+    SubS64(scratch, object, Operand(kHeapObjectTag));
+    LoadU64(scratch1, MemOperand(kRootRegister,
+                                 IsolateData::last_young_allocation_offset()));
+    CmpU64(scratch, scratch1);
+    b(to_condition(Condition::kEqual), ok);
+  }
+
+  // Write barier can also be removed if value is in read-only space.
+  CheckPageFlag(value, scratch, MemoryChunk::kIsInReadOnlyHeapMask, ne, ok);
+
+  Label not_ok;
+
+  // Handle allocation folding, allow WB removal if:
+  //   LAB start <= last_young_allocation_ < (object address+1) < LAB top
+  // Note that object has tag bit set, so object == object address+1.
+
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch1 = temps.Acquire();
+    DCHECK(!AreAliased(scratch, scratch1));
+
+    // Check LAB start <= last_young_allocation_.
+    LoadU64(scratch,
+            MemOperand(kRootRegister,
+                       IsolateData::new_allocation_info_start_offset()));
+    LoadU64(scratch1, MemOperand(kRootRegister,
+                                 IsolateData::last_young_allocation_offset()));
+    CmpU64(scratch, scratch1);
+    b(to_condition(Condition::kUnsignedGreaterThan), &not_ok);
+
+    // Check last_young_allocation_ < (object address+1).
+    CmpU64(scratch1, object);
+    b(to_condition(Condition::kUnsignedGreaterThanEqual), &not_ok);
+
+    // Check (object address+1) < LAB top.
+    LoadU64(scratch, MemOperand(kRootRegister,
+                                IsolateData::new_allocation_info_top_offset()));
+    CmpU64(object, scratch);
+    b(to_condition(Condition::kUnsignedLessThan), ok);
+  }
+
+  // Slow path: Potentially check more cases in C++.
+  bind(&not_ok);
 }
 
 void MacroAssembler::SwapP(Register src, Register dst, Register scratch) {

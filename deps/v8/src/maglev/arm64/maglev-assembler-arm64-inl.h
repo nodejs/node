@@ -1152,7 +1152,7 @@ void MaglevAssembler::Float64SilenceNan(DoubleRegister value) {
   CanonicalizeNaN(value);
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void MaglevAssembler::JumpIfUndefinedNan(DoubleRegister value, Register scratch,
                                          Label* target,
                                          Label::Distance distance) {
@@ -1184,7 +1184,7 @@ void MaglevAssembler::JumpIfNotUndefinedNan(DoubleRegister value,
   CompareInt32AndJumpIf(scratch.W(), kUndefinedNanUpper32, kNotEqual, target,
                         distance);
 }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
                                     Label* target, Label::Distance distance) {

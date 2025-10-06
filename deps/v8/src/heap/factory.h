@@ -82,7 +82,6 @@ class TemplateObjectDescription;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
-class WeakCell;
 
 #if V8_ENABLE_WEBASSEMBLY
 namespace wasm {
@@ -638,7 +637,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSObject> NewJSObject(
       DirectHandle<JSFunction> constructor,
       AllocationType allocation = AllocationType::kYoung,
-      NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
+      NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   // JSObject without a prototype.
   Handle<JSObject> NewJSObjectWithNullProto();
   // JSObject without a prototype, in dictionary mode.
@@ -657,14 +656,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<Map> map, AllocationType allocation = AllocationType::kYoung,
       DirectHandle<AllocationSite> allocation_site =
           DirectHandle<AllocationSite>::null(),
-      NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
+      NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   // Like NewJSObjectFromMap, but includes allocating a properties dictionary.);
   Handle<JSObject> NewSlowJSObjectFromMap(
       DirectHandle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
       DirectHandle<AllocationSite> allocation_site =
           DirectHandle<AllocationSite>::null(),
-      NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
+      NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   Handle<JSObject> NewSlowJSObjectFromMap(DirectHandle<Map> map);
   // Calls NewJSObjectFromMap or NewSlowJSObjectFromMap depending on whether the
   // map is a dictionary map.
@@ -673,7 +672,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung,
       DirectHandle<AllocationSite> allocation_site =
           DirectHandle<AllocationSite>::null(),
-      NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
+      NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(DirectHandle<Map> map);
   // Allocates and initializes a new JavaScript object with the given
   // {prototype} and {properties}. The newly created object will be
@@ -760,14 +759,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, DirectHandle<Foreign> embedder_data,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-      wasm::CanonicalTypeIndex sig_index, const wasm::CanonicalSig* sig);
+      const wasm::CanonicalSig* sig);
   DirectHandle<WasmExportedFunctionData> NewWasmExportedFunctionData(
       DirectHandle<Code> export_wrapper,
       DirectHandle<WasmTrustedInstanceData> instance_data,
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function,
-      const wasm::CanonicalSig* sig, wasm::CanonicalTypeIndex type_index,
-      int wrapper_budget, wasm::Promise promise);
+      const wasm::CanonicalSig* sig, int wrapper_budget, wasm::Promise promise);
   DirectHandle<WasmImportData> NewWasmImportData(
       DirectHandle<HeapObject> callable, wasm::Suspend suspend,
       MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
@@ -781,13 +779,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // {opt_call_target} is kNullAddress for JavaScript functions, and
   // non-null for exported Wasm functions.
   DirectHandle<WasmJSFunctionData> NewWasmJSFunctionData(
-      wasm::CanonicalTypeIndex sig_index, DirectHandle<JSReceiver> callable,
+      const wasm::CanonicalSig* sig, DirectHandle<JSReceiver> callable,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
       wasm::Suspend suspend, wasm::Promise promise,
       std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle);
   DirectHandle<WasmResumeData> NewWasmResumeData(
       DirectHandle<WasmSuspenderObject> suspender, wasm::OnResume on_resume);
   DirectHandle<WasmSuspenderObject> NewWasmSuspenderObject();
+  DirectHandle<WasmSuspenderObject> NewWasmSuspenderObjectInitialized();
   DirectHandle<WasmContinuationObject> NewWasmContinuationObject();
   DirectHandle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                          wasm::WasmValue* args,
@@ -1388,11 +1387,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Initializes a JSObject based on its map.
   void InitializeJSObjectFromMap(
-      Tagged<JSObject> obj, Tagged<Object> properties, Tagged<Map> map,
-      NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
+      Tagged<Map> map, Tagged<JSObject> obj,
+      std::optional<Tagged<Object>> maybe_properties,
+      NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   // Initializes JSObject body starting at given offset.
-  void InitializeJSObjectBody(Tagged<JSObject> obj, Tagged<Map> map,
-                              int start_offset);
+  void InitializeJSObjectBody(
+      Tagged<JSObject> obj, Tagged<Map> map, int start_offset,
+      NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
 
   Handle<WeakArrayList> NewUninitializedWeakArrayList(
       int capacity, AllocationType allocation = AllocationType::kYoung);

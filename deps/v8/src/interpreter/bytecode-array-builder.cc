@@ -762,8 +762,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::SetPrototypeProperties(
-    size_t index_obj) {
-  OutputSetPrototypeProperties(index_obj);
+    size_t index_obj, size_t slot) {
+  OutputSetPrototypeProperties(index_obj, slot);
   return *this;
 }
 

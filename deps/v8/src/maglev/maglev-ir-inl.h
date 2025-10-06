@@ -91,7 +91,8 @@ CallKnownJSFunction::CallKnownJSFunction(
     JSDispatchHandle dispatch_handle,
 #endif
     compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
-    ValueNode* context, ValueNode* receiver, ValueNode* new_target)
+    ValueNode* context, ValueNode* receiver, ValueNode* new_target,
+    const compiler::FeedbackSource& feedback_source)
     : Base(bitfield),
 #ifdef V8_ENABLE_LEAPTIERING
       dispatch_handle_(dispatch_handle),
@@ -105,7 +106,8 @@ CallKnownJSFunction::CallKnownJSFunction(
           shared_function_info
               .internal_formal_parameter_count_with_receiver_deprecated()
 #endif
-      ) {
+              ),
+      feedback_source_(feedback_source) {
   set_input(kClosureIndex, closure);
   set_input(kContextIndex, context);
   set_input(kReceiverIndex, receiver);
@@ -115,10 +117,27 @@ CallKnownJSFunction::CallKnownJSFunction(
 void NodeBase::UnwrapDeoptFrames() {
   // Unwrap (and remove uses of its inputs) of Identity and ReturnedValue.
   if (properties().can_eager_deopt() || properties().is_deopt_checkpoint()) {
-    eager_deopt_info()->UnwrapIdentities();
+    eager_deopt_info()->Unwrap();
   }
   if (properties().can_lazy_deopt()) {
-    lazy_deopt_info()->UnwrapIdentities();
+    lazy_deopt_info()->Unwrap();
+  }
+}
+
+void NodeBase::OverwriteWith(Opcode new_opcode,
+                             std::optional<OpProperties> maybe_new_properties) {
+  OpProperties new_properties = maybe_new_properties.has_value()
+                                    ? maybe_new_properties.value()
+                                    : StaticPropertiesForOpcode(new_opcode);
+#ifdef DEBUG
+  CheckCanOverwriteWith(new_opcode, new_properties);
+#endif
+  set_opcode(new_opcode);
+  set_properties(new_properties);
+  if (new_opcode == Opcode::kDead) return;
+  int new_input_count = StaticInputCountForOpcode(new_opcode);
+  if (input_count() != new_input_count) {
+    bitfield_ = InputCountField::update(bitfield_, new_input_count);
   }
 }
 

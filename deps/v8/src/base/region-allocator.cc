@@ -76,7 +76,7 @@ RegionAllocator::Region* RegionAllocator::FreeListFindRegion(size_t size) {
 }
 
 RegionAllocator::Region* RegionAllocator::FreeListFindLargestRegion(
-    size_t size) {
+    size_t size) const {
   Region* region = nullptr;
   for (Region* free_region : free_regions_) {
     if (free_region->size() < size) continue;
@@ -85,6 +85,11 @@ RegionAllocator::Region* RegionAllocator::FreeListFindLargestRegion(
     }
   }
   return region;
+}
+
+size_t RegionAllocator::GetLargestFreeRegionSize() const {
+  Region* region = FreeListFindLargestRegion(0);
+  return region != nullptr ? region->size() : 0;
 }
 
 void RegionAllocator::FreeListRemoveRegion(Region* region) {

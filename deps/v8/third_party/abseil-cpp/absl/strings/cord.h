@@ -921,7 +921,7 @@ class Cord {
     // Returns nullptr if holding pointer
     const char* absl_nullable data() const;
     // Discards pointer, if any
-    void set_data(const char* absl_nonnull data, size_t n);
+    void set_data(const char* absl_nullable data, size_t n);
     char* absl_nonnull set_data(size_t n);  // Write data to the result
     // Returns nullptr if holding bytes
     absl::cord_internal::CordRep* absl_nullable tree() const;

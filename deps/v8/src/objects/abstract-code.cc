@@ -29,5 +29,25 @@ int AbstractCode::SourceStatementPosition(Isolate* isolate, int offset) {
   }
 }
 
+bool AbstractCode::is_context_specialized(PtrComprCageBase cage_base) {
+  Tagged<Map> map_object = map(cage_base);
+  if (InstanceTypeChecker::IsCode(map_object)) {
+    return GetCode()->is_context_specialized();
+  } else {
+    DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
+    return false;
+  }
+}
+
+BytecodeOffset AbstractCode::osr_offset(PtrComprCageBase cage_base) {
+  Tagged<Map> map_object = map(cage_base);
+  if (InstanceTypeChecker::IsCode(map_object)) {
+    return GetCode()->osr_offset();
+  } else {
+    DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
+    return BytecodeOffset::None();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -189,6 +189,7 @@
   V(JSSetKeyedProperty)                \
   V(JSDefineKeyedOwnProperty)          \
   V(JSSetNamedProperty)                \
+  V(JSSetPrototypeProperties)          \
   V(JSDefineNamedOwnProperty)          \
   V(JSStoreGlobal)                     \
   V(JSDefineKeyedOwnPropertyInLiteral) \
@@ -1475,6 +1476,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
       case kJSCreateEmptyLiteralArray:
       case kJSCreateLiteralArray:
       case kJSCreateLiteralObject:
+      case kJSSetPrototypeProperties:
       case kJSCreateLiteralRegExp:
       case kJSDefineKeyedOwnProperty:
       case kJSForInNext:
