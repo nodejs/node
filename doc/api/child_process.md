@@ -1078,8 +1078,8 @@ pipes between the parent and child. The value is one of the following:
    them incorrectly (e.g., passing a readable stream where a writable stream is
    expected) can lead to unexpected results or errors. This practice is discouraged
    as it may result in undefined behavior or dropped callbacks if the stream
-   encounters errors. Always ensure that `stdin` is used as writable and
-   `stdout`/`stderr` as readable to maintain the intended flow of data between
+   encounters errors. Always ensure that `stdin` is used as readable and
+   `stdout`/`stderr` as writable to maintain the intended flow of data between
    the parent and child processes.
 7. Positive integer: The integer value is interpreted as a file descriptor
    that is open in the parent process. It is shared with the child
