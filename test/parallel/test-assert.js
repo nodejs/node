@@ -1737,6 +1737,24 @@ test('Ambiguous error messages fail', () => {
   );
 });
 
+test('Faulty message functions', () => {
+  assert.throws(
+    () => assert.doesNotMatch('foo', /foo/, (a, b) => 123),
+    {
+      code: 'ERR_ASSERTION',
+      message: "'foo' doesNotMatch /foo/"
+    }
+  );
+
+  assert.throws(
+    () => assert.match('foo', /123/, (a, b) => { new Error('baz'); }),
+    {
+      code: 'ERR_ASSERTION',
+      message: "'foo' match /123/"
+    }
+  );
+});
+
 test('Functions as error message', () => {
   function errorMessage(actual, expected) {
     return `Nice message including ${actual} and ${expected}`;
