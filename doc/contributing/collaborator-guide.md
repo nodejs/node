@@ -911,7 +911,7 @@ might impact an LTS release.
 | Embedded use or delivery of Node.js   | [@nodejs/delivery-channels][]                                                                                             |
 
 When things need extra attention, are controversial, or `semver-major`:
-@nodejs/tsc
+[@nodejs/tsc][]
 
 If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 
@@ -1048,6 +1048,7 @@ need to be attached anymore, as only important bugfixes will be included.
 [@nodejs/test_runner]: https://github.com/orgs/nodejs/teams/test_runner
 [@nodejs/testing]: https://github.com/orgs/nodejs/teams/testing
 [@nodejs/timers]: https://github.com/orgs/nodejs/teams/timers
+[@nodejs/tsc]: https://github.com/orgs/nodejs/teams/tsc
 [@nodejs/url]: https://github.com/orgs/nodejs/teams/url
 [@nodejs/util]: https://github.com/orgs/nodejs/teams/util
 [@nodejs/v8-inspector]: https://github.com/orgs/nodejs/teams/v8-inspector
