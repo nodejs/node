@@ -884,7 +884,7 @@ node --entry-url 'data:text/javascript,console.log("Hello")'
 <!-- YAML
 added: v22.9.0
 changes:
-  - version: REPLACEME
+  - version: v24.10.0
     pr-url: https://github.com/nodejs/node/pull/59925
     description: The `--env-file-if-exists` flag is no longer experimental.
 -->
@@ -897,7 +897,7 @@ does not exist.
 <!-- YAML
 added: v20.6.0
 changes:
-  - version: REPLACEME
+  - version: v24.10.0
     pr-url: https://github.com/nodejs/node/pull/59925
     description: The `--env-file` flag is no longer experimental.
   - version:
