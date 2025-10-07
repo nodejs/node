@@ -73,7 +73,7 @@
 #endif
 
 #ifdef NODE_ENABLE_VTUNE_PROFILING
-#include "../deps/v8/src/third_party/vtune/v8-vtune.h"
+#include "../deps/v8/third_party/vtune/v8-vtune.h"
 #endif
 
 #include "large_pages/node_large_page.h"
