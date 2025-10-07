@@ -39,15 +39,15 @@ test_hook.enable();
  * slots. Testing with plain object here.
  */
 const resource = {};
-makeCallback(resource, process, function cb() {
+makeCallback(resource, process, common.mustCall(function cb() {
   assert.strictEqual(this, process);
   assert.strictEqual(async_hooks.executionAsyncResource(), resource);
-});
+}));
 
 assert.strictEqual(hook_result.init_called, true);
 assert.strictEqual(hook_result.before_called, true);
 assert.strictEqual(hook_result.after_called, true);
-setImmediate(() => {
+setImmediate(common.mustCall(() => {
   assert.strictEqual(hook_result.destroy_called, true);
   test_hook.disable();
-});
+}));

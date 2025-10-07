@@ -7,13 +7,13 @@ import { fileURL } from '../common/fixtures.mjs';
 // It changes `foo` package name into `redirected-fs` and then loads `redirected-fs`
 
 const hook = registerHooks({
-  resolve(specifier, context, nextResolve) {
+  resolve: mustCall((specifier, context, nextResolve) => {
     assert.strictEqual(specifier, 'foo');
     return {
       url: 'foo://bar',
       shortCircuit: true,
     };
-  },
+  }),
   load: mustCall(function load(url, context, nextLoad) {
     assert.strictEqual(url, 'foo://bar');
     return nextLoad(fileURL('module-hooks', 'redirected-fs.js').href, context);

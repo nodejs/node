@@ -46,9 +46,9 @@ for (let i = 0; i < arr.length; i++)
   arr[i] = {};
 
 assert.strictEqual(hook_result.destroy_called, false);
-setImmediate(() => {
+setImmediate(common.mustCall(() => {
   assert.strictEqual(hook_result.destroy_called, false);
-  makeCallback(asyncResource, process, () => {
+  makeCallback(asyncResource, process, common.mustCall(() => {
     const executionAsyncResource = async_hooks.executionAsyncResource();
     // Assuming the executionAsyncResource was created for the absence of the
     // initial `{ foo: 'bar' }`.
@@ -58,8 +58,8 @@ setImmediate(() => {
     assert.strictEqual(typeof executionAsyncResource, 'object');
     assert.strictEqual(executionAsyncResource.foo, undefined);
     destroyAsyncResource(asyncResource);
-    setImmediate(() => {
+    setImmediate(common.mustCall(() => {
       assert.strictEqual(hook_result.destroy_called, true);
-    });
-  });
-});
+    }));
+  }));
+}));

@@ -1,13 +1,13 @@
 // This tests that module.registerHooks() can be used to support unknown formats, like
 // import(wasm)
-import '../common/index.mjs';
+import { mustCall } from '../common/index.mjs';
 
 import assert from 'node:assert';
 import { registerHooks, createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 
 registerHooks({
-  load(url, context, nextLoad) {
+  load: mustCall((url, context, nextLoad) => {
     assert.match(url, /simple\.wasm$/);
     const source =
       `const buf = Buffer.from([${Array.from(readFileSync(new URL(url))).join(',')}]);
@@ -21,7 +21,7 @@ registerHooks({
       source,
       format: 'module',
     };
-  },
+  }),
 });
 
 // Checks that it works with require.

@@ -7,7 +7,7 @@
 // and symbol types, while in newer versions they can be created for
 // any value type.
 //
-const { buildType } = require('../../common');
+const { mustCall, buildType } = require('../../common');
 const { gcUntil } = require('../../common/gc');
 const assert = require('assert');
 const addon_v8 = require(`./build/${buildType}/test_reference_obj_only`);
@@ -122,4 +122,4 @@ async function runAllTests() {
   await runTests(addon_new, /* isVersion8 */ false, /* isLocalSymbol */ false);
 }
 
-runAllTests();
+runAllTests().then(mustCall());

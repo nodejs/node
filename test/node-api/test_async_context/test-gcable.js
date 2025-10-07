@@ -39,6 +39,6 @@ for (let i = 0; i < arr.length; i++)
   arr[i] = {};
 
 assert.strictEqual(hook_result.destroy_called, false);
-setImmediate(() => {
+setImmediate(common.mustCall(() => {
   assert.strictEqual(hook_result.destroy_called, true);
-});
+}));

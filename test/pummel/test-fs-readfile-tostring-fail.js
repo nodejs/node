@@ -32,7 +32,7 @@ const a = Buffer.alloc(size, 'a');
 let expectedSize = 0;
 
 for (let i = 0; i < 201; i++) {
-  stream.write(a, (err) => { assert.ifError(err); });
+  stream.write(a, common.mustSucceed());
   expectedSize += a.length;
 }
 

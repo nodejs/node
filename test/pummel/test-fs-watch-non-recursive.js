@@ -38,19 +38,19 @@ const filepath = path.join(testsubdir, 'watch.txt');
 
 fs.mkdirSync(testsubdir, 0o700);
 
-function doWatch() {
-  const watcher = fs.watch(testDir, { persistent: true }, (event, filename) => {
+const doWatch = common.mustCall(() => {
+  const watcher = fs.watch(testDir, { persistent: true }, common.mustCallAtLeast((event, filename) => {
     // This function may be called with the directory depending on timing but
     // must not be called with the file..
     assert.strictEqual(filename, 'testsubdir');
-  });
+  }, 0));
   setTimeout(() => {
     fs.writeFileSync(filepath, 'test');
   }, 100);
   setTimeout(() => {
     watcher.close();
   }, 500);
-}
+});
 
 if (common.isMacOS) {
   // On macOS delay watcher start to avoid leaking previous events.
