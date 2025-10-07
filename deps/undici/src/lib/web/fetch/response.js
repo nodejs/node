@@ -240,6 +240,11 @@ class Response {
     // 2. Let clonedResponse be the result of cloning this’s response.
     const clonedResponse = cloneResponse(this[kState])
 
+    // Note: To re-register because of a new stream.
+    if (hasFinalizationRegistry && this[kState].body?.stream) {
+      streamRegistry.register(this, new WeakRef(this[kState].body.stream))
+    }
+
     // 3. Return the result of creating a Response object, given
     // clonedResponse, this’s headers’s guard, and this’s relevant Realm.
     return fromInnerResponse(clonedResponse, getHeadersGuard(this[kHeaders]))
