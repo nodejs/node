@@ -13,17 +13,14 @@
       'target_name': 'v8_vtune',
       'type': 'static_library',
       'sources': [
-        '<(V8_ROOT)/third_party/ittapi/src/ittnotify/ittnotify_config.h',
-        '<(V8_ROOT)/third_party/ittapi/src/ittnotify/ittnotify_types.h',
         '<(V8_ROOT)/third_party/ittapi/src/ittnotify/jitprofiling.c',
-        '<(V8_ROOT)/third_party/ittapi/include/jitprofiling.h',
-        '<(V8_ROOT)/src/third_party/vtune/v8-vtune.h',
-        '<(V8_ROOT)/src/third_party/vtune/vtune-jit.cc',
-        '<(V8_ROOT)/src/third_party/vtune/vtune-jit.h',
+        '<(V8_ROOT)/third_party/vtune/vtune-jit.cc',
       ],
       'include_dirs': [
         '<(V8_ROOT)/third_party/ittapi/include',
         '<(V8_ROOT)/third_party/ittapi/src/ittnotify',
+        '<(V8_ROOT)/include',
+        '<(V8_ROOT)',
       ],
 
       'direct_dependent_settings': {
