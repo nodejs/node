@@ -39,7 +39,7 @@
 #ifndef VTUNE_VTUNE_JIT_H_
 #define VTUNE_VTUNE_JIT_H_
 
-#include "third_party/ittapi/include/jitprofiling.h"
+#include "../ittapi/include/jitprofiling.h"
 
 #define VTUNERUNNING (iJIT_IsProfilingActive() == iJIT_SAMPLING_ON)
 
@@ -63,4 +63,3 @@ class VTUNEJITInterface {
 
 
 #endif  // VTUNE_VTUNE_JIT_H_
-
