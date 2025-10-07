@@ -552,7 +552,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   DirectHandle<JSObject> obj = factory->NewJSObjectFromMap(map);
   JSObject::MigrateToMap(isolate, obj, prepared_map);
   FieldIndex index = FieldIndex::ForDescriptor(*prepared_map, first);
-  CHECK(IsUninitialized(obj->RawFastPropertyAt(index), isolate));
+  CHECK(IsUninitializedHole(obj->RawFastPropertyAt(index), isolate));
 #ifdef VERIFY_HEAP
   Object::ObjectVerify(*obj, isolate);
 #endif

@@ -45,6 +45,9 @@
             }
           ]
         },
+        "allow-inspector": {
+          "type": "boolean"
+        },
         "allow-net": {
           "type": "boolean"
         },
@@ -159,6 +162,9 @@
         "experimental-print-required-tla": {
           "type": "boolean"
         },
+        "experimental-quic": {
+          "type": "boolean"
+        },
         "experimental-repl-await": {
           "type": "boolean"
         },
@@ -181,9 +187,6 @@
           "type": "boolean"
         },
         "experimental-websocket": {
-          "type": "boolean"
-        },
-        "experimental-webstorage": {
           "type": "boolean"
         },
         "extra-info-on-fatal-exception": {
@@ -446,6 +449,9 @@
             }
           ]
         },
+        "test-rerun-failures": {
+          "type": "string"
+        },
         "test-shard": {
           "type": "string"
         },
@@ -588,6 +594,9 @@
         "watch-preserve-output": {
           "type": "boolean"
         },
+        "webstorage": {
+          "type": "boolean"
+        },
         "zero-fill-buffers": {
           "type": "boolean"
         }
@@ -697,6 +706,9 @@
               "type": "array"
             }
           ]
+        },
+        "test-rerun-failures": {
+          "type": "string"
         },
         "test-shard": {
           "type": "string"

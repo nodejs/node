@@ -3176,3 +3176,61 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertThrows(
     () => instance.exports.main(0, 0, 0), RangeError);
 })();
+
+(function TestMultipleRefRetValsFromCallRef() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  var kSig_fiiiiiiiiiiiirf_i = makeSig(
+    [kWasmI32],
+    [kWasmF32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32,
+      kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32,
+      wasmRefType(kWasmI31Ref), kWasmF32]);
+  const sig_index = builder.addType(kSig_fiiiiiiiiiiiirf_i);
+
+  let f1 = builder.addFunction("f1", kSig_fiiiiiiiiiiiirf_i)
+    .addBody([
+      ...wasmF32Const(5.5),
+      ...wasmI32Const(0),
+      ...wasmI32Const(0),
+      ...wasmI32Const(0),
+      ...wasmI32Const(0),
+      ...wasmI32Const(0),
+      ...wasmI32Const(0),
+      ...wasmI32Const(0),
+      ...wasmI32Const(0),
+      ...wasmI32Const(0),
+      ...wasmI32Const(0),
+      ...wasmI32Const(0),
+      ...wasmI32Const(0),
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefI31,
+      ...wasmF32Const(3.14),
+    ])
+    .exportAs("f1");
+
+  builder.addFunction("main", kSig_f_i)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprRefFunc, f1.index,
+      kExprCallRef, sig_index,
+      kExprDrop,
+      kExprDrop,
+      kExprDrop,
+      kExprDrop,
+      kExprDrop,
+      kExprDrop,
+      kExprDrop,
+      kExprDrop,
+      kExprDrop,
+      kExprDrop,
+      kExprDrop,
+      kExprDrop,
+      kExprDrop,
+      kExprDrop,
+    ])
+    .exportAs("main");
+
+  let instance = builder.instantiate({});
+  assertEquals(5.5, instance.exports.main(123435));
+})();

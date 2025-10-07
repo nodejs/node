@@ -26,3 +26,4 @@ assertEquals(2.3, o[0]);
 // Storing an oddball should work and not store the ToNumber of that oddball.
 foo(undefined, true);
 assertEquals(undefined, o[0]);
+assertEquals(%IsExperimentalUndefinedDoubleEnabled(), %HasHoleyElements(o));

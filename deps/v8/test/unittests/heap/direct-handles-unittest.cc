@@ -119,6 +119,11 @@ TEST_F(DirectHandlesTest, DirectHandleOutOfStackFailsDefault) {
     auto ptr = std::make_unique<i::DirectHandle<i::String>>();
     USE(ptr);
   });
+  ExpectFailure([]() {
+    // Default constructor.
+    auto ptr = std::make_unique<i::MaybeDirectHandle<i::String>>();
+    USE(ptr);
+  });
 }
 
 TEST_F(DirectHandlesTest, DirectHandleOutOfStackFailsInit) {
@@ -126,6 +131,13 @@ TEST_F(DirectHandlesTest, DirectHandleOutOfStackFailsInit) {
     i::Tagged<i::String> object;
     // Constructor with initialization.
     auto ptr = std::make_unique<i::DirectHandle<i::String>>(object, isolate);
+    USE(ptr);
+  });
+  ExpectFailure([isolate = i_isolate()]() {
+    i::Tagged<i::String> object;
+    // Constructor with initialization.
+    auto ptr =
+        std::make_unique<i::MaybeDirectHandle<i::String>>(object, isolate);
     USE(ptr);
   });
 }
@@ -137,6 +149,12 @@ TEST_F(DirectHandlesTest, DirectHandleOutOfStackFailsCopy) {
     auto ptr = std::make_unique<i::DirectHandle<i::String>>(h);
     USE(ptr);
   });
+  ExpectFailure([]() {
+    i::MaybeDirectHandle<i::String> h;
+    // Copy constructor.
+    auto ptr = std::make_unique<i::MaybeDirectHandle<i::String>>(h);
+    USE(ptr);
+  });
 }
 
 TEST_F(DirectHandlesTest, DirectHandleOutOfStackFailsCopyHeteroDirect) {
@@ -146,6 +164,12 @@ TEST_F(DirectHandlesTest, DirectHandleOutOfStackFailsCopyHeteroDirect) {
     auto ptr = std::make_unique<i::DirectHandle<i::HeapObject>>(h);
     USE(ptr);
   });
+  ExpectFailure([]() {
+    i::MaybeDirectHandle<i::String> h;
+    // Copy of heterogeneous direct handle.
+    auto ptr = std::make_unique<i::MaybeDirectHandle<i::HeapObject>>(h);
+    USE(ptr);
+  });
 }
 
 TEST_F(DirectHandlesTest, DirectHandleOutOfStackFailsCopyHeteroIndirect) {
@@ -153,6 +177,12 @@ TEST_F(DirectHandlesTest, DirectHandleOutOfStackFailsCopyHeteroIndirect) {
     i::IndirectHandle<i::String> h;
     // Copy of heterogeneous indirect handle.
     auto ptr = std::make_unique<i::DirectHandle<i::HeapObject>>(h);
+    USE(ptr);
+  });
+  ExpectFailure([]() {
+    i::MaybeIndirectHandle<i::String> h;
+    // Copy of heterogeneous indirect handle.
+    auto ptr = std::make_unique<i::MaybeDirectHandle<i::HeapObject>>(h);
     USE(ptr);
   });
 }
@@ -169,8 +199,9 @@ class BackgroundThread final : public v8::base::Thread {
     i::LocalIsolate isolate(isolate_, i::ThreadKind::kBackground);
     i::UnparkedScope unparked_scope(&isolate);
     i::LocalHandleScope handle_scope(&isolate);
-    // Using a direct handle when unparked is allowed.
+    // Using direct handles when unparked is allowed.
     i::DirectHandle<i::String> direct = isolate.factory()->empty_string();
+    i::MaybeDirectHandle<i::String> maybe_direct = direct;
     // Park and wait, if we must.
     if (park_and_wait_) {
       // Parking a background thread through the trampoline while holding a
@@ -181,6 +212,7 @@ class BackgroundThread final : public v8::base::Thread {
     }
     // Keep the direct handle alive.
     CHECK_EQ(0, direct->length());
+    USE(maybe_direct);
   }
 
  private:
@@ -190,16 +222,12 @@ class BackgroundThread final : public v8::base::Thread {
 }  // anonymous namespace
 
 TEST_F(DirectHandlesTest, DirectHandleInBackgroundThread) {
-  i::LocalHeap lh(i_isolate()->heap(), i::ThreadKind::kMain);
-  lh.SetUpMainThreadForTesting();
   auto thread = std::make_unique<BackgroundThread>(i_isolate(), false);
   CHECK(thread->Start());
   thread->Join();
 }
 
 TEST_F(DirectHandlesTest, DirectHandleInParkedBackgroundThread) {
-  i::LocalHeap lh(i_isolate()->heap(), i::ThreadKind::kMain);
-  lh.SetUpMainThreadForTesting();
   auto thread = std::make_unique<BackgroundThread>(i_isolate(), true);
   CHECK(thread->Start());
   thread->Join();
@@ -216,9 +244,12 @@ class ClientThread final : public i::ParkingThread {
 
   void Run() override {
     IsolateWrapper isolate_wrapper(kNoCounters);
+    v8::Isolate::Scope isolate_scope(isolate_wrapper.isolate());
     // Direct handles can be used in the main thread of client isolates.
     i::DirectHandle<i::String> direct;
+    i::MaybeDirectHandle<i::String> maybe_direct = direct;
     USE(direct);
+    USE(maybe_direct);
   }
 };
 }  // anonymous namespace
@@ -240,9 +271,8 @@ class ClientMainThread final : public i::ParkingThread {
     IsolateWrapper isolate_wrapper(kNoCounters);
     i::Isolate* i_client_isolate =
         reinterpret_cast<i::Isolate*>(isolate_wrapper.isolate());
+    v8::Isolate::Scope isolate_scope(isolate_wrapper.isolate());
 
-    i::LocalHeap lh(i_client_isolate->heap(), i::ThreadKind::kMain);
-    lh.SetUpMainThreadForTesting();
     auto thread = std::make_unique<BackgroundThread>(i_client_isolate,
                                                      background_park_and_wait_);
     CHECK(thread->Start());
@@ -329,6 +359,20 @@ TEST_F(DirectHandlesContainerTest, SmallVectorBig) {
     TestContainerOfDirectHandles(i_isolate(), vec, 42);
   }
   VerifyNoRemainingDirectHandles();
+}
+
+using DirectHandleVectorTest = DirectHandlesTest;
+
+TEST_F(DirectHandleVectorTest, UninitializedMinorGC) {
+  HandleScope scope(isolate());
+  i::DirectHandleVector<i::String> vec(i_isolate(), 10);
+  InvokeMinorGC(i_isolate());
+}
+
+TEST_F(DirectHandleVectorTest, UninitializedMajorGC) {
+  HandleScope scope(isolate());
+  i::DirectHandleVector<i::String> vec(i_isolate(), 10);
+  InvokeMajorGC(i_isolate());
 }
 
 }  // namespace v8

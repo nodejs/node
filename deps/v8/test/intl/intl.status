@@ -30,6 +30,10 @@
 [ALWAYS, {
   # TODO(v8:13649): The following test is flaky and slow.
   'overrides/caching': [SKIP],
+
+  # Temporal is temporarily disabled until we have enough of it reimplemented
+  # with ICU4X (b/42201538)
+  'temporal/*': [SKIP],
 }],  # ALWAYS
 
 ################################################################################

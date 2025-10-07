@@ -4,6 +4,7 @@
 
 #include "src/compiler/redundancy-elimination.h"
 
+#include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
@@ -43,6 +44,7 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kCheckString:
     case IrOpcode::kCheckStringOrStringWrapper:
     case IrOpcode::kCheckSymbol:
+    case IrOpcode::kTypeGuard:
     // These are not really check nodes, but behave the same in that they can be
     // folded together if repeated with identical inputs.
     case IrOpcode::kStringCharCodeAt:
@@ -234,8 +236,19 @@ Subsumption CheckSubsumes(Node const* a, Node const* b,
         case IrOpcode::kCheckBigInt:
         case IrOpcode::kCheckedBigIntToBigInt64:
           break;
+        case IrOpcode::kTypeGuard: {
+          Type at = TypeGuardTypeOf(a->op());
+          Type bt = TypeGuardTypeOf(b->op());
+          // {a}.type has to be narrower than (or equal to) {b}.type for
+          // {b}.type to be a redundant check.
+          if (!at.Is(bt)) {
+            return Subsumption::None();
+          }
+          break;
+        }
         case IrOpcode::kCheckedInt32ToTaggedSigned:
         case IrOpcode::kCheckedInt64ToInt32:
+        case IrOpcode::kCheckedInt64ToAdditiveSafeInteger:
         case IrOpcode::kCheckedInt64ToTaggedSigned:
         case IrOpcode::kCheckedTaggedSignedToInt32:
         case IrOpcode::kCheckedTaggedToTaggedPointer:
@@ -269,10 +282,15 @@ Subsumption CheckSubsumes(Node const* a, Node const* b,
               CheckTaggedInputParametersOf(a->op());
           CheckTaggedInputParameters const& bp =
               CheckTaggedInputParametersOf(b->op());
-          // {a} subsumes {b} if the modes are either the same, or {a} checks
-          // for Number, in which case {b} will be subsumed no matter what.
-          if (ap.mode() != bp.mode() &&
-              ap.mode() != CheckTaggedInputMode::kNumber) {
+          // {a} subsumes {b} if the modes are either the same, or {a} is
+          // a stricter check.
+          using Mode = CheckTaggedInputMode;
+          static_assert(static_cast<int32_t>(Mode::kAdditiveSafeInteger) == 0);
+          static_assert(static_cast<int32_t>(Mode::kNumber) == 1);
+          static_assert(static_cast<int32_t>(Mode::kNumberOrBoolean) == 2);
+          static_assert(static_cast<int32_t>(Mode::kNumberOrOddball) == 3);
+          if (static_cast<int32_t>(ap.mode()) >
+              static_cast<int32_t>(bp.mode())) {
             return Subsumption::None();
           }
           break;

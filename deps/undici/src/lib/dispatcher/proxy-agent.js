@@ -1,7 +1,6 @@
 'use strict'
 
 const { kProxy, kClose, kDestroy, kDispatch } = require('../core/symbols')
-const { URL } = require('node:url')
 const Agent = require('./agent')
 const Pool = require('./pool')
 const DispatcherBase = require('./dispatcher-base')
@@ -38,10 +37,11 @@ class Http1ProxyWrapper extends DispatcherBase {
   #client
 
   constructor (proxyUrl, { headers = {}, connect, factory }) {
-    super()
     if (!proxyUrl) {
       throw new InvalidArgumentError('Proxy URL is mandatory')
     }
+
+    super()
 
     this[kProxyHeaders] = headers
     if (factory) {
@@ -81,11 +81,11 @@ class Http1ProxyWrapper extends DispatcherBase {
     return this.#client[kDispatch](opts, handler)
   }
 
-  async [kClose] () {
+  [kClose] () {
     return this.#client.close()
   }
 
-  async [kDestroy] (err) {
+  [kDestroy] (err) {
     return this.#client.destroy(err)
   }
 }
@@ -208,7 +208,7 @@ class ProxyAgent extends DispatcherBase {
   }
 
   /**
-   * @param {import('../types/proxy-agent').ProxyAgent.Options | string | URL} opts
+   * @param {import('../../types/proxy-agent').ProxyAgent.Options | string | URL} opts
    * @returns {URL}
    */
   #getUrl (opts) {
@@ -221,14 +221,18 @@ class ProxyAgent extends DispatcherBase {
     }
   }
 
-  async [kClose] () {
-    await this[kAgent].close()
-    await this[kClient].close()
+  [kClose] () {
+    return Promise.all([
+      this[kAgent].close(),
+      this[kClient].close()
+    ])
   }
 
-  async [kDestroy] () {
-    await this[kAgent].destroy()
-    await this[kClient].destroy()
+  [kDestroy] () {
+    return Promise.all([
+      this[kAgent].destroy(),
+      this[kClient].destroy()
+    ])
   }
 }
 

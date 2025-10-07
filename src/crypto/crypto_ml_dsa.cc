@@ -14,7 +14,7 @@ using v8::Value;
 
 namespace crypto {
 
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
 constexpr const char* GetMlDsaAlgorithmName(int id) {
   switch (id) {
     case EVP_PKEY_ML_DSA_44:

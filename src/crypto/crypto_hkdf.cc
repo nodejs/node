@@ -57,7 +57,7 @@ Maybe<void> HKDFTraits::AdditionalConfig(
   Utf8Value hash(env->isolate(), args[offset]);
   params->digest = Digest::FromName(*hash);
   if (!params->digest) [[unlikely]] {
-    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *hash);
+    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", hash);
     return Nothing<void>();
   }
 

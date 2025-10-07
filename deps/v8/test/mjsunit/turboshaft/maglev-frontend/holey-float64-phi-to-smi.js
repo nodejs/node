@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbolev --turbofan
-// Flags: --no-always-turbofan --no-maglev-loop-peeling
+// Flags: --no-maglev-loop-peeling
 
 // Creating an object with 2 Smi fields.
 let o = { x : 42, y : 19 };

@@ -44,14 +44,22 @@ class ReadOnlyRoots;
 class RootVisitor;
 class PropertyKey;
 
-// UNSAFE_SKIP_WRITE_BARRIER skips the write barrier.
-// SKIP_WRITE_BARRIER skips the write barrier and asserts that this is safe in
-// the MemoryOptimizer
-// UPDATE_WRITE_BARRIER is doing the full barrier, marking and generational.
 enum WriteBarrierMode {
+  // Skips write barrier. Used for static write barrier removal. Usually used
+  // for avoiding write barriers on newly allocated objects. This is verified
+  // using WriteBarrier::IsRequired.
   SKIP_WRITE_BARRIER,
+  // Skips the write barrier but is used for runtime write barrier removal. Only
+  // use this through GetWriteBarrierMode() which checks at runtime whether the
+  // object resides in the young generation. This allows to remove barriers in
+  // scenarios where static write barrier removal wouldn't be allowed.
+  SKIP_WRITE_BARRIER_SCOPE,
+  // Skips the write barrier in CSA/Turbofan. Used to skip Turbofan's
+  // verification in the MemoryOptimizer.
   UNSAFE_SKIP_WRITE_BARRIER,
+  // Performs the special ephemeron key write barrier.
   UPDATE_EPHEMERON_KEY_WRITE_BARRIER,
+  // Performs regular write barrier.
   UPDATE_WRITE_BARRIER
 };
 
@@ -124,7 +132,8 @@ ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw);
 // allocation of the C++ vtable.
 // There must only be a single data member in Object: the Address ptr,
 // containing the tagged heap pointer that this Object instance refers to.
-// For a design overview, see https://goo.gl/Ph4CGz.
+// For a design overview, see:
+// https://docs.google.com/document/d/1_w49sakC1XM1OptjTurBDqO86NE16FH8LwbeUAtrbCo
 class Object : public AllStatic {
  public:
   enum class Conversion {
@@ -695,24 +704,28 @@ HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(HashTableBase)
 IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
 IS_TYPE_FUNCTION_DECL(PropertyDictionary)
-#undef IS_TYPE_FUNCTION_DECL
-V8_INLINE bool IsNumber(Tagged<Object> obj, ReadOnlyRoots roots);
-
 // A wrapper around IsHole to make it easier to distinguish from specific hole
 // checks (e.g. IsTheHole).
-V8_INLINE bool IsAnyHole(Tagged<Object> obj, PtrComprCageBase cage_base);
-V8_INLINE bool IsAnyHole(Tagged<Object> obj);
+IS_TYPE_FUNCTION_DECL(AnyHole)
+#undef IS_TYPE_FUNCTION_DECL
+
+// Predicate for IsAnyHole which can be used on any object type -- the standard
+// IsAnyHole check cannot be used for Code space objects.
+V8_INLINE bool SafeIsAnyHole(Tagged<Object> obj);
+
+V8_INLINE bool IsNumber(Tagged<Object> obj, ReadOnlyRoots roots);
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
-#define IS_TYPE_FUNCTION_DECL(Type, Value, _)                         \
+#define IS_TYPE_FUNCTION_DECL(Type, ...)                              \
   V8_INLINE bool Is##Type(Tagged<Object> obj, Isolate* isolate);      \
   V8_INLINE bool Is##Type(Tagged<Object> obj, LocalIsolate* isolate); \
   V8_INLINE bool Is##Type(Tagged<Object> obj, ReadOnlyRoots roots);   \
   V8_INLINE bool Is##Type(Tagged<Object> obj);
 ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 HOLE_LIST(IS_TYPE_FUNCTION_DECL)
-IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
+IS_TYPE_FUNCTION_DECL(UndefinedContextCell)
+IS_TYPE_FUNCTION_DECL(NullOrUndefined)
 #undef IS_TYPE_FUNCTION_DECL
 
 V8_INLINE bool IsZero(Tagged<Object> obj);
@@ -859,6 +872,9 @@ class FixedBodyDescriptor;
 
 template <int start_offset>
 class FlexibleBodyDescriptor;
+
+template <int start_offset, int end_offset, int size>
+class FixedWeakBodyDescriptor;
 
 template <int start_offset>
 class FlexibleWeakBodyDescriptor;

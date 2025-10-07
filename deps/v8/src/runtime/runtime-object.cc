@@ -248,9 +248,19 @@ RUNTIME_FUNCTION(Runtime_HasOwnConstDataProperty) {
       case LookupIterator::DATA:
         return isolate->heap()->ToBoolean(it.constness() ==
                                           PropertyConstness::kConst);
-      default:
+      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::TRANSITION:
+      case LookupIterator::ACCESS_CHECK:
+      case LookupIterator::JSPROXY:
+      case LookupIterator::WASM_OBJECT:
+      case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
+      case LookupIterator::ACCESSOR:
         return ReadOnlyRoots(isolate).undefined_value();
+
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1399,11 +1409,10 @@ Maybe<bool> CollectPrivateMembersFromReceiver(
   PropertyFilter key_filter =
       static_cast<PropertyFilter>(PropertyFilter::PRIVATE_NAMES_ONLY);
   DirectHandle<FixedArray> keys;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, keys,
       KeyAccumulator::GetKeys(isolate, receiver, KeyCollectionMode::kOwnOnly,
-                              key_filter, GetKeysConversion::kConvertToString),
-      Nothing<bool>());
+                              key_filter, GetKeysConversion::kConvertToString));
 
   if (IsJSFunction(*receiver)) {
     Handle<JSFunction> func(Cast<JSFunction>(*receiver), isolate);
@@ -1423,9 +1432,8 @@ Maybe<bool> CollectPrivateMembersFromReceiver(
     Handle<Symbol> symbol(Cast<Symbol>(*obj_key), isolate);
     CHECK(symbol->is_private_name());
     Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, value, Object::GetProperty(isolate, receiver, symbol),
-        Nothing<bool>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                               Object::GetProperty(isolate, receiver, symbol));
 
     if (symbol->is_private_brand()) {
       DirectHandle<Context> value_context(Cast<Context>(*value), isolate);
@@ -1459,12 +1467,10 @@ Maybe<bool> FindPrivateMembersFromReceiver(Isolate* isolate,
       Nothing<bool>());
 
   if (results.empty()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NewError(not_found_message, desc),
-                                 Nothing<bool>());
+    THROW_NEW_ERROR(isolate, NewError(not_found_message, desc));
   } else if (results.size() > 1) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NewError(MessageTemplate::kConflictingPrivateName, desc),
-        Nothing<bool>());
+    THROW_NEW_ERROR(isolate,
+                    NewError(MessageTemplate::kConflictingPrivateName, desc));
   }
 
   *result = results[0];

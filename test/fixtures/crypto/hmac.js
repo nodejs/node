@@ -21,6 +21,16 @@ module.exports = function () {
     'SHA-512': Buffer.from(
       '5dcc359443aaf652fa1375d6b3e61fdcf29bb4a28bd5d3dcfa40f82f906bb280' +
       '0455db03b5d31fb972a15a6d0103a24e56d156a119c0e5a1e92a44c3c5657cf9',
+      'hex'),
+    'SHA3-256': Buffer.from(
+      'e588ec0811463d767241df1074b47ae4071b51f2ce36537ba69ccdc3fdc2b7a8',
+      'hex'),
+    'SHA3-384': Buffer.from(
+      '6b1da28eab1f582ad9718effe05e23d5fd2c9877a2d9443f90bec093bece2ea7' +
+      'd2354cd0bdc5e147d2e9009373494488', 'hex'),
+    'SHA3-512': Buffer.from(
+      '5dcc359443aaf652fa1375d6b3e61fdcf29bb4a28bd5d3dcfa40f82f906bb280' +
+      '0455db03b5d31fb972a15a6d0103a24e56d156a119c0e5a1e92a44c3c5657cf9',
       'hex')
   }
 
@@ -35,6 +45,16 @@ module.exports = function () {
     'SHA-512': Buffer.from(
       '61fb278c3ffb0cce2bf1cf723ddfd8ef1f931c0c618c25907324605939e3f9a2' +
       'c6f4af690bda3407dc2f5770f6a0a44b954d64a332e3ee0821abf82b7f3e99c1',
+      'hex'),
+    'SHA3-256': Buffer.from(
+      'c1ac5e11fcd50c48bf567f6e296632f5801c4eb07a8a47579b41dee971a3099b',
+      'hex'),
+    'SHA3-384': Buffer.from(
+      'ac8c97f6dd8d9e16101063077c16b23fe291a5e6d149653e9ac7002365159317' +
+      'adcfad511996578b0053a5c14b75f16c', 'hex'),
+    'SHA3-512': Buffer.from(
+      '2162c2a8907e6b2f68599a69e81a464d8f076b5eeb555d98b4d20330034df3c7' +
+      'cf35b1fa958a074ca12f0d242df39f0da3d4f1dbfb3629057798fe1f883974ee',
       'hex')
   }
 

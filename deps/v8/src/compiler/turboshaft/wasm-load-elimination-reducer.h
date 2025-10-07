@@ -41,6 +41,7 @@ static constexpr int kStringPrepareForGetCodeunitIndex = -2;
 static constexpr int kStringAsWtf16Index = -3;
 static constexpr int kAnyConvertExternIndex = -4;
 static constexpr int kAssertNotNullIndex = -5;
+static constexpr int kGetDescIndex = -6;
 
 // All "load-like" special cases use the same fake size and type. The specific
 // values we use don't matter; for accurate alias analysis, the type should
@@ -136,14 +137,13 @@ class WasmMemoryContentTable
 
   bool TypesUnrelated(wasm::ModuleTypeIndex type1,
                       wasm::ModuleTypeIndex type2) {
-    return wasm::HeapTypesUnrelated(
-        module_->heap_type(type1), module_->heap_type(type2), module_, module_);
+    return wasm::HeapTypesUnrelated(module_->heap_type(type1),
+                                    module_->heap_type(type2), module_);
   }
 
-  void Invalidate(const StructSetOp& set) {
+  void Invalidate(int offset, wasm::ModuleTypeIndex type_index) {
     // This is like LateLoadElimination's {InvalidateAtOffset}, but based
     // on Wasm types instead of tracked JS maps.
-    int offset = field_offset(set.type, set.field_index);
     auto offset_keys = offset_keys_.find(offset);
     if (offset_keys == offset_keys_.end()) return;
     for (auto it = offset_keys->second.begin();
@@ -160,7 +160,7 @@ class WasmMemoryContentTable
         continue;
       }
 
-      if (TypesUnrelated(set.type_index, key.data().mem.type_index)) {
+      if (TypesUnrelated(type_index, key.data().mem.type_index)) {
         ++it;
         continue;
       }
@@ -168,6 +168,15 @@ class WasmMemoryContentTable
       it = offset_keys->second.RemoveAt(it);
       Set(key, OpIndex::Invalid());
     }
+  }
+
+  void Invalidate(const StructSetOp& set) {
+    Invalidate(field_offset(set.type, set.field_index), set.type_index);
+  }
+
+  void Invalidate(const StructAtomicRMWOp& rmw_op) {
+    Invalidate(field_offset(rmw_op.type, rmw_op.field_index),
+               rmw_op.type_index);
   }
 
   // Invalidates all Keys that are not known as non-aliasing.
@@ -205,6 +214,10 @@ class WasmMemoryContentTable
   }
 
   OpIndex Find(const StructGetOp& get) {
+    if (get.is_get_desc()) {
+      return FindImpl(ResolveBase(get.object()), kGetDescIndex, get.type_index,
+                      kTaggedSize, false);
+    }
     int32_t offset = field_offset(get.type, get.field_index);
     uint8_t size = get.type->field(get.field_index).value_kind_size();
     bool mutability = get.type->mutability(get.field_index);
@@ -245,6 +258,11 @@ class WasmMemoryContentTable
   }
 
   void Insert(const StructGetOp& get, OpIndex get_idx) {
+    if (get.is_get_desc()) {
+      Insert(ResolveBase(get.object()), kGetDescIndex, get.type_index,
+             kTaggedSize, false, get_idx);
+      return;
+    }
     OpIndex base = ResolveBase(get.object());
     int32_t offset = field_offset(get.type, get.field_index);
     uint8_t size = get.type->field(get.field_index).value_kind_size();
@@ -394,7 +412,7 @@ class WasmLoadEliminationAnalyzer {
         predecessor_memory_snapshots_(phase_zone) {}
 
   void Run() {
-    LoopFinder loop_finder(phase_zone_, &graph_);
+    LoopFinder loop_finder(phase_zone_, &graph_, LoopFinder::Config{});
     AnalyzerIterator iterator(phase_zone_, graph_, loop_finder);
 
     bool compute_start_snapshot = true;
@@ -459,6 +477,10 @@ class WasmLoadEliminationAnalyzer {
   void ProcessAllocate(OpIndex op_idx, const AllocateOp& op);
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessPhi(OpIndex op_idx, const PhiOp& op);
+
+#if V8_ENABLE_WEBASSEMBLY
+  void ProcessAtomicRMW(OpIndex op_idx, const StructAtomicRMWOp& op);
+#endif
 
   void DcheckWordBinop(OpIndex op_idx, const WordBinopOp& binop);
 
@@ -528,11 +550,23 @@ class WasmLoadEliminationReducer : public Next {
     return Next::ReduceInputGraph##Name(ig_index, op);                         \
   }
 
-  EMIT_OP(StructGet)
   EMIT_OP(ArrayLength)
   EMIT_OP(StringAsWtf16)
   EMIT_OP(StringPrepareForGetCodeUnit)
   EMIT_OP(AnyConvertExtern)
+
+  OpIndex REDUCE_INPUT_GRAPH(StructGet)(OpIndex ig_index,
+                                        const StructGetOp& op) {
+    // Atomic loads are never eliminated (not even on unshared objects).
+    if (v8_flags.turboshaft_wasm_load_elimination && !op.is_atomic()) {
+      OpIndex ig_replacement_index = analyzer_.Replacement(ig_index);
+      if (ig_replacement_index.valid()) {
+        OpIndex replacement = Asm().MapToNewGraph(ig_replacement_index);
+        return replacement;
+      }
+    }
+    return Next::ReduceInputGraphStructGet(ig_index, op);
+  }
 
   OpIndex REDUCE_INPUT_GRAPH(StructSet)(OpIndex ig_index,
                                         const StructSetOp& op) {
@@ -580,6 +614,12 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         break;
       case Opcode::kStructSet:
         ProcessStructSet(op_idx, op.Cast<StructSetOp>());
+        break;
+      case Opcode::kStructAtomicRMW:
+        ProcessAtomicRMW(op_idx, op.Cast<StructAtomicRMWOp>());
+        break;
+      case Opcode::kArrayAtomicRMW:
+        // Nothing to be done. We don't eliminate loads on wasm arrays at all.
         break;
       case Opcode::kArrayLength:
         ProcessArrayLength(op_idx, op.Cast<ArrayLengthOp>());
@@ -636,6 +676,7 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kWasmStackCheck:
       case Opcode::kSimd128LaneMemory:
       case Opcode::kGlobalSet:
+      case Opcode::kWasmIncCoverageCounter:
       case Opcode::kParameter:
       case Opcode::kSetStackPointer:
         // We explicitly break for those operations that have can_write effects
@@ -720,14 +761,17 @@ bool RepIsCompatible(RegisterRepresentation actual,
 
 void WasmLoadEliminationAnalyzer::ProcessStructGet(OpIndex op_idx,
                                                    const StructGetOp& get) {
+  // TODO(mliedtke): struct.atomic.get also participates in load-elimination by
+  // providing values that can be used to load-eliminate struct.get operations
+  // for the same field. Is this the desired behavior?
   OpIndex existing = memory_.Find(get);
   if (existing.valid()) {
     const Operation& replacement = graph_.Get(existing);
     DCHECK_EQ(replacement.outputs_rep().size(), 1);
     DCHECK_EQ(get.outputs_rep().size(), 1);
-    uint8_t size = get.type->field(get.field_index).value_kind_size();
-    if (RepIsCompatible(replacement.outputs_rep()[0], get.outputs_rep()[0],
-                        size)) {
+    if (get.is_get_desc() ||
+        RepIsCompatible(replacement.outputs_rep()[0], get.outputs_rep()[0],
+                        get.type->field(get.field_index).value_kind_size())) {
       replacements_[op_idx] = existing;
       return;
     }
@@ -754,6 +798,11 @@ void WasmLoadEliminationAnalyzer::ProcessStructSet(OpIndex op_idx,
   if (non_aliasing_objects_.HasKeyFor(value)) {
     non_aliasing_objects_.Set(value, false);
   }
+}
+
+void WasmLoadEliminationAnalyzer::ProcessAtomicRMW(
+    OpIndex op_idx, const StructAtomicRMWOp& op) {
+  memory_.Invalidate(op);
 }
 
 void WasmLoadEliminationAnalyzer::ProcessArrayLength(

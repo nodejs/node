@@ -19,6 +19,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
   RegExpMacroAssemblerRISCV(Isolate* isolate, Zone* zone, Mode mode,
                             int registers_to_save);
   ~RegExpMacroAssemblerRISCV() override;
+  void AbortedCodeGeneration() override;
   int stack_limit_slack_slot_count() override;
   void AdvanceCurrentPosition(int by) override;
   void AdvanceRegister(int reg, int by) override;
@@ -30,9 +31,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
                               Label* on_equal) override;
   void CheckCharacterGT(base::uc16 limit, Label* on_greater) override;
   void CheckCharacterLT(base::uc16 limit, Label* on_less) override;
-  // A "greedy loop" is a loop that is both greedy and with a simple
+  // A "fixed length loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
-  void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
+  void CheckFixedLengthLoop(Label* on_tos_equals_current_position) override;
   void CheckNotAtStart(int cp_offset, Label* on_not_at_start) override;
   void CheckNotBackReference(int start_reg, bool read_backward,
                              Label* on_no_match) override;
@@ -90,6 +91,12 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
 #ifdef RISCV_HAS_NO_UNALIGNED
   bool CanReadUnaligned() const override;
 #endif
+
+  void RecordComment(std::string_view comment) override {
+    masm_->RecordComment(comment);
+  }
+  MacroAssembler* masm() override { return masm_.get(); }
+
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
   // returning.

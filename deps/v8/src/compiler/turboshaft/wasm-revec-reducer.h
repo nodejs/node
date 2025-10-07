@@ -215,14 +215,14 @@ namespace v8::internal::compiler::turboshaft {
 
 class NodeGroup {
  public:
-  // Current only support merge 2 Simd128 into Simd256
+  // We currently only support merging two Simd128 into one Simd256.
   static constexpr int kSize = kSimd256Size / kSimd128Size;
   NodeGroup(OpIndex a, OpIndex b) {
     indexes_[0] = a;
     indexes_[1] = b;
   }
   size_t size() const { return kSize; }
-  OpIndex operator[](int i) const { return indexes_[i]; }
+  OpIndex operator[](size_t i) const { return indexes_[i]; }
 
   bool operator==(const NodeGroup& other) const {
     return indexes_[0] == other.indexes_[0] && indexes_[1] == other.indexes_[1];
@@ -248,7 +248,7 @@ class BundlePackNode;
 // are mutually independent.
 class PackNode : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  enum NodeType {
+  enum NodeType : uint8_t {
     kDefault,        // Nodes are naturally packed without special attributes.
     kForcePackNode,  // Nodes do not satisfy some packing rule, but can be
                      // forcely coalesced with a Pack128To256 operation. E.g.
@@ -261,12 +261,9 @@ class PackNode : public NON_EXPORTED_BASE(ZoneObject) {
                          // PackNode.
   };
 
-  explicit PackNode(Zone* zone, const NodeGroup& node_group,
-                    NodeType node_type = kDefault)
-      : nodes_(node_group),
-        revectorized_node_(),
-        operands_(zone),
-        node_type_(node_type) {}
+  PackNode(Zone* zone, const NodeGroup& node_group, NodeType node_type)
+      : nodes_(node_group), operands_(zone), node_type_(node_type) {}
+
   const NodeGroup& nodes() const { return nodes_; }
   bool IsSame(const NodeGroup& node_group) const {
     return nodes_ == node_group;
@@ -284,55 +281,41 @@ class PackNode : public NON_EXPORTED_BASE(ZoneObject) {
     return node_type_ == kForcePackNode || node_type_ == kIntersectPackNode;
   }
 
-  ForcePackNode* AsForcePackNode() {
-    DCHECK(IsForcePackNode());
-    return reinterpret_cast<ForcePackNode*>(this);
-  }
-  ShufflePackNode* AsShufflePackNode() {
-    DCHECK(IsShufflePackNode());
-    return reinterpret_cast<ShufflePackNode*>(this);
-  }
-  BundlePackNode* AsBundlePackNode() {
-    DCHECK(IsBundlePackNode());
-    return reinterpret_cast<BundlePackNode*>(this);
-  }
+  inline ForcePackNode* AsForcePackNode();
+  inline ShufflePackNode* AsShufflePackNode();
+  inline BundlePackNode* AsBundlePackNode();
 
-  PackNode* GetOperand(int index) const {
+  PackNode* GetOperand(size_t index) const {
     DCHECK_LT(index, operands_.size());
-    DCHECK(operands_[index]);
+    DCHECK_NOT_NULL(operands_[index]);
     return operands_[index];
   }
 
-  void SetOperand(int index, PackNode* pnode) {
-    DCHECK_GE(index, 0);
-    if (operands_.size() < static_cast<size_t>(index + 1)) {
+  void SetOperand(size_t index, PackNode* pnode) {
+    if (operands_.size() < index + 1) {
       operands_.resize(index + 1);
     }
     operands_[index] = pnode;
   }
 
-  ZoneVector<PackNode*>::size_type GetOperandsSize() const {
-    return operands_.size();
-  }
+  size_t GetOperandsSize() const { return operands_.size(); }
 
   void Print(Graph* graph) const;
 
  private:
-  friend class ForcePackNode;
   NodeGroup nodes_;
-  V<Simd256> revectorized_node_;
   ZoneVector<PackNode*> operands_;
-  NodeType node_type_;
+  V<Simd256> revectorized_node_{};
+  const NodeType node_type_;
 };
 
 class ForcePackNode : public PackNode {
  public:
-  enum ForcePackType {
-    kSplat,    // force pack 2 identical nodes or 2 loads at the same address
-    kGeneral,  // force pack 2 different nodes
+  enum ForcePackType : uint8_t {
+    kSplat,    // Force pack 2 identical nodes or 2 loads at the same address.
+    kGeneral,  // Force pack 2 different nodes.
   };
-  explicit ForcePackNode(Zone* zone, const NodeGroup& node_group,
-                         ForcePackType type)
+  ForcePackNode(Zone* zone, const NodeGroup& node_group, ForcePackType type)
       : PackNode(zone, node_group, kForcePackNode), force_pack_type_(type) {}
 
   ForcePackType force_pack_type() const { return force_pack_type_; }
@@ -415,10 +398,10 @@ class ShufflePackNode : public PackNode {
   SpecificInfo info_;
 };
 
-// BundlePackNode is used to represent a i8x16/i16x8 to f32x4 conversion.
-// The conversion extracts 4 lanes of i8x16/i16x8 input(base), start from lane
-// index(offset), sign/zero(is_sign_extract) extends the extracted lanes to
-// i32x4, then converts i32x4/u32x4(is_sign_convert) to f32x4.
+// BundlePackNode is used to represent an i8x16/i16x8 to f32x4 conversion.
+// The conversion extracts 4 lanes of i8x16/i16x8 input {base}, starting from
+// lane {offset}, sign/zero extends (is_sign_extract) the extracted lanes to
+// i32x4, then converts i32x4/u32x4 (is_sign_convert) to f32x4.
 class BundlePackNode : public PackNode {
  public:
   BundlePackNode(Zone* zone, const NodeGroup& node_group, OpIndex base,
@@ -446,7 +429,22 @@ class BundlePackNode : public PackNode {
   bool is_sign_convert_;
 };
 
-// An auxillary tree structure with a set of PackNodes based on the Superword
+ForcePackNode* PackNode::AsForcePackNode() {
+  DCHECK(IsForcePackNode());
+  return static_cast<ForcePackNode*>(this);
+}
+
+ShufflePackNode* PackNode::AsShufflePackNode() {
+  DCHECK(IsShufflePackNode());
+  return static_cast<ShufflePackNode*>(this);
+}
+
+BundlePackNode* PackNode::AsBundlePackNode() {
+  DCHECK(IsBundlePackNode());
+  return static_cast<BundlePackNode*>(this);
+}
+
+// An auxiliary tree structure with a set of PackNodes based on the Superword
 // Level Parallelism (SLP) vectorization technique. The BuildTree method will
 // start from a selected root, e.g. a group of consecutive stores, and extend
 // through value inputs to create new PackNodes if the inputs are valid, or
@@ -460,7 +458,7 @@ class BundlePackNode : public PackNode {
 //         [Store0, Store1]
 class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  explicit SLPTree(Graph& graph, WasmRevecAnalyzer* analyzer, Zone* zone)
+  SLPTree(Graph& graph, WasmRevecAnalyzer* analyzer, Zone* zone)
       : graph_(graph),
         analyzer_(analyzer),
         phase_zone_(zone),
@@ -468,7 +466,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
         node_to_packnode_(zone),
         node_to_intersect_packnodes_(zone) {}
 
-  // Information for extending i8x16/i16x8 to f32x4
+  // Information for extending i8x16/i16x8 to f32x4.
   struct ExtendIntToF32x4Info {
     OpIndex extend_from;
     uint8_t start_lane;    // 0 or 8
@@ -477,7 +475,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
     bool is_sign_convert;  // f32x4.convert_i32x4_s or f32x4.convert_i32x4_u
   };
 
-  // Per-lane information for extending i8x16/i16x8 to f32x4
+  // Per-lane information for extending i8x16/i16x8 to f32x4.
   struct LaneExtendInfo {
     OpIndex extract_from;
     Simd128ExtractLaneOp::Kind extract_kind;
@@ -497,6 +495,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>>& GetIntersectNodeMapping() {
     return node_to_intersect_packnodes_;
   }
+  ZoneUnorderedSet<OpIndex>& GetReorderInputs() { return reorder_inputs_; }
 
   void Print(const char* info);
 
@@ -511,19 +510,20 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   // another PackNode, and return.
   PackNode* NewIntersectPackNode(const NodeGroup& node_group);
 
-  PackNode* NewForcePackNode(const NodeGroup& node_group,
-                             ForcePackNode::ForcePackType type,
-                             const Graph& graph);
+  ForcePackNode* NewForcePackNode(const NodeGroup& node_group,
+                                  ForcePackNode::ForcePackType type,
+                                  unsigned recursion_depth);
   BundlePackNode* NewBundlePackNode(const NodeGroup& node_group, OpIndex base,
                                     int8_t offset, uint8_t lane_size,
                                     bool is_sign_extract, bool is_sign_convert);
 
   // Recursion: create a new PackNode and call BuildTreeRec recursively
-  PackNode* NewPackNodeAndRecurs(const NodeGroup& node_group, int start_index,
-                                 int count, unsigned depth);
+  PackNode* NewPackNodeAndRecurse(const NodeGroup& node_group,
+                                  size_t start_index, size_t count,
+                                  unsigned depth);
 
-  PackNode* NewCommutativePackNodeAndRecurs(const NodeGroup& node_group,
-                                            unsigned depth);
+  PackNode* NewCommutativePackNodeAndRecurse(const NodeGroup& node_group,
+                                             unsigned depth);
 
   ShufflePackNode* NewShufflePackNode(const NodeGroup& node_group,
                                       ShufflePackNode::SpecificInfo::Kind kind);
@@ -540,20 +540,19 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
                                               const uint8_t* shuffle1);
 
 #ifdef V8_TARGET_ARCH_X64
-  // The Simd Shuffle in wasm is a high level representation, and it can map to
-  // different x64 intructions base on its shuffle array. And the performance of
-  // different intructions are varies greatly.
-  // For example, if the shuffle array are totally random, there is a high
-  // probability to use a general shuffle. Under x64, the general shuffle may
-  // consists of a series mov, a vpinsrq and a vpshufb. It's performance cost is
-  // high. However, if the shuffle array is in an particular pattern, for
-  // example: [0,  1,  2,  3,  32, 33, 34, 35, 4,  5,  6,  7,  36, 37, 38, 39,
-  //      16, 17, 18, 19, 48, 49, 50, 51, 20, 21, 22, 23, 52, 53, 54, 55]
-  // we can use a single vpunpckldq instruction. It's performance cost is much
-  // more lower than a general one.
+  // The Simd Shuffle in Wasm is a high level representation. It can map to
+  // different x64 instructions depending on its shuffle array, and the
+  // performance of these intructions varies greatly.
+  // For example, if the shuffle array is totally random, there is a high
+  // probability to use a general shuffle. The general shuffle may consist
+  // of a sequence mov, vpinsrq, vpshufb. Its performance cost is high.
+  // However, if the shuffle array has a particular pattern, for example:
+  //   [0,  1,  2,  3,  32, 33, 34, 35, 4,  5,  6,  7,  36, 37, 38, 39,
+  //    16, 17, 18, 19, 48, 49, 50, 51, 20, 21, 22, 23, 52, 53, 54, 55]
+  // we can use a single vpunpckldq instruction, which is much faster.
   //
   // This function is used to try to match the shuffle array to the
-  // x64 instructions which has the best performance.
+  // x64 instruction sequence with the best performance.
   ShufflePackNode* X64TryMatch256Shuffle(const NodeGroup& node_group,
                                          const uint8_t* shuffle0,
                                          const uint8_t* shuffle1);
@@ -563,14 +562,15 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
                                 ExtendIntToF32x4Info* info);
   std::optional<ExtendIntToF32x4Info> TryGetExtendIntToF32x4Info(OpIndex index);
 
-  bool IsSideEffectFree(OpIndex first, OpIndex second);
-  bool CanBePacked(const NodeGroup& node_group);
+  bool IsSideEffectFreeRange(OpIndex first, OpIndex second);
   bool IsEqual(const OpIndex node0, const OpIndex node1);
   // Check if the nodes in the node_group depend on the result of each other.
   bool HasInputDependencies(const NodeGroup& node_group);
+  bool HasReorderInput(const NodeGroup& node_group);
 
   Graph& graph() const { return graph_; }
-  Zone* zone() const { return phase_zone_; }
+
+  static constexpr size_t kMaxRecursionDepth = 1000;
 
   Graph& graph_;
   WasmRevecAnalyzer* analyzer_;
@@ -580,21 +580,13 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   ZoneUnorderedMap<OpIndex, PackNode*> node_to_packnode_;
   // Maps a node to multiple IntersectPackNodes.
   ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>> node_to_intersect_packnodes_;
-  static constexpr size_t RecursionMaxDepth = 1000;
+  ZoneUnorderedSet<OpIndex> reorder_inputs_{phase_zone_};
 };
 
 class WasmRevecAnalyzer {
  public:
   WasmRevecAnalyzer(PipelineData* data, Zone* zone, Graph& graph)
-      : data_(data),
-        graph_(graph),
-        phase_zone_(zone),
-        store_seeds_(zone),
-        reduce_seeds_(zone),
-        revectorizable_node_(zone),
-        revectorizable_intersect_node_(zone),
-        should_reduce_(false),
-        use_map_(nullptr) {
+      : data_(data), graph_(graph), phase_zone_(zone) {
     Run();
   }
 
@@ -604,23 +596,23 @@ class WasmRevecAnalyzer {
   bool ShouldReduce() const { return should_reduce_; }
 
   PackNode* GetPackNode(const OpIndex ig_index) {
-    auto itr = revectorizable_node_.find(ig_index);
-    if (itr != revectorizable_node_.end()) {
-      return itr->second;
+    auto it = revectorizable_node_.find(ig_index);
+    if (it != revectorizable_node_.end()) {
+      return it->second;
     }
     return nullptr;
   }
 
   ZoneVector<PackNode*>* GetIntersectPackNodes(const OpIndex node) {
-    auto I = revectorizable_intersect_node_.find(node);
-    if (I != revectorizable_intersect_node_.end()) {
-      return &(I->second);
+    auto it = revectorizable_intersect_node_.find(node);
+    if (it != revectorizable_intersect_node_.end()) {
+      return &(it->second);
     }
     return nullptr;
   }
 
-  const OpIndex GetReducedInput(const PackNode* pnode, const int index = 0) {
-    if (index >= static_cast<int>(pnode->GetOperandsSize())) {
+  const OpIndex GetReducedInput(const PackNode* pnode, size_t index = 0) {
+    if (index >= pnode->GetOperandsSize()) {
       return OpIndex::Invalid();
     }
     return pnode->GetOperand(index)->RevectorizedNode();
@@ -637,6 +629,11 @@ class WasmRevecAnalyzer {
     return use_map_->uses(node);
   }
 
+  bool HasReorderInput(OpIndex node) { return reorder_inputs_.contains(node); }
+
+  ZoneUnorderedSet<OpIndex>& GetSharedOpIndexSet() { return shared_set_; }
+  ZoneDeque<OpIndex>& GetSharedOpIndexDeque() { return shared_deque_; }
+
  private:
   bool IsSupportedReduceSeed(const Operation& op);
   void ProcessBlock(const Block& block);
@@ -646,14 +643,19 @@ class WasmRevecAnalyzer {
   PipelineData* data_;
   Graph& graph_;
   Zone* phase_zone_;
-  ZoneVector<std::pair<OpIndex, OpIndex>> store_seeds_;
-  ZoneVector<std::pair<OpIndex, OpIndex>> reduce_seeds_;
-  const wasm::WasmModule* module_ = data_->wasm_module();
-  ZoneUnorderedMap<OpIndex, PackNode*> revectorizable_node_;
+  ZoneVector<std::pair<OpIndex, OpIndex>> store_seeds_{phase_zone_};
+  ZoneVector<std::pair<OpIndex, OpIndex>> reduce_seeds_{phase_zone_};
+  const wasm::WasmModule* module_{data_->wasm_module()};
+  ZoneUnorderedMap<OpIndex, PackNode*> revectorizable_node_{phase_zone_};
   ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>>
-      revectorizable_intersect_node_;
-  bool should_reduce_;
-  SimdUseMap* use_map_;
+      revectorizable_intersect_node_{phase_zone_};
+  bool should_reduce_{false};
+  Simd128UseMap* use_map_{nullptr};
+  ZoneUnorderedSet<OpIndex> reorder_inputs_{phase_zone_};
+  // Used as a local hash-set, always clear after use.
+  ZoneUnorderedSet<OpIndex> shared_set_{phase_zone_};
+  // Used as a local deque, always clear after use.
+  ZoneDeque<OpIndex> shared_deque_{phase_zone_};
 };
 
 template <class Next>
@@ -664,34 +666,37 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
 
   OpIndex GetExtractOpIfNeeded(const PackNode* pnode, OpIndex ig_index,
                                OpIndex og_index) {
-    const auto lane = base::checked_cast<uint8_t>(
+    if (__ template MapToNewGraph<true>(ig_index).valid()) {
+      // The op is already emitted while emitting ForcePackNode input trees.
+      return OpIndex::Invalid();
+    }
+    const uint8_t lane = base::checked_cast<uint8_t>(
         std::find(pnode->nodes().begin(), pnode->nodes().end(), ig_index) -
         pnode->nodes().begin());
 
-    // Force PackNode has a dedicated use in SimdPack128To256Op.
-    if (pnode->is_force_packing()) {
-      SimdPack128To256Op& op = __ output_graph()
-                                   .Get(pnode -> RevectorizedNode())
-                                   .template Cast<SimdPack128To256Op>();
-      return lane == 0 ? op.left() : op.right();
-    }
+    // We dont need to extract node for ForcePackNode.
+    DCHECK(!pnode->is_force_packing());
 
-    for (auto use : analyzer_.uses(ig_index)) {
+    for (OpIndex use : analyzer_.uses(ig_index)) {
       // Extract128 is needed for the additional Simd128 store before
       // Simd256 store in case of OOB trap at the higher 128-bit
       // address.
-      auto use_pnode = analyzer_.GetPackNode(use);
+      PackNode* use_pnode = analyzer_.GetPackNode(use);
       if (use_pnode != nullptr && !use_pnode->is_force_packing()) {
         DCHECK_GE(use_pnode->nodes().size(), 2);
         if (__ input_graph().Get(use).opcode != Opcode::kStore ||
             use_pnode->nodes()[0] != use ||
-            use_pnode->nodes()[0] > use_pnode->nodes()[1])
+            use_pnode->nodes()[0] > use_pnode->nodes()[1]) {
           continue;
+        }
       }
 
       return __ Simd256Extract128Lane(og_index, lane);
     }
 
+    // We return Invalid() to indicate that this node can be dropped, because
+    // it has already been covered by some other replacement (as revectorization
+    // typically converts two nodes to one).
     return OpIndex::Invalid();
   }
 
@@ -710,7 +715,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
           __ input_graph().Get(inputs[0]).template Cast<Simd128ConstantOp>();
       const Simd128ConstantOp& op1 =
           __ input_graph().Get(inputs[1]).template Cast<Simd128ConstantOp>();
-      uint8_t value[kSimd256Size] = {};
+      uint8_t value[kSimd256Size];
       memcpy(value, op0.value, kSimd128Size);
       memcpy(value + kSimd128Size, op1.value, kSimd128Size);
 
@@ -732,9 +737,9 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     V<Simd256> og_index = pnode->RevectorizedNode();
     // Skip revectorized node.
     if (!og_index.valid()) {
-      auto base = __ MapToNewGraph(load_transform.base());
-      auto index = __ MapToNewGraph(load_transform.index());
-      auto offset = load_transform.offset;
+      V<WordPtr> base = __ MapToNewGraph(load_transform.base());
+      V<WordPtr> index = __ MapToNewGraph(load_transform.index());
+      int offset = load_transform.offset;
       DCHECK_EQ(load_transform.offset, 0);
 
       og_index = __ Simd256LoadTransform(
@@ -759,11 +764,11 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
                                 .template Cast<LoadOp>();
       DCHECK_EQ(start.base(), load.base());
 
-      auto base = __ MapToNewGraph(load.base());
-      // We need to use load's index here due to there would be different
-      // ChangeOps from the same index. If start is not load, it's possible
-      // that the ChangeOp of start index is not visited yet.
-      auto index = __ MapToNewGraph(load.index());
+      OpIndex base = __ MapToNewGraph(load.base());
+      // We need to use {load}'s index here because there could be different
+      // ChangeOps from the same index. If {start} != {load}, it's possible
+      // that the ChangeOp of {start} has not been visited yet.
+      OptionalOpIndex index = __ MapToNewGraph(load.index());
       og_index = __ Load(base, index, load.kind,
                          MemoryRepresentation::Simd256(), start.offset);
       pnode->SetRevectorizedNode(og_index);
@@ -795,18 +800,18 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
         Adapter::ReduceInputGraphStore(ig_index, store);
       }
 
-      auto base = __ MapToNewGraph(store.base());
-      // We need to use store's index here due to there would be different
-      // ChangeOps from the same index. If start is not store, it's possible
-      // that the ChangeOp of start index is not visited yet.
-      auto index = __ MapToNewGraph(store.index());
+      OpIndex base = __ MapToNewGraph(store.base());
+      // We need to use {store}'s index here because there could be different
+      // ChangeOps from the same index. If {start} != {store}, it's possible
+      // that the ChangeOp of {start} has not been visited yet.
+      OptionalOpIndex index = __ MapToNewGraph(store.index());
       V<Simd256> value = analyzer_.GetReducedInput(pnode);
       DCHECK(value.valid());
 
       __ Store(base, index, value, store.kind, MemoryRepresentation::Simd256(),
                store.write_barrier, start.offset);
 
-      // Set an arbitrary valid opindex here to skip reduce later.
+      // Set an arbitrary valid OpIndex here to skip reduce later.
       pnode->SetRevectorizedNode(ig_index);
     }
 
@@ -816,12 +821,11 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
 
   OpIndex REDUCE_INPUT_GRAPH(Phi)(OpIndex ig_index, const PhiOp& phi) {
     if (phi.rep == RegisterRepresentation::Simd128()) {
-      if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+      if (PackNode* pnode = analyzer_.GetPackNode(ig_index)) {
         OpIndex og_index = pnode->RevectorizedNode();
 
         // Don't reduce revectorized node.
         if (!og_index.valid()) {
-          base::SmallVector<OpIndex, 16> elements;
           og_index = __ ResolvePhi(
               phi,
               [&](OpIndex ind, int block_id, int old_block_id = 0) {
@@ -835,7 +839,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
             GetExtractOpIfNeeded(pnode, ig_index, og_index);
         // If phis are not be mapped to anything in the new graph,
         // they will be skipped in FixLoopPhis in copying-phase.
-        // return og_index to create the mapping.
+        // Return og_index to create the mapping.
         if (extract_op_index == OpIndex::Invalid()) {
           return og_index;
         } else {
@@ -852,15 +856,15 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     if (input_phi.rep == RegisterRepresentation::Simd128()) {
       OpIndex phi_index = __ input_graph().Index(input_phi);
       DCHECK(phi_index.valid());
-      if (auto* pnode = analyzer_.GetPackNode(phi_index)) {
-        auto pending_index = pnode->RevectorizedNode();
+      if (PackNode* pnode = analyzer_.GetPackNode(phi_index)) {
+        V<Simd256> pending_index = pnode->RevectorizedNode();
         DCHECK(pending_index.valid());
-        if (pending_index.valid() &&
-            output_graph_loop->Contains(pending_index)) {
-          // Need skip replaced op
-          if (auto* pending_phi = __ output_graph()
-                                      .Get(pending_index)
-                                      .template TryCast<PendingLoopPhiOp>()) {
+        if (output_graph_loop->Contains(pending_index)) {
+          // Need to skip any replaced op.
+          if (PendingLoopPhiOp* pending_phi =
+                  __ output_graph()
+                      .Get(pending_index)
+                      .template TryCast<PendingLoopPhiOp>()) {
             __ output_graph().template Replace<PhiOp>(
                 pending_index,
                 base::VectorOf({pending_phi -> first(),
@@ -1082,8 +1086,6 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
           break;
         }
 #endif  // V8_TARGET_ARCH_X64
-        default:
-          UNREACHABLE();
       }
     }
     return GetExtractOpIfNeeded(pnode, ig_index, og_index);
@@ -1144,18 +1146,19 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     return GetExtractOpIfNeeded(pnode, ig_index, og_index);
   }
 
-  void ReduceInputsOfOp(OpIndex cur_index, OpIndex op_index) {
-    // Reduce all the operations of op_index's input tree, which should be
-    // bigger than the cur_index. The traversal is done in a DFS manner
+  void ReduceInputsOfOp(OpIndex start_marker, OpIndex op_index) {
+    // Reduce all the operations of op_index's input tree which are
+    // bigger than the start_marker. The traversal is done in a DFS manner
     // to make sure all inputs are emitted before the use.
-    const Block* current_input_block = Asm().current_input_block();
-    std::stack<OpIndex> inputs;
-    ZoneUnorderedSet<OpIndex> visited(Asm().phase_zone());
-    inputs.push(op_index);
+    const Block* current_input_block = __ current_input_block();
+    std::stack<OpIndex, base::SmallVector<OpIndex, 8>> inputs;
+    ZoneUnorderedSet<OpIndex>& visited = analyzer_.GetSharedOpIndexSet();
+    DCHECK(visited.empty());
 
+    inputs.push(op_index);
     while (!inputs.empty()) {
       OpIndex idx = inputs.top();
-      if (visited.find(idx) != visited.end()) {
+      if (visited.contains(idx)) {
         inputs.pop();
         continue;
       }
@@ -1163,7 +1166,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
       const Operation& op = __ input_graph().Get(idx);
       bool has_unvisited_inputs = false;
       for (OpIndex input : op.inputs()) {
-        if (input > cur_index && visited.find(input) == visited.end()) {
+        if (input > start_marker && !visited.contains(input)) {
           inputs.push(input);
           has_unvisited_inputs = true;
         }
@@ -1176,65 +1179,66 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
         // op_index will be reduced later.
         if (idx == op_index) continue;
 
-        DCHECK(!Asm().input_graph().Get(idx).template Is<PhiOp>());
-        Asm().template VisitOpAndUpdateMapping<false>(idx, current_input_block);
+        DCHECK(!__ input_graph().Get(idx).template Is<PhiOp>());
+        __ template VisitOpAndUpdateMapping<false>(idx, current_input_block);
       }
     }
+
+    visited.clear();
   }
 
   template <typename Op, typename Continuation>
   void ReduceForceOrIntersectPackNode(PackNode* pnode, const OpIndex ig_index,
                                       OpIndex* og_index) {
-    std::array<OpIndex, 2> v;
+    std::array<OpIndex, 2> og_inputs;
     DCHECK_EQ(pnode->nodes().size(), 2);
     // The operation order in pnode is determined by the store or reduce
-    // seed when build the SLPTree. It is not quaranteed to align with
-    // the visiting order in each basic block from input graph. E.g. we
-    // can have a block including {a1, a2, b1, b2} operations, and the
+    // seed when building the SLPTree. It is not guaranteed to align with
+    // the visiting order in each basic block from the input graph. E.g. we
+    // can have a block including operations {a1, a2, b1, b2}, and the
     // SLPTree can be pnode1: (a2, a1), pnode2: (b1, b2) if a2 is input
     // of b1, and a1 is input of b2.
-    for (int i = 0; i < static_cast<int>(pnode->nodes().size()); i++) {
+    for (size_t i = 0; i < pnode->nodes().size(); i++) {
       OpIndex cur_index = pnode->nodes()[i];
       if ((*og_index).valid() && cur_index == ig_index) {
-        v[i] = *og_index;
+        og_inputs[i] = *og_index;
       } else {
-        // The current index maybe already reduced by the IntersectPackNode.
-        v[i] = __ template MapToNewGraph<true>(cur_index);
+        // The current index may already be reduced by the IntersectPackNode.
+        og_inputs[i] = __ template MapToNewGraph<true>(cur_index);
       }
 
-      if (v[i].valid()) continue;
+      if (og_inputs[i].valid()) continue;
 
       if (cur_index != ig_index) {
         ReduceInputsOfOp(ig_index, cur_index);
       }
-      const Op& op = Asm().input_graph().Get(cur_index).template Cast<Op>();
-      v[i] = Continuation{this}.ReduceInputGraph(cur_index, op);
+      const Op& op = __ input_graph().Get(cur_index).template Cast<Op>();
+      og_inputs[i] = Continuation{this}.ReduceInputGraph(cur_index, op);
 
       if (cur_index == ig_index) {
-        *og_index = v[i];
+        *og_index = og_inputs[i];
       } else {
         // We have to create the mapping as cur_index may exist in other
         // IntersectPackNode and reduce again.
-        __ CreateOldToNewMapping(cur_index, v[i]);
+        __ CreateOldToNewMapping(cur_index, og_inputs[i]);
       }
     }
 
-    OpIndex revec_index = __ SimdPack128To256(v[0], v[1]);
+    OpIndex revec_index = __ SimdPack128To256(og_inputs[0], og_inputs[1]);
     pnode->SetRevectorizedNode(revec_index);
   }
 
   template <typename Op, typename Continuation>
   OpIndex ReduceInputGraphOperation(OpIndex ig_index, const Op& op) {
     OpIndex og_index;
-    // Reduce ForcePackNode
+    // Reduce ForcePackNode.
     if (PackNode* p = analyzer_.GetPackNode(ig_index);
         p && p->IsForcePackNode()) {
-      // Handle force packing nodes.
       ForcePackNode* pnode = p->AsForcePackNode();
       if (!pnode->RevectorizedNode().valid()) {
         switch (pnode->force_pack_type()) {
           case ForcePackNode::kSplat: {
-            // The og_index maybe already reduced by the IntersectPackNode.
+            // The og_index may already be reduced by an IntersectPackNode.
             OpIndex reduced_index = __ template MapToNewGraph<true>(ig_index);
             if (!reduced_index.valid()) {
               og_index = reduced_index =
@@ -1254,10 +1258,11 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
       }
     }
 
-    // Reduce IntersectPackNode
-    if (auto intersect_packnodes = analyzer_.GetIntersectPackNodes(ig_index)) {
+    // Reduce IntersectPackNode.
+    if (ZoneVector<PackNode*>* intersect_packnodes =
+            analyzer_.GetIntersectPackNodes(ig_index)) {
       for (PackNode* pnode : *intersect_packnodes) {
-        if (!(pnode->RevectorizedNode()).valid()) {
+        if (!pnode->RevectorizedNode().valid()) {
           ReduceForceOrIntersectPackNode<Op, Continuation>(pnode, ig_index,
                                                            &og_index);
         }
@@ -1269,8 +1274,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     }
 
     if (__ template MapToNewGraph<true>(ig_index).valid()) {
-      // The op is already emitted during emitting force pack right node input
-      // trees.
+      // The op is already emitted while emitting ForcePackNode input trees.
       return OpIndex::Invalid();
     }
 
@@ -1289,7 +1293,6 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
 
 #define SIGN_EXTENSION_UNOP_KIND_MAPPING(from_1, to, from_2) \
   case Simd128UnaryOp::Kind::k##from_1:                      \
-    return Simd256UnaryOp::Kind::k##to;                      \
   case Simd128UnaryOp::Kind::k##from_2:                      \
     return Simd256UnaryOp::Kind::k##to;
       SIMD256_UNARY_SIGN_EXTENSION_OP(SIGN_EXTENSION_UNOP_KIND_MAPPING)
@@ -1309,11 +1312,10 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
 
 #define SIGN_EXTENSION_BINOP_KIND_MAPPING(from_1, to, from_2) \
   case Simd128BinopOp::Kind::k##from_1:                       \
-    return Simd256BinopOp::Kind::k##to;                       \
   case Simd128BinopOp::Kind::k##from_2:                       \
     return Simd256BinopOp::Kind::k##to;
       SIMD256_BINOP_SIGN_EXTENSION_OP(SIGN_EXTENSION_BINOP_KIND_MAPPING)
-#undef SIGN_EXTENSION_UNOP_KIND_MAPPING
+#undef SIGN_EXTENSION_BINOP_KIND_MAPPING
       default:
         UNIMPLEMENTED();
     }
@@ -1369,8 +1371,8 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     }
   }
 
-  const wasm::WasmModule* module_ = __ data() -> wasm_module();
-  WasmRevecAnalyzer analyzer_ = *__ data() -> wasm_revec_analyzer();
+  const wasm::WasmModule* module_{__ data()->wasm_module()};
+  WasmRevecAnalyzer& analyzer_{*__ data()->wasm_revec_analyzer()};
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

@@ -62,10 +62,14 @@ struct CompileCacheEnableResult {
   std::string message;  // Set in case of failure.
 };
 
+enum class EnableOption : uint8_t { DEFAULT, PORTABLE };
+
 class CompileCacheHandler {
  public:
   explicit CompileCacheHandler(Environment* env);
-  CompileCacheEnableResult Enable(Environment* env, const std::string& dir);
+  CompileCacheEnableResult Enable(Environment* env,
+                                  const std::string& dir,
+                                  EnableOption option = EnableOption::DEFAULT);
 
   void Persist();
 
@@ -103,6 +107,8 @@ class CompileCacheHandler {
   bool is_debug_ = false;
 
   std::string compile_cache_dir_;
+  std::string normalized_compile_cache_dir_;
+  EnableOption portable_ = EnableOption::DEFAULT;
   std::unordered_map<uint32_t, std::unique_ptr<CompileCacheEntry>>
       compiler_cache_store_;
 };

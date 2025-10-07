@@ -94,6 +94,11 @@ TF_BUILTIN(ToBooleanLazyDeoptContinuation, CodeStubAssembler) {
   Return(FalseConstant());
 }
 
+TF_BUILTIN(MathClz32Continuation, CodeStubAssembler) {
+  auto input = Parameter<Number>(Descriptor::kArgument);
+  Return(ChangeInt32ToTaggedNoOverflow(NumberToMathClz32(input)));
+}
+
 // Requires parameter on stack so that it can be used as a continuation from a
 // LAZY deopt.
 TF_BUILTIN(MathRoundContinuation, CodeStubAssembler) {

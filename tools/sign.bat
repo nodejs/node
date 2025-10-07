@@ -20,7 +20,7 @@ if "%AZURE_SIGN_METADATA_PATH%"=="" (
 )
 
 
-signtool sign /tr "http://timestamp.acs.microsoft.com" /td sha256 /fd sha256 /v /dlib %AZURE_SIGN_DLIB_PATH% /dmdf %AZURE_SIGN_METADATA_PATH% %1
+signtool sign /d "Node.js" /tr "http://timestamp.acs.microsoft.com" /td sha256 /fd sha256 /v /dlib %AZURE_SIGN_DLIB_PATH% /dmdf %AZURE_SIGN_METADATA_PATH% %1
 if not ERRORLEVEL 1 (
     echo Successfully signed %1 using signtool
     exit /b 0

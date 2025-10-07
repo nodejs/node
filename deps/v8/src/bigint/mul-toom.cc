@@ -18,7 +18,7 @@ namespace {
 
 void TimesTwo(RWDigits X) {
   digit_t carry = 0;
-  for (int i = 0; i < X.len(); i++) {
+  for (uint32_t i = 0; i < X.len(); i++) {
     digit_t d = X[i];
     X[i] = (d << 1) | carry;
     carry = d >> (kDigitBits - 1);
@@ -27,7 +27,7 @@ void TimesTwo(RWDigits X) {
 
 void DivideByTwo(RWDigits X) {
   digit_t carry = 0;
-  for (int i = X.len() - 1; i >= 0; i--) {
+  for (uint32_t i = X.len(); i-- > 0;) {
     digit_t d = X[i];
     X[i] = (d >> 1) | carry;
     carry = d << (kDigitBits - 1);
@@ -36,7 +36,7 @@ void DivideByTwo(RWDigits X) {
 
 void DivideByThree(RWDigits X) {
   digit_t remainder = 0;
-  for (int i = X.len() - 1; i >= 0; i--) {
+  for (uint32_t i = X.len(); i-- > 0;) {
     digit_t d = X[i];
     digit_t upper = (remainder << kHalfDigitBits) | (d >> kHalfDigitBits);
     digit_t u_result = upper / 3;
@@ -61,7 +61,7 @@ void DivideByThree(RWDigits X) {
 void ProcessorImpl::Toom3Main(RWDigits Z, Digits X, Digits Y) {
   DCHECK(Z.len() >= X.len() + Y.len());
   // Phase 1: Splitting.
-  int i = DIV_CEIL(std::max(X.len(), Y.len()), 3);
+  uint32_t i = DIV_CEIL(std::max(X.len(), Y.len()), 3);
   Digits X0(X, 0, i);
   Digits X1(X, i, i);
   Digits X2(X, 2 * i, i);
@@ -70,8 +70,8 @@ void ProcessorImpl::Toom3Main(RWDigits Z, Digits X, Digits Y) {
   Digits Y2(Y, 2 * i, i);
 
   // Temporary storage.
-  int p_len = i + 1;      // For all px, qx below.
-  int r_len = 2 * p_len;  // For all r_x, Rx below.
+  uint32_t p_len = i + 1;      // For all px, qx below.
+  uint32_t r_len = 2 * p_len;  // For all r_x, Rx below.
   Storage temp_storage(4 * r_len);
   // We will use the same variable names as the Wikipedia article, as much as
   // C++ lets us: our "p_m1" is their "p(-1)" etc. For consistency with other
@@ -193,7 +193,7 @@ void ProcessorImpl::Toom3Main(RWDigits Z, Digits X, Digits Y) {
 #endif
 
   // Phase 5: Recomposition. R0 is already in place. Overflow can't happen.
-  for (int j = R0.len(); j < Z.len(); j++) Z[j] = 0;
+  for (uint32_t j = R0.len(); j < Z.len(); j++) Z[j] = 0;
   AddAndReturnOverflow(Z + i, R1);
   AddAndReturnOverflow(Z + 2 * i, R2);
   AddAndReturnOverflow(Z + 3 * i, R3);
@@ -202,14 +202,14 @@ void ProcessorImpl::Toom3Main(RWDigits Z, Digits X, Digits Y) {
 
 void ProcessorImpl::MultiplyToomCook(RWDigits Z, Digits X, Digits Y) {
   DCHECK(X.len() >= Y.len());
-  int k = Y.len();
+  uint32_t k = Y.len();
   // TODO(jkummerow): Would it be a measurable improvement to share the
   // scratch memory for several invocations?
   Digits X0(X, 0, k);
   Toom3Main(Z, X0, Y);
   if (X.len() > Y.len()) {
     ScratchDigits T(2 * k);
-    for (int i = k; i < X.len(); i += k) {
+    for (uint32_t i = k; i < X.len(); i += k) {
       Digits Xi(X, i, k);
       // TODO(jkummerow): would it be a measurable improvement to craft a
       // "ToomChunk" method in the style of {KaratsubaChunk}?

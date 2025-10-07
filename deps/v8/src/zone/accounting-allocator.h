@@ -34,11 +34,11 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
   virtual ~AccountingAllocator();
 
   // Allocates a new segment. Returns nullptr on failed allocation.
-  Segment* AllocateSegment(size_t bytes, bool supports_compression);
+  Segment* AllocateSegment(size_t bytes);
 
   // Return unneeded segments to either insert them into the pool or release
   // them if the pool is already full or memory pressure is high.
-  void ReturnSegment(Segment* memory, bool supports_compression);
+  void ReturnSegment(Segment* memory);
 
   size_t GetCurrentMemoryUsage() const {
     return current_memory_usage_.load(std::memory_order_relaxed);
@@ -74,9 +74,6 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
   Isolate* const isolate_ = nullptr;
   std::atomic<size_t> current_memory_usage_{0};
   std::atomic<size_t> max_memory_usage_{0};
-
-  std::unique_ptr<VirtualMemory> reserved_area_;
-  std::unique_ptr<base::BoundedPageAllocator> bounded_page_allocator_;
 };
 
 }  // namespace internal

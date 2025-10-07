@@ -1,5 +1,6 @@
 'use strict'
 
+const { isArrayBuffer } = require('node:util/types')
 const { webidl } = require('../webidl')
 const { URLSerializer } = require('../fetch/data-url')
 const { environmentSettingsObject } = require('../fetch/util')
@@ -19,7 +20,6 @@ const { establishWebSocketConnection, closeWebSocketConnection, failWebsocketCon
 const { ByteParser } = require('./receiver')
 const { kEnumerableProperty } = require('../../core/util')
 const { getGlobalDispatcher } = require('../../global')
-const { types } = require('node:util')
 const { ErrorEvent, CloseEvent, createFastMessageEvent } = require('./events')
 const { SendQueue } = require('./sender')
 const { WebsocketFrameSend } = require('./frame')
@@ -28,7 +28,6 @@ const { channels } = require('../../core/diagnostics')
 /**
  * @typedef {object} Handler
  * @property {(response: any, extensions?: string[]) => void} onConnectionEstablished
- * @property {(code: number, reason: any) => void} onFail
  * @property {(opcode: number, data: Buffer) => void} onMessage
  * @property {(error: Error) => void} onParserError
  * @property {() => void} onParserDrain
@@ -64,7 +63,6 @@ class WebSocket extends EventTarget {
   /** @type {Handler} */
   #handler = {
     onConnectionEstablished: (response, extensions) => this.#onConnectionEstablished(response, extensions),
-    onFail: (code, reason, cause) => this.#onFail(code, reason, cause),
     onMessage: (opcode, data) => this.#onMessage(opcode, data),
     onParserError: (err) => failWebsocketConnection(this.#handler, null, err.message),
     onParserDrain: () => this.#onParserDrain(),
@@ -195,7 +193,7 @@ class WebSocket extends EventTarget {
     const prefix = 'WebSocket.close'
 
     if (code !== undefined) {
-      code = webidl.converters['unsigned short'](code, prefix, 'code', { clamp: true })
+      code = webidl.converters['unsigned short'](code, prefix, 'code', webidl.attributes.Clamp)
     }
 
     if (reason !== undefined) {
@@ -257,7 +255,7 @@ class WebSocket extends EventTarget {
       this.#sendQueue.add(buffer, () => {
         this.#bufferedAmount -= buffer.byteLength
       }, sendHints.text)
-    } else if (types.isArrayBuffer(data)) {
+    } else if (isArrayBuffer(data)) {
       // If the WebSocket connection is established, and the WebSocket
       // closing handshake has not yet started, then the user agent must
       // send a WebSocket Message comprised of data using a binary frame
@@ -355,9 +353,11 @@ class WebSocket extends EventTarget {
       this.removeEventListener('open', this.#events.open)
     }
 
-    if (typeof fn === 'function') {
+    const listener = webidl.converters.EventHandlerNonNull(fn)
+
+    if (listener !== null) {
+      this.addEventListener('open', listener)
       this.#events.open = fn
-      this.addEventListener('open', fn)
     } else {
       this.#events.open = null
     }
@@ -376,9 +376,11 @@ class WebSocket extends EventTarget {
       this.removeEventListener('error', this.#events.error)
     }
 
-    if (typeof fn === 'function') {
+    const listener = webidl.converters.EventHandlerNonNull(fn)
+
+    if (listener !== null) {
+      this.addEventListener('error', listener)
       this.#events.error = fn
-      this.addEventListener('error', fn)
     } else {
       this.#events.error = null
     }
@@ -397,9 +399,11 @@ class WebSocket extends EventTarget {
       this.removeEventListener('close', this.#events.close)
     }
 
-    if (typeof fn === 'function') {
+    const listener = webidl.converters.EventHandlerNonNull(fn)
+
+    if (listener !== null) {
+      this.addEventListener('close', listener)
       this.#events.close = fn
-      this.addEventListener('close', fn)
     } else {
       this.#events.close = null
     }
@@ -418,9 +422,11 @@ class WebSocket extends EventTarget {
       this.removeEventListener('message', this.#events.message)
     }
 
-    if (typeof fn === 'function') {
+    const listener = webidl.converters.EventHandlerNonNull(fn)
+
+    if (listener !== null) {
+      this.addEventListener('message', listener)
       this.#events.message = fn
-      this.addEventListener('message', fn)
     } else {
       this.#events.message = null
     }
@@ -482,31 +488,18 @@ class WebSocket extends EventTarget {
     fireEvent('open', this)
 
     if (channels.open.hasSubscribers) {
+      // Convert headers to a plain object for the event
+      const headers = response.headersList.entries
       channels.open.publish({
         address: response.socket.address(),
         protocol: this.#protocol,
         extensions: this.#extensions,
-        websocket: this
-      })
-    }
-  }
-
-  #onFail (code, reason, cause) {
-    if (reason) {
-      // TODO: process.nextTick
-      fireEvent('error', this, (type, init) => new ErrorEvent(type, init), {
-        error: new Error(reason, cause ? { cause } : undefined),
-        message: reason
-      })
-    }
-
-    if (!this.#handler.wasEverConnected) {
-      this.#handler.readyState = states.CLOSED
-
-      // If the WebSocket connection could not be established, it is also said
-      // that _The WebSocket Connection is Closed_, but not _cleanly_.
-      fireEvent('close', this, (type, init) => new CloseEvent(type, init), {
-        wasClean: false, code, reason
+        websocket: this,
+        handshakeResponse: {
+          status: response.status,
+          statusText: response.statusText,
+          headers
+        }
       })
     }
   }
@@ -571,18 +564,11 @@ class WebSocket extends EventTarget {
     let code = 1005
     let reason = ''
 
-    const result = this.#parser.closingInfo
+    const result = this.#parser?.closingInfo
 
     if (result && !result.error) {
       code = result.code ?? 1005
       reason = result.reason
-    } else if (!this.#handler.closeState.has(sentCloseFrameState.RECEIVED)) {
-      // If _The WebSocket
-      // Connection is Closed_ and no Close control frame was received by the
-      // endpoint (such as could occur if the underlying transport connection
-      // is lost), _The WebSocket Connection Close Code_ is considered to be
-      // 1006.
-      code = 1006
     }
 
     // 1. Change the ready state to CLOSED (3).
@@ -592,7 +578,18 @@ class WebSocket extends EventTarget {
     //    connection, or if the WebSocket connection was closed
     //    after being flagged as full, fire an event named error
     //    at the WebSocket object.
-    // TODO
+    if (!this.#handler.closeState.has(sentCloseFrameState.RECEIVED)) {
+      // If _The WebSocket
+      // Connection is Closed_ and no Close control frame was received by the
+      // endpoint (such as could occur if the underlying transport connection
+      // is lost), _The WebSocket Connection Close Code_ is considered to be
+      // 1006.
+      code = 1006
+
+      fireEvent('error', this, (type, init) => new ErrorEvent(type, init), {
+        error: new TypeError(reason)
+      })
+    }
 
     // 3. Fire an event named close at the WebSocket object,
     //    using CloseEvent, with the wasClean attribute
@@ -701,7 +698,7 @@ webidl.converters.WebSocketInit = webidl.dictionaryConverter([
   {
     key: 'protocols',
     converter: webidl.converters['DOMString or sequence<DOMString>'],
-    defaultValue: () => new Array(0)
+    defaultValue: () => []
   },
   {
     key: 'dispatcher',
@@ -728,7 +725,7 @@ webidl.converters.WebSocketSendData = function (V) {
       return V
     }
 
-    if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
+    if (webidl.is.BufferSource(V)) {
       return V
     }
   }

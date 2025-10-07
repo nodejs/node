@@ -41,8 +41,10 @@ const { inspect } = require('util');
       code: 'ERR_INVALID_ARG_TYPE'
     });
   });
-  throws(() => h.record(0, Number.MAX_SAFE_INTEGER + 1), {
-    code: 'ERR_OUT_OF_RANGE'
+  [0, Number.MAX_SAFE_INTEGER + 1].forEach((i) => {
+    throws(() => h.record(i), {
+      code: 'ERR_OUT_OF_RANGE'
+    });
   });
 
   strictEqual(h.min, 1);

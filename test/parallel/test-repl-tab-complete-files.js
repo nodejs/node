@@ -1,9 +1,9 @@
 'use strict';
 
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const path = require('path');
+const { startNewREPLServer } = require('../common/repl');
 
 const { isMainThread } = require('worker_threads');
 
@@ -11,17 +11,7 @@ if (!isMainThread) {
   common.skip('process.chdir is not available in Workers');
 }
 
-const repl = require('repl');
-
-const replServer = repl.start({
-  prompt: '',
-  input: new ArrayStream(),
-  output: process.stdout,
-  allowBlockingCompletions: true,
-});
-
-// Some errors are passed to the domain, but do not callback
-replServer._domain.on('error', assert.ifError);
+const { replServer } = startNewREPLServer();
 
 // Tab completion for files/directories
 {

@@ -1466,7 +1466,7 @@ void InterpreterAssembler::OnStackReplacement(
       DCHECK_EQ(params, OnStackReplacementParams::kDefault);
       TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
           LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
-      GotoIf(SharedFunctionInfoHasBaselineCode(sfi), &osr_to_sparkplug);
+      GotoIfSharedFunctionInfoHasBaselineCode(sfi, &osr_to_sparkplug);
       JumpBackward(relative_jump);
     }
   }

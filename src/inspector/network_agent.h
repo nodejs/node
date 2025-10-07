@@ -93,6 +93,13 @@ class NetworkAgent : public protocol::Network::Backend {
   void dataReceived(v8::Local<v8::Context> context,
                     v8::Local<v8::Object> params);
 
+  void webSocketCreated(v8::Local<v8::Context> context,
+                        v8::Local<v8::Object> params);
+  void webSocketClosed(v8::Local<v8::Context> context,
+                       v8::Local<v8::Object> params);
+  void webSocketHandshakeResponseReceived(v8::Local<v8::Context> context,
+                                          v8::Local<v8::Object> params);
+
  private:
   NetworkInspector* inspector_;
   v8_inspector::V8Inspector* v8_inspector_;

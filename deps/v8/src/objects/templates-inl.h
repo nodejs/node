@@ -29,9 +29,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(ObjectTemplateInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateRareData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(DictionaryTemplateInfo)
 
-NEVER_READ_ONLY_SPACE_IMPL(DictionaryTemplateInfo)
-NEVER_READ_ONLY_SPACE_IMPL(ObjectTemplateInfo)
-
 BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag,
                is_object_template_call_handler,
                IsObjectTemplateCallHandlerBit::kShift)
@@ -288,22 +285,6 @@ void ObjectTemplateInfo::set_code_like(bool is_code_like) {
 
 bool FunctionTemplateInfo::IsTemplateFor(Tagged<JSObject> object) const {
   return IsTemplateFor(object->map());
-}
-
-bool TemplateInfo::TryGetIsolate(Isolate** isolate) const {
-  if (GetIsolateFromHeapObject(*this, isolate)) return true;
-  Isolate* isolate_value = Isolate::TryGetCurrent();
-  if (isolate_value != nullptr) {
-    *isolate = isolate_value;
-    return true;
-  }
-  return false;
-}
-
-Isolate* TemplateInfo::GetIsolateChecked() const {
-  Isolate* isolate;
-  CHECK(TryGetIsolate(&isolate));
-  return isolate;
 }
 
 bool TemplateInfo::is_cacheable() const {

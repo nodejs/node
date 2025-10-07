@@ -199,7 +199,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(Node* node,
       } else {
         builtin = Builtin::kWasmAllocateInOldGeneration;
       }
-      static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
+      static_assert(std::is_same_v<Smi, BuiltinPtr>, "BuiltinPtr must be Smi");
       allocate_builtin =
           graph()->NewNode(common()->NumberConstant(static_cast<int>(builtin)));
     } else {

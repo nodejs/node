@@ -35,22 +35,32 @@ class Truncation final {
   static Truncation Word32() {
     return Truncation(TruncationKind::kWord32, kIdentifyZeros);
   }
+  static Truncation Word32WithSafeIntCheck() {
+    return Truncation(TruncationKind::kWord32, kIdentifyZeros, true);
+  }
   static Truncation Word64() {
     return Truncation(TruncationKind::kWord64, kIdentifyZeros);
+  }
+  static Truncation BooleanAndNullAndBigIntToNumber(
+      IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return Truncation(TruncationKind::kBooleanAndNullAndBigIntToNumber,
+                      identify_zeros);
   }
   static Truncation OddballAndBigIntToNumber(
       IdentifyZeros identify_zeros = kDistinguishZeros) {
     return Truncation(TruncationKind::kOddballAndBigIntToNumber,
                       identify_zeros);
   }
-  static Truncation Any(IdentifyZeros identify_zeros = kDistinguishZeros) {
-    return Truncation(TruncationKind::kAny, identify_zeros);
+  static Truncation Any(IdentifyZeros identify_zeros = kDistinguishZeros,
+                        bool check_safe_integer = false) {
+    return Truncation(TruncationKind::kAny, identify_zeros, check_safe_integer);
   }
 
   static Truncation Generalize(Truncation t1, Truncation t2) {
     return Truncation(
         Generalize(t1.kind(), t2.kind()),
-        GeneralizeIdentifyZeros(t1.identify_zeros(), t2.identify_zeros()));
+        GeneralizeIdentifyZeros(t1.identify_zeros(), t2.identify_zeros()),
+        t1.check_safe_integer() || t2.check_safe_integer());
   }
 
   // Queries.
@@ -65,6 +75,9 @@ class Truncation final {
     DCHECK(Is64());
     return LessGeneral(kind_, TruncationKind::kWord64);
   }
+  bool TruncatesBooleanAndNullAndBigIntToNumber() const {
+    return LessGeneral(kind_, TruncationKind::kBooleanAndNullAndBigIntToNumber);
+  }
   bool TruncatesOddballAndBigIntToNumber() const {
     return LessGeneral(kind_, TruncationKind::kOddballAndBigIntToNumber);
   }
@@ -78,7 +91,9 @@ class Truncation final {
 
   // Operators.
   bool operator==(Truncation other) const {
-    return kind() == other.kind() && identify_zeros() == other.identify_zeros();
+    return kind() == other.kind() &&
+           identify_zeros() == other.identify_zeros() &&
+           check_safe_integer() == other.check_safe_integer();
   }
   bool operator!=(Truncation other) const { return !(*this == other); }
 
@@ -86,10 +101,13 @@ class Truncation final {
   const char* description() const;
   bool IsLessGeneralThan(Truncation other) const {
     return LessGeneral(kind(), other.kind()) &&
-           LessGeneralIdentifyZeros(identify_zeros(), other.identify_zeros());
+           LessGeneralIdentifyZeros(identify_zeros(), other.identify_zeros()) &&
+           (check_safe_integer() <= other.check_safe_integer());
   }
 
   IdentifyZeros identify_zeros() const { return identify_zeros_; }
+
+  bool check_safe_integer() const { return check_safe_integer_; }
 
  private:
   enum class TruncationKind : uint8_t {
@@ -98,11 +116,15 @@ class Truncation final {
     kWord32,
     kWord64,
     kOddballAndBigIntToNumber,
+    kBooleanAndNullAndBigIntToNumber,
     kAny
   };
 
-  explicit Truncation(TruncationKind kind, IdentifyZeros identify_zeros)
-      : kind_(kind), identify_zeros_(identify_zeros) {}
+  explicit Truncation(TruncationKind kind, IdentifyZeros identify_zeros,
+                      bool check_safe_integer = false)
+      : kind_(kind),
+        identify_zeros_(identify_zeros),
+        check_safe_integer_(check_safe_integer) {}
 
   TruncationKind kind() const { return kind_; }
 
@@ -110,6 +132,7 @@ class Truncation final {
   friend size_t hash_value(const Truncation&);
   TruncationKind kind_;
   IdentifyZeros identify_zeros_;
+  bool check_safe_integer_;
 
   static TruncationKind Generalize(TruncationKind rep1, TruncationKind rep2);
   static IdentifyZeros GeneralizeIdentifyZeros(IdentifyZeros i1,
@@ -249,13 +272,20 @@ class UseInfo {
   static UseInfo CheckedSafeIntTruncatingWord32(
       const FeedbackSource& feedback) {
     DCHECK(Is64());
-    return UseInfo(MachineRepresentation::kWord32, Truncation::Word32(),
+    return UseInfo(MachineRepresentation::kWord32,
+                   Truncation::Word32WithSafeIntCheck(),
                    TypeCheckKind::kAdditiveSafeInteger, feedback);
   }
   static UseInfo CheckedSafeIntAsWord64(const FeedbackSource& feedback) {
     DCHECK(Is64());
-    return UseInfo(MachineRepresentation::kWord64, Truncation::Any(),
+    return UseInfo(MachineRepresentation::kWord64,
+                   Truncation::Any(kDistinguishZeros, true),
                    TypeCheckKind::kAdditiveSafeInteger, feedback);
+  }
+  static UseInfo TruncatingFloat64OrUndefined(
+      IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return UseInfo(MachineRepresentation::kFloat64,
+                   Truncation::BooleanAndNullAndBigIntToNumber(identify_zeros));
   }
   static UseInfo AnyTagged() {
     return UseInfo(MachineRepresentation::kTagged, Truncation::Any());

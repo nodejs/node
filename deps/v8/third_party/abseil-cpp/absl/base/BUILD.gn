@@ -37,7 +37,6 @@ absl_source_set("no_destructor") {
 }
 
 absl_source_set("nullability") {
-  sources = [ "internal/nullability_deprecated.h" ]
   public = [ "nullability.h" ]
   deps = [
     ":config",

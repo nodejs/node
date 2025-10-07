@@ -42,14 +42,8 @@ class ZoneSnapshot;
 
 class V8_EXPORT_PRIVATE Zone final {
  public:
-  Zone(AccountingAllocator* allocator, const char* name,
-       bool support_compression = false);
+  Zone(AccountingAllocator* allocator, const char* name);
   ~Zone();
-
-  // Returns true if the zone supports zone pointer compression.
-  bool supports_compression() const {
-    return COMPRESS_ZONES_BOOL && supports_compression_;
-  }
 
   // Allocate 'size' bytes of uninitialized memory in the Zone; expands the Zone
   // by allocating new segments of memory on demand using AccountingAllocator
@@ -126,8 +120,10 @@ class V8_EXPORT_PRIVATE Zone final {
   template <typename T, typename TypeTag = T[]>
   T* AllocateArray(size_t length) {
     static_assert(alignof(T) <= kAlignmentInBytes);
-    DCHECK_IMPLIES(is_compressed_pointer<T>::value, supports_compression());
-    DCHECK_LT(length, std::numeric_limits<size_t>::max() / sizeof(T));
+    // Defense-in-depth: ensure that the multiplication does not overflow as
+    // that would result in a too-small allocation and (likely) memory
+    // corruption afterwards.
+    CHECK_LT(length, std::numeric_limits<size_t>::max() / sizeof(T));
     return static_cast<T*>(Allocate<TypeTag>(length * sizeof(T)));
   }
 
@@ -267,7 +263,6 @@ class V8_EXPORT_PRIVATE Zone final {
 
   Segment* segment_head_ = nullptr;
   const char* name_;
-  const bool supports_compression_;
   bool sealed_ = false;
 
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS

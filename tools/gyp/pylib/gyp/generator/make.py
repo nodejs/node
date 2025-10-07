@@ -218,7 +218,7 @@ cmd_solink = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o 
 
 quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module = $(LINK.$(TOOLSET)) -bundle $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
-""" % {'python': sys.executable}  # noqa: E501
+""" % {"python": sys.executable}  # noqa: E501
 
 LINK_COMMANDS_ANDROID = """\
 quiet_cmd_alink = AR($(TOOLSET)) $@
@@ -443,21 +443,27 @@ DEPFLAGS = %(makedep_args)s -MF $(depfile).raw
 define fixup_dep
 # The depfile may not exist if the input file didn't have any #includes.
 touch $(depfile).raw
-# Fixup path as in (1).""" +
-    (r"""
+# Fixup path as in (1)."""
+    + (
+        r"""
 sed -e "s|^$(notdir $@)|$@|" -re 's/\\\\([^$$])/\/\1/g' $(depfile).raw >> $(depfile)"""
-    if sys.platform == 'win32' else r"""
-sed -e "s|^$(notdir $@)|$@|" $(depfile).raw >> $(depfile)""") +
-    r"""
+        if sys.platform == "win32"
+        else r"""
+sed -e "s|^$(notdir $@)|$@|" $(depfile).raw >> $(depfile)"""
+    )
+    + r"""
 # Add extra rules as in (2).
 # We remove slashes and replace spaces with new lines;
 # remove blank lines;
-# delete the first line and append a colon to the remaining lines.""" +
-    ("""
+# delete the first line and append a colon to the remaining lines."""
+    + (
+        """
 sed -e 's/\\\\\\\\$$//' -e 's/\\\\\\\\/\\//g' -e 'y| |\\n|' $(depfile).raw |\\"""
-    if sys.platform == 'win32' else """
-sed -e 's|\\\\||' -e 'y| |\\n|' $(depfile).raw |\\""") +
-    r"""
+        if sys.platform == "win32"
+        else """
+sed -e 's|\\\\||' -e 'y| |\\n|' $(depfile).raw |\\"""
+    )
+    + r"""
   grep -v '^$$'                             |\
   sed -e 1d -e 's|$$|:|'                     \
     >> $(depfile)
@@ -616,7 +622,7 @@ cmd_mac_package_framework = %(python)s gyp-mac-tool package-framework "$@" $(4)
 
 quiet_cmd_infoplist = INFOPLIST $@
 cmd_infoplist = $(CC.$(TOOLSET)) -E -P -Wno-trigraphs -x c $(INFOPLIST_DEFINES) "$<" -o "$@"
-""" % {'python': sys.executable}  # noqa: E501
+""" % {"python": sys.executable}  # noqa: E501
 
 
 def WriteRootHeaderSuffixRules(writer):
@@ -733,10 +739,12 @@ def QuoteIfNecessary(string):
         string = '"' + string.replace('"', '\\"') + '"'
     return string
 
+
 def replace_sep(string):
-    if sys.platform == 'win32':
-        string = string.replace('\\\\', '/').replace('\\', '/')
+    if sys.platform == "win32":
+        string = string.replace("\\\\", "/").replace("\\", "/")
     return string
+
 
 def StringToMakefileVariable(string):
     """Convert a string to a value that is acceptable as a make variable name."""
@@ -1439,9 +1447,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
         for obj in objs:
             assert " " not in obj, "Spaces in object filenames not supported (%s)" % obj
-        self.WriteLn(
-            "# Add to the list of files we specially track dependencies for."
-        )
+        self.WriteLn("# Add to the list of files we specially track dependencies for.")
         self.WriteLn("all_deps += $(OBJS)")
         self.WriteLn()
 
@@ -1498,7 +1504,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                     "$(OBJS): GYP_OBJCFLAGS := "
                     "$(DEFS_$(BUILDTYPE)) "
                     "$(INCS_$(BUILDTYPE)) "
-                    "%s " % precompiled_header.GetInclude("m")
+                    "%s "
+                    % precompiled_header.GetInclude("m")
                     + "$(CFLAGS_$(BUILDTYPE)) "
                     "$(CFLAGS_C_$(BUILDTYPE)) "
                     "$(CFLAGS_OBJC_$(BUILDTYPE))"
@@ -1507,7 +1514,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                     "$(OBJS): GYP_OBJCXXFLAGS := "
                     "$(DEFS_$(BUILDTYPE)) "
                     "$(INCS_$(BUILDTYPE)) "
-                    "%s " % precompiled_header.GetInclude("mm")
+                    "%s "
+                    % precompiled_header.GetInclude("mm")
                     + "$(CFLAGS_$(BUILDTYPE)) "
                     "$(CFLAGS_CC_$(BUILDTYPE)) "
                     "$(CFLAGS_OBJCC_$(BUILDTYPE))"
@@ -1880,7 +1888,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 self.flavor not in ("mac", "openbsd", "netbsd", "win")
                 and not self.is_standalone_static_library
             ):
-                if self.flavor in ("linux", "android"):
+                if self.flavor in ("linux", "android", "openharmony"):
                     self.WriteMakeRule(
                         [self.output_binary],
                         link_deps,
@@ -1894,7 +1902,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                         part_of_all,
                         postbuilds=postbuilds,
                     )
-            elif self.flavor in ("linux", "android"):
+            elif self.flavor in ("linux", "android", "openharmony"):
                 self.WriteMakeRule(
                     [self.output_binary],
                     link_deps,
@@ -2383,9 +2391,13 @@ def WriteAutoRegenerationRule(params, root_makefile, makefile_name, build_files)
             "deps": replace_sep(
                 " ".join(sorted(SourceifyAndQuoteSpaces(bf) for bf in build_files))
             ),
-            "cmd": replace_sep(gyp.common.EncodePOSIXShellList(
-                [gyp_binary, "-fmake"] + gyp.RegenerateFlags(options) + build_files_args
-            )),
+            "cmd": replace_sep(
+                gyp.common.EncodePOSIXShellList(
+                    [gyp_binary, "-fmake"]
+                    + gyp.RegenerateFlags(options)
+                    + build_files_args
+                )
+            ),
         }
     )
 
@@ -2458,8 +2470,8 @@ def GenerateOutput(target_list, target_dicts, data, params):
     # wasm-ld doesn't support --start-group/--end-group
     link_commands = LINK_COMMANDS_LINUX
     if flavor in ["wasi", "wasm"]:
-        link_commands = link_commands.replace(' -Wl,--start-group', '').replace(
-            ' -Wl,--end-group', ''
+        link_commands = link_commands.replace(" -Wl,--start-group", "").replace(
+            " -Wl,--end-group", ""
         )
 
     CC_target = replace_sep(GetEnvironFallback(("CC_target", "CC"), "$(CC)"))

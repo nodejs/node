@@ -45,23 +45,13 @@ function createFuzzTest(fake_db, settings, inputFiles) {
 }
 
 function execFile(jsFile) {
-  execSync("node " + jsFile, {stdio: ['pipe']});
+  execSync("node --allow-natives-syntax " + jsFile, {stdio: ['pipe']});
 }
 
 describe('Regression tests', () => {
   beforeEach(() => {
     helpers.deterministicRandom(sandbox);
-
-    this.settings = {
-      ADD_VAR_OR_OBJ_MUTATIONS: 0.0,
-      MUTATE_CROSSOVER_INSERT: 0.0,
-      MUTATE_EXPRESSIONS: 0.0,
-      MUTATE_FUNCTION_CALLS: 0.0,
-      MUTATE_NUMBERS: 0.0,
-      MUTATE_VARIABLES: 0.0,
-      engine: 'v8',
-      testing: true,
-    }
+    this.settings = helpers.zeroSettings();
   });
 
   afterEach(() => {
@@ -474,11 +464,6 @@ describe('DB tests', () => {
     const source = helpers.loadTestData('regress/db/input/input.js');
     mutateDb.process(source);
     mutateDb.writeIndex();
-    const expressionFile = path.join(tmpOut, 'CallExpression/113f1844.json');
-    const content = fs.readFileSync(expressionFile, 'utf-8');
-    assert.deepEqual(
-        '{"type":"CallExpression","source":"Object.assign(VAR_0, VAR_1)",' +
-        '"path":"regress/db/input/input.js","dependencies":["VAR_0","VAR_1"]}',
-        content);
+    helpers.assertExpectedPath('regress/db/assign_expected', tmpOut);
   });
 });

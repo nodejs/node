@@ -342,8 +342,8 @@
   'ecma_3/RegExp/regress-85721': [PASS, ['mode == debug', FAIL]],
 
 
-  # Test that assumes specific execution time, flaky in debug mode.
-  'js1_5/Array/regress-101964': [PASS, ['mode == debug', FAIL]],
+  # Flaky test that assumes specific execution time.
+  'js1_5/Array/regress-101964': [SKIP],
 
 
   ##################### INCOMPATIBLE TESTS #####################

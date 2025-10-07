@@ -42,7 +42,7 @@ DEFINE_DEOPT_ENTRY_ACCESSORS(NodeId, Smi)
 #endif  // DEBUG
 
 Tagged<SharedFunctionInfo> DeoptimizationData::GetSharedFunctionInfo() const {
-  return Cast<i::SharedFunctionInfoWrapper>(WrappedSharedFunctionInfo())
+  return TrustedCast<i::SharedFunctionInfoWrapper>(WrappedSharedFunctionInfo())
       ->shared_info();
 }
 
@@ -88,18 +88,20 @@ inline Tagged<MaybeObject> DeoptimizationLiteralArray::get_raw(
 
 inline void DeoptimizationLiteralArray::set(int index, Tagged<Object> value) {
   Tagged<MaybeObject> maybe = value;
-  if (IsBytecodeArray(value)) {
+  if (IsAnyHole(value)) {
+    // ok.
+  } else if (Tagged<BytecodeArray> bytecode; TryCast(value, &bytecode)) {
     // The BytecodeArray lives in trusted space, so we cannot reference it from
     // a fixed array. However, we can use the BytecodeArray's wrapper object,
     // which exists for exactly this purpose.
-    maybe = Cast<BytecodeArray>(value)->wrapper();
+    maybe = bytecode->wrapper();
 #ifdef V8_ENABLE_SANDBOX
-  } else if (IsRegExpData(value)) {
+  } else if (Tagged<RegExpData> data; TryCast(value, &data)) {
     // Store the RegExpData wrapper if the sandbox is enabled, as data lives in
     // trusted space. We can't store a tagged value to a trusted space object
     // inside the sandbox, we'd need to go through the trusted pointer table.
     // Otherwise we can store the RegExpData object directly.
-    maybe = Cast<RegExpData>(value)->wrapper();
+    maybe = data->wrapper();
 #endif
   } else if (Code::IsWeakObjectInDeoptimizationLiteralArray(value)) {
     maybe = MakeWeak(maybe);

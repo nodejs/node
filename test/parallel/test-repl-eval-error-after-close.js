@@ -1,8 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const repl = require('node:repl');
-const stream = require('node:stream');
+const { startNewREPLServer } = require('../common/repl');
 const assert = require('node:assert');
 
 // This test checks that an eval function returning an error in its callback
@@ -13,26 +12,18 @@ const assert = require('node:assert');
   const close$ = Promise.withResolvers();
   const eval$ = Promise.withResolvers();
 
-  const input = new stream.PassThrough();
-  const output = new stream.PassThrough();
-
-  const replServer = repl.start({
-    input,
-    output,
+  const { replServer, output } = startNewREPLServer({
     eval(_cmd, _context, _file, cb) {
       close$.promise.then(() => {
         cb(new Error('Error returned from the eval callback'));
         eval$.resolve();
       });
     },
+  }, {
+    disableDomainErrorAssert: true,
   });
 
-  let outputStr = '';
-  output.on('data', (data) => {
-    outputStr += data;
-  });
-
-  input.write('\n');
+  replServer.write('\n');
 
   replServer.close();
   close$.resolve();
@@ -41,5 +32,5 @@ const assert = require('node:assert');
 
   await eval$.promise;
 
-  assert.match(outputStr, /Uncaught Error: Error returned from the eval callback/);
+  assert.match(output.accumulator, /Uncaught Error: Error returned from the eval callback/);
 })().then(common.mustCall());

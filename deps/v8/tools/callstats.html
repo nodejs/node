@@ -2621,8 +2621,21 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
   <section class="panel alwaysVisible">
     <h2>Instructions</h2>
     <div class="panelBody">
+      <ul>
+        <li>Build chrome with <a href="https://source.chromium.org/chromium/chromium/src/+/main:v8/gni/v8.gni;l=116?q=v8_enable_runtime_call_stats"><code>v8_enable_runtime_call_stats = true</code></a>.</li>
+        <li>Use chrome canary builds which have RCS enabled by default.</li>
+      </ul>
+      <h3>Crossbench</h3>
       <ol>
-        <li>Build chrome.</li>
+        <li>Run <a href="https://chromium.googlesource.com/crossbench"><code>crossbench</code></a> with <code>--probe=v8.rcs</code>:
+          <pre>
+            $CHROMIUM_DIR/tools/perf/cb loading \
+              --browser=$CHROMIUM_DIR/out/release/chrome \
+              --url=http://v8.dev,10s \
+              --probe=v8.rcs
+            </pre>
+        </li>
+        <li>Open the generated <code>*.rcs.txt</code> files above.</li>
       </ol>
       <h3>Telemetry benchmark</h3>
       <ol>

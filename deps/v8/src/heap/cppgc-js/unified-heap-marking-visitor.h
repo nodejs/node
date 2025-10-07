@@ -85,6 +85,7 @@ class V8_EXPORT_PRIVATE ConcurrentUnifiedHeapMarkingVisitor
  protected:
   bool DeferTraceToMutatorThreadIfConcurrent(const void*, cppgc::TraceCallback,
                                              size_t) final;
+  bool IsConcurrent() const final { return true; }
 
  private:
   // Visitor owns the local worklist. All remaining items are published on
@@ -94,7 +95,7 @@ class V8_EXPORT_PRIVATE ConcurrentUnifiedHeapMarkingVisitor
   // attached.
   std::unique_ptr<MarkingWorklists::Local> local_marking_worklist_;
   UnifiedHeapMarkingState concurrent_unified_heap_marking_state_;
-
+  std::optional<SetCurrentIsolateScope> current_isolate_scope_;
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   IsolateGroup* saved_isolate_group_ = nullptr;
 #endif

@@ -13,24 +13,28 @@ namespace struct_types_unittest {
 class StructTypesTest : public TestWithZone {};
 
 TEST_F(StructTypesTest, Empty) {
-  StructType::Builder builder(this->zone(), 0, false);
+  StructType::Builder builder(this->zone(), 0, false, false);
   StructType* type = builder.Build();
   EXPECT_EQ(0u, type->total_fields_size());
 
-  StructType::Builder desc_builder(this->zone(), 0, true);
+  StructType::Builder shared_builder(this->zone(), 0, false, true);
+  StructType* shared_type = builder.Build();
+  EXPECT_EQ(0u, shared_type->total_fields_size());
+
+  StructType::Builder desc_builder(this->zone(), 0, true, false);
   StructType* desc_type = desc_builder.Build();
   EXPECT_EQ(uint32_t{kTaggedSize}, desc_type->total_fields_size());
 }
 
 TEST_F(StructTypesTest, OneField) {
-  StructType::Builder builder(this->zone(), 1, false);
+  StructType::Builder builder(this->zone(), 1, false, false);
   builder.AddField(kWasmI32, true);
   StructType* type = builder.Build();
   uint32_t expected = std::max(kUInt32Size, kTaggedSize);
   EXPECT_EQ(expected, type->total_fields_size());
   EXPECT_EQ(0u, type->field_offset(0));
 
-  StructType::Builder desc_builder(this->zone(), 1, true);
+  StructType::Builder desc_builder(this->zone(), 1, true, false);
   desc_builder.AddField(kWasmI32, true);
   StructType* desc_type = desc_builder.Build();
   EXPECT_EQ(uint32_t{kTaggedSize + std::max(kUInt32Size, kTaggedSize)},
@@ -39,7 +43,7 @@ TEST_F(StructTypesTest, OneField) {
 }
 
 TEST_F(StructTypesTest, Packing) {
-  StructType::Builder builder(this->zone(), 5, false);
+  StructType::Builder builder(this->zone(), 5, false, false);
   builder.AddField(kWasmI64, true);
   builder.AddField(kWasmI8, true);
   builder.AddField(kWasmI32, true);
@@ -55,7 +59,7 @@ TEST_F(StructTypesTest, Packing) {
 }
 
 TEST_F(StructTypesTest, CopyingOffsets) {
-  StructType::Builder builder(this->zone(), 5, false);
+  StructType::Builder builder(this->zone(), 5, false, false);
   builder.AddField(kWasmI64, true);
   builder.AddField(kWasmI8, true);
   builder.AddField(kWasmI32, true);
@@ -63,7 +67,8 @@ TEST_F(StructTypesTest, CopyingOffsets) {
   builder.AddField(kWasmI8, true);
   StructType* type = builder.Build();
 
-  StructType::Builder copy_builder(this->zone(), type->field_count(), false);
+  StructType::Builder copy_builder(this->zone(), type->field_count(), false,
+                                   false);
   for (uint32_t i = 0; i < type->field_count(); i++) {
     copy_builder.AddField(type->field(i), type->mutability(i),
                           type->field_offset(i));
@@ -75,6 +80,23 @@ TEST_F(StructTypesTest, CopyingOffsets) {
     EXPECT_EQ(type->field_offset(i), copy->field_offset(i));
   }
   EXPECT_EQ(type->total_fields_size(), copy->total_fields_size());
+}
+
+TEST_F(StructTypesTest, SharedStruct) {
+  StructType::Builder builder(this->zone(), 4, false, true);
+  builder.AddField(kWasmI8, true);
+  builder.AddField(kWasmI64, true);
+  builder.AddField(kWasmI16, true);
+  builder.AddField(kWasmF64, true);
+  StructType* type = builder.Build();
+  EXPECT_EQ(24u, type->total_fields_size());
+  EXPECT_EQ(0u, type->field_offset(0));
+  // i64 is 8-Byte-aligned in shared structs.
+  EXPECT_EQ(8u, type->field_offset(1));
+  // The i16 uses the gap caused by the i64 alignment.
+  EXPECT_EQ(2u, type->field_offset(2));
+  // f64 also uses 8-Byte-alignment.
+  EXPECT_EQ(16u, type->field_offset(3));
 }
 
 }  // namespace struct_types_unittest

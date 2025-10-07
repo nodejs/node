@@ -26,8 +26,7 @@ using TestInstrSeq = v8::internal::compiler::InstructionSequence;
 class InstructionTester : public HandleAndZoneScope {
  public:  // We're all friends here.
   InstructionTester()
-      : HandleAndZoneScope(kCompressGraphZone),
-        graph(zone()),
+      : graph(zone()),
         schedule(zone()),
         common(zone()),
         machine(zone()),

@@ -28,19 +28,29 @@ enum class SeaFlags : uint32_t {
   kUseSnapshot = 1 << 1,
   kUseCodeCache = 1 << 2,
   kIncludeAssets = 1 << 3,
+  kIncludeExecArgv = 1 << 4,
+};
+
+enum class SeaExecArgvExtension : uint8_t {
+  kNone = 0,
+  kEnv = 1,
+  kCli = 2,
 };
 
 struct SeaResource {
   SeaFlags flags = SeaFlags::kDefault;
+  SeaExecArgvExtension exec_argv_extension = SeaExecArgvExtension::kEnv;
   std::string_view code_path;
   std::string_view main_code_or_snapshot;
   std::optional<std::string_view> code_cache;
   std::unordered_map<std::string_view, std::string_view> assets;
+  std::vector<std::string_view> exec_argv;
 
   bool use_snapshot() const;
   bool use_code_cache() const;
 
-  static constexpr size_t kHeaderSize = sizeof(kMagic) + sizeof(SeaFlags);
+  static constexpr size_t kHeaderSize =
+      sizeof(kMagic) + sizeof(SeaFlags) + sizeof(SeaExecArgvExtension);
 };
 
 bool IsSingleExecutable();

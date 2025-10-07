@@ -106,6 +106,7 @@ class IC {
                            DirectHandle<Name> name);
   bool UpdateMegaDOMIC(const MaybeObjectDirectHandle& handler,
                        DirectHandle<Name> name);
+  bool UpdateOneMapManyNamesIC(DirectHandle<Name> new_name);
   bool UpdatePolymorphicIC(DirectHandle<Name> name,
                            const MaybeObjectDirectHandle& handler);
   void UpdateMegamorphicCache(DirectHandle<Map> map, DirectHandle<Name> name,
@@ -248,8 +249,9 @@ class KeyedLoadIC : public LoadIC {
  private:
   friend class IC;
 
-  Handle<Object> LoadElementHandler(DirectHandle<Map> receiver_map,
-                                    KeyedAccessLoadMode new_load_mode);
+  Handle<Object> LoadElementHandler(
+      DirectHandle<Map> receiver_map, KeyedAccessLoadMode new_load_mode,
+      MaybeDirectHandle<Map> maybe_transition_target = {});
 
   void LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
                                       MaybeObjectHandles* handlers,

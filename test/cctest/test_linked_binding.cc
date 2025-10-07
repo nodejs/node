@@ -9,7 +9,7 @@ void InitializeBinding(v8::Local<v8::Object> exports,
                        v8::Local<v8::Value> module,
                        v8::Local<v8::Context> context,
                        void* priv) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   exports
       ->Set(context,
             v8::String::NewFromOneByte(isolate,
@@ -51,7 +51,7 @@ void InitializeLocalBinding(v8::Local<v8::Object> exports,
                             v8::Local<v8::Context> context,
                             void* priv) {
   ++*static_cast<int*>(priv);
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   exports
       ->Set(context,
             v8::String::NewFromOneByte(isolate,

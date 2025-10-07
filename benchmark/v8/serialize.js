@@ -4,8 +4,8 @@ const common = require('../common.js');
 const v8 = require('v8');
 
 const bench = common.createBenchmark(main, {
-  len: [256, 1024 * 16, 1024 * 512],
-  n: [1e6],
+  len: [256, 1024 * 16],
+  n: [1e5],
 });
 
 function main({ n, len }) {

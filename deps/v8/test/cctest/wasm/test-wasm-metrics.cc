@@ -222,7 +222,6 @@ class TestCompileResolver : public CompilationResultResolver {
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate()); \
   v8::Context::Scope context_scope(context);                            \
   Isolate* i_isolate = CcTest::i_isolate();                             \
-  testing::SetupIsolateForWasmModule(i_isolate);                        \
   RunCompile_##name(&platform, i_isolate);
 
 #define COMPILE_TEST(name)                                                     \

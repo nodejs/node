@@ -5,6 +5,7 @@ const MockAgent = require('./mock-agent')
 const { SnapshotRecorder } = require('./snapshot-recorder')
 const WrapHandler = require('../handler/wrap-handler')
 const { InvalidArgumentError, UndiciError } = require('../core/errors')
+const { validateSnapshotMode } = require('./snapshot-utils')
 
 const kSnapshotRecorder = Symbol('kSnapshotRecorder')
 const kSnapshotMode = Symbol('kSnapshotMode')
@@ -12,7 +13,7 @@ const kSnapshotPath = Symbol('kSnapshotPath')
 const kSnapshotLoaded = Symbol('kSnapshotLoaded')
 const kRealAgent = Symbol('kRealAgent')
 
-// Static flag to ensure warning is only emitted once
+// Static flag to ensure warning is only emitted once per process
 let warningEmitted = false
 
 class SnapshotAgent extends MockAgent {
@@ -26,26 +27,24 @@ class SnapshotAgent extends MockAgent {
       warningEmitted = true
     }
 
-    const mockOptions = { ...opts }
-    delete mockOptions.mode
-    delete mockOptions.snapshotPath
+    const {
+      mode = 'record',
+      snapshotPath = null,
+      ...mockAgentOpts
+    } = opts
 
-    super(mockOptions)
+    super(mockAgentOpts)
 
-    // Validate mode option
-    const validModes = ['record', 'playback', 'update']
-    const mode = opts.mode || 'record'
-    if (!validModes.includes(mode)) {
-      throw new InvalidArgumentError(`Invalid snapshot mode: ${mode}. Must be one of: ${validModes.join(', ')}`)
-    }
+    validateSnapshotMode(mode)
 
     // Validate snapshotPath is provided when required
-    if ((mode === 'playback' || mode === 'update') && !opts.snapshotPath) {
+    if ((mode === 'playback' || mode === 'update') && !snapshotPath) {
       throw new InvalidArgumentError(`snapshotPath is required when mode is '${mode}'`)
     }
 
     this[kSnapshotMode] = mode
-    this[kSnapshotPath] = opts.snapshotPath
+    this[kSnapshotPath] = snapshotPath
+
     this[kSnapshotRecorder] = new SnapshotRecorder({
       snapshotPath: this[kSnapshotPath],
       mode: this[kSnapshotMode],
@@ -85,7 +84,7 @@ class SnapshotAgent extends MockAgent {
       // Ensure snapshots are loaded
       if (!this[kSnapshotLoaded]) {
         // Need to load asynchronously, delegate to async version
-        return this._asyncDispatch(opts, handler)
+        return this.#asyncDispatch(opts, handler)
       }
 
       // Try to find existing snapshot (synchronous)
@@ -93,10 +92,10 @@ class SnapshotAgent extends MockAgent {
 
       if (snapshot) {
         // Use recorded response (synchronous)
-        return this._replaySnapshot(snapshot, handler)
+        return this.#replaySnapshot(snapshot, handler)
       } else if (mode === 'update') {
         // Make real request and record it (async required)
-        return this._recordAndReplay(opts, handler)
+        return this.#recordAndReplay(opts, handler)
       } else {
         // Playback mode but no snapshot found
         const error = new UndiciError(`No snapshot found for ${opts.method || 'GET'} ${opts.path}`)
@@ -108,16 +107,14 @@ class SnapshotAgent extends MockAgent {
       }
     } else if (mode === 'record') {
       // Record mode - make real request and save response (async required)
-      return this._recordAndReplay(opts, handler)
-    } else {
-      throw new InvalidArgumentError(`Invalid snapshot mode: ${mode}. Must be 'record', 'playback', or 'update'`)
+      return this.#recordAndReplay(opts, handler)
     }
   }
 
   /**
    * Async version of dispatch for when we need to load snapshots first
    */
-  async _asyncDispatch (opts, handler) {
+  async #asyncDispatch (opts, handler) {
     await this.loadSnapshots()
     return this.dispatch(opts, handler)
   }
@@ -125,7 +122,7 @@ class SnapshotAgent extends MockAgent {
   /**
    * Records a real request and replays the response
    */
-  _recordAndReplay (opts, handler) {
+  #recordAndReplay (opts, handler) {
     const responseData = {
       statusCode: null,
       headers: {},
@@ -180,45 +177,46 @@ class SnapshotAgent extends MockAgent {
 
   /**
    * Replays a recorded response
+   *
+   * @param {Object} snapshot - The recorded snapshot to replay.
+   * @param {Object} handler - The handler to call with the response data.
+   * @returns {void}
    */
-  _replaySnapshot (snapshot, handler) {
-    return new Promise((resolve) => {
-      // Simulate the response
-      setImmediate(() => {
-        try {
-          const { response } = snapshot
+  #replaySnapshot (snapshot, handler) {
+    try {
+      const { response } = snapshot
 
-          const controller = {
-            pause () {},
-            resume () {},
-            abort (reason) {
-              this.aborted = true
-              this.reason = reason
-            },
+      const controller = {
+        pause () { },
+        resume () { },
+        abort (reason) {
+          this.aborted = true
+          this.reason = reason
+        },
 
-            aborted: false,
-            paused: false
-          }
+        aborted: false,
+        paused: false
+      }
 
-          handler.onRequestStart(controller)
+      handler.onRequestStart(controller)
 
-          handler.onResponseStart(controller, response.statusCode, response.headers)
+      handler.onResponseStart(controller, response.statusCode, response.headers)
 
-          // Body is always stored as base64 string
-          const body = Buffer.from(response.body, 'base64')
-          handler.onResponseData(controller, body)
+      // Body is always stored as base64 string
+      const body = Buffer.from(response.body, 'base64')
+      handler.onResponseData(controller, body)
 
-          handler.onResponseEnd(controller, response.trailers)
-          resolve()
-        } catch (error) {
-          handler.onError?.(error)
-        }
-      })
-    })
+      handler.onResponseEnd(controller, response.trailers)
+    } catch (error) {
+      handler.onError?.(error)
+    }
   }
 
   /**
    * Loads snapshots from file
+   *
+   * @param {string} [filePath] - Optional file path to load snapshots from.
+   * @returns {Promise<void>} - Resolves when snapshots are loaded.
    */
   async loadSnapshots (filePath) {
     await this[kSnapshotRecorder].loadSnapshots(filePath || this[kSnapshotPath])
@@ -226,12 +224,15 @@ class SnapshotAgent extends MockAgent {
 
     // In playback mode, set up MockAgent interceptors for all snapshots
     if (this[kSnapshotMode] === 'playback') {
-      this._setupMockInterceptors()
+      this.#setupMockInterceptors()
     }
   }
 
   /**
    * Saves snapshots to file
+   *
+   * @param {string} [filePath] - Optional file path to save snapshots to.
+   * @returns {Promise<void>} - Resolves when snapshots are saved.
    */
   async saveSnapshots (filePath) {
     return this[kSnapshotRecorder].saveSnapshots(filePath || this[kSnapshotPath])
@@ -248,9 +249,9 @@ class SnapshotAgent extends MockAgent {
    *
    * Called automatically when loading snapshots in playback mode.
    *
-   * @private
+   * @returns {void}
    */
-  _setupMockInterceptors () {
+  #setupMockInterceptors () {
     for (const snapshot of this[kSnapshotRecorder].getSnapshots()) {
       const { request, responses, response } = snapshot
       const url = new URL(request.url)
@@ -275,6 +276,7 @@ class SnapshotAgent extends MockAgent {
 
   /**
    * Gets the snapshot recorder
+   * @return {SnapshotRecorder} - The snapshot recorder instance
    */
   getRecorder () {
     return this[kSnapshotRecorder]
@@ -282,6 +284,7 @@ class SnapshotAgent extends MockAgent {
 
   /**
    * Gets the current mode
+   * @return {import('./snapshot-utils').SnapshotMode} - The current snapshot mode
    */
   getMode () {
     return this[kSnapshotMode]
@@ -289,6 +292,7 @@ class SnapshotAgent extends MockAgent {
 
   /**
    * Clears all snapshots
+   * @returns {void}
    */
   clearSnapshots () {
     this[kSnapshotRecorder].clear()
@@ -296,6 +300,7 @@ class SnapshotAgent extends MockAgent {
 
   /**
    * Resets call counts for all snapshots (useful for test cleanup)
+   * @returns {void}
    */
   resetCallCounts () {
     this[kSnapshotRecorder].resetCallCounts()
@@ -303,6 +308,8 @@ class SnapshotAgent extends MockAgent {
 
   /**
    * Deletes a specific snapshot by request options
+   * @param {import('./snapshot-recorder').SnapshotRequestOptions} requestOpts - Request options to identify the snapshot
+   * @return {Promise<boolean>} - Returns true if the snapshot was deleted, false if not found
    */
   deleteSnapshot (requestOpts) {
     return this[kSnapshotRecorder].deleteSnapshot(requestOpts)
@@ -310,6 +317,7 @@ class SnapshotAgent extends MockAgent {
 
   /**
    * Gets information about a specific snapshot
+   * @returns {import('./snapshot-recorder').SnapshotInfo|null} - Snapshot information or null if not found
    */
   getSnapshotInfo (requestOpts) {
     return this[kSnapshotRecorder].getSnapshotInfo(requestOpts)
@@ -317,13 +325,19 @@ class SnapshotAgent extends MockAgent {
 
   /**
    * Replaces all snapshots with new data (full replacement)
+   * @param {Array<{hash: string; snapshot: import('./snapshot-recorder').SnapshotEntryshotEntry}>|Record<string, import('./snapshot-recorder').SnapshotEntry>} snapshotData - New snapshot data to replace existing snapshots
+   * @returns {void}
    */
   replaceSnapshots (snapshotData) {
     this[kSnapshotRecorder].replaceSnapshots(snapshotData)
   }
 
+  /**
+   * Closes the agent, saving snapshots and cleaning up resources.
+   *
+   * @returns {Promise<void>}
+   */
   async close () {
-    // Close recorder (saves snapshots and cleans up timers)
     await this[kSnapshotRecorder].close()
     await this[kRealAgent]?.close()
     await super.close()

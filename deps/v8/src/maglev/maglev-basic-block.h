@@ -31,6 +31,7 @@ class BasicBlock {
         state_(state) {}
 
   NodeIdT first_id() const {
+    DCHECK(!is_dead());
     if (has_phi()) return phis()->first()->id();
     return first_non_phi_id();
   }
@@ -57,7 +58,10 @@ class BasicBlock {
     return control_node()->id();
   }
 
-  ZoneVector<Node*>& nodes() { return nodes_; }
+  ZoneVector<Node*>& nodes() {
+    DCHECK(!is_dead());
+    return nodes_;
+  }
 
   ControlNode* control_node() const { return control_node_; }
   void set_control_node(ControlNode* control_node) {
@@ -73,17 +77,16 @@ class BasicBlock {
   }
 
   // Moves all nodes after |node| to the resulting ZoneVector, while keeping all
-  // nodes before |node| in the basic block. |node| itself is dropped.
+  // nodes before |node| (inclusive) in the basic block.
   ZoneVector<Node*> Split(Node* node, Zone* zone) {
     size_t split = 0;
     for (; split < nodes_.size(); split++) {
       if (nodes_[split] == node) break;
     }
     DCHECK_NE(split, nodes_.size());
-    size_t after_split = split + 1;
-    ZoneVector<Node*> result(nodes_.size() - after_split, zone);
+    ZoneVector<Node*> result(nodes_.size() - split, zone);
     for (size_t i = 0; i < result.size(); i++) {
-      result[i] = nodes_[i + after_split];
+      result[i] = nodes_[i + split];
     }
     nodes_.resize(split);
     return result;
@@ -194,6 +197,25 @@ class BasicBlock {
         functor(predecessor_at(i));
       }
     }
+  }
+
+  template <typename Func>
+  bool ForAllPredecessors(Func&& functor) const {
+    if (type_ == kEdgeSplit || type_ == kOther) {
+      BasicBlock* predecessor_block = predecessor();
+      if (predecessor_block) {
+        if (!functor(predecessor_block)) {
+          return false;
+        }
+      }
+    } else {
+      for (int i = 0; i < predecessor_count(); i++) {
+        if (!functor(predecessor_at(i))) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   template <typename Func>

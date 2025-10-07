@@ -78,7 +78,11 @@ class V8_EXPORT OptimizingCompileTaskExecutor {
   ~OptimizingCompileTaskExecutor();
 
   // Creates Job with PostJob.
-  void EnsureInitialized();
+  void EnsureStarted();
+
+  // Destroys the Job. Invoked after the last isolate in the IsolateGroup tears
+  // down.
+  void Stop();
 
   // Invokes and runs Turbofan for this particular job.
   void RunCompilationJob(OptimizingCompileTaskState& task_state,

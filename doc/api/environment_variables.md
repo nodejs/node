@@ -18,7 +18,7 @@ For more details refer to the [`process.env` documentation][].
 
 Set of utilities for dealing with additional environment variables defined in `.env` files.
 
-> Stability: 1.1 - Active development
+> Stability: 2 - Stable
 
 <!--introduced_in=v20.12.0-->
 
@@ -96,10 +96,10 @@ For example:
     MY_VAR_B   =    '   my variable b   '
 ```
 
-will be treaded identically to:
+will be treated identically to:
 
 ```text
-MY_VAR_A = my variable
+MY_VAR_A = my variable a
 MY_VAR_B = '   my variable b   '
 ```
 

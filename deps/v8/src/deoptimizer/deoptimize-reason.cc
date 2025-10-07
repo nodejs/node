@@ -9,8 +9,8 @@ namespace internal {
 
 std::ostream& operator<<(std::ostream& os, DeoptimizeReason reason) {
   switch (reason) {
-#define DEOPTIMIZE_REASON(Name, message) \
-  case DeoptimizeReason::k##Name:        \
+#define DEOPTIMIZE_REASON(Name, message, ...) \
+  case DeoptimizeReason::k##Name:             \
     return os << #Name;
     DEOPTIMIZE_REASON_LIST(DEOPTIMIZE_REASON)
 #undef DEOPTIMIZE_REASON
@@ -24,7 +24,7 @@ size_t hash_value(DeoptimizeReason reason) {
 
 char const* DeoptimizeReasonToString(DeoptimizeReason reason) {
   static char const* kDeoptimizeReasonStrings[] = {
-#define DEOPTIMIZE_REASON(Name, message) message,
+#define DEOPTIMIZE_REASON(Name, message, ...) message,
       DEOPTIMIZE_REASON_LIST(DEOPTIMIZE_REASON)
 #undef DEOPTIMIZE_REASON
   };

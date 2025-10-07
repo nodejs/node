@@ -478,3 +478,163 @@ test('Assert class non strict with simple diff', () => {
     );
   }
 });
+
+// Shared setup for skipPrototype tests
+{
+  const message = 'Expected values to be strictly deep-equal:\n' +
+  '+ actual - expected\n' +
+  '\n' +
+  '  [\n' +
+  '    1,\n' +
+  '    2,\n' +
+  '    3,\n' +
+  '    4,\n' +
+  '    5,\n' +
+  '+   6,\n' +
+  '-   9,\n' +
+  '    7\n' +
+  '  ]\n';
+
+  function CoolClass(name) { this.name = name; }
+
+  function AwesomeClass(name) { this.name = name; }
+
+  class Modern { constructor(value) { this.value = value; } }
+  class Legacy { constructor(value) { this.value = value; } }
+
+  const cool = new CoolClass('Assert is inspiring');
+  const awesome = new AwesomeClass('Assert is inspiring');
+  const modern = new Modern(42);
+  const legacy = new Legacy(42);
+
+  test('Assert class strict with skipPrototype', () => {
+    const assertInstance = new Assert({ skipPrototype: true });
+
+    assert.throws(
+      () => assertInstance.deepEqual([1, 2, 3, 4, 5, 6, 7], [1, 2, 3, 4, 5, 9, 7]),
+      { message }
+    );
+
+    assertInstance.deepEqual(cool, awesome);
+    assertInstance.deepStrictEqual(cool, awesome);
+    assertInstance.deepEqual(modern, legacy);
+    assertInstance.deepStrictEqual(modern, legacy);
+
+    const cool2 = new CoolClass('Soooo coooool');
+    assert.throws(
+      () => assertInstance.deepStrictEqual(cool, cool2),
+      { code: 'ERR_ASSERTION' }
+    );
+
+    const nested1 = { obj: new CoolClass('test'), arr: [1, 2, 3] };
+    const nested2 = { obj: new AwesomeClass('test'), arr: [1, 2, 3] };
+    assertInstance.deepStrictEqual(nested1, nested2);
+
+    const arr = new Uint8Array([1, 2, 3]);
+    const buf = Buffer.from([1, 2, 3]);
+    assertInstance.deepStrictEqual(arr, buf);
+  });
+
+  test('Assert class non strict with skipPrototype', () => {
+    const assertInstance = new Assert({ strict: false, skipPrototype: true });
+
+    assert.throws(
+      () => assertInstance.deepStrictEqual([1, 2, 3, 4, 5, 6, 7], [1, 2, 3, 4, 5, 9, 7]),
+      { message }
+    );
+
+    assertInstance.deepStrictEqual(cool, awesome);
+    assertInstance.deepStrictEqual(modern, legacy);
+  });
+
+  test('Assert class skipPrototype with complex objects', () => {
+    const assertInstance = new Assert({ skipPrototype: true });
+
+    function ComplexAwesomeClass(name, age) {
+      this.name = name;
+      this.age = age;
+      this.settings = {
+        theme: 'dark',
+        lang: 'en'
+      };
+    }
+
+    function ComplexCoolClass(name, age) {
+      this.name = name;
+      this.age = age;
+      this.settings = {
+        theme: 'dark',
+        lang: 'en'
+      };
+    }
+
+    const awesome1 = new ComplexAwesomeClass('Foo', 30);
+    const cool1 = new ComplexCoolClass('Foo', 30);
+
+    assertInstance.deepStrictEqual(awesome1, cool1);
+
+    const cool2 = new ComplexCoolClass('Foo', 30);
+    cool2.settings.theme = 'light';
+
+    assert.throws(
+      () => assertInstance.deepStrictEqual(awesome1, cool2),
+      { code: 'ERR_ASSERTION' }
+    );
+  });
+
+  test('Assert class skipPrototype with arrays and special objects', () => {
+    const assertInstance = new Assert({ skipPrototype: true });
+
+    const arr1 = [1, 2, 3];
+    const arr2 = new Array(1, 2, 3);
+    assertInstance.deepStrictEqual(arr1, arr2);
+
+    const date1 = new Date('2023-01-01');
+    const date2 = new Date('2023-01-01');
+    assertInstance.deepStrictEqual(date1, date2);
+
+    const regex1 = /test/g;
+    const regex2 = new RegExp('test', 'g');
+    assertInstance.deepStrictEqual(regex1, regex2);
+
+    const date3 = new Date('2023-01-02');
+    assert.throws(
+      () => assertInstance.deepStrictEqual(date1, date3),
+      { code: 'ERR_ASSERTION' }
+    );
+  });
+
+  test('Assert class skipPrototype with notDeepStrictEqual', () => {
+    const assertInstance = new Assert({ skipPrototype: true });
+
+    assert.throws(
+      () => assertInstance.notDeepStrictEqual(cool, awesome),
+      { code: 'ERR_ASSERTION' }
+    );
+
+    const notAwesome = new AwesomeClass('Not so awesome');
+    assertInstance.notDeepStrictEqual(cool, notAwesome);
+
+    const defaultAssertInstance = new Assert({ skipPrototype: false });
+    defaultAssertInstance.notDeepStrictEqual(cool, awesome);
+  });
+
+  test('Assert class skipPrototype with mixed types', () => {
+    const assertInstance = new Assert({ skipPrototype: true });
+
+    const obj1 = { value: 42, nested: { prop: 'test' } };
+
+    function CustomObj(value, nested) {
+      this.value = value;
+      this.nested = nested;
+    }
+
+    const obj2 = new CustomObj(42, { prop: 'test' });
+    assertInstance.deepStrictEqual(obj1, obj2);
+
+    assert.throws(
+      () => assertInstance.deepStrictEqual({ num: 42 }, { num: '42' }),
+      { code: 'ERR_ASSERTION' }
+    );
+  });
+}

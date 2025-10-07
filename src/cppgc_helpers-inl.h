@@ -15,7 +15,8 @@ void CppgcMixin::Wrap(T* ptr, Realm* realm, v8::Local<v8::Object> obj) {
   v8::Isolate* isolate = realm->isolate();
   ptr->traced_reference_ = v8::TracedReference<v8::Object>(isolate, obj);
   // Note that ptr must be of concrete type T in Wrap.
-  v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(isolate, obj, ptr);
+  auto* wrappable = static_cast<v8::Object::Wrappable*>(ptr);
+  v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(isolate, obj, wrappable);
   // Keep the layout consistent with BaseObjects.
   obj->SetAlignedPointerInInternalField(
       kEmbedderType, realm->isolate_data()->embedder_id_for_cppgc());

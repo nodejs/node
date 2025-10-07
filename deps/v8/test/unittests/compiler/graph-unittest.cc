@@ -14,8 +14,7 @@ namespace internal {
 namespace compiler {
 
 GraphTest::GraphTest(int num_parameters)
-    : TestWithNativeContextAndZone(kCompressGraphZone),
-      data_(std::make_unique<Data>(isolate(), zone(), num_parameters)) {}
+    : data_(std::make_unique<Data>(isolate(), zone(), num_parameters)) {}
 
 void GraphTest::Reset() {
   int num_parameters = data_->num_parameters_;

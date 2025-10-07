@@ -51,6 +51,7 @@ using testing::AllOf;
 using testing::Each;
 using testing::ElementsAre;
 using testing::ElementsAreArray;
+using testing::IsEmpty;
 using testing::Eq;
 using testing::Gt;
 using testing::Pointee;
@@ -2252,6 +2253,24 @@ TEST(StorageTest, InlinedCapacityAutoIncrease) {
   EXPECT_GT((absl::InlinedVector<int, 1>().capacity()), 1);
   EXPECT_EQ((absl::InlinedVector<int, 1>().capacity()),
             sizeof(MySpan<int>) / sizeof(int));
+}
+
+TEST(IntVec, EraseIf) {
+  IntVec v = {3, 1, 2, 0};
+  EXPECT_EQ(absl::erase_if(v, [](int i) { return i > 1; }), 2u);
+  EXPECT_THAT(v, ElementsAre(1, 0));
+}
+
+TEST(IntVec, EraseIfMatchesNone) {
+  IntVec v = {1, 2, 3};
+  EXPECT_EQ(absl::erase_if(v, [](int i) { return i > 10; }), 0u);;
+  EXPECT_THAT(v, ElementsAre(1, 2, 3));
+}
+
+TEST(IntVec, EraseIfMatchesAll) {
+  IntVec v = {1, 2, 3};
+  EXPECT_EQ(absl::erase_if(v, [](int i) { return i > 0; }), 3u);
+  EXPECT_THAT(v, IsEmpty());
 }
 
 }  // anonymous namespace

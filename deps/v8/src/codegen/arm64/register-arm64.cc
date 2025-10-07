@@ -77,6 +77,10 @@ VectorFormat VectorFormatFillQ(VectorFormat vform) {
   }
 }
 
+VectorFormat VectorFormatFillHalfQ(VectorFormat vform) {
+  return VectorFormatHalfLanes(VectorFormatFillQ(vform));
+}
+
 VectorFormat VectorFormatHalfWidthDoubleLanes(VectorFormat vform) {
   switch (vform) {
     case kFormat4H:
@@ -113,7 +117,8 @@ VectorFormat VectorFormatDoubleLanes(VectorFormat vform) {
 }
 
 VectorFormat VectorFormatHalfLanes(VectorFormat vform) {
-  DCHECK(vform == kFormat16B || vform == kFormat8H || vform == kFormat4S);
+  DCHECK(vform == kFormat16B || vform == kFormat8H || vform == kFormat4S ||
+         vform == kFormat2D);
   switch (vform) {
     case kFormat16B:
       return kFormat8B;
@@ -121,6 +126,8 @@ VectorFormat VectorFormatHalfLanes(VectorFormat vform) {
       return kFormat4H;
     case kFormat4S:
       return kFormat2S;
+    case kFormat2D:
+      return kFormat1D;
     default:
       UNREACHABLE();
   }
@@ -143,6 +150,10 @@ VectorFormat ScalarFormatFromLaneSize(int laneSize) {
 
 VectorFormat VectorFormatFillQ(int laneSize) {
   return VectorFormatFillQ(ScalarFormatFromLaneSize(laneSize));
+}
+
+VectorFormat VectorFormatFillHalfQ(int laneSize) {
+  return VectorFormatFillHalfQ(ScalarFormatFromLaneSize(laneSize));
 }
 
 VectorFormat ScalarFormatFromFormat(VectorFormat vform) {

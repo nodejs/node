@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -166,6 +166,10 @@ int RAND_load_file(const char *file, long bytes)
 
         /* If given a bytecount, and we did it, break. */
         if (bytes > 0 && (bytes -= i) <= 0)
+            break;
+
+        /* We can hit a signed integer overflow on the next iteration */
+        if (ret > INT_MAX - RAND_LOAD_BUF_SIZE)
             break;
     }
 

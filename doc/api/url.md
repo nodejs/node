@@ -1847,7 +1847,25 @@ A `URIError` is thrown if the `auth` property is present but cannot be decoded.
 strings. It is prone to security issues such as [host name spoofing][]
 and incorrect handling of usernames and passwords. Do not use with untrusted
 input. CVEs are not issued for `url.parse()` vulnerabilities. Use the
-[WHATWG URL][] API instead.
+[WHATWG URL][] API instead, for example:
+
+```js
+function getURL(req) {
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'example.com';
+  return new URL(req.url || '/', `${proto}://${host}`);
+}
+```
+
+The example above assumes well-formed headers are forwarded from a reverse
+proxy to your Node.js server. If you are not using a reverse proxy, you should
+use the example below:
+
+```js
+function getURL(req) {
+  return new URL(req.url || '/', 'https://example.com');
+}
+```
 
 ### `url.resolve(from, to)`
 

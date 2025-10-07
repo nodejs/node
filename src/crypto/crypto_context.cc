@@ -837,6 +837,73 @@ static std::vector<X509*>& GetExtraCACertificates() {
   return extra_certs;
 }
 
+static void LoadCACertificates(void* data) {
+  per_process::Debug(DebugCategory::CRYPTO,
+                     "Started loading bundled root certificates off-thread\n");
+  GetBundledRootCertificates();
+
+  if (!extra_root_certs_file.empty()) {
+    per_process::Debug(DebugCategory::CRYPTO,
+                       "Started loading extra root certificates off-thread\n");
+    GetExtraCACertificates();
+  }
+
+  {
+    Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
+    if (!per_process::cli_options->use_system_ca) {
+      return;
+    }
+  }
+
+  per_process::Debug(DebugCategory::CRYPTO,
+                     "Started loading system root certificates off-thread\n");
+  GetSystemStoreCACertificates();
+}
+
+static std::atomic<bool> tried_cert_loading_off_thread = false;
+static std::atomic<bool> cert_loading_thread_started = false;
+static Mutex start_cert_loading_thread_mutex;
+static uv_thread_t cert_loading_thread;
+
+void StartLoadingCertificatesOffThread(
+    const FunctionCallbackInfo<Value>& args) {
+  // Load the CA certificates eagerly off the main thread to avoid
+  // blocking the main thread when the first TLS connection is made. We
+  // don't need to wait for the thread to finish with code here, as
+  // Get*CACertificates() functions has a function-local static and any
+  // actual user of it will wait for that to complete initialization.
+
+  // --use-openssl-ca is mutually exclusive with --use-bundled-ca and
+  // --use-system-ca. If it's set, no need to optimize with off-thread
+  // loading.
+  {
+    Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
+    if (!per_process::cli_options->ssl_openssl_cert_store) {
+      return;
+    }
+  }
+
+  // Only try to start the thread once. If it ever fails, we won't try again.
+  if (tried_cert_loading_off_thread.load()) {
+    return;
+  }
+  {
+    Mutex::ScopedLock lock(start_cert_loading_thread_mutex);
+    // Re-check under the lock.
+    if (tried_cert_loading_off_thread.load()) {
+      return;
+    }
+    tried_cert_loading_off_thread.store(true);
+    int r = uv_thread_create(&cert_loading_thread, LoadCACertificates, nullptr);
+    cert_loading_thread_started.store(r == 0);
+    if (r != 0) {
+      FPrintF(stderr,
+              "Warning: Failed to load CA certificates off thread: %s\n",
+              uv_strerror(r));
+    }
+  }
+}
+
 // Due to historical reasons the various options of CA certificates
 // may invalid one another. The current rule is:
 // 1. If the configure-time option --openssl-use-def-ca-store is NOT used
@@ -925,6 +992,13 @@ void CleanupCachedRootCertificates() {
       X509_free(cert);
     }
   }
+
+  // Serialize with starter to avoid the race window.
+  Mutex::ScopedLock lock(start_cert_loading_thread_mutex);
+  if (tried_cert_loading_off_thread.load() &&
+      cert_loading_thread_started.load()) {
+    uv_thread_join(&cert_loading_thread);
+  }
 }
 
 void GetBundledRootCertificates(const FunctionCallbackInfo<Value>& args) {
@@ -948,7 +1022,7 @@ bool ArrayOfStringsToX509s(Local<Context> context,
                            Local<Array> cert_array,
                            std::vector<X509*>* certs) {
   ClearErrorOnReturn clear_error_on_return;
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Environment* env = Environment::GetCurrent(context);
   uint32_t array_length = cert_array->Length();
 
@@ -1212,6 +1286,10 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   SetMethod(context, target, "resetRootCertStore", ResetRootCertStore);
   SetMethodNoSideEffect(
       context, target, "getUserRootCertificates", GetUserRootCertificates);
+  SetMethod(context,
+            target,
+            "startLoadingCertificatesOffThread",
+            StartLoadingCertificatesOffThread);
 }
 
 void SecureContext::RegisterExternalReferences(
@@ -1256,6 +1334,7 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(GetExtraCACertificates);
   registry->Register(ResetRootCertStore);
   registry->Register(GetUserRootCertificates);
+  registry->Register(StartLoadingCertificatesOffThread);
 }
 
 SecureContext* SecureContext::Create(Environment* env) {
@@ -1381,7 +1460,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
       method = TLS_client_method();
     } else {
       THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(
-          env, "Unknown method: %s", *sslmethod);
+          env, "Unknown method: %s", sslmethod);
       return;
     }
   }

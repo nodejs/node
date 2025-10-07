@@ -1559,12 +1559,12 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
 
   if (argc > 1) {  // unlink(path, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 1);
+    CHECK_NOT_NULL(req_wrap_async);
     ASYNC_THROW_IF_INSUFFICIENT_PERMISSIONS(
         env,
         req_wrap_async,
         permission::PermissionScope::kFileSystemWrite,
         path.ToStringView());
-    CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_UNLINK, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "unlink", UTF8, AfterNoArgs,
@@ -1988,7 +1988,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
 
 #ifdef _WIN32
-  if (slashCheck) {
+  if (slashCheck && !path.ToStringView().ends_with("\\")) {
     size_t new_length = path.length() + 1;
     path.AllocateSufficientStorage(new_length + 1);
     path.SetLengthAndZeroTerminate(new_length);
@@ -3245,8 +3245,8 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
         errorno, dereference ? "stat" : "lstat", nullptr, src.out());
   }
   auto dest_status =
-      dereference ? std::filesystem::symlink_status(dest_path, error_code)
-                  : std::filesystem::status(dest_path, error_code);
+      dereference ? std::filesystem::status(dest_path, error_code)
+                  : std::filesystem::symlink_status(dest_path, error_code);
 
   bool dest_exists = !error_code && dest_status.type() !=
                                         std::filesystem::file_type::not_found;
@@ -3260,24 +3260,25 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   if (!error_code) {
     // Check if src and dest are identical.
     if (std::filesystem::equivalent(src_path, dest_path)) {
-      std::string message = "src and dest cannot be the same %s";
-      return THROW_ERR_FS_CP_EINVAL(env, message.c_str(), dest_path_str);
+      static constexpr const char* message =
+          "src and dest cannot be the same %s";
+      return THROW_ERR_FS_CP_EINVAL(env, message, dest_path_str);
     }
 
     const bool dest_is_dir =
         dest_status.type() == std::filesystem::file_type::directory;
     if (src_is_dir && !dest_is_dir) {
-      std::string message =
+      static constexpr const char* message =
           "Cannot overwrite non-directory %s with directory %s";
       return THROW_ERR_FS_CP_DIR_TO_NON_DIR(
-          env, message.c_str(), src_path_str, dest_path_str);
+          env, message, dest_path_str, src_path_str);
     }
 
     if (!src_is_dir && dest_is_dir) {
-      std::string message =
+      static constexpr const char* message =
           "Cannot overwrite directory %s with non-directory %s";
       return THROW_ERR_FS_CP_NON_DIR_TO_DIR(
-          env, message.c_str(), dest_path_str, src_path_str);
+          env, message, dest_path_str, src_path_str);
     }
   }
 
@@ -3286,9 +3287,9 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   }
   // Check if dest_path is a subdirectory of src_path.
   if (src_is_dir && dest_path_str.starts_with(src_path_str)) {
-    std::string message = "Cannot copy %s to a subdirectory of self %s";
-    return THROW_ERR_FS_CP_EINVAL(
-        env, message.c_str(), src_path_str, dest_path_str);
+    static constexpr const char* message =
+        "Cannot copy %s to a subdirectory of self %s";
+    return THROW_ERR_FS_CP_EINVAL(env, message, src_path_str, dest_path_str);
   }
 
   auto dest_parent = dest_path.parent_path();
@@ -3299,9 +3300,9 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
          dest_parent.parent_path() != dest_parent) {
     if (std::filesystem::equivalent(
             src_path, dest_path.parent_path(), error_code)) {
-      std::string message = "Cannot copy %s to a subdirectory of self %s";
-      return THROW_ERR_FS_CP_EINVAL(
-          env, message.c_str(), src_path_str, dest_path_str);
+      static constexpr const char* message =
+          "Cannot copy %s to a subdirectory of self %s";
+      return THROW_ERR_FS_CP_EINVAL(env, message, src_path_str, dest_path_str);
     }
 
     // If equivalent fails, it's highly likely that dest_parent does not exist
@@ -3313,23 +3314,24 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (src_is_dir && !recursive) {
-    std::string message =
+    static constexpr const char* message =
         "Recursive option not enabled, cannot copy a directory: %s";
-    return THROW_ERR_FS_EISDIR(env, message.c_str(), src_path_str);
+    return THROW_ERR_FS_EISDIR(env, message, src_path_str);
   }
 
   switch (src_status.type()) {
     case std::filesystem::file_type::socket: {
-      std::string message = "Cannot copy a socket file: %s";
-      return THROW_ERR_FS_CP_SOCKET(env, message.c_str(), dest_path_str);
+      static constexpr const char* message = "Cannot copy a socket file: %s";
+      return THROW_ERR_FS_CP_SOCKET(env, message, dest_path_str);
     }
     case std::filesystem::file_type::fifo: {
-      std::string message = "Cannot copy a FIFO pipe: %s";
-      return THROW_ERR_FS_CP_FIFO_PIPE(env, message.c_str(), dest_path_str);
+      static constexpr const char* message = "Cannot copy a FIFO pipe: %s";
+      return THROW_ERR_FS_CP_FIFO_PIPE(env, message, dest_path_str);
     }
     case std::filesystem::file_type::unknown: {
-      std::string message = "Cannot copy an unknown file type: %s";
-      return THROW_ERR_FS_CP_UNKNOWN(env, message.c_str(), dest_path_str);
+      static constexpr const char* message =
+          "Cannot copy an unknown file type: %s";
+      return THROW_ERR_FS_CP_UNKNOWN(env, message, dest_path_str);
     }
     default:
       break;
@@ -3849,7 +3851,7 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  HandleScope scope(context->GetIsolate());
+  HandleScope scope(Isolate::GetCurrent());
   Realm* realm = Realm::GetCurrent(context);
   InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
   BindingData* binding =

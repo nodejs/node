@@ -1267,7 +1267,7 @@ static void port_send_version_negotiation(QUIC_PORT *port, BIO_ADDR *peer,
      * Add the array of supported versions to the end of the packet
      */
     for (i = 0; i < OSSL_NELEM(supported_versions); i++) {
-        if (!WPACKET_put_bytes_u32(&wpkt, htonl(supported_versions[i])))
+        if (!WPACKET_put_bytes_u32(&wpkt, supported_versions[i]))
             return;
     }
 
@@ -1691,6 +1691,7 @@ static void port_default_packet_handler(QUIC_URXE *e, void *arg,
          */
         while (ossl_qrx_read_pkt(qrx_src, &qrx_pkt) == 1)
             ossl_quic_channel_inject_pkt(new_ch, qrx_pkt);
+        ossl_qrx_update_pn_space(qrx_src, new_ch->qrx);
     }
 
     /*

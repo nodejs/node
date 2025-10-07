@@ -10,7 +10,7 @@
 #include "src/common/globals.h"
 #include "src/wasm/compilation-environment.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/cctest/wasm/wasm-simd-utils.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -335,7 +335,7 @@ namespace {
 // FloatType comes later so caller can rely on template argument deduction and
 // just pass IntType.
 template <typename IntType, typename FloatType>
-typename std::enable_if<std::is_floating_point<FloatType>::value, bool>::type
+typename std::enable_if_t<std::is_floating_point_v<FloatType>, bool>
 ShouldSkipTestingConstant(FloatType x) {
   return std::isnan(x) || !base::IsValueInRangeForNumericType<IntType>(x) ||
          !PlatformCanRepresent(x);

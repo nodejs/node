@@ -5,10 +5,11 @@
 #ifndef INCLUDE_V8_TRACE_CATEGORIES_H_
 #define INCLUDE_V8_TRACE_CATEGORIES_H_
 
+#include "v8config.h"
+
 #if defined(V8_USE_PERFETTO)
 
 #include "perfetto/tracing/track_event.h"
-#include "v8config.h"
 
 namespace v8 {
 

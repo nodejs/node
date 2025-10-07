@@ -166,6 +166,7 @@ class CcTest {
 
   static i::Heap* heap();
   static i::ReadOnlyHeap* read_only_heap();
+  static void disable_dispose_in_test();
 
   static v8::Platform* default_platform() { return default_platform_; }
 
@@ -218,6 +219,8 @@ class CcTest {
   TestFunction* callback_;
   bool initialize_;
   TestPlatformFactory* test_platform_factory_;
+
+  static bool should_call_dispose_;
 
   friend int main(int argc, char** argv);
   friend class v8::internal::ManualGCScope;
@@ -333,16 +336,17 @@ class LocalContext {
                v8::ExtensionConfiguration* extensions = nullptr,
                v8::Local<v8::ObjectTemplate> global_template =
                    v8::Local<v8::ObjectTemplate>(),
-               v8::Local<v8::Value> global_object = v8::Local<v8::Value>()) {
-    Initialize(isolate, extensions, global_template, global_object);
+               v8::Local<v8::Value> global_object = v8::Local<v8::Value>())
+      : isolate_(isolate) {
+    Initialize(extensions, global_template, global_object);
   }
 
   LocalContext(v8::ExtensionConfiguration* extensions = nullptr,
                v8::Local<v8::ObjectTemplate> global_template =
                    v8::Local<v8::ObjectTemplate>(),
-               v8::Local<v8::Value> global_object = v8::Local<v8::Value>()) {
-    Initialize(CcTest::isolate(), extensions, global_template, global_object);
-  }
+               v8::Local<v8::Value> global_object = v8::Local<v8::Value>())
+      : LocalContext(CcTest::isolate(), extensions, global_template,
+                     global_object) {}
 
   virtual ~LocalContext();
 
@@ -350,17 +354,21 @@ class LocalContext {
   v8::Context* operator*() { return operator->(); }
   bool IsReady() { return !context_.IsEmpty(); }
 
+  v8::Isolate* isolate() const { return isolate_; }
+  i::Isolate* i_isolate() const {
+    return reinterpret_cast<i::Isolate*>(isolate_);
+  }
   v8::Local<v8::Context> local() const {
     return v8::Local<v8::Context>::New(isolate_, context_);
   }
 
  private:
-  void Initialize(v8::Isolate* isolate, v8::ExtensionConfiguration* extensions,
+  void Initialize(v8::ExtensionConfiguration* extensions,
                   v8::Local<v8::ObjectTemplate> global_template,
                   v8::Local<v8::Value> global_object);
 
   v8::Persistent<v8::Context> context_;
-  v8::Isolate* isolate_;
+  v8::Isolate* const isolate_;
 };
 
 
@@ -675,7 +683,7 @@ class V8_NODISCARD InitializedHandleScope {
 
 class V8_NODISCARD HandleAndZoneScope : public InitializedHandleScope {
  public:
-  explicit HandleAndZoneScope(bool support_zone_compression = false);
+  HandleAndZoneScope();
   ~HandleAndZoneScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
@@ -725,6 +733,8 @@ class TestPlatform : public v8::Platform {
   double CurrentClockTimeMillis() override;
   bool IdleTasksEnabled(v8::Isolate* isolate) override;
   v8::TracingController* GetTracingController() override;
+
+  v8::ThreadIsolatedAllocator* GetThreadIsolatedAllocator() override;
 
  protected:
   TestPlatform() = default;

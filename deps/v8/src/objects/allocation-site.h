@@ -22,7 +22,6 @@ enum InstanceType : uint16_t;
 
 V8_OBJECT class AllocationSite : public HeapObjectLayout {
  public:
-  NEVER_READ_ONLY_SPACE
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
 
   // Values for pretenure decision field.

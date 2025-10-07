@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --maglev --allow-natives-syntax --no-always-turbofan
+// Flags: --maglev --allow-natives-syntax
 // Flags: --no-optimize-maglev-optimizes-to-turbofan
 
 
@@ -44,7 +44,7 @@ unused_unneeded_CheckedSmiUntag(1);
 //
 // Note that if the result of the CheckedTruncateNumberToInt32 would have been
 // used, the it would have been automatically changed into a
-// TruncateFloat64ToInt32.
+// TruncateHoleyFloat64ToInt32.
 //
 // A side-effect of have this truncation is that it ensures that its input is a
 // boxed Float64, which means that subsequent untagging can use
@@ -80,7 +80,7 @@ unused_unneeded_CheckedTruncateNumberToInt32(1.5);
 // will thus decide that it should be a Float64 Phi. In this case, the
 // conversion should not be dropped, because if the Phi is not an Int32, then it
 // should not be returned directly, but instead be truncated. In practice
-// though, we'll rather replace it by a CheckedTruncateFloat64ToInt32, which
+// though, we'll rather replace it by a CheckedHoleyFloat64ToInt32, which
 // will fail if the Float64 isn't an Int32, causing a deopt, and the reoptimized
 // code will have a better feedback (this is easier than to try to patch the
 // `Return(1)` to return something else).
@@ -98,7 +98,7 @@ assertEquals(42, unused_required_CheckedSmiUntag(-0.5));
 assertOptimized(unused_required_CheckedSmiUntag);
 // If the CheckedSmiUntag is dropped, then the truncation won't be done, and the
 // non-truncated float (3.53) will be returned. Instead, if the conversion is
-// changed to CheckedTruncateFloat64ToInt32, then it will deopt, and we'll get
+// changed to CheckedHoleyFloat64ToInt32, then it will deopt, and we'll get
 // the correct result of 3.
 assertEquals(3, unused_required_CheckedSmiUntag(0.5));
 assertUnoptimized(unused_required_CheckedSmiUntag);
@@ -117,7 +117,7 @@ assertUnoptimized(unused_required_CheckedSmiUntag);
 // that case, it's important that the CheckedSmiUntag conversion isn't dropped,
 // and becomes a deopting Float64->Int32 conversion that deopts when its input
 // cannot be converted to Int32 without loss of precision (ie, it should become
-// a CheckedTruncateFloat64ToInt32 rather than a TruncateFloat64ToInt32). Then,
+// a CheckedHoleyFloat64ToInt32 rather than a TruncateHoleyFloat64ToInt32). Then,
 // when the Phi turns out to be a non-Smi Float64, the function should deopt.
 function used_required_deopting_Float64ToInt32(x) {
   x = x + 0.5; // ensuring Float64 alternative

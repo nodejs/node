@@ -826,6 +826,48 @@ when an error occurs (and is caught) during the creation of the
 context, for example, when the allocation fails or the maximum call stack
 size is reached when the context is created.
 
+<a id="ERR_CPU_PROFILE_ALREADY_STARTED"></a>
+
+### `ERR_CPU_PROFILE_ALREADY_STARTED`
+
+<!-- YAML
+added:
+  - v24.8.0
+  - v22.20.0
+-->
+
+The CPU profile with the given name is already started.
+
+<a id="ERR_CPU_PROFILE_NOT_STARTED"></a>
+
+### `ERR_CPU_PROFILE_NOT_STARTED`
+
+<!-- YAML
+added:
+  - v24.8.0
+  - v22.20.0
+-->
+
+The CPU profile with the given name is not started.
+
+<a id="ERR_CPU_PROFILE_TOO_MANY"></a>
+
+### `ERR_CPU_PROFILE_TOO_MANY`
+
+<!-- YAML
+added:
+  - v24.8.0
+  - v22.20.0
+-->
+
+There are too many CPU profiles being collected.
+
+<a id="ERR_CRYPTO_ARGON2_NOT_SUPPORTED"></a>
+
+### `ERR_CRYPTO_ARGON2_NOT_SUPPORTED`
+
+Argon2 is not supported by the current version of OpenSSL being used.
+
 <a id="ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED"></a>
 
 ### `ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED`
@@ -1058,6 +1100,17 @@ Key's Elliptic Curve is not registered for use in the
 
 Key's Asymmetric Key Type is not registered for use in the
 [JSON Web Key Types Registry][].
+
+<a id="ERR_CRYPTO_KEM_NOT_SUPPORTED"></a>
+
+### `ERR_CRYPTO_KEM_NOT_SUPPORTED`
+
+<!-- YAML
+added: v24.7.0
+-->
+
+Attempted to use KEM operations while Node.js was not compiled with
+OpenSSL with KEM support.
 
 <a id="ERR_CRYPTO_OPERATION_FAILED"></a>
 
@@ -1949,6 +2002,9 @@ A Node.js API that consumes `file:` URLs (such as certain functions in the
 [`fs`][] module) encountered a file URL with an incompatible path. The exact
 semantics for determining whether a path can be used is platform-dependent.
 
+The thrown error object includes an `input` property that contains the URL object
+of the invalid `file:` URL.
+
 <a id="ERR_INVALID_HANDLE_TYPE"></a>
 
 ### `ERR_INVALID_HANDLE_TYPE`
@@ -2136,8 +2192,8 @@ contains the URL that failed to parse.
 
 ### `ERR_INVALID_URL_PATTERN`
 
-An invalid URLPattern was passed to the [WHATWG][WHATWG URL API] \[`URLPattern`
-constructor]\[`new URLPattern(input)`] to be parsed.
+An invalid URLPattern was passed to the [WHATWG][WHATWG URL API]
+[`URLPattern` constructor][`new URLPattern(input)`] to be parsed.
 
 <a id="ERR_INVALID_URL_SCHEME"></a>
 
@@ -2267,6 +2323,13 @@ An attempt was made to read an encrypted key without specifying a passphrase.
 The V8 platform used by this instance of Node.js does not support creating
 Workers. This is caused by lack of embedder support for Workers. In particular,
 this error will not occur with standard builds of Node.js.
+
+<a id="ERR_MODULE_LINK_MISMATCH"></a>
+
+### `ERR_MODULE_LINK_MISMATCH`
+
+A module can not be linked because the same module requests in it are not
+resolved to the same module.
 
 <a id="ERR_MODULE_NOT_FOUND"></a>
 
@@ -4352,6 +4415,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`net.Socket.write()`]: net.md#socketwritedata-encoding-callback
 [`net`]: net.md
 [`new URL(input)`]: url.md#new-urlinput-base
+[`new URLPattern(input)`]: url.md#new-urlpatternstring-baseurl-options
 [`new URLSearchParams(iterable)`]: url.md#new-urlsearchparamsiterable
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist

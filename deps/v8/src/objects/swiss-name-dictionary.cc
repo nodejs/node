@@ -138,9 +138,9 @@ DirectHandle<SwissNameDictionary> SwissNameDictionary::ShallowCopy(
   new_table->SetHash(table->Hash());
 
   DisallowGarbageCollection no_gc;
-  WriteBarrierMode mode = new_table->GetWriteBarrierMode(no_gc);
+  WriteBarrierModeScope mode = new_table->GetWriteBarrierMode(no_gc);
 
-  if (mode == WriteBarrierMode::SKIP_WRITE_BARRIER) {
+  if (*mode == WriteBarrierMode::SKIP_WRITE_BARRIER_SCOPE) {
     // Copy data table and ctrl table, which are stored next to each other.
     void* original_start =
         reinterpret_cast<void*>(table->field_address(DataTableStartOffset()));
@@ -150,7 +150,7 @@ DirectHandle<SwissNameDictionary> SwissNameDictionary::ShallowCopy(
     DCHECK(DataTableEndOffset(capacity) == CtrlTableStartOffset(capacity));
     MemCopy(new_table_start, original_start, bytes_to_copy);
   } else {
-    DCHECK_EQ(UPDATE_WRITE_BARRIER, mode);
+    DCHECK_EQ(UPDATE_WRITE_BARRIER, *mode);
 
     // We may have to trigger write barriers when copying the data table.
     for (int i = 0; i < capacity; ++i) {

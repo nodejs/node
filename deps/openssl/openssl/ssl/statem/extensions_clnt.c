@@ -745,6 +745,7 @@ EXT_RETURN tls_construct_ctos_key_share(SSL_CONNECTION *s, WPACKET *pkt,
             /* SSLfatal() already called */
             return EXT_RETURN_FAIL;
         }
+        valid_keyshare++;
     } else {
         if (s->ext.supportedgroups == NULL) /* use default */
             add_only_one = 1;
@@ -766,11 +767,16 @@ EXT_RETURN tls_construct_ctos_key_share(SSL_CONNECTION *s, WPACKET *pkt,
                 /* SSLfatal() already called */
                 return EXT_RETURN_FAIL;
             }
+            valid_keyshare++;
             if (add_only_one)
                 break;
-
-            valid_keyshare++;
         }
+    }
+
+    if (valid_keyshare == 0) {
+        /* No key shares were allowed */
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_R_NO_SUITABLE_KEY_SHARE);
+        return EXT_RETURN_FAIL;
     }
 
     if (!WPACKET_close(pkt) || !WPACKET_close(pkt)) {

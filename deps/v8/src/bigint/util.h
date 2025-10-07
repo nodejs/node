@@ -28,7 +28,7 @@ inline constexpr int RoundUp(int x, int y) { return (x + y - 1) & -y; }
 // defined, so we have to use templates to be generic.
 template <typename T>
 constexpr int CountLeadingZeros(T value)
-  requires(std::is_unsigned<T>::value && sizeof(T) == 8)
+  requires(std::is_unsigned_v<T> && sizeof(T) == 8)
 {
 #if __GNUC__ || __clang__
   return value == 0 ? 64 : __builtin_clzll(value);

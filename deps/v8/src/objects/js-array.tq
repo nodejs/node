@@ -134,6 +134,10 @@ transient type FastJSArrayWithNoCustomIteration extends FastJSArray;
 transient type FastJSArrayForReadWithNoCustomIteration extends
     FastJSArrayForRead;
 
+// A HeapObject with a JSArray map, no named properties except "length" and
+// unmodified initial Array.prototype.
+transient type JSArrayForFastToString extends JSArray;
+
 extern macro AllocateJSArray(
     constexpr ElementsKind, Map, intptr, Smi,
     constexpr AllocationFlag): JSArray;
@@ -282,9 +286,22 @@ struct FastJSArrayWitness {
   macro Push(value: JSAny): void labels Failed {
     dcheck(this.arrayIsPushable);
     if (this.hasDoubles) {
-      BuildAppendJSArray(
-          ElementsKind::HOLEY_DOUBLE_ELEMENTS, this.unstable, value)
-          otherwise Failed;
+      @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+        if (this.hasDoubleHoles) {
+          BuildAppendJSArray(
+              ElementsKind::HOLEY_DOUBLE_ELEMENTS, this.unstable, value)
+              otherwise Failed;
+        } else {
+          BuildAppendJSArray(
+              ElementsKind::PACKED_DOUBLE_ELEMENTS, this.unstable, value)
+              otherwise Failed;
+        }
+      }
+      @ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+        BuildAppendJSArray(
+            ElementsKind::PACKED_DOUBLE_ELEMENTS, this.unstable, value)
+            otherwise Failed;
+      }
     } else if (this.hasSmis) {
       BuildAppendJSArray(ElementsKind::HOLEY_SMI_ELEMENTS, this.unstable, value)
           otherwise Failed;
@@ -319,21 +336,37 @@ struct FastJSArrayWitness {
   unstable: FastJSArray;
   const map: Map;
   const hasDoubles: bool;
+  @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) const hasDoubleHoles:
+      bool;
   const hasSmis: bool;
   arrayIsPushable: bool;
 }
 
 macro NewFastJSArrayWitness(array: FastJSArray): FastJSArrayWitness {
   const kind = array.map.elements_kind;
-  return FastJSArrayWitness{
-    stable: array,
-    unstable: array,
-    map: array.map,
-    hasDoubles: IsDoubleElementsKind(kind),
-    hasSmis:
-        IsElementsKindLessThanOrEqual(kind, ElementsKind::HOLEY_SMI_ELEMENTS),
-    arrayIsPushable: false
-  };
+  @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+    return FastJSArrayWitness{
+      stable: array,
+      unstable: array,
+      map: array.map,
+      hasDoubles: IsDoubleElementsKind(kind),
+      hasDoubleHoles: (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS),
+      hasSmis:
+          IsElementsKindLessThanOrEqual(kind, ElementsKind::HOLEY_SMI_ELEMENTS),
+      arrayIsPushable: false
+    };
+  }
+  @ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+    return FastJSArrayWitness{
+      stable: array,
+      unstable: array,
+      map: array.map,
+      hasDoubles: IsDoubleElementsKind(kind),
+      hasSmis:
+          IsElementsKindLessThanOrEqual(kind, ElementsKind::HOLEY_SMI_ELEMENTS),
+      arrayIsPushable: false
+    };
+  }
 }
 
 struct FastJSArrayForReadWitness {

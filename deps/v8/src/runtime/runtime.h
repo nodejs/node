@@ -37,6 +37,15 @@ namespace internal {
 // inline), use the F macro below. To declare the runtime version and the inline
 // version simultaneously, use the I macro below.
 
+enum class RuntimeCallProperty { kCannotTriggerGC };
+
+namespace detail {
+template <typename... T>
+constexpr bool CanTriggerGC(T... properties) {
+  return !((properties == RuntimeCallProperty::kCannotTriggerGC) || ...);
+}
+}  // namespace detail
+
 #define FOR_EACH_INTRINSIC_ARRAY(F, I) \
   F(ArrayIncludes_Slow, 3, 1)          \
   F(ArrayIndexOf, 3, 1)                \
@@ -69,17 +78,17 @@ namespace internal {
   F(AtomicsSynchronizationPrimitiveNumWaitersForTesting, 1, 1) \
   F(AtomicsSychronizationNumAsyncWaitersInIsolateForTesting, 0, 1)
 
-#define FOR_EACH_INTRINSIC_BIGINT(F, I) \
-  F(BigIntCompareToNumber, 3, 1)        \
-  F(BigIntCompareToString, 3, 1)        \
-  F(BigIntEqualToBigInt, 2, 1)          \
-  F(BigIntEqualToNumber, 2, 1)          \
-  F(BigIntEqualToString, 2, 1)          \
-  F(BigIntExponentiate, 2, 1)           \
-  F(BigIntMaxLengthBits, 0, 1)          \
-  F(BigIntToNumber, 1, 1)               \
-  F(BigIntUnaryOp, 2, 1)                \
-  F(ToBigInt, 1, 1)                     \
+#define FOR_EACH_INTRINSIC_BIGINT(F, I)                               \
+  F(BigIntCompareToNumber, 3, 1)                                      \
+  F(BigIntCompareToString, 3, 1)                                      \
+  F(BigIntEqualToBigInt, 2, 1, RuntimeCallProperty::kCannotTriggerGC) \
+  F(BigIntEqualToNumber, 2, 1)                                        \
+  F(BigIntEqualToString, 2, 1)                                        \
+  F(BigIntExponentiate, 2, 1)                                         \
+  F(BigIntMaxLengthBits, 0, 1)                                        \
+  F(BigIntToNumber, 1, 1)                                             \
+  F(BigIntUnaryOp, 2, 1)                                              \
+  F(ToBigInt, 1, 1)                                                   \
   F(ToBigIntConvertNumber, 1, 1)
 
 #define FOR_EACH_THROWING_INTRINSIC_CLASSES(F, I) \
@@ -280,13 +289,15 @@ namespace internal {
   F(GetAndResetTurboProfilingData, 0, 1)                   \
   F(GetTemplateObject, 3, 1)                               \
   F(IncrementUseCounter, 1, 1)                             \
+  F(InvalidateStringWrapperToPrimitiveProtector, 1, 1)     \
   F(BytecodeBudgetInterrupt_Ignition, 1, 1)                \
   F(BytecodeBudgetInterruptWithStackCheck_Ignition, 1, 1)  \
   F(BytecodeBudgetInterrupt_Sparkplug, 1, 1)               \
   F(BytecodeBudgetInterruptWithStackCheck_Sparkplug, 1, 1) \
   F(BytecodeBudgetInterrupt_Maglev, 1, 1)                  \
   F(BytecodeBudgetInterruptWithStackCheck_Maglev, 1, 1)    \
-  F(NotifyContextCellStateWillChange, 1, 1)                \
+  F(NotifyContextCellStateWillChange, 1, 1,                \
+    RuntimeCallProperty::kCannotTriggerGC)                 \
   F(NewError, 2, 1)                                        \
   F(NewReferenceError, 2, 1)                               \
   F(NewTypeError, -1 /* [1, 4] */, 1)                      \
@@ -300,13 +311,15 @@ namespace internal {
   F(HandleNoHeapWritesInterrupts, 0, 1)                    \
   F(StackGuardWithGap, 1, 1)                               \
   F(TerminateExecution, 0, 1)                              \
-  F(Typeof, 1, 1)                                          \
+  F(Typeof, 1, 1, RuntimeCallProperty::kCannotTriggerGC)   \
   F(UnwindAndFindExceptionHandler, 0, 1)                   \
-  I(AddLhsIsStringConstantInternalize, 4, 1)
+  I(AddLhsIsStringConstantInternalize, 4, 1)               \
+  I(AddRhsIsStringConstantInternalize, 4, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F, I) \
   F(CreateArrayLiteral, 4, 1)             \
   F(CreateObjectLiteral, 4, 1)            \
+  F(SetPrototypeProperties, 2, 1)         \
   F(CreateRegExpLiteral, 4, 1)
 
 #define FOR_EACH_INTRINSIC_MODULE(F, I)    \
@@ -322,6 +335,7 @@ namespace internal {
   F(IsSmi, 1, 1)                         \
   F(MaxSmi, 0, 1)                        \
   F(NumberToStringSlow, 1, 1)            \
+  F(Float64ToStringSlow, 0, 1)           \
   F(StringParseFloat, 1, 1)              \
   F(StringParseInt, 2, 1)                \
   F(StringToNumber, 1, 1)
@@ -497,6 +511,7 @@ namespace internal {
   F(InternalizeString, 1, 1)                         \
   F(StringAdd, 2, 1)                                 \
   F(StringAdd_LhsIsStringConstant_Internalize, 4, 1) \
+  F(StringAdd_RhsIsStringConstant_Internalize, 4, 1) \
   F(StringBuilderConcat, 3, 1)                       \
   F(StringCharCodeAt, 2, 1)                          \
   F(StringCodePointAt, 2, 1)                         \
@@ -522,145 +537,142 @@ namespace internal {
   F(SymbolDescriptiveString, 1, 1)         \
   F(SymbolIsPrivate, 1, 1)
 
-#define FOR_EACH_INTRINSIC_TEMPORAL(F, I) \
-  F(IsInvalidTemporalCalendarField, 2, 1)
-
-#define FOR_EACH_INTRINSIC_TEST(F, I)         \
-  F(Abort, 1, 1)                              \
-  F(AbortCSADcheck, 1, 1)                     \
-  F(AbortJS, 1, 1)                            \
-  F(ActiveTierIsIgnition, 1, 1)               \
-  F(ActiveTierIsSparkplug, 1, 1)              \
-  F(ActiveTierIsMaglev, 1, 1)                 \
-  F(ActiveTierIsTurbofan, 1, 1)               \
-  F(ArrayBufferDetachForceWasm, 1, 1)         \
-  F(ArrayIteratorProtector, 0, 1)             \
-  F(ArraySpeciesProtector, 0, 1)              \
-  F(BaselineOsr, -1, 1)                       \
-  F(BenchMaglev, 2, 1)                        \
-  F(BenchTurbofan, 2, 1)                      \
-  F(CheckNoWriteBarrierNeeded, 2, 1)          \
-  F(ClearFunctionFeedback, 1, 1)              \
-  F(ClearMegamorphicStubCache, 0, 1)          \
-  F(CompleteInobjectSlackTracking, 1, 1)      \
-  F(ConstructConsString, 2, 1)                \
-  F(ConstructDouble, 2, 1)                    \
-  F(ConstructInternalizedString, 1, 1)        \
-  F(ConstructSlicedString, 2, 1)              \
-  F(ConstructThinString, 1, 1)                \
-  F(CurrentFrameIsTurbofan, 0, 1)             \
-  F(DebugPrint, -1, 1)                        \
-  F(DebugPrintFloat, 5, 1)                    \
-  F(DebugPrintPtr, 1, 1)                      \
-  F(DebugPrintWord, 5, 1)                     \
-  F(DebugTrace, 0, 1)                         \
-  F(DeoptimizeFunction, 1, 1)                 \
-  F(DisableOptimizationFinalization, 0, 1)    \
-  F(DisallowCodegenFromStrings, 1, 1)         \
-  F(DisassembleFunction, 1, 1)                \
-  F(EnableCodeLoggingForTesting, 0, 1)        \
-  F(EnsureFeedbackVectorForFunction, 1, 1)    \
-  F(FinalizeOptimization, 0, 1)               \
-  F(ForceFlush, 1, 1)                         \
-  F(GetAbstractModuleSource, 0, 1)            \
-  F(GetCallable, 1, 1)                        \
-  F(GetFeedback, 1, 1)                        \
-  F(GetFunctionForCurrentFrame, 0, 1)         \
-  F(GetInitializerFunction, 1, 1)             \
-  F(GetOptimizationStatus, 1, 1)              \
-  F(GetUndetectable, 0, 1)                    \
-  F(GetWeakCollectionSize, 1, 1)              \
-  F(GlobalPrint, -1, 1)                       \
-  F(HasCowElements, 1, 1)                     \
-  F(HasDictionaryElements, 1, 1)              \
-  F(HasDoubleElements, 1, 1)                  \
-  F(HasElementsInALargeObjectSpace, 1, 1)     \
-  F(HasFastElements, 1, 1)                    \
-  F(HasFastProperties, 1, 1)                  \
-  F(HasFixedBigInt64Elements, 1, 1)           \
-  F(HasFixedBigUint64Elements, 1, 1)          \
-  F(HasFixedFloat16Elements, 1, 1)            \
-  F(HasFixedFloat32Elements, 1, 1)            \
-  F(HasFixedFloat64Elements, 1, 1)            \
-  F(HasFixedInt16Elements, 1, 1)              \
-  F(HasFixedInt32Elements, 1, 1)              \
-  F(HasFixedInt8Elements, 1, 1)               \
-  F(HasFixedUint16Elements, 1, 1)             \
-  F(HasFixedUint32Elements, 1, 1)             \
-  F(HasFixedUint8ClampedElements, 1, 1)       \
-  F(HasFixedUint8Elements, 1, 1)              \
-  F(HasHoleyElements, 1, 1)                   \
-  F(HasObjectElements, 1, 1)                  \
-  F(HasPackedElements, 1, 1)                  \
-  F(HasSloppyArgumentsElements, 1, 1)         \
-  F(HasSmiElements, 1, 1)                     \
-  F(HasSmiOrObjectElements, 1, 1)             \
-  F(HaveSameMap, 2, 1)                        \
-  F(HeapObjectVerify, 1, 1)                   \
-  F(ICsAreEnabled, 0, 1)                      \
-  F(InLargeObjectSpace, 1, 1)                 \
-  F(InYoungGeneration, 1, 1)                  \
-  F(Is64Bit, 0, 1)                            \
-  F(IsAtomicsWaitAllowed, 0, 1)               \
-  F(IsBeingInterpreted, 0, 1)                 \
-  F(IsConcatSpreadableProtector, 0, 1)        \
-  F(IsConcurrentRecompilationSupported, 0, 1) \
-  F(IsDictPropertyConstTrackingEnabled, 0, 1) \
-  F(IsEfficiencyModeEnabled, 0, 1)            \
-  F(IsInPlaceInternalizableString, 1, 1)      \
-  F(IsInternalizedString, 1, 1)               \
-  F(StringToCString, 1, 1)                    \
-  F(StringUtf8Value, 1, 1)                    \
-  F(IsMaglevEnabled, 0, 1)                    \
-  F(IsSameHeapObject, 2, 1)                   \
-  F(IsSharedString, 1, 1)                     \
-  F(IsInWritableSharedSpace, 1, 1)            \
-  F(IsSparkplugEnabled, 0, 1)                 \
-  F(IsTurbofanEnabled, 0, 1)                  \
-  F(IsWasmTieringPredictable, 0, 1)           \
-  F(MapIteratorProtector, 0, 1)               \
-  F(NeverOptimizeFunction, 1, 1)              \
-  F(NewRegExpWithBacktrackLimit, 3, 1)        \
-  F(NoElementsProtector, 0, 1)                \
-  F(NotifyContextDisposed, 0, 1)              \
-  F(SetPriorityBestEffort, 0, 1)              \
-  F(SetPriorityUserVisible, 0, 1)             \
-  F(SetPriorityUserBlocking, 0, 1)            \
-  F(OptimizeMaglevOnNextCall, 1, 1)           \
-  F(OptimizeFunctionOnNextCall, -1, 1)        \
-  F(OptimizeOsr, -1, 1)                       \
-  F(PrepareFunctionForOptimization, -1, 1)    \
-  F(PretenureAllocationSite, 1, 1)            \
-  F(PrintWithNameForAssert, 2, 1)             \
-  F(PromiseSpeciesProtector, 0, 1)            \
-  F(RegExpSpeciesProtector, 0, 1)             \
-  F(RegexpHasBytecode, 2, 1)                  \
-  F(RegexpHasNativeCode, 2, 1)                \
-  F(RegexpIsUnmodified, 1, 1)                 \
-  F(RegexpTypeTag, 1, 1)                      \
-  F(RunningInSimulator, 0, 1)                 \
-  F(RuntimeEvaluateREPL, 1, 1)                \
-  F(ScheduleGCInStackCheck, 0, 1)             \
-  F(SerializeDeserializeNow, 0, 1)            \
-  F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \
-  F(SetBatterySaverMode, 1, 1)                \
-  F(SetForceSlowPath, 1, 1)                   \
-  F(SetIteratorProtector, 0, 1)               \
-  F(SharedGC, 0, 1)                           \
-  F(ShareObject, 1, 1)                        \
-  F(SimulateNewspaceFull, 0, 1)               \
-  F(StringIsFlat, 1, 1)                       \
-  F(StringIteratorProtector, 0, 1)            \
-  F(StringWrapperToPrimitiveProtector, 0, 1)  \
-  F(SystemBreak, 0, 1)                        \
-  F(TakeHeapSnapshot, -1, 1)                  \
-  F(TraceEnter, 0, 1)                         \
-  F(TraceExit, 1, 1)                          \
-  F(TurbofanStaticAssert, 1, 1)               \
-  F(TypedArrayLengthProtector, 0, 1)          \
-  F(TypedArraySpeciesProtector, 0, 1)         \
-  F(WaitForBackgroundOptimization, 0, 1)      \
-  I(DeoptimizeNow, 0, 1)                      \
+#define FOR_EACH_INTRINSIC_TEST(F, I)                                    \
+  F(Abort, 1, 1)                                                         \
+  F(AbortCSADcheck, 1, 1)                                                \
+  F(AbortJS, 1, 1)                                                       \
+  F(ActiveTierIsIgnition, 1, 1)                                          \
+  F(ActiveTierIsSparkplug, 1, 1)                                         \
+  F(ActiveTierIsMaglev, 1, 1)                                            \
+  F(ActiveTierIsTurbofan, 1, 1)                                          \
+  F(ArrayBufferDetachForceWasm, 1, 1)                                    \
+  F(ArrayIteratorProtector, 0, 1)                                        \
+  F(ArraySpeciesProtector, 0, 1)                                         \
+  F(BaselineOsr, -1, 1)                                                  \
+  F(BenchMaglev, 2, 1)                                                   \
+  F(BenchTurbofan, 2, 1)                                                 \
+  F(CheckNoWriteBarrierNeeded, 2, 1)                                     \
+  F(ClearFunctionFeedback, 1, 1)                                         \
+  F(ClearMegamorphicStubCache, 0, 1)                                     \
+  F(CompleteInobjectSlackTracking, 1, 1)                                 \
+  F(ConstructConsString, 2, 1)                                           \
+  F(ConstructDouble, 2, 1)                                               \
+  F(ConstructInternalizedString, 1, 1)                                   \
+  F(ConstructSlicedString, 2, 1)                                         \
+  F(ConstructThinString, 1, 1)                                           \
+  F(CurrentFrameIsTurbofan, 0, 1)                                        \
+  F(DebugPrint, -1, 1, RuntimeCallProperty::kCannotTriggerGC)            \
+  F(DebugPrintFloat, 5, 1)                                               \
+  F(DebugPrintPtr, 1, 1)                                                 \
+  F(DebugPrintWord, 5, 1)                                                \
+  F(DebugTrace, 0, 1)                                                    \
+  F(DeoptimizeFunction, 1, 1)                                            \
+  F(DisableOptimizationFinalization, 0, 1)                               \
+  F(DisallowCodegenFromStrings, 1, 1)                                    \
+  F(DisassembleFunction, 1, 1)                                           \
+  F(EnableCodeLoggingForTesting, 0, 1)                                   \
+  F(EnsureFeedbackVectorForFunction, 1, 1)                               \
+  F(FinalizeOptimization, 0, 1)                                          \
+  F(ForceFlush, 1, 1)                                                    \
+  F(GetAbstractModuleSource, 0, 1)                                       \
+  F(GetCallable, 1, 1)                                                   \
+  F(GetFeedback, 1, 1)                                                   \
+  F(GetFunctionForCurrentFrame, 0, 1)                                    \
+  F(GetInitializerFunction, 1, 1)                                        \
+  F(GetOptimizationStatus, 1, 1)                                         \
+  F(GetUndetectable, 0, 1)                                               \
+  F(GetWeakCollectionSize, 1, 1)                                         \
+  F(GlobalPrint, -1, 1, RuntimeCallProperty::kCannotTriggerGC)           \
+  F(HasCowElements, 1, 1)                                                \
+  F(HasDictionaryElements, 1, 1)                                         \
+  F(HasDoubleElements, 1, 1)                                             \
+  F(HasElementsInALargeObjectSpace, 1, 1)                                \
+  F(HasFastElements, 1, 1)                                               \
+  F(HasFastProperties, 1, 1)                                             \
+  F(HasFixedBigInt64Elements, 1, 1)                                      \
+  F(HasFixedBigUint64Elements, 1, 1)                                     \
+  F(HasFixedFloat16Elements, 1, 1)                                       \
+  F(HasFixedFloat32Elements, 1, 1)                                       \
+  F(HasFixedFloat64Elements, 1, 1)                                       \
+  F(HasFixedInt16Elements, 1, 1)                                         \
+  F(HasFixedInt32Elements, 1, 1)                                         \
+  F(HasFixedInt8Elements, 1, 1)                                          \
+  F(HasFixedUint16Elements, 1, 1)                                        \
+  F(HasFixedUint32Elements, 1, 1)                                        \
+  F(HasFixedUint8ClampedElements, 1, 1)                                  \
+  F(HasFixedUint8Elements, 1, 1)                                         \
+  F(HasHoleyElements, 1, 1)                                              \
+  F(HasObjectElements, 1, 1)                                             \
+  F(HasPackedElements, 1, 1)                                             \
+  F(HasSloppyArgumentsElements, 1, 1)                                    \
+  F(HasSmiElements, 1, 1)                                                \
+  F(HasSmiOrObjectElements, 1, 1)                                        \
+  F(HaveSameMap, 2, 1)                                                   \
+  F(HeapObjectVerify, 1, 1)                                              \
+  F(ICsAreEnabled, 0, 1)                                                 \
+  F(InLargeObjectSpace, 1, 1)                                            \
+  F(InYoungGeneration, 1, 1)                                             \
+  F(Is64Bit, 0, 1)                                                       \
+  F(IsAtomicsWaitAllowed, 0, 1)                                          \
+  F(IsBeingInterpreted, 0, 1)                                            \
+  F(IsConcatSpreadableProtector, 0, 1)                                   \
+  F(IsConcurrentRecompilationSupported, 0, 1)                            \
+  F(IsDictPropertyConstTrackingEnabled, 0, 1)                            \
+  F(IsEfficiencyModeEnabled, 0, 1)                                       \
+  F(IsInPlaceInternalizableString, 1, 1)                                 \
+  F(IsInternalizedString, 1, 1)                                          \
+  F(StringToCString, 1, 1)                                               \
+  F(StringUtf8Value, 1, 1)                                               \
+  F(IsExperimentalUndefinedDoubleEnabled, 0, 1)                          \
+  F(IsMaglevEnabled, 0, 1)                                               \
+  F(IsSameHeapObject, 2, 1)                                              \
+  F(IsSharedString, 1, 1)                                                \
+  F(IsInWritableSharedSpace, 1, 1)                                       \
+  F(IsSparkplugEnabled, 0, 1)                                            \
+  F(IsTurbofanEnabled, 0, 1)                                             \
+  F(IsWasmTieringPredictable, 0, 1)                                      \
+  F(MapIteratorProtector, 0, 1)                                          \
+  F(NeverOptimizeFunction, 1, 1)                                         \
+  F(NewRegExpWithBacktrackLimit, 3, 1)                                   \
+  F(NoElementsProtector, 0, 1)                                           \
+  F(NotifyContextDisposed, 0, 1)                                         \
+  F(SetPriorityBestEffort, 0, 1)                                         \
+  F(SetPriorityUserVisible, 0, 1)                                        \
+  F(SetPriorityUserBlocking, 0, 1)                                       \
+  F(OptimizeMaglevOnNextCall, 1, 1)                                      \
+  F(OptimizeFunctionOnNextCall, -1, 1)                                   \
+  F(OptimizeOsr, -1, 1)                                                  \
+  F(PrepareFunctionForOptimization, -1, 1)                               \
+  F(PretenureAllocationSite, 1, 1)                                       \
+  F(PrintWithNameForAssert, 2, 1, RuntimeCallProperty::kCannotTriggerGC) \
+  F(PromiseSpeciesProtector, 0, 1)                                       \
+  F(RegExpSpeciesProtector, 0, 1)                                        \
+  F(RegexpHasBytecode, 2, 1)                                             \
+  F(RegexpHasNativeCode, 2, 1)                                           \
+  F(RegexpIsUnmodified, 1, 1)                                            \
+  F(RegexpTypeTag, 1, 1)                                                 \
+  F(RunningInSimulator, 0, 1)                                            \
+  F(RuntimeEvaluateREPL, 1, 1)                                           \
+  F(ScheduleGCInStackCheck, 0, 1)                                        \
+  F(SerializeDeserializeNow, 0, 1)                                       \
+  F(SetAllocationTimeout, -1 /* 2 || 3 */, 1)                            \
+  F(SetBatterySaverMode, 1, 1)                                           \
+  F(SetForceSlowPath, 1, 1)                                              \
+  F(SetIteratorProtector, 0, 1)                                          \
+  F(SharedGC, 0, 1)                                                      \
+  F(ShareObject, 1, 1)                                                   \
+  F(SimulateNewspaceFull, 0, 1)                                          \
+  F(StringIsFlat, 1, 1)                                                  \
+  F(StringIteratorProtector, 0, 1)                                       \
+  F(StringWrapperToPrimitiveProtector, 0, 1)                             \
+  F(SystemBreak, 0, 1)                                                   \
+  F(TakeHeapSnapshot, -1, 1)                                             \
+  F(TraceEnter, 0, 1)                                                    \
+  F(TraceExit, 1, 1)                                                     \
+  F(TurbofanStaticAssert, 1, 1)                                          \
+  F(TypedArraySpeciesProtector, 0, 1)                                    \
+  F(WaitForBackgroundOptimization, 0, 1)                                 \
+  I(DeoptimizeNow, 0, 1)                                                 \
   F(LeakHole, 0, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F, I)    \
@@ -719,6 +731,8 @@ namespace internal {
   F(WasmArrayNewSegment, 5, 1)                \
   F(WasmArrayInitSegment, 6, 1)               \
   F(WasmAllocateSuspender, 0, 1)              \
+  F(WasmAllocateContinuation, 2, 1)           \
+  F(ClearWasmSuspenderResumeField, 1, 1)      \
   F(WasmCastToSpecialPrimitiveArray, 2, 1)    \
   F(WasmStringNewSegmentWtf8, 5, 1)           \
   F(WasmStringNewWtf8, 5, 1)                  \
@@ -737,13 +751,15 @@ namespace internal {
   F(WasmStringViewWtf8Slice, 3, 1)            \
   F(WasmStringFromCodePoint, 1, 1)            \
   F(WasmStringHash, 1, 1)                     \
-  F(WasmSubstring, 3, 1)
+  F(WasmSubstring, 3, 1)                      \
+  F(WasmConfigureAllPrototypes, 4, 1)         \
+  F(WasmConfigureAllPrototypesOpt, 3, 1)      \
+  F(DebugCollectWasmCoverage, 0, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I)                      \
   F(BuildRefTypeBitfield, 2, 1)                                 \
   F(CheckIsOnCentralStack, 0, 1)                                \
   F(CountUnoptimizedWasmToJSWrapper, 1, 1)                      \
-  F(DeserializeWasmModule, 2, 1)                                \
   F(DisallowWasmCodegen, 1, 1)                                  \
   F(FlushLiftoffCode, 0, 1)                                     \
   F(WasmTriggerCodeGC, 0, 1)                                    \
@@ -756,14 +772,12 @@ namespace internal {
   F(HasUnoptimizedWasmToJSWrapper, 1, 1)                        \
   F(IsAsmWasmCode, 1, 1)                                        \
   F(IsLiftoffFunction, 1, 1)                                    \
-  F(IsThreadInWasm, 0, 1)                                       \
   F(IsTurboFanFunction, 1, 1)                                   \
   F(IsUncompiledWasmFunction, 1, 1)                             \
   F(IsWasmCode, 1, 1)                                           \
   F(IsWasmDebugFunction, 1, 1)                                  \
   F(IsWasmPartialOOBWriteNoop, 0, 1)                            \
   F(IsWasmTrapHandlerEnabled, 0, 1)                             \
-  F(SerializeWasmModule, 1, 1)                                  \
   F(SetWasmCompileControls, 2, 1)                               \
   F(SetWasmImportedStringsEnabled, 1, 1)                        \
   F(SetWasmInstantiateControls, 0, 1)                           \
@@ -775,7 +789,6 @@ namespace internal {
   IF_V8_WASM_RANDOM_FUZZERS(F, WasmGenerateRandomModule, -1, 1) \
   F(WasmGetNumberOfInstances, 1, 1)                             \
   F(WasmLeaveDebugging, 0, 1)                                   \
-  F(WasmNull, 0, 1)                                             \
   F(WasmNumCodeSpaces, 1, 1)                                    \
   F(WasmStruct, 0, 1)                                           \
   F(WasmSwitchToTheCentralStackCount, 0, 1)                     \
@@ -783,6 +796,7 @@ namespace internal {
   F(WasmTraceEnter, 0, 1)                                       \
   F(WasmTraceExit, 1, 1)                                        \
   F(WasmTraceMemory, 1, 1)                                      \
+  F(WasmTraceGlobal, 1, 1)                                      \
   F(WasmTriggerTierUpForTesting, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE_TEST(F, I) \
@@ -791,7 +805,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_WEAKREF(F, I)                             \
   F(JSFinalizationRegistryRegisterWeakCellWithUnregisterToken, 4, 1) \
-  F(JSWeakRefAddToKeptObjects, 1, 1)                                 \
+  F(JSWeakRefAddToKeptObjects, 1, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR_IMPL(F, I) \
   F(DebugBreakOnBytecode, 1, 2)                   \
@@ -858,7 +872,6 @@ namespace internal {
   FOR_EACH_INTRINSIC_SHADOW_REALM(F, I)                           \
   FOR_EACH_INTRINSIC_STRINGS(F, I)                                \
   FOR_EACH_INTRINSIC_SYMBOL(F, I)                                 \
-  FOR_EACH_INTRINSIC_TEMPORAL(F, I)                               \
   FOR_EACH_INTRINSIC_TEST(F, I)                                   \
   FOR_EACH_INTRINSIC_TYPEDARRAY(F, I)                             \
   IF_WASM(FOR_EACH_INTRINSIC_WASM, F, I)                          \
@@ -890,7 +903,7 @@ namespace internal {
 // The list of all inline intrinsics only.
 #define FOR_EACH_INLINE_INTRINSIC(I) FOR_EACH_INTRINSIC_IMPL(NOTHING, I)
 
-#define F(name, nargs, ressize)                                 \
+#define F(name, nargs, ressize, ...)                            \
   Address Runtime_##name(int args_length, Address* args_object, \
                          Isolate* isolate);
 FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
@@ -902,8 +915,8 @@ FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 class Runtime : public AllStatic {
  public:
   enum FunctionId : int32_t {
-#define F(name, nargs, ressize) k##name,
-#define I(name, nargs, ressize) kInline##name,
+#define F(name, nargs, ressize, ...) k##name,
+#define I(name, nargs, ressize, ...) kInline##name,
     FOR_EACH_INTRINSIC(F) FOR_EACH_INLINE_INTRINSIC(I)
 #undef I
 #undef F
@@ -1030,6 +1043,13 @@ class Runtime : public AllStatic {
 
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> ThrowIteratorError(
       Isolate* isolate, DirectHandle<Object> object);
+
+  // We don't put `can_trigger_gc` in Function, because we need to have static
+  // access to this information in the RUNTIME_FUNCTION macro.
+  static constexpr bool kCanTriggerGC[] = {
+#define F(name, nargs, ressize, ...) detail::CanTriggerGC(__VA_ARGS__),
+      FOR_EACH_INTRINSIC(F) FOR_EACH_INLINE_INTRINSIC(F)};
+#undef F
 };
 
 class RuntimeState {
@@ -1072,35 +1092,32 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, Runtime::FunctionId);
 //---------------------------------------------------------------------------
 // Constants used by interface to runtime functions.
 
-using AllocateDoubleAlignFlag = base::BitField<bool, 0, 1>;
-
 // A set of bits returned by Runtime_GetOptimizationStatus.
 // These bits must be in sync with bits defined in test/mjsunit/mjsunit.js
 enum class OptimizationStatus {
   kIsFunction = 1 << 0,
   kNeverOptimize = 1 << 1,
-  kAlwaysOptimize = 1 << 2,
-  kMaybeDeopted = 1 << 3,
-  kOptimized = 1 << 4,
-  kMaglevved = 1 << 5,
-  kTurboFanned = 1 << 6,
-  kInterpreted = 1 << 7,
-  kMarkedForOptimization = 1 << 8,
-  kMarkedForConcurrentOptimization = 1 << 9,
-  kOptimizingConcurrently = 1 << 10,
-  kIsExecuting = 1 << 11,
-  kTopmostFrameIsTurboFanned = 1 << 12,
-  kLiteMode = 1 << 13,
-  kMarkedForDeoptimization = 1 << 14,
-  kBaseline = 1 << 15,
-  kTopmostFrameIsInterpreted = 1 << 16,
-  kTopmostFrameIsBaseline = 1 << 17,
-  kIsLazy = 1 << 18,
-  kTopmostFrameIsMaglev = 1 << 19,
-  kOptimizeOnNextCallOptimizesToMaglev = 1 << 20,
-  kOptimizeMaglevOptimizesToTurbofan = 1 << 21,
-  kMarkedForMaglevOptimization = 1 << 22,
-  kMarkedForConcurrentMaglevOptimization = 1 << 23,
+  kMaybeDeopted = 1 << 2,
+  kOptimized = 1 << 3,
+  kMaglevved = 1 << 4,
+  kTurboFanned = 1 << 5,
+  kInterpreted = 1 << 6,
+  kMarkedForOptimization = 1 << 7,
+  kMarkedForConcurrentOptimization = 1 << 8,
+  kOptimizingConcurrently = 1 << 9,
+  kIsExecuting = 1 << 10,
+  kTopmostFrameIsTurboFanned = 1 << 11,
+  kLiteMode = 1 << 12,
+  kMarkedForDeoptimization = 1 << 13,
+  kBaseline = 1 << 14,
+  kTopmostFrameIsInterpreted = 1 << 15,
+  kTopmostFrameIsBaseline = 1 << 16,
+  kIsLazy = 1 << 17,
+  kTopmostFrameIsMaglev = 1 << 18,
+  kOptimizeOnNextCallOptimizesToMaglev = 1 << 19,
+  kOptimizeMaglevOptimizesToTurbofan = 1 << 20,
+  kMarkedForMaglevOptimization = 1 << 21,
+  kMarkedForConcurrentMaglevOptimization = 1 << 22,
 };
 
 // The number of isolates used for testing in d8.

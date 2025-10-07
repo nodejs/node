@@ -27,6 +27,22 @@ class MarkCompactCollector;
 class MarkingBarrier;
 class RelocInfo;
 
+// A scoped object that determines the write barrier mode for a given object.
+// The mode is only valid for the lifetime of this object.
+class V8_EXPORT_PRIVATE V8_NODISCARD WriteBarrierModeScope final {
+ public:
+  explicit WriteBarrierModeScope(WriteBarrierMode mode);
+  explicit WriteBarrierModeScope(Tagged<HeapObject> object,
+                                 WriteBarrierMode mode);
+
+  ~WriteBarrierModeScope();
+
+  WriteBarrierMode operator*() { return mode_; }
+
+ private:
+  const WriteBarrierMode mode_;
+};
+
 // Write barrier interface. It's preferred to use the macros defined in
 // `object-macros.h`.
 //
@@ -45,7 +61,7 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static int SharedMarkingFromCode(Address raw_host, Address raw_slot);
   static int SharedFromCode(Address raw_host, Address raw_slot);
 
-  static inline WriteBarrierMode GetWriteBarrierModeForObject(
+  static inline WriteBarrierModeScope GetWriteBarrierModeForObject(
       Tagged<HeapObject> object, const DisallowGarbageCollection& promise);
 
   template <typename T>
@@ -103,18 +119,16 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static inline void MarkingForTesting(Tagged<HeapObject> host, ObjectSlot,
                                        Tagged<Object> value);
 
-#if defined(ENABLE_SLOW_DCHECKS) || defined(V8_ENABLE_DEBUG_CODE)
+#if V8_VERIFY_WRITE_BARRIERS
   template <typename T>
   static inline bool IsRequired(Tagged<HeapObject> host, T value);
-#endif
-
-#ifdef ENABLE_SLOW_DCHECKS
   template <typename T>
   static inline bool IsRequired(const HeapObjectLayout* host, T value);
+
   static bool VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
                                                JSDispatchHandle value,
                                                WriteBarrierMode mode);
-#endif
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
   // In native code we skip any further write barrier processing if the hosts
   // page does not have the kPointersFromHereAreInterestingMask. Users of this
@@ -122,9 +136,28 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static constexpr bool kUninterestingPagesCanBeSkipped = true;
 
  private:
-  static bool PageFlagsAreConsistent(Tagged<HeapObject> object);
+  static inline bool IsSkipWriteBarrierMode(WriteBarrierMode mode) {
+    static_assert(SKIP_WRITE_BARRIER == 0 && SKIP_WRITE_BARRIER_SCOPE == 1);
+    return mode <= SKIP_WRITE_BARRIER_SCOPE;
+  }
 
-  static inline bool IsImmortalImmovableHeapObject(Tagged<HeapObject> object);
+  static inline WriteBarrierMode ComputeWriteBarrierModeForObject(
+      Tagged<HeapObject> object, const DisallowGarbageCollection& promise);
+
+#if V8_VERIFY_WRITE_BARRIERS
+  template <typename T>
+  static void VerifySkipWriteBarrier(Tagged<HeapObject> host, Tagged<T> value,
+                                     WriteBarrierMode mode);
+#endif  // V8_VERIFY_WRITE_BARRIERS
+
+#if V8_VERIFY_WRITE_BARRIERS
+  static bool IsMostRecentYoungAllocation(Address object);
+
+  template <typename HostType, typename ValueType>
+  static inline bool IsRequiredCommon(HostType host, ValueType value);
+#endif
+
+  static bool PageFlagsAreConsistent(Tagged<HeapObject> object);
 
   static inline bool IsMarking(Tagged<HeapObject> object);
 

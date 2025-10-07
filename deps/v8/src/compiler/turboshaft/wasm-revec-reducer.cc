@@ -20,46 +20,74 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-// Returns true if op in node_group have same kind.
-bool IsSameOpAndKind(const Operation& op0, const Operation& op1) {
+// Compares the {kind} of two ops with the same SIMD opcode.
+bool IsSameSimd128OpKind(const Operation& op0, const Operation& op1) {
+  DCHECK_EQ(op0.opcode, op1.opcode);
 #define CASE(operation)                                \
   case Opcode::k##operation: {                         \
     using Op = operation##Op;                          \
     return op0.Cast<Op>().kind == op1.Cast<Op>().kind; \
   }
-  if (op0.opcode != op1.opcode) {
-    return false;
-  }
   switch (op0.opcode) {
+    // Nodes with kinds to compare:
     CASE(Simd128Unary)
     CASE(Simd128Binop)
     CASE(Simd128Shift)
     CASE(Simd128Ternary)
     CASE(Simd128Splat)
+    // Nodes without kinds:
+    // TODO(yolanda): Explicitly list nodes we expect to encounter here,
+    // and then have "default: UNREACHABLE();" at the end.
     default:
       return true;
   }
 #undef CASE
 }
 
+bool IsSameOpAndKind(const Operation& op0, const Operation& op1) {
+  return op0.opcode == op1.opcode && IsSameSimd128OpKind(op0, op1);
+}
+
 std::string GetSimdOpcodeName(Operation const& op) {
   std::ostringstream oss;
+  oss << OpcodeName(op.opcode);
   if (op.Is<Simd128BinopOp>() || op.Is<Simd128UnaryOp>() ||
       op.Is<Simd128ShiftOp>() || op.Is<Simd128TestOp>() ||
       op.Is<Simd128TernaryOp>()) {
     op.PrintOptions(oss);
-  } else {
-    oss << OpcodeName(op.opcode);
   }
   return oss.str();
 }
 
-//  This class is the wrapper for StoreOp/LoadOp, which is helpful to calcualte
-//  the relative offset between two StoreOp/LoadOp.
-template <typename Op,
-          typename = std::enable_if_t<
-              std::is_same_v<Op, StoreOp> || std::is_same_v<Op, LoadOp> ||
-              std::is_same_v<Op, Simd128LoadTransformOp>>>
+// Save the result of a uint64_t subtraction.
+class OffsetDiff {
+ public:
+  OffsetDiff(uint64_t offset1, uint64_t offset2) {
+    if (offset1 >= offset2) {
+      abs_diff_ = offset1 - offset2;
+      negative_ = false;
+    } else {
+      abs_diff_ = offset2 - offset1;
+      negative_ = true;
+    }
+  }
+
+  bool operator==(int64_t other) const {
+    return (negative_ == (other < 0)) &&
+           (abs_diff_ == static_cast<uint64_t>(abs(other)));
+  }
+  bool negative() const { return negative_; }
+
+ private:
+  uint64_t abs_diff_;  // abs(a-b)
+  bool negative_;      // sign(a-b)
+};
+
+// This class is the wrapper for StoreOp/LoadOp, which is helpful for
+// calculating the relative offset between two StoreOp/LoadOp.
+template <typename Op>
+  requires(std::is_same_v<Op, StoreOp> || std::is_same_v<Op, LoadOp> ||
+           std::is_same_v<Op, Simd128LoadTransformOp>)
 class StoreLoadInfo {
  public:
   StoreLoadInfo(const Graph* graph, const Op* op)
@@ -70,89 +98,97 @@ class StoreLoadInfo {
       const WordBinopOp* add_op = base_->TryCast<WordBinopOp>();
       if (!add_op || add_op->kind != WordBinopOp::Kind::kAdd ||
           add_op->rep != WordRepresentation::Word64()) {
-        SetInvalid();
+        set_invalid();
         return;
       }
       base_ = &graph->Get(add_op->left());
       const ConstantOp* const_op =
           graph->Get(add_op->right()).TryCast<ConstantOp>();
       if (!const_op) {
-        SetInvalid();
+        set_invalid();
         return;
       }
       offset_ = const_op->word64();
       index_ = &(graph->Get(op->index()));
     } else {
       if (!op->index().has_value()) {
-        SetInvalid();
+        set_invalid();
         return;
       }
       index_ = &(graph->Get(op->index().value()));
     }
 
+    // Explicit bounds check is introduced in WasmGraphBuilder, the type of
+    // bounds-checked index is uintptr_t, index is converted to uintptr_t for
+    // memory32.
+    // Try to match memory32 with constant index: ChangeUint32ToUintPtr(const).
     if (const ChangeOp* change_op = index_->TryCast<ChangeOp>()) {
-      DCHECK_EQ(change_op->kind, ChangeOp::Kind::kZeroExtend);
+      if (change_op->kind != ChangeOp::Kind::kZeroExtend) {
+        TRACE("ChangeOp kind not supported for revectorization\n");
+        set_invalid();
+        return;
+      }
+
       index_ = &graph->Get(change_op->input());
-      // If index_ is constant, add the constant to offset_ and set index_ to
-      // nullptr
+      // If index_ is constant, fold it into offset_.
       if (const ConstantOp* const_op = index_->TryCast<ConstantOp>()) {
         DCHECK_EQ(const_op->kind, ConstantOp::Kind::kWord32);
-        int32_t new_offset;
-        if (base::bits::SignedAddOverflow32(
-                static_cast<int32_t>(const_op->word32()),
-                static_cast<int32_t>(offset_), &new_offset)) {
-          // offset is overflow
-          SetInvalid();
+        // Exceed uint32 limits.
+        if (offset_ >
+            std::numeric_limits<uint32_t>::max() - const_op->word32()) {
+          set_invalid();
           return;
         }
-        offset_ = new_offset;
+        offset_ += const_op->word32();
         index_ = nullptr;
       }
-    } else {  // memory64
-      if (const ConstantOp* const_op = index_->TryCast<ConstantOp>()) {
-        DCHECK_EQ(const_op->kind, ConstantOp::Kind::kWord64);
-        offset_ += const_op->word64();
-        index_ = nullptr;
+      // Try to match memory64 with constant index.
+    } else if (const ConstantOp* const_op = index_->TryCast<ConstantOp>()) {
+      DCHECK_EQ(const_op->kind, ConstantOp::Kind::kWord64);
+      // Exceed uint64 limits.
+      if (offset_ > std::numeric_limits<uint64_t>::max() - const_op->word64()) {
+        set_invalid();
+        return;
       }
+      offset_ += const_op->word64();
+      index_ = nullptr;
     }
   }
 
-  std::optional<int> operator-(const StoreLoadInfo<Op>& rhs) const {
-    DCHECK(IsValid() && rhs.IsValid());
-    bool calculatable = base_ == rhs.base_ && index_ == rhs.index_;
+  std::optional<OffsetDiff> operator-(const StoreLoadInfo<Op>& rhs) const {
+    DCHECK(is_valid() && rhs.is_valid());
+    if (base_ != rhs.base_) return {};
+    if (index_ != rhs.index_) return {};
 
     if constexpr (std::is_same_v<Op, Simd128LoadTransformOp>) {
-      calculatable &= (op_->load_kind == rhs.op_->load_kind &&
-                       op_->transform_kind == rhs.op_->transform_kind);
+      if (op_->load_kind != rhs.op_->load_kind) return {};
+      if (op_->transform_kind != rhs.op_->transform_kind) return {};
     } else {
-      calculatable &= (op_->kind == rhs.op_->kind);
+      if (op_->kind != rhs.op_->kind) return {};
     }
 
     if constexpr (std::is_same_v<Op, StoreOp>) {
       // TODO(v8:12716) If one store has a full write barrier and the other has
-      // no write barrier, consider combine them with a full write barrier.
-      calculatable &= (op_->write_barrier == rhs.op_->write_barrier);
+      // no write barrier, consider combining them with a full write barrier.
+      if (op_->write_barrier != rhs.op_->write_barrier) return {};
     }
 
-    if (calculatable) {
-      return offset_ - rhs.offset_;
-    }
-    return {};
+    return OffsetDiff(offset_, rhs.offset_);
   }
 
-  bool IsValid() const { return op_ != nullptr; }
+  bool is_valid() const { return op_ != nullptr; }
 
   const Operation* index() const { return index_; }
-  int64_t offset() const { return offset_; }
+  uint64_t offset() const { return offset_; }
   const Op* op() const { return op_; }
 
  private:
-  void SetInvalid() { op_ = nullptr; }
+  void set_invalid() { op_ = nullptr; }
 
   const Op* op_;
-  const Operation* base_ = nullptr;
-  const Operation* index_ = nullptr;
-  int64_t offset_;
+  const Operation* base_;
+  const Operation* index_;
+  uint64_t offset_;
 };
 
 struct StoreInfoCompare {
@@ -167,25 +203,8 @@ struct StoreInfoCompare {
 
 using StoreInfoSet = ZoneSet<StoreLoadInfo<StoreOp>, StoreInfoCompare>;
 
-// Return whether the stride of node_group equal to a specific value
-template <class Op, class Info>
-bool LoadStrideEqualTo(const Graph& graph, const NodeGroup& node_group,
-                       int stride) {
-  base::SmallVector<Info, 2> load_infos;
-  for (OpIndex op_idx : node_group) {
-    const Operation& op = graph.Get(op_idx);
-    const Op& load_op = op.Cast<Op>();
-    Info info(&graph, &load_op);
-    if (!info.IsValid()) {
-      return false;
-    }
-    load_infos.push_back(info);
-  }
-  return load_infos[1] - load_infos[0] == stride;
-}
-
 // Returns true if all of the nodes in node_group are identical.
-// Splat opcode in WASM SIMD is used to create vector with identical lanes.
+// Splat opcode in WASM SIMD is used to create a vector with identical lanes.
 template <typename T>
 bool IsSplat(const T& node_group) {
   DCHECK_EQ(node_group.size(), 2);
@@ -199,17 +218,17 @@ void PackNode::Print(Graph* graph) const {
 }
 
 PackNode* SLPTree::GetPackNode(OpIndex node) {
-  auto itr = node_to_packnode_.find(node);
-  if (itr != node_to_packnode_.end()) {
-    return itr->second;
+  auto it = node_to_packnode_.find(node);
+  if (it != node_to_packnode_.end()) {
+    return it->second;
   }
   return analyzer_->GetPackNode(node);
 }
 
 ZoneVector<PackNode*>* SLPTree::GetIntersectPackNodes(OpIndex node) {
-  auto I = node_to_intersect_packnodes_.find(node);
-  if (I != node_to_intersect_packnodes_.end()) {
-    return &(I->second);
+  auto it = node_to_intersect_packnodes_.find(node);
+  if (it != node_to_intersect_packnodes_.end()) {
+    return &(it->second);
   }
   return nullptr;
 }
@@ -219,9 +238,9 @@ void ForEach(FunctionType callback,
              const ZoneUnorderedMap<OpIndex, PackNode*>& node_map) {
   absl::flat_hash_set<PackNode const*> visited;
 
-  for (auto& entry : node_map) {
+  for (const auto& entry : node_map) {
     PackNode const* pnode = entry.second;
-    if (!pnode || visited.find(pnode) != visited.end()) {
+    if (!pnode || visited.contains(pnode)) {
       continue;
     }
     visited.insert(pnode);
@@ -236,8 +255,8 @@ void ForEach(FunctionType callback,
   absl::flat_hash_set<PackNode const*> visited;
 
   for (const auto& entry : node_map) {
-    for (auto* pnode : entry.second) {
-      if (visited.find(pnode) != visited.end()) {
+    for (const auto* pnode : entry.second) {
+      if (visited.contains(pnode)) {
         continue;
       }
       visited.insert(pnode);
@@ -258,7 +277,25 @@ void SLPTree::Print(const char* info) {
           node_to_intersect_packnodes_);
 }
 
+bool SLPTree::HasReorderInput(const NodeGroup& node_group) {
+  DCHECK_EQ(node_group.size(), 2);
+  return (reorder_inputs_.contains(node_group[0]) ||
+          reorder_inputs_.contains(node_group[1]) ||
+          analyzer_->HasReorderInput(node_group[0]) ||
+          analyzer_->HasReorderInput(node_group[1]));
+}
+
 bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
+  // When reducing force-packing nodes, some of the inputs need to be reduced
+  // earlier. It's possible that these inputs are force-packing nodes themselves
+  // which breaks the assumption that nodes with smaller index in ForcePackNode
+  // will be visited earlier. Since this pattern is rare in real-life, we will
+  // not allow the reordering inputs to be force-packed.
+  if (HasReorderInput(node_group)) {
+    TRACE("NodeGroup has force-pack inputs.\n");
+    return true;
+  }
+
   DCHECK_EQ(node_group.size(), 2);
   if (node_group[0] == node_group[1]) return false;
   OpIndex start, end;
@@ -270,47 +307,82 @@ bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
     end = node_group[0];
   }
   // Do BFS from the end node and see if there is a path to the start node.
-  ZoneQueue<OpIndex> to_visit(phase_zone_);
-  to_visit.push(end);
+  // Use a shared deque, as queue is an adaptor and does not support a clear()
+  // function.
+  ZoneDeque<OpIndex>& to_visit = analyzer_->GetSharedOpIndexDeque();
+  ZoneUnorderedSet<OpIndex>& inputs_set = analyzer_->GetSharedOpIndexSet();
+  DCHECK(to_visit.empty() && inputs_set.empty());
+  to_visit.push_back(end);
+
+  bool result = false;
   while (!to_visit.empty()) {
     OpIndex to_visit_node = to_visit.front();
     Operation& op = graph_.Get(to_visit_node);
-    to_visit.pop();
+    to_visit.pop_front();
     for (OpIndex input : op.inputs()) {
       if (input == start) {
-        return true;
+        result = true;
+        break;
       } else if (input > start) {
+        // Check side effect from input to start's previous node to simplify
+        // reducing of force-packing nodes.
+        OpIndex start_prev = graph().PreviousIndex(start);
+        DCHECK(start_prev.valid());
+        if (!IsSideEffectFreeRange(start_prev, input)) {
+          result = true;
+          break;
+        }
+
         // We should ensure that there is no back edge.
         DCHECK_LT(input, to_visit_node);
-        to_visit.push(input);
+        to_visit.push_back(input);
+        inputs_set.insert(input);
       }
     }
+
+    if (result) break;
   }
-  return false;
+
+  if (result) {
+    to_visit.clear();
+  } else {
+    reorder_inputs_.merge(inputs_set);
+  }
+
+  inputs_set.clear();
+  return result;
 }
 
 PackNode* SLPTree::NewPackNode(const NodeGroup& node_group) {
   TRACE("PackNode %s(#%d, #%d)\n",
         GetSimdOpcodeName(graph_.Get(node_group[0])).c_str(),
         node_group[0].id(), node_group[1].id());
-  PackNode* pnode = phase_zone_->New<PackNode>(phase_zone_, node_group);
+  PackNode* pnode =
+      phase_zone_->New<PackNode>(phase_zone_, node_group, PackNode::kDefault);
   for (OpIndex node : node_group) {
     node_to_packnode_[node] = pnode;
   }
   return pnode;
 }
 
-PackNode* SLPTree::NewForcePackNode(const NodeGroup& node_group,
-                                    ForcePackNode::ForcePackType type,
-                                    const Graph& graph) {
+ForcePackNode* SLPTree::NewForcePackNode(const NodeGroup& node_group,
+                                         ForcePackNode::ForcePackType type,
+                                         unsigned recursion_depth) {
   // Currently we only support force packing two nodes.
   DCHECK_EQ(node_group.size(), 2);
+
+  if (recursion_depth < 1) {
+    TRACE("Do not force pack at root #%d:%s\n", node_group[0].id(),
+          GetSimdOpcodeName(graph_.Get(node_group[0])).c_str());
+    return nullptr;
+  }
+
   // We should guarantee that the one node in the NodeGroup does not rely on the
   // result of the other. Because it is costly to force pack such candidates.
   // For example, we have four nodes {A, B, C, D} which are connected by input
   // edges: A <-- B <-- C <-- D. If {B} and {D} are already packed into a
   // PackNode and we want to force pack {A} and {C}, we need to duplicate {B}
-  // and the result will be {A, B, C}, {B, D}. This increase the cost of
+  // and the result will be {A, B, C}, {B, D}. This increases the cost of
   // ForcePack so currently we do not support it.
   if (HasInputDependencies(node_group)) {
     TRACE("ForcePackNode %s(#%d, #%d) failed due to input dependencies.\n",
@@ -349,7 +421,7 @@ BundlePackNode* SLPTree::NewBundlePackNode(const NodeGroup& node_group,
 }
 
 PackNode* SLPTree::NewIntersectPackNode(const NodeGroup& node_group) {
-  // Similar as ForcePackNode, dependent inputs are not supported.
+  // Similar to ForcePackNode, dependent inputs are not supported.
   if (HasInputDependencies(node_group)) {
     TRACE("IntersectPackNode %s(#%d, #%d) failed due to input dependencies.\n",
           GetSimdOpcodeName(graph_.Get(node_group[0])).c_str(),
@@ -363,7 +435,7 @@ PackNode* SLPTree::NewIntersectPackNode(const NodeGroup& node_group) {
   PackNode* intersect_pnode = phase_zone_->New<PackNode>(
       phase_zone_, node_group, PackNode::kIntersectPackNode);
 
-  for (int i = 0; i < static_cast<int>(node_group.size()); i++) {
+  for (size_t i = 0; i < node_group.size(); i++) {
     OpIndex op_idx = node_group[i];
     if (i > 0 && op_idx == node_group[0]) continue;
     auto it = node_to_intersect_packnodes_.find(op_idx);
@@ -379,8 +451,8 @@ PackNode* SLPTree::NewIntersectPackNode(const NodeGroup& node_group) {
   return intersect_pnode;
 }
 
-PackNode* SLPTree::NewCommutativePackNodeAndRecurs(const NodeGroup& node_group,
-                                                   unsigned depth) {
+PackNode* SLPTree::NewCommutativePackNodeAndRecurse(const NodeGroup& node_group,
+                                                    unsigned depth) {
   PackNode* pnode = NewPackNode(node_group);
 
   const Simd128BinopOp& op0 = graph_.Get(node_group[0]).Cast<Simd128BinopOp>();
@@ -389,50 +461,45 @@ PackNode* SLPTree::NewCommutativePackNodeAndRecurs(const NodeGroup& node_group,
   bool same_kind =
       (op0.left() == op1.left()) ||
       IsSameOpAndKind(graph_.Get(op0.left()), graph_.Get(op1.left()));
-  bool need_swap = Simd128BinopOp::IsCommutative(op0.kind) && !same_kind;
-  if (need_swap) {
+  // If op0.left() and op1.left() don't have the same kind, they'll definitely
+  // fail in {BuildTreeRec}, so swap op1's inputs if possible for another
+  // chance at success.
+  bool swap_inputs = Simd128BinopOp::IsCommutative(op1.kind) && !same_kind;
+  if (swap_inputs) {
     TRACE("Change the order of binop operands\n");
   }
-  for (int i = 0; i < 2; ++i) {
-    // Swap the left and right input if necessary
-    unsigned node1_input_index = need_swap ? 1 - i : i;
-    NodeGroup operands(graph_.Get(node_group[0]).input(i),
-                       graph_.Get(node_group[1]).input(node1_input_index));
+  for (size_t i = 0; i < 2; ++i) {
+    // Swap the left and right input if necessary.
+    size_t node1_input_index = swap_inputs ? 1 - i : i;
+    NodeGroup operands(op0.input(i), op1.input(node1_input_index));
 
     PackNode* child = BuildTreeRec(operands, depth + 1);
-    if (child) {
-      pnode->SetOperand(i, child);
-    } else {
-      return nullptr;
-    }
+    if (!child) return nullptr;
+    pnode->SetOperand(i, child);
   }
   return pnode;
 }
 
-PackNode* SLPTree::NewPackNodeAndRecurs(const NodeGroup& node_group,
-                                        int start_index, int count,
-                                        unsigned depth) {
+PackNode* SLPTree::NewPackNodeAndRecurse(const NodeGroup& node_group,
+                                         size_t start_index, size_t count,
+                                         unsigned depth) {
   PackNode* pnode = NewPackNode(node_group);
-  for (int i = 0; i < count; ++i) {
-    // Prepare the operand vector.
-    int input_index = i + start_index;
+  for (size_t i = 0; i < count; ++i) {
+    size_t input_index = i + start_index;
     NodeGroup operands(graph_.Get(node_group[0]).input(input_index),
                        graph_.Get(node_group[1]).input(input_index));
 
     PackNode* child = BuildTreeRec(operands, depth + 1);
-    if (child) {
-      pnode->SetOperand(i, child);
-    } else {
-      return nullptr;
-    }
+    if (!child) return nullptr;
+    pnode->SetOperand(i, child);
   }
   return pnode;
 }
 
 ShufflePackNode* SLPTree::NewShufflePackNode(
     const NodeGroup& node_group, ShufflePackNode::SpecificInfo::Kind kind) {
-  Operation& op = graph_.Get(node_group[0]);
-  TRACE("PackNode %s(#%d:, #%d)\n", GetSimdOpcodeName(op).c_str(),
+  TRACE("PackNode %s(#%d:, #%d)\n",
+        GetSimdOpcodeName(graph_.Get(node_group[0])).c_str(),
         node_group[0].id(), node_group[1].id());
   ShufflePackNode* pnode =
       phase_zone_->New<ShufflePackNode>(phase_zone_, node_group, kind);
@@ -459,7 +526,7 @@ ShufflePackNode* SLPTree::Try256ShuffleMatchLoad8x8U(
   }
 
   if (op0.left() == op0.right() || op1.left() == op1.right()) {
-    // Here shuffle couldn't be swizzle
+    // Here shuffle couldn't be swizzle.
     return nullptr;
   }
 
@@ -472,7 +539,7 @@ ShufflePackNode* SLPTree::Try256ShuffleMatchLoad8x8U(
   wasm::SimdShuffle::CanonicalizeShuffle(false, shuffle_copy##n, &need_swap,   \
                                          &is_swizzle);                         \
   if (is_swizzle) {                                                            \
-    /* Here shuffle couldn't be swizzle*/                                      \
+    /* Here shuffle couldn't be swizzle. */                                    \
     return nullptr;                                                            \
   }                                                                            \
   V<Simd128> shuffle##n##_left_idx = need_swap ? op##n.right() : op##n.left(); \
@@ -483,7 +550,7 @@ ShufflePackNode* SLPTree::Try256ShuffleMatchLoad8x8U(
 
 #undef CANONICALIZE_SHUFFLE
   if (shuffle0_left_idx != shuffle1_left_idx) {
-    // Not the same left
+    // Not the same left.
     return nullptr;
   }
 
@@ -491,7 +558,7 @@ ShufflePackNode* SLPTree::Try256ShuffleMatchLoad8x8U(
       graph_.Get(shuffle0_left_idx).TryCast<Simd128LoadTransformOp>();
 
   if (!load_transform) {
-    // shuffle left is not Simd128LoadTransformOp
+    // Shuffle left is not Simd128LoadTransformOp.
     return nullptr;
   }
 
@@ -502,7 +569,7 @@ ShufflePackNode* SLPTree::Try256ShuffleMatchLoad8x8U(
 
   if (!shuffle0_const || !shuffle1_const || !shuffle0_const->IsZero() ||
       !shuffle1_const->IsZero()) {
-    // Shuffle right is not zero
+    // Shuffle right is not zero.
     return nullptr;
   }
 
@@ -517,7 +584,6 @@ ShufflePackNode* SLPTree::Try256ShuffleMatchLoad8x8U(
 
     for (int i = 0; i < kSimd128Size / 4; ++i) {
       if (shuffle_copy0[i * 4] != i || shuffle_copy1[i * 4] != i + 4) {
-        // not match
         return nullptr;
       }
 
@@ -527,7 +593,6 @@ ShufflePackNode* SLPTree::Try256ShuffleMatchLoad8x8U(
           shuffle_copy1[i * 4 + 1] < kSimd128Size ||
           shuffle_copy1[i * 4 + 2] < kSimd128Size ||
           shuffle_copy1[i * 4 + 3] < kSimd128Size) {
-        // not match
         return nullptr;
       }
     }
@@ -555,7 +620,7 @@ ShufflePackNode* SLPTree::X64TryMatch256Shuffle(const NodeGroup& node_group,
   uint8_t shuffle8x32[32];
 
   if (op0.left() == op0.right() && op1.left() == op1.right()) {
-    // shuffles are swizzles
+    // Shuffles are swizzles.
     for (int i = 0; i < 16; ++i) {
       shuffle8x32[i] = shuffle0[i] % 16;
       shuffle8x32[i + 16] = 16 + shuffle1[i] % 16;
@@ -572,7 +637,7 @@ ShufflePackNode* SLPTree::X64TryMatch256Shuffle(const NodeGroup& node_group,
       }
     }
   } else if (op0.left() != op0.right() && op1.left() != op1.right()) {
-    // shuffles are not swizzles
+    // Shuffles are not swizzles.
     for (int i = 0; i < 16; ++i) {
       if (shuffle0[i] < 16) {
         shuffle8x32[i] = shuffle0[i];
@@ -621,7 +686,7 @@ ShufflePackNode* SLPTree::X64TryMatch256Shuffle(const NodeGroup& node_group,
 
 // Try to match i8x16/i16x8 to f32x4 conversion pattern.
 // The following wasm snippet is an example for load i8x16,
-// extend to i32x4 and convert to f32x4
+// extend to i32x4 and convert to f32x4:
 //  (f32x4.replace_lane 3
 //     (f32x4.replace_lane 2
 //       (f32x4.replace_lane 1
@@ -645,12 +710,12 @@ SLPTree::TryGetExtendIntToF32x4Info(OpIndex index) {
   OpIndex current = index;
   LaneExtendInfo lane_extend_info[4];
 
-  // Get information for lane 1 to lane 3
+  // Get information for lane 1 to lane 3.
   for (int lane_index = 3; lane_index > 0; lane_index--) {
     const Simd128ReplaceLaneOp* replace_lane =
         graph_.Get(current)
             .TryCast<turboshaft::Opmask::kSimd128ReplaceLaneF32x4>();
-    if (!replace_lane) {
+    if (!replace_lane || replace_lane->lane != lane_index) {
       TRACE("Mismatch in replace lane\n");
       return {};
     }
@@ -675,20 +740,25 @@ SLPTree::TryGetExtendIntToF32x4Info(OpIndex index) {
     current = replace_lane->into();
   }
 
-  // Get information for lane 0(splat)
+  // Get information for lane 0 (splat).
   const Simd128SplatOp* splat = graph_.Get(current).TryCast<Simd128SplatOp>();
   if (!splat) {
     TRACE("Mismatch in splat\n");
     return {};
   }
   const ChangeOp* change = graph_.Get(splat->input()).TryCast<ChangeOp>();
-  if (!change) {
+  if (!change || (change->kind != ChangeOp::Kind::kSignedToFloat &&
+                  change->kind != ChangeOp::Kind::kUnsignedToFloat)) {
     TRACE("Mismatch in splat type convert\n");
     return {};
   }
   const Simd128ExtractLaneOp* extract_lane =
       graph_.Get(change->input()).TryCast<Simd128ExtractLaneOp>();
-  if (!extract_lane) {
+  if (!extract_lane ||
+      (extract_lane->kind != Simd128ExtractLaneOp::Kind::kI8x16S &&
+       extract_lane->kind != Simd128ExtractLaneOp::Kind::kI8x16U &&
+       extract_lane->kind != Simd128ExtractLaneOp::Kind::kI16x8S &&
+       extract_lane->kind != Simd128ExtractLaneOp::Kind::kI16x8U)) {
     TRACE("Mismatch in splat extract lane\n");
     return {};
   }
@@ -698,28 +768,16 @@ SLPTree::TryGetExtendIntToF32x4Info(OpIndex index) {
   lane_extend_info[0].extract_kind = extract_lane->kind;
   lane_extend_info[0].extract_lane_index = extract_lane->lane;
 
-  // Pattern matching for f32x4.convert_i32x4(i32x4.extract_lane)
-  for (int i = 0; i < 4; i++) {
-    if (lane_extend_info[i].replace_lane_index != i) {
-      return {};
-    }
-    if (lane_extend_info[i].change_kind != lane_extend_info[0].change_kind ||
-        (lane_extend_info[i].change_kind != ChangeOp::Kind::kSignedToFloat &&
-         lane_extend_info[i].change_kind != ChangeOp::Kind::kUnsignedToFloat)) {
+  // Pattern matching for f32x4.convert_i32x4(i32x4.extract_lane): check if
+  // lanes 1-3 match lane 0.
+  for (int i = 1; i < 4; i++) {
+    if (lane_extend_info[i].change_kind != lane_extend_info[0].change_kind) {
       return {};
     }
     if (lane_extend_info[i].extract_from != lane_extend_info[0].extract_from) {
       return {};
     }
-    if (lane_extend_info[i].extract_kind != lane_extend_info[0].extract_kind ||
-        (lane_extend_info[i].extract_kind !=
-             Simd128ExtractLaneOp::Kind::kI8x16S &&
-         lane_extend_info[i].extract_kind !=
-             Simd128ExtractLaneOp::Kind::kI8x16U &&
-         lane_extend_info[i].extract_kind !=
-             Simd128ExtractLaneOp::Kind::kI16x8S &&
-         lane_extend_info[i].extract_kind !=
-             Simd128ExtractLaneOp::Kind::kI16x8U)) {
+    if (lane_extend_info[i].extract_kind != lane_extend_info[0].extract_kind) {
       return {};
     }
     if (lane_extend_info[i].extract_lane_index !=
@@ -784,21 +842,38 @@ bool SLPTree::TryMatchExtendIntToF32x4(const NodeGroup& node_group,
   return true;
 }
 
-bool SLPTree::IsSideEffectFree(OpIndex first, OpIndex second) {
-  DCHECK_LE(first.offset(), second.offset());
-  if (first == second) return true;
-  OpEffects effects = graph().Get(second).Effects();
-  OpIndex prev_node = graph().PreviousIndex(second);
-  while (prev_node != first) {
-    OpEffects prev_effects = graph().Get(prev_node).Effects();
-    if ((graph().Get(second).IsProtectedLoad() &&
-         graph().Get(prev_node).IsProtectedLoad())
+OpEffects RefineEffects(Operation& op) {
+  OpEffects effects = op.Effects();
+  const WordBinopOp* word_binop = op.template TryCast<WordBinopOp>();
+  if (word_binop &&
+      (word_binop->kind == WordBinopOp::Kind::kAdd ||
+       word_binop->kind == WordBinopOp::Kind::kMul ||
+       word_binop->kind == WordBinopOp::Kind::kSignedMulOverflownBits ||
+       word_binop->kind == WordBinopOp::Kind::kUnsignedMulOverflownBits ||
+       word_binop->kind == WordBinopOp::Kind::kBitwiseAnd ||
+       word_binop->kind == WordBinopOp::Kind::kBitwiseOr ||
+       word_binop->kind == WordBinopOp::Kind::kBitwiseXor ||
+       word_binop->kind == WordBinopOp::Kind::kSub)) {
+    // WordBinop consumes control flow effect to avoid division by 0.
+    effects.consumes.control_flow = false;
+  }
+  return effects;
+}
+
+bool SLPTree::IsSideEffectFreeRange(OpIndex from, OpIndex to) {
+  DCHECK_LE(from.offset(), to.offset());
+  if (from == to) return true;
+  const OpEffects effects = RefineEffects(graph().Get(to));
+  bool to_is_protected_load = graph().Get(to).IsProtectedLoad();
+  for (OpIndex prev_node = graph().PreviousIndex(to); prev_node != from;
+       prev_node = graph().PreviousIndex(prev_node)) {
+    const OpEffects prev_effects = RefineEffects(graph().Get(prev_node));
+    if ((to_is_protected_load && graph().Get(prev_node).IsProtectedLoad())
             ? CannotSwapProtectedLoads(prev_effects, effects)
             : CannotSwapOperations(prev_effects, effects)) {
-      TRACE("break side effect %d, %d\n", prev_node.id(), second.id());
+      TRACE("break side effect %d, %d\n", prev_node.id(), to.id());
       return false;
     }
-    prev_node = graph().PreviousIndex(prev_node);
   }
   return true;
 }
@@ -812,38 +887,6 @@ bool IsSignExtensionOp(Operation& op) {
            binop->kind <= Simd128BinopOp::Kind::kLastSignExtensionOp;
   }
   return false;
-}
-
-bool SLPTree::CanBePacked(const NodeGroup& node_group) {
-  OpIndex node0 = node_group[0];
-  OpIndex node1 = node_group[1];
-  Operation& op0 = graph_.Get(node0);
-  Operation& op1 = graph_.Get(node1);
-
-  if (op0.opcode != op1.opcode) {
-    TRACE("Different opcode\n");
-    return false;
-  }
-
-  if (graph().BlockIndexOf(node0) != graph().BlockIndexOf(node1)) {
-    TRACE("Can't pack operations of different basic block\n");
-    return false;
-  }
-
-  auto is_sign_ext = IsSignExtensionOp(op0) && IsSignExtensionOp(op1);
-
-  if (!is_sign_ext && !IsSameOpAndKind(op0, op1)) {
-    TRACE("(%s, %s) have different op\n", GetSimdOpcodeName(op0).c_str(),
-          GetSimdOpcodeName(op1).c_str());
-    return false;
-  }
-
-  if (node0.offset() <= node1.offset() ? !IsSideEffectFree(node0, node1)
-                                       : !IsSideEffectFree(node1, node0)) {
-    TRACE("Break side effect\n");
-    return false;
-  }
-  return true;
 }
 
 bool SLPTree::IsEqual(const OpIndex node0, const OpIndex node1) {
@@ -861,32 +904,6 @@ PackNode* SLPTree::BuildTree(const NodeGroup& roots) {
   return root_;
 }
 
-bool IsLoadExtend(const Simd128LoadTransformOp& op) {
-  switch (op.transform_kind) {
-    case Simd128LoadTransformOp::TransformKind::k8x8S:
-    case Simd128LoadTransformOp::TransformKind::k8x8U:
-    case Simd128LoadTransformOp::TransformKind::k16x4S:
-    case Simd128LoadTransformOp::TransformKind::k16x4U:
-    case Simd128LoadTransformOp::TransformKind::k32x2S:
-    case Simd128LoadTransformOp::TransformKind::k32x2U:
-      return true;
-    default:
-      return false;
-  }
-}
-
-bool IsLoadSplat(const Simd128LoadTransformOp& op) {
-  switch (op.transform_kind) {
-    case Simd128LoadTransformOp::TransformKind::k8Splat:
-    case Simd128LoadTransformOp::TransformKind::k16Splat:
-    case Simd128LoadTransformOp::TransformKind::k32Splat:
-    case Simd128LoadTransformOp::TransformKind::k64Splat:
-      return true;
-    default:
-      return false;
-  }
-}
-
 PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
                                 unsigned recursion_depth) {
   DCHECK_EQ(node_group.size(), 2);
@@ -896,12 +913,33 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
   Operation& op0 = graph_.Get(node0);
   Operation& op1 = graph_.Get(node1);
 
-  if (recursion_depth == RecursionMaxDepth) {
+  if (recursion_depth == kMaxRecursionDepth) {
     TRACE("Failed due to max recursion depth!\n");
     return nullptr;
   }
 
-  if (!CanBePacked(node_group)) {
+  // Check if this node group can be packed.
+  if (op0.opcode != op1.opcode) {
+    TRACE("Can't pack different opcodes\n");
+    return nullptr;
+  }
+
+  if (graph_.BlockIndexOf(node0) != graph_.BlockIndexOf(node1)) {
+    TRACE("Can't pack operations in different basic blocks\n");
+    return nullptr;
+  }
+
+  auto is_sign_ext = IsSignExtensionOp(op0) && IsSignExtensionOp(op1);
+
+  if (!is_sign_ext && !IsSameSimd128OpKind(op0, op1)) {
+    TRACE("(%s, %s) have different kind\n", GetSimdOpcodeName(op0).c_str(),
+          GetSimdOpcodeName(op1).c_str());
+    return nullptr;
+  }
+
+  if (node0.offset() <= node1.offset() ? !IsSideEffectFreeRange(node0, node1)
+                                       : !IsSideEffectFreeRange(node1, node0)) {
+    TRACE("Can't pack nodes with side effects between them\n");
     return nullptr;
   }
 
@@ -909,77 +947,88 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
   bool is_intersected = false;
   // For revisited node_group, we only need to match from node0.
   if (PackNode* pnode = GetPackNode(node0)) {
-    const Operation& op = graph_.Get(node0);
     if (pnode->IsSame(node_group)) {
       TRACE("Perfect diamond merge at #%d,%s\n", node0.id(),
-            GetSimdOpcodeName(op).c_str());
+            GetSimdOpcodeName(op0).c_str());
       return pnode;
     }
 
     // TODO(yolanda): Support other intersect PackNode e.g. overlapped loads.
-    if (!pnode->IsForcePackNode() || recursion_depth < 1) {
+    if (!pnode->IsForcePackNode()) {
       TRACE("Unsupported partial overlap at #%d,%s!\n", node0.id(),
-            GetSimdOpcodeName(op).c_str());
+            GetSimdOpcodeName(op0).c_str());
       return nullptr;
     }
 
-    // Match intersect packnodes from current tree.
-    if (auto intersect_packnodes = GetIntersectPackNodes(node0)) {
-      for (auto intersect_pnode : *intersect_packnodes) {
-        if (intersect_pnode->IsSame(node_group)) {
-          TRACE("Perfect diamond merge at intersect pack node #%d,%s, #%d\n",
-                node0.id(), GetSimdOpcodeName(op).c_str(), node1.id());
-          return intersect_pnode;
-        }
-      }
-    }
+    is_intersected = true;
+  }
 
-    // Match intersect packnodes from analyzer
-    if (auto intersect_packnodes = analyzer_->GetIntersectPackNodes(node0)) {
-      for (auto intersect_pnode : *intersect_packnodes) {
-        if (intersect_pnode->IsSame(node_group)) {
-          TRACE("Perfect diamond merge at intersect pack node #%d,%s, #%d\n",
-                node0.id(), GetSimdOpcodeName(op).c_str(), node1.id());
-          return intersect_pnode;
-        }
+  // Match intersect packnodes from current tree.
+  if (ZoneVector<PackNode*>* intersect_packnodes =
+          GetIntersectPackNodes(node0)) {
+    for (PackNode* intersect_pnode : *intersect_packnodes) {
+      if (intersect_pnode->IsSame(node_group)) {
+        TRACE("Perfect diamond merge at intersect pack node #%d,%s, #%d\n",
+              node0.id(), GetSimdOpcodeName(op0).c_str(), node1.id());
+        return intersect_pnode;
       }
     }
 
     is_intersected = true;
-    TRACE("Partial overlap at #%d,%s!\n", node0.id(),
-          GetSimdOpcodeName(op).c_str());
   }
 
-  // Catch overlapped PackNode on the other nodes.
-  if (!is_intersected) {
-    for (int i = 1; i < static_cast<int>(node_group.size()); i++) {
-      const OpIndex op_idx = node_group[i];
-      const Operation& op = graph_.Get(op_idx);
-      if (auto pnode = GetPackNode(op_idx)) {
-        if (!pnode->IsForcePackNode()) {
-          TRACE("Unsupported partial overlap at #%d,%s!\n", op_idx.id(),
-                GetSimdOpcodeName(op).c_str());
-          return nullptr;
-        }
-      } else if (!GetIntersectPackNodes(op_idx) &&
-                 !analyzer_->GetIntersectPackNodes(op_idx)) {
-        continue;
+  // Match intersect packnodes from analyzer.
+  if (ZoneVector<PackNode*>* intersect_packnodes =
+          analyzer_->GetIntersectPackNodes(node0)) {
+    for (PackNode* intersect_pnode : *intersect_packnodes) {
+      if (intersect_pnode->IsSame(node_group)) {
+        TRACE("Perfect diamond merge at intersect pack node #%d,%s, #%d\n",
+              node0.id(), GetSimdOpcodeName(op0).c_str(), node1.id());
+        return intersect_pnode;
       }
+    }
 
+    is_intersected = true;
+  }
+
+  if (is_intersected) {
+    TRACE("Partial overlap at #%d,%s!\n", node0.id(),
+          GetSimdOpcodeName(op0).c_str());
+  } else {
+    // Match overlapped PackNode on the second node.
+    if (PackNode* pnode = GetPackNode(node1)) {
+      if (!pnode->IsForcePackNode()) {
+        TRACE("Unsupported partial overlap at #%d,%s!\n", node1.id(),
+              GetSimdOpcodeName(op1).c_str());
+        return nullptr;
+      }
       is_intersected = true;
-      TRACE("Partial overlap at #%d,%s!\n", op_idx.id(),
-            GetSimdOpcodeName(op).c_str());
-      break;
+      // Check elsewise as we've verified no matched IntersectPackNode
+      // from node0 for early return.
+    } else if (GetIntersectPackNodes(node1) ||
+               analyzer_->GetIntersectPackNodes(node1)) {
+      is_intersected = true;
+    }
+
+    if (is_intersected) {
+      TRACE("Partial overlap at #%d,%s!\n", node1.id(),
+            GetSimdOpcodeName(op1).c_str());
     }
   }
 
   if (is_intersected) {
+    if (recursion_depth < 1) {
+      TRACE("Do not intersect at root #%d:%s\n", node0.id(),
+            GetSimdOpcodeName(graph_.Get(node0)).c_str());
+      return nullptr;
+    }
+
     TRACE("Create IntersectPackNode due to partial overlap!\n");
     PackNode* pnode = NewIntersectPackNode(node_group);
     return pnode;
   }
 
-  int value_in_count = op0.input_count;
+  size_t value_in_count = op0.input_count;
 
   switch (op0.opcode) {
     case Opcode::kSimd128Constant: {
@@ -994,36 +1043,55 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
           op1.Cast<Simd128LoadTransformOp>();
       StoreLoadInfo<Simd128LoadTransformOp> info0(&graph_, &transform_op0);
       StoreLoadInfo<Simd128LoadTransformOp> info1(&graph_, &transform_op1);
-      auto stride = info1 - info0;
-      if (IsLoadSplat(transform_op0)) {
-        TRACE("Simd128LoadTransform: LoadSplat\n");
-        if (IsSplat(node_group) ||
-            (stride.has_value() && stride.value() == 0)) {
-          return NewPackNode(node_group);
-        }
-        return NewForcePackNode(node_group, ForcePackNode::kGeneral, graph_);
-      } else if (IsLoadExtend(transform_op0)) {
-        TRACE("Simd128LoadTransform: LoadExtend\n");
-        if (stride.has_value()) {
-          const int value = stride.value();
-          if (value == kSimd128Size / 2) {
-            return NewPackNode(node_group);
-          } else if (value == 0) {
-            return NewForcePackNode(node_group, ForcePackNode::kSplat, graph_);
-          }
-        }
-        return NewForcePackNode(node_group, ForcePackNode::kGeneral, graph_);
-      } else {
-        TRACE("Load Transfrom k64Zero/k32Zero!\n");
-        DCHECK(transform_op0.transform_kind ==
-                   Simd128LoadTransformOp::TransformKind::k32Zero ||
-               transform_op0.transform_kind ==
-                   Simd128LoadTransformOp::TransformKind::k64Zero);
-        if (stride.has_value() && stride.value() == 0) {
-          return NewForcePackNode(node_group, ForcePackNode::kSplat, graph_);
-        }
-        return NewForcePackNode(node_group, ForcePackNode::kGeneral, graph_);
+      if (!info0.is_valid() || !info1.is_valid()) {
+        return NewForcePackNode(node_group, ForcePackNode::kGeneral,
+                                recursion_depth);
       }
+      std::optional<OffsetDiff> stride = info1 - info0;
+      switch (transform_op0.transform_kind) {
+        case Simd128LoadTransformOp::TransformKind::k8x8S:
+        case Simd128LoadTransformOp::TransformKind::k8x8U:
+        case Simd128LoadTransformOp::TransformKind::k16x4S:
+        case Simd128LoadTransformOp::TransformKind::k16x4U:
+        case Simd128LoadTransformOp::TransformKind::k32x2S:
+        case Simd128LoadTransformOp::TransformKind::k32x2U: {
+          TRACE("Simd128LoadTransform: LoadExtend\n");
+          if (stride.has_value()) {
+            const OffsetDiff value = stride.value();
+            if (value == kSimd128Size / 2) {
+              return NewPackNode(node_group);
+            } else if (value == 0) {
+              return NewForcePackNode(node_group, ForcePackNode::kSplat,
+                                      recursion_depth);
+            }
+          }
+          return NewForcePackNode(node_group, ForcePackNode::kGeneral,
+                                  recursion_depth);
+        }
+        case Simd128LoadTransformOp::TransformKind::k8Splat:
+        case Simd128LoadTransformOp::TransformKind::k16Splat:
+        case Simd128LoadTransformOp::TransformKind::k32Splat:
+        case Simd128LoadTransformOp::TransformKind::k64Splat: {
+          TRACE("Simd128LoadTransform: LoadSplat\n");
+          if (IsSplat(node_group) ||
+              (stride.has_value() && stride.value() == 0)) {
+            return NewPackNode(node_group);
+          }
+          return NewForcePackNode(node_group, ForcePackNode::kGeneral,
+                                  recursion_depth);
+        }
+        case Simd128LoadTransformOp::TransformKind::k32Zero:
+        case Simd128LoadTransformOp::TransformKind::k64Zero: {
+          TRACE("Simd128LoadTransform: k64Zero/k32Zero\n");
+          if (stride.has_value() && stride.value() == 0) {
+            return NewForcePackNode(node_group, ForcePackNode::kSplat,
+                                    recursion_depth);
+          }
+          return NewForcePackNode(node_group, ForcePackNode::kGeneral,
+                                  recursion_depth);
+        }
+      }
+      UNREACHABLE();  // Exhaustive switch.
     }
 
     case Opcode::kLoad: {
@@ -1037,37 +1105,48 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
       }
       StoreLoadInfo<LoadOp> info0(&graph_, &load0);
       StoreLoadInfo<LoadOp> info1(&graph_, &load1);
-      auto stride = info1 - info0;
-      if (stride.has_value()) {
-        if (const int value = stride.value(); value == kSimd128Size) {
-          // TODO(jiepan) Sort load
-          return NewPackNode(node_group);
-        } else if (value == 0) {
-          return NewForcePackNode(node_group, ForcePackNode::kSplat, graph_);
+      if (info0.is_valid() && info1.is_valid()) {
+        std::optional<OffsetDiff> stride = info1 - info0;
+        if (stride.has_value()) {
+          const OffsetDiff value = stride.value();
+          if (value == kSimd128Size) {
+            // TODO(jiepan): Sort load. We can support {value == -kSimd128Size}
+            // by swapping the two ops in {node_group}.
+            return NewPackNode(node_group);
+          } else if (value == 0) {
+            return NewForcePackNode(node_group, ForcePackNode::kSplat,
+                                    recursion_depth);
+          }
         }
       }
-      return NewForcePackNode(node_group, ForcePackNode::kGeneral, graph_);
+      return NewForcePackNode(node_group, ForcePackNode::kGeneral,
+                              recursion_depth);
     }
+
     case Opcode::kStore: {
       TRACE("Added a vector of stores.\n");
       // input: base, value, [index]
-      PackNode* pnode = NewPackNodeAndRecurs(node_group, 1, 1, recursion_depth);
+      PackNode* pnode =
+          NewPackNodeAndRecurse(node_group, 1, 1, recursion_depth);
       return pnode;
     }
+
     case Opcode::kPhi: {
       TRACE("Added a vector of phi nodes.\n");
-      const PhiOp& phi = graph().Get(node0).Cast<PhiOp>();
+      const PhiOp& phi = op0.Cast<PhiOp>();
       if (phi.rep != RegisterRepresentation::Simd128() ||
           op0.input_count != op1.input_count) {
         TRACE("Failed due to invalid phi\n");
         return nullptr;
       }
       PackNode* pnode =
-          NewPackNodeAndRecurs(node_group, 0, value_in_count, recursion_depth);
+          NewPackNodeAndRecurse(node_group, 0, value_in_count, recursion_depth);
       return pnode;
     }
+
     case Opcode::kSimd128Unary: {
 #define UNARY_CASE(op_128, not_used) case Simd128UnaryOp::Kind::k##op_128:
+
 #define UNARY_SIGN_EXTENSION_CASE(op_low, not_used1, op_high)                 \
   case Simd128UnaryOp::Kind::k##op_low: {                                     \
     if (const Simd128UnaryOp* unop1 =                                         \
@@ -1081,7 +1160,7 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
     if (op1.Cast<Simd128UnaryOp>().kind == op0.Cast<Simd128UnaryOp>().kind) { \
       auto force_pack_type =                                                  \
           node0 == node1 ? ForcePackNode::kSplat : ForcePackNode::kGeneral;   \
-      return NewForcePackNode(node_group, force_pack_type, graph_);           \
+      return NewForcePackNode(node_group, force_pack_type, recursion_depth);  \
     } else {                                                                  \
       return nullptr;                                                         \
     }                                                                         \
@@ -1090,8 +1169,8 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
         SIMD256_UNARY_SIGN_EXTENSION_OP(UNARY_SIGN_EXTENSION_CASE)
         SIMD256_UNARY_SIMPLE_OP(UNARY_CASE) {
           TRACE("Added a vector of Unary\n");
-          PackNode* pnode = NewPackNodeAndRecurs(node_group, 0, value_in_count,
-                                                 recursion_depth);
+          PackNode* pnode = NewPackNodeAndRecurse(node_group, 0, value_in_count,
+                                                  recursion_depth);
           return pnode;
         }
         default: {
@@ -1103,50 +1182,55 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
 #undef UNARY_CASE
 #undef UNARY_SIGN_EXTENSION_CASE
     }
+
     case Opcode::kSimd128Binop: {
-#define BINOP_CASE(op_128, not_used) case Simd128BinopOp::Kind::k##op_128:
-#define BINOP_SIGN_EXTENSION_CASE(op_low, not_used1, op_high)                 \
-  case Simd128BinopOp::Kind::k##op_low: {                                     \
-    if (const Simd128BinopOp* binop1 =                                        \
-            op1.TryCast<Opmask::kSimd128##op_high>();                         \
-        binop1 && op0.Cast<Simd128BinopOp>().left() == binop1->left() &&      \
-        op0.Cast<Simd128BinopOp>().right() == binop1->right()) {              \
-      return NewPackNode(node_group);                                         \
-    }                                                                         \
-    [[fallthrough]];                                                          \
-  }                                                                           \
-  case Simd128BinopOp::Kind::k##op_high: {                                    \
-    if (op1.Cast<Simd128BinopOp>().kind == op0.Cast<Simd128BinopOp>().kind) { \
-      auto force_pack_type =                                                  \
-          node0 == node1 ? ForcePackNode::kSplat : ForcePackNode::kGeneral;   \
-      return NewForcePackNode(node_group, force_pack_type, graph_);           \
-    } else {                                                                  \
-      return nullptr;                                                         \
-    }                                                                         \
+      const Simd128BinopOp& binop0 = op0.Cast<Simd128BinopOp>();
+      switch (binop0.kind) {
+#define BINOP_SIGN_EXTENSION_CASE(op_low, _, op_high)                        \
+  case Simd128BinopOp::Kind::k##op_low: {                                    \
+    if (const Simd128BinopOp* binop1 =                                       \
+            op1.TryCast<Opmask::kSimd128##op_high>();                        \
+        binop1 && binop0.left() == binop1->left() &&                         \
+        binop0.right() == binop1->right()) {                                 \
+      return NewPackNode(node_group);                                        \
+    }                                                                        \
+    [[fallthrough]];                                                         \
+  }                                                                          \
+  case Simd128BinopOp::Kind::k##op_high: {                                   \
+    if (op1.Cast<Simd128BinopOp>().kind == binop0.kind) {                    \
+      auto force_pack_type =                                                 \
+          node0 == node1 ? ForcePackNode::kSplat : ForcePackNode::kGeneral;  \
+      return NewForcePackNode(node_group, force_pack_type, recursion_depth); \
+    }                                                                        \
+    return nullptr;                                                          \
   }
-      switch (op0.Cast<Simd128BinopOp>().kind) {
         SIMD256_BINOP_SIGN_EXTENSION_OP(BINOP_SIGN_EXTENSION_CASE)
+#undef BINOP_SIGN_EXTENSION_CASE
+
+#define BINOP_CASE(op_128, _) case Simd128BinopOp::Kind::k##op_128:
+
         SIMD256_BINOP_SIMPLE_OP(BINOP_CASE) {
           TRACE("Added a vector of Binop\n");
           PackNode* pnode =
-              NewCommutativePackNodeAndRecurs(node_group, recursion_depth);
+              NewCommutativePackNodeAndRecurse(node_group, recursion_depth);
           return pnode;
         }
+#undef BINOP_CASE
+
         default: {
           TRACE("Unsupported Simd128Binop: %s\n",
                 GetSimdOpcodeName(op0).c_str());
           return nullptr;
         }
       }
-#undef BINOP_CASE
-#undef BINOP_SIGN_EXTENSION_CASE
     }
+
     case Opcode::kSimd128Shift: {
       Simd128ShiftOp& shift_op0 = op0.Cast<Simd128ShiftOp>();
       Simd128ShiftOp& shift_op1 = op1.Cast<Simd128ShiftOp>();
       if (IsEqual(shift_op0.shift(), shift_op1.shift())) {
-        switch (op0.Cast<Simd128ShiftOp>().kind) {
-#define SHIFT_CASE(op_128, not_used) case Simd128ShiftOp::Kind::k##op_128:
+        switch (shift_op0.kind) {
+#define SHIFT_CASE(op_128, _) case Simd128ShiftOp::Kind::k##op_128:
           SIMD256_SHIFT_OP(SHIFT_CASE) {
             TRACE("Added a vector of Shift op.\n");
             // We've already checked that the "shift by" input of both shifts is
@@ -1155,7 +1239,7 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
             // by" input of shifts is a Word32). Thus we only need to check the
             // 1st input of the shift when recursing.
             constexpr int kShiftValueInCount = 1;
-            PackNode* pnode = NewPackNodeAndRecurs(
+            PackNode* pnode = NewPackNodeAndRecurse(
                 node_group, 0, kShiftValueInCount, recursion_depth);
             return pnode;
           }
@@ -1167,16 +1251,16 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
           }
         }
       }
-      TRACE("Failed due to SimdShiftOp kind or shift scalar is different!\n");
+      TRACE("Failed due to different shift amounts!\n");
       return nullptr;
     }
     case Opcode::kSimd128Ternary: {
-#define TERNARY_CASE(op_128, not_used) case Simd128TernaryOp::Kind::k##op_128:
+#define TERNARY_CASE(op_128, _) case Simd128TernaryOp::Kind::k##op_128:
       switch (op0.Cast<Simd128TernaryOp>().kind) {
         SIMD256_TERNARY_OP(TERNARY_CASE) {
           TRACE("Added a vector of Ternary\n");
-          PackNode* pnode = NewPackNodeAndRecurs(node_group, 0, value_in_count,
-                                                 recursion_depth);
+          PackNode* pnode = NewPackNodeAndRecurse(node_group, 0, value_in_count,
+                                                  recursion_depth);
           return pnode;
         }
 #undef TERNARY_CASE
@@ -1189,7 +1273,7 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
     }
 
     case Opcode::kSimd128Splat: {
-      if (op0.input(0) != op1.input(0)) {
+      if (!IsEqual(op0.input(0), op1.input(0))) {
         TRACE("Failed due to different splat input!\n");
         return nullptr;
       }
@@ -1198,8 +1282,8 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
     }
 
     case Opcode::kSimd128Shuffle: {
-      const auto& shuffle_op0 = op0.Cast<Simd128ShuffleOp>();
-      const auto& shuffle_op1 = op1.Cast<Simd128ShuffleOp>();
+      const Simd128ShuffleOp& shuffle_op0 = op0.Cast<Simd128ShuffleOp>();
+      const Simd128ShuffleOp& shuffle_op1 = op1.Cast<Simd128ShuffleOp>();
       if (shuffle_op0.kind != Simd128ShuffleOp::Kind::kI8x16 ||
           shuffle_op1.kind != Simd128ShuffleOp::Kind::kI8x16) {
         return nullptr;
@@ -1252,17 +1336,14 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
 #ifdef V8_TARGET_ARCH_X64
         if (ShufflePackNode* pnode =
                 X64TryMatch256Shuffle(node_group, shuffle0, shuffle1)) {
-          // Manually invoke recur build tree for shuffle node
-          for (int i = 0; i < value_in_count; ++i) {
+          for (size_t i = 0; i < value_in_count; ++i) {
             NodeGroup operands(graph_.Get(node_group[0]).input(i),
                                graph_.Get(node_group[1]).input(i));
-
             PackNode* child = BuildTreeRec(operands, recursion_depth + 1);
-            if (child) {
-              pnode->SetOperand(i, child);
-            } else {
+            if (!child) {
               return nullptr;
             }
+            pnode->SetOperand(i, child);
           }
           return pnode;
         }
@@ -1284,15 +1365,10 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
             info.is_sign_extract, info.is_sign_convert);
         return p;
       }
-      if (recursion_depth < 1) {
-        TRACE("Do not force pack at root #%d:%s\n", node0.id(),
-              GetSimdOpcodeName(op0).c_str());
-        return nullptr;
-      }
       return NewForcePackNode(
           node_group,
           node0 == node1 ? ForcePackNode::kSplat : ForcePackNode::kGeneral,
-          graph_);
+          recursion_depth);
     }
 
     default:
@@ -1321,6 +1397,7 @@ void WasmRevecAnalyzer::MergeSLPTree(SLPTree& slp_tree) {
   }
 
   revectorizable_node_.merge(slp_tree.GetNodeMapping());
+  reorder_inputs_.merge(slp_tree.GetReorderInputs());
 }
 
 bool WasmRevecAnalyzer::IsSupportedReduceSeed(const Operation& op) {
@@ -1330,10 +1407,10 @@ bool WasmRevecAnalyzer::IsSupportedReduceSeed(const Operation& op) {
   switch (op.Cast<Simd128BinopOp>().kind) {
 #define CASE(op_128) case Simd128BinopOp::Kind::k##op_128:
     REDUCE_SEED_KIND(CASE) { return true; }
+#undef CASE
     default:
       return false;
   }
-#undef CASE
 }
 
 void WasmRevecAnalyzer::ProcessBlock(const Block& block) {
@@ -1342,7 +1419,7 @@ void WasmRevecAnalyzer::ProcessBlock(const Block& block) {
     if (const StoreOp* store_op = op.TryCast<StoreOp>()) {
       if (store_op->stored_rep == MemoryRepresentation::Simd128()) {
         StoreLoadInfo<StoreOp> info(&graph_, store_op);
-        if (info.IsValid()) {
+        if (info.is_valid()) {
           simd128_stores.insert(info);
         }
       }
@@ -1356,7 +1433,7 @@ void WasmRevecAnalyzer::ProcessBlock(const Block& block) {
       const Operation& right_op = graph_.Get(right_index);
 
       if (left_index != right_index && left_op.opcode == right_op.opcode &&
-          IsSameOpAndKind(left_op, right_op)) {
+          IsSameSimd128OpKind(left_op, right_op)) {
         reduce_seeds_.push_back({left_index, right_index});
       }
     }
@@ -1368,11 +1445,11 @@ void WasmRevecAnalyzer::ProcessBlock(const Block& block) {
          it != end;) {
       const StoreLoadInfo<StoreOp>& info0 = *std::prev(it);
       const StoreLoadInfo<StoreOp>& info1 = *it;
-      auto diff = info1 - info0;
+      std::optional<OffsetDiff> diff = info1 - info0;
 
       if (diff.has_value()) {
-        const int value = diff.value();
-        DCHECK_GE(value, 0);
+        const OffsetDiff value = diff.value();
+        DCHECK_EQ(value.negative(), false);
         if (value == kSimd128Size) {
           store_seeds_.push_back(
               {graph_.Index(*info0.op()), graph_.Index(*info1.op())});
@@ -1427,38 +1504,33 @@ void WasmRevecAnalyzer::Run() {
     SLPTree slp_tree(graph_, this, phase_zone_);
     PackNode* root = slp_tree.BuildTree(roots);
     if (!root) {
-      TRACE("Build tree failed!\n");
+      TRACE("Building SLP tree failed!\n");
       continue;
     }
 
-    slp_tree.Print("After build tree");
+    slp_tree.Print("After tree building");
     MergeSLPTree(slp_tree);
   }
 
-  // Early exist when no revectorizable node found.
   if (revectorizable_node_.empty()) return;
 
-  // Build SIMD usemap
-  use_map_ = phase_zone_->New<SimdUseMap>(graph_, phase_zone_);
-  if (!DecideVectorize()) {
-    revectorizable_node_.clear();
-    revectorizable_intersect_node_.clear();
-  } else {
+  use_map_ = phase_zone_->New<Simd128UseMap>(graph_, phase_zone_);
+  if (DecideVectorize()) {
     should_reduce_ = true;
-    Print("Decide to vectorize");
+    Print("Decided to vectorize");
   }
 }
 
 bool WasmRevecAnalyzer::DecideVectorize() {
-  TRACE("Enter %s\n", __func__);
+  TRACE("Entering\n");
   int save = 0, cost = 0;
   ForEach(
       [&](PackNode const* pnode) {
         const NodeGroup& nodes = pnode->nodes();
         // An additional store is emitted in case of OOB trap at the higher
-        // 128-bit address. Thus no save if the store at lower address is
-        // executed first. Return directly as we dont need to check external use
-        // for stores.
+        // 128-bit address. Thus we don't save anything if the store at lower
+        // address is executed first. Return directly as we don't need to check
+        // external uses for stores.
         if (graph_.Get(nodes[0]).opcode == Opcode::kStore) {
           if (nodes[0] > nodes[1]) save++;
           return;
@@ -1475,16 +1547,16 @@ bool WasmRevecAnalyzer::DecideVectorize() {
         }
 
 #ifdef V8_TARGET_ARCH_X64
-        // On x64 platform, we dont emit extract for lane 0 as the source ymm
-        // register is alias to the corresponding xmm register in lower 128-bit.
-        for (int i = 1; i < static_cast<int>(nodes.size()); i++) {
-          if (nodes[i] == nodes[0]) continue;
+        // On x64 platform, we don't emit extract for lane 0 as the source ymm
+        // register is an alias for the corresponding xmm register in its lower
+        // 128 bits.
+        size_t start = 1;
 #else
-        for (int i = 0; i < static_cast<int>(nodes.size()); i++) {
-          if (i > 0 && nodes[i] == nodes[0]) continue;
+        size_t start = 0;
 #endif  // V8_TARGET_ARCH_X64
-
-          for (auto use : use_map_->uses(nodes[i])) {
+        for (size_t i = start; i < nodes.size(); i++) {
+          if (i > 0 && nodes[i] == nodes[0]) continue;
+          for (OpIndex use : use_map_->uses(nodes[i])) {
             if (!GetPackNode(use) || GetPackNode(use)->is_force_packing()) {
               TRACE("External use edge: (%d:%s) -> (%d:%s)\n", use.id(),
                     OpcodeName(graph_.Get(use).opcode), nodes[i].id(),
@@ -1499,6 +1571,9 @@ bool WasmRevecAnalyzer::DecideVectorize() {
       },
       revectorizable_node_);
 
+  // Note: {cost += revectorizable_intersect_node_.size()} would have
+  // different behavior, because the map contains vectors, and {ForEach}
+  // iterates over those vectors' elements.
   ForEach(
       [&](PackNode const* pnode) {
         // We always generate SimdPack128To256Op for IntersectPackNode.
@@ -1524,5 +1599,7 @@ void WasmRevecAnalyzer::Print(const char* info) {
   ForEach([this](PackNode const* pnode) { pnode->Print(&graph_); },
           revectorizable_intersect_node_);
 }
+
+#undef TRACE
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -483,7 +483,6 @@ async function testDeriveBitsBadHash(
           ...algorithm,
           hash: hash.substring(0, 3) + hash.substring(4),
         }, baseKeys[size], 256), {
-        message: /Unrecognized algorithm name/,
         name: 'NotSupportedError',
       }),
     assert.rejects(
@@ -493,7 +492,6 @@ async function testDeriveBitsBadHash(
           hash: 'HKDF',
         },
         baseKeys[size], 256), {
-        message: /Unrecognized algorithm name/,
         name: 'NotSupportedError',
       }),
   ]);
@@ -571,10 +569,7 @@ async function testDeriveKeyBadHash(
         keyType,
         true,
         usages),
-      {
-        message: /Unrecognized algorithm name/,
-        name: 'NotSupportedError',
-      }),
+      { name: 'NotSupportedError' }),
     assert.rejects(
       subtle.deriveKey(
         {
@@ -585,10 +580,7 @@ async function testDeriveKeyBadHash(
         keyType,
         true,
         usages),
-      {
-        message: /Unrecognized algorithm name/,
-        name: 'NotSupportedError',
-      }),
+      { name: 'NotSupportedError' }),
   ]);
 }
 

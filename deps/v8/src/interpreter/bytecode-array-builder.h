@@ -5,6 +5,7 @@
 #ifndef V8_INTERPRETER_BYTECODE_ARRAY_BUILDER_H_
 #define V8_INTERPRETER_BYTECODE_ARRAY_BUILDER_H_
 
+#include <cstddef>
 #include <optional>
 
 #include "src/ast/ast.h"
@@ -99,6 +100,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& LoadTrue();
   BytecodeArrayBuilder& LoadFalse();
   BytecodeArrayBuilder& LoadBoolean(bool value);
+
+  // Merges the boilerplate definition at index_obj into the prototype of the
+  // function object in accumulator
+  BytecodeArrayBuilder& SetPrototypeProperties(size_t index_obj);
 
   // Global loads to the accumulator and stores from the accumulator.
   BytecodeArrayBuilder& LoadGlobal(const AstRawString* name, int feedback_slot,
@@ -376,9 +381,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Type feedback will be recorded in the |feedback_slot|
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,
                                         int feedback_slot);
-  BytecodeArrayBuilder& Add_LhsIsStringConstant_Internalize(Token::Value binop,
-                                                            Register reg,
-                                                            int feedback_slot);
+  BytecodeArrayBuilder& Add_StringConstant_Internalize(
+      Token::Value binop, Register reg, int feedback_slot,
+      AddStringConstantAndInternalizeVariant as_variant);
   // Same as above, but lhs in the accumulator and rhs in |literal|.
   BytecodeArrayBuilder& BinaryOperationSmiLiteral(Token::Value binop,
                                                   Tagged<Smi> literal,
@@ -493,6 +498,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                   RegisterList cache_type_array_pair,
                                   int feedback_slot);
   BytecodeArrayBuilder& ForInStep(Register index);
+
+  BytecodeArrayBuilder& ForOfNext(Register object, Register next,
+                                  RegisterList value_done);
 
   // Generators.
   BytecodeArrayBuilder& SuspendGenerator(Register generator,

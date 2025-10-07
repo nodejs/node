@@ -54,6 +54,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kCallWasmFunctionIndirect,  // target is a wasm function that will be called
                                 // indirectly
     kCallWasmImportWrapper,     // target is a wasm import wrapper
+    kResumeWasmContinuation,    // target is a wasm continuation
 #endif                       // ↑ WebAssembly only
     kCallBuiltinPointer,     // target is a builtin pointer
   };
@@ -336,6 +337,10 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   EncodedCSignature ToEncodedCSignature() const;
 
+  std::optional<Runtime::FunctionId> runtime_function_id() const {
+    return runtime_function_id_;
+  }
+
  private:
   void ComputeParamCounts() const;
 
@@ -359,6 +364,10 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const char* const debug_name_;
 
   uint64_t signature_hash_;
+
+  // If this is a descriptor for a call to a runtime function,
+  // {runtime_function_id_} will contain the corresponding ID.
+  std::optional<Runtime::FunctionId> runtime_function_id_;
 
   mutable std::optional<size_t> gp_param_count_;
   mutable std::optional<size_t> fp_param_count_;

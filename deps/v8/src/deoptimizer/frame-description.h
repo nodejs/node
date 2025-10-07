@@ -144,6 +144,10 @@ class FrameDescription {
     return register_values_.GetDoubleRegister(n);
   }
 
+  Float32 GetFloatRegister(unsigned n) const {
+    return register_values_.GetFloatRegister(n);
+  }
+
   void SetRegister(unsigned n, intptr_t value) {
     register_values_.SetRegister(n, value);
   }

@@ -9,11 +9,14 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/ic/handler-configuration.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/struct-inl.h"
+#include "src/torque/runtime-macro-shims.h"
+#include "src/torque/runtime-support.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -101,7 +104,7 @@ void PrototypeInfo::AddDerivedMap(DirectHandle<PrototypeInfo> info,
     // Index 0 is the map for object create
     Tagged<WeakArrayList> derived = *isolate->factory()->NewWeakArrayList(2);
     // GetConstructMap assumes a weak pointer.
-    derived->Set(0, ClearedValue(isolate));
+    derived->Set(0, kClearedWeakValue);
     derived->Set(1, MakeWeak(*to));
     derived->set_length(2);
     info->set_derived_maps(derived, kReleaseStore);

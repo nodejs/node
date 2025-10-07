@@ -48,11 +48,48 @@ base::Vector<const char> GetDebugName(Zone* zone,
   return base::Vector<const char>(index_name, name_len);
 }
 
+namespace {
+CallDescriptor* GetContinuationResumeDescriptor(Zone* zone) {
+  MachineType target_type = MachineType::Pointer();
+  LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
+  // TODO(thibaudm): Add support for arguments and return values.
+  LocationSignature::Builder locations(zone, 0, 1);
+  // Pointer to the resumed StackMemory.
+  locations.AddParam(LinkageLocation(LinkageLocation::ForRegister(
+      wasm::kGpParamRegisters[0].code(), MachineType::Pointer())));
+  const RegList kCalleeSaveRegisters;
+  const DoubleRegList kCalleeSaveFPRegisters;
+  return zone->New<CallDescriptor>(                   // --
+      CallDescriptor::Kind::kResumeWasmContinuation,  // kind
+      kInvalidEntrypointTag,                          // tag
+                              // TODO(thibaudm): Use the CPT.
+      target_type,                        // target MachineType
+      target_loc,                         // target location
+      locations.Get(),                    // location_sig
+      0,                                  // parameter slot count
+      compiler::Operator::kNoProperties,  // properties
+      kCalleeSaveRegisters,               // callee-saved registers
+      kCalleeSaveFPRegisters,             // callee-saved fp regs
+      CallDescriptor::kNoFlags,           // flags
+      "wasm-resume",                      // debug name
+      StackArgumentOrder::kDefault,       // order of the arguments in the stack
+      RegList{},                          // allocatable registers
+      0,                                  // return slot count
+      0);                                 // signature hash
+}
+}  // namespace
+
 // General code uses the above configuration data.
 template <typename T>
 CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
                                       WasmCallKind call_kind,
                                       bool need_frame_state) {
+  if (call_kind == kWasmContinuation) {
+    if (fsig->parameter_count() > 0 || fsig->return_count() > 0) {
+      UNIMPLEMENTED();
+    }
+    return GetContinuationResumeDescriptor(zone);
+  }
   // The extra here is to accommodate the instance object as first parameter
   // and, when specified, the additional callable.
   bool extra_callable_param =
@@ -87,6 +124,8 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
     case kWasmCapiFunction:
       descriptor_kind = CallDescriptor::kCallWasmCapiFunction;
       break;
+    case kWasmContinuation:
+      UNREACHABLE();  // Already handled.
   }
 
   CallDescriptor::Flags flags = need_frame_state
