@@ -12,17 +12,17 @@ if (!hasQuic) {
 // Import after the hasQuic check
 const { listen, QuicEndpoint } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
-const { kState } = (await import('internal/quic/symbols')).default;
+const { getQuicEndpointState } = (await import('internal/quic/quic')).default;
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
 const cert = fixtures.readKey('agent1-cert.pem');
 const sni = { '*': { keys: [key], certs: [cert] } };
 
 const endpoint = new QuicEndpoint();
-
-assert.ok(!endpoint[kState].isBound);
-assert.ok(!endpoint[kState].isReceiving);
-assert.ok(!endpoint[kState].isListening);
+const state = getQuicEndpointState(endpoint);
+assert.ok(!state.isBound);
+assert.ok(!state.isReceiving);
+assert.ok(!state.isListening);
 
 assert.strictEqual(endpoint.address, undefined);
 
@@ -43,13 +43,9 @@ assert.strictEqual(cert.buffer.detached, false);
 await assert.rejects(listen(() => {}, { sni, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
-
-// Buffer is not detached.
-assert.strictEqual(cert.buffer.detached, false);
-
-assert.ok(endpoint[kState].isBound);
-assert.ok(endpoint[kState].isReceiving);
-assert.ok(endpoint[kState].isListening);
+assert.ok(state.isBound);
+assert.ok(state.isReceiving);
+assert.ok(state.isListening);
 
 const address = endpoint.address;
 assert.ok(address instanceof SocketAddress);

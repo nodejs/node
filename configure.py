@@ -2065,6 +2065,8 @@ def configure_openssl(o):
 
   configure_library('openssl', o)
 
+  o['variables']['openssl_version'] = get_openssl_version()
+
 def configure_sqlite(o):
   o['variables']['node_use_sqlite'] = b(not options.without_sqlite)
   if options.without_sqlite:
