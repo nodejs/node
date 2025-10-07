@@ -66,12 +66,15 @@ struct builtin {
   // if necessary.
   static constexpr std::size_t kMaxArgumentCount = 8;
   using arguments_vector_t = base::SmallVector<OpIndex, kMaxArgumentCount>;
-  static constexpr inline detail::IndexTag<0> index_counter(
-      detail::IndexTag<0>);
-  static constexpr base::tmp::list<> make_args_type_list_n(detail::IndexTag<0>);
+  // TODO(abmusse): use ArgumentsBase (until we can use GCC 13 or better)
+  struct ArgumentsBase {
+    static constexpr inline detail::IndexTag<0> index_counter(
+        detail::IndexTag<0>);
+    static constexpr base::tmp::list<> make_args_type_list_n(
+        detail::IndexTag<0>);
+  };
 
   static constexpr OpEffects base_effects = OpEffects().CanDependOnChecks();
-
   template <typename A>
   static arguments_vector_t ArgumentsToVector(const A& args) {
     arguments_vector_t result;
@@ -169,7 +172,7 @@ struct builtin {
 
   struct BigIntAdd : public Descriptor<BigIntAdd> {
     static constexpr auto kFunction = Builtin::kBigIntAdd;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Numeric>, left)
       ARG(V<Numeric>, right)
     };
@@ -183,7 +186,7 @@ struct builtin {
 
   struct CheckTurbofanType : public Descriptor<CheckTurbofanType> {
     static constexpr auto kFunction = Builtin::kCheckTurbofanType;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Object>, value)
       ARG(V<TurbofanType>, expected_type)
       ARG(V<Smi>, node_id)
@@ -201,7 +204,7 @@ struct builtin {
 #define DECL_GENERIC_BINOP(Name)                                          \
   struct Name : public Descriptor<Name> {                                 \
     static constexpr auto kFunction = Builtin::k##Name;                   \
-    struct Arguments {                                                    \
+    struct Arguments : ArgumentsBase {                                    \
       ARG(V<Object>, left)                                                \
       ARG(V<Object>, right)                                               \
     };                                                                    \
@@ -219,7 +222,7 @@ struct builtin {
 #define DECL_GENERIC_UNOP(Name)                                           \
   struct Name : public Descriptor<Name> {                                 \
     static constexpr auto kFunction = Builtin::k##Name;                   \
-    struct Arguments {                                                    \
+    struct Arguments : ArgumentsBase {                                    \
       ARG(V<Object>, input)                                               \
     };                                                                    \
     using returns_t = std::tuple<V<Object>>;                              \
@@ -235,7 +238,7 @@ struct builtin {
 
   struct DetachContextCell : public Descriptor<DetachContextCell> {
     static constexpr auto kFunction = Builtin::kDetachContextCell;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Context>, the_context)
       ARG(V<Object>, new_value)
       ARG(V<WordPtr>, i)
@@ -251,7 +254,7 @@ struct builtin {
 
   struct ToNumber : public Descriptor<ToNumber> {
     static constexpr auto kFunction = Builtin::kToNumber;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Object>, input)
     };
     using returns_t = std::tuple<V<Number>>;
@@ -264,7 +267,7 @@ struct builtin {
 
   struct NonNumberToNumber : public Descriptor<NonNumberToNumber> {
     static constexpr auto kFunction = Builtin::kNonNumberToNumber;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<JSAnyNotNumber>, input)
     };
     using returns_t = std::tuple<V<Number>>;
@@ -277,7 +280,7 @@ struct builtin {
 
   struct ToNumeric : public Descriptor<ToNumeric> {
     static constexpr auto kFunction = Builtin::kToNumeric;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Object>, input)
     };
     using returns_t = std::tuple<V<Numeric>>;
@@ -290,7 +293,7 @@ struct builtin {
 
   struct NonNumberToNumeric : public Descriptor<NonNumberToNumeric> {
     static constexpr auto kFunction = Builtin::kNonNumberToNumeric;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<JSAnyNotNumber>, input)
     };
     using returns_t = std::tuple<V<Numeric>>;
@@ -304,7 +307,7 @@ struct builtin {
   struct CopyFastSmiOrObjectElements
       : public Descriptor<CopyFastSmiOrObjectElements> {
     static constexpr auto kFunction = Builtin::kCopyFastSmiOrObjectElements;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Object>, object)
     };
     using returns_t = std::tuple<V<Object>>;
@@ -321,7 +324,7 @@ struct builtin {
     static constexpr auto kFunction = B;
     using StringOrSmi = Union<String, Smi>;
     // We use smi:0 for an empty label.
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<StringOrSmi>, label_or_0)
       ARG(V<Input>, value)
     };
@@ -343,7 +346,7 @@ struct builtin {
   template <Builtin B>
   struct FindOrderedHashEntry : public Descriptor<FindOrderedHashEntry<B>> {
     static constexpr auto kFunction = B;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Object>, table)
       ARG(V<Smi>, key)
     };
@@ -363,7 +366,7 @@ struct builtin {
   template <Builtin B>
   struct GrowFastElements : public Descriptor<GrowFastElements<B>> {
     static constexpr auto kFunction = B;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Object>, object)
       ARG(V<Smi>, size)
     };
@@ -383,7 +386,7 @@ struct builtin {
   template <Builtin B>
   struct NewArgumentsElements : public Descriptor<NewArgumentsElements<B>> {
     static constexpr auto kFunction = B;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       // TODO(nicohartmann@): First argument should be replaced by a proper
       // RawPtr.
       ARG(V<WordPtr>, frame)
@@ -406,7 +409,7 @@ struct builtin {
 
   struct NumberToString : public Descriptor<NumberToString> {
     static constexpr auto kFunction = Builtin::kNumberToString;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Number>, input)
     };
     using returns_t = std::tuple<V<String>>;
@@ -420,7 +423,7 @@ struct builtin {
 
   struct ToString : public Descriptor<ToString> {
     static constexpr auto kFunction = Builtin::kToString;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Object>, o)
     };
     using returns_t = std::tuple<V<String>>;
@@ -433,7 +436,7 @@ struct builtin {
 
   struct PlainPrimitiveToNumber : public Descriptor<PlainPrimitiveToNumber> {
     static constexpr auto kFunction = Builtin::kPlainPrimitiveToNumber;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<PlainPrimitive>, input)
     };
     using returns_t = std::tuple<V<Number>>;
@@ -447,7 +450,7 @@ struct builtin {
 
   struct SameValue : public Descriptor<SameValue> {
     static constexpr auto kFunction = Builtin::kSameValue;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Object>, left)
       ARG(V<Object>, right)
     };
@@ -462,7 +465,7 @@ struct builtin {
 
   struct SameValueNumbersOnly : public Descriptor<SameValueNumbersOnly> {
     static constexpr auto kFunction = Builtin::kSameValueNumbersOnly;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Object>, left)
       ARG(V<Object>, right)
     };
@@ -476,7 +479,7 @@ struct builtin {
 
   struct StringAdd_CheckNone : public Descriptor<StringAdd_CheckNone> {
     static constexpr auto kFunction = Builtin::kStringAdd_CheckNone;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<String>, left)
       ARG(V<String>, right)
     };
@@ -494,7 +497,7 @@ struct builtin {
 
   struct StringEqual : public Descriptor<StringEqual> {
     static constexpr auto kFunction = Builtin::kStringEqual;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<String>, left)
       ARG(V<String>, right)
       ARG(V<WordPtr>, length)
@@ -512,7 +515,7 @@ struct builtin {
 
   struct StringFromCodePointAt : public Descriptor<StringFromCodePointAt> {
     static constexpr auto kFunction = Builtin::kStringFromCodePointAt;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<String>, receiver)
       ARG(V<WordPtr>, position)
     };
@@ -527,7 +530,7 @@ struct builtin {
 
   struct StringIndexOf : public Descriptor<StringIndexOf> {
     static constexpr auto kFunction = Builtin::kStringIndexOf;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<String>, s)
       ARG(V<String>, search_string)
       ARG(V<Smi>, start)
@@ -545,7 +548,7 @@ struct builtin {
 
   struct StringCompare : public Descriptor<StringCompare> {
     static constexpr auto kFunction = Builtin::kStringCompare;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<String>, left)
       ARG(V<String>, right)
     };
@@ -561,7 +564,7 @@ struct builtin {
   template <Builtin B>
   struct StringComparison : public Descriptor<StringComparison<B>> {
     static constexpr auto kFunction = B;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<String>, left)
       ARG(V<String>, right)
     };
@@ -579,7 +582,7 @@ struct builtin {
 
   struct StringSubstring : public Descriptor<StringSubstring> {
     static constexpr auto kFunction = Builtin::kStringSubstring;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<String>, string)
       ARG(V<WordPtr>, from)
       ARG(V<WordPtr>, to)
@@ -596,7 +599,7 @@ struct builtin {
 #ifdef V8_INTL_SUPPORT
   struct StringToLowerCaseIntl : public Descriptor<StringToLowerCaseIntl> {
     static constexpr auto kFunction = Builtin::kStringToLowerCaseIntl;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<String>, string)
     };
     using returns_t = std::tuple<V<String>>;
@@ -612,7 +615,7 @@ struct builtin {
 
   struct StringToNumber : public Descriptor<StringToNumber> {
     static constexpr auto kFunction = Builtin::kStringToNumber;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<String>, input)
     };
     using returns_t = std::tuple<V<Number>>;
@@ -626,7 +629,7 @@ struct builtin {
 
   struct ToBoolean : public Descriptor<ToBoolean> {
     static constexpr auto kFunction = Builtin::kToBoolean;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Object>, input)
     };
     using returns_t = std::tuple<V<Boolean>>;
@@ -639,7 +642,7 @@ struct builtin {
 
   struct ToObject : public Descriptor<ToObject> {
     static constexpr auto kFunction = Builtin::kToObject;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Object>, input)
     };
     using returns_t = std::tuple<V<JSReceiver>>;
@@ -654,7 +657,7 @@ struct builtin {
   template <Builtin B>
   struct CreateFunctionContext : public Descriptor<CreateFunctionContext<B>> {
     static constexpr auto kFunction = B;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<ScopeInfo>, scope_info)
       ARG(V<Word32>, slots)
     };
@@ -674,7 +677,7 @@ struct builtin {
 
   struct FastNewClosure : public Descriptor<FastNewClosure> {
     static constexpr auto kFunction = Builtin::kFastNewClosure;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<SharedFunctionInfo>, shared_function_info)
       ARG(V<FeedbackCell>, feedback_cell)
     };
@@ -690,7 +693,7 @@ struct builtin {
 
   struct Typeof : public Descriptor<Typeof> {
     static constexpr auto kFunction = Builtin::kTypeof;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Object>, object)
     };
     using returns_t = std::tuple<V<String>>;
@@ -704,7 +707,7 @@ struct builtin {
   struct CheckTurboshaftWord32Type
       : public Descriptor<CheckTurboshaftWord32Type> {
     static constexpr auto kFunction = Builtin::kCheckTurboshaftWord32Type;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Word32>, value)
       ARG(V<TurboshaftWord32Type>, expected_type)
       ARG(V<Smi>, node_id)
@@ -720,7 +723,7 @@ struct builtin {
   struct CheckTurboshaftWord64Type
       : public Descriptor<CheckTurboshaftWord64Type> {
     static constexpr auto kFunction = Builtin::kCheckTurboshaftWord64Type;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Word32>, value_high)
       ARG(V<Word32>, value_low)
       ARG(V<TurboshaftWord64Type>, expected_type)
@@ -737,7 +740,7 @@ struct builtin {
   struct CheckTurboshaftFloat32Type
       : public Descriptor<CheckTurboshaftFloat32Type> {
     static constexpr auto kFunction = Builtin::kCheckTurboshaftFloat32Type;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Float32>, value)
       ARG(V<TurboshaftFloat64Type>, expected_type)
       ARG(V<Smi>, node_id)
@@ -753,7 +756,7 @@ struct builtin {
   struct CheckTurboshaftFloat64Type
       : public Descriptor<CheckTurboshaftFloat64Type> {
     static constexpr auto kFunction = Builtin::kCheckTurboshaftFloat64Type;
-    struct Arguments {
+    struct Arguments : ArgumentsBase {
       ARG(V<Float64>, value)
       ARG(V<TurboshaftFloat64Type>, expected_type)
       ARG(V<Smi>, node_id)
