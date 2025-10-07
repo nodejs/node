@@ -272,7 +272,7 @@ webidl.converters.MessageEventInit = webidl.dictionaryConverter([
   {
     key: 'ports',
     converter: webidl.converters['sequence<MessagePort>'],
-    defaultValue: () => new Array(0)
+    defaultValue: () => []
   }
 ])
 

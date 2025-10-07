@@ -4,6 +4,12 @@
 
 // Flags: --expose-gc --allow-natives-syntax
 
+// The test requires a precise GC, which cannot be guaranteed if conservative
+// stack scanning is enabled, in the presence of background threads.
+// See https://crbug.com/441654955.
+//
+// Flags: --no-conservative-stack-scanning
+
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Use global variables for all values where the test wants to maintain strict

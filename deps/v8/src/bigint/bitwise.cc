@@ -11,9 +11,9 @@ namespace v8 {
 namespace bigint {
 
 void BitwiseAnd_PosPos(RWDigits Z, Digits X, Digits Y) {
-  int pairs = std::min(X.len(), Y.len());
+  uint32_t pairs = std::min(X.len(), Y.len());
   DCHECK(Z.len() >= pairs);
-  int i = 0;
+  uint32_t i = 0;
   for (; i < pairs; i++) Z[i] = X[i] & Y[i];
   for (; i < Z.len(); i++) Z[i] = 0;
 }
@@ -22,10 +22,10 @@ void BitwiseAnd_NegNeg(RWDigits Z, Digits X, Digits Y) {
   // (-x) & (-y) == ~(x-1) & ~(y-1)
   //             == ~((x-1) | (y-1))
   //             == -(((x-1) | (y-1)) + 1)
-  int pairs = std::min(X.len(), Y.len());
+  uint32_t pairs = std::min(X.len(), Y.len());
   digit_t x_borrow = 1;
   digit_t y_borrow = 1;
-  int i = 0;
+  uint32_t i = 0;
   for (; i < pairs; i++) {
     Z[i] = digit_sub(X[i], x_borrow, &x_borrow) |
            digit_sub(Y[i], y_borrow, &y_borrow);
@@ -41,17 +41,17 @@ void BitwiseAnd_NegNeg(RWDigits Z, Digits X, Digits Y) {
 
 void BitwiseAnd_PosNeg(RWDigits Z, Digits X, Digits Y) {
   // x & (-y) == x & ~(y-1)
-  int pairs = std::min(X.len(), Y.len());
+  uint32_t pairs = std::min(X.len(), Y.len());
   digit_t borrow = 1;
-  int i = 0;
+  uint32_t i = 0;
   for (; i < pairs; i++) Z[i] = X[i] & ~digit_sub(Y[i], borrow, &borrow);
   for (; i < X.len(); i++) Z[i] = X[i];
   for (; i < Z.len(); i++) Z[i] = 0;
 }
 
 void BitwiseOr_PosPos(RWDigits Z, Digits X, Digits Y) {
-  int pairs = std::min(X.len(), Y.len());
-  int i = 0;
+  uint32_t pairs = std::min(X.len(), Y.len());
+  uint32_t i = 0;
   for (; i < pairs; i++) Z[i] = X[i] | Y[i];
   // (At least) one of the next two loops will perform zero iterations:
   for (; i < X.len(); i++) Z[i] = X[i];
@@ -63,10 +63,10 @@ void BitwiseOr_NegNeg(RWDigits Z, Digits X, Digits Y) {
   // (-x) | (-y) == ~(x-1) | ~(y-1)
   //             == ~((x-1) & (y-1))
   //             == -(((x-1) & (y-1)) + 1)
-  int pairs = std::min(X.len(), Y.len());
+  uint32_t pairs = std::min(X.len(), Y.len());
   digit_t x_borrow = 1;
   digit_t y_borrow = 1;
-  int i = 0;
+  uint32_t i = 0;
   for (; i < pairs; i++) {
     Z[i] = digit_sub(X[i], x_borrow, &x_borrow) &
            digit_sub(Y[i], y_borrow, &y_borrow);
@@ -78,9 +78,9 @@ void BitwiseOr_NegNeg(RWDigits Z, Digits X, Digits Y) {
 
 void BitwiseOr_PosNeg(RWDigits Z, Digits X, Digits Y) {
   // x | (-y) == x | ~(y-1) == ~((y-1) &~ x) == -(((y-1) &~ x) + 1)
-  int pairs = std::min(X.len(), Y.len());
+  uint32_t pairs = std::min(X.len(), Y.len());
   digit_t borrow = 1;
-  int i = 0;
+  uint32_t i = 0;
   for (; i < pairs; i++) Z[i] = digit_sub(Y[i], borrow, &borrow) & ~X[i];
   for (; i < Y.len(); i++) Z[i] = digit_sub(Y[i], borrow, &borrow);
   DCHECK(borrow == 0);
@@ -89,13 +89,13 @@ void BitwiseOr_PosNeg(RWDigits Z, Digits X, Digits Y) {
 }
 
 void BitwiseXor_PosPos(RWDigits Z, Digits X, Digits Y) {
-  int pairs = X.len();
+  uint32_t pairs = X.len();
   if (Y.len() < X.len()) {
     std::swap(X, Y);
     pairs = X.len();
   }
   DCHECK(X.len() <= Y.len());
-  int i = 0;
+  uint32_t i = 0;
   for (; i < pairs; i++) Z[i] = X[i] ^ Y[i];
   for (; i < Y.len(); i++) Z[i] = Y[i];
   for (; i < Z.len(); i++) Z[i] = 0;
@@ -103,10 +103,10 @@ void BitwiseXor_PosPos(RWDigits Z, Digits X, Digits Y) {
 
 void BitwiseXor_NegNeg(RWDigits Z, Digits X, Digits Y) {
   // (-x) ^ (-y) == ~(x-1) ^ ~(y-1) == (x-1) ^ (y-1)
-  int pairs = std::min(X.len(), Y.len());
+  uint32_t pairs = std::min(X.len(), Y.len());
   digit_t x_borrow = 1;
   digit_t y_borrow = 1;
-  int i = 0;
+  uint32_t i = 0;
   for (; i < pairs; i++) {
     Z[i] = digit_sub(X[i], x_borrow, &x_borrow) ^
            digit_sub(Y[i], y_borrow, &y_borrow);
@@ -121,9 +121,9 @@ void BitwiseXor_NegNeg(RWDigits Z, Digits X, Digits Y) {
 
 void BitwiseXor_PosNeg(RWDigits Z, Digits X, Digits Y) {
   // x ^ (-y) == x ^ ~(y-1) == ~(x ^ (y-1)) == -((x ^ (y-1)) + 1)
-  int pairs = std::min(X.len(), Y.len());
+  uint32_t pairs = std::min(X.len(), Y.len());
   digit_t borrow = 1;
-  int i = 0;
+  uint32_t i = 0;
   for (; i < pairs; i++) Z[i] = X[i] ^ digit_sub(Y[i], borrow, &borrow);
   // (At least) one of the next two loops will perform zero iterations:
   for (; i < X.len(); i++) Z[i] = X[i];
@@ -134,10 +134,10 @@ void BitwiseXor_PosNeg(RWDigits Z, Digits X, Digits Y) {
 }
 
 void LeftShift(RWDigits Z, Digits X, digit_t shift) {
-  int digit_shift = static_cast<int>(shift / kDigitBits);
+  uint32_t digit_shift = static_cast<uint32_t>(shift / kDigitBits);
   int bits_shift = static_cast<int>(shift % kDigitBits);
 
-  int i = 0;
+  uint32_t i = 0;
   for (; i < digit_shift; ++i) Z[i] = 0;
   if (bits_shift == 0) {
     for (; i < X.len() + digit_shift; ++i) Z[i] = X[i - digit_shift];
@@ -154,23 +154,23 @@ void LeftShift(RWDigits Z, Digits X, digit_t shift) {
   }
 }
 
-int RightShift_ResultLength(Digits X, bool x_sign, digit_t shift,
-                            RightShiftState* state) {
-  int digit_shift = static_cast<int>(shift / kDigitBits);
+uint32_t RightShift_ResultLength(Digits X, bool x_sign, digit_t shift,
+                                 RightShiftState* state) {
+  uint32_t digit_shift = static_cast<uint32_t>(shift / kDigitBits);
   int bits_shift = static_cast<int>(shift % kDigitBits);
-  int result_length = X.len() - digit_shift;
-  if (result_length <= 0) return 0;
+  if (X.len() <= digit_shift) return 0;
+  uint32_t result_length = X.len() - digit_shift;
 
   // For negative numbers, round down if any bit was shifted out (so that e.g.
   // -5n >> 1n == -3n and not -2n). Check now whether this will happen and
   // whether it can cause overflow into a new digit.
   bool must_round_down = false;
   if (x_sign) {
-    const digit_t mask = (static_cast<digit_t>(1) << bits_shift) - 1;
+    const digit_t mask = (digit_t{1} << bits_shift) - 1;
     if ((X[digit_shift] & mask) != 0) {
       must_round_down = true;
     } else {
-      for (int i = 0; i < digit_shift; i++) {
+      for (uint32_t i = 0; i < digit_shift; i++) {
         if (X[i] != 0) {
           must_round_down = true;
           break;
@@ -194,10 +194,10 @@ int RightShift_ResultLength(Digits X, bool x_sign, digit_t shift,
 
 void RightShift(RWDigits Z, Digits X, digit_t shift,
                 const RightShiftState& state) {
-  int digit_shift = static_cast<int>(shift / kDigitBits);
+  uint32_t digit_shift = static_cast<uint32_t>(shift / kDigitBits);
   int bits_shift = static_cast<int>(shift % kDigitBits);
 
-  int i = 0;
+  uint32_t i = 0;
   if (bits_shift == 0) {
     for (; i < X.len() - digit_shift; ++i) Z[i] = X[i + digit_shift];
   } else {
@@ -221,12 +221,12 @@ void RightShift(RWDigits Z, Digits X, digit_t shift,
 namespace {
 
 // Z := (least significant n bits of X).
-void TruncateToNBits(RWDigits Z, Digits X, int n) {
-  int digits = DIV_CEIL(n, kDigitBits);
+void TruncateToNBits(RWDigits Z, Digits X, uint32_t n) {
+  uint32_t digits = DIV_CEIL(n, kDigitBits);
   int bits = n % kDigitBits;
   // Copy all digits except the MSD.
-  int last = digits - 1;
-  for (int i = 0; i < last; i++) {
+  uint32_t last = digits - 1;
+  for (uint32_t i = 0; i < last; i++) {
     Z[i] = X[i];
   }
   // The MSD might contain extra bits that we don't want.
@@ -239,15 +239,15 @@ void TruncateToNBits(RWDigits Z, Digits X, int n) {
 }
 
 // Z := 2**n - (least significant n bits of X).
-void TruncateAndSubFromPowerOfTwo(RWDigits Z, Digits X, int n) {
-  int digits = DIV_CEIL(n, kDigitBits);
+void TruncateAndSubFromPowerOfTwo(RWDigits Z, Digits X, uint32_t n) {
+  uint32_t digits = DIV_CEIL(n, kDigitBits);
   int bits = n % kDigitBits;
   // Process all digits except the MSD. Take X's digits, then simulate leading
   // zeroes.
-  int last = digits - 1;
-  int have_x = std::min(last, X.len());
+  uint32_t last = digits - 1;
+  uint32_t have_x = std::min(last, X.len());
   digit_t borrow = 0;
-  int i = 0;
+  uint32_t i = 0;
   for (; i < have_x; i++) Z[i] = digit_sub2(0, X[i], borrow, &borrow);
   for (; i < last; i++) Z[i] = digit_sub(0, borrow, &borrow);
 
@@ -270,8 +270,8 @@ void TruncateAndSubFromPowerOfTwo(RWDigits Z, Digits X, int n) {
 }  // namespace
 
 // Returns -1 when the operation would return X unchanged.
-int AsIntNResultLength(Digits X, bool x_negative, int n) {
-  int needed_digits = DIV_CEIL(n, kDigitBits);
+int AsIntNResultLength(Digits X, bool x_negative, uint32_t n) {
+  uint32_t needed_digits = DIV_CEIL(n, kDigitBits);
   // Generally: decide based on number of digits, and bits in the top digit.
   if (X.len() < needed_digits) return -1;
   if (X.len() > needed_digits) return needed_digits;
@@ -287,11 +287,11 @@ int AsIntNResultLength(Digits X, bool x_negative, int n) {
   return -1;
 }
 
-bool AsIntN(RWDigits Z, Digits X, bool x_negative, int n) {
+bool AsIntN(RWDigits Z, Digits X, bool x_negative, uint32_t n) {
   DCHECK(X.len() > 0);
   DCHECK(n > 0);
   DCHECK(AsIntNResultLength(X, x_negative, n) > 0);
-  int needed_digits = DIV_CEIL(n, kDigitBits);
+  uint32_t needed_digits = DIV_CEIL(n, kDigitBits);
   digit_t top_digit = X[needed_digits - 1];
   digit_t compare_digit = digit_t{1} << ((n - 1) % kDigitBits);
   // The canonical algorithm would be: convert negative numbers to two's
@@ -322,8 +322,8 @@ bool AsIntN(RWDigits Z, Digits X, bool x_negative, int n) {
 }
 
 // Returns -1 when the operation would return X unchanged.
-int AsUintN_Pos_ResultLength(Digits X, int n) {
-  int needed_digits = DIV_CEIL(n, kDigitBits);
+int AsUintN_Pos_ResultLength(Digits X, uint32_t n) {
+  uint32_t needed_digits = DIV_CEIL(n, kDigitBits);
   if (X.len() < needed_digits) return -1;
   if (X.len() > needed_digits) return needed_digits;
   int bits_in_top_digit = n % kDigitBits;
@@ -333,12 +333,12 @@ int AsUintN_Pos_ResultLength(Digits X, int n) {
   return needed_digits;
 }
 
-void AsUintN_Pos(RWDigits Z, Digits X, int n) {
+void AsUintN_Pos(RWDigits Z, Digits X, uint32_t n) {
   DCHECK(AsUintN_Pos_ResultLength(X, n) > 0);
   TruncateToNBits(Z, X, n);
 }
 
-void AsUintN_Neg(RWDigits Z, Digits X, int n) {
+void AsUintN_Neg(RWDigits Z, Digits X, uint32_t n) {
   TruncateAndSubFromPowerOfTwo(Z, X, n);
 }
 

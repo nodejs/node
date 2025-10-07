@@ -256,7 +256,13 @@ void TrySetOsrUrgency(Isolate* isolate, Tagged<JSFunction> function,
                       int osr_urgency) {
   Tagged<SharedFunctionInfo> shared = function->shared();
   if (V8_UNLIKELY(!v8_flags.use_osr)) return;
-  if (V8_UNLIKELY(shared->optimization_disabled())) return;
+  if (V8_UNLIKELY(shared->optimization_disabled(
+          (!v8_flags.maglev ||
+           (v8_flags.turbofan && function->ActiveTierIsMaglev(isolate)))
+              ? CodeKind::TURBOFAN_JS
+              : CodeKind::MAGLEV))) {
+    return;
+  }
 
   // We've passed all checks - bump the OSR urgency.
 
@@ -322,8 +328,11 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
     return;
   }
 
-  // TODO(v8:7700): Consider splitting this up for Maglev/Turbofan.
-  if (V8_UNLIKELY(function->shared()->optimization_disabled())) return;
+  if (V8_UNLIKELY(function->shared()->optimization_disabled(
+          current_code_kind == CodeKind::MAGLEV ? CodeKind::TURBOFAN_JS
+                                                : CodeKind::MAGLEV))) {
+    return;
+  }
 
   if (V8_UNLIKELY(v8_flags.always_osr)) {
     TryRequestOsrAtNextOpportunity(isolate_, function);
@@ -342,7 +351,7 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
   if (function->IsOptimizationRequested(isolate_) || waiting_for_tierup) {
     if (V8_UNLIKELY(maglev_osr && current_code_kind == CodeKind::MAGLEV &&
                     (!v8_flags.osr_from_maglev ||
-                     isolate_->EfficiencyModeEnabledForTiering() ||
+                     isolate_->EfficiencyModeEnabled() ||
                      isolate_->BatterySaverModeEnabled()))) {
       return;
     }
@@ -365,7 +374,7 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
   // We might be stuck in a baseline frame that wants to tier up to Maglev, but
   // is in a loop, and can't OSR, because Maglev doesn't have OSR. Allow it to
   // skip over Maglev by re-checking ShouldOptimize as if we were in Maglev.
-  if (V8_UNLIKELY(!isolate_->EfficiencyModeEnabledForTiering() && !maglev_osr &&
+  if (V8_UNLIKELY(!isolate_->EfficiencyModeEnabled() && !maglev_osr &&
                   d.should_optimize() && d.code_kind == CodeKind::MAGLEV)) {
     bool is_marked_for_maglev_optimization =
         existing_request == CodeKind::MAGLEV ||
@@ -375,7 +384,7 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
     }
   }
 
-  if (V8_UNLIKELY(isolate_->EfficiencyModeEnabledForTiering() &&
+  if (V8_UNLIKELY(isolate_->EfficiencyModeEnabled() &&
                   d.code_kind != CodeKind::TURBOFAN_JS)) {
     d.concurrency_mode = ConcurrencyMode::kSynchronous;
   }
@@ -404,15 +413,16 @@ OptimizationDecision TieringManager::ShouldOptimize(
   if (V8_UNLIKELY(!v8_flags.turbofan ||
                   !shared->PassesFilter(v8_flags.turbo_filter) ||
                   (v8_flags.efficiency_mode_disable_turbofan &&
-                   isolate_->EfficiencyModeEnabledForTiering()) ||
+                   isolate_->EfficiencyModeEnabled()) ||
                   isolate_->BatterySaverModeEnabled())) {
     return OptimizationDecision::DoNotOptimize();
   }
 
-  if (isolate_->EfficiencyModeEnabledForTiering() &&
-      v8_flags.efficiency_mode_delay_turbofan &&
+  if (isolate_->EfficiencyModeEnabled() &&
+      v8_flags.efficiency_mode_delay_turbofan_multiply &&
       feedback_vector->invocation_count() <
-          v8_flags.efficiency_mode_delay_turbofan) {
+          v8_flags.invocation_count_for_turbofan *
+              v8_flags.efficiency_mode_delay_turbofan_multiply) {
     return OptimizationDecision::DoNotOptimize();
   }
 

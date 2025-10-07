@@ -10,4 +10,7 @@ include_rules = [
   "+cppgc/type-traits.h",
   "+cppgc/visitor.h",
   "+perfetto",
+  # Used by v8-object.h, for Object::wrap().
+  "+cppgc/name-provider.h",
+  "+cppgc/garbage-collected.h",
 ]

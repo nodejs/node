@@ -177,9 +177,7 @@ class AndroidMkWriter:
             self.WriteLn("LOCAL_IS_HOST_MODULE := true")
             self.WriteLn("LOCAL_MULTILIB := $(GYP_HOST_MULTILIB)")
         elif sdk_version > 0:
-            self.WriteLn(
-                "LOCAL_MODULE_TARGET_ARCH := $(TARGET_$(GYP_VAR_PREFIX)ARCH)"
-            )
+            self.WriteLn("LOCAL_MODULE_TARGET_ARCH := $(TARGET_$(GYP_VAR_PREFIX)ARCH)")
             self.WriteLn("LOCAL_SDK_VERSION := %s" % sdk_version)
 
         # Grab output directories; needed for Actions and Rules.
@@ -588,7 +586,8 @@ class AndroidMkWriter:
         local_files = []
         for source in sources:
             (root, ext) = os.path.splitext(source)
-            if ("$(gyp_shared_intermediate_dir)" in source
+            if (
+                "$(gyp_shared_intermediate_dir)" in source
                 or "$(gyp_intermediate_dir)" in source
                 or (IsCPPExtension(ext) and ext != local_cpp_extension)
             ):
@@ -734,8 +733,7 @@ class AndroidMkWriter:
         elif self.toolset == "host":
             path = (
                 "$(call intermediates-dir-for,%s,%s,true,,"
-                "$(GYP_HOST_VAR_PREFIX))"
-                % (self.android_class, self.android_module)
+                "$(GYP_HOST_VAR_PREFIX))" % (self.android_class, self.android_module)
             )
         else:
             path = (
@@ -1001,9 +999,9 @@ class AndroidMkWriter:
         # - i.e. that the resulting path is still inside the project tree. The
         # path may legitimately have ended up containing just $(LOCAL_PATH), though,
         # so we don't look for a slash.
-        assert local_path.startswith(
-            "$(LOCAL_PATH)"
-        ), f"Path {path} attempts to escape from gyp path {self.path} !)"
+        assert local_path.startswith("$(LOCAL_PATH)"), (
+            f"Path {path} attempts to escape from gyp path {self.path} !)"
+        )
         return local_path
 
     def ExpandInputRoot(self, template, expansion, dirname):
@@ -1045,9 +1043,9 @@ def GenerateOutput(target_list, target_dicts, data, params):
         base_path = gyp.common.RelativePath(os.path.dirname(build_file), options.depth)
         # We write the file in the base_path directory.
         output_file = os.path.join(options.depth, base_path, base_name)
-        assert (
-            not options.generator_output
-        ), "The Android backend does not support options.generator_output."
+        assert not options.generator_output, (
+            "The Android backend does not support options.generator_output."
+        )
         base_path = gyp.common.RelativePath(
             os.path.dirname(build_file), options.toplevel_dir
         )
@@ -1067,9 +1065,9 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
     makefile_name = "GypAndroid" + options.suffix + ".mk"
     makefile_path = os.path.join(options.toplevel_dir, makefile_name)
-    assert (
-        not options.generator_output
-    ), "The Android backend does not support options.generator_output."
+    assert not options.generator_output, (
+        "The Android backend does not support options.generator_output."
+    )
     gyp.common.EnsureDirExists(makefile_path)
     root_makefile = open(makefile_path, "w")
 

@@ -209,18 +209,6 @@ static int dh_import(void *keydata, int selection, const OSSL_PARAM params[])
             selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY ? 1 : 0;
 
         ok = ok && ossl_dh_key_fromdata(dh, params, include_private);
-#ifdef FIPS_MODULE
-        /*
-         * FIPS 140-3 IG 10.3.A additional comment 1 mandates that a pairwise
-         * consistency check be undertaken on key import.  The required test
-         * is described in SP 800-56Ar3 5.6.2.1.4.
-         */
-        if (ok > 0 && !ossl_fips_self_testing()) {
-            ok = ossl_dh_check_pairwise(dh, 1);
-            if (ok <= 0)
-                ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
-        }
-#endif  /* FIPS_MODULE */
     }
 
     return ok;
@@ -806,6 +794,15 @@ static void *dh_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
                                      gctx->gen_type == DH_PARAMGEN_TYPE_FIPS_186_2);
         if (DH_generate_key(dh) <= 0)
             goto end;
+#ifdef FIPS_MODULE
+        if (!ossl_fips_self_testing()) {
+            ret = ossl_dh_check_pairwise(dh, 0);
+            if (ret <= 0) {
+                ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
+                goto end;
+            }
+        }
+#endif /* FIPS_MODULE */
     }
     DH_clear_flags(dh, DH_FLAG_TYPE_MASK);
     DH_set_flags(dh, gctx->dh_type);

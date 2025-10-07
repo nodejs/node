@@ -5,113 +5,88 @@
 require('../common');
 const tmpdir = require('../common/tmpdir');
 const { writeFileSync, mkdirSync } = require('fs');
-const { spawnSync } = require('child_process');
-const assert = require('assert');
+const { spawnSyncAndAssert } = require('../common/child_process');
 
 {
   tmpdir.refresh();
   const config = 'non-existent-relative.json';
-  const child = spawnSync(
+  spawnSyncAndAssert(
     process.execPath,
     ['--experimental-sea-config', config], {
       cwd: tmpdir.path,
+    }, {
+      status: 1,
+      stderr: /Cannot read single executable configuration from non-existent-relative\.json/
     });
-  const stderr = child.stderr.toString();
-  assert.strictEqual(child.status, 1);
-  assert.match(
-    stderr,
-    /Cannot read single executable configuration from non-existent-relative\.json/
-  );
 }
 
 {
   tmpdir.refresh();
   const config = tmpdir.resolve('non-existent-absolute.json');
-  const child = spawnSync(
+  spawnSyncAndAssert(
     process.execPath,
     ['--experimental-sea-config', config], {
       cwd: tmpdir.path,
+    }, {
+      status: 1,
+      stderr: /Cannot read single executable configuration from .*non-existent-absolute\.json/
     });
-  const stderr = child.stderr.toString();
-  assert.strictEqual(child.status, 1);
-  assert(
-    stderr.includes(
-      `Cannot read single executable configuration from ${config}`
-    )
-  );
 }
 
 {
   tmpdir.refresh();
   const config = tmpdir.resolve('invalid.json');
   writeFileSync(config, '\n{\n"main"', 'utf8');
-  const child = spawnSync(
+  spawnSyncAndAssert(
     process.execPath,
     ['--experimental-sea-config', config], {
       cwd: tmpdir.path,
+    }, {
+      status: 1,
+      stderr: /INCOMPLETE_ARRAY_OR_OBJECT/
     });
-  const stderr = child.stderr.toString();
-  assert.strictEqual(child.status, 1);
-  assert.match(stderr, /SyntaxError: Expected ':' after property name/);
-  assert(
-    stderr.includes(
-      `Cannot parse JSON from ${config}`
-    )
-  );
 }
 
 {
   tmpdir.refresh();
   const config = tmpdir.resolve('empty.json');
   writeFileSync(config, '{}', 'utf8');
-  const child = spawnSync(
+  spawnSyncAndAssert(
     process.execPath,
     ['--experimental-sea-config', config], {
       cwd: tmpdir.path,
+    }, {
+      status: 1,
+      stderr: /"main" field of .*empty\.json is not a non-empty string/
     });
-  const stderr = child.stderr.toString();
-  assert.strictEqual(child.status, 1);
-  assert(
-    stderr.includes(
-      `"main" field of ${config} is not a non-empty string`
-    )
-  );
 }
 
 {
   tmpdir.refresh();
   const config = tmpdir.resolve('no-main.json');
   writeFileSync(config, '{"output": "test.blob"}', 'utf8');
-  const child = spawnSync(
+  spawnSyncAndAssert(
     process.execPath,
     ['--experimental-sea-config', config], {
       cwd: tmpdir.path,
+    }, {
+      status: 1,
+      stderr: /"main" field of .*no-main\.json is not a non-empty string/
     });
-  const stderr = child.stderr.toString();
-  assert.strictEqual(child.status, 1);
-  assert(
-    stderr.includes(
-      `"main" field of ${config} is not a non-empty string`
-    )
-  );
 }
 
 {
   tmpdir.refresh();
   const config = tmpdir.resolve('no-output.json');
   writeFileSync(config, '{"main": "bundle.js"}', 'utf8');
-  const child = spawnSync(
+  spawnSyncAndAssert(
     process.execPath,
     ['--experimental-sea-config', config], {
       cwd: tmpdir.path,
+    }, {
+      status: 1,
+      stderr: /"output" field of .*no-output\.json is not a non-empty string/
     });
-  const stderr = child.stderr.toString();
-  assert.strictEqual(child.status, 1);
-  assert(
-    stderr.includes(
-      `"output" field of ${config} is not a non-empty string`
-    )
-  );
 }
 
 {
@@ -124,32 +99,28 @@ const assert = require('assert');
   "disableExperimentalSEAWarning": "💥"
 }
   `, 'utf8');
-  const child = spawnSync(
+  spawnSyncAndAssert(
     process.execPath,
     ['--experimental-sea-config', config], {
       cwd: tmpdir.path,
+    }, {
+      status: 1,
+      stderr: /"disableExperimentalSEAWarning" field of .*invalid-disableExperimentalSEAWarning\.json is not a Boolean/
     });
-  const stderr = child.stderr.toString();
-  assert.strictEqual(child.status, 1);
-  assert(
-    stderr.includes(
-      `"disableExperimentalSEAWarning" field of ${config} is not a Boolean`
-    )
-  );
 }
 
 {
   tmpdir.refresh();
   const config = tmpdir.resolve('nonexistent-main-relative.json');
   writeFileSync(config, '{"main": "bundle.js", "output": "sea.blob"}', 'utf8');
-  const child = spawnSync(
+  spawnSyncAndAssert(
     process.execPath,
     ['--experimental-sea-config', config], {
       cwd: tmpdir.path,
+    }, {
+      status: 1,
+      stderr: /Cannot read main script .*bundle\.js/
     });
-  const stderr = child.stderr.toString();
-  assert.strictEqual(child.status, 1);
-  assert.match(stderr, /Cannot read main script bundle\.js/);
 }
 
 {
@@ -161,19 +132,14 @@ const assert = require('assert');
     output: 'sea.blob'
   });
   writeFileSync(config, configJson, 'utf8');
-  const child = spawnSync(
+  spawnSyncAndAssert(
     process.execPath,
     ['--experimental-sea-config', config], {
       cwd: tmpdir.path,
+    }, {
+      status: 1,
+      stderr: /Cannot read main script .*bundle\.js/
     });
-
-  const stderr = child.stderr.toString();
-  assert.strictEqual(child.status, 1);
-  assert(
-    stderr.includes(
-      `Cannot read main script ${main}`
-    )
-  );
 }
 
 {
@@ -188,19 +154,14 @@ const assert = require('assert');
     output,
   });
   writeFileSync(config, configJson, 'utf8');
-  const child = spawnSync(
+  spawnSyncAndAssert(
     process.execPath,
     ['--experimental-sea-config', config], {
       cwd: tmpdir.path,
+    }, {
+      status: 1,
+      stderr: /Cannot write output to .*output-dir/
     });
-
-  const stderr = child.stderr.toString();
-  assert.strictEqual(child.status, 1);
-  assert(
-    stderr.includes(
-      `Cannot write output to ${output}`
-    )
-  );
 }
 
 {
@@ -215,13 +176,12 @@ const assert = require('assert');
     output: 'output-dir'
   });
   writeFileSync(config, configJson, 'utf8');
-  const child = spawnSync(
+  spawnSyncAndAssert(
     process.execPath,
     ['--experimental-sea-config', config], {
       cwd: tmpdir.path,
+    }, {
+      status: 1,
+      stderr: /Cannot write output to output-dir/
     });
-
-  const stderr = child.stderr.toString();
-  assert.strictEqual(child.status, 1);
-  assert.match(stderr, /Cannot write output to output-dir/);
 }

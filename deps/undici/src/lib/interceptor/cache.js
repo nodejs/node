@@ -6,7 +6,7 @@ const util = require('../core/util')
 const CacheHandler = require('../handler/cache-handler')
 const MemoryCacheStore = require('../cache/memory-cache-store')
 const CacheRevalidationHandler = require('../handler/cache-revalidation-handler')
-const { assertCacheStore, assertCacheMethods, makeCacheKey, normaliseHeaders, parseCacheControlHeader } = require('../util/cache.js')
+const { assertCacheStore, assertCacheMethods, makeCacheKey, normalizeHeaders, parseCacheControlHeader } = require('../util/cache.js')
 const { AbortError } = require('../core/errors.js')
 
 /**
@@ -54,6 +54,22 @@ function needsRevalidation (result, cacheControlDirectives) {
   }
 
   return false
+}
+
+/**
+ * Check if we're within the stale-while-revalidate window for a stale response
+ * @param {import('../../types/cache-interceptor.d.ts').default.GetResult} result
+ * @returns {boolean}
+ */
+function withinStaleWhileRevalidateWindow (result) {
+  const staleWhileRevalidate = result.cacheControlDirectives?.['stale-while-revalidate']
+  if (!staleWhileRevalidate) {
+    return false
+  }
+
+  const now = Date.now()
+  const staleWhileRevalidateExpiry = result.staleAt + (staleWhileRevalidate * 1000)
+  return now <= staleWhileRevalidateExpiry
 }
 
 /**
@@ -231,6 +247,51 @@ function handleResult (
       return dispatch(opts, new CacheHandler(globalOpts, cacheKey, handler))
     }
 
+    // RFC 5861: If we're within stale-while-revalidate window, serve stale immediately
+    // and revalidate in background
+    if (withinStaleWhileRevalidateWindow(result)) {
+      // Serve stale response immediately
+      sendCachedValue(handler, opts, result, age, null, true)
+
+      // Start background revalidation (fire-and-forget)
+      queueMicrotask(() => {
+        let headers = {
+          ...opts.headers,
+          'if-modified-since': new Date(result.cachedAt).toUTCString()
+        }
+
+        if (result.etag) {
+          headers['if-none-match'] = result.etag
+        }
+
+        if (result.vary) {
+          headers = {
+            ...headers,
+            ...result.vary
+          }
+        }
+
+        // Background revalidation - update cache if we get new data
+        dispatch(
+          {
+            ...opts,
+            headers
+          },
+          new CacheHandler(globalOpts, cacheKey, {
+            // Silent handler that just updates the cache
+            onRequestStart () {},
+            onRequestUpgrade () {},
+            onResponseStart () {},
+            onResponseData () {},
+            onResponseEnd () {},
+            onResponseError () {}
+          })
+        )
+      })
+
+      return true
+    }
+
     let withinStaleIfErrorThreshold = false
     const staleIfErrorExpiry = result.cacheControlDirectives['stale-if-error'] ?? reqCacheControl?.['stale-if-error']
     if (staleIfErrorExpiry) {
@@ -326,7 +387,7 @@ module.exports = (opts = {}) => {
 
       opts = {
         ...opts,
-        headers: normaliseHeaders(opts)
+        headers: normalizeHeaders(opts)
       }
 
       const reqCacheControl = opts.headers?.['cache-control']

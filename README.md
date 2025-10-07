@@ -263,8 +263,6 @@ semver.inc('1.2.3', 'prerelease', 'beta', false)
 // '1.2.4-beta'
 ```
 
-command-line example:
-
 ```bash
 $ semver 1.2.3 -i prerelease --preid beta -n 1
 1.2.4-beta.1

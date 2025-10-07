@@ -13,16 +13,27 @@ namespace internal {
 
 namespace compiler {
 class CodeAssemblerState;
+
+namespace turboshaft {
+class Graph;
+class PipelineData;
+}  // namespace turboshaft
 }
 
 struct AssemblerOptions;
 enum class Builtin;
+class Zone;
 
 namespace interpreter {
 
 extern void GenerateBytecodeHandler(compiler::CodeAssemblerState* state,
                                     Bytecode bytecode,
                                     OperandScale operand_scale);
+extern void GenerateBytecodeHandlerTSA(compiler::turboshaft::PipelineData* data,
+                                       Isolate* isolate,
+                                       compiler::turboshaft::Graph& graph,
+                                       Zone* zone, Bytecode bytecode,
+                                       OperandScale operand_scale);
 
 }  // namespace interpreter
 }  // namespace internal

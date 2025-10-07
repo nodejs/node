@@ -176,12 +176,12 @@ _path_leading_variable = re.compile(r"^\$\((.*?)\)(/(.*))?$")
 def SourceTreeAndPathFromPath(input_path):
     """Given input_path, returns a tuple with sourceTree and path values.
 
-  Examples:
-    input_path     (source_tree, output_path)
-    '$(VAR)/path'  ('VAR', 'path')
-    '$(VAR)'       ('VAR', None)
-    'path'         (None, 'path')
-  """
+    Examples:
+      input_path     (source_tree, output_path)
+      '$(VAR)/path'  ('VAR', 'path')
+      '$(VAR)'       ('VAR', None)
+      'path'         (None, 'path')
+    """
 
     if source_group_match := _path_leading_variable.match(input_path):
         source_tree = source_group_match.group(1)
@@ -200,70 +200,70 @@ def ConvertVariablesToShellSyntax(input_string):
 class XCObject:
     """The abstract base of all class types used in Xcode project files.
 
-  Class variables:
-    _schema: A dictionary defining the properties of this class.  The keys to
-             _schema are string property keys as used in project files.  Values
-             are a list of four or five elements:
-             [ is_list, property_type, is_strong, is_required, default ]
-             is_list: True if the property described is a list, as opposed
-                      to a single element.
-             property_type: The type to use as the value of the property,
-                            or if is_list is True, the type to use for each
-                            element of the value's list.  property_type must
-                            be an XCObject subclass, or one of the built-in
-                            types str, int, or dict.
-             is_strong: If property_type is an XCObject subclass, is_strong
-                        is True to assert that this class "owns," or serves
-                        as parent, to the property value (or, if is_list is
-                        True, values).  is_strong must be False if
-                        property_type is not an XCObject subclass.
-             is_required: True if the property is required for the class.
-                          Note that is_required being True does not preclude
-                          an empty string ("", in the case of property_type
-                          str) or list ([], in the case of is_list True) from
-                          being set for the property.
-             default: Optional.  If is_required is True, default may be set
-                      to provide a default value for objects that do not supply
-                      their own value.  If is_required is True and default
-                      is not provided, users of the class must supply their own
-                      value for the property.
-             Note that although the values of the array are expressed in
-             boolean terms, subclasses provide values as integers to conserve
-             horizontal space.
-    _should_print_single_line: False in XCObject.  Subclasses whose objects
-                               should be written to the project file in the
-                               alternate single-line format, such as
-                               PBXFileReference and PBXBuildFile, should
-                               set this to True.
-    _encode_transforms: Used by _EncodeString to encode unprintable characters.
-                        The index into this list is the ordinal of the
-                        character to transform; each value is a string
-                        used to represent the character in the output.  XCObject
-                        provides an _encode_transforms list suitable for most
-                        XCObject subclasses.
-    _alternate_encode_transforms: Provided for subclasses that wish to use
-                                  the alternate encoding rules.  Xcode seems
-                                  to use these rules when printing objects in
-                                  single-line format.  Subclasses that desire
-                                  this behavior should set _encode_transforms
-                                  to _alternate_encode_transforms.
-    _hashables: A list of XCObject subclasses that can be hashed by ComputeIDs
-                to construct this object's ID.  Most classes that need custom
-                hashing behavior should do it by overriding Hashables,
-                but in some cases an object's parent may wish to push a
-                hashable value into its child, and it can do so by appending
-                to _hashables.
-  Attributes:
-    id: The object's identifier, a 24-character uppercase hexadecimal string.
-        Usually, objects being created should not set id until the entire
-        project file structure is built.  At that point, UpdateIDs() should
-        be called on the root object to assign deterministic values for id to
-        each object in the tree.
-    parent: The object's parent.  This is set by a parent XCObject when a child
-            object is added to it.
-    _properties: The object's property dictionary.  An object's properties are
-                 described by its class' _schema variable.
-  """
+    Class variables:
+      _schema: A dictionary defining the properties of this class.  The keys to
+               _schema are string property keys as used in project files.  Values
+               are a list of four or five elements:
+               [ is_list, property_type, is_strong, is_required, default ]
+               is_list: True if the property described is a list, as opposed
+                        to a single element.
+               property_type: The type to use as the value of the property,
+                              or if is_list is True, the type to use for each
+                              element of the value's list.  property_type must
+                              be an XCObject subclass, or one of the built-in
+                              types str, int, or dict.
+               is_strong: If property_type is an XCObject subclass, is_strong
+                          is True to assert that this class "owns," or serves
+                          as parent, to the property value (or, if is_list is
+                          True, values).  is_strong must be False if
+                          property_type is not an XCObject subclass.
+               is_required: True if the property is required for the class.
+                            Note that is_required being True does not preclude
+                            an empty string ("", in the case of property_type
+                            str) or list ([], in the case of is_list True) from
+                            being set for the property.
+               default: Optional.  If is_required is True, default may be set
+                        to provide a default value for objects that do not supply
+                        their own value.  If is_required is True and default
+                        is not provided, users of the class must supply their own
+                        value for the property.
+               Note that although the values of the array are expressed in
+               boolean terms, subclasses provide values as integers to conserve
+               horizontal space.
+      _should_print_single_line: False in XCObject.  Subclasses whose objects
+                                 should be written to the project file in the
+                                 alternate single-line format, such as
+                                 PBXFileReference and PBXBuildFile, should
+                                 set this to True.
+      _encode_transforms: Used by _EncodeString to encode unprintable characters.
+                          The index into this list is the ordinal of the
+                          character to transform; each value is a string
+                          used to represent the character in the output.  XCObject
+                          provides an _encode_transforms list suitable for most
+                          XCObject subclasses.
+      _alternate_encode_transforms: Provided for subclasses that wish to use
+                                    the alternate encoding rules.  Xcode seems
+                                    to use these rules when printing objects in
+                                    single-line format.  Subclasses that desire
+                                    this behavior should set _encode_transforms
+                                    to _alternate_encode_transforms.
+      _hashables: A list of XCObject subclasses that can be hashed by ComputeIDs
+                  to construct this object's ID.  Most classes that need custom
+                  hashing behavior should do it by overriding Hashables,
+                  but in some cases an object's parent may wish to push a
+                  hashable value into its child, and it can do so by appending
+                  to _hashables.
+    Attributes:
+      id: The object's identifier, a 24-character uppercase hexadecimal string.
+          Usually, objects being created should not set id until the entire
+          project file structure is built.  At that point, UpdateIDs() should
+          be called on the root object to assign deterministic values for id to
+          each object in the tree.
+      parent: The object's parent.  This is set by a parent XCObject when a child
+              object is added to it.
+      _properties: The object's property dictionary.  An object's properties are
+                   described by its class' _schema variable.
+    """
 
     _schema = {}
     _should_print_single_line = False
@@ -305,12 +305,12 @@ class XCObject:
     def Copy(self):
         """Make a copy of this object.
 
-    The new object will have its own copy of lists and dicts.  Any XCObject
-    objects owned by this object (marked "strong") will be copied in the
-    new object, even those found in lists.  If this object has any weak
-    references to other XCObjects, the same references are added to the new
-    object without making a copy.
-    """
+        The new object will have its own copy of lists and dicts.  Any XCObject
+        objects owned by this object (marked "strong") will be copied in the
+        new object, even those found in lists.  If this object has any weak
+        references to other XCObjects, the same references are added to the new
+        object without making a copy.
+        """
 
         that = self.__class__(id=self.id, parent=self.parent)
         for key, value in self._properties.items():
@@ -359,9 +359,9 @@ class XCObject:
     def Name(self):
         """Return the name corresponding to an object.
 
-    Not all objects necessarily need to be nameable, and not all that do have
-    a "name" property.  Override as needed.
-    """
+        Not all objects necessarily need to be nameable, and not all that do have
+        a "name" property.  Override as needed.
+        """
 
         # If the schema indicates that "name" is required, try to access the
         # property even if it doesn't exist.  This will result in a KeyError
@@ -377,12 +377,12 @@ class XCObject:
     def Comment(self):
         """Return a comment string for the object.
 
-    Most objects just use their name as the comment, but PBXProject uses
-    different values.
+        Most objects just use their name as the comment, but PBXProject uses
+        different values.
 
-    The returned comment is not escaped and does not have any comment marker
-    strings applied to it.
-    """
+        The returned comment is not escaped and does not have any comment marker
+        strings applied to it.
+        """
 
         return self.Name()
 
@@ -402,26 +402,26 @@ class XCObject:
     def ComputeIDs(self, recursive=True, overwrite=True, seed_hash=None):
         """Set "id" properties deterministically.
 
-    An object's "id" property is set based on a hash of its class type and
-    name, as well as the class type and name of all ancestor objects.  As
-    such, it is only advisable to call ComputeIDs once an entire project file
-    tree is built.
+        An object's "id" property is set based on a hash of its class type and
+        name, as well as the class type and name of all ancestor objects.  As
+        such, it is only advisable to call ComputeIDs once an entire project file
+        tree is built.
 
-    If recursive is True, recurse into all descendant objects and update their
-    hashes.
+        If recursive is True, recurse into all descendant objects and update their
+        hashes.
 
-    If overwrite is True, any existing value set in the "id" property will be
-    replaced.
-    """
+        If overwrite is True, any existing value set in the "id" property will be
+        replaced.
+        """
 
         def _HashUpdate(hash, data):
             """Update hash with data's length and contents.
 
-      If the hash were updated only with the value of data, it would be
-      possible for clowns to induce collisions by manipulating the names of
-      their objects.  By adding the length, it's exceedingly less likely that
-      ID collisions will be encountered, intentionally or not.
-      """
+            If the hash were updated only with the value of data, it would be
+            possible for clowns to induce collisions by manipulating the names of
+            their objects.  By adding the length, it's exceedingly less likely that
+            ID collisions will be encountered, intentionally or not.
+            """
 
             hash.update(struct.pack(">i", len(data)))
             if isinstance(data, str):
@@ -464,8 +464,7 @@ class XCObject:
             self.id = "%08X%08X%08X" % tuple(id_ints)
 
     def EnsureNoIDCollisions(self):
-        """Verifies that no two objects have the same ID.  Checks all descendants.
-    """
+        """Verifies that no two objects have the same ID.  Checks all descendants."""
 
         ids = {}
         descendants = self.Descendants()
@@ -498,8 +497,8 @@ class XCObject:
 
     def Descendants(self):
         """Returns a list of all of this object's descendants, including this
-    object.
-    """
+        object.
+        """
 
         children = self.Children()
         descendants = [self]
@@ -515,8 +514,8 @@ class XCObject:
 
     def _EncodeComment(self, comment):
         """Encodes a comment to be placed in the project file output, mimicking
-    Xcode behavior.
-    """
+        Xcode behavior.
+        """
 
         # This mimics Xcode behavior by wrapping the comment in "/*" and "*/".  If
         # the string already contains a "*/", it is turned into "(*)/".  This keeps
@@ -543,8 +542,8 @@ class XCObject:
 
     def _EncodeString(self, value):
         """Encodes a string to be placed in the project file output, mimicking
-    Xcode behavior.
-    """
+        Xcode behavior.
+        """
 
         # Use quotation marks when any character outside of the range A-Z, a-z, 0-9,
         # $ (dollar sign), . (period), and _ (underscore) is present.  Also use
@@ -585,18 +584,18 @@ class XCObject:
 
     def _XCPrintableValue(self, tabs, value, flatten_list=False):
         """Returns a representation of value that may be printed in a project file,
-    mimicking Xcode's behavior.
+        mimicking Xcode's behavior.
 
-    _XCPrintableValue can handle str and int values, XCObjects (which are
-    made printable by returning their id property), and list and dict objects
-    composed of any of the above types.  When printing a list or dict, and
-    _should_print_single_line is False, the tabs parameter is used to determine
-    how much to indent the lines corresponding to the items in the list or
-    dict.
+        _XCPrintableValue can handle str and int values, XCObjects (which are
+        made printable by returning their id property), and list and dict objects
+        composed of any of the above types.  When printing a list or dict, and
+        _should_print_single_line is False, the tabs parameter is used to determine
+        how much to indent the lines corresponding to the items in the list or
+        dict.
 
-    If flatten_list is True, single-element lists will be transformed into
-    strings.
-    """
+        If flatten_list is True, single-element lists will be transformed into
+        strings.
+        """
 
         printable = ""
         comment = None
@@ -657,12 +656,12 @@ class XCObject:
 
     def _XCKVPrint(self, file, tabs, key, value):
         """Prints a key and value, members of an XCObject's _properties dictionary,
-    to file.
+        to file.
 
-    tabs is an int identifying the indentation level.  If the class'
-    _should_print_single_line variable is True, tabs is ignored and the
-    key-value pair will be followed by a space instead of a newline.
-    """
+        tabs is an int identifying the indentation level.  If the class'
+        _should_print_single_line variable is True, tabs is ignored and the
+        key-value pair will be followed by a space instead of a newline.
+        """
 
         if self._should_print_single_line:
             printable = ""
@@ -720,8 +719,8 @@ class XCObject:
 
     def Print(self, file=sys.stdout):
         """Prints a reprentation of this object to file, adhering to Xcode output
-    formatting.
-    """
+        formatting.
+        """
 
         self.VerifyHasRequiredProperties()
 
@@ -759,15 +758,15 @@ class XCObject:
     def UpdateProperties(self, properties, do_copy=False):
         """Merge the supplied properties into the _properties dictionary.
 
-    The input properties must adhere to the class schema or a KeyError or
-    TypeError exception will be raised.  If adding an object of an XCObject
-    subclass and the schema indicates a strong relationship, the object's
-    parent will be set to this object.
+        The input properties must adhere to the class schema or a KeyError or
+        TypeError exception will be raised.  If adding an object of an XCObject
+        subclass and the schema indicates a strong relationship, the object's
+        parent will be set to this object.
 
-    If do_copy is True, then lists, dicts, strong-owned XCObjects, and
-    strong-owned XCObjects in lists will be copied instead of having their
-    references added.
-    """
+        If do_copy is True, then lists, dicts, strong-owned XCObjects, and
+        strong-owned XCObjects in lists will be copied instead of having their
+        references added.
+        """
 
         if properties is None:
             return
@@ -908,8 +907,8 @@ class XCObject:
 
     def VerifyHasRequiredProperties(self):
         """Ensure that all properties identified as required by the schema are
-    set.
-    """
+        set.
+        """
 
         # TODO(mark): A stronger verification mechanism is needed.  Some
         # subclasses need to perform validation beyond what the schema can enforce.
@@ -920,7 +919,7 @@ class XCObject:
 
     def _SetDefaultsFromSchema(self):
         """Assign object default values according to the schema.  This will not
-    overwrite properties that have already been set."""
+        overwrite properties that have already been set."""
 
         defaults = {}
         for property, attributes in self._schema.items():
@@ -942,7 +941,7 @@ class XCObject:
 
 class XCHierarchicalElement(XCObject):
     """Abstract base for PBXGroup and PBXFileReference.  Not represented in a
-  project file."""
+    project file."""
 
     # TODO(mark): Do name and path belong here?  Probably so.
     # If path is set and name is not, name may have a default value.  Name will
@@ -1008,27 +1007,27 @@ class XCHierarchicalElement(XCObject):
     def Hashables(self):
         """Custom hashables for XCHierarchicalElements.
 
-    XCHierarchicalElements are special.  Generally, their hashes shouldn't
-    change if the paths don't change.  The normal XCObject implementation of
-    Hashables adds a hashable for each object, which means that if
-    the hierarchical structure changes (possibly due to changes caused when
-    TakeOverOnlyChild runs and encounters slight changes in the hierarchy),
-    the hashes will change.  For example, if a project file initially contains
-    a/b/f1 and a/b becomes collapsed into a/b, f1 will have a single parent
-    a/b.  If someone later adds a/f2 to the project file, a/b can no longer be
-    collapsed, and f1 winds up with parent b and grandparent a.  That would
-    be sufficient to change f1's hash.
+        XCHierarchicalElements are special.  Generally, their hashes shouldn't
+        change if the paths don't change.  The normal XCObject implementation of
+        Hashables adds a hashable for each object, which means that if
+        the hierarchical structure changes (possibly due to changes caused when
+        TakeOverOnlyChild runs and encounters slight changes in the hierarchy),
+        the hashes will change.  For example, if a project file initially contains
+        a/b/f1 and a/b becomes collapsed into a/b, f1 will have a single parent
+        a/b.  If someone later adds a/f2 to the project file, a/b can no longer be
+        collapsed, and f1 winds up with parent b and grandparent a.  That would
+        be sufficient to change f1's hash.
 
-    To counteract this problem, hashables for all XCHierarchicalElements except
-    for the main group (which has neither a name nor a path) are taken to be
-    just the set of path components.  Because hashables are inherited from
-    parents, this provides assurance that a/b/f1 has the same set of hashables
-    whether its parent is b or a/b.
+        To counteract this problem, hashables for all XCHierarchicalElements except
+        for the main group (which has neither a name nor a path) are taken to be
+        just the set of path components.  Because hashables are inherited from
+        parents, this provides assurance that a/b/f1 has the same set of hashables
+        whether its parent is b or a/b.
 
-    The main group is a special case.  As it is permitted to have no name or
-    path, it is permitted to use the standard XCObject hash mechanism.  This
-    is not considered a problem because there can be only one main group.
-    """
+        The main group is a special case.  As it is permitted to have no name or
+        path, it is permitted to use the standard XCObject hash mechanism.  This
+        is not considered a problem because there can be only one main group.
+        """
 
         if self == self.PBXProjectAncestor()._properties["mainGroup"]:
             # super
@@ -1157,12 +1156,12 @@ class XCHierarchicalElement(XCObject):
 
 class PBXGroup(XCHierarchicalElement):
     """
-  Attributes:
-    _children_by_path: Maps pathnames of children of this PBXGroup to the
-      actual child XCHierarchicalElement objects.
-    _variant_children_by_name_and_path: Maps (name, path) tuples of
-      PBXVariantGroup children to the actual child PBXVariantGroup objects.
-  """
+    Attributes:
+      _children_by_path: Maps pathnames of children of this PBXGroup to the
+        actual child XCHierarchicalElement objects.
+      _variant_children_by_name_and_path: Maps (name, path) tuples of
+        PBXVariantGroup children to the actual child PBXVariantGroup objects.
+    """
 
     _schema = XCHierarchicalElement._schema.copy()
     _schema.update(
@@ -1281,20 +1280,20 @@ class PBXGroup(XCHierarchicalElement):
     def AddOrGetFileByPath(self, path, hierarchical):
         """Returns an existing or new file reference corresponding to path.
 
-    If hierarchical is True, this method will create or use the necessary
-    hierarchical group structure corresponding to path.  Otherwise, it will
-    look in and create an item in the current group only.
+        If hierarchical is True, this method will create or use the necessary
+        hierarchical group structure corresponding to path.  Otherwise, it will
+        look in and create an item in the current group only.
 
-    If an existing matching reference is found, it is returned, otherwise, a
-    new one will be created, added to the correct group, and returned.
+        If an existing matching reference is found, it is returned, otherwise, a
+        new one will be created, added to the correct group, and returned.
 
-    If path identifies a directory by virtue of carrying a trailing slash,
-    this method returns a PBXFileReference of "folder" type.  If path
-    identifies a variant, by virtue of it identifying a file inside a directory
-    with an ".lproj" extension, this method returns a PBXVariantGroup
-    containing the variant named by path, and possibly other variants.  For
-    all other paths, a "normal" PBXFileReference will be returned.
-    """
+        If path identifies a directory by virtue of carrying a trailing slash,
+        this method returns a PBXFileReference of "folder" type.  If path
+        identifies a variant, by virtue of it identifying a file inside a directory
+        with an ".lproj" extension, this method returns a PBXVariantGroup
+        containing the variant named by path, and possibly other variants.  For
+        all other paths, a "normal" PBXFileReference will be returned.
+        """
 
         # Adding or getting a directory?  Directories end with a trailing slash.
         is_dir = False
@@ -1379,15 +1378,15 @@ class PBXGroup(XCHierarchicalElement):
     def AddOrGetVariantGroupByNameAndPath(self, name, path):
         """Returns an existing or new PBXVariantGroup for name and path.
 
-    If a PBXVariantGroup identified by the name and path arguments is already
-    present as a child of this object, it is returned.  Otherwise, a new
-    PBXVariantGroup with the correct properties is created, added as a child,
-    and returned.
+        If a PBXVariantGroup identified by the name and path arguments is already
+        present as a child of this object, it is returned.  Otherwise, a new
+        PBXVariantGroup with the correct properties is created, added as a child,
+        and returned.
 
-    This method will generally be called by AddOrGetFileByPath, which knows
-    when to create a variant group based on the structure of the pathnames
-    passed to it.
-    """
+        This method will generally be called by AddOrGetFileByPath, which knows
+        when to create a variant group based on the structure of the pathnames
+        passed to it.
+        """
 
         key = (name, path)
         if key in self._variant_children_by_name_and_path:
@@ -1405,19 +1404,19 @@ class PBXGroup(XCHierarchicalElement):
 
     def TakeOverOnlyChild(self, recurse=False):
         """If this PBXGroup has only one child and it's also a PBXGroup, take
-    it over by making all of its children this object's children.
+        it over by making all of its children this object's children.
 
-    This function will continue to take over only children when those children
-    are groups.  If there are three PBXGroups representing a, b, and c, with
-    c inside b and b inside a, and a and b have no other children, this will
-    result in a taking over both b and c, forming a PBXGroup for a/b/c.
+        This function will continue to take over only children when those children
+        are groups.  If there are three PBXGroups representing a, b, and c, with
+        c inside b and b inside a, and a and b have no other children, this will
+        result in a taking over both b and c, forming a PBXGroup for a/b/c.
 
-    If recurse is True, this function will recurse into children and ask them
-    to collapse themselves by taking over only children as well.  Assuming
-    an example hierarchy with files at a/b/c/d1, a/b/c/d2, and a/b/c/d3/e/f
-    (d1, d2, and f are files, the rest are groups), recursion will result in
-    a group for a/b/c containing a group for d3/e.
-    """
+        If recurse is True, this function will recurse into children and ask them
+        to collapse themselves by taking over only children as well.  Assuming
+        an example hierarchy with files at a/b/c/d1, a/b/c/d2, and a/b/c/d3/e/f
+        (d1, d2, and f are files, the rest are groups), recursion will result in
+        a group for a/b/c containing a group for d3/e.
+        """
 
         # At this stage, check that child class types are PBXGroup exactly,
         # instead of using isinstance.  The only subclass of PBXGroup,
@@ -1716,16 +1715,16 @@ class XCConfigurationList(XCObject):
 
     def HasBuildSetting(self, key):
         """Determines the state of a build setting in all XCBuildConfiguration
-    child objects.
+        child objects.
 
-    If all child objects have key in their build settings, and the value is the
-    same in all child objects, returns 1.
+        If all child objects have key in their build settings, and the value is the
+        same in all child objects, returns 1.
 
-    If no child objects have the key in their build settings, returns 0.
+        If no child objects have the key in their build settings, returns 0.
 
-    If some, but not all, child objects have the key in their build settings,
-    or if any children have different values for the key, returns -1.
-    """
+        If some, but not all, child objects have the key in their build settings,
+        or if any children have different values for the key, returns -1.
+        """
 
         has = None
         value = None
@@ -1751,9 +1750,9 @@ class XCConfigurationList(XCObject):
     def GetBuildSetting(self, key):
         """Gets the build setting for key.
 
-    All child XCConfiguration objects must have the same value set for the
-    setting, or a ValueError will be raised.
-    """
+        All child XCConfiguration objects must have the same value set for the
+        setting, or a ValueError will be raised.
+        """
 
         # TODO(mark): This is wrong for build settings that are lists.  The list
         # contents should be compared (and a list copy returned?)
@@ -1770,31 +1769,30 @@ class XCConfigurationList(XCObject):
 
     def SetBuildSetting(self, key, value):
         """Sets the build setting for key to value in all child
-    XCBuildConfiguration objects.
-    """
+        XCBuildConfiguration objects.
+        """
 
         for configuration in self._properties["buildConfigurations"]:
             configuration.SetBuildSetting(key, value)
 
     def AppendBuildSetting(self, key, value):
         """Appends value to the build setting for key, which is treated as a list,
-    in all child XCBuildConfiguration objects.
-    """
+        in all child XCBuildConfiguration objects.
+        """
 
         for configuration in self._properties["buildConfigurations"]:
             configuration.AppendBuildSetting(key, value)
 
     def DelBuildSetting(self, key):
         """Deletes the build setting key from all child XCBuildConfiguration
-    objects.
-    """
+        objects.
+        """
 
         for configuration in self._properties["buildConfigurations"]:
             configuration.DelBuildSetting(key)
 
     def SetBaseConfiguration(self, value):
-        """Sets the build configuration in all child XCBuildConfiguration objects.
-    """
+        """Sets the build configuration in all child XCBuildConfiguration objects."""
 
         for configuration in self._properties["buildConfigurations"]:
             configuration.SetBaseConfiguration(value)
@@ -1834,14 +1832,14 @@ class PBXBuildFile(XCObject):
 
 class XCBuildPhase(XCObject):
     """Abstract base for build phase classes.  Not represented in a project
-  file.
+    file.
 
-  Attributes:
-    _files_by_path: A dict mapping each path of a child in the files list by
-      path (keys) to the corresponding PBXBuildFile children (values).
-    _files_by_xcfilelikeelement: A dict mapping each XCFileLikeElement (keys)
-      to the corresponding PBXBuildFile children (values).
-  """
+    Attributes:
+      _files_by_path: A dict mapping each path of a child in the files list by
+        path (keys) to the corresponding PBXBuildFile children (values).
+      _files_by_xcfilelikeelement: A dict mapping each XCFileLikeElement (keys)
+        to the corresponding PBXBuildFile children (values).
+    """
 
     # TODO(mark): Some build phase types, like PBXShellScriptBuildPhase, don't
     # actually have a "files" list.  XCBuildPhase should not have "files" but
@@ -1880,8 +1878,8 @@ class XCBuildPhase(XCObject):
     def _AddPathToDict(self, pbxbuildfile, path):
         """Adds path to the dict tracking paths belonging to this build phase.
 
-    If the path is already a member of this build phase, raises an exception.
-    """
+        If the path is already a member of this build phase, raises an exception.
+        """
 
         if path in self._files_by_path:
             raise ValueError("Found multiple build files with path " + path)
@@ -1890,28 +1888,28 @@ class XCBuildPhase(XCObject):
     def _AddBuildFileToDicts(self, pbxbuildfile, path=None):
         """Maintains the _files_by_path and _files_by_xcfilelikeelement dicts.
 
-    If path is specified, then it is the path that is being added to the
-    phase, and pbxbuildfile must contain either a PBXFileReference directly
-    referencing that path, or it must contain a PBXVariantGroup that itself
-    contains a PBXFileReference referencing the path.
+        If path is specified, then it is the path that is being added to the
+        phase, and pbxbuildfile must contain either a PBXFileReference directly
+        referencing that path, or it must contain a PBXVariantGroup that itself
+        contains a PBXFileReference referencing the path.
 
-    If path is not specified, either the PBXFileReference's path or the paths
-    of all children of the PBXVariantGroup are taken as being added to the
-    phase.
+        If path is not specified, either the PBXFileReference's path or the paths
+        of all children of the PBXVariantGroup are taken as being added to the
+        phase.
 
-    If the path is already present in the phase, raises an exception.
+        If the path is already present in the phase, raises an exception.
 
-    If the PBXFileReference or PBXVariantGroup referenced by pbxbuildfile
-    are already present in the phase, referenced by a different PBXBuildFile
-    object, raises an exception.  This does not raise an exception when
-    a PBXFileReference or PBXVariantGroup reappear and are referenced by the
-    same PBXBuildFile that has already introduced them, because in the case
-    of PBXVariantGroup objects, they may correspond to multiple paths that are
-    not all added simultaneously.  When this situation occurs, the path needs
-    to be added to _files_by_path, but nothing needs to change in
-    _files_by_xcfilelikeelement, and the caller should have avoided adding
-    the PBXBuildFile if it is already present in the list of children.
-    """
+        If the PBXFileReference or PBXVariantGroup referenced by pbxbuildfile
+        are already present in the phase, referenced by a different PBXBuildFile
+        object, raises an exception.  This does not raise an exception when
+        a PBXFileReference or PBXVariantGroup reappear and are referenced by the
+        same PBXBuildFile that has already introduced them, because in the case
+        of PBXVariantGroup objects, they may correspond to multiple paths that are
+        not all added simultaneously.  When this situation occurs, the path needs
+        to be added to _files_by_path, but nothing needs to change in
+        _files_by_xcfilelikeelement, and the caller should have avoided adding
+        the PBXBuildFile if it is already present in the list of children.
+        """
 
         xcfilelikeelement = pbxbuildfile._properties["fileRef"]
 
@@ -2102,9 +2100,9 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
     def SetDestination(self, path):
         """Set the dstSubfolderSpec and dstPath properties from path.
 
-    path may be specified in the same notation used for XCHierarchicalElements,
-    specifically, "$(DIR)/path".
-    """
+        path may be specified in the same notation used for XCHierarchicalElements,
+        specifically, "$(DIR)/path".
+        """
 
         if path_tree_match := self.path_tree_re.search(path):
             path_tree = path_tree_match.group(1)
@@ -2178,9 +2176,7 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
             subfolder = 0
             relative_path = path[1:]
         else:
-            raise ValueError(
-                f"Can't use path {path} in a {self.__class__.__name__}"
-            )
+            raise ValueError(f"Can't use path {path} in a {self.__class__.__name__}")
 
         self._properties["dstPath"] = relative_path
         self._properties["dstSubfolderSpec"] = subfolder
@@ -2530,9 +2526,9 @@ class PBXNativeTarget(XCTarget):
                 # loadable modules, but there's precedent: Python loadable modules on
                 # Mac OS X use an .so extension.
                 if self._properties["productType"] == "com.googlecode.gyp.xcode.bundle":
-                    self._properties[
-                        "productType"
-                    ] = "com.apple.product-type.library.dynamic"
+                    self._properties["productType"] = (
+                        "com.apple.product-type.library.dynamic"
+                    )
                     self.SetBuildSetting("MACH_O_TYPE", "mh_bundle")
                     self.SetBuildSetting("DYLIB_CURRENT_VERSION", "")
                     self.SetBuildSetting("DYLIB_COMPATIBILITY_VERSION", "")
@@ -2540,9 +2536,10 @@ class PBXNativeTarget(XCTarget):
                         force_extension = suffix[1:]
 
                 if (
-                    self._properties["productType"] in {
+                    self._properties["productType"]
+                    in {
                         "com.apple.product-type-bundle.unit.test",
-                        "com.apple.product-type-bundle.ui-testing"
+                        "com.apple.product-type-bundle.ui-testing",
                     }
                 ) and force_extension is None:
                     force_extension = suffix[1:]
@@ -2694,10 +2691,8 @@ class PBXNativeTarget(XCTarget):
                 other._properties["productType"] == static_library_type
                 or (
                     (
-                        other._properties["productType"] in {
-                            shared_library_type,
-                            framework_type
-                        }
+                        other._properties["productType"]
+                        in {shared_library_type, framework_type}
                     )
                     and (
                         (not other.HasBuildSetting("MACH_O_TYPE"))
@@ -2706,7 +2701,6 @@ class PBXNativeTarget(XCTarget):
                 )
             )
         ):
-
             file_ref = other.GetProperty("productReference")
 
             pbxproject = self.PBXProjectAncestor()
@@ -2732,13 +2726,13 @@ class PBXProject(XCContainerPortal):
     # PBXContainerItemProxy.
     """
 
-  Attributes:
-    path: "sample.xcodeproj".  TODO(mark) Document me!
-    _other_pbxprojects: A dictionary, keyed by other PBXProject objects.  Each
-                        value is a reference to the dict in the
-                        projectReferences list associated with the keyed
-                        PBXProject.
-  """
+    Attributes:
+      path: "sample.xcodeproj".  TODO(mark) Document me!
+      _other_pbxprojects: A dictionary, keyed by other PBXProject objects.  Each
+                          value is a reference to the dict in the
+                          projectReferences list associated with the keyed
+                          PBXProject.
+    """
 
     _schema = XCContainerPortal._schema.copy()
     _schema.update(
@@ -2833,17 +2827,17 @@ class PBXProject(XCContainerPortal):
     def RootGroupForPath(self, path):
         """Returns a PBXGroup child of this object to which path should be added.
 
-    This method is intended to choose between SourceGroup and
-    IntermediatesGroup on the basis of whether path is present in a source
-    directory or an intermediates directory.  For the purposes of this
-    determination, any path located within a derived file directory such as
-    PROJECT_DERIVED_FILE_DIR is treated as being in an intermediates
-    directory.
+        This method is intended to choose between SourceGroup and
+        IntermediatesGroup on the basis of whether path is present in a source
+        directory or an intermediates directory.  For the purposes of this
+        determination, any path located within a derived file directory such as
+        PROJECT_DERIVED_FILE_DIR is treated as being in an intermediates
+        directory.
 
-    The returned value is a two-element tuple.  The first element is the
-    PBXGroup, and the second element specifies whether that group should be
-    organized hierarchically (True) or as a single flat list (False).
-    """
+        The returned value is a two-element tuple.  The first element is the
+        PBXGroup, and the second element specifies whether that group should be
+        organized hierarchically (True) or as a single flat list (False).
+        """
 
         # TODO(mark): make this a class variable and bind to self on call?
         # Also, this list is nowhere near exhaustive.
@@ -2869,11 +2863,11 @@ class PBXProject(XCContainerPortal):
 
     def AddOrGetFileInRootGroup(self, path):
         """Returns a PBXFileReference corresponding to path in the correct group
-    according to RootGroupForPath's heuristics.
+        according to RootGroupForPath's heuristics.
 
-    If an existing PBXFileReference for path exists, it will be returned.
-    Otherwise, one will be created and returned.
-    """
+        If an existing PBXFileReference for path exists, it will be returned.
+        Otherwise, one will be created and returned.
+        """
 
         (group, hierarchical) = self.RootGroupForPath(path)
         return group.AddOrGetFileByPath(path, hierarchical)
@@ -2923,17 +2917,17 @@ class PBXProject(XCContainerPortal):
 
     def AddOrGetProjectReference(self, other_pbxproject):
         """Add a reference to another project file (via PBXProject object) to this
-    one.
+        one.
 
-    Returns [ProductGroup, ProjectRef].  ProductGroup is a PBXGroup object in
-    this project file that contains a PBXReferenceProxy object for each
-    product of each PBXNativeTarget in the other project file.  ProjectRef is
-    a PBXFileReference to the other project file.
+        Returns [ProductGroup, ProjectRef].  ProductGroup is a PBXGroup object in
+        this project file that contains a PBXReferenceProxy object for each
+        product of each PBXNativeTarget in the other project file.  ProjectRef is
+        a PBXFileReference to the other project file.
 
-    If this project file already references the other project file, the
-    existing ProductGroup and ProjectRef are returned.  The ProductGroup will
-    still be updated if necessary.
-    """
+        If this project file already references the other project file, the
+        existing ProductGroup and ProjectRef are returned.  The ProductGroup will
+        still be updated if necessary.
+        """
 
         if "projectReferences" not in self._properties:
             self._properties["projectReferences"] = []
@@ -2985,7 +2979,7 @@ class PBXProject(XCContainerPortal):
             # Xcode seems to sort this list case-insensitively
             self._properties["projectReferences"] = sorted(
                 self._properties["projectReferences"],
-                key=lambda x: x["ProjectRef"].Name().lower()
+                key=lambda x: x["ProjectRef"].Name().lower(),
             )
         else:
             # The link already exists.  Pull out the relevant data.
@@ -3010,11 +3004,8 @@ class PBXProject(XCContainerPortal):
         # define an explicit value for 'SYMROOT'.
         symroots = self._DefinedSymroots(target)
         for s in self._DefinedSymroots(target):
-            if (
-                (s is not None
-                and not self._IsUniqueSymrootForTarget(s))
-                or (s is None
-                and not inherit_unique_symroot)
+            if (s is not None and not self._IsUniqueSymrootForTarget(s)) or (
+                s is None and not inherit_unique_symroot
             ):
                 return False
         return True if symroots else inherit_unique_symroot
@@ -3118,7 +3109,8 @@ class PBXProject(XCContainerPortal):
             product_group._properties["children"] = sorted(
                 product_group._properties["children"],
                 key=cmp_to_key(
-                    lambda x, y, rp=remote_products: CompareProducts(x, y, rp)),
+                    lambda x, y, rp=remote_products: CompareProducts(x, y, rp)
+                ),
             )
 
 
@@ -3152,9 +3144,7 @@ class XCProjectFile(XCObject):
             self._XCPrint(file, 0, "{ ")
         else:
             self._XCPrint(file, 0, "{\n")
-        for property, value in sorted(
-            self._properties.items()
-        ):
+        for property, value in sorted(self._properties.items()):
             if property == "objects":
                 self._PrintObjects(file)
             else:
@@ -3180,9 +3170,7 @@ class XCProjectFile(XCObject):
         for class_name in sorted(objects_by_class):
             self._XCPrint(file, 0, "\n")
             self._XCPrint(file, 0, "/* Begin " + class_name + " section */\n")
-            for object in sorted(
-                objects_by_class[class_name], key=attrgetter("id")
-            ):
+            for object in sorted(objects_by_class[class_name], key=attrgetter("id")):
                 object.Print(file)
             self._XCPrint(file, 0, "/* End " + class_name + " section */\n")
 

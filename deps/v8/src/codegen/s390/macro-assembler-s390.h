@@ -133,6 +133,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
 
+  void LoadInterpreterDataBytecodeArray(Register destination,
+                                        Register interpreter_data);
+  void LoadInterpreterDataInterpreterTrampoline(Register destination,
+                                                Register interpreter_data);
+
   void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
@@ -1172,7 +1177,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void BindExceptionHandler(Label* label) { bind(label); }
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object, uint16_t argument_count);
+  void CallJSFunction(Register function_object, uint16_t argument_count,
+                      Register scratch = r0);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
 #ifdef V8_ENABLE_LEAPTIERING
@@ -1862,10 +1868,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object) NOOP_UNLESS_DEBUG_CODE;
+  // TODO(olivf): Rename to GenerateTailCallToUpdatedFunction.
+  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
+#ifndef V8_ENABLE_LEAPTIERING
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure, Register scratch1,
                                            Register slot_address);
-  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
   Condition LoadFeedbackVectorFlagsAndCheckIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind);
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
@@ -1873,6 +1881,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       Label* flags_need_processing);
   void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
                                                Register feedback_vector);
+#endif  // V8_ENABLE_LEAPTIERING
 
   // ---------------------------------------------------------------------------
   // GC Support

@@ -17,7 +17,9 @@ function replaceStackTrace(str, replacement = '$1*$7$8\n') {
 }
 
 function replaceInternalStackTrace(str) {
-  return str.replaceAll(/(\W+).*node:internal.*/g, '$1*');
+  // Replace non-internal frame `at TracingChannel.traceSync (node:diagnostics_channel:328:14)`
+  // as well as `at node:internal/main/run_main_module:33:47` with `*`.
+  return str.replaceAll(/(\W+).*[(\s]node:.*/g, '$1*');
 }
 
 function replaceWindowsLineEndings(str) {
@@ -84,7 +86,7 @@ async function spawnAndAssert(filename, transform = (x) => x, { tty = false, ...
     test({ skip: 'Skipping pseudo-tty tests, as pseudo terminals are not available on Windows.' });
     return;
   }
-  let flags = common.parseTestFlags(filename);
+  let { flags } = common.parseTestMetadata(filename);
   if (options.flags) {
     flags = [...options.flags, ...flags];
   }

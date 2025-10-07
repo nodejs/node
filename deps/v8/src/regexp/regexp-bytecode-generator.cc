@@ -4,6 +4,8 @@
 
 #include "src/regexp/regexp-bytecode-generator.h"
 
+#include <limits>
+
 #include "src/ast/ast.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/regexp/regexp-bytecode-generator-inl.h"
@@ -72,6 +74,7 @@ void RegExpBytecodeGenerator::PushRegister(int register_index,
   DCHECK_LE(0, register_index);
   DCHECK_GE(kMaxRegister, register_index);
   Emit(BC_PUSH_REGISTER, register_index);
+  Emit32(static_cast<uint32_t>(check_stack_limit));
 }
 
 void RegExpBytecodeGenerator::WriteCurrentPositionToRegister(int register_index,
@@ -83,10 +86,13 @@ void RegExpBytecodeGenerator::WriteCurrentPositionToRegister(int register_index,
 }
 
 void RegExpBytecodeGenerator::ClearRegisters(int reg_from, int reg_to) {
-  DCHECK(reg_from <= reg_to);
-  for (int reg = reg_from; reg <= reg_to; reg++) {
-    SetRegister(reg, -1);
-  }
+  DCHECK_LE(reg_from, reg_to);
+  DCHECK_LE(reg_from, kMaxRegister);
+  DCHECK_LE(reg_to, kMaxRegister);
+  static_assert(kMaxRegister <= std::numeric_limits<uint16_t>::max());
+  Emit(BC_CLEAR_REGISTERS, 0);
+  Emit16(reg_from);
+  Emit16(reg_to);
 }
 
 void RegExpBytecodeGenerator::ReadCurrentPositionFromRegister(
@@ -174,9 +180,9 @@ void RegExpBytecodeGenerator::AdvanceCurrentPosition(int by) {
   advance_current_end_ = pc_;
 }
 
-void RegExpBytecodeGenerator::CheckGreedyLoop(
+void RegExpBytecodeGenerator::CheckFixedLengthLoop(
     Label* on_tos_equals_current_position) {
-  Emit(BC_CHECK_GREEDY, 0);
+  Emit(BC_CHECK_FIXED_LENGTH, 0);
   EmitOrLink(on_tos_equals_current_position);
 }
 
@@ -188,7 +194,7 @@ void RegExpBytecodeGenerator::LoadCurrentCharacterImpl(int cp_offset,
   DCHECK_GE(eats_at_least, characters);
   if (eats_at_least > characters && check_bounds) {
     DCHECK(is_int24(cp_offset + eats_at_least));
-    Emit(BC_CHECK_CURRENT_POSITION, cp_offset + eats_at_least);
+    Emit(BC_CHECK_CURRENT_POSITION, cp_offset + eats_at_least - 1);
     EmitOrLink(on_failure);
     check_bounds = false;  // Load below doesn't need to check.
   }

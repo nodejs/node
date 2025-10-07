@@ -713,6 +713,12 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     const char* child_url,
     const char* name);
 
+NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
+    Environment* parent_env,
+    ThreadId child_thread_id,
+    std::string_view child_url,
+    std::string_view name);
+
 struct StartExecutionCallbackInfo {
   v8::Local<v8::Object> process_object;
   v8::Local<v8::Function> native_require;
@@ -788,23 +794,23 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> PrepareStackTraceCallback(
 // is included in the report.
 // Returns the filename of the written report.
 NODE_EXTERN std::string TriggerNodeReport(v8::Isolate* isolate,
-                                          const char* message,
-                                          const char* trigger,
-                                          const std::string& filename,
+                                          std::string_view message,
+                                          std::string_view trigger,
+                                          std::string_view filename,
                                           v8::Local<v8::Value> error);
 NODE_EXTERN std::string TriggerNodeReport(Environment* env,
-                                          const char* message,
-                                          const char* trigger,
-                                          const std::string& filename,
+                                          std::string_view message,
+                                          std::string_view trigger,
+                                          std::string_view filename,
                                           v8::Local<v8::Value> error);
 NODE_EXTERN void GetNodeReport(v8::Isolate* isolate,
-                               const char* message,
-                               const char* trigger,
+                               std::string_view message,
+                               std::string_view trigger,
                                v8::Local<v8::Value> error,
                                std::ostream& out);
 NODE_EXTERN void GetNodeReport(Environment* env,
-                               const char* message,
-                               const char* trigger,
+                               std::string_view message,
+                               std::string_view trigger,
                                v8::Local<v8::Value> error,
                                std::ostream& out);
 
@@ -995,7 +1001,7 @@ NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
 
 #define NODE_DEFINE_CONSTANT(target, constant)                                 \
   do {                                                                         \
-    v8::Isolate* isolate = target->GetIsolate();                               \
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();                          \
     v8::Local<v8::Context> context = isolate->GetCurrentContext();             \
     v8::Local<v8::String> constant_name = v8::String::NewFromUtf8Literal(      \
         isolate, #constant, v8::NewStringType::kInternalized);                 \
@@ -1011,7 +1017,7 @@ NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
 
 #define NODE_DEFINE_HIDDEN_CONSTANT(target, constant)                          \
   do {                                                                         \
-    v8::Isolate* isolate = target->GetIsolate();                               \
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();                          \
     v8::Local<v8::Context> context = isolate->GetCurrentContext();             \
     v8::Local<v8::String> constant_name = v8::String::NewFromUtf8Literal(      \
         isolate, #constant, v8::NewStringType::kInternalized);                 \
@@ -1438,6 +1444,12 @@ class NODE_EXTERN CallbackScope {
   CallbackScope(Environment* env,
                 v8::Local<v8::Object> resource,
                 async_context asyncContext);
+  // `resource` needs to outlive the scope in this case.
+  // This is for the rare situation in which `CallbackScope` cannot be
+  // stack-allocated. `resource` needs to outlive this scope.
+  CallbackScope(Environment* env,
+                v8::Global<v8::Object>* resource,
+                async_context asyncContext);
   ~CallbackScope();
 
   void operator=(const CallbackScope&) = delete;
@@ -1446,6 +1458,11 @@ class NODE_EXTERN CallbackScope {
   CallbackScope(CallbackScope&&) = delete;
 
  private:
+  void* resource_storage_global_;
+  union {
+    v8::Local<v8::Object> local;
+    v8::Global<v8::Object>* global_ptr;
+  } resource_storage_;
   InternalCallbackScope* private_;
   v8::TryCatch try_catch_;
 };
@@ -1548,10 +1565,11 @@ void RegisterSignalHandler(int signal,
 // objects on Node.js versions without v8::Object::Wrap(). Addons created to
 // work with only Node.js versions with v8::Object::Wrap() should use that
 // instead.
-NODE_DEPRECATED("Use v8::Object::Wrap()",
-                NODE_EXTERN void SetCppgcReference(v8::Isolate* isolate,
-                                                   v8::Local<v8::Object> object,
-                                                   void* wrappable));
+NODE_DEPRECATED(
+    "Use v8::Object::Wrap()",
+    NODE_EXTERN void SetCppgcReference(v8::Isolate* isolate,
+                                       v8::Local<v8::Object> object,
+                                       v8::Object::Wrappable* wrappable));
 
 }  // namespace node
 

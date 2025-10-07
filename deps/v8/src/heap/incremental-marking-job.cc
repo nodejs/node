@@ -60,12 +60,25 @@ void IncrementalMarkingJob::ScheduleTask(TaskPriority priority) {
   }
 
   IncrementalMarking* incremental_marking = heap_->incremental_marking();
-  v8::TaskRunner* task_runner =
-      v8_flags.incremental_marking_start_user_visible &&
-              incremental_marking->IsStopped() &&
-              (priority != TaskPriority::kUserBlocking)
-          ? user_visible_task_runner_.get()
-          : user_blocking_task_runner_.get();
+  v8::TaskRunner* task_runner;
+
+  // TODO(408962793): Remove |priority| parameter and flags once experiment is
+  // done.
+  if (v8_flags.incremental_marking_always_user_visible) {
+    // Post all tasks with kUserVisible priority.
+    task_runner = user_visible_task_runner_.get();
+  } else if (v8_flags.incremental_marking_start_user_visible) {
+    // Post first task with kUserVisible priority. All subsequent task are
+    // kUserBlocking again.
+    task_runner = incremental_marking->IsStopped() &&
+                          (priority == TaskPriority::kUserVisible)
+                      ? user_visible_task_runner_.get()
+                      : user_blocking_task_runner_.get();
+  } else {
+    // Post all tasks with kUserBlocking priority.
+    task_runner = user_blocking_task_runner_.get();
+  }
+
   const bool non_nestable_tasks_enabled =
       task_runner->NonNestableTasksEnabled();
   auto task = std::make_unique<Task>(heap_->isolate(), this,
@@ -93,6 +106,7 @@ void IncrementalMarkingJob::Task::RunInternal() {
   // Set the current isolate such that trusted pointer tables etc are
   // available and the cage base is set correctly for multi-cage mode.
   SetCurrentIsolateScope isolate_scope(isolate());
+  SetCurrentLocalHeapScope thread_local_scope(isolate());
 
   isolate()->stack_guard()->ClearStartIncrementalMarking();
 

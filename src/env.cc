@@ -48,6 +48,7 @@ using v8::EmbedderGraph;
 using v8::EscapableHandleScope;
 using v8::ExternalMemoryAccounter;
 using v8::Function;
+using v8::Global;
 using v8::HandleScope;
 using v8::HeapProfiler;
 using v8::HeapSpaceStatistics;
@@ -120,9 +121,12 @@ void Environment::ResetPromiseHooks(Local<Function> init,
 }
 
 // Remember to keep this code aligned with pushAsyncContext() in JS.
-void AsyncHooks::push_async_context(double async_id,
-                                    double trigger_async_id,
-                                    Local<Object> resource) {
+void AsyncHooks::push_async_context(
+    double async_id,
+    double trigger_async_id,
+    std::variant<Local<Object>*, Global<Object>*> resource) {
+  std::visit([](auto* ptr) { CHECK_IMPLIES(ptr != nullptr, !ptr->IsEmpty()); },
+             resource);
   // Since async_hooks is experimental, do only perform the check
   // when async_hooks is enabled.
   if (fields_[kCheck] > 0) {
@@ -140,14 +144,15 @@ void AsyncHooks::push_async_context(double async_id,
 
 #ifdef DEBUG
   for (uint32_t i = offset; i < native_execution_async_resources_.size(); i++)
-    CHECK(native_execution_async_resources_[i].IsEmpty());
+    std::visit([](auto* ptr) { CHECK_NULL(ptr); },
+               native_execution_async_resources_[i]);
 #endif
 
   // When this call comes from JS (as a way of increasing the stack size),
   // `resource` will be empty, because JS caches these values anyway.
-  if (!resource.IsEmpty()) {
+  if (std::visit([](auto* ptr) { return ptr != nullptr; }, resource)) {
     native_execution_async_resources_.resize(offset + 1);
-    // Caveat: This is a v8::Local<> assignment, we do not keep a v8::Global<>!
+    // Caveat: This is a v8::Local<>* assignment, we do not keep a v8::Global<>!
     native_execution_async_resources_[offset] = resource;
   }
 }
@@ -172,11 +177,13 @@ bool AsyncHooks::pop_async_context(double async_id) {
   fields_[kStackLength] = offset;
 
   if (offset < native_execution_async_resources_.size() &&
-      !native_execution_async_resources_[offset].IsEmpty()) [[likely]] {
+      std::visit([](auto* ptr) { return ptr != nullptr; },
+                 native_execution_async_resources_[offset])) [[likely]] {
 #ifdef DEBUG
     for (uint32_t i = offset + 1; i < native_execution_async_resources_.size();
          i++) {
-      CHECK(native_execution_async_resources_[i].IsEmpty());
+      std::visit([](auto* ptr) { CHECK_NULL(ptr); },
+                 native_execution_async_resources_[i]);
     }
 #endif
     native_execution_async_resources_.resize(offset);
@@ -610,7 +617,7 @@ IsolateData::~IsolateData() {}
 // Deprecated API, embedders should use v8::Object::Wrap() directly instead.
 void SetCppgcReference(Isolate* isolate,
                        Local<Object> object,
-                       void* wrappable) {
+                       v8::Object::Wrappable* wrappable) {
   v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(
       isolate, object, wrappable);
 }
@@ -894,18 +901,12 @@ Environment::Environment(IsolateData* isolate_data,
 
   if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACING_CATEGORY_NODE1(environment)) != 0) {
-    auto traced_value = tracing::TracedValue::Create();
-    traced_value->BeginArray("args");
-    for (const std::string& arg : args) traced_value->AppendString(arg);
-    traced_value->EndArray();
-    traced_value->BeginArray("exec_args");
-    for (const std::string& arg : exec_args) traced_value->AppendString(arg);
-    traced_value->EndArray();
+    tracing::EnvironmentArgs traced_value(args, exec_args);
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE1(environment),
                                       "Environment",
                                       this,
                                       "args",
-                                      std::move(traced_value));
+                                      tracing::CastTracedValue(traced_value));
   }
 
   if (options_->permission) {
@@ -917,8 +918,10 @@ Environment::Environment(IsolateData* isolate_data,
       options_->allow_native_addons = false;
       permission()->Apply(this, {"*"}, permission::PermissionScope::kAddon);
     }
-    flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
-    permission()->Apply(this, {"*"}, permission::PermissionScope::kInspector);
+    if (!options_->allow_inspector) {
+      flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kInspector);
+    }
     if (!options_->allow_child_process) {
       permission()->Apply(
           this, {"*"}, permission::PermissionScope::kChildProcess);
@@ -1068,6 +1071,13 @@ Environment::~Environment() {
   }
 
   delete external_memory_accounter_;
+  if (cpu_profiler_) {
+    for (auto& it : pending_profiles_) {
+      cpu_profiler_->Stop(it);
+    }
+    cpu_profiler_->Dispose();
+    cpu_profiler_ = nullptr;
+  }
 }
 
 void Environment::InitializeLibuv() {
@@ -1124,11 +1134,21 @@ void Environment::InitializeCompileCache() {
       dir_from_env.empty()) {
     return;
   }
-  EnableCompileCache(dir_from_env);
+  std::string portable_env;
+  bool portable = credentials::SafeGetenv(
+                      "NODE_COMPILE_CACHE_PORTABLE", &portable_env, this) &&
+                  !portable_env.empty() && portable_env == "1";
+  if (portable) {
+    Debug(this,
+          DebugCategory::COMPILE_CACHE,
+          "[compile cache] using relative path\n");
+  }
+  EnableCompileCache(dir_from_env,
+                     portable ? EnableOption::PORTABLE : EnableOption::DEFAULT);
 }
 
 CompileCacheEnableResult Environment::EnableCompileCache(
-    const std::string& cache_dir) {
+    const std::string& cache_dir, EnableOption option) {
   CompileCacheEnableResult result;
   std::string disable_env;
   if (credentials::SafeGetenv(
@@ -1145,7 +1165,7 @@ CompileCacheEnableResult Environment::EnableCompileCache(
   if (!compile_cache_handler_) {
     std::unique_ptr<CompileCacheHandler> handler =
         std::make_unique<CompileCacheHandler>(this);
-    result = handler->Enable(this, cache_dir);
+    result = handler->Enable(this, cache_dir, option);
     if (result.status == CompileCacheEnableStatus::ENABLED) {
       compile_cache_handler_ = std::move(handler);
       AtExit(
@@ -1720,7 +1740,6 @@ AsyncHooks::AsyncHooks(Isolate* isolate, const SerializeInfo* info)
       fields_(isolate, kFieldsCount, MAYBE_FIELD_PTR(info, fields)),
       async_id_fields_(
           isolate, kUidFieldsCount, MAYBE_FIELD_PTR(info, async_id_fields)),
-      native_execution_async_resources_(isolate),
       info_(info) {
   HandleScope handle_scope(isolate);
   if (info == nullptr) {
@@ -1756,10 +1775,10 @@ void AsyncHooks::Deserialize(Local<Context> context) {
         context->GetDataFromSnapshotOnce<Array>(
             info_->js_execution_async_resources).ToLocalChecked();
   } else {
-    js_execution_async_resources = Array::New(context->GetIsolate());
+    js_execution_async_resources = Array::New(Isolate::GetCurrent());
   }
-  js_execution_async_resources_.Reset(
-      context->GetIsolate(), js_execution_async_resources);
+  js_execution_async_resources_.Reset(Isolate::GetCurrent(),
+                                      js_execution_async_resources);
 
   // The native_execution_async_resources_ field requires v8::Local<> instances
   // for async calls whose resources were on the stack as JS objects when they
@@ -1799,7 +1818,7 @@ AsyncHooks::SerializeInfo AsyncHooks::Serialize(Local<Context> context,
   info.async_id_fields = async_id_fields_.Serialize(context, creator);
   if (!js_execution_async_resources_.IsEmpty()) {
     info.js_execution_async_resources = creator->AddData(
-        context, js_execution_async_resources_.Get(context->GetIsolate()));
+        context, js_execution_async_resources_.Get(Isolate::GetCurrent()));
     CHECK_NE(info.js_execution_async_resources, 0);
   } else {
     info.js_execution_async_resources = 0;
@@ -1808,11 +1827,9 @@ AsyncHooks::SerializeInfo AsyncHooks::Serialize(Local<Context> context,
   info.native_execution_async_resources.resize(
       native_execution_async_resources_.size());
   for (size_t i = 0; i < native_execution_async_resources_.size(); i++) {
+    auto resource = native_execution_async_resource(i);
     info.native_execution_async_resources[i] =
-        native_execution_async_resources_[i].IsEmpty() ? SIZE_MAX :
-            creator->AddData(
-                context,
-                native_execution_async_resources_[i]);
+        resource.IsEmpty() ? SIZE_MAX : creator->AddData(context, resource);
   }
 
   // At the moment, promise hooks are not supported in the startup snapshot.
@@ -2231,4 +2248,33 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
 void Environment::RunWeakRefCleanup() {
   isolate()->ClearKeptObjects();
 }
+
+v8::CpuProfilingResult Environment::StartCpuProfile() {
+  HandleScope handle_scope(isolate());
+  if (!cpu_profiler_) {
+    cpu_profiler_ = v8::CpuProfiler::New(isolate());
+  }
+  v8::CpuProfilingResult result = cpu_profiler_->Start(
+      v8::CpuProfilingOptions{v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                              v8::CpuProfilingOptions::kNoSampleLimit});
+  if (result.status == v8::CpuProfilingStatus::kStarted) {
+    pending_profiles_.push_back(result.id);
+  }
+  return result;
+}
+
+v8::CpuProfile* Environment::StopCpuProfile(v8::ProfilerId profile_id) {
+  if (!cpu_profiler_) {
+    return nullptr;
+  }
+  auto it =
+      std::find(pending_profiles_.begin(), pending_profiles_.end(), profile_id);
+  if (it == pending_profiles_.end()) {
+    return nullptr;
+  }
+  v8::CpuProfile* profile = cpu_profiler_->Stop(*it);
+  pending_profiles_.erase(it);
+  return profile;
+}
+
 }  // namespace node

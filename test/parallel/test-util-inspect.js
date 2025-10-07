@@ -922,7 +922,7 @@ assert.strictEqual(util.inspect({ __proto__: Date.prototype }), 'Date {}');
   testColorStyle('null', null);
   testColorStyle('string', 'test string');
   testColorStyle('date', new Date());
-  testColorStyle('regexp', /regexp/);
+  // RegExp now uses token-level highlighting; verified in a dedicated test file.
 }
 
 // An object with "hasOwnProperty" overwritten should not throw.
@@ -1415,11 +1415,11 @@ if (typeof Symbol !== 'undefined') {
   assert.strictEqual(util.inspect(new ArraySubclass(1, 2, 3)),
                      'ArraySubclass(3) [ 1, 2, 3 ]');
   assert.strictEqual(util.inspect(new SetSubclass([1, 2, 3])),
-                     'SetSubclass(3) [Set] { 1, 2, 3 }');
+                     'SetSubclass(3) { 1, 2, 3 }');
   assert.strictEqual(util.inspect(new MapSubclass([['foo', 42]])),
-                     "MapSubclass(1) [Map] { 'foo' => 42 }");
+                     "MapSubclass(1) { 'foo' => 42 }");
   assert.strictEqual(util.inspect(new PromiseSubclass(() => {})),
-                     'PromiseSubclass [Promise] { <pending> }');
+                     'PromiseSubclass { <pending> }');
   assert.strictEqual(util.inspect(new SymbolNameClass()),
                      'Symbol(name) {}');
   assert.strictEqual(
@@ -1430,6 +1430,29 @@ if (typeof Symbol !== 'undefined') {
     util.inspect(Object.setPrototypeOf(x, null)),
     '[ObjectSubclass: null prototype] { foo: 42 }'
   );
+
+  class MiddleErrorPart extends Error {}
+  assert(util.inspect(new MiddleErrorPart('foo')).includes('MiddleErrorPart: foo'));
+
+  class MapClass extends Map {}
+  assert.strictEqual(util.inspect(new MapClass([['key', 'value']])),
+                     "MapClass(1) { 'key' => 'value' }");
+
+  class AbcMap extends Map {}
+  assert.strictEqual(util.inspect(new AbcMap([['key', 'value']])),
+                     "AbcMap(1) { 'key' => 'value' }");
+
+  class SetAbc extends Set {}
+  assert.strictEqual(util.inspect(new SetAbc([1, 2, 3])),
+                     'SetAbc(3) { 1, 2, 3 }');
+
+  class FooSet extends Set {}
+  assert.strictEqual(util.inspect(new FooSet([1, 2, 3])),
+                     'FooSet(3) { 1, 2, 3 }');
+
+  class Settings extends Set {}
+  assert.strictEqual(util.inspect(new Settings([1, 2, 3])),
+                     'Settings(3) [Set] { 1, 2, 3 }');
 }
 
 // Empty and circular before depth.
@@ -1646,7 +1669,7 @@ util.inspect(process);
     }
   }
 
-  assert.throws(() => util.inspect(new ThrowingClass()), /toStringTag error/);
+  assert.strictEqual(util.inspect(new ThrowingClass()), 'ThrowingClass {}');
 
   const y = {
     get [Symbol.toStringTag]() {
@@ -1655,7 +1678,11 @@ util.inspect(process);
   };
   const x = { y };
   y.x = x;
-  assert.throws(() => util.inspect(x), /TypeError: Converting circular structure to JSON/);
+
+  assert.strictEqual(
+    util.inspect(x),
+    '<ref *1> {\n  y: { x: [Circular *1], Symbol(Symbol.toStringTag): [Getter] }\n}'
+  );
 
   class NotStringClass {
     get [Symbol.toStringTag]() {
@@ -2837,7 +2864,7 @@ assert.strictEqual(
   // Use a fake stack to verify the expected colored outcome.
   const stack = [
     'Error: CWD is grayed out, even cwd that are percent encoded!',
-    '    at A.<anonymous> (/test/node_modules/foo/node_modules/bar/baz.js:2:7)',
+    '    at A.<anonymous> (/test/node_modules/foo/node_modules/@namespace/bar/baz.js:2:7)',
     '    at Module._compile (node:internal/modules/cjs/loader:827:30)',
     '    at Fancy (node:vm:697:32)',
     // This file is not an actual Node.js core file.
@@ -2862,7 +2889,7 @@ assert.strictEqual(
   }
   const escapedCWD = util.inspect(process.cwd()).slice(1, -1);
   util.inspect(err, { colors: true }).split('\n').forEach((line, i) => {
-    let expected = stack[i].replace(/node_modules\/([^/]+)/gi, (_, m) => {
+    let expected = stack[i].replace(/node_modules\/(@[^/]+\/[^/]+|[^/]+)/gi, (_, m) => {
       return `node_modules/\u001b[4m${m}\u001b[24m`;
     }).replaceAll(new RegExp(`(\\(?${escapedCWD}(\\\\|/))`, 'gi'), (_, m) => {
       return `\x1B[90m${m}\x1B[39m`;
@@ -2918,6 +2945,175 @@ assert.strictEqual(
   assert.strictEqual(actual, expected);
 
   process.cwd = originalCWD;
+}
+
+{
+  // Use a fake stack to verify the expected colored outcome.
+  const err = new Error('Hide duplicate frames in long stack');
+  err.stack = [
+    'Error: Hide duplicate frames in long stack',
+    '    at A.<anonymous> (/foo/node_modules/bar/baz.js:2:7)',
+    '    at A.<anonymous> (/foo/node_modules/bar/baz.js:2:7)',
+    '    at Module._compile (node:internal/modules/cjs/loader:827:30)',
+    '    at Fancy (node:vm:697:32)',
+    '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Fancy (node:vm:697:32)',
+    '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+  ].join('\n');
+
+  assert.strictEqual(
+    util.inspect(err, { colors: true }),
+    'Error: Hide duplicate frames in long stack\n' +
+      '    at A.<anonymous> (/foo/node_modules/\x1B[4mbar\x1B[24m/baz.js:2:7)\n' +
+      '    at A.<anonymous> (/foo/node_modules/\x1B[4mbar\x1B[24m/baz.js:2:7)\n' +
+      '\x1B[90m    at Module._compile (node:internal/modules/cjs/loader:827:30)\x1B[39m\n' +
+      '\x1B[90m    at Fancy (node:vm:697:32)\x1B[39m\n' +
+      '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)\n' +
+      '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 3 duplicate lines matching above lines ...\x1B[39m\n' +
+
+      '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 5 duplicate lines matching above 1 lines 5 times...\x1B[39m\n' +
+
+      '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
+      '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
+      '\x1B[90m    ... collapsed 10 duplicate lines matching above 5 lines 2 times...\x1B[39m\n' +
+
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
+      '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '    at /test/test-util-inspect.js:2239:9\n' +
+      '\x1B[90m    at getActual (node:assert:592:5)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 4 duplicate lines matching above 2 lines 2 times...\x1B[39m',
+  );
+
+  // Use a fake stack to verify the expected colored outcome.
+  const err2 = new Error('Hide duplicate frames in long stack');
+  err2.stack = [
+    'Error: Hide duplicate frames in long stack',
+    '    at A.<anonymous> (/foo/node_modules/bar/baz.js:2:7)',
+    '    at A.<anonymous> (/foo/node_modules/bar/baz.js:2:7)',
+    '    at Module._compile (node:internal/modules/cjs/loader:827:30)',
+
+    // 3
+    '    at Fancy (node:vm:697:32)',
+    '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Fancy (node:vm:697:32)',
+    '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+
+    // 6 * 1
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+
+    // 10
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+
+    // 2 * 2
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+  ].join('\n');
+
+  assert.strictEqual(
+    util.inspect(err2, { colors: true }),
+    'Error: Hide duplicate frames in long stack\n' +
+      '    at A.<anonymous> (/foo/node_modules/\x1B[4mbar\x1B[24m/baz.js:2:7)\n' +
+      '    at A.<anonymous> (/foo/node_modules/\x1B[4mbar\x1B[24m/baz.js:2:7)\n' +
+      '\x1B[90m    at Module._compile (node:internal/modules/cjs/loader:827:30)\x1B[39m\n' +
+      '\x1B[90m    at Fancy (node:vm:697:32)\x1B[39m\n' +
+      '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)\n' +
+      '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 3 duplicate lines matching above lines ...\x1B[39m\n' +
+      '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 6 duplicate lines matching above 1 lines 6 times...\x1B[39m\n' +
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
+      '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
+      '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
+      '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '\x1B[90m    ... collapsed 10 duplicate lines matching above lines ...\x1B[39m\n' +
+      '    at /test/test-util-inspect.js:2239:9\n' +
+      '\x1B[90m    at getActual (node:assert:592:5)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 4 duplicate lines matching above 2 lines 2 times...\x1B[39m',
+  );
 }
 
 {
@@ -3324,6 +3520,27 @@ assert.strictEqual(
     util.inspect(-123456789.12345678, { numericSeparator: true }),
     '-123_456_789.123_456_78'
   );
+
+  // Regression test for https://github.com/nodejs/node/issues/59376
+  // numericSeparator should work correctly for negative fractional numbers
+  {
+    // Test the exact values from the GitHub issue
+    const values = [0.1234, -0.12, -0.123, -0.1234, -1.234];
+    assert.strictEqual(
+      util.inspect(values, { numericSeparator: true }),
+      '[ 0.123_4, -0.12, -0.123, -0.123_4, -1.234 ]'
+    );
+
+    // Test individual negative fractional numbers between -1 and 0
+    assert.strictEqual(
+      util.inspect(-0.1234, { numericSeparator: true }),
+      '-0.123_4'
+    );
+    assert.strictEqual(
+      util.inspect(-0.12345, { numericSeparator: true }),
+      '-0.123_45'
+    );
+  }
 }
 
 // Regression test for https://github.com/nodejs/node/issues/41244

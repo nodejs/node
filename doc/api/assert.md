@@ -220,18 +220,29 @@ try {
 ## Class: `assert.Assert`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v24.6.0
+ - v22.19.0
 -->
 
 The `Assert` class allows creating independent assertion instances with custom options.
 
 ### `new assert.Assert([options])`
 
+<!-- YAML
+changes:
+  - version: v24.9.0
+    pr-url: https://github.com/nodejs/node/pull/59762
+    description: Added `skipPrototype` option.
+-->
+
 * `options` {Object}
   * `diff` {string} If set to `'full'`, shows the full diff in assertion errors. Defaults to `'simple'`.
     Accepted values: `'simple'`, `'full'`.
   * `strict` {boolean} If set to `true`, non-strict methods behave like their
     corresponding strict methods. Defaults to `true`.
+  * `skipPrototype` {boolean} If set to `true`, skips prototype and constructor
+    comparison in deep equality checks. Defaults to `false`.
 
 Creates a new assertion instance. The `diff` option controls the verbosity of diffs in assertion error messages.
 
@@ -243,7 +254,8 @@ assertInstance.deepStrictEqual({ a: 1 }, { a: 2 });
 ```
 
 **Important**: When destructuring assertion methods from an `Assert` instance,
-the methods lose their connection to the instance's configuration options (such as `diff` and `strict` settings).
+the methods lose their connection to the instance's configuration options (such
+as `diff`, `strict`, and `skipPrototype` settings).
 The destructured methods will fall back to default behavior instead.
 
 ```js
@@ -255,6 +267,33 @@ myAssert.strictEqual({ a: 1 }, { b: { c: 1 } });
 // This loses the 'full' diff setting - falls back to default 'simple' diff
 const { strictEqual } = myAssert;
 strictEqual({ a: 1 }, { b: { c: 1 } });
+```
+
+The `skipPrototype` option affects all deep equality methods:
+
+```js
+class Foo {
+  constructor(a) {
+    this.a = a;
+  }
+}
+
+class Bar {
+  constructor(a) {
+    this.a = a;
+  }
+}
+
+const foo = new Foo(1);
+const bar = new Bar(1);
+
+// Default behavior - fails due to different constructors
+const assert1 = new Assert();
+assert1.deepStrictEqual(foo, bar); // AssertionError
+
+// Skip prototype comparison - passes if properties are equal
+const assert2 = new Assert({ skipPrototype: true });
+assert2.deepStrictEqual(foo, bar); // OK
 ```
 
 When destructured, methods lose access to the instance's `this` context and revert to default assertion behavior
@@ -278,6 +317,10 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59448
+    description: Promises are not considered equal anymore if they are not of
+                 the same instance.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57627
     description: Invalid dates are now considered equal.
@@ -366,8 +409,10 @@ are also recursively evaluated by the following rules.
 * Implementation does not test the [`[[Prototype]]`][prototype-spec] of
   objects.
 * {Symbol} properties are not compared.
-* {WeakMap} and {WeakSet} comparison does not rely on their values
-  but only on their instances.
+* {WeakMap}, {WeakSet} and {Promise} instances are **not** compared
+  structurally. They are only equal if they reference the same object. Any
+  comparison between different `WeakMap`, `WeakSet`, or `Promise` instances
+  will result in inequality, even if they contain the same content.
 * {RegExp} lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
 
@@ -473,6 +518,10 @@ parameter is an instance of {Error} then it will be thrown instead of the
 added: v1.2.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59448
+    description: Promises are not considered equal anymore if they are not of
+                 the same instance.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57627
     description: Invalid dates are now considered equal.
   - version: v24.0.0
@@ -540,10 +589,10 @@ are recursively evaluated also by the following rules.
 * {Map} keys and {Set} items are compared unordered.
 * Recursion stops when both sides differ or either side encounters a circular
   reference.
-* {WeakMap} and {WeakSet} instances are **not** compared structurally.
-  They are only equal if they reference the same object. Any comparison between
-  different `WeakMap` or `WeakSet` instances will result in inequality,
-  even if they contain the same entries.
+* {WeakMap}, {WeakSet} and {Promise} instances are **not** compared
+  structurally. They are only equal if they reference the same object. Any
+  comparison between different `WeakMap`, `WeakSet`, or `Promise` instances
+  will result in inequality, even if they contain the same content.
 * {RegExp} lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
 
@@ -2231,6 +2280,10 @@ added:
   - v22.13.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59448
+    description: Promises are not considered equal anymore if they are not of
+                 the same instance.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57627
     description: Invalid dates are now considered equal.
   - version:
@@ -2268,10 +2321,10 @@ behaving as a super set of it.
 * {Map} keys and {Set} items are compared unordered.
 * Recursion stops when both sides differ or both sides encounter a circular
   reference.
-* {WeakMap} and {WeakSet} instances are **not** compared structurally.
-  They are only equal if they reference the same object. Any comparison between
-  different `WeakMap` or `WeakSet` instances will result in inequality,
-  even if they contain the same entries.
+* {WeakMap}, {WeakSet} and {Promise} instances are **not** compared
+  structurally. They are only equal if they reference the same object. Any
+  comparison between different `WeakMap`, `WeakSet`, or `Promise` instances
+  will result in inequality, even if they contain the same content.
 * {RegExp} lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
 * Holes in sparse arrays are ignored.

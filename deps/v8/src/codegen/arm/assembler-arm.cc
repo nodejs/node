@@ -457,16 +457,10 @@ void NeonMemOperand::SetAlignment(int align) {
   }
 }
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
-  for (auto& request : heap_number_requests_) {
-    Handle<HeapObject> object =
-        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-            request.heap_number());
-    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    Memory<Address>(constant_pool_entry_address(pc, 0 /* unused */)) =
-        object.address();
-  }
+void Assembler::PatchInHeapNumberRequest(Address pc,
+                                         Handle<HeapNumber> object) {
+  Memory<Address>(constant_pool_entry_address(pc, 0 /* unused */)) =
+      object.address();
 }
 
 // -----------------------------------------------------------------------------

@@ -48,8 +48,7 @@ T FPRound(int64_t sign, int64_t exponent, uint64_t mantissa,
                 "destination type T not large enough");
   static_assert(sizeof(T) <= sizeof(uint64_t),
                 "maximum size of destination type T is 64 bits");
-  static_assert(std::is_unsigned<T>::value,
-                "destination type T must be unsigned");
+  static_assert(std::is_unsigned_v<T>, "destination type T must be unsigned");
 
   DCHECK((sign == 0) || (sign == 1));
 
@@ -785,6 +784,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     pc_modified_ = true;
   }
   Instruction* pc() { return pc_; }
+  Instruction* last_instr() { return last_instr_; }
 
   void increment_pc() {
     if (!pc_modified_) {
@@ -911,12 +911,58 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     }
   }
 
+  // MOPS
+  void VisitCpyP(Instruction* instr);
+  void VisitCpyM(Instruction* instr);
+  void VisitCpyE(Instruction* instr);
+  void VisitSetP(Instruction* instr);
+  void VisitSetM(Instruction* instr);
+  void VisitSetE(Instruction* instr);
+  template <Instruction::MemOp mem_op>
+  void MOPSPHelper(Instruction* instr) {
+    DCHECK(instr->IsConsistentMOPSTriplet<mem_op>());
+
+    int d = instr->Rd();
+    int n = instr->Rn();
+    int s = instr->Rs();
+
+    // Aliased registers and xzr are disallowed for Xd and Xn.
+    if ((d == n) || (d == s) || (n == s) || (d == 31) || (n == 31)) {
+      VisitUnallocated(instr);
+    }
+
+    // Additionally, Xs may not be xzr for cpy.
+    if (mem_op == Instruction::MemOp::kCPY && s == 31) {
+      VisitUnallocated(instr);
+    }
+
+    // Bits 31 and 30 must be zero.
+    if (instr->Bits(31, 30) != 0) {
+      VisitUnallocated(instr);
+    }
+
+    // Saturate copy count.
+    uint64_t xn = xreg(n);
+    constexpr int saturation_bits =
+        mem_op == Instruction::MemOp::kCPY ? 55 : 63;
+    if ((xn >> saturation_bits) != 0) {
+      xn = (UINT64_C(1) << saturation_bits) - 1;
+      set_xreg(n, xn);
+    }
+
+    nzcv().SetN(0);
+    nzcv().SetZ(0);
+    nzcv().SetC(1);  // Indicates "option B" implementation.
+    nzcv().SetV(0);
+  }
+
   void ExecuteInstruction() {
     DCHECK(IsAligned(reinterpret_cast<uintptr_t>(pc_), kInstrSize));
     CheckBType();
     ResetBType();
     CheckBreakNext();
     Decode(pc_);
+    last_instr_ = pc_;
     increment_pc();
     LogAllWrittenRegisters();
     CheckBreakpoints();
@@ -1578,6 +1624,8 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
                                   int lane_size_in_bits) const;
   sim_uint128_t Lsl128(sim_uint128_t x, unsigned shift) const;
   sim_uint128_t Eor128(sim_uint128_t x, sim_uint128_t y) const;
+  void SimulateSignedMinMax(const Instruction* instr);
+  void SimulateUnsignedMinMax(const Instruction* instr);
 
   void ld1(VectorFormat vform, LogicVRegister dst, uint64_t addr);
   void ld1(VectorFormat vform, LogicVRegister dst, int index, uint64_t addr);
@@ -2370,7 +2418,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   static size_t UsableStackSize() { return v8_flags.sim_stack_size * KB; }
   uintptr_t stack_limit_;
   // Added in Simulator::StackLimit()
-  static const int kAdditionalStackMargin = 4 * KB;
+  static const int kAdditionalStackMargin = 20 * KB;
 
   Decoder<DispatchingDecoderVisitor>* decoder_;
   Decoder<DispatchingDecoderVisitor>* disassembler_decoder_;
@@ -2379,6 +2427,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // automatically incremented.
   bool pc_modified_;
   Instruction* pc_;
+  Instruction* last_instr_ = nullptr;
 
   // Branch type register, used for branch target identification.
   BType btype_;
@@ -2519,14 +2568,14 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // Read floating point return values.
   template <typename T>
   T ReadReturn()
-    requires std::is_floating_point<T>::value
+    requires std::is_floating_point_v<T>
   {
     return static_cast<T>(dreg(0));
   }
   // Read non-float return values.
   template <typename T>
   T ReadReturn()
-    requires(!std::is_floating_point<T>::value)
+    requires(!std::is_floating_point_v<T>)
   {
     return ConvertReturn<T>(xreg(0));
   }

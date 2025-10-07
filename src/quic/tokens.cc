@@ -1,5 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
-
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "tokens.h"
 #include <crypto/crypto_util.h>
 #include <ngtcp2/ngtcp2_crypto.h>
@@ -301,4 +302,5 @@ RegularToken::operator const char*() const {
 
 }  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

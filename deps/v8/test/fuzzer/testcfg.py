@@ -20,6 +20,7 @@ SUB_TESTS = [
     'wasm/compile_all',
     'wasm/compile_simd',
     'wasm/compile_wasmgc',
+    'wasm/compile_revec',
     'wasm/init_expr',
     'wasm/streaming',
 ]

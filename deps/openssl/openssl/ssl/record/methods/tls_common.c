@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1093,9 +1093,12 @@ int tls13_common_post_process_record(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *rec)
         return 0;
     }
 
-    if (rl->msg_callback != NULL)
-        rl->msg_callback(0, rl->version, SSL3_RT_INNER_CONTENT_TYPE, &rec->type,
-                        1, rl->cbarg);
+    if (rl->msg_callback != NULL) {
+        unsigned char ctype = (unsigned char)rec->type;
+
+        rl->msg_callback(0, rl->version, SSL3_RT_INNER_CONTENT_TYPE, &ctype,
+                         1, rl->cbarg);
+    }
 
     /*
      * TLSv1.3 alert and handshake records are required to be non-zero in

@@ -1056,10 +1056,13 @@ static int ssl_set_cert_and_key(SSL *ssl, SSL_CTX *ctx, X509 *x509, EVP_PKEY *pr
         }
     }
 
-    if (!X509_up_ref(x509))
+    if (!X509_up_ref(x509)) {
+        OSSL_STACK_OF_X509_free(dup_chain);
         goto out;
+    }
 
     if (!EVP_PKEY_up_ref(privatekey)) {
+        OSSL_STACK_OF_X509_free(dup_chain);
         X509_free(x509);
         goto out;
     }

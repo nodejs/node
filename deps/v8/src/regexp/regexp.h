@@ -155,7 +155,7 @@ class RegExp final : public AllStatic {
   V8_EXPORT_PRIVATE static bool CompileForTesting(
       Isolate* isolate, Zone* zone, RegExpCompileData* input, RegExpFlags flags,
       DirectHandle<String> pattern, DirectHandle<String> sample_subject,
-      bool is_one_byte);
+      DirectHandle<IrRegExpData> re_data, bool is_one_byte);
 
   V8_EXPORT_PRIVATE static void DotPrintForTesting(const char* label,
                                                    RegExpNode* node);

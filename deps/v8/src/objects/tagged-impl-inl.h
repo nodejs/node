@@ -20,6 +20,21 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_COMPRESS_POINTERS
+template <HeapObjectReferenceType kRefType, typename StorageType>
+constexpr bool TaggedImpl<kRefType, StorageType>::IsInMainCageBase() {
+  DCHECK(!IsSmi());
+  using S = V8HeapCompressionScheme;
+  return S::GetPtrComprCageBaseAddress(ptr_) == S::base();
+}
+template <HeapObjectReferenceType kRefType, typename StorageType>
+constexpr bool TaggedImpl<kRefType, StorageType>::IsInTrustedCageBase() {
+  DCHECK(!IsSmi());
+  using S = TrustedSpaceCompressionScheme;
+  return S::GetPtrComprCageBaseAddress(ptr_) == S::base();
+}
+#endif  // V8_COMPRESS_POINTERS
+
 template <HeapObjectReferenceType kRefType, typename StorageType>
 bool TaggedImpl<kRefType, StorageType>::ToSmi(Tagged<Smi>* value) const {
   if (HAS_SMI_TAG(ptr_)) {

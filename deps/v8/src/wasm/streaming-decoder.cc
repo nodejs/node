@@ -230,45 +230,61 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
 };
 
 void AsyncStreamingDecoder::OnBytesReceived(base::Vector<const uint8_t> bytes) {
-  DCHECK(!full_wire_bytes_.empty());
+  TRACE_STREAMING("OnBytesReceived(%zu bytes)\n", bytes.size());
+
+  // Note: The bytes are passed by the embedder, and they might point into the
+  // sandbox. Hence we copy them once and then process those copied bytes, to
+  // avoid being vulnerable to concurrent modification.
+  // Since we might not be able to store the bytes contiguously in memory,
+  // remember up to two byte vectors to process after copying.
+  base::Vector<const uint8_t> copied_bytes[2] = {{}, {}};
+
   // Fill the previous vector, growing up to 16kB. After that, allocate new
   // vectors on overflow.
+  DCHECK(!full_wire_bytes_.empty());
+  std::vector<uint8_t>* last_wire_byte_vector = &full_wire_bytes_.back();
+  size_t existing_vector_size = last_wire_byte_vector->size();
   size_t remaining_capacity =
-      std::max(full_wire_bytes_.back().capacity(), size_t{16} * KB) -
-      full_wire_bytes_.back().size();
+      std::max(last_wire_byte_vector->capacity(), size_t{16} * KB) -
+      existing_vector_size;
   size_t bytes_for_existing_vector = std::min(remaining_capacity, bytes.size());
-  full_wire_bytes_.back().insert(full_wire_bytes_.back().end(), bytes.data(),
-                                 bytes.data() + bytes_for_existing_vector);
+  last_wire_byte_vector->insert(last_wire_byte_vector->end(), bytes.data(),
+                                bytes.data() + bytes_for_existing_vector);
+  copied_bytes[0] =
+      base::VectorOf(last_wire_byte_vector->data() + existing_vector_size,
+                     bytes_for_existing_vector);
   if (bytes.size() > bytes_for_existing_vector) {
     // The previous vector's capacity is not enough to hold all new bytes, and
     // it's bigger than 16kB, so expensive to copy. Allocate a new vector for
     // the remaining bytes, growing exponentially.
     size_t new_capacity = std::max(bytes.size() - bytes_for_existing_vector,
-                                   2 * full_wire_bytes_.back().capacity());
+                                   2 * last_wire_byte_vector->capacity());
     full_wire_bytes_.emplace_back();
-    full_wire_bytes_.back().reserve(new_capacity);
-    full_wire_bytes_.back().insert(full_wire_bytes_.back().end(),
-                                   bytes.data() + bytes_for_existing_vector,
-                                   bytes.end());
+    last_wire_byte_vector = &full_wire_bytes_.back();
+    last_wire_byte_vector->reserve(new_capacity);
+    last_wire_byte_vector->insert(last_wire_byte_vector->end(),
+                                  bytes.data() + bytes_for_existing_vector,
+                                  bytes.end());
+    copied_bytes[1] = base::VectorOf(*last_wire_byte_vector);
   }
+  // Do not access `bytes` any more after copying.
+  DCHECK_EQ(bytes.size(), copied_bytes[0].size() + copied_bytes[1].size());
+  bytes = {};
 
   if (deserializing()) return;
 
-  TRACE_STREAMING("OnBytesReceived(%zu bytes)\n", bytes.size());
-
-  size_t current = 0;
-  while (ok() && current < bytes.size()) {
-    size_t num_bytes =
-        state_->ReadBytes(this, bytes.SubVector(current, bytes.size()));
-    current += num_bytes;
-    module_offset_ += num_bytes;
-    if (state_->offset() == state_->buffer().size()) {
-      state_ = state_->Next(this);
+  for (base::Vector<const uint8_t> vec : copied_bytes) {
+    size_t current = 0;
+    while (ok() && current < vec.size()) {
+      size_t num_bytes = state_->ReadBytes(this, vec.SubVectorFrom(current));
+      current += num_bytes;
+      module_offset_ += num_bytes;
+      if (state_->offset() == state_->buffer().size()) {
+        state_ = state_->Next(this);
+      }
     }
   }
-  if (ok()) {
-    processor_->OnFinishedChunk();
-  }
+  if (ok()) processor_->OnFinishedChunk();
 }
 
 size_t AsyncStreamingDecoder::DecodingState::ReadBytes(

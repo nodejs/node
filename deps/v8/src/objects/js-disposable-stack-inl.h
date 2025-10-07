@@ -89,7 +89,7 @@ JSDisposableStackBase::CheckValueAndGetDisposeMethod(Isolate* isolate,
                             isolate->factory()->dispose_symbol()));
     //   (GetMethod)3. If IsCallable(func) is false, throw a TypeError
     //   exception.
-    if (!IsJSFunction(*method)) {
+    if (!IsCallable(*method)) {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kNotCallable,
                                    isolate->factory()->dispose_symbol()));
@@ -129,7 +129,7 @@ JSDisposableStackBase::CheckValueAndGetDisposeMethod(Isolate* isolate,
                               isolate->factory()->dispose_symbol()));
       //   (GetMethod)3. If IsCallable(func) is false, throw a TypeError
       //   exception.
-      if (!IsJSFunction(*method)) {
+      if (!IsCallable(*method)) {
         THROW_NEW_ERROR(isolate,
                         NewTypeError(MessageTemplate::kNotCallable,
                                      isolate->factory()->dispose_symbol()));
@@ -173,7 +173,7 @@ JSDisposableStackBase::CheckValueAndGetDisposeMethod(Isolate* isolate,
     }
     //   (GetMethod)3. If IsCallable(func) is false, throw a TypeError
     //   exception.
-    if (!IsJSFunction(*method)) {
+    if (!IsCallable(*method)) {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kNotCallable,
                                    isolate->factory()->async_dispose_symbol()));
@@ -191,7 +191,7 @@ inline void JSDisposableStackBase::HandleErrorInDisposal(
   DirectHandle<Object> maybe_error(disposable_stack->error(), isolate);
 
   //   i. If completion is a throw completion, then
-  if (!IsUninitialized(*maybe_error)) {
+  if (!IsUninitializedHole(*maybe_error)) {
     //    1. Set result to result.[[Value]].
     //    2. Let suppressed be completion.[[Value]].
     //    3. Let error be a newly created SuppressedError object.

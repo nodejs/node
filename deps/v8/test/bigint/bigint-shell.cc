@@ -109,7 +109,7 @@ std::string FormatHex(Digits X) {
   for (size_t i = 0; i < chars; i++) result[i] = '?';
   // Print the number into the string, starting from the last position.
   int pos = static_cast<int>(chars - 1);
-  for (int i = 0; i < X.len() - 1; i++) {
+  for (uint32_t i = 0; i < X.len() - 1; i++) {
     digit_t d = X[i];
     for (int j = 0; j < kCharsPerDigit; j++) {
       result[pos--] = kConversionChars[d & 15];
@@ -142,6 +142,8 @@ class Runner {
       ListTests();
     } else if (op_ == kTest) {
       RunTest();
+    } else if (op_ == kNoOp) {
+      // Probably just --help, do nothing.
     } else {
       DCHECK(false);  // Unreachable.
     }
@@ -232,13 +234,13 @@ class Runner {
   void TestKaratsuba(int* count) {
     // Calling {MultiplyKaratsuba} directly is only valid if
     // left_size >= right_size and right_size >= kKaratsubaThreshold.
-    constexpr int kMin = kKaratsubaThreshold;
-    constexpr int kMax = 3 * kKaratsubaThreshold;
-    for (int right_size = kMin; right_size <= kMax; right_size++) {
-      for (int left_size = right_size; left_size <= kMax; left_size++) {
+    constexpr uint32_t kMin = kKaratsubaThreshold;
+    constexpr uint32_t kMax = 3 * kKaratsubaThreshold;
+    for (uint32_t right_size = kMin; right_size <= kMax; right_size++) {
+      for (uint32_t left_size = right_size; left_size <= kMax; left_size++) {
         ScratchDigits A(left_size);
         ScratchDigits B(right_size);
-        int result_len = MultiplyResultLength(A, B);
+        uint32_t result_len = MultiplyResultLength(A, B);
         ScratchDigits result(result_len);
         ScratchDigits result_schoolbook(result_len);
         GenerateRandom(A);
@@ -256,13 +258,13 @@ class Runner {
 #if V8_ADVANCED_BIGINT_ALGORITHMS
     // {MultiplyToomCook} works fine even below the threshold, so we can
     // save some time by starting small.
-    constexpr int kMin = kToomThreshold - 60;
-    constexpr int kMax = kToomThreshold + 10;
-    for (int right_size = kMin; right_size <= kMax; right_size++) {
-      for (int left_size = right_size; left_size <= kMax; left_size++) {
+    constexpr uint32_t kMin = kToomThreshold - 60;
+    constexpr uint32_t kMax = kToomThreshold + 10;
+    for (uint32_t right_size = kMin; right_size <= kMax; right_size++) {
+      for (uint32_t left_size = right_size; left_size <= kMax; left_size++) {
         ScratchDigits A(left_size);
         ScratchDigits B(right_size);
-        int result_len = MultiplyResultLength(A, B);
+        uint32_t result_len = MultiplyResultLength(A, B);
         ScratchDigits result(result_len);
         ScratchDigits result_karatsuba(result_len);
         GenerateRandom(A);
@@ -284,19 +286,20 @@ class Runner {
     // we test a few random samples. With build bots running 24/7, we'll
     // get decent coverage over time.
     uint64_t random_bits = rng_.NextUint64();
-    int min = kFftThreshold - static_cast<int>(random_bits & 1023);
+    uint32_t min = kFftThreshold - static_cast<uint32_t>(random_bits & 1023);
     random_bits >>= 10;
-    int max = kFftThreshold + static_cast<int>(random_bits & 1023);
+    uint32_t max = kFftThreshold + static_cast<uint32_t>(random_bits & 1023);
     random_bits >>= 10;
     // If delta is too small, then this run gets too slow. If it happened
     // to be zero, we'd even loop forever!
-    int delta = 10 + (random_bits & 127);
+    uint32_t delta = 10 + (random_bits & 127);
     std::cout << "min " << min << " max " << max << " delta " << delta << "\n";
-    for (int right_size = min; right_size <= max; right_size += delta) {
-      for (int left_size = right_size; left_size <= max; left_size += delta) {
+    for (uint32_t right_size = min; right_size <= max; right_size += delta) {
+      for (uint32_t left_size = right_size; left_size <= max;
+           left_size += delta) {
         ScratchDigits A(left_size);
         ScratchDigits B(right_size);
-        int result_len = MultiplyResultLength(A, B);
+        uint32_t result_len = MultiplyResultLength(A, B);
         ScratchDigits result(result_len);
         ScratchDigits result_toom(result_len);
         GenerateRandom(A);
@@ -314,16 +317,16 @@ class Runner {
 
   void TestBurnikel(int* count) {
     // Start small to save test execution time.
-    constexpr int kMin = kBurnikelThreshold / 2;
-    constexpr int kMax = 2 * kBurnikelThreshold;
-    for (int right_size = kMin; right_size <= kMax; right_size++) {
-      for (int left_size = right_size; left_size <= kMax; left_size++) {
+    constexpr uint32_t kMin = kBurnikelThreshold / 2;
+    constexpr uint32_t kMax = 2 * kBurnikelThreshold;
+    for (uint32_t right_size = kMin; right_size <= kMax; right_size++) {
+      for (uint32_t left_size = right_size; left_size <= kMax; left_size++) {
         ScratchDigits A(left_size);
         ScratchDigits B(right_size);
         GenerateRandom(A);
         GenerateRandom(B);
-        int quotient_len = DivideResultLength(A, B);
-        int remainder_len = right_size;
+        uint32_t quotient_len = DivideResultLength(A, B);
+        uint32_t remainder_len = right_size;
         ScratchDigits quotient(quotient_len);
         ScratchDigits quotient_schoolbook(quotient_len);
         ScratchDigits remainder(remainder_len);
@@ -340,17 +343,17 @@ class Runner {
   }
 
 #if V8_ADVANCED_BIGINT_ALGORITHMS
-  void TestBarrett_Internal(int left_size, int right_size) {
+  void TestBarrett_Internal(uint32_t left_size, uint32_t right_size) {
     ScratchDigits A(left_size);
     ScratchDigits B(right_size);
     GenerateRandom(A);
     GenerateRandom(B);
-    int quotient_len = DivideResultLength(A, B);
+    uint32_t quotient_len = DivideResultLength(A, B);
     // {DivideResultLength} doesn't expect to be called for sizes below
     // {kBarrettThreshold} (which we do here to save time), so we have to
     // manually adjust the allocated result length.
     if (B.len() < kBarrettThreshold) quotient_len++;
-    int remainder_len = right_size;
+    uint32_t remainder_len = right_size;
     ScratchDigits quotient(quotient_len);
     ScratchDigits quotient_burnikel(quotient_len);
     ScratchDigits remainder(remainder_len);
@@ -365,11 +368,12 @@ class Runner {
   void TestBarrett(int* count) {
     // We pick a range around kBurnikelThreshold (instead of kBarrettThreshold)
     // to save test execution time.
-    constexpr int kMin = kBurnikelThreshold / 2;
-    constexpr int kMax = 2 * kBurnikelThreshold;
+    constexpr uint32_t kMin = kBurnikelThreshold / 2;
+    constexpr uint32_t kMax = 2 * kBurnikelThreshold;
     // {DivideBarrett(A, B)} requires that A.len > B.len!
-    for (int right_size = kMin; right_size <= kMax; right_size++) {
-      for (int left_size = right_size + 1; left_size <= kMax; left_size++) {
+    for (uint32_t right_size = kMin; right_size <= kMax; right_size++) {
+      for (uint32_t left_size = right_size + 1; left_size <= kMax;
+           left_size++) {
         TestBarrett_Internal(left_size, right_size);
         if (error_) return;
         (*count)++;
@@ -377,9 +381,11 @@ class Runner {
     }
     // We also test one random large case.
     uint64_t random_bits = rng_.NextUint64();
-    int right_size = kBarrettThreshold + static_cast<int>(random_bits & 0x3FF);
+    uint32_t right_size =
+        kBarrettThreshold + static_cast<uint32_t>(random_bits & 0x3FF);
     random_bits >>= 10;
-    int left_size = right_size + 1 + static_cast<int>(random_bits & 0x3FFF);
+    uint32_t left_size =
+        right_size + 1 + static_cast<uint32_t>(random_bits & 0x3FFF);
     random_bits >>= 14;
     TestBarrett_Internal(left_size, right_size);
     if (error_) return;
@@ -390,9 +396,9 @@ class Runner {
 #endif  // V8_ADVANCED_BIGINT_ALGORITHMS
 
   void TestToString(int* count) {
-    constexpr int kMin = kToStringFastThreshold / 2;
-    constexpr int kMax = kToStringFastThreshold * 2;
-    for (int size = kMin; size < kMax; size++) {
+    constexpr uint32_t kMin = kToStringFastThreshold / 2;
+    constexpr uint32_t kMax = kToStringFastThreshold * 2;
+    for (uint32_t size = kMin; size < kMax; size++) {
       ScratchDigits X(size);
       GenerateRandom(X);
       for (int radix = 2; radix <= 36; radix++) {
@@ -414,10 +420,10 @@ class Runner {
   }
 
   void TestFromString(int* count) {
-    constexpr int kMaxDigits = 1 << 20;  // Any large-enough value will do.
-    constexpr int kMin = kFromStringLargeThreshold / 2;
-    constexpr int kMax = kFromStringLargeThreshold * 2;
-    for (int size = kMin; size < kMax; size++) {
+    constexpr uint32_t kMaxDigits = 1 << 20;  // Any large-enough value will do.
+    constexpr uint32_t kMin = kFromStringLargeThreshold / 2;
+    constexpr uint32_t kMax = kFromStringLargeThreshold * 2;
+    for (uint32_t size = kMin; size < kMax; size++) {
       // To keep test execution times low, test one random radix every time.
       // Generally, radixes 2 through 36 (inclusive) are supported; however
       // the functions {FromStringLarge} and {FromStringClassic} can't deal
@@ -451,10 +457,10 @@ class Runner {
   }
 
   void TestFromStringBaseTwo(int* count) {
-    constexpr int kMaxDigits = 1 << 20;  // Any large-enough value will do.
-    constexpr int kMin = 1;
-    constexpr int kMax = 100;
-    for (int size = kMin; size < kMax; size++) {
+    constexpr uint32_t kMaxDigits = 1 << 20;  // Any large-enough value will do.
+    constexpr uint32_t kMin = 1;
+    constexpr uint32_t kMax = 100;
+    for (uint32_t size = kMin; size < kMax; size++) {
       ScratchDigits X(size);
       GenerateRandom(X);
       for (int bits = 1; bits <= 5; bits++) {
@@ -538,11 +544,11 @@ class Runner {
     if (mode == 0) {
       // Generate random bits.
       if (sizeof(digit_t) == 8) {
-        for (int i = 0; i < Z.len(); i++) {
+        for (uint32_t i = 0; i < Z.len(); i++) {
           Z[i] = static_cast<digit_t>(rng_.NextUint64());
         }
       } else {
-        for (int i = 0; i < Z.len(); i += 2) {
+        for (uint32_t i = 0; i < Z.len(); i += 2) {
           uint64_t random = rng_.NextUint64();
           Z[i] = static_cast<digit_t>(random);
           if (i + 1 < Z.len()) Z[i + 1] = static_cast<digit_t>(random >> 32);
@@ -558,7 +564,7 @@ class Runner {
       // Generate a power of 2, with the lone 1-bit somewhere in the MSD.
       int bit_in_msd = static_cast<int>(rng_.NextUint64() % kDigitBits);
       Z[Z.len() - 1] = digit_t{1} << bit_in_msd;
-      for (int i = 0; i < Z.len() - 1; i++) Z[i] = 0;
+      for (uint32_t i = 0; i < Z.len() - 1; i++) Z[i] = 0;
       return;
     }
     // For mode == 2 and mode == 3, generate a random number of 1-bits in the
@@ -569,13 +575,13 @@ class Runner {
     Z[Z.len() - 1] = msd;
     if (mode == 2) {
       // The non-MSD digits are all 1-bits.
-      for (int i = 0; i < Z.len() - 1; i++) Z[i] = ~digit_t{0};
+      for (uint32_t i = 0; i < Z.len() - 1; i++) Z[i] = ~digit_t{0};
     } else {
       // mode == 3
       // Each non-MSD digit is either all ones or all zeros.
       uint64_t random;
       int random_bits = 0;
-      for (int i = 0; i < Z.len() - 1; i++) {
+      for (uint32_t i = 0; i < Z.len() - 1; i++) {
         if (random_bits == 0) {
           random = rng_.NextUint64();
           random_bits = 64;

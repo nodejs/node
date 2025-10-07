@@ -20,12 +20,17 @@ test-fs-read-stream-concurrent-reads: PASS, FLAKY
 test-snapshot-incompatible: SKIP
 
 [$system==win32]
+# https://github.com/nodejs/node/issues/59090
+test-inspector-network-fetch: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54808
 test-async-context-frame: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54534
 test-runner-run-watch: PASS, FLAKY
-# https://github.com/nodejs/node/issues/56794
-test-fs-cp: PASS, FLAKY
+# https://github.com/nodejs/node/issues/59636
+test-fs-cp-sync-error-on-exist: SKIP
+test-fs-cp-sync-symlink-points-to-dest-error: SKIP
+test-fs-cp-async-symlink-points-to-dest: SKIP
+test-fs-cp-sync-unicode-folder-names: SKIP
 
 # https://github.com/nodejs/node/issues/56751
 test-without-async-context-frame: PASS, FLAKY
@@ -53,6 +58,8 @@ test-runner-watch-mode: PASS,FLAKY
 # https://github.com/nodejs/node/issues/42741
 test-http-server-headers-timeout-keepalive: PASS,FLAKY
 test-http-server-request-timeout-keepalive: PASS,FLAKY
+# https://github.com/nodejs/node/issues/54534
+test-runner-run-watch: PASS, FLAKY
 
 [$arch==arm || $arch==arm64]
 # https://github.com/nodejs/node/pull/31178
@@ -134,6 +141,7 @@ test-inspector-network-content-type: SKIP
 test-fetch:  SKIP
 test-without-async-context-frame: SKIP
 test-process-cpuUsage: PASS, FLAKY
+test-web-locks: SKIP
 
 
 [$asan==on]

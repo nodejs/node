@@ -193,6 +193,10 @@ v8_source_set("cppgc_unittests_sources") {
       "../..:v8_tracing",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 v8_executable("v8_unittests") {
@@ -261,6 +265,7 @@ v8_source_set("v8_unittests_sources") {
     "api/smi-tagging-unittest.cc",
     "api/v8-array-unittest.cc",
     "api/v8-maybe-unittest.cc",
+    "api/v8-memory-span-unittest.cc",
     "api/v8-object-unittest.cc",
     "api/v8-script-unittest.cc",
     "api/v8-value-unittest.cc",
@@ -368,6 +373,7 @@ v8_source_set("v8_unittests_sources") {
     "heap/slot-set-unittest.cc",
     "heap/spaces-unittest.cc",
     "heap/strong-root-allocator-unittest.cc",
+    "heap/write-barrier-unittest.cc",
     "interpreter/bytecode-array-builder-unittest.cc",
     "interpreter/bytecode-array-iterator-unittest.cc",
     "interpreter/bytecode-array-random-iterator-unittest.cc",
@@ -455,12 +461,12 @@ v8_source_set("v8_unittests_sources") {
     "run-all-unittests.cc",
     "runtime/runtime-debug-unittest.cc",
     "sandbox/pointer-table-unittest.cc",
+    "sandbox/sandbox-hardware-support-unittest.cc",
     "sandbox/sandbox-unittest.cc",
     "strings/char-predicates-unittest.cc",
     "strings/unicode-unittest.cc",
     "tasks/background-compile-task-unittest.cc",
     "tasks/cancelable-tasks-unittest.cc",
-    "temporal/temporal-parser-unittest.cc",
     "test-helpers.cc",
     "test-helpers.h",
     "test-utils.cc",
@@ -510,7 +516,6 @@ v8_source_set("v8_unittests_sources") {
       "compiler/compiler-unittest.cc",
       "compiler/constant-folding-reducer-unittest.cc",
       "compiler/control-equivalence-unittest.cc",
-      "compiler/csa-load-elimination-unittest.cc",
       "compiler/dead-code-elimination-unittest.cc",
       "compiler/diamond-unittest.cc",
       "compiler/frame-unittest.cc",
@@ -528,6 +533,7 @@ v8_source_set("v8_unittests_sources") {
       "compiler/js-operator-unittest.cc",
       "compiler/js-typed-lowering-unittest.cc",
       "compiler/linkage-tail-call-unittest.cc",
+      "compiler/linkage-unittest.cc",
       "compiler/load-elimination-unittest.cc",
       "compiler/loop-peeling-unittest.cc",
       "compiler/machine-operator-reducer-unittest.cc",
@@ -551,7 +557,10 @@ v8_source_set("v8_unittests_sources") {
       "compiler/run-jsexceptions-unittest.cc",
       "compiler/run-jsobjects-unittest.cc",
       "compiler/run-jsops-unittest.cc",
+      "compiler/run-stackcheck-unittest.cc",
       "compiler/run-tail-calls-unittest.cc",
+      "compiler/run-unwinding-info-unittest.cc",
+      "compiler/run-variables-unittest.cc",
       "compiler/schedule-unittest.cc",
       "compiler/scheduler-rpo-unittest.cc",
       "compiler/scheduler-unittest.cc",
@@ -562,6 +571,7 @@ v8_source_set("v8_unittests_sources") {
       "compiler/state-values-utils-unittest.cc",
       "compiler/turboshaft/control-flow-unittest.cc",
       "compiler/turboshaft/late-load-elimination-reducer-unittest.cc",
+      "compiler/turboshaft/load-store-address-hoisting-unittest.cc",
       "compiler/turboshaft/loop-unrolling-analyzer-unittest.cc",
       "compiler/turboshaft/opmask-unittest.cc",
       "compiler/turboshaft/reducer-test.h",
@@ -593,6 +603,7 @@ v8_source_set("v8_unittests_sources") {
       "compiler/turboshaft/wasm-simd-unittest.cc",
       "compiler/wasm-address-reassociation-unittest.cc",
       "objects/wasm-backing-store-unittest.cc",
+      "wasm/basic-block-calculator-unittest.cc",
       "wasm/decoder-unittest.cc",
       "wasm/function-body-decoder-unittest.cc",
       "wasm/leb-helper-unittest.cc",
@@ -808,19 +819,29 @@ v8_source_set("v8_unittests_sources") {
 
     deps += [
       "//third_party/abseil-cpp:absl_full",
-      "//third_party/fuzztest:fuzztest",
+      "//third_party/fuzztest",
       "//third_party/fuzztest:init_fuzztest",
     ]
 
     if (v8_enable_webassembly) {
-      sources += [ "wasm/type-canonicalization-fuzztest.cc" ]
+      deps += [ "../../:wasm_fuzzer_common" ]
+      sources += [
+        "wasm/cross-compiler-determinism-fuzztest.cc",
+        "wasm/type-canonicalization-fuzztest.cc",
+      ]
+      if (v8_wasm_random_fuzzers) {
+        sources += [ "wasm/module-generation-fuzztest.cc" ]
+      }
     }
 
     if (!is_win) {
       # TODO(https://crbug.com/40941204): Using jsoncpp doesn't work on
       # Windows.
-      sources += [ "json/json-unittest.cc" ]
-      deps += [ "//third_party/jsoncpp:jsoncpp" ]
+      sources += [
+        "json/json-unittest.cc",
+        "profiler/heap-snapshot-unittest.cc",
+      ]
+      deps += [ "//third_party/jsoncpp" ]
     }
   }
 
@@ -852,6 +873,10 @@ v8_source_set("v8_unittests_sources") {
       ]
     }
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 v8_source_set("inspector_unittests_sources") {

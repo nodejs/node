@@ -739,6 +739,18 @@ fs.access('file/that/does/not/exist', (err) => {
 });
 ```
 
+## `util.setTraceSigInt(enable)`
+
+<!-- YAML
+added:
+ - v24.6.0
+ - v22.19.0
+-->
+
+* `enable` {boolean}
+
+Enable or disable printing a stack trace on `SIGINT`. The API is only available on the main thread.
+
 ## `util.inherits(constructor, superConstructor)`
 
 <!-- YAML
@@ -835,6 +847,11 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59710
+    description: The util.inspect.styles.regexp style is now a method that is
+                 invoked for coloring the stringified regular expression.
   - version:
     - v17.3.0
     - v16.14.0
@@ -1285,7 +1302,12 @@ The default styles and associated colors are:
 * `name`: (no styling)
 * `null`: `bold`
 * `number`: `yellow`
-* `regexp`: `red`
+* `regexp`: A method that colors character classes, groups, assertions, and
+  other parts for improved readability. To customize the coloring, change the
+  `colors` property. It is set to
+  `['red', 'green', 'yellow', 'cyan', 'magenta']` by default and may be
+  adjusted as needed. The array is repetitively iterated through depending on
+  the "depth".
 * `special`: `cyan` (e.g., `Proxies`)
 * `string`: `green`
 * `symbol`: `green`
@@ -1296,6 +1318,17 @@ terminals. To verify color support use [`tty.hasColors()`][].
 
 Predefined control codes are listed below (grouped as "Modifiers", "Foreground
 colors", and "Background colors").
+
+#### Complex custom coloring
+
+It is possible to define a method as style. It receives the stringified value
+of the input. It is invoked in case coloring is active and the type is
+inspected.
+
+Example: `util.inspect.styles.regexp(value)`
+
+* `value` {string} The string representation of the input type.
+* Returns: {string} The adjusted representation of `object`.
 
 #### Modifiers
 
@@ -1541,18 +1574,55 @@ inspect.defaultOptions.maxArrayLength = null;
 console.log(arr); // logs the full array
 ```
 
-## `util.isDeepStrictEqual(val1, val2)`
+## `util.isDeepStrictEqual(val1, val2[, options])`
 
 <!-- YAML
 added: v9.0.0
+changes:
+  - version: v24.9.0
+    pr-url: https://github.com/nodejs/node/pull/59762
+    description: Added `options` parameter to allow skipping prototype comparison.
 -->
 
 * `val1` {any}
 * `val2` {any}
+* `skipPrototype` {boolean} If `true`, prototype and constructor
+  comparison is skipped during deep strict equality check. **Default:** `false`.
 * Returns: {boolean}
 
 Returns `true` if there is deep strict equality between `val1` and `val2`.
 Otherwise, returns `false`.
+
+By default, deep strict equality includes comparison of object prototypes and
+constructors. When `skipPrototype` is `true`, objects with
+different prototypes or constructors can still be considered equal if their
+enumerable properties are deeply strictly equal.
+
+```js
+const util = require('node:util');
+
+class Foo {
+  constructor(a) {
+    this.a = a;
+  }
+}
+
+class Bar {
+  constructor(a) {
+    this.a = a;
+  }
+}
+
+const foo = new Foo(1);
+const bar = new Bar(1);
+
+// Different constructors, same properties
+console.log(util.isDeepStrictEqual(foo, bar));
+// false
+
+console.log(util.isDeepStrictEqual(foo, bar, true));
+// true
+```
 
 See [`assert.deepStrictEqual()`][] for more information about deep strict
 equality.
@@ -1581,7 +1651,7 @@ A MIME string is a structured string containing multiple meaningful
 components. When parsed, a `MIMEType` object is returned containing
 properties for each of these components.
 
-### Constructor: `new MIMEType(input)`
+### `new MIMEType(input)`
 
 * `input` {string} The input MIME to parse
 
@@ -1773,7 +1843,7 @@ added:
 The `MIMEParams` API provides read and write access to the parameters of a
 `MIMEType`.
 
-### Constructor: `new MIMEParams()`
+### `new MIMEParams()`
 
 Creates a new `MIMEParams` object by with empty parameters
 
@@ -2141,9 +2211,11 @@ $ node negate.js --no-logfile --logfile=test.log --color --no-color
 added:
   - v21.7.0
   - v20.12.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59925
+    description: This API is no longer experimental.
 -->
-
-> Stability: 1.1 - Active development
 
 * `content` {string}
 

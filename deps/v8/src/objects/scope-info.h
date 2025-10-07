@@ -131,6 +131,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   inline bool HasSimpleParameters() const;
 
+  inline bool HasContextCells() const;
+
   // Return the function_name if present.
   V8_EXPORT_PRIVATE Tagged<UnionOf<Smi, String>> FunctionName() const;
 

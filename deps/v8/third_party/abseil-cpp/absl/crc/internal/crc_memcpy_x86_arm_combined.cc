@@ -422,6 +422,11 @@ CrcMemcpy::ArchSpecificEngines CrcMemcpy::GetArchSpecificEngines() {
       };
     // INTEL_SANDYBRIDGE performs better with SSE than AVX.
     case CpuType::kIntelSandybridge:
+    // Use SIMD memcpy on ARM cores.
+    case CpuType::kArmNeoverseN1:
+    case CpuType::kArmNeoverseN2:
+    case CpuType::kArmNeoverseV1:
+    case CpuType::kArmNeoverseV2:
       return {
           /*.temporal=*/new AcceleratedCrcMemcpyEngine<3, 0>(),
           /*.non_temporal=*/new CrcNonTemporalMemcpyEngine(),

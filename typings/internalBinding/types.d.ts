@@ -1,26 +1,29 @@
 export interface TypesBinding {
-  isAsyncFunction(value: unknown): value is (...args: unknown[]) => Promise<unknown>;
-  isGeneratorFunction(value: unknown): value is GeneratorFunction;
-  isAnyArrayBuffer(value: unknown): value is (ArrayBuffer | SharedArrayBuffer);
+  isArgumentsObject(value: unknown): value is IArguments;
   isArrayBuffer(value: unknown): value is ArrayBuffer;
-  isArgumentsObject(value: unknown): value is ArrayLike<unknown>;
-  isBoxedPrimitive(value: unknown): value is (BigInt | Boolean | Number | String | Symbol);
+  isAsyncFunction(value: unknown): value is (...args: unknown[]) => Promise<unknown>;
+  isBigIntObject: (value: unknown) => value is BigInt;
+  isBooleanObject: (value: unknown) => value is Boolean;
   isDataView(value: unknown): value is DataView;
-  isExternal(value: unknown): value is Object;
+  isDate: (value: unknown) => value is Date;
+  isExternal(value: unknown): value is object;
+  isGeneratorFunction(value: unknown): value is GeneratorFunction;
+  isGeneratorObject(value: unknown): value is Generator;
   isMap(value: unknown): value is Map<unknown, unknown>;
   isMapIterator: (value: unknown) => value is IterableIterator<unknown>;
   isModuleNamespaceObject: (value: unknown) => value is { [Symbol.toStringTag]: 'Module' };
-  isNativeError: (value: unknown) => Error;
+  isNativeError: (value: unknown) => value is Error;
+  isNumberObject: (value: unknown) => value is Number;
   isPromise: (value: unknown) => value is Promise<unknown>;
+  isProxy: (value: unknown) => value is object;
+  isRegExp: (value: unknown) => value is RegExp;
   isSet: (value: unknown) => value is Set<unknown>;
   isSetIterator: (value: unknown) => value is IterableIterator<unknown>;
+  isSharedArrayBuffer: (value: unknown) => value is SharedArrayBuffer;
+  isStringObject: (value: unknown) => value is String;
+  isSymbolObject: (value: unknown) => value is Symbol;
   isWeakMap: (value: unknown) => value is WeakMap<object, unknown>;
   isWeakSet: (value: unknown) => value is WeakSet<object>;
-  isRegExp: (value: unknown) => RegExp;
-  isDate: (value: unknown) => Date;
-  isTypedArray: (value: unknown) => value is TypedArray;
-  isStringObject: (value: unknown) => value is String;
-  isNumberObject: (value: unknown) => value is Number;
-  isBooleanObject: (value: unknown) => value is Boolean,
-  isBigIntObject: (value: unknown) => value is BigInt;
+  isAnyArrayBuffer(value: unknown): value is ArrayBufferLike;
+  isBoxedPrimitive(value: unknown): value is BigInt | Boolean | Number | String | Symbol;
 }

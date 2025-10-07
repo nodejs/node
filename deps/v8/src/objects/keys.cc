@@ -113,10 +113,10 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
   DCHECK(ContainsOnlyValidKeys(result));
 
   if (try_prototype_info_cache_ && !first_prototype_map_.is_null()) {
-    Cast<PrototypeInfo>(first_prototype_map_->prototype_info())
-        ->set_prototype_chain_enum_cache(*result);
-    Map::GetOrCreatePrototypeChainValidityCell(
-        direct_handle(receiver_->map(), isolate_), isolate_);
+    DirectHandle<PrototypeInfo> prototype_info;
+    Map::GetOrCreatePrototypeChainValidityCell(first_prototype_map_, isolate_,
+                                               &prototype_info);
+    prototype_info->set_prototype_chain_enum_cache(*result);
     DCHECK(first_prototype_map_->IsPrototypeValidityCellValid());
   }
   return result;
@@ -234,10 +234,9 @@ Maybe<bool> KeyAccumulator::AddKeysFromJSProxy(DirectHandle<JSProxy> proxy,
                                                DirectHandle<FixedArray> keys) {
   // Postpone the enumerable check for for-in to the ForInFilter step.
   if (!is_for_in_) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate_, keys,
-        FilterProxyKeys(this, proxy, keys, filter_, skip_indices_),
-        Nothing<bool>());
+        FilterProxyKeys(this, proxy, keys, filter_, skip_indices_));
   }
   // https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-ownpropertykeys
   // As of 10.5.11.9 says, the keys collected from Proxy should not contain
@@ -464,12 +463,42 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeys(
       return keys;
     }
     if (isolate_->has_exception()) return MaybeHandle<FixedArray>();
+  } else if (filter_ == SKIP_STRINGS && !MayHaveSymbols()) {
+    return isolate_->factory()->empty_fixed_array();
   }
 
   if (try_prototype_info_cache_) {
     return GetKeysWithPrototypeInfoCache(keys_conversion);
   }
   return GetKeysSlow(keys_conversion);
+}
+
+bool FastKeyAccumulator::MayHaveSymbols() {
+  bool own_only = has_empty_prototype_ || mode_ == KeyCollectionMode::kOwnOnly;
+  Tagged<Map> map = receiver_->map();
+  if (!own_only || IsCustomElementsReceiverMap(map)) {
+    return true;
+  }
+
+  // From this point on we are certain to only collect own keys.
+  DCHECK(IsJSObject(*receiver_));
+
+  if (map->is_dictionary_map()) {
+    // TODO(olivf): Keep a bit in the dictionary to remember if we have any
+    // symbols.
+    return true;
+  }
+  int num = map->NumberOfOwnDescriptors();
+  if (num == 0) {
+    return false;
+  }
+  int enum_length = receiver_->map()->EnumLength();
+  if (enum_length != kInvalidEnumCacheSentinel) {
+    return enum_length != num;
+  }
+  // TODO(olivf): Keep a bit in the descriptor to remember if we have any
+  // symbols.
+  return true;
 }
 
 MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
@@ -1244,11 +1273,10 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(
   DirectHandle<JSReceiver> target(Cast<JSReceiver>(proxy->target()), isolate_);
   // 5. Let trap be ? GetMethod(handler, "ownKeys").
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate_, trap,
       Object::GetMethod(isolate_, Cast<JSReceiver>(handler),
-                        isolate_->factory()->ownKeys_string()),
-      Nothing<bool>());
+                        isolate_->factory()->ownKeys_string()));
   // 6. If trap is undefined, then
   if (IsUndefined(*trap, isolate_)) {
     // 6a. Return target.[[OwnPropertyKeys]]().
@@ -1257,18 +1285,16 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(
   // 7. Let trapResultArray be Call(trap, handler, «target»).
   DirectHandle<Object> trap_result_array;
   DirectHandle<Object> args[] = {target};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate_, trap_result_array,
-      Execution::Call(isolate_, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate_, trap, handler, base::VectorOf(args)));
   // 8. Let trapResult be ? CreateListFromArrayLike(trapResultArray,
   //    «String, Symbol»).
   DirectHandle<FixedArray> trap_result;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate_, trap_result,
       Object::CreateListFromArrayLike(isolate_, trap_result_array,
-                                      ElementTypes::kStringAndSymbol),
-      Nothing<bool>());
+                                      ElementTypes::kStringAndSymbol));
   // 9. If trapResult contains any duplicate entries, throw a TypeError
   // exception. Combine with step 18
   // 18. Let uncheckedResultKeys be a new List which is a copy of trapResult.
@@ -1302,9 +1328,8 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(
   bool extensible_target = maybe_extensible.FromJust();
   // 11. Let targetKeys be ? target.[[OwnPropertyKeys]]().
   DirectHandle<FixedArray> target_keys;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, target_keys, JSReceiver::OwnPropertyKeys(isolate_, target),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate_, target_keys,
+                             JSReceiver::OwnPropertyKeys(isolate_, target));
   // 12, 13. (Assert)
   // 14. Let targetConfigurableKeys be an empty List.
   // To save memory, we're reusing target_keys and will modify it in-place.
@@ -1393,12 +1418,11 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyTargetKeys(
     DirectHandle<JSProxy> proxy, DirectHandle<JSReceiver> target) {
   // TODO(cbruni): avoid creating another KeyAccumulator
   DirectHandle<FixedArray> keys;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate_, keys,
       KeyAccumulator::GetKeys(
           isolate_, target, KeyCollectionMode::kOwnOnly, ALL_PROPERTIES,
-          GetKeysConversion::kConvertToString, is_for_in_, skip_indices_),
-      Nothing<bool>());
+          GetKeysConversion::kConvertToString, is_for_in_, skip_indices_));
   Maybe<bool> result = AddKeysFromJSProxy(proxy, keys);
   return result;
 }

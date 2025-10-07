@@ -38,9 +38,9 @@ namespace internal {
 namespace {
 
 struct OptionData {
-  const char* name;
+  Handle<String> (Factory::*object_key)();
   const char* key;
-  const std::vector<const char*>* possible_values;
+  const std::span<const std::string_view> possible_values;
   bool is_bool_value;
 };
 struct ValueAndType {
@@ -54,40 +54,64 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
                                     icu::LocaleBuilder* builder) {
   DCHECK(isolate);
 
-  const std::vector<const char*> hour_cycle_values = {"h11", "h12", "h23",
-                                                      "h24"};
-  const std::vector<const char*> case_first_values = {"upper", "lower",
-                                                      "false"};
-  const std::vector<const char*> empty_values = {};
+  static const auto hour_cycle_values =
+      std::to_array<const std::string_view>({"h11", "h12", "h23", "h24"});
+  static const auto case_first_values =
+      std::to_array<const std::string_view>({"upper", "lower", "false"});
+  const auto empty_values = std::span<std::string_view>();
   const std::array<OptionData, 7> kOptionToUnicodeTagMap = {
-      {{"calendar", "ca", &empty_values, false},
-       {"collation", "co", &empty_values, false},
-       {"firstDayOfWeek", "fw", &empty_values, false},
-       {"hourCycle", "hc", &hour_cycle_values, false},
-       {"caseFirst", "kf", &case_first_values, false},
-       {"numeric", "kn", &empty_values, true},
-       {"numberingSystem", "nu", &empty_values, false}}};
+      {{&Factory::calendar_string, "ca", empty_values, false},
+       {&Factory::collation_string, "co", empty_values, false},
+       {&Factory::firstDayOfWeek_string, "fw", empty_values, false},
+       {&Factory::hourCycle_string, "hc", hour_cycle_values, false},
+       {&Factory::caseFirst_string, "kf", case_first_values, false},
+       {&Factory::numeric_string, "kn", empty_values, true},
+       {&Factory::numberingSystem_string, "nu", empty_values, false}}};
 
   // TODO(cira): Pass in values as per the spec to make this to be
   // spec compliant.
 
   for (const auto& option_to_bcp47 : kOptionToUnicodeTagMap) {
-    std::unique_ptr<char[]> value_str = nullptr;
     bool value_bool = false;
-    Maybe<bool> maybe_found =
-        option_to_bcp47.is_bool_value
-            ? GetBoolOption(isolate, options, option_to_bcp47.name, "locale",
-                            &value_bool)
-            : GetStringOption(isolate, options, option_to_bcp47.name,
-                              *(option_to_bcp47.possible_values), "locale",
-                              &value_str);
-    MAYBE_RETURN(maybe_found, Nothing<bool>());
+    DirectHandle<String> name =
+        (isolate->factory()->*option_to_bcp47.object_key)();
+
+    bool found = false;
+    std::string_view value_str;
+    std::string owned;
+    if (option_to_bcp47.is_bool_value) {
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, found,
+          GetBoolOption(isolate, options, name, "locale", &value_bool), {});
+    } else if (option_to_bcp47.possible_values.empty()) {
+      // We just wish to fetch the string
+      DirectHandle<String> output;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, found,
+          GetStringOption(isolate, options, name, "locale", &output), {});
+      if (found) {
+        owned = output->ToStdString();
+        value_str = owned;
+      }
+    } else {
+      // The string is expected to be in a particular set.
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, value_str,
+          GetStringOption<std::string_view>(
+              isolate, options, name, "locale", option_to_bcp47.possible_values,
+              option_to_bcp47.possible_values, std::string_view()),
+          {});
+      if (!value_str.empty()) {
+        found = true;
+      }
+    }
 
     // TODO(cira): Use fallback value if value is not found to make
     // this spec compliant.
-    if (!maybe_found.FromJust()) continue;
+    if (!found) continue;
 
-    const char* type = value_str.get();
+    const char* type = value_str.data();
+
     if (strcmp(option_to_bcp47.key, "fw") == 0) {
       const std::array<ValueAndType, 8> kFirstDayValuesAndTypes = {
           {{"0", "sun"},
@@ -99,15 +123,13 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
            {"6", "sat"},
            {"7", "sun"}}};
       for (const auto& value_to_type : kFirstDayValuesAndTypes) {
-        if (std::strcmp(type, value_to_type.value) == 0) {
+        if (strcmp(type, value_to_type.value) == 0) {
           type = value_to_type.type;
           break;
         }
       }
     } else if (option_to_bcp47.is_bool_value) {
-      value_str = value_bool ? isolate->factory()->true_string()->ToCString()
-                             : isolate->factory()->false_string()->ToCString();
-      type = value_str.get();
+      type = value_bool ? "true" : "false";
     }
     DCHECK_NOT_NULL(type);
 
@@ -268,9 +290,7 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
                               icu::LocaleBuilder* builder) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   if (tag->length() == 0) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NewRangeError(MessageTemplate::kLocaleNotEmpty),
-        Nothing<bool>());
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kLocaleNotEmpty));
   }
 
   v8::String::Utf8Value bcp47_tag(v8_isolate, v8::Utils::ToLocal(tag));
@@ -293,54 +313,57 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
 
   // 3. Let language be ? GetOption(options, "language", "string", undefined,
   // undefined).
-  const std::vector<const char*> empty_values = {};
-  std::unique_ptr<char[]> language_str = nullptr;
+  DirectHandle<String> language_str;
   Maybe<bool> maybe_language =
-      GetStringOption(isolate, options, "language", empty_values,
+      GetStringOption(isolate, options, isolate->factory()->language_string(),
                       "ApplyOptionsToTag", &language_str);
   MAYBE_RETURN(maybe_language, Nothing<bool>());
+
   // 4. If language is not undefined, then
   if (maybe_language.FromJust()) {
-    builder->setLanguage(language_str.get());
+    std::string language_stdstr = language_str->ToStdString();
+    builder->setLanguage(language_stdstr);
     builder->build(status);
     // a. If language does not match the unicode_language_subtag production,
     //    throw a RangeError exception.
-    if (U_FAILURE(status) || language_str[0] == '\0' ||
-        IsAlpha(language_str.get(), 4, 4)) {
+    if (U_FAILURE(status) || language_stdstr.empty() ||
+        IsAlpha(language_stdstr, 4, 4)) {
       return Just(false);
     }
   }
   // 5. Let script be ? GetOption(options, "script", "string", undefined,
   // undefined).
-  std::unique_ptr<char[]> script_str = nullptr;
+  DirectHandle<String> script_str;
   Maybe<bool> maybe_script =
-      GetStringOption(isolate, options, "script", empty_values,
+      GetStringOption(isolate, options, isolate->factory()->script_string(),
                       "ApplyOptionsToTag", &script_str);
   MAYBE_RETURN(maybe_script, Nothing<bool>());
   // 6. If script is not undefined, then
   if (maybe_script.FromJust()) {
-    builder->setScript(script_str.get());
+    std::string script_stdstr = script_str->ToStdString();
+    builder->setScript(script_stdstr);
     builder->build(status);
     // a. If script does not match the unicode_script_subtag production, throw
     //    a RangeError exception.
-    if (U_FAILURE(status) || script_str[0] == '\0') {
+    if (U_FAILURE(status) || script_stdstr.empty()) {
       return Just(false);
     }
   }
   // 7. Let region be ? GetOption(options, "region", "string", undefined,
   // undefined).
-  std::unique_ptr<char[]> region_str = nullptr;
+  DirectHandle<String> region_str;
   Maybe<bool> maybe_region =
-      GetStringOption(isolate, options, "region", empty_values,
+      GetStringOption(isolate, options, isolate->factory()->region_string(),
                       "ApplyOptionsToTag", &region_str);
   MAYBE_RETURN(maybe_region, Nothing<bool>());
   // 8. If region is not undefined, then
   if (maybe_region.FromJust()) {
+    std::string region_stdstr = region_str->ToStdString();
     // a. If region does not match the region production, throw a RangeError
     // exception.
-    builder->setRegion(region_str.get());
+    builder->setRegion(region_stdstr);
     builder->build(status);
-    if (U_FAILURE(status) || region_str[0] == '\0') {
+    if (U_FAILURE(status) || region_stdstr.empty()) {
       return Just(false);
     }
   }

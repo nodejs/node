@@ -17,7 +17,6 @@ typedef struct cached_store_st {
     char *uri;
     OSSL_LIB_CTX *libctx;
     char *propq;
-    OSSL_STORE_CTX *ctx;
 } CACHED_STORE;
 
 DEFINE_STACK_OF(CACHED_STORE)
@@ -27,14 +26,12 @@ static int cache_objects(X509_LOOKUP *lctx, CACHED_STORE *store,
                          const OSSL_STORE_SEARCH *criterion, int depth)
 {
     int ok = 0;
-    OSSL_STORE_CTX *ctx = store->ctx;
+    OSSL_STORE_CTX *ctx;
     X509_STORE *xstore = X509_LOOKUP_get_store(lctx);
 
-    if (ctx == NULL
-        && (ctx = OSSL_STORE_open_ex(store->uri, store->libctx, store->propq,
-                                     NULL, NULL, NULL, NULL, NULL)) == NULL)
+    if ((ctx = OSSL_STORE_open_ex(store->uri, store->libctx, store->propq,
+                                  NULL, NULL, NULL, NULL, NULL)) == NULL)
         return 0;
-    store->ctx = ctx;
 
     /*
      * We try to set the criterion, but don't care if it was valid or not.
@@ -79,7 +76,6 @@ static int cache_objects(X509_LOOKUP *lctx, CACHED_STORE *store,
                 substore.uri = (char *)OSSL_STORE_INFO_get0_NAME(info);
                 substore.libctx = store->libctx;
                 substore.propq = store->propq;
-                substore.ctx = NULL;
                 ok = cache_objects(lctx, &substore, criterion, depth - 1);
             }
         } else {
@@ -105,7 +101,6 @@ static int cache_objects(X509_LOOKUP *lctx, CACHED_STORE *store,
             break;
     }
     OSSL_STORE_close(ctx);
-    store->ctx = NULL;
 
     return ok;
 }
@@ -114,7 +109,6 @@ static int cache_objects(X509_LOOKUP *lctx, CACHED_STORE *store,
 static void free_store(CACHED_STORE *store)
 {
     if (store != NULL) {
-        OSSL_STORE_close(store->ctx);
         OPENSSL_free(store->uri);
         OPENSSL_free(store->propq);
         OPENSSL_free(store);
@@ -136,6 +130,7 @@ static int by_store_ctrl_ex(X509_LOOKUP *ctx, int cmd, const char *argp,
         if (argp != NULL) {
             STACK_OF(CACHED_STORE) *stores = X509_LOOKUP_get_method_data(ctx);
             CACHED_STORE *store = OPENSSL_zalloc(sizeof(*store));
+            OSSL_STORE_CTX *sctx;
 
             if (store == NULL) {
                 return 0;
@@ -145,14 +140,20 @@ static int by_store_ctrl_ex(X509_LOOKUP *ctx, int cmd, const char *argp,
             store->libctx = libctx;
             if (propq != NULL)
                 store->propq = OPENSSL_strdup(propq);
-            store->ctx = OSSL_STORE_open_ex(argp, libctx, propq, NULL, NULL,
-                                           NULL, NULL, NULL);
-            if (store->ctx == NULL
+            /*
+             * We open this to check for errors now - so we can report those
+             * errors early.
+             */
+            sctx = OSSL_STORE_open_ex(argp, libctx, propq, NULL, NULL,
+                                      NULL, NULL, NULL);
+            if (sctx == NULL
                 || (propq != NULL && store->propq == NULL)
                 || store->uri == NULL) {
+                OSSL_STORE_close(sctx);
                 free_store(store);
                 return 0;
             }
+            OSSL_STORE_close(sctx);
 
             if (stores == NULL) {
                 stores = sk_CACHED_STORE_new_null();
@@ -174,7 +175,6 @@ static int by_store_ctrl_ex(X509_LOOKUP *ctx, int cmd, const char *argp,
         store.uri = (char *)argp;
         store.libctx = libctx;
         store.propq = (char *)propq;
-        store.ctx = NULL;
         return cache_objects(ctx, &store, NULL, 0);
     }
     default:
@@ -218,8 +218,14 @@ static int by_store_subject(X509_LOOKUP *ctx, X509_LOOKUP_TYPE type,
 
     OSSL_STORE_SEARCH_free(criterion);
 
-    if (ok)
+    if (ok) {
+        X509_STORE *store = X509_LOOKUP_get_store(ctx);
+
+        if (!ossl_x509_store_read_lock(store))
+            return 0;
         tmp = X509_OBJECT_retrieve_by_subject(store_objects, type, name);
+        X509_STORE_unlock(store);
+    }
 
     ok = 0;
     if (tmp != NULL) {

@@ -483,13 +483,10 @@ Origins::Origins(
 
   CHECK_LE(origin_contents + origin_string_len,
            static_cast<char*>(bs_->Data()) + bs_->ByteLength());
-  CHECK_EQ(origin_string->WriteOneByte(
-               env->isolate(),
-               reinterpret_cast<uint8_t*>(origin_contents),
-               0,
-               origin_string_len,
-               String::NO_NULL_TERMINATION),
-           origin_string_len);
+  origin_string->WriteOneByteV2(env->isolate(),
+                                0,
+                                origin_string_len,
+                                reinterpret_cast<uint8_t*>(origin_contents));
 
   size_t n = 0;
   char* p;
@@ -3186,8 +3183,8 @@ void Http2Session::AltSvc(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  size_t origin_len = origin_str->Length();
-  size_t value_len = value_str->Length();
+  int origin_len = origin_str->Length();
+  int value_len = value_str->Length();
 
   CHECK_LE(origin_len + value_len, 16382);  // Max permitted for ALTSVC
   // Verify that origin len != 0 if stream id == 0, or
@@ -3196,8 +3193,13 @@ void Http2Session::AltSvc(const FunctionCallbackInfo<Value>& args) {
 
   MaybeStackBuffer<uint8_t> origin(origin_len);
   MaybeStackBuffer<uint8_t> value(value_len);
-  origin_str->WriteOneByte(env->isolate(), *origin);
-  value_str->WriteOneByte(env->isolate(), *value);
+  origin_str->WriteOneByteV2(env->isolate(),
+                             0,
+                             origin_len,
+                             *origin,
+                             String::WriteFlags::kNullTerminate);
+  value_str->WriteOneByteV2(
+      env->isolate(), 0, value_len, *value, String::WriteFlags::kNullTerminate);
 
   session->AltSvc(id, *origin, origin_len, *value, value_len);
 }

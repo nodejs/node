@@ -453,10 +453,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::Add_LhsIsStringConstant_Internalize(
-    Token::Value op, Register reg, int feedback_slot) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::Add_StringConstant_Internalize(
+    Token::Value op, Register reg, int feedback_slot,
+    AddStringConstantAndInternalizeVariant as_variant) {
   DCHECK_EQ(op, Token::kAdd);
-  OutputAdd_LhsIsStringConstant_Internalize(reg, feedback_slot);
+#ifdef DEBUG
+  using ASVariant = AddStringConstantAndInternalizeVariant;
+  DCHECK(as_variant == ASVariant::kLhsIsStringConstant ||
+         as_variant == ASVariant::kRhsIsStringConstant);
+#endif  // DEBUG
+  OutputAdd_StringConstant_Internalize(reg, feedback_slot,
+                                       static_cast<uint8_t>(as_variant));
   return *this;
 }
 
@@ -754,6 +761,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::SetPrototypeProperties(
+    size_t index_obj) {
+  OutputSetPrototypeProperties(index_obj);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(const AstRawString* name,
                                                        int feedback_slot,
                                                        TypeofMode typeof_mode) {
@@ -813,7 +826,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
                                                              Variable* variable,
                                                              int depth) {
   int slot_index = variable->index();
-  if (variable->mode() != VariableMode::kConst &&
+  if (variable->maybe_assigned() != kNotAssigned &&
       variable->scope()->has_context_cells()) {
     if (context.is_current_context() && depth == 0) {
       OutputStaCurrentContextSlot(slot_index);
@@ -934,6 +947,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::ForOfNext(Register object,
+                                                      Register next,
+                                                      RegisterList value_done) {
+  DCHECK_EQ(2, value_done.register_count());
+  OutputForOfNext(object, next, value_done);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAsyncIteratorProperty(
     Register object, int feedback_slot) {
   size_t name_index = AsyncIteratorSymbolConstantPoolEntry();
@@ -1043,7 +1064,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateCatchContext(
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateFunctionContext(
     const Scope* scope, int slots) {
   size_t scope_index = GetConstantPoolEntry(scope);
-  OutputCreateFunctionContext(scope_index, slots);
+  if (scope->has_context_cells()) {
+    OutputCreateFunctionContextWithCells(scope_index, slots);
+  } else {
+    OutputCreateFunctionContext(scope_index, slots);
+  }
   return *this;
 }
 

@@ -399,6 +399,28 @@ the [`NODE_COMPILE_CACHE=dir`][] environment variable if it's set, or defaults
 to `path.join(os.tmpdir(), 'node-compile-cache')` otherwise. To locate the compile cache
 directory used by a running Node.js instance, use [`module.getCompileCacheDir()`][].
 
+By default, caches are invalidated when the absolute paths of the modules being
+cached are changed. To keep the cache working after moving the
+project directory, enable portable compile cache. This allows previously compiled
+modules to be reused across different directory locations as long as the layout relative
+to the cache directory remains the same. This would be done on a best-effort basis. If
+Node.js cannot compute the location of a module relative to the cache directory, the module
+will not be cached.
+
+There are two ways to enable the portable mode:
+
+1. Using the portable option in module.enableCompileCache():
+
+   ```js
+   // Non-portable cache (default): cache breaks if project is moved
+   module.enableCompileCache({ path: '/path/to/cache/storage/dir' });
+
+   // Portable cache: cache works after the project is moved
+   module.enableCompileCache({ path: '/path/to/cache/storage/dir', portable: true });
+   ```
+
+2. Setting the environment variable: [`NODE_COMPILE_CACHE_PORTABLE=1`][]
+
 Currently when using the compile cache with [V8 JavaScript code coverage][], the
 coverage being collected by V8 may be less precise in functions that are
 deserialized from the code cache. It's recommended to turn this off when
@@ -1789,6 +1811,7 @@ returned object contains the following keys:
 [`--import`]: cli.md#--importmodule
 [`--require`]: cli.md#-r---require-module
 [`NODE_COMPILE_CACHE=dir`]: cli.md#node_compile_cachedir
+[`NODE_COMPILE_CACHE_PORTABLE=1`]: cli.md#node_compile_cache_portable1
 [`NODE_DISABLE_COMPILE_CACHE=1`]: cli.md#node_disable_compile_cache1
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
 [`SourceMap`]: #class-modulesourcemap

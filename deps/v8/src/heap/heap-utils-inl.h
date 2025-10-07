@@ -14,7 +14,7 @@ namespace v8::internal {
 
 // static
 Heap* HeapUtils::GetOwnerHeap(Tagged<HeapObject> object) {
-  return MemoryChunk::FromHeapObject(object)->GetHeap();
+  return MemoryChunk::FromHeapObject(object)->Metadata()->heap();
 }
 
 }  // namespace v8::internal

@@ -186,7 +186,7 @@ int X509_PURPOSE_add(int id, int trust, int flags,
         return 0;
     }
     if (trust < X509_TRUST_DEFAULT || name == NULL || sname == NULL || ck == NULL) {
-        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_INVALID_ARGUMENT);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_PASSED_INVALID_ARGUMENT);
         return 0;
     }
 

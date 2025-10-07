@@ -28,11 +28,11 @@ const aliveForeverFile = 'child-process-stay-alive-forever.js';
   // Verify timeout verification
   throws(() => spawn(process.execPath, [fixtures.path(aliveForeverFile)], {
     timeout: 'badValue',
-  }), /ERR_OUT_OF_RANGE/);
+  }), /ERR_INVALID_ARG_TYPE/);
 
   throws(() => spawn(process.execPath, [fixtures.path(aliveForeverFile)], {
     timeout: {},
-  }), /ERR_OUT_OF_RANGE/);
+  }), /ERR_INVALID_ARG_TYPE/);
 }
 
 {

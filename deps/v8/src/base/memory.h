@@ -84,7 +84,7 @@ static inline V ReadLittleEndianValue(V* p) {
 template <typename V>
 static inline void WriteLittleEndianValue(V* p, V value) {
   static_assert(
-      !std::is_array<V>::value,
+      !std::is_array_v<V>,
       "Passing an array decays to pointer, causing unexpected results.");
   WriteLittleEndianValue<V>(reinterpret_cast<Address>(p), value);
 }

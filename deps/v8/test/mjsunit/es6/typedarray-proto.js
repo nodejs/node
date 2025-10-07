@@ -30,23 +30,31 @@ let classProperties = new Set([
 ]);
 let instanceProperties = new Set(["BYTES_PER_ELEMENT", "constructor", "prototype"]);
 
-function functionProperties(object) {
-  return Object.getOwnPropertyNames(object).filter(function(name) {
-    return typeof Object.getOwnPropertyDescriptor(object, name).value
-        == "function"
-      && name != 'constructor' && name != 'subarray';
-  });
-}
-
-let typedArrayMethods = functionProperties(Uint8Array.prototype);
-let typedArrayClassMethods = functionProperties(Uint8Array);
+let uint8ArrayExtraPrototypeMethods =
+    new Set(["toBase64", "setFromBase64", "toHex", "setFromHex"]);
+let uint8ArrayExtraFunctionMethods = new Set(["fromBase64", "fromHex"]);
 
 for (let constructor of typedArrayConstructors) {
-  for (let property of Object.getOwnPropertyNames(constructor.prototype)) {
-    assertTrue(instanceProperties.has(property), property);
-  }
-  for (let property of Object.getOwnPropertyNames(constructor)) {
-    assertTrue(classProperties.has(property), property);
+  if (constructor != Uint8Array) {
+    for (let property of Object.getOwnPropertyNames(constructor.prototype)) {
+      assertTrue(instanceProperties.has(property), property);
+    }
+    for (let property of Object.getOwnPropertyNames(constructor)) {
+      assertTrue(classProperties.has(property), property);
+    }
+  } else {
+    for (let property of Object.getOwnPropertyNames(constructor.prototype)) {
+      assertTrue(
+          (instanceProperties.has(property) ||
+           uint8ArrayExtraPrototypeMethods.has(property)),
+          property);
+    }
+    for (let property of Object.getOwnPropertyNames(constructor)) {
+      assertTrue(
+          (classProperties.has(property) ||
+           uint8ArrayExtraFunctionMethods.has(property)),
+          property);
+    }
   }
 }
 

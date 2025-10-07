@@ -462,40 +462,38 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
   COMPARE("480fafd1             REX.W imulq rdx,rcx", imulq(rdx, rcx));
   COMPARE("480fa5ca             REX.W shld rdx,rcx,cl", shld(rdx, rcx));
   COMPARE("480fadca             REX.W shrd rdx,rcx,cl", shrd(rdx, rcx));
-  COMPARE("48d1648764           REX.W shlq [rdi+rax*4+0x64], 1",
+  COMPARE("48d1648764           REX.W shlq [rdi+rax*4+0x64],1",
           shlq(Operand(rdi, rax, times_4, 100), Immediate(1)));
-  COMPARE("48c164876406         REX.W shlq [rdi+rax*4+0x64], 6",
+  COMPARE("48c164876406         REX.W shlq [rdi+rax*4+0x64],6",
           shlq(Operand(rdi, rax, times_4, 100), Immediate(6)));
-  COMPARE("49d127               REX.W shlq [r15], 1",
+  COMPARE("49d127               REX.W shlq [r15],1",
           shlq(Operand(r15, 0), Immediate(1)));
-  COMPARE("49c12706             REX.W shlq [r15], 6",
+  COMPARE("49c12706             REX.W shlq [r15],6",
           shlq(Operand(r15, 0), Immediate(6)));
-  COMPARE("49d327               REX.W shlq [r15], cl",
-          shlq_cl(Operand(r15, 0)));
-  COMPARE("49d327               REX.W shlq [r15], cl",
-          shlq_cl(Operand(r15, 0)));
-  COMPARE("48d3648764           REX.W shlq [rdi+rax*4+0x64], cl",
+  COMPARE("49d327               REX.W shlq [r15],cl", shlq_cl(Operand(r15, 0)));
+  COMPARE("49d327               REX.W shlq [r15],cl", shlq_cl(Operand(r15, 0)));
+  COMPARE("48d3648764           REX.W shlq [rdi+rax*4+0x64],cl",
           shlq_cl(Operand(rdi, rax, times_4, 100)));
-  COMPARE("48d3648764           REX.W shlq [rdi+rax*4+0x64], cl",
+  COMPARE("48d3648764           REX.W shlq [rdi+rax*4+0x64],cl",
           shlq_cl(Operand(rdi, rax, times_4, 100)));
-  COMPARE("48d1e2               REX.W shlq rdx, 1", shlq(rdx, Immediate(1)));
-  COMPARE("48c1e206             REX.W shlq rdx, 6", shlq(rdx, Immediate(6)));
-  COMPARE("d1648764             shll [rdi+rax*4+0x64], 1",
+  COMPARE("48d1e2               REX.W shlq rdx,1", shlq(rdx, Immediate(1)));
+  COMPARE("48c1e206             REX.W shlq rdx,6", shlq(rdx, Immediate(6)));
+  COMPARE("d1648764             shll [rdi+rax*4+0x64],1",
           shll(Operand(rdi, rax, times_4, 100), Immediate(1)));
-  COMPARE("c164876406           shll [rdi+rax*4+0x64], 6",
+  COMPARE("c164876406           shll [rdi+rax*4+0x64],6",
           shll(Operand(rdi, rax, times_4, 100), Immediate(6)));
-  COMPARE("41d127               shll [r15], 1",
+  COMPARE("41d127               shll [r15],1",
           shll(Operand(r15, 0), Immediate(1)));
-  COMPARE("41c12706             shll [r15], 6",
+  COMPARE("41c12706             shll [r15],6",
           shll(Operand(r15, 0), Immediate(6)));
-  COMPARE("41d327               shll [r15], cl", shll_cl(Operand(r15, 0)));
-  COMPARE("41d327               shll [r15], cl", shll_cl(Operand(r15, 0)));
-  COMPARE("d3648764             shll [rdi+rax*4+0x64], cl",
+  COMPARE("41d327               shll [r15],cl", shll_cl(Operand(r15, 0)));
+  COMPARE("41d327               shll [r15],cl", shll_cl(Operand(r15, 0)));
+  COMPARE("d3648764             shll [rdi+rax*4+0x64],cl",
           shll_cl(Operand(rdi, rax, times_4, 100)));
-  COMPARE("d3648764             shll [rdi+rax*4+0x64], cl",
+  COMPARE("d3648764             shll [rdi+rax*4+0x64],cl",
           shll_cl(Operand(rdi, rax, times_4, 100)));
-  COMPARE("d1e2                 shll rdx, 1", shll(rdx, Immediate(1)));
-  COMPARE("c1e206               shll rdx, 6", shll(rdx, Immediate(6)));
+  COMPARE("d1e2                 shll rdx,1", shll(rdx, Immediate(1)));
+  COMPARE("c1e206               shll rdx,6", shll(rdx, Immediate(6)));
   COMPARE("480fa30a             REX.W bt [rdx],rcx,cl",
           btq(Operand(rdx, 0), rcx));
   COMPARE("480fab0a             REX.W bts [rdx],rcx",
@@ -619,22 +617,22 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
   COMPARE("480b948b10270000     REX.W orq rdx,[rbx+rcx*4+0x2710]",
           orq(rdx, Operand(rbx, rcx, times_4, 10000)));
 
-  COMPARE("48d1d2               REX.W rclq rdx, 1", rclq(rdx, Immediate(1)));
-  COMPARE("48c1d207             REX.W rclq rdx, 7", rclq(rdx, Immediate(7)));
-  COMPARE("48d1da               REX.W rcrq rdx, 1", rcrq(rdx, Immediate(1)));
-  COMPARE("48c1da07             REX.W rcrq rdx, 7", rcrq(rdx, Immediate(7)));
-  COMPARE("48d1fa               REX.W sarq rdx, 1", sarq(rdx, Immediate(1)));
-  COMPARE("48c1fa06             REX.W sarq rdx, 6", sarq(rdx, Immediate(6)));
-  COMPARE("48d3fa               REX.W sarq rdx, cl", sarq_cl(rdx));
+  COMPARE("48d1d2               REX.W rclq rdx,1", rclq(rdx, Immediate(1)));
+  COMPARE("48c1d207             REX.W rclq rdx,7", rclq(rdx, Immediate(7)));
+  COMPARE("48d1da               REX.W rcrq rdx,1", rcrq(rdx, Immediate(1)));
+  COMPARE("48c1da07             REX.W rcrq rdx,7", rcrq(rdx, Immediate(7)));
+  COMPARE("48d1fa               REX.W sarq rdx,1", sarq(rdx, Immediate(1)));
+  COMPARE("48c1fa06             REX.W sarq rdx,6", sarq(rdx, Immediate(6)));
+  COMPARE("48d3fa               REX.W sarq rdx,cl", sarq_cl(rdx));
   COMPARE("481bd3               REX.W sbbq rdx,rbx", sbbq(rdx, rbx));
   COMPARE("480fa5da             REX.W shld rdx,rbx,cl", shld(rdx, rbx));
-  COMPARE("48d1e2               REX.W shlq rdx, 1", shlq(rdx, Immediate(1)));
-  COMPARE("48c1e206             REX.W shlq rdx, 6", shlq(rdx, Immediate(6)));
-  COMPARE("48d3e2               REX.W shlq rdx, cl", shlq_cl(rdx));
+  COMPARE("48d1e2               REX.W shlq rdx,1", shlq(rdx, Immediate(1)));
+  COMPARE("48c1e206             REX.W shlq rdx,6", shlq(rdx, Immediate(6)));
+  COMPARE("48d3e2               REX.W shlq rdx,cl", shlq_cl(rdx));
   COMPARE("480fadda             REX.W shrd rdx,rbx,cl", shrd(rdx, rbx));
-  COMPARE("48d1ea               REX.W shrq rdx, 1", shrq(rdx, Immediate(1)));
-  COMPARE("48c1ea07             REX.W shrq rdx, 7", shrq(rdx, Immediate(7)));
-  COMPARE("48d3ea               REX.W shrq rdx, cl", shrq_cl(rdx));
+  COMPARE("48d1ea               REX.W shrq rdx,1", shrq(rdx, Immediate(1)));
+  COMPARE("48c1ea07             REX.W shrq rdx,7", shrq(rdx, Immediate(7)));
+  COMPARE("48d3ea               REX.W shrq rdx,cl", shrq_cl(rdx));
 
   COMPARE("4883c30c             REX.W addq rbx,0xc", addq(rbx, Immediate(12)));
   COMPARE("4883848a102700000c   REX.W addq [rdx+rcx*4+0x2710],0xc",
@@ -989,55 +987,54 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputSSE4_1) {
   COMPARE("660f3a0ee901         pblendw xmm5,xmm1,0x1", pblendw(xmm5, xmm1, 1));
   COMPARE("66440f3a0e480401     pblendw xmm9,[rax+0x4],0x1",
           pblendw(xmm9, Operand(rax, 4), 1));
-  COMPARE("0fc2e901             cmpps xmm5, xmm1, lt", cmpps(xmm5, xmm1, 1));
-  COMPARE("0fc2ac8b1027000001   cmpps xmm5, [rbx+rcx*4+0x2710], lt",
+  COMPARE("0fc2e901             cmpps xmm5,xmm1,lt", cmpps(xmm5, xmm1, 1));
+  COMPARE("0fc2ac8b1027000001   cmpps xmm5,[rbx+rcx*4+0x2710],lt",
           cmpps(xmm5, Operand(rbx, rcx, times_4, 10000), 1));
-  COMPARE("0fc2e900             cmpps xmm5, xmm1, eq", cmpeqps(xmm5, xmm1));
-  COMPARE("0fc2ac8b1027000000   cmpps xmm5, [rbx+rcx*4+0x2710], eq",
+  COMPARE("0fc2e900             cmpps xmm5,xmm1,eq", cmpeqps(xmm5, xmm1));
+  COMPARE("0fc2ac8b1027000000   cmpps xmm5,[rbx+rcx*4+0x2710],eq",
           cmpeqps(xmm5, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("0fc2e901             cmpps xmm5, xmm1, lt", cmpltps(xmm5, xmm1));
-  COMPARE("0fc2ac8b1027000001   cmpps xmm5, [rbx+rcx*4+0x2710], lt",
+  COMPARE("0fc2e901             cmpps xmm5,xmm1,lt", cmpltps(xmm5, xmm1));
+  COMPARE("0fc2ac8b1027000001   cmpps xmm5,[rbx+rcx*4+0x2710],lt",
           cmpltps(xmm5, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("0fc2e902             cmpps xmm5, xmm1, le", cmpleps(xmm5, xmm1));
-  COMPARE("0fc2ac8b1027000002   cmpps xmm5, [rbx+rcx*4+0x2710], le",
+  COMPARE("0fc2e902             cmpps xmm5,xmm1,le", cmpleps(xmm5, xmm1));
+  COMPARE("0fc2ac8b1027000002   cmpps xmm5,[rbx+rcx*4+0x2710],le",
           cmpleps(xmm5, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("0fc2e903             cmpps xmm5, xmm1, unord",
-          cmpunordps(xmm5, xmm1));
-  COMPARE("0fc2ac8b1027000003   cmpps xmm5, [rbx+rcx*4+0x2710], unord",
+  COMPARE("0fc2e903             cmpps xmm5,xmm1,unord", cmpunordps(xmm5, xmm1));
+  COMPARE("0fc2ac8b1027000003   cmpps xmm5,[rbx+rcx*4+0x2710],unord",
           cmpunordps(xmm5, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("0fc2e904             cmpps xmm5, xmm1, neq", cmpneqps(xmm5, xmm1));
-  COMPARE("0fc2ac8b1027000004   cmpps xmm5, [rbx+rcx*4+0x2710], neq",
+  COMPARE("0fc2e904             cmpps xmm5,xmm1,neq", cmpneqps(xmm5, xmm1));
+  COMPARE("0fc2ac8b1027000004   cmpps xmm5,[rbx+rcx*4+0x2710],neq",
           cmpneqps(xmm5, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("0fc2e905             cmpps xmm5, xmm1, nlt", cmpnltps(xmm5, xmm1));
-  COMPARE("0fc2ac8b1027000005   cmpps xmm5, [rbx+rcx*4+0x2710], nlt",
+  COMPARE("0fc2e905             cmpps xmm5,xmm1,nlt", cmpnltps(xmm5, xmm1));
+  COMPARE("0fc2ac8b1027000005   cmpps xmm5,[rbx+rcx*4+0x2710],nlt",
           cmpnltps(xmm5, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("0fc2e906             cmpps xmm5, xmm1, nle", cmpnleps(xmm5, xmm1));
-  COMPARE("0fc2ac8b1027000006   cmpps xmm5, [rbx+rcx*4+0x2710], nle",
+  COMPARE("0fc2e906             cmpps xmm5,xmm1,nle", cmpnleps(xmm5, xmm1));
+  COMPARE("0fc2ac8b1027000006   cmpps xmm5,[rbx+rcx*4+0x2710],nle",
           cmpnleps(xmm5, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("660fc2e901           cmppd xmm5,xmm1, (lt)", cmppd(xmm5, xmm1, 1));
-  COMPARE("660fc2ac8b1027000001 cmppd xmm5,[rbx+rcx*4+0x2710], (lt)",
+  COMPARE("660fc2e901           cmppd xmm5,xmm1,(lt)", cmppd(xmm5, xmm1, 1));
+  COMPARE("660fc2ac8b1027000001 cmppd xmm5,[rbx+rcx*4+0x2710],(lt)",
           cmppd(xmm5, Operand(rbx, rcx, times_4, 10000), 1));
-  COMPARE("660fc2e900           cmppd xmm5,xmm1, (eq)", cmpeqpd(xmm5, xmm1));
-  COMPARE("660fc2ac8b1027000000 cmppd xmm5,[rbx+rcx*4+0x2710], (eq)",
+  COMPARE("660fc2e900           cmppd xmm5,xmm1,(eq)", cmpeqpd(xmm5, xmm1));
+  COMPARE("660fc2ac8b1027000000 cmppd xmm5,[rbx+rcx*4+0x2710],(eq)",
           cmpeqpd(xmm5, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("660fc2e901           cmppd xmm5,xmm1, (lt)", cmpltpd(xmm5, xmm1));
-  COMPARE("660fc2ac8b1027000001 cmppd xmm5,[rbx+rcx*4+0x2710], (lt)",
+  COMPARE("660fc2e901           cmppd xmm5,xmm1,(lt)", cmpltpd(xmm5, xmm1));
+  COMPARE("660fc2ac8b1027000001 cmppd xmm5,[rbx+rcx*4+0x2710],(lt)",
           cmpltpd(xmm5, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("660fc2e902           cmppd xmm5,xmm1, (le)", cmplepd(xmm5, xmm1));
-  COMPARE("660fc2ac8b1027000002 cmppd xmm5,[rbx+rcx*4+0x2710], (le)",
+  COMPARE("660fc2e902           cmppd xmm5,xmm1,(le)", cmplepd(xmm5, xmm1));
+  COMPARE("660fc2ac8b1027000002 cmppd xmm5,[rbx+rcx*4+0x2710],(le)",
           cmplepd(xmm5, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("660fc2e903           cmppd xmm5,xmm1, (unord)",
+  COMPARE("660fc2e903           cmppd xmm5,xmm1,(unord)",
           cmpunordpd(xmm5, xmm1));
-  COMPARE("660fc2ac8b1027000003 cmppd xmm5,[rbx+rcx*4+0x2710], (unord)",
+  COMPARE("660fc2ac8b1027000003 cmppd xmm5,[rbx+rcx*4+0x2710],(unord)",
           cmpunordpd(xmm5, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("660fc2e904           cmppd xmm5,xmm1, (neq)", cmpneqpd(xmm5, xmm1));
-  COMPARE("660fc2ac8b1027000004 cmppd xmm5,[rbx+rcx*4+0x2710], (neq)",
+  COMPARE("660fc2e904           cmppd xmm5,xmm1,(neq)", cmpneqpd(xmm5, xmm1));
+  COMPARE("660fc2ac8b1027000004 cmppd xmm5,[rbx+rcx*4+0x2710],(neq)",
           cmpneqpd(xmm5, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("660fc2e905           cmppd xmm5,xmm1, (nlt)", cmpnltpd(xmm5, xmm1));
-  COMPARE("660fc2ac8b1027000005 cmppd xmm5,[rbx+rcx*4+0x2710], (nlt)",
+  COMPARE("660fc2e905           cmppd xmm5,xmm1,(nlt)", cmpnltpd(xmm5, xmm1));
+  COMPARE("660fc2ac8b1027000005 cmppd xmm5,[rbx+rcx*4+0x2710],(nlt)",
           cmpnltpd(xmm5, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("660fc2e906           cmppd xmm5,xmm1, (nle)", cmpnlepd(xmm5, xmm1));
-  COMPARE("660fc2ac8b1027000006 cmppd xmm5,[rbx+rcx*4+0x2710], (nle)",
+  COMPARE("660fc2e906           cmppd xmm5,xmm1,(nle)", cmpnlepd(xmm5, xmm1));
+  COMPARE("660fc2ac8b1027000006 cmppd xmm5,[rbx+rcx*4+0x2710],(nle)",
           cmpnlepd(xmm5, Operand(rbx, rcx, times_4, 10000)));
 
   COMPARE("0f10e9               movups xmm5,xmm1", movups(xmm5, xmm1));
@@ -1222,9 +1219,9 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX) {
           vmovss(xmm9, Operand(r11, rcx, times_8, -10000)));
   COMPARE("c4a17a118c8b10270000 vmovss [rbx+r9*4+0x2710],xmm1",
           vmovss(Operand(rbx, r9, times_4, 10000), xmm1));
-  COMPARE("c532c2c900           vcmpss xmm9,xmm9,xmm1, (eq)",
+  COMPARE("c532c2c900           vcmpss xmm9,xmm9,xmm1,(eq)",
           vcmpeqss(xmm9, xmm1));
-  COMPARE("c533c2c900           vcmpsd xmm9,xmm9,xmm1, (eq)",
+  COMPARE("c533c2c900           vcmpsd xmm9,xmm9,xmm1,(eq)",
           vcmpeqsd(xmm9, xmm1));
   COMPARE("c5782ec9             vucomiss xmm9,xmm1", vucomiss(xmm9, xmm1));
   COMPARE("c5782e8453e52a0000   vucomiss xmm8,[rbx+rdx*2+0x2ae5]",
@@ -1329,73 +1326,73 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX) {
           vpcmpeqd(xmm0, xmm15, xmm5));
   COMPARE("c57976bc8b10270000   vpcmpeqd xmm15,xmm0,[rbx+rcx*4+0x2710]",
           vpcmpeqd(xmm15, xmm0, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d8c2e901           vcmpps xmm5,xmm4,xmm1, (lt)",
+  COMPARE("c5d8c2e901           vcmpps xmm5,xmm4,xmm1,(lt)",
           vcmpps(xmm5, xmm4, xmm1, 1));
-  COMPARE("c5d8c2ac8b1027000001 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (lt)",
+  COMPARE("c5d8c2ac8b1027000001 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710],(lt)",
           vcmpps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000), 1));
-  COMPARE("c5d8c2e900           vcmpps xmm5,xmm4,xmm1, (eq)",
+  COMPARE("c5d8c2e900           vcmpps xmm5,xmm4,xmm1,(eq)",
           vcmpeqps(xmm5, xmm4, xmm1));
-  COMPARE("c5d8c2ac8b1027000000 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (eq)",
+  COMPARE("c5d8c2ac8b1027000000 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710],(eq)",
           vcmpeqps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d8c2e901           vcmpps xmm5,xmm4,xmm1, (lt)",
+  COMPARE("c5d8c2e901           vcmpps xmm5,xmm4,xmm1,(lt)",
           vcmpltps(xmm5, xmm4, xmm1));
-  COMPARE("c5d8c2ac8b1027000001 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (lt)",
+  COMPARE("c5d8c2ac8b1027000001 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710],(lt)",
           vcmpltps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d8c2e902           vcmpps xmm5,xmm4,xmm1, (le)",
+  COMPARE("c5d8c2e902           vcmpps xmm5,xmm4,xmm1,(le)",
           vcmpleps(xmm5, xmm4, xmm1));
-  COMPARE("c5d8c2ac8b1027000002 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (le)",
+  COMPARE("c5d8c2ac8b1027000002 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710],(le)",
           vcmpleps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d8c2e903           vcmpps xmm5,xmm4,xmm1, (unord)",
+  COMPARE("c5d8c2e903           vcmpps xmm5,xmm4,xmm1,(unord)",
           vcmpunordps(xmm5, xmm4, xmm1));
-  COMPARE("c5d8c2ac8b1027000003 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (unord)",
+  COMPARE("c5d8c2ac8b1027000003 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710],(unord)",
           vcmpunordps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d8c2e904           vcmpps xmm5,xmm4,xmm1, (neq)",
+  COMPARE("c5d8c2e904           vcmpps xmm5,xmm4,xmm1,(neq)",
           vcmpneqps(xmm5, xmm4, xmm1));
-  COMPARE("c5d8c2ac8b1027000004 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (neq)",
+  COMPARE("c5d8c2ac8b1027000004 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710],(neq)",
           vcmpneqps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d8c2e905           vcmpps xmm5,xmm4,xmm1, (nlt)",
+  COMPARE("c5d8c2e905           vcmpps xmm5,xmm4,xmm1,(nlt)",
           vcmpnltps(xmm5, xmm4, xmm1));
-  COMPARE("c5d8c2ac8b1027000005 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (nlt)",
+  COMPARE("c5d8c2ac8b1027000005 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710],(nlt)",
           vcmpnltps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d8c2e906           vcmpps xmm5,xmm4,xmm1, (nle)",
+  COMPARE("c5d8c2e906           vcmpps xmm5,xmm4,xmm1,(nle)",
           vcmpnleps(xmm5, xmm4, xmm1));
-  COMPARE("c5d8c2ac8b1027000006 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (nle)",
+  COMPARE("c5d8c2ac8b1027000006 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710],(nle)",
           vcmpnleps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d8c2e90d           vcmpps xmm5,xmm4,xmm1, (ge)",
+  COMPARE("c5d8c2e90d           vcmpps xmm5,xmm4,xmm1,(ge)",
           vcmpgeps(xmm5, xmm4, xmm1));
-  COMPARE("c5d8c2ac8b102700000d vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (ge)",
+  COMPARE("c5d8c2ac8b102700000d vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710],(ge)",
           vcmpgeps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d9c2e901           vcmppd xmm5,xmm4,xmm1, (lt)",
+  COMPARE("c5d9c2e901           vcmppd xmm5,xmm4,xmm1,(lt)",
           vcmppd(xmm5, xmm4, xmm1, 1));
-  COMPARE("c5d9c2ac8b1027000001 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (lt)",
+  COMPARE("c5d9c2ac8b1027000001 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710],(lt)",
           vcmppd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000), 1));
-  COMPARE("c5d9c2e900           vcmppd xmm5,xmm4,xmm1, (eq)",
+  COMPARE("c5d9c2e900           vcmppd xmm5,xmm4,xmm1,(eq)",
           vcmpeqpd(xmm5, xmm4, xmm1));
-  COMPARE("c5d9c2ac8b1027000000 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (eq)",
+  COMPARE("c5d9c2ac8b1027000000 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710],(eq)",
           vcmpeqpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d9c2e901           vcmppd xmm5,xmm4,xmm1, (lt)",
+  COMPARE("c5d9c2e901           vcmppd xmm5,xmm4,xmm1,(lt)",
           vcmpltpd(xmm5, xmm4, xmm1));
-  COMPARE("c5d9c2ac8b1027000001 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (lt)",
+  COMPARE("c5d9c2ac8b1027000001 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710],(lt)",
           vcmpltpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d9c2e902           vcmppd xmm5,xmm4,xmm1, (le)",
+  COMPARE("c5d9c2e902           vcmppd xmm5,xmm4,xmm1,(le)",
           vcmplepd(xmm5, xmm4, xmm1));
-  COMPARE("c5d9c2ac8b1027000002 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (le)",
+  COMPARE("c5d9c2ac8b1027000002 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710],(le)",
           vcmplepd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d9c2e903           vcmppd xmm5,xmm4,xmm1, (unord)",
+  COMPARE("c5d9c2e903           vcmppd xmm5,xmm4,xmm1,(unord)",
           vcmpunordpd(xmm5, xmm4, xmm1));
-  COMPARE("c5d9c2ac8b1027000003 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (unord)",
+  COMPARE("c5d9c2ac8b1027000003 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710],(unord)",
           vcmpunordpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d9c2e904           vcmppd xmm5,xmm4,xmm1, (neq)",
+  COMPARE("c5d9c2e904           vcmppd xmm5,xmm4,xmm1,(neq)",
           vcmpneqpd(xmm5, xmm4, xmm1));
-  COMPARE("c5d9c2ac8b1027000004 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (neq)",
+  COMPARE("c5d9c2ac8b1027000004 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710],(neq)",
           vcmpneqpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d9c2e905           vcmppd xmm5,xmm4,xmm1, (nlt)",
+  COMPARE("c5d9c2e905           vcmppd xmm5,xmm4,xmm1,(nlt)",
           vcmpnltpd(xmm5, xmm4, xmm1));
-  COMPARE("c5d9c2ac8b1027000005 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (nlt)",
+  COMPARE("c5d9c2ac8b1027000005 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710],(nlt)",
           vcmpnltpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
-  COMPARE("c5d9c2e906           vcmppd xmm5,xmm4,xmm1, (nle)",
+  COMPARE("c5d9c2e906           vcmppd xmm5,xmm4,xmm1,(nle)",
           vcmpnlepd(xmm5, xmm4, xmm1));
-  COMPARE("c5d9c2ac8b1027000006 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (nle)",
+  COMPARE("c5d9c2ac8b1027000006 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710],(nle)",
           vcmpnlepd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
   COMPARE("c4e36921cb01         vinsertps xmm1,xmm2,xmm3,0x1",
           vinsertps(xmm1, xmm2, xmm3, 1));
@@ -1547,21 +1544,21 @@ TEST_F(DisasmX64Test, DisasmX64YMMRegister) {
             vperm2f128(ymm1, ymm2, ymm3, 2));
 
     // vcmp
-    COMPARE("c5dcc2e900           vcmpps ymm5,ymm4,ymm1, (eq)",
+    COMPARE("c5dcc2e900           vcmpps ymm5,ymm4,ymm1,(eq)",
             vcmpeqps(ymm5, ymm4, ymm1));
-    COMPARE("c5ddc2ac8b1027000001 vcmppd ymm5,ymm4,[rbx+rcx*4+0x2710], (lt)",
+    COMPARE("c5ddc2ac8b1027000001 vcmppd ymm5,ymm4,[rbx+rcx*4+0x2710],(lt)",
             vcmpltpd(ymm5, ymm4, Operand(rbx, rcx, times_4, 10000)));
-    COMPARE("c5ddc2e902           vcmppd ymm5,ymm4,ymm1, (le)",
+    COMPARE("c5ddc2e902           vcmppd ymm5,ymm4,ymm1,(le)",
             vcmplepd(ymm5, ymm4, ymm1));
-    COMPARE("c5dcc2ac8b1027000003 vcmpps ymm5,ymm4,[rbx+rcx*4+0x2710], (unord)",
+    COMPARE("c5dcc2ac8b1027000003 vcmpps ymm5,ymm4,[rbx+rcx*4+0x2710],(unord)",
             vcmpunordps(ymm5, ymm4, Operand(rbx, rcx, times_4, 10000)));
-    COMPARE("c5dcc2e904           vcmpps ymm5,ymm4,ymm1, (neq)",
+    COMPARE("c5dcc2e904           vcmpps ymm5,ymm4,ymm1,(neq)",
             vcmpneqps(ymm5, ymm4, ymm1));
-    COMPARE("c5ddc2ac8b1027000005 vcmppd ymm5,ymm4,[rbx+rcx*4+0x2710], (nlt)",
+    COMPARE("c5ddc2ac8b1027000005 vcmppd ymm5,ymm4,[rbx+rcx*4+0x2710],(nlt)",
             vcmpnltpd(ymm5, ymm4, Operand(rbx, rcx, times_4, 10000)));
-    COMPARE("c5ddc2ac8b1027000006 vcmppd ymm5,ymm4,[rbx+rcx*4+0x2710], (nle)",
+    COMPARE("c5ddc2ac8b1027000006 vcmppd ymm5,ymm4,[rbx+rcx*4+0x2710],(nle)",
             vcmpnlepd(ymm5, ymm4, Operand(rbx, rcx, times_4, 10000)));
-    COMPARE("c5dcc2e90d           vcmpps ymm5,ymm4,ymm1, (ge)",
+    COMPARE("c5dcc2e90d           vcmpps ymm5,ymm4,ymm1,(ge)",
             vcmpgeps(ymm5, ymm4, ymm1));
     COMPARE("c4e27d17f9           vptest ymm7,ymm1", vptest(ymm7, ymm1));
     COMPARE("c4627d17948b10270000 vptest ymm10,[rbx+rcx*4+0x2710]",

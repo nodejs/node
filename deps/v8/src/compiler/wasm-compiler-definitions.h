@@ -32,18 +32,20 @@ struct ModuleWireBytes;
 namespace compiler {
 class CallDescriptor;
 
+enum SubtypeCheckExactness : uint8_t {
+  kMayBeSubtype,
+  kExactMatchOnly,
+  kExactMatchLastSupertype,
+};
+
 // If {to} is nullable, it means that null passes the check.
 // {from} may change in compiler optimization passes as the object's type gets
 // narrowed.
 // TODO(12166): Add modules if we have cross-module inlining.
-enum ExactOrSubtype : bool {
-  kMayBeSubtype = false,
-  kExactMatchOnly = true,
-};
 struct WasmTypeCheckConfig {
   wasm::ValueType from;
   const wasm::ValueType to;
-  ExactOrSubtype exactness{kMayBeSubtype};
+  SubtypeCheckExactness exactness{kMayBeSubtype};
 };
 
 V8_INLINE std::ostream& operator<<(std::ostream& os,
@@ -96,7 +98,8 @@ enum WasmCallKind {
   kWasmFunction,
   kWasmIndirectFunction,
   kWasmImportWrapper,
-  kWasmCapiFunction
+  kWasmCapiFunction,
+  kWasmContinuation
 };
 
 template <typename T>

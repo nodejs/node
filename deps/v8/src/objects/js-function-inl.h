@@ -481,7 +481,7 @@ Tagged<NativeContext> JSFunction::native_context() {
 }
 
 RELEASE_ACQUIRE_ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map,
-                                  (Tagged<UnionOf<JSPrototype, Map, Hole>>),
+                                  (Tagged<UnionOf<JSPrototype, Map, TheHole>>),
                                   kPrototypeOrInitialMapOffset,
                                   map()->has_prototype_slot())
 
@@ -495,13 +495,14 @@ DEF_GETTER(JSFunction, initial_map, Tagged<Map>) {
 
 DEF_GETTER(JSFunction, has_initial_map, bool) {
   DCHECK(has_prototype_slot(cage_base));
-  return IsMap(prototype_or_initial_map(cage_base, kAcquireLoad), cage_base);
+  Tagged<UnionOf<JSPrototype, Map, TheHole>> maybe_map =
+      prototype_or_initial_map(cage_base, kAcquireLoad);
+  return !IsTheHole(maybe_map) && IsMap(maybe_map, cage_base);
 }
 
 DEF_GETTER(JSFunction, has_instance_prototype, bool) {
   DCHECK(has_prototype_slot(cage_base));
-  return has_initial_map(cage_base) ||
-         !IsTheHole(prototype_or_initial_map(cage_base, kAcquireLoad));
+  return !IsTheHole(prototype_or_initial_map(cage_base, kAcquireLoad));
 }
 
 DEF_GETTER(JSFunction, has_prototype, bool) {
@@ -556,13 +557,13 @@ bool JSFunction::NeedsResetDueToFlushedBytecode(Isolate* isolate) {
   // with CHECKs.
   Tagged<Object> maybe_shared =
       ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
-  if (!IsSharedFunctionInfo(maybe_shared)) return false;
+  Tagged<SharedFunctionInfo> shared;
+  if (!TryCast(maybe_shared, &shared)) return false;
 
   Tagged<Object> maybe_code = raw_code(isolate, kAcquireLoad);
-  if (!IsCode(maybe_code)) return false;
-  Tagged<Code> code = Cast<Code>(maybe_code);
+  Tagged<Code> code;
+  if (!TryCast(maybe_code, &code)) return false;
 
-  Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(maybe_shared);
   return !shared->is_compiled() &&
          (code->builtin_id() != Builtin::kCompileLazy ||
           // With leaptiering we can have CompileLazy as the code object but

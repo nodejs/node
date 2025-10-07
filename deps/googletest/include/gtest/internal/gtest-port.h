@@ -1385,9 +1385,9 @@ class GTEST_API_ Mutex {
   Mutex();
   ~Mutex();
 
-  void Lock();
+  void lock();
 
-  void Unlock();
+  void unlock();
 
   // Does nothing if the current thread holds the mutex. Otherwise, crashes
   // with high probability.
@@ -1424,9 +1424,9 @@ class GTEST_API_ Mutex {
 // "MutexLock l(&mu)".  Hence the typedef trick below.
 class GTestMutexLock {
  public:
-  explicit GTestMutexLock(Mutex* mutex) : mutex_(mutex) { mutex_->Lock(); }
+  explicit GTestMutexLock(Mutex* mutex) : mutex_(mutex) { mutex_->lock(); }
 
-  ~GTestMutexLock() { mutex_->Unlock(); }
+  ~GTestMutexLock() { mutex_->unlock(); }
 
  private:
   Mutex* const mutex_;
@@ -1641,14 +1641,14 @@ class ThreadLocal : public ThreadLocalBase {
 class MutexBase {
  public:
   // Acquires this mutex.
-  void Lock() {
+  void lock() {
     GTEST_CHECK_POSIX_SUCCESS_(pthread_mutex_lock(&mutex_));
     owner_ = pthread_self();
     has_owner_ = true;
   }
 
   // Releases this mutex.
-  void Unlock() {
+  void unlock() {
     // Since the lock is being released the owner_ field should no longer be
     // considered valid. We don't protect writing to has_owner_ here, as it's
     // the caller's responsibility to ensure that the current thread holds the
@@ -1716,9 +1716,9 @@ class Mutex : public MutexBase {
 // "MutexLock l(&mu)".  Hence the typedef trick below.
 class GTestMutexLock {
  public:
-  explicit GTestMutexLock(MutexBase* mutex) : mutex_(mutex) { mutex_->Lock(); }
+  explicit GTestMutexLock(MutexBase* mutex) : mutex_(mutex) { mutex_->lock(); }
 
-  ~GTestMutexLock() { mutex_->Unlock(); }
+  ~GTestMutexLock() { mutex_->unlock(); }
 
  private:
   MutexBase* const mutex_;
@@ -1864,8 +1864,8 @@ class GTEST_API_ ThreadLocal {
 class Mutex {
  public:
   Mutex() {}
-  void Lock() {}
-  void Unlock() {}
+  void lock() {}
+  void unlock() {}
   void AssertHeld() const {}
 };
 
@@ -2321,6 +2321,13 @@ const char* StringFromGTestEnv(const char* flag, const char* default_val);
 
 }  // namespace internal
 }  // namespace testing
+
+#if GTEST_INTERNAL_HAVE_CPP_ATTRIBUTE(clang::annotate)
+#define GTEST_INTERNAL_DEPRECATE_AND_INLINE(msg) \
+  [[deprecated(msg), clang::annotate("inline-me")]]
+#else
+#define GTEST_INTERNAL_DEPRECATE_AND_INLINE(msg) [[deprecated(msg)]]
+#endif
 
 #if defined(__cpp_lib_span) || (GTEST_INTERNAL_HAS_INCLUDE(<span>) && \
                                 GTEST_INTERNAL_CPLUSPLUS_LANG >= 202002L)

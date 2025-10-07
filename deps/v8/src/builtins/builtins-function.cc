@@ -273,5 +273,68 @@ BUILTIN(FunctionPrototypeToString) {
                             isolate->factory()->Function_string()));
 }
 
+#ifndef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
+
+namespace {
+
+bool IsSloppyNormalJSFunction(Tagged<Object> receiver) {
+  if (!IsJSFunction(receiver)) return false;
+  Tagged<JSFunction> function = Cast<JSFunction>(receiver);
+  return function->shared()->kind() == FunctionKind::kNormalFunction &&
+         is_sloppy(function->shared()->language_mode());
+}
+
+}  // namespace
+
+BUILTIN(FunctionPrototypeLegacyArgumentsGetter) {
+  HandleScope scope(isolate);
+  DirectHandle<Object> receiver = args.receiver();
+  if (!IsSloppyNormalJSFunction(*receiver)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kStrictPoisonPill));
+  }
+  // Only count if we hit the non-throwing, compat behavior.
+  isolate->CountUsage(v8::Isolate::kFunctionPrototypeArguments);
+  return *Accessors::GetLegacyFunctionArguments(isolate,
+                                                Cast<JSFunction>(receiver));
+}
+
+BUILTIN(FunctionPrototypeLegacyArgumentsSetter) {
+  HandleScope scope(isolate);
+  if (!IsSloppyNormalJSFunction(*args.receiver())) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kStrictPoisonPill));
+  }
+  // Only count if we hit the non-throwing, compat behavior.
+  isolate->CountUsage(v8::Isolate::kFunctionPrototypeArguments);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+BUILTIN(FunctionPrototypeLegacyCallerGetter) {
+  HandleScope scope(isolate);
+  DirectHandle<Object> receiver = args.receiver();
+  if (!IsSloppyNormalJSFunction(*receiver)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kStrictPoisonPill));
+  }
+  // Only count if we hit the non-throwing, compat behavior.
+  isolate->CountUsage(v8::Isolate::kFunctionPrototypeCaller);
+  return *Accessors::GetLegacyFunctionCaller(isolate,
+                                             Cast<JSFunction>(receiver));
+}
+
+BUILTIN(FunctionPrototypeLegacyCallerSetter) {
+  HandleScope scope(isolate);
+  if (!IsSloppyNormalJSFunction(*args.receiver())) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kStrictPoisonPill));
+  }
+  // Only count if we hit the non-throwing, compat behavior.
+  isolate->CountUsage(v8::Isolate::kFunctionPrototypeCaller);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+#endif  // !V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
+
 }  // namespace internal
 }  // namespace v8

@@ -1,4 +1,7 @@
 #include <cstdlib>
+#if HAVE_OPENSSL
+#include "crypto/crypto_util.h"
+#endif  // HAVE_OPENSSL
 #include "env_properties.h"
 #include "node.h"
 #include "node_builtins.h"
@@ -532,8 +535,19 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
 
 NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     Environment* env, ThreadId thread_id, const char* url, const char* name) {
-  CHECK_NOT_NULL(env);
+  if (url == nullptr) url = "";
   if (name == nullptr) name = "";
+  std::string_view url_view(url);
+  std::string_view name_view(name);
+  return GetInspectorParentHandle(env, thread_id, url_view, name_view);
+}
+
+NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
+    Environment* env,
+    ThreadId thread_id,
+    std::string_view url,
+    std::string_view name) {
+  CHECK_NOT_NULL(env);
   CHECK_NE(thread_id.id, static_cast<uint64_t>(-1));
   if (!env->should_create_inspector()) {
     return nullptr;
@@ -614,7 +628,7 @@ std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
 
 MaybeLocal<Object> GetPerContextExports(Local<Context> context,
                                         IsolateData* isolate_data) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope handle_scope(isolate);
 
   Local<Object> global = context->Global();
@@ -660,7 +674,7 @@ void ProtoThrower(const FunctionCallbackInfo<Value>& info) {
 // This runs at runtime, regardless of whether the context
 // is created from a snapshot.
 Maybe<void> InitializeContextRuntime(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
   // When `IsCodeGenerationFromStringsAllowed` is true, V8 takes the fast path
@@ -739,7 +753,7 @@ Maybe<void> InitializeContextRuntime(Local<Context> context) {
 }
 
 Maybe<void> InitializeBaseContextForSnapshot(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
   // Delete `Intl.v8BreakIterator`
@@ -764,7 +778,7 @@ Maybe<void> InitializeBaseContextForSnapshot(Local<Context> context) {
 }
 
 Maybe<void> InitializeMainContextForSnapshot(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
   // Initialize the default values.
@@ -782,7 +796,7 @@ Maybe<void> InitializeMainContextForSnapshot(Local<Context> context) {
 MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
                                             IsolateData* isolate_data) {
   CHECK(isolate_data);
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope scope(isolate);
   Context::Scope context_scope(context);
 
@@ -806,7 +820,7 @@ MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
 MaybeLocal<Object> InitializePerIsolateSymbols(Local<Context> context,
                                                IsolateData* isolate_data) {
   CHECK(isolate_data);
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope scope(isolate);
   Context::Scope context_scope(context);
 
@@ -832,7 +846,7 @@ MaybeLocal<Object> InitializePerIsolateSymbols(Local<Context> context,
 Maybe<void> InitializePrimordials(Local<Context> context,
                                   IsolateData* isolate_data) {
   // Run per-context JS files.
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Context::Scope context_scope(context);
   Local<Object> exports;
 
@@ -993,6 +1007,11 @@ void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code) {
   // in node_v8_platform-inl.h
   uv_library_shutdown();
   DisposePlatform();
+
+#if HAVE_OPENSSL
+  crypto::CleanupCachedRootCertificates();
+#endif  // HAVE_OPENSSL
+
   Exit(exit_code);
 }
 

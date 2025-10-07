@@ -7,7 +7,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/call-site-info-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/common/value-helper.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -150,7 +150,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
       v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
           CompileRun("(function callFn(fn) { fn(); })"))));
 
-  Isolate* isolate = js_wasm_wrapper->GetIsolate();
+  Isolate* isolate = CcTest::i_isolate();
   isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10,
                                                      v8::StackTrace::kOverview);
   DirectHandle<Object> global(isolate->context()->global_object(), isolate);
@@ -190,7 +190,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
       v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
           CompileRun("(function callFn(fn) { fn(); })"))));
 
-  Isolate* isolate = js_wasm_wrapper->GetIsolate();
+  Isolate* isolate = CcTest::i_isolate();
   isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10,
                                                      v8::StackTrace::kOverview);
 
@@ -255,7 +255,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
         v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
             CompileRun("(function callFn(fn) { fn(); })"))));
 
-    Isolate* isolate = js_wasm_wrapper->GetIsolate();
+    Isolate* isolate = CcTest::i_isolate();
     isolate->SetCaptureStackTraceForUncaughtExceptions(
         true, 10, v8::StackTrace::kOverview);
     DirectHandle<Object> global(isolate->context()->global_object(), isolate);

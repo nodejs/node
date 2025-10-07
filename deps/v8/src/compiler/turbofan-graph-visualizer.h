@@ -126,7 +126,8 @@ class V8_EXPORT_PRIVATE SourceIdAssigner {
 };
 
 void JsonPrintAllBytecodeSources(std::ostream& os,
-                                 OptimizedCompilationInfo* info);
+                                 OptimizedCompilationInfo* info,
+                                 Isolate* isolate);
 
 void JsonPrintBytecodeSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,

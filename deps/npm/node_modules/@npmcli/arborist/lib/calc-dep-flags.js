@@ -22,6 +22,7 @@ const calcDepFlagsStep = (node) => {
   // or normal dependency graphs overlap deep in the dep graph.
   // Since we're only walking through deps that are not already flagged
   // as non-dev/non-optional, it's typically a very shallow traversal
+
   node.extraneous = false
   resetParents(node, 'extraneous')
   resetParents(node, 'dev')
@@ -47,9 +48,15 @@ const calcDepFlagsStep = (node) => {
     if (!to) {
       return
     }
-
     // everything with any kind of edge into it is not extraneous
     to.extraneous = false
+
+    // If this is a peer edge, mark the target as peer
+    if (peer) {
+      to.peer = true
+    } else if (to.peer && !hasIncomingPeerEdge(to)) {
+      unsetFlag(to, 'peer')
+    }
 
     // devOptional is the *overlap* of the dev and optional tree.
     // however, for convenience and to save an extra rewalk, we leave
@@ -61,11 +68,6 @@ const calcDepFlagsStep = (node) => {
     // either the dev or opt trees
     const unsetDev = unsetDevOpt || !node.dev && !dev
     const unsetOpt = unsetDevOpt || !node.optional && !optional
-    const unsetPeer = !node.peer && !peer
-
-    if (unsetPeer) {
-      unsetFlag(to, 'peer')
-    }
 
     if (unsetDevOpt) {
       unsetFlag(to, 'devOptional')
@@ -81,6 +83,16 @@ const calcDepFlagsStep = (node) => {
   })
 
   return node
+}
+
+const hasIncomingPeerEdge = (node) => {
+  const target = node.isLink && node.target ? node.target : node
+  for (const edge of target.edgesIn) {
+    if (edge.type === 'peer') {
+      return true
+    }
+  }
+  return false
 }
 
 const resetParents = (node, flag) => {
@@ -109,12 +121,19 @@ const unsetFlag = (node, flag) => {
         const children = []
         const targetNode = node.isLink && node.target ? node.target : node
         for (const edge of targetNode.edgesOut.values()) {
-          if (
-            edge.to &&
-            edge.to[flag] &&
-            ((flag !== 'peer' && edge.type === 'peer') || edge.type === 'prod')
-          ) {
-            children.push(edge.to)
+          if (edge.to?.[flag]) {
+            // For the peer flag, only follow peer edges to unset the flag
+            // Don't propagate peer flag through prod/dev/optional edges
+            if (flag === 'peer') {
+              if (edge.type === 'peer') {
+                children.push(edge.to)
+              }
+            } else {
+              // For other flags, follow prod edges (and peer edges for non-peer flags)
+              if (edge.type === 'prod' || edge.type === 'peer') {
+                children.push(edge.to)
+              }
+            }
           }
         }
         return children

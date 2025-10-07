@@ -551,6 +551,12 @@ Type: End-of-Life
 The `os.tmpDir()` API was deprecated in Node.js 7.0.0 and has since been
 removed. Please use [`os.tmpdir()`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/tmpDir-to-tmpdir)):
+
+```bash
+npx codemod@latest @nodejs/tmpDir-to-tmpdir
+```
+
 ### DEP0023: `os.getNetworkInterfaces()`
 
 <!-- YAML
@@ -628,6 +634,12 @@ Type: End-of-Life
 
 `util.print()` has been removed. Please use [`console.log()`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-print-to-console-log)):
+
+```bash
+npx codemod@latest @nodejs/util-print-to-console-log
+```
+
 ### DEP0027: `util.puts()`
 
 <!-- YAML
@@ -648,6 +660,12 @@ changes:
 Type: End-of-Life
 
 `util.puts()` has been removed. Please use [`console.log()`][] instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-print-to-console-log)):
+
+```bash
+npx codemod@latest @nodejs/util-print-to-console-log
+```
 
 ### DEP0028: `util.debug()`
 
@@ -670,6 +688,12 @@ Type: End-of-Life
 
 `util.debug()` has been removed. Please use [`console.error()`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-debug-to-console-error)):
+
+```bash
+npx codemod@latest @nodejs/util-debug-to-console-error
+```
+
 ### DEP0029: `util.error()`
 
 <!-- YAML
@@ -690,6 +714,12 @@ changes:
 Type: End-of-Life
 
 `util.error()` has been removed. Please use [`console.error()`][] instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-print-to-console-log)):
+
+```bash
+npx codemod@latest @nodejs/util-print-to-console-log
+```
 
 ### DEP0030: `SlowBuffer`
 
@@ -1085,6 +1115,10 @@ Type: End-of-Life
 The `util.isDate()` API has been removed. Please use
 `arg instanceof Date` instead.
 
+Also for stronger approaches, consider using:
+`Date.prototype.toString.call(arg) === '[object Date]' && !isNaN(arg)`.
+This can also be used in a `try/catch` block to handle invalid date objects.
+
 ### DEP0048: `util.isError()`
 
 <!-- YAML
@@ -1109,9 +1143,7 @@ changes:
 
 Type: End-of-Life
 
-The `util.isError()` API has been removed. Please use
-`Object.prototype.toString(arg) === '[object Error]' || arg instanceof Error`
-instead.
+The `util.isError()` API has been removed. Please use `Error.isError(arg)`.
 
 ### DEP0049: `util.isFunction()`
 
@@ -1272,9 +1304,7 @@ changes:
 
 Type: End-of-Life
 
-The `util.isPrimitive()` API has been removed. Please use
-`arg === null || (typeof arg !=='object' && typeof arg !== 'function')`
-instead.
+The `util.isPrimitive()` API has been removed. Please use `Object(arg) !== arg` instead.
 
 ### DEP0055: `util.isRegExp()`
 
@@ -1415,6 +1445,12 @@ consider the following alternatives based on your specific needs:
 By adopting one of these alternatives, you can transition away from `util.log()`
 and choose a logging strategy that aligns with the specific
 requirements and complexity of your application.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-log-to-console-log)):
+
+```bash
+npx codemod@latest @nodejs/util-log-to-console-log
+```
 
 ### DEP0060: `util._extend()`
 
@@ -2754,6 +2790,12 @@ Type: End-of-Life
 
 Use [`module.createRequire()`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/create-require-from-path)):
+
+```bash
+npx codemod@latest @nodejs/create-require-from-path
+```
+
 ### DEP0131: Legacy HTTP parser
 
 <!-- YAML
@@ -2914,6 +2956,12 @@ modules is unsupported.
 
 It is deprecated in favor of [`require.main`][], because it serves the same
 purpose and is only available on CommonJS environment.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/process-main-module)):
+
+```bash
+npx codemod@latest @nodejs/process-main-module
+```
 
 ### DEP0139: `process.umask()` with no arguments
 
@@ -3084,6 +3132,12 @@ to support a `recursive` option. That option has been removed.
 Use `fs.rm(path, { recursive: true, force: true })`,
 `fs.rmSync(path, { recursive: true, force: true })` or
 `fs.promises.rm(path, { recursive: true, force: true })` instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/rmdir)):
+
+```bash
+npx codemod@latest @nodejs/rmdir
+```
 
 ### DEP0148: Folder mappings in `"exports"` (trailing `"/"`)
 
@@ -3404,20 +3458,23 @@ Convert them to primitive strings.
 <!-- YAML
 changes:
   - version:
+    - v24.8.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59758
+    description: Deprecation revoked.
+  - version:
     - v18.7.0
     - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/42714
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Deprecation revoked
 
-These methods were deprecated because they can be used in a way which does not
-hold the channel reference alive long enough to receive the events.
-
-Use [`diagnostics_channel.subscribe(name, onMessage)`][] or
-[`diagnostics_channel.unsubscribe(name, onMessage)`][] which does the same
-thing instead.
+These methods were deprecated because their use could leave the channel object
+vulnerable to being garbage-collected if not strongly referenced by the user.
+The deprecation was revoked because channel objects are now resistant to
+garbage collection when the channel has active subscribers.
 
 ### DEP0164: `process.exit(code)`, `process.exitCode` coercion to integer
 
@@ -3683,6 +3740,12 @@ Type: End-of-Life
 `F_OK`, `R_OK`, `W_OK` and `X_OK` getters exposed directly on `node:fs` were
 removed. Get them from `fs.constants` or `fs.promises.constants` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/fs-access-mode-constants)):
+
+```bash
+npx codemod@latest @nodejs/fs-access-mode-constants
+```
+
 ### DEP0177: `util.types.isWebAssemblyCompiledModule`
 
 <!-- YAML
@@ -3850,6 +3913,9 @@ It is recommended to use the `new` qualifier instead. This applies to all Zlib c
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59495
+    description: End-of-Life.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/54869
     description: Runtime deprecation.
@@ -3860,10 +3926,10 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Instantiating classes without the `new` qualifier exported by the `node:repl` module is deprecated.
-It is recommended to use the `new` qualifier instead. This applies to all REPL classes, including
+The `new` qualifier must be used instead. This applies to all REPL classes, including
 `REPLServer` and `Recoverable`.
 
 <!-- md-lint skip-deprecation DEP0186 -->
@@ -4025,6 +4091,12 @@ Instantiating classes without the `new` qualifier exported by the `node:http` mo
 It is recommended to use the `new` qualifier instead. This applies to all http classes, such as
 `OutgoingMessage`, `IncomingMessage`, `ServerResponse` and `ClientRequest`.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/http-classes-with-new)):
+
+```bash
+npx codemod@latest @nodejs/http-classes-with-new
+```
+
 ### DEP0196: Calling `node:child_process` functions with `options.shell` as an empty string
 
 <!-- YAML
@@ -4064,6 +4136,12 @@ Type: Documentation-only
 
 The [`util.types.isNativeError`][] API is deprecated. Please use [`Error.isError`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/types-is-native-error)):
+
+```bash
+npx codemod@latest @nodejs/types-is-native-error
+```
+
 ### DEP0198: Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength`
 
 <!-- YAML
@@ -4074,6 +4152,7 @@ changes:
   - version:
       - v24.4.0
       - v22.18.0
+      - v20.19.5
     pr-url: https://github.com/nodejs/node/pull/58942
     description: Documentation-only deprecation with support for `--pending-deprecation`.
 -->
@@ -4086,7 +4165,9 @@ Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLeng
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version:
+     - v24.6.0
+     - v22.19.0
     pr-url: https://github.com/nodejs/node/pull/59293
     description: Documentation-only deprecation.
 -->
@@ -4096,6 +4177,52 @@ Type: Documentation-only
 The `node:_http_agent`, `node:_http_client`, `node:_http_common`, `node:_http_incoming`,
 `node:_http_outgoing` and `node:_http_server` modules are deprecated as they should be considered
 an internal nodejs implementation rather than a public facing API, use `node:http` instead.
+
+### DEP0200: Closing fs.Dir on garbage collection
+
+<!-- YAML
+changes:
+  - version: v24.9.0
+    pr-url: https://github.com/nodejs/node/pull/59839
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Allowing a [`fs.Dir`][] object to be closed on garbage collection is
+deprecated. In the future, doing so might result in a thrown error that will
+terminate the process.
+
+Please ensure that all `fs.Dir` objects are explicitly closed using
+`Dir.prototype.close()` or `using` keyword:
+
+```mjs
+import { opendir } from 'node:fs/promises';
+
+{
+  await using dir = await opendir('/async/disposable/directory');
+} // Closed by dir[Symbol.asyncDispose]()
+
+{
+  using dir = await opendir('/sync/disposable/directory');
+} // Closed by dir[Symbol.dispose]()
+
+{
+  const dir = await opendir('/unconditionally/iterated/directory');
+  for await (const entry of dir) {
+    // process an entry
+  } // Closed by iterator
+}
+
+{
+  let dir;
+  try {
+    dir = await opendir('/legacy/closeable/directory');
+  } finally {
+    await dir?.close();
+  }
+}
+```
 
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
@@ -4145,8 +4272,6 @@ an internal nodejs implementation rather than a public facing API, use `node:htt
 [`crypto.setEngine()`]: crypto.md#cryptosetengineengine-flags
 [`decipher.final()`]: crypto.md#decipherfinaloutputencoding
 [`decipher.setAuthTag()`]: crypto.md#deciphersetauthtagbuffer-encoding
-[`diagnostics_channel.subscribe(name, onMessage)`]: diagnostics_channel.md#diagnostics_channelsubscribename-onmessage
-[`diagnostics_channel.unsubscribe(name, onMessage)`]: diagnostics_channel.md#diagnostics_channelunsubscribename-onmessage
 [`dirent.parentPath`]: fs.md#direntparentpath
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
@@ -4154,6 +4279,7 @@ an internal nodejs implementation rather than a public facing API, use `node:htt
 [`ecdh.setPublicKey()`]: crypto.md#ecdhsetpublickeypublickey-encoding
 [`emitter.listenerCount(eventName)`]: events.md#emitterlistenercounteventname-listener
 [`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitter-eventname
+[`fs.Dir`]: fs.md#class-fsdir
 [`fs.FileHandle`]: fs.md#class-filehandle
 [`fs.access()`]: fs.md#fsaccesspath-mode-callback
 [`fs.appendFile()`]: fs.md#fsappendfilepath-data-options-callback

@@ -20,10 +20,10 @@ using namespace turboshaft;  // NOLINT(build/namespaces)
 #define TRACE(...) PrintF(__VA_ARGS__)
 
 // Adds Mips-specific methods for generating InstructionOperands.
-class Mips64OperandGeneratorT final : public OperandGeneratorT {
+class Mips64OperandGenerator final : public OperandGenerator {
  public:
-  explicit Mips64OperandGeneratorT(InstructionSelectorT* selector)
-      : OperandGeneratorT(selector) {}
+  explicit Mips64OperandGenerator(InstructionSelector* selector)
+      : OperandGenerator(selector) {}
 
   InstructionOperand UseOperand(OpIndex node, InstructionCode opcode) {
     if (CanBeImmediate(node, opcode)) {
@@ -71,6 +71,8 @@ class Mips64OperandGeneratorT final : public OperandGeneratorT {
 
   bool CanBeImmediate(int64_t value, InstructionCode opcode) {
     switch (ArchOpcodeField::decode(opcode)) {
+      case kArchAtomicStoreWithWriteBarrier:
+        return false;
       case kMips64Shl:
       case kMips64Sar:
       case kMips64Shr:
@@ -115,55 +117,59 @@ class Mips64OperandGeneratorT final : public OperandGeneratorT {
   }
 };
 
-static void VisitRR(InstructionSelectorT* selector, ArchOpcode opcode,
+static void VisitRR(InstructionSelector* selector, ArchOpcode opcode,
                     OpIndex node) {
-  Mips64OperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)));
+  Mips64OperandGenerator g(selector);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 1);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
-static void VisitRRI(InstructionSelectorT* selector, ArchOpcode opcode,
+#if V8_ENABLE_WEBASSEMBLY
+static void VisitRRI(InstructionSelector* selector, ArchOpcode opcode,
                      OpIndex node) {
   UNIMPLEMENTED();
 }
 
-static void VisitSimdShift(InstructionSelectorT* selector, ArchOpcode opcode,
+static void VisitSimdShift(InstructionSelector* selector, ArchOpcode opcode,
                            OpIndex node) {
   UNIMPLEMENTED();
 }
 
-static void VisitRRIR(InstructionSelectorT* selector, ArchOpcode opcode,
+static void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode,
                       OpIndex node) {
   UNIMPLEMENTED();
 }
 
-void VisitRRR(InstructionSelectorT* selector, ArchOpcode opcode, OpIndex node) {
-  Mips64OperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)),
-                 g.UseRegister(selector->input_at(node, 1)));
-}
-
-static void VisitUniqueRRR(InstructionSelectorT* selector, ArchOpcode opcode,
+static void VisitUniqueRRR(InstructionSelector* selector, ArchOpcode opcode,
                            OpIndex node) {
   UNIMPLEMENTED();
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
-void VisitRRRR(InstructionSelectorT* selector, ArchOpcode opcode,
-               OpIndex node) {
+void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, OpIndex node) {
+  Mips64OperandGenerator g(selector);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+                 g.UseRegister(op.input(1)));
+}
+
+void VisitRRRR(InstructionSelector* selector, ArchOpcode opcode, OpIndex node) {
   UNIMPLEMENTED();
 }
 
-static void VisitRRO(InstructionSelectorT* selector, ArchOpcode opcode,
+static void VisitRRO(InstructionSelector* selector, ArchOpcode opcode,
                      OpIndex node) {
-  Mips64OperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)),
-                 g.UseOperand(selector->input_at(node, 1), opcode));
+  Mips64OperandGenerator g(selector);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+                 g.UseOperand(op.input(1), opcode));
 }
 
 struct ExtendingLoadMatcher {
-  ExtendingLoadMatcher(OpIndex node, InstructionSelectorT* selector)
+  ExtendingLoadMatcher(OpIndex node, InstructionSelector* selector)
       : matches_(false), selector_(selector), immediate_(0) {
     Initialize(node);
   }
@@ -185,7 +191,7 @@ struct ExtendingLoadMatcher {
 
  private:
   bool matches_;
-  InstructionSelectorT* selector_;
+  InstructionSelector* selector_;
   OpIndex base_{};
   int64_t immediate_;
   ArchOpcode opcode_;
@@ -203,7 +209,7 @@ struct ExtendingLoadMatcher {
     if (lhs.Is<LoadOp>() &&
         selector_->MatchIntegralWord64Constant(shift.right(), &constant_rhs) &&
         constant_rhs == 32 && selector_->CanCover(node, shift.left())) {
-      Mips64OperandGeneratorT g(selector_);
+      Mips64OperandGenerator g(selector_);
 
       const LoadOp& load = lhs.Cast<LoadOp>();
       base_ = load.base();
@@ -224,10 +230,10 @@ struct ExtendingLoadMatcher {
   }
 };
 
-bool TryEmitExtendingLoad(InstructionSelectorT* selector, OpIndex node,
+bool TryEmitExtendingLoad(InstructionSelector* selector, OpIndex node,
                           OpIndex output_node) {
   ExtendingLoadMatcher m(node, selector);
-  Mips64OperandGeneratorT g(selector);
+  Mips64OperandGenerator g(selector);
   if (m.Matches()) {
     InstructionOperand inputs[2];
     inputs[0] = g.UseRegister(m.base());
@@ -243,10 +249,10 @@ bool TryEmitExtendingLoad(InstructionSelectorT* selector, OpIndex node,
   return false;
 }
 
-bool TryMatchImmediate(InstructionSelectorT* selector,
+bool TryMatchImmediate(InstructionSelector* selector,
                        InstructionCode* opcode_return, OpIndex node,
                        size_t* input_count_return, InstructionOperand* inputs) {
-  Mips64OperandGeneratorT g(selector);
+  Mips64OperandGenerator g(selector);
   if (g.CanBeImmediate(node, *opcode_return)) {
     *opcode_return |= AddressingModeField::encode(kMode_MRI);
     inputs[0] = g.UseImmediate(node);
@@ -256,11 +262,11 @@ bool TryMatchImmediate(InstructionSelectorT* selector,
   return false;
 }
 
-static void VisitBinop(InstructionSelectorT* selector, OpIndex node,
+static void VisitBinop(InstructionSelector* selector, OpIndex node,
                        InstructionCode opcode, bool has_reverse_opcode,
                        InstructionCode reverse_opcode,
-                       FlagsContinuationT* cont) {
-  Mips64OperandGeneratorT g(selector);
+                       FlagsContinuation* cont) {
+  Mips64OperandGenerator g(selector);
   InstructionOperand inputs[2];
   size_t input_count = 0;
   InstructionOperand outputs[1];
@@ -296,24 +302,24 @@ static void VisitBinop(InstructionSelectorT* selector, OpIndex node,
                                  inputs, cont);
 }
 
-static void VisitBinop(InstructionSelectorT* selector, OpIndex node,
+static void VisitBinop(InstructionSelector* selector, OpIndex node,
                        InstructionCode opcode, bool has_reverse_opcode,
                        InstructionCode reverse_opcode) {
-  FlagsContinuationT cont;
+  FlagsContinuation cont;
   VisitBinop(selector, node, opcode, has_reverse_opcode, reverse_opcode, &cont);
 }
 
-static void VisitBinop(InstructionSelectorT* selector, OpIndex node,
-                       InstructionCode opcode, FlagsContinuationT* cont) {
+static void VisitBinop(InstructionSelector* selector, OpIndex node,
+                       InstructionCode opcode, FlagsContinuation* cont) {
   VisitBinop(selector, node, opcode, false, kArchNop, cont);
 }
 
-static void VisitBinop(InstructionSelectorT* selector, OpIndex node,
+static void VisitBinop(InstructionSelector* selector, OpIndex node,
                        InstructionCode opcode) {
   VisitBinop(selector, node, opcode, false, kArchNop);
 }
 
-void InstructionSelectorT::VisitStackSlot(OpIndex node) {
+void InstructionSelector::VisitStackSlot(OpIndex node) {
   const StackSlotOp& stack_slot = Cast<StackSlotOp>(node);
   int slot = frame_->AllocateSpillSlot(stack_slot.size, stack_slot.alignment,
                                        stack_slot.is_tagged);
@@ -323,15 +329,15 @@ void InstructionSelectorT::VisitStackSlot(OpIndex node) {
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
-void InstructionSelectorT::VisitAbortCSADcheck(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
-  Emit(kArchAbortCSADcheck, g.NoOutput(),
-       g.UseFixed(this->input_at(node, 0), a0));
+void InstructionSelector::VisitAbortCSADcheck(OpIndex node) {
+  Mips64OperandGenerator g(this);
+  const AbortCSADcheckOp& op = Cast<AbortCSADcheckOp>(node);
+  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(op.message(), a0));
 }
 
-void EmitLoad(InstructionSelectorT* selector, OpIndex node,
+void EmitLoad(InstructionSelector* selector, OpIndex node,
               InstructionCode opcode, OpIndex output = OpIndex{}) {
-  Mips64OperandGeneratorT g(selector);
+  Mips64OperandGenerator g(selector);
   const Operation& op = selector->Get(node);
   const LoadOp& load = op.Cast<LoadOp>();
 
@@ -397,13 +403,15 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
   }
 }
 
-void InstructionSelectorT::VisitStoreLane(OpIndex node) { UNIMPLEMENTED(); }
+#if V8_ENABLE_WEBASSEMBLY
+void InstructionSelector::VisitStoreLane(OpIndex node) { UNIMPLEMENTED(); }
 
-void InstructionSelectorT::VisitLoadLane(OpIndex node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitLoadLane(OpIndex node) { UNIMPLEMENTED(); }
 
-void InstructionSelectorT::VisitLoadTransform(OpIndex node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitLoadTransform(OpIndex node) { UNIMPLEMENTED(); }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
-void InstructionSelectorT::VisitLoad(OpIndex node) {
+void InstructionSelector::VisitLoad(OpIndex node) {
   auto load = this->load_view(node);
   LoadRepresentation load_rep = load.loaded_rep();
 
@@ -451,19 +459,19 @@ void InstructionSelectorT::VisitLoad(OpIndex node) {
   EmitLoad(this, node, opcode);
 }
 
-void InstructionSelectorT::VisitProtectedLoad(OpIndex node) {
+void InstructionSelector::VisitProtectedLoad(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
 
-void InstructionSelectorT::VisitStorePair(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitStorePair(OpIndex node) { UNREACHABLE(); }
 
-void InstructionSelectorT::VisitStore(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
-  TurboshaftAdapter::StoreView store_view = this->store_view(node);
+void InstructionSelector::VisitStore(OpIndex node) {
+  Mips64OperandGenerator g(this);
+  StoreView store_view = this->store_view(node);
   DCHECK_EQ(store_view.displacement(), 0);
   OpIndex base = store_view.base();
-  OpIndex index = this->value(store_view.index());
+  OpIndex index = store_view.index().value();
   OpIndex value = store_view.value();
 
   WriteBarrierKind write_barrier_kind =
@@ -532,7 +540,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
         UNREACHABLE();
     }
 
-    if (this->is_load_root_register(base)) {
+    if (Is<LoadRootRegisterOp>(base)) {
       // This will only work if {index} is a constant.
       Emit(opcode | AddressingModeField::encode(kMode_Root), g.NoOutput(),
            g.UseImmediate(index), g.UseRegisterOrImmediateZero(value));
@@ -554,55 +562,55 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
   }
 }
 
-void InstructionSelectorT::VisitProtectedStore(OpIndex node) {
+void InstructionSelector::VisitProtectedStore(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
 
-void InstructionSelectorT::VisitWord32And(turboshaft::OpIndex node) {
+void InstructionSelector::VisitWord32And(turboshaft::OpIndex node) {
   // TODO(MIPS_dev): May could be optimized like in Turbofan.
   VisitBinop(this, node, kMips64And32, true, kMips64And32);
 }
 
-void InstructionSelectorT::VisitWord64And(OpIndex node) {
+void InstructionSelector::VisitWord64And(OpIndex node) {
   // TODO(MIPS_dev): May could be optimized like in Turbofan.
   VisitBinop(this, node, kMips64And, true, kMips64And);
 }
 
-void InstructionSelectorT::VisitWord32Or(OpIndex node) {
+void InstructionSelector::VisitWord32Or(OpIndex node) {
   VisitBinop(this, node, kMips64Or32, true, kMips64Or32);
 }
 
-void InstructionSelectorT::VisitWord64Or(OpIndex node) {
+void InstructionSelector::VisitWord64Or(OpIndex node) {
   VisitBinop(this, node, kMips64Or, true, kMips64Or);
 }
 
-void InstructionSelectorT::VisitWord32Xor(OpIndex node) {
+void InstructionSelector::VisitWord32Xor(OpIndex node) {
   // TODO(MIPS_dev): May could be optimized like in Turbofan.
   VisitBinop(this, node, kMips64Xor32, true, kMips64Xor32);
 }
 
-void InstructionSelectorT::VisitWord64Xor(OpIndex node) {
+void InstructionSelector::VisitWord64Xor(OpIndex node) {
   // TODO(MIPS_dev): May could be optimized like in Turbofan.
   VisitBinop(this, node, kMips64Xor, true, kMips64Xor);
 }
 
-void InstructionSelectorT::VisitWord32Shl(OpIndex node) {
+void InstructionSelector::VisitWord32Shl(OpIndex node) {
   // TODO(MIPS_dev): May could be optimized like in Turbofan.
   VisitRRO(this, kMips64Shl, node);
 }
 
-void InstructionSelectorT::VisitWord32Shr(OpIndex node) {
+void InstructionSelector::VisitWord32Shr(OpIndex node) {
   // TODO(MIPS_dev): May could be optimized like in Turbofan.
   VisitRRO(this, kMips64Shr, node);
 }
 
-void InstructionSelectorT::VisitWord32Sar(turboshaft::OpIndex node) {
+void InstructionSelector::VisitWord32Sar(turboshaft::OpIndex node) {
   // TODO(MIPS_dev): May could be optimized like in Turbofan.
   VisitRRO(this, kMips64Sar, node);
 }
 
-void InstructionSelectorT::VisitWord64Shl(OpIndex node) {
+void InstructionSelector::VisitWord64Shl(OpIndex node) {
   const ShiftOp& shift_op = this->Get(node).template Cast<ShiftOp>();
   const Operation& lhs = this->Get(shift_op.left());
   const Operation& rhs = this->Get(shift_op.right());
@@ -611,7 +619,7 @@ void InstructionSelectorT::VisitWord64Shl(OpIndex node) {
       rhs.Is<Opmask::kWord32Constant>()) {
     int64_t shift_by = rhs.Cast<ConstantOp>().signed_integral();
     if (base::IsInRange(shift_by, 32, 63) && CanCover(node, shift_op.left())) {
-      Mips64OperandGeneratorT g(this);
+      Mips64OperandGenerator g(this);
       // There's no need to sign/zero-extend to 64-bit if we shift out the
       // upper 32 bits anyway.
       Emit(kMips64Dshl, g.DefineAsRegister(node),
@@ -623,12 +631,12 @@ void InstructionSelectorT::VisitWord64Shl(OpIndex node) {
   VisitRRO(this, kMips64Dshl, node);
 }
 
-void InstructionSelectorT::VisitWord64Shr(OpIndex node) {
+void InstructionSelector::VisitWord64Shr(OpIndex node) {
   // TODO(MIPS_dev): May could be optimized like in Turbofan.
   VisitRRO(this, kMips64Dshr, node);
 }
 
-void InstructionSelectorT::VisitWord64Sar(OpIndex node) {
+void InstructionSelector::VisitWord64Sar(OpIndex node) {
   if (TryEmitExtendingLoad(this, node, node)) return;
 
   const ShiftOp& shiftop = Get(node).Cast<ShiftOp>();
@@ -640,7 +648,7 @@ void InstructionSelectorT::VisitWord64Sar(OpIndex node) {
       is_uint5(constant_rhs) && CanCover(node, shiftop.left())) {
     OpIndex input = lhs.Cast<ChangeOp>().input();
     if (!Get(input).Is<LoadOp>() || !CanCover(shiftop.left(), input)) {
-      Mips64OperandGeneratorT g(this);
+      Mips64OperandGenerator g(this);
       int right = static_cast<int>(constant_rhs);
       Emit(kMips64Sar, g.DefineAsRegister(node), g.UseRegister(input),
            g.UseImmediate(right));
@@ -651,250 +659,249 @@ void InstructionSelectorT::VisitWord64Sar(OpIndex node) {
   VisitRRO(this, kMips64Dsar, node);
 }
 
-void InstructionSelectorT::VisitWord32Rol(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32Rol(OpIndex node) { UNREACHABLE(); }
 
-void InstructionSelectorT::VisitWord64Rol(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord64Rol(OpIndex node) { UNREACHABLE(); }
 
-void InstructionSelectorT::VisitWord32Ror(OpIndex node) {
+void InstructionSelector::VisitWord32Ror(OpIndex node) {
   VisitRRO(this, kMips64Ror, node);
 }
 
-void InstructionSelectorT::VisitWord32Clz(OpIndex node) {
+void InstructionSelector::VisitWord32Clz(OpIndex node) {
   VisitRR(this, kMips64Clz, node);
 }
 
-void InstructionSelectorT::VisitWord32ReverseBits(OpIndex node) {
+void InstructionSelector::VisitWord32ReverseBits(OpIndex node) {
   UNREACHABLE();
 }
 
-void InstructionSelectorT::VisitWord64ReverseBits(OpIndex node) {
+void InstructionSelector::VisitWord64ReverseBits(OpIndex node) {
   UNREACHABLE();
 }
 
-void InstructionSelectorT::VisitWord64ReverseBytes(OpIndex node) {
+void InstructionSelector::VisitWord64ReverseBytes(OpIndex node) {
   VisitRR(this, kMips64ByteSwap64, node);
 }
 
-void InstructionSelectorT::VisitWord32ReverseBytes(OpIndex node) {
+void InstructionSelector::VisitWord32ReverseBytes(OpIndex node) {
   VisitRR(this, kMips64ByteSwap32, node);
 }
 
-void InstructionSelectorT::VisitSimd128ReverseBytes(OpIndex node) {
+void InstructionSelector::VisitSimd128ReverseBytes(OpIndex node) {
   UNREACHABLE();
 }
 
-void InstructionSelectorT::VisitWord32Ctz(OpIndex node) {
+void InstructionSelector::VisitWord32Ctz(OpIndex node) {
   VisitRR(this, kMips64Ctz, node);
 }
 
-void InstructionSelectorT::VisitWord64Ctz(OpIndex node) {
+void InstructionSelector::VisitWord64Ctz(OpIndex node) {
   VisitRR(this, kMips64Dctz, node);
 }
 
-void InstructionSelectorT::VisitWord32Popcnt(OpIndex node) {
+void InstructionSelector::VisitWord32Popcnt(OpIndex node) {
   VisitRR(this, kMips64Popcnt, node);
 }
 
-void InstructionSelectorT::VisitWord64Popcnt(OpIndex node) {
+void InstructionSelector::VisitWord64Popcnt(OpIndex node) {
   VisitRR(this, kMips64Dpopcnt, node);
 }
 
-void InstructionSelectorT::VisitWord64Ror(OpIndex node) {
+void InstructionSelector::VisitWord64Ror(OpIndex node) {
   VisitRRO(this, kMips64Dror, node);
 }
 
-void InstructionSelectorT::VisitWord64Clz(OpIndex node) {
+void InstructionSelector::VisitWord64Clz(OpIndex node) {
   VisitRR(this, kMips64Dclz, node);
 }
 
-void InstructionSelectorT::VisitInt32Add(OpIndex node) {
+void InstructionSelector::VisitInt32Add(OpIndex node) {
   // TODO(MIPS_dev): May could be optimized like in Turbofan.
   VisitBinop(this, node, kMips64Add, true, kMips64Add);
 }
 
-void InstructionSelectorT::VisitInt64Add(OpIndex node) {
+void InstructionSelector::VisitInt64Add(OpIndex node) {
   // TODO(MIPS_dev): May could be optimized like in Turbofan.
   VisitBinop(this, node, kMips64Dadd, true, kMips64Dadd);
 }
 
-void InstructionSelectorT::VisitInt32Sub(OpIndex node) {
+void InstructionSelector::VisitInt32Sub(OpIndex node) {
   VisitBinop(this, node, kMips64Sub);
 }
 
-void InstructionSelectorT::VisitInt64Sub(OpIndex node) {
+void InstructionSelector::VisitInt64Sub(OpIndex node) {
   VisitBinop(this, node, kMips64Dsub);
 }
 
-void InstructionSelectorT::VisitInt32Mul(OpIndex node) {
+void InstructionSelector::VisitInt32Mul(OpIndex node) {
   // TODO(MIPS_dev): May could be optimized like in Turbofan.
   VisitBinop(this, node, kMips64Mul, true, kMips64Mul);
 }
 
-void InstructionSelectorT::VisitInt32MulHigh(OpIndex node) {
+void InstructionSelector::VisitInt32MulHigh(OpIndex node) {
   VisitRRR(this, kMips64MulHigh, node);
 }
 
-void InstructionSelectorT::VisitInt64MulHigh(OpIndex node) {
+void InstructionSelector::VisitInt64MulHigh(OpIndex node) {
   VisitRRR(this, kMips64DMulHigh, node);
 }
 
-void InstructionSelectorT::VisitUint32MulHigh(OpIndex node) {
+void InstructionSelector::VisitUint32MulHigh(OpIndex node) {
   VisitRRR(this, kMips64MulHighU, node);
 }
 
-void InstructionSelectorT::VisitUint64MulHigh(OpIndex node) {
+void InstructionSelector::VisitUint64MulHigh(OpIndex node) {
   VisitRRR(this, kMips64DMulHighU, node);
 }
 
-void InstructionSelectorT::VisitInt64Mul(OpIndex node) {
+void InstructionSelector::VisitInt64Mul(OpIndex node) {
   // TODO(MIPS_dev): May could be optimized like in Turbofan.
   VisitBinop(this, node, kMips64Dmul, true, kMips64Dmul);
 }
 
-void InstructionSelectorT::VisitInt32Div(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitInt32Div(OpIndex node) {
+  Mips64OperandGenerator g(this);
 
   auto [left, right] = Inputs<WordBinopOp>(node);
   Emit(kMips64Div, g.DefineSameAsFirst(node), g.UseRegister(left),
        g.UseRegister(right));
 }
 
-void InstructionSelectorT::VisitUint32Div(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitUint32Div(OpIndex node) {
+  Mips64OperandGenerator g(this);
 
   auto [left, right] = Inputs<WordBinopOp>(node);
   Emit(kMips64DivU, g.DefineSameAsFirst(node), g.UseRegister(left),
        g.UseRegister(right));
 }
 
-void InstructionSelectorT::VisitInt32Mod(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitInt32Mod(OpIndex node) {
+  Mips64OperandGenerator g(this);
 
   auto [left, right] = Inputs<WordBinopOp>(node);
   Emit(kMips64Mod, g.DefineSameAsFirst(node), g.UseRegister(left),
        g.UseRegister(right));
 }
 
-void InstructionSelectorT::VisitUint32Mod(OpIndex node) {
+void InstructionSelector::VisitUint32Mod(OpIndex node) {
   VisitRRR(this, kMips64ModU, node);
 }
 
-void InstructionSelectorT::VisitInt64Div(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitInt64Div(OpIndex node) {
+  Mips64OperandGenerator g(this);
 
   auto [left, right] = Inputs<WordBinopOp>(node);
   Emit(kMips64Ddiv, g.DefineSameAsFirst(node), g.UseRegister(left),
        g.UseRegister(right));
 }
 
-void InstructionSelectorT::VisitUint64Div(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitUint64Div(OpIndex node) {
+  Mips64OperandGenerator g(this);
 
   auto [left, right] = Inputs<WordBinopOp>(node);
   Emit(kMips64DdivU, g.DefineSameAsFirst(node), g.UseRegister(left),
        g.UseRegister(right));
 }
 
-void InstructionSelectorT::VisitInt64Mod(OpIndex node) {
+void InstructionSelector::VisitInt64Mod(OpIndex node) {
   VisitRRR(this, kMips64Dmod, node);
 }
 
-void InstructionSelectorT::VisitUint64Mod(OpIndex node) {
+void InstructionSelector::VisitUint64Mod(OpIndex node) {
   VisitRRR(this, kMips64DmodU, node);
 }
 
-void InstructionSelectorT::VisitChangeFloat32ToFloat64(OpIndex node) {
+void InstructionSelector::VisitChangeFloat32ToFloat64(OpIndex node) {
   VisitRR(this, kMips64CvtDS, node);
 }
 
-void InstructionSelectorT::VisitRoundInt32ToFloat32(OpIndex node) {
+void InstructionSelector::VisitRoundInt32ToFloat32(OpIndex node) {
   VisitRR(this, kMips64CvtSW, node);
 }
 
-void InstructionSelectorT::VisitRoundUint32ToFloat32(OpIndex node) {
+void InstructionSelector::VisitRoundUint32ToFloat32(OpIndex node) {
   VisitRR(this, kMips64CvtSUw, node);
 }
 
-void InstructionSelectorT::VisitChangeInt32ToFloat64(OpIndex node) {
+void InstructionSelector::VisitChangeInt32ToFloat64(OpIndex node) {
   VisitRR(this, kMips64CvtDW, node);
 }
 
-void InstructionSelectorT::VisitChangeInt64ToFloat64(OpIndex node) {
+void InstructionSelector::VisitChangeInt64ToFloat64(OpIndex node) {
   VisitRR(this, kMips64CvtDL, node);
 }
 
-void InstructionSelectorT::VisitChangeUint32ToFloat64(OpIndex node) {
+void InstructionSelector::VisitChangeUint32ToFloat64(OpIndex node) {
   VisitRR(this, kMips64CvtDUw, node);
 }
 
-void InstructionSelectorT::VisitTruncateFloat32ToInt32(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitTruncateFloat32ToInt32(OpIndex node) {
+  Mips64OperandGenerator g(this);
 
-  const Operation& op = this->Get(node);
+  const ChangeOp& op = Cast<ChangeOp>(node);
   InstructionCode opcode = kMips64TruncWS;
   opcode |=
       MiscField::encode(op.Is<Opmask::kTruncateFloat32ToInt32OverflowToMin>());
-  Emit(opcode, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
-void InstructionSelectorT::VisitTruncateFloat32ToUint32(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitTruncateFloat32ToUint32(OpIndex node) {
+  Mips64OperandGenerator g(this);
 
-  const Operation& op = this->Get(node);
+  const ChangeOp& op = Cast<ChangeOp>(node);
   InstructionCode opcode = kMips64TruncUwS;
   if (op.Is<Opmask::kTruncateFloat32ToUint32OverflowToMin>()) {
     opcode |= MiscField::encode(true);
   }
 
-  Emit(opcode, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
-void InstructionSelectorT::VisitChangeFloat64ToInt32(OpIndex node) {
+void InstructionSelector::VisitChangeFloat64ToInt32(OpIndex node) {
   VisitRR(this, kMips64TruncWD, node);
 }
 
-void InstructionSelectorT::VisitChangeFloat64ToInt64(OpIndex node) {
+void InstructionSelector::VisitChangeFloat64ToInt64(OpIndex node) {
   VisitRR(this, kMips64TruncLD, node);
 }
 
-void InstructionSelectorT::VisitChangeFloat64ToUint32(OpIndex node) {
+void InstructionSelector::VisitChangeFloat64ToUint32(OpIndex node) {
   VisitRR(this, kMips64TruncUwD, node);
 }
 
-void InstructionSelectorT::VisitChangeFloat64ToUint64(OpIndex node) {
+void InstructionSelector::VisitChangeFloat64ToUint64(OpIndex node) {
   VisitRR(this, kMips64TruncUlD, node);
 }
 
-void InstructionSelectorT::VisitTruncateFloat64ToUint32(OpIndex node) {
+void InstructionSelector::VisitTruncateFloat64ToUint32(OpIndex node) {
   VisitRR(this, kMips64TruncUwD, node);
 }
 
-void InstructionSelectorT::VisitTruncateFloat64ToInt64(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitTruncateFloat64ToInt64(OpIndex node) {
+  Mips64OperandGenerator g(this);
 
   InstructionCode opcode = kMips64TruncLD;
-  const Operation& op = this->Get(node);
+  const ChangeOp& op = Cast<ChangeOp>(node);
   if (op.Is<Opmask::kTruncateFloat64ToInt64OverflowToMin>()) {
     opcode |= MiscField::encode(true);
   }
 
-  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
-void InstructionSelectorT::VisitTruncateFloat64ToFloat16RawBits(OpIndex node) {
+void InstructionSelector::VisitTruncateFloat64ToFloat16RawBits(OpIndex node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelectorT::VisitChangeFloat16RawBitsToFloat64(OpIndex node) {
+void InstructionSelector::VisitChangeFloat16RawBitsToFloat64(OpIndex node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelectorT::VisitTryTruncateFloat32ToInt64(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitTryTruncateFloat32ToInt64(OpIndex node) {
+  Mips64OperandGenerator g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -907,10 +914,11 @@ void InstructionSelectorT::VisitTryTruncateFloat32ToInt64(OpIndex node) {
   Emit(kMips64TruncLS, output_count, outputs, 1, inputs);
 }
 
-void InstructionSelectorT::VisitTryTruncateFloat64ToInt64(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitTryTruncateFloat64ToInt64(OpIndex node) {
+  Mips64OperandGenerator g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -923,10 +931,11 @@ void InstructionSelectorT::VisitTryTruncateFloat64ToInt64(OpIndex node) {
   Emit(kMips64TruncLD, output_count, outputs, 1, inputs);
 }
 
-void InstructionSelectorT::VisitTryTruncateFloat32ToUint64(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitTryTruncateFloat32ToUint64(OpIndex node) {
+  Mips64OperandGenerator g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -939,10 +948,11 @@ void InstructionSelectorT::VisitTryTruncateFloat32ToUint64(OpIndex node) {
   Emit(kMips64TruncUlS, output_count, outputs, 1, inputs);
 }
 
-void InstructionSelectorT::VisitTryTruncateFloat64ToUint64(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitTryTruncateFloat64ToUint64(OpIndex node) {
+  Mips64OperandGenerator g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -955,10 +965,11 @@ void InstructionSelectorT::VisitTryTruncateFloat64ToUint64(OpIndex node) {
   Emit(kMips64TruncUlD, output_count, outputs, 1, inputs);
 }
 
-void InstructionSelectorT::VisitTryTruncateFloat64ToInt32(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitTryTruncateFloat64ToInt32(OpIndex node) {
+  Mips64OperandGenerator g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -971,10 +982,11 @@ void InstructionSelectorT::VisitTryTruncateFloat64ToInt32(OpIndex node) {
   Emit(kMips64TruncWD, output_count, outputs, 1, inputs);
 }
 
-void InstructionSelectorT::VisitTryTruncateFloat64ToUint32(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitTryTruncateFloat64ToUint32(OpIndex node) {
+  Mips64OperandGenerator g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -987,12 +999,12 @@ void InstructionSelectorT::VisitTryTruncateFloat64ToUint32(OpIndex node) {
   Emit(kMips64TruncUwD, output_count, outputs, 1, inputs);
 }
 
-void InstructionSelectorT::VisitBitcastWord32ToWord64(OpIndex node) {
+void InstructionSelector::VisitBitcastWord32ToWord64(OpIndex node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelectorT::VisitChangeInt32ToInt64(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
+  Mips64OperandGenerator g(this);
   const ChangeOp& change_op = this->Get(node).template Cast<ChangeOp>();
   const Operation& input_op = this->Get(change_op.input());
   if (input_op.Is<LoadOp>() && CanCover(node, change_op.input())) {
@@ -1026,7 +1038,7 @@ void InstructionSelectorT::VisitChangeInt32ToInt64(OpIndex node) {
        g.TempImmediate(0));
 }
 
-bool InstructionSelectorT::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
+bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
   DCHECK(!this->Get(node).Is<PhiOp>());
   const Operation& op = this->Get(node);
   switch (op.opcode) {
@@ -1056,8 +1068,8 @@ bool InstructionSelectorT::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
   }
 }
 
-void InstructionSelectorT::VisitChangeUint32ToUint64(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitChangeUint32ToUint64(OpIndex node) {
+  Mips64OperandGenerator g(this);
   const ChangeOp& change_op = this->Get(node).template Cast<ChangeOp>();
   OpIndex input = change_op.input();
   const Operation& input_op = this->Get(input);
@@ -1079,13 +1091,14 @@ void InstructionSelectorT::VisitChangeUint32ToUint64(OpIndex node) {
        g.TempImmediate(0), g.TempImmediate(32));
 }
 
-void InstructionSelectorT::VisitTruncateInt64ToInt32(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
-  auto value = input_at(node, 0);
+void InstructionSelector::VisitTruncateInt64ToInt32(OpIndex node) {
+  Mips64OperandGenerator g(this);
+  OpIndex value = Cast<ChangeOp>(node).input();
   if (CanCover(node, value)) {
     if (Get(value).Is<Opmask::kWord64ShiftRightArithmetic>()) {
-      auto shift_value = input_at(value, 1);
-      if (CanCover(value, input_at(value, 0)) &&
+      const ShiftOp& shift = Cast<ShiftOp>(value);
+      auto shift_value = shift.right();
+      if (CanCover(value, shift.left()) &&
           TryEmitExtendingLoad(this, value, node)) {
         return;
       } else if (int64_t constant;
@@ -1093,8 +1106,8 @@ void InstructionSelectorT::VisitTruncateInt64ToInt32(OpIndex node) {
         if (constant >= 32 && constant <= 63) {
           // After smi untagging no need for truncate. Combine sequence.
           Emit(kMips64Dsar, g.DefineAsRegister(node),
-               g.UseRegister(input_at(value, 0)),
-               g.UseImmediate(input_at(value, 1)));
+               g.UseRegister(shift.left()),
+               g.UseImmediate(static_cast<int32_t>(constant)));
           return;
         }
       }
@@ -1104,203 +1117,206 @@ void InstructionSelectorT::VisitTruncateInt64ToInt32(OpIndex node) {
        g.TempImmediate(0));
 }
 
-void InstructionSelectorT::VisitTruncateFloat64ToFloat32(OpIndex node) {
+void InstructionSelector::VisitTruncateFloat64ToFloat32(OpIndex node) {
   VisitRR(this, kMips64CvtSD, node);
 }
 
-void InstructionSelectorT::VisitTruncateFloat64ToWord32(OpIndex node) {
+void InstructionSelector::VisitTruncateFloat64ToWord32(OpIndex node) {
   VisitRR(this, kArchTruncateDoubleToI, node);
 }
 
-void InstructionSelectorT::VisitRoundFloat64ToInt32(OpIndex node) {
+void InstructionSelector::VisitRoundFloat64ToInt32(OpIndex node) {
   VisitRR(this, kMips64TruncWD, node);
 }
 
-void InstructionSelectorT::VisitRoundInt64ToFloat32(OpIndex node) {
+void InstructionSelector::VisitRoundInt64ToFloat32(OpIndex node) {
   VisitRR(this, kMips64CvtSL, node);
 }
 
-void InstructionSelectorT::VisitRoundInt64ToFloat64(OpIndex node) {
+void InstructionSelector::VisitRoundInt64ToFloat64(OpIndex node) {
   VisitRR(this, kMips64CvtDL, node);
 }
 
-void InstructionSelectorT::VisitRoundUint64ToFloat32(OpIndex node) {
+void InstructionSelector::VisitRoundUint64ToFloat32(OpIndex node) {
   VisitRR(this, kMips64CvtSUl, node);
 }
 
-void InstructionSelectorT::VisitRoundUint64ToFloat64(OpIndex node) {
+void InstructionSelector::VisitRoundUint64ToFloat64(OpIndex node) {
   VisitRR(this, kMips64CvtDUl, node);
 }
 
-void InstructionSelectorT::VisitBitcastFloat32ToInt32(OpIndex node) {
+void InstructionSelector::VisitBitcastFloat32ToInt32(OpIndex node) {
   VisitRR(this, kMips64Float64ExtractLowWord32, node);
 }
 
-void InstructionSelectorT::VisitBitcastFloat64ToInt64(OpIndex node) {
+void InstructionSelector::VisitBitcastFloat64ToInt64(OpIndex node) {
   VisitRR(this, kMips64BitcastDL, node);
 }
 
-void InstructionSelectorT::VisitBitcastInt32ToFloat32(OpIndex node) {
+void InstructionSelector::VisitBitcastInt32ToFloat32(OpIndex node) {
   // when move lower 32 bits of general registers to 64-bit fpu registers on
   // mips64, the upper 32 bits of the fpu register is undefined. So we could
   // just move the whole 64 bits to fpu registers.
   VisitRR(this, kMips64BitcastLD, node);
 }
 
-void InstructionSelectorT::VisitBitcastInt64ToFloat64(OpIndex node) {
+void InstructionSelector::VisitBitcastInt64ToFloat64(OpIndex node) {
   VisitRR(this, kMips64BitcastLD, node);
 }
 
-void InstructionSelectorT::VisitFloat32Add(OpIndex node) {
+void InstructionSelector::VisitFloat32Add(OpIndex node) {
   // Optimization with Madd.S(z, x, y) is intentionally removed.
   // See explanation for madd_s in assembler-mips64.cc.
   VisitRRR(this, kMips64AddS, node);
 }
 
-void InstructionSelectorT::VisitFloat64Add(OpIndex node) {
+void InstructionSelector::VisitFloat64Add(OpIndex node) {
   // Optimization with Madd.D(z, x, y) is intentionally removed.
   // See explanation for madd_d in assembler-mips64.cc.
   VisitRRR(this, kMips64AddD, node);
 }
 
-void InstructionSelectorT::VisitFloat32Sub(OpIndex node) {
+void InstructionSelector::VisitFloat32Sub(OpIndex node) {
   // Optimization with Msub.S(z, x, y) is intentionally removed.
   // See explanation for madd_s in assembler-mips64.cc.
   VisitRRR(this, kMips64SubS, node);
 }
 
-void InstructionSelectorT::VisitFloat64Sub(OpIndex node) {
+void InstructionSelector::VisitFloat64Sub(OpIndex node) {
   // Optimization with Msub.D(z, x, y) is intentionally removed.
   // See explanation for madd_d in assembler-mips64.cc.
   VisitRRR(this, kMips64SubD, node);
 }
 
-void InstructionSelectorT::VisitFloat32Mul(OpIndex node) {
+void InstructionSelector::VisitFloat32Mul(OpIndex node) {
   VisitRRR(this, kMips64MulS, node);
 }
 
-void InstructionSelectorT::VisitFloat64Mul(OpIndex node) {
+void InstructionSelector::VisitFloat64Mul(OpIndex node) {
   VisitRRR(this, kMips64MulD, node);
 }
 
-void InstructionSelectorT::VisitFloat32Div(OpIndex node) {
+void InstructionSelector::VisitFloat32Div(OpIndex node) {
   VisitRRR(this, kMips64DivS, node);
 }
 
-void InstructionSelectorT::VisitFloat64Div(OpIndex node) {
+void InstructionSelector::VisitFloat64Div(OpIndex node) {
   VisitRRR(this, kMips64DivD, node);
 }
 
-void InstructionSelectorT::VisitFloat64Mod(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
-  Emit(kMips64ModD, g.DefineAsFixed(node, f0),
-       g.UseFixed(this->input_at(node, 0), f12),
-       g.UseFixed(this->input_at(node, 1), f14))
+void InstructionSelector::VisitFloat64Mod(OpIndex node) {
+  Mips64OperandGenerator g(this);
+  const FloatBinopOp& op = Cast<FloatBinopOp>(node);
+
+  Emit(kMips64ModD, g.DefineAsFixed(node, f0), g.UseFixed(op.left(), f12),
+       g.UseFixed(op.right(), f14))
       ->MarkAsCall();
 }
 
-void InstructionSelectorT::VisitFloat32Max(OpIndex node) {
+void InstructionSelector::VisitFloat32Max(OpIndex node) {
   VisitRRR(this, kMips64Float32Max, node);
 }
 
-void InstructionSelectorT::VisitFloat64Max(OpIndex node) {
+void InstructionSelector::VisitFloat64Max(OpIndex node) {
   VisitRRR(this, kMips64Float64Max, node);
 }
 
-void InstructionSelectorT::VisitFloat32Min(OpIndex node) {
+void InstructionSelector::VisitFloat32Min(OpIndex node) {
   VisitRRR(this, kMips64Float32Min, node);
 }
 
-void InstructionSelectorT::VisitFloat64Min(OpIndex node) {
+void InstructionSelector::VisitFloat64Min(OpIndex node) {
   VisitRRR(this, kMips64Float64Min, node);
 }
 
-void InstructionSelectorT::VisitFloat32Abs(OpIndex node) {
+void InstructionSelector::VisitFloat32Abs(OpIndex node) {
   VisitRR(this, kMips64AbsS, node);
 }
 
-void InstructionSelectorT::VisitFloat64Abs(OpIndex node) {
+void InstructionSelector::VisitFloat64Abs(OpIndex node) {
   VisitRR(this, kMips64AbsD, node);
 }
 
-void InstructionSelectorT::VisitFloat32Sqrt(OpIndex node) {
+void InstructionSelector::VisitFloat32Sqrt(OpIndex node) {
   VisitRR(this, kMips64SqrtS, node);
 }
 
-void InstructionSelectorT::VisitFloat64Sqrt(OpIndex node) {
+void InstructionSelector::VisitFloat64Sqrt(OpIndex node) {
   VisitRR(this, kMips64SqrtD, node);
 }
 
-void InstructionSelectorT::VisitFloat32RoundDown(OpIndex node) {
+void InstructionSelector::VisitFloat32RoundDown(OpIndex node) {
   VisitRR(this, kMips64Float32RoundDown, node);
 }
 
-void InstructionSelectorT::VisitFloat64RoundDown(OpIndex node) {
+void InstructionSelector::VisitFloat64RoundDown(OpIndex node) {
   VisitRR(this, kMips64Float64RoundDown, node);
 }
 
-void InstructionSelectorT::VisitFloat32RoundUp(OpIndex node) {
+void InstructionSelector::VisitFloat32RoundUp(OpIndex node) {
   VisitRR(this, kMips64Float32RoundUp, node);
 }
 
-void InstructionSelectorT::VisitFloat64RoundUp(OpIndex node) {
+void InstructionSelector::VisitFloat64RoundUp(OpIndex node) {
   VisitRR(this, kMips64Float64RoundUp, node);
 }
 
-void InstructionSelectorT::VisitFloat32RoundTruncate(OpIndex node) {
+void InstructionSelector::VisitFloat32RoundTruncate(OpIndex node) {
   VisitRR(this, kMips64Float32RoundTruncate, node);
 }
 
-void InstructionSelectorT::VisitFloat64RoundTruncate(OpIndex node) {
+void InstructionSelector::VisitFloat64RoundTruncate(OpIndex node) {
   VisitRR(this, kMips64Float64RoundTruncate, node);
 }
 
-void InstructionSelectorT::VisitFloat64RoundTiesAway(OpIndex node) {
+void InstructionSelector::VisitFloat64RoundTiesAway(OpIndex node) {
   UNREACHABLE();
 }
 
-void InstructionSelectorT::VisitFloat32RoundTiesEven(OpIndex node) {
+void InstructionSelector::VisitFloat32RoundTiesEven(OpIndex node) {
   VisitRR(this, kMips64Float32RoundTiesEven, node);
 }
 
-void InstructionSelectorT::VisitFloat64RoundTiesEven(OpIndex node) {
+void InstructionSelector::VisitFloat64RoundTiesEven(OpIndex node) {
   VisitRR(this, kMips64Float64RoundTiesEven, node);
 }
 
-void InstructionSelectorT::VisitFloat32Neg(OpIndex node) {
+void InstructionSelector::VisitFloat32Neg(OpIndex node) {
   VisitRR(this, kMips64NegS, node);
 }
 
-void InstructionSelectorT::VisitFloat64Neg(OpIndex node) {
+void InstructionSelector::VisitFloat64Neg(OpIndex node) {
   VisitRR(this, kMips64NegD, node);
 }
 
-void InstructionSelectorT::VisitFloat64Ieee754Binop(OpIndex node,
-                                                    InstructionCode opcode) {
-  Mips64OperandGeneratorT g(this);
-  Emit(opcode, g.DefineAsFixed(node, f0),
-       g.UseFixed(this->input_at(node, 0), f2),
-       g.UseFixed(this->input_at(node, 1), f4))
-      ->MarkAsCall();
-}
-
-void InstructionSelectorT::VisitFloat64Ieee754Unop(OpIndex node,
+void InstructionSelector::VisitFloat64Ieee754Binop(OpIndex node,
                                                    InstructionCode opcode) {
-  Mips64OperandGeneratorT g(this);
-  Emit(opcode, g.DefineAsFixed(node, f0),
-       g.UseFixed(this->input_at(node, 0), f12))
+  Mips64OperandGenerator g(this);
+  const FloatBinopOp& op = Cast<FloatBinopOp>(node);
+
+  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(op.left(), f2),
+       g.UseFixed(op.right(), f4))
       ->MarkAsCall();
 }
 
-void InstructionSelectorT::EmitMoveParamToFPR(OpIndex node, int index) {}
+void InstructionSelector::VisitFloat64Ieee754Unop(OpIndex node,
+                                                  InstructionCode opcode) {
+  Mips64OperandGenerator g(this);
+  const FloatUnaryOp& op = Cast<FloatUnaryOp>(node);
 
-void InstructionSelectorT::EmitMoveFPRToParam(InstructionOperand* op,
-                                              LinkageLocation location) {}
+  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(op.input(), f12))
+      ->MarkAsCall();
+}
 
-void InstructionSelectorT::EmitPrepareArguments(
+void InstructionSelector::EmitMoveParamToFPR(OpIndex node, int index) {}
+
+void InstructionSelector::EmitMoveFPRToParam(InstructionOperand* op,
+                                             LinkageLocation location) {}
+
+void InstructionSelector::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+  Mips64OperandGenerator g(this);
 
   // Prepare for C function call.
   if (call_descriptor->IsCFunctionCall()) {
@@ -1338,10 +1354,10 @@ void InstructionSelectorT::EmitPrepareArguments(
   }
 }
 
-void InstructionSelectorT::EmitPrepareResults(
+void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
     OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+  Mips64OperandGenerator g(this);
 
   for (PushParameter output : *results) {
     if (!output.location.IsCallerFrameSlot()) continue;
@@ -1363,9 +1379,9 @@ void InstructionSelectorT::EmitPrepareResults(
   }
 }
 
-bool InstructionSelectorT::IsTailCallAddressImmediate() { return false; }
+bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
 
-void InstructionSelectorT::VisitUnalignedLoad(OpIndex node) {
+void InstructionSelector::VisitUnalignedLoad(OpIndex node) {
   auto load = this->load_view(node);
   LoadRepresentation load_rep = load.loaded_rep();
 
@@ -1413,12 +1429,12 @@ void InstructionSelectorT::VisitUnalignedLoad(OpIndex node) {
   EmitLoad(this, node, opcode);
 }
 
-void InstructionSelectorT::VisitUnalignedStore(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
-  TurboshaftAdapter::StoreView store_view = this->store_view(node);
+void InstructionSelector::VisitUnalignedStore(OpIndex node) {
+  Mips64OperandGenerator g(this);
+  StoreView store_view = this->store_view(node);
   DCHECK_EQ(store_view.displacement(), 0);
   OpIndex base = store_view.base();
-  OpIndex index = this->value(store_view.index());
+  OpIndex index = store_view.index().value();
   OpIndex value = store_view.value();
 
   MachineRepresentation rep = store_view.stored_rep().representation();
@@ -1481,18 +1497,18 @@ void InstructionSelectorT::VisitUnalignedStore(OpIndex node) {
 namespace {
 
 // Shared routine for multiple compare operations.
-static Instruction* VisitCompare(InstructionSelectorT* selector,
+static Instruction* VisitCompare(InstructionSelector* selector,
                                  InstructionCode opcode,
                                  InstructionOperand left,
                                  InstructionOperand right,
-                                 FlagsContinuationT* cont) {
+                                 FlagsContinuation* cont) {
   return selector->EmitWithContinuation(opcode, left, right, cont);
 }
 
 // Shared routine for multiple float32 compare operations.
-void VisitFloat32Compare(InstructionSelectorT* selector, OpIndex node,
-                         FlagsContinuationT* cont) {
-  Mips64OperandGeneratorT g(selector);
+void VisitFloat32Compare(InstructionSelector* selector, OpIndex node,
+                         FlagsContinuation* cont) {
+  Mips64OperandGenerator g(selector);
   const ComparisonOp& op = selector->Get(node).template Cast<ComparisonOp>();
   OpIndex left = op.left();
   OpIndex right = op.right();
@@ -1505,9 +1521,9 @@ void VisitFloat32Compare(InstructionSelectorT* selector, OpIndex node,
 }
 
 // Shared routine for multiple float64 compare operations.
-void VisitFloat64Compare(InstructionSelectorT* selector, OpIndex node,
-                         FlagsContinuationT* cont) {
-  Mips64OperandGeneratorT g(selector);
+void VisitFloat64Compare(InstructionSelector* selector, OpIndex node,
+                         FlagsContinuation* cont) {
+  Mips64OperandGenerator g(selector);
   const Operation& compare = selector->Get(node);
   DCHECK(compare.Is<ComparisonOp>());
   OpIndex lhs = compare.input(0);
@@ -1525,13 +1541,14 @@ void VisitFloat64Compare(InstructionSelectorT* selector, OpIndex node,
 }
 
 // Shared routine for multiple word compare operations.
-Instruction* VisitWordCompare(InstructionSelectorT* selector, OpIndex node,
-                              InstructionCode opcode, FlagsContinuationT* cont,
+Instruction* VisitWordCompare(InstructionSelector* selector, OpIndex node,
+                              InstructionCode opcode, FlagsContinuation* cont,
                               bool commutative) {
-  Mips64OperandGeneratorT g(selector);
-  DCHECK_EQ(selector->value_input_count(node), 2);
-  auto left = selector->input_at(node, 0);
-  auto right = selector->input_at(node, 1);
+  Mips64OperandGenerator g(selector);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  auto left = op.input(0);
+  auto right = op.input(1);
 
   // Match immediates on left or right side of comparison.
   if (g.CanBeImmediate(right, opcode)) {
@@ -1594,44 +1611,44 @@ Instruction* VisitWordCompare(InstructionSelectorT* selector, OpIndex node,
 }
 
 // Shared routine for multiple word compare operations.
-void VisitFullWord32Compare(InstructionSelectorT* selector, OpIndex node,
-                            InstructionCode opcode, FlagsContinuationT* cont) {
-  Mips64OperandGeneratorT g(selector);
+void VisitFullWord32Compare(InstructionSelector* selector, OpIndex node,
+                            InstructionCode opcode, FlagsContinuation* cont) {
+  Mips64OperandGenerator g(selector);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
   InstructionOperand leftOp = g.TempRegister();
   InstructionOperand rightOp = g.TempRegister();
 
-  selector->Emit(kMips64Dshl, leftOp,
-                 g.UseRegister(selector->input_at(node, 0)),
+  selector->Emit(kMips64Dshl, leftOp, g.UseRegister(op.input(0)),
                  g.TempImmediate(32));
-  selector->Emit(kMips64Dshl, rightOp,
-                 g.UseRegister(selector->input_at(node, 1)),
+  selector->Emit(kMips64Dshl, rightOp, g.UseRegister(op.input(1)),
                  g.TempImmediate(32));
 
   Instruction* instr = VisitCompare(selector, opcode, leftOp, rightOp, cont);
   selector->UpdateSourcePosition(instr, node);
 }
 
-void VisitWord32Compare(InstructionSelectorT* selector, OpIndex node,
-                        FlagsContinuationT* cont) {
+void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
+                        FlagsContinuation* cont) {
   VisitFullWord32Compare(selector, node, kMips64Cmp, cont);
 }
 
-void VisitWord64Compare(InstructionSelectorT* selector, OpIndex node,
-                        FlagsContinuationT* cont) {
+void VisitWord64Compare(InstructionSelector* selector, OpIndex node,
+                        FlagsContinuation* cont) {
   VisitWordCompare(selector, node, kMips64Cmp, cont, false);
 }
 
-void EmitWordCompareZero(InstructionSelectorT* selector, OpIndex value,
-                         FlagsContinuationT* cont) {
-  Mips64OperandGeneratorT g(selector);
+void EmitWordCompareZero(InstructionSelector* selector, OpIndex value,
+                         FlagsContinuation* cont) {
+  Mips64OperandGenerator g(selector);
   selector->EmitWithContinuation(kMips64Cmp, g.UseRegister(value),
                                  g.TempImmediate(0), cont);
 }
 
-void VisitAtomicLoad(InstructionSelectorT* selector, OpIndex node,
+void VisitAtomicLoad(InstructionSelector* selector, OpIndex node,
                      AtomicWidth width) {
   using OpIndex = OpIndex;
-  Mips64OperandGeneratorT g(selector);
+  Mips64OperandGenerator g(selector);
   auto load = selector->load_view(node);
   OpIndex base = load.base();
   OpIndex index = load.index();
@@ -1680,7 +1697,7 @@ void VisitAtomicLoad(InstructionSelectorT* selector, OpIndex node,
   }
 }
 
-AtomicStoreParameters AtomicStoreParametersOf(InstructionSelectorT* selector,
+AtomicStoreParameters AtomicStoreParametersOf(InstructionSelector* selector,
                                               OpIndex node) {
   auto store = selector->store_view(node);
   return AtomicStoreParameters(store.stored_rep().representation(),
@@ -1689,13 +1706,13 @@ AtomicStoreParameters AtomicStoreParametersOf(InstructionSelectorT* selector,
                                store.access_kind());
 }
 
-void VisitAtomicStore(InstructionSelectorT* selector, OpIndex node,
+void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
                       AtomicWidth width) {
   using OpIndex = OpIndex;
-  Mips64OperandGeneratorT g(selector);
+  Mips64OperandGenerator g(selector);
   auto store = selector->store_view(node);
   OpIndex base = store.base();
-  OpIndex index = selector->value(store.index());
+  OpIndex index = store.index().value();
   OpIndex value = store.value();
   DCHECK_EQ(store.displacement(), 0);
 
@@ -1772,10 +1789,10 @@ void VisitAtomicStore(InstructionSelectorT* selector, OpIndex node,
   }
 }
 
-void VisitAtomicExchange(InstructionSelectorT* selector, OpIndex node,
+void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
                          ArchOpcode opcode, AtomicWidth width) {
   using OpIndex = OpIndex;
-  Mips64OperandGeneratorT g(selector);
+  Mips64OperandGenerator g(selector);
   const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   OpIndex base = atomic_op.base();
   OpIndex index = atomic_op.index();
@@ -1783,25 +1800,33 @@ void VisitAtomicExchange(InstructionSelectorT* selector, OpIndex node,
 
   AddressingMode addressing_mode = kMode_MRI;
   InstructionOperand inputs[3];
-  size_t input_count = 0;
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  inputs[input_count++] = g.UseUniqueRegister(index);
-  inputs[input_count++] = g.UseUniqueRegister(value);
+  if (opcode == kAtomicExchangeWithWriteBarrier) {
+    // All inputs registers need to be non-aliasing with the temp registers as
+    // the original inputs are still needed when emitting the write barrier.
+    inputs[0] = g.UseUniqueRegister(base);
+    inputs[1] = g.UseUniqueRegister(index);
+    inputs[2] = g.UseUniqueRegister(value);
+  } else {
+    inputs[0] = g.UseRegister(base);
+    inputs[1] = g.UseRegister(index);
+    inputs[2] = g.UseUniqueRegister(value);
+  }
   InstructionOperand outputs[1];
   outputs[0] = g.UseUniqueRegister(node);
-  InstructionOperand temp[3];
-  temp[0] = g.TempRegister();
-  temp[1] = g.TempRegister();
-  temp[2] = g.TempRegister();
+  InstructionOperand temps[3];
+  temps[0] = g.TempRegister();
+  temps[1] = g.TempRegister();
+  temps[2] = g.TempRegister();
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  selector->Emit(code, 1, outputs, input_count, inputs, 3, temp);
+  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                 arraysize(temps), temps);
 }
 
-void VisitAtomicCompareExchange(InstructionSelectorT* selector, OpIndex node,
+void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
                                 ArchOpcode opcode, AtomicWidth width) {
   using OpIndex = OpIndex;
-  Mips64OperandGeneratorT g(selector);
+  Mips64OperandGenerator g(selector);
   const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   OpIndex base = atomic_op.base();
   OpIndex index = atomic_op.index();
@@ -1826,10 +1851,10 @@ void VisitAtomicCompareExchange(InstructionSelectorT* selector, OpIndex node,
   selector->Emit(code, 1, outputs, input_count, inputs, 3, temp);
 }
 
-void VisitAtomicBinop(InstructionSelectorT* selector, OpIndex node,
+void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
                       ArchOpcode opcode, AtomicWidth width) {
   using OpIndex = OpIndex;
-  Mips64OperandGeneratorT g(selector);
+  Mips64OperandGenerator g(selector);
   const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   OpIndex base = atomic_op.base();
   OpIndex index = atomic_op.index();
@@ -1855,8 +1880,8 @@ void VisitAtomicBinop(InstructionSelectorT* selector, OpIndex node,
 
 }  // namespace
 
-void InstructionSelectorT::VisitStackPointerGreaterThan(
-    OpIndex node, FlagsContinuationT* cont) {
+void InstructionSelector::VisitStackPointerGreaterThan(
+    OpIndex node, FlagsContinuation* cont) {
   StackCheckKind kind;
   OpIndex value;
   const auto& op = this->turboshaft_graph()
@@ -1868,7 +1893,7 @@ void InstructionSelectorT::VisitStackPointerGreaterThan(
       kArchStackPointerGreaterThan |
       StackCheckField::encode(static_cast<StackCheckKind>(kind));
 
-  Mips64OperandGeneratorT g(this);
+  Mips64OperandGenerator g(this);
 
   // No outputs.
   InstructionOperand* const outputs = nullptr;
@@ -1892,10 +1917,10 @@ void InstructionSelectorT::VisitStackPointerGreaterThan(
 }
 
 // Shared routine for word comparisons against zero.
-void InstructionSelectorT::VisitWordCompareZero(OpIndex user, OpIndex value,
-                                                FlagsContinuation* cont) {
+void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
+                                               FlagsContinuation* cont) {
   {
-    Mips64OperandGeneratorT g(this);
+    Mips64OperandGenerator g(this);
     // Try to combine with comparisons against 0 by simply inverting the branch.
     while (const ComparisonOp* equal =
                this->TryCast<Opmask::kWord32Equal>(value)) {
@@ -2001,13 +2026,13 @@ void InstructionSelectorT::VisitWordCompareZero(OpIndex user, OpIndex value,
   }
 }
 
-void InstructionSelectorT::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
-  Mips64OperandGeneratorT g(this);
-  InstructionOperand value_operand = g.UseRegister(this->input_at(node, 0));
+void InstructionSelector::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
+  Mips64OperandGenerator g(this);
+  const SwitchOp& op = Cast<SwitchOp>(node);
+  InstructionOperand value_operand = g.UseRegister(op.input());
 
   // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
-  if (enable_switch_jump_table_ ==
-      InstructionSelector::kEnableSwitchJumpTable) {
+  if (enable_switch_jump_table_) {
     static const size_t kMaxTableSwitchValueRange = 2 << 16;
     size_t table_space_cost = 10 + 2 * sw.value_range();
     size_t table_time_cost = 3;
@@ -2033,7 +2058,7 @@ void InstructionSelectorT::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
   return EmitBinarySearchSwitch(sw, value_operand);
 }
 
-void InstructionSelectorT::VisitWord32Equal(OpIndex node) {
+void InstructionSelector::VisitWord32Equal(OpIndex node) {
   const Operation& equal = Get(node);
   DCHECK(equal.Is<ComparisonOp>());
   OpIndex left = equal.input(0);
@@ -2048,29 +2073,29 @@ void InstructionSelectorT::VisitWord32Equal(OpIndex node) {
   VisitWord32Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitInt32LessThan(OpIndex node) {
+void InstructionSelector::VisitInt32LessThan(OpIndex node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kSignedLessThan, node);
   VisitWord32Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitInt32LessThanOrEqual(OpIndex node) {
+void InstructionSelector::VisitInt32LessThanOrEqual(OpIndex node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kSignedLessThanOrEqual, node);
   VisitWord32Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitUint32LessThan(OpIndex node) {
+void InstructionSelector::VisitUint32LessThan(OpIndex node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitWord32Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitUint32LessThanOrEqual(OpIndex node) {
+void InstructionSelector::VisitUint32LessThanOrEqual(OpIndex node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitWord32Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitInt32AddWithOverflow(OpIndex node) {
+void InstructionSelector::VisitInt32AddWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid() && IsUsed(ovf.value())) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
@@ -2081,7 +2106,7 @@ void InstructionSelectorT::VisitInt32AddWithOverflow(OpIndex node) {
   VisitBinop(this, node, kMips64Dadd, &cont);
 }
 
-void InstructionSelectorT::VisitInt32SubWithOverflow(OpIndex node) {
+void InstructionSelector::VisitInt32SubWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
@@ -2092,7 +2117,7 @@ void InstructionSelectorT::VisitInt32SubWithOverflow(OpIndex node) {
   VisitBinop(this, node, kMips64Dsub, &cont);
 }
 
-void InstructionSelectorT::VisitInt32MulWithOverflow(OpIndex node) {
+void InstructionSelector::VisitInt32MulWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
@@ -2103,7 +2128,7 @@ void InstructionSelectorT::VisitInt32MulWithOverflow(OpIndex node) {
   VisitBinop(this, node, kMips64MulOvf, &cont);
 }
 
-void InstructionSelectorT::VisitInt64MulWithOverflow(OpIndex node) {
+void InstructionSelector::VisitInt64MulWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
@@ -2114,7 +2139,7 @@ void InstructionSelectorT::VisitInt64MulWithOverflow(OpIndex node) {
   VisitBinop(this, node, kMips64DMulOvf, &cont);
 }
 
-void InstructionSelectorT::VisitInt64AddWithOverflow(OpIndex node) {
+void InstructionSelector::VisitInt64AddWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
@@ -2125,7 +2150,7 @@ void InstructionSelectorT::VisitInt64AddWithOverflow(OpIndex node) {
   VisitBinop(this, node, kMips64DaddOvf, &cont);
 }
 
-void InstructionSelectorT::VisitInt64SubWithOverflow(OpIndex node) {
+void InstructionSelector::VisitInt64SubWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
@@ -2136,79 +2161,79 @@ void InstructionSelectorT::VisitInt64SubWithOverflow(OpIndex node) {
   VisitBinop(this, node, kMips64DsubOvf, &cont);
 }
 
-void InstructionSelectorT::VisitWord64Equal(OpIndex node) {
+void InstructionSelector::VisitWord64Equal(OpIndex node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   VisitWord64Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitInt64LessThan(OpIndex node) {
+void InstructionSelector::VisitInt64LessThan(OpIndex node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kSignedLessThan, node);
   VisitWord64Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitInt64LessThanOrEqual(OpIndex node) {
+void InstructionSelector::VisitInt64LessThanOrEqual(OpIndex node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kSignedLessThanOrEqual, node);
   VisitWord64Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitUint64LessThan(OpIndex node) {
+void InstructionSelector::VisitUint64LessThan(OpIndex node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitWord64Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitUint64LessThanOrEqual(OpIndex node) {
+void InstructionSelector::VisitUint64LessThanOrEqual(OpIndex node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitWord64Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitFloat32Equal(OpIndex node) {
+void InstructionSelector::VisitFloat32Equal(OpIndex node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitFloat32LessThan(OpIndex node) {
+void InstructionSelector::VisitFloat32LessThan(OpIndex node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitFloat32LessThanOrEqual(OpIndex node) {
+void InstructionSelector::VisitFloat32LessThanOrEqual(OpIndex node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitFloat64Equal(OpIndex node) {
+void InstructionSelector::VisitFloat64Equal(OpIndex node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitFloat64LessThan(OpIndex node) {
+void InstructionSelector::VisitFloat64LessThan(OpIndex node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitFloat64LessThanOrEqual(OpIndex node) {
+void InstructionSelector::VisitFloat64LessThanOrEqual(OpIndex node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
-void InstructionSelectorT::VisitFloat64ExtractLowWord32(OpIndex node) {
+void InstructionSelector::VisitFloat64ExtractLowWord32(OpIndex node) {
   VisitRR(this, kMips64Float64ExtractLowWord32, node);
 }
 
-void InstructionSelectorT::VisitFloat64ExtractHighWord32(OpIndex node) {
+void InstructionSelector::VisitFloat64ExtractHighWord32(OpIndex node) {
   VisitRR(this, kMips64Float64ExtractHighWord32, node);
 }
 
-void InstructionSelectorT::VisitFloat64SilenceNaN(OpIndex node) {
+void InstructionSelector::VisitFloat64SilenceNaN(OpIndex node) {
   VisitRR(this, kMips64Float64SilenceNaN, node);
 }
 
-void InstructionSelectorT::VisitBitcastWord32PairToFloat64(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitBitcastWord32PairToFloat64(OpIndex node) {
+  Mips64OperandGenerator g(this);
   const auto& bitcast = this->Cast<BitcastWord32PairToFloat64Op>(node);
   OpIndex hi = bitcast.high_word32();
   OpIndex lo = bitcast.low_word32();
@@ -2218,28 +2243,28 @@ void InstructionSelectorT::VisitBitcastWord32PairToFloat64(OpIndex node) {
        g.Use(lo), arraysize(temps), temps);
 }
 
-void InstructionSelectorT::VisitMemoryBarrier(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitMemoryBarrier(OpIndex node) {
+  Mips64OperandGenerator g(this);
   Emit(kMips64Sync, g.NoOutput());
 }
 
-void InstructionSelectorT::VisitWord32AtomicLoad(OpIndex node) {
+void InstructionSelector::VisitWord32AtomicLoad(OpIndex node) {
   VisitAtomicLoad(this, node, AtomicWidth::kWord32);
 }
 
-void InstructionSelectorT::VisitWord32AtomicStore(OpIndex node) {
+void InstructionSelector::VisitWord32AtomicStore(OpIndex node) {
   VisitAtomicStore(this, node, AtomicWidth::kWord32);
 }
 
-void InstructionSelectorT::VisitWord64AtomicLoad(OpIndex node) {
+void InstructionSelector::VisitWord64AtomicLoad(OpIndex node) {
   VisitAtomicLoad(this, node, AtomicWidth::kWord64);
 }
 
-void InstructionSelectorT::VisitWord64AtomicStore(OpIndex node) {
+void InstructionSelector::VisitWord64AtomicStore(OpIndex node) {
   VisitAtomicStore(this, node, AtomicWidth::kWord64);
 }
 
-void InstructionSelectorT::VisitWord32AtomicExchange(OpIndex node) {
+void InstructionSelector::VisitWord32AtomicExchange(OpIndex node) {
   const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
   ArchOpcode opcode;
   if (atomic_op.memory_rep == MemoryRepresentation::Int8()) {
@@ -2259,7 +2284,7 @@ void InstructionSelectorT::VisitWord32AtomicExchange(OpIndex node) {
   VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord32);
 }
 
-void InstructionSelectorT::VisitWord64AtomicExchange(OpIndex node) {
+void InstructionSelector::VisitWord64AtomicExchange(OpIndex node) {
   const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
   ArchOpcode opcode;
   if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
@@ -2276,7 +2301,13 @@ void InstructionSelectorT::VisitWord64AtomicExchange(OpIndex node) {
   VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord64);
 }
 
-void InstructionSelectorT::VisitWord32AtomicCompareExchange(OpIndex node) {
+void InstructionSelector::VisitTaggedAtomicExchange(OpIndex node) {
+  AtomicWidth width =
+      COMPRESS_POINTERS_BOOL ? AtomicWidth::kWord32 : AtomicWidth::kWord64;
+  VisitAtomicExchange(this, node, kAtomicExchangeWithWriteBarrier, width);
+}
+
+void InstructionSelector::VisitWord32AtomicCompareExchange(OpIndex node) {
   const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
   ArchOpcode opcode;
   if (atomic_op.memory_rep == MemoryRepresentation::Int8()) {
@@ -2296,7 +2327,7 @@ void InstructionSelectorT::VisitWord32AtomicCompareExchange(OpIndex node) {
   VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord32);
 }
 
-void InstructionSelectorT::VisitWord64AtomicCompareExchange(OpIndex node) {
+void InstructionSelector::VisitWord64AtomicCompareExchange(OpIndex node) {
   const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
   ArchOpcode opcode;
   if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
@@ -2313,7 +2344,14 @@ void InstructionSelectorT::VisitWord64AtomicCompareExchange(OpIndex node) {
   VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord64);
 }
 
-void InstructionSelectorT::VisitWord32AtomicBinaryOperation(
+void InstructionSelector::VisitTaggedAtomicCompareExchange(OpIndex node) {
+  AtomicWidth width =
+      COMPRESS_POINTERS_BOOL ? AtomicWidth::kWord32 : AtomicWidth::kWord64;
+  VisitAtomicCompareExchange(this, node, kAtomicCompareExchangeWithWriteBarrier,
+                             width);
+}
+
+void InstructionSelector::VisitWord32AtomicBinaryOperation(
     OpIndex node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
   const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
@@ -2336,7 +2374,7 @@ void InstructionSelectorT::VisitWord32AtomicBinaryOperation(
 }
 
 #define VISIT_ATOMIC_BINOP(op)                                           \
-  void InstructionSelectorT::VisitWord32Atomic##op(OpIndex node) {       \
+  void InstructionSelector::VisitWord32Atomic##op(OpIndex node) {        \
     VisitWord32AtomicBinaryOperation(                                    \
         node, kAtomic##op##Int8, kAtomic##op##Uint8, kAtomic##op##Int16, \
         kAtomic##op##Uint16, kAtomic##op##Word32);                       \
@@ -2348,7 +2386,7 @@ VISIT_ATOMIC_BINOP(Or)
 VISIT_ATOMIC_BINOP(Xor)
 #undef VISIT_ATOMIC_BINOP
 
-void InstructionSelectorT::VisitWord64AtomicBinaryOperation(
+void InstructionSelector::VisitWord64AtomicBinaryOperation(
     OpIndex node, ArchOpcode uint8_op, ArchOpcode uint16_op,
     ArchOpcode uint32_op, ArchOpcode uint64_op) {
   const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
@@ -2368,7 +2406,7 @@ void InstructionSelectorT::VisitWord64AtomicBinaryOperation(
 }
 
 #define VISIT_ATOMIC_BINOP(op)                                                 \
-  void InstructionSelectorT::VisitWord64Atomic##op(OpIndex node) {             \
+  void InstructionSelector::VisitWord64Atomic##op(OpIndex node) {              \
     VisitWord64AtomicBinaryOperation(node, kAtomic##op##Uint8,                 \
                                      kAtomic##op##Uint16, kAtomic##op##Word32, \
                                      kMips64Word64Atomic##op##Uint64);         \
@@ -2380,13 +2418,15 @@ VISIT_ATOMIC_BINOP(Or)
 VISIT_ATOMIC_BINOP(Xor)
 #undef VISIT_ATOMIC_BINOP
 
-void InstructionSelectorT::VisitInt32AbsWithOverflow(OpIndex node) {
+void InstructionSelector::VisitInt32AbsWithOverflow(OpIndex node) {
   UNREACHABLE();
 }
 
-void InstructionSelectorT::VisitInt64AbsWithOverflow(OpIndex node) {
+void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
   UNREACHABLE();
 }
+
+#if V8_ENABLE_WEBASSEMBLY
 
 #define SIMD_TYPE_LIST(V) \
   V(F64x2)                \
@@ -2554,22 +2594,22 @@ void InstructionSelectorT::VisitInt64AbsWithOverflow(OpIndex node) {
   V(S128Xor, kMips64S128Xor)                             \
   V(S128AndNot, kMips64S128AndNot)
 
-void InstructionSelectorT::VisitS128Const(OpIndex node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitS128Const(OpIndex node) { UNIMPLEMENTED(); }
 
-void InstructionSelectorT::VisitS128Zero(OpIndex node) {
-  Mips64OperandGeneratorT g(this);
+void InstructionSelector::VisitS128Zero(OpIndex node) {
+  Mips64OperandGenerator g(this);
   Emit(kMips64S128Zero, g.DefineAsRegister(node));
 }
-#define SIMD_VISIT_SPLAT(Type)                                  \
-  void InstructionSelectorT::Visit##Type##Splat(OpIndex node) { \
-    VisitRR(this, kMips64##Type##Splat, node);                  \
+#define SIMD_VISIT_SPLAT(Type)                                 \
+  void InstructionSelector::Visit##Type##Splat(OpIndex node) { \
+    VisitRR(this, kMips64##Type##Splat, node);                 \
   }
 SIMD_TYPE_LIST(SIMD_VISIT_SPLAT)
 #undef SIMD_VISIT_SPLAT
 
-#define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                                 \
-  void InstructionSelectorT::Visit##Type##ExtractLane##Sign(OpIndex node) { \
-    VisitRRI(this, kMips64##Type##ExtractLane##Sign, node);                 \
+#define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                                \
+  void InstructionSelector::Visit##Type##ExtractLane##Sign(OpIndex node) { \
+    VisitRRI(this, kMips64##Type##ExtractLane##Sign, node);                \
   }
 SIMD_VISIT_EXTRACT_LANE(F64x2, )
 SIMD_VISIT_EXTRACT_LANE(F32x4, )
@@ -2581,30 +2621,30 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, U)
 SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 #undef SIMD_VISIT_EXTRACT_LANE
 
-#define SIMD_VISIT_REPLACE_LANE(Type)                                 \
-  void InstructionSelectorT::Visit##Type##ReplaceLane(OpIndex node) { \
-    VisitRRIR(this, kMips64##Type##ReplaceLane, node);                \
+#define SIMD_VISIT_REPLACE_LANE(Type)                                \
+  void InstructionSelector::Visit##Type##ReplaceLane(OpIndex node) { \
+    VisitRRIR(this, kMips64##Type##ReplaceLane, node);               \
   }
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE
 
-#define SIMD_VISIT_UNOP(Name, instruction)               \
-  void InstructionSelectorT::Visit##Name(OpIndex node) { \
-    VisitRR(this, instruction, node);                    \
+#define SIMD_VISIT_UNOP(Name, instruction)              \
+  void InstructionSelector::Visit##Name(OpIndex node) { \
+    VisitRR(this, instruction, node);                   \
   }
 SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
 
-#define SIMD_VISIT_SHIFT_OP(Name)                        \
-  void InstructionSelectorT::Visit##Name(OpIndex node) { \
-    VisitSimdShift(this, kMips64##Name, node);           \
+#define SIMD_VISIT_SHIFT_OP(Name)                       \
+  void InstructionSelector::Visit##Name(OpIndex node) { \
+    VisitSimdShift(this, kMips64##Name, node);          \
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
 
-#define SIMD_VISIT_BINOP(Name, instruction)              \
-  void InstructionSelectorT::Visit##Name(OpIndex node) { \
-    VisitRRR(this, instruction, node);                   \
+#define SIMD_VISIT_BINOP(Name, instruction)             \
+  void InstructionSelector::Visit##Name(OpIndex node) { \
+    VisitRRR(this, instruction, node);                  \
   }
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
@@ -2625,11 +2665,11 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
   V(I64x2RelaxedLaneSelect)
 
 #define SIMD_VISIT_RELAXED_OP(Name) \
-  void InstructionSelectorT::Visit##Name(OpIndex node) { UNREACHABLE(); }
+  void InstructionSelector::Visit##Name(OpIndex node) { UNREACHABLE(); }
 SIMD_RELAXED_OP_LIST(SIMD_VISIT_RELAXED_OP)
 #undef SIMD_VISIT_SHIFT_OP
 
-void InstructionSelectorT::VisitS128Select(OpIndex node) {
+void InstructionSelector::VisitS128Select(OpIndex node) {
   VisitRRRR(this, kMips64S128Select, node);
 }
 
@@ -2642,7 +2682,7 @@ void InstructionSelectorT::VisitS128Select(OpIndex node) {
   V(I32x4DotI8x16I7x16AddS)
 
 #define SIMD_VISIT_UNIMP_OP(Name) \
-  void InstructionSelectorT::Visit##Name(OpIndex node) { UNIMPLEMENTED(); }
+  void InstructionSelector::Visit##Name(OpIndex node) { UNIMPLEMENTED(); }
 SIMD_UNIMP_OP_LIST(SIMD_VISIT_UNIMP_OP)
 
 #undef SIMD_VISIT_UNIMP_OP
@@ -2682,70 +2722,46 @@ SIMD_UNIMP_OP_LIST(SIMD_VISIT_UNIMP_OP)
   V(F16x8Qfms)
 
 #define SIMD_VISIT_UNIMPL_FP16_OP(Name) \
-  void InstructionSelectorT::Visit##Name(OpIndex node) { UNIMPLEMENTED(); }
+  void InstructionSelector::Visit##Name(OpIndex node) { UNIMPLEMENTED(); }
 
 UNIMPLEMENTED_SIMD_FP16_OP_LIST(SIMD_VISIT_UNIMPL_FP16_OP)
 #undef SIMD_VISIT_UNIMPL_FP16_OP
 #undef UNIMPLEMENTED_SIMD_FP16_OP_LIST
 
-#if V8_ENABLE_WEBASSEMBLY
+void InstructionSelector::VisitI8x16Shuffle(OpIndex node) { UNIMPLEMENTED(); }
 
-void InstructionSelectorT::VisitI8x16Shuffle(OpIndex node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI8x16Swizzle(OpIndex node) { UNIMPLEMENTED(); }
 
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-void InstructionSelectorT::VisitI8x16Swizzle(OpIndex node) { UNIMPLEMENTED(); }
-
-void InstructionSelectorT::VisitSetStackPointer(OpIndex node) {
+void InstructionSelector::VisitSetStackPointer(OpIndex node) {
   OperandGenerator g(this);
-  auto input = g.UseRegister(this->input_at(node, 0));
+  const SetStackPointerOp& op = Cast<SetStackPointerOp>(node);
+  auto input = g.UseRegister(op.value());
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 
-void InstructionSelectorT::VisitSignExtendWord8ToInt32(OpIndex node) {
-  VisitRR(this, kMips64Seb, node);
-}
-
-void InstructionSelectorT::VisitSignExtendWord16ToInt32(OpIndex node) {
-  VisitRR(this, kMips64Seh, node);
-}
-
-void InstructionSelectorT::VisitSignExtendWord8ToInt64(OpIndex node) {
-  VisitRR(this, kMips64Seb, node);
-}
-
-void InstructionSelectorT::VisitSignExtendWord16ToInt64(OpIndex node) {
-  VisitRR(this, kMips64Seh, node);
-}
-
-void InstructionSelectorT::VisitSignExtendWord32ToInt64(OpIndex node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelectorT::VisitF32x4Pmin(OpIndex node) {
+void InstructionSelector::VisitF32x4Pmin(OpIndex node) {
   VisitUniqueRRR(this, kMips64F32x4Pmin, node);
 }
 
-void InstructionSelectorT::VisitF32x4Pmax(OpIndex node) {
+void InstructionSelector::VisitF32x4Pmax(OpIndex node) {
   VisitUniqueRRR(this, kMips64F32x4Pmax, node);
 }
 
-void InstructionSelectorT::VisitF64x2Pmin(OpIndex node) {
+void InstructionSelector::VisitF64x2Pmin(OpIndex node) {
   VisitUniqueRRR(this, kMips64F64x2Pmin, node);
 }
 
-void InstructionSelectorT::VisitF64x2Pmax(OpIndex node) {
+void InstructionSelector::VisitF64x2Pmax(OpIndex node) {
   VisitUniqueRRR(this, kMips64F64x2Pmax, node);
 }
 
-#define VISIT_EXT_MUL(OPCODE1, OPCODE2, TYPE)                     \
-  void InstructionSelectorT::Visit##OPCODE1##ExtMulLow##OPCODE2(  \
-      OpIndex node) {                                             \
-    UNIMPLEMENTED();                                              \
-  }                                                               \
-  void InstructionSelectorT::Visit##OPCODE1##ExtMulHigh##OPCODE2( \
-      OpIndex node) {                                             \
-    UNIMPLEMENTED();                                              \
+#define VISIT_EXT_MUL(OPCODE1, OPCODE2, TYPE)                                  \
+  void InstructionSelector::Visit##OPCODE1##ExtMulLow##OPCODE2(OpIndex node) { \
+    UNIMPLEMENTED();                                                           \
+  }                                                                            \
+  void InstructionSelector::Visit##OPCODE1##ExtMulHigh##OPCODE2(               \
+      OpIndex node) {                                                          \
+    UNIMPLEMENTED();                                                           \
   }
 
 VISIT_EXT_MUL(I64x2, I32x4S, MSAS32)
@@ -2757,16 +2773,38 @@ VISIT_EXT_MUL(I16x8, I8x16U, MSAU8)
 #undef VISIT_EXT_MUL
 
 #define VISIT_EXTADD_PAIRWISE(OPCODE, TYPE) \
-  void InstructionSelectorT::Visit##OPCODE(OpIndex node) { UNIMPLEMENTED(); }
+  void InstructionSelector::Visit##OPCODE(OpIndex node) { UNIMPLEMENTED(); }
 VISIT_EXTADD_PAIRWISE(I16x8ExtAddPairwiseI8x16S, MSAS8)
 VISIT_EXTADD_PAIRWISE(I16x8ExtAddPairwiseI8x16U, MSAU8)
 VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8S, MSAS16)
 VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8U, MSAU16)
 #undef VISIT_EXTADD_PAIRWISE
 
-void InstructionSelectorT::AddOutputToSelectContinuation(OperandGenerator* g,
-                                                         int first_input_index,
-                                                         OpIndex node) {
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+void InstructionSelector::VisitSignExtendWord8ToInt32(OpIndex node) {
+  VisitRR(this, kMips64Seb, node);
+}
+
+void InstructionSelector::VisitSignExtendWord16ToInt32(OpIndex node) {
+  VisitRR(this, kMips64Seh, node);
+}
+
+void InstructionSelector::VisitSignExtendWord8ToInt64(OpIndex node) {
+  VisitRR(this, kMips64Seb, node);
+}
+
+void InstructionSelector::VisitSignExtendWord16ToInt64(OpIndex node) {
+  VisitRR(this, kMips64Seh, node);
+}
+
+void InstructionSelector::VisitSignExtendWord32ToInt64(OpIndex node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
+                                                        int first_input_index,
+                                                        OpIndex node) {
   UNREACHABLE();
 }
 

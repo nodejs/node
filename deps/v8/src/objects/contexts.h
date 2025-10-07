@@ -9,6 +9,7 @@
 #include "src/common/globals.h"
 #include "src/execution/frames.h"
 #include "src/handles/handles.h"
+#include "src/objects/cell.h"
 #include "src/objects/dependent-code.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
@@ -231,8 +232,6 @@ enum ContextLookupFlags {
   V(JS_WEAK_REF_FUNCTION_INDEX, JSFunction, js_weak_ref_fun)                   \
   V(JS_FINALIZATION_REGISTRY_FUNCTION_INDEX, JSFunction,                       \
     js_finalization_registry_fun)                                              \
-  V(JS_TEMPORAL_CALENDAR_FUNCTION_INDEX, JSFunction,                           \
-    temporal_calendar_function)                                                \
   V(JS_TEMPORAL_DURATION_FUNCTION_INDEX, JSFunction,                           \
     temporal_duration_function)                                                \
   V(JS_TEMPORAL_INSTANT_FUNCTION_INDEX, JSFunction, temporal_instant_function) \
@@ -254,10 +253,6 @@ enum ContextLookupFlags {
   V(PROMISE_WITHRESOLVERS_RESULT_MAP_INDEX, Map,                               \
     promise_withresolvers_result_map)                                          \
   V(TEMPORAL_OBJECT_INDEX, HeapObject, temporal_object)                        \
-  V(TEMPORAL_INSTANT_FIXED_ARRAY_FROM_ITERABLE_FUNCTION_INDEX, JSFunction,     \
-    temporal_instant_fixed_array_from_iterable)                                \
-  V(STRING_FIXED_ARRAY_FROM_ITERABLE_FUNCTION_INDEX, JSFunction,               \
-    string_fixed_array_from_iterable)                                          \
   /* Context maps */                                                           \
   V(META_MAP_INDEX, Map, meta_map)                                             \
   V(FUNCTION_CONTEXT_MAP_INDEX, Map, function_context_map)                     \
@@ -329,7 +324,8 @@ enum ContextLookupFlags {
   V(SET_UINT8_ARRAY_RESULT_MAP, Map, set_unit8_array_result_map)               \
   V(WASM_DEBUG_MAPS, FixedArray, wasm_debug_maps)                              \
   /* Fast Path Protectors */                                                   \
-  V(REGEXP_SPECIES_PROTECTOR_INDEX, PropertyCell, regexp_species_protector)    \
+  V(INITIAL_ARRAY_PROTOTYPE_VALIDITY_CELL_INDEX, Cell,                         \
+    initial_array_prototype_validity_cell)                                     \
   /* All *_FUNCTION_MAP_INDEX definitions used by Context::FunctionMapIndex */ \
   /* must remain together. */                                                  \
   V(SLOPPY_FUNCTION_MAP_INDEX, Map, sloppy_function_map)                       \
@@ -482,8 +478,6 @@ enum ContextLookupFlags {
 
 class Context : public TorqueGeneratedContext<Context, HeapObject> {
  public:
-  NEVER_READ_ONLY_SPACE
-
   using TorqueGeneratedContext::length;      // Non-atomic.
   using TorqueGeneratedContext::set_length;  // Non-atomic.
   DECL_RELAXED_INT_ACCESSORS(length)
@@ -590,7 +584,6 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
       RAB_GSAB_UINT8_ARRAY_MAP_INDEX;
 
   static const int kNoContext = 0;
-  static const int kInvalidContext = 1;
 
   // Direct slot access.
   DECL_ACCESSORS(scope_info, Tagged<ScopeInfo>)
@@ -630,7 +623,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   // Compute the native context.
   inline Tagged<NativeContext> native_context() const;
-  inline bool IsDetached() const;
+  inline bool IsDetached(Isolate* isolate) const;
 
   // Predicates for context types.  IsNativeContext is already defined on
   // Object.
@@ -730,6 +723,10 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   friend class compiler::ContextRef;
   friend class JavaScriptFrame;
   friend class V8HeapExplorer;
+
+#ifdef OBJECT_PRINT
+  void PrintContextWithHeader(std::ostream& os, const char* type);
+#endif
 
  private:
 #ifdef DEBUG

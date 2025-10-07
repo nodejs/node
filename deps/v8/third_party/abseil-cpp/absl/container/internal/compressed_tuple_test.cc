@@ -452,14 +452,15 @@ TEST(CompressedTupleTest, EmptyFinalClass) {
 }
 #endif
 
-// TODO(b/214288561): enable this test.
-TEST(CompressedTupleTest, DISABLED_NestedEbo) {
+TEST(CompressedTupleTest, NestedEbo) {
   struct Empty1 {};
   struct Empty2 {};
   CompressedTuple<Empty1, CompressedTuple<Empty2>, int> x;
   CompressedTuple<Empty1, Empty2, int> y;
-  // Currently fails with sizeof(x) == 8, sizeof(y) == 4.
   EXPECT_EQ(sizeof(x), sizeof(y));
+
+  using NestedEmpty = CompressedTuple<Empty1, CompressedTuple<Empty2>>;
+  EXPECT_TRUE(std::is_empty_v<NestedEmpty>);
 }
 
 }  // namespace

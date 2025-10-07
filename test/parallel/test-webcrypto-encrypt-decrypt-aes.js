@@ -5,6 +5,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL } = require('../common/crypto');
+
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
 
@@ -12,8 +14,9 @@ async function testEncrypt({ keyBuffer, algorithm, plaintext, result }) {
   // Using a copy of plaintext to prevent tampering of the original
   plaintext = Buffer.from(plaintext);
 
+  const keyFormat = algorithm.name === 'AES-OCB' ? 'raw-secret' : 'raw';
   const key = await subtle.importKey(
-    'raw',
+    keyFormat,
     keyBuffer,
     { name: algorithm.name },
     false,
@@ -37,8 +40,9 @@ async function testEncrypt({ keyBuffer, algorithm, plaintext, result }) {
 }
 
 async function testEncryptNoEncrypt({ keyBuffer, algorithm, plaintext }) {
+  const keyFormat = algorithm.name === 'AES-OCB' ? 'raw-secret' : 'raw';
   const key = await subtle.importKey(
-    'raw',
+    keyFormat,
     keyBuffer,
     { name: algorithm.name },
     false,
@@ -50,8 +54,9 @@ async function testEncryptNoEncrypt({ keyBuffer, algorithm, plaintext }) {
 }
 
 async function testEncryptNoDecrypt({ keyBuffer, algorithm, plaintext }) {
+  const keyFormat = algorithm.name === 'AES-OCB' ? 'raw-secret' : 'raw';
   const key = await subtle.importKey(
-    'raw',
+    keyFormat,
     keyBuffer,
     { name: algorithm.name },
     false,
@@ -66,8 +71,9 @@ async function testEncryptNoDecrypt({ keyBuffer, algorithm, plaintext }) {
 
 async function testEncryptWrongAlg({ keyBuffer, algorithm, plaintext }, alg) {
   assert.notStrictEqual(algorithm.name, alg);
+  const keyFormat = alg === 'AES-OCB' ? 'raw-secret' : 'raw';
   const key = await subtle.importKey(
-    'raw',
+    keyFormat,
     keyBuffer,
     { name: alg },
     false,
@@ -79,8 +85,9 @@ async function testEncryptWrongAlg({ keyBuffer, algorithm, plaintext }, alg) {
 }
 
 async function testDecrypt({ keyBuffer, algorithm, result }) {
+  const keyFormat = algorithm.name === 'AES-OCB' ? 'raw-secret' : 'raw';
   const key = await subtle.importKey(
-    'raw',
+    keyFormat,
     keyBuffer,
     { name: algorithm.name },
     false,
@@ -189,6 +196,43 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
       }));
       variations.push(assert.rejects(testDecrypt(vector), {
         message: /is not a valid AES-GCM tag length/
+      }));
+    });
+
+    decryptionFailing.forEach((vector) => {
+      variations.push(assert.rejects(testDecrypt(vector), {
+        name: 'OperationError'
+      }));
+    });
+
+    await Promise.all(variations);
+  })().then(common.mustCall());
+}
+
+// Test aes-ocb vectors
+if (hasOpenSSL(3)) {
+  const {
+    passing,
+    failing,
+    decryptionFailing
+  } = require('../fixtures/crypto/aes_ocb')();
+
+  (async function() {
+    const variations = [];
+
+    passing.forEach((vector) => {
+      variations.push(testEncrypt(vector));
+      variations.push(testEncryptNoEncrypt(vector));
+      variations.push(testEncryptNoDecrypt(vector));
+      variations.push(testEncryptWrongAlg(vector, 'AES-GCM'));
+    });
+
+    failing.forEach((vector) => {
+      variations.push(assert.rejects(testEncrypt(vector), {
+        message: /is not a valid AES-OCB tag length/
+      }));
+      variations.push(assert.rejects(testDecrypt(vector), {
+        message: /is not a valid AES-OCB tag length/
       }));
     });
 

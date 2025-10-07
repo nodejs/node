@@ -29,6 +29,10 @@ class MaybeObjectSize final {
     DCHECK_GT(size, 0);
   }
 
+  explicit MaybeObjectSize(SafeHeapObjectSize size) : raw_size_(size.value()) {
+    DCHECK_GT(size.value(), 0);
+  }
+
   MaybeObjectSize() : raw_size_(0) {}
 
   size_t AssumeSize() const {
@@ -57,6 +61,7 @@ class MaybeObjectSize final {
   V(CoverageInfo)                     \
   V(DataHandler)                      \
   V(DebugInfo)                        \
+  V(DoubleStringCache)                \
   V(EmbedderDataArray)                \
   V(EphemeronHashTable)               \
   V(ExternalString)                   \
@@ -97,7 +102,7 @@ class MaybeObjectSize final {
   IF_WASM(V, WasmNull)                \
   IF_WASM(V, WasmResumeData)          \
   IF_WASM(V, WasmStruct)              \
-  IF_WASM(V, WasmSuspenderObject)     \
+  IF_WASM(V, WasmContinuationObject)  \
   IF_WASM(V, WasmTypeInfo)            \
   SIMPLE_HEAP_OBJECT_LIST1(V)
 
@@ -206,6 +211,9 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
 
   V8_INLINE size_t Visit(Tagged<Map> map, Tagged<HeapObject> object,
                          int object_size)
+    requires(ConcreteVisitor::UsePrecomputedObjectSize());
+  V8_INLINE size_t Visit(Tagged<Map> map, Tagged<HeapObject> object,
+                         SafeHeapObjectSize object_size)
     requires(ConcreteVisitor::UsePrecomputedObjectSize());
 
  protected:

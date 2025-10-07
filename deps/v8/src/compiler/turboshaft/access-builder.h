@@ -8,8 +8,11 @@
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/type-cache.h"
+#include "src/compiler/write-barrier-kind.h"
+#include "src/objects/js-objects.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -57,9 +60,10 @@ class AccessBuilderTS : public AllStatic {
   TF_FIELD_ACCESS(String, Word32, ForStringLength)
   TF_FIELD_ACCESS(Name, Word32, ForNameRawHashField)
   TF_FIELD_ACCESS(HeapNumber, Float64, ForHeapNumberValue)
-  using HeapNumberOrOddballOrHole = Union<HeapNumber, Oddball, Hole>;
-  TF_FIELD_ACCESS(HeapNumberOrOddballOrHole, Float64,
-                  ForHeapNumberOrOddballOrHoleValue)
+  using HeapNumberOrOddball = Union<HeapNumber, Oddball>;
+  TF_FIELD_ACCESS(HeapNumberOrOddball, Float64, ForHeapNumberOrOddballValue)
+  TF_FIELD_ACCESS(BigInt, Word32, ForBigIntBitfield)
+  TF_FIELD_ACCESS(BigInt, Word64, ForBigIntLeastSignificantDigit64)
 #undef TF_ACCESS
   static FieldAccessTS<Object, Map> ForMap(
       WriteBarrierKind write_barrier = kMapWriteBarrier) {
@@ -71,6 +75,19 @@ class AccessBuilderTS : public AllStatic {
         BaseTaggedness::kTaggedBase, FeedbackVector::kLengthOffset,
         Handle<Name>(), OptionalMapRef(), TypeCache::Get()->kInt32,
         MachineType::Int32(), WriteBarrierKind::kNoWriteBarrier});
+  }
+  static FieldAccessTS<PropertyCell, Object> ForPropertyCellValue() {
+    return FieldAccessTS<PropertyCell, Object>(compiler::FieldAccess{
+        BaseTaggedness::kTaggedBase, PropertyCell::kValueOffset, Handle<Name>(),
+        OptionalMapRef(), compiler::Type::Any(), MachineType::AnyTagged(),
+        WriteBarrierKind::kFullWriteBarrier});
+  }
+  static FieldAccessTS<JSPrimitiveWrapper, Object>
+  ForJSPrimitiveWrapperValue() {
+    return FieldAccessTS<JSPrimitiveWrapper, Object>(compiler::FieldAccess{
+        BaseTaggedness::kTaggedBase, JSPrimitiveWrapper::kValueOffset,
+        Handle<Name>(), OptionalMapRef(), compiler::Type::Any(),
+        MachineType::AnyTagged(), WriteBarrierKind::kFullWriteBarrier});
   }
 
 #define TF_ELEMENT_ACCESS(Class, T, name)                                     \

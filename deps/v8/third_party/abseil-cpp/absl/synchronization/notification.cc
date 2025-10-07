@@ -26,7 +26,7 @@ ABSL_NAMESPACE_BEGIN
 
 void Notification::Notify() {
   base_internal::TraceSignal(this, TraceObjectKind());
-  MutexLock l(&this->mutex_);
+  MutexLock l(this->mutex_);
 
 #ifndef NDEBUG
   if (ABSL_PREDICT_FALSE(notified_yet_.load(std::memory_order_relaxed))) {
@@ -43,7 +43,7 @@ void Notification::Notify() {
 Notification::~Notification() {
   // Make sure that the thread running Notify() exits before the object is
   // destructed.
-  MutexLock l(&this->mutex_);
+  MutexLock l(this->mutex_);
 }
 
 void Notification::WaitForNotification() const {
@@ -51,7 +51,7 @@ void Notification::WaitForNotification() const {
   if (!HasBeenNotifiedInternal(&this->notified_yet_)) {
     this->mutex_.LockWhen(
         Condition(&HasBeenNotifiedInternal, &this->notified_yet_));
-    this->mutex_.Unlock();
+    this->mutex_.unlock();
   }
   base_internal::TraceContinue(this, TraceObjectKind());
 }
@@ -63,7 +63,7 @@ bool Notification::WaitForNotificationWithTimeout(
   if (!notified) {
     notified = this->mutex_.LockWhenWithTimeout(
         Condition(&HasBeenNotifiedInternal, &this->notified_yet_), timeout);
-    this->mutex_.Unlock();
+    this->mutex_.unlock();
   }
   base_internal::TraceContinue(notified ? this : nullptr, TraceObjectKind());
   return notified;
@@ -75,7 +75,7 @@ bool Notification::WaitForNotificationWithDeadline(absl::Time deadline) const {
   if (!notified) {
     notified = this->mutex_.LockWhenWithDeadline(
         Condition(&HasBeenNotifiedInternal, &this->notified_yet_), deadline);
-    this->mutex_.Unlock();
+    this->mutex_.unlock();
   }
   base_internal::TraceContinue(notified ? this : nullptr, TraceObjectKind());
   return notified;

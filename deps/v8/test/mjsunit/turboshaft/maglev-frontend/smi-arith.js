@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbolev --turbofan
-// Flags: --no-always-turbofan
 
 function math_smi(x, y, z) {
   let a = x * y;

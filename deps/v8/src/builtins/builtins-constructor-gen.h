@@ -6,6 +6,7 @@
 #define V8_BUILTINS_BUILTINS_CONSTRUCTOR_GEN_H_
 
 #include "src/codegen/code-stub-assembler.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -18,7 +19,8 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   TNode<Context> FastNewFunctionContext(TNode<ScopeInfo> scope_info,
                                         TNode<Uint32T> slots,
                                         TNode<Context> context,
-                                        ScopeType scope_type);
+                                        ScopeType scope_type,
+                                        ContextMode context_mode);
 
   TNode<JSRegExp> CreateRegExpLiteral(TNode<HeapObject> maybe_feedback_vector,
                                       TNode<TaggedIndex> slot,

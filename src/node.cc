@@ -868,6 +868,15 @@ static ExitCode InitializeNodeWithArgsInternal(
   // default value.
   V8::SetFlagsFromString("--rehash-snapshot");
 
+#if HAVE_OPENSSL
+  // TODO(joyeecheung): make this a per-env option and move the normalization
+  // into HandleEnvOptions.
+  std::string use_system_ca;
+  if (credentials::SafeGetenv("NODE_USE_SYSTEM_CA", &use_system_ca) &&
+      use_system_ca == "1") {
+    per_process::cli_options->use_system_ca = true;
+  }
+#endif  // HAVE_OPENSSL
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
   std::string node_options;
@@ -931,7 +940,17 @@ static ExitCode InitializeNodeWithArgsInternal(
   }
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
-  if (!(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv)) {
+  bool should_parse_node_options =
+      !(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv);
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  if (sea::IsSingleExecutable()) {
+    sea::SeaResource sea_resource = sea::FindSingleExecutableResource();
+    if (sea_resource.exec_argv_extension != sea::SeaExecArgvExtension::kEnv) {
+      should_parse_node_options = false;
+    }
+  }
+#endif
+  if (should_parse_node_options) {
     // NODE_OPTIONS environment variable is preferred over the file one.
     if (credentials::SafeGetenv("NODE_OPTIONS", &node_options) ||
         !node_options.empty()) {

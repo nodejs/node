@@ -50,30 +50,25 @@ class EphemeronTable;
 }  // namespace debug
 
 template <typename T, internal::ExternalPointerTag tag>
-inline T ToCData(i::Isolate* isolate,
-                 v8::internal::Tagged<v8::internal::Object> obj);
+inline T ToCData(i::Isolate* isolate, i::Tagged<i::Object> obj);
 template <internal::ExternalPointerTag tag>
-inline v8::internal::Address ToCData(
-    v8::internal::Isolate* isolate,
-    v8::internal::Tagged<v8::internal::Object> obj);
+inline i::Address ToCData(i::Isolate* isolate, i::Tagged<i::Object> obj);
 
 template <internal::ExternalPointerTag tag, typename T>
-inline v8::internal::DirectHandle<
-    v8::internal::UnionOf<v8::internal::Smi, v8::internal::Foreign>>
-FromCData(v8::internal::Isolate* isolate, T obj);
+inline i::DirectHandle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
+    i::Isolate* isolate, T obj);
 
 template <internal::ExternalPointerTag tag>
-inline v8::internal::DirectHandle<
-    v8::internal::UnionOf<v8::internal::Smi, v8::internal::Foreign>>
-FromCData(v8::internal::Isolate* isolate, v8::internal::Address obj);
+inline i::DirectHandle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
+    i::Isolate* isolate, i::Address obj);
 
 class ApiFunction {
  public:
-  explicit ApiFunction(v8::internal::Address addr) : addr_(addr) {}
-  v8::internal::Address address() { return addr_; }
+  explicit ApiFunction(i::Address addr) : addr_(addr) {}
+  i::Address address() { return addr_; }
 
  private:
-  v8::internal::Address addr_;
+  i::Address addr_;
 };
 
 class RegisteredExtension {
@@ -100,6 +95,7 @@ class RegisteredExtension {
   V(ToLocal, Name, Name)                                                \
   V(ToLocal, String, String)                                            \
   V(ToLocal, Symbol, Symbol)                                            \
+  V(ToLocal, JSDate, Object)                                            \
   V(ToLocal, JSRegExp, RegExp)                                          \
   V(ToLocal, JSReceiver, Object)                                        \
   V(ToLocal, JSObject, Object)                                          \
@@ -222,96 +218,99 @@ class Utils {
     }
     return condition;
   }
-  static void ReportOOMFailure(v8::internal::Isolate* isolate,
-                               const char* location, const OOMDetails& details);
+  static void ReportOOMFailure(i::Isolate* isolate, const char* location,
+                               const OOMDetails& details);
 
   // TODO(42203211): It would be nice if we could keep only a version with
   // direct handles. But the implicit conversion from handles to direct handles
   // combined with the heterogeneous copy constructor for direct handles make
   // this ambiguous.
-  // TODO(42203211): Use C++20 concepts instead of the enable_if trait, when
-  // they are fully supported in V8.
-#define DECLARE_TO_LOCAL(Name)                                   \
-  template <template <typename> typename HandleType, typename T, \
-            typename = std::enable_if_t<std::is_convertible_v<   \
-                HandleType<T>, v8::internal::DirectHandle<T>>>>  \
-  static inline auto Name(HandleType<T> obj);
+#define DECLARE_TO_LOCAL(Name)                                           \
+  template <template <typename> typename HandleType, typename T>         \
+    requires(std::is_convertible_v<HandleType<T>, i::DirectHandle<T>> && \
+             !std::is_same_v<HandleType<T>, i::DirectHandle<T>>)         \
+  static inline auto Name(HandleType<T> obj) {                           \
+    return Name(i::DirectHandle<T>(obj));                                \
+  }
 
   TO_LOCAL_NAME_LIST(DECLARE_TO_LOCAL)
+#undef DECLARE_TO_LOCAL
+
+#define DECLARE_TO_LOCAL(Name, From, To) \
+  static inline Local<v8::To> Name(i::DirectHandle<i::From> obj);
+
+  TO_LOCAL_LIST(DECLARE_TO_LOCAL)
+#undef DECLARE_TO_LOCAL
+
+  template <typename T>
+  static inline MaybeLocal<T> ToMaybe(Local<T> value) {
+    return value;
+  }
+
+  template <template <typename> typename HandleType, typename From>
+    requires std::is_convertible_v<HandleType<From>, i::MaybeDirectHandle<From>>
+  static inline auto ToMaybeLocal(HandleType<From> maybe_obj_in)
+      -> decltype(ToMaybe(ToLocal(std::declval<i::DirectHandle<From>>()))) {
+    i::MaybeDirectHandle<From> maybe_obj = maybe_obj_in;
+    i::DirectHandle<From> obj;
+    if (!maybe_obj.ToHandle(&obj)) return {};
+    return ToMaybe(ToLocal(obj));
+  }
 
 #define DECLARE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype) \
   static inline Local<v8::Type##Array> ToLocal##Type##Array(      \
-      v8::internal::DirectHandle<v8::internal::JSTypedArray> obj);
+      i::DirectHandle<i::JSTypedArray> obj);
 
   TYPED_ARRAYS(DECLARE_TO_LOCAL_TYPED_ARRAY)
+#undef DECLARE_TO_LOCAL_TYPED_ARRAY
 
-#define DECLARE_OPEN_HANDLE(From, To)                                          \
-  static inline v8::internal::Handle<v8::internal::To> OpenHandle(             \
-      const From* that, bool allow_empty_handle = false);                      \
-  static inline v8::internal::DirectHandle<v8::internal::To> OpenDirectHandle( \
-      const From* that, bool allow_empty_handle = false);                      \
-  static inline v8::internal::IndirectHandle<v8::internal::To>                 \
-  OpenIndirectHandle(const From* that, bool allow_empty_handle = false);
+#define DECLARE_OPEN_HANDLE(From, To)                                         \
+  static inline i::Handle<i::To> OpenHandle(const From* that,                 \
+                                            bool allow_empty_handle = false); \
+  static inline i::DirectHandle<i::To> OpenDirectHandle(                      \
+      const From* that, bool allow_empty_handle = false);                     \
+  static inline i::IndirectHandle<i::To> OpenIndirectHandle(                  \
+      const From* that, bool allow_empty_handle = false);
 
   OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
-
 #undef DECLARE_OPEN_HANDLE
-#undef DECLARE_TO_LOCAL_TYPED_ARRAY
-#undef DECLARE_TO_LOCAL
 
   template <class From, class To>
-  static inline Local<To> Convert(v8::internal::DirectHandle<From> obj);
+  static inline Local<To> Convert(i::DirectHandle<From> obj);
 
   template <class T>
-  static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
+  static inline i::Handle<i::Object> OpenPersistent(
       const v8::PersistentBase<T>& persistent) {
-    return v8::internal::Handle<v8::internal::Object>(persistent.slot());
+    return i::Handle<i::Object>(persistent.slot());
   }
 
   template <class T>
-  static inline v8::internal::DirectHandle<v8::internal::Object> OpenPersistent(
+  static inline i::DirectHandle<i::Object> OpenPersistent(
       v8::Persistent<T>* persistent) {
     return OpenPersistent(*persistent);
   }
 
   template <class From, class To>
-  static inline v8::internal::Handle<To> OpenHandle(v8::Local<From> handle) {
+  static inline i::Handle<To> OpenHandle(v8::Local<From> handle) {
     return OpenHandle(*handle);
   }
 
   template <class From, class To>
-  static inline v8::internal::DirectHandle<To> OpenDirectHandle(
-      v8::Local<From> handle) {
+  static inline i::DirectHandle<To> OpenDirectHandle(v8::Local<From> handle) {
     return OpenDirectHandle(*handle);
   }
 
  private:
   V8_NOINLINE V8_PRESERVE_MOST static void ReportApiFailure(
       const char* location, const char* message);
-
-#define DECLARE_TO_LOCAL_PRIVATE(Name, From, To) \
-  static inline Local<v8::To> Name##_helper(     \
-      v8::internal::DirectHandle<v8::internal::From> obj);
-
-  TO_LOCAL_LIST(DECLARE_TO_LOCAL_PRIVATE)
-#undef DECLARE_TO_LOCAL_PRIVATE
 };
 
+// Convert DirectHandle to Local w/o type inference or type checks.
+// To get type inference (translating from internal to API types), use
+// Utils::ToLocal.
 template <class T>
-inline v8::Local<T> ToApiHandle(
-    v8::internal::DirectHandle<v8::internal::Object> obj) {
-  return Utils::Convert<v8::internal::Object, T>(obj);
-}
-
-template <class T>
-inline bool ToLocal(v8::internal::MaybeDirectHandle<v8::internal::Object> maybe,
-                    Local<T>* local) {
-  v8::internal::DirectHandle<v8::internal::Object> handle;
-  if (maybe.ToHandle(&handle)) {
-    *local = Utils::Convert<v8::internal::Object, T>(handle);
-    return true;
-  }
-  return false;
+inline v8::Local<T> ToApiHandle(i::DirectHandle<i::Object> obj) {
+  return Utils::Convert<i::Object, T>(obj);
 }
 
 namespace internal {
@@ -360,9 +359,8 @@ class HandleScopeImplementer {
   void FreeThreadResources();
 
   // Garbage collection support.
-  V8_EXPORT_PRIVATE void Iterate(v8::internal::RootVisitor* v);
-  V8_EXPORT_PRIVATE static char* Iterate(v8::internal::RootVisitor* v,
-                                         char* data);
+  V8_EXPORT_PRIVATE void Iterate(i::RootVisitor* v);
+  V8_EXPORT_PRIVATE static char* Iterate(i::RootVisitor* v, char* data);
 
   inline internal::Address* GetSpareOrNewBlock();
   inline void DeleteExtensions(internal::Address* prev_limit);
@@ -445,7 +443,7 @@ class HandleScopeImplementer {
   friend class PersistentHandlesScope;
 };
 
-const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page
+const int kHandleBlockSize = i::KB - 2;  // fit in one page
 
 void HandleScopeImplementer::SaveContext(Tagged<Context> context) {
   saved_contexts_.push_back(context);

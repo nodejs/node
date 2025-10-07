@@ -138,6 +138,7 @@ absl_source_set("str_format_internal") {
   ]
   visibility = [ ":*" ]
   deps = [
+    ":internal",
     ":string_view",
     ":strings",
     "//third_party/abseil-cpp/absl/base:config",
@@ -173,6 +174,7 @@ absl_test("str_format_extension_test") {
     ":str_format",
     ":str_format_internal",
     ":strings",
+    "//third_party/abseil-cpp/absl/random",
   ]
 }
 

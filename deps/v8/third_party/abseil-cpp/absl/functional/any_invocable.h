@@ -40,6 +40,7 @@
 #include <utility>
 
 #include "absl/base/config.h"
+#include "absl/base/nullability.h"
 #include "absl/functional/internal/any_invocable.h"
 #include "absl/meta/type_traits.h"
 #include "absl/utility/utility.h"
@@ -158,7 +159,8 @@ ABSL_NAMESPACE_BEGIN
 //   AnyInvocable<void()> empty;
 //   empty();  // WARNING: Undefined behavior!
 template <class Sig>
-class AnyInvocable : private internal_any_invocable::Impl<Sig> {
+class ABSL_NULLABILITY_COMPATIBLE AnyInvocable
+    : private internal_any_invocable::Impl<Sig> {
  private:
   static_assert(
       std::is_function<Sig>::value,
@@ -295,22 +297,22 @@ class AnyInvocable : private internal_any_invocable::Impl<Sig> {
 
   // Equality operators
 
-  // Returns `true` if `*this` is empty.
+  // Returns `true` if `f` is empty.
   friend bool operator==(const AnyInvocable& f, std::nullptr_t) noexcept {
     return !f.HasValue();
   }
 
-  // Returns `true` if `*this` is empty.
+  // Returns `true` if `f` is empty.
   friend bool operator==(std::nullptr_t, const AnyInvocable& f) noexcept {
     return !f.HasValue();
   }
 
-  // Returns `false` if `*this` is empty.
+  // Returns `false` if `f` is empty.
   friend bool operator!=(const AnyInvocable& f, std::nullptr_t) noexcept {
     return f.HasValue();
   }
 
-  // Returns `false` if `*this` is empty.
+  // Returns `false` if `f` is empty.
   friend bool operator!=(std::nullptr_t, const AnyInvocable& f) noexcept {
     return f.HasValue();
   }

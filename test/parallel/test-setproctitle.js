@@ -4,7 +4,7 @@ const common = require('../common');
 const { isMainThread } = require('worker_threads');
 
 // FIXME add sunos support
-if (common.isSunOS || common.isIBMi) {
+if (common.isSunOS || common.isIBMi || common.isWindows) {
   common.skip(`Unsupported platform [${process.platform}]`);
 }
 
@@ -25,15 +25,10 @@ assert.notStrictEqual(process.title, title);
 process.title = title;
 assert.strictEqual(process.title, title);
 
-// Test setting the title but do not try to run `ps` on Windows.
-if (common.isWindows) {
-  common.skip('Windows does not have "ps" utility');
-}
-
 try {
   execSync('command -v ps');
 } catch (err) {
-  if (err.status === 1) {
+  if (err.status === 1 || err.status === 127) {
     common.skip('The "ps" utility is not available');
   }
   throw err;
@@ -53,5 +48,5 @@ exec(cmd, common.mustSucceed((stdout, stderr) => {
     title += ` (${path.basename(process.execPath)})`;
 
   // Omitting trailing whitespace and \n
-  assert.strictEqual(stdout.replace(/\s+$/, '').endsWith(title), true);
+  assert.ok(stdout.trimEnd().endsWith(title));
 }));

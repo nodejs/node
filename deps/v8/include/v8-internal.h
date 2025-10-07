@@ -237,6 +237,12 @@ using SandboxedPointer_t = Address;
 // virtual address space for userspace. As such, limit the sandbox to 128GB (a
 // quarter of the total available address space).
 constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
+#elif defined(V8_TARGET_OS_IOS)
+// On iOS, we only get 64 GB of usable virtual address space even with the
+// "jumbo" extended virtual addressing entitlement. Limit the sandbox size to
+// 16 GB so that the base address + size for the emulated virtual address space
+// lies within the 64 GB total virtual address space.
+constexpr size_t kSandboxSizeLog2 = 34;  // 16 GB
 #else
 // Everywhere else use a 1TB sandbox.
 constexpr size_t kSandboxSizeLog2 = 40;  // 1 TB
@@ -415,6 +421,11 @@ constexpr size_t kMaxCppHeapPointers = 0;
 
 #endif  // V8_COMPRESS_POINTERS
 
+// The number of tags reserved for embedder data. The value is picked
+// arbitrarily. In Chrome there are 4 embedders, so at least 4 tags are needed.
+// A generic tag was used for embedder data before, so one tag is used for that.
+#define V8_EMBEDDER_DATA_TAG_COUNT 5
+
 // Generic tag range struct to represent ranges of type tags.
 //
 // When referencing external objects via pointer tables, type tags are
@@ -551,7 +562,11 @@ enum ExternalPointerTag : uint16_t {
   // External pointers using these tags are kept in a per-Isolate external
   // pointer table and can only be accessed when this Isolate is active.
   kNativeContextMicrotaskQueueTag,
-  kEmbedderDataSlotPayloadTag,
+
+  // Placeholders for embedder data.
+  kFirstEmbedderDataTag,
+  kLastEmbedderDataTag = kFirstEmbedderDataTag + V8_EMBEDDER_DATA_TAG_COUNT - 1,
+  kEmbedderDataSlotPayloadTag = kLastEmbedderDataTag,
   // This tag essentially stands for a `void*` pointer in the V8 API, and it is
   // the Embedder's responsibility to ensure type safety (against substitution)
   // and lifetime validity of these objects.
@@ -582,11 +597,7 @@ enum ExternalPointerTag : uint16_t {
 
   kLastMaybeReadOnlyExternalPointerTag = kLastInterceptorInfoExternalPointerTag,
 
-  kWasmInternalFunctionCallTargetTag,
-  kWasmTypeInfoNativeTypeTag,
-  kWasmExportedFunctionDataSignatureTag,
   kWasmStackMemoryTag,
-  kWasmIndirectFunctionTargetTag,
 
   // Foreigns
   kFirstForeignExternalPointerTag,
@@ -620,6 +631,14 @@ enum ExternalPointerTag : uint16_t {
   kIcuLocalizedNumberFormatterTag,
   kIcuPluralRulesTag,
   kIcuCollatorTag,
+  kTemporalDurationTag,
+  kTemporalInstantTag,
+  kTemporalPlainDateTag,
+  kTemporalPlainTimeTag,
+  kTemporalPlainDateTimeTag,
+  kTemporalPlainYearMonthTag,
+  kTemporalPlainMonthDayTag,
+  kTemporalZonedDateTimeTag,
   kDisplayNamesInternalTag,
   kD8WorkerTag,
   kD8ModuleEmbedderDataTag,
@@ -690,7 +709,8 @@ V8_INLINE static constexpr bool IsManagedExternalPointerType(
 V8_INLINE static constexpr bool ExternalPointerCanBeEmpty(
     ExternalPointerTagRange tag_range) {
   return tag_range.Contains(kArrayBufferExtensionTag) ||
-         tag_range.Contains(kEmbedderDataSlotPayloadTag) ||
+         (tag_range.first <= kLastEmbedderDataTag &&
+          kFirstEmbedderDataTag <= tag_range.last) ||
          kAnyInterceptorInfoExternalPointerTagRange.Contains(tag_range);
 }
 
@@ -815,12 +835,33 @@ constexpr bool kAllCodeObjectsLiveInTrustedSpace =
 
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.
+V8_DEPRECATE_SOON(
+    "Use GetCurrentIsolate() instead, which is guaranteed to return the same "
+    "isolate since https://crrev.com/c/6458560.")
 V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
 
 // Returns if we need to throw when an error occurs. This infers the language
 // mode based on the current context and the closure. This returns true if the
 // language mode is strict.
 V8_EXPORT bool ShouldThrowOnError(internal::Isolate* isolate);
+
+struct HandleScopeData final {
+  static constexpr uint32_t kSizeInBytes =
+      2 * kApiSystemPointerSize + 2 * kApiInt32Size;
+
+  Address* next;
+  Address* limit;
+  int level;
+  int sealed_level;
+
+  void Initialize() {
+    next = limit = nullptr;
+    sealed_level = level = 0;
+  }
+};
+
+static_assert(HandleScopeData::kSizeInBytes == sizeof(HandleScopeData));
+
 /**
  * This class exports constants and functionality from within v8 that
  * is necessary to implement inline functions in the v8 api.  Don't
@@ -874,14 +915,19 @@ class Internals {
   static const int kBuiltinTier0EntryTableSize = 7 * kApiSystemPointerSize;
   static const int kBuiltinTier0TableSize = 7 * kApiSystemPointerSize;
   static const int kLinearAllocationAreaSize = 3 * kApiSystemPointerSize;
-  static const int kThreadLocalTopSize = 30 * kApiSystemPointerSize;
+  static const int kThreadLocalTopSize = 29 * kApiSystemPointerSize;
   static const int kHandleScopeDataSize =
       2 * kApiSystemPointerSize + 2 * kApiInt32Size;
 
   // ExternalPointerTable and TrustedPointerTable layout guarantees.
   static const int kExternalPointerTableBasePointerOffset = 0;
-  static const int kExternalPointerTableSize = 2 * kApiSystemPointerSize;
-  static const int kTrustedPointerTableSize = 2 * kApiSystemPointerSize;
+  static const int kSegmentedTableSegmentPoolSize = 4;
+  static const int kExternalPointerTableSize =
+      4 * kApiSystemPointerSize +
+      kSegmentedTableSegmentPoolSize * sizeof(uint32_t);
+  static const int kTrustedPointerTableSize =
+      4 * kApiSystemPointerSize +
+      kSegmentedTableSegmentPoolSize * sizeof(uint32_t);
   static const int kTrustedPointerTableBasePointerOffset = 0;
 
   // IsolateData layout guarantees.
@@ -901,12 +947,14 @@ class Internals {
       kBuiltinTier0TableOffset + kBuiltinTier0TableSize;
   static const int kOldAllocationInfoOffset =
       kNewAllocationInfoOffset + kLinearAllocationAreaSize;
+  static const int kLastYoungAllocationOffset =
+      kOldAllocationInfoOffset + kApiSystemPointerSize;
 
   static const int kFastCCallAlignmentPaddingSize =
       kApiSystemPointerSize == 8 ? 5 * kApiSystemPointerSize
                                  : 1 * kApiSystemPointerSize;
   static const int kIsolateFastCCallCallerPcOffset =
-      kOldAllocationInfoOffset + kLinearAllocationAreaSize +
+      kLastYoungAllocationOffset + kLinearAllocationAreaSize +
       kFastCCallAlignmentPaddingSize;
   static const int kIsolateFastCCallCallerFpOffset =
       kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;
@@ -948,8 +996,10 @@ class Internals {
   static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
 #endif  // V8_COMPRESS_POINTERS
-  static const int kIsolateRegexpExecVectorArgumentOffset =
+  static const int kJSDispatchTableOffset =
       kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
+  static const int kIsolateRegexpExecVectorArgumentOffset =
+      kJSDispatchTableOffset + kApiSystemPointerSize;
   static const int kContinuationPreservedEmbedderDataOffset =
       kIsolateRegexpExecVectorArgumentOffset + kApiSystemPointerSize;
   static const int kIsolateRootsOffset =
@@ -962,16 +1012,32 @@ class Internals {
 #if V8_STATIC_ROOTS_BOOL
 
 // These constants are copied from static-roots.h and guarded by static asserts.
-#define EXPORTED_STATIC_ROOTS_PTR_LIST(V) \
-  V(UndefinedValue, 0x11)                 \
-  V(NullValue, 0x2d)                      \
-  V(TrueValue, 0x71)                      \
-  V(FalseValue, 0x55)                     \
-  V(EmptyString, 0x49)                    \
-  V(TheHoleValue, 0x761)
+#define EXPORTED_STATIC_ROOTS_PTR_LIST(V)                            \
+  V(UndefinedValue, 0x11)                                            \
+  V(NullValue, 0x2d)                                                 \
+  V(TrueValue, 0x71)                                                 \
+  V(FalseValue, 0x55)                                                \
+  V(EmptyString, 0x49)                                               \
+  /* The Hole moves around depending on build flags, so define it */ \
+  /* separately inside StaticReadOnlyRoot using build macros */      \
+  V(TheHoleValue, kBuildDependentTheHoleValue)
 
   using Tagged_t = uint32_t;
   struct StaticReadOnlyRoot {
+#ifdef V8_ENABLE_WEBASSEMBLY
+#ifdef V8_INTL_SUPPORT
+    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x67b9;
+#else
+    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x5b1d;
+#endif
+#else
+#ifdef V8_INTL_SUPPORT
+    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x6511;
+#else
+    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x5875;
+#endif
+#endif
+
 #define DEF_ROOT(name, value) static constexpr Tagged_t k##name = value;
     EXPORTED_STATIC_ROOTS_PTR_LIST(DEF_ROOT)
 #undef DEF_ROOT
@@ -988,12 +1054,12 @@ class Internals {
 
 #endif  // V8_STATIC_ROOTS_BOOL
 
-  static const int kUndefinedValueRootIndex = 4;
-  static const int kTheHoleValueRootIndex = 5;
-  static const int kNullValueRootIndex = 6;
-  static const int kTrueValueRootIndex = 7;
-  static const int kFalseValueRootIndex = 8;
-  static const int kEmptyStringRootIndex = 9;
+  static const int kUndefinedValueRootIndex = 0;
+  static const int kTheHoleValueRootIndex = 1;
+  static const int kNullValueRootIndex = 2;
+  static const int kTrueValueRootIndex = 3;
+  static const int kFalseValueRootIndex = 4;
+  static const int kEmptyStringRootIndex = 5;
 
   static const int kNodeClassIdOffset = 1 * kApiSystemPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiSystemPointerSize + 3;
@@ -1170,6 +1236,12 @@ class Internals {
     return *reinterpret_cast<void* const*>(addr);
   }
 
+  V8_INLINE static HandleScopeData* GetHandleScopeData(v8::Isolate* isolate) {
+    Address addr =
+        reinterpret_cast<Address>(isolate) + kIsolateHandleScopeDataOffset;
+    return reinterpret_cast<HandleScopeData*>(addr);
+  }
+
   V8_INLINE static void IncrementLongTasksStatsCounter(v8::Isolate* isolate) {
     Address addr =
         reinterpret_cast<Address>(isolate) + kIsolateLongTaskStatsCounterOffset;
@@ -1222,7 +1294,7 @@ class Internals {
   V8_INLINE static T ReadRawField(Address heap_object_ptr, int offset) {
     Address addr = heap_object_ptr + offset - kHeapObjectTag;
 #ifdef V8_COMPRESS_POINTERS
-    if (sizeof(T) > kApiTaggedSize) {
+    if constexpr (sizeof(T) > kApiTaggedSize) {
       // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
       // fields (external pointers, doubles and BigInt data) are only
       // kTaggedSize aligned so we have to use unaligned pointer friendly way of
@@ -1256,10 +1328,25 @@ class Internals {
 #endif
   }
 
+  V8_DEPRECATED(
+      "Use GetCurrentIsolateForSandbox() instead, which is guaranteed to "
+      "return the same isolate since https://crrev.com/c/6458560.")
   V8_INLINE static v8::Isolate* GetIsolateForSandbox(Address obj) {
 #ifdef V8_ENABLE_SANDBOX
-    return reinterpret_cast<v8::Isolate*>(
-        internal::IsolateFromNeverReadOnlySpaceObject(obj));
+    return GetCurrentIsolate();
+#else
+    // Not used in non-sandbox mode.
+    return nullptr;
+#endif
+  }
+
+  // Returns v8::Isolate::Current(), but without needing to include the
+  // v8-isolate.h header.
+  V8_EXPORT static v8::Isolate* GetCurrentIsolate();
+
+  V8_INLINE static v8::Isolate* GetCurrentIsolateForSandbox() {
+#ifdef V8_ENABLE_SANDBOX
+    return GetCurrentIsolate();
 #else
     // Not used in non-sandbox mode.
     return nullptr;
@@ -1334,8 +1421,8 @@ void CastCheck<false>::Perform(T* data) {}
 
 template <class T>
 V8_INLINE void PerformCastCheck(T* data) {
-  CastCheck<std::is_base_of<Data, T>::value &&
-            !std::is_same<Data, std::remove_cv_t<T>>::value>::Perform(data);
+  CastCheck<std::is_base_of_v<Data, T> &&
+            !std::is_same_v<Data, std::remove_cv_t<T>>>::Perform(data);
 }
 
 // A base class for backing stores, which is needed due to vagaries of

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --always-turbofan
+// Flags: --no-lazy-feedback-allocation
+// Flags: --invocation-count-for-turbofan=1
 
 var __v_3 = {};
 function __f_0() {
@@ -12,4 +13,5 @@ function __f_0() {
   __v_3 = 0;
   assertTrue(Object.is(0, __v_30));
 }
+__f_0();
 __f_0();

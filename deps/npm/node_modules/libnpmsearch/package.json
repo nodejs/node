@@ -1,6 +1,6 @@
 {
   "name": "libnpmsearch",
-  "version": "9.0.0",
+  "version": "9.0.1",
   "description": "Programmatic API for searching in npm and compatible registries.",
   "author": "GitHub Inc.",
   "main": "lib/index.js",
@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@npmcli/eslint-config": "^5.0.1",
-    "@npmcli/template-oss": "4.24.4",
+    "@npmcli/template-oss": "4.25.1",
     "nock": "^13.3.3",
     "tap": "^16.3.8"
   },
@@ -39,14 +39,14 @@
   "bugs": "https://github.com/npm/libnpmsearch/issues",
   "homepage": "https://npmjs.com/package/libnpmsearch",
   "dependencies": {
-    "npm-registry-fetch": "^18.0.1"
+    "npm-registry-fetch": "^19.0.0"
   },
   "engines": {
     "node": "^20.17.0 || >=22.9.0"
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.24.4",
+    "version": "4.25.1",
     "content": "../../scripts/template-oss/index.js"
   },
   "tap": {

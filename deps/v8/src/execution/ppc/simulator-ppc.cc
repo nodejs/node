@@ -275,7 +275,7 @@ void PPCDebugger::Debug() {
                    "  "
                    "ctr: %08" V8PRIxPTR "  xer: %08x  cr: %08x\n",
                    sim_->special_reg_pc_, sim_->special_reg_lr_,
-                   sim_->special_reg_ctr_, sim_->special_reg_xer_,
+                   sim_->special_reg_ctr_, sim_->special_reg_xer_.value,
                    sim_->condition_reg_);
           } else if (strcmp(arg1, "alld") == 0) {
             for (int i = 0; i < kNumRegisters; i++) {
@@ -294,7 +294,7 @@ void PPCDebugger::Debug() {
                    "  "
                    "ctr: %08" V8PRIxPTR "  xer: %08x  cr: %08x\n",
                    sim_->special_reg_pc_, sim_->special_reg_lr_,
-                   sim_->special_reg_ctr_, sim_->special_reg_xer_,
+                   sim_->special_reg_ctr_, sim_->special_reg_xer_.value,
                    sim_->condition_reg_);
           } else if (strcmp(arg1, "allf") == 0) {
             for (int i = 0; i < DoubleRegister::kNumRegisters; i++) {
@@ -483,7 +483,7 @@ void PPCDebugger::Debug() {
       } else if (strcmp(cmd, "ctr") == 0) {
         PrintF("Ctr reg: %08" V8PRIxPTR "\n", sim_->special_reg_ctr_);
       } else if (strcmp(cmd, "xer") == 0) {
-        PrintF("XER: %08x\n", sim_->special_reg_xer_);
+        PrintF("XER: %08x\n", sim_->special_reg_xer_.value);
       } else if (strcmp(cmd, "fpscr") == 0) {
         PrintF("FPSCR: %08x\n", sim_->fp_condition_reg_);
       } else if (strcmp(cmd, "stop") == 0) {
@@ -1840,15 +1840,17 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     case ADDIC: {
       int rt = instr->RTValue();
       int ra = instr->RAValue();
-      uintptr_t ra_val = get_register(ra);
-      uintptr_t im_val = SIGN_EXT_IMM16(instr->Bits(15, 0));
-      uintptr_t alu_out = ra_val + im_val;
-      // Check overflow
-      if (~ra_val < im_val) {
-        special_reg_xer_ = (special_reg_xer_ & ~0xF0000000) | 0x20000000;
-      } else {
-        special_reg_xer_ &= ~0xF0000000;
-      }
+
+      intptr_t ra_val = get_register(ra);
+      intptr_t im_val = SIGN_EXT_IMM16(instr->Bits(15, 0));
+      intptr_t alu_out;
+      int32_t alu32_out;
+      bool is_overflow = __builtin_add_overflow(ra_val, im_val, &alu_out);
+
+      special_reg_xer_.fields.CA = is_overflow;
+      special_reg_xer_.fields.CA32 =
+          __builtin_add_overflow(static_cast<int32_t>(ra_val),
+                                 static_cast<int32_t>(im_val), &alu32_out);
       set_register(rt, alu_out);
       break;
     }
@@ -2490,20 +2492,27 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       // int oe = instr->Bit(10);
-      uintptr_t ra_val = get_register(ra);
-      uintptr_t rb_val = get_register(rb);
-      uintptr_t alu_out = ~ra_val + rb_val + 1;
+      intptr_t ra_val = get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      intptr_t alu_out;
+      int32_t alu_out32;
+      bool is_overflow = __builtin_sub_overflow(rb_val, ra_val, &alu_out);
+      bool is_overflow32 =
+          __builtin_sub_overflow(static_cast<int32_t>(rb_val),
+                                 static_cast<int32_t>(ra_val), &alu_out32);
+
       // Set carry
-      if (ra_val <= rb_val) {
-        special_reg_xer_ = (special_reg_xer_ & ~0xF0000000) | 0x20000000;
-      } else {
-        special_reg_xer_ &= ~0xF0000000;
-      }
+      SetCA(CarryFromAdd(~ra_val, rb_val, 1L));
+      SetCA32(CarryFromAdd(~static_cast<int32_t>(ra_val),
+                           static_cast<int32_t>(rb_val), 1));
       set_register(rt, alu_out);
-      if (instr->Bit(0)) {  // RC bit set
-        SetCR0(alu_out);
+      if (instr->Bit(10)) {
+        SetOV(is_overflow);
+        SetOV32(is_overflow32);
       }
-      // todo - handle OE bit
+      if (instr->Bit(0)) {  // RC bit set
+        SetCR0(alu_out, special_reg_xer_.fields.SO);
+      }
       break;
     }
     case SUBFEX: {
@@ -2511,17 +2520,30 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       // int oe = instr->Bit(10);
-      uintptr_t ra_val = get_register(ra);
-      uintptr_t rb_val = get_register(rb);
-      uintptr_t alu_out = ~ra_val + rb_val;
-      if (special_reg_xer_ & 0x20000000) {
-        alu_out += 1;
-      }
+      intptr_t ra_val = get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      intptr_t ca = special_reg_xer_.fields.CA;
+      int32_t ca32 = special_reg_xer_.fields.CA32;
+      intptr_t alu_out;
+      int32_t alu_out32;
+      bool is_overflow = __builtin_add_overflow(rb_val, ~ra_val, &alu_out);
+      is_overflow |= __builtin_add_overflow(alu_out, ca, &alu_out);
+      bool is_overflow32 =
+          __builtin_add_overflow(static_cast<int32_t>(rb_val),
+                                 ~static_cast<int32_t>(ra_val), &alu_out32);
+      is_overflow32 |= __builtin_add_overflow(alu_out32, ca32, &alu_out32);
+
+      SetCA(CarryFromAdd(~ra_val, rb_val, ca));
+      SetCA32(CarryFromAdd(~static_cast<int32_t>(ra_val),
+                           static_cast<int32_t>(rb_val), ca32));
       set_register(rt, alu_out);
-      if (instr->Bit(0)) {  // RC bit set
-        SetCR0(static_cast<intptr_t>(alu_out));
+      if (instr->Bit(10)) {
+        SetOV(is_overflow);
+        SetOV32(is_overflow32);
       }
-      // todo - handle OE bit
+      if (instr->Bit(0)) {  // RC bit set
+        SetCR0(alu_out, special_reg_xer_.fields.SO);
+      }
       break;
     }
     case ADDCX: {
@@ -2534,9 +2556,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       uintptr_t alu_out = ra_val + rb_val;
       // Set carry
       if (~ra_val < rb_val) {
-        special_reg_xer_ = (special_reg_xer_ & ~0xF0000000) | 0x20000000;
+        special_reg_xer_.value =
+            (special_reg_xer_.value & ~0xF0000000) | 0x20000000;
       } else {
-        special_reg_xer_ &= ~0xF0000000;
+        special_reg_xer_.value &= ~0xF0000000;
       }
       set_register(rt, alu_out);
       if (instr->Bit(0)) {  // RC bit set
@@ -2553,7 +2576,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       uintptr_t ra_val = get_register(ra);
       uintptr_t rb_val = get_register(rb);
       uintptr_t alu_out = ra_val + rb_val;
-      if (special_reg_xer_ & 0x20000000) {
+      if (special_reg_xer_.value & 0x20000000) {
         alu_out += 1;
       }
       set_register(rt, alu_out);
@@ -2628,17 +2651,17 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       intptr_t alu_out = 1 + ~ra_val;
       intptr_t one = 1;  // work-around gcc
       intptr_t kOverflowVal = (one << 63);
+      int32_t kOverflowVal32 = (one << 31);
+      bool is_overflow = (ra_val == kOverflowVal);
+      bool is_overflow32 = (static_cast<int32_t>(ra_val) == kOverflowVal32);
+
       set_register(rt, alu_out);
       if (instr->Bit(10)) {  // OE bit set
-        if (ra_val == kOverflowVal) {
-          special_reg_xer_ |= 0xC0000000;  // set SO,OV
-        } else {
-          special_reg_xer_ &= ~0x40000000;  // clear OV
-        }
+        SetOV(is_overflow);
+        SetOV32(is_overflow32);
       }
       if (instr->Bit(0)) {  // RC bit set
-        bool setSO = (special_reg_xer_ & 0x80000000);
-        SetCR0(alu_out, setSO);
+        SetCR0(alu_out, special_reg_xer_.fields.SO);
       }
       break;
     }
@@ -2891,25 +2914,39 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       // int oe = instr->Bit(10);
       intptr_t ra_val = get_register(ra);
       intptr_t rb_val = get_register(rb);
-      intptr_t alu_out = rb_val - ra_val;
-      // todo - figure out underflow
+      intptr_t alu_out;
+      int32_t alu_out32;
+
+      int is_overflow = __builtin_sub_overflow(rb_val, ra_val, &alu_out);
+      int is_overflow32 =
+          __builtin_sub_overflow(static_cast<int32_t>(rb_val),
+                                 static_cast<int32_t>(ra_val), &alu_out32);
+
+      if (instr->Bit(10)) {
+        SetOV(is_overflow);
+        SetOV32(is_overflow32);
+      }
       set_register(rt, alu_out);
       if (instr->Bit(0)) {  // RC Bit set
-        SetCR0(alu_out);
+        SetCR0(alu_out, special_reg_xer_.fields.SO);
       }
-      // todo - handle OE bit
       break;
     }
     case ADDZEX: {
       int rt = instr->RTValue();
       int ra = instr->RAValue();
       intptr_t ra_val = get_register(ra);
-      if (special_reg_xer_ & 0x20000000) {
-        ra_val += 1;
+      intptr_t alu_out;
+      bool is_overflow =
+          __builtin_add_overflow(ra_val, special_reg_xer_.fields.CA, &alu_out);
+
+      SetCA(CarryFromAdd<intptr_t>(ra_val, special_reg_xer_.fields.CA, 1L));
+      set_register(rt, alu_out);
+      if (instr->Bit(10)) {
+        SetOV(is_overflow);
       }
-      set_register(rt, ra_val);
       if (instr->Bit(0)) {  // RC bit set
-        SetCR0(ra_val);
+        SetCR0(ra_val, special_reg_xer_.fields.SO);
       }
       // todo - handle OE bit
       break;
@@ -2934,11 +2971,17 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int32_t ra_val = (get_register(ra) & 0xFFFFFFFF);
       int32_t rb_val = (get_register(rb) & 0xFFFFFFFF);
       int32_t alu_out = ra_val * rb_val;
+      bool is_overflow = __builtin_mul_overflow(ra_val, rb_val, &alu_out);
       set_register(rt, alu_out);
-      if (instr->Bit(0)) {  // RC bit set
-        SetCR0(alu_out);
+
+      if (instr->Bit(10)) {  // OE bit set
+        SetOV(is_overflow);
+        SetOV32(is_overflow);
       }
-      // todo - handle OE bit
+
+      if (instr->Bit(0)) {  // RC bit set
+        SetCR0(alu_out, special_reg_xer_.fields.SO);
+      }
       break;
     }
     case MULLD: {
@@ -2967,15 +3010,11 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int32_t alu_out = (rb_val == 0 || overflow) ? -1 : ra_val / rb_val;
       set_register(rt, alu_out);
       if (instr->Bit(10)) {  // OE bit set
-        if (overflow) {
-          special_reg_xer_ |= 0xC0000000;  // set SO,OV
-        } else {
-          special_reg_xer_ &= ~0x40000000;  // clear OV
-        }
+        SetOV(overflow);
+        SetOV32(overflow);
       }
       if (instr->Bit(0)) {  // RC bit set
-        bool setSO = (special_reg_xer_ & 0x80000000);
-        SetCR0(alu_out, setSO);
+        SetCR0(alu_out, special_reg_xer_.fields.SO);
       }
       break;
     }
@@ -2990,15 +3029,11 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       uint32_t alu_out = (overflow) ? -1 : ra_val / rb_val;
       set_register(rt, alu_out);
       if (instr->Bit(10)) {  // OE bit set
-        if (overflow) {
-          special_reg_xer_ |= 0xC0000000;  // set SO,OV
-        } else {
-          special_reg_xer_ &= ~0x40000000;  // clear OV
-        }
+        SetOV(overflow);
+        SetOV32(overflow);
       }
       if (instr->Bit(0)) {  // RC bit set
-        bool setSO = (special_reg_xer_ & 0x80000000);
-        SetCR0(alu_out, setSO);
+        SetCR0(alu_out, special_reg_xer_.fields.SO);
       }
       break;
     }
@@ -3042,15 +3077,25 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int rt = instr->RTValue();
       int ra = instr->RAValue();
       int rb = instr->RBValue();
-      // int oe = instr->Bit(10);
+      int oe = instr->Bit(10);
       intptr_t ra_val = get_register(ra);
       intptr_t rb_val = get_register(rb);
-      intptr_t alu_out = ra_val + rb_val;
+      intptr_t alu_out;
+      int32_t alu_out32;
+      bool is_overflow = __builtin_add_overflow(ra_val, rb_val, &alu_out);
+      bool is_overflow32 =
+          __builtin_add_overflow(static_cast<int32_t>(ra_val),
+                                 static_cast<int32_t>(rb_val), &alu_out32);
+
       set_register(rt, alu_out);
-      if (instr->Bit(0)) {  // RC bit set
-        SetCR0(alu_out);
+      if (oe) {  // OE bit set
+        SetOV(is_overflow);
+        SetOV32(is_overflow32);
       }
-      // todo - handle OE bit
+      if (instr->Bit(0)) {  // RC bit set
+        SetCR0(alu_out, special_reg_xer_.fields.SO);
+      }
+
       break;
     }
     case XORX: {
@@ -3074,6 +3119,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       intptr_t rb_val = get_register(rb);
       intptr_t alu_out = rs_val | rb_val;
       set_register(ra, alu_out);
+      if (rs == ra && rs == rb) {
+        // PrintF("%d r%d = 0x%lx\n", icount_, rs, rs_val);
+      }
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(alu_out);
       }
@@ -3110,10 +3158,18 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       } else if (spr == 288) {
         special_reg_ctr_ = rt_val;
       } else if (spr == 32) {
-        special_reg_xer_ = rt_val;
+        special_reg_xer_.value = rt_val;
       } else {
         UNIMPLEMENTED();  // Only LR supported
       }
+      break;
+    }
+    case MCRXRX: {
+      int bf = instr->Bits(25, 23);
+      uint32_t condition =
+          special_reg_xer_.fields.OV << 3 | special_reg_xer_.fields.OV32 << 2 |
+          special_reg_xer_.fields.CA << 1 | special_reg_xer_.fields.CA32;
+      SetCR(bf, condition);
       break;
     }
     case MFCR: {
@@ -3509,6 +3565,20 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
+    case BRH: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      union {
+        uint16_t v[4];
+        uint64_t o;
+      } uval;
+      uval.o = get_register(ra);
+      for (int i = 0; i < 4; i++) {
+        uval.v[i] = ByteReverse<uint16_t>(uval.v[i]);
+      }
+      set_register(rt, uval.o);
+      break;
+    }
     case BRW: {
       constexpr int kBitsPerWord = 32;
       int rs = instr->RSValue();
@@ -3553,7 +3623,18 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int frb = instr->RBValue();
       double fra_val = get_double_from_d_register(fra);
       double frb_val = get_double_from_d_register(frb);
-      double frt_val = fra_val / frb_val;
+      double frt_val =
+          FPProcessNaNBinop(fra_val, frb_val, [](double lhs, double rhs) {
+            if (std::isinf(lhs) && std::isinf(rhs))
+              return std::numeric_limits<double>::quiet_NaN();
+            if (rhs == 0) {
+              if (lhs == 0) return std::numeric_limits<double>::quiet_NaN();
+              bool is_negative = signbit(lhs) ^ signbit(rhs);
+              double inf = std::numeric_limits<double>::infinity();
+              return is_negative ? -inf : inf;
+            }
+            return lhs / rhs;
+          });
       set_d_register_from_double(frt, frt_val);
       return;
     }
@@ -3563,7 +3644,12 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int frb = instr->RBValue();
       double fra_val = get_double_from_d_register(fra);
       double frb_val = get_double_from_d_register(frb);
-      double frt_val = fra_val - frb_val;
+      double frt_val =
+          FPProcessNaNBinop(fra_val, frb_val, [](double lhs, double rhs) {
+            if (std::isinf(lhs) && std::isinf(rhs) && (lhs == rhs))
+              return std::numeric_limits<double>::quiet_NaN();
+            return lhs - rhs;
+          });
       set_d_register_from_double(frt, frt_val);
       return;
     }
@@ -3573,7 +3659,13 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int frb = instr->RBValue();
       double fra_val = get_double_from_d_register(fra);
       double frb_val = get_double_from_d_register(frb);
-      double frt_val = fra_val + frb_val;
+      double frt_val =
+          FPProcessNaNBinop(fra_val, frb_val, [](double lhs, double rhs) {
+            if (std::isinf(lhs) && std::isinf(rhs))
+              return lhs != rhs ? std::numeric_limits<double>::quiet_NaN()
+                                : lhs;
+            return lhs + rhs;
+          });
       set_d_register_from_double(frt, frt_val);
       return;
     }
@@ -3603,7 +3695,14 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int frc = instr->RCValue();
       double fra_val = get_double_from_d_register(fra);
       double frc_val = get_double_from_d_register(frc);
-      double frt_val = fra_val * frc_val;
+      double frt_val =
+          FPProcessNaNBinop(fra_val, frc_val, [](double lhs, double rhs) {
+            if (lhs == 0 && std::isinf(rhs))
+              return std::numeric_limits<double>::quiet_NaN();
+            if (rhs == 0 && std::isinf(lhs))
+              return std::numeric_limits<double>::quiet_NaN();
+            return lhs * rhs;
+          });
       set_d_register_from_double(frt, frt_val);
       return;
     }
@@ -5096,12 +5195,13 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VECTOR_ADD_SUB_SATURATE
-#define VECTOR_FP_ROUNDING(type, op)                       \
-  int t = instr->RTValue();                                \
-  int b = instr->RBValue();                                \
-  FOR_EACH_LANE(i, type) {                                 \
-    type b_val = get_simd_register_by_lane<type>(b, i);    \
-    set_simd_register_by_lane<type>(t, i, std::op(b_val)); \
+#define VECTOR_FP_ROUNDING(type, op)                                           \
+  int t = instr->RTValue();                                                    \
+  int b = instr->RBValue();                                                    \
+  FOR_EACH_LANE(i, type) {                                                     \
+    type b_val = get_simd_register_by_lane<type>(b, i);                        \
+    set_simd_register_by_lane<type>(t, i,                                      \
+                                    std::isnan(b_val) ? NAN : std::op(b_val)); \
   }
     case XVRDPIP: {
       VECTOR_FP_ROUNDING(double, ceil)

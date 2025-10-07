@@ -94,18 +94,17 @@ struct SharedWasmMemoryData {
   std::vector<Isolate*> isolates_;
 };
 
-BackingStore::BackingStore(PageAllocator* page_allocator, void* buffer_start,
-                           size_t byte_length, size_t max_byte_length,
-                           size_t byte_capacity, SharedFlag shared,
-                           ResizableFlag resizable, bool is_wasm_memory,
-                           bool is_wasm_memory64, bool has_guard_regions,
-                           bool custom_deleter, bool empty_deleter)
+BackingStore::BackingStore(void* buffer_start, size_t byte_length,
+                           size_t max_byte_length, size_t byte_capacity,
+                           SharedFlag shared, ResizableFlag resizable,
+                           bool is_wasm_memory, bool is_wasm_memory64,
+                           bool has_guard_regions, bool custom_deleter,
+                           bool empty_deleter)
     : buffer_start_(buffer_start),
       byte_length_(byte_length),
       max_byte_length_(max_byte_length),
       byte_capacity_(byte_capacity),
-      id_(next_backing_store_id_.fetch_add(1)),
-      page_allocator_(page_allocator) {
+      id_(next_backing_store_id_.fetch_add(1)) {
   // TODO(v8:11111): RAB / GSAB - Wasm integration.
   DCHECK_IMPLIES(is_wasm_memory64, is_wasm_memory);
   DCHECK_IMPLIES(has_guard_regions, is_wasm_memory);
@@ -153,10 +152,18 @@ BackingStore::~BackingStore() {
     DCHECK(is_resizable_by_js() || is_wasm_memory());
     auto region = GetReservedRegion(has_guard_regions(), is_wasm_memory64(),
                                     buffer_start_, byte_capacity_);
-    if (!region.is_empty()) {
-      FreePages(page_allocator_, reinterpret_cast<void*>(region.begin()),
+#ifdef V8_ENABLE_SANDBOX
+    if (!region.is_empty() && !page_allocator_.expired()) {
+      auto page_allocator = page_allocator_.lock();
+      FreePages(page_allocator.get(), reinterpret_cast<void*>(region.begin()),
                 region.size());
     }
+#else
+    if (!region.is_empty()) {
+      FreePages(GetPlatformPageAllocator(),
+                reinterpret_cast<void*>(region.begin()), region.size());
+    }
+#endif
   };
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -239,10 +246,7 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
 #endif
   }
 
-  PageAllocator* page_allocator =
-      isolate->isolate_group()->GetBackingStorePageAllocator();
-  auto result = new BackingStore(page_allocator,
-                                 buffer_start,                  // start
+  auto result = new BackingStore(buffer_start,                  // start
                                  byte_length,                   // length
                                  byte_length,                   // max length
                                  byte_length,                   // capacity
@@ -253,6 +257,11 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
                                  false,   // has_guard_regions
                                  false,   // custom_deleter
                                  false);  // empty_deleter
+
+#ifdef V8_ENABLE_SANDBOX
+  result->set_page_allocator(
+      isolate->isolate_group()->GetBackingStorePageAllocator());
+#endif
 
   TRACE_BS("BS:alloc  bs=%p mem=%p (length=%zu)\n", result,
            result->buffer_start(), byte_length);
@@ -325,16 +334,26 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 #ifdef V8_ENABLE_SANDBOX
   CHECK_WITH_MSG(isolate || Sandbox::current(),
+#else
+  CHECK_WITH_MSG(isolate || IsolateGroup::current(),
+#endif
                  "One must enter an v8::Isolate before allocating resizable "
                  "array backing stores");
 #endif
+
+#ifdef V8_ENABLE_SANDBOX
+  IsolateGroup* group =
+      isolate ? isolate->isolate_group() : IsolateGroup::current();
+  DCHECK(group);
+  std::shared_ptr<PageAllocator> page_allocator_shared_ptr =
+      group->GetBackingStorePageAllocator().lock();
+  PageAllocator* page_allocator = page_allocator_shared_ptr.get();
+#else
+  PageAllocator* page_allocator = GetPlatformPageAllocator();
 #endif
-  PageAllocator* page_allocator =
-      isolate ? isolate->isolate_group()->GetBackingStorePageAllocator()
-              : GetArrayBufferPageAllocator();
   auto allocate_pages = [&] {
-    allocation_base = AllocatePages(page_allocator, nullptr, reservation_size,
-                                    page_size, PageAllocator::kNoAccess);
+    allocation_base = AllocatePages(page_allocator, reservation_size, page_size,
+                                    PageAllocator::kNoAccess);
     return allocation_base != nullptr;
   };
   if (!gc_retry(allocate_pages)) {
@@ -374,8 +393,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   ResizableFlag resizable =
       is_wasm_memory ? ResizableFlag::kNotResizable : ResizableFlag::kResizable;
 
-  auto result = new BackingStore(page_allocator,
-                                 buffer_start,       // start
+  auto result = new BackingStore(buffer_start,       // start
                                  byte_length,        // length
                                  max_byte_length,    // max_byte_length
                                  byte_capacity,      // capacity
@@ -386,6 +404,12 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
                                  has_guard_regions,  // has_guard_regions
                                  false,              // custom_deleter
                                  false);             // empty_deleter
+#ifdef V8_ENABLE_SANDBOX
+  if (page_allocator_shared_ptr) {
+    result->set_page_allocator(page_allocator_shared_ptr);
+  }
+#endif
+
   TRACE_BS(
       "BSw:alloc bs=%p mem=%p (length=%zu, capacity=%zu, reservation=%zu)\n",
       result, result->buffer_start(), byte_length, byte_capacity,
@@ -696,8 +720,7 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
     v8::BackingStore::DeleterCallback deleter, void* deleter_data,
     SharedFlag shared) {
   bool is_empty_deleter = (deleter == v8::BackingStore::EmptyDeleter);
-  auto result = new BackingStore(nullptr,
-                                 allocation_base,               // start
+  auto result = new BackingStore(allocation_base,               // start
                                  allocation_length,             // length
                                  allocation_length,             // max length
                                  allocation_length,             // capacity
@@ -716,8 +739,7 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
 
 std::unique_ptr<BackingStore> BackingStore::EmptyBackingStore(
     SharedFlag shared) {
-  auto result = new BackingStore(nullptr,
-                                 nullptr,                       // start
+  auto result = new BackingStore(nullptr,                       // start
                                  0,                             // length
                                  0,                             // max length
                                  0,                             // capacity

@@ -270,9 +270,9 @@ void BytecodeExpectationsPrinter::PrintSourcePosition(
     *stream << "/* " << std::setw(kPositionWidth)
             << source_iterator->source_position().ScriptOffset();
     if (source_iterator->is_statement()) {
-      *stream << " S> */ ";
+      *stream << (source_iterator->is_breakable() ? " S> */ " : " s> */ ");
     } else {
-      *stream << " E> */ ";
+      *stream << (source_iterator->is_breakable() ? " E> */ " : " e> */ ");
     }
     source_iterator->Advance();
   } else {

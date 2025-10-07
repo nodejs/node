@@ -53,25 +53,22 @@ class Store final : public MemoryRetainer {
   Store(std::unique_ptr<v8::BackingStore> store,
         size_t length,
         size_t offset = 0);
-  Store(Store&& other) noexcept = default;
-  Store& operator=(Store&& other) noexcept = default;
-  DISALLOW_COPY(Store)
 
   // Creates a Store from the contents of an ArrayBuffer, always detaching
   // it in the process. An empty Maybe will be returned if the ArrayBuffer
   // is not detachable or detaching failed (likely due to a detach key
   // mismatch).
   static v8::Maybe<Store> From(
-    v8::Local<v8::ArrayBuffer> buffer,
-    v8::Local<v8::Value> detach_key = v8::Local<v8::Value>());
+      v8::Local<v8::ArrayBuffer> buffer,
+      v8::Local<v8::Value> detach_key = v8::Local<v8::Value>());
 
   // Creates a Store from the contents of an ArrayBufferView, always detaching
   // it in the process. An empty Maybe will be returned if the ArrayBuffer
   // is not detachable or detaching failed (likely due to a detach key
   // mismatch).
   static v8::Maybe<Store> From(
-    v8::Local<v8::ArrayBufferView> view,
-    v8::Local<v8::Value> detach_key = v8::Local<v8::Value>());
+      v8::Local<v8::ArrayBufferView> view,
+      v8::Local<v8::Value> detach_key = v8::Local<v8::Value>());
 
   v8::Local<v8::Uint8Array> ToUint8Array(Environment* env) const;
   inline v8::Local<v8::Uint8Array> ToUint8Array(Realm* realm) const {
@@ -202,9 +199,6 @@ class QuicError final : public MemoryRetainer {
   explicit QuicError(const std::string& reason = "");
   explicit QuicError(const ngtcp2_ccerr* ptr);
   explicit QuicError(const ngtcp2_ccerr& error);
-  QuicError(QuicError&& other) noexcept = default;
-  QuicError& operator=(QuicError&& other) noexcept = default;
-  DISALLOW_COPY(QuicError)
 
   Type type() const;
   error_code code() const;
@@ -260,21 +254,19 @@ class QuicError final : public MemoryRetainer {
 
   // Utility functions for creating QuicError instances.
   // The reason is expected to always be UTF-8 encoded.
-  static const QuicError ForTransport(TransportError code,
-                                      std::string reason = "");
-  static const QuicError ForTransport(error_code code, std::string reason = "");
-  static const QuicError ForApplication(Http3Error code,
-                                        std::string reason = "");
-  static const QuicError ForApplication(error_code code,
-                                        std::string reason = "");
-  static const QuicError ForVersionNegotiation(std::string reason = "");
-  static const QuicError ForIdleClose(std::string reason = "");
-  static const QuicError ForDropConnection(std::string reason = "");
-  static const QuicError ForRetry(std::string reason = "");
-  static const QuicError ForNgtcp2Error(int code, std::string reason = "");
-  static const QuicError ForTlsAlert(int code, std::string reason = "");
+  static QuicError ForTransport(TransportError code = TransportError::NO_ERROR_,
+                                std::string reason = "");
+  static QuicError ForTransport(error_code code, std::string reason = "");
+  static QuicError ForApplication(Http3Error code, std::string reason = "");
+  static QuicError ForApplication(error_code code, std::string reason = "");
+  static QuicError ForVersionNegotiation(std::string reason = "");
+  static QuicError ForIdleClose(std::string reason = "");
+  static QuicError ForDropConnection(std::string reason = "");
+  static QuicError ForRetry(std::string reason = "");
+  static QuicError ForNgtcp2Error(int code, std::string reason = "");
+  static QuicError ForTlsAlert(int code, std::string reason = "");
 
-  static const QuicError FromConnectionClose(ngtcp2_conn* session);
+  static QuicError FromConnectionClose(ngtcp2_conn* session);
 
   static const QuicError TRANSPORT_NO_ERROR;
 #define V(name) static const QuicError TRANSPORT_##name;

@@ -1213,6 +1213,8 @@ $(TARBALL): release-only doc-only
 	$(RM) -r $(TARNAME)/.editorconfig
 	$(RM) -r $(TARNAME)/.git*
 	$(RM) -r $(TARNAME)/.mailmap
+	$(RM) -r $(TARNAME)/deps/corepack
+	$(RM) $(TARNAME)/test/parallel/test-corepack-version.js
 	$(RM) -r $(TARNAME)/deps/openssl/openssl/demos
 	$(RM) -r $(TARNAME)/deps/openssl/openssl/doc
 	$(RM) -r $(TARNAME)/deps/openssl/openssl/test
@@ -1227,6 +1229,7 @@ $(TARBALL): release-only doc-only
 	$(RM) -r $(TARNAME)/tools/cpplint.py
 	$(RM) -r $(TARNAME)/tools/eslint
 	$(RM) -r $(TARNAME)/tools/eslint-rules
+	$(RM) -r $(TARNAME)/test/parallel/test-eslint-*
 	$(RM) -r $(TARNAME)/tools/license-builder.sh
 	$(RM) -r $(TARNAME)/tools/eslint/node_modules
 	$(RM) -r $(TARNAME)/tools/osx-*

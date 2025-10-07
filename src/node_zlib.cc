@@ -30,6 +30,8 @@
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
 
+#include "node_debug.h"
+#include "v8-fast-api-calls.h"
 #include "v8.h"
 
 #include "brotli/decode.h"
@@ -48,6 +50,7 @@
 namespace node {
 
 using v8::ArrayBuffer;
+using v8::CFunction;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -609,9 +612,11 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
     return AllocForBrotli(data, real_size);
   }
 
+  static constexpr size_t reserveSizeAndAlign =
+      std::max(sizeof(size_t), alignof(max_align_t));
+
   static void* AllocForBrotli(void* data, size_t size) {
-    constexpr size_t offset = std::max(sizeof(size_t), alignof(max_align_t));
-    size += offset;
+    size += reserveSizeAndAlign;
     CompressionStream* ctx = static_cast<CompressionStream*>(data);
     char* memory = UncheckedMalloc(size);
     if (memory == nullptr) [[unlikely]] {
@@ -620,7 +625,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
     *reinterpret_cast<size_t*>(memory) = size;
     ctx->unreported_allocations_.fetch_add(size,
                                            std::memory_order_relaxed);
-    return memory + offset;
+    return memory + reserveSizeAndAlign;
   }
 
   static void FreeForZlib(void* data, void* pointer) {
@@ -628,8 +633,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
       return;
     }
     CompressionStream* ctx = static_cast<CompressionStream*>(data);
-    constexpr size_t offset = std::max(sizeof(size_t), alignof(max_align_t));
-    char* real_pointer = static_cast<char*>(pointer) - offset;
+    char* real_pointer = static_cast<char*>(pointer) - reserveSizeAndAlign;
     size_t real_size = *reinterpret_cast<size_t*>(real_pointer);
     ctx->unreported_allocations_.fetch_sub(real_size,
                                            std::memory_order_relaxed);
@@ -644,7 +648,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
     if (report == 0) return;
     CHECK_IMPLIES(report < 0, zlib_memory_ >= static_cast<size_t>(-report));
     zlib_memory_ += report;
-    AsyncWrap::env()->external_memory_accounter()->Increase(
+    AsyncWrap::env()->external_memory_accounter()->Update(
         AsyncWrap::env()->isolate(), report);
   }
 
@@ -1657,21 +1661,34 @@ T CallOnSequence(v8::Isolate* isolate, Local<Value> value, F callback) {
   }
 }
 
-// TODO(joyeecheung): use fast API
+static inline uint32_t CRC32Impl(Isolate* isolate,
+                                 Local<Value> data,
+                                 uint32_t value) {
+  return CallOnSequence<uint32_t>(
+      isolate, data, [&](const char* ptr, size_t size) -> uint32_t {
+        return static_cast<uint32_t>(
+            crc32(value, reinterpret_cast<const Bytef*>(ptr), size));
+      });
+}
+
 static void CRC32(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsArrayBufferView() || args[0]->IsString());
   CHECK(args[1]->IsUint32());
   uint32_t value = args[1].As<v8::Uint32>()->Value();
-
-  uint32_t result = CallOnSequence<uint32_t>(
-      args.GetIsolate(),
-      args[0],
-      [&](const char* data, size_t size) -> uint32_t {
-        return crc32(value, reinterpret_cast<const Bytef*>(data), size);
-      });
-
-  args.GetReturnValue().Set(result);
+  args.GetReturnValue().Set(CRC32Impl(args.GetIsolate(), args[0], value));
 }
+
+static uint32_t FastCRC32(v8::Local<v8::Value> receiver,
+                          v8::Local<v8::Value> data,
+                          uint32_t value,
+                          // NOLINTNEXTLINE(runtime/references)
+                          v8::FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("zlib.crc32");
+  v8::HandleScope handle_scope(options.isolate);
+  return CRC32Impl(options.isolate, data, value);
+}
+
+static CFunction fast_crc32_(CFunction::Make(FastCRC32));
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -1685,7 +1702,7 @@ void Initialize(Local<Object> target,
   MakeClass<ZstdCompressStream>::Make(env, target, "ZstdCompress");
   MakeClass<ZstdDecompressStream>::Make(env, target, "ZstdDecompress");
 
-  SetMethod(context, target, "crc32", CRC32);
+  SetFastMethodNoSideEffect(context, target, "crc32", CRC32, &fast_crc32_);
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "ZLIB_VERSION"),
               FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION)).Check();
@@ -1698,6 +1715,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   MakeClass<ZstdCompressStream>::Make(registry);
   MakeClass<ZstdDecompressStream>::Make(registry);
   registry->Register(CRC32);
+  registry->Register(fast_crc32_);
 }
 
 }  // anonymous namespace

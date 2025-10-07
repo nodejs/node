@@ -152,11 +152,9 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc,
 Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
-    Tagged_t compressed =
-        Assembler::target_compressed_address_at(pc_, constant_pool_);
-    DCHECK(!HAS_SMI_TAG(compressed));
-    Tagged<Object> obj(V8HeapCompressionScheme::DecompressTagged(compressed));
-    return Cast<HeapObject>(obj);
+    return Cast<HeapObject>(
+        Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
+            Assembler::target_compressed_address_at(pc_, constant_pool_))));
   } else {
     return Cast<HeapObject>(
         Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));
@@ -186,13 +184,6 @@ void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
                                           ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
-    DCHECK(COMPRESS_POINTERS_BOOL);
-    // We must not compress pointers to objects outside of the main pointer
-    // compression cage as we wouldn't be able to decompress them with the
-    // correct cage base.
-    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, !HeapLayout::InTrustedSpace(target));
-    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                   !HeapLayout::InCodeSpace(target));
     Assembler::set_target_compressed_address_at(
         pc_, constant_pool_,
         V8HeapCompressionScheme::CompressObject(target.ptr()), &jit_allocation_,

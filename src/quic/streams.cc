@@ -1,4 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "streams.h"
 #include <aliased_struct-inl.h>
 #include <async_wrap-inl.h>
@@ -18,10 +20,7 @@ namespace node {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
-using v8::BackingStoreInitializationMode;
 using v8::BigInt;
-using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::Global;
 using v8::Integer;
 using v8::Just;
@@ -30,15 +29,13 @@ using v8::Maybe;
 using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::PropertyAttribute;
 using v8::SharedArrayBuffer;
-using v8::Uint32;
 using v8::Value;
 
 namespace quic {
 
 #define STREAM_STATE(V)                                                        \
-  V(ID, id, int64_t)                                                           \
+  V(ID, id, stream_id)                                                         \
   V(PENDING, pending, uint8_t)                                                 \
   V(FIN_SENT, fin_sent, uint8_t)                                               \
   V(FIN_RECEIVED, fin_received, uint8_t)                                       \
@@ -110,7 +107,7 @@ PendingStream::~PendingStream() {
   }
 }
 
-void PendingStream::fulfill(int64_t id) {
+void PendingStream::fulfill(stream_id id) {
   CHECK(waiting_);
   waiting_ = false;
   stream_->NotifyStreamOpened(id);
@@ -148,31 +145,76 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
   DCHECK_IMPLIES(!value->IsUndefined(), value->IsObject());
   std::vector<std::unique_ptr<DataQueue::Entry>> entries;
   if (value->IsUndefined()) {
+    // Return an empty DataQueue.
     return Just(std::shared_ptr<DataQueue>());
   } else if (value->IsArrayBuffer()) {
+    // DataQueue is created from an ArrayBuffer.
     auto buffer = value.As<ArrayBuffer>();
-    entries.push_back(DataQueue::CreateInMemoryEntryFromBackingStore(
-        buffer->GetBackingStore(), 0, buffer->ByteLength()));
-    return Just(DataQueue::CreateIdempotent(std::move(entries)));
-  } else if (value->IsSharedArrayBuffer()) {
-    auto buffer = value.As<SharedArrayBuffer>();
-    entries.push_back(DataQueue::CreateInMemoryEntryFromBackingStore(
-        buffer->GetBackingStore(), 0, buffer->ByteLength()));
-    return Just(DataQueue::CreateIdempotent(std::move(entries)));
-  } else if (value->IsArrayBufferView()) {
-    auto entry =
-        DataQueue::CreateInMemoryEntryFromView(value.As<ArrayBufferView>());
-    if (!entry) {
+    // We require that the ArrayBuffer be detachable. This ensures that the
+    // underlying memory can be transferred to the DataQueue without risk
+    // of the memory being modified by JavaScript code while it is owned
+    // by the DataQueue.
+    if (!buffer->IsDetachable()) {
       THROW_ERR_INVALID_ARG_TYPE(env, "Data source not detachable");
       return Nothing<std::shared_ptr<DataQueue>>();
     }
-    entries.push_back(std::move(entry));
+    auto backing = buffer->GetBackingStore();
+    uint64_t offset = 0;
+    uint64_t length = buffer->ByteLength();
+    if (buffer->Detach(Local<Value>()).IsNothing()) {
+      THROW_ERR_INVALID_ARG_TYPE(env, "Data source not detachable");
+      return Nothing<std::shared_ptr<DataQueue>>();
+    }
+    entries.push_back(DataQueue::CreateInMemoryEntryFromBackingStore(
+        std::move(backing), offset, length));
+    return Just(DataQueue::CreateIdempotent(std::move(entries)));
+  } else if (value->IsSharedArrayBuffer()) {
+    // We aren't going to allow use of SharedArrayBuffer as a data source.
+    // The reason is that SharedArrayBuffer memory is possibly shared with
+    // other JavaScript code and we cannot detach it, making it impossible
+    // for us to guarantee that the memory will not be modified while it
+    // is owned by the DataQueue.
+    THROW_ERR_INVALID_ARG_TYPE(env, "SharedArrayBuffer is not allowed");
+    return Nothing<std::shared_ptr<DataQueue>>();
+  } else if (value->IsArrayBufferView()) {
+    auto view = value.As<ArrayBufferView>();
+    auto buffer = view->Buffer();
+    if (buffer->IsSharedArrayBuffer()) {
+      // We aren't going to allow use of SharedArrayBuffer as a data source.
+      // The reason is that SharedArrayBuffer memory is possibly shared with
+      // other JavaScript code and we cannot detach it, making it impossible
+      // for us to guarantee that the memory will not be modified while it
+      // is owned by the DataQueue.
+      THROW_ERR_INVALID_ARG_TYPE(env, "SharedArrayBuffer is not allowed");
+      return Nothing<std::shared_ptr<DataQueue>>();
+    }
+    if (!buffer->IsDetachable()) {
+      THROW_ERR_INVALID_ARG_TYPE(env, "Data source not detachable");
+      return Nothing<std::shared_ptr<DataQueue>>();
+    }
+    if (buffer->Detach(Local<Value>()).IsNothing()) {
+      THROW_ERR_INVALID_ARG_TYPE(env, "Data source not detachable");
+      return Nothing<std::shared_ptr<DataQueue>>();
+    }
+    auto backing = buffer->GetBackingStore();
+    auto offset = view->ByteOffset();
+    auto length = view->ByteLength();
+    entries.push_back(DataQueue::CreateInMemoryEntryFromBackingStore(
+        std::move(backing), offset, length));
     return Just(DataQueue::CreateIdempotent(std::move(entries)));
   } else if (Blob::HasInstance(env, value)) {
     Blob* blob;
     ASSIGN_OR_RETURN_UNWRAP(
         &blob, value, Nothing<std::shared_ptr<DataQueue>>());
     return Just(blob->getDataQueue().slice(0));
+  } else if (value->IsString()) {
+    Utf8Value str(env->isolate(), value);
+    JS_TRY_ALLOCATE_BACKING_OR_RETURN(
+        env, backing, str.length(), Nothing<std::shared_ptr<DataQueue>>());
+    memcpy(backing->Data(), *str, str.length());
+    entries.push_back(DataQueue::CreateInMemoryEntryFromBackingStore(
+        std::move(backing), 0, backing->ByteLength()));
+    return Just(DataQueue::CreateIdempotent(std::move(entries)));
   }
   // TODO(jasnell): Add streaming sources...
   THROW_ERR_INVALID_ARG_TYPE(env, "Invalid data source type");
@@ -183,18 +225,19 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
 // Stream object.
 struct Stream::Impl {
   // Attaches an outbound data source to the stream.
-  static void AttachSource(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(AttachSource) {
     Environment* env = Environment::GetCurrent(args);
+    Stream* stream;
+    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
 
     std::shared_ptr<DataQueue> dataqueue;
     if (GetDataQueueFromSource(env, args[0]).To(&dataqueue)) {
-      Stream* stream;
-      ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
       stream->set_outbound(std::move(dataqueue));
     }
   }
 
-  static void Destroy(const FunctionCallbackInfo<Value>& args) {
+  // Immediately and forcefully destroys the stream.
+  JS_METHOD(Destroy) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     if (args.Length() > 1) {
@@ -207,17 +250,20 @@ struct Stream::Impl {
     }
   }
 
-  static void SendHeaders(const FunctionCallbackInfo<Value>& args) {
+  // Sends a block of headers to the peer. If the stream is not yet open,
+  // the headers will be queued and sent immediately when the stream is
+  // opened. If the application does not support sending headers on streams,
+  // they will be ignored and dropped on the floor.
+  JS_METHOD(SendHeaders) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     CHECK(args[0]->IsUint32());  // Kind
     CHECK(args[1]->IsArray());   // Headers
     CHECK(args[2]->IsUint32());  // Flags
 
-    HeadersKind kind = static_cast<HeadersKind>(args[0].As<Uint32>()->Value());
+    HeadersKind kind = FromV8Value<HeadersKind>(args[0]);
     Local<Array> headers = args[1].As<Array>();
-    HeadersFlags flags =
-        static_cast<HeadersFlags>(args[2].As<Uint32>()->Value());
+    HeadersFlags flags = FromV8Value<HeadersFlags>(args[2]);
 
     // If the stream is pending, the headers will be queued until the
     // stream is opened, at which time the queued header block will be
@@ -234,10 +280,10 @@ struct Stream::Impl {
   // Tells the peer to stop sending data for this stream. This has the effect
   // of shutting down the readable side of the stream for this peer. Any data
   // that has already been received is still readable.
-  static void StopSending(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(StopSending) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
-    uint64_t code = NGTCP2_APP_NOERROR;
+    error_code code = 0;
     CHECK_IMPLIES(!args[0]->IsUndefined(), args[0]->IsBigInt());
     if (!args[0]->IsUndefined()) {
       bool unused = false;  // not used but still necessary.
@@ -259,10 +305,10 @@ struct Stream::Impl {
   // more data for this stream. This has the effect of shutting down the
   // writable side of the stream for this peer. Any data that is held in the
   // outbound queue will be dropped. The stream may still be readable.
-  static void ResetStream(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(ResetStream) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
-    uint64_t code = NGTCP2_APP_NOERROR;
+    error_code code = 0;
     CHECK_IMPLIES(!args[0]->IsUndefined(), args[0]->IsBigInt());
     if (!args[0]->IsUndefined()) {
       bool lossless = false;  // not used but still necessary.
@@ -286,16 +332,14 @@ struct Stream::Impl {
     }
   }
 
-  static void SetPriority(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(SetPriority) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     CHECK(args[0]->IsUint32());  // Priority
     CHECK(args[1]->IsUint32());  // Priority flag
 
-    StreamPriority priority =
-        static_cast<StreamPriority>(args[0].As<Uint32>()->Value());
-    StreamPriorityFlags flags =
-        static_cast<StreamPriorityFlags>(args[1].As<Uint32>()->Value());
+    StreamPriority priority = FromV8Value<StreamPriority>(args[0]);
+    StreamPriorityFlags flags = FromV8Value<StreamPriorityFlags>(args[1]);
 
     if (stream->is_pending()) {
       stream->pending_priority_ = PendingPriority{
@@ -308,7 +352,7 @@ struct Stream::Impl {
     }
   }
 
-  static void GetPriority(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(GetPriority) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
 
@@ -321,7 +365,9 @@ struct Stream::Impl {
     args.GetReturnValue().Set(static_cast<uint32_t>(priority));
   }
 
-  static void GetReader(const FunctionCallbackInfo<Value>& args) {
+  // Returns a Blob::Reader that can be used to read data that has been
+  // received on the stream.
+  JS_METHOD(GetReader) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     BaseObjectPtr<Blob::Reader> reader = stream->get_reader();
@@ -695,33 +741,19 @@ class Stream::Outbound final : public MemoryRetainer {
 
 // ============================================================================
 
-bool Stream::HasInstance(Environment* env, Local<Value> value) {
-  return GetConstructorTemplate(env)->HasInstance(value);
-}
-
-Local<FunctionTemplate> Stream::GetConstructorTemplate(Environment* env) {
-  auto& state = BindingData::Get(env);
-  auto tmpl = state.stream_constructor_template();
-  if (tmpl.IsEmpty()) {
-    auto isolate = env->isolate();
-    tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
-    tmpl->SetClassName(state.stream_string());
-    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
 #define V(name, key, no_side_effect)                                           \
   if (no_side_effect) {                                                        \
-    SetProtoMethodNoSideEffect(isolate, tmpl, #key, Impl::name);               \
+    SetProtoMethodNoSideEffect(env->isolate(), tmpl, #key, Impl::name);        \
   } else {                                                                     \
-    SetProtoMethod(isolate, tmpl, #key, Impl::name);                           \
+    SetProtoMethod(env->isolate(), tmpl, #key, Impl::name);                    \
   }
-
-    STREAM_JS_METHODS(V)
-
+JS_CONSTRUCTOR_IMPL(Stream, stream_constructor_template, {
+  JS_ILLEGAL_CONSTRUCTOR();
+  JS_INHERIT(AsyncWrap);
+  JS_CLASS(stream);
+  STREAM_JS_METHODS(V)
+})
 #undef V
-    state.set_stream_constructor_template(tmpl);
-  }
-  return tmpl;
-}
 
 void Stream::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 #define V(name, _, __) registry->Register(Impl::name);
@@ -753,16 +785,16 @@ void Stream::InitPerContext(Realm* realm, Local<Object> target) {
 #undef V
 
   constexpr int QUIC_STREAM_HEADERS_KIND_HINTS =
-      static_cast<int>(HeadersKind::HINTS);
+      static_cast<uint8_t>(HeadersKind::HINTS);
   constexpr int QUIC_STREAM_HEADERS_KIND_INITIAL =
-      static_cast<int>(HeadersKind::INITIAL);
+      static_cast<uint8_t>(HeadersKind::INITIAL);
   constexpr int QUIC_STREAM_HEADERS_KIND_TRAILING =
-      static_cast<int>(HeadersKind::TRAILING);
+      static_cast<uint8_t>(HeadersKind::TRAILING);
 
   constexpr int QUIC_STREAM_HEADERS_FLAGS_NONE =
-      static_cast<int>(HeadersFlags::NONE);
+      static_cast<uint8_t>(HeadersFlags::NONE);
   constexpr int QUIC_STREAM_HEADERS_FLAGS_TERMINAL =
-      static_cast<int>(HeadersFlags::TERMINAL);
+      static_cast<uint8_t>(HeadersFlags::TERMINAL);
 
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_HINTS);
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_INITIAL);
@@ -778,18 +810,11 @@ Stream* Stream::From(void* stream_user_data) {
 }
 
 BaseObjectPtr<Stream> Stream::Create(Session* session,
-                                     int64_t id,
+                                     stream_id id,
                                      std::shared_ptr<DataQueue> source) {
   DCHECK_GE(id, 0);
   DCHECK_NOT_NULL(session);
-  Local<Object> obj;
-  if (!GetConstructorTemplate(session->env())
-           ->InstanceTemplate()
-           ->NewInstance(session->env()->context())
-           .ToLocal(&obj)) {
-    return {};
-  }
-
+  JS_NEW_INSTANCE_OR_RETURN(session->env(), obj, {});
   return MakeDetachedBaseObject<Stream>(
       BaseObjectWeakPtr<Session>(session), obj, id, std::move(source));
 }
@@ -798,43 +823,33 @@ BaseObjectPtr<Stream> Stream::Create(Session* session,
                                      Direction direction,
                                      std::shared_ptr<DataQueue> source) {
   DCHECK_NOT_NULL(session);
-  Local<Object> obj;
-  if (!GetConstructorTemplate(session->env())
-           ->InstanceTemplate()
-           ->NewInstance(session->env()->context())
-           .ToLocal(&obj)) {
-    return {};
-  }
-
+  JS_NEW_INSTANCE_OR_RETURN(session->env(), obj, {});
   return MakeBaseObject<Stream>(
       BaseObjectWeakPtr<Session>(session), obj, direction, std::move(source));
 }
 
 Stream::Stream(BaseObjectWeakPtr<Session> session,
                Local<Object> object,
-               int64_t id,
+               stream_id id,
                std::shared_ptr<DataQueue> source)
     : AsyncWrap(session->env(), object, PROVIDER_QUIC_STREAM),
       stats_(env()->isolate()),
       state_(env()->isolate()),
       session_(std::move(session)),
-      inbound_(DataQueue::Create()) {
+      inbound_(DataQueue::Create()),
+      headers_(env()->isolate()) {
   MakeWeak();
+  DCHECK(id < kMaxStreamId);
   state_->id = id;
   state_->pending = 0;
   // Allows us to be notified when data is actually read from the
   // inbound queue so that we can update the stream flow control.
   inbound_->addBackpressureListener(this);
 
-  const auto defineProperty = [&](auto name, auto value) {
-    object
-        ->DefineOwnProperty(
-            env()->context(), name, value, PropertyAttribute::ReadOnly)
-        .Check();
-  };
-
-  defineProperty(env()->state_string(), state_.GetArrayBuffer());
-  defineProperty(env()->stats_string(), stats_.GetArrayBuffer());
+  JS_DEFINE_READONLY_PROPERTY(
+      env(), object, env()->state_string(), state_.GetArrayBuffer());
+  JS_DEFINE_READONLY_PROPERTY(
+      env(), object, env()->stats_string(), stats_.GetArrayBuffer());
 
   set_outbound(std::move(source));
 
@@ -853,24 +868,20 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
       session_(std::move(session)),
       inbound_(DataQueue::Create()),
       maybe_pending_stream_(
-          std::make_unique<PendingStream>(direction, this, session_)) {
+          std::make_unique<PendingStream>(direction, this, session_)),
+      headers_(env()->isolate()) {
   MakeWeak();
-  state_->id = -1;
+  state_->id = kMaxStreamId;
   state_->pending = 1;
 
   // Allows us to be notified when data is actually read from the
   // inbound queue so that we can update the stream flow control.
   inbound_->addBackpressureListener(this);
 
-  const auto defineProperty = [&](auto name, auto value) {
-    object
-        ->DefineOwnProperty(
-            env()->context(), name, value, PropertyAttribute::ReadOnly)
-        .Check();
-  };
-
-  defineProperty(env()->state_string(), state_.GetArrayBuffer());
-  defineProperty(env()->stats_string(), stats_.GetArrayBuffer());
+  JS_DEFINE_READONLY_PROPERTY(
+      env(), object, env()->state_string(), state_.GetArrayBuffer());
+  JS_DEFINE_READONLY_PROPERTY(
+      env(), object, env()->stats_string(), stats_.GetArrayBuffer());
 
   set_outbound(std::move(source));
 
@@ -883,8 +894,9 @@ Stream::~Stream() {
   DCHECK_NE(stats_->destroyed_at, 0);
 }
 
-void Stream::NotifyStreamOpened(int64_t id) {
+void Stream::NotifyStreamOpened(stream_id id) {
   CHECK(is_pending());
+  DCHECK(id < kMaxStreamId);
   Debug(this, "Pending stream opened with id %" PRIi64, id);
   state_->pending = 0;
   state_->id = id;
@@ -928,13 +940,13 @@ void Stream::NotifyStreamOpened(int64_t id) {
   if (outbound_) session().ResumeStream(id);
 }
 
-void Stream::NotifyReadableEnded(uint64_t code) {
+void Stream::NotifyReadableEnded(error_code code) {
   CHECK(!is_pending());
   Session::SendPendingDataScope send_scope(&session());
   ngtcp2_conn_shutdown_stream_read(session(), 0, id(), code);
 }
 
-void Stream::NotifyWritableEnded(uint64_t code) {
+void Stream::NotifyWritableEnded(error_code code) {
   CHECK(!is_pending());
   Session::SendPendingDataScope send_scope(&session());
   ngtcp2_conn_shutdown_stream_write(session(), 0, id(), code);
@@ -952,7 +964,7 @@ bool Stream::is_pending() const {
   return state_->pending;
 }
 
-int64_t Stream::id() const {
+stream_id Stream::id() const {
   return state_->id;
 }
 
@@ -1199,8 +1211,7 @@ void Stream::ReceiveData(const uint8_t* data,
 
   STAT_INCREMENT_N(Stats, bytes_received, len);
   STAT_RECORD_TIMESTAMP(Stats, received_at);
-  auto backing = ArrayBuffer::NewBackingStore(
-      env()->isolate(), len, BackingStoreInitializationMode::kUninitialized);
+  JS_TRY_ALLOCATE_BACKING(env(), backing, len)
   memcpy(backing->Data(), data, len);
   inbound_->append(DataQueue::CreateInMemoryEntryFromBackingStore(
       std::move(backing), 0, len));
@@ -1310,4 +1321,5 @@ void Stream::Unschedule() {
 }  // namespace quic
 }  // namespace node
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

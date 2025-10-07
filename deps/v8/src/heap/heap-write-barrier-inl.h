@@ -8,6 +8,8 @@
 #include "src/heap/heap-write-barrier.h"
 // Include the non-inl header before the rest of the headers.
 
+#include <type_traits>
+
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 
@@ -17,6 +19,7 @@
 #include "src/objects/compressed-slots-inl.h"
 #include "src/objects/cpp-heap-object-wrapper.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/maybe-object-inl.h"
 
 namespace v8::internal {
@@ -59,7 +62,7 @@ void WriteBarrier::CombinedWriteBarrierInternal(Tagged<HeapObject> host,
 }
 
 // static
-inline WriteBarrierMode WriteBarrier::GetWriteBarrierModeForObject(
+inline WriteBarrierMode WriteBarrier::ComputeWriteBarrierModeForObject(
     Tagged<HeapObject> object, const DisallowGarbageCollection& promise) {
   if (v8_flags.disable_write_barriers) {
     return SKIP_WRITE_BARRIER;
@@ -70,15 +73,16 @@ inline WriteBarrierMode WriteBarrier::GetWriteBarrierModeForObject(
     return UPDATE_WRITE_BARRIER;
   }
   if (HeapLayout::InYoungGeneration(chunk, object)) {
-    return SKIP_WRITE_BARRIER;
+    return SKIP_WRITE_BARRIER_SCOPE;
   }
   return UPDATE_WRITE_BARRIER;
 }
 
 // static
-bool WriteBarrier::IsImmortalImmovableHeapObject(Tagged<HeapObject> object) {
-  // All objects in readonly space are immortal and immovable.
-  return HeapLayout::InReadOnlySpace(object);
+inline WriteBarrierModeScope WriteBarrier::GetWriteBarrierModeForObject(
+    Tagged<HeapObject> object, const DisallowGarbageCollection& promise) {
+  WriteBarrierMode mode = ComputeWriteBarrierModeForObject(object, promise);
+  return WriteBarrierModeScope(object, mode);
 }
 
 // static
@@ -86,7 +90,11 @@ void WriteBarrier::ForRelocInfo(Tagged<InstructionStream> host,
                                 RelocInfo* rinfo, Tagged<HeapObject> value,
                                 WriteBarrierMode mode) {
   if (mode == SKIP_WRITE_BARRIER) {
-    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+#if V8_VERIFY_WRITE_BARRIERS
+    if (v8_flags.verify_write_barriers) {
+      CHECK(!WriteBarrier::IsRequired(host, value));
+    }
+#endif  // V8_VERIFY_WRITE_BARRIERS
     return;
   }
 
@@ -107,8 +115,10 @@ void WriteBarrier::ForRelocInfo(Tagged<InstructionStream> host,
 template <typename T>
 void WriteBarrier::ForValue(Tagged<HeapObject> host, MaybeObjectSlot slot,
                             Tagged<T> value, WriteBarrierMode mode) {
-  if (mode == SKIP_WRITE_BARRIER) {
-    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+  if (IsSkipWriteBarrierMode(mode)) {
+#if V8_VERIFY_WRITE_BARRIERS
+    VerifySkipWriteBarrier(host, value, mode);
+#endif  // V8_VERIFY_WRITE_BARRIERS
     return;
   }
   Tagged<HeapObject> value_object;
@@ -122,8 +132,10 @@ void WriteBarrier::ForValue(Tagged<HeapObject> host, MaybeObjectSlot slot,
 template <typename T>
 void WriteBarrier::ForValue(HeapObjectLayout* host, TaggedMemberBase* slot,
                             Tagged<T> value, WriteBarrierMode mode) {
-  if (mode == SKIP_WRITE_BARRIER) {
-    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+  if (IsSkipWriteBarrierMode(mode)) {
+#if V8_VERIFY_WRITE_BARRIERS
+    VerifySkipWriteBarrier(host, value, mode);
+#endif  // V8_VERIFY_WRITE_BARRIERS
     return;
   }
   Tagged<HeapObject> value_object;
@@ -134,12 +146,32 @@ void WriteBarrier::ForValue(HeapObjectLayout* host, TaggedMemberBase* slot,
                                value_object, mode);
 }
 
+#if V8_VERIFY_WRITE_BARRIERS
+// static
+template <typename T>
+void WriteBarrier::VerifySkipWriteBarrier(Tagged<HeapObject> host,
+                                          Tagged<T> value,
+                                          WriteBarrierMode mode) {
+  if (v8_flags.verify_write_barriers) {
+    if (mode == SKIP_WRITE_BARRIER) {
+      CHECK(!WriteBarrier::IsRequired(host, value));
+    } else {
+      CHECK_EQ(mode, SKIP_WRITE_BARRIER_SCOPE);
+      CHECK_EQ(LocalHeap::Current()->CurrentObjectForWriteBarrierMode(),
+               host.address());
+    }
+  }
+}
+#endif  // V8_VERIFY_WRITE_BARRIERS
+
 //   static
 void WriteBarrier::ForEphemeronHashTable(Tagged<EphemeronHashTable> host,
                                          ObjectSlot slot, Tagged<Object> value,
                                          WriteBarrierMode mode) {
-  if (mode == SKIP_WRITE_BARRIER) {
-    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+  if (IsSkipWriteBarrierMode(mode)) {
+#if V8_VERIFY_WRITE_BARRIERS
+    VerifySkipWriteBarrier(host, value, mode);
+#endif  // V8_VERIFY_WRITE_BARRIERS
     return;
   }
 
@@ -186,7 +218,11 @@ void WriteBarrier::ForIndirectPointer(Tagged<HeapObject> host,
   // Indirect pointers are only used when the sandbox is enabled.
   DCHECK(V8_ENABLE_SANDBOX_BOOL);
   if (mode == SKIP_WRITE_BARRIER) {
-    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+#if V8_VERIFY_WRITE_BARRIERS
+    if (v8_flags.verify_write_barriers) {
+      CHECK(!WriteBarrier::IsRequired(host, value));
+    }
+#endif  // V8_VERIFY_WRITE_BARRIERS
     return;
   }
   // Objects referenced via indirect pointers are currently never allocated in
@@ -202,8 +238,11 @@ void WriteBarrier::ForJSDispatchHandle(Tagged<HeapObject> host,
                                        JSDispatchHandle handle,
                                        WriteBarrierMode mode) {
   DCHECK(V8_ENABLE_LEAPTIERING_BOOL);
-  SLOW_DCHECK(
-      WriteBarrier::VerifyDispatchHandleMarkingState(host, handle, mode));
+#if V8_VERIFY_WRITE_BARRIERS
+  if (v8_flags.verify_write_barriers) {
+    CHECK(WriteBarrier::VerifyDispatchHandleMarkingState(host, handle, mode));
+  }
+#endif  // V8_VERIFY_WRITE_BARRIERS
   if (mode == SKIP_WRITE_BARRIER) {
     return;
   }
@@ -216,7 +255,11 @@ void WriteBarrier::ForProtectedPointer(Tagged<TrustedObject> host,
                                        Tagged<TrustedObject> value,
                                        WriteBarrierMode mode) {
   if (mode == SKIP_WRITE_BARRIER) {
-    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+#if V8_VERIFY_WRITE_BARRIERS
+    if (v8_flags.verify_write_barriers) {
+      CHECK(!WriteBarrier::IsRequired(host, value));
+    }
+#endif  // V8_VERIFY_WRITE_BARRIERS
     return;
   }
   // Protected pointers are only used within trusted and shared trusted space.
@@ -263,7 +306,7 @@ void WriteBarrier::Marking(Tagged<HeapObject> host, MaybeObjectSlot slot,
   // There must be no stores of InstructionStream values from generated code and
   // all stores of InstructionStream values in C++ must be handled by
   // CombinedWriteBarrierInternal().
-  DCHECK(!HeapLayout::InCodeSpace(value_heap_object));
+  DCHECK(!TrustedHeapLayout::InCodeSpace(value_heap_object));
   Marking(host, HeapObjectSlot(slot), value_heap_object);
 }
 
@@ -385,39 +428,27 @@ void WriteBarrier::GenerationalBarrierForCppHeapPointer(
   if (V8_LIKELY(HeapLayout::InYoungGeneration(memory_chunk, host))) {
     return;
   }
-  auto* cpp_heap = memory_chunk->GetHeap()->cpp_heap();
+  auto* cpp_heap = memory_chunk->Metadata()->heap()->cpp_heap();
   v8::internal::CppHeap::From(cpp_heap)->RememberCrossHeapReferenceIfNeeded(
       host, value);
 }
 
-#if defined(ENABLE_SLOW_DCHECKS) || defined(V8_ENABLE_DEBUG_CODE)
-// static
-template <typename T>
-bool WriteBarrier::IsRequired(Tagged<HeapObject> host, T value) {
-  if (HeapLayout::InYoungGeneration(host)) {
-    return false;
-  }
-  if (IsSmi(value)) {
-    return false;
-  }
-  if (value.IsCleared()) {
-    return false;
-  }
-  Tagged<HeapObject> target = value.GetHeapObject();
-  if (ReadOnlyHeap::Contains(target)) {
-    return false;
-  }
-  return !IsImmortalImmovableHeapObject(target);
-}
-#endif
-
-#ifdef ENABLE_SLOW_DCHECKS
+#ifdef V8_VERIFY_WRITE_BARRIERS
 // static
 template <typename T>
 bool WriteBarrier::IsRequired(const HeapObjectLayout* host, T value) {
-  if (HeapLayout::InYoungGeneration(host)) {
-    return false;
-  }
+  return IsRequiredCommon(host, value);
+}
+
+// static
+template <typename T>
+bool WriteBarrier::IsRequired(Tagged<HeapObject> host, T value) {
+  return IsRequiredCommon(host, value);
+}
+
+// static
+template <typename HostType, typename ValueType>
+bool WriteBarrier::IsRequiredCommon(HostType host, ValueType value) {
   if (IsSmi(value)) {
     return false;
   }
@@ -428,9 +459,13 @@ bool WriteBarrier::IsRequired(const HeapObjectLayout* host, T value) {
   if (ReadOnlyHeap::Contains(target)) {
     return false;
   }
-  return !IsImmortalImmovableHeapObject(target);
+  if constexpr (std::is_same_v<HostType, const HeapObjectLayout*>) {
+    return !IsMostRecentYoungAllocation(host->address());
+  } else {
+    return !IsMostRecentYoungAllocation(host.address());
+  }
 }
-#endif
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
 }  // namespace v8::internal
 

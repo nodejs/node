@@ -437,6 +437,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
       return IsUnalignedSupported(unalignedStoreUnsupportedTypes_, rep);
     }
 
+    bool HasFullUnalignedSupport() const {
+      return unalignedSupport_ == kFullSupport;
+    }
+
     static AlignmentRequirements FullUnalignedAccessSupport() {
       return AlignmentRequirements(kFullSupport);
     }

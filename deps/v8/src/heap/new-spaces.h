@@ -50,11 +50,7 @@ class SemiSpace final : public Space {
   SemiSpace(Heap* heap, SemiSpaceId semispace);
   V8_EXPORT_PRIVATE ~SemiSpace();
 
-  inline bool Contains(Tagged<HeapObject> o) const;
-  inline bool Contains(Tagged<Object> o) const;
-  template <typename T>
-  inline bool Contains(Tagged<T> o) const;
-  inline bool ContainsSlow(Address a) const;
+  bool ContainsSlow(Address address) const;
 
   void Uncommit();
   bool IsCommitted() const { return !memory_chunk_list_.Empty(); }
@@ -143,7 +139,7 @@ class SemiSpace final : public Space {
 
   void AddRangeToActiveSystemPages(Address start, Address end);
 
-  void MoveQuarantinedPage(MemoryChunk* chunk);
+  void MoveQuarantinedPage(PageMetadata* metadata);
 
  private:
   bool AllocateFreshPage();
@@ -183,8 +179,8 @@ class SemiSpaceObjectIterator : public ObjectIterator {
   inline Tagged<HeapObject> Next() final;
 
  private:
-  // The current iteration point.
-  Address current_;
+  const PageMetadata* current_page_;
+  Address current_object_;
 };
 
 class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
@@ -196,8 +192,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   base::Mutex* mutex() { return &mutex_; }
 
-  inline bool Contains(Tagged<Object> o) const;
-  inline bool Contains(Tagged<HeapObject> o) const;
+  virtual bool Contains(Tagged<HeapObject> object) const = 0;
   virtual bool ContainsSlow(Address a) const = 0;
 
   size_t ExternalBackingStoreOverallBytes() const {
@@ -209,6 +204,10 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
     return result;
   }
 
+  // Promotes a young generation page to the old generation.
+  //
+  // Does not clear `will_be_promoted()` to allow for different collector
+  // handling.
   void PromotePageToOldSpace(PageMetadata* page, FreeMode free_mode);
 
   virtual size_t Capacity() const = 0;
@@ -267,6 +266,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   ~SemiSpaceNewSpace() final = default;
 
+  bool Contains(Tagged<HeapObject> object) const final;
   bool ContainsSlow(Address a) const final;
 
   // Grow the capacity of the semispaces.  Assumes that they are not at
@@ -422,7 +422,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   int GetSpaceRemainingOnCurrentPageForTesting();
   void FillCurrentPageForTesting();
 
-  void MoveQuarantinedPage(MemoryChunk* chunk);
+  void MoveQuarantinedPage(PageMetadata* metadata);
   size_t QuarantinedSize() const { return quarantined_size_; }
   size_t QuarantinedPageCount() const {
     return to_space_.quarantined_pages_count_;
@@ -544,7 +544,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   size_t AddPage(PageMetadata* page) final;
   void RemovePage(PageMetadata* page) final;
-  void ReleasePage(PageMetadata* page) final;
+  void RemovePageFromSpace(PageMetadata* page) final;
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer)
@@ -605,6 +605,7 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
 
   ~PagedNewSpace() final;
 
+  bool Contains(Tagged<HeapObject> object) const final;
   bool ContainsSlow(Address a) const final {
     return paged_space_.ContainsSlow(a);
   }
@@ -726,7 +727,6 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   bool ShouldReleaseEmptyPage() {
     return paged_space_.ShouldReleaseEmptyPage();
   }
-  void ReleasePage(PageMetadata* page) { paged_space_.ReleasePage(page); }
 
   AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) final;
 

@@ -91,7 +91,7 @@ int RegExpData::capture_count() const {
       return 0;
     case Type::EXPERIMENTAL:
     case Type::IRREGEXP:
-      return Cast<IrRegExpData>(*this)->capture_count();
+      return TrustedCast<IrRegExpData>(*this)->capture_count();
   }
 }
 
@@ -155,6 +155,11 @@ SMI_ACCESSORS(IrRegExpData, max_register_count, kMaxRegisterCountOffset)
 SMI_ACCESSORS(IrRegExpData, capture_count, kCaptureCountOffset)
 SMI_ACCESSORS(IrRegExpData, ticks_until_tier_up, kTicksUntilTierUpOffset)
 SMI_ACCESSORS(IrRegExpData, backtrack_limit, kBacktrackLimitOffset)
+DEF_PRIMITIVE_ACCESSORS(IrRegExpData, bit_field, kBitFieldOffset, uint32_t)
+BIT_FIELD_ACCESSORS(IrRegExpData, bit_field, can_be_zero_length,
+                    IrRegExpData::Bits::CanBeZeroLengthBit)
+BIT_FIELD_ACCESSORS(IrRegExpData, bit_field, is_linear_executable,
+                    IrRegExpData::Bits::IsLinearExecutableBit)
 
 }  // namespace internal
 }  // namespace v8

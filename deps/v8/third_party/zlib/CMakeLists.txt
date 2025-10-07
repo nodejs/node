@@ -47,6 +47,7 @@ if (ENABLE_SIMD_OPTIMIZATIONS)
     add_definitions(-DINFLATE_CHUNK_SIMD_SSE2)
     add_definitions(-DADLER32_SIMD_SSSE3)
     add_definitions(-DINFLATE_CHUNK_READ_64LE)
+    add_definitions(-DDEFLATE_CHUNK_WRITE_64LE)
     add_definitions(-DCRC32_SIMD_SSE42_PCLMUL)
     if (ENABLE_SIMD_AVX512)
       add_definitions(-DCRC32_SIMD_AVX512_PCLMUL)
@@ -64,6 +65,7 @@ if (ENABLE_SIMD_OPTIMIZATIONS)
     add_definitions(-DINFLATE_CHUNK_SIMD_NEON)
     add_definitions(-DADLER32_SIMD_NEON)
     add_definitions(-DINFLATE_CHUNK_READ_64LE)
+    add_definitions(-DDEFLATE_CHUNK_WRITE_64LE)
     add_definitions(-DCRC32_ARMV8_CRC32)
     add_definitions(-DDEFLATE_SLIDE_HASH_NEON)
     # Required by CPU features detection code.
@@ -83,10 +85,13 @@ if (ENABLE_SIMD_OPTIMIZATIONS)
     add_definitions(-DDEFLATE_SLIDE_HASH_RVV)
     add_definitions(-DADLER32_SIMD_RVV)
 
-    # TODO(cavalcantii): add remaining flags as we port optimizations to RVV.
     # chunk_copy is required for READ64 and unconditional decode of literals.
     add_definitions(-DINFLATE_CHUNK_GENERIC)
     add_definitions(-DINFLATE_CHUNK_READ_64LE)
+    add_definitions(-DDEFLATE_CHUNK_WRITE_64LE)
+
+    # TODO(cavalcantii): only missing optimization is SLIDE_HASH, got port it
+    # to RISCV.
 
     # Tested with clang-17, unaligned loads are required by read64 & chunk_copy.
     # TODO(cavalcantii): replace internal clang flags for -munaligned-access

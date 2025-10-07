@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -464,11 +464,11 @@ static int dgram_write(BIO *b, const char *in, int inl)
     return ret;
 }
 
-static long dgram_get_mtu_overhead(bio_dgram_data *data)
+static long dgram_get_mtu_overhead(BIO_ADDR *addr)
 {
     long ret;
 
-    switch (BIO_ADDR_family(&data->peer)) {
+    switch (BIO_ADDR_family(addr)) {
     case AF_INET:
         /*
          * Assume this is UDP - 20 bytes for IP, 8 bytes for UDP
@@ -480,7 +480,8 @@ static long dgram_get_mtu_overhead(bio_dgram_data *data)
         {
 #  ifdef IN6_IS_ADDR_V4MAPPED
             struct in6_addr tmp_addr;
-            if (BIO_ADDR_rawaddress(&data->peer, &tmp_addr, NULL)
+
+            if (BIO_ADDR_rawaddress(addr, &tmp_addr, NULL)
                 && IN6_IS_ADDR_V4MAPPED(&tmp_addr))
                 /*
                  * Assume this is UDP - 20 bytes for IP, 8 bytes for UDP
@@ -666,11 +667,7 @@ static long dgram_ctrl(BIO *b, int cmd, long num, void *ptr)
                             &sockopt_len)) < 0 || sockopt_val < 0) {
                 ret = 0;
             } else {
-                /*
-                 * we assume that the transport protocol is UDP and no IP
-                 * options are used.
-                 */
-                data->mtu = sockopt_val - 8 - 20;
+                data->mtu = sockopt_val - dgram_get_mtu_overhead(&addr);
                 ret = data->mtu;
             }
             break;
@@ -682,11 +679,7 @@ static long dgram_ctrl(BIO *b, int cmd, long num, void *ptr)
                 || sockopt_val < 0) {
                 ret = 0;
             } else {
-                /*
-                 * we assume that the transport protocol is UDP and no IPV6
-                 * options are used.
-                 */
-                data->mtu = sockopt_val - 8 - 40;
+                data->mtu = sockopt_val - dgram_get_mtu_overhead(&addr);
                 ret = data->mtu;
             }
             break;
@@ -700,7 +693,7 @@ static long dgram_ctrl(BIO *b, int cmd, long num, void *ptr)
 # endif
         break;
     case BIO_CTRL_DGRAM_GET_FALLBACK_MTU:
-        ret = -dgram_get_mtu_overhead(data);
+        ret = -dgram_get_mtu_overhead(&data->peer);
         switch (BIO_ADDR_family(&data->peer)) {
         case AF_INET:
             ret += 576;
@@ -956,7 +949,7 @@ static long dgram_ctrl(BIO *b, int cmd, long num, void *ptr)
         }
         break;
     case BIO_CTRL_DGRAM_GET_MTU_OVERHEAD:
-        ret = dgram_get_mtu_overhead(data);
+        ret = dgram_get_mtu_overhead(&data->peer);
         break;
 
     /*

@@ -208,6 +208,26 @@ class SuffixRangeWeakBodyDescriptor : public BodyDescriptorBase {
   // it.
 };
 
+// This class describes a body of an object of a fixed size
+// in which all pointer fields are located in the [start_offset, end_offset)
+// interval.
+template <int start_offset, int end_offset, int size>
+class FixedWeakBodyDescriptor : public BodyDescriptorBase {
+ public:
+  static constexpr int kSize = size;
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IterateMaybeWeakPointers(obj, start_offset, end_offset, v);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    DCHECK_EQ(kSize, map->instance_size());
+    return kSize;
+  }
+};
+
 // This class describes a body of an object of a variable size
 // in which all pointer fields are located in the [start_offset, object_size)
 // interval.

@@ -11,7 +11,7 @@ const { MessageChannel } = require('worker_threads');
 
 const { port1, port2 } = new MessageChannel();
 let count = 0;
-port1.on('message', () => {
+port1.on('message', common.mustCallAtLeast(() => {
   if (count === 0) {
     setTimeout(common.mustCall(() => {
       port1.close();
@@ -20,10 +20,21 @@ port1.on('message', () => {
 
   port2.postMessage(0);
   assert(count++ < 10000, `hit ${count} loop iterations`);
-});
+}));
 
 port2.postMessage(0);
 
 // This is part of the test -- the event loop should be available and not stall
 // out due to the recursive .postMessage() calls.
 setTimeout(common.mustCall(), 0);
+
+// Assert that the 'message' handler was actually called.
+//
+// We do not want to assert a specific call count, so common.mustCall cannot be
+// used in the port1.on('message' callback directly.
+process.once(
+  'beforeExit',
+  common.mustCall(() => {
+    assert(count > 0, 'count should be greater than 0');
+  })
+);

@@ -69,10 +69,11 @@ TEST(MockDistributions, Examples) {
       .WillOnce(Return(0.001));
   EXPECT_EQ(absl::Gaussian<double>(gen, 0.0, 1.0), 0.001);
 
-  EXPECT_NE(absl::LogUniform<int>(gen, 0, 1000000, 2), 2040);
-  EXPECT_CALL(absl::MockLogUniform<int>(), Call(gen, 0, 1000000, 2))
-      .WillOnce(Return(2040));
-  EXPECT_EQ(absl::LogUniform<int>(gen, 0, 1000000, 2), 2040);
+  const int kHigh = (1 << 30) - 1;
+  EXPECT_NE(absl::LogUniform<int>(gen, 0, kHigh, 2), kHigh);
+  EXPECT_CALL(absl::MockLogUniform<int>(), Call(gen, 0, kHigh, 2))
+      .WillOnce(Return(kHigh));
+  EXPECT_EQ(absl::LogUniform<int>(gen, 0, kHigh, 2), kHigh);
 }
 
 TEST(MockDistributions, UniformUInt128BoundariesAreAllowed) {

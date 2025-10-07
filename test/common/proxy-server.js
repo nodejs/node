@@ -32,12 +32,12 @@ exports.createProxyServer = function(options = {}) {
   }
   proxy.on('request', (req, res) => {
     logRequest(logs, req);
-    const [hostname, port] = req.headers.host.split(':');
+    const { hostname, port } = new URL(`http://${req.headers.host}`);
     const targetPort = port || 80;
 
     const url = new URL(req.url);
     const options = {
-      hostname: hostname,
+      hostname: hostname.startsWith('[') ? hostname.slice(1, -1) : hostname,
       port: targetPort,
       path: url.pathname + url.search,  // Convert back to relative URL.
       method: req.method,
@@ -63,7 +63,7 @@ exports.createProxyServer = function(options = {}) {
     });
 
     res.on('error', (err) => {
-      logs.push({ error: err, source: 'proxy response' });
+      logs.push({ error: err, source: 'client response for request' });
     });
 
     req.pipe(proxyReq, { end: true });
@@ -72,13 +72,15 @@ exports.createProxyServer = function(options = {}) {
   proxy.on('connect', (req, res, head) => {
     logRequest(logs, req);
 
-    const [hostname, port] = req.url.split(':');
+    const { hostname, port } = new URL(`https://${req.url}`);
 
     res.on('error', (err) => {
-      logs.push({ error: err, source: 'proxy response' });
+      logs.push({ error: err, source: 'client response for connect' });
     });
 
-    const proxyReq = net.connect(port, hostname, () => {
+    const normalizedHostname = hostname.startsWith('[') && hostname.endsWith(']') ?
+      hostname.slice(1, -1) : hostname;
+    const proxyReq = net.connect(port, normalizedHostname, () => {
       res.write(
         'HTTP/1.1 200 Connection Established\r\n' +
         'Proxy-agent: Node.js-Proxy\r\n' +
@@ -90,9 +92,13 @@ exports.createProxyServer = function(options = {}) {
     });
 
     proxyReq.on('error', (err) => {
-      logs.push({ error: err, source: 'proxy request' });
-      res.write('HTTP/1.1 500 Connection Error\r\n\r\n');
-      res.end('Proxy error: ' + err.message);
+      logs.push({ error: err, source: 'proxy connect' });
+      // The proxy client might have already closed the connection
+      // when the upstream connection fails.
+      if (!res.writableEnded) {
+        res.write('HTTP/1.1 500 Connection Error\r\n\r\n');
+        res.end('Proxy error: ' + err.message);
+      }
     });
   });
 

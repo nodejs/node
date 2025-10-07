@@ -23,7 +23,7 @@ MachineType kMachineTypes[] = {
 
 class LinkageTailCall : public TestWithZone {
  protected:
-  LinkageTailCall() : TestWithZone(kCompressGraphZone) {}
+  LinkageTailCall() = default;
 
   CallDescriptor* NewStandardCallDescriptor(LocationSignature* locations) {
     DCHECK(arraysize(kMachineTypes) >=

@@ -189,6 +189,7 @@ namespace compiler {
   V(NumberOrOddballOrHole,        kNumberOrOddball| kHole ) \
   V(NumericOrString,              kNumeric | kString) \
   V(NumberOrUndefined,            kNumber | kUndefined) \
+  V(NumberOrUndefinedOrHole,      kNumberOrUndefined | kHole) \
   V(PlainPrimitive,               kNumber | kString | kBoolean | \
                                   kNullOrUndefined) \
   V(NonBigIntPrimitive,           kSymbol | kPlainPrimitive) \
@@ -224,6 +225,7 @@ namespace compiler {
   V(NonInternal,                  kPrimitive | kReceiver) \
   V(NonBigInt,                    kNonBigIntPrimitive | kReceiver) \
   V(NonNumber,                    kBigInt | kUnique | kString | kInternal) \
+  V(StringOrOddball,              kString | kBooleanOrNullOrUndefined) \
   V(Any,                          uint64_t{0xfffffffffffffffe})
 
 // clang-format on

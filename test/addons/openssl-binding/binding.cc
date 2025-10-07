@@ -38,7 +38,7 @@ inline void Hash(const v8::FunctionCallbackInfo<v8::Value>& info) {
 inline void Initialize(v8::Local<v8::Object> exports,
                        v8::Local<v8::Value> module,
                        v8::Local<v8::Context> context) {
-  auto isolate = context->GetIsolate();
+  auto isolate = v8::Isolate::GetCurrent();
   auto key = v8::String::NewFromUtf8(
       isolate, "randomBytes").ToLocalChecked();
   auto value = v8::FunctionTemplate::New(isolate, RandomBytes)

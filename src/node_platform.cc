@@ -101,6 +101,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
 
   std::unique_ptr<uv_thread_t> Start() {
     auto start_thread = [](void* data) {
+      uv_thread_setname("DelayedTaskSchedulerWorker");
       static_cast<DelayedTaskScheduler*>(data)->Run();
     };
     std::unique_ptr<uv_thread_t> t { new uv_thread_t() };

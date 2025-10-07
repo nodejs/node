@@ -397,7 +397,7 @@ changes:
   from the file. If `null` or `-1`, data will be read from the current file
   position, and the position will be updated. If `position` is a non-negative
   integer, the current file position will remain unchanged.
-  **Default:**: `null`
+  **Default:** `null`
 * Returns: {Promise} Fulfills upon success with an object with two properties:
   * `bytesRead` {integer} The number of bytes read
   * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
@@ -1112,6 +1112,9 @@ changes:
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+    If a string array is provided, each string should be a glob pattern that
+    specifies paths to exclude. Note: Negation patterns (e.g., '!foo.js') are
+    not supported.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 * Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
@@ -7713,7 +7716,7 @@ Type of file system.
 ### Class: `fs.Utf8Stream`
 
 <!-- YAML
-added: REPLACEME
+added: v24.6.0
 -->
 
 > Stability: 1 - Experimental

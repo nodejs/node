@@ -103,12 +103,23 @@ function isBlobLike (object) {
 }
 
 /**
+ * @param {string} url The path to check for query strings or fragments.
+ * @returns {boolean} Returns true if the path contains a query string or fragment.
+ */
+function pathHasQueryOrFragment (url) {
+  return (
+    url.includes('?') ||
+    url.includes('#')
+  )
+}
+
+/**
  * @param {string} url The URL to add the query params to
  * @param {import('node:querystring').ParsedUrlQueryInput} queryParams The object to serialize into a URL query string
  * @returns {string} The URL with the query params added
  */
 function serializePathWithQuery (url, queryParams) {
-  if (url.includes('?') || url.includes('#')) {
+  if (pathHasQueryOrFragment(url)) {
     throw new Error('Query params cannot be passed when url already contains "?" or "#".')
   }
 
@@ -598,12 +609,11 @@ function ReadableStreamFrom (iterable) {
   let iterator
   return new ReadableStream(
     {
-      async start () {
+      start () {
         iterator = iterable[Symbol.asyncIterator]()
       },
       pull (controller) {
-        async function pull () {
-          const { done, value } = await iterator.next()
+        return iterator.next().then(({ done, value }) => {
           if (done) {
             queueMicrotask(() => {
               controller.close()
@@ -614,15 +624,13 @@ function ReadableStreamFrom (iterable) {
             if (buf.byteLength) {
               controller.enqueue(new Uint8Array(buf))
             } else {
-              return await pull()
+              return this.pull(controller)
             }
           }
-        }
-
-        return pull()
+        })
       },
-      async cancel () {
-        await iterator.return()
+      cancel () {
+        return iterator.return()
       },
       type: 'bytes'
     }
@@ -868,6 +876,30 @@ function onConnectTimeout (socket, opts) {
   destroy(socket, new ConnectTimeoutError(message))
 }
 
+/**
+ * @param {string} urlString
+ * @returns {string}
+ */
+function getProtocolFromUrlString (urlString) {
+  if (
+    urlString[0] === 'h' &&
+    urlString[1] === 't' &&
+    urlString[2] === 't' &&
+    urlString[3] === 'p'
+  ) {
+    switch (urlString[4]) {
+      case ':':
+        return 'http:'
+      case 's':
+        if (urlString[5] === ':') {
+          return 'https:'
+        }
+    }
+  }
+  // fallback if none of the usual suspects
+  return urlString.slice(0, urlString.indexOf(':') + 1)
+}
+
 const kEnumerableProperty = Object.create(null)
 kEnumerableProperty.enumerable = true
 
@@ -924,6 +956,7 @@ module.exports = {
   assertRequestHandler,
   getSocketInfo,
   isFormDataLike,
+  pathHasQueryOrFragment,
   serializePathWithQuery,
   addAbortListener,
   isValidHTTPToken,
@@ -938,5 +971,6 @@ module.exports = {
   nodeMinor,
   safeHTTPMethods: Object.freeze(['GET', 'HEAD', 'OPTIONS', 'TRACE']),
   wrapRequestBody,
-  setupConnectTimeout
+  setupConnectTimeout,
+  getProtocolFromUrlString
 }

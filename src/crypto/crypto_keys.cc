@@ -177,7 +177,7 @@ bool ExportJWKAsymmetricKey(Environment* env,
       // Fall through
     case EVP_PKEY_X448:
       return ExportJWKEdKey(env, key, target);
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
     case EVP_PKEY_ML_DSA_44:
       // Fall through
     case EVP_PKEY_ML_DSA_65:
@@ -280,13 +280,19 @@ int GetNidFromName(const char* name) {
     nid = EVP_PKEY_X25519;
   } else if (strcmp(name, "X448") == 0) {
     nid = EVP_PKEY_X448;
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
   } else if (strcmp(name, "ML-DSA-44") == 0) {
     nid = EVP_PKEY_ML_DSA_44;
   } else if (strcmp(name, "ML-DSA-65") == 0) {
     nid = EVP_PKEY_ML_DSA_65;
   } else if (strcmp(name, "ML-DSA-87") == 0) {
     nid = EVP_PKEY_ML_DSA_87;
+  } else if (strcmp(name, "ML-KEM-512") == 0) {
+    nid = EVP_PKEY_ML_KEM_512;
+  } else if (strcmp(name, "ML-KEM-768") == 0) {
+    nid = EVP_PKEY_ML_KEM_768;
+  } else if (strcmp(name, "ML-KEM-1024") == 0) {
+    nid = EVP_PKEY_ML_KEM_1024;
 #endif
   } else {
     nid = NID_undef;
@@ -620,8 +626,10 @@ Local<Function> KeyObjectHandle::Initialize(Environment* env) {
     SetProtoMethod(isolate, templ, "exportJwk", ExportJWK);
     SetProtoMethod(isolate, templ, "initECRaw", InitECRaw);
     SetProtoMethod(isolate, templ, "initEDRaw", InitEDRaw);
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
-    SetProtoMethod(isolate, templ, "initMlDsaRaw", InitMlDsaRaw);
+#if OPENSSL_WITH_PQC
+    SetProtoMethod(isolate, templ, "initPqcRaw", InitPqcRaw);
+    SetProtoMethodNoSideEffect(isolate, templ, "rawPublicKey", RawPublicKey);
+    SetProtoMethodNoSideEffect(isolate, templ, "rawSeed", RawSeed);
 #endif
     SetProtoMethod(isolate, templ, "initJwk", InitJWK);
     SetProtoMethod(isolate, templ, "keyDetail", GetKeyDetail);
@@ -643,8 +651,10 @@ void KeyObjectHandle::RegisterExternalReferences(
   registry->Register(ExportJWK);
   registry->Register(InitECRaw);
   registry->Register(InitEDRaw);
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
-  registry->Register(InitMlDsaRaw);
+#if OPENSSL_WITH_PQC
+  registry->Register(InitPqcRaw);
+  registry->Register(RawPublicKey);
+  registry->Register(RawSeed);
 #endif
   registry->Register(InitJWK);
   registry->Register(GetKeyDetail);
@@ -795,12 +805,11 @@ void KeyObjectHandle::InitECRaw(const FunctionCallbackInfo<Value>& args) {
 }
 
 void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
 
   CHECK(args[0]->IsString());
-  Utf8Value name(env->isolate(), args[0]);
+  Utf8Value name(args.GetIsolate(), args[0]);
 
   ArrayBufferOrViewContents<unsigned char> key_data(args[1]);
   KeyType type = FromV8Value<KeyType>(args[2]);
@@ -838,14 +847,13 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(true);
 }
 
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
-void KeyObjectHandle::InitMlDsaRaw(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+#if OPENSSL_WITH_PQC
+void KeyObjectHandle::InitPqcRaw(const FunctionCallbackInfo<Value>& args) {
   KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
 
   CHECK(args[0]->IsString());
-  Utf8Value name(env->isolate(), args[0]);
+  Utf8Value name(args.GetIsolate(), args[0]);
 
   ArrayBufferOrViewContents<unsigned char> key_data(args[1]);
   KeyType type = FromV8Value<KeyType>(args[2]);
@@ -862,7 +870,10 @@ void KeyObjectHandle::InitMlDsaRaw(const FunctionCallbackInfo<Value>& args) {
   switch (id) {
     case EVP_PKEY_ML_DSA_44:
     case EVP_PKEY_ML_DSA_65:
-    case EVP_PKEY_ML_DSA_87: {
+    case EVP_PKEY_ML_DSA_87:
+    case EVP_PKEY_ML_KEM_512:
+    case EVP_PKEY_ML_KEM_768:
+    case EVP_PKEY_ML_KEM_1024: {
       auto pkey = fn(id,
                      ncrypto::Buffer<const unsigned char>{
                          .data = key_data.data(),
@@ -971,13 +982,43 @@ Local<Value> KeyObjectHandle::GetAsymmetricKeyType() const {
       return env()->crypto_x25519_string();
     case EVP_PKEY_X448:
       return env()->crypto_x448_string();
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
     case EVP_PKEY_ML_DSA_44:
       return env()->crypto_ml_dsa_44_string();
     case EVP_PKEY_ML_DSA_65:
       return env()->crypto_ml_dsa_65_string();
     case EVP_PKEY_ML_DSA_87:
       return env()->crypto_ml_dsa_87_string();
+    case EVP_PKEY_ML_KEM_512:
+      return env()->crypto_ml_kem_512_string();
+    case EVP_PKEY_ML_KEM_768:
+      return env()->crypto_ml_kem_768_string();
+    case EVP_PKEY_ML_KEM_1024:
+      return env()->crypto_ml_kem_1024_string();
+    case EVP_PKEY_SLH_DSA_SHA2_128F:
+      return env()->crypto_slh_dsa_sha2_128f_string();
+    case EVP_PKEY_SLH_DSA_SHA2_128S:
+      return env()->crypto_slh_dsa_sha2_128s_string();
+    case EVP_PKEY_SLH_DSA_SHA2_192F:
+      return env()->crypto_slh_dsa_sha2_192f_string();
+    case EVP_PKEY_SLH_DSA_SHA2_192S:
+      return env()->crypto_slh_dsa_sha2_192s_string();
+    case EVP_PKEY_SLH_DSA_SHA2_256F:
+      return env()->crypto_slh_dsa_sha2_256f_string();
+    case EVP_PKEY_SLH_DSA_SHA2_256S:
+      return env()->crypto_slh_dsa_sha2_256s_string();
+    case EVP_PKEY_SLH_DSA_SHAKE_128F:
+      return env()->crypto_slh_dsa_shake_128f_string();
+    case EVP_PKEY_SLH_DSA_SHAKE_128S:
+      return env()->crypto_slh_dsa_shake_128s_string();
+    case EVP_PKEY_SLH_DSA_SHAKE_192F:
+      return env()->crypto_slh_dsa_shake_192f_string();
+    case EVP_PKEY_SLH_DSA_SHAKE_192S:
+      return env()->crypto_slh_dsa_shake_192s_string();
+    case EVP_PKEY_SLH_DSA_SHAKE_256F:
+      return env()->crypto_slh_dsa_shake_256f_string();
+    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+      return env()->crypto_slh_dsa_shake_256s_string();
 #endif
     default:
       return Undefined(env()->isolate());
@@ -1076,6 +1117,50 @@ MaybeLocal<Value> KeyObjectHandle::ExportPrivateKey(
     const EVPKeyPointer::PrivateKeyEncodingConfig& config) const {
   return WritePrivateKey(env(), data_.GetAsymmetricKey(), config);
 }
+
+#if OPENSSL_WITH_PQC
+void KeyObjectHandle::RawPublicKey(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  KeyObjectHandle* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
+
+  const KeyObjectData& data = key->Data();
+  CHECK_NE(data.GetKeyType(), kKeyTypeSecret);
+
+  Mutex::ScopedLock lock(data.mutex());
+  auto raw_data = data.GetAsymmetricKey().rawPublicKey();
+  if (!raw_data) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "Failed to get raw public key");
+  }
+
+  args.GetReturnValue().Set(
+      Buffer::Copy(
+          env, reinterpret_cast<const char*>(raw_data.get()), raw_data.size())
+          .FromMaybe(Local<Value>()));
+}
+
+void KeyObjectHandle::RawSeed(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  KeyObjectHandle* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
+
+  const KeyObjectData& data = key->Data();
+  CHECK_EQ(data.GetKeyType(), kKeyTypePrivate);
+
+  Mutex::ScopedLock lock(data.mutex());
+  auto raw_data = data.GetAsymmetricKey().rawSeed();
+  if (!raw_data) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get raw seed");
+  }
+
+  args.GetReturnValue().Set(
+      Buffer::Copy(
+          env, reinterpret_cast<const char*>(raw_data.get()), raw_data.size())
+          .FromMaybe(Local<Value>()));
+}
+#endif
 
 void KeyObjectHandle::ExportJWK(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -1254,10 +1339,25 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatJWK);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED448);
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_44);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_65);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_87);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_512);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_768);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_1024);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_128F);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_128S);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_192F);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_192S);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_256F);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_256S);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_128F);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_128S);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_192F);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_192S);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_256F);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_256S);
 #endif
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X448);

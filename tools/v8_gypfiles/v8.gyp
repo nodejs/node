@@ -480,6 +480,16 @@
                  'mksnapshot_flags': ['--no-native-code-counters'],
                },
              }],
+            ['build_type=="Debug"', {
+              'outputs': [
+                '<(INTERMEDIATE_DIR)/src/builtins/builtins-effects.cc',
+              ],
+              'variables': {
+                'mksnapshot_flags': [
+                  '--builtins-effects-src', '<(INTERMEDIATE_DIR)/src/builtins/builtins-effects.cc',
+                ],
+              },
+            }],
           ],
           'action': [
             '>@(_inputs)',
@@ -664,6 +674,16 @@
               ['v8_target_arch=="x64"', {
                 'sources': [
                   '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_maglev.*?v8_current_cpu == \\"x64\\".*?sources \\+= ")',
+                ],
+              }],
+              ['v8_target_arch=="s390x"', {
+                'sources': [
+                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_maglev.*?v8_current_cpu == \\"s390x\\".*?sources \\+= ")',
+                ],
+              }],
+              ['v8_target_arch=="ppc64"', {
+                'sources': [
+                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_maglev.*?v8_current_cpu == \\"ppc64\\".*?sources \\+= ")',
                 ],
               }],
             ],
@@ -1111,6 +1131,16 @@
             ['v8_target_arch=="x64"', {
               'sources': [
                 '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_maglev.*?v8_current_cpu == \\"x64\\".*?sources \\+= ")',
+              ],
+            }],
+            ['v8_target_arch=="s390x"', {
+              'sources': [
+                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_maglev.*?v8_current_cpu == \\"s390x\\".*?sources \\+= ")',
+              ],
+            }],
+            ['v8_target_arch=="ppc64"', {
+              'sources': [
+                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_maglev.*?v8_current_cpu == \\"ppc64\\".*?sources \\+= ")',
               ],
             }],
           ],
@@ -2149,6 +2179,8 @@
           '<(V8_ROOT)/src/objects/megadom-handler-inl.h',
           '<(V8_ROOT)/src/objects/name.h',
           '<(V8_ROOT)/src/objects/name-inl.h',
+          '<(V8_ROOT)/src/objects/number-string-cache.h',
+          '<(V8_ROOT)/src/objects/number-string-cache-inl.h',
           '<(V8_ROOT)/src/objects/objects.h',
           '<(V8_ROOT)/src/objects/objects-inl.h',
           '<(V8_ROOT)/src/objects/oddball.h',
