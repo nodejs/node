@@ -19,20 +19,23 @@ const {
 const {
   kFinishClose,
   kPrivateConstructor,
-  kState,
 } = (await import('internal/quic/symbols')).default;
+const {
+  getQuicEndpointState,
+} = (await import('internal/quic/quic')).default;
 
 {
   const endpoint = new QuicEndpoint();
+  const state = getQuicEndpointState(endpoint);
 
-  assert.strictEqual(endpoint[kState].isBound, false);
-  assert.strictEqual(endpoint[kState].isReceiving, false);
-  assert.strictEqual(endpoint[kState].isListening, false);
-  assert.strictEqual(endpoint[kState].isClosing, false);
-  assert.strictEqual(endpoint[kState].isBusy, false);
-  assert.strictEqual(endpoint[kState].pendingCallbacks, 0n);
+  assert.strictEqual(state.isBound, false);
+  assert.strictEqual(state.isReceiving, false);
+  assert.strictEqual(state.isListening, false);
+  assert.strictEqual(state.isClosing, false);
+  assert.strictEqual(state.isBusy, false);
+  assert.strictEqual(state.pendingCallbacks, 0n);
 
-  assert.deepStrictEqual(JSON.parse(JSON.stringify(endpoint[kState])), {
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(state)), {
     isBound: false,
     isReceiving: false,
     isListening: false,
@@ -42,23 +45,25 @@ const {
   });
 
   endpoint.busy = true;
-  assert.strictEqual(endpoint[kState].isBusy, true);
+  assert.strictEqual(state.isBusy, true);
   endpoint.busy = false;
-  assert.strictEqual(endpoint[kState].isBusy, false);
-  assert.strictEqual(typeof inspect(endpoint[kState]), 'string');
+  assert.strictEqual(state.isBusy, false);
+  assert.strictEqual(typeof inspect(state), 'string');
 }
 
 {
   // It is not bound after close.
   const endpoint = new QuicEndpoint();
-  endpoint[kState][kFinishClose]();
-  assert.strictEqual(endpoint[kState].isBound, undefined);
+  const state = getQuicEndpointState(endpoint);
+  state[kFinishClose]();
+  assert.strictEqual(state.isBound, undefined);
 }
 
 {
   // State constructor argument is ArrayBuffer
   const endpoint = new QuicEndpoint();
-  const StateCons = endpoint[kState].constructor;
+  const state = getQuicEndpointState(endpoint);
+  const StateCons = state.constructor;
   assert.throws(() => new StateCons(kPrivateConstructor, 1), {
     code: 'ERR_INVALID_ARG_TYPE'
   });
