@@ -904,10 +904,9 @@ test('Additional asserts', () => {
   assert.throws(
     () => assert(false, Symbol('foo')),
     {
-      code: 'ERR_ASSERTION',
-      constructor: assert.AssertionError,
-      generatedMessage: false,
-      message: 'Symbol(foo)'
+      code: 'ERR_INVALID_ARG_TYPE',
+      constructor: TypeError,
+      message: /"message" argument.+Symbol\(foo\)/
     }
   );
 
