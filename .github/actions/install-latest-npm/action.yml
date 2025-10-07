@@ -1,0 +1,58 @@
+# This file is automatically added by @npmcli/template-oss. Do not edit.
+
+name: 'Install Latest npm'
+description: 'Install the latest version of npm compatible with the Node version'
+inputs:
+  node:
+    description: 'Current Node version'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    # node 10/12/14 ship with npm@6, which is known to fail when updating itself in windows
+    - name: Update Windows npm
+      if: |
+        runner.os == 'Windows' && (
+          startsWith(inputs.node, 'v10.') ||
+          startsWith(inputs.node, 'v12.') ||
+          startsWith(inputs.node, 'v14.')
+        )
+      shell: cmd
+      run: |
+        curl -sO https://registry.npmjs.org/npm/-/npm-7.5.4.tgz
+        tar xf npm-7.5.4.tgz
+        cd package
+        node lib/npm.js install --no-fund --no-audit -g ..\npm-7.5.4.tgz
+        cd ..
+        rmdir /s /q package
+    - name: Install Latest npm
+      shell: bash
+      env:
+        NODE_VERSION: ${{ inputs.node }}
+      working-directory: ${{ runner.temp }}
+      run: |
+        MATCH=""
+        SPECS=("latest" "next-10" "next-9" "next-8" "next-7" "next-6")
+
+        echo "node@$NODE_VERSION"
+
+        for SPEC in ${SPECS[@]}; do
+          ENGINES=$(npm view npm@$SPEC --json | jq -r '.engines.node')
+          echo "Checking if node@$NODE_VERSION satisfies npm@$SPEC ($ENGINES)"
+
+          if npx semver -r "$ENGINES" "$NODE_VERSION" > /dev/null; then
+            MATCH=$SPEC
+            echo "Found compatible version: npm@$MATCH"
+            break
+          fi
+        done
+
+        if [ -z $MATCH ]; then
+          echo "Could not find a compatible version of npm for node@$NODE_VERSION"
+          exit 1
+        fi
+
+        npm i --prefer-online --no-fund --no-audit -g npm@$MATCH
+    - name: npm Version
+      shell: bash
+      run: npm -v
