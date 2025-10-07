@@ -6477,7 +6477,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
 
   int slot_count() const { return slots_.length(); }
 
-  vobj::ObjectType object_type() const {
+  constexpr vobj::ObjectType object_type() const {
     return object_layout_->object_type;
   }
 
