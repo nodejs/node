@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const {
   executionAsyncResource,
@@ -22,16 +22,16 @@ const server = http.createServer((req, res) => {
   }, 1000);
 });
 
-server.listen(0, () => {
+server.listen(0, common.mustCallAtLeast(() => {
   assert.strictEqual(executionAsyncResource(), hooked[executionAsyncId()]);
-  http.get({ port: server.address().port }, (res) => {
+  http.get({ port: server.address().port }, common.mustCallAtLeast((res) => {
     assert.strictEqual(executionAsyncResource(), hooked[executionAsyncId()]);
-    res.on('data', () => {
+    res.on('data', common.mustCallAtLeast(() => {
       assert.strictEqual(executionAsyncResource(), hooked[executionAsyncId()]);
-    });
-    res.on('end', () => {
+    }));
+    res.on('end', common.mustCall(() => {
       assert.strictEqual(executionAsyncResource(), hooked[executionAsyncId()]);
       server.close();
-    });
-  });
-});
+    }));
+  }));
+}));

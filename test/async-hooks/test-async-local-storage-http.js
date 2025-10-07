@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const { mustCall } = require('../common');
 const assert = require('assert');
 const { AsyncLocalStorage } = require('async_hooks');
 const http = require('http');
@@ -13,9 +13,9 @@ server.listen(0, () => {
   asyncLocalStorage.run(new Map(), () => {
     const store = asyncLocalStorage.getStore();
     store.set('hello', 'world');
-    http.get({ host: 'localhost', port: server.address().port }, () => {
+    http.get({ host: 'localhost', port: server.address().port }, mustCall(() => {
       assert.strictEqual(asyncLocalStorage.getStore().get('hello'), 'world');
       server.close();
-    });
+    }));
   });
 });
