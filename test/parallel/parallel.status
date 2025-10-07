@@ -134,15 +134,16 @@ test-tls-write-error: PASS, FLAKY
 # https://github.com/nodejs/node/issues/48047
 test-http-pipeline-flood: SKIP
 # https://github.com/nodejs/node/issues/58582
-test-http-proxy-fetch: SKIP
-test-https-proxy-fetch: SKIP
 test-inspector-network-fetch:  SKIP
 test-inspector-network-content-type: SKIP
 test-fetch:  SKIP
 test-without-async-context-frame: SKIP
 test-process-cpuUsage: PASS, FLAKY
 test-web-locks: SKIP
-
+test-http2-allow-http1-upgrade-ws: SKIP
+test-inspector-network-websocket: SKIP
+test-tls-set-default-ca-certificates-append-fetch: SKIP
+test-tls-set-default-ca-certificates-reset-fetch: SKIP
 
 [$asan==on]
 # https://github.com/nodejs/node/issues/39655
