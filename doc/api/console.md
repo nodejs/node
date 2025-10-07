@@ -102,7 +102,7 @@ const { Console } = console;
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.10.0
     pr-url: https://github.com/nodejs/node/pull/60082
     description: The `inspectOptions` option can be a `Map` from stream to options.
   - version:
