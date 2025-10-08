@@ -72,7 +72,3 @@
 * [Web Streams API](webstreams.md)
 * [Worker threads](worker_threads.md)
 * [Zlib](zlib.md)
-
-<hr class="line"/>
-
-* [Code repository and issue tracker](https://github.com/nodejs/node)
