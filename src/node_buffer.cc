@@ -1413,7 +1413,7 @@ static void Btoa(const FunctionCallbackInfo<Value>& args) {
 // In case of error, a negative value is returned:
 // * -1 indicates a single character remained,
 // * -2 indicates an invalid character,
-// * -3 indicates a possible overflow (i.e., more than 2 GB output).
+// * -3 indicates an unrecognized simdutf error.
 static void Atob(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   Environment* env = Environment::GetCurrent(args);
@@ -1458,7 +1458,7 @@ static void Atob(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(value);
   }
 
-  // Default value is: "possible overflow"
+  // Default value is: "unrecognized simdutf error"
   int32_t error_code = -3;
 
   if (result.error == simdutf::error_code::INVALID_BASE64_CHARACTER) {
