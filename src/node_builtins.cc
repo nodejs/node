@@ -90,7 +90,11 @@ void BuiltinLoader::GetNatives(Local<Name> property,
   auto source = env->builtin_loader()->source_.read();
   for (auto const& x : *source) {
     Local<String> key = OneByteString(isolate, x.first);
-    if (out->Set(context, key, x.second.ToStringChecked(isolate)).IsNothing()) {
+    Local<String> value;
+    if (!x.second.ToString(isolate).ToLocal(&value)) {
+      return;
+    }
+    if (out->Set(context, key, value).IsNothing()) {
       return;
     }
   }
@@ -98,7 +102,11 @@ void BuiltinLoader::GetNatives(Local<Name> property,
 }
 
 Local<String> BuiltinLoader::GetConfigString(Isolate* isolate) {
-  return config_.ToStringChecked(isolate);
+  Local<String> config_str;
+  if (!config_.ToString(isolate).ToLocal(&config_str)) {
+    return {};
+  }
+  return config_str;
 }
 
 BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
@@ -203,7 +211,7 @@ MaybeLocal<String> BuiltinLoader::LoadBuiltinSource(Isolate* isolate,
     fprintf(stderr, "Cannot find native builtin: \"%s\".\n", id);
     ABORT();
   }
-  return source_it->second.ToStringChecked(isolate);
+  return source_it->second.ToString(isolate);
 #else   // !NODE_BUILTIN_MODULES_PATH
   std::string filename = OnDiskFileName(id);
 

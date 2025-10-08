@@ -32,6 +32,7 @@
 #include "node_snapshot_builder.h"
 #include "node_v8_platform-inl.h"
 #include "string_bytes.h"
+#include "v8-local-handle.h"
 #include "v8-value.h"
 
 #ifdef _WIN32
@@ -91,6 +92,7 @@ using v8::Context;
 using v8::FunctionTemplate;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Template;
@@ -725,13 +727,11 @@ void SetConstructorFunction(Isolate* isolate,
   that->Set(name, tmpl);
 }
 
-Local<String> UnionBytes::ToStringChecked(Isolate* isolate) const {
+MaybeLocal<String> UnionBytes::ToString(Isolate* isolate) const {
   if (is_one_byte()) {
-    return String::NewExternalOneByte(isolate, one_byte_resource_)
-        .ToLocalChecked();
+    return String::NewExternalOneByte(isolate, one_byte_resource_);
   } else {
-    return String::NewExternalTwoByte(isolate, two_byte_resource_)
-        .ToLocalChecked();
+    return String::NewExternalTwoByte(isolate, two_byte_resource_);
   }
 }
 

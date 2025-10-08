@@ -52,7 +52,7 @@ using StaticExternalTwoByteResource =
 
 // Similar to a v8::String, but it's independent from Isolates
 // and can be materialized in Isolates as external Strings
-// via ToStringChecked.
+// via ToString.
 class UnionBytes {
  public:
   explicit UnionBytes(StaticExternalOneByteResource* one_byte_resource)
@@ -67,7 +67,7 @@ class UnionBytes {
 
   bool is_one_byte() const { return one_byte_resource_ != nullptr; }
 
-  v8::Local<v8::String> ToStringChecked(v8::Isolate* isolate) const;
+  v8::MaybeLocal<v8::String> ToString(v8::Isolate* isolate) const;
 
  private:
   StaticExternalOneByteResource* one_byte_resource_;
