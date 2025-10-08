@@ -6,10 +6,10 @@ updates:
     directory: /
     schedule:
       interval: monthly
-      cooldown:
-        - semver-major-days: 5
-        - semver-minor-days: 5
-        - semver-patch-days: 5
+    cooldown:
+      semver-major-days: 5
+      semver-minor-days: 5
+      semver-patch-days: 5
 
     commit-message:
       prefix: meta
@@ -19,10 +19,10 @@ updates:
     directory: /tools/eslint
     schedule:
       interval: monthly
-      cooldown:
-        - semver-major-days: 5
-        - semver-minor-days: 5
-        - semver-patch-days: 5
+    cooldown:
+      semver-major-days: 5
+      semver-minor-days: 5
+      semver-patch-days: 5
     commit-message:
       prefix: tools
     open-pull-requests-limit: ${{secrets.OPEN_PR_LIMIT}}
@@ -36,10 +36,10 @@ updates:
     directory: /tools/lint-md
     schedule:
       interval: monthly
-      cooldown:
-        - semver-major-days: 5
-        - semver-minor-days: 5
-        - semver-patch-days: 5
+    cooldown:
+      semver-major-days: 5
+      semver-minor-days: 5
+      semver-patch-days: 5
     commit-message:
       prefix: tools
     open-pull-requests-limit: ${{secrets.OPEN_PR_LIMIT}}
@@ -53,10 +53,10 @@ updates:
     directory: /tools/doc
     schedule:
       interval: weekly
-      cooldown:
-        - semver-major-days: 5
-        - semver-minor-days: 5
-        - semver-patch-days: 5
+    cooldown:
+      semver-major-days: 5
+      semver-minor-days: 5
+      semver-patch-days: 5
     commit-message:
       prefix: tools
     open-pull-requests-limit: ${{secrets.OPEN_PR_LIMIT}}
