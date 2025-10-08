@@ -77,6 +77,8 @@
 
     'v8_win64_unwinding_info': 1,
 
+    'v8_use_libm_trig_functions': 1,
+
     # Variables controlling external defines exposed in public headers.
     'v8_enable_map_packing%': 0,
     'v8_enable_pointer_compression_shared_cage%': 0,
