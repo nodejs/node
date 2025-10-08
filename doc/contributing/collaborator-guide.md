@@ -998,6 +998,7 @@ need to be attached anymore, as only important bugfixes will be included.
   * No `x86{_64}` label because it is the implied default
 
 ["Merge pull request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
+[@nodejs/V8]: https://github.com/orgs/nodejs/teams/V8
 [@nodejs/assert]: https://github.com/orgs/nodejs/teams/assert
 [@nodejs/async_hooks]: https://github.com/orgs/nodejs/teams/async_hooks
 [@nodejs/benchmarking]: https://github.com/orgs/nodejs/teams/benchmarking
@@ -1031,10 +1032,12 @@ need to be attached anymore, as only important bugfixes will be included.
 [@nodejs/timers]: https://github.com/orgs/nodejs/teams/timers
 [@nodejs/tsc]: https://github.com/orgs/nodejs/teams/tsc
 [@nodejs/url]: https://github.com/orgs/nodejs/teams/url
-[@nodejs/util]: https://github.com/orgs/nodejs/teams/util
 [@nodejs/v8-inspector]: https://github.com/orgs/nodejs/teams/v8-inspector
-[@nodejs/V8]: https://github.com/orgs/nodejs/teams/V8
 [@nodejs/zlib]: https://github.com/orgs/nodejs/teams/zlib
+[Deprecation]: https://en.wikipedia.org/wiki/Deprecation
+[SECURITY.md]: https://github.com/nodejs/node/blob/HEAD/SECURITY.md
+[Stability Index]: ../api/documentation.md#stability-index
+[TSC]: https://github.com/nodejs/TSC
 [`--pending-deprecation`]: ../api/cli.md#--pending-deprecation
 [`--throw-deprecation`]: ../api/cli.md#--throw-deprecation
 [`@node-core/utils`]: https://github.com/nodejs/node-core-utils
@@ -1044,21 +1047,17 @@ need to be attached anymore, as only important bugfixes will be included.
 [commit message guidelines]: pull-requests.md#commit-message-guidelines
 [commit-example]: https://github.com/nodejs/node/commit/b636ba8186
 [commit-queue.md]: ./commit-queue.md
-[Deprecation]: https://en.wikipedia.org/wiki/Deprecation
 [freebsd]: https://github.com/orgs/nodejs/teams/platform-freebsd
 [git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
-[git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-metadata
 [git-node]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
+[git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-metadata
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
 [macos]: https://github.com/orgs/nodejs/teams/platform-macos
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
 [ppc]: https://github.com/orgs/nodejs/teams/platform-ppc
 [s390]: https://github.com/orgs/nodejs/teams/platform-s390
-[SECURITY.md]: https://github.com/nodejs/node/blob/HEAD/SECURITY.md
 [smartos]: https://github.com/orgs/nodejs/teams/platform-smartos
-[Stability Index]: ../api/documentation.md#stability-index
-[TSC]: https://github.com/nodejs/TSC
 [unreliable tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22
-[windows-arm]: https://github.com/orgs/nodejs/teams/platform-windows-arm
 [windows]: https://github.com/orgs/nodejs/teams/platform-windows
+[windows-arm]: https://github.com/orgs/nodejs/teams/platform-windows-arm
