@@ -73,7 +73,7 @@ def try_copy(options, path, dest):
   return shutil.copy2(source_path, target_path)
 
 def try_remove(options, path, dest):
-  source_path, target_path = mkpaths(options, path, dest)
+  _source_path, target_path = mkpaths(options, path, dest)
   if not options.silent:
     print('removing %s' % target_path)
   try_unlink(target_path)

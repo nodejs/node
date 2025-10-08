@@ -11,11 +11,13 @@ target-version = "py39"
 
 [tool.ruff.lint]
 select = [
+  "ASYNC",  # flake8-async
   "C90",    # McCabe cyclomatic complexity
   "E",      # pycodestyle
   "F",      # Pyflakes
   "ICN",    # flake8-import-conventions
   "INT",    # flake8-gettext
+  "PERF",   # flake8-performance
   "PLC",    # Pylint conventions
   "PLE",    # Pylint errors
   "PLR09",  # Pylint refactoring: max-args, max-branches, max returns, max-statements
@@ -32,6 +34,7 @@ ignore = [
   "E401",
   "E402",
   "E7",
+  "PLC0415",
   "RUF005",
 ]
 
