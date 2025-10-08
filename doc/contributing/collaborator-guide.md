@@ -871,7 +871,7 @@ might impact an LTS release.
 
 | Subsystem                             | Maintainers                                                                                                               |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `benchmark/*`                         | [@nodejs/benchmarking][], [@mscdex][]                                                                                     |
+| `benchmark/*`                         | [@nodejs/benchmarking][]                                                                                                  |
 | `doc/*`, `*.md`                       | [@nodejs/documentation][]                                                                                                 |
 | `lib/assert`                          | [@nodejs/assert][]                                                                                                        |
 | `lib/async_hooks`                     | [@nodejs/async\_hooks][@nodejs/async_hooks] for bugs/reviews (+ [@nodejs/diagnostics][] for API)                          |
@@ -886,7 +886,7 @@ might impact an LTS release.
 | `lib/inspector.js`, `src/inspector_*` | [@nodejs/v8-inspector][]                                                                                                  |
 | `lib/internal/bootstrap/*`            | [@nodejs/process][]                                                                                                       |
 | `lib/internal/url`, `src/node_url`    | [@nodejs/url][]                                                                                                           |
-| `lib/net`                             | [@bnoordhuis][], [@indutny][], [@nodejs/streams][]                                                                        |
+| `lib/net`                             | [@nodejs/streams][]                                                                                                       |
 | `lib/repl`                            | [@nodejs/repl][]                                                                                                          |
 | `lib/{_}stream{*}`                    | [@nodejs/streams][]                                                                                                       |
 | `lib/internal/test_runner`            | [@nodejs/test\_runner][@nodejs/test_runner]                                                                               |
@@ -903,7 +903,6 @@ might impact an LTS release.
 | performance                           | [@nodejs/performance][]                                                                                                   |
 | platform specific                     | @nodejs/platform-{[aix][], [arm][], [freebsd][], [macos][], [ppc][], [smartos][], [s390][], [windows][], [windows-arm][]} |
 | python code                           | [@nodejs/python][]                                                                                                        |
-| upgrading c-ares                      | [@rvagg][]                                                                                                                |
 | upgrading http-parser                 | [@nodejs/http][], [@nodejs/http2][]                                                                                       |
 | upgrading libuv                       | [@nodejs/libuv][]                                                                                                         |
 | upgrading npm                         | [@nodejs/npm][]                                                                                                           |
@@ -999,37 +998,19 @@ need to be attached anymore, as only important bugfixes will be included.
   * No `x86{_64}` label because it is the implied default
 
 ["Merge pull request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
-[Deprecation]: https://en.wikipedia.org/wiki/Deprecation
-[SECURITY.md]: https://github.com/nodejs/node/blob/HEAD/SECURITY.md
-[Stability Index]: ../api/documentation.md#stability-index
-[TSC]: https://github.com/nodejs/TSC
-[`--pending-deprecation`]: ../api/cli.md#--pending-deprecation
-[`--throw-deprecation`]: ../api/cli.md#--throw-deprecation
-[`@node-core/utils`]: https://github.com/nodejs/node-core-utils
-[backporting guide]: backporting-to-release-lines.md
-[commit message guidelines]: pull-requests.md#commit-message-guidelines
-[commit-example]: https://github.com/nodejs/node/commit/b636ba8186
-[commit-queue.md]: ./commit-queue.md
-[git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
-[git-node]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
-[git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-metadata
-[git-username]: https://help.github.com/articles/setting-your-username-in-git/
-[node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
-[node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
-[unreliable tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22
 [@nodejs/assert]: https://github.com/orgs/nodejs/teams/assert
 [@nodejs/async_hooks]: https://github.com/orgs/nodejs/teams/async_hooks
 [@nodejs/benchmarking]: https://github.com/orgs/nodejs/teams/benchmarking
-[@nodejs/build]: https://github.com/orgs/nodejs/teams/build
 [@nodejs/buffer]: https://github.com/orgs/nodejs/teams/buffer
+[@nodejs/build]: https://github.com/orgs/nodejs/teams/build
 [@nodejs/child_process]: https://github.com/orgs/nodejs/teams/child_process
 [@nodejs/cluster]: https://github.com/orgs/nodejs/teams/cluster
 [@nodejs/crypto]: https://github.com/orgs/nodejs/teams/crypto
 [@nodejs/delivery-channels]: https://github.com/orgs/nodejs/teams/delivery-channels
-[@nodejs/diagnostics]: https://github.com/orgs/nodejs/teams/diagnostics
 [@nodejs/dgram]: https://github.com/orgs/nodejs/teams/dgram
-[@nodejs/domains]: https://github.com/orgs/nodejs/teams/domains
+[@nodejs/diagnostics]: https://github.com/orgs/nodejs/teams/diagnostics
 [@nodejs/documentation]: https://github.com/orgs/nodejs/teams/documentation
+[@nodejs/domains]: https://github.com/orgs/nodejs/teams/domains
 [@nodejs/fs]: https://github.com/orgs/nodejs/teams/fs
 [@nodejs/gyp]: https://github.com/orgs/nodejs/teams/gyp
 [@nodejs/http]: https://github.com/orgs/nodejs/teams/http
@@ -1054,16 +1035,30 @@ need to be attached anymore, as only important bugfixes will be included.
 [@nodejs/v8-inspector]: https://github.com/orgs/nodejs/teams/v8-inspector
 [@nodejs/V8]: https://github.com/orgs/nodejs/teams/V8
 [@nodejs/zlib]: https://github.com/orgs/nodejs/teams/zlib
-[@bnoordhuis]: https://github.com/bnoordhuis
-[@indutny]: https://github.com/indutny
-[@mscdex]: https://github.com/mscdex
-[@rvagg]: https://github.com/rvagg
+[`--pending-deprecation`]: ../api/cli.md#--pending-deprecation
+[`--throw-deprecation`]: ../api/cli.md#--throw-deprecation
+[`@node-core/utils`]: https://github.com/nodejs/node-core-utils
 [aix]: https://github.com/orgs/nodejs/teams/platform-aix
 [arm]: https://github.com/orgs/nodejs/teams/platform-arm
+[backporting guide]: backporting-to-release-lines.md
+[commit message guidelines]: pull-requests.md#commit-message-guidelines
+[commit-example]: https://github.com/nodejs/node/commit/b636ba8186
+[commit-queue.md]: ./commit-queue.md
+[Deprecation]: https://en.wikipedia.org/wiki/Deprecation
 [freebsd]: https://github.com/orgs/nodejs/teams/platform-freebsd
+[git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
+[git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-metadata
+[git-node]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
+[git-username]: https://help.github.com/articles/setting-your-username-in-git/
 [macos]: https://github.com/orgs/nodejs/teams/platform-macos
+[node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
+[node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
 [ppc]: https://github.com/orgs/nodejs/teams/platform-ppc
-[smartos]: https://github.com/orgs/nodejs/teams/platform-smartos
 [s390]: https://github.com/orgs/nodejs/teams/platform-s390
-[windows]: https://github.com/orgs/nodejs/teams/platform-windows
+[SECURITY.md]: https://github.com/nodejs/node/blob/HEAD/SECURITY.md
+[smartos]: https://github.com/orgs/nodejs/teams/platform-smartos
+[Stability Index]: ../api/documentation.md#stability-index
+[TSC]: https://github.com/nodejs/TSC
+[unreliable tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22
 [windows-arm]: https://github.com/orgs/nodejs/teams/platform-windows-arm
+[windows]: https://github.com/orgs/nodejs/teams/platform-windows
