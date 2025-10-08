@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-shrinkwrapjson----1161">
+<h1 id="----npm-shrinkwrapjson----1162">
     <span>npm-shrinkwrap.json</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">A publishable lockfile</span>
 </header>
@@ -154,21 +154,13 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
-<p><code>npm-shrinkwrap.json</code> is a file created by <a href="../commands/npm-shrinkwrap.html"><code>npm shrinkwrap</code></a>. It is identical to
-<code>package-lock.json</code>, with one major caveat: Unlike <code>package-lock.json</code>,
+<p><code>npm-shrinkwrap.json</code> is a file created by <a href="../commands/npm-shrinkwrap.html"><code>npm shrinkwrap</code></a>.
+It is identical to <code>package-lock.json</code>, with one major caveat: Unlike <code>package-lock.json</code>,
 <code>npm-shrinkwrap.json</code> may be included when publishing a package.</p>
-<p>The recommended use-case for <code>npm-shrinkwrap.json</code> is applications deployed
-through the publishing process on the registry: for example, daemons and
-command-line tools intended as global installs or <code>devDependencies</code>. It's
-strongly discouraged for library authors to publish this file, since that
-would prevent end users from having control over transitive dependency
-updates.</p>
-<p>If both <code>package-lock.json</code> and <code>npm-shrinkwrap.json</code> are present in a
-package root, <code>npm-shrinkwrap.json</code> will be preferred over the
-<code>package-lock.json</code> file.</p>
-<p>For full details and description of the <code>npm-shrinkwrap.json</code> file format,
-refer to the manual page for
-<a href="../configuring-npm/package-lock-json.html">package-lock.json</a>.</p>
+<p>The recommended use-case for <code>npm-shrinkwrap.json</code> is applications deployed through the publishing process on the registry: for example, daemons and command-line tools intended as global installs or <code>devDependencies</code>.
+It's strongly discouraged for library authors to publish this file, since that would prevent end users from having control over transitive dependency updates.</p>
+<p>If both <code>package-lock.json</code> and <code>npm-shrinkwrap.json</code> are present in a package root, <code>npm-shrinkwrap.json</code> will be preferred over the <code>package-lock.json</code> file.</p>
+<p>For full details and description of the <code>npm-shrinkwrap.json</code> file format, refer to the manual page for <a href="../configuring-npm/package-lock-json.html">package-lock.json</a>.</p>
 <h3 id="see-also">See also</h3>
 <ul>
 <li><a href="../commands/npm-shrinkwrap.html">npm shrinkwrap</a></li>

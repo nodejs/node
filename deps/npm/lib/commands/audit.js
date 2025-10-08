@@ -53,7 +53,7 @@ class Audit extends ArboristWorkspaceCmd {
   async auditAdvisories (args) {
     const fix = args[0] === 'fix'
     if (this.npm.config.get('package-lock') === false && fix) {
-      throw this.usageError('fix can not be used without a package-lock')
+      throw this.usageError('fix cannot be used without a package-lock')
     }
     const reporter = this.npm.config.get('json') ? 'json' : 'detail'
     const Arborist = require('@npmcli/arborist')

@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-adduser----1161">
+<h1 id="----npm-adduser----1162">
     <span>npm-adduser</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Add a registry user account</span>
 </header>
@@ -160,12 +160,11 @@ alias: add-user
 </code></pre>
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
-<p>Create a new user in the specified registry, and save the credentials to
-the <code>.npmrc</code> file. If no registry is specified, the default registry
-will be used (see <a href="../using-npm/registry.html"><code>registry</code></a>).</p>
-<p>When you run <code>npm adduser</code>, the CLI automatically generates a legacy token of <code>publish</code> type. For more information, see <a href="../about-access-tokens#about-legacy-tokens.html">About legacy tokens</a>.</p>
-<p>When using <code>legacy</code> for your <code>auth-type</code>, the username, password, and
-email are read in from prompts.</p>
+<p>Create a new user in the specified registry, and save the credentials to the <code>.npmrc</code> file.
+If no registry is specified, the default registry will be used (see <a href="../using-npm/registry.html"><code>registry</code></a>).</p>
+<p>When you run <code>npm adduser</code>, the CLI automatically generates a legacy token of <code>publish</code> type.
+For more information, see <a href="../about-access-tokens#about-legacy-tokens.html">About legacy tokens</a>.</p>
+<p>When using <code>legacy</code> for your <code>auth-type</code>, the username, password, and email are read in from prompts.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="registry"><code>registry</code></h4>
 <ul>
@@ -199,8 +198,8 @@ npm init --scope=@foo --yes
 <li>Default: "web"</li>
 <li>Type: "legacy" or "web"</li>
 </ul>
-<p>What authentication strategy to use with <code>login</code>. Note that if an <code>otp</code>
-config is given, this value will always be set to <code>legacy</code>.</p>
+<p>What authentication strategy to use with <code>login</code>. Note that if an
+<code>otp</code> config is given, this value will always be set to <code>legacy</code>.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/registry.html">npm registry</a></li>

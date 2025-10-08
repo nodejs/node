@@ -13,7 +13,7 @@ const globify = pattern => pattern.split('\\').join('/')
 // We don't currently compress our man pages but if we ever did this would
 // seamlessly continue supporting it
 const manNumberRegex = /\.(\d+)(\.[^/\\]*)?$/
-// hardcoded names for mansections
+// hardcoded names for man sections
 // XXX: these are used in the docs workspace and should be exported
 // from npm so section names can changed more easily
 const manSectionNames = {

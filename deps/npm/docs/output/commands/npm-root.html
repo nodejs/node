@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-root----1161">
+<h1 id="----npm-root----1162">
     <span>npm-root</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Display npm root</span>
 </header>
@@ -159,8 +159,8 @@ npm command-line interface
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
 <p>Print the effective <code>node_modules</code> folder to standard out.</p>
-<p>Useful for using npm in shell scripts that do things with the
-<code>node_modules</code> folder.  For example:</p>
+<p>Useful for using npm in shell scripts that do things with the <code>node_modules</code> folder.
+For example:</p>
 <pre><code class="language-bash">#!/bin/bash
 global_node_modules="$(npm root --global)"
 echo "Global packages installed in: ${global_node_modules}"
@@ -171,12 +171,13 @@ echo "Global packages installed in: ${global_node_modules}"
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
-folder instead of the current working directory. See
-<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
+<p>Operates in "global" mode, so that packages are installed into the
+<code>prefix</code> folder instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in
+behavior.</p>
 <ul>
-<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
-of the current working directory.</li>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder,
+instead of the current working directory.</li>
 <li>bin files are linked to <code>{prefix}/bin</code></li>
 <li>man pages are linked to <code>{prefix}/share/man</code></li>
 </ul>

@@ -1,4 +1,4 @@
-.TH "NPM-LS" "1" "September 2025" "NPM@11.6.1" ""
+.TH "NPM-LS" "1" "October 2025" "NPM@11.6.2" ""
 .SH "NAME"
 \fBnpm-ls\fR - List installed packages
 .SS "Synopsis"
@@ -20,7 +20,7 @@ Positional arguments are \fBname@version-range\fR identifiers, which will limit 
 .P
 .RS 2
 .nf
-npm@11.6.1 /path/to/npm
+npm@11.6.2 /path/to/npm
 └─┬ init-package-json@0.0.4
   └── promzard@0.1.5
 .fi
@@ -103,7 +103,7 @@ man pages are linked to \fB{prefix}/share/man\fR
 .SS "\fBdepth\fR"
 .RS 0
 .IP \(bu 4
-Default: \fBInfinity\fR if \fB--all\fR is set, otherwise \fB0\fR
+Default: \fBInfinity\fR if \fB--all\fR is set; otherwise, \fB0\fR
 .IP \(bu 4
 Type: null or Number
 .RE 0
@@ -115,7 +115,7 @@ If not set, \fBnpm ls\fR will show only the immediate dependencies of the root p
 .SS "\fBomit\fR"
 .RS 0
 .IP \(bu 4
-Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production', otherwise empty.
+Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production'; otherwise, empty.
 .IP \(bu 4
 Type: "dev", "optional", or "peer" (can be set multiple times)
 .RE 0

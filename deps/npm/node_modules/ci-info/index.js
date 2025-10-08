@@ -15,22 +15,24 @@ exports.name = null
 exports.isPR = null
 exports.id = null
 
-vendors.forEach(function (vendor) {
-  const envs = Array.isArray(vendor.env) ? vendor.env : [vendor.env]
-  const isCI = envs.every(function (obj) {
-    return checkEnv(obj)
+if (env.CI !== 'false') {
+  vendors.forEach(function (vendor) {
+    const envs = Array.isArray(vendor.env) ? vendor.env : [vendor.env]
+    const isCI = envs.every(function (obj) {
+      return checkEnv(obj)
+    })
+
+    exports[vendor.constant] = isCI
+
+    if (!isCI) {
+      return
+    }
+
+    exports.name = vendor.name
+    exports.isPR = checkPR(vendor)
+    exports.id = vendor.constant
   })
-
-  exports[vendor.constant] = isCI
-
-  if (!isCI) {
-    return
-  }
-
-  exports.name = vendor.name
-  exports.isPR = checkPR(vendor)
-  exports.id = vendor.constant
-})
+}
 
 exports.isCI = !!(
   env.CI !== 'false' && // Bypass all checks if CI env is explicitly set to 'false'

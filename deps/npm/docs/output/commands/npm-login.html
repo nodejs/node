@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-login----1161">
+<h1 id="----npm-login----1162">
     <span>npm-login</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Login to a registry user account</span>
 </header>
@@ -159,17 +159,15 @@ npm command-line interface
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
 <p>Verify a user in the specified registry, and save the credentials to the
-<code>.npmrc</code> file. If no registry is specified, the default registry will be
-used (see <a href="../using-npm/config.html"><code>config</code></a>).</p>
-<p>When you run <code>npm login</code>, the CLI automatically generates a legacy token of <code>publish</code> type. For more information, see <a href="../about-access-tokens#about-legacy-tokens.html">About legacy tokens</a>.</p>
-<p>When using <code>legacy</code> for your <code>auth-type</code>, the username and password, are
-read in from prompts.</p>
+<code>.npmrc</code> file.
+If no registry is specified, the default registry will be used (see <a href="../using-npm/config.html"><code>config</code></a>).</p>
+<p>When you run <code>npm login</code>, the CLI automatically generates a legacy token of <code>publish</code> type.
+For more information, see <a href="../about-access-tokens#about-legacy-tokens.html">About legacy tokens</a>.</p>
+<p>When using <code>legacy</code> for your <code>auth-type</code>, the username and password, are read in from prompts.</p>
 <p>To reset your password, go to <a href="https://www.npmjs.com/forgot">https://www.npmjs.com/forgot</a></p>
 <p>To change your email address, go to <a href="https://www.npmjs.com/email-edit">https://www.npmjs.com/email-edit</a></p>
-<p>You may use this command multiple times with the same user account to
-authorize on a new machine.  When authenticating on a new machine,
-the username, password and email address must all match with
-your existing record.</p>
+<p>You may use this command multiple times with the same user account to authorize on a new machine.
+When authenticating on a new machine, the username, password and email address must all match with your existing record.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="registry"><code>registry</code></h4>
 <ul>
@@ -203,8 +201,8 @@ npm init --scope=@foo --yes
 <li>Default: "web"</li>
 <li>Type: "legacy" or "web"</li>
 </ul>
-<p>What authentication strategy to use with <code>login</code>. Note that if an <code>otp</code>
-config is given, this value will always be set to <code>legacy</code>.</p>
+<p>What authentication strategy to use with <code>login</code>. Note that if an
+<code>otp</code> config is given, this value will always be set to <code>legacy</code>.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/registry.html">npm registry</a></li>

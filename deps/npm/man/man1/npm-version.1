@@ -1,4 +1,4 @@
-.TH "NPM-VERSION" "1" "September 2025" "NPM@11.6.1" ""
+.TH "NPM-VERSION" "1" "October 2025" "NPM@11.6.2" ""
 .SH "NAME"
 \fBnpm-version\fR - Bump a package version
 .SS "Synopsis"
@@ -171,16 +171,14 @@ If the \fB\[rs]fBsign-git-tag\[rs]fR config\fR \fI\(la/using-npm/config#sign-git
 $ npm config set sign-git-tag true
 $ npm version patch
 
-You need a passphrase to unlock the secret key for
-user: "isaacs (http://blog.izs.me/) <i@izs.me>"
+You need a passphrase to unlock the secret key for user: "isaacs (http://blog.izs.me/) <i@izs.me>"
 2048-bit RSA key, ID 6C481CF6, created 2010-08-31
 
 Enter passphrase:
 .fi
 .RE
 .P
-If \fBpreversion\fR, \fBversion\fR, or \fBpostversion\fR are in the \fBscripts\fR property of the package.json, they will be executed as part of running \fBnpm
-version\fR.
+If \fBpreversion\fR, \fBversion\fR, or \fBpostversion\fR are in the \fBscripts\fR property of the package.json, they will be executed as part of running \fBnpm version\fR.
 .P
 The exact order of execution is as follows:
 .RS 0
