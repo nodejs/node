@@ -95,7 +95,7 @@ def main():
                       default='//node')
   parser.add_argument('--dep-file', help='path to an optional dep file',
                       default=None)
-  args, unknown_args = parser.parse_known_args()
+  args, _unknown_args = parser.parse_known_args()
 
   config = get_gn_config(args.out_dir)
   v8_config = get_v8_config(args.out_dir, args.node_gn_path)
