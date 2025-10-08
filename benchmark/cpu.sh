@@ -4,12 +4,12 @@ CPUPATH=/sys/devices/system/cpu
 
 MAXID=$(cat $CPUPATH/present | awk -F- '{print $NF}')
 
-if [ "$(uname -s)" != "Linux" ]; then
+if [ "$(uname -s || true)" != "Linux" ]; then
   echo "Error: This script runs on Linux only." >&2
   exit 1
 fi
 
-if [ "$(id -u)" -ne 0 ]; then
+if [ "$(id -u || true)" -ne 0 ]; then
   echo "Error: Run as root (sudo) to modify CPU governor." >&2
   exit 1
 fi
