@@ -1828,9 +1828,12 @@ napi_status NAPI_CDECL napi_create_bigint_words(napi_env env,
   v8::MaybeLocal<v8::BigInt> b =
       v8::BigInt::NewFromWords(context, sign_bit, word_count, words);
 
-  CHECK_MAYBE_EMPTY_WITH_PREAMBLE(env, b, napi_generic_failure);
+  v8::Local<v8::BigInt> local_b;
+  if (!b.ToLocal(&local_b)) {
+    return napi_set_last_error(env, napi_generic_failure);
+  }
 
-  *result = v8impl::JsValueFromV8LocalValue(b.ToLocalChecked());
+  *result = v8impl::JsValueFromV8LocalValue(local_b);
   return GET_RETURN_STATUS(env);
 }
 
