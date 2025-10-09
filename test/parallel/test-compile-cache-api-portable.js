@@ -1,6 +1,6 @@
 'use strict';
 
-// This tests module.enableCompileCache({ path, portable: true }) works
+// This tests module.enableCompileCache({ directory, portable: true }) works
 // and supports portable paths across directory relocations.
 
 require('../common');
@@ -9,26 +9,18 @@ const assert = require('assert');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 const path = require('path');
+const fixtures = require('../common/fixtures');
 
 tmpdir.refresh();
 const workDir = path.join(tmpdir.path, 'work');
 const cacheRel = '.compile_cache_dir';
 fs.mkdirSync(workDir, { recursive: true });
 
-const wrapper = path.join(workDir, 'wrapper.js');
+const wrapper = fixtures.path('compile-cache-wrapper-options.js');
 const target = path.join(workDir, 'target.js');
 
-fs.writeFileSync(
-  wrapper,
-  `
-  const { enableCompileCache, getCompileCacheDir } = require('module');
-  console.log('dir before enableCompileCache:', getCompileCacheDir());
-  enableCompileCache({ path: '${cacheRel}', portable: true });
-  console.log('dir after enableCompileCache:', getCompileCacheDir());
-`
-);
-
 fs.writeFileSync(target, '');
+const NODE_TEST_COMPILE_CACHE_OPTIONS = JSON.stringify({ directory: cacheRel, portable: true });
 
 // First run
 {
@@ -39,6 +31,7 @@ fs.writeFileSync(target, '');
       env: {
         ...process.env,
         NODE_DEBUG_NATIVE: 'COMPILE_CACHE',
+        NODE_TEST_COMPILE_CACHE_OPTIONS,
       },
       cwd: workDir,
     },
@@ -73,13 +66,14 @@ fs.writeFileSync(target, '');
     process.execPath,
     [
       '-r',
-      path.join(movedWorkDir, 'wrapper.js'),
+      wrapper,
       path.join(movedWorkDir, 'target.js'),
     ],
     {
       env: {
         ...process.env,
         NODE_DEBUG_NATIVE: 'COMPILE_CACHE',
+        NODE_TEST_COMPILE_CACHE_OPTIONS,
       },
       cwd: movedWorkDir,
     },
