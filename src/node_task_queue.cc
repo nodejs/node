@@ -78,9 +78,15 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
                   "unhandled", unhandledRejections,
                   "handledAfter", rejectionsHandledAfter);
   } else if (event == kPromiseResolveAfterResolved) {
-    value = message.GetValue();
+    // The multipleResolves event was deprecated in Node.js v17 and removed.
+    // No need to call into JavaScript for this event as it's a no-op.
+    // Fixes: https://github.com/nodejs/node/issues/51452
+    return;
   } else if (event == kPromiseRejectAfterResolved) {
-    value = message.GetValue();
+    // The multipleResolves event was deprecated in Node.js v17 and removed.
+    // No need to call into JavaScript for this event as it's a no-op.
+    // Fixes: https://github.com/nodejs/node/issues/51452
+    return;
   } else {
     return;
   }
