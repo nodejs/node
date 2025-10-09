@@ -1,13 +1,13 @@
 TAP version 13
-# Subtest: --test-timeout is set to 20ms
-    # Subtest: should timeout after 20ms
-    not ok 1 - should timeout after 20ms
+# Subtest: --test-timeout is set to 100ms
+    # Subtest: should timeout after 100ms
+    not ok 1 - should timeout after 100ms
       ---
       duration_ms: *
       type: 'test'
       location: '/test/fixtures/test-runner/output/test-timeout-flag.js:(LINE):3'
       failureType: 'testTimeoutFailure'
-      error: 'test timed out after 20ms'
+      error: 'test timed out after 100ms'
       code: 'ERR_TEST_FAILURE'
       stack: |-
         async Promise.all (index 0)
@@ -35,7 +35,7 @@ TAP version 13
       type: 'test'
       ...
     1..4
-not ok 1 - --test-timeout is set to 20ms
+not ok 1 - --test-timeout is set to 100ms
   ---
   duration_ms: *
   type: 'suite'
@@ -44,12 +44,33 @@ not ok 1 - --test-timeout is set to 20ms
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
   ...
-1..1
-# tests 4
-# suites 1
+# Subtest: should inherit timeout options to children
+    # Subtest: should timeout after 1ms
+    not ok 1 - should timeout after 1ms
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '/test/fixtures/test-runner/output/test-timeout-flag.js:(LINE):3'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..1
+not ok 2 - should inherit timeout options to children
+  ---
+  duration_ms: *
+  type: 'suite'
+  location: '/test/fixtures/test-runner/output/test-timeout-flag.js:(LINE):1'
+  failureType: 'testTimeoutFailure'
+  error: 'test timed out after 1ms'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..2
+# tests 5
+# suites 2
 # pass 2
 # fail 0
-# cancelled 2
+# cancelled 3
 # skipped 0
 # todo 0
 # duration_ms *
