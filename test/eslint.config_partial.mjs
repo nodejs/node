@@ -156,7 +156,7 @@ export default [
   },
   {
     files: [
-      'test/{message,module-hooks,node-api,pummel,pseudo-tty,v8-updates,wasi}/**/*.{js,mjs,cjs}',
+      'test/{async-hooks,message,module-hooks,node-api,pummel,pseudo-tty,v8-updates,wasi}/**/*.{js,mjs,cjs}',
     ],
     rules: {
       'node-core/must-call-assert': 'error',

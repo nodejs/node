@@ -3,7 +3,7 @@
 const common = require('../common');
 const { Readable, finished } = require('stream');
 const { AsyncLocalStorage } = require('async_hooks');
-const { strictEqual } = require('assert');
+const assert = require('assert');
 
 // This test verifies that AsyncLocalStorage context is maintained
 // when using stream.finished()
@@ -11,10 +11,10 @@ const { strictEqual } = require('assert');
 const readable = new Readable();
 const als = new AsyncLocalStorage();
 
-als.run(321, () => {
+als.run(321, common.mustCall(() => {
   finished(readable, common.mustCall(() => {
-    strictEqual(als.getStore(), 321);
+    assert.strictEqual(als.getStore(), 321);
   }));
-});
+}));
 
 readable.destroy();

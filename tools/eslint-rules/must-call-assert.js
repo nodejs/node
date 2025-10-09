@@ -60,11 +60,14 @@ module.exports = {
                 {
                   assert: (name) => name === 'rejects' || name === 'throws', // assert.throws or assert.rejects
                   common: isMustCallOrMustCallAtLeast, // common.mustCall or common.mustCallAtLeast
-                  process: (name) => // process.on('exit', …)
-                    (name === 'on' || name === 'once') &&
-                    enclosingFn === parent.arguments[1] &&
-                    parent.arguments[0].type === 'Literal' &&
-                    parent.arguments[0].value === 'exit',
+                  process: (name) =>
+                    (name === 'nextTick' && enclosingFn === parent.arguments[0]) || // process.nextTick
+                    ( // process.on('exit', …)
+                      (name === 'on' || name === 'once') &&
+                      enclosingFn === parent.arguments[1] &&
+                      parent.arguments[0].type === 'Literal' &&
+                      parent.arguments[0].value === 'exit'
+                    ),
                 }[parent.callee.object.name]?.(parent.callee.property.name)
               ) {
                 return;
