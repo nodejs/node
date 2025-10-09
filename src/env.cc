@@ -259,13 +259,9 @@ void Environment::UntrackContext(Local<Context> context) {
   }
 }
 
-void Environment::TrackShadowRealm(shadow_realm::ShadowRealm* realm) {
-  shadow_realms_.insert(realm);
-}
-
-void Environment::UntrackShadowRealm(shadow_realm::ShadowRealm* realm) {
-  shadow_realms_.erase(realm);
-}
+// TrackShadowRealm/UntrackShadowRealm removed - they created strong references
+// that prevented Shadow Realms from being garbage collected.
+// Fixes: https://github.com/nodejs/node/issues/47353
 
 AsyncHooks::DefaultTriggerAsyncIdScope::DefaultTriggerAsyncIdScope(
     Environment* env, double default_trigger_async_id)
@@ -1044,8 +1040,8 @@ Environment::~Environment() {
   inspector_agent_.reset();
 #endif
 
-  // Sub-realms should have been cleared with Environment's cleanup.
-  DCHECK_EQ(shadow_realms_.size(), 0);
+  // Shadow realms are now managed via weak references and cleanup hooks,
+  // not tracked in a set. Fixes: https://github.com/nodejs/node/issues/47353
   principal_realm_.reset();
 
   if (trace_state_observer_) {
@@ -2232,7 +2228,7 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("timeout_info", timeout_info_);
   tracker->TrackField("tick_info", tick_info_);
   tracker->TrackField("principal_realm", principal_realm_);
-  tracker->TrackField("shadow_realms", shadow_realms_);
+  // shadow_realms_ removed - no longer tracking to avoid strong references
 
   // FIXME(joyeecheung): track other fields in Environment.
   // Currently MemoryTracker is unable to track these
