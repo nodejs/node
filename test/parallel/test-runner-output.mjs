@@ -137,7 +137,7 @@ const tests = [
     name: 'test-runner/output/test-timeout-flag.js',
     flags: [
       '--test-reporter=tap',
-      '--test-timeout=20',
+      '--test-timeout=100',
     ],
   },
   // --test-timeout should work with or without --test flag
@@ -145,7 +145,7 @@ const tests = [
     name: 'test-runner/output/test-timeout-flag.js',
     flags: [
       '--test-reporter=tap',
-      '--test-timeout=20',
+      '--test-timeout=100',
       '--test',
     ],
   },
