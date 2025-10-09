@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import { readFileSync, promises as fs } from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 
 import raw from 'rehype-raw';
@@ -32,10 +32,7 @@ import { unified } from 'unified';
 
 import * as html from './html.mjs';
 import * as json from './json.mjs';
-import { replaceLinks } from './markdown.mjs';
-
-const linksMapperFile = new URL('links-mapper.json', import.meta.url);
-const linksMapper = JSON.parse(readFileSync(linksMapperFile, 'utf8'));
+import replaceLinks from './markdown.mjs';
 
 // Parse the args.
 // Don't use nopt or whatever for this. It's simple enough.
@@ -84,7 +81,7 @@ async function main() {
 
   const content = await unified()
     .use(frontmatter)
-    .use(replaceLinks, { filename, linksMapper })
+    .use(replaceLinks)
     .use(markdown)
     .use(gfm)
     .use(html.preprocessText, { nodeVersion })
