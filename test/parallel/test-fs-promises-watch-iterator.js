@@ -34,10 +34,12 @@ class WatchTestCase {
     }
   }
   async writeFiles() {
+    // Do the write with a delay to ensure that the OS is ready to notify us.
+    await setTimeout(common.platformTimeout(100));
+
     for (const fileName of [...this.files]) {
       await writeFile(this.filePath(fileName), Date.now() + fileName.repeat(1e4));
     }
-    await setTimeout(common.platformTimeout(100));
   }
 }
 
