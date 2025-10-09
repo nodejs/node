@@ -725,7 +725,7 @@ npx codemod@latest @nodejs/util-print-to-console-log
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58220
     description: End-of-Life.
   - version: v24.0.0
@@ -748,7 +748,7 @@ The `SlowBuffer` class has been removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58620
     description: Runtime deprecation.
   - version: v6.12.0
@@ -1516,7 +1516,7 @@ instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59060
     description: Runtime deprecation.
   - version: v8.0.0
@@ -1811,7 +1811,7 @@ not handle all certificate subjects correctly and should not be used.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58473
     description: End-of-Life.
   - version: v9.0.0
@@ -2110,7 +2110,7 @@ and `crypto.getFips()` instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58532
     description: End-of-Life.
   - version: v10.0.0
@@ -2439,7 +2439,7 @@ unavailable when the [permission model][] is enabled.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58474
     description: End-of-Life.
   - version: v11.0.0
@@ -2563,7 +2563,7 @@ object can lead to crashing the application.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58619
     description: End-of-Life.
   - version: v11.0.0
@@ -2651,7 +2651,7 @@ Please use `Server.prototype.setSecureContext()` instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58533
     description: End-of-Life.
   - version: v12.0.0
@@ -2754,7 +2754,7 @@ Node.js versions.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58527
     description: End-of-Life.
   - version: v13.0.0
@@ -2822,7 +2822,7 @@ legacy parser.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58528
     description: End-of-Life.
   - version: v12.5.0
@@ -2868,7 +2868,7 @@ an officially supported API.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58529
     description: End-of-Life.
   - version: v13.0.0
@@ -2910,7 +2910,7 @@ To maintain existing behavior `response.finished` should be replaced with
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58536
     description: End-of-Life.
   - version: v14.0.0
@@ -3110,7 +3110,7 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58616
     description: End-of-Life.
   - version: v16.0.0
@@ -3221,7 +3221,7 @@ an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58531
     description: End-of-Life.
   - version: v16.0.0
@@ -3264,7 +3264,7 @@ option, or a non-nullish non-boolean value for `verbatim` option in
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58706
     description: End-of-Life.
   - version: v20.0.0
@@ -3391,7 +3391,7 @@ the errors used for value type validation.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58707
     description: End-of-Life.
   - version: v18.0.0
@@ -3619,7 +3619,7 @@ issued for `url.parse()` vulnerabilities.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58617
     description: End-of-Life.
   - version:
@@ -3660,7 +3660,7 @@ In a future version of Node.js, [`message.headers`][],
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58618
     description: End-of-Life.
   - version: v20.0.0
@@ -3677,7 +3677,7 @@ bound to an `AsyncResource`. It no longer does.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/00000
     description: End-of-Life.
   - version: v20.1.0
@@ -3724,7 +3724,7 @@ The [`util.toUSVString()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/55862
     description: End-of-Life.
   - version: v24.0.0
@@ -3913,7 +3913,7 @@ It is recommended to use the `new` qualifier instead. This applies to all Zlib c
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59495
     description: End-of-Life.
   - version: v24.0.0
@@ -4146,7 +4146,7 @@ npx codemod@latest @nodejs/types-is-native-error
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59008
     description: Runtime deprecation.
   - version:

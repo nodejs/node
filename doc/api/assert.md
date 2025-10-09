@@ -317,11 +317,11 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59448
     description: Promises are not considered equal anymore if they are not of
                  the same instance.
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/57627
     description: Invalid dates are now considered equal.
   - version: v24.0.0
@@ -517,11 +517,11 @@ parameter is an instance of {Error} then it will be thrown instead of the
 <!-- YAML
 added: v1.2.0
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59448
     description: Promises are not considered equal anymore if they are not of
                  the same instance.
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/57627
     description: Invalid dates are now considered equal.
   - version: v24.0.0
@@ -2279,11 +2279,11 @@ added:
   - v23.4.0
   - v22.13.0
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59448
     description: Promises are not considered equal anymore if they are not of
                  the same instance.
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/57627
     description: Invalid dates are now considered equal.
   - version:

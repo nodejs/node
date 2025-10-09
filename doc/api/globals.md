@@ -467,7 +467,7 @@ A browser-compatible implementation of [`DecompressionStream`][].
 ## `ErrorEvent`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 A browser-compatible implementation of {ErrorEvent}.

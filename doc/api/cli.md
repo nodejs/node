@@ -278,7 +278,7 @@ Examples can be found in the [File System Permissions][] documentation.
 ### `--allow-inspector`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 > Stability: 1.0 - Early development
@@ -308,7 +308,7 @@ Error: connect ERR_ACCESS_DENIED Access to this API has been restricted. Use --a
 ### `--allow-net`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 > Stability: 1.1 - Active development
@@ -884,7 +884,7 @@ node --entry-url 'data:text/javascript,console.log("Hello")'
 <!-- YAML
 added: v22.9.0
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59925
     description: The `--env-file-if-exists` flag is no longer experimental.
 -->
@@ -897,7 +897,7 @@ does not exist.
 <!-- YAML
 added: v20.6.0
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59925
     description: The `--env-file` flag is no longer experimental.
   - version:
@@ -1177,7 +1177,7 @@ top-level awaits, and print their location to help users find them.
 ### `--experimental-quic`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1977,7 +1977,7 @@ Silence all process warnings (including deprecations).
 ### `--no-webstorage`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 Disable [`Web Storage`][] support.

@@ -321,7 +321,7 @@ wrapper around [`sqlite3_create_function_v2()`][].
 ### `database.setAuthorizer(callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 * `callback` {Function|null} The authorizer function to set, or `null` to
