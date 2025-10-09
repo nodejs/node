@@ -734,6 +734,32 @@
           "type": "boolean"
         }
       }
+    },
+    "watch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "watch-kill-signal": {
+          "type": "string"
+        },
+        "watch-path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "watch-preserve-output": {
+          "type": "boolean"
+        }
+      }
     }
   },
   "type": "object"
