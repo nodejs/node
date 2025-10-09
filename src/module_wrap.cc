@@ -164,7 +164,11 @@ ModuleWrap::ModuleWrap(Realm* realm,
     linked_ = true;
   }
   MakeWeak();
-  module_.SetWeak();
+  // Don't make module_ weak - it creates an undetectable GC cycle with the
+  // wrapper object. The module will be released when ~ModuleWrap() is called
+  // after the wrapper object is garbage collected.
+  // Fixes: https://github.com/nodejs/node/issues/59118
+  // module_.SetWeak();
 
   HandleScope scope(realm->isolate());
   Local<Context> context = realm->context();
