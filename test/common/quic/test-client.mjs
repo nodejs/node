@@ -33,8 +33,8 @@ export default class QuicTestClient {
     const args = [
       address,
       port,
-      uri ?? '',
     ];
+    if (uri !== undefined) args.push(uri);
     this.#runningProcess = spawn(this.#pathToClient, args, options);
     this.#runningProcess.on('error', (err) => {
       this.#runningProcess = undefined;

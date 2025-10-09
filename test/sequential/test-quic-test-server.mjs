@@ -1,5 +1,5 @@
 // Flags: --experimental-quic
-import { hasQuic, isAIX, isWindows, skip } from '../common/index.mjs';
+import { hasQuic, isAIX, isWindows, skip, getPort } from '../common/index.mjs';
 
 if (!hasQuic) {
   skip('QUIC support is not enabled');
@@ -28,7 +28,7 @@ setTimeout(() => {
   server.stop();
 }, 100);
 
-await server.run('localhost', '12345',
+await server.run('localhost', getPort(),
                  `${fixturesPath}/keys/agent1-key.pem`,
                  `${fixturesPath}/keys/agent1-cert.pem`,
                  { stdio: 'inherit' });

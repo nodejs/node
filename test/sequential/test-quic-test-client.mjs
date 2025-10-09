@@ -1,6 +1,5 @@
 // Flags: --experimental-quic
-import { hasQuic, isAIX, isWindows, skip } from '../common/index.mjs';
-import { rejects } from 'node:assert';
+import { hasQuic, isAIX, isWindows, skip, getPort } from '../common/index.mjs';
 
 if (!hasQuic) {
   skip('QUIC support is not enabled');
@@ -27,6 +26,4 @@ setTimeout(() => {
   client.stop();
 }, 100);
 
-// We expect this to fail since there's no server running.
-await rejects(client.run('localhost', '12345', undefined, { stdio: 'ignore' }),
-              { message: /Process exited with code 1 and signal null/ });
+await client.run('localhost', getPort(), undefined, { stdio: 'ignore' });
