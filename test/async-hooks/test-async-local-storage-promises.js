@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { AsyncLocalStorage } = require('async_hooks');
 
@@ -11,18 +11,14 @@ async function main() {
       assert.strictEqual(asyncLocalStorage.getStore().get('a'), 1);
       throw err;
     });
-  await new Promise((resolve, reject) => {
+  await assert.rejects(new Promise((resolve, reject) => {
     asyncLocalStorage.run(new Map(), () => {
       const store = asyncLocalStorage.getStore();
       store.set('a', 1);
       next().then(resolve, reject);
     });
-  })
-    .catch((e) => {
-      assert.strictEqual(asyncLocalStorage.getStore(), undefined);
-      assert.strictEqual(e, err);
-    });
+  }), err);
   assert.strictEqual(asyncLocalStorage.getStore(), undefined);
 }
 
-main();
+main().then(common.mustCall());

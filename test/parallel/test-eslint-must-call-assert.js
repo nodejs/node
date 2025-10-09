@@ -51,6 +51,9 @@ tester.run('must-call-assert', rule, {
     new Promise(() => {
       assert.ok(global.prop);
     }).then(common.mustCall());
+    process.nextTick(() => {
+      assert.ok(String);
+    });
     `,
     `
     import test from 'node:test';
