@@ -13,12 +13,12 @@ const { createHook, AsyncResource } = require('async_hooks');
 const resType = 'MyResource';
 let activeId = -1;
 createHook({
-  init(id, type) {
+  init: common.mustCallAtLeast((id, type) => {
     if (type === resType) {
       assert.strictEqual(activeId, -1);
       activeId = id;
     }
-  },
+  }),
   destroy(id) {
     if (activeId === id) {
       activeId = -1;
@@ -94,4 +94,4 @@ testNextTick();
 tick(2, testQueueMicrotask);
 tick(4, testImmediate);
 tick(6, testPromise);
-tick(8, () => testAwait().then(common.mustCall()));
+tick(8, common.mustCall(() => testAwait().then(common.mustCall())));
