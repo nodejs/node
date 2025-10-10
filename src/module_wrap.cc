@@ -185,30 +185,6 @@ Local<Context> ModuleWrap::context() const {
   return obj.As<Object>()->GetCreationContextChecked();
 }
 
-ModuleWrap* ModuleWrap::GetLinkedRequest(uint32_t index) {
-  DCHECK(IsLinked());
-  Isolate* isolate = env()->isolate();
-  EscapableHandleScope scope(isolate);
-  Local<Data> linked_requests_data =
-      object()->GetInternalField(kLinkedRequestsSlot);
-  DCHECK(linked_requests_data->IsValue() &&
-         linked_requests_data.As<Value>()->IsArray());
-  Local<Array> requests = linked_requests_data.As<Array>();
-
-  CHECK_LT(index, requests->Length());
-
-  Local<Value> module_value;
-  if (!requests->Get(context(), index).ToLocal(&module_value)) {
-    return nullptr;
-  }
-  CHECK(module_value->IsObject());
-  Local<Object> module_object = module_value.As<Object>();
-
-  ModuleWrap* module_wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&module_wrap, module_object, nullptr);
-  return module_wrap;
-}
-
 ModuleWrap* ModuleWrap::GetFromModule(Environment* env,
                                       Local<Module> module) {
   auto range = env->hash_to_module_map.equal_range(module->GetIdentityHash());
@@ -644,6 +620,7 @@ void ModuleWrap::GetModuleRequests(const FunctionCallbackInfo<Value>& args) {
 // moduleWrap.link(moduleWraps)
 void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
   Realm* realm = Realm::GetCurrent(args);
   Local<Context> context = realm->context();
 
@@ -655,8 +632,13 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Local<FixedArray> requests =
       dependent->module_.Get(isolate)->GetModuleRequests();
   Local<Array> modules = args[0].As<Array>();
-  int request_count = requests->Length();
-  CHECK_EQ(modules->Length(), static_cast<uint32_t>(request_count));
+  std::vector<Global<Value>> modules_vector;
+  if (FromV8Array(context, modules, &modules_vector).IsEmpty()) {
+    return;
+  }
+  size_t request_count = static_cast<size_t>(requests->Length());
+  CHECK_EQ(modules_vector.size(), request_count);
+  std::vector<ModuleWrap*> linked_module_wraps(request_count);
 
   // Track the duplicated module requests. For example if a modulelooks like
   // this:
@@ -670,13 +652,13 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   // module request 1 would be mapped to mod_key and both should resolve to the
   // module identified by module request 0 (the first one with this identity),
   // and module request 2 should resolve the module identified by index 2.
-  std::unordered_map<ModuleCacheKey, int, ModuleCacheKey::Hash>
+  std::unordered_map<ModuleCacheKey, size_t, ModuleCacheKey::Hash>
       module_request_map;
-  Local<Value> current_module;
-  Local<Value> first_seen_module;
-  for (int i = 0; i < request_count; i++) {
+
+  for (size_t i = 0; i < request_count; i++) {
     // TODO(joyeecheung): merge this with the serializeKey() in module_map.js.
     // This currently doesn't sort the import attributes.
+    Local<Value> module_value = modules_vector[i].Get(isolate);
     ModuleCacheKey module_cache_key = ModuleCacheKey::From(
         context, requests->Get(context, i).As<ModuleRequest>());
     auto it = module_request_map.find(module_cache_key);
@@ -686,13 +668,12 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
       // check here.
       module_request_map[module_cache_key] = i;
     } else {  // This identity has been seen before, check for mismatch.
-      int first_seen_index = it->second;
+      size_t first_seen_index = it->second;
       // Check that the module is the same as the one resolved by the first
       // request with this identity.
-      if (!modules->Get(context, i).ToLocal(&current_module) ||
-          !modules->Get(context, first_seen_index)
-               .ToLocal(&first_seen_module) ||
-          !current_module->StrictEquals(first_seen_module)) {
+      Local<Value> first_seen_value =
+          modules_vector[first_seen_index].Get(isolate);
+      if (!module_value->StrictEquals(first_seen_value)) {
         // If the module is different from the one of the same request, throw an
         // error.
         THROW_ERR_MODULE_LINK_MISMATCH(
@@ -705,9 +686,16 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
         return;
       }
     }
+
+    CHECK(module_value->IsObject());  // Guaranteed by link methods in JS land.
+    ModuleWrap* resolved =
+        BaseObject::Unwrap<ModuleWrap>(module_value.As<Object>());
+    CHECK_NOT_NULL(resolved);  // Guaranteed by link methods in JS land.
+    linked_module_wraps[i] = resolved;
   }
 
   args.This()->SetInternalField(kLinkedRequestsSlot, modules);
+  std::swap(dependent->linked_module_wraps_, linked_module_wraps);
   dependent->linked_ = true;
 }
 
@@ -1109,10 +1097,15 @@ Maybe<ModuleWrap*> ModuleWrap::ResolveModule(Local<Context> context,
     return Nothing<ModuleWrap*>();
   }
 
-  ModuleWrap* module_wrap =
-      dependent->GetLinkedRequest(static_cast<uint32_t>(module_request_index));
-  CHECK_NOT_NULL(module_wrap);
-  return Just(module_wrap);
+  size_t linked_module_count = dependent->linked_module_wraps_.size();
+  if (linked_module_count > 0) {
+    CHECK_LT(module_request_index, linked_module_count);
+  } else {
+    UNREACHABLE("Module resolution callback invoked for a module"
+                " without linked requests");
+  }
+
+  return Just(dependent->linked_module_wraps_[module_request_index]);
 }
 
 static MaybeLocal<Promise> ImportModuleDynamicallyWithPhase(

@@ -100,7 +100,8 @@ class ModuleWrap : public BaseObject {
     kModuleSourceObjectSlot,
     kSyntheticEvaluationStepsSlot,
     kContextObjectSlot,   // Object whose creation context is the target Context
-    kLinkedRequestsSlot,  // Array of linked requests
+    kLinkedRequestsSlot,  // Array of linked requests, each is a ModuleWrap JS
+                          // wrapper object.
     kInternalFieldCount
   };
 
@@ -131,8 +132,6 @@ class ModuleWrap : public BaseObject {
   }
 
   bool IsLinked() const { return linked_; }
-
-  ModuleWrap* GetLinkedRequest(uint32_t index);
 
   static v8::Local<v8::PrimitiveArray> GetHostDefinedOptions(
       v8::Isolate* isolate, v8::Local<v8::Symbol> symbol);
@@ -216,6 +215,11 @@ class ModuleWrap : public BaseObject {
   // nullopt value.
   std::optional<bool> has_async_graph_ = std::nullopt;
   int module_hash_;
+  // Corresponds to the ModuleWrap* of the wrappers in kLinkedRequestsSlot.
+  // These are populated during Link(), and are only valid after that as
+  // convenient shortcuts, but do not hold the ModuleWraps alive. The actual
+  // strong references come from the array in kLinkedRequestsSlot.
+  std::vector<ModuleWrap*> linked_module_wraps_;
 };
 
 }  // namespace loader
