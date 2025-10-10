@@ -374,6 +374,7 @@ declare namespace primordials {
   export const RegExpPrototypeGetUnicode: UncurryGetter<typeof RegExp.prototype, "unicode">;
   export const RegExpPrototypeSymbolReplace: UncurryMethod<typeof RegExp.prototype, typeof Symbol.replace>
   export const RegExpPrototypeSymbolSplit: UncurryMethod<typeof RegExp.prototype, typeof Symbol.split>
+  export const SafeArrayPrototypePushApply: typeof ArrayPrototypePushApply;
   export import Set = globalThis.Set;
   export const SetLength: typeof Set.length
   export const SetName: typeof Set.name
