@@ -1,6 +1,7 @@
 import { AsyncContextFrameBinding } from './internalBinding/async_context_frame';
 import { AsyncWrapBinding } from './internalBinding/async_wrap';
 import { BlobBinding } from './internalBinding/blob';
+import { BufferBinding } from './internalBinding/buffer';
 import { ConfigBinding } from './internalBinding/config';
 import { ConstantsBinding } from './internalBinding/constants';
 import { DebugBinding } from './internalBinding/debug';
@@ -33,6 +34,7 @@ interface InternalBindingMap {
   async_context_frame: AsyncContextFrameBinding;
   async_wrap: AsyncWrapBinding;
   blob: BlobBinding;
+  buffer: BufferBinding;
   config: ConfigBinding;
   constants: ConstantsBinding;
   debug: DebugBinding;
