@@ -24,6 +24,7 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+'use strict';
 
 const common = require('../../common');
 const addon = require(`./build/${common.buildType}/test_general`);
@@ -31,22 +32,22 @@ const assert = require('assert');
 
 // The following assert functions are referenced by v8's unit tests
 // See for instance deps/v8/test/mjsunit/instanceof.js
-// eslint-disable-next-line no-unused-vars
+
 function assertTrue(assertion) {
   return assert.strictEqual(assertion, true);
 }
 
-// eslint-disable-next-line no-unused-vars
+
 function assertFalse(assertion) {
   assert.strictEqual(assertion, false);
 }
 
-// eslint-disable-next-line no-unused-vars
+
 function assertEquals(leftHandSide, rightHandSide) {
   assert.strictEqual(leftHandSide, rightHandSide);
 }
 
-// eslint-disable-next-line no-unused-vars
+
 function assertThrows(statement) {
   assert.throws(function() {
     eval(statement);
@@ -60,11 +61,11 @@ assertFalse(addon.doInstanceOf({}, Array));
 assertTrue(addon.doInstanceOf([], Array));
 
 function TestChains() {
-  var A = {};
-  var B = {};
-  var C = {};
-  B.__proto__ = A;
-  C.__proto__ = B;
+  const A = {};
+  const B = {};
+  const C = {};
+  Object.setPrototypeOf(B, A);
+  Object.setPrototypeOf(C, B);
 
   function F() { }
   F.prototype = A;
@@ -88,18 +89,18 @@ TestChains();
 
 function TestExceptions() {
   function F() { }
-  var items = [ 1, new Number(42),
-                true,
-                'string', new String('hest'),
-                {}, [],
-                F, new F(),
-                Object, String ];
+  const items = [ 1, new Number(42),
+                  true,
+                  'string', new String('hest'),
+                  {}, [],
+                  F, new F(),
+                  Object, String ];
 
-  var exceptions = 0;
-  var instanceofs = 0;
+  let exceptions = 0;
+  let instanceofs = 0;
 
-  for (var i = 0; i < items.length; i++) {
-    for (var j = 0; j < items.length; j++) {
+  for (let i = 0; i < items.length; i++) {
+    for (let j = 0; j < items.length; j++) {
       try {
         if (addon.doInstanceOf(items[i], items[j])) instanceofs++;
       } catch (e) {
@@ -115,7 +116,7 @@ function TestExceptions() {
   // isn't a proper JavaScript object.
   function G() { }
   G.prototype = undefined;
-  assertThrows("addon.doInstanceOf({}, G)");
+  assertThrows('addon.doInstanceOf({}, G)');
 }
 
 TestExceptions();
