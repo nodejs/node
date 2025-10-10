@@ -458,7 +458,7 @@ helps to avoid the overhead of repeatedly parsing and preparing the same SQL
 statements.
 
 Tagged statements bind the placeholder values from the template literal as
-parameters to the underlying prepared statement. That is to say,
+parameters to the underlying prepared statement. For example:
 
 ```js
 tagStore.get`SELECT ${value}`;
@@ -470,8 +470,8 @@ is equivalent to
 db.prepare('SELECT ?').get(value);
 ```
 
-except that the tag store will cache the underlying prepared statement for
-future use.
+However, in the first example, the tag store will cache the underlying prepared
+statement for future use.
 
 The tag store will match a statement from the cache if the query strings
 (including the positions of any bound placeholders) are identical.
