@@ -662,7 +662,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   // this:
   //
   // import { foo } from 'mod' with { type: 'json' };
-  // import { bar } from 'mod' with { type: 'json' };
+  // import source ModSource from 'mod' with { type: 'json' };
   // import { baz } from 'mod2';
   //
   // The first two module requests are identical. The map would look like
