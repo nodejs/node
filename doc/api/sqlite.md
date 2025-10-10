@@ -446,15 +446,54 @@ added: v24.9.0
   **Default:** `1000`.
 * Returns: {SQLTagStore} A new SQL tag store for caching prepared statements.
 
-Creates a new `SQLTagStore`, which is an LRU (Least Recently Used) cache for
-storing prepared statements. This allows for the efficient reuse of prepared
-statements by tagging them with a unique identifier.
+Creates a new [`SQLTagStore`][], which is an LRU (Least Recently Used) cache
+for storing prepared statements. This allows for the efficient reuse of
+prepared statements by tagging them with a unique identifier.
 
 When a tagged SQL literal is executed, the `SQLTagStore` checks if a prepared
-statement for that specific SQL string already exists in the cache. If it does,
-the cached statement is used. If not, a new prepared statement is created,
-executed, and then stored in the cache for future use. This mechanism helps to
-avoid the overhead of repeatedly parsing and preparing the same SQL statements.
+statement for the corresponding SQL query string already exists in the cache.
+If it does, the cached statement is used. If not, a new prepared statement is
+created, executed, and then stored in the cache for future use. This mechanism
+helps to avoid the overhead of repeatedly parsing and preparing the same SQL
+statements.
+
+Tagged statements bind the "placeholder" values from the template literal as
+parameters to the underlying prepared statement. That is to say,
+
+```js
+tagStore.get`SELECT ${value}`;
+```
+
+is equivalent to
+
+```js
+db.prepare('SELECT ?').get(value);
+```
+
+except that the tag store will cache the underlying prepared statement for
+future use.
+
+The tag store will match a statement from the cache if the query strings
+(including the positions of any bound placeholders) are identical.
+
+```js
+// The following statements will match in the cache:
+tagStore.get`SELECT * FROM t1 WHERE id = ${id} AND active = 1`;
+tagStore.get`SELECT * FROM t1 WHERE id = ${12345} AND active = 1`;
+
+// The following statements will not match, as the query strings
+// and bound placeholders differ:
+tagStore.get`SELECT * FROM t1 WHERE id = ${id} AND active = 1`;
+tagStore.get`SELECT * FROM t1 WHERE id = 12345 AND active = 1`;
+
+// The following statements will not match, as matches are case-sensitive:
+tagStore.get`SELECT * FROM t1 WHERE id = ${id} AND active = 1`;
+tagStore.get`select * from t1 where id = ${id} and active = 1`;
+```
+
+The only way of binding parameters in tagged statements is with the `${value}`
+syntax. Do not add parameter binding placeholders (`?` etc.) to the SQL query
+string itself.
 
 ```mjs
 import { DatabaseSync } from 'node:sqlite';
@@ -609,23 +648,6 @@ wrapper around [`sqlite3session_patchset()`][].
 Closes the session. An exception is thrown if the database or the session is not open. This method is a
 wrapper around [`sqlite3session_delete()`][].
 
-## Class: `StatementSync`
-
-<!-- YAML
-added: v22.5.0
--->
-
-This class represents a single [prepared statement][]. This class cannot be
-instantiated via its constructor. Instead, instances are created via the
-`database.prepare()` method. All APIs exposed by this class execute
-synchronously.
-
-A prepared statement is an efficient binary representation of the SQL used to
-create it. Prepared statements are parameterizable, and can be invoked multiple
-times with different bound values. Parameters also offer protection against
-[SQL injection][] attacks. For these reasons, prepared statements are preferred
-over hand-crafted SQL strings when handling user input.
-
 ## Class: `SQLTagStore`
 
 <!-- YAML
@@ -635,64 +657,85 @@ added: v24.9.0
 This class represents a single LRU (Least Recently Used) cache for storing
 prepared statements.
 
-Instances of this class are created via the database.createSQLTagStore() method,
-not by using a constructor. The store caches prepared statements based on the
-provided SQL query string. When the same query is seen again, the store
+Instances of this class are created via the [`database.createSQLTagStore()`][]
+method, not by using a constructor. The store caches prepared statements based
+on the provided SQL query string. When the same query is seen again, the store
 retrieves the cached statement and safely applies the new values through
 parameter binding, thereby preventing attacks like SQL injection.
 
 The cache has a maxSize that defaults to 1000 statements, but a custom size can
-be provided (e.g., database.createSQLTagStore(100)). All APIs exposed by this
+be provided (e.g., `database.createSQLTagStore(100)`). All APIs exposed by this
 class execute synchronously.
 
-### `sqlTagStore.all(sqlTemplate[, ...values])`
+### `sqlTagStore.all(stringElements[, ...boundParameters])`
 
 <!-- YAML
 added: v24.9.0
 -->
 
-* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
-* `...values` {any} Values to be interpolated into the template literal.
+* `stringElements` {string\[]} Template literal elements containing the SQL
+  query.
+* `...boundParameters` {null|number|bigint|string|Buffer|TypedArray|DataView}
+  Parameter values to be bound to placeholders in the template string.
 * Returns: {Array} An array of objects representing the rows returned by the query.
 
-Executes the given SQL query and returns all resulting rows as an array of objects.
+Executes the given SQL query and returns all resulting rows as an array of
+objects.
 
-### `sqlTagStore.get(sqlTemplate[, ...values])`
+This function is intended to be used as a template literal tag, not to be
+called directly.
+
+### `sqlTagStore.get(stringElements[, ...boundParameters])`
 
 <!-- YAML
 added: v24.9.0
 -->
 
-* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
-* `...values` {any} Values to be interpolated into the template literal.
+* `stringElements` {string\[]} Template literal elements containing the SQL
+  query.
+* `...boundParameters` {null|number|bigint|string|Buffer|TypedArray|DataView}
+  Parameter values to be bound to placeholders in the template string.
 * Returns: {Object | undefined} An object representing the first row returned by
   the query, or `undefined` if no rows are returned.
 
 Executes the given SQL query and returns the first resulting row as an object.
 
-### `sqlTagStore.iterate(sqlTemplate[, ...values])`
+This function is intended to be used as a template literal tag, not to be
+called directly.
+
+### `sqlTagStore.iterate(stringElements[, ...boundParameters])`
 
 <!-- YAML
 added: v24.9.0
 -->
 
-* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
-* `...values` {any} Values to be interpolated into the template literal.
+* `stringElements` {string\[]} Template literal elements containing the SQL
+  query.
+* `...boundParameters` {null|number|bigint|string|Buffer|TypedArray|DataView}
+  Parameter values to be bound to placeholders in the template string.
 * Returns: {Iterator} An iterator that yields objects representing the rows returned by the query.
 
 Executes the given SQL query and returns an iterator over the resulting rows.
 
-### `sqlTagStore.run(sqlTemplate[, ...values])`
+This function is intended to be used as a template literal tag, not to be
+called directly.
+
+### `sqlTagStore.run(stringElements[, ...boundParameters])`
 
 <!-- YAML
 added: v24.9.0
 -->
 
-* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
-* `...values` {any} Values to be interpolated into the template literal.
+* `stringElements` {string\[]} Template literal elements containing the SQL
+  query.
+* `...boundParameters` {null|number|bigint|string|Buffer|TypedArray|DataView}
+  Parameter values to be bound to placeholders in the template string.
 * Returns: {Object} An object containing information about the execution, including `changes` and `lastInsertRowid`.
 
 Executes the given SQL query, which is expected to not return any rows (e.g., INSERT, UPDATE, DELETE).
+
+This function is intended to be used as a template literal tag, not to be
+called directly.
 
 ### `sqlTagStore.size()`
 
@@ -739,6 +782,23 @@ added: v24.9.0
 -->
 
 An alias for `sqlTagStore.reset()`.
+
+## Class: `StatementSync`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+This class represents a single [prepared statement][]. This class cannot be
+instantiated via its constructor. Instead, instances are created via the
+`database.prepare()` method. All APIs exposed by this class execute
+synchronously.
+
+A prepared statement is an efficient binary representation of the SQL used to
+create it. Prepared statements are parameterizable, and can be invoked multiple
+times with different bound values. Parameters also offer protection against
+[SQL injection][] attacks. For these reasons, prepared statements are preferred
+over hand-crafted SQL strings when handling user input.
 
 ### `statement.all([namedParameters][, ...anonymousParameters])`
 
@@ -1309,7 +1369,9 @@ callback function to indicate what type of operation is being authorized.
 [`SQLITE_DETERMINISTIC`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_DIRECTONLY`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_MAX_FUNCTION_ARG`]: https://www.sqlite.org/limits.html#max_function_arg
+[`SQLTagStore`]: #class-sqltagstore
 [`database.applyChangeset()`]: #databaseapplychangesetchangeset-options
+[`database.createSQLTagStore()`]: #databasecreatesqltagstoremaxsize
 [`database.setAuthorizer()`]: #databasesetauthorizercallback
 [`sqlite3_backup_finish()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupfinish
 [`sqlite3_backup_init()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupinit
