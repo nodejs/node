@@ -2832,4 +2832,4 @@ L001K512:
 L_OPENSSL_ia32cap_P$non_lazy_ptr:
 .indirect_symbol	_OPENSSL_ia32cap_P
 .long	0
-.comm	_OPENSSL_ia32cap_P,16,2
+.comm	_OPENSSL_ia32cap_P,40,2

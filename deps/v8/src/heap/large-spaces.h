@@ -105,6 +105,8 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
 
   base::Mutex* pending_allocation_mutex() { return &pending_allocation_mutex_; }
 
+  void UpdateAccountingAfterResizingObject(size_t old_size, size_t new_size);
+
   void set_objects_size(size_t objects_size) { objects_size_ = objects_size; }
 
  protected:
@@ -113,7 +115,8 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   void AdvanceAndInvokeAllocationObservers(Address soon_object, size_t size);
 
   LargePageMetadata* AllocateLargePage(int object_size,
-                                       Executability executable);
+                                       Executability executable,
+                                       AllocationHint hint);
 
   void UpdatePendingObject(Tagged<HeapObject> object);
 
@@ -144,7 +147,7 @@ class OldLargeObjectSpace : public LargeObjectSpace {
   V8_EXPORT_PRIVATE explicit OldLargeObjectSpace(Heap* heap);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRaw(LocalHeap* local_heap, int object_size);
+  AllocateRaw(LocalHeap* local_heap, int object_size, AllocationHint hint);
 
   void PromoteNewLargeObject(LargePageMetadata* page);
 
@@ -152,7 +155,8 @@ class OldLargeObjectSpace : public LargeObjectSpace {
   explicit OldLargeObjectSpace(Heap* heap, AllocationSpace id);
   V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(LocalHeap* local_heap,
                                                      int object_size,
-                                                     Executability executable);
+                                                     Executability executable,
+                                                     AllocationHint hint);
 };
 
 class SharedLargeObjectSpace : public OldLargeObjectSpace {
@@ -177,7 +181,7 @@ class NewLargeObjectSpace : public LargeObjectSpace {
   NewLargeObjectSpace(Heap* heap, size_t capacity);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRaw(LocalHeap* local_heap, int object_size);
+  AllocateRaw(LocalHeap* local_heap, int object_size, AllocationHint hint);
 
   // Available bytes for objects in this space.
   size_t Available() const override;
@@ -197,7 +201,7 @@ class CodeLargeObjectSpace : public OldLargeObjectSpace {
   explicit CodeLargeObjectSpace(Heap* heap);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRaw(LocalHeap* local_heap, int object_size);
+  AllocateRaw(LocalHeap* local_heap, int object_size, AllocationHint hint);
 
  protected:
   void AddPage(LargePageMetadata* page, size_t object_size) override;

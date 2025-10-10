@@ -73,7 +73,7 @@ static void *v2i_POLICY_MAPPINGS(const X509V3_EXT_METHOD *method,
     int i;
 
     if ((pmaps = sk_POLICY_MAPPING_new_reserve(NULL, num)) == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
         return NULL;
     }
 
@@ -93,7 +93,7 @@ static void *v2i_POLICY_MAPPINGS(const X509V3_EXT_METHOD *method,
         }
         pmap = POLICY_MAPPING_new();
         if (pmap == NULL) {
-            ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
             goto err;
         }
         pmap->issuerDomainPolicy = obj1;

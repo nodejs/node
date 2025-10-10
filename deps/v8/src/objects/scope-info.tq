@@ -29,7 +29,7 @@ extern enum VariableAllocationInfo extends uint32 {
   UNUSED
 }
 
-extern enum VariableMode extends uint32 {
+extern enum VariableMode extends int32 {
   kLet,
   kConst,
   kUsing,
@@ -86,6 +86,7 @@ bitfield struct ScopeFlags extends uint32 {
   is_hidden: bool: 1 bit;
   is_empty: bool: 1 bit;
   is_wrapped_function: bool: 1 bit;
+  has_context_cells: bool: 1 bit;
 }
 
 struct PositionInfo {
@@ -156,9 +157,8 @@ extern class ScopeInfo extends HeapObject {
 
   // If the scope is a class scope and it has static private methods that
   // may be accessed directly or through eval, one slot is reserved to hold
-  // the offset in the field storage of the hash table (or the slot index if
-  // local names are inlined) for the class variable.
-  saved_class_variable_info?[flags.has_saved_class_variable]: Smi;
+  // the name of the class variable or the slot index if locals are inlined.
+  saved_class_variable_info?[flags.has_saved_class_variable]: Smi|Name;
 
   // If the scope belongs to a named function expression this part contains
   // information about the function variable. It always occupies two array
@@ -171,7 +171,7 @@ extern class ScopeInfo extends HeapObject {
 
   inferred_function_name?[flags.has_inferred_function_name]: String|Undefined;
 
-  outer_scope_info?[flags.has_outer_scope_info]: ScopeInfo|TheHole;
+  outer_scope_info?[flags.has_outer_scope_info]: ScopeInfo;
 
   // For a module scope, this part contains the SourceTextModuleInfo and the
   // metadata of module-allocated variables. For non-module scopes it is empty.
@@ -210,4 +210,15 @@ macro IndexOfLocalName(
     return NameToIndexHashTableLookup(
         scopeInfo.context_local_names_hashtable, name) otherwise goto NotFound;
   }
+}
+
+@export
+macro GetFunctionContextSlotInitialValue(
+    scopeInfo: ScopeInfo, index: intptr): Object {
+  dcheck(index < Convert<intptr>(scopeInfo.context_local_count));
+  const info = scopeInfo.context_local_infos[index];
+  if (info.maybe_assigned_flag != MaybeAssignedFlag::kNotAssigned) {
+    return UndefinedContextCellConstant();
+  }
+  return Undefined;
 }

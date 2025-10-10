@@ -40,7 +40,7 @@ class JSPluralRules
  public:
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSPluralRules> New(
       Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
-      DirectHandle<Object> options);
+      DirectHandle<Object> options, const char* method_name);
 
   static DirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSPluralRules> plural_rules);

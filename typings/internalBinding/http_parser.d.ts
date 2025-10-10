@@ -2,6 +2,15 @@ declare namespace InternalHttpParserBinding {
   type Buffer = Uint8Array;
   type Stream = object;
 
+  class ConnectionsList {
+    constructor();
+
+    all(): HTTPParser[];
+    idle(): HTTPParser[];
+    active(): HTTPParser[];
+    expired(): HTTPParser[];
+  }
+
   class HTTPParser {
     static REQUEST: 1;
     static RESPONSE: 2;
@@ -40,6 +49,8 @@ declare namespace InternalHttpParserBinding {
 }
 
 export interface HttpParserBinding {
-  methods: string[];
+  ConnectionsList: typeof InternalHttpParserBinding.ConnectionsList;
   HTTPParser: typeof InternalHttpParserBinding.HTTPParser;
+  allMethods: string[];
+  methods: string[];
 }

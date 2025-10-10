@@ -33,7 +33,7 @@ Tagged<Object> StrongTaggedValue::ToObject(Isolate* isolate,
                                            StrongTaggedValue object) {
 #ifdef V8_COMPRESS_POINTERS
   return Tagged<Object>(
-      V8HeapCompressionScheme::DecompressTagged(isolate, object.ptr()));
+      V8HeapCompressionScheme::DecompressTagged(object.ptr()));
 #else
   return Tagged<Object>(object.ptr());
 #endif
@@ -53,7 +53,7 @@ Tagged<MaybeObject> TaggedValue::ToMaybeObject(Isolate* isolate,
                                                TaggedValue object) {
 #ifdef V8_COMPRESS_POINTERS
   return Tagged<MaybeObject>(
-      V8HeapCompressionScheme::DecompressTagged(isolate, object.ptr()));
+      V8HeapCompressionScheme::DecompressTagged(object.ptr()));
 #else
   return Tagged<MaybeObject>(object.ptr());
 #endif

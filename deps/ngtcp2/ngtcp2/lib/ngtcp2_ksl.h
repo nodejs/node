@@ -292,8 +292,11 @@ void ngtcp2_ksl_clear(ngtcp2_ksl *ksl);
 /*
  * ngtcp2_ksl_nth_node returns the |n|th node under |blk|.
  */
-#define ngtcp2_ksl_nth_node(KSL, BLK, N)                                       \
-  ((ngtcp2_ksl_node *)(void *)((BLK)->nodes + (KSL)->nodelen * (N)))
+static inline ngtcp2_ksl_node *ngtcp2_ksl_nth_node(const ngtcp2_ksl *ksl,
+                                                   const ngtcp2_ksl_blk *blk,
+                                                   size_t n) {
+  return (ngtcp2_ksl_node *)(void *)(blk->nodes + ksl->nodelen * n);
+}
 
 #ifndef WIN32
 /*
@@ -315,18 +318,21 @@ void ngtcp2_ksl_it_init(ngtcp2_ksl_it *it, const ngtcp2_ksl *ksl,
  * |it| points to.  It is undefined to call this function when
  * ngtcp2_ksl_it_end(it) returns nonzero.
  */
-#define ngtcp2_ksl_it_get(IT)                                                  \
-  ngtcp2_ksl_nth_node((IT)->ksl, (IT)->blk, (IT)->i)->data
+static inline void *ngtcp2_ksl_it_get(const ngtcp2_ksl_it *it) {
+  return ngtcp2_ksl_nth_node(it->ksl, it->blk, it->i)->data;
+}
 
 /*
  * ngtcp2_ksl_it_next advances the iterator by one.  It is undefined
  * if this function is called when ngtcp2_ksl_it_end(it) returns
  * nonzero.
  */
-#define ngtcp2_ksl_it_next(IT)                                                 \
-  (++(IT)->i == (IT)->blk->n && (IT)->blk->next                                \
-     ? ((IT)->blk = (IT)->blk->next, (IT)->i = 0)                              \
-     : 0)
+static inline void ngtcp2_ksl_it_next(ngtcp2_ksl_it *it) {
+  if (++it->i == it->blk->n && it->blk->next) {
+    it->blk = it->blk->next;
+    it->i = 0;
+  }
+}
 
 /*
  * ngtcp2_ksl_it_prev moves backward the iterator by one.  It is
@@ -339,8 +345,9 @@ void ngtcp2_ksl_it_prev(ngtcp2_ksl_it *it);
  * ngtcp2_ksl_it_end returns nonzero if |it| points to the one beyond
  * the last node.
  */
-#define ngtcp2_ksl_it_end(IT)                                                  \
-  ((IT)->blk->n == (IT)->i && (IT)->blk->next == NULL)
+static inline int ngtcp2_ksl_it_end(const ngtcp2_ksl_it *it) {
+  return it->blk->n == it->i && it->blk->next == NULL;
+}
 
 /*
  * ngtcp2_ksl_it_begin returns nonzero if |it| points to the first
@@ -354,8 +361,9 @@ int ngtcp2_ksl_it_begin(const ngtcp2_ksl_it *it);
  * It is undefined to call this function when ngtcp2_ksl_it_end(it)
  * returns nonzero.
  */
-#define ngtcp2_ksl_it_key(IT)                                                  \
-  ((ngtcp2_ksl_key *)ngtcp2_ksl_nth_node((IT)->ksl, (IT)->blk, (IT)->i)->key)
+static inline ngtcp2_ksl_key *ngtcp2_ksl_it_key(const ngtcp2_ksl_it *it) {
+  return (ngtcp2_ksl_key *)ngtcp2_ksl_nth_node(it->ksl, it->blk, it->i)->key;
+}
 
 /*
  * ngtcp2_ksl_range_compar is an implementation of ngtcp2_ksl_compar.

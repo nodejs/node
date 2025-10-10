@@ -16,7 +16,6 @@ declare namespace DiagnosticsChannel {
     statusText: string;
     headers: Array<Buffer>;
   }
-  type Error = unknown
   interface ConnectParams {
     host: URL['host'];
     hostname: URL['hostname'];
@@ -30,6 +29,15 @@ declare namespace DiagnosticsChannel {
   }
   export interface RequestBodySentMessage {
     request: Request;
+  }
+
+  export interface RequestBodyChunkSentMessage {
+    request: Request;
+    chunk: Uint8Array | string;
+  }
+  export interface RequestBodyChunkReceivedMessage {
+    request: Request;
+    chunk: Buffer;
   }
   export interface RequestHeadersMessage {
     request: Request;

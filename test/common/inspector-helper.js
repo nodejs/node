@@ -550,6 +550,7 @@ function fires(promise, error, timeoutMs) {
  *
  * This function provides a utility to wait until a inspector event for a certain
  * time.
+ * @returns {Promise}
  */
 function waitUntil(session, eventName, timeout = 1000) {
   const resolvers = Promise.withResolvers();

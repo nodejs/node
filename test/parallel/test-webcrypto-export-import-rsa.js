@@ -19,6 +19,16 @@ const hashes = [
   'SHA-512',
 ];
 
+if (!process.features.openssl_is_boringssl) {
+  hashes.push(
+    'SHA3-256',
+    'SHA3-384',
+    'SHA3-512',
+  );
+} else {
+  common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+}
+
 const keyData = {
   1024: {
     spki: Buffer.from(
@@ -387,13 +397,13 @@ async function testImportJwk(
   let alg;
   switch (name) {
     case 'RSA-PSS':
-      alg = `PS${hash === 'SHA-1' ? 1 : hash.substring(4)}`;
+      alg = hash.startsWith('SHA-') ? `PS${hash === 'SHA-1' ? 1 : hash.substring(4)}` : undefined;
       break;
     case 'RSA-OAEP':
-      alg = `RSA-OAEP${hash === 'SHA-1' ? '' : hash.substring(3)}`;
+      alg = hash.startsWith('SHA-') ? `RSA-OAEP${hash === 'SHA-1' ? '' : hash.substring(3)}` : undefined;
       break;
     case 'RSASSA-PKCS1-v1_5':
-      alg = `RS${hash === 'SHA-1' ? 1 : hash.substring(4)}`;
+      alg = hash.startsWith('SHA-') ? `RS${hash === 'SHA-1' ? 1 : hash.substring(4)}` : undefined;
       break;
   }
 
@@ -497,7 +507,7 @@ async function testImportJwk(
       { message: 'Invalid JWK "use" Parameter' });
   }
 
-  {
+  if (alg) {
     await assert.rejects(
       subtle.importKey(
         'jwk',
@@ -516,7 +526,7 @@ async function testImportJwk(
       { message: 'JWK "alg" does not match the requested algorithm' });
   }
 
-  {
+  if (!hash.startsWith('SHA3-')) {
     let invalidAlgHash = name === 'RSA-OAEP' ? name : name === 'RSA-PSS' ? 'PS' : 'RS';
     switch (name) {
       case 'RSA-OAEP':
@@ -547,7 +557,7 @@ async function testImportJwk(
       { message: 'JWK "alg" does not match the requested algorithm' });
   }
 
-  {
+  if (!hash.startsWith('SHA3-')) {
     const invalidAlgType = name === 'RSA-PSS' ? `RS${hash.substring(4)}` : `PS${hash.substring(4)}`;
     await assert.rejects(
       subtle.importKey(

@@ -35,7 +35,7 @@ const baselineRss = process.memoryUsage.rss();
 
 const start = Date.now();
 
-const interval = setInterval(function() {
+const interval = setInterval(common.mustCallAtLeast(function() {
   try {
     vm.runInNewContext('throw 1;');
   } catch {
@@ -53,7 +53,7 @@ const interval = setInterval(function() {
 
     testContextLeak();
   }
-}, 1);
+}), 1);
 
 function testContextLeak() {
   // TODO: This needs a comment explaining what it's doing. Will it crash the

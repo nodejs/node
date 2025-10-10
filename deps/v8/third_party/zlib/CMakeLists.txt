@@ -3,7 +3,7 @@ set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS ON)
 
 project(zlib C)
 
-set(VERSION "1.3.0.1")
+set(VERSION "1.3.1")
 
 set(INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin" CACHE PATH "Installation directory for executables")
 set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib" CACHE PATH "Installation directory for libraries")
@@ -47,6 +47,7 @@ if (ENABLE_SIMD_OPTIMIZATIONS)
     add_definitions(-DINFLATE_CHUNK_SIMD_SSE2)
     add_definitions(-DADLER32_SIMD_SSSE3)
     add_definitions(-DINFLATE_CHUNK_READ_64LE)
+    add_definitions(-DDEFLATE_CHUNK_WRITE_64LE)
     add_definitions(-DCRC32_SIMD_SSE42_PCLMUL)
     if (ENABLE_SIMD_AVX512)
       add_definitions(-DCRC32_SIMD_AVX512_PCLMUL)
@@ -64,6 +65,7 @@ if (ENABLE_SIMD_OPTIMIZATIONS)
     add_definitions(-DINFLATE_CHUNK_SIMD_NEON)
     add_definitions(-DADLER32_SIMD_NEON)
     add_definitions(-DINFLATE_CHUNK_READ_64LE)
+    add_definitions(-DDEFLATE_CHUNK_WRITE_64LE)
     add_definitions(-DCRC32_ARMV8_CRC32)
     add_definitions(-DDEFLATE_SLIDE_HASH_NEON)
     # Required by CPU features detection code.
@@ -83,10 +85,13 @@ if (ENABLE_SIMD_OPTIMIZATIONS)
     add_definitions(-DDEFLATE_SLIDE_HASH_RVV)
     add_definitions(-DADLER32_SIMD_RVV)
 
-    # TODO(cavalcantii): add remaining flags as we port optimizations to RVV.
     # chunk_copy is required for READ64 and unconditional decode of literals.
     add_definitions(-DINFLATE_CHUNK_GENERIC)
     add_definitions(-DINFLATE_CHUNK_READ_64LE)
+    add_definitions(-DDEFLATE_CHUNK_WRITE_64LE)
+
+    # TODO(cavalcantii): only missing optimization is SLIDE_HASH, got port it
+    # to RISCV.
 
     # Tested with clang-17, unaligned loads are required by read64 & chunk_copy.
     # TODO(cavalcantii): replace internal clang flags for -munaligned-access
@@ -267,7 +272,9 @@ if(MINGW)
 endif(MINGW)
 
 add_library(zlib SHARED ${ZLIB_SRCS} ${ZLIB_DLL_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
+target_include_directories(zlib PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 add_library(zlibstatic STATIC ${ZLIB_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
+target_include_directories(zlibstatic PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(zlib PROPERTIES DEFINE_SYMBOL ZLIB_DLL)
 set_target_properties(zlib PROPERTIES SOVERSION 1)
 

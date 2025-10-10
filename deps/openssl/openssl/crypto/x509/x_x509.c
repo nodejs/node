@@ -55,7 +55,7 @@ static int x509_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 #endif
         ASN1_OCTET_STRING_free(ret->distinguishing_id);
 
-        /* fall thru */
+        /* fall through */
 
     case ASN1_OP_NEW_POST:
         ret->ex_cached = 0;
@@ -272,10 +272,8 @@ int i2d_X509_AUX(const X509 *a, unsigned char **pp)
 
     /* Allocate requisite combined storage */
     *pp = tmp = OPENSSL_malloc(length);
-    if (tmp == NULL) {
-        ERR_raise(ERR_LIB_X509, ERR_R_MALLOC_FAILURE);
+    if (tmp == NULL)
         return -1;
-    }
 
     /* Encode, but keep *pp at the originally malloced pointer */
     length = i2d_x509_aux_internal(a, &tmp);

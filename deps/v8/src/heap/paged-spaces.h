@@ -201,7 +201,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   PageMetadata* InitializePage(MutablePageMetadata* chunk) override;
 
-  virtual void ReleasePage(PageMetadata* page);
+  virtual void RemovePageFromSpace(PageMetadata* page);
 
   // Adds the page to this space and returns the number of bytes added to the
   // free list of the space.
@@ -279,12 +279,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   const_iterator begin() const { return const_iterator(first_page()); }
   const_iterator end() const { return const_iterator(nullptr); }
 
-  // Shrink immortal immovable pages of the space to be exactly the size needed
-  // using the high water mark.
-  void ShrinkImmortalImmovablePages();
-
-  size_t ShrinkPageToHighWaterMark(PageMetadata* page);
-
   std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
   void AddRangeToActiveSystemPages(PageMetadata* page, Address start,
@@ -316,7 +310,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     return committed_physical_memory_.load(std::memory_order_relaxed);
   }
 
-  void ReleasePageImpl(PageMetadata* page, MemoryAllocator::FreeMode free_mode);
+  void RemovePageFromSpaceImpl(PageMetadata* page);
 
   void AddPageImpl(PageMetadata* page);
 
@@ -455,15 +449,16 @@ class V8_EXPORT_PRIVATE OldSpace : public PagedSpace {
       : PagedSpace(heap, OLD_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList(),
                    CompactionSpaceKind::kNone) {}
 
-  void AddPromotedPage(PageMetadata* page);
-
-  void ReleasePage(PageMetadata* page) override;
+  void AddPromotedPage(PageMetadata* page, FreeMode free_mode);
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer)
       return heap()->OldArrayBufferBytes();
     return external_backing_store_bytes_[static_cast<int>(type)];
   }
+
+  void RelinkQuarantinedPageFreeList(PageMetadata* page,
+                                     size_t filler_size_on_page);
 };
 
 // -----------------------------------------------------------------------------
@@ -532,8 +527,6 @@ class SharedSpace final : public PagedSpace {
   explicit SharedSpace(Heap* heap)
       : PagedSpace(heap, SHARED_SPACE, NOT_EXECUTABLE,
                    FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
-
-  void ReleasePage(PageMetadata* page) override;
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer) return 0;

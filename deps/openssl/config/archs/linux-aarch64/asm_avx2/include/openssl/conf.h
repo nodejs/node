@@ -27,6 +27,9 @@
 # include <openssl/e_os2.h>
 # include <openssl/types.h>
 # include <openssl/conferr.h>
+# ifndef OPENSSL_NO_STDIO
+#  include <stdio.h>
+# endif
 
 #ifdef  __cplusplus
 extern "C" {
@@ -65,7 +68,7 @@ SKM_DEFINE_STACK_OF_INTERNAL(CONF_VALUE, CONF_VALUE, CONF_VALUE)
 #define sk_CONF_VALUE_deep_copy(sk, copyfunc, freefunc) ((STACK_OF(CONF_VALUE) *)OPENSSL_sk_deep_copy(ossl_check_const_CONF_VALUE_sk_type(sk), ossl_check_CONF_VALUE_copyfunc_type(copyfunc), ossl_check_CONF_VALUE_freefunc_type(freefunc)))
 #define sk_CONF_VALUE_set_cmp_func(sk, cmp) ((sk_CONF_VALUE_compfunc)OPENSSL_sk_set_cmp_func(ossl_check_CONF_VALUE_sk_type(sk), ossl_check_CONF_VALUE_compfunc_type(cmp)))
 DEFINE_LHASH_OF_INTERNAL(CONF_VALUE);
-#define lh_CONF_VALUE_new(hfn, cmp) ((LHASH_OF(CONF_VALUE) *)OPENSSL_LH_new(ossl_check_CONF_VALUE_lh_hashfunc_type(hfn), ossl_check_CONF_VALUE_lh_compfunc_type(cmp)))
+#define lh_CONF_VALUE_new(hfn, cmp) ((LHASH_OF(CONF_VALUE) *)OPENSSL_LH_set_thunks(OPENSSL_LH_new(ossl_check_CONF_VALUE_lh_hashfunc_type(hfn), ossl_check_CONF_VALUE_lh_compfunc_type(cmp)), lh_CONF_VALUE_hash_thunk, lh_CONF_VALUE_comp_thunk, lh_CONF_VALUE_doall_thunk, lh_CONF_VALUE_doall_arg_thunk))
 #define lh_CONF_VALUE_free(lh) OPENSSL_LH_free(ossl_check_CONF_VALUE_lh_type(lh))
 #define lh_CONF_VALUE_flush(lh) OPENSSL_LH_flush(ossl_check_CONF_VALUE_lh_type(lh))
 #define lh_CONF_VALUE_insert(lh, ptr) ((CONF_VALUE *)OPENSSL_LH_insert(ossl_check_CONF_VALUE_lh_type(lh), ossl_check_CONF_VALUE_lh_plain_type(ptr)))

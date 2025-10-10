@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -37,7 +37,8 @@ static int nm##_update(EVP_MD_CTX *ctx, const void *data, size_t count)        \
 }                                                                              \
 static int nm##_final(EVP_MD_CTX *ctx, unsigned char *md)                      \
 {                                                                              \
-    return fn##_final(md, EVP_MD_CTX_get0_md_data(ctx));                       \
+    KECCAK1600_CTX *kctx = EVP_MD_CTX_get0_md_data(ctx);                       \
+    return fn##_final(kctx, md, kctx->md_size);                                \
 }
 #define IMPLEMENT_LEGACY_EVP_MD_METH_SHAKE(nm, fn, tag)                        \
 static int nm##_init(EVP_MD_CTX *ctx)                                          \
@@ -215,7 +216,7 @@ const EVP_MD *EVP_shake##bitlen(void)                                          \
         NID_shake##bitlen,                                                     \
         0,                                                                     \
         bitlen / 8,                                                            \
-        EVP_MD_FLAG_XOF,                                                       \
+        EVP_MD_FLAG_XOF | EVP_MD_FLAG_DIGALGID_ABSENT,                         \
         EVP_ORIG_GLOBAL,                                                       \
         LEGACY_EVP_MD_METH_TABLE(shake_init, sha3_int_update, sha3_int_final,  \
                         shake_ctrl, (KECCAK1600_WIDTH - bitlen * 2) / 8),      \

@@ -10,9 +10,7 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 #include <atomic>
-#include <functional>
 #include <memory>
-#include <optional>
 
 #include "include/v8-metrics.h"
 #include "src/base/platform/time.h"
@@ -67,12 +65,9 @@ V8_EXPORT_PRIVATE WasmError ValidateAndSetBuiltinImports(
 // cache entry. Assumes the key already exists in the cache but has not been
 // compiled yet.
 V8_EXPORT_PRIVATE
-WasmCode* CompileImportWrapperForTest(Isolate* isolate,
-                                      NativeModule* native_module,
-                                      ImportCallKind kind,
-                                      const CanonicalSig* sig,
-                                      CanonicalTypeIndex type_index,
-                                      int expected_arity, Suspend suspend);
+std::shared_ptr<wasm::WasmImportWrapperHandle> CompileImportWrapperForTest(
+    Isolate* isolate, ImportCallKind kind, const CanonicalSig* sig,
+    int expected_arity, Suspend suspend);
 
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is
@@ -179,9 +174,10 @@ class AsyncCompileJob {
                                size_t code_size_estimate);
   void PrepareRuntimeObjects();
 
-  void FinishCompile(bool is_after_cache_hit);
-
-  void Failed();
+  // {FinishCompile} and {Failed} invalidate the {AsyncCompileJob}, so we only
+  // allow to call them on r-value references to make this clear at call sites.
+  void FinishCompile(bool is_after_cache_hit) &&;
+  void Failed() &&;
 
   void AsyncCompileSucceeded(DirectHandle<WasmModuleObject> result);
 

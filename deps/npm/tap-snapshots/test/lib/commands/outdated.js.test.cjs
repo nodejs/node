@@ -15,6 +15,37 @@ Package         Current  Wanted  Latest  Location          Depended by
 cat:dog@^1.0.0    1.0.0   1.0.1   2.0.0  node_modules/cat  prefix
 `
 
+exports[`test/lib/commands/outdated.js TAP dependent location --long --json > should display dependent location when using --long and --json 1`] = `
+{
+  "dog": [
+    {
+      "current": "1.0.0",
+      "wanted": "1.0.1",
+      "latest": "2.0.0",
+      "dependent": "a",
+      "location": "{CWD}/prefix/node_modules/dog",
+      "type": "dependencies",
+      "dependedByLocation": "a"
+    },
+    {
+      "current": "1.0.0",
+      "wanted": "1.0.1",
+      "latest": "2.0.0",
+      "dependent": "a",
+      "location": "{CWD}/prefix/node_modules/dog",
+      "type": "dependencies",
+      "dependedByLocation": "nest/a"
+    }
+  ]
+}
+`
+
+exports[`test/lib/commands/outdated.js TAP dependent location --long > should display dependent location when using --long 1`] = `
+Package  Current  Wanted  Latest  Location          Depended by         Package Type  Homepage  Depended By Location
+dog        1.0.0   1.0.1   2.0.0  node_modules/dog  a@1.0.0             dependencies            a
+dog        1.0.0   1.0.1   2.0.0  node_modules/dog  a@npm:nest-a@1.0.0  dependencies            nest/a
+`
+
 exports[`test/lib/commands/outdated.js TAP should display outdated deps outdated --all > must match snapshot 1`] = `
 Package  Current  Wanted  Latest  Location           Depended by
 cat        1.0.0   1.0.1   1.0.1  node_modules/cat   prefix
@@ -31,7 +62,8 @@ exports[`test/lib/commands/outdated.js TAP should display outdated deps outdated
     "latest": "1.0.1",
     "dependent": "prefix",
     "location": "{CWD}/prefix/node_modules/cat",
-    "type": "dependencies"
+    "type": "dependencies",
+    "dependedByLocation": ""
   },
   "chai": {
     "current": "1.0.0",
@@ -39,7 +71,8 @@ exports[`test/lib/commands/outdated.js TAP should display outdated deps outdated
     "latest": "1.0.1",
     "dependent": "prefix",
     "location": "{CWD}/prefix/node_modules/chai",
-    "type": "peerDependencies"
+    "type": "peerDependencies",
+    "dependedByLocation": ""
   },
   "dog": {
     "current": "1.0.1",
@@ -47,13 +80,15 @@ exports[`test/lib/commands/outdated.js TAP should display outdated deps outdated
     "latest": "2.0.0",
     "dependent": "prefix",
     "location": "{CWD}/prefix/node_modules/dog",
-    "type": "dependencies"
+    "type": "dependencies",
+    "dependedByLocation": ""
   },
   "theta": {
     "wanted": "1.0.1",
     "latest": "1.0.1",
     "dependent": "prefix",
-    "type": "dependencies"
+    "type": "dependencies",
+    "dependedByLocation": ""
   }
 }
 `
@@ -90,7 +125,7 @@ exports[`test/lib/commands/outdated.js TAP should display outdated deps outdated
 `
 
 exports[`test/lib/commands/outdated.js TAP should display outdated deps outdated --long > must match snapshot 1`] = `
-Package  Current  Wanted  Latest  Location           Depended by  Package Type      Homepage
+Package  Current  Wanted  Latest  Location           Depended by  Package Type      Homepage  Depended By Location
 cat        1.0.0   1.0.1   1.0.1  node_modules/cat   prefix       dependencies
 chai       1.0.0   1.0.1   1.0.1  node_modules/chai  prefix       peerDependencies
 dog        1.0.1   1.0.1   2.0.0  node_modules/dog   prefix       dependencies
@@ -120,10 +155,10 @@ exports[`test/lib/commands/outdated.js TAP should display outdated deps outdated
 `
 
 exports[`test/lib/commands/outdated.js TAP should display outdated deps outdated --parseable --long > must match snapshot 1`] = `
-{CWD}/prefix/node_modules/cat:cat@1.0.1:cat@1.0.0:cat@1.0.1:prefix:dependencies:
-{CWD}/prefix/node_modules/chai:chai@1.0.1:chai@1.0.0:chai@1.0.1:prefix:peerDependencies:
-{CWD}/prefix/node_modules/dog:dog@1.0.1:dog@1.0.1:dog@2.0.0:prefix:dependencies:
-:theta@1.0.1:MISSING:theta@1.0.1:prefix:dependencies:
+{CWD}/prefix/node_modules/cat:cat@1.0.1:cat@1.0.0:cat@1.0.1:prefix:dependencies::
+{CWD}/prefix/node_modules/chai:chai@1.0.1:chai@1.0.0:chai@1.0.1:prefix:peerDependencies::
+{CWD}/prefix/node_modules/dog:dog@1.0.1:dog@1.0.1:dog@2.0.0:prefix:dependencies::
+:theta@1.0.1:MISSING:theta@1.0.1:prefix:dependencies::
 `
 
 exports[`test/lib/commands/outdated.js TAP should display outdated deps outdated --parseable > must match snapshot 1`] = `

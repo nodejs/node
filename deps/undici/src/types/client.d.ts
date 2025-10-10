@@ -1,6 +1,7 @@
 import { URL } from 'url'
 import Dispatcher from './dispatcher'
 import buildConnector from './connector'
+import TClientStats from './client-stats'
 
 type ClientConnectOptions = Omit<Dispatcher.ConnectOptions, 'origin'>
 
@@ -15,6 +16,8 @@ export class Client extends Dispatcher {
   closed: boolean
   /** `true` after `client.destroyed()` has been called or `client.close()` has been called and the client shutdown has completed. */
   destroyed: boolean
+  /** Aggregate stats for a Client. */
+  readonly stats: TClientStats
 
   // Override dispatcher APIs.
   override connect (
@@ -68,8 +71,6 @@ export declare namespace Client {
     /** TODO */
     maxCachedSessions?: number;
     /** TODO */
-    maxRedirections?: number;
-    /** TODO */
     connect?: Partial<buildConnector.BuildOptions> | buildConnector.connector;
     /** TODO */
     maxRequestsPerClient?: number;
@@ -84,13 +85,13 @@ export declare namespace Client {
     /**
      * @description Enables support for H2 if the server has assigned bigger priority to it through ALPN negotiation.
      * @default false
-    */
+     */
     allowH2?: boolean;
     /**
      * @description Dictates the maximum number of concurrent streams for a single H2 session. It can be overridden by a SETTINGS remote frame.
      * @default 100
-    */
-    maxConcurrentStreams?: number
+     */
+    maxConcurrentStreams?: number;
   }
   export interface SocketInfo {
     localAddress?: string

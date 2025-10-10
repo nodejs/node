@@ -15,9 +15,7 @@ process.once('beforeExit', common.mustCall(() => worker.ref()));
 
 worker.on('exit', common.mustCall(() => {
   worker.terminate().then((res) => assert.strictEqual(res, undefined));
-  worker.terminate(() => null).then(
-    (res) => assert.strictEqual(res, undefined)
-  );
+
 }));
 
 worker.unref();

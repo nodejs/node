@@ -16,7 +16,7 @@ function main(conf) {
   }
 
   let i;
-  let deadCodeElimination;
+  let deadCodeElimination = true;
 
   bench.start();
   for (i = 0; i < conf.n; i += 1)

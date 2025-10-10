@@ -4,11 +4,19 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const process = require('node:process');
 
 const tmpdir = require('../common/tmpdir');
 
 const testDir = tmpdir.path;
 const files = ['empty', 'files', 'for', 'just', 'testing'];
+
+process.on('warning', (cause) => {
+  // If any directory handle was left unclosed and then GC'd,
+  // it will emit `Warning: Closing directory handle on garbage collection`.
+  // Treat this warning as error.
+  throw new Error('Expected no warnings', { cause });
+});
 
 // Make sure tmp directory is clean
 tmpdir.refresh();
@@ -17,6 +25,13 @@ tmpdir.refresh();
 files.forEach(function(filename) {
   fs.closeSync(fs.openSync(path.join(testDir, filename), 'w'));
 });
+
+function assertDir(dir) {
+  assert(dir instanceof fs.Dir);
+  assert.throws(() => dir.constructor.prototype.path, {
+    code: 'ERR_INVALID_THIS',
+  });
+}
 
 function assertDirent(dirent) {
   assert(dirent instanceof fs.Dirent);
@@ -45,6 +60,7 @@ const invalidCallbackObj = {
 // Check the opendir Sync version
 {
   const dir = fs.opendirSync(testDir);
+  assertDir(dir);
   const entries = files.map(() => {
     const dirent = dir.readSync();
     assertDirent(dirent);
@@ -67,6 +83,7 @@ const invalidCallbackObj = {
 
 // Check the opendir async version
 fs.opendir(testDir, common.mustSucceed((dir) => {
+  assertDir(dir);
   let sync = true;
   dir.read(common.mustSucceed((dirent) => {
     assert(!sync);
@@ -120,6 +137,7 @@ fs.opendir(__filename, common.mustCall(function(e) {
 async function doPromiseTest() {
   // Check the opendir Promise version
   const dir = await fs.promises.opendir(testDir);
+  assertDir(dir);
   const entries = [];
 
   let i = files.length;
@@ -160,7 +178,7 @@ async function doAsyncIterBreakTest() {
     break;
   }
 
-  await assert.rejects(async () => dir.read(), dirclosedError);
+  await assert.rejects(dir.read(), dirclosedError);
 }
 doAsyncIterBreakTest().then(common.mustCall());
 
@@ -172,7 +190,7 @@ async function doAsyncIterReturnTest() {
     }
   })();
 
-  await assert.rejects(async () => dir.read(), dirclosedError);
+  await assert.rejects(dir.read(), dirclosedError);
 }
 doAsyncIterReturnTest().then(common.mustCall());
 
@@ -188,7 +206,7 @@ async function doAsyncIterThrowTest() {
     }
   }
 
-  await assert.rejects(async () => dir.read(), dirclosedError);
+  await assert.rejects(dir.read(), dirclosedError);
 }
 doAsyncIterThrowTest().then(common.mustCall());
 
@@ -219,6 +237,7 @@ for (const bufferSize of ['', '1', null]) {
 async function doAsyncIterInvalidCallbackTest() {
   const dir = await fs.promises.opendir(testDir);
   assert.throws(() => dir.close('not function'), invalidCallbackObj);
+  dir.close();
 }
 doAsyncIterInvalidCallbackTest().then(common.mustCall());
 
@@ -247,6 +266,7 @@ doConcurrentAsyncAndSyncOps().then(common.mustCall());
 {
   const dir = fs.opendirSync(testDir);
   assert.throws(() => dir.read('INVALID_CALLBACK'), /ERR_INVALID_ARG_TYPE/);
+  dir.close();
 }
 
 // Check that concurrent read() operations don't do weird things.

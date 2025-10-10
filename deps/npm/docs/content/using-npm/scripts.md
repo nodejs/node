@@ -9,7 +9,7 @@ description: How npm handles the "scripts" field
 The `"scripts"` property of your `package.json` file supports a number
 of built-in scripts and their preset life cycle events as well as
 arbitrary scripts. These all can be executed by running
-`npm run-script <stage>` or `npm run <stage>` for short. *Pre* and *post*
+`npm run <stage>`. *Pre* and *post*
 commands with matching names will be run for those as well (e.g. `premyscript`,
 `myscript`, `postmyscript`). Scripts from dependencies can be run with
 `npm explore <pkg> -- npm run <stage>`.
@@ -46,6 +46,7 @@ situations. These scripts happen in addition to the `pre<event>`, `post<event>`,
     and `npm pack`
 * Runs on local `npm install` without any arguments
 * Runs AFTER `prepublish`, but BEFORE `prepublishOnly`
+* Runs for a package if it's being installed as a link through `npm install <folder>`
 
 * NOTE: If a package being installed through git contains a `prepare`
  script, its `dependencies` and `devDependencies` will be installed, and
@@ -179,7 +180,7 @@ If there is a `restart` script defined, these events are run, otherwise
 * `restart`
 * `postrestart`
 
-#### [`npm run <user defined>`](/commands/npm-run-script)
+#### [`npm run <user defined>`](/commands/npm-run)
 
 * `pre<user-defined>`
 * `<user-defined>`
@@ -226,6 +227,20 @@ Reasons for a package removal include:
 * etc.
 
 Due to the lack of necessary context, `uninstall` lifecycle scripts are not implemented and will not function.
+
+### Working Directory for Scripts
+
+Scripts are always run from the root of the package folder, regardless of what the current working directory is when `npm` is invoked. This means your scripts can reliably assume they are running in the package root.
+
+If you want your script to behave differently based on the directory you were in when you ran `npm`, you can use the `INIT_CWD` environment variable, which holds the full path you were in when you ran `npm run`.
+
+#### Historical Behavior in Older npm Versions
+
+For npm v6 and earlier, scripts were generally run from the root of the package, but there were rare cases and bugs in older versions where this was not guaranteed. If your package must support very old npm versions, you may wish to add a safeguard in your scripts (for example, by checking process.cwd()).
+
+For more details, see:
+- [npm v7 release notes](https://github.com/npm/cli/releases/tag/v7.0.0)
+- [Discussion about script working directory reliability in npm v6 and earlier](https://github.com/npm/npm/issues/12356)
 
 ### User
 
@@ -319,7 +334,7 @@ fine:
 
 ### Exiting
 
-Scripts are run by passing the line as a script argument to `sh`.
+Scripts are run by passing the line as a script argument to `/bin/sh` on POSIX systems or `cmd.exe` on Windows. You can control which shell is used by setting the [`script-shell`](/using-npm/config#script-shell) configuration option.
 
 If the script exits with a code other than 0, then this will abort the
 process.
@@ -349,15 +364,10 @@ file.
   preinstall or install script. If you are doing this, please consider if
   there is another option. The only valid use of `install` or `preinstall`
   scripts is for compilation which must be done on the target architecture.
-* Scripts are run from the root of the package folder, regardless of what the
-  current working directory is when `npm` is invoked. If you want your
-  script to use different behavior based on what subdirectory you're in, you
-  can use the `INIT_CWD` environment variable, which holds the full path you
-  were in when you ran `npm run`.
 
 ### See Also
 
-* [npm run-script](/commands/npm-run-script)
+* [npm run](/commands/npm-run)
 * [package.json](/configuring-npm/package-json)
 * [npm developers](/using-npm/developers)
 * [npm install](/commands/npm-install)

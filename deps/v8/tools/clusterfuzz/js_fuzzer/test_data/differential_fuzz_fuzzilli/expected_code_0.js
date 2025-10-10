@@ -8,7 +8,6 @@ print("I'm a resource.");
 // Original: differential_fuzz/fake_resource.js
 print("I'm a resource.");
 
-/* DifferentialFuzzMutator: Print variables and exceptions from section */
 try {
   print("Hash: " + __hash);
   print("Caught: " + __caught);
@@ -21,21 +20,18 @@ if (Math.random() > 0.5) {
   __v_0++;
   if (__v_0) {
     const __v_2 = 0;
-    /* DifferentialFuzzMutator: Extra variable printing */
     __prettyPrintExtra(__v_2);
     __v_1 = __v_2 + "";
     __v_1 = __v_2 + "";
-    /* DifferentialFuzzMutator: Extra variable printing */
-    __prettyPrintExtra(__v_1);
     __v_1 = __v_2 + "";
+    __prettyPrintExtra(__v_1);
     __v_0 = __v_1;
-    __v_0 = __v_1;
-    /* DifferentialFuzzMutator: Extra variable printing */
     __prettyPrintExtra(__v_0);
     __v_0 = __v_1;
+    __v_0 = __v_1;
+    __prettyPrintExtra(__v_2);
   }
 }
-/* DifferentialFuzzMutator: Print variables and exceptions from section */
 try {
   print("Hash: " + __hash);
   print("Caught: " + __caught);

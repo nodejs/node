@@ -20,6 +20,8 @@ class Isolate;
 
 namespace wasm {
 
+class StackMemory;
+
 using Address = uintptr_t;
 
 V8_EXPORT_PRIVATE void f32_trunc_wrapper(Address data);
@@ -186,12 +188,16 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
 
 double flat_string_to_f64(Address string_address);
 
-// Update the stack limit after a stack switch,
-// and preserve pending interrupts.
-void switch_stacks(Isolate* isolate, Address old_continuation);
-// Return {continuation}'s stack memory to the stack pool after it has returned
-// and switched back to its parent, and update the stack limit.
-void return_switch(Isolate* isolate, Address continuation);
+// Called from the stack switching builtins to handle some of the
+// platform-independent stack switching logic: updating the stack limit,
+// validating the switch, debug traces, managing the stack memory, etc.
+void start_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+                 Address fp, Address pc);
+void suspend_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+                   Address fp, Address pc);
+void resume_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+                  Address fp, Address pc, Address suspender);
+void return_stack(Isolate* isolate, wasm::StackMemory* from);
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
 void switch_from_the_central_stack(Isolate* isolate);

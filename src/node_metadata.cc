@@ -11,7 +11,10 @@
 #include "node.h"
 #include "simdjson.h"
 #include "simdutf.h"
+#if HAVE_SQLITE
+#include "quic/guard.h"
 #include "sqlite3.h"
+#endif  // HAVE_SQLITE
 #include "undici_version.h"
 #include "util.h"
 #include "uv.h"
@@ -28,12 +31,12 @@
 #if HAVE_OPENSSL
 #include <openssl/crypto.h>
 #include "ncrypto.h"
-#if NODE_OPENSSL_HAS_QUIC
+#ifndef OPENSSL_NO_QUIC
 #include <openssl/quic.h>
 #endif
 #endif  // HAVE_OPENSSL
 
-#ifdef NODE_OPENSSL_HAS_QUIC
+#ifndef OPENSSL_NO_QUIC
 #include <ngtcp2/version.h>
 #include <nghttp3/version.h>
 #endif
@@ -145,16 +148,40 @@ Metadata::Versions::Versions() {
   unicode = U_UNICODE_VERSION;
 #endif  // NODE_HAVE_I18N_SUPPORT
 
-#ifdef NODE_OPENSSL_HAS_QUIC
+#ifndef OPENSSL_NO_QUIC
   ngtcp2 = NGTCP2_VERSION;
   nghttp3 = NGHTTP3_VERSION;
 #endif
 
   simdjson = SIMDJSON_VERSION;
   simdutf = SIMDUTF_VERSION;
+#if HAVE_SQLITE
   sqlite = SQLITE_VERSION;
+#endif  // HAVE_SQLITE
   ada = ADA_VERSION;
   nbytes = NBYTES_VERSION;
+}
+
+std::array<std::pair<std::string_view, std::string_view>,
+           NODE_VERSIONS_KEY_COUNT>
+Metadata::Versions::pairs() const {
+  std::array<std::pair<std::string_view, std::string_view>,
+             NODE_VERSIONS_KEY_COUNT>
+      versions_array;
+  auto slot = versions_array.begin();
+
+#define V(key)                                                                 \
+  do {                                                                         \
+    *slot++ = std::pair<std::string_view, std::string_view>(                   \
+        #key, per_process::metadata.versions.key);                             \
+  } while (0);
+  NODE_VERSIONS_KEYS(V)
+#undef V
+
+  std::ranges::sort(versions_array,
+                    [](auto& a, auto& b) { return a.first < b.first; });
+
+  return versions_array;
 }
 
 Metadata::Release::Release() : name(NODE_RELEASE) {

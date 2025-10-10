@@ -9,11 +9,11 @@ class LifecycleCmd extends BaseCommand {
   static ignoreImplicitWorkspace = false
 
   async exec (args) {
-    return this.npm.exec('run-script', [this.constructor.name, ...args])
+    return this.npm.exec('run', [this.constructor.name, ...args])
   }
 
   async execWorkspaces (args) {
-    return this.npm.exec('run-script', [this.constructor.name, ...args])
+    return this.npm.exec('run', [this.constructor.name, ...args])
   }
 }
 

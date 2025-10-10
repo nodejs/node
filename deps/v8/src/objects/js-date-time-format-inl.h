@@ -32,6 +32,21 @@ ACCESSORS(JSDateTimeFormat, icu_date_interval_format,
           Tagged<Managed<icu::DateIntervalFormat>>,
           kIcuDateIntervalFormatOffset)
 
+BIT_FIELD_ACCESSORS(JSDateTimeFormat, flags, has_to_locale_string_time_zone,
+                    JSDateTimeFormat::HasToLocaleStringTimeZoneBit)
+
+inline void JSDateTimeFormat::set_explicit_components_in_options(
+    int32_t explicit_components_in_options) {
+  int hints = flags();
+  hints = ExplicitComponentsInOptionsBits::update(
+      hints, explicit_components_in_options);
+  set_flags(hints);
+}
+
+inline int32_t JSDateTimeFormat::explicit_components_in_options() const {
+  return ExplicitComponentsInOptionsBits::decode(flags());
+}
+
 inline void JSDateTimeFormat::set_hour_cycle(HourCycle hour_cycle) {
   int hints = flags();
   hints = HourCycleBits::update(hints, hour_cycle);

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,7 +16,7 @@
 # include <sys/stat.h>
 #endif
 
-#include "e_os.h"
+#include "internal/e_os.h"
 #include "internal/cryptlib.h"
 
 #include <errno.h>
@@ -145,14 +145,14 @@ int RAND_load_file(const char *file, long bytes)
 # pragma environment restore
 #endif
 
-    for ( ; ; ) {
+    for (;;) {
         if (bytes > 0)
             n = (bytes <= RAND_LOAD_BUF_SIZE) ? (int)bytes : RAND_BUF_SIZE;
         else
             n = RAND_LOAD_BUF_SIZE;
         i = fread(buf, 1, n, in);
 #ifdef EINTR
-        if (ferror(in) && errno == EINTR){
+        if (ferror(in) && errno == EINTR) {
             clearerr(in);
             if (i == 0)
                 continue;
@@ -166,6 +166,10 @@ int RAND_load_file(const char *file, long bytes)
 
         /* If given a bytecount, and we did it, break. */
         if (bytes > 0 && (bytes -= i) <= 0)
+            break;
+
+        /* We can hit a signed integer overflow on the next iteration */
+        if (ret > INT_MAX - RAND_LOAD_BUF_SIZE)
             break;
     }
 

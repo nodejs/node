@@ -81,6 +81,9 @@ class Benchmark {
         if (typeof value === 'number') {
           if (key === 'dur' || key === 'duration') {
             value = 0.05;
+          } else if (key === 'memory') {
+            // minimum Argon2 memcost with 1 lane is 8
+            value = 8;
           } else if (value > 1) {
             value = 1;
           }
@@ -386,7 +389,7 @@ function getUrlData(withBase) {
  * @param {number} e The repetition of the data, as exponent of 2
  * @param {boolean} withBase Whether to include a base URL
  * @param {boolean} asUrl Whether to return the results as URL objects
- * @return {string[] | string[][] | URL[]}
+ * @returns {string[] | string[][] | URL[]}
  */
 function bakeUrlData(type, e = 0, withBase = false, asUrl = false) {
   let result = [];

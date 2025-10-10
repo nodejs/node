@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -87,7 +87,7 @@ static int ssl_srp_verify_param_cb(SSL *s, void *arg)
                        "SRP param N and g are not known params, going to check deeper.\n");
 
         /*
-         * The srp_moregroups is a real debugging feature. Implementors
+         * The srp_moregroups is a real debugging feature. Implementers
          * should rather add the value to the known ones. The minimal size
          * has already been tested.
          */
@@ -178,7 +178,7 @@ static int ssl_srp_server_param_cb(SSL *s, int *ad, void *arg)
         goto err;
     }
     BIO_printf(bio_err,
-               "SRP parameters set: username = \"%s\" info=\"%s\" \n",
+               "SRP parameters set: username = \"%s\" info=\"%s\"\n",
                p->login, p->user->info);
     ret = SSL_ERROR_NONE;
 
@@ -199,7 +199,7 @@ int set_up_srp_verifier_file(SSL_CTX *ctx, srpsrvparm *srp_callback_parm,
     srp_callback_parm->login = NULL;
 
     if (srp_callback_parm->vb == NULL) {
-        BIO_printf(bio_err, "Failed to initialize SRP verifier file \n");
+        BIO_printf(bio_err, "Failed to initialize SRP verifier file\n");
         return 0;
     }
     if ((ret =

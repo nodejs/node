@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --sparkplug --no-always-sparkplug --maglev --turbofan
-// Flags: --no-always-turbofan --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 const topLevel = %GetFunctionForCurrentFrame();
 let status = %GetOptimizationStatus(topLevel);

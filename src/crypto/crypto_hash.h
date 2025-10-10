@@ -70,10 +70,10 @@ struct HashTraits final {
       unsigned int offset,
       HashConfig* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const HashConfig& params,
-      ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const HashConfig& params,
+                         ByteSource* out,
+                         CryptoJobMode mode);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
                                                 const HashConfig& params,
@@ -81,8 +81,6 @@ struct HashTraits final {
 };
 
 using HashJob = DeriveBitsJob<HashTraits>;
-
-void InternalVerifyIntegrity(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 }  // namespace crypto
 }  // namespace node

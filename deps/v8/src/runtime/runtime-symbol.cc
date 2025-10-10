@@ -55,7 +55,6 @@ RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
   RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
 }
 
-
 RUNTIME_FUNCTION(Runtime_SymbolIsPrivate) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());

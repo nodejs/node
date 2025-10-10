@@ -176,8 +176,8 @@ std::vector<std::unique_ptr<V8DebuggerScript>> V8Debugger::getCompiledScripts(
       if (!script->ContextId().To(&contextId)) continue;
       if (m_inspector->contextGroupId(contextId) != contextGroupId) continue;
     }
-    result.push_back(V8DebuggerScript::Create(m_isolate, script, false, agent,
-                                              m_inspector->client()));
+    result.push_back(std::make_unique<V8DebuggerScript>(
+        m_isolate, script, false, agent, m_inspector->client()));
   }
   return result;
 }
@@ -613,8 +613,8 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
         auto agent = session->debuggerAgent();
         if (!agent->enabled()) return;
         agent->didParseSource(
-            V8DebuggerScript::Create(isolate, script, is_live_edited, agent,
-                                     client),
+            std::make_unique<V8DebuggerScript>(isolate, script, is_live_edited,
+                                               agent, client),
             !has_compile_error);
       });
 }
@@ -887,7 +887,7 @@ v8::MaybeLocal<v8::Value> V8Debugger::generatorScopes(
 
 v8::MaybeLocal<v8::Array> V8Debugger::collectionsEntries(
     v8::Local<v8::Context> context, v8::Local<v8::Value> collection) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Array> entries;
   bool isKeyValue = false;
   if (!collection->IsObject() || !collection.As<v8::Object>()
@@ -929,7 +929,7 @@ v8::MaybeLocal<v8::Array> V8Debugger::privateMethods(
   if (!receiver->IsObject()) {
     return v8::MaybeLocal<v8::Array>();
   }
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::LocalVector<v8::Value> names(isolate);
   v8::LocalVector<v8::Value> values(isolate);
   int filter =
@@ -1007,7 +1007,7 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
 
 v8::Local<v8::Array> V8Debugger::queryObjects(v8::Local<v8::Context> context,
                                               v8::Local<v8::Object> prototype) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   std::vector<v8::Global<v8::Object>> v8_objects;
   MatchPrototypePredicate predicate(m_inspector, context, prototype);
   isolate->GetHeapProfiler()->QueryObjects(context, &predicate, &v8_objects);

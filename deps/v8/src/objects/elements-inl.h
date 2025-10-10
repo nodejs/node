@@ -31,10 +31,11 @@ inline MaybeHandle<FixedArray> ElementsAccessor::PrependElementIndices(
                                convert, filter);
 }
 
-inline bool ElementsAccessor::HasElement(Tagged<JSObject> holder,
+inline bool ElementsAccessor::HasElement(Isolate* isolate,
+                                         Tagged<JSObject> holder,
                                          uint32_t index,
                                          PropertyFilter filter) {
-  return HasElement(holder, index, holder->elements(), filter);
+  return HasElement(isolate, holder, index, holder->elements(), filter);
 }
 
 }  // namespace internal

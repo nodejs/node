@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const { strictEqual } = require('assert');
+const assert = require('assert');
 const { closeSync, openSync, readFileSync, writeFileSync } = require('fs');
 const { join } = require('path');
 const { WASI } = require('wasi');
@@ -24,10 +24,10 @@ const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
 (async () => {
   const { instance } = await WebAssembly.instantiate(buffer, importObject);
 
-  strictEqual(wasi.start(instance), 0);
+  assert.strictEqual(wasi.start(instance), 0);
   closeSync(stdin);
   closeSync(stdout);
   closeSync(stderr);
-  strictEqual(readFileSync(stdoutFile, 'utf8').trim(), 'x'.repeat(31));
-  strictEqual(readFileSync(stderrFile, 'utf8').trim(), '');
+  assert.strictEqual(readFileSync(stdoutFile, 'utf8').trim(), 'x'.repeat(31));
+  assert.strictEqual(readFileSync(stderrFile, 'utf8').trim(), '');
 })().then(common.mustCall());

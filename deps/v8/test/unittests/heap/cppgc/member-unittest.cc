@@ -13,6 +13,7 @@
 #include "include/cppgc/internal/pointer-policies.h"
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/sentinel-pointer.h"
+#include "include/cppgc/tagged-member.h"
 #include "include/cppgc/type-traits.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -761,6 +762,57 @@ TEST_F(MemberTest, CompressedPointerFindCandidates) {
 }
 
 #endif  // defined(CPPGC_CAGED_HEAP)
+
+// Define two distinct tag types for TaggedUncompressedMember
+struct TestTag1 {};
+struct TestTag2 {};
+
+TEST_F(MemberTest, TaggedUncompressedMemberSetAsAndStateChange) {
+  auto* obj1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto* obj2 = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  subtle::TaggedUncompressedMember<GCed, TestTag1, TestTag2> member(TestTag1{},
+                                                                    obj1);
+
+  // Change pointer, keep TestTag1.
+  member.SetAs<TestTag1>(obj2);
+  EXPECT_TRUE(member.Is<TestTag1>());
+  EXPECT_EQ(obj2, member.GetUntagged());
+  EXPECT_EQ(obj2, member.GetAs<TestTag1>());
+
+  // Change to TestTag2 with obj1.
+  member.SetAs<TestTag2>(obj1);
+  EXPECT_TRUE(member.Is<TestTag2>());
+  EXPECT_FALSE(member.Is<TestTag1>());
+  EXPECT_EQ(obj1, member.GetUntagged());
+  EXPECT_EQ(obj1, member.GetAs<TestTag2>());
+
+  // Change back to TestTag1 with obj2.
+  member.SetAs<TestTag1>(obj2);
+  EXPECT_TRUE(member.Is<TestTag1>());
+  EXPECT_EQ(obj2, member.GetUntagged());
+}
+
+TEST_F(MemberTest, TaggedUncompressedMemberTryGetAs) {
+  auto* obj = MakeGarbageCollected<GCed>(GetAllocationHandle());
+
+  // Constructed with TestTag1.
+  subtle::TaggedUncompressedMember<GCed, TestTag1, TestTag2> member_t1(
+      TestTag1{}, obj);
+  EXPECT_EQ(obj, member_t1.TryGetAs<TestTag1>());
+  EXPECT_EQ(nullptr, member_t1.TryGetAs<TestTag2>());
+
+  // Constructed with TestTag2.
+  subtle::TaggedUncompressedMember<GCed, TestTag1, TestTag2> member_t2(
+      TestTag2{}, obj);
+  EXPECT_EQ(nullptr, member_t2.TryGetAs<TestTag1>());
+  EXPECT_EQ(obj, member_t2.TryGetAs<TestTag2>());
+
+  // Test with nullptr.
+  subtle::TaggedUncompressedMember<GCed, TestTag1, TestTag2> member_null(
+      TestTag1{}, nullptr);
+  EXPECT_EQ(nullptr, member_null.TryGetAs<TestTag1>());
+  EXPECT_EQ(nullptr, member_null.TryGetAs<TestTag2>());
+}
 
 }  // namespace internal
 }  // namespace cppgc

@@ -5255,4 +5255,4 @@ L013pic:
 	popl	%ebx
 	popl	%ebp
 	ret
-.comm	_OPENSSL_ia32cap_P,16
+.comm	_OPENSSL_ia32cap_P,40

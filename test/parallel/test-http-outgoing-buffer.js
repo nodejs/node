@@ -1,8 +1,7 @@
-// Flags: --expose-internals
 'use strict';
 require('../common');
 const assert = require('assert');
-const { getDefaultHighWaterMark } = require('internal/streams/state');
+const { getDefaultHighWaterMark } = require('stream');
 
 const http = require('http');
 const OutgoingMessage = http.OutgoingMessage;

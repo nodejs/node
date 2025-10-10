@@ -1,5 +1,4 @@
 // an object representing the set of vulnerabilities in a tree
-/* eslint camelcase: "off" */
 
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const npa = require('npm-package-arg')
@@ -8,16 +7,15 @@ const pickManifest = require('npm-pick-manifest')
 const Vuln = require('./vuln.js')
 const Calculator = require('@npmcli/metavuln-calculator')
 
-const _getReport = Symbol('getReport')
-const _fixAvailable = Symbol('fixAvailable')
-const _checkTopNode = Symbol('checkTopNode')
-const _init = Symbol('init')
-const _omit = Symbol('omit')
 const { log, time } = require('proc-log')
 
 const npmFetch = require('npm-registry-fetch')
 
 class AuditReport extends Map {
+  #omit
+  error = null
+  topVulns = new Map()
+
   static load (tree, opts) {
     return new AuditReport(tree, opts).run()
   }
@@ -91,22 +89,18 @@ class AuditReport extends Map {
 
   constructor (tree, opts = {}) {
     super()
-    const { omit } = opts
-    this[_omit] = new Set(omit || [])
-    this.topVulns = new Map()
-
+    this.#omit = new Set(opts.omit || [])
     this.calculator = new Calculator(opts)
-    this.error = null
     this.options = opts
     this.tree = tree
     this.filterSet = opts.filterSet
   }
 
   async run () {
-    this.report = await this[_getReport]()
+    this.report = await this.#getReport()
     log.silly('audit report', this.report)
     if (this.report) {
-      await this[_init]()
+      await this.#init()
     }
     return this
   }
@@ -116,7 +110,7 @@ class AuditReport extends Map {
     return !!(vuln && vuln.isVulnerable(node))
   }
 
-  async [_init] () {
+  async #init () {
     const timeEnd = time.start('auditReport:init')
 
     const promises = []
@@ -148,7 +142,7 @@ class AuditReport extends Map {
       if (!seen.has(k)) {
         const p = []
         for (const node of this.tree.inventory.query('packageName', name)) {
-          if (!shouldAudit(node, this[_omit], this.filterSet)) {
+          if (!this.shouldAudit(node)) {
             continue
           }
 
@@ -171,7 +165,15 @@ class AuditReport extends Map {
           vuln.nodes.add(node)
           for (const { from: dep, spec } of node.edgesIn) {
             if (dep.isTop && !vuln.topNodes.has(dep)) {
-              this[_checkTopNode](dep, vuln, spec)
+              vuln.fixAvailable = this.#fixAvailable(vuln, spec)
+              if (vuln.fixAvailable !== true) {
+                // now we know the top node is vulnerable, and cannot be
+                // upgraded out of the bad place without --force.  But, there's
+                // no need to add it to the actual vulns list, because nothing
+                // depends on root.
+                this.topVulns.set(vuln.name, vuln)
+                vuln.topNodes.add(dep)
+              }
             } else {
             // calculate a metavuln, if necessary
               const calc = this.calculator.calculate(dep.packageName, advisory)
@@ -214,33 +216,14 @@ class AuditReport extends Map {
     timeEnd()
   }
 
-  [_checkTopNode] (topNode, vuln, spec) {
-    vuln.fixAvailable = this[_fixAvailable](topNode, vuln, spec)
-
-    if (vuln.fixAvailable !== true) {
-      // now we know the top node is vulnerable, and cannot be
-      // upgraded out of the bad place without --force.  But, there's
-      // no need to add it to the actual vulns list, because nothing
-      // depends on root.
-      this.topVulns.set(vuln.name, vuln)
-      vuln.topNodes.add(topNode)
-    }
-  }
-
-  // check whether the top node is vulnerable.
-  // check whether we can get out of the bad place with --force, and if
-  // so, whether that update is SemVer Major
-  [_fixAvailable] (topNode, vuln, spec) {
-    // this will always be set to at least {name, versions:{}}
-    const paku = vuln.packument
-
+  // given the spec, see if there is a fix available at all, and note whether or not it's a semver major fix or not (i.e. will need --force)
+  #fixAvailable (vuln, spec) {
+    // TODO we return true, false, OR an object here. this is probably a bad pattern.
     if (!vuln.testSpec(spec)) {
       return true
     }
 
-    // similarly, even if we HAVE a packument, but we're looking for it
-    // somewhere other than the registry, and we got something vulnerable,
-    // then we're stuck with it.
+    // even if we HAVE a packument, if we're looking for it somewhere other than the registry and we have something vulnerable then we're stuck with it.
     const specObj = npa(spec)
     if (!specObj.registry) {
       return false
@@ -250,15 +233,13 @@ class AuditReport extends Map {
       spec = specObj.subSpec.rawSpec
     }
 
-    // We don't provide fixes for top nodes other than root, but we
-    // still check to see if the node is fixable with a different version,
-    // and if that is a semver major bump.
+    // we don't provide fixes for top nodes other than root, but we still check to see if the node is fixable with a different version, and note if that is a semver major bump.
     try {
       const {
         _isSemVerMajor: isSemVerMajor,
         version,
         name,
-      } = pickManifest(paku, spec, {
+      } = pickManifest(vuln.packument, spec, {
         ...this.options,
         before: null,
         avoid: vuln.range,
@@ -274,7 +255,7 @@ class AuditReport extends Map {
     throw new Error('do not call AuditReport.set() directly')
   }
 
-  async [_getReport] () {
+  async #getReport () {
     // if we're not auditing, just return false
     if (this.options.audit === false || this.options.offline === true || this.tree.inventory.size === 1) {
       return null
@@ -282,7 +263,7 @@ class AuditReport extends Map {
 
     const timeEnd = time.start('auditReport:getReport')
     try {
-      const body = prepareBulkData(this.tree, this[_omit], this.filterSet)
+      const body = this.prepareBulkData()
       log.silly('audit', 'bulk request', body)
 
       // no sense asking if we don't have anything to audit,
@@ -309,37 +290,39 @@ class AuditReport extends Map {
       timeEnd()
     }
   }
-}
 
-// return true if we should audit this one
-const shouldAudit = (node, omit, filterSet) =>
-  !node.version ? false
-  : node.isRoot ? false
-  : filterSet && filterSet.size !== 0 && !filterSet.has(node) ? false
-  : omit.size === 0 ? true
-  : !( // otherwise, just ensure we're not omitting this one
-    node.dev && omit.has('dev') ||
-    node.optional && omit.has('optional') ||
-    node.devOptional && omit.has('dev') && omit.has('optional') ||
-    node.peer && omit.has('peer')
-  )
-
-const prepareBulkData = (tree, omit, filterSet) => {
-  const payload = {}
-  for (const name of tree.inventory.query('packageName')) {
-    const set = new Set()
-    for (const node of tree.inventory.query('packageName', name)) {
-      if (!shouldAudit(node, omit, filterSet)) {
-        continue
-      }
-
-      set.add(node.version)
+  // return true if we should audit this one
+  shouldAudit (node) {
+    if (
+      !node.version ||
+      node.isRoot ||
+      (this.filterSet && this.filterSet?.size !== 0 && !this.filterSet?.has(node))
+    ) {
+      return false
     }
-    if (set.size) {
-      payload[name] = [...set]
+    if (this.#omit.size === 0) {
+      return true
     }
+    return !node.shouldOmit(this.#omit)
   }
-  return payload
+
+  prepareBulkData () {
+    const payload = {}
+    for (const name of this.tree.inventory.query('packageName')) {
+      const set = new Set()
+      for (const node of this.tree.inventory.query('packageName', name)) {
+        if (!this.shouldAudit(node)) {
+          continue
+        }
+
+        set.add(node.version)
+      }
+      if (set.size) {
+        payload[name] = [...set]
+      }
+    }
+    return payload
+  }
 }
 
 module.exports = AuditReport

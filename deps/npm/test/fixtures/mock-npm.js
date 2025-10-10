@@ -107,6 +107,7 @@ const setupMockNpm = async (t, {
   exec = null, // optionally exec the command before returning
   // test dirs
   prefixDir = {},
+  prefixOverride = null, // sets global and local prefix to this, the same as the `--prefix` flag
   homeDir = {},
   cacheDir = {},
   globalPrefixDir = { node_modules: {} },
@@ -170,9 +171,9 @@ const setupMockNpm = async (t, {
 
   const dirs = {
     testdir: dir,
-    prefix: path.join(dir, 'prefix'),
+    prefix: prefixOverride ?? path.join(dir, 'prefix'),
     cache: path.join(dir, 'cache'),
-    globalPrefix: path.join(dir, 'global'),
+    globalPrefix: prefixOverride ?? path.join(dir, 'global'),
     home: path.join(dir, 'home'),
     other: path.join(dir, 'other'),
   }

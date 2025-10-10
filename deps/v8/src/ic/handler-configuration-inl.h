@@ -22,8 +22,6 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(LoadHandler, DataHandler)
-
 // Decodes kind from Smi-handler.
 LoadHandler::Kind LoadHandler::GetHandlerKind(Tagged<Smi> smi_handler) {
   return KindBits::decode(smi_handler.value());
@@ -47,6 +45,14 @@ Handle<Smi> LoadHandler::LoadInterceptor(Isolate* isolate) {
 Handle<Smi> LoadHandler::LoadSlow(Isolate* isolate) {
   int config = KindBits::encode(Kind::kSlow);
   return handle(Smi::FromInt(config), isolate);
+}
+
+Handle<Smi> LoadHandler::LoadGeneric(Isolate* isolate) {
+  return handle(LoadGeneric(), isolate);
+}
+
+Tagged<Smi> LoadHandler::LoadGeneric() {
+  return Smi::FromInt(KindBits::encode(Kind::kGeneric));
 }
 
 Handle<Smi> LoadHandler::LoadField(Isolate* isolate, FieldIndex field_index) {
@@ -118,6 +124,17 @@ Handle<Smi> LoadHandler::LoadElement(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> LoadHandler::TransitionAndLoadElement(
+    Isolate* isolate, ElementsKind kind_after_transition,
+    KeyedAccessLoadMode load_mode) {
+  int config = KindBits::encode(Kind::kElementWithTransition) |
+               AllowOutOfBoundsBits::encode(LoadModeHandlesOOB(load_mode)) |
+               ElementsKindBits::encode(kind_after_transition) |
+               AllowHandlingHole::encode(LoadModeHandlesHoles(load_mode)) |
+               IsJsArrayBits::encode(true);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> LoadHandler::LoadIndexedString(Isolate* isolate,
                                            KeyedAccessLoadMode load_mode) {
   int config = KindBits::encode(Kind::kIndexedString) |
@@ -131,8 +148,6 @@ DirectHandle<Smi> LoadHandler::LoadWasmArrayElement(Isolate* isolate,
                IsWasmArrayBits::encode(true) | WasmArrayTypeBits::encode(type);
   return direct_handle(Smi::FromInt(config), isolate);
 }
-
-OBJECT_CONSTRUCTORS_IMPL(StoreHandler, DataHandler)
 
 DirectHandle<Smi> StoreHandler::StoreGlobalProxy(Isolate* isolate) {
   int config = KindBits::encode(Kind::kGlobalProxy);
@@ -211,6 +226,14 @@ Handle<Smi> StoreHandler::StoreSlow(Isolate* isolate,
   int config = KindBits::encode(Kind::kSlow) |
                KeyedAccessStoreModeBits::encode(store_mode);
   return handle(Smi::FromInt(config), isolate);
+}
+
+Handle<Smi> StoreHandler::StoreGeneric(Isolate* isolate) {
+  return handle(StoreGeneric(), isolate);
+}
+
+Tagged<Smi> StoreHandler::StoreGeneric() {
+  return Smi::FromInt(KindBits::encode(Kind::kGeneric));
 }
 
 Handle<Smi> StoreHandler::StoreProxy(Isolate* isolate) {

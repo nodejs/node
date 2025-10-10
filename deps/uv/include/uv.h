@@ -58,6 +58,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <math.h>
 
 /* Internal type, do not use. */
 struct uv__queue {
@@ -805,10 +806,15 @@ struct uv_tty_s {
 typedef enum {
   /* Initial/normal terminal mode */
   UV_TTY_MODE_NORMAL,
-  /* Raw input mode (On Windows, ENABLE_WINDOW_INPUT is also enabled) */
+  /*
+   * Raw input mode (On Windows, ENABLE_WINDOW_INPUT is also enabled).
+   * May become equivalent to UV_TTY_MODE_RAW_VT in future libuv versions.
+   */
   UV_TTY_MODE_RAW,
   /* Binary-safe I/O mode for IPC (Unix-only) */
-  UV_TTY_MODE_IO
+  UV_TTY_MODE_IO,
+  /* Raw input mode. On Windows ENABLE_VIRTUAL_TERMINAL_INPUT is also set. */
+  UV_TTY_MODE_RAW_VT
 } uv_tty_mode_t;
 
 typedef enum {
@@ -1585,6 +1591,8 @@ UV_EXTERN int uv_fs_chmod(uv_loop_t* loop,
                           const char* path,
                           int mode,
                           uv_fs_cb cb);
+#define UV_FS_UTIME_NOW  (INFINITY)
+#define UV_FS_UTIME_OMIT (NAN)
 UV_EXTERN int uv_fs_utime(uv_loop_t* loop,
                           uv_fs_t* req,
                           const char* path,

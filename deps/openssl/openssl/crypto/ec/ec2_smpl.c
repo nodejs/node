@@ -9,7 +9,7 @@
  */
 
 /*
- * ECDSA low level APIs are deprecated for public use, but still ok for
+ * ECDSA low-level APIs are deprecated for public use, but still ok for
  * internal use.
  */
 #include "internal/deprecated.h"
@@ -188,7 +188,7 @@ int ossl_ec_GF2m_simple_group_check_discriminant(const EC_GROUP *group,
     if (ctx == NULL) {
         ctx = new_ctx = BN_CTX_new();
         if (ctx == NULL) {
-            ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
             goto err;
         }
     }
@@ -545,7 +545,7 @@ int ossl_ec_GF2m_simple_is_on_curve(const EC_GROUP *group, const EC_POINT *point
      * We have a curve defined by a Weierstrass equation
      *      y^2 + x*y = x^3 + a*x^2 + b.
      *  <=> x^3 + a*x^2 + x*y + b + y^2 = 0
-     *  <=> ((x + a) * x + y ) * x + b + y^2 = 0
+     *  <=> ((x + a) * x + y) * x + b + y^2 = 0
      */
     if (!BN_GF2m_add(lh, point->X, group->a))
         goto err;
@@ -826,7 +826,7 @@ int ec_GF2m_simple_ladder_post(const EC_GROUP *group,
     t1 = BN_CTX_get(ctx);
     t2 = BN_CTX_get(ctx);
     if (t2 == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
         goto err;
     }
 
@@ -905,7 +905,7 @@ int ec_GF2m_simple_points_mul(const EC_GROUP *group, EC_POINT *r,
      */
 
     if ((t = EC_POINT_new(group)) == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
         return 0;
     }
 
@@ -923,7 +923,7 @@ int ec_GF2m_simple_points_mul(const EC_GROUP *group, EC_POINT *r,
 
 /*-
  * Computes the multiplicative inverse of a in GF(2^m), storing the result in r.
- * If a is zero (or equivalent), you'll get a EC_R_CANNOT_INVERT error.
+ * If a is zero (or equivalent), you'll get an EC_R_CANNOT_INVERT error.
  * SCA hardening is with blinding: BN_GF2m_mod_inv does that.
  */
 static int ec_GF2m_simple_field_inv(const EC_GROUP *group, BIGNUM *r,

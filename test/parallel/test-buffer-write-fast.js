@@ -41,5 +41,5 @@ testFastUtf8Write();
 
 if (common.isDebug) {
   const { getV8FastApiCallCount } = internalBinding('debug');
-  assert(getV8FastApiCallCount('buffer.writeString'), 4);
+  assert.strictEqual(getV8FastApiCallCount('buffer.writeString'), 4);
 }

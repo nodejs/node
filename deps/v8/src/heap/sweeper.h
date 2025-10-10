@@ -215,6 +215,7 @@ class Sweeper {
     callback(CODE_SPACE);
     callback(SHARED_SPACE);
     callback(TRUSTED_SPACE);
+    callback(SHARED_TRUSTED_SPACE);
   }
 
   // Helper function for RawSweep. Depending on the FreeListRebuildingMode and
@@ -273,12 +274,10 @@ class Sweeper {
   template <SweepingScope scope>
   class SweepingState {
     using ConcurrentSweeper =
-        typename std::conditional<scope == SweepingScope::kMinor,
-                                  ConcurrentMinorSweeper,
-                                  ConcurrentMajorSweeper>::type;
-    using SweeperJob =
-        typename std::conditional<scope == SweepingScope::kMinor,
-                                  MinorSweeperJob, MajorSweeperJob>::type;
+        std::conditional_t<scope == SweepingScope::kMinor,
+                           ConcurrentMinorSweeper, ConcurrentMajorSweeper>;
+    using SweeperJob = std::conditional_t<scope == SweepingScope::kMinor,
+                                          MinorSweeperJob, MajorSweeperJob>;
 
    public:
     explicit SweepingState(Sweeper* sweeper);

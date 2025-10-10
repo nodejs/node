@@ -9,14 +9,21 @@ const kStringMaxLength = require('buffer').constants.MAX_STRING_LENGTH;
 
 const size = 2 ** 31;
 
-// Test Buffer.write with size larger than integer range
+let largeBuffer;
+
 try {
-  const buf = Buffer.alloc(size);
-  assert.strictEqual(buf.write('a', 2, kStringMaxLength), 1);
-  assert.strictEqual(buf.write('a', 2, size), 1);
+  largeBuffer = Buffer.alloc(size);
 } catch (e) {
-  if (e.code !== 'ERR_MEMORY_ALLOCATION_FAILED') {
-    throw e;
+  if (
+    e.code === 'ERR_MEMORY_ALLOCATION_FAILED' ||
+    /Array buffer allocation failed/.test(e.message)
+  ) {
+    common.skip('insufficient space for Buffer.alloc');
   }
-  common.skip('insufficient space for Buffer.alloc');
+
+  throw e;
 }
+
+// Test Buffer.write with size larger than integer range
+assert.strictEqual(largeBuffer.write('a', 2, kStringMaxLength), 1);
+assert.strictEqual(largeBuffer.write('a', 2, size), 1);

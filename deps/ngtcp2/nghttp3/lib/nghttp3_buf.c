@@ -50,6 +50,10 @@ size_t nghttp3_buf_cap(const nghttp3_buf *buf) {
   return (size_t)(buf->end - buf->begin);
 }
 
+size_t nghttp3_buf_offset(const nghttp3_buf *buf) {
+  return (size_t)(buf->pos - buf->begin);
+}
+
 void nghttp3_buf_reset(nghttp3_buf *buf) { buf->pos = buf->last = buf->begin; }
 
 int nghttp3_buf_reserve(nghttp3_buf *buf, size_t size, const nghttp3_mem *mem) {
@@ -87,4 +91,12 @@ void nghttp3_typed_buf_init(nghttp3_typed_buf *tbuf, const nghttp3_buf *buf,
                             nghttp3_buf_type type) {
   tbuf->buf = *buf;
   tbuf->type = type;
+  tbuf->buf.begin = tbuf->buf.pos;
+}
+
+void nghttp3_typed_buf_shared_init(nghttp3_typed_buf *tbuf,
+                                   const nghttp3_buf *chunk) {
+  tbuf->buf = *chunk;
+  tbuf->type = NGHTTP3_BUF_TYPE_SHARED;
+  tbuf->buf.begin = tbuf->buf.pos = tbuf->buf.last;
 }

@@ -30,6 +30,7 @@ class Outdated extends ArboristWorkspaceCmd {
     'parseable',
     'global',
     'workspace',
+    'before',
   ]
 
   #tree
@@ -195,6 +196,9 @@ class Outdated extends ArboristWorkspaceCmd {
           wanted: wanted.version,
           latest: latest.version,
           workspaceDependent: edge.from?.isWorkspace ? edge.from.pkgid : null,
+          dependedByLocation: edge.from?.name
+            ? edge.from?.location
+            : 'global',
           dependent: edge.from?.name ?? 'global',
           homepage: packument.homepage,
         })
@@ -226,7 +230,7 @@ class Outdated extends ArboristWorkspaceCmd {
         'Latest',
         'Location',
         'Depended by',
-        ...long ? ['Package Type', 'Homepage'] : [],
+        ...long ? ['Package Type', 'Homepage', 'Depended By Location'] : [],
       ].map(h => bold.underline(h)),
       ...list.map((d) => [
         d.current === d.wanted ? yellow(d.name) : red(d.name),
@@ -235,7 +239,7 @@ class Outdated extends ArboristWorkspaceCmd {
         blue(d.latest),
         d.location ?? '-',
         d.workspaceDependent ? blue(d.workspaceDependent) : d.dependent,
-        ...long ? [d.type, blue(d.homepage ?? '')] : [],
+        ...long ? [d.type, blue(d.homepage ?? ''), d.dependedByLocation] : [],
       ]),
     ], {
       align: ['l', 'r', 'r', 'r', 'l'],
@@ -252,7 +256,7 @@ class Outdated extends ArboristWorkspaceCmd {
       d.current ? `${d.name}@${d.current}` : 'MISSING',
       `${d.name}@${d.latest}`,
       d.dependent,
-      ...this.npm.config.get('long') ? [d.type, d.homepage] : [],
+      ...this.npm.config.get('long') ? [d.type, d.homepage, d.dependedByLocation] : [],
     ].join(':')).join('\n')
   }
 
@@ -268,7 +272,10 @@ class Outdated extends ArboristWorkspaceCmd {
         latest: d.latest,
         dependent: d.dependent,
         location: d.path,
-        ...this.npm.config.get('long') ? { type: d.type, homepage: d.homepage } : {},
+        ...this.npm.config.get('long') ? {
+          type: d.type,
+          homepage: d.homepage,
+          dependedByLocation: d.dependedByLocation } : {},
       }
       acc[d.name] = acc[d.name]
         // If this item alread has an outdated dep then we turn it into an array

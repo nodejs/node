@@ -143,7 +143,7 @@ void PretenuringHandler::MergeAllocationSitePretenuringFeedback(
   Tagged<AllocationSite> site;
   for (auto& site_and_count : local_pretenuring_feedback) {
     site = site_and_count.first;
-    MapWord map_word = site->map_word(cage_base, kRelaxedLoad);
+    MapWord map_word = site->map_word(kRelaxedLoad);
     if (map_word.IsForwardingAddress()) {
       DCHECK(!HeapLayout::IsSelfForwarded(site, map_word));
       site = Cast<AllocationSite>(map_word.ToForwardingAddress(site));

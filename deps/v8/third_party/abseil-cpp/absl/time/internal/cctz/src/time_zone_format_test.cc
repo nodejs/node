@@ -169,23 +169,22 @@ TEST(Format, Basics) {
 
 TEST(Format, PosixConversions) {
   const time_zone tz = utc_time_zone();
-  auto tp = chrono::system_clock::from_time_t(0);
+  auto tp =
+      chrono::system_clock::from_time_t(308189482);  // 1979-10-08T00:11:22Z
 
-  TestFormatSpecifier(tp, tz, "%d", "01");
-  TestFormatSpecifier(tp, tz, "%e", " 1");  // extension but internal support
+  TestFormatSpecifier(tp, tz, "%d", "08");
+  TestFormatSpecifier(tp, tz, "%e", " 8");  // extension but internal support
   TestFormatSpecifier(tp, tz, "%H", "00");
   TestFormatSpecifier(tp, tz, "%I", "12");
-  TestFormatSpecifier(tp, tz, "%j", "001");
-  TestFormatSpecifier(tp, tz, "%m", "01");
-  TestFormatSpecifier(tp, tz, "%M", "00");
-  TestFormatSpecifier(tp, tz, "%S", "00");
-  TestFormatSpecifier(tp, tz, "%U", "00");
-#if !defined(__EMSCRIPTEN__)
-  TestFormatSpecifier(tp, tz, "%w", "4");  // 4=Thursday
-#endif
-  TestFormatSpecifier(tp, tz, "%W", "00");
-  TestFormatSpecifier(tp, tz, "%y", "70");
-  TestFormatSpecifier(tp, tz, "%Y", "1970");
+  TestFormatSpecifier(tp, tz, "%j", "281");
+  TestFormatSpecifier(tp, tz, "%m", "10");
+  TestFormatSpecifier(tp, tz, "%M", "11");
+  TestFormatSpecifier(tp, tz, "%S", "22");
+  TestFormatSpecifier(tp, tz, "%U", "40");
+  TestFormatSpecifier(tp, tz, "%w", "1");  // 1=Monday
+  TestFormatSpecifier(tp, tz, "%W", "41");
+  TestFormatSpecifier(tp, tz, "%y", "79");
+  TestFormatSpecifier(tp, tz, "%Y", "1979");
   TestFormatSpecifier(tp, tz, "%z", "+0000");
   TestFormatSpecifier(tp, tz, "%Z", "UTC");
   TestFormatSpecifier(tp, tz, "%%", "%");
@@ -193,21 +192,21 @@ TEST(Format, PosixConversions) {
 #if defined(__linux__)
   // SU/C99/TZ extensions
   TestFormatSpecifier(tp, tz, "%C", "19");
-  TestFormatSpecifier(tp, tz, "%D", "01/01/70");
-  TestFormatSpecifier(tp, tz, "%F", "1970-01-01");
-  TestFormatSpecifier(tp, tz, "%g", "70");
-  TestFormatSpecifier(tp, tz, "%G", "1970");
+  TestFormatSpecifier(tp, tz, "%D", "10/08/79");
+  TestFormatSpecifier(tp, tz, "%F", "1979-10-08");
+  TestFormatSpecifier(tp, tz, "%g", "79");
+  TestFormatSpecifier(tp, tz, "%G", "1979");
 #if defined(__GLIBC__)
   TestFormatSpecifier(tp, tz, "%k", " 0");
   TestFormatSpecifier(tp, tz, "%l", "12");
 #endif
   TestFormatSpecifier(tp, tz, "%n", "\n");
-  TestFormatSpecifier(tp, tz, "%R", "00:00");
+  TestFormatSpecifier(tp, tz, "%R", "00:11");
   TestFormatSpecifier(tp, tz, "%t", "\t");
-  TestFormatSpecifier(tp, tz, "%T", "00:00:00");
-  TestFormatSpecifier(tp, tz, "%u", "4");  // 4=Thursday
-  TestFormatSpecifier(tp, tz, "%V", "01");
-  TestFormatSpecifier(tp, tz, "%s", "0");
+  TestFormatSpecifier(tp, tz, "%T", "00:11:22");
+  TestFormatSpecifier(tp, tz, "%u", "1");  // 1=Monday
+  TestFormatSpecifier(tp, tz, "%V", "41");
+  TestFormatSpecifier(tp, tz, "%s", "308189482");
 #endif
 }
 

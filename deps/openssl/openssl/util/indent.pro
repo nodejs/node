@@ -188,7 +188,7 @@
 -T DSO_METHOD
 -T DSO_NAME_CONVERTER_FUNC
 -T DSO_VMS_INTERNAL
--T DTLS1_BITMAP
+-T DTLS_BITMAP
 -T DTLS1_RECORD_DATA
 -T DTLS1_STATE
 -T Dl_info
@@ -381,10 +381,9 @@
 -T SRP_user_pwd
 -T SRTP_PROTECTION_PROFILE
 -T SSL
--T SSL3_BUFFER
--T SSL3_COMP
+-T TLS_BUFFER
 -T SSL3_ENC_METHOD
--T SSL3_RECORD
+-T TLS_RL_RECORD
 -T SSL3_STATE
 -T SSL_CIPHER
 -T SSL_COMP
@@ -601,7 +600,6 @@
 -T clock_t
 -T custom_ext_methods
 -T hm_fragment
--T record_pqueue
 -T ssl_ctx_st
 -T ssl_flag_tbl
 -T ssl_st

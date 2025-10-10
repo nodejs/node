@@ -30,6 +30,7 @@
 #include "absl/base/options.h"
 #include "absl/container/fixed_array.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/hash/hash.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/str_cat.h"
@@ -39,6 +40,20 @@ namespace {
 static_assert(!absl::type_traits_internal::IsOwner<absl::Span<int>>::value &&
                   absl::type_traits_internal::IsView<absl::Span<int>>::value,
               "Span is a view, not an owner");
+
+using S = absl::Span<int>;
+
+static_assert(
+    std::is_trivially_destructible_v<S> && std::is_trivially_copyable_v<S> &&
+        std::is_trivially_assignable_v<S, S&> &&
+        std::is_trivially_copy_assignable_v<S> &&
+        std::is_trivially_move_assignable_v<S> &&
+        std::is_trivially_assignable_v<S, const S&&> &&
+        std::is_trivially_constructible_v<S, S&> &&
+        std::is_trivially_copy_constructible_v<S> &&
+        std::is_trivially_move_constructible_v<S> &&
+        std::is_trivially_constructible_v<S, const S&&>,
+    "Span should be trivial in everything except default-constructibility");
 
 MATCHER_P(DataIs, data,
           absl::StrCat("data() ", negation ? "isn't " : "is ",
@@ -883,6 +898,18 @@ TEST(Span, Hash) {
        T(array, 1), T(array, 2),
        // Same length, but different array
        T(array + 1, 2), T(array + 2, 2)}));
+}
+
+// std::vector is implicitly convertible to absl::Span.
+// There are real life cases where clients rely on this consistency in order to
+// implement heterogeneous lookup.
+TEST(Span, HashConsistentWithVectorLike) {
+  EXPECT_EQ(absl::HashOf(absl::Span<const int>({1, 2, 3})),
+            absl::HashOf(std::vector<int>{1, 2, 3}));
+  EXPECT_EQ(absl::HashOf(absl::Span<const int>({1, 2, 3})),
+            absl::HashOf(absl::InlinedVector<int, 2>{1, 2, 3}));
+  EXPECT_EQ(absl::HashOf(absl::Span<const int>({1, 2, 3})),
+            absl::HashOf(absl::FixedArray<int>{1, 2, 3}));
 }
 
 }  // namespace

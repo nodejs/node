@@ -221,6 +221,6 @@ npm run test --workspaces --if-present
 
 * [npm install](/commands/npm-install)
 * [npm publish](/commands/npm-publish)
-* [npm run-script](/commands/npm-run-script)
+* [npm run](/commands/npm-run)
 * [config](/using-npm/config)
 

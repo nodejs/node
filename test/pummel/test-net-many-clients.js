@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
@@ -62,13 +62,7 @@ function runClient(port, callback) {
     client.end();
   });
 
-  client.on('error', function(e) {
-    console.log('\n\nERROOOOOr');
-    throw e;
-  });
-
-  client.on('close', function(had_error) {
-    console.log('.');
+  client.on('close', common.mustCall(function(had_error) {
     assert.strictEqual(had_error, false);
     assert.strictEqual(client.recved.length, bytes);
 
@@ -82,7 +76,7 @@ function runClient(port, callback) {
     } else {
       callback();
     }
-  });
+  }, connections_per_client));
 }
 
 server.listen(0, function() {

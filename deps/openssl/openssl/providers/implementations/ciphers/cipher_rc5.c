@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -47,10 +47,8 @@ static void *rc5_dupctx(void *ctx)
         return NULL;
 
     ret = OPENSSL_malloc(sizeof(*ret));
-    if (ret == NULL) {
-        ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
+    if (ret == NULL)
         return NULL;
-    }
     *ret = *in;
 
     return ret;
@@ -79,7 +77,7 @@ static int rc5_set_ctx_params(void *vctx, const OSSL_PARAM params[])
     PROV_RC5_CTX *ctx = (PROV_RC5_CTX *)vctx;
     const OSSL_PARAM *p;
 
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
     if (!ossl_cipher_var_keylen_set_ctx_params(vctx, params))
@@ -138,7 +136,7 @@ static int alg##_##kbits##_##lcmode##_get_params(OSSL_PARAM params[])          \
                                           flags, kbits, blkbits, ivbits);      \
 }                                                                              \
 static OSSL_FUNC_cipher_newctx_fn alg##_##kbits##_##lcmode##_newctx;           \
-static void * alg##_##kbits##_##lcmode##_newctx(void *provctx)                 \
+static void *alg##_##kbits##_##lcmode##_newctx(void *provctx)                  \
 {                                                                              \
      PROV_##UCALG##_CTX *ctx;                                                  \
      if (!ossl_prov_is_running())                                              \
@@ -175,7 +173,7 @@ const OSSL_DISPATCH ossl_##alg##kbits##lcmode##_functions[] = {                \
       (void (*)(void))rc5_set_ctx_params },                                    \
     { OSSL_FUNC_CIPHER_SETTABLE_CTX_PARAMS,                                    \
      (void (*)(void))rc5_settable_ctx_params },                                \
-    { 0, NULL }                                                                \
+    OSSL_DISPATCH_END                                                          \
 };
 
 /* ossl_rc5128ecb_functions */

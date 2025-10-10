@@ -1,7 +1,7 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+
 #include <memory_tracker.h>
 #include <ngtcp2/ngtcp2.h>
 #include <string>
@@ -19,10 +19,10 @@ namespace node::quic {
 //
 // Each peer in a QUIC session generates one or more CIDs that the *other*
 // peer will use to identify the session. When a QUIC client initiates a
-// brand new session, it will initially generates a CID of its own (its
+// brand new session, it will initially generate a CID of its own (its
 // source CID) and a random placeholder CID for the server (the original
 // destination CID). When the server receives the initial packet, it will
-// generate its own source CID and use the clients source CID as the
+// generate its own source CID and use the client's source CID as the
 // server's destination CID.
 //
 //       Client                 Server
@@ -30,9 +30,9 @@ namespace node::quic {
 //     Source CID   <====> Destination CID
 //  Destination CID <====>   Source CID
 //
-// While the connection is being established, it is possible for either
-// peer to generate additional CIDs that are also associated with the
-// connection.
+// While the connection is being established, or even while the connection
+// is active, it is possible for either peer to generate additional CIDs that
+// are also associated with the connection.
 class CID final : public MemoryRetainer {
  public:
   static constexpr size_t kMinLength = NGTCP2_MIN_CIDLEN;
@@ -51,7 +51,6 @@ class CID final : public MemoryRetainer {
 
   CID(const CID& other);
   CID& operator=(const CID& other);
-  CID(CID&&) = delete;
 
   struct Hash final {
     size_t operator()(const CID& cid) const;
@@ -68,6 +67,8 @@ class CID final : public MemoryRetainer {
   operator bool() const;
   size_t length() const;
 
+  // Returns a hex-encoded string representation of the CID useful
+  // for debugging.
   std::string ToString() const;
 
   SET_NO_MEMORY_INFO()
@@ -75,7 +76,7 @@ class CID final : public MemoryRetainer {
   SET_SELF_SIZE(CID)
 
   template <typename T>
-  using Map = std::unordered_map<CID, T, CID::Hash>;
+  using Map = std::unordered_map<const CID, T, CID::Hash>;
 
   // A CID::Factory, as the name suggests, is used to create new CIDs.
   // Per https://datatracker.ietf.org/doc/draft-ietf-quic-load-balancers/, QUIC
@@ -85,13 +86,13 @@ class CID final : public MemoryRetainer {
   // but will allow user code to provide their own CID::Factory implementation.
   class Factory;
 
-  static CID kInvalid;
+  static const CID kInvalid;
 
   // The default constructor creates an empty, zero-length CID.
   // Zero-length CIDs are not usable. We use them as a placeholder
   // for a missing or empty CID value. This is public only because
   // it is required for the CID::Map implementation. It should not
-  // be used. Use kInvalid instead.
+  // be used directly. Use kInvalid instead.
   CID();
 
  private:
@@ -107,12 +108,12 @@ class CID::Factory {
 
   // Generate a new CID. The length_hint must be between CID::kMinLength
   // and CID::kMaxLength. The implementation can choose to ignore the length.
-  virtual CID Generate(size_t length_hint = CID::kMaxLength) const = 0;
+  virtual const CID Generate(size_t length_hint = CID::kMaxLength) const = 0;
 
   // Generate a new CID into the given ngtcp2_cid. This variation of
   // Generate should be used far less commonly.
-  virtual CID GenerateInto(ngtcp2_cid* cid,
-                           size_t length_hint = CID::kMaxLength) const = 0;
+  virtual const CID GenerateInto(
+      ngtcp2_cid* cid, size_t length_hint = CID::kMaxLength) const = 0;
 
   // The default random CID generator instance.
   static const Factory& random();
@@ -123,5 +124,4 @@ class CID::Factory {
 
 }  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

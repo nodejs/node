@@ -46,6 +46,17 @@ constexpr size_t kNumInt64Cmps = 6;
 #endif  // V8_COMPRESS_POINTERS
 #endif  // V8_TARGET_ARCH_64_BIT
 
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+constexpr std::array kFloat32CmpOpcodes = {
+    TurboshaftComparison::kFloat32Equal, TurboshaftComparison::kFloat32LessThan,
+    TurboshaftComparison::kFloat32LessThanOrEqual};
+#if V8_TARGET_ARCH_64_BIT
+constexpr std::array kFloat64CmpOpcodes = {
+    TurboshaftComparison::kFloat64Equal, TurboshaftComparison::kFloat64LessThan,
+    TurboshaftComparison::kFloat64LessThanOrEqual};
+#endif  // V8_TARGET_ARCH_64_BIT
+#endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+
 enum GraphShape { kBalanced, kUnbalanced };
 enum InvertPattern {
   kNoInvert,
@@ -84,7 +95,46 @@ static constexpr uint64_t uint64_test_array[] = {
     0x007FFFFFDDDDDDDD, 0x8000000000000000, 0x7FF8000000000000,
     0x7FF7654321FEDCBA};
 static constexpr auto uint64_test_vector = base::VectorOf(uint64_test_array);
-#endif
+#endif  // V8_TARGET_ARCH_64_BIT
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+static constexpr float float32_test_array[] = {
+    -9223372036854775808.0,
+    -1.45381e+10,
+    -2147483904.0,
+    -2147483648.0,
+    -2147483520.0,
+    -1.3956e+09,
+    -1.0,
+    -0.0,
+    0.0,
+    1.0,
+    2147483648.0,
+    2147483904.0,
+    4294967296.0,
+    std::numeric_limits<float>::infinity(),
+    std::numeric_limits<float>::quiet_NaN(),
+    -std::numeric_limits<float>::quiet_NaN()};
+static constexpr auto float32_test_vector = base::VectorOf(float32_test_array);
+#ifdef V8_TARGET_ARCH_64_BIT
+static constexpr double float64_test_array[] = {
+    -9223372036854775808.0,
+    -1.0,
+    -0.5,
+    -0.0,
+    0.0,
+    3e-88,
+    0.5,
+    1.0,
+    9223372036854775808.0,
+    9223373136366403584.0,
+    18446744073709551616.0,
+    V8_INFINITY,
+    -V8_INFINITY,
+    std::numeric_limits<double>::quiet_NaN(),
+    -std::numeric_limits<double>::quiet_NaN()};
+static constexpr auto float64_test_vector = base::VectorOf(float64_test_array);
+#endif  // V8_TARGET_ARCH_64_BIT
+#endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 
 // Given kGraphShapes and kInvertPatterns, defined above, the graphs produced by
 // the test framework, with four compares, are illustrated below. In the cases
@@ -350,6 +400,18 @@ class CombineCompares {
         return m().Uint64LessThan(lhs, rhs);
       case TurboshaftComparison::kUint64LessThanOrEqual:
         return m().Uint64LessThanOrEqual(lhs, rhs);
+      case TurboshaftComparison::kFloat32Equal:
+        return m().Float32Equal(lhs, rhs);
+      case TurboshaftComparison::kFloat32LessThan:
+        return m().Float32LessThan(lhs, rhs);
+      case TurboshaftComparison::kFloat32LessThanOrEqual:
+        return m().Float32LessThanOrEqual(lhs, rhs);
+      case TurboshaftComparison::kFloat64Equal:
+        return m().Float64Equal(lhs, rhs);
+      case TurboshaftComparison::kFloat64LessThan:
+        return m().Float64LessThan(lhs, rhs);
+      case TurboshaftComparison::kFloat64LessThanOrEqual:
+        return m().Float64LessThanOrEqual(lhs, rhs);
     }
   }
 
@@ -595,6 +657,32 @@ class CombineCompareWord64 : public CombineCompares<NumLogic, uint64_t> {
   }
 };
 
+template <uint32_t NumLogic>
+class CombineCompareFloat32 : public CombineCompares<NumLogic, float> {
+ public:
+  using CombineCompares<NumLogic, float>::CombineCompares;
+  uint32_t EvalCompare(CompareWrapper& cmpw, float lhs,
+                       float rhs) const override {
+    return cmpw.Float32Compare(lhs, rhs);
+  }
+  OpIndex Zero() const override { return this->m().Float32Constant(0.0); }
+  OpIndex One() const override { return this->m().Float32Constant(1.0); }
+  OpIndex ThirtyTwo() const override { return this->m().Float32Constant(32.0); }
+};
+
+template <uint32_t NumLogic>
+class CombineCompareFloat64 : public CombineCompares<NumLogic, double> {
+ public:
+  using CombineCompares<NumLogic, double>::CombineCompares;
+  uint32_t EvalCompare(CompareWrapper& cmpw, double lhs,
+                       double rhs) const override {
+    return cmpw.Float64Compare(lhs, rhs);
+  }
+  OpIndex Zero() const override { return this->m().Float64Constant(0.0); }
+  OpIndex One() const override { return this->m().Float64Constant(1.0); }
+  OpIndex ThirtyTwo() const override { return this->m().Float64Constant(32.0); }
+};
+
 template <typename Combiner, typename InputType, size_t NumCmps>
 void CombineCompareLogic1(
     const std::array<TurboshaftComparison, NumCmps>& cmp_opcodes,
@@ -638,12 +726,24 @@ TEST(CombineCompareWord32Logic1) {
   CombineCompareLogic1<CombineCompareWord32<1>, uint32_t, kNumInt32Cmps>(
       kInt32CmpOpcodes, MachineType::Uint32, uint32_test_vector);
 }
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+TEST(CombineCompareFloat32Logic1) {
+  CombineCompareLogic1<CombineCompareFloat32<1>, float, 3>(
+      kFloat32CmpOpcodes, MachineType::Float32, float32_test_vector);
+}
+#endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 #if V8_TARGET_ARCH_64_BIT
 TEST(CombineCompareWord64Logic1) {
   CombineCompareLogic1<CombineCompareWord64<1>, uint64_t, kNumInt64Cmps>(
       kInt64CmpOpcodes, MachineType::Uint64, uint64_test_vector);
 }
-#endif
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+TEST(CombineCompareFloat64Logic1) {
+  CombineCompareLogic1<CombineCompareFloat64<1>, double, 3>(
+      kFloat64CmpOpcodes, MachineType::Float64, float64_test_vector);
+}
+#endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+#endif  // V8_TARGET_ARCH_64_BIT
 
 template <typename Combiner, typename InputType, size_t NumCmps>
 void CombineCompareLogic2(
@@ -652,9 +752,9 @@ void CombineCompareLogic2(
     const base::Vector<const InputType>& input_vector) {
   constexpr GraphShape shape = kUnbalanced;
   constexpr BranchPattern branch_pattern = kNone;
-  auto cmp0 = cmp_opcodes[3];
-  auto cmp1 = cmp_opcodes[2];
-  auto cmp2 = cmp_opcodes[1];
+  auto cmp0 = cmp_opcodes[2];
+  auto cmp1 = cmp_opcodes[1];
+  auto cmp2 = cmp_opcodes[0];
   std::array compare_ops = {cmp0, cmp1, cmp2};
   for (auto logic0 : kLogicOpcodes) {
     for (auto logic1 : kLogicOpcodes) {
@@ -688,12 +788,24 @@ TEST(CombineCompareWord32Logic2) {
   CombineCompareLogic2<CombineCompareWord32<2>, uint32_t, kNumInt32Cmps>(
       kInt32CmpOpcodes, MachineType::Uint32, uint32_test_vector);
 }
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+TEST(CombineCompareFloat32Logic2) {
+  CombineCompareLogic2<CombineCompareFloat32<2>, float, 3>(
+      kFloat32CmpOpcodes, MachineType::Float32, float32_test_vector);
+}
+#endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 #if V8_TARGET_ARCH_64_BIT
 TEST(CombineCompareWord64Logic2) {
   CombineCompareLogic2<CombineCompareWord64<2>, uint64_t, kNumInt64Cmps>(
       kInt64CmpOpcodes, MachineType::Uint64, uint64_test_vector);
 }
-#endif
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+TEST(CombineCompareFloat64Logic2) {
+  CombineCompareLogic2<CombineCompareFloat64<2>, double, 3>(
+      kFloat64CmpOpcodes, MachineType::Float64, float64_test_vector);
+}
+#endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+#endif  // V8_TARGET_ARCH_64_BIT
 
 template <typename Combiner, typename InputType, size_t NumCmps>
 void CombineCompareLogic3Zero(
@@ -1041,6 +1153,53 @@ TEST(CombineCompareTwoLogicInputs) {
     }
   }
 }
+
+#if (V8_TARGET_ARCH_64_BIT && V8_ENABLE_FP_PARAMS_IN_C_LINKAGE)
+TEST(CombineCompareFloatAndIntMaxDepth) {
+  auto run = [](uint32_t a, uint32_t b, float c, double d) {
+    bool fcmp0 = 0.0f <= c;
+    bool icmp0 = static_cast<int32_t>(b) >= static_cast<int32_t>(a);
+    bool and0 = fcmp0 || icmp0;
+    bool fcmp1 = c < -1.0f;
+    bool or0 = and0 || fcmp1;
+    bool icmp1 = b > a;
+    bool and1 = or0 && icmp1;
+    bool fcmp2 = 1.0 == d;
+    return and1 || fcmp2;
+  };
+
+  RawMachineAssemblerTester<uint32_t> m(
+      MachineType::Uint32(), MachineType::Uint32(), MachineType::Float32(),
+      MachineType::Float64());
+  {
+    V<Word32> a = m.Parameter(0);
+    V<Word32> b = m.Parameter(1);
+    V<Float32> c = m.Parameter(2);
+    V<Float64> d = m.Parameter(3);
+    V<Word32> fcmp0 = m.Float32LessThanOrEqual(m.Float32Constant(0.0), c);
+    V<Word32> icmp0 = m.Int32GreaterThanOrEqual(b, a);
+    V<Word32> and0 = m.Word32BitwiseOr(fcmp0, icmp0);
+    V<Word32> fcmp1 = m.Float32LessThan(c, m.Float32Constant(-1.0));
+    V<Word32> or0 = m.Word32BitwiseOr(and0, fcmp1);
+    V<Word32> icmp1 = m.Uint32GreaterThan(b, a);
+    V<Word32> and1 = m.Word32BitwiseAnd(or0, icmp1);
+    V<Word32> fcmp2 = m.Float64Equal(m.Float64Constant(1.0), d);
+    m.Return(m.Word32BitwiseOr(and1, fcmp2));
+  }
+
+  for (uint32_t a : uint32_test_vector) {
+    for (uint32_t b : uint32_test_vector) {
+      for (float c : float32_test_vector) {
+        for (double d : float64_test_vector) {
+          uint32_t result = m.Call(a, b, c, d);
+          uint32_t expected = run(a, b, c, d);
+          CHECK_EQ(result, expected);
+        }
+      }
+    }
+  }
+}
+#endif  // (V8_TARGET_ARCH_64_BIT && V8_ENABLE_FP_PARAMS_IN_C_LINKAGE)
 
 }  // end namespace
 

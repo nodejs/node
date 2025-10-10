@@ -57,21 +57,13 @@ void FPU::SetFlushDenormals(bool value) {
 #elif defined(V8_HOST_ARCH_ARM64) || defined(V8_HOST_ARCH_ARM)
 
 namespace {
-#if defined(V8_HOST_ARCH_ARM64) && defined(_MSC_VER) && !defined(__clang__)
-#include <intrin.h>
-#endif
-
 // Bit 24 is the flush-to-zero mode control bit. Setting it to 1 flushes
 // denormals to 0.
 constexpr int kFlushDenormToZeroBit = (1 << 24);
 int GetStatusWord() {
   int result;
 #if defined(V8_HOST_ARCH_ARM64)
-# if defined(_MSC_VER) && !defined(__clang__)
-    result = _ReadStatusReg(ARM64_FPCR);
-# else
-    asm volatile("mrs %x[result], FPCR" : [result] "=r"(result));
-# endif
+  asm volatile("mrs %x[result], FPCR" : [result] "=r"(result));
 #else
   asm volatile("vmrs %[result], FPSCR" : [result] "=r"(result));
 #endif
@@ -80,11 +72,7 @@ int GetStatusWord() {
 
 void SetStatusWord(int a) {
 #if defined(V8_HOST_ARCH_ARM64)
-# if defined(_MSC_VER) && !defined(__clang__)
-    _WriteStatusReg(ARM64_FPCR, a);
-# else
-    asm volatile("msr FPCR, %x[src]" : : [src] "r"(a));
-# endif
+  asm volatile("msr FPCR, %x[src]" : : [src] "r"(a));
 #else
   asm volatile("vmsr FPSCR, %[src]" : : [src] "r"(a));
 #endif

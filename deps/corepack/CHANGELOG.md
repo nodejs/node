@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.34.0](https://github.com/nodejs/corepack/compare/v0.33.0...v0.34.0) (2025-07-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* drop Node.js 18.x and 23.x support
+
+### Features
+
+* update package manager versions ([#719](https://github.com/nodejs/corepack/issues/719)) ([7707ea7](https://github.com/nodejs/corepack/commit/7707ea7350c129ad3aae8ca08e9e80fcf164dcb6))
+
+
+### Miscellaneous Chores
+
+* remove Node.js 18.x and 23.x usage, add 24.x ([#718](https://github.com/nodejs/corepack/issues/718)) ([783a42f](https://github.com/nodejs/corepack/commit/783a42fbe35371964e9dde75e2263b179f53bc0c))
+
+## [0.33.0](https://github.com/nodejs/corepack/compare/v0.32.0...v0.33.0) (2025-06-02)
+
+
+### Features
+
+* Adds guard to avoid stepping on Yarn's feet ([#714](https://github.com/nodejs/corepack/issues/714)) ([5fc3691](https://github.com/nodejs/corepack/commit/5fc3691354eb5bdeca17a9495b234584353f0151))
+* update package manager versions ([#671](https://github.com/nodejs/corepack/issues/671)) ([b45b3a3](https://github.com/nodejs/corepack/commit/b45b3a3244bacfbaf65188ae8c04209a1e98307d))
+
+
+### Bug Fixes
+
+* debug text typo ([#698](https://github.com/nodejs/corepack/issues/698)) ([0b94797](https://github.com/nodejs/corepack/commit/0b94797f96e30e46e466873fe7d437d0471cd92c))
+
 ## [0.32.0](https://github.com/nodejs/corepack/compare/v0.31.0...v0.32.0) (2025-02-28)
 
 

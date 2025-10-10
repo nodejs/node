@@ -174,3 +174,13 @@ test('expect failure of a .cts file requiring esm in node_modules', async () => 
   match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
   strictEqual(result.code, 1);
 });
+
+test('cts -> require mts -> import cts', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    fixtures.path('typescript/cts/issue-59963/a.cts'),
+  ]);
+
+  strictEqual(result.stderr, '');
+  strictEqual(result.stdout, 'Hello from c.cts\n');
+  strictEqual(result.code, 0);
+});

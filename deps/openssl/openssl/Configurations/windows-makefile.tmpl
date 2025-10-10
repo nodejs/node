@@ -155,6 +155,11 @@ MISC_SCRIPTS={-
                          && $unified_info{attributes}->{scripts}->{$_}->{misc} }
                   @{$unified_info{scripts}})
 -}
+INSTALL_EXPORTERS_CMAKE={-
+        join(" ", map { quotify1($_) }
+                  grep { $unified_info{attributes}->{generate}->{$_}->{exporter} eq 'cmake'}
+                  sort keys %{$unified_info{generate}})
+-}
 IMAGEDOCS1={- our @IMAGEDOCS1 = @{$unified_info{imagedocs}->{man1}};
              join(" ", @IMAGEDOCS1) -}
 IMAGEDOCS3={- our @IMAGEDOCS3 = @{$unified_info{imagedocs}->{man3}};
@@ -248,6 +253,8 @@ MODULESDIR=$(MODULESDIR_dev)$(MODULESDIR_dir)
 # $(libdir) is chosen to be compatible with the GNU coding standards
 libdir={- file_name_is_absolute($libdir)
           ? $libdir : '$(INSTALLTOP)\$(LIBDIR)' -}
+
+CMAKECONFIGDIR=$(libdir)\cmake\OpenSSL
 
 ##### User defined commands and flags ################################
 
@@ -436,7 +443,7 @@ build_all_generated: $(GENERATED_MANDATORY) $(GENERATED) build_docs
 	@$(ECHO) "         then make will fail..."
 	@{- output_on() if $disabled{makedepend}; "\@rem" -}
 
-all: build_sw build_docs
+all: build_sw {- "build_docs" if !$disabled{docs}; -}
 
 test: tests
 {- dependmagic('tests'); -}: build_programs_nodep build_modules_nodep copy-utils
@@ -455,9 +462,9 @@ list-tests:
 	@$(ECHO) "Tests are not supported with your chosen Configure options"
 	@{- output_on() if !$disabled{tests}; "\@rem" -}
 
-install: install_sw install_ssldirs install_docs {- $disabled{fips} ? "" : "install_fips" -}
+install: install_sw install_ssldirs {- "install_docs" if !$disabled{docs}; -} {- $disabled{fips} ? "" : "install_fips" -}
 
-uninstall: uninstall_docs uninstall_sw {- $disabled{fips} ? "" : "uninstall_fips" -}
+uninstall: {- "uninstall_docs" if !$disabled{docs}; -} uninstall_sw {- $disabled{fips} ? "" : "uninstall_fips" -}
 
 libclean:
 	"$(PERL)" -e "map { m/(.*)\.dll$$/; unlink glob """{.,apps,test,fuzz}/$$1.*"""; } @ARGV" $(SHLIBS)
@@ -559,6 +566,8 @@ install_dev: install_runtime_libs
 	@"$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_LIBS) "$(libdir)"
 	@if "$(SHLIBS)"=="" \
 	 "$(PERL)" "$(SRCDIR)\util\copy.pl" ossl_static.pdb "$(libdir)"
+	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(CMAKECONFIGDIR)"
+	@"$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_EXPORTERS_CMAKE) "$(CMAKECONFIGDIR)"
 
 uninstall_dev:
 
@@ -782,7 +791,7 @@ EOF
           }
           return <<"EOF";
 $target: "$gen0" $deps
-	\$(CPP) $incs $cppflags $defs "$gen0" > \$@.i
+	\$(CPP) /D__ASSEMBLER__ $incs $cppflags $defs "$gen0" > \$@.i
 	move /Y \$@.i \$@
 EOF
       } elsif ($gen0 =~ m|^.*\.in$|) {
@@ -792,12 +801,44 @@ EOF
           my $dofile = abs2rel(rel2abs(catfile($config{sourcedir},
                                                "util", "dofile.pl")),
                                rel2abs($config{builddir}));
-          my @perlmodules = ( 'configdata.pm',
-                              grep { $_ =~ m|\.pm$| } @{$args{deps}} );
-          my %perlmoduleincs = map { '"-I'.dirname($_).'"' => 1 } @perlmodules;
-          $deps = join(' ', $deps, compute_platform_depends(@perlmodules));
-          @perlmodules = map { "-M".basename($_, '.pm') } @perlmodules;
-          my $perlmodules = join(' ', '', sort keys %perlmoduleincs, @perlmodules);
+          my @perlmodules = ();
+          my %perlmoduleincs = ();
+          my %perlmoduledeps = ();
+          foreach my $x (('configdata.pm', @{$args{deps}})) {
+              # Compute (i)nclusion directory, (m)odule name and (d)ependency
+              my $i, $m, $d;
+              if ($x =~ /\|/) {
+                  $i = $`;
+                  $d = $';
+
+                  # Massage the module part to become a real perl module spec
+                  $m = $d;
+                  $m =~ s|\.pm$||;
+                  # Directory specs are :: in perl package names
+                  $m =~ s|/|::|g;
+
+                  # Full file name of the dependency
+                  $d = catfile($i, $d) if $i;
+              } elsif ($x =~ /\.pm$/) {
+                  $i = dirname($x);
+                  $m = basename($x, '.pm');
+                  $d = $x;
+              } else {
+                  # All other dependencies are simply collected
+                  $d = $x;
+              }
+              push @perlmodules, '"-M'.$m.'"' if $m;
+              $perlmoduledeps{$d} = 1;
+              $perlmoduleincs{'"-I'.$i.'"'} = 1 if $i;
+          }
+
+          # Because of the special treatment of dependencies, we need to
+          # recompute $deps completely
+          my $deps
+              = join(" ", compute_platform_depends(@{$args{generator_deps}},
+                                                   sort keys %perlmoduledeps));
+          my $perlmodules = join(' ', '', ( sort keys %perlmoduleincs ), @perlmodules);
+
           return <<"EOF";
 $args{src}: "$gen0" $deps
 	"\$(PERL)"$perlmodules "$dofile" "-o$target{build_file}" "$gen0"$gen_args > \$@

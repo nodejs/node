@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --maglev --no-always-turbofan
-// Flags: --script-context-mutable-heap-number
+// Flags: --allow-natives-syntax --maglev
+// Flags: --script-context-cells
 // Flags: --no-maglev-function-context-specialization
 
 let x = 42;

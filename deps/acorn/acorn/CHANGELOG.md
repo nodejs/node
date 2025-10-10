@@ -1,3 +1,17 @@
+## 8.15.0 (2025-06-08)
+
+### New features
+
+Support `using` and `await using` syntax.
+
+The `AnyNode` type is now defined in such a way that plugins can extend it.
+
+### Bug fixes
+
+Fix an issue where the `bigint` property of literal nodes for non-decimal bigints had the wrong format.
+
+The `acorn` CLI tool no longer crashes when emitting a tree that contains a bigint.
+
 ## 8.14.1 (2025-03-05)
 
 ### Bug fixes

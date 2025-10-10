@@ -34,7 +34,7 @@ std::ostream& operator<<(std::ostream& os, const MemoryAddress& mem) {
 
 void LateLoadEliminationAnalyzer::Run() {
   TRACE("LateLoadElimination: Starting analysis");
-  LoopFinder loop_finder(phase_zone_, &graph_);
+  LoopFinder loop_finder(phase_zone_, &graph_, LoopFinder::Config{});
   AnalyzerIterator iterator(phase_zone_, graph_, loop_finder);
 
   bool compute_start_snapshot = true;
@@ -234,11 +234,14 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         DCHECK(op.IsBlockTerminator() && SuccessorBlocks(op).empty());
         break;
 
+      case Opcode::kAtomicRMW:
+        ProcessAtomicRMW(op_idx, op.Cast<AtomicRMWOp>());
+        break;
+
       case Opcode::kCatchBlockBegin:
       case Opcode::kRetain:
       case Opcode::kDidntThrow:
       case Opcode::kCheckException:
-      case Opcode::kAtomicRMW:
       case Opcode::kAtomicWord32Pair:
       case Opcode::kMemoryBarrier:
       case Opcode::kParameter:
@@ -251,10 +254,14 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kArraySet:
       case Opcode::kStructSet:
       case Opcode::kSetStackPointer:
+      case Opcode::kMemoryCopy:
+      case Opcode::kMemoryFill:
+      case Opcode::kWasmIncCoverageCounter:
 #endif  // V8_ENABLE_WEBASSEMBLY
         // We explicitly break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
         break;
+
       default:
         // Operations that `can_write` should invalidate the state. All such
         // operations should be already handled above, which means that we don't
@@ -409,13 +416,37 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
     non_aliasing_objects_.Set(value, false);
   }
 
-  // If we just stored a map, invalidate the maps for this base.
+  // If we just stored a map, invalidate all object_maps_.
   if (store.offset == HeapObject::kMapOffset && !store.index().valid()) {
-    if (object_maps_.HasKeyFor(store.base())) {
-      TRACE(">> Wiping map\n");
-      object_maps_.Set(store.base(), MapMaskAndOr{});
+    // TODO(dmercadier): can we only do this for objects that are potentially
+    // aliasing with the `base` (based on their maps and the maps of `base`)?
+    // Also, it might be worth to record a new map if this is actually a map
+    // store.
+    // TODO(dmercadier): do this only if `value` is a Constant with kind
+    // kHeapObject, since all map stores should store a known constant maps.
+    TRACE(">> Wiping all maps\n");
+    for (auto it : object_maps_) {
+      object_maps_.Set(it.second, MapMaskAndOr{});
     }
   }
+}
+
+void LateLoadEliminationAnalyzer::ProcessAtomicRMW(OpIndex op_idx,
+                                                   const AtomicRMWOp& store) {
+#if V8_ENABLE_WEBASSEMBLY
+  TRACE("> ProcessAtomicRMW(" << op_idx << ")");
+  // With shared-everything-treads atomic rmw operations are also used for heap
+  // operations. If the atomic operation is not operating on linear memory, we
+  // need to invalidate it. TODO(mliedtke): Only invalidate the potentially
+  // aliasing information.
+  if (!v8_flags.experimental_wasm_shared ||
+      store.base_rep == RegisterRepresentation::WordPtr()) {
+    TRACE(">> Skipping operation on linear memory");
+    return;
+  }
+  TRACE(">> Invalidating whole maybe-aliasing memory");
+  memory_.InvalidateMaybeAliasing();
+#endif
 }
 
 // Since we only loosely keep track of what can or can't alias, we assume that
@@ -441,13 +472,6 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
   // invalidate the state, and record the non-alias if any.
   if (!op.Effects().can_write()) {
     TRACE(">> Call doesn't write, skipping");
-    return;
-  }
-  // Note: This does not detect wasm stack checks, but those are detected by the
-  // check just above.
-  if (op.IsStackCheck(graph_, broker_, StackCheckKind::kJSIterationBody)) {
-    // This is a stack check that cannot write heap memory.
-    TRACE(">> Call is loop stack check, skipping");
     return;
   }
 
@@ -544,9 +568,21 @@ void LateLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
     // TODO(dmercadier): this is more conservative that we'd like, since only a
     // few functions use .arguments. Using a native-context-specific protector
     // for .arguments might allow to avoid invalidating frame states' content.
+    // Actually, FrameStates should know if they are inlined or not, and they
+    // should know what their inputs are (ie, locals, parameters, etc.). So, we
+    // should be able to inspect FrameStates and invalidate only Parameters.
     for (OpIndex input : frame_state->inputs()) {
       InvalidateIfAlias(input);
     }
+  }
+}
+
+void LateLoadEliminationAnalyzer::InvalidateAllMaps() {
+  TRACE(">> InvalidateAllMaps");
+  memory_.InvalidateAtMapOffset();
+  TRACE(">>> Wiping all maps\n");
+  for (auto it : object_maps_) {
+    object_maps_.Set(it.second, MapMaskAndOr{});
   }
 }
 
@@ -554,6 +590,11 @@ void LateLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
                                                   const AllocateOp&) {
   TRACE("> ProcessAllocate(" << op_idx << ") ==> Fresh non-aliasing object");
   non_aliasing_objects_.Set(op_idx, true);
+
+  // Allocate can trigger a GC, which can shortcut references to strings after
+  // flattening. That will change the map we see on repeated loads.
+  // TODO(nicohartmann): See if we can limit this to fewer cases.
+  InvalidateAllMaps();
 }
 
 void LateLoadEliminationAnalyzer::ProcessAssumeMap(

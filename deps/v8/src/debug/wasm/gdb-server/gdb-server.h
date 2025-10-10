@@ -49,6 +49,13 @@ class GdbServer {
 
   bool HasModuleListChanged() const { return has_module_list_changed_; }
 
+  // Returns the module id of the first available Wasm module, or 0 if none are
+  // loaded.
+  //
+  // Note: The module id is a unique integer assigned to each loaded Wasm
+  // module.
+  uint32_t GetFirstModuleId() const;
+
   // Queries the value of the {index} global value in the Wasm module identified
   // by {frame_index}.
   //
@@ -189,6 +196,9 @@ class GdbServer {
   std::unique_ptr<TaskRunner> task_runner_;
 
   std::atomic<bool> has_module_list_changed_;
+
+  AccountingAllocator allocator_;
+  Zone zone_;
 
   //////////////////////////////////////////////////////////////////////////////
   // Always accessed in the isolate thread.

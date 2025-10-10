@@ -77,20 +77,20 @@ try {
     } catch (e) {}
   }
 } catch (e) {}
-let module = __wrapTC(() => new WebAssembly.Module(builder.toBuffer()));
-const complex1 = __wrapTC(() => [1, 2, 3]);
-const complex2 = __wrapTC(() => boom());
+let module = __wrapTC(() => new WebAssembly.Module(builder.toBuffer()), false);
+const complex1 = __wrapTC(() => [1, 2, 3], false);
+const complex2 = __wrapTC(() => boom(), false);
 let complex3 = __wrapTC(() => function () {
-  let complex4 = __wrapTC(() => [1, 2, 3]);
+  let complex4 = __wrapTC(() => [1, 2, 3], false);
   return 2;
-}());
+}(), false);
 try {
   if (true) {
-    let complex5 = __wrapTC(() => new Map());
+    let complex5 = __wrapTC(() => new Map(), false);
   }
 } catch (e) {}
 async function foo(a) {
-  let val = await __wrapTC(() => a);
+  let val = await __wrapTC(() => a, false);
 }
 try {
   1;
@@ -123,4 +123,4 @@ function foo() {
 let {
   a: x,
   b: y
-} = __wrapTC(() => foo());
+} = __wrapTC(() => foo(), false);

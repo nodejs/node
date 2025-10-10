@@ -74,6 +74,7 @@ class AssemblerRiscvBase {
     kOffset11 = 11,  // RISCV C_J
     kOffset9 = 9     // RISCV compressed branch
   };
+
   virtual int32_t branch_offset_helper(Label* L, OffsetSize bits) = 0;
 
   virtual void emit(Instr x) = 0;
@@ -81,6 +82,10 @@ class AssemblerRiscvBase {
   virtual void emit(uint64_t x) = 0;
 
   virtual void ClearVectorunit() = 0;
+
+  // Record the last known safepoint location to the current pc.
+  virtual void RecordPcForSafepoint() = 0;
+
   // Instruction generation.
 
   // ----- Top-level instruction formats match those in the ISA manual
@@ -186,7 +191,6 @@ class AssemblerRiscvBase {
                         FPURegister rs1, Register rs2);
   void GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, Register rd,
                         FPURegister rs1, FPURegister rs2);
-  virtual void BlockTrampolinePoolFor(int instructions) = 0;
 };
 
 }  // namespace internal

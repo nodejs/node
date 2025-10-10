@@ -11,7 +11,7 @@ test('eval TypeScript ESM syntax', async () => {
     const text: string = 'Hello, TypeScript!'
     console.log(util.styleText('red', text));`]);
 
-  match(result.stderr, /Type Stripping is an experimental feature and might change at any time/);
+  strictEqual(result.stderr, '');
   match(result.stdout, /Hello, TypeScript!/);
   strictEqual(result.code, 0);
 });
@@ -24,7 +24,7 @@ test('eval TypeScript ESM syntax with input-type module', async () => {
     const text: string = 'Hello, TypeScript!'
     console.log(util.styleText('red', text));`]);
 
-  match(result.stderr, /Type Stripping is an experimental feature and might change at any time/);
+  strictEqual(result.stderr, '');
   match(result.stdout, /Hello, TypeScript!/);
   strictEqual(result.code, 0);
 });
@@ -36,7 +36,7 @@ test('eval TypeScript CommonJS syntax', async () => {
     const text: string = 'Hello, TypeScript!'
     console.log(util.styleText('red', text));`]);
   match(result.stdout, /Hello, TypeScript!/);
-  match(result.stderr, /ExperimentalWarning: Type Stripping is an experimental/);
+  strictEqual(result.stderr, '');
   strictEqual(result.code, 0);
 });
 
@@ -72,7 +72,7 @@ test('TypeScript ESM syntax not specified', async () => {
     `import util from 'node:util'
     const text: string = 'Hello, TypeScript!'
     console.log(text);`]);
-  match(result.stderr, /ExperimentalWarning: Type Stripping is an experimental/);
+  strictEqual(result.stderr, '');
   match(result.stdout, /Hello, TypeScript!/);
   strictEqual(result.code, 0);
 });
@@ -162,7 +162,7 @@ test('check warning is emitted when eval TypeScript CommonJS syntax', async () =
     `const util = require('node:util');
     const text: string = 'Hello, TypeScript!'
     console.log(util.styleText('red', text));`]);
-  match(result.stderr, /ExperimentalWarning: Type Stripping is an experimental/);
+  strictEqual(result.stderr, '');
   match(result.stdout, /Hello, TypeScript!/);
   strictEqual(result.code, 0);
 });

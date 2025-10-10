@@ -292,7 +292,7 @@ class Advisory {
 
   [_testSpec] (spec) {
     for (const v of this.versions) {
-      const satisfies = semver.satisfies(v, spec)
+      const satisfies = semver.satisfies(v, spec, semverOpt)
       if (!satisfies) {
         continue
       }

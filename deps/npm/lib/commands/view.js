@@ -266,11 +266,13 @@ class View extends BaseCommand {
     const deps = Object.entries(manifest.dependencies || {}).map(([k, dep]) =>
       `${chalk.blue(k)}: ${dep}`
     )
-    // Sort dist-tags by publish time, then tag name, keeping latest at the top of the list
+
+    // Sort dist-tags by publish time when available, then by tag name, keeping `latest` at the top of the list.
     const distTags = Object.entries(packu['dist-tags'])
       .sort(([aTag, aVer], [bTag, bVer]) => {
-        const aTime = aTag === 'latest' ? Infinity : Date.parse(packu.time[aVer])
-        const bTime = bTag === 'latest' ? Infinity : Date.parse(packu.time[bVer])
+        const timeMap = packu.time || {}
+        const aTime = aTag === 'latest' ? Infinity : Date.parse(timeMap[aVer] || 0)
+        const bTime = bTag === 'latest' ? Infinity : Date.parse(timeMap[bVer] || 0)
         if (aTime === bTime) {
           return aTag > bTag ? -1 : 1
         }
@@ -357,7 +359,7 @@ class View extends BaseCommand {
     })
     if (publisher || packu.time) {
       let publishInfo = 'published'
-      if (packu.time) {
+      if (packu.time?.[manifest.version]) {
         publishInfo += ` ${chalk.cyan(relativeDate(packu.time[manifest.version]))}`
       }
       if (publisher) {
@@ -446,10 +448,12 @@ function cleanup (data) {
   }
 
   const keys = Object.keys(data)
+
   if (keys.length <= 3 && data.name && (
     (keys.length === 1) ||
     (keys.length === 3 && data.email && data.url) ||
-    (keys.length === 2 && (data.email || data.url))
+    (keys.length === 2 && (data.email || data.url)) ||
+    data.trustedPublisher
   )) {
     data = unparsePerson(data)
   }

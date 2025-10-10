@@ -1,6 +1,6 @@
 /**
- * @fileoverview Check that common.skipIfInspectorDisabled is used if
- *               the inspector module is required.
+ * @file Check that common.skipIfInspectorDisabled is used if
+ *   the inspector module is required.
  * @author Daniel Bevenius <daniel.bevenius@gmail.com>
  */
 'use strict';

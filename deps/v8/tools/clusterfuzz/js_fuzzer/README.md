@@ -22,7 +22,8 @@ Then run:
 
 ```bash
 $ mkdir db
-$ node build_db.js -i /path/to/web_tests -o db chakra v8 spidermonkey WebKit/JSTests
+$ node build_db.js -i /path/to/web_tests -o db chakra v8 spidermonkey WebKit/JSTests fuzzilli
+$ node validate_db.js -i db -o db/index.json
 ```
 
 This may take a while. Optionally test the fuzzing DB with:

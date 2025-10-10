@@ -15,6 +15,7 @@ const fs = require('fs');
 
 const corpus = require('../corpus.js');
 const sourceHelpers = require('../source_helpers.js');
+const scriptMutator = require('../script_mutator.js');
 
 const BASE_DIR = path.join(path.dirname(__dirname), 'test_data');
 const DB_DIR = path.join(BASE_DIR, 'fake_db');
@@ -29,6 +30,16 @@ const HEADER = `// Copyright 2025 the V8 project authors. All rights reserved.
 // found in the LICENSE file.
 
 `;
+
+function zeroSettings() {
+  const settings = scriptMutator.defaultSettings();
+  for (const key of Object.keys(settings)) {
+    settings[key] = 0.0;
+  }
+  settings['engine'] = 'v8';
+  settings['testing'] = true;
+  return settings;
+}
 
 /**
  * Create a function that returns one of `probs` when called. It rotates
@@ -107,11 +118,24 @@ function assertExpectedResult(expectedPath, result) {
   assert.strictEqual(expected.join('\n'), result.trim());
 }
 
+function assertFile(expectedPath, actualPath) {
+  const actual = fs.readFileSync(actualPath, 'utf-8');
+  const absPath = path.join(BASE_DIR, expectedPath);
+  if (process.env.GENERATE) {
+    fs.writeFileSync(absPath, actual);
+    return;
+  }
+
+  const expected = fs.readFileSync(absPath, 'utf-8');
+  assert.strictEqual(expected, actual);
+}
+
 module.exports = {
   BASE_DIR: BASE_DIR,
   DB_DIR: DB_DIR,
   FUZZILLI_TEST_CORPUS: FUZZILLI_TEST_CORPUS,
   TEST_CORPUS: TEST_CORPUS,
+  assertFile: assertFile,
   assertExpectedPath: assertExpectedPath,
   assertExpectedResult: assertExpectedResult,
   cycleProbabilitiesFun: cycleProbabilitiesFun,
@@ -119,4 +143,5 @@ module.exports = {
   loadFuzzilliTestData: loadFuzzilliTestData,
   loadTestData: loadTestData,
   loadV8TestData: loadV8TestData,
+  zeroSettings: zeroSettings,
 }

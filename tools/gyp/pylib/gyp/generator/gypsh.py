@@ -13,7 +13,6 @@ by the input module.
 The expected usage is "gyp -f gypsh -D OS=desired_os".
 """
 
-
 import code
 import sys
 

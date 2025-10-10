@@ -48,6 +48,8 @@ class TestSignatures {
   SIG(i_aa, MakeSig1Return, kWasmI32, kWasmExternRef, kWasmExternRef)
   SIG(i_c, MakeSig1Return, kWasmI32, kWasmFuncRef)
   SIG(i_s, MakeSig1Return, kWasmI32, kWasmS128)
+  SIG(i_id, MakeSig1Return, kWasmI32, kWasmI32, kWasmF64)
+  SIG(i_di, MakeSig1Return, kWasmI32, kWasmF64, kWasmI32)
 
   // Returning one i64 value.
   SIG(l_v, MakeSig1Return, kWasmI64)
@@ -59,10 +61,14 @@ class TestSignatures {
   // Returning one f32 value.
   SIG(f_f, MakeSig1Return, kWasmF32, kWasmF32)
   SIG(f_ff, MakeSig1Return, kWasmF32, kWasmF32, kWasmF32)
+  SIG(f_v, MakeSig1Return, kWasmF32)
 
   // Returning one f64 value.
   SIG(d_d, MakeSig1Return, kWasmF64, kWasmF64)
   SIG(d_dd, MakeSig1Return, kWasmF64, kWasmF64, kWasmF64)
+  SIG(d_i, MakeSig1Return, kWasmF64, kWasmI32)
+  SIG(d_ii, MakeSig1Return, kWasmF64, kWasmI32, kWasmI32)
+  SIG(d_v, MakeSig1Return, kWasmF64)
 
   // Returning other values.
   SIG(a_v, MakeSig1Return, kWasmExternRef)

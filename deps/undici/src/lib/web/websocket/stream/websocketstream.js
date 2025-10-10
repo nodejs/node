@@ -1,11 +1,11 @@
 'use strict'
 
-const { createDeferredPromise, environmentSettingsObject } = require('../../fetch/util')
+const { createDeferredPromise } = require('../../../util/promise')
+const { environmentSettingsObject } = require('../../fetch/util')
 const { states, opcodes, sentCloseFrameState } = require('../constants')
-const { webidl } = require('../../fetch/webidl')
+const { webidl } = require('../../webidl')
 const { getURLRecord, isValidSubprotocol, isEstablished, utf8Decode } = require('../util')
 const { establishWebSocketConnection, failWebsocketConnection, closeWebSocketConnection } = require('../connection')
-const { types } = require('node:util')
 const { channels } = require('../../../core/diagnostics')
 const { WebsocketFrameSend } = require('../frame')
 const { ByteParser } = require('../receiver')
@@ -21,11 +21,11 @@ class WebSocketStream {
   #url
 
   // Each WebSocketStream object has an associated opened promise , which is a promise.
-  /** @type {ReturnType<typeof createDeferredPromise>} */
+  /** @type {import('../../../util/promise').DeferredPromise} */
   #openedPromise
 
   // Each WebSocketStream object has an associated closed promise , which is a promise.
-  /** @type {ReturnType<typeof createDeferredPromise>} */
+  /** @type {import('../../../util/promise').DeferredPromise} */
   #closedPromise
 
   // Each WebSocketStream object has an associated readable stream , which is a ReadableStream .
@@ -45,7 +45,6 @@ class WebSocketStream {
   #handler = {
     // https://whatpr.org/websockets/48/7b748d3...d5570f3.html#feedback-to-websocket-stream-from-the-protocol
     onConnectionEstablished: (response, extensions) => this.#onConnectionEstablished(response, extensions),
-    onFail: (_code, _reason) => {},
     onMessage: (opcode, data) => this.#onMessage(opcode, data),
     onParserError: (err) => failWebsocketConnection(this.#handler, null, err.message),
     onParserDrain: () => this.#handler.socket.resume(),
@@ -64,6 +63,8 @@ class WebSocketStream {
       this.#handler.socket.destroy()
     },
     onSocketClose: () => this.#onSocketClose(),
+    onPing: () => {},
+    onPong: () => {},
 
     readyState: states.CONNECTING,
     socket: null,
@@ -197,6 +198,9 @@ class WebSocketStream {
   }
 
   #write (chunk) {
+    // See /websockets/stream/tentative/write.any.html
+    chunk = webidl.converters.WebSocketStreamWrite(chunk)
+
     // 1. Let promise be a new promise created in stream ’s relevant realm .
     const promise = createDeferredPromise()
 
@@ -207,9 +211,9 @@ class WebSocketStream {
     let opcode = null
 
     // 4. If chunk is a BufferSource ,
-    if (ArrayBuffer.isView(chunk) || types.isArrayBuffer(chunk)) {
+    if (webidl.is.BufferSource(chunk)) {
       // 4.1. Set data to a copy of the bytes given chunk .
-      data = new Uint8Array(ArrayBuffer.isView(chunk) ? new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength) : chunk)
+      data = new Uint8Array(ArrayBuffer.isView(chunk) ? new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength) : chunk.slice())
 
       // 4.2. Set opcode to a binary frame opcode.
       opcode = opcodes.BINARY
@@ -224,7 +228,7 @@ class WebSocketStream {
         string = webidl.converters.DOMString(chunk)
       } catch (e) {
         promise.reject(e)
-        return
+        return promise.promise
       }
 
       // 5.2. Set data to the result of UTF-8 encoding string .
@@ -247,7 +251,7 @@ class WebSocketStream {
     }
 
     // 6.3. Queue a global task on the WebSocket task source given stream ’s relevant global object to resolve promise with undefined.
-    return promise
+    return promise.promise
   }
 
   /** @type {import('../websocket').Handler['onConnectionEstablished']} */
@@ -388,7 +392,7 @@ class WebSocketStream {
     // 6. If the connection was closed cleanly ,
     if (wasClean) {
       // 6.1. Close stream ’s readable stream .
-      this.#readableStream.cancel().catch(() => {})
+      this.#readableStreamController.close()
 
       // 6.2. Error stream ’s writable stream with an " InvalidStateError " DOMException indicating that a closed WebSocketStream cannot be written to.
       if (!this.#writableStream.locked) {
@@ -473,7 +477,7 @@ webidl.converters.WebSocketStreamOptions = webidl.dictionaryConverter([
 webidl.converters.WebSocketCloseInfo = webidl.dictionaryConverter([
   {
     key: 'closeCode',
-    converter: (V) => webidl.converters['unsigned short'](V, { enforceRange: true })
+    converter: (V) => webidl.converters['unsigned short'](V, webidl.attributes.EnforceRange)
   },
   {
     key: 'reason',
@@ -481,5 +485,13 @@ webidl.converters.WebSocketCloseInfo = webidl.dictionaryConverter([
     defaultValue: () => ''
   }
 ])
+
+webidl.converters.WebSocketStreamWrite = function (V) {
+  if (typeof V === 'string') {
+    return webidl.converters.USVString(V)
+  }
+
+  return webidl.converters.BufferSource(V)
+}
 
 module.exports = { WebSocketStream }

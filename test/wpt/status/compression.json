@@ -11,14 +11,6 @@
   "compression-with-detach.tentative.window.js": {
     "requires": ["crypto"]
   },
-  "decompression-corrupt-input.tentative.any.js": {
-    "fail": {
-      "expected": [
-        "trailing junk for 'deflate' should give an error",
-        "trailing junk for 'gzip' should give an error"
-      ]
-    }
-  },
   "idlharness-shadowrealm.window.js": {
     "skip": "ShadowRealm support is not enabled"
   },

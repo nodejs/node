@@ -34,19 +34,6 @@ class WeakObjects;
 
 class V8_EXPORT_PRIVATE ConcurrentMarking {
  public:
-  // When the scope is entered, the concurrent marking tasks
-  // are preempted and are not looking at the heap objects, concurrent marking
-  // is resumed when the scope is exited.
-  class V8_NODISCARD PauseScope {
-   public:
-    explicit PauseScope(ConcurrentMarking* concurrent_marking);
-    ~PauseScope();
-
-   private:
-    ConcurrentMarking* const concurrent_marking_;
-    const bool resume_on_exit_;
-  };
-
   ConcurrentMarking(Heap* heap, WeakObjects* weak_objects);
   ~ConcurrentMarking();
 
@@ -76,9 +63,6 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   void FlushNativeContexts(NativeContextStats* main_stats);
   // Flushes memory chunk data.
   void FlushMemoryChunkData();
-  // This function is called for a new space page that was cleared after
-  // scavenge and is going to be reused.
-  void ClearMemoryChunkData(MutablePageMetadata* chunk);
   // Flushes pretenuring feedback.
   void FlushPretenuringFeedback();
 

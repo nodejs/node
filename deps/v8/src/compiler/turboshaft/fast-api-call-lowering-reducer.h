@@ -62,12 +62,7 @@ class FastApiCallLoweringReducer : public Next {
 
       for (int i = 0; i < c_arg_count; ++i) {
         CTypeInfo type = c_signature->ArgumentInfo(i);
-        START_ALLOW_USE_DEPRECATED()
-        MachineType machine_type =
-            type.GetSequenceType() == CTypeInfo::SequenceType::kScalar
-                ? MachineType::TypeForCType(type)
-                : MachineType::AnyTagged();
-        END_ALLOW_USE_DEPRECATED()
+        MachineType machine_type = MachineType::TypeForCType(type);
         builder.AddParam(machine_type);
       }
 
@@ -101,7 +96,7 @@ class FastApiCallLoweringReducer : public Next {
       const TSCallDescriptor* call_descriptor = TSCallDescriptor::Create(
           Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Get(),
                                             CallDescriptor::kNeedsFrameState),
-          CanThrow::kNo, LazyDeoptOnThrow::kNo, __ graph_zone());
+          CanThrow::kYes, LazyDeoptOnThrow::kNo, __ graph_zone());
       OpIndex c_call_result = WrapFastCall(call_descriptor, callee, frame_state,
                                            context, base::VectorOf(args));
 
@@ -137,7 +132,7 @@ class FastApiCallLoweringReducer : public Next {
     }
 
     BIND(done, state);
-    return __ Tuple(state, __ GetVariable(result));
+    return __ MakeTuple(state, __ GetVariable(result));
   }
 
  private:
@@ -151,124 +146,101 @@ class FastApiCallLoweringReducer : public Next {
 
   OpIndex AdaptFastCallArgument(OpIndex argument, CTypeInfo arg_type,
                                 Label<>& handle_error) {
-    START_ALLOW_USE_DEPRECATED()
-    switch (arg_type.GetSequenceType()) {
-      case CTypeInfo::SequenceType::kScalar: {
-        uint8_t flags = static_cast<uint8_t>(arg_type.GetFlags());
-        if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit)) {
-          switch (arg_type.GetType()) {
-            case CTypeInfo::Type::kInt32: {
-              auto result = __ TryTruncateFloat64ToInt32(argument);
-              return Checked(result, handle_error);
-            }
-            case CTypeInfo::Type::kUint32: {
-              auto result = __ TryTruncateFloat64ToUint32(argument);
-              return Checked(result, handle_error);
-            }
-            case CTypeInfo::Type::kInt64: {
-              auto result = __ TryTruncateFloat64ToInt64(argument);
-              return Checked(result, handle_error);
-            }
-            case CTypeInfo::Type::kUint64: {
-              auto result = __ TryTruncateFloat64ToUint64(argument);
-              return Checked(result, handle_error);
-            }
-            default: {
-              GOTO(handle_error);
-              return argument;
-            }
-          }
-        } else if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kClampBit)) {
-          return ClampFastCallArgument(argument, arg_type.GetType());
-        } else {
-          switch (arg_type.GetType()) {
-            case CTypeInfo::Type::kV8Value: {
-              return __ AdaptLocalArgument(argument);
-            }
-            case CTypeInfo::Type::kFloat32: {
-              return __ TruncateFloat64ToFloat32(argument);
-            }
-            case CTypeInfo::Type::kPointer: {
-              // Check that the value is a HeapObject.
-              GOTO_IF(__ ObjectIsSmi(argument), handle_error);
-              Label<WordPtr> done(this);
-
-              // Check if the value is null.
-              GOTO_IF(UNLIKELY(__ TaggedEqual(
-                          argument, __ HeapConstant(factory_->null_value()))),
-                      done, 0);
-
-              // Check that the value is a JSExternalObject.
-              GOTO_IF_NOT(
-                  __ TaggedEqual(__ LoadMapField(argument),
-                                 __ HeapConstant(factory_->external_map())),
-                  handle_error);
-
-              GOTO(done, __ template LoadField<WordPtr>(
-                             V<HeapObject>::Cast(argument),
-                             AccessBuilder::ForJSExternalObjectValue()));
-
-              BIND(done, result);
-              return result;
-            }
-            case CTypeInfo::Type::kSeqOneByteString: {
-              // Check that the value is a HeapObject.
-              GOTO_IF(__ ObjectIsSmi(argument), handle_error);
-              V<HeapObject> argument_obj = V<HeapObject>::Cast(argument);
-
-              V<Map> map = __ LoadMapField(argument_obj);
-              V<Word32> instance_type = __ LoadInstanceTypeField(map);
-
-              V<Word32> encoding = __ Word32BitwiseAnd(
-                  instance_type, kStringRepresentationAndEncodingMask);
-              GOTO_IF_NOT(__ Word32Equal(encoding, kSeqOneByteStringTag),
-                          handle_error);
-
-              V<WordPtr> length_in_bytes = __ template LoadField<WordPtr>(
-                  argument_obj, AccessBuilder::ForStringLength());
-              V<WordPtr> data_ptr = __ GetElementStartPointer(
-                  argument_obj, AccessBuilder::ForSeqOneByteStringCharacter());
-
-              constexpr int kAlign = alignof(FastOneByteString);
-              constexpr int kSize = sizeof(FastOneByteString);
-              static_assert(kSize == sizeof(uintptr_t) + sizeof(size_t),
-                            "The size of "
-                            "FastOneByteString isn't equal to the sum of its "
-                            "expected members.");
-              OpIndex stack_slot = __ StackSlot(kSize, kAlign);
-              __ StoreOffHeap(stack_slot, data_ptr,
-                              MemoryRepresentation::UintPtr());
-              __ StoreOffHeap(stack_slot, length_in_bytes,
-                              MemoryRepresentation::Uint32(), sizeof(size_t));
-              static_assert(sizeof(uintptr_t) == sizeof(size_t),
-                            "The string length can't "
-                            "fit the PointerRepresentation used to store it.");
-              return stack_slot;
-            }
-            default: {
-              return argument;
-            }
-          }
+    uint8_t flags = static_cast<uint8_t>(arg_type.GetFlags());
+    if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit)) {
+      switch (arg_type.GetType()) {
+        case CTypeInfo::Type::kInt32: {
+          auto result = __ TryTruncateFloat64ToInt32(argument);
+          return Checked(result, handle_error);
+        }
+        case CTypeInfo::Type::kUint32: {
+          auto result = __ TryTruncateFloat64ToUint32(argument);
+          return Checked(result, handle_error);
+        }
+        case CTypeInfo::Type::kInt64: {
+          auto result = __ TryTruncateFloat64ToInt64(argument);
+          return Checked(result, handle_error);
+        }
+        case CTypeInfo::Type::kUint64: {
+          auto result = __ TryTruncateFloat64ToUint64(argument);
+          return Checked(result, handle_error);
+        }
+        default: {
+          GOTO(handle_error);
+          return argument;
         }
       }
-      case CTypeInfo::SequenceType::kIsSequence: {
-        CHECK_EQ(arg_type.GetType(), CTypeInfo::Type::kVoid);
+    } else if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kClampBit)) {
+      return ClampFastCallArgument(argument, arg_type.GetType());
+    } else {
+      switch (arg_type.GetType()) {
+        case CTypeInfo::Type::kV8Value: {
+          return __ AdaptLocalArgument(argument);
+        }
+        case CTypeInfo::Type::kFloat32: {
+          return __ TruncateFloat64ToFloat32(argument);
+        }
+        case CTypeInfo::Type::kPointer: {
+          // Check that the value is a HeapObject.
+          GOTO_IF(__ ObjectIsSmi(argument), handle_error);
+          Label<WordPtr> done(this);
 
-        // Check that the value is a HeapObject.
-        GOTO_IF(__ ObjectIsSmi(argument), handle_error);
+          // Check if the value is null.
+          GOTO_IF(UNLIKELY(__ TaggedEqual(
+                      argument, __ HeapConstant(factory_->null_value()))),
+                  done, 0);
 
-        // Check that the value is a JSArray.
-        V<Map> map = __ LoadMapField(argument);
-        V<Word32> instance_type = __ LoadInstanceTypeField(map);
-        GOTO_IF_NOT(__ Word32Equal(instance_type, JS_ARRAY_TYPE), handle_error);
+          // Check that the value is a JSExternalObject.
+          GOTO_IF_NOT(__ TaggedEqual(__ LoadMapField(argument),
+                                     __ HeapConstant(factory_->external_map())),
+                      handle_error);
 
-        return __ AdaptLocalArgument(argument);
-      }
-      default: {
-        UNREACHABLE();
+          GOTO(done, __ template LoadField<WordPtr>(
+                         V<HeapObject>::Cast(argument),
+                         AccessBuilder::ForJSExternalObjectValue()));
+
+          BIND(done, result);
+          return result;
+        }
+        case CTypeInfo::Type::kSeqOneByteString: {
+          // Check that the value is a HeapObject.
+          GOTO_IF(__ ObjectIsSmi(argument), handle_error);
+          V<HeapObject> argument_obj = V<HeapObject>::Cast(argument);
+
+          V<Map> map = __ LoadMapField(argument_obj);
+          V<Word32> instance_type = __ LoadInstanceTypeField(map);
+
+          V<Word32> encoding = __ Word32BitwiseAnd(
+              instance_type, kStringRepresentationAndEncodingMask);
+          GOTO_IF_NOT(__ Word32Equal(encoding, kSeqOneByteStringTag),
+                      handle_error);
+
+          V<WordPtr> length_in_bytes = __ template LoadField<WordPtr>(
+              argument_obj, AccessBuilder::ForStringLength());
+          V<WordPtr> data_ptr = __ GetElementStartPointer(
+              argument_obj, AccessBuilder::ForSeqOneByteStringCharacter());
+
+          constexpr int kAlign = alignof(FastOneByteString);
+          constexpr int kSize = sizeof(FastOneByteString);
+          static_assert(kSize == sizeof(uintptr_t) + sizeof(size_t),
+                        "The size of "
+                        "FastOneByteString isn't equal to the sum of its "
+                        "expected members.");
+          OpIndex stack_slot = __ StackSlot(kSize, kAlign);
+          __ StoreOffHeap(stack_slot, data_ptr,
+                          MemoryRepresentation::UintPtr());
+          __ StoreOffHeap(stack_slot, length_in_bytes,
+                          MemoryRepresentation::Uint32(), sizeof(size_t));
+          static_assert(sizeof(uintptr_t) == sizeof(size_t),
+                        "The string length can't "
+                        "fit the PointerRepresentation used to store it.");
+          return stack_slot;
+        }
+        default: {
+          return argument;
+        }
       }
     }
-    END_ALLOW_USE_DEPRECATED()
   }
 
   OpIndex ClampFastCallArgument(V<Float64> argument,
@@ -403,8 +375,8 @@ class FastApiCallLoweringReducer : public Next {
     GOTO_IF(__ WordPtrEqual(pointer, 0), done,
             __ HeapConstant(factory_->null_value()));
 
-    Uninitialized<HeapObject> external =
-        __ Allocate(JSExternalObject::kHeaderSize, AllocationType::kYoung);
+    Uninitialized<HeapObject> external = __ Allocate(
+        JSExternalObject::kHeaderSize, AllocationType::kYoung, kTaggedAligned);
     __ InitializeField(external, AccessBuilder::ForMap(),
                        __ HeapConstant(factory_->external_map()));
     V<FixedArray> empty_fixed_array =
@@ -469,8 +441,7 @@ class FastApiCallLoweringReducer : public Next {
 #if DEBUG
     // Reset the context again after the call, to make sure nobody is using the
     // leftover context in the isolate.
-    __ StoreOffHeap(context_address,
-                    __ WordPtrConstant(Context::kInvalidContext),
+    __ StoreOffHeap(context_address, __ WordPtrConstant(Context::kNoContext),
                     MemoryRepresentation::UintPtr());
 #endif
 

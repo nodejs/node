@@ -59,7 +59,7 @@ const assert = require('assert');
   const ac = new AbortController();
   let stream;
   assert.rejects(async () => {
-    stream = Readable.from([1, 2, 3]).map(async (x) => {
+    stream = Readable.from([1, 2, 3, 4]).map(async (x) => {
       if (x === 3) {
         await new Promise(() => {}); // Explicitly do not pass signal here
       }
@@ -69,8 +69,8 @@ const assert = require('assert');
   }, {
     name: 'AbortError',
   }).then(common.mustCall(() => {
-    // Only stops toArray, does not destroy the stream
-    assert(stream.destroyed, false);
+    // Stops toArray *and* destroys the stream
+    assert.strictEqual(stream.destroyed, true);
   }));
   ac.abort();
 }

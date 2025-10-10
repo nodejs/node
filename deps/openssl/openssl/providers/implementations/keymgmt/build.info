@@ -8,6 +8,11 @@ $ECX_GOAL=../../libdefault.a ../../libfips.a
 $KDF_GOAL=../../libdefault.a ../../libfips.a
 $MAC_GOAL=../../libdefault.a ../../libfips.a
 $RSA_GOAL=../../libdefault.a ../../libfips.a
+$TEMPLATE_GOAL=../../libtemplate.a
+$ML_DSA_GOAL=../../libdefault.a ../../libfips.a
+$ML_KEM_GOAL=../../libdefault.a ../../libfips.a
+$TLS_ML_KEM_HYBRID_GOAL=../../libdefault.a ../../libfips.a
+$SLH_DSA_GOAL=../../libdefault.a ../../libfips.a
 
 IF[{- !$disabled{dh} -}]
   SOURCE[$DH_GOAL]=dh_kmgmt.c
@@ -30,8 +35,17 @@ IF[{- !$disabled{asm} -}]
 ENDIF
 
 IF[{- !$disabled{ec} -}]
-  SOURCE[$ECX_GOAL]=ecx_kmgmt.c
-  DEFINE[$ECX_GOAL]=$ECDEF
+  IF[{- !$disabled{ecx} -}]
+    SOURCE[$ECX_GOAL]=ecx_kmgmt.c
+    DEFINE[$ECX_GOAL]=$ECDEF
+  ENDIF
+ENDIF
+
+IF[{- !$disabled{'ml-kem'} -}]
+  IF[{- !$disabled{ec} -}]
+    SOURCE[$TLS_ML_KEM_HYBRID_GOAL]=mlx_kmgmt.c
+  ENDIF
+  SOURCE[$ML_KEM_GOAL]=ml_kem_kmgmt.c
 ENDIF
 
 SOURCE[$RSA_GOAL]=rsa_kmgmt.c
@@ -39,3 +53,13 @@ SOURCE[$RSA_GOAL]=rsa_kmgmt.c
 SOURCE[$KDF_GOAL]=kdf_legacy_kmgmt.c
 
 SOURCE[$MAC_GOAL]=mac_legacy_kmgmt.c
+
+SOURCE[$TEMPLATE_GOAL]=template_kmgmt.c
+
+IF[{- !$disabled{'ml-dsa'} -}]
+  SOURCE[$ML_DSA_GOAL]=ml_dsa_kmgmt.c
+ENDIF
+
+IF[{- !$disabled{'slh-dsa'} -}]
+  SOURCE[$SLH_DSA_GOAL]=slh_dsa_kmgmt.c
+ENDIF

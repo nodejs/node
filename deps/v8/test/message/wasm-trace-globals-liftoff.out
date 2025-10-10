@@ -1,0 +1,10 @@
+liftoff     func:     0:0xe1   global.set 0 val: 42
+liftoff     func:     1:0xe6   global.get 0 val: 42
+liftoff     func:     2:0xee   global.set 2 val: 3.140000
+liftoff     func:     3:0xf3   global.get 2 val: 3.140000
+liftoff     func:     4:0xfb   global.set 1 val: 1234567890123
+liftoff     func:     5:0x100  global.get 1 val: 1234567890123
+liftoff     func:     6:0x108  global.set 3 val: 2.718280
+liftoff     func:     7:0x10d  global.get 3 val: 2.718280
+liftoff     func:     8:0x117  global.set 4 val: 0x12345678123456781234567812345678
+liftoff     func:     9:0x11c  global.get 4 val: 0x12345678123456781234567812345678

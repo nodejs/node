@@ -9,7 +9,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/numbers/conversions.h"
+#include "src/numbers/conversions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -24,6 +24,51 @@ namespace compiler {
 namespace {
 bool IsSmall(int const size) {
   return size <= v8_flags.max_inlined_bytecode_size_small;
+}
+
+bool IsSmallWithHeapNumberParam(int const size) {
+  return size <= v8_flags.max_inlined_bytecode_size_small_with_heapnum_in_out;
+}
+
+bool HasHeapNumberInputOrOutput(Node* node) {
+  int input_count = node->InputCount();
+  for (int j = 2; j < input_count; ++j) {
+    Node* input = node->InputAt(j);
+    if (input->opcode() == IrOpcode::kNumberConstant) {
+      double value = OpParameter<double>(input->op());
+      if (!IsSmiDouble(value)) {
+        return true;
+      }
+    } else if (input->opcode() == IrOpcode::kChangeFloat64HoleToTagged) {
+      return true;
+    }
+  }
+
+  for (Edge const edge : node->use_edges()) {
+    if (!NodeProperties::IsValueEdge(edge)) continue;
+    switch (edge.from()->opcode()) {
+      case IrOpcode::kSpeculativeNumberAdd:
+      case IrOpcode::kSpeculativeNumberSubtract:
+      case IrOpcode::kSpeculativeNumberMultiply:
+      case IrOpcode::kSpeculativeNumberPow:
+      case IrOpcode::kSpeculativeNumberDivide:
+      case IrOpcode::kSpeculativeNumberModulus:
+      case IrOpcode::kSpeculativeNumberBitwiseAnd:
+      case IrOpcode::kSpeculativeNumberBitwiseOr:
+      case IrOpcode::kSpeculativeNumberBitwiseXor:
+      case IrOpcode::kSpeculativeNumberShiftLeft:
+      case IrOpcode::kSpeculativeNumberShiftRight:
+      case IrOpcode::kSpeculativeNumberShiftRightLogical:
+      case IrOpcode::kSpeculativeAdditiveSafeIntegerAdd:
+      case IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract:
+        return true;
+
+      default:
+        break;
+    }
+  }
+
+  return false;
 }
 
 bool CanConsiderForInlining(JSHeapBroker* broker,
@@ -62,7 +107,7 @@ bool CanConsiderForInlining(JSHeapBroker* broker,
   }
 
   SharedFunctionInfo::Inlineability inlineability =
-      shared.GetInlineability(broker);
+      shared.GetInlineability(CodeKind::TURBOFAN_JS, broker);
   if (inlineability != SharedFunctionInfo::kIsInlineable) {
     TRACE("Cannot consider "
           << shared << " for inlining (reason: " << inlineability << ")");
@@ -93,12 +138,16 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
   out.node = node;
 
   HeapObjectMatcher m(callee);
-  if (m.HasResolvedValue() && m.Ref(broker()).IsJSFunction()) {
+  if (m.HasResolvedValue() && !m.Is(isolate()->factory()->optimized_out()) &&
+      m.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
     out.functions[0] = function;
     if (CanConsiderForInlining(broker(), function)) {
       out.bytecode[0] = function.shared(broker()).GetBytecodeArray(broker());
       out.num_functions = 1;
+
+      out.has_heapnumber_params = HasHeapNumberInputOrOutput(node);
+
       return out;
     }
   }
@@ -110,7 +159,9 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
     }
     for (int n = 0; n < value_input_count; ++n) {
       HeapObjectMatcher m2(callee->InputAt(n));
-      if (!m2.HasResolvedValue() || !m2.Ref(broker()).IsJSFunction()) {
+      if (!m2.HasResolvedValue() ||
+          m2.Is(isolate()->factory()->optimized_out()) ||
+          !m2.Ref(broker()).IsJSFunction()) {
         out.num_functions = 0;
         return out;
       }
@@ -163,21 +214,12 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   DCHECK_EQ(mode(), kJSOnly);
   if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
 
-  if (total_inlined_bytecode_size_ >= max_inlined_bytecode_size_absolute_) {
-    return NoChange();
-  }
-
   // Check if we already saw that {node} before, and if so, just skip it.
   if (seen_.find(node->id()) != seen_.end()) return NoChange();
 
   // Check if the {node} is an appropriate candidate for inlining.
   Candidate candidate = CollectFunctions(node, kMaxCallPolymorphism);
   if (candidate.num_functions == 0) {
-    return NoChange();
-  } else if (candidate.num_functions > 1 && !v8_flags.polymorphic_inlining) {
-    TRACE("Not considering call site #"
-          << node->id() << ":" << node->op()->mnemonic()
-          << ", because polymorphic inlining is disabled");
     return NoChange();
   }
 
@@ -201,10 +243,11 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     // candidate could have been disabled meanwhile.
     // JSInliner will check this again and not actually inline the function in
     // this case.
-    CHECK_IMPLIES(candidate.can_inline_function[i],
-                  shared.IsInlineable(broker()) ||
-                      shared.GetInlineability(broker()) ==
-                          SharedFunctionInfo::kHasOptimizationDisabled);
+    CHECK_IMPLIES(
+        candidate.can_inline_function[i],
+        shared.IsInlineable(CodeKind::TURBOFAN_JS, broker()) ||
+            shared.GetInlineability(CodeKind::TURBOFAN_JS, broker()) ==
+                SharedFunctionInfo::kHasOptimizationDisabled);
     // Do not allow direct recursion i.e. f() -> f(). We still allow indirect
     // recursion like f() -> g() -> f(). The indirect recursion is helpful in
     // cases where f() is a small dispatch function that calls the appropriate
@@ -225,6 +268,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       can_inline_candidate = true;
       BytecodeArrayRef bytecode = candidate.bytecode[i].value();
       candidate.total_size += bytecode.length();
+      candidate.own_size += bytecode.length();
       unsigned inlined_bytecode_size = 0;
       if (OptionalJSFunctionRef function = candidate.functions[i]) {
         if (OptionalCodeRef code = function->code(broker())) {
@@ -232,8 +276,16 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
           candidate.total_size += inlined_bytecode_size;
         }
       }
-      candidate_is_small = candidate_is_small &&
-                           IsSmall(bytecode.length() + inlined_bytecode_size);
+
+      bool this_function_small = false;
+      if (IsSmall(bytecode.length() + inlined_bytecode_size)) {
+        this_function_small = true;
+      } else if (candidate.has_heapnumber_params &&
+                 IsSmallWithHeapNumberParam(bytecode.length())) {
+        this_function_small = true;
+      }
+
+      candidate_is_small = candidate_is_small && this_function_small;
     }
   }
   if (!can_inline_candidate) return NoChange();
@@ -265,10 +317,15 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   // Forcibly inline small functions here. In the case of polymorphic inlining
   // candidate_is_small is set only when all functions are small.
-  if (candidate_is_small) {
+  if (candidate_is_small &&
+      total_ignored_bytecode_size_ < max_inlined_bytecode_size_small_total_) {
     TRACE("Inlining small function(s) at call site #"
           << node->id() << ":" << node->op()->mnemonic());
     return InlineCandidate(candidate, true);
+  }
+
+  if (total_inlined_bytecode_size_ >= max_inlined_bytecode_size_absolute_) {
+    return NoChange();
   }
 
   // In the general case we remember the candidate for later.
@@ -293,12 +350,23 @@ void JSInliningHeuristic::Finalize() {
     if (!IrOpcode::IsInlineeOpcode(candidate.node->opcode())) continue;
     if (candidate.node->IsDead()) continue;
 
+    // We re-check HasHeapNumberInputOrOutput because the inputs/outputs of this
+    // function could have previously been function calls that now have been
+    // inlined and thusly revealed HeapNumbers.
+    if (HasHeapNumberInputOrOutput(candidate.node) &&
+        IsSmallWithHeapNumberParam(candidate.own_size) &&
+        total_ignored_bytecode_size_ < max_inlined_bytecode_size_small_total_) {
+      Reduction const reduction = InlineCandidate(candidate, true);
+      if (reduction.Changed()) return;
+    }
+
     // Make sure we have some extra budget left, so that any small functions
     // exposed by this function would be given a chance to inline.
     double size_of_candidate =
         candidate.total_size * v8_flags.reserve_inline_budget_scale_factor;
     int total_size =
         total_inlined_bytecode_size_ + static_cast<int>(size_of_candidate);
+
     if (total_size > max_inlined_bytecode_size_cumulative_) {
       info_->set_could_not_inline_all_candidates();
       // Try if any smaller functions are available to inline.
@@ -705,13 +773,18 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
                                                bool small_function) {
   int num_calls = candidate.num_functions;
   Node* const node = candidate.node;
+
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK_NE(node->opcode(), IrOpcode::kJSWasmCall);
 #endif  // V8_ENABLE_WEBASSEMBLY
   if (num_calls == 1) {
     Reduction const reduction = inliner_.ReduceJSCall(node);
     if (reduction.Changed()) {
-      total_inlined_bytecode_size_ += candidate.bytecode[0].value().length();
+      if (small_function) {
+        total_ignored_bytecode_size_ += candidate.bytecode[0].value().length();
+      } else {
+        total_inlined_bytecode_size_ += candidate.bytecode[0].value().length();
+      }
     }
     return reduction;
   }
@@ -778,7 +851,12 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
       Node* call = calls[i];
       Reduction const reduction = inliner_.ReduceJSCall(call);
       if (reduction.Changed()) {
-        total_inlined_bytecode_size_ += candidate.bytecode[i]->length();
+        if (small_function) {
+          total_ignored_bytecode_size_ +=
+              candidate.bytecode[i].value().length();
+        } else {
+          total_inlined_bytecode_size_ += candidate.bytecode[i]->length();
+        }
         // Killing the call node is not strictly necessary, but it is safer to
         // make sure we do not resurrect the node.
         call->Kill();
@@ -792,6 +870,7 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
 bool JSInliningHeuristic::CandidateCompare::operator()(
     const Candidate& left, const Candidate& right) const {
   constexpr bool kInlineLeftFirst = true, kInlineRightFirst = false;
+
   if (right.frequency.IsUnknown()) {
     if (left.frequency.IsUnknown()) {
       // If left and right are both unknown then the ordering is indeterminate,
@@ -829,6 +908,7 @@ void JSInliningHeuristic::PrintCandidates() {
   for (const Candidate& candidate : candidates_) {
     os << "- candidate: " << candidate.node->op()->mnemonic() << " node #"
        << candidate.node->id() << " with frequency " << candidate.frequency
+       << ", has_heapnum_param:" << candidate.has_heapnumber_params << ""
        << ", " << candidate.num_functions << " target(s):" << std::endl;
     for (int i = 0; i < candidate.num_functions; ++i) {
       SharedFunctionInfoRef shared =

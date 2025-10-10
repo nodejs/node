@@ -17,7 +17,7 @@ const host = '127.0.0.1';
 
   server.listen(0, mustCall(async () => {
     const port = server.address().port;
-    const cli = startCLI([`${host}:${port}`]);
+    const cli = startCLI([`${host}:${port}`], [], {}, { randomPort: false });
     try {
       const code = await cli.quit();
       assert.strictEqual(code, 1);
@@ -35,7 +35,7 @@ const host = '127.0.0.1';
 
   server.listen(0, host, mustCall(async () => {
     const port = server.address().port;
-    const cli = startCLI([`${host}:${port}`]);
+    const cli = startCLI([`${host}:${port}`], [], {}, { randomPort: false });
     try {
       const code = await cli.quit();
       assert.strictEqual(code, 1);

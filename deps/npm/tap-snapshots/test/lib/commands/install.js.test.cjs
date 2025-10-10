@@ -16,7 +16,7 @@ verbose logfile logs-max:10 dir:{CWD}/cache/_logs/{DATE}-
 verbose logfile {CWD}/cache/_logs/{DATE}-debug-0.log
 silly logfile done cleaning log files
 warn EBADDEVENGINES The developer of this package has specified the following through devEngines
-warn EBADDEVENGINES Invalid engine "runtime"
+warn EBADDEVENGINES Invalid devEngines.runtime
 warn EBADDEVENGINES Invalid semver version "0.0.1" does not match "v1337.0.0" for "runtime"
 warn EBADDEVENGINES {
 warn EBADDEVENGINES   current: { name: 'node', version: 'v1337.0.0' },
@@ -132,14 +132,14 @@ verbose logfile logs-max:10 dir:{CWD}/cache/_logs/{DATE}-
 verbose logfile {CWD}/cache/_logs/{DATE}-debug-0.log
 silly logfile done cleaning log files
 verbose stack Error: The developer of this package has specified the following through devEngines
-verbose stack Invalid engine "runtime"
+verbose stack Invalid devEngines.runtime
 verbose stack Invalid name "nondescript" does not match "node" for "runtime"
 verbose stack     at Install.checkDevEngines ({CWD}/lib/base-cmd.js:181:27)
 verbose stack     at MockNpm.#exec ({CWD}/lib/npm.js:252:7)
 verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:208:9)
 error code EBADDEVENGINES
 error EBADDEVENGINES The developer of this package has specified the following through devEngines
-error EBADDEVENGINES Invalid engine "runtime"
+error EBADDEVENGINES Invalid devEngines.runtime
 error EBADDEVENGINES Invalid name "nondescript" does not match "node" for "runtime"
 error EBADDEVENGINES {
 error EBADDEVENGINES   current: { name: 'node', version: 'v1337.0.0' },
@@ -158,13 +158,13 @@ verbose logfile logs-max:10 dir:{CWD}/cache/_logs/{DATE}-
 verbose logfile {CWD}/cache/_logs/{DATE}-debug-0.log
 silly logfile done cleaning log files
 warn EBADDEVENGINES The developer of this package has specified the following through devEngines
-warn EBADDEVENGINES Invalid engine "runtime"
+warn EBADDEVENGINES Invalid devEngines.runtime
 warn EBADDEVENGINES Invalid name "nondescript" does not match "node" for "runtime"
 warn EBADDEVENGINES {
 warn EBADDEVENGINES   current: { name: 'node', version: 'v1337.0.0' },
 warn EBADDEVENGINES   required: { name: 'nondescript', onFail: 'warn' }
 warn EBADDEVENGINES }
-warn EBADDEVENGINES Invalid engine "cpu"
+warn EBADDEVENGINES Invalid devEngines.cpu
 warn EBADDEVENGINES Invalid name "risv" does not match "x86" for "cpu"
 warn EBADDEVENGINES {
 warn EBADDEVENGINES   current: { name: 'x86' },
@@ -190,21 +190,21 @@ verbose logfile logs-max:10 dir:{CWD}/cache/_logs/{DATE}-
 verbose logfile {CWD}/cache/_logs/{DATE}-debug-0.log
 silly logfile done cleaning log files
 warn EBADDEVENGINES The developer of this package has specified the following through devEngines
-warn EBADDEVENGINES Invalid engine "cpu"
+warn EBADDEVENGINES Invalid devEngines.cpu
 warn EBADDEVENGINES Invalid name "risv" does not match "x86" for "cpu"
 warn EBADDEVENGINES {
 warn EBADDEVENGINES   current: { name: 'x86' },
 warn EBADDEVENGINES   required: { name: 'risv', onFail: 'warn' }
 warn EBADDEVENGINES }
 verbose stack Error: The developer of this package has specified the following through devEngines
-verbose stack Invalid engine "runtime"
+verbose stack Invalid devEngines.runtime
 verbose stack Invalid name "nondescript" does not match "node" for "runtime"
 verbose stack     at Install.checkDevEngines ({CWD}/lib/base-cmd.js:181:27)
 verbose stack     at MockNpm.#exec ({CWD}/lib/npm.js:252:7)
 verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:208:9)
 error code EBADDEVENGINES
 error EBADDEVENGINES The developer of this package has specified the following through devEngines
-error EBADDEVENGINES Invalid engine "runtime"
+error EBADDEVENGINES Invalid devEngines.runtime
 error EBADDEVENGINES Invalid name "nondescript" does not match "node" for "runtime"
 error EBADDEVENGINES {
 error EBADDEVENGINES   current: { name: 'node', version: 'v1337.0.0' },
@@ -223,14 +223,14 @@ verbose logfile logs-max:10 dir:{CWD}/cache/_logs/{DATE}-
 verbose logfile {CWD}/cache/_logs/{DATE}-debug-0.log
 silly logfile done cleaning log files
 verbose stack Error: The developer of this package has specified the following through devEngines
-verbose stack Invalid engine "runtime"
+verbose stack Invalid devEngines.runtime
 verbose stack Invalid name "nondescript" does not match "node" for "runtime"
 verbose stack     at Install.checkDevEngines ({CWD}/lib/base-cmd.js:181:27)
 verbose stack     at MockNpm.#exec ({CWD}/lib/npm.js:252:7)
 verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:208:9)
 error code EBADDEVENGINES
 error EBADDEVENGINES The developer of this package has specified the following through devEngines
-error EBADDEVENGINES Invalid engine "runtime"
+error EBADDEVENGINES Invalid devEngines.runtime
 error EBADDEVENGINES Invalid name "nondescript" does not match "node" for "runtime"
 error EBADDEVENGINES {
 error EBADDEVENGINES   current: { name: 'node', version: 'v1337.0.0' },
@@ -250,7 +250,7 @@ verbose logfile {CWD}/cache/_logs/{DATE}-debug-0.log
 warn using --force Recommended protections disabled.
 silly logfile done cleaning log files
 warn EBADDEVENGINES The developer of this package has specified the following through devEngines
-warn EBADDEVENGINES Invalid engine "runtime"
+warn EBADDEVENGINES Invalid devEngines.runtime
 warn EBADDEVENGINES Invalid name "nondescript" does not match "node" for "runtime"
 warn EBADDEVENGINES {
 warn EBADDEVENGINES   current: { name: 'node', version: 'v1337.0.0' },

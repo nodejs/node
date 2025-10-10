@@ -4,7 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object-inl.h"
-#include "cppgc_helpers.h"
+#include "cppgc_helpers-inl.h"
 #include "node_context_data.h"
 #include "node_errors.h"
 
@@ -77,6 +77,7 @@ class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
  public:
   SET_CPPGC_NAME(ContextifyContext)
   void Trace(cppgc::Visitor* visitor) const final;
+  SET_NO_MEMORY_INFO()
 
   ContextifyContext(Environment* env,
                     v8::Local<v8::Object> wrapper,
@@ -143,18 +144,6 @@ class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
   static bool IsStillInitializing(const ContextifyContext* ctx);
   static void MakeContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsContext(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CompileFunction(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::Local<v8::Object> CompileFunctionAndCacheResult(
-      Environment* env,
-      v8::Local<v8::Context> parsing_context,
-      v8::ScriptCompiler::Source* source,
-      v8::LocalVector<v8::String> params,
-      v8::LocalVector<v8::Object> context_extensions,
-      v8::ScriptCompiler::CompileOptions options,
-      bool produce_cached_data,
-      v8::Local<v8::Symbol> id_symbol,
-      const errors::TryCatchScope& try_catch);
   static v8::Intercepted PropertyQueryCallback(
       v8::Local<v8::Name> property,
       const v8::PropertyCallbackInfo<v8::Integer>& args);
@@ -204,6 +193,7 @@ class ContextifyScript final : CPPGC_MIXIN(ContextifyScript) {
  public:
   SET_CPPGC_NAME(ContextifyScript)
   void Trace(cppgc::Visitor* visitor) const final;
+  SET_NO_MEMORY_INFO()
 
   ContextifyScript(Environment* env, v8::Local<v8::Object> object);
   ~ContextifyScript() override;
@@ -232,6 +222,29 @@ class ContextifyScript final : CPPGC_MIXIN(ContextifyScript) {
   v8::TracedReference<v8::UnboundScript> script_;
 };
 
+class ContextifyFunction final {
+ public:
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
+
+  static void CompileFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static v8::MaybeLocal<v8::Object> CompileFunctionAndCacheResult(
+      Environment* env,
+      v8::Local<v8::Context> parsing_context,
+      v8::ScriptCompiler::Source* source,
+      v8::LocalVector<v8::String> params,
+      v8::LocalVector<v8::Object> context_extensions,
+      v8::ScriptCompiler::CompileOptions options,
+      bool produce_cached_data,
+      v8::Local<v8::Symbol> id_symbol,
+      const errors::TryCatchScope& try_catch);
+
+ private:
+  ContextifyFunction() = delete;
+  ~ContextifyFunction() = delete;
+};
+
 v8::Maybe<void> StoreCodeCacheResult(
     Environment* env,
     v8::Local<v8::Object> target,
@@ -239,12 +252,6 @@ v8::Maybe<void> StoreCodeCacheResult(
     const v8::ScriptCompiler::Source& source,
     bool produce_cached_data,
     std::unique_ptr<v8::ScriptCompiler::CachedData> new_cached_data);
-
-v8::MaybeLocal<v8::Function> CompileFunction(
-    v8::Local<v8::Context> context,
-    v8::Local<v8::String> filename,
-    v8::Local<v8::String> content,
-    v8::LocalVector<v8::String>* parameters);
 
 }  // namespace contextify
 }  // namespace node

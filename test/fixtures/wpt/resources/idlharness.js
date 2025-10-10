@@ -566,6 +566,7 @@ IdlArray.prototype.is_json_type = function(type)
        case "Uint8ClampedArray":
        case "BigInt64Array":
        case "BigUint64Array":
+       case "Float16Array":
        case "Float32Array":
        case "Float64Array":
        case "ArrayBuffer":
@@ -733,7 +734,7 @@ IdlArray.prototype.test = function()
 
     Object.getOwnPropertyNames(this.members).forEach(function(memberName) {
         var member = this.members[memberName];
-        if (!(member instanceof IdlInterface)) {
+        if (!(member instanceof IdlInterface || member instanceof IdlNamespace)) {
             return;
         }
 
@@ -782,6 +783,10 @@ IdlArray.prototype.merge_partials = function()
         }
         testedPartials.set(parsed_idl.name, partialTestCount);
 
+        if (!self.shouldRunSubTest(partialTestName)) {
+            return;
+        }
+
         if (!parsed_idl.untested) {
             test(function () {
                 assert_true(originalExists, `Original ${parsed_idl.type} should be defined`);
@@ -809,7 +814,7 @@ IdlArray.prototype.merge_partials = function()
         {
             // Special-case "Exposed". Must be a subset of original interface's exposure.
             // Exposed on a partial is the equivalent of having the same Exposed on all nested members.
-            // See https://github.com/heycam/webidl/issues/154 for discrepancy between Exposed and
+            // See https://github.com/heycam/webidl/issues/154 for discrepency between Exposed and
             // other extended attributes on partial interfaces.
             const exposureAttr = parsed_idl.extAttrs.find(a => a.name === "Exposed");
             if (exposureAttr) {
@@ -870,6 +875,7 @@ IdlArray.prototype.merge_mixins = function()
     {
         const lhs = parsed_idl.target;
         const rhs = parsed_idl.includes;
+        const testName = lhs + " includes " + rhs + ": member names are unique";
 
         var errStr = lhs + " includes " + rhs + ", but ";
         if (!(lhs in this.members)) throw errStr + lhs + " is undefined.";
@@ -877,7 +883,7 @@ IdlArray.prototype.merge_mixins = function()
         if (!(rhs in this.members)) throw errStr + rhs + " is undefined.";
         if (!(this.members[rhs] instanceof IdlInterface)) throw errStr + rhs + " is not an interface.";
 
-        if (this.members[rhs].members.length) {
+        if (this.members[rhs].members.length && self.shouldRunSubTest(testName)) {
             test(function () {
                 var clash = this.members[rhs].members.find(function(member) {
                     return this.members[lhs].members.find(function(m) {
@@ -891,7 +897,7 @@ IdlArray.prototype.merge_mixins = function()
                     this.members[lhs].members.push(new IdlInterfaceMember(member));
                 }.bind(this));
                 assert_true(!clash, "member " + (clash && clash.name) + " is unique");
-            }.bind(this), lhs + " includes " + rhs + ": member names are unique");
+            }.bind(this), testName);
         }
     }
     this.includes = [];
@@ -1420,7 +1426,7 @@ IdlInterface.prototype.test = function()
         if (!this.untested)
         {
             subsetTestByKey(this.name, test, function() {
-                assert_false(this.name in self);
+                assert_false(this.name in self, this.name + " interface should not exist");
             }.bind(this), this.name + " interface: existence and properties of interface object");
         }
         return;
@@ -3450,6 +3456,17 @@ IdlNamespace.prototype.test_self = function ()
 
 IdlNamespace.prototype.test = function ()
 {
+    // If the namespace object is not exposed, only test that. Members can't be
+    // tested either
+    if (!this.exposed) {
+        if (!this.untested) {
+            subsetTestByKey(this.name, test, function() {
+                assert_false(this.name in self, this.name + " namespace should not exist");
+            }.bind(this), this.name + " namespace: existence and properties of namespace object");
+        }
+        return;
+    }
+
     if (!this.untested) {
         this.test_self();
     }
@@ -3497,7 +3514,7 @@ function idl_test(srcs, deps, idl_setup_func) {
             "require-exposed"
         ];
         return Promise.all(
-            srcs.concat(deps).map(fetch_spec))
+            srcs.concat(deps).map(globalThis.fetch_spec))
             .then(function(results) {
                 const astArray = results.map(result =>
                     WebIDL2.parse(result.idl, { sourceName: result.spec })
@@ -3538,9 +3555,11 @@ function idl_test(srcs, deps, idl_setup_func) {
             });
     }, 'idl_test setup');
 }
+globalThis.idl_test = idl_test;
 
 /**
  * fetch_spec is a shorthand for a Promise that fetches the spec's content.
+ * Note: ShadowRealm-specific implementation in testharness-shadowrealm-inner.js
  */
 function fetch_spec(spec) {
     var url = '/interfaces/' + spec + '.idl';

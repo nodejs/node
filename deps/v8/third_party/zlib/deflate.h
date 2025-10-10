@@ -1,5 +1,5 @@
 /* deflate.h -- internal compression state
- * Copyright (C) 1995-2018 Jean-loup Gailly
+ * Copyright (C) 1995-2024 Jean-loup Gailly
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -12,6 +12,10 @@
 
 #ifndef DEFLATE_H
 #define DEFLATE_H
+
+#if defined(DEFLATE_CHUNK_WRITE_64LE)
+#include <stdint.h>
+#endif
 
 #include "zutil.h"
 
@@ -52,7 +56,11 @@
 #define MAX_BITS 15
 /* All codes must not exceed MAX_BITS bits */
 
+#if defined(DEFLATE_CHUNK_WRITE_64LE)
+#define Buf_size 64
+#else
 #define Buf_size 16
+#endif
 /* size of bit buffer in bi_buf */
 
 #define INIT_STATE    42    /* zlib header -> BUSY_STATE */
@@ -261,7 +269,11 @@ typedef struct internal_state {
     ulg bits_sent;      /* bit length of compressed data sent mod 2^32 */
 #endif
 
+#if defined(DEFLATE_CHUNK_WRITE_64LE)
+    uint64_t bi_buf;
+#else
     ush bi_buf;
+#endif
     /* Output buffer. bits are inserted starting at the bottom (least
      * significant bits).
      */

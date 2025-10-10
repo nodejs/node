@@ -21,6 +21,7 @@ const hook = registerHooks({
 
 // Check assert, which is already loaded.
 // zlib.createGzip is a function.
+// eslint-disable-next-line node-core/must-call-assert
 assert.strictEqual(typeof require('assert').createGzip, 'function');
 
 hook.deregister();

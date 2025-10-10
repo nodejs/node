@@ -96,6 +96,18 @@ CONSTEXPR_F int days_per_4years(int yi) noexcept {
 CONSTEXPR_F int days_per_year(year_t y, month_t m) noexcept {
   return is_leap_year(y + (m > 2)) ? 366 : 365;
 }
+// The compiler cannot optimize away the check if we use
+// -fsanitize=array-bounds.
+// m is guaranteed to be in [1:12] in the caller, but the compiler cannot
+// optimize away the check even when this function is inlined into BreakTime.
+// To reduce the overhead, we use no_sanitize to skip the unnecessary
+// -fsanitize=array-bounds check. Remove no_sanitize once the missed
+// optimization is fixed.
+#if defined(__clang__) && defined(__has_cpp_attribute)
+#if __has_cpp_attribute(clang::no_sanitize)
+[[clang::no_sanitize("array-bounds")]]
+#endif
+#endif
 CONSTEXPR_F int days_per_month(year_t y, month_t m) noexcept {
   CONSTEXPR_D int k_days_per_month[1 + 12] = {
       -1, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31  // non leap year

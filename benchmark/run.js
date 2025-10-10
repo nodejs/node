@@ -3,6 +3,7 @@
 const path = require('path');
 const { spawn, fork } = require('node:child_process');
 const CLI = require('./_cli.js');
+const { styleText } = require('node:util');
 
 const cli = new CLI(`usage: ./node run.js [options] [--] <category> ...
   Run each benchmark in the <category> directory a single time, more than one
@@ -16,6 +17,7 @@ const cli = new CLI(`usage: ./node run.js [options] [--] <category> ...
                             Default: 1
   --set    variable=value   set benchmark variable (can be repeated)
   --format [simple|csv]     optional value that specifies the output format
+  --track                   Display the time elapsed to run each benchmark file.
   test                      only run a single configuration from the options
                             matrix
   all                       each benchmark category is run one after the other
@@ -25,7 +27,7 @@ const cli = new CLI(`usage: ./node run.js [options] [--] <category> ...
     --set CPUSET=0-2          Specifies that benchmarks should run on CPU cores 0 to 2.
 
   Note: The CPUSET format should match the specifications of the 'taskset' command on your system.
-`, { arrayArgs: ['set', 'filter', 'exclude'] });
+`, { arrayArgs: ['set', 'filter', 'exclude'], boolArgs: ['track'] });
 
 const benchmarks = cli.benchmarks();
 
@@ -107,7 +109,12 @@ async function run() {
     }
 
     while (runs-- > 0) {
+      const start = performance.now();
       await runBenchmark(filename);
+      if (format !== 'csv' && cli.optional.track) {
+        const ms = styleText(['bold', 'yellow'], `${Math.round(performance.now() - start)}ms`);
+        console.log(`[${ms}] ${filename}`);
+      }
     }
   }
 }

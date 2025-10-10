@@ -1,5 +1,5 @@
 /**
- * @fileoverview Prohibit the `if (err) throw err;` pattern
+ * @file Prohibit the `if (err) throw err;` pattern
  * @author Teddy Katz
  */
 

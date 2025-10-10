@@ -27,14 +27,22 @@ namespace permission {
 #define WORKER_THREADS_PERMISSIONS(V)                                          \
   V(WorkerThreads, "worker", PermissionsRoot, "--allow-worker")
 
-#define INSPECTOR_PERMISSIONS(V) V(Inspector, "inspector", PermissionsRoot, "")
+#define INSPECTOR_PERMISSIONS(V)                                               \
+  V(Inspector, "inspector", PermissionsRoot, "--allow-inspector")
+
+#define NET_PERMISSIONS(V) V(Net, "net", PermissionsRoot, "--allow-net")
+
+#define ADDON_PERMISSIONS(V)                                                   \
+  V(Addon, "addon", PermissionsRoot, "--allow-addons")
 
 #define PERMISSIONS(V)                                                         \
   FILESYSTEM_PERMISSIONS(V)                                                    \
   CHILD_PROCESS_PERMISSIONS(V)                                                 \
   WASI_PERMISSIONS(V)                                                          \
   WORKER_THREADS_PERMISSIONS(V)                                                \
-  INSPECTOR_PERMISSIONS(V)
+  INSPECTOR_PERMISSIONS(V)                                                     \
+  NET_PERMISSIONS(V)                                                           \
+  ADDON_PERMISSIONS(V)
 
 #define V(name, _, __, ___) k##name,
 enum class PermissionScope {

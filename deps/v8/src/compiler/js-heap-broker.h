@@ -27,6 +27,7 @@
 #include "src/objects/objects.h"
 #include "src/objects/tagged.h"
 #include "src/roots/roots.h"
+#include "src/roots/static-roots.h"
 #include "src/utils/address-map.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/ostreams.h"
@@ -182,15 +183,21 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // Never returns nullptr.
   ObjectData* GetOrCreateData(Handle<Object> object,
                               GetOrCreateDataFlags flags = {});
-  ObjectData* GetOrCreateData(Tagged<Object> object,
-                              GetOrCreateDataFlags flags = {});
+  template <typename T>
+  ObjectData* GetOrCreateData(Tagged<T> object,
+                              GetOrCreateDataFlags flags = {}) {
+    return GetOrCreateData(CanonicalPersistentHandle(object), flags);
+  }
 
   // Gets data only if we have it. However, thin wrappers will be created for
   // smis, read-only objects and never-serialized objects.
   ObjectData* TryGetOrCreateData(Handle<Object> object,
                                  GetOrCreateDataFlags flags = {});
-  ObjectData* TryGetOrCreateData(Tagged<Object> object,
-                                 GetOrCreateDataFlags flags = {});
+  template <typename T>
+  ObjectData* TryGetOrCreateData(Tagged<T> object,
+                                 GetOrCreateDataFlags flags = {}) {
+    return TryGetOrCreateData(CanonicalPersistentHandle(object), flags);
+  }
 
   // Check if {object} is any native context's %ArrayPrototype% or
   // %ObjectPrototype%.
@@ -203,6 +210,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   FeedbackSlotKind GetFeedbackSlotKind(FeedbackSource const& source) const;
 
   ElementAccessFeedback const& ProcessFeedbackMapsForElementAccess(
+      ZoneVector<MapRef>& maps, KeyedAccessMode const& keyed_mode,
+      FeedbackSlotKind slot_kind);
+  ElementAccessFeedback const& ProcessFeedbackMapsForKeyedPropertyAccess(
       ZoneVector<MapRef>& maps, KeyedAccessMode const& keyed_mode,
       FeedbackSlotKind slot_kind);
 
@@ -262,15 +272,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
                                       : isolate()->AsLocalIsolate();
   }
 
-  std::optional<RootIndex> FindRootIndex(HeapObjectRef object) {
-    // No root constant is a JSReceiver.
-    if (object.IsJSReceiver()) return {};
-    RootIndex root_index;
-    if (root_index_map_.Lookup(*object.object(), &root_index)) {
-      return root_index;
-    }
-    return {};
-  }
+  inline std::optional<RootIndex> FindRootIndex(HeapObjectRef object);
 
   // Return the corresponding canonical persistent handle for {object}. Create
   // one if it does not exist.
@@ -285,13 +287,13 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
     if (Tagged<HeapObject> heap_object;
         TryCast<HeapObject>(object, &heap_object)) {
       RootIndex root_index;
-      // CollectArrayAndObjectPrototypes calls this function often with T equal
-      // to JSObject. The root index map only contains immortal, immutable
-      // objects; it never contains any instances of type JSObject, since
-      // JSObjects must exist within a NativeContext, and NativeContexts can be
-      // created and destroyed. Thus, we can skip the lookup in the root index
-      // map for those values and save a little time.
-      if constexpr (std::is_convertible_v<T, JSObject>) {
+      // The root index map only contains immortal, immutable objects; it never
+      // contains any instances of type JSObject, since JSObjects must exist
+      // within a NativeContext, and NativeContexts can be created and
+      // destroyed. Thus, we can skip the lookup in the root index map for those
+      // values and save a little time.
+      if constexpr (std::is_convertible_v<T, JSObject> ||
+                    std::is_convertible_v<T, Context>) {
         DCHECK(!root_index_map_.Lookup(heap_object, &root_index));
       } else if (root_index_map_.Lookup(heap_object, &root_index)) {
         return Handle<T>(isolate_->root_handle(root_index).location());
@@ -428,8 +430,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ProcessedFeedback const& ReadFeedbackForTemplateObject(
       FeedbackSource const& source);
 
-  void CollectArrayAndObjectPrototypes();
-
   void set_persistent_handles(
       std::unique_ptr<PersistentHandles> persistent_handles) {
     DCHECK_NULL(ph_);
@@ -457,9 +457,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   OptionalNativeContextRef target_native_context_;
   RefsMap* refs_;
   RootIndexMap root_index_map_;
-  ZoneUnorderedSet<IndirectHandle<JSObject>, IndirectHandle<JSObject>::hash,
-                   IndirectHandle<JSObject>::equal_to>
-      array_and_object_prototypes_;
   BrokerMode mode_ = kDisabled;
   bool const tracing_enabled_;
   CodeKind const code_kind_;
@@ -495,7 +492,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   static constexpr uint32_t kMinimalRefsBucketCount = 8;
   static_assert(base::bits::IsPowerOfTwo(kMinimalRefsBucketCount));
-  static constexpr uint32_t kInitialRefsBucketCount = 1024;
+  static constexpr uint32_t kInitialRefsBucketCount = 16;
   static_assert(base::bits::IsPowerOfTwo(kInitialRefsBucketCount));
 };
 

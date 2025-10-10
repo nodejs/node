@@ -50,7 +50,7 @@ using v8::WasmMemoryObject;
 static MaybeLocal<Value> WASIException(Local<Context> context,
                                        int errorno,
                                        const char* syscall) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Environment* env = Environment::GetCurrent(context);
   CHECK_NOT_NULL(env);
   const char* err_name = uvwasi_embedder_err_code_to_string(errorno);
@@ -266,7 +266,6 @@ inline void EinvalError() {}
 
 template <typename FT, FT F, typename R, typename... Args>
 R WASI::WasiFunction<FT, F, R, Args...>::FastCallback(
-    Local<Object> unused,
     Local<Object> receiver,
     Args... args,
     // NOLINTNEXTLINE(runtime/references) This is V8 api.
@@ -276,7 +275,7 @@ R WASI::WasiFunction<FT, F, R, Args...>::FastCallback(
     return EinvalError<R>();
   }
 
-  Isolate* isolate = receiver->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
   if (wasi->memory_.IsEmpty()) {
     THROW_ERR_WASI_NOT_STARTED(isolate);

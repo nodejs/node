@@ -22,12 +22,12 @@
 'use strict';
 const common = require('../common');
 const ArrayStream = require('../common/arraystream');
+const { startNewREPLServer } = require('../common/repl');
 const assert = require('assert');
 const util = require('util');
-const repl = require('repl');
 
 const putIn = new ArrayStream();
-repl.start('', putIn, null, true);
+startNewREPLServer({ input: putIn, output: putIn, useGlobal: true, terminal: false });
 
 test1();
 

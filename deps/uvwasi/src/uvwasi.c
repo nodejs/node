@@ -395,6 +395,10 @@ uvwasi_errno_t uvwasi_init(uvwasi_t* uvwasi, const uvwasi_options_t* options) {
 
   if (options->preopen_socketc > 0) {
     uvwasi->loop = uvwasi__malloc(uvwasi, sizeof(uv_loop_t));
+
+    if (uvwasi->loop == NULL)
+      return UVWASI_ENOMEM;
+
     r = uv_loop_init(uvwasi->loop);
     if (r != 0) {
       err = uvwasi__translate_uv_error(r);
@@ -803,7 +807,7 @@ uvwasi_errno_t uvwasi_fd_close(uvwasi_t* uvwasi, uvwasi_fd_t fd) {
     uv_mutex_unlock(&wrap->mutex);
     if (err != UVWASI_ESUCCESS) {
       goto exit;
-    }   
+    }
   }
 
   if (r != 0) {
@@ -1392,6 +1396,7 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
 #if defined(UVWASI_FD_READDIR_SUPPORTED)
   /* TODO(cjihrig): Avoid opening and closing the directory on each call. */
   struct uvwasi_fd_wrap_t* wrap;
+  uvwasi_dircookie_t cur_cookie;
   uvwasi_dirent_t dirent;
   uv_dirent_t dirents[UVWASI__READDIR_NUM_ENTRIES];
   uv_dir_t* dir;
@@ -1400,7 +1405,6 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
   size_t name_len;
   size_t available;
   size_t size_to_cp;
-  long tell;
   int i;
   int r;
 #endif /* defined(UVWASI_FD_READDIR_SUPPORTED) */
@@ -1440,8 +1444,22 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
   uv_fs_req_cleanup(&req);
 
   /* Seek to the proper location in the directory. */
-  if (cookie != UVWASI_DIRCOOKIE_START)
-    seekdir(dir->dir, cookie);
+  cur_cookie = 0;
+  while (cur_cookie < cookie) {
+    r = uv_fs_readdir(NULL, &req, dir, NULL);
+    if (r < 0) {
+      err = uvwasi__translate_uv_error(r);
+      uv_fs_req_cleanup(&req);
+      goto exit;
+    }
+
+    cur_cookie += (uvwasi_dircookie_t)r;
+    uv_fs_req_cleanup(&req);
+
+    if (r == 0) {
+      break;
+    }
+  }
 
   /* Read the directory entries into the provided buffer. */
   err = UVWASI_ESUCCESS;
@@ -1456,15 +1474,9 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
     available = 0;
 
     for (i = 0; i < r; i++) {
-      tell = telldir(dir->dir);
-      if (tell < 0) {
-        err = uvwasi__translate_uv_error(uv_translate_sys_error(errno));
-        uv_fs_req_cleanup(&req);
-        goto exit;
-      }
-
+      cur_cookie++;
       name_len = strlen(dirents[i].name);
-      dirent.d_next = (uvwasi_dircookie_t) tell;
+      dirent.d_next = (uvwasi_dircookie_t) cur_cookie;
       /* TODO(cjihrig): libuv doesn't provide d_ino, and d_type is not
                         supported on all platforms. Use stat()? */
       dirent.d_ino = 0;
@@ -2105,8 +2117,13 @@ uvwasi_errno_t uvwasi_path_open(uvwasi_t* uvwasi,
   if (err != UVWASI_ESUCCESS)
     goto close_file_and_error_exit;
 
-  if ((o_flags & UVWASI_O_DIRECTORY) != 0 &&
-      filetype != UVWASI_FILETYPE_DIRECTORY) {
+  if (
+    (filetype != UVWASI_FILETYPE_DIRECTORY)
+    && (
+      (o_flags & UVWASI_O_DIRECTORY) != 0
+      || (resolved_path[strlen(resolved_path) - 1] == '/')
+    )
+  ) {
     err = UVWASI_ENOTDIR;
     goto close_file_and_error_exit;
   }
@@ -2361,6 +2378,7 @@ uvwasi_errno_t uvwasi_path_symlink(uvwasi_t* uvwasi,
                                    const char* new_path,
                                    uvwasi_size_t new_path_len) {
   char* truncated_old_path;
+  char* resolved_old_path;
   char* resolved_new_path;
   struct uvwasi_fd_wrap_t* wrap;
   uvwasi_errno_t err;
@@ -2387,14 +2405,32 @@ uvwasi_errno_t uvwasi_path_symlink(uvwasi_t* uvwasi,
   if (err != UVWASI_ESUCCESS)
     return err;
 
+  resolved_old_path = NULL;
+  resolved_new_path = NULL;
+  truncated_old_path = NULL;
+
   truncated_old_path = uvwasi__malloc(uvwasi, old_path_len + 1);
   if (truncated_old_path == NULL) {
-    uv_mutex_unlock(&wrap->mutex);
-    return UVWASI_ENOMEM;
+    err = UVWASI_ENOMEM;
+    goto exit;
   }
 
   memcpy(truncated_old_path, old_path, old_path_len);
   truncated_old_path[old_path_len] = '\0';
+
+  if (old_path_len > 0 && old_path[0] == '/') {
+    err = UVWASI_EPERM;
+    goto exit;
+  }
+
+  err = uvwasi__resolve_path(uvwasi,
+                             wrap,
+                             old_path,
+                             old_path_len,
+                             &resolved_old_path,
+                             0);
+  if (err != UVWASI_ESUCCESS)
+    goto exit;
 
   err = uvwasi__resolve_path(uvwasi,
                              wrap,
@@ -2402,24 +2438,27 @@ uvwasi_errno_t uvwasi_path_symlink(uvwasi_t* uvwasi,
                              new_path_len,
                              &resolved_new_path,
                              0);
-  if (err != UVWASI_ESUCCESS) {
-    uv_mutex_unlock(&wrap->mutex);
-    uvwasi__free(uvwasi, truncated_old_path);
-    return err;
-  }
+  if (err != UVWASI_ESUCCESS)
+    goto exit;
+
 
   /* Windows support may require setting the flags option. */
   r = uv_fs_symlink(NULL, &req, truncated_old_path, resolved_new_path, 0, NULL);
-  uv_mutex_unlock(&wrap->mutex);
-  uvwasi__free(uvwasi, truncated_old_path);
-  uvwasi__free(uvwasi, resolved_new_path);
   uv_fs_req_cleanup(&req);
-  if (r != 0)
-    return uvwasi__translate_uv_error(r);
+  if (r != 0) {
+    err = uvwasi__translate_uv_error(r);
+    goto exit;
+  }
 
-  return UVWASI_ESUCCESS;
+  err = UVWASI_ESUCCESS;
+exit:
+  uv_mutex_unlock(&wrap->mutex);
+  uvwasi__free(uvwasi, resolved_old_path);
+  uvwasi__free(uvwasi, resolved_new_path);
+  uvwasi__free(uvwasi, truncated_old_path);
+
+  return err;
 }
-
 
 uvwasi_errno_t uvwasi_path_unlink_file(uvwasi_t* uvwasi,
                                        uvwasi_fd_t fd,
@@ -2793,7 +2832,7 @@ uvwasi_errno_t uvwasi_sock_shutdown(uvwasi_t* uvwasi,
 
   uv_mutex_unlock(&wrap->mutex);
 
-  if (shutdown_data.status != 0) 
+  if (shutdown_data.status != 0)
     return uvwasi__translate_uv_error(shutdown_data.status);
 
   return UVWASI_ESUCCESS;
@@ -2832,6 +2871,10 @@ uvwasi_errno_t uvwasi_sock_accept(uvwasi_t* uvwasi,
 
   sock_loop = uv_handle_get_loop((uv_handle_t*) wrap->sock);
   uv_tcp_t* uv_connect_sock = (uv_tcp_t*) uvwasi__malloc(uvwasi, sizeof(uv_tcp_t));
+
+  if (uv_connect_sock == NULL)
+    return UVWASI_ENOMEM;
+
   uv_tcp_init(sock_loop, uv_connect_sock);
 
   r = uv_accept((uv_stream_t*) wrap->sock, (uv_stream_t*) uv_connect_sock);

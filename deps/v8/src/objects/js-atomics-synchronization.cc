@@ -51,9 +51,9 @@ MaybeDirectHandle<Context> SetAsyncUnlockHandlers(
   DirectHandle<Context> handlers_context =
       isolate->factory()->NewBuiltinContext(
           isolate->native_context(), JSAtomicsMutex::kAsyncContextLength);
-  handlers_context->set(JSAtomicsMutex::kMutexAsyncContextSlot, *mutex);
-  handlers_context->set(JSAtomicsMutex::kUnlockedPromiseAsyncContextSlot,
-                        *unlocked_promise);
+  handlers_context->SetNoCell(JSAtomicsMutex::kMutexAsyncContextSlot, *mutex);
+  handlers_context->SetNoCell(JSAtomicsMutex::kUnlockedPromiseAsyncContextSlot,
+                              *unlocked_promise);
 
   DirectHandle<SharedFunctionInfo> resolve_info(
       isolate->heap()->atomics_mutex_async_unlock_resolve_handler_sfi(),
@@ -853,8 +853,8 @@ MaybeDirectHandle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
   DirectHandle<Foreign> wrapper =
       requester->factory()->NewForeign<kWaiterQueueForeignTag>(
           reinterpret_cast<Address>(waiter_node));
-  handlers_context->set(JSAtomicsMutex::kAsyncLockedWaiterAsyncContextSlot,
-                        *wrapper);
+  handlers_context->SetNoCell(
+      JSAtomicsMutex::kAsyncLockedWaiterAsyncContextSlot, *wrapper);
   return unlocked_promise;
 }
 
@@ -1293,8 +1293,8 @@ MaybeDirectHandle<JSReceiver> JSAtomicsCondition::WaitAsync(
   DirectHandle<Context> handler_context =
       requester->factory()->NewBuiltinContext(requester->native_context(),
                                               kAsyncContextLength);
-  handler_context->set(kMutexAsyncContextSlot, *mutex);
-  handler_context->set(kConditionVariableAsyncContextSlot, *cv);
+  handler_context->SetNoCell(kMutexAsyncContextSlot, *mutex);
+  handler_context->SetNoCell(kConditionVariableAsyncContextSlot, *cv);
 
   DirectHandle<SharedFunctionInfo> info(
       requester->heap()->atomics_condition_acquire_lock_sfi(), requester);

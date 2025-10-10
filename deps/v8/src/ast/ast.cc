@@ -202,7 +202,8 @@ Handle<String> FunctionLiteral::GetInferredName(Isolate* isolate) {
 void FunctionLiteral::set_shared_function_info(
     Handle<SharedFunctionInfo> shared_function_info) {
   DCHECK(shared_function_info_.is_null());
-  CHECK_EQ(shared_function_info->function_literal_id(), function_literal_id_);
+  CHECK_EQ(shared_function_info->function_literal_id(kRelaxedLoad),
+           function_literal_id_);
   shared_function_info_ = shared_function_info;
 }
 
@@ -694,8 +695,8 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
         Cast<FixedDoubleArray>(*elements)->set(array_index,
                                                literal->AsNumber());
       } else {
-        DCHECK(
-            IsUninitialized(*GetBoilerplateValue(element, isolate), isolate));
+        DCHECK(IsUninitializedHole(*GetBoilerplateValue(element, isolate),
+                                   isolate));
         Cast<FixedDoubleArray>(*elements)->set(array_index, 0);
       }
 
@@ -717,7 +718,7 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
         continue;
       }
 
-      if (IsUninitialized(boilerplate_value, isolate)) {
+      if (IsUninitializedHole(boilerplate_value, isolate)) {
         boilerplate_value = Smi::zero();
       }
 

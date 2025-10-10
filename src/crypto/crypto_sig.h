@@ -25,7 +25,8 @@ class SignBase : public BaseObject {
     Update,
     PrivateKey,
     PublicKey,
-    MalformedSignature
+    MalformedSignature,
+    ContextUnsupported,
   };
 
   SignBase(Environment* env, v8::Local<v8::Object> wrap);
@@ -99,7 +100,8 @@ struct SignConfiguration final : public MemoryRetainer {
   enum Flags {
     kHasNone = 0,
     kHasSaltLength = 1,
-    kHasPadding = 2
+    kHasPadding = 2,
+    kHasContextString = 4
   };
 
   CryptoJobMode job_mode;
@@ -112,6 +114,7 @@ struct SignConfiguration final : public MemoryRetainer {
   int padding = 0;
   int salt_length = 0;
   DSASigEnc dsa_encoding = DSASigEnc::DER;
+  ByteSource context_string;
 
   SignConfiguration() = default;
 
@@ -137,10 +140,10 @@ struct SignTraits final {
       unsigned int offset,
       SignConfiguration* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const SignConfiguration& params,
-      ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const SignConfiguration& params,
+                         ByteSource* out,
+                         CryptoJobMode mode);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
                                                 const SignConfiguration& params,

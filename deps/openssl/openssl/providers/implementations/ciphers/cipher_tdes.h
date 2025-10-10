@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,6 +9,7 @@
 
 #include <openssl/des.h>
 #include <openssl/core_dispatch.h>
+#include "prov/securitycheck.h"
 #include "crypto/des_platform.h"
 
 #define DES_BLOCK_SIZE 8
@@ -25,6 +26,7 @@ typedef struct prov_tdes_ctx_st {
         void (*cbc) (const void *, void *, size_t,
                      const DES_key_schedule *, unsigned char *);
     } tstream;
+    OSSL_FIPS_IND_DECLARE
 
 } PROV_TDES_CTX;
 
@@ -40,8 +42,8 @@ static void *tdes_##type##_##lcmode##_newctx(void *provctx)                    \
 static OSSL_FUNC_cipher_get_params_fn tdes_##type##_##lcmode##_get_params;     \
 static int tdes_##type##_##lcmode##_get_params(OSSL_PARAM params[])            \
 {                                                                              \
-    return ossl_cipher_generic_get_params(params, EVP_CIPH_##UCMODE##_MODE,    \
-                                          flags, kbits, blkbits, ivbits);      \
+    return ossl_tdes_get_params(params, EVP_CIPH_##UCMODE##_MODE,              \
+                                flags, kbits, blkbits, ivbits);                \
 }                                                                              \
 const OSSL_DISPATCH ossl_tdes_##type##_##lcmode##_functions[] = {              \
     { OSSL_FUNC_CIPHER_ENCRYPT_INIT, (void (*)(void))ossl_tdes_einit },        \
@@ -64,20 +66,25 @@ const OSSL_DISPATCH ossl_tdes_##type##_##lcmode##_functions[] = {              \
     { OSSL_FUNC_CIPHER_GETTABLE_CTX_PARAMS,                                    \
       (void (*)(void))ossl_tdes_gettable_ctx_params },                         \
     { OSSL_FUNC_CIPHER_SET_CTX_PARAMS,                                         \
-     (void (*)(void))ossl_cipher_generic_set_ctx_params },                     \
+      (void (*)(void))ossl_tdes_set_ctx_params },                              \
     { OSSL_FUNC_CIPHER_SETTABLE_CTX_PARAMS,                                    \
-     (void (*)(void))ossl_cipher_generic_settable_ctx_params },                \
-    { 0, NULL }                                                                \
+      (void (*)(void))ossl_tdes_settable_ctx_params },                         \
+    OSSL_DISPATCH_END                                                          \
 }
 
 void *ossl_tdes_newctx(void *provctx, int mode, size_t kbits, size_t blkbits,
                        size_t ivbits, uint64_t flags, const PROV_CIPHER_HW *hw);
+int ossl_tdes_get_params(OSSL_PARAM params[], unsigned int md, uint64_t flags,
+                         size_t kbits, size_t blkbits, size_t ivbits);
+
 OSSL_FUNC_cipher_dupctx_fn ossl_tdes_dupctx;
 OSSL_FUNC_cipher_freectx_fn ossl_tdes_freectx;
 OSSL_FUNC_cipher_encrypt_init_fn ossl_tdes_einit;
 OSSL_FUNC_cipher_decrypt_init_fn ossl_tdes_dinit;
 OSSL_FUNC_cipher_get_ctx_params_fn ossl_tdes_get_ctx_params;
 OSSL_FUNC_cipher_gettable_ctx_params_fn ossl_tdes_gettable_ctx_params;
+OSSL_FUNC_cipher_set_ctx_params_fn ossl_tdes_set_ctx_params;
+OSSL_FUNC_cipher_settable_ctx_params_fn ossl_tdes_settable_ctx_params;
 
 #define PROV_CIPHER_HW_tdes_mode(type, mode)                                   \
 static const PROV_CIPHER_HW type##_##mode = {                                  \

@@ -116,7 +116,6 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
   Isolate::CreateParams params;
   params.array_buffer_allocator = impl_->allocator.get();
   params.external_references = external_references.data();
-  params.external_references = external_references.data();
   params.cpp_heap =
       v8::CppHeap::Create(platform, v8::CppHeapCreateParams{{}}).release();
 

@@ -9,6 +9,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/wasm/decoder.h"
+#include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-subtyping.h"
@@ -236,6 +237,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     SetSourcePosition(gasm_.effect());
   }
 
+  // TODO(14616): Implement for shared types.
   Value ParseRefCast(Value input, bool null_succeeds) {
     auto [heap_index, length] = read_i33v<ValidationTag>(pc_);
     pc_ += length;

@@ -23,20 +23,11 @@ const RegList kJSCallerSaved = {a0, a1, a2, a3, a4, a5, a6, a7,
 const int kNumJSCallerSaved = 15;
 
 // Callee-saved registers preserved when switching from C to JavaScript.
-const RegList kCalleeSaved = {fp,   // fp
-                              s0,   // s0
-                              s1,   // s1
-                              s2,   // s2
-                              s3,   // s3
-                              s4,   // s4
-                              s5,   // s5
-                              s6,   // s6 (roots in Javascript code)
-                              s7,   // s7 (cp in Javascript code)
-                              s8};  // s8
+const RegList kCalleeSaved = {C_CALL_CALLEE_SAVE_REGISTERS};
 
 const int kNumCalleeSaved = 10;
 
-const DoubleRegList kCalleeSavedFPU = {f24, f25, f26, f27, f28, f29, f30, f31};
+const DoubleRegList kCalleeSavedFPU = {C_CALL_CALLEE_SAVE_FP_REGISTERS};
 
 const int kNumCalleeSavedFPU = 8;
 

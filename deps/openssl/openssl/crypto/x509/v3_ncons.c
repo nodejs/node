@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2003-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,16 +9,20 @@
 
 #include "internal/cryptlib.h"
 #include "internal/numbers.h"
+#include "internal/safe_math.h"
 #include <stdio.h>
 #include "crypto/asn1.h"
 #include <openssl/asn1t.h>
 #include <openssl/conf.h>
+#include <openssl/http.h>
 #include <openssl/x509v3.h>
 #include <openssl/bn.h>
 
 #include "crypto/x509.h"
 #include "crypto/punycode.h"
 #include "ext_dat.h"
+
+OSSL_SAFE_MATH_SIGNED(int, int)
 
 static void *v2i_NAME_CONSTRAINTS(const X509V3_EXT_METHOD *method,
                                   X509V3_CTX *ctx,
@@ -31,8 +35,8 @@ static int do_i2r_name_constraints(const X509V3_EXT_METHOD *method,
 static int print_nc_ipadd(BIO *bp, ASN1_OCTET_STRING *ip);
 
 static int nc_match(GENERAL_NAME *gen, NAME_CONSTRAINTS *nc);
-static int nc_match_single(int effective_type, GENERAL_NAME *sub,
-                           GENERAL_NAME *gen);
+static int nc_match_single(int effective_type, GENERAL_NAME *gen,
+                           GENERAL_NAME *base);
 static int nc_dn(const X509_NAME *sub, const X509_NAME *nm);
 static int nc_dns(ASN1_IA5STRING *sub, ASN1_IA5STRING *dns);
 static int nc_email(ASN1_IA5STRING *sub, ASN1_IA5STRING *eml);
@@ -42,6 +46,26 @@ static int nc_ip(ASN1_OCTET_STRING *ip, ASN1_OCTET_STRING *base);
 
 const X509V3_EXT_METHOD ossl_v3_name_constraints = {
     NID_name_constraints, 0,
+    ASN1_ITEM_ref(NAME_CONSTRAINTS),
+    0, 0, 0, 0,
+    0, 0,
+    0, v2i_NAME_CONSTRAINTS,
+    i2r_NAME_CONSTRAINTS, 0,
+    NULL
+};
+
+const X509V3_EXT_METHOD ossl_v3_holder_name_constraints = {
+    NID_holder_name_constraints, 0,
+    ASN1_ITEM_ref(NAME_CONSTRAINTS),
+    0, 0, 0, 0,
+    0, 0,
+    0, v2i_NAME_CONSTRAINTS,
+    i2r_NAME_CONSTRAINTS, 0,
+    NULL
+};
+
+const X509V3_EXT_METHOD ossl_v3_delegated_name_constraints = {
+    NID_delegated_name_constraints, 0,
     ASN1_ITEM_ref(NAME_CONSTRAINTS),
     0, 0, 0, 0,
     0, 0,
@@ -132,14 +156,16 @@ static void *v2i_NAME_CONSTRAINTS(const X509V3_EXT_METHOD *method,
     GENERAL_SUBTREE *sub = NULL;
 
     ncons = NAME_CONSTRAINTS_new();
-    if (ncons == NULL)
-        goto memerr;
+    if (ncons == NULL) {
+        ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+        goto err;
+    }
     for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
         val = sk_CONF_VALUE_value(nval, i);
-        if (strncmp(val->name, "permitted", 9) == 0 && val->name[9]) {
+        if (HAS_PREFIX(val->name, "permitted") && val->name[9]) {
             ptree = &ncons->permittedSubtrees;
             tval.name = val->name + 10;
-        } else if (strncmp(val->name, "excluded", 8) == 0 && val->name[8]) {
+        } else if (HAS_PREFIX(val->name, "excluded") && val->name[8]) {
             ptree = &ncons->excludedSubtrees;
             tval.name = val->name + 9;
         } else {
@@ -148,21 +174,25 @@ static void *v2i_NAME_CONSTRAINTS(const X509V3_EXT_METHOD *method,
         }
         tval.value = val->value;
         sub = GENERAL_SUBTREE_new();
-        if (sub == NULL)
-            goto memerr;
-        if (!v2i_GENERAL_NAME_ex(sub->base, method, ctx, &tval, 1))
+        if (sub == NULL) {
+            ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
             goto err;
+        }
+        if (!v2i_GENERAL_NAME_ex(sub->base, method, ctx, &tval, 1)) {
+            ERR_raise(ERR_LIB_X509V3, ERR_R_X509V3_LIB);
+            goto err;
+        }
         if (*ptree == NULL)
             *ptree = sk_GENERAL_SUBTREE_new_null();
-        if (*ptree == NULL || !sk_GENERAL_SUBTREE_push(*ptree, sub))
-            goto memerr;
+        if (*ptree == NULL || !sk_GENERAL_SUBTREE_push(*ptree, sub)) {
+            ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
+            goto err;
+        }
         sub = NULL;
     }
 
     return ncons;
 
- memerr:
-    ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
  err:
     NAME_CONSTRAINTS_free(ncons);
     GENERAL_SUBTREE_free(sub);
@@ -223,16 +253,16 @@ static int print_nc_ipadd(BIO *bp, ASN1_OCTET_STRING *ip)
 
 static int add_lengths(int *out, int a, int b)
 {
+    int err = 0;
+
     /* sk_FOO_num(NULL) returns -1 but is effectively 0 when iterating. */
     if (a < 0)
         a = 0;
     if (b < 0)
         b = 0;
 
-    if (a > INT_MAX - b)
-        return 0;
-    *out = a + b;
-    return 1;
+    *out = safe_add_int(a, b, &err);
+    return !err;
 }
 
 /*-
@@ -432,7 +462,7 @@ int NAME_CONSTRAINTS_check_CN(X509 *x, NAME_CONSTRAINTS *nc)
         ne = X509_NAME_get_entry(nm, i);
         cn = X509_NAME_ENTRY_get_data(ne);
 
-        /* Only process attributes that look like host names */
+        /* Only process attributes that look like hostnames */
         if ((r = cn2dnsid(cn, &idval, &idlen)) != X509_V_OK)
             return r;
         if (idlen == 0)
@@ -640,7 +670,7 @@ static int nc_email_eai(ASN1_TYPE *emltype, ASN1_IA5STRING *base)
     const char *emlptr;
     const char *emlat;
     char ulabel[256];
-    size_t size = sizeof(ulabel) - 1;
+    size_t size = sizeof(ulabel);
     int ret = X509_V_OK;
     size_t emlhostlen;
 
@@ -667,18 +697,16 @@ static int nc_email_eai(ASN1_TYPE *emltype, ASN1_IA5STRING *base)
         goto end;
     }
 
-    memset(ulabel, 0, sizeof(ulabel));
     /* Special case: initial '.' is RHS match */
     if (*baseptr == '.') {
         ulabel[0] = '.';
-        size -= 1;
-        if (ossl_a2ulabel(baseptr, ulabel + 1, &size) <= 0) {
+        if (ossl_a2ulabel(baseptr, ulabel + 1, size - 1) <= 0) {
             ret = X509_V_ERR_UNSPECIFIED;
             goto end;
         }
 
         if ((size_t)eml->length > strlen(ulabel)) {
-            emlptr += eml->length - (strlen(ulabel));
+            emlptr += eml->length - strlen(ulabel);
             /* X509_V_OK */
             if (ia5ncasecmp(ulabel, emlptr, strlen(ulabel)) == 0)
                 goto end;
@@ -687,7 +715,7 @@ static int nc_email_eai(ASN1_TYPE *emltype, ASN1_IA5STRING *base)
         goto end;
     }
 
-    if (ossl_a2ulabel(baseptr, ulabel, &size) <= 0) {
+    if (ossl_a2ulabel(baseptr, ulabel, size) <= 0) {
         ret = X509_V_ERR_UNSPECIFIED;
         goto end;
     }
@@ -755,50 +783,57 @@ static int nc_email(ASN1_IA5STRING *eml, ASN1_IA5STRING *base)
 static int nc_uri(ASN1_IA5STRING *uri, ASN1_IA5STRING *base)
 {
     const char *baseptr = (char *)base->data;
-    const char *hostptr = (char *)uri->data;
-    const char *p = ia5memchr(uri, (char *)uri->data, ':');
+    char *uri_copy;
+    char *scheme;
+    char *host;
     int hostlen;
+    int ret;
 
-    /* Check for foo:// and skip past it */
-    if (p == NULL
-            || IA5_OFFSET_LEN(uri, p) < 3
-            || p[1] != '/'
-            || p[2] != '/')
+    if ((uri_copy = OPENSSL_strndup((const char *)uri->data, uri->length)) == NULL)
+        return X509_V_ERR_UNSPECIFIED;
+
+    if (!OSSL_parse_url(uri_copy, &scheme, NULL, &host, NULL, NULL, NULL, NULL, NULL)) {
+        OPENSSL_free(uri_copy);
         return X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
-    hostptr = p + 3;
+    }
 
-    /* Determine length of hostname part of URI */
+    /* Make sure the scheme is there */
+    if (scheme == NULL || *scheme == '\0') {
+        ERR_raise_data(ERR_LIB_X509V3, X509_V_ERR_UNSUPPORTED_NAME_SYNTAX,
+                       "x509: missing scheme in URI: %s\n", uri_copy);
+        OPENSSL_free(uri_copy);
+        ret = X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
+        goto end;
+    }
 
-    /* Look for a port indicator as end of hostname first */
+    /* We don't need these anymore */
+    OPENSSL_free(scheme);
+    OPENSSL_free(uri_copy);
 
-    p = ia5memchr(uri, hostptr, ':');
-    /* Otherwise look for trailing slash */
-    if (p == NULL)
-        p = ia5memchr(uri, hostptr, '/');
-
-    if (p == NULL)
-        hostlen = IA5_OFFSET_LEN(uri, hostptr);
-    else
-        hostlen = p - hostptr;
-
-    if (hostlen == 0)
-        return X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
+    hostlen = strlen(host);
 
     /* Special case: initial '.' is RHS match */
     if (base->length > 0 && *baseptr == '.') {
         if (hostlen > base->length) {
-            p = hostptr + hostlen - base->length;
-            if (ia5ncasecmp(p, baseptr, base->length) == 0)
-                return X509_V_OK;
+            if (ia5ncasecmp(host + hostlen - base->length, baseptr, base->length) == 0) {
+                ret = X509_V_OK;
+                goto end;
+            }
         }
-        return X509_V_ERR_PERMITTED_VIOLATION;
+        ret = X509_V_ERR_PERMITTED_VIOLATION;
+        goto end;
     }
 
-    if ((base->length != (int)hostlen)
-        || ia5ncasecmp(hostptr, baseptr, hostlen))
-        return X509_V_ERR_PERMITTED_VIOLATION;
+    if ((base->length != hostlen)
+        || ia5ncasecmp(host, baseptr, hostlen) != 0) {
+        ret = X509_V_ERR_PERMITTED_VIOLATION;
+        goto end;
+    }
 
-    return X509_V_OK;
+    ret = X509_V_OK;
+end:
+    OPENSSL_free(host);
+    return ret;
 
 }
 

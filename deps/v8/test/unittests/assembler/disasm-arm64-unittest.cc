@@ -789,6 +789,8 @@ TEST_F(DisasmArm64Test, branch) {
   COMPARE_PREFIX(b(INST_OFF(-0x8000000)), "b #-0x8000000");
   COMPARE_PREFIX(b(INST_OFF(0xffffc), eq), "b.eq #+0xffffc");
   COMPARE_PREFIX(b(INST_OFF(-0x100000), mi), "b.mi #-0x100000");
+  COMPARE_PREFIX(bc(INST_OFF(0xffffc), ge), "bc.ge #+0xffffc");
+  COMPARE_PREFIX(bc(INST_OFF(-0x100000), lt), "bc.lt #-0x100000");
   COMPARE_PREFIX(bl(INST_OFF(0x4)), "bl #+0x4");
   COMPARE_PREFIX(bl(INST_OFF(-0x4)), "bl #-0x4");
   COMPARE_PREFIX(bl(INST_OFF(0xffffc)), "bl #+0xffffc");
@@ -4718,6 +4720,19 @@ TEST_F(DisasmArm64Test, neon_2regmisc) {
   CLEANUP();
 }
 
+TEST_F(DisasmArm64Test, neon_sha3) {
+  SET_UP_MASM();
+
+  CpuFeatureScope feature_scope(assm, SHA3,
+                                CpuFeatureScope::kDontCheckSupported);
+  COMPARE(Bcax(v0.V16B(), v1.V16B(), v2.V16B(), v3.V16B()),
+          "bcax v0.16b, v1.16b, v2.16b, v3.16b");
+  COMPARE(Eor3(v10.V16B(), v11.V16B(), v12.V16B(), v13.V16B()),
+          "eor3 v10.16b, v11.16b, v12.16b, v13.16b");
+
+  CLEANUP();
+}
+
 TEST_F(DisasmArm64Test, neon_acrosslanes) {
   SET_UP_MASM();
 
@@ -5121,6 +5136,55 @@ TEST_F(DisasmArm64Test, neon_shift_immediate) {
   COMPARE(Fcvtzu(v7.V2D(), v5.V2D(), 33), "fcvtzu v7.2d, v5.2d, #33");
   COMPARE(Fcvtzu(s8, s6, 13), "fcvtzu s8, s6, #13");
   COMPARE(Fcvtzu(d8, d6, 34), "fcvtzu d8, d6, #34");
+
+  CLEANUP();
+}
+
+TEST_F(DisasmArm64Test, mops) {
+  SET_UP_MASM();
+  CpuFeatureScope feature_scope(assm, MOPS,
+                                CpuFeatureScope::kDontCheckSupported);
+
+  COMPARE(cpyp(x0, x30, x28), "cpyp [x0]!, [lr]!, x28!");
+  COMPARE(cpym(x1, x10, x23), "cpym [x1]!, [x10]!, x23!");
+  COMPARE(cpye(x14, x15, x19), "cpye [x14]!, [x15]!, x19!");
+
+  COMPARE(setp(x7, x17, x11), "setp [x7]!, x17!, x11");
+  COMPARE(setm(x8, x7, x9), "setm [x8]!, x7!, x9");
+  COMPARE(sete(x3, x23, x1), "sete [x3]!, x23!, x1");
+  CLEANUP();
+}
+
+TEST_F(DisasmArm64Test, cssc) {
+  SET_UP_MASM();
+
+  CpuFeatureScope feature_scope(assm, CSSC,
+                                CpuFeatureScope::kDontCheckSupported);
+
+  COMPARE(Abs(w0, w22), "abs w0, w22");
+  COMPARE(Abs(x0, x23), "abs x0, x23");
+  COMPARE(Cnt(w21, w30), "cnt w21, w30");
+  COMPARE(Cnt(x19, x9), "cnt x19, x9");
+  COMPARE(Ctz(w3, w5), "ctz w3, w5");
+  COMPARE(Ctz(x3, x28), "ctz x3, x28");
+  COMPARE(Ctz(w0, wzr), "ctz w0, wzr");
+
+  COMPARE(Smax(w5, w9, w10), "smax w5, w9, w10");
+  COMPARE(Smax(x6, x8, x9), "smax x6, x8, x9");
+  COMPARE(Smin(w11, w8, w17), "smin w11, w8, w17");
+  COMPARE(Smin(x12, x10, x20), "smin x12, x10, x20");
+  COMPARE(Umax(w5, w9, w10), "umax w5, w9, w10");
+  COMPARE(Umax(x6, x8, x9), "umax x6, x8, x9");
+  COMPARE(Umin(w11, w8, w17), "umin w11, w8, w17");
+  COMPARE(Umin(x12, x10, x20), "umin x12, x10, x20");
+
+  COMPARE(Smax(w5, w9, 127), "smax w5, w9, #127");
+  COMPARE(Smax(x6, x8, -128), "smax x6, x8, #-128");
+  COMPARE(Smin(w19, w20, -1), "smin w19, w20, #-1");
+  COMPARE(Smin(x30, xzr, 0), "smin lr, xzr, #0");
+  COMPARE(Umax(w5, w9, 255), "umax w5, w9, #255");
+  COMPARE(Umax(x6, x8, 128), "umax x6, x8, #128");
+  COMPARE(Umin(x30, xzr, 0), "umin lr, xzr, #0");
 
   CLEANUP();
 }

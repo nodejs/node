@@ -73,7 +73,7 @@
       }, {
         'v8_enable_etw_stack_walking': 0,
       }],
-      ['OS=="linux"', {
+      ['OS=="linux" or OS=="openharmony"', {
         # Sets -dV8_ENABLE_PRIVATE_MAPPING_FORK_OPTIMIZATION.
         #
         # This flag speeds up the performance of fork/execve on Linux systems for
@@ -88,11 +88,6 @@
         'v8_enable_private_mapping_fork_optimization': 0,
       }],
 
-      ['OS in "aix os400"', {
-        'v8_enable_leaptiering': 0,
-      }, {
-        'v8_enable_leaptiering': 1,
-      }],
     ],
 
     # Variables from BUILD.gn
@@ -209,12 +204,6 @@
     # Enable map packing & unpacking (sets -dV8_MAP_PACKING).
     'v8_enable_map_packing%': 0,
 
-    # Scan the call stack conservatively during garbage collection.
-    'v8_enable_conservative_stack_scanning%': 0,
-
-    # Use direct pointers in local handles.
-    'v8_enable_direct_local%': 0,
-
     # Controls the threshold for on-heap/off-heap Typed Arrays.
     'v8_typed_array_max_size_in_heap%': 64,
 
@@ -240,13 +229,17 @@
     # for ARM64.
     'v8_control_flow_integrity%': 0,
 
-    # Enable V8 zone compression experimental feature.
-    # Sets -DV8_COMPRESS_ZONES.
-    'v8_enable_zone_compression%': 0,
-
     # Enable the experimental V8 sandbox.
     # Sets -DV8_ENABLE_SANDBOX.
     'v8_enable_sandbox%': 0,
+
+    # Enable leaptiering
+    'v8_enable_leaptiering%': 1,
+
+    # Enable support for external code range relative to the pointer compression
+    # cage.
+    # Sets -DV8_EXTERNAL_CODE_SPACE.
+    'v8_enable_external_code_space%': 0,
 
     # Experimental feature for collecting per-class zone memory stats.
     # Requires use_rtti = true
@@ -374,11 +367,11 @@
       ['v8_enable_short_builtin_calls==1', {
         'defines': ['V8_SHORT_BUILTIN_CALLS',],
       }],
-      ['v8_enable_zone_compression==1', {
-        'defines': ['V8_COMPRESS_ZONES',],
-      }],
       ['v8_enable_sandbox==1', {
         'defines': ['V8_ENABLE_SANDBOX',],
+      }],
+      ['v8_enable_external_code_space==1', {
+        'defines': ['V8_EXTERNAL_CODE_SPACE',],
       }],
       ['v8_enable_object_print==1', {
         'defines': ['OBJECT_PRINT',],
@@ -461,12 +454,6 @@
       }],
       ['tsan==1', {
         'defines': ['V8_IS_TSAN',],
-      }],
-      ['v8_enable_conservative_stack_scanning==1', {
-        'defines': ['V8_ENABLE_CONSERVATIVE_STACK_SCANNING',],
-      }],
-      ['v8_enable_direct_local==1', {
-        'defines': ['V8_ENABLE_DIRECT_LOCAL',],
       }],
       ['v8_enable_regexp_interpreter_threaded_dispatch==1', {
         'defines': ['V8_ENABLE_REGEXP_INTERPRETER_THREADED_DISPATCH',],

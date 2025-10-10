@@ -115,14 +115,10 @@ d8.file.execute('test/mjsunit/value-helper.js');
   const wasm = builder.instantiate().exports;
   for (let a of int8_array) {
     for (let b of int8_array) {
-      for (let c of int8_array) {
-        for (let d of int8_array) {
-          assertEquals(wasm.sadd(a, b, c, d),
-                       wasm.sadd_reduce(a, b, c, d));
-          assertEquals(wasm.uadd(a, b, c, d),
-                       wasm.uadd_reduce(a, b, c, d));
-        }
-      }
+      assertEquals(wasm.sadd(a, b, b, a),
+                   wasm.sadd_reduce(a, b, b, a));
+      assertEquals(wasm.uadd(a, b, a, b),
+                   wasm.uadd_reduce(a, b, a, b));
     }
   }
 })();
@@ -200,14 +196,93 @@ d8.file.execute('test/mjsunit/value-helper.js');
   const wasm = builder.instantiate().exports;
   for (let a of int16_array) {
     for (let b of int16_array) {
-      for (let c of int16_array) {
-        for (let d of int16_array) {
-          assertEquals(wasm.sadd(a, b, c, d),
-                       wasm.sadd_reduce(a, b, c, d));
-          assertEquals(wasm.uadd(a, b, c, d),
-                       wasm.uadd_reduce(a, b, c, d));
-        }
-      }
+      assertEquals(wasm.sadd(b, b, a, a),
+                   wasm.sadd_reduce(b, b, a, a));
+      assertEquals(wasm.uadd(a, a, b, b),
+                   wasm.uadd_reduce(a, a, b, b));
+    }
+  }
+})();
+
+(function I16x8UpperToLowerReduceLeftAndRightMismatch() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const shared_simd = [
+    kExprLocalGet, 0,
+    kSimdPrefix, kExprI16x8Splat,
+    kExprLocalGet, 1,
+    kSimdPrefix, kExprI16x8ReplaceLane, 1,
+    kExprLocalGet, 2,
+    kSimdPrefix, kExprI16x8ReplaceLane, 2,
+    kExprLocalGet, 3,
+    kSimdPrefix, kExprI16x8ReplaceLane, 3,
+    kExprLocalGet, 1,
+    kSimdPrefix, kExprI16x8ReplaceLane, 5,
+    kExprLocalGet, 2,
+    kSimdPrefix, kExprI16x8ReplaceLane, 6,
+    kExprLocalGet, 3,
+    kSimdPrefix, kExprI16x8ReplaceLane, 7,
+    kExprLocalTee, 4,
+    kExprLocalGet, 4,
+    kExprLocalGet, 2,
+    kSimdPrefix, kExprI16x8Splat,                     // unused input
+    kSimdPrefix, kExprI8x16Shuffle,                   // upper-to-lower 16x8
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ...SimdInstr(kExprI16x8Add),                       // first step of reduction
+    kExprLocalTee, 4,
+    kExprLocalGet, 4,
+    kExprLocalGet, 2,
+    kSimdPrefix, kExprI16x8Splat,                     // unused input
+    kSimdPrefix, kExprI8x16Shuffle,                   // upper-to-lower 16x4
+    0x04, 0x05, 0x06, 0x07, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ...SimdInstr(kExprI16x8Add),                       // second step of reduction
+    kExprLocalTee, 4,
+    kExprLocalGet, 4,
+    kExprLocalGet, 4,
+    kSimdPrefix, kExprI8x16Shuffle,                   // upper-to-lower 8x2
+    0x02, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ...SimdInstr(kExprI16x8Add),                       // final step of reduction
+  ];
+
+  const shared_scalar = wasmI32Const(0xFFFF).concat([
+    kExprLocalGet, 0,
+    kExprLocalGet, 1,
+    kExprLocalGet, 2,
+    kExprLocalGet, 3,
+    kExprLocalGet, 0,
+    kExprLocalGet, 1,
+    kExprLocalGet, 2,
+    kExprLocalGet, 3,
+    kExprI32Add,
+    kExprI32Add,
+    kExprI32Add,
+    kExprI32Add,
+    kExprI32Add,
+    kExprI32Add,
+    kExprI32Add,
+    kExprI32And,
+  ]);
+
+  const s16x8 = shared_simd.concat([kSimdPrefix, kExprI16x8ExtractLaneS, 0]);
+  const u16x8 = shared_simd.concat([kSimdPrefix, kExprI16x8ExtractLaneU, 0]);
+  builder.addFunction("sadd_reduce", kSig_i_iiii).addLocals(kWasmS128, 1).addBody(s16x8).exportFunc();
+  builder.addFunction("uadd_reduce", kSig_i_iiii).addLocals(kWasmS128, 1).addBody(u16x8).exportFunc();
+
+  const signed_scalar = shared_scalar.concat([kExprI32SExtendI16]);
+  const unsigned_scalar = shared_scalar.concat([]);
+  builder.addFunction("sadd", kSig_i_iiii).addBody(signed_scalar).exportFunc();
+  builder.addFunction("uadd", kSig_i_iiii).addBody(unsigned_scalar).exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  for (let a of int16_array) {
+    for (let b of int16_array) {
+      assertEquals(wasm.sadd(a, b, a, b),
+                   wasm.sadd_reduce(a, b, a, b));
+      assertEquals(wasm.uadd(a, b, a, b),
+                   wasm.uadd_reduce(a, b, a, b));
     }
   }
 })();
@@ -237,6 +312,96 @@ d8.file.execute('test/mjsunit/value-helper.js');
     kSimdPrefix, kExprI8x16Shuffle,                   // upper-to-lower 32x2
     0x04, 0x05, 0x06, 0x07, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ...SimdInstr(kExprI32x4Add),                       // final step of reduction
+    kSimdPrefix, kExprI32x4ExtractLane, 0,
+  ]).exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  for (let idxa = 0; idxa < int32_array.length; ++idxa) {
+    for (let idxb = 0; idxb < int32_array.length; ++idxb) {
+      const idxc = (idxa + 1) % int32_array.length;
+      const idxd = (idxb + 1) % int32_array.length;
+      const a = int32_array[idxa];
+      const b = int32_array[idxb];
+      const c = int32_array[idxc];
+      const d = int32_array[idxd];
+      const expected = 0xFFFFFFFF & (a + b + c + d);
+      assertEquals(expected, wasm.add_reduce(a, b, c, d));
+    }
+  }
+})();
+
+(function I32x4UpperToLowerReduceLeftAndRightMismatch() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction("add_reduce", kSig_i_iiii).addLocals(kWasmS128, 1).addBody([
+    kExprLocalGet, 0,
+    kSimdPrefix, kExprI32x4Splat,
+    kExprLocalGet, 1,
+    kSimdPrefix, kExprI32x4ReplaceLane, 1,
+    kExprLocalGet, 2,
+    kSimdPrefix, kExprI32x4ReplaceLane, 2,
+    kExprLocalGet, 3,
+    kSimdPrefix, kExprI32x4ReplaceLane, 3,
+    kExprLocalTee, 4,
+    kExprLocalGet, 4,
+    kExprLocalGet, 1,
+    kSimdPrefix, kExprI32x4Splat,                     // unused input
+    kSimdPrefix, kExprI8x16Shuffle,                   // upper-to-lower 32x4
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ...SimdInstr(kExprI32x4Add),                       // first step of reduction
+    kExprLocalTee, 4,
+    kExprLocalGet, 4,
+    kExprLocalGet, 4,
+    kSimdPrefix, kExprI8x16Shuffle,                   // upper-to-lower 32x2
+    0x04, 0x05, 0x06, 0x07, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ...SimdInstr(kExprI32x4Add),                       // final step of reduction
+    kSimdPrefix, kExprI32x4ExtractLane, 0,
+  ]).exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  for (let idxa = 0; idxa < int32_array.length; ++idxa) {
+    for (let idxb = 0; idxb < int32_array.length; ++idxb) {
+      const idxc = (idxa + 1) % int32_array.length;
+      const idxd = (idxb + 1) % int32_array.length;
+      const a = int32_array[idxa];
+      const b = int32_array[idxb];
+      const c = int32_array[idxc];
+      const d = int32_array[idxd];
+      const expected = 0xFFFFFFFF & (a + b + c + d);
+      assertEquals(expected, wasm.add_reduce(a, b, c, d));
+    }
+  }
+})();
+
+(function I32x4UpperToLowerReduceLeftAndRightMismatchNotSwizzle() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction("add_reduce", kSig_i_iiii).addLocals(kWasmS128, 1).addBody([
+    kExprLocalGet, 0,
+    kSimdPrefix, kExprI32x4Splat,
+    kExprLocalGet, 1,
+    kSimdPrefix, kExprI32x4ReplaceLane, 1,
+    kExprLocalGet, 2,
+    kSimdPrefix, kExprI32x4ReplaceLane, 2,
+    kExprLocalGet, 3,
+    kSimdPrefix, kExprI32x4ReplaceLane, 3,
+    kExprLocalTee, 4,
+    kExprLocalGet, 4,
+    kExprLocalGet, 1,
+    kSimdPrefix, kExprI32x4Splat,                     // unused input
+    kSimdPrefix, kExprI8x16Shuffle,                   // upper-to-lower 32x4
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0x10, 0x11, 0x12, 0x13, 0x10, 0x11, 0x12, 0x13,
+    ...SimdInstr(kExprI32x4Add),                       // first step of reduction
+    kExprLocalTee, 4,
+    kExprLocalGet, 4,
+    kExprLocalGet, 4,
+    kSimdPrefix, kExprI8x16Shuffle,                   // upper-to-lower 32x2
+    0x04, 0x05, 0x06, 0x07, 0x10, 0x11, 0x12, 0x13,
+    0x10, 0x11, 0x12, 0x13, 0x10, 0x11, 0x12, 0x13,
     ...SimdInstr(kExprI32x4Add),                       // final step of reduction
     kSimdPrefix, kExprI32x4ExtractLane, 0,
   ]).exportFunc();

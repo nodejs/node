@@ -53,7 +53,6 @@ class DoublyThreadedList {
     }
 
     bool operator==(end_iterator) { return !DTLTraits::non_empty(curr_); }
-    bool operator!=(end_iterator) { return DTLTraits::non_empty(curr_); }
 
    private:
     friend DoublyThreadedList;

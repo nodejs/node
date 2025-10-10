@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -44,6 +44,30 @@ const X509V3_EXT_METHOD ossl_v3_ocsp_accresp = {
     NULL
 };
 
+/* Acceptable Certificate Policies also is a SEQUENCE OF OBJECT */
+const X509V3_EXT_METHOD ossl_v3_acc_cert_policies = {
+    NID_acceptable_cert_policies, 0,
+    ASN1_ITEM_ref(EXTENDED_KEY_USAGE),
+    0, 0, 0, 0,
+    0, 0,
+    i2v_EXTENDED_KEY_USAGE,
+    v2i_EXTENDED_KEY_USAGE,
+    0, 0,
+    NULL
+};
+
+/* Acceptable Privilege Policies also is a SEQUENCE OF OBJECT */
+const X509V3_EXT_METHOD ossl_v3_acc_priv_policies = {
+    NID_acceptable_privilege_policies, 0,
+    ASN1_ITEM_ref(EXTENDED_KEY_USAGE),
+    0, 0, 0, 0,
+    0, 0,
+    i2v_EXTENDED_KEY_USAGE,
+    v2i_EXTENDED_KEY_USAGE,
+    0, 0,
+    NULL
+};
+
 ASN1_ITEM_TEMPLATE(EXTENDED_KEY_USAGE) =
         ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, EXTENDED_KEY_USAGE, ASN1_OBJECT)
 ASN1_ITEM_TEMPLATE_END(EXTENDED_KEY_USAGE)
@@ -79,7 +103,7 @@ static void *v2i_EXTENDED_KEY_USAGE(const X509V3_EXT_METHOD *method,
 
     extku = sk_ASN1_OBJECT_new_reserve(NULL, num);
     if (extku == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
         sk_ASN1_OBJECT_free(extku);
         return NULL;
     }

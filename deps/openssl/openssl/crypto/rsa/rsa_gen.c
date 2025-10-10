@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -71,37 +71,241 @@ int RSA_generate_multi_prime_key(RSA *rsa, int bits, int primes,
     return rsa_keygen(rsa->libctx, rsa, bits, primes, e_value, cb, 0);
 }
 
+DEFINE_STACK_OF(BIGNUM)
+
+/*
+ * Given input values, q, p, n, d and e, derive the exponents
+ * and coefficients for each prime in this key, placing the result
+ * on their respective exps and coeffs stacks
+ */
 #ifndef FIPS_MODULE
+int ossl_rsa_multiprime_derive(RSA *rsa, int bits, int primes,
+                               BIGNUM *e_value,
+                               STACK_OF(BIGNUM) *factors,
+                               STACK_OF(BIGNUM) *exps,
+                               STACK_OF(BIGNUM) *coeffs)
+{
+    STACK_OF(BIGNUM) *pplist = NULL, *pdlist = NULL;
+    BIGNUM *factor = NULL, *newpp = NULL, *newpd = NULL;
+    BIGNUM *dval = NULL, *newexp = NULL, *newcoeff = NULL;
+    BIGNUM *p = NULL, *q = NULL;
+    BIGNUM *dmp1 = NULL, *dmq1 = NULL, *iqmp = NULL;
+    BIGNUM *r0 = NULL, *r1 = NULL, *r2 = NULL;
+    BN_CTX *ctx = NULL;
+    BIGNUM *tmp = NULL;
+    int i;
+    int ret = 0;
+
+    ctx = BN_CTX_new_ex(rsa->libctx);
+    if (ctx == NULL)
+        goto err;
+
+    BN_CTX_start(ctx);
+
+    pplist = sk_BIGNUM_new_null();
+    if (pplist == NULL)
+        goto err;
+
+    pdlist = sk_BIGNUM_new_null();
+    if (pdlist == NULL)
+        goto err;
+
+    r0 = BN_CTX_get(ctx);
+    r1 = BN_CTX_get(ctx);
+    r2 = BN_CTX_get(ctx);
+
+    if (r2 == NULL)
+        goto err;
+
+    BN_set_flags(r0, BN_FLG_CONSTTIME);
+    BN_set_flags(r1, BN_FLG_CONSTTIME);
+    BN_set_flags(r2, BN_FLG_CONSTTIME);
+
+    if (BN_copy(r1, rsa->n) == NULL)
+        goto err;
+
+    p = sk_BIGNUM_value(factors, 0);
+    q = sk_BIGNUM_value(factors, 1);
+
+    /* Build list of partial products of primes */
+    for (i = 0; i < sk_BIGNUM_num(factors); i++) {
+        switch (i) {
+        case 0:
+            /* our first prime, p */
+            if (!BN_sub(r2, p, BN_value_one()))
+                goto err;
+            BN_set_flags(r2, BN_FLG_CONSTTIME);
+            if (BN_mod_inverse(r1, r2, rsa->e, ctx) == NULL)
+                goto err;
+            break;
+        case 1:
+            /* second prime q */
+            if (!BN_mul(r1, p, q, ctx))
+                goto err;
+            tmp = BN_dup(r1);
+            if (tmp == NULL)
+                goto err;
+            if (!sk_BIGNUM_insert(pplist, tmp, sk_BIGNUM_num(pplist)))
+                goto err;
+            tmp = NULL;
+            break;
+        default:
+            factor = sk_BIGNUM_value(factors, i);
+            /* all other primes */
+            if (!BN_mul(r1, r1, factor, ctx))
+                goto err;
+            tmp = BN_dup(r1);
+            if (tmp == NULL)
+                goto err;
+            if (!sk_BIGNUM_insert(pplist, tmp, sk_BIGNUM_num(pplist)))
+                goto err;
+            tmp = NULL;
+            break;
+        }
+    }
+
+    /* build list of relative d values */
+    /* p -1 */
+    if (!BN_sub(r1, p, BN_value_one()))
+        goto err;
+    if (!BN_sub(r2, q, BN_value_one()))
+        goto err;
+    if (!BN_mul(r0, r1, r2, ctx))
+        goto err;
+    for (i = 2; i < sk_BIGNUM_num(factors); i++) {
+        factor = sk_BIGNUM_value(factors, i);
+        dval = BN_new();
+        if (dval == NULL)
+            goto err;
+        BN_set_flags(dval, BN_FLG_CONSTTIME);
+        if (!BN_sub(dval, factor, BN_value_one()))
+            goto err;
+        if (!BN_mul(r0, r0, dval, ctx))
+            goto err;
+        if (!sk_BIGNUM_insert(pdlist, dval, sk_BIGNUM_num(pdlist)))
+            goto err;
+        dval = NULL;
+    }
+
+    /* Calculate dmp1, dmq1 and additional exponents */
+    dmp1 = BN_secure_new();
+    if (dmp1 == NULL)
+        goto err;
+    dmq1 = BN_secure_new();
+    if (dmq1 == NULL)
+        goto err;
+
+    if (!BN_mod(dmp1, rsa->d, r1, ctx))
+        goto err;
+    if (!sk_BIGNUM_insert(exps, dmp1, sk_BIGNUM_num(exps)))
+        goto err;
+    dmp1 = NULL;
+
+    if (!BN_mod(dmq1, rsa->d, r2, ctx))
+        goto err;
+    if (!sk_BIGNUM_insert(exps, dmq1, sk_BIGNUM_num(exps)))
+        goto err;
+    dmq1 = NULL;
+
+    for (i = 2; i < sk_BIGNUM_num(factors); i++) {
+        newpd = sk_BIGNUM_value(pdlist, i - 2);
+        newexp = BN_new();
+        if (newexp == NULL)
+            goto err;
+        if (!BN_mod(newexp, rsa->d, newpd, ctx))
+            goto err;
+        if (!sk_BIGNUM_insert(exps, newexp, sk_BIGNUM_num(exps)))
+            goto err;
+        newexp = NULL;
+    }
+
+    /* Calculate iqmp and additional coefficients */
+    iqmp = BN_new();
+    if (iqmp == NULL)
+        goto err;
+
+    if (BN_mod_inverse(iqmp, sk_BIGNUM_value(factors, 1),
+                       sk_BIGNUM_value(factors, 0), ctx) == NULL)
+        goto err;
+    if (!sk_BIGNUM_insert(coeffs, iqmp, sk_BIGNUM_num(coeffs)))
+        goto err;
+    iqmp = NULL;
+
+    for (i = 2; i < sk_BIGNUM_num(factors); i++) {
+        newpp = sk_BIGNUM_value(pplist, i - 2);
+        newcoeff = BN_new();
+        if (newcoeff == NULL)
+            goto err;
+        if (BN_mod_inverse(newcoeff, newpp, sk_BIGNUM_value(factors, i),
+                           ctx) == NULL)
+            goto err;
+        if (!sk_BIGNUM_insert(coeffs, newcoeff, sk_BIGNUM_num(coeffs)))
+            goto err;
+        newcoeff = NULL;
+    }
+
+    ret = 1;
+ err:
+    BN_free(newcoeff);
+    BN_free(newexp);
+    BN_free(dval);
+    BN_free(tmp);
+    sk_BIGNUM_pop_free(pplist, BN_free);
+    sk_BIGNUM_pop_free(pdlist, BN_free);
+    BN_CTX_end(ctx);
+    BN_CTX_free(ctx);
+    BN_clear_free(dmp1);
+    BN_clear_free(dmq1);
+    BN_clear_free(iqmp);
+    return ret;
+}
+
 static int rsa_multiprime_keygen(RSA *rsa, int bits, int primes,
                                  BIGNUM *e_value, BN_GENCB *cb)
 {
-    BIGNUM *r0 = NULL, *r1 = NULL, *r2 = NULL, *tmp, *prime;
+    BIGNUM *r0 = NULL, *r1 = NULL, *r2 = NULL, *tmp, *tmp2, *prime;
     int n = 0, bitsr[RSA_MAX_PRIME_NUM], bitse = 0;
     int i = 0, quo = 0, rmd = 0, adj = 0, retries = 0;
     RSA_PRIME_INFO *pinfo = NULL;
     STACK_OF(RSA_PRIME_INFO) *prime_infos = NULL;
+    STACK_OF(BIGNUM) *factors = NULL;
+    STACK_OF(BIGNUM) *exps = NULL;
+    STACK_OF(BIGNUM) *coeffs = NULL;
     BN_CTX *ctx = NULL;
     BN_ULONG bitst = 0;
     unsigned long error = 0;
     int ok = -1;
 
     if (bits < RSA_MIN_MODULUS_BITS) {
-        ok = 0;             /* we set our own err */
         ERR_raise(ERR_LIB_RSA, RSA_R_KEY_SIZE_TOO_SMALL);
-        goto err;
+        return 0;
     }
-
+    if (e_value == NULL) {
+        ERR_raise(ERR_LIB_RSA, RSA_R_BAD_E_VALUE);
+        return 0;
+    }
     /* A bad value for e can cause infinite loops */
-    if (e_value != NULL && !ossl_rsa_check_public_exponent(e_value)) {
+    if (!ossl_rsa_check_public_exponent(e_value)) {
         ERR_raise(ERR_LIB_RSA, RSA_R_PUB_EXPONENT_OUT_OF_RANGE);
         return 0;
     }
 
     if (primes < RSA_DEFAULT_PRIME_NUM || primes > ossl_rsa_multip_cap(bits)) {
-        ok = 0;             /* we set our own err */
         ERR_raise(ERR_LIB_RSA, RSA_R_KEY_PRIME_NUM_INVALID);
-        goto err;
+        return 0;
     }
+
+    factors = sk_BIGNUM_new_null();
+    if (factors == NULL)
+        return 0;
+
+    exps = sk_BIGNUM_new_null();
+    if (exps == NULL)
+        goto err;
+
+    coeffs = sk_BIGNUM_new_null();
+    if (coeffs == NULL)
+        goto err;
 
     ctx = BN_CTX_new_ex(rsa->libctx);
     if (ctx == NULL)
@@ -136,15 +340,6 @@ static int rsa_multiprime_keygen(RSA *rsa, int bits, int primes,
     if (!rsa->q && ((rsa->q = BN_secure_new()) == NULL))
         goto err;
     BN_set_flags(rsa->q, BN_FLG_CONSTTIME);
-    if (!rsa->dmp1 && ((rsa->dmp1 = BN_secure_new()) == NULL))
-        goto err;
-    BN_set_flags(rsa->dmp1, BN_FLG_CONSTTIME);
-    if (!rsa->dmq1 && ((rsa->dmq1 = BN_secure_new()) == NULL))
-        goto err;
-    BN_set_flags(rsa->dmq1, BN_FLG_CONSTTIME);
-    if (!rsa->iqmp && ((rsa->iqmp = BN_secure_new()) == NULL))
-        goto err;
-    BN_set_flags(rsa->iqmp, BN_FLG_CONSTTIME);
 
     /* initialize multi-prime components */
     if (primes > RSA_DEFAULT_PRIME_NUM) {
@@ -219,7 +414,7 @@ static int rsa_multiprime_keygen(RSA *rsa, int bits, int primes,
             ERR_set_mark();
             BN_set_flags(r2, BN_FLG_CONSTTIME);
             if (BN_mod_inverse(r1, r2, rsa->e, ctx) != NULL) {
-               /* GCD == 1 since inverse exists */
+                /* GCD == 1 since inverse exists */
                 break;
             }
             error = ERR_peek_last_error();
@@ -249,8 +444,14 @@ static int rsa_multiprime_keygen(RSA *rsa, int bits, int primes,
             /* i == 0, do nothing */
             if (!BN_GENCB_call(cb, 3, i))
                 goto err;
+            tmp = BN_dup(prime);
+            if (tmp == NULL)
+                goto err;
+            if (!sk_BIGNUM_insert(factors, tmp, sk_BIGNUM_num(factors)))
+                goto err;
             continue;
         }
+
         /*
          * if |r1|, product of factors so far, is not as long as expected
          * (by checking the first 4 bits are less than 0x9 or greater than
@@ -297,6 +498,10 @@ static int rsa_multiprime_keygen(RSA *rsa, int bits, int primes,
                  */
                 i = -1;
                 bitse = 0;
+                sk_BIGNUM_pop_free(factors, BN_clear_free);
+                factors = sk_BIGNUM_new_null();
+                if (factors == NULL)
+                    goto err;
                 continue;
             }
             retries++;
@@ -309,12 +514,20 @@ static int rsa_multiprime_keygen(RSA *rsa, int bits, int primes,
             goto err;
         if (!BN_GENCB_call(cb, 3, i))
             goto err;
+        tmp = BN_dup(prime);
+        if (tmp == NULL)
+            goto err;
+        if (!sk_BIGNUM_insert(factors, tmp, sk_BIGNUM_num(factors)))
+            goto err;
     }
 
     if (BN_cmp(rsa->p, rsa->q) < 0) {
         tmp = rsa->p;
         rsa->p = rsa->q;
         rsa->q = tmp;
+        /* mirror this in our factor stack */
+        if (!sk_BIGNUM_insert(factors, sk_BIGNUM_delete(factors, 0), 1))
+            goto err;
     }
 
     /* calculate d */
@@ -338,79 +551,51 @@ static int rsa_multiprime_keygen(RSA *rsa, int bits, int primes,
             goto err;
     }
 
-    {
-        BIGNUM *pr0 = BN_new();
 
-        if (pr0 == NULL)
-            goto err;
-
-        BN_with_flags(pr0, r0, BN_FLG_CONSTTIME);
-        if (!BN_mod_inverse(rsa->d, rsa->e, pr0, ctx)) {
-            BN_free(pr0);
-            goto err;               /* d */
-        }
-        /* We MUST free pr0 before any further use of r0 */
-        BN_free(pr0);
+    BN_set_flags(r0, BN_FLG_CONSTTIME);
+    if (BN_mod_inverse(rsa->d, rsa->e, r0, ctx) == NULL) {
+        goto err;               /* d */
     }
 
-    {
-        BIGNUM *d = BN_new();
+    /* derive any missing exponents and coefficients */
+    if (!ossl_rsa_multiprime_derive(rsa, bits, primes, e_value,
+                                    factors, exps, coeffs))
+        goto err;
 
-        if (d == NULL)
+    /*
+     * first 2 factors/exps are already tracked in p/q/dmq1/dmp1
+     * and the first coeff is in iqmp, so pop those off the stack
+     * Note, the first 2 factors/exponents are already tracked by p and q
+     * assign dmp1/dmq1 and iqmp
+     * the remaining pinfo values are separately allocated, so copy and delete 
+     * those
+     */
+    BN_clear_free(sk_BIGNUM_delete(factors, 0));
+    BN_clear_free(sk_BIGNUM_delete(factors, 0));
+    rsa->dmp1 = sk_BIGNUM_delete(exps, 0);
+    rsa->dmq1 = sk_BIGNUM_delete(exps, 0);
+    rsa->iqmp = sk_BIGNUM_delete(coeffs, 0);
+    for (i = 2; i < primes; i++) {
+        pinfo = sk_RSA_PRIME_INFO_value(prime_infos, i - 2);
+        tmp = sk_BIGNUM_delete(factors, 0);
+        BN_copy(pinfo->r, tmp);
+        BN_clear_free(tmp);
+        tmp = sk_BIGNUM_delete(exps, 0);
+        tmp2 = BN_copy(pinfo->d, tmp);
+        BN_clear_free(tmp);
+        if (tmp2 == NULL)
             goto err;
-
-        BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);
-
-        /* calculate d mod (p-1) and d mod (q - 1) */
-        if (!BN_mod(rsa->dmp1, d, r1, ctx)
-            || !BN_mod(rsa->dmq1, d, r2, ctx)) {
-            BN_free(d);
+        tmp = sk_BIGNUM_delete(coeffs, 0);
+        tmp2 = BN_copy(pinfo->t, tmp);
+        BN_clear_free(tmp);
+        if (tmp2 == NULL)
             goto err;
-        }
-
-        /* calculate CRT exponents */
-        for (i = 2; i < primes; i++) {
-            pinfo = sk_RSA_PRIME_INFO_value(prime_infos, i - 2);
-            /* pinfo->d == r_i - 1 */
-            if (!BN_mod(pinfo->d, d, pinfo->d, ctx)) {
-                BN_free(d);
-                goto err;
-            }
-        }
-
-        /* We MUST free d before any further use of rsa->d */
-        BN_free(d);
     }
-
-    {
-        BIGNUM *p = BN_new();
-
-        if (p == NULL)
-            goto err;
-        BN_with_flags(p, rsa->p, BN_FLG_CONSTTIME);
-
-        /* calculate inverse of q mod p */
-        if (!BN_mod_inverse(rsa->iqmp, rsa->q, p, ctx)) {
-            BN_free(p);
-            goto err;
-        }
-
-        /* calculate CRT coefficient for other primes */
-        for (i = 2; i < primes; i++) {
-            pinfo = sk_RSA_PRIME_INFO_value(prime_infos, i - 2);
-            BN_with_flags(p, pinfo->r, BN_FLG_CONSTTIME);
-            if (!BN_mod_inverse(pinfo->t, pinfo->pp, p, ctx)) {
-                BN_free(p);
-                goto err;
-            }
-        }
-
-        /* We MUST free p before any further use of rsa->p */
-        BN_free(p);
-    }
-
     ok = 1;
  err:
+    sk_BIGNUM_free(factors);
+    sk_BIGNUM_free(exps);
+    sk_BIGNUM_free(coeffs);
     if (ok == -1) {
         ERR_raise(ERR_LIB_RSA, ERR_R_BN_LIB);
         ok = 0;
@@ -469,46 +654,68 @@ static int rsa_keygen(OSSL_LIB_CTX *libctx, RSA *rsa, int bits, int primes,
 }
 
 /*
- * For RSA key generation it is not known whether the key pair will be used
- * for key transport or signatures. FIPS 140-2 IG 9.9 states that in this case
- * either a signature verification OR an encryption operation may be used to
- * perform the pairwise consistency check. The simpler encrypt/decrypt operation
- * has been chosen for this case.
+ * AS10.35 (and its VEs/TEs) of the FIPS 140-3 standard requires a PCT for every
+ * generated key pair. There are 3 options:
+ * 1) If the key pair is to be used for key transport (asymmetric cipher), the
+ *    PCT consists of encrypting a plaintext, verifying that the result
+ *    (ciphertext) is not equal to the plaintext, decrypting the ciphertext, and
+ *    verifying that the result is equal to the plaintext.
+ * 2) If the key pair is to be used for digital signatures, the PCT consists of
+ *    computing and verifying a signature.
+ * 3) If the key pair is to be used for key agreement, the exact PCT is defined
+ *    in the applicable standards. For RSA-based schemes, this is defined in
+ *    SP 800-56Br2 (Section 6.4.1.1) as:
+ *    "The owner shall perform a pair-wise consistency test by verifying that m
+ *    = (m^e)^d mod n for some integer m satisfying 1 < m < (n - 1)."
+ *
+ * OpenSSL implements all three use cases: RSA-OAEP for key transport,
+ * RSA signatures with PKCS#1 v1.5 or PSS padding, and KAS-IFC-SSC (KAS1/KAS2)
+ * using RSASVE.
+ *
+ * According to FIPS 140-3 IG 10.3.A, if at the time when the PCT is performed
+ * the keys' intended usage is not known, then any of the three PCTs described
+ * in AS10.35 shall be performed on this key pair.
+ *
+ * Because of this allowance from the IG, the simplest option is 3, i.e.
+ * RSA_public_encrypt() and RSA_private_decrypt() with RSA_NO_PADDING.
  */
 static int rsa_keygen_pairwise_test(RSA *rsa, OSSL_CALLBACK *cb, void *cbarg)
 {
     int ret = 0;
+    unsigned int plaintxt_len;
+    unsigned char *plaintxt = NULL;
     unsigned int ciphertxt_len;
     unsigned char *ciphertxt = NULL;
-    const unsigned char plaintxt[16] = {0};
     unsigned char *decoded = NULL;
     unsigned int decoded_len;
-    unsigned int plaintxt_len = (unsigned int)sizeof(plaintxt_len);
-    int padding = RSA_PKCS1_PADDING;
+    int padding = RSA_NO_PADDING;
     OSSL_SELF_TEST *st = NULL;
 
     st = OSSL_SELF_TEST_new(cb, cbarg);
     if (st == NULL)
         goto err;
     OSSL_SELF_TEST_onbegin(st, OSSL_SELF_TEST_TYPE_PCT,
-                           OSSL_SELF_TEST_DESC_PCT_RSA_PKCS1);
+                           OSSL_SELF_TEST_DESC_PCT_RSA);
 
-    ciphertxt_len = RSA_size(rsa);
     /*
-     * RSA_private_encrypt() and RSA_private_decrypt() requires the 'to'
-     * parameter to be a maximum of RSA_size() - allocate space for both.
+     * For RSA_NO_PADDING, RSA_public_encrypt() and RSA_private_decrypt()
+     * require the 'to' and 'from' parameters to have equal length and a
+     * maximum of RSA_size() - allocate space for plaintxt, ciphertxt, and
+     * decoded.
      */
-    ciphertxt = OPENSSL_zalloc(ciphertxt_len * 2);
-    if (ciphertxt == NULL)
+    plaintxt_len = RSA_size(rsa);
+    plaintxt = OPENSSL_zalloc(plaintxt_len * 3);
+    if (plaintxt == NULL)
         goto err;
-    decoded = ciphertxt + ciphertxt_len;
+    ciphertxt = plaintxt + plaintxt_len;
+    decoded = ciphertxt + plaintxt_len;
+
+    /* SP 800-56Br2 Section 6.4.1.1 requires that plaintext is greater than 1 */
+    plaintxt[plaintxt_len - 1] = 2;
 
     ciphertxt_len = RSA_public_encrypt(plaintxt_len, plaintxt, ciphertxt, rsa,
                                        padding);
     if (ciphertxt_len <= 0)
-        goto err;
-    if (ciphertxt_len == plaintxt_len
-        && memcmp(ciphertxt, plaintxt, plaintxt_len) == 0)
         goto err;
 
     OSSL_SELF_TEST_oncorrupt_byte(st, ciphertxt);
@@ -523,7 +730,7 @@ static int rsa_keygen_pairwise_test(RSA *rsa, OSSL_CALLBACK *cb, void *cbarg)
 err:
     OSSL_SELF_TEST_onend(st, ret);
     OSSL_SELF_TEST_free(st);
-    OPENSSL_free(ciphertxt);
+    OPENSSL_free(plaintxt);
 
     return ret;
 }

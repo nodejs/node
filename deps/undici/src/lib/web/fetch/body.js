@@ -4,19 +4,19 @@ const util = require('../../core/util')
 const {
   ReadableStreamFrom,
   readableStreamClose,
-  createDeferredPromise,
   fullyReadBody,
   extractMimeType,
   utf8DecodeBytes
 } = require('./util')
 const { FormData, setFormDataState } = require('./formdata')
-const { webidl } = require('./webidl')
-const { Blob } = require('node:buffer')
+const { webidl } = require('../webidl')
 const assert = require('node:assert')
 const { isErrored, isDisturbed } = require('node:stream')
 const { isArrayBuffer } = require('node:util/types')
 const { serializeAMimeType } = require('./data-url')
 const { multipartFormDataParser } = require('./formdata-parser')
+const { createDeferredPromise } = require('../../util/promise')
+
 let random
 
 try {
@@ -29,19 +29,22 @@ try {
 const textEncoder = new TextEncoder()
 function noop () {}
 
-const hasFinalizationRegistry = globalThis.FinalizationRegistry && process.version.indexOf('v18') !== 0
-let streamRegistry
+const streamRegistry = new FinalizationRegistry((weakRef) => {
+  const stream = weakRef.deref()
+  if (stream && !stream.locked && !isDisturbed(stream) && !isErrored(stream)) {
+    stream.cancel('Response object has been garbage collected').catch(noop)
+  }
+})
 
-if (hasFinalizationRegistry) {
-  streamRegistry = new FinalizationRegistry((weakRef) => {
-    const stream = weakRef.deref()
-    if (stream && !stream.locked && !isDisturbed(stream) && !isErrored(stream)) {
-      stream.cancel('Response object has been garbage collected').catch(noop)
-    }
-  })
-}
-
-// https://fetch.spec.whatwg.org/#concept-bodyinit-extract
+/**
+ * Extract a body with type from a byte sequence or BodyInit object
+ *
+ * @param {import('../../../types').BodyInit} object - The BodyInit object to extract from
+ * @param {boolean} [keepalive=false] - If true, indicates that the body
+ * @returns {[{stream: ReadableStream, source: any, length: number | null}, string | null]} - Returns a tuple containing the body and its type
+ *
+ * @see https://fetch.spec.whatwg.org/#concept-bodyinit-extract
+ */
 function extractBody (object, keepalive = false) {
   // 1. Let stream be null.
   let stream = null
@@ -57,7 +60,7 @@ function extractBody (object, keepalive = false) {
     // 4. Otherwise, set stream to a new ReadableStream object, and set
     //    up stream with byte reading support.
     stream = new ReadableStream({
-      async pull (controller) {
+      pull (controller) {
         const buffer = typeof source === 'string' ? textEncoder.encode(source) : source
 
         if (buffer.byteLength) {
@@ -107,22 +110,16 @@ function extractBody (object, keepalive = false) {
 
     // Set type to `application/x-www-form-urlencoded;charset=UTF-8`.
     type = 'application/x-www-form-urlencoded;charset=UTF-8'
-  } else if (isArrayBuffer(object)) {
-    // BufferSource/ArrayBuffer
-
-    // Set source to a copy of the bytes held by object.
-    source = new Uint8Array(object.slice())
-  } else if (ArrayBuffer.isView(object)) {
-    // BufferSource/ArrayBufferView
-
-    // Set source to a copy of the bytes held by object.
-    source = new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength))
+  } else if (webidl.is.BufferSource(object)) {
+    source = isArrayBuffer(object)
+      ? new Uint8Array(object.slice())
+      : new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength))
   } else if (webidl.is.FormData(object)) {
     const boundary = `----formdata-undici-0${`${random(1e11)}`.padStart(11, '0')}`
     const prefix = `--${boundary}\r\nContent-Disposition: form-data`
 
     /*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */
-    const escape = (str) =>
+    const formdataEscape = (str) =>
       str.replace(/\n/g, '%0A').replace(/\r/g, '%0D').replace(/"/g, '%22')
     const normalizeLinefeeds = (value) => value.replace(/\r?\n|\r/g, '\r\n')
 
@@ -140,13 +137,13 @@ function extractBody (object, keepalive = false) {
     for (const [name, value] of object) {
       if (typeof value === 'string') {
         const chunk = textEncoder.encode(prefix +
-          `; name="${escape(normalizeLinefeeds(name))}"` +
+          `; name="${formdataEscape(normalizeLinefeeds(name))}"` +
           `\r\n\r\n${normalizeLinefeeds(value)}\r\n`)
         blobParts.push(chunk)
         length += chunk.byteLength
       } else {
-        const chunk = textEncoder.encode(`${prefix}; name="${escape(normalizeLinefeeds(name))}"` +
-          (value.name ? `; filename="${escape(value.name)}"` : '') + '\r\n' +
+        const chunk = textEncoder.encode(`${prefix}; name="${formdataEscape(normalizeLinefeeds(name))}"` +
+          (value.name ? `; filename="${formdataEscape(value.name)}"` : '') + '\r\n' +
           `Content-Type: ${
             value.type || 'application/octet-stream'
           }\r\n\r\n`)
@@ -267,7 +264,22 @@ function extractBody (object, keepalive = false) {
   return [body, type]
 }
 
-// https://fetch.spec.whatwg.org/#bodyinit-safely-extract
+/**
+ * @typedef {object} ExtractBodyResult
+ * @property {ReadableStream<Uint8Array<ArrayBuffer>>} stream - The ReadableStream containing the body data
+ * @property {any} source - The original source of the body data
+ * @property {number | null} length - The length of the body data, or null
+ */
+
+/**
+ * Safely extract a body with type from a byte sequence or BodyInit object.
+ *
+ * @param {import('../../../types').BodyInit} object - The BodyInit object to extract from
+ * @param {boolean} [keepalive=false] - If true, indicates that the body
+ * @returns {[ExtractBodyResult, string | null]} - Returns a tuple containing the body and its type
+ *
+ * @see https://fetch.spec.whatwg.org/#bodyinit-safely-extract
+ */
 function safelyExtractBody (object, keepalive = false) {
   // To safely extract a body and a `Content-Type` value from
   // a byte sequence or BodyInit object object, run these steps:
@@ -275,9 +287,7 @@ function safelyExtractBody (object, keepalive = false) {
   // 1. If object is a ReadableStream object, then:
   if (webidl.is.ReadableStream(object)) {
     // Assert: object is neither disturbed nor locked.
-    // istanbul ignore next
     assert(!util.isDisturbed(object), 'The body has already been consumed.')
-    // istanbul ignore next
     assert(!object.locked, 'The stream is locked.')
   }
 
@@ -285,17 +295,13 @@ function safelyExtractBody (object, keepalive = false) {
   return extractBody(object, keepalive)
 }
 
-function cloneBody (instance, body) {
+function cloneBody (body) {
   // To clone a body body, run these steps:
 
   // https://fetch.spec.whatwg.org/#concept-body-clone
 
   // 1. Let « out1, out2 » be the result of teeing body’s stream.
-  const [out1, out2] = body.stream.tee()
-
-  if (hasFinalizationRegistry) {
-    streamRegistry.register(instance, new WeakRef(out1))
-  }
+  const { 0: out1, 1: out2 } = body.stream.tee()
 
   // 2. Set body’s stream to out1.
   body.stream = out1
@@ -305,12 +311,6 @@ function cloneBody (instance, body) {
     stream: out2,
     length: body.length,
     source: body.source
-  }
-}
-
-function throwIfAborted (state) {
-  if (state.aborted) {
-    throw new DOMException('The operation was aborted.', 'AbortError')
   }
 }
 
@@ -431,24 +431,30 @@ function mixinBody (prototype, getInternalState) {
  * @param {any} instance
  * @param {(target: any) => any} getInternalState
  */
-async function consumeBody (object, convertBytesToJSValue, instance, getInternalState) {
-  webidl.brandCheck(object, instance)
+function consumeBody (object, convertBytesToJSValue, instance, getInternalState) {
+  try {
+    webidl.brandCheck(object, instance)
+  } catch (e) {
+    return Promise.reject(e)
+  }
 
   const state = getInternalState(object)
 
   // 1. If object is unusable, then return a promise rejected
   //    with a TypeError.
   if (bodyUnusable(state)) {
-    throw new TypeError('Body is unusable: Body has already been read')
+    return Promise.reject(new TypeError('Body is unusable: Body has already been read'))
   }
 
-  throwIfAborted(state)
+  if (state.aborted) {
+    return Promise.reject(new DOMException('The operation was aborted.', 'AbortError'))
+  }
 
   // 2. Let promise be a new promise.
   const promise = createDeferredPromise()
 
   // 3. Let errorSteps given error be to reject promise with error.
-  const errorSteps = (error) => promise.reject(error)
+  const errorSteps = promise.reject
 
   // 4. Let successSteps given a byte sequence data be to resolve
   //    promise with the result of running convertBytesToJSValue
@@ -527,6 +533,5 @@ module.exports = {
   cloneBody,
   mixinBody,
   streamRegistry,
-  hasFinalizationRegistry,
   bodyUnusable
 }

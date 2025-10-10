@@ -16,7 +16,7 @@ tmpdir.refresh();
 spawnSync(process.execPath, [ '--prof', '-p', '42' ], { cwd: tmpdir.path });
 
 const files = fs.readdirSync(tmpdir.path);
-const logfile = files.filter((name) => /\.log$/.test(name))[0];
+const logfile = files.find((name) => /\.log$/.test(name));
 assert(logfile);
 
 // Make sure that the --preprocess argument is passed through correctly,

@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { builtinModules } = require('module');
@@ -19,21 +18,12 @@ if (!isMainThread) {
 process.chdir(fixtures.fixturesDir);
 
 const repl = require('repl');
+const { startNewREPLServer } = require('../common/repl');
 
-const putIn = new ArrayStream();
-const testMe = repl.start({
-  prompt: '',
-  input: putIn,
-  output: process.stdout,
-  allowBlockingCompletions: true
-});
-
-// Some errors are passed to the domain, but do not callback
-testMe._domain.on('error', assert.ifError);
+const { replServer, input } = startNewREPLServer();
 
 // Tab complete provides built in libs for import()
-testMe.complete('import(\'', common.mustCall((error, data) => {
-  assert.strictEqual(error, null);
+replServer.complete('import(\'', common.mustSucceed((data) => {
   publicUnprefixedModules.forEach((lib) => {
     assert(
       data[0].includes(lib) && data[0].includes(`node:${lib}`),
@@ -43,15 +33,14 @@ testMe.complete('import(\'', common.mustCall((error, data) => {
   const newModule = 'foobar';
   assert(!builtinModules.includes(newModule));
   repl.builtinModules.push(newModule);
-  testMe.complete('import(\'', common.mustCall((_, [modules]) => {
+  replServer.complete('import(\'', common.mustSucceed(([modules]) => {
     assert.strictEqual(data[0].length + 1, modules.length);
     assert(modules.includes(newModule) &&
       !modules.includes(`node:${newModule}`));
   }));
 }));
 
-testMe.complete("import\t( 'n", common.mustCall((error, data) => {
-  assert.strictEqual(error, null);
+replServer.complete("import\t( 'n", common.mustSucceed((data) => {
   assert.strictEqual(data.length, 2);
   assert.strictEqual(data[1], 'n');
   const completions = data[0];
@@ -76,42 +65,37 @@ testMe.complete("import\t( 'n", common.mustCall((error, data) => {
   const expected = ['@nodejsscope', '@nodejsscope/'];
   // Import calls should handle all types of quotation marks.
   for (const quotationMark of ["'", '"', '`']) {
-    putIn.run(['.clear']);
-    testMe.complete('import(`@nodejs', common.mustCall((err, data) => {
-      assert.strictEqual(err, null);
+    input.run(['.clear']);
+    replServer.complete('import(`@nodejs', common.mustSucceed((data) => {
       assert.deepStrictEqual(data, [expected, '@nodejs']);
     }));
 
-    putIn.run(['.clear']);
+    input.run(['.clear']);
     // Completions should not be greedy in case the quotation ends.
-    const input = `import(${quotationMark}@nodejsscope${quotationMark}`;
-    testMe.complete(input, common.mustCall((err, data) => {
-      assert.strictEqual(err, null);
+    replServer.complete(`import(${quotationMark}@nodejsscope${quotationMark}`, common.mustSucceed((data) => {
       assert.deepStrictEqual(data, [[], undefined]);
     }));
   }
 }
 
 {
-  putIn.run(['.clear']);
+  input.run(['.clear']);
   // Completions should find modules and handle whitespace after the opening
   // bracket.
-  testMe.complete('import \t("no_ind', common.mustCall((err, data) => {
-    assert.strictEqual(err, null);
+  replServer.complete('import \t("no_ind', common.mustSucceed((data) => {
     assert.deepStrictEqual(data, [['no_index', 'no_index/'], 'no_ind']);
   }));
 }
 
 // Test tab completion for import() relative to the current directory
 {
-  putIn.run(['.clear']);
+  input.run(['.clear']);
 
   const cwd = process.cwd();
   process.chdir(__dirname);
 
   ['import(\'.', 'import(".'].forEach((input) => {
-    testMe.complete(input, common.mustCall((err, data) => {
-      assert.strictEqual(err, null);
+    replServer.complete(input, common.mustSucceed((data) => {
       assert.strictEqual(data.length, 2);
       assert.strictEqual(data[1], '.');
       assert.strictEqual(data[0].length, 2);
@@ -121,16 +105,14 @@ testMe.complete("import\t( 'n", common.mustCall((error, data) => {
   });
 
   ['import(\'..', 'import("..'].forEach((input) => {
-    testMe.complete(input, common.mustCall((err, data) => {
-      assert.strictEqual(err, null);
+    replServer.complete(input, common.mustSucceed((data) => {
       assert.deepStrictEqual(data, [['../'], '..']);
     }));
   });
 
   ['./', './test-'].forEach((path) => {
     [`import('${path}`, `import("${path}`].forEach((input) => {
-      testMe.complete(input, common.mustCall((err, data) => {
-        assert.strictEqual(err, null);
+      replServer.complete(input, common.mustSucceed((data) => {
         assert.strictEqual(data.length, 2);
         assert.strictEqual(data[1], path);
         assert.ok(data[0].includes('./test-repl-tab-complete.js'));
@@ -140,8 +122,7 @@ testMe.complete("import\t( 'n", common.mustCall((error, data) => {
 
   ['../parallel/', '../parallel/test-'].forEach((path) => {
     [`import('${path}`, `import("${path}`].forEach((input) => {
-      testMe.complete(input, common.mustCall((err, data) => {
-        assert.strictEqual(err, null);
+      replServer.complete(input, common.mustSucceed((data) => {
         assert.strictEqual(data.length, 2);
         assert.strictEqual(data[1], path);
         assert.ok(data[0].includes('../parallel/test-repl-tab-complete.js'));
@@ -151,7 +132,7 @@ testMe.complete("import\t( 'n", common.mustCall((error, data) => {
 
   {
     const path = '../fixtures/repl-folder-extensions/f';
-    testMe.complete(`import('${path}`, common.mustSucceed((data) => {
+    replServer.complete(`import('${path}`, common.mustSucceed((data) => {
       assert.strictEqual(data.length, 2);
       assert.strictEqual(data[1], path);
       assert.ok(data[0].includes(

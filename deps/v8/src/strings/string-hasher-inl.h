@@ -31,7 +31,8 @@ namespace internal {
 
 namespace detail {
 V8_EXPORT_PRIVATE uint64_t HashConvertingTo8Bit(const uint16_t* chars,
-                                                uint32_t length, uint64_t seed);
+                                                uint32_t length, uint64_t seed,
+                                                const uint64_t secret[3]);
 
 template <typename T>
 uint32_t ConvertRawHashToUsableHash(T raw_hash) {
@@ -53,25 +54,27 @@ V8_INLINE bool IsOnly8Bit(const uint16_t* chars, unsigned len) {
 }
 
 V8_INLINE uint64_t GetRapidHash(const uint8_t* chars, uint32_t length,
-                                uint64_t seed) {
-  return rapidhash(chars, length, seed);
+                                uint64_t seed, const uint64_t secret[3]) {
+  return rapidhash(chars, length, seed, secret);
 }
 
 V8_INLINE uint64_t GetRapidHash(const uint16_t* chars, uint32_t length,
-                                uint64_t seed) {
+                                uint64_t seed, const uint64_t secret[3]) {
   // For 2-byte strings we need to preserve the same hash for strings in just
   // the latin-1 range.
   if (V8_UNLIKELY(IsOnly8Bit(chars, length))) {
-    return detail::HashConvertingTo8Bit(chars, length, seed);
+    return detail::HashConvertingTo8Bit(chars, length, seed, secret);
   }
-  return rapidhash(reinterpret_cast<const uint8_t*>(chars), 2 * length, seed);
+  return rapidhash(reinterpret_cast<const uint8_t*>(chars), 2 * length, seed,
+                   secret);
 }
 
 template <typename uchar>
 V8_INLINE uint32_t GetUsableRapidHash(const uchar* chars, uint32_t length,
-                                      uint64_t seed) {
-  return ConvertRawHashToUsableHash(GetRapidHash(chars, length, seed));
+                                      uint64_t seed, const uint64_t secret[3]) {
+  return ConvertRawHashToUsableHash(GetRapidHash(chars, length, seed, secret));
 }
+
 }  // namespace detail
 
 void RunningStringHasher::AddCharacter(uint16_t c) {
@@ -221,7 +224,8 @@ static_assert(String::kMaxArrayIndexSize == String::kMaxIntegerIndexSize);
 
 template <typename char_t>
 uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
-                                            uint32_t length, uint64_t seed) {
+                                            uint32_t length,
+                                            const HashSeed seed) {
   static_assert(std::is_integral_v<char_t>);
   static_assert(sizeof(char_t) <= 2);
   using uchar = std::make_unsigned_t<char_t>;
@@ -251,7 +255,8 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
           switch (detail::TryParseIntegerIndex(chars, length, i, index)) {
             case detail::kSuccess: {
               uint32_t hash = String::CreateHashFieldValue(
-                  detail::GetUsableRapidHash(chars, length, seed),
+                  detail::GetUsableRapidHash(chars, length, seed.seed(),
+                                             seed.secret()),
                   String::HashFieldType::kIntegerIndex);
               if (Name::ContainsCachedArrayIndex(hash)) {
                 // The hash accidentally looks like a cached index. Fix that by
@@ -286,7 +291,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
 
   // Non-index hash.
   return String::CreateHashFieldValue(
-      detail::GetUsableRapidHash(chars, length, seed),
+      detail::GetUsableRapidHash(chars, length, seed.seed(), seed.secret()),
       String::HashFieldType::kHash);
 }
 

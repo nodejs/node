@@ -88,6 +88,7 @@ namespace compiler {
   V(S390_AbsDouble)                         \
   V(S390_Cntlz32)                           \
   V(S390_Cntlz64)                           \
+  V(S390_Cnttz64)                           \
   V(S390_Popcnt32)                          \
   V(S390_Popcnt64)                          \
   V(S390_Cmp32)                             \

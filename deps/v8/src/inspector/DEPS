@@ -10,7 +10,7 @@ include_rules = [
   "+src/base/platform/mutex.h",
   "+src/base/platform/platform.h",
   "+src/base/platform/time.h",
-  "+src/base/safe_conversions.h",
+  "+src/base/numerics/safe_conversions.h",
   "+src/base/template-utils.h",
   "+src/numbers/conversions.h",
   "+src/inspector",

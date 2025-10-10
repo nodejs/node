@@ -58,21 +58,16 @@ const assert = require('assert');
   }
 
   {
-    const s = new SyntheticModule([], () => {});
-    assert.throws(() => {
-      s.setExport('name', 'value');
-    }, {
-      code: 'ERR_VM_MODULE_STATUS',
-    });
+    const s = new SyntheticModule(['name'], () => {});
+    // Exports of SyntheticModule can be immediately set after creation.
+    // No link is required.
+    s.setExport('name', 'value');
   }
 
   for (const value of [null, {}, SyntheticModule.prototype]) {
     assert.throws(() => {
       SyntheticModule.prototype.setExport.call(value, 'foo');
-    }, {
-      code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "this" argument must be an instance of SyntheticModule/
-    });
+    }, { code: 'ERR_INVALID_THIS' });
   }
 
 })().then(common.mustCall());

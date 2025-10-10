@@ -100,13 +100,5 @@ guidelines:
     with a specific release without having to sift through the higher
     noise ratio in git-log.
 
- 8. For larger or more important user visible changes, as well as
-    security fixes, please add a line in [NEWS.md](NEWS.md).
-    On exception, it might be worth adding a multi-line entry (such as
-    the entry that announces all the types that became opaque with
-    OpenSSL 1.1.0).
-    This file helps users get a very quick summary of what comes with a
-    specific release, to see if an upgrade is worth the effort.
-
- 9. Guidelines how to integrate error output of new crypto library modules
+ 8. Guidelines on how to integrate error output of new crypto library modules
     can be found in [crypto/err/README.md](crypto/err/README.md).

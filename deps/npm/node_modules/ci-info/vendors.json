@@ -91,6 +91,11 @@
     "env": "CF_PAGES"
   },
   {
+    "name": "Cloudflare Workers",
+    "constant": "CLOUDFLARE_WORKERS",
+    "env": "WORKERS_CI"
+  },
+  {
     "name": "Codefresh",
     "constant": "CODEFRESH",
     "env": "CF_BUILD_ID",

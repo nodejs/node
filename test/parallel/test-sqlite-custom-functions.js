@@ -1,5 +1,6 @@
 'use strict';
-require('../common');
+const { skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const assert = require('node:assert');
 const { DatabaseSync } = require('node:sqlite');
 const { suite, test } = require('node:test');

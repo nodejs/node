@@ -229,7 +229,7 @@ deletes the `build/temp` directory.
 ### See Also
 
 * [npm init](/commands/npm-init)
-* [npm run-script](/commands/npm-run-script)
+* [npm run](/commands/npm-run)
 * [npm scripts](/using-npm/scripts)
 * [package.json](/configuring-npm/package-json)
 * [config](/using-npm/config)

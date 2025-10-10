@@ -529,7 +529,7 @@ Response InjectedScript::getInternalAndPrivateProperties(
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(
           sessionId, context,
-          internalProperty.value->v8Value(context->GetIsolate()), groupName,
+          internalProperty.value->v8Value(v8::Isolate::GetCurrent()), groupName,
           remoteObject.get());
       if (!response.IsSuccess()) return response;
       (*internalProperties)
@@ -558,7 +558,7 @@ Response InjectedScript::getInternalAndPrivateProperties(
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(
           sessionId, context,
-          privateProperty.value->v8Value(context->GetIsolate()), groupName,
+          privateProperty.value->v8Value(v8::Isolate::GetCurrent()), groupName,
           remoteObject.get());
       if (!response.IsSuccess()) return response;
       descriptor->setValue(std::move(remoteObject));
@@ -570,7 +570,7 @@ Response InjectedScript::getInternalAndPrivateProperties(
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(
           sessionId, context,
-          privateProperty.getter->v8Value(context->GetIsolate()), groupName,
+          privateProperty.getter->v8Value(v8::Isolate::GetCurrent()), groupName,
           remoteObject.get());
       if (!response.IsSuccess()) return response;
       descriptor->setGet(std::move(remoteObject));
@@ -582,7 +582,7 @@ Response InjectedScript::getInternalAndPrivateProperties(
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(
           sessionId, context,
-          privateProperty.setter->v8Value(context->GetIsolate()), groupName,
+          privateProperty.setter->v8Value(v8::Isolate::GetCurrent()), groupName,
           remoteObject.get());
       if (!response.IsSuccess()) return response;
       descriptor->setSet(std::move(remoteObject));
@@ -631,7 +631,7 @@ Response InjectedScript::wrapObjectMirror(
   v8::Context::Scope contextScope(context);
   Response response = mirror.buildRemoteObject(context, wrapOptions, result);
   if (!response.IsSuccess()) return response;
-  v8::Local<v8::Value> value = mirror.v8Value(context->GetIsolate());
+  v8::Local<v8::Value> value = mirror.v8Value(v8::Isolate::GetCurrent());
   response = bindRemoteObjectIfNeeded(sessionId, context, value, groupName,
                                       result->get());
   if (!response.IsSuccess()) return response;
@@ -1161,7 +1161,7 @@ Response InjectedScript::bindRemoteObjectIfNeeded(
   if (remoteObject->hasValue()) return Response::Success();
   if (remoteObject->hasUnserializableValue()) return Response::Success();
   if (remoteObject->getType() != RemoteObject::TypeEnum::Undefined) {
-    v8::Isolate* isolate = context->GetIsolate();
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
     V8InspectorImpl* inspector =
         static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
     InspectedContext* inspectedContext =

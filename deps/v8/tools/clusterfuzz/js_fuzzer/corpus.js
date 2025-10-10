@@ -183,6 +183,9 @@ class FuzzilliCorpus extends Corpus {
 
     // We require a V8 corpus side-by-side to cross-load resources.
     this.v8Corpus = v8Corpus;
+    if (!this.v8Corpus) {
+      this.v8Corpus = create(inputDir, 'v8');
+    }
     assert(this.v8Corpus);
   }
 

@@ -5,7 +5,7 @@ const common = require('../common');
 
 const bench = common.createBenchmark(main, {
   n: [1e3],
-  length: [1e3, 2e3],
+  length: [500, 1000],
   scenario: ['identical', 'small-diff', 'medium-diff', 'large-diff'],
 });
 

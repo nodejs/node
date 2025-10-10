@@ -156,4 +156,7 @@ addlicense "node-fs-extra" "lib/internal/fs/cp" "$licenseText"
 licenseText="$(curl -sL https://raw.githubusercontent.com/mcollina/on-exit-leak-free/2a01c7e66c690aca17187b10b0cecbe43e083eb2/LICENSE)"
 addlicense "on-exit-leak-free" "lib/internal/process/finalization" "$licenseText"
 
+licenseText="$(curl -sL https://raw.githubusercontent.com/pinojs/sonic-boom/refs/heads/master/LICENSE)"
+addlicense "sonic-boom" "lib/internal/streams/fast-utf8-stream.js" "$licenseText"
+
 mv "$tmplicense" "$licensefile"

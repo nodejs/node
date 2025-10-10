@@ -236,7 +236,7 @@ class EventSourceStream extends Transform {
           this.buffer = this.buffer.subarray(this.pos + 1)
           this.pos = 0
           if (
-            this.event.data !== undefined || this.event.event || this.event.id || this.event.retry) {
+            this.event.data !== undefined || this.event.event || this.event.id !== undefined || this.event.retry) {
             this.processEvent(this.event)
           }
           this.clearEvent()
@@ -367,7 +367,7 @@ class EventSourceStream extends Transform {
       this.state.reconnectionTime = parseInt(event.retry, 10)
     }
 
-    if (event.id && isValidLastEventId(event.id)) {
+    if (event.id !== undefined && isValidLastEventId(event.id)) {
       this.state.lastEventId = event.id
     }
 

@@ -24,10 +24,9 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSReceiver> CoerceOptionsToObject(
 // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
 // ecma402/#sec-getoption and temporal/#sec-getoption
 //
-// This is specialized for the case when type is string.
-//
-// Instead of passing undefined for the values argument as the spec
-// defines, pass in an empty vector.
+// This is specialized for the case when type is string, and when
+// no list of values is passed. If you wish to pass a list of values,
+// use the other overload.
 //
 // Returns true if options object has the property and stores the
 // result in value. Returns false if the value is not found. The
@@ -37,34 +36,69 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSReceiver> CoerceOptionsToObject(
 // method_name is a string denoting the method the call from; used when
 // printing the error message.
 V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<bool> GetStringOption(
-    Isolate* isolate, DirectHandle<JSReceiver> options, const char* property,
-    const std::vector<const char*>& values, const char* method_name,
-    std::unique_ptr<char[]>* result);
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    DirectHandle<String> property, const char* method_name,
+    DirectHandle<String>* result);
 
-// A helper template to get string from option into a enum.
+// ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
+// ecma402/#sec-getoption and temporal/#sec-getoption
+//
+// This is specialized for the case when type is string, and when you are
+// passing in a list of values to match against. If you just wish to get the
+// string, use the overload above. This function expects a list of
+// `enum_values`, which it will return on matching the corresponding
+// (index-wise) str_values entry, which is useful when trying to match against
+// an options list. If you do not need a particular enum but still wish to match
+// against a list of values, just pass in str_values twice.
+//
 // The enum in the enum_values is the corresponding value to the strings
 // in the str_values. If the option does not contains name,
-// default_value will be return.
+// default_value will be return. If default_value is not set, fallback
+// is treated as REQUIRED and this will error when a value cannot be matched.
 template <typename T>
 V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
-    Isolate* isolate, DirectHandle<JSReceiver> options, const char* name,
-    const char* method_name, const std::vector<const char*>& str_values,
-    const std::vector<T>& enum_values, T default_value) {
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    DirectHandle<String> property, const char* method_name,
+    const std::span<const std::string_view> str_values,
+    const std::span<const T> enum_values, std::optional<T> default_value) {
   DCHECK_EQ(str_values.size(), enum_values.size());
-  std::unique_ptr<char[]> cstr;
+  // 1. Let value be ? Get(options, property).
+  // 2. c. Let value be ? ToString(value).
+
+  DirectHandle<String> found_string;
   Maybe<bool> found =
-      GetStringOption(isolate, options, name, str_values, method_name, &cstr);
+      GetStringOption(isolate, options, property, method_name, &found_string);
   MAYBE_RETURN(found, Nothing<T>());
+  // 2. d. if values is not undefined, then
+
   if (found.FromJust()) {
-    DCHECK_NOT_NULL(cstr.get());
     for (size_t i = 0; i < str_values.size(); i++) {
-      if (strcmp(cstr.get(), str_values[i]) == 0) {
+      if (found_string->IsEqualTo(str_values[i], isolate)) {
         return Just(enum_values[i]);
       }
     }
-    UNREACHABLE();
+  } else if (default_value.has_value()) {
+    // 2. If value is undefined, then
+    // a. If default is required, throw a RangeError exception.
+    // (done in branch below)
+    // b. Return default.
+    return Just(default_value.value());
   }
-  return Just(default_value);
+
+  // For the error
+  if (found_string.is_null()) {
+    found_string = isolate->factory()->undefined_string();
+  }
+
+  // 2. d. i. If values does not contain an element equal to value,
+  // throw a RangeError exception.
+  DirectHandle<String> method_str =
+      isolate->factory()->NewStringFromAsciiChecked(method_name);
+  THROW_NEW_ERROR_RETURN_VALUE(
+      isolate,
+      NewRangeError(MessageTemplate::kValueOutOfRange, found_string, method_str,
+                    property),
+      Nothing<T>());
 }
 
 // A helper template to get string from option into a enum.
@@ -74,8 +108,8 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
 template <typename T>
 V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
     Isolate* isolate, DirectHandle<JSReceiver> options, const char* property,
-    const char* method, const std::vector<const char*>& str_values,
-    const std::vector<T>& enum_values, T true_value, T false_value,
+    const char* method, const std::span<const std::string_view> str_values,
+    const std::span<const T> enum_values, T true_value, T false_value,
     T fallback_value) {
   DCHECK_EQ(str_values.size(), enum_values.size());
   Factory* factory = isolate->factory();
@@ -84,10 +118,9 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
 
   // 1. Let value be ? Get(options, property).
   DirectHandle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, value,
-      Object::GetPropertyOrElement(isolate, options, property_str),
-      Nothing<T>());
+      Object::GetPropertyOrElement(isolate, options, property_str));
   // 2. If value is undefined, then return fallback.
   if (IsUndefined(*value, isolate)) {
     return Just(fallback_value);
@@ -105,8 +138,8 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
 
   DirectHandle<String> value_str;
   // 6. Let value be ? ToString(value).
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value_str, Object::ToString(isolate, value), Nothing<T>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value_str,
+                             Object::ToString(isolate, value));
   // 7. If value is *"true"* or *"false"*, return _fallback_.
   if (String::Equals(isolate, value_str, factory->true_string()) ||
       String::Equals(isolate, value_str, factory->false_string())) {
@@ -115,32 +148,16 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
   // 8. If values does not contain an element equal to _value_, throw a
   // *RangeError* exception.
   // 9. Return value.
-  value_str = String::Flatten(isolate, value_str);
-  {
-    DisallowGarbageCollection no_gc;
-    const String::FlatContent& flat = value_str->GetFlatContent(no_gc);
-    int32_t length = value_str->length();
-    for (size_t i = 0; i < str_values.size(); i++) {
-      if (static_cast<int32_t>(strlen(str_values.at(i))) == length) {
-        if (flat.IsOneByte()) {
-          if (CompareCharsEqual(str_values.at(i),
-                                flat.ToOneByteVector().begin(), length)) {
-            return Just(enum_values[i]);
-          }
-        } else {
-          if (CompareCharsEqual(str_values.at(i), flat.ToUC16Vector().begin(),
-                                length)) {
-            return Just(enum_values[i]);
-          }
-        }
-      }
+  for (size_t i = 0; i < str_values.size(); i++) {
+    if (value_str->IsEqualTo(str_values[i], isolate)) {
+      return Just(enum_values[i]);
     }
-  }  // end of no_gc
-  THROW_NEW_ERROR_RETURN_VALUE(
+  }
+
+  THROW_NEW_ERROR(
       isolate,
       NewRangeError(MessageTemplate::kValueOutOfRange, value,
-                    factory->NewStringFromAsciiChecked(method), property_str),
-      Nothing<T>());
+                    factory->NewStringFromAsciiChecked(method), property_str));
 }
 
 // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
@@ -155,9 +172,10 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
 //
 // method_name is a string denoting the method it called from; used when
 // printing the error message.
+
 V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<bool> GetBoolOption(
-    Isolate* isolate, DirectHandle<JSReceiver> options, const char* property,
-    const char* method_name, bool* result);
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    DirectHandle<String> property, const char* method_name, bool* result);
 
 V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<int> GetNumberOption(
     Isolate* isolate, DirectHandle<JSReceiver> options,

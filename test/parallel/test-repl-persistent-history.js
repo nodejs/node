@@ -242,7 +242,7 @@ function runTest(assertCleaned) {
     }
 
     repl.once('close', () => {
-      if (repl._flushing) {
+      if (repl.historyManager.isFlushing) {
         repl.once('flushHistory', onClose);
         return;
       }

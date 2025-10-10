@@ -65,10 +65,10 @@ Maybe<void> RandomBytesTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool RandomBytesTraits::DeriveBits(
-    Environment* env,
-    const RandomBytesConfig& params,
-    ByteSource* unused) {
+bool RandomBytesTraits::DeriveBits(Environment* env,
+                                   const RandomBytesConfig& params,
+                                   ByteSource* unused,
+                                   CryptoJobMode mode) {
   return ncrypto::CSPRNG(params.buffer, params.size);
 }
 
@@ -154,7 +154,8 @@ Maybe<void> RandomPrimeTraits::AdditionalConfig(
 
 bool RandomPrimeTraits::DeriveBits(Environment* env,
                                    const RandomPrimeConfig& params,
-                                   ByteSource* unused) {
+                                   ByteSource* unused,
+                                   CryptoJobMode mode) {
   return params.prime.generate(
       BignumPointer::PrimeConfig{
           .bits = params.bits,
@@ -190,10 +191,10 @@ Maybe<void> CheckPrimeTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool CheckPrimeTraits::DeriveBits(
-    Environment* env,
-    const CheckPrimeConfig& params,
-    ByteSource* out) {
+bool CheckPrimeTraits::DeriveBits(Environment* env,
+                                  const CheckPrimeConfig& params,
+                                  ByteSource* out,
+                                  CryptoJobMode mode) {
   int ret = params.candidate.isPrime(params.checks, getPrimeCheckCallback(env));
   if (ret < 0) [[unlikely]]
     return false;

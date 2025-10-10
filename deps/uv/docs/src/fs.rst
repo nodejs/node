@@ -430,6 +430,12 @@ API
 
     Equivalent to :man:`utime(2)`, :man:`futimes(3)` and :man:`lutimes(3)` respectively.
 
+    Passing `UV_FS_UTIME_NOW` as the atime or mtime sets the timestamp to the
+    current time.
+
+    Passing `UV_FS_UTIME_OMIT` as the atime or mtime leaves the timestamp
+    untouched.
+
     .. note::
       z/OS: `uv_fs_lutime()` is not implemented for z/OS. It can still be called but will return
       ``UV_ENOSYS``.

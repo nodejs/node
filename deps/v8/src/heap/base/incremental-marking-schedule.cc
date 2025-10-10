@@ -64,12 +64,6 @@ void IncrementalMarkingSchedule::AddMutatorThreadMarkedBytes(
   mutator_thread_marked_bytes_ += marked_bytes;
 }
 
-void IncrementalMarkingSchedule::RemoveMutatorThreadMarkedBytes(
-    size_t marked_bytes) {
-  DCHECK_GE(mutator_thread_marked_bytes_, marked_bytes);
-  mutator_thread_marked_bytes_ -= marked_bytes;
-}
-
 void IncrementalMarkingSchedule::AddConcurrentlyMarkedBytes(
     size_t marked_bytes) {
   concurrently_marked_bytes_.fetch_add(marked_bytes, std::memory_order_relaxed);

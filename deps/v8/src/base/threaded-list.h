@@ -196,9 +196,6 @@ class ThreadedListBase final : public BaseClass {
     bool operator==(const Iterator& other) const {
       return entry_ == other.entry_;
     }
-    bool operator!=(const Iterator& other) const {
-      return entry_ != other.entry_;
-    }
     T*& operator*() { return *entry_; }
     T* operator->() { return *entry_; }
     Iterator& operator=(T* entry) {
@@ -246,9 +243,6 @@ class ThreadedListBase final : public BaseClass {
     }
     bool operator==(const ConstIterator& other) const {
       return entry_ == other.entry_;
-    }
-    bool operator!=(const ConstIterator& other) const {
-      return entry_ != other.entry_;
     }
     const T* operator*() const { return *entry_; }
 

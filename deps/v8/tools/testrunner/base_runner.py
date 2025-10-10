@@ -36,57 +36,59 @@ DEFAULT_OUT_GN = Path('out.gn')
 # The mapping from names used here to GN targets (which must stay in sync)
 # is defined in infra/mb/gn_isolate_map.pyl.
 TEST_MAP = {
-  # This needs to stay in sync with group("v8_bot_default") in test/BUILD.gn.
-  "bot_default": [
-    "debugger",
-    "mjsunit",
-    "cctest",
-    "wasm-spec-tests",
-    "inspector",
-    "webkit",
-    "mkgrokdump",
-    "wasm-js",
-    "fuzzer",
-    "message",
-    "intl",
-    "unittests",
-    "wasm-api-tests",
-  ],
-  # This needs to stay in sync with group("v8_default") in test/BUILD.gn.
-  "default": [
-    "debugger",
-    "mjsunit",
-    "cctest",
-    "wasm-spec-tests",
-    "inspector",
-    "mkgrokdump",
-    "wasm-js",
-    "fuzzer",
-    "message",
-    "intl",
-    "unittests",
-    "wasm-api-tests",
-  ],
-  # This needs to stay in sync with group("v8_d8_default") in test/BUILD.gn.
-  "d8_default": [
-    "debugger",
-    "mjsunit",
-    "webkit",
-    "message",
-    "intl",
-  ],
-  # This needs to stay in sync with "v8_optimize_for_size" in test/BUILD.gn.
-  "optimize_for_size": [
-    "debugger",
-    "mjsunit",
-    "cctest",
-    "inspector",
-    "webkit",
-    "intl",
-  ],
-  "unittests": [
-    "unittests",
-  ],
+    # This needs to stay in sync with group("v8_bot_default") in test/BUILD.gn.
+    "bot_default": [
+        "debugger",
+        "mjsunit",
+        "cctest",
+        "wasm-spec-tests",
+        "inspector",
+        "webkit",
+        "bigint",
+        "mkgrokdump",
+        "wasm-js",
+        "fuzzer",
+        "message",
+        "intl",
+        "unittests",
+        "wasm-api-tests",
+        "filecheck",
+    ],
+    # This needs to stay in sync with group("v8_default") in test/BUILD.gn.
+    "default": [
+        "debugger",
+        "mjsunit",
+        "cctest",
+        "wasm-spec-tests",
+        "inspector",
+        "mkgrokdump",
+        "wasm-js",
+        "fuzzer",
+        "message",
+        "intl",
+        "unittests",
+        "wasm-api-tests",
+        "filecheck",
+    ],
+    # This needs to stay in sync with group("v8_d8_default") in test/BUILD.gn.
+    "d8_default": [
+        "debugger",
+        "mjsunit",
+        "webkit",
+        "message",
+        "intl",
+        "filecheck",
+    ],
+    # This needs to stay in sync with "v8_optimize_for_size" in test/BUILD.gn.
+    "optimize_for_size": [
+        "debugger",
+        "mjsunit",
+        "cctest",
+        "inspector",
+        "webkit",
+        "intl",
+    ],
+    "unittests": ["unittests",],
 }
 
 DEFAULT_FLAGS = {
@@ -525,10 +527,22 @@ class BaseTestRunner(object):
         'report_destroy_locked=0',
       ])
 
+    if self.build_config.sandbox_hardware_support:
+      os.environ['LD_BIND_NOW'] = '1'
+      os.environ['GLIBC_TUNABLES'] = 'glibc.pthread.rseq=0'
+
   def _get_external_symbolizer_option(self):
-    external_symbolizer_path = (
-        self.basedir / 'third_party' / 'llvm-build' / 'Release+Asserts' /
-        'bin' / 'llvm-symbolizer')
+    # TODO(https://crbug.com/396446140): Switch to the symbolizer from our
+    # bundled toolchain as soon as one is available for linux-arm64.
+    if (utils.GuessOS() == 'linux' and self.build_config.arch == 'arm64' and
+        not self.build_config.simulator_run):
+      external_symbolizer_path = (
+          self.basedir / 'tools' / 'sanitizers' / 'linux' / 'arm64' /
+          'llvm-symbolizer')
+    else:
+      external_symbolizer_path = (
+          self.basedir / 'third_party' / 'llvm-build' / 'Release+Asserts' /
+          'bin' / 'llvm-symbolizer')
 
     if utils.IsWindows():
       external_symbolizer_path = external_symbolizer_path.with_suffix('.exe')
@@ -623,22 +637,39 @@ class BaseTestRunner(object):
     """
     variables = dict(self.build_config.items())
     variables.update({
-        "byteorder": sys.byteorder,
-        "deopt_fuzzer": False,
-        "device_type": context.device_type,
-        "endurance_fuzzer": False,
-        "gc_fuzzer": False,
-        "gc_stress": False,
-        "isolates": self.options.isolates,
-        "interrupt_fuzzer": False,
-        "mode": self.mode_options.status_mode,
-        "no_harness": self.options.no_harness,
-        "no_simd_hardware": self._no_simd_hardware,
-        "novfp3": False,
-        "optimize_for_size": "--optimize-for-size" in self.options.extra_flags,
-        "simulator_run": variables["simulator_run"]
-                         and not self.options.dont_skip_simulator_slow_tests,
-        "system": self.target_os,
+        "all_arm64_features":
+            '--sim-arm64-optional-features=all' in self.options.extra_flags,
+        "byteorder":
+            sys.byteorder,
+        "deopt_fuzzer":
+            False,
+        "device_type":
+            context.device_type,
+        "endurance_fuzzer":
+            False,
+        "gc_fuzzer":
+            False,
+        "gc_stress":
+            False,
+        "isolates":
+            self.options.isolates,
+        "interrupt_fuzzer":
+            False,
+        "mode":
+            self.mode_options.status_mode,
+        "no_harness":
+            self.options.no_harness,
+        "no_simd_hardware":
+            self._no_simd_hardware,
+        "novfp3":
+            False,
+        "optimize_for_size":
+            "--optimize-for-size" in self.options.extra_flags,
+        "simulator_run":
+            variables["simulator_run"]
+            and not self.options.dont_skip_simulator_slow_tests,
+        "system":
+            self.target_os,
     })
     return variables
 

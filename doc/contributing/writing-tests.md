@@ -24,7 +24,7 @@ See [directory structure overview][] for outline of existing test and locations.
 
 ## How to write a good test
 
-A good test should be written in a style that is optimial for debugging
+A good test should be written in a style that is optimal for debugging
 when it fails.
 
 In principle, when adding a new test, it should be placed in a new file.

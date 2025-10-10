@@ -10,6 +10,7 @@
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/interpreter/prototype-assignment-sequence-builder.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/function-kind.h"
 
@@ -68,7 +69,17 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 #define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
+  static constexpr int kInitialPropertyCount = 64;
 
+  bool IsPrototypeAssignment(
+      Statement* stmt, Variable** var,
+      base::SmallVector<std::pair<Property*, Expression*>,
+                        kInitialPropertyCount>& properties);
+
+  void VisitConsecutivePrototypeAssignments(
+      const base::SmallVector<std::pair<Property*, Expression*>,
+                              kInitialPropertyCount>& properties,
+      Variable* var);
   // Visiting function for declarations list and statements are overridden.
   void VisitModuleDeclarations(Declaration::List* declarations);
   void VisitGlobalDeclarations(Declaration::List* declarations);
@@ -108,10 +119,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   enum class TestFallthrough { kThen, kElse, kNone };
   enum class AccumulatorPreservingMode { kNone, kPreserve };
 
-  // An assignment has to evaluate its LHS before its RHS, but has to assign to
-  // the LHS after both evaluations are done. This class stores the data
-  // computed in the LHS evaluation that has to live across the RHS evaluation,
-  // and is used in the actual LHS assignment.
+  // An assignment has to evaluate its LHS before its RHS, but has to assign
+  // to the LHS after both evaluations are done. This class stores the data
+  // computed in the LHS evaluation that has to live across the RHS
+  // evaluation, and is used in the actual LHS assignment.
   class AssignmentLhsData {
    public:
     static AssignmentLhsData NonProperty(Expression* expr);
@@ -262,6 +273,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitPropertyLoadForRegister(Register obj, Property* expr,
                                     Register destination);
 
+  bool BuildInitializationBlockForParametersIfExist();
+
   AssignmentLhsData PrepareAssignmentLhs(
       Expression* lhs, AccumulatorPreservingMode accumulator_preserving_mode =
                            AccumulatorPreservingMode::kNone);
@@ -294,6 +307,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   Variable* GetPotentialVariableInAccumulator();
 
+  void AddDisposableValue(VariableMode mode);
   void BuildVariableLoad(Variable* variable, HoleCheckMode hole_check_mode,
                          TypeofMode typeof_mode = TypeofMode::kNotInside);
   void BuildVariableLoadForAccumulatorValue(
@@ -468,9 +482,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                   BytecodeLabel* super_ctor_call_done);
 
   // Visitors for obtaining expression result in the accumulator, in a
-  // register, or just getting the effect. Some visitors return a TypeHint which
-  // specifies the type of the result of the visited expression.
+  // register, or just getting the effect. Some visitors return a TypeHint
+  // which specifies the type of the result of the visited expression.
   TypeHint VisitForAccumulatorValue(Expression* expr);
+  TypeHint VisitForAccumulatorValueAsPropertyKey(Expression* expr);
+  TypeHint VisitForAccumulatorValueImpl(Expression* expr,
+                                        ValueResultScope* accumulator_scope);
   void VisitForAccumulatorValueOrTheHole(Expression* expr);
   V8_WARN_UNUSED_RESULT Register VisitForRegisterValue(Expression* expr);
   V8_INLINE void VisitForRegisterValue(Expression* expr, Register destination);
@@ -621,6 +638,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ZoneVector<std::pair<GetTemplateObject*, size_t>> template_objects_;
   ZoneVector<Variable*> vars_in_hole_check_bitmap_;
   ZoneVector<std::pair<Call*, Scope*>> eval_calls_;
+  ZoneVector<std::pair<ProtoAssignmentSeqBuilder*, size_t>> proto_assign_seq_;
 
   ControlScope* execution_control_;
   ContextScope* execution_context_;

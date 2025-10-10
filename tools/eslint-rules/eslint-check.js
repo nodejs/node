@@ -1,6 +1,6 @@
 /**
- * @fileoverview Check that common.skipIfEslintMissing is used if
- *               the eslint module is required.
+ * @file Check that common.skipIfEslintMissing is used if
+ *   the eslint module is required.
  */
 'use strict';
 

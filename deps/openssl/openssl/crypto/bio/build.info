@@ -11,7 +11,7 @@ SOURCE[../../libcrypto]=\
 SOURCE[../../libcrypto]=\
         bss_null.c bss_mem.c bss_bio.c bss_fd.c bss_file.c \
         bss_sock.c bss_conn.c bss_acpt.c bss_dgram.c \
-        bss_log.c bss_core.c
+        bss_log.c bss_core.c bss_dgram_pair.c
 
 # Filters
 SOURCE[../../libcrypto]=\

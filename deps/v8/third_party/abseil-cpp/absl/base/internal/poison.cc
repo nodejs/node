@@ -57,19 +57,20 @@ size_t GetPageSize() {
 
 void* InitializePoisonedPointerInternal() {
   const size_t block_size = GetPageSize();
+  void* data = nullptr;
 #if defined(ABSL_HAVE_ADDRESS_SANITIZER)
-  void* data = malloc(block_size);
+  data = malloc(block_size);
   ASAN_POISON_MEMORY_REGION(data, block_size);
 #elif defined(ABSL_HAVE_MEMORY_SANITIZER)
-  void* data = malloc(block_size);
+  data = malloc(block_size);
   __msan_poison(data, block_size);
 #elif defined(ABSL_HAVE_MMAP)
-  void* data = DirectMmap(nullptr, block_size, PROT_NONE,
-                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  data = DirectMmap(nullptr, block_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS,
+                    -1, 0);
   if (data == MAP_FAILED) return GetBadPointerInternal();
 #elif defined(_WIN32)
-  void* data = VirtualAlloc(nullptr, block_size, MEM_RESERVE | MEM_COMMIT,
-                            PAGE_NOACCESS);
+  data = VirtualAlloc(nullptr, block_size, MEM_RESERVE | MEM_COMMIT,
+                      PAGE_NOACCESS);
   if (data == nullptr) return GetBadPointerInternal();
 #else
   return GetBadPointerInternal();

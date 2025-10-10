@@ -48,7 +48,7 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
   static std::atomic<uint64_t> rejectionsHandledAfter{0};
 
   Local<Promise> promise = message.GetPromise();
-  Isolate* isolate = promise->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   PromiseRejectEvent event = message.GetEvent();
 
   Environment* env = Environment::GetCurrent(isolate);
@@ -100,10 +100,11 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
   if (!GetAssignedPromiseAsyncId(env, promise, env->trigger_async_id_symbol())
           .To(&trigger_async_id)) return;
 
+  Local<Object> promise_as_obj = promise;
   if (async_id != AsyncWrap::kInvalidAsyncId &&
       trigger_async_id != AsyncWrap::kInvalidAsyncId) {
     env->async_hooks()->push_async_context(
-        async_id, trigger_async_id, promise);
+        async_id, trigger_async_id, &promise_as_obj);
   }
 
   USE(callback->Call(
@@ -128,8 +129,7 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
 namespace task_queue {
 
 static void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
+  Isolate* isolate = args.GetIsolate();
 
   CHECK(args[0]->IsFunction());
 

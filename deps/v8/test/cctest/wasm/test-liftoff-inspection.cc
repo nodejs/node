@@ -6,7 +6,7 @@
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/wasm-debug.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
@@ -22,7 +22,8 @@ class LiftoffCompileEnvironment {
       : isolate_(CcTest::InitIsolateOnce()),
         handle_scope_(isolate_),
         zone_(isolate_->allocator(), ZONE_NAME),
-        wasm_runner_(nullptr, kWasmOrigin, TestExecutionTier::kLiftoff, 0) {
+        wasm_runner_(nullptr, kWasmOrigin, TestExecutionTier::kLiftoff, 0,
+                     isolate_) {
     // Add a table of length 1, for indirect calls.
     wasm_runner_.builder().AddIndirectFunctionTable(nullptr, 1);
     // Set tiered down such that we generate debugging code.

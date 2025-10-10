@@ -752,6 +752,8 @@ test('Additional tests', () => {
 
   assertNotDeepOrStrict(new Date(), new Date(2000, 3, 14));
 
+  assertDeepAndStrictEqual(new Date('foo'), new Date('bar'));
+
   assertDeepAndStrictEqual(/a/, /a/);
   assertDeepAndStrictEqual(/a/g, /a/g);
   assertDeepAndStrictEqual(/a/i, /a/i);
@@ -1630,4 +1632,11 @@ test('Inherited null prototype without own constructor properties should check t
   /* eslint-disable no-restricted-properties */
   assert.deepEqual(a, b);
   assert.deepEqual(b, a);
+});
+
+test('Promises should fail deepEqual', () => {
+  const a = Promise.resolve(1);
+  const b = Promise.resolve(1);
+  assertDeepAndStrictEqual(a, a);
+  assertNotDeepOrStrict(a, b);
 });

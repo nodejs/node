@@ -161,7 +161,8 @@ class SharedLargeOldSpaceAllocationThread final : public ParkingThread {
                 i_client_isolate->factory()->NewFixedArray(
                     kMaxRegularHeapObjectSize / kTaggedSize,
                     AllocationType::kSharedOld);
-            CHECK(MemoryChunk::FromHeapObject(*fixed_array)->IsLargePage());
+            CHECK(
+                MemoryChunkMetadata::FromHeapObject(*fixed_array)->is_large());
           }
 
           InvokeMajorGC(i_client_isolate);
@@ -209,7 +210,8 @@ class SharedTrustedLargeObjectSpaceAllocationThread final
             DirectHandle<TrustedByteArray> fixed_array =
                 i_client_isolate->factory()->NewTrustedByteArray(
                     kMaxRegularHeapObjectSize, AllocationType::kSharedTrusted);
-            CHECK(MemoryChunk::FromHeapObject(*fixed_array)->IsLargePage());
+            CHECK(
+                MemoryChunkMetadata::FromHeapObject(*fixed_array)->is_large());
           }
 
           InvokeMajorGC(i_client_isolate);
@@ -404,6 +406,9 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedMapSpace) {
 }
 
 TEST_F(SharedHeapNoClientsTest, SharedCollectionWithoutClients) {
+  // Set a "current isolate" so we can access pointer tables etc during GC.
+  ::i::SetCurrentIsolateScope isolate_scope{i_shared_space_isolate()};
+  ::i::SetCurrentLocalHeapScope thread_local_scope{i_shared_space_isolate()};
   ::v8::internal::InvokeMajorGC(i_shared_space_isolate());
 }
 
@@ -759,8 +764,6 @@ TEST_ALL_SCENARIA(SharedHeapTestStateWithHandleParked, ToEachTheirOwn,
 TEST_ALL_SCENARIA(SharedHeapTestStateWithHandleUnparked, ToEachTheirOwn,
                   ToEachTheirOwnWithHandle)
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-
 namespace {
 
 // Testing the shared heap using raw pointers.
@@ -790,6 +793,8 @@ using SharedHeapTestStateWithRawPointerUnparked =
 
 template <typename TestType, AllocationType allocation, AllocationSpace space>
 void ToEachTheirOwnWithRawPointer(TestType* test) {
+  if (!v8_flags.conservative_stack_scanning) return;
+
   using ThreadType = typename TestType::ThreadType;
   ThreadType* thread = test->thread();
 
@@ -836,8 +841,6 @@ TEST_ALL_SCENARIA(SharedHeapTestStateWithRawPointerParked, ToEachTheirOwn,
                   ToEachTheirOwnWithRawPointer)
 TEST_ALL_SCENARIA(SharedHeapTestStateWithRawPointerUnparked, ToEachTheirOwn,
                   ToEachTheirOwnWithRawPointer)
-
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 
 #undef TEST_SCENARIO
 #undef TEST_ALL_SCENARIA

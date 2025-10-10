@@ -98,6 +98,10 @@ struct ExternalPointerTableEntry {
   // Invalidates the source entry.
   inline void Evacuate(ExternalPointerTableEntry& dest, EvacuateMarkMode mode);
 
+  // Copy the content of the given entry into this entry.
+  // The source entry remains valid.
+  inline void CopyFrom(const ExternalPointerTableEntry& src);
+
   // Mark this entry as alive during table garbage collection.
   inline void Mark();
 
@@ -393,6 +397,10 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   inline ExternalPointerHandle AllocateAndInitializeEntry(
       Space* space, Address initial_value, ExternalPointerTag tag);
 
+  // Duplicates an entry, returning a handle to the new entry.
+  inline ExternalPointerHandle DuplicateEntry(Space* space,
+                                              ExternalPointerHandle handle);
+
   // Marks the specified entry as alive.
   //
   // If the space to which the entry belongs is currently being compacted, this
@@ -433,10 +441,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
                                       Counters* counters);
   uint32_t SweepAndCompact(Space* space, Counters* counters);
   uint32_t Sweep(Space* space, Counters* counters);
-
-  // Updates all evacuation entries with new handle locations. The function
-  // takes the old hanlde location and returns the new one.
-  void UpdateAllEvacuationEntries(Space*, std::function<Address(Address)>);
 
   inline bool Contains(Space* space, ExternalPointerHandle handle) const;
 

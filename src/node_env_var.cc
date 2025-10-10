@@ -273,7 +273,7 @@ void MapKVStore::Set(Isolate* isolate, Local<String> key, Local<String> value) {
 
 int32_t MapKVStore::Query(const char* key) const {
   Mutex::ScopedLock lock(mutex_);
-  return map_.find(key) == map_.end() ? -1 : 0;
+  return map_.contains(key) ? 0 : -1;
 }
 
 int32_t MapKVStore::Query(Isolate* isolate, Local<String> key) const {
@@ -311,7 +311,7 @@ std::shared_ptr<KVStore> KVStore::CreateMapKVStore() {
 
 Maybe<void> KVStore::AssignFromObject(Local<Context> context,
                                       Local<Object> entries) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
   Local<Array> keys;
   if (!entries->GetOwnPropertyNames(context).ToLocal(&keys))

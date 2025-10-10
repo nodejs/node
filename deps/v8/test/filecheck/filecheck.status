@@ -1,0 +1,31 @@
+# Copyright 2025 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[
+[ALWAYS, {
+  # These are negative test cases that make sure that certain scenarios are
+  # reported as failures.
+  'fail/*': [FAIL],
+}],
+
+['variant == code_serializer', {
+  # Code serializer output is incompatible with some filecheck tests because the
+  # same test is executed twice (similar to message tests).
+  'deopt-too-much-feedback': [SKIP],
+}],  # variant == code_serializer
+
+['variant == jitless', {
+  'wasm-pause': [SKIP],
+}],  # variant == jitless
+
+['single_generation', {
+  # TODO(42204563): These tests rely on the shared heap which is incompatible
+  # with single generation.
+  'wasm-pause': [SKIP],
+}], # single_generation
+
+['not has_webassembly', {
+  'wasm-pause': [SKIP],
+}], # single_generation
+]

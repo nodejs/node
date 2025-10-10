@@ -20,7 +20,6 @@
   V(MapIteratorProtector, map_iterator_protector, MapIteratorProtector)       \
   V(NoElementsProtector, no_elements_protector, NoElementsProtector)          \
   V(MegaDOMProtector, mega_dom_protector, MegaDOMProtector)                   \
-  V(NumberStringCache, number_string_cache, NumberStringCache)                \
   V(NumberStringNotRegexpLikeProtector,                                       \
     number_string_not_regexp_like_protector,                                  \
     NumberStringNotRegexpLikeProtector)                                       \
@@ -35,8 +34,6 @@
     StringIteratorProtector)                                                  \
   V(StringWrapperToPrimitiveProtector, string_wrapper_to_primitive_protector, \
     StringWrapperToPrimitiveProtector)                                        \
-  V(TypedArrayLengthProtector, typed_array_length_protector,                  \
-    TypedArrayLengthProtector)                                                \
   V(TypedArraySpeciesProtector, typed_array_species_protector,                \
     TypedArraySpeciesProtector)                                               \
   BUILTINS_WITH_SFI_OBJECT_LIST(V)
@@ -74,6 +71,7 @@
     EmptySwissPropertyDictionary)                                            \
   V(EmptySlowElementDictionary, empty_slow_element_dictionary,               \
     EmptySlowElementDictionary)                                              \
+  V(EmptyWeakArrayList, empty_weak_array_list, EmptyWeakArrayList)           \
   V(empty_string, empty_string, EmptyString)                                 \
   V(error_to_string, error_to_string, ErrorToString)                         \
   V(error_string, error_string, ErrorString)                                 \
@@ -135,8 +133,6 @@
   V(resolve_string, resolve_string, ResolveString)                           \
   V(return_string, return_string, ReturnString)                              \
   V(search_symbol, search_symbol, SearchSymbol)                              \
-  V(SingleCharacterStringTable, single_character_string_table,               \
-    SingleCharacterStringTable)                                              \
   V(size_string, size_string, SizeString)                                    \
   V(species_symbol, species_symbol, SpeciesSymbol)                           \
   V(StaleRegister, stale_register, StaleRegister)                            \
@@ -157,7 +153,9 @@
   V(TrueValue, true_value, True)                                             \
   V(undefined_to_string, undefined_to_string, UndefinedToString)             \
   V(UndefinedValue, undefined_value, Undefined)                              \
+  V(UninitializedValue, uninitialized_value, Uninitialized)                  \
   V(uninitialized_symbol, uninitialized_symbol, UninitializedSymbol)         \
+  V(UndefinedContextCell, undefined_context_cell, UndefinedContextCell)      \
   V(valueOf_string, valueOf_string, ValueOfString)                           \
   V(wasm_cross_instance_call_symbol, wasm_cross_instance_call_symbol,        \
     WasmCrossInstanceCallSymbol)                                             \

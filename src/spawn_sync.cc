@@ -378,15 +378,30 @@ void SyncProcessRunner::RegisterExternalReferences(
 
 void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+
+  std::string resource = "";
+  if (env->permission()->enabled() && args[0]->IsObject()) {
+    Local<Object> js_options = args[0].As<Object>();
+    Local<Value> js_file;
+    if (!js_options->Get(context, env->file_string()).ToLocal(&js_file)) {
+      return;
+    }
+
+    if (js_file->IsString()) {
+      node::Utf8Value executable(env->isolate(), js_file.As<String>());
+      resource = executable.ToString();
+    }
+  }
+
   THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kChildProcess, "");
+      env, permission::PermissionScope::kChildProcess, resource);
   env->PrintSyncTrace();
   SyncProcessRunner p(env);
   Local<Value> result;
   if (!p.Run(args[0]).ToLocal(&result)) return;
   args.GetReturnValue().Set(result);
 }
-
 
 SyncProcessRunner::SyncProcessRunner(Environment* env)
     : max_buffer_(0),
@@ -396,14 +411,9 @@ SyncProcessRunner::SyncProcessRunner(Environment* env)
       uv_loop_(nullptr),
 
       stdio_count_(0),
-      uv_stdio_containers_(nullptr),
       stdio_pipes_initialized_(false),
 
       uv_process_options_(),
-      file_buffer_(nullptr),
-      args_buffer_(nullptr),
-      env_buffer_(nullptr),
-      cwd_buffer_(nullptr),
 
       uv_process_(),
       killed_(false),
@@ -420,19 +430,12 @@ SyncProcessRunner::SyncProcessRunner(Environment* env)
 
       lifecycle_(kUninitialized),
 
-      env_(env) {
-}
-
+      env_(env) {}
 
 SyncProcessRunner::~SyncProcessRunner() {
   CHECK_EQ(lifecycle_, kHandlesClosed);
 
   stdio_pipes_.clear();
-  delete[] file_buffer_;
-  delete[] args_buffer_;
-  delete[] cwd_buffer_;
-  delete[] env_buffer_;
-  delete[] uv_stdio_containers_;
 }
 
 
@@ -792,12 +795,14 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   Local<Object> js_options = js_value.As<Object>();
 
   Local<Value> js_file;
+  const char* file_buffer;
   if (!js_options->Get(context, env()->file_string()).ToLocal(&js_file) ||
-      !CopyJsString(js_file, &file_buffer_).To(&r)) {
+      !CopyJsString(js_file, &file_buffer).To(&r)) {
     return Nothing<int>();
   }
   if (r < 0) return Just(r);
-  uv_process_options_.file = file_buffer_;
+  file_buffer_.reset(file_buffer);
+  uv_process_options_.file = file_buffer_.get();
 
   // Undocumented feature of Win32 CreateProcess API allows spawning
   // batch files directly but is potentially insecure because arguments
@@ -809,23 +814,27 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
 #endif
 
   Local<Value> js_args;
+  char* args_buffer;
   if (!js_options->Get(context, env()->args_string()).ToLocal(&js_args) ||
-      !CopyJsStringArray(js_args, &args_buffer_).To(&r)) {
+      !CopyJsStringArray(js_args, &args_buffer).To(&r)) {
     return Nothing<int>();
   }
   if (r < 0) return Just(r);
-  uv_process_options_.args = reinterpret_cast<char**>(args_buffer_);
+  args_buffer_.reset(args_buffer);
+  uv_process_options_.args = reinterpret_cast<char**>(args_buffer_.get());
 
   Local<Value> js_cwd;
   if (!js_options->Get(context, env()->cwd_string()).ToLocal(&js_cwd)) {
     return Nothing<int>();
   }
   if (!js_cwd->IsNullOrUndefined()) {
-    if (!CopyJsString(js_cwd, &cwd_buffer_).To(&r)) {
+    const char* cwd_buffer;
+    if (!CopyJsString(js_cwd, &cwd_buffer).To(&r)) {
       return Nothing<int>();
     }
     if (r < 0) return Just(r);
-    uv_process_options_.cwd = cwd_buffer_;
+    cwd_buffer_.reset(cwd_buffer);
+    uv_process_options_.cwd = cwd_buffer_.get();
   }
 
   Local<Value> js_env_pairs;
@@ -834,12 +843,13 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
     return Nothing<int>();
   }
   if (!js_env_pairs->IsNullOrUndefined()) {
-    if (!CopyJsStringArray(js_env_pairs, &env_buffer_).To(&r)) {
+    char* env_buffer;
+    if (!CopyJsStringArray(js_env_pairs, &env_buffer).To(&r)) {
       return Nothing<int>();
     }
     if (r < 0) return Just(r);
-
-    uv_process_options_.env = reinterpret_cast<char**>(env_buffer_);
+    env_buffer_.reset(env_buffer);
+    uv_process_options_.env = reinterpret_cast<char**>(env_buffer_.get());
   }
   Local<Value> js_uid;
   if (!js_options->Get(context, env()->uid_string()).ToLocal(&js_uid)) {
@@ -966,7 +976,7 @@ Maybe<int> SyncProcessRunner::ParseStdioOptions(Local<Value> js_value) {
   js_stdio_options = js_value.As<Array>();
 
   stdio_count_ = js_stdio_options->Length();
-  uv_stdio_containers_ = new uv_stdio_container_t[stdio_count_];
+  uv_stdio_containers_.resize(stdio_count_);
 
   stdio_pipes_.clear();
   stdio_pipes_.resize(stdio_count_);
@@ -991,7 +1001,7 @@ Maybe<int> SyncProcessRunner::ParseStdioOptions(Local<Value> js_value) {
     }
   }
 
-  uv_process_options_.stdio = uv_stdio_containers_;
+  uv_process_options_.stdio = uv_stdio_containers_.data();
   uv_process_options_.stdio_count = stdio_count_;
 
   return Just<int>(0);

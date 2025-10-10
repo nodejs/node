@@ -9,19 +9,22 @@ from . import base
 # Extra flags randomly added to all fuzz tests with numfuzz. List of tuples
 # (probability, flag).
 EXTRA_FLAGS = [
-    (0.1, '--always-turbofan'),
+    (0.05, '--always-osr'),
+    (0.05, '--always-osr-from-maglev'),
+    (0.05, '--always-sparkplug'),
     (0.1, '--assert-types'),
     (0.1, '--cache=code'),
     (0.1, '--force-slow-path'),
     (0.2, '--future'),
     (0.5, '--harmony'),
+    (0.1, '--hashes-collide'),
+    (0.5, '--experimental-fuzzing'),
     # TODO(v8:13524): Enable when issue is fixed
     # TODO(v8:13528): Enable when issue is fixed
     # (0.1, '--harmony-struct'),
     (0.1, '--jit-fuzzing'),
     (0.5, '--js-staging'),
     (0.1, '--liftoff'),
-    (0.1, '--maglev'),
     (0.1, '--maglev-future'),
     (0.1, '--minor-ms'),
     (0.2, '--no-analyze-environment-liveness'),
@@ -30,18 +33,23 @@ EXTRA_FLAGS = [
     #(0.1, '--no-enable-sse3'),
     #(0.1, '--no-enable-ssse3'),
     #(0.1, '--no-enable-sse4_1'),
-    (0.1, '--no-enable-sse4_2'),
-    (0.1, '--no-enable-sahf'),
-    (0.1, '--no-enable-avx'),
-    (0.1, '--no-enable-fma3'),
-    (0.1, '--no-enable-bmi1'),
-    (0.1, '--no-enable-bmi2'),
-    (0.1, '--no-enable-lzcnt'),
-    (0.1, '--no-enable-popcnt'),
-    (0.3, '--no-lazy-feedback-allocation'),
+    (0.05, '--no-enable-sse4_2'),
+    (0.05, '--no-enable-sahf'),
+    (0.05, '--no-enable-avx'),
+    (0.05, '--no-enable-fma3'),
+    (0.05, '--no-enable-bmi1'),
+    (0.05, '--no-enable-bmi2'),
+    (0.05, '--no-enable-lzcnt'),
+    (0.05, '--no-enable-popcnt'),
+    (0.05, '--no-flush-bytecode'),
+    (0.05, '--no-lazy'),
+    (0.2, '--no-lazy-feedback-allocation'),
     (0.1, '--no-liftoff'),
-    (0.1, '--no-turbofan'),
+    (0.05, '--no-maglev'),
+    (0.05, '--no-sparkplug'),
+    (0.05, '--no-turbofan'),
     (0.1, '--no-wasm-tier-up'),
+    (0.2, '--optimize-maglev-optimizes-to-turbofan'),
     (0.5, '--optimize-on-next-call-optimizes-to-maglev'),
     (0.1, '--regexp-interpret-all'),
     (0.1, '--regexp-tier-up-ticks=0'),
@@ -50,19 +58,23 @@ EXTRA_FLAGS = [
     (0.1, '--shared-string-table'),
     (0.1, '--shared-heap'),
     (0.1, '--stress-background-compile'),
-    (0.1, '--stress-flush-code'),
+    (0.2, '--stress-flush-code'),
     (0.1, '--stress-lazy-source-positions'),
     (0.1, '--stress-maglev'),
     (0.1, '--stress-wasm-code-gc'),
-    (0.2, '--turboshaft'),
     (0.1, '--turbolev'),
     (0.1, '--turbo-instruction-scheduling'),
     (0.1, '--turbo-stress-instruction-scheduling'),
+    (0.2, '--turboshaft-verify-load-elimination'),
     (0.1, '--stress-wasm-memory-moving'),
     (0.1, '--stress-scavenger-conservative-object-pinning-random'),
+    (0.1, '--conservative-stack-scanning'),
     (0.1, '--precise-object-pinning'),
     (0.25, '--wasm-staging'),
     (0.1, '--ephemeron-fixpoint-iterations=0'),
+    (0.25, '--experimental-wasm-revectorize'),
+    (0.5, '--additive-safe-int-feedback'),
+    (0.1, '--no-memory-pool'),
 ]
 
 MIN_DEOPT = 1
@@ -114,6 +126,8 @@ def _drop_contradictory_flags(new_flags, existing_flags):
 
   def contradictory_flag(flag):
     flag_prefix = _flag_prefix(flag)
+    if not flag_prefix.startswith('--'):
+      return False
     return (flag_prefix in existing_flag_prefixes or
             _invert_flag(flag_prefix) in existing_flag_prefixes)
 
@@ -354,6 +368,35 @@ class InterruptBudgetFuzzer(Fuzzer):
       yield [flag1, flag2, flag3, flag4]
 
 
+class AllocationOffsetFuzzer(Fuzzer):
+  """Creates a random number of fake allocations before the actual test."""
+
+  def create_flags_generator(self, rng, test, analysis_value):
+    while True:
+      n_objects = rng.randint(0, 20)
+      n_vars = rng.randint(0, 10)
+      n_proxies = rng.randint(0, 4)
+      array_size = rng.choice([0, rng.randint(1, 100000)])
+
+      flags = []
+
+      def add(content):
+        # Pad with one space so that shell deterministically adds quotations.
+        flags.extend(['-e', f' {content}'])
+
+      if n_objects:
+        add('[];' * n_objects)
+      if n_vars:
+        add(' '.join([f'var __pv_{i};' for i in range(n_vars)]))
+      if n_proxies:
+        add(' '.join([
+            f'var __pp_{i} = new Proxy({{}}, {{}});' for i in range(n_proxies)
+        ]))
+      if array_size:
+        add(f'var __pa = new Array({array_size});')
+
+      yield flags
+
 class StackSizeFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
@@ -400,6 +443,7 @@ class DeoptFuzzer(Fuzzer):
 
 
 FUZZERS = {
+    'allocation': (None, AllocationOffsetFuzzer),
     'compaction': (None, CompactionFuzzer),
     'delay': (None, TaskDelayFuzzer),
     'deopt': (DeoptAnalyzer, DeoptFuzzer),

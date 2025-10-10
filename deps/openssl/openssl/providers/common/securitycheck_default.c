@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,13 +17,12 @@
 #include "internal/nelem.h"
 
 /* Disable the security checks in the default provider */
-int ossl_securitycheck_enabled(OSSL_LIB_CTX *libctx)
+int ossl_fips_config_securitycheck_enabled(OSSL_LIB_CTX *libctx)
 {
     return 0;
 }
 
-int ossl_digest_rsa_sign_get_md_nid(OSSL_LIB_CTX *ctx, const EVP_MD *md,
-                                    ossl_unused int sha1_allowed)
+int ossl_digest_rsa_sign_get_md_nid(const EVP_MD *md)
 {
     int mdnid;
 
@@ -34,9 +33,10 @@ int ossl_digest_rsa_sign_get_md_nid(OSSL_LIB_CTX *ctx, const EVP_MD *md,
         { NID_md4,       OSSL_DIGEST_NAME_MD4       },
         { NID_mdc2,      OSSL_DIGEST_NAME_MDC2      },
         { NID_ripemd160, OSSL_DIGEST_NAME_RIPEMD160 },
+        { NID_sm3,       OSSL_DIGEST_NAME_SM3 },
     };
 
-    mdnid = ossl_digest_get_approved_nid_with_sha1(ctx, md, 1);
+    mdnid = ossl_digest_get_approved_nid(md);
     if (mdnid == NID_undef)
         mdnid = ossl_digest_md_to_nid(md, name_to_nid, OSSL_NELEM(name_to_nid));
     return mdnid;

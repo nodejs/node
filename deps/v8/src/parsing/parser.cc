@@ -18,6 +18,7 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
+#include "src/common/scoped-modification.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/heap/parked-scope.h"
 #include "src/logging/counters.h"
@@ -303,25 +304,42 @@ bool Parser::ShortcutLiteralBinaryExpression(Expression** x, Expression* y,
     }
   }
 
-  // Constant fold string concatenation.
+  // Constant fold string concatenation:
+  //   "abc" + "def" -> "abcdef"
+  // Note that this only works for folding into the LHS of a left-associative
+  // binary expression. String concatenation folding on the RHS is handled by
+  // `CollapseNaryExpression`, which can't re-use this method since non-string
+  // literal concatenation is not commutative.
   if (op == Token::kAdd) {
-    // Only consider string concatenation of two strings.
     // TODO(leszeks): We could also eagerly convert other literals to string if
     // one side of the addition is a string.
-    if (y->IsStringLiteral()) {
-      if ((*x)->IsStringLiteral()) {
-        const AstRawString* x_val = (*x)->AsLiteral()->AsRawString();
-        const AstRawString* y_val = y->AsLiteral()->AsRawString();
-        AstConsString* cons = ast_value_factory()->NewConsString(x_val, y_val);
-        *x = factory()->NewConsStringLiteral(cons, (*x)->position());
-        return true;
-      }
-      if ((*x)->IsConsStringLiteral()) {
-        const AstRawString* y_val = y->AsLiteral()->AsRawString();
-        (*x)->AsLiteral()->AsConsString()->AddString(zone(), y_val);
-        return true;
-      }
+    if (ShortcutStringLiteralAppendExpression(x, y)) {
+      return true;
     }
+  }
+  return false;
+}
+
+bool Parser::ShortcutStringLiteralAppendExpression(Expression** x,
+                                                   Expression* y) {
+  if (!y->IsStringLiteral()) return false;
+  const AstRawString* y_val = y->AsLiteral()->AsRawString();
+
+  // Only consider string concatenation of two strings.
+  // TODO(leszeks): We could also eagerly convert other literals to string if
+  // one side of the addition is a string. We'd have to be careful around
+  // associativity though, in case x is the RHS-most expression of an n-ary
+  // addition.
+  if ((*x)->IsStringLiteral()) {
+    const AstRawString* x_val = (*x)->AsLiteral()->AsRawString();
+    AstConsString* cons = ast_value_factory()->NewConsString(x_val, y_val);
+    *x = factory()->NewConsStringLiteral(cons, (*x)->position());
+    return true;
+  }
+  if ((*x)->IsConsStringLiteral()) {
+    (*x)->AsLiteral()->AsConsString()->AddString(zone(), y_val);
+    (*x)->clear_parenthesized();
+    return true;
   }
   return false;
 }
@@ -377,10 +395,19 @@ bool Parser::CollapseNaryExpression(Expression** x, Expression* y,
     return false;
   }
 
-  // Append our current expression to the nary operation.
-  // TODO(leszeks): Do some literal collapsing here if we're appending Smi or
-  // String literals.
-  nary->AddSubsequent(y, pos);
+  Expression* last = nary->last();
+  // Try to shortcut sequential string literal appends:
+  //  expr + "abc" + "def" -> expr + "abcdef"
+  // Folding on the LHS of expr is handled by the more general
+  // ShortcutLiteralBinaryExpression, this is a special case for RHS string
+  // literal concatenation since this is commutative.
+  if (op == Token::kAdd && ShortcutStringLiteralAppendExpression(&last, y)) {
+    // Append our current expression to the nary operation.
+    nary->UpdateLast(last);
+  } else {
+    // Otherwise append our current expression to the nary operation.
+    nary->AddSubsequent(y, pos);
+  }
   nary->clear_parenthesized();
   AppendNaryOperationSourceRange(nary, range);
 
@@ -504,6 +531,9 @@ Expression* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
 Expression* Parser::NewV8Intrinsic(const AstRawString* name,
                                    const ScopedPtrList<Expression>& args,
                                    int pos) {
+  // Natives syntax is not allowed in extensions code but it might be useful
+  // for debugging purposes provided that --allow-natives-syntax flag is
+  // enabled.
   if (ParsingExtension()) {
     // The extension structures are only accessible while parsing the
     // very first time, not when reparsing because of lazy compilation.
@@ -691,7 +721,7 @@ void Parser::ParseProgram(Isolate* isolate, DirectHandle<Script> script,
 
   scanner_.Initialize();
   FunctionLiteral* result = DoParseProgram(isolate, info);
-  HandleSourceURLComments(isolate, script);
+  HandleDebugMagicComments(isolate, script);
   if (result == nullptr) return;
   MaybeProcessSourceRanges(info, result, stack_limit_);
   PostProcessParseResult(isolate, info, result);
@@ -719,7 +749,14 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
   DCHECK_NULL(scope_);
 
-  ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
+  std::optional<base::ElapsedTimer> timer;
+  if (v8_flags.enable_parser_ablation && base::TimeTicks::IsHighResolution()) {
+    timer.emplace();
+    timer->Start();
+  }
+
+  ScopedModification<Mode> mode_scope(
+      &mode_, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
   ResetInfoId();
 
   FunctionLiteral* result = nullptr;
@@ -794,6 +831,13 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     }
     CheckConflictingVarDeclarations(scope);
 
+    // For sloppy eval though, we clear dynamic variables created for toplevel
+    // var to avoid resolving to a variable when the variable and proxy are in
+    // the same eval execution. The variable is not available on subsequent lazy
+    // executions of functions in the eval, so this avoids inner functions from
+    // looking up different variables during eager and lazy compilation.
+    if (flags().is_eval()) outer->RemoveDynamic();
+
     if (flags().parse_restriction() == ONLY_SINGLE_FUNCTION_LITERAL) {
       if (body.length() != 1 || !body.at(0)->IsExpressionStatement() ||
           !body.at(0)
@@ -815,6 +859,14 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   if (has_error()) return nullptr;
 
   RecordFunctionLiteralSourceRange(result);
+
+  if (timer && timer->Elapsed().InNanoseconds() > 0) {
+    auto end = timer->Elapsed();
+    end += std::min(base::TimeDelta::FromSeconds(1),
+                    end * v8_flags.parser_ablation_amount);
+    while (timer->Elapsed() < end) {
+    }
+  }
 
   return result;
 }
@@ -878,7 +930,7 @@ void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
                           DeclarationScope* outer_scope, Zone* zone) {
   DCHECK(parsing_on_main_thread_);
   DCHECK(info->is_wrapped_as_function());
-  ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
+  ScopedModification<Mode> mode_scope(&mode_, PARSE_EAGERLY);
 
   // Set function and block state for the outer eval scope.
   DCHECK(outer_scope->is_eval_scope());
@@ -1000,7 +1052,7 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     maybe_wrapped_arguments_ = handle(script->wrapped_arguments(), isolate);
   }
 
-  int function_literal_id = shared_info->function_literal_id();
+  int function_literal_id = shared_info->function_literal_id(kRelaxedLoad);
 
   // Initialize parser state.
   info->set_function_name(ast_value_factory()->GetString(
@@ -1055,6 +1107,12 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK_NOT_NULL(raw_name);
   DCHECK_NULL(scope_);
 
+  std::optional<base::ElapsedTimer> timer;
+  if (v8_flags.enable_parser_ablation && base::TimeTicks::IsHighResolution()) {
+    timer.emplace();
+    timer->Start();
+  }
+
   DCHECK(ast_value_factory());
   fni_.PushEnclosingName(raw_name);
 
@@ -1062,7 +1120,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK_LT(0, function_literal_id);
   SkipInfos(function_literal_id - 1);
 
-  ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
+  ScopedModification<Mode> mode_scope(&mode_, PARSE_EAGERLY);
 
   // Place holder for the result.
   FunctionLiteral* result = nullptr;
@@ -1169,6 +1227,14 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
 
   info->set_max_info_id(GetLastInfoId());
 
+  if (timer && timer->Elapsed().InNanoseconds() > 0) {
+    auto end = timer->Elapsed();
+    end += std::min(base::TimeDelta::FromSeconds(1),
+                    end * v8_flags.parser_ablation_amount);
+    while (timer->Elapsed() < end) {
+    }
+  }
+
   DCHECK_IMPLIES(result, function_literal_id == result->function_literal_id());
   return result;
 }
@@ -1192,7 +1258,7 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
 
   // We preparse the class members that are not fields with initializers
   // in order to collect the function literal ids.
-  ParsingModeScope mode(this, PARSE_LAZILY);
+  ScopedModification<Mode> mode_scope(&mode_, PARSE_LAZILY);
 
   ExpressionParsingScope no_expression_scope(impl());
 
@@ -2375,7 +2441,10 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     //    make statement: let/const x = temp_x.
     for (int i = 0; i < for_info.bound_names.length(); i++) {
       VariableProxy* proxy = DeclareBoundVariable(
-          for_info.bound_names[i], for_info.parsing_result.descriptor.mode,
+          for_info.bound_names[i],
+          for_info.parsing_result.descriptor.mode == VariableMode::kAwaitUsing
+              ? VariableMode::kConst
+              : for_info.parsing_result.descriptor.mode,
           kNoSourcePosition);
       inner_vars.Add(proxy->var());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
@@ -2737,7 +2806,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   // Determine whether we can lazy parse the inner function. Lazy compilation
   // has to be enabled, which is either forced by overall parse flags or via a
-  // ParsingModeScope.
+  // ScopedModification.
   const bool can_preparse = parse_lazily();
 
   // Determine whether we can post any parallel compile tasks. Preparsing must
@@ -2925,9 +2994,24 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
   // AST. This gathers the data needed to build a lazy function.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
+  std::optional<base::ElapsedTimer> timer;
+  if (v8_flags.enable_preparser_ablation &&
+      base::TimeTicks::IsHighResolution()) {
+    timer.emplace();
+    timer->Start();
+  }
+
   PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
       function_name, kind, function_syntax_kind, function_scope, use_counts_,
       produced_preparse_data);
+
+  if (timer && timer->Elapsed().InNanoseconds() > 0) {
+    auto end = timer->Elapsed();
+    end += std::min(base::TimeDelta::FromSeconds(1),
+                    end * v8_flags.preparser_ablation_amount);
+    while (timer->Elapsed() < end) {
+    }
+  }
 
   if (result == PreParser::kPreParseStackOverflow) {
     // Propagate stack overflow.
@@ -3025,7 +3109,8 @@ void Parser::ParseFunction(
     int* suspend_count,
     ZonePtrList<const AstRawString>* arguments_for_wrapped_function) {
   FunctionParsingScope function_parsing_scope(this);
-  ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
+  ScopedModification<Mode> mode_scope(
+      &mode_, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
 
   FunctionState function_state(&function_state_, &scope_, function_scope);
 
@@ -3390,8 +3475,8 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope) {
 // Parser support
 
 template <typename IsolateT>
-void Parser::HandleSourceURLComments(IsolateT* isolate,
-                                     DirectHandle<Script> script) {
+void Parser::HandleDebugMagicComments(IsolateT* isolate,
+                                      DirectHandle<Script> script) {
   DirectHandle<String> source_url = scanner_.SourceUrl(isolate);
   if (!source_url.is_null()) {
     script->set_source_url(*source_url);
@@ -3403,12 +3488,17 @@ void Parser::HandleSourceURLComments(IsolateT* isolate,
       IsUndefined(script->source_mapping_url(isolate), isolate)) {
     script->set_source_mapping_url(*source_mapping_url);
   }
+
+  DirectHandle<String> debug_id = scanner_.DebugId(isolate);
+  if (!debug_id.is_null()) {
+    script->set_debug_id(*debug_id);
+  }
 }
 
-template void Parser::HandleSourceURLComments(Isolate* isolate,
-                                              DirectHandle<Script> script);
-template void Parser::HandleSourceURLComments(LocalIsolate* isolate,
-                                              DirectHandle<Script> script);
+template void Parser::HandleDebugMagicComments(Isolate* isolate,
+                                               DirectHandle<Script> script);
+template void Parser::HandleDebugMagicComments(LocalIsolate* isolate,
+                                               DirectHandle<Script> script);
 
 void Parser::UpdateStatistics(Isolate* isolate, DirectHandle<Script> script) {
   CHECK_NOT_NULL(isolate);
@@ -3509,7 +3599,7 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
   });
   // We need to unpark by now though, to be able to internalize.
   if (flags().is_toplevel()) {
-    HandleSourceURLComments(isolate, script);
+    HandleDebugMagicComments(isolate, script);
   }
   if (result == nullptr) return;
   PostProcessParseResult(isolate, info, result);

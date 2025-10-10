@@ -99,24 +99,29 @@ class NodeHashMapPolicy;
 // In most cases `T` needs only to provide the `absl_container_hash`. In this
 // case `std::equal_to<void>` will be used instead of `eq` part.
 //
+// PERFORMANCE WARNING: Erasure & sparsity can negatively affect performance:
+//  * Iteration takes O(capacity) time, not O(size).
+//  * erase() slows down begin() and ++iterator.
+//  * Capacity only shrinks on rehash() or clear() -- not on erase().
+//
 // Example:
 //
 //   // Create a node hash map of three strings (that map to strings)
 //   absl::node_hash_map<std::string, std::string> ducks =
 //     {{"a", "huey"}, {"b", "dewey"}, {"c", "louie"}};
 //
-//  // Insert a new element into the node hash map
-//  ducks.insert({"d", "donald"}};
+//   // Insert a new element into the node hash map
+//   ducks.insert({"d", "donald"}};
 //
-//  // Force a rehash of the node hash map
-//  ducks.rehash(0);
+//   // Force a rehash of the node hash map
+//   ducks.rehash(0);
 //
-//  // Find the element with the key "b"
-//  std::string search_key = "b";
-//  auto result = ducks.find(search_key);
-//  if (result != ducks.end()) {
-//    std::cout << "Result: " << result->second << std::endl;
-//  }
+//   // Find the element with the key "b"
+//   std::string search_key = "b";
+//   auto result = ducks.find(search_key);
+//   if (result != ducks.end()) {
+//     std::cout << "Result: " << result->second << std::endl;
+//   }
 template <class Key, class Value, class Hash = DefaultHashContainerHash<Key>,
           class Eq = DefaultHashContainerEq<Key>,
           class Alloc = std::allocator<std::pair<const Key, Value>>>
@@ -148,9 +153,9 @@ class ABSL_ATTRIBUTE_OWNER node_hash_map
   //
   // * Copy assignment operator
   //
-  //  // Hash functor and Comparator are copied as well
-  //  absl::node_hash_map<int, std::string> map4;
-  //  map4 = map3;
+  //   // Hash functor and Comparator are copied as well
+  //   absl::node_hash_map<int, std::string> map4;
+  //   map4 = map3;
   //
   // * Move constructor
   //
@@ -658,10 +663,10 @@ class NodeHashMapPolicy
   static Value& value(value_type* elem) { return elem->second; }
   static const Value& value(const value_type* elem) { return elem->second; }
 
-  template <class Hash>
+  template <class Hash, bool kIsDefault>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return memory_internal::IsLayoutCompatible<Key, Value>::value
-               ? &TypeErasedDerefAndApplyToSlotFn<Hash, Key>
+               ? &TypeErasedDerefAndApplyToSlotFn<Hash, Key, kIsDefault>
                : nullptr;
   }
 };

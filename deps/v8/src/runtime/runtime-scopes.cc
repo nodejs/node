@@ -151,7 +151,7 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
       Cast<SourceTextModule>(context->extension())->regular_exports(), isolate);
 
   int length = declarations->length();
-  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i++, {
+  FOR_WITH_HANDLE_SCOPE(isolate, int i = 0, i, i < length, i++) {
     Tagged<Object> decl = declarations->get(i);
     int index;
     Tagged<Object> value;
@@ -171,7 +171,7 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
     }
 
     Cast<Cell>(exports->get(index - 1))->set_value(value);
-  });
+  }
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -194,7 +194,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
 
   // Traverse the name/value pairs and set the properties.
   int length = declarations->length();
-  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i++, {
+  FOR_WITH_HANDLE_SCOPE(isolate, int i = 0, i, i < length, i++) {
     Handle<Object> decl(declarations->get(i), isolate);
     Handle<String> name;
     Handle<Object> value;
@@ -227,8 +227,8 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     Tagged<Object> result =
         DeclareGlobal(isolate, global, name, value, attr, is_var,
                       RedeclarationType::kSyntaxError);
-    if (IsException(result)) return result;
-  });
+    if (IsExceptionHole(result)) return result;
+  }
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -251,11 +251,10 @@ Maybe<bool> AddToDisposableStack(Isolate* isolate,
                                  DisposeMethodCallType type,
                                  DisposeMethodHint hint) {
   DirectHandle<Object> method;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, method,
       JSDisposableStackBase::CheckValueAndGetDisposeMethod(isolate, value,
-                                                           hint),
-      Nothing<bool>());
+                                                           hint));
 
   // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
   // hint, [[DisposeMethod]]: method }.
@@ -427,7 +426,7 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
 
     if (index != Context::kNotFound) {
       DCHECK(holder.is_identical_to(context));
-      context->set(index, *value);
+      Context::Set(context, index, value, isolate);
       return ReadOnlyRoots(isolate).undefined_value();
     }
 
@@ -669,9 +668,9 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
     DirectHandle<FixedArray> array =
         isolate->factory()->NewFixedArray(argument_count);
     DisallowGarbageCollection no_gc;
-    WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
+    WriteBarrierModeScope mode = array->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < argument_count; i++) {
-      array->set(i, *arguments[i], mode);
+      array->set(i, *arguments[i], *mode);
     }
     result->set_elements(*array);
   }
@@ -696,9 +695,9 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   {
     DisallowGarbageCollection no_gc;
     Tagged<FixedArray> elements = Cast<FixedArray>(result->elements());
-    WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
+    WriteBarrierModeScope mode = elements->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < num_elements; i++) {
-      elements->set(i, *arguments[i + start_index], mode);
+      elements->set(i, *arguments[i + start_index], *mode);
     }
   }
   return *result;
@@ -771,7 +770,6 @@ RUNTIME_FUNCTION(Runtime_PushBlockContext) {
   return *isolate->factory()->NewBlockContext(current, scope_info);
 }
 
-
 RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -807,7 +805,6 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 
-
 namespace {
 
 MaybeDirectHandle<Object> LoadLookupSlot(
@@ -834,21 +831,15 @@ MaybeDirectHandle<Object> LoadLookupSlot(
     // If the "property" we were looking for is a local variable, the
     // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
     Handle<Object> receiver = isolate->factory()->undefined_value();
-    DirectHandle<Object> value =
-        direct_handle(holder_context->get(index), isolate);
     // Check for uninitialized bindings.
-    if (flag == kNeedsInitialization && IsTheHole(*value, isolate)) {
+    if (flag == kNeedsInitialization &&
+        holder_context->IsElementTheHole(index)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name));
     }
-    DCHECK(!IsTheHole(*value, isolate));
     if (receiver_return) *receiver_return = receiver;
-    if (v8_flags.script_context_mutable_heap_number &&
-        holder_context->IsScriptContext()) {
-      return direct_handle(*Context::LoadScriptContextElement(
-                               holder_context, index, value, isolate),
-                           isolate);
-    }
+    DirectHandle<Object> value = Context::Get(holder_context, index, isolate);
+    DCHECK(!IsTheHole(*value, isolate));
     return value;
   }
 
@@ -884,7 +875,6 @@ MaybeDirectHandle<Object> LoadLookupSlot(
 
 }  // namespace
 
-
 RUNTIME_FUNCTION(Runtime_LoadLookupSlot) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -893,14 +883,12 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlot) {
                            LoadLookupSlot(isolate, name, kThrowOnError));
 }
 
-
 RUNTIME_FUNCTION(Runtime_LoadLookupSlotInsideTypeof) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<String> name = args.at<String>(0);
   RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(isolate, name, kDontThrow));
 }
-
 
 RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
   HandleScope scope(isolate);
@@ -966,19 +954,12 @@ MaybeDirectHandle<Object> StoreLookupSlot(
   if (index != Context::kNotFound) {
     auto holder_context = Cast<Context>(holder);
     if (flag == kNeedsInitialization &&
-        IsTheHole(holder_context->get(index), isolate)) {
+        holder_context->IsElementTheHole(index)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name));
     }
     if ((attributes & READ_ONLY) == 0) {
-      if ((v8_flags.script_context_mutable_heap_number ||
-           v8_flags.const_tracking_let) &&
-          holder_context->IsScriptContext()) {
-        Context::StoreScriptContextAndUpdateSlotProperty(holder_context, index,
-                                                         value, isolate);
-      } else {
-        Cast<Context>(holder)->set(index, *value);
-      }
+      Context::Set(holder_context, index, value, isolate);
     } else if (!is_sloppy_function_name || is_strict(language_mode)) {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kConstAssign, name));
@@ -1008,7 +989,6 @@ MaybeDirectHandle<Object> StoreLookupSlot(
 }
 
 }  // namespace
-
 
 RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
   HandleScope scope(isolate);
@@ -1063,16 +1043,10 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   CHECK(found);
   DirectHandle<Context> script_context(
       script_contexts->get(lookup_result.context_index), isolate);
-  // We need to initialize the side data also for variables declared with
-  // VariableMode::kConst. This is because such variables can be accessed
-  // by functions using the LdaContextSlot bytecode, and such accesses are not
-  // regarded as "immutable" when optimizing.
-  if (v8_flags.script_context_mutable_heap_number ||
-      v8_flags.const_tracking_let) {
-    Context::StoreScriptContextAndUpdateSlotProperty(
-        script_context, lookup_result.slot_index, value, isolate);
+  if (lookup_result.mode == VariableMode::kConst) {
+    script_context->SetNoCell(lookup_result.slot_index, *value);
   } else {
-    script_context->set(lookup_result.slot_index, *value);
+    Context::Set(script_context, lookup_result.slot_index, value, isolate);
   }
   return *value;
 }

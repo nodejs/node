@@ -76,6 +76,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "init-module": "{CWD}/home/.npm-init.js",
   "init-type": "commonjs",
   "init-version": "1.0.0",
+  "init-private": false,
   "init.author.email": "",
   "init.author.name": "",
   "init.author.url": "",
@@ -239,6 +240,7 @@ init-author-name = ""
 init-author-url = ""
 init-license = "ISC"
 init-module = "{CWD}/home/.npm-init.js"
+init-private = false
 init-type = "commonjs"
 init-version = "1.0.0"
 init.author.email = ""

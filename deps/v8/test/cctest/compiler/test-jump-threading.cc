@@ -76,7 +76,7 @@ class TestCode : public HandleAndZoneScope {
     CHECK_NULL(current_);
     Start();
     CHECK_NOT_NULL(current_);
-    current_->set_switch_target(true);
+    current_->set_table_switch_target(true);
     return rpo_number_;
   }
   void RedundantMoves() {
@@ -797,7 +797,7 @@ void CheckBranch(TestCode* code, int pos, int t1, int t2) {
 
 void CheckBlockSwitchTarget(TestCode* code, RpoNumber rpo,
                             bool expect_switch_target) {
-  CHECK_EQ(code->sequence_.InstructionBlockAt(rpo)->IsSwitchTarget(),
+  CHECK_EQ(code->sequence_.InstructionBlockAt(rpo)->IsTableSwitchTarget(),
            expect_switch_target);
 }
 

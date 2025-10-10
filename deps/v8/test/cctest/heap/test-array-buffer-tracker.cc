@@ -56,7 +56,7 @@ TEST(ArrayBuffer_OnlyMC) {
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
@@ -85,7 +85,7 @@ TEST(ArrayBuffer_OnlyScavenge) {
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
@@ -113,7 +113,7 @@ TEST(ArrayBuffer_ScavengeAndMC) {
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
@@ -146,7 +146,7 @@ TEST(ArrayBuffer_Compaction) {
   v8_flags.concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
 
@@ -200,7 +200,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
 
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   {
     v8::HandleScope handle_scope(isolate);
@@ -229,86 +229,6 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
   }
 }
 
-TEST(ArrayBuffer_NonLivePromotion) {
-  if (!v8_flags.incremental_marking || v8_flags.separate_gc_phases) return;
-  v8_flags.concurrent_array_buffer_sweeping = false;
-  ManualGCScope manual_gc_scope;
-  // The test verifies that the marking state is preserved when promoting
-  // a buffer to old space.
-  CcTest::InitializeVM();
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
-
-  {
-    v8::HandleScope handle_scope(isolate);
-    DirectHandle<FixedArray> root =
-        heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
-    {
-      v8::HandleScope new_handle_scope(isolate);
-      Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
-      DirectHandle<JSArrayBuffer> buf = v8::Utils::OpenDirectHandle(*ab);
-      root->set(0, *buf);  // Buffer that should not be promoted as live.
-    }
-    heap::SimulateIncrementalMarking(heap, false);
-    CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
-    heap::InvokeAtomicMinorGC(heap);
-    CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
-    heap::InvokeAtomicMinorGC(heap);
-    CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
-    ArrayBufferExtension* extension =
-        Cast<JSArrayBuffer>(root->get(0))->extension();
-    root->set(0, ReadOnlyRoots(heap).undefined_value());
-    heap::SimulateIncrementalMarking(heap, true);
-    heap::InvokeAtomicMajorGC(heap);
-    CHECK(!IsTracked(heap, extension));
-  }
-}
-
-TEST(ArrayBuffer_LivePromotion) {
-  if (!v8_flags.incremental_marking || v8_flags.separate_gc_phases) return;
-  v8_flags.concurrent_array_buffer_sweeping = false;
-  ManualGCScope manual_gc_scope;
-  // The test verifies that the marking state is preserved when promoting
-  // a buffer to old space.
-  CcTest::InitializeVM();
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
-
-  Tagged<JSArrayBuffer> raw_ab;
-  {
-    v8::HandleScope handle_scope(isolate);
-    DirectHandle<FixedArray> root =
-        heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
-    {
-      v8::HandleScope new_handle_scope(isolate);
-      Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
-      DirectHandle<JSArrayBuffer> buf = v8::Utils::OpenDirectHandle(*ab);
-      root->set(0, *buf);  // Buffer that should be promoted as live.
-    }
-    // Store array in Global such that it is part of the root set when
-    // starting incremental marking.
-    v8::Global<Value> global_root(CcTest::isolate(),
-                                  Utils::ToLocal(Cast<Object>(root)));
-    heap::SimulateIncrementalMarking(heap, true);
-    CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
-    heap::InvokeMinorGC(heap);
-    CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
-    heap::InvokeMinorGC(heap);
-    CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
-    raw_ab = Cast<JSArrayBuffer>(root->get(0));
-    root->set(0, ReadOnlyRoots(heap).undefined_value());
-    // Prohibit page from being released.
-    MemoryChunk::FromHeapObject(raw_ab)->MarkNeverEvacuate();
-    heap::InvokeMajorGC(heap);
-    CHECK(!heap->array_buffer_sweeper()->sweeping_in_progress());
-    CHECK(IsTracked(heap, raw_ab));
-  }
-}
-
 TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
   if (!i::v8_flags.incremental_marking) return;
   if (v8_flags.minor_ms) return;
@@ -319,7 +239,7 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
   // copy.
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
   heap::SealCurrentObjects(heap);
@@ -332,7 +252,7 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
       DirectHandle<JSArrayBuffer> buf = v8::Utils::OpenDirectHandle(*ab);
       root->set(0, *buf);  // Buffer that should be promoted as live.
-      MemoryChunk::FromHeapObject(*buf)->MarkNeverEvacuate();
+      MutablePageMetadata::FromHeapObject(*buf)->MarkNeverEvacuate();
     }
     DirectHandleVector<FixedArray> handles(isolate);
     // Make the whole page transition from new->old, getting the buffers
@@ -360,7 +280,7 @@ TEST(ArrayBuffer_PagePromotion) {
   // copy.
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
   heap::SealCurrentObjects(heap);
@@ -423,7 +343,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreases) {
   if (v8_flags.single_generation) return;
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
 
@@ -446,7 +366,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
   v8_flags.concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
 
@@ -472,7 +392,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
   v8_flags.concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
   ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;

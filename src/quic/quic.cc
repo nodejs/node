@@ -1,4 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 
 #include <base_object-inl.h>
 #include <env-inl.h>
@@ -19,8 +21,6 @@ using v8::ObjectTemplate;
 using v8::Value;
 
 namespace quic {
-
-int DebugIndentScope::indent_ = 0;
 
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
@@ -55,4 +55,5 @@ NODE_BINDING_CONTEXT_AWARE_INTERNAL(quic,
 NODE_BINDING_PER_ISOLATE_INIT(quic, node::quic::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(quic, node::quic::RegisterExternalReferences)
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

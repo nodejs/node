@@ -51,7 +51,6 @@ FEATURE_FLAGS = {
     'Temporal': '--harmony-temporal',
     'array-find-from-last': '--harmony-array-find-last',
     'ShadowRealm': '--harmony-shadow-realm',
-    'regexp-v-flag': '--harmony-regexp-unicode-sets',
     'String.prototype.isWellFormed': '--harmony-string-is-well-formed',
     'String.prototype.toWellFormed': '--harmony-string-is-well-formed',
     'json-parse-with-source': '--harmony-json-parse-with-source',
@@ -223,21 +222,21 @@ class TestCase(testcase.D8TestCase):
     harness_args = []
     if "raw" not in self.test_record.get("flags", []):
       harness_args = list(self.suite.harness)
-    return (harness_args +
-            ([self.suite.root /
-              "harness-agent.js"] if self.__needs_harness_agent() else []) +
-            ([self.suite.root / "harness-ishtmldda.js"]
-             if "IsHTMLDDA" in self.test_record.get("features", []) else []) +
-            ([self.suite.root /
-              "harness-abstractmodulesource.js"] if "source-phase-imports"
-             in self.test_record.get("features", []) else []) +
-            ([self.suite.root / "harness-adapt-donotevaluate.js"]
-             if self.fail_phase_only and not self._fail_phase_reverse else []) +
-            ([self.suite.root / "harness-done.js"]
-             if "async" in self.test_record.get("flags", []) else []) +
-            self._get_includes() +
-            (["--module"] if "module" in self.test_record else []) +
-            [self._get_source_path()])
+    return (
+        harness_args +
+        ([self.suite.root /
+          "harness-agent.js"] if self.__needs_harness_agent() else []) +
+        ([self.suite.root / "harness-ishtmldda.js"]
+         if "IsHTMLDDA" in self.test_record.get("features", []) else []) +
+        ([self.suite.root / "harness-abstractmodulesource.js"] if
+         "source-phase-imports" in self.test_record.get("features", []) else [])
+        + ([self.suite.root / "harness-adapt-donotevaluate.js"]
+           if self.fail_phase_only and not self._fail_phase_reverse else []) +
+        ([self.suite.root / "harness-done.js"] if "async"
+         in self.test_record.get("flags", []) else []) + self._get_includes() +
+        (["--module"] if "module" in self.test_record else []) +
+        (["--no-can-block"] if "CanBlockIsFalse" in self.test_record else []) +
+        [self._get_source_path()])
 
   def _get_suite_flags(self):
     feature_flags = []

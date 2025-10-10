@@ -243,7 +243,7 @@ function run_test(algorithmNames) {
         allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
             getValidKeyData(algorithm).forEach(function(test) {
                 if (test.format === "jwk") {
-                    var data = {crv: test.data.crv, kty: test.data.kty, d: test.data.d, x: test.data.x, d: test.data.d};
+                    var data = {crv: test.data.crv, kty: test.data.kty, d: test.data.d, x: test.data.x, y: test.data.y};
                     data.use = "invalid";
                     var usages =  validUsages(vector, 'jwk', test.data);
                     if (usages.length !== 0)

@@ -293,7 +293,6 @@ KeccakF1600:
 .long	0
 
 
-
 .align	5
 dword_le_load:
 	lbz	0,1(3)
@@ -315,7 +314,6 @@ dword_le_load:
 .long	0
 .byte	0,12,0x14,0,0,0,1,0
 .long	0
-
 
 .globl	.SHA3_absorb
 
@@ -557,6 +555,8 @@ Labsorbed:
 	subi	29,4,1
 	mr	30,5
 	mr	31,6
+	cmplwi	7,0
+	bne	Lnext_block
 	b	Loop_squeeze
 
 .align	4
@@ -587,6 +587,7 @@ Loop_squeeze:
 	subic.	6,6,8
 	bgt	Loop_squeeze
 
+Lnext_block:
 	mr	3,28
 	bl	KeccakF1600
 	subi	3,28,8

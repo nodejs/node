@@ -234,10 +234,6 @@ class SmallMap {
       }
     }
 
-    V8_INLINE bool operator!=(const iterator& other) const {
-      return !(*this == other);
-    }
-
    private:
     friend class SmallMap;
     friend class const_iterator;
@@ -308,10 +304,6 @@ class SmallMap {
         return array_iter_ == other.array_iter_;
       }
       return other.array_iter_ == nullptr && map_iter_ == other.map_iter_;
-    }
-
-    V8_INLINE bool operator!=(const const_iterator& other) const {
-      return !(*this == other);
     }
 
    private:

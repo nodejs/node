@@ -40,7 +40,7 @@ const resourceWrap = createAsyncResource(
 
 assert.strictEqual(hook_result.destroy_called, false);
 const recv = {};
-makeCallback(resourceWrap, recv, function callback() {
+makeCallback(resourceWrap, recv, common.mustCall(function callback() {
   assert.strictEqual(hook_result.destroy_called, false);
   assert.strictEqual(
     hook_result.resource,
@@ -48,7 +48,7 @@ makeCallback(resourceWrap, recv, function callback() {
   );
   assert.strictEqual(this, recv);
 
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
     assert.strictEqual(hook_result.destroy_called, false);
     assert.notStrictEqual(
       hook_result.resource,
@@ -56,8 +56,8 @@ makeCallback(resourceWrap, recv, function callback() {
     );
 
     destroyAsyncResource(resourceWrap);
-    setImmediate(() => {
+    setImmediate(common.mustCall(() => {
       assert.strictEqual(hook_result.destroy_called, true);
-    });
-  });
-});
+    }));
+  }));
+}));

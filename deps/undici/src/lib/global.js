@@ -26,7 +26,25 @@ function getGlobalDispatcher () {
   return globalThis[globalDispatcher]
 }
 
+// These are the globals that can be installed by undici.install().
+// Not exported by index.js to avoid use outside of this module.
+const installedExports = /** @type {const} */ (
+  [
+    'fetch',
+    'Headers',
+    'Response',
+    'Request',
+    'FormData',
+    'WebSocket',
+    'CloseEvent',
+    'ErrorEvent',
+    'MessageEvent',
+    'EventSource'
+  ]
+)
+
 module.exports = {
   setGlobalDispatcher,
-  getGlobalDispatcher
+  getGlobalDispatcher,
+  installedExports
 }

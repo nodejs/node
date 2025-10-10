@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --turbo-fast-api-calls --expose-fast-api
-// Flags: --fast-api-allow-float-in-sim
+// Flags: --fast-api-allow-float-in-sim --experimental-wasm-jspi
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -213,3 +213,10 @@ fast_c_api.reset_counts();
 assertThrows(test_throw_no_fallback, Error, 'Exception from fast callback');
 assertEquals(1, fast_c_api.fast_call_count());
 assertEquals(0, fast_c_api.slow_call_count());
+
+// Test that the fast API call runs on the central stack when called from a JSPI
+// stack. This is verified by a CHECK in Isolate::Throw.
+assertThrowsAsync(
+    WebAssembly.promising(test_throw_no_fallback)(),
+    Error,
+    'Exception from fast callback');

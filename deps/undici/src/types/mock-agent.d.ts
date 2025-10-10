@@ -59,6 +59,9 @@ declare namespace MockAgent {
     /** Ignore trailing slashes in the path */
     ignoreTrailingSlash?: boolean;
 
+    /** Accept URLs with search parameters using non standard syntaxes. default false */
+    acceptNonStandardSearchParameters?: boolean;
+
     /** Enable call history. you can either call MockAgent.enableCallHistory(). default false */
     enableCallHistory?: boolean
   }

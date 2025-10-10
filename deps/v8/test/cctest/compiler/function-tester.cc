@@ -37,7 +37,7 @@ FunctionTester::FunctionTester(DirectHandle<Code> code, int param_count)
   CHECK(!code.is_null());
   CHECK(IsCode(*code));
   Compile(function);
-  function->UpdateCode(*code);
+  function->UpdateCode(isolate, *code);
 }
 
 FunctionTester::FunctionTester(DirectHandle<Code> code)

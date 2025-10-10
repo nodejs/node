@@ -1,3 +1,5 @@
+'use strict'
+
 const numeric = /^[0-9]+$/
 const compareIdentifiers = (a, b) => {
   const anum = numeric.test(a)

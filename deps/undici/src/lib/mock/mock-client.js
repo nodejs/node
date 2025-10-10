@@ -54,6 +54,10 @@ class MockClient extends Client {
     )
   }
 
+  cleanMocks () {
+    this[kDispatches] = []
+  }
+
   async [kClose] () {
     await promisify(this[kOriginalClose])()
     this[kConnected] = 0

@@ -10,6 +10,7 @@
 #include <stddef.h>
 
 #include <openssl/core.h>
+#include <openssl/trace.h>
 #include "internal/cryptlib.h"
 #include "internal/core.h"
 #include "internal/property.h"
@@ -110,6 +111,9 @@ static void ossl_method_construct_this(OSSL_PROVIDER *provider,
         == NULL)
         return;
 
+    OSSL_TRACE2(QUERY,
+                "ossl_method_construct_this: putting an algo to the store %p with no_store %d\n",
+                (void *)data->store, no_store);
     /*
      * Note regarding putting the method in stores:
      *
@@ -120,8 +124,7 @@ static void ossl_method_construct_this(OSSL_PROVIDER *provider,
      * It is *expected* that the put function increments the refcnt
      * of the passed method.
      */
-    data->mcm->put(no_store ? data->store : NULL,
-                   method, provider, algo->algorithm_names,
+    data->mcm->put(no_store ? data->store : NULL, method, provider, algo->algorithm_names,
                    algo->property_definition, data->mcm_data);
 
     /* refcnt-- because we're dropping the reference */

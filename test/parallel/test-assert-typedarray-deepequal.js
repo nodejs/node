@@ -1,13 +1,8 @@
-// Flags: --js-float16array
-// TODO(LiviaMedeiros): once `Float16Array` is unflagged in v8, remove the line above
 'use strict';
 
 require('../common');
 const assert = require('assert');
 const { test, suite } = require('node:test');
-
-// TODO(LiviaMedeiros): once linter recognizes `Float16Array`, remove next line
-const { Float16Array } = globalThis;
 
 function makeBlock(f) {
   const args = Array.prototype.slice.call(arguments, 1);

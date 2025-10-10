@@ -6,5 +6,5 @@ prefix wasm-allocation
 
 [true] # This section applies to all platforms
 
-[$system!=linux || $asan==on]
+[$system!=linux || $asan==on || $pointer_compression==on]
 test-wasm-allocation: SKIP

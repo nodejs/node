@@ -110,6 +110,79 @@ void AccessorInfo::clear_padding() {
          FIELD_SIZE(kOptionalPaddingOffset));
 }
 
+// For the purpose of checking whether the respective callback field is
+// initialized we can use any of the named/indexed versions.
+#define INTERCEPTOR_INFO_HAS_GETTER(name) \
+  bool InterceptorInfo::has_##name() const { return has_named_##name(); }
+
+INTERCEPTOR_INFO_HAS_GETTER(getter)
+INTERCEPTOR_INFO_HAS_GETTER(setter)
+INTERCEPTOR_INFO_HAS_GETTER(query)
+INTERCEPTOR_INFO_HAS_GETTER(descriptor)
+INTERCEPTOR_INFO_HAS_GETTER(deleter)
+INTERCEPTOR_INFO_HAS_GETTER(definer)
+INTERCEPTOR_INFO_HAS_GETTER(enumerator)
+
+#undef INTERCEPTOR_INFO_HAS_GETTER
+
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, named_getter, Address, kGetterOffset,
+    kApiNamedPropertyGetterCallbackTag, is_named(),
+    is_named() && (value != kNullAddress))
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, named_setter, Address, kSetterOffset,
+    kApiNamedPropertySetterCallbackTag, is_named(),
+    is_named() && (value != kNullAddress))
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, named_query, Address, kQueryOffset,
+    kApiNamedPropertyQueryCallbackTag, is_named(),
+    is_named() && (value != kNullAddress))
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, named_descriptor, Address, kDescriptorOffset,
+    kApiNamedPropertyDescriptorCallbackTag, is_named(),
+    is_named() && (value != kNullAddress))
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, named_deleter, Address, kDeleterOffset,
+    kApiNamedPropertyDeleterCallbackTag, is_named(),
+    is_named() && (value != kNullAddress))
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, named_enumerator, Address, kEnumeratorOffset,
+    kApiNamedPropertyEnumeratorCallbackTag, is_named(),
+    is_named() && (value != kNullAddress))
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, named_definer, Address, kDefinerOffset,
+    kApiNamedPropertyDefinerCallbackTag, is_named(),
+    is_named() && (value != kNullAddress))
+
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, indexed_getter, Address, kGetterOffset,
+    kApiIndexedPropertyGetterCallbackTag, !is_named(),
+    !is_named() && (value != kNullAddress))
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, indexed_setter, Address, kSetterOffset,
+    kApiIndexedPropertySetterCallbackTag, !is_named(),
+    !is_named() && (value != kNullAddress))
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, indexed_query, Address, kQueryOffset,
+    kApiIndexedPropertyQueryCallbackTag, !is_named(),
+    !is_named() && (value != kNullAddress))
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, indexed_descriptor, Address, kDescriptorOffset,
+    kApiIndexedPropertyDescriptorCallbackTag, !is_named(),
+    !is_named() && (value != kNullAddress))
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, indexed_deleter, Address, kDeleterOffset,
+    kApiIndexedPropertyDeleterCallbackTag, !is_named(),
+    !is_named() && (value != kNullAddress))
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, indexed_enumerator, Address, kEnumeratorOffset,
+    kApiIndexedPropertyEnumeratorCallbackTag, !is_named(),
+    !is_named() && (value != kNullAddress))
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, indexed_definer, Address, kDefinerOffset,
+    kApiIndexedPropertyDefinerCallbackTag, !is_named(),
+    !is_named() && (value != kNullAddress))
+
 BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
                CanInterceptSymbolsBit::kShift)
 BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, NonMaskingBit::kShift)
@@ -119,6 +192,12 @@ BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect,
 // TODO(ishell): remove once all the Api changes are done.
 BOOL_ACCESSORS(InterceptorInfo, flags, has_new_callbacks_signature,
                HasNewCallbacksSignatureBit::kShift)
+
+void InterceptorInfo::clear_padding() {
+  if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
+  memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+         FIELD_SIZE(kOptionalPaddingOffset));
+}
 
 }  // namespace internal
 }  // namespace v8

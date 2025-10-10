@@ -51,7 +51,7 @@ using ::absl::hash_test_internal::TypeErasedContainer;
 
 // Dummy type with unordered equality and hashing semantics.  This preserves
 // input order internally, and is used below to ensure we get test coverage
-// for equal sequences with different iteraton orders.
+// for equal sequences with different iteration orders.
 template <typename T>
 class UnorderedSequence {
  public:

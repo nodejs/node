@@ -22,6 +22,7 @@ const primValues = {
   'empty_object': {},
   'regexp': /abc/i,
   'date': new Date(),
+  'invalidDate': new Date('foo'),
 };
 
 const primValues2 = {
@@ -34,6 +35,7 @@ const primValues2 = {
   'empty_object': {},
   'regexp': /abc/i,
   'date': new Date(primValues.date),
+  'invalidDate': new Date('foo'),
 };
 
 const primValuesUnequal = {
@@ -49,6 +51,7 @@ const primValuesUnequal = {
   'empty_object': [],
   'regexp': /abc/g,
   'date': new Date(primValues.date.getTime() + 1),
+  'invalidDate': new Date(),
 };
 
 const bench = common.createBenchmark(main, {

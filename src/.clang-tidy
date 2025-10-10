@@ -22,7 +22,6 @@ Checks:          '-*,
                  readability-delete-null-pointer, '
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
-AnalyzeTemporaryDtors: false
 FormatStyle:     none
 User:            nodejs/cpp
 CheckOptions:

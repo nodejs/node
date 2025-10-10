@@ -57,6 +57,7 @@ ABSL_LLVM_FLAGS = [
     "-Winvalid-constexpr",
     "-Wliteral-conversion",
     "-Wmissing-declarations",
+    "-Wnullability-completeness",
     "-Woverlength-strings",
     "-Wpointer-arith",
     "-Wself-assign",
@@ -66,6 +67,7 @@ ABSL_LLVM_FLAGS = [
     "-Wstring-conversion",
     "-Wtautological-overlap-compare",
     "-Wtautological-unsigned-zero-compare",
+    "-Wthread-safety",
     "-Wundef",
     "-Wuninitialized",
     "-Wunreachable-code",
@@ -82,6 +84,7 @@ ABSL_LLVM_FLAGS = [
     # Disable warnings on unknown warning flags (when warning flags are
     # unknown on older compiler versions)
     "-Wno-unknown-warning-option",
+    "-Wno-unused-command-line-argument",
     # Don't define min and max macros (Build on Windows using clang)
     "-DNOMINMAX",
 ]
@@ -91,6 +94,7 @@ ABSL_LLVM_TEST_ADDITIONAL_FLAGS = [
     "-Wno-implicit-int-conversion",
     "-Wno-missing-prototypes",
     "-Wno-missing-variable-declarations",
+    "-Wno-nullability-completeness",
     "-Wno-shadow",
     "-Wno-shorten-64-to-32",
     "-Wno-sign-compare",

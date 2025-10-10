@@ -6,6 +6,7 @@ const {
   DEEP_HEADER_SET_COOKIE,
   REWRITE_REQUEST,
   REWRITE_RESPONSE,
+  DEEP_HEADER_COOKIE,
 } = require('./matchers')
 
 const {
@@ -24,6 +25,7 @@ const _redact = redactMatchers(
   JSON_WEB_TOKEN,
   DEEP_HEADER_AUTHORIZATION,
   DEEP_HEADER_SET_COOKIE,
+  DEEP_HEADER_COOKIE,
   REWRITE_REQUEST,
   REWRITE_RESPONSE,
   redactUrlMatcher(

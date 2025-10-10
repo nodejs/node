@@ -215,6 +215,7 @@ describe('.env supports edge cases', () => {
     ].join('\n'));
 
     assert.deepStrictEqual(result, {
+      __proto__: null,
       baz: 'whatever',
       VALID_AFTER_INVALID: 'test',
       ANOTHER_VALID: 'value',
@@ -236,6 +237,7 @@ describe('.env supports edge cases', () => {
     ].join('\n'));
 
     assert.deepStrictEqual(result, {
+      __proto__: null,
       KEY_WITH_SPACES_BEFORE: 'value_with_spaces_before_and_after',
       KEY_WITH_TABS_BEFORE: 'value_with_tabs_before_and_after',
       KEY_WITH_SPACES_AND_TABS: 'value_with_spaces_and_tabs',
@@ -255,6 +257,7 @@ describe('.env supports edge cases', () => {
     ].join('\n'));
 
     assert.deepStrictEqual(result, {
+      __proto__: null,
       KEY_WITH_COMMENT_IN_VALUE: 'value # this is a comment',
     });
   });

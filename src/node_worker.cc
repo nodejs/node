@@ -12,6 +12,7 @@
 #include "permission/permission.h"
 #include "util-inl.h"
 #include "v8-cppgc.h"
+#include "v8-profiler.h"
 
 #include <memory>
 #include <string>
@@ -19,19 +20,28 @@
 
 using node::kAllowedInEnvvar;
 using node::kDisallowedInEnvvar;
+using v8::AllocationProfile;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
+using v8::CpuProfile;
+using v8::CpuProfilingResult;
+using v8::CpuProfilingStatus;
+using v8::DictionaryTemplate;
 using v8::Float64Array;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::HeapProfiler;
+using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
 using v8::Maybe;
+using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Null;
 using v8::Number;
 using v8::Object;
@@ -88,12 +98,21 @@ Worker::Worker(Environment* env,
                 Number::New(env->isolate(), static_cast<double>(thread_id_.id)))
       .Check();
 
+  object()
+      ->Set(env->context(),
+            env->thread_name_string(),
+            String::NewFromUtf8(env->isolate(),
+                                name_.data(),
+                                NewStringType::kNormal,
+                                name_.size())
+                .ToLocalChecked())
+      .Check();
   // Without this check, to use the permission model with
   // workers (--allow-worker) one would need to pass --allow-inspector as well
   if (env->permission()->is_granted(
           env, node::permission::PermissionScope::kInspector)) {
     inspector_parent_handle_ =
-        GetInspectorParentHandle(env, thread_id_, url.c_str(), name.c_str());
+        GetInspectorParentHandle(env, thread_id_, url, name);
   }
 
   argv_ = std::vector<std::string>{env->argv()[0]};
@@ -364,7 +383,8 @@ void Worker::Run() {
             std::move(exec_argv_),
             static_cast<EnvironmentFlags::Flags>(environment_flags_),
             thread_id_,
-            std::move(inspector_parent_handle_)));
+            std::move(inspector_parent_handle_),
+            name_));
         if (is_stopped()) return;
         CHECK_NOT_NULL(env_);
         env_->set_env_vars(std::move(env_vars_));
@@ -483,7 +503,6 @@ Worker::~Worker() {
   CHECK(stopped_);
   CHECK_NULL(env_);
   CHECK(!tid_.has_value());
-
   Debug(this, "Worker %llu destroyed", thread_id_.id);
 }
 
@@ -810,6 +829,373 @@ void Worker::Unref(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+class WorkerCpuUsageTaker : public AsyncWrap {
+ public:
+  WorkerCpuUsageTaker(Environment* env, Local<Object> obj)
+      : AsyncWrap(env, obj, AsyncWrap::PROVIDER_WORKERCPUUSAGE) {}
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(WorkerCpuUsageTaker)
+  SET_SELF_SIZE(WorkerCpuUsageTaker)
+};
+
+void Worker::CpuUsage(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+
+  Environment* env = w->env();
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_cpu_usage_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+
+  BaseObjectPtr<WorkerCpuUsageTaker> taker =
+      MakeDetachedBaseObject<WorkerCpuUsageTaker>(env, wrap);
+
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
+    auto cpu_usage_stats = std::make_unique<uv_rusage_t>();
+    int err = uv_getrusage_thread(cpu_usage_stats.get());
+
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker),
+         cpu_usage_stats = std::move(cpu_usage_stats),
+         err = err](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
+
+          Local<Value> argv[] = {
+              Null(isolate),
+              Undefined(isolate),
+          };
+
+          if (err) {
+            argv[0] = UVException(
+                isolate, err, "uv_getrusage_thread", nullptr, nullptr, nullptr);
+          } else {
+            auto tmpl = env->cpu_usage_template();
+            if (tmpl.IsEmpty()) {
+              static constexpr std::string_view names[] = {
+                  "user",
+                  "system",
+              };
+              tmpl = DictionaryTemplate::New(isolate, names);
+              env->set_cpu_usage_template(tmpl);
+            }
+
+            MaybeLocal<Value> values[] = {
+                Number::New(isolate,
+                            1e6 * cpu_usage_stats->ru_utime.tv_sec +
+                                cpu_usage_stats->ru_utime.tv_usec),
+                Number::New(isolate,
+                            1e6 * cpu_usage_stats->ru_stime.tv_sec +
+                                cpu_usage_stats->ru_stime.tv_usec),
+            };
+            if (!NewDictionaryInstanceNullProto(env->context(), tmpl, values)
+                     .ToLocal(&argv[1])) {
+              return;
+            }
+          }
+
+          taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
+
+class WorkerCpuProfileTaker final : public AsyncWrap {
+ public:
+  WorkerCpuProfileTaker(Environment* env, Local<Object> obj)
+      : AsyncWrap(env, obj, AsyncWrap::PROVIDER_WORKERCPUPROFILE) {}
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(WorkerCpuProfileTaker)
+  SET_SELF_SIZE(WorkerCpuProfileTaker)
+};
+
+void Worker::StartCpuProfile(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  Environment* env = w->env();
+
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_cpu_profile_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+
+  BaseObjectPtr<WorkerCpuProfileTaker> taker =
+      MakeDetachedBaseObject<WorkerCpuProfileTaker>(env, wrap);
+
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
+    CpuProfilingResult result = worker_env->StartCpuProfile();
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker), result = result](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
+          Local<Value> argv[] = {
+              Null(isolate),       // error
+              Undefined(isolate),  // profile id
+          };
+          if (result.status == CpuProfilingStatus::kErrorTooManyProfilers) {
+            argv[0] = ERR_CPU_PROFILE_TOO_MANY(
+                isolate, "There are too many CPU profiles");
+          } else if (result.status == CpuProfilingStatus::kStarted) {
+            argv[1] = Number::New(isolate, result.id);
+          }
+          taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
+
+void Worker::StopCpuProfile(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+
+  Environment* env = w->env();
+  CHECK(args[0]->IsUint32());
+  uint32_t profile_id = args[0]->Uint32Value(env->context()).FromJust();
+
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_cpu_profile_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+
+  BaseObjectPtr<WorkerCpuProfileTaker> taker =
+      MakeDetachedBaseObject<WorkerCpuProfileTaker>(env, wrap);
+
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        profile_id = profile_id,
+                                        env](Environment* worker_env) mutable {
+    bool found = false;
+    auto json_out_stream = std::make_unique<node::JSONOutputStream>();
+    CpuProfile* profile = worker_env->StopCpuProfile(profile_id);
+    if (profile) {
+      profile->Serialize(json_out_stream.get(),
+                         CpuProfile::SerializationFormat::kJSON);
+      profile->Delete();
+      found = true;
+    }
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker),
+         json_out_stream = std::move(json_out_stream),
+         found](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
+          Local<Value> argv[] = {
+              Null(isolate),       // error
+              Undefined(isolate),  // profile
+          };
+          if (found) {
+            Local<Value> result;
+            if (!ToV8Value(env->context(),
+                           json_out_stream->out_stream().str(),
+                           isolate)
+                     .ToLocal(&result)) {
+              return;
+            }
+            argv[1] = result;
+          } else {
+            argv[0] =
+                ERR_CPU_PROFILE_NOT_STARTED(isolate, "CPU profile not started");
+          }
+          taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
+
+class WorkerHeapProfileTaker final : public AsyncWrap {
+ public:
+  WorkerHeapProfileTaker(Environment* env, Local<Object> obj)
+      : AsyncWrap(env, obj, AsyncWrap::PROVIDER_WORKERHEAPPROFILE) {}
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(WorkerHeapProfileTaker)
+  SET_SELF_SIZE(WorkerHeapProfileTaker)
+};
+
+void Worker::StartHeapProfile(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  Environment* env = w->env();
+
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_heap_profile_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+
+  BaseObjectPtr<WorkerHeapProfileTaker> taker =
+      MakeDetachedBaseObject<WorkerHeapProfileTaker>(env, wrap);
+
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
+    v8::HeapProfiler* profiler = worker_env->isolate()->GetHeapProfiler();
+    bool success = profiler->StartSamplingHeapProfiler();
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker),
+         success = success](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
+          Local<Value> argv[] = {
+              Null(isolate),  // error
+          };
+          if (!success) {
+            argv[0] = ERR_HEAP_PROFILE_HAVE_BEEN_STARTED(
+                isolate, "heap profiler have been started");
+          }
+          taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
+
+static void buildHeapProfileNode(Isolate* isolate,
+                                 const AllocationProfile::Node* node,
+                                 JSONWriter* writer) {
+  size_t selfSize = 0;
+  for (const auto& allocation : node->allocations)
+    selfSize += allocation.size * allocation.count;
+
+  writer->json_keyvalue("selfSize", selfSize);
+  writer->json_keyvalue("id", node->node_id);
+  writer->json_objectstart("callFrame");
+  writer->json_keyvalue("scriptId", node->script_id);
+  writer->json_keyvalue("lineNumber", node->line_number - 1);
+  writer->json_keyvalue("columnNumber", node->column_number - 1);
+  node::Utf8Value name(isolate, node->name);
+  node::Utf8Value script_name(isolate, node->script_name);
+  writer->json_keyvalue("functionName", *name);
+  writer->json_keyvalue("url", *script_name);
+  writer->json_objectend();
+
+  writer->json_arraystart("children");
+  for (const auto* child : node->children) {
+    writer->json_start();
+    buildHeapProfileNode(isolate, child, writer);
+    writer->json_end();
+  }
+  writer->json_arrayend();
+}
+
+static bool serializeProfile(Isolate* isolate, std::ostringstream& out_stream) {
+  HandleScope scope(isolate);
+  HeapProfiler* profiler = isolate->GetHeapProfiler();
+  std::unique_ptr<AllocationProfile> profile(profiler->GetAllocationProfile());
+  if (!profile) {
+    return false;
+  }
+  JSONWriter writer(out_stream, false);
+  writer.json_start();
+
+  writer.json_arraystart("samples");
+  for (const auto& sample : profile->GetSamples()) {
+    writer.json_start();
+    writer.json_keyvalue("size", sample.size * sample.count);
+    writer.json_keyvalue("nodeId", sample.node_id);
+    writer.json_keyvalue("ordinal", static_cast<double>(sample.sample_id));
+    writer.json_end();
+  }
+  writer.json_arrayend();
+
+  writer.json_objectstart("head");
+  buildHeapProfileNode(isolate, profile->GetRootNode(), &writer);
+  writer.json_objectend();
+
+  writer.json_end();
+  profiler->StopSamplingHeapProfiler();
+  return true;
+}
+
+void Worker::StopHeapProfile(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+
+  Environment* env = w->env();
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_heap_profile_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+
+  BaseObjectPtr<WorkerHeapProfileTaker> taker =
+      MakeDetachedBaseObject<WorkerHeapProfileTaker>(env, wrap);
+
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
+    std::ostringstream out_stream;
+    bool success = serializeProfile(worker_env->isolate(), out_stream);
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker),
+         out_stream = std::move(out_stream),
+         success = success](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
+          Local<Value> argv[] = {
+              Null(isolate),       // error
+              Undefined(isolate),  // profile
+          };
+          if (success) {
+            Local<Value> result;
+            if (!ToV8Value(env->context(), out_stream.str(), isolate)
+                     .ToLocal(&result)) {
+              return;
+            }
+            argv[1] = result;
+          } else {
+            argv[0] = ERR_HEAP_PROFILE_NOT_STARTED(isolate,
+                                                   "heap profile not started");
+          }
+          taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
 class WorkerHeapStatisticsTaker : public AsyncWrap {
  public:
   WorkerHeapStatisticsTaker(Environment* env, Local<Object> obj)
@@ -845,7 +1231,7 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
                                         env](Environment* worker_env) mutable {
     // We create a unique pointer to HeapStatistics so that the actual object
     // it's not copied in the lambda, but only the pointer is.
-    auto heap_stats = std::make_unique<v8::HeapStatistics>();
+    auto heap_stats = std::make_unique<HeapStatistics>();
     worker_env->isolate()->GetHeapStatistics(heap_stats.get());
 
     // Here, the worker thread temporarily owns the WorkerHeapStatisticsTaker
@@ -860,24 +1246,30 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
 
           AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker->get());
 
-          Local<v8::Name> heap_stats_names[] = {
-              FIXED_ONE_BYTE_STRING(isolate, "total_heap_size"),
-              FIXED_ONE_BYTE_STRING(isolate, "total_heap_size_executable"),
-              FIXED_ONE_BYTE_STRING(isolate, "total_physical_size"),
-              FIXED_ONE_BYTE_STRING(isolate, "total_available_size"),
-              FIXED_ONE_BYTE_STRING(isolate, "used_heap_size"),
-              FIXED_ONE_BYTE_STRING(isolate, "heap_size_limit"),
-              FIXED_ONE_BYTE_STRING(isolate, "malloced_memory"),
-              FIXED_ONE_BYTE_STRING(isolate, "peak_malloced_memory"),
-              FIXED_ONE_BYTE_STRING(isolate, "does_zap_garbage"),
-              FIXED_ONE_BYTE_STRING(isolate, "number_of_native_contexts"),
-              FIXED_ONE_BYTE_STRING(isolate, "number_of_detached_contexts"),
-              FIXED_ONE_BYTE_STRING(isolate, "total_global_handles_size"),
-              FIXED_ONE_BYTE_STRING(isolate, "used_global_handles_size"),
-              FIXED_ONE_BYTE_STRING(isolate, "external_memory")};
+          auto tmpl = env->heap_statistics_template();
+          if (tmpl.IsEmpty()) {
+            std::string_view heap_stats_names[] = {
+                "total_heap_size",
+                "total_heap_size_executable",
+                "total_physical_size",
+                "total_available_size",
+                "used_heap_size",
+                "heap_size_limit",
+                "malloced_memory",
+                "peak_malloced_memory",
+                "does_zap_garbage",
+                "number_of_native_contexts",
+                "number_of_detached_contexts",
+                "total_global_handles_size",
+                "used_global_handles_size",
+                "external_memory",
+            };
+            tmpl = DictionaryTemplate::New(isolate, heap_stats_names);
+            env->set_heap_statistics_template(tmpl);
+          }
 
           // Define an array of property values
-          Local<Value> heap_stats_values[] = {
+          MaybeLocal<Value> heap_stats_values[] = {
               Number::New(isolate, heap_stats->total_heap_size()),
               Number::New(isolate, heap_stats->total_heap_size_executable()),
               Number::New(isolate, heap_stats->total_physical_size()),
@@ -893,16 +1285,13 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
               Number::New(isolate, heap_stats->used_global_handles_size()),
               Number::New(isolate, heap_stats->external_memory())};
 
-          DCHECK_EQ(arraysize(heap_stats_names), arraysize(heap_stats_values));
-
-          // Create the object with the property names and values
-          Local<Object> stats = Object::New(isolate,
-                                            Null(isolate),
-                                            heap_stats_names,
-                                            heap_stats_values,
-                                            arraysize(heap_stats_names));
-
-          Local<Value> args[] = {stats};
+          Local<Object> obj;
+          if (!NewDictionaryInstanceNullProto(
+                   env->context(), tmpl, heap_stats_values)
+                   .ToLocal(&obj)) {
+            return;
+          }
+          Local<Value> args[] = {obj};
           taker->get()->MakeCallback(
               env->ondone_string(), arraysize(args), args);
           // implicitly delete `taker`
@@ -1074,8 +1463,6 @@ void GetEnvMessagePort(const FunctionCallbackInfo<Value>& args) {
   Local<Object> port = env->message_port();
   CHECK_IMPLIES(!env->is_main_thread(), !port.IsEmpty());
   if (!port.IsEmpty()) {
-    CHECK_EQ(port->GetCreationContextChecked()->GetIsolate(),
-             args.GetIsolate());
     args.GetReturnValue().Set(port);
   }
 }
@@ -1101,6 +1488,11 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
     SetProtoMethod(isolate, w, "loopIdleTime", Worker::LoopIdleTime);
     SetProtoMethod(isolate, w, "loopStartTime", Worker::LoopStartTime);
     SetProtoMethod(isolate, w, "getHeapStatistics", Worker::GetHeapStatistics);
+    SetProtoMethod(isolate, w, "cpuUsage", Worker::CpuUsage);
+    SetProtoMethod(isolate, w, "startCpuProfile", Worker::StartCpuProfile);
+    SetProtoMethod(isolate, w, "stopCpuProfile", Worker::StopCpuProfile);
+    SetProtoMethod(isolate, w, "startHeapProfile", Worker::StartHeapProfile);
+    SetProtoMethod(isolate, w, "stopHeapProfile", Worker::StopHeapProfile);
 
     SetConstructorFunction(isolate, target, "Worker", w);
   }
@@ -1133,6 +1525,47 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
         wst->InstanceTemplate());
   }
 
+  {
+    Local<FunctionTemplate> wst = NewFunctionTemplate(isolate, nullptr);
+
+    wst->InstanceTemplate()->SetInternalFieldCount(
+        WorkerCpuUsageTaker::kInternalFieldCount);
+    wst->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+
+    Local<String> wst_string =
+        FIXED_ONE_BYTE_STRING(isolate, "WorkerCpuUsageTaker");
+    wst->SetClassName(wst_string);
+    isolate_data->set_worker_cpu_usage_taker_template(wst->InstanceTemplate());
+  }
+
+  {
+    Local<FunctionTemplate> wst = NewFunctionTemplate(isolate, nullptr);
+
+    wst->InstanceTemplate()->SetInternalFieldCount(
+        WorkerCpuProfileTaker::kInternalFieldCount);
+    wst->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+
+    Local<String> wst_string =
+        FIXED_ONE_BYTE_STRING(isolate, "WorkerCpuProfileTaker");
+    wst->SetClassName(wst_string);
+    isolate_data->set_worker_cpu_profile_taker_template(
+        wst->InstanceTemplate());
+  }
+
+  {
+    Local<FunctionTemplate> wst = NewFunctionTemplate(isolate, nullptr);
+
+    wst->InstanceTemplate()->SetInternalFieldCount(
+        WorkerHeapProfileTaker::kInternalFieldCount);
+    wst->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+
+    Local<String> wst_string =
+        FIXED_ONE_BYTE_STRING(isolate, "WorkerHeapProfileTaker");
+    wst->SetClassName(wst_string);
+    isolate_data->set_worker_heap_profile_taker_template(
+        wst->InstanceTemplate());
+  }
+
   SetMethod(isolate, target, "getEnvMessagePort", GetEnvMessagePort);
 }
 
@@ -1147,6 +1580,16 @@ void CreateWorkerPerContextProperties(Local<Object> target,
       ->Set(env->context(),
             env->thread_id_string(),
             Number::New(isolate, static_cast<double>(env->thread_id())))
+      .Check();
+
+  target
+      ->Set(env->context(),
+            env->thread_name_string(),
+            String::NewFromUtf8(isolate,
+                                env->thread_name().data(),
+                                NewStringType::kNormal,
+                                env->thread_name().size())
+                .ToLocalChecked())
       .Check();
 
   target
@@ -1199,6 +1642,11 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::LoopIdleTime);
   registry->Register(Worker::LoopStartTime);
   registry->Register(Worker::GetHeapStatistics);
+  registry->Register(Worker::CpuUsage);
+  registry->Register(Worker::StartCpuProfile);
+  registry->Register(Worker::StopCpuProfile);
+  registry->Register(Worker::StartHeapProfile);
+  registry->Register(Worker::StopHeapProfile);
 }
 
 }  // anonymous namespace

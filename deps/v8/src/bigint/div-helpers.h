@@ -16,9 +16,9 @@ namespace bigint {
 void LeftShift(RWDigits Z, Digits X, int shift);
 void RightShift(RWDigits Z, Digits X, int shift);
 
-inline void PutAt(RWDigits Z, Digits A, int count) {
-  int len = std::min(A.len(), count);
-  int i = 0;
+inline void PutAt(RWDigits Z, Digits A, uint32_t count) {
+  uint32_t len = std::min(A.len(), count);
+  uint32_t i = 0;
   for (; i < len; i++) Z[i] = A[i];
   for (; i < count; i++) Z[i] = 0;
 }

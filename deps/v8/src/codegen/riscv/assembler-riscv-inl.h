@@ -50,6 +50,9 @@
 namespace v8 {
 namespace internal {
 
+[[nodiscard]] static inline Instr SetHi20Offset(int32_t hi29, Instr instr);
+[[nodiscard]] static inline Instr SetLo12Offset(int32_t lo12, Instr instr);
+
 bool CpuFeatures::SupportsOptimizer() { return IsSupported(FPU); }
 
 void Assembler::CheckBuffer() {
@@ -64,10 +67,10 @@ void Assembler::CheckBuffer() {
 void WritableRelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
-    Assembler::RelocateInternalReference(rmode_, pc_, delta);
+    Assembler::RelocateInternalReference(rmode_, pc_, delta, &jit_allocation_);
   } else {
     DCHECK(IsRelativeCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_));
-    Assembler::RelocateRelativeReference(rmode_, pc_, delta);
+    Assembler::RelocateRelativeReference(rmode_, pc_, delta, &jit_allocation_);
   }
 }
 
@@ -115,8 +118,9 @@ void Assembler::set_target_compressed_address_at(
     Address pc, Address constant_pool, Tagged_t target,
     WritableJitAllocation* jit_allocation, ICacheFlushMode icache_flush_mode) {
   if (COMPRESS_POINTERS_BOOL) {
-    Assembler::set_uint32_constant_at(pc, constant_pool, target, jit_allocation,
-                                      icache_flush_mode);
+    Assembler::set_uint32_constant_at(pc, constant_pool,
+                                      static_cast<uint32_t>(target),
+                                      jit_allocation, icache_flush_mode);
   } else {
     UNREACHABLE();
   }
@@ -181,7 +185,7 @@ Handle<HeapObject> Assembler::embedded_object_handle_at(Address pc) {
   Instr instr2 = Assembler::instr_at(pc + kInstrSize);
   DCHECK(IsAuipc(instr1));
   DCHECK(IsLd(instr2));
-  int32_t embedded_target_offset = BrachlongOffset(instr1, instr2);
+  int32_t embedded_target_offset = BranchLongOffset(instr1, instr2);
   DEBUG_PRINTF("\tembedded_target_offset %d\n", embedded_target_offset);
   static_assert(sizeof(EmbeddedObjectIndex) == sizeof(intptr_t));
   DEBUG_PRINTF("\t EmbeddedObjectIndex %lu\n",
@@ -204,7 +208,7 @@ void Assembler::set_embedded_object_index_referenced_from(
   Instr instr2 = Assembler::instr_at(pc + kInstrSize);
   DCHECK(IsAuipc(instr1));
   DCHECK(IsLd(instr2));
-  int32_t embedded_target_offset = BrachlongOffset(instr1, instr2);
+  int32_t embedded_target_offset = BranchLongOffset(instr1, instr2);
   Memory<EmbeddedObjectIndex>(pc + embedded_target_offset) = data;
 }
 #endif
@@ -241,7 +245,6 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   if (IsCompressedEmbeddedObject(rmode_)) {
     return Cast<HeapObject>(
         Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
-            cage_base,
             Assembler::target_compressed_address_at(pc_, constant_pool_))));
   } else {
     return Cast<HeapObject>(
@@ -271,9 +274,10 @@ void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
     // We must not compress pointers to objects outside of the main pointer
     // compression cage as we wouldn't be able to decompress them with the
     // correct cage base.
-    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, !HeapLayout::InTrustedSpace(target));
+    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL,
+                   !TrustedHeapLayout::InTrustedSpace(target));
     DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                   !HeapLayout::InCodeSpace(target));
+                   !TrustedHeapLayout::InCodeSpace(target));
     Assembler::set_target_compressed_address_at(
         pc_, constant_pool_,
         V8HeapCompressionScheme::CompressObject(target.ptr()), &jit_allocation_,
@@ -325,8 +329,8 @@ Handle<Code> Assembler::relative_code_target_object_handle_at(
   Instr instr2 = Assembler::instr_at(pc + kInstrSize);
   DCHECK(IsAuipc(instr1));
   DCHECK(IsJalr(instr2));
-  int32_t code_target_index = BrachlongOffset(instr1, instr2);
-  return Cast<Code>(GetEmbeddedObject(code_target_index));
+  int32_t code_target_index = BranchLongOffset(instr1, instr2);
+  return TrustedCast<Code>(GetEmbeddedObject(code_target_index));
 }
 
 Builtin Assembler::target_builtin_at(Address pc) {
@@ -334,7 +338,7 @@ Builtin Assembler::target_builtin_at(Address pc) {
   Instr instr2 = Assembler::instr_at(pc + kInstrSize);
   DCHECK(IsAuipc(instr1));
   DCHECK(IsJalr(instr2));
-  int32_t builtin_id = BrachlongOffset(instr1, instr2);
+  int32_t builtin_id = BranchLongOffset(instr1, instr2);
   DCHECK(Builtins::IsBuiltinId(builtin_id));
   return static_cast<Builtin>(builtin_id);
 }
@@ -360,8 +364,9 @@ int32_t Assembler::target_constant32_at(Address pc) {
   if (IsLui(*reinterpret_cast<Instr*>(instr0)) &&
       IsAddi(*reinterpret_cast<Instr*>(instr1))) {
     // Assemble the 32bit value.
-    int32_t constant32 = (int32_t)(instr0->Imm20UValue() << kImm20Shift) +
-                         (int32_t)instr1->Imm12Value();
+    int32_t constant32 =
+        static_cast<int32_t>(instr0->Imm20UValue() << kImm20Shift) +
+        static_cast<int32_t>(instr1->Imm12Value());
     return constant32;
   }
   // We should never get here, force a bad address if we do.
@@ -378,8 +383,8 @@ void Assembler::set_target_constant32_at(Address pc, uint32_t target,
   DCHECK(IsLui(*reinterpret_cast<Instr*>(instr0)) &&
          IsAddi(*reinterpret_cast<Instr*>(instr1)));
 #endif
-  int32_t high_20 = (((int32_t)target + 0x800) >> 12);  // 20 bits
-  int32_t low_12 = (int32_t)target << 20 >> 20;         // 12 bits
+  int32_t high_20 = (static_cast<int32_t>(target) + 0x800) >> 12;  // 20 bits
+  int32_t low_12 = static_cast<int32_t>(target) << 20 >> 20;       // 12 bits
   instr_at_put(pc, SetHi20Offset(high_20, instr0->InstructionBits()),
                jit_allocation);
   instr_at_put(pc + 1 * kInstrSize,

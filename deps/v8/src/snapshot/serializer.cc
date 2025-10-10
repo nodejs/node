@@ -12,6 +12,7 @@
 #include "src/heap/mutable-page-metadata-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/visit-object.h"
+#include "src/objects/allocation-site.h"
 #include "src/objects/code.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/instance-type-checker.h"
@@ -148,22 +149,24 @@ void Serializer::SerializeDeferredObjects() {
   if (v8_flags.trace_serializer) {
     PrintF("Serializing deferred objects\n");
   }
-  WHILE_WITH_HANDLE_SCOPE(isolate(), !deferred_objects_.empty(), {
+  WHILE_WITH_HANDLE_SCOPE(isolate(), !deferred_objects_.empty()) {
     Handle<HeapObject> obj = handle(deferred_objects_.Pop(), isolate());
 
     ObjectSerializer obj_serializer(this, obj, &sink_);
     obj_serializer.SerializeDeferred();
-  });
+  }
   sink_.Put(kSynchronize, "Finished with deferred objects");
 }
 
 void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
-  // ThinStrings are just an indirection to an internalized string, so elide the
-  // indirection and serialize the actual string directly.
-  if (IsThinString(*obj, isolate())) {
+  if (SafeIsAnyHole(*obj)) {
+    CHECK(SerializeRoot(*obj));
+    return;
+  } else if (IsThinString(*obj, isolate())) {
+    // ThinStrings are just an indirection to an internalized string, so elide
+    // the indirection and serialize the actual string directly.
     obj = handle(Cast<ThinString>(*obj)->actual(), isolate());
-  } else if (IsCode(*obj, isolate())) {
-    Tagged<Code> code = Cast<Code>(*obj);
+  } else if (Tagged<Code> code; TryCast(*obj, &code)) {
     // The only expected Code objects here are baseline code and builtins.
     if (code->kind() == CodeKind::BASELINE) {
       // For now just serialize the BytecodeArray instead of baseline code.
@@ -271,8 +274,9 @@ bool Serializer::SerializePendingObject(Tagged<HeapObject> obj) {
 }
 
 bool Serializer::ObjectIsBytecodeHandler(Tagged<HeapObject> obj) const {
-  if (!IsCode(obj)) return false;
-  return (Cast<Code>(obj)->kind() == CodeKind::BYTECODE_HANDLER);
+  Tagged<Code> code;
+  if (!TryCast(obj, &code)) return false;
+  return (code->kind() == CodeKind::BYTECODE_HANDLER);
 }
 
 void Serializer::PutRoot(RootIndex root) {
@@ -288,7 +292,7 @@ void Serializer::PutRoot(RootIndex root) {
   // Assert that the first 32 root array items are a conscious choice. They are
   // chosen so that the most common ones can be encoded more efficiently.
   static_assert(static_cast<int>(RootIndex::kArgumentsMarker) ==
-                kRootArrayConstantsCount - 1);
+                kRootArrayConstantsCount);
 
   // TODO(ulan): Check that it works with young large objects.
   if (root_index < kRootArrayConstantsCount &&
@@ -770,23 +774,23 @@ class V8_NODISCARD UnlinkWeakNextScope {
  public:
   explicit UnlinkWeakNextScope(Heap* heap, Tagged<HeapObject> object) {
     Isolate* isolate = heap->isolate();
-    if (IsAllocationSite(object, isolate) &&
-        Cast<AllocationSite>(object)->HasWeakNext()) {
-      object_ = object;
-      next_ = Cast<AllocationSite>(object)->weak_next();
-      Cast<AllocationSite>(object)->set_weak_next(
-          ReadOnlyRoots(isolate).undefined_value());
+    if (TryCast<AllocationSiteWithWeakNext>(object, &object_)) {
+      next_ = object_->weak_next();
+      object_->set_weak_next(ReadOnlyRoots(isolate).undefined_value());
     }
   }
 
   ~UnlinkWeakNextScope() {
     if (next_ == Smi::zero()) return;
-    Cast<AllocationSite>(object_)->set_weak_next(next_, UPDATE_WRITE_BARRIER);
+    object_->set_weak_next(
+        Cast<UnionOf<Undefined, AllocationSiteWithWeakNext>>(next_),
+        UPDATE_WRITE_BARRIER);
   }
 
  private:
-  Tagged<HeapObject> object_;
-  Tagged<Object> next_ = Smi::zero();
+  Tagged<AllocationSiteWithWeakNext> object_;
+  Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>> next_ =
+      Smi::zero();
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 
@@ -1073,7 +1077,8 @@ void Serializer::ObjectSerializer::OutputExternalReference(
     Address target, int target_size, bool sandboxify, ExternalPointerTag tag) {
   DCHECK_LE(target_size, sizeof(target));  // Must fit in Address.
   DCHECK_IMPLIES(sandboxify, V8_ENABLE_SANDBOX_BOOL);
-  DCHECK_IMPLIES(sandboxify, tag != kExternalPointerNullTag);
+  DCHECK_IMPLIES(sandboxify,
+                 tag != kExternalPointerNullTag || target == kNullAddress);
   ExternalReferenceEncoder::Value encoded_reference;
   bool encoded_successfully;
 
@@ -1135,7 +1140,7 @@ void Serializer::ObjectSerializer::VisitCppHeapPointer(
   // We serialize the slot as initialized-but-unused slot.  The actual API
   // wrapper serialization is implemented in
   // `ContextSerializer::SerializeApiWrapperFields()`.
-  DCHECK(IsJSApiWrapperObject(object_->map(cage_base)));
+  DCHECK(IsJSApiWrapperObjectMap(object_->map(cage_base)));
   static_assert(kCppHeapPointerSlotSize % kTaggedSize == 0);
   sink_->Put(
       FixedRawDataWithSize::Encode(kCppHeapPointerSlotSize >> kTaggedSizeLog2),
@@ -1152,6 +1157,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
   if (InstanceTypeChecker::IsForeign(instance_type) ||
       InstanceTypeChecker::IsJSExternalObject(instance_type) ||
       InstanceTypeChecker::IsAccessorInfo(instance_type) ||
+      InstanceTypeChecker::IsInterceptorInfo(instance_type) ||
       InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
     // Output raw data payload, if any.
     OutputRawData(slot.address());

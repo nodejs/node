@@ -25,7 +25,11 @@ extern "C" {
 
 #include <stdlib.h>
 
-/* DH parameter generation types used by EVP_PKEY_CTX_set_dh_paramgen_type() */
+/*
+ * DH parameter generation types used by EVP_PKEY_CTX_set_dh_paramgen_type()
+ * Note that additions/changes to this set of values requires corresponding
+ * adjustments to range checks in dh_gen()
+ */
 # define DH_PARAMGEN_TYPE_GENERATOR     0   /* Use a safe prime generator */
 # define DH_PARAMGEN_TYPE_FIPS_186_2    1   /* Use FIPS186-2 standard */
 # define DH_PARAMGEN_TYPE_FIPS_186_4    2   /* Use FIPS186-4 standard */
@@ -79,6 +83,9 @@ int EVP_PKEY_CTX_get0_dh_kdf_ukm(EVP_PKEY_CTX *ctx, unsigned char **ukm);
 # define EVP_PKEY_DH_KDF_NONE                            1
 # define EVP_PKEY_DH_KDF_X9_42                           2
 
+# ifndef OPENSSL_NO_STDIO
+#  include <stdio.h>
+# endif
 # ifndef OPENSSL_NO_DH
 #  include <openssl/e_os2.h>
 #  include <openssl/bio.h>

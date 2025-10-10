@@ -8,8 +8,15 @@
 namespace v8 {
 namespace internal {
 
-TEST(ThreadIsolation, ReuseJitPage) {
+void InitializeThreadIsolation() {
+  // We don't provide a pkey allocator for the tests in this file, so we need to
+  // disable the force_memory_protection_keys flag.
+  v8_flags.force_memory_protection_keys = false;
   ThreadIsolation::Initialize(nullptr);
+}
+
+TEST(ThreadIsolation, ReuseJitPage) {
+  InitializeThreadIsolation();
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
@@ -28,7 +35,7 @@ TEST(ThreadIsolation, ReuseJitPage) {
 }
 
 TEST(ThreadIsolation, CatchJitPageOverlap) {
-  ThreadIsolation::Initialize(nullptr);
+  InitializeThreadIsolation();
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
@@ -39,7 +46,7 @@ TEST(ThreadIsolation, CatchJitPageOverlap) {
 }
 
 TEST(ThreadIsolation, JitAllocation) {
-  ThreadIsolation::Initialize(nullptr);
+  InitializeThreadIsolation();
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
@@ -60,7 +67,7 @@ TEST(ThreadIsolation, JitAllocation) {
 }
 
 TEST(ThreadIsolation, CatchOOBJitAllocation) {
-  ThreadIsolation::Initialize(nullptr);
+  InitializeThreadIsolation();
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
@@ -72,7 +79,7 @@ TEST(ThreadIsolation, CatchOOBJitAllocation) {
 }
 
 TEST(ThreadIsolation, MergeJitPages) {
-  ThreadIsolation::Initialize(nullptr);
+  InitializeThreadIsolation();
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
@@ -99,7 +106,7 @@ TEST(ThreadIsolation, MergeJitPages) {
 }
 
 TEST(ThreadIsolation, FreeRange) {
-  ThreadIsolation::Initialize(nullptr);
+  InitializeThreadIsolation();
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
@@ -144,7 +151,7 @@ TEST(ThreadIsolation, FreeRange) {
 }
 
 TEST(ThreadIsolation, InvalidFreeRange) {
-  ThreadIsolation::Initialize(nullptr);
+  InitializeThreadIsolation();
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;

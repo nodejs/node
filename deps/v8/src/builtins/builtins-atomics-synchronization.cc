@@ -26,11 +26,12 @@ DirectHandle<JSPromise> UnlockAsyncLockedMutexFromPromiseHandler(
     Isolate* isolate) {
   DirectHandle<Context> context(isolate->context(), isolate);
   DirectHandle<Object> mutex(
-      context->get(JSAtomicsMutex::kMutexAsyncContextSlot), isolate);
+      context->GetNoCell(JSAtomicsMutex::kMutexAsyncContextSlot), isolate);
   DirectHandle<Object> unlock_promise(
-      context->get(JSAtomicsMutex::kUnlockedPromiseAsyncContextSlot), isolate);
+      context->GetNoCell(JSAtomicsMutex::kUnlockedPromiseAsyncContextSlot),
+      isolate);
   DirectHandle<Object> waiter_wrapper_obj(
-      context->get(JSAtomicsMutex::kAsyncLockedWaiterAsyncContextSlot),
+      context->GetNoCell(JSAtomicsMutex::kAsyncLockedWaiterAsyncContextSlot),
       isolate);
 
   auto js_mutex = Cast<JSAtomicsMutex>(mutex);
@@ -326,7 +327,7 @@ BUILTIN(AtomicsConditionNotify) {
     count = JSAtomicsCondition::kAllWaiters;
   } else {
     double count_double;
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, count_double, Object::IntegerValue(isolate, count_obj));
     if (count_double <= 0) {
       return Smi::zero();
@@ -390,7 +391,7 @@ BUILTIN(AtomicsConditionAcquireLock) {
 
   DirectHandle<Context> context(isolate->context(), isolate);
   DirectHandle<Object> js_mutex_obj(
-      context->get(JSAtomicsCondition::kMutexAsyncContextSlot), isolate);
+      context->GetNoCell(JSAtomicsCondition::kMutexAsyncContextSlot), isolate);
   DirectHandle<JSAtomicsMutex> js_mutex = Cast<JSAtomicsMutex>(js_mutex_obj);
   DirectHandle<JSPromise> lock_promise =
       JSAtomicsMutex::LockAsyncWrapperForWait(isolate, js_mutex);

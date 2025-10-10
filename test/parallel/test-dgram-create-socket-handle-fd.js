@@ -5,11 +5,10 @@ if (common.isWindows)
   common.skip('Does not support binding fd on Windows');
 
 const assert = require('assert');
-const dgram = require('dgram');
+const { _createSocketHandle } = require('internal/dgram');
 const { internalBinding } = require('internal/test/binding');
 const { UDP } = internalBinding('udp_wrap');
 const { TCP, constants } = internalBinding('tcp_wrap');
-const _createSocketHandle = dgram._createSocketHandle;
 
 // Return a negative number if the "existing fd" is invalid.
 {

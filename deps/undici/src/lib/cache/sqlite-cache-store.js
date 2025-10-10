@@ -1,6 +1,6 @@
 'use strict'
 
-const { Writable } = require('stream')
+const { Writable } = require('node:stream')
 const { assertCacheKey, assertCacheValue } = require('../util/cache.js')
 
 let DatabaseSync

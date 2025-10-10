@@ -499,8 +499,11 @@ typedef struct {
   union {                                                                     \
     struct {                                                                  \
       /* Used for readable TTY handles */                                     \
-      /* TODO: remove me in v2.x. */                                          \
-      HANDLE unused_;                                                         \
+      union {                                                                 \
+        /* TODO: remove me in v2.x. */                                        \
+        HANDLE unused_;                                                       \
+        int mode;                                                             \
+      } mode;                                                                 \
       uv_buf_t read_line_buffer;                                              \
       HANDLE read_raw_wait;                                                   \
       /* Fields used for translating win keystrokes into vt100 characters */  \

@@ -26,8 +26,7 @@ int Compare(const T& a, const T& b) {
 }
 
 // Returns the negative absolute value of its argument.
-template <typename T,
-          typename = typename std::enable_if<std::is_signed<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_signed_v<T>>>
 T Nabs(T a) {
   return a < 0 ? a : -a;
 }
@@ -329,8 +328,16 @@ class Simulator : public SimulatorBase {
     }
 
     explicit CallArgument(float argument) {
-      // TODO(all): CallArgument(float) is untested.
-      UNIMPLEMENTED();
+      // Make the FPU register a NaN to try to trap errors if the callee expects
+      // a double. If it expects a float, the callee should ignore the top word.
+      double sNaN = std::numeric_limits<double>::signaling_NaN();
+      DCHECK(sizeof(sNaN) == sizeof(bits_));
+      memcpy(&bits_, &sNaN, sizeof(sNaN));
+
+      // Write the float payload to the FPU register.
+      DCHECK(sizeof(argument) <= sizeof(bits_));
+      memcpy(&bits_, &argument, sizeof(argument));
+      type_ = FP_ARG;
     }
 
     // This indicates the end of the arguments list, so that CallArgument
@@ -407,14 +414,12 @@ class Simulator : public SimulatorBase {
 
   // Read floating point return values.
   template <typename T>
-  typename std::enable_if<std::is_floating_point<T>::value, T>::type
-  ReadReturn() {
+  typename std::enable_if_t<std::is_floating_point_v<T>, T> ReadReturn() {
     return static_cast<T>(get_fpu_register_double(f0));
   }
   // Read non-float return values.
   template <typename T>
-  typename std::enable_if<!std::is_floating_point<T>::value, T>::type
-  ReadReturn() {
+  typename std::enable_if_t<!std::is_floating_point_v<T>, T> ReadReturn() {
     return ConvertReturn<T>(get_register(v0));
   }
 

@@ -33,11 +33,15 @@ const reifyOutput = (npm, arb) => {
   }
 
   const summary = {
+    add: [],
     added: 0,
-    removed: 0,
-    changed: 0,
+    // audit gets added later
     audited: auditReport && !auditReport.error ? actualTree.inventory.size : 0,
+    change: [],
+    changed: 0,
     funding: 0,
+    remove: [],
+    removed: 0,
   }
 
   if (diff) {
@@ -53,18 +57,42 @@ const reifyOutput = (npm, arb) => {
               output.standard(`${chalk.blue('remove')} ${d.actual.name} ${d.actual.package.version}`)
             }
             summary.removed++
+            summary.remove.push({
+              name: d.actual.name,
+              version: d.actual.package.version,
+              path: d.actual.path,
+            })
             break
           case 'ADD':
             if (showDiff) {
               output.standard(`${chalk.green('add')} ${d.ideal.name} ${d.ideal.package.version}`)
             }
-            actualTree.inventory.has(d.ideal) && summary.added++
+            if (actualTree.inventory.has(d.ideal)) {
+              summary.added++
+              summary.add.push({
+                name: d.ideal.name,
+                version: d.ideal.package.version,
+                path: d.ideal.path,
+              })
+            }
             break
           case 'CHANGE':
             if (showDiff) {
               output.standard(`${chalk.cyan('change')} ${d.actual.name} ${d.actual.package.version} => ${d.ideal.package.version}`)
             }
             summary.changed++
+            summary.change.push({
+              from: {
+                name: d.actual.name,
+                version: d.actual.package.version,
+                path: d.actual.path,
+              },
+              to: {
+                name: d.ideal.name,
+                version: d.ideal.package.version,
+                path: d.ideal.path,
+              },
+            })
             break
           default:
             return

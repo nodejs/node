@@ -5,3 +5,9 @@
 // Required to make a spidermonkey dependency more permissive:
 // spidermonkey/test/expected/import/files/local/smTempBranch/shell.js
 var document = {all: undefined};
+
+try {
+  drainJobQueue;
+} catch(e) {
+  this.drainJobQueue = this.nop;
+}

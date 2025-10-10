@@ -62,6 +62,12 @@ extern "C" {
 
 # define RC4_INT {- $config{rc4_int} -}
 
+# if defined(OPENSSL_NO_COMP) || (defined(OPENSSL_NO_BROTLI) && defined(OPENSSL_NO_ZSTD) && defined(OPENSSL_NO_ZLIB))
+#  define OPENSSL_NO_COMP_ALG
+# else
+#  undef  OPENSSL_NO_COMP_ALG
+# endif
+
 # ifdef  __cplusplus
 }
 # endif

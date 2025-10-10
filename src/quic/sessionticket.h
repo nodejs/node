@@ -1,7 +1,6 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <crypto/crypto_common.h>
 #include <env.h>
@@ -58,7 +57,7 @@ class SessionTicket final : public MemoryRetainer {
 };
 
 // SessionTicket::AppData is a utility class that is used only during the
-// generation or access of TLS stateless sesson tickets. It exists solely to
+// generation or access of TLS stateless session tickets. It exists solely to
 // provide a easier way for Session::Application instances to set relevant
 // metadata in the session ticket when it is created, and the extract and
 // subsequently verify that data when a ticket is received and is being
@@ -66,7 +65,7 @@ class SessionTicket final : public MemoryRetainer {
 // server-side of the Session::Application that sets it.
 class SessionTicket::AppData final {
  public:
-  enum class Status {
+  enum class Status : uint8_t {
     TICKET_IGNORE = SSL_TICKET_RETURN_IGNORE,
     TICKET_IGNORE_RENEW = SSL_TICKET_RETURN_IGNORE_RENEW,
     TICKET_USE = SSL_TICKET_RETURN_USE,
@@ -84,7 +83,7 @@ class SessionTicket::AppData final {
   // Session.
   class Source {
    public:
-    enum class Flag { STATUS_NONE, STATUS_RENEW };
+    enum class Flag : uint8_t { STATUS_NONE, STATUS_RENEW };
 
     // Collect application data into the given AppData instance.
     virtual void CollectSessionTicketAppData(AppData* app_data) const = 0;
@@ -104,5 +103,4 @@ class SessionTicket::AppData final {
 
 }  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

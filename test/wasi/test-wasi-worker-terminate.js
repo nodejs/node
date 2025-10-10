@@ -25,10 +25,10 @@ const bytecode = new Uint8Array([
 if (!process.env.HAS_STARTED_WORKER) {
   process.env.HAS_STARTED_WORKER = 1;
   const worker = new Worker(__filename);
-  worker.once('message', (message) => {
+  worker.once('message', common.mustCall((message) => {
     assert.strictEqual(message, 'start');
     setTimeout(() => worker.terminate(), common.platformTimeout(50));
-  });
+  }));
 } else {
   go();
 }

@@ -3,6 +3,7 @@
 const common = require('../common');
 
 const {
+  deepStrictEqual,
   ok,
   strictEqual,
   throws,
@@ -40,8 +41,10 @@ const { inspect } = require('util');
       code: 'ERR_INVALID_ARG_TYPE'
     });
   });
-  throws(() => h.record(0, Number.MAX_SAFE_INTEGER + 1), {
-    code: 'ERR_OUT_OF_RANGE'
+  [0, Number.MAX_SAFE_INTEGER + 1].forEach((i) => {
+    throws(() => h.record(i), {
+      code: 'ERR_OUT_OF_RANGE'
+    });
   });
 
   strictEqual(h.min, 1);
@@ -57,6 +60,10 @@ const { inspect } = require('util');
 
   strictEqual(h.percentileBigInt(1), 1n);
   strictEqual(h.percentileBigInt(100), 1n);
+
+  deepStrictEqual(h.percentiles, new Map([[0, 1], [100, 1]]));
+
+  deepStrictEqual(h.percentilesBigInt, new Map([[0, 1n], [100, 1n]]));
 
   const mc = new MessageChannel();
   mc.port1.onmessage = common.mustCall(({ data }) => {
@@ -95,6 +102,17 @@ const { inspect } = require('util');
       mc.port2.postMessage(e);
     }
   }, 50);
+}
+
+{
+  // Tests that the ELD histogram is disposable
+  let histogram;
+  {
+    using hi = monitorEventLoopDelay();
+    histogram = hi;
+  }
+  // The histogram should already be disabled.
+  strictEqual(histogram.disable(), false);
 }
 
 {

@@ -41,7 +41,7 @@ async function test(format) {
   ]);
 }
 
-Promise.all(['gzip', 'deflate', 'deflate-raw'].map((i) => test(i))).then(common.mustCall());
+Promise.all(['gzip', 'deflate', 'deflate-raw', 'brotli'].map((i) => test(i))).then(common.mustCall());
 
 [1, 'hello', false, {}].forEach((i) => {
   assert.throws(() => new CompressionStream(i), {

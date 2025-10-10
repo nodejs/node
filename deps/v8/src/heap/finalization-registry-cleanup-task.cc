@@ -23,8 +23,7 @@ void FinalizationRegistryCleanupTask::SlowAssertNoActiveJavaScript() {
   class NoActiveJavaScript : public ThreadVisitor {
    public:
     void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
-      for (StackFrameIterator it(isolate, top, StackFrameIterator::NoHandles{});
-           !it.done(); it.Advance()) {
+      for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
         DCHECK(!it.frame()->is_javascript());
       }
     }
@@ -42,6 +41,9 @@ void FinalizationRegistryCleanupTask::RunInternal() {
 
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8",
                                 "V8.FinalizationRegistryCleanupTask");
+
+  // First clear that the task is posted in case of early returns below.
+  heap_->set_is_finalization_registry_cleanup_task_posted(false);
 
   HandleScope handle_scope(isolate);
   DirectHandle<JSFinalizationRegistry> finalization_registry;
@@ -94,7 +96,6 @@ void FinalizationRegistryCleanupTask::RunInternal() {
   }
 
   // Repost if there are remaining dirty FinalizationRegistries.
-  heap_->set_is_finalization_registry_cleanup_task_posted(false);
   heap_->PostFinalizationRegistryCleanupTaskIfNeeded();
 }
 

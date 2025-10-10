@@ -92,6 +92,11 @@ Generate it without having it ask any questions:
 $ npm init -y
 ```
 
+Set the private flag to `true` in package.json:
+```bash
+$ npm init --init-private -y
+```
+
 ### Workspaces support
 
 It's possible to create a new workspace within your project by using the
@@ -213,6 +218,15 @@ field.
 
 The value that `npm init` should use by default for the package version
 number, if not already set in package.json.
+
+
+
+#### `init-private`
+
+* Default: false
+* Type: Boolean
+
+The value `npm init` should use by default for the package's private flag.
 
 
 

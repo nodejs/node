@@ -1,43 +1,34 @@
 'use strict';
 require('../common');
-const ArrayStream = require('../common/arraystream');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
-const repl = require('repl');
+const { startNewREPLServer } = require('../common/repl');
 
 const stackRegExp = /(at .*REPL\d+:)[0-9]+:[0-9]+/g;
 
 function run({ command, expected, ...extraREPLOptions }, i) {
-  let accum = '';
+  const { replServer, output } = startNewREPLServer(
+    {
+      terminal: false,
+      useColors: false,
+      ...extraREPLOptions
+    },
+    { disableDomainErrorAssert: true }
+  );
 
-  const inputStream = new ArrayStream();
-  const outputStream = new ArrayStream();
-
-  outputStream.write = (data) => accum += data.replace('\r', '');
-
-  const r = repl.start({
-    prompt: '',
-    input: inputStream,
-    output: outputStream,
-    terminal: false,
-    useColors: false,
-    ...extraREPLOptions
-  });
-
-  r.write(`${command}\n`);
-  console.log(i);
+  replServer.write(`${command}\n`);
   if (typeof expected === 'string') {
     assert.strictEqual(
-      accum.replace(stackRegExp, '$1*:*'),
+      output.accumulator.replace(stackRegExp, '$1*:*'),
       expected.replace(stackRegExp, '$1*:*')
     );
   } else {
     assert.match(
-      accum.replace(stackRegExp, '$1*:*'),
+      output.accumulator.replace(stackRegExp, '$1*:*'),
       expected
     );
   }
-  r.close();
+  replServer.close();
 }
 
 const tests = [

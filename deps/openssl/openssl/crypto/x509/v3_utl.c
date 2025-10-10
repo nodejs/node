@@ -9,7 +9,7 @@
 
 /* X509 v3 extension utilities */
 
-#include "e_os.h"
+#include "internal/e_os.h"
 #include "internal/cryptlib.h"
 #include <stdio.h>
 #include <string.h>
@@ -47,7 +47,7 @@ static int x509v3_add_len_value(const char *name, const char *value,
     if (name != NULL && (tname = OPENSSL_strdup(name)) == NULL)
         goto err;
     if (value != NULL) {
-        /* We don't allow embeded NUL characters */
+        /* We don't allow embedded NUL characters */
         if (memchr(value, 0, vallen) != NULL)
             goto err;
         tvalue = OPENSSL_strndup(value, vallen);
@@ -56,8 +56,10 @@ static int x509v3_add_len_value(const char *name, const char *value,
     }
     if ((vtmp = OPENSSL_malloc(sizeof(*vtmp))) == NULL)
         goto err;
-    if (sk_allocated && (*extlist = sk_CONF_VALUE_new_null()) == NULL)
+    if (sk_allocated && (*extlist = sk_CONF_VALUE_new_null()) == NULL) {
+        ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
         goto err;
+    }
     vtmp->section = NULL;
     vtmp->name = tname;
     vtmp->value = tvalue;
@@ -65,7 +67,6 @@ static int x509v3_add_len_value(const char *name, const char *value,
         goto err;
     return 1;
  err:
-    ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
     if (sk_allocated) {
         sk_CONF_VALUE_free(*extlist);
         *extlist = NULL;
@@ -146,7 +147,6 @@ static char *bignum_to_string(const BIGNUM *bn)
     len = strlen(tmp) + 3;
     ret = OPENSSL_malloc(len);
     if (ret == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
         OPENSSL_free(tmp);
         return NULL;
     }
@@ -170,9 +170,10 @@ char *i2s_ASN1_ENUMERATED(X509V3_EXT_METHOD *method, const ASN1_ENUMERATED *a)
 
     if (!a)
         return NULL;
-    if ((bntmp = ASN1_ENUMERATED_to_BN(a, NULL)) == NULL
-        || (strtmp = bignum_to_string(bntmp)) == NULL)
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+    if ((bntmp = ASN1_ENUMERATED_to_BN(a, NULL)) == NULL)
+        ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+    else if ((strtmp = bignum_to_string(bntmp)) == NULL)
+        ERR_raise(ERR_LIB_X509V3, ERR_R_X509V3_LIB);
     BN_free(bntmp);
     return strtmp;
 }
@@ -184,9 +185,10 @@ char *i2s_ASN1_INTEGER(X509V3_EXT_METHOD *method, const ASN1_INTEGER *a)
 
     if (!a)
         return NULL;
-    if ((bntmp = ASN1_INTEGER_to_BN(a, NULL)) == NULL
-        || (strtmp = bignum_to_string(bntmp)) == NULL)
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+    if ((bntmp = ASN1_INTEGER_to_BN(a, NULL)) == NULL)
+        ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+    else if ((strtmp = bignum_to_string(bntmp)) == NULL)
+        ERR_raise(ERR_LIB_X509V3, ERR_R_X509V3_LIB);
     BN_free(bntmp);
     return strtmp;
 }
@@ -204,7 +206,7 @@ ASN1_INTEGER *s2i_ASN1_INTEGER(X509V3_EXT_METHOD *method, const char *value)
     }
     bn = BN_new();
     if (bn == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_BN_LIB);
         return NULL;
     }
     if (value[0] == '-') {
@@ -320,10 +322,8 @@ STACK_OF(CONF_VALUE) *X509V3_parse_list(const char *line)
 
     /* We are going to modify the line so copy it first */
     linebuf = OPENSSL_strdup(line);
-    if (linebuf == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+    if (linebuf == NULL)
         goto err;
-    }
     state = HDR_NAME;
     ntmp = NULL;
     /* Go through all characters */
@@ -715,7 +715,7 @@ static int wildcard_match(const unsigned char *prefix, size_t prefix_len,
     }
     /* IDNA labels cannot match partial wildcards */
     if (!allow_idna &&
-        subject_len >= 4 && OPENSSL_strncasecmp((char *)subject, "xn--", 4) == 0)
+        subject_len >= 4 && HAS_CASE_PREFIX((const char *)subject, "xn--"))
         return 0;
     /* The wildcard may match a literal '*' */
     if (wildcard_end == wildcard_start + 1 && *wildcard_start == '*')
@@ -775,7 +775,7 @@ static const unsigned char *valid_star(const unsigned char *p, size_t len,
                    || ('A' <= p[i] && p[i] <= 'Z')
                    || ('0' <= p[i] && p[i] <= '9')) {
             if ((state & LABEL_START) != 0
-                && len - i >= 4 && OPENSSL_strncasecmp((char *)&p[i], "xn--", 4) == 0)
+                && len - i >= 4 && HAS_CASE_PREFIX((const char *)&p[i], "xn--"))
                 state |= LABEL_IDNA;
             state &= ~(LABEL_HYPHEN | LABEL_START);
         } else if (p[i] == '.') {
@@ -1179,23 +1179,60 @@ int ossl_a2i_ipadd(unsigned char *ipout, const char *ipasc)
     }
 }
 
+/*
+ * get_ipv4_component consumes one IPv4 component, terminated by either '.' or
+ * the end of the string, from *str. On success, it returns one, sets *out
+ * to the component, and advances *str to the first unconsumed character. On
+ * invalid input, it returns zero.
+ */
+static int get_ipv4_component(uint8_t *out_byte, const char **str) {
+    /* Store a slightly larger intermediary so the overflow check is easier. */
+    uint32_t out = 0;
+
+    for (;;) {
+        if (!ossl_isdigit(**str)) {
+            return 0;
+        }
+        out = (out * 10) + (**str - '0');
+        if (out > 255) {
+            /* Components must be 8-bit. */
+            return 0;
+        }
+        (*str)++;
+        if ((**str) == '.' || (**str) == '\0') {
+            *out_byte = (uint8_t)out;
+            return 1;
+        }
+        if (out == 0) {
+	    /* Reject extra leading zeros. Parsers sometimes treat them as
+             * octal, so accepting them would misinterpret input.
+             */
+            return 0;
+        }
+    }
+}
+
+/*
+ * get_ipv4_dot consumes a '.' from *str and advances it. It returns one on
+ * success and zero if *str does not point to a '.'.
+ */
+static int get_ipv4_dot(const char **str)
+{
+    if (**str != '.') {
+        return 0;
+    }
+    (*str)++;
+    return 1;
+}
+
 static int ipv4_from_asc(unsigned char *v4, const char *in)
 {
-    const char *p;
-    int a0, a1, a2, a3, n;
-
-    if (sscanf(in, "%d.%d.%d.%d%n", &a0, &a1, &a2, &a3, &n) != 4)
-        return 0;
-    if ((a0 < 0) || (a0 > 255) || (a1 < 0) || (a1 > 255)
-        || (a2 < 0) || (a2 > 255) || (a3 < 0) || (a3 > 255))
-        return 0;
-    p = in + n;
-    if (!(*p == '\0' || ossl_isspace(*p)))
-        return 0;
-    v4[0] = a0;
-    v4[1] = a1;
-    v4[2] = a2;
-    v4[3] = a3;
+    if (!get_ipv4_component(&v4[0], &in) || !get_ipv4_dot(&in)
+        || !get_ipv4_component(&v4[1], &in) || !get_ipv4_dot(&in)
+        || !get_ipv4_component(&v4[2], &in) || !get_ipv4_dot(&in)
+        || !get_ipv4_component(&v4[3], &in) || *in != '\0') {
+         return 0;
+    }
     return 1;
 }
 
@@ -1383,4 +1420,34 @@ int X509V3_NAME_from_section(X509_NAME *nm, STACK_OF(CONF_VALUE) *dn_sk,
 
     }
     return 1;
+}
+
+int OSSL_GENERAL_NAMES_print(BIO *out, GENERAL_NAMES *gens, int indent)
+{
+    int i;
+
+    for (i = 0; i < sk_GENERAL_NAME_num(gens); i++) {
+        if (i > 0)
+            BIO_puts(out, "\n");
+        BIO_printf(out, "%*s", indent + 2, "");
+        GENERAL_NAME_print(out, sk_GENERAL_NAME_value(gens, i));
+    }
+    return 1;
+}
+
+int ossl_bio_print_hex(BIO *out, unsigned char *buf, int len)
+{
+    int result;
+    char *hexbuf;
+
+    if (len == 0)
+        return 1;
+
+    hexbuf = OPENSSL_buf2hexstr(buf, len);
+    if (hexbuf == NULL)
+        return 0;
+    result = BIO_puts(out, hexbuf) > 0;
+
+    OPENSSL_free(hexbuf);
+    return result;
 }

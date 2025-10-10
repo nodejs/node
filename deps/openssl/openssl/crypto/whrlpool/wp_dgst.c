@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -120,7 +120,7 @@ void WHIRLPOOL_BitUpdate(WHIRLPOOL_CTX *c, const void *_inp, size_t bits)
             } else {
                 unsigned int byteoff = bitoff / 8;
 
-                bitrem = WHIRLPOOL_BBLOCK - bitoff; /* re-use bitrem */
+                bitrem = WHIRLPOOL_BBLOCK - bitoff; /* reuse bitrem */
                 if (bits >= bitrem) {
                     bits -= bitrem;
                     bitrem /= 8;

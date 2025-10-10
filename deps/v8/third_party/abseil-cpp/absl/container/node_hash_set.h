@@ -97,22 +97,27 @@ struct NodeHashSetPolicy;
 // In most cases `T` needs only to provide the `absl_container_hash`. In this
 // case `std::equal_to<void>` will be used instead of `eq` part.
 //
+// PERFORMANCE WARNING: Erasure & sparsity can negatively affect performance:
+//  * Iteration takes O(capacity) time, not O(size).
+//  * erase() slows down begin() and ++iterator.
+//  * Capacity only shrinks on rehash() or clear() -- not on erase().
+//
 // Example:
 //
 //   // Create a node hash set of three strings
 //   absl::node_hash_set<std::string> ducks =
 //     {"huey", "dewey", "louie"};
 //
-//  // Insert a new element into the node hash set
-//  ducks.insert("donald");
+//   // Insert a new element into the node hash set
+//   ducks.insert("donald");
 //
-//  // Force a rehash of the node hash set
-//  ducks.rehash(0);
+//   // Force a rehash of the node hash set
+//   ducks.rehash(0);
 //
-//  // See if "dewey" is present
-//  if (ducks.contains("dewey")) {
-//    std::cout << "We found dewey!" << std::endl;
-//  }
+//   // See if "dewey" is present
+//   if (ducks.contains("dewey")) {
+//     std::cout << "We found dewey!" << std::endl;
+//   }
 template <class T, class Hash = DefaultHashContainerHash<T>,
           class Eq = DefaultHashContainerEq<T>, class Alloc = std::allocator<T>>
 class ABSL_ATTRIBUTE_OWNER node_hash_set
@@ -142,9 +147,9 @@ class ABSL_ATTRIBUTE_OWNER node_hash_set
   //
   // * Copy assignment operator
   //
-  //  // Hash functor and Comparator are copied as well
-  //  absl::node_hash_set<std::string> set4;
-  //  set4 = set3;
+  //   // Hash functor and Comparator are copied as well
+  //   absl::node_hash_set<std::string> set4;
+  //   set4 = set3;
   //
   // * Move constructor
   //
@@ -552,9 +557,9 @@ struct NodeHashSetPolicy
 
   static size_t element_space_used(const T*) { return sizeof(T); }
 
-  template <class Hash>
+  template <class Hash, bool kIsDefault>
   static constexpr HashSlotFn get_hash_slot_fn() {
-    return &TypeErasedDerefAndApplyToSlotFn<Hash, T>;
+    return &TypeErasedDerefAndApplyToSlotFn<Hash, T, kIsDefault>;
   }
 };
 }  // namespace container_internal

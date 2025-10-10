@@ -19,6 +19,8 @@
 #include "src/objects/compilation-cache-table-inl.h"
 #include "src/objects/compressed-slots-inl.h"
 #include "src/objects/contexts-inl.h"
+#include "src/objects/cpp-heap-external-object-inl.h"
+#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/descriptor-array-inl.h"
@@ -53,7 +55,9 @@
 #include "src/objects/js-shadow-realm-inl.h"
 #include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
+#ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
+#endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup-cache-inl.h"

@@ -42,15 +42,18 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   // is set to a smi. This matches the set function on FixedArray.
   inline void set_length(Tagged<Smi> length);
 
-  static bool MayHaveReadOnlyLength(Tagged<Map> js_array_map);
-  static bool HasReadOnlyLength(DirectHandle<JSArray> array);
+  static inline bool MayHaveReadOnlyLength(Tagged<Map> js_array_map);
+  static inline bool HasReadOnlyLength(DirectHandle<JSArray> array);
+  V8_NOINLINE V8_PRESERVE_MOST static bool HasReadOnlyLengthSlowPath(
+      DirectHandle<JSArray> array);
   static bool WouldChangeReadOnlyLength(DirectHandle<JSArray> array,
                                         uint32_t index);
 
   // Initialize the array with the given capacity. The function may
   // fail due to out-of-memory situations, but only if the requested
   // capacity is non-zero.
-  V8_EXPORT_PRIVATE static void Initialize(DirectHandle<JSArray> array,
+  V8_EXPORT_PRIVATE static void Initialize(Isolate* isolate,
+                                           DirectHandle<JSArray> array,
                                            int capacity, int length = 0);
 
   // If the JSArray has fast elements, and new_length would result in
@@ -59,11 +62,12 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   static inline bool SetLengthWouldNormalize(Heap* heap, uint32_t new_length);
 
   // Initializes the array to a certain length.
-  V8_EXPORT_PRIVATE static Maybe<bool> SetLength(DirectHandle<JSArray> array,
+  V8_EXPORT_PRIVATE static Maybe<bool> SetLength(Isolate* isolate,
+                                                 DirectHandle<JSArray> array,
                                                  uint32_t length);
 
   // Set the content of the array to the content of storage.
-  static inline void SetContent(DirectHandle<JSArray> array,
+  static inline void SetContent(Isolate* isolate, DirectHandle<JSArray> array,
                                 DirectHandle<FixedArrayBase> storage);
 
   // ES6 9.4.2.1
@@ -79,21 +83,23 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
       Maybe<ShouldThrow> should_throw);
 
   // Support for Array.prototype.join().
-  // Writes a fixed array of strings and separators to a single destination
-  // string. This helpers assumes the fixed array encodes separators in two
-  // ways:
+  // Writes a linked list of chunks of strings and separators to a single
+  // destination string. This helpers assumes the chynk encodes separators in
+  // two ways:
   //   1) Explicitly with a smi, whos value represents the number of repeated
   //      separators.
   //   2) Implicitly between two consecutive strings a single separator.
+  // The 0-th element stores a link to the next chunk (FixedArray or undefined).
   //
   // In addition repeated strings are represented by a negative smi, indicating
   // how many times the previously written string has to be repeated.
   //
   // Here are some input/output examples given the separator string is ',':
   //
-  //   [1, 'hello', 2, 'world', 1] => ',hello,,world,'
-  //   ['hello', 'world']          => 'hello,world'
-  //   ['hello', -2, 'world']      => 'hello,hello,hello,world'
+  //   [undefined, 1, 'hello', 2, 'world', 1] => ',hello,,world,'
+  //   [undefined, 'hello', 'world']          => 'hello,world'
+  //   [undefined, 'hello', -2, 'world']      => 'hello,hello,hello,world'
+  //   [[undefined, 'a', 'b'], 'c', 'd']      => 'a,b,c,d'
   //
   // To avoid any allocations, this helper assumes the destination string is the
   // exact length necessary to write the strings and separators from the fixed
@@ -103,8 +109,8 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   // - {raw_separator} and {raw_dest} are tagged String pointers.
   // - Returns a tagged String pointer.
   static Address ArrayJoinConcatToSequentialString(Isolate* isolate,
-                                                   Address raw_fixed_array,
-                                                   intptr_t length,
+                                                   Address raw_list_head,
+                                                   intptr_t last_chunk_length,
                                                    Address raw_separator,
                                                    Address raw_dest);
 
@@ -143,7 +149,7 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
 
   static const int kInitialMaxFastElementArray =
       (kMaxRegularHeapObjectSize - sizeof(FixedArray) - kHeaderSize -
-       AllocationMemento::kSize) >>
+       sizeof(AllocationMemento)) >>
       kDoubleSizeLog2;
 
   TQ_OBJECT_CONSTRUCTORS(JSArray)

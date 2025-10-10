@@ -63,8 +63,8 @@ TNode<Object> AsyncBuiltinsAssembler::Await(
     // is the (initial) Promise.prototype and the @@species protector is
     // intact, as that guards the lookup path for "constructor" on
     // JSPromise instances which have the (initial) Promise.prototype.
-    const TNode<Object> promise_prototype =
-        LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
+    const TNode<Object> promise_prototype = LoadContextElementNoCell(
+        native_context, Context::PROMISE_PROTOTYPE_INDEX);
     GotoIfNot(TaggedEqual(LoadMapPrototype(value_map), promise_prototype),
               &if_slow_constructor);
     Branch(IsPromiseSpeciesProtectorCellInvalid(), &if_slow_constructor,
@@ -78,8 +78,8 @@ TNode<Object> AsyncBuiltinsAssembler::Await(
     {
       const TNode<Object> value_constructor = GetProperty(
           context, value, isolate()->factory()->constructor_string());
-      const TNode<Object> promise_function =
-          LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+      const TNode<Object> promise_function = LoadContextElementNoCell(
+          native_context, Context::PROMISE_FUNCTION_INDEX);
       Branch(TaggedEqual(value_constructor, promise_function), &if_done,
              &if_slow_path);
     }
@@ -105,14 +105,14 @@ TNode<Object> AsyncBuiltinsAssembler::Await(
       UncheckedCast<Context>(AllocateInNewSpace(kClosureContextSize));
   {
     // Initialize the await context, storing the {generator} as extension.
-    TNode<Map> map = CAST(
-        LoadContextElement(native_context, Context::AWAIT_CONTEXT_MAP_INDEX));
+    TNode<Map> map = CAST(LoadContextElementNoCell(
+        native_context, Context::AWAIT_CONTEXT_MAP_INDEX));
     StoreMapNoWriteBarrier(closure_context, map);
     StoreObjectFieldNoWriteBarrier(
         closure_context, Context::kLengthOffset,
         SmiConstant(Context::MIN_CONTEXT_EXTENDED_SLOTS));
     const TNode<Object> empty_scope_info =
-        LoadContextElement(native_context, Context::SCOPE_INFO_INDEX);
+        LoadContextElementNoCell(native_context, Context::SCOPE_INFO_INDEX);
     StoreContextElementNoWriteBarrier(
         closure_context, Context::SCOPE_INFO_INDEX, empty_scope_info);
     StoreContextElementNoWriteBarrier(closure_context, Context::PREVIOUS_INDEX,
@@ -183,7 +183,7 @@ TF_BUILTIN(AsyncIteratorValueUnwrap, AsyncBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
 
   const TNode<Object> done =
-      LoadContextElement(context, ValueUnwrapContext::kDoneSlot);
+      LoadContextElementNoCell(context, ValueUnwrapContext::kDoneSlot);
   CSA_DCHECK(this, IsBoolean(CAST(done)));
 
   const TNode<Object> unwrapped_value =

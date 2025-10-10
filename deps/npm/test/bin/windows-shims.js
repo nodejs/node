@@ -20,6 +20,9 @@ const BIN = join(ROOT, 'bin')
 const SHIMS = readNonJsFiles(BIN)
 const NODE_GYP = readNonJsFiles(join(BIN, 'node-gyp-bin'))
 const SHIM_EXTS = [...new Set(Object.keys(SHIMS).map(p => extname(p)))]
+const PACKAGE_NAME = 'test'
+const PACKAGE_VERSION = '1.0.0'
+const SCRIPT_NAME = 'args.js'
 
 t.test('shim contents', t => {
   // these scripts should be kept in sync so this tests the contents of each
@@ -99,6 +102,18 @@ t.test('run shims', t => {
         },
       },
     },
+    // test script returning all command line arguments
+    [SCRIPT_NAME]: `#!/usr/bin/env node\n\nprocess.argv.slice(2).forEach((arg) => console.log(arg))`,
+    // package.json for the test script
+    'package.json': `
+      {
+        "name": "${PACKAGE_NAME}",
+        "version": "${PACKAGE_VERSION}",
+        "scripts": {
+          "test": "node ${SCRIPT_NAME}"
+        },
+        "bin": "${SCRIPT_NAME}"
+      }`,
   })
 
   // The removal of this fixture causes this test to fail when done with
@@ -111,6 +126,12 @@ t.test('run shims', t => {
     if (cmd.endsWith('bash.exe')) {
       // only cygwin *requires* the -l, but the others are ok with it
       args.unshift('-l')
+    }
+    if (cmd.toLowerCase().endsWith('powershell.exe') || cmd.toLowerCase().endsWith('pwsh.exe')) {
+      // pwsh *requires* the -Command, Windows PowerShell defaults to it
+      args.unshift('-Command')
+      // powershell requires escaping double-quotes for this test
+      args = args.map(elem => elem.replaceAll('"', '\\"'))
     }
     const result = spawnSync(`"${cmd}"`, args, {
       // don't hit the registry for the update check
@@ -162,6 +183,7 @@ t.test('run shims', t => {
 
   const shells = Object.entries({
     cmd: 'cmd',
+    powershell: 'powershell',
     pwsh: 'pwsh',
     git: join(ProgramFiles, 'Git', 'bin', 'bash.exe'),
     'user git': join(ProgramFiles, 'Git', 'usr', 'bin', 'bash.exe'),
@@ -216,7 +238,7 @@ t.test('run shims', t => {
     }
   })
 
-  const matchCmd = (t, cmd, bin, match) => {
+  const matchCmd = (t, cmd, bin, match, params, expected) => {
     const args = []
     const opts = {}
 
@@ -227,6 +249,7 @@ t.test('run shims', t => {
       case 'bash.exe':
         args.push(bin)
         break
+      case 'powershell.exe':
       case 'pwsh.exe':
         args.push(`${bin}.ps1`)
         break
@@ -234,17 +257,31 @@ t.test('run shims', t => {
         throw new Error('unknown shell')
     }
 
-    const isNpm = bin === 'npm'
-    const result = spawnPath(cmd, [...args, isNpm ? 'help' : '--version'], opts)
+    const result = spawnPath(cmd, [...args, ...params], opts)
+
+    // skip the first 3 lines of "npm test" to get the actual script output
+    if (params[0].startsWith('test')) {
+      result.stdout = result.stdout?.toString().split('\n').slice(3).join('\n').trim()
+    }
 
     t.match(result, {
       status: 0,
       signal: null,
       stderr: '',
-      stdout: isNpm ? `npm@${version} ${ROOT}` : version,
+      stdout: expected,
       ...match,
-    }, `${cmd} ${bin}`)
+    }, `${cmd} ${bin} ${params[0]}`)
   }
+
+  // Array with command line parameters and expected output
+  const tests = [
+    { bin: 'npm', params: ['help'], expected: `npm@${version} ${ROOT}` },
+    { bin: 'npx', params: ['--version'], expected: version },
+    { bin: 'npm', params: ['test'], expected: '' },
+    { bin: 'npm', params: [`test -- hello -p1 world -p2 "hello world" --q1=hello world --q2="hello world"`], expected: `hello\n-p1\nworld\n-p2\nhello world\n--q1=hello\nworld\n--q2=hello world` },
+    { bin: 'npm', params: ['test -- a=1,b=2,c=3'], expected: `a=1,b=2,c=3` },
+    { bin: 'npx', params: ['. -- a=1,b=2,c=3'], expected: `a=1,b=2,c=3` },
+  ]
 
   // ensure that all tests are either run or skipped
   t.plan(shells.length)
@@ -259,9 +296,17 @@ t.test('run shims', t => {
         }
         return t.end()
       }
-      t.plan(2)
-      matchCmd(t, cmd, 'npm', match)
-      matchCmd(t, cmd, 'npx', match)
+      t.plan(tests.length)
+      for (const { bin, params, expected } of tests) {
+        if (name === 'cygwin bash' && (
+          (bin === 'npm' && params[0].startsWith('test')) ||
+          (bin === 'npx' && params[0].startsWith('.'))
+        )) {
+          t.skip("`cygwin bash` doesn't respect option `{ cwd: path }` when calling `spawnSync`")
+        } else {
+          matchCmd(t, cmd, bin, match, params, expected)
+        }
+      }
     })
   }
 })

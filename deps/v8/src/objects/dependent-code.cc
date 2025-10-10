@@ -7,6 +7,7 @@
 #include "src/base/bits.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/contexts.h"
 #include "src/objects/dependent-code-inl.h"
 #include "src/objects/map.h"
 
@@ -21,8 +22,8 @@ Tagged<DependentCode> DependentCode::GetDependentCode(
     return Cast<PropertyCell>(object)->dependent_code();
   } else if (IsAllocationSite(object)) {
     return Cast<AllocationSite>(object)->dependent_code();
-  } else if (IsContextSidePropertyCell(object)) {
-    return Cast<ContextSidePropertyCell>(object)->dependent_code();
+  } else if (IsContextCell(object)) {
+    return Cast<ContextCell>(object)->dependent_code();
   } else if (IsScopeInfo(object)) {
     return Cast<ScopeInfo>(object)->dependent_code();
   }
@@ -37,8 +38,8 @@ void DependentCode::SetDependentCode(DirectHandle<HeapObject> object,
     Cast<PropertyCell>(object)->set_dependent_code(*dep);
   } else if (IsAllocationSite(*object)) {
     Cast<AllocationSite>(object)->set_dependent_code(*dep);
-  } else if (IsContextSidePropertyCell(*object)) {
-    Cast<ContextSidePropertyCell>(object)->set_dependent_code(*dep);
+  } else if (IsContextCell(*object)) {
+    Cast<ContextCell>(object)->set_dependent_code(*dep);
   } else if (IsScopeInfo(*object)) {
     Cast<ScopeInfo>(object)->set_dependent_code(*dep);
   } else {
@@ -207,7 +208,7 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "allocation-site-tenuring-changed";
     case kAllocationSiteTransitionChangedGroup:
       return "allocation-site-transition-changed";
-    case kScriptContextSlotPropertyChangedGroup:
+    case kContextCellChangedGroup:
       return "script-context-slot-property-changed";
     case kEmptyContextExtensionGroup:
       return "empty-context-extension";
@@ -236,8 +237,8 @@ LazyDeoptimizeReason DependentCode::DependencyGroupToLazyDeoptReason(
       return LazyDeoptimizeReason::kAllocationSiteTenuringChange;
     case kAllocationSiteTransitionChangedGroup:
       return LazyDeoptimizeReason::kAllocationSiteTransitionChange;
-    case kScriptContextSlotPropertyChangedGroup:
-      return LazyDeoptimizeReason::kScriptContextSlotPropertyChange;
+    case kContextCellChangedGroup:
+      return LazyDeoptimizeReason::kContextCellChange;
     case kEmptyContextExtensionGroup:
       return LazyDeoptimizeReason::kEmptyContextExtensionChange;
   }

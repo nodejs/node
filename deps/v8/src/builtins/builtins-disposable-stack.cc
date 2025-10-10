@@ -241,7 +241,7 @@ BUILTIN(DisposableStackPrototypeMove) {
   // 5. Set newDisposableStack.[[DisposableState]] to pending.
 
   Tagged<JSFunction> constructor_function =
-      Cast<JSFunction>(isolate->native_context()->get(
+      Cast<JSFunction>(isolate->native_context()->GetNoCell(
           Context::JS_DISPOSABLE_STACK_FUNCTION_INDEX));
   DirectHandle<Map> map(constructor_function->initial_map(), isolate);
 

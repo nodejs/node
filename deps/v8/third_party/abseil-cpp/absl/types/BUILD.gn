@@ -23,6 +23,7 @@ absl_source_set("span") {
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/base:throw_delegate",
+    "//third_party/abseil-cpp/absl/hash:weakly_mixed_integer",
     "//third_party/abseil-cpp/absl/meta:type_traits",
   ]
 }
@@ -36,6 +37,7 @@ absl_test("span_test") {
     "//third_party/abseil-cpp/absl/base:exception_testing",
     "//third_party/abseil-cpp/absl/container:fixed_array",
     "//third_party/abseil-cpp/absl/container:inlined_vector",
+    "//third_party/abseil-cpp/absl/hash",
     "//third_party/abseil-cpp/absl/hash:hash_testing",
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/strings",
@@ -69,7 +71,5 @@ absl_source_set("compare") {
 
 absl_test("variant_test") {
   sources = [ "variant_test.cc" ]
-  deps = [
-    ":variant",
-  ]
+  deps = [ ":variant" ]
 }

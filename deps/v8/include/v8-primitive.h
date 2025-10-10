@@ -635,11 +635,10 @@ class V8_EXPORT String : public Name {
   bool StringEquals(Local<String> str) const;
 
   /**
-   * Converts an object to a UTF-8-encoded character array.  Useful if
-   * you want to print the object.  If conversion to a string fails
-   * (e.g. due to an exception in the toString() method of the object)
-   * then the length() method returns 0 and the * operator returns
-   * NULL.
+   * Converts an object to a null-terminated UTF-8-encoded character array.
+   * Useful if you want to print the object.  If conversion to a string fails
+   * (e.g. due to an exception in the toString() method of the object) then the
+   * length() method returns 0 and the * operator returns NULL.
    *
    * WARNING: This will unconditionally copy the contents of the JavaScript
    * string, and should be avoided in situations where performance is a concern.
@@ -647,8 +646,7 @@ class V8_EXPORT String : public Name {
    */
   class V8_EXPORT Utf8Value {
    public:
-    Utf8Value(Isolate* isolate, Local<v8::Value> obj,
-              WriteOptions options = REPLACE_INVALID_UTF8);
+    Utf8Value(Isolate* isolate, Local<v8::Value> obj);
     ~Utf8Value();
     char* operator*() { return str_; }
     const char* operator*() const { return str_; }
@@ -819,6 +817,8 @@ class V8_EXPORT Symbol : public Name {
   static Local<Symbol> GetToPrimitive(Isolate* isolate);
   static Local<Symbol> GetToStringTag(Isolate* isolate);
   static Local<Symbol> GetUnscopables(Isolate* isolate);
+  static Local<Symbol> GetDispose(Isolate* isolate);
+  static Local<Symbol> GetAsyncDispose(Isolate* isolate);
 
   V8_INLINE static Symbol* Cast(Data* data) {
 #ifdef V8_ENABLE_CHECKS
@@ -849,6 +849,19 @@ class V8_EXPORT Number : public Numeric {
  public:
   double Value() const;
   static Local<Number> New(Isolate* isolate, double value);
+  template <typename Int>
+    requires(std::is_integral<Int>::value && !std::is_same<Int, bool>::value &&
+             std::is_signed_v<Int> && sizeof(Int) <= sizeof(int32_t))
+  V8_INLINE static Local<Number> New(Isolate* isolate, Int value) {
+    return NewFromInt32(isolate, value);
+  }
+  template <typename UInt>
+    requires(std::is_integral<UInt>::value &&
+             !std::is_same<UInt, bool>::value && std::is_unsigned_v<UInt> &&
+             sizeof(UInt) <= sizeof(uint32_t))
+  V8_INLINE static Local<Number> New(Isolate* isolate, UInt value) {
+    return NewFromUint32(isolate, value);
+  }
   V8_INLINE static Number* Cast(v8::Data* data) {
 #ifdef V8_ENABLE_CHECKS
     CheckCast(data);
@@ -858,6 +871,8 @@ class V8_EXPORT Number : public Numeric {
 
  private:
   Number();
+  static Local<Number> NewFromInt32(Isolate* isolate, int32_t value);
+  static Local<Number> NewFromUint32(Isolate* isolate, uint32_t value);
   static void CheckCast(v8::Data* that);
 };
 
@@ -992,7 +1007,7 @@ String::ExternalStringResource* String::GetExternalStringResource() const {
 
   ExternalStringResource* result;
   if (I::IsExternalTwoByteString(I::GetInstanceType(obj))) {
-    Isolate* isolate = I::GetIsolateForSandbox(obj);
+    Isolate* isolate = I::GetCurrentIsolateForSandbox();
     A value = I::ReadExternalPointerField<internal::kExternalStringResourceTag>(
         isolate, obj, I::kStringResourceOffset);
     result = reinterpret_cast<String::ExternalStringResource*>(value);
@@ -1037,7 +1052,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
   ExternalStringResourceBase* resource;
   if (type == I::kExternalOneByteRepresentationTag ||
       type == I::kExternalTwoByteRepresentationTag) {
-    Isolate* isolate = I::GetIsolateForSandbox(obj);
+    Isolate* isolate = I::GetCurrentIsolateForSandbox();
     A value = I::ReadExternalPointerField<internal::kExternalStringResourceTag>(
         isolate, obj, I::kStringResourceOffset);
     resource = reinterpret_cast<ExternalStringResourceBase*>(value);

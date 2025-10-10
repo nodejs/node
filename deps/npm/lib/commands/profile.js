@@ -222,6 +222,8 @@ class Profile extends BaseCommand {
   }
 
   async enable2fa (args) {
+    const conf = { ...this.npm.flatOptions }
+
     if (args.length > 1) {
       throw new Error('npm profile enable-2fa [auth-and-writes|auth-only]')
     }
@@ -244,9 +246,16 @@ class Profile extends BaseCommand {
       )
     }
 
+    const userInfo = await get(conf)
+
+    if (!userInfo?.tfa?.pending && userInfo?.tfa?.mode === mode) {
+      output.standard('Two factor authentication is already enabled and set to ' + mode)
+      return
+    }
+
     const info = {
       tfa: {
-        mode: mode,
+        mode,
       },
     }
 
@@ -296,25 +305,15 @@ class Profile extends BaseCommand {
     const password = await readUserInfo.password()
     info.tfa.password = password
 
-    log.info('profile', 'Determine if tfa is pending')
-    const userInfo = await get({ ...this.npm.flatOptions })
-
-    const conf = { ...this.npm.flatOptions }
     if (userInfo && userInfo.tfa && userInfo.tfa.pending) {
       log.info('profile', 'Resetting two-factor authentication')
       await set({ tfa: { password, mode: 'disable' } }, conf)
-    } else if (userInfo && userInfo.tfa) {
-      if (!conf.otp) {
-        conf.otp = await readUserInfo.otp(
-          'Enter one-time password: '
-        )
-      }
     }
 
     log.info('profile', 'Setting two-factor authentication to ' + mode)
-    const challenge = await set(info, conf)
+    const challenge = await otplease(this.npm, conf, o => set(info, o))
 
-    if (challenge.tfa === null) {
+    if (challenge.tfa && challenge.tfa.mode) {
       output.standard('Two factor authentication mode changed to: ' + mode)
       return
     }
@@ -358,8 +357,8 @@ class Profile extends BaseCommand {
   }
 
   async disable2fa () {
-    const conf = { ...this.npm.flatOptions }
-    const info = await get(conf)
+    const opts = { ...this.npm.flatOptions }
+    const info = await get(opts)
 
     if (!info.tfa || info.tfa.pending) {
       output.standard('Two factor authentication not enabled.')
@@ -368,14 +367,8 @@ class Profile extends BaseCommand {
 
     const password = await readUserInfo.password()
 
-    if (!conf.otp) {
-      const msg = 'Enter one-time password: '
-      conf.otp = await readUserInfo.otp(msg)
-    }
-
     log.info('profile', 'disabling tfa')
-
-    await set({ tfa: { password: password, mode: 'disable' } }, conf)
+    await otplease(this.npm, opts, o => set({ tfa: { password: password, mode: 'disable' } }, o))
 
     if (this.npm.config.get('json')) {
       output.buffer({ tfa: false })

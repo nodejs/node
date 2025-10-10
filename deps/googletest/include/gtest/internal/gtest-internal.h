@@ -290,17 +290,17 @@ class FloatingPoint {
   // around may change its bits, although the new value is guaranteed
   // to be also a NAN.  Therefore, don't expect this constructor to
   // preserve the bits in x when x is a NAN.
-  explicit FloatingPoint(const RawType& x) { u_.value_ = x; }
+  explicit FloatingPoint(RawType x) { memcpy(&bits_, &x, sizeof(x)); }
 
   // Static methods
 
   // Reinterprets a bit pattern as a floating-point number.
   //
   // This function is needed to test the AlmostEquals() method.
-  static RawType ReinterpretBits(const Bits bits) {
-    FloatingPoint fp(0);
-    fp.u_.bits_ = bits;
-    return fp.u_.value_;
+  static RawType ReinterpretBits(Bits bits) {
+    RawType fp;
+    memcpy(&fp, &bits, sizeof(fp));
+    return fp;
   }
 
   // Returns the floating-point number that represent positive infinity.
@@ -309,16 +309,16 @@ class FloatingPoint {
   // Non-static methods
 
   // Returns the bits that represents this number.
-  const Bits& bits() const { return u_.bits_; }
+  const Bits& bits() const { return bits_; }
 
   // Returns the exponent bits of this number.
-  Bits exponent_bits() const { return kExponentBitMask & u_.bits_; }
+  Bits exponent_bits() const { return kExponentBitMask & bits_; }
 
   // Returns the fraction bits of this number.
-  Bits fraction_bits() const { return kFractionBitMask & u_.bits_; }
+  Bits fraction_bits() const { return kFractionBitMask & bits_; }
 
   // Returns the sign bit of this number.
-  Bits sign_bit() const { return kSignBitMask & u_.bits_; }
+  Bits sign_bit() const { return kSignBitMask & bits_; }
 
   // Returns true if and only if this is NAN (not a number).
   bool is_nan() const {
@@ -332,23 +332,16 @@ class FloatingPoint {
   //
   //   - returns false if either number is (or both are) NAN.
   //   - treats really large numbers as almost equal to infinity.
-  //   - thinks +0.0 and -0.0 are 0 DLP's apart.
+  //   - thinks +0.0 and -0.0 are 0 ULP's apart.
   bool AlmostEquals(const FloatingPoint& rhs) const {
     // The IEEE standard says that any comparison operation involving
     // a NAN must return false.
     if (is_nan() || rhs.is_nan()) return false;
 
-    return DistanceBetweenSignAndMagnitudeNumbers(u_.bits_, rhs.u_.bits_) <=
-           kMaxUlps;
+    return DistanceBetweenSignAndMagnitudeNumbers(bits_, rhs.bits_) <= kMaxUlps;
   }
 
  private:
-  // The data type used to store the actual floating-point number.
-  union FloatingPointUnion {
-    RawType value_;  // The raw floating-point number.
-    Bits bits_;      // The bits that represent the number.
-  };
-
   // Converts an integer from the sign-and-magnitude representation to
   // the biased representation.  More precisely, let N be 2 to the
   // power of (kBitCount - 1), an integer x is represented by the
@@ -364,7 +357,7 @@ class FloatingPoint {
   //
   // Read https://en.wikipedia.org/wiki/Signed_number_representations
   // for more details on signed number representations.
-  static Bits SignAndMagnitudeToBiased(const Bits& sam) {
+  static Bits SignAndMagnitudeToBiased(Bits sam) {
     if (kSignBitMask & sam) {
       // sam represents a negative number.
       return ~sam + 1;
@@ -376,14 +369,13 @@ class FloatingPoint {
 
   // Given two numbers in the sign-and-magnitude representation,
   // returns the distance between them as an unsigned number.
-  static Bits DistanceBetweenSignAndMagnitudeNumbers(const Bits& sam1,
-                                                     const Bits& sam2) {
+  static Bits DistanceBetweenSignAndMagnitudeNumbers(Bits sam1, Bits sam2) {
     const Bits biased1 = SignAndMagnitudeToBiased(sam1);
     const Bits biased2 = SignAndMagnitudeToBiased(sam2);
     return (biased1 >= biased2) ? (biased1 - biased2) : (biased2 - biased1);
   }
 
-  FloatingPointUnion u_;
+  Bits bits_;  // The bits that represent the number.
 };
 
 // Typedefs the instances of the FloatingPoint template class that we

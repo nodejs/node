@@ -29,13 +29,16 @@ class RetryHandler {
       methods,
       errorCodes,
       retryAfter,
-      statusCodes
+      statusCodes,
+      throwOnError
     } = retryOptions ?? {}
 
+    this.error = null
     this.dispatch = dispatch
     this.handler = WrapHandler.wrap(handler)
     this.opts = { ...dispatchOpts, body: wrapRequestBody(opts.body) }
     this.retryOpts = {
+      throwOnError: throwOnError ?? true,
       retry: retryFn ?? RetryHandler[kRetryHandlerDefaultRetry],
       retryAfter: retryAfter ?? true,
       maxTimeout: maxTimeout ?? 30 * 1000, // 30s,
@@ -66,6 +69,50 @@ class RetryHandler {
     this.start = 0
     this.end = null
     this.etag = null
+  }
+
+  onResponseStartWithRetry (controller, statusCode, headers, statusMessage, err) {
+    if (this.retryOpts.throwOnError) {
+      // Preserve old behavior for status codes that are not eligible for retry
+      if (this.retryOpts.statusCodes.includes(statusCode) === false) {
+        this.headersSent = true
+        this.handler.onResponseStart?.(controller, statusCode, headers, statusMessage)
+      } else {
+        this.error = err
+      }
+
+      return
+    }
+
+    if (isDisturbed(this.opts.body)) {
+      this.headersSent = true
+      this.handler.onResponseStart?.(controller, statusCode, headers, statusMessage)
+      return
+    }
+
+    function shouldRetry (passedErr) {
+      if (passedErr) {
+        this.headersSent = true
+
+        this.headersSent = true
+        this.handler.onResponseStart?.(controller, statusCode, headers, statusMessage)
+        controller.resume()
+        return
+      }
+
+      this.error = err
+      controller.resume()
+    }
+
+    controller.pause()
+    this.retryOpts.retry(
+      err,
+      {
+        state: { counter: this.retryCount },
+        opts: { retryOptions: this.retryOpts, ...this.opts }
+      },
+      shouldRetry.bind(this)
+    )
   }
 
   onRequestStart (controller, context) {
@@ -137,26 +184,19 @@ class RetryHandler {
   }
 
   onResponseStart (controller, statusCode, headers, statusMessage) {
+    this.error = null
     this.retryCount += 1
 
     if (statusCode >= 300) {
-      if (this.retryOpts.statusCodes.includes(statusCode) === false) {
-        this.headersSent = true
-        this.handler.onResponseStart?.(
-          controller,
-          statusCode,
-          headers,
-          statusMessage
-        )
-        return
-      } else {
-        throw new RequestRetryError('Request failed', statusCode, {
-          headers,
-          data: {
-            count: this.retryCount
-          }
-        })
-      }
+      const err = new RequestRetryError('Request failed', statusCode, {
+        headers,
+        data: {
+          count: this.retryCount
+        }
+      })
+
+      this.onResponseStartWithRetry(controller, statusCode, headers, statusMessage, err)
+      return
     }
 
     // Checkpoint for resume from where we left it
@@ -175,6 +215,7 @@ class RetryHandler {
       const contentRange = parseRangeHeader(headers['content-range'])
       // If no content range
       if (!contentRange) {
+        // We always throw here as we want to indicate that we entred unexpected path
         throw new RequestRetryError('Content-Range mismatch', statusCode, {
           headers,
           data: { count: this.retryCount }
@@ -183,6 +224,7 @@ class RetryHandler {
 
       // Let's start with a weak etag check
       if (this.etag != null && this.etag !== headers.etag) {
+        // We always throw here as we want to indicate that we entred unexpected path
         throw new RequestRetryError('ETag mismatch', statusCode, {
           headers,
           data: { count: this.retryCount }
@@ -266,20 +308,67 @@ class RetryHandler {
   }
 
   onResponseData (controller, chunk) {
+    if (this.error) {
+      return
+    }
+
     this.start += chunk.length
 
     this.handler.onResponseData?.(controller, chunk)
   }
 
   onResponseEnd (controller, trailers) {
-    this.retryCount = 0
-    return this.handler.onResponseEnd?.(controller, trailers)
+    if (this.error && this.retryOpts.throwOnError) {
+      throw this.error
+    }
+
+    if (!this.error) {
+      this.retryCount = 0
+      return this.handler.onResponseEnd?.(controller, trailers)
+    }
+
+    this.retry(controller)
+  }
+
+  retry (controller) {
+    if (this.start !== 0) {
+      const headers = { range: `bytes=${this.start}-${this.end ?? ''}` }
+
+      // Weak etag check - weak etags will make comparison algorithms never match
+      if (this.etag != null) {
+        headers['if-match'] = this.etag
+      }
+
+      this.opts = {
+        ...this.opts,
+        headers: {
+          ...this.opts.headers,
+          ...headers
+        }
+      }
+    }
+
+    try {
+      this.retryCountCheckpoint = this.retryCount
+      this.dispatch(this.opts, this)
+    } catch (err) {
+      this.handler.onResponseError?.(controller, err)
+    }
   }
 
   onResponseError (controller, err) {
     if (controller?.aborted || isDisturbed(this.opts.body)) {
       this.handler.onResponseError?.(controller, err)
       return
+    }
+
+    function shouldRetry (returnedErr) {
+      if (!returnedErr) {
+        this.retry(controller)
+        return
+      }
+
+      this.handler?.onResponseError?.(controller, returnedErr)
     }
 
     // We reconcile in case of a mix between network errors
@@ -299,43 +388,8 @@ class RetryHandler {
         state: { counter: this.retryCount },
         opts: { retryOptions: this.retryOpts, ...this.opts }
       },
-      onRetry.bind(this)
+      shouldRetry.bind(this)
     )
-
-    /**
-     * @this {RetryHandler}
-     * @param {Error} [err]
-     * @returns
-     */
-    function onRetry (err) {
-      if (err != null || controller?.aborted || isDisturbed(this.opts.body)) {
-        return this.handler.onResponseError?.(controller, err)
-      }
-
-      if (this.start !== 0) {
-        const headers = { range: `bytes=${this.start}-${this.end ?? ''}` }
-
-        // Weak etag check - weak etags will make comparison algorithms never match
-        if (this.etag != null) {
-          headers['if-match'] = this.etag
-        }
-
-        this.opts = {
-          ...this.opts,
-          headers: {
-            ...this.opts.headers,
-            ...headers
-          }
-        }
-      }
-
-      try {
-        this.retryCountCheckpoint = this.retryCount
-        this.dispatch(this.opts, this)
-      } catch (err) {
-        this.handler.onResponseError?.(controller, err)
-      }
-    }
   }
 }
 

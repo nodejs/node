@@ -1,6 +1,6 @@
 const LifecycleCmd = require('../lifecycle-cmd.js')
 
-// This ends up calling run-script(['start', ...args])
+// This ends up calling run(['start', ...args])
 class Start extends LifecycleCmd {
   static description = 'Start a package'
   static name = 'start'

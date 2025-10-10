@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,35 +10,40 @@
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE
 #endif
-#include "../e_os.h"
+#include "internal/e_os.h"
 #include <stdio.h>
 #include "internal/cryptlib.h"
 #include <openssl/rand.h>
 #include <openssl/crypto.h>
 #include "crypto/rand_pool.h"
 #include "crypto/rand.h"
-#include <stdio.h>
 #include "internal/dso.h"
+#include "internal/nelem.h"
 #include "prov/seeding.h"
 
-#ifdef __linux
-# include <sys/syscall.h>
-# ifdef DEVRANDOM_WAIT
-#  include <sys/shm.h>
-#  include <sys/utsname.h>
+#ifndef OPENSSL_SYS_UEFI
+# ifdef __linux
+#  include <sys/syscall.h>
+#  ifdef DEVRANDOM_WAIT
+#   include <sys/shm.h>
+#   include <sys/utsname.h>
+#  endif
 # endif
-#endif
-#if (defined(__FreeBSD__) || defined(__NetBSD__)) && !defined(OPENSSL_SYS_UEFI)
-# include <sys/types.h>
-# include <sys/sysctl.h>
-# include <sys/param.h>
-#endif
-#if defined(__OpenBSD__)
-# include <sys/param.h>
-#endif
-#if defined(__DragonFly__)
-# include <sys/param.h>
-# include <sys/random.h>
+# if defined(__FreeBSD__) || defined(__NetBSD__)
+#  include <sys/types.h>
+#  include <sys/sysctl.h>
+#  include <sys/param.h>
+# endif
+# if defined(__FreeBSD__) && __FreeBSD_version >= 1200061
+#  include <sys/random.h>
+# endif
+# if defined(__OpenBSD__)
+#  include <sys/param.h>
+# endif
+# if defined(__DragonFly__)
+#  include <sys/param.h>
+#  include <sys/random.h>
+# endif
 #endif
 
 #if (defined(OPENSSL_SYS_UNIX) && !defined(OPENSSL_SYS_VXWORKS)) \
@@ -50,7 +55,6 @@
 # include <sys/time.h>
 
 static uint64_t get_time_stamp(void);
-static uint64_t get_timer_bits(void);
 
 /* Macro to convert two thirty two bit values into a sixty four bit one */
 # define TWO32TO64(a, b) ((((uint64_t)(a)) << 32) + (b))
@@ -96,7 +100,6 @@ static uint64_t get_timer_bits(void);
 /* none means none. this simplifies the following logic */
 # undef OPENSSL_RAND_SEED_OS
 # undef OPENSSL_RAND_SEED_GETRANDOM
-# undef OPENSSL_RAND_SEED_LIBRANDOM
 # undef OPENSSL_RAND_SEED_DEVRANDOM
 # undef OPENSSL_RAND_SEED_RDTSC
 # undef OPENSSL_RAND_SEED_RDCPU
@@ -176,7 +179,7 @@ size_t ossl_pool_acquire_entropy(RAND_POOL *pool)
         /* Get wall clock time, take 8 bits. */
         clock_gettime(CLOCK_REALTIME, &ts);
         v = (unsigned char)(ts.tv_nsec & 0xFF);
-        ossl_rand_pool_add(pool, arg, &v, sizeof(v) , 2);
+        ossl_rand_pool_add(pool, arg, &v, sizeof(v), 2);
     }
     return ossl_rand_pool_entropy_available(pool);
 }
@@ -206,10 +209,6 @@ void ossl_rand_pool_keep_random_devices_open(int keep)
 #   endif
 #   define OPENSSL_RAND_SEED_GETRANDOM
 #   define OPENSSL_RAND_SEED_DEVRANDOM
-#  endif
-
-#  if defined(OPENSSL_RAND_SEED_LIBRANDOM)
-#   error "librandom not (yet) supported"
 #  endif
 
 #  if (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(KERN_ARND)
@@ -320,9 +319,7 @@ static ssize_t sysctl_random(char *buf, size_t buflen)
 #     define __NR_getrandom    352
 #    elif defined(__cris__)
 #     define __NR_getrandom    356
-#    elif defined(__aarch64__)
-#     define __NR_getrandom    278
-#    else /* generic */
+#    else /* generic (f.e. aarch64, loongarch, loongarch64) */
 #     define __NR_getrandom    278
 #    endif
 #   endif
@@ -351,12 +348,11 @@ static ssize_t syscall_random(void *buf, size_t buflen)
      * - Solaris since 11.3
      * - OpenBSD since 5.6
      * - Linux since 3.17 with glibc 2.25
-     * - FreeBSD since 12.0 (1200061)
      *
      * Note: Sometimes getentropy() can be provided but not implemented
      * internally. So we need to check errno for ENOSYS
      */
-#  if !defined(__DragonFly__) && !defined(__NetBSD__)
+#  if !defined(__DragonFly__) && !defined(__NetBSD__) && !defined(__FreeBSD__)
 #    if defined(__GNUC__) && __GNUC__>=2 && defined(__ELF__) && !defined(__hpux)
     extern int getentropy(void *buffer, size_t length) __attribute__((weak));
 
@@ -388,16 +384,21 @@ static ssize_t syscall_random(void *buf, size_t buflen)
     if (p_getentropy.p != NULL)
         return p_getentropy.f(buf, buflen) == 0 ? (ssize_t)buflen : -1;
 #    endif
-#  endif /* !__DragonFly__ */
+#  endif /* !__DragonFly__ && !__NetBSD__ && !__FreeBSD__ */
 
     /* Linux supports this since version 3.17 */
 #  if defined(__linux) && defined(__NR_getrandom)
     return syscall(__NR_getrandom, buf, buflen, 0);
+#  elif (defined(__DragonFly__)  && __DragonFly_version >= 500700) \
+     || (defined(__NetBSD__) && __NetBSD_Version >= 1000000000) \
+     || (defined(__FreeBSD__) && __FreeBSD_version >= 1200061)
+    return getrandom(buf, buflen, 0);
 #  elif (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(KERN_ARND)
     return sysctl_random(buf, buflen);
-#  elif (defined(__DragonFly__)  && __DragonFly_version >= 500700) \
-     || (defined(__NetBSD__) && __NetBSD_Version >= 1000000000)
-    return getrandom(buf, buflen, 0);
+#  elif defined(__wasi__)
+    if (getentropy(buf, buflen) == 0)
+      return (ssize_t)buflen;
+    return -1;
 #  else
     errno = ENOSYS;
     return -1;
@@ -509,7 +510,7 @@ static int wait_random_seeded(void)
  * So the handle might have been closed or even reused for opening
  * another file.
  */
-static int check_random_device(struct random_device * rd)
+static int check_random_device(struct random_device *rd)
 {
     struct stat st;
 
@@ -527,7 +528,7 @@ static int check_random_device(struct random_device * rd)
 static int get_random_device(size_t n)
 {
     struct stat st;
-    struct random_device * rd = &random_devices[n];
+    struct random_device *rd = &random_devices[n];
 
     /* reuse existing file descriptor if it is (still) valid */
     if (check_random_device(rd))
@@ -556,7 +557,7 @@ static int get_random_device(size_t n)
  */
 static void close_random_device(size_t n)
 {
-    struct random_device * rd = &random_devices[n];
+    struct random_device *rd = &random_devices[n];
 
     if (check_random_device(rd))
         close(rd->fd);
@@ -656,12 +657,6 @@ size_t ossl_pool_acquire_entropy(RAND_POOL *pool)
     entropy_available = ossl_rand_pool_entropy_available(pool);
     if (entropy_available > 0)
         return entropy_available;
-#   endif
-
-#   if defined(OPENSSL_RAND_SEED_LIBRANDOM)
-    {
-        /* Not yet implemented. */
-    }
 #   endif
 
 #   if defined(OPENSSL_RAND_SEED_DEVRANDOM)
@@ -774,31 +769,6 @@ int ossl_pool_add_nonce_data(RAND_POOL *pool)
     return ossl_rand_pool_add(pool, (unsigned char *)&data, sizeof(data), 0);
 }
 
-int ossl_rand_pool_add_additional_data(RAND_POOL *pool)
-{
-    struct {
-        int fork_id;
-        CRYPTO_THREAD_ID tid;
-        uint64_t time;
-    } data;
-
-    /* Erase the entire structure including any padding */
-    memset(&data, 0, sizeof(data));
-
-    /*
-     * Add some noise from the thread id and a high resolution timer.
-     * The fork_id adds some extra fork-safety.
-     * The thread id adds a little randomness if the drbg is accessed
-     * concurrently (which is the case for the <master> drbg).
-     */
-    data.fork_id = openssl_get_fork_id();
-    data.tid = CRYPTO_THREAD_get_current_id();
-    data.time = get_timer_bits();
-
-    return ossl_rand_pool_add(pool, (unsigned char *)&data, sizeof(data), 0);
-}
-
-
 /*
  * Get the current time with the highest possible resolution
  *
@@ -828,55 +798,5 @@ static uint64_t get_time_stamp(void)
     return time(NULL);
 }
 
-/*
- * Get an arbitrary timer value of the highest possible resolution
- *
- * The timer value is added as random noise to the additional data,
- * which is not considered a trusted entropy sourec, so any result
- * is acceptable.
- */
-static uint64_t get_timer_bits(void)
-{
-    uint64_t res = OPENSSL_rdtsc();
-
-    if (res != 0)
-        return res;
-
-# if defined(__sun) || defined(__hpux)
-    return gethrtime();
-# elif defined(_AIX)
-    {
-        timebasestruct_t t;
-
-        read_wall_time(&t, TIMEBASE_SZ);
-        return TWO32TO64(t.tb_high, t.tb_low);
-    }
-# elif defined(OSSL_POSIX_TIMER_OKAY)
-    {
-        struct timespec ts;
-
-#  ifdef CLOCK_BOOTTIME
-#   define CLOCK_TYPE CLOCK_BOOTTIME
-#  elif defined(_POSIX_MONOTONIC_CLOCK)
-#   define CLOCK_TYPE CLOCK_MONOTONIC
-#  else
-#   define CLOCK_TYPE CLOCK_REALTIME
-#  endif
-
-        if (clock_gettime(CLOCK_TYPE, &ts) == 0)
-            return TWO32TO64(ts.tv_sec, ts.tv_nsec);
-    }
-# endif
-# if defined(__unix__) \
-     || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L)
-    {
-        struct timeval tv;
-
-        if (gettimeofday(&tv, NULL) == 0)
-            return TWO32TO64(tv.tv_sec, tv.tv_usec);
-    }
-# endif
-    return time(NULL);
-}
 #endif /* (defined(OPENSSL_SYS_UNIX) && !defined(OPENSSL_SYS_VXWORKS))
           || defined(__DJGPP__) */

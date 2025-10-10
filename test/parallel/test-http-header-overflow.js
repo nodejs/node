@@ -4,14 +4,13 @@ const assert = require('assert');
 const { createServer, maxHeaderSize } = require('http');
 const { createConnection } = require('net');
 
-const CRLF = '\r\n';
 const DUMMY_HEADER_NAME = 'Cookie: ';
 const DUMMY_HEADER_VALUE = 'a'.repeat(
   // Plus one is to make it 1 byte too big
   maxHeaderSize - DUMMY_HEADER_NAME.length + 1
 );
 const PAYLOAD_GET = 'GET /blah HTTP/1.1';
-const PAYLOAD = PAYLOAD_GET + CRLF + DUMMY_HEADER_NAME + DUMMY_HEADER_VALUE;
+const PAYLOAD = PAYLOAD_GET + '\r\n' + DUMMY_HEADER_NAME + DUMMY_HEADER_VALUE;
 
 const server = createServer();
 

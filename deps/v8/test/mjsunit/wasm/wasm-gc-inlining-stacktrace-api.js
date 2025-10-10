@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbofan
-// Flags: --no-always-turbofan --no-always-sparkplug --expose-gc
+// Flags: --no-always-sparkplug --expose-gc
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

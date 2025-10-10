@@ -33,19 +33,19 @@ const subScript = fixtures.path('child-process-persistent.js');
 
     // Sending a handle and not giving the tickQueue time to acknowledge should
     // create the internal backlog, but leave it empty.
-    const rv1 = s.send('one', handle, (err) => { if (err) assert.fail(err); });
+    const rv1 = s.send('one', handle, assert.ifError);
     assert.strictEqual(rv1, true);
     // Since the first `send` included a handle (should be unacknowledged),
     // we can safely queue up only one more message.
-    const rv2 = s.send('two', (err) => { if (err) assert.fail(err); });
+    const rv2 = s.send('two', assert.ifError);
     assert.strictEqual(rv2, true);
     // The backlog should now be indicate to backoff.
-    const rv3 = s.send('three', (err) => { if (err) assert.fail(err); });
+    const rv3 = s.send('three', assert.ifError);
     assert.strictEqual(rv3, false);
     const rv4 = s.send('four', (err) => {
-      if (err) assert.fail(err);
+      assert.ifError(err);
       // `send` queue should have been drained.
-      const rv5 = s.send('5', handle, (err) => { if (err) assert.fail(err); });
+      const rv5 = s.send('5', handle, assert.ifError);
       assert.strictEqual(rv5, true);
 
       // End test and cleanup.

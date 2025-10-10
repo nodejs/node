@@ -3,7 +3,6 @@
 const common = require('../common');
 const net = require('net');
 const assert = require('assert');
-
 const blockList = new net.BlockList();
 blockList.addAddress('127.0.0.1');
 blockList.addAddress('127.0.0.2');

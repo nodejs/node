@@ -385,8 +385,7 @@ static void GetGroups(const FunctionCallbackInfo<Value>& args) {
 
   groups.resize(ngroups);
   gid_t egid = getegid();
-  if (std::find(groups.begin(), groups.end(), egid) == groups.end())
-    groups.push_back(egid);
+  if (std::ranges::find(groups, egid) == groups.end()) groups.push_back(egid);
   Local<Value> result;
   if (ToV8Value(env->context(), groups).ToLocal(&result)) {
     args.GetReturnValue().Set(result);

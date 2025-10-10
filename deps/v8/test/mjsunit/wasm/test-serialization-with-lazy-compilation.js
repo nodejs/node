@@ -4,7 +4,7 @@
 
 // The test needs --no-liftoff because we can't serialize and deserialize
 // Liftoff code.
-// Flags: --allow-natives-syntax --wasm-lazy-compilation --expose-gc
+// Flags: --wasm-lazy-compilation --expose-gc
 // Flags: --no-liftoff --no-wasm-native-module-cache
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
@@ -29,7 +29,7 @@ function serializeModule() {
   // Run one function so that serialization happens.
   let instance = new WebAssembly.Instance(module, {foo: {bar: () => 1}});
   instance.exports.f2();
-  const buff = %SerializeWasmModule(module);
+  const buff = d8.wasm.serializeModule(module);
   return buff;
 };
 
@@ -37,7 +37,7 @@ const serialized_module = serializeModule();
 
 (function testSerializedModule() {
   print(arguments.callee.name);
-  const module = %DeserializeWasmModule(serialized_module, wire_bytes);
+  const module = d8.wasm.deserializeModule(serialized_module, wire_bytes);
 
   const instance = new WebAssembly.Instance(module, {foo: {bar: () => 1}});
   assertEquals(0, instance.exports.f0());

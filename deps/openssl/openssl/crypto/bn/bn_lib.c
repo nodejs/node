@@ -82,8 +82,9 @@ int BN_get_params(int which)
 const BIGNUM *BN_value_one(void)
 {
     static const BN_ULONG data_one = 1L;
-    static const BIGNUM const_one =
-        { (BN_ULONG *)&data_one, 1, 1, 0, BN_FLG_STATIC_DATA };
+    static const BIGNUM const_one = {
+        (BN_ULONG *)&data_one, 1, 1, 0, BN_FLG_STATIC_DATA
+    };
 
     return &const_one;
 }
@@ -244,22 +245,21 @@ BIGNUM *BN_new(void)
 {
     BIGNUM *ret;
 
-    if ((ret = OPENSSL_zalloc(sizeof(*ret))) == NULL) {
-        ERR_raise(ERR_LIB_BN, ERR_R_MALLOC_FAILURE);
+    if ((ret = OPENSSL_zalloc(sizeof(*ret))) == NULL)
         return NULL;
-    }
     ret->flags = BN_FLG_MALLOCED;
     bn_check_top(ret);
     return ret;
 }
 
- BIGNUM *BN_secure_new(void)
- {
-     BIGNUM *ret = BN_new();
-     if (ret != NULL)
-         ret->flags |= BN_FLG_SECURE;
-     return ret;
- }
+BIGNUM *BN_secure_new(void)
+{
+    BIGNUM *ret = BN_new();
+
+    if (ret != NULL)
+        ret->flags |= BN_FLG_SECURE;
+    return ret;
+}
 
 /* This is used by bn_expand2() */
 /* The caller MUST check that words > b->dmax before calling this */
@@ -279,10 +279,8 @@ static BN_ULONG *bn_expand_internal(const BIGNUM *b, int words)
         a = OPENSSL_secure_zalloc(words * sizeof(*a));
     else
         a = OPENSSL_zalloc(words * sizeof(*a));
-    if (a == NULL) {
-        ERR_raise(ERR_LIB_BN, ERR_R_MALLOC_FAILURE);
+    if (a == NULL)
         return NULL;
-    }
 
     assert(b->top <= words);
     if (b->top > 0)
@@ -430,42 +428,102 @@ int BN_set_word(BIGNUM *a, BN_ULONG w)
     return 1;
 }
 
-BIGNUM *BN_bin2bn(const unsigned char *s, int len, BIGNUM *ret)
+typedef enum {BIG, LITTLE} endianness_t;
+typedef enum {SIGNED, UNSIGNED} signedness_t;
+
+static BIGNUM *bin2bn(const unsigned char *s, int len, BIGNUM *ret,
+                      endianness_t endianness, signedness_t signedness)
 {
-    unsigned int i, m;
+    int inc;
+    const unsigned char *s2;
+    int inc2;
+    int neg = 0, xor = 0, carry = 0;
+    unsigned int i;
     unsigned int n;
-    BN_ULONG l;
     BIGNUM *bn = NULL;
+
+    /* Negative length is not acceptable */
+    if (len < 0)
+        return NULL;
 
     if (ret == NULL)
         ret = bn = BN_new();
     if (ret == NULL)
         return NULL;
     bn_check_top(ret);
-    /* Skip leading zero's. */
-    for ( ; len > 0 && *s == 0; s++, len--)
+
+    /*
+     * If the input has no bits, the number is considered zero.
+     * This makes calls with s==NULL and len==0 safe.
+     */
+    if (len == 0) {
+        BN_clear(ret);
+        return ret;
+    }
+
+    /*
+     * The loop that does the work iterates from least to most
+     * significant BIGNUM chunk, so we adapt parameters to transfer
+     * input bytes accordingly.
+     */
+    if (endianness == LITTLE) {
+        s2 = s + len - 1;
+        inc2 = -1;
+        inc = 1;
+    } else {
+        s2 = s;
+        inc2 = 1;
+        inc = -1;
+        s += len - 1;
+    }
+
+    /* Take note of the signedness of the input bytes*/
+    if (signedness == SIGNED) {
+        neg = !!(*s2 & 0x80);
+        xor = neg ? 0xff : 0x00;
+        carry = neg;
+    }
+
+    /*
+     * Skip leading sign extensions (the value of |xor|).
+     * This is the only spot where |s2| and |inc2| are used.
+     */
+    for ( ; len > 0 && *s2 == xor; s2 += inc2, len--)
         continue;
-    n = len;
-    if (n == 0) {
+
+    /*
+     * If there was a set of 0xff, we backtrack one byte unless the next
+     * one has a sign bit, as the last 0xff is then part of the actual
+     * number, rather then a mere sign extension.
+     */
+    if (xor == 0xff) {
+        if (len == 0 || !(*s2 & 0x80))
+            len++;
+    }
+    /* If it was all zeros, we're done */
+    if (len == 0) {
         ret->top = 0;
         return ret;
     }
-    i = ((n - 1) / BN_BYTES) + 1;
-    m = ((n - 1) % (BN_BYTES));
-    if (bn_wexpand(ret, (int)i) == NULL) {
+    n = ((len - 1) / BN_BYTES) + 1; /* Number of resulting bignum chunks */
+    if (bn_wexpand(ret, (int)n) == NULL) {
         BN_free(bn);
         return NULL;
     }
-    ret->top = i;
-    ret->neg = 0;
-    l = 0;
-    while (n--) {
-        l = (l << 8L) | *(s++);
-        if (m-- == 0) {
-            ret->d[--i] = l;
-            l = 0;
-            m = BN_BYTES - 1;
+    ret->top = n;
+    ret->neg = neg;
+    for (i = 0; n-- > 0; i++) {
+        BN_ULONG l = 0;        /* Accumulator */
+        unsigned int m = 0;    /* Offset in a bignum chunk, in bits */
+
+        for (; len > 0 && m < BN_BYTES * 8; len--, s += inc, m += 8) {
+            BN_ULONG byte_xored = *s ^ xor;
+            BN_ULONG byte = (byte_xored + carry) & 0xff;
+
+            carry = byte_xored > byte; /* Implicit 1 or 0 */
+            l |= (byte << m);
         }
+        ret->d[i] = l;
     }
     /*
      * need to call this due to clear byte at top if avoiding having the top
@@ -475,30 +533,58 @@ BIGNUM *BN_bin2bn(const unsigned char *s, int len, BIGNUM *ret)
     return ret;
 }
 
-typedef enum {big, little} endianess_t;
-
-/* ignore negative */
-static
-int bn2binpad(const BIGNUM *a, unsigned char *to, int tolen, endianess_t endianess)
+BIGNUM *BN_bin2bn(const unsigned char *s, int len, BIGNUM *ret)
 {
-    int n;
+    return bin2bn(s, len, ret, BIG, UNSIGNED);
+}
+
+BIGNUM *BN_signed_bin2bn(const unsigned char *s, int len, BIGNUM *ret)
+{
+    return bin2bn(s, len, ret, BIG, SIGNED);
+}
+
+static int bn2binpad(const BIGNUM *a, unsigned char *to, int tolen,
+                     endianness_t endianness, signedness_t signedness)
+{
+    int inc;
+    int n, n8;
+    int xor = 0, carry = 0, ext = 0;
     size_t i, lasti, j, atop, mask;
     BN_ULONG l;
 
     /*
-     * In case |a| is fixed-top, BN_num_bytes can return bogus length,
+     * In case |a| is fixed-top, BN_num_bits can return bogus length,
      * but it's assumed that fixed-top inputs ought to be "nominated"
      * even for padded output, so it works out...
      */
-    n = BN_num_bytes(a);
+    n8 = BN_num_bits(a);
+    n = (n8 + 7) / 8;           /* This is what BN_num_bytes() does */
+
+    /* Take note of the signedness of the bignum */
+    if (signedness == SIGNED) {
+        xor = a->neg ? 0xff : 0x00;
+        carry = a->neg;
+
+        /*
+         * if |n * 8 == n|, then the MSbit is set, otherwise unset.
+         * We must compensate with one extra byte if that doesn't
+         * correspond to the signedness of the bignum with regards
+         * to 2's complement.
+         */
+        ext = (n * 8 == n8)
+            ? !a->neg            /* MSbit set on nonnegative bignum */
+            : a->neg;            /* MSbit unset on negative bignum */
+    }
+
     if (tolen == -1) {
-        tolen = n;
-    } else if (tolen < n) {     /* uncommon/unlike case */
+        tolen = n + ext;
+    } else if (tolen < n + ext) { /* uncommon/unlike case */
         BIGNUM temp = *a;
 
         bn_correct_top(&temp);
-        n = BN_num_bytes(&temp);
-        if (tolen < n)
+        n8 = BN_num_bits(&temp);
+        n = (n8 + 7) / 8;       /* This is what BN_num_bytes() does */
+        if (tolen < n + ext)
             return -1;
     }
 
@@ -510,19 +596,30 @@ int bn2binpad(const BIGNUM *a, unsigned char *to, int tolen, endianess_t endiane
         return tolen;
     }
 
+    /*
+     * The loop that does the work iterates from least significant
+     * to most significant BIGNUM limb, so we adapt parameters to
+     * transfer output bytes accordingly.
+     */
+    if (endianness == LITTLE) {
+        inc = 1;
+    } else {
+        inc = -1;
+        to += tolen - 1;         /* Move to the last byte, not beyond */
+    }
+
     lasti = atop - 1;
     atop = a->top * BN_BYTES;
-    if (endianess == big)
-        to += tolen; /* start from the end of the buffer */
     for (i = 0, j = 0; j < (size_t)tolen; j++) {
-        unsigned char val;
+        unsigned char byte, byte_xored;
+
         l = a->d[i / BN_BYTES];
         mask = 0 - ((j - atop) >> (8 * sizeof(i) - 1));
-        val = (unsigned char)(l >> (8 * (i % BN_BYTES)) & mask);
-        if (endianess == big)
-            *--to = val;
-        else
-            *to++ = val;
+        byte = (unsigned char)(l >> (8 * (i % BN_BYTES)) & mask);
+        byte_xored = byte ^ xor;
+        *to = (unsigned char)(byte_xored + carry);
+        carry = byte_xored > *to; /* Implicit 1 or 0 */
+        to += inc;
         i += (i - lasti) >> (8 * sizeof(i) - 1); /* stay on last limb */
     }
 
@@ -533,66 +630,43 @@ int BN_bn2binpad(const BIGNUM *a, unsigned char *to, int tolen)
 {
     if (tolen < 0)
         return -1;
-    return bn2binpad(a, to, tolen, big);
+    return bn2binpad(a, to, tolen, BIG, UNSIGNED);
+}
+
+int BN_signed_bn2bin(const BIGNUM *a, unsigned char *to, int tolen)
+{
+    if (tolen < 0)
+        return -1;
+    return bn2binpad(a, to, tolen, BIG, SIGNED);
 }
 
 int BN_bn2bin(const BIGNUM *a, unsigned char *to)
 {
-    return bn2binpad(a, to, -1, big);
+    return bn2binpad(a, to, -1, BIG, UNSIGNED);
 }
 
 BIGNUM *BN_lebin2bn(const unsigned char *s, int len, BIGNUM *ret)
 {
-    unsigned int i, m;
-    unsigned int n;
-    BN_ULONG l;
-    BIGNUM *bn = NULL;
+    return bin2bn(s, len, ret, LITTLE, UNSIGNED);
+}
 
-    if (ret == NULL)
-        ret = bn = BN_new();
-    if (ret == NULL)
-        return NULL;
-    bn_check_top(ret);
-    s += len;
-    /* Skip trailing zeroes. */
-    for ( ; len > 0 && s[-1] == 0; s--, len--)
-        continue;
-    n = len;
-    if (n == 0) {
-        ret->top = 0;
-        return ret;
-    }
-    i = ((n - 1) / BN_BYTES) + 1;
-    m = ((n - 1) % (BN_BYTES));
-    if (bn_wexpand(ret, (int)i) == NULL) {
-        BN_free(bn);
-        return NULL;
-    }
-    ret->top = i;
-    ret->neg = 0;
-    l = 0;
-    while (n--) {
-        s--;
-        l = (l << 8L) | *s;
-        if (m-- == 0) {
-            ret->d[--i] = l;
-            l = 0;
-            m = BN_BYTES - 1;
-        }
-    }
-    /*
-     * need to call this due to clear byte at top if avoiding having the top
-     * bit set (-ve number)
-     */
-    bn_correct_top(ret);
-    return ret;
+BIGNUM *BN_signed_lebin2bn(const unsigned char *s, int len, BIGNUM *ret)
+{
+    return bin2bn(s, len, ret, LITTLE, SIGNED);
 }
 
 int BN_bn2lebinpad(const BIGNUM *a, unsigned char *to, int tolen)
 {
     if (tolen < 0)
         return -1;
-    return bn2binpad(a, to, tolen, little);
+    return bn2binpad(a, to, tolen, LITTLE, UNSIGNED);
+}
+
+int BN_signed_bn2lebin(const BIGNUM *a, unsigned char *to, int tolen)
+{
+    if (tolen < 0)
+        return -1;
+    return bn2binpad(a, to, tolen, LITTLE, SIGNED);
 }
 
 BIGNUM *BN_native2bn(const unsigned char *s, int len, BIGNUM *ret)
@@ -604,6 +678,15 @@ BIGNUM *BN_native2bn(const unsigned char *s, int len, BIGNUM *ret)
     return BN_bin2bn(s, len, ret);
 }
 
+BIGNUM *BN_signed_native2bn(const unsigned char *s, int len, BIGNUM *ret)
+{
+    DECLARE_IS_ENDIAN;
+
+    if (IS_LITTLE_ENDIAN)
+        return BN_signed_lebin2bn(s, len, ret);
+    return BN_signed_bin2bn(s, len, ret);
+}
+
 int BN_bn2nativepad(const BIGNUM *a, unsigned char *to, int tolen)
 {
     DECLARE_IS_ENDIAN;
@@ -611,6 +694,15 @@ int BN_bn2nativepad(const BIGNUM *a, unsigned char *to, int tolen)
     if (IS_LITTLE_ENDIAN)
         return BN_bn2lebinpad(a, to, tolen);
     return BN_bn2binpad(a, to, tolen);
+}
+
+int BN_signed_bn2native(const BIGNUM *a, unsigned char *to, int tolen)
+{
+    DECLARE_IS_ENDIAN;
+
+    if (IS_LITTLE_ENDIAN)
+        return BN_signed_bn2lebin(a, to, tolen);
+    return BN_signed_bn2bin(a, to, tolen);
 }
 
 int BN_ucmp(const BIGNUM *a, const BIGNUM *b)
@@ -854,9 +946,6 @@ void BN_consttime_swap(BN_ULONG condition, BIGNUM *a, BIGNUM *b, int nwords)
     BN_ULONG t;
     int i;
 
-    if (a == b)
-        return;
-
     bn_wcheck_size(a, nwords);
     bn_wcheck_size(b, nwords);
 
@@ -960,7 +1049,7 @@ int BN_is_word(const BIGNUM *a, const BN_ULONG w)
     return BN_abs_is_word(a, w) && (!w || !a->neg);
 }
 
-int ossl_bn_is_word_fixed_top(const BIGNUM *a, BN_ULONG w)
+int ossl_bn_is_word_fixed_top(const BIGNUM *a, const BN_ULONG w)
 {
     int res, i;
     const BN_ULONG *ap = a->d;
@@ -1007,10 +1096,8 @@ BN_GENCB *BN_GENCB_new(void)
 {
     BN_GENCB *ret;
 
-    if ((ret = OPENSSL_malloc(sizeof(*ret))) == NULL) {
-        ERR_raise(ERR_LIB_BN, ERR_R_MALLOC_FAILURE);
+    if ((ret = OPENSSL_malloc(sizeof(*ret))) == NULL)
         return NULL;
-    }
 
     return ret;
 }

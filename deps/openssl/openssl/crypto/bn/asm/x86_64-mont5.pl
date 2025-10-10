@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2011-2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2011-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -3577,11 +3577,13 @@ $code.=<<___;
 ___
 }
 $code.=<<___;
+.section .rodata align=64
 .align	64
 .Linc:
 	.long	0,0, 1,1
 	.long	2,2, 2,2
 .asciz	"Montgomery Multiplication with scatter/gather for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
+.previous
 ___
 
 # EXCEPTION_DISPOSITION handler (EXCEPTION_RECORD *rec,ULONG64 frame,

@@ -30,7 +30,7 @@ struct has_priority<T, std::void_t<decltype(std::declval<T>().priority)>>
 template <class T>
 class TaskQueue {
  public:
-  // If the entry type has a priority memeber, order the priority queue by
+  // If the entry type has a priority member, order the priority queue by
   // that - higher priority first. Otherwise, maintain insertion order.
   struct EntryCompare {
     bool operator()(const std::unique_ptr<T>& a,

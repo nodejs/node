@@ -200,10 +200,10 @@ async function install (gyp, argv) {
     // download the tarball and extract!
     // Ommited on Windows if only new node.lib is required
 
-    // on Windows there can be file errors from tar if parallel installs
+    // there can be file errors from tar if parallel installs
     // are happening (not uncommon with multiple native modules) so
     // extract the tarball to a temp directory first and then copy over
-    const tarExtractDir = win ? await fs.mkdtemp(path.join(os.tmpdir(), 'node-gyp-tmp-')) : devDir
+    const tarExtractDir = await fs.mkdtemp(path.join(os.tmpdir(), 'node-gyp-tmp-'))
 
     try {
       if (shouldDownloadTarball) {
@@ -277,17 +277,13 @@ async function install (gyp, argv) {
       }
 
       // copy over the files from the temp tarball extract directory to devDir
-      if (tarExtractDir !== devDir) {
-        await copyDirectory(tarExtractDir, devDir)
-      }
+      await copyDirectory(tarExtractDir, devDir)
     } finally {
-      if (tarExtractDir !== devDir) {
-        try {
-          // try to cleanup temp dir
-          await fs.rm(tarExtractDir, { recursive: true, maxRetries: 3 })
-        } catch {
-          log.warn('failed to clean up temp tarball extract directory')
-        }
+      try {
+        // try to cleanup temp dir
+        await fs.rm(tarExtractDir, { recursive: true, maxRetries: 3 })
+      } catch {
+        log.warn('failed to clean up temp tarball extract directory')
       }
     }
 

@@ -60,11 +60,13 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
 }
 
 bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
-  RCS_SCOPE(
-      LocalHeap::Current() == nullptr
-          ? GetIsolateChecked()->counters()->runtime_call_stats()
-          : LocalIsolate::FromHeap(LocalHeap::Current())->runtime_call_stats(),
-      RuntimeCallCounterId::kIsTemplateFor);
+#ifdef V8_RUNTIME_CALL_STATS
+  LocalHeap* local_heap = LocalHeap::Current();
+  RCS_SCOPE(local_heap->is_main_thread()
+                ? Isolate::Current()->counters()->runtime_call_stats()
+                : LocalIsolate::FromHeap(local_heap)->runtime_call_stats(),
+            RuntimeCallCounterId::kIsTemplateFor);
+#endif  // V8_RUNTIME_CALL_STATS
 
   // There is a constraint on the object; check.
   if (!IsJSObjectMap(map)) return false;
@@ -188,6 +190,16 @@ const CFunctionInfo* FunctionTemplateInfo::GetCSignature(Isolate* isolate,
 }
 
 // static
+void ObjectTemplateInfo::SealAndPrepareForPromotionToReadOnly(
+    Isolate* isolate, DirectHandle<ObjectTemplateInfo> info) {
+  if (info->should_promote_to_read_only()) return;
+  CHECK(!HeapLayout::InReadOnlySpace(*info));
+
+  info->EnsureHasSerialNumber(isolate);
+  info->set_should_promote_to_read_only(true);
+}
+
+// static
 DirectHandle<DictionaryTemplateInfo> DictionaryTemplateInfo::Create(
     Isolate* isolate, const v8::MemorySpan<const std::string_view>& names) {
   DirectHandle<FixedArray> property_names = isolate->factory()->NewFixedArray(
@@ -237,7 +249,7 @@ DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
     DirectHandle<NativeContext> context,
     DirectHandle<DictionaryTemplateInfo> self,
     const MemorySpan<MaybeLocal<Value>>& property_values) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<FixedArray> property_names(self->property_names(), isolate);
 
   const int property_names_len = property_names->length();

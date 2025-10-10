@@ -93,13 +93,10 @@ const pickManifest = (packument, wanted, opts) => {
     throw new Error('Only tag, version, and range are supported')
   }
 
-  // if the type is 'tag', and not just the implicit default, then it must
-  // be that exactly, or nothing else will do.
+  // if the type is 'tag', and not just the implicit default, then it must be that exactly, or nothing else will do.
   if (wanted && type === 'tag') {
     const ver = distTags[wanted]
-    // if the version in the dist-tags is before the before date, then
-    // we use that.  Otherwise, we get the highest precedence version
-    // prior to the dist-tag.
+    // if the version in the dist-tags is before the before date, then we use that. Otherwise, we get the highest precedence version prior to the dist-tag.
     if (isBefore(verTimes, ver, time)) {
       return decorateAvoid(versions[ver] || staged[ver] || restricted[ver], avoid)
     } else {
@@ -117,9 +114,7 @@ const pickManifest = (packument, wanted, opts) => {
   // ok, sort based on our heuristics, and pick the best fit
   const range = type === 'range' ? wanted : '*'
 
-  // if the range is *, then we prefer the 'latest' if available
-  // but skip this if it should be avoided, in that case we have
-  // to try a little harder.
+  // if the range is *, then we prefer the 'latest' if available but skip this if it should be avoided, in that case we have to try a little harder.
   const defaultVer = distTags[defaultTag]
   if (defaultVer &&
       (range === '*' || semver.satisfies(defaultVer, range, { loose: true })) &&

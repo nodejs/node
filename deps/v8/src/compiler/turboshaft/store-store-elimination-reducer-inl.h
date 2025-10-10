@@ -325,10 +325,11 @@ class RedundantStoreAnalysis {
           // TODO(nicohartmann@): Use the new effect flags to distinguish heap
           // access once available.
           const bool is_on_heap_store = store.kind.tagged_base;
-          const bool is_field_store = !store.index().valid();
+          const bool is_fixed_offset_store = !store.index().valid();
           const uint8_t size = store.stored_rep.SizeInBytes();
-          // For now we consider only stores of fields of objects on the heap.
-          if (is_on_heap_store && is_field_store) {
+          // For now we consider only stores of fixed offsets of objects on the
+          // heap.
+          if (is_on_heap_store && is_fixed_offset_store) {
             bool is_eliminable_store = false;
             switch (table_.GetObservability(store.base(), store.offset, size)) {
               case StoreObservability::kUnobservable:
@@ -415,11 +416,16 @@ class RedundantStoreAnalysis {
           // TODO(nicohartmann@): Use the new effect flags to distinguish heap
           // access once available.
           const bool is_on_heap_load = load.kind.tagged_base;
-          const bool is_field_load = !load.index().valid();
+          const bool is_fixed_offset_load = !load.index().valid();
           // For now we consider only loads of fields of objects on the heap.
-          if (is_on_heap_load && is_field_load) {
-            table_.MarkPotentiallyAliasingStoresAsObservable(load.base(),
-                                                             load.offset);
+          if (is_on_heap_load) {
+            if (is_fixed_offset_load) {
+              table_.MarkPotentiallyAliasingStoresAsObservable(load.base(),
+                                                               load.offset);
+            } else {
+              // A dynamically indexed load might alias any fixed offset.
+              table_.MarkAllStoresAsObservable();
+            }
           }
           break;
         }

@@ -101,9 +101,9 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
     }
     DisallowGarbageCollection no_gc;
     int slot_index = context->scope_info()->ContextSlotIndex(
-        isolate_->factory()->this_string());
+        *isolate_->factory()->this_string());
     if (slot_index < 0) return v8::MaybeLocal<v8::Value>();
-    DirectHandle<Object> value(context->get(slot_index), isolate_);
+    DirectHandle<Object> value(context->GetNoCell(slot_index), isolate_);
     if (IsTheHole(*value, isolate_)) return v8::MaybeLocal<v8::Value>();
     return Utils::ToLocal(value);
   }

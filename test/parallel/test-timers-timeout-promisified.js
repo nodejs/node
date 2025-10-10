@@ -14,8 +14,6 @@ const setPromiseTimeout = promisify(timers.setTimeout);
 
 assert.strictEqual(setPromiseTimeout, timerPromises.setTimeout);
 
-process.on('multipleResolves', common.mustNotCall());
-
 {
   const promise = setPromiseTimeout(1);
   promise.then(common.mustCall((value) => {

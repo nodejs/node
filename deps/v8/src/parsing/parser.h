@@ -170,7 +170,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       base::SmallVector<v8::Isolate::UseCounterFeature, 8>* use_counters,
       int* preparse_skipped);
   template <typename IsolateT>
-  void HandleSourceURLComments(IsolateT* isolate, DirectHandle<Script> script);
+  void HandleDebugMagicComments(IsolateT* isolate, DirectHandle<Script> script);
 
  private:
   friend class ParserBase<Parser>;
@@ -195,19 +195,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   bool parse_lazily() const { return mode_ == PARSE_LAZILY; }
   enum Mode { PARSE_LAZILY, PARSE_EAGERLY };
-
-  class V8_NODISCARD ParsingModeScope {
-   public:
-    ParsingModeScope(Parser* parser, Mode mode)
-        : parser_(parser), old_mode_(parser->mode_) {
-      parser_->mode_ = mode;
-    }
-    ~ParsingModeScope() { parser_->mode_ = old_mode_; }
-
-   private:
-    Parser* parser_;
-    Mode old_mode_;
-  };
 
   // Runtime encoding of different completion modes.
   enum CompletionKind {
@@ -687,6 +674,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // case, *x will be changed to an expression which is the computed value.
   bool ShortcutLiteralBinaryExpression(Expression** x, Expression* y,
                                        Token::Value op, int pos);
+  // Returns true if we have two string literals passed into an add. In that
+  // case, *x will be changed to an expression which is the concatenated string.
+  bool ShortcutStringLiteralAppendExpression(Expression** x, Expression* y);
 
   bool CollapseConditionalChain(Expression** x, Expression* cond,
                                 Expression* then_expression,

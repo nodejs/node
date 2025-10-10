@@ -241,6 +241,7 @@ using ConstantMask = MaskBuilder<ConstantOp, FIELD(ConstantOp, kind)>;
 
 using kWord32Constant = ConstantMask::For<ConstantOp::Kind::kWord32>;
 using kWord64Constant = ConstantMask::For<ConstantOp::Kind::kWord64>;
+using kFloat64Constant = ConstantMask::For<ConstantOp::Kind::kFloat64>;
 using kExternalConstant = ConstantMask::For<ConstantOp::Kind::kExternal>;
 using kHeapConstant = ConstantMask::For<ConstantOp::Kind::kHeapObject>;
 using kSmiConstant = ConstantMask::For<ConstantOp::Kind::kSmi>;
@@ -325,6 +326,8 @@ using Simd128BinopMask =
     MaskBuilder<Simd128BinopOp, FIELD(Simd128BinopOp, kind)>;
 using kSimd128I32x4Mul = Simd128BinopMask::For<Simd128BinopOp::Kind::kI32x4Mul>;
 using kSimd128I16x8Mul = Simd128BinopMask::For<Simd128BinopOp::Kind::kI16x8Mul>;
+using kSimd128AndNot = Simd128BinopMask::For<Simd128BinopOp::Kind::kS128AndNot>;
+using kSimd128Xor = Simd128BinopMask::For<Simd128BinopOp::Kind::kS128Xor>;
 
 #define SIMD_SIGN_EXTENSION_BINOP_MASK(kind) \
   using kSimd128##kind = Simd128BinopMask::For<Simd128BinopOp::Kind::k##kind>;

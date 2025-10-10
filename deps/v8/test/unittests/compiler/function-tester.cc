@@ -59,7 +59,7 @@ FunctionTester::FunctionTester(Isolate* isolate, DirectHandle<Code> code,
       flags_(0) {
   CHECK(!code.is_null());
   Compile(function);
-  function->UpdateCode(*code);
+  function->UpdateCode(isolate, *code);
 }
 
 void FunctionTester::CheckThrows(Handle<Object> a) {

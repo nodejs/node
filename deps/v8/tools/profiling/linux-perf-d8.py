@@ -151,39 +151,11 @@ def main():
       parser.error("--timeout should be a positive number")
 
     # ==========================================================================
-    def make_path_absolute(maybe_path, is_d8_js_argument=False):
-      if maybe_path.startswith("-"):
-        return maybe_path
-      path = Path(maybe_path)
-      if not path.exists():
-        return maybe_path
-      if is_d8_js_argument:
-        # Be slightly more strict with JS arguments as they might accidentally
-        # point to files that exist (e.h. JetStream workloads).
-        if "/" not in maybe_path:
-          return maybe_path
-      return str(path.absolute())
 
-    def make_args_paths_absolute(args):
-      args_absolute_paths = []
-      is_d8_js_argument = False
-      for arg in args:
-        if arg == "--":
-          is_d8_js_argument = True
-        args_absolute_paths.append(make_path_absolute(arg, is_d8_js_argument))
-      return args_absolute_paths
-
-    # Preprocess args if we change CWD to get cleaner output
-    if options.perf_data_dir != Path.cwd():
-      args = make_args_paths_absolute(args)
-
-    # ==========================================================================
-    old_cwd = Path.cwd()
-    os.chdir(options.perf_data_dir)
-
-    # ==========================================================================
-
-    cmd = [str(d8_bin), "--perf-prof"]
+    cmd = [
+        str(d8_bin), "--perf-prof", "--perf-prof-path",
+        options.perf_data_dir.as_posix()
+    ]
 
     if not options.no_interpreted_frames_native_stack:
       cmd += ["--interpreted-frames-native-stack"]
@@ -216,7 +188,7 @@ def main():
     log("D8 CMD: ", shlex.join(cmd))
 
     datetime_str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    perf_data_file = Path.cwd() / f"d8_{datetime_str}.perf.data"
+    perf_data_file = options.perf_data_dir / f"d8_{datetime_str}.perf.data"
     perf_cmd = [
         "perf", "record", f"--call-graph={options.call_graph}",
         f"--clockid={options.clockid}", f"--output={perf_data_file}"

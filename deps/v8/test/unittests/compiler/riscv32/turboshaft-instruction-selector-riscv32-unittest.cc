@@ -50,18 +50,18 @@ const FPCmp kFPCmpInstructions[] = {
      kEqual},
     {{TSBinop::kFloat64LessThan, "Float64LessThan", kRiscvCmpD,
       MachineType::Float64()},
-     kUnsignedLessThan},
+     kFloatLessThan},
     {{TSBinop::kFloat64LessThanOrEqual, "Float64LessThanOrEqual", kRiscvCmpD,
       MachineType::Float64()},
-     kUnsignedLessThanOrEqual},
-    //TODO(riscv): ADD kFloat64GreaterThan/kFloat64GreaterThanOrEqual
-    // in turboshaft-unittestes.
-    // {{TSBinop::kFloat64GreaterThan, "Float64GreaterThan",
-    //   kRiscvCmpD, MachineType::Float64()},
-    //  kUnsignedLessThan},
-    // {{TSBinop::kFloat64GreaterThanOrEqual,
-    //   "Float64GreaterThanOrEqual", kRiscvCmpD, MachineType::Float64()},
-    //  kUnsignedLessThanOrEqual}
+     kFloatLessThanOrEqual},
+    // TODO(riscv): ADD kFloat64GreaterThan/kFloat64GreaterThanOrEqual
+    //  in turboshaft-unittestes.
+    //  {{TSBinop::kFloat64GreaterThan, "Float64GreaterThan",
+    //    kRiscvCmpD, MachineType::Float64()},
+    //   kUnsignedLessThan},
+    //  {{TSBinop::kFloat64GreaterThanOrEqual,
+    //    "Float64GreaterThanOrEqual", kRiscvCmpD, MachineType::Float64()},
+    //   kUnsignedLessThanOrEqual}
 };
 
 struct Conversion {

@@ -1,14 +1,16 @@
 'use strict'
 
+const assert = require('node:assert')
+
 const { kConstruct } = require('../../core/symbols')
 const { urlEquals, getFieldValues } = require('./util')
 const { kEnumerableProperty, isDisturbed } = require('../../core/util')
-const { webidl } = require('../fetch/webidl')
+const { webidl } = require('../webidl')
 const { cloneResponse, fromInnerResponse, getResponseState } = require('../fetch/response')
 const { Request, fromInnerRequest, getRequestState } = require('../fetch/request')
 const { fetching } = require('../fetch/index')
-const { urlIsHttpHttpsScheme, createDeferredPromise, readAllBytes } = require('../fetch/util')
-const assert = require('node:assert')
+const { urlIsHttpHttpsScheme, readAllBytes } = require('../fetch/util')
+const { createDeferredPromise } = require('../../util/promise')
 
 /**
  * @see https://w3c.github.io/ServiceWorker/#dfn-cache-batch-operation
@@ -16,7 +18,7 @@ const assert = require('node:assert')
  * @property {'delete' | 'put'} type
  * @property {any} request
  * @property {any} response
- * @property {import('../../types/cache').CacheQueryOptions} options
+ * @property {import('../../../types/cache').CacheQueryOptions} options
  */
 
 /**
@@ -46,7 +48,7 @@ class Cache {
     const prefix = 'Cache.match'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    request = webidl.converters.RequestInfo(request)
     options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     const p = this.#internalMatchAll(request, options, 1)
@@ -62,7 +64,7 @@ class Cache {
     webidl.brandCheck(this, Cache)
 
     const prefix = 'Cache.matchAll'
-    if (request !== undefined) request = webidl.converters.RequestInfo(request, prefix, 'request')
+    if (request !== undefined) request = webidl.converters.RequestInfo(request)
     options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     return this.#internalMatchAll(request, options)
@@ -74,7 +76,7 @@ class Cache {
     const prefix = 'Cache.add'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    request = webidl.converters.RequestInfo(request)
 
     // 1.
     const requests = [request]
@@ -262,7 +264,7 @@ class Cache {
     const prefix = 'Cache.put'
     webidl.argumentLengthCheck(arguments, 2, prefix)
 
-    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    request = webidl.converters.RequestInfo(request)
     response = webidl.converters.Response(response, prefix, 'response')
 
     // 1.
@@ -393,7 +395,7 @@ class Cache {
     const prefix = 'Cache.delete'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    request = webidl.converters.RequestInfo(request)
     options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     /**
@@ -450,7 +452,7 @@ class Cache {
   /**
    * @see https://w3c.github.io/ServiceWorker/#dom-cache-keys
    * @param {any} request
-   * @param {import('../../types/cache').CacheQueryOptions} options
+   * @param {import('../../../types/cache').CacheQueryOptions} options
    * @returns {Promise<readonly Request[]>}
    */
   async keys (request = undefined, options = {}) {
@@ -458,7 +460,7 @@ class Cache {
 
     const prefix = 'Cache.keys'
 
-    if (request !== undefined) request = webidl.converters.RequestInfo(request, prefix, 'request')
+    if (request !== undefined) request = webidl.converters.RequestInfo(request)
     options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     // 1.
@@ -668,7 +670,7 @@ class Cache {
   /**
    * @see https://w3c.github.io/ServiceWorker/#query-cache
    * @param {any} requestQuery
-   * @param {import('../../types/cache').CacheQueryOptions} options
+   * @param {import('../../../types/cache').CacheQueryOptions} options
    * @param {requestResponseList} targetStorage
    * @returns {requestResponseList}
    */
@@ -693,7 +695,7 @@ class Cache {
    * @param {any} requestQuery
    * @param {any} request
    * @param {any | null} response
-   * @param {import('../../types/cache').CacheQueryOptions | undefined} options
+   * @param {import('../../../types/cache').CacheQueryOptions | undefined} options
    * @returns {boolean}
    */
   #requestMatchesCachedItem (requestQuery, request, response = null, options) {

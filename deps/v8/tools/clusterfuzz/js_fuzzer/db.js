@@ -6,6 +6,7 @@
  * @fileoverview Mutation Db.
  */
 
+const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
 const fsPath = require('path');
@@ -22,6 +23,8 @@ const sourceHelpers = require('./source_helpers.js');
 // The probabiliy to choose a snippet with the super keyword in places
 // where it can be inserted.
 const CHOOSE_SUPER_PROB = 0.2;
+
+const MAX_SNIPPET_SIZE = 64;
 
 const globalIdentifiers = new Set(Object.keys(globals.builtin));
 const propertyNames = new Set([
@@ -213,15 +216,20 @@ const propertyNames = new Set([
 const MAX_DEPENDENCIES = 2;
 
 class Expression {
-  constructor(type, source, isStatement, originalPath,
-              dependencies, needsSuper) {
+  constructor(type, source, originalPath, dependencies) {
     this.type = type;
     this.source = source;
-    this.isStatement = isStatement;
-    this.originalPath = originalPath;
+    this.path = originalPath;
     this.dependencies = dependencies;
-    this.needsSuper = needsSuper;
   }
+}
+
+function loadExpression(baseDir, record) {
+  const path = fsPath.join(baseDir, record.path);
+  const expression = JSON.parse(fs.readFileSync(path), 'utf-8');
+  expression.needsTryCatch = record.tc;
+  expression.needsSuper = record.super;
+  return expression;
 }
 
 function dedupKey(expression) {
@@ -267,15 +275,16 @@ function isValid(expression) {
   return true;
 }
 
+function writeIndexFile(path, index) {
+  index.sort((a, b) => a.path.localeCompare(b.path));
+  fs.writeFileSync(path, JSON.stringify(index, null, 2));
+}
+
 class MutateDbWriter {
   constructor(outputDir) {
     this.seen = new Set();
     this.outputDir = fsPath.resolve(outputDir);
-    this.index = {
-      statements: [],
-      superStatements: [],
-      all: [],
-    };
+    this.index = [];
   }
 
   process(source) {
@@ -416,17 +425,23 @@ class MutateDbWriter {
 
         // Make the template.
         let generated = babelGenerator(path.node, { concise: true }).code;
+        assert(path.parentPath.isExpressionStatement());
         let expression = new Expression(
             path.node.type,
             generated,
-            path.parentPath.isExpressionStatement(),
             source.relPath,
-            path.node.__idDependencies,
-            Boolean(path.node.__needsSuper));
+            path.node.__idDependencies);
 
         // Try to de-dupe similar expressions.
-        let key = dedupKey(expression);
+        const sha1sum = crypto.createHash('sha1');
+        sha1sum.update(dedupKey(expression));
+        const key = sha1sum.digest('hex').substring(0, 8);
         if (self.seen.has(key)) {
+          return;
+        }
+
+        // Ignore large samples.
+        if (expression.source.length > MAX_SNIPPET_SIZE) {
           return;
         }
 
@@ -441,62 +456,58 @@ class MutateDbWriter {
           fs.mkdirSync(dirPath);
         }
 
-        let sha1sum = crypto.createHash('sha1');
-        sha1sum.update(key);
-
-        let filePath = fsPath.join(dirPath, sha1sum.digest('hex') + '.json');
+        const filePath = fsPath.join(dirPath, key + '.json');
         fs.writeFileSync(filePath, JSON.stringify(expression));
 
-        let relPath = fsPath.relative(self.outputDir, filePath);
+        const relPath = fsPath.relative(self.outputDir, filePath);
 
         // Update index.
         self.seen.add(key);
-        self.index.all.push(relPath);
-
-        if (expression.needsSuper) {
-          self.index.superStatements.push(relPath);
-        } else {
-          self.index.statements.push(relPath);
-        }
+        self.index.push(
+            {path: relPath, super: Boolean(path.node.__needsSuper)});
       }
     });
   }
 
   writeIndex() {
-    this.index.all.sort();
-    this.index.statements.sort();
-    this.index.superStatements.sort();
-
-    fs.writeFileSync(
-        fsPath.join(this.outputDir, 'index.json'),
-        JSON.stringify(this.index));
+    writeIndexFile(fsPath.join(this.outputDir, 'index.json'), this.index);
   }
 }
 
 class MutateDb {
   constructor(outputDir) {
     this.outputDir = fsPath.resolve(outputDir);
-    this.index = JSON.parse(
+    const index = JSON.parse(
         fs.readFileSync(fsPath.join(outputDir, 'index.json'), 'utf-8'));
+    this.statements = [];
+    this.superStatements = [];
+    this.all = [];
+    for (const expression of index) {
+      if (expression.super) {
+        this.superStatements.push(expression);
+      } else {
+        this.statements.push(expression);
+      }
+      this.all.push(expression);
+    }
   }
 
   getRandomStatement({canHaveSuper=false} = {}) {
     let choices;
     if (canHaveSuper) {
       choices = random.choose(CHOOSE_SUPER_PROB) ?
-          this.index.superStatements : this.index.all;
+          this.superStatements : this.all;
     } else {
-      choices = this.index.statements;
+      choices = this.statements;
     }
 
-    let path = fsPath.join(
-        this.outputDir, choices[random.randInt(0, choices.length - 1)]);
-    return JSON.parse(fs.readFileSync(path), 'utf-8');
+    const record = choices[random.randInt(0, choices.length - 1)];
+    return loadExpression(this.outputDir, record);
   }
 
   *iterateStatements() {
-    for (const exp of this.index.all) {
-      const path = fsPath.join(this.outputDir, exp);
+    for (const exp of this.all) {
+      const path = fsPath.join(this.outputDir, exp.path);
       yield JSON.parse(fs.readFileSync(path), 'utf-8');
     }
   }
@@ -505,4 +516,6 @@ class MutateDb {
 module.exports = {
   MutateDb: MutateDb,
   MutateDbWriter: MutateDbWriter,
+  loadExpression: loadExpression,
+  writeIndexFile: writeIndexFile,
 }

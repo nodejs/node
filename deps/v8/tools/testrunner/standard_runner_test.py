@@ -247,6 +247,7 @@ class StandardRunnerTest(TestRunnerTest):
             dcheck_always_on=True,
             has_webassembly=True,
             msan=True,
+            sandbox_hardware_support=True,
             target_cpu='x86',
             tsan=True,
             ubsan=True,
@@ -255,7 +256,8 @@ class StandardRunnerTest(TestRunnerTest):
         ))
     result.stdout_includes('>>> Statusfile variables:')
     result.stdout_includes(
-        "DEBUG_defined=False, arch=ia32, asan=True, byteorder=little, "
+        "DEBUG_defined=False, all_arm64_features=False, "
+        "arch=ia32, asan=True, byteorder=little, "
         "cfi=True, code_comments=False, component_build=False, "
         "dcheck_always_on=True, debug_code=False, debugging_features=False, "
         "deopt_fuzzer=False, device_type=None, "
@@ -266,7 +268,8 @@ class StandardRunnerTest(TestRunnerTest):
         "interrupt_fuzzer=False, is_android=False, is_ios=False, "
         "isolates=False, lite_mode=False, mode=debug, msan=True, "
         "no_harness=False, no_simd_hardware=False, novfp3=False, "
-        "optimize_for_size=False, simulator_run=False, slow_dchecks=False, "
+        "optimize_for_size=False, sandbox_hardware_support=True, "
+        "simulator_run=False, slow_dchecks=False, "
         "system=linux, target_cpu=x86, tsan=True, ubsan=True, "
         "use_sanitizer=True, v8_target_cpu=x86, verify_heap=False, "
         "verify_predictable=False")
@@ -623,7 +626,7 @@ class NumFuzzerTest(TestRunnerTest):
   def testNumFuzzer(self):
     fuzz_flags = [
       f'{flag}=1' for flag in self.get_runner_options()
-      if flag.startswith('--stress-')
+      if flag.startswith('--stress-') or flag.startswith('--allocation')
     ]
     self.assertEqual(len(fuzz_flags), len(fuzzer.FUZZERS))
     for fuzz_flag in fuzz_flags:
@@ -649,6 +652,45 @@ class NumFuzzerTest(TestRunnerTest):
             result.stdout_includes('>>> Statusfile variables:')
             result.stdout_includes('11 tests ran')
 
+  def _run_test_with_random_skip(self, prob):
+    """Run a test root that marks sweet/apples as RARE and pass a probability
+    for random skipping rare tests.
+    """
+    with patch('testrunner.testproc.timeout.TimeoutProc.create',
+               lambda x: FakeTimeoutProc(10)):
+      return self.run_tests(
+          '--command-prefix',
+          sys.executable,
+          '--outdir',
+          'out/build',
+          '--variants=default',
+          '--fuzzer-random-seed=12345',
+          '--total-timeout-sec=60',
+          '--allocation-offset=1',
+          '--progress=verbose',
+          f'--skip-rare-tests-prob={prob}',
+          'sweet',
+          baseroot="testroot8")
+
+  def testRandomSkip_Includes(self):
+    """Ensure that a test case marked as FUZZ_RARE (here apples) is still
+    included if the probability for skipping is 0.
+    """
+    result = self._run_test_with_random_skip(0.0)
+    result.has_returncode(0)
+    result.stdout_includes('sweet/apples default: PASS')
+    result.stdout_includes('sweet/bananas default: PASS')
+    result.stdout_includes('7 tests ran')
+
+  def testRandomSkip_Excludes(self):
+    """Ensure that a test case marked as FUZZ_RARE (here apples) is always
+    excluded if the probability for skipping is 1.
+    """
+    result = self._run_test_with_random_skip(1.0)
+    result.has_returncode(0)
+    result.stdout_excludes('sweet/apples')
+    result.stdout_includes('sweet/bananas default: PASS')
+    result.stdout_includes('6 tests ran')
 
 class OtherTest(TestRunnerTest):
   def testStatusFilePresubmit(self):

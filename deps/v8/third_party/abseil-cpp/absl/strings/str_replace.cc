@@ -37,8 +37,8 @@ using FixedMapping =
 // occurred.
 int ApplySubstitutions(
     absl::string_view s,
-    absl::Nonnull<std::vector<strings_internal::ViableSubstitution>*> subs_ptr,
-    absl::Nonnull<std::string*> result_ptr) {
+    std::vector<strings_internal::ViableSubstitution>* absl_nonnull subs_ptr,
+    std::string* absl_nonnull result_ptr) {
   auto& subs = *subs_ptr;
   int substitutions = 0;
   size_t pos = 0;
@@ -83,7 +83,7 @@ std::string StrReplaceAll(absl::string_view s,
 }
 
 int StrReplaceAll(strings_internal::FixedMapping replacements,
-                  absl::Nonnull<std::string*> target) {
+                  std::string* absl_nonnull target) {
   return StrReplaceAll<strings_internal::FixedMapping>(replacements, target);
 }
 

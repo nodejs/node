@@ -213,9 +213,9 @@ but can be useful for debugging.
 If true, npm does not run scripts specified in package.json files.
 
 Note that commands explicitly intended to run a particular script, such as
-`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run-script`
-will still run their intended script if `ignore-scripts` is set, but they
-will *not* run any pre- or post-scripts.
+`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run` will still
+run their intended script if `ignore-scripts` is set, but they will *not*
+run any pre- or post-scripts.
 
 
 
@@ -228,6 +228,23 @@ When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes. See the
 documentation for [`npm audit`](/commands/npm-audit) for details on what is
 submitted.
+
+
+
+#### `before`
+
+* Default: null
+* Type: null or Date
+
+If passed to `npm install`, will rebuild the npm tree such that only
+versions that were available **on or before** the given date are installed.
+If there are no versions available for the current set of dependencies, the
+command will error.
+
+If the requested version is a `dist-tag` and the given tag does not pass the
+`--before` filter, the most recent version less than or equal to that tag
+will be used. For example, `foo@latest` might install `foo@1.2` even though
+`latest` is `2.0`.
 
 
 

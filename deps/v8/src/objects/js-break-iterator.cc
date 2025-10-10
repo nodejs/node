@@ -43,20 +43,21 @@ MaybeDirectHandle<JSV8BreakIterator> JSV8BreakIterator::New(
   MAYBE_RETURN(maybe_locale_matcher, MaybeDirectHandle<JSV8BreakIterator>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
-  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
-      Intl::ResolveLocale(isolate, JSV8BreakIterator::GetAvailableLocales(),
-                          requested_locales, matcher, {});
-  if (maybe_resolve_locale.IsNothing()) {
+  Intl::ResolvedLocale r;
+  if (!Intl::ResolveLocale(isolate, JSV8BreakIterator::GetAvailableLocales(),
+                           requested_locales, matcher, {})
+           .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
-  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   // Extract type from options
   enum class Type { CHARACTER, WORD, SENTENCE, LINE };
   Maybe<Type> maybe_type = GetStringOption<Type>(
-      isolate, options, "type", service,
-      {"word", "character", "sentence", "line"},
-      {Type::WORD, Type::CHARACTER, Type::SENTENCE, Type::LINE}, Type::WORD);
+      isolate, options, isolate->factory()->type_string(), service,
+      std::to_array<const std::string_view>(
+          {"word", "character", "sentence", "line"}),
+      std::array{Type::WORD, Type::CHARACTER, Type::SENTENCE, Type::LINE},
+      Type::WORD);
   MAYBE_RETURN(maybe_type, MaybeDirectHandle<JSV8BreakIterator>());
   Type type_enum = maybe_type.FromJust();
 

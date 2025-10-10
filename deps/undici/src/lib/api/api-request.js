@@ -118,14 +118,28 @@ class RequestHandler extends AsyncResource {
     this.callback = null
     this.res = res
     if (callback !== null) {
-      this.runInAsyncScope(callback, null, null, {
-        statusCode,
-        headers,
-        trailers: this.trailers,
-        opaque,
-        body: res,
-        context
-      })
+      try {
+        this.runInAsyncScope(callback, null, null, {
+          statusCode,
+          headers,
+          trailers: this.trailers,
+          opaque,
+          body: res,
+          context
+        })
+      } catch (err) {
+        // If the callback throws synchronously, we need to handle it
+        // Remove reference to res to allow res being garbage collected
+        this.res = null
+
+        // Destroy the response stream
+        util.destroy(res.on('error', noop), err)
+
+        // Use queueMicrotask to re-throw the error so it reaches uncaughtException
+        queueMicrotask(() => {
+          throw err
+        })
+      }
     }
   }
 

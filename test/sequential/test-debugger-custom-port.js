@@ -11,7 +11,7 @@ const assert = require('assert');
 // Custom port.
 const script = fixtures.path('debugger', 'three-lines.js');
 
-const cli = startCLI([`--port=${common.PORT}`, script]);
+const cli = startCLI([`--port=${common.PORT}`, script], [], {}, { randomPort: false });
 (async function() {
   try {
     await cli.waitForInitialBreak();

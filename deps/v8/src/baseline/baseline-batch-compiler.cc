@@ -104,7 +104,7 @@ class BaselineBatchCompilerJob {
     for (int i = 0; i < batch_size; i++) {
       Tagged<MaybeObject> maybe_sfi = task_queue->get(i);
       // TODO(victorgomes): Do I need to clear the value?
-      task_queue->set(i, ClearedValue(isolate));
+      task_queue->set(i, kClearedWeakValue);
       Tagged<HeapObject> obj;
       // Skip functions where weak reference is no longer valid.
       if (!maybe_sfi.GetHeapObjectIfWeak(&obj)) continue;
@@ -252,8 +252,7 @@ BaselineBatchCompiler::~BaselineBatchCompiler() {
 }
 
 bool BaselineBatchCompiler::concurrent() const {
-  return v8_flags.concurrent_sparkplug &&
-         !isolate_->EfficiencyModeEnabledForTiering();
+  return v8_flags.concurrent_sparkplug && !isolate_->EfficiencyModeEnabled();
 }
 
 void BaselineBatchCompiler::EnqueueFunction(DirectHandle<JSFunction> function) {
@@ -322,7 +321,7 @@ void BaselineBatchCompiler::CompileBatch(DirectHandle<JSFunction> function) {
   for (int i = 0; i < last_index_; i++) {
     Tagged<MaybeObject> maybe_sfi = compilation_queue_->get(i);
     MaybeCompileFunction(maybe_sfi);
-    compilation_queue_->set(i, ClearedValue(isolate_));
+    compilation_queue_->set(i, kClearedWeakValue);
   }
   ClearBatch();
 }

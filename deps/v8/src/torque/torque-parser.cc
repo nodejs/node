@@ -1044,6 +1044,7 @@ std::optional<ParseResult> MakeClassDeclaration(
        ANNOTATION_DO_NOT_GENERATE_CPP_CLASS, ANNOTATION_CUSTOM_CPP_CLASS,
        ANNOTATION_CUSTOM_MAP, ANNOTATION_GENERATE_BODY_DESCRIPTOR,
        ANNOTATION_EXPORT, ANNOTATION_DO_NOT_GENERATE_CAST,
+       ANNOTATION_DO_NOT_GENERATE_INSTANCE_TYPE_CHECK,
        ANNOTATION_GENERATE_UNIQUE_MAP, ANNOTATION_GENERATE_FACTORY_FUNCTION,
        ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT,
        ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT,
@@ -1057,6 +1058,9 @@ std::optional<ParseResult> MakeClassDeclaration(
   }
   if (annotations.Contains(ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT)) {
     flags |= ClassFlag::kHasSameInstanceTypeAsParent;
+  }
+  if (annotations.Contains(ANNOTATION_DO_NOT_GENERATE_INSTANCE_TYPE_CHECK)) {
+    flags |= ClassFlag::kDoNotGenerateInstanceTypeCheck;
   }
   bool do_not_generate_cpp_class =
       annotations.Contains(ANNOTATION_DO_NOT_GENERATE_CPP_CLASS);

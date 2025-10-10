@@ -22,12 +22,16 @@ namespace internal {
 #include "torque-generated/src/objects/struct-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Struct)
-TQ_OBJECT_CONSTRUCTORS_IMPL(Tuple2)
-TQ_OBJECT_CONSTRUCTORS_IMPL(AccessorPair)
 
-NEVER_READ_ONLY_SPACE_IMPL(AccessorPair)
+Tagged<Object> Tuple2::value1() const { return value1_.load(); }
+void Tuple2::set_value1(Tagged<Object> value, WriteBarrierMode mode) {
+  value1_.store(this, value, mode);
+}
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(ClassPositions)
+Tagged<Object> Tuple2::value2() const { return value2_.load(); }
+void Tuple2::set_value2(Tagged<Object> value, WriteBarrierMode mode) {
+  value2_.store(this, value, mode);
+}
 
 Tagged<Object> AccessorPair::get(AccessorComponent component) {
   return component == ACCESSOR_GETTER ? getter() : setter();
@@ -50,8 +54,31 @@ void AccessorPair::set(AccessorComponent component, Tagged<Object> value,
   }
 }
 
-RELEASE_ACQUIRE_ACCESSORS(AccessorPair, getter, Tagged<Object>, kGetterOffset)
-RELEASE_ACQUIRE_ACCESSORS(AccessorPair, setter, Tagged<Object>, kSetterOffset)
+Tagged<Object> AccessorPair::getter() const { return getter_.load(); }
+void AccessorPair::set_getter(Tagged<Object> value, WriteBarrierMode mode) {
+  getter_.store(this, value, mode);
+}
+
+Tagged<Object> AccessorPair::getter(AcquireLoadTag) const {
+  return getter_.Acquire_Load();
+}
+void AccessorPair::set_getter(Tagged<Object> value, ReleaseStoreTag,
+                              WriteBarrierMode mode) {
+  getter_.Release_Store(this, value, mode);
+}
+
+Tagged<Object> AccessorPair::setter() const { return setter_.load(); }
+void AccessorPair::set_setter(Tagged<Object> value, WriteBarrierMode mode) {
+  setter_.store(this, value, mode);
+}
+
+Tagged<Object> AccessorPair::setter(AcquireLoadTag) const {
+  return setter_.Acquire_Load();
+}
+void AccessorPair::set_setter(Tagged<Object> value, ReleaseStoreTag,
+                              WriteBarrierMode mode) {
+  setter_.Release_Store(this, value, mode);
+}
 
 void AccessorPair::SetComponents(Tagged<Object> getter, Tagged<Object> setter) {
   if (!IsNull(getter)) set_getter(getter);
@@ -61,6 +88,16 @@ void AccessorPair::SetComponents(Tagged<Object> getter, Tagged<Object> setter) {
 bool AccessorPair::Equals(Tagged<Object> getter_value,
                           Tagged<Object> setter_value) {
   return (getter() == getter_value) && (setter() == setter_value);
+}
+
+int ClassPositions::start() const { return start_.load().value(); }
+void ClassPositions::set_start(int value) {
+  start_.store(this, Smi::FromInt(value));
+}
+
+int ClassPositions::end() const { return end_.load().value(); }
+void ClassPositions::set_end(int value) {
+  end_.store(this, Smi::FromInt(value));
 }
 
 }  // namespace internal

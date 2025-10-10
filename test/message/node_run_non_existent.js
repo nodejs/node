@@ -1,7 +1,7 @@
 'use strict';
 
 require('../common');
-const assert = require('node:assert').strict;
+const assert = require('node:assert/strict');
 const childProcess = require('node:child_process');
 const fixtures = require('../common/fixtures');
 

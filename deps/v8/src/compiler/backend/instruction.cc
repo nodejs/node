@@ -489,8 +489,8 @@ std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
       return os << "trap";
     case kFlags_select:
       return os << "select";
-    case kFlags_conditional_set:
-      return os << "conditional set";
+    case kFlags_conditional_trap:
+      return os << "conditional trap";
     case kFlags_conditional_branch:
       return os << "conditional branch";
   }
@@ -673,9 +673,10 @@ InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
       dominator_(dominator),
       deferred_(deferred),
       handler_(handler),
-      switch_target_(false),
-      code_target_alignment_(false),
-      loop_header_alignment_(false),
+      table_switch_target_(false),
+      align_switch_targets_(false),
+      align_branch_targets_(false),
+      align_loop_headers_(false),
       needs_frame_(!v8_flags.turbo_elide_frames),
       must_construct_frame_(false),
       must_deconstruct_frame_(false),
@@ -730,10 +731,6 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
   for (BasicBlock* predecessor : block->predecessors()) {
     instr_block->predecessors().push_back(GetRpo(predecessor));
   }
-  if (block->PredecessorCount() == 1 &&
-      block->predecessors()[0]->control() == BasicBlock::Control::kSwitch) {
-    instr_block->set_switch_target(true);
-  }
   return instr_block;
 }
 
@@ -747,13 +744,6 @@ static InstructionBlock* InstructionBlockFor(
   InstructionBlock* instr_block = zone->New<InstructionBlock>(
       zone, GetRpo(block), GetRpo(loop_header), GetLoopEndRpo(block),
       GetRpo(block->GetDominator()), deferred, is_handler);
-  if (block->PredecessorCount() == 1) {
-    const turboshaft::Block* predecessor = block->LastPredecessor();
-    if (V8_UNLIKELY(
-            predecessor->LastOperation(graph).Is<turboshaft::SwitchOp>())) {
-      instr_block->set_switch_target(true);
-    }
-  }
   // Map successors and predecessors.
   base::SmallVector<turboshaft::Block*, 4> succs =
       turboshaft::SuccessorBlocks(block->LastOperation(graph));
@@ -846,7 +836,8 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
   // headers. Since it's somewhat expensive to compute this, we should also use
   // the LoopFinder to compute the special RPO (we would only need to run the
   // LoopFinder once to compute both the special RPO and the loop headers).
-  turboshaft::LoopFinder loop_finder(zone, &graph);
+  turboshaft::LoopFinder loop_finder(zone, &graph,
+                                     turboshaft::LoopFinder::Config{});
   for (const turboshaft::Block& block : graph.blocks()) {
     DCHECK(!(*blocks)[rpo_number]);
     DCHECK_EQ(RpoNumber::FromInt(block.index().id()).ToSize(), rpo_number);
@@ -931,7 +922,8 @@ void InstructionSequence::ComputeAssemblyOrder() {
         // Perform loop rotation for non-deferred loops.
         InstructionBlock* loop_end =
             instruction_blocks_->at(block->loop_end().ToSize() - 1);
-        if (loop_end->SuccessorCount() == 1 && /* ends with goto */
+        if (!loop_end->IsDeferred() &&         /* Ignore deferred loop ends */
+            loop_end->SuccessorCount() == 1 && /* ends with goto */
             loop_end != block /* not a degenerate infinite loop */) {
           // If the last block has an unconditional jump back to the header,
           // then move it to be in front of the header in the assembly order.
@@ -940,15 +932,29 @@ void InstructionSequence::ComputeAssemblyOrder() {
           ao_blocks_->push_back(loop_end);
           // This block will be the new machine-level loop header, so align
           // this block instead of the loop header block.
-          loop_end->set_loop_header_alignment(true);
+          loop_end->set_align_loop_headers(true);
           header_align = false;
         }
       }
-      block->set_loop_header_alignment(header_align);
+      block->set_align_loop_headers(header_align);
     }
-    if (block->loop_header().IsValid() && block->IsSwitchTarget()) {
-      block->set_code_target_alignment(true);
+    if (block->loop_header().IsValid()) {
+      if (block->IsTableSwitchTarget()) {
+        block->set_align_switch_targets(true);
+      } else {
+        // If this block has no fallthrough predecessors then it can only be
+        // accessed via a jump.
+        RpoNumber ao_pred_block = ao_blocks_->back()->rpo_number();
+        if (std::none_of(block->predecessors().begin(),
+                         block->predecessors().end(),
+                         [&ao_pred_block](RpoNumber pred) {
+                           return pred == ao_pred_block;
+                         })) {
+          block->set_align_branch_targets(true);
+        }
+      }
     }
+
     block->set_ao_number(RpoNumber::FromInt(ao++));
     ao_blocks_->push_back(block);
   }

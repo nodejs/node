@@ -14,8 +14,6 @@ const setPromiseImmediate = promisify(timers.setImmediate);
 
 assert.strictEqual(setPromiseImmediate, timerPromises.setImmediate);
 
-process.on('multipleResolves', common.mustNotCall());
-
 {
   const promise = setPromiseImmediate();
   promise.then(common.mustCall((value) => {

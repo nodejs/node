@@ -8,6 +8,7 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/heap/gc-callbacks-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/safepoint.h"
@@ -26,25 +27,8 @@ TEST_F(LocalHeapTest, Initialize) {
 }
 
 TEST_F(LocalHeapTest, Current) {
-  Heap* heap = i_isolate()->heap();
-
-  CHECK_NULL(LocalHeap::Current());
-
-  {
-    LocalHeap lh(heap, ThreadKind::kMain);
-    lh.SetUpMainThreadForTesting();
-    CHECK_NULL(LocalHeap::Current());
-  }
-
-  CHECK_NULL(LocalHeap::Current());
-
-  {
-    LocalHeap lh(heap, ThreadKind::kMain);
-    lh.SetUpMainThreadForTesting();
-    CHECK_NULL(LocalHeap::Current());
-  }
-
-  CHECK_NULL(LocalHeap::Current());
+  CHECK_EQ(LocalHeap::Current(), i_isolate()->main_thread_local_heap());
+  CHECK(LocalHeap::Current()->is_main_thread());
 }
 
 namespace {
@@ -55,12 +39,12 @@ class BackgroundThread final : public v8::base::Thread {
         heap_(heap) {}
 
   void Run() override {
-    CHECK_NULL(LocalHeap::Current());
+    CHECK_NULL(LocalHeap::TryGetCurrent());
     {
       LocalHeap lh(heap_, ThreadKind::kBackground);
       CHECK_EQ(&lh, LocalHeap::Current());
     }
-    CHECK_NULL(LocalHeap::Current());
+    CHECK_NULL(LocalHeap::TryGetCurrent());
   }
 
   Heap* heap_;
@@ -69,17 +53,9 @@ class BackgroundThread final : public v8::base::Thread {
 
 TEST_F(LocalHeapTest, CurrentBackground) {
   Heap* heap = i_isolate()->heap();
-  CHECK_NULL(LocalHeap::Current());
-  {
-    LocalHeap lh(heap, ThreadKind::kMain);
-    lh.SetUpMainThreadForTesting();
-    auto thread = std::make_unique<BackgroundThread>(heap);
-    CHECK(thread->Start());
-    CHECK_NULL(LocalHeap::Current());
-    thread->Join();
-    CHECK_NULL(LocalHeap::Current());
-  }
-  CHECK_NULL(LocalHeap::Current());
+  auto thread = std::make_unique<BackgroundThread>(heap);
+  CHECK(thread->Start());
+  thread->Join();
 }
 
 namespace {
@@ -182,6 +158,53 @@ TEST_F(LocalHeapTest, GCEpilogue) {
   for (auto& e : epilogue) {
     CHECK(e.WasInvoked());
   }
+}
+
+class DirectPointerUser final : public GCRootsProvider {
+ public:
+  DirectPointerUser() = default;
+
+  Tagged<FixedArray> array() const { return array_; }
+  void set_array(Handle<FixedArray> array) { array_ = *array; }
+
+  void Iterate(RootVisitor* v) final {
+    v->VisitRootPointer(Root::kStrongRoots, nullptr, FullObjectSlot(&array_));
+  }
+
+ private:
+  Tagged<FixedArray> array_;
+};
+
+TEST_F(LocalHeapTest, RootsProvider) {
+  Factory* factory = i_isolate()->factory();
+  v8::Isolate::Scope isolate_scope(v8_isolate());
+  HandleScope global_handle_scope(i_isolate());
+  ManualGCScope manual_gc_scope(i_isolate());
+
+  LocalHeap* lh = i_isolate()->heap()->main_thread_local_heap();
+  auto data = std::make_unique<DirectPointerUser>();
+  GCRootsProviderScope roots_provider_scope(lh, data.get());
+
+  {
+    HandleScope handle_scope(i_isolate());
+    DirectHandle<HeapNumber> value = factory->NewHeapNumber(101);
+    Handle<FixedArray> array =
+        Cast<FixedArray>(factory->NewFixedArray(3, AllocationType::kYoung));
+    array->set(2, *value);
+    data->set_array(array);
+  }
+
+  InvokeMinorGC(i_isolate());
+
+  Tagged<Object> value = data->array()->get(2, kRelaxedLoad);
+  Tagged<HeapNumber> number = Tagged<HeapNumber>::cast(value);
+  CHECK_EQ(number->value(), 101);
+
+  InvokeMajorGC(i_isolate());
+
+  value = data->array()->get(2, kRelaxedLoad);
+  number = Tagged<HeapNumber>::cast(value);
+  CHECK_EQ(number->value(), 101);
 }
 
 }  // namespace internal

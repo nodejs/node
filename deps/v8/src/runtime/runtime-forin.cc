@@ -75,9 +75,10 @@ MaybeDirectHandle<Object> HasEnumerableProperty(
           return it.GetName();
         }
       }
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
       case LookupIterator::WASM_OBJECT:
-        THROW_NEW_ERROR(isolate,
-                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+        continue;  // Continue to the prototype, if present.
       case LookupIterator::INTERCEPTOR: {
         result = JSObject::GetPropertyAttributesWithInterceptor(&it);
         if (result.IsNothing()) return MaybeDirectHandle<Object>();
@@ -113,14 +114,12 @@ MaybeDirectHandle<Object> HasEnumerableProperty(
 
 }  // namespace
 
-
 RUNTIME_FUNCTION(Runtime_ForInEnumerate) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<JSReceiver> receiver = args.at<JSReceiver>(0);
   RETURN_RESULT_OR_FAILURE(isolate, Enumerate(isolate, receiver));
 }
-
 
 RUNTIME_FUNCTION(Runtime_ForInHasProperty) {
   HandleScope scope(isolate);

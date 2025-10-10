@@ -110,7 +110,7 @@ changes:
 * `fd` {number} A file descriptor associated with a TTY.
 * `options` {Object} Options passed to parent `net.Socket`,
   see `options` of [`net.Socket` constructor][].
-* Returns {tty.ReadStream}
+* Returns: {tty.ReadStream}
 
 Creates a `ReadStream` for `fd` associated with a TTY.
 
@@ -121,7 +121,7 @@ added: v0.5.8
 -->
 
 * `fd` {number} A file descriptor associated with a TTY.
-* Returns {tty.WriteStream}
+* Returns: {tty.WriteStream}
 
 Creates a `WriteStream` for `fd` associated with a TTY.
 

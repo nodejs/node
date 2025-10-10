@@ -47,6 +47,7 @@ typedef struct ngtcp2_map_bucket {
 typedef struct ngtcp2_map {
   ngtcp2_map_bucket *table;
   const ngtcp2_mem *mem;
+  uint64_t seed;
   size_t size;
   size_t hashbits;
 } ngtcp2_map;
@@ -54,7 +55,7 @@ typedef struct ngtcp2_map {
 /*
  * ngtcp2_map_init initializes the map |map|.
  */
-void ngtcp2_map_init(ngtcp2_map *map, const ngtcp2_mem *mem);
+void ngtcp2_map_init(ngtcp2_map *map, uint64_t seed, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_map_free deallocates any resources allocated for |map|.  The

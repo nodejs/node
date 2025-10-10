@@ -1,6 +1,7 @@
 // Flags: --expose-gc
 'use strict';
-require('../common');
+const { skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { join } = require('node:path');
 const { DatabaseSync, StatementSync } = require('node:sqlite');
@@ -238,6 +239,36 @@ suite('StatementSync.prototype.run()', () => {
     t.assert.deepStrictEqual(
       stmt.run({ k: 3, v: 30 }), { changes: 1, lastInsertRowid: 3 }
     );
+  });
+
+  test('SQLite defaults unbound ?NNN parameters', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER NOT NULL) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES (?1, ?3)');
+
+    t.assert.throws(() => {
+      stmt.run(1);
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: 'NOT NULL constraint failed: data.val',
+      errcode: 1299,
+      errstr: 'constraint failed',
+    });
+  });
+
+  test('binds ?NNN params by position', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER NOT NULL) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES (?1, ?2)');
+    t.assert.deepStrictEqual(stmt.run(1, 2), { changes: 1, lastInsertRowid: 1 });
   });
 });
 

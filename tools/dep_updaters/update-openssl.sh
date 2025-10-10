@@ -11,7 +11,7 @@ cleanup() {
 
 download() {
   LATEST_TAG_NAME="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/openssl/openssl/git/matching-refs/tags/openssl-3.0');
+const res = await fetch('https://api.github.com/repos/openssl/openssl/git/matching-refs/tags/openssl-3.5');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
 const releases = await res.json()
 const latest = releases.at(-1);
@@ -64,10 +64,8 @@ EOF
 }
 
 regenerate() {
-  command -v perl >/dev/null 2>&1 || { echo >&2 "Error: 'Perl' required but not installed."; exit 1; }
-  command -v nasm >/dev/null 2>&1 || { echo >&2 "Error: 'nasm' required but not installed."; exit 1; }
-  command -v as >/dev/null 2>&1 || { echo >&2 "Error: 'GNU as' required but not installed."; exit 1; }
-  perl -e "use Text::Template">/dev/null 2>&1 || { echo >&2 "Error: 'Text::Template' Perl module required but not installed."; exit 1; }
+  command -v docker >/dev/null 2>&1 || { echo >&2 "Error: 'docker' required but not installed."; exit 1; }
+  command -v make >/dev/null 2>&1 || { echo >&2 "Error: 'make' required but not installed."; exit 1; }
 
   echo "Regenerating platform-dependent files..."
 
@@ -76,7 +74,7 @@ regenerate() {
   # See https://github.com/nodejs/node/blob/main/doc/contributing/maintaining/maintaining-openssl.md#2-execute-make-in-depsopensslconfig-directory
   sed -i 's/#ifdef/%ifdef/g' "$DEPS_DIR/openssl/openssl/crypto/perlasm/x86asm.pl"
   sed -i 's/#endif/%endif/g' "$DEPS_DIR/openssl/openssl/crypto/perlasm/x86asm.pl"
-  make -C "$DEPS_DIR/openssl/config"
+  make -C "$BASE_DIR" gen-openssl
 
   echo "All done!"
   echo ""

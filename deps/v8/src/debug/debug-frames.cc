@@ -93,7 +93,7 @@ DirectHandle<String> FrameInspector::GetFunctionName() {
                                     wasm_frame->function_index());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  return JSFunction::GetDebugName(function_);
+  return JSFunction::GetDebugName(isolate_, function_);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -109,7 +109,7 @@ bool FrameInspector::IsJavaScript() { return frame_->is_javascript(); }
 
 bool FrameInspector::ParameterIsShadowedByContextLocal(
     DirectHandle<ScopeInfo> info, DirectHandle<String> parameter_name) {
-  return info->ContextSlotIndex(parameter_name) != -1;
+  return info->ContextSlotIndex(*parameter_name) != -1;
 }
 
 RedirectActiveFunctions::RedirectActiveFunctions(

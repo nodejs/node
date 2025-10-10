@@ -396,7 +396,7 @@ call:
 }
 ```
 
-Create a file (eg. `node-12.14.1.supp`) with the contents of the suppression
+Create a file (e.g. `node-12.14.1.supp`) with the contents of the suppression
 records, and run Valgrind with the suppression file previously created:
 
 ```bash

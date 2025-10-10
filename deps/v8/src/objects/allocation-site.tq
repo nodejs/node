@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-extern class AllocationSite extends Struct;
+extern class AllocationSite extends HeapObject;
 
+@cppObjectLayoutDefinition
 extern class AllocationMemento extends Struct {
   allocation_site: AllocationSite;
 }

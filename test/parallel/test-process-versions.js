@@ -15,17 +15,19 @@ const expected_keys = [
   'v8',
   'zlib',
   'nghttp2',
+  'nghttp3',
+  'ngtcp2',
   'napi',
   'llhttp',
   'uvwasi',
   'acorn',
   'simdjson',
   'simdutf',
-  'sqlite',
   'ada',
   'cjs_module_lexer',
   'nbytes',
 ];
+
 
 const hasUndici = process.config.variables.node_builtin_shareable_builtins.includes('deps/undici/undici.js');
 const hasAmaro = process.config.variables.node_builtin_shareable_builtins.includes('deps/amaro/dist/index.js');
@@ -44,16 +46,15 @@ if (common.hasCrypto) {
   expected_keys.push('ncrypto');
 }
 
-if (common.hasQuic) {
-  expected_keys.push('ngtcp2');
-  expected_keys.push('nghttp3');
-}
-
 if (common.hasIntl) {
   expected_keys.push('icu');
   expected_keys.push('cldr');
   expected_keys.push('tz');
   expected_keys.push('unicode');
+}
+
+if (common.hasSQLite) {
+  expected_keys.push('sqlite');
 }
 
 expected_keys.sort();

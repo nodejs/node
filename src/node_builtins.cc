@@ -4,6 +4,7 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_threadsafe_cow-inl.h"
+#include "quic/guard.h"
 #include "simdutf.h"
 #include "util-inl.h"
 
@@ -64,6 +65,11 @@ BuiltinLoader::BuiltinLoader()
 #endif  // HAVE_AMARO
 }
 
+std::ranges::keys_view<std::ranges::ref_view<const BuiltinSourceMap>>
+BuiltinLoader::GetBuiltinIds() const {
+  return std::views::keys(*source_.read());
+}
+
 bool BuiltinLoader::Exists(const char* id) {
   auto source = source_.read();
   return source->find(id) != source->end();
@@ -117,8 +123,8 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 #if !HAVE_INSPECTOR
     "inspector", "inspector/promises", "internal/util/inspector",
         "internal/inspector/network", "internal/inspector/network_http",
-        "internal/inspector/network_undici", "internal/inspector_async_hook",
-        "internal/inspector_network_tracking",
+        "internal/inspector/network_http2", "internal/inspector/network_undici",
+        "internal/inspector_async_hook", "internal/inspector_network_tracking",
 #endif  // !HAVE_INSPECTOR
 
 #if !NODE_USE_V8_PLATFORM || !defined(NODE_HAVE_I18N_SUPPORT)
@@ -127,18 +133,22 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 
 #if !HAVE_OPENSSL
         "crypto", "crypto/promises", "https", "http2", "tls", "_tls_common",
-        "_tls_wrap", "internal/tls/parse-cert-string",
-        "internal/tls/secure-context", "internal/http2/core",
-        "internal/http2/compat", "internal/streams/lazy_transform",
+        "_tls_wrap", "internal/tls/parse-cert-string", "internal/tls/common",
+        "internal/tls/wrap", "internal/tls/secure-context",
+        "internal/http2/core", "internal/http2/compat",
+        "internal/streams/lazy_transform",
 #endif           // !HAVE_OPENSSL
-#if !NODE_OPENSSL_HAS_QUIC
+#ifndef OPENSSL_NO_QUIC
         "internal/quic/quic", "internal/quic/symbols", "internal/quic/stats",
         "internal/quic/state",
-#endif             // !NODE_OPENSSL_HAS_QUIC
+#endif             // !OPENSSL_NO_QUIC
         "quic",    // Experimental.
         "sqlite",  // Experimental.
         "sys",     // Deprecated.
         "wasi",    // Experimental.
+#if !HAVE_SQLITE
+        "internal/webstorage",  // Experimental.
+#endif
         "internal/test/binding", "internal/v8_prof_polyfill",
         "internal/v8_prof_processor",
   };
@@ -265,7 +275,7 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
     const char* id,
     LocalVector<String>* parameters,
     Realm* optional_realm) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope scope(isolate);
 
   Local<String> source;
@@ -298,7 +308,7 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
   if (should_eager_compile_) {
     options = ScriptCompiler::kEagerCompile;
   } else if (!to_eager_compile_.empty()) {
-    if (to_eager_compile_.find(id) != to_eager_compile_.end()) {
+    if (to_eager_compile_.contains(id)) {
       options = ScriptCompiler::kEagerCompile;
     }
   }
@@ -387,7 +397,7 @@ void BuiltinLoader::SaveCodeCache(const char* id, Local<Function> fun) {
 MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
                                                      const char* id,
                                                      Realm* optional_realm) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   LocalVector<String> parameters(isolate);
   // Detects parameters of the scripts based on module ids.
   // internal/bootstrap/realm: process, getLinkedBinding,
@@ -407,6 +417,7 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
         FIXED_ONE_BYTE_STRING(isolate, "exports"),
         FIXED_ONE_BYTE_STRING(isolate, "primordials"),
         FIXED_ONE_BYTE_STRING(isolate, "privateSymbols"),
+        FIXED_ONE_BYTE_STRING(isolate, "perIsolateSymbols"),
     };
   } else if (strncmp(id, "internal/main/", strlen("internal/main/")) == 0 ||
              strncmp(id,
@@ -440,7 +451,7 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
 MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
                                                 const char* id,
                                                 Realm* realm) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   // Detects parameters of the scripts based on module ids.
   // internal/bootstrap/realm: process, getLinkedBinding,
   //                           getInternalBinding, primordials
@@ -496,7 +507,7 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
   if (!maybe_fn.ToLocal(&fn)) {
     return MaybeLocal<Value>();
   }
-  Local<Value> undefined = Undefined(context->GetIsolate());
+  Local<Value> undefined = Undefined(Isolate::GetCurrent());
   return fn->Call(context, undefined, argc, argv);
 }
 
@@ -534,14 +545,14 @@ bool BuiltinLoader::CompileAllBuiltinsAndCopyCodeCache(
       to_eager_compile_.emplace(id);
     }
 
-    TryCatch bootstrapCatch(context->GetIsolate());
+    TryCatch bootstrapCatch(Isolate::GetCurrent());
     auto fn = LookupAndCompile(context, id.data(), nullptr);
     if (bootstrapCatch.HasCaught()) {
       per_process::Debug(DebugCategory::CODE_CACHE,
                          "Failed to compile code cache for %s\n",
                          id.data());
       all_succeeded = false;
-      PrintCaughtException(context->GetIsolate(), context, bootstrapCatch);
+      PrintCaughtException(Isolate::GetCurrent(), context, bootstrapCatch);
     } else {
       // This is used by the snapshot builder, so save the code cache
       // unconditionally.
@@ -686,8 +697,8 @@ void BuiltinLoader::CompileFunction(const FunctionCallbackInfo<Value>& args) {
 void BuiltinLoader::HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
   auto instance = Environment::GetCurrent(args)->builtin_loader();
   RwLock::ScopedReadLock lock(instance->code_cache_->mutex);
-  args.GetReturnValue().Set(Boolean::New(
-      args.GetIsolate(), instance->code_cache_->has_code_cache));
+  args.GetReturnValue().Set(
+      Boolean::New(args.GetIsolate(), instance->code_cache_->has_code_cache));
 }
 
 void SetInternalLoaders(const FunctionCallbackInfo<Value>& args) {

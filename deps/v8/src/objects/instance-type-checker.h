@@ -32,10 +32,12 @@ class Map;
 
 #define INSTANCE_TYPE_CHECKERS_CUSTOM(V) \
   V(AbstractCode)                        \
+  V(CppHeapPointerWrapperObject)         \
   V(ExternalString)                      \
   V(FreeSpaceOrFiller)                   \
   V(GcSafeCode)                          \
   V(InternalizedString)                  \
+  V(JSApiWrapperObject)                  \
   V(MaybeReadOnlyJSObject)               \
   V(PropertyDictionary)
 
@@ -81,14 +83,14 @@ STRING_TYPE_LIST(ASSERT_IS_LAST_STRING_MAP)
 
 // For performance, the limit is chosen to be encodable as an Arm64
 // constant. See Assembler::IsImmAddSub in assembler-arm64.cc.
-//
+static constexpr Tagged_t kMaxFastImmediateConstantArm64 = 0xfff;
 // If this assert fails, then you have perturbed the allocation pattern in
 // Heap::CreateReadOnlyHeapObjects. Currently this limit is ensured to exist by
 // allocating the first JSReceiver map in RO space a sufficiently large distance
 // away from the last non-JSReceiver map.
 static_assert(kNonJsReceiverMapLimit != 0 &&
               is_uint12(kNonJsReceiverMapLimit >> 12) &&
-              ((kNonJsReceiverMapLimit & 0xFFF) == 0));
+              ((kNonJsReceiverMapLimit & kMaxFastImmediateConstantArm64) == 0));
 
 #else
 

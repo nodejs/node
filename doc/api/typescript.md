@@ -2,7 +2,14 @@
 
 <!-- YAML
 changes:
-  - version: v23.6.0
+  - version:
+     - v24.3.0
+     - v22.18.0
+    pr-url: https://github.com/nodejs/node/pull/58643
+    description: Type stripping no longer emits an experimental warning.
+  - version:
+     - v23.6.0
+     - v22.18.0
     pr-url: https://github.com/nodejs/node/pull/56350
     description: Type stripping is enabled by default.
   - version: v22.7.0
@@ -199,8 +206,8 @@ are enabled by default.
 ### Type stripping in dependencies
 
 To discourage package authors from publishing packages written in TypeScript,
-Node.js will by default refuse to handle TypeScript files inside folders under
-a `node_modules` path.
+Node.js refuses to handle TypeScript files inside folders under a `node_modules`
+path.
 
 ### Paths aliases
 

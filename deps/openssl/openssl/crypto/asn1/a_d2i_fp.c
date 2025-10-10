@@ -123,7 +123,7 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
 
     b = BUF_MEM_new();
     if (b == NULL) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_BUF_LIB);
         return -1;
     }
 
@@ -134,7 +134,7 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
             want -= diff;
 
             if (len + want < len || !BUF_MEM_grow_clean(b, len + want)) {
-                ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+                ERR_raise(ERR_LIB_ASN1, ERR_R_BUF_LIB);
                 goto err;
             }
             i = BIO_read(in, &(b->data[len]), want);
@@ -209,7 +209,7 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
                     size_t chunk = want > chunk_max ? chunk_max : want;
 
                     if (!BUF_MEM_grow_clean(b, len + chunk)) {
-                        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+                        ERR_raise(ERR_LIB_ASN1, ERR_R_BUF_LIB);
                         goto err;
                     }
                     want -= chunk;

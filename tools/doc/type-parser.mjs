@@ -1,4 +1,5 @@
-const jsDocPrefix = 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/';
+const mdnPrefix = 'https://developer.mozilla.org/en-US/docs/Web';
+const jsDocPrefix = `${mdnPrefix}/JavaScript/`;
 
 const jsDataStructuresUrl = `${jsDocPrefix}Data_structures`;
 const jsPrimitives = {
@@ -32,8 +33,7 @@ const customTypesMap = {
   'AbortController': 'globals.html#class-abortcontroller',
   'AbortSignal': 'globals.html#class-abortsignal',
 
-  'ArrayBufferView':
-    'https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView',
+  'ArrayBufferView': `${mdnPrefix}/API/ArrayBufferView`,
 
   'AsyncIterator': 'https://tc39.github.io/ecma262/#sec-asynciterator-interface',
 
@@ -46,6 +46,8 @@ const customTypesMap = {
   'bigint': `${jsDocPrefix}Reference/Global_Objects/BigInt`,
   'WebAssembly.Instance':
     `${jsDocPrefix}Reference/Global_Objects/WebAssembly/Instance`,
+  'WebAssembly.Memory':
+    `${jsDocPrefix}Reference/Global_Objects/WebAssembly/Memory`,
 
   'Blob': 'buffer.html#class-blob',
   'File': 'buffer.html#class-file',
@@ -87,23 +89,34 @@ const customTypesMap = {
   'Verify': 'crypto.html#class-verify',
   'crypto.constants': 'crypto.html#cryptoconstants',
 
+  'Algorithm': 'webcrypto.html#class-algorithm',
   'CryptoKey': 'webcrypto.html#class-cryptokey',
   'CryptoKeyPair': 'webcrypto.html#class-cryptokeypair',
   'Crypto': 'webcrypto.html#class-crypto',
+  'EncapsulatedBits': 'webcrypto.html#class-encapsulatedbits',
+  'EncapsulatedKey': 'webcrypto.html#class-encapsulatedkey',
   'SubtleCrypto': 'webcrypto.html#class-subtlecrypto',
+  'Template Literal':
+    `${jsDocPrefix}Reference/Template_literals`,
   'RsaOaepParams': 'webcrypto.html#class-rsaoaepparams',
-  'AlgorithmIdentifier': 'webcrypto.html#class-algorithmidentifier',
   'AesCtrParams': 'webcrypto.html#class-aesctrparams',
   'AesCbcParams': 'webcrypto.html#class-aescbcparams',
   'AesDerivedKeyParams': 'webcrypto.html#class-aesderivedkeyparams',
-  'AesGcmParams': 'webcrypto.html#class-aesgcmparams',
+  'AeadParams': 'webcrypto.html#class-aeadparams',
   'EcdhKeyDeriveParams': 'webcrypto.html#class-ecdhkeyderiveparams',
   'HkdfParams': 'webcrypto.html#class-hkdfparams',
+  'KeyAlgorithm': 'webcrypto.html#class-keyalgorithm',
   'Pbkdf2Params': 'webcrypto.html#class-pbkdf2params',
+  'Argon2Params': 'webcrypto.html#class-argon2params',
+  'HmacKeyAlgorithm': 'webcrypto.html#class-hmackeyalgorithm',
   'HmacKeyGenParams': 'webcrypto.html#class-hmackeygenparams',
+  'AesKeyAlgorithm': 'webcrypto.html#class-aeskeyalgorithm',
   'AesKeyGenParams': 'webcrypto.html#class-aeskeygenparams',
+  'RsaHashedKeyAlgorithm':
+    'webcrypto.html#class-rsahashedkeyalgorithm',
   'RsaHashedKeyGenParams':
     'webcrypto.html#class-rsahashedkeygenparams',
+  'EcKeyAlgorithm': 'webcrypto.html#class-eckeyalgorithm',
   'EcKeyGenParams': 'webcrypto.html#class-eckeygenparams',
   'RsaHashedImportParams':
     'webcrypto.html#class-rsahashedimportparams',
@@ -111,7 +124,12 @@ const customTypesMap = {
   'HmacImportParams': 'webcrypto.html#class-hmacimportparams',
   'EcdsaParams': 'webcrypto.html#class-ecdsaparams',
   'RsaPssParams': 'webcrypto.html#class-rsapssparams',
-  'Ed448Params': 'webcrypto.html#class-ed448params',
+  'ContextParams': 'webcrypto.html#class-contextparams',
+  'CShakeParams': 'webcrypto.html#class-cshakeparams',
+  'KmacImportParams': 'webcrypto.html#class-kmacimportparams',
+  'KmacKeyAlgorithm': 'webcrypto.html#class-kmackeyalgorithm',
+  'KmacKeyGenParams': 'webcrypto.html#class-kmackeygenparams',
+  'KmacParams': 'webcrypto.html#class-kmacparams',
 
   'dgram.Socket': 'dgram.html#class-dgramsocket',
 
@@ -130,6 +148,15 @@ const customTypesMap = {
   'Event': 'events.html#class-event',
   'CustomEvent': 'events.html#class-customevent',
   'EventListener': 'events.html#event-listener',
+
+  'CloseEvent': `${mdnPrefix}/API/CloseEvent`,
+  'ErrorEvent': `${mdnPrefix}/API/ErrorEvent`,
+  'EventSource': `${mdnPrefix}/API/EventSource`,
+  'MessageEvent': `${mdnPrefix}/API/MessageEvent`,
+
+  'DOMException': `${mdnPrefix}/API/DOMException`,
+  'Storage': `${mdnPrefix}/API/Storage`,
+  'WebSocket': `${mdnPrefix}/API/WebSocket`,
 
   'FileHandle': 'fs.html#class-filehandle',
   'fs.Dir': 'fs.html#class-fsdir',
@@ -151,6 +178,7 @@ const customTypesMap = {
   'ClientHttp2Session': 'http2.html#class-clienthttp2session',
   'ClientHttp2Stream': 'http2.html#class-clienthttp2stream',
   'HTTP/2 Headers Object': 'http2.html#headers-object',
+  'HTTP/2 Raw Headers': 'http2.html#raw-headers',
   'HTTP/2 Settings Object': 'http2.html#settings-object',
   'http2.Http2ServerRequest': 'http2.html#class-http2http2serverrequest',
   'http2.Http2ServerResponse':
@@ -208,6 +236,7 @@ const customTypesMap = {
 
   'Session': 'sqlite.html#class-session',
   'StatementSync': 'sqlite.html#class-statementsync',
+  'SQLTagStore': 'sqlite.html#class-sqltagstore',
 
   'Stream': 'stream.html#stream',
   'stream.Duplex': 'stream.html#class-streamduplex',
@@ -242,6 +271,7 @@ const customTypesMap = {
   'vm.Module': 'vm.html#class-vmmodule',
   'vm.Script': 'vm.html#class-vmscript',
   'vm.SourceTextModule': 'vm.html#class-vmsourcetextmodule',
+  'ModuleRequest': 'vm.html#type-modulerequest',
   'vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER':
       'vm.html#vmconstantsuse_main_context_default_loader',
   'vm.constants.DONT_CONTEXTIFY':
@@ -316,6 +346,12 @@ const customTypesMap = {
   'quic.OnHeadersCallback': 'quic.html#callback-onheaderscallback',
   'quic.OnTrailersCallback': 'quic.html#callback-ontrailerscallback',
   'quic.OnPullCallback': 'quic.html#callback-onpullcallback',
+
+  'Lock': 'worker_threads.html#class-lock',
+  'LockManager': 'worker_threads.html#class-lockmanager',
+  'LockManagerSnapshot': 'https://developer.mozilla.org/en-US/docs/Web/API/LockManagerSnapshot',
+  'CPUProfileHandle': 'v8.html#class-cpuprofilehandle',
+  'HeapProfileHandle': 'v8.html#class-heapprofilehandle',
 };
 
 const arrayPart = /(?:\[])+$/;

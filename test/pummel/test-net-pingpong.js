@@ -24,14 +24,12 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-let tests_run = 0;
-
-function pingPongTest(host, on_complete) {
+const pingPongTest = common.mustCall((host, on_complete) => {
   const N = 1000;
   let count = 0;
   let sent_final_ping = false;
 
-  const server = net.createServer({ allowHalfOpen: true }, function(socket) {
+  const server = net.createServer({ allowHalfOpen: true }, common.mustCall((socket) => {
     assert.strictEqual(socket.remoteAddress !== null, true);
     assert.strictEqual(socket.remoteAddress !== undefined, true);
     const address = socket.remoteAddress;
@@ -49,38 +47,38 @@ function pingPongTest(host, on_complete) {
     socket.setNoDelay();
     socket.timeout = 0;
 
-    socket.on('data', function(data) {
+    socket.on('data', common.mustCallAtLeast((data) => {
       console.log(`server got: ${JSON.stringify(data)}`);
       assert.strictEqual(socket.readyState, 'open');
       assert.strictEqual(count <= N, true);
       if (/PING/.test(data)) {
         socket.write('PONG');
       }
-    });
+    }, N + 1));
 
-    socket.on('end', function() {
+    socket.on('end', common.mustCall(() => {
       assert.strictEqual(socket.readyState, 'writeOnly');
       socket.end();
-    });
+    }));
 
-    socket.on('close', function(had_error) {
+    socket.on('close', common.mustCall((had_error) => {
       assert.strictEqual(had_error, false);
       assert.strictEqual(socket.readyState, 'closed');
       socket.server.close();
-    });
-  });
+    }));
+  }));
 
-  server.listen(0, host, function() {
+  server.listen(0, host, common.mustCall(() => {
     const client = net.createConnection(server.address().port, host);
 
     client.setEncoding('utf8');
 
-    client.on('connect', function() {
+    client.on('connect', common.mustCall(() => {
       assert.strictEqual(client.readyState, 'open');
       client.write('PING');
-    });
+    }));
 
-    client.on('data', function(data) {
+    client.on('data', common.mustCallAtLeast((data) => {
       console.log(`client got: ${data}`);
 
       assert.strictEqual(data, 'PONG');
@@ -99,22 +97,17 @@ function pingPongTest(host, on_complete) {
         client.write('PING');
         client.end();
       }
-    });
+    }));
 
-    client.on('close', function() {
+    client.on('close', common.mustCall(() => {
       assert.strictEqual(count, N + 1);
       assert.strictEqual(sent_final_ping, true);
       if (on_complete) on_complete();
-      tests_run += 1;
-    });
-  });
-}
+    }));
+  }));
+}, common.hasIPv6 ? 3 : 2);
 
 // All are run at once and will run on different ports.
 pingPongTest(null);
 pingPongTest('127.0.0.1');
 if (common.hasIPv6) pingPongTest('::1');
-
-process.on('exit', function() {
-  assert.strictEqual(tests_run, common.hasIPv6 ? 3 : 2);
-});

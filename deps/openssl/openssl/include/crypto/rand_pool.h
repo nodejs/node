@@ -105,5 +105,7 @@ int ossl_rand_pool_add(RAND_POOL *pool,
                        const unsigned char *buffer, size_t len, size_t entropy);
 unsigned char *ossl_rand_pool_add_begin(RAND_POOL *pool, size_t len);
 int ossl_rand_pool_add_end(RAND_POOL *pool, size_t len, size_t entropy);
+int ossl_rand_pool_adin_mix_in(RAND_POOL *pool, const unsigned char *adin,
+                               size_t adin_len);
 
 #endif /* OSSL_PROVIDER_RAND_POOL_H */

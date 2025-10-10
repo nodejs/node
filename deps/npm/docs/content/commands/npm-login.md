@@ -18,6 +18,8 @@ Verify a user in the specified registry, and save the credentials to the
 `.npmrc` file. If no registry is specified, the default registry will be
 used (see [`config`](/using-npm/config)).
 
+When you run `npm login`, the CLI automatically generates a legacy token of `publish` type. For more information, see [About legacy tokens](/about-access-tokens#about-legacy-tokens).
+
 When using `legacy` for your `auth-type`, the username and password, are
 read in from prompts.
 

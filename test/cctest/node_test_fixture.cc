@@ -21,9 +21,6 @@ void NodeTestEnvironment::SetUp() {
   NodeZeroIsolateTestFixture::platform.reset(
       new node::NodePlatform(kV8ThreadPoolSize, tracing_controller));
   v8::V8::InitializePlatform(NodeZeroIsolateTestFixture::platform.get());
-#ifdef V8_ENABLE_SANDBOX
-  ASSERT_TRUE(v8::V8::InitializeSandbox());
-#endif
   cppgc::InitializeProcess(
       NodeZeroIsolateTestFixture::platform->GetPageAllocator());
 

@@ -42,7 +42,8 @@
 
 // CHECK()
 //
-// `CHECK` terminates the program with a fatal error if `condition` is not true.
+// `CHECK` enforces that the `condition` is true. If the condition is false,
+// the program is terminated with a fatal error.
 //
 // The message may include additional information such as stack traces, when
 // available.

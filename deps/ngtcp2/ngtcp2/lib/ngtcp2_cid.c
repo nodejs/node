@@ -149,3 +149,9 @@ int ngtcp2_dcid_verify_stateless_reset_token(const ngtcp2_dcid *dcid,
            ? 0
            : NGTCP2_ERR_INVALID_ARGUMENT;
 }
+
+void ngtcp2_dcid_apply_validated_path(ngtcp2_dcid *dcid,
+                                      const ngtcp2_path_history_entry *ent) {
+  dcid->flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
+  dcid->max_udp_payload_size = ent->max_udp_payload_size;
+}

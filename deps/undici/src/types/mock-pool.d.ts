@@ -14,6 +14,8 @@ declare class MockPool extends Pool implements Interceptable {
   dispatch (options: Dispatcher.DispatchOptions, handlers: Dispatcher.DispatchHandler): boolean
   /** Closes the mock pool and gracefully waits for enqueued requests to complete. */
   close (): Promise<void>
+  /** Clean up all the prepared mocks. */
+  cleanMocks (): void
 }
 
 declare namespace MockPool {

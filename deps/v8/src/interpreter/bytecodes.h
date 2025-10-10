@@ -39,6 +39,17 @@ namespace interpreter {
   V(Star1, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)  \
   V(Star0, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)
 
+#define CALL_PROPERTY_BYTECODES(V)                                            \
+  V(CallProperty, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)         \
+  V(CallProperty0, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
+    OperandType::kReg, OperandType::kIdx)                                     \
+  V(CallProperty1, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
+    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                  \
+  V(CallProperty2, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
+    OperandType::kReg, OperandType::kReg, OperandType::kReg,                  \
+    OperandType::kIdx)
+
 // The list of bytecodes which have unique handlers (no other bytecode is
 // executed using identical code).
 // Format is V(<bytecode>, <implicit_register_use>, <operands>).
@@ -82,15 +93,15 @@ namespace interpreter {
   V(LdaTrue, ImplicitRegisterUse::kWriteAccumulator)                           \
   V(LdaFalse, ImplicitRegisterUse::kWriteAccumulator)                          \
   V(LdaConstant, ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx)    \
+  V(LdaContextSlotNoCell, ImplicitRegisterUse::kWriteAccumulator,              \
+    OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
   V(LdaContextSlot, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
     OperandType::kIdx, OperandType::kUImm)                                     \
-  V(LdaScriptContextSlot, ImplicitRegisterUse::kWriteAccumulator,              \
-    OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
   V(LdaImmutableContextSlot, ImplicitRegisterUse::kWriteAccumulator,           \
     OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
-  V(LdaCurrentContextSlot, ImplicitRegisterUse::kWriteAccumulator,             \
+  V(LdaCurrentContextSlotNoCell, ImplicitRegisterUse::kWriteAccumulator,       \
     OperandType::kIdx)                                                         \
-  V(LdaCurrentScriptContextSlot, ImplicitRegisterUse::kWriteAccumulator,       \
+  V(LdaCurrentContextSlot, ImplicitRegisterUse::kWriteAccumulator,             \
     OperandType::kIdx)                                                         \
   V(LdaImmutableCurrentContextSlot, ImplicitRegisterUse::kWriteAccumulator,    \
     OperandType::kIdx)                                                         \
@@ -117,30 +128,30 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kIdx)                                      \
                                                                                \
   /* Context operations */                                                     \
+  V(StaContextSlotNoCell, ImplicitRegisterUse::kReadAccumulator,               \
+    OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
+  V(StaCurrentContextSlotNoCell, ImplicitRegisterUse::kReadAccumulator,        \
+    OperandType::kIdx)                                                         \
   V(StaContextSlot, ImplicitRegisterUse::kReadAccumulator, OperandType::kReg,  \
     OperandType::kIdx, OperandType::kUImm)                                     \
   V(StaCurrentContextSlot, ImplicitRegisterUse::kReadAccumulator,              \
     OperandType::kIdx)                                                         \
-  V(StaScriptContextSlot, ImplicitRegisterUse::kReadAccumulator,               \
-    OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
-  V(StaCurrentScriptContextSlot, ImplicitRegisterUse::kReadAccumulator,        \
-    OperandType::kIdx)                                                         \
                                                                                \
   /* Load-Store lookup slots */                                                \
   V(LdaLookupSlot, ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx)  \
-  V(LdaLookupContextSlot, ImplicitRegisterUse::kWriteAccumulator,              \
+  V(LdaLookupContextSlotNoCell, ImplicitRegisterUse::kWriteAccumulator,        \
     OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
-  V(LdaLookupScriptContextSlot, ImplicitRegisterUse::kWriteAccumulator,        \
+  V(LdaLookupContextSlot, ImplicitRegisterUse::kWriteAccumulator,              \
     OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
   V(LdaLookupGlobalSlot, ImplicitRegisterUse::kWriteAccumulator,               \
     OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
   V(LdaLookupSlotInsideTypeof, ImplicitRegisterUse::kWriteAccumulator,         \
     OperandType::kIdx)                                                         \
-  V(LdaLookupContextSlotInsideTypeof, ImplicitRegisterUse::kWriteAccumulator,  \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
-  V(LdaLookupScriptContextSlotInsideTypeof,                                    \
+  V(LdaLookupContextSlotNoCellInsideTypeof,                                    \
     ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx,                 \
     OperandType::kIdx, OperandType::kUImm)                                     \
+  V(LdaLookupContextSlotInsideTypeof, ImplicitRegisterUse::kWriteAccumulator,  \
+    OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
   V(LdaLookupGlobalSlotInsideTypeof, ImplicitRegisterUse::kWriteAccumulator,   \
     OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
   V(StaLookupSlot, ImplicitRegisterUse::kReadWriteAccumulator,                 \
@@ -178,6 +189,8 @@ namespace interpreter {
   V(DefineKeyedOwnPropertyInLiteral, ImplicitRegisterUse::kReadAccumulator,    \
     OperandType::kReg, OperandType::kReg, OperandType::kFlag8,                 \
     OperandType::kIdx)                                                         \
+  V(SetPrototypeProperties, ImplicitRegisterUse::kReadAndClobberAccumulator,   \
+    OperandType::kIdx)                                                         \
                                                                                \
   /* Binary Operators */                                                       \
   V(Add, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \
@@ -204,6 +217,12 @@ namespace interpreter {
     OperandType::kIdx)                                                         \
   V(ShiftRightLogical, ImplicitRegisterUse::kReadWriteAccumulator,             \
     OperandType::kReg, OperandType::kIdx)                                      \
+                                                                               \
+  /* Specialized binary operators. */                                          \
+  V(Add_StringConstant_Internalize,                                            \
+    ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg /* lhs */,   \
+    OperandType::kIdx /* feedback_slot */,                                     \
+    OperandType::kFlag8 /* AddStringConstantAndInternalizeVariant */)          \
                                                                                \
   /* Binary operators with immediate operands */                               \
   V(AddSmi, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kImm,     \
@@ -255,15 +274,7 @@ namespace interpreter {
   V(CallAnyReceiver, ImplicitRegisterUse::kWriteAccumulator,                   \
     OperandType::kReg, OperandType::kRegList, OperandType::kRegCount,          \
     OperandType::kIdx)                                                         \
-  V(CallProperty, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,   \
-    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
-  V(CallProperty0, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
-    OperandType::kReg, OperandType::kIdx)                                      \
-  V(CallProperty1, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
-    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
-  V(CallProperty2, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
-    OperandType::kReg, OperandType::kReg, OperandType::kReg,                   \
-    OperandType::kIdx)                                                         \
+  CALL_PROPERTY_BYTECODES(V)                                                   \
   V(CallUndefinedReceiver, ImplicitRegisterUse::kWriteAccumulator,             \
     OperandType::kReg, OperandType::kRegList, OperandType::kRegCount,          \
     OperandType::kIdx)                                                         \
@@ -353,6 +364,8 @@ namespace interpreter {
     OperandType::kReg, OperandType::kIdx)                                      \
   V(CreateFunctionContext, ImplicitRegisterUse::kWriteAccumulator,             \
     OperandType::kIdx, OperandType::kUImm)                                     \
+  V(CreateFunctionContextWithCells, ImplicitRegisterUse::kWriteAccumulator,    \
+    OperandType::kIdx, OperandType::kUImm)                                     \
   V(CreateEvalContext, ImplicitRegisterUse::kWriteAccumulator,                 \
     OperandType::kIdx, OperandType::kUImm)                                     \
   V(CreateWithContext, ImplicitRegisterUse::kWriteAccumulator,                 \
@@ -429,6 +442,10 @@ namespace interpreter {
   V(ForInNext, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,      \
     OperandType::kReg, OperandType::kRegPair, OperandType::kIdx)               \
   V(ForInStep, ImplicitRegisterUse::kNone, OperandType::kRegInOut)             \
+                                                                               \
+  /* Optimizing For..of */                                                     \
+  V(ForOfNext, ImplicitRegisterUse::kNone, OperandType::kReg,                  \
+    OperandType::kReg, OperandType::kRegOutPair)                               \
                                                                                \
   /* Update the pending message */                                             \
   V(SetPendingMessage, ImplicitRegisterUse::kReadWriteAccumulator)             \

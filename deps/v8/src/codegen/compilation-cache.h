@@ -86,11 +86,14 @@ class CompilationCacheEval : public CompilationCacheEvalOrScript {
                       DirectHandle<NativeContext> native_context,
                       LanguageMode language_mode, int position);
 
+  void UpdateEval(DirectHandle<String> source,
+                  DirectHandle<SharedFunctionInfo> outer_info,
+                  DirectHandle<JSFunction> js_function,
+                  LanguageMode language_mode, int position);
+
   void Put(DirectHandle<String> source,
            DirectHandle<SharedFunctionInfo> outer_info,
-           DirectHandle<SharedFunctionInfo> function_info,
-           DirectHandle<NativeContext> native_context,
-           DirectHandle<FeedbackCell> feedback_cell, int position);
+           DirectHandle<JSFunction> js_function, int position);
 
   void Age();
 
@@ -101,7 +104,7 @@ class CompilationCacheEval : public CompilationCacheEvalOrScript {
 // Sub-cache for regular expressions.
 class CompilationCacheRegExp {
  public:
-  CompilationCacheRegExp(Isolate* isolate) : isolate_(isolate) {}
+  explicit CompilationCacheRegExp(Isolate* isolate) : isolate_(isolate) {}
 
   MaybeDirectHandle<RegExpData> Lookup(DirectHandle<String> source,
                                        JSRegExp::Flags flags);
@@ -159,6 +162,11 @@ class V8_EXPORT_PRIVATE CompilationCache {
                           DirectHandle<Context> context,
                           LanguageMode language_mode, int position);
 
+  void UpdateEval(DirectHandle<String> source,
+                  DirectHandle<SharedFunctionInfo> outer_info,
+                  DirectHandle<JSFunction> js_function,
+                  LanguageMode language_mode, int position);
+
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.
   MaybeDirectHandle<RegExpData> LookupRegExp(DirectHandle<String> source,
@@ -173,9 +181,7 @@ class V8_EXPORT_PRIVATE CompilationCache {
   // with the shared function info. This may overwrite an existing mapping.
   void PutEval(DirectHandle<String> source,
                DirectHandle<SharedFunctionInfo> outer_info,
-               DirectHandle<Context> context,
-               DirectHandle<SharedFunctionInfo> function_info,
-               DirectHandle<FeedbackCell> feedback_cell, int position);
+               DirectHandle<JSFunction> js_function, int position);
 
   // Associate the (source, flags) pair to the given regexp data.
   // This may overwrite an existing mapping.

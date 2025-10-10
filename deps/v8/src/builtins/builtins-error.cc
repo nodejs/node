@@ -69,8 +69,8 @@ BUILTIN(ErrorIsError) {
     // DOMExceptions should return true. See
     // https://github.com/whatwg/webidl/pull/1421
     return *isolate->factory()->ToBoolean(
-        InstanceTypeChecker::IsJSError(obj_map) ||
-        (IsJSApiWrapperObject(obj_map) &&
+        IsJSErrorMap(obj_map) ||
+        (IsJSApiWrapperObjectMap(obj_map) &&
          isolate->IsJSApiWrapperNativeError(Cast<JSReceiver>(obj))));
   } else {
     return ReadOnlyRoots(isolate).false_value();

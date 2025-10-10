@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
@@ -42,7 +42,7 @@ const server = net.createServer((connection) => {
   write(0);
 });
 
-server.on('listening', () => {
+server.on('listening', common.mustCall(() => {
   const client = net.createConnection(server.address().port);
   client.setEncoding('ascii');
   client.on('data', (d) => {
@@ -50,39 +50,39 @@ server.on('listening', () => {
     recv += d;
   });
 
-  setTimeout(() => {
+  setTimeout(common.mustCall(() => {
     chars_recved = recv.length;
     console.log(`pause at: ${chars_recved}`);
     assert.strictEqual(chars_recved > 1, true);
     client.pause();
-    setTimeout(() => {
+    setTimeout(common.mustCall(() => {
       console.log(`resume at: ${chars_recved}`);
       assert.strictEqual(chars_recved, recv.length);
       client.resume();
 
-      setTimeout(() => {
+      setTimeout(common.mustCall(() => {
         chars_recved = recv.length;
         console.log(`pause at: ${chars_recved}`);
         client.pause();
 
-        setTimeout(() => {
+        setTimeout(common.mustCall(() => {
           console.log(`resume at: ${chars_recved}`);
           assert.strictEqual(chars_recved, recv.length);
           client.resume();
 
-        }, 500);
+        }), 500);
 
-      }, 500);
+      }), 500);
 
-    }, 500);
+    }), 500);
 
-  }, 500);
+  }), 500);
 
   client.on('end', () => {
     server.close();
     client.end();
   });
-});
+}));
 server.listen(0);
 
 process.on('exit', () => {

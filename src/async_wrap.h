@@ -51,6 +51,7 @@ namespace node {
   V(HTTP2SETTINGS)                                                             \
   V(HTTPINCOMINGMESSAGE)                                                       \
   V(HTTPCLIENTREQUEST)                                                         \
+  V(LOCKS)                                                                     \
   V(JSSTREAM)                                                                  \
   V(JSUDPWRAP)                                                                 \
   V(MESSAGEPORT)                                                               \
@@ -78,26 +79,30 @@ namespace node {
   V(UDPWRAP)                                                                   \
   V(SIGINTWATCHDOG)                                                            \
   V(WORKER)                                                                    \
+  V(WORKERCPUPROFILE)                                                          \
+  V(WORKERCPUUSAGE)                                                            \
+  V(WORKERHEAPPROFILE)                                                         \
   V(WORKERHEAPSNAPSHOT)                                                        \
   V(WORKERHEAPSTATISTICS)                                                      \
   V(WRITEWRAP)                                                                 \
   V(ZLIB)
 
 #if HAVE_OPENSSL
-#define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                   \
-  V(CHECKPRIMEREQUEST)                                                        \
-  V(PBKDF2REQUEST)                                                            \
-  V(KEYPAIRGENREQUEST)                                                        \
-  V(KEYGENREQUEST)                                                            \
-  V(KEYEXPORTREQUEST)                                                         \
-  V(CIPHERREQUEST)                                                            \
-  V(DERIVEBITSREQUEST)                                                        \
-  V(HASHREQUEST)                                                              \
-  V(RANDOMBYTESREQUEST)                                                       \
-  V(RANDOMPRIMEREQUEST)                                                       \
-  V(SCRYPTREQUEST)                                                            \
-  V(SIGNREQUEST)                                                              \
-  V(TLSWRAP)                                                                  \
+#define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                    \
+  V(CHECKPRIMEREQUEST)                                                         \
+  V(PBKDF2REQUEST)                                                             \
+  V(KEYPAIRGENREQUEST)                                                         \
+  V(KEYGENREQUEST)                                                             \
+  V(KEYEXPORTREQUEST)                                                          \
+  V(ARGON2REQUEST)                                                             \
+  V(CIPHERREQUEST)                                                             \
+  V(DERIVEBITSREQUEST)                                                         \
+  V(HASHREQUEST)                                                               \
+  V(RANDOMBYTESREQUEST)                                                        \
+  V(RANDOMPRIMEREQUEST)                                                        \
+  V(SCRYPTREQUEST)                                                             \
+  V(SIGNREQUEST)                                                               \
+  V(TLSWRAP)                                                                   \
   V(VERIFYREQUEST)
 #else
 #define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)
@@ -176,6 +181,7 @@ class AsyncWrap : public BaseObject {
 
   void EmitDestroy(bool from_gc = false);
 
+  void EmitTraceAsyncStart() const;
   void EmitTraceEventBefore();
   static void EmitTraceEventAfter(ProviderType type, double async_id);
   void EmitTraceEventDestroy();

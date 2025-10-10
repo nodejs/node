@@ -2,7 +2,7 @@ version: 2
 
 sphinx:
   builder: html
-  configuration: null
+  configuration: docs/src/conf.py
   fail_on_warning: false
 
 build:

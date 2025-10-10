@@ -99,7 +99,10 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
       [[likely]] {
     CHECK_LE(sig_buf.len, sig->ByteLength());
     if (sig_buf.len < sig->ByteLength()) {
-      auto new_sig = ArrayBuffer::NewBackingStore(env->isolate(), sig_buf.len);
+      auto new_sig = ArrayBuffer::NewBackingStore(
+          env->isolate(),
+          sig_buf.len,
+          BackingStoreInitializationMode::kUninitialized);
       if (sig_buf.len > 0) [[likely]] {
         memcpy(new_sig->Data(), sig->Data(), sig_buf.len);
       }
@@ -196,6 +199,10 @@ void CheckThrow(Environment* env, SignBase::Error error) {
     case SignBase::Error::MalformedSignature:
       return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Malformed signature");
 
+    case SignBase::Error::ContextUnsupported:
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(
+          env, "Context parameter is unsupported");
+
     case SignBase::Error::Init:
     case SignBase::Error::Update:
     case SignBase::Error::PrivateKey:
@@ -227,6 +234,36 @@ void CheckThrow(Environment* env, SignBase::Error error) {
 
 bool UseP1363Encoding(const EVPKeyPointer& key, const DSASigEnc dsa_encoding) {
   return key.isSigVariant() && dsa_encoding == DSASigEnc::P1363;
+}
+
+bool SupportsContextString(const EVPKeyPointer& key) {
+#if OPENSSL_VERSION_NUMBER < 0x3020000fL
+  return false;
+#else
+  switch (key.id()) {
+    case EVP_PKEY_ED448:
+#if OPENSSL_WITH_PQC
+    case EVP_PKEY_ML_DSA_44:
+    case EVP_PKEY_ML_DSA_65:
+    case EVP_PKEY_ML_DSA_87:
+    case EVP_PKEY_SLH_DSA_SHA2_128F:
+    case EVP_PKEY_SLH_DSA_SHA2_128S:
+    case EVP_PKEY_SLH_DSA_SHA2_192F:
+    case EVP_PKEY_SLH_DSA_SHA2_192S:
+    case EVP_PKEY_SLH_DSA_SHA2_256F:
+    case EVP_PKEY_SLH_DSA_SHA2_256S:
+    case EVP_PKEY_SLH_DSA_SHAKE_128F:
+    case EVP_PKEY_SLH_DSA_SHAKE_128S:
+    case EVP_PKEY_SLH_DSA_SHAKE_192F:
+    case EVP_PKEY_SLH_DSA_SHAKE_192S:
+    case EVP_PKEY_SLH_DSA_SHAKE_256F:
+    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+#endif
+      return true;
+    default:
+      return false;
+  }
+#endif
 }
 }  // namespace
 
@@ -531,7 +568,8 @@ SignConfiguration::SignConfiguration(SignConfiguration&& other) noexcept
       flags(other.flags),
       padding(other.padding),
       salt_length(other.salt_length),
-      dsa_encoding(other.dsa_encoding) {}
+      dsa_encoding(other.dsa_encoding),
+      context_string(std::move(other.context_string)) {}
 
 SignConfiguration& SignConfiguration::operator=(
     SignConfiguration&& other) noexcept {
@@ -545,6 +583,7 @@ void SignConfiguration::MemoryInfo(MemoryTracker* tracker) const {
   if (job_mode == kCryptoJobAsync) {
     tracker->TrackFieldWithSize("data", data.size());
     tracker->TrackFieldWithSize("signature", signature.size());
+    tracker->TrackFieldWithSize("context_string", context_string.size());
   }
 }
 
@@ -588,7 +627,7 @@ Maybe<void> SignTraits::AdditionalConfig(
     Utf8Value digest(env->isolate(), args[offset + 6]);
     params->digest = Digest::FromName(*digest);
     if (!params->digest) [[unlikely]] {
-      THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
+      THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", digest);
       return Nothing<void>();
     }
   }
@@ -612,8 +651,20 @@ Maybe<void> SignTraits::AdditionalConfig(
     }
   }
 
+  if (!args[offset + 10]->IsUndefined()) {  // Context string
+    ArrayBufferOrViewContents<char> context_string(args[offset + 10]);
+    if (context_string.size() > 255) [[unlikely]] {
+      THROW_ERR_OUT_OF_RANGE(env, "context string must be at most 255 bytes");
+      return Nothing<void>();
+    }
+    params->flags |= SignConfiguration::kHasContextString;
+    params->context_string = mode == kCryptoJobAsync
+                                 ? context_string.ToCopy()
+                                 : context_string.ToByteSource();
+  }
+
   if (params->mode == SignConfiguration::Mode::Verify) {
-    ArrayBufferOrViewContents<char> signature(args[offset + 10]);
+    ArrayBufferOrViewContents<char> signature(args[offset + 11]);
     if (!signature.CheckSizeInt32()) [[unlikely]] {
       THROW_ERR_OUT_OF_RANGE(env, "signature is too big");
       return Nothing<void>();
@@ -634,28 +685,50 @@ Maybe<void> SignTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool SignTraits::DeriveBits(
-    Environment* env,
-    const SignConfiguration& params,
-    ByteSource* out) {
-  ClearErrorOnReturn clear_error_on_return;
+bool SignTraits::DeriveBits(Environment* env,
+                            const SignConfiguration& params,
+                            ByteSource* out,
+                            CryptoJobMode mode) {
+  bool can_throw = mode == CryptoJobMode::kCryptoJobSync;
   auto context = EVPMDCtxPointer::New();
   if (!context) [[unlikely]]
     return false;
   const auto& key = params.key.GetAsymmetricKey();
 
+  bool has_context = (params.flags & SignConfiguration::kHasContextString &&
+                      params.context_string.size() > 0);
+
+  if (has_context && !SupportsContextString(key)) {
+    if (can_throw) crypto::CheckThrow(env, SignBase::Error::ContextUnsupported);
+    return false;
+  }
+
   auto ctx = ([&] {
-    switch (params.mode) {
-      case SignConfiguration::Mode::Sign:
-        return context.signInit(key, params.digest);
-      case SignConfiguration::Mode::Verify:
-        return context.verifyInit(key, params.digest);
+    if (has_context) {
+      ncrypto::Buffer<const unsigned char> context_buf{
+          .data = params.context_string.data<unsigned char>(),
+          .len = params.context_string.size(),
+      };
+
+      switch (params.mode) {
+        case SignConfiguration::Mode::Sign:
+          return context.signInitWithContext(key, params.digest, context_buf);
+        case SignConfiguration::Mode::Verify:
+          return context.verifyInitWithContext(key, params.digest, context_buf);
+      }
+    } else {
+      switch (params.mode) {
+        case SignConfiguration::Mode::Sign:
+          return context.signInit(key, params.digest);
+        case SignConfiguration::Mode::Verify:
+          return context.verifyInit(key, params.digest);
+      }
     }
     UNREACHABLE();
   })();
 
   if (!ctx.has_value()) [[unlikely]] {
-    crypto::CheckThrow(env, SignBase::Error::Init);
+    if (can_throw) crypto::CheckThrow(env, SignBase::Error::Init);
     return false;
   }
 
@@ -669,7 +742,7 @@ bool SignTraits::DeriveBits(
           : std::nullopt;
 
   if (!ApplyRSAOptions(key, *ctx, padding, salt_length)) {
-    crypto::CheckThrow(env, SignBase::Error::PrivateKey);
+    if (can_throw) crypto::CheckThrow(env, SignBase::Error::PrivateKey);
     return false;
   }
 
@@ -678,7 +751,7 @@ bool SignTraits::DeriveBits(
       if (key.isOneShotVariant()) {
         auto data = context.signOneShot(params.data);
         if (!data) [[unlikely]] {
-          crypto::CheckThrow(env, SignBase::Error::PrivateKey);
+          if (can_throw) crypto::CheckThrow(env, SignBase::Error::PrivateKey);
           return false;
         }
         DCHECK(!data.isSecure());
@@ -686,7 +759,7 @@ bool SignTraits::DeriveBits(
       } else {
         auto data = context.sign(params.data);
         if (!data) [[unlikely]] {
-          crypto::CheckThrow(env, SignBase::Error::PrivateKey);
+          if (can_throw) crypto::CheckThrow(env, SignBase::Error::PrivateKey);
           return false;
         }
         DCHECK(!data.isSecure());

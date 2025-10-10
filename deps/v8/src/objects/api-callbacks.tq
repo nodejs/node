@@ -10,16 +10,18 @@ bitfield struct InterceptorInfoFlags extends uint31 {
   has_new_callbacks_signature: bool: 1 bit;
 }
 
-extern class InterceptorInfo extends Struct {
-  getter: NonNullForeign|Zero|Undefined;
-  setter: NonNullForeign|Zero|Undefined;
-  query: NonNullForeign|Zero|Undefined;
-  descriptor: NonNullForeign|Zero|Undefined;
-  deleter: NonNullForeign|Zero|Undefined;
-  enumerator: NonNullForeign|Zero|Undefined;
-  definer: NonNullForeign|Zero|Undefined;
+extern class InterceptorInfo extends HeapObject {
   data: Object;
-  flags: SmiTagged<InterceptorInfoFlags>;
+  flags: InterceptorInfoFlags;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+  getter: ExternalPointer;
+  setter: ExternalPointer;
+  query: ExternalPointer;
+  descriptor: ExternalPointer;
+  deleter: ExternalPointer;
+  enumerator: ExternalPointer;
+  definer: ExternalPointer;
 }
 
 extern class AccessCheckInfo extends Struct {

@@ -12,7 +12,7 @@
 namespace node::crypto {
 constexpr unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
 
-#define VARIANTS(V)                                                            \
+#define VARIANTS_COMMON(V)                                                     \
   V(CTR_128, AES_CTR_Cipher, ncrypto::Cipher::AES_128_CTR)                     \
   V(CTR_192, AES_CTR_Cipher, ncrypto::Cipher::AES_192_CTR)                     \
   V(CTR_256, AES_CTR_Cipher, ncrypto::Cipher::AES_256_CTR)                     \
@@ -25,6 +25,19 @@ constexpr unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
   V(KW_128, AES_Cipher, ncrypto::Cipher::AES_128_KW)                           \
   V(KW_192, AES_Cipher, ncrypto::Cipher::AES_192_KW)                           \
   V(KW_256, AES_Cipher, ncrypto::Cipher::AES_256_KW)
+
+#if OPENSSL_VERSION_MAJOR >= 3
+#define VARIANTS_OCB(V)                                                        \
+  V(OCB_128, AES_Cipher, ncrypto::Cipher::AES_128_OCB)                         \
+  V(OCB_192, AES_Cipher, ncrypto::Cipher::AES_192_OCB)                         \
+  V(OCB_256, AES_Cipher, ncrypto::Cipher::AES_256_OCB)
+#else
+#define VARIANTS_OCB(V)
+#endif
+
+#define VARIANTS(V)                                                            \
+  VARIANTS_COMMON(V)                                                           \
+  VARIANTS_OCB(V)
 
 enum class AESKeyVariant {
 #define V(name, _, __) name,

@@ -305,6 +305,17 @@ ExternalReference ExternalReference::sandbox_end_address() {
   return ExternalReference(Sandbox::current()->end_address());
 }
 
+#ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+ExternalReference ExternalReference::sandboxed_mode_pkey_mask_address() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  return ExternalReference(
+      SandboxHardwareSupport::sandboxed_mode_pkey_mask_address());
+#else
+  return ExternalReference(kNullAddress);
+#endif
+}
+#endif
+
 ExternalReference ExternalReference::empty_backing_store_buffer() {
   return ExternalReference(
       Sandbox::current()->constants().empty_backing_store_buffer_address());
@@ -555,10 +566,6 @@ FUNCTION_REFERENCE(allocate_and_initialize_young_external_pointer_table_entry,
 
 FUNCTION_REFERENCE(get_date_field_function, JSDate::GetField)
 
-ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
-  return ExternalReference(isolate->date_cache()->stamp_address());
-}
-
 // static
 ExternalReference
 ExternalReference::runtime_function_table_address_for_unittests(
@@ -603,8 +610,10 @@ FUNCTION_REFERENCE(ensure_valid_return_address,
 #endif  // V8_ENABLE_CET_SHADOW_STACK
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-FUNCTION_REFERENCE(wasm_switch_stacks, wasm::switch_stacks)
-FUNCTION_REFERENCE(wasm_return_switch, wasm::return_switch)
+FUNCTION_REFERENCE(wasm_start_stack, wasm::start_stack)
+FUNCTION_REFERENCE(wasm_suspend_stack, wasm::suspend_stack)
+FUNCTION_REFERENCE(wasm_resume_stack, wasm::resume_stack)
+FUNCTION_REFERENCE(wasm_return_stack, wasm::return_stack)
 FUNCTION_REFERENCE(wasm_switch_to_the_central_stack,
                    wasm::switch_to_the_central_stack)
 FUNCTION_REFERENCE(wasm_switch_from_the_central_stack,
@@ -730,6 +739,14 @@ void* allocate_buffer_impl(Isolate* isolate, size_t size) {
       isolate->heap()->cpp_heap()->GetAllocationHandle(),
       cppgc::AdditionalBytes(size));
   CHECK_NOT_NULL(result);
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // TODO(429341650): temporary and unsafe workaround as the buffer must be
+  // accessible to sandboxed code, in particular the generic JSToWasmWrapper.
+  Address addr = reinterpret_cast<Address>(result);
+  size_t page_offset = addr % kMinimumOSPageSize;
+  SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(
+      addr - page_offset, size + page_offset);
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   return result;
 }
 
@@ -828,6 +845,12 @@ ExternalReference ExternalReference::old_space_allocation_limit_address(
   return ExternalReference(isolate->heap()->OldSpaceAllocationLimitAddress());
 }
 
+ExternalReference ExternalReference::last_young_allocation_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->last_young_allocation_address());
+}
+
 ExternalReference ExternalReference::array_buffer_max_allocation_address(
     Isolate* isolate) {
   return ExternalReference(isolate->array_buffer_max_size_address());
@@ -897,24 +920,12 @@ ExternalReference ExternalReference::address_of_cet_compatible_flag() {
 }
 #endif  // V8_ENABLE_CET_SHADOW_STACK
 
-ExternalReference ExternalReference::script_context_mutable_heap_number_flag() {
-  return ExternalReference(&v8_flags.script_context_mutable_heap_number);
-}
-
 ExternalReference ExternalReference::additive_safe_int_feedback_flag() {
 #ifdef V8_TARGET_ARCH_64_BIT
   return ExternalReference(&v8_flags.additive_safe_int_feedback);
 #else
   return ExternalReference();
 #endif  // V8_TARGET_ARCH_64_BIT
-}
-
-ExternalReference ExternalReference::script_context_mutable_heap_int32_flag() {
-#ifdef SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
-  return ExternalReference(&v8_flags.script_context_mutable_heap_int32);
-#else
-  return ExternalReference();
-#endif  // SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
 }
 
 ExternalReference ExternalReference::address_of_load_from_stack_count(
@@ -1045,36 +1056,20 @@ ExternalReference::address_of_enable_experimental_regexp_engine() {
 
 namespace {
 
-static uintptr_t BaselinePCForBytecodeOffset(Address raw_code_obj,
-                                             int bytecode_offset,
-                                             Address raw_bytecode_array) {
-  Tagged<Code> code_obj = Cast<Code>(Tagged<Object>(raw_code_obj));
-  Tagged<BytecodeArray> bytecode_array =
-      Cast<BytecodeArray>(Tagged<Object>(raw_bytecode_array));
-  return code_obj->GetBaselineStartPCForBytecodeOffset(bytecode_offset,
-                                                       bytecode_array);
-}
-
 static uintptr_t BaselinePCForNextExecutedBytecode(Address raw_code_obj,
                                                    int bytecode_offset,
                                                    Address raw_bytecode_array) {
-  Tagged<Code> code_obj = Cast<Code>(Tagged<Object>(raw_code_obj));
+  Tagged<Code> code_obj = SbxCast<Code>(Tagged<Object>(raw_code_obj));
   Tagged<BytecodeArray> bytecode_array =
-      Cast<BytecodeArray>(Tagged<Object>(raw_bytecode_array));
+      SbxCast<BytecodeArray>(Tagged<Object>(raw_bytecode_array));
   return code_obj->GetBaselinePCForNextExecutedBytecode(bytecode_offset,
                                                         bytecode_array);
 }
 
 }  // namespace
 
-FUNCTION_REFERENCE(baseline_pc_for_bytecode_offset, BaselinePCForBytecodeOffset)
 FUNCTION_REFERENCE(baseline_pc_for_next_executed_bytecode,
                    BaselinePCForNextExecutedBytecode)
-
-ExternalReference ExternalReference::thread_in_wasm_flag_address_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->thread_in_wasm_flag_address_address());
-}
 
 ExternalReference ExternalReference::invoke_function_callback_generic() {
   Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallbackGeneric);
@@ -1414,16 +1409,17 @@ FUNCTION_REFERENCE(jsreceiver_create_identity_hash,
 
 static uint32_t ComputeSeededIntegerHash(Isolate* isolate, int32_t key) {
   DisallowGarbageCollection no_gc;
-  return ComputeSeededHash(static_cast<uint32_t>(key), HashSeed(isolate));
+  return ComputeSeededHash(static_cast<uint32_t>(key),
+                           HashSeed(isolate).seed());
 }
 
 FUNCTION_REFERENCE(compute_integer_hash, ComputeSeededIntegerHash)
 
 enum LookupMode { kFindExisting, kFindInsertionEntry };
 template <typename Dictionary, LookupMode mode>
-static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
-                                                  Address raw_dict,
-                                                  Address raw_key) {
+static size_t NameDictionaryLookupForwardedStringWithHandle(Isolate* isolate,
+                                                            Address raw_dict,
+                                                            Address raw_key) {
   // This function cannot allocate, but there is a HandleScope because it needs
   // to pass Handle<Name> to the dictionary methods.
   DisallowGarbageCollection no_gc;
@@ -1442,18 +1438,42 @@ static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
   return entry.raw_value();
 }
 
-FUNCTION_REFERENCE(
-    name_dictionary_lookup_forwarded_string,
-    (NameDictionaryLookupForwardedString<NameDictionary, kFindExisting>))
-FUNCTION_REFERENCE(
-    name_dictionary_find_insertion_entry_forwarded_string,
-    (NameDictionaryLookupForwardedString<NameDictionary, kFindInsertionEntry>))
-FUNCTION_REFERENCE(
-    global_dictionary_lookup_forwarded_string,
-    (NameDictionaryLookupForwardedString<GlobalDictionary, kFindExisting>))
+FUNCTION_REFERENCE(name_dictionary_lookup_forwarded_string,
+                   (NameDictionaryLookupForwardedStringWithHandle<
+                       NameDictionary, kFindExisting>))
+FUNCTION_REFERENCE(name_dictionary_find_insertion_entry_forwarded_string,
+                   (NameDictionaryLookupForwardedStringWithHandle<
+                       NameDictionary, kFindInsertionEntry>))
+FUNCTION_REFERENCE(global_dictionary_lookup_forwarded_string,
+                   (NameDictionaryLookupForwardedStringWithHandle<
+                       GlobalDictionary, kFindExisting>))
 FUNCTION_REFERENCE(global_dictionary_find_insertion_entry_forwarded_string,
-                   (NameDictionaryLookupForwardedString<GlobalDictionary,
-                                                        kFindInsertionEntry>))
+                   (NameDictionaryLookupForwardedStringWithHandle<
+                       GlobalDictionary, kFindInsertionEntry>))
+FUNCTION_REFERENCE(simple_name_dictionary_lookup_forwarded_string,
+                   (NameDictionaryLookupForwardedStringWithHandle<
+                       SimpleNameDictionary, kFindExisting>))
+FUNCTION_REFERENCE(simple_name_dictionary_find_insertion_entry_forwarded_string,
+                   (NameDictionaryLookupForwardedStringWithHandle<
+                       SimpleNameDictionary, kFindInsertionEntry>))
+
+template <typename Dictionary, LookupMode mode>
+static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
+                                                  Address raw_dict,
+                                                  Address raw_key) {
+  Tagged<String> key = Cast<String>(Tagged<Object>(raw_key));
+  // This function should only be used as the slow path for forwarded strings.
+  DCHECK(Name::IsForwardingIndex(key->raw_hash_field()));
+
+  Tagged<Dictionary> dict = Cast<Dictionary>(Tagged<Object>(raw_dict));
+  ReadOnlyRoots roots(isolate);
+  uint32_t hash = key->hash();
+  InternalIndex entry = mode == kFindExisting
+                            ? dict->FindEntry(isolate, roots, key, hash)
+                            : dict->FindInsertionEntry(isolate, roots, hash);
+  return entry.raw_value();
+}
+
 FUNCTION_REFERENCE(
     name_to_index_hashtable_lookup_forwarded_string,
     (NameDictionaryLookupForwardedString<NameToIndexHashTable, kFindExisting>))

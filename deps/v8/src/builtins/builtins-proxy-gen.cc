@@ -20,8 +20,8 @@ namespace internal {
 #include "src/codegen/define-code-stub-assembler-macros.inc"
 
 TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
-    TNode<Context> context, TNode<JSReceiver> target,
-    TNode<JSReceiver> handler) {
+    TNode<Context> context, TNode<JSReceiver> target, TNode<JSReceiver> handler,
+    TNode<Int32T> flags) {
   TVARIABLE(Map, map);
 
   Label callable_target(this), constructor_target(this), none_target(this),
@@ -36,19 +36,20 @@ TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
     // Every object that is a constructor is implicitly callable
     // so it's okay to nest this check here
     GotoIf(IsConstructor(target), &constructor_target);
-    map = CAST(
-        LoadContextElement(nativeContext, Context::PROXY_CALLABLE_MAP_INDEX));
+    map = CAST(LoadContextElementNoCell(nativeContext,
+                                        Context::PROXY_CALLABLE_MAP_INDEX));
     Goto(&create_proxy);
   }
   BIND(&constructor_target);
   {
-    map = CAST(LoadContextElement(nativeContext,
-                                  Context::PROXY_CONSTRUCTOR_MAP_INDEX));
+    map = CAST(LoadContextElementNoCell(nativeContext,
+                                        Context::PROXY_CONSTRUCTOR_MAP_INDEX));
     Goto(&create_proxy);
   }
   BIND(&none_target);
   {
-    map = CAST(LoadContextElement(nativeContext, Context::PROXY_MAP_INDEX));
+    map =
+        CAST(LoadContextElementNoCell(nativeContext, Context::PROXY_MAP_INDEX));
     Goto(&create_proxy);
   }
 
@@ -61,6 +62,7 @@ TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
   StoreObjectFieldRoot(proxy, JSProxy::kPropertiesOrHashOffset, empty_dict);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kTargetOffset, target);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kHandlerOffset, handler);
+  StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kFlagsOffset, flags);
 
   return CAST(proxy);
 }
@@ -261,8 +263,7 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
         Label continue_check(this, Label::kDeferred);
         // 10.b. If IsAccessorDescriptor(targetDesc) is true and
         // targetDesc.[[Get]] is undefined, then:
-        TNode<Object> getter =
-            LoadObjectField(accessor_pair, AccessorPair::kGetterOffset);
+        TNode<Object> getter = LoadAccessorPairGetter(CAST(accessor_pair));
         // Here we check for null as well because if the getter was never
         // defined it's set as null.
         GotoIf(IsUndefined(getter), &continue_check);
@@ -275,8 +276,7 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
       } else {
         // 11.b.i. If targetDesc.[[Set]] is undefined, throw a TypeError
         // exception.
-        TNode<Object> setter =
-            LoadObjectField(accessor_pair, AccessorPair::kSetterOffset);
+        TNode<Object> setter = LoadAccessorPairSetter(CAST(accessor_pair));
         GotoIf(IsUndefined(setter), &throw_non_configurable_accessor);
         GotoIf(IsNull(setter), &throw_non_configurable_accessor);
       }

@@ -96,6 +96,7 @@ class TemplateHashMapImpl {
   // It returns the value of the deleted entry
   // or null if there is no value for such key.
   Value Remove(const Key& key, uint32_t hash);
+  Value Remove(Entry* entry);
 
   // Empties the hash map (occupancy() == 0).
   void Clear();
@@ -266,11 +267,21 @@ Value TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Remove(
     const Key& key, uint32_t hash) {
   // Lookup the entry for the key to remove.
   Entry* p = Probe(key, hash);
+
   if (!p->exists()) {
     // Key not found nothing to remove.
     return nullptr;
   }
 
+  return Remove(p);
+}
+
+template <typename Key, typename Value, typename MatchFun,
+          class AllocationPolicy>
+Value TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Remove(
+    Entry* p) {
+  DCHECK_LE(impl_.map_ - 1, p);
+  DCHECK_LT(p, map_end());
   Value value = p->value;
   // To remove an entry we need to ensure that it does not create an empty
   // entry that will cause the search for another entry to stop too soon. If all
@@ -326,9 +337,7 @@ template <typename Key, typename Value, typename MatchFun,
           class AllocationPolicy>
 void TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Clear() {
   // Mark all entries as empty.
-  for (size_t i = 0; i < capacity(); ++i) {
-    impl_.map_[i].clear();
-  }
+  memset(impl_.map_, 0, capacity() * sizeof(Entry));
   impl_.occupancy_ = 0;
 }
 
@@ -345,7 +354,8 @@ typename TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Next(
     Entry* entry) const {
   const Entry* end = map_end();
-  DCHECK(impl_.map_ - 1 <= entry && entry < end);
+  DCHECK_LE(impl_.map_ - 1, entry);
+  DCHECK_LT(entry, map_end());
   for (entry++; entry < end; entry++) {
     if (entry->exists()) {
       return entry;
@@ -360,6 +370,7 @@ template <typename LookupKey>
 typename TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Probe(
     const LookupKey& key, uint32_t hash) const {
+  hash &= 0x7FFFFFFF;
   DCHECK(base::bits::IsPowerOfTwo(capacity()));
   size_t i = hash & (capacity() - 1);
   DCHECK(i < capacity());
@@ -545,7 +556,7 @@ class TemplateHashMap
     }
 
     value_type* operator->() { return reinterpret_cast<value_type*>(entry_); }
-    bool operator!=(const Iterator& other) { return entry_ != other.entry_; }
+    bool operator==(const Iterator& other) { return entry_ == other.entry_; }
 
    private:
     Iterator(const Base* map, typename Base::Entry* entry)

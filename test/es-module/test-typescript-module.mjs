@@ -20,7 +20,7 @@ test('execute an .mts file importing an .mts file', async () => {
     fixtures.path('typescript/mts/test-import-module.mts'),
   ]);
 
-  match(result.stderr, /Type Stripping is an experimental feature and might change at any time/);
+  strictEqual(result.stderr, '');
   match(result.stdout, /Hello, TypeScript!/);
   strictEqual(result.code, 0);
 });
@@ -96,5 +96,16 @@ test('execute .ts file importing a module', async () => {
 
   strictEqual(result.stderr, '');
   strictEqual(result.stdout, 'Hello, TypeScript!\n');
+  strictEqual(result.code, 0);
+});
+
+test('mts -> import cts -> require mts', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    fixtures.path('typescript/mts/issue-59963/a.mts'),
+  ]);
+
+  strictEqual(result.stderr, '');
+  strictEqual(result.stdout, 'Hello from c.mts\n');
   strictEqual(result.code, 0);
 });

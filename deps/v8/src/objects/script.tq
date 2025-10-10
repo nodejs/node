@@ -62,6 +62,9 @@ extern class Script extends Struct {
   // [source_mapping_url]: sourceMappingURL magic comment
   source_mapping_url: Object;
 
+  // [debug_id]: debugId magic comment
+  debug_id: String|Undefined;
+
   // [host_defined_options]: Options defined by the embedder.
   host_defined_options: FixedArray;
 

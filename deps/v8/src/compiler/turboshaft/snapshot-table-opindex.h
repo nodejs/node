@@ -60,6 +60,9 @@ class SparseOpIndexSnapshotTable : public SnapshotTable<Value, KeyData> {
     return std::nullopt;
   }
 
+  auto begin() { return indices_to_keys_.begin(); }
+  auto end() { return indices_to_keys_.end(); }
+
  private:
   Key GetOrCreateKey(OpIndex idx) {
     auto it = indices_to_keys_.find(idx);
