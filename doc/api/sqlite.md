@@ -446,7 +446,7 @@ added: v24.9.0
   **Default:** `1000`.
 * Returns: {SQLTagStore} A new SQL tag store for caching prepared statements.
 
-Creates a new [`SQLTagStore`][], which is an LRU (Least Recently Used) cache
+Creates a new [`SQLTagStore`][], which is an Least Recently Used (LRU) cache
 for storing prepared statements. This allows for the efficient reuse of
 prepared statements by tagging them with a unique identifier.
 
@@ -457,7 +457,7 @@ created, executed, and then stored in the cache for future use. This mechanism
 helps to avoid the overhead of repeatedly parsing and preparing the same SQL
 statements.
 
-Tagged statements bind the "placeholder" values from the template literal as
+Tagged statements bind the placeholder values from the template literal as
 parameters to the underlying prepared statement. That is to say,
 
 ```js
