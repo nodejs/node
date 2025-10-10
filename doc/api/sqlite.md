@@ -446,7 +446,7 @@ added: v24.9.0
   **Default:** `1000`.
 * Returns: {SQLTagStore} A new SQL tag store for caching prepared statements.
 
-Creates a new [`SQLTagStore`][], which is an Least Recently Used (LRU) cache
+Creates a new [`SQLTagStore`][], which is a Least Recently Used (LRU) cache
 for storing prepared statements. This allows for the efficient reuse of
 prepared statements by tagging them with a unique identifier.
 
