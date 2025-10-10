@@ -10,13 +10,13 @@ The `node:worker_threads` module enables the use of threads that execute
 JavaScript in parallel. To access it:
 
 ```mjs
-import worker from 'node:worker_threads';
+import worker_threads from 'node:worker_threads';
 ```
 
 ```cjs
 'use strict';
 
-const worker = require('node:worker_threads');
+const worker_threads = require('node:worker_threads');
 ```
 
 Workers (threads) are useful for performing CPU-intensive JavaScript operations.
@@ -101,7 +101,7 @@ Worker threads inherit non-process-specific options by default. Refer to
 [`Worker constructor options`][] to know how to customize worker thread options,
 specifically `argv` and `execArgv` options.
 
-## `worker.getEnvironmentData(key)`
+## `worker_threads.getEnvironmentData(key)`
 
 <!-- YAML
 added:
@@ -158,7 +158,7 @@ if (isMainThread) {
 }
 ```
 
-## `worker.isInternalThread`
+## `worker_threads.isInternalThread`
 
 <!-- YAML
 added:
@@ -202,7 +202,7 @@ const { isInternalThread } = require('node:worker_threads');
 console.log(isInternalThread);  // false
 ```
 
-## `worker.isMainThread`
+## `worker_threads.isMainThread`
 
 <!-- YAML
 added: v10.5.0
@@ -238,7 +238,7 @@ if (isMainThread) {
 }
 ```
 
-## `worker.markAsUntransferable(object)`
+## `worker_threads.markAsUntransferable(object)`
 
 <!-- YAML
 added:
@@ -315,7 +315,7 @@ console.log(typedArray2);
 
 There is no equivalent to this API in browsers.
 
-## `worker.isMarkedAsUntransferable(object)`
+## `worker_threads.isMarkedAsUntransferable(object)`
 
 <!-- YAML
 added: v21.0.0
@@ -349,7 +349,7 @@ isMarkedAsUntransferable(pooledBuffer);  // Returns true.
 
 There is no equivalent to this API in browsers.
 
-## `worker.markAsUncloneable(object)`
+## `worker_threads.markAsUncloneable(object)`
 
 <!-- YAML
 added:
@@ -399,7 +399,7 @@ try {
 
 There is no equivalent to this API in browsers.
 
-## `worker.moveMessagePortToContext(port, contextifiedSandbox)`
+## `worker_threads.moveMessagePortToContext(port, contextifiedSandbox)`
 
 <!-- YAML
 added: v11.13.0
@@ -425,7 +425,7 @@ However, the created `MessagePort` no longer inherits from
 {EventTarget}, and only [`port.onmessage()`][] can be used to receive
 events using it.
 
-## `worker.parentPort`
+## `worker_threads.parentPort`
 
 <!-- YAML
 added: v10.5.0
@@ -476,7 +476,7 @@ if (isMainThread) {
 }
 ```
 
-## `worker.postMessageToThread(threadId, value[, transferList][, timeout])`
+## `worker_threads.postMessageToThread(threadId, value[, transferList][, timeout])`
 
 <!-- YAML
 added:
@@ -588,7 +588,7 @@ if (level === 0) {
 channel.onmessage = channel.close;
 ```
 
-## `worker.receiveMessageOnPort(port)`
+## `worker_threads.receiveMessageOnPort(port)`
 
 <!-- YAML
 added: v12.3.0
@@ -634,7 +634,7 @@ console.log(receiveMessageOnPort(port2));
 When this function is used, no `'message'` event is emitted and the
 `onmessage` listener is not invoked.
 
-## `worker.resourceLimits`
+## `worker_threads.resourceLimits`
 
 <!-- YAML
 added:
@@ -654,7 +654,7 @@ this matches its values.
 
 If this is used in the main thread, its value is an empty object.
 
-## `worker.SHARE_ENV`
+## `worker_threads.SHARE_ENV`
 
 <!-- YAML
 added: v11.14.0
@@ -685,7 +685,7 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
   });
 ```
 
-## `worker.setEnvironmentData(key[, value])`
+## `worker_threads.setEnvironmentData(key[, value])`
 
 <!-- YAML
 added:
@@ -709,7 +709,7 @@ The `worker.setEnvironmentData()` API sets the content of
 `worker.getEnvironmentData()` in the current thread and all new `Worker`
 instances spawned from the current context.
 
-## `worker.threadId`
+## `worker_threads.threadId`
 
 <!-- YAML
 added: v10.5.0
@@ -721,7 +721,7 @@ An integer identifier for the current thread. On the corresponding worker object
 (if there is any), it is available as [`worker.threadId`][].
 This value is unique for each [`Worker`][] instance inside a single process.
 
-## `worker.threadName`
+## `worker_threads.threadName`
 
 <!-- YAML
 added:
@@ -734,7 +734,7 @@ added:
 A string identifier for the current thread or null if the thread is not running.
 On the corresponding worker object (if there is any), it is available as [`worker.threadName`][].
 
-## `worker.workerData`
+## `worker_threads.workerData`
 
 <!-- YAML
 added: v10.5.0
@@ -768,7 +768,7 @@ if (isMainThread) {
 }
 ```
 
-## `worker.locks`
+## `worker_threads.locks`
 
 <!-- YAML
 added: v24.5.0
@@ -2238,7 +2238,7 @@ thread spawned will spawn another until the application crashes.
 [`data:` URL]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`fs.close()`]: fs.md#fsclosefd-callback
 [`fs.open()`]: fs.md#fsopenpath-flags-mode-callback
-[`markAsUntransferable()`]: #workermarkasuntransferableobject
+[`markAsUntransferable()`]: #worker_threadsmarkasuntransferableobject
 [`node:cluster` module]: cluster.md
 [`perf_hooks.performance`]: perf_hooks.md#perf_hooksperformance
 [`perf_hooks` `eventLoopUtilization()`]: perf_hooks.md#performanceeventlooputilizationutilization1-utilization2
@@ -2255,23 +2255,23 @@ thread spawned will spawn another until the application crashes.
 [`process.stdout`]: process.md#processstdout
 [`process.threadCpuUsage()`]: process.md#processthreadcpuusagepreviousvalue
 [`process.title`]: process.md#processtitle
-[`require('node:worker_threads').isMainThread`]: #workerismainthread
+[`require('node:worker_threads').isMainThread`]: #worker_threadsismainthread
 [`require('node:worker_threads').parentPort.on('message')`]: #event-message
 [`require('node:worker_threads').parentPort.postMessage()`]: #workerpostmessagevalue-transferlist
-[`require('node:worker_threads').parentPort`]: #workerparentport
-[`require('node:worker_threads').threadId`]: #workerthreadid
-[`require('node:worker_threads').threadName`]: #workerthreadname
-[`require('node:worker_threads').workerData`]: #workerworkerdata
+[`require('node:worker_threads').parentPort`]: #worker_threadsparentport
+[`require('node:worker_threads').threadId`]: #worker_threadsthreadid
+[`require('node:worker_threads').threadName`]: #worker_threadsthreadname
+[`require('node:worker_threads').workerData`]: #worker_threadsworkerdata
 [`trace_events`]: tracing.md
 [`v8.getHeapSnapshot()`]: v8.md#v8getheapsnapshotoptions
 [`v8.getHeapStatistics()`]: v8.md#v8getheapstatistics
 [`vm`]: vm.md
-[`worker.SHARE_ENV`]: #workershare_env
+[`worker.SHARE_ENV`]: #worker_threadsshare_env
 [`worker.on('message')`]: #event-message_1
 [`worker.postMessage()`]: #workerpostmessagevalue-transferlist
 [`worker.terminate()`]: #workerterminate
-[`worker.threadId`]: #workerthreadid_1
-[`worker.threadName`]: #workerthreadname_1
+[`worker.threadId`]: #workerthreadid
+[`worker.threadName`]: #workerthreadname
 [async-resource-worker-pool]: async_context.md#using-asyncresource-for-a-worker-thread-pool
 [browser `LockManager`]: https://developer.mozilla.org/en-US/docs/Web/API/LockManager
 [browser `MessagePort`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort
