@@ -225,11 +225,21 @@ added: v14.9.0
 Alias for `util.debuglog`. Usage allows for readability of that doesn't imply
 logging when only using `util.debuglog().enabled`.
 
-## `util.deprecate(fn, msg[, code])`
+## `util.deprecate(fn, msg[, code[, useEmitSync[, modifyPrototype]]])`
 
 <!-- YAML
 added: v0.8.0
 changes:
+  - version:
+    - v24.5.0
+    - v22.19.0
+    pr-url: https://github.com/nodejs/node/pull/58928
+    description: Add option to conditionally modify the prototype of the
+                 deprecated object.
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44711
+    description: Add option to conditionally emit the deprecation
+                 warning synchronously.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/16393
     description: Deprecation warnings are only emitted once for each code.
@@ -240,6 +250,11 @@ changes:
   invoked.
 * `code` {string} A deprecation code. See the [list of deprecated APIs][] for a
   list of codes.
+* `emitSync` {boolean} When true emit the deprecation warning synchronously.
+  **Default:** `false`.
+* `modifyPrototype` {boolean} When true do not change the prototype of object
+  while emitting the deprecation warning.
+  **Default:** `false`.
 * Returns: {Function} The deprecated function wrapped to emit a warning.
 
 The `util.deprecate()` method wraps `fn` (which may be a function or class) in
