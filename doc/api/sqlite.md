@@ -464,7 +464,7 @@ parameters to the underlying prepared statement. For example:
 tagStore.get`SELECT ${value}`;
 ```
 
-is equivalent to
+is equivalent to:
 
 ```js
 db.prepare('SELECT ?').get(value);
