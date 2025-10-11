@@ -1,5 +1,5 @@
 const { open } = require('@npmcli/promise-spawn')
-const { output, input } = require('proc-log')
+const { output, input, META } = require('proc-log')
 const { URL } = require('node:url')
 const readline = require('node:readline/promises')
 const { once } = require('node:events')
@@ -18,7 +18,8 @@ const outputMsg = (json, title, url) => {
   if (json) {
     output.buffer({ title, url })
   } else {
-    output.standard(`${title}:\n${url}`)
+    // These urls are sometimes specifically login urls so we have to turn off redaction to standard output
+    output.standard(`${title}:\n${url}`, { [META]: true, redact: false })
   }
 }
 

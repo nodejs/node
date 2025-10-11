@@ -180,7 +180,7 @@ t.test('npm.load', async t => {
     })
     await t.rejects(
       npm.exec('run', []),
-      /Can not use --no-workspaces and --workspace at the same time/
+      /Cannot use --no-workspaces and --workspace at the same time/
     )
   })
 

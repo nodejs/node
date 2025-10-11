@@ -791,7 +791,7 @@ exports[`test/lib/commands/sbom.js TAP sbom extraneous dep > must match snapshot
 }
 `
 
-exports[`test/lib/commands/sbom.js TAP sbom loading a tree containing workspaces should filter worksapces with --workspace > must match snapshot 1`] = `
+exports[`test/lib/commands/sbom.js TAP sbom loading a tree containing workspaces should filter workspaces with --workspace > must match snapshot 1`] = `
 {
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",

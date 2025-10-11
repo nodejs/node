@@ -1610,7 +1610,7 @@ Object {
 }
 `
 
-exports[`test/lib/utils/error-message.js TAP replace message/stack sensistive info > must match snapshot 1`] = `
+exports[`test/lib/utils/error-message.js TAP replace message/stack sensitive info > must match snapshot 1`] = `
 Object {
   "detail": Array [],
   "summary": Array [

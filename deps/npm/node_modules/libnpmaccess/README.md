@@ -81,7 +81,7 @@ cannot be used to publish.
 - `automation`: mfa is required to publish this package, automation tokens
 may also be used for publishing from continuous integration workflows.
 
-#### access.setPermissions(team, spec, permssions, opts) -> Promise<Boolean>`
+#### access.setPermissions(team, spec, permissions, opts) -> Promise<Boolean>`
 
 Sets permissions levels for a given team to a package.
 

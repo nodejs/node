@@ -263,7 +263,7 @@ t.test('ls', async t => {
     await
 
     ls.exec([])
-    t.matchSnapshot(cleanCwd(result()), 'should contain overridden outout')
+    t.matchSnapshot(cleanCwd(result()), 'should contain overridden output')
   })
 
   t.test('overridden dep w/ color', async t => {
@@ -305,7 +305,7 @@ t.test('ls', async t => {
     })
 
     await ls.exec([])
-    t.matchSnapshot(cleanCwd(result()), 'should contain overridden outout')
+    t.matchSnapshot(cleanCwd(result()), 'should contain overridden output')
   })
 
   t.test('with filter arg', async t => {
@@ -329,7 +329,7 @@ t.test('ls', async t => {
     await ls.exec(['chai'])
     t.matchSnapshot(
       cleanCwd(result()),
-      'should output tree contaning only occurrences of filtered by package and colored output'
+      'should output tree containing only occurrences of filtered by package and colored output'
     )
   })
 
@@ -355,7 +355,7 @@ t.test('ls', async t => {
     await ls.exec(['.'])
     t.matchSnapshot(
       cleanCwd(result()),
-      'should output tree contaning only occurrences of filtered by package and colored output'
+      'should output tree containing only occurrences of filtered by package and colored output'
     )
   })
 
@@ -377,7 +377,7 @@ t.test('ls', async t => {
     await ls.exec(['dog'])
     t.matchSnapshot(
       cleanCwd(result()),
-      'should output tree contaning only occurrences of filtered package and its ancestors'
+      'should output tree containing only occurrences of filtered package and its ancestors'
     )
   })
 
@@ -408,7 +408,7 @@ t.test('ls', async t => {
     await ls.exec(['dog@*', 'chai@1.0.0'])
     t.matchSnapshot(
       cleanCwd(result()),
-      'should output tree contaning only occurrences of multiple filtered packages and their ancestors'
+      'should output tree containing only occurrences of multiple filtered packages and their ancestors'
     )
   })
 
@@ -1650,7 +1650,7 @@ t.test('ls', async t => {
     }))
 
     // filter out a single workspace and include root
-    t.test('should inlude root and specified workspace', t => mockWorkspaces(t, [], {
+    t.test('should include root and specified workspace', t => mockWorkspaces(t, [], {
       'include-workspace-root': true,
       workspace: 'd',
     }))
@@ -1823,7 +1823,7 @@ t.test('ls --parseable', async t => {
     })
 
     await ls.exec([])
-    t.matchSnapshot(cleanCwd(result()), 'should contain overridden outout')
+    t.matchSnapshot(cleanCwd(result()), 'should contain overridden output')
   })
 
   t.test('with filter arg', async t => {
@@ -1844,7 +1844,7 @@ t.test('ls --parseable', async t => {
     await ls.exec(['chai'])
     t.matchSnapshot(
       cleanCwd(result()),
-      'should output parseable contaning only occurrences of filtered by package'
+      'should output parseable containing only occurrences of filtered by package'
     )
   })
 
@@ -1866,7 +1866,7 @@ t.test('ls --parseable', async t => {
     await ls.exec(['dog'])
     t.matchSnapshot(
       cleanCwd(result()),
-      'should output parseable contaning only occurrences of filtered package'
+      'should output parseable containing only occurrences of filtered package'
     )
   })
 
@@ -1897,7 +1897,7 @@ t.test('ls --parseable', async t => {
     await ls.exec(['dog@*', 'chai@1.0.0'])
     t.matchSnapshot(
       cleanCwd(result()),
-      'should output parseable contaning only occurrences of multiple filtered packages and their ancestors'
+      'should output parseable containing only occurrences of multiple filtered packages and their ancestors'
     )
   })
 
@@ -2941,7 +2941,7 @@ t.test('ls --json', async t => {
           },
         },
       },
-      'should output json contaning only occurrences of filtered by package'
+      'should output json containing only occurrences of filtered by package'
     )
     t.not(process.exitCode, 1, 'should not exit with error code 1')
   })
@@ -2982,7 +2982,7 @@ t.test('ls --json', async t => {
           },
         },
       },
-      'should output json contaning only occurrences of filtered by package'
+      'should output json containing only occurrences of filtered by package'
     )
     t.notOk(jsonParse(result()).dependencies.chai)
   })
@@ -3036,7 +3036,7 @@ t.test('ls --json', async t => {
           },
         },
       },
-      'should output json contaning only occurrences of multiple filtered packages and their ancestors'
+      'should output json containing only occurrences of multiple filtered packages and their ancestors'
     )
   })
 
@@ -3838,7 +3838,7 @@ t.test('ls --json', async t => {
     await t.rejects(
       ls.exec([]),
       { code: 'EJSONPARSE', message: 'Failed to parse root package.json' },
-      'should have missin root package.json msg'
+      'should have missing root package.json msg'
     )
     t.same(
       jsonParse(result()),
@@ -4664,7 +4664,7 @@ t.test('ls --package-lock-only', async t => {
             },
           },
         },
-        'should output json contaning only occurrences of filtered by package'
+        'should output json containing only occurrences of filtered by package'
       )
       t.notOk(process.exitCode, 'should not set exit code')
     })
@@ -4724,7 +4724,7 @@ t.test('ls --package-lock-only', async t => {
             },
           },
         },
-        'should output json contaning only occurrences of filtered by package'
+        'should output json containing only occurrences of filtered by package'
       )
     })
 
@@ -4788,7 +4788,7 @@ t.test('ls --package-lock-only', async t => {
             },
           },
         },
-        'should output json contaning only occurrences of multiple filtered packages and their ancestors'
+        'should output json containing only occurrences of multiple filtered packages and their ancestors'
       )
     })
 

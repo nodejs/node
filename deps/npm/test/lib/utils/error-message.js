@@ -91,7 +91,7 @@ t.test('just simple messages', async t => {
   }
 })
 
-t.test('replace message/stack sensistive info', async t => {
+t.test('replace message/stack sensitive info', async t => {
   const { errorMessage } = await loadMockNpm(t, { command: 'audit' })
   const er = Object.assign(new Error('Error at registry: https://user:pass@registry.npmjs.org/'), {
     code: 'ENOAUDIT',

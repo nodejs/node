@@ -190,7 +190,7 @@ class VerifySignatures {
         }
       })
 
-    // If keys not found in Sigstore TUF repo, fallback to registry keys API
+    // If keys not found in Sigstore TUF repo, fall back to registry keys API
     if (!keys) {
       log.warn(`Fetching verification keys using TUF failed.  Fetching directly from ${registry}.`)
       keys = await npmFetch.json('/-/npm/v1/keys', {
@@ -264,7 +264,7 @@ class VerifySignatures {
     const { version } = node.package || {}
 
     if (node.isWorkspace || // Skip local workspaces packages
-        !version || // Skip packages that don't have a installed version, e.g. optonal dependencies
+        !version || // Skip packages that don't have an installed version, e.g. optional dependencies
         !spec.registry) { // Skip if not from registry, e.g. git package
       return
     }

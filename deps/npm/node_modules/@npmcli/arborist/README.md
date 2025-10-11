@@ -6,7 +6,7 @@
 
 Inspect and manage `node_modules` trees.
 
-![a tree with the word ARBORIST superimposed on it](https://raw.githubusercontent.com/npm/arborist/main/docs/logo.svg?sanitize=true)
+![a tree with the word ARBORIST superimposed on it](https://raw.githubusercontent.com/npm/cli/latest/workspaces/arborist/docs/logo.svg?sanitize=true)
 
 There's more documentation [in the docs
 folder](https://github.com/npm/cli/tree/latest/workspaces/arborist/docs).

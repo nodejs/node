@@ -20,7 +20,7 @@ const gatherDepSet = (set, edgeFilter) => {
     }
   }
 
-  // now remove all nodes in the set that have a dependant outside the set
+  // now remove all nodes in the set that have a dependent outside the set
   // if any change is made, then re-check
   // continue until no changes made, or deps set evaporates fully.
   let changed = true

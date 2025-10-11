@@ -785,7 +785,7 @@ const hasParent = (node, compareNodes) => {
       compareNode = compareNode.target
     }
 
-    // follows logical parent for link anscestors
+    // follows logical parent for link ancestors
     if (node.isTop && (node.resolveParent === compareNode)) {
       return true
     }

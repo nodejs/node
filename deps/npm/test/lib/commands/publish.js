@@ -563,7 +563,7 @@ t.test('workspaces', t => {
     t.matchSnapshot(joinedOutput(), 'all workspaces in json')
   })
 
-  t.test('differet package spec', async t => {
+  t.test('different package spec', async t => {
     const testDir = {
       'package.json': JSON.stringify(
         {
@@ -1191,7 +1191,7 @@ t.test('oidc token exchange - no provenance', t => {
       constructor (...args) {
         const [url] = args
         if (url === ACTIONS_ID_TOKEN_REQUEST_URL) {
-          throw 'Specifically throwing a non errror object to test global try-catch'
+          throw 'Specifically throwing a non error object to test global try-catch'
         }
         super(...args)
       }

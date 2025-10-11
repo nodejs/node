@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----developers----1161">
+<h1 id="----developers----1162">
     <span>developers</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Developer Guide</span>
 </header>
@@ -154,15 +154,12 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
-<p>So, you've decided to use npm to develop (and maybe publish/deploy)
-your project.</p>
+<p>So, you've decided to use npm to develop (and maybe publish/deploy) your project.</p>
 <p>Fantastic!</p>
-<p>There are a few things that you need to do above the simple steps
-that your users will do to install your program.</p>
+<p>There are a few things that you need to do above the simple steps that your users will do to install your program.</p>
 <h3 id="about-these-documents">About These Documents</h3>
-<p>These are man pages.  If you install npm, you should be able to
-then do <code>man npm-thing</code> to get the documentation on a particular
-topic, or <code>npm help thing</code> to see the same information.</p>
+<p>These are man pages.
+If you install npm, you should be able to then do <code>man npm-thing</code> to get the documentation on a particular topic, or <code>npm help thing</code> to see the same information.</p>
 <h3 id="what-is-a-package">What is a Package</h3>
 <p>A package is:</p>
 <ul>
@@ -174,83 +171,69 @@ topic, or <code>npm help thing</code> to see the same information.</p>
 <li>f) a <code>&lt;name&gt;</code> that has a "latest" tag satisfying (e)</li>
 <li>g) a <code>git</code> url that, when cloned, results in (a).</li>
 </ul>
-<p>Even if you never publish your package, you can still get a lot of
-benefits of using npm if you just want to write a node program (a), and
-perhaps if you also want to be able to easily install it elsewhere
-after packing it up into a tarball (b).</p>
+<p>Even if you never publish your package, you can still get a lot of benefits of using npm if you just want to write a node program (a), and perhaps if you also want to be able to easily install it elsewhere after packing it up into a tarball (b).</p>
 <p>Git urls can be of the form:</p>
 <pre><code class="language-bash">git://github.com/user/project.git#commit-ish
 git+ssh://user@hostname:project.git#commit-ish
 git+http://user@hostname/project/blah.git#commit-ish
 git+https://user@hostname/project/blah.git#commit-ish
 </code></pre>
-<p>The <code>commit-ish</code> can be any tag, sha, or branch which can be supplied as
-an argument to <code>git checkout</code>.  The default is whatever the repository uses
-as its default branch.</p>
+<p>The <code>commit-ish</code> can be any tag, sha, or branch which can be supplied as an argument to <code>git checkout</code>.
+The default is whatever the repository uses as its default branch.</p>
 <h3 id="the-packagejson-file">The package.json File</h3>
-<p>You need to have a <code>package.json</code> file in the root of your project to do
-much of anything with npm.  That is basically the whole interface.</p>
-<p>See <a href="../configuring-npm/package-json.html"><code>package.json</code></a> for details about what
-goes in that file.  At the very least, you need:</p>
+<p>You need to have a <code>package.json</code> file in the root of your project to do much of anything with npm.
+That is basically the whole interface.</p>
+<p>See <a href="../configuring-npm/package-json.html"><code>package.json</code></a> for details about what goes in that file.
+At the very least, you need:</p>
 <ul>
 <li>
-<p>name: This should be a string that identifies your project.  Please do
-not use the name to specify that it runs on node, or is in JavaScript.
-You can use the "engines" field to explicitly state the versions of node
-(or whatever else) that your program requires, and it's pretty well
-assumed that it's JavaScript.</p>
+<p>name: This should be a string that identifies your project.
+Please do not use the name to specify that it runs on node, or is in JavaScript.
+You can use the "engines" field to explicitly state the versions of node (or whatever else) that your program requires, and it's pretty well assumed that it's JavaScript.</p>
 <p>It does not necessarily need to match your github repository name.</p>
-<p>So, <code>node-foo</code> and <code>bar-js</code> are bad names.  <code>foo</code> or <code>bar</code> are better.</p>
+<p>So, <code>node-foo</code> and <code>bar-js</code> are bad names.
+<code>foo</code> or <code>bar</code> are better.</p>
 </li>
 <li>
 <p>version: A semver-compatible version.</p>
 </li>
 <li>
-<p>engines: Specify the versions of node (or whatever else) that your
-program runs on.  The node API changes a lot, and there may be bugs or
-new functionality that you depend on.  Be explicit.</p>
+<p>engines: Specify the versions of node (or whatever else) that your program runs on.
+The node API changes a lot, and there may be bugs or new functionality that you depend on.
+Be explicit.</p>
 </li>
 <li>
 <p>author: Take some credit.</p>
 </li>
 <li>
-<p>scripts: If you have a special compilation or installation script, then
-you should put it in the <code>scripts</code> object.  You should definitely have at
-least a basic smoke-test command as the "scripts.test" field.  See
-<a href="../using-npm/scripts.html">scripts</a>.</p>
+<p>scripts: If you have a special compilation or installation script, then you should put it in the <code>scripts</code> object.
+You should definitely have at least a basic smoke-test command as the "scripts.test" field.
+See <a href="../using-npm/scripts.html">scripts</a>.</p>
 </li>
 <li>
-<p>main: If you have a single module that serves as the entry point to your
-program (like what the "foo" package gives you at require("foo")), then
-you need to specify that in the "main" field.</p>
+<p>main: If you have a single module that serves as the entry point to your program (like what the "foo" package gives you at require("foo")), then you need to specify that in the "main" field.</p>
 </li>
 <li>
-<p>directories: This is an object mapping names to folders.  The best ones
-to include are "lib" and "doc", but if you use "man" to specify a folder
-full of man pages, they'll get installed just like these ones.</p>
+<p>directories: This is an object mapping names to folders.
+The best ones to include are "lib" and "doc", but if you use "man" to specify a folder full of man pages, they'll get installed just like these ones.</p>
 </li>
 </ul>
-<p>You can use <code>npm init</code> in the root of your package in order to get you
-started with a pretty basic package.json file.  See <a href="../commands/npm-init.html"><code>npm init</code></a> for more info.</p>
+<p>You can use <code>npm init</code> in the root of your package in order to get you started with a pretty basic package.json file.
+See <a href="../commands/npm-init.html"><code>npm init</code></a> for more info.</p>
 <h3 id="keeping-files-out-of-your-package">Keeping files <em>out</em> of your Package</h3>
-<p>Use a <code>.npmignore</code> file to keep stuff out of your package.  If there's no
-<code>.npmignore</code> file, but there <em>is</em> a <code>.gitignore</code> file, then npm will ignore
-the stuff matched by the <code>.gitignore</code> file.  If you <em>want</em> to include
-something that is excluded by your <code>.gitignore</code> file, you can create an
-empty <code>.npmignore</code> file to override it. Like <code>git</code>, <code>npm</code> looks for
-<code>.npmignore</code> and <code>.gitignore</code> files in all subdirectories of your package,
-not only the root directory.</p>
-<p><code>.npmignore</code> files follow the <a href="https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#_ignoring">same pattern
-rules</a>
-as <code>.gitignore</code> files:</p>
+<p>Use a <code>.npmignore</code> file to keep stuff out of your package.
+If there's no <code>.npmignore</code> file, but there <em>is</em> a <code>.gitignore</code> file, then npm will ignore the stuff matched by the <code>.gitignore</code> file.
+If you <em>want</em> to include something that is excluded by your <code>.gitignore</code> file, you can create an empty <code>.npmignore</code> file to override it.
+Like <code>git</code>, <code>npm</code> looks for <code>.npmignore</code> and <code>.gitignore</code> files in all subdirectories of your package, not only the root directory.</p>
+<p><code>.npmignore</code> files follow the <a href="https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#_ignoring">same pattern rules</a> as <code>.gitignore</code> files:</p>
 <ul>
 <li>Blank lines or lines starting with <code>#</code> are ignored.</li>
 <li>Standard glob patterns work.</li>
 <li>You can end patterns with a forward slash <code>/</code> to specify a directory.</li>
 <li>You can negate a pattern by starting it with an exclamation point <code>!</code>.</li>
 </ul>
-<p>By default, some paths and files are ignored, so there's no
-need to add them to <code>.npmignore</code> explicitly. Some examples are:</p>
+<p>By default, some paths and files are ignored, so there's no need to add them to <code>.npmignore</code> explicitly.
+Some examples are:</p>
 <ul>
 <li><code>.*.swp</code></li>
 <li><code>._*</code></li>
@@ -267,45 +250,33 @@ need to add them to <code>.npmignore</code> explicitly. Some examples are:</p>
 <li><code>CVS</code></li>
 <li><code>npm-debug.log</code></li>
 </ul>
-<p>Additionally, everything in <code>node_modules</code> is ignored, except for
-bundled dependencies. npm automatically handles this for you, so don't
-bother adding <code>node_modules</code> to <code>.npmignore</code>.</p>
-<p>The following paths and files are never ignored, so adding them to
-<code>.npmignore</code> is pointless:</p>
+<p>Additionally, everything in <code>node_modules</code> is ignored, except for bundled dependencies.
+npm automatically handles this for you, so don't bother adding <code>node_modules</code> to <code>.npmignore</code>.</p>
+<p>The following paths and files are never ignored, so adding them to <code>.npmignore</code> is pointless:</p>
 <ul>
 <li><code>package.json</code></li>
 <li><code>README</code> (and its variants)</li>
 <li><code>LICENSE</code> / <code>LICENCE</code></li>
 </ul>
-<p>If, given the structure of your project, you find <code>.npmignore</code> to be a
-maintenance headache, you might instead try populating the <code>files</code>
-property of <code>package.json</code>, which is an array of file or directory names
-that should be included in your package. Sometimes manually picking
-which items to allow is easier to manage than building a block list.</p>
-<p>See <a href="../configuring-npm/package-json.html"><code>package.json</code></a> for more info on
-what can and can't be ignored.</p>
+<p>If, given the structure of your project, you find <code>.npmignore</code> to be a maintenance headache, you might instead try populating the <code>files</code> property of <code>package.json</code>, which is an array of file or directory names that should be included in your package.
+Sometimes manually picking which items to allow is easier to manage than building a block list.</p>
+<p>See <a href="../configuring-npm/package-json.html"><code>package.json</code></a> for more info on what can and can't be ignored.</p>
 <h4 id="testing-whether-your-npmignore-or-files-config-works">Testing whether your <code>.npmignore</code> or <code>files</code> config works</h4>
-<p>If you want to double check that your package will include only the files
-you intend it to when published, you can run the <code>npm pack</code> command locally
-which will generate a tarball in the working directory, the same way it
-does for publishing.</p>
+<p>If you want to double check that your package will include only the files you intend it to when published, you can run the <code>npm pack</code> command locally which will generate a tarball in the working directory, the same way it does for publishing.</p>
 <h3 id="link-packages">Link Packages</h3>
-<p><code>npm link</code> is designed to install a development package and see the
-changes in real time without having to keep re-installing it.  (You do
-need to either re-link or <code>npm rebuild -g</code> to update compiled packages,
-of course.)</p>
+<p><code>npm link</code> is designed to install a development package and see the changes in real time without having to keep re-installing it.
+(You do need to either re-link or <code>npm rebuild -g</code> to update compiled packages, of course.)</p>
 <p>More info at <a href="../commands/npm-link.html"><code>npm link</code></a>.</p>
 <h3 id="before-publishing-make-sure-your-package-installs-and-works">Before Publishing: Make Sure Your Package Installs and Works</h3>
 <p><strong>This is important.</strong></p>
-<p>If you can not install it locally, you'll have
-problems trying to publish it.  Or, worse yet, you'll be able to
-publish it, but you'll be publishing a broken or pointless package.
+<p>If you cannot install it locally, you'll have problems trying to publish it.
+Or, worse yet, you'll be able to publish it, but you'll be publishing a broken or pointless package.
 So don't do that.</p>
 <p>In the root of your package, do this:</p>
 <pre><code class="language-bash">npm install . -g
 </code></pre>
-<p>That'll show you that it's working.  If you'd rather just create a symlink
-package that points to your working directory, then do this:</p>
+<p>That'll show you that it's working.
+If you'd rather just create a symlink package that points to your working directory, then do this:</p>
 <pre><code class="language-bash">npm link
 </code></pre>
 <p>Use <code>npm ls -g</code> to see if it's there.</p>
@@ -314,24 +285,22 @@ package that points to your working directory, then do this:</p>
 npm install ../my-package
 </code></pre>
 <p>to install it locally into the node_modules folder in that other place.</p>
-<p>Then go into the node-repl, and try using require("my-thing") to
-bring in your module's main module.</p>
+<p>Then go into the node-repl, and try using require("my-thing") to bring in your module's main module.</p>
 <h3 id="create-a-user-account">Create a User Account</h3>
-<p>Create a user with the adduser command.  It works like this:</p>
+<p>Create a user with the adduser command.
+It works like this:</p>
 <pre><code class="language-bash">npm adduser
 </code></pre>
 <p>and then follow the prompts.</p>
 <p>This is documented better in <a href="../commands/npm-adduser.html">npm adduser</a>.</p>
 <h3 id="publish-your-package">Publish your Package</h3>
-<p>This part's easy.  In the root of your folder, do this:</p>
+<p>This part's easy.
+In the root of your folder, do this:</p>
 <pre><code class="language-bash">npm publish
 </code></pre>
-<p>You can give publish a url to a tarball, or a filename of a tarball,
-or a path to a folder.</p>
-<p>Note that pretty much <strong>everything in that folder will be exposed</strong>
-by default.  So, if you have secret stuff in there, use a
-<code>.npmignore</code> file to list out the globs to ignore, or publish
-from a fresh checkout.</p>
+<p>You can give publish a url to a tarball, or a filename of a tarball, or a path to a folder.</p>
+<p>Note that pretty much <strong>everything in that folder will be exposed</strong> by default.
+So, if you have secret stuff in there, use a <code>.npmignore</code> file to list out the globs to ignore, or publish from a fresh checkout.</p>
 <h3 id="brag-about-it">Brag about it</h3>
 <p>Send emails, write blogs, blab in IRC.</p>
 <p>Tell the world how easy it is to install your program!</p>

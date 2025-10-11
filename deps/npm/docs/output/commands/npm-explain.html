@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-explain----1161">
+<h1 id="----npm-explain----1162">
     <span>npm-explain</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Explain installed packages</span>
 </header>
@@ -159,10 +159,8 @@ npm command-line interface
 alias: why
 </code></pre>
 <h3 id="description">Description</h3>
-<p>This command will print the chain of dependencies causing a given package
-to be installed in the current project.</p>
-<p>If one or more package specs are provided, then only packages matching
-one of the specifiers will have their relationships explained.</p>
+<p>This command will print the chain of dependencies causing a given package to be installed in the current project.</p>
+<p>If one or more package specs are provided, then only packages matching one of the specifiers will have their relationships explained.</p>
 <p>The package spec can also refer to a folder within <code>./node_modules</code></p>
 <p>For example, running <code>npm explain glob</code> within npm's source tree will show:</p>
 <pre><code class="language-bash">glob@7.1.6
@@ -177,10 +175,8 @@ node_modules/tacks/node_modules/glob
     node_modules/tacks
       dev tacks@"^1.3.0" from the root project
 </code></pre>
-<p>To explain just the package residing at a specific folder, pass that as the
-argument to the command.  This can be useful when trying to figure out
-exactly why a given dependency is being duplicated to satisfy conflicting
-version requirements within the project.</p>
+<p>To explain just the package residing at a specific folder, pass that as the argument to the command.
+This can be useful when trying to figure out exactly why a given dependency is being duplicated to satisfy conflicting version requirements within the project.</p>
 <pre><code class="language-bash">$ npm explain node_modules/nyc/node_modules/find-up
 find-up@3.0.0 dev
 node_modules/nyc/node_modules/find-up
@@ -198,8 +194,8 @@ node_modules/nyc/node_modules/find-up
 </ul>
 <p>Whether or not to output JSON data, rather than the normal output.</p>
 <ul>
-<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
-saving them to your <code>package.json</code>.</li>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse()
+before saving them to your <code>package.json</code>.</li>
 </ul>
 <p>Not supported by all npm commands.</p>
 <h4 id="workspace"><code>workspace</code></h4>
@@ -207,9 +203,9 @@ saving them to your <code>package.json</code>.</li>
 <li>Default:</li>
 <li>Type: String (can be set multiple times)</li>
 </ul>
-<p>Enable running a command in the context of the configured workspaces of the
-current project while filtering by running only the workspaces defined by
-this configuration option.</p>
+<p>Enable running a command in the context of the configured workspaces
+of the current project while filtering by running only the workspaces
+defined by this configuration option.</p>
 <p>Valid values for the <code>workspace</code> config are either:</p>
 <ul>
 <li>Workspace names</li>
@@ -217,9 +213,9 @@ this configuration option.</p>
 <li>Path to a parent workspace directory (will result in selecting all
 workspaces within that folder)</li>
 </ul>
-<p>When set for the <code>npm init</code> command, this may be set to the folder of a
-workspace which does not yet exist, to create the folder and set it up as a
-brand new workspace within the project.</p>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of
+a workspace which does not yet exist, to create the folder and set it
+up as a brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h3 id="see-also">See Also</h3>
 <ul>

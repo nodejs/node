@@ -37,7 +37,7 @@ ${message && '\n' + message + '\n'}
 
   Additionally:
 
-  * --loglevel=warn|--quiet will supppress the printing of package trees
+  * --loglevel=warn|--quiet will suppress the printing of package trees
   * --logfile <file|bool> will output logs to a file
   * --timing will show timing information
   * Instead of 'npm install <pkg>', use 'arborist reify --add=<pkg>'.

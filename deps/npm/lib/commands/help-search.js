@@ -163,18 +163,18 @@ class HelpSearch extends BaseCommand {
           return
         }
 
-        const hilitLine = []
+        const highlightLine = []
         for (const arg of args) {
           const finder = line.toLowerCase().split(arg.toLowerCase())
           let p = 0
           for (const f of finder) {
-            hilitLine.push(line.slice(p, p + f.length))
+            highlightLine.push(line.slice(p, p + f.length))
             const word = line.slice(p + f.length, p + f.length + arg.length)
-            hilitLine.push(this.npm.chalk.blue(word))
+            highlightLine.push(this.npm.chalk.blue(word))
             p += f.length + arg.length
           }
         }
-        out.push(hilitLine.join('') + '\n')
+        out.push(highlightLine.join('') + '\n')
       })
 
       return out.join('')

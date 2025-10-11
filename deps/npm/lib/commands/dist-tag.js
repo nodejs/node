@@ -77,7 +77,7 @@ class DistTag extends BaseCommand {
     }
 
     // anything else is just a regular dist-tag command
-    // so we fallback to the non-workspaces implementation
+    // so we fall back to the non-workspaces implementation
     log.warn('dist-tag', 'Ignoring workspaces for specified package')
     return this.exec([cmdName, pkg, tag])
   }

@@ -36,7 +36,7 @@ module.exports = cls => class ActualLoader extends cls {
   // We don't do fsParent as a magic getter/setter, because it'd be too costly
   // to keep up to date along the walk.
   // And, we know that it can ONLY be relevant when the node is a target of a
-  // link, otherwise it'd be in a node_modules folder, so take advantage of
+  // link; otherwise, it'd be in a node_modules folder, so take advantage of
   // that to limit the scans later.
   #topNodes = new Set()
   #transplantFilter

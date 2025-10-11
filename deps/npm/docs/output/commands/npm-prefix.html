@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-prefix----1161">
+<h1 id="----npm-prefix----1162">
     <span>npm-prefix</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Display prefix</span>
 </header>
@@ -158,11 +158,10 @@ npm command-line interface
 </code></pre>
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
-<p>Print the local prefix to standard output. This is the closest parent directory
-to contain a <code>package.json</code> file or <code>node_modules</code> directory, unless <code>-g</code> is
-also specified.</p>
-<p>If <code>-g</code> is specified, this will be the value of the global prefix. See
-<a href="../commands/npm-config.html"><code>npm config</code></a> for more detail.</p>
+<p>Print the local prefix to standard output.
+This is the closest parent directory to contain a <code>package.json</code> file or <code>node_modules</code> directory, unless <code>-g</code> is also specified.</p>
+<p>If <code>-g</code> is specified, this will be the value of the global prefix.
+See <a href="../commands/npm-config.html"><code>npm config</code></a> for more detail.</p>
 <h3 id="example">Example</h3>
 <pre><code class="language-bash">npm prefix
 /usr/local/projects/foo
@@ -176,12 +175,13 @@ also specified.</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
-folder instead of the current working directory. See
-<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
+<p>Operates in "global" mode, so that packages are installed into the
+<code>prefix</code> folder instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in
+behavior.</p>
 <ul>
-<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
-of the current working directory.</li>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder,
+instead of the current working directory.</li>
 <li>bin files are linked to <code>{prefix}/bin</code></li>
 <li>man pages are linked to <code>{prefix}/share/man</code></li>
 </ul>

@@ -181,8 +181,8 @@ class Diff extends BaseCommand {
 
       const aSpec = `file:${node.realpath}`
 
-      // finds what version of the package to compare against, if a exact
-      // version or tag was passed than it should use that, otherwise
+      // finds what version of the package to compare against, if an exact
+      // version or tag was passed than it should use that; otherwise,
       // work from the top of the arborist tree to find the original semver
       // range declared in the package that depends on the package.
       let bSpec

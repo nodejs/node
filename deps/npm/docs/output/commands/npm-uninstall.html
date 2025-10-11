@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-uninstall----1161">
+<h1 id="----npm-uninstall----1162">
     <span>npm-uninstall</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Remove a package</span>
 </header>
@@ -159,28 +159,20 @@ npm command-line interface
 aliases: unlink, remove, rm, r, un
 </code></pre>
 <h3 id="description">Description</h3>
-<p>This uninstalls a package, completely removing everything npm installed
-on its behalf.</p>
+<p>This uninstalls a package, completely removing everything npm installed on its behalf.</p>
 <p>It also removes the package from the <code>dependencies</code>, <code>devDependencies</code>,
-<code>optionalDependencies</code>, and <code>peerDependencies</code> objects in your
-<code>package.json</code>.</p>
-<p>Further, if you have an <code>npm-shrinkwrap.json</code> or <code>package-lock.json</code>, npm
-will update those files as well.</p>
-<p><code>--no-save</code> will tell npm not to remove the package from your
-<code>package.json</code>, <code>npm-shrinkwrap.json</code>, or <code>package-lock.json</code> files.</p>
-<p><code>--save</code> or <code>-S</code> will tell npm to remove the package from your
-<code>package.json</code>, <code>npm-shrinkwrap.json</code>, and <code>package-lock.json</code> files.
-This is the default, but you may need to use this if you have for
-instance <code>save=false</code> in your <code>npmrc</code> file</p>
-<p>In global mode (ie, with <code>-g</code> or <code>--global</code> appended to the command),
-it uninstalls the current package context as a global package.
+<code>optionalDependencies</code>, and <code>peerDependencies</code> objects in your <code>package.json</code>.</p>
+<p>Further, if you have an <code>npm-shrinkwrap.json</code> or <code>package-lock.json</code>, npm will update those files as well.</p>
+<p><code>--no-save</code> will tell npm not to remove the package from your <code>package.json</code>, <code>npm-shrinkwrap.json</code>, or <code>package-lock.json</code> files.</p>
+<p><code>--save</code> or <code>-S</code> will tell npm to remove the package from your <code>package.json</code>, <code>npm-shrinkwrap.json</code>, and <code>package-lock.json</code> files.
+This is the default, but you may need to use this if you have for instance <code>save=false</code> in your <code>npmrc</code> file</p>
+<p>In global mode (ie, with <code>-g</code> or <code>--global</code> appended to the command), it uninstalls the current package context as a global package.
 <code>--no-save</code> is ignored in this case.</p>
 <p>Scope is optional and follows the usual rules for <a href="../using-npm/scope.html"><code>scope</code></a>.</p>
 <h3 id="examples">Examples</h3>
 <pre><code class="language-bash">npm uninstall sax
 </code></pre>
-<p><code>sax</code> will no longer be in your <code>package.json</code>, <code>npm-shrinkwrap.json</code>, or
-<code>package-lock.json</code> files.</p>
+<p><code>sax</code> will no longer be in your <code>package.json</code>, <code>npm-shrinkwrap.json</code>, or <code>package-lock.json</code> files.</p>
 <pre><code class="language-bash">npm uninstall lodash --no-save
 </code></pre>
 <p><code>lodash</code> will not be removed from your <code>package.json</code>,
@@ -188,7 +180,8 @@ it uninstalls the current package context as a global package.
 <h3 id="configuration">Configuration</h3>
 <h4 id="save"><code>save</code></h4>
 <ul>
-<li>Default: <code>true</code> unless when using <code>npm update</code> where it defaults to <code>false</code></li>
+<li>Default: <code>true</code> unless when using <code>npm update</code> where it defaults to
+<code>false</code></li>
 <li>Type: Boolean</li>
 </ul>
 <p>Save installed packages to a <code>package.json</code> file as dependencies.</p>
@@ -200,12 +193,13 @@ it uninstalls the current package context as a global package.
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
-folder instead of the current working directory. See
-<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
+<p>Operates in "global" mode, so that packages are installed into the
+<code>prefix</code> folder instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in
+behavior.</p>
 <ul>
-<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
-of the current working directory.</li>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder,
+instead of the current working directory.</li>
 <li>bin files are linked to <code>{prefix}/bin</code></li>
 <li>man pages are linked to <code>{prefix}/share/man</code></li>
 </ul>
@@ -214,9 +208,9 @@ of the current working directory.</li>
 <li>Default:</li>
 <li>Type: String (can be set multiple times)</li>
 </ul>
-<p>Enable running a command in the context of the configured workspaces of the
-current project while filtering by running only the workspaces defined by
-this configuration option.</p>
+<p>Enable running a command in the context of the configured workspaces
+of the current project while filtering by running only the workspaces
+defined by this configuration option.</p>
 <p>Valid values for the <code>workspace</code> config are either:</p>
 <ul>
 <li>Workspace names</li>
@@ -224,9 +218,9 @@ this configuration option.</p>
 <li>Path to a parent workspace directory (will result in selecting all
 workspaces within that folder)</li>
 </ul>
-<p>When set for the <code>npm init</code> command, this may be set to the folder of a
-workspace which does not yet exist, to create the folder and set it up as a
-brand new workspace within the project.</p>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of
+a workspace which does not yet exist, to create the folder and set it
+up as a brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
@@ -235,13 +229,14 @@ brand new workspace within the project.</p>
 </ul>
 <p>Set to true to run the command in the context of <strong>all</strong> configured
 workspaces.</p>
-<p>Explicitly setting this to false will cause commands like <code>install</code> to
-ignore workspaces altogether. When not set explicitly:</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code>
+to ignore workspaces altogether. When not set explicitly:</p>
 <ul>
-<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
-will link workspaces into the <code>node_modules</code> folder. - Commands that do
-other things (test, exec, publish, etc.) will operate on the root project,
-<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update,
+etc.) will link workspaces into the <code>node_modules</code> folder. - Commands
+that do other things (test, exec, publish, etc.) will operate on the
+root project, <em>unless</em> one or more workspaces are specified in the
+<code>workspace</code> config.</li>
 </ul>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
@@ -250,18 +245,19 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <li>Type: Boolean</li>
 </ul>
 <p>Include the workspace root when workspaces are enabled for a command.</p>
-<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
-all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
-the specified workspaces, and not on the root project.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code>
+config, or all workspaces via the <code>workspaces</code> flag, will cause npm
+to operate only on the specified workspaces, and not on the root
+project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When set file: protocol dependencies will be packed and installed as regular
-dependencies instead of creating a symlink. This option has no effect on
-workspaces.</p>
+<p>When set file: protocol dependencies will be packed and installed as
+regular dependencies instead of creating a symlink. This option has
+no effect on workspaces.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-prune.html">npm prune</a></li>

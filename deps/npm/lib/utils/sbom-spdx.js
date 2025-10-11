@@ -1,6 +1,6 @@
 
 const crypto = require('node:crypto')
-const normalizeData = require('normalize-package-data')
+const PackageJson = require('@npmcli/package-json')
 const npa = require('npm-package-arg')
 const ssri = require('ssri')
 
@@ -90,7 +90,9 @@ const spdxOutput = ({ npm, nodes, packageType }) => {
 }
 
 const toSpdxItem = (node, { packageType }) => {
-  normalizeData(node.package)
+  const toNormalize = new PackageJson()
+  toNormalize.fromContent(node.package).normalize({ steps: ['normalizeData'] })
+  node.package = toNormalize.content
 
   // Calculate purl from package spec
   let spec = npa(node.pkgid)

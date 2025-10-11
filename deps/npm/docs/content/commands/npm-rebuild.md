@@ -36,7 +36,8 @@ If there is a `binding.gyp` file in the root of your package, then npm will use 
 }
 ```
 
-This default behavior is suppressed if the `package.json` has its own `install` or `preinstall` scripts. It is also suppressed if the package specifies `"gypfile": false`
+This default behavior is suppressed if the `package.json` has its own `install` or `preinstall` scripts.
+It is also suppressed if the package specifies `"gypfile": false`
 
 ### Configuration
 
@@ -45,12 +46,13 @@ This default behavior is suppressed if the `package.json` has its own `install` 
 * Default: false
 * Type: Boolean
 
-Operates in "global" mode, so that packages are installed into the `prefix`
-folder instead of the current working directory. See
-[folders](/configuring-npm/folders) for more on the differences in behavior.
+Operates in "global" mode, so that packages are installed into the
+`prefix` folder instead of the current working directory. See
+[folders](/configuring-npm/folders) for more on the differences in
+behavior.
 
-* packages are installed into the `{prefix}/lib/node_modules` folder, instead
-  of the current working directory.
+* packages are installed into the `{prefix}/lib/node_modules` folder,
+  instead of the current working directory.
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 
@@ -64,24 +66,25 @@ folder instead of the current working directory. See
 Tells npm to create symlinks (or `.cmd` shims on Windows) for package
 executables.
 
-Set to false to have it not do this. This can be used to work around the
-fact that some file systems don't support symlinks, even on ostensibly Unix
-systems.
+Set to false to have it not do this. This can be used to work around
+the fact that some file systems don't support symlinks, even on
+ostensibly Unix systems.
 
 
 
 #### `foreground-scripts`
 
-* Default: `false` unless when using `npm pack` or `npm publish` where it
-  defaults to `true`
+* Default: `false` unless when using `npm pack` or `npm publish` where
+  it defaults to `true`
 * Type: Boolean
 
-Run all build scripts (ie, `preinstall`, `install`, and `postinstall`)
-scripts for installed packages in the foreground process, sharing standard
-input, output, and error with the main npm process.
+Run all build scripts (ie, `preinstall`, `install`, and
+`postinstall`) scripts for installed packages in the foreground
+process, sharing standard input, output, and error with the main npm
+process.
 
-Note that this will generally make installs run slower, and be much noisier,
-but can be useful for debugging.
+Note that this will generally make installs run slower, and be much
+noisier, but can be useful for debugging.
 
 
 
@@ -92,10 +95,10 @@ but can be useful for debugging.
 
 If true, npm does not run scripts specified in package.json files.
 
-Note that commands explicitly intended to run a particular script, such as
-`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run` will still
-run their intended script if `ignore-scripts` is set, but they will *not*
-run any pre- or post-scripts.
+Note that commands explicitly intended to run a particular script,
+such as `npm start`, `npm stop`, `npm restart`, `npm test`, and `npm
+run` will still run their intended script if `ignore-scripts` is set,
+but they will *not* run any pre- or post-scripts.
 
 
 
@@ -104,9 +107,9 @@ run any pre- or post-scripts.
 * Default:
 * Type: String (can be set multiple times)
 
-Enable running a command in the context of the configured workspaces of the
-current project while filtering by running only the workspaces defined by
-this configuration option.
+Enable running a command in the context of the configured workspaces
+of the current project while filtering by running only the workspaces
+defined by this configuration option.
 
 Valid values for the `workspace` config are either:
 
@@ -115,9 +118,9 @@ Valid values for the `workspace` config are either:
 * Path to a parent workspace directory (will result in selecting all
   workspaces within that folder)
 
-When set for the `npm init` command, this may be set to the folder of a
-workspace which does not yet exist, to create the folder and set it up as a
-brand new workspace within the project.
+When set for the `npm init` command, this may be set to the folder of
+a workspace which does not yet exist, to create the folder and set it
+up as a brand new workspace within the project.
 
 This value is not exported to the environment for child processes.
 
@@ -129,13 +132,14 @@ This value is not exported to the environment for child processes.
 Set to true to run the command in the context of **all** configured
 workspaces.
 
-Explicitly setting this to false will cause commands like `install` to
-ignore workspaces altogether. When not set explicitly:
+Explicitly setting this to false will cause commands like `install`
+to ignore workspaces altogether. When not set explicitly:
 
-- Commands that operate on the `node_modules` tree (install, update, etc.)
-will link workspaces into the `node_modules` folder. - Commands that do
-other things (test, exec, publish, etc.) will operate on the root project,
-_unless_ one or more workspaces are specified in the `workspace` config.
+- Commands that operate on the `node_modules` tree (install, update,
+etc.) will link workspaces into the `node_modules` folder. - Commands
+that do other things (test, exec, publish, etc.) will operate on the
+root project, _unless_ one or more workspaces are specified in the
+`workspace` config.
 
 This value is not exported to the environment for child processes.
 
@@ -146,9 +150,10 @@ This value is not exported to the environment for child processes.
 
 Include the workspace root when workspaces are enabled for a command.
 
-When false, specifying individual workspaces via the `workspace` config, or
-all workspaces via the `workspaces` flag, will cause npm to operate only on
-the specified workspaces, and not on the root project.
+When false, specifying individual workspaces via the `workspace`
+config, or all workspaces via the `workspaces` flag, will cause npm
+to operate only on the specified workspaces, and not on the root
+project.
 
 This value is not exported to the environment for child processes.
 
@@ -157,9 +162,9 @@ This value is not exported to the environment for child processes.
 * Default: false
 * Type: Boolean
 
-When set file: protocol dependencies will be packed and installed as regular
-dependencies instead of creating a symlink. This option has no effect on
-workspaces.
+When set file: protocol dependencies will be packed and installed as
+regular dependencies instead of creating a symlink. This option has
+no effect on workspaces.
 
 
 

@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-start----1161">
+<h1 id="----npm-start----1162">
     <span>npm-start</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Start a package</span>
 </header>
@@ -157,15 +157,11 @@ npm command-line interface
 <pre><code class="language-bash">npm start [-- &lt;args&gt;]
 </code></pre>
 <h3 id="description">Description</h3>
-<p>This runs a predefined command specified in the <code>"start"</code> property of
-a package's <code>"scripts"</code> object.</p>
-<p>If the <code>"scripts"</code> object does not define a  <code>"start"</code> property, npm
-will run <code>node server.js</code>.</p>
-<p>Note that this is different from the default node behavior of running
-the file specified in a package's <code>"main"</code> attribute when evoking with
-<code>node .</code></p>
-<p>As of <a href="https://blog.npmjs.org/post/98131109725/npm-2-0-0"><code>npm@2.0.0</code></a>, you can
-use custom arguments when executing scripts. Refer to <a href="../commands/npm-run.html"><code>npm run</code></a> for more details.</p>
+<p>This runs a predefined command specified in the <code>"start"</code> property of a package's <code>"scripts"</code> object.</p>
+<p>If the <code>"scripts"</code> object does not define a  <code>"start"</code> property, npm will run <code>node server.js</code>.</p>
+<p>Note that this is different from the default node behavior of running the file specified in a package's <code>"main"</code> attribute when evoking with <code>node .</code></p>
+<p>As of <a href="https://blog.npmjs.org/post/98131109725/npm-2-0-0"><code>npm@2.0.0</code></a>, you can use custom arguments when executing scripts.
+Refer to <a href="../commands/npm-run.html"><code>npm run</code></a> for more details.</p>
 <h3 id="example">Example</h3>
 <pre><code class="language-json">{
   "scripts": {
@@ -188,16 +184,16 @@ use custom arguments when executing scripts. Refer to <a href="../commands/npm-r
 <li>Type: Boolean</li>
 </ul>
 <p>If true, npm does not run scripts specified in package.json files.</p>
-<p>Note that commands explicitly intended to run a particular script, such as
-<code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run</code> will still
-run their intended script if <code>ignore-scripts</code> is set, but they will <em>not</em>
-run any pre- or post-scripts.</p>
+<p>Note that commands explicitly intended to run a particular script,
+such as <code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run</code> will still run their intended script if <code>ignore-scripts</code> is set,
+but they will <em>not</em> run any pre- or post-scripts.</p>
 <h4 id="script-shell"><code>script-shell</code></h4>
 <ul>
 <li>Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows</li>
 <li>Type: null or String</li>
 </ul>
-<p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;package-spec&gt;</code> commands.</p>
+<p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and
+<code>npm init &lt;package-spec&gt;</code> commands.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-run.html">npm run</a></li>

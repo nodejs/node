@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-diff----1161">
+<h1 id="----npm-diff----1162">
     <span>npm-diff</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">The registry diff command</span>
 </header>
@@ -157,20 +157,14 @@ npm command-line interface
 <pre><code class="language-bash">npm diff [...&lt;paths&gt;]
 </code></pre>
 <h3 id="description">Description</h3>
-<p>Similar to its <code>git diff</code> counterpart, this command will print diff patches
-of files for packages published to the npm registry.</p>
+<p>Similar to its <code>git diff</code> counterpart, this command will print diff patches of files for packages published to the npm registry.</p>
 <ul>
 <li>
 <p><code>npm diff --diff=&lt;spec-a&gt; --diff=&lt;spec-b&gt;</code></p>
-<p>Compares two package versions using their registry specifiers, e.g:
-<code>npm diff --diff=pkg@1.0.0 --diff=pkg@^2.0.0</code>. It's also possible to
-compare across forks of any package,
-e.g: <code>npm diff --diff=pkg@1.0.0 --diff=pkg-fork@1.0.0</code>.</p>
-<p>Any valid spec can be used, so that it's also possible to compare
-directories or git repositories,
-e.g: <code>npm diff --diff=pkg@latest --diff=./packages/pkg</code></p>
-<p>Here's an example comparing two different versions of a package named
-<code>abbrev</code> from the registry:</p>
+<p>Compares two package versions using their registry specifiers, e.g: <code>npm diff --diff=pkg@1.0.0 --diff=pkg@^2.0.0</code>.
+It's also possible to compare across forks of any package, e.g: <code>npm diff --diff=pkg@1.0.0 --diff=pkg-fork@1.0.0</code>.</p>
+<p>Any valid spec can be used, so that it's also possible to compare directories or git repositories, e.g: <code>npm diff --diff=pkg@latest --diff=./packages/pkg</code></p>
+<p>Here's an example comparing two different versions of a package named <code>abbrev</code> from the registry:</p>
 <pre><code class="language-bash">npm diff --diff=abbrev@1.1.0 --diff=abbrev@1.1.1
 </code></pre>
 <p>On success, output looks like:</p>
@@ -187,50 +181,29 @@ index v1.1.0..v1.1.1 100644
    "author": "Isaac Z. Schlueter &lt;i@izs.me&gt;",
    "main": "abbrev.js",
 </code></pre>
-<p>Given the flexible nature of npm specs, you can also target local
-directories or git repos just like when using <code>npm install</code>:</p>
+<p>Given the flexible nature of npm specs, you can also target local directories or git repos just like when using <code>npm install</code>:</p>
 <pre><code class="language-bash">npm diff --diff=https://github.com/npm/libnpmdiff --diff=./local-path
 </code></pre>
-<p>In the example above we can compare the contents from the package installed
-from the git repo at <code>github.com/npm/libnpmdiff</code> with the contents of the
-<code>./local-path</code> that contains a valid package, such as a modified copy of
-the original.</p>
+<p>In the example above we can compare the contents from the package installed from the git repo at <code>github.com/npm/libnpmdiff</code> with the contents of the <code>./local-path</code> that contains a valid package, such as a modified copy of the original.</p>
 </li>
 <li>
 <p><code>npm diff</code> (in a package directory, no arguments):</p>
-<p>If the package is published to the registry, <code>npm diff</code> will fetch the
-tarball version tagged as <code>latest</code> (this value can be configured using the
-<code>tag</code> option) and proceed to compare the contents of files present in that
-tarball, with the current files in your local file system.</p>
-<p>This workflow provides a handy way for package authors to see what
-package-tracked files have been changed in comparison with the latest
-published version of that package.</p>
+<p>If the package is published to the registry, <code>npm diff</code> will fetch the tarball version tagged as <code>latest</code> (this value can be configured using the <code>tag</code> option) and proceed to compare the contents of files present in that tarball, with the current files in your local file system.</p>
+<p>This workflow provides a handy way for package authors to see what package-tracked files have been changed in comparison with the latest published version of that package.</p>
 </li>
 <li>
 <p><code>npm diff --diff=&lt;pkg-name&gt;</code> (in a package directory):</p>
-<p>When using a single package name (with no version or tag specifier) as an
-argument, <code>npm diff</code> will work in a similar way to
-<a href="npm-outdated"><code>npm-outdated</code></a> and reach for the registry to figure out
-what current published version of the package named <code>&lt;pkg-name&gt;</code>
-will satisfy its dependent declared semver-range. Once that specific
-version is known <code>npm diff</code> will print diff patches comparing the
-current version of <code>&lt;pkg-name&gt;</code> found in the local file system with
-that specific version returned by the registry.</p>
+<p>When using a single package name (with no version or tag specifier) as an argument, <code>npm diff</code> will work in a similar way to <a href="npm-outdated"><code>npm-outdated</code></a> and reach for the registry to figure out what current published version of the package named <code>&lt;pkg-name&gt;</code> will satisfy its dependent declared semver-range.
+Once that specific version is known <code>npm diff</code> will print diff patches comparing the current version of <code>&lt;pkg-name&gt;</code> found in the local file system with that specific version returned by the registry.</p>
 <p>Given a package named <code>abbrev</code> that is currently installed:</p>
 <pre><code class="language-bash">npm diff --diff=abbrev
 </code></pre>
-<p>That will request from the registry its most up to date version and
-will print a diff output comparing the currently installed version to this
-newer one if the version numbers are not the same.</p>
+<p>That will request from the registry its most up to date version and will print a diff output comparing the currently installed version to this newer one if the version numbers are not the same.</p>
 </li>
 <li>
 <p><code>npm diff --diff=&lt;spec-a&gt;</code> (in a package directory):</p>
-<p>Similar to using only a single package name, it's also possible to declare
-a full registry specifier version if you wish to compare the local version
-of an installed package with the specific version/tag/semver-range provided
-in <code>&lt;spec-a&gt;</code>.</p>
-<p>An example: assuming <code>pkg@1.0.0</code> is installed in the current <code>node_modules</code>
-folder, running:</p>
+<p>Similar to using only a single package name, it's also possible to declare a full registry specifier version if you wish to compare the local version of an installed package with the specific version/tag/semver-range provided in <code>&lt;spec-a&gt;</code>.</p>
+<p>An example: assuming <code>pkg@1.0.0</code> is installed in the current <code>node_modules</code> folder, running:</p>
 <pre><code class="language-bash">npm diff --diff=pkg@2.0.0
 </code></pre>
 <p>It will effectively be an alias to
@@ -238,30 +211,20 @@ folder, running:</p>
 </li>
 <li>
 <p><code>npm diff --diff=&lt;semver-a&gt; [--diff=&lt;semver-b&gt;]</code> (in a package directory):</p>
-<p>Using <code>npm diff</code> along with semver-valid version numbers is a shorthand
-to compare different versions of the current package.</p>
-<p>It needs to be run from a package directory, such that for a package named
-<code>pkg</code> running <code>npm diff --diff=1.0.0 --diff=1.0.1</code> is the same as running
-<code>npm diff --diff=pkg@1.0.0 --diff=pkg@1.0.1</code>.</p>
-<p>If only a single argument <code>&lt;version-a&gt;</code> is provided, then the current local
-file system is going to be compared against that version.</p>
-<p>Here's an example comparing two specific versions (published to the
-configured registry) of the current project directory:</p>
+<p>Using <code>npm diff</code> along with semver-valid version numbers is a shorthand to compare different versions of the current package.</p>
+<p>It needs to be run from a package directory, such that for a package named <code>pkg</code> running <code>npm diff --diff=1.0.0 --diff=1.0.1</code> is the same as running <code>npm diff --diff=pkg@1.0.0 --diff=pkg@1.0.1</code>.</p>
+<p>If only a single argument <code>&lt;version-a&gt;</code> is provided, then the current local file system is going to be compared against that version.</p>
+<p>Here's an example comparing two specific versions (published to the configured registry) of the current project directory:</p>
 <pre><code class="language-bash">npm diff --diff=1.0.0 --diff=1.1.0
 </code></pre>
 </li>
 </ul>
-<p>Note that tag names are not valid <code>--diff</code> argument values, if you wish to
-compare to a published tag, you must use the <code>pkg@tagname</code> syntax.</p>
+<p>Note that tag names are not valid <code>--diff</code> argument values, if you wish to compare to a published tag, you must use the <code>pkg@tagname</code> syntax.</p>
 <h4 id="filtering-files">Filtering files</h4>
-<p>It's possible to also specify positional arguments using file names or globs
-pattern matching in order to limit the result of diff patches to only a subset
-of files for a given package, e.g:</p>
+<p>It's possible to also specify positional arguments using file names or globs pattern matching in order to limit the result of diff patches to only a subset of files for a given package, e.g:</p>
 <pre><code class="language-bash">npm diff --diff=pkg@2 ./lib/ CHANGELOG.md
 </code></pre>
-<p>In the example above the diff output is only going to print contents of files
-located within the folder <code>./lib/</code> and changed lines of code within the
-<code>CHANGELOG.md</code> file.</p>
+<p>In the example above the diff output is only going to print contents of files located within the folder <code>./lib/</code> and changed lines of code within the <code>CHANGELOG.md</code> file.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="diff"><code>diff</code></h4>
 <ul>
@@ -318,12 +281,13 @@ located within the folder <code>./lib/</code> and changed lines of code within t
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
-folder instead of the current working directory. See
-<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
+<p>Operates in "global" mode, so that packages are installed into the
+<code>prefix</code> folder instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in
+behavior.</p>
 <ul>
-<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
-of the current working directory.</li>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder,
+instead of the current working directory.</li>
 <li>bin files are linked to <code>{prefix}/bin</code></li>
 <li>man pages are linked to <code>{prefix}/share/man</code></li>
 </ul>
@@ -332,21 +296,21 @@ of the current working directory.</li>
 <li>Default: "latest"</li>
 <li>Type: String</li>
 </ul>
-<p>If you ask npm to install a package and don't tell it a specific version,
-then it will install the specified tag.</p>
+<p>If you ask npm to install a package and don't tell it a specific
+version, then it will install the specified tag.</p>
 <p>It is the tag added to the package@version specified in the <code>npm dist-tag add</code> command, if no explicit tag is given.</p>
-<p>When used by the <code>npm diff</code> command, this is the tag used to fetch the
-tarball that will be compared with the local files by default.</p>
-<p>If used in the <code>npm publish</code> command, this is the tag that will be added to
-the package submitted to the registry.</p>
+<p>When used by the <code>npm diff</code> command, this is the tag used to fetch
+the tarball that will be compared with the local files by default.</p>
+<p>If used in the <code>npm publish</code> command, this is the tag that will be
+added to the package submitted to the registry.</p>
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>
 <li>Default:</li>
 <li>Type: String (can be set multiple times)</li>
 </ul>
-<p>Enable running a command in the context of the configured workspaces of the
-current project while filtering by running only the workspaces defined by
-this configuration option.</p>
+<p>Enable running a command in the context of the configured workspaces
+of the current project while filtering by running only the workspaces
+defined by this configuration option.</p>
 <p>Valid values for the <code>workspace</code> config are either:</p>
 <ul>
 <li>Workspace names</li>
@@ -354,9 +318,9 @@ this configuration option.</p>
 <li>Path to a parent workspace directory (will result in selecting all
 workspaces within that folder)</li>
 </ul>
-<p>When set for the <code>npm init</code> command, this may be set to the folder of a
-workspace which does not yet exist, to create the folder and set it up as a
-brand new workspace within the project.</p>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of
+a workspace which does not yet exist, to create the folder and set it
+up as a brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
@@ -365,13 +329,14 @@ brand new workspace within the project.</p>
 </ul>
 <p>Set to true to run the command in the context of <strong>all</strong> configured
 workspaces.</p>
-<p>Explicitly setting this to false will cause commands like <code>install</code> to
-ignore workspaces altogether. When not set explicitly:</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code>
+to ignore workspaces altogether. When not set explicitly:</p>
 <ul>
-<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
-will link workspaces into the <code>node_modules</code> folder. - Commands that do
-other things (test, exec, publish, etc.) will operate on the root project,
-<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update,
+etc.) will link workspaces into the <code>node_modules</code> folder. - Commands
+that do other things (test, exec, publish, etc.) will operate on the
+root project, <em>unless</em> one or more workspaces are specified in the
+<code>workspace</code> config.</li>
 </ul>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
@@ -380,9 +345,10 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <li>Type: Boolean</li>
 </ul>
 <p>Include the workspace root when workspaces are enabled for a command.</p>
-<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
-all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
-the specified workspaces, and not on the root project.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code>
+config, or all workspaces via the <code>workspaces</code> flag, will cause npm
+to operate only on the specified workspaces, and not on the root
+project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h2 id="see-also">See Also</h2>
 <ul>

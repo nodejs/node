@@ -38,7 +38,7 @@ const getCommandByDoc = (docFile, docExt) => {
 
   // special case for `npx`:
   // `npx` is not technically a command in and of itself,
-  // so it just needs the usage of npm exex
+  // so it just needs the usage of npm exec
   const srcName = name === 'npx' ? 'exec' : name
   const { params, usage = [''], workspaces } = require(`../../lib/commands/${srcName}`)
   const usagePrefix = name === 'npx' ? 'npx' : `npm ${name}`

@@ -109,7 +109,6 @@ const nodeMetaKeys = [
   'inBundle',
   'hasShrinkwrap',
   'hasInstallScript',
-  'ideallyInert',
 ]
 
 const metaFieldFromPkg = (pkg, key) => {
@@ -136,10 +135,6 @@ const assertNoNewer = async (path, data, lockTime, dir, seen) => {
 
   const parent = isParent ? dir : resolve(dir, 'node_modules')
   const rel = relpath(path, dir)
-  const inert = data.packages[rel]?.ideallyInert
-  if (inert) {
-    return
-  }
   seen.add(rel)
   let entries
   if (dir === path) {
@@ -178,7 +173,7 @@ const assertNoNewer = async (path, data, lockTime, dir, seen) => {
 
   // assert that all the entries in the lockfile were seen
   for (const loc in data.packages) {
-    if (!seen.has(loc) && !data.packages[loc].ideallyInert) {
+    if (!seen.has(loc)) {
       throw new Error(`missing from node_modules: ${loc}`)
     }
   }
@@ -436,7 +431,7 @@ class Shrinkwrap {
       const [sw, lock, yarn] = await this.loadFiles
       data = sw || lock || '{}'
 
-      // use shrinkwrap only for deps, otherwise prefer package-lock
+      // use shrinkwrap only for deps; otherwise, prefer package-lock
       // and ignore npm-shrinkwrap if both are present.
       // TODO: emit a warning here or something if both are present.
       if (this.hiddenLockfile) {
@@ -788,10 +783,6 @@ class Shrinkwrap {
       // ok, I did my best!  good luck!
     }
 
-    if (lock.ideallyInert) {
-      meta.ideallyInert = true
-    }
-
     if (lock.bundled) {
       meta.inBundle = true
     }
@@ -962,12 +953,6 @@ class Shrinkwrap {
       this.#buildLegacyLockfile(this.tree, this.data)
     }
 
-    if (!this.hiddenLockfile) {
-      for (const node of Object.values(this.data.packages)) {
-        delete node.ideallyInert
-      }
-    }
-
     // lf version 1 = dependencies only
     // lf version 2 = dependencies and packages
     // lf version 3 = packages only
@@ -993,7 +978,7 @@ class Shrinkwrap {
 
     // npm v6 and before tracked 'from', meaning "the request that led
     // to this package being installed".  However, that's inherently
-    // racey and non-deterministic in a world where deps are deduped
+    // racy and non-deterministic in a world where deps are deduped
     // ahead of fetch time.  In order to maintain backwards compatibility
     // with v6 in the lockfile, we do this trick where we pick a valid
     // dep link out of the edgesIn set.  Choose the edge with the fewest

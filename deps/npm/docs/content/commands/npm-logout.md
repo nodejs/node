@@ -14,16 +14,13 @@ Note: This command is unaware of workspaces.
 
 ### Description
 
-When logged into a registry that supports token-based authentication, tell
-the server to end this token's session. This will invalidate the token
-everywhere you're using it, not just for the current environment.
+When logged into a registry that supports token-based authentication, tell the server to end this token's session.
+This will invalidate the token everywhere you're using it, not just for the current environment.
 
-When logged into a legacy registry that uses username and password
-authentication, this will clear the credentials in your user configuration.
+When logged into a legacy registry that uses username and password authentication, this will clear the credentials in your user configuration.
 In this case, it will _only_ affect the current environment.
 
-If `--scope` is provided, this will find the credentials for the registry
-connected to that scope, if set.
+If `--scope` is provided, this will find the credentials for the registry connected to that scope, if set.
 
 ### Configuration
 

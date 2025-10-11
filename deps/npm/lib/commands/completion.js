@@ -4,7 +4,7 @@
 // zsh or bash when calling a function for completion, based on the cursor
 // position and the command line thus far.  These are:
 // COMP_CWORD: the index of the "word" in the command line being completed
-// COMP_LINE: the full command line thusfar as a string
+// COMP_LINE: the full command line thus far as a string
 // COMP_POINT: the cursor index at the point of triggering completion
 //
 // We parse the command line with nopt, like npm does, and then create an

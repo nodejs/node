@@ -1,4 +1,4 @@
-.TH "NPM-CACHE" "1" "September 2025" "NPM@11.6.1" ""
+.TH "NPM-CACHE" "1" "October 2025" "NPM@11.6.2" ""
 .SH "NAME"
 \fBnpm-cache\fR - Manipulates packages cache
 .SS "Synopsis"
@@ -54,8 +54,7 @@ npm will not remove data by itself: the cache will grow as new packages are inst
 .P
 The npm cache is strictly a cache: it should not be relied upon as a persistent and reliable data store for package data. npm makes no guarantee that a previously-cached piece of data will be available later, and will automatically delete corrupted contents. The primary guarantee that the cache makes is that, if it does return data, that data will be exactly the data that was inserted.
 .P
-To run an offline verification of existing cache contents, use \fBnpm cache
-verify\fR.
+To run an offline verification of existing cache contents, use \fBnpm cache verify\fR.
 .SS "Configuration"
 .SS "\fBcache\fR"
 .RS 0

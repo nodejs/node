@@ -34,7 +34,7 @@ const {
 class Definition {
   constructor (key, def) {
     this.key = key
-    // if it's set falsey, don't export it, otherwise we do by default
+    // if it's set falsey, don't export it; otherwise, we do by default
     this.envExport = true
     Object.assign(this, def)
     this.validate()
@@ -83,7 +83,7 @@ This value is not exported to the environment for child processes.
 `
     const deprecated = !this.deprecated ? '' : `* DEPRECATED: ${unindent(this.deprecated)}\n`
     /* eslint-disable-next-line max-len */
-    const exclusive = !this.exclusive ? '' : `\nThis config can not be used with: \`${this.exclusive.join('`, `')}\``
+    const exclusive = !this.exclusive ? '' : `\nThis config cannot be used with: \`${this.exclusive.join('`, `')}\``
     return wrapAll(`#### \`${this.key}\`
 
 * Default: ${unindent(this.defaultDescription)}

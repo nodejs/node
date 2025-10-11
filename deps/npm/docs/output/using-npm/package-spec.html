@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----package-spec----1161">
+<h1 id="----package-spec----1162">
     <span>package-spec</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Package name specifier</span>
 </header>
@@ -154,12 +154,9 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
-<p>Commands like <code>npm install</code> and the dependency sections in the
-<code>package.json</code> use a package name specifier.  This can be many different
-things that all refer to a "package".  Examples include a package name,
-git url, tarball, or local directory.  These will generally be referred
-to as <code>&lt;package-spec&gt;</code> in the help output for the npm commands that use
-this package name specifier.</p>
+<p>Commands like <code>npm install</code> and the dependency sections in the <code>package.json</code> use a package name specifier.
+This can be many different things that all refer to a "package".  Examples include a package name, git url, tarball, or local directory.
+These will generally be referred to as <code>&lt;package-spec&gt;</code> in the help output for the npm commands that use this package name specifier.</p>
 <h3 id="package-name">Package name</h3>
 <ul>
 <li><code>[&lt;@scope&gt;/]&lt;pkg&gt;</code></li>
@@ -167,10 +164,8 @@ this package name specifier.</p>
 <li><code>[&lt;@scope&gt;/]&lt;pkg&gt;@&lt;version&gt;</code></li>
 <li><code>[&lt;@scope&gt;/]&lt;pkg&gt;@&lt;version range&gt;</code></li>
 </ul>
-<p>Refers to a package by name, with or without a scope, and optionally
-tag, version, or version range.  This is typically used in combination
-with the <a href="../using-npm/config#registry.html">registry</a> config to refer to a
-package in a registry.</p>
+<p>Refers to a package by name, with or without a scope, and optionally tag, version, or version range.
+This is typically used in combination with the <a href="../using-npm/config#registry.html">registry</a> config to refer to a package in a registry.</p>
 <p>Examples:</p>
 <ul>
 <li><code>npm</code></li>
@@ -183,14 +178,9 @@ package in a registry.</p>
 <ul>
 <li><code>&lt;alias&gt;@npm:&lt;name&gt;</code></li>
 </ul>
-<p>Primarily used by commands like <code>npm install</code> and in the dependency
-sections in the <code>package.json</code>, this refers to a package by an alias.
-The <code>&lt;alias&gt;</code> is the name of the package as it is reified in the
-<code>node_modules</code> folder, and the <code>&lt;name&gt;</code> refers to a package name as
-found in the configured registry.</p>
-<p>See <code>Package name</code> above for more info on referring to a package by
-name, and <a href="../using-npm/config#registry.html">registry</a> for configuring which
-registry is used when referring to a package by name.</p>
+<p>Primarily used by commands like <code>npm install</code> and in the dependency sections in the <code>package.json</code>, this refers to a package by an alias.
+The <code>&lt;alias&gt;</code> is the name of the package as it is reified in the <code>node_modules</code> folder, and the <code>&lt;name&gt;</code> refers to a package name as found in the configured registry.</p>
+<p>See <code>Package name</code> above for more info on referring to a package by name, and <a href="../using-npm/config#registry.html">registry</a> for configuring which registry is used when referring to a package by name.</p>
 <p>Examples:</p>
 <ul>
 <li><code>semver:@npm:@npmcli/semver-with-patch</code></li>
@@ -201,12 +191,10 @@ registry is used when referring to a package by name.</p>
 <ul>
 <li><code>&lt;folder&gt;</code></li>
 </ul>
-<p>This refers to a package on the local filesystem.  Specifically this is
-a folder with a <code>package.json</code> file in it.  This <em>should</em> always be
-prefixed with a <code>/</code> or <code>./</code> (or your OS equivalent) to reduce confusion.
-npm currently will parse a string with more than one <code>/</code> in it as a
-folder, but this is legacy behavior that may be removed in a future
-version.</p>
+<p>This refers to a package on the local filesystem.
+Specifically this is a folder with a <code>package.json</code> file in it.
+This <em>should</em> always be prefixed with a <code>/</code> or <code>./</code> (or your OS equivalent) to reduce confusion.
+npm currently will parse a string with more than one <code>/</code> in it as a folder, but this is legacy behavior that may be removed in a future version.</p>
 <p>Examples:</p>
 <ul>
 <li><code>./my-package</code></li>
@@ -222,17 +210,16 @@ version.</p>
 <li><code>./my-package.tgz</code></li>
 <li><code>https://registry.npmjs.org/semver/-/semver-1.0.0.tgz</code></li>
 </ul>
-<p>Refers to a package in a tarball format, either on the local filesystem
-or remotely via url.  This is the format that packages exist in when
-uploaded to a registry.</p>
+<p>Refers to a package in a tarball format, either on the local filesystem or remotely via url.
+This is the format that packages exist in when uploaded to a registry.</p>
 <h3 id="git-urls">git urls</h3>
 <ul>
 <li><code>&lt;git:// url&gt;</code></li>
 <li><code>&lt;github username&gt;/&lt;github project&gt;</code></li>
 </ul>
-<p>Refers to a package in a git repo.  This can be a full git url, git
-shorthand, or a username/package on GitHub.  You can specify a
-git tag, branch, or other git ref by appending <code>#ref</code>.</p>
+<p>Refers to a package in a git repo.
+This can be a full git url, git shorthand, or a username/package on GitHub.
+You can specify a git tag, branch, or other git ref by appending <code>#ref</code>.</p>
 <p>Examples:</p>
 <ul>
 <li><code>https://github.com/npm/cli.git</code></li>

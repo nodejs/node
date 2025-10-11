@@ -109,8 +109,6 @@ hosts.gitlab = {
   treepath: 'tree',
   blobpath: 'tree',
   editpath: '-/edit',
-  httpstemplate: ({ auth, domain, user, project, committish }) =>
-    `git+https://${maybeJoin(auth, '@')}${domain}/${user}/${project}.git${maybeJoin('#', committish)}`,
   tarballtemplate: ({ domain, user, project, committish }) =>
     `https://${domain}/${user}/${project}/repository/archive.tar.gz?ref=${maybeEncode(committish || 'HEAD')}`,
   extract: (url) => {

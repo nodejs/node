@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-explore----1161">
+<h1 id="----npm-explore----1162">
     <span>npm-explore</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Browse an installed package</span>
 </header>
@@ -159,19 +159,16 @@ npm command-line interface
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
 <p>Spawn a subshell in the directory of the installed package specified.</p>
-<p>If a command is specified, then it is run in the subshell, which then
-immediately terminates.</p>
-<p>This is particularly handy in the case of git submodules in the
-<code>node_modules</code> folder:</p>
+<p>If a command is specified, then it is run in the subshell, which then immediately terminates.</p>
+<p>This is particularly handy in the case of git submodules in the <code>node_modules</code> folder:</p>
 <pre><code class="language-bash">npm explore some-dependency -- git pull origin master
 </code></pre>
-<p>Note that the package is <em>not</em> automatically rebuilt afterwards, so be
-sure to use <code>npm rebuild &lt;pkg&gt;</code> if you make any changes.</p>
+<p>Note that the package is <em>not</em> automatically rebuilt afterwards, so be sure to use <code>npm rebuild &lt;pkg&gt;</code> if you make any changes.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="shell"><code>shell</code></h4>
 <ul>
-<li>Default: SHELL environment variable, or "bash" on Posix, or "cmd.exe" on
-Windows</li>
+<li>Default: SHELL environment variable, or "bash" on Posix, or "cmd.exe"
+on Windows</li>
 <li>Type: String</li>
 </ul>
 <p>The shell to run for the <code>npm explore</code> command.</p>

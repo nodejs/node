@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-logout----1161">
+<h1 id="----npm-logout----1162">
     <span>npm-logout</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Log out of the registry</span>
 </header>
@@ -158,14 +158,11 @@ npm command-line interface
 </code></pre>
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
-<p>When logged into a registry that supports token-based authentication, tell
-the server to end this token's session. This will invalidate the token
-everywhere you're using it, not just for the current environment.</p>
-<p>When logged into a legacy registry that uses username and password
-authentication, this will clear the credentials in your user configuration.
+<p>When logged into a registry that supports token-based authentication, tell the server to end this token's session.
+This will invalidate the token everywhere you're using it, not just for the current environment.</p>
+<p>When logged into a legacy registry that uses username and password authentication, this will clear the credentials in your user configuration.
 In this case, it will <em>only</em> affect the current environment.</p>
-<p>If <code>--scope</code> is provided, this will find the credentials for the registry
-connected to that scope, if set.</p>
+<p>If <code>--scope</code> is provided, this will find the credentials for the registry connected to that scope, if set.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="registry"><code>registry</code></h4>
 <ul>

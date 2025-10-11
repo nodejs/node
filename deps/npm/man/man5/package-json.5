@@ -1,4 +1,4 @@
-.TH "PACKAGE.JSON" "5" "September 2025" "NPM@11.6.1" ""
+.TH "PACKAGE.JSON" "5" "October 2025" "NPM@11.6.2" ""
 .SH "NAME"
 \fBpackage.json\fR - Specifics of npm's package.json handling
 .SS "Description"
@@ -341,7 +341,7 @@ Most of these ignored files can be included specifically if included in the \fBf
 .RE 0
 
 .P
-These can not be included.
+These cannot be included.
 .SS "exports"
 .P
 The "exports" provides a modern alternative to "main" allowing multiple entry points to be defined, conditional entry resolution support between environments, and preventing any other entry points besides those defined in "exports". This encapsulation allows module authors to clearly define the public interface for their package. For more details see the \fBnode.js documentation on package entry points\fR \fI\(lahttps://nodejs.org/api/packages.html#package-entry-points\(ra\fR
@@ -403,7 +403,7 @@ would be the same as this:
 .fi
 .RE
 .P
-Please make sure that your file(s) referenced in \fBbin\fR starts with \fB#!/usr/bin/env node\fR, otherwise the scripts are started without the node executable!
+Please make sure that your file(s) referenced in \fBbin\fR starts with \fB#!/usr/bin/env node\fR; otherwise, the scripts are started without the node executable!
 .P
 Note that you can also set the executable files using \fI(directories.bin)\fR.
 .P
@@ -426,8 +426,7 @@ If only a single file is provided, then it's installed such that it is the resul
 .fi
 .RE
 .P
-would link the \fB./man/doc.1\fR file in such that it is the target for \fBman
-foo\fR
+would link the \fB./man/doc.1\fR file in such that it is the target for \fBman foo\fR
 .P
 If the filename doesn't start with the package name, then it's prefixed. So, this:
 .P
@@ -689,8 +688,7 @@ As of version 1.1.65, you can refer to GitHub URLs as just "foo": "user/foo-proj
 .RE
 .SS "Local Paths"
 .P
-As of version 2.0.0 you can provide a path to a local directory that contains a package. Local paths can be saved using \fBnpm install -S\fR or \fBnpm
-install --save\fR, using any of these forms:
+As of version 2.0.0 you can provide a path to a local directory that contains a package. Local paths can be saved using \fBnpm install -S\fR or \fBnpm install --save\fR, using any of these forms:
 .P
 .RS 2
 .nf
@@ -765,8 +763,7 @@ For example:
 .fi
 .RE
 .P
-This ensures your package \fB@npm/tea-latte\fR can be installed \fIalong\fR with the second major version of the host package \fB@npm/tea\fR only. \fBnpm install
-tea-latte\fR could possibly yield the following dependency graph:
+This ensures your package \fB@npm/tea-latte\fR can be installed \fIalong\fR with the second major version of the host package \fB@npm/tea\fR only. \fBnpm install tea-latte\fR could possibly yield the following dependency graph:
 .P
 .RS 2
 .nf
@@ -826,16 +823,14 @@ If we define a package.json like this:
 .fi
 .RE
 .P
-we can obtain \fB@npm/awesome-web-framework-1.0.0.tgz\fR file by running \fBnpm pack\fR. This file contains the dependencies \fB@npm/renderized\fR and \fB@npm/super-streams\fR which can be installed in a new project by executing \fBnpm install
-awesome-web-framework-1.0.0.tgz\fR. Note that the package names do not include any versions, as that information is specified in \fBdependencies\fR.
+we can obtain \fB@npm/awesome-web-framework-1.0.0.tgz\fR file by running \fBnpm pack\fR. This file contains the dependencies \fB@npm/renderized\fR and \fB@npm/super-streams\fR which can be installed in a new project by executing \fBnpm install awesome-web-framework-1.0.0.tgz\fR. Note that the package names do not include any versions, as that information is specified in \fBdependencies\fR.
 .P
 If this is spelled \fB"bundledDependencies"\fR, then that is also honored.
 .P
 Alternatively, \fB"bundleDependencies"\fR can be defined as a boolean value. A value of \fBtrue\fR will bundle all dependencies, a value of \fBfalse\fR will bundle none.
 .SS "optionalDependencies"
 .P
-If a dependency can be used, but you would like npm to proceed if it cannot be found or fails to install, then you may put it in the \fBoptionalDependencies\fR object. This is a map of package name to version or URL, just like the \fBdependencies\fR object. The difference is that build failures do not cause installation to fail. Running \fBnpm install
---omit=optional\fR will prevent these dependencies from being installed.
+If a dependency can be used, but you would like npm to proceed if it cannot be found or fails to install, then you may put it in the \fBoptionalDependencies\fR object. This is a map of package name to version or URL, just like the \fBdependencies\fR object. The difference is that build failures do not cause installation to fail. Running \fBnpm install --omit=optional\fR will prevent these dependencies from being installed.
 .P
 It is still your program's responsibility to handle the lack of the dependency. For example, something like this:
 .P
@@ -1067,7 +1062,7 @@ The \fBdevEngines\fR field aids engineers working on a codebase to all be using 
 You can specify a \fBdevEngines\fR property in your \fBpackage.json\fR which will run before \fBinstall\fR, \fBci\fR, and \fBrun\fR commands.
 .RS 0
 .P
-Note: \fBengines\fR and \fBdevEngines\fR differ in object shape. They also function very differently. \fBengines\fR is designed to alert the user when a dependency uses a differening npm or node version that the project it's being used in, whereas \fBdevEngines\fR is used to alert people interacting with the source code of a project.
+Note: \fBengines\fR and \fBdevEngines\fR differ in object shape. They also function very differently. \fBengines\fR is designed to alert the user when a dependency uses a different npm or node version than the project it's being used in, whereas \fBdevEngines\fR is used to alert people interacting with the source code of a project.
 .RE 0
 
 .P

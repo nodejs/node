@@ -29,10 +29,8 @@ const optionalSet = node => {
   }
 
   // now that we've hit the boundary, gather the rest of the nodes in
-  // the optional section.  that's the set of dependencies that are only
-  // depended upon by other nodes within the set, or optional dependencies
-  // from outside the set.
-  return gatherDepSet(set, edge => !edge.optional)
+  // the optional section that don't have dependents outside the set.
+  return gatherDepSet(set, edge => !set.has(edge.to))
 }
 
 module.exports = optionalSet

@@ -11,13 +11,15 @@ The [`npm query`](/commands/npm-query) command exposes a new dependency selector
 - Standardizes the shape of, & querying of, dependency graphs with a robust object model, metadata & selector syntax
 - Leverages existing, known language syntax & operators from CSS to make disparate package information broadly accessible
 - Unlocks the ability to answer complex, multi-faceted questions about dependencies, their relationships & associative metadata
-- Consolidates redundant logic of similar query commands in `npm` (ex. `npm fund`, `npm ls`, `npm outdated`, `npm audit` ...)
+- Consolidates redundant logic of similar query commands in `npm` (ex.
+`npm fund`, `npm ls`, `npm outdated`, `npm audit` ...)
 
 ### Dependency Selector Syntax
 
 #### Overview:
 
-- there is no "type" or "tag" selectors (ex. `div, h1, a`) as a dependency/target is the only type of `Node` that can be queried
+- there is no "type" or "tag" selectors (ex.
+`div, h1, a`) as a dependency/target is the only type of `Node` that can be queried
 - the term "dependencies" is in reference to any `Node` found in a `tree` returned by `Arborist`
 
 #### Combinators
@@ -66,13 +68,17 @@ The [`npm query`](/commands/npm-query) command exposes a new dependency selector
 
 ##### `:semver(<spec>, [selector], [function])`
 
-The `:semver()` pseudo selector allows comparing fields from each node's `package.json` using [semver](https://github.com/npm/node-semver#readme) methods. It accepts up to 3 parameters, all but the first of which are optional.
+The `:semver()` pseudo selector allows comparing fields from each node's `package.json` using [semver](https://github.com/npm/node-semver#readme) methods.
+It accepts up to 3 parameters, all but the first of which are optional.
 
 - `spec` a semver version or range
 - `selector` an attribute selector for each node (default `[version]`)
 - `function` a semver method to apply, one of: `satisfies`, `intersects`, `subset`, `gt`, `gte`, `gtr`, `lt`, `lte`, `ltr`, `eq`, `neq` or the special function `infer` (default `infer`)
 
-When the special `infer` function is used the `spec` and the actual value from the node are compared. If both are versions, according to `semver.valid()`, `eq` is used. If both values are ranges, according to `!semver.valid()`, `intersects` is used. If the values are mixed types `satisfies` is used.
+When the special `infer` function is used the `spec` and the actual value from the node are compared.
+If both are versions, according to `semver.valid()`, `eq` is used.
+If both values are ranges, according to `!semver.valid()`, `intersects` is used.
+If the values are mixed types `satisfies` is used.
 
 Some examples:
 
@@ -82,7 +88,8 @@ Some examples:
 
 ##### `:outdated(<type>)`
 
-The `:outdated` pseudo selector retrieves data from the registry and returns information about which of your dependencies are outdated. The type parameter may be one of the following:
+The `:outdated` pseudo selector retrieves data from the registry and returns information about which of your dependencies are outdated.
+The type parameter may be one of the following:
 
 - `any` (default) a version exists that is greater than the current one
 - `in-range` a version exists that is greater than the current one, and satisfies at least one if its parent's dependencies
@@ -91,11 +98,14 @@ The `:outdated` pseudo selector retrieves data from the registry and returns inf
 - `minor` a version exists that is a semver minor greater than the current one
 - `patch` a version exists that is a semver patch greater than the current one
 
-In addition to the filtering performed by the pseudo selector, some extra data is added to the resulting objects. The following data can be found under the `queryContext` property of each node.
+In addition to the filtering performed by the pseudo selector, some extra data is added to the resulting objects.
+The following data can be found under the `queryContext` property of each node.
 
 - `versions` an array of every available version of the given node
-- `outdated.inRange` an array of objects, each with a `from` and `versions`, where `from` is the on-disk location of the node that depends on the current node and `versions` is an array of all available versions that satisfies that dependency. This is only populated if `:outdated(in-range)` is used.
-- `outdated.outOfRange` an array of objects, identical in shape to `inRange`, but where the `versions` array is every available version that does not satisfy the dependency. This is only populated if `:outdated(out-of-range)` is used.
+- `outdated.inRange` an array of objects, each with a `from` and `versions`, where `from` is the on-disk location of the node that depends on the current node and `versions` is an array of all available versions that satisfies that dependency.
+This is only populated if `:outdated(in-range)` is used.
+- `outdated.outOfRange` an array of objects, identical in shape to `inRange`, but where the `versions` array is every available version that does not satisfy the dependency.
+This is only populated if `:outdated(out-of-range)` is used.
 
 Some examples:
 
@@ -104,9 +114,13 @@ Some examples:
 
 ##### `:vuln`
 
-The `:vuln` pseudo selector retrieves data from the registry and returns information about which if your dependencies has a known vulnerability.  Only dependencies whose current version matches a vulnerability will be returned.  For example if you have `semver@7.6.0` in your tree, a vulnerability for `semver` which affects versions `<=6.3.1` will not match.
+The `:vuln` pseudo selector retrieves data from the registry and returns information about which if your dependencies has a known vulnerability.
+Only dependencies whose current version matches a vulnerability will be returned.
+For example if you have `semver@7.6.0` in your tree, a vulnerability for `semver` which affects versions `<=6.3.1` will not match.
 
-You can also filter results by certain attributes in advisories.  Currently that includes `severity` and `cwe`.  Note that severity filtering is done per severity, it does not include severities "higher" or "lower" than the one specified.
+You can also filter results by certain attributes in advisories.
+Currently that includes `severity` and `cwe`.
+Note that severity filtering is done per severity, it does not include severities "higher" or "lower" than the one specified.
 
 In addition to the filtering performed by the pseudo selector, info about each relevant advisory will be added to the `queryContext` attribute of each node under the `advisories` attribute.
 
@@ -121,7 +135,8 @@ Some examples:
 
 The attribute selector evaluates the key/value pairs in `package.json` if they are `String`s.
 
-- `[]` attribute selector (ie. existence of attribute)
+- `[]` attribute selector (ie.
+existence of attribute)
 - `[attribute=value]` attribute value is equivalent...
 - `[attribute~=value]` attribute value contains word...
 - `[attribute*=value]` attribute value contains string...
@@ -131,7 +146,10 @@ The attribute selector evaluates the key/value pairs in `package.json` if they a
 
 #### `Array` & `Object` Attribute Selectors
 
-The generic `:attr()` pseudo selector standardizes a pattern which can be used for attribute selection of `Object`s, `Array`s or `Arrays` of `Object`s accessible via `Arborist`'s `Node.package` metadata. This allows for iterative attribute selection beyond top-level `String` evaluation. The last argument passed to `:attr()` must be an `attribute` selector or a nested `:attr()`. See examples below:
+The generic `:attr()` pseudo selector standardizes a pattern which can be used for attribute selection of `Object`s, `Array`s or `Arrays` of `Object`s accessible via `Arborist`'s `Node.package` metadata.
+This allows for iterative attribute selection beyond top-level `String` evaluation.
+The last argument passed to `:attr()` must be an `attribute` selector or a nested `:attr()`.
+See examples below:
 
 #### `Objects`
 
@@ -145,13 +163,14 @@ The generic `:attr()` pseudo selector standardizes a pattern which can be used f
 Nested objects are expressed as sequential arguments to `:attr()`.
 
 ```css
-/* return dependencies that have a testling config for opera browsers */
+/* return dependencies that have a [testling config](https://ci.testling.com/guide/advanced_configuration) for opera browsers */
 *:attr(testling, browsers, [~=opera])
 ```
 
 #### `Arrays`
 
-`Array`s specifically uses a special/reserved `.` character in place of a typical attribute name. `Arrays` also support exact `value` matching when a `String` is passed to the selector.
+`Array`s specifically uses a special/reserved `.` character in place of a typical attribute name.
+`Arrays` also support exact `value` matching when a `String` is passed to the selector.
 
 ##### Example of an `Array` Attribute Selection:
 ```css
@@ -176,7 +195,11 @@ Nested objects are expressed as sequential arguments to `:attr()`.
 
 ### Groups
 
-Dependency groups are defined by the package relationships to their ancestors (ie. the dependency types that are defined in `package.json`). This approach is user-centric as the ecosystem has been taught to think about dependencies in these groups first-and-foremost. Dependencies are allowed to be included in multiple groups (ex. a `prod` dependency may also be a `dev` dependency (in that it's also required by another `dev` dependency) & may also be `bundled` - a selector for that type of dependency would look like: `*.prod.dev.bundled`).
+Dependency groups are defined by the package relationships to their ancestors (ie.
+the dependency types that are defined in `package.json`).
+This approach is user-centric as the ecosystem has been taught to think about dependencies in these groups first-and-foremost.
+Dependencies are allowed to be included in multiple groups (ex.
+a `prod` dependency may also be a `dev` dependency (in that it's also required by another `dev` dependency) & may also be `bundled` - a selector for that type of dependency would look like: `*.prod.dev.bundled`).
 
 - `.prod`
 - `.dev`
@@ -185,7 +208,8 @@ Dependency groups are defined by the package relationships to their ancestors (i
 - `.bundled`
 - `.workspace`
 
-Please note that currently `workspace` deps are always `prod` dependencies.  Additionally the `.root` dependency is also considered a `prod` dependency.
+Please note that currently `workspace` deps are always `prod` dependencies.
+Additionally the `.root` dependency is also considered a `prod` dependency.
 
 ### Programmatic Usage
 

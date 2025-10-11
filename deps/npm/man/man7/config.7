@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "September 2025" "NPM@11.6.1" ""
+.TH "CONFIG" "7" "October 2025" "NPM@11.6.2" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -165,10 +165,9 @@ Type: null, "restricted", or "public"
 .P
 If you do not want your scoped package to be publicly viewable (and installable) set \fB--access=restricted\fR.
 .P
-Unscoped packages can not be set to \fBrestricted\fR.
+Unscoped packages cannot be set to \fBrestricted\fR.
 .P
-Note: This defaults to not changing the current access level for existing packages. Specifying a value of \fBrestricted\fR or \fBpublic\fR during publish will change the access for an existing package the same way that \fBnpm access set
-status\fR would.
+Note: This defaults to not changing the current access level for existing packages. Specifying a value of \fBrestricted\fR or \fBpublic\fR during publish will change the access for an existing package the same way that \fBnpm access set status\fR would.
 .SS "\fBall\fR"
 .RS 0
 .IP \(bu 4
@@ -365,7 +364,7 @@ Override CPU architecture of native modules to install. Acceptable values are sa
 .SS "\fBdepth\fR"
 .RS 0
 .IP \(bu 4
-Default: \fBInfinity\fR if \fB--all\fR is set, otherwise \fB0\fR
+Default: \fBInfinity\fR if \fB--all\fR is set; otherwise, \fB0\fR
 .IP \(bu 4
 Type: null or Number
 .RE 0
@@ -511,7 +510,7 @@ Type: null or Number
 .P
 Tells to expect a specific number of results from the command.
 .P
-This config can not be used with: \fBexpect-results\fR
+This config cannot be used with: \fBexpect-results\fR
 .SS "\fBexpect-results\fR"
 .RS 0
 .IP \(bu 4
@@ -523,7 +522,7 @@ Type: null or Boolean
 .P
 Tells npm whether or not to expect results from the command. Can be either true (expect some results) or false (expect no results).
 .P
-This config can not be used with: \fBexpect-result-count\fR
+This config cannot be used with: \fBexpect-result-count\fR
 .SS "\fBfetch-retries\fR"
 .RS 0
 .IP \(bu 4
@@ -737,7 +736,8 @@ Type: Boolean
 .P
 If true, npm does not run scripts specified in package.json files.
 .P
-Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm
+run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
 .SS "\fBinclude\fR"
 .RS 0
 .IP \(bu 4
@@ -965,7 +965,7 @@ man pages are linked to \fB{prefix}/share/man\fR
 .SS "\fBlockfile-version\fR"
 .RS 0
 .IP \(bu 4
-Default: Version 3 if no lockfile, auto-converting v1 lockfiles to v3, otherwise maintain current lockfile version.
+Default: Version 3 if no lockfile, auto-converting v1 lockfiles to v3; otherwise, maintain current lockfile version.
 .IP \(bu 4
 Type: null, 1, 2, 3, "1", "2", or "3"
 .RE 0
@@ -1093,7 +1093,7 @@ Force offline mode: no network requests will be done during install. To allow th
 .SS "\fBomit\fR"
 .RS 0
 .IP \(bu 4
-Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production', otherwise empty.
+Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production'; otherwise, empty.
 .IP \(bu 4
 Type: "dev", "optional", or "peer" (can be set multiple times)
 .RE 0
@@ -1135,7 +1135,8 @@ Type: null or String
 .RE 0
 
 .P
-This is a one-time password from a two-factor authenticator. It's needed when publishing or changing package permissions with \fBnpm access\fR.
+This is a one-time password from a two-factor authenticator. It's needed when publishing or changing package permissions with \fBnpm
+access\fR.
 .P
 If not set, and a registry response fails with a challenge for a one-time password, npm will prompt on the command line for one.
 .SS "\fBpack-destination\fR"
@@ -1265,7 +1266,7 @@ Type: Boolean
 .P
 When publishing from a supported cloud CI/CD system, the package will be publicly linked to where it was built and published from.
 .P
-This config can not be used with: \fBprovenance-file\fR
+This config cannot be used with: \fBprovenance-file\fR
 .SS "\fBprovenance-file\fR"
 .RS 0
 .IP \(bu 4
@@ -1277,7 +1278,7 @@ Type: Path
 .P
 When publishing, the provenance bundle at the given path will be used.
 .P
-This config can not be used with: \fBprovenance\fR
+This config cannot be used with: \fBprovenance\fR
 .SS "\fBproxy\fR"
 .RS 0
 .IP \(bu 4
@@ -1369,7 +1370,7 @@ Type: Boolean
 .P
 Save installed packages to a package.json file as \fBdevDependencies\fR.
 .P
-This config can not be used with: \fBsave-optional\fR, \fBsave-peer\fR, \fBsave-prod\fR
+This config cannot be used with: \fBsave-optional\fR, \fBsave-peer\fR, \fBsave-prod\fR
 .SS "\fBsave-exact\fR"
 .RS 0
 .IP \(bu 4
@@ -1391,7 +1392,7 @@ Type: Boolean
 .P
 Save installed packages to a package.json file as \fBoptionalDependencies\fR.
 .P
-This config can not be used with: \fBsave-dev\fR, \fBsave-peer\fR, \fBsave-prod\fR
+This config cannot be used with: \fBsave-dev\fR, \fBsave-peer\fR, \fBsave-prod\fR
 .SS "\fBsave-peer\fR"
 .RS 0
 .IP \(bu 4
@@ -1403,7 +1404,7 @@ Type: Boolean
 .P
 Save installed packages to a package.json file as \fBpeerDependencies\fR
 .P
-This config can not be used with: \fBsave-dev\fR, \fBsave-optional\fR, \fBsave-prod\fR
+This config cannot be used with: \fBsave-dev\fR, \fBsave-optional\fR, \fBsave-prod\fR
 .SS "\fBsave-prefix\fR"
 .RS 0
 .IP \(bu 4
@@ -1415,8 +1416,7 @@ Type: String
 .P
 Configure how versions of packages installed to a package.json file via \fB--save\fR or \fB--save-dev\fR get prefixed.
 .P
-For example if a package has version \fB1.2.3\fR, by default its version is set to \fB^1.2.3\fR which allows minor upgrades for that package, but after \fBnpm
-config set save-prefix='~'\fR it would be set to \fB~1.2.3\fR which only allows patch upgrades.
+For example if a package has version \fB1.2.3\fR, by default its version is set to \fB^1.2.3\fR which allows minor upgrades for that package, but after \fBnpm config set save-prefix='~'\fR it would be set to \fB~1.2.3\fR which only allows patch upgrades.
 .SS "\fBsave-prod\fR"
 .RS 0
 .IP \(bu 4
@@ -1430,7 +1430,7 @@ Save installed packages into \fBdependencies\fR specifically. This is useful if 
 .P
 This is the default behavior if \fB--save\fR is true, and neither \fB--save-dev\fR or \fB--save-optional\fR are true.
 .P
-This config can not be used with: \fBsave-dev\fR, \fBsave-optional\fR, \fBsave-peer\fR
+This config cannot be used with: \fBsave-dev\fR, \fBsave-optional\fR, \fBsave-peer\fR
 .SS "\fBsbom-format\fR"
 .RS 0
 .IP \(bu 4
@@ -1494,8 +1494,7 @@ Type: null or String
 .RE 0
 
 .P
-The shell to use for scripts run with the \fBnpm exec\fR, \fBnpm run\fR and \fBnpm
-init <package-spec>\fR commands.
+The shell to use for scripts run with the \fBnpm exec\fR, \fBnpm run\fR and \fBnpm init <package-spec>\fR commands.
 .SS "\fBsearchexclude\fR"
 .RS 0
 .IP \(bu 4
@@ -1607,8 +1606,8 @@ Type: String
 .P
 If you ask npm to install a package and don't tell it a specific version, then it will install the specified tag.
 .P
-It is the tag added to the package@version specified in the \fBnpm dist-tag
-add\fR command, if no explicit tag is given.
+It is the tag added to the package@version specified in the \fBnpm
+dist-tag add\fR command, if no explicit tag is given.
 .P
 When used by the \fBnpm diff\fR command, this is the tag used to fetch the tarball that will be compared with the local files by default.
 .P

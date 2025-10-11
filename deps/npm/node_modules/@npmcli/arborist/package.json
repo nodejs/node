@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/arborist",
-  "version": "9.1.5",
+  "version": "9.1.6",
   "description": "Manage node_modules trees",
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",

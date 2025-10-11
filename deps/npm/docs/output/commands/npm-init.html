@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-init----1161">
+<h1 id="----npm-init----1162">
     <span>npm-init</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Create a package.json file</span>
 </header>
@@ -160,14 +160,10 @@ npm init &lt;@scope&gt; (same as `npx &lt;@scope&gt;/create`)
 aliases: create, innit
 </code></pre>
 <h3 id="description">Description</h3>
-<p><code>npm init &lt;initializer&gt;</code> can be used to set up a new or existing npm
-package.</p>
+<p><code>npm init &lt;initializer&gt;</code> can be used to set up a new or existing npm package.</p>
 <p><code>initializer</code> in this case is an npm package named <code>create-&lt;initializer&gt;</code>,
-which will be installed by <a href="../commands/npm-exec.html"><code>npm-exec</code></a>, and then have its
-main bin executed -- presumably creating or updating <code>package.json</code> and
-running any other initialization-related operations.</p>
-<p>The init command is transformed to a corresponding <code>npm exec</code> operation as
-follows:</p>
+which will be installed by <a href="../commands/npm-exec.html"><code>npm-exec</code></a>, and then have its main bin executed -- presumably creating or updating <code>package.json</code> and running any other initialization-related operations.</p>
+<p>The init command is transformed to a corresponding <code>npm exec</code> operation as follows:</p>
 <ul>
 <li><code>npm init foo</code> -&gt; <code>npm exec create-foo</code></li>
 <li><code>npm init @usr/foo</code> -&gt; <code>npm exec @usr/create-foo</code></li>
@@ -175,38 +171,30 @@ follows:</p>
 <li><code>npm init @usr@2.0.0</code> -&gt; <code>npm exec @usr/create@2.0.0</code></li>
 <li><code>npm init @usr/foo@2.0.0</code> -&gt; <code>npm exec @usr/create-foo@2.0.0</code></li>
 </ul>
-<p>If the initializer is omitted (by just calling <code>npm init</code>), init will fall
-back to legacy init behavior. It will ask you a bunch of questions, and
-then write a package.json for you. It will attempt to make reasonable
-guesses based on existing fields, dependencies, and options selected. It is
-strictly additive, so it will keep any fields and values that were already
-set. You can also use <code>-y</code>/<code>--yes</code> to skip the questionnaire altogether. If
-you pass <code>--scope</code>, it will create a scoped package.</p>
-<p><em>Note:</em> if a user already has the <code>create-&lt;initializer&gt;</code> package
-globally installed, that will be what <code>npm init</code> uses.  If you want npm
-to use the latest version, or another specific version you must specify
-it:</p>
+<p>If the initializer is omitted (by just calling <code>npm init</code>), init will fall back to legacy init behavior.
+It will ask you a bunch of questions, and then write a package.json for you.
+It will attempt to make reasonable guesses based on existing fields, dependencies, and options selected.
+It is strictly additive, so it will keep any fields and values that were already set.
+You can also use <code>-y</code>/<code>--yes</code> to skip the questionnaire altogether.
+If you pass <code>--scope</code>, it will create a scoped package.</p>
+<p><em>Note:</em> if a user already has the <code>create-&lt;initializer&gt;</code> package globally installed, that will be what <code>npm init</code> uses.
+If you want npm to use the latest version, or another specific version you must specify it:</p>
 <ul>
-<li><code>npm init foo@latest</code> # fetches and runs the latest <code>create-foo</code> from
-the registry</li>
+<li><code>npm init foo@latest</code> # fetches and runs the latest <code>create-foo</code> from the registry</li>
 <li><code>npm init foo@1.2.3</code> #  runs <code>create-foo@1.2.3</code> specifically</li>
 </ul>
 <h4 id="forwarding-additional-options">Forwarding additional options</h4>
 <p>Any additional options will be passed directly to the command, so <code>npm init foo -- --hello</code> will map to <code>npm exec -- create-foo --hello</code>.</p>
-<p>To better illustrate how options are forwarded, here's a more evolved
-example showing options passed to both the <strong>npm cli</strong> and a create package,
-both following commands are equivalent:</p>
+<p>To better illustrate how options are forwarded, here's a more evolved example showing options passed to both the <strong>npm cli</strong> and a create package, both following commands are equivalent:</p>
 <ul>
 <li><code>npm init foo -y --registry=&lt;url&gt; -- --hello -a</code></li>
 <li><code>npm exec -y --registry=&lt;url&gt; -- create-foo --hello -a</code></li>
 </ul>
 <h3 id="examples">Examples</h3>
-<p>Create a new React-based project using
-<a href="https://npm.im/create-react-app"><code>create-react-app</code></a>:</p>
+<p>Create a new React-based project using <a href="https://npm.im/create-react-app"><code>create-react-app</code></a>:</p>
 <pre><code class="language-bash">$ npm init react-app ./my-react-app
 </code></pre>
-<p>Create a new <code>esm</code>-compatible package using
-<a href="https://npm.im/create-esm"><code>create-esm</code></a>:</p>
+<p>Create a new <code>esm</code>-compatible package using <a href="https://npm.im/create-esm"><code>create-esm</code></a>:</p>
 <pre><code class="language-bash">$ mkdir my-esm-lib &amp;&amp; cd my-esm-lib
 $ npm init esm --yes
 </code></pre>
@@ -222,11 +210,8 @@ $ npm init
 <pre><code class="language-bash">$ npm init --init-private -y
 </code></pre>
 <h3 id="workspaces-support">Workspaces support</h3>
-<p>It's possible to create a new workspace within your project by using the
-<code>workspace</code> config option. When using <code>npm init -w &lt;dir&gt;</code> the cli will
-create the folders and boilerplate expected while also adding a reference
-to your project <code>package.json</code> <code>"workspaces": []</code> property in order to make
-sure that new generated <strong>workspace</strong> is properly set up as such.</p>
+<p>It's possible to create a new workspace within your project by using the <code>workspace</code> config option.
+When using <code>npm init -w &lt;dir&gt;</code> the cli will create the folders and boilerplate expected while also adding a reference to your project <code>package.json</code> <code>"workspaces": []</code> property in order to make sure that new generated <strong>workspace</strong> is properly set up as such.</p>
 <p>Given a project with no workspaces, e.g:</p>
 <pre><code>.
 +-- package.json
@@ -234,28 +219,19 @@ sure that new generated <strong>workspace</strong> is properly set up as such.</
 <p>You may generate a new workspace using the legacy init:</p>
 <pre><code class="language-bash">$ npm init -w packages/a
 </code></pre>
-<p>That will generate a new folder and <code>package.json</code> file, while also updating
-your top-level <code>package.json</code> to add the reference to this new workspace:</p>
+<p>That will generate a new folder and <code>package.json</code> file, while also updating your top-level <code>package.json</code> to add the reference to this new workspace:</p>
 <pre><code>.
 +-- package.json
 `-- packages
    `-- a
        `-- package.json
 </code></pre>
-<p>The workspaces init also supports the <code>npm init &lt;initializer&gt; -w &lt;dir&gt;</code>
-syntax, following the same set of rules explained earlier in the initial
-<strong>Description</strong> section of this page. Similar to the previous example of
-creating a new React-based project using
-<a href="https://npm.im/create-react-app"><code>create-react-app</code></a>, the following syntax
-will make sure to create the new react app as a nested <strong>workspace</strong> within your
-project and configure your <code>package.json</code> to recognize it as such:</p>
+<p>The workspaces init also supports the <code>npm init &lt;initializer&gt; -w &lt;dir&gt;</code> syntax, following the same set of rules explained earlier in the initial
+<strong>Description</strong> section of this page.
+Similar to the previous example of creating a new React-based project using <a href="https://npm.im/create-react-app"><code>create-react-app</code></a>, the following syntax will make sure to create the new react app as a nested <strong>workspace</strong> within your project and configure your <code>package.json</code> to recognize it as such:</p>
 <pre><code class="language-bash">npm init -w packages/my-react-app react-app .
 </code></pre>
-<p>This will make sure to generate your react app as expected, one important
-consideration to have in mind is that <code>npm exec</code> is going to be run in the
-context of the newly created folder for that workspace, and that's the reason
-why in this example the initializer uses the initializer name followed with a
-dot to represent the current directory in that context, e.g: <code>react-app .</code>:</p>
+<p>This will make sure to generate your react app as expected, one important consideration to have in mind is that <code>npm exec</code> is going to be run in the context of the newly created folder for that workspace, and that's the reason why in this example the initializer uses the initializer name followed with a dot to represent the current directory in that context, e.g: <code>react-app .</code>:</p>
 <pre><code>.
 +-- package.json
 `-- packages
@@ -272,7 +248,8 @@ dot to represent the current directory in that context, e.g: <code>react-app .</
 <li>Default: ""</li>
 <li>Type: String</li>
 </ul>
-<p>The value <code>npm init</code> should use by default for the package author's name.</p>
+<p>The value <code>npm init</code> should use by default for the package author's
+name.</p>
 <h4 id="init-author-url"><code>init-author-url</code></h4>
 <ul>
 <li>Default: ""</li>
@@ -293,28 +270,29 @@ homepage.</p>
 </ul>
 <p>A module that will be loaded by the <code>npm init</code> command. See the
 documentation for the
-<a href="https://github.com/npm/init-package-json">init-package-json</a> module for
-more information, or <a href="../commands/npm-init.html">npm init</a>.</p>
+<a href="https://github.com/npm/init-package-json">init-package-json</a> module
+for more information, or <a href="../commands/npm-init.html">npm init</a>.</p>
 <h4 id="init-type"><code>init-type</code></h4>
 <ul>
 <li>Default: "commonjs"</li>
 <li>Type: String</li>
 </ul>
-<p>The value that <code>npm init</code> should use by default for the package.json type
-field.</p>
+<p>The value that <code>npm init</code> should use by default for the package.json
+type field.</p>
 <h4 id="init-version"><code>init-version</code></h4>
 <ul>
 <li>Default: "1.0.0"</li>
 <li>Type: SemVer string</li>
 </ul>
-<p>The value that <code>npm init</code> should use by default for the package version
-number, if not already set in package.json.</p>
+<p>The value that <code>npm init</code> should use by default for the package
+version number, if not already set in package.json.</p>
 <h4 id="init-private"><code>init-private</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>The value <code>npm init</code> should use by default for the package's private flag.</p>
+<p>The value <code>npm init</code> should use by default for the package's private
+flag.</p>
 <h4 id="yes"><code>yes</code></h4>
 <ul>
 <li>Default: null</li>
@@ -333,14 +311,16 @@ mistakes, unnecessary performance degradation, and malicious input.</p>
 <li>Allow clobbering non-npm files in global installs.</li>
 <li>Allow the <code>npm version</code> command to work on an unclean git repository.</li>
 <li>Allow deleting the cache folder with <code>npm cache clean</code>.</li>
-<li>Allow installing packages that have an <code>engines</code> declaration requiring a
-different version of npm.</li>
-<li>Allow installing packages that have an <code>engines</code> declaration requiring a
-different version of <code>node</code>, even if <code>--engine-strict</code> is enabled.</li>
-<li>Allow <code>npm audit fix</code> to install modules outside your stated dependency
-range (including SemVer-major changes).</li>
+<li>Allow installing packages that have an <code>engines</code> declaration
+requiring a different version of npm.</li>
+<li>Allow installing packages that have an <code>engines</code> declaration
+requiring a different version of <code>node</code>, even if <code>--engine-strict</code> is
+enabled.</li>
+<li>Allow <code>npm audit fix</code> to install modules outside your stated
+dependency range (including SemVer-major changes).</li>
 <li>Allow unpublishing all versions of a published package.</li>
-<li>Allow conflicting peerDependencies to be installed in the root project.</li>
+<li>Allow conflicting peerDependencies to be installed in the root
+project.</li>
 <li>Implicitly set <code>--yes</code> during <code>npm init</code>.</li>
 <li>Allow clobbering existing values in <code>npm pkg</code></li>
 <li>Allow unpublishing of entire packages (not just a single version).</li>
@@ -373,9 +353,9 @@ npm init --scope=@foo --yes
 <li>Default:</li>
 <li>Type: String (can be set multiple times)</li>
 </ul>
-<p>Enable running a command in the context of the configured workspaces of the
-current project while filtering by running only the workspaces defined by
-this configuration option.</p>
+<p>Enable running a command in the context of the configured workspaces
+of the current project while filtering by running only the workspaces
+defined by this configuration option.</p>
 <p>Valid values for the <code>workspace</code> config are either:</p>
 <ul>
 <li>Workspace names</li>
@@ -383,9 +363,9 @@ this configuration option.</p>
 <li>Path to a parent workspace directory (will result in selecting all
 workspaces within that folder)</li>
 </ul>
-<p>When set for the <code>npm init</code> command, this may be set to the folder of a
-workspace which does not yet exist, to create the folder and set it up as a
-brand new workspace within the project.</p>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of
+a workspace which does not yet exist, to create the folder and set it
+up as a brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
@@ -394,13 +374,14 @@ brand new workspace within the project.</p>
 </ul>
 <p>Set to true to run the command in the context of <strong>all</strong> configured
 workspaces.</p>
-<p>Explicitly setting this to false will cause commands like <code>install</code> to
-ignore workspaces altogether. When not set explicitly:</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code>
+to ignore workspaces altogether. When not set explicitly:</p>
 <ul>
-<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
-will link workspaces into the <code>node_modules</code> folder. - Commands that do
-other things (test, exec, publish, etc.) will operate on the root project,
-<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update,
+etc.) will link workspaces into the <code>node_modules</code> folder. - Commands
+that do other things (test, exec, publish, etc.) will operate on the
+root project, <em>unless</em> one or more workspaces are specified in the
+<code>workspace</code> config.</li>
 </ul>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="workspaces-update"><code>workspaces-update</code></h4>
@@ -408,17 +389,19 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>If set to true, the npm cli will run an update after operations that may
-possibly change the workspaces installed to the <code>node_modules</code> folder.</p>
+<p>If set to true, the npm cli will run an update after operations that
+may possibly change the workspaces installed to the <code>node_modules</code>
+folder.</p>
 <h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Include the workspace root when workspaces are enabled for a command.</p>
-<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
-all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
-the specified workspaces, and not on the root project.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code>
+config, or all workspaces via the <code>workspaces</code> flag, will cause npm
+to operate only on the specified workspaces, and not on the root
+project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h3 id="see-also">See Also</h3>
 <ul>

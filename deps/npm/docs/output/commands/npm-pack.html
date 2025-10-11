@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-pack----1161">
+<h1 id="----npm-pack----1162">
     <span>npm-pack</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Create a tarball from a package</span>
 </header>
@@ -162,12 +162,13 @@ npm command-line interface
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Indicates that you don't want npm to make any changes and that it should
-only report what it would have done. This can be passed into any of the
-commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
-<code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
-<p>Note: This is NOT honored by other network related commands, eg <code>dist-tags</code>,
-<code>owner</code>, etc.</p>
+<p>Indicates that you don't want npm to make any changes and that it
+should only report what it would have done. This can be passed into
+any of the commands that modify your local installation, eg,
+<code>install</code>, <code>update</code>, <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and
+<code>publish</code>.</p>
+<p>Note: This is NOT honored by other network related commands, eg
+<code>dist-tags</code>, <code>owner</code>, etc.</p>
 <h4 id="json"><code>json</code></h4>
 <ul>
 <li>Default: false</li>
@@ -175,8 +176,8 @@ commands that modify your local installation, eg, <code>install</code>, <code>up
 </ul>
 <p>Whether or not to output JSON data, rather than the normal output.</p>
 <ul>
-<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
-saving them to your <code>package.json</code>.</li>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse()
+before saving them to your <code>package.json</code>.</li>
 </ul>
 <p>Not supported by all npm commands.</p>
 <h4 id="pack-destination"><code>pack-destination</code></h4>
@@ -190,9 +191,9 @@ saving them to your <code>package.json</code>.</li>
 <li>Default:</li>
 <li>Type: String (can be set multiple times)</li>
 </ul>
-<p>Enable running a command in the context of the configured workspaces of the
-current project while filtering by running only the workspaces defined by
-this configuration option.</p>
+<p>Enable running a command in the context of the configured workspaces
+of the current project while filtering by running only the workspaces
+defined by this configuration option.</p>
 <p>Valid values for the <code>workspace</code> config are either:</p>
 <ul>
 <li>Workspace names</li>
@@ -200,9 +201,9 @@ this configuration option.</p>
 <li>Path to a parent workspace directory (will result in selecting all
 workspaces within that folder)</li>
 </ul>
-<p>When set for the <code>npm init</code> command, this may be set to the folder of a
-workspace which does not yet exist, to create the folder and set it up as a
-brand new workspace within the project.</p>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of
+a workspace which does not yet exist, to create the folder and set it
+up as a brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
@@ -211,13 +212,14 @@ brand new workspace within the project.</p>
 </ul>
 <p>Set to true to run the command in the context of <strong>all</strong> configured
 workspaces.</p>
-<p>Explicitly setting this to false will cause commands like <code>install</code> to
-ignore workspaces altogether. When not set explicitly:</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code>
+to ignore workspaces altogether. When not set explicitly:</p>
 <ul>
-<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
-will link workspaces into the <code>node_modules</code> folder. - Commands that do
-other things (test, exec, publish, etc.) will operate on the root project,
-<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update,
+etc.) will link workspaces into the <code>node_modules</code> folder. - Commands
+that do other things (test, exec, publish, etc.) will operate on the
+root project, <em>unless</em> one or more workspaces are specified in the
+<code>workspace</code> config.</li>
 </ul>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
@@ -226,9 +228,10 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <li>Type: Boolean</li>
 </ul>
 <p>Include the workspace root when workspaces are enabled for a command.</p>
-<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
-all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
-the specified workspaces, and not on the root project.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code>
+config, or all workspaces via the <code>workspaces</code> flag, will cause npm
+to operate only on the specified workspaces, and not on the root
+project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
 <ul>
@@ -236,18 +239,12 @@ the specified workspaces, and not on the root project.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>If true, npm does not run scripts specified in package.json files.</p>
-<p>Note that commands explicitly intended to run a particular script, such as
-<code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run</code> will still
-run their intended script if <code>ignore-scripts</code> is set, but they will <em>not</em>
-run any pre- or post-scripts.</p>
+<p>Note that commands explicitly intended to run a particular script,
+such as <code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run</code> will still run their intended script if <code>ignore-scripts</code> is set,
+but they will <em>not</em> run any pre- or post-scripts.</p>
 <h3 id="description">Description</h3>
-<p>For anything that's installable (that is, a package folder, tarball,
-tarball url, git url, name@tag, name@version, name, or scoped name), this
-command will fetch it to the cache, copy the tarball to the current working
-directory as <code>&lt;name&gt;-&lt;version&gt;.tgz</code>, and then write the filenames out to
-stdout.</p>
-<p>If the same package is specified multiple times, then the file will be
-overwritten the second time.</p>
+<p>For anything that's installable (that is, a package folder, tarball, tarball url, git url, name@tag, name@version, name, or scoped name), this command will fetch it to the cache, copy the tarball to the current working directory as <code>&lt;name&gt;-&lt;version&gt;.tgz</code>, and then write the filenames out to stdout.</p>
+<p>If the same package is specified multiple times, then the file will be overwritten the second time.</p>
 <p>If no arguments are supplied, then npm packs the current package folder.</p>
 <h3 id="see-also">See Also</h3>
 <ul>

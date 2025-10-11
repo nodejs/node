@@ -3,6 +3,7 @@
 const { Walker: IgnoreWalker } = require('ignore-walk')
 const { lstatSync: lstat, readFileSync: readFile } = require('fs')
 const { basename, dirname, extname, join, relative, resolve, sep } = require('path')
+const { log } = require('proc-log')
 
 // symbols used to represent synthetic rule sets
 const defaultRules = Symbol('npm-packlist.rules.default')
@@ -92,6 +93,7 @@ class PackWalker extends IgnoreWalker {
     }
 
     super(options)
+
     this.isPackage = options.isPackage
     this.seen = options.seen || new Set()
     this.tree = tree
@@ -168,6 +170,11 @@ class PackWalker extends IgnoreWalker {
     } else if (this.ignoreRules['.npmignore']) {
       // .npmignore means no .gitignore
       this.ignoreRules['.gitignore'] = null
+    } else if (this.ignoreRules['.gitignore'] && !this.ignoreRules['.npmignore']) {
+      log.warn(
+        'gitignore-fallback',
+        'No .npmignore file found, using .gitignore for file exclusion. Consider creating a .npmignore file to explicitly control published files.'
+      )
     }
 
     return super.filterEntries()
