@@ -704,7 +704,7 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = realm->env();
 
   if (!obj->IsLinked()) {
-    THROW_ERR_VM_MODULE_LINK_FAILURE(isolate, module_request, "not yet linked");
+    THROW_ERR_VM_MODULE_LINK_FAILURE(env, "module is not yet linked");
     return;
   }
 
