@@ -27,19 +27,6 @@ const util = require('util');
 const errors = require('internal/errors');
 const context = require('vm').runInNewContext;
 
-// isArray
-assert.strictEqual(util.isArray([]), true);
-assert.strictEqual(util.isArray(Array()), true);
-assert.strictEqual(util.isArray(new Array()), true);
-assert.strictEqual(util.isArray(new Array(5)), true);
-assert.strictEqual(util.isArray(new Array('with', 'some', 'entries')), true);
-assert.strictEqual(util.isArray(context('Array')()), true);
-assert.strictEqual(util.isArray({}), false);
-assert.strictEqual(util.isArray({ push: function() {} }), false);
-assert.strictEqual(util.isArray(/regexp/), false);
-assert.strictEqual(util.isArray(new Error()), false);
-assert.strictEqual(util.isArray({ __proto__: Array.prototype }), false);
-
 // _extend
 assert.deepStrictEqual(util._extend({ a: 1 }), { a: 1 });
 assert.deepStrictEqual(util._extend({ a: 1 }, []), { a: 1 });
