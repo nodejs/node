@@ -476,6 +476,38 @@ are equal to [`process.execPath`][].
 The value of `__dirname` in the injected main script is equal to the directory
 name of [`process.execPath`][].
 
+### Using native addons in the injected main script
+
+Native addons can be bundled as assets into the single-executable application
+by specifying them in the `assets` field of the configuration file used to
+generate the single-executable application preparation blob.
+The addon can then be loaded in the injected main script by writing the asset
+to a temporary file and loading it with `process.dlopen()`.
+
+```json
+{
+  "main": "/path/to/bundled/script.js",
+  "output": "/path/to/write/the/generated/blob.blob",
+  "assets": {
+    "myaddon.node": "/path/to/myaddon/build/Release/myaddon.node"
+  }
+}
+```
+
+```js
+// script.js
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { getRawAsset } = require('node:sea');
+const addonPath = path.join(os.tmpdir(), 'myaddon.node');
+fs.writeFileSync(addonPath, new Uint8Array(getRawAsset('myaddon.node')));
+const myaddon = { exports: {} };
+process.dlopen(myaddon, addonPath);
+console.log(myaddon.exports);
+fs.rmSync(addonPath);
+```
+
 ## Notes
 
 ### Single executable application creation process
