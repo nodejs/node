@@ -2719,7 +2719,7 @@ void LiftoffAssembler::emit_v128_anytrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  I8x16BitMask(dst.gp(), src.fp().toSimd(), r0, ip, kScratchSimd128Reg);
+  I8x16BitMask(dst.gp(), src.fp().toSimd(), ip, r0, kScratchSimd128Reg);
 }
 
 void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,

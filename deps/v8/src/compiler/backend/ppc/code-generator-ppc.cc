@@ -2737,7 +2737,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I8x16BitMask: {
-      __ I8x16BitMask(i.OutputRegister(), i.InputSimd128Register(0), r0, ip,
+      __ I8x16BitMask(i.OutputRegister(), i.InputSimd128Register(0), ip, r0,
                       kScratchSimd128Reg);
       break;
     }
