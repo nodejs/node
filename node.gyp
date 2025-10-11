@@ -112,6 +112,8 @@
       'src/node_dir.cc',
       'src/node_dotenv.cc',
       'src/node_env_var.cc',
+      'src/node_embedding_api.cc',
+      'src/node_embedding_api.h',
       'src/node_errors.cc',
       'src/node_external_reference.cc',
       'src/node_file.cc',
