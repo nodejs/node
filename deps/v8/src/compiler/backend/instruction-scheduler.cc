@@ -336,7 +336,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
 #if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
     case kArchCallWasmFunctionIndirect:
-    case kArchResumeWasmContinuation:
 #endif  // V8_ENABLE_WEBASSEMBLY
     case kArchCallBuiltinPointer:
       // Calls can cause GC and GC may relocate objects. If a pure instruction
@@ -348,6 +347,11 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchStoreWithWriteBarrier:
     case kArchAtomicStoreWithWriteBarrier:
     case kArchStoreIndirectWithWriteBarrier:
+      return kHasSideEffect;
+
+    case kArchStoreSkippedWriteBarrier:
+    case kArchAtomicStoreSkippedWriteBarrier:
+    case kArchStoreIndirectSkippedWriteBarrier:
       return kHasSideEffect;
 
     case kAtomicLoadInt8:

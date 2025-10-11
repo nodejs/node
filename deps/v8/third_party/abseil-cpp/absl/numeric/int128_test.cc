@@ -463,6 +463,15 @@ TEST(Uint128, ConstexprTest) {
   EXPECT_EQ(one, absl::uint128(1));
   EXPECT_EQ(minus_two, absl::MakeUint128(-1, -2));
 
+  constexpr double f = static_cast<float>(absl::uint128(123));
+  EXPECT_EQ(f, 123.0f);
+
+  constexpr double d = static_cast<double>(absl::uint128(123));
+  EXPECT_EQ(d, 123.0);
+
+  constexpr long double ld = static_cast<long double>(absl::uint128(123));
+  EXPECT_EQ(ld, 123.0);
+
 #ifdef ABSL_HAVE_INTRINSIC_INT128
   constexpr absl::uint128 division = absl::uint128(10) / absl::uint128(2);
   EXPECT_EQ(division, absl::uint128(5));
@@ -779,7 +788,25 @@ TEST(Int128, ConstexprTest) {
   EXPECT_GT(max, one);
   EXPECT_LT(min, minus_two);
 
+  constexpr double f = static_cast<float>(absl::int128(123));
+  EXPECT_EQ(f, 123.0f);
+
+  constexpr double d = static_cast<double>(absl::int128(123));
+  EXPECT_EQ(d, 123.0);
+
+  constexpr long double ld = static_cast<long double>(absl::int128(123));
+  EXPECT_EQ(ld, 123.0);
+
 #ifdef ABSL_HAVE_INTRINSIC_INT128
+  constexpr absl::int128 f_int128(static_cast<float>(123.0));
+  EXPECT_EQ(f_int128, absl::int128(123));
+
+  constexpr absl::int128 d_int128(static_cast<double>(123.0));
+  EXPECT_EQ(d_int128, absl::int128(123));
+
+  constexpr absl::int128 ld_int128(static_cast<long double>(123.0));
+  EXPECT_EQ(ld_int128, absl::int128(123));
+
   constexpr absl::int128 division = absl::int128(10) / absl::int128(2);
   EXPECT_EQ(division, absl::int128(5));
 

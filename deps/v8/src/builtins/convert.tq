@@ -345,14 +345,14 @@ Convert<float64, float32>(f: float32): float64 {
 }
 Convert<float64_or_undefined_or_hole, float64>(f: float64):
     float64_or_undefined_or_hole {
-  @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+  @if(V8_ENABLE_UNDEFINED_DOUBLE) {
     return float64_or_undefined_or_hole{
       is_undefined: false,
       is_hole: false,
       value: f
     };
   }
-  @ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+  @ifnot(V8_ENABLE_UNDEFINED_DOUBLE) {
     return float64_or_undefined_or_hole{is_hole: false, value: f};
   }
 }

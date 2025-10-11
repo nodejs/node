@@ -286,6 +286,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   //
   // This method is atomic and can be called from background threads.
   inline void Mark(JSDispatchHandle handle);
+  inline bool IsMarked(JSDispatchHandle handle);
 
   // Frees all unmarked entries in the given space.
   //
@@ -310,9 +311,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // The base address of this table, for use in JIT compilers.
   Address base_address() const { return base(); }
 
-#if V8_VERIFY_WRITE_BARRIERS
-  bool IsMarked(JSDispatchHandle handle);
-#endif  // V8_VERIFY_WRITE_BARRIERS
 #if defined(DEBUG) || defined(VERIFY_HEAP)
   inline void VerifyEntry(JSDispatchHandle handle, Space* space,
                           Space* ro_space);

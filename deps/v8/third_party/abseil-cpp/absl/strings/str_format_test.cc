@@ -65,8 +65,8 @@ TEST_F(FormatEntryPointTest, UntypedFormat) {
     "",
     "a",
     "%80d",
-#if !defined(_MSC_VER) && !defined(__ANDROID__) && !defined(__native_client__)
-    // MSVC, NaCL and Android don't support positional syntax.
+#if !defined(_MSC_VER) && !defined(__ANDROID__)
+    // MSVC and Android don't support positional syntax.
     "complicated multipart %% %1$d format %1$0999d",
 #endif  // _MSC_VER
   };
@@ -266,8 +266,8 @@ TEST_F(FormatEntryPointTest, Stream) {
     "a",
     "%80d",
     "%d %u %c %s %f %g",
-#if !defined(_MSC_VER) && !defined(__ANDROID__) && !defined(__native_client__)
-    // MSVC, NaCL and Android don't support positional syntax.
+#if !defined(_MSC_VER) && !defined(__ANDROID__)
+    // MSVC and Android don't support positional syntax.
     "complicated multipart %% %1$d format %1$080d",
 #endif  // _MSC_VER
   };

@@ -1021,14 +1021,14 @@ bool Heap::CreateImportantReadOnlyObjects() {
 
   set_nan_value(*factory->NewHeapNumber<AllocationType::kReadOnly>(
       std::numeric_limits<double>::quiet_NaN()));
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   set_undefined_nan_value(
       *factory->NewHeapNumberFromBits<AllocationType::kReadOnly>(
           kUndefinedNanInt64));
 #else
   set_undefined_nan_value(*factory->NewHeapNumber<AllocationType::kReadOnly>(
       std::numeric_limits<double>::quiet_NaN()));
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   set_hole_nan_value(*factory->NewHeapNumberFromBits<AllocationType::kReadOnly>(
       kHoleNanInt64));
   set_infinity_value(
@@ -1311,28 +1311,6 @@ bool Heap::CreateReadOnlyObjects() {
     set_preallocated_number_string_table(*preallocated_number_string_table);
   }
 
-  // Set up the hole values in one range
-  set_the_hole_value(UncheckedCast<TheHole>(*factory->NewHole()));
-
-  set_property_cell_hole_value(
-      UncheckedCast<PropertyCellHole>(*factory->NewHole()));
-  set_hash_table_hole_value(UncheckedCast<HashTableHole>(*factory->NewHole()));
-  set_promise_hole_value(UncheckedCast<PromiseHole>(*factory->NewHole()));
-  set_uninitialized_value(
-      UncheckedCast<UninitializedHole>(*factory->NewHole()));
-  set_arguments_marker(UncheckedCast<ArgumentsMarker>(*factory->NewHole()));
-  set_termination_exception(
-      UncheckedCast<TerminationException>(*factory->NewHole()));
-  set_exception(UncheckedCast<ExceptionHole>(*factory->NewHole()));
-  set_optimized_out(UncheckedCast<OptimizedOut>(*factory->NewHole()));
-  set_stale_register(UncheckedCast<StaleRegister>(*factory->NewHole()));
-
-  // Initialize marker objects used during compilation.
-  set_self_reference_marker(
-      UncheckedCast<SelfReferenceMarker>(*factory->NewHole()));
-  set_basic_block_counters_marker(
-      UncheckedCast<BasicBlockCountersMarker>(*factory->NewHole()));
-
   // Initialize the wasm null_value.
 
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -1345,16 +1323,24 @@ bool Heap::CreateReadOnlyObjects() {
   // contained on a separate OS page which can be protected.
   // In non-static-roots builds, it is a regular object of size {kTaggedSize}
   // and does not need padding.
+#define V8_UNMAP_WASM_NULL_PAYLOAD \
+  (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL)
 
+#if V8_UNMAP_WASM_NULL_PAYLOAD
   constexpr size_t kLargestPossibleOSPageSize = 64 * KB;
   static_assert(kLargestPossibleOSPageSize >= kMinimumOSPageSize);
 
-  if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL) {
+  {
     // Ensure all of the following lands on the same V8 page.
     constexpr int kOffsetAfterMapWord = HeapObject::kMapOffset + kTaggedSize;
     static_assert(kOffsetAfterMapWord % kObjectAlignment == 0);
-    read_only_space_->EnsureSpaceForAllocation(
-        kLargestPossibleOSPageSize + WasmNull::kSize - kOffsetAfterMapWord);
+
+    constexpr size_t kPaddingSize =
+        WasmNull::kSizeWithFullPayload - kOffsetAfterMapWord;
+    static_assert(kPaddingSize == 2 * kLargestPossibleOSPageSize);
+
+    read_only_space_->EnsureSpaceForAllocation(WasmNull::kSizeWithFullPayload -
+                                               kOffsetAfterMapWord);
     Address next_page = RoundUp(read_only_space_->top() + kOffsetAfterMapWord,
                                 kLargestPossibleOSPageSize);
 
@@ -1372,26 +1358,105 @@ bool Heap::CreateReadOnlyObjects() {
                          ClearFreedMemoryMode::kClearFreedMemory);
     set_wasm_null_padding(filler);
     CHECK_EQ(read_only_space_->top() + kOffsetAfterMapWord, next_page);
-  } else {
-    set_wasm_null_padding(roots.undefined_value());
   }
 
-  // Finally, allocate the wasm-null object.
+  {
+    // Finally, allocate the wasm-null object.
+    // Massive hack: the WasmNull with two payloads is too large for a regular,
+    // non-LO-space object. This doesn't actually really matter in RO space, so
+    // do two allocations side-by-side and write the WasmNull over both of them.
+    AllocationResult first_allocation = AllocateRaw(
+        WasmNull::kSizeWithFullPayload - WasmNull::kSecondPayloadSize,
+        AllocationType::kReadOnly);
+    AllocationResult second_allocation =
+        AllocateRaw(WasmNull::kSecondPayloadSize, AllocationType::kReadOnly);
+    CHECK(!first_allocation.IsFailure());
+    CHECK(!second_allocation.IsFailure());
+    Tagged<HeapObject> wasm_null_obj;
+    CHECK(first_allocation.To(&wasm_null_obj));
+    wasm_null_obj->set_map_after_allocation(isolate(), roots.wasm_null_map(),
+                                            SKIP_WRITE_BARRIER);
+    // No need to initialize the payload since it's either empty or unmapped.
+
+    Tagged<WasmNull> wasm_null = Cast<WasmNull>(wasm_null_obj);
+
+    CHECK_EQ(wasm_null->second_payload(), second_allocation.ToAddress());
+
+    CHECK_EQ(read_only_space_->top() % kLargestPossibleOSPageSize, 0);
+    CHECK_EQ(wasm_null->first_payload() % kLargestPossibleOSPageSize, 0);
+    CHECK_EQ(wasm_null->second_payload() % kLargestPossibleOSPageSize, 0);
+
+    set_wasm_null(wasm_null);
+  }
+#else
+  // There is no padding before the wasm_null.
+  set_wasm_null_padding(roots.undefined_value());
+
+  // Allocate the WasmNull.
   {
     Tagged<HeapObject> wasm_null_obj;
     CHECK(AllocateRaw(WasmNull::kSize, AllocationType::kReadOnly)
               .To(&wasm_null_obj));
-    // No need to initialize the payload since it's either empty or unmapped.
-    CHECK_IMPLIES(!(V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL),
-                  WasmNull::kSize == sizeof(Tagged_t));
     wasm_null_obj->set_map_after_allocation(isolate(), roots.wasm_null_map(),
                                             SKIP_WRITE_BARRIER);
     set_wasm_null(Cast<WasmNull>(wasm_null_obj));
-    if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL) {
-      CHECK_EQ(read_only_space_->top() % kLargestPossibleOSPageSize, 0);
-    }
   }
-#endif
+#endif  // V8_UNMAP_WASM_NULL_PAYLOAD
+
+#else
+#define V8_UNMAP_WASM_NULL_PAYLOAD false
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  int i = 0;
+  auto make_hole = [this, roots, factory, &i]() {
+#if V8_UNMAP_WASM_NULL_PAYLOAD
+    USE(factory);
+    // For configurations where the WasmNull has a large unmapped padding
+    // area, allocate the holes inside this padding so that they are also
+    // unmapped.
+    Tagged<Hole> hole = UncheckedCast<Hole>(HeapObject::FromAddress(
+        roots.wasm_null()->second_payload() + (i * sizeof(Hole))));
+
+    hole->set_map_after_allocation(isolate(), roots.hole_map(),
+                                   SKIP_WRITE_BARRIER);
+    // Make sure the holes are in the right position for unmapping whether or
+    // not --unmap-holes is set.
+    DCHECK_EQ(static_cast<Tagged_t>(hole.address()),
+              2 * kLargestPossibleOSPageSize + i * sizeof(Hole));
+
+    i++;
+    return hole;
+#else
+    USE(this, roots, i);
+    return *factory->NewHole();
+#endif  // V8_UNMAP_WASM_NULL_PAYLOAD
+  };
+
+  // Set up the hole values in one range
+  set_the_hole_value(UncheckedCast<TheHole>(make_hole()));
+
+  set_property_cell_hole_value(UncheckedCast<PropertyCellHole>(make_hole()));
+  set_hash_table_hole_value(UncheckedCast<HashTableHole>(make_hole()));
+  set_promise_hole_value(UncheckedCast<PromiseHole>(make_hole()));
+  set_uninitialized_value(UncheckedCast<UninitializedHole>(make_hole()));
+  set_arguments_marker(UncheckedCast<ArgumentsMarker>(make_hole()));
+  set_termination_exception(UncheckedCast<TerminationException>(make_hole()));
+  set_exception(UncheckedCast<ExceptionHole>(make_hole()));
+  set_optimized_out(UncheckedCast<OptimizedOut>(make_hole()));
+  set_stale_register(UncheckedCast<StaleRegister>(make_hole()));
+
+  // Initialize marker objects used during compilation.
+  set_self_reference_marker(UncheckedCast<SelfReferenceMarker>(make_hole()));
+  set_basic_block_counters_marker(
+      UncheckedCast<BasicBlockCountersMarker>(make_hole()));
+
+#if V8_UNMAP_WASM_NULL_PAYLOAD
+  Address after_last_hole =
+      roots.wasm_null()->second_payload() + (i * sizeof(Hole));
+  int filler_size = static_cast<int>(read_only_space_->top() - after_last_hole);
+  CreateFillerObjectAt(after_last_hole, filler_size,
+                       ClearFreedMemoryMode::kClearFreedMemory);
+#endif  // V8_UNMAP_WASM_NULL_PAYLOAD
 
   return true;
 }

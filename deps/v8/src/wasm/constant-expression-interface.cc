@@ -124,8 +124,13 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
   bool function_is_shared = module_->type(sig_index).is_shared;
   CanonicalValueType type =
       CanonicalValueType::Ref(module_->canonical_type_id(sig_index),
-                              function_is_shared, RefTypeKind::kFunction)
-          .AsExactIfEnabled(decoder->enabled_);
+                              function_is_shared, RefTypeKind::kFunction);
+  // Imported functions can be subtypes of their static import type,
+  // for non-imported functions we can return an exact type.
+  if (decoder->enabled_.has_custom_descriptors() &&
+      function_index >= module_->num_imported_functions) {
+    type = type.AsExact();
+  }
   DirectHandle<WasmFuncRef> func_ref =
       WasmTrustedInstanceData::GetOrCreateFuncRef(
           isolate_,

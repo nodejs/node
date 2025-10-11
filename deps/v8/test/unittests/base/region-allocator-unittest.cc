@@ -482,5 +482,27 @@ TEST(RegionAllocatorTest, AllocateExcluded) {
   CHECK_EQ(ra.TrimRegion(address, kPageSize), 0);
 }
 
+TEST(RegionAllocatorTest, GetLargestFreeRegionSize) {
+  const size_t kPageSize = 4 * KB;
+  const size_t kPageCount = 10;
+  const size_t kSize = kPageSize * kPageCount;
+  const Address kBegin = static_cast<Address>(0);
+
+  RegionAllocator ra(kBegin, kSize, kPageSize);
+  CHECK_EQ(ra.GetLargestFreeRegionSize(), 10 * kPageSize);
+
+  ra.AllocateRegionAt(8 * kPageSize, kPageSize);
+  CHECK_EQ(ra.GetLargestFreeRegionSize(), 8 * kPageSize);
+
+  ra.AllocateRegionAt(1 * kPageSize, kPageSize);
+  CHECK_EQ(ra.GetLargestFreeRegionSize(), 6 * kPageSize);
+
+  ra.AllocateRegionAt(5 * kPageSize, kPageSize);
+  CHECK_EQ(ra.GetLargestFreeRegionSize(), 3 * kPageSize);
+
+  ra.FreeRegion(5 * kPageSize);
+  CHECK_EQ(ra.GetLargestFreeRegionSize(), 6 * kPageSize);
+}
+
 }  // namespace base
 }  // namespace v8

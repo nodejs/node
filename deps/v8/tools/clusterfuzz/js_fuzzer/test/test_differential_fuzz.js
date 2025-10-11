@@ -259,9 +259,16 @@ describe('Differential fuzzing with fuzzilli', () => {
         scriptMutator.defaultSettings(), helpers.DB_DIR);
 
     // Configure 3 output tests and V8 engine.
-    const testRunner = new mutator.runnerClass(
-        program.input_dir, 'v8', 3);
-    for (const [i, inputs] of testRunner.enumerateInputs()) {
+    const settings = {
+      input_dir: program.input_dir,
+      diff_fuzz: true,
+      engine: 'v8',
+      no_of_files: 3,
+    };
+    const testRunner = new mutator.runnerClass(settings);
+    const inputSets = Array.from(testRunner.enumerateInputs());
+    assert.equal(3, inputSets.length);
+    for (const [i, inputs] of inputSets) {
       const mutated = mutator.mutateMultiple(inputs);
       helpers.assertExpectedResult(
           `differential_fuzz_fuzzilli/expected_code_${i}.js`, mutated.code);

@@ -115,6 +115,13 @@ class ScriptMutator {
     return runner.RandomCorpusRunnerWithFuzzilli;
   }
 
+  /**
+   * Create the runner defined by `runnerClass`.
+   */
+  createRunner() {
+    return new this.runnerClass(this.settings);
+  }
+
   _addMjsunitIfNeeded(dependencies, input) {
     if (dependencies.has('mjsunit')) {
       return;

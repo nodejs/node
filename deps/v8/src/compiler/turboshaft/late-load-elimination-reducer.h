@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "src/base/compiler-specific.h"
 #include "src/base/doubly-threaded-list.h"
 #include "src/compiler/turboshaft/analyzer-iterator.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -439,11 +440,6 @@ class MemoryContentTable
     }
   }
 
-  void InvalidateAtMapOffset() {
-    TRACE(">>> InvalidateAtMapOffset");
-    InvalidateAtOffset(HeapObject::kMapOffset, OptionalOpIndex::Nullopt());
-  }
-
   OpIndex Find(const LoadOp& load) {
     OpIndex base = ResolveBase(load.base());
     OptionalOpIndex index = load.index();
@@ -574,9 +570,8 @@ class MemoryContentTable
     SetNoNotify(key, value);
   }
 
-  void InvalidateAtOffset(int32_t offset, OptionalOpIndex base) {
-    MapMaskAndOr base_maps{};
-    if (base.has_value()) base_maps = object_maps_.Get(base.value());
+  void InvalidateAtOffset(int32_t offset, OpIndex base) {
+    MapMaskAndOr base_maps = object_maps_.Get(base);
     auto offset_keys = offset_keys_.find(offset);
     if (offset_keys == offset_keys_.end()) return;
     for (auto it = offset_keys->second.begin();
@@ -746,7 +741,6 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
 
   void InvalidateAllNonAliasingInputs(const Operation& op);
   void InvalidateIfAlias(OpIndex op_idx);
-  void InvalidateAllMaps();
 
   PipelineData* data_;
   Graph& graph_;
@@ -819,7 +813,13 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                          load.outputs_rep()[0],
                          Asm().output_graph().IsCreatedFromTurbofan()));
         }
-#ifdef DEBUG
+#if DEBUG_BOOL && V8_STATIC_ROOTS_BOOL
+        // Note that this verification is only enabled on builds with static
+        // roots enabled, because this simplifies the comparison of string maps:
+        // with static roots we can know easily if a tagged value is a string
+        // map, while without static roots, we'd have to load the instance type,
+        // which requires to first check if it's actually a map or not.
+
         if (v8_flags.turboshaft_verify_load_elimination) {
           // When the debug flag {turboshaft_verify_load_elimination} is used,
           // we perform the original load and assert that it's indeed equal to
@@ -891,12 +891,56 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                 // NaN.
                 abort();
               }
+            } else if (compare_rep == RegisterRepresentation::Tagged()) {
+              // We are trying to replace a Tagged value by a different Tagged
+              // value. This is generally wrong, but there is one exception: we
+              // are allowed to replace a string map by a different string map
+              // that has the same 1/2-byte encoding. The reason why this is
+              // fine is because we never rely on the exact shape of a string,
+              // as the only operations that look at string maps are:
+              //
+              //  - CheckString (in Turboshaft, this is ObjectIs(kString)): this
+              //  doesn't care about shapes, only about the fact that something
+              //  is a string or not.
+              //
+              //  - StringAt: loading the map is done in a loop that contains a
+              //  runtime call, which is annotated as AnySideEffects, which will
+              //  prevent LoadElimination from ever eliminating the map load.
+              //
+              //  - NewConsString: this only cares about the encoding of the
+              //  input, in order to determine the encoding of the outputs.
+
+              IF_NOT (__ IsStringMap(actual_idx)) {
+                abort();
+              }
+
+              IF_NOT (__ IsStringMap(replacement_idx)) {
+                abort();
+              }
+
+              // Both actual and replacement are strings.
+
+              // Checking that the encoding (1 or 2-byte) remained the same.
+              V<Word32> actual_instance_type =
+                  __ LoadInstanceTypeField(actual_idx);
+              V<Word32> replacement_instance_type =
+                  __ LoadInstanceTypeField(replacement_idx);
+              V<Word32> actual_encoding = __ Word32BitwiseAnd(
+                  actual_instance_type, kStringEncodingMask);
+              V<Word32> replacement_encoding = __ Word32BitwiseAnd(
+                  replacement_instance_type, kStringEncodingMask);
+              IF_NOT (__ Word32Equal(actual_encoding, replacement_encoding)) {
+                abort();
+              }
+
+              // NOT aborting: we replaced a string map with a different string
+              // map, but they have the same encoding.
             } else {
               abort();
             }
           }
         }
-#endif
+#endif  // DEBUG_BOOL && V8_STATIC_ROOTS_BOOL
         return replacement_idx;
       } else if (replacement.IsTaggedLoadToInt32Load()) {
         auto loaded_rep = load.loaded_rep;

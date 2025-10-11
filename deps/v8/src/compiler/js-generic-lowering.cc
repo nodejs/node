@@ -773,6 +773,24 @@ void JSGenericLowering::LowerJSCreateArrayFromIterable(Node* node) {
   ReplaceWithBuiltinCall(node, Builtin::kIterableToListWithSymbolLookup);
 }
 
+void JSGenericLowering::LowerJSSetPrototypeProperties(Node* node) {
+  SetPrototypePropertiesParameters const& p =
+      SetPrototypePropertiesParametersOf(node->op());
+  Node* boilerplate_desc = jsgraph()->HeapConstantNoHole(p.constant.object());
+  Node* feedback_array =
+      jsgraph()->HeapConstantNoHole(broker()->CanonicalPersistentHandle(
+          p.source.vector->closure_feedback_cell_array()));
+  Node* slot = jsgraph()->SmiConstant(p.source.index());
+
+  // Shuffling inputs.
+  // Before (from BytecodeGraphBuilder): {acc}
+  node->InsertInput(zone(), 1, boilerplate_desc);
+  node->InsertInput(zone(), 2, feedback_array);
+  node->InsertInput(zone(), 3, slot);
+  // After: {acc, boileplate, feedback_array, slot_idx}
+  ReplaceWithRuntimeCall(node, Runtime::kSetPrototypeProperties);
+}
+
 void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   JSCreateLiteralObjectNode n(node);
   CreateLiteralParameters const& p = n.Parameters();

@@ -134,10 +134,9 @@ class StructTypeBase : public ZoneObject {
   }
 
   // Determines whether the static type meets the prerequisites for testing
-  // whether the first field's runtime value is a DescriptorOptions object.
+  // whether the first field's runtime value is a JS prototype.
   bool first_field_can_be_prototype() const {
-    return v8_flags.wasm_explicit_prototypes && is_descriptor_ &&
-           field_count_ > 0 && !mutabilities_[0] &&
+    return is_descriptor_ && field_count_ > 0 && !mutabilities_[0] &&
            reps_[0].is_reference_to(GenericKind::kExtern);
   }
 

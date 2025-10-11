@@ -116,15 +116,10 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
   static Isolate* GetIsolateIfNeeded(Tagged<String> str) {
     if (!IsNeeded(str)) return nullptr;
 
-    Isolate* isolate;
-    if (!GetIsolateFromHeapObject(str, &isolate)) {
-      // If we can't get the isolate from the String, it must be read-only.
-      DCHECK(ReadOnlyHeap::Contains(str));
-      return nullptr;
-    }
-    // TODO(431584880): Replace `GetIsolateFromHeapObject` by
-    // `Isolate::Current()`.
-    DCHECK_EQ(isolate, Isolate::TryGetCurrent());
+    DCHECK(!ReadOnlyHeap::Contains(str));
+    Isolate* isolate = Isolate::Current();
+    if (str->IsShared()) isolate = isolate->shared_space_isolate();
+    DCHECK_EQ(isolate->heap(), Heap::FromWritableHeapObject(str));
     return isolate;
   }
 

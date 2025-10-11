@@ -38,6 +38,7 @@
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/tagged-field.h"
 #include "src/roots/roots.h"
+#include "src/runtime/runtime.h"
 #include "third_party/v8/codegen/fp16-inl.h"
 
 namespace v8 {
@@ -1595,6 +1596,20 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
   if (v8_flags.sticky_mark_bits && (flags & AllocationFlag::kPretenured)) {
     CSA_DCHECK(this, IsMarked(result.value()));
   }
+  if (v8_flags.verify_write_barriers) {
+    TNode<ExternalReference> last_young_allocation_address = ExternalConstant(
+        ExternalReference::last_young_allocation_address(isolate()));
+
+    if (flags & AllocationFlag::kPretenured) {
+      StoreNoWriteBarrier(MachineType::PointerRepresentation(),
+                          last_young_allocation_address, IntPtrConstant(0));
+    } else {
+      StoreNoWriteBarrier(MachineType::PointerRepresentation(),
+                          last_young_allocation_address,
+                          IntPtrSub(BitcastTaggedToWord(result.value()),
+                                    IntPtrConstant(kHeapObjectTag)));
+    }
+  }
   return UncheckedCast<HeapObject>(result.value());
 }
 
@@ -1648,36 +1663,12 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
     }
     return heap_object;
   }
-  TNode<ExternalReference> top_address = ExternalConstant(
-      new_space
-          ? ExternalReference::new_space_allocation_top_address(isolate())
-          : ExternalReference::old_space_allocation_top_address(isolate()));
-
-#ifdef DEBUG
-  // New space is optional and if disabled both top and limit return
-  // kNullAddress.
-  if (ExternalReference::new_space_allocation_top_address(isolate())
-          .address() != kNullAddress) {
-    Address raw_top_address =
-        ExternalReference::new_space_allocation_top_address(isolate())
-            .address();
-    Address raw_limit_address =
-        ExternalReference::new_space_allocation_limit_address(isolate())
-            .address();
-
-    CHECK_EQ(kSystemPointerSize, raw_limit_address - raw_top_address);
-  }
-
-  DCHECK_EQ(kSystemPointerSize,
-            ExternalReference::old_space_allocation_limit_address(isolate())
-                    .address() -
-                ExternalReference::old_space_allocation_top_address(isolate())
-                    .address());
-#endif
-
-  TNode<IntPtrT> limit_address =
-      IntPtrAdd(ReinterpretCast<IntPtrT>(top_address),
-                IntPtrConstant(kSystemPointerSize));
+  TNode<ExternalReference> top_address =
+      IsolateField(new_space ? IsolateFieldId::kNewAllocationInfoTop
+                             : IsolateFieldId::kOldAllocationInfoTop);
+  TNode<ExternalReference> limit_address =
+      IsolateField(new_space ? IsolateFieldId::kNewAllocationInfoLimit
+                             : IsolateFieldId::kOldAllocationInfoLimit);
 
   if (flags & AllocationFlag::kDoubleAlignment) {
     return AllocateRawDoubleAligned(size_in_bytes, flags,
@@ -3504,7 +3495,7 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
 
   BIND(&if_holey_double);
   {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     Label if_undefined(this);
     TNode<Float64T> float_value = LoadFixedDoubleArrayElement(
         CAST(elements), index, &if_undefined, if_hole);
@@ -3520,7 +3511,7 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
     var_result = AllocateHeapNumberWithValue(
         LoadFixedDoubleArrayElement(CAST(elements), index, nullptr, if_hole));
     Goto(&done);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   }
 
   BIND(&if_dictionary);
@@ -3550,7 +3541,7 @@ TNode<BoolT> CodeStubAssembler::IsDoubleHole(TNode<Object> base,
   }
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 TNode<BoolT> CodeStubAssembler::IsDoubleUndefined(TNode<Object> base,
                                                   TNode<IntPtrT> offset) {
   // TODO(ishell): Compare only the upper part for the hole once the
@@ -3576,9 +3567,9 @@ TNode<BoolT> CodeStubAssembler::IsDoubleUndefined(TNode<Float64T> value) {
     return Word32Equal(bits_upper, Int32Constant(kUndefinedNanUpper32));
   }
 }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 TNode<Float64T> CodeStubAssembler::LoadDoubleWithUndefinedAndHoleCheck(
     TNode<Object> base, TNode<IntPtrT> offset, Label* if_undefined,
     Label* if_hole, MachineType machine_type) {
@@ -3607,7 +3598,7 @@ TNode<Float64T> CodeStubAssembler::LoadDoubleWithUndefinedAndHoleCheck(
   }
   return UncheckedCast<Float64T>(Load(machine_type, base, offset));
 }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 TNode<ScopeInfo> CodeStubAssembler::LoadScopeInfo(TNode<Context> context) {
   return CAST(LoadContextElementNoCell(context, Context::SCOPE_INFO_INDEX));
@@ -4312,7 +4303,7 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
   return var_tagged_length.value();
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind, Label* bailout,
                                              TNode<FixedArrayBase> elements,
                                              TNode<BInt> index,
@@ -5966,7 +5957,7 @@ void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
           LoopUnrollingMode::kYes);
     } else {
       DCHECK_EQ(value_root_index, RootIndex::kUndefinedValue);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       BuildFastArrayForEach(
           array, kind, from_index, to_index,
           [this](TNode<HeapObject> array, TNode<IntPtrT> offset) {
@@ -6019,7 +6010,7 @@ void CodeStubAssembler::StoreDoubleHole(TNode<HeapObject> object,
   }
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void CodeStubAssembler::StoreDoubleUndefined(TNode<HeapObject> object,
                                              TNode<IntPtrT> offset) {
   TNode<UintPtrT> double_undefined =
@@ -6040,7 +6031,7 @@ void CodeStubAssembler::StoreDoubleUndefined(TNode<HeapObject> object,
                         double_undefined);
   }
 }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 void CodeStubAssembler::StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
                                                   TNode<IntPtrT> index) {
@@ -6054,7 +6045,7 @@ void CodeStubAssembler::StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
   StoreDoubleHole(array, offset);
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 template <typename TIndex>
   requires(std::is_same_v<TIndex, Smi> || std::is_same_v<TIndex, UintPtrT> ||
            std::is_same_v<TIndex, IntPtrT>)
@@ -6074,7 +6065,7 @@ void CodeStubAssembler::StoreFixedDoubleArrayUndefined(
 template V8_EXPORT_PRIVATE void
     CodeStubAssembler::StoreFixedDoubleArrayUndefined<Smi>(
         TNode<FixedDoubleArray>, TNode<Smi>);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 void CodeStubAssembler::FillFixedArrayWithSmiZero(ElementsKind kind,
                                                   TNode<FixedArray> array,
@@ -6597,7 +6588,7 @@ TNode<Object> CodeStubAssembler::LoadElementAndPrepareForStore(
   CSA_DCHECK(this, IsFixedArrayWithKind(array, from_kind));
   DCHECK(!IsDoubleElementsKind(to_kind));
   if (IsDoubleElementsKind(from_kind)) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     Label if_undefined(this);
     Label done(this);
     TVARIABLE(Object, result);
@@ -6619,7 +6610,7 @@ TNode<Object> CodeStubAssembler::LoadElementAndPrepareForStore(
     TNode<Float64T> value = LoadDoubleWithUndefinedAndHoleCheck(
         array, offset, nullptr, if_hole, MachineType::Float64());
     return AllocateHeapNumberWithValue(value);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   } else {
     TNode<Object> value = Load<Object>(array, offset);
     if (if_hole) {
@@ -6798,18 +6789,18 @@ TNode<IntPtrT> CodeStubAssembler::TryTaggedToInt32AsIntPtr(
 
 TNode<Float64T> CodeStubAssembler::TryTaggedToFloat64(
     TNode<Object> value,
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     Label* if_valueisundefined,
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     Label* if_valueisnotnumber) {
   return Select<Float64T>(
       TaggedIsSmi(value), [&]() { return SmiToFloat64(CAST(value)); },
       [&]() {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
         if (if_valueisundefined) {
           GotoIf(IsUndefined(value), if_valueisundefined);
         }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
         GotoIfNot(IsHeapNumber(CAST(value)), if_valueisnotnumber);
         return LoadHeapNumberValue(CAST(value));
       });
@@ -6832,9 +6823,9 @@ TNode<Float64T> CodeStubAssembler::TruncateTaggedToFloat64(
     // Convert {value} to Float64 if it is a number and convert it to a number
     // otherwise.
     var_result = TryTaggedToFloat64(value,
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
                                     nullptr,
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
                                     &if_valueisnotnumber);
     Goto(&done_loop);
 
@@ -14193,7 +14184,7 @@ void CodeStubAssembler::EmitElementStore(
   if (IsSmiElementsKind(elements_kind)) {
     GotoIfNot(TaggedIsSmi(value), bailout);
   } else if (IsDoubleElementsKind(elements_kind)) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     Label float_done(this), is_undefined(this);
     TVARIABLE(Float64T, float_var);
     TVARIABLE(BoolT, float_is_undefined_var, BoolConstant(false));
@@ -14219,7 +14210,7 @@ void CodeStubAssembler::EmitElementStore(
     float_is_undefined_value = float_is_undefined_var.value();
 #else
     float_value = TryTaggedToFloat64(value, bailout);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   }
 
   TNode<Smi> smi_length = Select<Smi>(
@@ -14267,12 +14258,12 @@ void CodeStubAssembler::EmitElementStore(
       StoreElement(elements, elements_kind, intptr_key, float_value.value());
       Goto(&store_done);
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       Bind(&store_undefined);
       StoreFixedDoubleArrayUndefined(
           TNode<FixedDoubleArray>::UncheckedCast(elements), intptr_key);
       Goto(&store_done);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
       Bind(&store_done);
     } else {
@@ -14419,8 +14410,8 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   Label no_memento_found(this);
   Label top_check(this), map_check(this);
 
-  TNode<ExternalReference> new_space_top_address = ExternalConstant(
-      ExternalReference::new_space_allocation_top_address(isolate()));
+  TNode<ExternalReference> new_space_top_address =
+      IsolateField(IsolateFieldId::kNewAllocationInfoTop);
   const int kMementoMapOffset =
       ALIGN_TO_ALLOCATION_ALIGNMENT(JSArray::kHeaderSize);
   const int kMementoLastWordOffset =
@@ -17239,7 +17230,7 @@ void CodeStubAssembler::GotoIfNotNumber(TNode<Object> input,
   BIND(&is_number);
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void CodeStubAssembler::GotoIfNotNumberOrUndefined(
     TNode<Object> input, Label* is_not_number_or_undefined) {
   Label is_number_or_undefined(this);
@@ -17255,7 +17246,7 @@ void CodeStubAssembler::GotoIfNumberOrUndefined(TNode<Object> input,
   GotoIf(IsHeapNumber(CAST(input)), is_number_or_undefined);
   GotoIf(IsUndefined(input), is_number_or_undefined);
 }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 void CodeStubAssembler::GotoIfNumber(TNode<Object> input, Label* is_number) {
   GotoIf(TaggedIsSmi(input), is_number);
@@ -17394,6 +17385,12 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
   return CAST(result);
 }
 
+TNode<Object> CodeStubAssembler::GetResultValueForHole(TNode<Object> value) {
+  return Select<Object>(
+      IsTheHole(value), [this] { return UndefinedConstant(); },
+      [&] { return value; });
+}
+
 std::pair<TNode<Object>, TNode<Object>> CodeStubAssembler::CallIteratorNext(
     TNode<Object> iterator, TNode<Object> next_method, TNode<Context> context) {
   Label callable(this), not_callable(this, Label::kDeferred);
@@ -17409,7 +17406,7 @@ std::pair<TNode<Object>, TNode<Object>> CodeStubAssembler::CallIteratorNext(
       Call(context, next_method, ConvertReceiverMode::kAny, CAST(iterator));
 
   Label if_js_receiver(this), if_not_js_receiver(this, Label::kDeferred);
-  Branch(IsJSReceiver(CAST(result)), &if_js_receiver, &if_not_js_receiver);
+  BranchIfJSReceiver(result, &if_js_receiver, &if_not_js_receiver);
 
   BIND(&if_not_js_receiver);
   {
@@ -17498,7 +17495,7 @@ ForOfNextResult CodeStubAssembler::ForOfNextHelper(TNode<Context> context,
     BIND(&load_entry);
     {
       var_element_value = AllocateJSIteratorResultValueForEntry(
-          context, smi_index, var_element_value.value());
+          context, smi_index, GetResultValueForHole(var_element_value.value()));
       Goto(&element_value_resolved);
     }
 
@@ -17507,7 +17504,7 @@ ForOfNextResult CodeStubAssembler::ForOfNextHelper(TNode<Context> context,
       StoreObjectFieldNoWriteBarrier(array_iterator,
                                      JSArrayIterator::kNextIndexOffset,
                                      SmiAdd(smi_index, SmiConstant(1)));
-      var_value = var_element_value;
+      var_value = GetResultValueForHole(var_element_value.value());
       var_done = FalseConstant();
       Goto(&return_result);
     }
@@ -18599,17 +18596,54 @@ void CodeStubAssembler::PrintToStream(const char* s, int stream) {
               StringConstant(formatted.c_str()), SmiConstant(stream));
 }
 
+void CodeStubAssembler::Print(TNode<String> prefix, TNode<Object> value) {
+  std::array<TNode<Object>, 4> chunks{value, SmiConstant(0), SmiConstant(0),
+                                      SmiConstant(0)};
+  PrintToStream(prefix, DebugPrintValueType::kTagged, chunks, fileno(stdout));
+}
+
 void CodeStubAssembler::Print(const char* prefix,
                               TNode<MaybeObject> tagged_value) {
   PrintToStream(prefix, tagged_value, fileno(stdout));
 }
 
+void CodeStubAssembler::Print(TNode<String> prefix, TNode<Uint32T> value) {
+  auto chunks = EncodeValueForDebugPrint(value);
+  PrintToStream(prefix, DebugPrintValueType::kWord32, chunks, fileno(stdout));
+}
+
 void CodeStubAssembler::Print(const char* prefix, TNode<Uint32T> value) {
-  PrintToStream(prefix, value, fileno(stdout));
+  auto chunks = EncodeValueForDebugPrint(value);
+  PrintToStream(prefix, DebugPrintValueType::kWord32, chunks, fileno(stdout));
+}
+
+void CodeStubAssembler::Print(TNode<String> prefix, TNode<Uint64T> value) {
+  auto chunks = EncodeValueForDebugPrint(value);
+  PrintToStream(prefix, DebugPrintValueType::kWord64, chunks, fileno(stdout));
+}
+
+void CodeStubAssembler::Print(const char* prefix, TNode<Uint64T> value) {
+  auto chunks = EncodeValueForDebugPrint(value);
+  PrintToStream(prefix, DebugPrintValueType::kWord64, chunks, fileno(stdout));
 }
 
 void CodeStubAssembler::Print(const char* prefix, TNode<UintPtrT> value) {
   PrintToStream(prefix, value, fileno(stdout));
+}
+
+void CodeStubAssembler::Print(TNode<String> prefix, TNode<Float32T> value) {
+  auto chunks = EncodeValueForDebugPrint(value);
+  PrintToStream(prefix, DebugPrintValueType::kFloat32, chunks, fileno(stdout));
+}
+
+void CodeStubAssembler::Print(const char* prefix, TNode<Float32T> value) {
+  auto chunks = EncodeValueForDebugPrint(value);
+  PrintToStream(prefix, DebugPrintValueType::kFloat32, chunks, fileno(stdout));
+}
+
+void CodeStubAssembler::Print(TNode<String> prefix, TNode<Float64T> value) {
+  auto chunks = EncodeValueForDebugPrint(value);
+  PrintToStream(prefix, DebugPrintValueType::kFloat64, chunks, fileno(stdout));
 }
 
 void CodeStubAssembler::Print(const char* prefix, TNode<Float64T> value) {
@@ -18688,6 +18722,93 @@ void CodeStubAssembler::PrintToStream(const char* prefix, TNode<UintPtrT> value,
               chunks[2], chunks[1], chunks[0], SmiConstant(stream));
 }
 
+std::array<TNode<Object>, 4> CodeStubAssembler::EncodeValueForDebugPrint(
+    TNode<Word64T> value) {
+  std::array<TNode<Object>, 4> result;
+
+  // We use 16 bit per chunk.
+  for (int i = 0; i < 4; ++i) {
+    result[i] = SmiFromUint32(ReinterpretCast<Uint32T>(
+        Word64And(ReinterpretCast<Uint64T>(value), Int64Constant(0xFFFF))));
+    value = Word64Shr(value, Int64Constant(16));
+  }
+
+  return result;
+}
+
+std::array<TNode<Object>, 4> CodeStubAssembler::EncodeValueForDebugPrint(
+    TNode<Word32T> value) {
+  std::array<TNode<Object>, 4> result;
+
+  // We use 16 bit per chunk.
+  result[0] = SmiFromUint32(ReinterpretCast<Uint32T>(Word32And(value, 0xFFFF)));
+  result[1] = SmiFromUint32(ReinterpretCast<Uint32T>(
+      Word32And(Word32Shr(value, Int32Constant(16)), 0xFFFF)));
+  result[2] = SmiConstant(0);
+  result[3] = SmiConstant(0);
+
+  return result;
+}
+
+std::array<TNode<Object>, 4> CodeStubAssembler::EncodeValueForDebugPrint(
+    TNode<Float32T> value) {
+  std::array<TNode<Object>, 4> result;
+
+  TNode<Uint32T> low = BitcastFloat32ToInt32(value);
+
+  // We use 16 bit per chunk.
+  result[0] = SmiFromUint32(ReinterpretCast<Uint32T>(Word32And(low, 0xFFFF)));
+  result[1] = SmiFromUint32(ReinterpretCast<Uint32T>(
+      Word32And(Word32Shr(low, Int32Constant(16)), 0xFFFF)));
+  result[2] = SmiConstant(0);
+  result[3] = SmiConstant(0);
+
+  return result;
+}
+
+std::array<TNode<Object>, 4> CodeStubAssembler::EncodeValueForDebugPrint(
+    TNode<Float64T> value) {
+  std::array<TNode<Object>, 4> result;
+
+  // We use word32 extraction instead of `BitcastFloat64ToInt64` to support 32
+  // bit architectures, too.
+  TNode<Uint32T> high = Float64ExtractHighWord32(value);
+  TNode<Uint32T> low = Float64ExtractLowWord32(value);
+
+  // We use 16 bit per chunk.
+  result[0] = SmiFromUint32(ReinterpretCast<Uint32T>(Word32And(low, 0xFFFF)));
+  result[1] = SmiFromUint32(ReinterpretCast<Uint32T>(
+      Word32And(Word32Shr(low, Int32Constant(16)), 0xFFFF)));
+  result[2] = SmiFromUint32(ReinterpretCast<Uint32T>(Word32And(high, 0xFFFF)));
+  result[3] = SmiFromUint32(ReinterpretCast<Uint32T>(
+      Word32And(Word32Shr(high, Int32Constant(16)), 0xFFFF)));
+
+  return result;
+}
+
+void CodeStubAssembler::PrintToStream(
+    const char* prefix, DebugPrintValueType value_type,
+    const std::array<TNode<Object>, 4>& chunks, int stream) {
+  TNode<Object> prefix_string = UndefinedConstant();
+  if (prefix != nullptr) {
+    std::string formatted(prefix);
+    formatted += ": ";
+    prefix_string = HeapConstantNoHole(
+        isolate()->factory()->InternalizeString(formatted.c_str()));
+  }
+  CallRuntime(Runtime::kDebugPrintGeneric, NoContextConstant(), prefix_string,
+              SmiConstant(Smi::FromEnum(value_type)), chunks[3], chunks[2],
+              chunks[1], chunks[0], SmiConstant(stream));
+}
+
+void CodeStubAssembler::PrintToStream(
+    TNode<String> prefix, DebugPrintValueType value_type,
+    const std::array<TNode<Object>, 4>& chunks, int stream) {
+  CallRuntime(Runtime::kDebugPrintGeneric, NoContextConstant(), prefix,
+              SmiConstant(Smi::FromEnum(value_type)), chunks[3], chunks[2],
+              chunks[1], chunks[0], SmiConstant(stream));
+}
+
 void CodeStubAssembler::PrintToStream(const char* prefix, TNode<Float64T> value,
                                       int stream) {
   if (prefix != nullptr) {
@@ -18699,23 +18820,17 @@ void CodeStubAssembler::PrintToStream(const char* prefix, TNode<Float64T> value,
                 HeapConstantNoHole(string), SmiConstant(stream));
   }
 
-  // We use word32 extraction instead of `BitcastFloat64ToInt64` to support 32
-  // bit architectures, too.
-  TNode<Uint32T> high = Float64ExtractHighWord32(value);
-  TNode<Uint32T> low = Float64ExtractLowWord32(value);
-
-  // We use 16 bit per chunk.
-  TNode<Smi> chunks[4];
-  chunks[0] = SmiFromUint32(ReinterpretCast<Uint32T>(Word32And(low, 0xFFFF)));
-  chunks[1] = SmiFromUint32(ReinterpretCast<Uint32T>(
-      Word32And(Word32Shr(low, Int32Constant(16)), 0xFFFF)));
-  chunks[2] = SmiFromUint32(ReinterpretCast<Uint32T>(Word32And(high, 0xFFFF)));
-  chunks[3] = SmiFromUint32(ReinterpretCast<Uint32T>(
-      Word32And(Word32Shr(high, Int32Constant(16)), 0xFFFF)));
+  std::array<TNode<Object>, 4> chunks = EncodeValueForDebugPrint(value);
 
   // Args are: <bits 63-48>, <bits 47-32>, <bits 31-16>, <bits 15-0>, stream.
   CallRuntime(Runtime::kDebugPrintFloat, NoContextConstant(), chunks[3],
               chunks[2], chunks[1], chunks[0], SmiConstant(stream));
+}
+
+void CodeStubAssembler::PrintStringSimple(TNode<String> s) {
+  std::array<TNode<Object>, 4> chunks{s, SmiConstant(0), SmiConstant(0),
+                                      SmiConstant(0)};
+  PrintToStream(nullptr, DebugPrintValueType::kTagged, chunks, fileno(stdout));
 }
 
 IntegerLiteral CodeStubAssembler::ConstexprIntegerLiteralAdd(

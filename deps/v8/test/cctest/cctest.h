@@ -825,10 +825,10 @@ DEFINE_OPERATORS_FOR_FLAGS(ApiCheckerResultFlags)
 bool IsValidUnwrapObject(v8::Object* object);
 
 template <typename T>
-T* GetInternalField(v8::Object* wrapper) {
+T* GetInternalField(v8::Object* wrapper, v8::EmbedderDataTypeTag tag) {
   assert(kV8WrapperObjectIndex < wrapper->InternalFieldCount());
   return reinterpret_cast<T*>(
-      wrapper->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex));
+      wrapper->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex, tag));
 }
 
 #endif  // ifndef CCTEST_H_

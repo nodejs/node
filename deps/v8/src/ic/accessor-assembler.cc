@@ -2209,9 +2209,9 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
                                  Int32Constant(Representation::kDouble)));
     Comment("double field checks");
     TNode<Float64T> double_value = TryTaggedToFloat64(value,
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
                                                       nullptr,
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
                                                       miss);
     CheckDescriptorConsidersNumbersMutable(handler_word, holder, miss);
 

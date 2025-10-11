@@ -799,13 +799,13 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
   }
   if (type.is_descriptor()) {
     out_ << " (describes ";
-    num_closing_parens++;
     names_->PrintTypeName(out_, type.describes);
+    out_ << ")";
   }
   if (type.has_descriptor()) {
     out_ << " (descriptor ";
-    num_closing_parens++;
     names_->PrintTypeName(out_, type.descriptor);
+    out_ << ")";
   }
   if (type.kind == TypeDefinition::kArray) {
     const ArrayType* atype = type.array_type;
@@ -813,7 +813,7 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
     if (type.is_shared) out_ << " shared";
     out_ << " (field ";
     PrintMutableType(atype->mutability(), atype->element_type());
-    out_ << ")";  // Closes "(field ...".
+    num_closing_parens++;  // Closes "(field ...".
   } else if (type.kind == TypeDefinition::kStruct) {
     const StructType* stype = type.struct_type;
     out_ << " (struct";

@@ -219,6 +219,12 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   void Release();
 
   v8::PageAllocator* page_allocator() const { return page_allocator_; }
+  v8::PageAllocator* read_only_page_allocator() const {
+    if (read_only_page_allocator_) {
+      return read_only_page_allocator_.get();
+    }
+    return page_allocator_;
+  }
 
 #ifdef V8_COMPRESS_POINTERS
   VirtualMemoryCage* GetPtrComprCage() const {
@@ -370,6 +376,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   std::atomic<int> reference_count_{1};
   v8::PageAllocator* page_allocator_ = nullptr;
+  std::unique_ptr<v8::PageAllocator> read_only_page_allocator_;
 
 #ifdef V8_COMPRESS_POINTERS
   VirtualMemoryCage* trusted_pointer_compression_cage_ = nullptr;

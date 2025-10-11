@@ -65,6 +65,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvSarPair:
     case kRiscvSub32:
 #endif
+    case kRiscvSh1add:
+    case kRiscvSh2add:
+    case kRiscvSh3add:
     case kRiscvClz:
     case kRiscvCtz:
     case kRiscvCpop:
@@ -1209,6 +1212,10 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
         return latency + 1;
       }
     }
+    case kRiscvSh1add:
+    case kRiscvSh2add:
+    case kRiscvSh3add:
+      return 1;
     case kRiscvClz32:
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvClz64:

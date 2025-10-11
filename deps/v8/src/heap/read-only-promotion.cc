@@ -467,7 +467,6 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       VisitObject(isolate, dst, &v);
     }
 
-#ifdef V8_ENABLE_LEAPTIERING
     // Iterate all entries in the JSDispatchTable as they could contain
     // pointers to promoted Code objects.
     JSDispatchTable* const jdt = IsolateGroup::current()->js_dispatch_table();
@@ -483,7 +482,6 @@ class ReadOnlyPromotionImpl final : public AllStatic {
                                   jdt->SetCodeNoWriteBarrier(
                                       handle, TrustedCast<Code>(new_code));
                                 });
-#endif  // V8_ENABLE_LEAPTIERING
   }
 
   static void DeleteDeadObjects(Isolate* isolate,

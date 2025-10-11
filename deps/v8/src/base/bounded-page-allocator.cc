@@ -330,5 +330,12 @@ const char* BoundedPageAllocator::AllocationStatusToString(
   }
 }
 
+BoundedPageAllocator::Stats BoundedPageAllocator::RecordStats() {
+  MutexGuard guard(&mutex_);
+  return {.free_size = region_allocator_.free_size(),
+          .largest_free_region = region_allocator_.GetLargestFreeRegionSize(),
+          .allocation_status = allocation_status_};
+}
+
 }  // namespace base
 }  // namespace v8

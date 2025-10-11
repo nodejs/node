@@ -65,13 +65,10 @@ constexpr ImportCallKind kDefaultImportCallKind = ImportCallKind::kJSFunction;
 // is why the ultimate target is provided as well.
 class ResolvedWasmImport {
  public:
-  // TODO(clemensb): We should only need one of {sig} and {expected_sig_id};
-  // currently we can't efficiently translate between them.
   V8_EXPORT_PRIVATE ResolvedWasmImport(
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
       int func_index, DirectHandle<JSReceiver> callable,
-      const wasm::CanonicalSig* sig, CanonicalTypeIndex expected_sig_id,
-      WellKnownImport preknown_import);
+      const wasm::CanonicalSig* sig, WellKnownImport preknown_import);
 
   ImportCallKind kind() const { return kind_; }
   WellKnownImport well_known_status() const { return well_known_status_; }
@@ -91,7 +88,6 @@ class ResolvedWasmImport {
   ImportCallKind ComputeKind(
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
       int func_index, const wasm::CanonicalSig* expected_sig,
-      CanonicalTypeIndex expected_canonical_type_index,
       WellKnownImport preknown_import);
 
   ImportCallKind kind_;

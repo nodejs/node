@@ -2297,8 +2297,9 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
 
 bool BytecodeGenerator::IsPrototypeAssignment(
     Statement* stmt, Variable** var,
-    base::SmallVector<std::pair<Property*, Expression*>, kInitialPropertyCount>&
-        properties) {
+    base::SmallVector<std::pair<const AstRawString*, Expression*>,
+                      kInitialPropertyCount>& properties,
+    std::unordered_set<const AstRawString*>& duplicates) {
   // The expression Statement is an assignment
   // ========================================
   ExpressionStatement* expr_stmt = stmt->AsExpressionStatement();
@@ -2337,6 +2338,12 @@ bool BytecodeGenerator::IsPrototypeAssignment(
     return false;
   }
 
+  const AstRawString* prop_str = prop->key()->AsLiteral()->AsRawString();
+  if (prop_str == ast_string_constants()->proto_string() ||
+      prop_str == ast_string_constants()->constructor_string()) {
+    return false;
+  }
+
   // The target Object is the "prototype" property
   // =============================================
   if (!prop->obj()->IsProperty()) {
@@ -2359,12 +2366,16 @@ bool BytecodeGenerator::IsPrototypeAssignment(
   Variable* tmp_var = proto_prop->obj()->AsVariableProxy()->var();
   VariableLocation loc = tmp_var->location();
   if (loc != VariableLocation::PARAMETER && loc != VariableLocation::LOCAL &&
-      (loc != VariableLocation::CONTEXT &&
-       tmp_var->maybe_assigned() == kNotAssigned)) {
+      !(loc == VariableLocation::CONTEXT &&
+        tmp_var->maybe_assigned() == kNotAssigned)) {
     return false;
   }
 
-  if (tmp_var == nullptr) {
+  if (!duplicates.insert(prop_str).second) {
+    return false;
+  }
+
+  if (*var == nullptr) {
     // This is the first proto assignment in the sequence
     *var = tmp_var;
   } else if (*var != tmp_var) {
@@ -2374,14 +2385,14 @@ bool BytecodeGenerator::IsPrototypeAssignment(
 
   // Success
   properties.push_back(std::make_pair(
-      prop,
+      prop_str,
       value));  // This will be reused as part of an ObjectLiteral
 
   return true;
 }
 
 void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
-    const base::SmallVector<std::pair<Property*, Expression*>,
+    const base::SmallVector<std::pair<const AstRawString*, Expression*>,
                             kInitialPropertyCount>& properties,
     Variable* var) {
   // Create a boiler plate object in the constant pool to be merged into the
@@ -2390,10 +2401,26 @@ void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
   proto_assign_seq_.push_back(std::make_pair(
       zone()->New<ProtoAssignmentSeqBuilder>(properties), entry));
 
+  int first_idx = -1;
+  for (auto& p : properties) {
+    auto func = p.second->AsFunctionLiteral();
+    if (func) {
+      int idx = GetNewClosureSlot(func);
+      DCHECK_NE(idx, -1);
+      if (first_idx == -1) {
+        first_idx = idx;
+      }
+    }
+  }
+
+  // We need it to be valid, even if unused
+  if (first_idx == -1) {
+    first_idx = 0;
+  }
   // Load the variable whose prototype is to be set into the Accumulator
   BuildVariableLoad(var, HoleCheckMode::kElided);
   // Merge in-place proto-def boilerplate object into Accumulator
-  builder()->SetPrototypeProperties(entry);
+  builder()->SetPrototypeProperties(entry, first_idx);
 }
 
 void BytecodeGenerator::VisitStatements(
@@ -2402,13 +2429,13 @@ void BytecodeGenerator::VisitStatements(
     if (v8_flags.proto_assign_seq_opt) {
       Variable* var = nullptr;
       int proto_assign_idx = stmt_idx;
-      base::SmallVector<std::pair<Property*, Expression*>,
+      base::SmallVector<std::pair<const AstRawString*, Expression*>,
                         kInitialPropertyCount>
           properties;
-
+      std::unordered_set<const AstRawString*> duplicates;
       while (proto_assign_idx < statements->length() &&
              IsPrototypeAssignment(statements->at(proto_assign_idx), &var,
-                                   properties)) {
+                                   properties, duplicates)) {
         ++proto_assign_idx;
       }
 
@@ -3330,7 +3357,8 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
           // iterator result and append the argument.
           builder()->SetExpressionAsStatementPosition(stmt->each(),
                                                       /* is_breakable */ false);
-          if (v8_flags.for_of_optimization) {
+          if (v8_flags.for_of_optimization &&
+              iterator.type() != IteratorType::kAsync) {
             builder()
                 ->ForOfNext(iterator.object(), iterator.next(), output)
                 .LoadAccumulatorWithRegister(done);
@@ -7936,6 +7964,9 @@ void BytecodeGenerator::BuildIteratorNext(const IteratorRecord& iterator,
   builder()->CallProperty(iterator.next(), RegisterList(iterator.object()),
                           feedback_index(feedback_spec()->AddCallICSlot()));
 
+  // TODO(408061015): Optimize AsyncArrayIterators by splitting the optimized
+  // bytecode to get the next result, await the result, and then get value and
+  // done.
   if (iterator.type() == IteratorType::kAsync) {
     BuildAwait();
   }
@@ -8950,6 +8981,18 @@ int BytecodeGenerator::GetCachedCreateClosureSlot(FunctionLiteral* literal) {
   index = feedback_spec()->AddCreateClosureParameterCount(
       JSParameterCount(literal->parameter_count()));
   feedback_slot_cache()->Put(slot_kind, literal, index);
+  return index;
+}
+
+int BytecodeGenerator::GetNewClosureSlot(FunctionLiteral* literal) {
+  DCHECK_EQ(feedback_slot_cache()->Get(
+                FeedbackSlotCache::SlotKind::kClosureFeedbackCell, literal),
+            -1);
+
+  int index = feedback_spec()->AddCreateClosureParameterCount(
+      JSParameterCount(literal->parameter_count()));
+  feedback_slot_cache()->Put(FeedbackSlotCache::SlotKind::kClosureFeedbackCell,
+                             literal, index);
   return index;
 }
 

@@ -13,8 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stddef.h>
-
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "tests/if_test.cc"
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
@@ -319,7 +317,7 @@ struct TestIfNegativeThenNegOrUndefIfZero {
 
   template <typename T, class D>
   HWY_NOINLINE void operator()(T /*unused*/, D d) {
-    const auto v1 = PositiveIota(d);
+    const auto v1 = PositiveIota(d, 1);
     const auto v2 = Neg(v1);
 
     HWY_ASSERT_VEC_EQ(d, v1, IfNegativeThenNegOrUndefIfZero(v1, v1));

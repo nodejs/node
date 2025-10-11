@@ -4,7 +4,7 @@
 
 #include "src/wasm/fuzzing/random-module-generation.h"
 #include "test/common/flag-utils.h"
-#include "test/fuzzer/wasm/fuzzer-common.h"
+#include "test/common/wasm/fuzzer-common.h"
 #include "test/unittests/fuzztest.h"
 #include "test/unittests/test-utils.h"
 
