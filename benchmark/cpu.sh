@@ -4,15 +4,11 @@ CPUPATH=/sys/devices/system/cpu
 
 MAXID=$(cat $CPUPATH/present | awk -F- '{print $NF}')
 
-if [ "$(uname -s || true)" != "Linux" ]; then
-  echo "Error: This script runs on Linux only." >&2
-  exit 1
-fi
+[ "$(uname -s || true)" = "Linux" ] || \
+  echo "Warning: This script supports Linux only." >&2
 
-if [ "$(id -u || true)" -ne 0 ]; then
-  echo "Error: Run as root (sudo) to modify CPU governor." >&2
-  exit 1
-fi
+[ "$(id -u || true)" = "0" ] || \
+  echo "Warning: This script typically needs root access to modify CPU governor. Consider running it with sudo." >&2
 
 get_default_governor() {
   available_governors=$(cat "$CPUPATH/cpu0/cpufreq/scaling_available_governors")
