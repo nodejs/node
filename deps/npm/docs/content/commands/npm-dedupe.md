@@ -14,9 +14,7 @@ alias: ddp
 
 ### Description
 
-Searches the local package tree and attempts to simplify the overall
-structure by moving dependencies further up the tree, where they can
-be more effectively shared by multiple dependent packages.
+Searches the local package tree and attempts to simplify the overall structure by moving dependencies further up the tree, where they can be more effectively shared by multiple dependent packages.
 
 For example, consider this dependency graph:
 
@@ -37,9 +35,7 @@ a
 `-- c@1.0.10
 ```
 
-Because of the hierarchical nature of node's module lookup, b and d
-will both get their dependency met by the single c package at the root
-level of the tree.
+Because of the hierarchical nature of node's module lookup, b and d will both get their dependency met by the single c package at the root level of the tree.
 
 In some cases, you may have a dependency graph like this:
 
@@ -51,29 +47,21 @@ a
     `-- c@1.9.9
 ```
 
-During the installation process, the `c@1.0.3` dependency for `b` was
-placed in the root of the tree.  Though `d`'s dependency on `c@1.x` could
-have been satisfied by `c@1.0.3`, the newer `c@1.9.0` dependency was used,
-because npm favors updates by default, even when doing so causes
-duplication.
+During the installation process, the `c@1.0.3` dependency for `b` was placed in the root of the tree.
+Though `d`'s dependency on `c@1.x` could have been satisfied by `c@1.0.3`, the newer `c@1.9.0` dependency was used, because npm favors updates by default, even when doing so causes duplication.
 
-Running `npm dedupe` will cause npm to note the duplication and
-re-evaluate, deleting the nested `c` module, because the one in the root is
-sufficient.
+Running `npm dedupe` will cause npm to note the duplication and re-evaluate, deleting the nested `c` module, because the one in the root is sufficient.
 
-To prefer deduplication over novelty during the installation process, run
-`npm install --prefer-dedupe` or `npm config set prefer-dedupe true`.
+To prefer deduplication over novelty during the installation process, run `npm install --prefer-dedupe` or `npm config set prefer-dedupe true`.
 
-Arguments are ignored. Dedupe always acts on the entire tree.
+Arguments are ignored.
+Dedupe always acts on the entire tree.
 
-Note that this operation transforms the dependency tree, but will never
-result in new modules being installed.
+Note that this operation transforms the dependency tree, but will never result in new modules being installed.
 
 Using `npm find-dupes` will run the command in `--dry-run` mode.
 
-Note: `npm dedupe` will never update the semver values of direct
-dependencies in your project `package.json`, if you want to update
-values in `package.json` you can run: `npm update --save` instead.
+Note: `npm dedupe` will never update the semver values of direct dependencies in your project `package.json`, if you want to update values in `package.json` you can run: `npm update --save` instead.
 
 ### Configuration
 
@@ -83,11 +71,12 @@ values in `package.json` you can run: `npm update --save` instead.
 * Type: "hoisted", "nested", "shallow", or "linked"
 
 Sets the strategy for installing packages in node_modules. hoisted
-(default): Install non-duplicated in top-level, and duplicated as necessary
-within directory structure. nested: (formerly --legacy-bundling) install in
-place, no hoisting. shallow (formerly --global-style) only install direct
-deps at top-level. linked: (experimental) install in node_modules/.store,
-link in place, unhoisted.
+(default): Install non-duplicated in top-level, and duplicated as
+necessary within directory structure. nested: (formerly
+--legacy-bundling) install in place, no hoisting. shallow (formerly
+--global-style) only install direct deps at top-level. linked:
+(experimental) install in node_modules/.store, link in place,
+unhoisted.
 
 
 
@@ -98,10 +87,10 @@ link in place, unhoisted.
 * DEPRECATED: This option has been deprecated in favor of
   `--install-strategy=nested`
 
-Instead of hoisting package installs in `node_modules`, install packages in
-the same manner that they are depended on. This may cause very deep
-directory structures and duplicate package installs as there is no
-de-duplicating. Sets `--install-strategy=nested`.
+Instead of hoisting package installs in `node_modules`, install
+packages in the same manner that they are depended on. This may cause
+very deep directory structures and duplicate package installs as
+there is no de-duplicating. Sets `--install-strategy=nested`.
 
 
 
@@ -112,8 +101,8 @@ de-duplicating. Sets `--install-strategy=nested`.
 * DEPRECATED: This option has been deprecated in favor of
   `--install-strategy=shallow`
 
-Only install direct dependencies in the top level `node_modules`, but hoist
-on deeper dependencies. Sets `--install-strategy=shallow`.
+Only install direct dependencies in the top level `node_modules`, but
+hoist on deeper dependencies. Sets `--install-strategy=shallow`.
 
 
 
@@ -123,18 +112,19 @@ on deeper dependencies. Sets `--install-strategy=shallow`.
 * Type: Boolean
 
 If set to `true`, and `--legacy-peer-deps` is not set, then _any_
-conflicting `peerDependencies` will be treated as an install failure, even
-if npm could reasonably guess the appropriate resolution based on non-peer
-dependency relationships.
+conflicting `peerDependencies` will be treated as an install failure,
+even if npm could reasonably guess the appropriate resolution based
+on non-peer dependency relationships.
 
-By default, conflicting `peerDependencies` deep in the dependency graph will
-be resolved using the nearest non-peer dependency specification, even if
-doing so will result in some packages receiving a peer dependency outside
-the range set in their package's `peerDependencies` object.
+By default, conflicting `peerDependencies` deep in the dependency
+graph will be resolved using the nearest non-peer dependency
+specification, even if doing so will result in some packages
+receiving a peer dependency outside the range set in their package's
+`peerDependencies` object.
 
-When such an override is performed, a warning is printed, explaining the
-conflict and the packages involved. If `--strict-peer-deps` is set, then
-this warning is treated as a failure.
+When such an override is performed, a warning is printed, explaining
+the conflict and the packages involved. If `--strict-peer-deps` is
+set, then this warning is treated as a failure.
 
 
 
@@ -143,15 +133,16 @@ this warning is treated as a failure.
 * Default: true
 * Type: Boolean
 
-If set to false, then ignore `package-lock.json` files when installing. This
-will also prevent _writing_ `package-lock.json` if `save` is true.
+If set to false, then ignore `package-lock.json` files when
+installing. This will also prevent _writing_ `package-lock.json` if
+`save` is true.
 
 
 
 #### `omit`
 
 * Default: 'dev' if the `NODE_ENV` environment variable is set to
-  'production', otherwise empty.
+  'production'; otherwise, empty.
 * Type: "dev", "optional", or "peer" (can be set multiple times)
 
 Dependency types to omit from the installation tree on disk.
@@ -160,25 +151,29 @@ Note that these dependencies _are_ still resolved and added to the
 `package-lock.json` or `npm-shrinkwrap.json` file. They are just not
 physically installed on disk.
 
-If a package type appears in both the `--include` and `--omit` lists, then
-it will be included.
+If a package type appears in both the `--include` and `--omit` lists,
+then it will be included.
 
-If the resulting omit list includes `'dev'`, then the `NODE_ENV` environment
-variable will be set to `'production'` for all lifecycle scripts.
+If the resulting omit list includes `'dev'`, then the `NODE_ENV`
+environment variable will be set to `'production'` for all lifecycle
+scripts.
 
 
 
 #### `include`
 
 * Default:
-* Type: "prod", "dev", "optional", or "peer" (can be set multiple times)
+* Type: "prod", "dev", "optional", or "peer" (can be set multiple
+  times)
 
-Option that allows for defining which types of dependencies to install.
+Option that allows for defining which types of dependencies to
+install.
 
 This is the inverse of `--omit=<type>`.
 
-Dependency types specified in `--include` will not be omitted, regardless of
-the order in which omit/include are specified on the command-line.
+Dependency types specified in `--include` will not be omitted,
+regardless of the order in which omit/include are specified on the
+command-line.
 
 
 
@@ -189,10 +184,10 @@ the order in which omit/include are specified on the command-line.
 
 If true, npm does not run scripts specified in package.json files.
 
-Note that commands explicitly intended to run a particular script, such as
-`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run` will still
-run their intended script if `ignore-scripts` is set, but they will *not*
-run any pre- or post-scripts.
+Note that commands explicitly intended to run a particular script,
+such as `npm start`, `npm stop`, `npm restart`, `npm test`, and `npm
+run` will still run their intended script if `ignore-scripts` is set,
+but they will *not* run any pre- or post-scripts.
 
 
 
@@ -201,10 +196,10 @@ run any pre- or post-scripts.
 * Default: true
 * Type: Boolean
 
-When "true" submit audit reports alongside the current npm command to the
-default registry and all registries configured for scopes. See the
-documentation for [`npm audit`](/commands/npm-audit) for details on what is
-submitted.
+When "true" submit audit reports alongside the current npm command to
+the default registry and all registries configured for scopes. See
+the documentation for [`npm audit`](/commands/npm-audit) for details
+on what is submitted.
 
 
 
@@ -216,9 +211,9 @@ submitted.
 Tells npm to create symlinks (or `.cmd` shims on Windows) for package
 executables.
 
-Set to false to have it not do this. This can be used to work around the
-fact that some file systems don't support symlinks, even on ostensibly Unix
-systems.
+Set to false to have it not do this. This can be used to work around
+the fact that some file systems don't support symlinks, even on
+ostensibly Unix systems.
 
 
 
@@ -228,8 +223,8 @@ systems.
 * Type: Boolean
 
 When "true" displays the message at the end of each `npm install`
-acknowledging the number of dependencies looking for funding. See [`npm
-fund`](/commands/npm-fund) for details.
+acknowledging the number of dependencies looking for funding. See
+[`npm fund`](/commands/npm-fund) for details.
 
 
 
@@ -238,13 +233,14 @@ fund`](/commands/npm-fund) for details.
 * Default: false
 * Type: Boolean
 
-Indicates that you don't want npm to make any changes and that it should
-only report what it would have done. This can be passed into any of the
-commands that modify your local installation, eg, `install`, `update`,
-`dedupe`, `uninstall`, as well as `pack` and `publish`.
+Indicates that you don't want npm to make any changes and that it
+should only report what it would have done. This can be passed into
+any of the commands that modify your local installation, eg,
+`install`, `update`, `dedupe`, `uninstall`, as well as `pack` and
+`publish`.
 
-Note: This is NOT honored by other network related commands, eg `dist-tags`,
-`owner`, etc.
+Note: This is NOT honored by other network related commands, eg
+`dist-tags`, `owner`, etc.
 
 
 
@@ -253,9 +249,9 @@ Note: This is NOT honored by other network related commands, eg `dist-tags`,
 * Default:
 * Type: String (can be set multiple times)
 
-Enable running a command in the context of the configured workspaces of the
-current project while filtering by running only the workspaces defined by
-this configuration option.
+Enable running a command in the context of the configured workspaces
+of the current project while filtering by running only the workspaces
+defined by this configuration option.
 
 Valid values for the `workspace` config are either:
 
@@ -264,9 +260,9 @@ Valid values for the `workspace` config are either:
 * Path to a parent workspace directory (will result in selecting all
   workspaces within that folder)
 
-When set for the `npm init` command, this may be set to the folder of a
-workspace which does not yet exist, to create the folder and set it up as a
-brand new workspace within the project.
+When set for the `npm init` command, this may be set to the folder of
+a workspace which does not yet exist, to create the folder and set it
+up as a brand new workspace within the project.
 
 This value is not exported to the environment for child processes.
 
@@ -278,13 +274,14 @@ This value is not exported to the environment for child processes.
 Set to true to run the command in the context of **all** configured
 workspaces.
 
-Explicitly setting this to false will cause commands like `install` to
-ignore workspaces altogether. When not set explicitly:
+Explicitly setting this to false will cause commands like `install`
+to ignore workspaces altogether. When not set explicitly:
 
-- Commands that operate on the `node_modules` tree (install, update, etc.)
-will link workspaces into the `node_modules` folder. - Commands that do
-other things (test, exec, publish, etc.) will operate on the root project,
-_unless_ one or more workspaces are specified in the `workspace` config.
+- Commands that operate on the `node_modules` tree (install, update,
+etc.) will link workspaces into the `node_modules` folder. - Commands
+that do other things (test, exec, publish, etc.) will operate on the
+root project, _unless_ one or more workspaces are specified in the
+`workspace` config.
 
 This value is not exported to the environment for child processes.
 
@@ -295,9 +292,10 @@ This value is not exported to the environment for child processes.
 
 Include the workspace root when workspaces are enabled for a command.
 
-When false, specifying individual workspaces via the `workspace` config, or
-all workspaces via the `workspaces` flag, will cause npm to operate only on
-the specified workspaces, and not on the root project.
+When false, specifying individual workspaces via the `workspace`
+config, or all workspaces via the `workspaces` flag, will cause npm
+to operate only on the specified workspaces, and not on the root
+project.
 
 This value is not exported to the environment for child processes.
 
@@ -306,9 +304,9 @@ This value is not exported to the environment for child processes.
 * Default: false
 * Type: Boolean
 
-When set file: protocol dependencies will be packed and installed as regular
-dependencies instead of creating a symlink. This option has no effect on
-workspaces.
+When set file: protocol dependencies will be packed and installed as
+regular dependencies instead of creating a symlink. This option has
+no effect on workspaces.
 
 
 

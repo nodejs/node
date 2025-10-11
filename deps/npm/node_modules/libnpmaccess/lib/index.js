@@ -73,7 +73,7 @@ const setMfa = async (pkg, level, opts) => {
       body.publish_requires_tfa = false
       break
     case 'publish':
-      // tfa is required, automation tokens can not override tfa
+      // tfa is required, automation tokens cannot override tfa
       body.publish_requires_tfa = true
       body.automation_token_overrides_tfa = false
       break

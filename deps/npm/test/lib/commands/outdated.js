@@ -582,7 +582,7 @@ t.test('workspaces', async t => {
   await t.test('should display all dependencies', t =>
     mockWorkspaces(t, { all: true }))
 
-  await t.test('should highlight ws in dependend by section', t =>
+  await t.test('should highlight ws in depended by section', t =>
     mockWorkspaces(t, { color: 'always' }))
 
   await t.test('should display results filtered by ws', t =>
@@ -666,7 +666,7 @@ t.test('aliases with version range', async t => {
 t.test('dependent location', async t => {
   const testDir = {
     'package.json': JSON.stringify({
-      name: 'similer-name',
+      name: 'similar-name',
       version: '1.0.0',
       workspaces: ['a', 'nest/a'],
     }),

@@ -581,7 +581,7 @@ t.test('sbom', async t => {
       workspaces: false,
     }))
 
-    t.test('should filter worksapces with --workspace', t => mockWorkspaces(t, [], {
+    t.test('should filter workspaces with --workspace', t => mockWorkspaces(t, [], {
       'sbom-format': 'spdx',
       workspace: 'a',
     }))

@@ -15,7 +15,7 @@ const mockDisplay = async (t, { mocks, load } = {}) => {
   const displayLoad = async (opts) => display.load({
     loglevel: 'silly',
     stderrColor: false,
-    stdoutColot: false,
+    stdoutColor: false,
     heading: 'npm',
     ...opts,
   })

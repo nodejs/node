@@ -15,22 +15,20 @@ Note: This command is unaware of workspaces.
 ### Description
 
 Verify a user in the specified registry, and save the credentials to the
-`.npmrc` file. If no registry is specified, the default registry will be
-used (see [`config`](/using-npm/config)).
+`.npmrc` file.
+If no registry is specified, the default registry will be used (see [`config`](/using-npm/config)).
 
-When you run `npm login`, the CLI automatically generates a legacy token of `publish` type. For more information, see [About legacy tokens](/about-access-tokens#about-legacy-tokens).
+When you run `npm login`, the CLI automatically generates a legacy token of `publish` type.
+For more information, see [About legacy tokens](/about-access-tokens#about-legacy-tokens).
 
-When using `legacy` for your `auth-type`, the username and password, are
-read in from prompts.
+When using `legacy` for your `auth-type`, the username and password, are read in from prompts.
 
 To reset your password, go to <https://www.npmjs.com/forgot>
 
 To change your email address, go to <https://www.npmjs.com/email-edit>
 
-You may use this command multiple times with the same user account to
-authorize on a new machine.  When authenticating on a new machine,
-the username, password and email address must all match with
-your existing record.
+You may use this command multiple times with the same user account to authorize on a new machine.
+When authenticating on a new machine, the username, password and email address must all match with your existing record.
 
 ### Configuration
 
@@ -79,8 +77,8 @@ npm init --scope=@foo --yes
 * Default: "web"
 * Type: "legacy" or "web"
 
-What authentication strategy to use with `login`. Note that if an `otp`
-config is given, this value will always be set to `legacy`.
+What authentication strategy to use with `login`. Note that if an
+`otp` config is given, this value will always be set to `legacy`.
 
 
 

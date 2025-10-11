@@ -16,14 +16,13 @@ Note: This command is unaware of workspaces.
 
 ### Description
 
-Create a new user in the specified registry, and save the credentials to
-the `.npmrc` file. If no registry is specified, the default registry
-will be used (see [`registry`](/using-npm/registry)).
+Create a new user in the specified registry, and save the credentials to the `.npmrc` file.
+If no registry is specified, the default registry will be used (see [`registry`](/using-npm/registry)).
 
-When you run `npm adduser`, the CLI automatically generates a legacy token of `publish` type. For more information, see [About legacy tokens](/about-access-tokens#about-legacy-tokens).
+When you run `npm adduser`, the CLI automatically generates a legacy token of `publish` type.
+For more information, see [About legacy tokens](/about-access-tokens#about-legacy-tokens).
 
-When using `legacy` for your `auth-type`, the username, password, and
-email are read in from prompts.
+When using `legacy` for your `auth-type`, the username, password, and email are read in from prompts.
 
 ### Configuration
 
@@ -72,8 +71,8 @@ npm init --scope=@foo --yes
 * Default: "web"
 * Type: "legacy" or "web"
 
-What authentication strategy to use with `login`. Note that if an `otp`
-config is given, this value will always be set to `legacy`.
+What authentication strategy to use with `login`. Note that if an
+`otp` config is given, this value will always be set to `legacy`.
 
 
 

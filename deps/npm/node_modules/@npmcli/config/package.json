@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/config",
-  "version": "10.4.1",
+  "version": "10.4.2",
   "files": [
     "bin/",
     "lib/"

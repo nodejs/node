@@ -17,12 +17,11 @@ Note: This command is unaware of workspaces.
 
 ### Description
 
-Change your profile information on the registry.  Note that this command
-depends on the registry implementation, so third-party registries may not
-support this interface.
+Change your profile information on the registry.
+Note that this command depends on the registry implementation, so third-party registries may not support this interface.
 
-* `npm profile get [<property>]`: Display all of the properties of your
-  profile, or one or more specific properties.  It looks like:
+* `npm profile get [<property>]`: Display all of the properties of your profile, or one or more specific properties.
+It looks like:
 
 ```
 name: example
@@ -37,23 +36,19 @@ created: 2015-02-26T01:38:35.892Z
 updated: 2017-10-02T21:29:45.922Z
 ```
 
-* `npm profile set <property> <value>`: Set the value of a profile
-  property. You can set the following properties this way: email, fullname,
-  homepage, freenode, twitter, github
+* `npm profile set <property> <value>`: Set the value of a profile property.
+You can set the following properties this way: email, fullname, homepage, freenode, twitter, github
 
-* `npm profile set password`: Change your password.  This is interactive,
-  you'll be prompted for your current password and a new password.  You'll
-  also be prompted for an OTP if you have two-factor authentication
-  enabled.
+* `npm profile set password`: Change your password.
+This is interactive, you'll be prompted for your current password and a new password.
+You'll also be prompted for an OTP if you have two-factor authentication enabled.
 
-* `npm profile enable-2fa [auth-and-writes|auth-only]`: Enables two-factor
-  authentication. Defaults to `auth-and-writes` mode. Modes are:
-  * `auth-only`: Require an OTP when logging in or making changes to your
-    account's authentication.  The OTP will be required on both the website
-    and the command line.
-  * `auth-and-writes`: Requires an OTP at all the times `auth-only` does,
-    and also requires one when publishing a module, setting the `latest`
-    dist-tag, or changing access via `npm access` and `npm owner`.
+* `npm profile enable-2fa [auth-and-writes|auth-only]`: Enables two-factor authentication.
+Defaults to `auth-and-writes` mode.
+Modes are:
+  * `auth-only`: Require an OTP when logging in or making changes to your account's authentication.
+The OTP will be required on both the website and the command line.
+  * `auth-and-writes`: Requires an OTP at all the times `auth-only` does, and also requires one when publishing a module, setting the `latest` dist-tag, or changing access via `npm access` and `npm owner`.
 
 * `npm profile disable-2fa`: Disables two-factor authentication.
 
@@ -79,8 +74,8 @@ The base URL of the npm registry.
 
 Whether or not to output JSON data, rather than the normal output.
 
-* In `npm pkg set` it enables parsing set values with JSON.parse() before
-  saving them to your `package.json`.
+* In `npm pkg set` it enables parsing set values with JSON.parse()
+  before saving them to your `package.json`.
 
 Not supported by all npm commands.
 
@@ -91,8 +86,8 @@ Not supported by all npm commands.
 * Default: false
 * Type: Boolean
 
-Output parseable results from commands that write to standard output. For
-`npm search`, this will be tab-separated table format.
+Output parseable results from commands that write to standard output.
+For `npm search`, this will be tab-separated table format.
 
 
 
@@ -101,11 +96,12 @@ Output parseable results from commands that write to standard output. For
 * Default: null
 * Type: null or String
 
-This is a one-time password from a two-factor authenticator. It's needed
-when publishing or changing package permissions with `npm access`.
+This is a one-time password from a two-factor authenticator. It's
+needed when publishing or changing package permissions with `npm
+access`.
 
-If not set, and a registry response fails with a challenge for a one-time
-password, npm will prompt on the command line for one.
+If not set, and a registry response fails with a challenge for a
+one-time password, npm will prompt on the command line for one.
 
 
 
