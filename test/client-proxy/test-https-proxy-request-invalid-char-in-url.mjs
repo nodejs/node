@@ -67,7 +67,7 @@ for (const testCase of testCases) {
     url: severHost,
     headers: { host: severHost },
   });
-  https.request(url, (res) => {
+  https.request(url, common.mustCall((res) => {
     res.on('error', common.mustNotCall());
     res.setEncoding('utf8');
     res.on('data', (data) => {
@@ -77,14 +77,14 @@ for (const testCase of testCases) {
       console.log(`[Proxy client] #${++counter} closed request for: ${inspect(url)}`);
       // Finished all test cases.
       if (counter === testCases.length) {
-        setImmediate(() => {
+        setImmediate(common.mustCall(() => {
           console.log('All requests completed, shutting down.');
           proxy.close();
           server.close();
           assert.deepStrictEqual(requests, expectedUrls);
           assert.deepStrictEqual(new Set(logs), expectedProxyLogs);
-        });
+        }));
       }
     }));
-  }).on('error', common.mustNotCall()).end();
+  })).on('error', common.mustNotCall()).end();
 }
