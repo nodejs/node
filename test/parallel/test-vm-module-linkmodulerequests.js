@@ -65,3 +65,14 @@ test('mismatch linkage', () => {
     code: 'ERR_MODULE_LINK_MISMATCH',
   });
 });
+
+test('instantiate error should hint about module identifier', () => {
+  const foo = new SourceTextModule('import bar from "bar"', { identifier: 'file://foo' });
+  const bar = new SourceTextModule('import "unknown"', { identifier: 'file://bar' });
+
+  foo.linkRequests([bar]);
+  assert.throws(() => foo.instantiate(), {
+    message: `request for 'unknown' can not be resolved on module 'file://bar' that is not linked`,
+    code: 'ERR_VM_MODULE_LINK_FAILURE',
+  });
+});

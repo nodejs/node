@@ -99,7 +99,6 @@ class ModuleWrap : public BaseObject {
  public:
   enum InternalFields {
     kModuleSlot = BaseObject::kInternalFieldCount,
-    kURLSlot,
     kModuleSourceObjectSlot,
     kSyntheticEvaluationStepsSlot,
     kContextObjectSlot,   // Object whose creation context is the target Context
@@ -215,6 +214,7 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::FixedArray> import_attributes,
       v8::Local<v8::Module> referrer);
 
+  std::string url_;
   v8::Global<v8::Module> module_;
   ResolveCache resolve_cache_;
   contextify::ContextifyContext* contextify_context_ = nullptr;

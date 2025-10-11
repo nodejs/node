@@ -295,12 +295,11 @@ inline v8::Local<v8::Object> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
 }
 
 inline void THROW_ERR_SOURCE_PHASE_NOT_DEFINED(v8::Isolate* isolate,
-                                               v8::Local<v8::String> url) {
-  std::string message = std::string(*v8::String::Utf8Value(isolate, url));
+                                               const std::string& url) {
   return THROW_ERR_SOURCE_PHASE_NOT_DEFINED(
       isolate,
-      "Source phase import object is not defined for module %s",
-      message.c_str());
+      "Source phase import object is not defined for module '%s'",
+      url);
 }
 
 inline v8::Local<v8::Object> ERR_STRING_TOO_LONG(v8::Isolate* isolate) {

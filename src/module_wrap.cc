@@ -144,12 +144,12 @@ ModuleWrap::ModuleWrap(Realm* realm,
                        Local<Object> context_object,
                        Local<Value> synthetic_evaluation_step)
     : BaseObject(realm, object),
+      url_(Utf8Value(realm->isolate(), url).ToString()),
       module_(realm->isolate(), module),
       module_hash_(module->GetIdentityHash()) {
   realm->env()->hash_to_module_map.emplace(module_hash_, this);
 
   object->SetInternalField(kModuleSlot, module);
-  object->SetInternalField(kURLSlot, url);
   object->SetInternalField(kModuleSourceObjectSlot,
                            v8::Undefined(realm->isolate()));
   object->SetInternalField(kSyntheticEvaluationStepsSlot,
@@ -968,8 +968,7 @@ void ModuleWrap::GetModuleSourceObject(
       obj->object()->GetInternalField(kModuleSourceObjectSlot).As<Value>();
 
   if (module_source_object->IsUndefined()) {
-    Local<String> url = obj->object()->GetInternalField(kURLSlot).As<String>();
-    THROW_ERR_SOURCE_PHASE_NOT_DEFINED(isolate, url);
+    THROW_ERR_SOURCE_PHASE_NOT_DEFINED(isolate, obj->url_);
     return;
   }
 
@@ -1043,10 +1042,8 @@ MaybeLocal<Object> ModuleWrap::ResolveSourceCallback(
           ->GetInternalField(ModuleWrap::kModuleSourceObjectSlot)
           .As<Value>();
   if (module_source_object->IsUndefined()) {
-    Local<String> url = resolved_module->object()
-                            ->GetInternalField(ModuleWrap::kURLSlot)
-                            .As<String>();
-    THROW_ERR_SOURCE_PHASE_NOT_DEFINED(Isolate::GetCurrent(), url);
+    THROW_ERR_SOURCE_PHASE_NOT_DEFINED(Isolate::GetCurrent(),
+                                       resolved_module->url_);
     return {};
   }
   CHECK(module_source_object->IsObject());
@@ -1078,17 +1075,21 @@ Maybe<ModuleWrap*> ModuleWrap::ResolveModule(
     return Nothing<ModuleWrap*>();
   }
   if (!dependent->IsLinked()) {
-    THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env,
-        "request for '%s' is from a module not been linked",
-        cache_key.specifier);
+    THROW_ERR_VM_MODULE_LINK_FAILURE(env,
+                                     "request for '%s' can not be resolved on "
+                                     "module '%s' that is not linked",
+                                     cache_key.specifier,
+                                     dependent->url_);
     return Nothing<ModuleWrap*>();
   }
 
   auto it = dependent->resolve_cache_.find(cache_key);
   if (it == dependent->resolve_cache_.end()) {
     THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' is not in cache", cache_key.specifier);
+        env,
+        "request for '%s' is not cached on module '%s'",
+        cache_key.specifier,
+        dependent->url_);
     return Nothing<ModuleWrap*>();
   }
 
