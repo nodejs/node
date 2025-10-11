@@ -203,7 +203,7 @@ class PlaceDep {
         this.warnPeerConflict()
       }
 
-      // if we get a KEEP in a update scenario, then we MAY have something
+      // if we get a KEEP in an update scenario, then we MAY have something
       // already duplicating this unnecessarily!  For example:
       // ```
       // root (dep: y@1)
@@ -317,7 +317,7 @@ class PlaceDep {
         force: this.force,
         installLinks: this.installLinks,
         installStrategy: this.installStrategy,
-        legacyPeerDeps: this.legaycPeerDeps,
+        legacyPeerDeps: this.legacyPeerDeps,
         preferDedupe: this.preferDedupe,
         strictPeerDeps: this.strictPeerDeps,
         updateNames: this.updateName,
@@ -421,7 +421,7 @@ class PlaceDep {
   // prune all the nodes in a branch of the tree that can be safely removed
   // This is only the most basic duplication detection; it finds if there
   // is another satisfying node further up the tree, and if so, dedupes.
-  // Even in installStategy is nested, we do this amount of deduplication.
+  // Even if installStrategy is nested, we do this amount of deduplication.
   pruneDedupable (node, descend = true) {
     if (node.canDedupe(this.preferDedupe, this.explicitRequest)) {
       // gather up all deps that have no valid edges in from outside

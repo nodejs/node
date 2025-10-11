@@ -130,7 +130,7 @@ class Npm {
     process.env.COLOR = this.color ? '1' : '0'
 
     // npm -v
-    // return from here early so we dont create any caches/logfiles/timers etc
+    // return from here early so we don't create any caches/logfiles/timers etc
     if (this.config.get('version', 'cli')) {
       output.standard(this.version)
       return { exec: false }

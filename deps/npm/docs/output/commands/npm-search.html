@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-search----1161">
+<h1 id="----npm-search----1162">
     <span>npm-search</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Search for packages</span>
 </header>
@@ -160,23 +160,17 @@ aliases: find, s, se
 </code></pre>
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
-<p>Search the registry for packages matching the search terms. <code>npm search</code>
-performs a linear, incremental, lexically-ordered search through package
-metadata for all files in the registry. If your terminal has color
-support, it will further highlight the matches in the results.  This can
-be disabled with the config item <code>color</code></p>
-<p>Additionally, using the <code>--searchopts</code> and <code>--searchexclude</code> options
-paired with more search terms will include and exclude further patterns.
-The main difference between <code>--searchopts</code> and the standard search terms
-is that the former does not highlight results in the output and you can
-use them more fine-grained filtering. Additionally, you can add both of
-these to your config to change default search filtering behavior.</p>
-<p>Search also allows targeting of maintainers in search results, by prefixing
-their npm username with <code>=</code>.</p>
-<p>If a term starts with <code>/</code>, then it's interpreted as a regular expression
-and supports standard JavaScript RegExp syntax. In this case search will
-ignore a trailing <code>/</code> .  (Note you must escape or quote many regular
-expression characters in most shells.)</p>
+<p>Search the registry for packages matching the search terms.
+<code>npm search</code>
+performs a linear, incremental, lexically-ordered search through package metadata for all files in the registry.
+If your terminal has color support, it will further highlight the matches in the results.
+This can be disabled with the config item <code>color</code></p>
+<p>Additionally, using the <code>--searchopts</code> and <code>--searchexclude</code> options paired with more search terms will include and exclude further patterns.
+The main difference between <code>--searchopts</code> and the standard search terms is that the former does not highlight results in the output and you can use them more fine-grained filtering.
+Additionally, you can add both of these to your config to change default search filtering behavior.</p>
+<p>Search also allows targeting of maintainers in search results, by prefixing their npm username with <code>=</code>.</p>
+<p>If a term starts with <code>/</code>, then it's interpreted as a regular expression and supports standard JavaScript RegExp syntax.
+In this case search will ignore a trailing <code>/</code> .  (Note you must escape or quote many regular expression characters in most shells.)</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="json"><code>json</code></h4>
 <ul>
@@ -185,24 +179,25 @@ expression characters in most shells.)</p>
 </ul>
 <p>Whether or not to output JSON data, rather than the normal output.</p>
 <ul>
-<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
-saving them to your <code>package.json</code>.</li>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse()
+before saving them to your <code>package.json</code>.</li>
 </ul>
 <p>Not supported by all npm commands.</p>
 <h4 id="color"><code>color</code></h4>
 <ul>
-<li>Default: true unless the NO_COLOR environ is set to something other than '0'</li>
+<li>Default: true unless the NO_COLOR environ is set to something other
+than '0'</li>
 <li>Type: "always" or Boolean</li>
 </ul>
-<p>If false, never shows colors. If <code>"always"</code> then always shows colors. If
-true, then only prints color codes for tty file descriptors.</p>
+<p>If false, never shows colors. If <code>"always"</code> then always shows colors.
+If true, then only prints color codes for tty file descriptors.</p>
 <h4 id="parseable"><code>parseable</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Output parseable results from commands that write to standard output. For
-<code>npm search</code>, this will be tab-separated table format.</p>
+<p>Output parseable results from commands that write to standard output.
+For <code>npm search</code>, this will be tab-separated table format.</p>
 <h4 id="description2"><code>description</code></h4>
 <ul>
 <li>Default: true</li>
@@ -214,8 +209,8 @@ true, then only prints color codes for tty file descriptors.</p>
 <li>Default: 20</li>
 <li>Type: Number</li>
 </ul>
-<p>Number of items to limit search results to. Will not apply at all to legacy
-searches.</p>
+<p>Number of items to limit search results to. Will not apply at all to
+legacy searches.</p>
 <h4 id="searchopts"><code>searchopts</code></h4>
 <ul>
 <li>Default: ""</li>
@@ -239,23 +234,24 @@ searches.</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>If true, staleness checks for cached data will be forced, making the CLI
-look for updates immediately even for fresh package data.</p>
+<p>If true, staleness checks for cached data will be forced, making the
+CLI look for updates immediately even for fresh package data.</p>
 <h4 id="prefer-offline"><code>prefer-offline</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>If true, staleness checks for cached data will be bypassed, but missing data
-will be requested from the server. To force full offline mode, use
-<code>--offline</code>.</p>
+<p>If true, staleness checks for cached data will be bypassed, but
+missing data will be requested from the server. To force full offline
+mode, use <code>--offline</code>.</p>
 <h4 id="offline"><code>offline</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Force offline mode: no network requests will be done during install. To
-allow the CLI to fill in missing cache data, see <code>--prefer-offline</code>.</p>
+<p>Force offline mode: no network requests will be done during install.
+To allow the CLI to fill in missing cache data, see
+<code>--prefer-offline</code>.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
