@@ -2,6 +2,11 @@
 
 <!--introduced_in=v7.7.0-->
 
+<!-- YAML
+llm_description: >
+  Lists APIs that are deprecated and subject to removal in future releases.
+-->
+
 <!-- type=misc -->
 
 Node.js APIs might be deprecated for any of the following reasons:
