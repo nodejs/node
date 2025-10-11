@@ -5,7 +5,7 @@ const assert = require('assert');
 const timers = require('timers');
 const { promisify } = require('util');
 
-const { getEventListeners } = require('events');
+const { listenerCount } = require('events');
 const { NodeEventTarget } = require('internal/event_target');
 
 const timerPromises = require('timers/promises');
@@ -56,7 +56,7 @@ assert.strictEqual(setPromiseTimeout, timerPromises.setTimeout);
   const signal = new NodeEventTarget();
   signal.aborted = false;
   setPromiseTimeout(0, null, { signal }).finally(common.mustCall(() => {
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+    assert.strictEqual(listenerCount(signal, 'abort'), 0);
   }));
 }
 
