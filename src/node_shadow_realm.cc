@@ -79,7 +79,10 @@ ShadowRealm::ShadowRealm(Environment* env)
   context_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
   CreateProperties();
 
-  env->TrackShadowRealm(this);
+  // Don't track shadow realms in environment's set - that creates a strong
+  // reference preventing GC. The cleanup hook and weak callback are sufficient
+  // for proper lifecycle management.
+  // Fixes: https://github.com/nodejs/node/issues/47353
   env->AddCleanupHook(DeleteMe, this);
 }
 
@@ -88,7 +91,8 @@ ShadowRealm::~ShadowRealm() {
     RunCleanup();
   }
 
-  env_->UntrackShadowRealm(this);
+  // Removed UntrackShadowRealm() call - we no longer track shadow realms
+  // in environment's set to avoid creating strong references that prevent GC.
 
   if (context_.IsEmpty()) {
     // This most likely happened because the weak callback cleared it.

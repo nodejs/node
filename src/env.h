@@ -691,8 +691,9 @@ class Environment final : public MemoryRetainer {
                        Realm* realm,
                        const ContextInfo& info);
   void UnassignFromContext(v8::Local<v8::Context> context);
-  void TrackShadowRealm(shadow_realm::ShadowRealm* realm);
-  void UntrackShadowRealm(shadow_realm::ShadowRealm* realm);
+  // TrackShadowRealm/UntrackShadowRealm removed - they created strong
+  // references that prevented Shadow Realms from being garbage collected.
+  // Fixes: https://github.com/nodejs/node/issues/47353
 
   void StartProfilerIdleNotifier();
 
@@ -1117,7 +1118,9 @@ class Environment final : public MemoryRetainer {
 
   size_t async_callback_scope_depth_ = 0;
   std::vector<double> destroy_async_id_list_;
-  std::unordered_set<shadow_realm::ShadowRealm*> shadow_realms_;
+  // shadow_realms_ member removed - tracking shadow realms in a set created
+  // strong C++ references that prevented garbage collection.
+  // Fixes: https://github.com/nodejs/node/issues/47353
 
 #if HAVE_INSPECTOR
   std::unique_ptr<profiler::V8CoverageConnection> coverage_connection_;

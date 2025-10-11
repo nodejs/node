@@ -30,10 +30,12 @@ function createRealms() {
 }
 
 function validateHeap() {
-  validateByRetainingPath('Node / Environment', [
-    { node_name: 'Node / shadow_realms', edge_name: 'shadow_realms' },
-    { node_name: 'Node / ShadowRealm' },
-  ]);
+  // Validate that ShadowRealm appears in the heap snapshot.
+  // We don't validate a specific retaining path since ShadowRealms are now
+  // managed via weak references and cleanup hooks rather than a strong
+  // shadow_realms_ set (which was removed to fix the memory leak).
+  const nodes = validateByRetainingPath('Node / ShadowRealm', []);
+  assert(nodes.length > 0, 'Expected at least one ShadowRealm in heap snapshot');
 }
 
 createRealms();
