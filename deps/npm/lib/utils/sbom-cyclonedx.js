@@ -1,6 +1,6 @@
 const crypto = require('node:crypto')
-const normalizeData = require('normalize-package-data')
 const parseLicense = require('spdx-expression-parse')
+const PackageJson = require('@npmcli/package-json')
 const npa = require('npm-package-arg')
 const ssri = require('ssri')
 
@@ -79,7 +79,9 @@ const toCyclonedxItem = (node, { packageType }) => {
   const purl = npa.toPurl(spec) + (isGitNode(node) ? `?vcs_url=${node.resolved}` : '')
 
   if (node.package) {
-    normalizeData(node.package)
+    const toNormalize = new PackageJson()
+    toNormalize.fromContent(node.package).normalize({ steps: ['normalizeData'] })
+    node.package = toNormalize.content
   }
 
   let parsedLicense

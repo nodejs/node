@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-sbom----1161">
+<h1 id="----npm-sbom----1162">
     <span>npm-sbom</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Generate a Software Bill of Materials (SBOM)</span>
 </header>
@@ -157,9 +157,8 @@ npm command-line interface
 <pre><code class="language-bash">npm sbom
 </code></pre>
 <h3 id="description">Description</h3>
-<p>The <code>npm sbom</code> command generates a Software Bill of Materials (SBOM) listing the
-dependencies for the current project. SBOMs can be generated in either
-<a href="https://spdx.dev/">SPDX</a> or <a href="https://cyclonedx.org/">CycloneDX</a> format.</p>
+<p>The <code>npm sbom</code> command generates a Software Bill of Materials (SBOM) listing the dependencies for the current project.
+SBOMs can be generated in either <a href="https://spdx.dev/">SPDX</a> or <a href="https://cyclonedx.org/">CycloneDX</a> format.</p>
 <h3 id="example-cyclonedx-sbom">Example CycloneDX SBOM</h3>
 <pre><code class="language-json">{
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
@@ -345,36 +344,37 @@ dependencies for the current project. SBOMs can be generated in either
 }
 </code></pre>
 <h3 id="package-lock-only-mode">Package lock only mode</h3>
-<p>If package-lock-only is enabled, only the information in the package
-lock (or shrinkwrap) is loaded.  This means that information from the
-package.json files of your dependencies will not be included in the
-result set (e.g. description, homepage, engines).</p>
+<p>If package-lock-only is enabled, only the information in the package lock (or shrinkwrap) is loaded.
+This means that information from the package.json files of your dependencies will not be included in the result set (e.g.
+description, homepage, engines).</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="omit"><code>omit</code></h4>
 <ul>
 <li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
-'production', otherwise empty.</li>
+'production'; otherwise, empty.</li>
 <li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>
 <p>Note that these dependencies <em>are</em> still resolved and added to the
 <code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file. They are just not
 physically installed on disk.</p>
-<p>If a package type appears in both the <code>--include</code> and <code>--omit</code> lists, then
-it will be included.</p>
-<p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
-variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
+<p>If a package type appears in both the <code>--include</code> and <code>--omit</code> lists,
+then it will be included.</p>
+<p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code>
+environment variable will be set to <code>'production'</code> for all lifecycle
+scripts.</p>
 <h4 id="package-lock-only"><code>package-lock-only</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>If set to true, the current operation will only use the <code>package-lock.json</code>,
-ignoring <code>node_modules</code>.</p>
+<p>If set to true, the current operation will only use the
+<code>package-lock.json</code>, ignoring <code>node_modules</code>.</p>
 <p>For <code>update</code> this means only the <code>package-lock.json</code> will be updated,
 instead of checking <code>node_modules</code> and downloading dependencies.</p>
-<p>For <code>list</code> this means the output will be based on the tree described by the
-<code>package-lock.json</code>, rather than the contents of <code>node_modules</code>.</p>
+<p>For <code>list</code> this means the output will be based on the tree described
+by the <code>package-lock.json</code>, rather than the contents of
+<code>node_modules</code>.</p>
 <h4 id="sbom-format"><code>sbom-format</code></h4>
 <ul>
 <li>Default: null</li>
@@ -386,17 +386,17 @@ instead of checking <code>node_modules</code> and downloading dependencies.</p>
 <li>Default: "library"</li>
 <li>Type: "library", "application", or "framework"</li>
 </ul>
-<p>The type of package described by the generated SBOM. For SPDX, this is the
-value for the <code>primaryPackagePurpose</code> field. For CycloneDX, this is the
-value for the <code>type</code> field.</p>
+<p>The type of package described by the generated SBOM. For SPDX, this
+is the value for the <code>primaryPackagePurpose</code> field. For CycloneDX,
+this is the value for the <code>type</code> field.</p>
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>
 <li>Default:</li>
 <li>Type: String (can be set multiple times)</li>
 </ul>
-<p>Enable running a command in the context of the configured workspaces of the
-current project while filtering by running only the workspaces defined by
-this configuration option.</p>
+<p>Enable running a command in the context of the configured workspaces
+of the current project while filtering by running only the workspaces
+defined by this configuration option.</p>
 <p>Valid values for the <code>workspace</code> config are either:</p>
 <ul>
 <li>Workspace names</li>
@@ -404,9 +404,9 @@ this configuration option.</p>
 <li>Path to a parent workspace directory (will result in selecting all
 workspaces within that folder)</li>
 </ul>
-<p>When set for the <code>npm init</code> command, this may be set to the folder of a
-workspace which does not yet exist, to create the folder and set it up as a
-brand new workspace within the project.</p>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of
+a workspace which does not yet exist, to create the folder and set it
+up as a brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
@@ -415,13 +415,14 @@ brand new workspace within the project.</p>
 </ul>
 <p>Set to true to run the command in the context of <strong>all</strong> configured
 workspaces.</p>
-<p>Explicitly setting this to false will cause commands like <code>install</code> to
-ignore workspaces altogether. When not set explicitly:</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code>
+to ignore workspaces altogether. When not set explicitly:</p>
 <ul>
-<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
-will link workspaces into the <code>node_modules</code> folder. - Commands that do
-other things (test, exec, publish, etc.) will operate on the root project,
-<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update,
+etc.) will link workspaces into the <code>node_modules</code> folder. - Commands
+that do other things (test, exec, publish, etc.) will operate on the
+root project, <em>unless</em> one or more workspaces are specified in the
+<code>workspace</code> config.</li>
 </ul>
 <p>This value is not exported to the environment for child processes.</p>
 <h2 id="see-also">See Also</h2>

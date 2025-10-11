@@ -1,4 +1,4 @@
-.TH "NPM-AUDIT" "1" "September 2025" "NPM@11.6.1" ""
+.TH "NPM-AUDIT" "1" "October 2025" "NPM@11.6.2" ""
 .SH "NAME"
 \fBnpm-audit\fR - Run a security audit
 .SS "Synopsis"
@@ -14,8 +14,7 @@ The audit command submits a description of the dependencies configured in your p
 .P
 The command will exit with a 0 exit code if no vulnerabilities were found.
 .P
-Note that some vulnerabilities cannot be fixed automatically and will require manual intervention or review. Also note that since \fBnpm audit
-fix\fR runs a full-fledged \fBnpm install\fR under the hood, all configs that apply to the installer will also apply to \fBnpm install\fR -- so things like \fBnpm audit fix --package-lock-only\fR will work as expected.
+Note that some vulnerabilities cannot be fixed automatically and will require manual intervention or review. Also note that since \fBnpm audit fix\fR runs a full-fledged \fBnpm install\fR under the hood, all configs that apply to the installer will also apply to \fBnpm install\fR -- so things like \fBnpm audit fix --package-lock-only\fR will work as expected.
 .P
 By default, the audit command will exit with a non-zero code if any vulnerability is found. It may be useful in CI environments to include the \fB--audit-level\fR parameter to specify the minimum vulnerability level that will cause the command to fail. This option does not filter the report output, it simply changes the command's failure threshold.
 .SS "Package lock"
@@ -82,7 +81,7 @@ Keys response:
 .IP \(bu 4
 \fBexpires\fR: null or a simplified extended \fBISO 8601 format\fR \fI\(lahttps://en.wikipedia.org/wiki/ISO_8601\(ra\fR: \fBYYYY-MM-DDTHH:mm:ss.sssZ\fR
 .IP \(bu 4
-\fBkeydid\fR: sha256 fingerprint of the public key
+\fBkeyid\fR: sha256 fingerprint of the public key
 .IP \(bu 4
 \fBkeytype\fR: only \fBecdsa-sha2-nistp256\fR is currently supported by the npm CLI
 .IP \(bu 4
@@ -140,8 +139,7 @@ This scrubbing has been removed from npm as of version 7.
 .P
 npm uses the \fB\[rs]fB@npmcli/metavuln-calculator\[rs]fR\fR \fI\(lahttp://npm.im/@npmcli/metavuln-calculator\(ra\fR module to turn a set of security advisories into a set of "vulnerability" objects. A "meta-vulnerability" is a dependency that is vulnerable by virtue of dependence on vulnerable versions of a vulnerable package.
 .P
-For example, if the package \fBfoo\fR is vulnerable in the range \fB>=1.0.2
-<2.0.0\fR, and the package \fBbar\fR depends on \fBfoo@^1.1.0\fR, then that version of \fBbar\fR can only be installed by installing a vulnerable version of \fBfoo\fR. In this case, \fBbar\fR is a "metavulnerability".
+For example, if the package \fBfoo\fR is vulnerable in the range \fB>=1.0.2 <2.0.0\fR, and the package \fBbar\fR depends on \fBfoo@^1.1.0\fR, then that version of \fBbar\fR can only be installed by installing a vulnerable version of \fBfoo\fR. In this case, \fBbar\fR is a "metavulnerability".
 .P
 Once metavulnerabilities for a given package are calculated, they are cached in the \fB~/.npm\fR folder and only re-evaluated if the advisory range changes, or a new version of the package is published (in which case, the new version is checked for metavulnerable status as well).
 .P
@@ -320,7 +318,7 @@ If set to false, then ignore \fBpackage-lock.json\fR files when installing. This
 .SS "\fBomit\fR"
 .RS 0
 .IP \(bu 4
-Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production', otherwise empty.
+Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production'; otherwise, empty.
 .IP \(bu 4
 Type: "dev", "optional", or "peer" (can be set multiple times)
 .RE 0
@@ -370,7 +368,8 @@ Type: Boolean
 .P
 If true, npm does not run scripts specified in package.json files.
 .P
-Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm
+run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
 .SS "\fBworkspace\fR"
 .RS 0
 .IP \(bu 4

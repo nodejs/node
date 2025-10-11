@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-dist-tag----1161">
+<h1 id="----npm-dist-tag----1162">
     <span>npm-dist-tag</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Modify package distribution tags</span>
 </header>
@@ -164,68 +164,52 @@ alias: dist-tags
 <p>Add, remove, and enumerate distribution tags on a package:</p>
 <ul>
 <li>
-<p>add: Tags the specified version of the package with the specified tag,
-or the <a href="../using-npm/config#tag.html"><code>--tag</code> config</a> if not specified. If you have
-two-factor authentication on auth-and-writes then you’ll need to include a
-one-time password on the command line with
-<code>--otp &lt;one-time password&gt;</code>, or go through a second factor flow based on your <code>authtype</code>.</p>
+<p>add: Tags the specified version of the package with the specified tag, or the <a href="../using-npm/config#tag.html"><code>--tag</code> config</a> if not specified.
+If you have two-factor authentication on auth-and-writes then you’ll need to include a one-time password on the command line with <code>--otp &lt;one-time password&gt;</code>, or go through a second factor flow based on your <code>authtype</code>.</p>
 </li>
 <li>
-<p>rm: Clear a tag that is no longer in use from the package. If you have
-two-factor authentication on auth-and-writes then you’ll need to include
-a one-time password on the command line with <code>--otp &lt;one-time password&gt;</code>,
-or go through a second factor flow based on your <code>authtype</code></p>
+<p>rm: Clear a tag that is no longer in use from the package.
+If you have two-factor authentication on auth-and-writes then you’ll need to include a one-time password on the command line with <code>--otp &lt;one-time password&gt;</code>, or go through a second factor flow based on your <code>authtype</code></p>
 </li>
 <li>
-<p>ls: Show all of the dist-tags for a package, defaulting to the package in
-the current prefix. This is the default action if none is specified.</p>
+<p>ls: Show all of the dist-tags for a package, defaulting to the package in the current prefix.
+This is the default action if none is specified.</p>
 </li>
 </ul>
-<p>A tag can be used when installing packages as a reference to a version instead
-of using a specific version number:</p>
+<p>A tag can be used when installing packages as a reference to a version instead of using a specific version number:</p>
 <pre><code class="language-bash">npm install &lt;name&gt;@&lt;tag&gt;
 </code></pre>
 <p>When installing dependencies, a preferred tagged version may be specified:</p>
 <pre><code class="language-bash">npm install --tag &lt;tag&gt;
 </code></pre>
-<p>(This also applies to any other commands that resolve and install
-dependencies, such as <code>npm dedupe</code>, <code>npm update</code>, and <code>npm audit fix</code>.)</p>
-<p>Publishing a package sets the <code>latest</code> tag to the published version unless the
-<code>--tag</code> option is used. For example, <code>npm publish --tag=beta</code>.</p>
-<p>By default, <code>npm install &lt;pkg&gt;</code> (without any <code>@&lt;version&gt;</code> or <code>@&lt;tag&gt;</code>
-specifier) installs the <code>latest</code> tag.</p>
+<p>(This also applies to any other commands that resolve and install dependencies, such as <code>npm dedupe</code>, <code>npm update</code>, and <code>npm audit fix</code>.)</p>
+<p>Publishing a package sets the <code>latest</code> tag to the published version unless the <code>--tag</code> option is used.
+For example, <code>npm publish --tag=beta</code>.</p>
+<p>By default, <code>npm install &lt;pkg&gt;</code> (without any <code>@&lt;version&gt;</code> or <code>@&lt;tag&gt;</code> specifier) installs the <code>latest</code> tag.</p>
 <h3 id="purpose">Purpose</h3>
 <p>Tags can be used to provide an alias instead of version numbers.</p>
-<p>For example, a project might choose to have multiple streams of development
-and use a different tag for each stream, e.g., <code>stable</code>, <code>beta</code>, <code>dev</code>,
+<p>For example, a project might choose to have multiple streams of development and use a different tag for each stream, e.g., <code>stable</code>, <code>beta</code>, <code>dev</code>,
 <code>canary</code>.</p>
-<p>By default, the <code>latest</code> tag is used by npm to identify the current version
-of a package, and <code>npm install &lt;pkg&gt;</code> (without any <code>@&lt;version&gt;</code> or <code>@&lt;tag&gt;</code>
-specifier) installs the <code>latest</code> tag. Typically, projects only use the
-<code>latest</code> tag for stable release versions, and use other tags for unstable
-versions such as prereleases.</p>
+<p>By default, the <code>latest</code> tag is used by npm to identify the current version of a package, and <code>npm install &lt;pkg&gt;</code> (without any <code>@&lt;version&gt;</code> or <code>@&lt;tag&gt;</code> specifier) installs the <code>latest</code> tag.
+Typically, projects only use the <code>latest</code> tag for stable release versions, and use other tags for unstable versions such as prereleases.</p>
 <p>The <code>next</code> tag is used by some projects to identify the upcoming version.</p>
 <p>Other than <code>latest</code>, no tag has any special significance to npm itself.</p>
 <h3 id="caveats">Caveats</h3>
-<p>This command used to be known as <code>npm tag</code>, which only created new tags,
-and so had a different syntax.</p>
-<p>Tags must share a namespace with version numbers, because they are
-specified in the same slot: <code>npm install &lt;pkg&gt;@&lt;version&gt;</code> vs
-<code>npm install &lt;pkg&gt;@&lt;tag&gt;</code>.</p>
-<p>Tags that can be interpreted as valid semver ranges will be rejected. For
-example, <code>v1.4</code> cannot be used as a tag, because it is interpreted by
-semver as <code>&gt;=1.4.0 &lt;1.5.0</code>.  See <a href="https://github.com/npm/npm/issues/6082">https://github.com/npm/npm/issues/6082</a>.</p>
-<p>The simplest way to avoid semver problems with tags is to use tags that do
-not begin with a number or the letter <code>v</code>.</p>
+<p>This command used to be known as <code>npm tag</code>, which only created new tags, and so had a different syntax.</p>
+<p>Tags must share a namespace with version numbers, because they are specified in the same slot: <code>npm install &lt;pkg&gt;@&lt;version&gt;</code> vs <code>npm install &lt;pkg&gt;@&lt;tag&gt;</code>.</p>
+<p>Tags that can be interpreted as valid semver ranges will be rejected.
+For example, <code>v1.4</code> cannot be used as a tag, because it is interpreted by semver as <code>&gt;=1.4.0 &lt;1.5.0</code>.
+See <a href="https://github.com/npm/npm/issues/6082">https://github.com/npm/npm/issues/6082</a>.</p>
+<p>The simplest way to avoid semver problems with tags is to use tags that do not begin with a number or the letter <code>v</code>.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>
 <li>Default:</li>
 <li>Type: String (can be set multiple times)</li>
 </ul>
-<p>Enable running a command in the context of the configured workspaces of the
-current project while filtering by running only the workspaces defined by
-this configuration option.</p>
+<p>Enable running a command in the context of the configured workspaces
+of the current project while filtering by running only the workspaces
+defined by this configuration option.</p>
 <p>Valid values for the <code>workspace</code> config are either:</p>
 <ul>
 <li>Workspace names</li>
@@ -233,9 +217,9 @@ this configuration option.</p>
 <li>Path to a parent workspace directory (will result in selecting all
 workspaces within that folder)</li>
 </ul>
-<p>When set for the <code>npm init</code> command, this may be set to the folder of a
-workspace which does not yet exist, to create the folder and set it up as a
-brand new workspace within the project.</p>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of
+a workspace which does not yet exist, to create the folder and set it
+up as a brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
@@ -244,13 +228,14 @@ brand new workspace within the project.</p>
 </ul>
 <p>Set to true to run the command in the context of <strong>all</strong> configured
 workspaces.</p>
-<p>Explicitly setting this to false will cause commands like <code>install</code> to
-ignore workspaces altogether. When not set explicitly:</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code>
+to ignore workspaces altogether. When not set explicitly:</p>
 <ul>
-<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
-will link workspaces into the <code>node_modules</code> folder. - Commands that do
-other things (test, exec, publish, etc.) will operate on the root project,
-<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update,
+etc.) will link workspaces into the <code>node_modules</code> folder. - Commands
+that do other things (test, exec, publish, etc.) will operate on the
+root project, <em>unless</em> one or more workspaces are specified in the
+<code>workspace</code> config.</li>
 </ul>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
@@ -259,9 +244,10 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <li>Type: Boolean</li>
 </ul>
 <p>Include the workspace root when workspaces are enabled for a command.</p>
-<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
-all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
-the specified workspaces, and not on the root project.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code>
+config, or all workspaces via the <code>workspaces</code> flag, will cause npm
+to operate only on the specified workspaces, and not on the root
+project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h3 id="see-also">See Also</h3>
 <ul>

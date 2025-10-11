@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----dependency-selector-syntax--querying----1161">
+<h1 id="----dependency-selector-syntax--querying----1162">
     <span>Dependency Selector Syntax &amp; Querying</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Dependency Selector Syntax &amp; Querying</span>
 </header>
@@ -159,12 +159,14 @@ npm command-line interface
 <li>Standardizes the shape of, &amp; querying of, dependency graphs with a robust object model, metadata &amp; selector syntax</li>
 <li>Leverages existing, known language syntax &amp; operators from CSS to make disparate package information broadly accessible</li>
 <li>Unlocks the ability to answer complex, multi-faceted questions about dependencies, their relationships &amp; associative metadata</li>
-<li>Consolidates redundant logic of similar query commands in <code>npm</code> (ex. <code>npm fund</code>, <code>npm ls</code>, <code>npm outdated</code>, <code>npm audit</code> ...)</li>
+<li>Consolidates redundant logic of similar query commands in <code>npm</code> (ex.
+<code>npm fund</code>, <code>npm ls</code>, <code>npm outdated</code>, <code>npm audit</code> ...)</li>
 </ul>
 <h3 id="dependency-selector-syntax">Dependency Selector Syntax</h3>
 <h4 id="overview">Overview:</h4>
 <ul>
-<li>there is no "type" or "tag" selectors (ex. <code>div, h1, a</code>) as a dependency/target is the only type of <code>Node</code> that can be queried</li>
+<li>there is no "type" or "tag" selectors (ex.
+<code>div, h1, a</code>) as a dependency/target is the only type of <code>Node</code> that can be queried</li>
 <li>the term "dependencies" is in reference to any <code>Node</code> found in a <code>tree</code> returned by <code>Arborist</code></li>
 </ul>
 <h4 id="combinators">Combinators</h4>
@@ -213,13 +215,17 @@ npm command-line interface
 <li><code>:vuln(&lt;selector&gt;)</code> when a dependency has a known vulnerability</li>
 </ul>
 <h5 id="semverspec-selector-function"><code>:semver(&lt;spec&gt;, [selector], [function])</code></h5>
-<p>The <code>:semver()</code> pseudo selector allows comparing fields from each node's <code>package.json</code> using <a href="https://github.com/npm/node-semver#readme">semver</a> methods. It accepts up to 3 parameters, all but the first of which are optional.</p>
+<p>The <code>:semver()</code> pseudo selector allows comparing fields from each node's <code>package.json</code> using <a href="https://github.com/npm/node-semver#readme">semver</a> methods.
+It accepts up to 3 parameters, all but the first of which are optional.</p>
 <ul>
 <li><code>spec</code> a semver version or range</li>
 <li><code>selector</code> an attribute selector for each node (default <code>[version]</code>)</li>
 <li><code>function</code> a semver method to apply, one of: <code>satisfies</code>, <code>intersects</code>, <code>subset</code>, <code>gt</code>, <code>gte</code>, <code>gtr</code>, <code>lt</code>, <code>lte</code>, <code>ltr</code>, <code>eq</code>, <code>neq</code> or the special function <code>infer</code> (default <code>infer</code>)</li>
 </ul>
-<p>When the special <code>infer</code> function is used the <code>spec</code> and the actual value from the node are compared. If both are versions, according to <code>semver.valid()</code>, <code>eq</code> is used. If both values are ranges, according to <code>!semver.valid()</code>, <code>intersects</code> is used. If the values are mixed types <code>satisfies</code> is used.</p>
+<p>When the special <code>infer</code> function is used the <code>spec</code> and the actual value from the node are compared.
+If both are versions, according to <code>semver.valid()</code>, <code>eq</code> is used.
+If both values are ranges, according to <code>!semver.valid()</code>, <code>intersects</code> is used.
+If the values are mixed types <code>satisfies</code> is used.</p>
 <p>Some examples:</p>
 <ul>
 <li><code>:semver(^1.0.0)</code> returns every node that has a <code>version</code> satisfied by the provided range <code>^1.0.0</code></li>
@@ -227,7 +233,8 @@ npm command-line interface
 <li><code>:semver(1.0.0, [version], lt)</code> every node with a <code>version</code> less than <code>1.0.0</code></li>
 </ul>
 <h5 id="outdatedtype"><code>:outdated(&lt;type&gt;)</code></h5>
-<p>The <code>:outdated</code> pseudo selector retrieves data from the registry and returns information about which of your dependencies are outdated. The type parameter may be one of the following:</p>
+<p>The <code>:outdated</code> pseudo selector retrieves data from the registry and returns information about which of your dependencies are outdated.
+The type parameter may be one of the following:</p>
 <ul>
 <li><code>any</code> (default) a version exists that is greater than the current one</li>
 <li><code>in-range</code> a version exists that is greater than the current one, and satisfies at least one if its parent's dependencies</li>
@@ -236,11 +243,14 @@ npm command-line interface
 <li><code>minor</code> a version exists that is a semver minor greater than the current one</li>
 <li><code>patch</code> a version exists that is a semver patch greater than the current one</li>
 </ul>
-<p>In addition to the filtering performed by the pseudo selector, some extra data is added to the resulting objects. The following data can be found under the <code>queryContext</code> property of each node.</p>
+<p>In addition to the filtering performed by the pseudo selector, some extra data is added to the resulting objects.
+The following data can be found under the <code>queryContext</code> property of each node.</p>
 <ul>
 <li><code>versions</code> an array of every available version of the given node</li>
-<li><code>outdated.inRange</code> an array of objects, each with a <code>from</code> and <code>versions</code>, where <code>from</code> is the on-disk location of the node that depends on the current node and <code>versions</code> is an array of all available versions that satisfies that dependency. This is only populated if <code>:outdated(in-range)</code> is used.</li>
-<li><code>outdated.outOfRange</code> an array of objects, identical in shape to <code>inRange</code>, but where the <code>versions</code> array is every available version that does not satisfy the dependency. This is only populated if <code>:outdated(out-of-range)</code> is used.</li>
+<li><code>outdated.inRange</code> an array of objects, each with a <code>from</code> and <code>versions</code>, where <code>from</code> is the on-disk location of the node that depends on the current node and <code>versions</code> is an array of all available versions that satisfies that dependency.
+This is only populated if <code>:outdated(in-range)</code> is used.</li>
+<li><code>outdated.outOfRange</code> an array of objects, identical in shape to <code>inRange</code>, but where the <code>versions</code> array is every available version that does not satisfy the dependency.
+This is only populated if <code>:outdated(out-of-range)</code> is used.</li>
 </ul>
 <p>Some examples:</p>
 <ul>
@@ -248,8 +258,12 @@ npm command-line interface
 <li><code>.prod:outdated(in-range)</code> returns production dependencies that have a new release that satisfies at least one of its parent's dependencies</li>
 </ul>
 <h5 id="vuln"><code>:vuln</code></h5>
-<p>The <code>:vuln</code> pseudo selector retrieves data from the registry and returns information about which if your dependencies has a known vulnerability.  Only dependencies whose current version matches a vulnerability will be returned.  For example if you have <code>semver@7.6.0</code> in your tree, a vulnerability for <code>semver</code> which affects versions <code>&lt;=6.3.1</code> will not match.</p>
-<p>You can also filter results by certain attributes in advisories.  Currently that includes <code>severity</code> and <code>cwe</code>.  Note that severity filtering is done per severity, it does not include severities "higher" or "lower" than the one specified.</p>
+<p>The <code>:vuln</code> pseudo selector retrieves data from the registry and returns information about which if your dependencies has a known vulnerability.
+Only dependencies whose current version matches a vulnerability will be returned.
+For example if you have <code>semver@7.6.0</code> in your tree, a vulnerability for <code>semver</code> which affects versions <code>&lt;=6.3.1</code> will not match.</p>
+<p>You can also filter results by certain attributes in advisories.
+Currently that includes <code>severity</code> and <code>cwe</code>.
+Note that severity filtering is done per severity, it does not include severities "higher" or "lower" than the one specified.</p>
 <p>In addition to the filtering performed by the pseudo selector, info about each relevant advisory will be added to the <code>queryContext</code> attribute of each node under the <code>advisories</code> attribute.</p>
 <p>Some examples:</p>
 <ul>
@@ -261,7 +275,8 @@ npm command-line interface
 <h4 id="attribute-selectors"><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/Attribute_selectors">Attribute Selectors</a></h4>
 <p>The attribute selector evaluates the key/value pairs in <code>package.json</code> if they are <code>String</code>s.</p>
 <ul>
-<li><code>[]</code> attribute selector (ie. existence of attribute)</li>
+<li><code>[]</code> attribute selector (ie.
+existence of attribute)</li>
 <li><code>[attribute=value]</code> attribute value is equivalent...</li>
 <li><code>[attribute~=value]</code> attribute value contains word...</li>
 <li><code>[attribute*=value]</code> attribute value contains string...</li>
@@ -270,18 +285,22 @@ npm command-line interface
 <li><code>[attribute$=value]</code> attribute value ends with...</li>
 </ul>
 <h4 id="array--object-attribute-selectors"><code>Array</code> &amp; <code>Object</code> Attribute Selectors</h4>
-<p>The generic <code>:attr()</code> pseudo selector standardizes a pattern which can be used for attribute selection of <code>Object</code>s, <code>Array</code>s or <code>Arrays</code> of <code>Object</code>s accessible via <code>Arborist</code>'s <code>Node.package</code> metadata. This allows for iterative attribute selection beyond top-level <code>String</code> evaluation. The last argument passed to <code>:attr()</code> must be an <code>attribute</code> selector or a nested <code>:attr()</code>. See examples below:</p>
+<p>The generic <code>:attr()</code> pseudo selector standardizes a pattern which can be used for attribute selection of <code>Object</code>s, <code>Array</code>s or <code>Arrays</code> of <code>Object</code>s accessible via <code>Arborist</code>'s <code>Node.package</code> metadata.
+This allows for iterative attribute selection beyond top-level <code>String</code> evaluation.
+The last argument passed to <code>:attr()</code> must be an <code>attribute</code> selector or a nested <code>:attr()</code>.
+See examples below:</p>
 <h4 id="objects"><code>Objects</code></h4>
 <pre><code class="language-css">/* return dependencies that have a `scripts.test` containing `"tap"` */
 *:attr(scripts, [test~=tap])
 </code></pre>
 <h4 id="nested-objects">Nested <code>Objects</code></h4>
 <p>Nested objects are expressed as sequential arguments to <code>:attr()</code>.</p>
-<pre><code class="language-css">/* return dependencies that have a testling config for opera browsers */
+<pre><code class="language-css">/* return dependencies that have a [testling config](https://ci.testling.com/guide/advanced_configuration) for opera browsers */
 *:attr(testling, browsers, [~=opera])
 </code></pre>
 <h4 id="arrays"><code>Arrays</code></h4>
-<p><code>Array</code>s specifically uses a special/reserved <code>.</code> character in place of a typical attribute name. <code>Arrays</code> also support exact <code>value</code> matching when a <code>String</code> is passed to the selector.</p>
+<p><code>Array</code>s specifically uses a special/reserved <code>.</code> character in place of a typical attribute name.
+<code>Arrays</code> also support exact <code>value</code> matching when a <code>String</code> is passed to the selector.</p>
 <h5 id="example-of-an-array-attribute-selection">Example of an <code>Array</code> Attribute Selection:</h5>
 <pre><code class="language-css">/* removes the distinction between properties &amp; arrays */
 /* ie. we'd have to check the property &amp; iterate to match selection */
@@ -298,7 +317,11 @@ npm command-line interface
 *:attr(contributors, [email=ruyadorno@github.com])
 </code></pre>
 <h3 id="groups">Groups</h3>
-<p>Dependency groups are defined by the package relationships to their ancestors (ie. the dependency types that are defined in <code>package.json</code>). This approach is user-centric as the ecosystem has been taught to think about dependencies in these groups first-and-foremost. Dependencies are allowed to be included in multiple groups (ex. a <code>prod</code> dependency may also be a <code>dev</code> dependency (in that it's also required by another <code>dev</code> dependency) &amp; may also be <code>bundled</code> - a selector for that type of dependency would look like: <code>*.prod.dev.bundled</code>).</p>
+<p>Dependency groups are defined by the package relationships to their ancestors (ie.
+the dependency types that are defined in <code>package.json</code>).
+This approach is user-centric as the ecosystem has been taught to think about dependencies in these groups first-and-foremost.
+Dependencies are allowed to be included in multiple groups (ex.
+a <code>prod</code> dependency may also be a <code>dev</code> dependency (in that it's also required by another <code>dev</code> dependency) &amp; may also be <code>bundled</code> - a selector for that type of dependency would look like: <code>*.prod.dev.bundled</code>).</p>
 <ul>
 <li><code>.prod</code></li>
 <li><code>.dev</code></li>
@@ -307,7 +330,8 @@ npm command-line interface
 <li><code>.bundled</code></li>
 <li><code>.workspace</code></li>
 </ul>
-<p>Please note that currently <code>workspace</code> deps are always <code>prod</code> dependencies.  Additionally the <code>.root</code> dependency is also considered a <code>prod</code> dependency.</p>
+<p>Please note that currently <code>workspace</code> deps are always <code>prod</code> dependencies.
+Additionally the <code>.root</code> dependency is also considered a <code>prod</code> dependency.</p>
 <h3 id="programmatic-usage">Programmatic Usage</h3>
 <ul>
 <li><code>Arborist</code>'s <code>Node</code> Class has a <code>.querySelectorAll()</code> method

@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "September 2025" "NPM@11.6.1" ""
+.TH "SCRIPTS" "7" "October 2025" "NPM@11.6.2" ""
 .SH "NAME"
 \fBscripts\fR - How npm handles the "scripts" field
 .SS "Description"
@@ -66,7 +66,7 @@ Runs BEFORE the package is prepared and packed, ONLY on \fBnpm publish\fR.
 .IP \(bu 4
 Runs BEFORE a tarball is packed (on "\fBnpm pack\fR", "\fBnpm publish\fR", and when installing a git dependency).
 .IP \(bu 4
-NOTE: "\fBnpm run pack\fR" is NOT the same as "\fBnpm pack\fR". "\fBnpm run pack\fR" is an arbitrary user defined script name, where as, "\fBnpm pack\fR" is a CLI defined command.
+NOTE: "\fBnpm run pack\fR" is NOT the same as "\fBnpm pack\fR". "\fBnpm run pack\fR" is an arbitrary user defined script name, whereas, "\fBnpm pack\fR" is a CLI defined command.
 .RE 0
 
 .P
@@ -173,8 +173,7 @@ These also run when you run \fBnpm install -g <pkg-name>\fR
 .RE 0
 
 .P
-If there is a \fBbinding.gyp\fR file in the root of your package and you haven't defined your own \fBinstall\fR or \fBpreinstall\fR scripts, npm will default the \fBinstall\fR command to compile using node-gyp via \fBnode-gyp
-rebuild\fR
+If there is a \fBbinding.gyp\fR file in the root of your package and you haven't defined your own \fBinstall\fR or \fBpreinstall\fR scripts, npm will default the \fBinstall\fR command to compile using node-gyp via \fBnode-gyp rebuild\fR
 .P
 These are run from the scripts of \fB<pkg-name>\fR
 .SS "npm help pack"
@@ -219,7 +218,7 @@ These are run from the scripts of \fB<pkg-name>\fR
 \fBprepare\fR is only run if the current directory is a symlink (e.g. with linked packages)
 .SS "npm help restart"
 .P
-If there is a \fBrestart\fR script defined, these events are run, otherwise \fBstop\fR and \fBstart\fR are both run if present, including their \fBpre\fR and \fBpost\fR iterations)
+If there is a \fBrestart\fR script defined, these events are run; otherwise, \fBstop\fR and \fBstart\fR are both run if present, including their \fBpre\fR and \fBpost\fR iterations)
 .RS 0
 .IP \(bu 4
 \fBprerestart\fR
@@ -290,9 +289,9 @@ Reasons for a package removal include:
 .IP \(bu 4
 a user directly uninstalled this package
 .IP \(bu 4
-a user uninstalled a dependant package and so this dependency is being uninstalled
+a user uninstalled a dependent package and so this dependency is being uninstalled
 .IP \(bu 4
-a user uninstalled a dependant package but another package also depends on this version
+a user uninstalled a dependent package but another package also depends on this version
 .IP \(bu 4
 this version has been merged as a duplicate with another version
 .IP \(bu 4

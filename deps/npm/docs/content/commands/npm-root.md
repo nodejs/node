@@ -16,8 +16,8 @@ Note: This command is unaware of workspaces.
 
 Print the effective `node_modules` folder to standard out.
 
-Useful for using npm in shell scripts that do things with the
-`node_modules` folder.  For example:
+Useful for using npm in shell scripts that do things with the `node_modules` folder.
+For example:
 
 ```bash
 #!/bin/bash
@@ -32,12 +32,13 @@ echo "Global packages installed in: ${global_node_modules}"
 * Default: false
 * Type: Boolean
 
-Operates in "global" mode, so that packages are installed into the `prefix`
-folder instead of the current working directory. See
-[folders](/configuring-npm/folders) for more on the differences in behavior.
+Operates in "global" mode, so that packages are installed into the
+`prefix` folder instead of the current working directory. See
+[folders](/configuring-npm/folders) for more on the differences in
+behavior.
 
-* packages are installed into the `{prefix}/lib/node_modules` folder, instead
-  of the current working directory.
+* packages are installed into the `{prefix}/lib/node_modules` folder,
+  instead of the current working directory.
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 

@@ -102,7 +102,6 @@ const updateNotifier = async (npm, spec = '*') => {
   return updateCheck(npm, spec, version, current)
 }
 
-// only update the notification timeout if we actually finished checking
 module.exports = npm => {
   if (
     // opted out

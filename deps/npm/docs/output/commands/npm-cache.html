@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-cache----1161">
+<h1 id="----npm-cache----1162">
     <span>npm-cache</span>
-    <span class="version">@11.6.1</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Manipulates packages cache</span>
 </header>
@@ -170,11 +170,13 @@ Also used to view info about entries in the <code>npm exec</code> (aka <code>npx
 <ul>
 <li>
 <p>add:
-Add the specified packages to the local cache.  This command is primarily intended to be used internally by npm, but it can provide a way to add data to the local installation cache explicitly.</p>
+Add the specified packages to the local cache.
+This command is primarily intended to be used internally by npm, but it can provide a way to add data to the local installation cache explicitly.</p>
 </li>
 <li>
 <p>clean:
-Delete a single entry or all entries out of the cache folder.  Note that this is typically unnecessary, as npm's cache is self-healing and resistant to data corruption issues.</p>
+Delete a single entry or all entries out of the cache folder.
+Note that this is typically unnecessary, as npm's cache is self-healing and resistant to data corruption issues.</p>
 </li>
 <li>
 <p>ls:
@@ -201,12 +203,19 @@ Get detailed information about given entries in the npx cache.</p>
 </li>
 </ul>
 <h3 id="details">Details</h3>
-<p>npm stores cache data in an opaque directory within the configured <code>cache</code>, named <code>_cacache</code>. This directory is a <a href="http://npm.im/cacache"><code>cacache</code></a>-based content-addressable cache that stores all http request data as well as other package-related data. This directory is primarily accessed through <code>pacote</code>, the library responsible for all package fetching as of npm@5.</p>
-<p>All data that passes through the cache is fully verified for integrity on both insertion and extraction. Cache corruption will either trigger an error, or signal to <code>pacote</code> that the data must be refetched, which it will do automatically. For this reason, it should never be necessary to clear the cache for any reason other than reclaiming disk space, thus why <code>clean</code> now requires <code>--force</code> to run.</p>
-<p>There is currently no method exposed through npm to inspect or directly manage the contents of this cache. In order to access it, <code>cacache</code> must be used directly.</p>
+<p>npm stores cache data in an opaque directory within the configured <code>cache</code>, named <code>_cacache</code>.
+This directory is a <a href="http://npm.im/cacache"><code>cacache</code></a>-based content-addressable cache that stores all http request data as well as other package-related data.
+This directory is primarily accessed through <code>pacote</code>, the library responsible for all package fetching as of npm@5.</p>
+<p>All data that passes through the cache is fully verified for integrity on both insertion and extraction.
+Cache corruption will either trigger an error, or signal to <code>pacote</code> that the data must be refetched, which it will do automatically.
+For this reason, it should never be necessary to clear the cache for any reason other than reclaiming disk space, thus why <code>clean</code> now requires <code>--force</code> to run.</p>
+<p>There is currently no method exposed through npm to inspect or directly manage the contents of this cache.
+In order to access it, <code>cacache</code> must be used directly.</p>
 <p>npm will not remove data by itself: the cache will grow as new packages are installed.</p>
 <h3 id="a-note-about-the-caches-design">A note about the cache's design</h3>
-<p>The npm cache is strictly a cache: it should not be relied upon as a persistent and reliable data store for package data. npm makes no guarantee that a previously-cached piece of data will be available later, and will automatically delete corrupted contents. The primary guarantee that the cache makes is that, if it does return data, that data will be exactly the data that was inserted.</p>
+<p>The npm cache is strictly a cache: it should not be relied upon as a persistent and reliable data store for package data.
+npm makes no guarantee that a previously-cached piece of data will be available later, and will automatically delete corrupted contents.
+The primary guarantee that the cache makes is that, if it does return data, that data will be exactly the data that was inserted.</p>
 <p>To run an offline verification of existing cache contents, use <code>npm cache verify</code>.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="cache"><code>cache</code></h4>
