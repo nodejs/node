@@ -45,3 +45,12 @@ test('defensive mode should be off after calling db.enableDefensive(false)', (t)
   db.enableDefensive(false);
   t.assert.strictEqual(checkDefensiveMode(db), false);
 });
+
+test('throws if options.defensive is provided but is not a boolean', (t) => {
+  t.assert.throws(() => {
+    new DatabaseSync(':memory:', { defensive: 42 });
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "options.defensive" argument must be a boolean.',
+  });
+});
