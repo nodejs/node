@@ -840,8 +840,28 @@ out/doc/api/%.html out/doc/api/%.json: doc/api/%.md tools/doc/node_modules | out
 	) \
 
 out/doc/api/all.html: $(apidocs_html) | out/doc/api
+	$(call available-node, \
+		$(NPX) --prefix tools/doc doc-kit generate \
+		-t legacy-html-all \
+		-i doc/api/*.md \
+		--ignore $(skip_apidoc_files) \
+		-o $(@D) \
+		-c ./CHANGELOG.md \
+		-v $(VERSION) \
+		--index doc/api/index.md \
+	) \
 
 out/doc/api/all.json: $(apidocs_json) | out/doc/api
+	$(call available-node, \
+		$(NPX) --prefix tools/doc doc-kit generate \
+		-t legacy-json-all \
+		-i doc/api/*.md \
+		--ignore $(skip_apidoc_files) \
+		-o $(@D) \
+		-c ./CHANGELOG.md \
+		-v $(VERSION) \
+		--index doc/api/index.md \
+	) \
 
 .PHONY: docopen
 docopen: doc-only ## Open the documentation in a web browser.
@@ -1354,12 +1374,7 @@ tools/.mdlintstamp: tools/lint-md/node_modules/remark-parse/package.json $(LINT_
 	@touch $@
 
 .PHONY: lint-md
-lint-md: lint-js-doc lint-docs | tools/.mdlintstamp ## Lint the markdown documents maintained by us in the codebase.
-
-.PHONY: lint-docs
-lint-docs: tools/doc/node_modules
-	$(info Running API Doc linter...)
-	$(call available-node, $(NPX) --prefix tools/doc doc-kit lint -i doc/api/*.md)
+lint-md: lint-js-doc | tools/.mdlintstamp ## Lint the markdown documents maintained by us in the codebase.
 
 run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
 .PHONY: format-md
