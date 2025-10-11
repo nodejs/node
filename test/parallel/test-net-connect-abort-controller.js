@@ -3,7 +3,7 @@ const common = require('../common');
 const net = require('net');
 const assert = require('assert');
 const server = net.createServer();
-const { getEventListeners, once } = require('events');
+const { listenerCount, once } = require('events');
 
 const liveConnections = new Set();
 
@@ -31,7 +31,7 @@ server.listen(0, common.mustCall(async () => {
     const ac = new AbortController();
     const { signal } = ac;
     const socket = net.connect(socketOptions(signal));
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+    assert.strictEqual(listenerCount(signal, 'abort'), 1);
     ac.abort();
     await assertAbort(socket, 'postAbort');
   }
@@ -41,7 +41,7 @@ server.listen(0, common.mustCall(async () => {
     const { signal } = ac;
     ac.abort();
     const socket = net.connect(socketOptions(signal));
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+    assert.strictEqual(listenerCount(signal, 'abort'), 0);
     await assertAbort(socket, 'preAbort');
   }
 
@@ -50,7 +50,7 @@ server.listen(0, common.mustCall(async () => {
     const { signal } = ac;
     setImmediate(() => ac.abort());
     const socket = net.connect(socketOptions(signal));
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+    assert.strictEqual(listenerCount(signal, 'abort'), 1);
     await assertAbort(socket, 'tickAbort');
   }
 
@@ -59,7 +59,7 @@ server.listen(0, common.mustCall(async () => {
     const { signal } = ac;
     ac.abort();
     const socket = new net.Socket(socketOptions(signal));
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+    assert.strictEqual(listenerCount(signal, 'abort'), 0);
     await assertAbort(socket, 'testConstructor');
   }
 
@@ -67,7 +67,7 @@ server.listen(0, common.mustCall(async () => {
     const ac = new AbortController();
     const { signal } = ac;
     const socket = new net.Socket(socketOptions(signal));
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+    assert.strictEqual(listenerCount(signal, 'abort'), 1);
     ac.abort();
     await assertAbort(socket, 'testConstructorPost');
   }
@@ -76,7 +76,7 @@ server.listen(0, common.mustCall(async () => {
     const ac = new AbortController();
     const { signal } = ac;
     const socket = new net.Socket(socketOptions(signal));
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+    assert.strictEqual(listenerCount(signal, 'abort'), 1);
     setImmediate(() => ac.abort());
     await assertAbort(socket, 'testConstructorPostTick');
   }
