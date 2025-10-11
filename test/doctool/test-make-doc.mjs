@@ -34,7 +34,7 @@ for (const name of actualDocs) {
 }
 
 const toc = fs.readFileSync(new URL('./index.html', apiURL), 'utf8');
-const re = /href="([^/]+\.html)"/;
+const re = /href=("([^/]+\.html)"|([^/]+\.html))/;
 const globalRe = new RegExp(re, 'g');
 const links = toc.match(globalRe);
 assert.notStrictEqual(links, null);
