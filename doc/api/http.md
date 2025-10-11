@@ -1672,6 +1672,11 @@ per connection (in the case of HTTP Keep-Alive connections).
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60016
+    description: This event will not fire until the request body has been
+                 received. Previously, it fired immediately and the request
+                 body was incorrectly included in `head` instead.
   - version: v24.9.0
     pr-url: https://github.com/nodejs/node/pull/59824
     description: Whether this event is fired can now be controlled by the
@@ -1702,6 +1707,11 @@ change.
 After this event is emitted, the request's socket will not have a `'data'`
 event listener, meaning it will need to be bound in order to handle data
 sent to the server on that socket.
+
+In the (uncommon) case that the incoming request has a body, this event will
+not be emitted until the body has been fully received. This differs from normal
+`'request'` event handling, but ensures that all data received on the socket
+is part of the upgraded protocol, not the initial request.
 
 If an upgrade is accepted by `shouldUpgradeCallback` but no event handler
 is registered then the socket is destroyed, resulting in an immediate
