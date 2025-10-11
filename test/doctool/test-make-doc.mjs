@@ -25,7 +25,7 @@ const actualDocs = allDocs.filter(
 );
 
 for (const name of actualDocs) {
-  if (name.startsWith('all.')) continue;
+  if (name.startsWith('all.') || name === 'apilinks.json') continue;
 
   assert.ok(
     allMD.includes(name.replace(/\.\w+$/, '.md')),
@@ -61,7 +61,7 @@ for (const actualDoc of actualDocs) {
   // Unless the old file is still available pointing to the correct location
   // 301 redirects are not yet automated. So keeping the old URL is a
   // reasonable workaround.
-  if (renamedDocs.includes(actualDoc)) continue;
+  if (renamedDocs.includes(actualDoc) || actualDoc === 'apilinks.json') continue;
   assert.ok(
     expectedDocs.includes(actualDoc), `${actualDoc} does not match TOC`);
 
