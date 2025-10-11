@@ -135,11 +135,11 @@ class NoDestructor {
   // Pretend to be a smart pointer to T with deep constness.
   // Never returns a null pointer.
   T& operator*() { return *get(); }
-  absl::Nonnull<T*> operator->() { return get(); }
-  absl::Nonnull<T*> get() { return impl_.get(); }
+  T* absl_nonnull operator->() { return get(); }
+  T* absl_nonnull get() { return impl_.get(); }
   const T& operator*() const { return *get(); }
-  absl::Nonnull<const T*> operator->() const { return get(); }
-  absl::Nonnull<const T*> get() const { return impl_.get(); }
+  const T* absl_nonnull operator->() const { return get(); }
+  const T* absl_nonnull get() const { return impl_.get(); }
 
  private:
   class DirectImpl {
@@ -147,8 +147,8 @@ class NoDestructor {
     template <typename... Args>
     explicit constexpr DirectImpl(Args&&... args)
         : value_(std::forward<Args>(args)...) {}
-    absl::Nonnull<const T*> get() const { return &value_; }
-    absl::Nonnull<T*> get() { return &value_; }
+    const T* absl_nonnull get() const { return &value_; }
+    T* absl_nonnull get() { return &value_; }
 
    private:
     T value_;
@@ -160,10 +160,10 @@ class NoDestructor {
     explicit PlacementImpl(Args&&... args) {
       new (&space_) T(std::forward<Args>(args)...);
     }
-    absl::Nonnull<const T*> get() const {
+    const T* absl_nonnull get() const {
       return std::launder(reinterpret_cast<const T*>(&space_));
     }
-    absl::Nonnull<T*> get() {
+    T* absl_nonnull get() {
       return std::launder(reinterpret_cast<T*>(&space_));
     }
 

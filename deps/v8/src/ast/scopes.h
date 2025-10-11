@@ -69,6 +69,7 @@ class VariableMap : public ZoneHashMap {
 
   V8_EXPORT_PRIVATE Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
+  void RemoveDynamic();
   void Add(Variable* var);
 
   Zone* zone() const { return allocator().zone(); }
@@ -130,6 +131,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     ~Snapshot() {
       // Restore eval flags from before the scope was active.
       if (sloppy_eval_can_extend_vars_) {
+        declaration_scope_->is_dynamic_scope_ = true;
         declaration_scope_->sloppy_eval_can_extend_vars_ = true;
       }
       if (calls_eval_) {
@@ -394,6 +396,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return has_await_using_declaration_;
   }
 
+  bool has_context_cells() const { return has_context_cells_; }
+
   bool is_wrapped_function() const {
     DCHECK_IMPLIES(is_wrapped_function_, is_function_scope());
     return is_wrapped_function_;
@@ -506,8 +510,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     switch (scope_type_) {
       case MODULE_SCOPE:
       case WITH_SCOPE:  // DebugEvaluateContext as well
-      case SCRIPT_SCOPE:  // Side data for const tracking let.
-      case REPL_MODE_SCOPE:
         return true;
       default:
         DCHECK_IMPLIES(sloppy_eval_can_extend_vars_,
@@ -604,8 +606,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Retrieve `IsSimpleParameterList` of current or outer function.
   bool HasSimpleParameters();
-  void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
-  bool is_debug_evaluate_scope() const { return is_debug_evaluate_scope_; }
+  void set_is_dynamic_scope() { is_dynamic_scope_ = true; }
+  bool is_debug_evaluate_scope() const;
   bool IsSkippableFunctionScope();
   bool is_repl_mode_scope() const { return scope_type_ == REPL_MODE_SCOPE; }
 
@@ -650,6 +652,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   void ForceDynamicLookup(VariableProxy* proxy);
+
+  void RemoveDynamic() {
+    DCHECK_EQ(scope_type_, EVAL_SCOPE);
+    variables_.RemoveDynamic();
+  }
 
  protected:
   Scope(Zone* zone, ScopeType scope_type);
@@ -821,7 +828,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_hidden_ : 1;
   // Temporary workaround that allows masking of 'this' in debug-evaluate
   // scopes.
-  bool is_debug_evaluate_scope_ : 1;
+  bool is_dynamic_scope_ : 1;
 
   // True if one of the inner scopes or the scope itself calls eval.
   bool inner_scope_calls_eval_ : 1;
@@ -847,6 +854,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // If the scope was generated for wrapped function syntax, which will affect
   // its UniqueIdInScript.
   bool is_wrapped_function_ : 1;
+
+  // The context associated with the scope might have context cells.
+  bool has_context_cells_ : 1;
 };
 
 class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
@@ -908,7 +918,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
       while (outer_decl_scope->is_eval_scope()) {
         outer_decl_scope = outer_decl_scope->GetDeclarationScope();
       }
-      if (outer_decl_scope->is_debug_evaluate_scope()) {
+      if (V8_UNLIKELY(outer_decl_scope->is_debug_evaluate_scope())) {
         // Don't check anything.
         // TODO(9662): Figure out where variables declared by an eval inside a
         // debug-evaluate actually go.
@@ -920,6 +930,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
       return;
     }
 
+    is_dynamic_scope_ = true;
     sloppy_eval_can_extend_vars_ = true;
   }
 
@@ -1469,8 +1480,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // The inner scope may also calls eval which may results in access to
   // static private names.
   // Only maintained when the scope is parsed.
-  bool should_save_class_variable_index() const {
-    return should_save_class_variable_index_ ||
+  bool should_save_class_variable() const {
+    return should_save_class_variable_ ||
            has_explicit_static_private_methods_access_ ||
            (has_static_private_methods_ && inner_scope_calls_eval_);
   }
@@ -1479,9 +1490,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   bool is_anonymous_class() const { return is_anonymous_class_; }
 
   // Overriden during reparsing
-  void set_should_save_class_variable_index() {
-    should_save_class_variable_index_ = true;
-  }
+  void set_should_save_class_variable() { should_save_class_variable_ = true; }
 
  private:
   friend class Scope;
@@ -1528,7 +1537,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   bool is_anonymous_class_ : 1 = false;
   // This is only maintained during reparsing, restored from the
   // preparsed data.
-  bool should_save_class_variable_index_ : 1 = false;
+  bool should_save_class_variable_ : 1 = false;
 };
 
 // Iterate over the private name scope chain. The iteration proceeds from the

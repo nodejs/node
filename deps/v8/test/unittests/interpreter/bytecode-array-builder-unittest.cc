@@ -33,9 +33,9 @@ class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
 using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
-  FlagScope<bool> const_tracking_let(&i::v8_flags.const_tracking_let, true);
-  FlagScope<bool> script_context_mutable_heap_number(
-      &i::v8_flags.script_context_mutable_heap_number, true);
+  FlagScope<bool> script_context_cells(&i::v8_flags.script_context_cells, true);
+  FlagScope<bool> function_context_cells(&i::v8_flags.function_context_cells,
+                                         true);
 
   FeedbackVectorSpec feedback_spec(zone());
   BytecodeArrayBuilder builder(zone(), 1, 131, &feedback_spec);
@@ -46,7 +46,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   Handle<ScopeInfo> scope_info =
       factory->NewScopeInfo(ScopeInfo::kVariablePartIndex);
-  int flags = ScopeInfo::IsEmptyBit::encode(true);
+  int flags = ScopeInfo::IsEmptyBit::encode(true) |
+              ScopeInfo::HasContextCellsBit::encode(true);
   scope_info->set_flags(flags, kRelaxedStore);
   scope_info->set_context_local_count(0);
   scope_info->set_parameter_count(0);
@@ -138,13 +139,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreGlobal(name, sloppy_store_global_slot.ToInt());
 
   // Emit context operations.
-  Variable var1(&scope, name, VariableMode::kVar, VariableKind::NORMAL_VARIABLE,
+  Variable var1(&scope, name, VariableMode::kLet, VariableKind::NORMAL_VARIABLE,
                 InitializationFlag::kCreatedInitialized);
   var1.AllocateTo(VariableLocation::CONTEXT, 1);
-  Variable var2(&scope, name, VariableMode::kVar, VariableKind::NORMAL_VARIABLE,
+  Variable var2(&scope, name, VariableMode::kLet, VariableKind::NORMAL_VARIABLE,
                 InitializationFlag::kCreatedInitialized);
   var2.AllocateTo(VariableLocation::CONTEXT, 1);
-  Variable var3(&scope, name, VariableMode::kVar, VariableKind::NORMAL_VARIABLE,
+  Variable var3(&scope, name, VariableMode::kLet, VariableKind::NORMAL_VARIABLE,
                 InitializationFlag::kCreatedInitialized);
   var3.AllocateTo(VariableLocation::CONTEXT, 3);
 
@@ -174,6 +175,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
                     VariableKind::NORMAL_VARIABLE,
                     InitializationFlag::kCreatedInitialized);
   fun_var1.AllocateTo(VariableLocation::CONTEXT, 1);
+  fun_var1.SetMaybeAssigned();
   Variable fun_var2(&fun_scope, name, VariableMode::kVar,
                     VariableKind::NORMAL_VARIABLE,
                     InitializationFlag::kCreatedInitialized);
@@ -197,6 +199,30 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreContextSlot(Register::current_context(), &fun_var3, 0)
       .PopContext(reg);
 
+  Handle<ScopeInfo> scope_info2 =
+      factory->NewScopeInfo(ScopeInfo::kVariablePartIndex);
+  int flags2 = ScopeInfo::IsEmptyBit::encode(true) |
+               ScopeInfo::HasContextCellsBit::encode(false);
+  scope_info2->set_flags(flags2, kRelaxedStore);
+  scope_info2->set_context_local_count(0);
+  scope_info2->set_parameter_count(0);
+  scope_info2->set_position_info_start(0);
+  scope_info2->set_position_info_end(0);
+  DeclarationScope fun_scope2(zone(), ScopeType::FUNCTION_SCOPE, &ast_factory,
+                              scope_info2);
+  fun_scope2.SetHasNonSimpleParameters();
+  Variable fun2_var1(&fun_scope2, name, VariableMode::kVar,
+                     VariableKind::NORMAL_VARIABLE,
+                     InitializationFlag::kCreatedInitialized);
+  fun2_var1.AllocateTo(VariableLocation::CONTEXT, 1);
+  builder.CreateFunctionContext(&fun_scope2, 1)
+      .StoreAccumulatorInRegister(reg)
+      .LoadContextSlot(reg, &fun2_var1, 0, BytecodeArrayBuilder::kMutableSlot)
+      .PushContext(reg)
+      .LoadContextSlot(Register::current_context(), &fun2_var1, 0,
+                       BytecodeArrayBuilder::kMutableSlot)
+      .PopContext(reg);
+
   // Emit load / store property operations.
   builder.LoadNamedProperty(reg, name, load_slot.ToInt())
       .LoadNamedPropertyFromSuper(reg, name, load_slot.ToInt())
@@ -217,6 +243,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit Iterator-protocol operations
   builder.GetIterator(reg, load_slot.ToInt(), call_slot.ToInt());
+  builder.ForOfNext(reg, reg, pair);
 
   // Emit load / store lookup slots.
   builder.LoadLookupSlot(name, TypeofMode::kNotInside)
@@ -230,13 +257,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit load / store lookup slots with context fast paths.
   builder
       .LoadLookupContextSlot(name, TypeofMode::kNotInside,
-                             ContextKind::kDefault, 1, 0)
-      .LoadLookupContextSlot(name, TypeofMode::kInside, ContextKind::kDefault,
-                             1, 0)
-      .LoadLookupContextSlot(name, TypeofMode::kNotInside,
-                             ContextKind::kScriptContext, 1, 0)
+                             ContextMode::kNoContextCells, 1, 0)
       .LoadLookupContextSlot(name, TypeofMode::kInside,
-                             ContextKind::kScriptContext, 1, 0);
+                             ContextMode::kNoContextCells, 1, 0)
+      .LoadLookupContextSlot(name, TypeofMode::kNotInside,
+                             ContextMode::kHasContextCells, 1, 0)
+      .LoadLookupContextSlot(name, TypeofMode::kInside,
+                             ContextMode::kHasContextCells, 1, 0);
 
   // Emit load / store lookup slots with global fast paths.
   builder.LoadLookupGlobalSlot(name, TypeofMode::kNotInside, 1, 0)
@@ -282,6 +309,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::kDiv, reg, 4)
       .BinaryOperation(Token::kMod, reg, 5)
       .BinaryOperation(Token::kExp, reg, 6);
+
+  using ASVariant = AddStringConstantAndInternalizeVariant;
+  builder.Add_StringConstant_Internalize(Token::kAdd, reg, 1,
+                                         ASVariant::kLhsIsStringConstant);
 
   // Emit bitwise operator invocations
   builder.BinaryOperation(Token::kBitOr, reg, 6)
@@ -500,6 +531,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit debugger bytecode.
   builder.Debugger();
+
+  // Emit SetPrototypeProperties bytecode.
+  builder.SetPrototypeProperties(0);
 
   // Emit abort bytecode.
   BytecodeLabel after_abort;

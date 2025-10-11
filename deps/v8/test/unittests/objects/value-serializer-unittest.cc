@@ -3141,6 +3141,69 @@ TEST_F(ValueSerializerTestWithHostObject, RoundTripHostJSObject) {
   ExpectScriptTrue("result.a === result.b");
 }
 
+TEST_F(ValueSerializerTestWithHostObject, RoundTripJSErrorObject) {
+  i::DisableHandleChecksForMockingScope mocking_scope;
+
+  EXPECT_CALL(serializer_delegate_, HasCustomHostObject(isolate()))
+      .WillOnce(Invoke([](Isolate* isolate) { return true; }));
+  EXPECT_CALL(serializer_delegate_, IsHostObject(isolate(), _))
+      .WillRepeatedly(Invoke([this](Isolate* isolate, Local<Object> object) {
+        EXPECT_TRUE(object->IsObject());
+        Local<Context> context = isolate->GetCurrentContext();
+        return object->Has(context, StringFromUtf8("my_host_object"));
+      }));
+  // Read/Write HostObject methods are not invoked for non-host JSErrors.
+  EXPECT_CALL(serializer_delegate_, WriteHostObject(isolate(), _)).Times(0);
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate())).Times(0);
+
+  RoundTripTest(
+      "var e = new Error('before serialize');"
+      "({ a: e, get b() { return this.a; } })");
+  ExpectScriptTrue("!('my_host_object' in result)");
+  ExpectScriptTrue("!('my_host_object' in result.a)");
+  ExpectScriptTrue("result.a.message === 'before serialize'");
+  ExpectScriptTrue("result.a instanceof Error");
+  ExpectScriptTrue("result.a === result.b");
+}
+
+TEST_F(ValueSerializerTestWithHostObject, RoundTripHostJSErrorObject) {
+  i::DisableHandleChecksForMockingScope mocking_scope;
+
+  EXPECT_CALL(serializer_delegate_, HasCustomHostObject(isolate()))
+      .WillOnce(Invoke([](Isolate* isolate) { return true; }));
+  EXPECT_CALL(serializer_delegate_, IsHostObject(isolate(), _))
+      .WillRepeatedly(Invoke([this](Isolate* isolate, Local<Object> object) {
+        EXPECT_TRUE(object->IsObject());
+        Local<Context> context = isolate->GetCurrentContext();
+        return object->Has(context, StringFromUtf8("my_host_object"));
+      }));
+  EXPECT_CALL(serializer_delegate_, WriteHostObject(isolate(), _))
+      .WillOnce(Invoke([this](Isolate*, Local<Object> object) {
+        EXPECT_TRUE(object->IsObject());
+        WriteExampleHostObjectTag();
+        return Just(true);
+      }));
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillOnce(Invoke([this](Isolate* isolate) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        Local<Context> context = isolate->GetCurrentContext();
+        Local<Object> obj =
+            v8::Exception::Error(StringFromUtf8("deserialized")).As<Object>();
+        obj->Set(context, StringFromUtf8("my_host_object"), v8::True(isolate))
+            .Check();
+        return obj;
+      }));
+  RoundTripTest(
+      "var e = new Error('before serialize');"
+      "e.my_host_object = true;"
+      "({ a: e, get b() { return this.a; } })");
+  ExpectScriptTrue("!('my_host_object' in result)");
+  ExpectScriptTrue("result.a.my_host_object");
+  ExpectScriptTrue("result.a.message === 'deserialized'");
+  ExpectScriptTrue("result.a instanceof Error");
+  ExpectScriptTrue("result.a === result.b");
+}
+
 class ValueSerializerTestWithHostArrayBufferView
     : public ValueSerializerTestWithHostObject {
  protected:

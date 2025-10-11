@@ -15,7 +15,8 @@ from testrunner.testproc import fuzzer
 from testrunner.testproc.combiner import CombinerProc
 from testrunner.testproc.execution import ExecutionProc
 from testrunner.testproc.expectation import ExpectationProc
-from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
+from testrunner.testproc.filter import (NameFilterProc, FuzzRareTestFilterProc,
+                                        StatusFileFilterProc)
 from testrunner.testproc.loader import LoadProc
 from testrunner.utils import random_utils
 from testrunner.testproc.rerun import RerunProc
@@ -47,6 +48,12 @@ class NumFuzzer(base_runner.BaseTestRunner):
                            "tests to create in total")
 
     # Stress gc
+    parser.add_option(
+        "--allocation-offset",
+        default=0,
+        type="int",
+        help="probability [0-10] of adding allocation padding "
+        "to the test")
     parser.add_option("--stress-marking", default=0, type="int",
                       help="probability [0-10] of adding --stress-marking "
                            "flag to the test")
@@ -93,7 +100,12 @@ class NumFuzzer(base_runner.BaseTestRunner):
     # Miscellaneous
     parser.add_option("--variants", default='default',
                       help="Comma-separated list of testing variants")
-
+    parser.add_option(
+        "--skip-rare-tests-prob",
+        default=0.75,
+        type="float",
+        help="probability in [0.0, 1.0] of skipping tests "
+        "marked as RARE")
     return parser
 
 
@@ -134,7 +146,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
         'gc_fuzzer':
             bool(
                 max([
-                    self.options.stress_marking, self.options.stress_scavenge,
+                    self.options.allocation_offset, self.options.stress_marking,
+                    self.options.stress_scavenge,
                     self.options.stress_compaction, self.options.stress_gc,
                     self.options.stress_delay_tasks,
                     self.options.stress_stack_size,
@@ -142,6 +155,12 @@ class NumFuzzer(base_runner.BaseTestRunner):
                 ])),
     })
     return variables
+
+  def _create_test_config(self):
+    # Multiple stress flags together make tests run much longer.
+    config = super()._create_test_config()
+    config.timeout *= 2
+    return config
 
   def _do_execute(self, tests, args, ctx):
     loader = LoadProc(tests)
@@ -154,6 +173,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
         loader,
         NameFilterProc(args) if args else None,
         StatusFileFilterProc(None, None),
+        FuzzRareTestFilterProc(self.options.fuzzer_rng(),
+                               self.options.skip_rare_tests_prob),
         # TODO(majeski): Improve sharding when combiner is present. Maybe select
         # different random seeds for shards instead of splitting tests.
         ShardProc.create(self.options),

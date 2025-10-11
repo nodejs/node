@@ -16,6 +16,9 @@ declare_args() {
   # The location of simdutf - use the one from node's deps by default.
   node_simdutf_path = "//third_party/simdutf"
 
+  # The location of inspector_protocol - use the one from node's deps by default.
+  node_inspector_protocol_path = "//third_party/inspector_protocol"
+
   # The NODE_MODULE_VERSION defined in node_version.h.
   node_module_version = exec_script("$node_path/tools/getmoduleversion.py", [], "value")
 
@@ -38,6 +41,9 @@ declare_args() {
   # Build node with SSL support.
   # The variable is called "openssl" for parity with node's GYP build.
   node_use_openssl = true
+
+  # Build node with SQLite support.
+  node_use_sqlite = true
 
   # Use the specified path to system CA (PEM format) in addition to
   # the BoringSSL supplied CA store or compiled-in Mozilla CA copy.

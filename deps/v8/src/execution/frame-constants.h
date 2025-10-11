@@ -292,6 +292,9 @@ class WasmToJSInterpreterFrameConstants : public TypedFrameConstants {
 
   // The stack pointer at the moment of the JS function call.
   static constexpr int kGCSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+
+  // Returned for a successful completion of the WasmToJS call (no exception).
+  static constexpr int kSuccess = 1;
 };
 
 class WasmInterpreterCWasmEntryConstants : public TypedFrameConstants {
@@ -350,7 +353,7 @@ class JSToWasmWrapperFrameConstants : public TypedFrameConstants {
 
 // Fixed frame slots used by the ReturnPromiseOnSuspendAsm wrapper
 // and the WasmResume wrapper.
-class StackSwitchFrameConstants : public JSToWasmWrapperFrameConstants {
+class WasmJspiFrameConstants : public JSToWasmWrapperFrameConstants {
  public:
   //  StackSwitching stack layout
   //  ------+-----------------+----------------------

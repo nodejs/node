@@ -136,6 +136,7 @@ def _V8PresubmitChecks(input_api, output_api):
       input_api, output_api, bot_allowlist=[
         'v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com',
         'v8-ci-test262-import-export@chops-service-accounts.iam.gserviceaccount.com',
+        'chrome-cherry-picker@chops-service-accounts.iam.gserviceaccount.com',
       ]))
   return results
 
@@ -385,7 +386,7 @@ def _CheckInlineHeadersIncludeNonInlineHeadersFirst(input_api, output_api):
   for f in input_api.AffectedSourceFiles(FilterFile):
     if not os.path.isfile(to_non_inl(f.AbsoluteLocalPath())):
       continue
-    non_inl_header = to_non_inl(f.LocalPath())
+    non_inl_header = to_non_inl(f.LocalPath()).replace(os.sep, '/')
     first_include = None
     for line in f.NewContents():
       if line.startswith('#include '):

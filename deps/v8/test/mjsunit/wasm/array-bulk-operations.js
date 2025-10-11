@@ -20,7 +20,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportFunc();
 
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-               /immediate array type #0 is immutable/);
+               /Array type #0 is immutable/);
 })();
 
 (function TestArrayFill() {

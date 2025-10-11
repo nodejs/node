@@ -28,33 +28,45 @@ namespace v8::internal {
 
 template <bool is_element>
 void LookupIterator::Start() {
-  // GetRoot might allocate if lookup_start_object_ is a string.
-  MaybeDirectHandle<JSReceiver> maybe_holder =
-      GetRoot(isolate_, lookup_start_object_, index_, configuration_);
-  if (!maybe_holder.ToHandle(&holder_)) {
-    // This is an attempt to perform an own property lookup on a non-JSReceiver
-    // that doesn't have any properties.
-    DCHECK(!IsJSReceiver(*lookup_start_object_));
-    DCHECK(!check_prototype_chain());
-    has_property_ = false;
-    state_ = NOT_FOUND;
-    return;
+  DisallowGarbageCollection no_gc;
+  if (V8_LIKELY(IsJSReceiver(*lookup_start_object_, isolate_))) {
+    holder_ = Cast<JSReceiver>(lookup_start_object_);
+
+  } else {
+    // Strings are the only non-JSReceiver objects with properties (only
+    // elements and 'length') directly on the wrapper. Inline the lookup
+    // implementation here.
+    if (IsString(*lookup_start_object_, isolate_) &&
+        ((!is_element && *name_ == ReadOnlyRoots(isolate_).length_string()) ||
+         (is_element &&
+          index_ < static_cast<size_t>(
+                       Cast<String>(*lookup_start_object_)->length())))) {
+      has_property_ = true;
+      state_ = STRING_LOOKUP_START_OBJECT;
+      return;
+    }
+    if (!check_prototype_chain()) {
+      // This is an attempt to perform an own property lookup on a
+      // non-JSReceiver that doesn't have any properties.
+      DCHECK(!IsJSReceiver(*lookup_start_object_));
+      has_property_ = false;
+      state_ = NOT_FOUND;
+      return;
+    }
+    holder_ = direct_handle(GetRootForNonJSReceiver(), isolate_);
   }
 
-  {
-    DisallowGarbageCollection no_gc;
+  // This is a regular JSReceiver lookup.
+  has_property_ = false;
+  state_ = NOT_FOUND;
 
-    has_property_ = false;
-    state_ = NOT_FOUND;
+  Tagged<JSReceiver> holder = *holder_;
+  Tagged<Map> map = holder->map(isolate_);
 
-    Tagged<JSReceiver> holder = *holder_;
-    Tagged<Map> map = holder->map(isolate_);
+  state_ = LookupInHolder<is_element>(map, holder);
+  if (IsFound()) return;
 
-    state_ = LookupInHolder<is_element>(map, holder);
-    if (IsFound()) return;
-
-    NextInternal<is_element>(map, holder);
-  }
+  NextInternal<is_element>(map, holder);
 }
 
 template void LookupIterator::Start<true>();
@@ -142,37 +154,17 @@ void LookupIterator::RecheckTypedArrayBounds() {
   state_ = DATA;
 }
 
-// static
-MaybeDirectHandle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
-    Isolate* isolate, DirectHandle<JSPrimitive> lookup_start_object,
-    size_t index, Configuration configuration) {
-  // Strings are the only non-JSReceiver objects with properties (only elements
-  // and 'length') directly on the wrapper. Hence we can skip generating
-  // the wrapper for all other cases.
-  bool own_property_lookup = (configuration & kPrototypeChain) == 0;
-  if (IsString(*lookup_start_object, isolate)) {
-    if (own_property_lookup ||
-        index <
-            static_cast<size_t>(Cast<String>(*lookup_start_object)->length())) {
-      // TODO(verwaest): Speed this up. Perhaps use a cached wrapper on the
-      // native context, ensuring that we don't leak it into JS?
-      DirectHandle<JSFunction> constructor = isolate->string_function();
-      DirectHandle<JSObject> result =
-          isolate->factory()->NewJSObject(constructor);
-      Cast<JSPrimitiveWrapper>(result)->set_value(*lookup_start_object);
-      return result;
-    }
-  } else if (own_property_lookup) {
-    // Signal that the lookup will not find anything.
-    return {};
-  }
-  DirectHandle<HeapObject> root(
-      Object::GetPrototypeChainRootMap(*lookup_start_object, isolate)
-          ->prototype(isolate),
-      isolate);
-  if (IsNull(*root, isolate)) {
-    isolate->PushStackTraceAndDie(
-        reinterpret_cast<void*>((*lookup_start_object).ptr()));
+Tagged<JSReceiver> LookupIterator::GetRootForNonJSReceiver() const {
+  // Own property lookup case is handled before calling this method.
+  DCHECK(check_prototype_chain());
+
+  Tagged<HeapObject> root =
+      Object::GetPrototypeChainRootMap(*lookup_start_object_, isolate_)
+          ->prototype(isolate_);
+
+  if (IsNull(root, isolate_)) {
+    isolate_->PushStackTraceAndDie(
+        reinterpret_cast<void*>((*lookup_start_object_).ptr()));
   }
   return Cast<JSReceiver>(root);
 }
@@ -199,7 +191,8 @@ void LookupIterator::ReloadPropertyInformation() {
 // static
 void LookupIterator::InternalUpdateProtector(
     Isolate* isolate, DirectHandle<JSAny> receiver_generic,
-    DirectHandle<Name> name) {
+    DirectHandle<Name> name, MaybeDirectHandle<Object> value,
+    MaybeDirectHandle<Object> old_value) {
   if (isolate->bootstrapper()->IsActive()) return;
   if (!IsJSObject(*receiver_generic)) return;
   auto receiver = Cast<JSObject>(receiver_generic);
@@ -293,6 +286,20 @@ void LookupIterator::InternalUpdateProtector(
   } else if (*name == roots.iterator_symbol()) {
     if (IsJSArray(*receiver, isolate)) {
       if (!Protectors::IsArrayIteratorLookupChainIntact(isolate)) return;
+      // When the value of ArrayIterator is canonical, its behavior remains
+      // unchanged.
+      // Attributes:
+      // 1. `writable` and `configurable` are trivial.
+      // 2. `enumerable`: The default JSArray iterator only iterates over array
+      // elements in the range [0..length). Making ArrayIterator enumerable does
+      // not affect this behavior.
+      // See: https://tc39.es/ecma262/#sec-%arrayiteratorprototype%.next
+      DirectHandle<Object> the_old_value, the_value;
+      if (old_value.To(&the_old_value) && value.To(&the_value) &&
+          the_old_value.is_identical_to(the_value)) {
+        return;
+      }
+
       Protectors::InvalidateArrayIteratorLookupChain(isolate);
     } else if (IsJSSet(*receiver, isolate) || IsJSSetIterator(*receiver) ||
                IsJSSetIteratorPrototype(*receiver) ||
@@ -370,13 +377,6 @@ void LookupIterator::InternalUpdateProtector(
         IsStringWrapper(*receiver)) {
       Protectors::InvalidateStringWrapperToPrimitive(isolate);
     }
-  } else if (*name == roots.length_string()) {
-    if (!Protectors::IsTypedArrayLengthLookupChainIntact(isolate)) return;
-    if (IsJSTypedArray(*receiver) || IsJSTypedArrayPrototype(*receiver) ||
-        isolate->IsInCreationContext(*receiver,
-                                     Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
-      Protectors::InvalidateTypedArrayLengthLookupChain(isolate);
-    }
   }
 }
 
@@ -399,13 +399,13 @@ void LookupIterator::PrepareForDataProperty(DirectHandle<Object> value) {
     to = GetMoreGeneralElementsKind(kind, to);
 
     if (kind != to) {
-      JSObject::TransitionElementsKind(holder_obj, to);
+      JSObject::TransitionElementsKind(isolate(), holder_obj, to);
     }
 
     // Copy the backing store if it is copy-on-write.
     if (IsSmiOrObjectElementsKind(to) || IsSealedElementsKind(to) ||
         IsNonextensibleElementsKind(to)) {
-      JSObject::EnsureWritableFastElements(holder_obj);
+      JSObject::EnsureWritableFastElements(isolate(), holder_obj);
     }
     return;
   }
@@ -527,7 +527,7 @@ void LookupIterator::ReconfigureDataProperty(DirectHandle<Object> value,
     DirectHandle<FixedArrayBase> elements(holder_obj->elements(isolate_),
                                           isolate());
     holder_obj->GetElementsAccessor(isolate_)->Reconfigure(
-        holder_obj, elements, number_, value, attributes);
+        isolate_, holder_obj, elements, number_, value, attributes);
     ReloadPropertyInformation<true>();
   } else if (holder_obj->HasFastProperties(isolate_)) {
     DirectHandle<Map> old_map(holder_obj->map(isolate_), isolate_);
@@ -630,6 +630,9 @@ void LookupIterator::PrepareTransitionToDataProperty(
 
   DirectHandle<Map> map(receiver->map(isolate_), isolate_);
 
+  // Migrate to the newest map before storing the property.
+  map = Map::Update(isolate(), map);
+
   // Dictionary maps can always have additional data properties.
   if (map->is_dictionary_map()) {
     state_ = TRANSITION;
@@ -702,9 +705,13 @@ void LookupIterator::ApplyTransitionToDataProperty(
       transition->GetBackPointer(isolate_) == receiver->map(isolate_);
 
   if (configuration_ == DEFAULT && !transition->is_dictionary_map() &&
+      !transition->is_prototype_map() &&
       !transition->IsPrototypeValidityCellValid()) {
     // Only LookupIterator instances with DEFAULT (full prototype chain)
     // configuration can produce valid transition handler maps.
+    // Note that it doesn't make sense to prepare a fast property transition
+    // handler for prototype maps because they are not going to be reused
+    // anyway.
     DirectHandle<UnionOf<Smi, Cell>> validity_cell =
         Map::GetOrCreatePrototypeChainValidityCell(transition, isolate());
     transition->set_prototype_validity_cell(*validity_cell, kRelaxedStore);
@@ -761,7 +768,7 @@ void LookupIterator::Delete() {
   if (IsElement(*holder)) {
     DirectHandle<JSObject> object = Cast<JSObject>(holder);
     ElementsAccessor* accessor = object->GetElementsAccessor(isolate_);
-    accessor->Delete(object, number_);
+    accessor->Delete(isolate_, object, number_);
   } else {
     DCHECK(!name()->IsPrivateName());
     bool is_prototype_map = holder->map(isolate_)->is_prototype_map();
@@ -867,7 +874,7 @@ void LookupIterator::TransitionToAccessorPair(DirectHandle<Object> pair,
     // TODO(verwaest): Move code into the element accessor.
     isolate_->CountUsage(v8::Isolate::kIndexAccessor);
     DirectHandle<NumberDictionary> dictionary =
-        JSObject::NormalizeElements(receiver);
+        JSObject::NormalizeElements(isolate_, receiver);
 
     dictionary = NumberDictionary::Set(isolate_, dictionary, array_index(),
                                        pair, receiver, details);
@@ -906,13 +913,16 @@ void LookupIterator::TransitionToAccessorPair(DirectHandle<Object> pair,
 }
 
 bool LookupIterator::HolderIsReceiver() const {
-  DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
+  DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
+  DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY ||
+         state_ == TYPED_ARRAY_INDEX_NOT_FOUND);
   // Optimization that only works if configuration_ is not mutable.
   if (!check_prototype_chain()) return true;
   return *receiver_ == *holder_;
 }
 
 bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
+  DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
   // Optimization that only works if configuration_ is not mutable.
   if (!check_prototype_chain()) return true;
@@ -925,6 +935,7 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
 DirectHandle<Object> LookupIterator::FetchValue(
     AllocationPolicy allocation_policy) const {
   Tagged<Object> result;
+  DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
   DCHECK(!IsWasmObject(*holder_));
   if (IsElement(*holder_)) {
     DirectHandle<JSObject> holder = GetHolder<JSObject>();
@@ -967,7 +978,7 @@ bool LookupIterator::CanStayConst(Tagged<Object> value) const {
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
   DCHECK_EQ(PropertyConstness::kConst, property_details_.constness());
-  if (IsUninitialized(value, isolate())) {
+  if (IsUninitializedHole(value, isolate())) {
     // Storing uninitialized value means that we are preparing for a computed
     // property value in an object literal. The initializing store will follow
     // and it will properly update constness based on the actual value.
@@ -994,7 +1005,7 @@ bool LookupIterator::CanStayConst(Tagged<Object> value) const {
 
   Tagged<Object> current_value =
       holder->RawFastPropertyAt(isolate_, field_index);
-  return IsUninitialized(current_value, isolate());
+  return IsUninitializedHole(current_value, isolate());
 }
 
 bool LookupIterator::DictCanStayConst(Tagged<Object> value) const {
@@ -1007,7 +1018,7 @@ bool LookupIterator::DictCanStayConst(Tagged<Object> value) const {
 
   DisallowHeapAllocation no_gc;
 
-  if (IsUninitialized(value, isolate())) {
+  if (IsUninitializedHole(value, isolate())) {
     // Storing uninitialized value means that we are preparing for a computed
     // property value in an object literal. The initializing store will follow
     // and it will properly update constness based on the actual value.
@@ -1023,7 +1034,7 @@ bool LookupIterator::DictCanStayConst(Tagged<Object> value) const {
     current_value = dict->ValueAt(dictionary_entry());
   }
 
-  return IsUninitialized(current_value, isolate());
+  return IsUninitializedHole(current_value, isolate());
 }
 
 int LookupIterator::GetFieldDescriptorIndex() const {
@@ -1064,6 +1075,23 @@ DirectHandle<PropertyCell> LookupIterator::GetPropertyCell() const {
 DirectHandle<Object> LookupIterator::GetAccessors() const {
   DCHECK_EQ(ACCESSOR, state_);
   return FetchValue();
+}
+
+Handle<Object> LookupIterator::GetStringPropertyValue(
+    AllocationPolicy allocation_policy) const {
+  DCHECK_EQ(state_, STRING_LOOKUP_START_OBJECT);
+  if (IsElement()) {
+    DirectHandle<String> string = Cast<String>(lookup_start_object_);
+    // The state guarantees that it's an access within bounds.
+    DCHECK_LT(index_, string->length());
+    return isolate_->factory()->LookupSingleCharacterStringFromCode(
+        String::Flatten(isolate_, string)->Get(static_cast<uint32_t>(index_)));
+  }
+  // The state guarantees that it's a lookup of "length" property.
+  DCHECK_EQ(*name_, ReadOnlyRoots(isolate_).length_string());
+  uint32_t length = Cast<String>(*lookup_start_object_)->length();
+  static_assert(String::kMaxLength < Smi::kMaxValue);
+  return handle(Smi::FromInt(length), isolate_);
 }
 
 Handle<Object> LookupIterator::GetDataValue(
@@ -1323,11 +1351,12 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       return LookupInRegularHolder<is_element>(map, holder);
     case ACCESSOR:
     case DATA:
+    case WASM_OBJECT:
       return NOT_FOUND;
     case TYPED_ARRAY_INDEX_NOT_FOUND:
     case JSPROXY:
-    case WASM_OBJECT:
     case TRANSITION:
+    case STRING_LOOKUP_START_OBJECT:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -1465,7 +1494,7 @@ bool LookupIterator::LookupCachedProperty(
   DCHECK_EQ(state(), LookupIterator::ACCESSOR);
   DCHECK(IsAccessorPair(*GetAccessors(), isolate_));
 
-  Tagged<Object> getter = accessor_pair->getter(isolate_);
+  Tagged<Object> getter = accessor_pair->getter();
   std::optional<Tagged<Name>> maybe_name =
       FunctionTemplateInfo::TryGetCachedPropertyName(isolate(), getter);
   if (!maybe_name.has_value()) return false;
@@ -1555,7 +1584,7 @@ ConcurrentLookupIterator::TryGetOwnConstantElement(
   // - elements[i] (immutable if constant; be careful around dictionaries).
   // - holder.AsJSPrimitiveWrapper.value.AsString.length (immutable).
   // - holder.AsJSPrimitiveWrapper.value.AsString[i] (immutable).
-  // - single_character_string_table()->get().
+  // - roots.single_character_string(charcode).
 
   if (IsFrozenElementsKind(elements_kind)) {
     if (!IsFixedArray(elements)) return kGaveUp;
@@ -1623,13 +1652,10 @@ ConcurrentLookupIterator::Result ConcurrentLookupIterator::TryGetOwnChar(
 
   if (charcode > unibrow::Latin1::kMaxChar) return kGaveUp;
 
-  Tagged<Object> value =
-      isolate->factory()->single_character_string_table()->get(charcode,
-                                                               kRelaxedLoad);
+  ReadOnlyRoots roots(isolate);
+  Tagged<String> value = roots.single_character_string(charcode);
 
-  DCHECK_NE(value, ReadOnlyRoots(isolate).undefined_value());
-
-  *result_out = Cast<String>(value);
+  *result_out = value;
   return kPresent;
 }
 
@@ -1657,8 +1683,8 @@ ConcurrentLookupIterator::TryGetPropertyCell(
 
     std::optional<Tagged<Name>> maybe_cached_property_name =
         FunctionTemplateInfo::TryGetCachedPropertyName(
-            isolate, Cast<AccessorPair>(maybe_accessor_pair)
-                         ->getter(isolate, kAcquireLoad));
+            isolate,
+            Cast<AccessorPair>(maybe_accessor_pair)->getter(kAcquireLoad));
     if (!maybe_cached_property_name.has_value()) return {};
 
     maybe_cell = dict->TryFindPropertyCellForConcurrentLookupIterator(

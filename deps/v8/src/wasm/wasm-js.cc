@@ -195,9 +195,9 @@ GET_FIRST_ARGUMENT_AS(Tag)
 
 #undef GET_FIRST_ARGUMENT_AS
 
-base::Vector<const uint8_t> GetFirstArgumentAsBytes(
+base::OwnedVector<const uint8_t> GetAndCopyFirstArgumentAsBytes(
     const v8::FunctionCallbackInfo<v8::Value>& info, size_t max_length,
-    ErrorThrower* thrower, bool* is_shared) {
+    ErrorThrower* thrower) {
   const uint8_t* start = nullptr;
   size_t length = 0;
   v8::Local<v8::Value> source = info[0];
@@ -208,7 +208,6 @@ base::Vector<const uint8_t> GetFirstArgumentAsBytes(
 
     start = reinterpret_cast<const uint8_t*>(backing_store->Data());
     length = backing_store->ByteLength();
-    *is_shared = buffer->IsSharedArrayBuffer();
   } else if (source->IsTypedArray()) {
     // A TypedArray was passed.
     Local<TypedArray> array = Local<TypedArray>::Cast(source);
@@ -219,7 +218,6 @@ base::Vector<const uint8_t> GetFirstArgumentAsBytes(
     start = reinterpret_cast<const uint8_t*>(backing_store->Data()) +
             array->ByteOffset();
     length = array->ByteLength();
-    *is_shared = buffer->IsSharedArrayBuffer();
   } else {
     thrower->TypeError("Argument 0 must be a buffer source");
     return {};
@@ -237,25 +235,11 @@ base::Vector<const uint8_t> GetFirstArgumentAsBytes(
     return {};
   }
 
-  return base::VectorOf(start, length);
-}
-
-base::OwnedVector<const uint8_t> GetAndCopyFirstArgumentAsBytes(
-    const v8::FunctionCallbackInfo<v8::Value>& info, size_t max_length,
-    ErrorThrower* thrower) {
-  bool is_shared = false;
-  base::Vector<const uint8_t> bytes =
-      GetFirstArgumentAsBytes(info, max_length, thrower, &is_shared);
-  if (bytes.empty()) {
-    return {};
-  }
-
   // Use relaxed reads (and writes, which is unnecessary here) to avoid TSan
   // reports in case the buffer is shared and is being modified concurrently.
-  auto result = base::OwnedVector<uint8_t>::NewForOverwrite(bytes.size());
+  auto result = base::OwnedVector<uint8_t>::NewForOverwrite(length);
   base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(result.begin()),
-                       reinterpret_cast<const base::Atomic8*>(bytes.data()),
-                       bytes.size());
+                       reinterpret_cast<const base::Atomic8*>(start), length);
   return result;
 }
 
@@ -502,7 +486,7 @@ constexpr char AsyncInstantiateCompileResultResolver::kGlobalImportsHandle[];
 std::string ToString(const char* name) { return std::string(name); }
 
 std::string ToString(const i::DirectHandle<i::String> name) {
-  return std::string("Property '") + name->ToCString().get() + "'";
+  return std::string("Property '") + name->ToStdString() + "'";
 }
 
 // Web IDL: '[EnforceRange] unsigned long'
@@ -617,9 +601,6 @@ CompileTimeImports ArgumentToCompileOptions(
                                        i::Object::GetProperty(&it), {});
       if (i::IsString(*value)) {
         i::Tagged<i::String> builtin = i::Cast<i::String>(*value);
-        // TODO(jkummerow): We could make other string comparisons to known
-        // constants in this file more efficient by migrating them to this
-        // style (rather than `...->StringEquals(v8_str(...))`).
         if (builtin->IsEqualTo(base::CStrVector("js-string"))) {
           result.Add(CompileTimeImport::kJsString);
           continue;
@@ -631,6 +612,13 @@ CompileTimeImports ArgumentToCompileOptions(
           }
           if (builtin->IsEqualTo(base::CStrVector("text-decoder"))) {
             result.Add(CompileTimeImport::kTextDecoder);
+            continue;
+          }
+        }
+        if (enabled_features.has_custom_descriptors() &&
+            i::v8_flags.experimental_wasm_js_interop) {
+          if (builtin->IsEqualTo(base::CStrVector("js-prototypes"))) {
+            result.Add(CompileTimeImport::kJsPrototypes);
             continue;
           }
         }
@@ -888,9 +876,10 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
 
-  bool bytes_are_shared = false;
-  base::Vector<const uint8_t> bytes = GetFirstArgumentAsBytes(
-      info, i::wasm::max_module_size(), &thrower, &bytes_are_shared);
+  // Always copy. Even if the buffer isn't shared, {ArgumentToCompileOptions}
+  // could detach it.
+  base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
+      info, i::wasm::max_module_size(), &thrower);
   if (bytes.empty()) {
     js_api_scope.AssertException();
     // Propagate anything except wasm exceptions.
@@ -911,23 +900,9 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  bool validated = false;
-  if (bytes_are_shared) {
-    // Make a copy of the wire bytes to avoid concurrent modification.
-    // Use relaxed reads (and writes, which is unnecessary here) to avoid TSan
-    // reports in case the buffer is shared and is being modified concurrently.
-    auto bytes_copy = base::OwnedVector<uint8_t>::NewForOverwrite(bytes.size());
-    base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(bytes_copy.begin()),
-                         reinterpret_cast<const base::Atomic8*>(bytes.data()),
-                         bytes.size());
-    validated = i::wasm::GetWasmEngine()->SyncValidate(
-        i_isolate, enabled_features, std::move(compile_imports),
-        bytes_copy.as_vector());
-  } else {
-    // The wire bytes are not shared, OK to use them directly.
-    validated = i::wasm::GetWasmEngine()->SyncValidate(
-        i_isolate, enabled_features, std::move(compile_imports), bytes);
-  }
+  bool validated = i::wasm::GetWasmEngine()->SyncValidate(
+      i_isolate, enabled_features, std::move(compile_imports),
+      bytes.as_vector());
 
   return_value.Set(validated);
 }
@@ -1828,6 +1803,10 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       return js_api_scope.AssertException();
     }
     is_mutable = value->BooleanValue(isolate);
+    if (is_mutable) {
+      i_isolate->CountUsage(
+          v8::Isolate::UseCounterFeature::kWasmMutableGlobals);
+    }
   }
 
   // The descriptor's type, called 'value'. It is called 'value' because this
@@ -2256,23 +2235,26 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
 
   int num_imported_functions = module->num_imported_functions;
   i::DirectHandle<i::TrustedObject> implicit_arg;
+  constexpr bool kShared = false;
   if (func_index >= num_imported_functions) {
     implicit_arg = trusted_instance_data;
   } else {
-    implicit_arg = i_isolate->factory()->NewWasmImportData(direct_handle(
-        i::Cast<i::WasmImportData>(
-            trusted_instance_data->dispatch_table_for_imports()->implicit_arg(
-                func_index)),
-        i_isolate));
+    implicit_arg = i_isolate->factory()->NewWasmImportData(
+        direct_handle(i::TrustedCast<i::WasmImportData>(
+                          trusted_instance_data->dispatch_table_for_imports()
+                              ->implicit_arg(func_index)),
+                      i_isolate),
+        kShared);
   }
 
   i::DirectHandle<i::WasmInternalFunction> internal =
-      i_isolate->factory()->NewWasmInternalFunction(implicit_arg, func_index);
+      i_isolate->factory()->NewWasmInternalFunction(
+          implicit_arg, func_index, kShared,
+          trusted_instance_data->GetCallTarget(func_index));
   i::DirectHandle<i::WasmFuncRef> func_ref =
-      i_isolate->factory()->NewWasmFuncRef(internal, rtt);
-  internal->set_call_target(trusted_instance_data->GetCallTarget(func_index));
+      i_isolate->factory()->NewWasmFuncRef(internal, rtt, kShared);
   if (func_index < num_imported_functions) {
-    i::Cast<i::WasmImportData>(implicit_arg)->set_call_origin(*internal);
+    i::TrustedCast<i::WasmImportData>(implicit_arg)->set_call_origin(*internal);
   }
 
   i::DirectHandle<i::JSFunction> result = i::WasmExportedFunction::New(
@@ -2415,7 +2397,7 @@ void WebAssemblyPromising(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::DirectHandle<i::WasmExportedFunctionData> data(
       wasm_exported_function->shared()->wasm_exported_function_data(),
       i_isolate);
-  if (data->instance_data()->module_object()->is_asm_js()) {
+  if (i::wasm::is_asmjs_module(data->instance_data()->module())) {
     thrower.TypeError("Argument 0 must be a WebAssembly exported function");
     return;
   }
@@ -2451,6 +2433,38 @@ void WebAssemblySuspendingImpl(
 
   i::DirectHandle<i::WasmSuspendingObject> result =
       i::WasmSuspendingObject::New(i_isolate, callable);
+  info.GetReturnValue().Set(Utils::ToLocal(i::Cast<i::JSObject>(result)));
+}
+
+// WebAssembly.DescriptorOptions({options}) -> DescriptorOptions
+void WebAssemblyDescriptorOptionsImpl(
+    const FunctionCallbackInfo<v8::Value>& info) {
+  WasmJSApiScope js_api_scope{info, "WebAssembly.DescriptorOptions()"};
+  auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
+
+  if (!info.IsConstructCall()) {
+    thrower.TypeError(
+        "WebAssembly.DescriptorOptions must be invoked with 'new'");
+    return;
+  }
+  if (!info[0]->IsObject()) {
+    thrower.TypeError("Argument 0 must be an object");
+    return;
+  }
+
+  i::DirectHandle<i::JSReceiver> options =
+      Utils::OpenDirectHandle(*Local<v8::Object>::Cast(info[0]));
+  i::DirectHandle<i::Object> prototype;
+  if (!i::JSReceiver::GetProperty(i_isolate, options, "prototype")
+           .ToHandle(&prototype)) {
+    return js_api_scope.AssertException();
+  }
+  if (!i::IsJSReceiver(*prototype)) {
+    thrower.TypeError("Prototype must be an object");
+    return;
+  }
+  i::DirectHandle<i::WasmDescriptorOptions> result =
+      i::WasmDescriptorOptions::New(i_isolate, prototype);
   info.GetReturnValue().Set(Utils::ToLocal(i::Cast<i::JSObject>(result)));
 }
 
@@ -3350,7 +3364,7 @@ DirectHandle<JSObject> SetupConstructor(Isolate* isolate,
                                         const char* name = nullptr,
                                         int in_object_properties = 0) {
   SetDummyInstanceTemplate(isolate, constructor);
-  JSFunction::EnsureHasInitialMap(constructor);
+  JSFunction::EnsureHasInitialMap(isolate, constructor);
   DirectHandle<JSObject> proto(
       Cast<JSObject>(constructor->instance_prototype()), isolate);
   DirectHandle<Map> map = isolate->factory()->NewContextfulMap(
@@ -3379,10 +3393,12 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   DirectHandle<JSGlobalObject> global = isolate->global_object();
   DirectHandle<NativeContext> native_context(global->native_context(), isolate);
 
-  CHECK(IsUndefined(native_context->get(Context::WASM_WEBASSEMBLY_OBJECT_INDEX),
-                    isolate));
-  CHECK(IsUndefined(native_context->get(Context::WASM_MODULE_CONSTRUCTOR_INDEX),
-                    isolate));
+  CHECK(IsUndefined(
+      native_context->GetNoCell(Context::WASM_WEBASSEMBLY_OBJECT_INDEX),
+      isolate));
+  CHECK(IsUndefined(
+      native_context->GetNoCell(Context::WASM_MODULE_CONSTRUCTOR_INDEX),
+      isolate));
 
   Factory* const f = isolate->factory();
   static constexpr PropertyAttributes ro_attributes =
@@ -3399,7 +3415,8 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
 
     DirectHandle<JSFunction> ctor =
         Factory::JSFunctionBuilder{isolate, sfi, native_context}.Build();
-    JSFunction::SetPrototype(ctor, isolate->initial_object_prototype());
+    JSFunction::SetPrototype(isolate, ctor,
+                             isolate->initial_object_prototype());
     webassembly = f->NewJSObject(ctor, AllocationType::kOld);
     native_context->set_wasm_webassembly_object(*webassembly);
 
@@ -3673,6 +3690,11 @@ void WasmJs::Install(Isolate* isolate) {
     InstallMemoryControl(isolate, native_context, webassembly);
   }
 
+  if (enabled_features.has_custom_descriptors() &&
+      i::v8_flags.experimental_wasm_js_interop) {
+    InstallCustomDescriptors(isolate, native_context, webassembly);
+  }
+
   // Initialize and install JSPI feature.
   if (enabled_features.has_jspi()) {
     CHECK(native_context->is_wasm_jspi_installed() == Smi::zero());
@@ -3712,8 +3734,7 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
   if (isolate->IsWasmJSPIRequested(context)) {
     if (context->is_wasm_jspi_installed() == Smi::zero()) {
       isolate->WasmInitJSPIFeature();
-      if (InstallJSPromiseIntegration(isolate, context, webassembly) &&
-          InstallTypeReflection(isolate, context, webassembly)) {
+      if (InstallJSPromiseIntegration(isolate, context, webassembly)) {
         context->set_is_wasm_jspi_installed(Smi::FromInt(1));
       }
     }
@@ -3753,6 +3774,27 @@ bool WasmJs::InstallJSPromiseIntegration(Isolate* isolate,
   InstallFunc(isolate, webassembly, "promising", WebAssemblyPromising, 1);
   InstallError(isolate, webassembly, isolate->factory()->SuspendError_string(),
                Context::WASM_SUSPEND_ERROR_FUNCTION_INDEX);
+  return true;
+}
+
+bool WasmJs::InstallCustomDescriptors(Isolate* isolate,
+                                      DirectHandle<NativeContext> context,
+                                      DirectHandle<JSObject> webassembly) {
+  DirectHandle<String> descriptor_options_string =
+      v8_str(isolate, "DescriptorOptions");
+  if (JSObject::HasRealNamedProperty(isolate, webassembly,
+                                     descriptor_options_string)
+          .FromMaybe(true)) {
+    return false;
+  }
+  DirectHandle<JSFunction> descriptor_options_constructor =
+      InstallConstructorFunc(isolate, webassembly, "DescriptorOptions",
+                             WebAssemblyDescriptorOptionsImpl);
+  context->set_wasm_descriptor_options_constructor(
+      *descriptor_options_constructor);
+  SetupConstructor(
+      isolate, descriptor_options_constructor, WASM_DESCRIPTOR_OPTIONS_TYPE,
+      WasmDescriptorOptions::kHeaderSize, "WebAssembly.DescriptorOptions");
   return true;
 }
 
@@ -3837,7 +3879,7 @@ bool WasmJs::InstallTypeReflection(Isolate* isolate,
   DirectHandle<JSFunction> function_constructor = InstallConstructorFunc(
       isolate, webassembly, "Function", WebAssemblyFunction);
   SetDummyInstanceTemplate(isolate, function_constructor);
-  JSFunction::EnsureHasInitialMap(function_constructor);
+  JSFunction::EnsureHasInitialMap(isolate, function_constructor);
   DirectHandle<JSObject> function_proto(
       Cast<JSObject>(function_constructor->instance_prototype()), isolate);
   DirectHandle<Map> function_map =

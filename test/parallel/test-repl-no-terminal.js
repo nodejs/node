@@ -1,7 +1,9 @@
 'use strict';
 const common = require('../common');
+const { startNewREPLServer } = require('../common/repl');
 
-const repl = require('repl');
-const r = repl.start({ terminal: false });
-r.setupHistory('/nonexistent/file', common.mustSucceed());
-process.stdin.unref?.();
+const { replServer } = startNewREPLServer();
+
+replServer.setupHistory('/nonexistent/file', common.mustSucceed(() => {
+  replServer.close();
+}));

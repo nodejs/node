@@ -36,7 +36,7 @@ exports.isCI = !!(
   env.CI !== 'false' && // Bypass all checks if CI env is explicitly set to 'false'
   (env.BUILD_ID || // Jenkins, Cloudbees
     env.BUILD_NUMBER || // Jenkins, TeamCity
-    env.CI || // Travis CI, CircleCI, Cirrus CI, Gitlab CI, Appveyor, CodeShip, dsari, Cloudflare Pages
+    env.CI || // Travis CI, CircleCI, Cirrus CI, Gitlab CI, Appveyor, CodeShip, dsari, Cloudflare Pages/Workers
     env.CI_APP_ID || // Appflow
     env.CI_BUILD_ID || // Appflow
     env.CI_BUILD_NUMBER || // Appflow

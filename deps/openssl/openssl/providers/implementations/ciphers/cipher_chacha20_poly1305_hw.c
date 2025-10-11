@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -398,8 +398,7 @@ err:
     return rv;
 }
 
-static const PROV_CIPHER_HW_CHACHA20_POLY1305 chacha20poly1305_hw =
-{
+static const PROV_CIPHER_HW_CHACHA20_POLY1305 chacha20poly1305_hw = {
     { chacha20_poly1305_initkey, NULL },
     chacha20_poly1305_aead_cipher,
     chacha20_poly1305_initiv,

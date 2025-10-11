@@ -1,8 +1,11 @@
 'use strict'
 
 const {
-  safeHTTPMethods
+  safeHTTPMethods,
+  pathHasQueryOrFragment
 } = require('../core/util')
+
+const { serializePathWithQuery } = require('../core/util')
 
 /**
  * @param {import('../../types/dispatcher.d.ts').default.DispatchOptions} opts
@@ -12,21 +15,25 @@ function makeCacheKey (opts) {
     throw new Error('opts.origin is undefined')
   }
 
-  const headers = normaliseHeaders(opts)
+  let fullPath = opts.path || '/'
+
+  if (opts.query && !pathHasQueryOrFragment(opts.path)) {
+    fullPath = serializePathWithQuery(fullPath, opts.query)
+  }
 
   return {
     origin: opts.origin.toString(),
     method: opts.method,
-    path: opts.path,
-    headers
+    path: fullPath,
+    headers: opts.headers
   }
 }
 
 /**
  * @param {Record<string, string[] | string>}
- * @return {Record<string, string[] | string>}
+ * @returns {Record<string, string[] | string>}
  */
-function normaliseHeaders (opts) {
+function normalizeHeaders (opts) {
   let headers
   if (opts.headers == null) {
     headers = {}
@@ -226,7 +233,7 @@ function parseCacheControlHeader (header) {
               }
             }
           } else {
-            // Something like `no-cache=some-header`
+            // Something like `no-cache="some-header"`
             if (key in output) {
               output[key] = output[key].concat(value)
             } else {
@@ -359,7 +366,7 @@ function assertCacheMethods (methods, name = 'CacheMethods') {
 
 module.exports = {
   makeCacheKey,
-  normaliseHeaders,
+  normalizeHeaders,
   assertCacheKey,
   assertCacheValue,
   parseCacheControlHeader,

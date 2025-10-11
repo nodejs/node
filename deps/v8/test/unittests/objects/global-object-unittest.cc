@@ -54,7 +54,7 @@ TEST_F(GlobalObjectTest, StrictUndeclaredGlobalVariable) {
 TEST_F(GlobalObjectTest, KeysGlobalObject_Regress2764) {
   Local<Context> env1 = context();
   // Create second environment.
-  Local<Context> env2 = Context::New(env1->GetIsolate());
+  Local<Context> env2 = Context::New(isolate());
 
   Local<Value> token = NewString("foo");
 
@@ -104,7 +104,7 @@ START_ALLOW_USE_DEPRECATED()
 TEST_F(GlobalObjectTest, KeysGlobalObject_SetPrototype) {
   Local<Context> env1 = context();
   // Create second environment.
-  Local<Context> env2 = Context::New(env1->GetIsolate());
+  Local<Context> env2 = Context::New(isolate());
 
   Local<Value> token = NewString("foo");
 

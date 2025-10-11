@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -88,7 +88,7 @@ STACK_OF(CONF_VALUE) *i2v_GENERAL_NAME(X509V3_EXT_METHOD *method,
         switch (OBJ_obj2nid(gen->d.otherName->type_id)) {
         case NID_id_on_SmtpUTF8Mailbox:
             if (gen->d.otherName->value->type != V_ASN1_UTF8STRING
-                    || !x509v3_add_len_value_uchar("othername: SmtpUTF8Mailbox:",
+                    || !x509v3_add_len_value_uchar("othername: SmtpUTF8Mailbox",
                             gen->d.otherName->value->value.utf8string->data,
                             gen->d.otherName->value->value.utf8string->length,
                             &ret))
@@ -96,7 +96,7 @@ STACK_OF(CONF_VALUE) *i2v_GENERAL_NAME(X509V3_EXT_METHOD *method,
             break;
         case NID_XmppAddr:
             if (gen->d.otherName->value->type != V_ASN1_UTF8STRING
-                    || !x509v3_add_len_value_uchar("othername: XmppAddr:",
+                    || !x509v3_add_len_value_uchar("othername: XmppAddr",
                             gen->d.otherName->value->value.utf8string->data,
                             gen->d.otherName->value->value.utf8string->length,
                             &ret))
@@ -104,7 +104,7 @@ STACK_OF(CONF_VALUE) *i2v_GENERAL_NAME(X509V3_EXT_METHOD *method,
             break;
         case NID_SRVName:
             if (gen->d.otherName->value->type != V_ASN1_IA5STRING
-                    || !x509v3_add_len_value_uchar("othername: SRVName:",
+                    || !x509v3_add_len_value_uchar("othername: SRVName",
                             gen->d.otherName->value->value.ia5string->data,
                             gen->d.otherName->value->value.ia5string->length,
                             &ret))
@@ -112,7 +112,7 @@ STACK_OF(CONF_VALUE) *i2v_GENERAL_NAME(X509V3_EXT_METHOD *method,
             break;
         case NID_ms_upn:
             if (gen->d.otherName->value->type != V_ASN1_UTF8STRING
-                    || !x509v3_add_len_value_uchar("othername: UPN:",
+                    || !x509v3_add_len_value_uchar("othername: UPN",
                             gen->d.otherName->value->value.utf8string->data,
                             gen->d.otherName->value->value.utf8string->length,
                             &ret))
@@ -120,32 +120,32 @@ STACK_OF(CONF_VALUE) *i2v_GENERAL_NAME(X509V3_EXT_METHOD *method,
             break;
         case NID_NAIRealm:
             if (gen->d.otherName->value->type != V_ASN1_UTF8STRING
-                    || !x509v3_add_len_value_uchar("othername: NAIRealm:",
+                    || !x509v3_add_len_value_uchar("othername: NAIRealm",
                             gen->d.otherName->value->value.utf8string->data,
                             gen->d.otherName->value->value.utf8string->length,
                             &ret))
                 return NULL;
             break;
         default:
-            if (OBJ_obj2txt(oline, sizeof(oline), gen->d.otherName->type_id, 0) > 0) 
-                BIO_snprintf(othername, sizeof(othername), "othername: %s:",
+            if (OBJ_obj2txt(oline, sizeof(oline), gen->d.otherName->type_id, 0) > 0)
+                BIO_snprintf(othername, sizeof(othername), "othername: %s",
                              oline);
             else
-                OPENSSL_strlcpy(othername, "othername:", sizeof(othername));
+                OPENSSL_strlcpy(othername, "othername", sizeof(othername));
 
             /* check if the value is something printable */
             if (gen->d.otherName->value->type == V_ASN1_IA5STRING) {
                 if (x509v3_add_len_value_uchar(othername,
                              gen->d.otherName->value->value.ia5string->data,
                              gen->d.otherName->value->value.ia5string->length,
-                             &ret)) 
+                             &ret))
                     return ret;
             }
             if (gen->d.otherName->value->type == V_ASN1_UTF8STRING) {
                 if (x509v3_add_len_value_uchar(othername,
                              gen->d.otherName->value->value.utf8string->data,
                              gen->d.otherName->value->value.utf8string->length,
-                             &ret)) 
+                             &ret))
                     return ret;
             }
             if (!X509V3_add_value(othername, "<unsupported>", &ret))
@@ -307,8 +307,7 @@ static GENERAL_NAMES *v2i_issuer_alt(X509V3_EXT_METHOD *method,
     int i;
 
     if (gens == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
-        sk_GENERAL_NAME_free(gens);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
         return NULL;
     }
     for (i = 0; i < num; i++) {
@@ -358,7 +357,7 @@ static int copy_issuer(X509V3_CTX *ctx, GENERAL_NAMES *gens)
 
     num = sk_GENERAL_NAME_num(ialt);
     if (!sk_GENERAL_NAME_reserve(gens, num)) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
         goto err;
     }
 
@@ -387,8 +386,7 @@ static GENERAL_NAMES *v2i_subject_alt(X509V3_EXT_METHOD *method,
 
     gens = sk_GENERAL_NAME_new_reserve(NULL, num);
     if (gens == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
-        sk_GENERAL_NAME_free(gens);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
         return NULL;
     }
 
@@ -450,14 +448,14 @@ static int copy_email(X509V3_CTX *ctx, GENERAL_NAMES *gens, int move_p)
             i--;
         }
         if (email == NULL || (gen = GENERAL_NAME_new()) == NULL) {
-            ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
             goto err;
         }
         gen->d.ia5 = email;
         email = NULL;
         gen->type = GEN_EMAIL;
         if (!sk_GENERAL_NAME_push(gens, gen)) {
-            ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
             goto err;
         }
         gen = NULL;
@@ -483,8 +481,7 @@ GENERAL_NAMES *v2i_GENERAL_NAMES(const X509V3_EXT_METHOD *method,
 
     gens = sk_GENERAL_NAME_new_reserve(NULL, num);
     if (gens == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
-        sk_GENERAL_NAME_free(gens);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
         return NULL;
     }
 
@@ -524,7 +521,7 @@ GENERAL_NAME *a2i_GENERAL_NAME(GENERAL_NAME *out,
     else {
         gen = GENERAL_NAME_new();
         if (gen == NULL) {
-            ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
             return NULL;
         }
     }
@@ -584,7 +581,7 @@ GENERAL_NAME *a2i_GENERAL_NAME(GENERAL_NAME *out,
                              strlen(value))) {
             ASN1_IA5STRING_free(gen->d.ia5);
             gen->d.ia5 = NULL;
-            ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
             goto err;
         }
     }

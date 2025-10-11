@@ -32,7 +32,7 @@
    * await actions.send();
    *
    * @param {number} [defaultTickDuration] - The default duration of a
-   * tick. Be default this is set to 16ms, which is one frame time
+   * tick. Be default this is set ot 16ms, which is one frame time
    * based on 60Hz display.
    */
   function Actions(defaultTickDuration=16) {
@@ -290,7 +290,7 @@
     },
 
     /**
-     * Create a keyDown event for the current default key source
+     * Create a keyUp event for the current default key source
      *
      * @param {String} key - Key to release
      * @param {String?} sourceName - Named key source to use or null for the default key source

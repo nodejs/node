@@ -274,9 +274,9 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kLdaGlobal:
       case Bytecode::kGetNamedProperty:
       case Bytecode::kGetKeyedProperty:
-      case Bytecode::kLdaContextSlot:
+      case Bytecode::kLdaContextSlotNoCell:
       case Bytecode::kLdaImmutableContextSlot:
-      case Bytecode::kLdaCurrentContextSlot:
+      case Bytecode::kLdaCurrentContextSlotNoCell:
       case Bytecode::kLdaImmutableCurrentContextSlot:
       case Bytecode::kAdd:
       case Bytecode::kSub:

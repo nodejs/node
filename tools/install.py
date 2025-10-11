@@ -73,7 +73,7 @@ def try_copy(options, path, dest):
   return shutil.copy2(source_path, target_path)
 
 def try_remove(options, path, dest):
-  source_path, target_path = mkpaths(options, path, dest)
+  _source_path, target_path = mkpaths(options, path, dest)
   if not options.silent:
     print('removing %s' % target_path)
   try_unlink(target_path)
@@ -181,9 +181,19 @@ def files(options, action):
       link_path = abspath(options.install_path, 'lib/libnode.so')
       try_symlink(options, so_name, link_path)
     else:
-      output_lib = 'libnode.' + options.variables.get('shlib_suffix')
-      action(options, [os.path.join(options.build_dir, output_lib)],
-             os.path.join(options.variables.get('libdir'), output_lib))
+      # Ninja and Makefile generators output the library in different directories;
+      # find out which one we have, and install first found
+      output_lib_name = 'libnode.' + options.variables.get('shlib_suffix')
+      output_lib_candidate_paths = [
+        os.path.join(options.build_dir, output_lib_name),
+        os.path.join(options.build_dir, "lib", output_lib_name),
+      ]
+      try:
+        output_lib = next(filter(os.path.exists, output_lib_candidate_paths))
+      except StopIteration as not_found:
+        raise RuntimeError("No libnode.so to install!") from not_found
+      action(options, [output_lib],
+             os.path.join(options.variables.get('libdir'), output_lib_name))
 
   action(options, [os.path.join(options.v8_dir, 'tools/gdbinit')], 'share/doc/node/')
   action(options, [os.path.join(options.v8_dir, 'tools/lldb_commands.py')], 'share/doc/node/')

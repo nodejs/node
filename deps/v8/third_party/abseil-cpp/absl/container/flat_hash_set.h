@@ -103,22 +103,27 @@ struct FlatHashSetPolicy;
 // `absl::flat_hash_set<std::unique_ptr<T>>`. If your type is not moveable and
 // you require pointer stability, consider `absl::node_hash_set` instead.
 //
+// PERFORMANCE WARNING: Erasure & sparsity can negatively affect performance:
+//  * Iteration takes O(capacity) time, not O(size).
+//  * erase() slows down begin() and ++iterator.
+//  * Capacity only shrinks on rehash() or clear() -- not on erase().
+//
 // Example:
 //
 //   // Create a flat hash set of three strings
 //   absl::flat_hash_set<std::string> ducks =
 //     {"huey", "dewey", "louie"};
 //
-//  // Insert a new element into the flat hash set
-//  ducks.insert("donald");
+//   // Insert a new element into the flat hash set
+//   ducks.insert("donald");
 //
-//  // Force a rehash of the flat hash set
-//  ducks.rehash(0);
+//   // Force a rehash of the flat hash set
+//   ducks.rehash(0);
 //
-//  // See if "dewey" is present
-//  if (ducks.contains("dewey")) {
-//    std::cout << "We found dewey!" << std::endl;
-//  }
+//   // See if "dewey" is present
+//   if (ducks.contains("dewey")) {
+//     std::cout << "We found dewey!" << std::endl;
+//   }
 template <class T, class Hash = DefaultHashContainerHash<T>,
           class Eq = DefaultHashContainerEq<T>,
           class Allocator = std::allocator<T>>
@@ -149,9 +154,9 @@ class ABSL_ATTRIBUTE_OWNER flat_hash_set
   //
   // * Copy assignment operator
   //
-  //  // Hash functor and Comparator are copied as well
-  //  absl::flat_hash_set<std::string> set4;
-  //  set4 = set3;
+  //   // Hash functor and Comparator are copied as well
+  //   absl::flat_hash_set<std::string> set4;
+  //   set4 = set3;
   //
   // * Move constructor
   //
@@ -553,9 +558,9 @@ struct FlatHashSetPolicy {
 
   static size_t space_used(const T*) { return 0; }
 
-  template <class Hash>
+  template <class Hash, bool kIsDefault>
   static constexpr HashSlotFn get_hash_slot_fn() {
-    return &TypeErasedApplyToSlotFn<Hash, T>;
+    return &TypeErasedApplyToSlotFn<Hash, T, kIsDefault>;
   }
 };
 }  // namespace container_internal

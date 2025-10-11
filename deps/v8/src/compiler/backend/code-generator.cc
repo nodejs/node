@@ -127,7 +127,7 @@ bool CodeGenerator::ShouldApplyOffsetToStackCheck(Instruction* instr,
   DCHECK_EQ(instr->arch_opcode(), kArchStackPointerGreaterThan);
 
   StackCheckKind kind =
-      static_cast<StackCheckKind>(MiscField::decode(instr->opcode()));
+      static_cast<StackCheckKind>(StackCheckField::decode(instr->opcode()));
   if (kind != StackCheckKind::kJSFunctionEntry) return false;
 
   uint32_t stack_check_offset = *offset = GetStackCheckOffset();
@@ -172,12 +172,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   DeoptimizeReason deoptimization_reason = exit->reason();
   Label* jump_deoptimization_entry_label =
       &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
-  if (info()->source_positions()) {
+  if (info()->source_positions() ||
+      AlwaysPreserveDeoptReason(deoptimization_reason)) {
     masm()->RecordDeoptReason(deoptimization_reason, exit->node_id(),
                               exit->pos(), deoptimization_id);
   }
 
-  if (deopt_kind == DeoptimizeKind::kLazy) {
+  if (deopt_kind == DeoptimizeKind::kLazy ||
+      deopt_kind == DeoptimizeKind::kLazyAfterFastCall) {
     ++lazy_deopt_count_;
     masm()->BindExceptionHandler(exit->label());
   } else {
@@ -226,6 +228,15 @@ void CodeGenerator::AssembleCode() {
 
   masm()->CodeEntry();
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // TODO(saelo): should there also be a info->IsJS()?
+  if (v8_flags.debug_code &&
+      (call_descriptor->IsJSFunctionCall() || info->IsWasm())) {
+    masm()->RecordComment("-- Prologue: check sandboxing mode --");
+    masm()->AssertInSandboxedExecutionMode();
+  }
+#endif
+
   // Check that {kJavaScriptCallCodeStartRegister} has been set correctly.
   if (v8_flags.debug_code && info->called_with_code_start_register()) {
     masm()->RecordComment("-- Prologue: check code start register --");
@@ -237,20 +248,6 @@ void CodeGenerator::AssembleCode() {
   if (v8_flags.debug_code && call_descriptor->IsJSFunctionCall()) {
     masm()->RecordComment("-- Prologue: check dispatch handle register --");
     AssembleDispatchHandleRegisterCheck();
-  }
-#endif
-
-#if V8_ENABLE_WEBASSEMBLY
-  if (info->code_kind() == CodeKind::WASM_TO_JS_FUNCTION ||
-      info->builtin() == Builtin::kWasmToJsWrapperCSA ||
-      wasm::BuiltinLookup::IsWasmBuiltinId(info->builtin())) {
-    // By default the code generator can convert slot IDs to SP-relative memory
-    // operands depending on the offset if the encoding is more efficient.
-    // However the SP may switch to the central stack for wasm-to-js wrappers
-    // and wasm builtins, so disable this optimization there.
-    // TODO(thibaudm): Disable this more selectively, only wasm builtins that
-    // call JS builtins can switch, and only around the call site.
-    frame_access_state()->SetFPRelativeOnly(true);
   }
 #endif
 
@@ -288,8 +285,10 @@ void CodeGenerator::AssembleCode() {
     // Align loop headers on vendor recommended boundaries.
     if (block->ShouldAlignLoopHeader()) {
       masm()->LoopHeaderAlign();
-    } else if (block->ShouldAlignCodeTarget()) {
-      masm()->CodeTargetAlign();
+    } else if (block->ShouldAlignSwitchTarget()) {
+      masm()->SwitchTargetAlign();
+    } else if (block->ShouldAlignBranchTarget()) {
+      masm()->BranchTargetAlign();
     }
 
     if (info->trace_turbo_json()) {
@@ -321,7 +320,7 @@ void CodeGenerator::AssembleCode() {
     masm()->bind(GetLabel(current_block_));
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-    if (block->IsSwitchTarget()) {
+    if (block->IsTableSwitchTarget()) {
       masm()->JumpTarget();
     }
 #endif
@@ -336,7 +335,7 @@ void CodeGenerator::AssembleCode() {
         masm()->InitializeRootRegister();
       }
     }
-#ifdef CAN_USE_RVV_INSTRUCTIONS
+#if defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
     // RVV uses VectorUnit to emit vset{i}vl{i}, reducing the static and dynamic
     // overhead of the vset{i}vl{i} instruction. However there are some jumps
     // back between blocks. the Rvv instruction may get an incorrect vtype. so
@@ -384,11 +383,18 @@ void CodeGenerator::AssembleCode() {
   auto cmp = [](const DeoptimizationExit* a, const DeoptimizationExit* b) {
     // The deoptimization exits are sorted so that lazy deopt exits appear after
     // eager deopts.
-    static_assert(static_cast<int>(DeoptimizeKind::kLazy) ==
-                      static_cast<int>(kLastDeoptimizeKind),
-                  "lazy deopts are expected to be emitted last");
-    if (a->kind() != b->kind()) {
-      return a->kind() < b->kind();
+    int a_kind_val = a->kind() == DeoptimizeKind::kEager ? 0 : 1;
+    int b_kind_val = b->kind() == DeoptimizeKind::kEager ? 0 : 1;
+
+    DCHECK_IMPLIES(a_kind_val == 1,
+                   a->kind() == DeoptimizeKind::kLazy ||
+                       a->kind() == DeoptimizeKind::kLazyAfterFastCall);
+    DCHECK_IMPLIES(b_kind_val == 1,
+                   b->kind() == DeoptimizeKind::kLazy ||
+                       b->kind() == DeoptimizeKind::kLazyAfterFastCall);
+
+    if (a_kind_val != b_kind_val) {
+      return a_kind_val < b_kind_val;
     }
     return a->pc_offset() < b->pc_offset();
   };
@@ -409,7 +415,8 @@ void CodeGenerator::AssembleCode() {
       // order, which is always the case since they are added to
       // deoptimization_exits_ in that order, and the optional sort operation
       // above preserves that order.
-      if (exit->kind() == DeoptimizeKind::kLazy) {
+      if (exit->kind() == DeoptimizeKind::kLazy ||
+          exit->kind() == DeoptimizeKind::kLazyAfterFastCall) {
         int trampoline_pc = exit->label()->pos();
         last_updated = safepoints()->UpdateDeoptimizationInfo(
             exit->pc_offset(), trampoline_pc, last_updated,
@@ -435,7 +442,7 @@ void CodeGenerator::AssembleCode() {
     }
   }
 
-  // The LinuxPerfJitLogger logs code up until here, excluding the safepoint
+  // The PerfJitLogger logs code up until here, excluding the safepoint
   // table. Resolve the unwinding info now so it is aware of the same code
   // size as reported by perf.
   unwinding_info_writer_.Finish(masm()->pc_offset());
@@ -461,7 +468,7 @@ void CodeGenerator::AssembleCode() {
   result_ = kSuccess;
 }
 
-#ifndef V8_TARGET_ARCH_X64
+#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_RISCV64)
 void CodeGenerator::AssembleArchBinarySearchSwitchRange(
     Register input, RpoNumber def_block, std::pair<int32_t, Label*>* begin,
     std::pair<int32_t, Label*>* end) {
@@ -480,7 +487,7 @@ void CodeGenerator::AssembleArchBinarySearchSwitchRange(
   masm()->bind(&less_label);
   AssembleArchBinarySearchSwitchRange(input, def_block, begin, middle);
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64/V8_TARGET_ARCH_RISCV64
 
 void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target))
@@ -761,6 +768,7 @@ RpoNumber CodeGenerator::ComputeBranchInfo(BranchInfo* branch,
   branch->condition = condition;
   branch->true_label = GetLabel(true_rpo);
   branch->false_label = GetLabel(false_rpo);
+  branch->hinted = static_cast<bool>(BranchHintField::decode(instr->opcode()));
   branch->fallthru = IsNextInAssemblyOrder(false_rpo);
   return RpoNumber::Invalid();
 }
@@ -848,6 +856,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       branch.condition = condition;
       branch.true_label = exit->label();
       branch.false_label = exit->continue_label();
+      branch.hinted = true;
       branch.fallthru = true;
       AssembleArchDeoptBranch(instr, &branch);
       masm()->bind(exit->continue_label());
@@ -858,11 +867,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       AssembleArchBoolean(instr, condition);
       break;
     }
-    case kFlags_conditional_set: {
-      // Assemble a conditional boolean materialization after this instruction.
-      AssembleArchConditionalBoolean(instr);
-      break;
-    }
     case kFlags_select: {
       AssembleArchSelect(instr, condition);
       break;
@@ -870,6 +874,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     case kFlags_trap: {
 #if V8_ENABLE_WEBASSEMBLY
       AssembleArchTrap(instr, condition);
+      break;
+#else
+      UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
+    }
+    case kFlags_conditional_trap: {
+#if V8_ENABLE_WEBASSEMBLY
+      InstructionOperandConverter i(this, instr);
+      condition = static_cast<FlagsCondition>(
+          i.ToConstant(instr->InputAt(instr->InputCount() -
+                                      kConditionalTrapEndOffsetOfCondition))
+              .ToInt64());
+      AssembleArchConditionalTrap(instr, condition);
       break;
 #else
       UNREACHABLE();

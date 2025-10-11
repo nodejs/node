@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2004-2014, Akamai Technologies. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -15,8 +15,9 @@
  * For details on that implementation, see below (look for uppercase
  * "SECURE HEAP IMPLEMENTATION").
  */
-#include "e_os.h"
+#include "internal/e_os.h"
 #include <openssl/crypto.h>
+#include <openssl/err.h>
 
 #include <string.h>
 
@@ -64,6 +65,18 @@ VirtualLock(
 # endif
 # include <sys/stat.h>
 # include <fcntl.h>
+#endif
+#ifndef HAVE_MADVISE
+# if defined(MADV_DONTDUMP)
+#  define HAVE_MADVISE 1
+# else
+#  define HAVE_MADVISE 0
+# endif
+#endif
+#if HAVE_MADVISE
+# undef NO_MADVISE
+#else
+# define NO_MADVISE
 #endif
 
 #define CLEAR(p, s) OPENSSL_cleanse(p, s)
@@ -141,18 +154,27 @@ int CRYPTO_secure_malloc_initialized(void)
 void *CRYPTO_secure_malloc(size_t num, const char *file, int line)
 {
 #ifndef OPENSSL_NO_SECURE_MEMORY
-    void *ret;
+    void *ret = NULL;
     size_t actual_size;
+    int reason = CRYPTO_R_SECURE_MALLOC_FAILURE;
 
     if (!secure_mem_initialized) {
         return CRYPTO_malloc(num, file, line);
     }
-    if (!CRYPTO_THREAD_write_lock(sec_malloc_lock))
-        return NULL;
+    if (!CRYPTO_THREAD_write_lock(sec_malloc_lock)) {
+        reason = ERR_R_CRYPTO_LIB;
+        goto err;
+    }
     ret = sh_malloc(num);
     actual_size = ret ? sh_actual_size(ret) : 0;
     secure_mem_used += actual_size;
     CRYPTO_THREAD_unlock(sec_malloc_lock);
+ err:
+    if (ret == NULL && (file != NULL || line != 0)) {
+        ERR_new();
+        ERR_set_debug(file, line, NULL);
+        ERR_set_error(ERR_LIB_CRYPTO, reason, NULL);
+    }
     return ret;
 #else
     return CRYPTO_malloc(num, file, line);
@@ -299,14 +321,12 @@ size_t CRYPTO_secure_actual_size(void *ptr)
     ((char*)(p) >= (char*)sh.freelist && (char*)(p) < (char*)&sh.freelist[sh.freelist_size])
 
 
-typedef struct sh_list_st
-{
+typedef struct sh_list_st {
     struct sh_list_st *next;
     struct sh_list_st **p_next;
 } SH_LIST;
 
-typedef struct sh_st
-{
+typedef struct sh_st {
     char* map_result;
     size_t map_size;
     char *arena;
@@ -563,7 +583,7 @@ static int sh_init(size_t size, size_t minsize)
     if (mlock(sh.arena, sh.arena_size) < 0)
         ret = 2;
 #endif
-#ifdef MADV_DONTDUMP
+#ifndef NO_MADVISE
     if (madvise(sh.arena, sh.arena_size, MADV_DONTDUMP) < 0)
         ret = 2;
 #endif

@@ -46,7 +46,7 @@ namespace log_internal {
 class SyntheticBinary;
 class VLogSite;
 
-int RegisterAndInitialize(VLogSite* v);
+int RegisterAndInitialize(VLogSite* absl_nonnull v);
 void UpdateVLogSites();
 constexpr int kUseFlag = (std::numeric_limits<int16_t>::min)();
 
@@ -94,7 +94,7 @@ class VLogSite final {
   }
 
  private:
-  friend int log_internal::RegisterAndInitialize(VLogSite* v);
+  friend int log_internal::RegisterAndInitialize(VLogSite* absl_nonnull v);
   friend void log_internal::UpdateVLogSites();
   friend class log_internal::SyntheticBinary;
   static constexpr int kUninitialized = (std::numeric_limits<int>::max)();
@@ -131,7 +131,7 @@ int VLogLevel(absl::string_view file);
 // Registers a site `v` to get updated as `vmodule` and `v` change.  Also
 // initializes the site based on their current values, and returns that result.
 // Does not allocate memory.
-int RegisterAndInitialize(VLogSite* v);
+int RegisterAndInitialize(VLogSite* absl_nonnull v);
 
 // Allocates memory.
 void UpdateVLogSites();
@@ -155,7 +155,8 @@ int PrependVModule(absl::string_view module_pattern, int log_level);
 void OnVLogVerbosityUpdate(std::function<void()> cb);
 
 // Does not allocate memory.
-VLogSite* SetVModuleListHeadForTestOnly(VLogSite* v);
+VLogSite* absl_nullable SetVModuleListHeadForTestOnly(
+    VLogSite* absl_nullable v);
 
 }  // namespace log_internal
 ABSL_NAMESPACE_END

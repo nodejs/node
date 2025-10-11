@@ -17,9 +17,9 @@ extern enum PromiseAnyRejectElementContextSlots extends intptr
   kPromiseAnyRejectElementLength
 }
 
-extern operator '[]=' macro StoreContextElement(
+extern operator '[]=' macro StoreContextElementNoCell(
     Context, constexpr PromiseAnyRejectElementContextSlots, Object): void;
-extern operator '[]' macro LoadContextElement(
+extern operator '[]' macro LoadContextElementNoCell(
     Context, constexpr PromiseAnyRejectElementContextSlots): Object;
 
 // Creates the context used by all Promise.any reject element closures,

@@ -437,9 +437,9 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   }
 }
 
-void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
-                                       uint32_t depth,
-                                       CompressionMode compression_mode) {
+void BaselineAssembler::LdaContextSlotNoCell(Register context, uint32_t index,
+                                             uint32_t depth,
+                                             CompressionMode compression_mode) {
   for (; depth > 0; --depth) {
     LoadTaggedField(context, context, Context::kPreviousOffset);
   }
@@ -447,8 +447,8 @@ void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
                   Context::OffsetOfElementAt(index));
 }
 
-void BaselineAssembler::StaContextSlot(Register context, Register value,
-                                       uint32_t index, uint32_t depth) {
+void BaselineAssembler::StaContextSlotNoCell(Register context, Register value,
+                                             uint32_t index, uint32_t depth) {
   for (; depth > 0; --depth) {
     LoadTaggedField(context, context, Context::kPreviousOffset);
   }
@@ -519,26 +519,29 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   ScratchRegisterScope scope(this);
   Label table;
   __ Branch(&fallthrough, kUnsignedGreaterThanEqual, reg, Operand(num_labels));
+
+  // We're going to use pc-relative addressing to load from the jump table,
+  // so we need to block trampoline pool emission for the entire length of
+  // the table including the preamble.
+  MacroAssembler::BlockTrampolinePoolScope block(
+      masm_, (2 + 5 + num_labels * 2) * kInstrSize);
+
   int64_t imm64;
   imm64 = __ branch_long_offset(&table);
   CHECK(is_int32(imm64 + 0x800));
-  int32_t Hi20 = (((int32_t)imm64 + 0x800) >> 12);
-  int32_t Lo12 = (int32_t)imm64 << 20 >> 20;
-  __ BlockTrampolinePoolFor(2);
-  __ auipc(t6, Hi20);     // Read PC + Hi20 into t6
-  __ addi(t6, t6, Lo12);  // jump PC + Hi20 + Lo12
+  int32_t Hi20 = (static_cast<int32_t>(imm64) + 0x800) >> 12;
+  int32_t Lo12 = (static_cast<int32_t>(imm64) << 20) >> 20;
+  __ auipc(t6, Hi20);     // Read PC + Hi20 into t6.
+  __ addi(t6, t6, Lo12);  // Jump PC + Hi20 + Lo12.
 
   int entry_size_log2 = 3;
-  __ BlockTrampolinePoolFor(num_labels * 2 + 5);
   __ CalcScaledAddress(t6, t6, reg, entry_size_log2);
   __ Jump(t6);
-  {
-    __ bind(&table);
-    for (int i = 0; i < num_labels; ++i) {
-      __ BranchLong(labels[i]);
-    }
-    DCHECK_EQ(num_labels * 2, __ InstructionsGeneratedSince(&table));
+  __ bind(&table);
+  for (int i = 0; i < num_labels; ++i) {
+    __ BranchLong(labels[i]);
   }
+  DCHECK_EQ(num_labels * 2, __ InstructionsGeneratedSince(&table));
   __ bind(&fallthrough);
 }
 

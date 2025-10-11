@@ -51,8 +51,6 @@ export declare namespace H2CClient {
     /** TODO */
     maxCachedSessions?: number;
     /** TODO */
-    maxRedirections?: number;
-    /** TODO */
     connect?: Omit<Partial<buildConnector.BuildOptions>, 'allowH2'> | buildConnector.connector;
     /** TODO */
     maxRequestsPerClient?: number;

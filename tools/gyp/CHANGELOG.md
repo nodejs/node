@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.20.4](https://github.com/nodejs/gyp-next/compare/v0.20.3...v0.20.4) (2025-08-25)
+
+
+### Bug Fixes
+
+* **cli:** remove duplicate usage ([#308](https://github.com/nodejs/gyp-next/issues/308)) ([0996f60](https://github.com/nodejs/gyp-next/commit/0996f60e9bc83ec9d7b31e39bebd23f8dc990130))
+* **docs:** Add running gyp via uv ([#306](https://github.com/nodejs/gyp-next/issues/306)) ([0e43f61](https://github.com/nodejs/gyp-next/commit/0e43f61da8154f9b460ccba9ce4c0a25d2383ac4))
+
+## [0.20.3](https://github.com/nodejs/gyp-next/compare/v0.20.2...v0.20.3) (2025-08-20)
+
+
+### Bug Fixes
+
+* compilation failure on the OpenHarmony platform ([#301](https://github.com/nodejs/gyp-next/issues/301)) ([0cf7a14](https://github.com/nodejs/gyp-next/commit/0cf7a142be06f686b8b42849791de902f177cf9f))
+* make xcode_emulation handle `xcodebuild` not in the `PATH` ([#303](https://github.com/nodejs/gyp-next/issues/303)) ([8224dee](https://github.com/nodejs/gyp-next/commit/8224deef984add7e7afe846cfb82c9d3fa6da1fb))
+
+## [0.20.2](https://github.com/nodejs/gyp-next/compare/v0.20.1...v0.20.2) (2025-06-22)
+
+
+### Bug Fixes
+
+* Python lint import-outside-top-level ruff rule PLC0415 ([#298](https://github.com/nodejs/gyp-next/issues/298)) ([34f4df6](https://github.com/nodejs/gyp-next/commit/34f4df614936ee6a056e47406ebbe7e3c1cb6540))
+
+## [0.20.1](https://github.com/nodejs/gyp-next/compare/v0.20.0...v0.20.1) (2025-06-06)
+
+
+### Bug Fixes
+
+* Ensure Consistent Order of build_files in WriteAutoRegenerationRule ([#293](https://github.com/nodejs/gyp-next/issues/293)) ([59b5903](https://github.com/nodejs/gyp-next/commit/59b59035f4ae63419343ffdafe0f0ff511ada17d))
+* ignore failure of `GetCompilerPredefines` ([#295](https://github.com/nodejs/gyp-next/issues/295)) ([0eaea29](https://github.com/nodejs/gyp-next/commit/0eaea297f0fbb0869597aa162f66f78eb2468fad))
+
 ## [0.20.0](https://github.com/nodejs/gyp-next/compare/v0.19.1...v0.20.0) (2025-03-27)
 
 

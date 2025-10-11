@@ -33,10 +33,6 @@
 #include "src/objects/torque-defined-classes.h"
 #include "src/objects/visitors.h"
 
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-objects.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 namespace v8 {
 namespace internal {
 
@@ -91,7 +87,7 @@ Tagged<T> HeapVisitor<ConcreteVisitor>::Cast(Tagged<HeapObject> object,
   if constexpr (ConcreteVisitor::ShouldUseUncheckedCast()) {
     return i::UncheckedCast<T>(object);
   }
-  return i::Cast<T>(object);
+  return i::TrustedCast<T>(object);
 }
 
 template <typename ConcreteVisitor>
@@ -121,6 +117,15 @@ size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
 template <typename ConcreteVisitor>
 size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
                                            Tagged<HeapObject> object,
+                                           SafeHeapObjectSize object_size)
+  requires(ConcreteVisitor::UsePrecomputedObjectSize())
+{
+  return Visit(map, object, MaybeObjectSize(object_size));
+}
+
+template <typename ConcreteVisitor>
+size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
+                                           Tagged<HeapObject> object,
                                            MaybeObjectSize maybe_object_size) {
   if constexpr (ConcreteVisitor::UsePrecomputedObjectSize()) {
     DCHECK_EQ(maybe_object_size.AssumeSize(), object->SizeFromMap(map));
@@ -139,7 +144,7 @@ size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
      * might see trusted objects here before they've been migrated to trusted \
      * space, hence the second condition. */                                  \
     DCHECK(!InstanceTypeChecker::IsTrustedObject(map) ||                      \
-           !HeapLayout::InTrustedSpace(object));                              \
+           !TrustedHeapLayout::InTrustedSpace(object));                       \
     return visitor->Visit##TypeName(                                          \
         map, ConcreteVisitor::template Cast<TypeName>(object, heap_),         \
         maybe_object_size);
@@ -175,6 +180,11 @@ size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
     case kVisitJSApiObject:
       return visitor->VisitJSApiObject(
           map, ConcreteVisitor::template Cast<JSObject>(object, heap_),
+          maybe_object_size);
+    case kVisitCppHeapExternalObject:
+      return visitor->VisitCppHeapExternalObject(
+          map,
+          ConcreteVisitor::template Cast<CppHeapExternalObject>(object, heap_),
           maybe_object_size);
     case kVisitStruct:
       return visitor->VisitStruct(map, object, maybe_object_size);
@@ -300,6 +310,22 @@ size_t HeapVisitor<ConcreteVisitor>::VisitJSApiObject(
 }
 
 template <typename ConcreteVisitor>
+size_t HeapVisitor<ConcreteVisitor>::VisitCppHeapExternalObject(
+    Tagged<Map> map, Tagged<CppHeapExternalObject> object,
+    MaybeObjectSize maybe_object_size) {
+  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
+  const size_t size =
+      ConcreteVisitor::UsePrecomputedObjectSize()
+          ? maybe_object_size.AssumeSize()
+          : CppHeapExternalObject::BodyDescriptor::SizeOf(map, object);
+  visitor->template VisitMapPointerIfNeeded<
+      VisitorId::kVisitCppHeapExternalObject>(object);
+  CppHeapExternalObject::BodyDescriptor::IterateBody(
+      map, object, static_cast<int>(size), visitor);
+  return size;
+}
+
+template <typename ConcreteVisitor>
 size_t HeapVisitor<ConcreteVisitor>::VisitStruct(
     Tagged<Map> map, Tagged<HeapObject> object,
     MaybeObjectSize maybe_object_size) {
@@ -397,7 +423,7 @@ ConcurrentHeapVisitor<ConcreteVisitor>::ConcurrentHeapVisitor(Isolate* isolate)
 template <typename T>
 struct ConcurrentVisitorCastHelper {
   static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object) {
-    return i::Cast<T>(object);
+    return i::TrustedCast<T>(object);
   }
 };
 
@@ -420,7 +446,7 @@ Tagged<T> ConcurrentHeapVisitor<ConcreteVisitor>::Cast(
   if constexpr (ConcreteVisitor::EnableConcurrentVisitation()) {
     return ConcurrentVisitorCastHelper<T>::Cast(object);
   }
-  return i::Cast<T>(object);
+  return i::TrustedCast<T>(object);
 }
 
 #define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \

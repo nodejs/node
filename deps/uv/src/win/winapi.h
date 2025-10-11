@@ -4145,8 +4145,8 @@ typedef struct _FILE_STAT_BASIC_INFORMATION {
   ULONG DeviceType;
   ULONG DeviceCharacteristics;
   ULONG Reserved;
-  FILE_ID_128 FileId128;
   LARGE_INTEGER VolumeSerialNumber;
+  FILE_ID_128 FileId128;
 } FILE_STAT_BASIC_INFORMATION;
 #endif
 
@@ -4827,14 +4827,5 @@ typedef int (WINAPI *uv_sGetHostNameW)
             (PWSTR,
              int);
 extern uv_sGetHostNameW pGetHostNameW;
-
-/* processthreadsapi.h */
-#if defined(__MINGW32__)
-WINBASEAPI
-HRESULT WINAPI GetThreadDescription(HANDLE hThread,
-                                    PWSTR *ppszThreadDescription);
-WINBASEAPI
-HRESULT WINAPI SetThreadDescription(HANDLE hThread, PCWSTR lpThreadDescription);
-#endif
 
 #endif /* UV_WIN_WINAPI_H_ */

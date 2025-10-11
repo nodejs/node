@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbolev --turbofan
-// Flags: --no-always-turbofan
 
 function load_holey_fixed_double(arr, idx) {
   return arr[idx];

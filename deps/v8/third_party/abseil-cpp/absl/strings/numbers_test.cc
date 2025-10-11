@@ -41,7 +41,6 @@
 #include "gtest/gtest.h"
 #include "absl/log/log.h"
 #include "absl/numeric/int128.h"
-#include "absl/random/distributions.h"
 #include "absl/random/random.h"
 #include "absl/strings/internal/numbers_test_common.h"
 #include "absl/strings/internal/ostringstream.h"
@@ -1368,13 +1367,10 @@ TEST(stringtest, safe_strto64_leading_substring) {
 
 const size_t kNumRandomTests = 10000;
 
-template <typename IntType>
-void test_random_integer_parse_base(bool (*parse_func)(absl::string_view,
-                                                       IntType* value,
-                                                       int base)) {
-  using RandomEngine = std::minstd_rand0;
-  std::random_device rd;
-  RandomEngine rng(rd());
+template <typename IntType,
+          bool parse_func(absl::string_view, IntType* value, int base)>
+void test_random_integer_parse_base() {
+  absl::InsecureBitGen rng;
   std::uniform_int_distribution<IntType> random_int(
       std::numeric_limits<IntType>::min());
   std::uniform_int_distribution<int> random_base(2, 36);
@@ -1406,34 +1402,32 @@ void test_random_integer_parse_base(bool (*parse_func)(absl::string_view,
 }
 
 TEST(stringtest, safe_strto16_random) {
-  test_random_integer_parse_base<int16_t>(&safe_strto16_base);
+  test_random_integer_parse_base<int16_t, safe_strto16_base>();
 }
 TEST(stringtest, safe_strto32_random) {
-  test_random_integer_parse_base<int32_t>(&safe_strto32_base);
+  test_random_integer_parse_base<int32_t, safe_strto32_base>();
 }
 TEST(stringtest, safe_strto64_random) {
-  test_random_integer_parse_base<int64_t>(&safe_strto64_base);
+  test_random_integer_parse_base<int64_t, safe_strto64_base>();
 }
 TEST(stringtest, safe_strtou16_random) {
-  test_random_integer_parse_base<uint16_t>(&safe_strtou16_base);
+  test_random_integer_parse_base<uint16_t, safe_strtou16_base>();
 }
 TEST(stringtest, safe_strtou32_random) {
-  test_random_integer_parse_base<uint32_t>(&safe_strtou32_base);
+  test_random_integer_parse_base<uint32_t, safe_strtou32_base>();
 }
 TEST(stringtest, safe_strtou64_random) {
-  test_random_integer_parse_base<uint64_t>(&safe_strtou64_base);
+  test_random_integer_parse_base<uint64_t, safe_strtou64_base>();
 }
 TEST(stringtest, safe_strtou128_random) {
   // random number generators don't work for uint128 so this code must be custom
   // implemented for uint128, but is generally the same as what's above.
   // test_random_integer_parse_base<absl::uint128>(
   //     &absl::numbers_internal::safe_strtou128_base);
-  using RandomEngine = std::minstd_rand0;
   using IntType = absl::uint128;
   constexpr auto parse_func = &absl::numbers_internal::safe_strtou128_base;
 
-  std::random_device rd;
-  RandomEngine rng(rd());
+  absl::InsecureBitGen rng;
   std::uniform_int_distribution<uint64_t> random_uint64(
       std::numeric_limits<uint64_t>::min());
   std::uniform_int_distribution<int> random_base(2, 36);
@@ -1464,12 +1458,10 @@ TEST(stringtest, safe_strto128_random) {
   // implemented for int128, but is generally the same as what's above.
   // test_random_integer_parse_base<absl::int128>(
   //     &absl::numbers_internal::safe_strto128_base);
-  using RandomEngine = std::minstd_rand0;
   using IntType = absl::int128;
   constexpr auto parse_func = &absl::numbers_internal::safe_strto128_base;
 
-  std::random_device rd;
-  RandomEngine rng(rd());
+  absl::InsecureBitGen rng;
   std::uniform_int_distribution<int64_t> random_int64(
       std::numeric_limits<int64_t>::min());
   std::uniform_int_distribution<uint64_t> random_uint64(

@@ -437,7 +437,7 @@ changes:
     description: Value will always be a string, never undefined.
 -->
 
-* {string}
+* Type: {string}
 
 The current input data being processed by node.
 
@@ -473,7 +473,7 @@ process.stdin.on('keypress', (c, k) => {
 added: v0.1.98
 -->
 
-* {number|undefined}
+* Type: {number|undefined}
 
 The cursor position relative to `rl.line`.
 
@@ -503,7 +503,9 @@ line prompts are included in the calculations.
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v24.0.0
+  - version:
+      - v24.0.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->

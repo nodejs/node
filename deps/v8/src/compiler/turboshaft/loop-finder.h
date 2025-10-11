@@ -43,6 +43,9 @@ class V8_EXPORT_PRIVATE LoopFinder {
   //    cases but not all, since the backedge of an outer loop can have a
   //    BlockIndex that is smaller than the one of an inner loop.
  public:
+  enum class ConfigFlags : uint8_t { kFindCalls };
+  using Config = base::EnumSet<ConfigFlags, int8_t>;
+
   struct LoopInfo {
     const Block* start = nullptr;
     const Block* end = nullptr;
@@ -55,10 +58,12 @@ class V8_EXPORT_PRIVATE LoopFinder {
                              // more than the number of operations when some
                              // operations are large (like CallOp and
                              // FrameStateOp typically).
+    bool has_any_call = false;  // True if this loop contains a Call.
   };
-  LoopFinder(Zone* phase_zone, const Graph* input_graph)
+  LoopFinder(Zone* phase_zone, const Graph* input_graph, Config config)
       : phase_zone_(phase_zone),
         input_graph_(input_graph),
+        config_(config),
         loop_headers_(input_graph->block_count(), nullptr, phase_zone),
         loop_header_info_(phase_zone),
         queue_(phase_zone) {
@@ -89,8 +94,13 @@ class V8_EXPORT_PRIVATE LoopFinder {
   void Run();
   LoopInfo VisitLoop(const Block* header);
 
+  // If Config contains kFindCalls, then CollectLoopInfo looks at the operations
+  // in {block} to see if any of them is a Call.
+  void CollectLoopInfo(const Block* block, LoopInfo* info);
+
   Zone* phase_zone_;
   const Graph* input_graph_;
+  Config config_;
 
   // Map from block to the loop header of the closest enclosing loop. For loop
   // headers, this map contains the enclosing loop header, rather than the

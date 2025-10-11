@@ -187,6 +187,8 @@ class V8_EXPORT_PRIVATE GCTracer {
     State state;
 
     GarbageCollectionReason gc_reason;
+    GarbageCollectionReason incremental_marking_reason{
+        GarbageCollectionReason::kUnknown};
     const char* collector_reason;
 
     // The Isolate's priority during the current GC cycle. The priority is set
@@ -203,6 +205,9 @@ class V8_EXPORT_PRIVATE GCTracer {
     // Memory reduction flag set.
     bool reduce_memory = false;
 
+    // Currently in loading state.
+    bool is_loading = false;
+
     // Size of objects in heap set in constructor.
     size_t start_object_size = 0;
 
@@ -214,6 +219,21 @@ class V8_EXPORT_PRIVATE GCTracer {
 
     // Size of memory allocated from OS set in destructor.
     size_t end_memory_size = 0;
+
+    // Consumed bytes used to evaluate old generation allocation limits.
+    size_t old_generation_consumed_baseline = 0;
+    size_t old_generation_consumed_limit = 0;
+    size_t old_generation_consumed_current = 0;
+    size_t max_old_generation_memory = 0;
+
+    // Consumed bytes used to evaluate global allocation limits.
+    size_t global_consumed_baseline = 0;
+    size_t global_consumed_limit = 0;
+    size_t global_consumed_current = 0;
+    size_t max_global_memory = 0;
+
+    // External memory at the start of GC.
+    size_t external_memory_bytes = 0;
 
     // Total amount of space either wasted or contained in one of free lists
     // before the current GC.
@@ -303,8 +323,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Start and stop a GC cycle (collecting data and reporting results).
   void StartCycle(GarbageCollector collector, GarbageCollectionReason gc_reason,
                   const char* collector_reason, MarkingType marking);
-  void StopYoungCycleIfNeeded();
-  void StopFullCycleIfNeeded();
+  void StopYoungCycleIfFinished();
+  void StopFullCycleIfFinished();
 
   void UpdateMemoryBalancerGCSpeed();
 
@@ -315,7 +335,15 @@ class V8_EXPORT_PRIVATE GCTracer {
   void StartInSafepoint(base::TimeTicks time);
   void StopInSafepoint(base::TimeTicks time);
 
-  void NotifyFullSweepingCompleted();
+  // Notify the GC tracer that full/young sweeping is completed. A cycle cannot
+  // be stopped until sweeping is completed and `StopCycle` would bail out if
+  // `Notify*SweepingCompleted` is not called before. These methods also call
+  // `StopCycle` if all other conditions are also met (e.g. Oilpan sweeping is
+  // also completed).
+  void NotifyFullSweepingCompletedAndStopCycleIfFinished();
+  void NotifyYoungSweepingCompletedAndStopCycleIfFinished();
+  // Marks young sweeping as complete but doesn't try to call `StopCycle` even
+  // if possible.
   void NotifyYoungSweepingCompleted();
 
   void NotifyFullCppGCCompleted();
@@ -512,8 +540,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   // The starting time of the observable pause if set.
   std::optional<base::TimeTicks> start_of_observable_pause_;
 
-  // We need two epochs, since there can be scavenges during incremental
-  // marking.
+  // We need two epochs, since there can be scavenges during sweeping.
   CollectionEpoch epoch_young_ = 0;
   CollectionEpoch epoch_full_ = 0;
 
@@ -588,7 +615,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   // When a full GC cycle is interrupted by a young generation GC cycle, the
   // |previous_| event is used as temporary storage for the |current_| event
   // that corresponded to the full GC cycle, and this field is set to true.
-  bool young_gc_while_full_gc_ = false;
+  bool young_gc_during_full_gc_sweeping_ = false;
 
   v8::metrics::GarbageCollectionFullMainThreadBatchedIncrementalMark
       incremental_mark_batched_events_;

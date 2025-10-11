@@ -46,6 +46,7 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
   // v8::TaskRunner implementation.
   bool IdleTasksEnabled() override;
   bool NonNestableTasksEnabled() const override;
+  bool NonNestableDelayedTasksEnabled() const override;
 
  private:
   // v8::TaskRunner implementation.

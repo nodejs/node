@@ -27,8 +27,14 @@ const IGNORE_DEFAULT_PROB = 0.03;
 // We don't support 'using' and 'async using'. We wrap var with try-catch.
 const WRAPPABLE_DECL_KINDS = new Set(['let', 'const']);
 
-// This function is defined in resources/fuzz_library.js.
-const WRAP_FUN = babelTemplate('__wrapTC(() => ID)');
+// This function is defined in resources/fuzz_library.js. The first version
+// returns a permissive dummy on errors by default. The second version returns
+// undefined.
+const WRAP_FUN_PERMISSIVE = babelTemplate('__wrapTC(() => ID)');
+const WRAP_FUN = babelTemplate('__wrapTC(() => ID, false)');
+
+// Probability to use the permissive wrapper above.
+const PERMISSIVE_WRAPPER_PROB = 0.9;
 
 function isFunction(node) {
   return (babelTypes.isArrowFunctionExpression(node) ||
@@ -97,14 +103,20 @@ function skipReplaceVariableDeclarator(path) {
 
 function replaceVariableDeclarator(path) {
   let wrapped;
+  let wrap_fun;
+  if (random.choose(module.exports.PERMISSIVE_WRAPPER_PROB)) {
+    wrap_fun = WRAP_FUN_PERMISSIVE;
+  } else {
+    wrap_fun = WRAP_FUN;
+  }
   if (babelTypes.isAwaitExpression(path.node.init)) {
-    // The await can't remain in the inner arrow function of WRAP_FUN,
+    // The await can't remain in the inner arrow function of wrap_fun,
     // we pull it outside of the wrapper instead. E.g.
     // "await x" becomes "await __wrapTC(() => x)".
     wrapped = babelTypes.AwaitExpression(
-        WRAP_FUN({ID: path.node.init.argument}).expression);
+        wrap_fun({ID: path.node.init.argument}).expression);
   } else {
-    wrapped = WRAP_FUN({ID: path.node.init}).expression;
+    wrapped = wrap_fun({ID: path.node.init}).expression;
   }
   path.replaceWith(babelTypes.variableDeclarator(path.node.id, wrapped));
   path.skip();
@@ -264,6 +276,7 @@ module.exports = {
   DEFAULT_SKIP_PROB: DEFAULT_SKIP_PROB,
   DEFAULT_TOPLEVEL_PROB: DEFAULT_TOPLEVEL_PROB,
   IGNORE_DEFAULT_PROB: IGNORE_DEFAULT_PROB,
+  PERMISSIVE_WRAPPER_PROB: PERMISSIVE_WRAPPER_PROB,
   AddTryCatchMutator: AddTryCatchMutator,
   wrapTryCatch: wrapTryCatch,
 }

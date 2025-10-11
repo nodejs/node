@@ -84,6 +84,13 @@ describe('Try catch', () => {
     testTryCatch(source, 'try_catch_alternate_expected.js');
   });
 
+  // Uses permissive try-catch wrapper.
+  it('wraps with permissive try-catch', () => {
+    helpers.deterministicRandom(sandbox);
+    sandbox.stub(tryCatch, 'PERMISSIVE_WRAPPER_PROB').value(1.0);
+    testTryCatch(loadSource(), 'try_catch_permissive_expected.js');
+  });
+
   // General distribution with pseudo-random execution.
   it('distributes', () => {
     helpers.deterministicRandom(sandbox);

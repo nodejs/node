@@ -143,7 +143,7 @@ Maybe<void> RsaKeyGenTraits::AdditionalConfig(
       Utf8Value digest(env->isolate(), args[*offset]);
       params->params.md = Digest::FromName(*digest);
       if (!params->params.md) {
-        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
+        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", digest);
         return Nothing<void>();
       }
     }
@@ -153,8 +153,7 @@ Maybe<void> RsaKeyGenTraits::AdditionalConfig(
       Utf8Value digest(env->isolate(), args[*offset + 1]);
       params->params.mgf1_md = Digest::FromName(*digest);
       if (!params->params.mgf1_md) {
-        THROW_ERR_CRYPTO_INVALID_DIGEST(
-            env, "Invalid MGF1 digest: %s", *digest);
+        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid MGF1 digest: %s", digest);
         return Nothing<void>();
       }
     }
@@ -279,7 +278,7 @@ Maybe<void> RSACipherTraits::AdditionalConfig(
       Utf8Value digest(env->isolate(), args[offset + 1]);
       params->digest = Digest::FromName(*digest);
       if (!params->digest) {
-        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
+        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", digest);
         return Nothing<void>();
       }
 

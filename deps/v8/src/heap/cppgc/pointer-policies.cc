@@ -4,6 +4,7 @@
 
 #include "include/cppgc/internal/pointer-policies.h"
 
+#include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/internal/persistent-node.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -66,14 +67,18 @@ void SameThreadEnabledCheckingPolicyBase::CheckPointerImpl(
   // Header checks.
   const HeapObjectHeader* header = nullptr;
   if (points_to_payload) {
-    header = &HeapObjectHeader::FromObject(ptr);
+    // Unmask the alignment bits for the tagged pointer.
+    const void* untagged = reinterpret_cast<const void*>(
+        reinterpret_cast<uintptr_t>(ptr) & ~kAllocationMask);
+    header = &HeapObjectHeader::FromObject(untagged);
     DCHECK_EQ(
         header,
         &base_page->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(ptr));
   } else {
     // Mixin case. Access the ObjectStartBitmap atomically since sweeping can be
     // in progress.
-    header = &base_page->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(ptr);
+    header =
+        &base_page->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(ptr);
     DCHECK_LE(header->ObjectStart(), ptr);
     DCHECK_GT(header->ObjectEnd<AccessMode::kAtomic>(), ptr);
   }

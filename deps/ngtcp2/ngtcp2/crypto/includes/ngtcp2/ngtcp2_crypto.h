@@ -70,6 +70,13 @@ extern "C" {
 #define NGTCP2_CRYPTO_ERR_VERIFY_TOKEN -203
 
 /**
+ * @macro
+ *
+ * :macro:`NGTCP2_CRYPTO_ERR_NOMEM` indicates out of memory.
+ */
+#define NGTCP2_CRYPTO_ERR_NOMEM -501
+
+/**
  * @function
  *
  * `ngtcp2_crypto_ctx_tls` initializes |ctx| by extracting negotiated

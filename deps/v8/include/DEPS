@@ -7,6 +7,10 @@ include_rules = [
   "+cppgc/heap-statistics.h",
   "+cppgc/internal/conditional-stack-allocated.h",
   "+cppgc/internal/write-barrier.h",
+  "+cppgc/type-traits.h",
   "+cppgc/visitor.h",
   "+perfetto",
+  # Used by v8-object.h, for Object::wrap().
+  "+cppgc/name-provider.h",
+  "+cppgc/garbage-collected.h",
 ]

@@ -307,8 +307,7 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   if (IsCompressedEmbeddedObject(rmode_)) {
     Tagged_t compressed = ReadUnalignedValue<Tagged_t>(pc_);
     DCHECK(!HAS_SMI_TAG(compressed));
-    Tagged<Object> obj(
-        V8HeapCompressionScheme::DecompressTagged(cage_base, compressed));
+    Tagged<Object> obj(V8HeapCompressionScheme::DecompressTagged(compressed));
     return Cast<HeapObject>(obj);
   }
   DCHECK(IsFullEmbeddedObject(rmode_));
@@ -379,9 +378,10 @@ void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
     // We must not compress pointers to objects outside of the main pointer
     // compression cage as we wouldn't be able to decompress them with the
     // correct cage base.
-    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, !HeapLayout::InTrustedSpace(target));
+    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL,
+                   !TrustedHeapLayout::InTrustedSpace(target));
     DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                   !HeapLayout::InCodeSpace(target));
+                   !TrustedHeapLayout::InCodeSpace(target));
     Tagged_t tagged = V8HeapCompressionScheme::CompressObject(target.ptr());
     jit_allocation_.WriteUnalignedValue(pc_, tagged);
   } else {

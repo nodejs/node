@@ -93,4 +93,6 @@ const reservedWords =
   for (using using of[]) {}
   for (using async of []) {}
   for (using foo of []) {}
+  // Cursedly, `using of` is a valid binding form in C-style for loops.
+  for (using of = null;;) break;
 })();

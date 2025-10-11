@@ -108,6 +108,12 @@ class Intl {
 
   static Maybe<std::string> ToLanguageTag(const icu::Locale& locale);
 
+  // Validate and canonicalize the locale.
+  // https://tc39.es/ecma402/#sec-isstructurallyvalidlanguagetag
+  // https://tc39.es/ecma402/#sec-canonicalizeunicodelocaleid
+  static Maybe<std::string> ValidateAndCanonicalizeUnicodeLocaleId(
+      Isolate* isolate, std::string_view locale);
+
   // Get the name of the numbering system from locale.
   // ICU doesn't expose numbering system in any way, so we have to assume that
   // for given locale NumberingSystem constructor produces the same digits as
@@ -248,7 +254,7 @@ class Intl {
   // A helper function to implement formatToParts which add element to array as
   // $array[$index] = { type: $field_type_string, value: $value }
   static void AddElement(Isolate* isolate, DirectHandle<JSArray> array,
-                         int index, DirectHandle<String> field_type_string,
+                         uint32_t index, DirectHandle<String> field_type_string,
                          DirectHandle<String> value);
 
   // A helper function to implement formatToParts which add element to array as
@@ -257,7 +263,7 @@ class Intl {
   //   $additional_property_name: $additional_property_value
   // }
   static void AddElement(Isolate* isolate, DirectHandle<JSArray> array,
-                         int index, DirectHandle<String> field_type_string,
+                         uint32_t index, DirectHandle<String> field_type_string,
                          DirectHandle<String> value,
                          DirectHandle<String> additional_property_name,
                          DirectHandle<String> additional_property_value);
@@ -294,7 +300,7 @@ class Intl {
   // Shared function to read the "numberingSystem" option.
   V8_WARN_UNUSED_RESULT static Maybe<bool> GetNumberingSystem(
       Isolate* isolate, DirectHandle<JSReceiver> options,
-      const char* method_name, std::unique_ptr<char[]>* result);
+      const char* method_name, std::string& result);
 
   // Check the calendar is valid or not for that locale.
   static bool IsValidCalendar(const icu::Locale& locale,
@@ -308,10 +314,10 @@ class Intl {
   static bool IsValidNumberingSystem(const std::string& value);
 
   // Check the calendar is well formed.
-  static bool IsWellFormedCalendar(const std::string& value);
+  static bool IsWellFormedCalendar(std::string_view value);
 
   // Check the currency is well formed.
-  static bool IsWellFormedCurrency(const std::string& value);
+  static bool IsWellFormedCurrency(std::string_view value);
 
   struct ResolvedLocale {
     std::string locale;
@@ -380,7 +386,7 @@ class Intl {
   // Convert a Handle<String> to icu::UnicodeString
   static icu::UnicodeString ToICUUnicodeString(Isolate* isolate,
                                                DirectHandle<String> string,
-                                               int offset = 0);
+                                               uint32_t offset = 0);
 
   static const uint8_t* ToLatin1LowerTable();
 
@@ -455,7 +461,10 @@ class Intl {
       Isolate* isolate, int32_t time_zone_index,
       DirectHandle<BigInt> nanosecond_epoch);
 
-  static DirectHandle<String> DefaultTimeZone(Isolate* isolate);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> TimeZoneIdToString(
+      Isolate* isolate, const icu::UnicodeString& id);
+  static std::string TimeZoneIdToString(const icu::UnicodeString& id);
+  static std::string DefaultTimeZone();
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> CanonicalizeTimeZoneName(
       Isolate* isolate, DirectHandle<String> identifier);

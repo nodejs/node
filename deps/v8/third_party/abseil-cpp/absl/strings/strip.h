@@ -45,7 +45,7 @@ ABSL_NAMESPACE_BEGIN
 //   absl::string_view input("abc");
 //   EXPECT_TRUE(absl::ConsumePrefix(&input, "a"));
 //   EXPECT_EQ(input, "bc");
-inline constexpr bool ConsumePrefix(absl::Nonnull<absl::string_view*> str,
+inline constexpr bool ConsumePrefix(absl::string_view* absl_nonnull str,
                                     absl::string_view expected) {
   if (!absl::StartsWith(*str, expected)) return false;
   str->remove_prefix(expected.size());
@@ -62,7 +62,7 @@ inline constexpr bool ConsumePrefix(absl::Nonnull<absl::string_view*> str,
 //   absl::string_view input("abcdef");
 //   EXPECT_TRUE(absl::ConsumeSuffix(&input, "def"));
 //   EXPECT_EQ(input, "abc");
-inline constexpr bool ConsumeSuffix(absl::Nonnull<absl::string_view*> str,
+inline constexpr bool ConsumeSuffix(absl::string_view* absl_nonnull str,
                                     absl::string_view expected) {
   if (!absl::EndsWith(*str, expected)) return false;
   str->remove_suffix(expected.size());

@@ -64,8 +64,8 @@ class Isolate;
 class JitLogger;
 class LogFile;
 class LowLevelLogger;
-class LinuxPerfBasicLogger;
-class LinuxPerfJitLogger;
+class PerfBasicLogger;
+class PerfJitLogger;
 class Profiler;
 class SourcePosition;
 class Ticker;
@@ -183,7 +183,7 @@ class V8FileLogger : public LogEventListener {
                        int column) override;
 #if V8_ENABLE_WEBASSEMBLY
   void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
-                       wasm::WasmName name, const char* source_url,
+                       wasm::WasmName name, std::string_view source_url,
                        int code_offset, int script_id) override;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -363,9 +363,9 @@ class V8FileLogger : public LogEventListener {
 
   std::atomic<bool> is_logging_;
   std::unique_ptr<LogFile> log_file_;
-#if V8_OS_LINUX
-  std::unique_ptr<LinuxPerfBasicLogger> perf_basic_logger_;
-  std::unique_ptr<LinuxPerfJitLogger> perf_jit_logger_;
+#if V8_OS_LINUX || V8_OS_DARWIN
+  std::unique_ptr<PerfBasicLogger> perf_basic_logger_;
+  std::unique_ptr<PerfJitLogger> perf_jit_logger_;
 #endif
   std::unique_ptr<LowLevelLogger> ll_logger_;
   std::unique_ptr<JitLogger> jit_logger_;
@@ -442,7 +442,7 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public LogEventListener {
                        int column) override;
 #if V8_ENABLE_WEBASSEMBLY
   void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
-                       wasm::WasmName name, const char* source_url,
+                       wasm::WasmName name, std::string_view source_url,
                        int code_offset, int script_id) override;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -515,7 +515,7 @@ class ExternalLogEventListener : public LogEventListener {
                        int column) override;
 #if V8_ENABLE_WEBASSEMBLY
   void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
-                       wasm::WasmName name, const char* source_url,
+                       wasm::WasmName name, std::string_view source_url,
                        int code_offset, int script_id) override;
 #endif  // V8_ENABLE_WEBASSEMBLY
 

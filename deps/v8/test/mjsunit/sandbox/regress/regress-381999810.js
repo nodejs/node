@@ -9,8 +9,6 @@ const kTypedArrayByteOffsetOffset =
   Sandbox.getFieldOffset(kTypedArrayType, "byte_offset");
 const kTypedArrayByteLengthOffset =
   Sandbox.getFieldOffset(kTypedArrayType, "byte_length");
-const kTypedArrayLengthOffset =
-  Sandbox.getFieldOffset(kTypedArrayType, "length");
 const GB = 1024 * 1024 * 1024;
 const kMaxInSandboxBufferSize = 32*GB - 1;
 // Something reasonable, must be smaller than the maximum module size.
@@ -29,8 +27,6 @@ let byte_offset_address = array_address + kTypedArrayByteOffsetOffset;
 memory.setBigUint64(byte_offset_address, 0xffffffffffffffffn, true);
 let byte_length_offset_address = array_address + kTypedArrayByteLengthOffset;
 memory.setBigUint64(byte_length_offset_address, kShiftedBufferSize, true);
-let length_offset_address = array_address + kTypedArrayLengthOffset;
-memory.setBigUint64(length_offset_address, kShiftedBufferSize, true);
 
 assertEquals(array.byteOffset, kMaxInSandboxBufferSize);
 assertEquals(array.byteLength, kBufferSize);

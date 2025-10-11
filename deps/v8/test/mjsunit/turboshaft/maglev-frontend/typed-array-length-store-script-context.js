@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --turbolev --turbofan --no-always-turbofan
-// Flags: --typed-array-length-loading --script-context-mutable-heap-number
+// Flags: --allow-natives-syntax --turbolev --turbofan
+// Flags: --typed-array-length-loading --script-context-cells
 
 let scriptContextSlot = 0;
 

@@ -43,3 +43,9 @@ fuzzer_test("zlib_deflate_fuzzer") {
   sources = [ "deflate_fuzzer.cc" ]
   deps = [ "../../../:zlib" ]
 }
+
+fuzzer_test("minizip_unzip_fuzzer") {
+  sources = [ "minizip_unzip_fuzzer.cc" ]
+  deps = [ "../../../:minizip" ]
+  include_dirs = [ "//third_party/zlib/contrib/minizip" ]
+}

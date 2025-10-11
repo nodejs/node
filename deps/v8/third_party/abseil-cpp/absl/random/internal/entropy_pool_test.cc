@@ -44,7 +44,7 @@ TEST(EntropyPoolTest, DistinctSequencesPerThread) {
       threads.emplace_back([&]() {
         std::vector<result_type> v(kValuesPerThread);
         GetEntropyFromRandenPool(v.data(), sizeof(result_type) * v.size());
-        absl::MutexLock l(&mu);
+        absl::MutexLock l(mu);
         data.push_back(std::move(v));
       });
     }

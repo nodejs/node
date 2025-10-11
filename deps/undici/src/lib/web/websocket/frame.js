@@ -134,5 +134,6 @@ class WebsocketFrameSend {
 }
 
 module.exports = {
-  WebsocketFrameSend
+  WebsocketFrameSend,
+  generateMask // for benchmark
 }

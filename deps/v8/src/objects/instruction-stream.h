@@ -33,8 +33,6 @@ class WritableJitAllocation;
 // it doesn't live in the trusted space but instead in the code space.
 class InstructionStream : public TrustedObject {
  public:
-  NEVER_READ_ONLY_SPACE
-
   // All InstructionStream objects have the following layout:
   //
   //  +--------------------------+

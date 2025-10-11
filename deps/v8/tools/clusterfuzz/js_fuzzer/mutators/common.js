@@ -116,6 +116,11 @@ function _unwrapExpressionStatement(value) {
   return value;
 }
 
+function isConst(path, name) {
+  const binding = path.scope.getBinding(name);
+  return binding && binding.kind === 'const';
+}
+
 function isVariableIdentifier(name) {
   return /__v_[0-9]+/.test(name);
 }
@@ -236,6 +241,15 @@ function availableFunctionNames(path) {
   const available = new Set([]);
   for (const name of _availableIdentifierNamesGen(
       path, isFunctionIdentifier)) {
+    available.add(name);
+  }
+  return available;
+}
+
+function availableVariableNames(path) {
+  const available = new Set([]);
+  for (const name of _availableIdentifierNamesGen(
+      path, isVariableIdentifier)) {
     available.add(name);
   }
   return available;
@@ -459,10 +473,12 @@ module.exports = {
   concatPrograms: concatPrograms,
   containsYield: containsYield,
   availableVariables: availableVariables,
+  availableVariableNames: availableVariableNames,
   availableFunctions: availableFunctions,
   availableFunctionNames: availableFunctionNames,
   randomFunction: randomFunction,
   randomVariable: randomVariable,
+  isConst: isConst,
   isInForLoopCondition: isInForLoopCondition,
   isInWhileLoop: isInWhileLoop,
   isInfiniteLoop: isInfiniteLoop,

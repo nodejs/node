@@ -281,7 +281,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         'const fs = require("node:fs"); await Promise.resolve();',
       ]);
 
-      match(stderr, /ReferenceError: require is not defined in ES module scope/);
+      match(
+        stderr,
+        /ReferenceError: Cannot determine intended module format because both require\(\) and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require\(\) with import\./
+      );
       strictEqual(stdout, '');
       strictEqual(code, 1);
       strictEqual(signal, null);
@@ -420,6 +423,27 @@ describe('when working with Worker threads', () => {
     strictEqual(stderr, '');
     strictEqual(stdout, '');
     strictEqual(code, 0);
+    strictEqual(signal, null);
+  });
+});
+
+describe('cjs & esm ambiguous syntax case', () => {
+  it('should throw an ambiguous syntax error when using top-level await with require', async () => {
+    const { stderr, code, signal } = await spawnPromisified(
+      process.execPath,
+      [
+        '--input-type=module',
+        '--eval',
+        `await 1;\nconst fs = require('fs');`,
+      ]
+    );
+
+    match(
+      stderr,
+      /ReferenceError: Cannot determine intended module format because both require\(\) and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require\(\) with import\./
+    );
+
+    strictEqual(code, 1);
     strictEqual(signal, null);
   });
 });

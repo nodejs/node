@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbolev --turbofan
-// Flags: --no-always-turbofan
 
 function alloc_array(n) {
   let a = new Array(n);

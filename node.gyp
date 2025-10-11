@@ -96,8 +96,6 @@
       'src/js_stream.cc',
       'src/json_utils.cc',
       'src/js_udp_wrap.cc',
-      'src/json_parser.h',
-      'src/json_parser.cc',
       'src/module_wrap.cc',
       'src/node.cc',
       'src/node_api.cc',
@@ -120,6 +118,7 @@
       'src/node_http_parser.cc',
       'src/node_http2.cc',
       'src/node_i18n.cc',
+      'src/node_locks.cc',
       'src/node_main_instance.cc',
       'src/node_messaging.cc',
       'src/node_metadata.cc',
@@ -163,6 +162,8 @@
       'src/permission/permission.cc',
       'src/permission/wasi_permission.cc',
       'src/permission/worker_permission.cc',
+      'src/permission/net_permission.cc',
+      'src/permission/addon_permission.cc',
       'src/pipe_wrap.cc',
       'src/process_wrap.cc',
       'src/signal_wrap.cc',
@@ -184,6 +185,22 @@
       'src/udp_wrap.cc',
       'src/util.cc',
       'src/uv.cc',
+      'src/quic/bindingdata.cc',
+      'src/quic/cid.cc',
+      'src/quic/data.cc',
+      'src/quic/logstream.cc',
+      'src/quic/packet.cc',
+      'src/quic/preferredaddress.cc',
+      'src/quic/sessionticket.cc',
+      'src/quic/tokens.cc',
+      'src/quic/application.cc',
+      'src/quic/endpoint.cc',
+      'src/quic/http3.cc',
+      'src/quic/session.cc',
+      'src/quic/streams.cc',
+      'src/quic/tlscontext.cc',
+      'src/quic/transportparams.cc',
+      'src/quic/quic.cc',
       # headers to make for a more pleasant IDE experience
       'src/aliased_buffer.h',
       'src/aliased_buffer-inl.h',
@@ -205,6 +222,7 @@
       'src/connect_wrap.h',
       'src/connection_wrap.h',
       'src/cppgc_helpers.h',
+      'src/cppgc_helpers.cc',
       'src/dataqueue/queue.h',
       'src/debug_utils.h',
       'src/debug_utils-inl.h',
@@ -248,6 +266,7 @@
       'src/node_http2_state.h',
       'src/node_i18n.h',
       'src/node_internals.h',
+      'src/node_locks.h',
       'src/node_main_instance.h',
       'src/node_mem.h',
       'src/node_mem-inl.h',
@@ -291,6 +310,8 @@
       'src/permission/permission.h',
       'src/permission/wasi_permission.h',
       'src/permission/worker_permission.h',
+      'src/permission/net_permission.h',
+      'src/permission/addon_permission.h',
       'src/pipe_wrap.h',
       'src/req_wrap.h',
       'src/req_wrap-inl.h',
@@ -316,10 +337,29 @@
       'src/udp_wrap.h',
       'src/util.h',
       'src/util-inl.h',
+      'src/quic/bindingdata.h',
+      'src/quic/cid.h',
+      'src/quic/data.h',
+      'src/quic/defs.h',
+      'src/quic/logstream.h',
+      'src/quic/packet.h',
+      'src/quic/preferredaddress.h',
+      'src/quic/sessionticket.h',
+      'src/quic/tokens.h',
+      'src/quic/transportparams.h',
+      'src/quic/application.h',
+      'src/quic/endpoint.h',
+      'src/quic/http3.h',
+      'src/quic/session.h',
+      'src/quic/streams.h',
+      'src/quic/tlscontext.h',
+      'src/quic/guard.h',
     ],
     'node_crypto_sources': [
       'src/crypto/crypto_aes.cc',
+      'src/crypto/crypto_argon2.cc',
       'src/crypto/crypto_bio.cc',
+      'src/crypto/crypto_chacha20_poly1305.cc',
       'src/crypto/crypto_common.cc',
       'src/crypto/crypto_dsa.cc',
       'src/crypto/crypto_hkdf.cc',
@@ -329,7 +369,10 @@
       'src/crypto/crypto_cipher.cc',
       'src/crypto/crypto_context.cc',
       'src/crypto/crypto_ec.cc',
+      'src/crypto/crypto_ml_dsa.cc',
+      'src/crypto/crypto_kem.cc',
       'src/crypto/crypto_hmac.cc',
+      'src/crypto/crypto_kmac.cc',
       'src/crypto/crypto_random.cc',
       'src/crypto/crypto_rsa.cc',
       'src/crypto/crypto_spkac.cc',
@@ -342,10 +385,12 @@
       'src/crypto/crypto_scrypt.cc',
       'src/crypto/crypto_tls.cc',
       'src/crypto/crypto_x509.cc',
+      'src/crypto/crypto_argon2.h',
       'src/crypto/crypto_bio.h',
       'src/crypto/crypto_clienthello-inl.h',
       'src/crypto/crypto_dh.h',
       'src/crypto/crypto_hmac.h',
+      'src/crypto/crypto_kmac.h',
       'src/crypto/crypto_rsa.h',
       'src/crypto/crypto_spkac.h',
       'src/crypto/crypto_util.h',
@@ -360,6 +405,7 @@
       'src/crypto/crypto_clienthello.h',
       'src/crypto/crypto_context.h',
       'src/crypto/crypto_ec.h',
+      'src/crypto/crypto_ml_dsa.h',
       'src/crypto/crypto_hkdf.h',
       'src/crypto/crypto_pbkdf2.h',
       'src/crypto/crypto_sig.h',
@@ -369,45 +415,13 @@
       'src/node_crypto.cc',
       'src/node_crypto.h',
     ],
-    'node_quic_sources': [
-      'src/quic/application.cc',
-      'src/quic/bindingdata.cc',
-      'src/quic/cid.cc',
-      'src/quic/data.cc',
-      'src/quic/endpoint.cc',
-      'src/quic/http3.cc',
-      'src/quic/logstream.cc',
-      'src/quic/packet.cc',
-      'src/quic/preferredaddress.cc',
-      'src/quic/session.cc',
-      'src/quic/sessionticket.cc',
-      'src/quic/streams.cc',
-      'src/quic/tlscontext.cc',
-      'src/quic/tokens.cc',
-      'src/quic/transportparams.cc',
-      'src/quic/application.h',
-      'src/quic/bindingdata.h',
-      'src/quic/cid.h',
-      'src/quic/data.h',
-      'src/quic/endpoint.h',
-      'src/quic/http3.h',
-      'src/quic/logstream.h',
-      'src/quic/packet.h',
-      'src/quic/preferredaddress.h',
-      'src/quic/session.h',
-      'src/quic/sessionticket.h',
-      'src/quic/streams.h',
-      'src/quic/tlscontext.h',
-      'src/quic/tokens.h',
-      'src/quic/transportparams.h',
-      'src/quic/quic.cc',
-    ],
     'node_cctest_openssl_sources': [
       'test/cctest/test_crypto_clienthello.cc',
       'test/cctest/test_node_crypto.cc',
       'test/cctest/test_node_crypto_env.cc',
       'test/cctest/test_quic_cid.cc',
       'test/cctest/test_quic_error.cc',
+      'test/cctest/test_quic_preferredaddress.cc',
       'test/cctest/test_quic_tokens.cc',
     ],
     'node_cctest_inspector_sources': [
@@ -507,7 +521,7 @@
       'target_name': 'node_text_start',
       'type': 'none',
       'conditions': [
-        [ 'OS in "linux freebsd solaris" and '
+        [ 'OS in "linux freebsd solaris openharmony" and '
           'target_arch=="x64"', {
           'type': 'static_library',
           'sources': [
@@ -625,7 +639,7 @@
             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', '-Wl,-rpath,@loader_path/../lib'],
           },
           'conditions': [
-            ['OS=="linux"', {
+            ['OS=="linux" or OS=="openharmony"', {
                'ldflags': [
                  '-Wl,-rpath,\\$$ORIGIN/../lib'
                ],
@@ -730,7 +744,7 @@
             'src/node_snapshot_stub.cc'
           ],
         }],
-        [ 'OS in "linux freebsd" and '
+        [ 'OS in "linux freebsd openharmony" and '
           'target_arch=="x64"', {
           'dependencies': [ 'node_text_start' ],
           'ldflags+': [
@@ -944,18 +958,13 @@
             'deps/ncrypto/ncrypto.gyp:ncrypto',
           ],
         }],
-        [ 'node_quic=="true"', {
-          'sources': [
-            '<@(node_quic_sources)',
-          ],
-        }],
         [ 'node_use_sqlite=="true"', {
           'sources': [
             '<@(node_sqlite_sources)',
           ],
           'defines': [ 'HAVE_SQLITE=1' ],
         }],
-        [ 'OS in "linux freebsd mac solaris" and '
+        [ 'OS in "linux freebsd mac solaris openharmony" and '
           'target_arch=="x64" and '
           'node_target_type=="executable"', {
           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
@@ -966,11 +975,11 @@
           'variables': {
             'mkssldef_flags': [
               # Categories to export.
-              '-CAES,BF,BIO,DES,DH,DSA,EC,ECDH,ECDSA,ENGINE,EVP,HMAC,MD4,MD5,'
-              'PSK,RC2,RC4,RSA,SHA,SHA0,SHA1,SHA256,SHA512,SOCK,STDIO,TLSEXT,'
-              'UI,FP_API,TLS1_METHOD,TLS1_1_METHOD,TLS1_2_METHOD,SCRYPT,OCSP,'
-              'NEXTPROTONEG,RMD160,CAST,DEPRECATEDIN_1_1_0,DEPRECATEDIN_1_2_0,'
-              'DEPRECATEDIN_3_0',
+              '-CAES,ARGON2,BF,BIO,DES,DH,DSA,EC,ECDH,ECDSA,ENGINE,EVP,HMAC,'
+              'MD4,MD5,PSK,RC2,RC4,RSA,SHA,SHA0,SHA1,SHA256,SHA512,SOCK,STDIO,'
+              'TLSEXT,UI,FP_API,TLS1_METHOD,TLS1_1_METHOD,TLS1_2_METHOD,'
+              'SCRYPT,OCSP,NEXTPROTONEG,RMD160,CAST,DEPRECATEDIN_1_1_0,'
+              'DEPRECATEDIN_1_2_0,DEPRECATEDIN_3_0',
               # Defines.
               '-DWIN32',
               # Symbols to filter from the export list.
@@ -1064,11 +1073,11 @@
         'test/fuzzers/fuzz_env.cc',
       ],
       'conditions': [
-        ['OS=="linux"', {
+        ['OS=="linux" or OS=="openharmony"', {
           'ldflags': [ '-fsanitize=fuzzer' ]
         }],
         # Ensure that ossfuzz flag has been set and that we are on Linux
-        [ 'OS!="linux" or ossfuzz!="true"', {
+        [ 'OS not in "linux openharmony" or ossfuzz!="true"', {
           'type': 'none',
         }],
         # Avoid excessive LTO
@@ -1083,7 +1092,6 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
       'includes': [
         'node.gypi'
@@ -1094,7 +1102,6 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
         'test/cctest',
       ],
       'defines': [
@@ -1107,11 +1114,15 @@
         'test/fuzzers/fuzz_ClientHelloParser.cc',
       ],
       'conditions': [
-        ['OS=="linux"', {
+        [ 'node_shared_uvwasi=="false"', {
+          'dependencies': [ 'deps/uvwasi/uvwasi.gyp:uvwasi' ],
+          'include_dirs': [ 'deps/uvwasi/include' ],
+        }],
+        ['OS=="linux" or OS=="openharmony"', {
           'ldflags': [ '-fsanitize=fuzzer' ]
         }],
         # Ensure that ossfuzz flag has been set and that we are on Linux
-        [ 'OS!="linux" or ossfuzz!="true"', {
+        [ 'OS not in "linux openharmony" or ossfuzz!="true"', {
           'type': 'none',
         }],
         # Avoid excessive LTO
@@ -1127,7 +1138,6 @@
         '<(node_lib_target_name)',
         'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/nbytes/nbytes.gyp:nbytes',
       ],
       'includes': [
@@ -1139,7 +1149,6 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
         'test/cctest',
       ],
       'defines': [
@@ -1152,11 +1161,15 @@
         'test/fuzzers/fuzz_strings.cc',
       ],
       'conditions': [
-        ['OS=="linux"', {
+        [ 'node_shared_uvwasi=="false"', {
+          'dependencies': [ 'deps/uvwasi/uvwasi.gyp:uvwasi' ],
+          'include_dirs': [ 'deps/uvwasi/include' ],
+        }],
+        ['OS=="linux" or OS=="openharmony"', {
           'ldflags': [ '-fsanitize=fuzzer' ]
         }],
         # Ensure that ossfuzz flag has been set and that we are on Linux
-        [ 'OS!="linux" or ossfuzz!="true"', {
+        [ 'OS not in "linux openharmony" or ossfuzz!="true"', {
           'type': 'none',
         }],
         # Avoid excessive LTO
@@ -1332,6 +1345,13 @@
       ]
     }, # overlapped-checker
     {
+      'target_name': 'nop',
+      'type': 'executable',
+      'sources': [
+        'test/nop/nop.c',
+      ]
+    }, # nop
+    {
       'target_name': 'node_js2c',
       'type': 'executable',
       'toolsets': ['host'],
@@ -1352,7 +1372,7 @@
         [ 'node_shared_libuv=="false"', {
           'dependencies': [ 'deps/uv/uv.gyp:libuv#host' ],
         }],
-        [ 'OS in "linux mac"', {
+        [ 'OS in "linux mac openharmony"', {
           'defines': ['NODE_JS2C_USE_STRING_LITERALS'],
         }],
         [ 'debug_node=="true"', {

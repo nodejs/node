@@ -6,13 +6,13 @@ import { describe, it } from 'node:test';
 import { hostname } from 'node:os';
 import { chdir, cwd } from 'node:process';
 import { fileURLToPath } from 'node:url';
-import internalTTy from 'internal/tty';
 
 const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
   process.config.variables.node_shared_openssl;
 
-const canColorize = internalTTy.getColorDepth() > 2;
+// We're using dynamic import here to not break `NODE_REGENERATE_SNAPSHOTS`.
+const canColorize = (await import('internal/tty')).default.getColorDepth() > 2;
 const skipCoverageColors = !canColorize;
 
 function replaceTestDuration(str) {
@@ -38,6 +38,7 @@ function replaceJunitDuration(str) {
     .replaceAll(/time="[0-9.]+"/g, 'time="*"')
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
     .replaceAll(`hostname="${hostname()}"`, 'hostname="HOSTNAME"')
+    .replaceAll(/file="[^"]*"/g, 'file="*"')
     .replace(stackTraceBasePath, '$3');
 }
 
@@ -70,7 +71,7 @@ const defaultTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
   removeWindowsPathEscaping,
-  snapshot.replaceFullPaths,
+  snapshot.transformProjectRoot(),
   snapshot.replaceWindowsPaths,
   replaceTestDuration,
   replaceTestLocationLine,
@@ -90,7 +91,7 @@ const junitTransform = snapshot.transform(
 const lcovTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
-  snapshot.replaceFullPaths,
+  snapshot.transformProjectRoot(),
   snapshot.replaceWindowsPaths,
   pickTestFileFromLcov
 );
@@ -134,12 +135,19 @@ const tests = [
   },
   {
     name: 'test-runner/output/test-timeout-flag.js',
-    flags: ['--test-reporter=tap'],
+    flags: [
+      '--test-reporter=tap',
+      '--test-timeout=100',
+    ],
   },
   // --test-timeout should work with or without --test flag
   {
     name: 'test-runner/output/test-timeout-flag.js',
-    flags: ['--test-reporter=tap', '--test'],
+    flags: [
+      '--test-reporter=tap',
+      '--test-timeout=100',
+      '--test',
+    ],
   },
   {
     name: 'test-runner/output/hooks-with-no-global-test.js',
@@ -315,6 +323,15 @@ const tests = [
   } : false,
   process.features.inspector ? {
     name: 'test-runner/output/typescript-coverage.mts',
+    flags: ['--disable-warning=ExperimentalWarning',
+            '--test-reporter=tap',
+            '--experimental-transform-types',
+            '--experimental-test-module-mocks',
+            '--experimental-test-coverage',
+            '--test-coverage-exclude=!test/**']
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-with-mock.mjs',
     flags: ['--disable-warning=ExperimentalWarning',
             '--test-reporter=tap',
             '--experimental-transform-types',

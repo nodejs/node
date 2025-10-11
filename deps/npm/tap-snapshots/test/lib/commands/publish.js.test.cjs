@@ -197,7 +197,7 @@ Object {
     "man/man1/npm-repo.1",
     "man/man1/npm-restart.1",
     "man/man1/npm-root.1",
-    "man/man1/npm-run-script.1",
+    "man/man1/npm-run.1",
     "man/man1/npm-sbom.1",
     "man/man1/npm-search.1",
     "man/man1/npm-shrinkwrap.1",

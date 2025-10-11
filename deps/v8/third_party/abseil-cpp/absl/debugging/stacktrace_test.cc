@@ -18,6 +18,10 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <cerrno>
+#include <csignal>
+#include <cstring>
+#include <memory>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -26,9 +30,33 @@
 #include "absl/base/optimization.h"
 #include "absl/types/span.h"
 
+static int g_should_fixup_calls = 0;
+static int g_fixup_calls = 0;
+static bool g_enable_fixup = false;
+static uintptr_t g_last_fixup_frame_address = 0;
+
+#if ABSL_HAVE_ATTRIBUTE_WEAK
+bool absl::internal_stacktrace::ShouldFixUpStack() {
+  ++g_should_fixup_calls;
+  return g_enable_fixup;
+}
+
+void absl::internal_stacktrace::FixUpStack(void**, uintptr_t*, int*, size_t,
+                                           size_t&) {
+  const void* frame_address = nullptr;
+#if ABSL_HAVE_BUILTIN(__builtin_frame_address)
+  frame_address = __builtin_frame_address(0);
+#endif
+  g_last_fixup_frame_address = reinterpret_cast<uintptr_t>(frame_address);
+  ++g_fixup_calls;
+}
+#endif
+
 namespace {
 
+using ::testing::ContainerEq;
 using ::testing::Contains;
+using ::testing::internal::Cleanup;
 
 struct StackTrace {
   static constexpr int kStackCount = 64;
@@ -61,6 +89,244 @@ TEST(StackTrace, HugeFrame) {
   ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
 }
 #endif
+
+// This is a separate function to avoid inlining.
+ABSL_ATTRIBUTE_NOINLINE static void FixupNoFixupEquivalenceNoInline() {
+#if !ABSL_HAVE_ATTRIBUTE_WEAK
+  GTEST_SKIP() << "Need weak symbol support";
+#endif
+#if defined(__riscv)
+  GTEST_SKIP() << "Skipping test on RISC-V due to pre-existing failure";
+#endif
+#if defined(_WIN32)
+  // TODO(b/434184677): Add support for fixups on Windows if needed
+  GTEST_SKIP() << "Skipping test on Windows due to lack of support for fixups";
+#endif
+  bool can_rely_on_frame_pointers = false;
+  if (!can_rely_on_frame_pointers) {
+    GTEST_SKIP() << "Frame pointers are required, but not guaranteed in OSS";
+  }
+
+  // This test is known not to pass on MSVC (due to weak symbols)
+
+  const Cleanup restore_state([enable_fixup = g_enable_fixup,
+                               fixup_calls = g_fixup_calls,
+                               should_fixup_calls = g_should_fixup_calls]() {
+    g_enable_fixup = enable_fixup;
+    g_fixup_calls = fixup_calls;
+    g_should_fixup_calls = should_fixup_calls;
+  });
+
+  constexpr int kSkip = 1;  // Skip our own frame, whose return PCs won't match
+  constexpr auto kStackCount = 1;
+
+  StackTrace a;
+  StackTrace b;
+
+  // ==========================================================================
+
+  g_fixup_calls = 0;
+  g_should_fixup_calls = 0;
+  a.depth = absl::GetStackTrace(a.result, kStackCount, kSkip);
+  g_enable_fixup = !g_enable_fixup;
+  b.depth = absl::GetStackTrace(b.result, kStackCount, kSkip);
+  EXPECT_THAT(
+      absl::MakeSpan(a.result, static_cast<size_t>(a.depth)),
+      ContainerEq(absl::MakeSpan(b.result, static_cast<size_t>(b.depth))));
+  EXPECT_GT(g_should_fixup_calls, 0);
+  EXPECT_GE(g_should_fixup_calls, g_fixup_calls);
+
+  // ==========================================================================
+
+  g_fixup_calls = 0;
+  g_should_fixup_calls = 0;
+  a.depth = absl::GetStackFrames(a.result, a.sizes, kStackCount, kSkip);
+  g_enable_fixup = !g_enable_fixup;
+  b.depth = absl::GetStackFrames(b.result, b.sizes, kStackCount, kSkip);
+  EXPECT_THAT(
+      absl::MakeSpan(a.result, static_cast<size_t>(a.depth)),
+      ContainerEq(absl::MakeSpan(b.result, static_cast<size_t>(b.depth))));
+  EXPECT_THAT(
+      absl::MakeSpan(a.sizes, static_cast<size_t>(a.depth)),
+      ContainerEq(absl::MakeSpan(b.sizes, static_cast<size_t>(b.depth))));
+  EXPECT_GT(g_should_fixup_calls, 0);
+  EXPECT_GE(g_should_fixup_calls, g_fixup_calls);
+
+  // ==========================================================================
+
+  g_fixup_calls = 0;
+  g_should_fixup_calls = 0;
+  a.depth = absl::GetStackTraceWithContext(a.result, kStackCount, kSkip,
+                                           nullptr, nullptr);
+  g_enable_fixup = !g_enable_fixup;
+  b.depth = absl::GetStackTraceWithContext(b.result, kStackCount, kSkip,
+                                           nullptr, nullptr);
+  EXPECT_THAT(
+      absl::MakeSpan(a.result, static_cast<size_t>(a.depth)),
+      ContainerEq(absl::MakeSpan(b.result, static_cast<size_t>(b.depth))));
+  EXPECT_GT(g_should_fixup_calls, 0);
+  EXPECT_GE(g_should_fixup_calls, g_fixup_calls);
+
+  // ==========================================================================
+
+  g_fixup_calls = 0;
+  g_should_fixup_calls = 0;
+  a.depth = absl::GetStackFramesWithContext(a.result, a.sizes, kStackCount,
+                                            kSkip, nullptr, nullptr);
+  g_enable_fixup = !g_enable_fixup;
+  b.depth = absl::GetStackFramesWithContext(b.result, b.sizes, kStackCount,
+                                            kSkip, nullptr, nullptr);
+  EXPECT_THAT(
+      absl::MakeSpan(a.result, static_cast<size_t>(a.depth)),
+      ContainerEq(absl::MakeSpan(b.result, static_cast<size_t>(b.depth))));
+  EXPECT_THAT(
+      absl::MakeSpan(a.sizes, static_cast<size_t>(a.depth)),
+      ContainerEq(absl::MakeSpan(b.sizes, static_cast<size_t>(b.depth))));
+  EXPECT_GT(g_should_fixup_calls, 0);
+  EXPECT_GE(g_should_fixup_calls, g_fixup_calls);
+
+  // ==========================================================================
+
+  g_fixup_calls = 0;
+  g_should_fixup_calls = 0;
+  a.depth = absl::internal_stacktrace::GetStackFrames(
+      a.result, a.frames, a.sizes, kStackCount, kSkip);
+  g_enable_fixup = !g_enable_fixup;
+  b.depth = absl::internal_stacktrace::GetStackFrames(
+      b.result, b.frames, b.sizes, kStackCount, kSkip);
+  EXPECT_THAT(
+      absl::MakeSpan(a.result, static_cast<size_t>(a.depth)),
+      ContainerEq(absl::MakeSpan(b.result, static_cast<size_t>(b.depth))));
+  EXPECT_THAT(
+      absl::MakeSpan(a.sizes, static_cast<size_t>(a.depth)),
+      ContainerEq(absl::MakeSpan(b.sizes, static_cast<size_t>(b.depth))));
+  EXPECT_THAT(
+      absl::MakeSpan(a.frames, static_cast<size_t>(a.depth)),
+      ContainerEq(absl::MakeSpan(b.frames, static_cast<size_t>(b.depth))));
+  EXPECT_GT(g_should_fixup_calls, 0);
+  EXPECT_GE(g_should_fixup_calls, g_fixup_calls);
+
+  // ==========================================================================
+
+  g_fixup_calls = 0;
+  g_should_fixup_calls = 0;
+  a.depth = absl::internal_stacktrace::GetStackFramesWithContext(
+      a.result, a.frames, a.sizes, kStackCount, kSkip, nullptr, nullptr);
+  g_enable_fixup = !g_enable_fixup;
+  b.depth = absl::internal_stacktrace::GetStackFramesWithContext(
+      b.result, b.frames, b.sizes, kStackCount, kSkip, nullptr, nullptr);
+  EXPECT_THAT(
+      absl::MakeSpan(a.result, static_cast<size_t>(a.depth)),
+      ContainerEq(absl::MakeSpan(b.result, static_cast<size_t>(b.depth))));
+  EXPECT_THAT(
+      absl::MakeSpan(a.sizes, static_cast<size_t>(a.depth)),
+      ContainerEq(absl::MakeSpan(b.sizes, static_cast<size_t>(b.depth))));
+  EXPECT_THAT(
+      absl::MakeSpan(a.frames, static_cast<size_t>(a.depth)),
+      ContainerEq(absl::MakeSpan(b.frames, static_cast<size_t>(b.depth))));
+  EXPECT_GT(g_should_fixup_calls, 0);
+  EXPECT_GE(g_should_fixup_calls, g_fixup_calls);
+}
+
+TEST(StackTrace, FixupNoFixupEquivalence) { FixupNoFixupEquivalenceNoInline(); }
+
+TEST(StackTrace, FixupLowStackUsage) {
+#if !ABSL_HAVE_ATTRIBUTE_WEAK
+  GTEST_SKIP() << "Skipping test on MSVC due to weak symbols";
+#endif
+#if defined(_WIN32)
+  // TODO(b/434184677): Add support for fixups on Windows if needed
+  GTEST_SKIP() << "Skipping test on Windows due to lack of support for fixups";
+#endif
+
+  const Cleanup restore_state([enable_fixup = g_enable_fixup,
+                               fixup_calls = g_fixup_calls,
+                               should_fixup_calls = g_should_fixup_calls]() {
+    g_enable_fixup = enable_fixup;
+    g_fixup_calls = fixup_calls;
+    g_should_fixup_calls = should_fixup_calls;
+  });
+
+  g_enable_fixup = true;
+
+  // Request a ton of stack frames, regardless of how many are actually used.
+  // It's fine to request more frames than we have, since functions preallocate
+  // memory before discovering how high the stack really is, and we're really
+  // just trying to make sure the preallocations don't overflow the stack.
+  //
+  // Note that we loop in order to cover all sides of any branches in the
+  // implementation that switch allocation behavior (e.g., from stack to heap)
+  // and to ensure that no sides allocate too much stack space.
+  constexpr size_t kPageSize = 4096;
+  for (size_t depth = 2; depth < (1 << 20); depth += depth / 2) {
+    const auto stack = std::make_unique<void*[]>(depth);
+    const auto frames = std::make_unique<int[]>(depth);
+
+    absl::GetStackFrames(stack.get(), frames.get(), static_cast<int>(depth), 0);
+    const void* frame_address = nullptr;
+#if ABSL_HAVE_BUILTIN(__builtin_frame_address)
+    frame_address = __builtin_frame_address(0);
+#endif
+    size_t stack_usage =
+        reinterpret_cast<uintptr_t>(frame_address) - g_last_fixup_frame_address;
+    EXPECT_LT(stack_usage, kPageSize);
+  }
+}
+
+TEST(StackTrace, CustomUnwinderPerformsFixup) {
+#if !ABSL_HAVE_ATTRIBUTE_WEAK
+  GTEST_SKIP() << "Need weak symbol support";
+#endif
+#if defined(_WIN32)
+  // TODO(b/434184677): Add support for fixups on Windows if needed
+  GTEST_SKIP() << "Skipping test on Windows due to lack of support for fixups";
+#endif
+
+  constexpr int kSkip = 1;  // Skip our own frame, whose return PCs won't match
+  constexpr auto kStackCount = 1;
+
+  absl::SetStackUnwinder(absl::DefaultStackUnwinder);
+  const Cleanup restore_state([enable_fixup = g_enable_fixup,
+                               fixup_calls = g_fixup_calls,
+                               should_fixup_calls = g_should_fixup_calls]() {
+    absl::SetStackUnwinder(nullptr);
+    g_enable_fixup = enable_fixup;
+    g_fixup_calls = fixup_calls;
+    g_should_fixup_calls = should_fixup_calls;
+  });
+
+  StackTrace trace;
+
+  g_enable_fixup = true;
+  g_should_fixup_calls = 0;
+  g_fixup_calls = 0;
+  absl::GetStackTrace(trace.result, kSkip, kStackCount);
+  EXPECT_GT(g_should_fixup_calls, 0);
+  EXPECT_GT(g_fixup_calls, 0);
+
+  g_enable_fixup = true;
+  g_should_fixup_calls = 0;
+  g_fixup_calls = 0;
+  absl::GetStackFrames(trace.result, trace.sizes, kSkip, kStackCount);
+  EXPECT_GT(g_should_fixup_calls, 0);
+  EXPECT_GT(g_fixup_calls, 0);
+
+  g_enable_fixup = true;
+  g_should_fixup_calls = 0;
+  g_fixup_calls = 0;
+  absl::GetStackTraceWithContext(trace.result, kSkip, kStackCount, nullptr,
+                                 nullptr);
+  EXPECT_GT(g_should_fixup_calls, 0);
+  EXPECT_GT(g_fixup_calls, 0);
+
+  g_enable_fixup = true;
+  g_should_fixup_calls = 0;
+  g_fixup_calls = 0;
+  absl::GetStackFramesWithContext(trace.result, trace.sizes, kSkip, kStackCount,
+                                  nullptr, nullptr);
+  EXPECT_GT(g_should_fixup_calls, 0);
+  EXPECT_GT(g_fixup_calls, 0);
+}
 
 #if ABSL_HAVE_BUILTIN(__builtin_frame_address)
 struct FrameInfo {
@@ -139,6 +405,76 @@ TEST(StackTrace, CanonicalFrameAddresses) {
       // Make sure the addresses only appear once.
     }
   }
+}
+#endif
+
+// This test is Linux specific.
+#if defined(__linux__)
+const void* g_return_address = nullptr;
+bool g_sigusr2_raised = false;
+
+void SigUsr2Handler(int, siginfo_t*, void* uc) {
+  // Many platforms don't support this by default.
+  bool support_is_expected = false;
+  constexpr int kMaxStackDepth = 64;
+  void* result[kMaxStackDepth];
+  int depth =
+      absl::GetStackTraceWithContext(result, kMaxStackDepth, 0, uc, nullptr);
+  // Verify we can unwind past the nested signal handlers.
+  if (support_is_expected) {
+    EXPECT_THAT(absl::MakeSpan(result, static_cast<size_t>(depth)),
+                Contains(g_return_address).Times(1));
+  }
+  depth = absl::GetStackTrace(result, kMaxStackDepth, 0);
+  if (support_is_expected) {
+    EXPECT_THAT(absl::MakeSpan(result, static_cast<size_t>(depth)),
+                Contains(g_return_address).Times(1));
+  }
+  g_sigusr2_raised = true;
+}
+
+void SigUsr1Handler(int, siginfo_t*, void*) {
+  raise(SIGUSR2);
+  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
+}
+
+ABSL_ATTRIBUTE_NOINLINE void RaiseSignal() {
+  g_return_address = __builtin_return_address(0);
+  raise(SIGUSR1);
+  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
+}
+
+ABSL_ATTRIBUTE_NOINLINE void TestNestedSignal() {
+  constexpr size_t kAltstackSize = 1 << 14;
+  // Allocate altstack on regular stack to make sure it'll have a higher
+  // address than some of the regular stack frames.
+  char space[kAltstackSize];
+  stack_t altstack;
+  stack_t old_stack;
+  altstack.ss_sp = space;
+  altstack.ss_size = kAltstackSize;
+  altstack.ss_flags = 0;
+  ASSERT_EQ(sigaltstack(&altstack, &old_stack), 0) << strerror(errno);
+  struct sigaction act;
+  struct sigaction oldusr1act;
+  struct sigaction oldusr2act;
+  act.sa_sigaction = SigUsr1Handler;
+  act.sa_flags = SA_SIGINFO | SA_ONSTACK;
+  sigemptyset(&act.sa_mask);
+  ASSERT_EQ(sigaction(SIGUSR1, &act, &oldusr1act), 0) << strerror(errno);
+  act.sa_sigaction = SigUsr2Handler;
+  ASSERT_EQ(sigaction(SIGUSR2, &act, &oldusr2act), 0) << strerror(errno);
+  RaiseSignal();
+  ASSERT_EQ(sigaltstack(&old_stack, nullptr), 0) << strerror(errno);
+  ASSERT_EQ(sigaction(SIGUSR1, &oldusr1act, nullptr), 0) << strerror(errno);
+  ASSERT_EQ(sigaction(SIGUSR2, &oldusr2act, nullptr), 0) << strerror(errno);
+  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
+}
+
+TEST(StackTrace, NestedSignal) {
+  // Verify we can unwind past the nested signal handlers.
+  TestNestedSignal();
+  EXPECT_TRUE(g_sigusr2_raised);
 }
 #endif
 

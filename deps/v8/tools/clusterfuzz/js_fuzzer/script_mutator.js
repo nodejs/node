@@ -23,6 +23,7 @@ const runner = require('./runner.js');
 const sourceHelpers = require('./source_helpers.js');
 
 const { AddTryCatchMutator } = require('./mutators/try_catch.js');
+const { AllocationTimeoutMutator } = require('./mutators/allocation_timeout_mutator.js');
 const { ArrayMutator } = require('./mutators/array_mutator.js');
 const { ClosureRemover } = require('./mutators/closure_remover.js');
 const { ContextAnalyzer } = require('./mutators/analyzer.js');
@@ -45,10 +46,14 @@ const MAX_EXTRA_MUTATIONS = 5;
 function defaultSettings() {
   return {
     ADD_VAR_OR_OBJ_MUTATIONS: 0.1,
-    DIFF_FUZZ_EXTRA_PRINT: 0.1,
-    DIFF_FUZZ_TRACK_CAUGHT: 0.4,
+    DIFF_FUZZ_BLOCK_PRINT: 0.1,
+    DIFF_FUZZ_EXTRA_PRINT: 0.2,
+    DIFF_FUZZ_TRACK_CAUGHT: 0.5,
+    DIFF_FUZZ_SKIP_FUNCTIONS: 0.5,
+    ENABLE_ALLOCATION_TIMEOUT: 0.5,
+    MUTATE_ALLOCATION_TIMEOUT: 0.02,
     MUTATE_ARRAYS: 0.1,
-    MUTATE_CROSSOVER_INSERT: 0.05,
+    MUTATE_CROSSOVER_INSERT: 0.1,
     MUTATE_EXPRESSIONS: 0.1,
     MUTATE_FUNCTION_CALLS: 0.1,
     MUTATE_NUMBERS: 0.05,
@@ -96,6 +101,7 @@ class ScriptMutator {
       new FunctionCallMutator(settings),
       new VariableOrObjectMutator(settings),
     ];
+    this.timeout = new AllocationTimeoutMutator(settings);
     this.closures = new ClosureRemover(settings);
     this.trycatch = new AddTryCatchMutator(settings);
     this.settings = settings;
@@ -106,9 +112,7 @@ class ScriptMutator {
    * different corpora.
    */
   get runnerClass() {
-    // Choose a setup with the Fuzzilli corpus with a 50% chance.
-    return random.single(
-        [runner.RandomCorpusRunner, runner.RandomCorpusRunnerWithFuzzilli]);
+    return runner.RandomCorpusRunnerWithFuzzilli;
   }
 
   _addMjsunitIfNeeded(dependencies, input) {
@@ -204,8 +208,11 @@ class ScriptMutator {
     // We always remove certain closures first.
     mutators.unshift(this.closures);
 
-    // Try-catch wrapping should always be the last mutation.
+    // Try-catch wrapping should follow after error-prone mutations.
     mutators.push(this.trycatch);
+
+    // Non-error-prone mutations that should not get further mutated.
+    mutators.push(this.timeout);
 
     for (const mutator of mutators) {
       mutator.mutate(source, context);
@@ -373,53 +380,9 @@ class WasmScriptMutator extends ScriptMutator {
   }
 }
 
-/**
- * Script mutator that only inserts one cross-over expression from the DB to
- * validate.
- */
-class CrossScriptMutator extends ScriptMutator {
-
-  // We don't do any mutations except a deterministic insertion of one
-  // snippet into a predefined place in a template.
-  mutate(source, context) {
-    // The __expression was pinned to the expression in the FixtureRunner.
-    assert(source.__expression);
-    const crossover = this.crossover;
-    let done = false;
-    babelTraverse(source.ast, {
-      ExpressionStatement(path) {
-        if (done || !path.node.expression ||
-            !babelTypes.isCallExpression(path.node.expression)) {
-          return;
-        }
-        // Avoid infinite loops if there's an expression statement in the
-        // inserted expression.
-        done = true;
-        path.insertAfter(crossover.createInsertion(path, source.__expression));
-      }
-    });
-  }
-
-  // This mutator has only one input to which the __expression was pinned.
-  concatInputs(inputs) {
-    assert(inputs.length == 1);
-    return inputs[0];
-  }
-
-  // No dependencies needed for simple snippet evaluation.
-  resolveDependencies() {
-    return [];
-  }
-
-  get runnerClass() {
-    return runner.FixtureRunner;
-  }
-}
-
 module.exports = {
   analyzeContext: analyzeContext,
   defaultSettings: defaultSettings,
-  CrossScriptMutator: CrossScriptMutator,
   ScriptMutator: ScriptMutator,
   WasmScriptMutator: WasmScriptMutator,
 };

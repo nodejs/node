@@ -299,6 +299,10 @@ li.picker-header a span {
   z-index: 1;
 }
 
+#api-section-documentation .api_stability {
+  position: static;
+}
+
 .api_stability * {
   color: var(--white) !important;
 }
@@ -367,6 +371,11 @@ p {
 #apicontent > *:last-child {
   margin-bottom: 0;
   padding-bottom: 2rem;
+}
+
+/* prevent the module-level sticky stability header from overlapping the section headers when clicked */
+#apicontent:has(> .api_stability) a {
+  scroll-margin-top: 50px;
 }
 
 table {
@@ -832,6 +841,9 @@ kbd {
   }
   .api_stability {
     top: 0;
+  }
+  #apicontent a {
+    scroll-margin-top: 0;
   }
 }
 

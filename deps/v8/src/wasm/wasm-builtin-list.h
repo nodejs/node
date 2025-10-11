@@ -24,6 +24,7 @@ namespace v8::internal::wasm {
   V(WasmLiftoffFrameSetup)                                                     \
   V(WasmDebugBreak)                                                            \
   V(WasmInt32ToHeapNumber)                                                     \
+  V(WasmInt32ToSharedHeapNumber)                                               \
   V(WasmFloat64ToString)                                                       \
   V(WasmStringToDouble)                                                        \
   V(WasmIntToString)                                                           \
@@ -59,6 +60,7 @@ namespace v8::internal::wasm {
   V(WasmTraceEnter)                                                            \
   V(WasmTraceExit)                                                             \
   V(WasmTraceMemory)                                                           \
+  V(WasmTraceGlobal)                                                           \
   V(BigIntToI32Pair)                                                           \
   V(BigIntToI64)                                                               \
   V(CallRefIC)                                                                 \
@@ -73,7 +75,7 @@ namespace v8::internal::wasm {
   V(ThrowDataViewOutOfBounds)                                                  \
   V(ThrowIndexOfCalledOnNull)                                                  \
   V(ThrowToLowerCaseCalledOnNull)                                              \
-  IF_INTL(V, StringToLowerCaseIntl)                                            \
+  IF_INTL(V, WasmStringToLowerCaseIntl)                                        \
   IF_TSAN(V, TSANRelaxedStore8IgnoreFP)                                        \
   IF_TSAN(V, TSANRelaxedStore8SaveFP)                                          \
   IF_TSAN(V, TSANRelaxedStore16IgnoreFP)                                       \
@@ -95,10 +97,14 @@ namespace v8::internal::wasm {
   IF_TSAN(V, TSANRelaxedLoad64IgnoreFP)                                        \
   IF_TSAN(V, TSANRelaxedLoad64SaveFP)                                          \
   V(WasmAllocateArray_Uninitialized)                                           \
+  V(WasmAllocateSharedArray_Uninitialized)                                     \
   V(WasmArrayCopy)                                                             \
   V(WasmArrayNewSegment)                                                       \
   V(WasmArrayInitSegment)                                                      \
   V(WasmAllocateStructWithRtt)                                                 \
+  V(WasmAllocateDescriptorStruct)                                              \
+  V(WasmAllocateSharedStructWithRtt)                                           \
+  V(WasmConfigureAllPrototypesOpt)                                             \
   V(WasmOnStackReplace)                                                        \
   V(WasmReject)                                                                \
   V(WasmStringNewWtf8)                                                         \
@@ -130,29 +136,35 @@ namespace v8::internal::wasm {
   V(WasmStringViewIterAdvance)                                                 \
   V(WasmStringViewIterRewind)                                                  \
   V(WasmStringViewIterSlice)                                                   \
-  V(StringCompare)                                                             \
-  V(StringIndexOf)                                                             \
+  V(WasmStringCompare)                                                         \
+  V(WasmStringIndexOf)                                                         \
   V(WasmStringFromCodePoint)                                                   \
   V(WasmStringHash)                                                            \
   V(WasmAnyConvertExtern)                                                      \
+  V(WasmAnyConvertExternShared)                                                \
   V(WasmStringFromDataSegment)                                                 \
-  V(StringAdd_CheckNone)                                                       \
+  V(WasmStringAdd_CheckNone)                                                   \
   V(DebugPrintFloat64)                                                         \
   V(DebugPrintWordPtr)                                                         \
   V(WasmFastApiCallTypeCheckAndUpdateIC)                                       \
   V(DeoptimizationEntry_Eager)                                                 \
   V(WasmLiftoffDeoptFinish)                                                    \
   V(WasmPropagateException)                                                    \
+  V(WasmLiftoffIsEqRefUnshared)                                                \
+  V(WasmLiftoffIsArrayRefUnshared)                                             \
+  V(WasmLiftoffIsStructRefUnshared)                                            \
+  V(WasmLiftoffCastEqRefUnshared)                                              \
+  V(WasmLiftoffCastArrayRefUnshared)                                           \
+  V(WasmLiftoffCastStructRefUnshared)                                          \
   IF_SHADOW_STACK(V, AdaptShadowStackForDeopt)
 
 // Other wasm builtins that are not called via the far jump table, but need the
 // {is_wasm} assembler option for proper stack-switching support.
 #define WASM_BUILTINS_WITHOUT_JUMP_TABLE_SLOT(V) \
-  V(IterableToFixedArrayForWasm)                 \
   V(WasmAllocateInYoungGeneration)               \
   V(WasmAllocateInOldGeneration)                 \
-  V(WasmAllocateZeroedFixedArray)                \
-  V(WasmSuspend)                                 \
+  V(WasmAllocateInSharedHeap)                    \
+  V(WasmJSStringEqual)                           \
   V(WasmToJsWrapperInvalidSig)                   \
   V(WasmTrap)                                    \
   V(WasmTrapHandlerThrowTrap)

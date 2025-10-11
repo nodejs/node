@@ -1,5 +1,5 @@
 /**
- * @fileoverview Ensure modules are not required twice at top level of a module
+ * @file Ensure modules are not required twice at top level of a module
  * @author devsnek
  * @author RedYetiDev
  */

@@ -52,7 +52,7 @@ void PropertyCell::UpdatePropertyDetailsExceptCellType(
   // read-only forever.
   if (!old_details.IsReadOnly() && details.IsReadOnly()) {
     // TODO(11527): pass Isolate as an argument.
-    Isolate* isolate = GetIsolateFromWritableObject(*this);
+    Isolate* isolate = Isolate::Current();
     DependentCode::DeoptimizeDependencyGroups(
         isolate, *this, DependentCode::kPropertyCellChangedGroup);
   }
@@ -68,19 +68,6 @@ void PropertyCell::Transition(PropertyDetails new_details,
   set_property_details_raw(transition_marker.AsSmi(), kReleaseStore);
   set_value(*new_value, kReleaseStore);
   set_property_details_raw(new_details.AsSmi(), kReleaseStore);
-}
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(ContextSidePropertyCell)
-
-RELEASE_ACQUIRE_ACCESSORS(ContextSidePropertyCell, context_side_property_raw,
-                          Tagged<Smi>, kPropertyDetailsRawOffset)
-
-ACCESSORS(ContextSidePropertyCell, dependent_code, Tagged<DependentCode>,
-          kDependentCodeOffset)
-
-ContextSidePropertyCell::Property
-ContextSidePropertyCell::context_side_property() const {
-  return FromSmi(context_side_property_raw(kAcquireLoad));
 }
 
 }  // namespace internal

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbo-inline-array-builtins --turbofan
-// Flags: --no-always-turbofan --no-lazy-feedback-allocation
+// Flags: --no-lazy-feedback-allocation
 
 // TODO(v8:10195): Fix these tests s.t. we assert deoptimization occurs when
 // expected (e.g. in a %DeoptimizeNow call), then remove

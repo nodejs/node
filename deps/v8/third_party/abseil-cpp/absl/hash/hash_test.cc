@@ -29,6 +29,7 @@
 #include <ostream>
 #include <set>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
@@ -38,6 +39,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/hash/internal/hash_test.h"
@@ -54,22 +56,18 @@
 #include <filesystem>  // NOLINT
 #endif
 
-#ifdef ABSL_HAVE_STD_STRING_VIEW
-#include <string_view>
-#endif
-
 namespace {
 
+using ::absl::Hash;
+using ::absl::container_internal::hashtable_debug_internal::
+    HashtableDebugAccess;
+using ::absl::hash_internal::SpyHashState;
 using ::absl::hash_test_internal::is_hashable;
 using ::absl::hash_test_internal::TypeErasedContainer;
 using ::absl::hash_test_internal::TypeErasedValue;
-using ::testing::SizeIs;
 
 template <typename T>
 using TypeErasedVector = TypeErasedContainer<std::vector<T>>;
-
-using absl::Hash;
-using absl::hash_internal::SpyHashState;
 
 template <typename T>
 class HashValueIntTest : public testing::Test {
@@ -173,6 +171,9 @@ TEST(HashValueTest, PointerAlignment) {
   constexpr size_t kLog2NumValues = 5;
   constexpr size_t kNumValues = 1 << kLog2NumValues;
 
+  int64_t test_count = 0;
+  int64_t total_stuck_bit_count = 0;
+
   for (size_t align = 1; align < kTotalSize / kNumValues;
        align < 8 ? align += 1 : align < 1024 ? align += 8 : align += 32) {
     SCOPED_TRACE(align);
@@ -190,10 +191,17 @@ TEST(HashValueTest, PointerAlignment) {
     // Limit the scope to the bits we would be using for Swisstable.
     constexpr size_t kMask = (1 << (kLog2NumValues + 7)) - 1;
     size_t stuck_bits = (~bits_or | bits_and) & kMask;
-    // Test that there are at most 2 stuck bits. Sometimes we see stuck_bits
-    // of 0x3.
-    EXPECT_LE(absl::popcount(stuck_bits), 2) << "0x" << std::hex << stuck_bits;
+    int stuck_bit_count = absl::popcount(stuck_bits);
+    size_t max_stuck_bits = 5;
+    EXPECT_LE(stuck_bit_count, max_stuck_bits)
+        << "0x" << std::hex << stuck_bits;
+
+    total_stuck_bit_count += stuck_bit_count;
+    ++test_count;
   }
+  // Test that average across alignments are at most 0.2 stuck bits.
+  // As of 2025-05-30 test is also passing with 0.07 stuck bits.
+  EXPECT_LE(total_stuck_bit_count, 0.2 * test_count);
 }
 
 TEST(HashValueTest, PointerToMember) {
@@ -400,7 +408,7 @@ TEST(HashValueTest, TestIntrinsicInt128) {
   EXPECT_TRUE((is_hashable<__int128_t>::value));
   EXPECT_TRUE((is_hashable<__uint128_t>::value));
 
-  absl::flat_hash_set<size_t> hashes;
+  absl::flat_hash_map<size_t, int> hash_to_index;
   std::vector<__uint128_t> values;
   for (int i = 0; i < 128; ++i) {
     // Some arbitrary pattern to check if changing each bit changes the hash.
@@ -411,13 +419,14 @@ TEST(HashValueTest, TestIntrinsicInt128) {
     const __int128_t as_signed = static_cast<__int128_t>(value);
 
     values.push_back(value);
-    hashes.insert(absl::Hash<__uint128_t>{}(value));
+    auto [it, inserted] =
+        hash_to_index.insert({absl::Hash<__uint128_t>{}(value), i});
+    ASSERT_TRUE(inserted) << "Duplicate hash: " << i << " vs " << it->second;
 
     // Verify that the fast-path for MixingHashState does not break the hash.
     EXPECT_EQ(absl::HashOf(value), absl::Hash<__uint128_t>{}(value));
     EXPECT_EQ(absl::HashOf(as_signed), absl::Hash<__int128_t>{}(as_signed));
   }
-  EXPECT_THAT(hashes, SizeIs(128));
 
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(values));
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
@@ -494,22 +503,15 @@ TEST(HashValueTest, U32String) {
 }
 
 TEST(HashValueTest, WStringView) {
-#ifndef ABSL_HAVE_STD_STRING_VIEW
-  GTEST_SKIP();
-#else
   EXPECT_TRUE((is_hashable<std::wstring_view>::value));
 
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
       std::wstring_view(), std::wstring_view(L"ABC"), std::wstring_view(L"ABC"),
       std::wstring_view(L"Some other different string_view"),
       std::wstring_view(L"Iñtërnâtiônàlizætiøn"))));
-#endif
 }
 
 TEST(HashValueTest, U16StringView) {
-#ifndef ABSL_HAVE_STD_STRING_VIEW
-  GTEST_SKIP();
-#else
   EXPECT_TRUE((is_hashable<std::u16string_view>::value));
 
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
@@ -517,13 +519,9 @@ TEST(HashValueTest, U16StringView) {
                       std::u16string_view(u"ABC"),
                       std::u16string_view(u"Some other different string_view"),
                       std::u16string_view(u"Iñtërnâtiônàlizætiøn"))));
-#endif
 }
 
 TEST(HashValueTest, U32StringView) {
-#ifndef ABSL_HAVE_STD_STRING_VIEW
-  GTEST_SKIP();
-#else
   EXPECT_TRUE((is_hashable<std::u32string_view>::value));
 
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
@@ -531,7 +529,6 @@ TEST(HashValueTest, U32StringView) {
                       std::u32string_view(U"ABC"),
                       std::u32string_view(U"Some other different string_view"),
                       std::u32string_view(U"Iñtërnâtiônàlizætiøn"))));
-#endif
 }
 
 TEST(HashValueTest, StdFilesystemPath) {
@@ -706,7 +703,9 @@ TEST(HashValueTest, CombinePiecewiseBuffer) {
   //
   // This test is run on a buffer that is a multiple of the stride size, and one
   // that isn't.
-  for (size_t big_buffer_size : {1024u * 2 + 512u, 1024u * 3}) {
+  const size_t kChunkSize = absl::hash_internal::PiecewiseChunkSize();
+  for (size_t big_buffer_size :
+       {2 * kChunkSize + kChunkSize / 2, 3 * kChunkSize}) {
     SCOPED_TRACE(big_buffer_size);
     std::string big_buffer;
     for (size_t i = 0; i < big_buffer_size; ++i) {
@@ -716,8 +715,15 @@ TEST(HashValueTest, CombinePiecewiseBuffer) {
     auto big_buffer_hash = hash(PiecewiseHashTester(big_buffer));
 
     const int possible_breaks = 9;
-    size_t breaks[possible_breaks] = {1,    512,  1023, 1024, 1025,
-                                      1536, 2047, 2048, 2049};
+    size_t breaks[possible_breaks] = {1,
+                                      kChunkSize / 2,
+                                      kChunkSize - 1,
+                                      kChunkSize,
+                                      kChunkSize + 1,
+                                      kChunkSize + kChunkSize / 2,
+                                      2 * kChunkSize - 1,
+                                      2 * kChunkSize,
+                                      2 * kChunkSize + 1};
     for (unsigned test_mask = 0; test_mask < (1u << possible_breaks);
          ++test_mask) {
       SCOPED_TRACE(test_mask);
@@ -727,7 +733,7 @@ TEST(HashValueTest, CombinePiecewiseBuffer) {
           break_locations.insert(breaks[j]);
         }
       }
-      EXPECT_EQ(
+      ASSERT_EQ(
           hash(PiecewiseHashTester(big_buffer, std::move(break_locations))),
           big_buffer_hash);
     }
@@ -1211,6 +1217,101 @@ TEST(HashOf, MatchesTypeErasedHashState) {
   std::string s = "s";
   EXPECT_EQ(absl::HashOf(1, s), absl::Hash<TypeErasedHashStateUser>{}(
                                     TypeErasedHashStateUser{1, s}));
+}
+
+struct AutoReturnTypeUser {
+  int a;
+  std::string b;
+
+  template <typename H>
+  friend auto AbslHashValue(H state, const AutoReturnTypeUser& value) {
+    return H::combine(std::move(state), value.a, value.b);
+  }
+};
+
+TEST(HashOf, AutoReturnTypeUser) {
+  std::string s = "s";
+  EXPECT_EQ(absl::HashOf(1, s),
+            absl::Hash<AutoReturnTypeUser>{}(AutoReturnTypeUser{1, s}));
+}
+
+TEST(HashOf, DoubleSignCollision) {
+  // These values differ only in their most significant bit.
+  EXPECT_NE(absl::HashOf(-1.0), absl::HashOf(1.0));
+}
+
+// Test for collisions in short strings if PrecombineLengthMix is low quality.
+TEST(PrecombineLengthMix, ShortStringCollision) {
+  std::string s1 = "00";
+  std::string s2 = "000";
+  constexpr char kMinChar = 0;
+  constexpr char kMaxChar = 32;
+  for (s1[0] = kMinChar; s1[0] < kMaxChar; ++s1[0]) {
+    for (s1[1] = kMinChar; s1[1] < kMaxChar; ++s1[1]) {
+      for (s2[0] = kMinChar; s2[0] < kMaxChar; ++s2[0]) {
+        for (s2[1] = kMinChar; s2[1] < kMaxChar; ++s2[1]) {
+          for (s2[2] = kMinChar; s2[2] < kMaxChar; ++s2[2]) {
+            ASSERT_NE(absl::HashOf(s1), absl::HashOf(s2))
+                << "s1[0]: " << static_cast<int>(s1[0])
+                << "; s1[1]: " << static_cast<int>(s1[1])
+                << "; s2[0]: " << static_cast<int>(s2[0])
+                << "; s2[1]: " << static_cast<int>(s2[1])
+                << "; s2[2]: " << static_cast<int>(s2[2]);
+          }
+        }
+      }
+    }
+  }
+}
+
+// Test that we don't cause excessive collisions on the hash table for
+// doubles in the range [-1024, 1024]. See cl/773069881 for more information.
+TEST(SwisstableCollisions, DoubleRange) {
+  absl::flat_hash_set<double> set;
+  for (double t = -1024.0; t < 1024.0; t += 1.0) {
+    set.insert(t);
+    ASSERT_LT(HashtableDebugAccess<decltype(set)>::GetNumProbes(set, t), 64)
+        << t;
+  }
+}
+
+// Test that for each pair of adjacent bytes in a string, if there's only
+// entropy in those two bytes, then we don't have excessive collisions.
+TEST(SwisstableCollisions, LowEntropyStrings) {
+  constexpr char kMinChar = 0;
+  constexpr char kMaxChar = 64;
+  // These sizes cover the different hashing cases.
+  for (size_t size : {8u, 16u, 32u, 64u}) {
+    for (size_t b = 0; b < size - 1; ++b) {
+      absl::flat_hash_set<std::string> set;
+      std::string s(size, '\0');
+      for (char c1 = kMinChar; c1 < kMaxChar; ++c1) {
+        for (char c2 = kMinChar; c2 < kMaxChar; ++c2) {
+          s[b] = c1;
+          s[b + 1] = c2;
+          set.insert(s);
+          ASSERT_LT(HashtableDebugAccess<decltype(set)>::GetNumProbes(set, s),
+                    64)
+              << "size: " << size << "; bit: " << b;
+        }
+      }
+    }
+  }
+}
+
+// Test that we don't have excessive collisions when keys are consecutive
+// integers rotated by N bits.
+TEST(SwisstableCollisions, LowEntropyInts) {
+  constexpr int kSizeTBits = sizeof(size_t) * 8;
+  for (int bit = 0; bit < kSizeTBits; ++bit) {
+    absl::flat_hash_set<size_t> set;
+    for (size_t i = 0; i < 128 * 1024; ++i) {
+      size_t v = absl::rotl(i, bit);
+      set.insert(v);
+      ASSERT_LT(HashtableDebugAccess<decltype(set)>::GetNumProbes(set, v), 32)
+          << bit << " " << i;
+    }
+  }
 }
 
 }  // namespace

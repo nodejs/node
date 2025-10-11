@@ -324,12 +324,11 @@ using WasmLoadSourceMapCallback = Local<String> (*)(Isolate* isolate,
 // --- Callback for checking if WebAssembly imported strings are enabled ---
 using WasmImportedStringsEnabledCallback = bool (*)(Local<Context> context);
 
+// --- Callback for checking if WebAssembly Custom Descriptors are enabled ---
+using WasmCustomDescriptorsEnabledCallback = bool (*)(Local<Context> context);
+
 // --- Callback for checking if the SharedArrayBuffer constructor is enabled ---
 using SharedArrayBufferConstructorEnabledCallback =
-    bool (*)(Local<Context> context);
-
-// --- Callback for checking if the compile hints magic comments are enabled ---
-using JavaScriptCompileHintsMagicEnabledCallback =
     bool (*)(Local<Context> context);
 
 // --- Callback for checking if WebAssembly JSPI is enabled ---

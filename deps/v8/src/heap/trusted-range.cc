@@ -4,8 +4,6 @@
 
 #include "src/heap/trusted-range.h"
 
-#include "src/base/lazy-instance.h"
-#include "src/base/once.h"
 #include "src/heap/heap-inl.h"
 #include "src/utils/allocation.h"
 
@@ -69,37 +67,13 @@ bool TrustedRange::InitReservation(size_t requested) {
                                            PageAllocator::kNoAccess));
   }
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // Sandboxed code should never write to trusted memory.
+  SandboxHardwareSupport::RegisterOutOfSandboxMemory(
+      base(), size(), PagePermissions::kNoAccess);
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   return success;
-}
-
-namespace {
-
-TrustedRange* process_wide_trusted_range_ = nullptr;
-
-V8_DECLARE_ONCE(init_trusted_range_once);
-void InitProcessWideTrustedRange(size_t requested_size) {
-  TrustedRange* trusted_range = new TrustedRange();
-  if (!trusted_range->InitReservation(requested_size)) {
-    V8::FatalProcessOutOfMemory(
-        nullptr, "Failed to reserve virtual memory for TrustedRange");
-  }
-  process_wide_trusted_range_ = trusted_range;
-
-  TrustedSpaceCompressionScheme::InitBase(trusted_range->base());
-}
-}  // namespace
-
-// static
-TrustedRange* TrustedRange::EnsureProcessWideTrustedRange(
-    size_t requested_size) {
-  base::CallOnce(&init_trusted_range_once, InitProcessWideTrustedRange,
-                 requested_size);
-  return process_wide_trusted_range_;
-}
-
-// static
-TrustedRange* TrustedRange::GetProcessWideTrustedRange() {
-  return process_wide_trusted_range_;
 }
 
 #endif  // V8_ENABLE_SANDBOX

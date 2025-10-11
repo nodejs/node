@@ -97,7 +97,8 @@ declare class Dispatcher extends EventEmitter {
 
 declare namespace Dispatcher {
   export interface ComposedDispatcher extends Dispatcher {}
-  export type DispatcherComposeInterceptor = (dispatch: Dispatcher['dispatch']) => Dispatcher['dispatch']
+  export type Dispatch = Dispatcher['dispatch']
+  export type DispatcherComposeInterceptor = (dispatch: Dispatch) => Dispatch
   export interface DispatchOptions {
     origin?: string | URL;
     path: string;
@@ -134,8 +135,6 @@ declare namespace Dispatcher {
     signal?: AbortSignal | EventEmitter | null;
     /** This argument parameter is passed through to `ConnectData` */
     opaque?: TOpaque;
-    /** Default: 0 */
-    maxRedirections?: number;
     /** Default: false */
     redirectionLimitReached?: boolean;
     /** Default: `null` */
@@ -146,8 +145,6 @@ declare namespace Dispatcher {
     opaque?: TOpaque;
     /** Default: `null` */
     signal?: AbortSignal | EventEmitter | null;
-    /** Default: 0 */
-    maxRedirections?: number;
     /** Default: false */
     redirectionLimitReached?: boolean;
     /** Default: `null` */
@@ -171,8 +168,6 @@ declare namespace Dispatcher {
     protocol?: string;
     /** Default: `null` */
     signal?: AbortSignal | EventEmitter | null;
-    /** Default: 0 */
-    maxRedirections?: number;
     /** Default: false */
     redirectionLimitReached?: boolean;
     /** Default: `null` */
@@ -276,6 +271,6 @@ declare namespace Dispatcher {
   }
 
   export interface DispatchInterceptor {
-    (dispatch: Dispatcher['dispatch']): Dispatcher['dispatch']
+    (dispatch: Dispatch): Dispatch
   }
 }

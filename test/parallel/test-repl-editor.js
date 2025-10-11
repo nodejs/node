@@ -2,8 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const repl = require('repl');
-const ArrayStream = require('../common/arraystream');
+const { startNewREPLServer } = require('../common/repl');
 
 if (process.env.TERM === 'dumb') {
   common.skip('skipping - dumb terminal');
@@ -15,30 +14,24 @@ if (process.env.TERM === 'dumb') {
 const terminalCode = '\u001b[1G\u001b[0J> \u001b[3G';
 const terminalCodeRegex = new RegExp(terminalCode.replace(/\[/g, '\\['), 'g');
 
-function run({ input, output, event, checkTerminalCodes = true }) {
-  const stream = new ArrayStream();
-  let found = '';
-
-  stream.write = (msg) => found += msg.replace('\r', '');
-
+function run({ input: inputStr, output: outputStr, event, checkTerminalCodes = true }) {
   let expected =
     `${terminalCode}.editor\n` +
     '// Entering editor mode (Ctrl+D to finish, Ctrl+C to cancel)\n' +
-    `${input}${output}\n${terminalCode}`;
+    `${inputStr}${outputStr}\n${terminalCode}`;
 
-  const replServer = repl.start({
+  const { replServer, input, output } = startNewREPLServer({
     prompt: '> ',
     terminal: true,
-    input: stream,
-    output: stream,
     useColors: false
   });
 
-  stream.emit('data', '.editor\n');
-  stream.emit('data', input);
+  input.emit('data', '.editor\n');
+  input.emit('data', inputStr);
   replServer.write('', event);
   replServer.close();
 
+  let found = output.accumulator;
   if (!checkTerminalCodes) {
     found = found.replace(terminalCodeRegex, '').replace(/\n/g, '');
     expected = expected.replace(terminalCodeRegex, '').replace(/\n/g, '');
@@ -79,22 +72,15 @@ const tests = [
 tests.forEach(run);
 
 // Auto code alignment for .editor mode
-function testCodeAlignment({ input, cursor = 0, line = '' }) {
-  const stream = new ArrayStream();
-  const outputStream = new ArrayStream();
-
-  stream.write = () => { throw new Error('Writing not allowed!'); };
-
-  const replServer = repl.start({
+function testCodeAlignment({ input: inputStr, cursor = 0, line = '' }) {
+  const { replServer, input } = startNewREPLServer({
     prompt: '> ',
     terminal: true,
-    input: stream,
-    output: outputStream,
     useColors: false
   });
 
-  stream.emit('data', '.editor\n');
-  input.split('').forEach((ch) => stream.emit('data', ch));
+  input.emit('data', '.editor\n');
+  inputStr.split('').forEach((ch) => input.emit('data', ch));
   // Test the content of current line and the cursor position
   assert.strictEqual(line, replServer.line);
   assert.strictEqual(cursor, replServer.cursor);

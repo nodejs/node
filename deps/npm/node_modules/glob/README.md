@@ -518,8 +518,8 @@ share the previously loaded cache.
   as modified time, permissions, and so on. Note that this will
   incur a performance cost due to the added system calls.
 
-- `ignore` string or string[], or an object with `ignore` and
-  `ignoreChildren` methods.
+- `ignore` string or string[], or an object with `ignored` and
+  `childrenIgnored` methods.
 
   If a string or string[] is provided, then this is treated as a
   glob pattern or array of glob patterns to exclude from matches.

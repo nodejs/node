@@ -13,3 +13,9 @@ test.todo('should fail without effecting exit code', () => {
 test('empty string todo', { todo: '' }, () => {
   throw new Error('Fail but not badly')
 });
+
+describe.todo('should inherit todo', () => {
+  test('should fail without harming suite', () => {
+    throw new Error('Fail but not badly');
+  });
+});

@@ -368,7 +368,7 @@ DirectHandle<JSModuleNamespace> Module::GetModuleNamespace(
   JSObject::NormalizeProperties(isolate, ns, CLEAR_INOBJECT_PROPERTIES,
                                 static_cast<int>(names.size()),
                                 "JSModuleNamespace");
-  JSObject::NormalizeElements(ns);
+  JSObject::NormalizeElements(isolate, ns);
   for (const auto& name : names) {
     uint32_t index = 0;
     if (name->AsArrayIndex(&index)) {

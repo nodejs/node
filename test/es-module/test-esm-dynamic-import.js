@@ -35,15 +35,15 @@ function expectFsNamespace(result) {
 }
 
 // For direct use of import expressions inside of CJS or ES modules, including
-// via eval, all kinds of specifiers should work without issue.
+// via direct/indirect eval, all kinds of specifiers should work without issue.
 (function testScriptOrModuleImport() {
-  // Importing another file, both direct & via eval
+  // Importing another file, both direct & via direct eval
   // expectOkNamespace(import(relativePath));
   expectOkNamespace(eval(`import("${relativePath}")`));
   expectOkNamespace(eval(`import("${relativePath}")`));
   expectOkNamespace(eval(`import(${JSON.stringify(targetURL)})`));
 
-  // Importing a built-in, both direct & via eval
+  // Importing a built-in, both direct & via direct eval
   expectFsNamespace(import('fs'));
   expectFsNamespace(eval('import("fs")'));
   expectFsNamespace(eval('import("fs")'));
@@ -70,6 +70,8 @@ function expectFsNamespace(result) {
   // be treated as a file: URL.
   expectOkNamespace(import(targetURL.pathname));
 
+  // Import with an indirect eval. In this case, the referrer is null and
+  // defaults to the realm record.
   // If the referrer is a realm record, there is no way to resolve the
   // specifier.
   // TODO(legendecas): https://github.com/tc39/ecma262/pull/3195

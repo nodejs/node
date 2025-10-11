@@ -220,7 +220,7 @@ testclean: ## Remove test artifacts.
 distclean: ## Remove all build and test artifacts.
 	$(RM) -r out
 	$(RM) config.gypi icu_config.gypi
-	$(RM) config.mk
+	$(RM) config.mk config.status
 	$(RM) -r $(NODE_EXE) $(NODE_G_EXE)
 	$(RM) -r node_modules
 	$(RM) -r deps/icu
@@ -1213,6 +1213,8 @@ $(TARBALL): release-only doc-only
 	$(RM) -r $(TARNAME)/.editorconfig
 	$(RM) -r $(TARNAME)/.git*
 	$(RM) -r $(TARNAME)/.mailmap
+	$(RM) -r $(TARNAME)/deps/corepack
+	$(RM) $(TARNAME)/test/parallel/test-corepack-version.js
 	$(RM) -r $(TARNAME)/deps/openssl/openssl/demos
 	$(RM) -r $(TARNAME)/deps/openssl/openssl/doc
 	$(RM) -r $(TARNAME)/deps/openssl/openssl/test
@@ -1227,6 +1229,7 @@ $(TARBALL): release-only doc-only
 	$(RM) -r $(TARNAME)/tools/cpplint.py
 	$(RM) -r $(TARNAME)/tools/eslint
 	$(RM) -r $(TARNAME)/tools/eslint-rules
+	$(RM) -r $(TARNAME)/test/parallel/test-eslint-*
 	$(RM) -r $(TARNAME)/tools/license-builder.sh
 	$(RM) -r $(TARNAME)/tools/eslint/node_modules
 	$(RM) -r $(TARNAME)/tools/osx-*
@@ -1562,8 +1565,8 @@ cpplint: lint-cpp
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-py-build: ## Build resources needed to lint python files.
 	$(info Pip installing ruff on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.6.5 || \
-		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.6.5
+	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.13.1 || \
+		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.13.1
 
 .PHONY: lint-py lint-py-fix lint-py-fix-unsafe
 ifneq ("","$(wildcard tools/pip/site-packages/ruff)")
@@ -1573,7 +1576,6 @@ lint-py:
 	tools/pip/site-packages/bin/ruff check .
 lint-py-fix:
 	tools/pip/site-packages/bin/ruff check . --fix
-
 lint-py-fix-unsafe:
 	tools/pip/site-packages/bin/ruff check . --fix --unsafe-fixes
 else
@@ -1641,7 +1643,7 @@ HAS_DOCKER ?= $(shell command -v docker > /dev/null 2>&1; [ $$? -eq 0 ] && echo 
 
 .PHONY: gen-openssl
 ifeq ($(HAS_DOCKER), 1)
-DOCKER_COMMAND ?= docker run -it -v $(PWD):/node
+DOCKER_COMMAND ?= docker run --rm -u $(shell id -u) -v $(PWD):/node
 IS_IN_WORKTREE = $(shell grep '^gitdir: ' $(PWD)/.git 2>/dev/null)
 GIT_WORKTREE_COMMON = $(shell git rev-parse --git-common-dir)
 DOCKER_COMMAND += $(if $(IS_IN_WORKTREE), -v $(GIT_WORKTREE_COMMON):$(GIT_WORKTREE_COMMON))

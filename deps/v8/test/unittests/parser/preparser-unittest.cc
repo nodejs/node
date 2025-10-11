@@ -51,8 +51,7 @@ TEST_F(PreParserTest, LazyFunctionLength) {
 
   DirectHandle<JSFunction> lazy_function = RunJS<JSFunction>(script_source);
 
-  DirectHandle<SharedFunctionInfo> shared(lazy_function->shared(),
-                                          lazy_function->GetIsolate());
+  DirectHandle<SharedFunctionInfo> shared(lazy_function->shared(), i_isolate());
   CHECK_EQ(3, shared->length());
 
   DirectHandle<Smi> length = RunJS<Smi>("lazy.length");
@@ -726,11 +725,11 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
 
       if (inner.bailout == Bailout::BAILOUT_IF_OUTER_SLOPPY &&
           !outer.strict_outer) {
-        CHECK(!shared->HasUncompiledDataWithPreparseData());
+        CHECK(!shared->HasUncompiledDataWithPreparseData(isolate));
         continue;
       }
 
-      CHECK(shared->HasUncompiledDataWithPreparseData());
+      CHECK(shared->HasUncompiledDataWithPreparseData(isolate));
       i::Handle<i::PreparseData> produced_data_on_heap(
           shared->uncompiled_data_with_preparse_data(isolate)->preparse_data(),
           isolate);

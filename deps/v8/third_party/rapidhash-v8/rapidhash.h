@@ -157,44 +157,6 @@ struct PlainHashReader {
 #define _unlikely_(x) __builtin_expect(x, 0)
 
 /*
- *  Default seed.
- */
-static constexpr uint64_t RAPID_SEED = 0xbdd89aa982704029ull;
-
-// Default secret parameters. If we wanted to, we could generate our own
-// versions of these at renderer startup in order to perturb the hash
-// and make it more DoS-resistant (similar to what base/hash.h does),
-// but generating new ones takes a little bit of time (~200 µs on a desktop
-// machine as of 2024), and good-quality random numbers may not be copious
-// from within the sandbox. The secret concept is inherited from wyhash,
-// described by the wyhash author here:
-//
-//   https://github.com/wangyi-fudan/wyhash/issues/139
-//
-// The rules are:
-//
-//   1. Each byte must be “balanced”, i.e., have exactly 4 bits set.
-//      (This is trivially done by just precompting a LUT with the
-//      possible bytes and picking from those.)
-//
-//   2. Each 64-bit group should have a Hamming distance of 32 to
-//      all the others (i.e., popcount(secret[i] ^ secret[j]) == 32).
-//      This is just done by rejection sampling.
-//
-//   3. Each 64-bit group should be prime. It's not obvious that this
-//      is really needed for the hash, as opposed to wyrand which also
-//      uses the same secret, but according to the author, it is
-//      “a feeling to be perfect”. This naturally means the last byte
-//      cannot be divisible by 2, but apart from that, is easiest
-//      checked by testing a few small factors and then the Miller-Rabin
-//      test, which rejects nearly all bad candidates in the first iteration
-//      and is fast as long as we have 64x64 -> 128 bit muls and modulos.
-//
-// For now, we just use the rapidhash-supplied standard.
-static constexpr uint64_t rapid_secret[3] = {
-    0x2d358dccaa6c78a5ull, 0x8bb84b93962eacc9ull, 0x4b33a62ed433d4a3ull};
-
-/*
  *  64*64 -> 128bit multiply function.
  *
  *  @param A  Address of 64-bit number.
@@ -265,9 +227,9 @@ inline uint64_t rapid_mix(uint64_t A, uint64_t B) {
  *
  *  No other reads from memory take place. No writes to memory take place.
  */
-template <class Reader>
-V8_INLINE uint64_t rapidhash_internal(const uint8_t* p, const size_t len,
-                                      uint64_t seed, const uint64_t secret[3]) {
+template <class Reader = PlainHashReader>
+V8_INLINE uint64_t rapidhash(const uint8_t* p, const size_t len, uint64_t seed,
+                             const uint64_t secret[3]) {
   // For brevity.
   constexpr unsigned x = Reader::kCompressionFactor;
   constexpr unsigned y = Reader::kExpansionFactor;
@@ -329,23 +291,6 @@ V8_INLINE uint64_t rapidhash_internal(const uint8_t* p, const size_t len,
   b ^= seed;
   std::tie(a, b) = rapid_mul128(a, b);
   return rapid_mix(a ^ secret[0] ^ len, b ^ secret[1]);
-}
-
-/*
- *  rapidhash default seeded hash function.
- *
- *  @param key     Buffer to be hashed.
- *  @param len     Number of input bytes coming from the reader.
- *  @param seed    64-bit seed used to alter the hash result predictably.
- *
- *  Calls rapidhash_internal using provided parameters and default secrets.
- *
- *  Returns a 64-bit hash.
- */
-template <class Reader = PlainHashReader>
-V8_INLINE static uint64_t rapidhash(const uint8_t* key, size_t len,
-                                    uint64_t seed = RAPID_SEED) {
-  return rapidhash_internal<Reader>(key, len, seed, rapid_secret);
 }
 
 #undef _likely_

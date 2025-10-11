@@ -83,7 +83,7 @@ MaybeDirectHandle<Object> DefineAccessorProperty(
         isolate, getter,
         InstantiateFunction(isolate, Cast<FunctionTemplateInfo>(getter)));
     DirectHandle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
-    Cast<JSFunction>(getter)->UpdateCode(*trampoline);
+    Cast<JSFunction>(getter)->UpdateCode(isolate, *trampoline);
   }
   if (IsFunctionTemplateInfo(*setter) &&
       Cast<FunctionTemplateInfo>(*setter)->BreakAtEntry(isolate)) {
@@ -91,7 +91,7 @@ MaybeDirectHandle<Object> DefineAccessorProperty(
         isolate, setter,
         InstantiateFunction(isolate, Cast<FunctionTemplateInfo>(setter)));
     DirectHandle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
-    Cast<JSFunction>(setter)->UpdateCode(*trampoline);
+    Cast<JSFunction>(setter)->UpdateCode(isolate, *trampoline);
   }
   RETURN_ON_EXCEPTION(isolate, JSObject::DefineOwnAccessorIgnoreAttributes(
                                    object, name, getter, setter, attributes));
@@ -330,7 +330,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
 
   const auto new_js_object_type =
       constructor->has_initial_map() &&
-              IsJSApiWrapperObject(constructor->initial_map())
+              IsJSApiWrapperObjectMap(constructor->initial_map())
           ? NewJSObjectType::kAPIWrapper
           : NewJSObjectType::kNoAPIWrapper;
   Handle<JSObject> object;
@@ -497,27 +497,26 @@ MaybeHandle<JSFunction> ApiNatives::InstantiateFunction(
     DirectHandle<FunctionTemplateInfo> data,
     MaybeDirectHandle<Name> maybe_name) {
   InvokeScope invoke_scope(isolate);
-  return ::v8::internal::InstantiateFunction(isolate, native_context, data,
-                                             maybe_name);
+  return ::i::InstantiateFunction(isolate, native_context, data, maybe_name);
 }
 
 MaybeHandle<JSFunction> ApiNatives::InstantiateFunction(
     Isolate* isolate, DirectHandle<FunctionTemplateInfo> data,
     MaybeDirectHandle<Name> maybe_name) {
   InvokeScope invoke_scope(isolate);
-  return ::v8::internal::InstantiateFunction(isolate, data, maybe_name);
+  return ::i::InstantiateFunction(isolate, data, maybe_name);
 }
 
 MaybeHandle<JSObject> ApiNatives::InstantiateObject(
     Isolate* isolate, DirectHandle<ObjectTemplateInfo> data,
     DirectHandle<JSReceiver> new_target) {
   InvokeScope invoke_scope(isolate);
-  return ::v8::internal::InstantiateObject(isolate, data, new_target, false);
+  return ::i::InstantiateObject(isolate, data, new_target, false);
 }
 
 MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
     DirectHandle<ObjectTemplateInfo> data) {
-  Isolate* isolate = data->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   InvokeScope invoke_scope(isolate);
 
   DirectHandle<FunctionTemplateInfo> constructor(

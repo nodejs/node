@@ -50,6 +50,7 @@
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/container/internal/compressed_tuple.h"
+#include "absl/hash/internal/weakly_mixed_integer.h"
 #include "absl/memory/memory.h"
 
 namespace absl {
@@ -391,8 +392,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
 
   template <typename H>
   friend H AbslHashValue(H h, const FixedArray& v) {
-    return H::combine(H::combine_contiguous(std::move(h), v.data(), v.size()),
-                      v.size());
+    return H::combine_contiguous(std::move(h), v.data(), v.size());
   }
 
  private:

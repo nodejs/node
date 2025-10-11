@@ -187,6 +187,9 @@ class V8_EXPORT_PRIVATE Frame : public ZoneObject {
 
   const GrowableBitVector& tagged_slots() const { return tagged_slots_bits_; }
 
+  bool invalidates_sp() const { return invalidates_sp_; }
+  void set_invalidates_sp() { invalidates_sp_ = true; }
+
  private:
   int fixed_slot_count_;
   int spill_slot_count_ = 0;
@@ -198,6 +201,7 @@ class V8_EXPORT_PRIVATE Frame : public ZoneObject {
   BitVector* allocated_double_registers_;
   Zone* zone_;
   GrowableBitVector tagged_slots_bits_;
+  bool invalidates_sp_ = false;
 #if DEBUG
   bool spill_slots_finished_ = false;
   bool frame_aligned_ = false;
@@ -237,14 +241,11 @@ class FrameAccessState : public ZoneObject {
   explicit FrameAccessState(const Frame* const frame)
       : frame_(frame),
         access_frame_with_fp_(false),
-        fp_relative_only_(false),
         sp_delta_(0),
         has_frame_(false) {}
 
   const Frame* frame() const { return frame_; }
   V8_EXPORT_PRIVATE void MarkHasFrame(bool state);
-  void SetFPRelativeOnly(bool state);
-  bool FPRelativeOnly() { return fp_relative_only_; }
 
   int sp_delta() const { return sp_delta_; }
   void ClearSPDelta() { sp_delta_ = 0; }
@@ -279,7 +280,6 @@ class FrameAccessState : public ZoneObject {
  private:
   const Frame* const frame_;
   bool access_frame_with_fp_;
-  bool fp_relative_only_;
   int sp_delta_;
   bool has_frame_;
 };

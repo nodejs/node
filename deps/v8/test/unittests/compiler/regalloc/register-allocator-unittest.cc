@@ -99,7 +99,7 @@ class RegisterAllocatorTest : public InstructionSequenceTest {
     }
 
     turboshaft::Pipeline pipeline(&data);
-    pipeline.AllocateRegisters(config(), nullptr, true);
+    CHECK(pipeline.AllocateRegisters(config(), nullptr, true));
   }
 };
 

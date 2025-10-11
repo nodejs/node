@@ -17,8 +17,11 @@ const server_cert = fixtures.readKey('agent1-cert.pem');
 const opts = {
   key: server_key,
   cert: server_cert,
-  ciphers: 'ALL@SECLEVEL=0'
 };
+
+if (!process.features.openssl_is_boringssl) {
+  opts.ciphers = 'ALL@SECLEVEL=0';
+}
 
 const server = https.createServer(opts, (req, res) => {
   res.write('hello');

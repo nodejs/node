@@ -105,7 +105,7 @@ BUILTIN(GlobalEval) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, function,
       Compiler::GetFunctionFromValidatedString(
-          direct_handle(target->native_context(), isolate), source,
+          isolate, direct_handle(target->native_context(), isolate), source,
           NO_PARSE_RESTRICTION, kNoSourcePosition));
   RETURN_RESULT_OR_FAILURE(
       isolate, Execution::Call(isolate, function, target_global_proxy, {}));

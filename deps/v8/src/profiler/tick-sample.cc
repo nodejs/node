@@ -180,7 +180,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
     return;
   }
 
-  if (state != StateTag::EXTERNAL) {
+  if (!IsExternal(state)) {
     state = info.vm_state;
   }
   pc = regs.pc;
@@ -249,8 +249,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   }
 
   Tagged<Context> top_context = isolate->context();
-  if (top_context.ptr() != i::Context::kNoContext &&
-      top_context.ptr() != i::Context::kInvalidContext) {
+  if (top_context.ptr() != i::Context::kNoContext) {
     Tagged<NativeContext> top_native_context = top_context->native_context();
     sample_info->context = reinterpret_cast<void*>(top_native_context.ptr());
   }
@@ -261,13 +260,9 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   // With stack-switching, the js_entry_sp and current sp may be in different
   // stacks. Use the active stack base instead as the upper bound to correctly
   // validate addresses in the stack frame iterator.
-  Tagged<Object> cont_obj = isolate->root(RootIndex::kActiveContinuation);
-  if (!IsUndefined(cont_obj)) {
-    auto cont = Cast<WasmContinuationObject>(cont_obj);
-    if (!IsUndefined(cont->parent())) {
-      auto* stack = reinterpret_cast<wasm::StackMemory*>(cont->stack());
-      js_entry_sp = stack->base();
-    }
+  wasm::StackMemory* stack = isolate->isolate_data()->active_stack();
+  if (stack != nullptr && stack->jmpbuf()->parent != nullptr) {
+    js_entry_sp = stack->base();
   }
 #endif
 
@@ -399,7 +394,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
 
 void TickSample::print() const {
   PrintF("TickSample: at %p\n", this);
-  PrintF(" - state: %s\n", StateToString(state));
+  PrintF(" - state: %s\n", ToString(state));
   PrintF(" - pc: %p\n", pc);
   PrintF(" - stack: (%u frames)\n", frames_count);
   for (unsigned i = 0; i < frames_count; i++) {

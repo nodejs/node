@@ -277,8 +277,8 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
 
   CSA_DCHECK(this, Word32BinaryNot(IsUndefined(iterator.object)));
 
-  TNode<Map> fast_iterator_result_map = CAST(
-      LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
+  TNode<Map> fast_iterator_result_map = CAST(LoadContextElementNoCell(
+      native_context, Context::ITERATOR_RESULT_MAP_INDEX));
 
   Goto(&loop);
   BIND(&loop);
@@ -440,7 +440,7 @@ TNode<JSFunction> BaseCollectionsAssembler::GetConstructor(
       index = Context::JS_WEAK_SET_FUN_INDEX;
       break;
   }
-  return CAST(LoadContextElement(native_context, index));
+  return CAST(LoadContextElementNoCell(native_context, index));
 }
 
 TNode<JSFunction> BaseCollectionsAssembler::GetInitialAddFunction(
@@ -460,7 +460,7 @@ TNode<JSFunction> BaseCollectionsAssembler::GetInitialAddFunction(
       index = Context::WEAKSET_ADD_INDEX;
       break;
   }
-  return CAST(LoadContextElement(native_context, index));
+  return CAST(LoadContextElementNoCell(native_context, index));
 }
 
 int BaseCollectionsAssembler::GetTableOffset(Variant variant) {
@@ -517,7 +517,8 @@ TNode<Map> BaseCollectionsAssembler::GetInitialCollectionPrototype(
       initial_prototype_index = Context::INITIAL_WEAKSET_PROTOTYPE_MAP_INDEX;
       break;
   }
-  return CAST(LoadContextElement(native_context, initial_prototype_index));
+  return CAST(
+      LoadContextElementNoCell(native_context, initial_prototype_index));
 }
 
 TNode<BoolT> BaseCollectionsAssembler::HasInitialCollectionPrototype(
@@ -540,14 +541,17 @@ TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedArrayElement(
 TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(
     TNode<HeapObject> elements, TNode<IntPtrT> index) {
   TVARIABLE(Object, entry);
-  Label if_hole(this, Label::kDeferred), next(this);
-  TNode<Float64T> element =
-      LoadFixedDoubleArrayElement(CAST(elements), index, &if_hole);
+  Label if_hole_or_undefined(this, Label::kDeferred), next(this);
+  TNode<Float64T> element = LoadFixedDoubleArrayElement(
+      CAST(elements), index, &if_hole_or_undefined, &if_hole_or_undefined);
   {  // not hole
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    CSA_DCHECK(this, Word32Equal(Int32Constant(0), IsDoubleUndefined(element)));
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     entry = AllocateHeapNumberWithValue(element);
     Goto(&next);
   }
-  BIND(&if_hole);
+  BIND(&if_hole_or_undefined);
   {
     entry = UndefinedConstant();
     Goto(&next);
@@ -609,6 +613,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
     // Load the key from the entry.
     const TNode<Object> candidate_key =
         UnsafeLoadKeyFromOrderedHashTableEntry(table, entry_start);
+    GotoIf(IsHashTableHole(candidate_key), &continue_next_entry);
 
     key_compare(candidate_key, &if_key_found, &continue_next_entry);
 
@@ -724,7 +729,7 @@ TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
       LoadObjectField(collection, JSCollection::kTableOffset);
   const TNode<NativeContext> native_context = LoadNativeContext(context);
   const TNode<Map> iterator_map =
-      CAST(LoadContextElement(native_context, map_index));
+      CAST(LoadContextElementNoCell(native_context, map_index));
   const TNode<HeapObject> iterator =
       AllocateInNewSpace(IteratorType::kHeaderSize);
   StoreMapNoWriteBarrier(iterator, iterator_map);
@@ -884,14 +889,14 @@ void CollectionsBuiltinsAssembler::
   BIND(&extra_checks);
   // Check if the iterator object has the original %MapIteratorPrototype%.
   const TNode<NativeContext> native_context = LoadNativeContext(context);
-  const TNode<Object> initial_map_iter_proto = LoadContextElement(
+  const TNode<Object> initial_map_iter_proto = LoadContextElementNoCell(
       native_context, Context::INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX);
   const TNode<HeapObject> map_iter_proto = LoadMapPrototype(iter_map);
   GotoIfNot(TaggedEqual(map_iter_proto, initial_map_iter_proto), if_false);
 
   // Check if the original MapIterator prototype has the original
   // %IteratorPrototype%.
-  const TNode<Object> initial_iter_proto = LoadContextElement(
+  const TNode<Object> initial_iter_proto = LoadContextElementNoCell(
       native_context, Context::INITIAL_ITERATOR_PROTOTYPE_INDEX);
   const TNode<HeapObject> iter_proto =
       LoadMapPrototype(LoadMap(map_iter_proto));
@@ -933,7 +938,7 @@ void CollectionsBuiltinsAssembler::BranchIfIterableWithOriginalValueSetIterator(
 
   BIND(&if_set);
   // Check if the set object has the original Set prototype.
-  const TNode<Object> initial_set_proto = LoadContextElement(
+  const TNode<Object> initial_set_proto = LoadContextElementNoCell(
       LoadNativeContext(context), Context::INITIAL_SET_PROTOTYPE_INDEX);
   const TNode<HeapObject> set_proto = LoadMapPrototype(iterable_map);
   GotoIfNot(TaggedEqual(set_proto, initial_set_proto), if_false);
@@ -947,14 +952,14 @@ void CollectionsBuiltinsAssembler::BranchIfIterableWithOriginalValueSetIterator(
 
   // Check if the iterator object has the original SetIterator prototype.
   const TNode<NativeContext> native_context = LoadNativeContext(context);
-  const TNode<Object> initial_set_iter_proto = LoadContextElement(
+  const TNode<Object> initial_set_iter_proto = LoadContextElementNoCell(
       native_context, Context::INITIAL_SET_ITERATOR_PROTOTYPE_INDEX);
   const TNode<HeapObject> set_iter_proto = LoadMapPrototype(iterable_map);
   GotoIfNot(TaggedEqual(set_iter_proto, initial_set_iter_proto), if_false);
 
   // Check if the original SetIterator prototype has the original
   // %IteratorPrototype%.
-  const TNode<Object> initial_iter_proto = LoadContextElement(
+  const TNode<Object> initial_iter_proto = LoadContextElementNoCell(
       native_context, Context::INITIAL_ITERATOR_PROTOTYPE_INDEX);
   const TNode<HeapObject> iter_proto =
       LoadMapPrototype(LoadMap(set_iter_proto));
@@ -2512,11 +2517,12 @@ TF_BUILTIN(FindOrderedHashSetEntry, CollectionsBuiltinsAssembler) {
 }
 
 const TNode<OrderedHashMap> CollectionsBuiltinsAssembler::AddValueToKeyedGroup(
-    const TNode<OrderedHashMap> groups, const TNode<Object> key,
-    const TNode<Object> value, const TNode<String> methodName) {
-  GrowCollection<OrderedHashMap> grow = [this, groups, methodName]() {
-    TNode<OrderedHashMap> new_groups = CAST(CallRuntime(
-        Runtime::kOrderedHashMapGrow, NoContextConstant(), groups, methodName));
+    const TNode<Context> context, const TNode<OrderedHashMap> groups,
+    const TNode<Object> key, const TNode<Object> value,
+    const TNode<String> methodName) {
+  GrowCollection<OrderedHashMap> grow = [&]() {
+    TNode<OrderedHashMap> new_groups = CAST(
+        CallRuntime(Runtime::kOrderedHashMapGrow, context, groups, methodName));
     // The groups OrderedHashMap is not escaped to user script while grouping
     // items, so there can't be live iterators. So we don't need to keep the
     // pointer from the old table to the new one.

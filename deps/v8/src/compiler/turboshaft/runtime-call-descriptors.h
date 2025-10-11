@@ -327,6 +327,15 @@ struct RuntimeCallDescriptor {
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 
+  struct ThrowRangeError : public Descriptor<ThrowRangeError> {
+    static constexpr auto kFunction = Runtime::kThrowRangeError;
+    using arguments_t = std::tuple<V<Smi>>;
+    using result_t = Never;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
   struct NewClosure : public Descriptor<NewClosure> {
     static constexpr auto kFunction = Runtime::kNewClosure;
     using arguments_t = std::tuple<V<SharedFunctionInfo>, V<FeedbackCell>>;

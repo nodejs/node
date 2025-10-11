@@ -202,11 +202,17 @@ class Assembler : public AssemblerBase {
 
   void MaybeEmitOutOfLineConstantPool() { EmitConstantPool(); }
 
+  // Unused on this architecture.
+  void ClearInternalState() {}
+
   inline void CheckTrampolinePoolQuick(int extra_space = 0) {
     if (pc_offset() >= next_trampoline_check_ - extra_space) {
       CheckTrampolinePool();
     }
   }
+
+  static RegList DefaultTmpList();
+  static DoubleRegList DefaultFPTmpList();
 
   // Label operations & relative jumps (PPUM Appendix D)
   //
@@ -379,6 +385,8 @@ class Assembler : public AssemblerBase {
   inline void name(const Register dst, const MemOperand& src) {             \
     x_form(instr_name, src.ra(), dst, src.rb(), SetEH);                     \
   }
+#define DECLARE_PPC_X_INSTRUCTIONS_EH_U_FORM(name, instr_name, instr_value) \
+  inline void name(const CRegister cr) { x_form(instr_name, cr); }
 
   inline void x_form(Instr instr, int f1, int f2, int f3, int rc) {
     emit(instr | f1 * B21 | f2 * B16 | f3 * B11 | rc);
@@ -397,6 +405,9 @@ class Assembler : public AssemblerBase {
     emit(instr | cr.code() * B23 | L * B21 | s1.code() * B16 | s2.code() * B11 |
          rc);
   }
+  inline void x_form(Instr instr, CRegister cr) {
+    emit(instr | cr.code() * B23);
+  }
 
   PPC_X_OPCODE_A_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_A_FORM)
   PPC_X_OPCODE_B_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_B_FORM)
@@ -407,6 +418,7 @@ class Assembler : public AssemblerBase {
   PPC_X_OPCODE_G_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_G_FORM)
   PPC_X_OPCODE_EH_S_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM)
   PPC_X_OPCODE_EH_L_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM)
+  PPC_X_OPCODE_EH_U_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_EH_U_FORM)
 
   inline void notx(Register dst, Register src, RCBit rc = LeaveRC) {
     nor(dst, src, src, rc);
@@ -442,13 +454,13 @@ class Assembler : public AssemblerBase {
 
   template <typename T>
   inline void xx2_form(Instr instr, T t, T b) {
-    static_assert(std::is_same<T, Simd128Register>::value ||
-                      std::is_same<T, DoubleRegister>::value,
-                  "VSX only uses FP or Vector registers.");
+    static_assert(
+        std::is_same_v<T, Simd128Register> || std::is_same_v<T, DoubleRegister>,
+        "VSX only uses FP or Vector registers.");
     // Using FP (low VSR) registers.
     int BX = 0, TX = 0;
     // Using VR (high VSR) registers when Simd registers are used.
-    if (std::is_same<T, Simd128Register>::value) {
+    if (std::is_same_v<T, Simd128Register>) {
       BX = TX = 1;
     }
 
@@ -491,13 +503,13 @@ class Assembler : public AssemblerBase {
 
   template <typename T>
   inline void xx3_form(Instr instr, T t, T a, T b) {
-    static_assert(std::is_same<T, Simd128Register>::value ||
-                      std::is_same<T, DoubleRegister>::value,
-                  "VSX only uses FP or Vector registers.");
+    static_assert(
+        std::is_same_v<T, Simd128Register> || std::is_same_v<T, DoubleRegister>,
+        "VSX only uses FP or Vector registers.");
     // Using FP (low VSR) registers.
     int AX = 0, BX = 0, TX = 0;
     // Using VR (high VSR) registers when Simd registers are used.
-    if (std::is_same<T, Simd128Register>::value) {
+    if (std::is_same_v<T, Simd128Register>) {
       AX = BX = TX = 1;
     }
 
@@ -628,6 +640,10 @@ class Assembler : public AssemblerBase {
 #undef DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_10
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
+  DoubleRegList* GetScratchDoubleRegisterList() {
+    return &scratch_double_register_list_;
+  }
+
   // ---------------------------------------------------------------------------
   // InstructionStream generation
 
@@ -640,6 +656,8 @@ class Assembler : public AssemblerBase {
   void DataAlign(int m);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
+  void SwitchTargetAlign() { CodeTargetAlign(); }
+  void BranchTargetAlign() {}
   void LoopHeaderAlign() { CodeTargetAlign(); }
 
   // Branch instructions
@@ -731,6 +749,12 @@ class Assembler : public AssemblerBase {
       case nooverflow:
         bc(b_offset, BF, encode_crbit(cr, CR_SO), lk);
         break;
+      case overflow32:
+        bc(b_offset, BT, encode_crbit(cr, CR_OV32), lk);
+        break;
+      case nooverflow32:
+        bc(b_offset, BF, encode_crbit(cr, CR_OV32), lk);
+        break;
       default:
         UNIMPLEMENTED();
     }
@@ -772,6 +796,12 @@ class Assembler : public AssemblerBase {
         break;
       case nooverflow:
         bclr(BF, encode_crbit(cr, CR_SO), lk);
+        break;
+      case overflow32:
+        bclr(BT, encode_crbit(cr, CR_OV32), lk);
+        break;
+      case nooverflow32:
+        bclr(BF, encode_crbit(cr, CR_OV32), lk);
         break;
       default:
         UNIMPLEMENTED();
@@ -816,6 +846,12 @@ class Assembler : public AssemblerBase {
         break;
       case nooverflow:
         isel(rt, rb, ra, encode_crbit(cr, CR_SO));
+        break;
+      case overflow32:
+        isel(rt, ra, rb, encode_crbit(cr, CR_OV32));
+        break;
+      case nooverflow32:
+        isel(rt, rb, ra, encode_crbit(cr, CR_OV32));
         break;
       default:
         UNIMPLEMENTED();
@@ -1405,6 +1441,7 @@ class Assembler : public AssemblerBase {
 
   // Scratch registers available for use by the Assembler.
   RegList scratch_register_list_;
+  DoubleRegList scratch_double_register_list_;
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
@@ -1522,7 +1559,7 @@ class Assembler : public AssemblerBase {
   Trampoline trampoline_;
   bool internal_trampoline_exception_;
 
-  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
+  void PatchInHeapNumberRequest(Address pc, Handle<HeapNumber> object) override;
 
   int WriteCodeComments();
 
@@ -1549,19 +1586,56 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(Assembler* assembler)
       : assembler_(assembler),
-        old_available_(*assembler->GetScratchRegisterList()) {}
+        old_available_(*assembler->GetScratchRegisterList()),
+        old_available_double_(*assembler->GetScratchDoubleRegisterList()) {}
 
   ~UseScratchRegisterScope() {
     *assembler_->GetScratchRegisterList() = old_available_;
+    *assembler_->GetScratchDoubleRegisterList() = old_available_double_;
   }
 
   Register Acquire() {
     return assembler_->GetScratchRegisterList()->PopFirst();
   }
 
+  DoubleRegister AcquireDouble() {
+    return assembler_->GetScratchDoubleRegisterList()->PopFirst();
+  }
+
   // Check if we have registers available to acquire.
   bool CanAcquire() const {
     return !assembler_->GetScratchRegisterList()->is_empty();
+  }
+
+  void Include(const Register& reg1, const Register& reg2 = no_reg) {
+    RegList* available = assembler_->GetScratchRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK(!available->has(reg1));
+    DCHECK(!available->has(reg2));
+    available->set(reg1);
+    available->set(reg2);
+  }
+  void Include(RegList list) {
+    RegList* available = assembler_->GetScratchRegisterList();
+    DCHECK_NOT_NULL(available);
+    *available = *available | list;
+  }
+  void Include(DoubleRegList list) {
+    DoubleRegList* available = assembler_->GetScratchDoubleRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK_EQ((*available & list).bits(), 0x0);
+    *available = *available | list;
+  }
+
+  DoubleRegList AvailableDoubleRegList() {
+    return *assembler_->GetScratchDoubleRegisterList();
+  }
+  void SetAvailableDoubleRegList(DoubleRegList available) {
+    *assembler_->GetScratchDoubleRegisterList() = available;
+  }
+  RegList Available() { return *assembler_->GetScratchRegisterList(); }
+  void SetAvailable(RegList available) {
+    *assembler_->GetScratchRegisterList() = available;
   }
 
  private:
@@ -1570,6 +1644,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
 
   Assembler* assembler_;
   RegList old_available_;
+  DoubleRegList old_available_double_;
 };
 
 }  // namespace internal

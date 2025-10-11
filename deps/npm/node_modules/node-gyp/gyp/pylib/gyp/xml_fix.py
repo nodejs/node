@@ -9,7 +9,6 @@ Working around this: http://bugs.python.org/issue5752
 TODO(bradnelson): Consider dropping this when we drop XP support.
 """
 
-
 import xml.dom.minidom
 
 

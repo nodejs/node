@@ -385,7 +385,8 @@ TEST(GetObjectProperties) {
   props = d::GetObjectProperties(
       ReadProp<i::Tagged_t>(*props, "instance_descriptors"), &ReadMemory,
       heap_addresses);
-  CHECK_EQ(props->num_properties, 6);
+  int padding = TAGGED_SIZE_8_BYTES ? 1 : 0;
+  CHECK_EQ(props->num_properties, 7 + padding);
   // It should have at least two descriptors (possibly plus slack).
   CheckProp(*props->properties[1], "uint16_t", "number_of_all_descriptors");
   uint16_t number_of_all_descriptors =
@@ -393,7 +394,7 @@ TEST(GetObjectProperties) {
   CHECK_GE(number_of_all_descriptors, 2);
   // The "descriptors" property should describe the struct layout for each
   // element in the array.
-  const d::ObjectProperty& descriptors = *props->properties[5];
+  const d::ObjectProperty& descriptors = *props->properties[6 + padding];
   // No C++ type is reported directly because there may not be an actual C++
   // struct with this layout, hence the empty string in this check.
   CheckProp(descriptors, /*type=*/"", "descriptors",
@@ -491,7 +492,7 @@ static void FrameIterationCheck(
 
 THREADED_TEST(GetFrameStack) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
   v8::HandleScope scope(isolate);
@@ -512,7 +513,7 @@ THREADED_TEST(GetFrameStack) {
 
 TEST(SmallOrderedHashSetGetObjectProperties) {
   LocalContext context;
-  Isolate* isolate = reinterpret_cast<Isolate*>((*context)->GetIsolate());
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   HandleScope scope(isolate);

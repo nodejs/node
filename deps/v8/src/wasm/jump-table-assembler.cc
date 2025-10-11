@@ -801,27 +801,26 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
        uint32_t((target_offset & 0x100000) << 11)),  // bit  20 ),  // jal
   };
 
-  emit<uint32_t>(inst[0]);
-  emit<uint32_t>(inst[1]);
-  emit<uint32_t>(inst[2]);
+  emit<uint32_t>(inst[0], kRelaxedStore);
+  emit<uint32_t>(inst[1], kRelaxedStore);
+  emit<uint32_t>(inst[2], kRelaxedStore);
 }
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  uint32_t high_20 = (int64_t(4 * kInstrSize + 0x800) >> 12);
-  uint32_t low_12 = (int64_t(4 * kInstrSize) << 52 >> 52);
+  uint32_t high_20 = (int64_t(3 * kInstrSize + 0x800) >> 12);
+  uint32_t low_12 = (int64_t(3 * kInstrSize) << 52 >> 52);
 
   const uint32_t inst[kJumpTableSlotSize / 4] = {
       (RO_AUIPC | (t6.code() << kRdShift) |
        (high_20 << kImm20Shift)),  // auipc t6, high_20
       (RO_LW | (t6.code() << kRdShift) | (t6.code() << kRs1Shift) |
-       (low_12 << kImm12Shift)),  // jalr t6, t6, low_12
-      (RO_JALR | (t6.code() << kRs1Shift) | zero_reg.code() << kRdShift),
-      (kNopByte),  // nop
-      0x0000,      // target
+       (low_12 << kImm12Shift)),  // lw t6, t6, low_12
+      (RO_JALR | (t6.code() << kRs1Shift) |
+       zero_reg.code() << kRdShift),  // jalr t6
+      0x0000,                         // target
   };
-  emit<uint32_t>(inst[0]);
-  emit<uint32_t>(inst[1]);
-  emit<uint32_t>(inst[2]);
-  emit<uint32_t>(inst[3]);
+  emit<uint32_t>(inst[0], kRelaxedStore);
+  emit<uint32_t>(inst[1], kRelaxedStore);
+  emit<uint32_t>(inst[2], kRelaxedStore);
   emit<uint32_t>(target, kRelaxedStore);
   return true;
 }

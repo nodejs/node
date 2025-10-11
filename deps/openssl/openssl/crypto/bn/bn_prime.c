@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -145,10 +145,8 @@ int BN_generate_prime_ex2(BIGNUM *ret, int bits, int safe,
     }
 
     mods = OPENSSL_zalloc(sizeof(*mods) * NUMPRIMES);
-    if (mods == NULL) {
-        ERR_raise(ERR_LIB_BN, ERR_R_MALLOC_FAILURE);
+    if (mods == NULL)
         return 0;
-    }
 
     BN_CTX_start(ctx);
     t = BN_CTX_get(ctx);
@@ -250,6 +248,17 @@ int ossl_bn_check_prime(const BIGNUM *w, int checks, BN_CTX *ctx,
         checks = min_checks;
 
     return bn_is_prime_int(w, checks, ctx, do_trial_division, cb);
+}
+
+/*
+ * Use this only for key generation.
+ * It always uses trial division. The number of checks
+ * (MR rounds) passed in is used without being clamped to a minimum value.
+ */
+int ossl_bn_check_generated_prime(const BIGNUM *w, int checks, BN_CTX *ctx,
+                                  BN_GENCB *cb)
+{
+    return bn_is_prime_int(w, checks, ctx, 1, cb);
 }
 
 int BN_check_prime(const BIGNUM *p, BN_CTX *ctx, BN_GENCB *cb)

@@ -241,7 +241,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResumeClosure(
     TNode<Context> context, TNode<Object> value,
     JSAsyncGeneratorObject::ResumeMode resume_mode) {
   const TNode<JSAsyncGeneratorObject> async_generator_object =
-      CAST(LoadContextElement(context, Context::EXTENSION_INDEX));
+      CAST(LoadContextElementNoCell(context, Context::EXTENSION_INDEX));
 
   AsyncGeneratorAwaitResume(context, async_generator_object, value,
                             resume_mode);
@@ -519,7 +519,7 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
   // Let iteratorResult be CreateIterResultObject(value, done).
   const TNode<HeapObject> iter_result = Allocate(JSIteratorResult::kSize);
   {
-    TNode<Map> map = CAST(LoadContextElement(
+    TNode<Map> map = CAST(LoadContextElementNoCell(
         LoadNativeContext(context), Context::ITERATOR_RESULT_MAP_INDEX));
     StoreMapNoWriteBarrier(iter_result, map);
     StoreObjectFieldRoot(iter_result, JSIteratorResult::kPropertiesOrHashOffset,
@@ -604,7 +604,7 @@ TF_BUILTIN(AsyncGeneratorYieldWithAwaitResolveClosure,
   const auto context = Parameter<Context>(Descriptor::kContext);
   const auto value = Parameter<JSAny>(Descriptor::kValue);
   const TNode<JSAsyncGeneratorObject> generator =
-      CAST(LoadContextElement(context, Context::EXTENSION_INDEX));
+      CAST(LoadContextElementNoCell(context, Context::EXTENSION_INDEX));
 
   SetGeneratorNotAwaiting(generator);
 
@@ -721,7 +721,7 @@ TF_BUILTIN(AsyncGeneratorReturnClosedResolveClosure,
   const auto context = Parameter<Context>(Descriptor::kContext);
   const auto value = Parameter<JSAny>(Descriptor::kValue);
   const TNode<JSAsyncGeneratorObject> generator =
-      CAST(LoadContextElement(context, Context::EXTENSION_INDEX));
+      CAST(LoadContextElementNoCell(context, Context::EXTENSION_INDEX));
 
   SetGeneratorNotAwaiting(generator);
 
@@ -739,7 +739,7 @@ TF_BUILTIN(AsyncGeneratorReturnClosedRejectClosure,
   const auto context = Parameter<Context>(Descriptor::kContext);
   const auto value = Parameter<JSAny>(Descriptor::kValue);
   const TNode<JSAsyncGeneratorObject> generator =
-      CAST(LoadContextElement(context, Context::EXTENSION_INDEX));
+      CAST(LoadContextElementNoCell(context, Context::EXTENSION_INDEX));
 
   AsyncGeneratorReturnClosedReject(context, generator, value);
 }

@@ -735,14 +735,33 @@ the build before moving forward. Use the following list as a baseline:
 ### 11. Tag and sign the release commit
 
 Once you have produced builds that you're happy with you can either run
-`git node release --promote`
+`git node release --promote`:
 
 ```bash
-git node release -S --promote https://github.com/nodejs/node/pull/XXXX
+git node release --promote https://github.com/nodejs/node/pull/XXXX -S
 ```
 
 to automate the remaining steps until step 16 or you can perform it manually
 following the below steps.
+
+<details>
+<summary>Security release</summary>
+
+For security releases, NCU should be configured to target the public repository,
+not the private one where the proposal are hosted. Pass the upstream where to
+fetch the proposal from using the `--fetch-from` flag.
+
+When promoting several releases, you can pass multiple URLs:
+
+```bash
+git node release --promote \
+  --fetch-from git@github.com:nodejs-private/node-private.git \
+  https://github.com/nodejs-private/node-private/pull/XXXX \
+  https://github.com/nodejs-private/node-private/pull/XXXX \
+  -S
+```
+
+</details>
 
 ***
 

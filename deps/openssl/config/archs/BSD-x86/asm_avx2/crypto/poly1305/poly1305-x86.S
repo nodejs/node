@@ -1940,4 +1940,4 @@ Lconst_sse2:
 .byte	60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111
 .byte	114,103,62,0
 .align	2,0x90
-.comm	_OPENSSL_ia32cap_P,16
+.comm	_OPENSSL_ia32cap_P,40

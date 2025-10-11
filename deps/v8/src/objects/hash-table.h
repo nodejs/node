@@ -68,13 +68,13 @@ class V8_EXPORT_PRIVATE BaseShape {
 class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
  public:
   // Returns the number of elements in the hash table.
-  inline int NumberOfElements() const;
+  inline uint32_t NumberOfElements() const;
 
   // Returns the number of deleted elements in the hash table.
-  inline int NumberOfDeletedElements() const;
+  inline uint32_t NumberOfDeletedElements() const;
 
   // Returns the capacity of the hash table.
-  inline int Capacity() const;
+  inline uint32_t Capacity() const;
 
   inline InternalIndex::Range IterateEntries() const;
 
@@ -89,15 +89,20 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
 
   // Computes the required capacity for a table holding the given
   // number of elements. May be more than HashTable::kMaxCapacity.
-  static inline int ComputeCapacity(int at_least_space_for);
+  static inline uint32_t ComputeCapacity(uint32_t at_least_space_for);
 
+  // Note: these are currently Smi fields but treated as uint32_t.
+  // TODO(saelo): these really should be raw uint32_t fields and not Smis. This
+  // requires deriving from TaggedArrayBase instead of FixedArray (see also the
+  // TODO in HashTable below), then adding custom fields to the ShapeT, and
+  // finally providing a custom BodyDescriptor that skips over these fields.
   static const int kNumberOfElementsIndex = 0;
   static const int kNumberOfDeletedElementsIndex = 1;
   static const int kCapacityIndex = 2;
   static const int kPrefixStartIndex = 3;
 
   // Minimum capacity for newly created hash tables.
-  static const int kMinCapacity = 4;
+  static const uint32_t kMinCapacity = 4;
 
   // Set the number of elements in the hash table after a bulk of elements was
   // added.
@@ -126,10 +131,19 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   using TodoShape = ShapeT;
   using Key = typename TodoShape::Key;
 
-  // Returns a new HashTable object.
+  // Returns a new HashTable object or an empty handle if maximum table
+  // capacity is exceeded (no exception is thrown in this case).
+  template <typename IsolateT>
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Derived> TryNew(
+      IsolateT* isolate, uint32_t at_least_space_for,
+      AllocationType allocation = AllocationType::kYoung,
+      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
+
+  // Returns a new HashTable object or reports a fatal OOM error if maximum
+  // table capacity is exceeded.
   template <typename IsolateT>
   V8_WARN_UNUSED_RESULT static Handle<Derived> New(
-      IsolateT* isolate, int at_least_space_for,
+      IsolateT* isolate, uint32_t at_least_space_for,
       AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
@@ -192,7 +206,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   // Maximal capacity of HashTable. Based on maximal length of underlying
   // FixedArray. Staying below kMaxCapacity also ensures that EntryToIndex
   // cannot overflow.
-  static const int kMaxCapacity =
+  static const uint32_t kMaxCapacity =
       (FixedArray::kMaxLength - kElementsStartIndex) / kEntrySize;
 
   // Don't shrink a HashTable below this capacity.
@@ -241,7 +255,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
 
   template <typename IsolateT>
   V8_WARN_UNUSED_RESULT static Handle<Derived> NewInternal(
-      IsolateT* isolate, int capacity, AllocationType allocation);
+      IsolateT* isolate, uint32_t capacity, AllocationType allocation);
 
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
@@ -252,8 +266,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
 
   // Computes the capacity a table with the given capacity would need to have
   // room for the given number of elements, also allowing it to shrink.
-  static int ComputeCapacityWithShrink(int current_capacity,
-                                       int at_least_room_for);
+  static uint32_t ComputeCapacityWithShrink(uint32_t current_capacity,
+                                            uint32_t at_least_room_for);
 
   // Shrink the hash table.
   template <template <typename> typename HandleType>
@@ -279,7 +293,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
                 kMaxRegularHeapObjectSize);
 
   // Sets the capacity of the hash table.
-  inline void SetCapacity(int capacity);
+  inline void SetCapacity(uint32_t capacity);
 
   // Returns _expected_ if one of entries given by the first _probe_ probes is
   // equal to  _expected_. Otherwise, returns the entry given by the probe
@@ -294,11 +308,19 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)           \
       HashTable<class DERIVED, SHAPE>;                                       \
                                                                              \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)                 \
+      MaybeHandle<DERIVED>                                                   \
+      HashTable<DERIVED, SHAPE>::TryNew(Isolate*, uint32_t, AllocationType,  \
+                                        MinimumCapacity);                    \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)                 \
+      MaybeHandle<DERIVED>                                                   \
+      HashTable<DERIVED, SHAPE>::TryNew(LocalIsolate*, uint32_t,             \
+                                        AllocationType, MinimumCapacity);    \
   extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
-  HashTable<DERIVED, SHAPE>::New(Isolate*, int, AllocationType,              \
+  HashTable<DERIVED, SHAPE>::New(Isolate*, uint32_t, AllocationType,         \
                                  MinimumCapacity);                           \
   extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
-  HashTable<DERIVED, SHAPE>::New(LocalIsolate*, int, AllocationType,         \
+  HashTable<DERIVED, SHAPE>::New(LocalIsolate*, uint32_t, AllocationType,    \
                                  MinimumCapacity);                           \
                                                                              \
   extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
@@ -518,13 +540,12 @@ class V8_EXPORT_PRIVATE ObjectHashSet
   inline bool Has(Isolate* isolate, DirectHandle<Object> key);
 };
 
-class NameToIndexShape : public BaseShape<DirectHandle<Name>> {
+class NameToIndexShape : public BaseShape<Tagged<Name>> {
  public:
-  static inline bool IsMatch(DirectHandle<Name> key, Tagged<Object> other);
-  static inline uint32_t Hash(ReadOnlyRoots roots, DirectHandle<Name> key);
+  static inline bool IsMatch(Tagged<Name> key, Tagged<Object> other);
+  static inline uint32_t Hash(ReadOnlyRoots roots, Tagged<Name> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots,
                                        Tagged<Object> object);
-  static inline DirectHandle<Object> AsHandle(DirectHandle<Name> key);
   static const int kPrefixSize = 0;
   static const int kEntryValueIndex = 1;
   static const int kEntrySize = 2;
@@ -539,7 +560,7 @@ class V8_EXPORT_PRIVATE NameToIndexHashTable
   static const int kEntryValueIndex = NameToIndexShape::kEntryValueIndex;
 
   inline static DirectHandle<Map> GetMap(RootsTable& roots);
-  int Lookup(DirectHandle<Name> key);
+  int Lookup(Tagged<Name> key);
 
   // Returns the value at entry.
   Tagged<Object> ValueAt(InternalIndex entry);

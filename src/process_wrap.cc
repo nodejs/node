@@ -116,9 +116,10 @@ class ProcessWrap : public HandleWrap {
     return Just(stream);
   }
 
-  static Maybe<void> ParseStdioOptions(Environment* env,
-                                       Local<Object> js_options,
-                                       uv_process_options_t* options) {
+  static Maybe<void> ParseStdioOptions(
+      Environment* env,
+      Local<Object> js_options,
+      std::vector<uv_stdio_container_t>* options_stdio) {
     Local<Context> context = env->context();
     Local<String> stdio_key = env->stdio_string();
     Local<Value> stdios_val;
@@ -132,8 +133,7 @@ class ProcessWrap : public HandleWrap {
     Local<Array> stdios = stdios_val.As<Array>();
 
     uint32_t len = stdios->Length();
-    options->stdio = new uv_stdio_container_t[len];
-    options->stdio_count = len;
+    options_stdio->resize(len);
 
     for (uint32_t i = 0; i < len; i++) {
       Local<Value> val;
@@ -147,23 +147,23 @@ class ProcessWrap : public HandleWrap {
       }
 
       if (type->StrictEquals(env->ignore_string())) {
-        options->stdio[i].flags = UV_IGNORE;
+        (*options_stdio)[i].flags = UV_IGNORE;
       } else if (type->StrictEquals(env->pipe_string())) {
-        options->stdio[i].flags = static_cast<uv_stdio_flags>(
+        (*options_stdio)[i].flags = static_cast<uv_stdio_flags>(
             UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE);
-        if (!StreamForWrap(env, stdio).To(&options->stdio[i].data.stream)) {
+        if (!StreamForWrap(env, stdio).To(&(*options_stdio)[i].data.stream)) {
           return Nothing<void>();
         }
       } else if (type->StrictEquals(env->overlapped_string())) {
-        options->stdio[i].flags = static_cast<uv_stdio_flags>(
-            UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE |
-            UV_OVERLAPPED_PIPE);
-        if (!StreamForWrap(env, stdio).To(&options->stdio[i].data.stream)) {
+        (*options_stdio)[i].flags =
+            static_cast<uv_stdio_flags>(UV_CREATE_PIPE | UV_READABLE_PIPE |
+                                        UV_WRITABLE_PIPE | UV_OVERLAPPED_PIPE);
+        if (!StreamForWrap(env, stdio).To(&(*options_stdio)[i].data.stream)) {
           return Nothing<void>();
         }
       } else if (type->StrictEquals(env->wrap_string())) {
-        options->stdio[i].flags = UV_INHERIT_STREAM;
-        if (!StreamForWrap(env, stdio).To(&options->stdio[i].data.stream)) {
+        (*options_stdio)[i].flags = UV_INHERIT_STREAM;
+        if (!StreamForWrap(env, stdio).To(&(*options_stdio)[i].data.stream)) {
           return Nothing<void>();
         }
       } else {
@@ -173,9 +173,9 @@ class ProcessWrap : public HandleWrap {
           return Nothing<void>();
         }
         CHECK(fd_value->IsNumber());
-        int fd = static_cast<int>(fd_value.As<Integer>()->Value());
-        options->stdio[i].flags = UV_INHERIT_FD;
-        options->stdio[i].data.fd = fd;
+        int fd = FromV8Value<int>(fd_value);
+        (*options_stdio)[i].flags = UV_INHERIT_FD;
+        (*options_stdio)[i].data.fd = fd;
       }
     }
     return JustVoid();
@@ -186,8 +186,6 @@ class ProcessWrap : public HandleWrap {
     Local<Context> context = env->context();
     ProcessWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env, permission::PermissionScope::kChildProcess, "");
     int err = 0;
 
     if (!args[0]->IsObject()) {
@@ -200,6 +198,18 @@ class ProcessWrap : public HandleWrap {
     memset(&options, 0, sizeof(uv_process_options_t));
 
     options.exit_cb = OnExit;
+
+    // options.file
+    Local<Value> file_v;
+    if (!js_options->Get(context, env->file_string()).ToLocal(&file_v)) {
+      return;
+    }
+    CHECK(file_v->IsString());
+    node::Utf8Value file(env->isolate(), file_v);
+    options.file = *file;
+
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env, permission::PermissionScope::kChildProcess, file.ToStringView());
 
     // options.uid
     Local<Value> uid_v;
@@ -225,17 +235,6 @@ class ProcessWrap : public HandleWrap {
       options.gid = static_cast<uv_gid_t>(gid);
     }
 
-    // TODO(bnoordhuis) is this possible to do without mallocing ?
-
-    // options.file
-    Local<Value> file_v;
-    if (!js_options->Get(context, env->file_string()).ToLocal(&file_v)) {
-      return;
-    }
-    CHECK(file_v->IsString());
-    node::Utf8Value file(env->isolate(), file_v);
-    options.file = *file;
-
     // Undocumented feature of Win32 CreateProcess API allows spawning
     // batch files directly but is potentially insecure because arguments
     // are not escaped (and sometimes cannot be unambiguously escaped),
@@ -250,23 +249,28 @@ class ProcessWrap : public HandleWrap {
     if (!js_options->Get(context, env->args_string()).ToLocal(&argv_v)) {
       return;
     }
-    if (!argv_v.IsEmpty() && argv_v->IsArray()) {
+    std::vector<char*> options_args;
+    std::vector<std::string> args_vals;
+    if (argv_v->IsArray()) {
       Local<Array> js_argv = argv_v.As<Array>();
       int argc = js_argv->Length();
       CHECK_LT(argc, INT_MAX);  // Check for overflow.
-
-      // Heap allocate to detect errors. +1 is for nullptr.
-      options.args = new char*[argc + 1];
+      args_vals.reserve(argc);
       for (int i = 0; i < argc; i++) {
         Local<Value> val;
         if (!js_argv->Get(context, i).ToLocal(&val)) {
           return;
         }
         node::Utf8Value arg(env->isolate(), val);
-        options.args[i] = strdup(*arg);
-        CHECK_NOT_NULL(options.args[i]);
+        args_vals.emplace_back(arg.ToString());
       }
-      options.args[argc] = nullptr;
+      options_args.resize(args_vals.size() + 1);
+      for (size_t i = 0; i < args_vals.size(); i++) {
+        options_args[i] = const_cast<char*>(args_vals[i].c_str());
+        CHECK_NOT_NULL(options_args[i]);
+      }
+      options_args.back() = nullptr;
+      options.args = options_args.data();
     }
 
     // options.cwd
@@ -285,27 +289,37 @@ class ProcessWrap : public HandleWrap {
     if (!js_options->Get(context, env->env_pairs_string()).ToLocal(&env_v)) {
       return;
     }
-    if (!env_v.IsEmpty() && env_v->IsArray()) {
+    std::vector<char*> options_env;
+    std::vector<std::string> env_vals;
+    if (env_v->IsArray()) {
       Local<Array> env_opt = env_v.As<Array>();
       int envc = env_opt->Length();
       CHECK_LT(envc, INT_MAX);            // Check for overflow.
-      options.env = new char*[envc + 1];  // Heap allocated to detect errors.
+      env_vals.reserve(envc);
       for (int i = 0; i < envc; i++) {
         Local<Value> val;
         if (!env_opt->Get(context, i).ToLocal(&val)) {
           return;
         }
         node::Utf8Value pair(env->isolate(), val);
-        options.env[i] = strdup(*pair);
-        CHECK_NOT_NULL(options.env[i]);
+        env_vals.emplace_back(pair.ToString());
       }
-      options.env[envc] = nullptr;
+      options_env.resize(env_vals.size() + 1);
+      for (size_t i = 0; i < env_vals.size(); i++) {
+        options_env[i] = const_cast<char*>(env_vals[i].c_str());
+        CHECK_NOT_NULL(options_env[i]);
+      }
+      options_env.back() = nullptr;
+      options.env = options_env.data();
     }
 
     // options.stdio
-    if (ParseStdioOptions(env, js_options, &options).IsNothing()) {
+    std::vector<uv_stdio_container_t> options_stdio;
+    if (ParseStdioOptions(env, js_options, &options_stdio).IsNothing()) {
       return;
     }
+    options.stdio = options_stdio.data();
+    options.stdio_count = options_stdio.size();
 
     // options.windowsHide
     Local<Value> hide_v;
@@ -359,18 +373,6 @@ class ProcessWrap : public HandleWrap {
         return;
       }
     }
-
-    if (options.args) {
-      for (int i = 0; options.args[i]; i++) free(options.args[i]);
-      delete [] options.args;
-    }
-
-    if (options.env) {
-      for (int i = 0; options.env[i]; i++) free(options.env[i]);
-      delete [] options.env;
-    }
-
-    delete[] options.stdio;
 
     args.GetReturnValue().Set(err);
   }

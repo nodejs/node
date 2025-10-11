@@ -690,6 +690,8 @@ not ok 54 - timeouts
       code: 'ERR_TEST_FAILURE'
       stack: |-
         *
+        *
+        *
       ...
     1..2
 not ok 55 - successful thenable
@@ -711,6 +713,7 @@ not ok 56 - rejected thenable
   error: 'custom error'
   code: 'ERR_TEST_FAILURE'
   stack: |-
+    *
     *
   ...
 # Subtest: async describe function

@@ -31,13 +31,20 @@ size_t BoundedPageAllocator::size() const { return region_allocator_.size(); }
 void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
                                           size_t alignment,
                                           PageAllocator::Permission access) {
+  return AllocatePages(size, alignment, access,
+                       v8::PageAllocator::AllocationHint().WithAddress(hint));
+}
+
+void* BoundedPageAllocator::AllocatePages(size_t size, size_t alignment,
+                                          PageAllocator::Permission access,
+                                          PageAllocator::AllocationHint hint) {
   MutexGuard guard(&mutex_);
   DCHECK(IsAligned(alignment, region_allocator_.page_size()));
   DCHECK(IsAligned(alignment, allocate_page_size_));
 
   Address address = RegionAllocator::kAllocationFailure;
 
-  Address hint_address = reinterpret_cast<Address>(hint);
+  Address hint_address = reinterpret_cast<Address>(hint.Address());
   if (hint_address && IsAligned(hint_address, alignment) &&
       region_allocator_.contains(hint_address, size)) {
     if (region_allocator_.AllocateRegionAt(hint_address, size)) {
@@ -45,10 +52,14 @@ void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
     }
   }
 
+  const RegionAllocator::AllocationStrategy allocation_strategy =
+      hint.MayGrow() ? RegionAllocator::AllocationStrategy::kLargestFit
+                     : RegionAllocator::AllocationStrategy::kFirstFit;
+
   if (address == RegionAllocator::kAllocationFailure) {
     if (alignment <= allocate_page_size_) {
       // TODO(ishell): Consider using randomized version here.
-      address = region_allocator_.AllocateRegion(size);
+      address = region_allocator_.AllocateRegion(size, allocation_strategy);
     } else {
       address = region_allocator_.AllocateAlignedRegion(size, alignment);
     }
@@ -104,6 +115,52 @@ bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
   if (!page_allocator_->SetPermissions(ptr, size, access)) {
     // This most likely means that we ran out of memory.
     CHECK_EQ(region_allocator_.FreeRegion(address), size);
+    allocation_status_ = AllocationStatus::kFailedToCommit;
+    return false;
+  }
+
+  allocation_status_ = AllocationStatus::kSuccess;
+  return true;
+}
+
+bool BoundedPageAllocator::ResizeAllocationAt(
+    void* address, size_t old_size, size_t new_size,
+    PageAllocator::Permission access) {
+  MutexGuard guard(&mutex_);
+
+  const Address address_at = reinterpret_cast<Address>(address);
+  DCHECK(IsAligned(old_size, commit_page_size_));
+  DCHECK(IsAligned(new_size, commit_page_size_));
+
+  if (new_size < old_size) {
+    // Shrinking is not supported at the moment.
+    return false;
+  } else if (new_size == old_size) {
+    // Nothing to do in this case.
+    return true;
+  }
+
+  DCHECK_LT(old_size, new_size);
+
+  const Address allocated_old_size = RoundUp(old_size, allocate_page_size_);
+  const Address allocated_new_size = RoundUp(new_size, allocate_page_size_);
+
+  if (allocated_old_size < allocated_new_size) {
+    if (!region_allocator_.TryGrowRegion(address_at, allocated_new_size)) {
+      allocation_status_ = AllocationStatus::kHintedAddressTakenOrNotFound;
+      return false;
+    }
+  }
+
+  if (!page_allocator_->SetPermissions(
+          reinterpret_cast<void*>(address_at + old_size), new_size - old_size,
+          access)) {
+    if (allocated_old_size < allocated_new_size) {
+      // This most likely means that we ran out of memory.
+      CHECK_EQ(region_allocator_.TrimRegion(address_at, allocated_old_size),
+               allocated_new_size - allocated_old_size);
+    }
+
     allocation_status_ = AllocationStatus::kFailedToCommit;
     return false;
   }

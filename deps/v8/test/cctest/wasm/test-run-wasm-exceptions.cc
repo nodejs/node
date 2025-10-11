@@ -498,8 +498,7 @@ UNINITIALIZED_WASM_EXEC_TEST(TestStackOverflowNotCaught) {
   IsolateScope isolate_scope;
   LocalContext context(isolate_scope.isolate());
 
-  WasmRunner<uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                         isolate_scope.i_isolate());
+  WasmRunner<uint32_t> r(isolate_scope.i_isolate(), execution_tier);
 
   // Build a function that calls itself until stack overflow.
   WasmFunctionCompiler& stack_overflow = r.NewFunction(sigs.v_v());

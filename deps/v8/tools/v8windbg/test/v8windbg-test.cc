@@ -117,6 +117,12 @@ void RunAndCheckOutput(const char* friendly_name, const char* command,
 
 }  // namespace
 
+bool FileExists(const std::wstring& path) {
+  DWORD attr = GetFileAttributesW(path.c_str());
+  return (attr != INVALID_FILE_ATTRIBUTES &&
+          !(attr & FILE_ATTRIBUTE_DIRECTORY));
+}
+
 void RunTests() {
   // Initialize COM... Though it doesn't seem to matter if you don't!
   ComScope com_scope;
@@ -156,10 +162,20 @@ void RunTests() {
   hr = p_client->SetEventCallbacks(&callback);
   CHECK(SUCCEEDED(hr));
 
+  // The test file can be copied in different places depending on if we are in
+  // an Edge or V8 enlistment.
+  std::wstring test_file_path =
+      std::wstring(this_module_path) +
+      L"\\obj\\tools\\v8windbg\\v8windbg-test-script.js";
+  if (!FileExists(test_file_path)) {
+    test_file_path = std::wstring(this_module_path) +
+                     L"\\obj\\v8\\tools\\v8windbg\\v8windbg-test-script.js";
+  }
   // Launch the process with the debugger attached
   std::wstring command_line =
-      std::wstring(L"\"") + this_module_path + L"\\d8.exe\" \"" +
-      this_module_path + L"\\obj\\tools\\v8windbg\\v8windbg-test-script.js\"";
+      std::wstring(L"\"") + this_module_path + std::wstring(L"\\d8.exe\" \"") +
+      test_file_path + std::wstring(L"\" \"--expose-externalize-string\"");
+
   DEBUG_CREATE_PROCESS_OPTIONS proc_options;
   proc_options.CreateFlags = DEBUG_PROCESS;
   proc_options.EngCreateFlags = 0;
@@ -217,9 +233,13 @@ void RunTests() {
                     "p;dx replacer.Value.shared_function_info.flags",
                     {"kNamedExpression"}, &output, p_debug_control.Get());
 
-  RunAndCheckOutput("in-object properties",
-                    "dx object.Value.@\"in-object properties\"[1]",
-                    {"NullValue", "Oddball"}, &output, p_debug_control.Get());
+#ifdef V8_ENABLE_SANDBOX
+  // "raw_characters" only available when the sandbox and pointer compression
+  // are enabled.
+  RunAndCheckOutput(
+      "in-object properties", "dx object.Value.@\"in-object properties\"[1]",
+      {"raw_characters", "\"external\""}, &output, p_debug_control.Get());
+#endif
 
   RunAndCheckOutput(
       "arrays of structs",

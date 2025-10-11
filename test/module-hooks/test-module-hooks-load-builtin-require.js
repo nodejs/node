@@ -11,8 +11,9 @@ const { registerHooks } = require('module');
 
 // Pick a builtin that's unlikely to be loaded already - like zlib.
 assert(!process.moduleLoadList.includes('NativeModule zlib'));
+let hook;
 
-const hook = registerHooks({
+hook = registerHooks({
   load: common.mustCall(function load(url, context, nextLoad) {
     assert.strictEqual(url, 'node:zlib');
     const result = nextLoad(url, context);
@@ -25,5 +26,41 @@ const hook = registerHooks({
 });
 
 assert.strictEqual(typeof require('zlib').createGzip, 'function');
+
+hook.deregister();
+
+// This tests that when builtins that demand the `node:` prefix are
+// required, the URL returned by the default resolution step is still
+// prefixed and valid, and that gets passed to the load hook is still
+// the one with the `node:` prefix. The one with the prefix
+// stripped for internal lookups should not get passed into the hooks.
+const schemelessBlockList = new Set([
+  'sea',
+  'sqlite',
+  'test',
+  'test/reporters',
+]);
+
+const testModules = [];
+for (const mod of schemelessBlockList) {
+  testModules.push(`node:${mod}`);
+}
+
+hook = registerHooks({
+  load: common.mustCall(function load(url, context, nextLoad) {
+    assert.match(url, /^node:/);
+    assert.strictEqual(schemelessBlockList.has(url.slice(5, url.length)), true);
+    const result = nextLoad(url, context);
+    assert.strictEqual(result.source, null);
+    return {
+      source: 'throw new Error("I should not be thrown because the loader ignores user-supplied source for builtins")',
+      format: 'builtin',
+    };
+  }, testModules.length),
+});
+
+for (const mod of testModules) {
+  require(mod);
+}
 
 hook.deregister();

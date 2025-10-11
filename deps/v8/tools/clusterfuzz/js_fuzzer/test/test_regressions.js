@@ -45,23 +45,13 @@ function createFuzzTest(fake_db, settings, inputFiles) {
 }
 
 function execFile(jsFile) {
-  execSync("node " + jsFile, {stdio: ['pipe']});
+  execSync("node --allow-natives-syntax " + jsFile, {stdio: ['pipe']});
 }
 
 describe('Regression tests', () => {
   beforeEach(() => {
     helpers.deterministicRandom(sandbox);
-
-    this.settings = {
-      ADD_VAR_OR_OBJ_MUTATIONS: 0.0,
-      MUTATE_CROSSOVER_INSERT: 0.0,
-      MUTATE_EXPRESSIONS: 0.0,
-      MUTATE_FUNCTION_CALLS: 0.0,
-      MUTATE_NUMBERS: 0.0,
-      MUTATE_VARIABLES: 0.0,
-      engine: 'v8',
-      testing: true,
-    }
+    this.settings = helpers.zeroSettings();
   });
 
   afterEach(() => {
@@ -448,16 +438,17 @@ describe('Regression tests', () => {
     helpers.assertExpectedResult('regress/yield/expected.js', mutated);
   });
 
-  it('iterates snippets', () => {
-    const mutator = new scriptMutator.CrossScriptMutator(
+  it('does not assign to const variables', () => {
+    sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => {
+      return helpers.loadTestData('differential_fuzz/fake_resource.js');
+    });
+    this.settings['MUTATE_VARIABLES'] = 1.0;
+
+    const source = helpers.loadTestData('regress/const_var/input.js');
+    const mutator = new scriptMutator.ScriptMutator(
         this.settings, 'test_data/regress/empty_db');
-    const testRunner = new mutator.runnerClass();
-    testRunner.dbPath = 'test_data/regress/super/super_call_db';
-    for (const [i, inputs] of testRunner.enumerateInputs()) {
-      const mutated = mutator.mutateMultiple(inputs);
-      helpers.assertExpectedResult(
-          `verify_db/expected_code_${i}.js`, mutated.code);
-    }
+    const mutated = mutator.mutateMultiple([source]).code;
+    helpers.assertExpectedResult('regress/const_var/expected.js', mutated);
   });
 });
 
@@ -473,13 +464,6 @@ describe('DB tests', () => {
     const source = helpers.loadTestData('regress/db/input/input.js');
     mutateDb.process(source);
     mutateDb.writeIndex();
-    const expressionFile = path.join(
-        tmpOut,
-        'CallExpression/113f18444843b9cbf6778f4ac8b6f7cf585b280b.json');
-    const content = fs.readFileSync(expressionFile, 'utf-8');
-    assert.deepEqual(
-        '{"type":"CallExpression","source":"Object.assign(VAR_0, VAR_1)",' +
-        '"isStatement":true,"originalPath":"regress/db/input/input.js",' +
-        '"dependencies":["VAR_0","VAR_1"],"needsSuper":false}', content);
+    helpers.assertExpectedPath('regress/db/assign_expected', tmpOut);
   });
 });

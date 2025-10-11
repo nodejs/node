@@ -170,3 +170,39 @@ function testOOBThrows() {
 }
 
 testOOBThrows();
+
+function testOOBThrowsInt8() {
+  var builder = new WasmModuleBuilder();
+
+  builder.addMemory(1, 1);
+  builder.addFunction("geti", kSig_i_ii)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI32LoadMem, 0, 0,
+      kExprI32StoreMem8, 0, 0,
+      kExprLocalGet, 1,
+      kExprI32LoadMem, 0, 0,
+    ])
+    .exportFunc();
+
+  var module = builder.instantiate();
+
+  let write = offset =>  module.exports.geti(offset, 0);
+  assertEquals(0, write(65532));
+
+  // Note that this test might be run concurrently in multiple Isolates, which
+  // makes an exact comparison of the expected trap count unreliable. But is is
+  // still possible to check the lower bound for the expected trap count.
+  let offset = kMemSize
+  const trap_count = %GetWasmRecoveredTrapCount();
+
+  assertTraps(kTrapMemOutOfBounds, () => write(offset));
+
+  // For Int8 stores, explicit OOB checks are removed, so they will always trap.
+  if (%IsWasmTrapHandlerEnabled()) {
+      assertTrue(trap_count + 1 <= %GetWasmRecoveredTrapCount());
+  }
+}
+
+testOOBThrowsInt8();

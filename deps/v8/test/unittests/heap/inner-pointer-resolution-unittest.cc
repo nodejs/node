@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/flags/flags.h"
 #include "src/heap/conservative-stack-visitor-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -57,8 +58,8 @@ class InnerPointerResolutionTest
   InnerPointerResolutionTest& operator=(const InnerPointerResolutionTest&) =
       delete;
 
-  Heap* heap() { return isolate()->heap(); }
-  MemoryAllocator* allocator() { return heap()->memory_allocator(); }
+  Heap* heap() const { return isolate()->heap(); }
+  MemoryAllocator* allocator() const { return heap()->memory_allocator(); }
 
   // Create, free and lookup pages, normal or large.
 
@@ -77,8 +78,8 @@ class InnerPointerResolutionTest
   int CreateLargePage(size_t size) {
     OldLargeObjectSpace* lo_space = heap()->lo_space();
     EXPECT_NE(nullptr, lo_space);
-    LargePageMetadata* page =
-        allocator()->AllocateLargePage(lo_space, size, NOT_EXECUTABLE);
+    LargePageMetadata* page = allocator()->AllocateLargePage(
+        lo_space, size, NOT_EXECUTABLE, AllocationHint());
     EXPECT_NE(nullptr, page);
     int page_id = next_page_id_++;
     DCHECK_EQ(pages_.end(), pages_.find(page_id));
@@ -259,13 +260,20 @@ class InnerPointerResolutionTest
       RunTestInside(object, object.size - 1);
     }
     for (auto [id, page] : pages_) {
-      const Address outside_ptr = page->ChunkAddress() + 1;
+      const Address outside_ptr = page->area_start() - 3;
       DCHECK_LE(page->ChunkAddress(), outside_ptr);
       RunTestOutside(outside_ptr);
     }
     RunTestOutside(kNullAddress);
     RunTestOutside(static_cast<Address>(42));
-    RunTestOutside(static_cast<Address>(kZapValue));
+    if (!IsZapPageAllocated()) {
+      RunTestOutside(static_cast<Address>(kZapValue));
+    }
+  }
+
+  bool IsZapPageAllocated() const {
+    return allocator()->LookupChunkContainingAddress(
+               static_cast<Address>(kZapValue)) != nullptr;
   }
 
  private:
@@ -588,6 +596,12 @@ using InnerPointerResolutionHeapTest =
     WithInnerPointerResolutionMixin<TestWithHeapInternalsAndContext>;
 
 TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
+  if (v8_flags.single_generation) return;
+
+  // Use predictable mode to prevent shrinking new space and releasing unused
+  // pages, which this test expects will remain allocated.
+  v8_flags.predictable = true;
+
   ManualGCScope manual_gc_scope(isolate());
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
 
@@ -616,10 +630,10 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
     auto obj1 = *h1;
     auto obj2 = *h2;
     page1 = MemoryChunk::FromHeapObject(obj1);
-    EXPECT_TRUE(!page1->IsLargePage());
+    EXPECT_TRUE(!page1->Metadata()->is_large());
     EXPECT_TRUE(v8_flags.minor_ms || page1->IsToPage());
     page2 = MemoryChunk::FromHeapObject(obj2);
-    EXPECT_TRUE(!page2->IsLargePage());
+    EXPECT_TRUE(!page2->Metadata()->is_large());
     EXPECT_TRUE(v8_flags.minor_ms || page2->IsToPage());
     EXPECT_NE(page1, page2);
 
@@ -728,6 +742,8 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
 }
 
 TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
+  if (v8_flags.single_generation) return;
+
   ManualGCScope manual_gc_scope(isolate());
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
 
@@ -748,7 +764,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
     weak.SetWeak();
     auto obj = *h;
     auto page = MemoryChunk::FromHeapObject(obj);
-    EXPECT_TRUE(page->IsLargePage());
+    EXPECT_TRUE(page->Metadata()->is_large());
     EXPECT_EQ(AllocationSpace::NEW_LO_SPACE,
               MutablePageMetadata::cast(page->Metadata())->owner_identity());
     EXPECT_TRUE(v8_flags.minor_ms || page->IsToPage());
@@ -769,35 +785,6 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
   EXPECT_EQ(kNullAddress, ResolveInnerPointer(inner_ptr));
 }
 
-TEST_F(InnerPointerResolutionHeapTest, RegularPageAfterEnd) {
-  auto allocator = heap()->memory_allocator();
-
-  // Allocate a regular page.
-  OldSpace* old_space = heap()->old_space();
-  DCHECK_NE(nullptr, old_space);
-  auto* page = allocator->AllocatePage(
-      MemoryAllocator::AllocationMode::kRegular, old_space, NOT_EXECUTABLE);
-  EXPECT_NE(nullptr, page);
-
-  // The end of the page area is expected not to coincide with the beginning of
-  // the next page.
-  const int size = (1 << kPageSizeBits) / 2;
-  const Address mark = page->area_start() + size;
-  heap()->CreateFillerObjectAt(page->area_start(), size);
-  heap()->CreateFillerObjectAt(mark, static_cast<int>(page->area_end() - mark));
-  PageMetadata::UpdateHighWaterMark(mark);
-  page->ShrinkToHighWaterMark();
-  EXPECT_FALSE(PageMetadata::IsAlignedToPageSize(page->area_end()));
-
-  // Inner pointer resolution after the end of the page area should work.
-  Address inner_ptr = page->area_end() + kTaggedSize;
-  EXPECT_FALSE(PageMetadata::IsAlignedToPageSize(inner_ptr));
-  EXPECT_EQ(kNullAddress, ResolveInnerPointer(inner_ptr));
-
-  // Deallocate the page.
-  allocator->Free(MemoryAllocator::FreeMode::kImmediately, page);
-}
-
 TEST_F(InnerPointerResolutionHeapTest, LargePageAfterEnd) {
   auto allocator = heap()->memory_allocator();
 
@@ -805,8 +792,8 @@ TEST_F(InnerPointerResolutionHeapTest, LargePageAfterEnd) {
   OldLargeObjectSpace* lo_space = heap()->lo_space();
   EXPECT_NE(nullptr, lo_space);
   const int size = 3 * (1 << kPageSizeBits) / 2;
-  LargePageMetadata* page =
-      allocator->AllocateLargePage(lo_space, size, NOT_EXECUTABLE);
+  LargePageMetadata* page = allocator->AllocateLargePage(
+      lo_space, size, NOT_EXECUTABLE, AllocationHint());
   EXPECT_NE(nullptr, page);
 
   // The end of the page area is expected not to coincide with the beginning of

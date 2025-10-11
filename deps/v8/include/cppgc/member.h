@@ -20,6 +20,8 @@ namespace cppgc {
 
 namespace subtle {
 class HeapConsistency;
+template <typename, typename, typename>
+class TaggedUncompressedMember;
 }  // namespace subtle
 
 class Visitor;
@@ -163,7 +165,7 @@ class V8_TRIVIAL_ABI BasicMember final : private MemberBase<StorageType>,
   template <typename U, typename PersistentWeaknessPolicy,
             typename PersistentLocationPolicy,
             typename PersistentCheckingPolicy,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   V8_INLINE BasicMember(const BasicPersistent<U, PersistentWeaknessPolicy,
                                               PersistentLocationPolicy,
                                               PersistentCheckingPolicy>& p)
@@ -219,7 +221,7 @@ class V8_TRIVIAL_ABI BasicMember final : private MemberBase<StorageType>,
   template <typename U, typename PersistentWeaknessPolicy,
             typename PersistentLocationPolicy,
             typename PersistentCheckingPolicy,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   V8_INLINE BasicMember& operator=(
       const BasicPersistent<U, PersistentWeaknessPolicy,
                             PersistentLocationPolicy, PersistentCheckingPolicy>&
@@ -296,8 +298,10 @@ class V8_TRIVIAL_ABI BasicMember final : private MemberBase<StorageType>,
     return *this;
   }
 
-  V8_INLINE const T* GetRawAtomic() const {
-    return static_cast<const T*>(Base::GetRawAtomic());
+  V8_INLINE const void* GetRawAtomic() const { return Base::GetRawAtomic(); }
+
+  V8_INLINE const T* GetAtomic() const {
+    return static_cast<const T*>(GetRawAtomic());
   }
 
   V8_INLINE void InitializingWriteBarrier(T* value) const {
@@ -328,6 +332,8 @@ class V8_TRIVIAL_ABI BasicMember final : private MemberBase<StorageType>,
   V8_INLINE T* GetFromGC() const { return Get(); }
 
   friend class cppgc::subtle::HeapConsistency;
+  template <typename, typename, typename>
+  friend class cppgc::subtle::TaggedUncompressedMember;
   friend class cppgc::Visitor;
   template <typename U>
   friend struct cppgc::TraceTrait;

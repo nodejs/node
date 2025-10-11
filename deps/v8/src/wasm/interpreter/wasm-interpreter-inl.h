@@ -10,8 +10,6 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 #include "src/wasm/interpreter/wasm-interpreter.h"
-// Include the non-inl header before the rest of the headers.
-
 #include "src/handles/handles-inl.h"
 #include "src/wasm/interpreter/wasm-interpreter-runtime.h"
 #include "src/wasm/wasm-module.h"
@@ -444,7 +442,7 @@ inline void WasmBytecodeGenerator::PushConstSlot(uint32_t slot_index) {
 
 inline bool WasmBytecodeGenerator::HasVoidSignature(
     const WasmBytecodeGenerator::BlockData& block_data) const {
-  if (block_data.signature_.value_type() == kWasmBottom) {
+  if (block_data.signature_.is_bottom()) {
     const FunctionSig* sig =
         module_->signature(block_data.signature_.sig_index);
     return 0 == (sig->parameter_count() + sig->return_count());
@@ -456,7 +454,7 @@ inline bool WasmBytecodeGenerator::HasVoidSignature(
 
 inline uint32_t WasmBytecodeGenerator::ParamsCount(
     const WasmBytecodeGenerator::BlockData& block_data) const {
-  if (block_data.signature_.value_type() == kWasmBottom) {
+  if (block_data.signature_.is_bottom()) {
     const FunctionSig* sig =
         module_->signature(block_data.signature_.sig_index);
     return static_cast<uint32_t>(sig->parameter_count());
@@ -466,14 +464,14 @@ inline uint32_t WasmBytecodeGenerator::ParamsCount(
 
 inline ValueType WasmBytecodeGenerator::GetParamType(
     const WasmBytecodeGenerator::BlockData& block_data, size_t index) const {
-  DCHECK_EQ(block_data.signature_.value_type(), kWasmBottom);
+  DCHECK(block_data.signature_.is_bottom());
   const FunctionSig* sig = module_->signature(block_data.signature_.sig_index);
   return sig->GetParam(index);
 }
 
 inline uint32_t WasmBytecodeGenerator::ReturnsCount(
     const WasmBytecodeGenerator::BlockData& block_data) const {
-  if (block_data.signature_.value_type() == kWasmBottom) {
+  if (block_data.signature_.is_bottom()) {
     const FunctionSig* sig =
         module_->signature(block_data.signature_.sig_index);
     return static_cast<uint32_t>(sig->return_count());
@@ -486,7 +484,7 @@ inline uint32_t WasmBytecodeGenerator::ReturnsCount(
 inline ValueType WasmBytecodeGenerator::GetReturnType(
     const WasmBytecodeGenerator::BlockData& block_data, size_t index) const {
   DCHECK_NE(block_data.signature_.value_type(), kWasmVoid);
-  if (block_data.signature_.value_type() == kWasmBottom) {
+  if (block_data.signature_.is_bottom()) {
     const FunctionSig* sig =
         module_->signature(block_data.signature_.sig_index);
     return sig->GetReturn(index);

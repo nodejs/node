@@ -23,6 +23,8 @@ namespace internal {
 
 #define INTERFACE_DESCRIPTOR_LIST(V)                 \
   V(Abort)                                           \
+  V(AddStringConstantInternalizeWithVector)          \
+  V(AddStringConstantInternalizeTrampoline)          \
   V(Allocate)                                        \
   V(CallApiCallbackGeneric)                          \
   V(CallApiCallbackOptimized)                        \
@@ -96,6 +98,7 @@ namespace internal {
   V(InterpreterDispatch)                             \
   V(InterpreterPushArgsThenCall)                     \
   V(InterpreterPushArgsThenConstruct)                \
+  V(JSEntry)                                         \
   V(JSTrampoline)                                    \
   V(KeyedHasICBaseline)                              \
   V(KeyedHasICWithVector)                            \
@@ -146,6 +149,7 @@ namespace internal {
   V(UnaryOp_Baseline)                                \
   V(UnaryOp_WithFeedback)                            \
   V(Void)                                            \
+  IF_WASM(V, WasmAllocateShared)                     \
   V(WasmDummy)                                       \
   V(WasmFloat32ToNumber)                             \
   V(WasmFloat64ToTagged)                             \
@@ -198,7 +202,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   // The passed registers are owned by the caller, and their lifetime is
   // expected to exceed that of this data. In practice, they are expected to
   // be in a static local.
-  void InitializeRegisters(Flags flags, CodeEntrypointTag tag, int return_count,
+  void InitializeRegisters(Flags flags, CodeEntrypointTag tag,
+                           CodeSandboxingMode sandboxing_mode, int return_count,
                            int parameter_count, StackArgumentOrder stack_order,
                            int register_parameter_count,
                            const Register* registers,
@@ -225,6 +230,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
 
   Flags flags() const { return flags_; }
   CodeEntrypointTag tag() const { return tag_; }
+  CodeSandboxingMode sandboxing_mode() const { return sandboxing_mode_; }
   int return_count() const { return return_count_; }
   int param_count() const { return param_count_; }
   int register_param_count() const { return register_param_count_; }
@@ -280,6 +286,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   int param_count_ = kUninitializedCount;
   Flags flags_ = kNoFlags;
   CodeEntrypointTag tag_ = kDefaultCodeEntrypointTag;
+  CodeSandboxingMode sandboxing_mode_ = CodeSandboxingMode::kSandboxed;
   StackArgumentOrder stack_order_ = StackArgumentOrder::kDefault;
 
   // Specifying the set of registers that could be used by the register
@@ -364,6 +371,10 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   Flags flags() const { return data()->flags(); }
 
   CodeEntrypointTag tag() const { return data()->tag(); }
+
+  CodeSandboxingMode sandboxing_mode() const {
+    return data()->sandboxing_mode();
+  }
 
   bool HasContextParameter() const {
     return (flags() & CallInterfaceDescriptorData::kNoContext) == 0;
@@ -769,6 +780,10 @@ constexpr EmptyDoubleRegisterArray DoubleRegisterArray() { return {}; }
 #define INTERNAL_DESCRIPTOR() \
   static constexpr CodeEntrypointTag kEntrypointTag = kInvalidEntrypointTag;
 
+#define SANDBOXING_MODE(mode)                           \
+  static constexpr CodeSandboxingMode kSandboxingMode = \
+      CodeSandboxingMode::mode;
+
 #define DECLARE_DESCRIPTOR(name)                                    \
   DECLARE_DESCRIPTOR_WITH_BASE(name, StaticCallInterfaceDescriptor) \
  protected:                                                         \
@@ -783,6 +798,7 @@ class V8_EXPORT_PRIVATE VoidDescriptor
   // The void descriptor could (and indeed probably should) also be NO_CONTEXT,
   // but this breaks some code assembler unittests.
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(VoidDescriptor)
@@ -798,17 +814,27 @@ using DeoptimizationEntryDescriptor = VoidDescriptor;
 
 // TODO(jgruber): Consider filling in the details here; however, this doesn't
 // make too much sense as long as the descriptor isn't used or verified.
-using JSEntryDescriptor = VoidDescriptor;
-
-// TODO(jgruber): Consider filling in the details here; however, this doesn't
-// make too much sense as long as the descriptor isn't used or verified.
 using ContinueToBuiltinDescriptor = VoidDescriptor;
+
+class V8_EXPORT_PRIVATE JSEntryDescriptor
+    : public StaticCallInterfaceDescriptor<JSEntryDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  // The JSEntryTrampoline builtins transition into sandboxed execution mode.
+  SANDBOXING_MODE(kUnsandboxed)
+  DEFINE_PARAMETERS()
+  DEFINE_PARAMETER_TYPES()
+  DECLARE_DESCRIPTOR(JSEntryDescriptor)
+
+  static constexpr auto registers();
+};
 
 // Dummy descriptor that marks builtins with C calling convention.
 // TODO(jgruber): Define real descriptors for C calling conventions.
 class CCallDescriptor : public StaticCallInterfaceDescriptor<CCallDescriptor> {
  public:
   SANDBOX_EXPOSED_DESCRIPTOR(kDefaultCodeEntrypointTag)
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(CCallDescriptor)
@@ -820,6 +846,7 @@ class CEntryDummyDescriptor
     : public StaticCallInterfaceDescriptor<CEntryDummyDescriptor> {
  public:
   SANDBOX_EXPOSED_DESCRIPTOR(kDefaultCodeEntrypointTag)
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(CEntryDummyDescriptor)
@@ -831,6 +858,7 @@ class WasmDummyDescriptor
     : public StaticCallInterfaceDescriptor<WasmDummyDescriptor> {
  public:
   SANDBOX_EXPOSED_DESCRIPTOR(kWasmEntrypointTag)
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(WasmDummyDescriptor)
@@ -840,6 +868,7 @@ class WasmHandleStackOverflowDescriptor
     : public StaticCallInterfaceDescriptor<WasmHandleStackOverflowDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kFrameBase, kGap)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
                                     MachineType::Pointer(),    // kFrameBase
@@ -854,6 +883,7 @@ class AllocateDescriptor
     : public StaticCallInterfaceDescriptor<AllocateDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kRequestedSize)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),  // result 1
                                     MachineType::IntPtr())  // kRequestedSize
@@ -862,10 +892,25 @@ class AllocateDescriptor
   static constexpr auto registers();
 };
 
+#if V8_ENABLE_WEBASSEMBLY
+class WasmAllocateSharedDescriptor
+    : public StaticCallInterfaceDescriptor<WasmAllocateSharedDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS_NO_CONTEXT(kRequestedSize, kAlignment)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),  // result 1
+                                    MachineType::IntPtr(),  // kRequestedSize
+                                    MachineType::TaggedSigned())  // kAlignment
+  DECLARE_DESCRIPTOR(WasmAllocateSharedDescriptor)
+};
+#endif
+
 class NewHeapNumberDescriptor
     : public StaticCallInterfaceDescriptor<NewHeapNumberDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kValue)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),  // Result
                                     MachineType::Float64())        // kValue
@@ -881,6 +926,7 @@ class JSTrampolineDescriptor
     : public StaticJSCallInterfaceDescriptor<JSTrampolineDescriptor> {
  public:
   SANDBOX_EXPOSED_DESCRIPTOR(kJSEntrypointTag)
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_JS_PARAMETERS(kDispatchHandle)
   DEFINE_JS_PARAMETER_TYPES(MachineType::Int32())
 
@@ -893,6 +939,7 @@ class JSTrampolineDescriptor
     : public StaticJSCallInterfaceDescriptor<JSTrampolineDescriptor> {
  public:
   SANDBOX_EXPOSED_DESCRIPTOR(kJSEntrypointTag)
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_JS_PARAMETERS()
   DEFINE_JS_PARAMETER_TYPES()
 
@@ -908,6 +955,7 @@ class RegExpTrampolineDescriptor
     : public StaticCallInterfaceDescriptor<RegExpTrampolineDescriptor> {
  public:
   SANDBOX_EXPOSED_DESCRIPTOR(kRegExpEntrypointTag)
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(RegExpTrampolineDescriptor)
@@ -917,6 +965,7 @@ class ContextOnlyDescriptor
     : public StaticCallInterfaceDescriptor<ContextOnlyDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(ContextOnlyDescriptor)
@@ -928,6 +977,7 @@ class NoContextDescriptor
     : public StaticCallInterfaceDescriptor<NoContextDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(NoContextDescriptor)
@@ -939,6 +989,7 @@ class NoContextDescriptor
 class LoadDescriptor : public StaticCallInterfaceDescriptor<LoadDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kReceiver, kName, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -958,6 +1009,7 @@ class LoadBaselineDescriptor
     : public StaticCallInterfaceDescriptor<LoadBaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -971,6 +1023,7 @@ class LoadGlobalNoFeedbackDescriptor
     : public StaticCallInterfaceDescriptor<LoadGlobalNoFeedbackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kName, kICKind)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
                          MachineType::TaggedSigned())  // kICKind
@@ -985,6 +1038,7 @@ class LoadNoFeedbackDescriptor
     : public StaticCallInterfaceDescriptor<LoadNoFeedbackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kReceiver, kName, kICKind)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1000,6 +1054,7 @@ class LoadGlobalDescriptor
     : public StaticCallInterfaceDescriptor<LoadGlobalDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kName, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
                          MachineType::TaggedSigned())  // kSlot
@@ -1012,6 +1067,7 @@ class LoadGlobalBaselineDescriptor
     : public StaticCallInterfaceDescriptor<LoadGlobalBaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kName, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
                          MachineType::TaggedSigned())  // kSlot
@@ -1020,10 +1076,38 @@ class LoadGlobalBaselineDescriptor
   static constexpr auto registers();
 };
 
+class AddStringConstantInternalizeWithVectorDescriptor
+    : public StaticCallInterfaceDescriptor<
+          AddStringConstantInternalizeWithVectorDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS(kLeft, kRight, kSlot, kVector)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
+                         MachineType::AnyTagged(),  // kRight
+                         MachineType::AnyTagged(),  // kSlot
+                         MachineType::AnyTagged())  // kVector
+  DECLARE_DESCRIPTOR(AddStringConstantInternalizeWithVectorDescriptor)
+};
+
+class AddStringConstantInternalizeTrampolineDescriptor
+    : public StaticCallInterfaceDescriptor<
+          AddStringConstantInternalizeTrampolineDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS(kLeft, kRight, kSlot)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
+                         MachineType::AnyTagged(),  // kRight
+                         MachineType::AnyTagged())  // kSlot
+  DECLARE_DESCRIPTOR(AddStringConstantInternalizeTrampolineDescriptor)
+};
+
 class LookupWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<LookupWithVectorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kName, kDepth, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kName
                          MachineType::AnyTagged(),  // kDepth
@@ -1036,6 +1120,7 @@ class LookupTrampolineDescriptor
     : public StaticCallInterfaceDescriptor<LookupTrampolineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kName, kDepth, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kName
                          MachineType::AnyTagged(),  // kDepth
@@ -1047,6 +1132,7 @@ class LookupBaselineDescriptor
     : public StaticCallInterfaceDescriptor<LookupBaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kName, kDepth, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kName
                          MachineType::AnyTagged(),  // kDepth
@@ -1059,6 +1145,7 @@ class MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor
           MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kFlags, kFeedbackVector, kTemporary)
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),          // kFlags
                          MachineType::TaggedPointer(),  // kFeedbackVector
@@ -1076,6 +1163,7 @@ class MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor
 class StoreDescriptor : public StaticCallInterfaceDescriptor<StoreDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kReceiver, kName, kValue, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1095,6 +1183,7 @@ class StoreNoFeedbackDescriptor
     : public StaticCallInterfaceDescriptor<StoreNoFeedbackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kReceiver, kName, kValue)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kReceiver
                          MachineType::AnyTagged(),  // kName
@@ -1108,6 +1197,7 @@ class StoreBaselineDescriptor
     : public StaticCallInterfaceDescriptor<StoreBaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kValue, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1122,6 +1212,7 @@ class StoreTransitionDescriptor
     : public StaticCallInterfaceDescriptor<StoreTransitionDescriptor> {
  public:
   SANDBOX_EXPOSED_DESCRIPTOR(kStoreTransitionICHandlerEntrypointTag)
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kReceiver, kName, kMap, kValue, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1140,6 +1231,7 @@ class StoreWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<StoreWithVectorDescriptor> {
  public:
   SANDBOX_EXPOSED_DESCRIPTOR(kStoreWithVectorICHandlerEntrypointTag)
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kReceiver, kName, kValue, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1157,6 +1249,7 @@ class StoreGlobalDescriptor
     : public StaticCallInterfaceDescriptor<StoreGlobalDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kName, kValue, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
                          MachineType::AnyTagged(),     // kValue
@@ -1170,6 +1263,7 @@ class StoreGlobalBaselineDescriptor
     : public StaticCallInterfaceDescriptor<StoreGlobalBaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kName, kValue, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
                          MachineType::AnyTagged(),     // kValue
@@ -1183,6 +1277,7 @@ class StoreGlobalWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<StoreGlobalWithVectorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kName, kValue, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
                          MachineType::AnyTagged(),     // kValue
@@ -1197,6 +1292,7 @@ class DefineKeyedOwnDescriptor
     : public StaticCallInterfaceDescriptor<DefineKeyedOwnDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kReceiver, kName, kValue, kFlags, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1214,6 +1310,7 @@ class DefineKeyedOwnBaselineDescriptor
     : public StaticCallInterfaceDescriptor<DefineKeyedOwnBaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kValue, kFlags, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1229,6 +1326,7 @@ class DefineKeyedOwnWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<DefineKeyedOwnWithVectorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kReceiver, kName, kValue, kFlags,
                     kSlot,   // register argument
                     kVector  // stack argument
@@ -1248,6 +1346,7 @@ class LoadWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<LoadWithVectorDescriptor> {
  public:
   SANDBOX_EXPOSED_DESCRIPTOR(kLoadWithVectorICHandlerEntrypointTag)
+  SANDBOXING_MODE(kSandboxed)
   // TODO(v8:9497): Revert the Machine type for kSlot to the
   // TaggedSigned once Torque can emit better call descriptors
   DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector)
@@ -1266,6 +1365,7 @@ class KeyedLoadBaselineDescriptor
     : public StaticCallInterfaceDescriptor<KeyedLoadBaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1283,6 +1383,7 @@ class KeyedLoadDescriptor
     : public StaticCallInterfaceDescriptor<KeyedLoadDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kReceiver, kName, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1296,6 +1397,7 @@ class KeyedLoadWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<KeyedLoadWithVectorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1313,6 +1415,7 @@ class EnumeratedKeyedLoadBaselineDescriptor
           EnumeratedKeyedLoadBaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kEnumIndex, kCacheType, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1332,6 +1435,7 @@ class EnumeratedKeyedLoadDescriptor
     : public StaticCallInterfaceDescriptor<EnumeratedKeyedLoadDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kReceiver, kName, kEnumIndex, kCacheType, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1348,6 +1452,7 @@ class KeyedHasICBaselineDescriptor
     : public StaticCallInterfaceDescriptor<KeyedHasICBaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1365,6 +1470,7 @@ class KeyedHasICWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<KeyedHasICWithVectorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1385,6 +1491,7 @@ class LoadWithReceiverAndVectorDescriptor
           LoadWithReceiverAndVectorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   // TODO(v8:9497): Revert the Machine type for kSlot to the
   // TaggedSigned once Torque can emit better call descriptors
   DEFINE_PARAMETERS(kReceiver, kLookupStartObject, kName, kSlot, kVector)
@@ -1404,6 +1511,7 @@ class LoadWithReceiverBaselineDescriptor
     : public StaticCallInterfaceDescriptor<LoadWithReceiverBaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   // TODO(v8:9497): Revert the Machine type for kSlot to the
   // TaggedSigned once Torque can emit better call descriptors
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kLookupStartObject, kName, kSlot)
@@ -1420,6 +1528,7 @@ class LoadGlobalWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<LoadGlobalWithVectorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kName, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
                          MachineType::TaggedSigned(),  // kSlot
@@ -1435,6 +1544,7 @@ class FastNewObjectDescriptor
     : public StaticCallInterfaceDescriptor<FastNewObjectDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kTarget, kNewTarget)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::AnyTagged())  // kNewTarget
@@ -1450,6 +1560,8 @@ class WriteBarrierDescriptor final
     : public StaticCallInterfaceDescriptor<WriteBarrierDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  // TODO(350324877): Allow these builtins to run sandboxed.
+  SANDBOXING_MODE(kUnsandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kObject, kSlotAddress)
   DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(),  // kObject
                          MachineType::Pointer())        // kSlotAddress
@@ -1477,6 +1589,7 @@ class IndirectPointerWriteBarrierDescriptor final
           IndirectPointerWriteBarrierDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kObject, kSlotAddress, kIndirectPointerTag)
   DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(),  // kObject
                          MachineType::Pointer(),        // kSlotAddress
@@ -1501,6 +1614,7 @@ class TSANStoreDescriptor final
     : public StaticCallInterfaceDescriptor<TSANStoreDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kValue)
   DEFINE_PARAMETER_TYPES(MachineType::Pointer(),    // kAddress
                          MachineType::AnyTagged())  // kValue
@@ -1515,6 +1629,7 @@ class TSANLoadDescriptor final
     : public StaticCallInterfaceDescriptor<TSANLoadDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kAddress)
   DEFINE_PARAMETER_TYPES(MachineType::Pointer())  // kAddress
 
@@ -1530,6 +1645,7 @@ class TypeConversionDescriptor final
     : public StaticCallInterfaceDescriptor<TypeConversionDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kArgument)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(TypeConversionDescriptor)
@@ -1543,6 +1659,7 @@ class TypeConversionNoContextDescriptor final
     : public StaticCallInterfaceDescriptor<TypeConversionNoContextDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kArgument)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(TypeConversionNoContextDescriptor)
@@ -1554,6 +1671,7 @@ class TypeConversion_BaselineDescriptor final
     : public StaticCallInterfaceDescriptor<TypeConversion_BaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kArgument, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::UintPtr())
   DECLARE_DESCRIPTOR(TypeConversion_BaselineDescriptor)
@@ -1563,6 +1681,7 @@ class SingleParameterOnStackDescriptor final
     : public StaticCallInterfaceDescriptor<SingleParameterOnStackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kArgument)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(SingleParameterOnStackDescriptor)
@@ -1575,6 +1694,7 @@ class AsyncFunctionStackParameterDescriptor final
           AsyncFunctionStackParameterDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kPromise, kResult)
   DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(), MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(AsyncFunctionStackParameterDescriptor)
@@ -1587,6 +1707,7 @@ class GetIteratorStackParameterDescriptor final
           GetIteratorStackParameterDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kReceiver, kCallSlot, kFeedback, kResult)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::AnyTagged(),
                          MachineType::AnyTagged(), MachineType::AnyTagged())
@@ -1599,6 +1720,7 @@ class GetPropertyDescriptor final
     : public StaticCallInterfaceDescriptor<GetPropertyDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kObject, kKey)
   DECLARE_DEFAULT_DESCRIPTOR(GetPropertyDescriptor)
 };
@@ -1607,6 +1729,7 @@ class TypeofDescriptor
     : public StaticCallInterfaceDescriptor<TypeofDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kObject)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(TypeofDescriptor)
@@ -1618,6 +1741,7 @@ class CallTrampolineDescriptor
     : public StaticCallInterfaceDescriptor<CallTrampolineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_VARARGS(kFunction, kActualArgumentsCount)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunction
                          MachineType::Int32())      // kActualArgumentsCount
@@ -1631,6 +1755,7 @@ class CopyDataPropertiesWithExcludedPropertiesDescriptor
           CopyDataPropertiesWithExcludedPropertiesDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_VARARGS(kSource, kExcludedPropertyCount)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kSource
                          MachineType::AnyTagged())  // kExcludedPropertyCount
@@ -1644,6 +1769,7 @@ class CopyDataPropertiesWithExcludedPropertiesOnStackDescriptor
           CopyDataPropertiesWithExcludedPropertiesOnStackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kSource, kExcludedPropertyCount, kExcludedPropertyBase)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kSource
                          MachineType::IntPtr(),
@@ -1657,6 +1783,7 @@ class CallVarargsDescriptor
     : public StaticCallInterfaceDescriptor<CallVarargsDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_VARARGS(kTarget, kActualArgumentsCount, kArgumentsLength,
                             kArgumentsList)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
@@ -1672,6 +1799,7 @@ class CallForwardVarargsDescriptor
     : public StaticCallInterfaceDescriptor<CallForwardVarargsDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_VARARGS(kTarget, kActualArgumentsCount, kStartIndex)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::Int32(),      // kActualArgumentsCount
@@ -1685,6 +1813,7 @@ class CallFunctionTemplateDescriptor
     : public StaticCallInterfaceDescriptor<CallFunctionTemplateDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_VARARGS(kFunctionTemplateInfo, kArgumentsCount)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunctionTemplateInfo
                          MachineType::Int32())      // kArgumentsCount
@@ -1698,6 +1827,7 @@ class CallFunctionTemplateGenericDescriptor
           CallFunctionTemplateGenericDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_VARARGS(kFunctionTemplateInfo, kArgumentsCount,
                             kTopmostScriptHavingContext)
   DEFINE_PARAMETER_TYPES(
@@ -1713,6 +1843,7 @@ class CallWithSpreadDescriptor
     : public StaticCallInterfaceDescriptor<CallWithSpreadDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_VARARGS(kTarget, kArgumentsCount, kSpread)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::Int32(),      // kArgumentsCount
@@ -1726,6 +1857,7 @@ class CallWithSpread_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<CallWithSpread_BaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT_VARARGS(kTarget, kArgumentsCount, kSpread, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::Int32(),      // kArgumentsCount
@@ -1739,6 +1871,7 @@ class CallWithSpread_WithFeedbackDescriptor
           CallWithSpread_WithFeedbackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_VARARGS(kTarget, kArgumentsCount, kSpread, kSlot,
                             kFeedbackVector, kReceiver)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
@@ -1754,6 +1887,7 @@ class CallWithArrayLikeDescriptor
     : public StaticCallInterfaceDescriptor<CallWithArrayLikeDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kTarget, kArgumentsList)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::AnyTagged())  // kArgumentsList
@@ -1767,6 +1901,7 @@ class CallWithArrayLike_WithFeedbackDescriptor
           CallWithArrayLike_WithFeedbackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kTarget, kArgumentsList, kSlot, kFeedbackVector, kReceiver)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::AnyTagged(),  // kArgumentsList
@@ -1781,6 +1916,7 @@ class ConstructStubDescriptor
     : public StaticCallInterfaceDescriptor<ConstructStubDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_JS_PARAMETERS()
   DEFINE_JS_PARAMETER_TYPES()
 
@@ -1794,6 +1930,7 @@ class ConstructVarargsDescriptor
     : public StaticCallInterfaceDescriptor<ConstructVarargsDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_JS_PARAMETERS(kArgumentsLength, kArgumentsList)
   DEFINE_JS_PARAMETER_TYPES(MachineType::Int32(),      // kArgumentsLength
                             MachineType::AnyTagged())  // kArgumentsList
@@ -1807,6 +1944,7 @@ class ConstructForwardVarargsDescriptor
     : public StaticCallInterfaceDescriptor<ConstructForwardVarargsDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_JS_PARAMETERS(kStartIndex)
   DEFINE_JS_PARAMETER_TYPES(MachineType::Int32())
   DECLARE_DESCRIPTOR(ConstructForwardVarargsDescriptor)
@@ -1818,6 +1956,7 @@ class ConstructWithSpreadDescriptor
     : public StaticCallInterfaceDescriptor<ConstructWithSpreadDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_JS_PARAMETERS(kSpread)
   DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(ConstructWithSpreadDescriptor)
@@ -1830,6 +1969,7 @@ class ConstructWithSpread_BaselineDescriptor
           ConstructWithSpread_BaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_JS_PARAMETERS_NO_CONTEXT(kSpread, kSlot)
   DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged(),  // kSpread
                             MachineType::AnyTagged())  // kSlot
@@ -1841,6 +1981,7 @@ class ConstructWithSpread_WithFeedbackDescriptor
           ConstructWithSpread_WithFeedbackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_JS_PARAMETERS(kSpread, kSlot, kVector)
   DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged(),  // kSpread
                             MachineType::AnyTagged(),  // kSlot
@@ -1852,6 +1993,7 @@ class ConstructWithArrayLikeDescriptor
     : public StaticCallInterfaceDescriptor<ConstructWithArrayLikeDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kTarget, kNewTarget, kArgumentsList)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::AnyTagged(),  // kNewTarget
@@ -1865,6 +2007,7 @@ class ConstructForwardAllArgsDescriptor
     : public StaticCallInterfaceDescriptor<ConstructForwardAllArgsDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kConstructor, kNewTarget)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kConstructor
                          MachineType::AnyTagged())  // kNewTarget
@@ -1878,6 +2021,7 @@ class ConstructForwardAllArgs_BaselineDescriptor
           ConstructForwardAllArgs_BaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kTarget, kNewTarget, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::AnyTagged(),  // kNewTarget
@@ -1890,6 +2034,7 @@ class ConstructForwardAllArgs_WithFeedbackDescriptor
           ConstructForwardAllArgs_WithFeedbackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kTarget, kNewTarget, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::AnyTagged(),  // kNewTarget
@@ -1901,6 +2046,7 @@ class ConstructForwardAllArgs_WithFeedbackDescriptor
 class AbortDescriptor : public StaticCallInterfaceDescriptor<AbortDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kMessageOrMessageId)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(AbortDescriptor)
@@ -1912,6 +2058,7 @@ class ArrayConstructorDescriptor
     : public StaticJSCallInterfaceDescriptor<ArrayConstructorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_JS_PARAMETERS(kAllocationSite)
   DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged())
 
@@ -1923,6 +2070,7 @@ class ArrayNArgumentsConstructorDescriptor
           ArrayNArgumentsConstructorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   // This descriptor declares only register arguments while respective number
   // of JS arguments stay on the expression stack.
   // The ArrayNArgumentsConstructor builtin does not access stack arguments
@@ -1941,6 +2089,7 @@ class ArrayNoArgumentConstructorDescriptor
           ArrayNoArgumentConstructorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   // This descriptor declares same register arguments as the parent
   // ArrayNArgumentsConstructorDescriptor and it declares indices for
   // JS arguments passed on the expression stack.
@@ -1960,6 +2109,7 @@ class ArraySingleArgumentConstructorDescriptor
           ArraySingleArgumentConstructorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   // This descriptor declares same register arguments as the parent
   // ArrayNArgumentsConstructorDescriptor and it declares indices for
   // JS arguments passed on the expression stack.
@@ -1980,6 +2130,7 @@ class CompareDescriptor
     : public StaticCallInterfaceDescriptor<CompareDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kLeft, kRight)
   DECLARE_DESCRIPTOR(CompareDescriptor)
 
@@ -1990,6 +2141,7 @@ class CompareNoContextDescriptor
     : public StaticCallInterfaceDescriptor<CompareNoContextDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight)
   DECLARE_DESCRIPTOR(CompareNoContextDescriptor)
 
@@ -2000,6 +2152,7 @@ class StringEqualDescriptor
     : public StaticCallInterfaceDescriptor<StringEqualDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kLength)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
                          MachineType::AnyTagged(),  // kRight
@@ -2011,6 +2164,7 @@ class BinaryOpDescriptor
     : public StaticCallInterfaceDescriptor<BinaryOpDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kLeft, kRight)
   DECLARE_DESCRIPTOR(BinaryOpDescriptor)
 
@@ -2021,6 +2175,7 @@ class BinaryOp_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<BinaryOp_BaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
                          MachineType::AnyTagged(),  // kRight
@@ -2034,6 +2189,7 @@ class BinarySmiOp_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<BinarySmiOp_BaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kLeft
                          MachineType::TaggedSigned(),  // kRight
@@ -2047,6 +2203,7 @@ class StringAtAsStringDescriptor final
     : public StaticCallInterfaceDescriptor<StringAtAsStringDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kPosition)
   // TODO(turbofan): Return untagged value here.
   DEFINE_RESULT_AND_PARAMETER_TYPES(
@@ -2060,6 +2217,7 @@ class StringSubstringDescriptor final
     : public StaticCallInterfaceDescriptor<StringSubstringDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kString, kFrom, kTo)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kString
                          MachineType::IntPtr(),     // kFrom
@@ -2073,6 +2231,7 @@ class CppBuiltinAdaptorDescriptor
     : public StaticJSCallInterfaceDescriptor<CppBuiltinAdaptorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_JS_PARAMETERS(kCFunction)
   DEFINE_JS_PARAMETER_TYPES(MachineType::Pointer())
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(CppBuiltinAdaptorDescriptor)
@@ -2083,6 +2242,7 @@ class CreateFromSlowBoilerplateHelperDescriptor
           CreateFromSlowBoilerplateHelperDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_RESULT_AND_PARAMETERS(2, kAllocationSite, kBoilerplate)
   DEFINE_RESULT_AND_PARAMETER_TYPES(
       MachineType::AnyTagged(),  // result 1 (object)
@@ -2096,6 +2256,7 @@ class CEntry1ArgvOnStackDescriptor
     : public StaticCallInterfaceDescriptor<CEntry1ArgvOnStackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kArity,          // register argument
                     kCFunction,      // register argument
                     kPadding,        // stack argument 1 (just padding)
@@ -2117,6 +2278,7 @@ class CallApiCallbackOptimizedDescriptor
     : public StaticCallInterfaceDescriptor<CallApiCallbackOptimizedDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_VARARGS(kApiFunctionAddress, kActualArgumentsCount,
                             kFunctionTemplateInfo)
   //                           receiver is implicit stack argument 1
@@ -2137,6 +2299,7 @@ class CallApiCallbackGenericDescriptor
     : public StaticCallInterfaceDescriptor<CallApiCallbackGenericDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_VARARGS(kActualArgumentsCount, kTopmostScriptHavingContext,
                             kFunctionTemplateInfo)
   //                           receiver is implicit stack argument 1
@@ -2158,6 +2321,7 @@ class ApiGetterDescriptor
     : public StaticCallInterfaceDescriptor<ApiGetterDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kReceiver, kHolder, kCallback)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kReceiver
                          MachineType::AnyTagged(),  // kHolder
@@ -2176,6 +2340,7 @@ class GrowArrayElementsDescriptor
     : public StaticCallInterfaceDescriptor<GrowArrayElementsDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kObject, kKey)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kObject
                          MachineType::AnyTagged())  // kKey
@@ -2192,6 +2357,7 @@ class BaselineOutOfLinePrologueDescriptor
           BaselineOutOfLinePrologueDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kCalleeContext, kClosure,
                                kJavaScriptCallArgCount, kStackFrameSize,
                                kJavaScriptCallNewTarget,
@@ -2215,6 +2381,7 @@ class BaselineLeaveFrameDescriptor
     : public StaticCallInterfaceDescriptor<BaselineLeaveFrameDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kParamsSize, kWeight)
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),  // kParamsSize
                          MachineType::Int32())  // kWeight
@@ -2230,6 +2397,7 @@ class OnStackReplacementDescriptor
     : public StaticCallInterfaceDescriptor<OnStackReplacementDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kMaybeTargetCode, kExpectedParameterCount)
   DEFINE_PARAMETER_TYPES(
       MachineType::AnyTagged(),     // kMaybeTargetCode
@@ -2246,6 +2414,7 @@ class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor
     : public StaticCallInterfaceDescriptor<InterpreterDispatchDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kAccumulator, kBytecodeOffset, kBytecodeArray,
                     kDispatchTable)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kAccumulator
@@ -2262,6 +2431,7 @@ class InterpreterPushArgsThenCallDescriptor
           InterpreterPushArgsThenCallDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kNumberOfArguments, kFirstArgument, kFunction)
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kNumberOfArguments
                          MachineType::Pointer(),    // kFirstArgument
@@ -2276,6 +2446,7 @@ class InterpreterPushArgsThenConstructDescriptor
           InterpreterPushArgsThenConstructDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kNumberOfArguments, kFirstArgument, kConstructor,
                     kNewTarget, kFeedbackElement)
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kNumberOfArguments
@@ -2292,6 +2463,7 @@ class InterpreterCEntry1Descriptor
     : public StaticCallInterfaceDescriptor<InterpreterCEntry1Descriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_RESULT_AND_PARAMETERS(1, kNumberOfArguments, kFirstArgument,
                                kFunctionEntry)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result 1
@@ -2307,6 +2479,7 @@ class InterpreterCEntry2Descriptor
     : public StaticCallInterfaceDescriptor<InterpreterCEntry2Descriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_RESULT_AND_PARAMETERS(2, kNumberOfArguments, kFirstArgument,
                                kFunctionEntry)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result 1
@@ -2324,6 +2497,7 @@ class FindNonDefaultConstructorOrConstructDescriptor
           FindNonDefaultConstructorOrConstructDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_RESULT_AND_PARAMETERS(2, kThisFunction, kNewTarget)
   DEFINE_RESULT_AND_PARAMETER_TYPES(
       MachineType::AnyTagged(),  // result 1 (true / false)
@@ -2337,6 +2511,7 @@ class ForInPrepareDescriptor
     : public StaticCallInterfaceDescriptor<ForInPrepareDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_RESULT_AND_PARAMETERS(2, kEnumerator, kVectorIndex, kFeedbackVector)
   DEFINE_RESULT_AND_PARAMETER_TYPES(
       MachineType::AnyTagged(),     // result 1 (cache array)
@@ -2351,6 +2526,7 @@ class ResumeGeneratorDescriptor final
     : public StaticCallInterfaceDescriptor<ResumeGeneratorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kValue, kGenerator)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
                          MachineType::AnyTagged())  // kGenerator
@@ -2363,6 +2539,7 @@ class ResumeGeneratorBaselineDescriptor final
     : public StaticCallInterfaceDescriptor<ResumeGeneratorBaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kGeneratorObject, kRegisterCount)
   DEFINE_RESULT_AND_PARAMETER_TYPES(
       MachineType::TaggedSigned(),  // return type
@@ -2376,6 +2553,7 @@ class SuspendGeneratorBaselineDescriptor final
     : public StaticCallInterfaceDescriptor<SuspendGeneratorBaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kGeneratorObject, kSuspendId, kBytecodeOffset,
                                kRegisterCount)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kGeneratorObject
@@ -2390,6 +2568,7 @@ class RestartFrameTrampolineDescriptor final
     : public StaticCallInterfaceDescriptor<RestartFrameTrampolineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS()
   DECLARE_DESCRIPTOR(RestartFrameTrampolineDescriptor)
 };
@@ -2398,6 +2577,7 @@ class RunMicrotasksEntryDescriptor final
     : public StaticCallInterfaceDescriptor<RunMicrotasksEntryDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kUnsandboxed)
   DEFINE_PARAMETERS_ENTRY(kRootRegisterValue, kMicrotaskQueue)
   DEFINE_PARAMETER_TYPES(MachineType::Pointer(),  // kRootRegisterValue
                          MachineType::Pointer())  // kMicrotaskQueue
@@ -2410,6 +2590,7 @@ class RunMicrotasksDescriptor final
     : public StaticCallInterfaceDescriptor<RunMicrotasksDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kUnsandboxed)
   DEFINE_PARAMETERS(kMicrotaskQueue)
   DEFINE_PARAMETER_TYPES(MachineType::Pointer())
   DECLARE_DESCRIPTOR(RunMicrotasksDescriptor)
@@ -2421,6 +2602,7 @@ class WasmFloat32ToNumberDescriptor final
     : public StaticCallInterfaceDescriptor<WasmFloat32ToNumberDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kValue)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
                                     MachineType::Float32())    // value
@@ -2431,6 +2613,7 @@ class WasmFloat64ToTaggedDescriptor final
     : public StaticCallInterfaceDescriptor<WasmFloat64ToTaggedDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kValue)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
                                     MachineType::Float64())    // value
@@ -2441,6 +2624,7 @@ class WasmJSToWasmWrapperDescriptor final
     : public StaticCallInterfaceDescriptor<WasmJSToWasmWrapperDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kWrapperBuffer, kInstance, kResultJSArray)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
                                     MachineType::IntPtr(),     // ParamBuffer
@@ -2463,6 +2647,7 @@ class WasmToJSWrapperDescriptor final
     : public StaticCallInterfaceDescriptor<WasmToJSWrapperDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(4, kWasmImportData)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::IntPtr(),     // GP return 1
                                     MachineType::IntPtr(),     // GP return 2
@@ -2481,6 +2666,7 @@ class WasmSuspendDescriptor final
     : public StaticCallInterfaceDescriptor<WasmSuspendDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(1, kArg0)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
                                     MachineType::AnyTagged())  // value
@@ -2491,6 +2677,7 @@ class V8_EXPORT_PRIVATE I64ToBigIntDescriptor final
     : public StaticCallInterfaceDescriptor<I64ToBigIntDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kArgument)
   DEFINE_PARAMETER_TYPES(MachineType::Int64())  // kArgument
   DECLARE_DESCRIPTOR(I64ToBigIntDescriptor)
@@ -2501,6 +2688,7 @@ class V8_EXPORT_PRIVATE I32PairToBigIntDescriptor final
     : public StaticCallInterfaceDescriptor<I32PairToBigIntDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kLow, kHigh)
   DEFINE_PARAMETER_TYPES(MachineType::Uint32(),  // kLow
                          MachineType::Uint32())  // kHigh
@@ -2511,6 +2699,7 @@ class V8_EXPORT_PRIVATE BigIntToI64Descriptor final
     : public StaticCallInterfaceDescriptor<BigIntToI64Descriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kArgument)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int64(),      // result 1
                                     MachineType::AnyTagged())  // kArgument
@@ -2521,6 +2710,7 @@ class V8_EXPORT_PRIVATE BigIntToI32PairDescriptor final
     : public StaticCallInterfaceDescriptor<BigIntToI32PairDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_RESULT_AND_PARAMETERS(2, kArgument)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Uint32(),     // result 1
                                     MachineType::Uint32(),     // result 2
@@ -2532,6 +2722,7 @@ class CloneObjectWithVectorDescriptor final
     : public StaticCallInterfaceDescriptor<CloneObjectWithVectorDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kSource, kFlags, kSlot, kVector)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),  // result 1
                                     MachineType::AnyTagged(),      // kSource
@@ -2545,6 +2736,7 @@ class CloneObjectBaselineDescriptor final
     : public StaticCallInterfaceDescriptor<CloneObjectBaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kSource, kFlags, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kSource
                          MachineType::TaggedSigned(),  // kFlags
@@ -2556,6 +2748,7 @@ class BinaryOp_WithFeedbackDescriptor
     : public StaticCallInterfaceDescriptor<BinaryOp_WithFeedbackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kLeft, kRight, kSlot, kFeedbackVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
                          MachineType::AnyTagged(),  // kRight
@@ -2569,6 +2762,7 @@ class CallTrampoline_Baseline_CompactDescriptor
           CallTrampoline_Baseline_CompactDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   using ArgumentCountField = base::BitField<uint32_t, 0, 8>;
   using SlotField = base::BitField<uintptr_t, 8, 24>;
 
@@ -2591,6 +2785,7 @@ class CallTrampoline_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<CallTrampoline_BaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT_VARARGS(kFunction, kActualArgumentsCount, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunction
                          MachineType::Int32(),      // kActualArgumentsCount
@@ -2603,6 +2798,7 @@ class CallTrampoline_WithFeedbackDescriptor
           CallTrampoline_WithFeedbackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_VARARGS(kFunction, kActualArgumentsCount, kSlot,
                             kFeedbackVector, kReceiver)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunction
@@ -2617,6 +2813,7 @@ class Compare_WithFeedbackDescriptor
     : public StaticCallInterfaceDescriptor<Compare_WithFeedbackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kLeft, kRight, kSlot, kFeedbackVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
                          MachineType::AnyTagged(),  // kRight
@@ -2629,6 +2826,7 @@ class Compare_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<Compare_BaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
                          MachineType::AnyTagged(),  // kRight
@@ -2642,6 +2840,7 @@ class Construct_BaselineDescriptor
     : public StaticJSCallInterfaceDescriptor<Construct_BaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_JS_PARAMETERS_NO_CONTEXT(kSlot)
   DEFINE_JS_PARAMETER_TYPES(MachineType::UintPtr())  // kSlot
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(Construct_BaselineDescriptor)
@@ -2651,6 +2850,7 @@ class Construct_WithFeedbackDescriptor
     : public StaticJSCallInterfaceDescriptor<Construct_WithFeedbackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   // kSlot is passed in a register, kFeedbackVector on the stack.
   DEFINE_JS_PARAMETERS(kSlot, kFeedbackVector)
   DEFINE_JS_PARAMETER_TYPES(MachineType::UintPtr(),    // kSlot
@@ -2662,6 +2862,7 @@ class UnaryOp_WithFeedbackDescriptor
     : public StaticCallInterfaceDescriptor<UnaryOp_WithFeedbackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS(kValue, kSlot, kFeedbackVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
                          MachineType::UintPtr(),    // kSlot
@@ -2673,6 +2874,7 @@ class UnaryOp_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<UnaryOp_BaselineDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS_NO_CONTEXT(kValue, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
                          MachineType::UintPtr())    // kSlot
@@ -2684,6 +2886,7 @@ class CheckTurboshaftFloat32TypeDescriptor
           CheckTurboshaftFloat32TypeDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_RESULT_AND_PARAMETERS(1, kValue, kExpectedType, kNodeId)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
                                     MachineTypeOf<Float32T>::value,
@@ -2697,6 +2900,7 @@ class CheckTurboshaftFloat64TypeDescriptor
           CheckTurboshaftFloat64TypeDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_RESULT_AND_PARAMETERS(1, kValue, kExpectedType, kNodeId)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
                                     MachineTypeOf<Float64T>::value,
@@ -2709,6 +2913,7 @@ class DebugPrintWordPtrDescriptor
     : public StaticCallInterfaceDescriptor<DebugPrintWordPtrDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_RESULT_AND_PARAMETERS(1, kValue)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
                                     MachineType::UintPtr())
@@ -2719,6 +2924,7 @@ class DebugPrintFloat64Descriptor
     : public StaticCallInterfaceDescriptor<DebugPrintFloat64Descriptor> {
  public:
   INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
   DEFINE_RESULT_AND_PARAMETERS(1, kValue)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
                                     MachineType::Float64())
@@ -2730,6 +2936,7 @@ class DebugPrintFloat64Descriptor
       : public StaticCallInterfaceDescriptor<Name##Descriptor> {             \
    public:                                                                   \
     INTERNAL_DESCRIPTOR()                                                    \
+    SANDBOXING_MODE(kSandboxed)                                              \
     DEFINE_PARAMETERS(__VA_ARGS__)                                           \
     static constexpr bool kNoContext = DoesNeedContext == NeedsContext::kNo; \
     DECLARE_DEFAULT_DESCRIPTOR(Name##Descriptor)                             \
@@ -2756,6 +2963,9 @@ BUILTIN_LIST_TFS(DEFINE_TFS_BUILTIN_DESCRIPTOR)
 #undef DEFINE_PARAMETER_TYPES
 #undef DEFINE_JS_PARAMETERS
 #undef DEFINE_JS_PARAMETER_TYPES
+#undef INTERNAL_DESCRIPTOR
+#undef SANDBOX_EXPOSED_DESCRIPTOR
+#undef SANDBOXING_MODE
 
 // We define the association between CallDescriptors::Key and the specialized
 // descriptor here to reduce boilerplate and mistakes.

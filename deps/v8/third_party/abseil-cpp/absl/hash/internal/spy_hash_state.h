@@ -16,12 +16,14 @@
 #define ABSL_HASH_INTERNAL_SPY_HASH_STATE_H_
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <ostream>
 #include <string>
 #include <vector>
 
 #include "absl/hash/hash.h"
+#include "absl/hash/internal/weakly_mixed_integer.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
@@ -149,6 +151,9 @@ class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
   static SpyHashStateImpl combine_contiguous(SpyHashStateImpl hash_state,
                                              const unsigned char* begin,
                                              size_t size) {
+    if (size == 0) {
+      return SpyHashStateImpl::combine_raw(std::move(hash_state), 0);
+    }
     const size_t large_chunk_stride = PiecewiseChunkSize();
     // Combining a large contiguous buffer must have the same effect as
     // doing it piecewise by the stride length, followed by the (possibly
@@ -163,8 +168,14 @@ class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
     if (size > 0) {
       hash_state.hash_representation_.emplace_back(
           reinterpret_cast<const char*>(begin), size);
+      hash_state = SpyHashStateImpl::combine_raw(std::move(hash_state), size);
     }
     return hash_state;
+  }
+
+  static SpyHashStateImpl combine_weakly_mixed_integer(
+      SpyHashStateImpl hash_state, WeaklyMixedInteger value) {
+    return combine(std::move(hash_state), value.value);
   }
 
   using SpyHashStateImpl::HashStateBase::combine_contiguous;
@@ -217,8 +228,9 @@ class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
 
   // Combines raw data from e.g. integrals/floats/pointers/etc.
   static SpyHashStateImpl combine_raw(SpyHashStateImpl state, uint64_t value) {
-    const unsigned char* data = reinterpret_cast<const unsigned char*>(&value);
-    return SpyHashStateImpl::combine_contiguous(std::move(state), data, 8);
+    state.hash_representation_.emplace_back(
+        reinterpret_cast<const char*>(&value), 8);
+    return state;
   }
 
   // This is true if SpyHashStateImpl<T> has been passed to a call of

@@ -453,6 +453,20 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::Add_StringConstant_Internalize(
+    Token::Value op, Register reg, int feedback_slot,
+    AddStringConstantAndInternalizeVariant as_variant) {
+  DCHECK_EQ(op, Token::kAdd);
+#ifdef DEBUG
+  using ASVariant = AddStringConstantAndInternalizeVariant;
+  DCHECK(as_variant == ASVariant::kLhsIsStringConstant ||
+         as_variant == ASVariant::kRhsIsStringConstant);
+#endif  // DEBUG
+  OutputAdd_StringConstant_Internalize(reg, feedback_slot,
+                                       static_cast<uint8_t>(as_variant));
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperationSmiLiteral(
     Token::Value op, Tagged<Smi> literal, int feedback_slot) {
   switch (op) {
@@ -747,6 +761,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::SetPrototypeProperties(
+    size_t index_obj) {
+  OutputSetPrototypeProperties(index_obj);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(const AstRawString* name,
                                                        int feedback_slot,
                                                        TypeofMode typeof_mode) {
@@ -785,18 +805,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(
     }
   } else {
     DCHECK_EQ(kMutableSlot, mutability);
-    if (v8_flags.script_context_mutable_heap_number &&
-        variable->scope()->is_script_scope()) {
-      if (context.is_current_context() && depth == 0) {
-        OutputLdaCurrentScriptContextSlot(slot_index);
-      } else {
-        OutputLdaScriptContextSlot(context, slot_index, depth);
-      }
-    } else {
+    if (variable->scope()->has_context_cells()) {
       if (context.is_current_context() && depth == 0) {
         OutputLdaCurrentContextSlot(slot_index);
       } else {
         OutputLdaContextSlot(context, slot_index, depth);
+      }
+    } else {
+      if (context.is_current_context() && depth == 0) {
+        OutputLdaCurrentContextSlotNoCell(slot_index);
+      } else {
+        OutputLdaContextSlotNoCell(context, slot_index, depth);
       }
     }
   }
@@ -807,20 +826,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
                                                              Variable* variable,
                                                              int depth) {
   int slot_index = variable->index();
-  if ((v8_flags.script_context_mutable_heap_number ||
-       (v8_flags.const_tracking_let &&
-        variable->mode() == VariableMode::kLet)) &&
-      variable->scope()->is_script_scope()) {
-    if (context.is_current_context() && depth == 0) {
-      OutputStaCurrentScriptContextSlot(slot_index);
-    } else {
-      OutputStaScriptContextSlot(context, slot_index, depth);
-    }
-  } else {
+  if (variable->maybe_assigned() != kNotAssigned &&
+      variable->scope()->has_context_cells()) {
     if (context.is_current_context() && depth == 0) {
       OutputStaCurrentContextSlot(slot_index);
     } else {
       OutputStaContextSlot(context, slot_index, depth);
+    }
+  } else {
+    if (context.is_current_context() && depth == 0) {
+      OutputStaCurrentContextSlotNoCell(slot_index);
+    } else {
+      OutputStaContextSlotNoCell(context, slot_index, depth);
     }
   }
   return *this;
@@ -841,25 +858,23 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupSlot(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupContextSlot(
-    const AstRawString* name, TypeofMode typeof_mode, ContextKind context_kind,
+    const AstRawString* name, TypeofMode typeof_mode, ContextMode context_mode,
     int slot_index, int depth) {
   size_t name_index = GetConstantPoolEntry(name);
   switch (typeof_mode) {
     case TypeofMode::kInside:
-      if (v8_flags.script_context_mutable_heap_number &&
-          context_kind == ContextKind::kScriptContext) {
-        OutputLdaLookupScriptContextSlotInsideTypeof(name_index, slot_index,
-                                                     depth);
-      } else {
+      if (context_mode == ContextMode::kHasContextCells) {
         OutputLdaLookupContextSlotInsideTypeof(name_index, slot_index, depth);
+      } else {
+        OutputLdaLookupContextSlotNoCellInsideTypeof(name_index, slot_index,
+                                                     depth);
       }
       break;
     case TypeofMode::kNotInside:
-      if (v8_flags.script_context_mutable_heap_number &&
-          context_kind == ContextKind::kScriptContext) {
-        OutputLdaLookupScriptContextSlot(name_index, slot_index, depth);
-      } else {
+      if (context_mode == ContextMode::kHasContextCells) {
         OutputLdaLookupContextSlot(name_index, slot_index, depth);
+      } else {
+        OutputLdaLookupContextSlotNoCell(name_index, slot_index, depth);
       }
       break;
   }
@@ -929,6 +944,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadIteratorProperty(
 BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(
     Register object, int load_feedback_slot, int call_feedback_slot) {
   OutputGetIterator(object, load_feedback_slot, call_feedback_slot);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ForOfNext(Register object,
+                                                      Register next,
+                                                      RegisterList value_done) {
+  DCHECK_EQ(2, value_done.register_count());
+  OutputForOfNext(object, next, value_done);
   return *this;
 }
 
@@ -1041,7 +1064,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateCatchContext(
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateFunctionContext(
     const Scope* scope, int slots) {
   size_t scope_index = GetConstantPoolEntry(scope);
-  OutputCreateFunctionContext(scope_index, slots);
+  if (scope->has_context_cells()) {
+    OutputCreateFunctionContextWithCells(scope_index, slots);
+  } else {
+    OutputCreateFunctionContext(scope_index, slots);
+  }
   return *this;
 }
 

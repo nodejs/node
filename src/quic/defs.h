@@ -39,7 +39,7 @@ bool SetOption(Environment* env,
   if (!object->Get(env->context(), name).ToLocal(&value)) return false;
   if (!value->IsUndefined()) {
     Utf8Value utf8(env->isolate(), value);
-    options->*member = *utf8;
+    options->*member = utf8.ToString();
   }
   return true;
 }
@@ -68,14 +68,14 @@ bool SetOption(Environment* env,
     if (!value->IsUint32()) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
-          env, "The %s option must be an uint32", *nameStr);
+          env, "The %s option must be an uint32", nameStr);
       return false;
     }
     v8::Local<v8::Uint32> num;
     if (!value->ToUint32(env->context()).ToLocal(&num)) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
-          env, "The %s option must be an uint32", *nameStr);
+          env, "The %s option must be an uint32", nameStr);
       return false;
     }
     options->*member = num->Value();
@@ -95,7 +95,7 @@ bool SetOption(Environment* env,
     if (!value->IsBigInt() && !value->IsNumber()) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
-          env, "option %s must be a bigint or number", *nameStr);
+          env, "option %s must be a bigint or number", nameStr);
       return false;
     }
     DCHECK_IMPLIES(!value->IsBigInt(), value->IsNumber());
@@ -106,14 +106,14 @@ bool SetOption(Environment* env,
       val = value.As<v8::BigInt>()->Uint64Value(&lossless);
       if (!lossless) {
         Utf8Value label(env->isolate(), name);
-        THROW_ERR_INVALID_ARG_VALUE(env, "option %s is out of range", *label);
+        THROW_ERR_INVALID_ARG_VALUE(env, "option %s is out of range", label);
         return false;
       }
     } else {
       double dbl = value.As<v8::Number>()->Value();
       if (dbl < 0) {
         Utf8Value label(env->isolate(), name);
-        THROW_ERR_INVALID_ARG_VALUE(env, "option %s is out of range", *label);
+        THROW_ERR_INVALID_ARG_VALUE(env, "option %s is out of range", label);
         return false;
       }
       val = static_cast<uint64_t>(dbl);
@@ -161,8 +161,96 @@ uint64_t GetStat(Stats* stats) {
     name##_STATS(STAT_FIELD)                                                   \
   };
 
-#define JS_METHOD(name)                                                        \
-  static void name(const v8::FunctionCallbackInfo<v8::Value>& args)
+#define JS_METHOD_IMPL(name)                                                   \
+  void name(const v8::FunctionCallbackInfo<v8::Value>& args)
+
+#define JS_METHOD(name) static JS_METHOD_IMPL(name)
+
+#define JS_CONSTRUCTOR(name)                                                   \
+  inline static bool HasInstance(Environment* env,                             \
+                                 v8::Local<v8::Value> value) {                 \
+    return GetConstructorTemplate(env)->HasInstance(value);                    \
+  }                                                                            \
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(               \
+      Environment* env)
+
+#define JS_CONSTRUCTOR_IMPL(name, template, body)                              \
+  v8::Local<v8::FunctionTemplate> name::GetConstructorTemplate(                \
+      Environment* env) {                                                      \
+    auto& state = BindingData::Get(env);                                       \
+    auto tmpl = state.template();                                              \
+    if (tmpl.IsEmpty()) {                                                      \
+      body state.set_##template(tmpl);                                         \
+    }                                                                          \
+    return tmpl;                                                               \
+  }
+
+#define JS_ILLEGAL_CONSTRUCTOR()                                               \
+  tmpl = NewFunctionTemplate(env->isolate(), IllegalConstructor)
+
+#define JS_NEW_CONSTRUCTOR() tmpl = NewFunctionTemplate(env->isolate(), New)
+
+#define JS_INHERIT(name) tmpl->Inherit(name::GetConstructorTemplate(env));
+
+#define JS_CLASS(name)                                                         \
+  tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);        \
+  tmpl->SetClassName(state.name##_string())
+
+#define JS_CLASS_FIELDS(name, fields)                                          \
+  tmpl->InstanceTemplate()->SetInternalFieldCount(fields);                     \
+  tmpl->SetClassName(state.name##_string())
+
+#define JS_NEW_INSTANCE_OR_RETURN(env, name, ret)                              \
+  v8::Local<v8::Object> name;                                                  \
+  if (!GetConstructorTemplate(env)                                             \
+           ->InstanceTemplate()                                                \
+           ->NewInstance(env->context())                                       \
+           .ToLocal(&obj)) {                                                   \
+    return ret;                                                                \
+  }
+
+#define JS_NEW_INSTANCE(env, name)                                             \
+  v8::Local<v8::Object> name;                                                  \
+  if (!GetConstructorTemplate(env)                                             \
+           ->InstanceTemplate()                                                \
+           ->NewInstance(env->context())                                       \
+           .ToLocal(&obj)) {                                                   \
+    return;                                                                    \
+  }
+
+#define JS_BINDING_INIT_BOILERPLATE()                                          \
+  static void InitPerIsolate(IsolateData* isolate_data,                        \
+                             v8::Local<v8::ObjectTemplate> target);            \
+  static void InitPerContext(Realm* realm, v8::Local<v8::Object> target);      \
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry)
+
+#define JS_TRY_ALLOCATE_BACKING(env, name, len)                                \
+  auto name = v8::ArrayBuffer::NewBackingStore(                                \
+      env->isolate(),                                                          \
+      len,                                                                     \
+      v8::BackingStoreInitializationMode::kUninitialized,                      \
+      v8::BackingStoreOnFailureMode::kReturnNull);                             \
+  if (!name) {                                                                 \
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);                                   \
+    return;                                                                    \
+  }
+
+#define JS_TRY_ALLOCATE_BACKING_OR_RETURN(env, name, len, ret)                 \
+  auto name = v8::ArrayBuffer::NewBackingStore(                                \
+      env->isolate(),                                                          \
+      len,                                                                     \
+      v8::BackingStoreInitializationMode::kUninitialized,                      \
+      v8::BackingStoreOnFailureMode::kReturnNull);                             \
+  if (!name) {                                                                 \
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);                                   \
+    return ret;                                                                \
+  }
+
+#define JS_DEFINE_READONLY_PROPERTY(env, target, name, value)                  \
+  target                                                                       \
+      ->DefineOwnProperty(                                                     \
+          env->context(), name, value, v8::PropertyAttribute::ReadOnly)        \
+      .Check();
 
 enum class Side : uint8_t {
   CLIENT,
@@ -221,16 +309,18 @@ enum class DatagramStatus : uint8_t {
 CC_ALGOS(V)
 #undef V
 
-constexpr uint64_t NGTCP2_APP_NOERROR = 65280;
+using error_code = uint64_t;
+using stream_id = int64_t;
+using datagram_id = uint64_t;
+
 constexpr size_t kDefaultMaxPacketLength = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
-constexpr size_t kMaxSizeT = std::numeric_limits<size_t>::max();
+constexpr uint64_t kMaxSizeT = std::numeric_limits<size_t>::max();
 constexpr uint64_t kMaxSafeJsInteger = 9007199254740991;
 constexpr auto kSocketAddressInfoTimeout = 60 * NGTCP2_SECONDS;
 constexpr size_t kMaxVectorCount = 16;
+constexpr stream_id kMaxStreamId = std::numeric_limits<stream_id>::max();
 
-using error_code = uint64_t;
-
-class DebugIndentScope {
+class DebugIndentScope final {
  public:
   inline DebugIndentScope() { ++indent_; }
   DISALLOW_COPY_AND_MOVE(DebugIndentScope)

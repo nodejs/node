@@ -67,7 +67,7 @@ STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio_ex(BIO *bp, STACK_OF(X509_INFO) *sk,
 
     if (sk == NULL) {
         if ((ret = sk_X509_INFO_new_null()) == NULL) {
-            ERR_raise(ERR_LIB_PEM, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_PEM, ERR_R_CRYPTO_LIB);
             goto err;
         }
     } else

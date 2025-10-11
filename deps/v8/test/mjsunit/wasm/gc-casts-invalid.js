@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging
+// Flags: --wasm-staging --experimental-wasm-shared
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -11,6 +11,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let struct = 0;
   let array = 1;
   let sig = 2;
+  let sharedArray = 3;
   let types = [
     // source value type |target heap type
     [kWasmI32,            kAnyRefCode],
@@ -27,6 +28,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     [kWasmNullExternRef,  kExnRefCode],
     [wasmRefType(array),  kNullExnRefCode],
     [kWasmNullFuncRef,    kNullExnRefCode],
+    [kWasmAnyRef,         sharedArray],
+    [wasmRefType(sharedArray), array],
+    [wasmRefType(kWasmAnyRef).shared(), kAnyRefCode],
   ];
   let casts = [
     kExprRefTest,
@@ -41,6 +45,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       assertEquals(struct, builder.addStruct([makeField(kWasmI32, true)]));
       assertEquals(array, builder.addArray(kWasmI32));
       assertEquals(sig, builder.addType(makeSig([kWasmI32], [])));
+      assertEquals(sharedArray,
+        builder.addArray(kWasmI32, true, kNoSuperType, false, true));
       builder.addFunction('refTest', makeSig([source_type], []))
       .addBody([
         kExprLocalGet, 0,

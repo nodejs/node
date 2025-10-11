@@ -96,9 +96,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   inline ObjectSlot RawFieldOfValueAt(InternalIndex entry);
 
   template <typename IsolateT, template <typename> typename HandleType,
-            AllocationType key_allocation =
-                std::is_same<IsolateT, Isolate>::value ? AllocationType::kYoung
-                                                       : AllocationType::kOld>
+            AllocationType key_allocation = std::is_same_v<IsolateT, Isolate>
+                                                ? AllocationType::kYoung
+                                                : AllocationType::kOld>
     requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
   V8_WARN_UNUSED_RESULT static HandleType<Derived> Add(
       IsolateT* isolate, HandleType<Derived> dictionary, Key key,
@@ -110,9 +110,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   // The number of elements stored is not updated. Use
   // |SetInitialNumberOfElements| to update the number in one go.
   template <typename IsolateT, template <typename> typename HandleType,
-            AllocationType key_allocation =
-                std::is_same<IsolateT, Isolate>::value ? AllocationType::kYoung
-                                                       : AllocationType::kOld>
+            AllocationType key_allocation = std::is_same_v<IsolateT, Isolate>
+                                                ? AllocationType::kYoung
+                                                : AllocationType::kOld>
     requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
   static void UncheckedAdd(IsolateT* isolate, HandleType<Derived> dictionary,
                            Key key, DirectHandle<Object> value,
@@ -228,6 +228,46 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   // Exposed for NameDictionaryLookupForwardedString slow path for forwarded
   // strings.
   using Dictionary<Derived, Shape>::FindInsertionEntry;
+};
+
+class SimpleNameDictionaryShape : public BaseNameDictionaryShape {
+ public:
+  static const bool kHasDetails = false;
+  static const bool kMatchNeedsHoleCheck = false;
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = 2;
+
+  template <typename Dictionary>
+  static inline PropertyDetails DetailsAt(Tagged<Dictionary> dict,
+                                          InternalIndex entry) {
+    UNREACHABLE();
+  }
+
+  template <typename Dictionary>
+  static inline void DetailsAtPut(Tagged<Dictionary> dict, InternalIndex entry,
+                                  PropertyDetails value) {
+    UNREACHABLE();
+  }
+};
+
+EXTERN_DECLARE_DICTIONARY(SimpleNameDictionary, SimpleNameDictionaryShape)
+
+// A simple Name-to-Object dictionary.
+class SimpleNameDictionary
+    : public Dictionary<SimpleNameDictionary, SimpleNameDictionaryShape> {
+ public:
+  static inline DirectHandle<Map> GetMap(RootsTable& roots);
+
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Handle<SimpleNameDictionary>
+  Set(Isolate* isolate, Handle<SimpleNameDictionary> dictionary,
+      DirectHandle<Name> key, DirectHandle<Object> value);
+
+  // Exposed for NameDictionaryLookupForwardedString slow path for forwarded
+  // strings.
+  using HashTable<SimpleNameDictionary,
+                  SimpleNameDictionaryShape>::FindInsertionEntry;
+
+  static const int kEntryValueIndex = 1;
 };
 
 #define EXTERN_DECLARE_BASE_NAME_DICTIONARY(DERIVED, SHAPE)        \

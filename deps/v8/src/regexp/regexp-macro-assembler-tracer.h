@@ -14,7 +14,8 @@ namespace internal {
 // Decorator on a RegExpMacroAssembler that write all calls.
 class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
  public:
-  RegExpMacroAssemblerTracer(Isolate* isolate, RegExpMacroAssembler* assembler);
+  explicit RegExpMacroAssemblerTracer(
+      std::unique_ptr<RegExpMacroAssembler>&& assembler);
   ~RegExpMacroAssemblerTracer() override;
   void AbortedCodeGeneration() override;
   int stack_limit_slack_slot_count() override {
@@ -32,7 +33,7 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
                               Label* on_equal) override;
   void CheckCharacterGT(base::uc16 limit, Label* on_greater) override;
   void CheckCharacterLT(base::uc16 limit, Label* on_less) override;
-  void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
+  void CheckFixedLengthLoop(Label* on_tos_equals_current_position) override;
   void CheckAtStart(int cp_offset, Label* on_at_start) override;
   void CheckNotAtStart(int cp_offset, Label* on_not_at_start) override;
   void CheckNotBackReference(int start_reg, bool read_backward,
@@ -90,8 +91,18 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   void ClearRegisters(int reg_from, int reg_to) override;
   void WriteStackPointerToRegister(int reg) override;
 
+  void RecordComment(std::string_view comment) override {
+    assembler_->RecordComment(comment);
+  }
+  MacroAssembler* masm() override { return assembler_->masm(); }
+
+  void set_global_mode(GlobalMode mode) override;
+  void set_slow_safe(bool ssc) override;
+  void set_backtrack_limit(uint32_t backtrack_limit) override;
+  void set_can_fallback(bool val) override;
+
  private:
-  RegExpMacroAssembler* assembler_;
+  std::unique_ptr<RegExpMacroAssembler> assembler_;
 };
 
 }  // namespace internal

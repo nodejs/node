@@ -478,6 +478,29 @@ class IsConstantMatcher final : public TestNodeMatcher {
   const Matcher<T> value_matcher_;
 };
 
+class IsFloat64ConstantMatcher final : public TestNodeMatcher {
+ public:
+  IsFloat64ConstantMatcher(IrOpcode::Value opcode,
+                           const Matcher<double>& value_matcher)
+      : TestNodeMatcher(opcode), value_matcher_(value_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    TestNodeMatcher::DescribeTo(os);
+    *os << " whose value (";
+    value_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (TestNodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<Float64>(node->op()).get_scalar(),
+                                 "value", value_matcher_, listener));
+  }
+
+ private:
+  const Matcher<double> value_matcher_;
+};
+
 class IsSelectMatcher final : public TestNodeMatcher {
  public:
   IsSelectMatcher(const Matcher<MachineRepresentation>& type_matcher,
@@ -1327,11 +1350,11 @@ class IsToNumberMatcher final : public TestNodeMatcher {
   const Matcher<Node*> control_matcher_;
 };
 
-class IsLoadContextMatcher final : public TestNodeMatcher {
+class IsLoadContextNoCellMatcher final : public TestNodeMatcher {
  public:
-  IsLoadContextMatcher(const Matcher<ContextAccess>& access_matcher,
-                       const Matcher<Node*>& context_matcher)
-      : TestNodeMatcher(IrOpcode::kJSLoadContext),
+  IsLoadContextNoCellMatcher(const Matcher<ContextAccess>& access_matcher,
+                             const Matcher<Node*>& context_matcher)
+      : TestNodeMatcher(IrOpcode::kJSLoadContextNoCell),
         access_matcher_(access_matcher),
         context_matcher_(context_matcher) {}
 
@@ -1729,7 +1752,7 @@ Matcher<Node*> IsFloat32Constant(const Matcher<float>& value_matcher) {
 
 Matcher<Node*> IsFloat64Constant(const Matcher<double>& value_matcher) {
   return MakeMatcher(
-      new IsConstantMatcher<double>(IrOpcode::kFloat64Constant, value_matcher));
+      new IsFloat64ConstantMatcher(IrOpcode::kFloat64Constant, value_matcher));
 }
 
 
@@ -2173,12 +2196,11 @@ Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
                                            effect_matcher, control_matcher));
 }
 
-
-Matcher<Node*> IsLoadContext(const Matcher<ContextAccess>& access_matcher,
-                             const Matcher<Node*>& context_matcher) {
-  return MakeMatcher(new IsLoadContextMatcher(access_matcher, context_matcher));
+Matcher<Node*> IsLoadContextNoCell(const Matcher<ContextAccess>& access_matcher,
+                                   const Matcher<Node*>& context_matcher) {
+  return MakeMatcher(
+      new IsLoadContextNoCellMatcher(access_matcher, context_matcher));
 }
-
 
 Matcher<Node*> IsParameter(const Matcher<int> index_matcher) {
   return MakeMatcher(new IsParameterMatcher(index_matcher));

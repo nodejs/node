@@ -8,10 +8,45 @@
 #include <openssl/rand.h>
 #include <openssl/x509v3.h>
 #include <algorithm>
+#include <array>
 #include <cstring>
+#include <string_view>
 #include <vector>
 #if OPENSSL_VERSION_MAJOR >= 3
+#include <openssl/core_names.h>
+#include <openssl/params.h>
 #include <openssl/provider.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L
+#include <openssl/thread.h>
+#endif
+#endif
+#if OPENSSL_WITH_PQC
+struct PQCMapping {
+  const char* name;
+  int nid;
+};
+
+constexpr static PQCMapping pqc_mappings[] = {
+    {"ML-DSA-44", EVP_PKEY_ML_DSA_44},
+    {"ML-DSA-65", EVP_PKEY_ML_DSA_65},
+    {"ML-DSA-87", EVP_PKEY_ML_DSA_87},
+    {"ML-KEM-512", EVP_PKEY_ML_KEM_512},
+    {"ML-KEM-768", EVP_PKEY_ML_KEM_768},
+    {"ML-KEM-1024", EVP_PKEY_ML_KEM_1024},
+    {"SLH-DSA-SHA2-128f", EVP_PKEY_SLH_DSA_SHA2_128F},
+    {"SLH-DSA-SHA2-128s", EVP_PKEY_SLH_DSA_SHA2_128S},
+    {"SLH-DSA-SHA2-192f", EVP_PKEY_SLH_DSA_SHA2_192F},
+    {"SLH-DSA-SHA2-192s", EVP_PKEY_SLH_DSA_SHA2_192S},
+    {"SLH-DSA-SHA2-256f", EVP_PKEY_SLH_DSA_SHA2_256F},
+    {"SLH-DSA-SHA2-256s", EVP_PKEY_SLH_DSA_SHA2_256S},
+    {"SLH-DSA-SHAKE-128f", EVP_PKEY_SLH_DSA_SHAKE_128F},
+    {"SLH-DSA-SHAKE-128s", EVP_PKEY_SLH_DSA_SHAKE_128S},
+    {"SLH-DSA-SHAKE-192f", EVP_PKEY_SLH_DSA_SHAKE_192F},
+    {"SLH-DSA-SHAKE-192s", EVP_PKEY_SLH_DSA_SHAKE_192S},
+    {"SLH-DSA-SHAKE-256f", EVP_PKEY_SLH_DSA_SHAKE_256F},
+    {"SLH-DSA-SHAKE-256s", EVP_PKEY_SLH_DSA_SHAKE_256S},
+};
+
 #endif
 
 // EVP_PKEY_CTX_set_dsa_paramgen_q_bits was added in OpenSSL 1.1.1e.
@@ -1062,6 +1097,29 @@ BIOPointer X509View::getValidTo() const {
   return bio;
 }
 
+std::optional<std::string_view> X509View::getSignatureAlgorithm() const {
+  if (cert_ == nullptr) return std::nullopt;
+  int nid = X509_get_signature_nid(cert_);
+  if (nid == NID_undef) return std::nullopt;
+  const char* ln = OBJ_nid2ln(nid);
+  if (ln == nullptr) return std::nullopt;
+  return std::string_view(ln);
+}
+
+std::optional<std::string> X509View::getSignatureAlgorithmOID() const {
+  if (cert_ == nullptr) return std::nullopt;
+  const X509_ALGOR* alg = nullptr;
+  X509_get0_signature(nullptr, &alg, cert_);
+  if (alg == nullptr) return std::nullopt;
+  const ASN1_OBJECT* obj = nullptr;
+  X509_ALGOR_get0(&obj, nullptr, nullptr, alg);
+  if (obj == nullptr) return std::nullopt;
+  std::array<char, 128> buf{};
+  int len = OBJ_obj2txt(buf.data(), buf.size(), obj, 1);
+  if (len < 0 || static_cast<size_t>(len) >= buf.size()) return std::nullopt;
+  return std::string(buf.data(), static_cast<size_t>(len));
+}
+
 int64_t X509View::getValidToTime() const {
 #ifdef OPENSSL_IS_BORINGSSL
   // Boringssl does not implement ASN1_TIME_to_tm in a public way,
@@ -1853,6 +1911,102 @@ DataPointer pbkdf2(const Digest& md,
   return {};
 }
 
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L
+#ifndef OPENSSL_NO_ARGON2
+DataPointer argon2(const Buffer<const char>& pass,
+                   const Buffer<const unsigned char>& salt,
+                   uint32_t lanes,
+                   size_t length,
+                   uint32_t memcost,
+                   uint32_t iter,
+                   uint32_t version,
+                   const Buffer<const unsigned char>& secret,
+                   const Buffer<const unsigned char>& ad,
+                   Argon2Type type) {
+  ClearErrorOnReturn clearErrorOnReturn;
+
+  std::string_view algorithm;
+  switch (type) {
+    case Argon2Type::ARGON2I:
+      algorithm = "ARGON2I";
+      break;
+    case Argon2Type::ARGON2D:
+      algorithm = "ARGON2D";
+      break;
+    case Argon2Type::ARGON2ID:
+      algorithm = "ARGON2ID";
+      break;
+    default:
+      // Invalid Argon2 type
+      return {};
+  }
+
+  // creates a new library context to avoid locking when running concurrently
+  auto ctx = DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free>{OSSL_LIB_CTX_new()};
+  if (!ctx) {
+    return {};
+  }
+
+  // required if threads > 1
+  if (lanes > 1 && OSSL_set_max_threads(ctx.get(), lanes) != 1) {
+    return {};
+  }
+
+  auto kdf = DeleteFnPtr<EVP_KDF, EVP_KDF_free>{
+      EVP_KDF_fetch(ctx.get(), algorithm.data(), nullptr)};
+  if (!kdf) {
+    return {};
+  }
+
+  auto kctx =
+      DeleteFnPtr<EVP_KDF_CTX, EVP_KDF_CTX_free>{EVP_KDF_CTX_new(kdf.get())};
+  if (!kctx) {
+    return {};
+  }
+
+  std::vector<OSSL_PARAM> params;
+  params.reserve(9);
+
+  params.push_back(OSSL_PARAM_construct_octet_string(
+      OSSL_KDF_PARAM_PASSWORD,
+      const_cast<char*>(pass.len > 0 ? pass.data : ""),
+      pass.len));
+  params.push_back(OSSL_PARAM_construct_octet_string(
+      OSSL_KDF_PARAM_SALT, const_cast<unsigned char*>(salt.data), salt.len));
+  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_THREADS, &lanes));
+  params.push_back(
+      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes));
+  params.push_back(
+      OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &memcost));
+  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ITER, &iter));
+
+  if (ad.len != 0) {
+    params.push_back(OSSL_PARAM_construct_octet_string(
+        OSSL_KDF_PARAM_ARGON2_AD, const_cast<unsigned char*>(ad.data), ad.len));
+  }
+
+  if (secret.len != 0) {
+    params.push_back(OSSL_PARAM_construct_octet_string(
+        OSSL_KDF_PARAM_SECRET,
+        const_cast<unsigned char*>(secret.data),
+        secret.len));
+  }
+
+  params.push_back(OSSL_PARAM_construct_end());
+
+  auto dp = DataPointer::Alloc(length);
+  if (dp && EVP_KDF_derive(kctx.get(),
+                           reinterpret_cast<unsigned char*>(dp.get()),
+                           length,
+                           params.data()) == 1) {
+    return dp;
+  }
+
+  return {};
+}
+#endif
+#endif
+
 // ============================================================================
 
 EVPKeyPointer::PrivateKeyEncodingConfig::PrivateKeyEncodingConfig(
@@ -1897,6 +2051,31 @@ EVPKeyPointer EVPKeyPointer::NewRawPrivate(
   return EVPKeyPointer(
       EVP_PKEY_new_raw_private_key(id, nullptr, data.data, data.len));
 }
+
+#if OPENSSL_WITH_PQC
+EVPKeyPointer EVPKeyPointer::NewRawSeed(
+    int id, const Buffer<const unsigned char>& data) {
+  if (id == 0) return {};
+
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_ML_DSA_SEED,
+                                        const_cast<unsigned char*>(data.data),
+                                        data.len),
+      OSSL_PARAM_END};
+
+  EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(id, nullptr);
+  if (ctx == nullptr) return {};
+
+  EVP_PKEY* pkey = nullptr;
+  if (ctx == nullptr || EVP_PKEY_fromdata_init(ctx) <= 0 ||
+      EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEYPAIR, params) <= 0) {
+    EVP_PKEY_CTX_free(ctx);
+    return {};
+  }
+
+  return EVPKeyPointer(pkey);
+}
+#endif
 
 EVPKeyPointer EVPKeyPointer::NewDH(DHPointer&& dh) {
   if (!dh) return {};
@@ -1943,7 +2122,26 @@ EVP_PKEY* EVPKeyPointer::release() {
 
 int EVPKeyPointer::id(const EVP_PKEY* key) {
   if (key == nullptr) return 0;
-  return EVP_PKEY_id(key);
+  int type = EVP_PKEY_id(key);
+#if OPENSSL_WITH_PQC
+  // EVP_PKEY_id returns -1 when EVP_PKEY_* is only implemented in a provider
+  // which is the case for all post-quantum NIST algorithms
+  // one suggested way would be to use a chain of `EVP_PKEY_is_a`
+  // https://github.com/openssl/openssl/issues/27738#issuecomment-3013215870
+  // or, this way there are less calls to the OpenSSL provider, just
+  // getting the name once
+  if (type == -1) {
+    const char* type_name = EVP_PKEY_get0_type_name(key);
+    if (type_name == nullptr) return -1;
+
+    for (const auto& mapping : pqc_mappings) {
+      if (strcmp(type_name, mapping.name) == 0) {
+        return mapping.nid;
+      }
+    }
+  }
+#endif
+  return type;
 }
 
 int EVPKeyPointer::base_id(const EVP_PKEY* key) {
@@ -1998,6 +2196,44 @@ DataPointer EVPKeyPointer::rawPublicKey() const {
   }
   return {};
 }
+
+#if OPENSSL_WITH_PQC
+DataPointer EVPKeyPointer::rawSeed() const {
+  if (!pkey_) return {};
+
+  // Determine seed length and parameter name based on key type
+  size_t seed_len;
+  const char* param_name;
+
+  switch (id()) {
+    case EVP_PKEY_ML_DSA_44:
+    case EVP_PKEY_ML_DSA_65:
+    case EVP_PKEY_ML_DSA_87:
+      seed_len = 32;  // ML-DSA uses 32-byte seeds
+      param_name = OSSL_PKEY_PARAM_ML_DSA_SEED;
+      break;
+    case EVP_PKEY_ML_KEM_512:
+    case EVP_PKEY_ML_KEM_768:
+    case EVP_PKEY_ML_KEM_1024:
+      seed_len = 64;  // ML-KEM uses 64-byte seeds
+      param_name = OSSL_PKEY_PARAM_ML_KEM_SEED;
+      break;
+    default:
+      unreachable();
+  }
+
+  if (auto data = DataPointer::Alloc(seed_len)) {
+    const Buffer<unsigned char> buf = data;
+    size_t len = data.size();
+
+    if (EVP_PKEY_get_octet_string_param(
+            get(), param_name, buf.data, len, &seed_len) != 1)
+      return {};
+    return data;
+  }
+  return {};
+}
+#endif
 
 DataPointer EVPKeyPointer::rawPrivateKey() const {
   if (!pkey_) return {};
@@ -2454,7 +2690,30 @@ bool EVPKeyPointer::isRsaVariant() const {
 bool EVPKeyPointer::isOneShotVariant() const {
   if (!pkey_) return false;
   int type = id();
-  return type == EVP_PKEY_ED25519 || type == EVP_PKEY_ED448;
+  switch (type) {
+    case EVP_PKEY_ED25519:
+    case EVP_PKEY_ED448:
+#if OPENSSL_WITH_PQC
+    case EVP_PKEY_ML_DSA_44:
+    case EVP_PKEY_ML_DSA_65:
+    case EVP_PKEY_ML_DSA_87:
+    case EVP_PKEY_SLH_DSA_SHA2_128F:
+    case EVP_PKEY_SLH_DSA_SHA2_128S:
+    case EVP_PKEY_SLH_DSA_SHA2_192F:
+    case EVP_PKEY_SLH_DSA_SHA2_192S:
+    case EVP_PKEY_SLH_DSA_SHA2_256F:
+    case EVP_PKEY_SLH_DSA_SHA2_256S:
+    case EVP_PKEY_SLH_DSA_SHAKE_128F:
+    case EVP_PKEY_SLH_DSA_SHAKE_128S:
+    case EVP_PKEY_SLH_DSA_SHAKE_192F:
+    case EVP_PKEY_SLH_DSA_SHAKE_192S:
+    case EVP_PKEY_SLH_DSA_SHAKE_256F:
+    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+#endif
+      return true;
+    default:
+      return false;
+  }
 }
 
 bool EVPKeyPointer::isSigVariant() const {
@@ -2832,6 +3091,10 @@ const Cipher Cipher::AES_256_GCM = Cipher::FromNid(NID_aes_256_gcm);
 const Cipher Cipher::AES_128_KW = Cipher::FromNid(NID_id_aes128_wrap);
 const Cipher Cipher::AES_192_KW = Cipher::FromNid(NID_id_aes192_wrap);
 const Cipher Cipher::AES_256_KW = Cipher::FromNid(NID_id_aes256_wrap);
+const Cipher Cipher::AES_128_OCB = Cipher::FromNid(NID_aes_128_ocb);
+const Cipher Cipher::AES_192_OCB = Cipher::FromNid(NID_aes_192_ocb);
+const Cipher Cipher::AES_256_OCB = Cipher::FromNid(NID_aes_256_ocb);
+const Cipher Cipher::CHACHA20_POLY1305 = Cipher::FromNid(NID_chacha20_poly1305);
 
 bool Cipher::isGcmMode() const {
   if (!cipher_) return false;
@@ -3031,6 +3294,11 @@ int CipherCtxPointer::getMode() const {
 bool CipherCtxPointer::isGcmMode() const {
   if (!ctx_) return false;
   return getMode() == EVP_CIPH_GCM_MODE;
+}
+
+bool CipherCtxPointer::isOcbMode() const {
+  if (!ctx_) return false;
+  return getMode() == EVP_CIPH_OCB_MODE;
 }
 
 bool CipherCtxPointer::isCcmMode() const {
@@ -3548,7 +3816,6 @@ EVPKeyPointer EVPKeyCtxPointer::paramgen() const {
 bool EVPKeyCtxPointer::publicCheck() const {
   if (!ctx_) return false;
 #ifndef OPENSSL_IS_BORINGSSL
-  return EVP_PKEY_public_check(ctx_.get()) == 1;
 #if OPENSSL_VERSION_MAJOR >= 3
   return EVP_PKEY_public_check_quick(ctx_.get()) == 1;
 #else
@@ -4047,6 +4314,54 @@ std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInit(
   return ctx;
 }
 
+std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::signInitWithContext(
+    const EVPKeyPointer& key,
+    const Digest& digest,
+    const Buffer<const unsigned char>& context_string) {
+#ifdef OSSL_SIGNATURE_PARAM_CONTEXT_STRING
+  EVP_PKEY_CTX* ctx = nullptr;
+
+  const OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_octet_string(
+          OSSL_SIGNATURE_PARAM_CONTEXT_STRING,
+          const_cast<unsigned char*>(context_string.data),
+          context_string.len),
+      OSSL_PARAM_END};
+
+  if (!EVP_DigestSignInit_ex(
+          ctx_.get(), &ctx, nullptr, nullptr, nullptr, key.get(), params)) {
+    return std::nullopt;
+  }
+  return ctx;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInitWithContext(
+    const EVPKeyPointer& key,
+    const Digest& digest,
+    const Buffer<const unsigned char>& context_string) {
+#ifdef OSSL_SIGNATURE_PARAM_CONTEXT_STRING
+  EVP_PKEY_CTX* ctx = nullptr;
+
+  const OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_octet_string(
+          OSSL_SIGNATURE_PARAM_CONTEXT_STRING,
+          const_cast<unsigned char*>(context_string.data),
+          context_string.len),
+      OSSL_PARAM_END};
+
+  if (!EVP_DigestVerifyInit_ex(
+          ctx_.get(), &ctx, nullptr, nullptr, nullptr, key.get(), params)) {
+    return std::nullopt;
+  }
+  return ctx;
+#else
+  return std::nullopt;
+#endif
+}
+
 DataPointer EVPMDCtxPointer::signOneShot(
     const Buffer<const unsigned char>& buf) const {
   if (!ctx_) return {};
@@ -4172,6 +4487,96 @@ HMACCtxPointer HMACCtxPointer::New() {
   return HMACCtxPointer(HMAC_CTX_new());
 }
 
+#if OPENSSL_VERSION_MAJOR >= 3
+EVPMacPointer::EVPMacPointer(EVP_MAC* mac) : mac_(mac) {}
+
+EVPMacPointer::EVPMacPointer(EVPMacPointer&& other) noexcept
+    : mac_(std::move(other.mac_)) {}
+
+EVPMacPointer& EVPMacPointer::operator=(EVPMacPointer&& other) noexcept {
+  if (this == &other) return *this;
+  mac_ = std::move(other.mac_);
+  return *this;
+}
+
+EVPMacPointer::~EVPMacPointer() {
+  mac_.reset();
+}
+
+void EVPMacPointer::reset(EVP_MAC* mac) {
+  mac_.reset(mac);
+}
+
+EVP_MAC* EVPMacPointer::release() {
+  return mac_.release();
+}
+
+EVPMacPointer EVPMacPointer::Fetch(const char* algorithm) {
+  return EVPMacPointer(EVP_MAC_fetch(nullptr, algorithm, nullptr));
+}
+
+EVPMacCtxPointer::EVPMacCtxPointer(EVP_MAC_CTX* ctx) : ctx_(ctx) {}
+
+EVPMacCtxPointer::EVPMacCtxPointer(EVPMacCtxPointer&& other) noexcept
+    : ctx_(std::move(other.ctx_)) {}
+
+EVPMacCtxPointer& EVPMacCtxPointer::operator=(
+    EVPMacCtxPointer&& other) noexcept {
+  if (this == &other) return *this;
+  ctx_ = std::move(other.ctx_);
+  return *this;
+}
+
+EVPMacCtxPointer::~EVPMacCtxPointer() {
+  ctx_.reset();
+}
+
+void EVPMacCtxPointer::reset(EVP_MAC_CTX* ctx) {
+  ctx_.reset(ctx);
+}
+
+EVP_MAC_CTX* EVPMacCtxPointer::release() {
+  return ctx_.release();
+}
+
+bool EVPMacCtxPointer::init(const Buffer<const void>& key,
+                            const OSSL_PARAM* params) {
+  if (!ctx_) return false;
+  return EVP_MAC_init(ctx_.get(),
+                      static_cast<const unsigned char*>(key.data),
+                      key.len,
+                      params) == 1;
+}
+
+bool EVPMacCtxPointer::update(const Buffer<const void>& data) {
+  if (!ctx_) return false;
+  return EVP_MAC_update(ctx_.get(),
+                        static_cast<const unsigned char*>(data.data),
+                        data.len) == 1;
+}
+
+DataPointer EVPMacCtxPointer::final(size_t length) {
+  if (!ctx_) return {};
+  auto buf = DataPointer::Alloc(length);
+  if (!buf) return {};
+
+  size_t result_len = length;
+  if (EVP_MAC_final(ctx_.get(),
+                    static_cast<unsigned char*>(buf.get()),
+                    &result_len,
+                    length) != 1) {
+    return {};
+  }
+
+  return buf;
+}
+
+EVPMacCtxPointer EVPMacCtxPointer::New(EVP_MAC* mac) {
+  if (!mac) return EVPMacCtxPointer();
+  return EVPMacCtxPointer(EVP_MAC_CTX_new(mac));
+}
+#endif  // OPENSSL_VERSION_MAJOR >= 3
+
 DataPointer hashDigest(const Buffer<const unsigned char>& buf,
                        const EVP_MD* md) {
   if (md == nullptr) return {};
@@ -4190,6 +4595,22 @@ DataPointer hashDigest(const Buffer<const unsigned char>& buf,
   }
 
   return data.resize(result_size);
+}
+
+DataPointer xofHashDigest(const Buffer<const unsigned char>& buf,
+                          const EVP_MD* md,
+                          size_t output_length) {
+  if (md == nullptr) return {};
+
+  EVPMDCtxPointer ctx = EVPMDCtxPointer::New();
+  if (!ctx) return {};
+  if (ctx.digestInit(md) != 1) {
+    return {};
+  }
+  if (ctx.digestUpdate(reinterpret_cast<const Buffer<const void>&>(buf)) != 1) {
+    return {};
+  }
+  return ctx.digestFinal(output_length);
 }
 
 // ============================================================================
@@ -4297,5 +4718,126 @@ const Digest Digest::SHA512 = Digest(EVP_sha512());
 const Digest Digest::FromName(const char* name) {
   return ncrypto::getDigestByName(name);
 }
+
+// ============================================================================
+// KEM Implementation
+#if OPENSSL_VERSION_MAJOR >= 3
+#if !OPENSSL_VERSION_PREREQ(3, 5)
+bool KEM::SetOperationParameter(EVP_PKEY_CTX* ctx, const EVPKeyPointer& key) {
+  const char* operation = nullptr;
+
+  switch (EVP_PKEY_id(key.get())) {
+    case EVP_PKEY_RSA:
+      operation = OSSL_KEM_PARAM_OPERATION_RSASVE;
+      break;
+#if OPENSSL_VERSION_PREREQ(3, 2)
+    case EVP_PKEY_EC:
+    case EVP_PKEY_X25519:
+    case EVP_PKEY_X448:
+      operation = OSSL_KEM_PARAM_OPERATION_DHKEM;
+      break;
+#endif
+    default:
+      unreachable();
+  }
+
+  if (operation != nullptr) {
+    OSSL_PARAM params[] = {
+        OSSL_PARAM_utf8_string(
+            OSSL_KEM_PARAM_OPERATION, const_cast<char*>(operation), 0),
+        OSSL_PARAM_END};
+
+    if (EVP_PKEY_CTX_set_params(ctx, params) <= 0) {
+      return false;
+    }
+  }
+
+  return true;
+}
+#endif
+
+std::optional<KEM::EncapsulateResult> KEM::Encapsulate(
+    const EVPKeyPointer& public_key) {
+  ClearErrorOnReturn clear_error_on_return;
+
+  auto ctx = public_key.newCtx();
+  if (!ctx) return std::nullopt;
+
+  if (EVP_PKEY_encapsulate_init(ctx.get(), nullptr) <= 0) {
+    return std::nullopt;
+  }
+
+#if !OPENSSL_VERSION_PREREQ(3, 5)
+  if (!SetOperationParameter(ctx.get(), public_key)) {
+    return std::nullopt;
+  }
+#endif
+
+  // Determine output buffer sizes
+  size_t ciphertext_len = 0;
+  size_t shared_key_len = 0;
+
+  if (EVP_PKEY_encapsulate(
+          ctx.get(), nullptr, &ciphertext_len, nullptr, &shared_key_len) <= 0) {
+    return std::nullopt;
+  }
+
+  auto ciphertext = DataPointer::Alloc(ciphertext_len);
+  auto shared_key = DataPointer::Alloc(shared_key_len);
+  if (!ciphertext || !shared_key) return std::nullopt;
+
+  if (EVP_PKEY_encapsulate(ctx.get(),
+                           static_cast<unsigned char*>(ciphertext.get()),
+                           &ciphertext_len,
+                           static_cast<unsigned char*>(shared_key.get()),
+                           &shared_key_len) <= 0) {
+    return std::nullopt;
+  }
+
+  return EncapsulateResult(std::move(ciphertext), std::move(shared_key));
+}
+
+DataPointer KEM::Decapsulate(const EVPKeyPointer& private_key,
+                             const Buffer<const void>& ciphertext) {
+  ClearErrorOnReturn clear_error_on_return;
+
+  auto ctx = private_key.newCtx();
+  if (!ctx) return {};
+
+  if (EVP_PKEY_decapsulate_init(ctx.get(), nullptr) <= 0) {
+    return {};
+  }
+
+#if !OPENSSL_VERSION_PREREQ(3, 5)
+  if (!SetOperationParameter(ctx.get(), private_key)) {
+    return {};
+  }
+#endif
+
+  // First pass: determine shared secret size
+  size_t shared_key_len = 0;
+  if (EVP_PKEY_decapsulate(ctx.get(),
+                           nullptr,
+                           &shared_key_len,
+                           static_cast<const unsigned char*>(ciphertext.data),
+                           ciphertext.len) <= 0) {
+    return {};
+  }
+
+  auto shared_key = DataPointer::Alloc(shared_key_len);
+  if (!shared_key) return {};
+
+  if (EVP_PKEY_decapsulate(ctx.get(),
+                           static_cast<unsigned char*>(shared_key.get()),
+                           &shared_key_len,
+                           static_cast<const unsigned char*>(ciphertext.data),
+                           ciphertext.len) <= 0) {
+    return {};
+  }
+
+  return shared_key;
+}
+
+#endif  // OPENSSL_VERSION_MAJOR >= 3
 
 }  // namespace ncrypto

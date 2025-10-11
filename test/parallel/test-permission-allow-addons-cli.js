@@ -19,3 +19,7 @@ const loadFixture = createRequire(fixtures.path('node_modules'));
   const msg = loadFixture('pkgexports/no-addons');
   assert.strictEqual(msg, 'using native addons');
 }
+
+{
+  assert.ok(process.permission.has('addon'));
+}

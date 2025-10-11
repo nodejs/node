@@ -28,7 +28,6 @@ class StructBodyDescriptor;
 class SourceTextModule
     : public TorqueGeneratedSourceTextModule<SourceTextModule, Module> {
  public:
-  NEVER_READ_ONLY_SPACE
   DECL_VERIFIER(SourceTextModule)
   DECL_PRINTER(SourceTextModule)
 
@@ -279,7 +278,6 @@ class SourceTextModuleInfo : public FixedArray {
 class ModuleRequest
     : public TorqueGeneratedModuleRequest<ModuleRequest, Struct> {
  public:
-  NEVER_READ_ONLY_SPACE
   DECL_VERIFIER(ModuleRequest)
 
   template <typename IsolateT>

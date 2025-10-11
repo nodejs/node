@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --fuzzing --allow-natives-syntax --wasm-staging
+// Flags: --wasm-allow-mixed-eh-for-testing
+// Flags: --experimental-fuzzing
 
 const generated_module = %WasmGenerateRandomModule();
 if (typeof WebAssembly == "object") {

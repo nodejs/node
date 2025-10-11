@@ -357,6 +357,8 @@ class ExternalPointerSlot
   {
   }
 
+  inline void init_lazily_initialized();
+
   inline void init(IsolateForSandbox isolate, Tagged<HeapObject> host,
                    Address value, ExternalPointerTag tag);
 
@@ -382,6 +384,9 @@ class ExternalPointerSlot
   inline Address load(IsolateForSandbox isolate);
   inline void store(IsolateForSandbox isolate, Address value,
                     ExternalPointerTag tag);
+
+  // Loads tag value from the external pointer table.
+  inline ExternalPointerTag load_tag(IsolateForSandbox isolate);
 
   // ExternalPointerSlot serialization support.
   // These methods can be used to clear an external pointer slot prior to

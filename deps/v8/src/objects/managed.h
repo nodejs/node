@@ -161,7 +161,7 @@ class TrustedManaged : public TrustedForeign {
   // {std::unique_ptr} (which will implicitly convert to {std::shared_ptr}).
   static DirectHandle<TrustedManaged<CppType>> From(
       Isolate* isolate, size_t estimated_size,
-      std::shared_ptr<CppType> shared_ptr);
+      std::shared_ptr<CppType> shared_ptr, bool shared);
 
  private:
   friend class Tagged<TrustedManaged>;

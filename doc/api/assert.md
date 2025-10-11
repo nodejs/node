@@ -129,7 +129,7 @@ Legacy assertion mode may have surprising results, especially when using
 assert.deepEqual(/a/gi, new Date());
 ```
 
-## Class: assert.AssertionError
+## Class: `assert.AssertionError`
 
 * Extends: {errors.Error}
 
@@ -149,6 +149,8 @@ added: v0.1.21
   * `operator` {string} The `operator` property on the error instance.
   * `stackStartFn` {Function} If provided, the generated stack trace omits
     frames before this function.
+  * `diff` {string} If set to `'full'`, shows the full diff in assertion errors. Defaults to `'simple'`.
+    Accepted values: `'simple'`, `'full'`.
 
 A subclass of {Error} that indicates the failure of an assertion.
 
@@ -215,6 +217,90 @@ try {
 }
 ```
 
+## Class: `assert.Assert`
+
+<!-- YAML
+added:
+ - v24.6.0
+ - v22.19.0
+-->
+
+The `Assert` class allows creating independent assertion instances with custom options.
+
+### `new assert.Assert([options])`
+
+<!-- YAML
+changes:
+  - version: v24.9.0
+    pr-url: https://github.com/nodejs/node/pull/59762
+    description: Added `skipPrototype` option.
+-->
+
+* `options` {Object}
+  * `diff` {string} If set to `'full'`, shows the full diff in assertion errors. Defaults to `'simple'`.
+    Accepted values: `'simple'`, `'full'`.
+  * `strict` {boolean} If set to `true`, non-strict methods behave like their
+    corresponding strict methods. Defaults to `true`.
+  * `skipPrototype` {boolean} If set to `true`, skips prototype and constructor
+    comparison in deep equality checks. Defaults to `false`.
+
+Creates a new assertion instance. The `diff` option controls the verbosity of diffs in assertion error messages.
+
+```js
+const { Assert } = require('node:assert');
+const assertInstance = new Assert({ diff: 'full' });
+assertInstance.deepStrictEqual({ a: 1 }, { a: 2 });
+// Shows a full diff in the error message.
+```
+
+**Important**: When destructuring assertion methods from an `Assert` instance,
+the methods lose their connection to the instance's configuration options (such
+as `diff`, `strict`, and `skipPrototype` settings).
+The destructured methods will fall back to default behavior instead.
+
+```js
+const myAssert = new Assert({ diff: 'full' });
+
+// This works as expected - uses 'full' diff
+myAssert.strictEqual({ a: 1 }, { b: { c: 1 } });
+
+// This loses the 'full' diff setting - falls back to default 'simple' diff
+const { strictEqual } = myAssert;
+strictEqual({ a: 1 }, { b: { c: 1 } });
+```
+
+The `skipPrototype` option affects all deep equality methods:
+
+```js
+class Foo {
+  constructor(a) {
+    this.a = a;
+  }
+}
+
+class Bar {
+  constructor(a) {
+    this.a = a;
+  }
+}
+
+const foo = new Foo(1);
+const bar = new Bar(1);
+
+// Default behavior - fails due to different constructors
+const assert1 = new Assert();
+assert1.deepStrictEqual(foo, bar); // AssertionError
+
+// Skip prototype comparison - passes if properties are equal
+const assert2 = new Assert({ skipPrototype: true });
+assert2.deepStrictEqual(foo, bar); // OK
+```
+
+When destructured, methods lose access to the instance's `this` context and revert to default assertion behavior
+(diff: 'simple', non-strict mode).
+To maintain custom options when using destructured methods, avoid
+destructuring and call methods directly on the instance.
+
 ## `assert(value[, message])`
 
 <!-- YAML
@@ -231,6 +317,13 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59448
+    description: Promises are not considered equal anymore if they are not of
+                 the same instance.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57627
+    description: Invalid dates are now considered equal.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57622
     description: Recursion now stops when either side encounters a circular
@@ -316,8 +409,10 @@ are also recursively evaluated by the following rules.
 * Implementation does not test the [`[[Prototype]]`][prototype-spec] of
   objects.
 * {Symbol} properties are not compared.
-* {WeakMap} and {WeakSet} comparison does not rely on their values
-  but only on their instances.
+* {WeakMap}, {WeakSet} and {Promise} instances are **not** compared
+  structurally. They are only equal if they reference the same object. Any
+  comparison between different `WeakMap`, `WeakSet`, or `Promise` instances
+  will result in inequality, even if they contain the same content.
 * {RegExp} lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
 
@@ -422,6 +517,13 @@ parameter is an instance of {Error} then it will be thrown instead of the
 <!-- YAML
 added: v1.2.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59448
+    description: Promises are not considered equal anymore if they are not of
+                 the same instance.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57627
+    description: Invalid dates are now considered equal.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57622
     description: Recursion now stops when either side encounters a circular
@@ -487,10 +589,10 @@ are recursively evaluated also by the following rules.
 * {Map} keys and {Set} items are compared unordered.
 * Recursion stops when both sides differ or either side encounters a circular
   reference.
-* {WeakMap} and {WeakSet} instances are **not** compared structurally.
-  They are only equal if they reference the same object. Any comparison between
-  different `WeakMap` or `WeakSet` instances will result in inequality,
-  even if they contain the same entries.
+* {WeakMap}, {WeakSet} and {Promise} instances are **not** compared
+  structurally. They are only equal if they reference the same object. Any
+  comparison between different `WeakMap`, `WeakSet`, or `Promise` instances
+  will result in inequality, even if they contain the same content.
 * {RegExp} lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
 
@@ -1069,107 +1171,6 @@ assert.fail('boom');
 
 assert.fail(new TypeError('need array'));
 // TypeError: need array
-```
-
-Using `assert.fail()` with more than two arguments is possible but deprecated.
-See below for further details.
-
-## `assert.fail(actual, expected[, message[, operator[, stackStartFn]]])`
-
-<!-- YAML
-added: v0.1.21
-changes:
-  - version: v10.0.0
-    pr-url: https://github.com/nodejs/node/pull/18418
-    description: Calling `assert.fail()` with more than one argument is
-                 deprecated and emits a warning.
--->
-
-> Stability: 0 - Deprecated: Use `assert.fail([message])` or other assert
-> functions instead.
-
-* `actual` {any}
-* `expected` {any}
-* `message` {string|Error}
-* `operator` {string} **Default:** `'!='`
-* `stackStartFn` {Function} **Default:** `assert.fail`
-
-If `message` is falsy, the error message is set as the values of `actual` and
-`expected` separated by the provided `operator`. If just the two `actual` and
-`expected` arguments are provided, `operator` will default to `'!='`. If
-`message` is provided as third argument it will be used as the error message and
-the other arguments will be stored as properties on the thrown object. If
-`stackStartFn` is provided, all stack frames above that function will be
-removed from stacktrace (see [`Error.captureStackTrace`][]). If no arguments are
-given, the default message `Failed` will be used.
-
-```mjs
-import assert from 'node:assert/strict';
-
-assert.fail('a', 'b');
-// AssertionError [ERR_ASSERTION]: 'a' != 'b'
-
-assert.fail(1, 2, undefined, '>');
-// AssertionError [ERR_ASSERTION]: 1 > 2
-
-assert.fail(1, 2, 'fail');
-// AssertionError [ERR_ASSERTION]: fail
-
-assert.fail(1, 2, 'whoops', '>');
-// AssertionError [ERR_ASSERTION]: whoops
-
-assert.fail(1, 2, new TypeError('need array'));
-// TypeError: need array
-```
-
-```cjs
-const assert = require('node:assert/strict');
-
-assert.fail('a', 'b');
-// AssertionError [ERR_ASSERTION]: 'a' != 'b'
-
-assert.fail(1, 2, undefined, '>');
-// AssertionError [ERR_ASSERTION]: 1 > 2
-
-assert.fail(1, 2, 'fail');
-// AssertionError [ERR_ASSERTION]: fail
-
-assert.fail(1, 2, 'whoops', '>');
-// AssertionError [ERR_ASSERTION]: whoops
-
-assert.fail(1, 2, new TypeError('need array'));
-// TypeError: need array
-```
-
-In the last three cases `actual`, `expected`, and `operator` have no
-influence on the error message.
-
-Example use of `stackStartFn` for truncating the exception's stacktrace:
-
-```mjs
-import assert from 'node:assert/strict';
-
-function suppressFrame() {
-  assert.fail('a', 'b', undefined, '!==', suppressFrame);
-}
-suppressFrame();
-// AssertionError [ERR_ASSERTION]: 'a' !== 'b'
-//     at repl:1:1
-//     at ContextifyScript.Script.runInThisContext (vm.js:44:33)
-//     ...
-```
-
-```cjs
-const assert = require('node:assert/strict');
-
-function suppressFrame() {
-  assert.fail('a', 'b', undefined, '!==', suppressFrame);
-}
-suppressFrame();
-// AssertionError [ERR_ASSERTION]: 'a' !== 'b'
-//     at repl:1:1
-//     at ContextifyScript.Script.runInThisContext (vm.js:44:33)
-//     ...
 ```
 
 ## `assert.ifError(value)`
@@ -2278,9 +2279,18 @@ added:
   - v23.4.0
   - v22.13.0
 changes:
- - version: v24.0.0
-   pr-url: https://github.com/nodejs/node/pull/57370
-   description: partialDeepStrictEqual is now Stable. Previously, it had been Experimental.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59448
+    description: Promises are not considered equal anymore if they are not of
+                 the same instance.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57627
+    description: Invalid dates are now considered equal.
+  - version:
+      - v24.0.0
+      - v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57370
+    description: partialDeepStrictEqual is now Stable. Previously, it had been Experimental.
 -->
 
 * `actual` {any}
@@ -2311,10 +2321,10 @@ behaving as a super set of it.
 * {Map} keys and {Set} items are compared unordered.
 * Recursion stops when both sides differ or both sides encounter a circular
   reference.
-* {WeakMap} and {WeakSet} instances are **not** compared structurally.
-  They are only equal if they reference the same object. Any comparison between
-  different `WeakMap` or `WeakSet` instances will result in inequality,
-  even if they contain the same entries.
+* {WeakMap}, {WeakSet} and {Promise} instances are **not** compared
+  structurally. They are only equal if they reference the same object. Any
+  comparison between different `WeakMap`, `WeakSet`, or `Promise` instances
+  will result in inequality, even if they contain the same content.
 * {RegExp} lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
 * Holes in sparse arrays are ignored.
@@ -2437,7 +2447,6 @@ assert.partialDeepStrictEqual(
 [`AssertionError`]: #class-assertassertionerror
 [`Class`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [`ERR_INVALID_RETURN_VALUE`]: errors.md#err_invalid_return_value
-[`Error.captureStackTrace`]: errors.md#errorcapturestacktracetargetobject-constructoropt
 [`Object.is()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
 [`assert.deepEqual()`]: #assertdeepequalactual-expected-message
 [`assert.deepStrictEqual()`]: #assertdeepstrictequalactual-expected-message

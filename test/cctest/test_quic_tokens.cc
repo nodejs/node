@@ -1,4 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#if HAVE_OPENSSL
+#include "quic/guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include <gtest/gtest.h>
 #include <ngtcp2/ngtcp2.h>
 #include <node_sockaddr-inl.h>
@@ -166,4 +168,5 @@ TEST(RegularToken, Basic) {
 
   CHECK(!token.Validate(NGTCP2_PROTO_VER_MAX, address, secret, 10000000000));
 }
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

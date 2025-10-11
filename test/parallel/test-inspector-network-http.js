@@ -27,6 +27,7 @@ const setResponseHeaders = (res) => {
   res.setHeader('etag', 12345);
   res.setHeader('Set-Cookie', ['key1=value1', 'key2=value2']);
   res.setHeader('x-header2', ['value1', 'value2']);
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
 };
 
 const kTimeout = 1000;
@@ -106,6 +107,8 @@ function verifyResponseReceived({ method, params }, expect) {
   assert.strictEqual(params.response.headers.etag, '12345');
   assert.strictEqual(params.response.headers['set-cookie'], 'key1=value1\nkey2=value2');
   assert.strictEqual(params.response.headers['x-header2'], 'value1, value2');
+  assert.strictEqual(params.response.mimeType, 'text/plain');
+  assert.strictEqual(params.response.charset, 'utf-8');
 
   return params;
 }

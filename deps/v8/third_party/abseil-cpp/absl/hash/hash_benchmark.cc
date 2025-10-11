@@ -378,7 +378,10 @@ struct StringRand {
 
 MAKE_LATENCY_BENCHMARK(AbslHash, Int32, PodRand<int32_t>)
 MAKE_LATENCY_BENCHMARK(AbslHash, Int64, PodRand<int64_t>)
+MAKE_LATENCY_BENCHMARK(AbslHash, String3, StringRand<3>)
+MAKE_LATENCY_BENCHMARK(AbslHash, String5, StringRand<5>)
 MAKE_LATENCY_BENCHMARK(AbslHash, String9, StringRand<9>)
+MAKE_LATENCY_BENCHMARK(AbslHash, String17, StringRand<17>)
 MAKE_LATENCY_BENCHMARK(AbslHash, String33, StringRand<33>)
 MAKE_LATENCY_BENCHMARK(AbslHash, String65, StringRand<65>)
 MAKE_LATENCY_BENCHMARK(AbslHash, String257, StringRand<257>)

@@ -27,7 +27,7 @@ const REPORT_FIELDS = [
   const dir = '--report-directory=' + tmpdir.path;
   const args = ['--report-on-fatalerror', dir, ...ARGS];
   const child = spawnSync(process.execPath, args, { });
-  assert.notStrictEqual(child.status, 0, 'Process exited unexpectedly');
+  assert.notStrictEqual(child.status, 0);
 
   const reports = helper.findReports(child.pid, tmpdir.path);
   assert.strictEqual(reports.length, 1);

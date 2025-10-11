@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -68,8 +68,7 @@ typedef struct cts_mode_name2id_st {
     const char *name;
 } CTS_MODE_NAME2ID;
 
-static CTS_MODE_NAME2ID cts_modes[] =
-{
+static CTS_MODE_NAME2ID cts_modes[] = {
     { CTS_CS1, OSSL_CIPHER_CTS_MODE_CS1 },
     { CTS_CS2, OSSL_CIPHER_CTS_MODE_CS2 },
     { CTS_CS3, OSSL_CIPHER_CTS_MODE_CS3 },

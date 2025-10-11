@@ -62,7 +62,6 @@ directly supplied to gyp. OTOH if both "a.gyp" and "b.gyp" are supplied to gyp
 then the "all" target includes "b1" and "b2".
 """
 
-
 import json
 import os
 import posixpath
@@ -130,8 +129,8 @@ def _ToGypPath(path):
 
 def _ResolveParent(path, base_path_components):
     """Resolves |path|, which starts with at least one '../'. Returns an empty
-  string if the path shouldn't be considered. See _AddSources() for a
-  description of |base_path_components|."""
+    string if the path shouldn't be considered. See _AddSources() for a
+    description of |base_path_components|."""
     depth = 0
     while path.startswith("../"):
         depth += 1
@@ -151,11 +150,11 @@ def _ResolveParent(path, base_path_components):
 
 def _AddSources(sources, base_path, base_path_components, result):
     """Extracts valid sources from |sources| and adds them to |result|. Each
-  source file is relative to |base_path|, but may contain '..'. To make
-  resolving '..' easier |base_path_components| contains each of the
-  directories in |base_path|. Additionally each source may contain variables.
-  Such sources are ignored as it is assumed dependencies on them are expressed
-  and tracked in some other means."""
+    source file is relative to |base_path|, but may contain '..'. To make
+    resolving '..' easier |base_path_components| contains each of the
+    directories in |base_path|. Additionally each source may contain variables.
+    Such sources are ignored as it is assumed dependencies on them are expressed
+    and tracked in some other means."""
     # NOTE: gyp paths are always posix style.
     for source in sources:
         if not len(source) or source.startswith(("!!!", "$")):
@@ -218,23 +217,23 @@ def _ExtractSources(target, target_dict, toplevel_dir):
 
 class Target:
     """Holds information about a particular target:
-  deps: set of Targets this Target depends upon. This is not recursive, only the
-    direct dependent Targets.
-  match_status: one of the MatchStatus values.
-  back_deps: set of Targets that have a dependency on this Target.
-  visited: used during iteration to indicate whether we've visited this target.
-    This is used for two iterations, once in building the set of Targets and
-    again in _GetBuildTargets().
-  name: fully qualified name of the target.
-  requires_build: True if the target type is such that it needs to be built.
-    See _DoesTargetTypeRequireBuild for details.
-  added_to_compile_targets: used when determining if the target was added to the
-    set of targets that needs to be built.
-  in_roots: true if this target is a descendant of one of the root nodes.
-  is_executable: true if the type of target is executable.
-  is_static_library: true if the type of target is static_library.
-  is_or_has_linked_ancestor: true if the target does a link (eg executable), or
-    if there is a target in back_deps that does a link."""
+    deps: set of Targets this Target depends upon. This is not recursive, only the
+      direct dependent Targets.
+    match_status: one of the MatchStatus values.
+    back_deps: set of Targets that have a dependency on this Target.
+    visited: used during iteration to indicate whether we've visited this target.
+      This is used for two iterations, once in building the set of Targets and
+      again in _GetBuildTargets().
+    name: fully qualified name of the target.
+    requires_build: True if the target type is such that it needs to be built.
+      See _DoesTargetTypeRequireBuild for details.
+    added_to_compile_targets: used when determining if the target was added to the
+      set of targets that needs to be built.
+    in_roots: true if this target is a descendant of one of the root nodes.
+    is_executable: true if the type of target is executable.
+    is_static_library: true if the type of target is static_library.
+    is_or_has_linked_ancestor: true if the target does a link (eg executable), or
+      if there is a target in back_deps that does a link."""
 
     def __init__(self, name):
         self.deps = set()
@@ -254,8 +253,8 @@ class Target:
 
 class Config:
     """Details what we're looking for
-  files: set of files to search for
-  targets: see file description for details."""
+    files: set of files to search for
+    targets: see file description for details."""
 
     def __init__(self):
         self.files = []
@@ -265,7 +264,7 @@ class Config:
 
     def Init(self, params):
         """Initializes Config. This is a separate method as it raises an exception
-    if there is a parse error."""
+        if there is a parse error."""
         generator_flags = params.get("generator_flags", {})
         config_path = generator_flags.get("config_path", None)
         if not config_path:
@@ -289,8 +288,8 @@ class Config:
 
 def _WasBuildFileModified(build_file, data, files, toplevel_dir):
     """Returns true if the build file |build_file| is either in |files| or
-  one of the files included by |build_file| is in |files|. |toplevel_dir| is
-  the root of the source tree."""
+    one of the files included by |build_file| is in |files|. |toplevel_dir| is
+    the root of the source tree."""
     if _ToLocalPath(toplevel_dir, _ToGypPath(build_file)) in files:
         if debug:
             print("gyp file modified", build_file)
@@ -319,8 +318,8 @@ def _WasBuildFileModified(build_file, data, files, toplevel_dir):
 
 def _GetOrCreateTargetByName(targets, target_name):
     """Creates or returns the Target at targets[target_name]. If there is no
-  Target for |target_name| one is created. Returns a tuple of whether a new
-  Target was created and the Target."""
+    Target for |target_name| one is created. Returns a tuple of whether a new
+    Target was created and the Target."""
     if target_name in targets:
         return False, targets[target_name]
     target = Target(target_name)
@@ -340,13 +339,13 @@ def _DoesTargetTypeRequireBuild(target_dict):
 
 def _GenerateTargets(data, target_list, target_dicts, toplevel_dir, files, build_files):
     """Returns a tuple of the following:
-  . A dictionary mapping from fully qualified name to Target.
-  . A list of the targets that have a source file in |files|.
-  . Targets that constitute the 'all' target. See description at top of file
-    for details on the 'all' target.
-  This sets the |match_status| of the targets that contain any of the source
-  files in |files| to MATCH_STATUS_MATCHES.
-  |toplevel_dir| is the root of the source tree."""
+    . A dictionary mapping from fully qualified name to Target.
+    . A list of the targets that have a source file in |files|.
+    . Targets that constitute the 'all' target. See description at top of file
+      for details on the 'all' target.
+    This sets the |match_status| of the targets that contain any of the source
+    files in |files| to MATCH_STATUS_MATCHES.
+    |toplevel_dir| is the root of the source tree."""
     # Maps from target name to Target.
     name_to_target = {}
 
@@ -379,9 +378,10 @@ def _GenerateTargets(data, target_list, target_dicts, toplevel_dir, files, build
         target_type = target_dicts[target_name]["type"]
         target.is_executable = target_type == "executable"
         target.is_static_library = target_type == "static_library"
-        target.is_or_has_linked_ancestor = (
-            target_type in {"executable", "shared_library"}
-        )
+        target.is_or_has_linked_ancestor = target_type in {
+            "executable",
+            "shared_library",
+        }
 
         build_file = gyp.common.ParseQualifiedTarget(target_name)[0]
         if build_file not in build_file_in_files:
@@ -427,9 +427,9 @@ def _GenerateTargets(data, target_list, target_dicts, toplevel_dir, files, build
 
 def _GetUnqualifiedToTargetMapping(all_targets, to_find):
     """Returns a tuple of the following:
-  . mapping (dictionary) from unqualified name to Target for all the
-    Targets in |to_find|.
-  . any target names not found. If this is empty all targets were found."""
+    . mapping (dictionary) from unqualified name to Target for all the
+      Targets in |to_find|.
+    . any target names not found. If this is empty all targets were found."""
     result = {}
     if not to_find:
         return {}, []
@@ -446,15 +446,15 @@ def _GetUnqualifiedToTargetMapping(all_targets, to_find):
 
 def _DoesTargetDependOnMatchingTargets(target):
     """Returns true if |target| or any of its dependencies is one of the
-  targets containing the files supplied as input to analyzer. This updates
-  |matches| of the Targets as it recurses.
-  target: the Target to look for."""
+    targets containing the files supplied as input to analyzer. This updates
+    |matches| of the Targets as it recurses.
+    target: the Target to look for."""
     if target.match_status == MATCH_STATUS_DOESNT_MATCH:
         return False
-    if (
-        target.match_status in {MATCH_STATUS_MATCHES,
-                                MATCH_STATUS_MATCHES_BY_DEPENDENCY}
-    ):
+    if target.match_status in {
+        MATCH_STATUS_MATCHES,
+        MATCH_STATUS_MATCHES_BY_DEPENDENCY,
+    }:
         return True
     for dep in target.deps:
         if _DoesTargetDependOnMatchingTargets(dep):
@@ -467,9 +467,9 @@ def _DoesTargetDependOnMatchingTargets(target):
 
 def _GetTargetsDependingOnMatchingTargets(possible_targets):
     """Returns the list of Targets in |possible_targets| that depend (either
-  directly on indirectly) on at least one of the targets containing the files
-  supplied as input to analyzer.
-  possible_targets: targets to search from."""
+    directly on indirectly) on at least one of the targets containing the files
+    supplied as input to analyzer.
+    possible_targets: targets to search from."""
     found = []
     print("Targets that matched by dependency:")
     for target in possible_targets:
@@ -480,11 +480,11 @@ def _GetTargetsDependingOnMatchingTargets(possible_targets):
 
 def _AddCompileTargets(target, roots, add_if_no_ancestor, result):
     """Recurses through all targets that depend on |target|, adding all targets
-  that need to be built (and are in |roots|) to |result|.
-  roots: set of root targets.
-  add_if_no_ancestor: If true and there are no ancestors of |target| then add
-  |target| to |result|. |target| must still be in |roots|.
-  result: targets that need to be built are added here."""
+    that need to be built (and are in |roots|) to |result|.
+    roots: set of root targets.
+    add_if_no_ancestor: If true and there are no ancestors of |target| then add
+    |target| to |result|. |target| must still be in |roots|.
+    result: targets that need to be built are added here."""
     if target.visited:
         return
 
@@ -537,8 +537,8 @@ def _AddCompileTargets(target, roots, add_if_no_ancestor, result):
 
 def _GetCompileTargets(matching_targets, supplied_targets):
     """Returns the set of Targets that require a build.
-  matching_targets: targets that changed and need to be built.
-  supplied_targets: set of targets supplied to analyzer to search from."""
+    matching_targets: targets that changed and need to be built.
+    supplied_targets: set of targets supplied to analyzer to search from."""
     result = set()
     for target in matching_targets:
         print("finding compile targets for match", target.name)
@@ -592,7 +592,7 @@ def _WriteOutput(params, **values):
 
 def _WasGypIncludeFileModified(params, files):
     """Returns true if one of the files in |files| is in the set of included
-  files."""
+    files."""
     if params["options"].includes:
         for include in params["options"].includes:
             if _ToGypPath(os.path.normpath(include)) in files:
@@ -608,7 +608,7 @@ def _NamesNotIn(names, mapping):
 
 def _LookupTargets(names, mapping):
     """Returns a list of the mapping[name] for each value in |names| that is in
-  |mapping|."""
+    |mapping|."""
     return [mapping[name] for name in names if name in mapping]
 
 

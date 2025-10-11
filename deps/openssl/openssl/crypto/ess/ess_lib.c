@@ -29,28 +29,38 @@ ESS_SIGNING_CERT *OSSL_ESS_signing_cert_new_init(const X509 *signcert,
     ESS_SIGNING_CERT *sc;
     int i;
 
-    if ((sc = ESS_SIGNING_CERT_new()) == NULL)
+    if ((sc = ESS_SIGNING_CERT_new()) == NULL) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ESS_LIB);
         goto err;
+    }
     if (sc->cert_ids == NULL
-        && (sc->cert_ids = sk_ESS_CERT_ID_new_null()) == NULL)
+        && (sc->cert_ids = sk_ESS_CERT_ID_new_null()) == NULL) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_CRYPTO_LIB);
         goto err;
+    }
 
     if ((cid = ESS_CERT_ID_new_init(signcert, set_issuer_serial)) == NULL
-        || !sk_ESS_CERT_ID_push(sc->cert_ids, cid))
+        || !sk_ESS_CERT_ID_push(sc->cert_ids, cid)) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ESS_LIB);
         goto err;
+    }
     for (i = 0; i < sk_X509_num(certs); ++i) {
         X509 *cert = sk_X509_value(certs, i);
 
-        if ((cid = ESS_CERT_ID_new_init(cert, 1)) == NULL
-            || !sk_ESS_CERT_ID_push(sc->cert_ids, cid))
+        if ((cid = ESS_CERT_ID_new_init(cert, 1)) == NULL) {
+            ERR_raise(ERR_LIB_ESS, ERR_R_ESS_LIB);
             goto err;
+        }
+        if (!sk_ESS_CERT_ID_push(sc->cert_ids, cid)) {
+            ERR_raise(ERR_LIB_ESS, ERR_R_CRYPTO_LIB);
+            goto err;
+        }
     }
 
     return sc;
  err:
     ESS_SIGNING_CERT_free(sc);
     ESS_CERT_ID_free(cid);
-    ERR_raise(ERR_LIB_ESS, ERR_R_MALLOC_FAILURE);
     return NULL;
 }
 
@@ -61,38 +71,53 @@ static ESS_CERT_ID *ESS_CERT_ID_new_init(const X509 *cert,
     GENERAL_NAME *name = NULL;
     unsigned char cert_sha1[SHA_DIGEST_LENGTH];
 
-    if ((cid = ESS_CERT_ID_new()) == NULL)
+    if ((cid = ESS_CERT_ID_new()) == NULL) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ESS_LIB);
         goto err;
-    if (!X509_digest(cert, EVP_sha1(), cert_sha1, NULL))
+    }
+    if (!X509_digest(cert, EVP_sha1(), cert_sha1, NULL)) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_X509_LIB);
         goto err;
-    if (!ASN1_OCTET_STRING_set(cid->hash, cert_sha1, SHA_DIGEST_LENGTH))
+    }
+    if (!ASN1_OCTET_STRING_set(cid->hash, cert_sha1, SHA_DIGEST_LENGTH)) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ASN1_LIB);
         goto err;
+    }
 
     /* Setting the issuer/serial if requested. */
     if (!set_issuer_serial)
         return cid;
 
     if (cid->issuer_serial == NULL
-        && (cid->issuer_serial = ESS_ISSUER_SERIAL_new()) == NULL)
+        && (cid->issuer_serial = ESS_ISSUER_SERIAL_new()) == NULL) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ESS_LIB);
         goto err;
-    if ((name = GENERAL_NAME_new()) == NULL)
+    }
+    if ((name = GENERAL_NAME_new()) == NULL) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ASN1_LIB);
         goto err;
+    }
     name->type = GEN_DIRNAME;
-    if ((name->d.dirn = X509_NAME_dup(X509_get_issuer_name(cert))) == NULL)
+    if ((name->d.dirn = X509_NAME_dup(X509_get_issuer_name(cert))) == NULL) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_X509_LIB);
         goto err;
-    if (!sk_GENERAL_NAME_push(cid->issuer_serial->issuer, name))
+    }
+    if (!sk_GENERAL_NAME_push(cid->issuer_serial->issuer, name)) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_CRYPTO_LIB);
         goto err;
+    }
     name = NULL;            /* Ownership is lost. */
     ASN1_INTEGER_free(cid->issuer_serial->serial);
-    if ((cid->issuer_serial->serial =
-          ASN1_INTEGER_dup(X509_get0_serialNumber(cert))) == NULL)
+    if ((cid->issuer_serial->serial
+         = ASN1_INTEGER_dup(X509_get0_serialNumber(cert))) == NULL) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ASN1_LIB);
         goto err;
+    }
 
     return cid;
  err:
     GENERAL_NAME_free(name);
     ESS_CERT_ID_free(cid);
-    ERR_raise(ERR_LIB_ESS, ERR_R_MALLOC_FAILURE);
     return NULL;
 }
 
@@ -106,22 +131,32 @@ ESS_SIGNING_CERT_V2 *OSSL_ESS_signing_cert_v2_new_init(const EVP_MD *hash_alg,
     ESS_SIGNING_CERT_V2 *sc;
     int i;
 
-    if ((sc = ESS_SIGNING_CERT_V2_new()) == NULL)
+    if ((sc = ESS_SIGNING_CERT_V2_new()) == NULL) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ESS_LIB);
         goto err;
+    }
     cid = ESS_CERT_ID_V2_new_init(hash_alg, signcert, set_issuer_serial);
-    if (cid == NULL)
+    if (cid == NULL) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ESS_LIB);
         goto err;
-    if (!sk_ESS_CERT_ID_V2_push(sc->cert_ids, cid))
+    }
+    if (!sk_ESS_CERT_ID_V2_push(sc->cert_ids, cid)) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_CRYPTO_LIB);
         goto err;
+    }
     cid = NULL;
 
     for (i = 0; i < sk_X509_num(certs); ++i) {
         X509 *cert = sk_X509_value(certs, i);
 
-        if ((cid = ESS_CERT_ID_V2_new_init(hash_alg, cert, 1)) == NULL)
+        if ((cid = ESS_CERT_ID_V2_new_init(hash_alg, cert, 1)) == NULL) {
+            ERR_raise(ERR_LIB_ESS, ERR_R_ESS_LIB);
             goto err;
-        if (!sk_ESS_CERT_ID_V2_push(sc->cert_ids, cid))
+        }
+        if (!sk_ESS_CERT_ID_V2_push(sc->cert_ids, cid)) {
+            ERR_raise(ERR_LIB_ESS, ERR_R_CRYPTO_LIB);
             goto err;
+        }
         cid = NULL;
     }
 
@@ -129,7 +164,6 @@ ESS_SIGNING_CERT_V2 *OSSL_ESS_signing_cert_v2_new_init(const EVP_MD *hash_alg,
  err:
     ESS_SIGNING_CERT_V2_free(sc);
     ESS_CERT_ID_V2_free(cid);
-    ERR_raise(ERR_LIB_ESS, ERR_R_MALLOC_FAILURE);
     return NULL;
 }
 
@@ -145,52 +179,71 @@ static ESS_CERT_ID_V2 *ESS_CERT_ID_V2_new_init(const EVP_MD *hash_alg,
 
     memset(hash, 0, sizeof(hash));
 
-    if ((cid = ESS_CERT_ID_V2_new()) == NULL)
+    if ((cid = ESS_CERT_ID_V2_new()) == NULL) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ESS_LIB);
         goto err;
+    }
 
     if (!EVP_MD_is_a(hash_alg, SN_sha256)) {
         alg = X509_ALGOR_new();
-        if (alg == NULL)
+        if (alg == NULL) {
+            ERR_raise(ERR_LIB_ESS, ERR_R_ASN1_LIB);
             goto err;
+        }
         X509_ALGOR_set_md(alg, hash_alg);
-        if (alg->algorithm == NULL)
+        if (alg->algorithm == NULL) {
+            ERR_raise(ERR_LIB_ESS, ERR_R_ASN1_LIB);
             goto err;
+        }
         cid->hash_alg = alg;
         alg = NULL;
     } else {
         cid->hash_alg = NULL;
     }
 
-    if (!X509_digest(cert, hash_alg, hash, &hash_len))
+    if (!X509_digest(cert, hash_alg, hash, &hash_len)) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_X509_LIB);
         goto err;
+    }
 
-    if (!ASN1_OCTET_STRING_set(cid->hash, hash, hash_len))
+    if (!ASN1_OCTET_STRING_set(cid->hash, hash, hash_len)) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ASN1_LIB);
         goto err;
+    }
 
     if (!set_issuer_serial)
         return cid;
 
-    if ((cid->issuer_serial = ESS_ISSUER_SERIAL_new()) == NULL)
+    if ((cid->issuer_serial = ESS_ISSUER_SERIAL_new()) == NULL) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ESS_LIB);
         goto err;
-    if ((name = GENERAL_NAME_new()) == NULL)
+    }
+    if ((name = GENERAL_NAME_new()) == NULL) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ASN1_LIB);
         goto err;
+    }
     name->type = GEN_DIRNAME;
-    if ((name->d.dirn = X509_NAME_dup(X509_get_issuer_name(cert))) == NULL)
+    if ((name->d.dirn = X509_NAME_dup(X509_get_issuer_name(cert))) == NULL) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ASN1_LIB);
         goto err;
-    if (!sk_GENERAL_NAME_push(cid->issuer_serial->issuer, name))
+    }
+    if (!sk_GENERAL_NAME_push(cid->issuer_serial->issuer, name)) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_CRYPTO_LIB);
         goto err;
+    }
     name = NULL;            /* Ownership is lost. */
     ASN1_INTEGER_free(cid->issuer_serial->serial);
     cid->issuer_serial->serial = ASN1_INTEGER_dup(X509_get0_serialNumber(cert));
-    if (cid->issuer_serial->serial == NULL)
+    if (cid->issuer_serial->serial == NULL) {
+        ERR_raise(ERR_LIB_ESS, ERR_R_ASN1_LIB);
         goto err;
+    }
 
     return cid;
  err:
     X509_ALGOR_free(alg);
     GENERAL_NAME_free(name);
     ESS_CERT_ID_V2_free(cid);
-    ERR_raise(ERR_LIB_ESS, ERR_R_MALLOC_FAILURE);
     return NULL;
 }
 

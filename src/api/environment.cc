@@ -1,4 +1,7 @@
 #include <cstdlib>
+#if HAVE_OPENSSL
+#include "crypto/crypto_util.h"
+#endif  // HAVE_OPENSSL
 #include "env_properties.h"
 #include "node.h"
 #include "node_builtins.h"
@@ -15,7 +18,7 @@
 #include "node_wasm_web_api.h"
 #include "uv.h"
 #ifdef NODE_ENABLE_VTUNE_PROFILING
-#include "../deps/v8/src/third_party/vtune/v8-vtune.h"
+#include "../deps/v8/third_party/vtune/v8-vtune.h"
 #endif
 #if HAVE_INSPECTOR
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
@@ -414,6 +417,25 @@ Environment* CreateEnvironment(
     EnvironmentFlags::Flags flags,
     ThreadId thread_id,
     std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {
+  return CreateEnvironment(isolate_data,
+                           context,
+                           args,
+                           exec_args,
+                           flags,
+                           thread_id,
+                           std::move(inspector_parent_handle),
+                           {});
+}
+
+Environment* CreateEnvironment(
+    IsolateData* isolate_data,
+    Local<Context> context,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    EnvironmentFlags::Flags flags,
+    ThreadId thread_id,
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle,
+    std::string_view thread_name) {
   Isolate* isolate = isolate_data->isolate();
 
   Isolate::Scope isolate_scope(isolate);
@@ -434,7 +456,8 @@ Environment* CreateEnvironment(
                                      exec_args,
                                      env_snapshot_info,
                                      flags,
-                                     thread_id);
+                                     thread_id,
+                                     thread_name);
   CHECK_NOT_NULL(env);
 
   if (use_snapshot) {
@@ -512,8 +535,19 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
 
 NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     Environment* env, ThreadId thread_id, const char* url, const char* name) {
-  CHECK_NOT_NULL(env);
+  if (url == nullptr) url = "";
   if (name == nullptr) name = "";
+  std::string_view url_view(url);
+  std::string_view name_view(name);
+  return GetInspectorParentHandle(env, thread_id, url_view, name_view);
+}
+
+NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
+    Environment* env,
+    ThreadId thread_id,
+    std::string_view url,
+    std::string_view name) {
+  CHECK_NOT_NULL(env);
   CHECK_NE(thread_id.id, static_cast<uint64_t>(-1));
   if (!env->should_create_inspector()) {
     return nullptr;
@@ -583,26 +617,6 @@ MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env) {
   return env->platform();
 }
 
-MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    node::tracing::TracingController* tracing_controller) {
-  return CreatePlatform(
-      thread_pool_size,
-      static_cast<v8::TracingController*>(tracing_controller));
-}
-
-MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    v8::TracingController* tracing_controller) {
-  return MultiIsolatePlatform::Create(thread_pool_size,
-                                      tracing_controller)
-      .release();
-}
-
-void FreePlatform(MultiIsolatePlatform* platform) {
-  delete platform;
-}
-
 std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
     int thread_pool_size,
     v8::TracingController* tracing_controller,
@@ -614,7 +628,7 @@ std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
 
 MaybeLocal<Object> GetPerContextExports(Local<Context> context,
                                         IsolateData* isolate_data) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope handle_scope(isolate);
 
   Local<Object> global = context->Global();
@@ -660,7 +674,7 @@ void ProtoThrower(const FunctionCallbackInfo<Value>& info) {
 // This runs at runtime, regardless of whether the context
 // is created from a snapshot.
 Maybe<void> InitializeContextRuntime(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
   // When `IsCodeGenerationFromStringsAllowed` is true, V8 takes the fast path
@@ -739,7 +753,7 @@ Maybe<void> InitializeContextRuntime(Local<Context> context) {
 }
 
 Maybe<void> InitializeBaseContextForSnapshot(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
   // Delete `Intl.v8BreakIterator`
@@ -764,7 +778,7 @@ Maybe<void> InitializeBaseContextForSnapshot(Local<Context> context) {
 }
 
 Maybe<void> InitializeMainContextForSnapshot(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
   // Initialize the default values.
@@ -782,18 +796,18 @@ Maybe<void> InitializeMainContextForSnapshot(Local<Context> context) {
 MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
                                             IsolateData* isolate_data) {
   CHECK(isolate_data);
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope scope(isolate);
   Context::Scope context_scope(context);
 
   Local<ObjectTemplate> private_symbols = ObjectTemplate::New(isolate);
-  Local<Object> private_symbols_object;
 #define V(PropertyName, _)                                                     \
   private_symbols->Set(isolate, #PropertyName, isolate_data->PropertyName());
 
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
 #undef V
 
+  Local<Object> private_symbols_object;
   if (!private_symbols->NewInstance(context).ToLocal(&private_symbols_object) ||
       private_symbols_object->SetPrototypeV2(context, Null(isolate))
           .IsNothing()) {
@@ -803,10 +817,36 @@ MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
   return scope.Escape(private_symbols_object);
 }
 
+MaybeLocal<Object> InitializePerIsolateSymbols(Local<Context> context,
+                                               IsolateData* isolate_data) {
+  CHECK(isolate_data);
+  Isolate* isolate = Isolate::GetCurrent();
+  EscapableHandleScope scope(isolate);
+  Context::Scope context_scope(context);
+
+  Local<ObjectTemplate> per_isolate_symbols = ObjectTemplate::New(isolate);
+#define V(PropertyName, _)                                                     \
+  per_isolate_symbols->Set(                                                    \
+      isolate, #PropertyName, isolate_data->PropertyName());
+
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
+#undef V
+
+  Local<Object> per_isolate_symbols_object;
+  if (!per_isolate_symbols->NewInstance(context).ToLocal(
+          &per_isolate_symbols_object) ||
+      per_isolate_symbols_object->SetPrototypeV2(context, Null(isolate))
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
+
+  return scope.Escape(per_isolate_symbols_object);
+}
+
 Maybe<void> InitializePrimordials(Local<Context> context,
                                   IsolateData* isolate_data) {
   // Run per-context JS files.
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Context::Scope context_scope(context);
   Local<Object> exports;
 
@@ -832,6 +872,12 @@ Maybe<void> InitializePrimordials(Local<Context> context,
     return Nothing<void>();
   }
 
+  Local<Object> per_isolate_symbols;
+  if (!InitializePerIsolateSymbols(context, isolate_data)
+           .ToLocal(&per_isolate_symbols)) {
+    return Nothing<void>();
+  }
+
   static const char* context_files[] = {"internal/per_context/primordials",
                                         "internal/per_context/domexception",
                                         "internal/per_context/messageport",
@@ -847,7 +893,8 @@ Maybe<void> InitializePrimordials(Local<Context> context,
   builtin_loader.SetEagerCompile();
 
   for (const char** module = context_files; *module != nullptr; module++) {
-    Local<Value> arguments[] = {exports, primordials, private_symbols};
+    Local<Value> arguments[] = {
+        exports, primordials, private_symbols, per_isolate_symbols};
 
     if (builtin_loader
             .CompileAndCall(
@@ -960,6 +1007,11 @@ void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code) {
   // in node_v8_platform-inl.h
   uv_library_shutdown();
   DisposePlatform();
+
+#if HAVE_OPENSSL
+  crypto::CleanupCachedRootCertificates();
+#endif  // HAVE_OPENSSL
+
   Exit(exit_code);
 }
 

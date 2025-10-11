@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/ast/modules.h"
+#include "src/base/logging.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/code-factory.h"
@@ -33,7 +34,9 @@
 #include "src/execution/protectors.h"
 #include "src/flags/flags.h"
 #include "src/objects/casting.h"
+#include "src/objects/contexts.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
@@ -76,6 +79,7 @@ class JSBinopReduction final {
       case CompareOperationHint::kBigInt64:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kStringOrOddball:
       case CompareOperationHint::kInternalizedString:
         break;
     }
@@ -95,6 +99,7 @@ class JSBinopReduction final {
       case CompareOperationHint::kSymbol:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kStringOrOddball:
       case CompareOperationHint::kInternalizedString:
         return false;
       case CompareOperationHint::kBigInt:
@@ -134,6 +139,13 @@ class JSBinopReduction final {
            BothInputsMaybe(Type::String());
   }
 
+  bool IsStringOrOddballCompareOperation() {
+    DCHECK_EQ(1, node_->op()->EffectOutputCount());
+    return (GetCompareOperationHint(node_) ==
+            CompareOperationHint::kStringOrOddball) &&
+           BothInputsMaybe(Type::StringOrOddball());
+  }
+
   bool IsSymbolCompareOperation() {
     DCHECK_EQ(1, node_->op()->EffectOutputCount());
     return (GetCompareOperationHint(node_) == CompareOperationHint::kSymbol) &&
@@ -145,7 +157,7 @@ class JSBinopReduction final {
   // minimum length.
   bool ShouldCreateConsString() {
     DCHECK_EQ(IrOpcode::kJSAdd, node_->opcode());
-    DCHECK(OneInputIs(Type::String()));
+    DCHECK(OneInputIs(Type::StringOrStringWrapper()));
     if (node_->InputAt(1)->opcode() == IrOpcode::kNewConsString) {
       // If the right hand side is a ConsString, then we can create a
       // ConsString. This doesn't work with the left hand side, since the right
@@ -154,7 +166,9 @@ class JSBinopReduction final {
       // that here.
       return true;
     }
-    if (BothInputsAre(Type::String()) ||
+    // We don't look inside JSStringWrappers, but if the other side is a long
+    // enough string, that's enough to trigger cons string creation.
+    if (BothInputsAre(Type::StringOrStringWrapper()) ||
         GetBinaryOperationHint(node_) == BinaryOperationHint::kString) {
       HeapObjectBinopMatcher m(node_);
       JSHeapBroker* broker = lowering_->broker();
@@ -263,6 +277,23 @@ class JSBinopReduction final {
       Node* right_input =
           graph()->NewNode(simplified()->CheckString(FeedbackSource()), right(),
                            effect(), control());
+      node_->ReplaceInput(1, right_input);
+      update_effect(right_input);
+    }
+  }
+
+  void CheckInputsToStringOrOddball() {
+    if (!left_type().Is(Type::StringOrOddball())) {
+      Node* left_input =
+          graph()->NewNode(simplified()->CheckStringOrOddball(FeedbackSource()),
+                           left(), effect(), control());
+      node_->ReplaceInput(0, left_input);
+      update_effect(left_input);
+    }
+    if (!right_type().Is(Type::StringOrOddball())) {
+      Node* right_input =
+          graph()->NewNode(simplified()->CheckStringOrOddball(FeedbackSource()),
+                           right(), effect(), control());
       node_->ReplaceInput(1, right_input);
       update_effect(right_input);
     }
@@ -681,7 +712,7 @@ Node* JSTypedLowering::UnwrapStringWrapper(Node* string_or_wrapper,
 
   Node* vfalse = efalse = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSPrimitiveWrapperValue()),
-      string_or_wrapper, *effect, *control);
+      string_or_wrapper, *effect, if_false);
 
   // The value read from a string wrapper is a string.
   vfalse = efalse = graph()->NewNode(common()->TypeGuard(Type::String()),
@@ -780,7 +811,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 
     // Generate the string addition.
     return GenerateStringAddition(node, left_string, right_string, context,
-                                  frame_state, &effect, &control, false);
+                                  frame_state, &effect, &control,
+                                  r.ShouldCreateConsString());
   }
 
   // We never get here when we had String feedback.
@@ -1038,7 +1070,10 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
   if (r.BothInputsAre(Type::String())) {
     return r.ChangeToPureOperator(simplified()->StringEqual());
   }
-
+  if (r.IsStringOrOddballCompareOperation()) {
+    r.CheckInputsToStringOrOddball();
+    return r.ChangeToPureOperator(simplified()->StringOrOddballStrictEqual());
+  }
   NumberOperationHint hint;
   BigIntOperationHint hint_bigint;
   if (r.BothInputsAre(Type::Signed32()) ||
@@ -1539,26 +1574,6 @@ Reduction JSTypedLowering::ReduceJSHasContextExtension(Node* node) {
   gasm.InitializeEffectControl(effect, control);
 
   for (size_t i = 0; i < depth; ++i) {
-#if DEBUG
-    // Const tracking let data is stored in the extension slot of a
-    // ScriptContext - however, it's unrelated to the sloppy eval variable
-    // extension. We should never iterate through a ScriptContext here.
-
-    TNode<ScopeInfo> scope_info = gasm.LoadField<ScopeInfo>(
-        AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX), context);
-    TNode<Word32T> scope_info_flags = gasm.EnterMachineGraph<Word32T>(
-        gasm.LoadField<Word32T>(AccessBuilder::ForScopeInfoFlags(), scope_info),
-        UseInfo::TruncatingWord32());
-    TNode<Word32T> scope_type = gasm.Word32And(
-        scope_info_flags, gasm.Uint32Constant(ScopeInfo::ScopeTypeBits::kMask));
-    TNode<Word32T> is_script_scope = gasm.Word32Equal(
-        scope_type, gasm.Uint32Constant(ScopeType::SCRIPT_SCOPE));
-    TNode<Word32T> is_not_script_scope =
-        gasm.Word32Equal(is_script_scope, gasm.Uint32Constant(0));
-    gasm.Assert(is_not_script_scope, "we should no see a ScriptContext here",
-                __FILE__, __LINE__);
-#endif
-
     context = gasm.LoadField<Context>(
         AccessBuilder::ForContextSlotKnownPointer(Context::PREVIOUS_INDEX),
         context);
@@ -1582,8 +1597,8 @@ Reduction JSTypedLowering::ReduceJSHasContextExtension(Node* node) {
   return Changed(node);
 }
 
-Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
+Reduction JSTypedLowering::ReduceJSLoadContextNoCell(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadContextNoCell, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* context = NodeProperties::GetContextInput(node);
@@ -1603,8 +1618,8 @@ Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
   return Changed(node);
 }
 
-Reduction JSTypedLowering::ReduceJSLoadScriptContext(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSLoadScriptContext, node->opcode());
+Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1626,104 +1641,52 @@ Reduction JSTypedLowering::ReduceJSLoadScriptContext(Node* node) {
       gasm.SelectIf<Object>(gasm.ObjectIsSmi(value))
           .Then([&] { return value; })
           .Else([&] {
-            TNode<Map> value_map =
-                gasm.LoadMap(TNode<HeapObject>::UncheckedCast(value));
-            return gasm.SelectIf<Object>(gasm.IsHeapNumberMap(value_map))
-                .Then([&] {
-                  size_t side_data_index =
-                      access.index() - Context::MIN_CONTEXT_EXTENDED_SLOTS;
-                  TNode<FixedArray> side_data = gasm.LoadField<FixedArray>(
-                      AccessBuilder::ForContextSlot(
-                          Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX),
-                      context);
-                  TNode<Object> data = gasm.LoadField<Object>(
-                      AccessBuilder::ForFixedArraySlot(side_data_index),
-                      side_data);
-                  TNode<Object> property =
-                      gasm.SelectIf<Object>(gasm.ObjectIsSmi(data))
-                          .Then([&] { return data; })
-                          .Else([&] {
-                            return gasm.LoadField<Object>(
-                                AccessBuilder::ForContextSideProperty(),
-                                TNode<HeapObject>::UncheckedCast(data));
-                          })
-                          .Value();
-                  if (v8_flags.script_context_mutable_heap_int32) {
-                    return gasm
-                        .SelectIf<Object>(gasm.ReferenceEqual(
-                            property,
-                            TNode<Object>::UncheckedCast(gasm.SmiConstant(
-                                ContextSidePropertyCell::kMutableInt32))))
-                        .Then([&] {
-                          Node* number = gasm.LoadField(
-                              AccessBuilder::ForHeapInt32Value(), value);
-                          // Allocate a new HeapNumber.
-                          AllocationBuilder a(jsgraph(), broker(),
-                                              gasm.effect(), gasm.control());
-                          a.Allocate(sizeof(HeapNumber), AllocationType::kYoung,
-                                     Type::OtherInternal());
-                          a.Store(AccessBuilder::ForMap(),
-                                  broker()->heap_number_map());
-                          a.Store(AccessBuilder::ForHeapNumberValue(), number);
-                          Node* new_heap_number = a.Finish();
-                          gasm.UpdateEffectControlWith(new_heap_number);
-                          return TNode<Object>::UncheckedCast(new_heap_number);
-                        })
-                        .Else([&] {
-                          return gasm
-                              .SelectIf<Object>(gasm.ReferenceEqual(
-                                  property,
-                                  TNode<Object>::UncheckedCast(gasm.SmiConstant(
-                                      ContextSidePropertyCell::
-                                          kMutableHeapNumber))))
-                              .Then([&] {
-                                Node* number = gasm.LoadHeapNumberValue(value);
-                                // Allocate a new HeapNumber.
-                                AllocationBuilder a(jsgraph(), broker(),
-                                                    gasm.effect(),
-                                                    gasm.control());
-                                a.Allocate(sizeof(HeapNumber),
-                                           AllocationType::kYoung,
-                                           Type::OtherInternal());
-                                a.Store(AccessBuilder::ForMap(),
-                                        broker()->heap_number_map());
-                                a.Store(AccessBuilder::ForHeapNumberValue(),
-                                        number);
-                                Node* new_heap_number = a.Finish();
-                                gasm.UpdateEffectControlWith(new_heap_number);
-                                return TNode<Object>::UncheckedCast(
-                                    new_heap_number);
-                              })
-                              .Else([&] { return value; })
-                              .Value();
-                        })
-                        .Value();
-                  } else {
-                    return gasm
-                        .SelectIf<Object>(gasm.ReferenceEqual(
-                            property,
-                            TNode<Object>::UncheckedCast(gasm.SmiConstant(
-                                ContextSidePropertyCell::kMutableHeapNumber))))
-                        .Then([&] {
-                          Node* number = gasm.LoadHeapNumberValue(value);
-                          // Allocate a new HeapNumber.
-                          AllocationBuilder a(jsgraph(), broker(),
-                                              gasm.effect(), gasm.control());
-                          a.Allocate(sizeof(HeapNumber), AllocationType::kYoung,
-                                     Type::OtherInternal());
-                          a.Store(AccessBuilder::ForMap(),
-                                  broker()->heap_number_map());
-                          a.Store(AccessBuilder::ForHeapNumberValue(), number);
-                          Node* new_heap_number = a.Finish();
-                          gasm.UpdateEffectControlWith(new_heap_number);
-                          return TNode<Object>::UncheckedCast(new_heap_number);
-                        })
-                        .Else([&] { return value; })
-                        .Value();
-                  }
+            return gasm.SelectIf<Object>(gasm.IsTheHole(value))
+                .Then([&] { return value; })
+                .Else([&] {
+                  TNode<Map> value_map =
+                      gasm.LoadMap(TNode<HeapObject>::UncheckedCast(value));
+                  return gasm.SelectIf<Object>(gasm.IsContextCellMap(value_map))
+                      .Then([&] {
+                        TNode<HeapObject> heap_value =
+                            TNode<HeapObject>::UncheckedCast(value);
+                        TNode<Int32T> state = gasm.LoadField<Int32T>(
+                            AccessBuilder::ForContextCellState(), heap_value);
+                        static_assert(ContextCell::State::kConst == 0);
+                        static_assert(ContextCell::State::kSmi == 1);
+                        return gasm
+                            .MachineSelectIf<Object>(gasm.Int32LessThanOrEqual(
+                                state, gasm.Int32Constant(ContextCell::kSmi)))
+                            .Then([&] {
+                              return gasm.LoadField<Object>(
+                                  AccessBuilder::ForContextCellTaggedValue(),
+                                  heap_value);
+                            })
+                            .Else([&] {
+                              return gasm
+                                  .MachineSelectIf<Object>(gasm.Word32Equal(
+                                      state,
+                                      gasm.Int32Constant(ContextCell::kInt32)))
+                                  .Then([&] {
+                                    return gasm.LoadField<Number>(
+                                        AccessBuilder::
+                                            ForContextCellInt32Value(),
+                                        heap_value);
+                                  })
+                                  .Else([&] {
+                                    return gasm.LoadField<Number>(
+                                        AccessBuilder::
+                                            ForContextCellFloat64Value(),
+                                        heap_value);
+                                  })
+                                  .Value();
+                            })
+                            .Value();
+                      })
+                      .Else([&] { return value; })
+                      .ExpectFalse()
+                      .Value();
                 })
-                .Else([&] { return value; })
-                .ExpectFalse()
                 .Value();
           })
           .Value();
@@ -1732,8 +1695,8 @@ Reduction JSTypedLowering::ReduceJSLoadScriptContext(Node* node) {
   return Changed(node);
 }
 
-Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
+Reduction JSTypedLowering::ReduceJSStoreContextNoCell(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreContextNoCell, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* context = NodeProperties::GetContextInput(node);
@@ -1754,11 +1717,12 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   return Changed(node);
 }
 
-Reduction JSTypedLowering::ReduceJSStoreScriptContext(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSStoreScriptContext, node->opcode());
+Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
+  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
   JSGraphAssembler gasm(broker(), jsgraph(), jsgraph()->zone(),
                         BranchSemantics::kJS);
   gasm.InitializeEffectControl(effect, control);
@@ -1776,87 +1740,35 @@ Reduction JSTypedLowering::ReduceJSStoreScriptContext(Node* node) {
   TNode<Object> new_value =
       TNode<Object>::UncheckedCast(NodeProperties::GetValueInput(node, 0));
 
-  gasm.IfNot(gasm.ReferenceEqual(old_value, new_value)).Then([&] {
-    size_t side_data_index =
-        access.index() - Context::MIN_CONTEXT_EXTENDED_SLOTS;
-    TNode<FixedArray> side_data = gasm.LoadField<FixedArray>(
-        AccessBuilder::ForContextSlot(
-            Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX),
-        context);
-    TNode<Object> data = gasm.LoadField<Object>(
-        AccessBuilder::ForFixedArraySlot(side_data_index), side_data);
-
-    TNode<Boolean> is_other = gasm.ReferenceEqual(
-        data, TNode<Object>::UncheckedCast(
-                  gasm.SmiConstant(ContextSidePropertyCell::kOther)));
-    gasm.If(is_other)
-        .Then([&] {
-          gasm.StoreField(AccessBuilder::ForContextSlot(access.index()),
-                          context, new_value);
-        })
-        .Else([&] {
-          gasm.CheckIf(gasm.BooleanNot(gasm.IsUndefined(data)),
-                       DeoptimizeReason::kWrongValue);
-          TNode<Object> property =
-              gasm.SelectIf<Object>(gasm.ObjectIsSmi(data))
-                  .Then([&] { return data; })
-                  .Else([&] {
-                    return gasm.LoadField<Object>(
-                        AccessBuilder::ForContextSideProperty(),
-                        TNode<HeapObject>::UncheckedCast(data));
+  gasm.If(gasm.ObjectIsSmi(old_value))
+      .Then([&] {
+        gasm.StoreField(AccessBuilder::ForContextSlot(access.index()), context,
+                        new_value);
+      })
+      .Else([&] {
+        gasm.If(gasm.IsTheHole(old_value))
+            .Then([&] {
+              gasm.StoreField(AccessBuilder::ForContextSlot(access.index()),
+                              context, new_value);
+            })
+            .Else([&] {
+              TNode<Map> old_value_map =
+                  gasm.LoadMap(TNode<HeapObject>::UncheckedCast(old_value));
+              gasm.If(gasm.IsContextCellMap(old_value_map))
+                  .Then([&] {
+                    gasm.DetachContextCell(context, new_value,
+                                           static_cast<int>(access.index()),
+                                           frame_state);
                   })
-                  .Value();
-          TNode<Boolean> is_const = gasm.ReferenceEqual(
-              property, TNode<Object>::UncheckedCast(
-                            gasm.SmiConstant(ContextSidePropertyCell::kConst)));
-          gasm.CheckIf(gasm.BooleanNot(is_const),
-                       DeoptimizeReason::kWrongValue);
-          if (v8_flags.script_context_mutable_heap_number) {
-            TNode<Boolean> is_smi_marker = gasm.ReferenceEqual(
-                property, TNode<Object>::UncheckedCast(
-                              gasm.SmiConstant(ContextSidePropertyCell::kSmi)));
-            gasm.If(is_smi_marker)
-                .Then([&] {
-                  Node* smi_value = gasm.CheckSmi(new_value);
-                  gasm.StoreField(
-                      AccessBuilder::ForContextSlotSmi(access.index()), context,
-                      smi_value);
-                })
-                .Else([&] {
-                  if (v8_flags.script_context_mutable_heap_int32) {
-                    TNode<Boolean> is_mutable_int32 = gasm.ReferenceEqual(
-                        property, TNode<Object>::UncheckedCast(gasm.SmiConstant(
-                                      ContextSidePropertyCell::kMutableInt32)));
-                    gasm.If(is_mutable_int32)
-                        .Then([&] {
-                          // It is a mutable int32 number.
-                          Node* number_value =
-                              gasm.CheckNumberFitsInt32(new_value);
-                          gasm.StoreField(AccessBuilder::ForHeapInt32Value(),
-                                          old_value, number_value);
-                        })
-                        .Else([&] {
-                          // It must be a mutable heap number in this case.
-                          Node* number_value = gasm.CheckNumber(new_value);
-                          gasm.StoreField(AccessBuilder::ForHeapNumberValue(),
-                                          old_value, number_value);
-                        });
+                  .Else([&] {
+                    gasm.StoreField(
+                        AccessBuilder::ForContextSlot(access.index()), context,
+                        new_value);
+                  })
+                  .ExpectFalse();
+            });
+      });
 
-                  } else {
-                    // It must be a mutable heap number in this case.
-                    Node* number_value = gasm.CheckNumber(new_value);
-                    gasm.StoreField(AccessBuilder::ForHeapNumberValue(),
-                                    old_value, number_value);
-                  }
-                });
-
-          } else {
-            gasm.StoreField(AccessBuilder::ForContextSlot(access.index()),
-                            context, new_value);
-          }
-        })
-        .ExpectTrue();
-  });
   ReplaceWithValue(node, gasm.effect(), gasm.effect(), gasm.control());
   return Changed(node);
 }
@@ -2191,10 +2103,16 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     }
 
     // Load the context from the {target}.
-    Node* context = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSFunctionContext()), target,
-        effect, control);
-    NodeProperties::ReplaceContextInput(node, context);
+    if (function) {
+      NodeProperties::ReplaceContextInput(
+          node,
+          jsgraph()->ConstantNoHole(function->context(broker()), broker()));
+    } else {
+      Node* context = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSFunctionContext()),
+          target, effect, control);
+      NodeProperties::ReplaceContextInput(node, context);
+    }
 
     // Update the effect dependency for the {node}.
     NodeProperties::ReplaceEffectInput(node, effect);
@@ -2203,8 +2121,9 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     Node* new_target = jsgraph()->UndefinedConstant();
 
+    // TODO(412398354): use the dispatch handle here to avoid a runtime check.
     int formal_count =
-        shared->internal_formal_parameter_count_without_receiver();
+        shared->internal_formal_parameter_count_without_receiver_deprecated();
     if (formal_count > arity) {
       node->RemoveInput(n.FeedbackVectorIndex());
       // Underapplication. Massage the arguments to match the expected number of
@@ -2642,8 +2561,8 @@ Reduction JSTypedLowering::ReduceJSGeneratorRestoreContinuation(Node* node) {
   return Changed(continuation);
 }
 
-Reduction JSTypedLowering::ReduceJSGeneratorRestoreContext(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSGeneratorRestoreContext, node->opcode());
+Reduction JSTypedLowering::ReduceJSGeneratorRestoreContextNoCell(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSGeneratorRestoreContextNoCell, node->opcode());
 
   const Operator* new_op =
       simplified()->LoadField(AccessBuilder::ForJSGeneratorObjectContext());
@@ -2893,14 +2812,14 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSToObject(node);
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
+    case IrOpcode::kJSLoadContextNoCell:
+      return ReduceJSLoadContextNoCell(node);
     case IrOpcode::kJSLoadContext:
       return ReduceJSLoadContext(node);
-    case IrOpcode::kJSLoadScriptContext:
-      return ReduceJSLoadScriptContext(node);
+    case IrOpcode::kJSStoreContextNoCell:
+      return ReduceJSStoreContextNoCell(node);
     case IrOpcode::kJSStoreContext:
       return ReduceJSStoreContext(node);
-    case IrOpcode::kJSStoreScriptContext:
-      return ReduceJSStoreScriptContext(node);
     case IrOpcode::kJSLoadModule:
       return ReduceJSLoadModule(node);
     case IrOpcode::kJSStoreModule:
@@ -2927,8 +2846,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSGeneratorStore(node);
     case IrOpcode::kJSGeneratorRestoreContinuation:
       return ReduceJSGeneratorRestoreContinuation(node);
-    case IrOpcode::kJSGeneratorRestoreContext:
-      return ReduceJSGeneratorRestoreContext(node);
+    case IrOpcode::kJSGeneratorRestoreContextNoCell:
+      return ReduceJSGeneratorRestoreContextNoCell(node);
     case IrOpcode::kJSGeneratorRestoreRegister:
       return ReduceJSGeneratorRestoreRegister(node);
     case IrOpcode::kJSGeneratorRestoreInputOrDebugPos:

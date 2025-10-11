@@ -193,18 +193,6 @@ class Statement : public AstNode {
 
 class Expression : public AstNode {
  public:
-  enum Context {
-    // Not assigned a context yet, or else will not be visited during
-    // code generation.
-    kUninitialized,
-    // Evaluated for its side effects.
-    kEffect,
-    // Evaluated for its value (and side effects).
-    kValue,
-    // Evaluated for control flow (and side effects).
-    kTest
-  };
-
   // True iff the expression is a valid reference expression.
   bool IsValidReferenceExpression() const;
 
@@ -1834,6 +1822,8 @@ class Call final : public CallBase {
 
   using IsTaggedTemplateField = CallBase::NextBitField<bool, 1>;
   using IsOptionalChainLinkField = IsTaggedTemplateField::Next<bool, 1>;
+
+ public:
   using EvalScopeInfoIndexField = IsOptionalChainLinkField::Next<uint32_t, 20>;
 };
 
@@ -1917,6 +1907,8 @@ class BinaryOperation final : public Expression {
   Expression* left() const { return left_; }
   Expression* right() const { return right_; }
 
+  void UpdateRight(Expression* expr) { right_ = expr; }
+
   // Returns true if one side is a Smi literal, returning the other side's
   // sub-expression in |subexpr| and the literal Smi in |literal|.
   bool IsSmiLiteralOperation(Expression** subexpr, Tagged<Smi>* literal);
@@ -1952,6 +1944,13 @@ class NaryOperation final : public Expression {
 
   void AddSubsequent(Expression* expr, int pos) {
     subsequent_.emplace_back(expr, pos);
+  }
+
+  Expression* last() const {
+    return subsequent_[subsequent_.size() - 1].expression;
+  }
+  void UpdateLast(Expression* expr) {
+    subsequent_[subsequent_.size() - 1].expression = expr;
   }
 
  private:

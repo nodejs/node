@@ -83,14 +83,14 @@ class JSLocale : public TorqueGeneratedJSLocale<JSLocale, JSObject> {
   static std::string ToString(DirectHandle<JSLocale> locale);
 
   // Help function to validate locale by other Intl objects.
-  static bool StartsWithUnicodeLanguageId(const std::string& value);
+  static bool StartsWithUnicodeLanguageId(std::string_view value);
 
   // Help function to check well-formed
   // "(3*8alphanum) *("-" (3*8alphanum)) sequence" sequence
-  static bool Is38AlphaNumList(const std::string& value);
+  static bool Is38AlphaNumList(std::string_view value);
 
   // Help function to check well-formed "3alpha"
-  static bool Is3Alpha(const std::string& value);
+  static bool Is3Alpha(std::string_view value);
 
   DECL_ACCESSORS(icu_locale, Tagged<Managed<icu::Locale>>)
 

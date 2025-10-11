@@ -106,7 +106,9 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
   // Response whose body is a ReadableStream instead of calling fetch().
   await testCompileStreamingSuccess(async () => {
     const handle = await fs.open(fixtures.path('simple.wasm'));
-    const stream = handle.readableWebStream();
+    // We set the autoClose option to true so that the file handle is closed
+    // automatically when the stream is completed or canceled.
+    const stream = handle.readableWebStream({ autoClose: true });
     return Promise.resolve(new Response(stream, {
       status: 200,
       headers: { 'Content-Type': 'application/wasm' }

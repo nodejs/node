@@ -30,7 +30,7 @@
 #include <string>
 
 #include "absl/base/config.h"
-#include "absl/base/internal/fast_type_id.h"
+#include "absl/base/fast_type_id.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
@@ -80,7 +80,7 @@ class CommandLineFlag {
   // Return true iff flag has type T.
   template <typename T>
   inline bool IsOfType() const {
-    return TypeId() == base_internal::FastTypeId<T>();
+    return TypeId() == FastTypeId<T>();
   }
 
   // absl::CommandLineFlag::TryGet()

@@ -16,6 +16,8 @@ const channels = {
   // Request
   create: diagnosticsChannel.channel('undici:request:create'),
   bodySent: diagnosticsChannel.channel('undici:request:bodySent'),
+  bodyChunkSent: diagnosticsChannel.channel('undici:request:bodyChunkSent'),
+  bodyChunkReceived: diagnosticsChannel.channel('undici:request:bodyChunkReceived'),
   headers: diagnosticsChannel.channel('undici:request:headers'),
   trailers: diagnosticsChannel.channel('undici:request:trailers'),
   error: diagnosticsChannel.channel('undici:request:error'),
@@ -85,7 +87,7 @@ function trackClientEvents (debugLog = undiciDebugLog) {
       const {
         request: { method, path, origin }
       } = evt
-      debugLog('sending request to %s %s/%s', method, origin, path)
+      debugLog('sending request to %s %s%s', method, origin, path)
     })
 }
 
@@ -105,7 +107,7 @@ function trackRequestEvents (debugLog = undiciDebugLog) {
         response: { statusCode }
       } = evt
       debugLog(
-        'received response to %s %s/%s - HTTP %d',
+        'received response to %s %s%s - HTTP %d',
         method,
         origin,
         path,
@@ -118,7 +120,7 @@ function trackRequestEvents (debugLog = undiciDebugLog) {
       const {
         request: { method, path, origin }
       } = evt
-      debugLog('trailers received from %s %s/%s', method, origin, path)
+      debugLog('trailers received from %s %s%s', method, origin, path)
     })
 
   diagnosticsChannel.subscribe('undici:request:error',
@@ -128,7 +130,7 @@ function trackRequestEvents (debugLog = undiciDebugLog) {
         error
       } = evt
       debugLog(
-        'request to %s %s/%s errored - %s',
+        'request to %s %s%s errored - %s',
         method,
         origin,
         path,

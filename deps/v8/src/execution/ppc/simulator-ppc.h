@@ -277,6 +277,27 @@ class Simulator : public SimulatorBase {
   void Format(Instruction* instr, const char* format);
 
   // Helper functions to set the conditional flags in the architecture state.
+  template <class T>
+  constexpr bool CarryFromAdd(T left, T right, T carry) {
+#define COMPUTE_CARRY_FOR_TYPE(uT, uVal)                                  \
+  case sizeof(uT): {                                                      \
+    uT uleft = static_cast<uT>(left);                                     \
+    uT uright = static_cast<uT>(right);                                   \
+    uT urest = uVal - uleft;                                              \
+    return (uright > urest) ||                                            \
+           (carry && (((uright + 1) > urest) || (uright > (urest - 1)))); \
+  }
+
+    switch (sizeof(T)) {
+#define TYPE_LIST(V)       \
+  V(uint8_t, 0xFFU)        \
+  V(uint16_t, 0xFFFFU)     \
+  V(uint32_t, 0xFFFFFFFFU) \
+  V(uint64_t, 0xFFFFFFFFFFFFFFFFULL)
+      TYPE_LIST(COMPUTE_CARRY_FOR_TYPE)
+#undef TYPE_LIST
+    }
+  }
   bool CarryFrom(int32_t left, int32_t right, int32_t carry = 0);
   bool BorrowFrom(int32_t left, int32_t right);
   bool OverflowFrom(int32_t alu_out, int32_t left, int32_t right,
@@ -373,8 +394,42 @@ class Simulator : public SimulatorBase {
 #undef GENERATE_RW_FUNC
 
   void Trace(Instruction* instr);
+
+  constexpr void SetCR(int cr, uint32_t val) {
+    uint32_t condition_mask = 0xF0000000U >> (cr * 4);
+    uint32_t condition = val << (28 - cr * 4);
+    condition_reg_ = (condition_reg_ & ~condition_mask) | condition;
+  }
+
   void SetCR0(intptr_t result, bool setSO = false);
   void SetCR6(bool true_for_all);
+
+  constexpr void SetOV(bool overflow) {
+    special_reg_xer_.fields.OV = overflow;
+    special_reg_xer_.fields.SO =
+        special_reg_xer_.fields.OV || special_reg_xer_.fields.OV32;
+  }
+
+  constexpr void SetCA(bool carry) { special_reg_xer_.fields.CA = carry; }
+
+  constexpr void SetOV32(bool overflow) {
+    special_reg_xer_.fields.OV32 = overflow;
+    special_reg_xer_.fields.SO =
+        special_reg_xer_.fields.OV || special_reg_xer_.fields.OV32;
+  }
+
+  constexpr void SetCA32(bool carry) { special_reg_xer_.fields.CA32 = carry; }
+
+  double FPProcessNaNBinop(
+      double fp_lhs, double fp_rhs,
+      const std::function<double(double, double)>& op_for_non_nan) {
+    Float64 lhs = Float64::FromBits(base::bit_cast<uint64_t>(fp_lhs));
+    Float64 rhs = Float64::FromBits(base::bit_cast<uint64_t>(fp_rhs));
+    if (lhs.is_nan()) return lhs.to_quiet_nan().get_scalar();
+    if (rhs.is_nan()) return rhs.to_quiet_nan().get_scalar();
+    return op_for_non_nan(fp_lhs, fp_rhs);
+  }
+
   void ExecuteBranchConditional(Instruction* instr, BCType type);
   void ExecuteGeneric(Instruction* instr);
 
@@ -409,7 +464,20 @@ class Simulator : public SimulatorBase {
   intptr_t special_reg_lr_;
   intptr_t special_reg_pc_;
   intptr_t special_reg_ctr_;
-  int32_t special_reg_xer_;
+  union {
+    struct {
+      uint32_t used : 7;        // 57:63
+      uint32_t reserved3 : 11;  // 46:56
+      bool CA32 : 1;            // 45
+      bool OV32 : 1;            // 44
+      uint32_t reserved2 : 9;   // 35:43
+      bool CA : 1;              // 34
+      bool OV : 1;              // 33
+      bool SO : 1;              // 32
+      // uint32_t reserved1; // 0:31
+    } fields;
+    uint32_t value;
+  } special_reg_xer_;
 
   int64_t fp_registers_[kNumFPRs];
 
@@ -491,7 +559,7 @@ class Simulator : public SimulatorBase {
 
   // Simulator support for the stack.
   uint8_t* stack_;
-  static const size_t kStackProtectionSize = 256 * kSystemPointerSize;
+  static const size_t kStackProtectionSize = 20 * KB;
   // This includes a protection margin at each end of the stack area.
   static size_t AllocatedStackSize() {
     size_t stack_size = v8_flags.sim_stack_size * KB;

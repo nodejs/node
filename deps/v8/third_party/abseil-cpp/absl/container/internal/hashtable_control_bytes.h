@@ -91,11 +91,6 @@ class NonIterableBitMask {
     return container_internal::TrailingZeros(mask_) >> Shift;
   }
 
-  // Returns the index of the highest *abstract* bit set in `self`.
-  uint32_t HighestBitSet() const {
-    return static_cast<uint32_t>((bit_width(mask_) - 1) >> Shift);
-  }
-
   // Returns the number of trailing zero *abstract* bits.
   uint32_t TrailingZeros() const {
     return container_internal::TrailingZeros(mask_) >> Shift;
@@ -324,11 +319,13 @@ struct GroupSse2Impl {
         _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl))));
   }
 
-  // Returns the number of trailing empty or deleted elements in the group.
-  uint32_t CountLeadingEmptyOrDeleted() const {
-    auto special = _mm_set1_epi8(static_cast<char>(ctrl_t::kSentinel));
-    return TrailingZeros(static_cast<uint32_t>(
-        _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl)) + 1));
+  // Returns a bitmask representing the positions of full or sentinel slots.
+  // Note: for `is_small()` tables group may contain the "same" slot twice:
+  // original and mirrored.
+  NonIterableBitMaskType MaskFullOrSentinel() const {
+    auto special = _mm_set1_epi8(static_cast<char>(ctrl_t::kSentinel) - 1);
+    return NonIterableBitMaskType(static_cast<uint16_t>(
+        _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(ctrl, special))));
   }
 
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
@@ -406,17 +403,13 @@ struct GroupAArch64Impl {
     return NonIterableBitMaskType(mask);
   }
 
-  uint32_t CountLeadingEmptyOrDeleted() const {
-    uint64_t mask =
-        vget_lane_u64(vreinterpret_u64_u8(vcle_s8(
-                          vdup_n_s8(static_cast<int8_t>(ctrl_t::kSentinel)),
-                          vreinterpret_s8_u8(ctrl))),
-                      0);
-    // Similar to MaskEmptyorDeleted() but we invert the logic to invert the
-    // produced bitfield. We then count number of trailing zeros.
-    // Clang and GCC optimize countr_zero to rbit+clz without any check for 0,
-    // so we should be fine.
-    return static_cast<uint32_t>(countr_zero(mask)) >> 3;
+  NonIterableBitMaskType MaskFullOrSentinel() const {
+    uint64_t mask = vget_lane_u64(
+        vreinterpret_u64_u8(
+            vcgt_s8(vreinterpret_s8_u8(ctrl),
+                    vdup_n_s8(static_cast<int8_t>(ctrl_t::kSentinel) - 1))),
+        0);
+    return NonIterableBitMaskType(mask);
   }
 
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
@@ -481,12 +474,8 @@ struct GroupPortableImpl {
     return NonIterableBitMaskType((ctrl & ~(ctrl << 7)) & kMsbs8Bytes);
   }
 
-  uint32_t CountLeadingEmptyOrDeleted() const {
-    // ctrl | ~(ctrl >> 7) will have the lowest bit set to zero for kEmpty and
-    // kDeleted. We lower all other bits and count number of trailing zeros.
-    constexpr uint64_t bits = 0x0101010101010101ULL;
-    return static_cast<uint32_t>(countr_zero((ctrl | ~(ctrl >> 7)) & bits) >>
-                                 3);
+  auto MaskFullOrSentinel() const {
+    return NonIterableBitMaskType((~ctrl | (ctrl << 7)) & kMsbs8Bytes);
   }
 
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {

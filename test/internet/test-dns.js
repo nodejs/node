@@ -523,9 +523,9 @@ TEST(function test_resolveTlsa_failure(done) {
 
 TEST(async function test_resolveTxt(done) {
   function validateResult(result) {
-    assert.ok(Array.isArray(result[0]));
-    assert.strictEqual(result.length, 1);
-    assert(result[0][0].startsWith('v=spf1'));
+    assert.ok(result.length > 0);
+    assert.ok(result.every((elem) => Array.isArray(elem) && elem.length === 1));
+    assert.ok(result.some((elem) => elem[0].startsWith('v=spf1')));
   }
 
   validateResult(await dnsPromises.resolveTxt(addresses.TXT_HOST));
@@ -626,21 +626,6 @@ TEST(function test_lookup_ip_promise(done) {
 
       done();
     });
-});
-
-
-TEST(async function test_lookup_null_all(done) {
-  assert.deepStrictEqual(await dnsPromises.lookup(null, { all: true }), []);
-
-  const req = dns.lookup(null, { all: true }, (err, ips) => {
-    assert.ifError(err);
-    assert.ok(Array.isArray(ips));
-    assert.strictEqual(ips.length, 0);
-
-    done();
-  });
-
-  checkWrap(req);
 });
 
 

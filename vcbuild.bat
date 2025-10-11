@@ -72,6 +72,7 @@ set doc=
 set extra_msbuild_args=
 set compile_commands=
 set cfg=
+set v8windbg=
 set exit_code=0
 
 :next-arg
@@ -95,6 +96,7 @@ if /i "%1"=="sign"          set sign=1&goto arg-ok
 if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="nonpm"         set nonpm=1&goto arg-ok
 if /i "%1"=="ltcg"          set ltcg=1&goto arg-ok
+if /i "%1"=="v8windbg"      set v8windbg=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test"          set test_args=%test_args% %common_test_suites%&set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
 if /i "%1"=="test-ci-native" set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1&set cctest_args=%cctest_args% --gtest_output=xml:cctest.junit.xml&goto arg-ok
@@ -210,6 +212,7 @@ if defined DEBUG_HELPER     set configure_flags=%configure_flags% --verbose
 if defined ccache_path      set configure_flags=%configure_flags% --use-ccache-win
 if defined compile_commands set configure_flags=%configure_flags% -C
 if defined cfg              set configure_flags=%configure_flags% --control-flow-guard
+if defined v8windbg         set configure_flags=%configure_flags% --enable-v8windbg
 
 if "%target_arch%"=="x86" (
   echo "32-bit Windows builds are not supported anymore."

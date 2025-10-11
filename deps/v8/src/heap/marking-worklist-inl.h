@@ -17,16 +17,6 @@
 namespace v8 {
 namespace internal {
 
-template <typename Callback>
-void MarkingWorklists::Update(Callback callback) {
-  shared_.Update(callback);
-  on_hold_.Update(callback);
-  other_.Update(callback);
-  for (auto& cw : context_worklists_) {
-    cw.worklist->Update(callback);
-  }
-}
-
 void MarkingWorklists::Local::Push(Tagged<HeapObject> object) {
   active_->Push(object);
 }

@@ -24,6 +24,10 @@ class MarkBit final {
   V8_ALLOW_UNUSED static inline MarkBit From(Address);
   V8_ALLOW_UNUSED static inline MarkBit From(Tagged<HeapObject>);
 
+  V8_ALLOW_UNUSED static inline MarkBit From(const Isolate* isolate, Address);
+  V8_ALLOW_UNUSED static inline MarkBit From(const Isolate* isolate,
+                                             Tagged<HeapObject>);
+
   // These methods are meant to be used from the debugger and therefore
   // intentionally not inlined such that they are always available.
   V8_ALLOW_UNUSED static MarkBit FromForTesting(Address);
@@ -151,6 +155,12 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
   V8_INLINE static MarkBit MarkBitFromAddress(MarkingBitmap* bitmap,
                                               Address address);
 
+  V8_INLINE static MarkBit MarkBitFromAddress(const Isolate* isolate,
+                                              Address address);
+  V8_INLINE static MarkBit MarkBitFromAddress(const Isolate* isolate,
+                                              MarkingBitmap* bitmap,
+                                              Address address);
+
   MarkingBitmap() = default;
   MarkingBitmap(const MarkingBitmap&) = delete;
   MarkingBitmap& operator=(const MarkingBitmap&) = delete;
@@ -205,6 +215,8 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
 
  private:
   V8_INLINE static MarkingBitmap* FromAddress(Address address);
+  V8_INLINE static MarkingBitmap* FromAddress(const Isolate* isolate,
+                                              Address address);
 
   // Sets bits in the given cell. The mask specifies bits to set: if a
   // bit is set in the mask then the corresponding bit is set in the cell.

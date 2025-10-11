@@ -1,10 +1,11 @@
-// Flags: --inspect=0 --experimental-network-inspection
+// Flags: --inspect=0 --experimental-network-inspection --expose-internals
 'use strict';
 const common = require('../common');
 
 common.skipIfInspectorDisabled();
 
 const assert = require('node:assert');
+const { once } = require('node:events');
 const { addresses } = require('../common/internet');
 const fixtures = require('../common/fixtures');
 const http = require('node:http');
@@ -12,8 +13,8 @@ const https = require('node:https');
 const inspector = require('node:inspector/promises');
 
 // Disable certificate validation for the global fetch.
-const undici = require('../../deps/undici/src/index.js');
-undici.setGlobalDispatcher(new undici.Agent({
+const undici = require('internal/deps/undici/undici');
+undici.setGlobalDispatcher(new undici.EnvHttpProxyAgent({
   connect: {
     rejectUnauthorized: false,
   },
@@ -36,16 +37,25 @@ const setResponseHeaders = (res) => {
   res.setHeader('etag', 12345);
   res.setHeader('Set-Cookie', ['key1=value1', 'key2=value2']);
   res.setHeader('x-header2', ['value1', 'value2']);
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
 };
 
 const handleRequest = (req, res) => {
   const path = req.url;
   switch (path) {
-    case '/hello-world':
+    case '/hello-world': {
       setResponseHeaders(res);
-      res.writeHead(200);
-      res.end('hello world\n');
+      const chunks = [];
+      req.on('data', (chunk) => {
+        chunks.push(chunk);
+      });
+      req.on('end', () => {
+        assert.strictEqual(Buffer.concat(chunks).toString(), 'foobar');
+        res.writeHead(200);
+        res.end('hello world\n');
+      });
       break;
+    }
     default:
       assert(false, `Unexpected path: ${path}`);
   }
@@ -72,123 +82,126 @@ function findFrameInInitiator(scriptName, initiator) {
   return frame;
 }
 
-const testHttpGet = () => new Promise((resolve, reject) => {
-  session.on('Network.requestWillBeSent', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(params.request.url, `http://127.0.0.1:${httpServer.address().port}/hello-world`);
-    assert.strictEqual(params.request.method, 'GET');
-    assert.strictEqual(typeof params.request.headers, 'object');
-    assert.strictEqual(params.request.headers['accept-language'], 'en-US');
-    assert.strictEqual(params.request.headers.cookie, 'k1=v1; k2=v2');
-    assert.strictEqual(params.request.headers.age, '1000');
-    assert.strictEqual(params.request.headers['x-header1'], 'value1, value2');
-    assert.strictEqual(typeof params.timestamp, 'number');
-    assert.strictEqual(typeof params.wallTime, 'number');
+function verifyRequestWillBeSent({ method, params }, expect) {
+  assert.strictEqual(method, 'Network.requestWillBeSent');
 
-    assert.strictEqual(typeof params.initiator, 'object');
-    assert.strictEqual(params.initiator.type, 'script');
-    assert.ok(findFrameInInitiator(__filename, params.initiator));
-  }));
-  session.on('Network.responseReceived', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(typeof params.timestamp, 'number');
-    assert.strictEqual(params.type, 'Fetch');
-    assert.strictEqual(params.response.status, 200);
-    assert.strictEqual(params.response.statusText, 'OK');
-    assert.strictEqual(params.response.url, `http://127.0.0.1:${httpServer.address().port}/hello-world`);
-    assert.strictEqual(typeof params.response.headers, 'object');
-    assert.strictEqual(params.response.headers.server, 'node');
-    assert.strictEqual(params.response.headers.etag, '12345');
-    assert.strictEqual(params.response.headers['Set-Cookie'], 'key1=value1\nkey2=value2');
-    assert.strictEqual(params.response.headers['x-header2'], 'value1, value2');
-  }));
-  session.on('Network.loadingFinished', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(typeof params.timestamp, 'number');
-    resolve();
-  }));
+  assert.ok(params.requestId.startsWith('node-network-event-'));
+  assert.strictEqual(params.request.url, expect.url);
+  assert.strictEqual(params.request.method, expect.method);
+  assert.strictEqual(typeof params.request.headers, 'object');
+  assert.strictEqual(params.request.headers['accept-language'], 'en-US');
+  assert.strictEqual(params.request.headers.cookie, 'k1=v1; k2=v2');
+  assert.strictEqual(params.request.headers.age, '1000');
+  assert.strictEqual(params.request.headers['x-header1'], 'value1, value2');
+  assert.strictEqual(typeof params.timestamp, 'number');
+  assert.strictEqual(typeof params.wallTime, 'number');
 
-  fetch(`http://127.0.0.1:${httpServer.address().port}/hello-world`, {
+  assert.strictEqual(typeof params.initiator, 'object');
+  assert.strictEqual(params.initiator.type, 'script');
+  assert.ok(findFrameInInitiator(__filename, params.initiator));
+
+  return params;
+}
+
+function verifyResponseReceived({ method, params }, expect) {
+  assert.strictEqual(method, 'Network.responseReceived');
+
+  assert.ok(params.requestId.startsWith('node-network-event-'));
+  assert.strictEqual(typeof params.timestamp, 'number');
+  assert.strictEqual(params.type, 'Fetch');
+  assert.strictEqual(params.response.status, 200);
+  assert.strictEqual(params.response.statusText, 'OK');
+  assert.strictEqual(params.response.url, expect.url);
+  assert.strictEqual(typeof params.response.headers, 'object');
+  assert.strictEqual(params.response.headers.server, 'node');
+  assert.strictEqual(params.response.headers.etag, '12345');
+  assert.strictEqual(params.response.headers['Set-Cookie'], 'key1=value1\nkey2=value2');
+  assert.strictEqual(params.response.headers['x-header2'], 'value1, value2');
+  assert.strictEqual(params.response.mimeType, 'text/plain');
+  assert.strictEqual(params.response.charset, 'utf-8');
+
+  return params;
+}
+
+function verifyLoadingFinished({ method, params }) {
+  assert.strictEqual(method, 'Network.loadingFinished');
+
+  assert.ok(params.requestId.startsWith('node-network-event-'));
+  assert.strictEqual(typeof params.timestamp, 'number');
+  return params;
+}
+
+function verifyLoadingFailed({ method, params }) {
+  assert.strictEqual(method, 'Network.loadingFailed');
+
+  assert.ok(params.requestId.startsWith('node-network-event-'));
+  assert.strictEqual(typeof params.timestamp, 'number');
+  assert.strictEqual(params.type, 'Fetch');
+  assert.strictEqual(typeof params.errorText, 'string');
+}
+
+async function testRequest(url) {
+  const requestWillBeSentFuture = once(session, 'Network.requestWillBeSent')
+    .then(([event]) => verifyRequestWillBeSent(event, { url, method: 'POST' }));
+
+  const responseReceivedFuture = once(session, 'Network.responseReceived')
+    .then(([event]) => verifyResponseReceived(event, { url }));
+
+  const loadingFinishedFuture = once(session, 'Network.loadingFinished')
+    .then(([event]) => verifyLoadingFinished(event));
+
+  await fetch(url, {
+    method: 'POST',
+    body: 'foobar',
     headers: requestHeaders,
-  }).then(common.mustCall());
-});
+  });
 
-const testHttpsGet = () => new Promise((resolve, reject) => {
-  session.on('Network.requestWillBeSent', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(params.request.url, `https://127.0.0.1:${httpsServer.address().port}/hello-world`);
-    assert.strictEqual(params.request.method, 'GET');
-    assert.strictEqual(typeof params.request.headers, 'object');
-    assert.strictEqual(params.request.headers['accept-language'], 'en-US');
-    assert.strictEqual(params.request.headers.cookie, 'k1=v1; k2=v2');
-    assert.strictEqual(params.request.headers.age, '1000');
-    assert.strictEqual(params.request.headers['x-header1'], 'value1, value2');
-    assert.strictEqual(typeof params.timestamp, 'number');
-    assert.strictEqual(typeof params.wallTime, 'number');
-  }));
-  session.on('Network.responseReceived', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(typeof params.timestamp, 'number');
-    assert.strictEqual(params.type, 'Fetch');
-    assert.strictEqual(params.response.status, 200);
-    assert.strictEqual(params.response.statusText, 'OK');
-    assert.strictEqual(params.response.url, `https://127.0.0.1:${httpsServer.address().port}/hello-world`);
-    assert.strictEqual(typeof params.response.headers, 'object');
-    assert.strictEqual(params.response.headers.server, 'node');
-    assert.strictEqual(params.response.headers.etag, '12345');
-    assert.strictEqual(params.response.headers['Set-Cookie'], 'key1=value1\nkey2=value2');
-    assert.strictEqual(params.response.headers['x-header2'], 'value1, value2');
-  }));
-  session.on('Network.loadingFinished', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(typeof params.timestamp, 'number');
-    resolve();
-  }));
+  await requestWillBeSentFuture;
+  const responseReceived = await responseReceivedFuture;
+  const loadingFinished = await loadingFinishedFuture;
+  assert.ok(loadingFinished.timestamp >= responseReceived.timestamp);
 
-  fetch(`https://127.0.0.1:${httpsServer.address().port}/hello-world`, {
-    headers: requestHeaders,
-  }).then(common.mustCall());
-});
+  const requestBody = await session.post('Network.getRequestPostData', {
+    requestId: responseReceived.requestId,
+  });
+  assert.strictEqual(requestBody.postData, 'foobar');
 
-const testHttpError = () => new Promise((resolve, reject) => {
-  session.on('Network.requestWillBeSent', common.mustCall());
-  session.on('Network.loadingFailed', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(typeof params.timestamp, 'number');
-    assert.strictEqual(params.type, 'Fetch');
-    assert.strictEqual(typeof params.errorText, 'string');
-    resolve();
-  }));
+  const responseBody = await session.post('Network.getResponseBody', {
+    requestId: responseReceived.requestId,
+  });
+  assert.strictEqual(responseBody.base64Encoded, false);
+  assert.strictEqual(responseBody.body, 'hello world\n');
+}
+
+async function testRequestError(url) {
+  const requestWillBeSentFuture = once(session, 'Network.requestWillBeSent')
+    .then(([event]) => verifyRequestWillBeSent(event, { url, method: 'GET' }));
   session.on('Network.responseReceived', common.mustNotCall());
   session.on('Network.loadingFinished', common.mustNotCall());
 
-  fetch(`http://${addresses.INVALID_HOST}`).catch(common.mustCall());
-});
+  const loadingFailedFuture = once(session, 'Network.loadingFailed')
+    .then(([event]) => verifyLoadingFailed(event));
 
+  fetch(url, {
+    headers: requestHeaders,
+  }).catch(common.mustCall());
 
-const testHttpsError = () => new Promise((resolve, reject) => {
-  session.on('Network.requestWillBeSent', common.mustCall());
-  session.on('Network.loadingFailed', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(typeof params.timestamp, 'number');
-    assert.strictEqual(params.type, 'Fetch');
-    assert.strictEqual(typeof params.errorText, 'string');
-    resolve();
-  }));
-  session.on('Network.responseReceived', common.mustNotCall());
-  session.on('Network.loadingFinished', common.mustNotCall());
-
-  fetch(`https://${addresses.INVALID_HOST}`).catch(common.mustCall());
-});
+  await requestWillBeSentFuture;
+  await loadingFailedFuture;
+}
 
 const testNetworkInspection = async () => {
-  await testHttpGet();
+  // HTTP
+  await testRequest(`http://127.0.0.1:${httpServer.address().port}/hello-world`);
   session.removeAllListeners();
-  await testHttpsGet();
+  // HTTPS
+  await testRequest(`https://127.0.0.1:${httpsServer.address().port}/hello-world`);
   session.removeAllListeners();
-  await testHttpError();
+  // HTTP with invalid host
+  await testRequestError(`http://${addresses.INVALID_HOST}/`);
   session.removeAllListeners();
-  await testHttpsError();
+  // HTTPS with invalid host
+  await testRequestError(`https://${addresses.INVALID_HOST}/`);
   session.removeAllListeners();
 };
 

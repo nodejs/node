@@ -123,6 +123,24 @@ L$002generic:
 	xor	ecx,ecx
 	cpuid
 	mov	DWORD [8+edi],ebx
+	mov	DWORD [12+edi],ecx
+	mov	DWORD [16+edi],edx
+	cmp	eax,1
+	jb	NEAR L$005no_extended_info
+	mov	eax,7
+	mov	ecx,1
+	cpuid
+	mov	DWORD [20+edi],eax
+	mov	DWORD [24+edi],edx
+	mov	DWORD [28+edi],ebx
+	mov	DWORD [32+edi],ecx
+	and	edx,524288
+	cmp	edx,0
+	je	NEAR L$005no_extended_info
+	mov	eax,36
+	mov	ecx,0
+	cpuid
+	mov	DWORD [36+edi],ebx
 L$005no_extended_info:
 	bt	ebp,27
 	jnc	NEAR L$006clear_avx
@@ -138,6 +156,7 @@ L$008clear_xmm:
 	and	esi,4278190079
 L$006clear_avx:
 	and	ebp,4026525695
+	and	DWORD [20+edi],4286578687
 	and	DWORD [8+edi],4294967263
 L$007done:
 	mov	eax,esi
@@ -500,7 +519,7 @@ L$031done:
 	pop	edi
 	ret
 segment	.bss
-common	_OPENSSL_ia32cap_P 16
+common	_OPENSSL_ia32cap_P 40
 segment	.CRT$XCU data align=4
 extern	_OPENSSL_cpuid_setup
 dd	_OPENSSL_cpuid_setup

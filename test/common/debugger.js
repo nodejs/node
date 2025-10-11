@@ -20,10 +20,14 @@ function isPreBreak(output) {
   return /Break on start/.test(output) && /1 \(function \(exports/.test(output);
 }
 
-function startCLI(args, flags = [], spawnOpts = {}) {
+function startCLI(args, flags = [], spawnOpts = {}, opts = { randomPort: true }) {
   let stderrOutput = '';
-  const child =
-    spawn(process.execPath, [...flags, 'inspect', ...args], spawnOpts);
+  const child = spawn(process.execPath, [
+    ...flags,
+    'inspect',
+    ...(opts.randomPort !== false ? ['--port=0'] : []),
+    ...args,
+  ], spawnOpts);
 
   const outputBuffer = [];
   function bufferOutput(chunk) {

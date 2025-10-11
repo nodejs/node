@@ -106,11 +106,10 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
     return HeapInternalsBase::SimulateFullSpace(space);
   }
 
-  void GrowNewSpace() {
+  void GrowNewSpaceToMaximumCapacity() {
     IsolateSafepointScope scope(heap());
     NewSpace* new_space = heap()->new_space();
-    heap()->ExpandNewSpaceSizeForTesting();
-    CHECK(new_space->EnsureCurrentCapacity());
+    new_space->GrowToMaximumCapacityForTesting();
   }
 
   void SealCurrentObjects() {

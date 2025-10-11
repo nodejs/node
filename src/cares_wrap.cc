@@ -63,6 +63,7 @@ namespace cares_wrap {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::Context;
+using v8::DictionaryTemplate;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::FunctionCallbackInfo;
@@ -82,6 +83,7 @@ using v8::Null;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
+using v8::Undefined;
 using v8::Value;
 
 namespace {
@@ -303,41 +305,43 @@ Maybe<int> ParseMxReply(Environment* env,
                         bool need_type = false) {
   HandleScope handle_scope(env->isolate());
 
+  auto tmpl = env->mx_record_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "exchange",
+        "priority",
+        "type",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_mx_record_template(tmpl);
+  }
+
   struct ares_mx_reply* mx_start;
   int status = ares_parse_mx_reply(buf, len, &mx_start);
   if (status != ARES_SUCCESS) return Just<int>(status);
 
+  DeleteFnPtr<void, ares_free_data> free_me(mx_start);
+
   uint32_t offset = ret->Length();
   ares_mx_reply* current = mx_start;
-  for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
-    Local<Object> mx_record = Object::New(env->isolate());
-    if (mx_record
-            ->Set(env->context(),
-                  env->exchange_string(),
-                  OneByteString(env->isolate(), current->host))
-            .IsNothing() ||
-        mx_record
-            ->Set(env->context(),
-                  env->priority_string(),
-                  Integer::New(env->isolate(), current->priority))
-            .IsNothing()) {
-      ares_free_data(mx_start);
-      return Nothing<int>();
-    }
-    if (need_type &&
-        mx_record->Set(env->context(), env->type_string(), env->dns_mx_string())
-            .IsNothing()) {
-      ares_free_data(mx_start);
-      return Nothing<int>();
-    }
 
-    if (ret->Set(env->context(), i + offset, mx_record).IsNothing()) {
-      ares_free_data(mx_start);
+  MaybeLocal<Value> values[] = {
+      Undefined(env->isolate()),  // exchange
+      Undefined(env->isolate()),  // priority
+      Undefined(env->isolate()),  // type
+  };
+
+  for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
+    values[0] = OneByteString(env->isolate(), current->host);
+    values[1] = Integer::New(env->isolate(), current->priority);
+    values[2] = env->dns_mx_string();
+    Local<Value> record;
+    if (!NewDictionaryInstance(env->context(), tmpl, values).ToLocal(&record) ||
+        ret->Set(env->context(), i + offset, record).IsNothing()) {
       return Nothing<int>();
     }
   }
 
-  ares_free_data(mx_start);
   return Just<int>(ARES_SUCCESS);
 }
 
@@ -348,43 +352,52 @@ Maybe<int> ParseCaaReply(Environment* env,
                          bool need_type = false) {
   HandleScope handle_scope(env->isolate());
 
+  auto tmpl = env->caa_record_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "critical",
+        "type",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_caa_record_template(tmpl);
+  }
+
   struct ares_caa_reply* caa_start;
   int status = ares_parse_caa_reply(buf, len, &caa_start);
   if (status != ARES_SUCCESS) return Just<int>(status);
+  DeleteFnPtr<void, ares_free_data> free_me(caa_start);
+
+  MaybeLocal<Value> values[] = {
+      Undefined(env->isolate()),  // critical
+      Undefined(env->isolate()),  // type
+  };
 
   uint32_t offset = ret->Length();
   ares_caa_reply* current = caa_start;
   for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
-    Local<Object> caa_record = Object::New(env->isolate());
+    values[0] = Integer::New(env->isolate(), current->critical);
+    values[1] = env->dns_caa_string();
+    Local<Object> caa_record;
+    if (!NewDictionaryInstance(env->context(), tmpl, values)
+             .ToLocal(&caa_record)) {
+      return Nothing<int>();
+    }
 
+    // This additional property is not part of the template as it is
+    // variable based on the record.
     if (caa_record
-            ->Set(env->context(),
-                  env->dns_critical_string(),
-                  Integer::New(env->isolate(), current->critical))
-            .IsNothing() ||
-        caa_record
             ->Set(env->context(),
                   OneByteString(env->isolate(), current->property),
                   OneByteString(env->isolate(), current->value))
             .IsNothing()) {
-      ares_free_data(caa_start);
-      return Nothing<int>();
-    }
-    if (need_type &&
-        caa_record
-            ->Set(env->context(), env->type_string(), env->dns_caa_string())
-            .IsNothing()) {
-      ares_free_data(caa_start);
       return Nothing<int>();
     }
 
     if (ret->Set(env->context(), i + offset, caa_record).IsNothing()) {
-      ares_free_data(caa_start);
       return Nothing<int>();
     }
   }
 
-  ares_free_data(caa_start);
   return Just<int>(ARES_SUCCESS);
 }
 
@@ -394,6 +407,18 @@ Maybe<int> ParseTlsaReply(Environment* env,
                           Local<Array> ret) {
   EscapableHandleScope handle_scope(env->isolate());
 
+  auto tmpl = env->tlsa_record_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "certUsage",
+        "selector",
+        "match",
+        "data",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_tlsa_record_template(tmpl);
+  }
+
   ares_dns_record_t* dnsrec = nullptr;
 
   int status = ares_dns_parse(buf, len, 0, &dnsrec);
@@ -402,8 +427,17 @@ Maybe<int> ParseTlsaReply(Environment* env,
     return Just<int>(status);
   }
 
+  DeleteFnPtr<ares_dns_record_t, ares_dns_record_destroy> free_me(dnsrec);
+
   uint32_t offset = ret->Length();
   size_t rr_count = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER);
+
+  MaybeLocal<Value> values[] = {
+      Undefined(env->isolate()),  // certUsage
+      Undefined(env->isolate()),  // selector
+      Undefined(env->isolate()),  // match
+      Undefined(env->isolate()),  // data
+  };
 
   for (size_t i = 0; i < rr_count; i++) {
     const ares_dns_rr_t* rr =
@@ -422,32 +456,19 @@ Maybe<int> ParseTlsaReply(Environment* env,
     Local<ArrayBuffer> data_ab = ArrayBuffer::New(env->isolate(), data_len);
     memcpy(data_ab->Data(), data, data_len);
 
-    Local<Object> tlsa_rec = Object::New(env->isolate());
+    values[0] = Integer::NewFromUnsigned(env->isolate(), certusage);
+    values[1] = Integer::NewFromUnsigned(env->isolate(), selector);
+    values[2] = Integer::NewFromUnsigned(env->isolate(), match);
+    values[3] = data_ab;
 
-    if (tlsa_rec
-            ->Set(env->context(),
-                  env->cert_usage_string(),
-                  Integer::NewFromUnsigned(env->isolate(), certusage))
-            .IsNothing() ||
-        tlsa_rec
-            ->Set(env->context(),
-                  env->selector_string(),
-                  Integer::NewFromUnsigned(env->isolate(), selector))
-            .IsNothing() ||
-        tlsa_rec
-            ->Set(env->context(),
-                  env->match_string(),
-                  Integer::NewFromUnsigned(env->isolate(), match))
-            .IsNothing() ||
-        tlsa_rec->Set(env->context(), env->data_string(), data_ab)
-            .IsNothing() ||
+    Local<Object> tlsa_rec;
+    if (!NewDictionaryInstance(env->context(), tmpl, values)
+             .ToLocal(&tlsa_rec) ||
         ret->Set(env->context(), offset + i, tlsa_rec).IsNothing()) {
-      ares_dns_record_destroy(dnsrec);
       return Nothing<int>();
     }
   }
 
-  ares_dns_record_destroy(dnsrec);
   return Just<int>(ARES_SUCCESS);
 }
 
@@ -458,70 +479,81 @@ Maybe<int> ParseTxtReply(Environment* env,
                          bool need_type = false) {
   HandleScope handle_scope(env->isolate());
 
+  auto tmpl = env->txt_record_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "entries",
+        "type",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_txt_record_template(tmpl);
+  }
+
   struct ares_txt_ext* txt_out;
 
   int status = ares_parse_txt_reply_ext(buf, len, &txt_out);
   if (status != ARES_SUCCESS) return Just<int>(status);
+  DeleteFnPtr<void, ares_free_data> free_me(txt_out);
 
   Local<Array> txt_chunk;
+  LocalVector<Value> chunks(env->isolate());
 
   struct ares_txt_ext* current = txt_out;
-  uint32_t i = 0, j;
+  uint32_t i = 0;
   uint32_t offset = ret->Length();
-  for (j = 0; current != nullptr; current = current->next) {
+
+  MaybeLocal<Value> values[] = {
+      Undefined(env->isolate()),  // entries
+      Undefined(env->isolate()),  // type
+  };
+
+  for (; current != nullptr; current = current->next) {
     Local<String> txt =
         OneByteString(env->isolate(), current->txt, current->length);
 
     // New record found - write out the current chunk
     if (current->record_start) {
-      if (!txt_chunk.IsEmpty()) {
+      if (!chunks.empty()) {
+        auto txt_chunk =
+            Array::New(env->isolate(), chunks.data(), chunks.size());
+        chunks.clear();
         if (need_type) {
-          Local<Object> elem = Object::New(env->isolate());
-          if (elem->Set(env->context(), env->entries_string(), txt_chunk)
-                  .IsNothing() ||
-              elem->Set(
-                      env->context(), env->type_string(), env->dns_txt_string())
-                  .IsNothing() ||
+          values[0] = txt_chunk;
+          values[1] = env->dns_txt_string();
+          Local<Object> elem;
+          if (!NewDictionaryInstance(env->context(), tmpl, values)
+                   .ToLocal(&elem) ||
               ret->Set(env->context(), offset + i++, elem).IsNothing()) {
-            ares_free_data(txt_out);
             return Nothing<int>();
           }
         } else if (ret->Set(env->context(), offset + i++, txt_chunk)
                        .IsNothing()) {
-          ares_free_data(txt_out);
           return Nothing<int>();
         }
       }
 
       txt_chunk = Array::New(env->isolate());
-      j = 0;
     }
 
-    if (txt_chunk->Set(env->context(), j++, txt).IsNothing()) {
-      ares_free_data(txt_out);
-      return Nothing<int>();
-    }
+    chunks.push_back(txt);
   }
 
   // Push last chunk if it isn't empty
-  if (!txt_chunk.IsEmpty()) {
+  if (!chunks.empty()) {
+    txt_chunk = Array::New(env->isolate(), chunks.data(), chunks.size());
     if (need_type) {
-      Local<Object> elem = Object::New(env->isolate());
-      if (elem->Set(env->context(), env->entries_string(), txt_chunk)
-              .IsNothing() ||
-          elem->Set(env->context(), env->type_string(), env->dns_txt_string())
-              .IsNothing() ||
+      values[0] = txt_chunk;
+      values[1] = env->dns_txt_string();
+      Local<Object> elem;
+      if (!NewDictionaryInstance(env->context(), tmpl, values).ToLocal(&elem) ||
           ret->Set(env->context(), offset + i, elem).IsNothing()) {
-        ares_free_data(txt_out);
         return Nothing<int>();
       }
     } else if (ret->Set(env->context(), offset + i, txt_chunk).IsNothing()) {
-      ares_free_data(txt_out);
       return Nothing<int>();
     }
   }
 
-  ares_free_data(txt_out);
   return Just<int>(ARES_SUCCESS);
 }
 
@@ -532,53 +564,49 @@ Maybe<int> ParseSrvReply(Environment* env,
                          bool need_type = false) {
   HandleScope handle_scope(env->isolate());
 
+  auto tmpl = env->srv_record_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "name",
+        "port",
+        "priority",
+        "weight",
+        "type",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_srv_record_template(tmpl);
+  }
+
   struct ares_srv_reply* srv_start;
   int status = ares_parse_srv_reply(buf, len, &srv_start);
   if (status != ARES_SUCCESS) return Just<int>(status);
+  DeleteFnPtr<void, ares_free_data> free_me(srv_start);
+
+  MaybeLocal<Value> values[] = {
+      Undefined(env->isolate()),  // name
+      Undefined(env->isolate()),  // port
+      Undefined(env->isolate()),  // priority
+      Undefined(env->isolate()),  // weight
+      Undefined(env->isolate()),  // type
+  };
 
   ares_srv_reply* current = srv_start;
   int offset = ret->Length();
   for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
-    Local<Object> srv_record = Object::New(env->isolate());
+    values[0] = OneByteString(env->isolate(), current->host);
+    values[1] = Integer::New(env->isolate(), current->port);
+    values[2] = Integer::New(env->isolate(), current->priority);
+    values[3] = Integer::New(env->isolate(), current->weight);
+    values[4] = env->dns_srv_string();
 
-    if (srv_record
-            ->Set(env->context(),
-                  env->name_string(),
-                  OneByteString(env->isolate(), current->host))
-            .IsNothing() ||
-        srv_record
-            ->Set(env->context(),
-                  env->port_string(),
-                  Integer::New(env->isolate(), current->port))
-            .IsNothing() ||
-        srv_record
-            ->Set(env->context(),
-                  env->priority_string(),
-                  Integer::New(env->isolate(), current->priority))
-            .IsNothing() ||
-        srv_record
-            ->Set(env->context(),
-                  env->weight_string(),
-                  Integer::New(env->isolate(), current->weight))
-            .IsNothing()) {
-      ares_free_data(srv_start);
-      return Nothing<int>();
-    }
-    if (need_type &&
-        srv_record
-            ->Set(env->context(), env->type_string(), env->dns_srv_string())
-            .IsNothing()) {
-      ares_free_data(srv_start);
-      return Nothing<int>();
-    }
-
-    if (ret->Set(env->context(), i + offset, srv_record).IsNothing()) {
-      ares_free_data(srv_start);
+    Local<Object> srv_record;
+    if (!NewDictionaryInstance(env->context(), tmpl, values)
+             .ToLocal(&srv_record) ||
+        ret->Set(env->context(), i + offset, srv_record).IsNothing()) {
       return Nothing<int>();
     }
   }
 
-  ares_free_data(srv_start);
   return Just<int>(ARES_SUCCESS);
 }
 
@@ -589,65 +617,77 @@ Maybe<int> ParseNaptrReply(Environment* env,
                            bool need_type = false) {
   HandleScope handle_scope(env->isolate());
 
+  auto tmpl = env->naptr_record_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "flags",
+        "service",
+        "regexp",
+        "replacement",
+        "order",
+        "preference",
+        "type",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_naptr_record_template(tmpl);
+  }
+
   ares_naptr_reply* naptr_start;
   int status = ares_parse_naptr_reply(buf, len, &naptr_start);
-
   if (status != ARES_SUCCESS) return Just<int>(status);
+  DeleteFnPtr<void, ares_free_data> free_me(naptr_start);
+
+  MaybeLocal<Value> values[] = {
+      Undefined(env->isolate()),  // flags
+      Undefined(env->isolate()),  // service
+      Undefined(env->isolate()),  // regexp
+      Undefined(env->isolate()),  // replacement
+      Undefined(env->isolate()),  // order
+      Undefined(env->isolate()),  // preference
+      Undefined(env->isolate()),  // type
+  };
 
   ares_naptr_reply* current = naptr_start;
   int offset = ret->Length();
   for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
-    Local<Object> naptr_record = Object::New(env->isolate());
-
-    if (naptr_record
-            ->Set(env->context(),
-                  env->flags_string(),
-                  OneByteString(env->isolate(), current->flags))
-            .IsNothing() ||
-        naptr_record
-            ->Set(env->context(),
-                  env->service_string(),
-                  OneByteString(env->isolate(), current->service))
-            .IsNothing() ||
-        naptr_record
-            ->Set(env->context(),
-                  env->regexp_string(),
-                  OneByteString(env->isolate(), current->regexp))
-            .IsNothing() ||
-        naptr_record
-            ->Set(env->context(),
-                  env->replacement_string(),
-                  OneByteString(env->isolate(), current->replacement))
-            .IsNothing() ||
-        naptr_record
-            ->Set(env->context(),
-                  env->order_string(),
-                  Integer::New(env->isolate(), current->order))
-            .IsNothing() ||
-        naptr_record
-            ->Set(env->context(),
-                  env->preference_string(),
-                  Integer::New(env->isolate(), current->preference))
-            .IsNothing()) {
-      ares_free_data(naptr_start);
-      return Nothing<int>();
-    }
-    if (need_type &&
-        naptr_record
-            ->Set(env->context(), env->type_string(), env->dns_naptr_string())
-            .IsNothing()) {
-      ares_free_data(naptr_start);
-      return Nothing<int>();
+    values[0] = OneByteString(env->isolate(), current->flags);
+    values[1] = OneByteString(env->isolate(), current->service);
+    values[2] = OneByteString(env->isolate(), current->regexp);
+    values[3] = OneByteString(env->isolate(), current->replacement);
+    values[4] = Integer::New(env->isolate(), current->order);
+    values[5] = Integer::New(env->isolate(), current->preference);
+    if (need_type) {
+      values[6] = env->dns_naptr_string();
     }
 
-    if (ret->Set(env->context(), i + offset, naptr_record).IsNothing()) {
-      ares_free_data(naptr_start);
+    Local<Object> naptr_record;
+    if (!NewDictionaryInstance(env->context(), tmpl, values)
+             .ToLocal(&naptr_record) ||
+        ret->Set(env->context(), i + offset, naptr_record).IsNothing()) {
       return Nothing<int>();
     }
   }
 
-  ares_free_data(naptr_start);
   return Just<int>(ARES_SUCCESS);
+}
+
+Local<DictionaryTemplate> getSoaRecordTemplate(Environment* env) {
+  auto tmpl = env->soa_record_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "nsname",
+        "hostmaster",
+        "serial",
+        "refresh",
+        "retry",
+        "expire",
+        "minttl",
+        "type",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_soa_record_template(tmpl);
+  }
+  return tmpl;
 }
 
 Maybe<int> ParseSoaReply(Environment* env,
@@ -655,6 +695,8 @@ Maybe<int> ParseSoaReply(Environment* env,
                          int len,
                          Local<Object>* ret) {
   EscapableHandleScope handle_scope(env->isolate());
+
+  auto tmpl = getSoaRecordTemplate(env);
 
   // Manage memory using standardard smart pointer std::unique_tr
   struct AresDeleter {
@@ -679,6 +721,17 @@ Maybe<int> ParseSoaReply(Environment* env,
     return Just<int>(ARES_EBADRESP);
   }
   ptr += temp_len + NS_QFIXEDSZ;
+
+  MaybeLocal<Value> values[] = {
+      Undefined(env->isolate()),  // nsname
+      Undefined(env->isolate()),  // hostmaster
+      Undefined(env->isolate()),  // serial
+      Undefined(env->isolate()),  // refresh
+      Undefined(env->isolate()),  // retry
+      Undefined(env->isolate()),  // expire
+      Undefined(env->isolate()),  // minttl
+      Undefined(env->isolate()),  // type
+  };
 
   for (unsigned int i = 0; i < ancount; i++) {
     char* rr_name_temp = nullptr;
@@ -734,45 +787,17 @@ Maybe<int> ParseSoaReply(Environment* env,
       const unsigned int expire = nbytes::ReadUint32BE(ptr + 3 * 4);
       const unsigned int minttl = nbytes::ReadUint32BE(ptr + 4 * 4);
 
-      Local<Object> soa_record = Object::New(env->isolate());
-      if (soa_record
-              ->Set(env->context(),
-                    env->nsname_string(),
-                    OneByteString(env->isolate(), nsname.get()))
-              .IsNothing() ||
-          soa_record
-              ->Set(env->context(),
-                    env->hostmaster_string(),
-                    OneByteString(env->isolate(), hostmaster.get()))
-              .IsNothing() ||
-          soa_record
-              ->Set(env->context(),
-                    env->serial_string(),
-                    Integer::NewFromUnsigned(env->isolate(), serial))
-              .IsNothing() ||
-          soa_record
-              ->Set(env->context(),
-                    env->refresh_string(),
-                    Integer::New(env->isolate(), refresh))
-              .IsNothing() ||
-          soa_record
-              ->Set(env->context(),
-                    env->retry_string(),
-                    Integer::New(env->isolate(), retry))
-              .IsNothing() ||
-          soa_record
-              ->Set(env->context(),
-                    env->expire_string(),
-                    Integer::New(env->isolate(), expire))
-              .IsNothing() ||
-          soa_record
-              ->Set(env->context(),
-                    env->minttl_string(),
-                    Integer::NewFromUnsigned(env->isolate(), minttl))
-              .IsNothing() ||
-          soa_record
-              ->Set(env->context(), env->type_string(), env->dns_soa_string())
-              .IsNothing()) {
+      values[0] = OneByteString(env->isolate(), nsname.get());
+      values[1] = OneByteString(env->isolate(), hostmaster.get());
+      values[2] = Integer::NewFromUnsigned(env->isolate(), serial);
+      values[3] = Integer::New(env->isolate(), refresh);
+      values[4] = Integer::New(env->isolate(), retry);
+      values[5] = Integer::New(env->isolate(), expire);
+      values[6] = Integer::NewFromUnsigned(env->isolate(), minttl);
+      values[7] = env->dns_soa_string();
+      Local<Object> soa_record;
+      if (!NewDictionaryInstance(env->context(), tmpl, values)
+               .ToLocal(&soa_record)) {
         return Nothing<int>();
       }
 
@@ -787,14 +812,15 @@ Maybe<int> ParseSoaReply(Environment* env,
 }
 }  // anonymous namespace
 
-ChannelWrap::ChannelWrap(
-      Environment* env,
-      Local<Object> object,
-      int timeout,
-      int tries)
+ChannelWrap::ChannelWrap(Environment* env,
+                         Local<Object> object,
+                         int timeout,
+                         int tries,
+                         int max_timeout)
     : AsyncWrap(env, object, PROVIDER_DNSCHANNEL),
       timeout_(timeout),
-      tries_(tries) {
+      tries_(tries),
+      max_timeout_(max_timeout) {
   MakeWeak();
 
   Setup();
@@ -808,13 +834,15 @@ void ChannelWrap::MemoryInfo(MemoryTracker* tracker) const {
 
 void ChannelWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  CHECK_EQ(args.Length(), 2);
+  CHECK_EQ(args.Length(), 3);
   CHECK(args[0]->IsInt32());
   CHECK(args[1]->IsInt32());
+  CHECK(args[2]->IsInt32());
   const int timeout = args[0].As<Int32>()->Value();
   const int tries = args[1].As<Int32>()->Value();
+  const int max_timeout = args[2].As<Int32>()->Value();
   Environment* env = Environment::GetCurrent(args);
-  new ChannelWrap(env, args.This(), timeout, tries);
+  new ChannelWrap(env, args.This(), timeout, tries, max_timeout);
 }
 
 GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
@@ -879,9 +907,14 @@ void ChannelWrap::Setup() {
   }
 
   /* We do the call to ares_init_option for caller. */
-  const int optmask =
-      ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS |
-      ARES_OPT_SOCK_STATE_CB | ARES_OPT_TRIES;
+  int optmask = ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS | ARES_OPT_SOCK_STATE_CB |
+                ARES_OPT_TRIES | ARES_OPT_QUERY_CACHE;
+
+  if (max_timeout_ > 0) {
+    options.maxtimeout = max_timeout_;
+    optmask |= ARES_OPT_MAXTIMEOUTMS;
+  }
+
   r = ares_init_options(&channel_, &options, optmask);
 
   if (r != ARES_SUCCESS) {
@@ -902,8 +935,7 @@ void ChannelWrap::StartTimer() {
     return;
   }
   int timeout = timeout_;
-  if (timeout == 0) timeout = 1;
-  if (timeout < 0 || timeout > 1000) timeout = 1000;
+  if (timeout <= 0 || timeout > 1000) timeout = 1000;
   uv_timer_start(timer_handle_, AresTimeout, timeout, timeout);
 }
 
@@ -1076,30 +1108,61 @@ Maybe<int> AnyTraits::Parse(QueryAnyWrap* wrap,
 
   if (type == ns_t_a) {
     CHECK_EQ(static_cast<uint32_t>(naddrttls), a_count);
+
+    auto tmpl = env->a_record_template();
+    if (tmpl.IsEmpty()) {
+      static constexpr std::string_view names[] = {
+          "address",
+          "ttl",
+          "type",
+      };
+      tmpl = DictionaryTemplate::New(env->isolate(), names);
+      env->set_a_record_template(tmpl);
+    }
+    MaybeLocal<Value> values[] = {
+        Undefined(env->isolate()),  // address
+        Undefined(env->isolate()),  // ttl
+        Undefined(env->isolate()),  // type
+    };
+
     for (uint32_t i = 0; i < a_count; i++) {
-      Local<Object> obj = Object::New(env->isolate());
       Local<Value> address;
-      if (!ret->Get(env->context(), i).ToLocal(&address) ||
-          obj->Set(env->context(), env->address_string(), address)
-              .IsNothing() ||
-          obj->Set(env->context(),
-                   env->ttl_string(),
-                   Integer::NewFromUnsigned(env->isolate(), addrttls[i].ttl))
-              .IsNothing() ||
-          obj->Set(env->context(), env->type_string(), env->dns_a_string())
-              .IsNothing() ||
+      if (!ret->Get(env->context(), i).ToLocal(&address)) {
+        return Nothing<int>();
+      }
+      values[0] = address;
+      values[1] = Integer::NewFromUnsigned(env->isolate(), addrttls[i].ttl);
+      values[2] = env->dns_a_string();
+
+      Local<Object> obj;
+      if (!NewDictionaryInstance(env->context(), tmpl, values).ToLocal(&obj) ||
           ret->Set(env->context(), i, obj).IsNothing()) {
         return Nothing<int>();
       }
     }
   } else {
+    auto tmpl = env->cname_record_template();
+    if (tmpl.IsEmpty()) {
+      static constexpr std::string_view names[] = {
+          "value",
+          "type",
+      };
+      tmpl = DictionaryTemplate::New(env->isolate(), names);
+      env->set_cname_record_template(tmpl);
+    }
+    MaybeLocal<Value> values[] = {
+        Undefined(env->isolate()),  // value
+        Undefined(env->isolate()),  // type
+    };
     for (uint32_t i = 0; i < a_count; i++) {
-      Local<Object> obj = Object::New(env->isolate());
       Local<Value> value;
-      if (!ret->Get(env->context(), i).ToLocal(&value) ||
-          obj->Set(env->context(), env->value_string(), value).IsNothing() ||
-          obj->Set(env->context(), env->type_string(), env->dns_cname_string())
-              .IsNothing() ||
+      if (!ret->Get(env->context(), i).ToLocal(&value)) {
+        return Nothing<int>();
+      }
+      values[0] = value;
+      values[1] = env->dns_cname_string();
+      Local<Object> obj;
+      if (!NewDictionaryInstance(env->context(), tmpl, values).ToLocal(&obj) ||
           ret->Set(env->context(), i, obj).IsNothing()) {
         return Nothing<int>();
       }
@@ -1121,19 +1184,35 @@ Maybe<int> AnyTraits::Parse(QueryAnyWrap* wrap,
 
   CHECK_EQ(aaaa_count, static_cast<uint32_t>(naddr6ttls));
   CHECK_EQ(ret->Length(), a_count + aaaa_count);
-  for (uint32_t i = a_count; i < ret->Length(); i++) {
-    Local<Object> obj = Object::New(env->isolate());
-    Local<Value> address;
 
-    if (!ret->Get(env->context(), i).ToLocal(&address) ||
-        obj->Set(env->context(), env->address_string(), address).IsNothing() ||
-        obj->Set(env->context(),
-                 env->ttl_string(),
-                 Integer::NewFromUnsigned(env->isolate(),
-                                          addr6ttls[i - a_count].ttl))
-            .IsNothing() ||
-        obj->Set(env->context(), env->type_string(), env->dns_aaaa_string())
-            .IsNothing() ||
+  auto tmpl = env->aaaa_record_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "address",
+        "ttl",
+        "type",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_aaaa_record_template(tmpl);
+  }
+
+  MaybeLocal<Value> values[] = {
+      Undefined(env->isolate()),  // address
+      Undefined(env->isolate()),  // ttl
+      Undefined(env->isolate()),  // type
+  };
+
+  for (uint32_t i = a_count; i < ret->Length(); i++) {
+    Local<Value> address;
+    if (!ret->Get(env->context(), i).ToLocal(&address)) {
+      return Nothing<int>();
+    }
+    values[0] = address;
+    values[1] =
+        Integer::NewFromUnsigned(env->isolate(), addr6ttls[i - a_count].ttl);
+    values[2] = env->dns_aaaa_string();
+    Local<Object> obj;
+    if (!NewDictionaryInstance(env->context(), tmpl, values).ToLocal(&obj) ||
         ret->Set(env->context(), i, obj).IsNothing()) {
       return Nothing<int>();
     }
@@ -1157,14 +1236,31 @@ Maybe<int> AnyTraits::Parse(QueryAnyWrap* wrap,
     return Just<int>(status);
   }
 
-  for (uint32_t i = old_count; i < ret->Length(); i++) {
-    Local<Object> obj = Object::New(env->isolate());
-    Local<Value> value;
+  auto dns_ns_tmpl = env->dns_ns_record_template();
+  if (dns_ns_tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "value",
+        "type",
+    };
+    dns_ns_tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_dns_ns_record_template(dns_ns_tmpl);
+  }
 
-    if (!ret->Get(env->context(), i).ToLocal(&value) ||
-        obj->Set(env->context(), env->value_string(), value).IsNothing() ||
-        obj->Set(env->context(), env->type_string(), env->dns_ns_string())
-            .IsNothing() ||
+  MaybeLocal<Value> values_ns[] = {
+      Undefined(env->isolate()),  // value
+      Undefined(env->isolate()),  // type
+  };
+
+  for (uint32_t i = old_count; i < ret->Length(); i++) {
+    Local<Value> value;
+    if (!ret->Get(env->context(), i).ToLocal(&value)) {
+      return Nothing<int>();
+    }
+    values_ns[0] = value;
+    values_ns[1] = env->dns_ns_string();
+    Local<Object> obj;
+    if (!NewDictionaryInstance(env->context(), dns_ns_tmpl, values_ns)
+             .ToLocal(&obj) ||
         ret->Set(env->context(), i, obj).IsNothing()) {
       return Nothing<int>();
     }
@@ -1194,14 +1290,17 @@ Maybe<int> AnyTraits::Parse(QueryAnyWrap* wrap,
   }
   if (status != ARES_SUCCESS && status != ARES_ENODATA)
     return Just<int>(status);
-  for (uint32_t i = old_count; i < ret->Length(); i++) {
-    Local<Object> obj = Object::New(env->isolate());
-    Local<Value> value;
 
-    if (!ret->Get(env->context(), i).ToLocal(&value) ||
-        obj->Set(env->context(), env->value_string(), value).IsNothing() ||
-        obj->Set(env->context(), env->type_string(), env->dns_ptr_string())
-            .IsNothing() ||
+  for (uint32_t i = old_count; i < ret->Length(); i++) {
+    Local<Value> value;
+    if (!ret->Get(env->context(), i).ToLocal(&value)) {
+      return Nothing<int>();
+    }
+    values_ns[0] = value;
+    values_ns[1] = env->dns_ptr_string();
+    Local<Object> obj;
+    if (!NewDictionaryInstance(env->context(), dns_ns_tmpl, values_ns)
+             .ToLocal(&obj) ||
         ret->Set(env->context(), i, obj).IsNothing()) {
       return Nothing<int>();
     }
@@ -1561,58 +1660,53 @@ Maybe<int> SoaTraits::Parse(QuerySoaWrap* wrap,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
+  auto tmpl = getSoaRecordTemplate(env);
+  MaybeLocal<Value> values[] = {
+      Undefined(env->isolate()),  // nsname
+      Undefined(env->isolate()),  // hostmaster
+      Undefined(env->isolate()),  // serial
+      Undefined(env->isolate()),  // refresh
+      Undefined(env->isolate()),  // retry
+      Undefined(env->isolate()),  // expire
+      Undefined(env->isolate()),  // minttl
+      Undefined(env->isolate()),  // type
+  };
+
   ares_soa_reply* soa_out;
   int status = ares_parse_soa_reply(buf, len, &soa_out);
 
   if (status != ARES_SUCCESS) return Just<int>(status);
 
-  Local<Object> soa_record = Object::New(env->isolate());
+  auto cleanup = OnScopeLeave([&]() { ares_free_data(soa_out); });
 
-  if (soa_record
-          ->Set(env->context(),
-                env->nsname_string(),
-                OneByteString(env->isolate(), soa_out->nsname))
-          .IsNothing() ||
-      soa_record
-          ->Set(env->context(),
-                env->hostmaster_string(),
-                OneByteString(env->isolate(), soa_out->hostmaster))
-          .IsNothing() ||
-      soa_record
-          ->Set(env->context(),
-                env->serial_string(),
-                Integer::NewFromUnsigned(env->isolate(), soa_out->serial))
-          .IsNothing() ||
-      soa_record
-          ->Set(env->context(),
-                env->refresh_string(),
-                Integer::New(env->isolate(), soa_out->refresh))
-          .IsNothing() ||
-      soa_record
-          ->Set(env->context(),
-                env->retry_string(),
-                Integer::New(env->isolate(), soa_out->retry))
-          .IsNothing() ||
-      soa_record
-          ->Set(env->context(),
-                env->expire_string(),
-                Integer::New(env->isolate(), soa_out->expire))
-          .IsNothing() ||
-      soa_record
-          ->Set(env->context(),
-                env->minttl_string(),
-                Integer::NewFromUnsigned(env->isolate(), soa_out->minttl))
-          .IsNothing()) {
+  values[0] = OneByteString(env->isolate(), soa_out->nsname);
+  values[1] = OneByteString(env->isolate(), soa_out->hostmaster);
+  values[2] = Integer::NewFromUnsigned(env->isolate(), soa_out->serial);
+  values[3] = Integer::New(env->isolate(), soa_out->refresh);
+  values[4] = Integer::New(env->isolate(), soa_out->retry);
+  values[5] = Integer::New(env->isolate(), soa_out->expire);
+  values[6] = Integer::NewFromUnsigned(env->isolate(), soa_out->minttl);
+  Local<Object> soa_record;
+  if (!NewDictionaryInstance(env->context(), tmpl, values)
+           .ToLocal(&soa_record)) {
     return Nothing<int>();
   }
-
-  ares_free_data(soa_out);
 
   wrap->CallOnComplete(soa_record);
   return Just<int>(ARES_SUCCESS);
 }
 
 int ReverseTraits::Send(QueryReverseWrap* wrap, const char* name) {
+  permission::PermissionScope scope = permission::PermissionScope::kNet;
+  Environment* env_holder = wrap->env();
+
+  if (!env_holder->permission()->is_granted(env_holder, scope, name))
+      [[unlikely]] {
+    wrap->QueuePermissionModelResponseCallback(name);
+    // Error will be returned in the callback
+    return ARES_SUCCESS;
+  }
+
   int length, family;
   char address_buffer[sizeof(struct in6_addr)];
 
@@ -1661,7 +1755,6 @@ Maybe<int> ReverseTraits::Parse(QueryReverseWrap* wrap,
 namespace {
 template <class Wrap>
 static void Query(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   ChannelWrap* channel;
   ASSIGN_OR_RETURN_UNWRAP(&channel, args.This());
 
@@ -1673,7 +1766,7 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   Local<String> string = args[1].As<String>();
   auto wrap = std::make_unique<Wrap>(channel, req_wrap_obj);
 
-  node::Utf8Value utf8name(env->isolate(), string);
+  node::Utf8Value utf8name(args.GetIsolate(), string);
   auto plain_name = utf8name.ToStringView();
   std::string name = ada::idna::to_ascii(plain_name);
   channel->ModifyActivityQueryCount(1);
@@ -1687,7 +1780,6 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(err);
 }
-
 
 void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   auto cleanup = OnScopeLeave([&]() { uv_freeaddrinfo(res); });
@@ -1851,6 +1943,10 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[4]->IsUint32());
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value hostname(env->isolate(), args[1]);
+
+  ERR_ACCESS_DENIED_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kNet, hostname.ToStringView(), args);
+
   std::string ascii_hostname = ada::idna::to_ascii(hostname.ToStringView());
 
   int32_t flags = 0;
@@ -1925,10 +2021,18 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
       TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap.get(),
       "ip", TRACE_STR_COPY(*ip), "port", port);
 
-  int err = req_wrap->Dispatch(uv_getnameinfo,
-                               AfterGetNameInfo,
-                               reinterpret_cast<struct sockaddr*>(&addr),
-                               NI_NAMEREQD);
+  int err = 0;
+  if (!env->permission()->is_granted(
+          env, permission::PermissionScope::kNet, ip.ToStringView()))
+      [[unlikely]] {
+    req_wrap->InsufficientPermissionError(*ip);
+  } else {
+    err = req_wrap->Dispatch(uv_getnameinfo,
+                             AfterGetNameInfo,
+                             reinterpret_cast<struct sockaddr*>(&addr),
+                             NI_NAMEREQD);
+  }
+
   if (err == 0)
     // Release ownership of the pointer allowing the ownership to be transferred
     USE(req_wrap.release());

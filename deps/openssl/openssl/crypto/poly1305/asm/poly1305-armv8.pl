@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -72,6 +72,7 @@ $code.=<<___;
 .type	poly1305_init,%function
 .align	5
 poly1305_init:
+	AARCH64_VALID_CALL_TARGET
 	cmp	$inp,xzr
 	stp	xzr,xzr,[$ctx]		// zero hash value
 	stp	xzr,xzr,[$ctx,#16]	// [along with is_base2_26]
@@ -96,10 +97,14 @@ poly1305_init:
 
 	tst	w17,#ARMV7_NEON
 
-	adr	$d0,.Lpoly1305_blocks
-	adr	$r0,.Lpoly1305_blocks_neon
-	adr	$d1,.Lpoly1305_emit
-	adr	$r1,.Lpoly1305_emit_neon
+	adrp	$d0,poly1305_blocks
+	add	$d0,$d0,#:lo12:.Lpoly1305_blocks
+	adrp	$r0,poly1305_blocks_neon
+	add	$r0,$r0,#:lo12:.Lpoly1305_blocks_neon
+	adrp	$d1,poly1305_emit
+	add	$d1,$d1,#:lo12:.Lpoly1305_emit
+	adrp	$r1,poly1305_emit_neon
+	add	$r1,$r1,#:lo12:.Lpoly1305_emit_neon
 
 	csel	$d0,$d0,$r0,eq
 	csel	$d1,$d1,$r1,eq
@@ -119,6 +124,9 @@ poly1305_init:
 .align	5
 poly1305_blocks:
 .Lpoly1305_blocks:
+	// The symbol .Lpoly1305_blocks is not a .globl symbol
+	// but a pointer to it is returned by poly1305_init
+	AARCH64_VALID_CALL_TARGET
 	ands	$len,$len,#-16
 	b.eq	.Lno_data
 
@@ -184,6 +192,9 @@ poly1305_blocks:
 .align	5
 poly1305_emit:
 .Lpoly1305_emit:
+	// The symbol .poly1305_emit is not a .globl symbol
+	// but a pointer to it is returned by poly1305_init
+	AARCH64_VALID_CALL_TARGET
 	ldp	$h0,$h1,[$ctx]		// load hash base 2^64
 	ldr	$h2,[$ctx,#16]
 	ldp	$t0,$t1,[$nonce]	// load nonce
@@ -291,13 +302,16 @@ poly1305_splat:
 .align	5
 poly1305_blocks_neon:
 .Lpoly1305_blocks_neon:
+	// The symbol .Lpoly1305_blocks_neon is not a .globl symbol
+	// but a pointer to it is returned by poly1305_init
+	AARCH64_VALID_CALL_TARGET
 	ldr	$is_base2_26,[$ctx,#24]
 	cmp	$len,#128
 	b.hs	.Lblocks_neon
 	cbz	$is_base2_26,.Lpoly1305_blocks
 
 .Lblocks_neon:
-	.inst	0xd503233f		// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-80]!
 	add	x29,sp,#0
 
@@ -432,7 +446,8 @@ poly1305_blocks_neon:
 	ldr	x30,[sp,#8]
 
 	add	$in2,$inp,#32
-	adr	$zeros,.Lzeros
+	adrp	$zeros,.Lzeros
+	add	$zeros,$zeros,:lo12:.Lzeros
 	subs	$len,$len,#64
 	csel	$in2,$zeros,$in2,lo
 
@@ -444,7 +459,8 @@ poly1305_blocks_neon:
 .align	4
 .Leven_neon:
 	add	$in2,$inp,#32
-	adr	$zeros,.Lzeros
+	adrp	$zeros,.Lzeros
+	add	$zeros,$zeros,:lo12:.Lzeros
 	subs	$len,$len,#64
 	csel	$in2,$zeros,$in2,lo
 
@@ -867,7 +883,7 @@ poly1305_blocks_neon:
 
 .Lno_data_neon:
 	ldr	x29,[sp],#80
-	.inst	0xd50323bf		// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	poly1305_blocks_neon,.-poly1305_blocks_neon
 
@@ -875,6 +891,9 @@ poly1305_blocks_neon:
 .align	5
 poly1305_emit_neon:
 .Lpoly1305_emit_neon:
+	// The symbol .Lpoly1305_emit_neon is not a .globl symbol
+	// but a pointer to it is returned by poly1305_init
+	AARCH64_VALID_CALL_TARGET
 	ldr	$is_base2_26,[$ctx,#24]
 	cbz	$is_base2_26,poly1305_emit
 
@@ -923,6 +942,8 @@ poly1305_emit_neon:
 
 	ret
 .size	poly1305_emit_neon,.-poly1305_emit_neon
+
+.rodata
 
 .align	5
 .Lzeros:

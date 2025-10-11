@@ -27,6 +27,7 @@
 * [Diagnostics Channel](diagnostics_channel.md)
 * [DNS](dns.md)
 * [Domain](domain.md)
+* [Environment Variables](environment_variables.md)
 * [Errors](errors.md)
 * [Events](events.md)
 * [File system](fs.md)

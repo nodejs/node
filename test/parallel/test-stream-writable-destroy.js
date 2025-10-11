@@ -499,3 +499,17 @@ const assert = require('assert');
   }));
   write[Symbol.asyncDispose]().then(common.mustCall());
 }
+
+(async () => {
+  await using write = new Writable({
+    write(chunk, enc, cb) { cb(); }
+  });
+
+  write.on('error', common.mustCall(function(e) {
+    assert.strictEqual(e.name, 'AbortError');
+    assert.strictEqual(this.destroyed, true);
+    assert.strictEqual(this.errored.name, 'AbortError');
+  }));
+  write.on('close', common.mustCall());
+  write.on('finish', common.mustNotCall('no finish event'));
+})().then(common.mustCall());

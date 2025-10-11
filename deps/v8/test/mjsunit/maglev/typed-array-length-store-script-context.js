@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --maglev --no-always-turbofan
-// Flags: --typed-array-length-loading --script-context-mutable-heap-number
+// Flags: --allow-natives-syntax --maglev
+// Flags: --typed-array-length-loading --script-context-cells
 
 let scriptContextSlot = 0;
 
@@ -19,6 +19,8 @@ foo(100);
 foo(100);
 assertEquals(100, scriptContextSlot);
 assertTrue(isMaglevved(foo));
+
+foo(100);
 
 // If we create a large JSTypedArray (length doesn't fit in Smi), we'll deopt
 // because the large length doesn't match the existing type for

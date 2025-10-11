@@ -309,6 +309,9 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
                  base::StaticOneByteVector("functionsCalledOnLoad") &&
              hash_or_at_sign == '#') {
     value = &per_function_compile_hints_value;
+  } else if (name_literal == base::StaticOneByteVector("debugId") &&
+             hash_or_at_sign == '#') {
+    value = &debug_id_;
   } else {
     return;
   }
@@ -709,6 +712,18 @@ DirectHandle<String> Scanner::SourceMappingUrl(IsolateT* isolate) const {
 template DirectHandle<String> Scanner::SourceMappingUrl(Isolate* isolate) const;
 template DirectHandle<String> Scanner::SourceMappingUrl(
     LocalIsolate* isolate) const;
+
+template <typename IsolateT>
+DirectHandle<String> Scanner::DebugId(IsolateT* isolate) const {
+  DirectHandle<String> tmp;
+  if (debug_id_.length() > 0) {
+    tmp = debug_id_.Internalize(isolate);
+  }
+  return tmp;
+}
+
+template DirectHandle<String> Scanner::DebugId(Isolate* isolate) const;
+template DirectHandle<String> Scanner::DebugId(LocalIsolate* isolate) const;
 
 bool Scanner::ScanDigitsWithNumericSeparators(bool (*predicate)(base::uc32 ch),
                                               bool is_check_first_digit) {

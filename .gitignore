@@ -7,8 +7,7 @@
 .*
 # Exclude specific dotfiles that we want to track.
 !deps/**/.*
-!.devcontainer/
-!.devcontainer/.devcontainer.json
+!.devcontainer.json
 !test/fixtures/**/.*
 !.clang-format
 !.cpplint
@@ -22,6 +21,7 @@
 !.nycrc
 !.yamllint.yaml
 !.configurations/
+!/.npmrc
 
 # === Rules for root dir ===
 /core

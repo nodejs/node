@@ -18,6 +18,7 @@
 #include "absl/status/status_matchers.h"
 
 #include <string>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest-spi.h"
@@ -31,9 +32,12 @@ namespace {
 using ::absl_testing::IsOk;
 using ::absl_testing::IsOkAndHolds;
 using ::absl_testing::StatusIs;
+using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::Gt;
 using ::testing::MatchesRegex;
+using ::testing::Not;
+using ::testing::Ref;
 
 TEST(StatusMatcherTest, StatusIsOk) { EXPECT_THAT(absl::OkStatus(), IsOk()); }
 
@@ -156,6 +160,25 @@ TEST(StatusMatcherTest, StatusIsFailure) {
       EXPECT_THAT(invalid,
                   StatusIs(absl::StatusCode::kInvalidArgument, "invalide")),
       "ungueltig");
+}
+
+TEST(StatusMatcherTest, ReferencesWork) {
+  int i = 17;
+  int j = 19;
+  EXPECT_THAT(absl::StatusOr<int&>(i), IsOkAndHolds(17));
+  EXPECT_THAT(absl::StatusOr<int&>(i), Not(IsOkAndHolds(19)));
+  EXPECT_THAT(absl::StatusOr<const int&>(i), IsOkAndHolds(17));
+
+  // Reference testing works as expected.
+  EXPECT_THAT(absl::StatusOr<int&>(i), IsOkAndHolds(Ref(i)));
+  EXPECT_THAT(absl::StatusOr<int&>(i), Not(IsOkAndHolds(Ref(j))));
+
+  // Try a more complex one.
+  std::vector<std::string> vec = {"A", "B", "C"};
+  EXPECT_THAT(absl::StatusOr<std::vector<std::string>&>(vec),
+              IsOkAndHolds(ElementsAre("A", "B", "C")));
+  EXPECT_THAT(absl::StatusOr<std::vector<std::string>&>(vec),
+              Not(IsOkAndHolds(ElementsAre("A", "X", "C"))));
 }
 
 }  // namespace

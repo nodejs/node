@@ -15,14 +15,20 @@
 #include "absl/profiling/internal/sample_recorder.h"
 
 #include <atomic>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <random>
 #include <vector>
 
 #include "gmock/gmock.h"
+#include "gtest/gtest.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/random/random.h"
 #include "absl/synchronization/internal/thread_pool.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/synchronization/notification.h"
+#include "absl/time/clock.h"
 #include "absl/time/time.h"
 
 namespace absl {
@@ -112,9 +118,7 @@ TEST(SampleRecorderTest, MultiThreaded) {
 
   for (int i = 0; i < 10; ++i) {
     pool.Schedule([&sampler, &stop, i]() {
-      std::random_device rd;
-      std::mt19937 gen(rd());
-
+      absl::InsecureBitGen gen;
       std::vector<Info*> infoz;
       while (!stop.HasBeenNotified()) {
         if (infoz.empty()) {

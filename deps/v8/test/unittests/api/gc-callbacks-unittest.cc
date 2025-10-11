@@ -121,7 +121,7 @@ GCCallbacksTest* GCCallbacksTest::current_test_ = nullptr;
 TEST_F(GCCallbacksTest, GCCallbacks) {
   // For SimulateFullSpace in PrologueCallbackAlloc and EpilogueCallbackAlloc.
   i::v8_flags.stress_concurrent_allocation = false;
-  v8::Isolate* isolate = context()->GetIsolate();
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(i_isolate());
   gc_callbacks_isolate_ = isolate;
   isolate->AddGCPrologueCallback(PrologueCallback);
   isolate->AddGCEpilogueCallback(EpilogueCallback);

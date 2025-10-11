@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --wasm-staging
+// Flags: --wasm-allow-mixed-eh-for-testing
 
 // This test case reproduces an issue found in crbug.com/1508213 where
 // reachability is handled differently for unreachable catch blocks in liftoff

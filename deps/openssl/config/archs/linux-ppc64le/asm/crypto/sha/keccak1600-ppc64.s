@@ -297,33 +297,6 @@ KeccakF1600:
 .byte	0,12,4,1,0x80,18,1,0
 .long	0
 .size	KeccakF1600,.-KeccakF1600
-
-.type	dword_le_load,@function
-.align	5
-dword_le_load:
-.localentry	dword_le_load,0
-
-	lbz	0,1(3)
-	lbz	4,2(3)
-	lbz	5,3(3)
-	insrdi	0,4,8,48
-	lbz	4,4(3)
-	insrdi	0,5,8,40
-	lbz	5,5(3)
-	insrdi	0,4,8,32
-	lbz	4,6(3)
-	insrdi	0,5,8,24
-	lbz	5,7(3)
-	insrdi	0,4,8,16
-	lbzu	4,8(3)
-	insrdi	0,5,8,8
-	insrdi	0,4,8,0
-	blr	
-.long	0
-.byte	0,12,0x14,0,0,0,1,0
-.long	0
-.size	dword_le_load,.-dword_le_load
-
 .globl	SHA3_absorb
 .type	SHA3_absorb,@function
 .type	SHA3_absorb,@function
@@ -354,7 +327,7 @@ SHA3_absorb:
 	std	0,288(1)
 
 	bl	PICmeup
-	subi	4,4,1
+	subi	4,4,8
 	subi	12,12,8
 
 	std	3,48(1)
@@ -405,79 +378,79 @@ SHA3_absorb:
 	srwi	5,5,3
 	std	4,64(1)
 	mtctr	5
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	7,7,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	8,8,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	9,9,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	10,10,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	11,11,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	12,12,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	6,6,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	14,14,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	15,15,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	16,16,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	17,17,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	18,18,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	19,19,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	20,20,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	21,21,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	22,22,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	23,23,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	24,24,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	25,25,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	26,26,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	27,27,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	28,28,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	29,29,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	30,30,0
 	bdz	.Lprocess_block
-	bl	dword_le_load
+	ldu	0,8(3)
 	xor	31,31,0
 
 .Lprocess_block:
@@ -570,6 +543,8 @@ SHA3_squeeze:
 	subi	29,4,1
 	mr	30,5
 	mr	31,6
+	cmplwi	7,0
+	bne	.Lnext_block
 	b	.Loop_squeeze
 
 .align	4
@@ -600,6 +575,7 @@ SHA3_squeeze:
 	subic.	6,6,8
 	bgt	.Loop_squeeze
 
+.Lnext_block:
 	mr	3,28
 	bl	KeccakF1600
 	subi	3,28,8

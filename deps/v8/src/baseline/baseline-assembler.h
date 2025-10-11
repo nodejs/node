@@ -34,6 +34,9 @@ class BaselineAssembler {
   V8_INLINE void RecordComment(const char* string);
   inline void Trap();
   inline void DebugBreak();
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  inline void AssertInSandboxedExecutionMode();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   template <typename Field>
   inline void DecodeField(Register reg);
@@ -208,11 +211,11 @@ class BaselineAssembler {
     kDefault,
     kForceDecompression,
   };
-  inline void LdaContextSlot(
+  inline void LdaContextSlotNoCell(
       Register context, uint32_t index, uint32_t depth,
       CompressionMode compression_mode = CompressionMode::kDefault);
-  inline void StaContextSlot(Register context, Register value, uint32_t index,
-                             uint32_t depth);
+  inline void StaContextSlotNoCell(Register context, Register value,
+                                   uint32_t index, uint32_t depth);
   inline void LdaModuleVariable(Register context, int cell_index,
                                 uint32_t depth);
   inline void StaModuleVariable(Register context, Register value,

@@ -10,13 +10,13 @@ console.log(42);
 async (...__v_1) => {
   const __v_2 = 0;
 };
-/* CrossOverMutator: Crossover from foo */
-async (...__v_1) => {
-  const __v_2 = 0;
-};
 console.log(42);
 /* CrossOverMutator: Crossover from foo */
 async (...__v_2) => {
   const __v_1 = 0;
 };
 console.log(42);
+/* CrossOverMutator: Crossover from foo */
+async (...__v_2) => {
+  const __v_1 = 0;
+};

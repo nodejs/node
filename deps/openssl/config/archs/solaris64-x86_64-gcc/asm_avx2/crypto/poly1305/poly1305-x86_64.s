@@ -50,6 +50,7 @@ poly1305_init:
 .align	32
 poly1305_blocks:
 .cfi_startproc	
+.byte	243,15,30,250
 .Lblocks:
 	shrq	$4,%rdx
 	jz	.Lno_data
@@ -165,6 +166,7 @@ poly1305_blocks:
 .align	32
 poly1305_emit:
 .cfi_startproc	
+.byte	243,15,30,250
 .Lemit:
 	movq	0(%rdi),%r8
 	movq	8(%rdi),%r9
@@ -401,6 +403,7 @@ __poly1305_init_avx:
 .align	32
 poly1305_blocks_avx:
 .cfi_startproc	
+.byte	243,15,30,250
 	movl	20(%rdi),%r8d
 	cmpq	$128,%rdx
 	jae	.Lblocks_avx
@@ -1236,6 +1239,7 @@ poly1305_blocks_avx:
 .align	32
 poly1305_emit_avx:
 .cfi_startproc	
+.byte	243,15,30,250
 	cmpl	$0,20(%rdi)
 	je	.Lemit
 
@@ -1292,6 +1296,7 @@ poly1305_emit_avx:
 .align	32
 poly1305_blocks_avx2:
 .cfi_startproc	
+.byte	243,15,30,250
 	movl	20(%rdi),%r8d
 	cmpq	$128,%rdx
 	jae	.Lblocks_avx2
@@ -1932,6 +1937,7 @@ poly1305_blocks_avx2:
 	.byte	0xf3,0xc3
 .cfi_endproc	
 .size	poly1305_blocks_avx2,.-poly1305_blocks_avx2
+.section	.rodata
 .align	64
 .Lconst:
 .Lmask24:
@@ -1963,6 +1969,7 @@ poly1305_blocks_avx2:
 .Lx_mask42:
 .quad	0x3ffffffffff,0x3ffffffffff,0x3ffffffffff,0x3ffffffffff
 .quad	0x3ffffffffff,0x3ffffffffff,0x3ffffffffff,0x3ffffffffff
+.previous	
 .byte	80,111,108,121,49,51,48,53,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	16
 .globl	xor128_encrypt_n_pad

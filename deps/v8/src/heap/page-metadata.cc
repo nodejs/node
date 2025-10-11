@@ -2,21 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/page-metadata-inl.h"
+#include "src/heap/page-metadata.h"
 
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/page-metadata-inl.h"
 #include "src/heap/paged-spaces.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 PageMetadata::PageMetadata(Heap* heap, BaseSpace* space, size_t size,
                            Address area_start, Address area_end,
-                           VirtualMemory reservation)
+                           VirtualMemory reservation,
+                           Executability executability,
+                           MemoryChunk::MainThreadFlags* trusted_flags)
     : MutablePageMetadata(heap, space, size, area_start, area_end,
-                          std::move(reservation), PageSize::kRegular) {
-  DCHECK(!IsLargePage());
+                          std::move(reservation), PageSize::kRegular,
+                          executability) {
+  DCHECK(!is_large());
+  trusted_main_thread_flags_ = ComputeInitialFlags(executability);
+  *trusted_flags = trusted_main_thread_flags_;
 }
 
 void PageMetadata::AllocateFreeListCategories() {
@@ -51,19 +56,19 @@ void PageMetadata::ReleaseFreeListCategories() {
   }
 }
 
-PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page) {
+PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page,
+                                            FreeMode free_mode) {
   DCHECK(old_page);
-  MemoryChunk* chunk = old_page->Chunk();
-  DCHECK(chunk->InNewSpace());
+  DCHECK(old_page->Chunk()->InNewSpace());
   old_page->ResetAgeInNewSpace();
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
-  chunk->ClearFlagsNonExecutable(MemoryChunk::kAllFlagsMask);
+  old_page->ClearFlagsNonExecutable(MemoryChunk::kAllFlagsMask);
   DCHECK_NE(old_space->identity(), SHARED_SPACE);
-  chunk->SetOldGenerationPageFlags(
-      old_page->heap()->incremental_marking()->marking_mode(), OLD_SPACE);
+  old_page->SetOldGenerationPageFlags(
+      old_page->heap()->incremental_marking()->marking_mode());
   PageMetadata* new_page = old_space->InitializePage(old_page);
-  old_space->AddPromotedPage(new_page);
+  old_space->AddPromotedPage(new_page, free_mode);
   return new_page;
 }
 
@@ -75,77 +80,11 @@ size_t PageMetadata::AvailableInFreeList() {
 }
 
 void PageMetadata::MarkNeverAllocateForTesting() {
-  MemoryChunk* chunk = Chunk();
   DCHECK(this->owner_identity() != NEW_SPACE);
-  DCHECK(!chunk->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE));
-  chunk->SetFlagSlow(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
-  chunk->SetFlagSlow(MemoryChunk::NEVER_EVACUATE);
+  DCHECK(!never_allocate_on_chunk());
+  set_never_allocate_on_chunk(true);
+  set_never_evacuate();
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
-}
-
-#ifdef DEBUG
-namespace {
-// Skips filler starting from the given filler until the end address.
-// Returns the first address after the skipped fillers.
-Address SkipFillers(PtrComprCageBase cage_base, Tagged<HeapObject> filler,
-                    Address end) {
-  Address addr = filler.address();
-  while (addr < end) {
-    filler = HeapObject::FromAddress(addr);
-    CHECK(IsFreeSpaceOrFiller(filler, cage_base));
-    addr = filler.address() + filler->Size(cage_base);
-  }
-  return addr;
-}
-}  // anonymous namespace
-#endif  // DEBUG
-
-size_t PageMetadata::ShrinkToHighWaterMark() {
-  // Shrinking only makes sense outside of the CodeRange, where we don't care
-  // about address space fragmentation.
-  VirtualMemory* reservation = reserved_memory();
-  if (!reservation->IsReserved()) return 0;
-
-  // Shrink pages to high water mark. The water mark points either to a filler
-  // or the area_end.
-  Tagged<HeapObject> filler = HeapObject::FromAddress(HighWaterMark());
-  if (filler.address() == area_end()) return 0;
-  PtrComprCageBase cage_base(heap()->isolate());
-  CHECK(IsFreeSpaceOrFiller(filler, cage_base));
-  // Ensure that no objects were allocated in [filler, area_end) region.
-  DCHECK_EQ(area_end(), SkipFillers(cage_base, filler, area_end()));
-  // Ensure that no objects will be allocated on this page.
-  DCHECK_EQ(0u, AvailableInFreeList());
-
-  // Ensure that slot sets are empty. Otherwise the buckets for the shrunk
-  // area would not be freed when deallocating this page.
-  DCHECK_NULL(slot_set<OLD_TO_NEW>());
-  DCHECK_NULL(slot_set<OLD_TO_NEW_BACKGROUND>());
-  DCHECK_NULL(slot_set<OLD_TO_OLD>());
-
-  Chunk()->SetFlagNonExecutable(MemoryChunk::SHRINK_TO_HIGH_WATER_MARK);
-
-  size_t unused = RoundDown(static_cast<size_t>(area_end() - filler.address()),
-                            MemoryAllocator::GetCommitPageSize());
-  if (unused > 0) {
-    DCHECK_EQ(0u, unused % MemoryAllocator::GetCommitPageSize());
-    if (v8_flags.trace_gc_verbose) {
-      PrintIsolate(heap()->isolate(), "Shrinking page %p: end %p -> %p\n",
-                   reinterpret_cast<void*>(this),
-                   reinterpret_cast<void*>(area_end()),
-                   reinterpret_cast<void*>(area_end() - unused));
-    }
-    heap()->CreateFillerObjectAt(
-        filler.address(),
-        static_cast<int>(area_end() - filler.address() - unused));
-    heap()->memory_allocator()->PartialFreeMemory(
-        this, ChunkAddress() + size() - unused, unused, area_end() - unused);
-    if (filler.address() != area_end()) {
-      CHECK(IsFreeSpaceOrFiller(filler, cage_base));
-      CHECK_EQ(filler.address() + filler->Size(cage_base), area_end());
-    }
-  }
-  return unused;
 }
 
 void PageMetadata::CreateBlackArea(Address start, Address end) {
@@ -178,5 +117,26 @@ void PageMetadata::DestroyBlackArea(Address start, Address end) {
   owner()->NotifyBlackAreaDestroyed(end - start);
 }
 
-}  // namespace internal
-}  // namespace v8
+void PageMetadata::MarkEvacuationCandidate() {
+  DCHECK(!never_evacuate());
+  DCHECK_NULL(slot_set<OLD_TO_OLD>());
+  DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
+  set_is_evacuation_candidate(true);
+  SetFlagMaybeExecutable(MemoryChunk::EVACUATION_CANDIDATE);
+  reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
+}
+
+void PageMetadata::ClearEvacuationCandidate() {
+  CHECK(evacuation_was_aborted());
+  set_evacuation_was_aborted(false);
+  set_is_evacuation_candidate(false);
+  ClearFlagMaybeExecutable(MemoryChunk::EVACUATION_CANDIDATE);
+  InitializeFreeListCategories();
+}
+
+void PageMetadata::AbortEvacuation() {
+  DCHECK(!evacuation_was_aborted());
+  set_evacuation_was_aborted(true);
+}
+
+}  // namespace v8::internal

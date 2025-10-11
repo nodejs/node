@@ -57,6 +57,11 @@ class V8_EXPORT Data {
    */
   bool IsContext() const;
 
+  /**
+   * Returns true if this value is a `CppHeapExternal` object.
+   */
+  bool IsCppHeapExternal() const;
+
  private:
   Data() = delete;
 };

@@ -176,6 +176,12 @@ BUILTIN(ArrayBufferConstructor) {
     }
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_max_length,
                                        Object::ToInteger(isolate, max_length));
+    if (Object::NumberValue(*number_length) >
+        Object::NumberValue(*number_max_length)) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate,
+          NewRangeError(MessageTemplate::kInvalidArrayBufferMaxLength));
+    }
   }
   return ConstructBuffer(isolate, target, new_target, number_length,
                          number_max_length, InitializedFlag::kZeroInitialized);
@@ -221,8 +227,8 @@ static Tagged<Object> SliceHelper(BuiltinArguments args, Isolate* isolate,
 
   // * Let relativeStart be ? ToInteger(start).
   double relative_start;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, relative_start, Object::IntegerValue(isolate, start));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, relative_start,
+                                     Object::IntegerValue(isolate, start));
 
   // * If relativeStart < 0, let first be max((len + relativeStart), 0); else
   //   let first be min(relativeStart, len).
@@ -236,8 +242,8 @@ static Tagged<Object> SliceHelper(BuiltinArguments args, Isolate* isolate,
   if (IsUndefined(*end, isolate)) {
     relative_end = len;
   } else {
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, relative_end, Object::IntegerValue(isolate, end));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, relative_end,
+                                       Object::IntegerValue(isolate, end));
   }
 
   // * If relativeEnd < 0, let final be max((len + relativeEnd), 0); else let

@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "src/base/fpu.h"
 #include "src/base/macros.h"
 #include "src/execution/mutex-guard-if-off-thread.h"
 #include "src/execution/thread-id.h"

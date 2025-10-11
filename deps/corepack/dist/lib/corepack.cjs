@@ -21683,7 +21683,7 @@ function String2(descriptor, ...args) {
 }
 
 // package.json
-var version = "0.32.0";
+var version = "0.34.0";
 
 // sources/Engine.ts
 var import_fs9 = __toESM(require("fs"));
@@ -21697,7 +21697,7 @@ var import_valid4 = __toESM(require_valid2());
 var config_default = {
   definitions: {
     npm: {
-      default: "11.1.0+sha1.dba08f7d0f5301ebedaf968b4f74b2282f97a750",
+      default: "11.4.2+sha1.6f1519a03f7e04023a957a22b812832d0c4a4b33",
       fetchLatestFrom: {
         type: "npm",
         package: "npm"
@@ -21734,7 +21734,7 @@ var config_default = {
       }
     },
     pnpm: {
-      default: "10.5.2+sha1.ca68c0441df195b7e2992f1d1cb12fb731f82d78",
+      default: "10.13.1+sha1.aa8c167c4509c97519542ef77a09e4b8ab59fb6a",
       fetchLatestFrom: {
         type: "npm",
         package: "pnpm"
@@ -21798,7 +21798,7 @@ var config_default = {
         package: "yarn"
       },
       transparent: {
-        default: "4.6.0+sha224.acd0786f07ffc6c933940eb65fc1d627131ddf5455bddcc295dc90fd",
+        default: "4.9.2+sha224.b8e0b161ae590950fbda696e6f3ca071362768e5280c5fbfdadf064b",
         commands: [
           [
             "yarn",
@@ -22105,6 +22105,10 @@ async function getProxyAgent(input) {
 }
 
 // sources/corepackUtils.ts
+var YARN_SWITCH_REGEX = /[/\\]switch[/\\]bin[/\\]/;
+function isYarnSwitchPath(p) {
+  return YARN_SWITCH_REGEX.test(p);
+}
 function getRegistryFromPackageManagerSpec(spec) {
   return process.env.COREPACK_NPM_REGISTRY ? spec.npmRegistry ?? spec.registry : spec.registry;
 }
@@ -22896,7 +22900,7 @@ var Engine = class {
         case `NoSpec`: {
           if (typeof locator.reference === `function`)
             fallbackDescriptor.range = await locator.reference();
-          if (import_process3.default.env.COREPACK_ENABLE_AUTO_PIN !== `0`) {
+          if (import_process3.default.env.COREPACK_ENABLE_AUTO_PIN === `1`) {
             const resolved = await this.resolveDescriptor(fallbackDescriptor, { allowTags: true });
             if (resolved === null)
               throw new UsageError(`Failed to successfully resolve '${fallbackDescriptor.range}' to a valid ${fallbackDescriptor.name} release`);
@@ -22906,7 +22910,7 @@ var Engine = class {
             console.error();
             await setLocalPackageManager(import_path9.default.dirname(result.target), installSpec);
           }
-          log(`Falling back to ${fallbackDescriptor.name}@${fallbackDescriptor.range} in the absence of "packageManage" field in ${result.target}`);
+          log(`Falling back to ${fallbackDescriptor.name}@${fallbackDescriptor.range} in the absence of "packageManager" field in ${result.target}`);
           return fallbackDescriptor;
         }
         case `Found`: {
@@ -23070,6 +23074,10 @@ var DisableCommand = class extends Command {
   async removePosixLink(installDirectory, binName) {
     const file = import_path10.default.join(installDirectory, binName);
     try {
+      if (binName.includes(`yarn`) && isYarnSwitchPath(await import_fs11.default.promises.realpath(file))) {
+        console.warn(`${binName} is already installed in ${file} and points to a Yarn Switch install - skipping`);
+        return;
+      }
       await import_fs11.default.promises.unlink(file);
     } catch (err) {
       if (err.code !== `ENOENT`) {
@@ -23147,6 +23155,10 @@ var EnableCommand = class extends Command {
     const symlink = import_path11.default.relative(installDirectory, import_path11.default.join(distFolder, `${binName}.js`));
     if (import_fs12.default.existsSync(file)) {
       const currentSymlink = await import_fs12.default.promises.readlink(file);
+      if (binName.includes(`yarn`) && isYarnSwitchPath(await import_fs12.default.promises.realpath(file))) {
+        console.warn(`${binName} is already installed in ${file} and points to a Yarn Switch install - skipping`);
+        return;
+      }
       if (currentSymlink !== symlink) {
         await import_fs12.default.promises.unlink(file);
       } else {

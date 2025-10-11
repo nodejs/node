@@ -33,6 +33,7 @@ using ::perfetto::protos::pbzero::InternedV8JsFunction;
 using ::perfetto::protos::pbzero::InternedV8JsScript;
 using ::perfetto::protos::pbzero::InternedV8String;
 using ::perfetto::protos::pbzero::TracePacket;
+using ::protozero::ConstChars;
 
 InternedV8JsScript::Type GetJsScriptType(Tagged<Script> script) {
   if (script->compilation_type() == Script::CompilationType::kEval) {
@@ -233,7 +234,7 @@ uint64_t CodeDataSourceIncrementalState::InternJsFunction(
 
 #if V8_ENABLE_WEBASSEMBLY
 uint64_t CodeDataSourceIncrementalState::InternWasmScript(
-    Isolate& isolate, int script_id, const std::string& url,
+    Isolate& isolate, int script_id, std::string_view url,
     wasm::NativeModule* native_module) {
   auto [it, was_inserted] = scripts_.emplace(
       CodeDataSourceIncrementalState::ScriptUniqueId{isolate.id(), script_id},
@@ -246,7 +247,7 @@ uint64_t CodeDataSourceIncrementalState::InternWasmScript(
   auto* script = serialized_interned_data_->add_v8_wasm_script();
   script->set_iid(iid);
   script->set_script_id(script_id);
-  script->set_url(url);
+  script->set_url(ConstChars{url.data(), url.size()});
   if (log_script_sources()) {
     base::Vector<const uint8_t> bytes_vec = native_module->wire_bytes();
     script->set_wire_bytes(bytes_vec.begin(), bytes_vec.size());

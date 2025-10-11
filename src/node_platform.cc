@@ -101,6 +101,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
 
   std::unique_ptr<uv_thread_t> Start() {
     auto start_thread = [](void* data) {
+      uv_thread_setname("DelayedTaskSchedulerWorker");
       static_cast<DelayedTaskScheduler*>(data)->Run();
     };
     std::unique_ptr<uv_thread_t> t { new uv_thread_t() };
@@ -560,11 +561,11 @@ void PerIsolatePlatformData::RunForegroundTask(std::unique_ptr<Task> task) {
 }
 
 void PerIsolatePlatformData::DeleteFromScheduledTasks(DelayedTask* task) {
-  auto it = std::find_if(scheduled_delayed_tasks_.begin(),
-                         scheduled_delayed_tasks_.end(),
-                         [task](const DelayedTaskPointer& delayed) -> bool {
-          return delayed.get() == task;
-      });
+  auto it =
+      std::ranges::find_if(scheduled_delayed_tasks_,
+                           [task](const DelayedTaskPointer& delayed) -> bool {
+                             return delayed.get() == task;
+                           });
   CHECK_NE(it, scheduled_delayed_tasks_.end());
   scheduled_delayed_tasks_.erase(it);
 }

@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 
 // Manually converted from https://github.com/web-platform-tests/wpt/blob/master/dom/events/AddEventListenerOptions-passive.html
 // in order to define the `document` ourselves
@@ -58,7 +58,6 @@ const {
   testPassiveValue({}, true);
   testPassiveValue({ passive: false }, true);
 
-  common.skip('TODO: passive listeners is still broken');
   testPassiveValue({ passive: 1 }, false);
   testPassiveValue({ passive: true }, false);
   testPassiveValue({ passive: 0 }, true);

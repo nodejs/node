@@ -439,6 +439,11 @@ class MemoryContentTable
     }
   }
 
+  void InvalidateAtMapOffset() {
+    TRACE(">>> InvalidateAtMapOffset");
+    InvalidateAtOffset(HeapObject::kMapOffset, OptionalOpIndex::Nullopt());
+  }
+
   OpIndex Find(const LoadOp& load) {
     OpIndex base = ResolveBase(load.base());
     OptionalOpIndex index = load.index();
@@ -526,6 +531,10 @@ class MemoryContentTable
 
     if (all_keys_.size() > kMaxKeys) {
       TRACE(">> Bailing out because too many keys");
+      if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+        std::cout
+            << "Bailing out in Late Load Elimination because of kMaxKeys [1]\n";
+      }
       return;
     }
 
@@ -551,6 +560,10 @@ class MemoryContentTable
 
     if (all_keys_.size() > kMaxKeys) {
       TRACE(">> Bailing out because too many keys");
+      if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+        std::cout
+            << "Bailing out in Late Load Elimination because of kMaxKeys [2]\n";
+      }
       return;
     }
 
@@ -561,8 +574,9 @@ class MemoryContentTable
     SetNoNotify(key, value);
   }
 
-  void InvalidateAtOffset(int32_t offset, OpIndex base) {
-    MapMaskAndOr base_maps = object_maps_.Get(base);
+  void InvalidateAtOffset(int32_t offset, OptionalOpIndex base) {
+    MapMaskAndOr base_maps{};
+    if (base.has_value()) base_maps = object_maps_.Get(base.value());
     auto offset_keys = offset_keys_.find(offset);
     if (offset_keys == offset_keys_.end()) return;
     for (auto it = offset_keys->second.begin();
@@ -705,6 +719,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void ProcessBlock(const Block& block, bool compute_start_snapshot);
   void ProcessLoad(OpIndex op_idx, const LoadOp& op);
   void ProcessStore(OpIndex op_idx, const StoreOp& op);
+  void ProcessAtomicRMW(OpIndex op_idx, const AtomicRMWOp& op);
   void ProcessAllocate(OpIndex op_idx, const AllocateOp& op);
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessAssumeMap(OpIndex op_idx, const AssumeMapOp& op);
@@ -731,16 +746,13 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
 
   void InvalidateAllNonAliasingInputs(const Operation& op);
   void InvalidateIfAlias(OpIndex op_idx);
+  void InvalidateAllMaps();
 
   PipelineData* data_;
   Graph& graph_;
   Zone* phase_zone_;
   JSHeapBroker* broker_;
   RawBaseAssumption raw_base_assumption_;
-
-#if V8_ENABLE_WEBASSEMBLY
-  bool is_wasm_ = data_->is_wasm();
-#endif
 
   FixedOpIndexSidetable<Replacement> replacements_;
   // We map: Load-index -> Change-index -> Bitcast-index
@@ -781,15 +793,14 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   using Replacement = LoadEliminationReplacement;
 
   void Analyze() {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
-      DCHECK(AllowHandleDereference::IsAllowed());
+    if (v8_flags.turboshaft_load_elimination) {
       analyzer_.Run();
     }
     Next::Analyze();
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Load)(OpIndex ig_index, const LoadOp& load) {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
+    if (v8_flags.turboshaft_load_elimination) {
       Replacement replacement = analyzer_.GetReplacement(ig_index);
       if (replacement.IsLoadElimination()) {
         OpIndex replacement_ig_index = replacement.replacement();
@@ -808,6 +819,84 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                          load.outputs_rep()[0],
                          Asm().output_graph().IsCreatedFromTurbofan()));
         }
+#ifdef DEBUG
+        if (v8_flags.turboshaft_verify_load_elimination) {
+          // When the debug flag {turboshaft_verify_load_elimination} is used,
+          // we perform the original load and assert that it's indeed equal to
+          // the replacement that we are using.
+
+          OpIndex actual_idx = Next::ReduceInputGraphLoad(ig_index, load);
+          RegisterRepresentation actual_rep =
+              __ output_graph().Get(actual_idx).outputs_rep()[0];
+          RegisterRepresentation replacement_rep =
+              __ output_graph().Get(replacement_idx).outputs_rep()[0];
+          RegisterRepresentation compare_rep = actual_rep;
+
+          if (actual_rep == RegisterRepresentation::Simd128()) {
+            // TODO(dmercadier): enable verification for Simd128 as well (it's
+            // mainly about changing the `__ Equal` below and using a mix of
+            // Simd128Binop + Simd128ExtractLane + Equal).
+            return replacement_idx;
+          }
+
+          if (actual_rep != replacement_rep) {
+            // The replacement is a load that is int32-truncated. We also
+            // truncate actual to match this.
+            DCHECK_EQ(actual_rep, RegisterRepresentation::Tagged());
+            DCHECK(replacement_rep == any_of(RegisterRepresentation::Word32(),
+                                             RegisterRepresentation::Word64()));
+            actual_idx = __ BitcastTaggedToWordPtrForTagAndSmiBits(actual_idx);
+            if (replacement_rep == RegisterRepresentation::Word32()) {
+              actual_idx = __ TruncateWordPtrToWord32(actual_idx);
+              compare_rep = RegisterRepresentation::Word32();
+            } else {
+              DCHECK_EQ(replacement_rep, RegisterRepresentation::Word64());
+              // Still using {Word32} rather than {Word64} here, since the upper
+              // 32 bits are not initialized.
+              compare_rep = RegisterRepresentation::Word32();
+            }
+          }
+
+          auto abort = [&]() {
+#if V8_ENABLE_WEBASSEMBLY
+            if (__ data()->pipeline_kind() == TurboshaftPipelineKind::kWasm) {
+              __ WasmCallRuntime(
+                  __ phase_zone(), Runtime::kAbort,
+                  {__ TagSmi(static_cast<int>(
+                      AbortReason::kTurboshaftLoadEliminationError))},
+                  __ NoContextConstant());
+            } else {
+#endif
+              __ CallRuntime_Abort(
+                  __ data()->isolate(), __ NoContextConstant(),
+                  __ TagSmi(static_cast<int>(
+                      AbortReason::kTurboshaftLoadEliminationError)));
+#if V8_ENABLE_WEBASSEMBLY
+            }
+#endif
+            __ Unreachable();
+          };
+
+          IF_NOT (__ Equal(actual_idx, replacement_idx, compare_rep)) {
+            if (actual_rep == any_of(RegisterRepresentation::Float32(),
+                                     RegisterRepresentation::Float64())) {
+              // Equality might have returned false because the 2 values are
+              // NaN.
+              DCHECK_EQ(compare_rep, actual_rep);
+              IF (__ Word32BitwiseOr(
+                      __ Equal(actual_idx, actual_idx, actual_rep),
+                      __ Equal(replacement_idx, replacement_idx,
+                               replacement_rep))) {
+                // At least one of {actual_idx} and {reaplcement_idx} is not
+                // NaN.
+                abort();
+              }
+            } else {
+              abort();
+            }
+          }
+        }
+#endif
         return replacement_idx;
       } else if (replacement.IsTaggedLoadToInt32Load()) {
         auto loaded_rep = load.loaded_rep;
@@ -825,7 +914,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Change)(OpIndex ig_index, const ChangeOp& change) {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
+    if (v8_flags.turboshaft_load_elimination) {
       Replacement replacement = analyzer_.GetReplacement(ig_index);
       if (replacement.IsInt32TruncationElimination()) {
         DCHECK(
@@ -838,7 +927,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
 
   OpIndex REDUCE_INPUT_GRAPH(TaggedBitcast)(OpIndex ig_index,
                                             const TaggedBitcastOp& bitcast) {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
+    if (v8_flags.turboshaft_load_elimination) {
       Replacement replacement = analyzer_.GetReplacement(ig_index);
       if (replacement.IsTaggedBitcastElimination()) {
         return OpIndex::Invalid();
@@ -856,7 +945,6 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   }
 
  private:
-  const bool is_wasm_ = __ data() -> is_wasm();
   using RawBaseAssumption = LateLoadEliminationAnalyzer::RawBaseAssumption;
   RawBaseAssumption raw_base_assumption_ =
       __ data() -> pipeline_kind() == TurboshaftPipelineKind::kCSA

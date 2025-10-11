@@ -498,7 +498,7 @@ void ossl_aria_encrypt(const unsigned char *in, unsigned char *out,
     ARIA_ADD_ROUND_KEY(rk, reg0, reg1, reg2, reg3);
     rk++;
 
-    while(Nr -= 2){
+    while ((Nr -= 2) > 0) {
         ARIA_SUBST_DIFF_EVEN(reg0, reg1, reg2, reg3);
         ARIA_ADD_ROUND_KEY(rk, reg0, reg1, reg2, reg3);
         rk++;

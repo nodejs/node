@@ -175,35 +175,6 @@ NODE_DEPRECATED("Use UVException(isolate, ...)",
                      path);
 })
 
-/*
- * These methods need to be called in a HandleScope.
- *
- * It is preferred that you use the `MakeCallback` overloads taking
- * `async_context` arguments.
- */
-
-NODE_DEPRECATED("Use MakeCallback(..., async_context)",
-                NODE_EXTERN v8::Local<v8::Value> MakeCallback(
-                    v8::Isolate* isolate,
-                    v8::Local<v8::Object> recv,
-                    const char* method,
-                    int argc,
-                    v8::Local<v8::Value>* argv));
-NODE_DEPRECATED("Use MakeCallback(..., async_context)",
-                NODE_EXTERN v8::Local<v8::Value> MakeCallback(
-                    v8::Isolate* isolate,
-                    v8::Local<v8::Object> recv,
-                    v8::Local<v8::String> symbol,
-                    int argc,
-                    v8::Local<v8::Value>* argv));
-NODE_DEPRECATED("Use MakeCallback(..., async_context)",
-                NODE_EXTERN v8::Local<v8::Value> MakeCallback(
-                    v8::Isolate* isolate,
-                    v8::Local<v8::Object> recv,
-                    v8::Local<v8::Function> callback,
-                    int argc,
-                    v8::Local<v8::Value>* argv));
-
 }  // namespace node
 
 #include <cassert>
@@ -328,22 +299,6 @@ NODE_EXTERN int Start(int argc, char* argv[]);
 // in the loop and / or actively executing JavaScript code).
 NODE_EXTERN int Stop(Environment* env,
                      StopFlags::Flags flags = StopFlags::kNoFlags);
-
-// Set up per-process state needed to run Node.js. This will consume arguments
-// from argv, fill exec_argv, and possibly add errors resulting from parsing
-// the arguments to `errors`. The return value is a suggested exit code for the
-// program; If it is 0, then initializing Node.js succeeded.
-// This runs a subset of the initialization performed by
-// InitializeOncePerProcess(), which supersedes this function.
-// The subset is roughly equivalent to the one given by
-// `ProcessInitializationFlags::kLegacyInitializeNodeWithArgsBehavior`.
-NODE_DEPRECATED("Use InitializeOncePerProcess() instead",
-                NODE_EXTERN int InitializeNodeWithArgs(
-                    std::vector<std::string>* argv,
-                    std::vector<std::string>* exec_argv,
-                    std::vector<std::string>* errors,
-                    ProcessInitializationFlags::Flags flags =
-                        ProcessInitializationFlags::kNoFlags));
 
 // Set up per-process state needed to run Node.js. This will consume arguments
 // from args, and return information about the initialization success,
@@ -730,6 +685,16 @@ NODE_EXTERN Environment* CreateEnvironment(
     ThreadId thread_id = {} /* allocates a thread id automatically */,
     std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {});
 
+NODE_EXTERN Environment* CreateEnvironment(
+    IsolateData* isolate_data,
+    v8::Local<v8::Context> context,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    EnvironmentFlags::Flags flags,
+    ThreadId thread_id,
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle,
+    std::string_view thread_name);
+
 // Returns a handle that can be passed to `LoadEnvironment()`, making the
 // child Environment accessible to the inspector as if it were a Node.js Worker.
 // `child_thread_id` can be created using `AllocateEnvironmentThreadId()`
@@ -747,6 +712,12 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     ThreadId child_thread_id,
     const char* child_url,
     const char* name);
+
+NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
+    Environment* parent_env,
+    ThreadId child_thread_id,
+    std::string_view child_url,
+    std::string_view name);
 
 struct StartExecutionCallbackInfo {
   v8::Local<v8::Object> process_object;
@@ -823,23 +794,23 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> PrepareStackTraceCallback(
 // is included in the report.
 // Returns the filename of the written report.
 NODE_EXTERN std::string TriggerNodeReport(v8::Isolate* isolate,
-                                          const char* message,
-                                          const char* trigger,
-                                          const std::string& filename,
+                                          std::string_view message,
+                                          std::string_view trigger,
+                                          std::string_view filename,
                                           v8::Local<v8::Value> error);
 NODE_EXTERN std::string TriggerNodeReport(Environment* env,
-                                          const char* message,
-                                          const char* trigger,
-                                          const std::string& filename,
+                                          std::string_view message,
+                                          std::string_view trigger,
+                                          std::string_view filename,
                                           v8::Local<v8::Value> error);
 NODE_EXTERN void GetNodeReport(v8::Isolate* isolate,
-                               const char* message,
-                               const char* trigger,
+                               std::string_view message,
+                               std::string_view trigger,
                                v8::Local<v8::Value> error,
                                std::ostream& out);
 NODE_EXTERN void GetNodeReport(Environment* env,
-                               const char* message,
-                               const char* trigger,
+                               std::string_view message,
+                               std::string_view trigger,
                                v8::Local<v8::Value> error,
                                std::ostream& out);
 
@@ -848,32 +819,21 @@ NODE_EXTERN void GetNodeReport(Environment* env,
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(Environment* env);
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env);
 
-NODE_DEPRECATED("Use MultiIsolatePlatform::Create() instead",
-    NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
-        int thread_pool_size,
-        v8::TracingController* tracing_controller));
-NODE_DEPRECATED("Use MultiIsolatePlatform::Create() instead",
-    NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform));
-
-// Get/set the currently active tracing controller. Using CreatePlatform()
-// will implicitly set this by default. This is global and should be initialized
-// along with the v8::Platform instance that is being used. `controller`
-// is allowed to be `nullptr`.
-// This is used for tracing events from Node.js itself. V8 uses the tracing
-// controller returned from the active `v8::Platform` instance.
+// Get/set the currently active tracing controller. Using
+// MultiIsolatePlatform::Create() will implicitly set this by default. This is
+// global and should be initialized along with the v8::Platform instance that is
+// being used. `controller` is allowed to be `nullptr`. This is used for tracing
+// events from Node.js itself. V8 uses the tracing controller returned from the
+// active `v8::Platform` instance.
 NODE_EXTERN v8::TracingController* GetTracingController();
 NODE_EXTERN void SetTracingController(v8::TracingController* controller);
 
 // Run `process.emit('beforeExit')` as it would usually happen when Node.js is
 // run in standalone mode.
 NODE_EXTERN v8::Maybe<bool> EmitProcessBeforeExit(Environment* env);
-NODE_DEPRECATED("Use Maybe version (EmitProcessBeforeExit) instead",
-    NODE_EXTERN void EmitBeforeExit(Environment* env));
 // Run `process.emit('exit')` as it would usually happen when Node.js is run
 // in standalone mode. The return value corresponds to the exit code.
 NODE_EXTERN v8::Maybe<int> EmitProcessExit(Environment* env);
-NODE_DEPRECATED("Use Maybe version (EmitProcessExit) instead",
-    NODE_EXTERN int EmitExit(Environment* env));
 
 // Runs hooks added through `AtExit()`. This is part of `FreeEnvironment()`,
 // so calling it manually is typically not necessary.
@@ -1041,7 +1001,7 @@ NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
 
 #define NODE_DEFINE_CONSTANT(target, constant)                                 \
   do {                                                                         \
-    v8::Isolate* isolate = target->GetIsolate();                               \
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();                          \
     v8::Local<v8::Context> context = isolate->GetCurrentContext();             \
     v8::Local<v8::String> constant_name = v8::String::NewFromUtf8Literal(      \
         isolate, #constant, v8::NewStringType::kInternalized);                 \
@@ -1057,7 +1017,7 @@ NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
 
 #define NODE_DEFINE_HIDDEN_CONSTANT(target, constant)                          \
   do {                                                                         \
-    v8::Isolate* isolate = target->GetIsolate();                               \
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();                          \
     v8::Local<v8::Context> context = isolate->GetCurrentContext();             \
     v8::Local<v8::String> constant_name = v8::String::NewFromUtf8Literal(      \
         isolate, #constant, v8::NewStringType::kInternalized);                 \
@@ -1484,6 +1444,12 @@ class NODE_EXTERN CallbackScope {
   CallbackScope(Environment* env,
                 v8::Local<v8::Object> resource,
                 async_context asyncContext);
+  // `resource` needs to outlive the scope in this case.
+  // This is for the rare situation in which `CallbackScope` cannot be
+  // stack-allocated. `resource` needs to outlive this scope.
+  CallbackScope(Environment* env,
+                v8::Global<v8::Object>* resource,
+                async_context asyncContext);
   ~CallbackScope();
 
   void operator=(const CallbackScope&) = delete;
@@ -1492,6 +1458,11 @@ class NODE_EXTERN CallbackScope {
   CallbackScope(CallbackScope&&) = delete;
 
  private:
+  void* resource_storage_global_;
+  union {
+    v8::Local<v8::Object> local;
+    v8::Global<v8::Object>* global_ptr;
+  } resource_storage_;
   InternalCallbackScope* private_;
   v8::TryCatch try_catch_;
 };
@@ -1594,10 +1565,11 @@ void RegisterSignalHandler(int signal,
 // objects on Node.js versions without v8::Object::Wrap(). Addons created to
 // work with only Node.js versions with v8::Object::Wrap() should use that
 // instead.
-NODE_DEPRECATED("Use v8::Object::Wrap()",
-                NODE_EXTERN void SetCppgcReference(v8::Isolate* isolate,
-                                                   v8::Local<v8::Object> object,
-                                                   void* wrappable));
+NODE_DEPRECATED(
+    "Use v8::Object::Wrap()",
+    NODE_EXTERN void SetCppgcReference(v8::Isolate* isolate,
+                                       v8::Local<v8::Object> object,
+                                       v8::Object::Wrappable* wrappable));
 
 }  // namespace node
 

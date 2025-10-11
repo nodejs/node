@@ -105,6 +105,8 @@ expected.beforePreExec = new Set([
   'Internal Binding wasm_web_api',
   'NativeModule internal/events/abort_listener',
   'NativeModule internal/modules/typescript',
+  'NativeModule internal/data_url',
+  'NativeModule internal/mime',
 ]);
 
 expected.atRunTime = new Set([
@@ -124,9 +126,11 @@ if (isMainThread) {
   ].forEach(expected.beforePreExec.add.bind(expected.beforePreExec));
 } else {  // Worker.
   [
+    'Internal Binding locks',
     'NativeModule diagnostics_channel',
     'NativeModule internal/abort_controller',
     'NativeModule internal/error_serdes',
+    'NativeModule internal/locks',
     'NativeModule internal/perf/event_loop_utilization',
     'NativeModule internal/process/worker_thread_only',
     'NativeModule internal/streams/add-abort-signal',

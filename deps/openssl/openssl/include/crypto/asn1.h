@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -92,7 +92,7 @@ DEFINE_STACK_OF_CONST(EVP_PKEY_ASN1_METHOD)
 
 extern const EVP_PKEY_ASN1_METHOD ossl_dh_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD ossl_dhx_asn1_meth;
-extern const EVP_PKEY_ASN1_METHOD ossl_dsa_asn1_meths[5];
+extern const EVP_PKEY_ASN1_METHOD ossl_dsa_asn1_meths[4];
 extern const EVP_PKEY_ASN1_METHOD ossl_eckey_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD ossl_ecx25519_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD ossl_ecx448_asn1_meth;
@@ -142,8 +142,11 @@ X509_ALGOR *ossl_x509_algor_mgf1_decode(X509_ALGOR *alg);
 int ossl_x509_algor_md_to_mgf1(X509_ALGOR **palg, const EVP_MD *mgf1md);
 int ossl_asn1_time_print_ex(BIO *bp, const ASN1_TIME *tm, unsigned long flags);
 
-EVP_PKEY * ossl_d2i_PrivateKey_legacy(int keytype, EVP_PKEY **a,
-                                      const unsigned char **pp, long length,
-                                      OSSL_LIB_CTX *libctx, const char *propq);
+EVP_PKEY *ossl_d2i_PrivateKey_legacy(int keytype, EVP_PKEY **a,
+                                     const unsigned char **pp, long length,
+                                     OSSL_LIB_CTX *libctx, const char *propq);
+X509_ALGOR *ossl_X509_ALGOR_from_nid(int nid, int ptype, void *pval);
+
+void ossl_asn1_string_set_bits_left(ASN1_STRING *str, unsigned int num);
 
 #endif /* ndef OSSL_CRYPTO_ASN1_H */

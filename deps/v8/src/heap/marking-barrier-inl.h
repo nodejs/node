@@ -10,7 +10,6 @@
 
 #include "src/base/logging.h"
 #include "src/heap/heap-layout-inl.h"
-#include "src/heap/incremental-marking-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/marking.h"

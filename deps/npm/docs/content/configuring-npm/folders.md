@@ -76,15 +76,6 @@ See [`npm cache`](/commands/npm-cache).  Cache files are stored in `~/.npm` on P
 
 This is controlled by the [`cache` config](/using-npm/config#cache) param.
 
-#### Temp Files
-
-Temporary files are stored by default in the folder specified by the
-[`tmp` config](/using-npm/config#tmp), which defaults to the TMPDIR, TMP, or
-TEMP environment variables, or `/tmp` on Unix and `c:\windows\temp` on Windows.
-
-Temp files are given a unique folder under this root for each run of the
-program, and are deleted upon successful exit.
-
 ### More Information
 
 When installing locally, npm first tries to find an appropriate

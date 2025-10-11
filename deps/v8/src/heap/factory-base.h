@@ -86,7 +86,7 @@ struct NewCodeOptions {
   int handler_table_offset;
   int constant_pool_offset;
   int code_comments_offset;
-  int32_t builtin_jump_table_info_offset;
+  int32_t jump_table_info_offset;
   int32_t unwinding_info_offset;
   MaybeHandle<TrustedObject> bytecode_or_interpreter_data;
   MaybeHandle<DeoptimizationData> deoptimization_data;
@@ -146,14 +146,16 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      int length, AllocationType allocation = AllocationType::kYoung,
+      AllocationHint hint = AllocationHint());
 
   // Allocates a trusted fixed array in trusted space, initialized with zeros.
   Handle<TrustedFixedArray> NewTrustedFixedArray(
       int length, AllocationType allocation = AllocationType::kTrusted);
 
   // Allocates a protected fixed array in trusted space, initialized with zeros.
-  Handle<ProtectedFixedArray> NewProtectedFixedArray(int length);
+  Handle<ProtectedFixedArray> NewProtectedFixedArray(int length,
+                                                     bool shared = false);
 
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.
@@ -266,25 +268,26 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<PreparseData> NewPreparseData(int data_length, int children_length);
 
   DirectHandle<UncompiledDataWithoutPreparseData>
-  NewUncompiledDataWithoutPreparseData(Handle<String> inferred_name,
+  NewUncompiledDataWithoutPreparseData(DirectHandle<String> inferred_name,
                                        int32_t start_position,
                                        int32_t end_position);
 
   DirectHandle<UncompiledDataWithPreparseData>
-  NewUncompiledDataWithPreparseData(Handle<String> inferred_name,
+  NewUncompiledDataWithPreparseData(DirectHandle<String> inferred_name,
                                     int32_t start_position,
-                                    int32_t end_position, Handle<PreparseData>);
+                                    int32_t end_position,
+                                    DirectHandle<PreparseData>);
 
   DirectHandle<UncompiledDataWithoutPreparseDataWithJob>
-  NewUncompiledDataWithoutPreparseDataWithJob(Handle<String> inferred_name,
-                                              int32_t start_position,
-                                              int32_t end_position);
+  NewUncompiledDataWithoutPreparseDataWithJob(
+      DirectHandle<String> inferred_name, int32_t start_position,
+      int32_t end_position);
 
   DirectHandle<UncompiledDataWithPreparseDataAndJob>
-  NewUncompiledDataWithPreparseDataAndJob(Handle<String> inferred_name,
+  NewUncompiledDataWithPreparseDataAndJob(DirectHandle<String> inferred_name,
                                           int32_t start_position,
                                           int32_t end_position,
-                                          Handle<PreparseData>);
+                                          DirectHandle<PreparseData>);
 
   // Allocates a FeedbackMetadata object and zeroes the data section.
   Handle<FeedbackMetadata> NewFeedbackMetadata(
@@ -339,9 +342,11 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawOneByteString(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung,
+      AllocationHint hint = AllocationHint());
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqTwoByteString> NewRawTwoByteString(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung,
+      AllocationHint hint = AllocationHint());
   // Create a new cons string object which consists of a pair of strings.
   template <template <typename> typename HandleType>
     requires(std::is_convertible_v<HandleType<String>, DirectHandle<String>>)
@@ -356,8 +361,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   V8_WARN_UNUSED_RESULT Handle<String> NumberToString(
       DirectHandle<Object> number,
       NumberCacheMode mode = NumberCacheMode::kBoth);
-  V8_WARN_UNUSED_RESULT Handle<String> HeapNumberToString(
-      DirectHandle<HeapNumber> number, double value,
+  V8_WARN_UNUSED_RESULT Handle<String> DoubleToString(
+      double value, bool canonicalize = true,
       NumberCacheMode mode = NumberCacheMode::kBoth);
   V8_WARN_UNUSED_RESULT Handle<String> SmiToString(
       Tagged<Smi> number, NumberCacheMode mode = NumberCacheMode::kBoth);
@@ -410,7 +415,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   static constexpr int kNumberToStringBufferSize = 32;
 
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
-  Tagged<HeapObject> AllocateRawArray(int size, AllocationType allocation);
+  Tagged<HeapObject> AllocateRawArray(int size, AllocationType allocation,
+                                      AllocationHint hint = AllocationHint());
   Tagged<HeapObject> AllocateRawFixedArray(int length,
                                            AllocationType allocation);
   Tagged<HeapObject> AllocateRawWeakArrayList(int length,
@@ -424,7 +430,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Tagged<HeapObject> AllocateRawWithImmortalMap(
       int size, AllocationType allocation, Tagged<Map> map,
-      AllocationAlignment alignment = kTaggedAligned);
+      AllocationAlignment alignment = kTaggedAligned,
+      AllocationHint hint = AllocationHint());
   Tagged<HeapObject> NewWithImmortalMap(Tagged<Map> map,
                                         AllocationType allocation);
 
@@ -442,23 +449,25 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
 
   template <typename SeqStringT>
-  MaybeHandle<SeqStringT> NewRawStringWithMap(int length, Tagged<Map> map,
-                                              AllocationType allocation);
+  MaybeHandle<SeqStringT> NewRawStringWithMap(
+      int length, Tagged<Map> map, AllocationType allocation,
+      AllocationHint hint = AllocationHint());
 
  private:
   Impl* impl() { return static_cast<Impl*>(this); }
   auto isolate() { return impl()->isolate(); }
   ReadOnlyRoots read_only_roots() { return impl()->read_only_roots(); }
 
-  Tagged<HeapObject> AllocateRaw(
-      int size, AllocationType allocation,
-      AllocationAlignment alignment = kTaggedAligned);
+  Tagged<HeapObject> AllocateRaw(int size, AllocationType allocation,
+                                 AllocationAlignment alignment = kTaggedAligned,
+                                 AllocationHint hint = AllocationHint());
 
   friend TorqueGeneratedFactory<Impl>;
   template <class Derived, class Shape, class Super>
   friend class TaggedArrayBase;
   template <class Derived, class Shape, class Super>
   friend class PrimitiveArrayBase;
+  friend class DoubleStringCache;
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)

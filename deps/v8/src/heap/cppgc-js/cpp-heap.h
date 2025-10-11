@@ -23,6 +23,7 @@ static_assert(
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/logging/metrics.h"
+#include "src/objects/cpp-heap-object-wrapper.h"
 #include "src/objects/js-objects.h"
 
 namespace v8 {
@@ -79,6 +80,7 @@ class V8_EXPORT_PRIVATE CppHeap final
     ExtractLastIncrementalMarkEvent();
 
     void ClearCachedEvents();
+    void ClearCachedYoungEvents();
 
    private:
     Isolate* GetIsolate() const;
@@ -95,15 +97,6 @@ class V8_EXPORT_PRIVATE CppHeap final
         last_young_gc_event_;
     std::optional<cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
         last_incremental_mark_event_;
-  };
-
-  class PauseConcurrentMarkingScope final {
-   public:
-    explicit PauseConcurrentMarkingScope(CppHeap*);
-
-   private:
-    std::optional<cppgc::internal::MarkerBase::PauseConcurrentMarkingScope>
-        pause_scope_;
   };
 
   static void InitializeOncePerProcess();
@@ -146,7 +139,8 @@ class V8_EXPORT_PRIVATE CppHeap final
       GarbageCollectionFlags = GarbageCollectionFlagValues::kNoFlags);
   void StartMarking();
   bool AdvanceMarking(v8::base::TimeDelta max_duration,
-                      size_t marked_bytes_limit);
+                      std::optional<size_t> marked_bytes_limit,
+                      cppgc::EmbedderStackState stack_state);
   bool IsMarkingDone() const;
   size_t last_bytes_marked() const;
   void ProcessCrossThreadWeakness();
@@ -200,7 +194,8 @@ class V8_EXPORT_PRIVATE CppHeap final
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
   V8_INLINE void RememberCrossHeapReferenceIfNeeded(
-      v8::internal::Tagged<v8::internal::JSObject> host_obj, void* value);
+      v8::internal::Tagged<v8::internal::CppHeapPointerWrapperObjectT> host_obj,
+      void* value);
   template <typename F>
   inline void VisitCrossHeapRememberedSetIfNeeded(F f);
   void ResetCrossHeapRememberedSet();
@@ -286,7 +281,8 @@ class V8_EXPORT_PRIVATE CppHeap final
 };
 
 void CppHeap::RememberCrossHeapReferenceIfNeeded(
-    v8::internal::Tagged<v8::internal::JSObject> host_obj, void* value) {
+    v8::internal::Tagged<v8::internal::CppHeapPointerWrapperObjectT> host_obj,
+    void* value) {
   if (!generational_gc_supported()) return;
   DCHECK(isolate_);
   cross_heap_remembered_set_.RememberReferenceIfNeeded(*isolate_, host_obj,

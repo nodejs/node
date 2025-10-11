@@ -29,7 +29,7 @@ struct WasmTag;
 class WasmInterpreterRuntime {
  public:
   WasmInterpreterRuntime(const WasmModule* module, Isolate* isolate,
-                         DirectHandle<WasmInstanceObject> instance_object,
+                         IndirectHandle<WasmInstanceObject> instance_object,
                          WasmInterpreter::CodeMap* codemap);
 
   inline WasmBytecode* GetFunctionBytecode(uint32_t func_index);
@@ -289,7 +289,7 @@ class WasmInterpreterRuntime {
 
   Isolate* isolate_;
   const WasmModule* module_;
-  DirectHandle<WasmInstanceObject> instance_object_;
+  IndirectHandle<WasmInstanceObject> instance_object_;
   WasmInterpreter::CodeMap* codemap_;
 
   uint32_t start_function_index_;

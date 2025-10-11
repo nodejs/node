@@ -319,6 +319,9 @@ MaybeDirectHandle<String> Uri::Encode(Isolate* isolate,
   }
 
   if (throw_error) THROW_NEW_ERROR(isolate, NewURIError());
+  if (buffer.size() > v8::String::kMaxLength) {
+    THROW_NEW_ERROR(isolate, NewInvalidStringLengthError());
+  }
   return isolate->factory()->NewStringFromOneByte(base::VectorOf(buffer));
 }
 

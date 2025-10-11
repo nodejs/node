@@ -37,7 +37,7 @@ please follow these principles and guidelines:
 
 2. **Review and approval**
    * A new API addition **must** be signed off by at least two Node-API team members.
-   * **Should** be implemented in at least one other VM implementation of Node.js.
+   * **Should** be implemented in terms of available VM APIs in at least one other VM implementation of Node.js.
 
 3. **Experimental phase**
    * New APIs **must** be marked as experimental for at least one minor Node.js release before promotion.
@@ -49,4 +49,4 @@ please follow these principles and guidelines:
      * Approval by the Node-API team.
      * Availability of a down-level implementation if backporting is needed.
      * Usage by a published real-world module.
-     * Implementation in an alternative VM.
+     * Implementable in an alternative VM.

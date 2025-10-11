@@ -278,6 +278,8 @@ void StreamPipe::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsObject());
   StreamBase* source = StreamBase::FromObject(args[0].As<Object>());
   StreamBase* sink = StreamBase::FromObject(args[1].As<Object>());
+  CHECK_NOT_NULL(source);
+  CHECK_NOT_NULL(sink);
 
   if (StreamPipe::New(source, sink, args.This()).IsNothing()) return;
 }

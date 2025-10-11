@@ -165,7 +165,11 @@ const errorMessage = (er, npm) => {
         const pkg = er.pkgid.replace(/(?!^)@.*$/, '')
 
         detail.push(['404', ''])
-        detail.push(['404', '', `'${replaceInfo(er.pkgid)}' is not in this registry.`])
+        detail.push([
+          '404',
+          '',
+          `The requested resource '${replaceInfo(er.pkgid)}' could not be found or you do not have permission to access it.`,
+        ])
 
         const nameValidator = require('validate-npm-package-name')
         const valResult = nameValidator(pkg)

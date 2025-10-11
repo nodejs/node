@@ -206,10 +206,11 @@ function linkJsTypeDocs(text) {
 
 const isJSFlavorSnippet = (node) => node.lang === 'cjs' || node.lang === 'mjs';
 
+const STABILITY_RE = /(.*:)\s*(\d(?:\.\d)?)([\s\S]*)/;
+
 // Preprocess headers, stability blockquotes, and YAML blocks.
 export function preprocessElements({ filename }) {
   return (tree) => {
-    const STABILITY_RE = /(.*:)\s*(\d)([\s\S]*)/;
     let headingIndex = -1;
     let heading = null;
 
@@ -325,7 +326,7 @@ export function preprocessElements({ filename }) {
           // Insert div with prefix and number
           node.children.unshift({
             type: 'html',
-            value: `<div class="api_stability api_stability_${number}">` +
+            value: `<div class="api_stability api_stability_${parseInt(number)}">` +
               (noLinking ? '' :
                 '<a href="documentation.html#stability-index">') +
               `${prefix} ${number}${noLinking ? '' : '</a>'}`

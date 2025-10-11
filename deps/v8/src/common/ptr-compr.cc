@@ -23,7 +23,7 @@ Address MainCage::base_non_inlined() { return base_; }
 void MainCage::set_base_non_inlined(Address base) { base_ = base; }
 
 #ifdef V8_ENABLE_SANDBOX
-uintptr_t TrustedCage::base_ = kNullAddress;
+THREAD_LOCAL_IF_MULTICAGE uintptr_t TrustedCage::base_ = kNullAddress;
 
 // static
 Address TrustedCage::base_non_inlined() { return base_; }

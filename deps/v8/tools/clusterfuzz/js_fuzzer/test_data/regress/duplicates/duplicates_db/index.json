@@ -1,9 +1,3 @@
-{
-    "statements": [
-      "ArrowFunctionExpression/a1.json"
-    ],
-    "superStatements": [],
-    "all": [
-      "ArrowFunctionExpression/a1.json"
-    ]
-}
+[
+  {"path": "ArrowFunctionExpression/a1.json", "super": false}
+]

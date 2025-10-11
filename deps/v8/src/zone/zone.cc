@@ -29,11 +29,8 @@ constexpr size_t kASanRedzoneBytes = 0;
 
 }  // namespace
 
-Zone::Zone(AccountingAllocator* allocator, const char* name,
-           bool support_compression)
-    : allocator_(allocator),
-      name_(name),
-      supports_compression_(support_compression) {
+Zone::Zone(AccountingAllocator* allocator, const char* name)
+    : allocator_(allocator), name_(name) {
   allocator_->TraceZoneCreation(this);
 }
 
@@ -140,7 +137,7 @@ void Zone::ReleaseSegment(Segment* segment) {
   // Un-poison the segment content so we can reuse or zap it later.
   ASAN_UNPOISON_MEMORY_REGION(reinterpret_cast<void*>(segment->start()),
                               segment->capacity());
-  allocator_->ReturnSegment(segment, supports_compression());
+  allocator_->ReturnSegment(segment);
 }
 
 void Zone::Expand(size_t size) {
@@ -153,6 +150,9 @@ void Zone::Expand(size_t size) {
   // strategy, where we increase the segment size every time we expand
   // except that we employ a maximum segment size when we delete. This
   // is to avoid excessive malloc() and free() overhead.
+  //
+  // TODO(409953791): This can be simplified when using the page pool for
+  // managing zone memory as it works with equal-sized segments.
   Segment* head = segment_head_;
   const size_t old_size = head ? head->total_size() : 0;
   static const size_t kSegmentOverhead = sizeof(Segment) + kAlignmentInBytes;
@@ -175,8 +175,7 @@ void Zone::Expand(size_t size) {
   if (new_size > INT_MAX) {
     V8::FatalProcessOutOfMemory(nullptr, "Zone");
   }
-  Segment* segment =
-      allocator_->AllocateSegment(new_size, supports_compression());
+  Segment* segment = allocator_->AllocateSegment(new_size);
   if (segment == nullptr) {
     V8::FatalProcessOutOfMemory(nullptr, "Zone");
   }

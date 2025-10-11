@@ -1,8 +1,7 @@
-// Flags: --no-experimental-wasm-modules
 'use strict';
 
 // This tests that module.registerHooks() can be used to support unknown formats, like
-// require(wasm) and import(wasm) (without --experimental-wasm-modules).
+// require(wasm) and import(wasm)
 const common = require('../common');
 
 const assert = require('assert');
@@ -10,7 +9,7 @@ const { registerHooks } = require('module');
 const { readFileSync } = require('fs');
 
 registerHooks({
-  load(url, context, nextLoad) {
+  load: common.mustCall((url, context, nextLoad) => {
     assert.match(url, /simple\.wasm$/);
     const source =
       `const buf = Buffer.from([${Array.from(readFileSync(new URL(url))).join(',')}]);
@@ -21,7 +20,7 @@ registerHooks({
       source,
       format: 'commonjs',
     };
-  },
+  }, 2),
 });
 
 // Checks that it works with require.

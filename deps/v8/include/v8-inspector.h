@@ -408,12 +408,20 @@ class V8_EXPORT V8Inspector {
   enum ClientTrustLevel { kUntrusted, kFullyTrusted };
   enum SessionPauseState { kWaitingForDebugger, kNotWaitingForDebugger };
   // TODO(chromium:1352175): remove default value once downstream change lands.
+  // Deprecated: Use `connectShared` instead.
   virtual std::unique_ptr<V8InspectorSession> connect(
       int contextGroupId, Channel*, StringView state,
       ClientTrustLevel client_trust_level,
-      SessionPauseState = kNotWaitingForDebugger) {
-    return nullptr;
-  }
+      SessionPauseState = kNotWaitingForDebugger) = 0;
+
+  // Same as `connect` but returns a std::shared_ptr instead.
+  // Embedders should not deconstruct V8 sessions while the nested run loop
+  // (V8InspectorClient::runMessageLoopOnPause) is running. To partially ensure
+  // this, we defer session deconstruction until no "dispatchProtocolMessages"
+  // remains on the stack.
+  virtual std::shared_ptr<V8InspectorSession> connectShared(
+      int contextGroupId, Channel* channel, StringView state,
+      ClientTrustLevel clientTrustLevel, SessionPauseState pauseState) = 0;
 
   // API methods.
   virtual std::unique_ptr<V8StackTrace> createStackTrace(

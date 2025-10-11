@@ -17,6 +17,14 @@ const kSetPrototypeValues: constexpr BuiltinsName
 extern builtin IterableToList(implicit context: Context)(JSAny,
                               JSAny): JSArray;
 
+macro CanCopyElementsFastNumber(source: JSArray): bool {
+  const map: Map = source.map;
+  const elementsKind: ElementsKind = LoadMapElementsKind(map);
+
+  return IsFastSmiElementsKind(elementsKind) ||
+      IsDoubleElementsKind(elementsKind);
+}
+
 // %TypedArray%.from ( source [ , mapfn [ , thisArg ] ] )
 // https://tc39.github.io/ecma262/#sec-%typedarray%.from
 transitioning javascript builtin TypedArrayFrom(
@@ -103,8 +111,14 @@ transitioning javascript builtin TypedArrayFrom(
             // source object directly, taking advantage of the special-case code
             // in TypedArrayCopyElements
             finalLength = Convert<uintptr>(sourceArray.length);
-            finalSource = source;
+            if (CanCopyElementsFastNumber(sourceArray)) {
+              finalSource = sourceArray;
+            } else {
+              finalSource = iterator::FastIterableToList(sourceArray) otherwise
+              UseUserProvidedIterator;
+            }
           }
+
           case (sourceTypedArray: JSTypedArray): {
             finalLength =
                 LoadJSTypedArrayLengthAndCheckDetached(sourceTypedArray)

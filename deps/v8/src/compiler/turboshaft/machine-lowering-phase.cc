@@ -13,6 +13,7 @@
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/compiler/turboshaft/string-escape-analysis-reducer.h"
+#include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -26,8 +27,8 @@ void MachineLoweringPhase::Run(PipelineData* data, Zone* temp_zone) {
   CopyingPhase<StringEscapeAnalysisReducer, JSGenericLoweringReducer,
                DataViewLoweringReducer, MachineLoweringReducer,
                FastApiCallLoweringReducer, VariableReducer,
-               SelectLoweringReducer,
-               MachineOptimizationReducer>::Run(data, temp_zone);
+               SelectLoweringReducer, MachineOptimizationReducer,
+               ValueNumberingReducer>::Run(data, temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

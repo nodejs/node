@@ -391,7 +391,7 @@ void SetMethod(Local<v8::Context> context,
                Local<v8::Object> that,
                const std::string_view name,
                v8::FunctionCallback callback) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           callback,
@@ -452,7 +452,7 @@ void SetFastMethod(Local<v8::Context> context,
                    const std::string_view name,
                    v8::FunctionCallback slow_callback,
                    const v8::CFunction* c_function) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           slow_callback,
@@ -474,7 +474,7 @@ void SetFastMethodNoSideEffect(Local<v8::Context> context,
                                const std::string_view name,
                                v8::FunctionCallback slow_callback,
                                const v8::CFunction* c_function) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           slow_callback,
@@ -562,7 +562,7 @@ void SetMethodNoSideEffect(Local<v8::Context> context,
                            Local<v8::Object> that,
                            const std::string_view name,
                            v8::FunctionCallback callback) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           callback,
@@ -596,6 +596,32 @@ void SetMethodNoSideEffect(Isolate* isolate,
       v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
           .ToLocalChecked();
   that->Set(name_string, t);
+}
+
+void SetProtoDispose(v8::Isolate* isolate,
+                     v8::Local<v8::FunctionTemplate> that,
+                     v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  that->PrototypeTemplate()->Set(v8::Symbol::GetDispose(isolate), t);
+}
+
+void SetProtoAsyncDispose(v8::Isolate* isolate,
+                          v8::Local<v8::FunctionTemplate> that,
+                          v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  that->PrototypeTemplate()->Set(v8::Symbol::GetAsyncDispose(isolate), t);
 }
 
 void SetProtoMethod(v8::Isolate* isolate,
@@ -663,7 +689,7 @@ void SetConstructorFunction(Local<v8::Context> context,
                             const char* name,
                             Local<v8::FunctionTemplate> tmpl,
                             SetConstructorFunctionFlag flag) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   SetConstructorFunction(
       context, that, OneByteString(isolate, name), tmpl, flag);
 }

@@ -1,23 +1,18 @@
 'use strict';
 require('../common');
-const { PassThrough } = require('stream');
 const assert = require('assert');
-const repl = require('repl');
+const { startNewREPLServer } = require('../common/repl');
 
-{
-  const input = new PassThrough();
-  const output = new PassThrough();
+const testingReplPrompt = '_REPL_TESTING_PROMPT_>';
 
-  const r = repl.start({
-    prompt: '',
-    input,
-    output,
-    writer: String,
-    terminal: false,
-    useColors: false
-  });
+const { replServer, output } = startNewREPLServer(
+  { prompt: testingReplPrompt },
+  { disableDomainErrorAssert: true }
+);
 
-  r.write('throw new Error("foo[a]")\n');
-  r.close();
-  assert.strictEqual(output.read().toString(), 'Uncaught Error: foo[a]\n');
-}
+replServer.write('throw new Error("foo[a]")\n');
+
+assert.strictEqual(
+  output.accumulator.split('\n').filter((line) => !line.includes(testingReplPrompt)).join(''),
+  'Uncaught Error: foo[a]'
+);

@@ -20,7 +20,7 @@ const ARGS = [
   // Verify that --report-on-fatalerror is respected when not set.
   const args = ARGS;
   const child = spawnSync(process.execPath, args, { cwd: tmpdir.path });
-  assert.notStrictEqual(child.status, 0, 'Process exited unexpectedly');
+  assert.notStrictEqual(child.status, 0);
   const reports = helper.findReports(child.pid, tmpdir.path);
   assert.strictEqual(reports.length, 0);
 }

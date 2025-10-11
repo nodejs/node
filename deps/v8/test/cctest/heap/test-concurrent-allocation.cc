@@ -143,14 +143,10 @@ UNINITIALIZED_TEST(ConcurrentAllocationInOldSpaceFromMainThread) {
 }
 
 UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadIsParked) {
-#ifndef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  v8_flags.max_old_space_size = 4;
-#else
   // With CSS, it is expected that the GCs triggered by concurrent allocation
   // will reclaim less memory. If this test fails, this limit should probably
   // be further increased.
-  v8_flags.max_old_space_size = 10;
-#endif
+  v8_flags.max_old_space_size = v8_flags.conservative_stack_scanning ? 10 : 4;
   v8_flags.stress_concurrent_allocation = false;
 
   v8::Isolate::CreateParams create_params;
@@ -179,14 +175,10 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadIsParked) {
 }
 
 UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadParksAndUnparks) {
-#ifndef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  v8_flags.max_old_space_size = 4;
-#else
   // With CSS, it is expected that the GCs triggered by concurrent allocation
   // will reclaim less memory. If this test fails, this limit should probably
   // be further increased.
-  v8_flags.max_old_space_size = 10;
-#endif
+  v8_flags.max_old_space_size = v8_flags.conservative_stack_scanning ? 10 : 4;
   v8_flags.stress_concurrent_allocation = false;
   v8_flags.incremental_marking = false;
   i::FlagList::EnforceFlagImplications();
@@ -224,14 +216,10 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadParksAndUnparks) {
 }
 
 UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadRunsWithSafepoints) {
-#ifndef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  v8_flags.max_old_space_size = 4;
-#else
   // With CSS, it is expected that the GCs triggered by concurrent allocation
   // will reclaim less memory. If this test fails, this limit should probably
   // be further increased.
-  v8_flags.max_old_space_size = 10;
-#endif
+  v8_flags.max_old_space_size = v8_flags.conservative_stack_scanning ? 10 : 4;
   v8_flags.stress_concurrent_allocation = false;
   v8_flags.incremental_marking = false;
   i::FlagList::EnforceFlagImplications();
@@ -414,11 +402,13 @@ UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
       if (v8_flags.black_allocated_pages) {
         CHECK(heap->marking_state()->IsUnmarked(object));
         if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
-          CHECK(!PageMetadata::FromHeapObject(object)->Chunk()->IsFlagSet(
-              MemoryChunk::BLACK_ALLOCATED));
+          CHECK(!PageMetadata::FromHeapObject(object)
+                     ->Chunk()
+                     ->IsBlackAllocatedPage());
         } else {
-          CHECK(PageMetadata::FromHeapObject(object)->Chunk()->IsFlagSet(
-              MemoryChunk::BLACK_ALLOCATED));
+          CHECK(PageMetadata::FromHeapObject(object)
+                    ->Chunk()
+                    ->IsBlackAllocatedPage());
         }
       } else {
         if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
