@@ -4,7 +4,7 @@ const { mustCall } = require('../common');
 const { strictEqual, throws } = require('assert');
 const fixtures = require('../common/fixtures');
 const { fork } = require('child_process');
-const { getEventListeners } = require('events');
+const { listenerCount } = require('events');
 
 {
   // Verify default signal
@@ -43,8 +43,8 @@ const { getEventListeners } = require('events');
     timeout: 6,
     signal,
   });
-  strictEqual(getEventListeners(signal, 'abort').length, 1);
+  strictEqual(listenerCount(signal, 'abort'), 1);
   cp.on('exit', mustCall(() => {
-    strictEqual(getEventListeners(signal, 'abort').length, 0);
+    strictEqual(listenerCount(signal, 'abort'), 0);
   }));
 }
