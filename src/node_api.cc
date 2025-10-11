@@ -238,7 +238,7 @@ class ThreadSafeFunction : public node::AsyncResource {
   napi_status Push(void* data, napi_threadsafe_function_call_mode mode) {
     node::Mutex::ScopedLock lock(this->mutex);
 
-    while (queue.size() >= max_queue_size && max_queue_size > 0 &&
+    while (max_queue_size > 0 && queue.size() >= max_queue_size &&
            !is_closing) {
       if (mode == napi_tsfn_nonblocking) {
         return napi_queue_full;
@@ -385,7 +385,7 @@ class ThreadSafeFunction : public node::AsyncResource {
           data = queue.front();
           queue.pop();
           popped_value = true;
-          if (size == max_queue_size && max_queue_size > 0) {
+          if (max_queue_size > 0) {
             cond->Signal(lock);
           }
           size--;
