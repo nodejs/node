@@ -1420,9 +1420,9 @@ The commits in the generated changelog must then be organized:
 * Separate all SEMVER-MAJOR, SEMVER-MINOR, and SEMVER-PATCH commits into lists
 
 ```console
-$ branch-diff upstream/vN-1.x upstream/vN.x --require-label=semver-major --group --filter-release  # get all majors
-$ branch-diff upstream/vN-1.x upstream/vN.x --require-label=semver-minor --group --filter-release  # get all minors
-$ branch-diff upstream/vN-1.x upstream/vN.x --exclude-label=semver-major,semver-minor --group --filter-release  # get all patches
+$ branch-diff upstream/vN-1.x upstream/vN.x --require-label=semver-major --group --filter-release --markdown # get all majors
+$ branch-diff upstream/vN-1.x upstream/vN.x --require-label=semver-minor --group --filter-release --markdown # get all minors
+$ branch-diff upstream/vN-1.x upstream/vN.x --exclude-label=semver-major,semver-minor --group --filter-release --markdown # get all patches
 ```
 
 #### Generate the notable changes
