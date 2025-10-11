@@ -3981,6 +3981,7 @@ void MacroAssembler::I64x2Mul(Simd128Register dst, Simd128Register src1,
   if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
     vmulld(dst, src1, src2);
   } else {
+    DCHECK(scratch1 != r0);
     Register scratch_1 = scratch1;
     Register scratch_2 = scratch2;
     for (int i = 0; i < 2; i++) {
@@ -4333,6 +4334,7 @@ void MacroAssembler::I8x16BitMask(Register dst, Simd128Register src,
   if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
     vextractbm(dst, src);
   } else {
+    DCHECK(scratch1 != r0);
     mov(scratch1, Operand(0x8101820283038));
     mov(scratch2, Operand(0x4048505860687078));
     mtvsrdd(scratch3, scratch1, scratch2);
@@ -4385,6 +4387,7 @@ void MacroAssembler::I8x16Shuffle(Simd128Register dst, Simd128Register src1,
                                   Simd128Register src2, uint64_t high,
                                   uint64_t low, Register scratch1,
                                   Register scratch2, Simd128Register scratch3) {
+  DCHECK(scratch2 != r0);
   mov(scratch1, Operand(low));
   mov(scratch2, Operand(high));
   mtvsrdd(scratch3, scratch2, scratch1);
@@ -4673,6 +4676,7 @@ void MacroAssembler::S128Not(Simd128Register dst, Simd128Register src) {
 
 void MacroAssembler::S128Const(Simd128Register dst, uint64_t high, uint64_t low,
                                Register scratch1, Register scratch2) {
+  DCHECK(scratch2 != r0);
   mov(scratch1, Operand(low));
   mov(scratch2, Operand(high));
   mtvsrdd(dst, scratch2, scratch1);
