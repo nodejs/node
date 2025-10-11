@@ -316,6 +316,18 @@ function getHeapSnapshotOptionTests() {
         ],
       }],
     },
+    // This is the same as the previous case, but with a path option.
+    // The path option will be mutated by the test
+    // test-write-heapsnapshot-options.js
+    // Refs: https://github.com/nodejs/node/issues/58857
+    {
+      options: { exposeNumericValues: true, path: 'TBD' },
+      expected: [{
+        children: [
+          { edge_name: 'numeric', node_name: 'smi number' },
+        ],
+      }],
+    },
   ];
   return {
     fixtures: fixtures.path('klass-with-fields.js'),
