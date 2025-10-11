@@ -14,7 +14,7 @@ const {
   throws,
 } = require('assert');
 
-const { once } = require('events');
+const { listenerCount, once } = require('events');
 
 const { inspect } = require('util');
 const { setTimeout: delay } = require('timers/promises');
@@ -146,10 +146,13 @@ let asyncTest = Promise.resolve();
 
   eventTarget.addEventListener('foo', ev1);
   eventTarget.addEventListener('foo', ev2, { once: true });
+  strictEqual(listenerCount(eventTarget, 'foo'), 2);
   ok(eventTarget.dispatchEvent(new Event('foo')));
+  strictEqual(listenerCount(eventTarget, 'foo'), 1);
   eventTarget.dispatchEvent(new Event('foo'));
 
   eventTarget.removeEventListener('foo', ev1);
+  strictEqual(listenerCount(eventTarget, 'foo'), 0);
   eventTarget.dispatchEvent(new Event('foo'));
 }
 {
