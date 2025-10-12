@@ -17,9 +17,11 @@
 
 namespace node {
 
+using quic::BindingData;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
+using v8::BackingStore;
 using v8::BigInt;
 using v8::Global;
 using v8::Integer;
@@ -30,6 +32,8 @@ using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::SharedArrayBuffer;
+using v8::TypedArray;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace quic {
@@ -215,8 +219,17 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
     entries.push_back(DataQueue::CreateInMemoryEntryFromBackingStore(
         std::move(backing), 0, backing->ByteLength()));
     return Just(DataQueue::CreateIdempotent(std::move(entries)));
+  } else if (DataQueueFeeder::HasInstance(env, value)) {
+    // a DataQueueFeeder
+    DataQueueFeeder* dataQueueFeeder;
+    ASSIGN_OR_RETURN_UNWRAP(
+        &dataQueueFeeder, value, Nothing<std::shared_ptr<DataQueue>>());
+    std::shared_ptr<DataQueue> dataQueue = DataQueue::Create();
+    dataQueue->append(DataQueue::CreateFeederEntry(dataQueueFeeder));
+    return Just(dataQueue);
   }
-  // TODO(jasnell): Add streaming sources...
+
+
   THROW_ERR_INVALID_ARG_TYPE(env, "Invalid data source type");
   return Nothing<std::shared_ptr<DataQueue>>();
 }
@@ -367,9 +380,13 @@ struct Stream::Impl {
 
   // Returns a Blob::Reader that can be used to read data that has been
   // received on the stream.
+  // returns undefined if local unidirectional stream
   JS_METHOD(GetReader) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
+    if (stream->is_local_unidirectional()) {
+      return args.GetReturnValue().SetUndefined();
+    }
     BaseObjectPtr<Blob::Reader> reader = stream->get_reader();
     if (reader) return args.GetReturnValue().Set(reader->object());
     THROW_ERR_INVALID_STATE(Environment::GetCurrent(args),
@@ -1319,6 +1336,165 @@ void Stream::Unschedule() {
 }
 
 }  // namespace quic
+
+DataQueueFeeder::DataQueueFeeder(Environment* env,
+                   Local<Object> object)
+    : AsyncWrap(env, object) {
+  MakeWeak();
+}
+
+void DataQueueFeeder::tryWakePulls() {
+  if (!readFinish_.IsEmpty()) {
+    Local<Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
+    // I do not think, that this can error...
+    (void)resolver->Resolve(env()->context(), v8::True(env()->isolate()));
+    readFinish_.Reset();
+  }
+}
+
+void DataQueueFeeder::DrainAndClose() {
+  if (done) return;
+  while (!pendingPulls_.empty()) {
+    auto& pending = pendingPulls_.front();
+    auto pop = OnScopeLeave([this] { pendingPulls_.pop_front(); });
+    pending.next(bob::STATUS_EOS, nullptr, 0, [](uint64_t) {});
+  }
+  if (!readFinish_.IsEmpty()) {
+    Local<Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
+    (void)resolver->Resolve(env()->context(), v8::False(env()->isolate()));
+    readFinish_.Reset();
+  }
+  done = true;
+}
+
+
+JS_METHOD_IMPL(DataQueueFeeder::New) {
+  DCHECK(args.IsConstructCall());
+  auto env = Environment::GetCurrent(args);
+  new DataQueueFeeder(env, args.This());
+}
+
+JS_METHOD_IMPL(DataQueueFeeder::Ready) {
+  Environment* env = Environment::GetCurrent(args);
+  DataQueueFeeder* feeder;
+  ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
+  if (feeder->pendingPulls_.size() > 0) {
+    feeder->readFinish_.Reset();
+    return;
+  } else {
+    Local<Promise::Resolver> readFinish =
+      Promise::Resolver::New(env->context()).ToLocalChecked();
+    feeder->readFinish_.Reset(env->isolate(), readFinish);
+    args.GetReturnValue().Set(readFinish->GetPromise());
+    return;
+  }
+}
+
+JS_METHOD_IMPL(DataQueueFeeder::Submit) {
+  Environment* env = Environment::GetCurrent(args);
+  DataQueueFeeder* feeder;
+  ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
+
+  bool done = false;
+  if (args[1]->IsBoolean() && args[1].As<v8::Boolean>()->Value()) {
+     done = true;
+  }
+  if (!args[0].IsEmpty()) {
+    CHECK_GT(feeder->pendingPulls_.size(), 0);
+    auto chunk = args[0];
+
+    if (chunk->IsArrayBuffer()) {
+      auto buffer = chunk.As<ArrayBuffer>();
+      chunk = Uint8Array::New(buffer, 0, buffer->ByteLength());
+    }
+    if (!chunk->IsTypedArray()) {
+       THROW_ERR_INVALID_ARG_TYPE(env,
+        "Invalid data must be Arraybuffer or TypedArray");
+    }
+    Local<TypedArray> typedArray = chunk.As<TypedArray>();
+    // now we create a copy
+    // detaching, would not be a good idea for example, such
+    // a limitation is not given with W3C Webtransport
+    // if we do not do it here, a transform stream would
+    // be needed to do the copy in the Webtransport case.
+    // there may be also troubles, if multiple Uint8Array
+    // are derived in a parser from a single ArrayBuffer
+    size_t nread = typedArray->ByteLength();
+    JS_TRY_ALLOCATE_BACKING(env, backingUniq, nread);
+    std::shared_ptr<BackingStore> backing = std::move(backingUniq);
+
+    auto originalStore  = typedArray->Buffer()->GetBackingStore();
+    const void* originalData = static_cast<char*>(originalStore->Data())
+                      + typedArray->ByteOffset();
+    memcpy(backing->Data(), originalData,  nread);
+    auto& pending = feeder->pendingPulls_.front();
+    auto pop = OnScopeLeave([feeder] { feeder->pendingPulls_.pop_front(); });
+    DataQueue::Vec vec;
+    vec.base = static_cast<uint8_t*>(backing->Data());
+    vec.len = static_cast<uint64_t>(nread);
+    pending.next(bob::STATUS_CONTINUE, &vec, 1, [backing](uint64_t) {});
+  }
+  if (done) {
+    feeder->DrainAndClose();
+    feeder->readFinish_.Reset();
+    args.GetReturnValue().Set(v8::False(env->isolate()));
+    return;
+  } else {
+    if (feeder->pendingPulls_.size() > 0) {
+      feeder->readFinish_.Reset();
+      args.GetReturnValue().Set(v8::True(env->isolate()));
+      return;
+    } else {
+      Local<Promise::Resolver> readFinish =
+        Promise::Resolver::New(env->context()).ToLocalChecked();
+      feeder->readFinish_.Reset(env->isolate(), readFinish);
+      args.GetReturnValue().Set(readFinish->GetPromise());
+      return;
+    }
+  }
+}
+
+JS_METHOD_IMPL(DataQueueFeeder::Error) {
+  DataQueueFeeder* feeder;
+  ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
+  // FIXME, how should I pass on the error
+  // ResetStream must be send also
+  feeder->DrainAndClose();
+}
+
+JS_CONSTRUCTOR_IMPL(DataQueueFeeder, dataqueuefeeder_constructor_template, {
+  auto isolate = env->isolate();
+  JS_NEW_CONSTRUCTOR();
+  JS_INHERIT(AsyncWrap);
+  JS_CLASS(dataqueuefeeder);
+  SetProtoMethod(isolate, tmpl, "error",  Error);
+  SetProtoMethod(isolate, tmpl, "submit", Submit);
+  SetProtoMethod(isolate, tmpl, "ready",  Ready);
+})
+
+
+void DataQueueFeeder::InitPerIsolate(
+  IsolateData* data,
+  Local<ObjectTemplate> target) {
+  // TODO(@jasnell): Implement the per-isolate state
+}
+
+void DataQueueFeeder::InitPerContext(Realm* realm, Local<Object> target) {
+  SetConstructorFunction(realm->context(),
+                         target,
+                         "DataQueueFeeder",
+                         GetConstructorTemplate(realm->env()));
+}
+
+void DataQueueFeeder::RegisterExternalReferences(
+  ExternalReferenceRegistry* registry
+) {
+  registry->Register(New);
+  registry->Register(Submit);
+  registry->Register(Error);
+  registry->Register(Ready);
+}
+
 }  // namespace node
 
 #endif  // OPENSSL_NO_QUIC
