@@ -359,7 +359,7 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     std::u16string_view str,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   if (str.length() >= static_cast<size_t>(v8::String::kMaxLength))
       [[unlikely]] {
     // V8 only has a TODO comment about adding an exception when the maximum
