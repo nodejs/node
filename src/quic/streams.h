@@ -15,12 +15,17 @@
 #include "bindingdata.h"
 #include "data.h"
 
-namespace node::quic {
+namespace node {
+
+using v8::Global;
+using v8::Promise;
+namespace quic {
 
 class Session;
 class Stream;
 
 using Ngtcp2Source = bob::SourceImpl<ngtcp2_vec>;
+
 
 // When a request to open a stream is made before a Session is able to actually
 // open a stream (either because the handshake is not yet sufficiently complete
@@ -387,7 +392,58 @@ class Stream final : public AsyncWrap,
   void Schedule(Queue* queue);
   void Unschedule();
 };
+}  // namespace quic
+class DataQueueFeeder final: public AsyncWrap {
+ public:
+using Next = bob::Next<DataQueue::Vec>;
 
-}  // namespace node::quic
+  DataQueueFeeder(Environment* env,
+           v8::Local<v8::Object> object);
+
+  JS_CONSTRUCTOR(DataQueueFeeder);
+  JS_BINDING_INIT_BOILERPLATE();
+
+  static BaseObjectPtr<DataQueueFeeder> Create();
+
+  void setDataQueue(std::shared_ptr<DataQueue> queue) {
+    dataQueue_ = queue;
+  }
+
+  void tryWakePulls();
+  void DrainAndClose();
+
+  struct PendingPull {
+    Next next;
+    explicit PendingPull(Next next)
+        : next(std::move(next)) {}
+  };
+
+  void addPendingPull(PendingPull toAdd) {
+    pendingPulls_.emplace_back(std::move(toAdd));
+  }
+
+  bool Done() {return done;};
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(DataQueueFeeder)
+  SET_SELF_SIZE(DataQueueFeeder)
+
+  JS_METHOD(New);
+  JS_METHOD(Submit);
+  JS_METHOD(Error);
+  JS_METHOD(Ready);
+
+
+ private:
+  std::shared_ptr<DataQueue> dataQueue_;
+  Global<Promise::Resolver> readFinish_;
+
+
+
+  std::deque<PendingPull> pendingPulls_;
+  bool done = false;
+};
+
+}  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

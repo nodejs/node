@@ -15,7 +15,9 @@
 #include <unordered_map>
 #include "defs.h"
 
-namespace node::quic {
+namespace node {
+class DataQueueFeeder;
+namespace quic {
 
 class Endpoint;
 class Packet;
@@ -24,6 +26,7 @@ class Packet;
 
 // The FunctionTemplates the BindingData will store for us.
 #define QUIC_CONSTRUCTORS(V)                                                   \
+  V(dataqueuefeeder)                                                           \
   V(endpoint)                                                                  \
   V(http3application)                                                          \
   V(logstream)                                                                 \
@@ -68,6 +71,7 @@ class Packet;
   V(ciphers, "ciphers")                                                        \
   V(crl, "crl")                                                                \
   V(cubic, "cubic")                                                            \
+  V(dataqueuefeeder, "DataQueueFeeder")                                        \
   V(disable_stateless_reset, "disableStatelessReset")                          \
   V(enable_connect_protocol, "enableConnectProtocol")                          \
   V(enable_datagrams, "enableDatagrams")                                       \
@@ -264,6 +268,7 @@ struct CallbackScope final : public CallbackScopeBase {
   explicit CallbackScope(T* ptr) : CallbackScopeBase(ptr->env()), ref(ptr) {}
 };
 
-}  // namespace node::quic
+}  // namespace quic
+}  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

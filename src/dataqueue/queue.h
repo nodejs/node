@@ -16,6 +16,8 @@
 #include <vector>
 
 namespace node {
+    using v8::Local;
+    using v8::Value;
 
 // Represents a sequenced collection of data sources that can be
 // consumed as a single logical stream of data. Sources can be
@@ -124,6 +126,8 @@ namespace node {
 // For non-idempotent DataQueues, only a single reader is ever allowed for
 // the DataQueue, and the data can only ever be read once.
 
+class DataQueueFeeder;
+
 class DataQueue : public MemoryRetainer {
  public:
   struct Vec {
@@ -223,6 +227,8 @@ class DataQueue : public MemoryRetainer {
 
   static std::unique_ptr<Entry> CreateFdEntry(Environment* env,
                                               v8::Local<v8::Value> path);
+
+  static std::unique_ptr<Entry> CreateFeederEntry(DataQueueFeeder* feeder);
 
   // Creates a Reader for the given queue. If the queue is idempotent,
   // any number of readers can be created, all of which are guaranteed
