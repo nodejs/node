@@ -239,15 +239,82 @@ builtin CheckTurboshaftFloat64Type(
 }
 
 @customInterfaceDescriptor
-builtin DebugPrintWordPtr(
-    implicit context: Context)(value: uintptr): Undefined {
-  Print('DebugPrint (word): ', value);
+builtin DebugPrintWord32(implicit context: Context)(prefix: String|Smi,
+                          value: uint32): Undefined {
+  typeswitch (prefix) {
+    case (Smi): {
+      Print(kCStringNull, value);
+    }
+    case (s: String): {
+      Print(s, value);
+    }
+  }
+  return Undefined;
+}
+
+@customInterfaceDescriptor
+builtin DebugPrintWord64(implicit context: Context)(prefix: String|Smi,
+                          value: uint64): Undefined {
+  if constexpr (Is64()) {
+    typeswitch (prefix) {
+      case (Smi): {
+        Print(kCStringNull, value);
+      }
+      case (s: String): {
+        Print(s, value);
+      }
+    }
+    return Undefined;
+  } else {
+    // Not supported on 32 bit.
+    unreachable;
+  }
+}
+
+@customInterfaceDescriptor
+builtin DebugPrintFloat32(implicit context: Context)(prefix: String|Smi,
+                           value: float32): Undefined {
+  typeswitch (prefix) {
+    case (Smi): {
+      Print(kCStringNull, value);
+    }
+    case (s: String): {
+      Print(s, value);
+    }
+  }
   return Undefined;
 }
 
 @customInterfaceDescriptor
 builtin DebugPrintFloat64(
-    implicit context: Context)(value: float64): Undefined {
-  Print('DebugPrint (float64): ', value);
+    implicit context: Context)(prefix: String|Smi, value: float64): Undefined {
+  typeswitch (prefix) {
+    case (Smi): {
+      Print(kCStringNull, value);
+    }
+    case (s: String): {
+      Print(s, value);
+    }
+  }
+  return Undefined;
+}
+
+builtin DebugPrintObject(implicit context: Context)(prefix: String|Smi,
+                          value: Object): Undefined {
+  typeswitch (prefix) {
+    case (Smi): {
+      typeswitch (value) {
+        case (s: String): {
+          PrintStringSimple(s);
+        }
+        case (Object): {
+          Print(kCStringNull, value);
+        }
+      }
+    }
+    case (s: String): {
+      Print(s, value);
+    }
+  }
   return Undefined;
 }

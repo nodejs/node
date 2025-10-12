@@ -7,10 +7,12 @@
 
 #include "src/base/logging.h"
 #include "src/common/scoped-modification.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-kna-processor.h"
 #include "src/maglev/maglev-reducer.h"
 
 namespace v8 {
@@ -19,7 +21,8 @@ namespace maglev {
 
 class MaglevGraphOptimizer {
  public:
-  explicit MaglevGraphOptimizer(Graph* graph);
+  explicit MaglevGraphOptimizer(
+      Graph* graph, RecomputeKnownNodeAspectsProcessor& kna_processor);
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
@@ -28,29 +31,31 @@ class MaglevGraphOptimizer {
   void PostPhiProcessing() {}
 
 #define DECLARE_PROCESS(NodeT)                                        \
-  ProcessResult Visit##NodeT();                                       \
+  ProcessResult Visit##NodeT(NodeT*, const ProcessingState&);         \
   ProcessResult Process(NodeT* node, const ProcessingState& state) {  \
     ScopedModification<NodeBase*> current_node(&current_node_, node); \
     UnwrapInputs();                                                   \
     PreProcessNode(node, state);                                      \
-    ProcessResult result = Visit##NodeT();                            \
+    ProcessResult result = Visit##NodeT(node, state);                 \
     PostProcessNode(node);                                            \
     return result;                                                    \
   }
   NODE_BASE_LIST(DECLARE_PROCESS)
 #undef DECLARE_PROCESS
 
-  KnownNodeAspects& known_node_aspects() { return empty_known_node_aspects_; }
+  KnownNodeAspects& known_node_aspects() {
+    return kna_processor_.known_node_aspects();
+  }
 
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
     return &current_node()->eager_deopt_info()->top_frame();
   }
 
+  ReduceResult EmitUnconditionalDeopt(DeoptimizeReason);
+
  private:
   MaglevReducer<MaglevGraphOptimizer> reducer_;
-
-  // TODO(victorgomes): To improve this!
-  KnownNodeAspects empty_known_node_aspects_;
+  RecomputeKnownNodeAspectsProcessor& kna_processor_;
 
   NodeBase* current_node_;
 
@@ -58,6 +63,8 @@ class MaglevGraphOptimizer {
     CHECK_NOT_NULL(current_node_);
     return current_node_;
   }
+
+  compiler::JSHeapBroker* broker() const;
 
   // Iterates the deopt frames unwrapping its inputs, ie, removing Identity or
   // ReturnedValue nodes.
@@ -85,8 +92,16 @@ class MaglevGraphOptimizer {
   void PreProcessNode(ControlNode*, const ProcessingState& state);
   void PostProcessNode(ControlNode*);
 
+  Jump* FoldBranch(BasicBlock* current, BranchControlNode* branch_node,
+                   bool if_true);
+
   ValueNode* GetInputAt(int index) const;
   ProcessResult ReplaceWith(ValueNode* node);
+
+  template <Operation kOperation>
+  std::optional<ProcessResult> TryFoldInt32Operation();
+  template <Operation kOperation>
+  std::optional<ProcessResult> TryFoldFloat64Operation();
 };
 
 }  // namespace maglev

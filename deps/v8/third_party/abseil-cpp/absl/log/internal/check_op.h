@@ -40,15 +40,16 @@
 #include "absl/log/internal/nullstream.h"
 #include "absl/log/internal/strip.h"
 #include "absl/strings/has_absl_stringify.h"
+#include "absl/strings/has_ostream_operator.h"
 #include "absl/strings/string_view.h"
 
 // `ABSL_LOG_INTERNAL_STRIP_STRING_LITERAL` wraps string literals that
 // should be stripped when `ABSL_MIN_LOG_LEVEL` exceeds `kFatal`.
 #ifdef ABSL_MIN_LOG_LEVEL
-#define ABSL_LOG_INTERNAL_STRIP_STRING_LITERAL(literal)         \
-  (::absl::LogSeverity::kFatal >=                               \
-           static_cast<::absl::LogSeverity>(ABSL_MIN_LOG_LEVEL) \
-       ? (literal)                                              \
+#define ABSL_LOG_INTERNAL_STRIP_STRING_LITERAL(literal)                \
+  (::absl::LogSeverity::kFatal >=                                      \
+           static_cast<::absl::LogSeverityAtLeast>(ABSL_MIN_LOG_LEVEL) \
+       ? (literal)                                                     \
        : "")
 #else
 #define ABSL_LOG_INTERNAL_STRIP_STRING_LITERAL(literal) (literal)
@@ -224,17 +225,12 @@ void MakeCheckOpValueString(std::ostream& os, signed char v);
 void MakeCheckOpValueString(std::ostream& os, unsigned char v);
 void MakeCheckOpValueString(std::ostream& os, const void* absl_nullable p);
 
-void MakeCheckOpUnprintableString(std::ostream& os);
-
 // A wrapper for types that have no operator<<.
 struct UnprintableWrapper {
   template <typename T>
   explicit UnprintableWrapper(const T&) {}
 
-  friend std::ostream& operator<<(std::ostream& os, const UnprintableWrapper&) {
-    MakeCheckOpUnprintableString(os);
-    return os;
-  }
+  friend std::ostream& operator<<(std::ostream& os, UnprintableWrapper);
 };
 
 namespace detect_specialization {
@@ -357,23 +353,26 @@ std::enable_if_t<HasAbslStringify<T>::value,
                  StringifyToStreamWrapper<T>>
 Detect(...);  // Ellipsis has lowest preference when int passed.
 
-// is_streamable is true for types that have an output stream operator<<.
-template <class T, class = void>
-struct is_streamable : std::false_type {};
-
-template <class T>
-struct is_streamable<T, std::void_t<decltype(std::declval<std::ostream&>()
-                                             << std::declval<T>())>>
-    : std::true_type {};
-
 // This overload triggers when T is neither possible to print nor an enum.
 template <typename T>
 std::enable_if_t<std::negation_v<std::disjunction<
                      std::is_convertible<T, int>, std::is_enum<T>,
                      std::is_pointer<T>, std::is_same<T, std::nullptr_t>,
-                     is_streamable<T>, HasAbslStringify<T>>>,
+                     HasOstreamOperator<T>, HasAbslStringify<T>>>,
                  UnprintableWrapper>
 Detect(...);
+
+// Equivalent to the updated std::underlying_type from C++20, which is no
+// longer undefined behavior for non-enum types.
+template <typename T, typename EnableT = void>
+struct UnderlyingType {};
+
+template <typename T>
+struct UnderlyingType<T, std::enable_if_t<std::is_enum_v<T>>> {
+  using type = std::underlying_type_t<T>;
+};
+template <typename T>
+using UnderlyingTypeT = typename UnderlyingType<T>::type;
 
 // This overload triggers when T is a scoped enum that has not defined an output
 // stream operator (operator<<) or AbslStringify. It causes the enum value to be
@@ -382,17 +381,17 @@ Detect(...);
 // one backed by another integer is converted to (u)int64_t.
 template <typename T>
 std::enable_if_t<
-    std::conjunction_v<
-        std::is_enum<T>, std::negation<std::is_convertible<T, int>>,
-        std::negation<is_streamable<T>>, std::negation<HasAbslStringify<T>>>,
-    std::conditional_t<
-        std::is_same_v<std::underlying_type_t<T>, bool> ||
-            std::is_same_v<std::underlying_type_t<T>, char> ||
-            std::is_same_v<std::underlying_type_t<T>, signed char> ||
-            std::is_same_v<std::underlying_type_t<T>, unsigned char>,
-        std::underlying_type_t<T>,
-        std::conditional_t<std::is_signed_v<std::underlying_type_t<T>>, int64_t,
-                           uint64_t>>>
+    std::conjunction_v<std::is_enum<T>,
+                       std::negation<std::is_convertible<T, int>>,
+                       std::negation<HasOstreamOperator<T>>,
+                       std::negation<HasAbslStringify<T>>>,
+    std::conditional_t<std::is_same_v<UnderlyingTypeT<T>, bool> ||
+                           std::is_same_v<UnderlyingTypeT<T>, char> ||
+                           std::is_same_v<UnderlyingTypeT<T>, signed char> ||
+                           std::is_same_v<UnderlyingTypeT<T>, unsigned char>,
+                       UnderlyingTypeT<T>,
+                       std::conditional_t<std::is_signed_v<UnderlyingTypeT<T>>,
+                                          int64_t, uint64_t>>>
 Detect(...);
 }  // namespace detect_specialization
 
@@ -407,10 +406,16 @@ ABSL_ATTRIBUTE_RETURNS_NONNULL const char* absl_nonnull MakeCheckOpString(
 template <typename T1, typename T2>
 const char* absl_nonnull MakeCheckOpString(T1 v1, T2 v2,
                                            const char* absl_nonnull exprtext) {
-  CheckOpMessageBuilder comb(exprtext);
-  MakeCheckOpValueString(comb.ForVar1(), v1);
-  MakeCheckOpValueString(comb.ForVar2(), v2);
-  return comb.NewString();
+  if constexpr (std::is_same_v<CheckOpStreamType<T1>, UnprintableWrapper> &&
+                std::is_same_v<CheckOpStreamType<T2>, UnprintableWrapper>) {
+    // No sense printing " (UNPRINTABLE vs. UNPRINTABLE)"
+    return exprtext;
+  } else {
+    CheckOpMessageBuilder comb(exprtext);
+    MakeCheckOpValueString(comb.ForVar1(), v1);
+    MakeCheckOpValueString(comb.ForVar2(), v2);
+    return comb.NewString();
+  }
 }
 
 // Add a few commonly used instantiations as extern to reduce size of objects
@@ -441,7 +446,7 @@ ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(const void* absl_nonnull);
 #ifdef ABSL_MIN_LOG_LEVEL
 #define ABSL_LOG_INTERNAL_CHECK_OP_IMPL_RESULT(U1, U2, v1, v2, exprtext) \
   ((::absl::LogSeverity::kFatal >=                                       \
-    static_cast<::absl::LogSeverity>(ABSL_MIN_LOG_LEVEL))                \
+    static_cast<::absl::LogSeverityAtLeast>(ABSL_MIN_LOG_LEVEL))         \
        ? MakeCheckOpString<U1, U2>(v1, v2, exprtext)                     \
        : "")
 #else

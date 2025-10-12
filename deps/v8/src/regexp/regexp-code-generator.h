@@ -47,6 +47,11 @@ class RegExpCodeGenerator final {
   // E.g. converts an uint32_t bytecode offset to a Label*.
   template <typename Operands, typename Operands::Operand operand_id>
   auto GetArgumentValue(const uint8_t* pc) const;
+
+  // Returns all the argument values of the bytecode at |pc| as a tuple.
+  template <typename Operands>
+  auto GetArgumentValuesAsTuple(const uint8_t* pc) const;
+
   // Visit all bytecodes before any code is emmited.
   // Allocates labels for all jump targets to support forward jumps.
   void PreVisitBytecodes();

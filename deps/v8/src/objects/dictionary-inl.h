@@ -53,15 +53,9 @@ Tagged<Object> Dictionary<Derived, Shape>::ValueAt(PtrComprCageBase cage_base,
 template <typename Derived, typename Shape>
 std::optional<Tagged<Object>> Dictionary<Derived, Shape>::TryValueAt(
     InternalIndex entry) {
-#if DEBUG
-  Isolate* isolate;
-  GetIsolateFromHeapObject(this, &isolate);
-  DCHECK_NE(isolate, nullptr);
-  // TODO(431584880): Replace `GetIsolateFromHeapObject` by
-  // `Isolate::Current()`.
-  DCHECK_EQ(isolate, Isolate::TryGetCurrent());
-  SLOW_DCHECK(!isolate->heap()->IsPendingAllocation(Tagged(this)));
-#endif  // DEBUG
+  SLOW_DCHECK(Isolate::Current()->heap() ==
+              Heap::FromWritableHeapObject(Tagged(this)));
+  SLOW_DCHECK(Isolate::Current()->heap()->IsPendingAllocation(Tagged(this)));
   // We can read length() in a non-atomic way since we are reading an
   // initialized object which is not pending allocation.
   if (DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex >=

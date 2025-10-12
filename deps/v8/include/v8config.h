@@ -335,7 +335,6 @@ path. Add it with -I<path> to the command line
 //                                      - [[no_unique_address]] supported
 //  V8_HAS_CPP_ATTRIBUTE_LIFETIME_BOUND - [[clang::lifetimebound]] supported
 //  V8_HAS_BUILTIN_ADD_OVERFLOW         - __builtin_add_overflow() supported
-//  V8_HAS_BUILTIN_BIT_CAST             - __builtin_bit_cast() supported
 //  V8_HAS_BUILTIN_BSWAP16              - __builtin_bswap16() supported
 //  V8_HAS_BUILTIN_BSWAP32              - __builtin_bswap32() supported
 //  V8_HAS_BUILTIN_BSWAP64              - __builtin_bswap64() supported
@@ -418,7 +417,6 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_BUILTIN_ADD_OVERFLOW (__has_builtin(__builtin_add_overflow))
 # define V8_HAS_BUILTIN_ASSUME (__has_builtin(__builtin_assume))
 # define V8_HAS_BUILTIN_ASSUME_ALIGNED (__has_builtin(__builtin_assume_aligned))
-# define V8_HAS_BUILTIN_BIT_CAST (__has_builtin(__builtin_bit_cast))
 # define V8_HAS_BUILTIN_BSWAP16 (__has_builtin(__builtin_bswap16))
 # define V8_HAS_BUILTIN_BSWAP32 (__has_builtin(__builtin_bswap32))
 # define V8_HAS_BUILTIN_BSWAP64 (__has_builtin(__builtin_bswap64))
@@ -473,9 +471,6 @@ path. Add it with -I<path> to the command line
 // for V8_HAS_CPP_ATTRIBUTE_NODISCARD. See https://crbug.com/v8/11707.
 
 # define V8_HAS_BUILTIN_ASSUME_ALIGNED 1
-# if __GNUC__ >= 11
-#  define V8_HAS_BUILTIN_BIT_CAST 1
-# endif
 # define V8_HAS_BUILTIN_CLZ 1
 # define V8_HAS_BUILTIN_CTZ 1
 # define V8_HAS_BUILTIN_EXPECT 1

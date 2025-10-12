@@ -7549,7 +7549,7 @@ TEST(RunComputedCodeObject) {
   Signature<LinkageLocation> loc(1, 0, ret);
   auto call_descriptor = r.zone()->New<CallDescriptor>(  // --
       CallDescriptor::kCallCodeObject,                   // kind
-      kDefaultCodeEntrypointTag,                         // tag
+      kCodeEntrypointTagForTesting,                      // tag
       MachineType::AnyTagged(),                          // target_type
       c->GetInputLocation(0),                            // target_loc
       &loc,                                              // location_sig

@@ -205,14 +205,12 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
 
 bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
                          v8::Local<v8::Context> context,
-                         v8::Module::ResolveModuleCallback module_callback,
-                         v8::Module::ResolveSourceCallback source_callback) {
+                         const Module::UserResolveCallbacks& callbacks) {
 #ifdef DEBUG
   PrintStatusMessage(*module, "Instantiating module ");
 #endif  // DEBUG
 
-  if (!PrepareInstantiate(isolate, module, context, module_callback,
-                          source_callback)) {
+  if (!PrepareInstantiate(isolate, module, context, callbacks)) {
     ResetGraph(isolate, module);
     DCHECK_EQ(module->status(), kUnlinked);
     return false;
@@ -231,11 +229,9 @@ bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
   return true;
 }
 
-bool Module::PrepareInstantiate(
-    Isolate* isolate, DirectHandle<Module> module,
-    v8::Local<v8::Context> context,
-    v8::Module::ResolveModuleCallback module_callback,
-    v8::Module::ResolveSourceCallback source_callback) {
+bool Module::PrepareInstantiate(Isolate* isolate, DirectHandle<Module> module,
+                                v8::Local<v8::Context> context,
+                                const UserResolveCallbacks& callbacks) {
   DCHECK_NE(module->status(), kEvaluating);
   DCHECK_NE(module->status(), kLinking);
   if (module->status() >= kPreLinking) return true;
@@ -244,8 +240,7 @@ bool Module::PrepareInstantiate(
 
   if (IsSourceTextModule(*module)) {
     return SourceTextModule::PrepareInstantiate(
-        isolate, Cast<SourceTextModule>(module), context, module_callback,
-        source_callback);
+        isolate, Cast<SourceTextModule>(module), context, callbacks);
   } else {
     return SyntheticModule::PrepareInstantiate(
         isolate, Cast<SyntheticModule>(module), context);
@@ -493,10 +488,13 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
   // Only SourceTextModules may be async.
   if (!IsSourceTextModule(*this)) return false;
   Tagged<SourceTextModule> root = Cast<SourceTextModule>(*this);
+  DCHECK(root->status() == kLinked || root->status() == kEvaluated ||
+         root->status() == kEvaluatingAsync || root->status() == kErrored);
 
   Zone zone(isolate->allocator(), ZONE_NAME);
   const size_t bucket_count = 2;
-  ZoneUnorderedSet<Tagged<Module>, Module::Hash> visited(&zone, bucket_count);
+  ZoneUnorderedSet<Tagged<SourceTextModule>, Module::Hash> visited(
+      &zone, bucket_count);
   ZoneVector<Tagged<SourceTextModule>> worklist(&zone);
   visited.insert(root);
   worklist.push_back(root);
@@ -509,10 +507,18 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
     if (current->has_toplevel_await()) return true;
     Tagged<FixedArray> requested_modules = current->requested_modules();
     for (int i = 0, length = requested_modules->length(); i < length; ++i) {
-      Tagged<Module> descendant = Cast<Module>(requested_modules->get(i));
-      if (IsSourceTextModule(descendant)) {
+      Tagged<Object> raw_descendant = requested_modules->get(i);
+      // The current module must have been linked as the root has been linked.
+      // If the request is a source phase import, the descendant can be a
+      // JavaScript object, and it can not be async. Skip it.
+      // If the request is an evaluation phase import, the descendant can be
+      // either a SourceTextModule or a SyntheticModule. Visit it if it is a
+      // SourceTextModule.
+      if (IsSourceTextModule(raw_descendant)) {
+        Tagged<SourceTextModule> descendant =
+            Cast<SourceTextModule>(raw_descendant);
         const bool cycle = !visited.insert(descendant).second;
-        if (!cycle) worklist.push_back(Cast<SourceTextModule>(descendant));
+        if (!cycle) worklist.push_back(descendant);
       }
     }
   } while (!worklist.empty());

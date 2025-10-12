@@ -82,7 +82,8 @@ InspectorIsolateData::InspectorIsolateData(
 InspectorIsolateData* InspectorIsolateData::FromContext(
     v8::Local<v8::Context> context) {
   return static_cast<InspectorIsolateData*>(
-      context->GetAlignedPointerFromEmbedderData(kIsolateDataIndex));
+      context->GetAlignedPointerFromEmbedderData(kIsolateDataIndex,
+                                                 kInspectorIsolateDataTag));
 }
 
 InspectorIsolateData::~InspectorIsolateData() {
@@ -157,8 +158,8 @@ void InspectorIsolateData::ResetContextGroup(int context_group_id) {
 
 int InspectorIsolateData::GetContextGroupId(v8::Local<v8::Context> context) {
   return static_cast<int>(
-      reinterpret_cast<intptr_t>(
-          context->GetAlignedPointerFromEmbedderData(kContextGroupIdIndex)) /
+      reinterpret_cast<intptr_t>(context->GetAlignedPointerFromEmbedderData(
+          kContextGroupIdIndex, kContextGroupIdTag)) /
       2);
 }
 
@@ -564,7 +565,7 @@ void InspectorIsolateData::installAdditionalCommandLineAPI(
 }
 
 void InspectorIsolateData::consoleAPIMessage(
-    int contextGroupId, v8::Isolate::MessageErrorLevel level,
+    int contextGroupId, int contextId, v8::Isolate::MessageErrorLevel level,
     const v8_inspector::StringView& message,
     const v8_inspector::StringView& url, unsigned lineNumber,
     unsigned columnNumber, v8_inspector::V8StackTrace* stack) {

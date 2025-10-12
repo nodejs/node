@@ -2182,7 +2182,7 @@ inline void RegExpMatchGlobalAtom_OneCharPattern(
   // We need a wider tag to avoid overflows on lanes when summing up submatches.
   using WidenedTag = hw::RepartitionToWide<decltype(tag)>;
   WidenedTag sum_tag;
-  static constexpr size_t stride = hw::Lanes(tag);
+  static const size_t stride = hw::Lanes(tag);
   // Subtle: the valid variants are {SChar,PChar} in:
   // {uint8_t,uint8_t}, {uc16,uc16}, {uc16,uint8_t}. In the latter case,
   // we cast the uint8_t pattern to uc16 for the comparison.

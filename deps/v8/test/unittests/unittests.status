@@ -119,7 +119,7 @@
   'SweeperTest.DiscardingNormalPageMemory': [SKIP],
 
   # https://crbug.com/v8/8766
-  'BytecodeGeneratorTest.WideRegisters': [SKIP],
+  'AllGolden/BytecodeGeneratorTest.CompilationMatchesExpectation/WideRegisters': [SKIP],
 }],  # arch == ppc64
 
 ##############################################################################
@@ -192,9 +192,10 @@
 ################################################################################
 ['arch == riscv64 or arch == riscv32', {
   # TODO(kasperl@rivosinc.com): Temporarily allow the tests to fail as we
-  # investigate what sometimes gives unexpected values for f32.{min,max,neg}.
-  'CrossCompilerDeterminismTest.TestFloat32Binop': [PASS, FAIL],
-  'CrossCompilerDeterminismTest.TestFloat32Unop': [PASS, FAIL],
+  # investigate what sometimes gives unexpected values for functions like
+  # f32.{min,max,neg} and friends.
+  'Float32CrossCompilerDeterminismTest.TestBinOp': [PASS, FAIL],
+  'Float32CrossCompilerDeterminismTest.TestUnOp': [PASS, FAIL],
 }],  # arch == riscv64 or arch == riscv32
 
 ['(arch == riscv64 or arch == riscv32) and not clang', {
@@ -306,6 +307,7 @@
 ##############################################################################
 ['no_simd_hardware == True', {
   'WasmDisassemblerTest.Simd': [SKIP],
+  'SimdCrossCompilerDeterminismTest.*': [SKIP],
 }],  # no_simd_hardware == True
 
 ['tsan and mode == debug', {
@@ -383,5 +385,11 @@
   'LogFunctionEventsTest.LogFunctionEvents': [SKIP],
   'CompilerTest.ProfilerEnabledDuringBackgroundCompile': [SKIP],
 }],
+
+##############################################################################
+['full_debug', {
+  # Tests too slow in non-optimized debug mode.
+  'LogAllTest.LogAll': [SKIP],
+}],  # 'full_debug'
 
 ]

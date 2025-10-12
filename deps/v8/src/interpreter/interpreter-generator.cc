@@ -2724,13 +2724,27 @@ IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
 IGNITION_HANDLER(SetPrototypeProperties, InterpreterLoadGlobalAssembler) {
   TNode<Object> object = GetAccumulator();
   TNode<Context> context = GetContext();
-
   TNode<ObjectBoilerplateDescription> proto_boilerplate_description =
       CAST(LoadConstantPoolEntryAtOperandIndex(0));
+  TNode<Smi> start_slot = BytecodeOperandIdxSmi(1);
 
-  TNode<Object> result = CallRuntime(Runtime::kSetPrototypeProperties, context,
-                                     object, proto_boilerplate_description);
+  TNode<ClosureFeedbackCellArray> feedback_cell_array =
+      LoadClosureFeedbackArray(LoadFunctionClosure());
 
+  TNode<Object> result =
+      CallRuntime(Runtime::kSetPrototypeProperties, context,
+                  // The object (in accumulator) upon whose prototype
+                  // boilerplate shall be applied
+                  object,
+                  // ObjectBoilerplateDescription whose properties will be
+                  // merged in to the above object
+                  proto_boilerplate_description,
+                  // Array of feedback cells. Needed to instantiate
+                  // ShareFunctionInfo(s) from the boilerplate
+                  feedback_cell_array,
+                  // Index of the feedback cell of the first ShareFunctionInfo.
+                  // We may assume all other SFI to be tightly packed.
+                  start_slot);
   ClobberAccumulator(result);
 
   Dispatch();

@@ -61,11 +61,11 @@ void PrintDouble(std::ostream& os, double val) {
     // 9007199254740991.0 instead of 9.0072e+15
     int64_t i = static_cast<int64_t>(val);
     os << i << ".0";
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   } else if (std::isnan(val)) {
     os << val << " (0x" << std::hex << base::double_to_uint64(val) << std::dec
        << ")";
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   } else {
     os << val;
   }
@@ -238,7 +238,7 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {
 
 void HeapObject::HeapObjectPrint(std::ostream& os) {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
-  if (IsAnyHole(Tagged(*this))) {
+  if (SafeIsAnyHole(Tagged(*this))) {
     Cast<Hole>(*this)->HolePrint(os);
     return;
   }
@@ -555,7 +555,7 @@ bool IsTheHoleAt(Tagged<FixedDoubleArray> array, int index) {
   return array->is_the_hole(index);
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 template <class T>
 bool IsUndefinedAt(Tagged<T> array, int index) {
   return false;
@@ -565,7 +565,7 @@ template <>
 bool IsUndefinedAt(Tagged<FixedDoubleArray> array, int index) {
   return array->is_undefined(index);
 }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 template <class T>
 double GetScalarElement(Tagged<T> array, int index) {
@@ -598,10 +598,10 @@ void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
     os << std::setw(12) << ss.str() << ": ";
     if (print_the_hole && IsTheHoleAt(array, i - 1)) {
       os << "<the_hole>";
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     } else if (IsUndefinedAt(array, i - 1)) {
       os << "undefined";
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     } else {
       os << GetScalarElement(array, i - 1);
     }
@@ -640,7 +640,7 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
     if (previous_index != i - 1) {
       ss << '-' << (i - 1);
     }
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     if constexpr (std::is_floating_point_v<ElementType>) {
       if (std::isnan(previous_value)) {
         os << std::setw(12) << ss.str() << ": " << +previous_value << " (0x"
@@ -656,7 +656,7 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
         continue;
       }
     }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     os << std::setw(12) << ss.str() << ": " << +previous_value;
     previous_index = i;
     previous_value = value;
@@ -2451,8 +2451,11 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   }
 
 #endif  // V8_ENABLE_LEAPTIERING
-  if (code(isolate)->kind() == CodeKind::FOR_TESTING) {
+  CodeKind code_kind = code(isolate)->kind();
+  if (code_kind == CodeKind::FOR_TESTING) {
     os << "\n - FOR_TESTING";
+  } else if (code_kind == CodeKind::FOR_TESTING_JS) {
+    os << "\n - FOR_TESTING_JS";
   } else if (ActiveTierIsIgnition(isolate)) {
     os << "\n - interpreted";
     if (shared()->HasBytecodeArray()) {
@@ -3007,10 +3010,6 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(well_known_imports, Brief);
   PRINT_WASM_INSTANCE_FIELD(memory0_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(memory0_size, +);
-  PRINT_WASM_INSTANCE_FIELD(new_allocation_limit_address, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(new_allocation_top_address, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(old_allocation_limit_address, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(old_allocation_top_address, to_void_ptr);
 #if V8_ENABLE_DRUMBRAKE
   PRINT_WASM_INSTANCE_FIELD(imported_function_indices, Brief);
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -3065,9 +3064,9 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
   os << "\n - instance_data: " << Brief(instance_data());
   os << "\n - function_index: " << function_index();
   os << "\n - wrapper_budget: " << wrapper_budget()->value();
-  os << "\n - canonical_type_index: " << canonical_type_index();
   os << "\n - receiver_is_first_param: " << receiver_is_first_param();
-  os << "\n - signature: " << reinterpret_cast<const void*>(sig());
+  os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
+     << sig()->return_count() << " returns)";
   os << "\n";
 }
 
@@ -3127,20 +3126,14 @@ void WasmFuncRef::WasmFuncRefPrint(std::ostream& os) {
 void WasmCapiFunctionData::WasmCapiFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmCapiFunctionData");
   WasmFunctionDataPrint(os);
-  os << "\n - canonical_sig_index: " << canonical_sig_index();
   os << "\n - embedder_data: " << Brief(embedder_data());
-  os << "\n - sig: " << sig();
+  os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
+     << sig()->return_count() << " returns)";
   os << "\n";
 }
 
 void WasmExceptionPackage::WasmExceptionPackagePrint(std::ostream& os) {
   PrintHeader(os, "WasmExceptionPackage");
-  os << "\n";
-}
-
-void WasmDescriptorOptions::WasmDescriptorOptionsPrint(std::ostream& os) {
-  PrintHeader(os, "WasmDescriptorOptions");
-  os << "\n - prototype: " << Brief(prototype());
   os << "\n";
 }
 
@@ -4649,8 +4642,8 @@ V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_TransitionTree(
 V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_Object_MarkBit(
     void* object) {
 #ifdef OBJECT_PRINT
-  const auto mark_bit =
-      v8::internal::MarkBit::From(reinterpret_cast<i::Address>(object));
+  const auto mark_bit = v8::internal::MarkBit::From(
+      i::Isolate::Current(), reinterpret_cast<i::Address>(object));
   i::StdoutStream os;
   os << "Object " << object << " is "
      << (mark_bit.Get() ? "marked" : "unmarked") << std::endl;

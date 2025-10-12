@@ -375,12 +375,12 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   V8_EXPORT_PRIVATE static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> New(
       DirectHandle<JSFunction> constructor, DirectHandle<JSReceiver> new_target,
       DirectHandle<AllocationSite> site,
-      NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
+      NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
 
   static MaybeDirectHandle<JSObject> NewWithMap(
       Isolate* isolate, DirectHandle<Map> initial_map,
       DirectHandle<AllocationSite> site,
-      NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
+      NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
 
   // 9.1.12 ObjectCreate ( proto [ , internalSlotsList ] )
   // Notice: This is NOT 19.1.2.2 Object.create ( O, Properties )
@@ -856,8 +856,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // to ensure that |filler_map| can be collected without WB here.
   inline void InitializeBody(Tagged<Map> map, int start_offset,
                              bool is_slack_tracking_in_progress,
-                             MapWord filler_map,
-                             Tagged<Object> undefined_value);
+                             NewJSObjectType new_js_object_type);
 
   // Check whether this object references another object
   bool ReferencesObject(Tagged<Object> obj);

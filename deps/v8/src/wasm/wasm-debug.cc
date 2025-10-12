@@ -677,7 +677,8 @@ class DebugInfoImpl {
       } else if (value->type == kWasmF64) {
         return WasmValue(ReadUnalignedValue<double>(spilled_addr));
       } else if (value->type == kWasmS128) {
-        return WasmValue(Simd128(ReadUnalignedValue<int8x16>(spilled_addr)));
+        return WasmValue(
+            Simd128(ReadUnalignedValue<Simd128::int8x16>(spilled_addr)));
       } else {
         // All other cases should have been handled above.
         UNREACHABLE();
@@ -696,7 +697,8 @@ class DebugInfoImpl {
       case kF64:
         return WasmValue(ReadUnalignedValue<double>(stack_address));
       case kS128:
-        return WasmValue(Simd128(ReadUnalignedValue<int8x16>(stack_address)));
+        return WasmValue(
+            Simd128(ReadUnalignedValue<Simd128::int8x16>(stack_address)));
       case kRef:
       case kRefNull: {
         DirectHandle<Object> obj(

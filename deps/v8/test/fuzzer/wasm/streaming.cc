@@ -11,8 +11,8 @@
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "test/common/wasm/fuzzer-common.h"
 #include "test/fuzzer/fuzzer-support.h"
-#include "test/fuzzer/wasm/fuzzer-common.h"
 
 namespace v8::internal::wasm::fuzzing {
 

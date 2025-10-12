@@ -375,6 +375,9 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
     write_barrier_kind = kFullWriteBarrier;
   }
 
+  DCHECK_IMPLIES(write_barrier_kind == kSkippedWriteBarrier,
+                 v8_flags.verify_write_barriers);
+
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedOrCompressedPointer(rep));
@@ -401,13 +404,20 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
       addressing_mode = kMode_MRR;
     }
     inputs[input_count++] = g.UseUniqueRegister(value);
-    RecordWriteMode record_write_mode =
-        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
-    InstructionCode code = kArchStoreWithWriteBarrier;
+    InstructionCode code;
+
+    if (write_barrier_kind == kSkippedWriteBarrier) {
+      code = kArchStoreSkippedWriteBarrier;
+    } else {
+      RecordWriteMode record_write_mode =
+          WriteBarrierKindToRecordWriteMode(write_barrier_kind);
+      code = kArchStoreWithWriteBarrier;
+      code |= RecordWriteModeField::encode(record_write_mode);
+    }
+
     code |= AddressingModeField::encode(addressing_mode);
-    code |= RecordWriteModeField::encode(record_write_mode);
     CHECK_EQ(is_atomic, false);
     selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {

@@ -29,13 +29,11 @@ ReadOnlyHeap::~ReadOnlyHeap() {
   IsolateGroup::current()->code_pointer_table()->TearDownSpace(
       &code_pointer_space_);
 #endif
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
 #if V8_STATIC_DISPATCH_HANDLES_BOOL
   jdt->DetachSpaceFromReadOnlySegments(&js_dispatch_table_space_);
 #endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
   jdt->TearDownSpace(&js_dispatch_table_space_);
-#endif
 }
 
 // static
@@ -172,7 +170,6 @@ ReadOnlyHeap::ReadOnlyHeap(ReadOnlySpace* ro_space)
   IsolateGroup::current()->code_pointer_table()->InitializeSpace(
       &code_pointer_space_);
 #endif  // V8_ENABLE_SANDBOX
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   jdt->InitializeSpace(&js_dispatch_table_space_);
   // To avoid marking trying to write to these read-only cells they are
@@ -184,7 +181,6 @@ ReadOnlyHeap::ReadOnlyHeap(ReadOnlySpace* ro_space)
   jdt->PreAllocateEntries(&js_dispatch_table_space_,
                           JSBuiltinDispatchHandleRoot::kCount);
 #endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 // static
@@ -290,7 +286,15 @@ Tagged<HeapObject> ReadOnlyPageObjectIterator::Next() {
       continue;
     }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+    // WasmNull is extra special because it also reserves (unmapped) padding
+    // for the hole roots.
+    if (IsAnyHole(object) || !IsWasmNull(object)) {
+      DCHECK_VALID_REGULAR_OBJECT_SIZE(object_size);
+    }
+#else
     DCHECK_VALID_REGULAR_OBJECT_SIZE(object_size);
+#endif  // V8_ENABLE_WEBASSEMBLY
     return object;
   }
 }

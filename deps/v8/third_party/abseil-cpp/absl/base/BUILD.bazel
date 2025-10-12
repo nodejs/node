@@ -95,6 +95,20 @@ cc_library(
 )
 
 cc_library(
+    name = "nullability_traits_internal",
+    hdrs = ["internal/nullability_traits.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+    deps = [
+        ":config",
+        ":nullability",
+    ],
+)
+
+cc_library(
     name = "raw_logging_internal",
     srcs = ["internal/raw_logging.cc"],
     hdrs = ["internal/raw_logging.h"],
@@ -634,6 +648,18 @@ cc_test(
     srcs = ["nullability_default_nonnull_test.cc"],
     deps = [
         ":nullability",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "nullability_traits_test",
+    srcs = ["internal/nullability_traits_test.cc"],
+    deps = [
+        ":config",
+        ":nullability",
+        ":nullability_traits_internal",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

@@ -127,9 +127,9 @@ struct JSBuiltinDispatchHandleRoot {
   V(BuiltinsTier0Table, Builtins::kBuiltinTier0Count* kSystemPointerSize,      \
     builtin_tier0_table)                                                       \
   /* Misc. fields. */                                                          \
-  V(NewAllocationInfo, LinearAllocationArea::kSize, new_allocation_info)       \
-  V(OldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)       \
-  V(Address, kSystemPointerSize, last_young_allocation)                        \
+  V(NewAllocationInfo, LinearAllocationArea::Size(), new_allocation_info)      \
+  V(OldAllocationInfo, LinearAllocationArea::Size(), old_allocation_info)      \
+  V(LastYoungAllocation, kSystemPointerSize, last_young_allocation)            \
   ISOLATE_DATA_FAST_C_CALL_PADDING(V)                                          \
   V(FastCCallCallerPC, kSystemPointerSize, fast_c_call_caller_pc)              \
   V(FastCCallCallerFP, kSystemPointerSize, fast_c_call_caller_fp)              \
@@ -160,13 +160,14 @@ struct JSBuiltinDispatchHandleRoot {
   V(BuiltinEntryTable, Builtins::kBuiltinCount* kSystemPointerSize,            \
     builtin_entry_table)                                                       \
   V(BuiltinTable, Builtins::kBuiltinCount* kSystemPointerSize, builtin_table)  \
-  V(ActiveStack, kSystemPointerSize, active_stack)                             \
-  V(ActiveSuspender, kSystemPointerSize, active_suspender)                     \
+  IF_WASM(V, ActiveStack, kSystemPointerSize, active_stack)                    \
+  IF_WASM(V, ActiveSuspender, kSystemPointerSize, active_suspender)            \
   V(DateCacheStamp, kInt32Size, date_cache_stamp)                              \
   V(IsDateCacheUsed, kUInt8Size, is_date_cache_used)                           \
   /* This padding aligns next field to kDoubleSize bytes. */                   \
   PADDING_FIELD(kDoubleSize, V, RawArgumentsPadding, raw_arguments_padding)    \
   V(RawArguments, 2 * kDoubleSize, raw_arguments)                              \
+  V(StressDeoptCount, kUInt64Size, stress_deopt_count)                         \
   ISOLATE_DATA_FIELDS_LEAPTIERING(V)
 
 #ifdef V8_COMPRESS_POINTERS
@@ -207,9 +208,15 @@ struct JSBuiltinDispatchHandleRoot {
 
 #endif  // V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
 
-#define EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(V)       \
-  V(isolate_address, "isolate address", IsolateAddress) \
-  V(jslimit_address, "jslimit address", JsLimitAddress)
+// Isolate fields referenceable as ExternalReference.
+// V(CamelName, hacker_name)
+#define EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(V)      \
+  V(IsolateAddress, isolate_address)                   \
+  V(JsLimitAddress, jslimit_address)                   \
+  V(NewAllocationInfoTop, new_allocation_info_top)     \
+  V(NewAllocationInfoLimit, new_allocation_info_limit) \
+  V(OldAllocationInfoTop, old_allocation_info_top)     \
+  V(OldAllocationInfoLimit, old_allocation_info_limit)
 
 constexpr uint8_t kNumIsolateFieldIds = 0
 #define PLUS_1(...) +1
@@ -218,7 +225,7 @@ constexpr uint8_t kNumIsolateFieldIds = 0
 
 enum class IsolateFieldId : uint8_t {
   kUnknown = 0,
-#define ENUM(name, comment, CamelName) k##CamelName,
+#define ENUM(CamelName, name) k##CamelName,
   EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(ENUM)
 #undef ENUM
 #define ENUM(CamelName, ...) k##CamelName,
@@ -290,6 +297,14 @@ class IsolateData final {
            Builtins::ToInt(id) * kSystemPointerSize;
   }
 
+  static constexpr int new_allocation_info_start_offset() {
+    return new_allocation_info_offset() + LinearAllocationArea::StartOffset();
+  }
+
+  static constexpr int new_allocation_info_top_offset() {
+    return new_allocation_info_offset() + LinearAllocationArea::TopOffset();
+  }
+
   static constexpr int jslimit_offset() {
     return stack_guard_offset() + StackGuard::jslimit_offset();
   }
@@ -346,10 +361,14 @@ class IsolateData final {
   ThreadLocalTop const& thread_local_top() const { return thread_local_top_; }
   Address* builtin_entry_table() { return builtin_entry_table_; }
   Address* builtin_table() { return builtin_table_; }
+#if V8_ENABLE_WEBASSEMBLY
   wasm::StackMemory* active_stack() { return active_stack_; }
   void set_active_stack(wasm::StackMemory* stack) { active_stack_ = stack; }
-  Tagged<Object> active_suspender() { return active_suspender_; }
-  void set_active_suspender(Tagged<Object> v) { active_suspender_ = v; }
+  Tagged<WasmSuspenderObject> active_suspender() { return active_suspender_; }
+  void set_active_suspender(Tagged<WasmSuspenderObject> v) {
+    active_suspender_ = v;
+  }
+#endif
 #if V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
   JSDispatchHandle builtin_dispatch_handle(Builtin builtin) {
     return builtin_dispatch_table_[JSBuiltinDispatchHandleRoot::to_idx(
@@ -404,9 +423,19 @@ class IsolateData final {
         return -kIsolateRootBias;
       case IsolateFieldId::kJsLimitAddress:
         return IsolateData::jslimit_offset();
+      case IsolateFieldId::kNewAllocationInfoTop:
+        return new_allocation_info_offset() + LinearAllocationArea::TopOffset();
+      case IsolateFieldId::kNewAllocationInfoLimit:
+        return new_allocation_info_offset() +
+               LinearAllocationArea::LimitOffset();
+      case IsolateFieldId::kOldAllocationInfoTop:
+        return old_allocation_info_offset() + LinearAllocationArea::TopOffset();
+      case IsolateFieldId::kOldAllocationInfoLimit:
+        return old_allocation_info_offset() +
+               LinearAllocationArea::LimitOffset();
 #define CASE(CamelName, size, name)  \
   case IsolateFieldId::k##CamelName: \
-    return IsolateData::name##_offset();
+    return name##_offset();
         ISOLATE_DATA_FIELDS(CASE)
 #undef CASE
       default:
@@ -562,8 +591,10 @@ class IsolateData final {
   // The entries in this array are tagged pointers to Code objects.
   Address builtin_table_[Builtins::kBuiltinCount] = {};
 
+#if V8_ENABLE_WEBASSEMBLY
   wasm::StackMemory* active_stack_ = nullptr;
-  Tagged<Object> active_suspender_ = Smi::zero();
+  Tagged<WasmSuspenderObject> active_suspender_;
+#endif
 
   // Stamp value which is increased on every
   // v8::Isolate::DateTimeConfigurationChangeNotification(..).
@@ -579,6 +610,9 @@ class IsolateData final {
   struct RawArgument {
     uint8_t storage_[kDoubleSize];
   } raw_arguments_[2] = {};
+
+  // Counts deopt points if deopt_every_n_times is enabled.
+  uint64_t stress_deopt_count_ = 0;
 
 #if V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
   // The entries in this array are dispatch handles for builtins with SFI's.

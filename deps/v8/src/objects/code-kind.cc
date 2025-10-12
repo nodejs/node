@@ -18,15 +18,24 @@ const char* CodeKindToString(CodeKind kind) {
   UNREACHABLE();
 }
 
-const char* CodeKindToMarker(CodeKind kind, bool context_specialized) {
+const char* CodeKindToMarker(CodeKind kind, bool context_specialized,
+                             BytecodeOffset osr_offset) {
   switch (kind) {
     case CodeKind::INTERPRETED_FUNCTION:
       return "~";
     case CodeKind::BASELINE:
       return "^";
     case CodeKind::MAGLEV:
+      if (!osr_offset.IsNone()) {
+        DCHECK(!context_specialized);
+        return "o+";
+      }
       return context_specialized ? "+'" : "+";
     case CodeKind::TURBOFAN_JS:
+      if (!osr_offset.IsNone()) {
+        DCHECK(!context_specialized);
+        return "o*";
+      }
       return context_specialized ? "*'" : "*";
     default:
       return "";

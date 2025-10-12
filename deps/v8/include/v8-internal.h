@@ -421,10 +421,10 @@ constexpr size_t kMaxCppHeapPointers = 0;
 
 #endif  // V8_COMPRESS_POINTERS
 
-// The number of tags reserved for embedder data. The value is picked
-// arbitrarily. In Chrome there are 4 embedders, so at least 4 tags are needed.
-// A generic tag was used for embedder data before, so one tag is used for that.
-#define V8_EMBEDDER_DATA_TAG_COUNT 5
+// The number of tags reserved for embedder data stored in internal fields. The
+// value is picked arbitrarily, and is slightly larger than the number of tags
+// currently used in Chrome.
+#define V8_EMBEDDER_DATA_TAG_COUNT 15
 
 // Generic tag range struct to represent ranges of type tags.
 //
@@ -566,7 +566,6 @@ enum ExternalPointerTag : uint16_t {
   // Placeholders for embedder data.
   kFirstEmbedderDataTag,
   kLastEmbedderDataTag = kFirstEmbedderDataTag + V8_EMBEDDER_DATA_TAG_COUNT - 1,
-  kEmbedderDataSlotPayloadTag = kLastEmbedderDataTag,
   // This tag essentially stands for a `void*` pointer in the V8 API, and it is
   // the Embedder's responsibility to ensure type safety (against substitution)
   // and lifetime validity of these objects.
@@ -1025,16 +1024,12 @@ class Internals {
   using Tagged_t = uint32_t;
   struct StaticReadOnlyRoot {
 #ifdef V8_ENABLE_WEBASSEMBLY
-#ifdef V8_INTL_SUPPORT
-    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x67b9;
-#else
-    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x5b1d;
-#endif
+    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x20001;
 #else
 #ifdef V8_INTL_SUPPORT
-    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x6511;
+    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x6559;
 #else
-    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x5875;
+    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x58bd;
 #endif
 #endif
 
@@ -1328,18 +1323,6 @@ class Internals {
 #endif
   }
 
-  V8_DEPRECATED(
-      "Use GetCurrentIsolateForSandbox() instead, which is guaranteed to "
-      "return the same isolate since https://crrev.com/c/6458560.")
-  V8_INLINE static v8::Isolate* GetIsolateForSandbox(Address obj) {
-#ifdef V8_ENABLE_SANDBOX
-    return GetCurrentIsolate();
-#else
-    // Not used in non-sandbox mode.
-    return nullptr;
-#endif
-  }
-
   // Returns v8::Isolate::Current(), but without needing to include the
   // v8-isolate.h header.
   V8_EXPORT static v8::Isolate* GetCurrentIsolate();
@@ -1359,6 +1342,34 @@ class Internals {
                                                     int offset) {
 #ifdef V8_ENABLE_SANDBOX
     static_assert(!tag_range.IsEmpty());
+    // See src/sandbox/external-pointer-table.h. Logic duplicated here so
+    // it can be inlined and doesn't require an additional call.
+    Address* table = IsSharedExternalPointerType(tag_range)
+                         ? GetSharedExternalPointerTableBase(isolate)
+                         : GetExternalPointerTableBase(isolate);
+    internal::ExternalPointerHandle handle =
+        ReadRawField<ExternalPointerHandle>(heap_object_ptr, offset);
+    uint32_t index = handle >> kExternalPointerIndexShift;
+    std::atomic<Address>* ptr =
+        reinterpret_cast<std::atomic<Address>*>(&table[index]);
+    Address entry = std::atomic_load_explicit(ptr, std::memory_order_relaxed);
+    ExternalPointerTag actual_tag = static_cast<ExternalPointerTag>(
+        (entry & kExternalPointerTagMask) >> kExternalPointerTagShift);
+    if (V8_LIKELY(tag_range.Contains(actual_tag))) {
+      return entry & kExternalPointerPayloadMask;
+    } else {
+      return 0;
+    }
+    return entry;
+#else
+    return ReadRawField<Address>(heap_object_ptr, offset);
+#endif  // V8_ENABLE_SANDBOX
+  }
+
+  V8_INLINE static Address ReadExternalPointerField(
+      v8::Isolate* isolate, Address heap_object_ptr, int offset,
+      ExternalPointerTagRange tag_range) {
+#ifdef V8_ENABLE_SANDBOX
     // See src/sandbox/external-pointer-table.h. Logic duplicated here so
     // it can be inlined and doesn't require an additional call.
     Address* table = IsSharedExternalPointerType(tag_range)

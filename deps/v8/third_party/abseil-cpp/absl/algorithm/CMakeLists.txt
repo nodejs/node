@@ -49,8 +49,8 @@ absl_cc_library(
   DEPS
     absl::algorithm
     absl::config
+    absl::core_headers
     absl::meta
-    absl::nullability
   PUBLIC
 )
 
@@ -63,7 +63,6 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::algorithm_container
-    absl::base
     absl::config
     absl::core_headers
     absl::memory

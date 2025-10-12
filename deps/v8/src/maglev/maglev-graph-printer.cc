@@ -444,6 +444,7 @@ void PrintSingleDeoptFrame(
             if (lazy_deopt_info_if_top_frame &&
                 lazy_deopt_info_if_top_frame->IsResultRegister(reg)) {
               os << "<result>";
+              if (current_input_location) current_input_location++;
             } else {
               os << PrintNodeLabel(node) << ":";
               PrintInputLocationAndAdvance(os, node, current_input_location);
@@ -633,8 +634,13 @@ void PrintExceptionHandlerPoint(std::ostream& os,
   DCHECK(block->is_exception_handler_block());
 
   if (!block->has_phi()) {
+    PrintVerticalArrows(os, targets);
+    PrintPadding(os, max_node_id, 0);
+
+    os << "  ↳ throw (b" << block->id() << ")\n";
     return;
   }
+
   Phi* first_phi = block->phis()->first();
   CHECK_NOT_NULL(first_phi);
   int handler_offset = first_phi->merge_state()->merge_offset();
@@ -659,7 +665,7 @@ void PrintExceptionHandlerPoint(std::ostream& os,
   PrintVerticalArrows(os, targets);
   PrintPadding(os, max_node_id, 0);
 
-  os << "  ↳ throw @" << handler_offset << " : {";
+  os << "  ↳ throw @" << handler_offset << " (b" << block->id() << ") : {";
   bool first = true;
   lazy_frame->as_interpreted().frame_state()->ForEachValue(
       lazy_frame->as_interpreted().unit(),

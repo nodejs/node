@@ -548,23 +548,17 @@ bool JSFunction::is_compiled(IsolateForSandbox isolate) const {
 }
 
 bool JSFunction::NeedsResetDueToFlushedBytecode(Isolate* isolate) {
-  // Do a raw read for shared and code fields here since this function may be
-  // called on a concurrent thread. JSFunction itself should be fully
-  // initialized here but the SharedFunctionInfo, Code objects may not be
-  // initialized. We read using acquire loads to defend against that.
-  // TODO(v8) the branches for !IsSharedFunctionInfo() and !IsCode() are
-  // probably dead code by now. Investigate removing them or replacing them
-  // with CHECKs.
-  Tagged<Object> maybe_shared =
-      ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
-  Tagged<SharedFunctionInfo> shared;
-  if (!TryCast(maybe_shared, &shared)) return false;
+  // The function is only used sequentially. Concurrent cases need to take care
+  // of loading the fields themselves.
+  Tagged<SharedFunctionInfo> sfi = TrustedCast<SharedFunctionInfo>(shared());
+  Tagged<Code> code = TrustedCast<Code>(raw_code(isolate));
+  return NeedsResetDueToFlushedBytecode(isolate, sfi, code);
+}
 
-  Tagged<Object> maybe_code = raw_code(isolate, kAcquireLoad);
-  Tagged<Code> code;
-  if (!TryCast(maybe_code, &code)) return false;
-
-  return !shared->is_compiled() &&
+bool JSFunction::NeedsResetDueToFlushedBytecode(Isolate* isolate,
+                                                Tagged<SharedFunctionInfo> sfi,
+                                                Tagged<Code> code) {
+  return !sfi->is_compiled() &&
          (code->builtin_id() != Builtin::kCompileLazy ||
           // With leaptiering we can have CompileLazy as the code object but
           // still an optimization trampoline installed.

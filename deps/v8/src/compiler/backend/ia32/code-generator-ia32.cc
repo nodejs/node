@@ -344,6 +344,34 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Zone* zone_;
 };
 
+class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
+                                     Register value, Register scratch)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        scratch_(scratch),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    __ PreCheckSkippedWriteBarrier(object_, value_, scratch_, exit());
+
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
+                                                      save_fp_mode);
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Register const scratch_;
+  Zone* zone_;
+};
+
 }  // namespace
 
 #define ASSEMBLE_COMPARE(asm_instr)                              \
@@ -716,8 +744,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
-    case kArchCallWasmFunctionIndirect:
-    case kArchResumeWasmContinuation: {
+    case kArchCallWasmFunctionIndirect: {
       if (arch_opcode == kArchCallWasmFunction) {
         // This should always use immediate inputs since we don't have a
         // constant pool on this arch.
@@ -732,9 +759,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else if (arch_opcode == kArchCallWasmFunctionIndirect) {
         DCHECK(!HasImmediateInput(instr, 0));
         __ CallWasmCodePointer(i.InputRegister(0));
-      } else {
-        CHECK_EQ(arch_opcode, kArchResumeWasmContinuation);
-        __ Call(i.InputRegister(0));
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -1024,6 +1048,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchStoreSkippedWriteBarrier:  // Fall thrugh.
+    case kArchAtomicStoreSkippedWriteBarrier: {
+      Register object = i.InputRegister(0);
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      Register value = i.InputRegister(index);
+      Register scratch = i.TempRegister(0);
+
+      if (v8_flags.debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ cmp(value, Immediate(kClearedWeakHeapObjectLower32));
+        __ Check(not_equal, AbortReason::kOperandIsCleared);
+      }
+
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+          this, object, value, scratch);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
+
+      if (arch_opcode == kArchStoreSkippedWriteBarrier) {
+        __ mov(operand, value);
+      } else {
+        DCHECK_EQ(arch_opcode, kArchAtomicStoreSkippedWriteBarrier);
+        __ mov(scratch, value);
+        __ xchg(scratch, operand);
+      }
+      break;
+    }
+    case kArchStoreIndirectSkippedWriteBarrier:
     case kArchStoreIndirectWithWriteBarrier:
       UNREACHABLE();
     case kArchStackSlot: {

@@ -28,8 +28,8 @@ namespace internal {
   T(WrongValueType, "Internal error. Wrong value type.")                       \
   T(IcuError, "Internal error. Icu error.")                                    \
   /* TypeError */                                                              \
-  T(ApplyNonFunction,                                                          \
-    "Function.prototype.apply was called on %, which is % and not a "          \
+  T(TargetNonFunction,                                                         \
+    "% was called on %, which is % and not a "                                 \
     "function")                                                                \
   T(ArgumentsDisallowedInInitializerAndStaticBlock,                            \
     "'arguments' is not allowed in class field initializer or static "         \
