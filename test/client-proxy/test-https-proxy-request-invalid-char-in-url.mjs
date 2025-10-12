@@ -66,7 +66,7 @@ for (const testCase of testCases) {
     url: severHost,
     headers: { host: severHost },
   });
-  https.request(url, (res) => {
+  https.request(url, common.mustCall((res) => {
     res.on('error', common.mustNotCall());
     res.setEncoding('utf8');
     res.on('data', () => {});
@@ -80,5 +80,5 @@ for (const testCase of testCases) {
         assert.deepStrictEqual(new Set(logs), expectedProxyLogs);
       }
     }));
-  }).on('error', common.mustNotCall()).end();
+  })).on('error', common.mustNotCall()).end();
 }

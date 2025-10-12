@@ -12,16 +12,16 @@ import { Worker } from 'node:worker_threads';
 const expectedProxyLogs = new Set();
 const proxyWorker = new Worker(fixtures.path('proxy-server-worker.js'));
 
-proxyWorker.on('message', (message) => {
+proxyWorker.on('message', common.mustCall((message) => {
   console.log('Received message from worker:', message.type);
   if (message.type === 'proxy-listening') {
-    startTest(message.port);
+    startTest(message.port).then(common.mustCall());
   } else if (message.type === 'proxy-stopped') {
     assert.deepStrictEqual(new Set(message.logs), expectedProxyLogs);
     // Close the server after the proxy is stopped.
     proxyWorker.terminate();
   }
-});
+}, 2));
 
 const requests = new Set();
 // Create a server that records the requests it gets.
@@ -74,7 +74,7 @@ async function startTest(proxyPort) {
         'proxy-connection': 'close',
       },
     });
-    http.request(url, (res) => {
+    http.request(url, common.mustCall((res) => {
       res.on('error', common.mustNotCall());
       res.setEncoding('utf8');
       res.on('data', () => {});
@@ -88,6 +88,6 @@ async function startTest(proxyPort) {
           proxyWorker.postMessage({ type: 'stop-proxy' });
         }
       }));
-    }).on('error', common.mustNotCall()).end();
+    })).on('error', common.mustNotCall()).end();
   }
 }
