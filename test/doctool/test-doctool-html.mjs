@@ -5,7 +5,7 @@ import assert from 'assert';
 import { readFileSync } from 'fs';
 
 import * as html from '../../tools/doc/html.mjs';
-import replaceLinks from '../../tools/doc/markdown.mjs';
+import { replaceLinks } from '../../tools/doc/markdown.mjs';
 import {
   rehypeRaw,
   rehypeStringify,

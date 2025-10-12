@@ -32,7 +32,7 @@ import { unified } from 'unified';
 
 import * as html from './html.mjs';
 import * as json from './json.mjs';
-import replaceLinks from './markdown.mjs';
+import { replaceLinks } from './markdown.mjs';
 
 // Parse the args.
 // Don't use nopt or whatever for this. It's simple enough.
