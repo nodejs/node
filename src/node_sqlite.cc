@@ -197,8 +197,8 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
   Local<String> js_errstr;
   Local<String> js_errmsg;
   Local<Object> e;
-  if (!String::NewFromUtf8(isolate, errstr).ToLocal(&js_errmsg) ||
-      !String::NewFromUtf8(isolate, errmsg).ToLocal(&js_errstr) ||
+  if (!String::NewFromUtf8(isolate, errstr).ToLocal(&js_errstr) ||
+      !String::NewFromUtf8(isolate, errmsg).ToLocal(&js_errmsg) ||
       !CreateSQLiteError(isolate, message).ToLocal(&e) ||
       e->Set(isolate->GetCurrentContext(),
              Environment::GetCurrent(isolate)->errcode_string(),

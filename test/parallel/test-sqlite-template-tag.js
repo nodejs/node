@@ -103,13 +103,13 @@ test('sql.db returns the associated DatabaseSync instance', () => {
 
 test('failed prepares throw', () => {
   assert.throws(() => {
-    sql.all`SELECT * FROM does_not_exist`; // eslint-disable-line no-unused-expressions
+    sql.all`SELECT * FROM does_not_exist`;
   }, {
     name: 'Error',
     message: 'Failed to prepare statement',
     code: 'ERR_SQLITE_ERROR',
     errcode: 1,
-    errstr: 'no such table: does_not_exist',
-    errmsg: 'SQL logic error'
+    errstr: 'SQL logic error',
+    errmsg: 'no such table: does_not_exist'
   });
 });
