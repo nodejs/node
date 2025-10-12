@@ -1066,6 +1066,7 @@ inline v8::Local<v8::String> Uint32ToString(v8::Local<v8::Context> context,
       ->ToString(context)
       .ToLocalChecked();
 }
+bool SerializeHeapProfile(v8::Isolate* isolate, std::ostringstream& out_stream);
 
 }  // namespace node
 
