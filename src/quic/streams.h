@@ -26,7 +26,6 @@ class Stream;
 
 using Ngtcp2Source = bob::SourceImpl<ngtcp2_vec>;
 
-
 // When a request to open a stream is made before a Session is able to actually
 // open a stream (either because the handshake is not yet sufficiently complete
 // or concurrency limits are temporarily reached) then the request to open the
@@ -393,36 +392,32 @@ class Stream final : public AsyncWrap,
   void Unschedule();
 };
 }  // namespace quic
-class DataQueueFeeder final: public AsyncWrap {
+class DataQueueFeeder final : public AsyncWrap {
  public:
-using Next = bob::Next<DataQueue::Vec>;
+  using Next = bob::Next<DataQueue::Vec>;
 
-  DataQueueFeeder(Environment* env,
-           v8::Local<v8::Object> object);
+  DataQueueFeeder(Environment* env, v8::Local<v8::Object> object);
 
   JS_CONSTRUCTOR(DataQueueFeeder);
   JS_BINDING_INIT_BOILERPLATE();
 
   static BaseObjectPtr<DataQueueFeeder> Create();
 
-  void setDataQueue(std::shared_ptr<DataQueue> queue) {
-    dataQueue_ = queue;
-  }
+  void setDataQueue(std::shared_ptr<DataQueue> queue) { dataQueue_ = queue; }
 
   void tryWakePulls();
   void DrainAndClose();
 
   struct PendingPull {
     Next next;
-    explicit PendingPull(Next next)
-        : next(std::move(next)) {}
+    explicit PendingPull(Next next) : next(std::move(next)) {}
   };
 
   void addPendingPull(PendingPull toAdd) {
     pendingPulls_.emplace_back(std::move(toAdd));
   }
 
-  bool Done() {return done;};
+  bool Done() { return done; }
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(DataQueueFeeder)
@@ -433,12 +428,9 @@ using Next = bob::Next<DataQueue::Vec>;
   JS_METHOD(Error);
   JS_METHOD(Ready);
 
-
  private:
   std::shared_ptr<DataQueue> dataQueue_;
   Global<Promise::Resolver> readFinish_;
-
-
 
   std::deque<PendingPull> pendingPulls_;
   bool done = false;
