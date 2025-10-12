@@ -475,7 +475,7 @@ added: v23.8.0
 -->
 
 * `options` {Object}
-  * `body` {ArrayBuffer | ArrayBufferView | Blob}
+  * `body` {ArrayBuffer | ArrayBufferView | Blob | ReadableStream<Uint8Array>}
   * `sendOrder` {number}
 * Returns: {Promise} for a {quic.QuicStream}
 
@@ -489,7 +489,7 @@ added: v23.8.0
 -->
 
 * `options` {Object}
-  * `body` {ArrayBuffer | ArrayBufferView | Blob}
+  * `body` {ArrayBuffer | ArrayBufferView | Blob | ReadableStream<Uint8Array>}
   * `sendOrder` {number}
 * Returns: {Promise} for a {quic.QuicStream}
 
@@ -820,7 +820,7 @@ The callback to invoke when the stream is reset. Read/write.
 added: v23.8.0
 -->
 
-* Type: {ReadableStream}
+* Type: {ReadableStream | undefined}
 
 ### `stream.session`
 
