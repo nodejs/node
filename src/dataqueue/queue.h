@@ -16,8 +16,8 @@
 #include <vector>
 
 namespace node {
-    using v8::Local;
-    using v8::Value;
+using v8::Local;
+using v8::Value;
 
 // Represents a sequenced collection of data sources that can be
 // consumed as a single logical stream of data. Sources can be
