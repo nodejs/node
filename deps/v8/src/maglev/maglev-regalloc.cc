@@ -520,17 +520,17 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
               }
             }
           } else if (phi->owner().is_parameter() &&
-                     phi->owner().is_receiver()) {
+                     phi->owner().is_receiver() && !block->is_inline()) {
             // The receiver is a special case for a fairly silly reason:
             // OptimizedJSFrame::Summarize requires the receiver (and the
             // function) to be in a stack slot, since its value must be
             // available even though we're not deoptimizing (and thus register
             // states are not available).
             //
-            // TODO(leszeks):
-            // For inlined functions / nested graph generation, this a) doesn't
-            // work (there's no receiver stack slot); and b) isn't necessary
-            // (Summarize only looks at noninlined functions).
+            // Note that this is skipped for inlined functions / nested graph
+            // generation, since this a) wouldn't work (there's no receiver
+            // stack slot); and b) isn't necessary (Summarize only looks at
+            // noninlined functions).
             phi->regalloc_info()->Spill(compiler::AllocatedOperand(
                 compiler::AllocatedOperand::STACK_SLOT,
                 MachineRepresentation::kTagged,
@@ -1101,12 +1101,20 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     auto predecessor_id = block->predecessor_id();
     auto target = unconditional->target();
 
-    InitializeBranchTargetPhis(predecessor_id, target);
-    MergeRegisterValues(unconditional, target, predecessor_id);
-    if (target->has_phi()) {
-      for (Phi* phi : *target->phis()) {
-        UpdateUse(phi->input(predecessor_id));
+    if (target->has_state()) {
+      // Not a fallthrough.
+      InitializeBranchTargetPhis(predecessor_id, target);
+      MergeRegisterValues(unconditional, target, predecessor_id);
+      if (target->has_phi()) {
+        for (Phi* phi : *target->phis()) {
+          UpdateUse(phi->input(predecessor_id));
+        }
       }
+    } else {
+      // Fallthrough.
+      DCHECK(!target->is_edge_split_block());
+      DCHECK_EQ(unconditional->id() + 1, target->first_id());
+      DCHECK(AllUsedRegistersLiveAt(target));
     }
 
     // For JumpLoops, now update the uses of any node used in, but not defined

@@ -21,9 +21,6 @@ class MarkBit final {
   using CellType = uintptr_t;
   static_assert(sizeof(CellType) == sizeof(base::AtomicWord));
 
-  V8_ALLOW_UNUSED static inline MarkBit From(Address);
-  V8_ALLOW_UNUSED static inline MarkBit From(Tagged<HeapObject>);
-
   V8_ALLOW_UNUSED static inline MarkBit From(const Isolate* isolate, Address);
   V8_ALLOW_UNUSED static inline MarkBit From(const Isolate* isolate,
                                              Tagged<HeapObject>);
@@ -73,7 +70,7 @@ inline bool MarkBit::Set<AccessMode::NON_ATOMIC>() {
 
 template <>
 inline bool MarkBit::Set<AccessMode::ATOMIC>() {
-  return base::AsAtomicWord::Relaxed_SetBits(cell_, mask_, mask_);
+  return base::AsAtomicWord::Relaxed_SetBits(cell_, mask_);
 }
 
 template <>
@@ -151,7 +148,6 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
 
   // Gets the MarkBit for an `address` which may be unaligned (include the tag
   // bit).
-  V8_INLINE static MarkBit MarkBitFromAddress(Address address);
   V8_INLINE static MarkBit MarkBitFromAddress(MarkingBitmap* bitmap,
                                               Address address);
 
@@ -214,7 +210,6 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
                                                 Address maybe_inner_ptr);
 
  private:
-  V8_INLINE static MarkingBitmap* FromAddress(Address address);
   V8_INLINE static MarkingBitmap* FromAddress(const Isolate* isolate,
                                               Address address);
 

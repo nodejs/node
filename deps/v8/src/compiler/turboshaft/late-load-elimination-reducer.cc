@@ -577,24 +577,10 @@ void LateLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
   }
 }
 
-void LateLoadEliminationAnalyzer::InvalidateAllMaps() {
-  TRACE(">> InvalidateAllMaps");
-  memory_.InvalidateAtMapOffset();
-  TRACE(">>> Wiping all maps\n");
-  for (auto it : object_maps_) {
-    object_maps_.Set(it.second, MapMaskAndOr{});
-  }
-}
-
 void LateLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
                                                   const AllocateOp&) {
   TRACE("> ProcessAllocate(" << op_idx << ") ==> Fresh non-aliasing object");
   non_aliasing_objects_.Set(op_idx, true);
-
-  // Allocate can trigger a GC, which can shortcut references to strings after
-  // flattening. That will change the map we see on repeated loads.
-  // TODO(nicohartmann): See if we can limit this to fewer cases.
-  InvalidateAllMaps();
 }
 
 void LateLoadEliminationAnalyzer::ProcessAssumeMap(

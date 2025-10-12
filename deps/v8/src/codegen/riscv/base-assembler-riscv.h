@@ -37,9 +37,13 @@
 
 #include <stdio.h>
 
+#include <fstream>
 #include <memory>
 #include <set>
 
+#include "src/base/platform/platform.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
 #include "src/codegen/external-reference.h"
@@ -53,9 +57,29 @@
 namespace v8 {
 namespace internal {
 
-#define DEBUG_PRINTF(...)     \
-  if (v8_flags.riscv_debug) { \
-    printf(__VA_ARGS__);      \
+class DebugFile : public std::ofstream {
+ public:
+  static DebugFile& GetDebugFile() {
+    static DebugFile debug_file;
+    return debug_file;
+  }
+  ~DebugFile() { flush(); }
+  DebugFile(const DebugFile&) = delete;
+  DebugFile& operator=(const DebugFile&) = delete;
+
+ private:
+  DebugFile() : std::ofstream(v8_flags.riscv_debug_file_path) {}
+};
+
+#define DEBUG_PRINTF(...) /*                                  force 80 cols */ \
+  if (v8_flags.riscv_debug) [[unlikely]] {                                     \
+    if (v8_flags.riscv_debug_file_path) {                                      \
+      base::EmbeddedVector<char, 1024> chars;                                  \
+      SNPrintF(chars, __VA_ARGS__);                                            \
+      DebugFile::GetDebugFile() << chars.begin();                              \
+    } else {                                                                   \
+      PrintF(__VA_ARGS__);                                                     \
+    }                                                                          \
   }
 
 class SafepointTableBuilder;

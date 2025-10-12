@@ -494,7 +494,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     {
       Label transition_to_double(this), transition_to_object(this);
       TNode<NativeContext> native_context = LoadNativeContext(context);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       GotoIf(IsHeapNumber(CAST(value)), &transition_to_double);
       GotoIfNot(IsUndefined(value), &transition_to_object);
       {
@@ -524,7 +524,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
 #else
       Branch(IsHeapNumber(CAST(value)), &transition_to_double,
              &transition_to_object);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
       BIND(&transition_to_double);
       {
@@ -596,9 +596,9 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
       Label non_number_value(this);
       Label undefined_value(this);
       TNode<Float64T> double_value = TryTaggedToFloat64(value,
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
                                                         &undefined_value,
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
                                                         &non_number_value);
 
       // Make sure we do not store signalling NaNs into double arrays.
@@ -613,7 +613,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
       MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
 
       // Convert undefined to double value.
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       BIND(&undefined_value);
 
       // If we're about to introduce undefined, ensure holey elements.
@@ -631,7 +631,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
                             Uint32Constant(kUndefinedNanLower32));
       }
       MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
       BIND(&non_number_value);
     }

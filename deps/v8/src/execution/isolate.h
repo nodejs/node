@@ -503,11 +503,8 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(WasmAsyncResolvePromiseCallback, wasm_async_resolve_promise_callback,   \
     DefaultWasmAsyncResolvePromiseCallback)                                 \
   V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)      \
-  V(WasmImportedStringsEnabledCallback,                                     \
-    wasm_imported_strings_enabled_callback, nullptr)                        \
   V(WasmCustomDescriptorsEnabledCallback,                                   \
     wasm_custom_descriptors_enabled_callback, nullptr)                      \
-  V(WasmJSPIEnabledCallback, wasm_jspi_enabled_callback, nullptr)           \
   V(IsJSApiWrapperNativeErrorCallback,                                      \
     is_js_api_wrapper_native_error_callback, nullptr)                       \
   /* State for Relocatable. */                                              \
@@ -812,13 +809,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsSharedArrayBufferConstructorEnabled(
       DirectHandle<NativeContext> context);
 
-  bool IsWasmStringRefEnabled(DirectHandle<NativeContext> context);
-  bool IsWasmImportedStringsEnabled(DirectHandle<NativeContext> context);
-  // Has the JSPI flag been requested?
-  // Used only during initialization of contexts.
-  bool IsWasmJSPIRequested(DirectHandle<NativeContext> context);
-  // Has JSPI been enabled successfully?
-  bool IsWasmJSPIEnabled(DirectHandle<NativeContext> context);
   bool IsWasmCustomDescriptorsEnabled(DirectHandle<NativeContext> context);
   bool IsCompileHintsMagicEnabled(Handle<NativeContext> context);
 
@@ -1743,8 +1733,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void DumpAndResetStats();
   void DumpAndResetBuiltinsProfileData();
 
-  uint64_t* stress_deopt_count_address() { return &stress_deopt_count_; }
-
   void set_force_slow_path(bool v) { force_slow_path_ = v; }
   bool force_slow_path() const { return force_slow_path_; }
   bool* force_slow_path_address() { return &force_slow_path_; }
@@ -2329,7 +2317,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return wasm_stacks_;
   }
 
-  // Updates the stack limit, parent pointer and central stack info.
+  // Centralizes all the shared logic for switching stacks: saving the register
+  // state, updating the active stack, the stack pointer, the stack limit, the
+  // central stack info, ...
   template <wasm::JumpBuffer::StackState new_state_of_old_stack,
             wasm::JumpBuffer::StackState expected_target_state>
   void SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to, Address sp,
@@ -2742,9 +2732,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   OptimizingCompileDispatcher* optimizing_compile_dispatcher_ = nullptr;
 
   std::unique_ptr<PersistentHandlesList> persistent_handles_list_;
-
-  // Counts deopt points if deopt_every_n_times is enabled.
-  uint64_t stress_deopt_count_ = 0;
 
   bool force_slow_path_ = false;
 

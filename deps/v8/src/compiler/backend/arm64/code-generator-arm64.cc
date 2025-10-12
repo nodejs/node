@@ -383,6 +383,94 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   IndirectPointerTag indirect_pointer_tag_;
 };
 
+class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
+                                     Register value, Register scratch,
+                                     UnwindingInfoWriter* unwinding_info_writer)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        scratch_(scratch),
+        must_save_lr_(!gen->frame_access_state()->has_frame()),
+        unwinding_info_writer_(unwinding_info_writer),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    if (COMPRESS_POINTERS_BOOL) {
+      __ DecompressTagged(value_, value_);
+    }
+
+    __ PreCheckSkippedWriteBarrier(object_, value_, scratch_, exit());
+
+    if (must_save_lr_) {
+      // We need to save and restore lr if the frame was elided.
+      __ Push<MacroAssembler::kSignLR>(lr, padreg);
+      unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset(), sp);
+    }
+
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
+                                                      save_fp_mode);
+
+    if (must_save_lr_) {
+      __ Pop<MacroAssembler::kAuthLR>(padreg, lr);
+      unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
+    }
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Register const scratch_;
+  const bool must_save_lr_;
+  UnwindingInfoWriter* const unwinding_info_writer_;
+  Zone* zone_;
+};
+
+class OutOfLineVerifySkippedIndirectWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedIndirectWriteBarrier(
+      CodeGenerator* gen, Register object, Register value,
+      UnwindingInfoWriter* unwinding_info_writer)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        must_save_lr_(!gen->frame_access_state()->has_frame()),
+        unwinding_info_writer_(unwinding_info_writer),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    if (must_save_lr_) {
+      // We need to save and restore lr if the frame was elided.
+      __ Push<MacroAssembler::kSignLR>(lr, padreg);
+      unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset(), sp);
+    }
+
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(object_, value_,
+                                                              save_fp_mode);
+
+    if (must_save_lr_) {
+      __ Pop<MacroAssembler::kAuthLR>(padreg, lr);
+      unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
+    }
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  const bool must_save_lr_;
+  UnwindingInfoWriter* const unwinding_info_writer_;
+  Zone* zone_;
+};
+
 Condition FlagsConditionToCondition(FlagsCondition condition) {
   switch (condition) {
     case kEqual:
@@ -908,12 +996,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   ArchOpcode arch_opcode = ArchOpcodeField::decode(opcode);
   switch (arch_opcode) {
     case kArchCallCodeObject: {
+      CodeEntrypointTag tag =
+          i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
       if (instr->InputAt(0)->IsImmediate()) {
-        __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
+        Handle<Code> code = i.InputCode(0);
+        // TODO(ishell, http://crbug.com/435630464): move this check to
+        // MacroAssembler::Call().
+        SBXCHECK_EQ(code->entrypoint_tag(), tag);
+        __ Call(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
-        CodeEntrypointTag tag =
-            i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
@@ -937,8 +1029,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
-    case kArchCallWasmFunctionIndirect:
-    case kArchResumeWasmContinuation: {
+    case kArchCallWasmFunctionIndirect: {
       if (instr->InputAt(0)->IsImmediate()) {
         DCHECK_EQ(arch_opcode, kArchCallWasmFunction);
         Constant constant = i.ToConstant(instr->InputAt(0));
@@ -949,9 +1040,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             i.InputRegister(0),
             i.InputInt64(instr->WasmSignatureHashInputIndex()));
       } else {
-        // TODO(thibaudm): Use a WasmCodePointer for
-        // kArchResumeWasmContinuation. Can this be merged with
-        // kArchCallWasmFunctionIndirect?
         __ Call(i.InputRegister(0));
       }
       RecordCallPosition(instr);
@@ -985,12 +1073,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
     case kArchTailCallCodeObject: {
+      CodeEntrypointTag tag =
+          i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
       if (instr->InputAt(0)->IsImmediate()) {
-        __ Jump(i.InputCode(0), RelocInfo::CODE_TARGET);
+        Handle<Code> code = i.InputCode(0);
+        // TODO(ishell, http://crbug.com/435630464): move this check to
+        // MacroAssembler::Jump().
+        SBXCHECK_EQ(code->entrypoint_tag(), tag);
+        __ Jump(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
-        CodeEntrypointTag tag =
-            i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
@@ -1261,6 +1353,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Bind(ool->exit());
       break;
     }
+    case kArchStoreSkippedWriteBarrier: {
+      AddressingMode addressing_mode =
+          AddressingModeField::decode(instr->opcode());
+      Register object = i.InputRegister(0);
+      Operand offset(0);
+      if (addressing_mode == kMode_MRI) {
+        offset = Operand(i.InputInt64(1));
+      } else {
+        DCHECK_EQ(addressing_mode, kMode_MRR);
+        offset = Operand(i.InputRegister(1));
+      }
+      Register value = i.InputRegister(2);
+
+      if (v8_flags.debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ cmp(value, Operand(kClearedWeakHeapObjectLower32));
+        __ Check(ne, AbortReason::kOperandIsCleared);
+      }
+
+      DCHECK(v8_flags.verify_write_barriers);
+      Register scratch = i.TempRegister(0);
+      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+          this, object, value, scratch, &unwinding_info_writer_);
+      __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
+
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ StoreTaggedField(value, MemOperand(object, offset));
+      break;
+    }
     case kArchAtomicStoreWithWriteBarrier: {
       DCHECK_EQ(AddressingModeField::decode(instr->opcode()), kMode_MRR);
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
@@ -1292,6 +1416,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Bind(ool->exit());
       break;
     }
+    case kArchAtomicStoreSkippedWriteBarrier: {
+      DCHECK_EQ(AddressingModeField::decode(instr->opcode()), kMode_MRR);
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+      Register temp = i.TempRegister(0);
+      __ Add(temp, object, offset);
+
+      DCHECK(v8_flags.verify_write_barriers);
+      Register scratch = i.TempRegister(1);
+      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+          this, object, value, scratch, &unwinding_info_writer_);
+      __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
+
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      if (COMPRESS_POINTERS_BOOL) {
+        __ Stlr(value.W(), temp);
+      } else {
+        __ Stlr(value, temp);
+      }
+      break;
+    }
     case kArchStoreIndirectWithWriteBarrier: {
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       DCHECK_EQ(mode, RecordWriteMode::kValueIsIndirectPointer);
@@ -1316,6 +1464,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ StoreIndirectPointerField(value, MemOperand(object, offset));
       __ JumpIfMarking(ool->entry());
       __ Bind(ool->exit());
+      break;
+    }
+    case kArchStoreIndirectSkippedWriteBarrier: {
+      AddressingMode addressing_mode =
+          AddressingModeField::decode(instr->opcode());
+      Register object = i.InputRegister(0);
+      Operand offset(0);
+      if (addressing_mode == kMode_MRI) {
+        offset = Operand(i.InputInt64(1));
+      } else {
+        DCHECK_EQ(addressing_mode, kMode_MRR);
+        offset = Operand(i.InputRegister(1));
+      }
+      Register value = i.InputRegister(2);
+
+#if DEBUG
+      IndirectPointerTag tag = static_cast<IndirectPointerTag>(i.InputInt64(3));
+      DCHECK(IsValidIndirectPointerTag(tag));
+#endif  // DEBUG
+
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool = zone()->New<OutOfLineVerifySkippedIndirectWriteBarrier>(
+          this, object, value, &unwinding_info_writer_);
+      __ jmp(ool->entry());
+      __ bind(ool->exit());
+
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ StoreIndirectPointerField(value, MemOperand(object, offset));
       break;
     }
     case kArchStackSlot: {
@@ -3561,6 +3737,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Mov(dst, src);
       }
       __ Mov(dst, to, src, from);
+      break;
+    }
+    case kArm64S128MoveLane: {
+      VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
+      VRegister dst = i.OutputSimd128Register().Format(f),
+                src1 = i.InputSimd128Register(1).Format(f);
+      DCHECK_EQ(dst, i.InputSimd128Register(0).Format(f));
+      int from = i.InputInt32(2);
+      int to = i.InputInt32(3);
+      __ Mov(dst, to, src1, from);
       break;
     }
 #define SIMD_REDUCE_OP_CASE(Op, Instr, format, FORMAT)     \

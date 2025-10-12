@@ -639,11 +639,11 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   v->VisitRootPointer(
       Root::kStackRoots, nullptr,
       FullObjectSlot(continuation_preserved_embedder_data_address()));
+#if V8_ENABLE_WEBASSEMBLY
   v->VisitRootPointer(Root::kStackRoots, nullptr,
                       FullObjectSlot(&isolate_data()->active_suspender_));
 
   // Iterate over pointers on native execution stack.
-#if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope wasm_code_ref_scope;
 
   for (const std::unique_ptr<wasm::StackMemory>& stack : wasm_stacks_) {
@@ -1316,7 +1316,7 @@ MaybeDirectHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
       if (TryGetWasmSuspender(isolate, promise_reaction_job_task->handler())
               .ToHandle(&suspender)) {
         // The {promise_reaction_job_task} belongs to a suspended Wasm stack
-        return direct_handle(suspender->promise(), isolate);
+        return direct_handle(Cast<JSPromise>(suspender->promise()), isolate);
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2309,23 +2309,19 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
     wasm::StackMemory* active_stack = isolate_data_.active_stack();
     if (active_stack != nullptr) {
       wasm::StackMemory* parent = nullptr;
-      Tagged<Object> maybe_suspender = isolate_data()->active_suspender();
+      Tagged<WasmSuspenderObject> suspender =
+          isolate_data()->active_suspender();
       while (active_stack != iter.wasm_stack()) {
         parent = active_stack->jmpbuf()->parent;
         SBXCHECK_EQ(parent->jmpbuf()->state, wasm::JumpBuffer::Inactive);
+        if (v8_flags.trace_wasm_stack_switching) {
+          PrintF("Switch from stack %d to %d (throw)\n", active_stack->id(),
+                 parent->id());
+        }
         SwitchStacks<wasm::JumpBuffer::Retired, wasm::JumpBuffer::Inactive>(
             active_stack, parent, kNullAddress, kNullAddress, kNullAddress);
-        // Unconditionally update the active suspender as well. This assumes
-        // that suspenders contain exactly one stack each.
-        // Note: this is only needed for --stress-wasm-stack-switching.
-        // Otherwise the exception should have been caught by the JSPI builtin.
-        // TODO(388533754): Revisit this for core stack-switching when the
-        // suspender can encapsulate multiple stacks.
-        auto suspender = TrustedCast<WasmSuspenderObject>(maybe_suspender);
-        if (suspender->has_parent()) {
-          maybe_suspender = suspender->parent();
-        } else {
-          maybe_suspender = Smi::zero();
+        if (suspender->has_parent() && parent == suspender->parent()->stack()) {
+          suspender = suspender->parent();
         }
         RetireWasmStack(active_stack);
         active_stack = parent;
@@ -2333,7 +2329,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       if (parent) {
         // We switched at least once, update the active continuation.
         isolate_data_.set_active_stack(active_stack);
-        isolate_data()->set_active_suspender(maybe_suspender);
+        isolate_data()->set_active_suspender(suspender);
       }
     }
     // The unwinder is running on the central stack. If the target frame is in a
@@ -3331,7 +3327,8 @@ bool WalkPromiseTreeInternal(
         // If in the future we support Wasm exceptions or ignore listing in
         // Wasm, we will need to iterate through these frames. For now, we
         // only care about the resulting promise.
-        DirectHandle<JSPromise> next_promise(suspender->promise(), isolate);
+        DirectHandle<JSPromise> next_promise(
+            Cast<JSPromise>(suspender->promise()), isolate);
         bool caught = WalkPromiseTreeInternal(isolate, next_promise, callback);
         any_caught = any_caught || caught;
         any_uncaught = any_uncaught || !caught;
@@ -3751,63 +3748,7 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(
   return false;
 }
 
-bool Isolate::IsWasmStringRefEnabled(DirectHandle<NativeContext> context) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-  // If Wasm imported strings are explicitly enabled via a callback, also enable
-  // stringref.
-  v8::WasmImportedStringsEnabledCallback callback_imported_strings =
-      wasm_imported_strings_enabled_callback();
-  if (callback_imported_strings) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (callback_imported_strings(api_context)) return true;
-  }
-  // Otherwise use the runtime flag.
-  return v8_flags.experimental_wasm_stringref;
-#else
-  return false;
-#endif
-}
 
-bool Isolate::IsWasmJSPIRequested(DirectHandle<NativeContext> context) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-  if (v8_flags.wasm_jitless) return false;
-
-  v8::WasmJSPIEnabledCallback jspi_callback = wasm_jspi_enabled_callback();
-  if (jspi_callback) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (jspi_callback(api_context)) return true;
-  }
-
-  // Otherwise use the runtime flag.
-  return v8_flags.experimental_wasm_jspi;
-#else
-  return false;
-#endif
-}
-
-bool Isolate::IsWasmJSPIEnabled(DirectHandle<NativeContext> context) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-  return IsWasmJSPIRequested(context) &&
-         context->is_wasm_jspi_installed() != Smi::zero();
-#else
-  return false;
-#endif
-}
-
-bool Isolate::IsWasmImportedStringsEnabled(
-    DirectHandle<NativeContext> context) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-  v8::WasmImportedStringsEnabledCallback callback =
-      wasm_imported_strings_enabled_callback();
-  if (callback) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (callback(api_context)) return true;
-  }
-  return v8_flags.experimental_wasm_imported_strings;
-#else
-  return false;
-#endif
-}
 
 bool Isolate::IsWasmCustomDescriptorsEnabled(
     DirectHandle<NativeContext> context) {
@@ -3962,14 +3903,17 @@ template <wasm::JumpBuffer::StackState new_state_of_old_stack,
           wasm::JumpBuffer::StackState expected_target_state>
 void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to,
                            Address sp, Address fp, Address pc) {
-  // Synchronize the stack limit with the active continuation for
-  // stack-switching. This can be done before or after changing the stack
-  // pointer itself, as long as we update both before the next stack check.
-  // {StackGuard::SetStackLimitForStackSwitching} doesn't update the value of
-  // the jslimit if it contains a sentinel value, and it is also thread-safe. So
-  // if an interrupt is requested before, during or after this call, it will be
-  // preserved and handled at the next stack check.
   SBXCHECK_EQ(from->jmpbuf()->state, wasm::JumpBuffer::Active);
+  DCHECK_EQ(from, isolate_data()->active_stack());
+  constexpr bool is_resume =
+      expected_target_state == wasm::JumpBuffer::Suspended;
+#if DEBUG
+  constexpr bool is_return =
+      new_state_of_old_stack == wasm::JumpBuffer::Retired;
+  constexpr bool is_suspend =
+      new_state_of_old_stack == wasm::JumpBuffer::Suspended;
+#endif
+
   from->jmpbuf()->state = new_state_of_old_stack;
   if constexpr (new_state_of_old_stack != wasm::JumpBuffer::Retired) {
     from->jmpbuf()->sp = sp;
@@ -3977,38 +3921,70 @@ void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to,
     from->jmpbuf()->pc = pc;
     from->jmpbuf()->stack_limit =
         reinterpret_cast<void*>(stack_guard()->real_jslimit());
+
+    from->jmpbuf()->is_on_central_stack =
+        thread_local_top()->is_on_central_stack_flag_;
   }
   SBXCHECK_EQ(to->jmpbuf()->state, expected_target_state);
   to->jmpbuf()->state = wasm::JumpBuffer::Active;
+  isolate_data()->set_active_stack(to);
   DisallowGarbageCollection no_gc;
-  if constexpr (expected_target_state == wasm::JumpBuffer::Suspended) {
-    to->jmpbuf()->parent = from;
+  if constexpr (is_resume) {
+    // To resume multiple stacks at once, we have to update the parent of the
+    // tail of the list:
+    wasm::StackMemory* tail = to;
+    while (tail->jmpbuf()->parent != nullptr) {
+      tail = tail->jmpbuf()->parent;
+    }
+    tail->jmpbuf()->parent = from;
   } else {
+    // Return or suspend.
     static_assert(expected_target_state == wasm::JumpBuffer::Inactive);
-    // TODO(388533754): This check won't hold anymore with core stack-switching.
-    // Instead, we will need to validate all the intermediate stacks and also
-    // check that they don't hold central stack frames.
-    SBXCHECK_EQ(from->jmpbuf()->parent, to);
+    wasm::StackMemory* prev = from;
+    wasm::StackMemory* skipped = from->jmpbuf()->parent;
+    while (skipped != to) {
+      // Should have been checked already.
+      DCHECK(!skipped->jmpbuf()->is_on_central_stack);
+      prev = skipped;
+      skipped = skipped->jmpbuf()->parent;
+    }
+    // Clear the parent to mark the end of the suspended stack chain.
+    prev->jmpbuf()->parent = nullptr;
   }
   uintptr_t limit = reinterpret_cast<uintptr_t>(to->jmpbuf()->stack_limit);
+  // Synchronize the stack limit with the active continuation for
+  // stack-switching. This can be done before or after changing the stack
+  // pointer itself, as long as we update both before the next stack check.
+  // {StackGuard::SetStackLimitForStackSwitching} doesn't update the value of
+  // the jslimit if it contains a sentinel value, and it is also thread-safe. So
+  // if an interrupt is requested before, during or after this call, it will be
+  // preserved and handled at the next stack check.
   stack_guard()->SetStackLimitForStackSwitching(limit);
+
   // Update the central stack info.
-  if constexpr (expected_target_state == wasm::JumpBuffer::Inactive) {
-    // When returning/suspending from a stack, the parent must be on
-    // the central stack.
-    // TODO(388533754): This assumption will not hold anymore with core
-    // stack-switching, so we will need to revisit this.
-    DCHECK(IsOnCentralStack(to->jmpbuf()->sp));
+  if (!thread_local_top()->is_on_central_stack_flag_ &&
+      to->jmpbuf()->is_on_central_stack) {
+    DCHECK(is_suspend || is_return);
+    DCHECK_EQ(expected_target_state, wasm::JumpBuffer::Inactive);
     thread_local_top()->is_on_central_stack_flag_ = true;
-    thread_local_top()->central_stack_sp_ = to->jmpbuf()->sp;
+    thread_local_top()->central_stack_sp_ = to->central_stack_sp();
+#if DEBUG
+    from->set_central_stack_sp(kNullAddress);
+#endif
     thread_local_top()->central_stack_limit_ =
         reinterpret_cast<Address>(to->jmpbuf()->stack_limit);
-  } else {
-    // A suspended stack cannot hold central stack frames.
+  } else if (thread_local_top()->is_on_central_stack_flag_ &&
+             !to->jmpbuf()->is_on_central_stack) {
     thread_local_top()->is_on_central_stack_flag_ = false;
-    thread_local_top()->central_stack_sp_ = from->jmpbuf()->sp;
-    thread_local_top()->central_stack_limit_ =
-        reinterpret_cast<Address>(from->jmpbuf()->stack_limit);
+    if (is_resume) {
+      // Record the current central stack SP, we will switch back to it for
+      // non-wasm calls. Save the previous value to restore it when we return to
+      // this stack.
+      from->set_central_stack_sp(thread_local_top()->central_stack_sp_);
+      thread_local_top()->central_stack_sp_ = from->jmpbuf()->sp;
+      thread_local_top()->central_stack_limit_ =
+          reinterpret_cast<Address>(from->jmpbuf()->stack_limit);
+    }
   }
 }
 
@@ -4603,7 +4579,7 @@ void Isolate::Deinit() {
 
   if (v8_flags.print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %" PRIu64 "\n",
-           stress_deopt_count_);
+           isolate_data_.stress_deopt_count_);
   }
 
   // We must stop the logger before we tear down other components.
@@ -5628,7 +5604,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   CHECK_IMPLIES(is_shared_space_isolate(), V8_CAN_CREATE_SHARED_HEAP_BOOL);
 
-  stress_deopt_count_ = v8_flags.deopt_every_n_times;
   force_slow_path_ = v8_flags.force_slow_path;
 
   flush_denormals_ = base::FPU::GetFlushDenormals();
@@ -5659,7 +5634,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   define_own_stub_cache_ = new StubCache(this);
   materialized_object_store_ = new MaterializedObjectStore(this);
   regexp_stack_ = RegExpStack::New();
-  isolate_data()->set_regexp_static_result_offsets_vector(
+  isolate_data_.set_regexp_static_result_offsets_vector(
       jsregexp_static_offsets_vector());
   date_cache_ = new DateCache();
   interpreter_ = new interpreter::Interpreter(this);
@@ -5726,6 +5701,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   isolate_data_.is_shared_space_isolate_flag_ = is_shared_space_isolate();
   isolate_data_.uses_shared_heap_flag_ = has_shared_space();
+
+  isolate_data_.stress_deopt_count_ = v8_flags.deopt_every_n_times;
 
   if (use_shared_space_isolate && !is_shared_space_isolate() &&
       use_shared_space_isolate->heap()
@@ -6046,9 +6023,18 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #if V8_STATIC_ROOTS_BOOL
   // Protect the payload of wasm null.
   if (!page_allocator()->DecommitPages(
-          reinterpret_cast<void*>(factory()->wasm_null()->payload()),
-          WasmNull::kSize - kTaggedSize)) {
+          reinterpret_cast<void*>(factory()->wasm_null()->first_payload()),
+          WasmNull::kFirstPayloadSize)) {
     V8::FatalProcessOutOfMemory(this, "decommitting WasmNull payload");
+  }
+  if (v8_flags.unmap_holes) {
+    // Protect the second payload of wasm null, containing the holes.
+    if (!page_allocator()->DecommitPages(
+            reinterpret_cast<void*>(factory()->wasm_null()->second_payload()),
+            WasmNull::kSecondPayloadSize)) {
+      V8::FatalProcessOutOfMemory(
+          this, "decommitting second WasmNull payload (holes)");
+    }
   }
 #endif  // V8_STATIC_ROOTS_BOOL
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -6636,6 +6622,9 @@ void Isolate::WasmInitJSPIFeature() {
   if (v8_flags.wasm_jitless) return;
 
   if (isolate_data_.active_stack() == nullptr) {
+    // Add a sentinel active stack and active suspender object to represent the
+    // initial stack. This ensures that other stacks/suspenders created via
+    // WasmFX/JSPI always have a parent to suspend to.
     wasm::StackMemory* stack(wasm::StackMemory::GetCentralStackView(this));
     stack->jmpbuf()->state = wasm::JumpBuffer::Active;
     this->wasm_stacks().emplace_back(stack);
@@ -6645,6 +6634,10 @@ void Isolate::WasmInitJSPIFeature() {
              stack->jslimit(), reinterpret_cast<void*>(stack->base()));
     }
     HandleScope scope(this);
+    DirectHandle<WasmSuspenderObject> suspender =
+        factory()->NewWasmSuspenderObject();
+    suspender->set_stack(this, stack);
+    isolate_data_.set_active_suspender(*suspender);
     isolate_data_.set_active_stack(stack);
   }
 }

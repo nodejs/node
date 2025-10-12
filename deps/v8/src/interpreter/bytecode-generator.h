@@ -73,11 +73,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   bool IsPrototypeAssignment(
       Statement* stmt, Variable** var,
-      base::SmallVector<std::pair<Property*, Expression*>,
-                        kInitialPropertyCount>& properties);
+      base::SmallVector<std::pair<const AstRawString*, Expression*>,
+                        kInitialPropertyCount>& properties,
+      std::unordered_set<const AstRawString*>& duplicate);
 
   void VisitConsecutivePrototypeAssignments(
-      const base::SmallVector<std::pair<Property*, Expression*>,
+      const base::SmallVector<std::pair<const AstRawString*, Expression*>,
                               kInitialPropertyCount>& properties,
       Variable* var);
   // Visiting function for declarations list and statements are overridden.
@@ -533,7 +534,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   FeedbackSlot GetDummyCompareICSlot();
 
   int GetCachedCreateClosureSlot(FunctionLiteral* literal);
-
+  int GetNewClosureSlot(FunctionLiteral* literal);
   void AddToEagerLiteralsIfEager(FunctionLiteral* literal);
 
   static constexpr ToBooleanMode ToBooleanModeFromTypeHint(TypeHint type_hint) {

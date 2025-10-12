@@ -125,7 +125,8 @@ TEST_F(SpacesTest, WriteBarriers) {
     EXPECT_EQ(1, compaction_space->CountTotalPages());
 
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-    MutablePageMetadata* metadata = MutablePageMetadata::FromHeapObject(object);
+    MutablePageMetadata* metadata =
+        MutablePageMetadata::FromHeapObject(i_isolate(), object);
 
     // Marking states.
     EXPECT_FALSE(chunk->IsMarking());

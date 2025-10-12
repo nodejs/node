@@ -499,7 +499,7 @@ constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged<MaybeObject> obj) {
 
 bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj) {
 #ifdef V8_ENABLE_SANDBOX
-  return !InsideSandbox(obj.address()) ||
+  return OutsideSandbox(obj.address()) ||
          MemoryChunk::FromHeapObject(obj)->SandboxSafeInReadOnlySpace();
 #else
   return true;
@@ -874,11 +874,11 @@ ElementsKind Object::OptimalElementsKind(Tagged<Object> obj,
   // if (IsUninitializedHole(heap_object)) {
   //   return PACKED_SMI_ELEMENTS;
   // }
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   if (IsUndefined(heap_object, GetReadOnlyRoots())) {
     return HOLEY_DOUBLE_ELEMENTS;
   }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   return PACKED_ELEMENTS;
 }
 

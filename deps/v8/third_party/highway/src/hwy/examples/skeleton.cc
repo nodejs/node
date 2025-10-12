@@ -40,6 +40,7 @@ namespace skeleton {
 // targets to co-exist in the same translation unit. Required when using dynamic
 // dispatch, otherwise optional.
 namespace HWY_NAMESPACE {
+namespace {
 
 // Highway ops reside here; ADL does not find templates nor builtins.
 namespace hn = hwy::HWY_NAMESPACE;
@@ -87,6 +88,7 @@ void FloorLog2(const uint8_t* HWY_RESTRICT values, size_t count,
   }
 }
 
+}  // namespace
 // NOLINTNEXTLINE(google-readability-namespace-comments)
 }  // namespace HWY_NAMESPACE
 }  // namespace skeleton

@@ -19,6 +19,10 @@
   'wasm-pause': [SKIP],
 }],  # variant == jitless
 
+['variant in (jitless, nooptimization)', {
+  'js-wasm-wrapper-inlining-lazy-deopt': [SKIP],
+}],  # variant in (jitless, nooptimization)
+
 ['single_generation', {
   # TODO(42204563): These tests rely on the shared heap which is incompatible
   # with single generation.

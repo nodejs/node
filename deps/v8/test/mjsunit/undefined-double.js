@@ -17,7 +17,7 @@ function CreateBuffer(i32pattern) {
 
 function assertHasHoleyDoubles(a) {
   // If undefined doubles are disabled, this is ignored.
-  if(%IsExperimentalUndefinedDoubleEnabled()) {
+  if(%IsUndefinedDoubleEnabled()) {
     assertTrue(%HasDoubleElements(a));
     assertTrue(%HasHoleyElements(a));
   }
@@ -48,7 +48,7 @@ function assertHasHoleyDoubles(a) {
   arr[3] = 3.14;
   arr[1] = undefined;
 
-  if(%IsExperimentalUndefinedDoubleEnabled()) {
+  if(%IsUndefinedDoubleEnabled()) {
     assertTrue(%HasDoubleElements(arr));
   }
   assertFalse(foo(arr, 0));
@@ -66,7 +66,7 @@ function assertHasHoleyDoubles(a) {
   arr[3] = 3.14;
   arr[1] = undefined;
 
-  if(%IsExperimentalUndefinedDoubleEnabled()) {
+  if(%IsUndefinedDoubleEnabled()) {
     assertTrue(%HasDoubleElements(arr));
   }
   assertEquals(undefined, foo(arr, 0));
@@ -94,7 +94,7 @@ function assertHasHoleyDoubles(a) {
     const f64 = new Float64Array(CreateBuffer(kUndefinedPattern));
     assertEquals(undefined, foo(true, arr, f64)[0]);
     const r = foo(false, arr, f64);
-    if(%IsExperimentalUndefinedDoubleEnabled()) {
+    if(%IsUndefinedDoubleEnabled()) {
       assertTrue(%HasDoubleElements(r));
     }
     assertNotEquals(undefined, r[0]);
@@ -111,7 +111,7 @@ function assertHasHoleyDoubles(a) {
     const f64 = new Float64Array(CreateBuffer(kUndefinedPattern));
 
     let r = foo(false, arr, f64);
-    if(%IsExperimentalUndefinedDoubleEnabled()) {
+    if(%IsUndefinedDoubleEnabled()) {
       assertTrue(%HasDoubleElements(r));
     }
     assertNotEquals(undefined, r[0]);
@@ -133,7 +133,7 @@ function assertHasHoleyDoubles(a) {
   arr.__proto__ = arr_base;
   arr[7] = 7.7;
   foo(arr);
-  if(%IsExperimentalUndefinedDoubleEnabled()) {
+  if(%IsUndefinedDoubleEnabled()) {
     %HasDoubleElements(arr);
   }
   assertEquals(3, arr_base[3]);
@@ -163,14 +163,14 @@ for (var i = 50; i < 55; i++) {
 
   %PrepareFunctionForOptimization(foo);
   let r = foo();
-  if(%IsExperimentalUndefinedDoubleEnabled()) {
+  if(%IsUndefinedDoubleEnabled()) {
     assertTrue(%HasDoubleElements(r));
   }
   assertEquals(52, r[52]);
   assertEquals(undefined, r[42]);
   %OptimizeFunctionOnNextCall(foo);
   r = foo();
-  if(%IsExperimentalUndefinedDoubleEnabled()) {
+  if(%IsUndefinedDoubleEnabled()) {
     assertTrue(%HasDoubleElements(r));
   }
   assertEquals(52, r[52]);
@@ -199,7 +199,7 @@ for (var i = 50; i < 55; i++) {
   assertEquals(undefined, r[4099]);
   assertEquals(undefined, r[4100]);
   assertEquals(1.2, r[4101]);
-  if(%IsExperimentalUndefinedDoubleEnabled()) {
+  if(%IsUndefinedDoubleEnabled()) {
     assertTrue(%HasDoubleElements(r));
   }
 })();
@@ -215,7 +215,7 @@ for (var i = 50; i < 55; i++) {
   %PrepareFunctionForOptimization(foo);
   let r = foo();
   assertArrayEquals([-2.2, undefined, 4.4], r);
-  if(%IsExperimentalUndefinedDoubleEnabled()) {
+  if(%IsUndefinedDoubleEnabled()) {
     assertTrue(%HasDoubleElements(r));
     assertTrue(%HasHoleyElements(r));
   }

@@ -632,7 +632,6 @@ TEST(RandenTest, IsFastOrSlow) {
   //
   // linux, optimized ~5ns
   // ppc, optimized ~7ns
-  // nacl (slow), ~1100ns
   //
   // `kCount` is chosen below so that, in debug builds and without hardware
   // acceleration, the test (assuming ~1us per call) should finish in ~0.1s

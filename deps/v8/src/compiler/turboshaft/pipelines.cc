@@ -13,6 +13,7 @@
 #include "src/compiler/turboshaft/csa-memory-optimization-phase.h"
 #include "src/compiler/turboshaft/debug-feature-lowering-phase.h"
 #include "src/compiler/turboshaft/instruction-selection-normalization-reducer.h"
+#include "src/compiler/turboshaft/int64-lowering-phase.h"
 #include "src/compiler/turboshaft/load-store-simplification-reducer.h"
 
 namespace v8::internal::compiler::turboshaft {

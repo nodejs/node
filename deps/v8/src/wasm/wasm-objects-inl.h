@@ -187,14 +187,6 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_size, size_t,
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, managed_native_module,
                             TrustedManaged<wasm::NativeModule>,
                             kProtectedManagedNativeModuleOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, new_allocation_limit_address,
-                    Address*, kNewAllocationLimitAddressOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, new_allocation_top_address,
-                    Address*, kNewAllocationTopAddressOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, old_allocation_limit_address,
-                    Address*, kOldAllocationLimitAddressOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, old_allocation_top_address,
-                    Address*, kOldAllocationTopAddressOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, globals_start, uint8_t*,
                     kGlobalsStartOffset)
 ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals,
@@ -258,8 +250,6 @@ ACCESSORS(WasmTrustedInstanceData, feedback_vectors, Tagged<FixedArray>,
           kFeedbackVectorsOffset)
 ACCESSORS(WasmTrustedInstanceData, well_known_imports, Tagged<FixedArray>,
           kWellKnownImportsOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, stress_deopt_counter_address,
-                    Address, kStressDeoptCounterOffset)
 
 void WasmTrustedInstanceData::clear_padding() {
   constexpr int kPaddingBytes = FIELD_SIZE(kOptionalPaddingOffset);
@@ -459,14 +449,6 @@ PROTECTED_POINTER_ACCESSORS(WasmExportedFunctionData, instance_data,
 CODE_POINTER_ACCESSORS(WasmExportedFunctionData, c_wrapper_code,
                        kCWrapperCodeOffset)
 
-PRIMITIVE_ACCESSORS(WasmExportedFunctionData, sig, const wasm::CanonicalSig*,
-                    kSigOffset)
-
-wasm::CanonicalTypeIndex WasmExportedFunctionData::sig_index() const {
-  return wasm::CanonicalTypeIndex{
-      static_cast<uint32_t>(canonical_type_index())};
-}
-
 bool WasmExportedFunctionData::is_promising() const {
   return WasmFunctionData::PromiseField::decode(js_promise_flags()) ==
          wasm::kPromise;
@@ -505,11 +487,6 @@ struct CastTraits<WasmJSFunction> {
     return WasmJSFunction::IsWasmJSFunction(value);
   }
 };
-
-// WasmCapiFunctionData
-wasm::CanonicalTypeIndex WasmCapiFunctionData::sig_index() const {
-  return wasm::CanonicalTypeIndex{static_cast<uint32_t>(canonical_sig_index())};
-}
 
 // WasmCapiFunction
 WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {

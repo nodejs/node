@@ -16,7 +16,6 @@
 namespace v8::internal::maglev {
 
 // We assume that we have visited all the deopt infos at this point.
-// ClearReturnedValueUsesFromDeoptFrames would do that.
 // That means that we don't have any uses of ReturnedValue in deopt infos.
 // If the node has an use > 0, we must create a conversion to tagged.
 class ReturnedValueRepresentationSelector {
@@ -54,7 +53,10 @@ class MaglevInliner {
 
   bool is_tracing_enabled() const { return graph_->is_tracing_enabled(); }
 
+  bool CanInlineCall();
   MaglevCallSiteInfo* ChooseNextCallSite();
+  bool InlineCallSites();
+  void RunOptimizer();
 
   enum class InliningResult {
     kDone,
@@ -85,11 +87,6 @@ class MaglevInliner {
   static void UpdatePredecessorsOf(BasicBlock* block, BasicBlock* prev_pred,
                                    BasicBlock* new_pred);
   void RemovePredecessorFollowing(ControlNode* control, BasicBlock* call_block);
-
-  void RemoveUnreachableBlocks() {
-    graph_->set_may_have_unreachable_blocks();
-    graph_->RemoveUnreachableBlocks();
-  }
 };
 
 }  // namespace v8::internal::maglev

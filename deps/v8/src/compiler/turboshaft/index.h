@@ -578,6 +578,9 @@ constexpr bool IsWord() {
 }
 
 template <typename T>
+concept IsWordT = IsWord<T>();
+
+template <typename T>
 constexpr bool IsValidTypeFor(RegisterRepresentation repr) {
   if (std::is_same_v<T, Any>) return true;
 

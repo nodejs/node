@@ -213,8 +213,34 @@ transitioning macro ConstructByIterable(
     implicit context: Context)(iterable: JSReceiver,
     iteratorFn: Callable): never
     labels IfConstructByArrayLike(JSArray, uintptr) {
-  const array: JSArray =
-      IterableToListConvertHoles(context, iterable, iteratorFn);
+  let array: JSArray;
+  try {
+    array = Cast<JSArray>(iterable) otherwise UseUserProvidedIterator;
+
+    const elementsKind = array.map.elements_kind;
+    // Can only use the fast path for numeric fast elements arrays, since
+    // objects in the array can have side-effects in their ToNumber conversion.
+    if (!IsFastSmiElementsKind(elementsKind) &&
+        !IsDoubleElementsKind(elementsKind)) {
+      goto UseUserProvidedIterator;
+    }
+
+    // Check that the ArrayIterator prototype's "next" method hasn't been
+    // overridden.
+    if (IsArrayIteratorProtectorCellInvalid()) goto UseUserProvidedIterator;
+
+    // Check that the iterator function is exactly
+    // Builtin::kArrayPrototypeValues.
+    const iteratorJSFn =
+        Cast<JSFunction>(iteratorFn) otherwise UseUserProvidedIterator;
+    if (!TaggedEqual(
+            iteratorJSFn.shared_function_info.untrusted_function_data,
+            SmiConstant(kArrayPrototypeValues))) {
+      goto UseUserProvidedIterator;
+    }
+  } label UseUserProvidedIterator deferred {
+    array = IterableToListConvertHoles(context, iterable, iteratorFn);
+  }
   // Max JSArray length is a valid JSTypedArray length so we just use it.
   goto IfConstructByArrayLike(array, array.length_uintptr);
 }

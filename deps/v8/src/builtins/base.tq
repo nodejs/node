@@ -170,15 +170,15 @@ extern macro RunLazy(Lazy<JSAny>): JSAny;
 // A Smi value containing a bitfield struct as its integer data.
 @useParentTypeChecker type SmiTagged<T : type extends uint31> extends Smi;
 
-const kEnableExperimentalUndefinedDouble:
-    constexpr bool generates 'V8_EXPERIMENTAL_UNDEFINED_DOUBLE_BOOL';
+const kEnableUndefinedDouble:
+    constexpr bool generates 'V8_UNDEFINED_DOUBLE_BOOL';
 // WARNING: The memory representation (i.e., in class fields and arrays) of
 // float64_or_undefined_or_hole is just a float64 that may be the undefined- or
 // hole-representing signalling NaN bit-pattern. So it's memory size is that of
 // float64 and loading and storing float64_or_undefined_or_hole emits special
 // code.
 struct float64_or_undefined_or_hole {
-  @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+  @if(V8_ENABLE_UNDEFINED_DOUBLE)
   macro Value(): float64 labels IfUndefined, IfHole {
     if (this.is_undefined) {
       goto IfUndefined;
@@ -189,7 +189,7 @@ struct float64_or_undefined_or_hole {
     return this.value;
   }
 
-  @ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+  @ifnot(V8_ENABLE_UNDEFINED_DOUBLE)
   macro Value(): float64 labels _IfUndefined, IfHole {
     if (this.is_hole) {
       goto IfHole;
@@ -198,29 +198,29 @@ struct float64_or_undefined_or_hole {
   }
 
   macro ValueUnsafeAssumeNotHole(): float64 {
-    @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+    @if(V8_ENABLE_UNDEFINED_DOUBLE) {
       dcheck(!this.is_undefined);
     }
     dcheck(!this.is_hole);
     return this.value;
   }
 
-  @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) is_undefined: bool;
+  @if(V8_ENABLE_UNDEFINED_DOUBLE) is_undefined: bool;
   is_hole: bool;
   value: float64;
 }
 
-@if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+@if(V8_ENABLE_UNDEFINED_DOUBLE)
   const kDoubleHole: float64_or_undefined_or_hole =
   float64_or_undefined_or_hole{is_undefined: false, is_hole: true, value: 0};
-@if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+@if(V8_ENABLE_UNDEFINED_DOUBLE)
   const kDoubleUndefined: float64_or_undefined_or_hole =
   float64_or_undefined_or_hole{is_undefined: true, is_hole: false, value: 0};
 
-@ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+@ifnot(V8_ENABLE_UNDEFINED_DOUBLE)
   const kDoubleHole: float64_or_undefined_or_hole =
   float64_or_undefined_or_hole{is_hole: true, value: 0};
-@ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+@ifnot(V8_ENABLE_UNDEFINED_DOUBLE)
   const kDoubleUndefined: float64_or_undefined_or_hole =
   float64_or_undefined_or_hole{is_hole: false, value: 0};
 
@@ -710,16 +710,27 @@ extern macro Is64(): constexpr bool;
 
 extern macro SelectBooleanConstant(bool): Boolean;
 
+const kCStringNull: constexpr string generates '((const char*)nullptr)';
 extern macro Print(constexpr string): void;
+extern macro Print(String, Object): void;
 extern macro Print(constexpr string, Object): void;
 extern macro Print(Object): void;
+extern macro Print(String, uintptr): void;
 extern macro Print(constexpr string, uintptr): void;
+extern macro Print(String, uint32): void;
+extern macro Print(constexpr string, uint32): void;
+extern macro Print(String, uint64): void;
+extern macro Print(constexpr string, uint64): void;
+extern macro Print(String, float32): void;
+extern macro Print(constexpr string, float32): void;
+extern macro Print(String, float64): void;
 extern macro Print(constexpr string, float64): void;
 extern macro PrintErr(constexpr string): void;
 extern macro PrintErr(constexpr string, Object): void;
 extern macro PrintErr(Object): void;
 extern macro Comment(constexpr string): void;
 extern macro DebugBreak(): void;
+extern macro PrintStringSimple(String): void;
 
 extern macro SetSupportsDynamicParameterCount(
     JSFunction, DispatchHandle): void;
@@ -2094,7 +2105,7 @@ transitioning builtin FastCreateDataProperty(
         const elements = Cast<FixedArray>(array.elements) otherwise unreachable;
         elements[index] = smiValue;
       } else if (IsDoubleElementsKind(kind)) {
-        @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+        @if(V8_ENABLE_UNDEFINED_DOUBLE) {
           const doubleElements = Cast<FixedDoubleArray>(array.elements)
               otherwise unreachable;
           if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {

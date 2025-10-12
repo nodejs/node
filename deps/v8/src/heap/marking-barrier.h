@@ -44,7 +44,7 @@ class MarkingBarrier {
   static void DeactivateYoung(Heap* heap);
   V8_EXPORT_PRIVATE static void PublishYoung(Heap* heap);
 
-  template <typename TSlot>
+  template <typename TSlot, RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
   void Write(Tagged<HeapObject> host, TSlot slot, Tagged<HeapObject> value);
   void Write(Tagged<HeapObject> host, IndirectPointerSlot slot);
   void Write(Tagged<InstructionStream> host, RelocInfo*,

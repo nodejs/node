@@ -161,11 +161,11 @@ UseInfo TruncatingUseInfoFromRepresentation(
     case MachineRepresentation::kMapWord:
       return UseInfo::AnyTagged();
     case MachineRepresentation::kFloat64:
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       if (type_hint.Maybe(Type::Undefined())) {
         return UseInfo::TruncatingFloat64OrUndefined();
       }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
       return UseInfo::TruncatingFloat64();
     case MachineRepresentation::kFloat32:
       return UseInfo::Float32();

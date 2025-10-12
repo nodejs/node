@@ -5,6 +5,7 @@ Version: N/A
 Date: 2010-06-25
 License: MIT
 License File: LICENSE
+Update Mechanism: Static (https://crbug.com/419414641)
 Security Critical: yes
 Shipped: yes
 

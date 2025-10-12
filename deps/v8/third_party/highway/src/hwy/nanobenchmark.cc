@@ -24,15 +24,16 @@
 #include <random>
 #include <vector>
 
+#include "hwy/base.h"
 #include "hwy/robust_statistics.h"
-#include "hwy/timer-inl.h"
 #include "hwy/timer.h"
 
 namespace hwy {
 namespace {
-namespace timer = hwy::HWY_NAMESPACE::timer;
-
-static const timer::Ticks timer_resolution = platform::TimerResolution();
+const timer::Ticks& GetTimerResolution() {
+  static const timer::Ticks timer_resolution = platform::TimerResolution();
+  return timer_resolution;
+}
 
 // Estimates the expected value of "lambda" values with a variable number of
 // samples until the variability "rel_mad" is less than "max_rel_mad".
@@ -58,7 +59,7 @@ timer::Ticks SampleUntilStable(const double max_rel_mad, double* rel_mad,
 
   // Percentage is too strict for tiny differences, so also allow a small
   // absolute "median absolute deviation".
-  const timer::Ticks max_abs_mad = (timer_resolution + 99) / 100;
+  const timer::Ticks max_abs_mad = (GetTimerResolution() + 99) / 100;
   *rel_mad = 0.0;  // ensure initialized
 
   for (size_t eval = 0; eval < p.max_evals; ++eval, samples_per_eval *= 2) {
@@ -76,7 +77,9 @@ timer::Ticks SampleUntilStable(const double max_rel_mad, double* rel_mad,
       // For "few" (depends also on the variance) samples, Median is safer.
       est = robust_statistics::Median(samples.data(), samples.size());
     }
-    NANOBENCHMARK_CHECK(est != 0);
+    if (est == 0) {
+      HWY_WARN("estimated duration is 0\n");
+    }
 
     // Median absolute deviation (mad) is a robust measure of 'variability'.
     const timer::Ticks abs_mad = robust_statistics::MedianAbsoluteDeviation(
@@ -122,7 +125,7 @@ size_t NumSkip(const Func func, const uint8_t* arg, const InputVec& unique,
     const timer::Ticks total = SampleUntilStable(
         p.target_rel_mad, &rel_mad, p,
         [func, arg, input]() { PreventElision(func(arg, input)); });
-    min_duration = HWY_MIN(min_duration, total - timer_resolution);
+    min_duration = HWY_MIN(min_duration, total - GetTimerResolution());
   }
 
   // Number of repetitions required to reach the target resolution.
@@ -134,7 +137,7 @@ size_t NumSkip(const Func func, const uint8_t* arg, const InputVec& unique,
           : static_cast<size_t>((max_skip + min_duration - 1) / min_duration);
   if (p.verbose) {
     printf("res=%d max_skip=%d min_dur=%d num_skip=%d\n",
-           static_cast<int>(timer_resolution), static_cast<int>(max_skip),
+           static_cast<int>(GetTimerResolution()), static_cast<int>(max_skip),
            static_cast<int>(min_duration), static_cast<int>(num_skip));
   }
   return num_skip;
@@ -194,9 +197,9 @@ void FillSubset(const InputVec& full, const FuncInput input_to_skip,
       (*subset)[idx_subset++] = next;
     }
   }
-  NANOBENCHMARK_CHECK(idx_subset == subset->size());
-  NANOBENCHMARK_CHECK(idx_omit == omit.size());
-  NANOBENCHMARK_CHECK(occurrence == count - 1);
+  HWY_DASSERT(idx_subset == subset->size());
+  HWY_DASSERT(idx_omit == omit.size());
+  HWY_DASSERT(occurrence == count - 1);
 }
 
 // Returns total ticks elapsed for all inputs.
@@ -239,12 +242,11 @@ HWY_DLLEXPORT int Unpredictable1() { return timer::Start() != ~0ULL; }
 HWY_DLLEXPORT size_t Measure(const Func func, const uint8_t* arg,
                              const FuncInput* inputs, const size_t num_inputs,
                              Result* results, const Params& p) {
-  NANOBENCHMARK_CHECK(num_inputs != 0);
+  HWY_DASSERT(num_inputs != 0);
 
   char cpu100[100];
   if (!platform::HaveTimerStop(cpu100)) {
-    fprintf(stderr, "CPU '%s' does not support RDTSCP, skipping benchmark.\n",
-            cpu100);
+    HWY_WARN("CPU '%s' does not support RDTSCP, skipping benchmark.\n", cpu100);
     return 0;
   }
 
@@ -262,8 +264,8 @@ HWY_DLLEXPORT size_t Measure(const Func func, const uint8_t* arg,
   const timer::Ticks overhead = Overhead(arg, &full, p);
   const timer::Ticks overhead_skip = Overhead(arg, &subset, p);
   if (overhead < overhead_skip) {
-    fprintf(stderr, "Measurement failed: overhead %d < %d\n",
-            static_cast<int>(overhead), static_cast<int>(overhead_skip));
+    HWY_WARN("Measurement failed: overhead %d < %d\n",
+             static_cast<int>(overhead), static_cast<int>(overhead_skip));
     return 0;
   }
 
@@ -282,8 +284,8 @@ HWY_DLLEXPORT size_t Measure(const Func func, const uint8_t* arg,
         TotalDuration(func, arg, &subset, p, &max_rel_mad);
 
     if (total < total_skip) {
-      fprintf(stderr, "Measurement failed: total %f < %f\n",
-              static_cast<double>(total), static_cast<double>(total_skip));
+      HWY_WARN("Measurement failed: total %f < %f\n",
+               static_cast<double>(total), static_cast<double>(total_skip));
       return 0;
     }
 

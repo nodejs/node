@@ -5,7 +5,7 @@
 ---
 wrap: no
 test function name: f
-elide redundant tdz checks: yes
+extra flags: --ignition-elide-redundant-tdz-checks
 
 ---
 snippet: "
