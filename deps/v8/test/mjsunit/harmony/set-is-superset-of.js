@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-set-methods
 
 (function TestIsSupersetOfSetFirstShorter() {
   const firstSet = new Set();
@@ -244,4 +243,56 @@
   };
 
   assertTrue(firstSet.isSupersetOf(evil));
+})();
+
+(function TestIsSupersetOfSetLikeWithInfiniteSize() {
+  let setLike = {
+    size: Infinity,
+    has(v) {
+      return true;
+    },
+    keys() {
+      throw new Error('Unexpected call to |keys| method');
+    },
+  };
+
+  const firstSet = new Set();
+  firstSet.add(42);
+  firstSet.add(43);
+
+  assertEquals(firstSet.isSupersetOf(setLike), false);
+})();
+
+(function TestIsSupersetOfSetLikeWithNegativeInfiniteSize() {
+  let setLike = {
+    size: -Infinity,
+    has(v) {
+      return true;
+    },
+    keys() {
+      throw new Error('Unexpected call to |keys| method');
+    },
+  };
+
+  assertThrows(() => {
+    new Set().isSupersetOf(setLike);
+  }, RangeError, '\'-Infinity\' is an invalid size');
+})();
+
+(function TestIsSupersetOfSetLikeWithLargeSize() {
+  let setLike = {
+    size: 2 ** 31,
+    has(v) {
+      return true;
+    },
+    keys() {
+      throw new Error('Unexpected call to |keys| method');
+    },
+  };
+
+  const firstSet = new Set();
+  firstSet.add(42);
+  firstSet.add(43);
+
+  assertEquals(firstSet.isSupersetOf(setLike), false);
 })();

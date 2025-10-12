@@ -10,8 +10,6 @@ const DEFAULT_PORTS = {
   'https:': 443
 }
 
-let experimentalWarned = false
-
 class EnvHttpProxyAgent extends DispatcherBase {
   #noProxyValue = null
   #noProxyEntries = null
@@ -20,13 +18,6 @@ class EnvHttpProxyAgent extends DispatcherBase {
   constructor (opts = {}) {
     super()
     this.#opts = opts
-
-    if (!experimentalWarned) {
-      experimentalWarned = true
-      process.emitWarning('EnvHttpProxyAgent is experimental, expect them to change at any time.', {
-        code: 'UNDICI-EHPA'
-      })
-    }
 
     const { httpProxy, httpsProxy, noProxy, ...agentOpts } = opts
 
@@ -55,24 +46,20 @@ class EnvHttpProxyAgent extends DispatcherBase {
     return agent.dispatch(opts, handler)
   }
 
-  async [kClose] () {
-    await this[kNoProxyAgent].close()
-    if (!this[kHttpProxyAgent][kClosed]) {
-      await this[kHttpProxyAgent].close()
-    }
-    if (!this[kHttpsProxyAgent][kClosed]) {
-      await this[kHttpsProxyAgent].close()
-    }
+  [kClose] () {
+    return Promise.all([
+      this[kNoProxyAgent].close(),
+      !this[kHttpProxyAgent][kClosed] && this[kHttpProxyAgent].close(),
+      !this[kHttpsProxyAgent][kClosed] && this[kHttpsProxyAgent].close()
+    ])
   }
 
-  async [kDestroy] (err) {
-    await this[kNoProxyAgent].destroy(err)
-    if (!this[kHttpProxyAgent][kDestroyed]) {
-      await this[kHttpProxyAgent].destroy(err)
-    }
-    if (!this[kHttpsProxyAgent][kDestroyed]) {
-      await this[kHttpsProxyAgent].destroy(err)
-    }
+  [kDestroy] (err) {
+    return Promise.all([
+      this[kNoProxyAgent].destroy(err),
+      !this[kHttpProxyAgent][kDestroyed] && this[kHttpProxyAgent].destroy(err),
+      !this[kHttpsProxyAgent][kDestroyed] && this[kHttpsProxyAgent].destroy(err)
+    ])
   }
 
   #getProxyAgentForUrl (url) {

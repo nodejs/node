@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Slack Notification
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907  # 2.3.0
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661  # 2.3.3
         env:
           SLACK_COLOR: '#DE512A'
           SLACK_ICON: https://github.com/nodejs.png?size=48
@@ -32,9 +32,10 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
       - name: Check commit message
@@ -56,11 +57,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Slack Notification
         if: ${{ env.INVALID_COMMIT_MESSAGE }}
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907  # 2.3.0
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661  # 2.3.3
         env:
           SLACK_COLOR: '#DE512A'
           SLACK_ICON: https://github.com/nodejs.png?size=48
-          SLACK_TITLE: Invalid commit was pushed to ${{ github.repository.default_branch }}
+          SLACK_TITLE: Invalid commit was pushed to ${{ github.ref }}
           SLACK_MESSAGE: |
             <!here> A commit with an invalid message was pushed to <https://github.com/${{ github.repository }}/tree/${{ github.ref_name }}|${{ github.repository }}@${{ github.ref_name }}> by <https://github.com/${{ github.actor }}|${{ github.actor }}>.
 

@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node.h"
+#include "src/compiler/turbofan-graph.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -23,7 +23,7 @@ MachineType kMachineTypes[] = {
 
 class LinkageTailCall : public TestWithZone {
  protected:
-  LinkageTailCall() : TestWithZone(kCompressGraphZone) {}
+  LinkageTailCall() = default;
 
   CallDescriptor* NewStandardCallDescriptor(LocationSignature* locations) {
     DCHECK(arraysize(kMachineTypes) >=

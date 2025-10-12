@@ -21,6 +21,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Bic32:
     case kArm64Clz:
     case kArm64Clz32:
+    case kArm64Ctz:
+    case kArm64Ctz32:
     case kArm64Cmp:
     case kArm64Cmp32:
     case kArm64Cmn:
@@ -89,6 +91,18 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Rbit32:
     case kArm64Rev:
     case kArm64Rev32:
+    case kArm64Smax32:
+    case kArm64Smax64:
+    case kArm64Smin32:
+    case kArm64Smin64:
+    case kArm64Umax32:
+    case kArm64Umax64:
+    case kArm64Umin32:
+    case kArm64Umin64:
+    case kArm64Float16RoundDown:
+    case kArm64Float16RoundTiesEven:
+    case kArm64Float16RoundTruncate:
+    case kArm64Float16RoundUp:
     case kArm64Float32Cmp:
     case kArm64Float32Add:
     case kArm64Float32Sub:
@@ -124,6 +138,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Float32RoundUp:
     case kArm64Float32ToFloat64:
     case kArm64Float64ToFloat32:
+    case kArm64Float64ToFloat16RawBits:
+    case kArm64Float16RawBitsToFloat64:
     case kArm64Float32ToInt32:
     case kArm64Float64ToInt32:
     case kArm64Float32ToUint32:
@@ -190,6 +206,17 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F32x4Pmin:
     case kArm64F32x4Pmax:
     case kArm64F32x4DemoteF64x2Zero:
+    case kArm64F16x8Pmin:
+    case kArm64F16x8Pmax:
+    case kArm64F32x4PromoteLowF16x8:
+    case kArm64F16x8SConvertI16x8:
+    case kArm64F16x8UConvertI16x8:
+    case kArm64F16x8DemoteF32x4Zero:
+    case kArm64F16x8DemoteF64x2Zero:
+    case kArm64I16x8SConvertF16x8:
+    case kArm64I16x8UConvertF16x8:
+    case kArm64F16x8Qfma:
+    case kArm64F16x8Qfms:
     case kArm64IExtractLane:
     case kArm64IReplaceLane:
     case kArm64ISplat:
@@ -216,6 +243,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I32x4DotI16x8S:
     case kArm64I16x8DotI8x16S:
     case kArm64I32x4DotI8x16AddS:
+    case kArm64I8x16Addv:
+    case kArm64I16x8Addv:
+    case kArm64I32x4Addv:
+    case kArm64I64x2AddPair:
+    case kArm64F32x4AddReducePairwise:
+    case kArm64F64x2AddPair:
     case kArm64I32x4TruncSatF64x2SZero:
     case kArm64I32x4TruncSatF64x2UZero:
     case kArm64IExtractLaneU:
@@ -242,38 +275,34 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S128Not:
     case kArm64S128Select:
     case kArm64S128AndNot:
+    case kArm64S128Rev16:
+    case kArm64S128Rev32:
+    case kArm64S128Rev64:
+    case kArm64S128ZipLeft:
+    case kArm64S128ZipRight:
+    case kArm64S128UnzipLeft:
+    case kArm64S128UnzipRight:
+    case kArm64S128TransposeLeft:
+    case kArm64S128TransposeRight:
+    case kArm64S128LowZipRight:
+    case kArm64S128LowUnzipLeft:
+    case kArm64S128LowUnzipRight:
     case kArm64Ssra:
     case kArm64Usra:
-    case kArm64S32x4ZipLeft:
-    case kArm64S32x4ZipRight:
-    case kArm64S32x4UnzipLeft:
-    case kArm64S32x4UnzipRight:
-    case kArm64S32x4TransposeLeft:
-    case kArm64S32x4TransposeRight:
+    case kArm64S64x2Reverse:
     case kArm64S32x4OneLaneSwizzle:
+    case kArm64S64x1Shuffle:
+    case kArm64S64x2Shuffle:
+    case kArm64S32x1Shuffle:
+    case kArm64S32x2Shuffle:
     case kArm64S32x4Shuffle:
-    case kArm64S16x8ZipLeft:
-    case kArm64S16x8ZipRight:
-    case kArm64S16x8UnzipLeft:
-    case kArm64S16x8UnzipRight:
-    case kArm64S16x8TransposeLeft:
-    case kArm64S16x8TransposeRight:
-    case kArm64S8x16ZipLeft:
-    case kArm64S8x16ZipRight:
-    case kArm64S8x16UnzipLeft:
-    case kArm64S8x16UnzipRight:
-    case kArm64S8x16TransposeLeft:
-    case kArm64S8x16TransposeRight:
+    case kArm64S16x1Shuffle:
+    case kArm64S16x2Shuffle:
+    case kArm64S8x2Shuffle:
     case kArm64S8x16Concat:
     case kArm64I8x16Swizzle:
     case kArm64I8x16Shuffle:
     case kArm64S32x4Reverse:
-    case kArm64S32x2Reverse:
-    case kArm64S16x4Reverse:
-    case kArm64S16x2Reverse:
-    case kArm64S8x8Reverse:
-    case kArm64S8x4Reverse:
-    case kArm64S8x2Reverse:
     case kArm64V128AnyTrue:
     case kArm64I64x2AllTrue:
     case kArm64I32x4AllTrue:
@@ -298,6 +327,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64ISubSatS:
     case kArm64IAddSatU:
     case kArm64ISubSatU:
+    case kArm64Bcax:
+    case kArm64Eor3:
+    case kArm64Cpy:
+    case kArm64Set:
 #endif  // V8_ENABLE_WEBASSEMBLY
     case kArm64TestAndBranch32:
     case kArm64TestAndBranch:
@@ -305,6 +338,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64CompareAndBranch:
       return kNoOpcodeFlags;
 
+    case kArm64LdrH:
     case kArm64LdrS:
     case kArm64LdrD:
     case kArm64LdrQ:
@@ -319,6 +353,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Ldr:
     case kArm64LdrDecompressTaggedSigned:
     case kArm64LdrDecompressTagged:
+    case kArm64LdrDecompressProtected:
     case kArm64LdarDecompressTaggedSigned:
     case kArm64LdarDecompressTagged:
     case kArm64LdrDecodeSandboxedPointer:
@@ -332,12 +367,14 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S128Load16x4U:
     case kArm64S128Load32x2S:
     case kArm64S128Load32x2U:
+    case kArm64S128LoadPairDeinterleave:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return kIsLoadOperation;
 
     case kArm64Claim:
     case kArm64Poke:
     case kArm64PokePair:
+    case kArm64StrH:
     case kArm64StrS:
     case kArm64StrD:
     case kArm64StrQ:
@@ -440,6 +477,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
 
     case kArm64LdrDecompressTaggedSigned:
     case kArm64LdrDecompressTagged:
+    case kArm64LdrDecompressProtected:
     case kArm64Ldr:
     case kArm64LdrD:
     case kArm64LdrS:
@@ -514,6 +552,8 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
 
     case kArm64Float32ToFloat64:
     case kArm64Float64ToFloat32:
+    case kArm64Float64ToFloat16RawBits:
+    case kArm64Float16RawBitsToFloat64:
     case kArm64Float64ToInt32:
     case kArm64Float64ToUint32:
     case kArm64Float32ToInt64:

@@ -9,7 +9,7 @@ const common = require('../common');
 // This test is basically `test-cluster-net-send` but creating lots of workers
 // so the issue reproduces on OS X consistently.
 
-if (common.isPi) {
+if (common.isPi()) {
   common.skip('Too slow for Raspberry Pi devices');
 }
 

@@ -7,6 +7,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/objects-body-descriptors.h"
 #include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -22,21 +23,16 @@ class StructBodyDescriptor;
 
 class ObjectBoilerplateDescriptionShape final : public AllStatic {
  public:
-  static constexpr int kElementSize = kTaggedSize;
   using ElementT = Object;
   using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex =
       RootIndex::kObjectBoilerplateDescriptionMap;
   static constexpr bool kLengthEqualsCapacity = true;
 
-#define FIELD_LIST(V)                                                   \
-  V(kCapacityOffset, kTaggedSize)                                       \
-  V(kBackingStoreSizeOffset, kTaggedSize)                               \
-  V(kFlagsOffset, kTaggedSize)                                          \
-  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
-  V(kHeaderSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
+  V8_ARRAY_EXTRA_FIELDS({
+    TaggedMember<Smi> backing_store_size_;
+    TaggedMember<Smi> flags_;
+  });
 };
 
 // ObjectBoilerplateDescription is a list of properties consisting of name
@@ -48,8 +44,6 @@ class ObjectBoilerplateDescription
                              ObjectBoilerplateDescriptionShape> {
   using Super = TaggedArrayBase<ObjectBoilerplateDescription,
                                 ObjectBoilerplateDescriptionShape>;
-  OBJECT_CONSTRUCTORS(ObjectBoilerplateDescription, Super);
-
  public:
   using Shape = ObjectBoilerplateDescriptionShape;
 
@@ -74,15 +68,10 @@ class ObjectBoilerplateDescription
   inline void set_key_value(int index, Tagged<Object> key,
                             Tagged<Object> value);
 
-  DECL_CAST(ObjectBoilerplateDescription)
   DECL_VERIFIER(ObjectBoilerplateDescription)
   DECL_PRINTER(ObjectBoilerplateDescription)
 
   class BodyDescriptor;
-
-  static constexpr int kBackingStoreSizeOffset = Shape::kBackingStoreSizeOffset;
-  static constexpr int kFlagsOffset = Shape::kFlagsOffset;
-  static constexpr int kRawEntriesOffset = Shape::kHeaderSize;
 
  private:
   static constexpr int kElementsPerEntry = 2;
@@ -109,24 +98,40 @@ class ArrayBoilerplateDescription
   TQ_OBJECT_CONSTRUCTORS(ArrayBoilerplateDescription)
 };
 
-class RegExpBoilerplateDescription
-    : public TorqueGeneratedRegExpBoilerplateDescription<
-          RegExpBoilerplateDescription, Struct> {
+class RegExpBoilerplateDescription : public Struct {
  public:
   // Dispatched behavior.
   void BriefPrintDetails(std::ostream& os);
 
-  using BodyDescriptor = StructBodyDescriptor;
+  DECL_TRUSTED_POINTER_ACCESSORS(data, RegExpData)
+  DECL_ACCESSORS(source, Tagged<String>)
+  DECL_INT_ACCESSORS(flags)
+
+  DECL_PRINTER(RegExpBoilerplateDescription)
+  DECL_VERIFIER(RegExpBoilerplateDescription)
+
+#define FIELD_LIST(V)                 \
+  V(kDataOffset, kTrustedPointerSize) \
+  V(kSourceOffset, kTaggedSize)       \
+  V(kFlagsOffset, kTaggedSize)        \
+  V(kHeaderSize, 0)                   \
+  V(kSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+
+  using BodyDescriptor = StackedBodyDescriptor<
+      StructBodyDescriptor,
+      WithStrongTrustedPointer<kDataOffset, kRegExpDataIndirectPointerTag>>;
 
  private:
-  TQ_OBJECT_CONSTRUCTORS(RegExpBoilerplateDescription)
+  OBJECT_CONSTRUCTORS(RegExpBoilerplateDescription, Struct);
 };
 
 class ClassBoilerplate : public Struct {
   OBJECT_CONSTRUCTORS(ClassBoilerplate, Struct);
 
  public:
-  enum ValueKind { kData, kGetter, kSetter };
+  enum ValueKind { kData, kGetter, kSetter, kAutoAccessor };
 
   struct ComputedEntryFlags {
 #define COMPUTED_ENTRY_BIT_FIELDS(V, _) \
@@ -187,7 +192,6 @@ class ClassBoilerplate : public Struct {
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
 #undef FIELD_LIST
 
-  DECL_CAST(ClassBoilerplate)
   DECL_PRINTER(ClassBoilerplate)
   DECL_VERIFIER(ClassBoilerplate)
 

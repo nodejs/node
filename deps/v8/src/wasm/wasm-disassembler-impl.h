@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if !V8_ENABLE_WEBASSEMBLY
-#error This header should only be included if WebAssembly is enabled.
-#endif  // !V8_ENABLE_WEBASSEMBLY
-
 #ifndef V8_WASM_WASM_DISASSEMBLER_IMPL_H_
 #define V8_WASM_WASM_DISASSEMBLER_IMPL_H_
 
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder-multiline.h"
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #include "src/wasm/wasm-opcodes.h"
 #include "src/zone/zone.h"
 
@@ -78,10 +78,18 @@ inline StringBuilder& operator<<(StringBuilder& sb, uint64_t n) {
   return sb;
 }
 
+inline StringBuilder& operator<<(StringBuilder& sb, ModuleTypeIndex index) {
+  return sb << index.index;
+}
+
 V8_EXPORT_PRIVATE void PrintSignatureOneLine(
     StringBuilder& out, const FunctionSig* sig, uint32_t func_index,
     NamesProvider* names, bool param_names,
     IndexAsComment indices_as_comments = NamesProvider::kDontPrintIndex);
+
+V8_EXPORT_PRIVATE void PrintStringAsJSON(StringBuilder& out,
+                                         const uint8_t* start,
+                                         WireBytesRef ref);
 
 ////////////////////////////////////////////////////////////////////////////////
 // OffsetsProvider.
@@ -155,6 +163,7 @@ class OffsetsProvider : public ITracer {
   void Description(const char* desc) override {}
   void Description(const char* desc, size_t length) override {}
   void Description(uint32_t number) override {}
+  void Description(uint64_t number) override {}
   void Description(ValueType type) override {}
   void Description(HeapType type) override {}
   void Description(const FunctionSig* sig) override {}
@@ -232,12 +241,13 @@ class V8_EXPORT_PRIVATE FunctionBodyDisassembler
 
   FunctionBodyDisassembler(Zone* zone, const WasmModule* module,
                            uint32_t func_index, bool shared,
-                           WasmFeatures* detected, const FunctionSig* sig,
-                           const uint8_t* start, const uint8_t* end,
-                           uint32_t offset, const ModuleWireBytes wire_bytes,
+                           WasmDetectedFeatures* detected,
+                           const FunctionSig* sig, const uint8_t* start,
+                           const uint8_t* end, uint32_t offset,
+                           const ModuleWireBytes wire_bytes,
                            NamesProvider* names)
-      : WasmDecoder<ValidationTag>(zone, module, WasmFeatures::All(), detected,
-                                   sig, shared, start, end, offset),
+      : WasmDecoder<ValidationTag>(zone, module, WasmEnabledFeatures::All(),
+                                   detected, sig, shared, start, end, offset),
         func_index_(func_index),
         wire_bytes_(wire_bytes),
         names_(names) {}

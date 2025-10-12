@@ -8,12 +8,12 @@
 #include <atomic>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <variant>
 
 #include "src/base/bounds.h"
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
@@ -22,7 +22,7 @@
 #include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/spaces.h"
 
 namespace v8 {
@@ -150,7 +150,11 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // to the available and wasted totals. The free list is cleared as well.
   void ClearAllocatorState() {
     accounting_stats_.ClearSize();
-    free_list_->Reset();
+    if (v8_flags.black_allocated_pages) {
+      free_list_->ResetForNonBlackAllocatedPages();
+    } else {
+      free_list_->Reset();
+    }
   }
 
   // Available bytes without growing.  These are the bytes on the free list.
@@ -167,11 +171,11 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   // Wasted bytes in this space.  These are just the bytes that were thrown away
   // due to being too small to use for allocation.
-  virtual size_t Waste() const { return free_list_->wasted_bytes(); }
+  size_t Waste() const;
 
   // Allocate the requested number of bytes in the space from a background
   // thread.
-  V8_WARN_UNUSED_RESULT base::Optional<std::pair<Address, size_t>>
+  V8_WARN_UNUSED_RESULT std::optional<std::pair<Address, size_t>>
   RawAllocateBackground(LocalHeap* local_heap, size_t min_size_in_bytes,
                         size_t max_size_in_bytes, AllocationOrigin origin);
 
@@ -197,7 +201,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   PageMetadata* InitializePage(MutablePageMetadata* chunk) override;
 
-  virtual void ReleasePage(PageMetadata* page);
+  virtual void RemovePageFromSpace(PageMetadata* page);
 
   // Adds the page to this space and returns the number of bytes added to the
   // free list of the space.
@@ -275,12 +279,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   const_iterator begin() const { return const_iterator(first_page()); }
   const_iterator end() const { return const_iterator(nullptr); }
 
-  // Shrink immortal immovable pages of the space to be exactly the size needed
-  // using the high water mark.
-  void ShrinkImmortalImmovablePages();
-
-  size_t ShrinkPageToHighWaterMark(PageMetadata* page);
-
   std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
   void AddRangeToActiveSystemPages(PageMetadata* page, Address start,
@@ -292,6 +290,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   bool TryExpand(LocalHeap* local_heap, AllocationOrigin origin);
 
   void RefineAllocatedBytesAfterSweeping(PageMetadata* page);
+  virtual void AdjustDifferenceInAllocatedBytes(size_t diff) {}
 
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
@@ -311,7 +310,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     return committed_physical_memory_.load(std::memory_order_relaxed);
   }
 
-  void ReleasePageImpl(PageMetadata* page, MemoryAllocator::FreeMode free_mode);
+  void RemovePageFromSpaceImpl(PageMetadata* page);
 
   void AddPageImpl(PageMetadata* page);
 
@@ -344,7 +343,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
       }
     }
 
-    base::Optional<base::MutexGuard> guard_;
+    std::optional<base::MutexGuard> guard_;
   };
 
   bool SupportsConcurrentAllocation() const {
@@ -375,16 +374,28 @@ class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {
 
 class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
  public:
+  // Specifies to which heap the compaction space should be merged.
+  enum class DestinationHeap {
+    // Should be merged to the same heap.
+    kSameHeap,
+    // Should be merged to the main isolate shared space.
+    kSharedSpaceHeap
+  };
+
   CompactionSpace(Heap* heap, AllocationSpace id, Executability executable,
-                  CompactionSpaceKind compaction_space_kind)
+                  CompactionSpaceKind compaction_space_kind,
+                  DestinationHeap destination_heap)
       : PagedSpace(heap, id, executable, FreeList::CreateFreeList(),
-                   compaction_space_kind) {
+                   compaction_space_kind),
+        destination_heap_(destination_heap) {
     DCHECK(is_compaction_space());
   }
 
   const std::vector<PageMetadata*>& GetNewPages() { return new_pages_; }
 
   void RefillFreeList() final;
+
+  DestinationHeap destination_heap() const { return destination_heap_; }
 
  protected:
   void NotifyNewPage(PageMetadata* page) final;
@@ -394,6 +405,7 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
   // Pages that were allocated in this local space and need to be merged
   // to the main space.
   std::vector<PageMetadata*> new_pages_;
+  const DestinationHeap destination_heap_;
 };
 
 // A collection of |CompactionSpace|s used by a single compaction task.
@@ -409,7 +421,8 @@ class CompactionSpaceCollection : public Malloced {
       case CODE_SPACE:
         return &code_space_;
       case SHARED_SPACE:
-        return &shared_space_;
+        DCHECK(shared_space_);
+        return &*shared_space_;
       case TRUSTED_SPACE:
         return &trusted_space_;
       default:
@@ -421,14 +434,14 @@ class CompactionSpaceCollection : public Malloced {
  private:
   CompactionSpace old_space_;
   CompactionSpace code_space_;
-  CompactionSpace shared_space_;
+  std::optional<CompactionSpace> shared_space_;
   CompactionSpace trusted_space_;
 };
 
 // -----------------------------------------------------------------------------
 // Old generation regular object space.
 
-class V8_EXPORT_PRIVATE OldSpace final : public PagedSpace {
+class V8_EXPORT_PRIVATE OldSpace : public PagedSpace {
  public:
   // Creates an old space object. The constructor does not allocate pages
   // from OS.
@@ -436,15 +449,60 @@ class V8_EXPORT_PRIVATE OldSpace final : public PagedSpace {
       : PagedSpace(heap, OLD_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList(),
                    CompactionSpaceKind::kNone) {}
 
-  void AddPromotedPage(PageMetadata* page);
-
-  void ReleasePage(PageMetadata* page) override;
+  void AddPromotedPage(PageMetadata* page, FreeMode free_mode);
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer)
       return heap()->OldArrayBufferBytes();
     return external_backing_store_bytes_[static_cast<int>(type)];
   }
+
+  void RelinkQuarantinedPageFreeList(PageMetadata* page,
+                                     size_t filler_size_on_page);
+};
+
+// -----------------------------------------------------------------------------
+// StickySpace is a paged space that contain mixed young and old objects. Note
+// that its identity type is OLD_SPACE.
+
+class V8_EXPORT_PRIVATE StickySpace final : public OldSpace {
+ public:
+  using OldSpace::OldSpace;
+
+  static StickySpace* From(OldSpace* space) {
+    DCHECK(v8_flags.sticky_mark_bits);
+    return static_cast<StickySpace*>(space);
+  }
+
+  size_t young_objects_size() const {
+    DCHECK_GE(Size(), allocated_old_size_);
+    return Size() - allocated_old_size_;
+  }
+
+  size_t old_objects_size() const {
+    DCHECK_GE(Size(), allocated_old_size_);
+    return allocated_old_size_;
+  }
+
+  void set_old_objects_size(size_t allocated_old_size) {
+    allocated_old_size_ = allocated_old_size;
+  }
+
+  void NotifyBlackAreaCreated(size_t size) override {
+    DCHECK_LE(size, Capacity());
+    allocated_old_size_ += size;
+  }
+
+  void NotifyBlackAreaDestroyed(size_t size) override {
+    DCHECK_LE(size, Capacity());
+    allocated_old_size_ -= size;
+  }
+
+ private:
+  void AdjustDifferenceInAllocatedBytes(size_t) override;
+
+  // TODO(333906585): Consider tracking the young bytes instead.
+  size_t allocated_old_size_ = 0;
 };
 
 // -----------------------------------------------------------------------------
@@ -489,6 +547,21 @@ class TrustedSpace final : public PagedSpace {
   // from OS.
   explicit TrustedSpace(Heap* heap)
       : PagedSpace(heap, TRUSTED_SPACE, NOT_EXECUTABLE,
+                   FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
+
+  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
+    if (type == ExternalBackingStoreType::kArrayBuffer) return 0;
+    DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
+    return external_backing_store_bytes_[static_cast<int>(type)];
+  }
+};
+
+class SharedTrustedSpace final : public PagedSpace {
+ public:
+  // Creates a trusted space object. The constructor does not allocate pages
+  // from OS.
+  explicit SharedTrustedSpace(Heap* heap)
+      : PagedSpace(heap, SHARED_TRUSTED_SPACE, NOT_EXECUTABLE,
                    FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {

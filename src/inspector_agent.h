@@ -1,5 +1,6 @@
 #pragma once
 
+#include "inspector/network_resource_manager.h"
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #if !HAVE_INSPECTOR
@@ -69,8 +70,9 @@ class Agent {
   void ReportUncaughtException(v8::Local<v8::Value> error,
                                v8::Local<v8::Message> message);
 
-  void EmitProtocolEvent(const v8_inspector::StringView& event,
-                         const v8_inspector::StringView& params);
+  void EmitProtocolEvent(v8::Local<v8::Context> context,
+                         const v8_inspector::StringView& event,
+                         v8::Local<v8::Object> params);
 
   void SetupNetworkTracking(v8::Local<v8::Function> enable_function,
                             v8::Local<v8::Function> disable_function);
@@ -92,8 +94,9 @@ class Agent {
   void DisableAsyncHook();
 
   void SetParentHandle(std::unique_ptr<ParentInspectorHandle> parent_handle);
-  std::unique_ptr<ParentInspectorHandle> GetParentHandle(
-      uint64_t thread_id, const std::string& url, const std::string& name);
+  std::unique_ptr<ParentInspectorHandle> GetParentHandle(uint64_t thread_id,
+                                                         std::string_view url,
+                                                         std::string_view name);
 
   // Called to create inspector sessions that can be used from the same thread.
   // The inspector responds by using the delegate to send messages back.
@@ -126,6 +129,7 @@ class Agent {
   std::shared_ptr<WorkerManager> GetWorkerManager();
 
   inline Environment* env() const { return parent_env_; }
+  std::shared_ptr<NetworkResourceManager> GetNetworkResourceManager();
 
  private:
   void ToggleAsyncHook(v8::Isolate* isolate, v8::Local<v8::Function> fn);
@@ -152,6 +156,7 @@ class Agent {
   bool network_tracking_enabled_ = false;
   bool pending_enable_network_tracking = false;
   bool pending_disable_network_tracking = false;
+  std::shared_ptr<NetworkResourceManager> network_resource_manager_;
 };
 
 }  // namespace inspector

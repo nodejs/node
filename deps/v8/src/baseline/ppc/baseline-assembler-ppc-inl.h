@@ -152,29 +152,12 @@ void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
   __ b(to_condition(cc), target);
 }
 
-#if V8_STATIC_ROOTS_BOOL
-void BaselineAssembler::JumpIfJSAnyIsPrimitive(Register heap_object,
-                                               Label* target,
-                                               Label::Distance distance) {
-  __ AssertNotSmi(heap_object);
-  ScratchRegisterScope temps(this);
-  Register scratch = temps.AcquireScratch();
-  __ JumpIfJSAnyIsPrimitive(heap_object, scratch, target, distance);
-}
-#endif  // V8_STATIC_ROOTS_BOOL
-
 void BaselineAssembler::JumpIfObjectTypeFast(Condition cc, Register object,
                                              InstanceType instance_type,
                                              Label* target,
                                              Label::Distance distance) {
   ScratchRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  if (cc == eq || cc == ne) {
-    Register scratch2 = temps.AcquireScratch();
-    __ IsObjectType(object, scratch, scratch2, instance_type);
-    __ b(to_condition(cc), target);
-    return;
-  }
   JumpIfObjectType(cc, object, instance_type, scratch, target, distance);
 }
 
@@ -475,7 +458,7 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
     ScratchRegisterScope temps(this);
 
     // The entry references a CodeWrapper object. Unwrap it now.
-    __ LoadCodePointerField(
+    __ LoadTaggedField(
         scratch_and_result,
         FieldMemOperand(scratch_and_result, CodeWrapper::kCodeOffset), r0);
 
@@ -534,8 +517,9 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   if (skip_interrupt_label) __ bge(skip_interrupt_label, cr0);
 }
 
-void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
-                                       uint32_t depth) {
+void BaselineAssembler::LdaContextSlotNoCell(Register context, uint32_t index,
+                                             uint32_t depth,
+                                             CompressionMode compression_mode) {
   ASM_CODE_COMMENT(masm_);
   for (; depth > 0; --depth) {
     LoadTaggedField(context, context, Context::kPreviousOffset);
@@ -544,8 +528,8 @@ void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
                   Context::OffsetOfElementAt(index));
 }
 
-void BaselineAssembler::StaContextSlot(Register context, Register value,
-                                       uint32_t index, uint32_t depth) {
+void BaselineAssembler::StaContextSlotNoCell(Register context, Register value,
+                                             uint32_t index, uint32_t depth) {
   ASM_CODE_COMMENT(masm_);
   for (; depth > 0; --depth) {
     LoadTaggedField(context, context, Context::kPreviousOffset);
@@ -589,14 +573,17 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
   StoreTaggedFieldWithWriteBarrier(context, Cell::kValueOffset, value);
 }
 
-void BaselineAssembler::AddSmi(Register lhs, Tagged<Smi> rhs) {
-  ASM_CODE_COMMENT(masm_);
-  if (rhs.value() == 0) return;
-  __ LoadSmiLiteral(r0, rhs);
+void BaselineAssembler::IncrementSmi(MemOperand lhs) {
+  Register scratch = ip;
   if (SmiValuesAre31Bits()) {
-    __ AddS32(lhs, lhs, r0);
+    __ LoadS32(scratch, lhs, r0);
+    __ AddS64(scratch, scratch, Operand(Smi::FromInt(1)));
+    __ StoreU32(scratch, lhs, r0);
   } else {
-    __ AddS64(lhs, lhs, r0);
+    __ SmiUntag(scratch, lhs, LeaveRC, r0);
+    __ AddS64(scratch, scratch, Operand(1));
+    __ SmiTag(scratch);
+    __ StoreU64(scratch, lhs, r0);
   }
 }
 
@@ -664,7 +651,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
 
   BaselineAssembler::ScratchRegisterScope temps(&basm);
   Register actual_params_size = temps.AcquireScratch();
-  // Compute the size of the actual parameters + receiver (in bytes).
+  // Compute the size of the actual parameters + receiver.
   __ Move(actual_params_size,
           MemOperand(fp, StandardFrameConstants::kArgCOffset));
 
@@ -680,8 +667,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   __ masm()->LeaveFrame(StackFrame::BASELINE);
 
   // Drop receiver + arguments.
-  __ masm()->DropArguments(params_size, MacroAssembler::kCountIsInteger,
-                           MacroAssembler::kCountIncludesReceiver);
+  __ masm() -> DropArguments(params_size);
   __ masm()->Ret();
 }
 

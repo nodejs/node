@@ -6,7 +6,7 @@ t.test('create a lifecycle command', async t => {
   let runArgs = null
   const { npm } = await mockNpm(t)
   npm.exec = async (cmd, args) => {
-    if (cmd === 'run-script') {
+    if (cmd === 'run') {
       runArgs = args
       return 'called the right thing'
     }

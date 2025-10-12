@@ -2,7 +2,6 @@
 
 const common = require('../common');
 const assert = require('assert');
-const timers = require('timers');
 
 const OVERFLOW = Math.pow(2, 31); // TIMEOUT_MAX is 2^31-1
 
@@ -19,7 +18,7 @@ process.on('warning', common.mustCall((warning) => {
   assert.strictEqual(lines[0], `${OVERFLOW} does not fit into a 32-bit signed` +
                                ' integer.');
   assert.strictEqual(lines.length, 2);
-}, 6));
+}, 2));
 
 
 {
@@ -30,13 +29,4 @@ process.on('warning', common.mustCall((warning) => {
 {
   const interval = setInterval(timerNotCanceled, OVERFLOW);
   clearInterval(interval);
-}
-
-{
-  const timer = {
-    _onTimeout: timerNotCanceled
-  };
-  timers.enroll(timer, OVERFLOW);
-  timers.active(timer);
-  timers.unenroll(timer);
 }

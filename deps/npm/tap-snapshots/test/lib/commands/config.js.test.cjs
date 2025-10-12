@@ -74,7 +74,9 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "init-author-url": "",
   "init-license": "ISC",
   "init-module": "{CWD}/home/.npm-init.js",
+  "init-type": "commonjs",
   "init-version": "1.0.0",
+  "init-private": false,
   "init.author.email": "",
   "init.author.name": "",
   "init.author.url": "",
@@ -97,6 +99,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "long": false,
   "maxsockets": 15,
   "message": "%s",
+  "node-gyp": "{CWD}/node_modules/node-gyp/bin/node-gyp.js",
   "node-options": null,
   "noproxy": [
     ""
@@ -237,6 +240,8 @@ init-author-name = ""
 init-author-url = ""
 init-license = "ISC"
 init-module = "{CWD}/home/.npm-init.js"
+init-private = false
+init-type = "commonjs"
 init-version = "1.0.0"
 init.author.email = ""
 init.author.name = ""
@@ -261,6 +266,7 @@ logs-max = 10
 ; long = false ; overridden by cli
 maxsockets = 15
 message = "%s"
+node-gyp = "{CWD}/node_modules/node-gyp/bin/node-gyp.js"
 node-options = null
 noproxy = [""]
 npm-version = "{NPM-VERSION}"
@@ -413,6 +419,13 @@ color = {COLOR}
 ; "publishConfig" from {CWD}/prefix/package.json
 ; This set of config values will be used at publish-time.
 
-_authToken = (protected)
+//some.registry:_authToken = (protected)
+other = "not defined"
 registry = "https://some.registry"
+`
+
+exports[`test/lib/commands/config.js TAP config list with publishConfig local > warns about unknown config 1`] = `
+Array [
+  "Unknown publishConfig config /"other/". This will stop working in the next major version of npm.",
+]
 `

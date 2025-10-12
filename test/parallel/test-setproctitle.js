@@ -1,15 +1,16 @@
 'use strict';
 // Original test written by Jakub Lekstan <kuebzky@gmail.com>
 const common = require('../common');
+const { isMainThread } = require('worker_threads');
 
 // FIXME add sunos support
-if (common.isSunOS)
+if (common.isSunOS || common.isIBMi || common.isWindows) {
   common.skip(`Unsupported platform [${process.platform}]`);
-// FIXME add IBMi support
-if (common.isIBMi)
-  common.skip('Unsupported platform IBMi');
-if (!common.isMainThread)
+}
+
+if (!isMainThread) {
   common.skip('Setting the process title from Workers is not supported');
+}
 
 const assert = require('assert');
 const { exec, execSync } = require('child_process');
@@ -24,14 +25,10 @@ assert.notStrictEqual(process.title, title);
 process.title = title;
 assert.strictEqual(process.title, title);
 
-// Test setting the title but do not try to run `ps` on Windows.
-if (common.isWindows)
-  common.skip('Windows does not have "ps" utility');
-
 try {
   execSync('command -v ps');
 } catch (err) {
-  if (err.status === 1) {
+  if (err.status === 1 || err.status === 127) {
     common.skip('The "ps" utility is not available');
   }
   throw err;
@@ -51,5 +48,5 @@ exec(cmd, common.mustSucceed((stdout, stderr) => {
     title += ` (${path.basename(process.execPath)})`;
 
   // Omitting trailing whitespace and \n
-  assert.strictEqual(stdout.replace(/\s+$/, '').endsWith(title), true);
+  assert.ok(stdout.trimEnd().endsWith(title));
 }));

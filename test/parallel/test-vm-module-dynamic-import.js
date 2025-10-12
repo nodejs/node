@@ -59,10 +59,11 @@ async function test() {
 
   {
     const s = new Script('import("foo", { with: { key: "value" } })', {
-      importModuleDynamically: common.mustCall((specifier, wrap, attributes) => {
+      importModuleDynamically: common.mustCall((specifier, wrap, attributes, phase) => {
         assert.strictEqual(specifier, 'foo');
         assert.strictEqual(wrap, s);
         assert.deepStrictEqual(attributes, { __proto__: null, key: 'value' });
+        assert.strictEqual(phase, 'evaluation');
         return foo;
       }),
     });

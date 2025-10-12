@@ -41,9 +41,10 @@ class PropertyCell
 
   // Changes the value and/or property details.
   // For global properties:
-  inline void Transition(PropertyDetails new_details, Handle<Object> new_value);
+  inline void Transition(PropertyDetails new_details,
+                         DirectHandle<Object> new_value);
   // For protectors:
-  void InvalidateProtector();
+  void InvalidateProtector(Isolate* isolate);
 
   static PropertyCellType InitialType(Isolate* isolate, Tagged<Object> value);
 
@@ -58,14 +59,14 @@ class PropertyCell
   // that value.  As a result the old cell could be invalidated and/or dependent
   // code could be deoptimized. Returns the (possibly new) property cell.
   static Handle<PropertyCell> PrepareForAndSetValue(
-      Isolate* isolate, Handle<GlobalDictionary> dictionary,
-      InternalIndex entry, Handle<Object> value, PropertyDetails details);
+      Isolate* isolate, DirectHandle<GlobalDictionary> dictionary,
+      InternalIndex entry, DirectHandle<Object> value, PropertyDetails details);
 
-  void ClearAndInvalidate(ReadOnlyRoots roots);
+  void ClearAndInvalidate(Isolate* isolate);
   static Handle<PropertyCell> InvalidateAndReplaceEntry(
-      Isolate* isolate, Handle<GlobalDictionary> dictionary,
+      Isolate* isolate, DirectHandle<GlobalDictionary> dictionary,
       InternalIndex entry, PropertyDetails new_details,
-      Handle<Object> new_value);
+      DirectHandle<Object> new_value);
 
   // Whether or not the {details} and {value} fit together. This is an
   // approximation with false positives.
@@ -94,30 +95,6 @@ class PropertyCell
   bool CanTransitionTo(PropertyDetails new_details,
                        Tagged<Object> new_value) const;
 #endif  // DEBUG
-};
-
-class ConstTrackingLetCell
-    : public TorqueGeneratedConstTrackingLetCell<ConstTrackingLetCell,
-                                                 HeapObject> {
- public:
-  static constexpr Tagged<Smi> kConstMarker = Smi::FromInt(1);
-  static constexpr Tagged<Smi> kNonConstMarker = Smi::FromInt(0);
-
-  static inline bool IsNotConst(Tagged<Object> object);
-
-  // [dependent_code]: code that depends on the constness of the value.
-  DECL_ACCESSORS(dependent_code, Tagged<DependentCode>)
-
-  DECL_PRINTER(ConstTrackingLetCell)
-  DECL_VERIFIER(ConstTrackingLetCell)
-
-  using BodyDescriptor =
-      FixedBodyDescriptor<kDependentCodeOffset, kSize, kSize>;
-
-  TQ_OBJECT_CONSTRUCTORS(ConstTrackingLetCell)
-
- private:
-  friend class Factory;
 };
 
 }  // namespace internal

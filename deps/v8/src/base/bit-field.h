@@ -24,7 +24,7 @@ namespace base {
 template <class T, int shift, int size, class U = uint32_t>
 class BitField final {
  public:
-  static_assert(std::is_unsigned<U>::value);
+  static_assert(std::is_unsigned_v<U>);
   static_assert(shift < 8 * sizeof(U));  // Otherwise shifts by {shift} are UB.
   static_assert(size < 8 * sizeof(U));   // Otherwise shifts by {size} are UB.
   static_assert(shift + size <= 8 * sizeof(U));
@@ -41,21 +41,14 @@ class BitField final {
   static constexpr U kMask = ((U{1} << kShift) << kSize) - (U{1} << kShift);
   static constexpr int kLastUsedBit = kShift + kSize - 1;
   static constexpr U kNumValues = U{1} << kSize;
-
-  // Value for the field with all bits set.
-  // If clang complains
-  // "constexpr variable 'kMax' must be initialized by a constant expression"
-  // on this line, then you're creating a BitField for an enum with more bits
-  // than needed for the enum values. Either reduce the BitField size,
-  // or give the enum an explicit underlying type.
-  static constexpr T kMax = static_cast<T>(kNumValues - 1);
+  static constexpr U kMax = kNumValues - 1;
 
   template <class T2, int size2>
   using Next = BitField<T2, kShift + kSize, size2, U>;
 
   // Tells whether the provided value fits into the bit field.
   static constexpr bool is_valid(T value) {
-    return (static_cast<U>(value) & ~static_cast<U>(kMax)) == 0;
+    return (static_cast<U>(value) & ~kMax) == 0;
   }
 
   // Returns a type U with the bit field value encoded.
@@ -84,8 +77,7 @@ class BitField final {
 template <typename A, typename B>
 class BitFieldUnion final {
  public:
-  static_assert(
-      std::is_same<typename A::BaseType, typename B::BaseType>::value);
+  static_assert(std::is_same_v<typename A::BaseType, typename B::BaseType>);
   static_assert((A::kMask & B::kMask) == 0);
   static constexpr int kShift = std::min(A::kShift, B::kShift);
   static constexpr int kMask = A::kMask | B::kMask;

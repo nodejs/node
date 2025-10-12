@@ -1,4 +1,7 @@
+// All logging goes through here, both to console and log files
+
 const { formatWithOptions: baseFormatWithOptions } = require('node:util')
+const { redactLog } = require('@npmcli/redact')
 
 // These are most assuredly not a mistake
 // https://eslint.org/docs/latest/rules/no-control-regex
@@ -38,9 +41,12 @@ function STRIP_C01 (str) {
   return result
 }
 
-const formatWithOptions = ({ prefix: prefixes = [], eol = '\n', ...options }, ...args) => {
+const formatWithOptions = ({ prefix: prefixes = [], eol = '\n', redact = true, ...options }, ...args) => {
   const prefix = prefixes.filter(p => p != null).join(' ')
-  const formatted = STRIP_C01(baseFormatWithOptions(options, ...args))
+  let formatted = STRIP_C01(baseFormatWithOptions(options, ...args))
+  if (redact) {
+    formatted = redactLog(formatted)
+  }
   // Splitting could be changed to only `\n` once we are sure we only emit unix newlines.
   // The eol param to this function will put the correct newlines in place for the returned string.
   const lines = formatted.split(/\r?\n/)

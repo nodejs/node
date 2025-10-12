@@ -141,6 +141,7 @@ test('test hooks', async (t) => {
       'beforeEach nested',
       'nested before nested',
       'beforeEach nested 1', 'nested beforeEach nested 1', 'nested1', 'nested afterEach nested 1', 'afterEach nested 1',
+      // eslint-disable-next-line @stylistic/js/max-len
       'beforeEach nested 2', 'nested beforeEach nested 2', 'nested 2', 'nested afterEach nested 2', 'afterEach nested 2',
       'afterEach nested',
       'nested after nested',
@@ -228,7 +229,7 @@ test('afterEach context when test fails', async (t) => {
     assert.strictEqual(ctx.passed, false);
     assert.strictEqual(ctx.error, err);
   }));
-  await t.test('1', () => { throw err });
+  await t.test('1', () => { throw err; });
 });
 
 test('afterEach throws and test fails', async (t) => {
@@ -247,9 +248,9 @@ test('t.after() is called if test body throws', (t) => {
 
 describe('run after when before throws', () => {
   after(common.mustCall(() => {
-    console.log("- after() called")
+    console.log('- after() called');
   }));
-  before(() => { throw new Error('before')});
+  before(() => { throw new Error('before'); });
   it('1', () => {});
 });
 

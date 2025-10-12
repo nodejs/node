@@ -1,5 +1,4 @@
 bmeurer@chromium.org
-jarin@chromium.org
 jgruber@chromium.org
 kimanh@chromium.org
 leese@chromium.org
@@ -7,3 +6,5 @@ pfaffe@chromium.org
 szuend@chromium.org
 verwaest@chromium.org
 yangguo@chromium.org
+
+per-file debug-wasm-*=jkummerow@chromium.org

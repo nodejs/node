@@ -8,7 +8,6 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils.h"
 #include "src/objects/compressed-slots.h"
-#include "src/objects/fixed-array.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/visitors.h"
@@ -188,5 +187,7 @@ class OffHeapHashTableBase {
 
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_OBJECTS_OFF_HEAP_HASH_TABLE_H_

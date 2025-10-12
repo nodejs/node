@@ -141,16 +141,16 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-deprecate----1082">
+<h1 id="----npm-deprecate----1162">
     <span>npm-deprecate</span>
-    <span class="version">@10.8.2</span>
+    <span class="version">@11.6.2</span>
 </h1>
 <span class="description">Deprecate a version of a package</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li><li><a href="#otp"><code>otp</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -158,22 +158,19 @@ npm command-line interface
 </code></pre>
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
-<p>This command will update the npm registry entry for a package, providing a
-deprecation warning to all who attempt to install it.</p>
-<p>It works on <a href="https://semver.npmjs.com/">version ranges</a> as well as specific
-versions, so you can do something like this:</p>
+<p>This command will update the npm registry entry for a package, providing a deprecation warning to all who attempt to install it.</p>
+<p>It works on <a href="https://semver.npmjs.com/">version ranges</a> as well as specific versions, so you can do something like this:</p>
 <pre><code class="language-bash">npm deprecate my-thing@"&lt; 0.2.3" "critical bug fixed in v0.2.3"
 </code></pre>
-<p>SemVer ranges passed to this command are interpreted such that they <em>do</em>
-include prerelease versions.  For example:</p>
+<p>SemVer ranges passed to this command are interpreted such that they <em>do</em> include prerelease versions.
+For example:</p>
 <pre><code class="language-bash">npm deprecate my-thing@1.x "1.x is no longer supported"
 </code></pre>
 <p>In this case, a version <code>my-thing@1.0.0-beta.0</code> will also be deprecated.</p>
-<p>You must be the package owner to deprecate something.  See the <code>owner</code> and
-<code>adduser</code> help topics.</p>
-<p>To un-deprecate a package, specify an empty string (<code>""</code>) for the <code>message</code>
-argument. Note that you must use double quotes with no space between them to
-format an empty string.</p>
+<p>You must be the package owner to deprecate something.
+See the <code>owner</code> and <code>adduser</code> help topics.</p>
+<p>To un-deprecate a package, specify an empty string (<code>""</code>) for the <code>message</code> argument.
+Note that you must use double quotes with no space between them to format an empty string.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="registry"><code>registry</code></h4>
 <ul>
@@ -186,10 +183,22 @@ format an empty string.</p>
 <li>Default: null</li>
 <li>Type: null or String</li>
 </ul>
-<p>This is a one-time password from a two-factor authenticator. It's needed
-when publishing or changing package permissions with <code>npm access</code>.</p>
-<p>If not set, and a registry response fails with a challenge for a one-time
-password, npm will prompt on the command line for one.</p>
+<p>This is a one-time password from a two-factor authenticator. It's
+needed when publishing or changing package permissions with <code>npm access</code>.</p>
+<p>If not set, and a registry response fails with a challenge for a
+one-time password, npm will prompt on the command line for one.</p>
+<h4 id="dry-run"><code>dry-run</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Indicates that you don't want npm to make any changes and that it
+should only report what it would have done. This can be passed into
+any of the commands that modify your local installation, eg,
+<code>install</code>, <code>update</code>, <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and
+<code>publish</code>.</p>
+<p>Note: This is NOT honored by other network related commands, eg
+<code>dist-tags</code>, <code>owner</code>, etc.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/package-spec.html">package spec</a></li>
@@ -200,7 +209,7 @@ password, npm will prompt on the command line for one.</p>
 </ul></div>
 
 <footer id="edit">
-<a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-deprecate.md">
+<a href="https://github.com/npm/cli/edit/latest/docs/lib/content/commands/npm-deprecate.md">
 <svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
 <path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
 </svg>

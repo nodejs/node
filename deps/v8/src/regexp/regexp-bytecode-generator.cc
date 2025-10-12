@@ -4,6 +4,8 @@
 
 #include "src/regexp/regexp-bytecode-generator.h"
 
+#include <limits>
+
 #include "src/ast/ast.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/regexp/regexp-bytecode-generator-inl.h"
@@ -72,6 +74,7 @@ void RegExpBytecodeGenerator::PushRegister(int register_index,
   DCHECK_LE(0, register_index);
   DCHECK_GE(kMaxRegister, register_index);
   Emit(BC_PUSH_REGISTER, register_index);
+  Emit32(static_cast<uint32_t>(check_stack_limit));
 }
 
 void RegExpBytecodeGenerator::WriteCurrentPositionToRegister(int register_index,
@@ -83,10 +86,13 @@ void RegExpBytecodeGenerator::WriteCurrentPositionToRegister(int register_index,
 }
 
 void RegExpBytecodeGenerator::ClearRegisters(int reg_from, int reg_to) {
-  DCHECK(reg_from <= reg_to);
-  for (int reg = reg_from; reg <= reg_to; reg++) {
-    SetRegister(reg, -1);
-  }
+  DCHECK_LE(reg_from, reg_to);
+  DCHECK_LE(reg_from, kMaxRegister);
+  DCHECK_LE(reg_to, kMaxRegister);
+  static_assert(kMaxRegister <= std::numeric_limits<uint16_t>::max());
+  Emit(BC_CLEAR_REGISTERS, 0);
+  Emit16(reg_from);
+  Emit16(reg_to);
 }
 
 void RegExpBytecodeGenerator::ReadCurrentPositionFromRegister(
@@ -174,9 +180,9 @@ void RegExpBytecodeGenerator::AdvanceCurrentPosition(int by) {
   advance_current_end_ = pc_;
 }
 
-void RegExpBytecodeGenerator::CheckGreedyLoop(
+void RegExpBytecodeGenerator::CheckFixedLengthLoop(
     Label* on_tos_equals_current_position) {
-  Emit(BC_CHECK_GREEDY, 0);
+  Emit(BC_CHECK_FIXED_LENGTH, 0);
   EmitOrLink(on_tos_equals_current_position);
 }
 
@@ -188,7 +194,7 @@ void RegExpBytecodeGenerator::LoadCurrentCharacterImpl(int cp_offset,
   DCHECK_GE(eats_at_least, characters);
   if (eats_at_least > characters && check_bounds) {
     DCHECK(is_int24(cp_offset + eats_at_least));
-    Emit(BC_CHECK_CURRENT_POSITION, cp_offset + eats_at_least);
+    Emit(BC_CHECK_CURRENT_POSITION, cp_offset + eats_at_least - 1);
     EmitOrLink(on_failure);
     check_bounds = false;  // Load below doesn't need to check.
   }
@@ -314,10 +320,7 @@ void RegExpBytecodeGenerator::CheckCharacterNotInRange(base::uc16 from,
   EmitOrLink(on_not_in_range);
 }
 
-void RegExpBytecodeGenerator::CheckBitInTable(Handle<ByteArray> table,
-                                              Label* on_bit_set) {
-  Emit(BC_CHECK_BIT_IN_TABLE, 0);
-  EmitOrLink(on_bit_set);
+void RegExpBytecodeGenerator::EmitSkipTable(DirectHandle<ByteArray> table) {
   for (int i = 0; i < kTableSize; i += kBitsPerByte) {
     int byte = 0;
     for (int j = 0; j < kBitsPerByte; j++) {
@@ -325,6 +328,25 @@ void RegExpBytecodeGenerator::CheckBitInTable(Handle<ByteArray> table,
     }
     Emit8(byte);
   }
+}
+
+void RegExpBytecodeGenerator::CheckBitInTable(Handle<ByteArray> table,
+                                              Label* on_bit_set) {
+  Emit(BC_CHECK_BIT_IN_TABLE, 0);
+  EmitOrLink(on_bit_set);
+  EmitSkipTable(table);
+}
+
+void RegExpBytecodeGenerator::SkipUntilBitInTable(
+    int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
+    int advance_by) {
+  Label cont;
+  Emit(BC_SKIP_UNTIL_BIT_IN_TABLE, cp_offset);
+  Emit32(advance_by);
+  EmitSkipTable(table);
+  EmitOrLink(&cont);  // goto_when_match
+  EmitOrLink(&cont);  // goto_on_failure
+  Bind(&cont);
 }
 
 void RegExpBytecodeGenerator::CheckNotBackReference(int start_reg,
@@ -375,16 +397,17 @@ void RegExpBytecodeGenerator::IfRegisterEqPos(int register_index,
   EmitOrLink(on_eq);
 }
 
-Handle<HeapObject> RegExpBytecodeGenerator::GetCode(Handle<String> source) {
+DirectHandle<HeapObject> RegExpBytecodeGenerator::GetCode(
+    DirectHandle<String> source, RegExpFlags flags) {
   Bind(&backtrack_);
   Backtrack();
 
-  Handle<ByteArray> array;
+  DirectHandle<TrustedByteArray> array;
   if (v8_flags.regexp_peephole_optimization) {
     array = RegExpBytecodePeepholeOptimization::OptimizeBytecode(
         isolate_, zone(), source, buffer_.data(), length(), jump_edges_);
   } else {
-    array = isolate_->factory()->NewByteArray(length());
+    array = isolate_->factory()->NewTrustedByteArray(length());
     Copy(array->begin());
   }
 

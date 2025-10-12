@@ -1,15 +1,8 @@
-/* eslint-disable max-len */
-
 // Separated out for easier unit testing
 module.exports = async (process, validateEngines) => {
   // set it here so that regardless of what happens later, we don't
   // leak any private CLI configs to other programs
   process.title = 'npm'
-
-  // if npm is called as "npmg" or "npm_g", then run in global mode.
-  if (process.argv[1][process.argv[1].length - 1] === 'g') {
-    process.argv.splice(1, 1, 'npm', '-g')
-  }
 
   // Patch the global fs module here at the app level
   require('graceful-fs').gracefulify(require('node:fs'))
@@ -27,7 +20,7 @@ module.exports = async (process, validateEngines) => {
   log.info('using', 'npm@%s', npm.version)
   log.info('using', 'node@%s', process.version)
 
-  // At this point we've required a few files and can be pretty sure we dont contain invalid syntax for this version of node. It's possible a lazy require would, but that's unlikely enough that it's not worth catching anymore and we attach the more important exit handlers.
+  // At this point we've required a few files and can be pretty sure we don't contain invalid syntax for this version of node. It's possible a lazy require would, but that's unlikely enough that it's not worth catching anymore and we attach the more important exit handlers.
   validateEngines.off()
   exitHandler.registerUncaughtHandlers()
 
@@ -64,7 +57,7 @@ module.exports = async (process, validateEngines) => {
 
     const execPromise = npm.exec(command, args)
 
-    // this is async but we dont await it, since its ok if it doesnt
+    // this is async but we don't await it, since its ok if it doesnt
     // finish before the command finishes running. it uses command and argv
     // so it must be initiated here, after the command name is set
     const updateNotifier = require('./update-notifier.js')

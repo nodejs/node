@@ -17,54 +17,47 @@
 // -----------------------------------------------------------------------------
 //
 // This file includes an `absl::MockingBitGen` class to use as a mock within the
-// Googletest testing framework. Such a mock is useful to provide deterministic
+// GoogleTest testing framework. Such a mock is useful to provide deterministic
 // values as return values within (otherwise random) Abseil distribution
 // functions. Such determinism within a mock is useful within testing frameworks
 // to test otherwise indeterminate APIs.
 //
-// More information about the Googletest testing framework is available at
+// More information about the GoogleTest testing framework is available at
 // https://github.com/google/googletest
 
 #ifndef ABSL_RANDOM_MOCKING_BIT_GEN_H_
 #define ABSL_RANDOM_MOCKING_BIT_GEN_H_
 
-#include <iterator>
-#include <limits>
 #include <memory>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
 #include "gmock/gmock.h"
-#include "gtest/gtest.h"
-#include "absl/base/internal/fast_type_id.h"
+#include "absl/base/config.h"
+#include "absl/base/fast_type_id.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/meta/type_traits.h"
-#include "absl/random/distributions.h"
-#include "absl/random/internal/distribution_caller.h"
+#include "absl/random/internal/mock_helpers.h"
 #include "absl/random/random.h"
-#include "absl/strings/str_cat.h"
-#include "absl/strings/str_join.h"
-#include "absl/types/span.h"
-#include "absl/types/variant.h"
 #include "absl/utility/utility.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
+class BitGenRef;
+
 namespace random_internal {
 template <typename>
 struct DistributionCaller;
 class MockHelpers;
-
 }  // namespace random_internal
-class BitGenRef;
 
 // MockingBitGen
 //
 // `absl::MockingBitGen` is a mock Uniform Random Bit Generator (URBG) class
 // which can act in place of an `absl::BitGen` URBG within tests using the
-// Googletest testing framework.
+// GoogleTest testing framework.
 //
 // Usage:
 //
@@ -125,15 +118,19 @@ class MockingBitGen {
   // NOTE: MockFnCaller is essentially equivalent to the lambda:
   // [fn](auto... args) { return fn->Call(std::move(args)...)}
   // however that fails to build on some supported platforms.
-  template <typename MockFnType, typename ResultT, typename Tuple>
+  template <typename MockFnType, typename ValidatorT, typename ResultT,
+            typename Tuple>
   struct MockFnCaller;
 
   // specialization for std::tuple.
-  template <typename MockFnType, typename ResultT, typename... Args>
-  struct MockFnCaller<MockFnType, ResultT, std::tuple<Args...>> {
+  template <typename MockFnType, typename ValidatorT, typename ResultT,
+            typename... Args>
+  struct MockFnCaller<MockFnType, ValidatorT, ResultT, std::tuple<Args...>> {
     MockFnType* fn;
     inline ResultT operator()(Args... args) {
-      return fn->Call(std::move(args)...);
+      ResultT result = fn->Call(args...);
+      ValidatorT::Validate(result, args...);
+      return result;
     }
   };
 
@@ -150,16 +147,17 @@ class MockingBitGen {
                        /*ResultT*/ void* result) = 0;
   };
 
-  template <typename MockFnType, typename ResultT, typename ArgTupleT>
+  template <typename MockFnType, typename ValidatorT, typename ResultT,
+            typename ArgTupleT>
   class FunctionHolderImpl final : public FunctionHolder {
    public:
-    void Apply(void* args_tuple, void* result) override {
+    void Apply(void* args_tuple, void* result) final {
       // Requires tuple_args to point to a ArgTupleT, which is a
       // std::tuple<Args...> used to invoke the mock function. Requires result
       // to point to a ResultT, which is the result of the call.
-      *static_cast<ResultT*>(result) =
-          absl::apply(MockFnCaller<MockFnType, ResultT, ArgTupleT>{&mock_fn_},
-                      *static_cast<ArgTupleT*>(args_tuple));
+      *static_cast<ResultT*>(result) = absl::apply(
+          MockFnCaller<MockFnType, ValidatorT, ResultT, ArgTupleT>{&mock_fn_},
+          *static_cast<ArgTupleT*>(args_tuple));
     }
 
     MockFnType mock_fn_;
@@ -175,26 +173,27 @@ class MockingBitGen {
   //
   // The returned MockFunction<...> type can be used to setup additional
   // distribution parameters of the expectation.
-  template <typename ResultT, typename ArgTupleT, typename SelfT>
-  auto RegisterMock(SelfT&, base_internal::FastTypeIdType type)
+  template <typename ResultT, typename ArgTupleT, typename SelfT,
+            typename ValidatorT>
+  auto RegisterMock(SelfT&, FastTypeIdType type, ValidatorT)
       -> decltype(GetMockFnType(std::declval<ResultT>(),
                                 std::declval<ArgTupleT>()))& {
     using MockFnType = decltype(GetMockFnType(std::declval<ResultT>(),
                                               std::declval<ArgTupleT>()));
 
     using WrappedFnType = absl::conditional_t<
-        std::is_same<SelfT, ::testing::NiceMock<absl::MockingBitGen>>::value,
+        std::is_same<SelfT, ::testing::NiceMock<MockingBitGen>>::value,
         ::testing::NiceMock<MockFnType>,
         absl::conditional_t<
-            std::is_same<SelfT,
-                         ::testing::NaggyMock<absl::MockingBitGen>>::value,
+            std::is_same<SelfT, ::testing::NaggyMock<MockingBitGen>>::value,
             ::testing::NaggyMock<MockFnType>,
             absl::conditional_t<
                 std::is_same<SelfT,
-                             ::testing::StrictMock<absl::MockingBitGen>>::value,
+                             ::testing::StrictMock<MockingBitGen>>::value,
                 ::testing::StrictMock<MockFnType>, MockFnType>>>;
 
-    using ImplT = FunctionHolderImpl<WrappedFnType, ResultT, ArgTupleT>;
+    using ImplT =
+        FunctionHolderImpl<WrappedFnType, ValidatorT, ResultT, ArgTupleT>;
     auto& mock = mocks_[type];
     if (!mock) {
       mock = absl::make_unique<ImplT>();
@@ -204,8 +203,8 @@ class MockingBitGen {
 
   // MockingBitGen::InvokeMock
   //
-  // InvokeMock(FastTypeIdType, args, result) is the entrypoint for invoking
-  // mocks registered on MockingBitGen.
+  // bool InvokeMock(key_id, args_tuple*, result*) is the entrypoint
+  // for invoking mocks registered on MockingBitGen.
   //
   // When no mocks are registered on the provided FastTypeIdType, returns false.
   // Otherwise attempts to invoke the mock function ResultT(Args...) that
@@ -213,18 +212,16 @@ class MockingBitGen {
   // Requires tuple_args to point to a ArgTupleT, which is a std::tuple<Args...>
   // used to invoke the mock function.
   // Requires result to point to a ResultT, which is the result of the call.
-  inline bool InvokeMock(base_internal::FastTypeIdType type, void* args_tuple,
+  inline bool InvokeMock(FastTypeIdType key_id, void* args_tuple,
                          void* result) {
     // Trigger a mock, if there exists one that matches `param`.
-    auto it = mocks_.find(type);
+    auto it = mocks_.find(key_id);
     if (it == mocks_.end()) return false;
     it->second->Apply(args_tuple, result);
     return true;
   }
 
-  absl::flat_hash_map<base_internal::FastTypeIdType,
-                      std::unique_ptr<FunctionHolder>>
-      mocks_;
+  absl::flat_hash_map<FastTypeIdType, std::unique_ptr<FunctionHolder>> mocks_;
   absl::BitGen gen_;
 
   template <typename>

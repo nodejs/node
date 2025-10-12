@@ -19,9 +19,7 @@ BytecodeOffsetIterator::BytecodeOffsetIterator(
       data_length_(mapping_table_->length()),
       current_index_(0),
       bytecode_iterator_(bytecodes),
-      local_heap_(LocalHeap::Current()
-                      ? LocalHeap::Current()
-                      : Isolate::Current()->main_thread_local_heap()) {
+      local_heap_(LocalHeap::Current()) {
   local_heap_->AddGCEpilogueCallback(UpdatePointersCallback, this);
   Initialize();
 }

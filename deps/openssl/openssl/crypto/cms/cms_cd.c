@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,7 +17,7 @@
 #include <openssl/comp.h>
 #include "cms_local.h"
 
-#ifdef ZLIB
+#ifndef OPENSSL_NO_ZLIB
 
 /* CMS CompressedData Utilities */
 
@@ -50,8 +50,9 @@ CMS_ContentInfo *ossl_cms_CompressedData_create(int comp_nid,
 
     cd->version = 0;
 
-    X509_ALGOR_set0(cd->compressionAlgorithm,
-                    OBJ_nid2obj(NID_zlib_compression), V_ASN1_UNDEF, NULL);
+    (void)X509_ALGOR_set0(cd->compressionAlgorithm,
+                          OBJ_nid2obj(NID_zlib_compression),
+                          V_ASN1_UNDEF, NULL); /* cannot fail */
 
     cd->encapContentInfo->eContentType = OBJ_nid2obj(NID_pkcs7_data);
 

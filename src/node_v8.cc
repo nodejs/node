@@ -27,12 +27,19 @@
 #include "node.h"
 #include "node_external_reference.h"
 #include "util-inl.h"
+#include "v8-profiler.h"
 #include "v8.h"
 
 namespace node {
 namespace v8_utils {
 using v8::Array;
+using v8::BigInt;
+using v8::CFunction;
 using v8::Context;
+using v8::CpuProfile;
+using v8::CpuProfilingResult;
+using v8::CpuProfilingStatus;
+using v8::DictionaryTemplate;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -42,6 +49,9 @@ using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
+using v8::MaybeLocal;
+using v8::Number;
 using v8::Object;
 using v8::ScriptCompiler;
 using v8::String;
@@ -153,7 +163,7 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  HandleScope scope(context->GetIsolate());
+  HandleScope scope(Isolate::GetCurrent());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
   InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
@@ -178,10 +188,8 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Integer> result =
-      Integer::NewFromUnsigned(env->isolate(),
-                               ScriptCompiler::CachedDataVersionTag());
+  Local<Integer> result = Integer::NewFromUnsigned(
+      args.GetIsolate(), ScriptCompiler::CachedDataVersionTag());
   args.GetReturnValue().Set(result);
 }
 
@@ -236,6 +244,62 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   String::Utf8Value flags(args.GetIsolate(), args[0]);
   V8::SetFlagsFromString(*flags, static_cast<size_t>(flags.length()));
+}
+
+void StartCpuProfile(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  CpuProfilingResult result = env->StartCpuProfile();
+  if (result.status == CpuProfilingStatus::kErrorTooManyProfilers) {
+    return THROW_ERR_CPU_PROFILE_TOO_MANY(isolate,
+                                          "There are too many CPU profiles");
+  } else if (result.status == CpuProfilingStatus::kStarted) {
+    args.GetReturnValue().Set(Number::New(isolate, result.id));
+  }
+}
+
+void StopCpuProfile(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  CHECK(args[0]->IsUint32());
+  uint32_t profile_id = args[0]->Uint32Value(env->context()).FromJust();
+  CpuProfile* profile = env->StopCpuProfile(profile_id);
+  if (!profile) {
+    return THROW_ERR_CPU_PROFILE_NOT_STARTED(isolate,
+                                             "CPU profile not started");
+  }
+  auto json_out_stream = std::make_unique<node::JSONOutputStream>();
+  profile->Serialize(json_out_stream.get(),
+                     CpuProfile::SerializationFormat::kJSON);
+  profile->Delete();
+  Local<Value> ret;
+  if (ToV8Value(env->context(), json_out_stream->out_stream().str(), isolate)
+          .ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+static void IsStringOneByteRepresentation(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+  bool is_one_byte = args[0].As<String>()->IsOneByte();
+  args.GetReturnValue().Set(is_one_byte);
+}
+
+static bool FastIsStringOneByteRepresentation(Local<Value> receiver,
+                                              const Local<Value> target) {
+  CHECK(target->IsString());
+  return target.As<String>()->IsOneByte();
+}
+
+CFunction fast_is_string_one_byte_representation_(
+    CFunction::Make(FastIsStringOneByteRepresentation));
+
+void GetHashSeed(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  uint64_t hash_seed = isolate->GetHashSeed();
+  args.GetReturnValue().Set(BigInt::NewFromUnsigned(isolate, hash_seed));
 }
 
 static const char* GetGCTypeName(v8::GCType gc_type) {
@@ -293,6 +357,199 @@ static void SetHeapStatistics(JSONWriter* writer, Isolate* isolate) {
     writer->json_end();
   }
   writer->json_arrayend();
+}
+
+static MaybeLocal<Object> ConvertHeapStatsToJSObject(
+    Isolate* isolate, const cppgc::HeapStatistics& stats) {
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(isolate);
+  // Space Statistics
+  LocalVector<Value> space_statistics_array(isolate);
+  space_statistics_array.reserve(stats.space_stats.size());
+
+  auto object_stats_template = env->object_stats_template();
+  auto page_stats_tmpl = env->page_stats_template();
+  auto free_list_statistics_template = env->free_list_statistics_template();
+  auto space_stats_tmpl = env->space_stats_template();
+  auto heap_stats_tmpl = env->v8_heap_statistics_template();
+  if (object_stats_template.IsEmpty()) {
+    static constexpr std::string_view object_stats_names[] = {"allocated_bytes",
+                                                              "object_count"};
+    object_stats_template =
+        DictionaryTemplate::New(isolate, object_stats_names);
+    env->set_object_stats_template(object_stats_template);
+  }
+  if (page_stats_tmpl.IsEmpty()) {
+    static constexpr std::string_view page_stats_names[] = {
+        "committed_size_bytes",
+        "resident_size_bytes",
+        "used_size_bytes",
+        "object_statistics"};
+    page_stats_tmpl = DictionaryTemplate::New(isolate, page_stats_names);
+    env->set_page_stats_template(page_stats_tmpl);
+  }
+  if (free_list_statistics_template.IsEmpty()) {
+    std::string_view free_list_statistics_names[] = {
+        "bucket_size", "free_count", "free_size"};
+    free_list_statistics_template =
+        DictionaryTemplate::New(isolate, free_list_statistics_names);
+    env->set_free_list_statistics_template(free_list_statistics_template);
+  }
+  if (space_stats_tmpl.IsEmpty()) {
+    static constexpr std::string_view space_stats_names[] = {
+        "name",
+        "committed_size_bytes",
+        "resident_size_bytes",
+        "used_size_bytes",
+        "page_stats",
+        "free_list_stats"};
+    space_stats_tmpl = DictionaryTemplate::New(isolate, space_stats_names);
+    env->set_space_stats_template(space_stats_tmpl);
+  }
+  if (heap_stats_tmpl.IsEmpty()) {
+    static constexpr std::string_view heap_statistics_names[] = {
+        "committed_size_bytes",
+        "resident_size_bytes",
+        "used_size_bytes",
+        "space_statistics",
+        "type_names"};
+    heap_stats_tmpl = DictionaryTemplate::New(isolate, heap_statistics_names);
+    env->set_v8_heap_statistics_template(heap_stats_tmpl);
+  }
+
+  for (size_t i = 0; i < stats.space_stats.size(); i++) {
+    const cppgc::HeapStatistics::SpaceStatistics& space_stats =
+        stats.space_stats[i];
+    // Page Statistics
+    LocalVector<Value> page_statistics_array(isolate);
+    page_statistics_array.reserve(space_stats.page_stats.size());
+    for (size_t j = 0; j < space_stats.page_stats.size(); j++) {
+      const cppgc::HeapStatistics::PageStatistics& page_stats =
+          space_stats.page_stats[j];
+      // Object Statistics
+      LocalVector<Value> object_statistics_array(isolate);
+      object_statistics_array.reserve(page_stats.object_statistics.size());
+      for (size_t k = 0; k < page_stats.object_statistics.size(); k++) {
+        const cppgc::HeapStatistics::ObjectStatsEntry& object_stats =
+            page_stats.object_statistics[k];
+        MaybeLocal<Value> object_stats_values[] = {
+            Uint32::NewFromUnsigned(
+                isolate, static_cast<uint32_t>(object_stats.allocated_bytes)),
+            Uint32::NewFromUnsigned(
+                isolate, static_cast<uint32_t>(object_stats.object_count))};
+        Local<Object> object_stats_object;
+        if (!NewDictionaryInstanceNullProto(
+                 context, object_stats_template, object_stats_values)
+                 .ToLocal(&object_stats_object)) {
+          return MaybeLocal<Object>();
+        }
+        object_statistics_array.emplace_back(object_stats_object);
+      }
+
+      // Set page statistics
+      MaybeLocal<Value> page_stats_values[] = {
+          Uint32::NewFromUnsigned(
+              isolate, static_cast<uint32_t>(page_stats.committed_size_bytes)),
+          Uint32::NewFromUnsigned(
+              isolate, static_cast<uint32_t>(page_stats.resident_size_bytes)),
+          Uint32::NewFromUnsigned(
+              isolate, static_cast<uint32_t>(page_stats.used_size_bytes)),
+          Array::New(isolate,
+                     object_statistics_array.data(),
+                     object_statistics_array.size())};
+      Local<Object> page_stats_object;
+      if (!NewDictionaryInstanceNullProto(
+               context, page_stats_tmpl, page_stats_values)
+               .ToLocal(&page_stats_object)) {
+        return MaybeLocal<Object>();
+      }
+      page_statistics_array.emplace_back(page_stats_object);
+    }
+
+    // Free List Statistics
+    MaybeLocal<Value> free_list_statistics_values[] = {
+        ToV8ValuePrimitiveArray(
+            context, space_stats.free_list_stats.bucket_size, isolate),
+        ToV8ValuePrimitiveArray(
+            context, space_stats.free_list_stats.free_count, isolate),
+        ToV8ValuePrimitiveArray(
+            context, space_stats.free_list_stats.free_size, isolate)};
+
+    Local<Object> free_list_statistics_obj;
+    if (!NewDictionaryInstanceNullProto(context,
+                                        free_list_statistics_template,
+                                        free_list_statistics_values)
+             .ToLocal(&free_list_statistics_obj)) {
+      return MaybeLocal<Object>();
+    }
+
+    // Set Space Statistics
+    Local<Value> name_value;
+    if (!ToV8Value(context, stats.space_stats[i].name, isolate)
+             .ToLocal(&name_value)) {
+      return MaybeLocal<Object>();
+    }
+    MaybeLocal<Value> space_stats_values[] = {
+        name_value,
+        Uint32::NewFromUnsigned(
+            isolate,
+            static_cast<uint32_t>(stats.space_stats[i].committed_size_bytes)),
+        Uint32::NewFromUnsigned(
+            isolate,
+            static_cast<uint32_t>(stats.space_stats[i].resident_size_bytes)),
+        Uint32::NewFromUnsigned(
+            isolate,
+            static_cast<uint32_t>(stats.space_stats[i].used_size_bytes)),
+        Array::New(isolate,
+                   page_statistics_array.data(),
+                   page_statistics_array.size()),
+        free_list_statistics_obj,
+    };
+    Local<Object> space_stats_object;
+    if (!NewDictionaryInstanceNullProto(
+             context, space_stats_tmpl, space_stats_values)
+             .ToLocal(&space_stats_object)) {
+      return MaybeLocal<Object>();
+    }
+    space_statistics_array.emplace_back(space_stats_object);
+  }
+
+  Local<Value> type_names_value;
+  if (!ToV8Value(context, stats.type_names, isolate)
+           .ToLocal(&type_names_value)) {
+    return MaybeLocal<Object>();
+  }
+  MaybeLocal<Value> heap_statistics_values[] = {
+      Uint32::NewFromUnsigned(
+          isolate, static_cast<uint32_t>(stats.committed_size_bytes)),
+      Uint32::NewFromUnsigned(isolate,
+                              static_cast<uint32_t>(stats.resident_size_bytes)),
+      Uint32::NewFromUnsigned(isolate,
+                              static_cast<uint32_t>(stats.used_size_bytes)),
+      Array::New(isolate,
+                 space_statistics_array.data(),
+                 space_statistics_array.size()),
+      type_names_value};
+
+  return NewDictionaryInstanceNullProto(
+      context, heap_stats_tmpl, heap_statistics_values);
+}
+
+static void GetCppHeapStatistics(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsInt32());
+
+  cppgc::HeapStatistics stats = isolate->GetCppHeap()->CollectStatistics(
+      FromV8Value<cppgc::HeapStatistics::DetailLevel>(args[0]));
+
+  Local<Object> result;
+  if (!ConvertHeapStatsToJSObject(isolate, stats).ToLocal(&result)) {
+    return;
+  }
+  args.GetReturnValue().Set(result);
 }
 
 static void BeforeGCCallback(Isolate* isolate,
@@ -409,11 +666,10 @@ void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
   profiler->writer()->json_end();
   profiler->state = GCProfiler::GCProfilerState::kStopped;
   auto string = profiler->out_stream()->str();
-  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
-                                                string.data(),
-                                                v8::NewStringType::kNormal,
-                                                string.size())
-                                .ToLocalChecked());
+  Local<Value> ret;
+  if (ToV8Value(env->context(), string, env->isolate()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
 }
 
 void Initialize(Local<Object> target,
@@ -440,6 +696,8 @@ void Initialize(Local<Object> target,
             target,
             "updateHeapCodeStatisticsBuffer",
             UpdateHeapCodeStatisticsBuffer);
+  SetMethodNoSideEffect(
+      context, target, "getCppHeapStatistics", GetCppHeapStatistics);
 
   size_t number_of_heap_spaces = env->isolate()->NumberOfHeapSpaces();
 
@@ -479,6 +737,18 @@ void Initialize(Local<Object> target,
   // Export symbols used by v8.setFlagsFromString()
   SetMethod(context, target, "setFlagsFromString", SetFlagsFromString);
 
+  SetMethod(context, target, "startCpuProfile", StartCpuProfile);
+  SetMethod(context, target, "stopCpuProfile", StopCpuProfile);
+
+  // Export symbols used by v8.isStringOneByteRepresentation()
+  SetFastMethodNoSideEffect(context,
+                            target,
+                            "isStringOneByteRepresentation",
+                            IsStringOneByteRepresentation,
+                            &fast_is_string_one_byte_representation_);
+
+  SetMethodNoSideEffect(context, target, "getHashSeed", GetHashSeed);
+
   // GCProfiler
   Local<FunctionTemplate> t =
       NewFunctionTemplate(env->isolate(), GCProfiler::New);
@@ -486,6 +756,18 @@ void Initialize(Local<Object> target,
   SetProtoMethod(env->isolate(), t, "start", GCProfiler::Start);
   SetProtoMethod(env->isolate(), t, "stop", GCProfiler::Stop);
   SetConstructorFunction(context, target, "GCProfiler", t);
+
+  {
+    Isolate* isolate = env->isolate();
+    Local<Object> detail_level = Object::New(isolate);
+    cppgc::HeapStatistics::DetailLevel DETAILED =
+        cppgc::HeapStatistics::DetailLevel::kDetailed;
+    cppgc::HeapStatistics::DetailLevel BRIEF =
+        cppgc::HeapStatistics::DetailLevel::kBrief;
+    NODE_DEFINE_CONSTANT(detail_level, DETAILED);
+    NODE_DEFINE_CONSTANT(detail_level, BRIEF);
+    READONLY_PROPERTY(target, "detailLevel", detail_level);
+  }
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -494,10 +776,16 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(UpdateHeapCodeStatisticsBuffer);
   registry->Register(UpdateHeapSpaceStatisticsBuffer);
   registry->Register(SetFlagsFromString);
+  registry->Register(GetHashSeed);
   registry->Register(SetHeapSnapshotNearHeapLimit);
   registry->Register(GCProfiler::New);
   registry->Register(GCProfiler::Start);
   registry->Register(GCProfiler::Stop);
+  registry->Register(GetCppHeapStatistics);
+  registry->Register(IsStringOneByteRepresentation);
+  registry->Register(fast_is_string_one_byte_representation_);
+  registry->Register(StartCpuProfile);
+  registry->Register(StopCpuProfile);
 }
 
 }  // namespace v8_utils

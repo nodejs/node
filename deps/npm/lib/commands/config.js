@@ -4,30 +4,18 @@ const { spawn } = require('node:child_process')
 const { EOL } = require('node:os')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const pkgJson = require('@npmcli/package-json')
-const { defaults, definitions } = require('@npmcli/config/lib/definitions')
+const { defaults, definitions, nerfDarts } = require('@npmcli/config/lib/definitions')
 const { log, output } = require('proc-log')
 const BaseCommand = require('../base-cmd.js')
 const { redact } = require('@npmcli/redact')
 
-// These are the configs that we can nerf-dart. Not all of them currently even
-// *have* config definitions so we have to explicitly validate them here.
-// This is used to validate during "npm config set"
-const nerfDarts = [
-  '_auth',
-  '_authToken',
-  '_password',
-  'certfile',
-  'email',
-  'keyfile',
-  'username',
-]
 // These are the config values to swap with "protected".  It does not catch
 // every single sensitive thing a user may put in the npmrc file but it gets
 // the common ones.  This is distinct from nerfDarts because that is used to
 // validate valid configs during "npm config set", and folks may have old
 // invalid entries lying around in a config file that we still want to protect
 // when running "npm config list"
-// This is a more general list of values to consider protected.  You can not
+// This is a more general list of values to consider protected.  You cannot
 // "npm config get" them, and they will not display during "npm config list"
 const protected = [
   'auth',
@@ -125,7 +113,7 @@ class Config extends BaseCommand {
     const action = argv[2]
     switch (action) {
       case 'set':
-        // todo: complete with valid values, if possible.
+        // TODO: complete with valid values, if possible.
         if (argv.length > 3) {
           return []
         }
@@ -188,7 +176,7 @@ class Config extends BaseCommand {
       const deprecated = this.npm.config.definitions[baseKey]?.deprecated
       if (deprecated) {
         throw new Error(
-          `The \`${baseKey}\` option is deprecated, and can not be set in this way${deprecated}`
+          `The \`${baseKey}\` option is deprecated, and cannot be set in this way${deprecated}`
         )
       }
 
@@ -215,7 +203,7 @@ class Config extends BaseCommand {
     for (const key of keys) {
       const val = this.npm.config.get(key)
       if (isPrivate(key, val)) {
-        throw new Error(`The ${key} option is protected, and can not be retrieved in this way`)
+        throw new Error(`The ${key} option is protected, and cannot be retrieved in this way`)
       }
 
       const pref = keys.length > 1 ? `${key}=` : ''
@@ -378,6 +366,9 @@ ${defData}
       const { content } = await pkgJson.normalize(this.npm.prefix).catch(() => ({ content: {} }))
 
       if (content.publishConfig) {
+        for (const key in content.publishConfig) {
+          this.npm.config.checkUnknown('publishConfig', key)
+        }
         const pkgPath = resolve(this.npm.prefix, 'package.json')
         msg.push(`; "publishConfig" from ${pkgPath}`)
         msg.push('; This set of config values will be used at publish-time.', '')

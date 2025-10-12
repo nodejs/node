@@ -5,17 +5,19 @@
 #ifndef V8_REGEXP_REGEXP_AST_H_
 #define V8_REGEXP_REGEXP_AST_H_
 
+#include <optional>
+
 #include "src/base/strings.h"
 #include "src/regexp/regexp-flags.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-list.h"
 #include "src/zone/zone.h"
+
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uniset.h"
 #endif  // V8_INTL_SUPPORT
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #define FOR_EACH_REG_EXP_TREE_TYPE(VISIT) \
   VISIT(Disjunction)                      \
@@ -182,11 +184,11 @@ inline bool operator!=(const CharacterRange& lhs, const CharacterRange& rhs) {
   return !operator==(lhs, rhs);
 }
 
-#define DECL_BOILERPLATE(Name)                                         \
-  void* Accept(RegExpVisitor* visitor, void* data) override;           \
-  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) \
-      override;                                                        \
-  RegExp##Name* As##Name() override;                                   \
+#define DECL_BOILERPLATE(Name)                                             \
+  void* Accept(RegExpVisitor* visitor, void* data) override;               \
+  RegExpNode* ToNodeImpl(RegExpCompiler* compiler, RegExpNode* on_success) \
+      override;                                                            \
+  RegExp##Name* As##Name() override;                                       \
   bool Is##Name() override
 
 class RegExpTree : public ZoneObject {
@@ -194,8 +196,9 @@ class RegExpTree : public ZoneObject {
   static const int kInfinity = kMaxInt;
   virtual ~RegExpTree() = default;
   virtual void* Accept(RegExpVisitor* visitor, void* data) = 0;
-  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
-                             RegExpNode* on_success) = 0;
+  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success);
+  virtual RegExpNode* ToNodeImpl(RegExpCompiler* compiler,
+                                 RegExpNode* on_success) = 0;
   virtual bool IsTextElement() { return false; }
   virtual bool IsAnchoredAtStart() { return false; }
   virtual bool IsAnchoredAtEnd() { return false; }
@@ -212,7 +215,6 @@ class RegExpTree : public ZoneObject {
   FOR_EACH_REG_EXP_TREE_TYPE(MAKE_ASTYPE)
 #undef MAKE_ASTYPE
 };
-
 
 class RegExpDisjunction final : public RegExpTree {
  public:
@@ -236,7 +238,6 @@ class RegExpDisjunction final : public RegExpTree {
   int max_match_;
 };
 
-
 class RegExpAlternative final : public RegExpTree {
  public:
   explicit RegExpAlternative(ZoneList<RegExpTree*>* nodes);
@@ -255,7 +256,6 @@ class RegExpAlternative final : public RegExpTree {
   int min_match_;
   int max_match_;
 };
-
 
 class RegExpAssertion final : public RegExpTree {
  public:
@@ -300,7 +300,7 @@ class CharacterSet final {
 
  private:
   ZoneList<CharacterRange>* ranges_ = nullptr;
-  base::Optional<StandardCharacterSet> standard_set_type_;
+  std::optional<StandardCharacterSet> standard_set_type_;
 };
 
 class RegExpClassRanges final : public RegExpTree {
@@ -538,20 +538,24 @@ class RegExpText final : public RegExpTree {
   }
   ZoneList<TextElement>* elements() { return &elements_; }
 
+  bool StartsWithAtom() const;
+  RegExpAtom* FirstAtom() const;
+
  private:
   ZoneList<TextElement> elements_;
   int length_ = 0;
 };
 
-
 class RegExpQuantifier final : public RegExpTree {
  public:
   enum QuantifierType { GREEDY, NON_GREEDY, POSSESSIVE };
-  RegExpQuantifier(int min, int max, QuantifierType type, RegExpTree* body)
+  RegExpQuantifier(int min, int max, QuantifierType type, int index,
+                   RegExpTree* body)
       : body_(body),
         min_(min),
         max_(max),
-        quantifier_type_(type) {
+        quantifier_type_(type),
+        index_(index) {
     if (min > 0 && body->min_match() > kInfinity / min) {
       min_match_ = kInfinity;
     } else {
@@ -575,6 +579,7 @@ class RegExpQuantifier final : public RegExpTree {
   int min() const { return min_; }
   int max() const { return max_; }
   QuantifierType quantifier_type() const { return quantifier_type_; }
+  int index() const { return index_; }
   bool is_possessive() const { return quantifier_type_ == POSSESSIVE; }
   bool is_non_greedy() const { return quantifier_type_ == NON_GREEDY; }
   bool is_greedy() const { return quantifier_type_ == GREEDY; }
@@ -587,8 +592,8 @@ class RegExpQuantifier final : public RegExpTree {
   int min_match_;
   int max_match_;
   QuantifierType quantifier_type_;
+  int index_;
 };
-
 
 class RegExpCapture final : public RegExpTree {
  public:
@@ -704,7 +709,6 @@ class RegExpLookaround final : public RegExpTree {
   int index_;
 };
 
-
 class RegExpBackReference final : public RegExpTree {
  public:
   explicit RegExpBackReference(Zone* zone) : captures_(1, zone) {}
@@ -731,7 +735,6 @@ class RegExpBackReference final : public RegExpTree {
   const ZoneVector<base::uc16>* name_ = nullptr;
 };
 
-
 class RegExpEmpty final : public RegExpTree {
  public:
   DECL_BOILERPLATE(Empty);
@@ -739,8 +742,7 @@ class RegExpEmpty final : public RegExpTree {
   int max_match() override { return 0; }
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #undef DECL_BOILERPLATE
 

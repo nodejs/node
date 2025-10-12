@@ -52,7 +52,7 @@ void PendingCompilationErrorHandler::MessageDetails::Prepare(
   }
 }
 
-Handle<String> PendingCompilationErrorHandler::MessageDetails::ArgString(
+DirectHandle<String> PendingCompilationErrorHandler::MessageDetails::ArgString(
     Isolate* isolate, int index) const {
   // `index` may be >= argc; in that case we return a default value to pass on
   // elsewhere.
@@ -147,11 +147,10 @@ void PendingCompilationErrorHandler::ReportWarnings(
 
   for (const MessageDetails& warning : warning_messages_) {
     MessageLocation location = warning.GetLocation(script);
-    Handle<String> argument = warning.ArgString(isolate, 0);
+    DirectHandle<String> argument = warning.ArgString(isolate, 0);
     DCHECK_LT(warning.ArgCount(), 2);  // Arg1 is only used for errors.
-    Handle<JSMessageObject> message =
-        MessageHandler::MakeMessageObject(isolate, warning.message(), &location,
-                                          argument, Handle<FixedArray>::null());
+    DirectHandle<JSMessageObject> message = MessageHandler::MakeMessageObject(
+        isolate, warning.message(), &location, argument);
     message->set_error_level(v8::Isolate::kMessageWarning);
     MessageHandler::ReportMessage(isolate, &location, message);
   }
@@ -190,7 +189,7 @@ void PendingCompilationErrorHandler::ThrowPendingError(
 
   MessageLocation location = error_details_.GetLocation(script);
   int num_args = 0;
-  Handle<Object> args[MessageDetails::kMaxArgumentCount];
+  DirectHandle<Object> args[MessageDetails::kMaxArgumentCount];
   for (; num_args < MessageDetails::kMaxArgumentCount; ++num_args) {
     args[num_args] = error_details_.ArgString(isolate, num_args);
     if (args[num_args].is_null()) break;
@@ -198,16 +197,16 @@ void PendingCompilationErrorHandler::ThrowPendingError(
   isolate->debug()->OnCompileError(script);
 
   Factory* factory = isolate->factory();
-  Handle<JSObject> error = factory->NewSyntaxError(
+  DirectHandle<JSObject> error = factory->NewSyntaxError(
       error_details_.message(), base::VectorOf(args, num_args));
   isolate->ThrowAt(error, &location);
 }
 
-Handle<String> PendingCompilationErrorHandler::FormatErrorMessageForTest(
+DirectHandle<String> PendingCompilationErrorHandler::FormatErrorMessageForTest(
     Isolate* isolate) {
   error_details_.Prepare(isolate);
   int num_args = 0;
-  Handle<Object> args[MessageDetails::kMaxArgumentCount];
+  DirectHandle<Object> args[MessageDetails::kMaxArgumentCount];
   for (; num_args < MessageDetails::kMaxArgumentCount; ++num_args) {
     args[num_args] = error_details_.ArgString(isolate, num_args);
     if (args[num_args].is_null()) break;

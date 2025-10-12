@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -32,7 +32,6 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
     char *p;
     unsigned char *q;
     BUF_MEM *b = NULL;
-    static const char hex[17] = "0123456789ABCDEF";
     int gs_doit[4];
     char tmp_buf[80];
 #ifdef CHARSET_EBCDIC
@@ -41,9 +40,9 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
 
     if (buf == NULL) {
         if ((b = BUF_MEM_new()) == NULL)
-            goto err;
+            goto buferr;
         if (!BUF_MEM_grow(b, 200))
-            goto err;
+            goto buferr;
         b->data[0] = '\0';
         len = 200;
     } else if (len == 0) {
@@ -124,7 +123,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
         }
         if (b != NULL) {
             if (!BUF_MEM_grow(b, l + 1))
-                goto err;
+                goto buferr;
             p = &(b->data[lold]);
         } else if (l > len) {
             break;
@@ -147,8 +146,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
             if ((n < ' ') || (n > '~')) {
                 *(p++) = '\\';
                 *(p++) = 'x';
-                *(p++) = hex[(n >> 4) & 0x0f];
-                *(p++) = hex[n & 0x0f];
+                p += ossl_to_hex(p, n);
             } else {
                 if (n == '/' || n == '+')
                     *(p++) = '\\';
@@ -159,8 +157,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
             if ((n < os_toascii[' ']) || (n > os_toascii['~'])) {
                 *(p++) = '\\';
                 *(p++) = 'x';
-                *(p++) = hex[(n >> 4) & 0x0f];
-                *(p++) = hex[n & 0x0f];
+                p += ossl_to_hex(p, n);
             } else {
                 if (n == os_toascii['/'] || n == os_toascii['+'])
                     *(p++) = '\\';
@@ -179,8 +176,8 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
     if (i == 0)
         *p = '\0';
     return p;
- err:
-    ERR_raise(ERR_LIB_X509, ERR_R_MALLOC_FAILURE);
+ buferr:
+    ERR_raise(ERR_LIB_X509, ERR_R_BUF_LIB);
  end:
     BUF_MEM_free(b);
     return NULL;

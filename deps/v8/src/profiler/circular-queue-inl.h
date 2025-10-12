@@ -6,6 +6,7 @@
 #define V8_PROFILER_CIRCULAR_QUEUE_INL_H_
 
 #include "src/profiler/circular-queue.h"
+// Include the non-inl header before the rest of the headers.
 
 namespace v8 {
 namespace internal {

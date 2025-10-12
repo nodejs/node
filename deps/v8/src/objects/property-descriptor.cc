@@ -21,9 +21,9 @@ namespace {
 // Helper function for ToPropertyDescriptor. Comments describe steps for
 // "enumerable", other properties are handled the same way.
 // Returns false if an exception was thrown.
-bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
-                          Handle<Object>* value) {
-  LookupIterator it(receiver->GetIsolate(), receiver, name, receiver);
+bool GetPropertyIfPresent(Isolate* isolate, DirectHandle<JSReceiver> receiver,
+                          DirectHandle<String> name, Handle<JSAny>* value) {
+  LookupIterator it(isolate, receiver, name, receiver);
   // 4. Let hasEnumerable be HasProperty(Obj, "enumerable").
   Maybe<bool> has_property = JSReceiver::HasProperty(&it);
   // 5. ReturnIfAbrupt(hasEnumerable).
@@ -32,7 +32,7 @@ bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
   if (has_property.FromJust() == true) {
     // 6a. Let enum be ToBoolean(Get(Obj, "enumerable")).
     // 6b. ReturnIfAbrupt(enum).
-    if (!Object::GetProperty(&it).ToHandle(value)) return false;
+    if (!Cast<JSAny>(Object::GetProperty(&it)).ToHandle(value)) return false;
   }
   return true;
 }
@@ -41,7 +41,8 @@ bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
 // objects: nothing on the prototype chain, just own fast data properties.
 // Must not have observable side effects, because the slow path will restart
 // the entire conversion!
-bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
+bool ToPropertyDescriptorFastPath(Isolate* isolate,
+                                  DirectHandle<JSReceiver> obj,
                                   PropertyDescriptor* desc) {
   {
     DisallowGarbageCollection no_gc;
@@ -55,7 +56,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     // During bootstrapping, the object_function_prototype_map hasn't been
     // set up yet.
     if (isolate->bootstrapper()->IsActive()) return false;
-    if (JSObject::cast(raw_map->prototype())->map() !=
+    if (Cast<JSObject>(raw_map->prototype())->map() !=
         isolate->raw_native_context()->object_function_prototype_map()) {
       return false;
     }
@@ -63,17 +64,17 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     if (raw_map->is_dictionary_map()) return false;
   }
 
-  Handle<Map> map(obj->map(isolate), isolate);
+  DirectHandle<Map> map(obj->map(isolate), isolate);
 
-  Handle<DescriptorArray> descs =
-      Handle<DescriptorArray>(map->instance_descriptors(isolate), isolate);
+  DirectHandle<DescriptorArray> descs(map->instance_descriptors(isolate),
+                                      isolate);
   ReadOnlyRoots roots(isolate);
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
-    Handle<Object> value;
+    DirectHandle<Object> value;
     if (details.location() == PropertyLocation::kField) {
       if (details.kind() == PropertyKind::kData) {
-        value = JSObject::FastPropertyAt(isolate, Handle<JSObject>::cast(obj),
+        value = JSObject::FastPropertyAt(isolate, Cast<JSObject>(obj),
                                          details.representation(),
                                          FieldIndex::ForDetails(*map, details));
       } else {
@@ -85,7 +86,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     } else {
       DCHECK_EQ(PropertyLocation::kDescriptor, details.location());
       if (details.kind() == PropertyKind::kData) {
-        value = handle(descs->GetStrongValue(i), isolate);
+        value = direct_handle(descs->GetStrongValue(i), isolate);
       } else {
         DCHECK_EQ(PropertyKind::kAccessor, details.kind());
         // Bail out to slow path.
@@ -98,17 +99,17 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     } else if (key == roots.configurable_string()) {
       desc->set_configurable(Object::BooleanValue(*value, isolate));
     } else if (key == roots.value_string()) {
-      desc->set_value(value);
+      desc->set_value(Cast<JSAny>(value));
     } else if (key == roots.writable_string()) {
       desc->set_writable(Object::BooleanValue(*value, isolate));
     } else if (key == roots.get_string()) {
       // Bail out to slow path to throw an exception if necessary.
       if (!IsCallable(*value)) return false;
-      desc->set_get(value);
+      desc->set_get(Cast<JSAny>(value));
     } else if (key == roots.set_string()) {
       // Bail out to slow path to throw an exception if necessary.
       if (!IsCallable(*value)) return false;
-      desc->set_set(value);
+      desc->set_set(Cast<JSAny>(value));
     }
   }
   if ((desc->has_get() || desc->has_set()) &&
@@ -119,24 +120,23 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
   return true;
 }
 
-void CreateDataProperty(Handle<JSObject> object, Handle<String> name,
-                        Handle<Object> value) {
-  LookupIterator it(object->GetIsolate(), object, name, object,
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
-  Maybe<bool> result = JSObject::CreateDataProperty(&it, value);
+void CreateDataProperty(Isolate* isolate, DirectHandle<JSObject> object,
+                        Handle<String> name, DirectHandle<Object> value) {
+  Maybe<bool> result = JSObject::CreateDataProperty(
+      isolate, object, PropertyKey(isolate, Cast<Name>(name)), value);
   CHECK(result.IsJust() && result.FromJust());
 }
 
 }  // namespace
 
 // ES6 6.2.4.4 "FromPropertyDescriptor"
-Handle<Object> PropertyDescriptor::ToObject(Isolate* isolate) {
+DirectHandle<JSObject> PropertyDescriptor::ToObject(Isolate* isolate) {
   DCHECK(!(PropertyDescriptor::IsAccessorDescriptor(this) &&
            PropertyDescriptor::IsDataDescriptor(this)));
   Factory* factory = isolate->factory();
   if (IsRegularAccessorProperty()) {
     // Fast case for regular accessor properties.
-    Handle<JSObject> result = factory->NewJSObjectFromMap(
+    DirectHandle<JSObject> result = factory->NewJSObjectFromMap(
         isolate->accessor_property_descriptor_map());
     result->InObjectPropertyAtPut(JSAccessorPropertyDescriptor::kGetIndex,
                                   *get());
@@ -152,7 +152,7 @@ Handle<Object> PropertyDescriptor::ToObject(Isolate* isolate) {
   }
   if (IsRegularDataProperty()) {
     // Fast case for regular data properties.
-    Handle<JSObject> result =
+    DirectHandle<JSObject> result =
         factory->NewJSObjectFromMap(isolate->data_property_descriptor_map());
     result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kValueIndex,
                                   *value());
@@ -164,26 +164,27 @@ Handle<Object> PropertyDescriptor::ToObject(Isolate* isolate) {
                                   isolate->heap()->ToBoolean(configurable()));
     return result;
   }
-  Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
+  DirectHandle<JSObject> result =
+      factory->NewJSObject(isolate->object_function());
   if (has_value()) {
-    CreateDataProperty(result, factory->value_string(), value());
+    CreateDataProperty(isolate, result, factory->value_string(), value());
   }
   if (has_writable()) {
-    CreateDataProperty(result, factory->writable_string(),
+    CreateDataProperty(isolate, result, factory->writable_string(),
                        factory->ToBoolean(writable()));
   }
   if (has_get()) {
-    CreateDataProperty(result, factory->get_string(), get());
+    CreateDataProperty(isolate, result, factory->get_string(), get());
   }
   if (has_set()) {
-    CreateDataProperty(result, factory->set_string(), set());
+    CreateDataProperty(isolate, result, factory->set_string(), set());
   }
   if (has_enumerable()) {
-    CreateDataProperty(result, factory->enumerable_string(),
+    CreateDataProperty(isolate, result, factory->enumerable_string(),
                        factory->ToBoolean(enumerable()));
   }
   if (has_configurable()) {
-    CreateDataProperty(result, factory->configurable_string(),
+    CreateDataProperty(isolate, result, factory->configurable_string(),
                        factory->ToBoolean(configurable()));
   }
   return result;
@@ -193,7 +194,7 @@ Handle<Object> PropertyDescriptor::ToObject(Isolate* isolate) {
 // Returns false in case of exception.
 // static
 bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
-                                              Handle<Object> obj,
+                                              Handle<JSAny> obj,
                                               PropertyDescriptor* desc) {
   // 1. ReturnIfAbrupt(Obj).
   // 2. If Type(Obj) is not Object, throw a TypeError exception.
@@ -205,15 +206,16 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // 3. Let desc be a new Property Descriptor that initially has no fields.
   DCHECK(desc->is_empty());
 
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(obj);
+  DirectHandle<JSReceiver> receiver = Cast<JSReceiver>(obj);
   if (ToPropertyDescriptorFastPath(isolate, receiver, desc)) {
     return true;
   }
 
   // enumerable?
-  Handle<Object> enumerable;
+  Handle<JSAny> enumerable;
   // 4 through 6b.
-  if (!GetPropertyIfPresent(receiver, isolate->factory()->enumerable_string(),
+  if (!GetPropertyIfPresent(isolate, receiver,
+                            isolate->factory()->enumerable_string(),
                             &enumerable)) {
     return false;
   }
@@ -223,9 +225,10 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   }
 
   // configurable?
-  Handle<Object> configurable;
+  Handle<JSAny> configurable;
   // 7 through 9b.
-  if (!GetPropertyIfPresent(receiver, isolate->factory()->configurable_string(),
+  if (!GetPropertyIfPresent(isolate, receiver,
+                            isolate->factory()->configurable_string(),
                             &configurable)) {
     return false;
   }
@@ -235,20 +238,20 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   }
 
   // value?
-  Handle<Object> value;
+  Handle<JSAny> value;
   // 10 through 12b.
-  if (!GetPropertyIfPresent(receiver, isolate->factory()->value_string(),
-                            &value)) {
+  if (!GetPropertyIfPresent(isolate, receiver,
+                            isolate->factory()->value_string(), &value)) {
     return false;
   }
   // 12c. Set the [[Value]] field of desc to value.
   if (!value.is_null()) desc->set_value(value);
 
   // writable?
-  Handle<Object> writable;
+  Handle<JSAny> writable;
   // 13 through 15b.
-  if (!GetPropertyIfPresent(receiver, isolate->factory()->writable_string(),
-                            &writable)) {
+  if (!GetPropertyIfPresent(isolate, receiver,
+                            isolate->factory()->writable_string(), &writable)) {
     return false;
   }
   // 15c. Set the [[Writable]] field of desc to writable.
@@ -256,9 +259,9 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
     desc->set_writable(Object::BooleanValue(*writable, isolate));
 
   // getter?
-  Handle<Object> getter;
+  Handle<JSAny> getter;
   // 16 through 18b.
-  if (!GetPropertyIfPresent(receiver, isolate->factory()->get_string(),
+  if (!GetPropertyIfPresent(isolate, receiver, isolate->factory()->get_string(),
                             &getter)) {
     return false;
   }
@@ -274,9 +277,9 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
     desc->set_get(getter);
   }
   // setter?
-  Handle<Object> setter;
+  Handle<JSAny> setter;
   // 19 through 21b.
-  if (!GetPropertyIfPresent(receiver, isolate->factory()->set_string(),
+  if (!GetPropertyIfPresent(isolate, receiver, isolate->factory()->set_string(),
                             &setter)) {
     return false;
   }
@@ -349,9 +352,9 @@ void PropertyDescriptor::CompletePropertyDescriptor(Isolate* isolate,
   // 8. Return Desc.
 }
 
-Handle<PropertyDescriptorObject> PropertyDescriptor::ToPropertyDescriptorObject(
-    Isolate* isolate) {
-  Handle<PropertyDescriptorObject> obj =
+DirectHandle<PropertyDescriptorObject>
+PropertyDescriptor::ToPropertyDescriptorObject(Isolate* isolate) {
+  DirectHandle<PropertyDescriptorObject> obj =
       isolate->factory()->NewPropertyDescriptorObject();
 
   int flags =

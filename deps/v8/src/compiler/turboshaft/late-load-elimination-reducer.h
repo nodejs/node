@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_TURBOSHAFT_LATE_LOAD_ELIMINATION_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_LATE_LOAD_ELIMINATION_REDUCER_H_
 
+#include <optional>
+
 #include "src/base/doubly-threaded-list.h"
 #include "src/compiler/turboshaft/analyzer-iterator.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -24,6 +26,16 @@
 namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
+
+#ifdef DEBUG
+#define TRACE(x)                                    \
+  do {                                              \
+    if (v8_flags.turboshaft_trace_load_elimination) \
+      StdoutStream() << x << std::endl;             \
+  } while (false)
+#else
+#define TRACE(x)
+#endif
 
 // Design doc:
 // https://docs.google.com/document/d/1AEl4dATNLu8GlLyUBQFXJoCxoAT5BeG7RCWxoEtIBJE/edit?usp=sharing
@@ -193,6 +205,7 @@ struct MemoryAddress {
                       mem.element_size_log2, mem.size);
   }
 };
+std::ostream& operator<<(std::ostream& os, const MemoryAddress& mem);
 
 inline size_t hash_value(MemoryAddress const& mem) {
   return fast_hash_combine(mem.base, mem.index, mem.offset,
@@ -333,9 +346,12 @@ class MemoryContentTable
   }
 
   void Invalidate(OpIndex base, OptionalOpIndex index, int32_t offset) {
+    TRACE("> MemoryContentTable: Invalidating based on "
+          << base << ", " << index << ", " << offset);
     base = ResolveBase(base);
 
     if (non_aliasing_objects_.Get(base)) {
+      TRACE(">> base is non-aliasing");
       // Since {base} is non-aliasing, it's enough to just iterate the values at
       // this base.
       auto base_keys = base_keys_.find(base);
@@ -348,6 +364,7 @@ class MemoryContentTable
         if (index.valid() || offset == key.data().mem.offset) {
           // Overwrites {key}.
           it = base_keys->second.with_offsets.RemoveAt(it);
+          TRACE(">>> invalidating " << key.data().mem);
           Set(key, OpIndex::Invalid());
         } else {
           ++it;
@@ -362,9 +379,11 @@ class MemoryContentTable
         Set(key, OpIndex::Invalid());
       }
     } else {
+      TRACE(">> base is maybe-aliasing");
       // {base} could alias with other things, so we iterate the whole state.
       if (index.valid()) {
         // {index} could be anything, so we invalidate everything.
+        TRACE(">> Invalidating everything because of valid index");
         return InvalidateMaybeAliasing();
       }
 
@@ -381,15 +400,18 @@ class MemoryContentTable
       for (auto it = index_keys_.begin(); it != index_keys_.end();) {
         Key key = *it;
         it = index_keys_.RemoveAt(it);
+        TRACE(">>> Invalidating indexed memory " << key.data().mem);
         Set(key, OpIndex::Invalid());
       }
 
+      TRACE(">>> Invalidating everything maybe-aliasing at offset " << offset);
       InvalidateAtOffset(offset, base);
     }
   }
 
   // Invalidates all Keys that are not known as non-aliasing.
   void InvalidateMaybeAliasing() {
+    TRACE(">> InvalidateMaybeAliasing");
     // We find current active keys through {base_keys_} so that we can bail out
     // for whole buckets non-aliasing bases (if we had gone through
     // {offset_keys_} instead, then for each key we would've had to check
@@ -404,15 +426,22 @@ class MemoryContentTable
         // invalid, otherwise OnKeyChange will remove {key} from {base_keys},
         // which will invalidate {it}.
         it = base_keys.second.with_offsets.RemoveAt(it);
+        TRACE(">>> Invalidating " << key.data().mem);
         Set(key, OpIndex::Invalid());
       }
       for (auto it = base_keys.second.with_indices.begin();
            it != base_keys.second.with_indices.end();) {
         Key key = *it;
         it = base_keys.second.with_indices.RemoveAt(it);
+        TRACE(">>> Invalidating " << key.data().mem);
         Set(key, OpIndex::Invalid());
       }
     }
+  }
+
+  void InvalidateAtMapOffset() {
+    TRACE(">>> InvalidateAtMapOffset");
+    InvalidateAtOffset(HeapObject::kMapOffset, OptionalOpIndex::Nullopt());
   }
 
   OpIndex Find(const LoadOp& load) {
@@ -491,13 +520,23 @@ class MemoryContentTable
     DCHECK_EQ(base, ResolveBase(base));
 
     MemoryAddress mem{base, index, offset, element_size_log2, size};
+    TRACE("> MemoryContentTable: will insert " << mem
+                                               << " with value=" << value);
     auto existing_key = all_keys_.find(mem);
     if (existing_key != all_keys_.end()) {
+      TRACE(">> Reusing existing key");
       Set(existing_key->second, value);
       return;
     }
 
-    if (all_keys_.size() > kMaxKeys) return;
+    if (all_keys_.size() > kMaxKeys) {
+      TRACE(">> Bailing out because too many keys");
+      if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+        std::cout
+            << "Bailing out in Late Load Elimination because of kMaxKeys [1]\n";
+      }
+      return;
+    }
 
     // Creating a new key.
     Key key = NewKey({mem});
@@ -510,13 +549,23 @@ class MemoryContentTable
     DCHECK_EQ(base, ResolveBase(base));
 
     MemoryAddress mem{base, index, offset, element_size_log2, size};
+    TRACE("> MemoryContentTable: will insert immutable "
+          << mem << " with value=" << value);
     auto existing_key = all_keys_.find(mem);
     if (existing_key != all_keys_.end()) {
+      TRACE(">> Reusing existing key");
       SetNoNotify(existing_key->second, value);
       return;
     }
 
-    if (all_keys_.size() > kMaxKeys) return;
+    if (all_keys_.size() > kMaxKeys) {
+      TRACE(">> Bailing out because too many keys");
+      if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+        std::cout
+            << "Bailing out in Late Load Elimination because of kMaxKeys [2]\n";
+      }
+      return;
+    }
 
     // Creating a new key.
     Key key = NewKey({mem});
@@ -525,8 +574,9 @@ class MemoryContentTable
     SetNoNotify(key, value);
   }
 
-  void InvalidateAtOffset(int32_t offset, OpIndex base) {
-    MapMaskAndOr base_maps = object_maps_.Get(base);
+  void InvalidateAtOffset(int32_t offset, OptionalOpIndex base) {
+    MapMaskAndOr base_maps{};
+    if (base.has_value()) base_maps = object_maps_.Get(base.value());
     auto offset_keys = offset_keys_.find(offset);
     if (offset_keys == offset_keys_.end()) return;
     for (auto it = offset_keys->second.begin();
@@ -544,10 +594,13 @@ class MemoryContentTable
                                    : object_maps_.Get(key.data().mem.base);
       if (!is_empty(base_maps) && !is_empty(this_maps) &&
           !CouldHaveSameMap(base_maps, this_maps)) {
+        TRACE(">>>> InvalidateAtOffset: not invalidating thanks for maps: "
+              << key.data().mem);
         ++it;
         continue;
       }
       it = offset_keys->second.RemoveAt(it);
+      TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
       Set(key, OpIndex::Invalid());
     }
   }
@@ -639,10 +692,11 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
     kMaybeInnerPointer,
   };
 
-  LateLoadEliminationAnalyzer(Graph& graph, Zone* phase_zone,
-                              JSHeapBroker* broker,
+  LateLoadEliminationAnalyzer(PipelineData* data, Graph& graph,
+                              Zone* phase_zone, JSHeapBroker* broker,
                               RawBaseAssumption raw_base_assumption)
-      : graph_(graph),
+      : data_(data),
+        graph_(graph),
         phase_zone_(phase_zone),
         broker_(broker),
         raw_base_assumption_(raw_base_assumption),
@@ -653,7 +707,9 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
         block_to_snapshot_mapping_(graph.block_count(), phase_zone),
         predecessor_alias_snapshots_(phase_zone),
         predecessor_maps_snapshots_(phase_zone),
-        predecessor_memory_snapshots_(phase_zone) {}
+        predecessor_memory_snapshots_(phase_zone) {
+    USE(data_);
+  }
 
   void Run();
 
@@ -663,11 +719,13 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void ProcessBlock(const Block& block, bool compute_start_snapshot);
   void ProcessLoad(OpIndex op_idx, const LoadOp& op);
   void ProcessStore(OpIndex op_idx, const StoreOp& op);
+  void ProcessAtomicRMW(OpIndex op_idx, const AtomicRMWOp& op);
   void ProcessAllocate(OpIndex op_idx, const AllocateOp& op);
   void ProcessCall(OpIndex op_idx, const CallOp& op);
-  void ProcessPhi(OpIndex op_idx, const PhiOp& op);
   void ProcessAssumeMap(OpIndex op_idx, const AssumeMapOp& op);
   void ProcessChange(OpIndex op_idx, const ChangeOp& change);
+
+  void DcheckWordBinop(OpIndex op_idx, const WordBinopOp& binop);
 
   // BeginBlock initializes the various SnapshotTables for {block}, and returns
   // true if {block} is a loop that should be revisited.
@@ -686,16 +744,15 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   // it was already visited).
   bool BackedgeHasSnapshot(const Block& loop_header) const;
 
+  void InvalidateAllNonAliasingInputs(const Operation& op);
   void InvalidateIfAlias(OpIndex op_idx);
+  void InvalidateAllMaps();
 
+  PipelineData* data_;
   Graph& graph_;
   Zone* phase_zone_;
   JSHeapBroker* broker_;
   RawBaseAssumption raw_base_assumption_;
-
-#if V8_ENABLE_WEBASSEMBLY
-  bool is_wasm_ = PipelineData::Get().is_wasm();
-#endif
 
   FixedOpIndexSidetable<Replacement> replacements_;
   // We map: Load-index -> Change-index -> Bitcast-index
@@ -719,7 +776,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
     MapSnapshot maps_snapshot;
     MemorySnapshot memory_snapshot;
   };
-  FixedBlockSidetable<base::Optional<Snapshot>> block_to_snapshot_mapping_;
+  FixedBlockSidetable<std::optional<Snapshot>> block_to_snapshot_mapping_;
 
   // {predecessor_alias_napshots_}, {predecessor_maps_snapshots_} and
   // {predecessor_memory_snapshots_} are used as temporary vectors when starting
@@ -736,15 +793,14 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   using Replacement = LoadEliminationReplacement;
 
   void Analyze() {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
-      DCHECK(AllowHandleDereference::IsAllowed());
+    if (v8_flags.turboshaft_load_elimination) {
       analyzer_.Run();
     }
     Next::Analyze();
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Load)(OpIndex ig_index, const LoadOp& load) {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
+    if (v8_flags.turboshaft_load_elimination) {
       Replacement replacement = analyzer_.GetReplacement(ig_index);
       if (replacement.IsLoadElimination()) {
         OpIndex replacement_ig_index = replacement.replacement();
@@ -755,13 +811,92 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
           DCHECK_EQ(Asm().output_graph().Get(replacement_idx).outputs_rep()[0],
                     RegisterRepresentation::Word32());
         } else {
-          DCHECK(
-              Asm()
-                  .output_graph()
-                  .Get(replacement_idx)
-                  .outputs_rep()[0]
-                  .AllowImplicitRepresentationChangeTo(load.outputs_rep()[0]));
+          DCHECK(Asm()
+                     .output_graph()
+                     .Get(replacement_idx)
+                     .outputs_rep()[0]
+                     .AllowImplicitRepresentationChangeTo(
+                         load.outputs_rep()[0],
+                         Asm().output_graph().IsCreatedFromTurbofan()));
         }
+#ifdef DEBUG
+        if (v8_flags.turboshaft_verify_load_elimination) {
+          // When the debug flag {turboshaft_verify_load_elimination} is used,
+          // we perform the original load and assert that it's indeed equal to
+          // the replacement that we are using.
+
+          OpIndex actual_idx = Next::ReduceInputGraphLoad(ig_index, load);
+          RegisterRepresentation actual_rep =
+              __ output_graph().Get(actual_idx).outputs_rep()[0];
+          RegisterRepresentation replacement_rep =
+              __ output_graph().Get(replacement_idx).outputs_rep()[0];
+          RegisterRepresentation compare_rep = actual_rep;
+
+          if (actual_rep == RegisterRepresentation::Simd128()) {
+            // TODO(dmercadier): enable verification for Simd128 as well (it's
+            // mainly about changing the `__ Equal` below and using a mix of
+            // Simd128Binop + Simd128ExtractLane + Equal).
+            return replacement_idx;
+          }
+
+          if (actual_rep != replacement_rep) {
+            // The replacement is a load that is int32-truncated. We also
+            // truncate actual to match this.
+            DCHECK_EQ(actual_rep, RegisterRepresentation::Tagged());
+            DCHECK(replacement_rep == any_of(RegisterRepresentation::Word32(),
+                                             RegisterRepresentation::Word64()));
+            actual_idx = __ BitcastTaggedToWordPtrForTagAndSmiBits(actual_idx);
+            if (replacement_rep == RegisterRepresentation::Word32()) {
+              actual_idx = __ TruncateWordPtrToWord32(actual_idx);
+              compare_rep = RegisterRepresentation::Word32();
+            } else {
+              DCHECK_EQ(replacement_rep, RegisterRepresentation::Word64());
+              // Still using {Word32} rather than {Word64} here, since the upper
+              // 32 bits are not initialized.
+              compare_rep = RegisterRepresentation::Word32();
+            }
+          }
+
+          auto abort = [&]() {
+#if V8_ENABLE_WEBASSEMBLY
+            if (__ data()->pipeline_kind() == TurboshaftPipelineKind::kWasm) {
+              __ WasmCallRuntime(
+                  __ phase_zone(), Runtime::kAbort,
+                  {__ TagSmi(static_cast<int>(
+                      AbortReason::kTurboshaftLoadEliminationError))},
+                  __ NoContextConstant());
+            } else {
+#endif
+              __ CallRuntime_Abort(
+                  __ data()->isolate(), __ NoContextConstant(),
+                  __ TagSmi(static_cast<int>(
+                      AbortReason::kTurboshaftLoadEliminationError)));
+#if V8_ENABLE_WEBASSEMBLY
+            }
+#endif
+            __ Unreachable();
+          };
+
+          IF_NOT (__ Equal(actual_idx, replacement_idx, compare_rep)) {
+            if (actual_rep == any_of(RegisterRepresentation::Float32(),
+                                     RegisterRepresentation::Float64())) {
+              // Equality might have returned false because the 2 values are
+              // NaN.
+              DCHECK_EQ(compare_rep, actual_rep);
+              IF (__ Word32BitwiseOr(
+                      __ Equal(actual_idx, actual_idx, actual_rep),
+                      __ Equal(replacement_idx, replacement_idx,
+                               replacement_rep))) {
+                // At least one of {actual_idx} and {reaplcement_idx} is not
+                // NaN.
+                abort();
+              }
+            } else {
+              abort();
+            }
+          }
+        }
+#endif
         return replacement_idx;
       } else if (replacement.IsTaggedLoadToInt32Load()) {
         auto loaded_rep = load.loaded_rep;
@@ -779,7 +914,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Change)(OpIndex ig_index, const ChangeOp& change) {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
+    if (v8_flags.turboshaft_load_elimination) {
       Replacement replacement = analyzer_.GetReplacement(ig_index);
       if (replacement.IsInt32TruncationElimination()) {
         DCHECK(
@@ -792,7 +927,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
 
   OpIndex REDUCE_INPUT_GRAPH(TaggedBitcast)(OpIndex ig_index,
                                             const TaggedBitcastOp& bitcast) {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
+    if (v8_flags.turboshaft_load_elimination) {
       Replacement replacement = analyzer_.GetReplacement(ig_index);
       if (replacement.IsTaggedBitcastElimination()) {
         return OpIndex::Invalid();
@@ -801,25 +936,26 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
     return Next::ReduceInputGraphTaggedBitcast(ig_index, bitcast);
   }
 
-  OpIndex REDUCE(AssumeMap)(OpIndex, ZoneRefSet<Map>) {
+  V<None> REDUCE(AssumeMap)(V<HeapObject>, ZoneRefSet<Map>) {
     // AssumeMaps are currently not used after Load Elimination. We thus remove
     // them now. If they ever become needed for later optimizations, we could
     // consider leaving them in the graph and just ignoring them in the
     // Instruction Selector.
-    return OpIndex::Invalid();
+    return {};
   }
 
  private:
-  const bool is_wasm_ = PipelineData::Get().is_wasm();
   using RawBaseAssumption = LateLoadEliminationAnalyzer::RawBaseAssumption;
   RawBaseAssumption raw_base_assumption_ =
-      PipelineData::Get().pipeline_kind() == TurboshaftPipelineKind::kCSA
+      __ data() -> pipeline_kind() == TurboshaftPipelineKind::kCSA
           ? RawBaseAssumption::kMaybeInnerPointer
           : RawBaseAssumption::kNoInnerPointer;
-  LateLoadEliminationAnalyzer analyzer_{
-      Asm().modifiable_input_graph(), Asm().phase_zone(),
-      PipelineData::Get().broker(), raw_base_assumption_};
+  LateLoadEliminationAnalyzer analyzer_{__ data(), __ modifiable_input_graph(),
+                                        __ phase_zone(), __ data()->broker(),
+                                        raw_base_assumption_};
 };
+
+#undef TRACE
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 

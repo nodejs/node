@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_CONSTANT_EXPRESSION_H_
+#define V8_WASM_CONSTANT_EXPRESSION_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_CONSTANT_EXPRESSION_H_
-#define V8_WASM_CONSTANT_EXPRESSION_H_
 
 #include <stdint.h>
 
@@ -22,6 +22,7 @@ namespace internal {
 
 enum class MessageTemplate;
 class WasmTrustedInstanceData;
+class Zone;
 
 namespace wasm {
 
@@ -31,7 +32,7 @@ class WireBytesRef;
 // are hard-coded, while the rest are represented as a {WireBytesRef}.
 class ConstantExpression {
  public:
-  enum Kind {
+  enum class Kind {
     kEmpty,
     kI32Const,
     kRefNull,
@@ -40,43 +41,43 @@ class ConstantExpression {
     kLastKind = kWireBytesRef
   };
 
-  ConstantExpression() : bit_field_(KindField::encode(kEmpty)) {}
+  constexpr ConstantExpression() = default;
 
-  static ConstantExpression I32Const(int32_t value) {
+  static constexpr ConstantExpression I32Const(int32_t value) {
     return ConstantExpression(ValueField::encode(value) |
-                              KindField::encode(kI32Const));
+                              KindField::encode(Kind::kI32Const));
   }
-  static ConstantExpression RefFunc(uint32_t index) {
+  static constexpr ConstantExpression RefFunc(uint32_t index) {
     return ConstantExpression(ValueField::encode(index) |
-                              KindField::encode(kRefFunc));
+                              KindField::encode(Kind::kRefFunc));
   }
-  static ConstantExpression RefNull(HeapType::Representation repr) {
-    return ConstantExpression(ValueField::encode(repr) |
-                              KindField::encode(kRefNull));
+  static constexpr ConstantExpression RefNull(HeapType type) {
+    return ConstantExpression(ValueField::encode(type.raw_bit_field()) |
+                              KindField::encode(Kind::kRefNull));
   }
-  static ConstantExpression WireBytes(uint32_t offset, uint32_t length) {
+  static constexpr ConstantExpression WireBytes(uint32_t offset,
+                                                uint32_t length) {
     return ConstantExpression(OffsetField::encode(offset) |
                               LengthField::encode(length) |
-                              KindField::encode(kWireBytesRef));
+                              KindField::encode(Kind::kWireBytesRef));
   }
 
-  Kind kind() const { return KindField::decode(bit_field_); }
+  constexpr Kind kind() const { return KindField::decode(bit_field_); }
 
-  bool is_set() const { return kind() != kEmpty; }
+  constexpr bool is_set() const { return kind() != Kind::kEmpty; }
 
-  uint32_t index() const {
-    DCHECK_EQ(kind(), kRefFunc);
+  constexpr uint32_t index() const {
+    DCHECK_EQ(kind(), Kind::kRefFunc);
     return ValueField::decode(bit_field_);
   }
 
-  HeapType::Representation repr() const {
-    DCHECK_EQ(kind(), kRefNull);
-    return static_cast<HeapType::Representation>(
-        ValueField::decode(bit_field_));
+  constexpr HeapType type() const {
+    DCHECK_EQ(kind(), Kind::kRefNull);
+    return HeapType::FromBits(ValueField::decode(bit_field_));
   }
 
-  int32_t i32_value() const {
-    DCHECK_EQ(kind(), kI32Const);
+  constexpr int32_t i32_value() const {
+    DCHECK_EQ(kind(), Kind::kI32Const);
     return ValueField::decode(bit_field_);
   }
 
@@ -99,12 +100,16 @@ class ConstantExpression {
   static_assert(kV8MaxWasmModuleSize <= LengthField::kMax + 1);
   static_assert(kV8MaxWasmModuleSize <= OffsetField::kMax + 1);
   // Make sure kind fits in kKindBits.
-  static_assert(kLastKind <= KindField::kMax + 1);
+  static_assert(static_cast<uint64_t>(Kind::kLastKind) <= KindField::kMax + 1);
 
-  explicit ConstantExpression(uint64_t bit_field) : bit_field_(bit_field) {}
+  explicit constexpr ConstantExpression(uint64_t bit_field)
+      : bit_field_(bit_field) {}
 
-  uint64_t bit_field_;
+  uint64_t bit_field_ = 0;
 };
+
+// Verify that the default constructor initializes the {kind()} to {kEmpty}.
+static_assert(ConstantExpression{}.kind() == ConstantExpression::Kind::kEmpty);
 
 // We want to keep {ConstantExpression} small to reduce memory usage during
 // compilation/instantiation.
@@ -127,8 +132,10 @@ V8_INLINE WasmValue to_value(ValueOrError result) {
 // {MessageTemplate} if it fails.
 // Resets {zone} so make sure it contains no useful data.
 ValueOrError EvaluateConstantExpression(
-    Zone* zone, ConstantExpression expr, ValueType expected, Isolate* isolate,
-    Handle<WasmTrustedInstanceData> trusted_instance_data);
+    Zone* zone, ConstantExpression expr, ValueType expected,
+    const WasmModule* module, Isolate* isolate,
+    DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
+    DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data);
 
 }  // namespace wasm
 }  // namespace internal

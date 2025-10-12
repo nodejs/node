@@ -12,20 +12,23 @@
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/select-lowering-reducer.h"
+#include "src/compiler/turboshaft/string-escape-analysis-reducer.h"
+#include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 
 namespace v8::internal::compiler::turboshaft {
 
-void MachineLoweringPhase::Run(Zone* temp_zone) {
+void MachineLoweringPhase::Run(PipelineData* data, Zone* temp_zone) {
   // TODO(dmercadier): It would make sense to run JSGenericLoweringReducer
   // during SimplifiedLowering. However, SimplifiedLowering is currently WIP,
   // and it would be better to not tie the Maglev graph builder to
   // SimplifiedLowering just yet, so I'm hijacking MachineLoweringPhase to run
   // JSGenericLoweringReducer without requiring a whole phase just for that.
-  CopyingPhase<JSGenericLoweringReducer, DataViewLoweringReducer,
-               MachineLoweringReducer, FastApiCallLoweringReducer,
-               SelectLoweringReducer,
-               MachineOptimizationReducer>::Run(temp_zone);
+  CopyingPhase<StringEscapeAnalysisReducer, JSGenericLoweringReducer,
+               DataViewLoweringReducer, MachineLoweringReducer,
+               FastApiCallLoweringReducer, VariableReducer,
+               SelectLoweringReducer, MachineOptimizationReducer,
+               ValueNumberingReducer>::Run(data, temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

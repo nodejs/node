@@ -55,7 +55,6 @@ v8::Local<v8::Object> BaseObject::object() const {
 v8::Local<v8::Object> BaseObject::object(v8::Isolate* isolate) const {
   v8::Local<v8::Object> handle = object();
 
-  DCHECK_EQ(handle->GetCreationContextChecked()->GetIsolate(), isolate);
   DCHECK_EQ(env()->isolate(), isolate);
 
   return handle;
@@ -123,11 +122,6 @@ bool BaseObject::IsWeakOrDetached() const {
   if (!has_pointer_data()) return false;
   const PointerData* pd = const_cast<BaseObject*>(this)->pointer_data();
   return pd->wants_weak_jsobj || pd->is_detached;
-}
-
-v8::EmbedderGraph::Node::Detachedness BaseObject::GetDetachedness() const {
-  return IsWeakOrDetached() ? v8::EmbedderGraph::Node::Detachedness::kDetached
-                            : v8::EmbedderGraph::Node::Detachedness::kUnknown;
 }
 
 template <int Field>
@@ -251,6 +245,17 @@ BaseObjectPtrImpl<T, kIsWeak>& BaseObjectPtrImpl<T, kIsWeak>::operator=(
 }
 
 template <typename T, bool kIsWeak>
+BaseObjectPtrImpl<T, kIsWeak>::BaseObjectPtrImpl(std::nullptr_t)
+    : BaseObjectPtrImpl() {}
+
+template <typename T, bool kIsWeak>
+BaseObjectPtrImpl<T, kIsWeak>& BaseObjectPtrImpl<T, kIsWeak>::operator=(
+    std::nullptr_t) {
+  this->~BaseObjectPtrImpl();
+  return *new (this) BaseObjectPtrImpl();
+}
+
+template <typename T, bool kIsWeak>
 void BaseObjectPtrImpl<T, kIsWeak>::reset(T* ptr) {
   *this = BaseObjectPtrImpl(ptr);
 }
@@ -287,6 +292,16 @@ template <typename U, bool kW>
 bool BaseObjectPtrImpl<T, kIsWeak>::operator !=(
     const BaseObjectPtrImpl<U, kW>& other) const {
   return get() != other.get();
+}
+
+template <typename T, bool kIsWeak>
+bool operator==(const BaseObjectPtrImpl<T, kIsWeak> ptr, const std::nullptr_t) {
+  return ptr.get() == nullptr;
+}
+
+template <typename T, bool kIsWeak>
+bool operator==(const std::nullptr_t, const BaseObjectPtrImpl<T, kIsWeak> ptr) {
+  return ptr.get() == nullptr;
 }
 
 template <typename T, typename... Args>

@@ -123,7 +123,7 @@ int run_test_part(const char* test, const char* part);
 void print_tests(FILE* stream);
 
 /* Print lines in |buffer| as TAP diagnostics to |stream|. */
-void print_lines(const char* buffer, size_t size, FILE* stream);
+int print_lines(const char* buffer, size_t size, FILE* stream, int partial);
 
 /*
  * Stuff that should be implemented by test-runner-<platform>.h

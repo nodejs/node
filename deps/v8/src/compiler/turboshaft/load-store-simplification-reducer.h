@@ -14,11 +14,20 @@ namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
+// Turboshaft's loads and stores follow the pattern of
+// *(base + index * element_size_log2 + displacement), but some architectures
+// are more restrictive and only support a simpler addressing mode.
+// LoadStoreSimplificationReducer transforms these loads/stores into
+// architecture-compatible ones.
+#define V8_TARGET_ARCH_RESTRICTIVE_LOAD_STORE                             \
+  V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || \
+      V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 ||                  \
+      V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_RISCV32
+
 struct LoadStoreSimplificationConfiguration {
   // TODO(12783): This needs to be extended for all architectures that don't
   // have loads with the base + index * element_size + offset pattern.
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || \
-    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
+#if V8_TARGET_ARCH_RESTRICTIVE_LOAD_STORE
   // As tagged loads result in modfiying the offset by -1, those loads are
   // converted into raw loads.
   static constexpr bool kNeedsUntaggedBase = true;
@@ -34,8 +43,11 @@ struct LoadStoreSimplificationConfiguration {
   static constexpr bool kNeedsUntaggedBase = false;
   // s390x supports *(base + index + displacement), element_size isn't
   // supported.
-  static constexpr int32_t kMinOffset = std::numeric_limits<int32_t>::min() + 1;
-  static constexpr int32_t kMaxOffset = std::numeric_limits<int32_t>::max();
+  static constexpr int32_t kDisplacementBits = 20;  // 20 bit signed integer.
+  static constexpr int32_t kMinOffset =
+      -(static_cast<int32_t>(1) << (kDisplacementBits - 1));
+  static constexpr int32_t kMaxOffset =
+      (static_cast<int32_t>(1) << (kDisplacementBits - 1)) - 1;
   static constexpr int kMaxElementSizeLog2 = 0;
 #else
   static constexpr bool kNeedsUntaggedBase = false;
@@ -62,7 +74,8 @@ class LoadStoreSimplificationReducer : public Next,
                        MemoryRepresentation loaded_rep,
                        RegisterRepresentation result_rep, int32_t offset,
                        uint8_t element_size_log2) {
-    SimplifyLoadStore(base, index, kind, offset, element_size_log2);
+    SimplifyLoadStore(base, index, kind, offset, element_size_log2,
+                      !kind.tagged_base);
     return Next::ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
                             element_size_log2);
   }
@@ -73,7 +86,9 @@ class LoadStoreSimplificationReducer : public Next,
                         uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning,
                         IndirectPointerTag maybe_indirect_pointer_tag) {
-    SimplifyLoadStore(base, index, kind, offset, element_size_log2);
+    SimplifyLoadStore(base, index, kind, offset, element_size_log2,
+                      (write_barrier == WriteBarrierKind::kNoWriteBarrier &&
+                       !kind.tagged_base));
     if (write_barrier != WriteBarrierKind::kNoWriteBarrier &&
         !index.has_value() && __ Get(base).template Is<ConstantOp>()) {
       const ConstantOp& const_base = __ Get(base).template Cast<ConstantOp>();
@@ -128,15 +143,16 @@ class LoadStoreSimplificationReducer : public Next,
     return false;
   }
 
-  bool CanEncodeAtomic(OptionalOpIndex index, int32_t offset) const {
+  bool CanEncodeAtomic(OptionalOpIndex index, uint8_t element_size_log2,
+                       int32_t offset) const {
+    if (element_size_log2 != 0) return false;
     return !(index.has_value() && offset != 0);
   }
 
   void SimplifyLoadStore(OpIndex& base, OptionalOpIndex& index,
                          LoadOp::Kind& kind, int32_t& offset,
-                         uint8_t& element_size_log2) {
-    if (!lowering_enabled_) return;
-
+                         uint8_t& element_size_log2,
+                         bool allow_base_index_hoisting) {
     if (element_size_log2 > kMaxElementSizeLog2) {
       DCHECK(index.valid());
       index = __ WordPtrShiftLeft(index.value(), element_size_log2);
@@ -155,7 +171,14 @@ class LoadStoreSimplificationReducer : public Next,
     // TODO(nicohartmann@): Remove the case for atomics once crrev.com/c/5237267
     // is ported to x64.
     if (!CanEncodeOffset(offset, kind.tagged_base) ||
-        (kind.is_atomic && !CanEncodeAtomic(index, offset))) {
+        (kind.is_atomic &&
+         !CanEncodeAtomic(index, element_size_log2, offset))) {
+      if (kind.tagged_base) {
+        kind.tagged_base = false;
+        DCHECK_LE(std::numeric_limits<int32_t>::min() + kHeapObjectTag, offset);
+        offset -= kHeapObjectTag;
+        base = __ BitcastHeapObjectToWordPtr(base);
+      }
       // If an index is present, the element_size_log2 is changed to zero.
       // So any load follows the form *(base + offset). To simplify
       // instruction selection, both static and dynamic offsets are stored in
@@ -166,13 +189,26 @@ class LoadStoreSimplificationReducer : public Next,
         index = __ IntPtrConstant(offset);
         element_size_log2 = 0;
         offset = 0;
-      }
-      if (element_size_log2 != 0) {
+      } else if (element_size_log2 != 0) {
         index = __ WordPtrShiftLeft(index.value(), element_size_log2);
         element_size_log2 = 0;
       }
       if (offset != 0) {
+#if V8_TARGET_ARCH_RESTRICTIVE_LOAD_STORE
+        if (allow_base_index_hoisting) {
+          // Hoist the *(base + index) out to a new base if possible to reduce
+          // number of add ops from one per memory access to one per block of
+          // memory accesses. Common subexpression elimination will get rid of
+          // the redundant adds.
+          DCHECK(!kind.tagged_base);
+          base = __ WordPtrAdd(base, index.value());
+          index = __ IntPtrConstant(offset);
+        } else {
+          index = __ WordPtrAdd(index.value(), offset);
+        }
+#else
         index = __ WordPtrAdd(index.value(), offset);
+#endif
         offset = 0;
       }
       DCHECK_EQ(offset, 0);
@@ -180,23 +216,10 @@ class LoadStoreSimplificationReducer : public Next,
     }
   }
 
-  bool is_wasm_ = PipelineData::Get().is_wasm();
-  // TODO(12783): Remove this flag once the Turbofan instruction selection has
-  // been replaced.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
-    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||  \
-    defined(V8_TARGET_ARCH_PPC64)
-  bool lowering_enabled_ =
-      (is_wasm_ && v8_flags.turboshaft_wasm_instruction_selection_staged) ||
-      (!is_wasm_ && v8_flags.turboshaft_instruction_selection);
-#else
-  bool lowering_enabled_ =
-      (is_wasm_ &&
-       v8_flags.turboshaft_wasm_instruction_selection_experimental) ||
-      (!is_wasm_ && v8_flags.turboshaft_instruction_selection);
-#endif
   OperationMatcher matcher_{__ output_graph()};
 };
+
+#undef V8_TARGET_ARCH_RESTRICTIVE_LOAD_STORE
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 

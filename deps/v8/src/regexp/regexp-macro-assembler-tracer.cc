@@ -11,10 +11,10 @@ namespace v8 {
 namespace internal {
 
 RegExpMacroAssemblerTracer::RegExpMacroAssemblerTracer(
-    Isolate* isolate, RegExpMacroAssembler* assembler)
-    : RegExpMacroAssembler(isolate, assembler->zone()), assembler_(assembler) {
+    std::unique_ptr<RegExpMacroAssembler>&& assembler)
+    : RegExpMacroAssembler(*assembler), assembler_(std::move(assembler)) {
   PrintF("RegExpMacroAssembler%s();\n",
-         ImplementationToString(assembler->Implementation()));
+         ImplementationToString(assembler_->Implementation()));
 }
 
 RegExpMacroAssemblerTracer::~RegExpMacroAssemblerTracer() = default;
@@ -43,12 +43,10 @@ void RegExpMacroAssemblerTracer::AdvanceCurrentPosition(int by) {
   assembler_->AdvanceCurrentPosition(by);
 }
 
-
-void RegExpMacroAssemblerTracer::CheckGreedyLoop(Label* label) {
-  PrintF(" CheckGreedyLoop(label[%08x]);\n\n", LabelToInt(label));
-  assembler_->CheckGreedyLoop(label);
+void RegExpMacroAssemblerTracer::CheckFixedLengthLoop(Label* label) {
+  PrintF(" CheckFixedLengthLoop(label[%08x]);\n\n", LabelToInt(label));
+  assembler_->CheckFixedLengthLoop(label);
 }
-
 
 void RegExpMacroAssemblerTracer::PopCurrentPosition() {
   PrintF(" PopCurrentPosition();\n");
@@ -102,9 +100,10 @@ void RegExpMacroAssemblerTracer::PopRegister(int register_index) {
 void RegExpMacroAssemblerTracer::PushRegister(
     int register_index,
     StackCheckFlag check_stack_limit) {
-  PrintF(" PushRegister(register=%d, %s);\n",
-         register_index,
-         check_stack_limit ? "check stack limit" : "");
+  PrintF(" PushRegister(register=%d, %s);\n", register_index,
+         check_stack_limit == StackCheckFlag::kCheckStackLimit
+             ? "check stack limit"
+             : "");
   assembler_->PushRegister(register_index, check_stack_limit);
 }
 
@@ -346,12 +345,16 @@ bool RegExpMacroAssemblerTracer::CheckCharacterInRangeArray(
 
 bool RegExpMacroAssemblerTracer::CheckCharacterNotInRangeArray(
     const ZoneList<CharacterRange>* ranges, Label* on_not_in_range) {
-  PrintF(
-      " CheckCharacterNotInRangeArray(\n"
-      "        label[%08x]);\n",
-      LabelToInt(on_not_in_range));
-  PrintRangeArray(ranges);
-  return assembler_->CheckCharacterNotInRangeArray(ranges, on_not_in_range);
+  bool emitted =
+      assembler_->CheckCharacterNotInRangeArray(ranges, on_not_in_range);
+  if (emitted) {
+    PrintF(
+        " CheckCharacterNotInRangeArray(\n"
+        "        label[%08x]);\n",
+        LabelToInt(on_not_in_range));
+    PrintRangeArray(ranges);
+  }
+  return emitted;
 }
 
 void RegExpMacroAssemblerTracer::CheckBitInTable(
@@ -367,6 +370,39 @@ void RegExpMacroAssemblerTracer::CheckBitInTable(
   assembler_->CheckBitInTable(table, on_bit_set);
 }
 
+void RegExpMacroAssemblerTracer::SkipUntilBitInTable(
+    int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
+    int advance_by) {
+  PrintF("SkipUntilBitInTable(cp_offset=%d, advance_by=%d\n  ", cp_offset,
+         advance_by);
+  for (int i = 0; i < kTableSize; i++) {
+    PrintF("%c", table->get(i) != 0 ? 'X' : '.');
+    if (i % 32 == 31 && i != kTableMask) {
+      PrintF("\n  ");
+    }
+  }
+  static_assert(kTableSize == 128);
+  static constexpr int kRows = 16;
+  static_assert(kRows * kBitsPerByte == kTableSize);
+  if (!nibble_table.is_null()) {
+    PrintF("\n");
+    PrintF("  +----------------\n");
+    PrintF("  |");
+    for (int j = 0; j < kBitsPerByte; j++) {
+      PrintF(" %x", j);
+    }
+    PrintF("\n--+----------------");
+    for (int i = 0; i < kRows; i++) {
+      int r = nibble_table->get(i);
+      PrintF("\n%x |", i);
+      for (int j = 0; j < kBitsPerByte; j++) {
+        PrintF(" %c", (r & (1 << j)) == 0 ? '.' : 'X');
+      }
+    }
+  }
+  PrintF(");\n");
+  assembler_->SkipUntilBitInTable(cp_offset, table, nibble_table, advance_by);
+}
 
 void RegExpMacroAssemblerTracer::CheckNotBackReference(int start_reg,
                                                        bool read_backward,
@@ -424,16 +460,38 @@ void RegExpMacroAssemblerTracer::IfRegisterGE(int register_index,
   assembler_->IfRegisterGE(register_index, comparand, if_ge);
 }
 
+void RegExpMacroAssemblerTracer::set_global_mode(GlobalMode mode) {
+  RegExpMacroAssembler::set_global_mode(mode);
+  assembler_->set_global_mode(mode);
+}
+
+void RegExpMacroAssemblerTracer::set_slow_safe(bool ssc) {
+  RegExpMacroAssembler::set_slow_safe(ssc);
+  assembler_->set_slow_safe(ssc);
+}
+
+void RegExpMacroAssemblerTracer::set_backtrack_limit(uint32_t backtrack_limit) {
+  RegExpMacroAssembler::set_backtrack_limit(backtrack_limit);
+  assembler_->set_backtrack_limit(backtrack_limit);
+}
+
+void RegExpMacroAssemblerTracer::set_can_fallback(bool val) {
+  RegExpMacroAssembler::set_can_fallback(val);
+  assembler_->set_can_fallback(val);
+}
 
 RegExpMacroAssembler::IrregexpImplementation
     RegExpMacroAssemblerTracer::Implementation() {
   return assembler_->Implementation();
 }
 
-
-Handle<HeapObject> RegExpMacroAssemblerTracer::GetCode(Handle<String> source) {
-  PrintF(" GetCode(%s);\n", source->ToCString().get());
-  return assembler_->GetCode(source);
+DirectHandle<HeapObject> RegExpMacroAssemblerTracer::GetCode(
+    DirectHandle<String> source, RegExpFlags flags) {
+  DirectHandle<String> flags_str =
+      JSRegExp::StringFromFlags(isolate(), JSRegExp::AsJSRegExpFlags(flags));
+  PrintF(" GetCode('%s', '%s');\n", source->ToCString().get(),
+         flags_str->ToCString().get());
+  return assembler_->GetCode(source, flags);
 }
 
 }  // namespace internal

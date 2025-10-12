@@ -35,11 +35,12 @@ namespace synchronization_internal {
 // ThreadIdentity storage is persistent, we maintain a free-list of previously
 // released ThreadIdentity objects.
 ABSL_CONST_INIT static base_internal::SpinLock freelist_lock(
-    absl::kConstInit, base_internal::SCHEDULE_KERNEL_ONLY);
+    base_internal::SCHEDULE_KERNEL_ONLY);
 ABSL_CONST_INIT static base_internal::ThreadIdentity* thread_identity_freelist;
 
 // A per-thread destructor for reclaiming associated ThreadIdentity objects.
-// Since we must preserve their storage we cache them for re-use.
+// Since we must preserve their storage, we cache them for re-use instead of
+// truly destructing the object.
 static void ReclaimThreadIdentity(void* v) {
   base_internal::ThreadIdentity* identity =
       static_cast<base_internal::ThreadIdentity*>(v);
@@ -59,7 +60,7 @@ static void ReclaimThreadIdentity(void* v) {
   //     association state in this case.
   base_internal::ClearCurrentThreadIdentity();
   {
-    base_internal::SpinLockHolder l(&freelist_lock);
+    base_internal::SpinLockHolder l(freelist_lock);
     identity->next = thread_identity_freelist;
     thread_identity_freelist = identity;
   }
@@ -107,7 +108,7 @@ static base_internal::ThreadIdentity* NewThreadIdentity() {
 
   {
     // Re-use a previously released object if possible.
-    base_internal::SpinLockHolder l(&freelist_lock);
+    base_internal::SpinLockHolder l(freelist_lock);
     if (thread_identity_freelist) {
       identity = thread_identity_freelist;  // Take list-head.
       thread_identity_freelist = thread_identity_freelist->next;
@@ -124,6 +125,9 @@ static base_internal::ThreadIdentity* NewThreadIdentity() {
     identity = reinterpret_cast<base_internal::ThreadIdentity*>(
         RoundUp(reinterpret_cast<intptr_t>(allocation),
                 base_internal::PerThreadSynch::kAlignment));
+    // Note that *identity is never constructed.
+    // TODO(b/357097463): change this "one time init" to be a proper
+    // constructor.
     OneTimeInitThreadIdentity(identity);
   }
   ResetThreadIdentityBetweenReuse(identity);

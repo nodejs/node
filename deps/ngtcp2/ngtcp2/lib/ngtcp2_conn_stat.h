@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -105,8 +105,9 @@ typedef struct ngtcp2_conn_stat {
   uint64_t bytes_in_flight;
   /**
    * :member:`max_tx_udp_payload_size` is the maximum size of UDP
-   * datagram payload that this endpoint transmits.  It is used by
-   * congestion controller to compute congestion window.
+   * datagram payload that this endpoint transmits to the current
+   * path.  It is used by congestion controller to compute congestion
+   * window.
    */
   size_t max_tx_udp_payload_size;
   /**
@@ -115,13 +116,13 @@ typedef struct ngtcp2_conn_stat {
    */
   uint64_t delivery_rate_sec;
   /**
-   * :member:`pacing_interval` is the inverse of pacing rate, which is
-   * the current packet sending rate computed by a congestion
+   * :member:`pacing_interval_m` is the inverse of pacing rate, which
+   * is the current packet sending rate computed by a congestion
    * controller.  0 if a congestion controller does not set pacing
    * interval.  Even if this value is set to 0, the library paces
-   * packets.
+   * packets.  The unit of this value is 1/1024 of nanoseconds.
    */
-  ngtcp2_duration pacing_interval;
+  uint64_t pacing_interval_m;
   /**
    * :member:`send_quantum` is the maximum size of a data aggregate
    * scheduled and transmitted together.
@@ -129,4 +130,4 @@ typedef struct ngtcp2_conn_stat {
   size_t send_quantum;
 } ngtcp2_conn_stat;
 
-#endif /* NGTCP2_CONN_STAT_H */
+#endif /* !defined(NGTCP2_CONN_STAT_H) */

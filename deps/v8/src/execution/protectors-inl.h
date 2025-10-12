@@ -6,6 +6,8 @@
 #define V8_EXECUTION_PROTECTORS_INL_H_
 
 #include "src/execution/protectors.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/property-cell-inl.h"
 #include "src/objects/smi.h"
 
@@ -15,7 +17,7 @@ namespace internal {
 #define DEFINE_PROTECTOR_ON_ISOLATE_CHECK(name, root_index, unused_cell) \
   bool Protectors::Is##name##Intact(Isolate* isolate) {                  \
     Tagged<PropertyCell> cell =                                          \
-        PropertyCell::cast(isolate->root(RootIndex::k##root_index));     \
+        Cast<PropertyCell>(isolate->root(RootIndex::k##root_index));     \
     return IsSmi(cell->value()) &&                                       \
            Smi::ToInt(cell->value()) == kProtectorValid;                 \
   }

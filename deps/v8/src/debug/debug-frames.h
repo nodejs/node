@@ -36,10 +36,13 @@ class V8_EXPORT_PRIVATE FrameInspector {
   Handle<Object> GetContext();
   Handle<Object> GetReceiver() { return receiver_; }
 
-  Handle<String> GetFunctionName();
+  DirectHandle<String> GetFunctionName();
 
 #if V8_ENABLE_WEBASSEMBLY
   bool IsWasm();
+#if V8_ENABLE_DRUMBRAKE
+  bool IsWasmInterpreter();
+#endif  // V8_ENABLE_DRUMBRAKE
 #endif  // V8_ENABLE_WEBASSEMBLY
   bool IsJavaScript();
 
@@ -48,8 +51,8 @@ class V8_EXPORT_PRIVATE FrameInspector {
   int inlined_frame_index() const { return inlined_frame_index_; }
 
  private:
-  bool ParameterIsShadowedByContextLocal(Handle<ScopeInfo> info,
-                                         Handle<String> parameter_name);
+  bool ParameterIsShadowedByContextLocal(DirectHandle<ScopeInfo> info,
+                                         DirectHandle<String> parameter_name);
 
   CommonFrame* frame_;
   int inlined_frame_index_;

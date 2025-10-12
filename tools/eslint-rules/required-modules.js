@@ -1,5 +1,5 @@
 /**
- * @fileoverview Require usage of specified node modules.
+ * @file Require usage of specified node modules.
  * @author Rich Trott
  */
 'use strict';

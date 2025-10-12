@@ -4,8 +4,8 @@ const { getGlobalDispatcher, setGlobalDispatcher } = require('./lib/global')
 const EnvHttpProxyAgent = require('./lib/dispatcher/env-http-proxy-agent')
 const fetchImpl = require('./lib/web/fetch').fetch
 
-module.exports.fetch = function fetch (resource, init = undefined) {
-  return fetchImpl(resource, init).catch((err) => {
+module.exports.fetch = function fetch (init, options = undefined) {
+  return fetchImpl(init, options).catch(err => {
     if (err && typeof err === 'object') {
       Error.captureStackTrace(err)
     }
@@ -26,6 +26,9 @@ module.exports.createFastMessageEvent = createFastMessageEvent
 
 module.exports.EventSource = require('./lib/web/eventsource/eventsource').EventSource
 
+const api = require('./lib/api')
+const Dispatcher = require('./lib/dispatcher/dispatcher')
+Object.assign(Dispatcher.prototype, api)
 // Expose the fetch implementation to be enabled in Node.js core via a flag
 module.exports.EnvHttpProxyAgent = EnvHttpProxyAgent
 module.exports.getGlobalDispatcher = getGlobalDispatcher

@@ -90,54 +90,6 @@ t.test('normal audit', async t => {
   t.matchSnapshot(joinedOutput())
 })
 
-t.test('fallback audit ', async t => {
-  const { npm, joinedOutput } = await loadMockNpm(t, {
-    prefixDir: tree,
-  })
-  const registry = new MockRegistry({
-    tap: t,
-    registry: npm.config.get('registry'),
-  })
-  const manifest = registry.manifest({
-    name: 'test-dep-a',
-    packuments: [{ version: '1.0.0' }, { version: '1.0.1' }],
-  })
-  await registry.package({ manifest })
-  const advisory = registry.advisory({
-    id: 100,
-    module_name: 'test-dep-a',
-    vulnerable_versions: '<1.0.1',
-    findings: [{ version: '1.0.0', paths: ['test-dep-a'] }],
-  })
-  registry.nock
-    .post('/-/npm/v1/security/advisories/bulk').reply(404)
-    .post('/-/npm/v1/security/audits/quick', body => {
-      const unzipped = JSON.parse(gunzip(Buffer.from(body, 'hex')))
-      return t.match(unzipped, {
-        name: 'test-dep',
-        version: '1.0.0',
-        requires: { 'test-dep-a': '*' },
-        dependencies: { 'test-dep-a': { version: '1.0.0' } },
-      })
-    }).reply(200, {
-      actions: [],
-      muted: [],
-      advisories: {
-        100: advisory,
-      },
-      metadata: {
-        vulnerabilities: { info: 0, low: 0, moderate: 0, high: 1, critical: 0 },
-        dependencies: 1,
-        devDependencies: 0,
-        optionalDependencies: 0,
-        totalDependencies: 1,
-      },
-    })
-  await npm.exec('audit', [])
-  t.ok(process.exitCode, 'would have exited uncleanly')
-  t.matchSnapshot(joinedOutput())
-})
-
 t.test('json audit', async t => {
   const { npm, joinedOutput } = await loadMockNpm(t, {
     prefixDir: tree,
@@ -873,12 +825,9 @@ t.test('audit signatures', async t => {
       packuments: [{
         version: '1.0.0',
         dist: {
-          // eslint-disable-next-line max-len
           integrity: 'sha512-e+qfbn/zf1+rCza/BhIA//Awmf0v1pa5HQS8Xk8iXrn9bgytytVLqYD0P7NSqZ6IELTgq+tcDvLPkQjNHyWLNg==',
           tarball: 'https://registry.npmjs.org/sigstore/-/sigstore-1.0.0.tgz',
-          // eslint-disable-next-line max-len
           attestations: { url: 'https://registry.npmjs.org/-/npm/v1/attestations/sigstore@1.0.0', provenance: { predicateType: 'https://slsa.dev/provenance/v0.2' } },
-          // eslint-disable-next-line max-len
           signatures: [{ keyid: 'SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA', sig: 'MEQCIBlpcHT68iWOpx8pJr3WUzD1EqQ7tb0CmY36ebbceR6IAiAVGRaxrFoyh0/5B7H1o4VFhfsHw9F8G+AxOZQq87q+lg==' }],
         },
       }],
@@ -892,12 +841,9 @@ t.test('audit signatures', async t => {
       packuments: [{
         version: '1.0.0',
         dist: {
-          // eslint-disable-next-line max-len
           integrity: 'sha512-1dxsQwESDzACJjTdYHQ4wJ1f/of7jALWKfJEHSBWUQB/5UTJUx9SW6GHXp4mZ1KvdBRJCpGjssoPFGi4hvw8/A==',
           tarball: 'https://registry.npmjs.org/tuf-js/-/tuf-js-1.0.0.tgz',
-          // eslint-disable-next-line max-len
           attestations: { url: 'https://registry.npmjs.org/-/npm/v1/attestations/tuf-js@1.0.0', provenance: { predicateType: 'https://slsa.dev/provenance/v0.2' } },
-          // eslint-disable-next-line max-len
           signatures: [{ keyid: 'SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA', sig: 'MEYCIQDgGQeY2QLkLuoO9YxOqFZ+a6zYuaZpXhc77kUfdCUXDQIhAJp/vV+9Xg1bfM5YlTvKIH9agUEOu5T76+tQaHY2vZyO' }],
         },
       }],
@@ -994,7 +940,7 @@ t.test('audit signatures', async t => {
   })
 
   t.test('with key fallback to legacy API', async t => {
-    const { npm, joinedOutput } = await loadMockNpm(t, {
+    const { logs, npm, joinedOutput } = await loadMockNpm(t, {
       prefixDir: installWithValidSigs,
     })
     const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
@@ -1006,6 +952,7 @@ t.test('audit signatures', async t => {
 
     t.notOk(process.exitCode, 'should exit successfully')
     t.match(joinedOutput(), /audited 1 package/)
+    t.match(logs.warn, ['Fetching verification keys using TUF failed.  Fetching directly from https://registry.npmjs.org/.'])
     t.matchSnapshot(joinedOutput())
   })
 

@@ -21,6 +21,9 @@ enum class PageInitializationMode {
   // data. This is slightly faster as comitted pages are not decommitted
   // during FreePages and ReleasePages, but only made inaccessible.
   kAllocatedPagesCanBeUninitialized,
+  // Assume pages are in discarded state and already have the right page
+  // permissions. Using this mode requires PageFreeingMode::kDiscard.
+  kRecommitOnly,
 };
 
 // Defines how BoundedPageAllocator frees pages when FreePages or ReleasePages
@@ -54,7 +57,16 @@ enum class PageFreeingMode {
 // The implementation is thread-safe.
 class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
  public:
+  enum class AllocationStatus {
+    kSuccess,
+    kFailedToCommit,
+    kRanOutOfReservation,
+    kHintedAddressTakenOrNotFound,
+  };
+
   using Address = uintptr_t;
+
+  static const char* AllocationStatusToString(AllocationStatus);
 
   BoundedPageAllocator(v8::PageAllocator* page_allocator, Address start,
                        size_t size, size_t allocate_page_size,
@@ -89,10 +101,17 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
   void* AllocatePages(void* hint, size_t size, size_t alignment,
                       Permission access) override;
 
+  void* AllocatePages(
+      size_t size, size_t alignment, Permission access,
+      v8::PageAllocator::AllocationHint allocation_hint) override;
+
   bool ReserveForSharedMemoryMapping(void* address, size_t size) override;
 
   // Allocates pages at given address, returns true on success.
   bool AllocatePagesAt(Address address, size_t size, Permission access);
+
+  bool ResizeAllocationAt(void* address, size_t old_size, size_t new_size,
+                          Permission access) override;
 
   bool FreePages(void* address, size_t size) override;
 
@@ -107,6 +126,12 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
 
   bool DecommitPages(void* address, size_t size) override;
 
+  bool SealPages(void* address, size_t size) override;
+
+  AllocationStatus get_last_allocation_status() const {
+    return allocation_status_;
+  }
+
  private:
   v8::base::Mutex mutex_;
   const size_t allocate_page_size_;
@@ -115,6 +140,7 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
   v8::base::RegionAllocator region_allocator_;
   const PageInitializationMode page_initialization_mode_;
   const PageFreeingMode page_freeing_mode_;
+  AllocationStatus allocation_status_ = AllocationStatus::kSuccess;
 };
 
 }  // namespace base

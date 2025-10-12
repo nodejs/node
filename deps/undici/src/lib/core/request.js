@@ -14,10 +14,11 @@ const {
   isFormDataLike,
   isIterable,
   isBlobLike,
-  buildURL,
-  validateHandler,
+  serializePathWithQuery,
+  assertRequestHandler,
   getServerName,
-  normalizedMethodRecords
+  normalizedMethodRecords,
+  getProtocolFromUrlString
 } = require('./util')
 const { channels } = require('./diagnostics.js')
 const { headerNameLowerCasedRecord } = require('./constants')
@@ -40,9 +41,10 @@ class Request {
     headersTimeout,
     bodyTimeout,
     reset,
-    throwOnError,
     expectContinue,
-    servername
+    servername,
+    throwOnError,
+    maxRedirections
   }, handler) {
     if (typeof path !== 'string') {
       throw new InvalidArgumentError('path must be a string')
@@ -82,11 +84,17 @@ class Request {
       throw new InvalidArgumentError('invalid expectContinue')
     }
 
+    if (throwOnError != null) {
+      throw new InvalidArgumentError('invalid throwOnError')
+    }
+
+    if (maxRedirections != null && maxRedirections !== 0) {
+      throw new InvalidArgumentError('maxRedirections is not supported, use the redirect interceptor')
+    }
+
     this.headersTimeout = headersTimeout
 
     this.bodyTimeout = bodyTimeout
-
-    this.throwOnError = throwOnError === true
 
     this.method = method
 
@@ -128,20 +136,22 @@ class Request {
     }
 
     this.completed = false
-
     this.aborted = false
 
     this.upgrade = upgrade || null
 
-    this.path = query ? buildURL(path, query) : path
+    this.path = query ? serializePathWithQuery(path, query) : path
 
+    // TODO: shall we maybe standardize it to an URL object?
     this.origin = origin
+
+    this.protocol = getProtocolFromUrlString(origin)
 
     this.idempotent = idempotent == null
       ? method === 'HEAD' || method === 'GET'
       : idempotent
 
-    this.blocking = blocking == null ? false : blocking
+    this.blocking = blocking ?? this.method !== 'HEAD'
 
     this.reset = reset == null ? null : reset
 
@@ -181,9 +191,9 @@ class Request {
       throw new InvalidArgumentError('headers must be an object or an array')
     }
 
-    validateHandler(handler, method, upgrade)
+    assertRequestHandler(handler, method, upgrade)
 
-    this.servername = servername || getServerName(this.host)
+    this.servername = servername || getServerName(this.host) || null
 
     this[kHandler] = handler
 
@@ -193,6 +203,9 @@ class Request {
   }
 
   onBodySent (chunk) {
+    if (channels.bodyChunkSent.hasSubscribers) {
+      channels.bodyChunkSent.publish({ request: this, chunk })
+    }
     if (this[kHandler].onBodySent) {
       try {
         return this[kHandler].onBodySent(chunk)
@@ -251,6 +264,9 @@ class Request {
     assert(!this.aborted)
     assert(!this.completed)
 
+    if (channels.bodyChunkReceived.hasSubscribers) {
+      channels.bodyChunkReceived.publish({ request: this, chunk })
+    }
     try {
       return this[kHandler].onData(chunk)
     } catch (err) {
@@ -270,6 +286,7 @@ class Request {
     this.onFinally()
 
     assert(!this.aborted)
+    assert(!this.completed)
 
     this.completed = true
     if (channels.trailers.hasSubscribers) {

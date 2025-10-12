@@ -161,11 +161,9 @@ RegExpMacroAssemblerMIPS::~RegExpMacroAssemblerMIPS() {
   fallback_label_.Unuse();
 }
 
-
-int RegExpMacroAssemblerMIPS::stack_limit_slack()  {
-  return RegExpStack::kStackLimitSlack;
+int RegExpMacroAssemblerMIPS::stack_limit_slack_slot_count() {
+  return RegExpStack::kStackLimitSlackSlotCount;
 }
-
 
 void RegExpMacroAssemblerMIPS::AdvanceCurrentPosition(int by) {
   if (by != 0) {
@@ -247,7 +245,7 @@ void RegExpMacroAssemblerMIPS::CheckCharacterLT(base::uc16 limit,
   BranchOrBacktrack(on_less, lt, current_character(), Operand(limit));
 }
 
-void RegExpMacroAssemblerMIPS::CheckGreedyLoop(Label* on_equal) {
+void RegExpMacroAssemblerMIPS::CheckFixedLengthLoop(Label* on_equal) {
   Label backtrack_non_equal;
   __ Lw(a0, MemOperand(backtrack_stackpointer(), 0));
   __ Branch(&backtrack_non_equal, ne, current_input_offset(), Operand(a0));
@@ -540,8 +538,21 @@ void RegExpMacroAssemblerMIPS::CheckBitInTable(
     __ Daddu(a0, a0, current_character());
   }
 
-  __ Lbu(a0, FieldMemOperand(a0, ByteArray::kHeaderSize));
+  __ Lbu(a0, FieldMemOperand(a0, OFFSET_OF_DATA_START(ByteArray)));
   BranchOrBacktrack(on_bit_set, ne, a0, Operand(zero_reg));
+}
+
+void RegExpMacroAssemblerMIPS::SkipUntilBitInTable(
+    int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
+    int advance_by) {
+  // TODO(pthier): Optimize. Table can be loaded outside of the loop.
+  Label cont, again;
+  Bind(&again);
+  LoadCurrentCharacter(cp_offset, &cont, true);
+  CheckBitInTable(table, &cont);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&again);
+  Bind(&cont);
 }
 
 bool RegExpMacroAssemblerMIPS::CheckSpecialClassRanges(
@@ -688,7 +699,8 @@ void RegExpMacroAssemblerMIPS::PopRegExpBasePointer(Register stack_pointer_out,
   StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
 }
 
-Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
+DirectHandle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(
+    DirectHandle<String> source, RegExpFlags flags) {
   Label return_v0;
   if (masm_->has_exception()) {
     // If the code gets corrupted due to long regular expressions and lack of
@@ -1032,8 +1044,8 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
           .set_empty_source_position_table()
           .Build();
   LOG(masm_->isolate(),
-      RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
-  return Handle<HeapObject>::cast(code);
+      RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
+  return Cast<HeapObject>(code);
 }
 
 void RegExpMacroAssemblerMIPS::GoTo(Label* to) {
@@ -1106,13 +1118,18 @@ void RegExpMacroAssemblerMIPS::PushBacktrack(Label* label) {
 
 void RegExpMacroAssemblerMIPS::PushCurrentPosition() {
   Push(current_input_offset());
+  CheckStackLimit();
 }
 
 void RegExpMacroAssemblerMIPS::PushRegister(int register_index,
                                             StackCheckFlag check_stack_limit) {
   __ Ld(a0, register_location(register_index));
   Push(a0);
-  if (check_stack_limit) CheckStackLimit();
+  if (check_stack_limit == StackCheckFlag::kCheckStackLimit) {
+    CheckStackLimit();
+  } else if (V8_UNLIKELY(v8_flags.slow_debug_code)) {
+    AssertAboveStackLimitMinusSlack();
+  }
 }
 
 void RegExpMacroAssemblerMIPS::ReadCurrentPositionFromRegister(int reg) {
@@ -1243,7 +1260,7 @@ int64_t RegExpMacroAssemblerMIPS::CheckStackGuardState(Address* return_address,
                                                        Address re_frame,
                                                        uintptr_t extra_space) {
   Tagged<InstructionStream> re_code =
-      InstructionStream::cast(Tagged<Object>(raw_code));
+      SbxCast<InstructionStream>(Tagged<Object>(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset),
       static_cast<int>(frame_entry<int64_t>(re_frame, kStartIndexOffset)),
@@ -1361,6 +1378,27 @@ void RegExpMacroAssemblerMIPS::CheckStackLimit() {
   __ li(a0, Operand(stack_limit));
   __ Ld(a0, MemOperand(a0));
   SafeCall(&stack_overflow_label_, ls, backtrack_stackpointer(), Operand(a0));
+}
+
+void RegExpMacroAssemblerMIPS::AssertAboveStackLimitMinusSlack() {
+  ExternalReference stack_limit =
+      ExternalReference::address_of_regexp_stack_limit_address(
+          masm_->isolate());
+
+  __ li(a0, Operand(stack_limit));
+  __ Ld(a0, MemOperand(a0));
+  SafeCall(&stack_overflow_label_, ls, backtrack_stackpointer(), Operand(a0));
+
+  DCHECK(v8_flags.slow_debug_code);
+  Label no_stack_overflow;
+  ASM_CODE_COMMENT_STRING(masm_.get(), "AssertAboveStackLimitMinusSlack");
+  auto l = ExternalReference::address_of_regexp_stack_limit_address(isolate());
+  __ li(a0, l);
+  __ Ld(a0, MemOperand(a0));
+  __ Dsubu(a0, a0, Operand(RegExpStack::kStackLimitSlackSize));
+  __ Branch(&no_stack_overflow, hi, backtrack_stackpointer(), Operand(a0));
+  __ DebugBreak();
+  __ bind(&no_stack_overflow);
 }
 
 void RegExpMacroAssemblerMIPS::LoadCurrentCharacterUnchecked(int cp_offset,

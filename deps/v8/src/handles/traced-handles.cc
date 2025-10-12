@@ -14,6 +14,8 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/handles/traced-handles-inl.h"
+#include "src/heap/gc-tracer-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
@@ -35,17 +37,13 @@ TracedNode::TracedNode(IndexType index, IndexType next_free_index)
   DCHECK(!is_droppable());
 }
 
-void TracedNode::Release() {
+void TracedNode::Release(Address zap_value) {
   DCHECK(is_in_use());
-  // Only preserve the in-young-list bit which is used to avoid duplicates in
-  // TracedHandles::young_nodes_;
-  flags_ &= IsInYoungList::encode(true);
-  DCHECK(!is_in_use());
-  DCHECK(!is_weak());
-  DCHECK(!markbit());
-  DCHECK(!has_old_host());
-  DCHECK(!is_droppable());
-  set_raw_object(kGlobalHandleZapValue);
+  // Clear all flags.
+  flags_ = 0;
+  clear_markbit();
+  set_raw_object(zap_value);
+  DCHECK(IsMetadataCleared());
 }
 
 // static
@@ -90,9 +88,9 @@ const TracedNodeBlock& TracedNodeBlock::From(const TracedNode& node) {
   return From(const_cast<TracedNode&>(node));
 }
 
-void TracedNodeBlock::FreeNode(TracedNode* node) {
+void TracedNodeBlock::FreeNode(TracedNode* node, Address zap_value) {
   DCHECK(node->is_in_use());
-  node->Release();
+  node->Release(zap_value);
   DCHECK(!node->is_in_use());
   node->set_next_free(first_free_node_);
   first_free_node_ = node->index();
@@ -106,38 +104,44 @@ void SetSlotThreadSafe(Address** slot, Address* val) {
 
 void TracedHandles::RefillUsableNodeBlocks() {
   TracedNodeBlock* block;
-  if (empty_blocks_.empty() && empty_block_candidates_.empty()) {
+  if (empty_blocks_.empty()) {
     block = TracedNodeBlock::Create(*this);
     block_size_bytes_ += block->size_bytes();
   } else {
-    // Pick a block from candidates first as such blocks may anyways still be
-    // referred to from young nodes and thus are not eligible for freeing.
-    auto& block_source = empty_block_candidates_.empty()
-                             ? empty_blocks_
-                             : empty_block_candidates_;
-    block = block_source.back();
-    block_source.pop_back();
+    block = empty_blocks_.back();
+    empty_blocks_.pop_back();
   }
   usable_blocks_.PushFront(block);
   blocks_.PushFront(block);
   num_blocks_++;
+  DCHECK(!block->InYoungList());
   DCHECK(block->IsEmpty());
   DCHECK_EQ(usable_blocks_.Front(), block);
   DCHECK(!usable_blocks_.empty());
 }
 
-void TracedHandles::FreeNode(TracedNode* node) {
+void TracedHandles::FreeNode(TracedNode* node, Address zap_value) {
   auto& block = TracedNodeBlock::From(*node);
+  if (disable_block_handling_on_free_) {
+    // The list of blocks and used nodes will be updated separately.
+    block.FreeNode(node, zap_value);
+    return;
+  }
   if (V8_UNLIKELY(block.IsFull())) {
     DCHECK(!usable_blocks_.ContainsSlow(&block));
     usable_blocks_.PushFront(&block);
   }
-  block.FreeNode(node);
+  block.FreeNode(node, zap_value);
   if (block.IsEmpty()) {
     usable_blocks_.Remove(&block);
     blocks_.Remove(&block);
+    if (block.InYoungList()) {
+      young_blocks_.Remove(&block);
+      DCHECK(!block.InYoungList());
+      num_young_blocks_--;
+    }
     num_blocks_--;
-    empty_block_candidates_.push_back(&block);
+    empty_blocks_.push_back(&block);
   }
   used_nodes_--;
 }
@@ -149,10 +153,6 @@ TracedHandles::~TracedHandles() {
   while (!blocks_.empty()) {
     auto* block = blocks_.Front();
     blocks_.PopFront();
-    block_size_bytes += block->size_bytes();
-    TracedNodeBlock::Delete(block);
-  }
-  for (auto* block : empty_block_candidates_) {
     block_size_bytes += block->size_bytes();
     TracedNodeBlock::Delete(block);
   }
@@ -179,14 +179,12 @@ void TracedHandles::Destroy(TracedNodeBlock& node_block, TracedNode& node) {
   }
 
   if (is_marking_) {
-    // Incremental/concurrent marking is running. This also covers the scavenge
-    // case which prohibits eagerly reclaiming nodes when marking is on during a
-    // scavenge.
+    // Incremental/concurrent marking is running.
     //
     // On-heap traced nodes are released in the atomic pause in
-    // `IterateWeakRootsForPhantomHandles()` when they are discovered as not
-    // marked. Eagerly clear out the object here to avoid needlessly marking it
-    // from this point on. The node will be reclaimed on the next cycle.
+    // `ResetDeadNodes()` when they are discovered as not marked. Eagerly clear
+    // out the object here to avoid needlessly marking it from this point on.
+    // The node will be reclaimed on the next cycle.
     node.set_raw_object<AccessMode::ATOMIC>(kNullAddress);
     return;
   }
@@ -194,7 +192,7 @@ void TracedHandles::Destroy(TracedNodeBlock& node_block, TracedNode& node) {
   // In case marking and sweeping are off, the handle may be freed immediately.
   // Note that this includes also the case when invoking the first pass
   // callbacks during the atomic pause which requires releasing a node fully.
-  FreeNode(&node);
+  FreeNode(&node, kTracedHandleEagerResetZapValue);
 }
 
 void TracedHandles::Copy(const TracedNode& from_node, Address** to) {
@@ -233,12 +231,12 @@ void TracedHandles::Move(TracedNode& from_node, Address** from, Address** to) {
   DCHECK_EQ(*from, *to);
   if (is_marking_) {
     // Write barrier needs to cover node as well as object.
-    to_node->set_markbit<AccessMode::ATOMIC>();
-    WriteBarrier::MarkingFromGlobalHandle(to_node->object());
+    to_node->set_markbit();
+    WriteBarrier::MarkingFromTracedHandle(to_node->object());
   } else if (auto* cpp_heap = GetCppHeapIfUnifiedYoungGC(isolate_)) {
     const bool object_is_young_and_not_yet_recorded =
         !from_node.has_old_host() &&
-        ObjectInYoungGeneration(from_node.object());
+        HeapLayout::InYoungGeneration(from_node.object());
     if (object_is_young_and_not_yet_recorded &&
         IsCppGCHostOld(*cpp_heap, reinterpret_cast<Address>(to))) {
       DCHECK(from_node.is_in_young_list());
@@ -273,43 +271,35 @@ const TracedHandles::NodeBounds TracedHandles::GetNodeBounds() const {
 }
 
 void TracedHandles::UpdateListOfYoungNodes() {
-  size_t last = 0;
   const bool needs_to_mark_as_old =
       static_cast<bool>(GetCppHeapIfUnifiedYoungGC(isolate_));
-  for (auto* node : young_nodes_) {
-    DCHECK(node->is_in_young_list());
-    if (node->is_in_use() && ObjectInYoungGeneration(node->object())) {
-      young_nodes_[last++] = node;
-      // The node was discovered through a cppgc object, which will be
-      // immediately promoted. Remember the object.
-      if (needs_to_mark_as_old) node->set_has_old_host(true);
+
+  for (auto it = young_blocks_.begin(); it != young_blocks_.end();) {
+    bool contains_young_node = false;
+    TracedNodeBlock* const block = *it;
+    DCHECK(block->InYoungList());
+
+    for (auto* node : *block) {
+      if (!node->is_in_young_list()) continue;
+      DCHECK(node->is_in_use());
+      if (HeapLayout::InYoungGeneration(node->object())) {
+        contains_young_node = true;
+        // The node was discovered through a cppgc object, which will be
+        // immediately promoted. Remember the object.
+        if (needs_to_mark_as_old) node->set_has_old_host(true);
+      } else {
+        node->set_is_in_young_list(false);
+        node->set_has_old_host(false);
+      }
+    }
+    if (contains_young_node) {
+      ++it;
     } else {
-      node->set_is_in_young_list(false);
-      node->set_has_old_host(false);
+      it = young_blocks_.RemoveAt(it);
+      DCHECK(!block->InYoungList());
+      num_young_blocks_--;
     }
   }
-  DCHECK_LE(last, young_nodes_.size());
-  young_nodes_.resize(last);
-  young_nodes_.shrink_to_fit();
-  empty_blocks_.insert(empty_blocks_.end(), empty_block_candidates_.begin(),
-                       empty_block_candidates_.end());
-  empty_block_candidates_.clear();
-  empty_block_candidates_.shrink_to_fit();
-}
-
-void TracedHandles::ClearListOfYoungNodes() {
-  for (auto* node : young_nodes_) {
-    DCHECK(node->is_in_young_list());
-    // Nodes in use and not in use can have this bit set to false.
-    node->set_is_in_young_list(false);
-    node->set_has_old_host(false);
-  }
-  young_nodes_.clear();
-  young_nodes_.shrink_to_fit();
-  empty_blocks_.insert(empty_blocks_.end(), empty_block_candidates_.begin(),
-                       empty_block_candidates_.end());
-  empty_block_candidates_.clear();
-  empty_block_candidates_.shrink_to_fit();
 }
 
 void TracedHandles::DeleteEmptyBlocks() {
@@ -337,7 +327,36 @@ void TracedHandles::ResetDeadNodes(
 
       // Detect unreachable nodes first.
       if (!node->markbit()) {
-        FreeNode(node);
+        FreeNode(node, kTracedHandleFullGCResetZapValue);
+        continue;
+      }
+
+      // Node was reachable. Clear the markbit for the next GC.
+      node->clear_markbit();
+      // TODO(v8:13141): Turn into a DCHECK after some time.
+      CHECK(!should_reset_handle(isolate_->heap(), node->location()));
+    }
+
+    if (block->InYoungList()) {
+      young_blocks_.Remove(block);
+      DCHECK(!block->InYoungList());
+      num_young_blocks_--;
+    }
+  }
+
+  CHECK(young_blocks_.empty());
+}
+
+void TracedHandles::ResetYoungDeadNodes(
+    WeakSlotCallbackWithHeap should_reset_handle) {
+  for (auto* block : young_blocks_) {
+    for (auto* node : *block) {
+      if (!node->is_in_young_list()) continue;
+      DCHECK(node->is_in_use());
+      DCHECK_IMPLIES(node->has_old_host(), node->markbit());
+
+      if (!node->markbit()) {
+        FreeNode(node, kTracedHandleMinorGCResetZapValue);
         continue;
       }
 
@@ -349,102 +368,312 @@ void TracedHandles::ResetDeadNodes(
   }
 }
 
-void TracedHandles::ResetYoungDeadNodes(
-    WeakSlotCallbackWithHeap should_reset_handle) {
-  for (auto* node : young_nodes_) {
-    DCHECK(node->is_in_young_list());
-    DCHECK_IMPLIES(node->has_old_host(), node->markbit());
-
-    if (!node->is_in_use()) continue;
-
-    if (!node->markbit()) {
-      FreeNode(node);
-      continue;
-    }
-
-    // Node was reachable. Clear the markbit for the next GC.
-    node->clear_markbit();
-    // TODO(v8:13141): Turn into a DCHECK after some time.
-    CHECK(!should_reset_handle(isolate_->heap(), node->location()));
+bool TracedHandles::SupportsClearingWeakNonLiveWrappers() {
+  DCHECK(!is_marking_);
+  if (!v8_flags.reclaim_unmodified_wrappers) {
+    return false;
   }
+  if (!isolate_->heap()->GetEmbedderRootsHandler()) {
+    return false;
+  }
+  return true;
 }
 
 namespace {
-void ComputeWeaknessForYoungObject(
-    EmbedderRootsHandler* handler, TracedNode* node,
-    bool should_call_is_root_for_default_traced_reference) {
-  DCHECK(!node->is_weak());
-  bool is_unmodified_api_object =
-      JSObject::IsUnmodifiedApiObject(node->location());
-  if (is_unmodified_api_object) {
-    FullObjectSlot slot = node->location();
-    const bool is_weak =
-        node->is_droppable() ||
-        (should_call_is_root_for_default_traced_reference &&
-         !handler->IsRoot(
-             *reinterpret_cast<v8::TracedReference<v8::Value>*>(&slot)));
-    node->set_weak(is_weak);
+
+template <typename Derived>
+class ParallelWeakHandlesProcessor {
+ public:
+  class Job : public v8::JobTask {
+   public:
+    explicit Job(Derived& derived) : derived_(derived) {}
+
+    void Run(JobDelegate* delegate) override {
+      if (delegate->IsJoiningThread()) {
+        TRACE_GC_WITH_FLOW(derived_.heap()->tracer(), Derived::kMainThreadScope,
+                           derived_.trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
+        RunImpl</*IsMainThread=*/true>(delegate);
+      } else {
+        TRACE_GC_EPOCH_WITH_FLOW(derived_.heap()->tracer(),
+                                 Derived::kBackgroundThreadScope,
+                                 ThreadKind::kBackground, derived_.trace_id_,
+                                 TRACE_EVENT_FLAG_FLOW_IN);
+        RunImpl</*IsMainThread=*/false>(delegate);
+      }
+    }
+
+    size_t GetMaxConcurrency(size_t worker_count) const override {
+      const auto processed_young_blocks =
+          derived_.processed_young_blocks_.load(std::memory_order_relaxed);
+      if (derived_.num_young_blocks_ < processed_young_blocks) {
+        return 0;
+      }
+      if (!v8_flags.parallel_reclaim_unmodified_wrappers) {
+        return 1;
+      }
+      const auto blocks_left =
+          derived_.num_young_blocks_ - processed_young_blocks;
+      constexpr size_t kMaxParallelTasks = 3;
+      constexpr size_t kBlocksPerTask = 8;
+      const auto wanted_tasks =
+          (blocks_left + (kBlocksPerTask - 1)) / kBlocksPerTask;
+      return std::min(kMaxParallelTasks, wanted_tasks);
+    }
+
+   private:
+    template <bool IsMainThread>
+    void RunImpl(JobDelegate* delegate) {
+      // Set the isolate to the heap isolate which is being processed. The
+      // handle processor may call the isolate sandbox-checks.
+      SetCurrentIsolateScope set_current_isolate(derived_.heap()->isolate());
+      // The following logic parallelizes the handling of the doubly-linked
+      // list. We basically race through the list from begin() with acquiring
+      // exclusive access by incrementing a single counter.
+      auto it = derived_.young_blocks_.begin();
+      size_t current = 0;
+      for (size_t index = derived_.processed_young_blocks_.fetch_add(
+               1, std::memory_order_relaxed);
+           index < derived_.num_young_blocks_;
+           index = derived_.processed_young_blocks_.fetch_add(
+               +1, std::memory_order_relaxed)) {
+        while (current < index) {
+          it++;
+          current++;
+        }
+        TracedNodeBlock* block = *it;
+        DCHECK(block->InYoungList());
+        derived_.template ProcessBlock<IsMainThread>(block);
+        // TracedNodeBlock is the minimum granularity of processing.
+        if (delegate->ShouldYield()) {
+          return;
+        }
+      }
+    }
+
+    Derived& derived_;
+  };
+
+  ParallelWeakHandlesProcessor(Heap* heap,
+                               TracedNodeBlock::YoungList& young_blocks,
+                               size_t num_young_blocks)
+      : heap_(heap),
+        young_blocks_(young_blocks),
+        num_young_blocks_(num_young_blocks),
+        trace_id_(reinterpret_cast<uint64_t>(this) ^
+                  heap_->tracer()->CurrentEpoch(
+                      GCTracer::Scope::SCAVENGER_SCAVENGE)) {}
+
+  void Run() {
+    TRACE_GC_NOTE_WITH_FLOW(Derived::kStartNote, trace_id(),
+                            TRACE_EVENT_FLAG_FLOW_OUT);
+    V8::GetCurrentPlatform()
+        ->CreateJob(v8::TaskPriority::kUserBlocking,
+                    std::make_unique<Job>(static_cast<Derived&>(*this)))
+        ->Join();
   }
-}
+
+  Heap* heap() const { return heap_; }
+  uint64_t trace_id() const { return trace_id_; }
+
+ private:
+  Heap* heap_;
+  TracedNodeBlock::YoungList& young_blocks_;
+  const size_t num_young_blocks_;
+  const uint64_t trace_id_;
+  std::atomic<size_t> processed_young_blocks_{0};
+};
+
+class ComputeWeaknessProcessor final
+    : public ParallelWeakHandlesProcessor<ComputeWeaknessProcessor> {
+ public:
+  static constexpr auto kMainThreadScope =
+      GCTracer::Scope::SCAVENGER_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL;
+  static constexpr auto kBackgroundThreadScope = GCTracer::Scope::
+      SCAVENGER_BACKGROUND_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL;
+  static constexpr char kStartNote[] = "ComputeWeaknessProcessor start";
+
+  ComputeWeaknessProcessor(Heap* heap, TracedNodeBlock::YoungList& young_blocks,
+                           size_t num_young_blocks)
+      : ParallelWeakHandlesProcessor(heap, young_blocks, num_young_blocks) {}
+
+  template <bool IsMainThread>
+  void ProcessBlock(TracedNodeBlock* block) {
+    for (TracedNode* node : *block) {
+      if (!node->is_in_young_list()) {
+        continue;
+      }
+      DCHECK(node->is_in_use());
+      DCHECK(!node->is_weak());
+      if (node->is_droppable() &&
+          JSObject::IsUnmodifiedApiObject(node->location())) {
+        node->set_weak(true);
+      }
+    }
+  }
+};
+
 }  // namespace
 
 void TracedHandles::ComputeWeaknessForYoungObjects() {
-  if (!v8_flags.reclaim_unmodified_wrappers) return;
-
-  // Treat all objects as roots during incremental marking to avoid corrupting
-  // marking worklists.
-  DCHECK_IMPLIES(v8_flags.minor_ms, !is_marking_);
-  if (is_marking_) return;
-
-  auto* const handler = isolate_->heap()->GetEmbedderRootsHandler();
-  if (!handler) return;
-
-  const bool should_call_is_root_for_default_traced_reference =
-      handler->default_traced_reference_handling_ ==
-      EmbedderRootsHandler::RootHandling::
-          kQueryEmbedderForNonDroppableReferences;
-  for (TracedNode* node : young_nodes_) {
-    if (!node->is_in_use()) continue;
-    ComputeWeaknessForYoungObject(
-        handler, node, should_call_is_root_for_default_traced_reference);
+  if (!SupportsClearingWeakNonLiveWrappers()) {
+    return;
   }
+  ComputeWeaknessProcessor job(isolate_->heap(), young_blocks_,
+                               num_young_blocks_);
+  job.Run();
 }
 
-void TracedHandles::ProcessYoungObjects(
+namespace {
+
+class ClearWeaknessProcessor final
+    : public ParallelWeakHandlesProcessor<ClearWeaknessProcessor> {
+ public:
+  static constexpr auto kMainThreadScope =
+      GCTracer::Scope::SCAVENGER_TRACED_HANDLES_RESET_PARALLEL;
+  static constexpr auto kBackgroundThreadScope =
+      GCTracer::Scope::SCAVENGER_BACKGROUND_TRACED_HANDLES_RESET_PARALLEL;
+  static constexpr char kStartNote[] = "ClearWeaknessProcessor start";
+
+  ClearWeaknessProcessor(TracedNodeBlock::YoungList& young_blocks,
+                         size_t num_young_blocks, Heap* heap,
+                         RootVisitor* visitor,
+                         WeakSlotCallbackWithHeap should_reset_handle)
+      : ParallelWeakHandlesProcessor(heap, young_blocks, num_young_blocks),
+        visitor_(visitor),
+        handler_(heap->GetEmbedderRootsHandler()),
+        should_reset_handle_(should_reset_handle) {}
+
+  template <bool IsMainThread>
+  void ProcessBlock(TracedNodeBlock* block) {
+    const auto saved_used_nodes_in_block = block->used();
+    for (TracedNode* node : *block) {
+      if (!node->is_weak()) {
+        continue;
+      }
+      DCHECK(node->is_in_use());
+      DCHECK(node->is_in_young_list());
+
+      const bool should_reset = should_reset_handle_(heap(), node->location());
+      if (should_reset) {
+        FullObjectSlot slot = node->location();
+        bool node_cleared = true;
+        if constexpr (IsMainThread) {
+          handler_->ResetRoot(
+              *reinterpret_cast<v8::TracedReference<v8::Value>*>(&slot));
+        } else {
+          node_cleared = handler_->TryResetRoot(
+              *reinterpret_cast<v8::TracedReference<v8::Value>*>(&slot));
+        }
+        if (node_cleared) {
+          // Mark as cleared due to weak semantics.
+          node->set_raw_object(kTracedHandleMinorGCWeakResetZapValue);
+          DCHECK(!node->is_in_use());
+          DCHECK(!node->is_weak());
+        } else {
+          block->SetReprocessing(true);
+        }
+      } else {
+        node->set_weak(false);
+        if (visitor_) {
+          visitor_->VisitRootPointer(Root::kTracedHandles, nullptr,
+                                     node->location());
+        }
+      }
+    }
+    DCHECK_GE(saved_used_nodes_in_block, block->used());
+    block->SetLocallyFreed(saved_used_nodes_in_block - block->used());
+  }
+
+ private:
+  RootVisitor* visitor_;
+  EmbedderRootsHandler* handler_;
+  WeakSlotCallbackWithHeap should_reset_handle_;
+};
+
+}  // namespace
+
+void TracedHandles::ProcessWeakYoungObjects(
     RootVisitor* visitor, WeakSlotCallbackWithHeap should_reset_handle) {
-  if (!v8_flags.reclaim_unmodified_wrappers) return;
+  if (!SupportsClearingWeakNonLiveWrappers()) {
+    return;
+  }
 
-  auto* const handler = isolate_->heap()->GetEmbedderRootsHandler();
-  if (!handler) return;
-
-  // ResetRoot should not trigger allocations in CppGC.
-  if (auto* cpp_heap = CppHeap::From(isolate_->heap()->cpp_heap())) {
+  auto* heap = isolate_->heap();
+  // ResetRoot() below should not trigger allocations in CppGC.
+  if (auto* cpp_heap = CppHeap::From(heap->cpp_heap())) {
     cpp_heap->EnterDisallowGCScope();
     cpp_heap->EnterNoGCScope();
   }
 
-  for (TracedNode* node : young_nodes_) {
-    if (!node->is_in_use()) continue;
+#ifdef DEBUG
+  size_t num_young_blocks = 0;
+  for (auto it = young_blocks_.begin(); it != young_blocks_.end(); it++) {
+    TracedNodeBlock* block = *it;
+    DCHECK(block->InYoungList());
+    DCHECK(!block->NeedsReprocessing());
+    num_young_blocks++;
+  }
+  DCHECK_EQ(num_young_blocks_, num_young_blocks);
+#endif
 
-    bool should_reset = should_reset_handle(isolate_->heap(), node->location());
-    CHECK_IMPLIES(!node->is_weak(), !should_reset);
-    if (should_reset) {
-      CHECK(!is_marking_);
-      FullObjectSlot slot = node->location();
-      handler->ResetRoot(
-          *reinterpret_cast<v8::TracedReference<v8::Value>*>(&slot));
-      // We cannot check whether a node is in use here as the reset behavior
-      // depends on whether incremental marking is running when reclaiming
-      // young objects.
-    } else {
-      if (node->is_weak()) {
-        node->set_weak(false);
-        if (visitor) {
-          visitor->VisitRootPointer(Root::kGlobalHandles, nullptr,
-                                    node->location());
-        }
+  disable_block_handling_on_free_ = true;
+  ClearWeaknessProcessor job(young_blocks_, num_young_blocks_, heap, visitor,
+                             should_reset_handle);
+  job.Run();
+  disable_block_handling_on_free_ = false;
+
+  // Post processing on block level.
+  for (auto it = young_blocks_.begin(); it != young_blocks_.end();) {
+    TracedNodeBlock* block = *it;
+    // Avoid iterator invalidation by incrementing iterator here before a block
+    // is possible removed below.
+    it++;
+    DCHECK(block->InYoungList());
+
+    // Freeing a node will not make the block fuller, so IsFull() should mean
+    // that the block was already not usable before freeing.
+    CHECK_IMPLIES(block->IsFull(), !usable_blocks_.Contains(block));
+    if (!block->IsFull() && !block->IsEmpty()) {
+      // A block is usable but may have been full before. Check if we need to
+      // add it to the usable blocks.
+      if (!usable_blocks_.Contains(block)) {
+        DCHECK(!block->InUsableList());
+        usable_blocks_.PushFront(block);
+        DCHECK(block->InUsableList());
       }
+    } else if (block->IsEmpty()) {
+      // A non-empty block got empty during freeing. The block must not require
+      // reprocessing which would mean that at least one node was not yet freed.
+      DCHECK(!block->NeedsReprocessing());
+      if (usable_blocks_.Contains(block)) {
+        DCHECK(block->InUsableList());
+        usable_blocks_.Remove(block);
+        DCHECK(!block->InUsableList());
+      }
+      blocks_.Remove(block);
+      DCHECK(block->InYoungList());
+      young_blocks_.Remove(block);
+      DCHECK(!block->InYoungList());
+      num_young_blocks_--;
+      empty_blocks_.push_back(block);
+      num_blocks_--;
     }
+
+    used_nodes_ -= block->ConsumeLocallyFreed();
+
+    // Handle reprocessing of blocks because `TryReset()` was not able to reset
+    // a node concurrently.
+    if (!block->NeedsReprocessing()) {
+      continue;
+    }
+    block->SetReprocessing(false);
+    job.template ProcessBlock</*IsMainThread=*/true>(block);
+    DCHECK(!block->NeedsReprocessing());
+    // The nodes are fully freed and accounted but still reported as locally
+    // freed as we reuse the processor.
+    const auto locally_freed = block->ConsumeLocallyFreed();
+    (void)locally_freed;
+    DCHECK_GT(locally_freed, 0);
   }
 
   if (auto* cpp_heap = CppHeap::From(isolate_->heap()->cpp_heap())) {
@@ -465,51 +694,65 @@ void TracedHandles::Iterate(RootVisitor* visitor) {
 }
 
 void TracedHandles::IterateYoung(RootVisitor* visitor) {
-  for (auto* node : young_nodes_) {
-    if (!node->is_in_use()) continue;
-
-    visitor->VisitRootPointer(Root::kTracedHandles, nullptr, node->location());
+  for (auto* block : young_blocks_) {
+    for (auto* node : *block) {
+      if (!node->is_in_young_list()) continue;
+      DCHECK(node->is_in_use());
+      visitor->VisitRootPointer(Root::kTracedHandles, nullptr,
+                                node->location());
+    }
   }
 }
 
 void TracedHandles::IterateYoungRoots(RootVisitor* visitor) {
-  for (auto* node : young_nodes_) {
-    if (!node->is_in_use()) continue;
+  DCHECK(!is_marking_);
+  for (auto* block : young_blocks_) {
+    DCHECK(block->InYoungList());
 
-    CHECK_IMPLIES(is_marking_, !node->is_weak());
+    for (auto* node : *block) {
+      if (!node->is_in_young_list()) continue;
+      DCHECK(node->is_in_use());
 
-    if (node->is_weak()) continue;
+      if (node->is_weak()) continue;
 
-    visitor->VisitRootPointer(Root::kTracedHandles, nullptr, node->location());
+      visitor->VisitRootPointer(Root::kTracedHandles, nullptr,
+                                node->location());
+    }
   }
 }
 
 void TracedHandles::IterateAndMarkYoungRootsWithOldHosts(RootVisitor* visitor) {
-  for (auto* node : young_nodes_) {
-    if (!node->is_in_use()) continue;
-    if (!node->has_old_host()) continue;
+  DCHECK(!is_marking_);
+  for (auto* block : young_blocks_) {
+    for (auto* node : *block) {
+      if (!node->is_in_young_list()) continue;
+      DCHECK(node->is_in_use());
+      if (!node->has_old_host()) continue;
 
-    CHECK_IMPLIES(is_marking_, !node->is_weak());
+      if (node->is_weak()) continue;
 
-    if (node->is_weak()) continue;
-
-    node->set_markbit();
-    CHECK(ObjectInYoungGeneration(node->object()));
-    visitor->VisitRootPointer(Root::kTracedHandles, nullptr, node->location());
+      node->set_markbit();
+      CHECK(HeapLayout::InYoungGeneration(node->object()));
+      visitor->VisitRootPointer(Root::kTracedHandles, nullptr,
+                                node->location());
+    }
   }
 }
 
 void TracedHandles::IterateYoungRootsWithOldHostsForTesting(
     RootVisitor* visitor) {
-  for (auto* node : young_nodes_) {
-    if (!node->is_in_use()) continue;
-    if (!node->has_old_host()) continue;
+  DCHECK(!is_marking_);
+  for (auto* block : young_blocks_) {
+    for (auto* node : *block) {
+      if (!node->is_in_young_list()) continue;
+      DCHECK(node->is_in_use());
+      if (!node->has_old_host()) continue;
 
-    CHECK_IMPLIES(is_marking_, !node->is_weak());
+      if (node->is_weak()) continue;
 
-    if (node->is_weak()) continue;
-
-    visitor->VisitRootPointer(Root::kTracedHandles, nullptr, node->location());
+      visitor->VisitRootPointer(Root::kTracedHandles, nullptr,
+                                node->location());
+    }
   }
 }
 
@@ -555,11 +798,11 @@ Tagged<Object> MarkObject(Tagged<Object> obj, TracedNode& node,
   if (mark_mode == TracedHandles::MarkMode::kOnlyYoung &&
       !node.is_in_young_list())
     return Smi::zero();
-  node.set_markbit<AccessMode::ATOMIC>();
+  node.set_markbit();
   // Being in the young list, the node may still point to an old object, in
   // which case we want to keep the node marked, but not follow the reference.
   if (mark_mode == TracedHandles::MarkMode::kOnlyYoung &&
-      !ObjectInYoungGeneration(obj))
+      !HeapLayout::InYoungGeneration(obj))
     return Smi::zero();
   return obj;
 }
@@ -573,7 +816,7 @@ Tagged<Object> TracedHandles::Mark(Address* location, MarkMode mark_mode) {
       Tagged<Object>(reinterpret_cast<std::atomic<Address>*>(location)->load(
           std::memory_order_acquire));
   auto* node = TracedNode::FromLocation(location);
-  DCHECK(node->is_in_use<AccessMode::ATOMIC>());
+  DCHECK(node->is_in_use());
   return MarkObject(object, *node, mark_mode);
 }
 
@@ -587,23 +830,20 @@ Tagged<Object> TracedHandles::MarkConservatively(
   const auto index = delta / sizeof(TracedNode);
   TracedNode& node =
       reinterpret_cast<TracedNode*>(traced_node_block_base)[index];
-  // `MarkConservatively()` runs concurrently with marking code. Reading
-  // state concurrently to setting the markbit is safe.
-  if (!node.is_in_use<AccessMode::ATOMIC>()) return Smi::zero();
+  if (!node.is_in_use()) return Smi::zero();
   return MarkObject(node.object(), node, mark_mode);
 }
 
-bool TracedHandles::IsValidInUseNode(Address* location) {
-  TracedNode* node = TracedNode::FromLocation(location);
+bool TracedHandles::IsValidInUseNode(const Address* location) {
+  const TracedNode* node = TracedNode::FromLocation(location);
   // This method is called after mark bits have been cleared.
-  DCHECK(!node->markbit<AccessMode::NON_ATOMIC>());
-  CHECK_IMPLIES(node->is_in_use<AccessMode::NON_ATOMIC>(),
-                node->raw_object() != kGlobalHandleZapValue);
-  CHECK_IMPLIES(!node->is_in_use<AccessMode::NON_ATOMIC>(),
+  DCHECK(!node->markbit());
+  CHECK_IMPLIES(node->is_in_use(), node->raw_object() != kGlobalHandleZapValue);
+  CHECK_IMPLIES(!node->is_in_use(),
                 node->raw_object() == kGlobalHandleZapValue);
-  return node->is_in_use<AccessMode::NON_ATOMIC>();
+  return node->is_in_use();
 }
 
-bool TracedHandles::HasYoung() const { return !young_nodes_.empty(); }
+bool TracedHandles::HasYoung() const { return !young_blocks_.empty(); }
 
 }  // namespace v8::internal

@@ -19,9 +19,9 @@ namespace v8::internal {
 // their views, located inside the sandbox.
 //
 
-V8_INLINE size_t ReadBoundedLengthField(Address field_address);
+V8_INLINE size_t ReadBoundedSizeField(Address field_address);
 
-V8_INLINE void WriteBoundedLengthField(Address field_address, size_t value);
+V8_INLINE void WriteBoundedSizeField(Address field_address, size_t value);
 
 }  // namespace v8::internal
 

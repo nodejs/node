@@ -1123,7 +1123,7 @@ class GTEST_API_ UnitTest {
   // This method can only be called from the main thread.
   //
   // INTERNAL IMPLEMENTATION - DO NOT USE IN A USER PROGRAM.
-  int Run() GTEST_MUST_USE_RESULT_;
+  [[nodiscard]] int Run();
 
   // Returns the working directory when the first TEST() or TEST_F()
   // was executed.  The UnitTest object owns the string.
@@ -1610,6 +1610,8 @@ GTEST_API_ AssertionResult DoubleNearPredFormat(const char* expr1,
                                                 double val1, double val2,
                                                 double abs_error);
 
+using GoogleTest_NotSupported_OnFunctionReturningNonVoid = void;
+
 // INTERNAL IMPLEMENTATION - DO NOT USE IN USER CODE.
 // A class that enables one to stream messages to assertion macros
 class GTEST_API_ AssertHelper {
@@ -1621,7 +1623,8 @@ class GTEST_API_ AssertHelper {
 
   // Message assignment is a semantic trick to enable assertion
   // streaming; see the GTEST_MESSAGE_ macro below.
-  void operator=(const Message& message) const;
+  GoogleTest_NotSupported_OnFunctionReturningNonVoid operator=(
+      const Message& message) const;
 
  private:
   // We put our data in a struct so that the size of the AssertHelper class can
@@ -1693,7 +1696,7 @@ class WithParamInterface {
 
   // The current parameter value. Is also available in the test fixture's
   // constructor.
-  static const ParamType& GetParam() {
+  [[nodiscard]] static const ParamType& GetParam() {
     GTEST_CHECK_(parameter_ != nullptr)
         << "GetParam() can only be called inside a value-parameterized test "
         << "-- did you intend to write TEST_P instead of TEST_F?";
@@ -2329,7 +2332,7 @@ TestInfo* RegisterTest(const char* test_suite_name, const char* test_name,
 //
 // This function was formerly a macro; thus, it is in the global
 // namespace and has an all-caps name.
-int RUN_ALL_TESTS() GTEST_MUST_USE_RESULT_;
+[[nodiscard]] int RUN_ALL_TESTS();
 
 inline int RUN_ALL_TESTS() { return ::testing::UnitTest::GetInstance()->Run(); }
 

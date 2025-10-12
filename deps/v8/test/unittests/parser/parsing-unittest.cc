@@ -26,6 +26,7 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
+#include "test/common/flag-utils.h"
 #include "test/unittests/parser/scope-test-helper.h"
 #include "test/unittests/parser/unicode-helpers.h"
 #include "test/unittests/test-utils.h"
@@ -75,14 +76,14 @@ struct Input {
         (isolate), (info)->ast_value_factory());                              \
     (info)->pending_error_handler()->ReportErrors((isolate), (script));       \
                                                                               \
-    i::Handle<i::JSObject> exception_handle(                                  \
-        i::JSObject::cast((isolate)->exception()), (isolate));                \
-    i::Handle<i::String> message_string = i::Handle<i::String>::cast(         \
+    i::DirectHandle<i::JSObject> exception_handle(                            \
+        i::Cast<i::JSObject>((isolate)->exception()), (isolate));             \
+    i::DirectHandle<i::String> message_string = i::Cast<i::String>(           \
         i::JSReceiver::GetProperty((isolate), exception_handle, "message")    \
             .ToHandleChecked());                                              \
     (isolate)->clear_exception();                                             \
                                                                               \
-    Tagged<String> script_source = String::cast((script)->source());          \
+    Tagged<String> script_source = Cast<String>((script)->source());          \
                                                                               \
     FATAL(                                                                    \
         "Parser failed on:\n"                                                 \
@@ -109,7 +110,7 @@ struct Input {
     if (!i::parsing::ParseFunction((info), (shared), (isolate),            \
                                    parsing::ReportStatisticsMode::kYes)) { \
       FAIL_WITH_PENDING_PARSER_ERROR(                                      \
-          (info), handle(Script::cast((shared)->script()), (isolate)),     \
+          (info), handle(Cast<Script>((shared)->script()), (isolate)),     \
           (isolate));                                                      \
     }                                                                      \
                                                                            \
@@ -168,7 +169,7 @@ class ParsingTest : public TestWithContextAndZone {
     const i::AstRawString* current_symbol =
         scanner.CurrentSymbol(&ast_value_factory);
     ast_value_factory.Internalize(i_isolate());
-    i::Handle<i::String> val = current_symbol->string();
+    i::DirectHandle<i::String> val = current_symbol->string();
     i::DisallowGarbageCollection no_alloc;
     i::String::FlatContent content = val->GetFlatContent(no_alloc);
     CHECK(content.IsOneByte());
@@ -187,7 +188,7 @@ class ParsingTest : public TestWithContextAndZone {
     full_source += source;
     full_source += "; }";
 
-    i::Handle<i::String> source_code =
+    i::DirectHandle<i::String> source_code =
         factory->NewStringFromUtf8(base::CStrVector(full_source.c_str()))
             .ToHandleChecked();
 
@@ -273,9 +274,9 @@ class ParsingTest : public TestWithContextAndZone {
     if (function == nullptr) {
       // Extract exception from the parser.
       CHECK(isolate->has_exception());
-      i::Handle<i::JSObject> exception_handle(
-          i::JSObject::cast(isolate->exception()), isolate);
-      i::Handle<i::String> message_string = i::Handle<i::String>::cast(
+      i::DirectHandle<i::JSObject> exception_handle(
+          i::Cast<i::JSObject>(isolate->exception()), isolate);
+      i::DirectHandle<i::String> message_string = i::Cast<i::String>(
           i::JSReceiver::GetProperty(isolate, exception_handle, "message")
               .ToHandleChecked());
       isolate->clear_exception();
@@ -304,7 +305,7 @@ class ParsingTest : public TestWithContextAndZone {
       // cases where we do not track errors in the preparser.
       if (test_preparser && !ignore_error_msg &&
           !pending_error_handler.has_error_unidentifiable_by_preparser()) {
-        i::Handle<i::String> preparser_message =
+        i::DirectHandle<i::String> preparser_message =
             pending_error_handler.FormatErrorMessageForTest(i_isolate());
         if (!i::String::Equals(isolate, message_string, preparser_message)) {
           FATAL(
@@ -468,7 +469,7 @@ class ParsingTest : public TestWithContextAndZone {
                          bool allow_lazy_parsing) {
     i::Isolate* isolate = i_isolate();
     i::Factory* factory = isolate->factory();
-    i::Handle<i::String> string =
+    i::DirectHandle<i::String> string =
         factory->InternalizeUtf8String(input.source.c_str());
     string->PrintOn(stdout);
     printf("\n");
@@ -519,6 +520,7 @@ bool TokenIsAnyIdentifier(Token::Value token) {
     case Token::kSet:
     case Token::kUsing:
     case Token::kOf:
+    case Token::kAccessor:
     case Token::kAsync:
     case Token::kAwait:
     case Token::kYield:
@@ -547,6 +549,7 @@ bool TokenIsCallable(Token::Value token) {
     case Token::kSet:
     case Token::kUsing:
     case Token::kOf:
+    case Token::kAccessor:
     case Token::kAsync:
     case Token::kAwait:
     case Token::kYield:
@@ -575,6 +578,7 @@ bool TokenIsValidIdentifier(Token::Value token, LanguageMode language_mode,
     case Token::kSet:
     case Token::kUsing:
     case Token::kOf:
+    case Token::kAccessor:
     case Token::kAsync:
       return true;
     case Token::kYield:
@@ -1415,7 +1419,7 @@ TEST_F(ParsingTest, ScopeUsesArgumentsSuperThis) {
       base::ScopedVector<char> program(kProgramByteSize + 1);
       base::SNPrintF(program, "%s%s%s", surroundings[j].prefix,
                      source_data[i].body, surroundings[j].suffix);
-      i::Handle<i::String> source =
+      i::DirectHandle<i::String> source =
           factory->NewStringFromUtf8(base::CStrVector(program.begin()))
               .ToHandleChecked();
       i::Handle<i::Script> script = factory->NewScript(source);
@@ -1427,7 +1431,7 @@ TEST_F(ParsingTest, ScopeUsesArgumentsSuperThis) {
       flags.set_allow_lazy_parsing(false);
       i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
       CHECK_PARSE_PROGRAM(&info, script, isolate);
-      i::DeclarationScope::AllocateScopeInfos(&info, isolate);
+      i::DeclarationScope::AllocateScopeInfos(&info, script, isolate);
       CHECK_NOT_NULL(info.literal());
 
       i::DeclarationScope* script_scope = info.literal()->scope();
@@ -1503,26 +1507,24 @@ TEST_F(ParsingTest, ScopePositions) {
   };
 
   const SourceData source_data[] = {
-      {"  with ({}) ", "{ block; }", " more;", i::WITH_SCOPE,
+      {"  with ({}", "){ block; }", " more;", i::WITH_SCOPE,
        i::LanguageMode::kSloppy},
-      {"  with ({}) ", "{ block; }", "; more;", i::WITH_SCOPE,
+      {"  with ({}", "){ block; }", "; more;", i::WITH_SCOPE,
        i::LanguageMode::kSloppy},
-      {"  with ({}) ",
-       "{\n"
+      {"  with ({}",
+       "){\n"
        "    block;\n"
        "  }",
        "\n"
        "  more;",
        i::WITH_SCOPE, i::LanguageMode::kSloppy},
-      {"  with ({}) ", "statement;", " more;", i::WITH_SCOPE,
+      {"  with ({}", ")statement;", " more;", i::WITH_SCOPE,
        i::LanguageMode::kSloppy},
-      {"  with ({}) ", "statement",
+      {"  with ({}", ")statement",
        "\n"
        "  more;",
        i::WITH_SCOPE, i::LanguageMode::kSloppy},
-      {"  with ({})\n"
-       "    ",
-       "statement;",
+      {"  with ({}", ")statement;",
        "\n"
        "  more;",
        i::WITH_SCOPE, i::LanguageMode::kSloppy},
@@ -1573,25 +1575,25 @@ TEST_F(ParsingTest, ScopePositions) {
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      {"  for ", "(let x = 1 ; x < 10; ++ x) { block; }", " more;",
+      {"  for (", "let x = 1 ; x < 10; ++ x) { block; }", " more;",
        i::BLOCK_SCOPE, i::LanguageMode::kStrict},
-      {"  for ", "(let x = 1 ; x < 10; ++ x) { block; }", "; more;",
+      {"  for (", "let x = 1 ; x < 10; ++ x) { block; }", "; more;",
        i::BLOCK_SCOPE, i::LanguageMode::kStrict},
-      {"  for ",
-       "(let x = 1 ; x < 10; ++ x) {\n"
+      {"  for (",
+       "let x = 1 ; x < 10; ++ x) {\n"
        "    block;\n"
        "  }",
        "\n"
        "  more;",
        i::BLOCK_SCOPE, i::LanguageMode::kStrict},
-      {"  for ", "(let x = 1 ; x < 10; ++ x) statement;", " more;",
+      {"  for (", "let x = 1 ; x < 10; ++ x) statement;", " more;",
        i::BLOCK_SCOPE, i::LanguageMode::kStrict},
-      {"  for ", "(let x = 1 ; x < 10; ++ x) statement",
+      {"  for (", "let x = 1 ; x < 10; ++ x) statement",
        "\n"
        "  more;",
        i::BLOCK_SCOPE, i::LanguageMode::kStrict},
-      {"  for ",
-       "(let x = 1 ; x < 10; ++ x)\n"
+      {"  for (",
+       "let x = 1 ; x < 10; ++ x)\n"
        "    statement;",
        "\n"
        "  more;",
@@ -1749,7 +1751,7 @@ TEST_F(ParsingTest, ScopePositions) {
                    source_data[i].inner_source, source_data[i].outer_suffix);
 
     // Parse program source.
-    i::Handle<i::String> source =
+    i::DirectHandle<i::String> source =
         factory->NewStringFromUtf8(base::CStrVector(program.begin()))
             .ToHandleChecked();
     CHECK_EQ(source->length(), kProgramSize);
@@ -1799,7 +1801,7 @@ TEST_F(ParsingTest, DiscardFunctionBody) {
 
   for (int i = 0; discard_sources[i]; i++) {
     const char* source = discard_sources[i];
-    i::Handle<i::String> source_code =
+    i::DirectHandle<i::String> source_code =
         factory->NewStringFromUtf8(base::CStrVector(source)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source_code);
     i::UnoptimizedCompileState compile_state;
@@ -2241,6 +2243,34 @@ TEST_F(ParsingTest, NoErrorsFutureStrictReservedWords) {
   const char* statement_data[] = {
     FUTURE_STRICT_RESERVED_WORDS(FUTURE_STRICT_RESERVED_STATEMENTS)
     FUTURE_STRICT_RESERVED_WORDS_NO_LET(FUTURE_STRICT_RESERVED_LEX_BINDINGS)
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+TEST_F(ParsingTest, NoErrorAccessorAsIdentifier) {
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
+  // clang-format off
+  const char* statement_data[] = {
+    FUTURE_STRICT_RESERVED_STATEMENTS(accessor)
+    FUTURE_STRICT_RESERVED_LEX_BINDINGS(accessor)
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+// TODO(42202709): Remove when the decorators flag is enabled by default.
+TEST_F(ParsingTest, NoErrorAccessorAsIdentifierDecoratorsEnabled) {
+  FLAG_SCOPE(js_decorators);
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
+  // clang-format off
+  const char* statement_data[] = {
+    FUTURE_STRICT_RESERVED_STATEMENTS(accessor)
+    FUTURE_STRICT_RESERVED_LEX_BINDINGS(accessor)
     nullptr
   };
   // clang-format on
@@ -3234,18 +3264,19 @@ TEST_F(ParsingTest, SerializationOfMaybeAssignmentFlag) {
 
   base::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
   base::SNPrintF(program, "%s", src);
-  i::Handle<i::String> source = factory->InternalizeUtf8String(program.begin());
+  i::DirectHandle<i::String> source =
+      factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
   printf("\n");
   v8::Local<v8::Value> v = RunJS(src);
-  i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
-  i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-  i::Handle<i::Context> context(f->context(), isolate);
+  i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(*v);
+  i::DirectHandle<i::JSFunction> f = i::Cast<i::JSFunction>(o);
+  i::DirectHandle<i::Context> context(f->context(), isolate);
   i::AstValueFactory avf(zone(), isolate->ast_string_constants(),
                          HashSeed(isolate));
   const i::AstRawString* name = avf.GetOneByteString("result");
   avf.Internalize(isolate);
-  i::Handle<i::String> str = name->string();
+  i::DirectHandle<i::String> str = name->string();
   CHECK(IsInternalizedString(*str));
   i::DeclarationScope* script_scope =
       zone()->New<i::DeclarationScope>(zone(), &avf);
@@ -3280,13 +3311,14 @@ TEST_F(ParsingTest, IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
 
   base::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
   base::SNPrintF(program, "%s", src);
-  i::Handle<i::String> source = factory->InternalizeUtf8String(program.begin());
+  i::DirectHandle<i::String> source =
+      factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
   printf("\n");
   v8::Local<v8::Value> v = RunJS(src);
-  i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
-  i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-  i::Handle<i::Context> context(f->context(), isolate);
+  i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(*v);
+  i::DirectHandle<i::JSFunction> f = i::Cast<i::JSFunction>(o);
+  i::DirectHandle<i::Context> context(f->context(), isolate);
   i::AstValueFactory avf(zone(), isolate->ast_string_constants(),
                          HashSeed(isolate));
   const i::AstRawString* name_x = avf.GetOneByteString("x");
@@ -3441,17 +3473,16 @@ TEST_F(ParsingTest, InnerAssignment) {
         if (lazy) {
           printf("%s\n", program.begin());
           v8::Local<v8::Value> v = RunJS(program.begin());
-          i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
-          i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-          i::Handle<i::SharedFunctionInfo> shared =
-              i::handle(f->shared(), isolate);
+          i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(*v);
+          i::DirectHandle<i::JSFunction> f = i::Cast<i::JSFunction>(o);
+          i::Handle<i::SharedFunctionInfo> shared(f->shared(), isolate);
           i::UnoptimizedCompileFlags flags =
               i::UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared);
           info = std::make_unique<i::ParseInfo>(isolate, flags, &compile_state,
                                                 &reusable_state);
           CHECK_PARSE_FUNCTION(info.get(), shared, isolate);
         } else {
-          i::Handle<i::String> source =
+          i::DirectHandle<i::String> source =
               factory->InternalizeUtf8String(program.begin());
           source->PrintOn(stdout);
           printf("\n");
@@ -3559,8 +3590,8 @@ TEST_F(ParsingTest, MaybeAssignedParameters) {
       base::SNPrintF(program, "%s%s", source, suffix);
       printf("%s\n", program.begin());
       v8::Local<v8::Value> v = RunJS(program.begin());
-      i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
-      i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
+      i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(*v);
+      i::DirectHandle<i::JSFunction> f = i::Cast<i::JSFunction>(o);
       i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared(), isolate);
       i::UnoptimizedCompileState state;
       i::ReusableUnoptimizedCompileState reusable_state(isolate);
@@ -3794,14 +3825,14 @@ TEST_F(ParsingTest, MaybeAssignedInsideLoop) {
       {true, "for (let j of x) { var foo; foo = j }", top},
       {true, "for (let j of x) { var foo; [foo] = [j] }", top},
       {true, "for (let j of x) { var foo; [[foo]=[42]] = [] }", top},
-      {true, "for (let j of x) { let foo; foo = j }", {0, 0, 0}},
-      {true, "for (let j of x) { let foo; [foo] = [j] }", {0, 0, 0}},
-      {true, "for (let j of x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
-      {false, "for (let j of x) { let foo = j }", {0, 0, 0}},
-      {false, "for (let j of x) { let [foo] = [j] }", {0, 0, 0}},
-      {false, "for (let j of x) { const foo = j }", {0, 0, 0}},
-      {false, "for (let j of x) { const [foo] = [j] }", {0, 0, 0}},
-      {false, "for (let j of x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (let j of x) { let foo; foo = j }", {0, 1, 0}},
+      {true, "for (let j of x) { let foo; [foo] = [j] }", {0, 1, 0}},
+      {true, "for (let j of x) { let foo; [[foo]=[42]] = [] }", {0, 1, 0}},
+      {false, "for (let j of x) { let foo = j }", {0, 1, 0}},
+      {false, "for (let j of x) { let [foo] = [j] }", {0, 1, 0}},
+      {false, "for (let j of x) { const foo = j }", {0, 1, 0}},
+      {false, "for (let j of x) { const [foo] = [j] }", {0, 1, 0}},
+      {false, "for (let j of x) { function foo() {return j} }", {0, 1, 0}},
 
       {true, "for (let {j} of x) { foo = j }", top},
       {true, "for (let {j} of x) { [foo] = [j] }", top},
@@ -3812,14 +3843,14 @@ TEST_F(ParsingTest, MaybeAssignedInsideLoop) {
       {true, "for (let {j} of x) { var foo; foo = j }", top},
       {true, "for (let {j} of x) { var foo; [foo] = [j] }", top},
       {true, "for (let {j} of x) { var foo; [[foo]=[42]] = [] }", top},
-      {true, "for (let {j} of x) { let foo; foo = j }", {0, 0, 0}},
-      {true, "for (let {j} of x) { let foo; [foo] = [j] }", {0, 0, 0}},
-      {true, "for (let {j} of x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
-      {false, "for (let {j} of x) { let foo = j }", {0, 0, 0}},
-      {false, "for (let {j} of x) { let [foo] = [j] }", {0, 0, 0}},
-      {false, "for (let {j} of x) { const foo = j }", {0, 0, 0}},
-      {false, "for (let {j} of x) { const [foo] = [j] }", {0, 0, 0}},
-      {false, "for (let {j} of x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (let {j} of x) { let foo; foo = j }", {0, 1, 0}},
+      {true, "for (let {j} of x) { let foo; [foo] = [j] }", {0, 1, 0}},
+      {true, "for (let {j} of x) { let foo; [[foo]=[42]] = [] }", {0, 1, 0}},
+      {false, "for (let {j} of x) { let foo = j }", {0, 1, 0}},
+      {false, "for (let {j} of x) { let [foo] = [j] }", {0, 1, 0}},
+      {false, "for (let {j} of x) { const foo = j }", {0, 1, 0}},
+      {false, "for (let {j} of x) { const [foo] = [j] }", {0, 1, 0}},
+      {false, "for (let {j} of x) { function foo() {return j} }", {0, 1, 0}},
 
       {true, "for (const j of x) { foo = j }", top},
       {true, "for (const j of x) { [foo] = [j] }", top},
@@ -3830,14 +3861,14 @@ TEST_F(ParsingTest, MaybeAssignedInsideLoop) {
       {true, "for (const j of x) { var foo; foo = j }", top},
       {true, "for (const j of x) { var foo; [foo] = [j] }", top},
       {true, "for (const j of x) { var foo; [[foo]=[42]] = [] }", top},
-      {true, "for (const j of x) { let foo; foo = j }", {0, 0, 0}},
-      {true, "for (const j of x) { let foo; [foo] = [j] }", {0, 0, 0}},
-      {true, "for (const j of x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
-      {false, "for (const j of x) { let foo = j }", {0, 0, 0}},
-      {false, "for (const j of x) { let [foo] = [j] }", {0, 0, 0}},
-      {false, "for (const j of x) { const foo = j }", {0, 0, 0}},
-      {false, "for (const j of x) { const [foo] = [j] }", {0, 0, 0}},
-      {false, "for (const j of x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (const j of x) { let foo; foo = j }", {0, 1, 0}},
+      {true, "for (const j of x) { let foo; [foo] = [j] }", {0, 1, 0}},
+      {true, "for (const j of x) { let foo; [[foo]=[42]] = [] }", {0, 1, 0}},
+      {false, "for (const j of x) { let foo = j }", {0, 1, 0}},
+      {false, "for (const j of x) { let [foo] = [j] }", {0, 1, 0}},
+      {false, "for (const j of x) { const foo = j }", {0, 1, 0}},
+      {false, "for (const j of x) { const [foo] = [j] }", {0, 1, 0}},
+      {false, "for (const j of x) { function foo() {return j} }", {0, 1, 0}},
 
       {true, "for (const {j} of x) { foo = j }", top},
       {true, "for (const {j} of x) { [foo] = [j] }", top},
@@ -3848,14 +3879,14 @@ TEST_F(ParsingTest, MaybeAssignedInsideLoop) {
       {true, "for (const {j} of x) { var foo; foo = j }", top},
       {true, "for (const {j} of x) { var foo; [foo] = [j] }", top},
       {true, "for (const {j} of x) { var foo; [[foo]=[42]] = [] }", top},
-      {true, "for (const {j} of x) { let foo; foo = j }", {0, 0, 0}},
-      {true, "for (const {j} of x) { let foo; [foo] = [j] }", {0, 0, 0}},
-      {true, "for (const {j} of x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
-      {false, "for (const {j} of x) { let foo = j }", {0, 0, 0}},
-      {false, "for (const {j} of x) { let [foo] = [j] }", {0, 0, 0}},
-      {false, "for (const {j} of x) { const foo = j }", {0, 0, 0}},
-      {false, "for (const {j} of x) { const [foo] = [j] }", {0, 0, 0}},
-      {false, "for (const {j} of x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (const {j} of x) { let foo; foo = j }", {0, 1, 0}},
+      {true, "for (const {j} of x) { let foo; [foo] = [j] }", {0, 1, 0}},
+      {true, "for (const {j} of x) { let foo; [[foo]=[42]] = [] }", {0, 1, 0}},
+      {false, "for (const {j} of x) { let foo = j }", {0, 1, 0}},
+      {false, "for (const {j} of x) { let [foo] = [j] }", {0, 1, 0}},
+      {false, "for (const {j} of x) { const foo = j }", {0, 1, 0}},
+      {false, "for (const {j} of x) { const [foo] = [j] }", {0, 1, 0}},
+      {false, "for (const {j} of x) { function foo() {return j} }", {0, 1, 0}},
 
       {true, "for (j in x) { foo = j }", top},
       {true, "for (j in x) { [foo] = [j] }", top},
@@ -3938,14 +3969,14 @@ TEST_F(ParsingTest, MaybeAssignedInsideLoop) {
       {true, "for (let j in x) { var foo; foo = j }", top},
       {true, "for (let j in x) { var foo; [foo] = [j] }", top},
       {true, "for (let j in x) { var foo; [[foo]=[42]] = [] }", top},
-      {true, "for (let j in x) { let foo; foo = j }", {0, 0, 0}},
-      {true, "for (let j in x) { let foo; [foo] = [j] }", {0, 0, 0}},
-      {true, "for (let j in x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
-      {false, "for (let j in x) { let foo = j }", {0, 0, 0}},
-      {false, "for (let j in x) { let [foo] = [j] }", {0, 0, 0}},
-      {false, "for (let j in x) { const foo = j }", {0, 0, 0}},
-      {false, "for (let j in x) { const [foo] = [j] }", {0, 0, 0}},
-      {false, "for (let j in x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (let j in x) { let foo; foo = j }", {0, 1, 0}},
+      {true, "for (let j in x) { let foo; [foo] = [j] }", {0, 1, 0}},
+      {true, "for (let j in x) { let foo; [[foo]=[42]] = [] }", {0, 1, 0}},
+      {false, "for (let j in x) { let foo = j }", {0, 1, 0}},
+      {false, "for (let j in x) { let [foo] = [j] }", {0, 1, 0}},
+      {false, "for (let j in x) { const foo = j }", {0, 1, 0}},
+      {false, "for (let j in x) { const [foo] = [j] }", {0, 1, 0}},
+      {false, "for (let j in x) { function foo() {return j} }", {0, 1, 0}},
 
       {true, "for (let {j} in x) { foo = j }", top},
       {true, "for (let {j} in x) { [foo] = [j] }", top},
@@ -3956,14 +3987,14 @@ TEST_F(ParsingTest, MaybeAssignedInsideLoop) {
       {true, "for (let {j} in x) { var foo; foo = j }", top},
       {true, "for (let {j} in x) { var foo; [foo] = [j] }", top},
       {true, "for (let {j} in x) { var foo; [[foo]=[42]] = [] }", top},
-      {true, "for (let {j} in x) { let foo; foo = j }", {0, 0, 0}},
-      {true, "for (let {j} in x) { let foo; [foo] = [j] }", {0, 0, 0}},
-      {true, "for (let {j} in x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
-      {false, "for (let {j} in x) { let foo = j }", {0, 0, 0}},
-      {false, "for (let {j} in x) { let [foo] = [j] }", {0, 0, 0}},
-      {false, "for (let {j} in x) { const foo = j }", {0, 0, 0}},
-      {false, "for (let {j} in x) { const [foo] = [j] }", {0, 0, 0}},
-      {false, "for (let {j} in x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (let {j} in x) { let foo; foo = j }", {0, 1, 0}},
+      {true, "for (let {j} in x) { let foo; [foo] = [j] }", {0, 1, 0}},
+      {true, "for (let {j} in x) { let foo; [[foo]=[42]] = [] }", {0, 1, 0}},
+      {false, "for (let {j} in x) { let foo = j }", {0, 1, 0}},
+      {false, "for (let {j} in x) { let [foo] = [j] }", {0, 1, 0}},
+      {false, "for (let {j} in x) { const foo = j }", {0, 1, 0}},
+      {false, "for (let {j} in x) { const [foo] = [j] }", {0, 1, 0}},
+      {false, "for (let {j} in x) { function foo() {return j} }", {0, 1, 0}},
 
       {true, "for (const j in x) { foo = j }", top},
       {true, "for (const j in x) { [foo] = [j] }", top},
@@ -3974,14 +4005,14 @@ TEST_F(ParsingTest, MaybeAssignedInsideLoop) {
       {true, "for (const j in x) { var foo; foo = j }", top},
       {true, "for (const j in x) { var foo; [foo] = [j] }", top},
       {true, "for (const j in x) { var foo; [[foo]=[42]] = [] }", top},
-      {true, "for (const j in x) { let foo; foo = j }", {0, 0, 0}},
-      {true, "for (const j in x) { let foo; [foo] = [j] }", {0, 0, 0}},
-      {true, "for (const j in x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
-      {false, "for (const j in x) { let foo = j }", {0, 0, 0}},
-      {false, "for (const j in x) { let [foo] = [j] }", {0, 0, 0}},
-      {false, "for (const j in x) { const foo = j }", {0, 0, 0}},
-      {false, "for (const j in x) { const [foo] = [j] }", {0, 0, 0}},
-      {false, "for (const j in x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (const j in x) { let foo; foo = j }", {0, 1, 0}},
+      {true, "for (const j in x) { let foo; [foo] = [j] }", {0, 1, 0}},
+      {true, "for (const j in x) { let foo; [[foo]=[42]] = [] }", {0, 1, 0}},
+      {false, "for (const j in x) { let foo = j }", {0, 1, 0}},
+      {false, "for (const j in x) { let [foo] = [j] }", {0, 1, 0}},
+      {false, "for (const j in x) { const foo = j }", {0, 1, 0}},
+      {false, "for (const j in x) { const [foo] = [j] }", {0, 1, 0}},
+      {false, "for (const j in x) { function foo() {return j} }", {0, 1, 0}},
 
       {true, "for (const {j} in x) { foo = j }", top},
       {true, "for (const {j} in x) { [foo] = [j] }", top},
@@ -3992,14 +4023,14 @@ TEST_F(ParsingTest, MaybeAssignedInsideLoop) {
       {true, "for (const {j} in x) { var foo; foo = j }", top},
       {true, "for (const {j} in x) { var foo; [foo] = [j] }", top},
       {true, "for (const {j} in x) { var foo; [[foo]=[42]] = [] }", top},
-      {true, "for (const {j} in x) { let foo; foo = j }", {0, 0, 0}},
-      {true, "for (const {j} in x) { let foo; [foo] = [j] }", {0, 0, 0}},
-      {true, "for (const {j} in x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
-      {false, "for (const {j} in x) { let foo = j }", {0, 0, 0}},
-      {false, "for (const {j} in x) { let [foo] = [j] }", {0, 0, 0}},
-      {false, "for (const {j} in x) { const foo = j }", {0, 0, 0}},
-      {false, "for (const {j} in x) { const [foo] = [j] }", {0, 0, 0}},
-      {false, "for (const {j} in x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (const {j} in x) { let foo; foo = j }", {0, 1, 0}},
+      {true, "for (const {j} in x) { let foo; [foo] = [j] }", {0, 1, 0}},
+      {true, "for (const {j} in x) { let foo; [[foo]=[42]] = [] }", {0, 1, 0}},
+      {false, "for (const {j} in x) { let foo = j }", {0, 1, 0}},
+      {false, "for (const {j} in x) { let [foo] = [j] }", {0, 1, 0}},
+      {false, "for (const {j} in x) { const foo = j }", {0, 1, 0}},
+      {false, "for (const {j} in x) { const [foo] = [j] }", {0, 1, 0}},
+      {false, "for (const {j} in x) { function foo() {return j} }", {0, 1, 0}},
 
       {true, "while (j) { foo = j }", top},
       {true, "while (j) { [foo] = [j] }", top},
@@ -4157,10 +4188,11 @@ TEST_F(ParsingTest, MaybeAssignedTopLevel) {
 namespace {
 
 i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
-                                   i::Handle<i::JSObject> m, const char* name) {
+                                   i::DirectHandle<i::JSObject> m,
+                                   const char* name) {
   i::AstValueFactory avf(zone, isolate->ast_string_constants(),
                          HashSeed(isolate));
-  i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(
+  i::DirectHandle<i::JSFunction> f = i::Cast<i::JSFunction>(
       i::JSReceiver::GetProperty(isolate, m, name).ToHandleChecked());
   i::DeclarationScope* script_scope =
       zone->New<i::DeclarationScope>(zone, &avf);
@@ -4185,8 +4217,8 @@ TEST_F(ParsingTest, AsmModuleFlag) {
       "m();";
 
   v8::Local<v8::Value> v = RunJS(src);
-  i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
-  i::Handle<i::JSObject> m = i::Handle<i::JSObject>::cast(o);
+  i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(*v);
+  i::DirectHandle<i::JSObject> m = i::Cast<i::JSObject>(o);
 
   // The asm.js module should be marked as such.
   i::Scope* s = DeserializeFunctionScope(isolate, zone(), m, "f");
@@ -4656,7 +4688,7 @@ TEST_F(ParsingTest, ImportExpressionSuccess) {
 }
 
 TEST_F(ParsingTest, ImportExpressionWithOptionsSuccess) {
-  i::v8_flags.harmony_import_assertions = true;
+  i::v8_flags.harmony_import_attributes = true;
 
   // clang-format off
   const char* context_data[][2] = {
@@ -4786,7 +4818,7 @@ TEST_F(ParsingTest, ImportExpressionErrors) {
 
 TEST_F(ParsingTest, ImportExpressionWithOptionsErrors) {
   {
-    i::v8_flags.harmony_import_assertions = true;
+    i::v8_flags.harmony_import_attributes = true;
 
     // clang-format off
     const char* context_data[][2] = {
@@ -4861,129 +4893,6 @@ TEST_F(ParsingTest, ImportExpressionWithOptionsErrors) {
   }
 }
 
-TEST_F(ParsingTest, BasicImportAssertionParsing) {
-  // clang-format off
-  const char* kSources[] = {
-    "import { a as b } from 'm.js' assert { };",
-    "import n from 'n.js' assert { };",
-    "export { a as b } from 'm.js' assert { };",
-    "export * from 'm.js' assert { };",
-    "import 'm.js' assert { };",
-    "import * as foo from 'bar.js' assert { };",
-
-    "import { a as b } from 'm.js' assert { a: 'b' };",
-    "import { a as b } from 'm.js' assert { c: 'd' };",
-    "import { a as b } from 'm.js' assert { 'c': 'd' };",
-    "import { a as b } from 'm.js' assert { a: 'b', 'c': 'd', e: 'f' };",
-    "import { a as b } from 'm.js' assert { 'c': 'd', };",
-    "import n from 'n.js' assert { 'c': 'd' };",
-    "export { a as b } from 'm.js' assert { 'c': 'd' };",
-    "export * from 'm.js' assert { 'c': 'd' };",
-    "import 'm.js' assert { 'c': 'd' };",
-    "import * as foo from 'bar.js' assert { 'c': 'd' };",
-
-    "import { a as b } from 'm.js' assert { \nc: 'd'};",
-    "import { a as b } from 'm.js' assert { c:\n 'd'};",
-    "import { a as b } from 'm.js' assert { c:'d'\n};",
-
-    "import { a as b } from 'm.js' assert { '0': 'b', };",
-  };
-  // clang-format on
-
-  i::v8_flags.harmony_import_assertions = true;
-  i::Isolate* isolate = i_isolate();
-  i::Factory* factory = isolate->factory();
-
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
-                                        128 * 1024);
-
-  for (unsigned i = 0; i < arraysize(kSources); ++i) {
-    i::Handle<i::String> source =
-        factory->NewStringFromAsciiChecked(kSources[i]);
-
-    // Show that parsing as a module works
-    {
-      i::Handle<i::Script> script = factory->NewScript(source);
-      i::UnoptimizedCompileState compile_state;
-      i::ReusableUnoptimizedCompileState reusable_state(isolate);
-      i::UnoptimizedCompileFlags flags =
-          i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
-      flags.set_is_module(true);
-      i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
-      CHECK_PARSE_PROGRAM(&info, script, isolate);
-    }
-
-    // And that parsing a script does not.
-    {
-      i::UnoptimizedCompileState compile_state;
-      i::ReusableUnoptimizedCompileState reusable_state(isolate);
-      i::Handle<i::Script> script = factory->NewScript(source);
-      i::UnoptimizedCompileFlags flags =
-          i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
-      i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
-      CHECK(!i::parsing::ParseProgram(&info, script, isolate,
-                                      parsing::ReportStatisticsMode::kYes));
-      CHECK(info.pending_error_handler()->has_pending_error());
-    }
-  }
-}
-
-TEST_F(ParsingTest, ImportAssertionParsingErrors) {
-  // clang-format off
-  const char* kErrorSources[] = {
-    "import { a } from 'm.js' assert {;",
-    "import { a } from 'm.js' assert };",
-    "import { a } from 'm.js' , assert { };",
-    "import { a } from 'm.js' assert , { };",
-    "import { a } from 'm.js' assert { , };",
-    "import { a } from 'm.js' assert { b };",
-    "import { a } from 'm.js' assert { 'b' };",
-    "import { a } from 'm.js' assert { for };",
-    "import { a } from 'm.js' assert { assert };",
-    "export { a } assert { };",
-    "export * assert { };",
-
-    "import 'm.js'\n assert { };",
-    "import 'm.js' \nassert { };",
-    "import { a } from 'm.js'\n assert { };",
-    "export * from 'm.js'\n assert { };",
-
-    "import { a } from 'm.js' assert { x: 2 };",
-    "import { a } from 'm.js' assert { b: c };",
-    "import { a } from 'm.js' assert { 'b': c };",
-    "import { a } from 'm.js' assert { , b: c };",
-    "import { a } from 'm.js' assert { a: 'b', a: 'c' };",
-    "import { a } from 'm.js' assert { a: 'b', 'a': 'c' };",
-
-    "import 'm.js' with { a: 'b' };"
-  };
-  // clang-format on
-
-  i::v8_flags.harmony_import_assertions = true;
-  i::v8_flags.harmony_import_attributes = false;
-  i::Isolate* isolate = i_isolate();
-  i::Factory* factory = isolate->factory();
-
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
-                                        128 * 1024);
-
-  for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
-    i::Handle<i::String> source =
-        factory->NewStringFromAsciiChecked(kErrorSources[i]);
-
-    i::Handle<i::Script> script = factory->NewScript(source);
-    i::UnoptimizedCompileState compile_state;
-    i::ReusableUnoptimizedCompileState reusable_state(isolate);
-    i::UnoptimizedCompileFlags flags =
-        i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
-    flags.set_is_module(true);
-    i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
-    CHECK(!i::parsing::ParseProgram(&info, script, isolate,
-                                    parsing::ReportStatisticsMode::kYes));
-    CHECK(info.pending_error_handler()->has_pending_error());
-  }
-}
-
 TEST_F(ParsingTest, BasicImportAttributesParsing) {
   // clang-format off
   const char* kSources[] = {
@@ -5026,7 +4935,7 @@ TEST_F(ParsingTest, BasicImportAttributesParsing) {
                                         128 * 1024);
 
   for (unsigned i = 0; i < arraysize(kSources); ++i) {
-    i::Handle<i::String> source =
+    i::DirectHandle<i::String> source =
         factory->NewStringFromAsciiChecked(kSources[i]);
 
     // Show that parsing as a module works
@@ -5045,7 +4954,7 @@ TEST_F(ParsingTest, BasicImportAttributesParsing) {
     {
       i::UnoptimizedCompileState compile_state;
       i::ReusableUnoptimizedCompileState reusable_state(isolate);
-      i::Handle<i::Script> script = factory->NewScript(source);
+      i::DirectHandle<i::Script> script = factory->NewScript(source);
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
       i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
@@ -5082,7 +4991,6 @@ TEST_F(ParsingTest, ImportAttributesParsingErrors) {
   };
   // clang-format on
 
-  i::v8_flags.harmony_import_assertions = false;
   i::v8_flags.harmony_import_attributes = true;
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
@@ -5091,94 +4999,10 @@ TEST_F(ParsingTest, ImportAttributesParsingErrors) {
                                         128 * 1024);
 
   for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
-    i::Handle<i::String> source =
+    i::DirectHandle<i::String> source =
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
-    i::Handle<i::Script> script = factory->NewScript(source);
-    i::UnoptimizedCompileState compile_state;
-    i::ReusableUnoptimizedCompileState reusable_state(isolate);
-    i::UnoptimizedCompileFlags flags =
-        i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
-    flags.set_is_module(true);
-    i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
-    CHECK(!i::parsing::ParseProgram(&info, script, isolate,
-                                    parsing::ReportStatisticsMode::kYes));
-    CHECK(info.pending_error_handler()->has_pending_error());
-  }
-}
-
-TEST_F(ParsingTest, BasicImportAttributesAndAssertionsParsing) {
-  // clang-format off
-  const char* kSources[] = {
-    "import { a } from 'm.js' assert { };",
-    "import { a } from 'm.js' with { };",
-    "import { a } from 'm.js'\n with { };",
-  };
-  // clang-format on
-
-  i::v8_flags.harmony_import_assertions = true;
-  i::v8_flags.harmony_import_attributes = true;
-  i::Isolate* isolate = i_isolate();
-  i::Factory* factory = isolate->factory();
-
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
-                                        128 * 1024);
-
-  for (unsigned i = 0; i < arraysize(kSources); ++i) {
-    i::Handle<i::String> source =
-        factory->NewStringFromAsciiChecked(kSources[i]);
-
-    // Show that parsing as a module works
-    {
-      i::Handle<i::Script> script = factory->NewScript(source);
-      i::UnoptimizedCompileState compile_state;
-      i::ReusableUnoptimizedCompileState reusable_state(isolate);
-      i::UnoptimizedCompileFlags flags =
-          i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
-      flags.set_is_module(true);
-      i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
-      CHECK_PARSE_PROGRAM(&info, script, isolate);
-    }
-
-    // And that parsing a script does not.
-    {
-      i::UnoptimizedCompileState compile_state;
-      i::ReusableUnoptimizedCompileState reusable_state(isolate);
-      i::Handle<i::Script> script = factory->NewScript(source);
-      i::UnoptimizedCompileFlags flags =
-          i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
-      i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
-      CHECK(!i::parsing::ParseProgram(&info, script, isolate,
-                                      parsing::ReportStatisticsMode::kYes));
-      CHECK(info.pending_error_handler()->has_pending_error());
-    }
-  }
-}
-
-TEST_F(ParsingTest, ImportAttributesAndAssertionsParsingErrors) {
-  // clang-format off
-  const char* kErrorSources[] = {
-    "import { a } from 'm.js'\n assert { };",
-    "import { a } from 'm.js' with { } assert { };",
-    "import { a } from 'm.js' with assert { };",
-    "import { a } from 'm.js' assert { } with { };",
-    "import { a } from 'm.js' assert with { };",
-  };
-  // clang-format on
-
-  i::v8_flags.harmony_import_assertions = true;
-  i::v8_flags.harmony_import_attributes = true;
-  i::Isolate* isolate = i_isolate();
-  i::Factory* factory = isolate->factory();
-
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
-                                        128 * 1024);
-
-  for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
-    i::Handle<i::String> source =
-        factory->NewStringFromAsciiChecked(kErrorSources[i]);
-
-    i::Handle<i::Script> script = factory->NewScript(source);
+    i::DirectHandle<i::Script> script = factory->NewScript(source);
     i::UnoptimizedCompileState compile_state;
     i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =
@@ -5525,11 +5349,36 @@ TEST_F(ParsingTest, ClassPropertyNameNoErrors) {
                                    {"class C { static *", "() {}}"},
                                    {nullptr, nullptr}};
   const char* name_data[] = {
-      "42",       "42.5",  "42e2",  "42e+2",   "42e-2",  "null",
-      "false",    "true",  "'str'", "\"str\"", "static", "get",
-      "set",      "var",   "const", "let",     "this",   "class",
-      "function", "yield", "if",    "else",    "for",    "while",
-      "do",       "try",   "catch", "finally", nullptr};
+      "42",       "42.5",  "42e2",  "42e+2",   "42e-2",    "null",
+      "false",    "true",  "'str'", "\"str\"", "static",   "get",
+      "set",      "var",   "const", "let",     "this",     "class",
+      "function", "yield", "if",    "else",    "for",      "while",
+      "do",       "try",   "catch", "finally", "accessor", nullptr};
+
+  RunParserSyncTest(context_data, name_data, kSuccess);
+}
+
+// TODO(42202709): Remove when the decorators flag is enabled by default.
+TEST_F(ParsingTest, ClassPropertyAccessorNameNoErrorsDecoratorsEnabled) {
+  FLAG_SCOPE(js_decorators);
+  const char* context_data[][2] = {{"(class {", "() {}});"},
+                                   {"(class { get ", "() {}});"},
+                                   {"(class { set ", "(v) {}});"},
+                                   {"(class { static ", "() {}});"},
+                                   {"(class { static get ", "() {}});"},
+                                   {"(class { static set ", "(v) {}});"},
+                                   {"(class { *", "() {}});"},
+                                   {"(class { static *", "() {}});"},
+                                   {"class C {", "() {}}"},
+                                   {"class C { get ", "() {}}"},
+                                   {"class C { set ", "(v) {}}"},
+                                   {"class C { static ", "() {}}"},
+                                   {"class C { static get ", "() {}}"},
+                                   {"class C { static set ", "(v) {}}"},
+                                   {"class C { *", "() {}}"},
+                                   {"class C { static *", "() {}}"},
+                                   {nullptr, nullptr}};
+  const char* name_data[] = {"accessor", nullptr};
 
   RunParserSyncTest(context_data, name_data, kSuccess);
 }
@@ -5611,6 +5460,9 @@ TEST_F(ParsingTest, StaticClassFieldsNoErrors) {
     "static await;",
     "static await = 0;",
     "static await\n a",
+    "static accessor;",
+    "static accessor = 0;"
+    "static accessor\n a",
     nullptr
   };
   // clang-format on
@@ -5695,6 +5547,33 @@ TEST_F(ParsingTest, ClassFieldsNoErrors) {
     "await;",
     "await = 0;",
     "await\n a",
+    "accessor;",
+    "accessor = 0;",
+    "accessor\n a",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
+}
+
+// TODO(42202709): Remove when the decorators flag is enabled by default.
+TEST_F(ParsingTest, ClassFieldsAccessorNameNoErrorsDecoratorsEnabled) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "accessor;",
+    "accessor = 0;",
+    "accessor\n a",
+    "static accessor;",
+    "static accessor = 0;"
+    "static accessor\n a",
     nullptr
   };
   // clang-format on
@@ -5749,6 +5628,7 @@ TEST_F(ParsingTest, PrivateMethodsNoErrors) {
     "#await() {}",
     "#async() {}",
     "#static() {}",
+    "#accessor() {}",
     "#arguments() {}",
     "get #yield() {}",
     "get #await() {}",
@@ -5756,12 +5636,14 @@ TEST_F(ParsingTest, PrivateMethodsNoErrors) {
     "get #get() {}",
     "get #static() {}",
     "get #arguments() {}",
+    "get #accessor() {}",
     "set #yield(test) {}",
     "set #async(test) {}",
     "set #await(test) {}",
     "set #set(test) {}",
     "set #static(test) {}",
     "set #arguments(test) {}",
+    "set #accessor(test) {}"
     "async #yield() {}",
     "async #async() {}",
     "async #await() {}",
@@ -5769,6 +5651,7 @@ TEST_F(ParsingTest, PrivateMethodsNoErrors) {
     "async #set() {}",
     "async #static() {}",
     "async #arguments() {}",
+    "async #accessor() {}",
     "*#async() {}",
     "*#await() {}",
     "*#yield() {}",
@@ -5776,6 +5659,7 @@ TEST_F(ParsingTest, PrivateMethodsNoErrors) {
     "*#set() {}",
     "*#static() {}",
     "*#arguments() {}",
+    "*#accessor() {}",
     "async *#yield() {}",
     "async *#async() {}",
     "async *#await() {}",
@@ -5783,6 +5667,30 @@ TEST_F(ParsingTest, PrivateMethodsNoErrors) {
     "async *#set() {}",
     "async *#static() {}",
     "async *#arguments() {}",
+    "async *#accessor() {}",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
+}
+
+TEST_F(ParsingTest, PrivateMethodsAccessorNameNoErrorsDecoratorsEnabled) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  // Tests proposed class methods syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Accessor edge cases
+    "#accessor() {}",
+    "set #accessor(test) {}",
+    "async #accessor() {}",
+    "*#accessor() {}",
+    "async *#accessor() {}",
     nullptr
   };
   // clang-format on
@@ -5837,6 +5745,155 @@ TEST_F(ParsingTest, PrivateMethodsAndFieldsNoErrors) {
     "b\n *#b(){}",
     "b = 0\n get #b(){}",
     "b\n *#b(){}",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
+}
+
+// Test that public auto-accessors do not parse outside class bodies.
+TEST_F(ParsingTest, PublicAutoAccessorsInNonClassErrors) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  const char* context_data[][2] = {{"", ""},
+                                   {"({", "})"},
+                                   {"'use strict'; ({", "});"},
+                                   {"function() {", "}"},
+                                   {"() => {", "}"},
+                                   {"class C { test() {", "} }"},
+                                   {"const {", "} = {}"},
+                                   {"({", "} = {})"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "accessor a = 1",
+    "accessor a = () => {}",
+    "accessor a",
+    "accessor 0 = 1",
+    "accessor 0 = () => {}",
+    "accessor 0",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+}
+
+// TODO(42202709): Merge with PrivateMethodsAndFieldsNoErrors once the
+// decorators flag is enabled by default.
+TEST_F(ParsingTest, PrivateAutoAccessorsAndFieldsNoErrors) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Basic syntax
+    "#b;accessor #a;",
+    "#b;accessor #a = 0;",
+    "#b = 1;accessor #a;",
+    "#b = 1;accessor #a = 0;",
+
+    // With public fields
+    "a;accessor #a;",
+    "a;accessor #a = 0;",
+    "a = 1;accessor #a;",
+    "a = 1;accessor #a = 0;",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
+}
+
+TEST_F(ParsingTest, PublicAutoAccessorsInstanceAndStaticNoErrors) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  // Tests proposed class auto-accessors syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   // static declarations
+                                   {"(class { static ", "});"},
+                                   {"(class extends Base { static ", "});"},
+                                   {"class C { static ", "}"},
+                                   {"class C extends Base { static ", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Basic syntax
+    "accessor a = 0;",
+    "accessor a = 0; b",
+    "accessor a = 0; b(){}",
+    "accessor a = 0; *b(){}",
+    "accessor a = 0; ['b'](){}",
+    "accessor a;",
+    "accessor a; b;",
+    "accessor a; b(){}",
+    "accessor a; *b(){}",
+    "accessor a; ['b'](){}",
+    "accessor ['a'] = 0;",
+    "accessor ['a'] = 0; b",
+    "accessor ['a'] = 0; b(){}",
+    "accessor ['a'] = 0; *b(){}",
+    "accessor ['a'] = 0; ['b'](){}",
+    "accessor ['a'];",
+    "accessor ['a']; b;",
+    "accessor ['a']; b(){}",
+    "accessor ['a']; *b(){}",
+    "accessor ['a']; ['b'](){}",
+
+    "accessor 0 = 0;",
+    "accessor 0;",
+    "accessor 'a' = 0;",
+    "accessor 'a';",
+
+    "accessor c = [c] = c",
+
+    // ASI
+    "accessor a = 0\n",
+    "accessor a = 0\n b",
+    "accessor a = 0\n b(){}",
+    "accessor a\n",
+    "accessor a\n b\n",
+    "accessor a\n b(){}",
+    "accessor a\n *b(){}",
+    "accessor a\n ['b'](){}",
+    "accessor ['a'] = 0\n",
+    "accessor ['a'] = 0\n b",
+    "accessor ['a'] = 0\n b(){}",
+    "accessor ['a']\n",
+    "accessor ['a']\n b\n",
+    "accessor ['a']\n b(){}",
+    "accessor ['a']\n *b(){}",
+    "accessor ['a']\n ['b'](){}",
+
+    // ASI edge cases
+    "accessor a\n get",
+    "accessor get\n *a(){}",
+    "accessor a\n static",
+
+    "accessor a = function t() { arguments; }",
+    "accessor a = () => function() { arguments; }",
+
+    // Misc edge cases
+    "accessor yield",
+    "accessor yield = 0",
+    "accessor yield\n a",
+    "accessor async;",
+    "accessor async = 0;",
+    "accessor async",
+    "accessor async = 0",
+    "accessor async\n a(){}",  // a field named async, and a method named a.
+    "accessor async\n a",
+    "accessor await;",
+    "accessor await = 0;",
+    "accessor await\n a",
+    "accessor accessor;",
+    "accessor accessor = 0;",
+    "accessor accessor\n a",
     nullptr
   };
   // clang-format on
@@ -5935,6 +5992,52 @@ TEST_F(ParsingTest, PrivateMembersNestedInObjectLiteralsNoErrors) {
   RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
+// TODO(42202709): Merge with PrivateMembersNestedInObjectLiteralsNoErrors once
+// the decorators flag is enabled by default.
+TEST_F(ParsingTest, PrivateAutoAccessorsNestedInObjectLiteralsNoErrors) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  const char* context_data[][2] = {{"({", "})"},
+                                   {"'use strict'; ({", "});"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "a: class { accessor #a = 1 }",
+    "a: class { accessor #a = () => {} }",
+    "a: class { accessor #a }",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
+}
+
+TEST_F(ParsingTest, PublicAutoAccessorsNestedNoErrors) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  const char* context_data[][2] = {{"({a: ", "})"},
+                                   {"'use strict'; ({a: ", "});"},
+                                   {"(class {a = ", "});"},
+                                   {"(class extends Base {a = ", "});"},
+                                   {"class C {a = ", "}"},
+                                   {"class C extends Base {a = ", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "class { accessor a = 1 }",
+    "class { accessor a = () => {} }",
+    "class { accessor a }",
+    "class { accessor 0 = 1 }",
+    "class { accessor 0 = () => {} }",
+    "class { accessor 0 }",
+    "class { accessor ['a'] = 1 }",
+    "class { accessor ['a'] = () => {} }",
+    "class { accessor ['a'] }",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
+}
+
 // Test that private members parse in class bodies nested in classes
 TEST_F(ParsingTest, PrivateMembersInNestedClassNoErrors) {
   // clang-format off
@@ -5953,6 +6056,27 @@ TEST_F(ParsingTest, PrivateMembersInNestedClassNoErrors) {
     "a = class { *#a() { } }",
     "a = class { async #a() { } }",
     "a = class { async *#a() { } }",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
+}
+
+// TODO(42202709): Merge with PrivateMembersInNestedClassNoErrors once
+// the decorators flag is enabled by default.
+TEST_F(ParsingTest, PrivateAutoAccessorsInNestedClassNoErrors) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "a = class { accessor #a = 1 }",
+    "a = class { accessor #a = () => {} }",
+    "a = class { accessor #a }",
     nullptr
   };
   // clang-format on
@@ -5982,6 +6106,33 @@ TEST_F(ParsingTest, PrivateMembersInNonClassErrors) {
     "*#a() { }",
     "async #a() { }",
     "async *#a() { }",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+}
+
+// TODO(42202709): Merge with PrivateMembersInNonClassErrors once
+// the decorators flag is enabled by default.
+// Test that private auto-accessors do not parse outside class bodies
+TEST_F(ParsingTest, PrivateAutoAccessorsInNonClassErrors) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  const char* context_data[][2] = {{"", ""},
+                                   {"({", "})"},
+                                   {"'use strict'; ({", "});"},
+                                   {"function() {", "}"},
+                                   {"() => {", "}"},
+                                   {"class C { test() {", "} }"},
+                                   {"const {", "} = {}"},
+                                   {"({", "} = {})"},
+                                   {"class C { static {", "} }"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "accessor #a = 1",
+    "accessor #a = () => {}",
+    "accessor #a",
     nullptr
   };
   // clang-format on
@@ -6153,6 +6304,59 @@ TEST_F(ParsingTest, PrivateStaticClassMethodsAndAccessorsDuplicateErrors) {
   RunParserSyncTest(context_data, class_body_data, kError);
 }
 
+// TODO(42202709): Merge with
+// PrivateStaticClassMethodsAndAccessorsDuplicateErrors once the decorators flag
+// is enabled by default.
+TEST_F(ParsingTest, PrivateStaticAutoAccessorsDuplicateErrors) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "static get #a() {} static accessor #a",
+    "static set #a(foo) {} static accessor #a",
+    "static #a() {} static accessor #a",
+    "static #a; static accessor #a",
+    "static accessor #a; static get #a() {}",
+    "static accessor #a; static set #a(foo) {}",
+    "static accessor #a; static #a",
+    "static accessor #a; static #a() {}",
+    "static accessor #a; static accessor #a;",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+}
+
+TEST_F(ParsingTest, PrivateAutoAccessorsDuplicateErrors) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "get #a() {} accessor #a",
+    "set #a(foo) {} accessor #a",
+    "#a() {} accessor #a",
+    "#a; accessor #a",
+    "accessor #a; get #a() {}",
+    "accessor #a; set #a(foo) {}",
+    "accessor #a; #a",
+    "accessor #a; #a() {}",
+    "accessor #a; accessor #a;",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+}
+
 TEST_F(ParsingTest, PrivateClassFieldsNoErrors) {
   // clang-format off
   // Tests proposed class fields syntax.
@@ -6209,6 +6413,73 @@ TEST_F(ParsingTest, PrivateClassFieldsNoErrors) {
     "#await;",
     "#await = 0;",
     "#await\n a",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
+}
+
+TEST_F(ParsingTest, PrivateAutoAccessorsNoErrors) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Basic syntax
+    "accessor #a = 0;",
+    "accessor #a = 0; #b",
+    "accessor #a = 0; b",
+    "accessor #a = 0; b(){}",
+    "accessor #a = 0; *b(){}",
+    "accessor #a = 0; ['b'](){}",
+    "accessor #a;",
+    "accessor #a; #b;",
+    "accessor #a; b;",
+    "accessor #a; b(){}",
+    "accessor #a; *b(){}",
+    "accessor #a; ['b'](){}",
+
+    // ASI
+    "accessor #a = 0\n",
+    "accessor #a = 0\n #b",
+    "accessor #a = 0\n b",
+    "accessor #a = 0\n b(){}",
+    "accessor #a\n",
+    "accessor #a\n #b\n",
+    "accessor #a\n b\n",
+    "accessor #a\n b(){}",
+    "accessor #a\n *b(){}",
+    "accessor #a\n ['b'](){}",
+
+    // ASI edge cases
+    "accessor #a\n get",
+    "accessor #get\n *a(){}",
+    "accessor #a\n static",
+
+    "accessor #a = function t() { arguments; }",
+    "accessor #a = () => function() { arguments; }",
+
+    // Misc edge cases
+    "accessor #yield",
+    "accessor #yield = 0",
+    "accessor #yield\n a",
+    "accessor #async;",
+    "accessor #async = 0;",
+    "accessor #async",
+    "accessor #async = 0",
+    "accessor #async\n a(){}",  // a field named async, and a method named a.
+    "accessor #async\n a",
+    "accessor #await;",
+    "accessor #await = 0;",
+    "accessor #await\n a",
+    "accessor #accessor;",
+    "accessor #accessor = 0;",
+    "accessor #accessor\n a",
     nullptr
   };
   // clang-format on
@@ -6305,6 +6576,65 @@ TEST_F(ParsingTest, ClassFieldsErrors) {
   RunParserSyncTest(context_data, class_body_data, kError);
 }
 
+TEST_F(ParsingTest, PublicAutoAccessorsInstanceAndStaticErrors) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   // static declarations
+                                   {"(class { static ", "});"},
+                                   {"(class extends Base { static ", "});"},
+                                   {"class C { static ", "}"},
+                                   {"class C extends Base { static ", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "accessor a : 0",
+    "accessor a =",
+    "accessor constructor",
+    "accessor *a = 0",
+    "accessor *a",
+    "accessor get a",
+    "accessor yield a",
+    "accessor async a = 0",
+    "accessor async a",
+
+    "accessor a = arguments",
+    "accessor a = () => arguments",
+    "accessor a = () => { arguments }",
+    "accessor a = arguments[0]",
+    "accessor a = delete arguments[0]",
+    "accessor a = f(arguments)",
+    "accessor a = () => () => arguments",
+
+    // The accessir keyword can only be applied to fields
+    "accessor a() {}",
+    "accessor *a() {}",
+    "accessor async a() {}",
+    "accessor get a() {}",
+    "accessor set a(foo) {}",
+
+    // ASI requires a linebreak
+    "accessor a b",
+    "accessor a = 0 b",
+
+    "accessor c = [1] = [c]",
+
+    // ASI requires that the next token is not part of any legal production
+    "accessor a = 0\n *b(){}",
+    "accessor a = 0\n ['b'](){}",
+    "accessor get\n a",
+    nullptr
+
+    // ASI
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+}
+
 TEST_F(ParsingTest, PrivateClassFieldsErrors) {
   // clang-format off
   // Tests proposed class fields syntax.
@@ -6388,6 +6718,80 @@ TEST_F(ParsingTest, PrivateClassFieldsErrors) {
   RunParserSyncTest(context_data, class_body_data, kError);
 }
 
+TEST_F(ParsingTest, PrivateClassAutoAccessorsErrors) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // The accessor keyword can only be applied to class fields.
+    "accessor #a() {}",
+    "accessor *#a() {}",
+    "accessor async #a() {}",
+    "accessor get #a() {}",
+    "accessor set #a(foo) {}",
+    "accessor async #a() {}",
+    "accessor async *#a() {}",
+
+    // Accessors should throw the same errors are regular private fields.
+    "accessor #a : 0",
+    "accessor #a =",
+    "accessor #*a = 0",
+    "accessor #*a",
+    "accessor #get a",
+    "accessor #yield a",
+    "accessor #async a = 0",
+    "accessor #async a",
+
+    "accessor #a; #a",
+    "accessor #a = 1; #a",
+    "accessor #a; #a = 1;",
+
+    "accessor #constructor",
+    "accessor #constructor = function() {}",
+
+    "accessor # a = 0",
+    "accessor #get a() { }",
+    "accessor #set a() { }",
+    "accessor #*a() { }",
+    "accessor async #*a() { }",
+
+    "accessor #0 = 0;",
+    "accessor #0;",
+    "accessor #'a' = 0;",
+    "accessor #'a';",
+
+    "accessor #['a']",
+    "accessor #['a'] = 1",
+    "accessor #[a]",
+    "accessor #[a] = 1",
+
+    "accessor #a = arguments",
+    "accessor #a = () => arguments",
+    "accessor #a = () => { arguments }",
+    "accessor #a = arguments[0]",
+    "accessor #a = delete arguments[0]",
+    "accessor #a = f(arguments)",
+    "accessor #a = () => () => arguments",
+
+    // ASI requires a linebreak
+    "accessor #a b",
+    "accessor #a = 0 b",
+
+    // ASI requires that the next token is not part of any legal production
+    "accessor #a = 0\n *b(){}",
+    "accessor #a = 0\n ['b'](){}",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+}
+
 TEST_F(ParsingTest, PrivateStaticClassFieldsNoErrors) {
   // clang-format off
   // Tests proposed class fields syntax.
@@ -6446,6 +6850,70 @@ TEST_F(ParsingTest, PrivateStaticClassFieldsNoErrors) {
     "static #await;",
     "static #await = 0;",
     "static #await\n a",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr);
+}
+
+TEST_F(ParsingTest, PrivateStaticAutoAccessorsNoErrors) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Basic syntax
+    "static accessor #a = 0;",
+    "static accessor #a = 0; b",
+    "static accessor #a = 0; #b",
+    "static accessor #a = 0; b(){}",
+    "static accessor #a = 0; *b(){}",
+    "static accessor #a = 0; ['b'](){}",
+    "static accessor #a;",
+    "static accessor #a; b;",
+    "static accessor #a; b(){}",
+    "static accessor #a; *b(){}",
+    "static accessor #a; ['b'](){}",
+
+    // ASI
+    "static accessor #a = 0\n",
+    "static accessor #a = 0\n b",
+    "static accessor #a = 0\n #b",
+    "static accessor #a = 0\n b(){}",
+    "static accessor #a\n",
+    "static accessor #a\n b\n",
+    "static accessor #a\n #b\n",
+    "static accessor #a\n b(){}",
+    "static accessor #a\n *b(){}",
+    "static accessor #a\n ['b'](){}",
+
+    "static accessor #a = function t() { arguments; }",
+    "static accessor #a = () => function t() { arguments; }",
+
+    // ASI edge cases
+    "static accessor #a\n get",
+    "static accessor #get\n *a(){}",
+    "static accessor #a\n static",
+
+    // Misc edge cases
+    "static accessor #yield",
+    "static accessor #yield = 0",
+    "static accessor #yield\n a",
+    "static accessor #async;",
+    "static accessor #async = 0;",
+    "static accessor #async",
+    "static accessor #async = 0",
+    // A field named async, and a method named a.
+    "static accessor #async\n a(){}",
+    "static accessor #async\n a",
+    "static accessor #await;",
+    "static accessor #await = 0;",
+    "static accessor #await\n a",
     nullptr
   };
   // clang-format on
@@ -6538,6 +7006,90 @@ TEST_F(ParsingTest, PrivateStaticClassFieldsErrors) {
     "foo() { delete f.#a }",
     "foo() { delete f.x.#a }",
     "foo() { delete f.x().#a }",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+}
+
+TEST_F(ParsingTest, PrivateStaticAutoAccessorsErrors) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // The accessor keyword can only be applied to class fields.
+    "static accessor #a() {}",
+    "static accessor *#a() {}",
+    "static accessor async #a() {}",
+    "static accessor get #a() {}",
+    "static accessor set #a(foo) {}",
+    "static accessor async #a() {}",
+    "static accessor async *#a() {}",
+
+    // Accessors should throw the same errors are regular private fields.
+    // Basic syntax
+    "static accessor #['a'] = 0;",
+    "static accessor #['a'] = 0; b",
+    "static accessor #['a'] = 0; #b",
+    "static accessor #['a'] = 0; b(){}",
+    "static accessor #['a'] = 0; *b(){}",
+    "static accessor #['a'] = 0; ['b'](){}",
+    "static accessor #['a'];",
+    "static accessor #['a']; b;",
+    "static accessor #['a']; #b;",
+    "static accessor #['a']; b(){}",
+    "static accessor #['a']; *b(){}",
+    "static accessor #['a']; ['b'](){}",
+
+    "static accessor #0 = 0;",
+    "static accessor #0;",
+    "static accessor #'a' = 0;",
+    "static accessor #'a';",
+
+    "static accessor # a = 0",
+    "static accessor #get a() { }",
+    "static accessor #set a() { }",
+    "static accessor #*a() { }",
+    "static accessor async #*a() { }",
+
+    "#a; static accessor #a",
+    "static accessor #a; #a",
+
+    // ASI
+    "static accessor #['a'] = 0\n",
+    "static accessor #['a'] = 0\n b",
+    "static accessor #['a'] = 0\n #b",
+    "static accessor #['a'] = 0\n b(){}",
+    "static accessor #['a']\n",
+    "static accessor #['a']\n b\n",
+    "static accessor #['a']\n #b\n",
+    "static accessor #['a']\n b(){}",
+    "static accessor #['a']\n *b(){}",
+    "static accessor #['a']\n ['b'](){}",
+
+    // ASI requires a linebreak
+    "static accessor #a b",
+    "static accessor #a = 0 b",
+
+    // ASI requires that the next token is not part of any legal production
+    "static accessor #a = 0\n *b(){}",
+    "static accessor #a = 0\n ['b'](){}",
+
+    "static accessor #a : 0",
+    "static accessor #a =",
+    "static accessor #*a = 0",
+    "static accessor #*a",
+    "static accessor #get a",
+    "static accessor #yield a",
+    "static accessor #async a = 0",
+    "static accessor #async a",
+    "static accessor # a = 0",
     nullptr
   };
   // clang-format on
@@ -7595,7 +8147,7 @@ TEST_F(ParsingTest, BasicImportExportParsing) {
                                         128 * 1024);
 
   for (unsigned i = 0; i < arraysize(kSources); ++i) {
-    i::Handle<i::String> source =
+    i::DirectHandle<i::String> source =
         factory->NewStringFromAsciiChecked(kSources[i]);
 
     // Show that parsing as a module works
@@ -7614,7 +8166,7 @@ TEST_F(ParsingTest, BasicImportExportParsing) {
     {
       i::UnoptimizedCompileState compile_state;
       i::ReusableUnoptimizedCompileState reusable_state(isolate);
-      i::Handle<i::Script> script = factory->NewScript(source);
+      i::DirectHandle<i::Script> script = factory->NewScript(source);
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
       i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
@@ -7647,7 +8199,7 @@ TEST_F(ParsingTest, NamespaceExportParsing) {
                                         128 * 1024);
 
   for (unsigned i = 0; i < arraysize(kSources); ++i) {
-    i::Handle<i::String> source =
+    i::DirectHandle<i::String> source =
         factory->NewStringFromAsciiChecked(kSources[i]);
     i::Handle<i::Script> script = factory->NewScript(source);
     i::UnoptimizedCompileState compile_state;
@@ -7741,10 +8293,10 @@ TEST_F(ParsingTest, ImportExportParsingErrors) {
                                         128 * 1024);
 
   for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
-    i::Handle<i::String> source =
+    i::DirectHandle<i::String> source =
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
-    i::Handle<i::Script> script = factory->NewScript(source);
+    i::DirectHandle<i::Script> script = factory->NewScript(source);
     i::UnoptimizedCompileState compile_state;
     i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =
@@ -7778,10 +8330,10 @@ TEST_F(ParsingTest, ModuleTopLevelFunctionDecl) {
                                         128 * 1024);
 
   for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
-    i::Handle<i::String> source =
+    i::DirectHandle<i::String> source =
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
-    i::Handle<i::Script> script = factory->NewScript(source);
+    i::DirectHandle<i::Script> script = factory->NewScript(source);
     i::UnoptimizedCompileState compile_state;
     i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =
@@ -7979,7 +8531,8 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
       "import * as loo from 'bar.js';"
       "import * as foob from 'bar.js';"
       "export {foob};";
-  i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
+  i::DirectHandle<i::String> source =
+      factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
   i::UnoptimizedCompileState compile_state;
   i::ReusableUnoptimizedCompileState reusable_state(isolate);
@@ -8175,8 +8728,8 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
   CheckEntry(entry, nullptr, "aa", "aa", 0);
 }
 
-TEST_F(ParsingTest, ModuleParsingInternalsWithImportAssertions) {
-  i::v8_flags.harmony_import_assertions = true;
+TEST_F(ParsingTest, ModuleParsingInternalsWithImportAttributes) {
+  i::v8_flags.harmony_import_attributes = true;
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
   isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
@@ -8184,14 +8737,15 @@ TEST_F(ParsingTest, ModuleParsingInternalsWithImportAssertions) {
 
   static const char kSource[] =
       "import { q as z } from 'm.js';"
-      "import { q as z2 } from 'm.js' assert { foo: 'bar'};"
-      "import { q as z3 } from 'm.js' assert { foo2: 'bar'};"
-      "import { q as z4 } from 'm.js' assert { foo: 'bar2'};"
-      "import { q as z5 } from 'm.js' assert { foo: 'bar', foo2: 'bar'};"
-      "import { q as z6 } from 'n.js' assert { foo: 'bar'};"
-      "import 'm.js' assert { foo: 'bar'};"
-      "export * from 'm.js' assert { foo: 'bar', foo2: 'bar'};";
-  i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
+      "import { q as z2 } from 'm.js' with { foo: 'bar'};"
+      "import { q as z3 } from 'm.js' with { foo2: 'bar'};"
+      "import { q as z4 } from 'm.js' with { foo: 'bar2'};"
+      "import { q as z5 } from 'm.js' with { foo: 'bar', foo2: 'bar'};"
+      "import { q as z6 } from 'n.js' with { foo: 'bar'};"
+      "import 'm.js' with { foo: 'bar'};"
+      "export * from 'm.js' with { foo: 'bar', foo2: 'bar'};";
+  i::DirectHandle<i::String> source =
+      factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
   i::UnoptimizedCompileState compile_state;
   i::ReusableUnoptimizedCompileState reusable_state(isolate);
@@ -8225,43 +8779,43 @@ TEST_F(ParsingTest, ModuleParsingInternalsWithImportAssertions) {
       CHECK(elem->import_attributes()
                 ->at(foo_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(70, elem->import_attributes()->at(foo_string).second.beg_pos);
+      CHECK_EQ(68, elem->import_attributes()->at(foo_string).second.beg_pos);
     } else if (elem->index() == 2) {
       CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
       CHECK_EQ(1, elem->import_attributes()->size());
-      CHECK_EQ(106, elem->position());
+      CHECK_EQ(104, elem->position());
       CHECK(elem->import_attributes()
                 ->at(foo2_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(122, elem->import_attributes()->at(foo2_string).second.beg_pos);
+      CHECK_EQ(118, elem->import_attributes()->at(foo2_string).second.beg_pos);
     } else if (elem->index() == 3) {
       CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
       CHECK_EQ(1, elem->import_attributes()->size());
-      CHECK_EQ(159, elem->position());
+      CHECK_EQ(155, elem->position());
       CHECK(elem->import_attributes()
                 ->at(foo_string)
                 .first->IsOneByteEqualTo("bar2"));
-      CHECK_EQ(175, elem->import_attributes()->at(foo_string).second.beg_pos);
+      CHECK_EQ(169, elem->import_attributes()->at(foo_string).second.beg_pos);
     } else if (elem->index() == 4) {
       CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
       CHECK_EQ(2, elem->import_attributes()->size());
-      CHECK_EQ(212, elem->position());
+      CHECK_EQ(206, elem->position());
       CHECK(elem->import_attributes()
                 ->at(foo_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(228, elem->import_attributes()->at(foo_string).second.beg_pos);
+      CHECK_EQ(220, elem->import_attributes()->at(foo_string).second.beg_pos);
       CHECK(elem->import_attributes()
                 ->at(foo2_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(240, elem->import_attributes()->at(foo2_string).second.beg_pos);
+      CHECK_EQ(232, elem->import_attributes()->at(foo2_string).second.beg_pos);
     } else if (elem->index() == 5) {
       CHECK(elem->specifier()->IsOneByteEqualTo("n.js"));
       CHECK_EQ(1, elem->import_attributes()->size());
-      CHECK_EQ(277, elem->position());
+      CHECK_EQ(269, elem->position());
       CHECK(elem->import_attributes()
                 ->at(foo_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(293, elem->import_attributes()->at(foo_string).second.beg_pos);
+      CHECK_EQ(283, elem->import_attributes()->at(foo_string).second.beg_pos);
     } else {
       UNREACHABLE();
     }
@@ -8269,43 +8823,44 @@ TEST_F(ParsingTest, ModuleParsingInternalsWithImportAssertions) {
 }
 
 TEST_F(ParsingTest, ModuleParsingModuleRequestOrdering) {
-  i::v8_flags.harmony_import_assertions = true;
+  i::v8_flags.harmony_import_attributes = true;
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
   isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   static const char kSource[] =
-      "import 'foo' assert { };"
-      "import 'baaaaaar' assert { };"
-      "import 'aa' assert { };"
-      "import 'a' assert { a: 'b' };"
-      "import 'b' assert { };"
-      "import 'd' assert { a: 'b' };"
-      "import 'c' assert { };"
-      "import 'f' assert { };"
-      "import 'f' assert { a: 'b'};"
-      "import 'g' assert { a: 'b' };"
-      "import 'g' assert { };"
-      "import 'h' assert { a: 'd' };"
-      "import 'h' assert { b: 'c' };"
-      "import 'i' assert { b: 'c' };"
-      "import 'i' assert { a: 'd' };"
-      "import 'j' assert { a: 'b' };"
-      "import 'j' assert { a: 'c' };"
-      "import 'k' assert { a: 'c' };"
-      "import 'k' assert { a: 'b' };"
-      "import 'l' assert { a: 'b', e: 'f' };"
-      "import 'l' assert { a: 'c', d: 'g' };"
-      "import 'm' assert { a: 'c', d: 'g' };"
-      "import 'm' assert { a: 'b', e: 'f' };"
-      "import 'n' assert { 'd': '' };"
-      "import 'n' assert { 'a': 'b' };"
-      "import 'o' assert { 'a': 'b' };"
-      "import 'o' assert { 'd': '' };"
-      "import 'p' assert { 'z': 'c' };"
-      "import 'p' assert { 'a': 'c', 'b': 'c' };";
-  i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
+      "import 'foo' with { };"
+      "import 'baaaaaar' with { };"
+      "import 'aa' with { };"
+      "import 'a' with { a: 'b' };"
+      "import 'b' with { };"
+      "import 'd' with { a: 'b' };"
+      "import 'c' with { };"
+      "import 'f' with { };"
+      "import 'f' with { a: 'b'};"
+      "import 'g' with { a: 'b' };"
+      "import 'g' with { };"
+      "import 'h' with { a: 'd' };"
+      "import 'h' with { b: 'c' };"
+      "import 'i' with { b: 'c' };"
+      "import 'i' with { a: 'd' };"
+      "import 'j' with { a: 'b' };"
+      "import 'j' with { a: 'c' };"
+      "import 'k' with { a: 'c' };"
+      "import 'k' with { a: 'b' };"
+      "import 'l' with { a: 'b', e: 'f' };"
+      "import 'l' with { a: 'c', d: 'g' };"
+      "import 'm' with { a: 'c', d: 'g' };"
+      "import 'm' with { a: 'b', e: 'f' };"
+      "import 'n' with { 'd': '' };"
+      "import 'n' with { 'a': 'b' };"
+      "import 'o' with { 'a': 'b' };"
+      "import 'o' with { 'd': '' };"
+      "import 'p' with { 'z': 'c' };"
+      "import 'p' with { 'a': 'c', 'b': 'c' };";
+  i::DirectHandle<i::String> source =
+      factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
   i::UnoptimizedCompileState compile_state;
   i::ReusableUnoptimizedCompileState reusable_state(isolate);
@@ -8536,24 +9091,25 @@ TEST_F(ParsingTest, ModuleParsingModuleRequestOrdering) {
             .first->IsOneByteEqualTo("c"));
 }
 
-TEST_F(ParsingTest, ModuleParsingImportAssertionKeySorting) {
-  i::v8_flags.harmony_import_assertions = true;
+TEST_F(ParsingTest, ModuleParsingImportAttributesKeySorting) {
+  i::v8_flags.harmony_import_attributes = true;
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
   isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   static const char kSource[] =
-      "import 'a' assert { 'b':'z', 'a': 'c' };"
-      "import 'b' assert { 'aaaaaa': 'c', 'b': 'z' };"
-      "import 'c' assert { '': 'c', 'b': 'z' };"
-      "import 'd' assert { 'aabbbb': 'c', 'aaabbb': 'z' };"
+      "import 'a' with { 'b':'z', 'a': 'c' };"
+      "import 'b' with { 'aaaaaa': 'c', 'b': 'z' };"
+      "import 'c' with { '': 'c', 'b': 'z' };"
+      "import 'd' with { 'aabbbb': 'c', 'aaabbb': 'z' };"
       // zzzz\u0005 is a one-byte string, yyyy\u0100 is a two-byte string.
-      "import 'e' assert { 'zzzz\\u0005': 'second', 'yyyy\\u0100': 'first' };"
+      "import 'e' with { 'zzzz\\u0005': 'second', 'yyyy\\u0100': 'first' };"
       // Both keys are two-byte strings.
-      "import 'f' assert { 'xxxx\\u0005\\u0101': 'first', "
+      "import 'f' with { 'xxxx\\u0005\\u0101': 'first', "
       "'xxxx\\u0100\\u0101': 'second' };";
-  i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
+  i::DirectHandle<i::String> source =
+      factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
   i::UnoptimizedCompileState compile_state;
   i::ReusableUnoptimizedCompileState reusable_state(isolate);
@@ -9621,6 +10177,20 @@ TEST_F(ParsingTest, DestructuringAssignmentNegativeTests) {
   // clang-format on
   RunParserSyncTest(context_data, data, kError);
 
+  {
+    i::FlagScope<bool> f(&v8_flags.js_source_phase_imports, true);
+    // clang-format off
+    const char* statement_data[] = {
+      "{ import.source }",
+      "{ x: import.source }",
+      "{ x: import.source = 1 }",
+      "[import.source]",
+      "[import.source = 1]",
+      nullptr};
+    // clang-format on
+    RunParserSyncTest(context_data, statement_data, kError);
+  }
+
   const char* empty_context_data[][2] = {
       {"'use strict';", ""}, {"", ""}, {nullptr, nullptr}};
 
@@ -9991,6 +10561,204 @@ TEST_F(ParsingTest, ImportMetaFailure) {
   RunModuleParserSyncTest(context_data, data, kError);
 }
 
+TEST_F(ParsingTest, ImportSourceSuccess) {
+  i::FlagScope<bool> f(&v8_flags.js_source_phase_imports, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    // Basic import declarations, not a source phase import
+    "import source from ''",
+    "import from from ''",
+    // Source phase imports
+    "import source source from ''",
+    "import source from from ''",
+    "import source x from ''",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kError);
+  // Skip preparser
+  RunModuleParserSyncTest(context_data, data, kSuccess, nullptr, 0, nullptr, 0,
+                          nullptr, 0, false);
+}
+
+TEST_F(ParsingTest, ImportSourceFailure) {
+  i::FlagScope<bool> f(&v8_flags.js_source_phase_imports, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {"function f() {", "}"},
+    {"'use strict'; function f() {", "}"},
+    {"var f = function() {", "}"},
+    {"'use strict'; var f = function() {", "}"},
+    {"({m: function() {", "}})"},
+    {"'use strict'; ({m: function() {", "}})"},
+    {"({m() {", "}})"},
+    {"'use strict'; ({m() {", "}})"},
+    {"({get x() {", "}})"},
+    {"'use strict'; ({get x() {", "}})"},
+    {"({set x(_) {", "}})"},
+    {"'use strict'; ({set x(_) {", "}})"},
+    {"class C {m() {", "}}"},
+    {"class C {get x() {", "}}"},
+    {"class C {set x(_) {", "}}"},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    "import source source source from ''",
+    "import source from from from ''",
+    "import source default from ''",
+    "import source * from from ''",
+    "import * source from from ''",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kError);
+  RunModuleParserSyncTest(context_data, data, kError);
+}
+
+TEST_F(ParsingTest, ImportSourceAttributesNotAllowed) {
+  i::FlagScope<bool> f_js_source_phase_imports(
+      &v8_flags.js_source_phase_imports, true);
+  i::FlagScope<bool> f_harmony_import_attributes(
+      &v8_flags.harmony_import_attributes, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    "import source x from '' with {}",
+    "import source x from '' assert {}",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kError);
+  RunModuleParserSyncTest(context_data, data, kError);
+}
+
+TEST_F(ParsingTest, ImportCallSourceSuccess) {
+  i::FlagScope<bool> f(&v8_flags.js_source_phase_imports, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {"function f() {", "}"},
+    {"'use strict'; function f() {", "}"},
+    {"var f = function() {", "}"},
+    {"'use strict'; var f = function() {", "}"},
+    {"({m: function() {", "}})"},
+    {"'use strict'; ({m: function() {", "}})"},
+    {"({m() {", "}})"},
+    {"'use strict'; ({m() {", "}})"},
+    {"({get x() {", "}})"},
+    {"'use strict'; ({get x() {", "}})"},
+    {"({set x(_) {", "}})"},
+    {"'use strict'; ({set x(_) {", "}})"},
+    {"class C {m() {", "}}"},
+    {"class C {get x() {", "}}"},
+    {"class C {set x(_) {", "}}"},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    "import.source('')",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kSuccess);
+  RunModuleParserSyncTest(context_data, data, kSuccess);
+}
+
+TEST_F(ParsingTest, ImportCallSourceFailure) {
+  i::FlagScope<bool> f(&v8_flags.js_source_phase_imports, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"var ", ""},
+    {"let ", ""},
+    {"const ", ""},
+    {"var [", "] = [1]"},
+    {"([", "] = [1])"},
+    {"({", "} = {1})"},
+    {"var {", " = 1} = 1"},
+    {"for (var ", " of [1]) {}"},
+    {"(", ") => {}"},
+    {"let f = ", " => {}"},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    "import.source",
+    "import.source.url",
+    "import.source[0]",
+    "import.source.couldBeMutable = true",
+    "import.source()",
+    "new import.source.MagicClass",
+    "new import.source",
+    "t = [...import.source]",
+    "f = {...import.source}",
+    "delete import.source",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kError);
+  RunModuleParserSyncTest(context_data, data, kError);
+}
+
+TEST_F(ParsingTest, ImportCallSourceAttributesNotAllowed) {
+  i::FlagScope<bool> f_js_source_phase_imports(
+      &v8_flags.js_source_phase_imports, true);
+  i::FlagScope<bool> f_harmony_import_attributes(
+      &v8_flags.harmony_import_attributes, true);
+
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {"function f() {", "}"},
+    {"'use strict'; function f() {", "}"},
+    {"var f = function() {", "}"},
+    {"'use strict'; var f = function() {", "}"},
+    {"({m: function() {", "}})"},
+    {"'use strict'; ({m: function() {", "}})"},
+    {"({m() {", "}})"},
+    {"'use strict'; ({m() {", "}})"},
+    {"({get x() {", "}})"},
+    {"'use strict'; ({get x() {", "}})"},
+    {"({set x(_) {", "}})"},
+    {"'use strict'; ({set x(_) {", "}})"},
+    {"class C {m() {", "}}"},
+    {"class C {get x() {", "}}"},
+    {"class C {set x(_) {", "}}"},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    "import.source('', )",
+    "import.source('', {})",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kError);
+  RunModuleParserSyncTest(context_data, data, kError);
+}
+
 TEST_F(ParsingTest, ConstSloppy) {
   // clang-format off
   const char* context_data[][2] = {
@@ -10035,7 +10803,7 @@ TEST_F(ParsingTest, LetSloppy) {
 TEST_F(ParsingTest, LanguageModeDirectivesNonSimpleParameterListErrors) {
   // TC39 deemed "use strict" directives to be an error when occurring in the
   // body of a function with non-simple parameter list, on 29/7/2015.
-  // https://goo.gl/ueA7Ln
+  // https://github.com/tc39/notes/blob/main/meetings/2015-07/july-29.md#conclusionresolution
   const char* context_data[][2] = {
       {"function f(", ") { 'use strict'; }"},
       {"function* g(", ") { 'use strict'; }"},
@@ -11396,7 +12164,7 @@ TEST_F(ParsingTest, NoPessimisticContextAllocation) {
           program + prefix_len + inner_function_len + params_len + source_len,
           "%s", suffix);
 
-      i::Handle<i::String> source =
+      i::DirectHandle<i::String> source =
           factory->InternalizeUtf8String(program.begin());
       source->PrintOn(stdout);
       printf("\n");
@@ -11960,7 +12728,7 @@ TEST_F(ParsingTest, LexicalLoopVariable) {
       std::function<void(const i::ParseInfo& info, i::DeclarationScope*)>;
   auto TestProgram = [isolate](const char* program, TestCB test) {
     i::Factory* const factory = isolate->factory();
-    i::Handle<i::String> source =
+    i::DirectHandle<i::String> source =
         factory->NewStringFromUtf8(base::CStrVector(program)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
     i::UnoptimizedCompileState compile_state;
@@ -11971,7 +12739,7 @@ TEST_F(ParsingTest, LexicalLoopVariable) {
     i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     CHECK_PARSE_PROGRAM(&info, script, isolate);
 
-    i::DeclarationScope::AllocateScopeInfos(&info, isolate);
+    i::DeclarationScope::AllocateScopeInfos(&info, script, isolate);
     CHECK_NOT_NULL(info.literal());
 
     i::DeclarationScope* script_scope = info.literal()->scope();

@@ -9,6 +9,7 @@
 #include "src/codegen/arm64/constants-arm64.h"
 #include "src/codegen/arm64/register-arm64.h"
 #include "src/codegen/arm64/utils-arm64.h"
+#include "src/common/code-memory-access.h"
 #include "src/common/globals.h"
 #include "src/utils/utils.h"
 
@@ -16,6 +17,7 @@ namespace v8 {
 namespace internal {
 
 struct AssemblerOptions;
+class Zone;
 
 // ISA constants. --------------------------------------------------------------
 
@@ -87,10 +89,8 @@ class Instruction {
     return base::ReadUnalignedValue<Instr>(reinterpret_cast<Address>(this));
   }
 
-  V8_INLINE void SetInstructionBits(Instr new_instr) {
-    // Usually this is aligned, but when de/serializing that's not guaranteed.
-    base::WriteUnalignedValue(reinterpret_cast<Address>(this), new_instr);
-  }
+  V8_EXPORT_PRIVATE void SetInstructionBits(
+      Instr new_instr, WritableJitAllocation* jit_allocation = nullptr);
 
   int Bit(int pos) const { return (InstructionBits() >> pos) & 1; }
 
@@ -397,6 +397,61 @@ class Instruction {
     return false;
   }
 
+  enum class MemOp : uint8_t {
+    kCPY,
+    kSET,
+  };
+
+  bool IsMOPSPrologueOf(const Instruction* instr, MemOp mem_op) const {
+    int op_lsb = mem_op == MemOp::kCPY ? 22 : 14;
+    return InstructionBits() == instr->Mask(~(0x3U << op_lsb));
+  }
+
+  bool IsMOPSMainOf(const Instruction* instr, MemOp mem_op) const {
+    int op_lsb = mem_op == MemOp::kCPY ? 22 : 14;
+    return InstructionBits() ==
+           (instr->Mask(~(0x3U << op_lsb)) | (0x1 << op_lsb));
+  }
+
+  bool IsMOPSEpilogueOf(const Instruction* instr, MemOp mem_op) const {
+    int op_lsb = mem_op == MemOp::kCPY ? 22 : 14;
+    return InstructionBits() ==
+           (instr->Mask(~(0x3U << op_lsb)) | (0x2 << op_lsb));
+  }
+
+  template <MemOp mem_op>
+  bool IsConsistentMOPSTriplet() const {
+    int64_t isize = static_cast<int64_t>(kInstrSize);
+    const Instruction* prev2 = InstructionAtOffset(-2 * isize);
+    const Instruction* prev1 = InstructionAtOffset(-1 * isize);
+    const Instruction* next1 = InstructionAtOffset(1 * isize);
+    const Instruction* next2 = InstructionAtOffset(2 * isize);
+
+    // Use the encoding of the current instruction to determine the expected
+    // adjacent instructions. This doesn't check if the nearby instructions
+    // are MOPS-type, but checks that they form a consistent triplet if they
+    // are. For example, 'mov x0, #0; mov x0, #512; mov x0, #1024' is a
+    // consistent triplet, but they are not MOPS instructions.
+    constexpr int op_lsb = mem_op == MemOp::kCPY ? 22 : 14;
+    constexpr uint32_t kMOPSOpfield = 0x3 << op_lsb;
+    constexpr uint32_t kMOPSPrologue = 0;
+    constexpr uint32_t kMOPSMain = 0x1 << op_lsb;
+    constexpr uint32_t kMOPSEpilogue = 0x2 << op_lsb;
+    switch (Mask(kMOPSOpfield)) {
+      case kMOPSPrologue:
+        return next1->IsMOPSMainOf(this, mem_op) &&
+               next2->IsMOPSEpilogueOf(this, mem_op);
+      case kMOPSMain:
+        return prev1->IsMOPSPrologueOf(this, mem_op) &&
+               next1->IsMOPSEpilogueOf(this, mem_op);
+      case kMOPSEpilogue:
+        return prev2->IsMOPSPrologueOf(this, mem_op) &&
+               prev1->IsMOPSMainOf(this, mem_op);
+      default:
+        UNREACHABLE();
+    }
+  }
+
   bool IsNop(int n) {
     // A marking nop is an instruction
     //   mov r<n>,  r<n>
@@ -425,9 +480,10 @@ class Instruction {
   bool IsTargetInImmPCOffsetRange(Instruction* target);
   // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or
   // a PC-relative addressing instruction.
-  void SetImmPCOffsetTarget(const AssemblerOptions& options,
+  void SetImmPCOffsetTarget(Zone* zone, AssemblerOptions options,
                             Instruction* target);
-  void SetUnresolvedInternalReferenceImmTarget(const AssemblerOptions& options,
+  void SetUnresolvedInternalReferenceImmTarget(Zone* zone,
+                                               AssemblerOptions options,
                                                Instruction* target);
   // Patch a literal load instruction to load from 'source'.
   void SetImmLLiteral(Instruction* source);
@@ -464,10 +520,12 @@ class Instruction {
 
   static const int ImmPCRelRangeBitwidth = 21;
   static bool IsValidPCRelOffset(ptrdiff_t offset) { return is_int21(offset); }
-  void SetPCRelImmTarget(const AssemblerOptions& options, Instruction* target);
+  void SetPCRelImmTarget(Zone* zone, AssemblerOptions options,
+                         Instruction* target);
 
   template <ImmBranchType branch_type>
-  void SetBranchImmTarget(Instruction* target) {
+  void SetBranchImmTarget(Instruction* target,
+                          WritableJitAllocation* jit_allocation = nullptr) {
     DCHECK(IsAligned(DistanceTo(target), kInstrSize));
     DCHECK(IsValidImmPCOffset(branch_type, DistanceTo(target)));
     int offset = static_cast<int>(DistanceTo(target) >> kInstrSizeLog2);
@@ -495,7 +553,7 @@ class Instruction {
       default:
         UNREACHABLE();
     }
-    SetInstructionBits(Mask(~imm_mask) | branch_imm);
+    SetInstructionBits(Mask(~imm_mask) | branch_imm, jit_allocation);
   }
 };
 
@@ -694,6 +752,13 @@ class NEONFormatDecoder {
     // NEON FP vector formats: NF_2S, NF_4S, NF_2D.
     static const NEONFormatMap map = {{22, 30},
                                       {NF_2S, NF_4S, NF_UNDEF, NF_2D}};
+    return &map;
+  }
+
+  // The FP half-precision format map uses one Q bit to encode the
+  // NEON FP vector formats: NF_4H, NF_8H.
+  static const NEONFormatMap* FPHPFormatMap() {
+    static const NEONFormatMap map = {{30}, {NF_4H, NF_8H}};
     return &map;
   }
 

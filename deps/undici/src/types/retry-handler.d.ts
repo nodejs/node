@@ -1,18 +1,18 @@
-import Dispatcher from "./dispatcher";
+import Dispatcher from './dispatcher'
 
-export default RetryHandler;
+export default RetryHandler
 
-declare class RetryHandler implements Dispatcher.DispatchHandlers {
-  constructor(
+declare class RetryHandler implements Dispatcher.DispatchHandler {
+  constructor (
     options: Dispatcher.DispatchOptions & {
       retryOptions?: RetryHandler.RetryOptions;
     },
     retryHandlers: RetryHandler.RetryHandlers
-  );
+  )
 }
 
 declare namespace RetryHandler {
-  export type RetryState = { counter: number; };
+  export type RetryState = { counter: number; }
 
   export type RetryContext = {
     state: RetryState;
@@ -21,7 +21,7 @@ declare namespace RetryHandler {
     };
   }
 
-  export type OnRetryCallback = (result?: Error | null) => void;
+  export type OnRetryCallback = (result?: Error | null) => void
 
   export type RetryCallback = (
     err: Error,
@@ -32,9 +32,18 @@ declare namespace RetryHandler {
       };
     },
     callback: OnRetryCallback
-  ) => number | null;
+  ) => void
 
   export interface RetryOptions {
+    /**
+     * If true, the retry handler will throw an error if the request fails,
+     * this will prevent the folling handlers from being called, and will destroy the socket.
+     *
+     * @type {boolean}
+     * @memberof RetryOptions
+     * @default true
+     */
+    throwOnError?: boolean;
     /**
      * Callback to be invoked on every retry iteration.
      * It receives the error, current state of the retry object and the options object
@@ -110,7 +119,7 @@ declare namespace RetryHandler {
   }
 
   export interface RetryHandlers {
-    dispatch: Dispatcher["dispatch"];
-    handler: Dispatcher.DispatchHandlers;
+    dispatch: Dispatcher['dispatch'];
+    handler: Dispatcher.DispatchHandler;
   }
 }

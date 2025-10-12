@@ -15,6 +15,8 @@
 #include "absl/algorithm/container.h"
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
 #include <functional>
 #include <initializer_list>
 #include <iterator>
@@ -31,8 +33,10 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/casts.h"
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/memory/memory.h"
+#include "absl/random/random.h"
 #include "absl/types/span.h"
 
 namespace {
@@ -113,6 +117,11 @@ TEST_F(NonMutatingTest, FindReturnsCorrectType) {
   absl::c_find(absl::implicit_cast<const std::list<int>&>(sequence_), 3);
 }
 
+TEST_F(NonMutatingTest, Contains) {
+  EXPECT_TRUE(absl::c_contains(container_, 3));
+  EXPECT_FALSE(absl::c_contains(container_, 4));
+}
+
 TEST_F(NonMutatingTest, FindIf) { absl::c_find_if(container_, Predicate); }
 
 TEST_F(NonMutatingTest, FindIfNot) {
@@ -132,11 +141,13 @@ TEST_F(NonMutatingTest, FindEndWithPredicate) {
 TEST_F(NonMutatingTest, FindFirstOf) {
   absl::c_find_first_of(container_, sequence_);
   absl::c_find_first_of(sequence_, container_);
+  absl::c_find_first_of(sequence_, std::array<int, 2>{1, 2});
 }
 
 TEST_F(NonMutatingTest, FindFirstOfWithPredicate) {
   absl::c_find_first_of(container_, sequence_, BinPredicate);
   absl::c_find_first_of(sequence_, container_, BinPredicate);
+  absl::c_find_first_of(sequence_, std::array<int, 2>{1, 2}, BinPredicate);
 }
 
 TEST_F(NonMutatingTest, AdjacentFind) { absl::c_adjacent_find(sequence_); }
@@ -303,6 +314,17 @@ TEST_F(NonMutatingTest, Search) {
 TEST_F(NonMutatingTest, SearchWithPredicate) {
   absl::c_search(sequence_, vector_, BinPredicate);
   absl::c_search(vector_, sequence_, BinPredicate);
+}
+
+TEST_F(NonMutatingTest, ContainsSubrange) {
+  EXPECT_TRUE(absl::c_contains_subrange(sequence_, vector_));
+  EXPECT_TRUE(absl::c_contains_subrange(vector_, sequence_));
+  EXPECT_TRUE(absl::c_contains_subrange(array_, sequence_));
+}
+
+TEST_F(NonMutatingTest, ContainsSubrangeWithPredicate) {
+  EXPECT_TRUE(absl::c_contains_subrange(sequence_, vector_, Equals));
+  EXPECT_TRUE(absl::c_contains_subrange(vector_, sequence_, Equals));
 }
 
 TEST_F(NonMutatingTest, SearchN) { absl::c_search_n(sequence_, 3, 1); }
@@ -966,25 +988,16 @@ TEST(MutatingTest, RotateCopy) {
   EXPECT_THAT(actual, ElementsAre(3, 4, 1, 2, 5));
 }
 
-template <typename T>
-T RandomlySeededPrng() {
-  std::random_device rdev;
-  std::seed_seq::result_type data[T::state_size];
-  std::generate_n(data, T::state_size, std::ref(rdev));
-  std::seed_seq prng_seed(data, data + T::state_size);
-  return T(prng_seed);
-}
-
 TEST(MutatingTest, Shuffle) {
   std::vector<int> actual = {1, 2, 3, 4, 5};
-  absl::c_shuffle(actual, RandomlySeededPrng<std::mt19937_64>());
+  absl::c_shuffle(actual, absl::InsecureBitGen());
   EXPECT_THAT(actual, UnorderedElementsAre(1, 2, 3, 4, 5));
 }
 
 TEST(MutatingTest, Sample) {
   std::vector<int> actual;
   absl::c_sample(std::vector<int>{1, 2, 3, 4, 5}, std::back_inserter(actual), 3,
-                 RandomlySeededPrng<std::mt19937_64>());
+                 absl::InsecureBitGen());
   EXPECT_THAT(actual, IsSubsetOf({1, 2, 3, 4, 5}));
   EXPECT_THAT(actual, SizeIs(3));
 }
@@ -1143,5 +1156,259 @@ TEST(MutatingTest, PermutationOperations) {
   absl::c_prev_permutation(permuted);
   EXPECT_EQ(initial, permuted);
 }
+
+#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
+    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
+
+TEST(ConstexprTest, Distance) {
+  // Works at compile time with constexpr containers.
+  static_assert(absl::c_distance(std::array<int, 3>()) == 3);
+}
+
+TEST(ConstexprTest, MinElement) {
+  constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(*absl::c_min_element(kArray) == 1);
+}
+
+TEST(ConstexprTest, MinElementWithPredicate) {
+  constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(*absl::c_min_element(kArray, std::greater<int>()) == 3);
+}
+
+TEST(ConstexprTest, MaxElement) {
+  constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(*absl::c_max_element(kArray) == 3);
+}
+
+TEST(ConstexprTest, MaxElementWithPredicate) {
+  constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(*absl::c_max_element(kArray, std::greater<int>()) == 1);
+}
+
+TEST(ConstexprTest, MinMaxElement) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  constexpr auto kMinMaxPair = absl::c_minmax_element(kArray);
+  static_assert(*kMinMaxPair.first == 1);
+  static_assert(*kMinMaxPair.second == 3);
+}
+
+TEST(ConstexprTest, MinMaxElementWithPredicate) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  constexpr auto kMinMaxPair =
+      absl::c_minmax_element(kArray, std::greater<int>());
+  static_assert(*kMinMaxPair.first == 3);
+  static_assert(*kMinMaxPair.second == 1);
+}
+#endif  // defined(ABSL_INTERNAL_CPLUSPLUS_LANG) &&
+        //  ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
+
+#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
+    ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+
+TEST(ConstexprTest, LinearSearch) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(absl::c_linear_search(kArray, 3));
+  static_assert(!absl::c_linear_search(kArray, 4));
+}
+
+TEST(ConstexprTest, AllOf) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(!absl::c_all_of(kArray, [](int x) { return x > 1; }));
+  static_assert(absl::c_all_of(kArray, [](int x) { return x > 0; }));
+}
+
+TEST(ConstexprTest, AnyOf) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(absl::c_any_of(kArray, [](int x) { return x > 2; }));
+  static_assert(!absl::c_any_of(kArray, [](int x) { return x > 5; }));
+}
+
+TEST(ConstexprTest, NoneOf) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(!absl::c_none_of(kArray, [](int x) { return x > 2; }));
+  static_assert(absl::c_none_of(kArray, [](int x) { return x > 5; }));
+}
+
+TEST(ConstexprTest, ForEach) {
+  static constexpr std::array<int, 3> kArray = [] {
+    std::array<int, 3> array = {1, 2, 3};
+    absl::c_for_each(array, [](int& x) { x += 1; });
+    return array;
+  }();
+  static_assert(kArray == std::array{2, 3, 4});
+}
+
+TEST(ConstexprTest, Find) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(absl::c_find(kArray, 1) == kArray.begin());
+  static_assert(absl::c_find(kArray, 4) == kArray.end());
+}
+
+TEST(ConstexprTest, Contains) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(absl::c_contains(kArray, 1));
+  static_assert(!absl::c_contains(kArray, 4));
+}
+
+TEST(ConstexprTest, FindIf) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(absl::c_find_if(kArray, [](int x) { return x > 2; }) ==
+                kArray.begin() + 2);
+  static_assert(absl::c_find_if(kArray, [](int x) { return x > 5; }) ==
+                kArray.end());
+}
+
+TEST(ConstexprTest, FindIfNot) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(absl::c_find_if_not(kArray, [](int x) { return x > 1; }) ==
+                kArray.begin());
+  static_assert(absl::c_find_if_not(kArray, [](int x) { return x > 0; }) ==
+                kArray.end());
+}
+
+TEST(ConstexprTest, FindEnd) {
+  static constexpr std::array<int, 5> kHaystack = {1, 2, 3, 2, 3};
+  static constexpr std::array<int, 2> kNeedle = {2, 3};
+  static_assert(absl::c_find_end(kHaystack, kNeedle) == kHaystack.begin() + 3);
+}
+
+TEST(ConstexprTest, FindFirstOf) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(absl::c_find_first_of(kArray, kArray) == kArray.begin());
+}
+
+TEST(ConstexprTest, AdjacentFind) {
+  static constexpr std::array<int, 4> kArray = {1, 2, 2, 3};
+  static_assert(absl::c_adjacent_find(kArray) == kArray.begin() + 1);
+}
+
+TEST(ConstexprTest, AdjacentFindWithPredicate) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(absl::c_adjacent_find(kArray, std::less<int>()) ==
+                kArray.begin());
+}
+
+TEST(ConstexprTest, Count) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(absl::c_count(kArray, 1) == 1);
+  static_assert(absl::c_count(kArray, 2) == 1);
+  static_assert(absl::c_count(kArray, 3) == 1);
+  static_assert(absl::c_count(kArray, 4) == 0);
+}
+
+TEST(ConstexprTest, CountIf) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(absl::c_count_if(kArray, [](int x) { return x > 0; }) == 3);
+  static_assert(absl::c_count_if(kArray, [](int x) { return x > 1; }) == 2);
+}
+
+TEST(ConstexprTest, Mismatch) {
+  static constexpr std::array<int, 3> kArray1 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray2 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray3 = {2, 3, 4};
+  static_assert(absl::c_mismatch(kArray1, kArray2) ==
+                std::pair{kArray1.end(), kArray2.end()});
+  static_assert(absl::c_mismatch(kArray1, kArray3) ==
+                std::pair{kArray1.begin(), kArray3.begin()});
+}
+
+TEST(ConstexprTest, MismatchWithPredicate) {
+  static constexpr std::array<int, 3> kArray1 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray2 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray3 = {2, 3, 4};
+  static_assert(absl::c_mismatch(kArray1, kArray2, std::not_equal_to<int>()) ==
+                std::pair{kArray1.begin(), kArray2.begin()});
+  static_assert(absl::c_mismatch(kArray1, kArray3, std::not_equal_to<int>()) ==
+                std::pair{kArray1.end(), kArray3.end()});
+}
+
+TEST(ConstexprTest, Equal) {
+  static constexpr std::array<int, 3> kArray1 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray2 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray3 = {2, 3, 4};
+  static_assert(absl::c_equal(kArray1, kArray2));
+  static_assert(!absl::c_equal(kArray1, kArray3));
+}
+
+TEST(ConstexprTest, EqualWithPredicate) {
+  static constexpr std::array<int, 3> kArray1 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray2 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray3 = {2, 3, 4};
+  static_assert(!absl::c_equal(kArray1, kArray2, std::not_equal_to<int>()));
+  static_assert(absl::c_equal(kArray1, kArray3, std::not_equal_to<int>()));
+}
+
+TEST(ConstexprTest, IsPermutation) {
+  static constexpr std::array<int, 3> kArray1 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray2 = {3, 2, 1};
+  static constexpr std::array<int, 3> kArray3 = {2, 3, 4};
+  static_assert(absl::c_is_permutation(kArray1, kArray2));
+  static_assert(!absl::c_is_permutation(kArray1, kArray3));
+}
+
+TEST(ConstexprTest, IsPermutationWithPredicate) {
+  static constexpr std::array<int, 3> kArray1 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray2 = {3, 2, 1};
+  static constexpr std::array<int, 3> kArray3 = {2, 3, 4};
+  static_assert(absl::c_is_permutation(kArray1, kArray2, std::equal_to<int>()));
+  static_assert(
+      !absl::c_is_permutation(kArray1, kArray3, std::equal_to<int>()));
+}
+
+TEST(ConstexprTest, Search) {
+  static constexpr std::array<int, 3> kArray1 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray2 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray3 = {2, 3, 4};
+  static_assert(absl::c_search(kArray1, kArray2) == kArray1.begin());
+  static_assert(absl::c_search(kArray1, kArray3) == kArray1.end());
+}
+
+TEST(ConstexprTest, SearchWithPredicate) {
+  static constexpr std::array<int, 3> kArray1 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray2 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray3 = {2, 3, 4};
+  static_assert(absl::c_search(kArray1, kArray2, std::not_equal_to<int>()) ==
+                kArray1.end());
+  static_assert(absl::c_search(kArray1, kArray3, std::not_equal_to<int>()) ==
+                kArray1.begin());
+}
+
+TEST(ConstexprTest, ContainsSubrange) {
+  static constexpr std::array<int, 3> kArray1 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray2 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray3 = {2, 3, 4};
+  static_assert(absl::c_contains_subrange(kArray1, kArray2));
+  static_assert(!absl::c_contains_subrange(kArray1, kArray3));
+}
+
+TEST(ConstexprTest, ContainsSubrangeWithPredicate) {
+  static constexpr std::array<int, 3> kArray1 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray2 = {1, 2, 3};
+  static constexpr std::array<int, 3> kArray3 = {2, 3, 4};
+  static_assert(
+      !absl::c_contains_subrange(kArray1, kArray2, std::not_equal_to<>()));
+  static_assert(
+      absl::c_contains_subrange(kArray1, kArray3, std::not_equal_to<>()));
+}
+
+TEST(ConstexprTest, SearchN) {
+  static constexpr std::array<int, 4> kArray = {1, 2, 2, 3};
+  static_assert(absl::c_search_n(kArray, 1, 1) == kArray.begin());
+  static_assert(absl::c_search_n(kArray, 2, 2) == kArray.begin() + 1);
+  static_assert(absl::c_search_n(kArray, 1, 4) == kArray.end());
+}
+
+TEST(ConstexprTest, SearchNWithPredicate) {
+  static constexpr std::array<int, 4> kArray = {1, 2, 2, 3};
+  static_assert(absl::c_search_n(kArray, 1, 1, std::not_equal_to<int>()) ==
+                kArray.begin() + 1);
+  static_assert(absl::c_search_n(kArray, 2, 2, std::not_equal_to<int>()) ==
+                kArray.end());
+  static_assert(absl::c_search_n(kArray, 1, 4, std::not_equal_to<int>()) ==
+                kArray.begin());
+}
+
+#endif  // defined(ABSL_INTERNAL_CPLUSPLUS_LANG) &&
+        //  ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
 
 }  // namespace

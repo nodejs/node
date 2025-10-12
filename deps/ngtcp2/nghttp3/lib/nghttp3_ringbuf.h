@@ -28,7 +28,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp3/nghttp3.h>
 
@@ -103,11 +103,13 @@ void nghttp3_ringbuf_resize(nghttp3_ringbuf *rb, size_t len);
 void *nghttp3_ringbuf_get(nghttp3_ringbuf *rb, size_t offset);
 
 /* nghttp3_ringbuf_len returns the number of elements stored. */
-#define nghttp3_ringbuf_len(RB) ((RB)->len)
+static inline size_t nghttp3_ringbuf_len(const nghttp3_ringbuf *rb) {
+  return rb->len;
+}
 
 /* nghttp3_ringbuf_full returns nonzero if |rb| is full. */
 int nghttp3_ringbuf_full(nghttp3_ringbuf *rb);
 
 int nghttp3_ringbuf_reserve(nghttp3_ringbuf *rb, size_t nmemb);
 
-#endif /* NGHTTP3_RINGBUF_H */
+#endif /* !defined(NGHTTP3_RINGBUF_H) */

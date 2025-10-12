@@ -479,12 +479,53 @@ TEST(function test_resolveCname_failure(done) {
   checkWrap(req);
 });
 
+TEST(async function test_resolveTlsa(done) {
+  function validateResult(result) {
+    assert.ok(Array.isArray(result));
+    assert.ok(result.length >= 1);
+    for (const record of result) {
+      assert.strictEqual(typeof record.certUsage, 'number');
+      assert.strictEqual(typeof record.selector, 'number');
+      assert.strictEqual(typeof record.match, 'number');
+      assert.ok(record.data instanceof ArrayBuffer);
+    }
+  }
+
+  validateResult(await dnsPromises.resolveTlsa(addresses.TLSA_HOST));
+
+  const req = dns.resolveTlsa(addresses.TLSA_HOST, function(err, records) {
+    assert.ifError(err);
+    validateResult(records);
+    done();
+  });
+
+  checkWrap(req);
+});
+
+TEST(function test_resolveTlsa_failure(done) {
+  dnsPromises.resolveTlsa(addresses.NOT_FOUND)
+    .then(common.mustNotCall())
+    .catch(common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ENOTFOUND');
+    }));
+
+  const req = dns.resolveTlsa(addresses.NOT_FOUND, function(err, result) {
+    assert.ok(err instanceof Error);
+    assert.strictEqual(err.code, 'ENOTFOUND');
+
+    assert.strictEqual(result, undefined);
+
+    done();
+  });
+
+  checkWrap(req);
+});
 
 TEST(async function test_resolveTxt(done) {
   function validateResult(result) {
-    assert.ok(Array.isArray(result[0]));
-    assert.strictEqual(result.length, 1);
-    assert(result[0][0].startsWith('v=spf1'));
+    assert.ok(result.length > 0);
+    assert.ok(result.every((elem) => Array.isArray(elem) && elem.length === 1));
+    assert.ok(result.some((elem) => elem[0].startsWith('v=spf1')));
   }
 
   validateResult(await dnsPromises.resolveTxt(addresses.TXT_HOST));
@@ -585,21 +626,6 @@ TEST(function test_lookup_ip_promise(done) {
 
       done();
     });
-});
-
-
-TEST(async function test_lookup_null_all(done) {
-  assert.deepStrictEqual(await dnsPromises.lookup(null, { all: true }), []);
-
-  const req = dns.lookup(null, { all: true }, (err, ips) => {
-    assert.ifError(err);
-    assert.ok(Array.isArray(ips));
-    assert.strictEqual(ips.length, 0);
-
-    done();
-  });
-
-  checkWrap(req);
 });
 
 

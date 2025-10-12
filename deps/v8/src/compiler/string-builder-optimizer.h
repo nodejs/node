@@ -6,11 +6,11 @@
 #define V8_COMPILER_STRING_BUILDER_OPTIMIZER_H_
 
 #include <cstdint>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/compiler/graph-assembler.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
@@ -152,7 +152,7 @@ class OneOrTwoByteAnalysis final {
   // a 2-byte string, and we can optimize the generated code to remove all
   // 1-byte/2-byte checks.
  public:
-  OneOrTwoByteAnalysis(Graph* graph, Zone* zone, JSHeapBroker* broker)
+  OneOrTwoByteAnalysis(TFGraph* graph, Zone* zone, JSHeapBroker* broker)
       : states_(graph->NodeCount(), State::kUnknown, zone), broker_(broker) {}
 
   enum class State : uint8_t {
@@ -203,7 +203,7 @@ class OneOrTwoByteAnalysis final {
   // 1-byte string. The analysis is sound (it doesn't make mistake), but is not
   // complete (it bails out (returns nullopt) on operators that are not
   // handled).
-  base::Optional<std::pair<int64_t, int64_t>> TryGetRange(Node* node);
+  std::optional<std::pair<int64_t, int64_t>> TryGetRange(Node* node);
 
   JSHeapBroker* broker() { return broker_; }
 
@@ -252,14 +252,14 @@ class V8_EXPORT_PRIVATE StringBuilderOptimizer final {
   // particular StringBuilder).
   bool IsFirstConcatInStringBuilder(Node* node);
 
-  // Returns a OneOrTwoByteAnalysis::State representing whether the
+  // Returns an OneOrTwoByteAnalysis::State representing whether the
   // StringBuilder that contains {node} is building a 1-byte or a 2-byte.
   OneOrTwoByteAnalysis::State GetOneOrTwoByte(Node* node);
 
   void Run();
 
   JSGraph* jsgraph() const { return jsgraph_; }
-  Graph* graph() const { return jsgraph_->graph(); }
+  TFGraph* graph() const { return jsgraph_->graph(); }
   Schedule* schedule() const { return schedule_; }
   Zone* temp_zone() const { return temp_zone_; }
   JSHeapBroker* broker() const { return broker_; }
@@ -363,7 +363,7 @@ class V8_EXPORT_PRIVATE StringBuilderOptimizer final {
   // SlicedString indirection; the only thing that would be an issue is that the
   // rest of the VM could have access to a SlicedString that is less than
   // SlicedString::kMinLength characters, which may or may not break things).
-  ZoneVector<base::Optional<ZoneVector<Node*>>> blocks_to_trimmings_map_;
+  ZoneVector<std::optional<ZoneVector<Node*>>> blocks_to_trimmings_map_;
   ZoneVector<Status> status_;
   ZoneVector<StringBuilder> string_builders_;
   // {loop_headers_} is used to keep track ot the start of each loop that the

@@ -18,6 +18,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <string>
 
 #include "absl/base/config.h"
@@ -34,9 +35,10 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace substitute_internal {
 
-void SubstituteAndAppendArray(
-    absl::Nonnull<std::string*> output, absl::string_view format,
-    absl::Nullable<const absl::string_view*> args_array, size_t num_args) {
+void SubstituteAndAppendArray(std::string* absl_nonnull output,
+                              absl::string_view format,
+                              const absl::string_view* absl_nullable args_array,
+                              size_t num_args) {
   // Determine total size needed.
   size_t size = 0;
   for (size_t i = 0; i < format.size(); i++) {
@@ -84,6 +86,9 @@ void SubstituteAndAppendArray(
 
   // Build the string.
   size_t original_size = output->size();
+  ABSL_INTERNAL_CHECK(
+      size <= std::numeric_limits<size_t>::max() - original_size,
+      "size_t overflow");
   strings_internal::STLStringResizeUninitializedAmortized(output,
                                                           original_size + size);
   char* target = &(*output)[original_size];
@@ -105,7 +110,7 @@ void SubstituteAndAppendArray(
   assert(target == output->data() + output->size());
 }
 
-Arg::Arg(absl::Nullable<const void*> value) {
+Arg::Arg(const void* absl_nullable value) {
   static_assert(sizeof(scratch_) >= sizeof(value) * 2 + 2,
                 "fix sizeof(scratch_)");
   if (value == nullptr) {

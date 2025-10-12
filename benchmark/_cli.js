@@ -33,6 +33,7 @@ function CLI(usage, settings) {
   let mode = 'both'; // Possible states are: [both, option, item]
 
   for (const arg of process.argv.slice(2)) {
+    if (arg === '--help') this.abort(usage);
     if (arg === '--') {
       // Only items can follow --
       mode = 'item';
@@ -139,8 +140,8 @@ CLI.prototype.getCpuCoreSetting = function() {
   const isValid = /^(\d+(-\d+)?)(,\d+(-\d+)?)*$/.test(value);
   if (!isValid) {
     throw new Error(`
-        Invalid CPUSET format: "${value}". Please use a single core number (e.g., "0"), 
-        a range of cores (e.g., "0-3"), or a list of cores/ranges 
+        Invalid CPUSET format: "${value}". Please use a single core number (e.g., "0"),
+        a range of cores (e.g., "0-3"), or a list of cores/ranges
         (e.g., "0,2,4" or "0-2,4").\n\n${this.usage}
     `);
   }

@@ -37,7 +37,7 @@ class ExitHandler {
 
   constructor ({ process }) {
     this.#process = process
-    this.#process.on('exit', this.#handleProcesExitAndReset)
+    this.#process.on('exit', this.#handleProcessExitAndReset)
   }
 
   registerUncaughtHandlers () {
@@ -49,12 +49,12 @@ class ExitHandler {
     this.#handleExit(err)
   }
 
-  #handleProcesExitAndReset = (code) => {
+  #handleProcessExitAndReset = (code) => {
     this.#handleProcessExit(code)
 
     // Reset all the state. This is only relevant for tests since
     // in reality the process fully exits here.
-    this.#process.off('exit', this.#handleProcesExitAndReset)
+    this.#process.off('exit', this.#handleProcessExitAndReset)
     this.#process.off('uncaughtException', this.#handleExit)
     this.#process.off('unhandledRejection', this.#handleExit)
     if (this.#loaded) {
@@ -66,8 +66,9 @@ class ExitHandler {
   }
 
   #handleProcessExit (code) {
-    // Force exit code to a number if it has not been set
-    const exitCode = typeof code === 'number' ? code : (this.#exited ? 0 : 1)
+    const numCode = Number(code) || 0
+    // Always exit w/ a non-zero code if exit handler was not called
+    const exitCode = this.#exited ? numCode : (numCode || 1)
     this.#process.exitCode = exitCode
 
     if (this.#notLoadedOrExited) {
@@ -157,7 +158,7 @@ class ExitHandler {
     this.#exitErrorMessage = err?.suppressError === true ? false : !!err
 
     // Prefer the exit code of the error, then the current process exit code,
-    // then set it to 1 if we still have an error. Otherwise we call process.exit
+    // then set it to 1 if we still have an error. Otherwise, we call process.exit
     // with undefined so that it can determine the final exit code
     const exitCode = err?.exitCode ?? this.#process.exitCode ?? (err ? 1 : undefined)
 

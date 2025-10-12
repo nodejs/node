@@ -122,7 +122,7 @@ Node* MemoryLowering::GetWasmInstanceNode() {
   if (wasm_instance_node_.is_set()) return wasm_instance_node_.get();
   for (Node* use : graph()->start()->uses()) {
     if (use->opcode() == IrOpcode::kParameter &&
-        ParameterIndexOf(use->op()) == wasm::kWasmInstanceParameterIndex) {
+        ParameterIndexOf(use->op()) == wasm::kWasmInstanceDataParameterIndex) {
       wasm_instance_node_.set(use);
       return use;
     }
@@ -199,7 +199,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(Node* node,
       } else {
         builtin = Builtin::kWasmAllocateInOldGeneration;
       }
-      static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
+      static_assert(std::is_same_v<Smi, BuiltinPtr>, "BuiltinPtr must be Smi");
       allocate_builtin =
           graph()->NewNode(common()->NumberConstant(static_cast<int>(builtin)));
     } else {
@@ -477,8 +477,18 @@ Reduction MemoryLowering::ReduceLoadExternalPointerField(Node* node) {
                         Internals::kExternalPointerTableBasePointerOffset);
   Node* pointer =
       __ Load(MachineType::Pointer(), table, __ ChangeUint32ToUint64(offset));
-  pointer = __ WordAnd(pointer, __ IntPtrConstant(~tag));
-  return Replace(pointer);
+  Node* actual_tag =
+      __ WordAnd(pointer, __ IntPtrConstant(kExternalPointerTagMask));
+  actual_tag = __ TruncateInt64ToInt32(
+      __ WordShr(actual_tag, __ IntPtrConstant(kExternalPointerTagShift)));
+  Node* expected_tag = __ Int32Constant(tag);
+  pointer =
+      __ Word64And(pointer, __ IntPtrConstant(kExternalPointerPayloadMask));
+  auto done = __ MakeLabel(MachineRepresentation::kWord64);
+  __ GotoIf(__ WordEqual(actual_tag, expected_tag), &done, pointer);
+  __ Goto(&done, __ IntPtrConstant(0));
+  __ Bind(&done);
+  return Replace(done.PhiAt(0));
 #else
   NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
   return Changed(node);

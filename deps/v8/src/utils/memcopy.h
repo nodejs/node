@@ -63,10 +63,13 @@ V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
 const int kMinComplexConvertMemCopy = 12;
 #else
 #if defined(V8_OPTIMIZE_WITH_NEON)
+// We intentionally use misaligned read/writes for NEON intrinsics, disable
+// alignment sanitization explicitly.
 // Overlapping writes help to save instructions, e.g. doing 2 two-byte writes
 // instead 3 one-byte write for count == 3.
 template <typename IntType>
-V8_INLINE void OverlappingWrites(void* dst, const void* src, size_t count) {
+V8_INLINE V8_CLANG_NO_SANITIZE("alignment") void OverlappingWrites(
+    void* dst, const void* src, size_t count) {
   *reinterpret_cast<IntType*>(dst) = *reinterpret_cast<const IntType*>(src);
   *reinterpret_cast<IntType*>(static_cast<uint8_t*>(dst) + count -
                               sizeof(IntType)) =
@@ -74,6 +77,7 @@ V8_INLINE void OverlappingWrites(void* dst, const void* src, size_t count) {
                                         count - sizeof(IntType));
 }
 
+V8_CLANG_NO_SANITIZE("alignment")
 inline void MemCopy(void* dst, const void* src, size_t count) {
   auto* dst_u = static_cast<uint8_t*>(dst);
   const auto* src_u = static_cast<const uint8_t*>(src);
@@ -340,10 +344,10 @@ void CopyChars(DstType* dst, const SrcType* src, size_t count) V8_NONNULL(1, 2);
 
 template <typename SrcType, typename DstType>
 void CopyChars(DstType* dst, const SrcType* src, size_t count) {
-  static_assert(std::is_integral<SrcType>::value);
-  static_assert(std::is_integral<DstType>::value);
-  using SrcTypeUnsigned = typename std::make_unsigned<SrcType>::type;
-  using DstTypeUnsigned = typename std::make_unsigned<DstType>::type;
+  static_assert(std::is_integral_v<SrcType>);
+  static_assert(std::is_integral_v<DstType>);
+  using SrcTypeUnsigned = std::make_unsigned_t<SrcType>;
+  using DstTypeUnsigned = std::make_unsigned_t<DstType>;
 
 #ifdef DEBUG
   // Check for no overlap, otherwise {std::copy_n} cannot be used.

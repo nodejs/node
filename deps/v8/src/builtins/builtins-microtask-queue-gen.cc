@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 using compiler::ScopedExceptionHandler;
 
 class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
@@ -479,7 +481,7 @@ void MicrotaskQueueBuiltinsAssembler::RunAllPromiseHooks(
     switch (type) {
       case PromiseHookType::kBefore:
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
-        RunContextPromiseHookBefore(context, promise_or_capability,
+        RunContextPromiseHookBefore(context, CAST(promise_or_capability),
                                     promiseHookFlags);
 #endif
         RunPromiseHook(Runtime::kPromiseHookBefore, context,
@@ -487,7 +489,7 @@ void MicrotaskQueueBuiltinsAssembler::RunAllPromiseHooks(
         break;
       case PromiseHookType::kAfter:
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
-        RunContextPromiseHookAfter(context, promise_or_capability,
+        RunContextPromiseHookAfter(context, CAST(promise_or_capability),
                                    promiseHookFlags);
 #endif
         RunPromiseHook(Runtime::kPromiseHookAfter, context,
@@ -515,7 +517,7 @@ void MicrotaskQueueBuiltinsAssembler::RunPromiseHook(
     // Get to the underlying JSPromise instance.
     TNode<HeapObject> promise = Select<HeapObject>(
         IsPromiseCapability(promise_or_capability),
-        [=] {
+        [=, this] {
           return CAST(LoadObjectField(promise_or_capability,
                                       PromiseCapability::kPromiseOffset));
         },
@@ -563,7 +565,7 @@ TF_BUILTIN(EnqueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
   BIND(&if_grow);
   {
     TNode<ExternalReference> isolate_constant =
-        ExternalConstant(ExternalReference::isolate_address(isolate()));
+        ExternalConstant(ExternalReference::isolate_address());
     TNode<ExternalReference> function =
         ExternalConstant(ExternalReference::call_enqueue_microtask_function());
     CallCFunction(function, MachineType::AnyTagged(),
@@ -622,6 +624,8 @@ TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {
     Return(UndefinedConstant());
   }
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

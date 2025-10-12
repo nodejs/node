@@ -26,6 +26,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_sockaddr-inl.h"
+#include "permission/permission.h"
 #include "req_wrap-inl.h"
 #include "util-inl.h"
 
@@ -35,6 +36,7 @@ using errors::TryCatchScope;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
 using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
@@ -56,7 +58,7 @@ using v8::Value;
 namespace {
 template <int (*fn)(uv_udp_t*, int)>
 void SetLibuvInt32(const FunctionCallbackInfo<Value>& args) {
-  UDPWrap* wrap = Unwrap<UDPWrap>(args.This());
+  UDPWrap* wrap = BaseObject::Unwrap<UDPWrap>(args.This());
   if (wrap == nullptr) {
     args.GetReturnValue().Set(UV_EBADF);
     return;
@@ -231,6 +233,7 @@ void UDPWrap::Initialize(Local<Object> target,
   Local<Object> constants = Object::New(isolate);
   NODE_DEFINE_CONSTANT(constants, UV_UDP_IPV6ONLY);
   NODE_DEFINE_CONSTANT(constants, UV_UDP_REUSEADDR);
+  NODE_DEFINE_CONSTANT(constants, UV_UDP_REUSEPORT);
   target->Set(context,
               env->constants_string(),
               constants).Check();
@@ -305,6 +308,13 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
   CHECK_EQ(args.Length(), 3);
 
   node::Utf8Value address(args.GetIsolate(), args[0]);
+
+  // Check for network permission
+  Environment* env = wrap->env();
+
+  ERR_ACCESS_DENIED_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kNet, address.ToStringView(), args);
+
   Local<Context> ctx = args.GetIsolate()->GetCurrentContext();
   uint32_t port, flags;
   if (!args[1]->Uint32Value(ctx).To(&port) ||
@@ -330,6 +340,13 @@ void UDPWrap::DoConnect(const FunctionCallbackInfo<Value>& args, int family) {
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
 
+  // Check for network permission
+  Environment* env = wrap->env();
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env,
+                                    permission::PermissionScope::kNet,
+                                    "",
+                                    args.GetReturnValue().Set(UV_EACCES));
+
   CHECK_EQ(args.Length(), 2);
 
   node::Utf8Value address(args.GetIsolate(), args[0]);
@@ -353,7 +370,7 @@ void UDPWrap::Open(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
   CHECK(args[0]->IsNumber());
-  int fd = static_cast<int>(args[0].As<Integer>()->Value());
+  int fd = FromV8Value<int>(args[0]);
   int err = uv_udp_open(&wrap->handle_, fd);
 
   args.GetReturnValue().Set(err);
@@ -383,8 +400,8 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
                                        "uv_send_buffer_size";
 
   if (!args[0]->IsInt32()) {
-    env->CollectUVExceptionInfo(args[2], UV_EINVAL, uv_func_name);
-    return args.GetReturnValue().SetUndefined();
+    USE(env->CollectUVExceptionInfo(args[2], UV_EINVAL, uv_func_name));
+    return;
   }
 
   uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&wrap->handle_);
@@ -397,8 +414,8 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
     err = uv_send_buffer_size(handle, &size);
 
   if (err != 0) {
-    env->CollectUVExceptionInfo(args[2], err, uv_func_name);
-    return args.GetReturnValue().SetUndefined();
+    USE(env->CollectUVExceptionInfo(args[2], err, uv_func_name));
+    return;
   }
 
   args.GetReturnValue().Set(size);
@@ -521,6 +538,12 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
 
+  // Check for network permission
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env,
+                                    permission::PermissionScope::kNet,
+                                    "",
+                                    args.GetReturnValue().Set(UV_EACCES));
+
   CHECK(args.Length() == 4 || args.Length() == 6);
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsArray());
@@ -589,7 +612,7 @@ ssize_t UDPWrap::Send(uv_buf_t* bufs_ptr,
     msg_size += bufs_ptr[i].len;
 
   int err = 0;
-  if (!UNLIKELY(env()->options()->test_udp_no_try_send)) {
+  if (!env()->options()->test_udp_no_try_send) [[unlikely]] {
     err = uv_udp_try_send(&handle_, bufs_ptr, count, addr);
     if (err == UV_ENOSYS || err == UV_EAGAIN) {
       err = 0;
@@ -758,10 +781,9 @@ void UDPWrap::OnRecv(ssize_t nread,
   } else if (static_cast<size_t>(nread) != bs->ByteLength()) {
     CHECK_LE(static_cast<size_t>(nread), bs->ByteLength());
     std::unique_ptr<BackingStore> old_bs = std::move(bs);
-    bs = ArrayBuffer::NewBackingStore(isolate, nread);
-    memcpy(static_cast<char*>(bs->Data()),
-           static_cast<char*>(old_bs->Data()),
-           nread);
+    bs = ArrayBuffer::NewBackingStore(
+        isolate, nread, BackingStoreInitializationMode::kUninitialized);
+    memcpy(bs->Data(), old_bs->Data(), nread);
   }
 
   Local<Object> address;

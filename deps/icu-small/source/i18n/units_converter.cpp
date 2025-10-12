@@ -49,6 +49,8 @@ void U_I18N_API Factor::divideBy(const Factor &rhs) {
     offset = std::max(rhs.offset, offset);
 }
 
+void U_I18N_API Factor::divideBy(const uint64_t constant) { factorDen *= constant; }
+
 void U_I18N_API Factor::power(int32_t power) {
     // multiply all the constant by the power.
     for (int i = 0; i < CONSTANTS_COUNT; i++) {
@@ -74,7 +76,8 @@ void U_I18N_API Factor::applyPrefix(UMeasurePrefix unitPrefix) {
     }
 
     int32_t prefixPower = umeas_getPrefixPower(unitPrefix);
-    double prefixFactor = std::pow((double)umeas_getPrefixBase(unitPrefix), (double)std::abs(prefixPower));
+    double prefixFactor = std::pow(static_cast<double>(umeas_getPrefixBase(unitPrefix)),
+                                   static_cast<double>(std::abs(prefixPower)));
     if (prefixPower >= 0) {
         factorNum *= prefixFactor;
     } else {
@@ -236,6 +239,12 @@ Factor loadCompoundFactor(const MeasureUnitImpl &source, const ConversionRates &
         singleFactor.power(singleUnit.dimensionality);
 
         result.multiplyBy(singleFactor);
+    }
+
+    // If the source has a constant denominator, then we need to divide the
+    // factor by the constant denominator.
+    if (source.constantDenominator != 0) {
+        result.divideBy(source.constantDenominator);
     }
 
     return result;
@@ -697,10 +706,10 @@ double UnitsConverter::scaleToBase(double scaleValue, double minBaseForScaleValu
         scaleValue = -scaleValue;
     }
     scaleValue += 0.5; // adjust up for later truncation
-    if (scaleValue > (double)scaleMax) {
-        scaleValue = (double)scaleMax;
+    if (scaleValue > static_cast<double>(scaleMax)) {
+        scaleValue = static_cast<double>(scaleMax);
     }
-    int scaleInt = (int)scaleValue;
+    int scaleInt = static_cast<int>(scaleValue);
     return (minBaseForScaleValues[scaleInt] + minBaseForScaleValues[scaleInt+1])/2.0;
 }
 
@@ -737,7 +746,7 @@ double UnitsConverter::baseToScale(double baseValue, double minBaseForScaleValue
         baseValue = -baseValue;
     }
     int scaleIndex = bsearchRanges(minBaseForScaleValues, scaleMax, baseValue);
-    return (double)scaleIndex;
+    return static_cast<double>(scaleIndex);
 }
 
 double UnitsConverter::convert(double inputValue) const {

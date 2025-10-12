@@ -1,5 +1,5 @@
 /* deflate.c -- compress data using the deflation algorithm
- * Copyright (C) 1995-2023 Jean-loup Gailly and Mark Adler
+ * Copyright (C) 1995-2024 Jean-loup Gailly and Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -57,6 +57,10 @@
 #include "slide_hash_simd.h"
 #endif
 
+#if defined(QAT_COMPRESSION_ENABLED)
+#include "contrib/qat/deflate_qat.h"
+#endif
+
 #include "contrib/optimizations/insert_string.h"
 
 #ifdef FASTEST
@@ -65,7 +69,7 @@
 #endif
 
 const char deflate_copyright[] =
-   " deflate 1.3.0.1 Copyright 1995-2023 Jean-loup Gailly and Mark Adler ";
+   " deflate 1.3.1 Copyright 1995-2024 Jean-loup Gailly and Mark Adler ";
 /*
   If you use the zlib library in a product, an acknowledgment is welcome
   in the documentation of your product. If for some reason you cannot
@@ -481,14 +485,7 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
     s->window = (Bytef *) ZALLOC(strm,
                                  s->w_size + WINDOW_PADDING,
                                  2*sizeof(Byte));
-    /* Avoid use of unitialized values in the window, see crbug.com/1137613 and
-     * crbug.com/1144420 */
-    zmemzero(s->window, (s->w_size + WINDOW_PADDING) * (2 * sizeof(Byte)));
     s->prev   = (Posf *)  ZALLOC(strm, s->w_size, sizeof(Pos));
-    /* Avoid use of uninitialized value, see:
-     * https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=11360
-     */
-    zmemzero(s->prev, s->w_size * sizeof(Pos));
     s->head   = (Posf *)  ZALLOC(strm, s->hash_size, sizeof(Pos));
 
     s->high_water = 0;      /* nothing written to s->window yet */
@@ -547,6 +544,13 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
         deflateEnd (strm);
         return Z_MEM_ERROR;
     }
+    /* Avoid use of unitialized values in the window, see crbug.com/1137613 and
+     * crbug.com/1144420 */
+    zmemzero(s->window, (s->w_size + WINDOW_PADDING) * (2 * sizeof(Byte)));
+    /* Avoid use of uninitialized value, see:
+     * https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=11360
+     */
+    zmemzero(s->prev, s->w_size * sizeof(Pos));
 #ifdef LIT_MEM
     s->d_buf = (ushf *)(s->pending_buf + (s->lit_bufsize << 1));
     s->l_buf = s->pending_buf + (s->lit_bufsize << 2);
@@ -563,6 +567,13 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
     s->level = level;
     s->strategy = strategy;
     s->method = (Byte)method;
+
+#if defined(QAT_COMPRESSION_ENABLED)
+    s->qat_s = NULL;
+    if (s->level && qat_deflate_init() == Z_OK) {
+        s->qat_s = qat_deflate_state_init(s->level, s->wrap);
+    }
+#endif
 
     return deflateReset(strm);
 }
@@ -779,7 +790,11 @@ int ZEXPORT deflatePrime(z_streamp strm, int bits, int value) {
         put = Buf_size - s->bi_valid;
         if (put > bits)
             put = bits;
+#if defined(DEFLATE_CHUNK_WRITE_64LE)
+        s->bi_buf |= (uint64_t)((value & ((1ULL << put) - 1)) << s->bi_valid);
+#else
         s->bi_buf |= (ush)((value & ((1 << put) - 1)) << s->bi_valid);
+#endif /* DEFLATE_CHUNK_WRITE_64LE */
         s->bi_valid += put;
         _tr_flush_bits(s);
         value >>= put;
@@ -961,6 +976,12 @@ local void putShortMSB(deflate_state *s, uInt b) {
 local void flush_pending(z_streamp strm) {
     unsigned len;
     deflate_state *s = strm->state;
+
+#if defined(QAT_COMPRESSION_ENABLED)
+    if (s->qat_s) {
+        qat_flush_pending(s);
+    }
+#endif
 
     _tr_flush_bits(s);
     len = s->pending;
@@ -1315,6 +1336,12 @@ int ZEXPORT deflateEnd(z_streamp strm) {
     TRY_FREE(strm, strm->state->prev);
     TRY_FREE(strm, strm->state->window);
 
+#if defined(QAT_COMPRESSION_ENABLED)
+    if (strm->state->qat_s) {
+        qat_deflate_state_free(strm->state);
+    }
+#endif
+
     ZFREE(strm, strm->state);
     strm->state = Z_NULL;
 
@@ -1388,6 +1415,14 @@ int ZEXPORT deflateCopy(z_streamp dest, z_streamp source) {
     ds->l_desc.dyn_tree = ds->dyn_ltree;
     ds->d_desc.dyn_tree = ds->dyn_dtree;
     ds->bl_desc.dyn_tree = ds->bl_tree;
+
+#if defined(QAT_COMPRESSION_ENABLED)
+    if(ss->qat_s) {
+        ds->qat_s = qat_deflate_copy(ss);
+        if (!ds->qat_s)
+            return Z_MEM_ERROR;
+    }
+#endif
 
     return Z_OK;
 #endif /* MAXSEG_64K */
@@ -1632,13 +1667,21 @@ local uInt longest_match(deflate_state *s, IPos cur_match) {
  */
 local void check_match(deflate_state *s, IPos start, IPos match, int length) {
     /* check that the match is indeed a match */
-    if (zmemcmp(s->window + match,
-                s->window + start, length) != EQUAL) {
-        fprintf(stderr, " start %u, match %u, length %d\n",
-                start, match, length);
+    Bytef *back = s->window + (int)match, *here = s->window + start;
+    IPos len = length;
+    if (match == (IPos)-1) {
+        /* match starts one byte before the current window -- just compare the
+           subsequent length-1 bytes */
+        back++;
+        here++;
+        len--;
+    }
+    if (zmemcmp(back, here, len) != EQUAL) {
+        fprintf(stderr, " start %u, match %d, length %d\n",
+                start, (int)match, length);
         do {
-            fprintf(stderr, "%c%c", s->window[match++], s->window[start++]);
-        } while (--length != 0);
+            fprintf(stderr, "(%02x %02x)", *back++, *here++);
+        } while (--len != 0);
         z_error("invalid match");
     }
     if (z_verbose > 1) {
@@ -1880,6 +1923,24 @@ local block_state deflate_fast(deflate_state *s, int flush) {
     IPos hash_head;       /* head of the hash chain */
     int bflush;           /* set if current block must be flushed */
 
+#if defined(QAT_COMPRESSION_ENABLED)
+    if (s->qat_s) {
+        qat_block_state qat_block = qat_deflate_step(s, flush);
+        switch (qat_block) {
+        case qat_block_need_more:
+            return need_more;
+        case qat_block_done:
+            return block_done;
+        case qat_block_finish_started:
+            return finish_started;
+        case qat_block_finish_done:
+            return finish_done;
+        case qat_failure:
+            break;
+        }
+    }
+#endif
+
     for (;;) {
         /* Make sure that we always have enough lookahead, except
          * at the end of the input file. We need MAX_MATCH bytes
@@ -1982,6 +2043,24 @@ local block_state deflate_slow(deflate_state *s, int flush) {
     IPos hash_head;          /* head of hash chain */
     int bflush;              /* set if current block must be flushed */
 
+#if defined(QAT_COMPRESSION_ENABLED)
+    if (s->qat_s) {
+        qat_block_state qat_block = qat_deflate_step(s, flush);
+        switch (qat_block) {
+        case qat_block_need_more:
+            return need_more;
+        case qat_block_done:
+            return block_done;
+        case qat_block_finish_started:
+            return finish_started;
+        case qat_block_finish_done:
+            return finish_done;
+        case qat_failure:
+            break;
+        }
+    }
+#endif
+
     /* Process the input block. */
     for (;;) {
         /* Make sure that we always have enough lookahead, except
@@ -2039,13 +2118,7 @@ local block_state deflate_slow(deflate_state *s, int flush) {
             uInt max_insert = s->strstart + s->lookahead - MIN_MATCH;
             /* Do not insert strings in hash table beyond this. */
 
-            if (s->prev_match == -1) {
-                /* The window has slid one byte past the previous match,
-                 * so the first byte cannot be compared. */
-                check_match(s, s->strstart, s->prev_match + 1, s->prev_length - 1);
-            } else {
-                check_match(s, s->strstart - 1, s->prev_match, s->prev_length);
-            }
+            check_match(s, s->strstart - 1, s->prev_match, s->prev_length);
 
             _tr_tally_dist(s, s->strstart - 1 - s->prev_match,
                            s->prev_length - MIN_MATCH, bflush);

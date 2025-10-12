@@ -29,7 +29,7 @@ class MaglevCompiler : public AllStatic {
 
   // Called on the main thread after Compile has completed.
   // TODO(v8:7700): Move this to a different class?
-  static MaybeHandle<Code> GenerateCode(
+  static std::pair<MaybeHandle<Code>, BailoutReason> GenerateCode(
       Isolate* isolate, MaglevCompilationInfo* compilation_info);
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -33,7 +33,7 @@ int ASN1_verify(i2d_of_void *i2d, X509_ALGOR *a, ASN1_BIT_STRING *signature,
     int ret = -1, i, inl;
 
     if (ctx == NULL) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_EVP_LIB);
         goto err;
     }
     i = OBJ_obj2nid(a->algorithm);
@@ -54,10 +54,8 @@ int ASN1_verify(i2d_of_void *i2d, X509_ALGOR *a, ASN1_BIT_STRING *signature,
         goto err;
     }
     buf_in = OPENSSL_malloc((unsigned int)inl);
-    if (buf_in == NULL) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+    if (buf_in == NULL)
         goto err;
-    }
     p = buf_in;
 
     i2d(data, &p);
@@ -182,8 +180,9 @@ int ASN1_item_verify_ctx(const ASN1_ITEM *it, const X509_ALGOR *alg,
             if (mdnid != NID_undef) {
                 type = EVP_get_digestbynid(mdnid);
                 if (type == NULL) {
-                    ERR_raise(ERR_LIB_ASN1,
-                              ASN1_R_UNKNOWN_MESSAGE_DIGEST_ALGORITHM);
+                    ERR_raise_data(ERR_LIB_ASN1,
+                                   ASN1_R_UNKNOWN_MESSAGE_DIGEST_ALGORITHM,
+                                   "nid=0x%x", mdnid);
                     goto err;
                 }
             }
@@ -203,10 +202,12 @@ int ASN1_item_verify_ctx(const ASN1_ITEM *it, const X509_ALGOR *alg,
     inl = ASN1_item_i2d(data, &buf_in, it);
     if (inl <= 0) {
         ERR_raise(ERR_LIB_ASN1, ERR_R_INTERNAL_ERROR);
+        ret = -1;
         goto err;
     }
     if (buf_in == NULL) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
+        ret = -1;
         goto err;
     }
     inll = inl;

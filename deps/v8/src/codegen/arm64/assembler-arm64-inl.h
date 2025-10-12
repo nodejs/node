@@ -5,13 +5,16 @@
 #ifndef V8_CODEGEN_ARM64_ASSEMBLER_ARM64_INL_H_
 #define V8_CODEGEN_ARM64_ASSEMBLER_ARM64_INL_H_
 
+#include "src/codegen/arm64/assembler-arm64.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <type_traits>
 
 #include "src/base/memory.h"
-#include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/debug/debug.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/tagged.h"
@@ -27,7 +30,7 @@ void WritableRelocInfo::apply(intptr_t delta) {
     // Absolute code pointer inside code object moves with the code object.
     intptr_t internal_ref = ReadUnalignedValue<intptr_t>(pc_);
     internal_ref += delta;  // Relocate entry.
-    WriteUnalignedValue<intptr_t>(pc_, internal_ref);
+    jit_allocation_.WriteUnalignedValue<intptr_t>(pc_, internal_ref);
   } else {
     Instruction* instr = reinterpret_cast<Instruction*>(pc_);
     if (instr->IsBranchAndLink() || instr->IsUnconditionalBranch()) {
@@ -35,7 +38,7 @@ void WritableRelocInfo::apply(intptr_t delta) {
           reinterpret_cast<Address>(instr->ImmPCOffsetTarget());
       Address new_target = old_target - delta;
       instr->SetBranchImmTarget<UncondBranchType>(
-          reinterpret_cast<Instruction*>(new_target));
+          reinterpret_cast<Instruction*>(new_target), &jit_allocation_);
     }
   }
 }
@@ -198,7 +201,7 @@ struct ImmediateInitializer {
   static inline RelocInfo::Mode rmode_for(T) { return RelocInfo::NO_INFO; }
   static inline int64_t immediate_for(T t) {
     static_assert(sizeof(T) <= 8);
-    static_assert(std::is_integral<T>::value || std::is_enum<T>::value);
+    static_assert(std::is_integral_v<T> || std::is_enum_v<T>);
     return t;
   }
 };
@@ -219,7 +222,7 @@ struct ImmediateInitializer<ExternalReference> {
     return RelocInfo::EXTERNAL_REFERENCE;
   }
   static inline int64_t immediate_for(ExternalReference t) {
-    return static_cast<int64_t>(t.address());
+    return static_cast<int64_t>(t.raw());
   }
 };
 
@@ -237,7 +240,7 @@ Immediate::Immediate(T t)
 template <typename T>
 Immediate::Immediate(T t, RelocInfo::Mode rmode)
     : value_(ImmediateInitializer<T>::immediate_for(t)), rmode_(rmode) {
-  static_assert(std::is_integral<T>::value);
+  static_assert(std::is_integral_v<T>);
 }
 
 template <typename T>
@@ -287,6 +290,22 @@ HeapNumberRequest Operand::heap_number_request() const {
 
 bool Operand::IsImmediate() const {
   return reg_ == NoReg && !IsHeapNumberRequest();
+}
+
+bool Operand::IsPlainRegister() const {
+  return reg_.is_valid() &&
+         (((shift_ == NO_SHIFT) && (extend_ == NO_EXTEND)) ||
+          // No-op shifts.
+          ((shift_ != NO_SHIFT) && (shift_amount_ == 0)) ||
+          // No-op extend operations.
+          // We can't include [US]XTW here without knowing more about the
+          // context; they are only no-ops for 32-bit operations.
+          //
+          // For example, this operand could be replaced with w1:
+          //   __ Add(w0, w0, Operand(w1, UXTW));
+          // However, no plain register can replace it in this context:
+          //   __ Add(x0, x0, Operand(w1, UXTW));
+          (((extend_ == UXTX) || (extend_ == SXTX)) && (shift_amount_ == 0)));
 }
 
 bool Operand::IsShiftedRegister() const {
@@ -497,7 +516,7 @@ Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     DCHECK_EQ(instr->ImmPCOffset() % kInstrSize, 0);
-    return Handle<Code>::cast(
+    return TrustedCast<Code>(
         GetEmbeddedObject(instr->ImmPCOffset() >> kInstrSizeLog2));
   }
 }
@@ -551,41 +570,24 @@ int Assembler::deserialization_special_target_size(Address location) {
   }
 }
 
-void Assembler::deserialization_set_special_target_at(Address location,
-                                                      Tagged<Code> code,
-                                                      Address target) {
-  Instruction* instr = reinterpret_cast<Instruction*>(location);
-  if (instr->IsBranchAndLink() || instr->IsUnconditionalBranch()) {
-    if (target == 0) {
-      // We are simply wiping the target out for serialization. Set the offset
-      // to zero instead.
-      target = location;
-    }
-    instr->SetBranchImmTarget<UncondBranchType>(
-        reinterpret_cast<Instruction*>(target));
-    FlushInstructionCache(location, kInstrSize);
-  } else {
-    DCHECK_EQ(instr->InstructionBits(), 0);
-    Memory<Address>(location) = target;
-    // Intuitively, we would think it is necessary to always flush the
-    // instruction cache after patching a target address in the code. However,
-    // in this case, only the constant pool contents change. The instruction
-    // accessing the constant pool remains unchanged, so a flush is not
-    // required.
-  }
-}
-
 void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target, RelocInfo::Mode mode) {
-  WriteUnalignedValue<Address>(pc, target);
+    Address pc, Address target, WritableJitAllocation& jit_allocation,
+    RelocInfo::Mode mode) {
+  jit_allocation.WriteUnalignedValue<Address>(pc, target);
 }
 
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
+                                      WritableJitAllocation* jit_allocation,
                                       ICacheFlushMode icache_flush_mode) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
   if (instr->IsLdrLiteralX()) {
-    Memory<Address>(target_pointer_address_at(pc)) = target;
+    if (jit_allocation) {
+      jit_allocation->WriteValue<Address>(target_pointer_address_at(pc),
+                                          target);
+    } else {
+      Memory<Address>(target_pointer_address_at(pc)) = target;
+    }
     // Intuitively, we would think it is necessary to always flush the
     // instruction cache after patching a target address in the code. However,
     // in this case, only the constant pool contents change. The instruction
@@ -599,7 +601,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       target = pc;
     }
     instr->SetBranchImmTarget<UncondBranchType>(
-        reinterpret_cast<Instruction*>(target));
+        reinterpret_cast<Instruction*>(target), jit_allocation);
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
       FlushInstructionCache(pc, kInstrSize);
     }
@@ -608,10 +610,14 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 
 void Assembler::set_target_compressed_address_at(
     Address pc, Address constant_pool, Tagged_t target,
-    ICacheFlushMode icache_flush_mode) {
+    WritableJitAllocation* jit_allocation, ICacheFlushMode icache_flush_mode) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
   CHECK(instr->IsLdrLiteralW());
-  Memory<Tagged_t>(target_pointer_address_at(pc)) = target;
+  if (jit_allocation) {
+    jit_allocation->WriteValue(target_pointer_address_at(pc), target);
+  } else {
+    Memory<Tagged_t>(target_pointer_address_at(pc)) = target;
+  }
 }
 
 int RelocInfo::target_address_size() {
@@ -665,16 +671,15 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
     Tagged_t compressed =
         Assembler::target_compressed_address_at(pc_, constant_pool_);
     DCHECK(!HAS_SMI_TAG(compressed));
-    Tagged<Object> obj(
-        V8HeapCompressionScheme::DecompressTagged(cage_base, compressed));
-    return HeapObject::cast(obj);
+    Tagged<Object> obj(V8HeapCompressionScheme::DecompressTagged(compressed));
+    return Cast<HeapObject>(obj);
   } else {
-    return HeapObject::cast(
+    return Cast<HeapObject>(
         Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));
   }
 }
 
-Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
+DirectHandle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   if (IsEmbeddedObjectMode(rmode_)) {
     return origin->target_object_handle_at(pc_);
   } else {
@@ -691,16 +696,18 @@ void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
     // We must not compress pointers to objects outside of the main pointer
     // compression cage as we wouldn't be able to decompress them with the
     // correct cage base.
-    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, !IsTrustedSpaceObject(target));
-    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(target));
+    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL,
+                   !TrustedHeapLayout::InTrustedSpace(target));
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                   !TrustedHeapLayout::InCodeSpace(target));
     Assembler::set_target_compressed_address_at(
         pc_, constant_pool_,
-        V8HeapCompressionScheme::CompressObject(target.ptr()),
+        V8HeapCompressionScheme::CompressObject(target.ptr()), &jit_allocation_,
         icache_flush_mode);
   } else {
     DCHECK(IsFullEmbeddedObject(rmode_));
     Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
-                                     icache_flush_mode);
+                                     &jit_allocation_, icache_flush_mode);
   }
 }
 
@@ -713,7 +720,19 @@ void WritableRelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   Assembler::set_target_address_at(pc_, constant_pool_, target,
-                                   icache_flush_mode);
+                                   &jit_allocation_, icache_flush_mode);
+}
+
+WasmCodePointer RelocInfo::wasm_code_pointer_table_entry() const {
+  DCHECK(rmode_ == WASM_CODE_POINTER_TABLE_ENTRY);
+  return WasmCodePointer{Assembler::uint32_constant_at(pc_, constant_pool_)};
+}
+
+void WritableRelocInfo::set_wasm_code_pointer_table_entry(
+    WasmCodePointer target, ICacheFlushMode icache_flush_mode) {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
+  Assembler::set_uint32_constant_at(pc_, constant_pool_, target.value(),
+                                    &jit_allocation_, icache_flush_mode);
 }
 
 Address RelocInfo::target_internal_reference() {
@@ -726,6 +745,11 @@ Address RelocInfo::target_internal_reference_address() {
   return pc_;
 }
 
+JSDispatchHandle RelocInfo::js_dispatch_handle() {
+  DCHECK(rmode_ == JS_DISPATCH_HANDLE);
+  return JSDispatchHandle(Assembler::uint32_constant_at(pc_, constant_pool_));
+}
+
 Builtin RelocInfo::target_builtin_at(Assembler* origin) {
   DCHECK(IsNearBuiltinEntry(rmode_));
   return Assembler::target_builtin_at(pc_);
@@ -734,6 +758,27 @@ Builtin RelocInfo::target_builtin_at(Assembler* origin) {
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
+  Instruction* instr = reinterpret_cast<Instruction*>(pc);
+  CHECK(instr->IsLdrLiteralW());
+  return ReadUnalignedValue<uint32_t>(target_pointer_address_at(pc));
+}
+
+void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
+                                       uint32_t new_constant,
+                                       WritableJitAllocation* jit_allocation,
+                                       ICacheFlushMode icache_flush_mode) {
+  Instruction* instr = reinterpret_cast<Instruction*>(pc);
+  CHECK(instr->IsLdrLiteralW());
+  if (jit_allocation) {
+    jit_allocation->WriteUnalignedValue<uint32_t>(target_pointer_address_at(pc),
+                                                  new_constant);
+  } else {
+    WriteUnalignedValue<uint32_t>(target_pointer_address_at(pc), new_constant);
+  }
+  // Icache flushing not needed for Ldr via the constant pool.
 }
 
 LoadStoreOp Assembler::LoadOpFor(const CPURegister& rt) {
@@ -852,10 +897,14 @@ inline void Assembler::DataProcImmediate(const Register& rd, const Register& rn,
        RnSP(rn));
 }
 
-int Assembler::LinkAndGetInstructionOffsetTo(Label* label) {
+int Assembler::LinkAndGetBranchInstructionOffsetTo(Label* label) {
   DCHECK_EQ(kStartOfLabelLinkChain, 0);
   int offset = LinkAndGetByteOffsetTo(label);
   DCHECK(IsAligned(offset, kInstrSize));
+  if (label->is_linked() && (offset != kStartOfLabelLinkChain)) {
+    branch_link_chain_back_edge_.emplace(
+        std::pair<int, int>(pc_offset() + offset, pc_offset()));
+  }
   return offset >> kInstrSizeLog2;
 }
 

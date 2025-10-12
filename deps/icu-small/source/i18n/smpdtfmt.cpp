@@ -77,6 +77,10 @@
 #include "dayperiodrules.h"
 #include "tznames_impl.h"   // ZONE_NAME_U16_MAX
 #include "number_utypes.h"
+#include "chnsecal.h"
+#include "dangical.h"
+#include "japancal.h"
+#include <typeinfo>
 
 #if defined( U_DEBUG_CALSVC ) || defined (U_DEBUG_CAL)
 #include <stdio.h>
@@ -297,8 +301,8 @@ static const SharedNumberFormat *createSharedNumberFormat(
 }
 
 static const SharedNumberFormat **allocSharedNumberFormatters() {
-    const SharedNumberFormat **result = (const SharedNumberFormat**)
-            uprv_malloc(UDAT_FIELD_COUNT * sizeof(const SharedNumberFormat*));
+    const SharedNumberFormat** result = static_cast<const SharedNumberFormat**>(
+            uprv_malloc(UDAT_FIELD_COUNT * sizeof(const SharedNumberFormat*)));
     if (result == nullptr) {
         return nullptr;
     }
@@ -346,7 +350,7 @@ SimpleDateFormat::SimpleDateFormat(UErrorCode& status)
   :   fLocale(Locale::getDefault())
 {
     initializeBooleanAttributes();
-    construct(kShort, (EStyle) (kShort + kDateOffset), fLocale, status);
+    construct(kShort, static_cast<EStyle>(kShort + kDateOffset), fLocale, status);
     initializeDefaultCentury();
 }
 
@@ -772,7 +776,7 @@ void SimpleDateFormat::construct(EStyle timeStyle,
         UnicodeString tempus1(timePattern);
         if (tempus1.length() == 0) {
             currentBundle.adoptInstead(
-                    ures_getByIndex(dateTimePatterns.getAlias(), (int32_t)timeStyle, nullptr, &status));
+                    ures_getByIndex(dateTimePatterns.getAlias(), static_cast<int32_t>(timeStyle), nullptr, &status));
             if (U_FAILURE(status)) {
                status = U_INVALID_FORMAT_ERROR;
                return;
@@ -798,7 +802,7 @@ void SimpleDateFormat::construct(EStyle timeStyle,
         }
 
         currentBundle.adoptInstead(
-                ures_getByIndex(dateTimePatterns.getAlias(), (int32_t)dateStyle, nullptr, &status));
+                ures_getByIndex(dateTimePatterns.getAlias(), static_cast<int32_t>(dateStyle), nullptr, &status));
         if (U_FAILURE(status)) {
            status = U_INVALID_FORMAT_ERROR;
            return;
@@ -848,7 +852,7 @@ void SimpleDateFormat::construct(EStyle timeStyle,
             int32_t patternsSize = ures_getSize(dateTimePatterns.getAlias());
             if (patternsSize >= (kDateTimeOffset + kShort + 1)) {
                 // Get proper date time format
-                glueIndex = (int32_t)(kDateTimeOffset + (dateStyle - kDateOffset));
+                glueIndex = static_cast<int32_t>(kDateTimeOffset + (dateStyle - kDateOffset));
             }
 
             resStr = ures_getStringByIndex(dateTimePatterns.getAlias(), glueIndex, &resStrLen, &status);
@@ -863,7 +867,7 @@ void SimpleDateFormat::construct(EStyle timeStyle,
         fPattern.setTo(timePattern);
         if (fPattern.length() == 0) {
             currentBundle.adoptInstead(
-                    ures_getByIndex(dateTimePatterns.getAlias(), (int32_t)timeStyle, nullptr, &status));
+                    ures_getByIndex(dateTimePatterns.getAlias(), static_cast<int32_t>(timeStyle), nullptr, &status));
             if (U_FAILURE(status)) {
                status = U_INVALID_FORMAT_ERROR;
                return;
@@ -889,7 +893,7 @@ void SimpleDateFormat::construct(EStyle timeStyle,
     }
     else if (dateStyle != kNone) {
         currentBundle.adoptInstead(
-                ures_getByIndex(dateTimePatterns.getAlias(), (int32_t)dateStyle, nullptr, &status));
+                ures_getByIndex(dateTimePatterns.getAlias(), static_cast<int32_t>(dateStyle), nullptr, &status));
         if (U_FAILURE(status)) {
            status = U_INVALID_FORMAT_ERROR;
            return;
@@ -945,7 +949,8 @@ SimpleDateFormat::initialize(const Locale& locale,
     // if format is non-numeric (includes 年) and fDateOverride is not already specified.
     // Now this does get updated if applyPattern subsequently changes the pattern type.
     if (fDateOverride.isBogus() && fHasHanYearChar &&
-            fCalendar != nullptr && uprv_strcmp(fCalendar->getType(),"japanese") == 0 &&
+            fCalendar != nullptr &&
+            typeid(*fCalendar) == typeid(JapaneseCalendar) &&
             uprv_strcmp(fLocale.getLanguage(),"ja") == 0) {
         fDateOverride.setTo(u"y=jpanyear", -1);
     }
@@ -1050,7 +1055,7 @@ SimpleDateFormat::_format(Calendar& cal, UnicodeString& appendTo,
     }
     Calendar* workCal = &cal;
     Calendar* calClone = nullptr;
-    if (&cal != fCalendar && uprv_strcmp(cal.getType(), fCalendar->getType()) != 0) {
+    if (&cal != fCalendar && typeid(cal) != typeid(*fCalendar)) {
         // Different calendar type
         // We use the time and time zone from the input calendar, but
         // do not use the input calendar for field calculation.
@@ -1088,7 +1093,7 @@ SimpleDateFormat::_format(Calendar& cal, UnicodeString& appendTo,
             // Consecutive single quotes are a single quote literal,
             // either outside of quotes or between quotes
             if ((i+1) < patternLength && fPattern[i+1] == QUOTE) {
-                appendTo += (char16_t)QUOTE;
+                appendTo += QUOTE;
                 ++i;
             } else {
                 inQuote = ! inQuote;
@@ -1365,7 +1370,7 @@ SimpleDateFormat::processOverrideString(const Locale &locale, const UnicodeStrin
     NSOverride *overrideList = nullptr;
 
     while (moreToProcess) {
-        int32_t delimiterPosition = str.indexOf((char16_t)ULOC_KEYWORD_ITEM_SEPARATOR_UNICODE,start);
+        int32_t delimiterPosition = str.indexOf(static_cast<char16_t>(ULOC_KEYWORD_ITEM_SEPARATOR_UNICODE), start);
         if (delimiterPosition == -1) {
             moreToProcess = false;
             len = str.length() - start;
@@ -1373,7 +1378,7 @@ SimpleDateFormat::processOverrideString(const Locale &locale, const UnicodeStrin
             len = delimiterPosition - start;
         }
         UnicodeString currentString(str,start,len);
-        int32_t equalSignPosition = currentString.indexOf((char16_t)ULOC_KEYWORD_ASSIGN_UNICODE,0);
+        int32_t equalSignPosition = currentString.indexOf(static_cast<char16_t>(ULOC_KEYWORD_ASSIGN_UNICODE), 0);
         if (equalSignPosition == -1) { // Simple override string such as "hebrew"
             nsName.setTo(currentString);
             ovrField.setToBogus();
@@ -1523,8 +1528,8 @@ SimpleDateFormat::subFormat(UnicodeString &appendTo,
     // "GGGG" is wide era name, "GGGGG" is narrow era name, anything else is abbreviated name
     case UDAT_ERA_FIELD:
         {
-            const auto* calType = cal.getType();
-            if (uprv_strcmp(calType,"chinese") == 0 || uprv_strcmp(calType,"dangi") == 0) {
+            if (typeid(cal) == typeid(ChineseCalendar) ||
+                typeid(cal) == typeid(DangiCalendar)) {
                 zeroPaddingNumber(currentNumberFormat,appendTo, value, 1, 9); // as in ICU4J
             } else {
                 if (count == 5) {
@@ -1575,11 +1580,10 @@ SimpleDateFormat::subFormat(UnicodeString &appendTo,
     // for "MMMMM"/"LLLLL", use the narrow form
     case UDAT_MONTH_FIELD:
     case UDAT_STANDALONE_MONTH_FIELD:
-        if (uprv_strcmp(cal.getType(),"hebrew") == 0) {
-           HebrewCalendar *hc = (HebrewCalendar*)&cal;
-           if (hc->isLeapYear(hc->get(UCAL_YEAR,status)) && value == 6 && count >= 3 )
+        if (typeid(cal) == typeid(HebrewCalendar)) {
+           if (HebrewCalendar::isLeapYear(cal.get(UCAL_YEAR,status)) && value == 6 && count >= 3 )
                value = 13; // Show alternate form for Adar II in leap years in Hebrew calendar.
-           if (!hc->isLeapYear(hc->get(UCAL_YEAR,status)) && value >= 6 && count < 3 )
+           if (!HebrewCalendar::isLeapYear(cal.get(UCAL_YEAR,status)) && value >= 6 && count < 3 )
                value--; // Adjust the month number down 1 in Hebrew non-leap years, i.e. Adar is 6, not 7.
         }
         {
@@ -1992,7 +1996,7 @@ SimpleDateFormat::subFormat(UnicodeString &appendTo,
         if (periodType != DayPeriodRules::DAYPERIOD_AM &&
                 periodType != DayPeriodRules::DAYPERIOD_PM &&
                 periodType != DayPeriodRules::DAYPERIOD_MIDNIGHT) {
-            index = (int32_t)periodType;
+            index = static_cast<int32_t>(periodType);
             if (count <= 3) {
                 toAppend = &fSymbols->fAbbreviatedDayPeriods[index];  // i.e. short
             } else if (count == 4 || count > 5) {
@@ -2010,7 +2014,7 @@ SimpleDateFormat::subFormat(UnicodeString &appendTo,
                 (periodType == DayPeriodRules::DAYPERIOD_MIDNIGHT ||
                  periodType == DayPeriodRules::DAYPERIOD_NOON)) {
             periodType = ruleSet->getDayPeriodForHour(hour);
-            index = (int32_t)periodType;
+            index = static_cast<int32_t>(periodType);
 
             if (count <= 3) {
                 toAppend = &fSymbols->fAbbreviatedDayPeriods[index];  // i.e. short
@@ -2273,7 +2277,7 @@ SimpleDateFormat::parse(const UnicodeString& text, Calendar& cal, ParsePosition&
 
     Calendar* calClone = nullptr;
     Calendar *workCal = &cal;
-    if (&cal != fCalendar && uprv_strcmp(cal.getType(), fCalendar->getType()) != 0) {
+    if (&cal != fCalendar && typeid(cal) != typeid(*fCalendar)) {
         // Different calendar type
         // We use the time/zone from the input calendar, but
         // do not use the input calendar for field calculation.
@@ -2420,7 +2424,7 @@ SimpleDateFormat::parse(const UnicodeString& text, Calendar& cal, ParsePosition&
 
     // If dayPeriod is set, use it in conjunction with hour-of-day to determine am/pm.
     if (dayPeriodInt >= 0) {
-        DayPeriodRules::DayPeriod dayPeriod = (DayPeriodRules::DayPeriod)dayPeriodInt;
+        DayPeriodRules::DayPeriod dayPeriod = static_cast<DayPeriodRules::DayPeriod>(dayPeriodInt);
         const DayPeriodRules *ruleSet = DayPeriodRules::getInstance(this->getSmpFmtLocale(), status);
 
         if (!cal.isSet(UCAL_HOUR) && !cal.isSet(UCAL_HOUR_OF_DAY)) {
@@ -2432,7 +2436,7 @@ SimpleDateFormat::parse(const UnicodeString& text, Calendar& cal, ParsePosition&
             if (U_SUCCESS(status)) {
                 // Truncate midPoint toward zero to get the hour.
                 // Any leftover means it was a half-hour.
-                int32_t midPointHour = (int32_t) midPoint;
+                int32_t midPointHour = static_cast<int32_t>(midPoint);
                 int32_t midPointMinute = (midPoint - midPointHour) > 0 ? 30 : 0;
 
                 // No need to set am/pm because hour-of-day is set last therefore takes precedence.
@@ -2904,7 +2908,7 @@ int32_t SimpleDateFormat::matchAlphaMonthStrings(const UnicodeString& text,
 
     if (bestMatch >= 0) { 
         // Adjustment for Hebrew Calendar month Adar II
-        if (!strcmp(cal.getType(),"hebrew") && bestMatch==13) {
+        if (typeid(cal) == typeid(HebrewCalendar) && bestMatch==13) {
             cal.set(UCAL_MONTH,6);
         } else {
             cal.set(UCAL_MONTH, bestMatch);
@@ -2964,7 +2968,7 @@ int32_t SimpleDateFormat::matchString(const UnicodeString& text,
     if (bestMatch >= 0) {
         if (field < UCAL_FIELD_COUNT) {
             // Adjustment for Hebrew Calendar month Adar II
-            if (!strcmp(cal.getType(),"hebrew") && field==UCAL_MONTH && bestMatch==13) {
+            if (typeid(cal) == typeid(HebrewCalendar) && field==UCAL_MONTH && bestMatch==13) {
                 cal.set(field,6);
             } else {
                 if (field == UCAL_YEAR) {
@@ -3051,9 +3055,8 @@ int32_t SimpleDateFormat::subParse(const UnicodeString& text, int32_t& start, ch
     UnicodeString hebr("hebr", 4, US_INV);
 
     if (numericLeapMonthFormatter != nullptr) {
-        numericLeapMonthFormatter->setFormats((const Format **)&currentNumberFormat, 1);
+        numericLeapMonthFormatter->setFormats(reinterpret_cast<const Format**>(&currentNumberFormat), 1);
     }
-    UBool isChineseCalendar = (uprv_strcmp(cal.getType(),"chinese") == 0 || uprv_strcmp(cal.getType(),"dangi") == 0);
 
     // If there are any spaces here, skip over them.  If we hit the end
     // of the string, then fail.
@@ -3069,6 +3072,8 @@ int32_t SimpleDateFormat::subParse(const UnicodeString& text, int32_t& start, ch
     }
     pos.setIndex(start);
 
+    UBool isChineseCalendar = typeid(cal) == typeid(ChineseCalendar) ||
+            typeid(cal) == typeid(DangiCalendar);
     // We handle a few special cases here where we need to parse
     // a number value.  We handle further, more generic cases below.  We need
     // to handle some of them here because some fields require extra processing on
@@ -3290,7 +3295,7 @@ int32_t SimpleDateFormat::subParse(const UnicodeString& text, int32_t& start, ch
             // When parsing month numbers from the Hebrew Calendar, we might need to adjust the month depending on whether
             // or not it was a leap year.  We may or may not yet know what year it is, so might have to delay checking until
             // the year is parsed.
-            if (!strcmp(cal.getType(),"hebrew")) {
+            if (typeid(cal) == typeid(HebrewCalendar)) {
                 HebrewCalendar *hc = (HebrewCalendar*)&cal;
                 if (cal.isSet(UCAL_YEAR)) {
                    UErrorCode monthStatus = U_ZERO_ERROR;
@@ -3853,7 +3858,7 @@ int32_t SimpleDateFormat::subParse(const UnicodeString& text, int32_t& start, ch
         switch (patternCharIndex) {
         case UDAT_MONTH_FIELD:
             // See notes under UDAT_MONTH_FIELD case above
-            if (!strcmp(cal.getType(),"hebrew")) {
+            if (typeid(cal) == typeid(HebrewCalendar)) {
                 HebrewCalendar *hc = (HebrewCalendar*)&cal;
                 if (cal.isSet(UCAL_YEAR)) {
                    UErrorCode monthStatus = U_ZERO_ERROR;
@@ -4035,7 +4040,7 @@ SimpleDateFormat::applyPattern(const UnicodeString& pattern)
 
     // Hack to update use of Gannen year numbering for ja@calendar=japanese -
     // use only if format is non-numeric (includes 年) and no other fDateOverride.
-    if (fCalendar != nullptr && uprv_strcmp(fCalendar->getType(),"japanese") == 0 &&
+    if (fCalendar != nullptr && typeid(*fCalendar) == typeid(JapaneseCalendar) &&
             uprv_strcmp(fLocale.getLanguage(),"ja") == 0) {
         if (fDateOverride==UnicodeString(u"y=jpanyear") && !fHasHanYearChar) {
             // Gannen numbering is set but new pattern should not use it, unset;
@@ -4362,7 +4367,7 @@ SimpleDateFormat::compareSimpleAffix(const UnicodeString& affix,
 int32_t
 SimpleDateFormat::skipPatternWhiteSpace(const UnicodeString& text, int32_t pos) const {
     const char16_t* s = text.getBuffer();
-    return (int32_t)(PatternProps::skipWhiteSpace(s + pos, text.length() - pos) - s);
+    return static_cast<int32_t>(PatternProps::skipWhiteSpace(s + pos, text.length() - pos) - s);
 }
 
 //----------------------------------------------------------------------

@@ -105,7 +105,7 @@
       # Flat merge `third_party/inspector_protocol:inspector_string_conversions`
       '<(inspector_path)/v8-string-conversions.cc',
       '<(inspector_path)/v8-string-conversions.h',
-      # Flat merge `third_party/inspector_protocal:crdtp_platform`
+      # Flat merge `third_party/inspector_protocol:crdtp_platform`
       '<(inspector_protocol_path)/crdtp/json_platform.h',
       '<(inspector_protocol_path)/crdtp/json_platform_v8.cc',
       # Flat merge `third_party/inspector_protocol:crdtp`
@@ -119,7 +119,6 @@
       '<(inspector_protocol_path)/crdtp/find_by_first.h',
       '<(inspector_protocol_path)/crdtp/json.cc',
       '<(inspector_protocol_path)/crdtp/json.h',
-      '<(inspector_protocol_path)/crdtp/maybe.h',
       '<(inspector_protocol_path)/crdtp/parser_handler.h',
       '<(inspector_protocol_path)/crdtp/protocol_core.cc',
       '<(inspector_protocol_path)/crdtp/protocol_core.h',
@@ -129,51 +128,13 @@
       '<(inspector_protocol_path)/crdtp/span.h',
       '<(inspector_protocol_path)/crdtp/status.cc',
       '<(inspector_protocol_path)/crdtp/status.h',
+
+      '<@(inspector_generated_sources)',
     ],
     'v8_inspector_js_protocol': '<(V8_ROOT)/include/js_protocol.pdl',
   },
   'include_dirs': [
     '<(inspector_generated_output_root)',
     '<(inspector_protocol_path)',
-  ],
-  'actions': [
-    {
-      'action_name': 'protocol_compatibility',
-      'inputs': [
-        '<(v8_inspector_js_protocol)',
-      ],
-      'outputs': [
-        '<@(inspector_generated_output_root)/src/js_protocol.stamp',
-      ],
-      'action': [
-        '<(python)',
-        '<(inspector_protocol_path)/check_protocol_compatibility.py',
-        '--stamp', '<@(_outputs)',
-        '<@(_inputs)',
-      ],
-      'message': 'Checking inspector protocol compatibility',
-    },
-    {
-      'action_name': 'protocol_generated_sources',
-      'inputs': [
-        '<(v8_inspector_js_protocol)',
-        '<(inspector_path)/inspector_protocol_config.json',
-        '<@(inspector_protocol_files)',
-      ],
-      'outputs': [
-        '<@(inspector_generated_sources)',
-      ],
-      'process_outputs_as_sources': 1,
-      'action': [
-        '<(python)',
-        '<(inspector_protocol_path)/code_generator.py',
-        '--jinja_dir', '<(V8_ROOT)/third_party',
-        '--output_base', '<(inspector_generated_output_root)/src/inspector',
-        '--config', '<(inspector_path)/inspector_protocol_config.json',
-        '--config_value', 'protocol.path=<(v8_inspector_js_protocol)',
-        '--inspector_protocol_dir', '<(inspector_protocol_path)',
-      ],
-      'message': 'Generating inspector protocol sources from protocol json',
-    },
   ],
 }

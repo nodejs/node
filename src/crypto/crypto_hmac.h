@@ -36,16 +36,16 @@ class Hmac : public BaseObject {
   static void Sign(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
-  HMACCtxPointer ctx_;
+  ncrypto::HMACCtxPointer ctx_;
 };
 
 struct HmacConfig final : public MemoryRetainer {
   CryptoJobMode job_mode;
   SignConfiguration::Mode mode;
-  std::shared_ptr<KeyObjectData> key;
+  KeyObjectData key;
   ByteSource data;
   ByteSource signature;
-  const EVP_MD* digest;
+  ncrypto::Digest digest;
 
   HmacConfig() = default;
 
@@ -67,22 +67,20 @@ struct HmacTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_SIGNREQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
       HmacConfig* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const HmacConfig& params,
-      ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const HmacConfig& params,
+                         ByteSource* out,
+                         CryptoJobMode mode);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const HmacConfig& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const HmacConfig& params,
+                                                ByteSource* out);
 };
 
 using HmacJob = DeriveBitsJob<HmacTraits>;

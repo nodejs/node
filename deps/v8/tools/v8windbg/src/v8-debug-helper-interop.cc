@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "tools/debug_helper/debug-helper.h"
 #include "tools/v8windbg/base/utilities.h"
+#include "tools/v8windbg/src/cur-isolate.h"
 #include "tools/v8windbg/src/v8windbg-extension.h"
 
 namespace d = v8::debug_helper;
@@ -111,6 +112,35 @@ std::vector<Property> GetPropertiesAsVector(size_t num_properties,
   return result;
 }
 
+HRESULT GetMetadataPointerTableAddress(WRL::ComPtr<IDebugHostContext> context,
+                                       uintptr_t* result) {
+  WRL::ComPtr<IModelObject> isolate_instance_ptr;
+  RETURN_IF_FAIL(GetCurrentIsolate(isolate_instance_ptr));
+
+  WRL::ComPtr<IModelObject> isolate_instance;
+  RETURN_IF_FAIL(isolate_instance_ptr->Dereference(&isolate_instance));
+
+  // Access field {IsolateGroup* isolate_group_} in class {Isolate}.
+  WRL::ComPtr<IModelObject> isolate_group_pointer;
+  RETURN_IF_FAIL(isolate_instance->GetRawValue(SymbolKind::SymbolField,
+                                               L"isolate_group_", RawSearchNone,
+                                               &isolate_group_pointer));
+
+  WRL::ComPtr<IModelObject> isolate_group;
+  RETURN_IF_FAIL(isolate_group_pointer->Dereference(&isolate_group));
+
+  // Access field {metadata_pointer_table_} in class {IsolateGroup}.
+  WRL::ComPtr<IModelObject> metadata_pointer_table;
+  RETURN_IF_FAIL(isolate_group->GetRawValue(
+      SymbolKind::SymbolField, L"metadata_pointer_table_", RawSearchNone,
+      &metadata_pointer_table));
+
+  Location location;
+  RETURN_IF_FAIL(metadata_pointer_table->GetLocation(&location));
+  *result = location.Offset;
+  return S_OK;
+}
+
 V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
                            uint64_t tagged_ptr, uint64_t referring_pointer,
                            const char* type_name, bool is_compressed) {
@@ -119,11 +149,16 @@ V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
   V8HeapObject obj;
   MemReaderScope reader_scope(sp_context);
 
-  d::HeapAddresses heap_addresses = {0, 0, 0, 0};
+  d::HeapAddresses heap_addresses = {0, 0, 0, 0, 0};
   // TODO ideally we'd provide real heap page pointers. For now, just testing
   // decompression based on the pointer to wherever we found this value,
   // which is likely (though not guaranteed) to be a heap pointer itself.
   heap_addresses.any_heap_pointer = referring_pointer;
+
+  // Ignore the return value; there is nothing useful we can do in case of
+  // failure.
+  GetMetadataPointerTableAddress(sp_context,
+                                 &heap_addresses.metadata_pointer_table);
 
   auto props = d::GetObjectProperties(tagged_ptr, reader_scope.GetReader(),
                                       heap_addresses, type_name);
@@ -136,10 +171,10 @@ V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
   if (referring_pointer != 0) {
     for (size_t type_index = 0; type_index < props->num_guessed_types;
          ++type_index) {
-      const std::string& type_name = props->guessed_types[type_index];
+      const std::string& guessed_type_name = props->guessed_types[type_index];
       Property dest_prop(
-          ConvertToU16String(("guessed type " + type_name).c_str()),
-          ConvertToU16String(type_name), referring_pointer,
+          ConvertToU16String(("guessed type " + guessed_type_name).c_str()),
+          ConvertToU16String(guessed_type_name), referring_pointer,
           is_compressed ? i::kTaggedSize : sizeof(void*));
       obj.properties.push_back(dest_prop);
     }

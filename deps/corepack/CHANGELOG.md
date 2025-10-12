@@ -1,5 +1,101 @@
 # Changelog
 
+## [0.34.0](https://github.com/nodejs/corepack/compare/v0.33.0...v0.34.0) (2025-07-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* drop Node.js 18.x and 23.x support
+
+### Features
+
+* update package manager versions ([#719](https://github.com/nodejs/corepack/issues/719)) ([7707ea7](https://github.com/nodejs/corepack/commit/7707ea7350c129ad3aae8ca08e9e80fcf164dcb6))
+
+
+### Miscellaneous Chores
+
+* remove Node.js 18.x and 23.x usage, add 24.x ([#718](https://github.com/nodejs/corepack/issues/718)) ([783a42f](https://github.com/nodejs/corepack/commit/783a42fbe35371964e9dde75e2263b179f53bc0c))
+
+## [0.33.0](https://github.com/nodejs/corepack/compare/v0.32.0...v0.33.0) (2025-06-02)
+
+
+### Features
+
+* Adds guard to avoid stepping on Yarn's feet ([#714](https://github.com/nodejs/corepack/issues/714)) ([5fc3691](https://github.com/nodejs/corepack/commit/5fc3691354eb5bdeca17a9495b234584353f0151))
+* update package manager versions ([#671](https://github.com/nodejs/corepack/issues/671)) ([b45b3a3](https://github.com/nodejs/corepack/commit/b45b3a3244bacfbaf65188ae8c04209a1e98307d))
+
+
+### Bug Fixes
+
+* debug text typo ([#698](https://github.com/nodejs/corepack/issues/698)) ([0b94797](https://github.com/nodejs/corepack/commit/0b94797f96e30e46e466873fe7d437d0471cd92c))
+
+## [0.32.0](https://github.com/nodejs/corepack/compare/v0.31.0...v0.32.0) (2025-02-28)
+
+
+### Features
+
+* add limited support for `devEngines` ([#643](https://github.com/nodejs/corepack/issues/643)) ([b456268](https://github.com/nodejs/corepack/commit/b4562688513f23e37e37b0d69a0daff33ca84c8d))
+* add more informative error when fetching latest stable fails ([#644](https://github.com/nodejs/corepack/issues/644)) ([53b1fe7](https://github.com/nodejs/corepack/commit/53b1fe75c47c06bd72a8b8f8bb699a47c9ca32fb))
+* add support for `.corepack.env` ([#642](https://github.com/nodejs/corepack/issues/642)) ([9b95b46](https://github.com/nodejs/corepack/commit/9b95b46f05e50fe1c60f05309c210ba8fe4e23c5))
+* update package manager versions ([#617](https://github.com/nodejs/corepack/issues/617)) ([b83bb5e](https://github.com/nodejs/corepack/commit/b83bb5ec150980c998b9c7053dff307d912cb508))
+
+
+### Bug Fixes
+
+* do not resolve fallback descriptor when `packageManager` is defined ([#632](https://github.com/nodejs/corepack/issues/632)) ([12e77e5](https://github.com/nodejs/corepack/commit/12e77e506946d42a0de9ce8e68d75af8454d6776))
+* **doc:** fix link to proxy library ([#636](https://github.com/nodejs/corepack/issues/636)) ([bae0839](https://github.com/nodejs/corepack/commit/bae08397943d4b99437389b4286546361091f4b3))
+* replace explicit with specify as verb ([#665](https://github.com/nodejs/corepack/issues/665)) ([351d86c](https://github.com/nodejs/corepack/commit/351d86c20226a8c18bfe212be27401f2908b1595))
+* **use:** do not throw on invalid `packageManager` ([#663](https://github.com/nodejs/corepack/issues/663)) ([4be72f6](https://github.com/nodejs/corepack/commit/4be72f6941afa0c9b2b7d26635016bb7b560df8a))
+
+## [0.31.0](https://github.com/nodejs/corepack/compare/v0.30.0...v0.31.0) (2025-01-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* drop support for Node.js 21.x ([#594](https://github.com/nodejs/corepack/issues/594))
+
+### Features
+
+* update package manager versions ([#595](https://github.com/nodejs/corepack/issues/595)) ([c7a9bde](https://github.com/nodejs/corepack/commit/c7a9bde16dcbbb7e6ef03fef740656cde7ade360))
+
+
+### Bug Fixes
+
+* only print message for `UsageError`s ([#602](https://github.com/nodejs/corepack/issues/602)) ([72a588c](https://github.com/nodejs/corepack/commit/72a588c2370c17e415b24fe389efdafb3c84e90b))
+* update npm registry keys ([#614](https://github.com/nodejs/corepack/issues/614)) ([8c90caa](https://github.com/nodejs/corepack/commit/8c90caab7f1c5c9b89f1de113bc1dfc441bf25d2))
+
+
+### Miscellaneous Chores
+
+* drop support for Node.js 21.x ([#594](https://github.com/nodejs/corepack/issues/594)) ([8bebc0c](https://github.com/nodejs/corepack/commit/8bebc0c0a5cbcdeec41673dcbaf581e6e1c1be11))
+
+## [0.30.0](https://github.com/nodejs/corepack/compare/v0.29.4...v0.30.0) (2024-11-23)
+
+
+### Features
+
+* update package manager versions ([#578](https://github.com/nodejs/corepack/issues/578)) ([a286c8f](https://github.com/nodejs/corepack/commit/a286c8f5537ea9ecf9b6ff53c7bc3e8da4e3c8bb))
+
+
+### Performance Improvements
+
+* prefer `module.enableCompileCache` over `v8-compile-cache` ([#574](https://github.com/nodejs/corepack/issues/574)) ([cba6905](https://github.com/nodejs/corepack/commit/cba690575bd606faeee54bd512ccb8797d49055f))
+
+## [0.29.4](https://github.com/nodejs/corepack/compare/v0.29.3...v0.29.4) (2024-09-07)
+
+
+### Features
+
+* update package manager versions ([#543](https://github.com/nodejs/corepack/issues/543)) ([b819e40](https://github.com/nodejs/corepack/commit/b819e404dbb23c4ae3d5dbe55e21de74d714ee9c))
+
+## [0.29.3](https://github.com/nodejs/corepack/compare/v0.29.2...v0.29.3) (2024-07-21)
+
+
+### Bug Fixes
+
+* fallback to `shasum` when `integrity` is not defined ([#542](https://github.com/nodejs/corepack/issues/542)) ([eb63873](https://github.com/nodejs/corepack/commit/eb63873c6c617a2f8ac7106e26ccfe8aa3ae1fb9))
+* make `DEBUG=corepack` more useful ([#538](https://github.com/nodejs/corepack/issues/538)) ([6019d7b](https://github.com/nodejs/corepack/commit/6019d7b56e85bd8b7b58a1a487922c707e70e30e))
+
 ## [0.29.2](https://github.com/nodejs/corepack/compare/v0.29.1...v0.29.2) (2024-07-13)
 
 

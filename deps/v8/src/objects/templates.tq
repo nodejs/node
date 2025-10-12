@@ -2,9 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+bitfield struct TemplateInfoFlags extends uint31 {
+  is_cacheable: bool: 1 bit;
+  should_promote_to_read_only: bool: 1 bit;
+  serial_number: uint32: 29 bit;
+}
+
 @abstract
 extern class TemplateInfo extends HeapObject {
-  serial_number: Smi;
+  template_info_flags: SmiTagged<TemplateInfoFlags>;
+}
+
+@abstract
+extern class TemplateInfoWithProperties extends TemplateInfo {
   number_of_properties: Smi;
   property_list: ArrayList|Undefined;
   property_accessors: ArrayList|Undefined;
@@ -42,8 +52,12 @@ bitfield struct FunctionTemplateInfoFlags extends uint32 {
 }
 
 @generateUniqueMap
-extern class FunctionTemplateInfo extends TemplateInfo {
+extern class FunctionTemplateInfo extends TemplateInfoWithProperties {
   class_name: String|Undefined;
+  // Experimental exception preprocessing Api (https://crbug.com/328104148).
+  // This value is provided as contextual information for embedder
+  // exception preprocessing.
+  interface_name: String|Undefined;
   // If the signature is a FunctionTemplateInfo it is used to check whether the
   // receiver calling the associated JSFunction is a compatible receiver, i.e.
   // it is an instance of the signature FunctionTemplateInfo or any of the
@@ -76,6 +90,14 @@ extern class FunctionTemplateInfo extends TemplateInfo {
   // this FunctionTemplateInfo.
   instance_type: InstanceType;
 
+  // Experimental exception preprocessing Api (https://crbug.com/328104148).
+  // Provides information on the type of FunctionTemplate for embedder
+  // exception preprocessing.
+  exception_context: uint32;
+
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+
   // A callback invoked when calling an instance of this FunctionTemplateInfo.
   // For simulator builds this field contains the address of the trampoline
   // callable from generated code and for native builds - the address of
@@ -90,13 +112,12 @@ bitfield struct ObjectTemplateInfoFlags extends uint31 {
 }
 
 @generateUniqueMap
-extern class ObjectTemplateInfo extends TemplateInfo {
+extern class ObjectTemplateInfo extends TemplateInfoWithProperties {
   constructor: FunctionTemplateInfo|Undefined;
   data: SmiTagged<ObjectTemplateInfoFlags>;
 }
 
 @generateBodyDescriptor
-extern class DictionaryTemplateInfo extends HeapObject {
+extern class DictionaryTemplateInfo extends TemplateInfo {
   property_names: FixedArray;
-  serial_number: Smi;
 }

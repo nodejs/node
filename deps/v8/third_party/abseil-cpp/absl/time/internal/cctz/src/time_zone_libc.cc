@@ -12,11 +12,11 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-#if defined(_WIN32) || defined(_WIN64)
+#if !defined(_CRT_SECURE_NO_WARNINGS) && defined(_WIN32)
 #define _CRT_SECURE_NO_WARNINGS 1
 #endif
 
-#include "time_zone_libc.h"
+#include "absl/time/internal/cctz/src/time_zone_libc.h"
 
 #include <chrono>
 #include <ctime>

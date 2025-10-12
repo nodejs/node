@@ -14,13 +14,13 @@ namespace internal {
 
 class AlternativeGenerationList;
 class BoyerMooreLookahead;
-class GreedyLoopState;
+class FixedLengthLoopState;
 class NodeVisitor;
 class QuickCheckDetails;
 class RegExpCompiler;
+class SeqRegExpNode;
 class Trace;
 struct PreloadState;
-class ChoiceNode;
 
 #define FOR_EACH_NODE_TYPE(VISIT) \
   VISIT(End)                      \
@@ -31,6 +31,10 @@ class ChoiceNode;
   VISIT(BackReference)            \
   VISIT(Assertion)                \
   VISIT(Text)
+
+#define FORWARD_DECLARE(type) class type##Node;
+FOR_EACH_NODE_TYPE(FORWARD_DECLARE)
+#undef FORWARD_DECLARE
 
 struct NodeInfo final {
   NodeInfo()
@@ -144,7 +148,7 @@ class RegExpNode : public ZoneObject {
   // not at the start of the input.  In this case anchored branches will always
   // fail and can be ignored when determining how many characters are consumed
   // on success.  If this node has not been analyzed yet, EatsAtLeast returns 0.
-  int EatsAtLeast(bool not_at_start);
+  uint32_t EatsAtLeast(bool not_at_start);
   // Returns how many characters this node must consume in order to succeed,
   // given that this is a LoopChoiceNode whose counter register is in a
   // newly-initialized state at the current position in the generated code. For
@@ -181,8 +185,10 @@ class RegExpNode : public ZoneObject {
                                                  RegExpCompiler* compiler,
                                                  int characters_filled_in,
                                                  bool not_at_start);
-  static const int kNodeIsTooComplexForGreedyLoops = kMinInt;
-  virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
+  static const int kNodeIsTooComplexForFixedLengthLoops = kMinInt;
+  virtual int FixedLengthLoopLength() {
+    return kNodeIsTooComplexForFixedLengthLoops;
+  }
   // Only returns the successor for a text node of length 1 that matches any
   // character and that has no guards on it.
   virtual RegExpNode* GetSuccessorOfOmnivorousTextNode(
@@ -205,7 +211,7 @@ class RegExpNode : public ZoneObject {
   // If we know that the input is one-byte then there are some nodes that can
   // never match.  This method returns a node that can be substituted for
   // itself, or nullptr if the node can never match.
-  virtual RegExpNode* FilterOneByte(int depth, RegExpFlags flags) {
+  virtual RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) {
     return this;
   }
   // Helper for FilterOneByte.
@@ -257,6 +263,13 @@ class RegExpNode : public ZoneObject {
     return bm_info_[not_at_start ? 1 : 0];
   }
 
+#define DECLARE_CAST(type) \
+  virtual type##Node* As##type##Node() { return nullptr; }
+  FOR_EACH_NODE_TYPE(DECLARE_CAST)
+#undef DECLARE_CAST
+
+  virtual SeqRegExpNode* AsSeqRegExpNode() { return nullptr; }
+
   Zone* zone() const { return zone_; }
 
  protected:
@@ -296,15 +309,16 @@ class SeqRegExpNode : public RegExpNode {
       : RegExpNode(on_success->zone()), on_success_(on_success) {}
   RegExpNode* on_success() { return on_success_; }
   void set_on_success(RegExpNode* node) { on_success_ = node; }
-  RegExpNode* FilterOneByte(int depth, RegExpFlags flags) override;
+  RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
                     BoyerMooreLookahead* bm, bool not_at_start) override {
     on_success_->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
     if (offset == 0) set_bm_info(not_at_start, bm);
   }
+  SeqRegExpNode* AsSeqRegExpNode() override { return this; }
 
  protected:
-  RegExpNode* FilterSuccessor(int depth, RegExpFlags flags);
+  RegExpNode* FilterSuccessor(int depth, RegExpCompiler* compiler);
 
  private:
   RegExpNode* on_success_;
@@ -315,7 +329,8 @@ class ActionNode : public SeqRegExpNode {
   enum ActionType {
     SET_REGISTER_FOR_LOOP,
     INCREMENT_REGISTER,
-    STORE_POSITION,
+    CLEAR_POSITION,
+    RESTORE_POSITION,
     BEGIN_POSITIVE_SUBMATCH,
     BEGIN_NEGATIVE_SUBMATCH,
     POSITIVE_SUBMATCH_SUCCESS,
@@ -326,12 +341,12 @@ class ActionNode : public SeqRegExpNode {
   static ActionNode* SetRegisterForLoop(int reg, int val,
                                         RegExpNode* on_success);
   static ActionNode* IncrementRegister(int reg, RegExpNode* on_success);
-  static ActionNode* StorePosition(int reg, bool is_capture,
-                                   RegExpNode* on_success);
+  static ActionNode* ClearPosition(int reg, RegExpNode* on_success);
+  static ActionNode* RestorePosition(int reg, RegExpNode* on_success);
   static ActionNode* ClearCaptures(Interval range, RegExpNode* on_success);
   static ActionNode* BeginPositiveSubmatch(int stack_pointer_reg,
-                                           int position_reg,
-                                           RegExpNode* on_success);
+                                           int position_reg, RegExpNode* body,
+                                           ActionNode* success_node);
   static ActionNode* BeginNegativeSubmatch(int stack_pointer_reg,
                                            int position_reg,
                                            RegExpNode* on_success);
@@ -345,6 +360,7 @@ class ActionNode : public SeqRegExpNode {
                                      int repetition_limit,
                                      RegExpNode* on_success);
   static ActionNode* ModifyFlags(RegExpFlags flags, RegExpNode* on_success);
+  ActionNode* AsActionNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
   void Emit(RegExpCompiler* compiler, Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
@@ -352,34 +368,70 @@ class ActionNode : public SeqRegExpNode {
                             bool not_at_start) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
                     BoyerMooreLookahead* bm, bool not_at_start) override;
-  ActionType action_type() { return action_type_; }
-  // TODO(erikcorry): We should allow some action nodes in greedy loops.
-  int GreedyLoopTextLength() override {
-    return kNodeIsTooComplexForGreedyLoops;
+  ActionType action_type() const { return action_type_; }
+  // TODO(erikcorry): We should allow some action nodes in fixed length loops.
+  int FixedLengthLoopLength() override {
+    return kNodeIsTooComplexForFixedLengthLoops;
   }
-  RegExpFlags flags() {
+  RegExpFlags flags() const {
     DCHECK_EQ(action_type(), MODIFY_FLAGS);
     return RegExpFlags{data_.u_modify_flags.flags};
+  }
+  ActionNode* success_node() const {
+    DCHECK_EQ(action_type(), BEGIN_POSITIVE_SUBMATCH);
+    return data_.u_submatch.success_node;
+  }
+
+  bool Mentions(int reg) const {
+    return base::IsInRange(reg, register_from(), register_to());
+  }
+
+  int value() const {
+    DCHECK(action_type() == SET_REGISTER_FOR_LOOP);
+    return data_.u_simple.value;
+  }
+
+  bool IsSimpleAction() const {
+    return action_type() == CLEAR_POSITION ||
+           action_type() == RESTORE_POSITION ||
+           action_type() == INCREMENT_REGISTER ||
+           action_type() == SET_REGISTER_FOR_LOOP ||
+           action_type() == CLEAR_CAPTURES;
+  }
+
+  int register_from() const {
+    DCHECK(IsSimpleAction());
+    return data_.u_simple.register_from;
+  }
+
+  int register_to() const { return data_.u_simple.register_to; }
+
+ protected:
+  ActionNode(ActionType action_type, RegExpNode* on_success)
+      : SeqRegExpNode(on_success), action_type_(action_type) {}
+
+  ActionNode(ActionType action_type, RegExpNode* on_success, int from,
+             int to = -1, int value = 0)
+      : SeqRegExpNode(on_success), action_type_(action_type) {
+    data_.u_simple.register_from = from;
+    data_.u_simple.register_to = to == -1 ? from : to;
+    data_.u_simple.value = value;
+    DCHECK(IsSimpleAction());
   }
 
  private:
   union {
     struct {
-      int reg;
+      int register_from;
+      int register_to;
       int value;
-    } u_store_register;
-    struct {
-      int reg;
-    } u_increment_register;
-    struct {
-      int reg;
-      bool is_capture;
-    } u_position_register;
+    } u_simple;
     struct {
       int stack_pointer_register;
       int current_position_register;
       int clear_register_count;
       int clear_register_from;
+      ActionNode* success_node;  // Only used for positive submatch.
     } u_submatch;
     struct {
       int start_register;
@@ -387,15 +439,9 @@ class ActionNode : public SeqRegExpNode {
       int repetition_limit;
     } u_empty_match_check;
     struct {
-      int range_from;
-      int range_to;
-    } u_clear_captures;
-    struct {
       int flags;
     } u_modify_flags;
   } data_;
-  ActionNode(ActionType action_type, RegExpNode* on_success)
-      : SeqRegExpNode(on_success), action_type_(action_type) {}
 
   ActionType action_type_;
   friend class DotPrinterImpl;
@@ -428,6 +474,7 @@ class TextNode : public SeqRegExpNode {
                                           CharacterRange trail,
                                           bool read_backward,
                                           RegExpNode* on_success);
+  TextNode* AsTextNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
   void Emit(RegExpCompiler* compiler, Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
@@ -437,26 +484,23 @@ class TextNode : public SeqRegExpNode {
   bool read_backward() { return read_backward_; }
   void MakeCaseIndependent(Isolate* isolate, bool is_one_byte,
                            RegExpFlags flags);
-  int GreedyLoopTextLength() override;
+  int FixedLengthLoopLength() override;
   RegExpNode* GetSuccessorOfOmnivorousTextNode(
       RegExpCompiler* compiler) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
                     BoyerMooreLookahead* bm, bool not_at_start) override;
   void CalculateOffsets();
-  RegExpNode* FilterOneByte(int depth, RegExpFlags flags) override;
+  RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) override;
   int Length();
 
  private:
   enum TextEmitPassType {
-    NON_LATIN1_MATCH,            // Check for characters that can't match.
+    NON_LATIN1_MATCH,            // Check for characters that can never match.
     SIMPLE_CHARACTER_MATCH,      // Case-dependent single character check.
     NON_LETTER_CHARACTER_MATCH,  // Check characters that have no case equivs.
     CASE_CHARACTER_MATCH,        // Case-independent single character check.
     CHARACTER_CLASS_MATCH        // Character class.
   };
-  static bool SkipPass(TextEmitPassType pass, bool ignore_case);
-  static const int kFirstRealPass = SIMPLE_CHARACTER_MATCH;
-  static const int kLastPass = CHARACTER_CLASS_MATCH;
   void TextEmitPass(RegExpCompiler* compiler, TextEmitPassType pass,
                     bool preloaded, Trace* trace, bool first_element_checked,
                     int* checked_up_to);
@@ -488,6 +532,7 @@ class AssertionNode : public SeqRegExpNode {
   static AssertionNode* AfterNewline(RegExpNode* on_success) {
     return on_success->zone()->New<AssertionNode>(AFTER_NEWLINE, on_success);
   }
+  AssertionNode* AsAssertionNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
   void Emit(RegExpCompiler* compiler, Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
@@ -517,6 +562,7 @@ class BackReferenceNode : public SeqRegExpNode {
         start_reg_(start_reg),
         end_reg_(end_reg),
         read_backward_(read_backward) {}
+  BackReferenceNode* AsBackReferenceNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
@@ -540,6 +586,7 @@ class EndNode : public RegExpNode {
  public:
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
   EndNode(Action action, Zone* zone) : RegExpNode(zone), action_(action) {}
+  EndNode* AsEndNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
   void Emit(RegExpCompiler* compiler, Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
@@ -615,6 +662,7 @@ class ChoiceNode : public RegExpNode {
             zone->New<ZoneList<GuardedAlternative>>(expected_size, zone)),
         not_at_start_(false),
         being_calculated_(false) {}
+  ChoiceNode* AsChoiceNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
   void AddAlternative(GuardedAlternative node) {
     alternatives()->Add(node, zone());
@@ -634,11 +682,11 @@ class ChoiceNode : public RegExpNode {
   virtual bool try_to_emit_quick_check_for_alternative(bool is_first) {
     return true;
   }
-  RegExpNode* FilterOneByte(int depth, RegExpFlags flags) override;
+  RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) override;
   virtual bool read_backward() { return false; }
 
  protected:
-  int GreedyLoopTextLengthForAlternative(GuardedAlternative* alternative);
+  int FixedLengthLoopLengthForAlternative(GuardedAlternative* alternative);
   ZoneList<GuardedAlternative>* alternatives_;
 
  private:
@@ -657,10 +705,11 @@ class ChoiceNode : public RegExpNode {
                     PreloadState* preloads);
   void AssertGuardsMentionRegisters(Trace* trace);
   int EmitOptimizedUnanchoredSearch(RegExpCompiler* compiler, Trace* trace);
-  Trace* EmitGreedyLoop(RegExpCompiler* compiler, Trace* trace,
-                        AlternativeGenerationList* alt_gens,
-                        PreloadState* preloads,
-                        GreedyLoopState* greedy_loop_state, int text_length);
+  Trace* EmitFixedLengthLoop(RegExpCompiler* compiler, Trace* trace,
+                             AlternativeGenerationList* alt_gens,
+                             PreloadState* preloads,
+                             FixedLengthLoopState* fixed_length_loop_state,
+                             int text_length);
   void EmitChoices(RegExpCompiler* compiler,
                    AlternativeGenerationList* alt_gens, int first_choice,
                    Trace* trace, PreloadState* preloads);
@@ -705,8 +754,11 @@ class NegativeLookaroundChoiceNode : public ChoiceNode {
   bool try_to_emit_quick_check_for_alternative(bool is_first) override {
     return !is_first;
   }
+  NegativeLookaroundChoiceNode* AsNegativeLookaroundChoiceNode() override {
+    return this;
+  }
   void Accept(NodeVisitor* visitor) override;
-  RegExpNode* FilterOneByte(int depth, RegExpFlags flags) override;
+  RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) override;
 };
 
 class LoopChoiceNode : public ChoiceNode {
@@ -738,8 +790,9 @@ class LoopChoiceNode : public ChoiceNode {
   bool body_can_be_zero_length() { return body_can_be_zero_length_; }
   int min_loop_iterations() const { return min_loop_iterations_; }
   bool read_backward() override { return read_backward_; }
+  LoopChoiceNode* AsLoopChoiceNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
-  RegExpNode* FilterOneByte(int depth, RegExpFlags flags) override;
+  RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) override;
 
  private:
   // AddAlternative is made private for loop nodes because alternatives

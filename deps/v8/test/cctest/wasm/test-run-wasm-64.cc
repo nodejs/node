@@ -7,12 +7,12 @@
 #include <string.h>
 
 #include "src/base/bits.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/safe_conversions.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/common/value-helper.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -1505,7 +1505,6 @@ WASM_EXEC_TEST(Compile_Wasm_CallIndirect_Many_i64) {
 static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
   const int kExpected = 6333;
   const int kElemSize = 8;
-  TestSignatures sigs;
 
   static MachineType mixed[] = {
       MachineType::Int32(),   MachineType::Float32(), MachineType::Int64(),
@@ -1531,7 +1530,7 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
     for (int i = 0; i < num_params; i++) {
       b.AddParam(ValueType::For(memtypes[i]));
     }
-    WasmFunctionCompiler& f = r.NewFunction(b.Build());
+    WasmFunctionCompiler& f = r.NewFunction(b.Get());
     f.Build({WASM_LOCAL_GET(which)});
 
     // =========================================================================

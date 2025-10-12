@@ -5,17 +5,20 @@
 #ifndef V8_OBJECTS_INSTANCE_TYPE_INL_H_
 #define V8_OBJECTS_INSTANCE_TYPE_INL_H_
 
-#include "src/base/bounds.h"
-#include "src/execution/isolate-utils-inl.h"
-#include "src/objects/instance-type-checker.h"
 #include "src/objects/instance-type.h"
-#include "src/objects/map-inl.h"
+// Include the non-inl header before the rest of the headers.
+
+#include <optional>
+
+#include "src/base/bounds.h"
+#include "src/common/ptr-compr-inl.h"
+#include "src/objects/instance-type-checker.h"
+#include "src/objects/map.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace InstanceTypeChecker {
 
@@ -39,20 +42,20 @@ HEAP_OBJECT_TYPE_LIST(DECL_TYPE)
 // Instance types which are associated with one unique map.
 
 template <class type>
-V8_INLINE constexpr base::Optional<RootIndex> UniqueMapOfInstanceTypeCheck() {
+V8_INLINE consteval std::optional<RootIndex> UniqueMapOfInstanceTypeCheck() {
   return {};
 }
 
 #define INSTANCE_TYPE_MAP(V, rootIndexName, rootAccessorName, class_name) \
   template <>                                                             \
-  V8_INLINE constexpr base::Optional<RootIndex>                           \
+  V8_INLINE consteval std::optional<RootIndex>                            \
   UniqueMapOfInstanceTypeCheck<InstanceTypeTraits::class_name>() {        \
     return {RootIndex::k##rootIndexName};                                 \
   }
 UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(INSTANCE_TYPE_MAP, _)
 #undef INSTANCE_TYPE_MAP
 
-V8_INLINE constexpr base::Optional<RootIndex> UniqueMapOfInstanceType(
+V8_INLINE constexpr std::optional<RootIndex> UniqueMapOfInstanceType(
     InstanceType type) {
 #define INSTANCE_TYPE_CHECK(it, forinstancetype)              \
   if (type == forinstancetype) {                              \
@@ -65,16 +68,6 @@ V8_INLINE constexpr base::Optional<RootIndex> UniqueMapOfInstanceType(
   return Map::TryGetMapRootIdxFor(type);
 }
 
-template <InstanceType type>
-constexpr bool kHasUniqueMapOfInstanceType =
-    UniqueMapOfInstanceType(type).has_value();
-
-template <InstanceType type>
-constexpr RootIndex kUniqueMapOfInstanceType =
-  kHasUniqueMapOfInstanceType<type>?
-    *UniqueMapOfInstanceType(type):
-    RootIndex::kRootListLength;
-
 // Manually curated list of instance type ranges which are associated with a
 // unique range of map addresses on the read only heap. Both ranges are
 // inclusive.
@@ -83,17 +76,24 @@ using InstanceTypeRange = std::pair<InstanceType, InstanceType>;
 using TaggedAddressRange = std::pair<Tagged_t, Tagged_t>;
 
 #if V8_STATIC_ROOTS_BOOL
-constexpr std::array<std::pair<InstanceTypeRange, TaggedAddressRange>, 6>
+constexpr std::array<std::pair<InstanceTypeRange, TaggedAddressRange>, 9>
     kUniqueMapRangeOfInstanceTypeRangeList = {
         {{{ALLOCATION_SITE_TYPE, ALLOCATION_SITE_TYPE},
           {StaticReadOnlyRoot::kAllocationSiteWithWeakNextMap,
            StaticReadOnlyRoot::kAllocationSiteWithoutWeakNextMap}},
          {{FIRST_STRING_TYPE, LAST_STRING_TYPE},
-          {StaticReadOnlyRoot::kSeqTwoByteStringMap,
-           StaticReadOnlyRoot::kSharedSeqOneByteStringMap}},
+          {InstanceTypeChecker::kStringMapLowerBound,
+           InstanceTypeChecker::kStringMapUpperBound}},
          {{FIRST_NAME_TYPE, LAST_NAME_TYPE},
-          {StaticReadOnlyRoot::kSeqTwoByteStringMap,
+          {InstanceTypeChecker::kStringMapLowerBound,
            StaticReadOnlyRoot::kSymbolMap}},
+         {{ODDBALL_TYPE, ODDBALL_TYPE},
+          {StaticReadOnlyRoot::kUndefinedMap, StaticReadOnlyRoot::kBooleanMap}},
+         {{HEAP_NUMBER_TYPE, ODDBALL_TYPE},
+          {StaticReadOnlyRoot::kUndefinedMap,
+           StaticReadOnlyRoot::kHeapNumberMap}},
+         {{BIGINT_TYPE, HEAP_NUMBER_TYPE},
+          {StaticReadOnlyRoot::kHeapNumberMap, StaticReadOnlyRoot::kBigIntMap}},
          {{FIRST_SMALL_ORDERED_HASH_TABLE_TYPE,
            LAST_SMALL_ORDERED_HASH_TABLE_TYPE},
           {StaticReadOnlyRoot::kSmallOrderedHashMapMap,
@@ -107,18 +107,56 @@ constexpr std::array<std::pair<InstanceTypeRange, TaggedAddressRange>, 6>
            StaticReadOnlyRoot::kTurbofanOtherNumberConstantTypeMap}}}};
 
 struct kUniqueMapRangeOfStringType {
-  static constexpr TaggedAddressRange kInternalizedString = {
-      StaticReadOnlyRoot::kExternalInternalizedTwoByteStringMap,
+  static constexpr TaggedAddressRange kSeqString = {
+      InstanceTypeChecker::kStringMapLowerBound,
       StaticReadOnlyRoot::kInternalizedOneByteStringMap};
-  static constexpr TaggedAddressRange kExternalString = {
-      StaticReadOnlyRoot::kExternalTwoByteStringMap,
+  static constexpr TaggedAddressRange kInternalizedString = {
+      StaticReadOnlyRoot::kInternalizedTwoByteStringMap,
       StaticReadOnlyRoot::kUncachedExternalInternalizedOneByteStringMap};
+  static constexpr TaggedAddressRange kExternalString = {
+      StaticReadOnlyRoot::kExternalInternalizedTwoByteStringMap,
+      StaticReadOnlyRoot::kExternalOneByteStringMap};
+  static constexpr TaggedAddressRange kUncachedExternalString = {
+      StaticReadOnlyRoot::kUncachedExternalInternalizedTwoByteStringMap,
+      StaticReadOnlyRoot::kSharedUncachedExternalOneByteStringMap};
+  static constexpr TaggedAddressRange kConsString = {
+      StaticReadOnlyRoot::kConsTwoByteStringMap,
+      StaticReadOnlyRoot::kConsOneByteStringMap};
+  static constexpr TaggedAddressRange kSlicedString = {
+      StaticReadOnlyRoot::kSlicedTwoByteStringMap,
+      StaticReadOnlyRoot::kSlicedOneByteStringMap};
   static constexpr TaggedAddressRange kThinString = {
       StaticReadOnlyRoot::kThinTwoByteStringMap,
       StaticReadOnlyRoot::kThinOneByteStringMap};
+  static constexpr TaggedAddressRange kSharedSeqString = {
+      InstanceTypeChecker::kStringMapLowerBound,
+      StaticReadOnlyRoot::kSharedSeqOneByteStringMap};
+  static constexpr TaggedAddressRange kSharedExternalString = {
+      StaticReadOnlyRoot::kSharedUncachedExternalTwoByteStringMap,
+      StaticReadOnlyRoot::kSharedExternalOneByteStringMap};
+  static constexpr TaggedAddressRange kDirectString = {
+      InstanceTypeChecker::kStringMapLowerBound,
+      StaticReadOnlyRoot::kExternalOneByteStringMap};
+  static constexpr TaggedAddressRange kIndirectString = {
+      StaticReadOnlyRoot::kConsTwoByteStringMap,
+      StaticReadOnlyRoot::kThinOneByteStringMap};
 };
 
-inline constexpr base::Optional<TaggedAddressRange>
+// This one is very sneaky. String maps are laid out sequentially, and
+// alternate between two-byte and one-byte. Since they're sequential, each
+// address is one Map::kSize larger than the previous. This means that the LSB
+// of the map size alternates being set and unset for alternating string map
+// addresses, and therefore is on/off for all two-byte/one-byte strings. Which
+// of the two has the on-bit depends on the current RO heap layout, so just
+// sniff this by checking an arbitrary one-byte map's value.
+static constexpr uint32_t kStringMapEncodingMask =
+    1 << base::bits::CountTrailingZerosNonZero(Map::kSize);
+static constexpr uint32_t kOneByteStringMapBit =
+    StaticReadOnlyRoot::kSeqOneByteStringMap & kStringMapEncodingMask;
+static constexpr uint32_t kTwoByteStringMapBit =
+    StaticReadOnlyRoot::kSeqTwoByteStringMap & kStringMapEncodingMask;
+
+inline constexpr std::optional<TaggedAddressRange>
 UniqueMapRangeOfInstanceTypeRange(InstanceType first, InstanceType last) {
   // Doesn't use range based for loop due to LLVM <11 bug re. constexpr
   // functions.
@@ -131,32 +169,10 @@ UniqueMapRangeOfInstanceTypeRange(InstanceType first, InstanceType last) {
   return {};
 }
 
-constexpr inline TaggedAddressRange NULL_ADDRESS_RANGE{kNullAddress, kNullAddress};
-
-template <InstanceType first, InstanceType last>
-constexpr bool kHasUniqueMapRangeOfInstanceTypeRange =
-    UniqueMapRangeOfInstanceTypeRange(first, last).has_value();
-
-template <InstanceType first, InstanceType last>
-constexpr TaggedAddressRange kUniqueMapRangeOfInstanceTypeRange =
-  kHasUniqueMapRangeOfInstanceTypeRange<first, last>?
-    *UniqueMapRangeOfInstanceTypeRange(first, last):
-    NULL_ADDRESS_RANGE;
-
-inline constexpr base::Optional<TaggedAddressRange>
-UniqueMapRangeOfInstanceType(InstanceType type) {
+inline constexpr std::optional<TaggedAddressRange> UniqueMapRangeOfInstanceType(
+    InstanceType type) {
   return UniqueMapRangeOfInstanceTypeRange(type, type);
 }
-
-template <InstanceType type>
-constexpr bool kHasUniqueMapRangeOfInstanceType =
-    UniqueMapRangeOfInstanceType(type).has_value();
-
-template <InstanceType type>
-constexpr TaggedAddressRange kUniqueMapRangeOfInstanceType =
-  kHasUniqueMapRangeOfInstanceType<type>?
-    *UniqueMapRangeOfInstanceType(type):
-    NULL_ADDRESS_RANGE;
 
 inline bool MayHaveMapCheckFastCase(InstanceType type) {
   if (UniqueMapOfInstanceType(type)) return true;
@@ -173,10 +189,13 @@ inline bool CheckInstanceMap(RootIndex expected, Tagged<Map> map) {
          StaticReadOnlyRootsPointerTable[static_cast<size_t>(expected)];
 }
 
-inline bool CheckInstanceMapRange(TaggedAddressRange expected,
-                                  Tagged<Map> map) {
+inline constexpr bool CheckInstanceMapRange(TaggedAddressRange expected,
+                                            Tagged<Map> map) {
   Tagged_t ptr = V8HeapCompressionScheme::CompressObject(map.ptr());
-  return base::IsInRange(ptr, expected.first, expected.second);
+  // Make the upper limit be the end of the map object, rather than the start;
+  // this helps the C++ optimizer realize there are no "holes" between
+  // neighbouring map ranges, such as string map ranges.
+  return base::IsInRange(ptr, expected.first, expected.second + Map::kSize - 1);
 }
 
 #else
@@ -198,19 +217,19 @@ inline bool MayHaveMapCheckFastCase(InstanceType type) { return false; }
 
 #if V8_STATIC_ROOTS_BOOL
 
-#define INSTANCE_TYPE_CHECKER2(type, forinstancetype_)                   \
-  V8_INLINE bool Is##type(Tagged<Map> map_object) {                      \
-    constexpr InstanceType forinstancetype =                             \
-        static_cast<InstanceType>(forinstancetype_);                     \
-    if constexpr (kHasUniqueMapOfInstanceType<forinstancetype>) {        \
-      return CheckInstanceMap(kUniqueMapOfInstanceType<forinstancetype>, \
-                              map_object);                               \
-    }                                                                    \
-    if constexpr (kHasUniqueMapRangeOfInstanceType<forinstancetype>) {   \
-      return CheckInstanceMapRange(                                      \
-          kUniqueMapRangeOfInstanceType<forinstancetype>, map_object);   \
-    }                                                                    \
-    return Is##type(map_object->instance_type());                        \
+#define INSTANCE_TYPE_CHECKER2(type, forinstancetype_)                    \
+  V8_INLINE bool Is##type(Tagged<Map> map_object) {                       \
+    constexpr InstanceType forinstancetype =                              \
+        static_cast<InstanceType>(forinstancetype_);                      \
+    if constexpr (constexpr std::optional<RootIndex> index =              \
+                      UniqueMapOfInstanceType(forinstancetype)) {         \
+      return CheckInstanceMap(*index, map_object);                        \
+    }                                                                     \
+    if constexpr (constexpr std::optional<TaggedAddressRange> map_range = \
+                      UniqueMapRangeOfInstanceType(forinstancetype)) {    \
+      return CheckInstanceMapRange(*map_range, map_object);               \
+    }                                                                     \
+    return Is##type(map_object->instance_type());                         \
   }
 
 #else
@@ -268,12 +287,10 @@ struct InstanceRangeChecker<lower_limit, LAST_TYPE> {
 #define INSTANCE_TYPE_CHECKER_RANGE2(type, first_instance_type,                \
                                      last_instance_type)                       \
   V8_INLINE bool Is##type(Tagged<Map> map_object) {                            \
-    if constexpr (kHasUniqueMapRangeOfInstanceTypeRange<first_instance_type,   \
-                                                        last_instance_type>) { \
-      return CheckInstanceMapRange(                                            \
-          kUniqueMapRangeOfInstanceTypeRange<first_instance_type,              \
-                                             last_instance_type>,              \
-          map_object);                                                         \
+    if constexpr (constexpr std::optional<TaggedAddressRange> maybe_range =    \
+                      UniqueMapRangeOfInstanceTypeRange(first_instance_type,   \
+                                                        last_instance_type)) { \
+      return CheckInstanceMapRange(*maybe_range, map_object);                  \
     }                                                                          \
     return Is##type(map_object->instance_type());                              \
   }
@@ -312,6 +329,20 @@ V8_INLINE bool IsInternalizedString(Tagged<Map> map_object) {
 #endif
 }
 
+V8_INLINE constexpr bool IsSeqString(InstanceType instance_type) {
+  return (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
+         kSeqStringTag;
+}
+
+V8_INLINE bool IsSeqString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kSeqString,
+                               map_object);
+#else
+  return IsSeqString(map_object->instance_type());
+#endif
+}
+
 V8_INLINE constexpr bool IsExternalString(InstanceType instance_type) {
   return (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
          kExternalStringTag;
@@ -326,8 +357,52 @@ V8_INLINE bool IsExternalString(Tagged<Map> map_object) {
 #endif
 }
 
+V8_INLINE constexpr bool IsUncachedExternalString(InstanceType instance_type) {
+  return (instance_type & (kIsNotStringMask | kUncachedExternalStringMask |
+                           kStringRepresentationMask)) ==
+         (kExternalStringTag | kUncachedExternalStringTag);
+}
+
+V8_INLINE bool IsUncachedExternalString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return CheckInstanceMapRange(
+      kUniqueMapRangeOfStringType::kUncachedExternalString, map_object);
+#else
+  return IsUncachedExternalString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE constexpr bool IsConsString(InstanceType instance_type) {
+  return (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
+         kConsStringTag;
+}
+
+V8_INLINE bool IsConsString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kConsString,
+                               map_object);
+#else
+  return IsConsString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE constexpr bool IsSlicedString(InstanceType instance_type) {
+  return (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
+         kSlicedStringTag;
+}
+
+V8_INLINE bool IsSlicedString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kSlicedString,
+                               map_object);
+#else
+  return IsSlicedString(map_object->instance_type());
+#endif
+}
+
 V8_INLINE constexpr bool IsThinString(InstanceType instance_type) {
-  return (instance_type & kStringRepresentationMask) == kThinStringTag;
+  return (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
+         kThinStringTag;
 }
 
 V8_INLINE bool IsThinString(Tagged<Map> map_object) {
@@ -336,6 +411,88 @@ V8_INLINE bool IsThinString(Tagged<Map> map_object) {
                                map_object);
 #else
   return IsThinString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE constexpr bool IsOneByteString(InstanceType instance_type) {
+  DCHECK(IsString(instance_type));
+  return (instance_type & kStringEncodingMask) == kOneByteStringTag;
+}
+
+V8_INLINE bool IsOneByteString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  DCHECK(IsStringMap(map_object));
+
+  Tagged_t ptr = V8HeapCompressionScheme::CompressObject(map_object.ptr());
+  return (ptr & kStringMapEncodingMask) == kOneByteStringMapBit;
+#else
+  return IsOneByteString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE constexpr bool IsTwoByteString(InstanceType instance_type) {
+  DCHECK(IsString(instance_type));
+  return (instance_type & kStringEncodingMask) == kTwoByteStringTag;
+}
+
+V8_INLINE bool IsTwoByteString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  DCHECK(IsStringMap(map_object));
+  Tagged_t ptr = V8HeapCompressionScheme::CompressObject(map_object.ptr());
+  return (ptr & kStringMapEncodingMask) == kTwoByteStringMapBit;
+#else
+  return IsTwoByteString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE bool IsSharedString(InstanceType instance_type) {
+  DCHECK(IsString(instance_type));
+  // TODO(v8:12007): Set is_shared to true on internalized string when
+  // v8_flags.shared_string_table is removed.
+  return (instance_type & kSharedStringMask) == kSharedStringTag ||
+         (v8_flags.shared_string_table && IsInternalizedString(instance_type));
+}
+
+V8_INLINE bool IsSharedString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  DCHECK(IsStringMap(map_object));
+  // TODO(v8:12007): Set is_shared to true on internalized string when
+  // v8_flags.shared_string_table is removed.
+  return (CheckInstanceMapRange(kUniqueMapRangeOfStringType::kSharedSeqString,
+                                map_object) ||
+          CheckInstanceMapRange(
+              kUniqueMapRangeOfStringType::kSharedExternalString,
+              map_object)) ||
+         (v8_flags.shared_string_table && IsInternalizedString(map_object));
+#else
+  return IsSharedString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE constexpr bool IsIndirectString(InstanceType instance_type) {
+  return (instance_type & (kIsNotStringMask | kIsIndirectStringMask)) ==
+         kIsIndirectStringTag;
+}
+
+V8_INLINE bool IsIndirectString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kIndirectString,
+                               map_object);
+#else
+  return IsIndirectString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE constexpr bool IsDirectString(InstanceType instance_type) {
+  return !IsIndirectString(instance_type);
+}
+
+V8_INLINE bool IsDirectString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kDirectString,
+                               map_object);
+#else
+  return IsDirectString(map_object->instance_type());
 #endif
 }
 
@@ -364,8 +521,38 @@ V8_INLINE constexpr bool IsFreeSpaceOrFiller(InstanceType instance_type) {
   return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
 }
 
-V8_INLINE bool IsFreeSpaceOrFiller(Tagged<Map> map_object) {
-  return IsFreeSpaceOrFiller(map_object->instance_type());
+V8_INLINE bool IsFreeSpaceOrFiller(Tagged<Map> map) {
+#if V8_STATIC_ROOTS_BOOL
+  static_assert(StaticReadOnlyRoot::kFreeSpaceMap + Map::kSize ==
+                StaticReadOnlyRoot::kOnePointerFillerMap);
+  static_assert(StaticReadOnlyRoot::kOnePointerFillerMap + Map::kSize ==
+                StaticReadOnlyRoot::kTwoPointerFillerMap);
+  // Make sure that we can use fast immediate constants on arm64.
+  static_assert(StaticReadOnlyRoot::kTwoPointerFillerMap <=
+                kMaxFastImmediateConstantArm64);
+  return CheckInstanceMapRange(
+      TaggedAddressRange(StaticReadOnlyRoot::kFreeSpaceMap,
+                         StaticReadOnlyRoot::kTwoPointerFillerMap),
+      map);
+#else   // !V8_STATIC_ROOTS_BOOL
+  return IsFreeSpaceOrFiller(map->instance_type());
+#endif  // !V8_STATIC_ROOTS_BOOL
+}
+
+V8_INLINE bool IsHole(InstanceType instance_type) {
+  return instance_type == HOLE_TYPE;
+}
+
+// These JSObject types are wrappers around a set of primitive values
+// and exist only for the purpose of passing the data across V8 Api.
+// They are not supposed to be ever leaked to user JS code and their maps
+// are not supposed to be ever extended or changed.
+V8_INLINE constexpr bool IsMaybeReadOnlyJSObject(InstanceType instance_type) {
+  return IsJSExternalObject(instance_type) || IsJSMessageObject(instance_type);
+}
+
+V8_INLINE bool IsMaybeReadOnlyJSObject(Tagged<Map> map_object) {
+  return IsMaybeReadOnlyJSObject(map_object->instance_type());
 }
 
 V8_INLINE constexpr bool IsPropertyDictionary(InstanceType instance_type) {
@@ -386,22 +573,45 @@ V8_INLINE constexpr bool IsNativeContextSpecific(InstanceType instance_type) {
 
   // Most of the JSReceivers are tied to some native context modulo the
   // following exceptions.
-  if (instance_type == JS_MESSAGE_OBJECT_TYPE ||
-      instance_type == JS_EXTERNAL_OBJECT_TYPE) {
+  if (IsMaybeReadOnlyJSObject(instance_type)) {
     // These JSObject types are wrappers around a set of primitive values
     // and exist only for the purpose of passing the data across V8 Api.
     // Thus they are not tied to any native context.
     return false;
-
   } else if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(instance_type)) {
     // JSObjects allocated in shared space are never tied to a native context.
     return false;
+
+#if V8_ENABLE_WEBASSEMBLY
+  } else if (InstanceTypeChecker::IsWasmObject(instance_type)) {
+    // Wasm structs/arrays are not tied to a native context.
+    return false;
+#endif
   }
   return true;
 }
 
 V8_INLINE bool IsNativeContextSpecificMap(Tagged<Map> map_object) {
   return IsNativeContextSpecific(map_object->instance_type());
+}
+
+V8_INLINE constexpr bool IsJSApiWrapperObject(InstanceType instance_type) {
+  return IsJSAPIObjectWithEmbedderSlots(instance_type) ||
+         IsJSSpecialObject(instance_type);
+}
+
+V8_INLINE bool IsJSApiWrapperObject(Tagged<Map> map_object) {
+  return IsJSApiWrapperObject(map_object->instance_type());
+}
+
+V8_INLINE constexpr bool IsCppHeapPointerWrapperObject(
+    InstanceType instance_type) {
+  return IsJSApiWrapperObject(instance_type) ||
+         IsCppHeapExternalObject(instance_type);
+}
+
+V8_INLINE bool IsCppHeapPointerWrapperObject(Tagged<Map> map_object) {
+  return IsCppHeapPointerWrapperObject(map_object->instance_type());
 }
 
 }  // namespace InstanceTypeChecker
@@ -414,8 +624,7 @@ V8_INLINE bool IsNativeContextSpecificMap(Tagged<Map> map_object) {
 INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)
 #undef TYPE_CHECKER
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

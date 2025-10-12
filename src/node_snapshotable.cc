@@ -11,7 +11,6 @@
 #include "embedded_data.h"
 #include "encoding_binding.h"
 #include "env-inl.h"
-#include "json_parser.h"
 #include "node_blob.h"
 #include "node_builtins.h"
 #include "node_contextify.h"
@@ -27,6 +26,7 @@
 #include "node_url.h"
 #include "node_v8.h"
 #include "node_v8_platform-inl.h"
+#include "simdjson.h"
 #include "timers.h"
 
 #if HAVE_INSPECTOR
@@ -41,9 +41,12 @@ using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::ScriptCompiler;
+using v8::ScriptOrigin;
 using v8::SnapshotCreator;
 using v8::StartupData;
 using v8::String;
@@ -542,7 +545,6 @@ SnapshotMetadata SnapshotDeserializer::Read() {
   result.node_version = ReadString();
   result.node_arch = ReadString();
   result.node_platform = ReadString();
-  result.v8_cache_version_tag = ReadArithmetic<uint32_t>();
   result.flags = static_cast<SnapshotFlags>(ReadArithmetic<uint32_t>());
 
   if (is_debug) {
@@ -570,9 +572,6 @@ size_t SnapshotSerializer::Write(const SnapshotMetadata& data) {
   written_total += WriteString(data.node_arch);
   Debug("Write Node.js platform %s\n", data.node_platform);
   written_total += WriteString(data.node_platform);
-  Debug("Write V8 cached data version tag %" PRIx32 "\n",
-        data.v8_cache_version_tag);
-  written_total += WriteArithmetic<uint32_t>(data.v8_cache_version_tag);
   Debug("Write snapshot flags %" PRIx32 "\n",
         static_cast<uint32_t>(data.flags));
   written_total += WriteArithmetic<uint32_t>(static_cast<uint32_t>(data.flags));
@@ -695,23 +694,6 @@ bool SnapshotData::Check() const {
             metadata.node_platform.c_str(),
             NODE_PLATFORM);
     return false;
-  }
-
-  if (metadata.type == SnapshotMetadata::Type::kFullyCustomized &&
-      !WithoutCodeCache(metadata.flags)) {
-    uint32_t current_cache_version = v8::ScriptCompiler::CachedDataVersionTag();
-    if (metadata.v8_cache_version_tag != current_cache_version) {
-      // For now we only do this check for the customized snapshots - we know
-      // that the flags we use in the default snapshot are limited and safe
-      // enough so we can relax the constraints for it.
-      fprintf(stderr,
-              "Failed to load the startup snapshot because it was built with "
-              "a different version of V8 or with different V8 configurations.\n"
-              "Expected tag %" PRIx32 ", read %" PRIx32 "\n",
-              current_cache_version,
-              metadata.v8_cache_version_tag);
-      return false;
-    }
   }
 
   // TODO(joyeecheung): check incompatible Node.js flags.
@@ -885,9 +867,10 @@ const std::vector<intptr_t>& SnapshotBuilder::CollectExternalReferences() {
 
 void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
                                               Isolate::CreateParams* params) {
-  CHECK_NULL(params->external_references);
   CHECK_NULL(params->snapshot_blob);
-  params->external_references = CollectExternalReferences().data();
+  if (params->external_references == nullptr) {
+    params->external_references = CollectExternalReferences().data();
+  }
   params->snapshot_blob =
       const_cast<v8::StartupData*>(&(data->v8_snapshot_blob_data));
 }
@@ -926,31 +909,60 @@ std::optional<SnapshotConfig> ReadSnapshotConfig(const char* config_path) {
     return std::nullopt;
   }
 
-  JSONParser parser;
-  if (!parser.Parse(config_content)) {
-    FPrintF(stderr, "Cannot parse JSON from %s\n", config_path);
+  SnapshotConfig result;
+
+  simdjson::ondemand::parser parser;
+  simdjson::ondemand::document document;
+  simdjson::ondemand::object main_object;
+  simdjson::error_code error =
+      parser.iterate(simdjson::pad(config_content)).get(document);
+
+  if (!error) {
+    error = document.get_object().get(main_object);
+  }
+  if (error) {
+    FPrintF(stderr,
+            "Cannot parse JSON from %s: %s\n",
+            config_path,
+            simdjson::error_message(error));
     return std::nullopt;
   }
 
-  SnapshotConfig result;
-  result.builder_script_path = parser.GetTopLevelStringField("builder");
+  for (auto field : main_object) {
+    std::string_view key;
+    if (field.unescaped_key().get(key)) {
+      FPrintF(stderr, "Cannot read key from %s\n", config_path);
+      return std::nullopt;
+    }
+    if (key == "builder") {
+      std::string builder_path;
+      if (field.value().get_string().get(builder_path) ||
+          builder_path.empty()) {
+        FPrintF(stderr,
+                "\"builder\" field of %s is not a non-empty string\n",
+                config_path);
+        return std::nullopt;
+      }
+      result.builder_script_path = builder_path;
+    } else if (key == "withoutCodeCache") {
+      bool without_code_cache_value = false;
+      if (field.value().get_bool().get(without_code_cache_value)) {
+        FPrintF(stderr,
+                "\"withoutCodeCache\" field of %s is not a boolean\n",
+                config_path);
+        return std::nullopt;
+      }
+      if (without_code_cache_value) {
+        result.flags |= SnapshotFlags::kWithoutCodeCache;
+      }
+    }
+  }
+
   if (!result.builder_script_path.has_value()) {
     FPrintF(stderr,
             "\"builder\" field of %s is not a non-empty string\n",
             config_path);
     return std::nullopt;
-  }
-
-  std::optional<bool> WithoutCodeCache =
-      parser.GetTopLevelBoolField("withoutCodeCache");
-  if (!WithoutCodeCache.has_value()) {
-    FPrintF(stderr,
-            "\"withoutCodeCache\" field of %s is not a boolean\n",
-            config_path);
-    return std::nullopt;
-  }
-  if (WithoutCodeCache.value()) {
-    result.flags |= SnapshotFlags::kWithoutCodeCache;
   }
 
   return result;
@@ -984,6 +996,8 @@ ExitCode BuildSnapshotWithoutCodeCache(
   }
 
   Isolate* isolate = setup->isolate();
+  v8::Locker locker(isolate);
+
   {
     HandleScope scope(isolate);
     TryCatch bootstrapCatch(isolate);
@@ -995,25 +1009,29 @@ ExitCode BuildSnapshotWithoutCodeCache(
       }
     });
 
+    Context::Scope context_scope(setup->context());
+    Environment* env = setup->env();
+
     // Run the custom main script for fully customized snapshots.
     if (snapshot_type == SnapshotMetadata::Type::kFullyCustomized) {
-      Context::Scope context_scope(setup->context());
-      Environment* env = setup->env();
 #if HAVE_INSPECTOR
         env->InitializeInspector({});
 #endif
         if (LoadEnvironment(env, builder_script_content.value()).IsEmpty()) {
           return ExitCode::kGenericUserError;
         }
+    }
 
-        // FIXME(joyeecheung): right now running the loop in the snapshot
-        // builder might introduce inconsistencies in JS land that need to
-        // be synchronized again after snapshot restoration.
-        ExitCode exit_code =
-            SpinEventLoopInternal(env).FromMaybe(ExitCode::kGenericUserError);
-        if (exit_code != ExitCode::kNoFailure) {
-          return exit_code;
-        }
+    // Drain the loop and platform tasks before creating a snapshot. This is
+    // necessary to ensure that the no roots are held by the the platform
+    // tasks, which may reference objects associated with a context. For
+    // example, a WeakRef may schedule an per-isolate platform task as a GC
+    // root, and referencing an object in a context, causing an assertion in
+    // the snapshot creator.
+    ExitCode exit_code =
+        SpinEventLoopInternal(env).FromMaybe(ExitCode::kGenericUserError);
+    if (exit_code != ExitCode::kNoFailure) {
+      return exit_code;
     }
   }
 
@@ -1180,7 +1198,6 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
                                    per_process::metadata.versions.node,
                                    per_process::metadata.arch,
                                    per_process::metadata.platform,
-                                   v8::ScriptCompiler::CachedDataVersionTag(),
                                    config->flags};
 
   // We cannot resurrect the handles from the snapshot, so make sure that
@@ -1496,14 +1513,25 @@ void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
   // TODO(joyeecheung): do we need all of these? Maybe we would want a less
   // internal version of them.
-  std::vector<Local<String>> parameters = {
-      FIXED_ONE_BYTE_STRING(isolate, "require"),
-      FIXED_ONE_BYTE_STRING(isolate, "__filename"),
-      FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
-  };
+  LocalVector<String> parameters(
+      isolate,
+      {
+          FIXED_ONE_BYTE_STRING(isolate, "require"),
+          FIXED_ONE_BYTE_STRING(isolate, "__filename"),
+          FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
+      });
+
+  ScriptOrigin script_origin(filename, 0, 0, true);
+  ScriptCompiler::Source script_source(source, script_origin);
+  MaybeLocal<Function> maybe_fn =
+      ScriptCompiler::CompileFunction(context,
+                                      &script_source,
+                                      parameters.size(),
+                                      parameters.data(),
+                                      0,
+                                      nullptr);
   Local<Function> fn;
-  if (contextify::CompileFunction(context, filename, source, &parameters)
-          .ToLocal(&fn)) {
+  if (maybe_fn.ToLocal(&fn)) {
     args.GetReturnValue().Set(fn);
   }
 }
@@ -1586,7 +1614,7 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  v8::HandleScope scope(context->GetIsolate());
+  v8::HandleScope scope(Isolate::GetCurrent());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
   InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);

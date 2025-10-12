@@ -5,7 +5,8 @@
 #ifndef V8_IC_ACCESSOR_ASSEMBLER_H_
 #define V8_IC_ACCESSOR_ASSEMBLER_H_
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/codegen/code-stub-assembler.h"
 #include "src/compiler/code-assembler.h"
 #include "src/objects/dictionary.h"
@@ -67,8 +68,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateLookupGlobalIC(TypeofMode typeof_mode);
   void GenerateLookupGlobalICTrampoline(TypeofMode typeof_mode);
   void GenerateLookupGlobalICBaseline(TypeofMode typeof_mode);
-  void GenerateLookupContextTrampoline(TypeofMode typeof_mode);
-  void GenerateLookupContextBaseline(TypeofMode typeof_mode);
+  void GenerateLookupContextTrampoline(TypeofMode typeof_mode,
+                                       ContextMode context_mode);
+  void GenerateLookupContextBaseline(TypeofMode typeof_mode,
+                                     ContextMode context_mode);
 
   void GenerateKeyedStoreIC();
   void GenerateKeyedStoreICTrampoline();
@@ -83,12 +86,12 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateStoreInArrayLiteralICBaseline();
 
   void TryProbeStubCache(StubCache* stub_cache,
-                         TNode<Object> lookup_start_object,
+                         TNode<JSAny> lookup_start_object,
                          TNode<Map> lookup_start_object_map, TNode<Name> name,
                          Label* if_handler, TVariable<MaybeObject>* var_handler,
                          Label* if_miss);
   void TryProbeStubCache(StubCache* stub_cache,
-                         TNode<Object> lookup_start_object, TNode<Name> name,
+                         TNode<JSAny> lookup_start_object, TNode<Name> name,
                          Label* if_handler, TVariable<MaybeObject>* var_handler,
                          Label* if_miss) {
     return TryProbeStubCache(stub_cache, lookup_start_object,
@@ -107,11 +110,11 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   struct LoadICParameters {
     LoadICParameters(
-        TNode<Context> context, TNode<Object> receiver, TNode<Object> name,
+        TNode<Context> context, TNode<JSAny> receiver, TNode<Object> name,
         TNode<TaggedIndex> slot, TNode<HeapObject> vector,
-        base::Optional<TNode<Object>> lookup_start_object = base::nullopt,
-        base::Optional<TNode<TaggedIndex>> enum_index = base::nullopt,
-        base::Optional<TNode<Object>> cache_type = base::nullopt)
+        std::optional<TNode<JSAny>> lookup_start_object = std::nullopt,
+        std::optional<TNode<Smi>> enum_index = std::nullopt,
+        std::optional<TNode<Object>> cache_type = std::nullopt)
         : context_(context),
           receiver_(receiver),
           name_(name),
@@ -131,43 +134,42 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
           lookup_start_object_(p->lookup_start_object_) {}
 
     TNode<Context> context() const { return context_; }
-    TNode<Object> receiver() const { return receiver_; }
+    TNode<JSAny> receiver() const { return receiver_; }
     TNode<Object> name() const { return name_; }
     TNode<TaggedIndex> slot() const { return slot_; }
     TNode<HeapObject> vector() const { return vector_; }
-    TNode<Object> lookup_start_object() const {
+    TNode<JSAny> lookup_start_object() const {
       return lookup_start_object_.value();
     }
-    TNode<TaggedIndex> enum_index() const { return *enum_index_; }
+    TNode<Smi> enum_index() const { return *enum_index_; }
     TNode<Object> cache_type() const { return *cache_type_; }
 
     // Usable in cases where the receiver and the lookup start object are
     // expected to be the same, i.e., when "receiver != lookup_start_object"
     // case is not supported or not expected by the surrounding code.
-    TNode<Object> receiver_and_lookup_start_object() const {
+    TNode<JSAny> receiver_and_lookup_start_object() const {
       DCHECK_EQ(receiver_, lookup_start_object_);
       return receiver_;
     }
 
-    bool IsEnumeratedKeyedLoad() const { return enum_index_ != base::nullopt; }
+    bool IsEnumeratedKeyedLoad() const { return enum_index_ != std::nullopt; }
 
    private:
     TNode<Context> context_;
-    TNode<Object> receiver_;
+    TNode<JSAny> receiver_;
     TNode<Object> name_;
     TNode<TaggedIndex> slot_;
     TNode<HeapObject> vector_;
-    base::Optional<TNode<Object>> lookup_start_object_;
-    base::Optional<TNode<TaggedIndex>> enum_index_;
-    base::Optional<TNode<Object>> cache_type_;
+    std::optional<TNode<JSAny>> lookup_start_object_;
+    std::optional<TNode<Smi>> enum_index_;
+    std::optional<TNode<Object>> cache_type_;
   };
 
   struct LazyLoadICParameters {
     LazyLoadICParameters(
-        LazyNode<Context> context, TNode<Object> receiver,
-        LazyNode<Object> name, LazyNode<TaggedIndex> slot,
-        TNode<HeapObject> vector,
-        base::Optional<TNode<Object>> lookup_start_object = base::nullopt)
+        LazyNode<Context> context, TNode<JSAny> receiver, LazyNode<Object> name,
+        LazyNode<TaggedIndex> slot, TNode<HeapObject> vector,
+        std::optional<TNode<JSAny>> lookup_start_object = std::nullopt)
         : context_(context),
           receiver_(receiver),
           name_(name),
@@ -186,27 +188,27 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     }
 
     TNode<Context> context() const { return context_(); }
-    TNode<Object> receiver() const { return receiver_; }
+    TNode<JSAny> receiver() const { return receiver_; }
     TNode<Object> name() const { return name_(); }
     TNode<TaggedIndex> slot() const { return slot_(); }
     TNode<HeapObject> vector() const { return vector_; }
-    TNode<Object> lookup_start_object() const { return lookup_start_object_; }
+    TNode<JSAny> lookup_start_object() const { return lookup_start_object_; }
 
     // Usable in cases where the receiver and the lookup start object are
     // expected to be the same, i.e., when "receiver != lookup_start_object"
     // case is not supported or not expected by the surrounding code.
-    TNode<Object> receiver_and_lookup_start_object() const {
+    TNode<JSAny> receiver_and_lookup_start_object() const {
       DCHECK_EQ(receiver_, lookup_start_object_);
       return receiver_;
     }
 
    private:
     LazyNode<Context> context_;
-    TNode<Object> receiver_;
+    TNode<JSAny> receiver_;
     LazyNode<Object> name_;
     LazyNode<TaggedIndex> slot_;
     TNode<HeapObject> vector_;
-    TNode<Object> lookup_start_object_;
+    TNode<JSAny> lookup_start_object_;
   };
 
   void LoadGlobalIC(TNode<HeapObject> maybe_feedback_vector,
@@ -233,10 +235,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   };
   struct StoreICParameters {
     StoreICParameters(TNode<Context> context,
-                      base::Optional<TNode<Object>> receiver,
-                      TNode<Object> name, TNode<Object> value,
-                      base::Optional<TNode<Smi>> flags, TNode<TaggedIndex> slot,
-                      TNode<HeapObject> vector, StoreICMode mode)
+                      std::optional<TNode<JSAny>> receiver, TNode<Object> name,
+                      TNode<Object> value, std::optional<TNode<Smi>> flags,
+                      TNode<TaggedIndex> slot, TNode<HeapObject> vector,
+                      StoreICMode mode)
         : context_(context),
           receiver_(receiver),
           name_(name),
@@ -247,7 +249,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
           mode_(mode) {}
 
     TNode<Context> context() const { return context_; }
-    TNode<Object> receiver() const { return receiver_.value(); }
+    TNode<JSAny> receiver() const { return receiver_.value(); }
     TNode<Object> name() const { return name_; }
     TNode<Object> value() const { return value_; }
     TNode<Smi> flags() const { return flags_.value(); }
@@ -276,10 +278,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
    private:
     TNode<Context> context_;
-    base::Optional<TNode<Object>> receiver_;
+    std::optional<TNode<JSAny>> receiver_;
     TNode<Object> name_;
     TNode<Object> value_;
-    base::Optional<TNode<Smi>> flags_;
+    std::optional<TNode<Smi>> flags_;
     TNode<TaggedIndex> slot_;
     TNode<HeapObject> vector_;
     StoreICMode mode_;
@@ -311,7 +313,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                           Label* readonly);
 
   void InvalidateValidityCellIfPrototype(
-      TNode<Map> map, base::Optional<TNode<Uint32T>> bitfield3 = base::nullopt);
+      TNode<Map> map, std::optional<TNode<Uint32T>> bitfield3 = std::nullopt);
 
   void OverwriteExistingFastDataProperty(TNode<HeapObject> object,
                                          TNode<Map> object_map,
@@ -380,7 +382,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                       TypeofMode typeof_mode);
   void LookupContext(LazyNode<Object> lazy_name, TNode<TaggedIndex> depth,
                      LazyNode<TaggedIndex> lazy_slot, TNode<Context> context,
-                     TypeofMode typeof_mode);
+                     TypeofMode typeof_mode, ContextMode context_mode);
 
   void GotoIfNotSameNumberBitPattern(TNode<Float64T> left,
                                      TNode<Float64T> right, Label* miss);
@@ -459,9 +461,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                            Label* rebox_double, ExitPoint* exit_point);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  void EmitAccessCheck(TNode<Context> expected_native_context,
-                       TNode<Context> context, TNode<Object> receiver,
-                       Label* can_access, Label* miss);
+  void EmitAccessCheck(TNode<NativeContext> expected_native_context,
+                       TNode<Context> context,
+                       TNode<Object> lookup_start_object, Label* can_access,
+                       Label* miss);
 
   void HandleLoadICSmiHandlerLoadNamedCase(
       const LazyLoadICParameters* p, TNode<Object> holder,
@@ -511,11 +514,11 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
       TNode<JSObject> holder, TNode<Object> value);
   void HandleStoreFieldAndReturn(TNode<Word32T> handler_word,
                                  TNode<JSObject> holder, TNode<Object> value,
-                                 base::Optional<TNode<Float64T>> double_value,
+                                 std::optional<TNode<Float64T>> double_value,
                                  Representation representation, Label* miss);
 
-  void CheckPrototypeValidityCell(TNode<Object> maybe_validity_cell,
-                                  Label* miss);
+  TNode<MaybeObject> CheckPrototypeValidityCell(
+      TNode<Object> maybe_validity_cell, Label* miss);
   void HandleStoreICNativeDataProperty(const StoreICParameters* p,
                                        TNode<HeapObject> holder,
                                        TNode<Word32T> handler_word);
@@ -523,18 +526,15 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void HandleStoreToProxy(const StoreICParameters* p, TNode<JSProxy> proxy,
                           Label* miss, ElementSupport support_elements);
 
-  void HandleStoreAccessor(const StoreICParameters* p, TNode<HeapObject> holder,
-                           TNode<Word32T> handler_word);
-
   // KeyedLoadIC_Generic implementation.
 
-  void GenericElementLoad(TNode<HeapObject> lookup_start_object,
+  void GenericElementLoad(TNode<JSAnyNotSmi> lookup_start_object,
                           TNode<Map> lookup_start_object_map,
                           TNode<Int32T> lookup_start_object_instance_type,
                           TNode<IntPtrT> index, Label* slow);
 
   enum UseStubCache { kUseStubCache, kDontUseStubCache };
-  void GenericPropertyLoad(TNode<HeapObject> lookup_start_object,
+  void GenericPropertyLoad(TNode<JSAnyNotSmi> lookup_start_object,
                            TNode<Map> lookup_start_object_map,
                            TNode<Int32T> lookup_start_object_instance_type,
                            const LoadICParameters* p, Label* slow,

@@ -138,7 +138,8 @@ class CompileHintsTest : public ScriptTest {
       v8::MaybeLocal<v8::Value> result = script->Run(v8_context());
       EXPECT_FALSE(result.IsEmpty());
     }
-    return top_level_script->GetProducedCompileHints();
+    return top_level_script->GetCompileHintsCollector()->GetCompileHints(
+        v8_isolate());
   }
 
   bool FunctionIsCompiled(const char* name) {
@@ -152,8 +153,8 @@ class CompileHintsTest : public ScriptTest {
             .ToLocalChecked();
     v8::MaybeLocal<v8::Value> result = script->Run(v8_context());
 
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result.ToLocalChecked()));
+    auto function =
+        i::Cast<i::JSFunction>(Utils::OpenHandle(*result.ToLocalChecked()));
     i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     return builtin != i::Builtin::kCompileLazy;
@@ -277,7 +278,8 @@ TEST_F(ScriptTest, ProduceCompileHints) {
             v8::ScriptCompiler::CompileOptions::kProduceCompileHints)
             .ToLocalChecked();
     {
-      auto compile_hints = script->GetProducedCompileHints();
+      auto compile_hints =
+          script->GetCompileHintsCollector()->GetCompileHints(v8_isolate());
       EXPECT_EQ(0u, compile_hints.size());
     }
 
@@ -285,14 +287,16 @@ TEST_F(ScriptTest, ProduceCompileHints) {
     v8::MaybeLocal<v8::Value> result = script->Run(context);
     EXPECT_FALSE(result.IsEmpty());
     {
-      auto compile_hints = script->GetProducedCompileHints();
+      auto compile_hints =
+          script->GetCompileHintsCollector()->GetCompileHints(v8_isolate());
       EXPECT_EQ(1u, compile_hints.size());
       EXPECT_EQ(14, compile_hints[0]);
     }
 
     // The previous data is still there if we retrieve compile hints again.
     {
-      auto compile_hints = script->GetProducedCompileHints();
+      auto compile_hints =
+          script->GetCompileHintsCollector()->GetCompileHints(v8_isolate());
       EXPECT_EQ(1u, compile_hints.size());
       EXPECT_EQ(14, compile_hints[0]);
     }
@@ -307,7 +311,8 @@ TEST_F(ScriptTest, ProduceCompileHints) {
     v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
     EXPECT_FALSE(result2.IsEmpty());
     {
-      auto compile_hints = script->GetProducedCompileHints();
+      auto compile_hints =
+          script->GetCompileHintsCollector()->GetCompileHints(v8_isolate());
       EXPECT_EQ(2u, compile_hints.size());
       EXPECT_EQ(14, compile_hints[0]);
       EXPECT_EQ(34, compile_hints[1]);
@@ -327,7 +332,8 @@ TEST_F(ScriptTest, ProduceCompileHints) {
         v8::ScriptCompiler::Compile(v8_context(), &nohints_script_source)
             .ToLocalChecked();
     {
-      auto compile_hints = script->GetProducedCompileHints();
+      auto compile_hints =
+          script->GetCompileHintsCollector()->GetCompileHints(v8_isolate());
       EXPECT_EQ(0u, compile_hints.size());
     }
 
@@ -335,7 +341,8 @@ TEST_F(ScriptTest, ProduceCompileHints) {
     v8::MaybeLocal<v8::Value> result = script->Run(context);
     EXPECT_FALSE(result.IsEmpty());
     {
-      auto compile_hints = script->GetProducedCompileHints();
+      auto compile_hints =
+          script->GetCompileHintsCollector()->GetCompileHints(v8_isolate());
       EXPECT_EQ(0u, compile_hints.size());
     }
   }
@@ -356,7 +363,8 @@ TEST_F(ScriptTest, ProduceCompileHintsForArrowFunctions) {
             v8::ScriptCompiler::CompileOptions::kProduceCompileHints)
             .ToLocalChecked();
     {
-      auto compile_hints = script->GetProducedCompileHints();
+      auto compile_hints =
+          script->GetCompileHintsCollector()->GetCompileHints(v8_isolate());
       EXPECT_EQ(0u, compile_hints.size());
     }
 
@@ -364,7 +372,8 @@ TEST_F(ScriptTest, ProduceCompileHintsForArrowFunctions) {
     v8::MaybeLocal<v8::Value> result = script->Run(context);
     EXPECT_FALSE(result.IsEmpty());
     {
-      auto compile_hints = script->GetProducedCompileHints();
+      auto compile_hints =
+          script->GetCompileHintsCollector()->GetCompileHints(v8_isolate());
       EXPECT_EQ(0u, compile_hints.size());
     }
 
@@ -378,7 +387,8 @@ TEST_F(ScriptTest, ProduceCompileHintsForArrowFunctions) {
     v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
     EXPECT_FALSE(result2.IsEmpty());
     {
-      auto compile_hints = script->GetProducedCompileHints();
+      auto compile_hints =
+          script->GetCompileHintsCollector()->GetCompileHints(v8_isolate());
       EXPECT_EQ(1u, compile_hints.size());
       EXPECT_EQ(8, compile_hints[0]);
     }
@@ -393,7 +403,8 @@ TEST_F(ScriptTest, ProduceCompileHintsForArrowFunctions) {
     v8::MaybeLocal<v8::Value> result3 = script3->Run(context);
     EXPECT_FALSE(result3.IsEmpty());
     {
-      auto compile_hints = script->GetProducedCompileHints();
+      auto compile_hints =
+          script->GetCompileHintsCollector()->GetCompileHints(v8_isolate());
       EXPECT_EQ(2u, compile_hints.size());
       EXPECT_EQ(8, compile_hints[0]);
       EXPECT_EQ(35, compile_hints[1]);
@@ -516,68 +527,65 @@ TEST_F(CompileHintsTest, StreamingCompileHints) {
   EXPECT_FALSE(FunctionIsCompiled("func2"));
 }
 
-TEST_F(ScriptTest, CompileHintsMagicCommentBasic) {
-  i::FlagScope<bool> flag_scope(&i::v8_flags.compile_hints_magic, true);
-
+TEST_F(CompileHintsTest, CompileHintsMagicCommentBasic) {
   const char* url = "http://www.foo.com/foo.js";
   v8::ScriptOrigin origin(NewString(url), 13, 0);
   v8::Local<v8::Context> context = v8::Context::New(isolate());
 
   // Run the top level code.
   const char* code =
-      "//# experimentalChromiumCompileHints=all\n"
+      "//# allFunctionsCalledOnLoad\n"
       "function f1() {}\n"
       "let f2 = function() { }";
   v8::ScriptCompiler::Source script_source(NewString(code), origin);
   Local<Script> script =
       v8::ScriptCompiler::Compile(
           v8_context(), &script_source,
-          v8::ScriptCompiler::CompileOptions::kProduceCompileHints)
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::kProduceCompileHints |
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsMagicComment))
           .ToLocalChecked();
 
   v8::MaybeLocal<v8::Value> result = script->Run(context);
   EXPECT_FALSE(result.IsEmpty());
 
-  // Retrieve the function object for f1.
-  {
-    const char* code2 = "f1";
-    v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
-
-    Local<Script> script2 =
-        v8::ScriptCompiler::Compile(v8_context(), &script_source2)
-            .ToLocalChecked();
-    v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
-
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result2.ToLocalChecked()));
-    i::Builtin builtin = function->code(i_isolate())->builtin_id();
-
-    // f1 was not compiled lazily.
-    EXPECT_NE(i::Builtin::kCompileLazy, builtin);
-  }
-
-  // Retrieve the function object for f2.
-  {
-    const char* code2 = "f2";
-    v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
-
-    Local<Script> script2 =
-        v8::ScriptCompiler::Compile(v8_context(), &script_source2)
-            .ToLocalChecked();
-    v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
-
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result2.ToLocalChecked()));
-    i::Builtin builtin = function->code(i_isolate())->builtin_id();
-
-    // f2 was not compiled lazily.
-    EXPECT_NE(i::Builtin::kCompileLazy, builtin);
-  }
+  EXPECT_TRUE(FunctionIsCompiled("f1"));
+  EXPECT_TRUE(FunctionIsCompiled("f2"));
 }
 
-TEST_F(ScriptTest, CompileHintsMagicCommentBetweenFunctions) {
-  i::FlagScope<bool> flag_scope(&i::v8_flags.compile_hints_magic, true);
+TEST_F(CompileHintsTest, CompileHintsMagicCommentDifferentFunctionTypes) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
 
+  // Run the top level code.
+  const char* code =
+      "//# allFunctionsCalledOnLoad\n"
+      "f1 = () => {};\n"
+      "class C { f2() { } set f3(x) { } }\n"
+      "o = { get f4() { } };\n";
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::kProduceCompileHints |
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsMagicComment))
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+  EXPECT_TRUE(FunctionIsCompiled("f1"));
+  EXPECT_TRUE(FunctionIsCompiled("C.prototype.f2"));
+  EXPECT_TRUE(FunctionIsCompiled(
+      "Object.getOwnPropertyDescriptor(C.prototype, 'f3').set"));
+  EXPECT_TRUE(
+      FunctionIsCompiled("Object.getOwnPropertyDescriptor(o, 'f4').get"));
+}
+
+TEST_F(CompileHintsTest, CompileHintsMagicCommentBetweenFunctions) {
   const char* url = "http://www.foo.com/foo.js";
   v8::ScriptOrigin origin(NewString(url), 13, 0);
   v8::Local<v8::Context> context = v8::Context::New(isolate());
@@ -585,167 +593,305 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBetweenFunctions) {
   // Run the top level code.
   const char* code =
       "function f1() {}\n"
-      "//# experimentalChromiumCompileHints=all\n"
+      "//# allFunctionsCalledOnLoad\n"
       "function f2() {}";
   v8::ScriptCompiler::Source script_source(NewString(code), origin);
   Local<Script> script =
       v8::ScriptCompiler::Compile(
           v8_context(), &script_source,
-          v8::ScriptCompiler::CompileOptions::kProduceCompileHints)
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::kProduceCompileHints |
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsMagicComment))
           .ToLocalChecked();
 
   v8::MaybeLocal<v8::Value> result = script->Run(context);
   EXPECT_FALSE(result.IsEmpty());
 
-  // Retrieve the function object for f1.
-  {
-    const char* code2 = "f1";
-    v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
-
-    Local<Script> script2 =
-        v8::ScriptCompiler::Compile(v8_context(), &script_source2)
-            .ToLocalChecked();
-    v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
-
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result2.ToLocalChecked()));
-    i::Builtin builtin = function->code(i_isolate())->builtin_id();
-
-    // f1 was compiled lazily.
-    EXPECT_EQ(i::Builtin::kCompileLazy, builtin);
-  }
-
-  // Retrieve the function object for f2.
-  {
-    const char* code2 = "f2";
-    v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
-
-    Local<Script> script2 =
-        v8::ScriptCompiler::Compile(v8_context(), &script_source2)
-            .ToLocalChecked();
-    v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
-
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result2.ToLocalChecked()));
-
-    i::Builtin builtin = function->code(i_isolate())->builtin_id();
-
-    // f2 was not compiled lazily.
-    EXPECT_NE(i::Builtin::kCompileLazy, builtin);
-  }
+  EXPECT_FALSE(FunctionIsCompiled("f1"));
+  // Compile hint between functions is not picked up.
+  EXPECT_FALSE(FunctionIsCompiled("f2"));
 }
 
-TEST_F(ScriptTest, CompileHintsMagicCommentInvalid) {
-  i::FlagScope<bool> flag_scope(&i::v8_flags.compile_hints_magic, true);
-
+TEST_F(CompileHintsTest, CompileHintsMagicCommentInvalid) {
   const char* url = "http://www.foo.com/foo.js";
   v8::ScriptOrigin origin(NewString(url), 13, 0);
   v8::Local<v8::Context> context = v8::Context::New(isolate());
 
   // Run the top level code.
   const char* code =
-      "//# experimentalChromiumCompileHints=notAll\n"
+      "//# allFunctionsCalledOnLoadAndSomeStuffAfter\n"  // Not a valid compile
+                                                         // hint.
+      "//@ allFunctionsCalledOnLoad\n"  // Not a valid compile hint.
       "function f1() {}";
   v8::ScriptCompiler::Source script_source(NewString(code), origin);
   Local<Script> script =
       v8::ScriptCompiler::Compile(
           v8_context(), &script_source,
-          v8::ScriptCompiler::CompileOptions::kProduceCompileHints)
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::kProduceCompileHints |
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsMagicComment))
           .ToLocalChecked();
 
   v8::MaybeLocal<v8::Value> result = script->Run(context);
   EXPECT_FALSE(result.IsEmpty());
 
   // Retrieve the function object for f1.
-  {
-    const char* code2 = "f1";
-    v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
-
-    Local<Script> script2 =
-        v8::ScriptCompiler::Compile(v8_context(), &script_source2)
-            .ToLocalChecked();
-    v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
-
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result2.ToLocalChecked()));
-    i::Builtin builtin = function->code(i_isolate())->builtin_id();
-
-    // f1 was compiled lazily.
-    EXPECT_EQ(i::Builtin::kCompileLazy, builtin);
-  }
+  EXPECT_FALSE(FunctionIsCompiled("f1"));
 }
 
-namespace {
-
-bool CompileHintsMagicEnabledCallback(v8::Local<v8::Context> context) {
-  return true;
-}
-}  // namespace
-
-// Like CompileHintsMagicCommentBasic but enable compile hints via an API
-// callback.
-TEST_F(ScriptTest, CompileHintsMagicCommentBasicWithCallback) {
-  i::FlagScope<bool> flag_scope(&i::v8_flags.compile_hints_magic, false);
-
-  isolate()->SetJavaScriptCompileHintsMagicEnabledCallback(
-      CompileHintsMagicEnabledCallback);
-
-  v8::Local<v8::Context> context = v8::Context::New(isolate());
-  isolate()->InstallConditionalFeatures(context);
-
+// Regression test for https://issues.chromium.org/issues/351876778 , repurposed
+// for the per-function version, since the per-file version no longer has the
+// "value" field which could be two byte.
+TEST_F(ScriptTest, CompileHintsMagicCommentInvalid2) {
   const char* url = "http://www.foo.com/foo.js";
   v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
+
+  const char* code =
+      "//# functionsCalledOnLoad=\xCF\x80\n"  // Two byte character
+      "function f1() {}";
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::kProduceCompileHints |
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsMagicComment))
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+}
+
+TEST_F(CompileHintsTest, CompileHintsMagicCommentNotEnabledByCompileOptions) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
 
   // Run the top level code.
   const char* code =
-      "//# experimentalChromiumCompileHints=all\n"
-      "function f1() {}\n"
-      "let f2 = function() { }";
+      "//# allFunctionsCalledOnLoad\n"
+      "function f1() {}";
   v8::ScriptCompiler::Source script_source(NewString(code), origin);
   Local<Script> script =
       v8::ScriptCompiler::Compile(
           v8_context(), &script_source,
+          // Not enabling the magic comment with compile options!
           v8::ScriptCompiler::CompileOptions::kProduceCompileHints)
           .ToLocalChecked();
 
   v8::MaybeLocal<v8::Value> result = script->Run(context);
   EXPECT_FALSE(result.IsEmpty());
 
-  // Retrieve the function object for f1.
-  {
-    const char* code2 = "f1";
-    v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
+  EXPECT_FALSE(FunctionIsCompiled("f1"));
+}
 
-    Local<Script> script2 =
-        v8::ScriptCompiler::Compile(v8_context(), &script_source2)
-            .ToLocalChecked();
-    v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
+TEST_F(CompileHintsTest, StreamingCompileHintsMagic) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
 
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result2.ToLocalChecked()));
-    i::Builtin builtin = function->code(i_isolate())->builtin_id();
+  // Consume compile hints.
+  const char* chunks[] = {"//# allFunctionsCalled", "OnLoad\n",
+                          "function func1() {} function fu", "nc2() {}",
+                          nullptr};
 
-    // f1 was not compiled lazily.
-    EXPECT_NE(i::Builtin::kCompileLazy, builtin);
-  }
+  v8::ScriptCompiler::StreamedSource source(
+      std::make_unique<i::TestSourceStream>(chunks),
+      v8::ScriptCompiler::StreamedSource::ONE_BYTE);
+  std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task(
+      v8::ScriptCompiler::StartStreaming(
+          isolate(), &source, v8::ScriptType::kClassic,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::kProduceCompileHints |
+              v8::ScriptCompiler::kFollowCompileHintsMagicComment)));
 
-  // Retrieve the function object for f2.
-  {
-    const char* code2 = "f2";
-    v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
+  // TestSourceStream::GetMoreData won't block, so it's OK to just join the
+  // background task.
+  StreamerThread::StartThreadForTaskAndJoin(task.get());
+  task.reset();
 
-    Local<Script> script2 =
-        v8::ScriptCompiler::Compile(v8_context(), &script_source2)
-            .ToLocalChecked();
-    v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
+  std::unique_ptr<char[]> full_source(
+      i::TestSourceStream::FullSourceString(chunks));
 
-    auto function = i::Handle<i::JSFunction>::cast(
-        Utils::OpenHandle(*result2.ToLocalChecked()));
-    i::Builtin builtin = function->code(i_isolate())->builtin_id();
+  v8::Local<Script> script =
+      v8::ScriptCompiler::Compile(v8_context(), &source,
+                                  NewString(full_source.get()), origin)
+          .ToLocalChecked();
 
-    // f2 was not compiled lazily.
-    EXPECT_NE(i::Builtin::kCompileLazy, builtin);
-  }
+  v8::MaybeLocal<v8::Value> result = script->Run(v8_context());
+  EXPECT_FALSE(result.IsEmpty());
+
+  EXPECT_TRUE(FunctionIsCompiled("func1"));
+  EXPECT_TRUE(FunctionIsCompiled("func2"));
+}
+
+TEST_F(CompileHintsTest, CompileHintsMagicCommentAfterComments) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
+
+  // Run the top level code.
+  const char* code =
+      "// a single-line comment\n"
+      "/* a multi-\n"
+      "line comment */\n"
+      "// another single-line comment\n"
+      "//# allFunctionsCalledOnLoad\n"
+      "function f1() {}";
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::kProduceCompileHints |
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsMagicComment))
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+
+  EXPECT_TRUE(FunctionIsCompiled("f1"));
+}
+
+TEST_F(CompileHintsTest, CompileHintsPerFunctionMagicComment) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
+
+  // Run the top level code.
+  const char* code =
+      "// a comment here tests that the positions are handled correctly as"
+      "being relative to the compile hints comment end position\n"
+      "//# functionsCalledOnLoad=wBuC\n"  // Encodes positions 24 and 63
+      "function test_function_1(test_param1) {}\n"
+      //                      ^ function position
+      "let test_function_2 = (test_param2) => {}";
+  //                        ^ function position
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsPerFunctionMagicComment))
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+
+  EXPECT_TRUE(FunctionIsCompiled("test_function_1"));
+  EXPECT_TRUE(FunctionIsCompiled("test_function_2"));
+}
+
+TEST_F(CompileHintsTest, CompileHintsPerFunctionMagicCommentSome) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
+
+  // Run the top level code.
+  const char* code =
+      "// a comment here tests that the positions are handled correctly as"
+      "being relative to the compile hints comment end position\n"
+      "//# functionsCalledOnLoad=0GkF\n"
+      "function test_function_1(test_param1) {}\n"
+      "function test_function_2(test_param1) {}\n"
+      "function test_function_3(test_param1) {}\n"
+      "function test_function_4(test_param1) {}\n"
+      "function test_function_5(test_param1) {}\n"
+      "function test_function_6(test_param1) {}\n"
+      "function test_function_7(test_param1) {}\n";
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsPerFunctionMagicComment))
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+
+  EXPECT_TRUE(FunctionIsCompiled("test_function_3"));
+  EXPECT_TRUE(FunctionIsCompiled("test_function_5"));
+
+  EXPECT_FALSE(FunctionIsCompiled("test_function_1"));
+  EXPECT_FALSE(FunctionIsCompiled("test_function_2"));
+  EXPECT_FALSE(FunctionIsCompiled("test_function_4"));
+  EXPECT_FALSE(FunctionIsCompiled("test_function_6"));
+  EXPECT_FALSE(FunctionIsCompiled("test_function_7"));
+}
+
+TEST_F(CompileHintsTest, CompileHintsPerFunctionMagicCommentContinued) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
+
+  // Run the top level code.
+  const char* code =
+      "// a comment here tests that the positions are handled correctly as"
+      "being relative to the compile hints comment end position\n"
+      "//# functionsCalledOnLoad=wBuC\n"  // Encodes positions 24 and 63
+      "function test_function_1(test_param1) {}\n"
+      //                      ^ function position
+      "let test_function_2 = (test_param2) => {}"
+      //                    ^ function position
+      "//# functionsCalledOnLoad=wBuC\n"  // Encodes positions 24 and 63
+      "function test_function_3(test_param3) {}\n"
+      //                      ^ function position
+      "let test_function_4 = (test_param4) => {}";
+  //                        ^ function position
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsPerFunctionMagicComment))
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+
+  EXPECT_TRUE(FunctionIsCompiled("test_function_1"));
+  EXPECT_TRUE(FunctionIsCompiled("test_function_2"));
+  EXPECT_TRUE(FunctionIsCompiled("test_function_3"));
+  EXPECT_TRUE(FunctionIsCompiled("test_function_4"));
+}
+
+TEST_F(CompileHintsTest,
+       CompileHintsPerFunctionMagicCommentNotEnabledByCompileOptions) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
+
+  // Run the top level code.
+  const char* code =
+      "// a comment here tests that the positions are handled correctly as"
+      "being relative to the compile hints comment end position\n"
+      "//# functionsCalledOnLoad=wBuC\n"  // Encodes positions 24 and 63
+      "function test_function_1(test_param1) {}\n"
+      //                      ^ function position
+      "let test_function_2 = (test_param2) => {}";
+  //                        ^ function position
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::kNoCompileOptions))
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+
+  EXPECT_FALSE(FunctionIsCompiled("test_function_1"));
+  EXPECT_FALSE(FunctionIsCompiled("test_function_2"));
 }
 
 }  // namespace

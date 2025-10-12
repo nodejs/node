@@ -8,6 +8,8 @@
 
 #if U_SHOW_CPLUSPLUS_API
 
+#if !UCONFIG_NO_NORMALIZATION
+
 #if !UCONFIG_NO_FORMATTING
 
 #if !UCONFIG_NO_MF2
@@ -20,6 +22,7 @@
 #include "unicode/messageformat2_arguments.h"
 #include "unicode/messageformat2_data_model.h"
 #include "unicode/messageformat2_function_registry.h"
+#include "unicode/normalizer2.h"
 #include "unicode/unistr.h"
 
 #ifndef U_HIDE_DEPRECATED_API
@@ -30,8 +33,8 @@ namespace message2 {
 
     class Environment;
     class MessageContext;
-    class ResolvedSelector;
     class StaticErrors;
+    class InternalValue;
 
     /**
      * <p>MessageFormatter is a Technical Preview API implementing MessageFormat 2.0.
@@ -140,6 +143,31 @@ namespace message2 {
         const MFDataModel& getDataModel() const;
 
         /**
+         * Used in conjunction with the
+         * MessageFormatter::Builder::setErrorHandlingBehavior() method.
+         *
+         * @internal ICU 76 technology preview
+         * @deprecated This API is for technology preview only.
+         */
+        typedef enum UMFErrorHandlingBehavior {
+            /**
+             * Suppress errors and return best-effort output.
+             *
+             * @internal ICU 76 technology preview
+             * @deprecated This API is for technology preview only.
+             */
+            U_MF_BEST_EFFORT = 0,
+            /**
+             * Signal all MessageFormat errors using the UErrorCode
+             * argument.
+             *
+             * @internal ICU 76 technology preview
+             * @deprecated This API is for technology preview only.
+             */
+            U_MF_STRICT
+        } UMFErrorHandlingBehavior;
+
+        /**
          * The mutable Builder class allows each part of the MessageFormatter to be initialized
          * separately; calling its `build()` method yields an immutable MessageFormatter.
          *
@@ -166,7 +194,10 @@ namespace message2 {
             Locale locale;
             // Not owned
             const MFFunctionRegistry* customMFFunctionRegistry;
+            // Error behavior; see comment in `MessageFormatter` class
+            bool signalErrors = false;
 
+            void clearState();
         public:
             /**
              * Sets the locale to use for formatting.
@@ -219,6 +250,36 @@ namespace message2 {
              */
             Builder& setDataModel(MFDataModel&& dataModel);
             /**
+             * Set the error handling behavior for this formatter.
+             *
+             * "Strict" error behavior means that that formatting methods
+             * will set their UErrorCode arguments to signal MessageFormat
+             * data model, resolution, and runtime errors. Syntax errors are
+             * always signaled.
+             *
+             * "Best effort" error behavior means that MessageFormat errors are
+             * suppressed:  formatting methods will _not_ set their
+             * UErrorCode arguments to signal MessageFormat data model,
+             * resolution, or runtime errors. Best-effort output
+             * will be returned. Syntax errors are always signaled.
+             * This is the default behavior.
+             *
+             * @param type An enum with type UMFErrorHandlingBehavior;
+             *             if type == `U_MF_STRICT`, then
+             *             errors are handled strictly.
+             *             If type == `U_MF_BEST_EFFORT`, then
+             *             best-effort output is returned.
+             *
+             * The default is to suppress all MessageFormat errors
+             * and return best-effort output.
+             *
+             * @return       A reference to the builder.
+             *
+             * @internal ICU 76 technology preview
+             * @deprecated This API is for technology preview only.
+             */
+            Builder& setErrorHandlingBehavior(UMFErrorHandlingBehavior type);
+            /**
              * Constructs a new immutable MessageFormatter using the pattern or data model
              * that was previously set, and the locale (if it was previously set)
              * or default locale (otherwise).
@@ -267,6 +328,8 @@ namespace message2 {
 
     private:
         friend class Builder;
+        friend class Checker;
+        friend class MessageArguments;
         friend class MessageContext;
 
         MessageFormatter(const MessageFormatter::Builder& builder, UErrorCode &status);
@@ -275,9 +338,6 @@ namespace message2 {
 
         // Do not define default assignment operator
         const MessageFormatter &operator=(const MessageFormatter &) = delete;
-
-        ResolvedSelector resolveVariables(const Environment& env, const data_model::Operand&, MessageContext&, UErrorCode &) const;
-        ResolvedSelector resolveVariables(const Environment& env, const data_model::Expression&, MessageContext&, UErrorCode &) const;
 
         // Selection methods
 
@@ -288,31 +348,35 @@ namespace message2 {
         // Takes a vector of vectors of strings (input) and a vector of PrioritizedVariants (input/output)
         void sortVariants(const UVector&, UVector&, UErrorCode&) const;
         // Takes a vector of strings (input) and a vector of strings (output)
-        void matchSelectorKeys(const UVector&, MessageContext&, ResolvedSelector&& rv, UVector&, UErrorCode&) const;
+        void matchSelectorKeys(const UVector&, MessageContext&, InternalValue* rv, UVector&, UErrorCode&) const;
         // Takes a vector of FormattedPlaceholders (input),
         // and a vector of vectors of strings (output)
         void resolvePreferences(MessageContext&, UVector&, UVector&, UErrorCode&) const;
 
         // Formatting methods
+
+        // Used for normalizing variable names and keys for comparison
+        UnicodeString normalizeNFC(const UnicodeString&) const;
         [[nodiscard]] FormattedPlaceholder formatLiteral(const data_model::Literal&) const;
         void formatPattern(MessageContext&, const Environment&, const data_model::Pattern&, UErrorCode&, UnicodeString&) const;
-        // Formats a call to a formatting function
+        // Evaluates a function call
         // Dispatches on argument type
-        [[nodiscard]] FormattedPlaceholder evalFormatterCall(FormattedPlaceholder&& argument,
-                                                       MessageContext& context,
-                                                       UErrorCode& status) const;
+        [[nodiscard]] InternalValue* evalFunctionCall(FormattedPlaceholder&& argument,
+                                                     MessageContext& context,
+                                                     UErrorCode& status) const;
         // Dispatches on function name
-        [[nodiscard]] FormattedPlaceholder evalFormatterCall(const FunctionName& functionName,
-                                                       FormattedPlaceholder&& argument,
-                                                       FunctionOptions&& options,
-                                                       MessageContext& context,
-                                                       UErrorCode& status) const;
-        // Formats an expression that appears as a selector
-        ResolvedSelector formatSelectorExpression(const Environment& env, const data_model::Expression&, MessageContext&, UErrorCode&) const;
+        [[nodiscard]] InternalValue* evalFunctionCall(const FunctionName& functionName,
+                                                     InternalValue* argument,
+                                                     FunctionOptions&& options,
+                                                     MessageContext& context,
+                                                     UErrorCode& status) const;
         // Formats an expression that appears in a pattern or as the definition of a local variable
-        [[nodiscard]] FormattedPlaceholder formatExpression(const Environment&, const data_model::Expression&, MessageContext&, UErrorCode&) const;
+        [[nodiscard]] InternalValue* formatExpression(const Environment&,
+                                                     const data_model::Expression&,
+                                                     MessageContext&,
+                                                     UErrorCode&) const;
         [[nodiscard]] FunctionOptions resolveOptions(const Environment& env, const OptionMap&, MessageContext&, UErrorCode&) const;
-        [[nodiscard]] FormattedPlaceholder formatOperand(const Environment&, const data_model::Operand&, MessageContext&, UErrorCode&) const;
+        [[nodiscard]] InternalValue* formatOperand(const Environment&, const data_model::Operand&, MessageContext&, UErrorCode&) const;
         [[nodiscard]] FormattedPlaceholder evalArgument(const data_model::VariableName&, MessageContext&, UErrorCode&) const;
         void formatSelectors(MessageContext& context, const Environment& env, UErrorCode &status, UnicodeString& result) const;
 
@@ -378,7 +442,18 @@ namespace message2 {
         // Must be a raw pointer to avoid including the internal header file
         // defining StaticErrors
         // Owned by `this`
-        StaticErrors* errors;
+        StaticErrors* errors = nullptr;
+
+        // Error handling behavior.
+        // If true, then formatting methods set their UErrorCode arguments
+        // to signal MessageFormat errors, and no useful output is returned.
+        // If false, then MessageFormat errors are not signaled and the
+        // formatting methods return best-effort output.
+        // The default is false.
+        bool signalErrors = false;
+
+        // Used for implementing normalizeNFC()
+        const Normalizer2* nfcNormalizer = nullptr;
 
     }; // class MessageFormatter
 
@@ -391,6 +466,8 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_MF2 */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* #if !UCONFIG_NO_NORMALIZATION */
 
 #endif /* U_SHOW_CPLUSPLUS_API */
 

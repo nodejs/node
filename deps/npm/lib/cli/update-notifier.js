@@ -40,7 +40,7 @@ const updateCheck = async (npm, spec, version, current) => {
   // and should get the updates from that release train.
   // Note that this isn't another http request over the network, because
   // the packument will be cached by pacote from previous request.
-  if (gt(version, latest) && spec === 'latest') {
+  if (gt(version, latest) && spec === '*') {
     return updateNotifier(npm, `^${version}`)
   }
 
@@ -71,7 +71,7 @@ const updateCheck = async (npm, spec, version, current) => {
   return message
 }
 
-const updateNotifier = async (npm, spec = 'latest') => {
+const updateNotifier = async (npm, spec = '*') => {
   // if we're on a prerelease train, then updates are coming fast
   // check for a new one daily.  otherwise, weekly.
   const { version } = npm
@@ -83,7 +83,7 @@ const updateNotifier = async (npm, spec = 'latest') => {
   }
 
   // while on a beta train, get updates daily
-  const duration = spec !== 'latest' ? DAILY : WEEKLY
+  const duration = current.prerelease.length ? DAILY : WEEKLY
 
   const t = new Date(Date.now() - duration)
   // if we don't have a file, then definitely check it.
@@ -102,7 +102,6 @@ const updateNotifier = async (npm, spec = 'latest') => {
   return updateCheck(npm, spec, version, current)
 }
 
-// only update the notification timeout if we actually finished checking
 module.exports = npm => {
   if (
     // opted out

@@ -32,7 +32,7 @@ TEST_F(FactoryCodeBuilderTest, Factory_CodeBuilder) {
   desc.unwinding_info = nullptr;
   desc.unwinding_info_size = 0;
   desc.origin = nullptr;
-  Handle<Code> code =
+  DirectHandle<Code> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
 
   CHECK(
@@ -81,7 +81,7 @@ TEST_F(FactoryCodeBuilderOOMTest, Factory_CodeBuilder_BuildOOM) {
   desc.instr_size = kInstructionSize;
   desc.buffer = instructions.get();
 
-  const Handle<Code> code =
+  const DirectHandle<Code> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
 
   CHECK(!code.is_null());
@@ -94,7 +94,7 @@ TEST_F(FactoryCodeBuilderOOMTest, Factory_CodeBuilder_TryBuildOOM) {
   desc.instr_size = kInstructionSize;
   desc.buffer = instructions.get();
 
-  const MaybeHandle<Code> code =
+  const MaybeDirectHandle<Code> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).TryBuild();
 
   CHECK(code.is_null());

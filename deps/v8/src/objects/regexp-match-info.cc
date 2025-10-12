@@ -2,19 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/objects/regexp-match-info-inl.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // static
-Handle<RegExpMatchInfo> RegExpMatchInfo::New(Isolate* isolate,
-                                             int capture_count,
-                                             AllocationType allocation) {
+DirectHandle<RegExpMatchInfo> RegExpMatchInfo::New(Isolate* isolate,
+                                                   int capture_count,
+                                                   AllocationType allocation) {
   int capacity = JSRegExp::RegistersForCaptureCount(capture_count);
   DCHECK_GE(capacity, kMinCapacity);
-  base::Optional<DisallowGarbageCollection> no_gc;
-  Handle<RegExpMatchInfo> result =
+  std::optional<DisallowGarbageCollection> no_gc;
+  DirectHandle<RegExpMatchInfo> result =
       Allocate(isolate, capacity, &no_gc, allocation);
 
   ReadOnlyRoots roots{isolate};
@@ -27,11 +28,12 @@ Handle<RegExpMatchInfo> RegExpMatchInfo::New(Isolate* isolate,
   return result;
 }
 
-Handle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(
-    Isolate* isolate, Handle<RegExpMatchInfo> match_info, int capture_count) {
+DirectHandle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(
+    Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
+    int capture_count) {
   int required_capacity = JSRegExp::RegistersForCaptureCount(capture_count);
   if (required_capacity > match_info->capacity()) {
-    Handle<RegExpMatchInfo> new_info = New(isolate, capture_count);
+    DirectHandle<RegExpMatchInfo> new_info = New(isolate, capture_count);
     RegExpMatchInfo::CopyElements(isolate, *new_info, 0, *match_info, 0,
                                   match_info->capacity());
     match_info = new_info;
@@ -40,5 +42,4 @@ Handle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(
   return match_info;
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

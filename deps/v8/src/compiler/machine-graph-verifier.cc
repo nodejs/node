@@ -5,12 +5,12 @@
 #include "src/compiler/machine-graph-verifier.h"
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -21,7 +21,7 @@ namespace {
 
 class MachineRepresentationInferrer {
  public:
-  MachineRepresentationInferrer(Schedule const* schedule, Graph const* graph,
+  MachineRepresentationInferrer(Schedule const* schedule, TFGraph const* graph,
                                 Linkage* linkage, Zone* zone)
       : schedule_(schedule),
         linkage_(linkage),
@@ -1039,8 +1039,11 @@ class MachineRepresentationChecker {
         // happens in dead code.
         return IsAnyTagged(actual);
       case MachineRepresentation::kCompressedPointer:
+      case MachineRepresentation::kProtectedPointer:
       case MachineRepresentation::kIndirectPointer:
       case MachineRepresentation::kSandboxedPointer:
+      case MachineRepresentation::kFloat16RawBits:
+      case MachineRepresentation::kFloat16:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
       case MachineRepresentation::kSimd128:
@@ -1078,7 +1081,7 @@ class MachineRepresentationChecker {
 
 }  // namespace
 
-void MachineGraphVerifier::Run(Graph* graph, Schedule const* const schedule,
+void MachineGraphVerifier::Run(TFGraph* graph, Schedule const* const schedule,
                                Linkage* linkage, bool is_stub, const char* name,
                                Zone* temp_zone) {
   MachineRepresentationInferrer representation_inferrer(schedule, graph,

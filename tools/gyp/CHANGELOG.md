@@ -1,5 +1,78 @@
 # Changelog
 
+## [0.20.4](https://github.com/nodejs/gyp-next/compare/v0.20.3...v0.20.4) (2025-08-25)
+
+
+### Bug Fixes
+
+* **cli:** remove duplicate usage ([#308](https://github.com/nodejs/gyp-next/issues/308)) ([0996f60](https://github.com/nodejs/gyp-next/commit/0996f60e9bc83ec9d7b31e39bebd23f8dc990130))
+* **docs:** Add running gyp via uv ([#306](https://github.com/nodejs/gyp-next/issues/306)) ([0e43f61](https://github.com/nodejs/gyp-next/commit/0e43f61da8154f9b460ccba9ce4c0a25d2383ac4))
+
+## [0.20.3](https://github.com/nodejs/gyp-next/compare/v0.20.2...v0.20.3) (2025-08-20)
+
+
+### Bug Fixes
+
+* compilation failure on the OpenHarmony platform ([#301](https://github.com/nodejs/gyp-next/issues/301)) ([0cf7a14](https://github.com/nodejs/gyp-next/commit/0cf7a142be06f686b8b42849791de902f177cf9f))
+* make xcode_emulation handle `xcodebuild` not in the `PATH` ([#303](https://github.com/nodejs/gyp-next/issues/303)) ([8224dee](https://github.com/nodejs/gyp-next/commit/8224deef984add7e7afe846cfb82c9d3fa6da1fb))
+
+## [0.20.2](https://github.com/nodejs/gyp-next/compare/v0.20.1...v0.20.2) (2025-06-22)
+
+
+### Bug Fixes
+
+* Python lint import-outside-top-level ruff rule PLC0415 ([#298](https://github.com/nodejs/gyp-next/issues/298)) ([34f4df6](https://github.com/nodejs/gyp-next/commit/34f4df614936ee6a056e47406ebbe7e3c1cb6540))
+
+## [0.20.1](https://github.com/nodejs/gyp-next/compare/v0.20.0...v0.20.1) (2025-06-06)
+
+
+### Bug Fixes
+
+* Ensure Consistent Order of build_files in WriteAutoRegenerationRule ([#293](https://github.com/nodejs/gyp-next/issues/293)) ([59b5903](https://github.com/nodejs/gyp-next/commit/59b59035f4ae63419343ffdafe0f0ff511ada17d))
+* ignore failure of `GetCompilerPredefines` ([#295](https://github.com/nodejs/gyp-next/issues/295)) ([0eaea29](https://github.com/nodejs/gyp-next/commit/0eaea297f0fbb0869597aa162f66f78eb2468fad))
+
+## [0.20.0](https://github.com/nodejs/gyp-next/compare/v0.19.1...v0.20.0) (2025-03-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* resolve issue with relative paths during linking ([#284](https://github.com/nodejs/gyp-next/issues/284))
+
+### Bug Fixes
+
+* python lint  more ruff rules ([#291](https://github.com/nodejs/gyp-next/issues/291)) ([fabc78c](https://github.com/nodejs/gyp-next/commit/fabc78caffcf988365d970ced5a151f40525077e))
+* remove explicit installation of setuptools ([#278](https://github.com/nodejs/gyp-next/issues/278)) ([e476778](https://github.com/nodejs/gyp-next/commit/e4767782c70ca8427184694589d9f0ded5eeed22))
+* resolve issue with relative paths during linking ([#284](https://github.com/nodejs/gyp-next/issues/284)) ([a2d7439](https://github.com/nodejs/gyp-next/commit/a2d7439fbd3c03f01e1149fdbe682f754bc6cc7f))
+
+## [0.19.1](https://github.com/nodejs/gyp-next/compare/v0.19.0...v0.19.1) (2024-12-09)
+
+
+### Bug Fixes
+
+* fixup for break in EscapeForCString ([#274](https://github.com/nodejs/gyp-next/issues/274)) ([610f661](https://github.com/nodejs/gyp-next/commit/610f661da877a358c8b3cbc106b528fb1d0b8095))
+
+## [0.19.0](https://github.com/nodejs/gyp-next/compare/v0.18.3...v0.19.0) (2024-12-03)
+
+
+### Features
+
+* provide escaped version of `PRODUCT_DIR_ABS` ([#271](https://github.com/nodejs/gyp-next/issues/271)) ([3bf3b1c](https://github.com/nodejs/gyp-next/commit/3bf3b1cda26f16c645e0fdd5582ffbf49d9a2580))
+
+## [0.18.3](https://github.com/nodejs/gyp-next/compare/v0.18.2...v0.18.3) (2024-10-08)
+
+
+### Bug Fixes
+
+* enable pch for clang on windows ([#268](https://github.com/nodejs/gyp-next/issues/268)) ([cc5838c](https://github.com/nodejs/gyp-next/commit/cc5838c4e9260bf459d71de53fbb2eebd1a6f508))
+
+## [0.18.2](https://github.com/nodejs/gyp-next/compare/v0.18.1...v0.18.2) (2024-09-23)
+
+
+### Bug Fixes
+
+* do not assume that /usr/bin/env exists on macOS ([#216](https://github.com/nodejs/gyp-next/issues/216)) ([706d04a](https://github.com/nodejs/gyp-next/commit/706d04aba5bd18f311dc56f84720e99f64c73466))
+* fix E721 lint errors ([#206](https://github.com/nodejs/gyp-next/issues/206)) ([d1299a4](https://github.com/nodejs/gyp-next/commit/d1299a49d313eccabecf97ccb56fc033afad39ad))
+
 ## [0.18.1](https://github.com/nodejs/gyp-next/compare/v0.18.0...v0.18.1) (2024-05-26)
 
 

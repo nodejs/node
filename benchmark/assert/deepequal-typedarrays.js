@@ -16,6 +16,12 @@ const bench = common.createBenchmark(main, {
     'notDeepEqual',
   ],
   len: [1e2, 5e3],
+}, {
+  combinationFilter(p) {
+    return p.strict === 1 ||
+           p.type !== 'Float32Array' ||
+           p.len === 1e2;
+  },
 });
 
 function main({ type, n, len, method, strict }) {

@@ -75,11 +75,9 @@ const setBlocking = (stream) => {
   return stream
 }
 
-// These are important
 // This is the key that is returned to the user for errors
 const ERROR_KEY = 'error'
-// This is the key producers use to indicate that there
-// is a json error that should be merged into the finished output
+// This is the key producers use to indicate that there is a json error that should be merged into the finished output
 const JSON_ERROR_KEY = 'jsonError'
 
 const isPlainObject = (v) => v && typeof v === 'object' && !Array.isArray(v)
@@ -120,15 +118,12 @@ const getJsonBuffer = ({ [JSON_ERROR_KEY]: metaError }, buffer) => {
 
   const res = getArrayOrObject(items)
 
-  // This skips any error checking since we can only set an error property
-  // on an object that can be stringified
+  // This skips any error checking since we can only set an error property on an object that can be stringified
   // XXX(BREAKING_CHANGE): remove this in favor of always returning an object with result and error keys
   if (isPlainObject(res) && errors.length) {
-    // This is not ideal. JSON output has always been keyed at the root with an `error`
-    // key, so we cant change that without it being a breaking change. At the same time
-    // some commands output arbitrary keys at the top level of the output, such as package
-    // names. So the output could already have the same key. The choice here is to overwrite
-    // it with our error since that is (probably?) more important.
+    // This is not ideal.
+    // JSON output has always been keyed at the root with an `error` key, so we cant change that without it being a breaking change. At the same time some commands output arbitrary keys at the top level of the output, such as package names.
+    // So the output could already have the same key. The choice here is to overwrite it with our error since that is (probably?) more important.
     // XXX(BREAKING_CHANGE): all json output should be keyed under well known keys, eg `result` and `error`
     if (res[ERROR_KEY]) {
       log.warn('', `overwriting existing ${ERROR_KEY} on json output`)
@@ -221,15 +216,11 @@ class Display {
     timing,
     unicode,
   }) {
-    // get createSupportsColor from chalk directly if this lands
-    // https://github.com/chalk/chalk/pull/600
     const [{ Chalk }, { createSupportsColor }] = await Promise.all([
       import('chalk'),
       import('supports-color'),
     ])
-    // we get the chalk level based on a null stream meaning chalk will only use
-    // what it knows about the environment to get color support since we already
-    // determined in our definitions that we want to show colors.
+    // We get the chalk level based on a null stream, meaning chalk will only use what it knows about the environment to get color support since we already determined in our definitions that we want to show colors.
     const level = Math.max(createSupportsColor(null).level, 1)
     this.#noColorChalk = new Chalk({ level: 0 })
     this.#stdoutColor = stdoutColor
@@ -265,8 +256,7 @@ class Display {
 
   // HANDLERS
 
-  // Arrow function assigned to a private class field so it can be passed
-  // directly as a listener and still reference "this"
+  // Arrow function assigned to a private class field so it can be passed directly as a listener and still reference "this"
   #logHandler = withMeta((level, meta, ...args) => {
     switch (level) {
       case log.KEYS.resume:
@@ -289,8 +279,7 @@ class Display {
     }
   })
 
-  // Arrow function assigned to a private class field so it can be passed
-  // directly as a listener and still reference "this"
+  // Arrow function assigned to a private class field so it can be passed directly as a listener and still reference "this"
   #outputHandler = withMeta((level, meta, ...args) => {
     this.#json = typeof meta.json === 'boolean' ? meta.json : this.#json
     switch (level) {
@@ -316,18 +305,14 @@ class Display {
         if (this.#outputState.buffering) {
           this.#outputState.buffer.push([level, meta, ...args])
         } else {
-          // HACK: Check if the argument looks like a run-script banner. This can be
-          // replaced with proc-log.META in @npmcli/run-script
+          // XXX: Check if the argument looks like a run-script banner.  This should be replaced with proc-log.META in @npmcli/run-script
           if (typeof args[0] === 'string' && args[0].startsWith('\n> ') && args[0].endsWith('\n')) {
             if (this.#silent || ['exec', 'explore'].includes(this.#command)) {
               // Silent mode and some specific commands always hide run script banners
               break
             } else if (this.#json) {
-              // In json mode, change output to stderr since we dont want to break json
-              // parsing on stdout if the user is piping to jq or something.
-              // XXX: in a future (breaking?) change it might make sense for run-script to
-              // always output these banners with proc-log.output.error if we think they
-              // align closer with "logging" instead of "output"
+              // In json mode, change output to stderr since we don't want to break json parsing on stdout if the user is piping to jq or something.
+              // XXX: in a future (breaking?) change it might make sense for run-script to always output these banners with proc-log.output.error if we think they align closer with "logging" instead of "output".
               level = output.KEYS.error
             }
           }
@@ -352,14 +337,12 @@ class Display {
         break
 
       case input.KEYS.read: {
-        // The convention when calling input.read is to pass in a single fn that returns
-        // the promise to await. resolve and reject are provided by proc-log
+        // The convention when calling input.read is to pass in a single fn that returns the promise to await. resolve and reject are provided by proc-log.
         const [res, rej, p] = args
         return input.start(() => p()
           .then(res)
           .catch(rej)
-          // Any call to procLog.input.read will render a prompt to the user, so we always
-          // add a single newline of output to stdout to move the cursor to the next line
+          // Any call to procLog.input.read will render a prompt to the user, so we always add a single newline of output to stdout to move the cursor to the next line.
           .finally(() => output.standard('')))
       }
     }
@@ -370,11 +353,11 @@ class Display {
   #writeOutput (level, meta, ...args) {
     switch (level) {
       case output.KEYS.standard:
-        this.#write(this.#stdout, {}, ...args)
+        this.#write(this.#stdout, meta, ...args)
         break
 
       case output.KEYS.error:
-        this.#write(this.#stderr, {}, ...args)
+        this.#write(this.#stderr, meta, ...args)
         break
     }
   }
@@ -383,10 +366,7 @@ class Display {
 
   #tryWriteLog (level, meta, ...args) {
     try {
-      // Also (and this is a really inexcusable kludge), we patch the
-      // log.warn() method so that when we see a peerDep override
-      // explanation from Arborist, we can replace the object with a
-      // highly abbreviated explanation of what's being overridden.
+      // Also (and this is a really inexcusable kludge), we patch the log.warn() method so that when we see a peerDep override explanation from Arborist, we can replace the object with a highly abbreviated explanation of what's being overridden.
       // TODO: this could probably be moved to arborist now that display is refactored
       const [heading, message, expl] = args
       if (level === log.KEYS.warn && heading === 'ERESOLVE' && expl && typeof expl === 'object') {
@@ -400,8 +380,7 @@ class Display {
         // if it crashed once, it might again!
         this.#writeLog(log.KEYS.verbose, meta, '', `attempt to log crashed`, ...args, ex)
       } catch (ex2) {
-        // This happens if the object has an inspect method that crashes so just console.error
-        // with the errors but don't do anything else that might error again.
+        // This happens if the object has an inspect method that crashes so just console.error with the errors but don't do anything else that might error again.
         // eslint-disable-next-line no-console
         console.error(`attempt to log crashed`, ex, ex2)
       }
@@ -421,7 +400,12 @@ class Display {
         this.#logColors[level](level),
         title ? this.#logColors.title(title) : null,
       ]
-      this.#write(this.#stderr, { prefix }, ...args)
+      const writeOpts = { prefix }
+      // notice logs typically come from `npm-notice` headers in responses.  Some of them have 2fa login links so we skip redaction.
+      if (level === 'notice') {
+        writeOpts.redact = false
+      }
+      this.#write(this.#stderr, writeOpts, ...args)
     }
   }
 }
@@ -433,16 +417,17 @@ class Progress {
   static dots = { duration: 80, frames: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'] }
   static lines = { duration: 130, frames: ['-', '\\', '|', '/'] }
 
-  #stream
-  #spinner
   #enabled = false
-
   #frameIndex = 0
-  #lastUpdate = 0
   #interval
+  #lastUpdate = 0
+  #spinner
+  #stream
+  // Initial timeout to wait to start rendering
   #timeout
+  #rendered = false
 
-  // We are rendering is enabled option is set and we are not waiting for the render timeout
+  // We are rendering if enabled option is set and we are not waiting for the render timeout
   get #rendering () {
     return this.#enabled && !this.#timeout
   }
@@ -459,8 +444,13 @@ class Progress {
   load ({ enabled, unicode }) {
     this.#enabled = enabled
     this.#spinner = unicode ? Progress.dots : Progress.lines
-    // Dont render the spinner for short durations
-    this.#render(200)
+    // Wait 200 ms so we don't render the spinner for short durations
+    this.#timeout = setTimeout(() => {
+      this.#timeout = null
+      this.#render()
+    }, 200)
+    // Make sure this timeout does not keep the process open
+    this.#timeout.unref()
   }
 
   off () {
@@ -477,12 +467,11 @@ class Progress {
   }
 
   resume () {
-    this.#render()
+    this.#render(true)
   }
 
-  // If we are currenting rendering the spinner we clear it
-  // before writing our line and then re-render the spinner after.
-  // If not then all we need to do is write the line
+  // If we are currently rendering the spinner we clear it before writing our line and then re-render the spinner after.
+  // If not then all we need to do is write the line.
   write (write) {
     if (this.#spinning) {
       this.#clearSpinner()
@@ -493,31 +482,21 @@ class Progress {
     }
   }
 
-  #render (ms) {
-    if (ms) {
-      this.#timeout = setTimeout(() => {
-        this.#timeout = null
-        this.#renderSpinner()
-      }, ms)
-      // Make sure this timeout does not keep the process open
-      this.#timeout.unref()
-    } else {
-      this.#renderSpinner()
-    }
-  }
-
-  #renderSpinner () {
+  #render (resuming) {
     if (!this.#rendering) {
       return
     }
-    // We always attempt to render immediately but we only request to move to the next
-    // frame if it has been longer than our spinner frame duration since our last update
-    this.#renderFrame(Date.now() - this.#lastUpdate >= this.#spinner.duration)
-    clearInterval(this.#interval)
-    this.#interval = setInterval(() => this.#renderFrame(true), this.#spinner.duration)
+    // We always attempt to render immediately but we only request to move to the next frame if it has been longer than our spinner frame duration since our last update
+    this.#renderFrame(Date.now() - this.#lastUpdate >= this.#spinner.duration, resuming)
+    if (!this.#interval) {
+      this.#interval = setInterval(() => this.#renderFrame(true), this.#spinner.duration)
+      // Make sure this timeout does not keep the process open
+      this.#interval.unref()
+    }
+    this.#interval.refresh()
   }
 
-  #renderFrame (next) {
+  #renderFrame (next, resuming) {
     if (next) {
       this.#lastUpdate = Date.now()
       this.#frameIndex++
@@ -525,14 +504,21 @@ class Progress {
         this.#frameIndex = 0
       }
     }
-    this.#clearSpinner()
+    if (!resuming) {
+      this.#clearSpinner()
+    }
     this.#stream.write(this.#spinner.frames[this.#frameIndex])
+    this.#rendered = true
   }
 
   #clearSpinner () {
+    if (!this.#rendered) {
+      return
+    }
     // Move to the start of the line and clear the rest of the line
     this.#stream.cursorTo(0)
     this.#stream.clearLine(1)
+    this.#rendered = false
   }
 }
 

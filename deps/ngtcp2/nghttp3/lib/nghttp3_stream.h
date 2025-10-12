@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp3/nghttp3.h>
 
@@ -69,6 +69,8 @@ typedef enum nghttp3_ctrl_stream_state {
   NGHTTP3_CTRL_STREAM_STATE_SETTINGS_VALUE,
   NGHTTP3_CTRL_STREAM_STATE_PRIORITY_UPDATE_PRI_ELEM_ID,
   NGHTTP3_CTRL_STREAM_STATE_PRIORITY_UPDATE,
+  NGHTTP3_CTRL_STREAM_STATE_ORIGIN_ORIGIN_LEN,
+  NGHTTP3_CTRL_STREAM_STATE_ORIGIN_ASCII_ORIGIN,
 } nghttp3_ctrl_stream_state;
 
 typedef enum nghttp3_req_stream_state {
@@ -88,8 +90,8 @@ typedef struct nghttp3_varint_read_state {
 typedef struct nghttp3_stream_read_state {
   nghttp3_varint_read_state rvint;
   nghttp3_frame fr;
-  int state;
   int64_t left;
+  int state;
 } nghttp3_stream_read_state;
 
 /* NGHTTP3_STREAM_FLAG_NONE indicates that no flag is set. */
@@ -129,10 +131,6 @@ typedef struct nghttp3_stream_read_state {
 /* NGHTTP3_STREAM_FLAG_PRIORITY_UPDATE_RECVED indicates that server
    received PRIORITY_UPDATE frame for this stream. */
 #define NGHTTP3_STREAM_FLAG_PRIORITY_UPDATE_RECVED 0x0800u
-/* NGHTTP3_STREAM_FLAG_HTTP_ERROR indicates that
-   NGHTTP3_ERR_MALFORMED_HTTP_HEADER error is encountered while
-   processing incoming HTTP fields. */
-#define NGHTTP3_STREAM_FLAG_HTTP_ERROR 0x1000u
 
 typedef enum nghttp3_stream_http_state {
   NGHTTP3_HTTP_STATE_NONE,
@@ -186,9 +184,6 @@ typedef struct nghttp3_stream_callbacks {
 } nghttp3_stream_callbacks;
 
 typedef struct nghttp3_http_state {
-  /* status_code is HTTP status code received.  This field is used
-     if connection is initialized as client. */
-  int32_t status_code;
   /* content_length is the value of received content-length header
      field. */
   int64_t content_length;
@@ -196,6 +191,9 @@ typedef struct nghttp3_http_state {
      far. */
   int64_t recv_content_length;
   nghttp3_pri pri;
+  /* status_code is HTTP status code received.  This field is used
+     if connection is initialized as client. */
+  int32_t status_code;
   uint32_t flags;
 } nghttp3_http_state;
 
@@ -223,16 +221,12 @@ struct nghttp3_stream {
       uint64_t unsent_bytes;
       /* outq_idx is an index into outq where next write is made. */
       size_t outq_idx;
-      /* outq_offset is write offset relative to the element at outq_idx
-         in outq. */
-      uint64_t outq_offset;
-      /* ack_offset is offset acknowledged by peer relative to the first
-         element in outq. */
+      /* ack_base is the number of bytes acknowledged by a remote
+         endpoint where the first element in outq is positioned at. */
+      uint64_t ack_base;
+      /* ack_offset is the number of bytes acknowledged by a remote
+         endpoint so far. */
       uint64_t ack_offset;
-      /* ack_done is the number of bytes notified to an application that
-         they are acknowledged inside the first outq element if it is of
-         type NGHTTP3_BUF_TYPE_ALIEN. */
-      uint64_t ack_done;
       uint64_t unscheduled_nwrite;
       nghttp3_stream_type type;
       nghttp3_stream_read_state rstate;
@@ -256,7 +250,7 @@ struct nghttp3_stream {
   };
 };
 
-nghttp3_objalloc_decl(stream, nghttp3_stream, oplent);
+nghttp3_objalloc_decl(stream, nghttp3_stream, oplent)
 
 typedef struct nghttp3_frame_entry {
   nghttp3_frame fr;
@@ -283,7 +277,8 @@ void nghttp3_varint_read_state_reset(nghttp3_varint_read_state *rvint);
 void nghttp3_stream_read_state_reset(nghttp3_stream_read_state *rstate);
 
 nghttp3_ssize nghttp3_read_varint(nghttp3_varint_read_state *rvint,
-                                  const uint8_t *src, size_t srclen, int fin);
+                                  const uint8_t *begin, const uint8_t *end,
+                                  int fin);
 
 int nghttp3_stream_frq_add(nghttp3_stream *stream,
                            const nghttp3_frame_entry *frent);
@@ -322,6 +317,9 @@ int nghttp3_stream_write_goaway(nghttp3_stream *stream,
 int nghttp3_stream_write_priority_update(nghttp3_stream *stream,
                                          nghttp3_frame_entry *frent);
 
+int nghttp3_stream_write_origin(nghttp3_stream *stream,
+                                nghttp3_frame_entry *frent);
+
 int nghttp3_stream_ensure_chunk(nghttp3_stream *stream, size_t need);
 
 nghttp3_buf *nghttp3_stream_get_chunk(nghttp3_stream *stream);
@@ -336,7 +334,11 @@ void nghttp3_stream_add_outq_offset(nghttp3_stream *stream, size_t n);
  */
 int nghttp3_stream_outq_write_done(nghttp3_stream *stream);
 
-int nghttp3_stream_add_ack_offset(nghttp3_stream *stream, uint64_t n);
+/*
+ * nghttp2_stream_update_ack_offset updates the last acknowledged
+ * offset to |offset|.
+ */
+int nghttp3_stream_update_ack_offset(nghttp3_stream *stream, uint64_t offset);
 
 /*
  * nghttp3_stream_is_active returns nonzero if |stream| is active.  In
@@ -390,4 +392,4 @@ int nghttp3_client_stream_uni(int64_t stream_id);
  */
 int nghttp3_server_stream_uni(int64_t stream_id);
 
-#endif /* NGHTTP3_STREAM_H */
+#endif /* !defined(NGHTTP3_STREAM_H) */

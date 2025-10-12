@@ -9,7 +9,6 @@
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/platform.h"
 #include "src/base/logging.h"
-#include "src/base/platform/platform.h"
 #include "src/base/sanitizer/lsan-page-allocator.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc/globals.h"
@@ -111,16 +110,15 @@ HeapBase::HeapBase(
 #endif  // LEAK_SANITIZER
       page_backend_(InitializePageBackend(*page_allocator())),
       stats_collector_(std::make_unique<StatsCollector>(platform_.get())),
-      stack_(std::make_unique<heap::base::Stack>(
-          v8::base::Stack::GetStackStart())),
+      stack_(std::make_unique<heap::base::Stack>()),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>(*this)),
       compactor_(raw_heap_),
       object_allocator_(raw_heap_, *page_backend_, *stats_collector_,
                         *prefinalizer_handler_, *oom_handler_,
                         garbage_collector),
       sweeper_(*this),
-      strong_persistent_region_(*oom_handler_),
-      weak_persistent_region_(*oom_handler_),
+      strong_persistent_region_(*this, *oom_handler_),
+      weak_persistent_region_(*this, *oom_handler_),
       strong_cross_thread_persistent_region_(*oom_handler_),
       weak_cross_thread_persistent_region_(*oom_handler_),
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -131,6 +129,7 @@ HeapBase::HeapBase(
       sweeping_support_(sweeping_support) {
   stats_collector_->RegisterObserver(
       &allocation_observer_for_PROCESS_HEAP_STATISTICS_);
+  stack_->SetStackStart();
 }
 
 HeapBase::~HeapBase() = default;
@@ -300,9 +299,16 @@ void HeapBase::Terminate() {
 HeapStatistics HeapBase::CollectStatistics(
     HeapStatistics::DetailLevel detail_level) {
   if (detail_level == HeapStatistics::DetailLevel::kBrief) {
-    return {stats_collector_->allocated_memory_size(),
-            stats_collector_->resident_memory_size(),
+    const size_t pooled_memory = page_backend_->page_pool().PooledMemory();
+    const size_t committed_memory =
+        stats_collector_->allocated_memory_size() + pooled_memory;
+    const size_t resident_memory =
+        stats_collector_->resident_memory_size() + pooled_memory;
+
+    return {committed_memory,
+            resident_memory,
             stats_collector_->allocated_object_size(),
+            pooled_memory,
             HeapStatistics::DetailLevel::kBrief,
             {},
             {}};
@@ -340,6 +346,10 @@ bool HeapBase::IsGCAllowed() const {
   // GC is prohibited in a GC forbidden scope, or when currently sweeping an
   // object.
   return !sweeper().IsSweepingOnMutatorThread() && !in_no_gc_scope();
+}
+
+bool HeapBase::CurrentThreadIsHeapThread() const {
+  return heap_thread_id_ == v8::base::OS::GetCurrentThreadId();
 }
 
 ClassNameAsHeapObjectNameScope::ClassNameAsHeapObjectNameScope(HeapBase& heap)

@@ -8,6 +8,8 @@
 
 #if U_SHOW_CPLUSPLUS_API
 
+#if !UCONFIG_NO_NORMALIZATION
+
 #if !UCONFIG_NO_FORMATTING
 
 #if !UCONFIG_NO_MF2
@@ -61,163 +63,6 @@ namespace message2 {
         class Binding;
         class Literal;
         class Operator;
-
-        /**
-         * The `Reserved` class represents a `reserved` annotation, as in the `reserved` nonterminal
-         * in the MessageFormat 2 grammar or the `Reserved` interface
-         * defined in
-         * https://github.com/unicode-org/message-format-wg/blob/main/spec/data-model.md#expressions
-         *
-         * `Reserved` is immutable, copyable and movable.
-         *
-         * @internal ICU 75 technology preview
-         * @deprecated This API is for technology preview only.
-         */
-        class U_I18N_API Reserved : public UMemory {
-        public:
-            /**
-             * A `Reserved` is a sequence of literals.
-             *
-             * @return The number of literals.
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            int32_t numParts() const;
-            /**
-             * Indexes into the sequence.
-             * Precondition: i < numParts()
-             *
-             * @param i Index of the part being accessed.
-             * @return A reference to he i'th literal in the sequence
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            const Literal& getPart(int32_t i) const;
-
-            /**
-             * The mutable `Reserved::Builder` class allows the reserved sequence to be
-             * constructed one part at a time.
-             *
-             * Builder is not copyable or movable.
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            class U_I18N_API Builder : public UMemory {
-            private:
-                UVector* parts; // Not a LocalPointer for the same reason as in `SelectorKeys::Builder`
-
-            public:
-                /**
-                 * Adds a single literal to the reserved sequence.
-                 *
-                 * @param part The literal to be added. Passed by move.
-                 * @param status Input/output error code
-                 * @return A reference to the builder.
-                 *
-                 * @internal ICU 75 technology preview
-                 * @deprecated This API is for technology preview only.
-                 */
-                Builder& add(Literal&& part, UErrorCode& status) noexcept;
-                /**
-                 * Constructs a new immutable `Reserved` using the list of parts
-                 * set with previous `add()` calls.
-                 *
-                 * The builder object (`this`) can still be used after calling `build()`.
-                 *
-                 * param status Input/output error code
-                 * @return          The new Reserved object
-                 *
-                 * @internal ICU 75 technology preview
-                 * @deprecated This API is for technology preview only.
-                 */
-                Reserved build(UErrorCode& status) const noexcept;
-                /**
-                 * Default constructor.
-                 * Returns a builder with an empty Reserved sequence.
-                 *
-                 * param status Input/output error code
-                 *
-                 * @internal ICU 75 technology preview
-                 * @deprecated This API is for technology preview only.
-                 */
-                Builder(UErrorCode& status);
-                /**
-                 * Destructor.
-                 *
-                 * @internal ICU 75 technology preview
-                 * @deprecated This API is for technology preview only.
-                 */
-                virtual ~Builder();
-                Builder(const Builder&) = delete;
-                Builder& operator=(const Builder&) = delete;
-                Builder(Builder&&) = delete;
-                Builder& operator=(Builder&&) = delete;
-            }; // class Reserved::Builder
-            /**
-             * Non-member swap function.
-             * @param r1 will get r2's contents
-             * @param r2 will get r1's contents
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            friend inline void swap(Reserved& r1, Reserved& r2) noexcept {
-                using std::swap;
-
-                swap(r1.bogus, r2.bogus);
-                swap(r1.parts, r2.parts);
-                swap(r1.len, r2.len);
-            }
-            /**
-             * Copy constructor.
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            Reserved(const Reserved& other);
-            /**
-             * Assignment operator
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            Reserved& operator=(Reserved) noexcept;
-            /**
-             * Default constructor.
-             * Puts the Reserved into a valid but undefined state.
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            Reserved() { parts = LocalArray<Literal>(); }
-            /**
-             * Destructor.
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            virtual ~Reserved();
-        private:
-            friend class Builder;
-            friend class Operator;
-
-            // True if a copy failed; this has to be distinguished
-            // from a valid `Reserved` with empty parts
-            bool bogus = false;
-
-            // Possibly-empty list of parts
-            // `literal` reserved as a quoted literal; `reserved-char` / `reserved-escape`
-            // strings represented as unquoted literals
-            /* const */ LocalArray<Literal> parts;
-            int32_t len = 0;
-
-            Reserved(const UVector& parts, UErrorCode& status) noexcept;
-            // Helper
-            static void initLiterals(Reserved&, const Reserved&);
-        };
 
       /**
          * The `Literal` class corresponds to the `literal` nonterminal in the MessageFormat 2 grammar,
@@ -349,8 +194,6 @@ namespace message2 {
             virtual ~Literal();
 
         private:
-            friend class Reserved::Builder;
-
             /* const */ bool thisIsQuoted = false;
             /* const */ UnicodeString contents;
         };
@@ -986,60 +829,22 @@ namespace message2 {
         }; // class OptionMap
         #endif
 
-      // Internal use only
-      #ifndef U_IN_DOXYGEN
-      class U_I18N_API Callable : public UObject {
-      public:
-          friend inline void swap(Callable& c1, Callable& c2) noexcept {
-              using std::swap;
-
-              swap(c1.name, c2.name);
-              swap(c1.options, c2.options);
-          }
-          const FunctionName& getName() const { return name; }
-          const OptionMap& getOptions() const { return options; }
-          Callable(const FunctionName& f, const OptionMap& opts) : name(f), options(opts) {}
-          Callable& operator=(Callable) noexcept;
-          Callable(const Callable&);
-          Callable() = default;
-          virtual ~Callable();
-      private:
-          /* const */ FunctionName name;
-          /* const */ OptionMap options;
-      };
-      #endif
   } // namespace data_model
 } // namespace message2
 
 U_NAMESPACE_END
-
-/// @cond DOXYGEN_IGNORE
-// Export an explicit template instantiation of the std::variant that is used as a
-// data member of various MFDataModel classes.
-// (When building DLLs for Windows this is required.)
-// (See measunit_impl.h, datefmt.h, collationiterator.h, erarules.h and others
-// for similar examples.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-#if defined(U_REAL_MSVC) && defined(_MSVC_STL_VERSION)
-template class U_I18N_API std::_Variant_storage_<false, icu::message2::data_model::Reserved,icu::message2::data_model::Callable>;
-#endif
-template class U_I18N_API std::variant<icu::message2::data_model::Reserved,icu::message2::data_model::Callable>;
-#endif
-/// @endcond
 
 U_NAMESPACE_BEGIN
 
 namespace message2 {
   namespace data_model {
       /**
-         * The `Operator` class corresponds to the `FunctionRef | Reserved` type in the
+         * The `Operator` class corresponds to the `FunctionRef` type in the
          * `Expression` interface defined in
          * https://github.com/unicode-org/message-format-wg/blob/main/spec/data-model.md#patterns
          *
-         * It represents the annotation that an expression can have: either a function name paired
-         * with a map from option names to operands (possibly empty),
-         * or a reserved sequence, which has no meaning and results in an error if the formatter
-         * is invoked.
+         * It represents the annotation that an expression can have: a function name paired
+         * with a map from option names to operands (possibly empty).
          *
          * `Operator` is immutable, copyable and movable.
          *
@@ -1049,17 +854,7 @@ namespace message2 {
         class U_I18N_API Operator : public UObject {
         public:
             /**
-             * Determines if this operator is a reserved annotation.
-             *
-             * @return true if and only if this operator represents a reserved sequence.
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            UBool isReserved() const { return std::holds_alternative<Reserved>(contents); }
-            /**
              * Accesses the function name.
-             * Precondition: !isReserved()
              *
              * @return The function name of this operator.
              *
@@ -1068,18 +863,7 @@ namespace message2 {
              */
             const FunctionName& getFunctionName() const;
             /**
-             * Accesses the underlying reserved sequence.
-             * Precondition: isReserved()
-             *
-             * @return The reserved sequence represented by this operator.
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            const Reserved& asReserved() const;
-            /**
              * Accesses function options.
-             * Precondition: !isReserved()
              *
              * @return A vector of function options for this operator.
              *
@@ -1087,11 +871,7 @@ namespace message2 {
              * @deprecated This API is for technology preview only.
              */
             std::vector<Option> getOptions() const {
-                const Callable* f = std::get_if<Callable>(&contents);
-                // This case should never happen, as the precondition is !isReserved()
-                if (f == nullptr) { return {}; }
-                const OptionMap& opts = f->getOptions();
-                return opts.getOptions();
+                return options.getOptions();
             }
             /**
              * The mutable `Operator::Builder` class allows the operator to be constructed
@@ -1105,30 +885,12 @@ namespace message2 {
             class U_I18N_API Builder : public UMemory {
             private:
                 friend class Operator;
-                bool isReservedSequence = false;
-                bool hasFunctionName = false;
-                bool hasOptions = false;
-                Reserved asReserved;
                 FunctionName functionName;
                 OptionMap::Builder options;
             public:
                 /**
-                 * Sets this operator to be a reserved sequence.
-                 * If a function name and/or options were previously set,
-                 * clears them.
-                 *
-                 * @param reserved The reserved sequence to set as the contents of this Operator.
-                 *                 (Passed by move.)
-                 * @return A reference to the builder.
-                 *
-                 * @internal ICU 75 technology preview
-                 * @deprecated This API is for technology preview only.
-                 */
-                Builder& setReserved(Reserved&& reserved);
-                /**
                  * Sets this operator to be a function annotation and sets its name
                  * to `func`.
-                 * If a reserved sequence was previously set, clears it.
                  *
                  * @param func The function name.
                  * @return A reference to the builder.
@@ -1140,7 +902,6 @@ namespace message2 {
                 /**
                  * Sets this operator to be a function annotation and adds a
                  * single option.
-                 * If a reserved sequence was previously set, clears it.
                  *
                  * @param key The name of the option.
                  * @param value The value (right-hand side) of the option.
@@ -1152,10 +913,8 @@ namespace message2 {
                  */
                 Builder& addOption(const UnicodeString &key, Operand&& value, UErrorCode& status) noexcept;
                 /**
-                 * Constructs a new immutable `Operator` using the `reserved` annotation
-                 * or the function name and options that were previously set.
-                 * If neither `setReserved()` nor `setFunctionName()` was previously
-                 * called, then `status` is set to U_INVALID_STATE_ERROR.
+                 * Constructs a new immutable `Operator` using the
+                 * function name and options that were previously set.
                  *
                  * The builder object (`this`) can still be used after calling `build()`.
                  *
@@ -1171,7 +930,7 @@ namespace message2 {
                 Operator build(UErrorCode& status);
                 /**
                  * Default constructor.
-                 * Returns a Builder with no function name or reserved sequence set.
+                 * Returns a Builder with no function name or options set.
                  *
                  * @param status    Input/output error code.
                  *
@@ -1209,7 +968,8 @@ namespace message2 {
             friend inline void swap(Operator& o1, Operator& o2) noexcept {
                 using std::swap;
 
-                swap(o1.contents, o2.contents);
+                swap(o1.name, o2.name);
+                swap(o1.options, o2.options);
             }
             /**
              * Assignment operator.
@@ -1225,7 +985,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Operator() : contents(Reserved()) {}
+            Operator() {}
             /**
              * Destructor.
              *
@@ -1242,12 +1002,12 @@ namespace message2 {
 
             // Function call constructor
             Operator(const FunctionName& f, const UVector& options, UErrorCode&);
-            // Reserved sequence constructor
-            Operator(const Reserved& r) : contents(r) {}
 
             const OptionMap& getOptionsInternal() const;
             Operator(const FunctionName&, const OptionMap&);
-            /* const */ std::variant<Reserved, Callable> contents;
+
+            /* const */ FunctionName name;
+            /* const */ OptionMap options;
         }; // class Operator
   } // namespace data_model
 } // namespace message2
@@ -1262,7 +1022,6 @@ U_NAMESPACE_END
 // for similar examples.)
 #if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
 template class U_I18N_API std::optional<icu::message2::data_model::Operator>;
-template class U_I18N_API std::optional<icu::message2::data_model::Reserved>;
 #endif
 /// @endcond
 
@@ -1520,8 +1279,7 @@ namespace message2 {
             UBool isStandaloneAnnotation() const;
             /**
              * Checks if this expression has a function
-             * annotation (with or without an operand). A reserved
-             * sequence is not a function annotation.
+             * annotation (with or without an operand).
              *
              * @return True if and only if the expression has an annotation
              *         that is a function.
@@ -1531,20 +1289,9 @@ namespace message2 {
              */
             UBool isFunctionCall() const;
             /**
-             * Returns true if and only if this expression is
-             * annotated with a reserved sequence.
-             *
-             * @return True if and only if the expression has an
-             *         annotation that is a reserved sequence,
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            UBool isReserved() const;
-            /**
-             * Accesses the function or reserved sequence
+             * Accesses the function
              * annotating this expression.
-             * If !(isFunctionCall() || isReserved()), sets
+             * If !(isFunctionCall()), sets
              * `status` to U_INVALID_STATE_ERROR.
              *
              * @param status Input/output error code.
@@ -1751,203 +1498,6 @@ template class U_I18N_API LocalArray<message2::data_model::Expression>;
 
 namespace message2 {
   namespace data_model {
-      /**
-         * The `UnsupportedStatement` class corresponds to the `reserved-statement` nonterminal in the MessageFormat 2
-         * grammar and the `unsupported-statement` type defined in:
-         * https://github.com/unicode-org/message-format-wg/blob/main/spec/data-model/message.json#L169
-         *
-         * It represents a keyword (string) together with an optional
-         * `Reserved` annotation and a non-empty list of expressions.
-         *
-         * `UnsupportedStatement` is immutable, copyable and movable.
-         *
-         * @internal ICU 75 technology preview
-         * @deprecated This API is for technology preview only.
-         */
-        class U_I18N_API UnsupportedStatement : public UObject {
-        public:
-            /**
-             * Accesses the keyword of this statement.
-             *
-             * @return A reference to a string.
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            const UnicodeString& getKeyword() const { return keyword; }
-            /**
-             * Accesses the `reserved-body` of this statement.
-             *
-             * @param status Input/output error code. Set to U_ILLEGAL_ARGUMENT_ERROR
-             *         if this unsupported statement has no body.
-             * @return A non-owned pointer to a `Reserved` annotation,
-             *         which is non-null if U_SUCCESS(status).
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            const Reserved* getBody(UErrorCode& status) const;
-            /**
-             * Accesses the expressions of this statement.
-             *
-             * @return A vector of Expressions.
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            std::vector<Expression> getExpressions() const {
-                if (expressionsLen <= 0 || !expressions.isValid()) {
-                    // This case should never happen, but we can't use an assertion here
-                    return {};
-                }
-                return toStdVector<Expression>(expressions.getAlias(), expressionsLen);
-            }
-            /**
-             * The mutable `UnsupportedStatement::Builder` class allows the statement to be constructed
-             * incrementally.
-             *
-             * Builder is not copyable or movable.
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            class U_I18N_API Builder : public UMemory {
-            private:
-                friend class UnsupportedStatement;
-                friend class message2::Parser;
-
-                UnicodeString keyword;
-                std::optional<Reserved> body;
-                UVector* expressions; // Vector of expressions;
-                                      // not a LocalPointer for
-                                      // the same reason as in `SelectorKeys::builder`
-            public:
-                /**
-                 * Sets the keyword of this statement.
-                 *
-                 * @param k The keyword to set.
-                 * @return A reference to the builder.
-                 *
-                 * @internal ICU 75 technology preview
-                 * @deprecated This API is for technology preview only.
-                 */
-                Builder& setKeyword(const UnicodeString& k);
-                /**
-                 * Sets the body of this statement.
-                 *
-                 * @param r The `Reserved` annotation to set as the body. Passed by move.
-                 * @return A reference to the builder.
-                 *
-                 * @internal ICU 75 technology preview
-                 * @deprecated This API is for technology preview only.
-                 */
-                Builder& setBody(Reserved&& r);
-                /**
-                 * Adds an expression to this statement.
-                 *
-                 * @param e The expression to add. Passed by move.
-                 * @param status Input/output error code.
-                 * @return A reference to the builder.
-                 *
-                 * @internal ICU 75 technology preview
-                 * @deprecated This API is for technology preview only.
-                 */
-                Builder& addExpression(Expression&& e, UErrorCode& status);
-                /**
-                 * Constructs a new immutable `UnsupportedStatement` using the keyword,
-                 * body and (if applicable) expressions that were previously set.
-                 * If `setKeyword()` was never called, then `status` is set to
-                 * U_INVALID_STATE_ERROR. If `setBody()` was never called, the body is
-                 * treated as absent (not an error). If `addExpression()` was not called
-                 * at least once, then `status` is set to U_INVALID_STATE_ERROR.
-                 *
-                 * The builder object (`this`) can still be used after calling `build()`.
-                 * @param status    Input/output error code.
-                 * @return          The new UnsupportedStatement
-                 *
-                 * @internal ICU 75 technology preview
-                 * @deprecated This API is for technology preview only.
-                 */
-                UnsupportedStatement build(UErrorCode& status) const;
-                /**
-                 * Default constructor.
-                 * Returns a Builder with no keyword or body set.
-                 *
-                 * @param status    Input/output error code.
-                 *
-                 * @internal ICU 75 technology preview
-                 * @deprecated This API is for technology preview only.
-                 */
-                Builder(UErrorCode& status);
-                /**
-                 * Destructor.
-                 *
-                 * @internal ICU 75 technology preview
-                 * @deprecated This API is for technology preview only.
-                 */
-                virtual ~Builder();
-                Builder(const Builder&) = delete;
-                Builder& operator=(const Builder&) = delete;
-                Builder(Builder&&) = delete;
-                Builder& operator=(Builder&&) = delete;
-            }; // class UnsupportedStatement::Builder
-            /**
-             * Non-member swap function.
-             * @param s1 will get s2's contents
-             * @param s2 will get s1's contents
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            friend inline void swap(UnsupportedStatement& s1, UnsupportedStatement& s2) noexcept {
-                using std::swap;
-
-                swap(s1.keyword, s2.keyword);
-                swap(s1.body, s2.body);
-                swap(s1.expressions, s2.expressions);
-                swap(s1.expressionsLen, s2.expressionsLen);
-            }
-            /**
-             * Copy constructor.
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            UnsupportedStatement(const UnsupportedStatement& other);
-            /**
-             * Assignment operator.
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            UnsupportedStatement& operator=(UnsupportedStatement) noexcept;
-            /**
-             * Default constructor.
-             * Puts the UnsupportedStatement into a valid but undefined state.
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            UnsupportedStatement() : expressions(LocalArray<Expression>()) {}
-            /**
-             * Destructor.
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            virtual ~UnsupportedStatement();
-        private:
-            friend class message2::Serializer;
-
-            /* const */ UnicodeString keyword;
-            /* const */ std::optional<Reserved> body;
-            /* const */ LocalArray<Expression> expressions;
-            /* const */ int32_t expressionsLen = 0;
-
-            const Expression* getExpressionsInternal() const { return expressions.getAlias(); }
-
-            UnsupportedStatement(const UnicodeString&, const std::optional<Reserved>&, const UVector&, UErrorCode&);
-        }; // class UnsupportedStatement
 
       class Pattern;
 
@@ -2110,8 +1660,6 @@ namespace message2 {
 #if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
 template class U_I18N_API LocalPointerBase<message2::data_model::PatternPart>;
 template class U_I18N_API LocalArray<message2::data_model::PatternPart>;
-template class U_I18N_API LocalPointerBase<message2::data_model::UnsupportedStatement>;
-template class U_I18N_API LocalArray<message2::data_model::UnsupportedStatement>;
 #endif
 /// @endcond
 
@@ -2599,7 +2147,7 @@ namespace message2 {
             // If non-null, the referent is a member of `expr` so
             // its lifetime is the same as the lifetime of the enclosing Binding
             // (as long as there's no mutation)
-            const Callable* annotation = nullptr;
+            const Operator* annotation = nullptr;
 
             const OptionMap& getOptionsInternal() const;
 
@@ -2665,7 +2213,7 @@ namespace message2 {
 
         friend class MFDataModel;
 
-        Matcher(Expression* ss, int32_t ns, Variant* vs, int32_t nv);
+        Matcher(VariableName* ss, int32_t ns, Variant* vs, int32_t nv);
         Matcher() {}
 
         // A Matcher may have numSelectors=0 and numVariants=0
@@ -2673,8 +2221,8 @@ namespace message2 {
         // So we have to keep a separate flag to track failed copies.
         bool bogus = false;
 
-        // The expressions that are being matched on.
-        LocalArray<Expression> selectors;
+        // The variables that are being matched on.
+        LocalArray<VariableName> selectors;
         // The number of selectors
         int32_t numSelectors = 0;
         // The list of `when` clauses (case arms).
@@ -2782,13 +2330,13 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        const std::vector<Expression> getSelectors() const {
+        std::vector<VariableName> getSelectors() const {
             if (std::holds_alternative<Pattern>(body)) {
                 return {};
             }
             const Matcher* match = std::get_if<Matcher>(&body);
             // match must be non-null, given the previous check
-            return toStdVector<Expression>(match->selectors.getAlias(), match->numSelectors);
+            return toStdVector<VariableName>(match->selectors.getAlias(), match->numSelectors);
         }
         /**
          * Accesses the variants. Returns an empty vector if this is a pattern message.
@@ -2806,21 +2354,6 @@ namespace message2 {
             const Matcher* match = std::get_if<Matcher>(&body);
             // match must be non-null, given the previous check
             return toStdVector<Variant>(match->variants.getAlias(), match->numVariants);
-            return {};
-        }
-        /**
-         * Accesses the unsupported statements for this data model.
-         *
-         * @return A vector of unsupported statements.
-         *
-         * @internal ICU 75 technology preview
-         * @deprecated This API is for technology preview only.
-         */
-        std::vector<UnsupportedStatement> getUnsupportedStatements() const {
-            std::vector<UnsupportedStatement> result;
-            if (!bogus) {
-                return toStdVector<UnsupportedStatement>(unsupportedStatements.getAlias(), unsupportedStatementsLen);
-            }
             return {};
         }
         /**
@@ -2873,8 +2406,6 @@ namespace message2 {
             swap(m1.body, m2.body);
             swap(m1.bindings, m2.bindings);
             swap(m1.bindingsLen, m2.bindingsLen);
-            swap(m1.unsupportedStatements, m2.unsupportedStatements);
-            swap(m1.unsupportedStatementsLen, m2.unsupportedStatementsLen);
         }
         /**
          * Assignment operator
@@ -2918,7 +2449,6 @@ namespace message2 {
             UVector* selectors = nullptr;
             UVector* variants = nullptr;
             UVector* bindings = nullptr;
-            UVector* unsupportedStatements = nullptr;
         public:
             /**
              * Adds a binding, There must not already be a binding
@@ -2934,28 +2464,17 @@ namespace message2 {
              */
             Builder& addBinding(Binding&& b, UErrorCode& status);
             /**
-             * Adds an unsupported statement.
-             *
-             * @param s The statement. Passed by move.
-             * @param status Input/output error code.
-             *
-             *
-             * @internal ICU 75 technology preview
-             * @deprecated This API is for technology preview only.
-             */
-            Builder& addUnsupportedStatement(UnsupportedStatement&& s, UErrorCode& status);
-            /**
-             * Adds a selector expression. Copies `expression`.
+             * Adds a selector variable.
              * If a pattern was previously set, clears the pattern.
              *
-             * @param selector Expression to add as a selector. Passed by move.
+             * @param selector Variable to add as a selector. Passed by move.
              * @param errorCode Input/output error code
              * @return A reference to the builder.
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Builder& addSelector(Expression&& selector, UErrorCode& errorCode) noexcept;
+            Builder& addSelector(VariableName&& selector, UErrorCode& errorCode);
             /**
              * Adds a single variant.
              * If a pattern was previously set using `setPattern()`, clears the pattern.
@@ -3046,16 +2565,9 @@ namespace message2 {
         /* const */ LocalArray<Binding> bindings;
         int32_t bindingsLen = 0;
 
-        // Unsupported statements
-        // (Treated as a type of `declaration` in the data model spec;
-        // stored separately for convenience)
-        /* const */ LocalArray<UnsupportedStatement> unsupportedStatements;
-        int32_t unsupportedStatementsLen = 0;
-
         const Binding* getLocalVariablesInternal() const;
-        const Expression* getSelectorsInternal() const;
+        const VariableName* getSelectorsInternal() const;
         const Variant* getVariantsInternal() const;
-        const UnsupportedStatement* getUnsupportedStatementsInternal() const;
 
         int32_t numSelectors() const {
             const Matcher* matcher = std::get_if<Matcher>(&body);
@@ -3081,6 +2593,8 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_MF2 */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* #if !UCONFIG_NO_NORMALIZATION */
 
 #endif /* U_SHOW_CPLUSPLUS_API */
 

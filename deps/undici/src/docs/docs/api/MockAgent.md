@@ -14,9 +14,13 @@ Returns: `MockAgent`
 
 ### Parameter: `MockAgentOptions`
 
-Extends: [`AgentOptions`](Agent.md#parameter-agentoptions)
+Extends: [`AgentOptions`](/docs/docs/api/Agent.md#parameter-agentoptions)
 
 * **agent** `Agent` (optional) - Default: `new Agent([options])` - a custom agent encapsulated by the MockAgent.
+
+* **ignoreTrailingSlash** `boolean` (optional) - Default: `false` - set the default value for `ignoreTrailingSlash` for interceptors.
+
+* **acceptNonStandardSearchParameters** `boolean` (optional) - Default: `false` - set to `true` if the matcher should also accept non standard search parameters such as multi-value items specified with `[]` (e.g. `param[]=1&param[]=2&param[]=3`) and multi-value items which values are comma separated (e.g. `param=1,2,3`).
 
 ### Example - Basic MockAgent instantiation
 
@@ -177,7 +181,9 @@ for await (const data of result2.body) {
   console.log('data', data.toString('utf8')) // data hello
 }
 ```
+
 #### Example - Mock different requests within the same file
+
 ```js
 const { MockAgent, setGlobalDispatcher } = require('undici');
 const agent = new MockAgent();
@@ -299,11 +305,11 @@ await mockAgent.close()
 
 ### `MockAgent.dispatch(options, handlers)`
 
-Implements [`Agent.dispatch(options, handlers)`](Agent.md#parameter-agentdispatchoptions).
+Implements [`Agent.dispatch(options, handlers)`](/docs/docs/api/Agent.md#parameter-agentdispatchoptions).
 
 ### `MockAgent.request(options[, callback])`
 
-See [`Dispatcher.request(options [, callback])`](Dispatcher.md#dispatcherrequestoptions-callback).
+See [`Dispatcher.request(options [, callback])`](/docs/docs/api/Dispatcher.md#dispatcherrequestoptions-callback).
 
 #### Example - MockAgent request
 
@@ -473,7 +479,7 @@ This method returns any pending interceptors registered on a mock agent. A pendi
 
 Returns: `PendingInterceptor[]` (where `PendingInterceptor` is a `MockDispatch` with an additional `origin: string`)
 
-#### Example - List all pending inteceptors
+#### Example - List all pending interceptors
 
 ```js
 const agent = new MockAgent()
@@ -537,4 +543,61 @@ agent.assertNoPendingInterceptors()
 // ├─────────┼────────┼───────────────────────┼──────┼─────────────┼────────────┼─────────────┼───────────┤
 // │    0    │ 'GET'  │ 'https://example.com' │ '/'  │     200     │    '❌'    │      0      │     1     │
 // └─────────┴────────┴───────────────────────┴──────┴─────────────┴────────────┴─────────────┴───────────┘
+```
+
+#### Example - access call history on MockAgent
+
+You can register every call made within a MockAgent to be able to retrieve the body, headers and so on.
+
+This is not enabled by default.
+
+```js
+import { MockAgent, setGlobalDispatcher, request } from 'undici'
+
+const mockAgent = new MockAgent({ enableCallHistory: true })
+setGlobalDispatcher(mockAgent)
+
+await request('http://example.com', { query: { item: 1 }})
+
+mockAgent.getCallHistory()?.firstCall()
+// Returns
+// MockCallHistoryLog {
+//   body: undefined,
+//   headers: undefined,
+//   method: 'GET',
+//   origin: 'http://example.com',
+//   fullUrl: 'http://example.com/?item=1',
+//   path: '/',
+//   searchParams: { item: '1' },
+//   protocol: 'http:',
+//   host: 'example.com',
+//   port: ''
+// }
+```
+
+#### Example - clear call history
+
+```js
+const mockAgent = new MockAgent()
+
+mockAgent.clearAllCallHistory()
+```
+
+#### Example - call history instance class method
+
+```js
+const mockAgent = new MockAgent()
+
+const mockAgentHistory = mockAgent.getCallHistory()
+
+mockAgentHistory?.calls() // returns an array of MockCallHistoryLogs
+mockAgentHistory?.firstCall() // returns the first MockCallHistoryLogs or undefined
+mockAgentHistory?.lastCall() // returns the last MockCallHistoryLogs or undefined
+mockAgentHistory?.nthCall(3) // returns the third MockCallHistoryLogs or undefined
+mockAgentHistory?.filterCalls({ path: '/endpoint', hash: '#hash-value' }) // returns an Array of MockCallHistoryLogs WHERE path === /endpoint OR hash === #hash-value
+mockAgentHistory?.filterCalls({ path: '/endpoint', hash: '#hash-value' }, { operator: 'AND' }) // returns an Array of MockCallHistoryLogs WHERE path === /endpoint AND hash === #hash-value
+mockAgentHistory?.filterCalls(/"data": "{}"/) // returns an Array of MockCallHistoryLogs where any value match regexp
+mockAgentHistory?.filterCalls('application/json') // returns an Array of MockCallHistoryLogs where any value === 'application/json'
+mockAgentHistory?.filterCalls((log) => log.path === '/endpoint') // returns an Array of MockCallHistoryLogs when given function returns true
+mockAgentHistory?.clear() // clear the history
 ```

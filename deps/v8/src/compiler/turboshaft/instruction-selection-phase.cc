@@ -4,16 +4,20 @@
 
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
 
+#include <optional>
+
+#include "src/builtins/profile-data-reader.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction-selector.h"
-#include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/pipeline.h"
+#include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/diagnostics/code-tracer.h"
+#include "src/utils/sparse-bit-vector.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -212,8 +216,7 @@ void TurboshaftSpecialRPONumberer::ComputeLoopInfo(
     size_t loop_num = loop_number(header);
     DCHECK_NULL(loops_[loop_num].header);
     loops_[loop_num].header = header;
-    loops_[loop_num].members =
-        zone()->New<BitVector>(graph_->block_count(), zone());
+    loops_[loop_num].members = zone()->New<SparseBitVector>(zone());
 
     if (backedge != header) {
       // As long as the header doesn't have a backedge to itself,
@@ -292,26 +295,44 @@ void PropagateDeferred(Graph& graph) {
   }
 }
 
-base::Optional<BailoutReason> InstructionSelectionPhase::Run(
-    Zone* temp_zone, const CallDescriptor* call_descriptor, Linkage* linkage,
-    CodeTracer* code_tracer) {
-  PipelineData* data = &PipelineData::Get();
-  Graph& graph = PipelineData::Get().graph();
+void ProfileApplicationPhase::Run(PipelineData* data, Zone* temp_zone,
+                                  const ProfileDataFromFile* profile) {
+  Graph& graph = data->graph();
+  for (auto& op : graph.AllOperations()) {
+    if (BranchOp* branch = op.TryCast<BranchOp>()) {
+      uint32_t true_block_id = branch->if_true->index().id();
+      uint32_t false_block_id = branch->if_false->index().id();
+      BranchHint hint = profile->GetHint(true_block_id, false_block_id);
+      if (hint != BranchHint::kNone) {
+        // We update the hint in-place.
+        branch->hint = hint;
+      }
+    }
+  }
+}
+
+void SpecialRPOSchedulingPhase::Run(PipelineData* data, Zone* temp_zone) {
+  Graph& graph = data->graph();
 
   // Compute special RPO order....
   TurboshaftSpecialRPONumberer numberer(graph, temp_zone);
-  auto schedule = numberer.ComputeSpecialRPO();
-  graph.ReorderBlocks(base::VectorOf(schedule));
+  if (!data->graph_has_special_rpo()) {
+    auto schedule = numberer.ComputeSpecialRPO();
+    graph.ReorderBlocks(base::VectorOf(schedule));
+    data->set_graph_has_special_rpo();
+  }
 
   // Determine deferred blocks.
   PropagateDeferred(graph);
+}
 
-  // Print graph once before instruction selection.
-  turboshaft::PrintTurboshaftGraph(temp_zone, code_tracer,
-                                   "before instruction selection");
+std::optional<BailoutReason> InstructionSelectionPhase::Run(
+    PipelineData* data, Zone* temp_zone, const CallDescriptor* call_descriptor,
+    Linkage* linkage, CodeTracer* code_tracer) {
+  Graph& graph = data->graph();
 
   // Initialize an instruction sequence.
-  data->InitializeInstructionSequence(call_descriptor);
+  data->InitializeInstructionComponent(call_descriptor);
 
   // Run the actual instruction selection.
   InstructionSelector selector = InstructionSelector::ForTurboshaft(
@@ -321,8 +342,7 @@ base::Optional<BailoutReason> InstructionSelectionPhase::Run(
           ? InstructionSelector::kEnableSwitchJumpTable
           : InstructionSelector::kDisableSwitchJumpTable,
       &data->info()->tick_counter(), data->broker(),
-      data->address_of_max_unoptimized_frame_height(),
-      data->address_of_max_pushed_argument_count(),
+      &data->max_unoptimized_frame_height(), &data->max_pushed_argument_count(),
       data->info()->source_positions()
           ? InstructionSelector::kAllSourcePositions
           : InstructionSelector::kCallSourcePositions,
@@ -335,13 +355,18 @@ base::Optional<BailoutReason> InstructionSelectionPhase::Run(
           : InstructionSelector::kDisableRootsRelativeAddressing,
       data->info()->trace_turbo_json()
           ? InstructionSelector::kEnableTraceTurboJson
-          : InstructionSelector::kDisableTraceTurboJson);
-  if (base::Optional<BailoutReason> bailout = selector.SelectInstructions()) {
+          : InstructionSelector::kDisableTraceTurboJson,
+      // For now only ensure a deterministic NaN pattern for Wasm code. The spec
+      // does not mandate it, but we want it for differential fuzzing.
+      // TODO(353475584): This will have to be refined for Wasm-in-JS inlining.
+      data->is_wasm() ? InstructionSelector::kEnsureDeterministicNan
+                      : InstructionSelector::kNoDeterministicNan);
+  if (std::optional<BailoutReason> bailout = selector.SelectInstructions()) {
     return bailout;
   }
   TraceSequence(data->info(), data->sequence(), data->broker(), code_tracer,
                 "after instruction selection");
-  return base::nullopt;
+  return std::nullopt;
 }
 
 }  // namespace v8::internal::compiler::turboshaft

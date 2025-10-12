@@ -18,6 +18,8 @@ class BackingStore;
 
 namespace node {
 
+class CppgcMixin;
+
 template <typename T>
 struct MallocedBuffer;
 
@@ -133,10 +135,38 @@ class MemoryRetainer {
   }
 
   virtual bool IsRootNode() const { return false; }
+  virtual bool IsCppgcWrapper() const { return false; }
   virtual v8::EmbedderGraph::Node::Detachedness GetDetachedness() const {
     return v8::EmbedderGraph::Node::Detachedness::kUnknown;
   }
 };
+
+/**
+ * MemoryRetainerTraits allows defining a custom memory info for a
+ * class that can not be modified to implement the MemoryRetainer interface.
+ *
+ * Example:
+ *
+ * template <>
+ * struct MemoryRetainerTraits<ExampleRetainer> {
+ *   static void MemoryInfo(MemoryTracker* tracker,
+ *                         const ExampleRetainer& value) {
+ *     tracker->TrackField("another_retainer", value.another_retainer_);
+ *   }
+ *   static const char* MemoryInfoName(const ExampleRetainer& value) {
+ *     return "ExampleRetainer";
+ *   }
+ *   static size_t SelfSize(const ExampleRetainer& value) {
+ *     return sizeof(value);
+ *   }
+ * };
+ *
+ * This creates the following graph:
+ *   Node / ExampleRetainer
+ *    |> another_retainer :: Node / AnotherRetainerClass
+ */
+template <typename T, typename = void>
+struct MemoryRetainerTraits {};
 
 class MemoryTracker {
  public:
@@ -240,6 +270,8 @@ class MemoryTracker {
 
   // Put a memory container into the graph, create an edge from
   // the current node if there is one on the stack.
+  inline void Track(const CppgcMixin* retainer,
+                    const char* edge_name = nullptr);
   inline void Track(const MemoryRetainer* retainer,
                     const char* edge_name = nullptr);
 
@@ -254,6 +286,13 @@ class MemoryTracker {
   inline void TrackInlineField(const MemoryRetainer* retainer,
                                const char* edge_name = nullptr);
 
+  // MemoryRetainerTraits implementation helpers.
+  template <typename T>
+  inline void TraitTrack(const T& retainer, const char* edge_name = nullptr);
+  template <typename T>
+  inline void TraitTrackInline(const T& retainer,
+                               const char* edge_name = nullptr);
+
   inline v8::EmbedderGraph* graph() { return graph_; }
   inline v8::Isolate* isolate() { return isolate_; }
 
@@ -265,9 +304,14 @@ class MemoryTracker {
   typedef std::unordered_map<const MemoryRetainer*, MemoryRetainerNode*>
       NodeMap;
 
-  inline MemoryRetainerNode* CurrentNode() const;
+  inline void AdjustCurrentNodeSize(int diff);
+  inline v8::EmbedderGraph::Node* CurrentNode() const;
+  inline MemoryRetainerNode* AddNode(const CppgcMixin* retainer,
+                                     const char* edge_name = nullptr);
   inline MemoryRetainerNode* AddNode(const MemoryRetainer* retainer,
                                      const char* edge_name = nullptr);
+  inline MemoryRetainerNode* PushNode(const CppgcMixin* retainer,
+                                      const char* edge_name = nullptr);
   inline MemoryRetainerNode* PushNode(const MemoryRetainer* retainer,
                                       const char* edge_name = nullptr);
   inline MemoryRetainerNode* AddNode(const char* node_name,

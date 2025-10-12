@@ -57,7 +57,7 @@ UBool ScriptSet::test(UScriptCode script, UErrorCode &status) const {
     if (U_FAILURE(status)) {
         return false;
     }
-    if (script < 0 || (int32_t)script >= SCRIPT_LIMIT) {
+    if (script < 0 || static_cast<int32_t>(script) >= SCRIPT_LIMIT) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return false;
     }
@@ -71,7 +71,7 @@ ScriptSet &ScriptSet::set(UScriptCode script, UErrorCode &status) {
     if (U_FAILURE(status)) {
         return *this;
     }
-    if (script < 0 || (int32_t)script >= SCRIPT_LIMIT) {
+    if (script < 0 || static_cast<int32_t>(script) >= SCRIPT_LIMIT) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return *this;
     }
@@ -85,7 +85,7 @@ ScriptSet &ScriptSet::reset(UScriptCode script, UErrorCode &status) {
     if (U_FAILURE(status)) {
         return *this;
     }
-    if (script < 0 || (int32_t)script >= SCRIPT_LIMIT) {
+    if (script < 0 || static_cast<int32_t>(script) >= SCRIPT_LIMIT) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return *this;
     }
@@ -178,7 +178,7 @@ int32_t ScriptSet::nextSetBit(int32_t fromIndex) const {
     }
     UErrorCode status = U_ZERO_ERROR;
     for (int32_t scriptIndex = fromIndex; scriptIndex < SCRIPT_LIMIT; scriptIndex++) {
-        if (test((UScriptCode)scriptIndex, status)) {
+        if (test(static_cast<UScriptCode>(scriptIndex), status)) {
             return scriptIndex;
         }
     }
@@ -198,10 +198,10 @@ UnicodeString &ScriptSet::displayScripts(UnicodeString &dest) const {
     UBool firstTime = true;
     for (int32_t i = nextSetBit(0); i >= 0; i = nextSetBit(i + 1)) {
         if (!firstTime) {
-            dest.append((char16_t)0x20);
+            dest.append(static_cast<char16_t>(0x20));
         }
         firstTime = false;
-        const char *scriptName = uscript_getShortName((UScriptCode(i)));
+        const char* scriptName = uscript_getShortName(static_cast<UScriptCode>(i));
         dest.append(UnicodeString(scriptName, -1, US_INV));
     }
     return dest;
@@ -230,7 +230,7 @@ ScriptSet &ScriptSet::parseScripts(const UnicodeString &scriptString, UErrorCode
             if (sc == UCHAR_INVALID_CODE) {
                 status = U_ILLEGAL_ARGUMENT_ERROR;
             } else {
-                this->set((UScriptCode)sc, status);
+                this->set(static_cast<UScriptCode>(sc), status);
             }
             if (U_FAILURE(status)) {
                 return *this;
@@ -285,19 +285,19 @@ uhash_equalsScriptSet(const UElement key1, const UElement key2) {
     return (*s1 == *s2);
 }
 
-U_CAPI int8_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uhash_compareScriptSet(UElement key0, UElement key1) {
     icu::ScriptSet *s0 = static_cast<icu::ScriptSet *>(key0.pointer);
     icu::ScriptSet *s1 = static_cast<icu::ScriptSet *>(key1.pointer);
     int32_t diff = s0->countMembers() - s1->countMembers();
-    if (diff != 0) return static_cast<UBool>(diff);
+    if (diff != 0) return diff;
     int32_t i0 = s0->nextSetBit(0);
     int32_t i1 = s1->nextSetBit(0);
     while ((diff = i0-i1) == 0 && i0 > 0) {
         i0 = s0->nextSetBit(i0+1);
         i1 = s1->nextSetBit(i1+1);
     }
-    return (int8_t)diff;
+    return diff;
 }
 
 U_CAPI int32_t U_EXPORT2

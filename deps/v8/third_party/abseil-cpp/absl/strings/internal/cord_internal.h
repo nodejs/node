@@ -19,16 +19,17 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <type_traits>
+#include <cstring>
+#include <string>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
-#include "absl/base/internal/invoke.h"
+#include "absl/base/macros.h"
+#include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/container/internal/compressed_tuple.h"
 #include "absl/container/internal/container_memory.h"
-#include "absl/meta/type_traits.h"
 #include "absl/strings/string_view.h"
 
 // We can only add poisoning if we can detect consteval executions.
@@ -85,7 +86,7 @@ enum Constants {
 };
 
 // Emits a fatal error "Unexpected node type: xyz" and aborts the program.
-ABSL_ATTRIBUTE_NORETURN void LogFatalNodeType(CordRep* rep);
+[[noreturn]] void LogFatalNodeType(CordRep* rep);
 
 // Fast implementation of memmove for up to 15 bytes. This implementation is
 // safe for overlapping regions. If nullify_tail is true, the destination is
@@ -259,7 +260,7 @@ struct CordRep {
   // on the specific layout of these fields. Notably: the non-trivial field
   // `refcount` being preceded by `length`, and being tailed by POD data
   // members only.
-  // # LINT.IfChange
+  // LINT.IfChange
   size_t length;
   RefcountAndFlags refcount;
   // If tag < FLAT, it represents CordRepKind and indicates the type of node.
@@ -275,7 +276,7 @@ struct CordRep {
   // allocate room for these in the derived class, as not all compilers reuse
   // padding space from the base class (clang and gcc do, MSVC does not, etc)
   uint8_t storage[3];
-  // # LINT.ThenChange(cord_rep_btree.h:copy_raw)
+  // LINT.ThenChange(cord_rep_btree.h:copy_raw)
 
   // Returns true if this instance's tag matches the requested type.
   constexpr bool IsSubstring() const { return tag == SUBSTRING; }
@@ -356,16 +357,15 @@ struct CordRepExternal : public CordRep {
 struct Rank0 {};
 struct Rank1 : Rank0 {};
 
-template <typename Releaser, typename = ::absl::base_internal::invoke_result_t<
-                                 Releaser, absl::string_view>>
+template <typename Releaser,
+          typename = ::std::invoke_result_t<Releaser, absl::string_view>>
 void InvokeReleaser(Rank1, Releaser&& releaser, absl::string_view data) {
-  ::absl::base_internal::invoke(std::forward<Releaser>(releaser), data);
+  ::std::invoke(std::forward<Releaser>(releaser), data);
 }
 
-template <typename Releaser,
-          typename = ::absl::base_internal::invoke_result_t<Releaser>>
+template <typename Releaser, typename = ::std::invoke_result_t<Releaser>>
 void InvokeReleaser(Rank0, Releaser&& releaser, absl::string_view) {
-  ::absl::base_internal::invoke(std::forward<Releaser>(releaser));
+  ::std::invoke(std::forward<Releaser>(releaser));
 }
 
 // We use CompressedTuple so that we can benefit from EBCO.
@@ -399,7 +399,6 @@ inline CordRepSubstring* CordRepSubstring::Create(CordRep* child, size_t pos,
   assert(pos < child->length);
   assert(n <= child->length - pos);
 
-  // TODO(b/217376272): Harden internal logic.
   // Move to strategical places inside the Cord logic and make this an assert.
   if (ABSL_PREDICT_FALSE(!(child->IsExternal() || child->IsFlat()))) {
     LogFatalNodeType(child);
@@ -636,6 +635,19 @@ class InlineData {
     poison();
   }
 
+  void CopyInlineToString(std::string* dst) const {
+    assert(!is_tree());
+    // As Cord can store only 15 bytes it is smaller than std::string's
+    // small string optimization buffer size. Therefore we will always trigger
+    // the fast assign short path.
+    //
+    // Copying with a size equal to the maximum allows more efficient, wider
+    // stores to be used and no branching.
+    dst->assign(rep_.SanitizerSafeCopy().as_chars(), kMaxInline);
+    // After the copy we then change the size and put in a 0 byte.
+    dst->erase(inline_size());
+  }
+
   void copy_max_inline_to(char* dst) const {
     assert(!is_tree());
     memcpy(dst, rep_.SanitizerSafeCopy().as_chars(), kMaxInline);
@@ -714,35 +726,53 @@ class InlineData {
                GetOrNull(chars, 13),
                GetOrNull(chars, 14)} {}
 
+#ifdef ABSL_INTERNAL_CORD_HAVE_SANITIZER
+    // Break compiler optimization for cases when value is allocated on the
+    // stack. Compiler assumes that the the variable is fully accessible
+    // regardless of our poisoning.
+    // Missing report: https://github.com/llvm/llvm-project/issues/100640
+    const Rep* self() const {
+      const Rep* volatile ptr = this;
+      return ptr;
+    }
+    Rep* self() {
+      Rep* volatile ptr = this;
+      return ptr;
+    }
+#else
+    constexpr const Rep* self() const { return this; }
+    constexpr Rep* self() { return this; }
+#endif
+
     // Disable sanitizer as we must always be able to read `tag`.
     ABSL_CORD_INTERNAL_NO_SANITIZE
     int8_t tag() const { return reinterpret_cast<const int8_t*>(this)[0]; }
-    void set_tag(int8_t rhs) { reinterpret_cast<int8_t*>(this)[0] = rhs; }
+    void set_tag(int8_t rhs) { reinterpret_cast<int8_t*>(self())[0] = rhs; }
 
-    char* as_chars() { return data + 1; }
-    const char* as_chars() const { return data + 1; }
+    char* as_chars() { return self()->data + 1; }
+    const char* as_chars() const { return self()->data + 1; }
 
-    bool is_tree() const { return (tag() & 1) != 0; }
+    bool is_tree() const { return (self()->tag() & 1) != 0; }
 
     size_t inline_size() const {
-      ABSL_ASSERT(!is_tree());
-      return static_cast<size_t>(tag()) >> 1;
+      ABSL_ASSERT(!self()->is_tree());
+      return static_cast<size_t>(self()->tag()) >> 1;
     }
 
     void set_inline_size(size_t size) {
       ABSL_ASSERT(size <= kMaxInline);
-      set_tag(static_cast<int8_t>(size << 1));
+      self()->set_tag(static_cast<int8_t>(size << 1));
     }
 
-    CordRep* tree() const { return as_tree.rep; }
-    void set_tree(CordRep* rhs) { as_tree.rep = rhs; }
+    CordRep* tree() const { return self()->as_tree.rep; }
+    void set_tree(CordRep* rhs) { self()->as_tree.rep = rhs; }
 
-    cordz_info_t cordz_info() const { return as_tree.cordz_info; }
-    void set_cordz_info(cordz_info_t rhs) { as_tree.cordz_info = rhs; }
+    cordz_info_t cordz_info() const { return self()->as_tree.cordz_info; }
+    void set_cordz_info(cordz_info_t rhs) { self()->as_tree.cordz_info = rhs; }
 
     void make_tree(CordRep* tree) {
-      as_tree.rep = tree;
-      as_tree.cordz_info = kNullCordzInfo;
+      self()->as_tree.rep = tree;
+      self()->as_tree.cordz_info = kNullCordzInfo;
     }
 
 #ifdef ABSL_INTERNAL_CORD_HAVE_SANITIZER
@@ -885,8 +915,6 @@ inline CordRep* CordRep::Ref(CordRep* rep) {
 
 inline void CordRep::Unref(CordRep* rep) {
   assert(rep != nullptr);
-  // Expect refcount to be 0. Avoiding the cost of an atomic decrement should
-  // typically outweigh the cost of an extra branch checking for ref == 1.
   if (ABSL_PREDICT_FALSE(!rep->refcount.DecrementExpectHighRefcount())) {
     Destroy(rep);
   }

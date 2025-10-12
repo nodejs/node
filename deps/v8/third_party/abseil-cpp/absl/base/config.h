@@ -231,12 +231,13 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #endif
 
 // ABSL_HAVE_TLS is defined to 1 when __thread should be supported.
-// We assume __thread is supported on Linux or Asylo when compiled with Clang or
+// We assume __thread is supported on Linux when compiled with Clang or
 // compiled against libstdc++ with _GLIBCXX_HAVE_TLS defined.
 #ifdef ABSL_HAVE_TLS
 #error ABSL_HAVE_TLS cannot be directly set
-#elif (defined(__linux__) || defined(__ASYLO__)) && \
-    (defined(__clang__) || defined(_GLIBCXX_HAVE_TLS))
+#elif (defined(__linux__)) && (defined(__clang__) || defined(_GLIBCXX_HAVE_TLS))
+#define ABSL_HAVE_TLS 1
+#elif defined(__INTEL_LLVM_COMPILER)
 #define ABSL_HAVE_TLS 1
 #endif
 
@@ -277,50 +278,12 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 
 // ABSL_HAVE_THREAD_LOCAL
 //
-// Checks whether C++11's `thread_local` storage duration specifier is
-// supported.
+// Checks whether the `thread_local` storage duration specifier is supported.
 #ifdef ABSL_HAVE_THREAD_LOCAL
 #error ABSL_HAVE_THREAD_LOCAL cannot be directly set
-#elif defined(__APPLE__)
-// Notes:
-// * Xcode's clang did not support `thread_local` until version 8, and
-//   even then not for all iOS < 9.0.
-// * Xcode 9.3 started disallowing `thread_local` for 32-bit iOS simulator
-//   targeting iOS 9.x.
-// * Xcode 10 moves the deployment target check for iOS < 9.0 to link time
-//   making ABSL_HAVE_FEATURE unreliable there.
-//
-#if ABSL_HAVE_FEATURE(cxx_thread_local) && \
-    !(TARGET_OS_IPHONE && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0)
+#elif !defined(__XTENSA__)
 #define ABSL_HAVE_THREAD_LOCAL 1
 #endif
-#else  // !defined(__APPLE__)
-#define ABSL_HAVE_THREAD_LOCAL 1
-#endif
-
-// There are platforms for which TLS should not be used even though the compiler
-// makes it seem like it's supported (Android NDK < r12b for example).
-// This is primarily because of linker problems and toolchain misconfiguration:
-// Abseil does not intend to support this indefinitely. Currently, the newest
-// toolchain that we intend to support that requires this behavior is the
-// r11 NDK - allowing for a 5 year support window on that means this option
-// is likely to be removed around June of 2021.
-// TLS isn't supported until NDK r12b per
-// https://developer.android.com/ndk/downloads/revision_history.html
-// Since NDK r16, `__NDK_MAJOR__` and `__NDK_MINOR__` are defined in
-// <android/ndk-version.h>. For NDK < r16, users should define these macros,
-// e.g. `-D__NDK_MAJOR__=11 -D__NKD_MINOR__=0` for NDK r11.
-#if defined(__ANDROID__) && defined(__clang__)
-#if __has_include(<android/ndk-version.h>)
-#include <android/ndk-version.h>
-#endif  // __has_include(<android/ndk-version.h>)
-#if defined(__ANDROID__) && defined(__clang__) && defined(__NDK_MAJOR__) && \
-    defined(__NDK_MINOR__) &&                                               \
-    ((__NDK_MAJOR__ < 12) || ((__NDK_MAJOR__ == 12) && (__NDK_MINOR__ < 1)))
-#undef ABSL_HAVE_TLS
-#undef ABSL_HAVE_THREAD_LOCAL
-#endif
-#endif  // defined(__ANDROID__) && defined(__clang__)
 
 // ABSL_HAVE_INTRINSIC_INT128
 //
@@ -401,6 +364,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 //   AsmJS                             __asmjs__
 //   WebAssembly (Emscripten)          __EMSCRIPTEN__
 //   Fuchsia                           __Fuchsia__
+//   WebAssembly (WASI)                _WASI_EMULATED_MMAN (implies __wasi__)
 //
 // Note that since Android defines both __ANDROID__ and __linux__, one
 // may probe for either Linux or Android by simply testing for __linux__.
@@ -414,9 +378,10 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||    \
     defined(_AIX) || defined(__ros__) || defined(__native_client__) ||       \
     defined(__asmjs__) || defined(__EMSCRIPTEN__) || defined(__Fuchsia__) || \
-    defined(__sun) || defined(__ASYLO__) || defined(__myriad2__) ||          \
-    defined(__HAIKU__) || defined(__OpenBSD__) || defined(__NetBSD__) ||     \
-    defined(__QNX__) || defined(__VXWORKS__) || defined(__hexagon__)
+    defined(__sun) || defined(__myriad2__) || defined(__HAIKU__) ||          \
+    defined(__OpenBSD__) || defined(__NetBSD__) || defined(__QNX__) ||       \
+    defined(__VXWORKS__) || defined(__hexagon__) || defined(__XTENSA__) ||   \
+    defined(_WASI_EMULATED_MMAN)
 #define ABSL_HAVE_MMAP 1
 #endif
 
@@ -505,6 +470,9 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 //
 // Checks the endianness of the platform.
 //
+// Prefer using `std::endian` in C++20, or `absl::endian` from
+// absl/numeric/bits.h prior to C++20.
+//
 // Notes: uses the built in endian macros provided by GCC (since 4.6) and
 // Clang (since 3.2); see
 // https://gcc.gnu.org/onlinedocs/cpp/Common-Predefined-Macros.html.
@@ -556,54 +524,22 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE 0
 #endif
 
-// ABSL_HAVE_STD_ANY
-//
-// Checks whether C++17 std::any is available.
-#ifdef ABSL_HAVE_STD_ANY
-#error "ABSL_HAVE_STD_ANY cannot be directly set."
-#elif defined(__cpp_lib_any) && __cpp_lib_any >= 201606L
+// Deprecated macros for polyfill detection.
 #define ABSL_HAVE_STD_ANY 1
-#elif defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
-    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
-#define ABSL_HAVE_STD_ANY 1
-#endif
-
-// ABSL_HAVE_STD_OPTIONAL
-//
-// Checks whether C++17 std::optional is available.
-#ifdef ABSL_HAVE_STD_OPTIONAL
-#error "ABSL_HAVE_STD_OPTIONAL cannot be directly set."
-#elif defined(__cpp_lib_optional) && __cpp_lib_optional >= 202106L
+#define ABSL_USES_STD_ANY 1
 #define ABSL_HAVE_STD_OPTIONAL 1
-#elif defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
-    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
-#define ABSL_HAVE_STD_OPTIONAL 1
-#endif
-
-// ABSL_HAVE_STD_VARIANT
-//
-// Checks whether C++17 std::variant is available.
-#ifdef ABSL_HAVE_STD_VARIANT
-#error "ABSL_HAVE_STD_VARIANT cannot be directly set."
-#elif defined(__cpp_lib_variant) && __cpp_lib_variant >= 201606L
+#define ABSL_USES_STD_OPTIONAL 1
 #define ABSL_HAVE_STD_VARIANT 1
-#elif defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
-    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
-#define ABSL_HAVE_STD_VARIANT 1
-#endif
+#define ABSL_USES_STD_VARIANT 1
 
 // ABSL_HAVE_STD_STRING_VIEW
 //
-// Checks whether C++17 std::string_view is available.
+// Deprecated: always defined to 1.
+// std::string_view was added in C++17, which means all versions of C++
+// supported by Abseil have it.
 #ifdef ABSL_HAVE_STD_STRING_VIEW
 #error "ABSL_HAVE_STD_STRING_VIEW cannot be directly set."
-#elif defined(__cpp_lib_string_view) && __cpp_lib_string_view >= 201606L
-#define ABSL_HAVE_STD_STRING_VIEW 1
-#elif defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
+#else
 #define ABSL_HAVE_STD_STRING_VIEW 1
 #endif
 
@@ -623,63 +559,15 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_HAVE_STD_ORDERING 1
 #endif
 
-// ABSL_USES_STD_ANY
-//
-// Indicates whether absl::any is an alias for std::any.
-#if !defined(ABSL_OPTION_USE_STD_ANY)
-#error options.h is misconfigured.
-#elif ABSL_OPTION_USE_STD_ANY == 0 || \
-    (ABSL_OPTION_USE_STD_ANY == 2 && !defined(ABSL_HAVE_STD_ANY))
-#undef ABSL_USES_STD_ANY
-#elif ABSL_OPTION_USE_STD_ANY == 1 || \
-    (ABSL_OPTION_USE_STD_ANY == 2 && defined(ABSL_HAVE_STD_ANY))
-#define ABSL_USES_STD_ANY 1
-#else
-#error options.h is misconfigured.
-#endif
-
-// ABSL_USES_STD_OPTIONAL
-//
-// Indicates whether absl::optional is an alias for std::optional.
-#if !defined(ABSL_OPTION_USE_STD_OPTIONAL)
-#error options.h is misconfigured.
-#elif ABSL_OPTION_USE_STD_OPTIONAL == 0 || \
-    (ABSL_OPTION_USE_STD_OPTIONAL == 2 && !defined(ABSL_HAVE_STD_OPTIONAL))
-#undef ABSL_USES_STD_OPTIONAL
-#elif ABSL_OPTION_USE_STD_OPTIONAL == 1 || \
-    (ABSL_OPTION_USE_STD_OPTIONAL == 2 && defined(ABSL_HAVE_STD_OPTIONAL))
-#define ABSL_USES_STD_OPTIONAL 1
-#else
-#error options.h is misconfigured.
-#endif
-
-// ABSL_USES_STD_VARIANT
-//
-// Indicates whether absl::variant is an alias for std::variant.
-#if !defined(ABSL_OPTION_USE_STD_VARIANT)
-#error options.h is misconfigured.
-#elif ABSL_OPTION_USE_STD_VARIANT == 0 || \
-    (ABSL_OPTION_USE_STD_VARIANT == 2 && !defined(ABSL_HAVE_STD_VARIANT))
-#undef ABSL_USES_STD_VARIANT
-#elif ABSL_OPTION_USE_STD_VARIANT == 1 || \
-    (ABSL_OPTION_USE_STD_VARIANT == 2 && defined(ABSL_HAVE_STD_VARIANT))
-#define ABSL_USES_STD_VARIANT 1
-#else
-#error options.h is misconfigured.
-#endif
-
 // ABSL_USES_STD_STRING_VIEW
 //
 // Indicates whether absl::string_view is an alias for std::string_view.
 #if !defined(ABSL_OPTION_USE_STD_STRING_VIEW)
 #error options.h is misconfigured.
-#elif ABSL_OPTION_USE_STD_STRING_VIEW == 0 || \
-    (ABSL_OPTION_USE_STD_STRING_VIEW == 2 &&  \
-     !defined(ABSL_HAVE_STD_STRING_VIEW))
+#elif ABSL_OPTION_USE_STD_STRING_VIEW == 0
 #undef ABSL_USES_STD_STRING_VIEW
 #elif ABSL_OPTION_USE_STD_STRING_VIEW == 1 || \
-    (ABSL_OPTION_USE_STD_STRING_VIEW == 2 &&  \
-     defined(ABSL_HAVE_STD_STRING_VIEW))
+    ABSL_OPTION_USE_STD_STRING_VIEW == 2
 #define ABSL_USES_STD_STRING_VIEW 1
 #else
 #error options.h is misconfigured.
@@ -699,14 +587,6 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_USES_STD_ORDERING 1
 #else
 #error options.h is misconfigured.
-#endif
-
-// In debug mode, MSVC 2017's std::variant throws a EXCEPTION_ACCESS_VIOLATION
-// SEH exception from emplace for variant<SomeStruct> when constructing the
-// struct can throw. This defeats some of variant_test and
-// variant_exception_safety_test.
-#if defined(_MSC_VER) && _MSC_VER >= 1700 && defined(_DEBUG)
-#define ABSL_INTERNAL_MSVC_2017_DBG_MODE
 #endif
 
 // ABSL_INTERNAL_MANGLED_NS
@@ -849,34 +729,13 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 
 // ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION
 //
-// Class template argument deduction is a language feature added in C++17.
+// Deprecated: always defined to 1.
+// Class template argument deduction is a language feature added in C++17,
+// which means all versions of C++ supported by Abseil have it.
 #ifdef ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION
 #error "ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION cannot be directly set."
-#elif defined(__cpp_deduction_guides)
+#else
 #define ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION 1
-#endif
-
-// ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-//
-// Prior to C++17, static constexpr variables defined in classes required a
-// separate definition outside of the class body, for example:
-//
-// class Foo {
-//   static constexpr int kBar = 0;
-// };
-// constexpr int Foo::kBar;
-//
-// In C++17, these variables defined in classes are considered inline variables,
-// and the extra declaration is redundant. Since some compilers warn on the
-// extra declarations, ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL can be used
-// conditionally ignore them:
-//
-// #ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-// constexpr int Foo::kBar;
-// #endif
-#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG < 201703L
-#define ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL 1
 #endif
 
 // `ABSL_INTERNAL_HAS_RTTI` determines whether abseil is being compiled with
@@ -900,7 +759,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #error ABSL_INTERNAL_HAS_CXA_DEMANGLE cannot be directly set
 #elif defined(OS_ANDROID) && (defined(__i386__) || defined(__x86_64__))
 #define ABSL_INTERNAL_HAS_CXA_DEMANGLE 0
-#elif defined(__GNUC__) && !defined(__mips__)
+#elif defined(__GNUC__)
 #define ABSL_INTERNAL_HAS_CXA_DEMANGLE 1
 #elif defined(__clang__) && !defined(_MSC_VER)
 #define ABSL_INTERNAL_HAS_CXA_DEMANGLE 1
@@ -962,7 +821,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // https://llvm.org/docs/CompileCudaWithLLVM.html#detecting-clang-vs-nvcc-from-code
 #ifdef ABSL_INTERNAL_HAVE_ARM_NEON
 #error ABSL_INTERNAL_HAVE_ARM_NEON cannot be directly set
-#elif defined(__ARM_NEON) && !defined(__CUDA_ARCH__)
+#elif defined(__ARM_NEON) && !(defined(__NVCC__) && defined(__CUDACC__))
 #define ABSL_INTERNAL_HAVE_ARM_NEON 1
 #endif
 
@@ -975,6 +834,27 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_HAVE_CONSTANT_EVALUATED 1
 #elif ABSL_HAVE_BUILTIN(__builtin_is_constant_evaluated)
 #define ABSL_HAVE_CONSTANT_EVALUATED 1
+#endif
+
+// ABSL_INTERNAL_CONSTEXPR_SINCE_CXXYY is used to conditionally define constexpr
+// for different C++ versions.
+//
+// These macros are an implementation detail and will be unconditionally removed
+// once the minimum supported C++ version catches up to a given version.
+//
+// For this reason, this symbol is considered INTERNAL and code outside of
+// Abseil must not use it.
+#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
+    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
+#define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17 constexpr
+#else
+#define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
+#endif
+#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
+    ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 constexpr
+#else
+#define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
 #endif
 
 // ABSL_INTERNAL_EMSCRIPTEN_VERSION combines Emscripten's three version macros

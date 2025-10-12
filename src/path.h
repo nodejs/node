@@ -10,18 +10,20 @@
 
 namespace node {
 
-class Environment;
+constexpr bool IsPathSeparator(const char c) noexcept;
 
-constexpr bool IsPathSeparator(char c) noexcept;
 std::string NormalizeString(const std::string_view path,
                             bool allowAboveRoot,
                             const std::string_view separator);
 
 std::string PathResolve(Environment* env,
                         const std::vector<std::string_view>& paths);
+std::string NormalizeFileURLOrPath(Environment* env, std::string_view path);
+bool IsAbsoluteFilePath(std::string_view path);
 
 #ifdef _WIN32
 constexpr bool IsWindowsDeviceRoot(const char c) noexcept;
+constexpr bool IsWindowsDriveLetter(const std::string_view path) noexcept;
 #endif  // _WIN32
 
 void ToNamespacedPath(Environment* env, BufferValue* path);

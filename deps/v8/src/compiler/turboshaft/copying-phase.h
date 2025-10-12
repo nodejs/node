@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <utility>
 
 #include "src/base/iterator.h"
@@ -15,6 +16,8 @@
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/source-position.h"
+#include "src/common/scoped-modification.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -29,7 +32,7 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-using MaybeVariable = base::Optional<Variable>;
+using MaybeVariable = std::optional<Variable>;
 
 V8_EXPORT_PRIVATE int CountDecimalDigits(uint32_t value);
 struct PaddingSpace {
@@ -40,6 +43,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 template <typename Next>
 class ReducerBaseForwarder;
+template <typename Next>
+class WasmRevecReducer;
 
 template <typename Derived, typename Base>
 class OutputGraphAssembler : public Base {
@@ -84,6 +89,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
                                                  VariableReducer<AfterNext>> {
   template <typename N>
   friend class ReducerBaseForwarder;
+  template <typename N>
+  friend class WasmRevecReducer;
 
  public:
   using Next = VariableReducer<AfterNext>;
@@ -134,15 +141,18 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       for (OpIndex index : Asm().output_graph().AllOperationIndices()) {
         OpIndex origin = Asm().output_graph().operation_origins()[index];
         Asm().output_graph().source_positions()[index] =
-            Asm().input_graph().source_positions()[origin];
+            origin.valid() ? Asm().input_graph().source_positions()[origin]
+                           : SourcePosition::Unknown();
       }
     }
     // Updating the operation origins.
-    NodeOriginTable* origins = PipelineData::Get().node_origins();
+    NodeOriginTable* origins = Asm().data()->node_origins();
     if (origins) {
       for (OpIndex index : Asm().output_graph().AllOperationIndices()) {
         OpIndex origin = Asm().output_graph().operation_origins()[index];
-        origins->SetNodeOrigin(index.id(), origin.id());
+        if (origin.valid()) {
+          origins->SetNodeOrigin(index.id(), origin.id());
+        }
       }
     }
 
@@ -251,10 +261,135 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     return result;
   }
 
+  template <bool can_be_invalid = false, typename T>
+  V<T> MapToNewGraph(V<T> old_index, int predecessor_index = -1) {
+    return V<T>::Cast(MapToNewGraph<can_be_invalid>(
+        static_cast<OpIndex>(old_index), predecessor_index));
+  }
+
   Block* MapToNewGraph(const Block* block) const {
     Block* new_block = block_mapping_[block->index()];
     DCHECK_NOT_NULL(new_block);
     return new_block;
+  }
+
+  template <typename FunctionType>
+  OpIndex ResolvePhi(const PhiOp& op, FunctionType&& map,
+                     RegisterRepresentation rep) {
+    if (op.input_count == 1) {
+      // If, in the previous CopyingPhase, a loop header was turned into a
+      // regular blocks, its PendingLoopPhis became Phis with a single input. We
+      // can now just get rid of these Phis.
+      return map(op.input(0), -1);
+    }
+
+    OpIndex ig_index = Asm().input_graph().Index(op);
+    if (Asm().current_block()->IsLoop()) {
+      DCHECK_EQ(op.input_count, 2);
+      OpIndex og_index = map(op.input(0), -1);
+      if (ig_index == op.input(PhiOp::kLoopPhiBackEdgeIndex)) {
+        // Avoid emitting a Loop Phi which points to itself, instead
+        // emit it's 0'th input.
+        return og_index;
+      }
+      return Asm().PendingLoopPhi(og_index, rep);
+    }
+
+    base::Vector<const OpIndex> old_inputs = op.inputs();
+    base::SmallVector<OpIndex, 64> new_inputs;
+    int predecessor_count = Asm().current_block()->PredecessorCount();
+    Block* old_pred = current_input_block_->LastPredecessor();
+    Block* new_pred = Asm().current_block()->LastPredecessor();
+    // Control predecessors might be missing after the optimization phase. So we
+    // need to skip phi inputs that belong to control predecessors that have no
+    // equivalent in the new graph.
+
+    // We first assume that the order if the predecessors of the current block
+    // did not change. If it did, {new_pred} won't be nullptr at the end of this
+    // loop, and we'll instead fall back to the slower code below to compute the
+    // inputs of the Phi.
+    int predecessor_index = predecessor_count - 1;
+    int old_index = static_cast<int>(old_inputs.size()) - 1;
+    for (OpIndex input : base::Reversed(old_inputs)) {
+      if (new_pred && new_pred->OriginForBlockEnd() == old_pred) {
+        // Phis inputs have to come from predecessors. We thus have to
+        // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
+        // is from a predecessor rather than one that comes from a Variable
+        // merged in the current block.
+        new_inputs.push_back(map(input, predecessor_index, old_index));
+        new_pred = new_pred->NeighboringPredecessor();
+        predecessor_index--;
+      }
+      old_pred = old_pred->NeighboringPredecessor();
+      old_index--;
+    }
+    DCHECK_IMPLIES(new_pred == nullptr, old_pred == nullptr);
+
+    if (new_pred != nullptr) {
+      // If {new_pred} is not nullptr, then the order of the predecessors
+      // changed. This should only happen with blocks that were introduced in
+      // the previous graph. For instance, consider this (partial) dominator
+      // tree:
+      //
+      //     ╠ 7
+      //     ║ ╠ 8
+      //     ║ ╚ 10
+      //     ╠ 9
+      //     ╚ 11
+      //
+      // Where the predecessors of block 11 are blocks 9 and 10 (in that order).
+      // In dominator visit order, block 10 will be visited before block 9.
+      // Since blocks are added to predecessors when the predecessors are
+      // visited, it means that in the new graph, the predecessors of block 11
+      // are [10, 9] rather than [9, 10].
+      // To account for this, we reorder the inputs of the Phi, and get rid of
+      // inputs from blocks that vanished.
+
+#ifdef DEBUG
+      // To check that indices are set properly, we zap them in debug builds.
+      for (auto& block : Asm().modifiable_input_graph().blocks()) {
+        block.clear_custom_data();
+      }
+#endif
+      uint32_t pos = current_input_block_->PredecessorCount() - 1;
+      for (old_pred = current_input_block_->LastPredecessor();
+           old_pred != nullptr; old_pred = old_pred->NeighboringPredecessor()) {
+        // Store the current index of the {old_pred}.
+        old_pred->set_custom_data(pos--, Block::CustomDataKind::kPhiInputIndex);
+      }
+
+      // Filling {new_inputs}: we iterate the new predecessors, and, for each
+      // predecessor, we check the index of the input corresponding to the old
+      // predecessor, and we put it next in {new_inputs}.
+      new_inputs.clear();
+      predecessor_index = predecessor_count - 1;
+      for (new_pred = Asm().current_block()->LastPredecessor();
+           new_pred != nullptr; new_pred = new_pred->NeighboringPredecessor()) {
+        const Block* origin = new_pred->OriginForBlockEnd();
+        DCHECK_NOT_NULL(origin);
+        old_index =
+            origin->get_custom_data(Block::CustomDataKind::kPhiInputIndex);
+        OpIndex input = old_inputs[old_index];
+        // Phis inputs have to come from predecessors. We thus have to
+        // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
+        // is from a predecessor rather than one that comes from a Variable
+        // merged in the current block.
+        new_inputs.push_back(map(input, predecessor_index, old_index));
+        predecessor_index--;
+      }
+    }
+
+    DCHECK_EQ(new_inputs.size(), Asm().current_block()->PredecessorCount());
+
+    if (new_inputs.size() == 1) {
+      // This Operation used to be a Phi in a Merge, but since one (or more) of
+      // the inputs of the merge have been removed, there is no need for a Phi
+      // anymore.
+      return new_inputs[0];
+    }
+
+    std::reverse(new_inputs.begin(), new_inputs.end());
+    return Asm().ReducePhi(base::VectorOf(new_inputs), rep);
   }
 
   // The block from the input graph that corresponds to the current block as a
@@ -330,7 +465,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   template <bool can_be_invalid = false>
   OptionalOpIndex MapToNewGraph(OptionalOpIndex old_index,
                                 int predecessor_index = -1) {
-    if (!old_index.has_value()) return OptionalOpIndex::Invalid();
+    if (!old_index.has_value()) return OptionalOpIndex::Nullopt();
     return MapToNewGraph<can_be_invalid>(old_index.value(), predecessor_index);
   }
 
@@ -365,6 +500,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
 
   template <bool trace_reduction>
   void VisitBlock(const Block* input_block) {
+    if (tick_counter_) tick_counter_->TickAndMaybeEnterSafepoint();
+    Asm().SetCurrentOrigin(OpIndex::Invalid());
     current_block_needs_variables_ =
         blocks_needing_variables_.Contains(input_block->index().id());
     if constexpr (trace_reduction) {
@@ -553,14 +690,15 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     if (V8_UNLIKELY(v8_flags.turboshaft_verify_reductions)) {
       if (new_index.valid()) {
         const Operation& new_op = Asm().output_graph().Get(new_index);
-        if (!new_op.Is<TupleOp>()) {
+        if (!new_op.Is<MakeTupleOp>()) {
           // Checking that the outputs_rep of the new operation are the same as
           // the old operation. (except for tuples, since they don't have
           // outputs_rep)
           DCHECK_EQ(new_op.outputs_rep().size(), op.outputs_rep().size());
           for (size_t i = 0; i < new_op.outputs_rep().size(); ++i) {
             DCHECK(new_op.outputs_rep()[i].AllowImplicitRepresentationChangeTo(
-                op.outputs_rep()[i]));
+                op.outputs_rep()[i],
+                Asm().output_graph().IsCreatedFromTurbofan()));
           }
         }
         Asm().Verify(index, new_index);
@@ -603,6 +741,12 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     while (block_to_inline_now_) {
       Block* input_block = block_to_inline_now_;
       block_to_inline_now_ = nullptr;
+      // We need to set {current_block_needs_variables_} to true, because even
+      // though we're cloning a block that has a single predecessor (and thus
+      // that shouldn't be emitted multiple times, and thus shouldn't need
+      // Variables), we could be unrolling a loop, in which case this block will
+      // be cloned in the same fashion multiple times and will indeed require
+      // Variables.
       ScopedModification<bool> set_true(&current_block_needs_variables_, true);
       if constexpr (trace_reduction) {
         std::cout << "Inlining " << PrintAsBlockHeader{*input_block} << "\n";
@@ -693,6 +837,9 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     return OpIndex::Invalid();
   }
   V8_INLINE OpIndex AssembleOutputGraphBranch(const BranchOp& op) {
+    // Did you forget to Bind/BIND a Block/Label that you are branching to?
+    DCHECK(op.if_true->index().valid());
+    DCHECK(op.if_false->index().valid());
     Block* if_true = MapToNewGraph(op.if_true);
     Block* if_false = MapToNewGraph(op.if_false);
     return Asm().ReduceBranch(MapToNewGraph(op.condition()), if_true, if_false,
@@ -709,116 +856,12 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
         MapToNewGraph(op.default_case), op.default_hint);
   }
   OpIndex AssembleOutputGraphPhi(const PhiOp& op) {
-    if (op.input_count == 1) {
-      // If, in the previous CopyingPhase, a loop header was turned into a
-      // regular blocks, its PendingLoopPhis became Phis with a single input. We
-      // can now just get rid of these Phis.
-      return MapToNewGraph(op.input(0));
-    }
-
-    OpIndex ig_index = Asm().input_graph().Index(op);
-    if (Asm().current_block()->IsLoop()) {
-      DCHECK_EQ(op.input_count, 2);
-      if (ig_index == op.input(PhiOp::kLoopPhiBackEdgeIndex)) {
-        // Avoid emitting a Loop Phi which points to itself, instead
-        // emit it's 0'th input.
-        return MapToNewGraph(op.input(0));
-      }
-      return Asm().PendingLoopPhi(MapToNewGraph(op.input(0)), op.rep);
-    }
-
-    base::Vector<const OpIndex> old_inputs = op.inputs();
-    base::SmallVector<OpIndex, 64> new_inputs;
-    int predecessor_count = Asm().current_block()->PredecessorCount();
-    Block* old_pred = current_input_block_->LastPredecessor();
-    Block* new_pred = Asm().current_block()->LastPredecessor();
-    // Control predecessors might be missing after the optimization phase. So we
-    // need to skip phi inputs that belong to control predecessors that have no
-    // equivalent in the new graph.
-
-    // We first assume that the order if the predecessors of the current block
-    // did not change. If it did, {new_pred} won't be nullptr at the end of this
-    // loop, and we'll instead fall back to the slower code below to compute the
-    // inputs of the Phi.
-    int predecessor_index = predecessor_count - 1;
-    for (OpIndex input : base::Reversed(old_inputs)) {
-      if (new_pred && new_pred->OriginForBlockEnd() == old_pred) {
-        // Phis inputs have to come from predecessors. We thus have to
-        // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
-        // is from a predecessor rather than one that comes from a Variable
-        // merged in the current block.
-        new_inputs.push_back(MapToNewGraph(input, predecessor_index));
-        new_pred = new_pred->NeighboringPredecessor();
-        predecessor_index--;
-      }
-      old_pred = old_pred->NeighboringPredecessor();
-    }
-    DCHECK_IMPLIES(new_pred == nullptr, old_pred == nullptr);
-
-    if (new_pred != nullptr) {
-      // If {new_pred} is not nullptr, then the order of the predecessors
-      // changed. This should only happen with blocks that were introduced in
-      // the previous graph. For instance, consider this (partial) dominator
-      // tree:
-      //
-      //     ╠ 7
-      //     ║ ╠ 8
-      //     ║ ╚ 10
-      //     ╠ 9
-      //     ╚ 11
-      //
-      // Where the predecessors of block 11 are blocks 9 and 10 (in that order).
-      // In dominator visit order, block 10 will be visited before block 9.
-      // Since blocks are added to predecessors when the predecessors are
-      // visited, it means that in the new graph, the predecessors of block 11
-      // are [10, 9] rather than [9, 10].
-      // To account for this, we reorder the inputs of the Phi, and get rid of
-      // inputs from blocks that vanished.
-
-#ifdef DEBUG
-      // To check that indices are set properly, we zap them in debug builds.
-      for (auto& block : Asm().modifiable_input_graph().blocks()) {
-        block.clear_custom_data();
-      }
-#endif
-      uint32_t pos = current_input_block_->PredecessorCount() - 1;
-      for (old_pred = current_input_block_->LastPredecessor();
-           old_pred != nullptr; old_pred = old_pred->NeighboringPredecessor()) {
-        // Store the current index of the {old_pred}.
-        old_pred->set_custom_data(pos--, Block::CustomDataKind::kPhiInputIndex);
-      }
-
-      // Filling {new_inputs}: we iterate the new predecessors, and, for each
-      // predecessor, we check the index of the input corresponding to the old
-      // predecessor, and we put it next in {new_inputs}.
-      new_inputs.clear();
-      int predecessor_index = predecessor_count - 1;
-      for (new_pred = Asm().current_block()->LastPredecessor();
-           new_pred != nullptr; new_pred = new_pred->NeighboringPredecessor()) {
-        const Block* origin = new_pred->OriginForBlockEnd();
-        DCHECK_NOT_NULL(origin);
-        OpIndex input = old_inputs[origin->get_custom_data(
-            Block::CustomDataKind::kPhiInputIndex)];
-        // Phis inputs have to come from predecessors. We thus have to
-        // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
-        // is from a predecessor rather than one that comes from a Variable
-        // merged in the current block.
-        new_inputs.push_back(MapToNewGraph(input, predecessor_index));
-        predecessor_index--;
-      }
-    }
-
-    DCHECK_EQ(new_inputs.size(), Asm().current_block()->PredecessorCount());
-
-    if (new_inputs.size() == 1) {
-      // This Operation used to be a Phi in a Merge, but since one (or more) of
-      // the inputs of the merge have been removed, there is no need for a Phi
-      // anymore.
-      return new_inputs[0];
-    }
-
-    std::reverse(new_inputs.begin(), new_inputs.end());
-    return Asm().ReducePhi(base::VectorOf(new_inputs), op.rep);
+    return ResolvePhi(
+        op,
+        [this](OpIndex ind, int predecessor_index, int old_index = 0) {
+          return MapToNewGraph(ind, predecessor_index);
+        },
+        op.rep);
   }
   OpIndex AssembleOutputGraphPendingLoopPhi(const PendingLoopPhiOp& op) {
     UNREACHABLE();
@@ -828,8 +871,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     return Asm().ReduceFrameState(base::VectorOf(inputs), op.inlined, op.data);
   }
   OpIndex AssembleOutputGraphCall(const CallOp& op) {
-    OpIndex callee = MapToNewGraph(op.callee());
-    OptionalOpIndex frame_state = MapToNewGraph(op.frame_state());
+    V<CallTarget> callee = MapToNewGraph(op.callee());
+    OptionalV<FrameState> frame_state = MapToNewGraph(op.frame_state());
     auto arguments = MapToNewGraph<16>(op.arguments());
     return Asm().ReduceCall(callee, frame_state, base::VectorOf(arguments),
                             op.descriptor, op.Effects());
@@ -851,7 +894,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     }
     return result;
   }
-  OpIndex AssembleOutputGraphCheckException(const CheckExceptionOp& op) {
+
+  V<None> AssembleOutputGraphCheckException(const CheckExceptionOp& op) {
     Graph::OpIndexIterator it(op.didnt_throw_block->begin(),
                               &Asm().input_graph());
     Graph::OpIndexIterator end(op.didnt_throw_block->end(),
@@ -867,7 +911,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       CatchScope scope(Asm(), MapToNewGraph(op.catch_block));
       DCHECK(Asm().input_graph().Get(*it).template Is<DidntThrowOp>());
       if (!Asm().InlineOp(*it, op.didnt_throw_block)) {
-        return OpIndex::Invalid();
+        return V<None>::Invalid();
       }
       ++it;
     }
@@ -879,7 +923,13 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
         break;
       }
     }
-    return OpIndex::Invalid();
+    return V<None>::Invalid();
+  }
+
+  OpIndex AssembleOutputGraphParameter(const ParameterOp& param) {
+    // Calling the AssemblerOpInterface rather than the first Reduce method
+    // in order to make use of the Parameter cache.
+    return Asm().Parameter(param.parameter_index, param.rep, param.debug_name);
   }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
@@ -938,6 +988,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   }
 
   Graph& input_graph_;
+  OptimizedCompilationInfo* info_ = Asm().data()->info();
+  TickCounter* const tick_counter_ = info_ ? &info_->tick_counter() : nullptr;
 
   const Block* current_input_block_;
 
@@ -1003,10 +1055,10 @@ class TSAssembler;
 template <template <class> class... Reducers>
 class CopyingPhaseImpl {
  public:
-  static void Run(Graph& input_graph, Zone* phase_zone,
+  static void Run(PipelineData* data, Graph& input_graph, Zone* phase_zone,
                   bool trace_reductions = false) {
     TSAssembler<GraphVisitor, Reducers...> phase(
-        input_graph, input_graph.GetOrCreateCompanion(), phase_zone);
+        data, input_graph, input_graph.GetOrCreateCompanion(), phase_zone);
 #ifdef DEBUG
     if (trace_reductions) {
       phase.template VisitGraph<true>();
@@ -1022,11 +1074,11 @@ class CopyingPhaseImpl {
 template <template <typename> typename... Reducers>
 class CopyingPhase {
  public:
-  static void Run(Zone* phase_zone) {
-    PipelineData& data = PipelineData::Get();
-    Graph& input_graph = data.graph();
+  static void Run(PipelineData* data, Zone* phase_zone) {
+    Graph& input_graph = data->graph();
     CopyingPhaseImpl<Reducers...>::Run(
-        input_graph, phase_zone, data.info()->turboshaft_trace_reduction());
+        data, input_graph, phase_zone,
+        data->info()->turboshaft_trace_reduction());
   }
 };
 

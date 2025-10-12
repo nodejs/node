@@ -170,27 +170,29 @@ inline int128::operator float() const {
   // complement overwhelms the precision of the mantissa.
   //
   // Also check to make sure we don't negate Int128Min()
+  constexpr float pow_2_64 = 18446744073709551616.0f;
   return v_ < 0 && *this != Int128Min()
              ? -static_cast<float>(-*this)
              : static_cast<float>(Int128Low64(*this)) +
-                   std::ldexp(static_cast<float>(Int128High64(*this)), 64);
+                   static_cast<float>(Int128High64(*this)) * pow_2_64;
 }
 
 inline int128::operator double() const {
   // See comment in int128::operator float() above.
+  constexpr double pow_2_64 = 18446744073709551616.0;
   return v_ < 0 && *this != Int128Min()
              ? -static_cast<double>(-*this)
              : static_cast<double>(Int128Low64(*this)) +
-                   std::ldexp(static_cast<double>(Int128High64(*this)), 64);
+                   static_cast<double>(Int128High64(*this)) * pow_2_64;
 }
 
 inline int128::operator long double() const {
   // See comment in int128::operator float() above.
+  constexpr long double pow_2_64 = 18446744073709551616.0L;
   return v_ < 0 && *this != Int128Min()
              ? -static_cast<long double>(-*this)
              : static_cast<long double>(Int128Low64(*this)) +
-                   std::ldexp(static_cast<long double>(Int128High64(*this)),
-                              64);
+                   static_cast<long double>(Int128High64(*this)) * pow_2_64;
 }
 #endif  // Clang on PowerPC
 
@@ -220,6 +222,20 @@ constexpr bool operator>=(int128 lhs, int128 rhs) {
   return static_cast<__int128>(lhs) >= static_cast<__int128>(rhs);
 }
 
+#ifdef __cpp_impl_three_way_comparison
+constexpr absl::strong_ordering operator<=>(int128 lhs, int128 rhs) {
+  if (auto lhs_128 = static_cast<__int128>(lhs),
+      rhs_128 = static_cast<__int128>(rhs);
+      lhs_128 < rhs_128) {
+    return absl::strong_ordering::less;
+  } else if (lhs_128 > rhs_128) {
+    return absl::strong_ordering::greater;
+  } else {
+    return absl::strong_ordering::equal;
+  }
+}
+#endif
+
 // Unary operators.
 
 constexpr int128 operator-(int128 v) { return -static_cast<__int128>(v); }
@@ -238,17 +254,19 @@ constexpr int128 operator-(int128 lhs, int128 rhs) {
   return static_cast<__int128>(lhs) - static_cast<__int128>(rhs);
 }
 
-inline int128 operator*(int128 lhs, int128 rhs) {
+#if defined(ABSL_HAVE_INTRINSIC_INT128)
+constexpr int128 operator*(int128 lhs, int128 rhs) {
   return static_cast<__int128>(lhs) * static_cast<__int128>(rhs);
 }
 
-inline int128 operator/(int128 lhs, int128 rhs) {
+constexpr int128 operator/(int128 lhs, int128 rhs) {
   return static_cast<__int128>(lhs) / static_cast<__int128>(rhs);
 }
 
-inline int128 operator%(int128 lhs, int128 rhs) {
+constexpr int128 operator%(int128 lhs, int128 rhs) {
   return static_cast<__int128>(lhs) % static_cast<__int128>(rhs);
 }
+#endif // ABSL_HAVE_INTRINSIC_INT128
 
 inline int128 int128::operator++(int) {
   int128 tmp(*this);

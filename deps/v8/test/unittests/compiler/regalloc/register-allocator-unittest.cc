@@ -4,6 +4,7 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/compiler/pipeline.h"
+#include "src/compiler/turboshaft/pipelines.h"
 #include "test/unittests/compiler/backend/instruction-sequence-unittest.h"
 
 namespace v8 {
@@ -78,7 +79,27 @@ class RegisterAllocatorTest : public InstructionSequenceTest {
  public:
   void Allocate() {
     WireBlocks();
-    Pipeline::AllocateRegistersForTesting(config(), sequence(), true);
+
+    InstructionSequence* sequence = this->sequence();
+
+    OptimizedCompilationInfo info(base::ArrayVector("testing"),
+                                  sequence->zone(), CodeKind::FOR_TESTING);
+    ZoneStats zone_stats(sequence->isolate()->allocator());
+    turboshaft::PipelineData data(
+        &zone_stats, turboshaft::TurboshaftPipelineKind::kCSA, nullptr, &info,
+        AssemblerOptions(sequence->isolate()));
+    data.InitializeCodegenComponent(nullptr);
+    data.InitializeFrameData(nullptr);
+    data.InitializeInstructionComponentWithSequence(sequence);
+
+    if (info.trace_turbo_json()) {
+      TurboJsonFile json_of(&info, std::ios_base::trunc);
+      json_of << "{\"function\":\"" << info.GetDebugName().get()
+              << "\", \"source\":\"\",\n\"phases\":[";
+    }
+
+    turboshaft::Pipeline pipeline(&data);
+    CHECK(pipeline.AllocateRegisters(config(), nullptr, true));
   }
 };
 

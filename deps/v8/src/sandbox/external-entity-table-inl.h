@@ -5,32 +5,18 @@
 #ifndef V8_SANDBOX_EXTERNAL_ENTITY_TABLE_INL_H_
 #define V8_SANDBOX_EXTERNAL_ENTITY_TABLE_INL_H_
 
+#include "src/sandbox/external-entity-table.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/atomicops.h"
 #include "src/base/emulated-virtual-address-subspace.h"
 #include "src/base/iterator.h"
 #include "src/common/assert-scope.h"
-#include "src/sandbox/external-entity-table.h"
+#include "src/common/segmented-table-inl.h"
 #include "src/utils/allocation.h"
-
-#ifdef V8_COMPRESS_POINTERS
 
 namespace v8 {
 namespace internal {
-
-template <typename Entry, size_t size>
-typename ExternalEntityTable<Entry, size>::Segment
-ExternalEntityTable<Entry, size>::Segment::At(uint32_t offset) {
-  DCHECK(IsAligned(offset, kSegmentSize));
-  uint32_t number = offset / kSegmentSize;
-  return Segment(number);
-}
-
-template <typename Entry, size_t size>
-typename ExternalEntityTable<Entry, size>::Segment
-ExternalEntityTable<Entry, size>::Segment::Containing(uint32_t entry_index) {
-  uint32_t number = entry_index / kEntriesPerSegment;
-  return Segment(number);
-}
 
 template <typename Entry, size_t size>
 ExternalEntityTable<Entry, size>::Space::~Space() {
@@ -59,82 +45,48 @@ bool ExternalEntityTable<Entry, size>::Space::Contains(uint32_t index) {
 }
 
 template <typename Entry, size_t size>
-Entry& ExternalEntityTable<Entry, size>::at(uint32_t index) {
-  return base_[index];
-}
-
-template <typename Entry, size_t size>
-const Entry& ExternalEntityTable<Entry, size>::at(uint32_t index) const {
-  return base_[index];
-}
-
-template <typename Entry, size_t size>
-bool ExternalEntityTable<Entry, size>::is_initialized() const {
-  DCHECK(!base_ || reinterpret_cast<Address>(base_) == vas_->base());
-  return base_ != nullptr;
-}
-
-template <typename Entry, size_t size>
-Address ExternalEntityTable<Entry, size>::base() const {
-  DCHECK(is_initialized());
-  return reinterpret_cast<Address>(base_);
-}
-
-template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::Initialize() {
-  DCHECK(!is_initialized());
-  DCHECK_EQ(vas_, nullptr);
+  Base::Initialize();
 
-  VirtualAddressSpace* root_space = GetPlatformVirtualAddressSpace();
-  DCHECK(IsAligned(kReservationSize, root_space->allocation_granularity()));
+  if (!ExternalEntityTable::kUseContiguousMemory) return;
 
-  if (root_space->CanAllocateSubspaces()) {
-    auto subspace = root_space->AllocateSubspace(VirtualAddressSpace::kNoHint,
-                                                 kReservationSize, kSegmentSize,
-                                                 PagePermissions::kReadWrite);
-    vas_ = subspace.release();
-  } else {
-    // This may be required on old Windows versions that don't support
-    // VirtualAlloc2, which is required for subspaces. In that case, just use a
-    // fully-backed emulated subspace.
-    Address reservation_base = root_space->AllocatePages(
-        VirtualAddressSpace::kNoHint, kReservationSize, kSegmentSize,
-        PagePermissions::kNoAccess);
-    if (reservation_base) {
-      vas_ = new base::EmulatedVirtualAddressSubspace(
-          root_space, reservation_base, kReservationSize, kReservationSize);
-    }
-  }
-  if (!vas_) {
-    V8::FatalProcessOutOfMemory(
-        nullptr, "ExternalEntityTable::InitializeTable (subspace allocation)");
-  }
-  base_ = reinterpret_cast<Entry*>(vas_->base());
-
-  // Allocate the read-only segment of the table. This segment is always
-  // located at offset 0, and contains the null entry (pointing at
-  // kNullAddress) at index 0. It may later be temporarily marked read-write,
-  // see UnsealedReadOnlySegmentScope.
-  Address first_segment = vas_->AllocatePages(
-      vas_->base(), kSegmentSize, kSegmentSize, PagePermissions::kRead);
-  if (first_segment != vas_->base()) {
+  // Allocate the read-only segments of the table. These segments are always
+  // located at offset 0. The first segment contains the null entry (pointing at
+  // kNullAddress) at index 0. Initially we allocate these segments with
+  // kNoAccess, which is converted to kRead on Extend. It may later be
+  // temporarily marked read-write, see UnsealedReadOnlySegmentScope. The first
+  // segment is already initialized at kRead such that the null handle can be
+  // dereferenced during initialization.
+  static_assert(kEndOfReadOnlyIndex * sizeof(Entry) ==
+                kSegmentSize * kNumReadOnlySegments);
+  Address first_segment = this->vas_->AllocatePages(
+      this->vas_->base(), kSegmentSize * kNumReadOnlySegments, Base::kAlignment,
+      PagePermissions::kRead);
+  if (first_segment != this->vas_->base()) {
     V8::FatalProcessOutOfMemory(
         nullptr,
-        "ExternalEntityTable::InitializeTable (first segment allocation)");
+        "ExternalEntityTable::InitializeTable (r/o segments allocation)");
   }
-  DCHECK_EQ(first_segment - vas_->base(), kInternalReadOnlySegmentOffset);
+
+  DCHECK_EQ(first_segment - this->vas_->base(),
+            kInternalReadOnlySegmentsOffset);
+
+  if constexpr (Base::kUseSegmentPool) {
+    Base::FillSegmentsPool(false);
+  }
 }
 
 template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::TearDown() {
-  DCHECK(is_initialized());
+  DCHECK(this->is_initialized());
 
-  // Deallocate the (read-only) first segment.
-  vas_->FreePages(vas_->base(), kSegmentSize);
+  if (ExternalEntityTable::kUseContiguousMemory) {
+    // Deallocate the (read-only) first segment.
+    this->vas_->FreePages(this->vas_->base(),
+                          kSegmentSize * kNumReadOnlySegments);
+  }
 
-  base_ = nullptr;
-  delete vas_;
-  vas_ = nullptr;
+  Base::TearDown();
 }
 
 template <typename Entry, size_t size>
@@ -147,69 +99,89 @@ void ExternalEntityTable<Entry, size>::InitializeSpace(Space* space) {
 
 template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::TearDownSpace(Space* space) {
-  DCHECK(is_initialized());
+  DCHECK(this->is_initialized());
   DCHECK(space->BelongsTo(this));
   for (auto segment : space->segments_) {
-    FreeTableSegment(segment);
+    this->FreeTableSegment(segment);
   }
   space->segments_.clear();
 }
 
 template <typename Entry, size_t size>
-void ExternalEntityTable<Entry, size>::AttachSpaceToReadOnlySegment(
+void ExternalEntityTable<Entry, size>::ZeroInternalNullEntry() {
+  std::conditional_t<Base::kIsWriteProtected, CFIMetadataWriteScope,
+                     NopRwxMemoryWriteScope>
+      write_scope("ZeroInternalNullEntry");
+  memset(&this->at(kInternalNullEntryIndex), 0, sizeof(Entry));
+}
+
+template <typename Entry, size_t size>
+void ExternalEntityTable<Entry, size>::AttachSpaceToReadOnlySegments(
     Space* space) {
-  DCHECK(is_initialized());
+  CHECK(ExternalEntityTable::kUseContiguousMemory);
+  DCHECK(this->is_initialized());
   DCHECK(space->BelongsTo(this));
 
   DCHECK(!space->is_internal_read_only_space());
   space->is_internal_read_only_space_ = true;
 
-  UnsealReadOnlySegmentScope unseal_scope(this);
-
-  // Physically attach the segment.
-  FreelistHead freelist;
+  // For the internal read-only segment, index 0 is reserved for the `null`
+  // entry. This call also ensures that the first segment is initialized.
   {
-    base::MutexGuard guard(&space->mutex_);
-    DCHECK_EQ(space->segments_.size(), 0);
-    freelist = Extend(space, Segment::At(kInternalReadOnlySegmentOffset));
+    UnsealReadOnlySegmentScope writable(this);
+    uint32_t null_entry = AllocateEntry(space);
+    CHECK_EQ(null_entry, kInternalNullEntryIndex);
+    ZeroInternalNullEntry();
   }
-
-  DCHECK(!freelist.is_empty());
-  DCHECK_EQ(freelist.next(), kInternalNullEntryIndex + 1);
-  DCHECK(space->Contains(freelist.next()));
 }
 
 template <typename Entry, size_t size>
-void ExternalEntityTable<Entry, size>::DetachSpaceFromReadOnlySegment(
+void ExternalEntityTable<Entry, size>::DetachSpaceFromReadOnlySegments(
     Space* space) {
-  DCHECK(is_initialized());
+  DCHECK(this->is_initialized());
   DCHECK(space->BelongsTo(this));
   // Remove the RO segment from the space's segment list without freeing it.
   // The table itself manages the RO segment's lifecycle.
   base::MutexGuard guard(&space->mutex_);
-  DCHECK_EQ(space->segments_.size(), 1);
+  DCHECK_EQ(space->segments_.size(), this->read_only_segments_used_);
+  this->read_only_segments_used_ = 0;
   space->segments_.clear();
 }
 
 template <typename Entry, size_t size>
-void ExternalEntityTable<Entry, size>::UnsealReadOnlySegment() {
-  DCHECK(is_initialized());
-  bool success = vas_->SetPagePermissions(vas_->base(), kSegmentSize,
-                                          PagePermissions::kReadWrite);
+void ExternalEntityTable<Entry, size>::UnsealReadOnlySegments() {
+  DCHECK(this->is_initialized());
+  bool success = this->vas_->SetPagePermissions(
+      this->vas_->base(), kSegmentSize * kNumReadOnlySegments,
+      PagePermissions::kReadWrite);
   CHECK(success);
 }
 
 template <typename Entry, size_t size>
-void ExternalEntityTable<Entry, size>::SealReadOnlySegment() {
-  DCHECK(is_initialized());
-  bool success = vas_->SetPagePermissions(vas_->base(), kSegmentSize,
-                                          PagePermissions::kRead);
+void ExternalEntityTable<Entry, size>::SealReadOnlySegments() {
+  DCHECK(this->is_initialized());
+  bool success = this->vas_->SetPagePermissions(
+      this->vas_->base(), kSegmentSize * kNumReadOnlySegments,
+      PagePermissions::kRead);
   CHECK(success);
 }
 
 template <typename Entry, size_t size>
 uint32_t ExternalEntityTable<Entry, size>::AllocateEntry(Space* space) {
-  DCHECK(is_initialized());
+  static constexpr size_t kAllocationTries = 2;
+  for (size_t i = 0; i < kAllocationTries; ++i) {
+    if (auto res = TryAllocateEntry(space)) {
+      return *res;
+    }
+    OnCriticalMemoryPressure();
+  }
+  V8::FatalProcessOutOfMemory(nullptr, "ExternalEntityTable::AllocateEntry");
+}
+
+template <typename Entry, size_t size>
+std::optional<uint32_t> ExternalEntityTable<Entry, size>::TryAllocateEntry(
+    Space* space) {
+  DCHECK(this->is_initialized());
   DCHECK(space->BelongsTo(this));
 
   // We currently don't want entry allocation to trigger garbage collection as
@@ -220,15 +192,14 @@ uint32_t ExternalEntityTable<Entry, size>::AllocateEntry(Space* space) {
   DisallowGarbageCollection no_gc;
 
   FreelistHead freelist;
-  bool success = false;
-  while (!success) {
+  for (;;) {
     // This is essentially DCLP (see
     // https://preshing.com/20130930/double-checked-locking-is-fixed-in-cpp11/)
     // and so requires an acquire load as well as a release store in Grow() to
     // prevent reordering of memory accesses, which could for example cause one
     // thread to read a freelist entry before it has been properly initialized.
     freelist = space->freelist_head_.load(std::memory_order_acquire);
-    if (freelist.is_empty()) {
+    if (V8_UNLIKELY(freelist.is_empty())) {
       // Freelist is empty. Need to take the lock, then attempt to allocate a
       // new segment if no other thread has done it in the meantime.
       base::MutexGuard guard(&space->mutex_);
@@ -238,13 +209,19 @@ uint32_t ExternalEntityTable<Entry, size>::AllocateEntry(Space* space) {
 
       if (freelist.is_empty()) {
         // Freelist is (still) empty so extend this space by another segment.
-        freelist = Extend(space);
+        if (auto maybe_freelist = TryExtend(space)) {
+          freelist = *maybe_freelist;
+        } else {
+          return {};
+        }
         // Extend() adds one segment to the space and so to its freelist.
         DCHECK_EQ(freelist.length(), kEntriesPerSegment);
       }
     }
 
-    success = TryAllocateEntryFromFreelist(space, freelist);
+    if (V8_LIKELY(TryAllocateEntryFromFreelist(space, freelist))) {
+      break;
+    }
   }
 
   uint32_t allocated_entry = freelist.next();
@@ -256,7 +233,7 @@ uint32_t ExternalEntityTable<Entry, size>::AllocateEntry(Space* space) {
 template <typename Entry, size_t size>
 uint32_t ExternalEntityTable<Entry, size>::AllocateEntryBelow(
     Space* space, uint32_t threshold_index) {
-  DCHECK(is_initialized());
+  DCHECK(this->is_initialized());
 
   FreelistHead freelist;
   bool success = false;
@@ -281,7 +258,7 @@ bool ExternalEntityTable<Entry, size>::TryAllocateEntryFromFreelist(
   DCHECK(!freelist.is_empty());
   DCHECK(space->Contains(freelist.next()));
 
-  Entry& freelist_entry = at(freelist.next());
+  Entry& freelist_entry = this->at(freelist.next());
   uint32_t next_freelist_entry = freelist_entry.GetNextFreelistEntryIndex();
   FreelistHead new_freelist(next_freelist_entry, freelist.length() - 1);
   bool success = space->freelist_head_.compare_exchange_strong(
@@ -298,64 +275,71 @@ bool ExternalEntityTable<Entry, size>::TryAllocateEntryFromFreelist(
 }
 
 template <typename Entry, size_t size>
-typename ExternalEntityTable<Entry, size>::FreelistHead
-ExternalEntityTable<Entry, size>::Extend(Space* space) {
+std::optional<typename ExternalEntityTable<Entry, size>::FreelistHead>
+ExternalEntityTable<Entry, size>::TryExtend(Space* space) {
   // Freelist should be empty when calling this method.
   DCHECK_EQ(space->freelist_length(), 0);
   // The caller must lock the space's mutex before extending it.
   space->mutex_.AssertHeld();
-  // The read-only space must never be extended with a newly-allocated segment.
-  DCHECK(!space->is_internal_read_only_space());
+
+  if (space->is_internal_read_only_space()) {
+    // If this check fails during snapshot generation increase
+    // kNumReadOnlySegments as needed.
+    CHECK_LT(this->read_only_segments_used_, kNumReadOnlySegments);
+
+    DCHECK_EQ(space->segments_.size(), this->read_only_segments_used_);
+    Segment next_segment =
+        Segment::At(kInternalReadOnlySegmentsOffset +
+                    kSegmentSize * this->read_only_segments_used_);
+    CHECK_LT(next_segment.last_entry(), kEndOfReadOnlyIndex);
+    FreelistHead freelist = Base::InitializeFreeList(next_segment);
+    Extend(space, next_segment, freelist);
+    DCHECK(!freelist.is_empty());
+    this->read_only_segments_used_++;
+    return freelist;
+  }
 
   // Allocate the new segment.
-  Segment segment = AllocateTableSegment();
-  return Extend(space, segment);
+  auto extended = this->TryAllocateAndInitializeSegment();
+  if (!extended) return {};
+
+  auto [segment, freelist_head] = *extended;
+  Extend(space, segment, freelist_head);
+  return freelist_head;
 }
 
 template <typename Entry, size_t size>
-typename ExternalEntityTable<Entry, size>::FreelistHead
-ExternalEntityTable<Entry, size>::Extend(Space* space, Segment segment) {
+void ExternalEntityTable<Entry, size>::Extend(Space* space, Segment segment,
+                                              FreelistHead freelist) {
   // Freelist should be empty when calling this method.
   DCHECK_EQ(space->freelist_length(), 0);
   // The caller must lock the space's mutex before extending it.
   space->mutex_.AssertHeld();
 
   space->segments_.insert(segment);
-  DCHECK_EQ(space->is_internal_read_only_space(), segment.number() == 0);
+  CHECK_IMPLIES(!ExternalEntityTable::kUseContiguousMemory,
+                segment.number() != 0);
   DCHECK_EQ(space->is_internal_read_only_space(),
-            segment.offset() == kInternalReadOnlySegmentOffset);
+            segment.number() < kNumReadOnlySegments);
+  DCHECK_IMPLIES(
+      space->is_internal_read_only_space(),
+      segment.offset() == this->read_only_segments_used_ * kSegmentSize);
 
-  // Refill the freelist with the entries in the newly allocated segment.
-  uint32_t first = segment.first_entry();
-  uint32_t last = segment.last_entry();
-  if (V8_UNLIKELY(space->is_internal_read_only_space())) {
-    // For the internal read-only segment, index 0 is reserved for the `null`
-    // entry. The underlying memory has been nulled by allocation, and is
-    // therefore already initialized.
-#ifdef DEBUG
-    CHECK_EQ(first, kInternalNullEntryIndex);
-    static constexpr uint8_t kNullBytes[kEntrySize] = {0};
-    CHECK_EQ(memcmp(&at(first), kNullBytes, kEntrySize), 0);
-#endif  // DEBUG
-    first = kInternalNullEntryIndex + 1;
-  }
-  for (uint32_t i = first; i < last; i++) {
-    uint32_t next_free_entry = i + 1;
-    at(i).MakeFreelistEntry(next_free_entry);
-  }
-  at(last).MakeFreelistEntry(0);
-
-  // This must be a release store to prevent reordering of the preceeding
-  // stores to the freelist from being reordered past this store. See
-  // AllocateEntry() for more details.
-  FreelistHead new_freelist_head(first, last - first + 1);
-  space->freelist_head_.store(new_freelist_head, std::memory_order_release);
-
-  return new_freelist_head;
+  // This must be a release store to prevent reordering of  of earlier stores to
+  // the freelist (for example during initialization of the segment) from being
+  // reordered past this store. See AllocateEntry() for more details.
+  space->freelist_head_.store(freelist, std::memory_order_release);
 }
 
 template <typename Entry, size_t size>
 uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space) {
+  return GenericSweep(space, [](Entry&) {});
+}
+
+template <typename Entry, size_t size>
+template <typename Callback>
+uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space,
+                                                        Callback callback) {
   DCHECK(space->BelongsTo(this));
 
   // Lock the space. Technically this is not necessary since no other thread can
@@ -374,6 +358,7 @@ uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space) {
   uint32_t current_freelist_head = 0;
   uint32_t current_freelist_length = 0;
   std::vector<Segment> segments_to_deallocate;
+
   for (auto segment : base::Reversed(space->segments_)) {
     // Remember the state of the freelist before this segment in case this
     // segment turns out to be completely empty and we deallocate it.
@@ -381,20 +366,22 @@ uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space) {
     uint32_t previous_freelist_length = current_freelist_length;
 
     // Process every entry in this segment, again going top to bottom.
-    for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--) {
-      if (!at(i).IsMarked()) {
-        at(i).MakeFreelistEntry(current_freelist_head);
-        current_freelist_head = i;
+    for (WriteIterator it = this->iter_at(segment.last_entry());
+         it.index() >= segment.first_entry(); --it) {
+      if (!it->IsMarked()) {
+        it->MakeFreelistEntry(current_freelist_head);
+        current_freelist_head = it.index();
         current_freelist_length++;
       } else {
-        at(i).Unmark();
+        callback(*it);
+        it->Unmark();
       }
     }
 
     // If a segment is completely empty, free it.
     uint32_t free_entries = current_freelist_length - previous_freelist_length;
     bool segment_is_empty = free_entries == kEntriesPerSegment;
-    if (segment_is_empty) {
+    if (segment_is_empty && segment.number() >= kNumReadOnlySegments) {
       segments_to_deallocate.push_back(segment);
       // Restore the state of the freelist before this segment.
       current_freelist_head = previous_freelist_head;
@@ -405,7 +392,9 @@ uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space) {
   // We cannot remove the segments while iterating over the segments set, so
   // defer that until now.
   for (auto segment : segments_to_deallocate) {
-    FreeTableSegment(segment);
+    // Segment zero is reserved.
+    DCHECK_GE(segment.number(), kNumReadOnlySegments);
+    this->FreeTableSegment(segment);
     space->segments_.erase(segment);
   }
 
@@ -415,28 +404,6 @@ uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space) {
 
   uint32_t num_live_entries = space->capacity() - current_freelist_length;
   return num_live_entries;
-}
-
-template <typename Entry, size_t size>
-typename ExternalEntityTable<Entry, size>::Segment
-ExternalEntityTable<Entry, size>::AllocateTableSegment() {
-  Address start =
-      vas_->AllocatePages(VirtualAddressSpace::kNoHint, kSegmentSize,
-                          kSegmentSize, PagePermissions::kReadWrite);
-  if (!start) {
-    V8::FatalProcessOutOfMemory(nullptr,
-                                "ExternalEntityTable::AllocateSegment");
-  }
-  uint32_t offset = static_cast<uint32_t>((start - vas_->base()));
-  return Segment::At(offset);
-}
-
-template <typename Entry, size_t size>
-void ExternalEntityTable<Entry, size>::FreeTableSegment(Segment segment) {
-  // Segment zero is reserved.
-  DCHECK_NE(segment.number(), 0);
-  Address segment_start = vas_->base() + segment.offset();
-  vas_->FreePages(segment_start, kSegmentSize);
 }
 
 template <typename Entry, size_t size>
@@ -455,7 +422,5 @@ void ExternalEntityTable<Entry, size>::IterateEntriesIn(Space* space,
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_COMPRESS_POINTERS
 
 #endif  // V8_SANDBOX_EXTERNAL_ENTITY_TABLE_INL_H_

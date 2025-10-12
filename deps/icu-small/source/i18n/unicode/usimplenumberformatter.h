@@ -156,27 +156,13 @@ U_CAPI void U_EXPORT2
 usnum_setMinimumFractionDigits(USimpleNumber* unumber, int32_t minimumFractionDigits, UErrorCode* ec);
 
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Sets the number of integer digits to the given amount, truncating if necessary.
  *
- * @draft ICU 75
+ * @stable ICU 75
  */
 U_CAPI void U_EXPORT2
 usnum_setMaximumIntegerDigits(USimpleNumber* unumber, int32_t maximumIntegerDigits, UErrorCode* ec);
-#endif // U_HIDE_DRAFT_API
-
-
-#ifndef U_HIDE_DEPRECATED_API
-/**
- * Alias for setMaximumIntegerDigits.
- * Will be removed after ICU 75.
- *
- * @deprecated ICU 75
- */
-U_CAPI void U_EXPORT2
-usnum_truncateStart(USimpleNumber* unumber, int32_t maximumIntegerDigits, UErrorCode* ec);
-#endif  // U_HIDE_DEPRECATED_API
 
 
 /**

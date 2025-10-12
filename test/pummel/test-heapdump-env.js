@@ -1,41 +1,28 @@
-// Flags: --expose-internals
 'use strict';
 
 // This tests that Environment is tracked in heap snapshots.
+// Tests for BaseObject and cppgc-managed objects are done in other
+// test-heapdump-*.js files.
 
 require('../common');
-const { validateSnapshotNodes } = require('../common/heap');
+const { createJSHeapSnapshot, validateByRetainingPathFromNodes } = require('../common/heap');
 
-// This is just using ContextifyScript as an example here, it can be replaced
-// with any BaseObject that we can easily instantiate here and register in
-// cleanup hooks.
-// These can all be changed to reflect the status of how these objects
-// are captured in the snapshot.
-const context = require('vm').createScript('const foo = 123');
+const nodes = createJSHeapSnapshot();
 
-validateSnapshotNodes('Node / Environment', [{
-  children: [
-    { node_name: 'Node / CleanupQueue', edge_name: 'cleanup_queue' },
-    { node_name: 'Node / IsolateData', edge_name: 'isolate_data' },
-    { node_name: 'Node / PrincipalRealm', edge_name: 'principal_realm' },
-  ],
-}]);
-
-validateSnapshotNodes('Node / CleanupQueue', [
-  // The first one is the cleanup_queue of the Environment.
-  {},
-  // The second one is the cleanup_queue of the principal realm.
-  {
-    children: [
-      { node_name: 'Node / ContextifyScript' },
-    ],
-  },
+const envs = validateByRetainingPathFromNodes(nodes, 'Node / Environment', []);
+validateByRetainingPathFromNodes(envs, 'Node / Environment', [
+  { node_name: 'Node / CleanupQueue', edge_name: 'cleanup_queue' },
+]);
+validateByRetainingPathFromNodes(envs, 'Node / Environment', [
+  { node_name: 'Node / IsolateData', edge_name: 'isolate_data' },
 ]);
 
-validateSnapshotNodes('Node / PrincipalRealm', [{
-  children: [
-    { node_name: 'process', edge_name: 'process_object' },
-  ],
-}]);
-
-console.log(context);  // Make sure it's not GC'ed
+const realms = validateByRetainingPathFromNodes(envs, 'Node / Environment', [
+  { node_name: 'Node / PrincipalRealm', edge_name: 'principal_realm' },
+]);
+validateByRetainingPathFromNodes(realms, 'Node / PrincipalRealm', [
+  { node_name: 'process', edge_name: 'process_object' },
+]);
+validateByRetainingPathFromNodes(realms, 'Node / PrincipalRealm', [
+  { node_name: 'Node / BaseObjectList', edge_name: 'base_object_list' },
+]);

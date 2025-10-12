@@ -22,6 +22,8 @@
 #error ABSL_TEST_CHECK must be defined for these tests to work.
 #endif
 
+#include <cstdint>
+#include <limits>
 #include <ostream>
 #include <string>
 
@@ -31,12 +33,16 @@
 #include "absl/base/config.h"
 #include "absl/log/internal/test_helpers.h"
 #include "absl/status/status.h"
+#include "absl/strings/string_view.h"
+#include "absl/strings/substitute.h"
 
 // NOLINTBEGIN(misc-definitions-in-headers)
 
 namespace absl_log_internal {
 
 using ::testing::AllOf;
+using ::testing::AnyOf;
+using ::testing::ContainsRegex;
 using ::testing::HasSubstr;
 using ::testing::Not;
 
@@ -62,7 +68,6 @@ TEST(CHECKTest, TestLogicExpressions) {
   ABSL_TEST_CHECK(i < 0 || i > 3);
 }
 
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
 ABSL_CONST_INIT const auto global_var_check = [](int i) {
   ABSL_TEST_CHECK(i > 0);  // NOLINT
   return i + 1;
@@ -72,7 +77,6 @@ ABSL_CONST_INIT const auto global_var = [](int i) {
   ABSL_TEST_CHECK_GE(i, 0);  // NOLINT
   return i + 1;
 }(global_var_check);
-#endif  // ABSL_INTERNAL_CPLUSPLUS_LANG
 
 TEST(CHECKTest, TestPlacementsInCompoundStatements) {
   // check placement inside if/else clauses
@@ -87,13 +91,11 @@ TEST(CHECKTest, TestPlacementsInCompoundStatements) {
   case 0:
     ABSL_TEST_CHECK(true);  // NOLINT
 
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
   constexpr auto var = [](int i) {
     ABSL_TEST_CHECK(i > 0);  // NOLINT
     return i + 1;
   }(global_var);
   (void)var;
-#endif  // ABSL_INTERNAL_CPLUSPLUS_LANG
 }
 
 TEST(CHECKTest, TestBoolConvertible) {
@@ -263,6 +265,26 @@ TEST(CHECKTest, TestBinaryChecksWithNullptr) {
   ABSL_TEST_CHECK_NE(nullptr, p_not_null);
 }
 
+struct ExampleTypeThatHasNoStreamOperator {
+  bool x;
+
+  bool operator==(const ExampleTypeThatHasNoStreamOperator& other) const {
+    return x == other.x;
+  }
+  bool operator==(const bool& other) const { return x == other; }
+};
+
+TEST(CHECKDeathTest, TestBinaryChecksWithUnprintable) {
+  ExampleTypeThatHasNoStreamOperator a{true};
+  ExampleTypeThatHasNoStreamOperator b{false};
+  ABSL_TEST_CHECK_EQ(a, a);
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(a, b),
+               "Check failed: a == b \\(UNPRINTABLE vs. UNPRINTABLE\\)");
+  ABSL_TEST_CHECK_EQ(a, true);
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(a, false),
+               "Check failed: a == false \\(UNPRINTABLE vs. 0\\)");
+}
+
 #if GTEST_HAS_DEATH_TEST
 
 // Test logging of various char-typed values by failing CHECK*().
@@ -352,7 +374,6 @@ TEST(CHECKTest, TestComparisonPlacementsInCompoundStatements) {
   case 0:
     ABSL_TEST_CHECK_STRCASEEQ("A", "a");
 
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
   constexpr auto var = [](int i) {
     ABSL_TEST_CHECK_GT(i, 0);
     return i + 1;
@@ -372,7 +393,6 @@ TEST(CHECKTest, TestComparisonPlacementsInCompoundStatements) {
   int var4 = (({ ABSL_TEST_CHECK_STREQ("a", "a"); }), global_var < 10) ? 1 : 0;
   (void)var4;
 #endif  // __GNUC__
-#endif  // ABSL_INTERNAL_CPLUSPLUS_LANG
 }
 
 TEST(CHECKTest, TestDCHECK) {
@@ -439,7 +459,6 @@ TEST(CHECKTest, TestQCHECKPlacementsInCompoundStatements) {
   case 0:
     ABSL_TEST_QCHECK(true);
 
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
   constexpr auto var = [](int i) {
     ABSL_TEST_QCHECK(i > 0);  // NOLINT
     return i + 1;
@@ -450,7 +469,6 @@ TEST(CHECKTest, TestQCHECKPlacementsInCompoundStatements) {
   int var2 = (({ ABSL_TEST_CHECK_LE(1, 2); }), global_var < 10) ? 1 : 0;
   (void)var2;
 #endif  // __GNUC__
-#endif  // ABSL_INTERNAL_CPLUSPLUS_LANG
 }
 
 class ComparableType {
@@ -520,6 +538,426 @@ TEST(CHECKDeathTest, TestUserDefinedStreaming) {
       HasSubstr(
           "Check failed: v1 == v2 (ComparableType{1} vs. ComparableType{2})"));
 }
+
+// A type that can be printed using AbslStringify.
+struct StringifiableType {
+  int x = 0;
+  explicit StringifiableType(int x) : x(x) {}
+  friend bool operator==(const StringifiableType& lhs,
+                         const StringifiableType& rhs) {
+    return lhs.x == rhs.x;
+  }
+  friend bool operator!=(const StringifiableType& lhs,
+                         const StringifiableType& rhs) {
+    return lhs.x != rhs.x;
+  }
+  friend bool operator<(const StringifiableType& lhs,
+                        const StringifiableType& rhs) {
+    return lhs.x < rhs.x;
+  }
+  friend bool operator>(const StringifiableType& lhs,
+                        const StringifiableType& rhs) {
+    return lhs.x > rhs.x;
+  }
+  friend bool operator<=(const StringifiableType& lhs,
+                         const StringifiableType& rhs) {
+    return lhs.x <= rhs.x;
+  }
+  friend bool operator>=(const StringifiableType& lhs,
+                         const StringifiableType& rhs) {
+    return lhs.x >= rhs.x;
+  }
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const StringifiableType& obj) {
+    absl::Format(&sink, "StringifiableType{%d}", obj.x);
+  }
+
+  // Make sure no unintended copy happens.
+  StringifiableType(const StringifiableType&) = delete;
+};
+
+TEST(CHECKTest, TestUserDefinedAbslStringify) {
+  const StringifiableType v1(1);
+  const StringifiableType v2(2);
+
+  ABSL_TEST_CHECK_EQ(v1, v1);
+  ABSL_TEST_CHECK_NE(v1, v2);
+  ABSL_TEST_CHECK_LT(v1, v2);
+  ABSL_TEST_CHECK_LE(v1, v2);
+  ABSL_TEST_CHECK_GT(v2, v1);
+  ABSL_TEST_CHECK_GE(v2, v1);
+}
+
+TEST(CHECKDeathTest, TestUserDefinedAbslStringify) {
+  const StringifiableType v1(1);
+  const StringifiableType v2(2);
+
+  // Returns a matcher for the expected check failure message when comparing two
+  // values.
+  auto expected_output = [](int lhs, absl::string_view condition, int rhs) {
+    return HasSubstr(
+        absl::Substitute("Check failed: v$0 $1 v$2 (StringifiableType{$0} vs. "
+                         "StringifiableType{$2})",
+                         lhs, condition, rhs));
+  };
+  // Test comparisons where the check fails.
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(v1, v2), expected_output(1, "==", 2));
+  EXPECT_DEATH(ABSL_TEST_CHECK_NE(v1, v1), expected_output(1, "!=", 1));
+  EXPECT_DEATH(ABSL_TEST_CHECK_LT(v2, v1), expected_output(2, "<", 1));
+  EXPECT_DEATH(ABSL_TEST_CHECK_LE(v2, v1), expected_output(2, "<=", 1));
+  EXPECT_DEATH(ABSL_TEST_CHECK_GT(v1, v2), expected_output(1, ">", 2));
+  EXPECT_DEATH(ABSL_TEST_CHECK_GE(v1, v2), expected_output(1, ">=", 2));
+}
+
+// A type that can be printed using both AbslStringify and operator<<.
+struct StringifiableStreamableType {
+  int x = 0;
+  explicit StringifiableStreamableType(int x) : x(x) {}
+
+  friend bool operator==(const StringifiableStreamableType& lhs,
+                         const StringifiableStreamableType& rhs) {
+    return lhs.x == rhs.x;
+  }
+  friend bool operator!=(const StringifiableStreamableType& lhs,
+                         const StringifiableStreamableType& rhs) {
+    return lhs.x != rhs.x;
+  }
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink,
+                            const StringifiableStreamableType& obj) {
+    absl::Format(&sink, "Strigified{%d}", obj.x);
+  }
+  friend std::ostream& operator<<(std::ostream& out,
+                                  const StringifiableStreamableType& obj) {
+    return out << "Streamed{" << obj.x << "}";
+  }
+
+  // Avoid unintentional copy.
+  StringifiableStreamableType(const StringifiableStreamableType&) = delete;
+};
+
+TEST(CHECKDeathTest, TestStreamingPreferredOverAbslStringify) {
+  StringifiableStreamableType v1(1);
+  StringifiableStreamableType v2(2);
+
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_EQ(v1, v2),
+      HasSubstr("Check failed: v1 == v2 (Streamed{1} vs. Streamed{2})"));
+}
+
+// A type whose pointer can be passed to AbslStringify.
+struct PointerIsStringifiable {};
+template <typename Sink>
+void AbslStringify(Sink& sink, const PointerIsStringifiable* var) {
+  sink.Append("PointerIsStringifiable");
+}
+
+// Verifies that a pointer is printed as a number despite having AbslStringify
+// defined. Users may implement AbslStringify that dereferences the pointer, and
+// doing so as part of DCHECK would not be good.
+TEST(CHECKDeathTest, TestPointerPrintedAsNumberDespiteAbslStringify) {
+  const auto* p = reinterpret_cast<const PointerIsStringifiable*>(0x1234);
+
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_EQ(p, nullptr),
+      AnyOf(
+          HasSubstr("Check failed: p == nullptr (0000000000001234 vs. (null))"),
+          HasSubstr("Check failed: p == nullptr (0x1234 vs. (null))")));
+}
+
+// An uncopyable object with operator<<.
+struct Uncopyable {
+  int x;
+  explicit Uncopyable(int x) : x(x) {}
+  Uncopyable(const Uncopyable&) = delete;
+  friend bool operator==(const Uncopyable& lhs, const Uncopyable& rhs) {
+    return lhs.x == rhs.x;
+  }
+  friend bool operator!=(const Uncopyable& lhs, const Uncopyable& rhs) {
+    return lhs.x != rhs.x;
+  }
+  friend std::ostream& operator<<(std::ostream& os, const Uncopyable& obj) {
+    return os << "Uncopyable{" << obj.x << "}";
+  }
+};
+
+// Test that an uncopyable object can be used.
+// Will catch us if implementation has an unintended copy.
+TEST(CHECKDeathTest, TestUncopyable) {
+  const Uncopyable v1(1);
+  const Uncopyable v2(2);
+
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_EQ(v1, v2),
+      HasSubstr("Check failed: v1 == v2 (Uncopyable{1} vs. Uncopyable{2})"));
+}
+
+enum class ScopedEnum { kValue1 = 1, kValue2 = 2 };
+
+TEST(CHECKTest, TestScopedEnumComparisonChecks) {
+  ABSL_TEST_CHECK_EQ(ScopedEnum::kValue1, ScopedEnum::kValue1);
+  ABSL_TEST_CHECK_NE(ScopedEnum::kValue1, ScopedEnum::kValue2);
+  ABSL_TEST_CHECK_LT(ScopedEnum::kValue1, ScopedEnum::kValue2);
+  ABSL_TEST_CHECK_LE(ScopedEnum::kValue1, ScopedEnum::kValue2);
+  ABSL_TEST_CHECK_GT(ScopedEnum::kValue2, ScopedEnum::kValue1);
+  ABSL_TEST_CHECK_GE(ScopedEnum::kValue2, ScopedEnum::kValue2);
+  ABSL_TEST_DCHECK_EQ(ScopedEnum::kValue1, ScopedEnum::kValue1);
+  ABSL_TEST_DCHECK_NE(ScopedEnum::kValue1, ScopedEnum::kValue2);
+  ABSL_TEST_DCHECK_LT(ScopedEnum::kValue1, ScopedEnum::kValue2);
+  ABSL_TEST_DCHECK_LE(ScopedEnum::kValue1, ScopedEnum::kValue2);
+  ABSL_TEST_DCHECK_GT(ScopedEnum::kValue2, ScopedEnum::kValue1);
+  ABSL_TEST_DCHECK_GE(ScopedEnum::kValue2, ScopedEnum::kValue2);
+
+  // Check that overloads work correctly with references as well.
+  const ScopedEnum x = ScopedEnum::kValue1;
+  const ScopedEnum& x_ref = x;
+  ABSL_TEST_CHECK_EQ(x, x_ref);
+  ABSL_TEST_CHECK_EQ(x_ref, x_ref);
+}
+
+#if GTEST_HAS_DEATH_TEST
+TEST(CHECKDeathTest, TestScopedEnumCheckFailureMessagePrintsIntegerValues) {
+  const auto e1 = ScopedEnum::kValue1;
+  const auto e2 = ScopedEnum::kValue2;
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(e1, e2),
+               ContainsRegex(R"re(Check failed:.*\(1 vs. 2\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_NE(e1, e1),
+               ContainsRegex(R"re(Check failed:.*\(1 vs. 1\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_GT(e1, e1),
+               ContainsRegex(R"re(Check failed:.*\(1 vs. 1\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_GE(e1, e2),
+               ContainsRegex(R"re(Check failed:.*\(1 vs. 2\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_LT(e2, e2),
+               ContainsRegex(R"re(Check failed:.*\(2 vs. 2\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_LE(e2, e1),
+               ContainsRegex(R"re(Check failed:.*\(2 vs. 1\))re"));
+
+  const auto& e1_ref = e1;
+  EXPECT_DEATH(ABSL_TEST_CHECK_NE(e1_ref, e1),
+               ContainsRegex(R"re(Check failed:.*\(1 vs. 1\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_NE(e1_ref, e1_ref),
+               ContainsRegex(R"re(Check failed:.*\(1 vs. 1\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(e2, e1_ref),
+               ContainsRegex(R"re(Check failed:.*\(2 vs. 1\))re"));
+
+#ifndef NDEBUG
+  EXPECT_DEATH(ABSL_TEST_DCHECK_EQ(e2, e1),
+               ContainsRegex(R"re(Check failed:.*\(2 vs. 1\))re"));
+#else
+  // DHECK_EQ is not evaluated in non-debug mode.
+  ABSL_TEST_DCHECK_EQ(e2, e1);
+#endif  // NDEBUG
+}
+#endif  // GTEST_HAS_DEATH_TEST
+
+enum class ScopedInt8Enum : int8_t {
+  kValue1 = 1,
+  kValue2 = 66  // Printable ascii value 'B'.
+};
+
+TEST(CHECKDeathTest, TestScopedInt8EnumCheckFailureMessagePrintsCharValues) {
+  const auto e1 = ScopedInt8Enum::kValue1;
+  const auto e2 = ScopedInt8Enum::kValue2;
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_EQ(e1, e2),
+      ContainsRegex(R"re(Check failed:.*\(signed char value 1 vs. 'B'\))re"));
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_NE(e1, e1),
+      ContainsRegex(
+          R"re(Check failed:.*\(signed char value 1 vs. signed char value 1\))re"));
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_GT(e1, e1),
+      ContainsRegex(
+          R"re(Check failed:.*\(signed char value 1 vs. signed char value 1\))re"));
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_GE(e1, e2),
+      ContainsRegex(R"re(Check failed:.*\(signed char value 1 vs. 'B'\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_LT(e2, e2),
+               ContainsRegex(R"re(Check failed:.*\('B' vs. 'B'\))re"));
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_LE(e2, e1),
+      ContainsRegex(R"re(Check failed:.*\('B' vs. signed char value 1\))re"));
+}
+
+enum class ScopedUnsignedEnum : uint16_t {
+  kValue1 = std::numeric_limits<uint16_t>::min(),
+  kValue2 = std::numeric_limits<uint16_t>::max()
+};
+
+TEST(CHECKDeathTest,
+     TestScopedUnsignedEnumCheckFailureMessagePrintsCorrectValues) {
+  const auto e1 = ScopedUnsignedEnum::kValue1;
+  const auto e2 = ScopedUnsignedEnum::kValue2;
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(e1, e2),
+               ContainsRegex(R"re(Check failed:.*\(0 vs. 65535\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_NE(e1, e1),
+               ContainsRegex(R"re(Check failed:.*\(0 vs. 0\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_GT(e1, e1),
+               ContainsRegex(R"re(Check failed:.*\(0 vs. 0\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_GE(e1, e2),
+               ContainsRegex(R"re(Check failed:.*\(0 vs. 65535\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_LT(e1, e1),
+               ContainsRegex(R"re(Check failed:.*\(0 vs. 0\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_LE(e2, e1),
+               ContainsRegex(R"re(Check failed:.*\(65535 vs. 0\))re"));
+}
+
+enum class ScopedInt64Enum : int64_t {
+  kMin = std::numeric_limits<int64_t>::min(),
+  kMax = std::numeric_limits<int64_t>::max(),
+};
+
+// Tests that int64-backed enums are printed correctly even for very large and
+// very small values.
+TEST(CHECKDeathTest, TestScopedInt64EnumCheckFailureMessage) {
+  const auto min = ScopedInt64Enum::kMin;
+  const auto max = ScopedInt64Enum::kMax;
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_EQ(max, min),
+      ContainsRegex(
+          "Check failed:.*9223372036854775807 vs. -9223372036854775808"));
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_NE(max, max),
+      ContainsRegex(
+          "Check failed:.*9223372036854775807 vs. 9223372036854775807"));
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_GT(min, min),
+      ContainsRegex(
+          "Check failed:.*-9223372036854775808 vs. -9223372036854775808"));
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_GE(min, max),
+      ContainsRegex(
+          R"(Check failed:.*-9223372036854775808 vs. 9223372036854775807)"));
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_LT(max, max),
+      ContainsRegex(
+          R"(Check failed:.*9223372036854775807 vs. 9223372036854775807)"));
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_LE(max, min),
+      ContainsRegex(
+          R"(Check failed:.*9223372036854775807 vs. -9223372036854775808)"));
+}
+
+enum class ScopedBoolEnum : bool {
+  kFalse,
+  kTrue,
+};
+
+TEST(CHECKDeathTest, TestScopedBoolEnumCheckFailureMessagePrintsCorrectValues) {
+  const auto t = ScopedBoolEnum::kTrue;
+  const auto f = ScopedBoolEnum::kFalse;
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(t, f),
+               ContainsRegex(R"re(Check failed:.*\(1 vs. 0\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_NE(f, f),
+               ContainsRegex(R"re(Check failed:.*\(0 vs. 0\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_GT(f, f),
+               ContainsRegex(R"re(Check failed:.*\(0 vs. 0\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_GE(f, t),
+               ContainsRegex(R"re(Check failed:.*\(0 vs. 1\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_LT(t, t),
+               ContainsRegex(R"re(Check failed:.*\(1 vs. 1\))re"));
+  EXPECT_DEATH(ABSL_TEST_CHECK_LE(t, f),
+               ContainsRegex(R"re(Check failed:.*\(1 vs. 0\))re"));
+}
+
+enum class ScopedEnumWithAbslStringify {
+  kValue1 = 1,
+  kValue2 = 2,
+  kValue3 = 3
+};
+
+template <typename Sink>
+void AbslStringify(Sink& sink, ScopedEnumWithAbslStringify v) {
+  switch (v) {
+    case ScopedEnumWithAbslStringify::kValue1:
+      sink.Append("AbslStringify: kValue1");
+      break;
+    case ScopedEnumWithAbslStringify::kValue2:
+      sink.Append("AbslStringify: kValue2");
+      break;
+    case ScopedEnumWithAbslStringify::kValue3:
+      sink.Append("AbslStringify: kValue3");
+      break;
+  }
+}
+
+#if GTEST_HAS_DEATH_TEST
+TEST(CHECKDeathTest, TestScopedEnumUsesAbslStringify) {
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(ScopedEnumWithAbslStringify::kValue1,
+                                  ScopedEnumWithAbslStringify::kValue2),
+               ContainsRegex("Check failed:.*AbslStringify: kValue1 vs. "
+                             "AbslStringify: kValue2"));
+}
+#endif  // GTEST_HAS_DEATH_TEST
+
+enum class ScopedEnumWithOutputOperator {
+  kValue1 = 1,
+  kValue2 = 2,
+};
+
+std::ostream& operator<<(std::ostream& os, ScopedEnumWithOutputOperator v) {
+  switch (v) {
+    case ScopedEnumWithOutputOperator::kValue1:
+      os << "OutputOperator: kValue1";
+      break;
+    case ScopedEnumWithOutputOperator::kValue2:
+      os << "OutputOperator: kValue2";
+      break;
+  }
+  return os;
+}
+
+#if GTEST_HAS_DEATH_TEST
+TEST(CHECKDeathTest, TestOutputOperatorIsUsedForScopedEnum) {
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(ScopedEnumWithOutputOperator::kValue1,
+                                  ScopedEnumWithOutputOperator::kValue2),
+               ContainsRegex("Check failed:.*OutputOperator: kValue1 vs. "
+                             "OutputOperator: kValue2"));
+}
+#endif  // GTEST_HAS_DEATH_TEST
+
+enum class ScopedEnumWithAbslStringifyAndOutputOperator {
+  kValue1 = 1,
+  kValue2 = 2,
+};
+
+template <typename Sink>
+void AbslStringify(Sink& sink, ScopedEnumWithAbslStringifyAndOutputOperator v) {
+  switch (v) {
+    case ScopedEnumWithAbslStringifyAndOutputOperator::kValue1:
+      sink.Append("AbslStringify: kValue1");
+      break;
+    case ScopedEnumWithAbslStringifyAndOutputOperator::kValue2:
+      sink.Append("AbslStringify: kValue2");
+      break;
+  }
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         ScopedEnumWithAbslStringifyAndOutputOperator v) {
+  switch (v) {
+    case ScopedEnumWithAbslStringifyAndOutputOperator::kValue1:
+      os << "OutputOperator: kValue1";
+      break;
+    case ScopedEnumWithAbslStringifyAndOutputOperator::kValue2:
+      os << "OutputOperator: kValue2";
+      break;
+  }
+  return os;
+}
+
+#if GTEST_HAS_DEATH_TEST
+
+// Test that, if operator<< and AbslStringify are both defined for a scoped
+// enum, streaming takes precedence over AbslStringify.
+TEST(CHECKDeathTest, TestScopedEnumPrefersOutputOperatorOverAbslStringify) {
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_EQ(ScopedEnumWithAbslStringifyAndOutputOperator::kValue1,
+                         ScopedEnumWithAbslStringifyAndOutputOperator::kValue2),
+      ContainsRegex("Check failed:.*OutputOperator: kValue1 vs. "
+                    "OutputOperator: kValue2"));
+}
+#endif  // GTEST_HAS_DEATH_TEST
 
 }  // namespace absl_log_internal
 

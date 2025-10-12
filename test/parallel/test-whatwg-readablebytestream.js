@@ -80,6 +80,10 @@ class Source {
     this.controller = controller;
   }
 
+  async cancel() {
+    await this.file.close();
+  }
+
   async pull(controller) {
     const byobRequest = controller.byobRequest;
     assert.match(inspect(byobRequest), /ReadableStreamBYOBRequest/);

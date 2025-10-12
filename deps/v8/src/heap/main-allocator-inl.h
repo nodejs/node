@@ -5,18 +5,20 @@
 #ifndef V8_HEAP_MAIN_ALLOCATOR_INL_H_
 #define V8_HEAP_MAIN_ALLOCATOR_INL_H_
 
-#include "src/base/sanitizer/msan.h"
+#include "src/heap/main-allocator.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/flags/flags.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/main-allocator.h"
+#include "src/heap/marking-state-inl.h"
 
 namespace v8 {
 namespace internal {
 
 AllocationResult MainAllocator::AllocateRaw(int size_in_bytes,
                                             AllocationAlignment alignment,
-                                            AllocationOrigin origin) {
-  DCHECK(!v8_flags.enable_third_party_heap);
+                                            AllocationOrigin origin,
+                                            AllocationHint hint) {
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
 
   DCHECK_EQ(in_gc(), origin == AllocationOrigin::kGC);
@@ -29,7 +31,7 @@ AllocationResult MainAllocator::AllocateRaw(int size_in_bytes,
 
   AllocationResult result;
 
-  if (USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned) {
+  if (alignment != kTaggedAligned) [[unlikely]] {
     result = AllocateFastAligned(size_in_bytes, nullptr, alignment, origin);
   } else {
     result = AllocateFastUnaligned(size_in_bytes, origin);
@@ -49,6 +51,9 @@ AllocationResult MainAllocator::AllocateFastUnaligned(int size_in_bytes,
       HeapObject::FromAddress(allocation_info().IncrementTop(size_in_bytes));
 
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);
+
+  DCHECK_IMPLIES(black_allocation_ == BlackAllocation::kAlwaysEnabled,
+                 space_heap()->marking_state()->IsMarked(obj));
 
   return AllocationResult::FromObject(obj);
 }
@@ -73,6 +78,9 @@ AllocationResult MainAllocator::AllocateFastAligned(
   }
 
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);
+
+  DCHECK_IMPLIES(black_allocation_ == BlackAllocation::kAlwaysEnabled,
+                 space_heap()->marking_state()->IsMarked(obj));
 
   return AllocationResult::FromObject(obj);
 }

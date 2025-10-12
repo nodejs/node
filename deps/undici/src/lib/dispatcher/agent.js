@@ -1,20 +1,19 @@
 'use strict'
 
-const { InvalidArgumentError } = require('../core/errors')
-const { kClients, kRunning, kClose, kDestroy, kDispatch, kInterceptors } = require('../core/symbols')
+const { InvalidArgumentError, MaxOriginsReachedError } = require('../core/errors')
+const { kClients, kRunning, kClose, kDestroy, kDispatch, kUrl } = require('../core/symbols')
 const DispatcherBase = require('./dispatcher-base')
 const Pool = require('./pool')
 const Client = require('./client')
 const util = require('../core/util')
-const createRedirectInterceptor = require('../interceptor/redirect-interceptor')
 
 const kOnConnect = Symbol('onConnect')
 const kOnDisconnect = Symbol('onDisconnect')
 const kOnConnectionError = Symbol('onConnectionError')
-const kMaxRedirections = Symbol('maxRedirections')
 const kOnDrain = Symbol('onDrain')
 const kFactory = Symbol('factory')
 const kOptions = Symbol('options')
+const kOrigins = Symbol('origins')
 
 function defaultFactory (origin, opts) {
   return opts && opts.connections === 1
@@ -23,9 +22,7 @@ function defaultFactory (origin, opts) {
 }
 
 class Agent extends DispatcherBase {
-  constructor ({ factory = defaultFactory, maxRedirections = 0, connect, ...options } = {}) {
-    super()
-
+  constructor ({ factory = defaultFactory, maxOrigins = Infinity, connect, ...options } = {}) {
     if (typeof factory !== 'function') {
       throw new InvalidArgumentError('factory must be a function.')
     }
@@ -34,25 +31,20 @@ class Agent extends DispatcherBase {
       throw new InvalidArgumentError('connect must be a function or an object')
     }
 
-    if (!Number.isInteger(maxRedirections) || maxRedirections < 0) {
-      throw new InvalidArgumentError('maxRedirections must be a positive number')
+    if (typeof maxOrigins !== 'number' || Number.isNaN(maxOrigins) || maxOrigins <= 0) {
+      throw new InvalidArgumentError('maxOrigins must be a number greater than 0')
     }
+
+    super()
 
     if (connect && typeof connect !== 'function') {
       connect = { ...connect }
     }
 
-    this[kInterceptors] = options.interceptors?.Agent && Array.isArray(options.interceptors.Agent)
-      ? options.interceptors.Agent
-      : [createRedirectInterceptor({ maxRedirections })]
-
-    this[kOptions] = { ...util.deepClone(options), connect }
-    this[kOptions].interceptors = options.interceptors
-      ? { ...options.interceptors }
-      : undefined
-    this[kMaxRedirections] = maxRedirections
+    this[kOptions] = { ...util.deepClone(options), maxOrigins, connect }
     this[kFactory] = factory
     this[kClients] = new Map()
+    this[kOrigins] = new Set()
 
     this[kOnDrain] = (origin, targets) => {
       this.emit('drain', origin, [this, ...targets])
@@ -73,8 +65,8 @@ class Agent extends DispatcherBase {
 
   get [kRunning] () {
     let ret = 0
-    for (const client of this[kClients].values()) {
-      ret += client[kRunning]
+    for (const { dispatcher } of this[kClients].values()) {
+      ret += dispatcher[kRunning]
     }
     return ret
   }
@@ -87,42 +79,77 @@ class Agent extends DispatcherBase {
       throw new InvalidArgumentError('opts.origin must be a non-empty string or URL.')
     }
 
-    let dispatcher = this[kClients].get(key)
+    if (this[kOrigins].size >= this[kOptions].maxOrigins && !this[kOrigins].has(key)) {
+      throw new MaxOriginsReachedError()
+    }
 
+    const result = this[kClients].get(key)
+    let dispatcher = result && result.dispatcher
     if (!dispatcher) {
+      const closeClientIfUnused = (connected) => {
+        const result = this[kClients].get(key)
+        if (result) {
+          if (connected) result.count -= 1
+          if (result.count <= 0) {
+            this[kClients].delete(key)
+            result.dispatcher.close()
+          }
+          this[kOrigins].delete(key)
+        }
+      }
       dispatcher = this[kFactory](opts.origin, this[kOptions])
         .on('drain', this[kOnDrain])
-        .on('connect', this[kOnConnect])
-        .on('disconnect', this[kOnDisconnect])
-        .on('connectionError', this[kOnConnectionError])
+        .on('connect', (origin, targets) => {
+          const result = this[kClients].get(key)
+          if (result) {
+            result.count += 1
+          }
+          this[kOnConnect](origin, targets)
+        })
+        .on('disconnect', (origin, targets, err) => {
+          closeClientIfUnused(true)
+          this[kOnDisconnect](origin, targets, err)
+        })
+        .on('connectionError', (origin, targets, err) => {
+          closeClientIfUnused(false)
+          this[kOnConnectionError](origin, targets, err)
+        })
 
-      // This introduces a tiny memory leak, as dispatchers are never removed from the map.
-      // TODO(mcollina): remove te timer when the client/pool do not have any more
-      // active connections.
-      this[kClients].set(key, dispatcher)
+      this[kClients].set(key, { count: 0, dispatcher })
+      this[kOrigins].add(key)
     }
 
     return dispatcher.dispatch(opts, handler)
   }
 
-  async [kClose] () {
+  [kClose] () {
     const closePromises = []
-    for (const client of this[kClients].values()) {
-      closePromises.push(client.close())
+    for (const { dispatcher } of this[kClients].values()) {
+      closePromises.push(dispatcher.close())
     }
     this[kClients].clear()
 
-    await Promise.all(closePromises)
+    return Promise.all(closePromises)
   }
 
-  async [kDestroy] (err) {
+  [kDestroy] (err) {
     const destroyPromises = []
-    for (const client of this[kClients].values()) {
-      destroyPromises.push(client.destroy(err))
+    for (const { dispatcher } of this[kClients].values()) {
+      destroyPromises.push(dispatcher.destroy(err))
     }
     this[kClients].clear()
 
-    await Promise.all(destroyPromises)
+    return Promise.all(destroyPromises)
+  }
+
+  get stats () {
+    const allClientStats = {}
+    for (const { dispatcher } of this[kClients].values()) {
+      if (dispatcher.stats) {
+        allClientStats[dispatcher[kUrl].origin] = dispatcher.stats
+      }
+    }
+    return allClientStats
   }
 }
 

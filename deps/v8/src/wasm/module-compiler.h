@@ -2,25 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_MODULE_COMPILER_H_
+#define V8_WASM_MODULE_COMPILER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
-#ifndef V8_WASM_MODULE_COMPILER_H_
-#define V8_WASM_MODULE_COMPILER_H_
-
 #include <atomic>
-#include <functional>
 #include <memory>
 
 #include "include/v8-metrics.h"
-#include "src/base/optional.h"
-#include "src/base/platform/elapsed-timer.h"
-#include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
-#include "src/execution/isolate.h"
-#include "src/logging/counters.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
@@ -57,27 +51,23 @@ struct WasmModule;
 
 V8_EXPORT_PRIVATE
 std::shared_ptr<NativeModule> CompileToNativeModule(
-    Isolate* isolate, WasmFeatures enabled_features,
-    CompileTimeImports compile_imports, ErrorThrower* thrower,
-    std::shared_ptr<const WasmModule> module, ModuleWireBytes wire_bytes,
-    int compilation_id, v8::metrics::Recorder::ContextId context_id,
-    ProfileInformation* pgo_info);
-
-V8_EXPORT_PRIVATE
-void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module);
+    Isolate* isolate, WasmEnabledFeatures enabled_features,
+    WasmDetectedFeatures detected_features, CompileTimeImports compile_imports,
+    ErrorThrower* thrower, std::shared_ptr<const WasmModule> module,
+    base::OwnedVector<const uint8_t> wire_bytes, int compilation_id,
+    v8::metrics::Recorder::ContextId context_id, ProfileInformation* pgo_info);
 
 V8_EXPORT_PRIVATE WasmError ValidateAndSetBuiltinImports(
     const WasmModule* module, base::Vector<const uint8_t> wire_bytes,
-    CompileTimeImports imports);
+    const CompileTimeImports& imports, WasmDetectedFeatures* detected);
 
 // Compiles the wrapper for this (kind, sig) pair and sets the corresponding
 // cache entry. Assumes the key already exists in the cache but has not been
 // compiled yet.
 V8_EXPORT_PRIVATE
-WasmCode* CompileImportWrapper(
-    NativeModule* native_module, Counters* counters, ImportCallKind kind,
-    const FunctionSig* sig, uint32_t canonical_type_index, int expected_arity,
-    Suspend suspend, WasmImportWrapperCache::ModificationScope* cache_scope);
+std::shared_ptr<wasm::WasmImportWrapperHandle> CompileImportWrapperForTest(
+    Isolate* isolate, ImportCallKind kind, const CanonicalSig* sig,
+    int expected_arity, Suspend suspend);
 
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is
@@ -94,45 +84,21 @@ void ThrowLazyCompilationError(Isolate* isolate,
 V8_EXPORT_PRIVATE void TriggerTierUp(Isolate*, Tagged<WasmTrustedInstanceData>,
                                      int func_index);
 // Synchronous version of the above.
-void TierUpNowForTesting(Isolate*, Tagged<WasmTrustedInstanceData>,
-                         int func_index);
+V8_EXPORT_PRIVATE void TierUpNowForTesting(Isolate*,
+                                           Tagged<WasmTrustedInstanceData>,
+                                           int func_index);
 // Same, but all functions.
 V8_EXPORT_PRIVATE void TierUpAllForTesting(Isolate*,
                                            Tagged<WasmTrustedInstanceData>);
 
-template <typename Key, typename KeyInfo, typename Hash>
-class WrapperQueue {
- public:
-  // Removes an arbitrary key from the queue and returns it.
-  // If the queue is empty, returns nullopt.
-  // Thread-safe.
-  base::Optional<std::pair<Key, KeyInfo>> pop() {
-    base::Optional<std::pair<Key, KeyInfo>> key = base::nullopt;
-    base::MutexGuard lock(&mutex_);
-    auto it = queue_.begin();
-    if (it != queue_.end()) {
-      key = *it;
-      queue_.erase(it);
-    }
-    return key;
-  }
+V8_EXPORT_PRIVATE void InitializeCompilationForTesting(
+    NativeModule* native_module);
 
-  // Add the given key to the queue and returns true iff the insert was
-  // successful.
-  // Not thread-safe.
-  bool insert(const Key& key, KeyInfo key_info) {
-    return queue_.insert({key, key_info}).second;
-  }
-
-  size_t size() {
-    base::MutexGuard lock(&mutex_);
-    return queue_.size();
-  }
-
- private:
-  base::Mutex mutex_;
-  std::unordered_map<Key, KeyInfo, Hash> queue_;
-};
+// Publish a set of detected features in a given isolate. If this is the initial
+// compilation, also the "kWasmModuleCompilation" use counter is incremented to
+// serve as a baseline for the other detected features.
+void PublishDetectedFeatures(WasmDetectedFeatures, Isolate*,
+                             bool is_initial_compilation);
 
 // Encapsulates all the state and steps of an asynchronous compilation.
 // An asynchronous compile job consists of a number of tasks that are executed
@@ -143,11 +109,11 @@ class WrapperQueue {
 // TODO(wasm): factor out common parts of this with the synchronous pipeline.
 class AsyncCompileJob {
  public:
-  AsyncCompileJob(Isolate* isolate, WasmFeatures enabled_features,
+  AsyncCompileJob(Isolate* isolate, WasmEnabledFeatures enabled_features,
                   CompileTimeImports compile_imports,
                   base::OwnedVector<const uint8_t> bytes,
-                  Handle<Context> context,
-                  Handle<NativeContext> incumbent_context,
+                  DirectHandle<Context> context,
+                  DirectHandle<NativeContext> incumbent_context,
                   const char* api_method_name,
                   std::shared_ptr<CompilationResultResolver> resolver,
                   int compilation_id);
@@ -162,7 +128,7 @@ class AsyncCompileJob {
 
   Isolate* isolate() const { return isolate_; }
 
-  Handle<NativeContext> context() const { return native_context_; }
+  DirectHandle<NativeContext> context() const { return native_context_; }
   v8::metrics::Recorder::ContextId context_id() const { return context_id_; }
 
  private:
@@ -193,40 +159,12 @@ class AsyncCompileJob {
 
   friend class AsyncStreamingProcessor;
 
-  enum FinishingComponent { kStreamingDecoder, kCompilation };
-
   // Decrements the number of outstanding finishers. The last caller of this
   // function should finish the asynchronous compilation, see the comment on
   // {outstanding_finishers_}.
-  V8_WARN_UNUSED_RESULT bool DecrementAndCheckFinisherCount(
-      FinishingComponent component) {
-    base::MutexGuard guard(&check_finisher_mutex_);
-    DCHECK_LT(0, outstanding_finishers_);
-    if (outstanding_finishers_-- == 2) {
-      // The first component finished, we just start a timer for a histogram.
-      streaming_until_finished_timer_.Start();
-      return false;
-    }
-    // The timer has only been started above in the case of streaming
-    // compilation.
-    if (streaming_until_finished_timer_.IsStarted()) {
-      // We measure the time delta from when the StreamingDecoder finishes until
-      // when module compilation finishes. Depending on whether streaming or
-      // compilation finishes first we add the delta to the according histogram.
-      int elapsed = static_cast<int>(
-          streaming_until_finished_timer_.Elapsed().InMilliseconds());
-      if (component == kStreamingDecoder) {
-        isolate_->counters()
-            ->wasm_compilation_until_streaming_finished()
-            ->AddSample(elapsed);
-      } else {
-        isolate_->counters()
-            ->wasm_streaming_until_compilation_finished()
-            ->AddSample(elapsed);
-      }
-    }
-    DCHECK_EQ(0, outstanding_finishers_);
-    return true;
+  V8_WARN_UNUSED_RESULT bool DecrementAndCheckFinisherCount() {
+    DCHECK_LT(0, outstanding_finishers_.load());
+    return outstanding_finishers_.fetch_sub(1) == 1;
   }
 
   void CreateNativeModule(std::shared_ptr<const WasmModule> module,
@@ -236,11 +174,12 @@ class AsyncCompileJob {
                                size_t code_size_estimate);
   void PrepareRuntimeObjects();
 
-  void FinishCompile(bool is_after_cache_hit);
+  // {FinishCompile} and {Failed} invalidate the {AsyncCompileJob}, so we only
+  // allow to call them on r-value references to make this clear at call sites.
+  void FinishCompile(bool is_after_cache_hit) &&;
+  void Failed() &&;
 
-  void Failed();
-
-  void AsyncCompileSucceeded(Handle<WasmModuleObject> result);
+  void AsyncCompileSucceeded(DirectHandle<WasmModuleObject> result);
 
   void FinishSuccessfully();
 
@@ -278,9 +217,9 @@ class AsyncCompileJob {
 
   Isolate* const isolate_;
   const char* const api_method_name_;
-  const WasmFeatures enabled_features_;
-  const CompileTimeImports compile_imports_;
-  const DynamicTiering dynamic_tiering_;
+  const WasmEnabledFeatures enabled_features_;
+  WasmDetectedFeatures detected_features_;
+  CompileTimeImports compile_imports_;
   base::TimeTicks start_time_;
   // Copy of the module wire bytes, moved into the {native_module_} on its
   // creation.
@@ -288,13 +227,13 @@ class AsyncCompileJob {
   // Reference to the wire bytes (held in {bytes_copy_} or as part of
   // {native_module_}).
   ModuleWireBytes wire_bytes_;
-  Handle<NativeContext> native_context_;
-  Handle<NativeContext> incumbent_context_;
+  IndirectHandle<NativeContext> native_context_;
+  IndirectHandle<NativeContext> incumbent_context_;
   v8::metrics::Recorder::ContextId context_id_;
   v8::metrics::WasmModuleDecoded metrics_event_;
   const std::shared_ptr<CompilationResultResolver> resolver_;
 
-  Handle<WasmModuleObject> module_object_;
+  IndirectHandle<WasmModuleObject> module_object_;
   std::shared_ptr<NativeModule> native_module_;
 
   std::unique_ptr<CompileStep> step_;
@@ -305,9 +244,7 @@ class AsyncCompileJob {
   // For async compilation the AsyncCompileJob is the only finisher. For
   // streaming compilation also the AsyncStreamingProcessor has to finish before
   // compilation can be finished.
-  int32_t outstanding_finishers_ = 1;
-  base::ElapsedTimer streaming_until_finished_timer_;
-  base::Mutex check_finisher_mutex_;
+  std::atomic<int32_t> outstanding_finishers_{1};
 
   // A reference to a pending foreground task, or {nullptr} if none is pending.
   CompileTask* pending_foreground_task_ = nullptr;

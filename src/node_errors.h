@@ -13,6 +13,11 @@
 #include <sstream>
 
 namespace node {
+// This forward declaration is required to have the method
+// available in error messages.
+namespace errors {
+const char* errno_string(int errorno);
+}
 
 enum ErrorHandlingMode { CONTEXTIFY_ERROR, FATAL_ERROR, MODULE_ERROR };
 void AppendExceptionLine(Environment* env,
@@ -43,8 +48,11 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_CLOSED_MESSAGE_PORT, Error)                                            \
   V(ERR_CONSTRUCT_CALL_REQUIRED, TypeError)                                    \
   V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                     \
+  V(ERR_CPU_PROFILE_NOT_STARTED, Error)                                        \
+  V(ERR_CPU_PROFILE_TOO_MANY, Error)                                           \
   V(ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED, Error)                             \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, Error)                                   \
+  V(ERR_CRYPTO_INVALID_ARGON2_PARAMS, TypeError)                               \
   V(ERR_CRYPTO_INVALID_AUTH_TAG, TypeError)                                    \
   V(ERR_CRYPTO_INVALID_COUNTER, TypeError)                                     \
   V(ERR_CRYPTO_INVALID_CURVE, TypeError)                                       \
@@ -70,7 +78,17 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_DLOPEN_FAILED, Error)                                                  \
   V(ERR_ENCODING_INVALID_ENCODED_DATA, TypeError)                              \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                            \
+  V(ERR_FS_CP_EINVAL, Error)                                                   \
+  V(ERR_FS_CP_DIR_TO_NON_DIR, Error)                                           \
+  V(ERR_FS_CP_NON_DIR_TO_DIR, Error)                                           \
+  V(ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY, Error)                                  \
   V(ERR_FS_EISDIR, Error)                                                      \
+  V(ERR_FS_CP_EEXIST, Error)                                                   \
+  V(ERR_FS_CP_SOCKET, Error)                                                   \
+  V(ERR_FS_CP_FIFO_PIPE, Error)                                                \
+  V(ERR_FS_CP_UNKNOWN, Error)                                                  \
+  V(ERR_HEAP_PROFILE_HAVE_BEEN_STARTED, Error)                                 \
+  V(ERR_HEAP_PROFILE_NOT_STARTED, Error)                                       \
   V(ERR_ILLEGAL_CONSTRUCTOR, Error)                                            \
   V(ERR_INVALID_ADDRESS, Error)                                                \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                          \
@@ -78,63 +96,87 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
   V(ERR_INVALID_FILE_URL_HOST, TypeError)                                      \
   V(ERR_INVALID_FILE_URL_PATH, TypeError)                                      \
+  V(ERR_INVALID_INVOCATION, TypeError)                                         \
   V(ERR_INVALID_PACKAGE_CONFIG, Error)                                         \
   V(ERR_INVALID_OBJECT_DEFINE_PROPERTY, TypeError)                             \
   V(ERR_INVALID_MODULE, Error)                                                 \
   V(ERR_INVALID_STATE, Error)                                                  \
   V(ERR_INVALID_THIS, TypeError)                                               \
   V(ERR_INVALID_URL, TypeError)                                                \
+  V(ERR_INVALID_URL_PATTERN, TypeError)                                        \
   V(ERR_INVALID_URL_SCHEME, TypeError)                                         \
+  V(ERR_LOAD_SQLITE_EXTENSION, Error)                                          \
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                       \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE, Error)                             \
   V(ERR_MISSING_ARGS, TypeError)                                               \
   V(ERR_MISSING_PASSPHRASE, TypeError)                                         \
   V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                    \
   V(ERR_MODULE_NOT_FOUND, Error)                                               \
+  V(ERR_MODULE_NOT_INSTANTIATED, Error)                                        \
+  V(ERR_MODULE_LINK_MISMATCH, TypeError)                                       \
   V(ERR_NON_CONTEXT_AWARE_DISABLED, Error)                                     \
+  V(ERR_OPERATION_FAILED, TypeError)                                           \
+  V(ERR_OPTIONS_BEFORE_BOOTSTRAPPING, Error)                                   \
   V(ERR_OUT_OF_RANGE, RangeError)                                              \
   V(ERR_REQUIRE_ASYNC_MODULE, Error)                                           \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                   \
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                       \
+  V(ERR_SOURCE_PHASE_NOT_DEFINED, SyntaxError)                                 \
   V(ERR_STRING_TOO_LONG, Error)                                                \
   V(ERR_TLS_INVALID_PROTOCOL_METHOD, TypeError)                                \
-  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, Error)                                \
+  V(ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED, Error)                               \
   V(ERR_VM_MODULE_CACHED_DATA_REJECTED, Error)                                 \
   V(ERR_VM_MODULE_LINK_FAILURE, Error)                                         \
   V(ERR_WASI_NOT_STARTED, Error)                                               \
+  V(ERR_ZLIB_INITIALIZATION_FAILED, Error)                                     \
   V(ERR_WORKER_INIT_FAILED, Error)                                             \
   V(ERR_PROTO_ACCESS, Error)
 
+// If the macros are used as ERR_*(isolate, message) or
+// THROW_ERR_*(isolate, message) with a single string argument, do run
+// formatter on the message, and allow the caller to pass in a message
+// directly with characters that would otherwise need escaping if used
+// as format string unconditionally.
 #define V(code, type)                                                          \
   template <typename... Args>                                                  \
-  inline v8::Local<v8::Value> code(                                            \
-      v8::Isolate* isolate, const char* format, Args&&... args) {              \
-    std::string message = SPrintF(format, std::forward<Args>(args)...);        \
-    v8::Local<v8::String> js_code = OneByteString(isolate, #code);             \
+  inline v8::Local<v8::Object> code(                                           \
+      v8::Isolate* isolate, std::string_view format, Args&&... args) {         \
+    std::string message;                                                       \
+    if (sizeof...(Args) == 0) {                                                \
+      message = format;                                                        \
+    } else {                                                                   \
+      message = SPrintF(format, std::forward<Args>(args)...);                  \
+    }                                                                          \
+    v8::Local<v8::String> js_code = FIXED_ONE_BYTE_STRING(isolate, #code);     \
     v8::Local<v8::String> js_msg =                                             \
-        OneByteString(isolate, message.c_str(), message.length());             \
+        v8::String::NewFromUtf8(isolate,                                       \
+                                message.c_str(),                               \
+                                v8::NewStringType::kNormal,                    \
+                                message.length())                              \
+            .ToLocalChecked();                                                 \
     v8::Local<v8::Object> e = v8::Exception::type(js_msg)                      \
                                   ->ToObject(isolate->GetCurrentContext())     \
                                   .ToLocalChecked();                           \
     e->Set(isolate->GetCurrentContext(),                                       \
-           OneByteString(isolate, "code"),                                     \
+           FIXED_ONE_BYTE_STRING(isolate, "code"),                             \
            js_code)                                                            \
         .Check();                                                              \
     return e;                                                                  \
   }                                                                            \
   template <typename... Args>                                                  \
   inline void THROW_##code(                                                    \
-      v8::Isolate* isolate, const char* format, Args&&... args) {              \
+      v8::Isolate* isolate, std::string_view format, Args&&... args) {         \
     isolate->ThrowException(                                                   \
         code(isolate, format, std::forward<Args>(args)...));                   \
   }                                                                            \
   template <typename... Args>                                                  \
   inline void THROW_##code(                                                    \
-      Environment* env, const char* format, Args&&... args) {                  \
+      Environment* env, std::string_view format, Args&&... args) {             \
     THROW_##code(env->isolate(), format, std::forward<Args>(args)...);         \
   }                                                                            \
   template <typename... Args>                                                  \
-  inline void THROW_##code(Realm* realm, const char* format, Args&&... args) { \
+  inline void THROW_##code(                                                    \
+      Realm* realm, std::string_view format, Args&&... args) {                 \
     THROW_##code(realm->isolate(), format, std::forward<Args>(args)...);       \
   }
 ERRORS_WITH_CODE(V)
@@ -150,6 +192,7 @@ ERRORS_WITH_CODE(V)
   V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")                \
   V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")      \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, "Initialization failed")                 \
+  V(ERR_CRYPTO_INVALID_ARGON2_PARAMS, "Invalid Argon2 params")                 \
   V(ERR_CRYPTO_INVALID_AUTH_TAG, "Invalid authentication tag")                 \
   V(ERR_CRYPTO_INVALID_COUNTER, "Invalid counter")                             \
   V(ERR_CRYPTO_INVALID_CURVE, "Invalid EC curve name")                         \
@@ -176,10 +219,12 @@ ERRORS_WITH_CODE(V)
     "Context not associated with Node.js environment")                         \
   V(ERR_ILLEGAL_CONSTRUCTOR, "Illegal constructor")                            \
   V(ERR_INVALID_ADDRESS, "Invalid socket address")                             \
+  V(ERR_INVALID_INVOCATION, "Invalid invocation")                              \
   V(ERR_INVALID_MODULE, "No such module")                                      \
   V(ERR_INVALID_STATE, "Invalid state")                                        \
   V(ERR_INVALID_THIS, "Value of \"this\" is the wrong type")                   \
   V(ERR_INVALID_URL_SCHEME, "The URL must be of scheme file:")                 \
+  V(ERR_LOAD_SQLITE_EXTENSION, "Failed to load SQLite extension")              \
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")                 \
   V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                        \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE,                                    \
@@ -188,44 +233,59 @@ ERRORS_WITH_CODE(V)
   V(ERR_MISSING_PLATFORM_FOR_WORKER,                                           \
     "The V8 platform used by this instance of Node does not support "          \
     "creating Workers")                                                        \
+  V(ERR_MODULE_NOT_INSTANTIATED, "Module is not instantiated")                 \
   V(ERR_NON_CONTEXT_AWARE_DISABLED,                                            \
     "Loading non context-aware native addons has been disabled")               \
-  V(ERR_REQUIRE_ASYNC_MODULE,                                                  \
-    "require() cannot be used on an ESM graph with top-level await. Use "      \
-    "import() instead. To see where the top-level await comes from, use "      \
-    "--experimental-print-required-tla.")                                      \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                          \
     "Script execution was interrupted by `SIGINT`")                            \
-  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")    \
+  V(ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED, "Failed to set PSK identity hint")   \
   V(ERR_WASI_NOT_STARTED, "wasi.start() has not been called")                  \
   V(ERR_WORKER_INIT_FAILED, "Worker initialization failure")                   \
   V(ERR_PROTO_ACCESS,                                                          \
     "Accessing Object.prototype.__proto__ has been "                           \
     "disallowed with --disable-proto=throw")
 
-#define V(code, message)                                                     \
-  inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                   \
-    return code(isolate, message);                                           \
-  }                                                                          \
-  inline void THROW_ ## code(v8::Isolate* isolate) {                         \
-    isolate->ThrowException(code(isolate, message));                         \
-  }                                                                          \
-  inline void THROW_ ## code(Environment* env) {                             \
-    THROW_ ## code(env->isolate());                                          \
-  }
-  PREDEFINED_ERROR_MESSAGES(V)
+#define V(code, message)                                                       \
+  inline v8::Local<v8::Object> code(v8::Isolate* isolate) {                    \
+    return code(isolate, message);                                             \
+  }                                                                            \
+  inline void THROW_##code(v8::Isolate* isolate) {                             \
+    isolate->ThrowException(code(isolate, message));                           \
+  }                                                                            \
+  inline void THROW_##code(Environment* env) { THROW_##code(env->isolate()); }
+PREDEFINED_ERROR_MESSAGES(V)
 #undef V
 
 // Errors with predefined non-static messages
 inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
                                                int64_t timeout) {
-  std::ostringstream message;
-  message << "Script execution timed out after ";
-  message << timeout << "ms";
-  THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, message.str().c_str());
+  THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(
+      env, "Script execution timed out after %dms", timeout);
 }
 
-inline v8::Local<v8::Value> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
+inline void THROW_ERR_REQUIRE_ASYNC_MODULE(
+    Environment* env,
+    v8::Local<v8::Value> filename,
+    v8::Local<v8::Value> parent_filename) {
+  static constexpr const char* prefix =
+      "require() cannot be used on an ESM graph with top-level await. Use "
+      "import() instead. To see where the top-level await comes from, use "
+      "--experimental-print-required-tla.";
+  std::string message = prefix;
+  if (!parent_filename.IsEmpty() && parent_filename->IsString()) {
+    Utf8Value utf8(env->isolate(), parent_filename);
+    message += "\n  From ";
+    message += utf8.ToStringView();
+  }
+  if (!filename.IsEmpty() && filename->IsString()) {
+    Utf8Value utf8(env->isolate(), filename);
+    message += "\n  Requiring ";
+    message += utf8.ToStringView();
+  }
+  THROW_ERR_REQUIRE_ASYNC_MODULE(env, message);
+}
+
+inline v8::Local<v8::Object> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
   char message[128];
   snprintf(message,
            sizeof(message),
@@ -234,7 +294,15 @@ inline v8::Local<v8::Value> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
   return ERR_BUFFER_TOO_LARGE(isolate, message);
 }
 
-inline v8::Local<v8::Value> ERR_STRING_TOO_LONG(v8::Isolate* isolate) {
+inline void THROW_ERR_SOURCE_PHASE_NOT_DEFINED(v8::Isolate* isolate,
+                                               const std::string& url) {
+  return THROW_ERR_SOURCE_PHASE_NOT_DEFINED(
+      isolate,
+      "Source phase import object is not defined for module '%s'",
+      url);
+}
+
+inline v8::Local<v8::Object> ERR_STRING_TOO_LONG(v8::Isolate* isolate) {
   char message[128];
   snprintf(message, sizeof(message),
       "Cannot create a string longer than 0x%x characters",

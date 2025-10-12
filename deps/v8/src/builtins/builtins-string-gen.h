@@ -89,6 +89,9 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
       const TNode<RawPtrT> subject_ptr, const TNode<IntPtrT> subject_length,
       const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> start_position);
 
+  TNode<Smi> IndexOfDollarChar(const TNode<Context> context,
+                               const TNode<String> string);
+
  protected:
   enum class StringComparison {
     kLessThan,
@@ -119,12 +122,14 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
 
   void GenerateStringEqual(TNode<String> left, TNode<String> right,
                            TNode<IntPtrT> length);
+  template <typename SeqStringT, typename CharT>
+  void GenerateSeqStringRelationalComparison(TNode<String> left,
+                                             TNode<String> right,
+                                             Label* if_less, Label* if_equal,
+                                             Label* if_greater);
   void GenerateStringRelationalComparison(TNode<String> left,
                                           TNode<String> right,
                                           StringComparison op);
-
-  const TNode<Smi> IndexOfDollarChar(const TNode<Context> context,
-                                     const TNode<String> string);
 
   TNode<JSArray> StringToArray(TNode<NativeContext> context,
                                TNode<String> subject_string,
@@ -184,7 +189,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   using DescriptorIndexNameValue =
       PrototypeCheckAssembler::DescriptorIndexNameValue;
   void MaybeCallFunctionAtSymbol(
-      const TNode<Context> context, const TNode<Object> object,
+      const TNode<Context> context, const TNode<JSAny> object,
       const TNode<Object> maybe_string, Handle<Symbol> symbol,
       DescriptorIndexNameValue additional_property_to_check,
       const NodeFunction0& regexp_call, const NodeFunction1& generic_call);
@@ -192,7 +197,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
  private:
   template <typename T>
   TNode<String> AllocAndCopyStringCharacters(TNode<T> from,
-                                             TNode<Int32T> from_instance_type,
+                                             TNode<BoolT> from_is_one_byte,
                                              TNode<IntPtrT> from_index,
                                              TNode<IntPtrT> character_count);
 };

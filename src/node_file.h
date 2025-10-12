@@ -512,9 +512,12 @@ inline FSReqBase* AsyncCall(Environment* env,
 // creating an error in the C++ land.
 // ctx must be checked using value->IsObject() before being passed.
 template <typename Func, typename... Args>
-inline int SyncCall(Environment* env, v8::Local<v8::Value> ctx,
-                    FSReqWrapSync* req_wrap, const char* syscall,
-                    Func fn, Args... args);
+inline v8::Maybe<int> SyncCall(Environment* env,
+                               v8::Local<v8::Value> ctx,
+                               FSReqWrapSync* req_wrap,
+                               const char* syscall,
+                               Func fn,
+                               Args... args);
 
 // Similar to SyncCall but throws immediately if there is an error.
 template <typename Predicate, typename Func, typename... Args>

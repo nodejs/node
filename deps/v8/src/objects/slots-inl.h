@@ -5,6 +5,10 @@
 #ifndef V8_OBJECTS_SLOTS_INL_H_
 #define V8_OBJECTS_SLOTS_INL_H_
 
+#include "src/objects/slots.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
@@ -13,9 +17,8 @@
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
-#include "src/objects/slots.h"
 #include "src/objects/tagged.h"
-#include "src/sandbox/external-pointer-inl.h"
+#include "src/sandbox/cppheap-pointer-inl.h"
 #include "src/sandbox/indirect-pointer-inl.h"
 #include "src/sandbox/isolate-inl.h"
 #include "src/utils/memcopy.h"
@@ -62,9 +65,9 @@ void FullObjectSlot::store_map(Tagged<Map> map) const {
 
 Tagged<Map> FullObjectSlot::load_map() const {
 #ifdef V8_MAP_PACKING
-  return Map::unchecked_cast(Tagged<Object>(MapWord::Unpack(*location())));
+  return UncheckedCast<Map>(Tagged<Object>(MapWord::Unpack(*location())));
 #else
-  return Map::unchecked_cast(Tagged<Object>(*location()));
+  return UncheckedCast<Map>(Tagged<Object>(*location()));
 #endif
 }
 
@@ -82,6 +85,16 @@ Tagged<Object> FullObjectSlot::Relaxed_Load() const {
 
 Tagged<Object> FullObjectSlot::Relaxed_Load(PtrComprCageBase cage_base) const {
   return Relaxed_Load();
+}
+
+Address FullObjectSlot::Relaxed_Load_Raw() const {
+  return static_cast<Address>(base::AsAtomicPointer::Relaxed_Load(location()));
+}
+
+// static
+Tagged<Object> FullObjectSlot::RawToTagged(PtrComprCageBase cage_base,
+                                           Address raw) {
+  return Tagged<Object>(raw);
 }
 
 void FullObjectSlot::Relaxed_Store(Tagged<Object> value) const {
@@ -114,6 +127,8 @@ Tagged<MaybeObject> FullMaybeObjectSlot::operator*() const {
   return Tagged<MaybeObject>(*location());
 }
 
+Tagged<MaybeObject> FullMaybeObjectSlot::load() const { return **this; }
+
 Tagged<MaybeObject> FullMaybeObjectSlot::load(
     PtrComprCageBase cage_base) const {
   return **this;
@@ -132,6 +147,16 @@ Tagged<MaybeObject> FullMaybeObjectSlot::Relaxed_Load(
   return Relaxed_Load();
 }
 
+Address FullMaybeObjectSlot::Relaxed_Load_Raw() const {
+  return static_cast<Address>(base::AsAtomicPointer::Relaxed_Load(location()));
+}
+
+// static
+Tagged<Object> FullMaybeObjectSlot::RawToTagged(PtrComprCageBase cage_base,
+                                                Address raw) {
+  return Tagged<Object>(raw);
+}
+
 void FullMaybeObjectSlot::Relaxed_Store(Tagged<MaybeObject> value) const {
   base::AsAtomicPointer::Relaxed_Store(location(), value.ptr());
 }
@@ -147,7 +172,7 @@ void FullMaybeObjectSlot::Release_CompareAndSwap(
 //
 
 Tagged<HeapObjectReference> FullHeapObjectSlot::operator*() const {
-  return Tagged<HeapObjectReference>::cast(Tagged<MaybeObject>(*location()));
+  return Cast<HeapObjectReference>(Tagged<MaybeObject>(*location()));
 }
 
 Tagged<HeapObjectReference> FullHeapObjectSlot::load(
@@ -162,60 +187,84 @@ void FullHeapObjectSlot::store(Tagged<HeapObjectReference> value) const {
 Tagged<HeapObject> FullHeapObjectSlot::ToHeapObject() const {
   TData value = *location();
   DCHECK(HAS_STRONG_HEAP_OBJECT_TAG(value));
-  return HeapObject::cast(Tagged<Object>(value));
+  return Cast<HeapObject>(Tagged<Object>(value));
 }
 
 void FullHeapObjectSlot::StoreHeapObject(Tagged<HeapObject> value) const {
   *location() = value.ptr();
 }
 
-void ExternalPointerSlot::init(IsolateForSandbox isolate, Address value) {
+void ExternalPointerSlot::init_lazily_initialized() {
 #ifdef V8_ENABLE_SANDBOX
-  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag_);
+  Relaxed_StoreHandle(kNullExternalPointerHandle);
+#else
+  WriteMaybeUnalignedValue<Address>(address(), kNullAddress);
+#endif  // V8_ENABLE_SANDBOX
+}
+
+void ExternalPointerSlot::init(IsolateForSandbox isolate,
+                               Tagged<HeapObject> host, Address value,
+                               ExternalPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
   ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
-      isolate.GetExternalPointerTableSpaceFor(tag_, address()), value, tag_);
+      isolate.GetExternalPointerTableSpaceFor(tag, host.address()), value, tag);
   // Use a Release_Store to ensure that the store of the pointer into the
   // table is not reordered after the store of the handle. Otherwise, other
   // threads may access an uninitialized table entry and crash.
   Release_StoreHandle(handle);
 #else
-  store(isolate, value);
+  store(isolate, value, tag);
 #endif  // V8_ENABLE_SANDBOX
 }
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 ExternalPointerHandle ExternalPointerSlot::Relaxed_LoadHandle() const {
-  return base::AsAtomic32::Relaxed_Load(location());
+  return base::AsAtomic32::Relaxed_Load(handle_location());
 }
 
 void ExternalPointerSlot::Relaxed_StoreHandle(
     ExternalPointerHandle handle) const {
-  return base::AsAtomic32::Relaxed_Store(location(), handle);
+  return base::AsAtomic32::Relaxed_Store(handle_location(), handle);
 }
 
 void ExternalPointerSlot::Release_StoreHandle(
     ExternalPointerHandle handle) const {
-  return base::AsAtomic32::Release_Store(location(), handle);
+  return base::AsAtomic32::Release_Store(handle_location(), handle);
 }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
 Address ExternalPointerSlot::load(IsolateForSandbox isolate) {
 #ifdef V8_ENABLE_SANDBOX
-  const ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag_);
+  const ExternalPointerTable& table =
+      isolate.GetExternalPointerTableFor(tag_range_);
   ExternalPointerHandle handle = Relaxed_LoadHandle();
-  return table.Get(handle, tag_);
+  return table.Get(handle, tag_range_);
 #else
   return ReadMaybeUnalignedValue<Address>(address());
 #endif  // V8_ENABLE_SANDBOX
 }
 
-void ExternalPointerSlot::store(IsolateForSandbox isolate, Address value) {
+void ExternalPointerSlot::store(IsolateForSandbox isolate, Address value,
+                                ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag_);
+  DCHECK(tag_range_.Contains(tag));
+  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
   ExternalPointerHandle handle = Relaxed_LoadHandle();
-  table.Set(handle, value, tag_);
+  table.Set(handle, value, tag);
 #else
   WriteMaybeUnalignedValue<Address>(address(), value);
+#endif  // V8_ENABLE_SANDBOX
+}
+
+ExternalPointerTag ExternalPointerSlot::load_tag(IsolateForSandbox isolate) {
+#ifdef V8_ENABLE_SANDBOX
+  const ExternalPointerTable& table =
+      isolate.GetExternalPointerTableFor(tag_range_);
+  ExternalPointerHandle handle = Relaxed_LoadHandle();
+  return table.GetTag(handle);
+#else
+  return kExternalPointerNullTag;
 #endif  // V8_ENABLE_SANDBOX
 }
 
@@ -262,6 +311,52 @@ uint32_t ExternalPointerSlot::GetContentAsIndexAfterDeserialization(
 #endif
 }
 
+#ifdef V8_COMPRESS_POINTERS
+CppHeapPointerHandle CppHeapPointerSlot::Relaxed_LoadHandle() const {
+  return base::AsAtomic32::Relaxed_Load(location());
+}
+
+void CppHeapPointerSlot::Relaxed_StoreHandle(
+    CppHeapPointerHandle handle) const {
+  return base::AsAtomic32::Relaxed_Store(location(), handle);
+}
+
+void CppHeapPointerSlot::Release_StoreHandle(
+    CppHeapPointerHandle handle) const {
+  return base::AsAtomic32::Release_Store(location(), handle);
+}
+#endif  // V8_COMPRESS_POINTERS
+
+Address CppHeapPointerSlot::try_load(IsolateForPointerCompression isolate,
+                                     CppHeapPointerTagRange tag_range) const {
+#ifdef V8_COMPRESS_POINTERS
+  const CppHeapPointerTable& table = isolate.GetCppHeapPointerTable();
+  CppHeapPointerHandle handle = Relaxed_LoadHandle();
+  return table.Get(handle, tag_range);
+#else   // !V8_COMPRESS_POINTERS
+  return static_cast<Address>(base::AsAtomicPointer::Relaxed_Load(location()));
+#endif  // !V8_COMPRESS_POINTERS
+}
+
+void CppHeapPointerSlot::store(IsolateForPointerCompression isolate,
+                               Address value, CppHeapPointerTag tag) const {
+#ifdef V8_COMPRESS_POINTERS
+  CppHeapPointerTable& table = isolate.GetCppHeapPointerTable();
+  CppHeapPointerHandle handle = Relaxed_LoadHandle();
+  table.Set(handle, value, tag);
+#else   // !V8_COMPRESS_POINTERS
+  base::AsAtomicPointer::Relaxed_Store(location(), value);
+#endif  // !V8_COMPRESS_POINTERS
+}
+
+void CppHeapPointerSlot::init() const {
+#ifdef V8_COMPRESS_POINTERS
+  base::AsAtomic32::Release_Store(location(), kNullCppHeapPointerHandle);
+#else   // !V8_COMPRESS_POINTERS
+  base::AsAtomicPointer::Release_Store(location(), kNullAddress);
+#endif  // !V8_COMPRESS_POINTERS
+}
+
 Tagged<Object> IndirectPointerSlot::load(IsolateForSandbox isolate) const {
   return Relaxed_Load(isolate);
 }
@@ -274,6 +369,12 @@ Tagged<Object> IndirectPointerSlot::Relaxed_Load(
     IsolateForSandbox isolate) const {
   IndirectPointerHandle handle = Relaxed_LoadHandle();
   return ResolveHandle(handle, isolate);
+}
+
+Tagged<Object> IndirectPointerSlot::Relaxed_Load_AllowUnpublished(
+    IsolateForSandbox isolate) const {
+  IndirectPointerHandle handle = Relaxed_LoadHandle();
+  return ResolveHandle<kAllowUnpublishedEntries>(handle, isolate);
 }
 
 Tagged<Object> IndirectPointerSlot::Acquire_Load(
@@ -327,6 +428,7 @@ bool IndirectPointerSlot::IsEmpty() const {
   return Relaxed_LoadHandle() == kNullIndirectPointerHandle;
 }
 
+template <IndirectPointerSlot::TagCheckStrictness allow_unpublished>
 Tagged<Object> IndirectPointerSlot::ResolveHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) const {
 #ifdef V8_ENABLE_SANDBOX
@@ -341,12 +443,12 @@ Tagged<Object> IndirectPointerSlot::ResolveHandle(
     if (handle & kCodePointerHandleMarker) {
       return ResolveCodePointerHandle(handle);
     } else {
-      return ResolveTrustedPointerHandle(handle, isolate);
+      return ResolveTrustedPointerHandle<allow_unpublished>(handle, isolate);
     }
   } else if (tag_ == kCodeIndirectPointerTag) {
     return ResolveCodePointerHandle(handle);
   } else {
-    return ResolveTrustedPointerHandle(handle, isolate);
+    return ResolveTrustedPointerHandle<allow_unpublished>(handle, isolate);
   }
 #else
   UNREACHABLE();
@@ -354,17 +456,22 @@ Tagged<Object> IndirectPointerSlot::ResolveHandle(
 }
 
 #ifdef V8_ENABLE_SANDBOX
+template <IndirectPointerSlot::TagCheckStrictness allow_unpublished>
 Tagged<Object> IndirectPointerSlot::ResolveTrustedPointerHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) const {
   DCHECK_NE(handle, kNullIndirectPointerHandle);
-  const TrustedPointerTable& table = isolate.GetTrustedPointerTable();
+  const TrustedPointerTable& table = isolate.GetTrustedPointerTableFor(tag_);
+  if constexpr (allow_unpublished == kAllowUnpublishedEntries) {
+    return Tagged<Object>(table.GetMaybeUnpublished(handle, tag_));
+  }
   return Tagged<Object>(table.Get(handle, tag_));
 }
 
 Tagged<Object> IndirectPointerSlot::ResolveCodePointerHandle(
     IndirectPointerHandle handle) const {
   DCHECK_NE(handle, kNullIndirectPointerHandle);
-  Address addr = GetProcessWideCodePointerTable()->GetCodeObject(handle);
+  Address addr =
+      IsolateGroup::current()->code_pointer_table()->GetCodeObject(handle);
   return Tagged<Object>(addr);
 }
 #endif  // V8_ENABLE_SANDBOX
@@ -387,7 +494,7 @@ inline void CopyTagged(Address dst, const Address src, size_t num_tagged) {
 }
 
 // Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
-inline void MemsetTagged(Tagged_t* start, Tagged<Object> value,
+inline void MemsetTagged(Tagged_t* start, Tagged<MaybeObject> value,
                          size_t counter) {
 #ifdef V8_COMPRESS_POINTERS
   // CompressAny since many callers pass values which are not valid objects.
@@ -401,7 +508,7 @@ inline void MemsetTagged(Tagged_t* start, Tagged<Object> value,
 
 // Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
 template <typename T>
-inline void MemsetTagged(SlotBase<T, Tagged_t> start, Tagged<Object> value,
+inline void MemsetTagged(SlotBase<T, Tagged_t> start, Tagged<MaybeObject> value,
                          size_t counter) {
   MemsetTagged(start.location(), value, counter);
 }

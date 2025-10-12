@@ -15,6 +15,8 @@
 
 #include <errno.h>
 
+#include <string>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/log/internal/test_actions.h"
@@ -58,6 +60,7 @@ using ::testing::Truly;
 
 TEST(TailCallsModifiesTest, AtLocationFileLine) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(
       test_sink,
@@ -77,8 +80,17 @@ TEST(TailCallsModifiesTest, AtLocationFileLine) {
       << "hello world";
 }
 
+TEST(TailCallsModifiesTest, AtLocationFileLineLifetime) {
+  // The macro takes care to not use this temporary after its lifetime.
+  // The only salient expectation is "no sanitizer diagnostics".
+  LOG(INFO).AtLocation(std::string("/my/very/very/very_long_source_file.cc"),
+                       777)
+      << "hello world";
+}
+
 TEST(TailCallsModifiesTest, NoPrefix) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(test_sink, Send(AllOf(Prefix(IsFalse()), TextPrefix(IsEmpty()),
                                     TextMessageWithPrefix(Eq("hello world")))));
@@ -89,6 +101,7 @@ TEST(TailCallsModifiesTest, NoPrefix) {
 
 TEST(TailCallsModifiesTest, NoPrefixNoMessageNoShirtNoShoesNoService) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(test_sink,
               Send(AllOf(Prefix(IsFalse()), TextPrefix(IsEmpty()),
@@ -100,6 +113,7 @@ TEST(TailCallsModifiesTest, NoPrefixNoMessageNoShirtNoShoesNoService) {
 
 TEST(TailCallsModifiesTest, WithVerbosity) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(test_sink, Send(Verbosity(Eq(2))));
 
@@ -109,6 +123,7 @@ TEST(TailCallsModifiesTest, WithVerbosity) {
 
 TEST(TailCallsModifiesTest, WithVerbosityNoVerbosity) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(test_sink,
               Send(Verbosity(Eq(absl::LogEntry::kNoVerbosityLevel))));
@@ -120,6 +135,7 @@ TEST(TailCallsModifiesTest, WithVerbosityNoVerbosity) {
 
 TEST(TailCallsModifiesTest, WithTimestamp) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(test_sink, Send(Timestamp(Eq(absl::UnixEpoch()))));
 
@@ -129,6 +145,7 @@ TEST(TailCallsModifiesTest, WithTimestamp) {
 
 TEST(TailCallsModifiesTest, WithThreadID) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(test_sink,
               Send(AllOf(ThreadID(Eq(absl::LogEntry::tid_t{1234})))));
@@ -147,6 +164,7 @@ TEST(TailCallsModifiesTest, WithMetadataFrom) {
   } forwarding_sink;
 
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(
       test_sink,
@@ -156,9 +174,11 @@ TEST(TailCallsModifiesTest, WithMetadataFrom) {
                  Timestamp(Eq(absl::UnixEpoch())),
                  ThreadID(Eq(absl::LogEntry::tid_t{456})),
                  TextMessage(Eq("forwarded: hello world")), Verbosity(Eq(7)),
-                 ENCODED_MESSAGE(
-                     EqualsProto(R"pb(value { literal: "forwarded: " }
-                                      value { str: "hello world" })pb")))));
+                 ENCODED_MESSAGE(MatchesEvent(
+                     Eq("fake/file"), Eq(123), Eq(absl::UnixEpoch()),
+                     Eq(logging::proto::WARNING), Eq(456),
+                     ElementsAre(ValueWithLiteral(Eq("forwarded: ")),
+                                 ValueWithStr(Eq("hello world"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(WARNING)
@@ -173,31 +193,21 @@ TEST(TailCallsModifiesTest, WithMetadataFrom) {
 
 TEST(TailCallsModifiesTest, WithPerror) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(
       test_sink,
-      Send(AllOf(TextMessage(AnyOf(Eq("hello world: Bad file number [9]"),
-                                   Eq("hello world: Bad file descriptor [9]"),
-                                   Eq("hello world: Bad file descriptor [8]"))),
-                 ENCODED_MESSAGE(
-                     AnyOf(EqualsProto(R"pb(value { literal: "hello world" }
-                                            value { literal: ": " }
-                                            value { str: "Bad file number" }
-                                            value { literal: " [" }
-                                            value { str: "9" }
-                                            value { literal: "]" })pb"),
-                           EqualsProto(R"pb(value { literal: "hello world" }
-                                            value { literal: ": " }
-                                            value { str: "Bad file descriptor" }
-                                            value { literal: " [" }
-                                            value { str: "9" }
-                                            value { literal: "]" })pb"),
-                           EqualsProto(R"pb(value { literal: "hello world" }
-                                            value { literal: ": " }
-                                            value { str: "Bad file descriptor" }
-                                            value { literal: " [" }
-                                            value { str: "8" }
-                                            value { literal: "]" })pb"))))));
+      Send(AllOf(
+          TextMessage(AnyOf(Eq("hello world: Bad file number [9]"),
+                            Eq("hello world: Bad file descriptor [9]"),
+                            Eq("hello world: Bad file descriptor [8]"))),
+          ENCODED_MESSAGE(HasValues(ElementsAre(
+              ValueWithLiteral(Eq("hello world")), ValueWithLiteral(Eq(": ")),
+              AnyOf(ValueWithStr(Eq("Bad file number")),
+                    ValueWithStr(Eq("Bad file descriptor"))),
+              ValueWithLiteral(Eq(" [")),
+              AnyOf(ValueWithStr(Eq("8")), ValueWithStr(Eq("9"))),
+              ValueWithLiteral(Eq("]"))))))));
 
   test_sink.StartCapturingLogs();
   errno = EBADF;
@@ -210,6 +220,7 @@ TEST(ModifierMethodDeathTest, ToSinkOnlyQFatal) {
       {
         absl::ScopedMockLog test_sink(
             absl::MockLogDefault::kDisallowUnexpected);
+        EXPECT_CALL(test_sink, Send).Times(0);
 
         auto do_log = [&test_sink] {
           LOG(QFATAL).ToSinkOnly(&test_sink.UseAsLocalSink()) << "hello world";

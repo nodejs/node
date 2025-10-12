@@ -1,5 +1,5 @@
 /**
- * @fileoverview Require `common` module first in our tests.
+ * @file Require `common` module first in our tests.
  */
 'use strict';
 
@@ -22,7 +22,7 @@ module.exports = {
      * @returns {string} module name
      */
     function getModuleName(str) {
-      if (str === '../common/index.mjs') {
+      if (str.startsWith('../') && str.endsWith('/common/index.mjs')) {
         return 'common';
       }
 

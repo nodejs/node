@@ -15,11 +15,18 @@ test/data/Repeated File Name.zip
 test/data/SJIS Bug 846195.zip
 test/data/Windows Special Names.zip
 test/data/Wrong CRC.zip
+test/data/create_symlink_test_zips.py
 test/data/create_test_zip.sh
 test/data/empty.zip
 test/data/evil.zip
 test/data/evil_via_absolute_file_name.zip
 test/data/evil_via_invalid_utf8.zip
+test/data/symlink_absolute_path.zip
+test/data/symlink_duplicate_link.zip
+test/data/symlink_evil_relative_path.zip
+test/data/symlink_follow_own_link.zip
+test/data/symlink_too_large.zip
+test/data/symlinks.zip
 test/data/test.zip
 test/data/test/foo.txt
 test/data/test/foo/bar.txt

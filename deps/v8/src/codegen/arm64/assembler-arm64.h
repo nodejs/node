@@ -8,16 +8,18 @@
 #include <deque>
 #include <map>
 #include <memory>
+#include <optional>
 
-#include "absl/container/btree_map.h"
-#include "src/base/optional.h"
+#include "absl/container/flat_hash_map.h"
 #include "src/codegen/arm64/constants-arm64.h"
 #include "src/codegen/arm64/instructions-arm64.h"
 #include "src/codegen/arm64/register-arm64.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
+#include "src/codegen/jump-table-info.h"
 #include "src/common/globals.h"
 #include "src/utils/utils.h"
+#include "src/zone/zone-containers.h"
 
 // Windows arm64 SDK defines mvn to NEON intrinsic neon_not which will not
 // be used here.
@@ -97,6 +99,7 @@ class Operand {
   inline Operand(T t, RelocInfo::Mode rmode);
 
   inline bool IsImmediate() const;
+  inline bool IsPlainRegister() const;
   inline bool IsShiftedRegister() const;
   inline bool IsExtendedRegister() const;
   inline bool IsZero() const;
@@ -120,7 +123,7 @@ class Operand {
   bool NeedsRelocation(const Assembler* assembler) const;
 
  private:
-  base::Optional<HeapNumberRequest> heap_number_request_;
+  std::optional<HeapNumberRequest> heap_number_request_;
   Immediate immediate_;
   Register reg_;
   Shift shift_;
@@ -163,6 +166,26 @@ class MemOperand {
   unsigned shift_amount_;
 };
 
+class AssemblerZone {
+ public:
+  explicit AssemblerZone(const MaybeAssemblerZone& zone)
+      // Create a fresh Zone unless one is already provided.
+      : maybe_local_zone_(
+            std::holds_alternative<Zone*>(zone)
+                ? std::nullopt
+                : std::make_optional<Zone>(std::get<AccountingAllocator*>(zone),
+                                           ZONE_NAME)),
+        zone_(std::holds_alternative<Zone*>(zone)
+                  ? std::get<Zone*>(zone)
+                  : &maybe_local_zone_.value()) {}
+
+  Zone* get() const { return zone_; }
+
+ private:
+  std::optional<Zone> maybe_local_zone_ = std::nullopt;
+  Zone* zone_;
+};
+
 // -----------------------------------------------------------------------------
 // Assembler.
 
@@ -173,12 +196,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // relocation information starting from the end of the buffer. See CodeDesc
   // for a detailed comment on the layout (globals.h).
   //
+  // When available, a zone should be provided for the assembler to manage
+  // temporary state, as long as the assembler does not outlive it. An
+  // AccountingAllocator can be provided instead.
+  //
   // If the provided buffer is nullptr, the assembler allocates and grows its
   // own buffer. Otherwise it takes ownership of the provided buffer.
-  explicit Assembler(const AssemblerOptions&,
-                     std::unique_ptr<AssemblerBuffer> = {});
+  Assembler(const MaybeAssemblerZone&, const AssemblerOptions&,
+            std::unique_ptr<AssemblerBuffer> = {});
 
   ~Assembler() override;
+
+  Zone* zone() const { return zone_.get(); }
 
   void AbortedCodeGeneration() override;
 
@@ -214,7 +243,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
-  void LoopHeaderAlign() { CodeTargetAlign(); }
+  void SwitchTargetAlign();
+  void BranchTargetAlign();
+  void LoopHeaderAlign();
 
   inline void Unreachable();
 
@@ -257,10 +288,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                                                       Address constant_pool);
   inline static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
+      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   inline static void set_target_compressed_address_at(
       Address pc, Address constant_pool, Tagged_t target,
+      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Returns the handle for the code object called at 'pc'.
@@ -277,20 +310,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // code is moved into the code space.
   static inline Builtin target_builtin_at(Address pc);
 
-  // This sets the branch destination. 'location' here can be either the pc of
-  // an immediate branch or the address of an entry in the constant pool.
-  // This is for calls and branches within generated code.
-  inline static void deserialization_set_special_target_at(Address location,
-                                                           Tagged<Code> code,
-                                                           Address target);
-
   // Get the size of the special target encoded at 'location'.
   inline static int deserialization_special_target_size(Address location);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Address pc, Address target,
+      Address pc, Address target, WritableJitAllocation& jit_allocation,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
+
+  // Read/modify the uint32 constant used at pc.
+  static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
+  static inline void set_uint32_constant_at(
+      Address pc, Address constant_pool, uint32_t new_constant,
+      WritableJitAllocation* jit_allocation = nullptr,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // This value is used in the serialization process and must be zero for
   // ARM64, as the code target is split across multiple instructions and does
@@ -386,6 +419,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Conditional branch to PC offset.
   void b(int imm19, Condition cond);
+
+  // Conditional branch consistent to label.
+  void bc(Label* label, Condition cond);
+
+  // Conditional branch consistent to PC offset.
+  void bc(int imm19, Condition cond);
 
   // Branch-link to label / pc offset.
   void bl(Label* label);
@@ -782,6 +821,27 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void rev(const Register& rd, const Register& rn);
   void clz(const Register& rd, const Register& rn);
   void cls(const Register& rd, const Register& rn);
+
+  // Absolute value.
+  void abs(const Register& rd, const Register& rn);
+
+  // Count bits.
+  void cnt(const Register& rd, const Register& rn);
+
+  // Count Trailing Zeros.
+  void ctz(const Register& rd, const Register& rn);
+
+  // Signed Maximum.
+  void smax(const Register& rd, const Register& rn, const Operand& op);
+
+  // Signed Minimum.
+  void smin(const Register& rd, const Register& rn, const Operand& op);
+
+  // Unsigned Maximum.
+  void umax(const Register& rd, const Register& rn, const Operand& op);
+
+  // Unsigned Minimum.
+  void umin(const Register& rd, const Register& rn, const Operand& op);
 
   // Pointer Authentication InstructionStream for Instruction address, using key
   // B, with address in x17 and modifier in x16 [Armv8.3].
@@ -1530,6 +1590,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movz(const Register& rd, uint64_t imm, int shift = -1) {
     MoveWide(rd, imm, shift, MOVZ);
   }
+
+  // MOPS instructions
+  void cpy(MemCpyOp op, const Register& rd, const Register& rs,
+           const Register& rn);
+  void cpyp(const Register& rd, const Register& rs, const Register& rn);
+  void cpym(const Register& rd, const Register& rs, const Register& rn);
+  void cpye(const Register& rd, const Register& rs, const Register& rn);
+
+  void set(MemSetOp op, const Register& rd, const Register& rn,
+           const Register& rs);
+  void setp(const Register& rd, const Register& rn, const Register& rs);
+  void setm(const Register& rd, const Register& rn, const Register& rs);
+  void sete(const Register& rd, const Register& rn, const Register& rs);
 
   // Misc instructions.
   // Monitor debug-mode breakpoint.
@@ -2681,10 +2754,21 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Emit an address in the instruction stream.
   void dcptr(Label* label);
 
+  // SHA3 instructions
+  // Bit Clear and exclusive-OR.
+  void bcax(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+            const VRegister& va);
+
+  // Three-way Exclusive-OR.
+  void eor3(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+            const VRegister& va);
+
   // Copy a string into the instruction stream, including the terminating
   // nullptr character. The instruction pointer (pc_) is then aligned correctly
   // for subsequent instructions.
   void EmitStringData(const char* string);
+
+  void WriteJumpTableEntry(Label* label, int table_pos);
 
   // Pseudo-instructions ------------------------------------------------------
 
@@ -2808,6 +2892,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
            (is_uint12(immediate >> 12) && ((immediate & 0xFFF) == 0));
   }
 
+  static constexpr bool IsImmConditionalCompare(int64_t immediate) {
+    return is_uint5(immediate);
+  }
+
   static bool IsImmLogical(uint64_t value, unsigned width, unsigned* n,
                            unsigned* imm_s, unsigned* imm_r);
 
@@ -2827,6 +2915,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static Instr VFormat(VRegister vd) {
     if (vd.Is64Bits()) {
       switch (vd.LaneCount()) {
+        case 1:
+          return NEON_1D;
         case 2:
           return NEON_2S;
         case 4:
@@ -2868,9 +2958,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       return vd.Is128Bits() ? NEON_FP_2D : NEON_FP_2S;
     }
 
-    // Four lane floating point vector format.
-    DCHECK((vd.LaneCount() == 4) && vd.Is128Bits());
-    return NEON_FP_4S;
+    // Four lane floating point vector formats.
+    if (vd.LaneCount() == 4) {
+      DCHECK(vd.Is64Bits() || vd.Is128Bits());
+      return vd.Is128Bits() ? NEON_FP_4S : NEON_FP_4H;
+    }
+
+    // Eight lane floating point vector format.
+    DCHECK((vd.LaneCount() == 8) && vd.Is128Bits());
+    return NEON_FP_8H;
   }
 
   // Instruction bits for vector format in load and store operations.
@@ -3003,6 +3099,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // FP register type.
   inline static Instr FPType(VRegister fd);
 
+  // Clear any internal state to avoid check failures if we drop
+  // the assembly code.
+  void ClearInternalState() { constpool_.Clear(); }
+
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
 
@@ -3113,7 +3213,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void ConditionalCompare(const Register& rn, const Operand& operand,
                           StatusFlags nzcv, Condition cond,
                           ConditionalCompareOp op);
-  static bool IsImmConditionalCompare(int64_t immediate);
 
   void AddSubWithCarry(const Register& rd, const Register& rn,
                        const Operand& operand, FlagsUpdate S,
@@ -3241,8 +3340,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   int LinkAndGetByteOffsetTo(Label* label);
 
   // This is the same as LinkAndGetByteOffsetTo, but return an offset
-  // suitable for fields that take instruction offsets.
-  inline int LinkAndGetInstructionOffsetTo(Label* label);
+  // suitable for fields that take instruction offsets: branches.
+  inline int LinkAndGetBranchInstructionOffsetTo(Label* label);
 
   static constexpr int kStartOfLabelLinkChain = 0;
 
@@ -3290,7 +3389,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // Emission of the veneer pools may be blocked in some code sequences.
-  int veneer_pool_blocked_nesting_;  // Block emission if this is not zero.
+  int veneer_pool_blocked_nesting_ = 0;  // Block emission if this is not zero.
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
@@ -3330,7 +3429,28 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 #endif
 
+  // Generic immediate encoding.
+  template <int hibit, int lobit>
+  static Instr ImmField(int64_t imm) {
+    DCHECK((hibit >= lobit) && (lobit >= 0));
+    static_assert(hibit < (sizeof(Instr) * kBitsPerByte));
+    int fieldsize = hibit - lobit + 1;
+    DCHECK(is_intn(imm, fieldsize));
+    return static_cast<Instr>(truncate_to_intn(imm, fieldsize) << lobit);
+  }
+
+  // For unsigned immediate encoding.
+  template <int hibit, int lobit>
+  static Instr ImmUnsignedField(uint64_t imm) {
+    static_assert((hibit >= lobit) && (lobit >= 0));
+    static_assert(hibit < (sizeof(Instr) * kBitsPerByte));
+    DCHECK(is_uintn(imm, hibit - lobit + 1));
+    return static_cast<Instr>(imm << lobit);
+  }
+
  protected:
+  const AssemblerZone zone_;
+
   // Information about unresolved (forward) branches.
   // The Assembler is only allowed to delete out-of-date information from here
   // after a label is bound. The MacroAssembler uses this information to
@@ -3351,7 +3471,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Note that the maximum reachable offset (first member of the pairs) should
   // always be positive but has the same type as the return value for
   // pc_offset() for convenience.
-  absl::btree_map<int, Label*> unresolved_branches_;
+  ZoneAbslBTreeMap<int, Label*> unresolved_branches_;
+
+  // Back edge offsets for the link chain - the forward edge is stored in the
+  // generated code. This is used to accelerate removing branches from the
+  // link chain when emitting veneers.
+  absl::flat_hash_map<int, int> branch_link_chain_back_edge_;
 
   // We generate a veneer for a branch if we reach within this distance of the
   // limit of the range.
@@ -3375,6 +3500,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // veneer margin (or kMaxInt if there are no unresolved branches).
   int next_veneer_pool_check_;
 
+  // Record jump table locations, this is only used when the disassembler is
+  // enabled.
+  JumpTableInfoWriter jump_table_info_writer_;
+
 #if defined(V8_OS_WIN)
   std::unique_ptr<win64_unwindinfo::XdataEncoder> xdata_encoder_;
 #endif
@@ -3394,9 +3523,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // the length of the label chain.
   void DeleteUnresolvedBranchInfoForLabelTraverse(Label* label);
 
-  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
+  void PatchInHeapNumberRequest(Address pc, Handle<HeapNumber> object) override;
 
   int WriteCodeComments();
+  int WriteJumpTableInfos();
 
   // The pending constant pool.
   ConstantPool constpool_;
@@ -3416,9 +3546,9 @@ class PatchingAssembler : public Assembler {
   // relocation information takes space in the buffer, the PatchingAssembler
   // will crash trying to grow the buffer.
   // Note that the instruction cache will not be flushed.
-  PatchingAssembler(const AssemblerOptions& options, uint8_t* start,
+  PatchingAssembler(Zone* zone, const AssemblerOptions& options, uint8_t* start,
                     unsigned count)
-      : Assembler(options,
+      : Assembler(zone, options,
                   ExternalAssemblerBuffer(start, count * kInstrSize + kGap)),
         block_constant_pool_emission_scope(this) {}
 

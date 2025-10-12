@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "src/base/fpu.h"
 #include "src/baseline/baseline-compiler.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/isolate.h"
@@ -42,12 +43,13 @@ class BaselineCompilerTask {
 
   // Executed in the background thread.
   void Compile(LocalIsolate* local_isolate) {
+    RCS_SCOPE(local_isolate, RuntimeCallCounterId::kCompileBackgroundBaseline);
     base::ScopedTimer timer(v8_flags.log_function_events ? &time_taken_
                                                          : nullptr);
     BaselineCompiler compiler(local_isolate, shared_function_info_, bytecode_);
     compiler.GenerateCode();
-    maybe_code_ = local_isolate->heap()->NewPersistentMaybeHandle(
-        compiler.Build(local_isolate));
+    maybe_code_ =
+        local_isolate->heap()->NewPersistentMaybeHandle(compiler.Build());
   }
 
   // Executed in the main thread.
@@ -78,35 +80,36 @@ class BaselineCompilerTask {
     if (IsScript(shared_function_info_->script())) {
       Compiler::LogFunctionCompilation(
           isolate, LogEventListener::CodeTag::kFunction,
-          handle(Script::cast(shared_function_info_->script()), isolate),
-          shared_function_info_, Handle<FeedbackVector>(),
-          Handle<AbstractCode>::cast(code), CodeKind::BASELINE,
+          direct_handle(Cast<Script>(shared_function_info_->script()), isolate),
+          shared_function_info_, DirectHandle<FeedbackVector>(),
+          Cast<AbstractCode>(code), CodeKind::BASELINE,
           time_taken_.InMillisecondsF());
     }
   }
 
  private:
-  Handle<SharedFunctionInfo> shared_function_info_;
-  Handle<BytecodeArray> bytecode_;
-  MaybeHandle<Code> maybe_code_;
+  IndirectHandle<SharedFunctionInfo> shared_function_info_;
+  IndirectHandle<BytecodeArray> bytecode_;
+  MaybeIndirectHandle<Code> maybe_code_;
   base::TimeDelta time_taken_;
 };
 
 class BaselineBatchCompilerJob {
  public:
-  BaselineBatchCompilerJob(Isolate* isolate, Handle<WeakFixedArray> task_queue,
+  BaselineBatchCompilerJob(Isolate* isolate,
+                           DirectHandle<WeakFixedArray> task_queue,
                            int batch_size) {
     handles_ = isolate->NewPersistentHandles();
     tasks_.reserve(batch_size);
     for (int i = 0; i < batch_size; i++) {
       Tagged<MaybeObject> maybe_sfi = task_queue->get(i);
       // TODO(victorgomes): Do I need to clear the value?
-      task_queue->set(i, ClearedValue(isolate));
+      task_queue->set(i, kClearedWeakValue);
       Tagged<HeapObject> obj;
       // Skip functions where weak reference is no longer valid.
       if (!maybe_sfi.GetHeapObjectIfWeak(&obj)) continue;
       // Skip functions where the bytecode has been flushed.
-      Tagged<SharedFunctionInfo> shared = SharedFunctionInfo::cast(obj);
+      Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(obj);
       if (!CanCompileWithConcurrentBaseline(shared, isolate)) continue;
       // Skip functions that are already being compiled.
       if (shared->is_sparkplug_compiling()) continue;
@@ -155,6 +158,8 @@ class ConcurrentBaselineCompiler {
           outgoing_queue_(outcoming_queue) {}
 
     void Run(JobDelegate* delegate) override {
+      base::FlushDenormalsScope flush_denormals_scope(
+          isolate_->flush_denormals());
       LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
       UnparkedScope unparked_scope(&local_isolate);
       LocalHandleScope handle_scope(&local_isolate);
@@ -247,12 +252,11 @@ BaselineBatchCompiler::~BaselineBatchCompiler() {
 }
 
 bool BaselineBatchCompiler::concurrent() const {
-  return v8_flags.concurrent_sparkplug &&
-         !isolate_->UseEfficiencyModeForTiering();
+  return v8_flags.concurrent_sparkplug && !isolate_->EfficiencyModeEnabled();
 }
 
-void BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
+void BaselineBatchCompiler::EnqueueFunction(DirectHandle<JSFunction> function) {
+  DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate_);
   // Immediately compile the function if batch compilation is disabled.
   if (!is_enabled()) {
     IsCompiledScope is_compiled_scope(
@@ -277,11 +281,11 @@ void BaselineBatchCompiler::EnqueueSFI(Tagged<SharedFunctionInfo> shared) {
   if (ShouldCompileBatch(shared)) {
     CompileBatchConcurrent(shared);
   } else {
-    Enqueue(Handle<SharedFunctionInfo>(shared, isolate_));
+    Enqueue(DirectHandle<SharedFunctionInfo>(shared, isolate_));
   }
 }
 
-void BaselineBatchCompiler::Enqueue(Handle<SharedFunctionInfo> shared) {
+void BaselineBatchCompiler::Enqueue(DirectHandle<SharedFunctionInfo> shared) {
   EnsureQueueCapacity();
   compilation_queue_->set(last_index_++, MakeWeak(*shared));
 }
@@ -299,7 +303,7 @@ void BaselineBatchCompiler::EnsureQueueCapacity() {
     return;
   }
   if (last_index_ >= compilation_queue_->length()) {
-    Handle<WeakFixedArray> new_queue =
+    DirectHandle<WeakFixedArray> new_queue =
         isolate_->factory()->CopyWeakFixedArrayAndGrow(compilation_queue_,
                                                        last_index_);
     GlobalHandles::Destroy(compilation_queue_.location());
@@ -307,7 +311,7 @@ void BaselineBatchCompiler::EnsureQueueCapacity() {
   }
 }
 
-void BaselineBatchCompiler::CompileBatch(Handle<JSFunction> function) {
+void BaselineBatchCompiler::CompileBatch(DirectHandle<JSFunction> function) {
   {
     IsCompiledScope is_compiled_scope(
         function->shared()->is_compiled_scope(isolate_));
@@ -317,14 +321,14 @@ void BaselineBatchCompiler::CompileBatch(Handle<JSFunction> function) {
   for (int i = 0; i < last_index_; i++) {
     Tagged<MaybeObject> maybe_sfi = compilation_queue_->get(i);
     MaybeCompileFunction(maybe_sfi);
-    compilation_queue_->set(i, ClearedValue(isolate_));
+    compilation_queue_->set(i, kClearedWeakValue);
   }
   ClearBatch();
 }
 
 void BaselineBatchCompiler::CompileBatchConcurrent(
     Tagged<SharedFunctionInfo> shared) {
-  Enqueue(Handle<SharedFunctionInfo>(shared, isolate_));
+  Enqueue(DirectHandle<SharedFunctionInfo>(shared, isolate_));
   concurrent_compiler_->CompileBatch(compilation_queue_, last_index_);
   ClearBatch();
 }
@@ -374,7 +378,7 @@ bool BaselineBatchCompiler::MaybeCompileFunction(
   // Skip functions where the weak reference is no longer valid.
   if (!maybe_sfi.GetHeapObjectIfWeak(&heapobj)) return false;
   Handle<SharedFunctionInfo> shared =
-      handle(SharedFunctionInfo::cast(heapobj), isolate_);
+      handle(Cast<SharedFunctionInfo>(heapobj), isolate_);
   // Skip functions where the bytecode has been flushed.
   if (!shared->is_compiled()) return false;
 

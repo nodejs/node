@@ -9,7 +9,6 @@
 
 #include <atomic>
 
-#include "include/cppgc/allocation.h"
 #include "include/cppgc/internal/gc-info.h"
 #include "include/cppgc/internal/member-storage.h"
 #include "include/cppgc/internal/name-trait.h"
@@ -87,7 +86,7 @@ class HeapObjectHeader {
 
   template <AccessMode = AccessMode::kNonAtomic>
   bool IsInConstruction() const;
-  inline void MarkAsFullyConstructed();
+  V8_EXPORT_PRIVATE void MarkAsFullyConstructed();
   // Use MarkObjectAsFullyConstructed() to mark an object as being constructed.
 
   template <AccessMode = AccessMode::kNonAtomic>
@@ -112,10 +111,16 @@ class HeapObjectHeader {
   inline HeapObjectHeader* GetNextUnfinalized(uintptr_t cage_base) const;
 #endif  // defined(CPPGC_CAGED_HEAP)
 
+  // Default version will retrieve `HeapObjectNameForUnnamedObject` as it is
+  // configured at runtime.
   V8_EXPORT_PRIVATE HeapObjectName GetName() const;
+  // Override for verifying and testing where we always want to pass the naming
+  // option explicitly.
+  V8_EXPORT_PRIVATE HeapObjectName
+      GetName(HeapObjectNameForUnnamedObject) const;
 
   template <AccessMode = AccessMode::kNonAtomic>
-  void Trace(Visitor*) const;
+  void TraceImpl(Visitor*) const;
 
  private:
   enum class EncodedHalf : uint8_t { kLow, kHigh };
@@ -261,11 +266,6 @@ bool HeapObjectHeader::IsInConstruction() const {
   return !FullyConstructedField::decode(encoded);
 }
 
-void HeapObjectHeader::MarkAsFullyConstructed() {
-  MakeGarbageCollectedTraitInternal::MarkObjectAsFullyConstructed(
-      ObjectStart());
-}
-
 template <AccessMode mode>
 bool HeapObjectHeader::IsMarked() const {
   const uint16_t encoded =
@@ -321,23 +321,26 @@ void HeapObjectHeader::SetNextUnfinalized(HeapObjectHeader* next) {
 }
 
 HeapObjectHeader* HeapObjectHeader::GetNextUnfinalized(
-    uintptr_t cage_base) const {
-  DCHECK(cage_base);
-  DCHECK_EQ(0u,
-            CagedHeap::OffsetFromAddress(reinterpret_cast<void*>(cage_base)));
+    uintptr_t cage_base_or_mask) const {
+  DCHECK(cage_base_or_mask);
 #if defined(CPPGC_POINTER_COMPRESSION)
+  DCHECK_EQ(
+      api_constants::kCagedHeapReservationAlignment - 1,
+      CagedHeap::OffsetFromAddress(reinterpret_cast<void*>(cage_base_or_mask)));
   return reinterpret_cast<HeapObjectHeader*>(
-      CompressedPointer::Decompress(next_unfinalized_));
+      CompressedPointer::Decompress(next_unfinalized_, cage_base_or_mask));
 #else   // !defined(CPPGC_POINTER_COMPRESSION)
+  DCHECK_EQ(0, CagedHeap::OffsetFromAddress(
+                   reinterpret_cast<void*>(cage_base_or_mask)));
   return next_unfinalized_ ? reinterpret_cast<HeapObjectHeader*>(
-                                 cage_base + next_unfinalized_)
+                                 cage_base_or_mask + next_unfinalized_)
                            : nullptr;
 #endif  // !defined(CPPGC_POINTER_COMPRESSION)
 }
 #endif  // defined(CPPGC_CAGED_HEAP)
 
 template <AccessMode mode>
-void HeapObjectHeader::Trace(Visitor* visitor) const {
+void HeapObjectHeader::TraceImpl(Visitor* visitor) const {
   const GCInfo& gc_info =
       GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex<mode>());
   return gc_info.trace(visitor, ObjectStart());

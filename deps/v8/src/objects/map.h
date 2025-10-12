@@ -5,9 +5,14 @@
 #ifndef V8_OBJECTS_MAP_H_
 #define V8_OBJECTS_MAP_H_
 
+#include <optional>
+
+#include "include/v8-memory-span.h"
 #include "src/base/bit-field.h"
+#include "src/base/small-vector.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-checker.h"
 #include "src/objects/internal-index.h"
@@ -20,8 +25,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class WasmTypeInfo;
 
@@ -30,79 +34,87 @@ enum InstanceType : uint16_t;
 #define DATA_ONLY_VISITOR_ID_LIST(V) \
   V(BigInt)                          \
   V(CoverageInfo)                    \
-  V(DataObject)                      \
   V(FeedbackMetadata)                \
+  V(Filler)                          \
+  V(HeapNumber)                      \
+  V(Hole)                            \
   V(SeqOneByteString)                \
   V(SeqTwoByteString)                \
   IF_WASM(V, WasmNull)
 
-#define POINTER_VISITOR_ID_LIST(V)     \
-  V(AccessorInfo)                      \
-  V(AllocationSite)                    \
-  V(BytecodeWrapper)                   \
-  V(CallSiteInfo)                      \
-  V(Cell)                              \
-  V(CodeWrapper)                       \
-  V(ConsString)                        \
-  V(ConstTrackingLetCell)              \
-  V(DataHandler)                       \
-  V(DebugInfo)                         \
-  V(EmbedderDataArray)                 \
-  V(EphemeronHashTable)                \
-  V(ExternalPointerArray)              \
-  V(ExternalString)                    \
-  V(FeedbackCell)                      \
-  V(FreeSpace)                         \
-  V(FunctionTemplateInfo)              \
-  V(Hole)                              \
-  V(JSApiObject)                       \
-  V(JSArrayBuffer)                     \
-  V(JSDataViewOrRabGsabDataView)       \
-  V(JSExternalObject)                  \
-  V(JSFinalizationRegistry)            \
-  V(JSFunction)                        \
-  V(JSObject)                          \
-  V(JSObjectFast)                      \
-  V(JSSynchronizationPrimitive)        \
-  V(JSTypedArray)                      \
-  V(JSWeakCollection)                  \
-  V(JSWeakRef)                         \
-  V(Map)                               \
-  V(NativeContext)                     \
-  V(Oddball)                           \
-  V(PreparseData)                      \
-  V(PromiseOnStack)                    \
-  V(PropertyArray)                     \
-  V(PropertyCell)                      \
-  V(PrototypeInfo)                     \
-  V(SharedFunctionInfo)                \
-  V(ShortcutCandidate)                 \
-  V(SlicedString)                      \
-  V(SloppyArgumentsElements)           \
-  V(SmallOrderedHashMap)               \
-  V(SmallOrderedHashSet)               \
-  V(SmallOrderedNameDictionary)        \
-  V(SourceTextModule)                  \
-  V(Struct)                            \
-  V(SwissNameDictionary)               \
-  V(Symbol)                            \
-  V(SyntheticModule)                   \
-  V(ThinString)                        \
-  V(TransitionArray)                   \
-  IF_WASM(V, WasmArray)                \
-  IF_WASM(V, WasmCapiFunctionData)     \
-  IF_WASM(V, WasmContinuationObject)   \
-  IF_WASM(V, WasmExportedFunctionData) \
-  IF_WASM(V, WasmFunctionData)         \
-  IF_WASM(V, WasmFuncRef)              \
-  IF_WASM(V, WasmInstanceObject)       \
-  IF_WASM(V, WasmInternalFunction)     \
-  IF_WASM(V, WasmJSFunctionData)       \
-  IF_WASM(V, WasmResumeData)           \
-  IF_WASM(V, WasmStruct)               \
-  IF_WASM(V, WasmSuspenderObject)      \
-  IF_WASM(V, WasmTypeInfo)             \
-  V(WeakCell)                          \
+#define POINTER_VISITOR_ID_LIST(V)    \
+  V(AccessorInfo)                     \
+  V(AllocationSite)                   \
+  V(BytecodeWrapper)                  \
+  V(CallSiteInfo)                     \
+  V(Cell)                             \
+  V(CodeWrapper)                      \
+  V(ConsString)                       \
+  V(ContextCell)                      \
+  V(CppHeapExternalObject)            \
+  V(DataHandler)                      \
+  V(DebugInfo)                        \
+  V(DoubleStringCache)                \
+  V(EmbedderDataArray)                \
+  V(EphemeronHashTable)               \
+  V(ExternalString)                   \
+  V(FeedbackCell)                     \
+  V(Foreign)                          \
+  V(FreeSpace)                        \
+  V(FunctionTemplateInfo)             \
+  V(InterceptorInfo)                  \
+  V(JSApiObject)                      \
+  V(JSArrayBuffer)                    \
+  V(JSDataViewOrRabGsabDataView)      \
+  V(JSDate)                           \
+  V(JSExternalObject)                 \
+  V(JSFinalizationRegistry)           \
+  V(JSFunction)                       \
+  V(JSObject)                         \
+  V(JSObjectFast)                     \
+  V(JSRegExp)                         \
+  V(JSSynchronizationPrimitive)       \
+  V(JSTypedArray)                     \
+  V(JSWeakCollection)                 \
+  V(JSWeakRef)                        \
+  V(Map)                              \
+  V(NativeContext)                    \
+  V(Oddball)                          \
+  V(PreparseData)                     \
+  V(PropertyArray)                    \
+  V(PropertyCell)                     \
+  V(PrototypeInfo)                    \
+  V(RegExpBoilerplateDescription)     \
+  V(RegExpDataWrapper)                \
+  V(SharedFunctionInfo)               \
+  V(ShortcutCandidate)                \
+  V(SlicedString)                     \
+  V(SloppyArgumentsElements)          \
+  V(SmallOrderedHashMap)              \
+  V(SmallOrderedHashSet)              \
+  V(SmallOrderedNameDictionary)       \
+  V(SourceTextModule)                 \
+  V(Struct)                           \
+  V(SwissNameDictionary)              \
+  V(Symbol)                           \
+  V(SyntheticModule)                  \
+  V(ThinString)                       \
+  V(TransitionArray)                  \
+  IF_WASM(V, WasmArray)               \
+  IF_WASM(V, WasmFuncRef)             \
+  IF_WASM(V, WasmGlobalObject)        \
+  IF_WASM(V, WasmInstanceObject)      \
+  IF_WASM(V, WasmMemoryMapDescriptor) \
+  IF_WASM(V, WasmMemoryObject)        \
+  IF_WASM(V, WasmResumeData)          \
+  IF_WASM(V, WasmStruct)              \
+  IF_WASM(V, WasmDescriptorOptions)   \
+  IF_WASM(V, WasmSuspendingObject)    \
+  IF_WASM(V, WasmContinuationObject)  \
+  IF_WASM(V, WasmTableObject)         \
+  IF_WASM(V, WasmTagObject)           \
+  IF_WASM(V, WasmTypeInfo)            \
+  V(WeakCell)                         \
   SIMPLE_HEAP_OBJECT_LIST1(V)
 
 #define TORQUE_VISITOR_ID_LIST(V)     \
@@ -134,7 +146,9 @@ enum class ObjectFields {
   kMaybePointers,
 };
 
-using MapHandles = std::vector<Handle<Map>>;
+using MapHandles =
+    DirectHandleSmallVector<Map, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT>;
+using MapHandlesSpan = v8::MemorySpan<DirectHandle<Map>>;
 
 #include "torque-generated/src/objects/map-tq.inc"
 
@@ -207,8 +221,9 @@ using MapHandles = std::vector<Handle<Map>>;
 // +---------------+-------------------------------------------------+
 // | TaggedPointer | [constructor_or_back_pointer_or_native_context] |
 // +---------------+-------------------------------------------------+
-// | TaggedPointer | [instance_descriptors]                          |
-// +*****************************************************************+
+// | TaggedPointer | [instance_descriptors] (if JS object)           |
+// |               | [custom_descriptor]    (if WasmStruct)          |
+// +---------------+-------------------------------------------------+
 // | TaggedPointer | [dependent_code]                                |
 // +---------------+-------------------------------------------------+
 // | TaggedPointer | [prototype_validity_cell]                       |
@@ -245,7 +260,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static const int kNoConstructorFunctionIndex = 0;
   inline int GetConstructorFunctionIndex() const;
   inline void SetConstructorFunctionIndex(int value);
-  static base::Optional<Tagged<JSFunction>> GetConstructorFunction(
+  static std::optional<Tagged<JSFunction>> GetConstructorFunction(
       Tagged<Map> map, Tagged<Context> native_context);
 
   // Retrieve interceptors.
@@ -253,7 +268,15 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_GETTER(GetIndexedInterceptor, Tagged<InterceptorInfo>)
 
   // Instance type.
-  DECL_PRIMITIVE_ACCESSORS(instance_type, InstanceType)
+  // Inline definition here to avoid a circular dependency in map-inl.h
+  // with instance-types-inl.h
+  inline InstanceType instance_type() const {
+    // TODO(solanes, v8:7790, v8:11353, v8:11945): Make this and the setter
+    // non-atomic when TSAN sees the map's store synchronization.
+    return static_cast<InstanceType>(
+        RELAXED_READ_UINT16_FIELD(*this, kInstanceTypeOffset));
+  }
+  inline void set_instance_type(InstanceType value);
 
   // Returns the size of the used in-object area including object header
   // (only used for JSObject in fast mode, for the other kinds of objects it
@@ -475,34 +498,50 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // [raw_transitions]: Provides access to the transitions storage field.
   // Don't call set_raw_transitions() directly to overwrite transitions, use
   // the TransitionArray::ReplaceTransitions() wrapper instead!
-  DECL_ACCESSORS(raw_transitions, Tagged<MaybeObject>)
-  DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(raw_transitions)
+  DECL_ACCESSORS(raw_transitions,
+                 Tagged<UnionOf<Smi, MaybeWeak<Map>, TransitionArray>>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(
+      raw_transitions, Tagged<UnionOf<Smi, MaybeWeak<Map>, TransitionArray>>)
   // [prototype_info]: Per-prototype metadata. Aliased with transitions
   // (which prototype maps don't have).
-  DECL_GETTER(prototype_info, Tagged<Object>)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_info, Tagged<Object>)
+  DECL_GETTER(prototype_info, Tagged<UnionOf<Smi, PrototypeInfo>>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_info,
+                                 Tagged<UnionOf<Smi, PrototypeInfo>>)
   // PrototypeInfo is created lazily using this helper (which installs it on
   // the given prototype's map).
-  static Handle<PrototypeInfo> GetOrCreatePrototypeInfo(
-      Handle<JSObject> prototype, Isolate* isolate);
-  static Handle<PrototypeInfo> GetOrCreatePrototypeInfo(
-      Handle<Map> prototype_map, Isolate* isolate);
+  static DirectHandle<PrototypeInfo> GetOrCreatePrototypeInfo(
+      DirectHandle<JSObject> prototype, Isolate* isolate);
+  static DirectHandle<PrototypeInfo> GetOrCreatePrototypeInfo(
+      DirectHandle<Map> prototype_map, Isolate* isolate);
   inline bool should_be_fast_prototype_map() const;
-  static void SetShouldBeFastPrototypeMap(Handle<Map> map, bool value,
+  static void SetShouldBeFastPrototypeMap(DirectHandle<Map> map, bool value,
                                           Isolate* isolate);
+
+  static inline bool TryGetValidityCellHolderMap(
+      Tagged<Map> map, Isolate* isolate,
+      Tagged<Map>* out_validity_cell_holder_map);
 
   // [prototype chain validity cell]: Associated with a prototype object,
   // stored in that object's map, indicates that prototype chains through this
   // object are currently valid. The cell will be invalidated and replaced when
   // the prototype chain changes. When there's nothing to guard (for example,
-  // when direct prototype is null or Proxy) this function returns Smi with
-  // |kPrototypeChainValid| sentinel value.
-  static Handle<Object> GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
-                                                              Isolate* isolate);
-  static const int kPrototypeChainValid = 0;
-  static const int kPrototypeChainInvalid = 1;
+  // when direct prototype is null or Proxy) this function returns Smi
+  // |kNoValidityCellSentinel| value.
+  // If |out_prototype_info| is provided then the function sets it to
+  // the PrototypeInfo object that corresponds to validity cell's owner.
+  static Handle<UnionOf<Smi, Cell>> GetOrCreatePrototypeChainValidityCell(
+      DirectHandle<Map> map, Isolate* isolate,
+      DirectHandle<PrototypeInfo>* out_prototype_info = nullptr);
 
-  static bool IsPrototypeChainInvalidated(Tagged<Map> map);
+  // Invalid state for prototype validity cell. Everything else is considered
+  // as valid state.
+  static constexpr Tagged<ClearedWeakValue> kPrototypeChainInvalid =
+      kClearedWeakValue;
+
+  // This sentinel is used in IC data handlers instead of actual validity cell
+  // when there's nothing to guard against (when direct prototype is null or
+  // Proxy).
+  static constexpr Tagged<Smi> kNoValidityCellSentinel = Smi::zero();
 
   // Return the map of the root of object's prototype chain.
   Tagged<Map> GetPrototypeChainRootMap(Isolate* isolate) const;
@@ -541,8 +580,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // given |representation|.
   static inline bool IsMostGeneralFieldType(Representation representation,
                                             Tagged<FieldType> field_type);
-  static inline bool FieldTypeIsCleared(Representation rep,
-                                        Tagged<FieldType> type);
 
   // Generalizes representation and field_type if objects with given
   // instance type can have fast elements that can be transitioned by
@@ -553,25 +590,28 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // fields with HeapObject representation and "Any" type back to "Class" type.
   static inline void GeneralizeIfCanHaveTransitionableFastElementsKind(
       Isolate* isolate, InstanceType instance_type,
-      Representation* representation, Handle<FieldType>* field_type);
+      Representation* representation, DirectHandle<FieldType>* field_type);
 
-  V8_EXPORT_PRIVATE static Handle<Map> PrepareForDataProperty(
-      Isolate* isolate, Handle<Map> old_map, InternalIndex descriptor_number,
-      PropertyConstness constness, Handle<Object> value);
+  V8_EXPORT_PRIVATE static DirectHandle<Map> PrepareForDataProperty(
+      Isolate* isolate, DirectHandle<Map> old_map,
+      InternalIndex descriptor_number, PropertyConstness constness,
+      DirectHandle<Object> value);
 
   V8_EXPORT_PRIVATE static Handle<Map> Normalize(
-      Isolate* isolate, Handle<Map> map, ElementsKind new_elements_kind,
-      PropertyNormalizationMode mode, bool use_cache, const char* reason);
-  V8_EXPORT_PRIVATE static Handle<Map> Normalize(Isolate* isolate,
-                                                 Handle<Map> map,
-                                                 ElementsKind new_elements_kind,
-                                                 PropertyNormalizationMode mode,
-                                                 const char* reason) {
+      Isolate* isolate, DirectHandle<Map> map, ElementsKind new_elements_kind,
+      DirectHandle<JSPrototype> new_prototype, PropertyNormalizationMode mode,
+      bool use_cache, const char* reason);
+  V8_EXPORT_PRIVATE static Handle<Map> Normalize(
+      Isolate* isolate, DirectHandle<Map> map, ElementsKind new_elements_kind,
+      DirectHandle<JSPrototype> new_prototype, PropertyNormalizationMode mode,
+      const char* reason) {
     const bool kUseCache = true;
-    return Normalize(isolate, map, new_elements_kind, mode, kUseCache, reason);
+    return Normalize(isolate, map, new_elements_kind, new_prototype, mode,
+                     kUseCache, reason);
   }
 
-  inline static Handle<Map> Normalize(Isolate* isolate, Handle<Map> fast_map,
+  inline static Handle<Map> Normalize(Isolate* isolate,
+                                      DirectHandle<Map> fast_map,
                                       PropertyNormalizationMode mode,
                                       const char* reason);
 
@@ -586,10 +626,14 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_BOOLEAN_ACCESSORS(is_access_check_needed)
 
   // [prototype]: implicit prototype object.
-  DECL_ACCESSORS(prototype, Tagged<HeapObject>)
+  DECL_ACCESSORS(prototype, Tagged<JSPrototype>)
   // TODO(jkummerow): make set_prototype private.
+
+  // {enable_prototype_setup_mode}: Switch the prototype to dictionary mode,
+  // which is faster for adding multiple properties to it.
   V8_EXPORT_PRIVATE static void SetPrototype(
-      Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype,
+      Isolate* isolate, DirectHandle<Map> map,
+      DirectHandle<JSPrototype> prototype,
       bool enable_prototype_setup_mode = true);
 
   // Sets prototype and constructor fields to null. Can be called during
@@ -649,7 +693,13 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_ACQUIRE_GETTER(instance_descriptors, Tagged<DescriptorArray>)
   V8_EXPORT_PRIVATE void SetInstanceDescriptors(
       Isolate* isolate, Tagged<DescriptorArray> descriptors,
-      int number_of_own_descriptors);
+      int number_of_own_descriptors,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // Only for WasmStructs: custom descriptor instead of instance_descriptors.
+  DECL_ACCESSORS(custom_descriptor, Tagged<WasmStruct>)
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   inline void UpdateDescriptors(Isolate* isolate,
                                 Tagged<DescriptorArray> descriptors,
@@ -672,11 +722,18 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // For non-prototype maps which are used as transitioning store handlers this
   // field contains the validity cell which guards modifications of this map's
   // prototype.
-  DECL_RELAXED_ACCESSORS(prototype_validity_cell, Tagged<Object>)
+  DECL_RELAXED_ACCESSORS(prototype_validity_cell, Tagged<UnionOf<Smi, Cell>>)
 
   // Returns true if prototype validity cell value represents "valid" prototype
   // chain state.
   inline bool IsPrototypeValidityCellValid() const;
+
+  // Returns true if this map belongs to the same native context as given map,
+  // i.e. this map's meta map is equal to other_map's meta map.
+  // Returns false if this map is contextless (in case of JSObject map this
+  // means that the object is remote).
+  inline bool BelongsToSameNativeContextAs(Tagged<Map> other_map) const;
+  inline bool BelongsToSameNativeContextAs(Tagged<Context> context) const;
 
   inline Tagged<Name> GetLastDescriptorName(Isolate* isolate) const;
   inline PropertyDetails GetLastDescriptorDetails(Isolate* isolate) const;
@@ -728,72 +785,76 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // Returns a non-deprecated version of the input. This method may deprecate
   // existing maps along the way if encodings conflict. Not for use while
   // gathering type feedback. Use TryUpdate in those cases instead.
-  V8_EXPORT_PRIVATE static Handle<Map> Update(Isolate* isolate,
-                                              Handle<Map> map);
+  V8_EXPORT_PRIVATE static DirectHandle<Map> Update(Isolate* isolate,
+                                                    DirectHandle<Map> map);
 
-  static inline Handle<Map> CopyInitialMap(Isolate* isolate, Handle<Map> map);
+  static inline Handle<Map> CopyInitialMap(Isolate* isolate,
+                                           DirectHandle<Map> map);
   V8_EXPORT_PRIVATE static Handle<Map> CopyInitialMap(
-      Isolate* isolate, Handle<Map> map, int instance_size,
+      Isolate* isolate, DirectHandle<Map> map, int instance_size,
       int in_object_properties, int unused_property_fields);
-  static Handle<Map> CopyInitialMapNormalized(
-      Isolate* isolate, Handle<Map> map,
+  static DirectHandle<Map> CopyInitialMapNormalized(
+      Isolate* isolate, DirectHandle<Map> map,
       PropertyNormalizationMode mode = CLEAR_INOBJECT_PROPERTIES);
-  static Handle<Map> CopyDropDescriptors(Isolate* isolate, Handle<Map> map);
+  static Handle<Map> CopyDropDescriptors(Isolate* isolate,
+                                         DirectHandle<Map> map);
   V8_EXPORT_PRIVATE static Handle<Map> CopyInsertDescriptor(
-      Isolate* isolate, Handle<Map> map, Descriptor* descriptor,
+      Isolate* isolate, DirectHandle<Map> map, Descriptor* descriptor,
       TransitionFlag flag);
 
-  static MaybeObjectHandle WrapFieldType(Handle<FieldType> type);
+  static MaybeObjectDirectHandle WrapFieldType(DirectHandle<FieldType> type);
   V8_EXPORT_PRIVATE static Tagged<FieldType> UnwrapFieldType(
       Tagged<MaybeObject> wrapped_type);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Map> CopyWithField(
-      Isolate* isolate, Handle<Map> map, Handle<Name> name,
-      Handle<FieldType> type, PropertyAttributes attributes,
+      Isolate* isolate, DirectHandle<Map> map, DirectHandle<Name> name,
+      DirectHandle<FieldType> type, PropertyAttributes attributes,
       PropertyConstness constness, Representation representation,
       TransitionFlag flag);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Map>
-  CopyWithConstant(Isolate* isolate, Handle<Map> map, Handle<Name> name,
-                   Handle<Object> constant, PropertyAttributes attributes,
-                   TransitionFlag flag);
+  CopyWithConstant(Isolate* isolate, DirectHandle<Map> map,
+                   DirectHandle<Name> name, DirectHandle<Object> constant,
+                   PropertyAttributes attributes, TransitionFlag flag);
 
   // Returns a new map with all transitions dropped from the given map and
   // the ElementsKind set.
-  static Handle<Map> TransitionElementsTo(Isolate* isolate, Handle<Map> map,
-                                          ElementsKind to_kind);
+  static DirectHandle<Map> TransitionElementsTo(Isolate* isolate,
+                                                DirectHandle<Map> map,
+                                                ElementsKind to_kind);
 
-  static base::Optional<Tagged<Map>> TryAsElementsKind(Isolate* isolate,
-                                                       Handle<Map> map,
-                                                       ElementsKind kind,
-                                                       ConcurrencyMode cmode);
+  static std::optional<Tagged<Map>> TryAsElementsKind(Isolate* isolate,
+                                                      DirectHandle<Map> map,
+                                                      ElementsKind kind,
+                                                      ConcurrencyMode cmode);
   V8_EXPORT_PRIVATE static Handle<Map> AsElementsKind(Isolate* isolate,
-                                                      Handle<Map> map,
+                                                      DirectHandle<Map> map,
                                                       ElementsKind kind);
 
-  static Handle<Map> CopyAsElementsKind(Isolate* isolate, Handle<Map> map,
+  static Handle<Map> CopyAsElementsKind(Isolate* isolate, DirectHandle<Map> map,
                                         ElementsKind kind, TransitionFlag flag);
 
-  static Handle<Map> AsLanguageMode(Isolate* isolate, Handle<Map> initial_map,
-                                    Handle<SharedFunctionInfo> shared_info);
+  static DirectHandle<Map> AsLanguageMode(
+      Isolate* isolate, DirectHandle<Map> initial_map,
+      DirectHandle<SharedFunctionInfo> shared_info);
 
   V8_EXPORT_PRIVATE static Handle<Map> CopyForPreventExtensions(
-      Isolate* isolate, Handle<Map> map, PropertyAttributes attrs_to_add,
-      Handle<Symbol> transition_marker, const char* reason,
+      Isolate* isolate, DirectHandle<Map> map, PropertyAttributes attrs_to_add,
+      DirectHandle<Symbol> transition_marker, const char* reason,
       bool old_map_is_dictionary_elements_kind = false);
 
   // Maximal number of fast properties. Used to restrict the number of map
   // transitions to avoid an explosion in the number of maps for objects used as
   // dictionaries.
   inline bool TooManyFastProperties(StoreOrigin store_origin) const;
-  V8_EXPORT_PRIVATE static Handle<Map> TransitionToDataProperty(
-      Isolate* isolate, Handle<Map> map, Handle<Name> name,
-      Handle<Object> value, PropertyAttributes attributes,
+  V8_EXPORT_PRIVATE static DirectHandle<Map> TransitionToDataProperty(
+      Isolate* isolate, DirectHandle<Map> map, DirectHandle<Name> name,
+      DirectHandle<Object> value, PropertyAttributes attributes,
       PropertyConstness constness, StoreOrigin store_origin);
-  V8_EXPORT_PRIVATE static Handle<Map> TransitionToAccessorProperty(
-      Isolate* isolate, Handle<Map> map, Handle<Name> name,
-      InternalIndex descriptor, Handle<Object> getter, Handle<Object> setter,
-      PropertyAttributes attributes);
+  V8_EXPORT_PRIVATE static DirectHandle<Map> TransitionToAccessorProperty(
+      Isolate* isolate, DirectHandle<Map> map, DirectHandle<Name> name,
+      InternalIndex descriptor, DirectHandle<Object> getter,
+      DirectHandle<Object> setter, PropertyAttributes attributes);
 
   inline void AppendDescriptor(Isolate* isolate, Descriptor* desc);
 
@@ -801,17 +862,19 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // tree (if the |map| owns descriptors then the new one will share
   // descriptors with |map|).
   static Handle<Map> CopyForElementsTransition(Isolate* isolate,
-                                               Handle<Map> map);
+                                               DirectHandle<Map> map);
 
   // Returns a copy of the map, prepared for inserting into the transition
   // tree as a prototype transition.
-  static Handle<Map> CopyForPrototypeTransition(Isolate* isolate,
-                                                Handle<Map> map);
+  static Handle<Map> CopyForPrototypeTransition(
+      Isolate* isolate, DirectHandle<Map> map,
+      DirectHandle<JSPrototype> prototype);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
-  static Handle<Map> Copy(Isolate* isolate, Handle<Map> map,
-                          const char* reason);
+  static Handle<Map> Copy(Isolate* isolate, DirectHandle<Map> map,
+                          const char* reason,
+                          TransitionKindFlag kind = SPECIAL_TRANSITION);
   V8_EXPORT_PRIVATE static Handle<Map> Create(Isolate* isolate,
                                               int inobject_properties);
 
@@ -824,31 +887,34 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static inline int SlackForArraySize(int old_size, int size_limit);
 
   V8_EXPORT_PRIVATE static void EnsureDescriptorSlack(Isolate* isolate,
-                                                      Handle<Map> map,
+                                                      DirectHandle<Map> map,
                                                       int slack);
 
   // Returns the map to be used for instances when the given {prototype} is
   // passed to an Object.create call. Might transition the given {prototype}.
-  static Handle<Map> GetObjectCreateMap(Isolate* isolate,
-                                        Handle<HeapObject> prototype);
+  static DirectHandle<Map> GetObjectCreateMap(
+      Isolate* isolate, DirectHandle<JSPrototype> prototype);
 
   // Returns the map to be used for instances when the given {prototype} is
   // passed to Reflect.construct or proxy constructors.
-  static Handle<Map> GetDerivedMap(Isolate* isolate, Handle<Map> from,
-                                   Handle<JSReceiver> prototype);
+  static Handle<Map> GetDerivedMap(Isolate* isolate, DirectHandle<Map> from,
+                                   DirectHandle<JSReceiver> prototype);
 
-  // Computes a hash value for this map, to be used in HashTables and such.
-  int Hash();
+  // Computes a hash value for this map, to be used e.g. in HashTables. The
+  // prototype value should be either the Map's prototype or another prototype
+  // in case the hash is supposed to be computed for a copy of this map with a
+  // changed prototype value.
+  int Hash(Isolate* isolate, Tagged<HeapObject> prototype);
 
   // Returns the transitioned map for this map with the most generic
   // elements_kind that's found in |candidates|, or |nullptr| if no match is
   // found at all.
   V8_EXPORT_PRIVATE Tagged<Map> FindElementsKindTransitionedMap(
-      Isolate* isolate, MapHandles const& candidates, ConcurrencyMode cmode);
+      Isolate* isolate, MapHandlesSpan candidates, ConcurrencyMode cmode);
 
   inline bool CanTransition() const;
 
-  static constexpr base::Optional<RootIndex> TryGetMapRootIdxFor(
+  static constexpr std::optional<RootIndex> TryGetMapRootIdxFor(
       InstanceType type) {
     switch (type) {
 #define MAKE_CASE(TYPE, Name, name) \
@@ -883,33 +949,36 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   }
 
   V8_EXPORT_PRIVATE static Handle<Map> TransitionRootMapToPrototypeForNewObject(
-      Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
+      Isolate* isolate, DirectHandle<Map> map,
+      DirectHandle<JSPrototype> prototype);
   V8_EXPORT_PRIVATE static Handle<Map> TransitionToUpdatePrototype(
-      Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
+      Isolate* isolate, DirectHandle<Map> map,
+      DirectHandle<JSPrototype> prototype);
 
-  static Handle<Map> TransitionToImmutableProto(Isolate* isolate,
-                                                Handle<Map> map);
+  static DirectHandle<Map> TransitionToImmutableProto(Isolate* isolate,
+                                                      DirectHandle<Map> map);
 
   static_assert(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
   class BodyDescriptor;
 
   // Compares this map to another to see if they describe equivalent objects,
-  // up to the given |elements_kind|.
-  // If |mode| is set to CLEAR_INOBJECT_PROPERTIES, |other| is treated as if
-  // it had exactly zero inobject properties.
-  // The "shared" flags of both this map and |other| are ignored.
+  // up to the given |elements_kind| and |prototype|. If |mode| is set to
+  // CLEAR_INOBJECT_PROPERTIES, |other| is treated as if it had exactly zero
+  // inobject properties. The "shared" flags of both this map and |other| are
+  // ignored.
   bool EquivalentToForNormalization(const Tagged<Map> other,
                                     ElementsKind elements_kind,
+                                    Tagged<HeapObject> prototype,
                                     PropertyNormalizationMode mode) const;
   inline bool EquivalentToForNormalization(
       const Tagged<Map> other, PropertyNormalizationMode mode) const;
 
   void PrintMapDetails(std::ostream& os);
 
-  static inline Handle<Map> AddMissingTransitionsForTesting(
-      Isolate* isolate, Handle<Map> split_map,
-      Handle<DescriptorArray> descriptors);
+  static inline DirectHandle<Map> AddMissingTransitionsForTesting(
+      Isolate* isolate, DirectHandle<Map> split_map,
+      DirectHandle<DescriptorArray> descriptors);
 
   // Fires when the layout of an object with a leaf map changes.
   // This includes adding transitions to the leaf map or changing
@@ -962,41 +1031,47 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   Tagged<Map> TryReplayPropertyTransitions(Isolate* isolate, Tagged<Map> map,
                                            ConcurrencyMode cmode);
 
-  static void ConnectTransition(Isolate* isolate, Handle<Map> parent,
-                                Handle<Map> child, Handle<Name> name,
-                                TransitionKindFlag transition_kind);
+  static void ConnectTransition(Isolate* isolate, DirectHandle<Map> parent,
+                                DirectHandle<Map> child,
+                                DirectHandle<Name> name,
+                                TransitionKindFlag transition_kind,
+                                bool force_connect = false);
 
-  bool EquivalentToForTransition(const Tagged<Map> other,
-                                 ConcurrencyMode cmode) const;
+  bool EquivalentToForTransition(
+      const Tagged<Map> other, ConcurrencyMode cmode,
+      DirectHandle<HeapObject> new_prototype = {}) const;
   bool EquivalentToForElementsKindTransition(const Tagged<Map> other,
                                              ConcurrencyMode cmode) const;
-  static Handle<Map> RawCopy(Isolate* isolate, Handle<Map> map,
+  static Handle<Map> RawCopy(Isolate* isolate, DirectHandle<Map> map,
                              int instance_size, int inobject_properties);
-  static Handle<Map> ShareDescriptor(Isolate* isolate, Handle<Map> map,
-                                     Handle<DescriptorArray> descriptors,
+  static Handle<Map> ShareDescriptor(Isolate* isolate, DirectHandle<Map> map,
+                                     DirectHandle<DescriptorArray> descriptors,
                                      Descriptor* descriptor);
   V8_EXPORT_PRIVATE static Handle<Map> AddMissingTransitions(
-      Isolate* isolate, Handle<Map> map, Handle<DescriptorArray> descriptors);
-  static void InstallDescriptors(Isolate* isolate, Handle<Map> parent_map,
-                                 Handle<Map> child_map,
+      Isolate* isolate, DirectHandle<Map> map,
+      DirectHandle<DescriptorArray> descriptors);
+  static void InstallDescriptors(Isolate* isolate, DirectHandle<Map> parent_map,
+                                 DirectHandle<Map> child_map,
                                  InternalIndex new_descriptor,
-                                 Handle<DescriptorArray> descriptors);
-  static Handle<Map> CopyAddDescriptor(Isolate* isolate, Handle<Map> map,
+                                 DirectHandle<DescriptorArray> descriptors,
+                                 // force_connect is used when copying a map
+                                 // tree to enforce transitions being added even
+                                 // for (still) seemingly detached maps.
+                                 bool force_connect = false);
+  static Handle<Map> CopyAddDescriptor(Isolate* isolate, DirectHandle<Map> map,
                                        Descriptor* descriptor,
                                        TransitionFlag flag);
-  static Handle<Map> CopyReplaceDescriptors(Isolate* isolate, Handle<Map> map,
-                                            Handle<DescriptorArray> descriptors,
-                                            TransitionFlag flag,
-                                            MaybeHandle<Name> maybe_name,
-                                            const char* reason,
-                                            TransitionKindFlag transition_kind);
+  static Handle<Map> CopyReplaceDescriptors(
+      Isolate* isolate, DirectHandle<Map> map,
+      DirectHandle<DescriptorArray> descriptors, TransitionFlag flag,
+      MaybeDirectHandle<Name> maybe_name, const char* reason,
+      TransitionKindFlag transition_kind);
 
-  static Handle<Map> CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
-                                           Handle<DescriptorArray> descriptors,
-                                           Descriptor* descriptor,
-                                           InternalIndex index,
-                                           TransitionFlag flag);
-  static Handle<Map> CopyNormalized(Isolate* isolate, Handle<Map> map,
+  static Handle<Map> CopyReplaceDescriptor(
+      Isolate* isolate, DirectHandle<Map> map,
+      DirectHandle<DescriptorArray> descriptors, Descriptor* descriptor,
+      InternalIndex index, TransitionFlag flag);
+  static Handle<Map> CopyNormalized(Isolate* isolate, DirectHandle<Map> map,
                                     PropertyNormalizationMode mode);
 
   void DeprecateTransitionTree(Isolate* isolate);
@@ -1029,15 +1104,16 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 // needs very limited number of distinct normalized maps.
 class NormalizedMapCache : public WeakFixedArray {
  public:
-  NEVER_READ_ONLY_SPACE
-  static Handle<NormalizedMapCache> New(Isolate* isolate);
+  static DirectHandle<NormalizedMapCache> New(Isolate* isolate);
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(Handle<Map> fast_map,
+  V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(Isolate* isolate,
+                                             DirectHandle<Map> fast_map,
                                              ElementsKind elements_kind,
+                                             Tagged<HeapObject> prototype,
                                              PropertyNormalizationMode mode);
-  void Set(Handle<Map> fast_map, Handle<Map> normalized_map);
+  void Set(Isolate* isolate, DirectHandle<Map> fast_map,
+           DirectHandle<Map> normalized_map);
 
-  DECL_CAST(NormalizedMapCache)
   DECL_VERIFIER(NormalizedMapCache)
 
  private:
@@ -1046,26 +1122,26 @@ class NormalizedMapCache : public WeakFixedArray {
 
   static const int kEntries = 64;
 
-  static inline int GetIndex(Handle<Map> map);
+  static inline int GetIndex(Isolate* isolate, Tagged<Map> map,
+                             Tagged<HeapObject> prototype);
 
   // The following declarations hide base class methods.
   Tagged<Object> get(int index);
   void set(int index, Tagged<Object> value);
-
-  OBJECT_CONSTRUCTORS(NormalizedMapCache, WeakFixedArray);
 };
 
 #define DECL_TESTER(Type, ...) inline bool Is##Type##Map(Tagged<Map> map);
 INSTANCE_TYPE_CHECKERS(DECL_TESTER)
 #undef DECL_TESTER
+inline bool IsNullMap(Tagged<Map> map);
+inline bool IsUndefinedMap(Tagged<Map> map);
 inline bool IsBooleanMap(Tagged<Map> map);
 inline bool IsNullOrUndefinedMap(Tagged<Map> map);
 inline bool IsPrimitiveMap(Tagged<Map> map);
 inline bool IsSpecialReceiverMap(Tagged<Map> map);
 inline bool IsCustomElementsReceiverMap(Tagged<Map> map);
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

@@ -47,7 +47,6 @@ absl_source_set("strings") {
     "escaping.h",
     "has_absl_stringify.h",
     "internal/damerau_levenshtein_distance.h",
-    "internal/has_absl_stringify.h",
     "internal/string_constant.h",
     "match.h",
     "numbers.h",
@@ -74,6 +73,7 @@ absl_source_set("strings") {
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:endian",
+    "//third_party/abseil-cpp/absl/base:iterator_traits_internal",
     "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
     "//third_party/abseil-cpp/absl/base:throw_delegate",
@@ -138,6 +138,7 @@ absl_source_set("str_format_internal") {
   ]
   visibility = [ ":*" ]
   deps = [
+    ":internal",
     ":string_view",
     ":strings",
     "//third_party/abseil-cpp/absl/base:config",
@@ -173,6 +174,7 @@ absl_test("str_format_extension_test") {
     ":str_format",
     ":str_format_internal",
     ":strings",
+    "//third_party/abseil-cpp/absl/random",
   ]
 }
 
@@ -238,7 +240,7 @@ absl_source_set("charset") {
   public = [ "charset.h" ]
   deps = [
     ":string_view",
-    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:config",
   ]
 }
 
@@ -273,19 +275,16 @@ absl_source_set("cord_internal") {
   deps = [
     ":string_view",
     ":strings",
-    "//third_party/abseil-cpp/absl/base:base_internal",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:endian",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
-    "//third_party/abseil-cpp/absl/base:throw_delegate",
     "//third_party/abseil-cpp/absl/container:compressed_tuple",
     "//third_party/abseil-cpp/absl/container:container_memory",
     "//third_party/abseil-cpp/absl/container:inlined_vector",
-    "//third_party/abseil-cpp/absl/container:layout",
     "//third_party/abseil-cpp/absl/crc:crc_cord_state",
     "//third_party/abseil-cpp/absl/functional:function_ref",
-    "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/types:span",
   ]
 }
@@ -356,7 +355,6 @@ absl_source_set("cord") {
     "cord.cc",
     "cord_analysis.cc",
     "cord_analysis.h",
-    "cord_buffer.cc",
   ]
   public = [
     "cord.h",
@@ -364,15 +362,12 @@ absl_source_set("cord") {
   ]
   deps = [
     ":cord_internal",
-    ":cordz_functions",
     ":cordz_info",
-    ":cordz_statistics",
     ":cordz_update_scope",
     ":cordz_update_tracker",
     ":internal",
     ":string_view",
     ":strings",
-    "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:endian",
@@ -382,8 +377,10 @@ absl_source_set("cord") {
     "//third_party/abseil-cpp/absl/crc:crc32c",
     "//third_party/abseil-cpp/absl/crc:crc_cord_state",
     "//third_party/abseil-cpp/absl/functional:function_ref",
+    "//third_party/abseil-cpp/absl/hash:weakly_mixed_integer",
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/numeric:bits",
+    "//third_party/abseil-cpp/absl/types:compare",
     "//third_party/abseil-cpp/absl/types:optional",
     "//third_party/abseil-cpp/absl/types:span",
   ]
@@ -488,20 +485,19 @@ absl_test("cordz_functions_test") {
   ]
 }
 
-# TODO(b/186638384): Re-enable when random is compilable on win32-archive-rel bot
-# absl_test("cordz_handle_test") {
-#   sources = [ "internal/cordz_handle_test.cc" ]
-#   deps = [
-#     ":cordz_handle",
-#     "//third_party/abseil-cpp/absl/base:config",
-#     "//third_party/abseil-cpp/absl/memory",
-#     "//third_party/abseil-cpp/absl/random",
-#     "//third_party/abseil-cpp/absl/random:distributions",
-#     "//third_party/abseil-cpp/absl/synchronization",
-#     "//third_party/abseil-cpp/absl/synchronization:thread_pool",
-#     "//third_party/abseil-cpp/absl/time",
-#   ]
-# }
+absl_test("cordz_handle_test") {
+  sources = [ "internal/cordz_handle_test.cc" ]
+  deps = [
+    ":cordz_handle",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/memory",
+    "//third_party/abseil-cpp/absl/random",
+    "//third_party/abseil-cpp/absl/random:distributions",
+    "//third_party/abseil-cpp/absl/synchronization",
+    "//third_party/abseil-cpp/absl/synchronization:thread_pool",
+    "//third_party/abseil-cpp/absl/time",
+  ]
+}
 
 absl_test("cordz_info_test") {
   sources = [ "internal/cordz_info_test.cc" ]
@@ -537,23 +533,22 @@ absl_test("cordz_info_statistics_test") {
   ]
 }
 
-# TODO(b/186638384): Re-enable when random is compilable on win32-archive-rel bot
-# absl_test("cordz_sample_token_test") {
-#   sources = [ "internal/cordz_sample_token_test.cc" ]
-#   deps = [
-#     ":cord_internal",
-#     ":cordz_handle",
-#     ":cordz_info",
-#     ":cordz_sample_token",
-#     ":cordz_test_helpers",
-#     "//third_party/abseil-cpp/absl/base:config",
-#     "//third_party/abseil-cpp/absl/memory",
-#     "//third_party/abseil-cpp/absl/random",
-#     "//third_party/abseil-cpp/absl/synchronization",
-#     "//third_party/abseil-cpp/absl/synchronization:thread_pool",
-#     "//third_party/abseil-cpp/absl/time",
-#   ]
-# }
+absl_test("cordz_sample_token_test") {
+  sources = [ "internal/cordz_sample_token_test.cc" ]
+  deps = [
+    ":cord_internal",
+    ":cordz_handle",
+    ":cordz_info",
+    ":cordz_sample_token",
+    ":cordz_test_helpers",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/memory",
+    "//third_party/abseil-cpp/absl/random",
+    "//third_party/abseil-cpp/absl/synchronization",
+    "//third_party/abseil-cpp/absl/synchronization:thread_pool",
+    "//third_party/abseil-cpp/absl/time",
+  ]
+}
 
 absl_source_set("cord_test_helpers") {
   testonly = true
@@ -595,32 +590,33 @@ absl_source_set("cordz_test_helpers") {
   ]
 }
 
-# TODO(b/186638384): Re-enable when random is compilable on win32-archive-rel bot
-# absl_test("cord_test") {
-#   public = [ "cord_test.cc" ]
-#   deps = [
-#     ":cord",
-#     ":cord_internal",
-#     ":cord_test_helpers",
-#     ":cordz_functions",
-#     ":cordz_statistics",
-#     ":cordz_test_helpers",
-#     ":cordz_update_tracker",
-#     ":str_format",
-#     ":strings",
-#     "//third_party/abseil-cpp/absl/base:config",
-#     "//third_party/abseil-cpp/absl/base:core_headers",
-#     "//third_party/abseil-cpp/absl/base:endian",
-#     "//third_party/abseil-cpp/absl/container:fixed_array",
-#     "//third_party/abseil-cpp/absl/functional:function_ref",
-#     "//third_party/abseil-cpp/absl/hash",
-#     "//third_party/abseil-cpp/absl/hash:hash_testing",
-#     "//third_party/abseil-cpp/absl/log",
-#     "//third_party/abseil-cpp/absl/log:check",
-#     "//third_party/abseil-cpp/absl/random",
-#     "//third_party/abseil-cpp/absl/types:optional",
-#   ]
-# }
+absl_test("cord_test") {
+  public = [ "cord_test.cc" ]
+  deps = [
+    ":cord",
+    ":cord_internal",
+    ":cord_test_helpers",
+    ":cordz_functions",
+    ":cordz_statistics",
+    ":cordz_test_helpers",
+    ":cordz_update_tracker",
+    ":str_format",
+    ":strings",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:endian",
+    "//third_party/abseil-cpp/absl/base:no_destructor",
+    "//third_party/abseil-cpp/absl/container:fixed_array",
+    "//third_party/abseil-cpp/absl/functional:function_ref",
+    "//third_party/abseil-cpp/absl/hash",
+    "//third_party/abseil-cpp/absl/hash:hash_testing",
+    "//third_party/abseil-cpp/absl/log",
+    "//third_party/abseil-cpp/absl/log:check",
+    "//third_party/abseil-cpp/absl/random",
+    "//third_party/abseil-cpp/absl/types:compare",
+    "//third_party/abseil-cpp/absl/types:optional",
+  ]
+}
 
 absl_test("cord_buffer_test") {
   public = [ "cord_buffer_test.cc" ]
@@ -713,6 +709,7 @@ absl_test("string_view_test") {
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:dynamic_annotations",
+    "//third_party/abseil-cpp/absl/meta:type_traits",
   ]
 }
 
@@ -733,5 +730,14 @@ absl_test("char_formatting_test") {
   deps = [
     ":str_format",
     ":strings",
+  ]
+}
+
+absl_test("str_cat_test") {
+  sources = [ "str_cat_test.cc" ]
+  deps = [
+    ":str_format",
+    ":strings",
+    "//third_party/abseil-cpp/absl/base:config",
   ]
 }

@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_PROPERTY_CELL_INL_H_
 #define V8_OBJECTS_PROPERTY_CELL_INL_H_
 
+#include "src/objects/property-cell.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/dependent-code-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/property-cell.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -31,11 +33,11 @@ ACCESSORS(PropertyCell, value, Tagged<Object>, kValueOffset)
 RELEASE_ACQUIRE_ACCESSORS(PropertyCell, value, Tagged<Object>, kValueOffset)
 
 PropertyDetails PropertyCell::property_details() const {
-  return PropertyDetails(Smi::cast(property_details_raw()));
+  return PropertyDetails(Cast<Smi>(property_details_raw()));
 }
 
 PropertyDetails PropertyCell::property_details(AcquireLoadTag tag) const {
-  return PropertyDetails(Smi::cast(property_details_raw(tag)));
+  return PropertyDetails(Cast<Smi>(property_details_raw(tag)));
 }
 
 void PropertyCell::UpdatePropertyDetailsExceptCellType(
@@ -50,14 +52,14 @@ void PropertyCell::UpdatePropertyDetailsExceptCellType(
   // read-only forever.
   if (!old_details.IsReadOnly() && details.IsReadOnly()) {
     // TODO(11527): pass Isolate as an argument.
-    Isolate* isolate = GetIsolateFromWritableObject(*this);
+    Isolate* isolate = Isolate::Current();
     DependentCode::DeoptimizeDependencyGroups(
         isolate, *this, DependentCode::kPropertyCellChangedGroup);
   }
 }
 
 void PropertyCell::Transition(PropertyDetails new_details,
-                              Handle<Object> new_value) {
+                              DirectHandle<Object> new_value) {
   DCHECK(CanTransitionTo(new_details, *new_value));
   // This code must be in sync with its counterpart in
   // PropertyCellData::Serialize.
@@ -66,17 +68,6 @@ void PropertyCell::Transition(PropertyDetails new_details,
   set_property_details_raw(transition_marker.AsSmi(), kReleaseStore);
   set_value(*new_value, kReleaseStore);
   set_property_details_raw(new_details.AsSmi(), kReleaseStore);
-}
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(ConstTrackingLetCell)
-
-ACCESSORS(ConstTrackingLetCell, dependent_code, Tagged<DependentCode>,
-          kDependentCodeOffset)
-
-bool ConstTrackingLetCell::IsNotConst(Tagged<Object> object) {
-  DCHECK(IsConstTrackingLetCell(object) ||
-         (object == kNonConstMarker || object == kConstMarker));
-  return object == kNonConstMarker;
 }
 
 }  // namespace internal

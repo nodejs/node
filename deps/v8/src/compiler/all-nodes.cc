@@ -4,20 +4,20 @@
 
 #include "src/compiler/all-nodes.h"
 
-#include "src/compiler/graph.h"
+#include "src/compiler/turbofan-graph.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-AllNodes::AllNodes(Zone* local_zone, const Graph* graph, bool only_inputs)
+AllNodes::AllNodes(Zone* local_zone, const TFGraph* graph, bool only_inputs)
     : reachable(local_zone),
       is_reachable_(static_cast<int>(graph->NodeCount()), local_zone),
       only_inputs_(only_inputs) {
   Mark(local_zone, graph->end(), graph);
 }
 
-AllNodes::AllNodes(Zone* local_zone, Node* end, const Graph* graph,
+AllNodes::AllNodes(Zone* local_zone, Node* end, const TFGraph* graph,
                    bool only_inputs)
     : reachable(local_zone),
       is_reachable_(static_cast<int>(graph->NodeCount()), local_zone),
@@ -25,7 +25,7 @@ AllNodes::AllNodes(Zone* local_zone, Node* end, const Graph* graph,
   Mark(local_zone, end, graph);
 }
 
-void AllNodes::Mark(Zone* local_zone, Node* end, const Graph* graph) {
+void AllNodes::Mark(Zone* local_zone, Node* end, const TFGraph* graph) {
   DCHECK_LT(end->id(), graph->NodeCount());
   is_reachable_.Add(end->id());
   reachable.push_back(end);

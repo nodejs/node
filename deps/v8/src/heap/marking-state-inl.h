@@ -5,17 +5,29 @@
 #ifndef V8_HEAP_MARKING_STATE_INL_H_
 #define V8_HEAP_MARKING_STATE_INL_H_
 
-#include "src/heap/marking-inl.h"
 #include "src/heap/marking-state.h"
-#include "src/heap/mutable-page.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/marking-inl.h"
+#include "src/heap/mutable-page-metadata.h"
 
 namespace v8 {
 namespace internal {
 
 template <typename ConcreteState, AccessMode access_mode>
+MarkingStateBase<ConcreteState, access_mode>::MarkingStateBase(
+    const Isolate* isolate)
+    :
+#if V8_COMPRESS_POINTERS
+      cage_base_(isolate),
+#endif
+      isolate_(isolate) {
+}
+
+template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::IsMarked(
     const Tagged<HeapObject> obj) const {
-  return MarkBit::From(obj).template Get<access_mode>();
+  return MarkBit::From(isolate_, obj).template Get<access_mode>();
 }
 
 template <typename ConcreteState, AccessMode access_mode>
@@ -27,7 +39,7 @@ bool MarkingStateBase<ConcreteState, access_mode>::IsUnmarked(
 template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::TryMark(
     Tagged<HeapObject> obj) {
-  return MarkBit::From(obj).template Set<access_mode>();
+  return MarkBit::From(isolate_, obj).template Set<access_mode>();
 }
 
 template <typename ConcreteState, AccessMode access_mode>

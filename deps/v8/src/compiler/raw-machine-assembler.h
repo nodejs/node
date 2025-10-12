@@ -6,18 +6,19 @@
 #define V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 
 #include <initializer_list>
+#include <optional>
 #include <type_traits>
 
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/compiler/write-barrier-kind.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -46,7 +47,7 @@ class SourcePositionTable;
 class V8_EXPORT_PRIVATE RawMachineAssembler {
  public:
   RawMachineAssembler(
-      Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
+      Isolate* isolate, TFGraph* graph, CallDescriptor* call_descriptor,
       MachineRepresentation word = MachineType::PointerRepresentation(),
       MachineOperatorBuilder::Flags flags =
           MachineOperatorBuilder::Flag::kNoFlags,
@@ -59,7 +60,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   RawMachineAssembler& operator=(const RawMachineAssembler&) = delete;
 
   Isolate* isolate() const { return isolate_; }
-  Graph* graph() const { return graph_; }
+  TFGraph* graph() const { return graph_; }
   Zone* zone() const { return graph()->zone(); }
   MachineOperatorBuilder* machine() { return &machine_; }
   CommonOperatorBuilder* common() { return &common_; }
@@ -73,7 +74,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   // Finalizes the schedule and transforms it into a graph that's suitable for
   // it to be used for Turbofan optimization and re-scheduling. Note that this
   // RawMachineAssembler becomes invalid after export.
-  Graph* ExportForOptimization();
+  TFGraph* ExportForOptimization();
 
   // ===========================================================================
   // The following utility methods create new nodes with specific operators and
@@ -864,11 +865,22 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* ChangeInt32ToInt64(Node* a) {
     return AddNode(machine()->ChangeInt32ToInt64(), a);
   }
+  Node* ChangeInt32ToIntPtr(Node* a) {
+    if (kSystemPointerSize == 8) {
+      return ChangeInt32ToInt64(a);
+    } else {
+      return a;
+    }
+  }
   Node* ChangeUint32ToUint64(Node* a) {
     return AddNode(machine()->ChangeUint32ToUint64(), a);
   }
   Node* TruncateFloat64ToFloat32(Node* a) {
     return AddNode(machine()->TruncateFloat64ToFloat32(), a);
+  }
+  Node* TruncateFloat64ToFloat16RawBits(Node* a) {
+    return AddNode(machine()->TruncateFloat64ToFloat16RawBits().placeholder(),
+                   a);
   }
   Node* TruncateInt64ToInt32(Node* a) {
     return AddNode(machine()->TruncateInt64ToInt32(), a);
@@ -983,8 +995,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* I16x8Splat(Node* a) { return AddNode(machine()->I16x8Splat(), a); }
 
   Node* LoadStackPointer() { return AddNode(machine()->LoadStackPointer()); }
-  void SetStackPointer(Node* ptr, wasm::FPRelativeScope fp_scope) {
-    AddNode(machine()->SetStackPointer(fp_scope), ptr);
+  void SetStackPointer(Node* ptr) {
+    AddNode(machine()->SetStackPointer(), ptr);
   }
 #endif
 
@@ -1032,7 +1044,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Call to a C function.
   template <class... CArgs>
-  Node* CallCFunction(Node* function, base::Optional<MachineType> return_type,
+  Node* CallCFunction(Node* function, std::optional<MachineType> return_type,
                       CArgs... cargs) {
     static_assert(
         std::conjunction_v<std::is_convertible<CArgs, CFunctionArg>...>,
@@ -1040,7 +1052,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return CallCFunction(function, return_type, {cargs...});
   }
 
-  Node* CallCFunction(Node* function, base::Optional<MachineType> return_type,
+  Node* CallCFunction(Node* function, std::optional<MachineType> return_type,
                       std::initializer_list<CFunctionArg> args);
 
   // Call to a C function without a function discriptor on AIX.
@@ -1083,7 +1095,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   // Control flow.
   void Goto(RawMachineLabel* label);
   void Branch(Node* condition, RawMachineLabel* true_val,
-              RawMachineLabel* false_val);
+              RawMachineLabel* false_val,
+              BranchHint branch_hint = BranchHint::kNone);
   void Switch(Node* index, RawMachineLabel* default_label,
               const int32_t* case_values, RawMachineLabel** case_labels,
               size_t case_count);
@@ -1150,6 +1163,33 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   FileAndLine GetCurrentExternalSourcePosition() const;
   SourcePositionTable* source_positions() { return source_positions_; }
 
+  // The parameter count of the code, as specified by the call descriptor.
+  size_t parameter_count() const { return call_descriptor_->ParameterCount(); }
+
+  // Most of the time, the parameter count is static and known at
+  // code-generation time through the call descriptor. However, certain
+  // varargs JS  builtins can be used for different functions with different
+  // JS  parameter counts. In those (rare) cases, we need to obtain the actual
+  // parameter count of the function object through which the code is invoked
+  // to be able to determine the total argument count (including padding
+  // arguments), which is in turn required to pop all arguments from the stack
+  // in the function epilogue.
+  //
+  // If we're generating the code for one of these special builtins, this
+  // function will return a node containing the actual JS parameter count.
+  // Otherwise it will be nullptr.
+  //
+  // TODO(saelo): it would be a bit nicer if we could automatically determine
+  // that the dynamic parameter count is required (for example from the call
+  // descriptor) and then directly fetch it in the prologue and use it in the
+  // epilogue without the higher-level assemblers having to get involved. It's
+  // not clear if it's worth the effort though for the handful of builtins that
+  // work this way though.
+  Node* dynamic_js_parameter_count() { return dynamic_js_parameter_count_; }
+  void set_dynamic_js_parameter_count(Node* parameter_count) {
+    dynamic_js_parameter_count_ = parameter_count;
+  }
+
  private:
   Node* MakeNode(const Operator* op, int input_count, Node* const* inputs);
   BasicBlock* Use(RawMachineLabel* label);
@@ -1169,20 +1209,24 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void MarkControlDeferred(Node* control_input);
 
   Schedule* schedule() { return schedule_; }
-  size_t parameter_count() const { return call_descriptor_->ParameterCount(); }
 
-  static void OptimizeControlFlow(Schedule* schedule, Graph* graph,
+  static void OptimizeControlFlow(Schedule* schedule, TFGraph* graph,
                                   CommonOperatorBuilder* common);
 
   Isolate* isolate_;
 
-  Graph* graph_;
+  TFGraph* graph_;
   Schedule* schedule_;
   SourcePositionTable* source_positions_;
   MachineOperatorBuilder machine_;
   CommonOperatorBuilder common_;
   SimplifiedOperatorBuilder simplified_;
   CallDescriptor* call_descriptor_;
+  // See the dynamic_js_parameter_count() getter for an explanation of this
+  // field. If we're generating the code for a builtin that needs to obtain the
+  // parameter count at runtime, then this field will contain a node storing
+  // the actual parameter count. Otherwise it will be nullptr.
+  Node* dynamic_js_parameter_count_;
   Node* target_parameter_;
   NodeVector parameters_;
   BasicBlock* current_block_;

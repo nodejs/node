@@ -120,7 +120,7 @@ class PossiblyEmptyBuckets {
   FRIEND_TEST(PossiblyEmptyBucketsTest, WordsForBuckets);
 };
 
-static_assert(std::is_standard_layout<PossiblyEmptyBuckets>::value);
+static_assert(std::is_standard_layout_v<PossiblyEmptyBuckets>);
 static_assert(sizeof(PossiblyEmptyBuckets) == kSystemPointerSize);
 
 class SlotSet final : public ::heap::base::BasicSlotSet<kTaggedSize> {
@@ -226,8 +226,8 @@ class SlotSet final : public ::heap::base::BasicSlotSet<kTaggedSize> {
   }
 };
 
-static_assert(std::is_standard_layout<SlotSet>::value);
-static_assert(std::is_standard_layout<SlotSet::Bucket>::value);
+static_assert(std::is_standard_layout_v<SlotSet>);
+static_assert(std::is_standard_layout_v<SlotSet::Bucket>);
 
 enum class SlotType : uint8_t {
   // Full pointer sized slot storing an object start address.
@@ -365,9 +365,6 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
 
   // Asserts that there are no recorded slots in the specified ranges.
   void AssertNoInvalidSlots(const FreeRangesMap& invalid_ranges);
-
-  // Frees empty chunks accumulated by PREFREE_EMPTY_CHUNKS.
-  void FreeToBeFreedChunks();
 
  private:
   template <typename Callback>

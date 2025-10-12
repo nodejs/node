@@ -35,8 +35,20 @@ TEST(RawLoggingCompilationTest, Log) {
   ABSL_RAW_LOG(ERROR, "RAW ERROR: %d", 1);
 }
 
+TEST(RawLoggingCompilationTest, LogWithNulls) {
+  ABSL_RAW_LOG(INFO, "RAW INFO: %s%c%s", "Hello", 0, "World");
+}
+
 TEST(RawLoggingCompilationTest, PassingCheck) {
   ABSL_RAW_CHECK(true, "RAW CHECK");
+}
+
+TEST(RawLoggingCompilationTest, DebugLog) {
+  ABSL_RAW_DLOG(INFO, "RAW DLOG: %d", 1);
+}
+
+TEST(RawLoggingCompilationTest, PassingDebugCheck) {
+  ABSL_RAW_DCHECK(true, "failure message");
 }
 
 // Not all platforms support output from raw log, so we don't verify any
@@ -44,6 +56,13 @@ TEST(RawLoggingCompilationTest, PassingCheck) {
 // accomplishes this).  This test is primarily a compilation test, but we
 // are verifying process death when EXPECT_DEATH works for a platform.
 const char kExpectedDeathOutput[] = "";
+
+#if !defined(NDEBUG)  // if debug build
+TEST(RawLoggingDeathTest, FailingDebugCheck) {
+  EXPECT_DEATH_IF_SUPPORTED(ABSL_RAW_DCHECK(1 == 0, "explanation"),
+                            kExpectedDeathOutput);
+}
+#endif  // if debug build
 
 TEST(RawLoggingDeathTest, FailingCheck) {
   EXPECT_DEATH_IF_SUPPORTED(ABSL_RAW_CHECK(1 == 0, "explanation"),

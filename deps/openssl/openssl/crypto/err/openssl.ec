@@ -17,7 +17,7 @@ L ASN1          include/openssl/asn1err.h       crypto/asn1/asn1_err.c          
 L CONF          include/openssl/conferr.h       crypto/conf/conf_err.c                  include/crypto/conferr.h
 L CRYPTO        include/openssl/cryptoerr.h     crypto/cpt_err.c                        include/crypto/cryptoerr.h
 L EC            include/openssl/ecerr.h         crypto/ec/ec_err.c                      include/crypto/ecerr.h
-L SSL           include/openssl/sslerr.h        ssl/ssl_err.c                           ssl/sslerr.h
+L SSL           include/openssl/sslerr.h        crypto/ssl_err.c                        crypto/sslerr.h
 L BIO           include/openssl/bioerr.h        crypto/bio/bio_err.c                    include/crypto/bioerr.h
 L PKCS7         include/openssl/pkcs7err.h      crypto/pkcs7/pkcs7err.c                 include/crypto/pkcs7err.h
 L X509V3        include/openssl/x509v3err.h     crypto/x509/v3err.c                     include/crypto/x509v3err.h
@@ -76,6 +76,6 @@ R SSL_R_TLSV1_CERTIFICATE_UNOBTAINABLE          1111
 R SSL_R_TLSV1_UNRECOGNIZED_NAME                 1112
 R SSL_R_TLSV1_BAD_CERTIFICATE_STATUS_RESPONSE   1113
 R SSL_R_TLSV1_BAD_CERTIFICATE_HASH_VALUE        1114
-R TLS1_AD_UNKNOWN_PSK_IDENTITY                  1115
+R SSL_R_TLSV1_ALERT_UNKNOWN_PSK_IDENTITY        1115
 R SSL_R_TLSV13_ALERT_CERTIFICATE_REQUIRED       1116
-R TLS1_AD_NO_APPLICATION_PROTOCOL               1120
+R SSL_R_TLSV1_ALERT_NO_APPLICATION_PROTOCOL     1120

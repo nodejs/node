@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-stringref
+// Flags: --wasm-staging
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -28,9 +28,8 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     if (typeName == typeName2) {
       builder.instantiate({ imports: { table } });
     } else {
-      let err = 'WebAssembly.Instance(): Import #0 module="imports" ' +
-                'function="table": imported table does not match the ' +
-                'expected type';
+      let err = 'WebAssembly.Instance(): Import #0 "imports" "table": ' +
+                'imported table does not match the expected type';
       assertThrows(() => builder.instantiate({ imports: { table } }),
                    WebAssembly.LinkError,
                    err);

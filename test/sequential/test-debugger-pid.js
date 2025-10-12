@@ -13,7 +13,7 @@ const script = fixtures.path('debugger', 'alive.js');
 
 const runTest = async () => {
   const target = spawn(process.execPath, [script]);
-  const cli = startCLI(['-p', `${target.pid}`]);
+  const cli = startCLI(['-p', `${target.pid}`], [], {}, { randomPort: false });
 
   try {
     await cli.waitForPrompt();

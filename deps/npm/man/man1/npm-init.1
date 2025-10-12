@@ -1,11 +1,11 @@
-.TH "NPM-INIT" "1" "July 2024" "NPM@10.8.2" ""
+.TH "NPM-INIT" "1" "October 2025" "NPM@11.6.2" ""
 .SH "NAME"
 \fBnpm-init\fR - Create a package.json file
 .SS "Synopsis"
 .P
 .RS 2
 .nf
-npm init <package-spec> (same as `npx <package-spec>`)
+npm init <package-spec> (same as `npx create-<package-spec>`)
 npm init <@scope> (same as `npx <@scope>/create`)
 
 aliases: create, innit
@@ -44,8 +44,7 @@ If the initializer is omitted (by just calling \fBnpm init\fR), init will fall b
 
 .SS "Forwarding additional options"
 .P
-Any additional options will be passed directly to the command, so \fBnpm init
-foo -- --hello\fR will map to \fBnpm exec -- create-foo --hello\fR.
+Any additional options will be passed directly to the command, so \fBnpm init foo -- --hello\fR will map to \fBnpm exec -- create-foo --hello\fR.
 .P
 To better illustrate how options are forwarded, here's a more evolved example showing options passed to both the \fBnpm cli\fR and a create package, both following commands are equivalent:
 .RS 0
@@ -57,7 +56,7 @@ To better illustrate how options are forwarded, here's a more evolved example sh
 
 .SS "Examples"
 .P
-Create a new React-based project using \fB\fBcreate-react-app\fR\fR \fI\(lahttps://npm.im/create-react-app\(ra\fR:
+Create a new React-based project using \fB\[rs]fBcreate-react-app\[rs]fR\fR \fI\(lahttps://npm.im/create-react-app\(ra\fR:
 .P
 .RS 2
 .nf
@@ -65,7 +64,7 @@ $ npm init react-app ./my-react-app
 .fi
 .RE
 .P
-Create a new \fBesm\fR-compatible package using \fB\fBcreate-esm\fR\fR \fI\(lahttps://npm.im/create-esm\(ra\fR:
+Create a new \fBesm\fR-compatible package using \fB\[rs]fBcreate-esm\[rs]fR\fR \fI\(lahttps://npm.im/create-esm\(ra\fR:
 .P
 .RS 2
 .nf
@@ -89,6 +88,14 @@ Generate it without having it ask any questions:
 .RS 2
 .nf
 $ npm init -y
+.fi
+.RE
+.P
+Set the private flag to \fBtrue\fR in package.json:
+.P
+.RS 2
+.nf
+$ npm init --init-private -y
 .fi
 .RE
 .SS "Workspaces support"
@@ -124,7 +131,7 @@ That will generate a new folder and \fBpackage.json\fR file, while also updating
 .fi
 .RE
 .P
-The workspaces init also supports the \fBnpm init <initializer> -w <dir>\fR syntax, following the same set of rules explained earlier in the initial \fBDescription\fR section of this page. Similar to the previous example of creating a new React-based project using \fB\fBcreate-react-app\fR\fR \fI\(lahttps://npm.im/create-react-app\(ra\fR, the following syntax will make sure to create the new react app as a nested \fBworkspace\fR within your project and configure your \fBpackage.json\fR to recognize it as such:
+The workspaces init also supports the \fBnpm init <initializer> -w <dir>\fR syntax, following the same set of rules explained earlier in the initial \fBDescription\fR section of this page. Similar to the previous example of creating a new React-based project using \fB\[rs]fBcreate-react-app\[rs]fR\fR \fI\(lahttps://npm.im/create-react-app\(ra\fR, the following syntax will make sure to create the new react app as a nested \fBworkspace\fR within your project and configure your \fBpackage.json\fR to recognize it as such:
 .P
 .RS 2
 .nf
@@ -188,6 +195,16 @@ Type: Path
 
 .P
 A module that will be loaded by the \fBnpm init\fR command. See the documentation for the \fBinit-package-json\fR \fI\(lahttps://github.com/npm/init-package-json\(ra\fR module for more information, or npm help init.
+.SS "\fBinit-type\fR"
+.RS 0
+.IP \(bu 4
+Default: "commonjs"
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+The value that \fBnpm init\fR should use by default for the package.json type field.
 .SS "\fBinit-version\fR"
 .RS 0
 .IP \(bu 4
@@ -198,6 +215,16 @@ Type: SemVer string
 
 .P
 The value that \fBnpm init\fR should use by default for the package version number, if not already set in package.json.
+.SS "\fBinit-private\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+The value \fBnpm init\fR should use by default for the package's private flag.
 .SS "\fByes\fR"
 .RS 0
 .IP \(bu 4

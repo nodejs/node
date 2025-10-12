@@ -4,6 +4,8 @@
 
 #include "src/maglev/maglev-compilation-info.h"
 
+#include <optional>
+
 #include "src/codegen/compiler.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker.h"
@@ -31,13 +33,7 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
  public:
   MaglevCompilationHandleScope(Isolate* isolate,
                                maglev::MaglevCompilationInfo* info)
-      : info_(info),
-        persistent_(isolate)
-#ifdef V8_ENABLE_MAGLEV
-        ,
-        exported_info_(info)
-#endif
-  {
+      : info_(info), persistent_(isolate) {
     info->ReopenAndCanonicalizeHandlesInNewScope(isolate);
   }
 
@@ -48,16 +44,31 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
  private:
   maglev::MaglevCompilationInfo* const info_;
   PersistentHandlesScope persistent_;
-#ifdef V8_ENABLE_MAGLEV
-  ExportedMaglevCompilationInfo exported_info_;
-#endif
 };
+
+static bool SpecializeToFunctionContext(
+    Isolate* isolate, BytecodeOffset osr_offset,
+    DirectHandle<JSFunction> function,
+    std::optional<bool> specialize_to_function_context_override) {
+  if (osr_offset != BytecodeOffset::None()) return false;
+  if (!v8_flags.maglev_function_context_specialization) return false;
+  if (specialize_to_function_context_override.has_value()) {
+    return specialize_to_function_context_override.value();
+  }
+  if (function->shared()->function_context_independent_compiled()) {
+    return false;
+  }
+  return function->raw_feedback_cell()->map() ==
+         ReadOnlyRoots(isolate).one_closure_cell_map();
+}
 
 }  // namespace
 
 MaglevCompilationInfo::MaglevCompilationInfo(
-    Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
-    base::Optional<compiler::JSHeapBroker*> js_broker)
+    Isolate* isolate, IndirectHandle<JSFunction> function,
+    BytecodeOffset osr_offset, std::optional<compiler::JSHeapBroker*> js_broker,
+    std::optional<bool> specialize_to_function_context,
+    bool for_turboshaft_frontend)
     : zone_(isolate->allocator(), kMaglevZoneName),
       broker_(js_broker.has_value()
                   ? js_broker.value()
@@ -66,16 +77,14 @@ MaglevCompilationInfo::MaglevCompilationInfo(
                                                CodeKind::MAGLEV)),
       toplevel_function_(function),
       osr_offset_(osr_offset),
-      owns_broker_(!js_broker.has_value())
+      owns_broker_(!js_broker.has_value()),
+      is_turbolev_(for_turboshaft_frontend)
 #define V(Name) , Name##_(v8_flags.Name)
           MAGLEV_COMPILATION_FLAG_LIST(V)
 #undef V
       ,
-      specialize_to_function_context_(
-          osr_offset == BytecodeOffset::None() &&
-          v8_flags.maglev_function_context_specialization &&
-          function->raw_feedback_cell()->map() ==
-              ReadOnlyRoots(isolate).one_closure_cell_map()) {
+      specialize_to_function_context_(SpecializeToFunctionContext(
+          isolate, osr_offset, function, specialize_to_function_context)) {
   if (owns_broker_) {
     canonical_handles_ = std::make_unique<CanonicalHandlesMap>(
         isolate->heap(), ZoneAllocationPolicy(&zone_));
@@ -92,7 +101,7 @@ MaglevCompilationInfo::MaglevCompilationInfo(
     // Heap broker initialization may already use IsPendingAllocation.
     isolate->heap()->PublishMainThreadPendingAllocations();
     broker()->InitializeAndStartSerializing(
-        handle(function->native_context(), isolate));
+        direct_handle(function->native_context(), isolate));
     broker()->StopSerializing();
 
     // Serialization may have allocated.
@@ -105,11 +114,13 @@ MaglevCompilationInfo::MaglevCompilationInfo(
         MaglevCompilationUnit::New(zone(), this, function);
   }
 
-  collect_source_positions_ = isolate->NeedsDetailedOptimizedCodeLineInfo();
-  if (collect_source_positions_) {
-    SharedFunctionInfo::EnsureSourcePositionsAvailable(
-        isolate, handle(function->shared(), isolate));
+  if (FlagsMightEnableMaglevTracing()) {
+    is_tracing_enabled_ = toplevel_compilation_unit_->shared_function_info()
+                              .object()
+                              ->PassesFilter(v8_flags.maglev_print_filter);
   }
+
+  collect_source_positions_ = isolate->NeedsDetailedOptimizedCodeLineInfo();
 }
 
 MaglevCompilationInfo::~MaglevCompilationInfo() {
@@ -132,15 +143,15 @@ void MaglevCompilationInfo::set_code_generator(
 
 namespace {
 template <typename T>
-Handle<T> CanonicalHandle(CanonicalHandlesMap* canonical_handles,
-                          Tagged<T> object, Isolate* isolate) {
+IndirectHandle<T> CanonicalHandle(CanonicalHandlesMap* canonical_handles,
+                                  Tagged<T> object, Isolate* isolate) {
   DCHECK_NOT_NULL(canonical_handles);
   DCHECK(PersistentHandlesScope::IsActive(isolate));
   auto find_result = canonical_handles->FindOrInsert(object);
   if (!find_result.already_exists) {
-    *find_result.entry = Handle<T>(object, isolate).location();
+    *find_result.entry = IndirectHandle<T>(object, isolate).location();
   }
-  return Handle<T>(*find_result.entry);
+  return IndirectHandle<T>(*find_result.entry);
 }
 }  // namespace
 
@@ -171,7 +182,7 @@ void MaglevCompilationInfo::set_canonical_handles(
 }
 
 bool MaglevCompilationInfo::is_detached() {
-  return toplevel_function_->context()->IsDetached();
+  return toplevel_function_->context()->IsDetached(Isolate::Current());
 }
 
 std::unique_ptr<CanonicalHandlesMap>

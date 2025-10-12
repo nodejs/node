@@ -96,7 +96,7 @@ function parseEncoding(str, i) {
  */
 
 function getEncodingPriority(encoding, accepted, index) {
-  var priority = {o: -1, q: 0, s: 0};
+  var priority = {encoding: encoding, o: -1, q: 0, s: 0};
 
   for (var i = 0; i < accepted.length; i++) {
     var spec = specify(encoding, accepted[i], index);
@@ -123,6 +123,7 @@ function specify(encoding, spec, index) {
   }
 
   return {
+    encoding: encoding,
     i: index,
     o: spec.i,
     q: spec.q,
@@ -135,14 +136,34 @@ function specify(encoding, spec, index) {
  * @public
  */
 
-function preferredEncodings(accept, provided) {
+function preferredEncodings(accept, provided, preferred) {
   var accepts = parseAcceptEncoding(accept || '');
+
+  var comparator = preferred ? function comparator (a, b) {
+    if (a.q !== b.q) {
+      return b.q - a.q // higher quality first
+    }
+
+    var aPreferred = preferred.indexOf(a.encoding)
+    var bPreferred = preferred.indexOf(b.encoding)
+
+    if (aPreferred === -1 && bPreferred === -1) {
+      // consider the original specifity/order
+      return (b.s - a.s) || (a.o - b.o) || (a.i - b.i)
+    }
+
+    if (aPreferred !== -1 && bPreferred !== -1) {
+      return aPreferred - bPreferred // consider the preferred order
+    }
+
+    return aPreferred === -1 ? 1 : -1 // preferred first
+  } : compareSpecs;
 
   if (!provided) {
     // sorted list of all encodings
     return accepts
       .filter(isQuality)
-      .sort(compareSpecs)
+      .sort(comparator)
       .map(getFullEncoding);
   }
 
@@ -151,7 +172,7 @@ function preferredEncodings(accept, provided) {
   });
 
   // sorted list of accepted encodings
-  return priorities.filter(isQuality).sort(compareSpecs).map(function getEncoding(priority) {
+  return priorities.filter(isQuality).sort(comparator).map(function getEncoding(priority) {
     return provided[priorities.indexOf(priority)];
   });
 }
@@ -162,7 +183,7 @@ function preferredEncodings(accept, provided) {
  */
 
 function compareSpecs(a, b) {
-  return (b.q - a.q) || (b.s - a.s) || (a.o - b.o) || (a.i - b.i) || 0;
+  return (b.q - a.q) || (b.s - a.s) || (a.o - b.o) || (a.i - b.i);
 }
 
 /**

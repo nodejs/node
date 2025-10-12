@@ -69,7 +69,7 @@ function parseMediaType(str, i) {
 
       // get the value, unwrapping quotes
       var value = val && val[0] === '"' && val[val.length - 1] === '"'
-        ? val.substr(1, val.length - 2)
+        ? val.slice(1, -1)
         : val;
 
       if (key === 'q') {
@@ -238,8 +238,8 @@ function splitKeyValuePair(str) {
   if (index === -1) {
     key = str;
   } else {
-    key = str.substr(0, index);
-    val = str.substr(index + 1);
+    key = str.slice(0, index);
+    val = str.slice(index + 1);
   }
 
   return [key, val];

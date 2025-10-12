@@ -14,6 +14,7 @@ const {
 } = require('crypto');
 const { inspect } = require('util');
 
+const { hasOpenSSL3 } = require('../common/crypto');
 
 // Test invalid parameter encoding.
 {
@@ -351,7 +352,7 @@ const { inspect } = require('util');
       publicExponent
     }, common.mustCall((err) => {
       assert.strictEqual(err.name, 'Error');
-      assert.match(err.message, common.hasOpenSSL3 ? /exponent/ : /bad e value/);
+      assert.match(err.message, hasOpenSSL3 ? /exponent/ : /bad e value/);
     }));
   }
 }
@@ -798,23 +799,4 @@ const { inspect } = require('util');
     code: 'ERR_CRYPTO_INVALID_DIGEST',
     message: 'Invalid MGF1 digest: sha2'
   });
-}
-
-{
-  // This test makes sure deprecated and new options must
-  // be the same value.
-
-  assert.throws(() => generateKeyPair('rsa-pss', {
-    modulusLength: 512,
-    saltLength: 16,
-    mgf1Hash: 'sha256',
-    mgf1HashAlgorithm: 'sha1'
-  }, common.mustNotCall()), { code: 'ERR_INVALID_ARG_VALUE' });
-
-  assert.throws(() => generateKeyPair('rsa-pss', {
-    modulusLength: 512,
-    saltLength: 16,
-    hash: 'sha256',
-    hashAlgorithm: 'sha1'
-  }, common.mustNotCall()), { code: 'ERR_INVALID_ARG_VALUE' });
 }

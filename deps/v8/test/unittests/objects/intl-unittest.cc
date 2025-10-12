@@ -143,96 +143,99 @@ TEST_F(IntlTest, FlattenRegionsToParts) {
 }
 
 TEST_F(IntlTest, GetStringOption) {
-  Handle<JSObject> options = i_isolate()->factory()->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> options =
+      i_isolate()->factory()->NewJSObjectWithNullProto();
+
+  DirectHandle<String> key =
+      i_isolate()->factory()->NewStringFromAsciiChecked("foo");
   {
     // No value found
-    std::unique_ptr<char[]> result = nullptr;
+    DirectHandle<String> result;
     Maybe<bool> found =
-        GetStringOption(i_isolate(), options, "foo", std::vector<const char*>{},
-                        "service", &result);
+        GetStringOption(i_isolate(), options, key, "service", &result);
+
     CHECK(!found.FromJust());
-    CHECK_NULL(result);
+    CHECK(result.is_null());
   }
 
-  Handle<String> key = i_isolate()->factory()->NewStringFromAsciiChecked("foo");
   LookupIterator it(i_isolate(), options, key);
-  CHECK(Object::SetProperty(&it, Handle<Smi>(Smi::FromInt(42), i_isolate()),
-                            StoreOrigin::kMaybeKeyed,
-                            Just(ShouldThrow::kThrowOnError))
+  CHECK(Object::SetProperty(
+            &it, DirectHandle<Smi>(Smi::FromInt(42), i_isolate()),
+            StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError))
             .FromJust());
 
   {
     // Value found
-    std::unique_ptr<char[]> result = nullptr;
+    DirectHandle<String> result;
     Maybe<bool> found =
-        GetStringOption(i_isolate(), options, "foo", std::vector<const char*>{},
-                        "service", &result);
+        GetStringOption(i_isolate(), options, key, "service", &result);
+
     CHECK(found.FromJust());
-    CHECK_NOT_NULL(result);
-    CHECK_EQ(0, strcmp("42", result.get()));
+    std::string s = result->ToStdString();
+    CHECK_EQ(s, "42");
   }
 
   {
     // No expected value in values array
-    std::unique_ptr<char[]> result = nullptr;
-    Maybe<bool> found =
-        GetStringOption(i_isolate(), options, "foo",
-                        std::vector<const char*>{"bar"}, "service", &result);
+    auto values = std::to_array<const std::string_view>({"bar"});
+    Maybe<std::string_view> found = GetStringOption<std::string_view>(
+        i_isolate(), options, key, "service", values, values, std::nullopt);
     CHECK(i_isolate()->has_exception());
     CHECK(found.IsNothing());
-    CHECK_NULL(result);
     i_isolate()->clear_exception();
   }
 
   {
     // Expected value in values array
-    std::unique_ptr<char[]> result = nullptr;
-    Maybe<bool> found =
-        GetStringOption(i_isolate(), options, "foo",
-                        std::vector<const char*>{"42"}, "service", &result);
-    CHECK(found.FromJust());
-    CHECK_NOT_NULL(result);
-    CHECK_EQ(0, strcmp("42", result.get()));
+    auto values = std::to_array<const std::string_view>({"42"});
+
+    Maybe<std::string_view> found = GetStringOption<std::string_view>(
+        i_isolate(), options, key, "service", values, values, std::nullopt);
+    CHECK(found.IsJust());
+    CHECK_EQ(found.FromJust(), "42");
   }
 }
 
 TEST_F(IntlTest, GetBoolOption) {
-  Handle<JSObject> options = i_isolate()->factory()->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> options =
+      i_isolate()->factory()->NewJSObjectWithNullProto();
+  DirectHandle<String> key =
+      i_isolate()->factory()->NewStringFromAsciiChecked("foo");
+
   {
     bool result = false;
     Maybe<bool> found =
-        GetBoolOption(i_isolate(), options, "foo", "service", &result);
+        GetBoolOption(i_isolate(), options, key, "service", &result);
     CHECK(!found.FromJust());
     CHECK(!result);
   }
 
-  Handle<String> key = i_isolate()->factory()->NewStringFromAsciiChecked("foo");
   {
     LookupIterator it(i_isolate(), options, key);
-    Handle<Object> false_value =
-        handle(i::ReadOnlyRoots(i_isolate()).false_value(), i_isolate());
+    DirectHandle<Object> false_value(
+        i::ReadOnlyRoots(i_isolate()).false_value(), i_isolate());
     Object::SetProperty(i_isolate(), options, key, false_value,
                         StoreOrigin::kMaybeKeyed,
                         Just(ShouldThrow::kThrowOnError))
         .Assert();
     bool result = false;
     Maybe<bool> found =
-        GetBoolOption(i_isolate(), options, "foo", "service", &result);
+        GetBoolOption(i_isolate(), options, key, "service", &result);
     CHECK(found.FromJust());
     CHECK(!result);
   }
 
   {
     LookupIterator it(i_isolate(), options, key);
-    Handle<Object> true_value =
-        handle(i::ReadOnlyRoots(i_isolate()).true_value(), i_isolate());
+    DirectHandle<Object> true_value(i::ReadOnlyRoots(i_isolate()).true_value(),
+                                    i_isolate());
     Object::SetProperty(i_isolate(), options, key, true_value,
                         StoreOrigin::kMaybeKeyed,
                         Just(ShouldThrow::kThrowOnError))
         .Assert();
     bool result = false;
     Maybe<bool> found =
-        GetBoolOption(i_isolate(), options, "foo", "service", &result);
+        GetBoolOption(i_isolate(), options, key, "service", &result);
     CHECK(found.FromJust());
     CHECK(result);
   }
@@ -279,23 +282,23 @@ TEST_F(IntlTest, StringLocaleCompareFastPath) {
         i_isolate()->factory()->LookupSingleCharacterStringFromCode(c));
   }
 
-  Handle<JSFunction> collator_constructor = Handle<JSFunction>(
-      JSFunction::cast(
+  DirectHandle<JSFunction> collator_constructor(
+      Cast<JSFunction>(
           i_isolate()->context()->native_context()->intl_collator_function()),
       i_isolate());
-  Handle<Map> constructor_map =
+  DirectHandle<Map> constructor_map =
       JSFunction::GetDerivedMap(i_isolate(), collator_constructor,
                                 collator_constructor)
           .ToHandleChecked();
-  Handle<Object> options(ReadOnlyRoots(i_isolate()).undefined_value(),
-                         i_isolate());
+  DirectHandle<Object> options(ReadOnlyRoots(i_isolate()).undefined_value(),
+                               i_isolate());
   static const char* const kMethodName = "StringLocaleCompareFastPath";
 
   // For all fast locales, exhaustively compare within the printable ASCII
   // range.
   const std::set<std::string>& locales = JSCollator::GetAvailableLocales();
   for (const std::string& locale : locales) {
-    Handle<String> locale_string =
+    DirectHandle<String> locale_string =
         i_isolate()->factory()->NewStringFromAsciiChecked(locale.c_str());
 
     if (Intl::CompareStringsOptionsFor(i_isolate()->AsLocalIsolate(),
@@ -304,15 +307,15 @@ TEST_F(IntlTest, StringLocaleCompareFastPath) {
       continue;
     }
 
-    Handle<JSCollator> collator =
+    DirectHandle<JSCollator> collator =
         JSCollator::New(i_isolate(), constructor_map, locale_string, options,
                         kMethodName)
             .ToHandleChecked();
 
     for (size_t i = 0; i < ascii_strings.size(); i++) {
-      Handle<String> lhs = ascii_strings[i];
+      DirectHandle<String> lhs = ascii_strings[i];
       for (size_t j = i + 1; j < ascii_strings.size(); j++) {
-        Handle<String> rhs = ascii_strings[j];
+        DirectHandle<String> rhs = ascii_strings[j];
         CHECK_EQ(
             Intl::CompareStrings(i_isolate(), *collator->icu_collator()->raw(),
                                  lhs, rhs, Intl::CompareStringsOptions::kNone),
@@ -434,7 +437,7 @@ TEST_F(IntlTest, IntlMathematicalValueFromBigInt) {
   };
   for (auto& cas : cases) {
     printf("%s\n", cas.bigint_string);
-    Handle<String> str =
+    Handle<Object> str =
         i_isolate()->factory()->NewStringFromAsciiChecked(cas.bigint_string);
     IntlMathematicalValue x =
         IntlMathematicalValue::From(

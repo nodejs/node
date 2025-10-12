@@ -388,7 +388,7 @@ const Locale &ResourceBundle::getLocale() const {
     return ncThis->fLocale != nullptr ? *ncThis->fLocale : Locale::getDefault();
 }
 
-const Locale ResourceBundle::getLocale(ULocDataLocaleType type, UErrorCode &status) const
+Locale ResourceBundle::getLocale(ULocDataLocaleType type, UErrorCode &status) const
 {
   return ures_getLocaleByType(fResource, type, &status);
 }

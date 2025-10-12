@@ -55,7 +55,8 @@
 extern char **environ;
 #endif
 
-#if defined(__linux__)
+#if defined(__linux__) || \
+    defined(__GNU__)
 # include <grp.h>
 #endif
 
@@ -63,11 +64,7 @@ extern char **environ;
 # include "zos-base.h"
 #endif
 
-#if defined(__APPLE__) || \
-    defined(__DragonFly__) || \
-    defined(__FreeBSD__) || \
-    defined(__NetBSD__) || \
-    defined(__OpenBSD__)
+#ifdef UV_HAVE_KQUEUE
 #include <sys/event.h>
 #else
 #define UV_USE_SIGCHLD
@@ -191,8 +188,12 @@ void uv__wait_children(uv_loop_t* loop) {
 static int uv__process_init_stdio(uv_stdio_container_t* container, int fds[2]) {
   int mask;
   int fd;
+  int ret;
+  int size;
+  int i;
 
   mask = UV_IGNORE | UV_CREATE_PIPE | UV_INHERIT_FD | UV_INHERIT_STREAM;
+  size = 64 * 1024;
 
   switch (container->flags & mask) {
   case UV_IGNORE:
@@ -202,8 +203,17 @@ static int uv__process_init_stdio(uv_stdio_container_t* container, int fds[2]) {
     assert(container->data.stream != NULL);
     if (container->data.stream->type != UV_NAMED_PIPE)
       return UV_EINVAL;
-    else
-      return uv_socketpair(SOCK_STREAM, 0, fds, 0, 0);
+    else {
+      ret = uv_socketpair(SOCK_STREAM, 0, fds, 0, 0);
+
+      if (ret == 0)
+        for (i = 0; i < 2; i++) {
+          setsockopt(fds[i], SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+          setsockopt(fds[i], SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
+        }
+    }
+
+    return ret;
 
   case UV_INHERIT_FD:
   case UV_INHERIT_STREAM:

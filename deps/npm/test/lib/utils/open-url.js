@@ -180,7 +180,7 @@ t.test('open url prompt', async t => {
     t.equal(openerUrl, 'https://www.npmjs.com', 'did not open')
   })
 
-  t.test('does not error when opener can not find command', async t => {
+  t.test('does not error when opener cannot find command', async t => {
     const { OUTPUT, error, openerUrl } = await mockOpenUrlPrompt(t, {
       openerResult: Object.assign(new Error('Opener failed'), { code: 127 }),
     })

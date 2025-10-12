@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc --turbofan --no-always-turbofan
+// Flags: --allow-natives-syntax --expose-gc --turbofan
 
 // Verify that cross context calls work
 (function (){

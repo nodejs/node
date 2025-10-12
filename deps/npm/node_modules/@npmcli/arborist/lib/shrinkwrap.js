@@ -431,7 +431,7 @@ class Shrinkwrap {
       const [sw, lock, yarn] = await this.loadFiles
       data = sw || lock || '{}'
 
-      // use shrinkwrap only for deps, otherwise prefer package-lock
+      // use shrinkwrap only for deps; otherwise, prefer package-lock
       // and ignore npm-shrinkwrap if both are present.
       // TODO: emit a warning here or something if both are present.
       if (this.hiddenLockfile) {
@@ -817,7 +817,7 @@ class Shrinkwrap {
         if (!/^file:/.test(resolved)) {
           pathFixed = resolved
         } else {
-          pathFixed = `file:${resolve(this.path, resolved.slice(5)).replace(/#/g, '%23')}`
+          pathFixed = `file:${resolve(this.path, resolved.slice(5))}`
         }
       }
 
@@ -978,7 +978,7 @@ class Shrinkwrap {
 
     // npm v6 and before tracked 'from', meaning "the request that led
     // to this package being installed".  However, that's inherently
-    // racey and non-deterministic in a world where deps are deduped
+    // racy and non-deterministic in a world where deps are deduped
     // ahead of fetch time.  In order to maintain backwards compatibility
     // with v6 in the lockfile, we do this trick where we pick a valid
     // dep link out of the edgesIn set.  Choose the edge with the fewest
@@ -1011,7 +1011,7 @@ class Shrinkwrap {
     }
 
     if (node.isLink) {
-      lock.version = `file:${relpath(this.path, node.realpath).replace(/#/g, '%23')}`
+      lock.version = `file:${relpath(this.path, node.realpath)}`
     } else if (spec && (spec.type === 'file' || spec.type === 'remote')) {
       lock.version = spec.saveSpec
     } else if (spec && spec.type === 'git' || rSpec.type === 'git') {
@@ -1089,7 +1089,7 @@ class Shrinkwrap {
             // this especially shows up with workspace edges when the root
             // node is also a workspace in the set.
             const p = resolve(node.realpath, spec.slice('file:'.length))
-            set[k] = `file:${relpath(node.realpath, p).replace(/#/g, '%23')}`
+            set[k] = `file:${relpath(node.realpath, p)}`
           } else {
             set[k] = spec
           }

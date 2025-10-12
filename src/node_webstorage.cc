@@ -6,6 +6,7 @@
 #include "node.h"
 #include "node_errors.h"
 #include "node_mem-inl.h"
+#include "path.h"
 #include "sqlite3.h"
 #include "util-inl.h"
 
@@ -23,12 +24,17 @@ using v8::IndexedPropertyHandlerConfiguration;
 using v8::Integer;
 using v8::Intercepted;
 using v8::Isolate;
+using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Map;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
+using v8::NewStringType;
+using v8::Nothing;
+using v8::Null;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
@@ -51,7 +57,7 @@ using v8::Value;
   } while (0)
 
 static void ThrowQuotaExceededException(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   auto dom_exception_str = FIXED_ONE_BYTE_STRING(isolate, "DOMException");
   auto err_name = FIXED_ONE_BYTE_STRING(isolate, "QuotaExceededError");
   auto err_message =
@@ -76,13 +82,14 @@ static void ThrowQuotaExceededException(Local<Context> context) {
   isolate->ThrowException(exception);
 }
 
-Storage::Storage(Environment* env, Local<Object> object, Local<String> location)
+Storage::Storage(Environment* env,
+                 Local<Object> object,
+                 std::string_view location)
     : BaseObject(env, object) {
   MakeWeak();
-  Utf8Value utf8_location(env->isolate(), location);
   symbols_.Reset(env->isolate(), Map::New(env->isolate()));
   db_ = nullptr;
-  location_ = utf8_location.ToString();
+  location_ = std::string(location);
 }
 
 Storage::~Storage() {
@@ -94,7 +101,7 @@ void Storage::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("location", location_);
 }
 
-bool Storage::Open() {
+Maybe<void> Storage::Open() {
   static const int kCurrentSchemaVersion = 1;
   static constexpr std::string_view get_schema_version_sql =
       "SELECT schema_version FROM nodejs_webstorage_state";
@@ -159,22 +166,23 @@ bool Storage::Open() {
 
   sqlite3* db = db_.get();
   if (db != nullptr) {
-    return true;
+    return JustVoid();
   }
 
   int r = sqlite3_open(location_.c_str(), &db);
-  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   r = sqlite3_exec(db, init_sql_v0.data(), 0, 0, nullptr);
-  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
 
   // Get the current schema version, used to determine schema migrations.
   sqlite3_stmt* s = nullptr;
   r = sqlite3_prepare_v2(
       db, get_schema_version_sql.data(), get_schema_version_sql.size(), &s, 0);
   r = sqlite3_exec(db, init_sql_v0.data(), 0, 0, nullptr);
-  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   auto stmt = stmt_unique_ptr(s);
-  CHECK_ERROR_OR_THROW(env(), sqlite3_step(stmt.get()), SQLITE_ROW, false);
+  CHECK_ERROR_OR_THROW(
+      env(), sqlite3_step(stmt.get()), SQLITE_ROW, Nothing<void>());
   CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_INTEGER);
   int schema_version = sqlite3_column_int(stmt.get(), 0);
   stmt = nullptr;  // Force finalization.
@@ -182,7 +190,7 @@ bool Storage::Open() {
   if (schema_version > kCurrentSchemaVersion) {
     THROW_ERR_INVALID_STATE(
         env(), "localStorage was created with a newer version of Node.js");
-    return false;
+    return Nothing<void>();
   }
 
   if (schema_version < kCurrentSchemaVersion) {
@@ -191,11 +199,11 @@ bool Storage::Open() {
         "UPDATE nodejs_webstorage_state SET schema_version = " +
         std::to_string(kCurrentSchemaVersion) + ";";
     r = sqlite3_exec(db, set_user_version_sql.c_str(), 0, 0, nullptr);
-    CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
+    CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   }
 
   db_ = conn_unique_ptr(db);
-  return true;
+  return JustVoid();
 }
 
 void Storage::New(const FunctionCallbackInfo<Value>& args) {
@@ -209,12 +217,20 @@ void Storage::New(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args.IsConstructCall());
   CHECK(args[1]->IsString());
-  new Storage(env, args.This(), args[1].As<String>());
+
+  BufferValue location(env->isolate(), args[1]);
+  CHECK_NOT_NULL(*location);
+  // Only call namespaced path if the location is not "in memory".
+  if (location.ToStringView() != kInMemoryPath) {
+    ToNamespacedPath(env, &location);
+  }
+
+  new Storage(env, args.This(), location.ToStringView());
 }
 
-void Storage::Clear() {
-  if (!Open()) {
-    return;
+Maybe<void> Storage::Clear() {
+  if (!Open().IsJust()) {
+    return Nothing<void>();
   }
 
   static constexpr std::string_view sql = "DELETE FROM nodejs_webstorage";
@@ -223,13 +239,15 @@ void Storage::Clear() {
       env(),
       sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0),
       SQLITE_OK,
-      void());
+      Nothing<void>());
   auto stmt = stmt_unique_ptr(s);
-  CHECK_ERROR_OR_THROW(env(), sqlite3_step(stmt.get()), SQLITE_DONE, void());
+  CHECK_ERROR_OR_THROW(
+      env(), sqlite3_step(stmt.get()), SQLITE_DONE, Nothing<void>());
+  return JustVoid();
 }
 
-Local<Array> Storage::Enumerate() {
-  if (!Open()) {
+MaybeLocal<Array> Storage::Enumerate() {
+  if (!Open().IsJust()) {
     return Local<Array>();
   }
 
@@ -238,24 +256,27 @@ Local<Array> Storage::Enumerate() {
   int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Local<Array>());
   auto stmt = stmt_unique_ptr(s);
-  std::vector<Local<Value>> values;
+  LocalVector<Value> values(env()->isolate());
+  Local<Value> value;
   while ((r = sqlite3_step(stmt.get())) == SQLITE_ROW) {
     CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_BLOB);
     auto size = sqlite3_column_bytes(stmt.get(), 0) / sizeof(uint16_t);
-    values.emplace_back(
-        String::NewFromTwoByte(env()->isolate(),
-                               reinterpret_cast<const uint16_t*>(
-                                   sqlite3_column_blob(stmt.get(), 0)),
-                               v8::NewStringType::kNormal,
-                               size)
-            .ToLocalChecked());
+    if (!String::NewFromTwoByte(env()->isolate(),
+                                reinterpret_cast<const uint16_t*>(
+                                    sqlite3_column_blob(stmt.get(), 0)),
+                                NewStringType::kNormal,
+                                size)
+             .ToLocal(&value)) {
+      return Local<Array>();
+    }
+    values.emplace_back(value);
   }
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_DONE, Local<Array>());
   return Array::New(env()->isolate(), values.data(), values.size());
 }
 
-Local<Value> Storage::Length() {
-  if (!Open()) {
+MaybeLocal<Value> Storage::Length() {
+  if (!Open().IsJust()) {
     return {};
   }
 
@@ -272,14 +293,13 @@ Local<Value> Storage::Length() {
   return Integer::New(env()->isolate(), result);
 }
 
-Local<Value> Storage::Load(Local<Name> key) {
+MaybeLocal<Value> Storage::Load(Local<Name> key) {
   if (key->IsSymbol()) {
     auto symbol_map = symbols_.Get(env()->isolate());
-    MaybeLocal<Value> result = symbol_map->Get(env()->context(), key);
-    return result.FromMaybe(Local<Value>());
+    return symbol_map->Get(env()->context(), key);
   }
 
-  if (!Open()) {
+  if (!Open().IsJust()) {
     return {};
   }
 
@@ -293,27 +313,27 @@ Local<Value> Storage::Load(Local<Name> key) {
   auto key_size = utf16key.length() * sizeof(uint16_t);
   r = sqlite3_bind_blob(stmt.get(), 1, utf16key.out(), key_size, SQLITE_STATIC);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Local<Value>());
-  auto value = Local<Value>();
   r = sqlite3_step(stmt.get());
   if (r == SQLITE_ROW) {
     CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_BLOB);
     auto size = sqlite3_column_bytes(stmt.get(), 0) / sizeof(uint16_t);
-    value = String::NewFromTwoByte(env()->isolate(),
-                                   reinterpret_cast<const uint16_t*>(
-                                       sqlite3_column_blob(stmt.get(), 0)),
-                                   v8::NewStringType::kNormal,
-                                   size)
-                .ToLocalChecked();
+    return String::NewFromTwoByte(env()->isolate(),
+                                  reinterpret_cast<const uint16_t*>(
+                                      sqlite3_column_blob(stmt.get(), 0)),
+                                  NewStringType::kNormal,
+                                  size)
+        .As<Value>();
   } else if (r != SQLITE_DONE) {
     THROW_SQLITE_ERROR(env(), r);
+    return {};
+  } else {
+    return Null(env()->isolate());
   }
-
-  return value;
 }
 
-Local<Value> Storage::LoadKey(const int index) {
-  if (!Open()) {
-    return Local<Value>();
+MaybeLocal<Value> Storage::LoadKey(const int index) {
+  if (!Open().IsJust()) {
+    return {};
   }
 
   static constexpr std::string_view sql =
@@ -325,63 +345,64 @@ Local<Value> Storage::LoadKey(const int index) {
   r = sqlite3_bind_int(stmt.get(), 1, index);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Local<Value>());
 
-  auto value = Local<Value>();
   r = sqlite3_step(stmt.get());
   if (r == SQLITE_ROW) {
     CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_BLOB);
     auto size = sqlite3_column_bytes(stmt.get(), 0) / sizeof(uint16_t);
-    value = String::NewFromTwoByte(env()->isolate(),
-                                   reinterpret_cast<const uint16_t*>(
-                                       sqlite3_column_blob(stmt.get(), 0)),
-                                   v8::NewStringType::kNormal,
-                                   size)
-                .ToLocalChecked();
+    return String::NewFromTwoByte(env()->isolate(),
+                                  reinterpret_cast<const uint16_t*>(
+                                      sqlite3_column_blob(stmt.get(), 0)),
+                                  NewStringType::kNormal,
+                                  size)
+        .As<Value>();
   } else if (r != SQLITE_DONE) {
     THROW_SQLITE_ERROR(env(), r);
+    return {};
+  } else {
+    return Null(env()->isolate());
   }
-
-  return value;
 }
 
-bool Storage::Remove(Local<Name> key) {
+Maybe<void> Storage::Remove(Local<Name> key) {
   if (key->IsSymbol()) {
     auto symbol_map = symbols_.Get(env()->isolate());
     Maybe<bool> result = symbol_map->Delete(env()->context(), key);
-    return !result.IsNothing();
+    return result.IsNothing() ? Nothing<void>() : JustVoid();
   }
 
-  if (!Open()) {
-    return false;
+  if (!Open().IsJust()) {
+    return Nothing<void>();
   }
 
   static constexpr std::string_view sql =
       "DELETE FROM nodejs_webstorage WHERE key = ?";
   sqlite3_stmt* s = nullptr;
   int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
-  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   auto stmt = stmt_unique_ptr(s);
   TwoByteValue utf16key(env()->isolate(), key);
   auto key_size = utf16key.length() * sizeof(uint16_t);
   r = sqlite3_bind_blob(stmt.get(), 1, utf16key.out(), key_size, SQLITE_STATIC);
-  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
-  CHECK_ERROR_OR_THROW(env(), sqlite3_step(stmt.get()), SQLITE_DONE, false);
-  return true;
+  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
+  CHECK_ERROR_OR_THROW(
+      env(), sqlite3_step(stmt.get()), SQLITE_DONE, Nothing<void>());
+  return JustVoid();
 }
 
-bool Storage::Store(Local<Name> key, Local<Value> value) {
+Maybe<void> Storage::Store(Local<Name> key, Local<Value> value) {
   if (key->IsSymbol()) {
     auto symbol_map = symbols_.Get(env()->isolate());
     MaybeLocal<Map> result = symbol_map->Set(env()->context(), key, value);
-    return !result.IsEmpty();
+    return result.IsEmpty() ? Nothing<void>() : JustVoid();
   }
 
   Local<String> val;
   if (!value->ToString(env()->context()).ToLocal(&val)) {
-    return false;
+    return Nothing<void>();
   }
 
-  if (!Open()) {
-    return false;
+  if (!Open().IsJust()) {
+    return Nothing<void>();
   }
 
   static constexpr std::string_view sql =
@@ -392,29 +413,27 @@ bool Storage::Store(Local<Name> key, Local<Value> value) {
   TwoByteValue utf16key(env()->isolate(), key);
   TwoByteValue utf16val(env()->isolate(), val);
   int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
-  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   auto stmt = stmt_unique_ptr(s);
   auto key_size = utf16key.length() * sizeof(uint16_t);
   r = sqlite3_bind_blob(stmt.get(), 1, utf16key.out(), key_size, SQLITE_STATIC);
-  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   auto val_size = utf16val.length() * sizeof(uint16_t);
   r = sqlite3_bind_blob(stmt.get(), 2, utf16val.out(), val_size, SQLITE_STATIC);
-  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
+  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
 
   r = sqlite3_step(stmt.get());
   if (r == SQLITE_CONSTRAINT) {
     ThrowQuotaExceededException(env()->context());
-    return false;
+    return Nothing<void>();
   }
 
-  CHECK_ERROR_OR_THROW(env(), r, SQLITE_DONE, false);
-  return true;
+  CHECK_ERROR_OR_THROW(env(), r, SQLITE_DONE, Nothing<void>());
+  return JustVoid();
 }
 
-static Local<Name> Uint32ToName(Local<Context> context, uint32_t index) {
-  return Uint32::New(context->GetIsolate(), index)
-      ->ToString(context)
-      .ToLocalChecked();
+static MaybeLocal<String> Uint32ToName(Local<Context> context, uint32_t index) {
+  return Uint32::New(Isolate::GetCurrent(), index)->ToString(context);
 }
 
 static void Clear(const FunctionCallbackInfo<Value>& info) {
@@ -438,12 +457,11 @@ static void GetItem(const FunctionCallbackInfo<Value>& info) {
     return;
   }
 
-  Local<Value> result = storage->Load(prop);
-  if (result.IsEmpty()) {
-    info.GetReturnValue().SetNull();
-  } else {
-    info.GetReturnValue().Set(result);
+  Local<Value> result;
+  if (!storage->Load(prop).ToLocal(&result)) {
+    return;
   }
+  info.GetReturnValue().Set(result);
 }
 
 static void Key(const FunctionCallbackInfo<Value>& info) {
@@ -466,10 +484,8 @@ static void Key(const FunctionCallbackInfo<Value>& info) {
     return;
   }
 
-  Local<Value> result = storage->LoadKey(index);
-  if (result.IsEmpty()) {
-    info.GetReturnValue().SetNull();
-  } else {
+  Local<Value> result;
+  if (storage->LoadKey(index).ToLocal(&result)) {
     info.GetReturnValue().Set(result);
   }
 }
@@ -515,7 +531,7 @@ template <typename T>
 static bool ShouldIntercept(Local<Name> property,
                             const PropertyCallbackInfo<T>& info) {
   Environment* env = Environment::GetCurrent(info);
-  Local<Value> proto = info.This()->GetPrototype();
+  Local<Value> proto = info.This()->GetPrototypeV2();
 
   if (proto->IsObject()) {
     bool has_prop;
@@ -540,11 +556,9 @@ static Intercepted StorageGetter(Local<Name> property,
 
   Storage* storage;
   ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::kNo);
-  Local<Value> result = storage->Load(property);
+  Local<Value> result;
 
-  if (result.IsEmpty()) {
-    info.GetReturnValue().SetUndefined();
-  } else {
+  if (storage->Load(property).ToLocal(&result) && !result->IsNull()) {
     info.GetReturnValue().Set(result);
   }
 
@@ -557,8 +571,8 @@ static Intercepted StorageSetter(Local<Name> property,
   Storage* storage;
   ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::kNo);
 
-  if (storage->Store(property, value)) {
-    info.GetReturnValue().Set(value);
+  if (storage->Store(property, value).IsNothing()) {
+    info.GetReturnValue().SetFalse();
   }
 
   return Intercepted::kYes;
@@ -572,8 +586,8 @@ static Intercepted StorageQuery(Local<Name> property,
 
   Storage* storage;
   ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::kNo);
-  Local<Value> result = storage->Load(property);
-  if (result.IsEmpty()) {
+  Local<Value> result;
+  if (!storage->Load(property).ToLocal(&result) || result->IsNull()) {
     return Intercepted::kNo;
   }
 
@@ -586,9 +600,7 @@ static Intercepted StorageDeleter(Local<Name> property,
   Storage* storage;
   ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::kNo);
 
-  if (storage->Remove(property)) {
-    info.GetReturnValue().Set(true);
-  }
+  info.GetReturnValue().Set(storage->Remove(property).IsJust());
 
   return Intercepted::kYes;
 }
@@ -596,7 +608,11 @@ static Intercepted StorageDeleter(Local<Name> property,
 static void StorageEnumerator(const PropertyCallbackInfo<Array>& info) {
   Storage* storage;
   ASSIGN_OR_RETURN_UNWRAP(&storage, info.This());
-  info.GetReturnValue().Set(storage->Enumerate());
+  Local<Array> result;
+  if (!storage->Enumerate().ToLocal(&result)) {
+    return;
+  }
+  info.GetReturnValue().Set(result);
 }
 
 static Intercepted StorageDefiner(Local<Name> property,
@@ -615,39 +631,78 @@ static Intercepted StorageDefiner(Local<Name> property,
 static Intercepted IndexedGetter(uint32_t index,
                                  const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
-  return StorageGetter(Uint32ToName(env->context(), index), info);
+  Local<Name> name;
+  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
+    // There was an error converting the index to a name.
+    // We aren't going to return a result but let's indicate
+    // that we intercepted the operation.
+    return Intercepted::kYes;
+  }
+  return StorageGetter(name, info);
 }
 
 static Intercepted IndexedSetter(uint32_t index,
                                  Local<Value> value,
                                  const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info);
-  return StorageSetter(Uint32ToName(env->context(), index), value, info);
+  Local<Name> name;
+  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
+    // There was an error converting the index to a name.
+    // We aren't going to return a result but let's indicate
+    // that we intercepted the operation.
+    return Intercepted::kYes;
+  }
+  return StorageSetter(name, value, info);
 }
 
 static Intercepted IndexedQuery(uint32_t index,
                                 const PropertyCallbackInfo<Integer>& info) {
   Environment* env = Environment::GetCurrent(info);
-  return StorageQuery(Uint32ToName(env->context(), index), info);
+  Local<Name> name;
+  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
+    // There was an error converting the index to a name.
+    // We aren't going to return a result but let's indicate
+    // that we intercepted the operation.
+    return Intercepted::kYes;
+  }
+  return StorageQuery(name, info);
 }
 
 static Intercepted IndexedDeleter(uint32_t index,
                                   const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
-  return StorageDeleter(Uint32ToName(env->context(), index), info);
+  Local<Name> name;
+  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
+    // There was an error converting the index to a name.
+    // We aren't going to return a result but let's indicate
+    // that we intercepted the operation.
+    return Intercepted::kYes;
+  }
+  return StorageDeleter(name, info);
 }
 
 static Intercepted IndexedDefiner(uint32_t index,
                                   const PropertyDescriptor& desc,
                                   const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info);
-  return StorageDefiner(Uint32ToName(env->context(), index), desc, info);
+  Local<Name> name;
+  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
+    // There was an error converting the index to a name.
+    // We aren't going to return a result but let's indicate
+    // that we intercepted the operation.
+    return Intercepted::kYes;
+  }
+  return StorageDefiner(name, desc, info);
 }
 
 static void StorageLengthGetter(const FunctionCallbackInfo<Value>& info) {
   Storage* storage;
   ASSIGN_OR_RETURN_UNWRAP(&storage, info.This());
-  info.GetReturnValue().Set(storage->Length());
+  Local<Value> result;
+  if (!storage->Length().ToLocal(&result)) {
+    return;
+  }
+  info.GetReturnValue().Set(result);
 }
 
 static void Initialize(Local<Object> target,
@@ -683,11 +738,10 @@ static void Initialize(Local<Object> target,
 
   Local<FunctionTemplate> length_getter =
       FunctionTemplate::New(isolate, StorageLengthGetter);
-  ctor_tmpl->PrototypeTemplate()->SetAccessorProperty(
-      FIXED_ONE_BYTE_STRING(isolate, "length"),
-      length_getter,
-      Local<FunctionTemplate>(),
-      DontDelete);
+  ctor_tmpl->PrototypeTemplate()->SetAccessorProperty(env->length_string(),
+                                                      length_getter,
+                                                      Local<FunctionTemplate>(),
+                                                      DontDelete);
 
   SetProtoMethod(isolate, ctor_tmpl, "clear", Clear);
   SetProtoMethodNoSideEffect(isolate, ctor_tmpl, "getItem", GetItem);

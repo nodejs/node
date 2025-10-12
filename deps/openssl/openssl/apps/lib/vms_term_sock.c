@@ -120,7 +120,7 @@ typedef struct _SocketPairTimeoutBlock {
 } SPTB;
 
 # ifdef TERM_SOCK_TEST
-
+
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
@@ -160,7 +160,7 @@ int main (int argc, char *argv[], char *envp[])
 
 }
 # endif
-
+
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
@@ -275,7 +275,7 @@ int TerminalSocket (int FunctionCode, int *ReturnSocket)
     return TERM_SOCK_SUCCESS;
 
 }
-
+
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
@@ -353,7 +353,7 @@ static int CreateSocketPair (int SocketFamily,
     /*
     ** Get the binary (64-bit) time of the specified timeout value
     */
-    sprintf (AscTimeBuff, "0 0:0:%02d.00", SOCKET_PAIR_TIMEOUT_VALUE);
+    BIO_snprintf(AscTimeBuff, sizeof(AscTimeBuff), "0 0:0:%02d.00", SOCKET_PAIR_TIMEOUT_VALUE);
     AscTimeDesc.dsc$w_length = strlen (AscTimeBuff);
     AscTimeDesc.dsc$a_pointer = AscTimeBuff;
     status = sys$bintim (&AscTimeDesc, BinTimeBuff);
@@ -441,7 +441,7 @@ static int CreateSocketPair (int SocketFamily,
     sin.sin_port = LocalHostPort ;
 
     status = connect (SockDesc2, (struct sockaddr *) &sin, sizeof(sin));
-    if (status < 0 ) {
+    if (status < 0) {
         LogMessage ("CreateSocketPair: connect () - %d", errno);
         sys$cantim (&sptb, 0);
         sys$cancel (TcpAcceptChan);
@@ -485,7 +485,7 @@ static int CreateSocketPair (int SocketFamily,
     return (0) ;
 
 }
-
+
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
@@ -499,7 +499,7 @@ static void SocketPairTimeoutAst (int astparm)
     return;
 
 }
-
+
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
@@ -538,7 +538,7 @@ static int TerminalDeviceAst (int astparm)
     return status;
 
 }
-
+
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
@@ -567,10 +567,10 @@ static void LogMessage (char *msg, ...)
     /*
     ** Format the message buffer
     */
-    sprintf (MsgBuff, "%02d-%s-%04d %02d:%02d:%02d [%08X] %s\n",
-             LocTime->tm_mday, Month[LocTime->tm_mon],
-             (LocTime->tm_year + 1900), LocTime->tm_hour, LocTime->tm_min,
-             LocTime->tm_sec, pid, msg);
+    BIO_snprintf(MsgBuff, sizeof(MsgBuff), "%02d-%s-%04d %02d:%02d:%02d [%08X] %s\n",
+                 LocTime->tm_mday, Month[LocTime->tm_mon],
+                 (LocTime->tm_year + 1900), LocTime->tm_hour, LocTime->tm_min,
+                 LocTime->tm_sec, pid, msg);
 
     /*
     ** Get any variable arguments and add them to the print of the message

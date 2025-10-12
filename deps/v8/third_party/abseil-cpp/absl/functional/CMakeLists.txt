@@ -24,7 +24,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::base_internal
+    absl::base
     absl::config
     absl::core_headers
     absl::type_traits
@@ -42,7 +42,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::any_invocable
-    absl::base_internal
+    absl::base
     absl::config
     absl::core_headers
     absl::type_traits
@@ -60,7 +60,6 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::base_internal
     absl::compressed_tuple
   PUBLIC
 )
@@ -88,7 +87,6 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::base_internal
     absl::core_headers
     absl::any_invocable
     absl::meta
@@ -129,6 +127,10 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::config
+    absl::overload
+    absl::string_view
     absl::strings
+    absl::variant
     GTest::gmock_main
 )

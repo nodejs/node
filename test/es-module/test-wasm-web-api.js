@@ -106,7 +106,9 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
   // Response whose body is a ReadableStream instead of calling fetch().
   await testCompileStreamingSuccess(async () => {
     const handle = await fs.open(fixtures.path('simple.wasm'));
-    const stream = handle.readableWebStream();
+    // We set the autoClose option to true so that the file handle is closed
+    // automatically when the stream is completed or canceled.
+    const stream = handle.readableWebStream({ autoClose: true });
     return Promise.resolve(new Response(stream, {
       status: 200,
       headers: { 'Content-Type': 'application/wasm' }
@@ -173,7 +175,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
              "'application/octet-stream'"
   });
 
-  // HTTP status code indiciating an error.
+  // HTTP status code indicating an error.
   await testCompileStreamingRejectionUsingFetch((res) => {
     res.statusCode = 418;
     res.setHeader('Content-Type', 'application/wasm');
@@ -184,7 +186,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
     message: /^WebAssembly response has status code 418$/
   });
 
-  // HTTP status code indiciating an error, but using a Response whose body is
+  // HTTP status code indicating an error, but using a Response whose body is
   // a Buffer instead of calling fetch().
   await testCompileStreamingSuccess(() => {
     return Promise.resolve(new Response(simpleWasmBytes, {

@@ -172,7 +172,7 @@ constexpr Register MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::
 // static
 constexpr Register
 MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::TemporaryRegister() {
-  return x4;
+  return x5;
 }
 
 // static
@@ -342,12 +342,9 @@ CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister() {
   return x2;
 }
 // static
-constexpr Register CallApiCallbackOptimizedDescriptor::CallDataRegister() {
+constexpr Register
+CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister() {
   return x3;
-}
-// static
-constexpr Register CallApiCallbackOptimizedDescriptor::HolderRegister() {
-  return x0;
 }
 
 // static
@@ -364,10 +361,6 @@ CallApiCallbackGenericDescriptor::TopmostScriptHavingContextRegister() {
 constexpr Register
 CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister() {
   return x3;
-}
-// static
-constexpr Register CallApiCallbackGenericDescriptor::HolderRegister() {
-  return x0;
 }
 
 // static

@@ -4,10 +4,10 @@
 
 #include "src/heap/cppgc/marking-verifier.h"
 
+#include <optional>
+
 #include "src/base/logging.h"
-#include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/object-view.h"
 
@@ -29,9 +29,17 @@ void VerificationState::VerifyMarked(const void* base_object_payload) const {
         "# Hint:\n"
         "#   %s (%p)\n"
         "#     \\-> %s (%p)",
-        parent_ ? parent_->GetName().value : "Stack",
+        parent_
+            ? parent_
+                  ->GetName(
+                      HeapObjectNameForUnnamedObject::kUseClassNameIfSupported)
+                  .value
+            : "Stack",
         parent_ ? parent_->ObjectStart() : nullptr,
-        child_header.GetName().value, child_header.ObjectStart());
+        child_header
+            .GetName(HeapObjectNameForUnnamedObject::kUseClassNameIfSupported)
+            .value,
+        child_header.ObjectStart());
   }
 }
 
@@ -44,8 +52,8 @@ MarkingVerifierBase::MarkingVerifierBase(
       visitor_(std::move(visitor)),
       collection_type_(collection_type) {}
 
-void MarkingVerifierBase::Run(
-    StackState stack_state, v8::base::Optional<size_t> expected_marked_bytes) {
+void MarkingVerifierBase::Run(StackState stack_state,
+                              std::optional<size_t> expected_marked_bytes) {
   Traverse(heap_.raw_heap());
 // Avoid verifying the stack when running with TSAN as the TSAN runtime changes
 // stack contents when e.g. working with locks. Specifically, the marker uses
@@ -75,7 +83,19 @@ void MarkingVerifierBase::Run(
   }
 #endif  // !defined(THREAD_SANITIZER)
   if (expected_marked_bytes && verifier_found_marked_bytes_are_exact_) {
+    // Report differences in marked objects, if possible.
+    if (V8_UNLIKELY(expected_marked_bytes.value() !=
+                    verifier_found_marked_bytes_) &&
+        collection_type_ != CollectionType::kMinor) {
+      ReportDifferences(expected_marked_bytes.value());
+    }
     CHECK_EQ(expected_marked_bytes.value(), verifier_found_marked_bytes_);
+    // Minor GCs use sticky markbits and as such cannot expect that the marked
+    // bytes on pages match the marked bytes accumulated by the marker.
+    if (collection_type_ != CollectionType::kMinor) {
+      CHECK_EQ(expected_marked_bytes.value(),
+               verifier_found_marked_bytes_in_pages_);
+    }
   }
 }
 
@@ -106,6 +126,16 @@ void MarkingVerifierBase::VisitPointer(const void* address) {
   TraceConservativelyIfNeeded(address);
 }
 
+bool MarkingVerifierBase::VisitNormalPage(NormalPage& page) {
+  verifier_found_marked_bytes_in_pages_ += page.marked_bytes();
+  return false;  // Continue visitation.
+}
+
+bool MarkingVerifierBase::VisitLargePage(LargePage& page) {
+  verifier_found_marked_bytes_in_pages_ += page.marked_bytes();
+  return false;  // Continue visitation.
+}
+
 bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {
   // Verify only non-free marked objects.
   if (!header.IsMarked()) return true;
@@ -132,7 +162,7 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {
   verification_state_.SetCurrentParent(&header);
 
   if (!header.IsInConstruction()) {
-    header.Trace(visitor_.get());
+    header.TraceImpl(visitor_.get());
   } else {
     // Dispatches to conservative tracing implementation.
     TraceConservativelyIfNeeded(header);
@@ -144,6 +174,76 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {
   verification_state_.SetCurrentParent(nullptr);
 
   return true;
+}
+
+void MarkingVerifierBase::ReportDifferences(
+    size_t expected_marked_bytes) const {
+  v8::base::OS::PrintError("\n<--- Mismatch in marking verifier --->\n");
+  v8::base::OS::PrintError(
+      "Marked bytes: expected %zu vs. verifier found %zu, difference %zd\n",
+      expected_marked_bytes, verifier_found_marked_bytes_,
+      expected_marked_bytes - verifier_found_marked_bytes_);
+  v8::base::OS::PrintError(
+      "A list of pages with possibly mismatched marked objects follows.\n");
+  for (auto& space : heap_.raw_heap()) {
+    for (auto* page : *space) {
+      size_t marked_bytes_on_page = 0;
+      if (page->is_large()) {
+        const auto& large_page = *LargePage::From(page);
+        const auto& header = *large_page.ObjectHeader();
+        if (header.IsMarked())
+          marked_bytes_on_page +=
+              ObjectView<>(header).Size() + sizeof(HeapObjectHeader);
+        if (marked_bytes_on_page == large_page.marked_bytes()) continue;
+        ReportLargePage(large_page, marked_bytes_on_page);
+        ReportHeapObjectHeader(header);
+      } else {
+        const auto& normal_page = *NormalPage::From(page);
+        for (const auto& header : normal_page) {
+          if (header.IsMarked())
+            marked_bytes_on_page +=
+                ObjectView<>(header).Size() + sizeof(HeapObjectHeader);
+        }
+        if (marked_bytes_on_page == normal_page.marked_bytes()) continue;
+        ReportNormalPage(normal_page, marked_bytes_on_page);
+        for (const auto& header : normal_page) {
+          ReportHeapObjectHeader(header);
+        }
+      }
+    }
+  }
+}
+
+void MarkingVerifierBase::ReportNormalPage(const NormalPage& page,
+                                           size_t marked_bytes_on_page) const {
+  v8::base::OS::PrintError(
+      "\nNormal page in space %zu:\n"
+      "Marked bytes: expected %zu vs. verifier found %zu, difference %zd\n",
+      page.space().index(), page.marked_bytes(), marked_bytes_on_page,
+      page.marked_bytes() - marked_bytes_on_page);
+}
+
+void MarkingVerifierBase::ReportLargePage(const LargePage& page,
+                                          size_t marked_bytes_on_page) const {
+  v8::base::OS::PrintError(
+      "\nLarge page in space %zu:\n"
+      "Marked bytes: expected %zu vs. verifier found %zu, difference %zd\n",
+      page.space().index(), page.marked_bytes(), marked_bytes_on_page,
+      page.marked_bytes() - marked_bytes_on_page);
+}
+
+void MarkingVerifierBase::ReportHeapObjectHeader(
+    const HeapObjectHeader& header) const {
+  const char* name =
+      header.IsFree()
+          ? "free space"
+          : header
+                .GetName(
+                    HeapObjectNameForUnnamedObject::kUseClassNameIfSupported)
+                .value;
+  v8::base::OS::PrintError("- %s at %p, size %zu, %s\n", name,
+                           header.ObjectStart(), header.ObjectSize(),
+                           header.IsMarked() ? "marked" : "unmarked");
 }
 
 namespace {

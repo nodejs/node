@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_STRING_BUILDER_MULTILINE_H_
+#define V8_WASM_STRING_BUILDER_MULTILINE_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_STRING_BUILDER_MULTILINE_H_
-#define V8_WASM_STRING_BUILDER_MULTILINE_H_
 
 #include <cstring>
 #include <iostream>
@@ -123,27 +123,43 @@ class MultiLineStringBuilder : public StringBuilder {
   // Note: implemented in wasm-disassembler.cc (which is also the only user).
   void ToDisassemblyCollector(v8::debug::DisassemblyCollector* collector);
 
-  void WriteTo(std::ostream& out, bool print_offsets) {
+  void WriteTo(std::ostream& out, bool print_offsets,
+               std::vector<uint32_t>* collect_offsets = nullptr) {
     if (length() != 0) NextLine(0);
     if (lines_.size() == 0) return;
 
     if (print_offsets) {
-      // The last offset is expected to be the largest.
-      int width = GetNumDigits(lines_.back().bytecode_offset);
+      // The last offset is expected to be the largest. However, when callers
+      // emit multiple snippets (such as wami's --single-wat mode), this is
+      // not always true. Approximate detection of that case.
+      uint32_t largest_offset = lines_.back().bytecode_offset;
+      if (lines_[0].bytecode_offset > largest_offset) {
+        for (const Line& l : lines_) {
+          if (l.bytecode_offset > largest_offset) {
+            largest_offset = l.bytecode_offset;
+          }
+        }
+      }
+      int width = GetNumDigits(largest_offset);
       // We could have used std::setw(width), but this is faster.
       constexpr int kBufSize = 12;  // Enough for any uint32 plus '|'.
       char buffer[kBufSize] = {32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, '|'};
       char* const buffer_end = buffer + kBufSize - 1;
       char* const buffer_start = buffer_end - width;
+      uint32_t prev_offset = 0;
       for (const Line& l : lines_) {
         uint32_t offset = l.bytecode_offset;
+        // We usually encounter offsets in ascending order, so we can just
+        // overwrite the previous value without clearing it first; unless we
+        // just skipped to a new snippet with a smaller offset.
+        if (offset < prev_offset) {
+          memset(buffer_start, 32, width);
+        }
+        prev_offset = offset;
         char* ptr = buffer_end;
         do {
           *(--ptr) = '0' + (offset % 10);
           offset /= 10;
-          // We pre-filled the buffer with spaces, and the offsets are expected
-          // to be increasing, so we can just stop the loop here and don't need
-          // to write spaces until {ptr == buffer_start}.
         } while (offset > 0);
         out.write(buffer_start, width + 1);  // +1 for the '|'.
         out.write(l.data, l.len);
@@ -166,6 +182,12 @@ class MultiLineStringBuilder : public StringBuilder {
       }
     }
     out.write(last_start, len);
+    if (collect_offsets) {
+      collect_offsets->reserve(lines_.size());
+      for (const Line& l : lines_) {
+        collect_offsets->push_back(l.bytecode_offset);
+      }
+    }
   }
 
   size_t ApproximateSizeMB() { return approximate_size_mb(); }

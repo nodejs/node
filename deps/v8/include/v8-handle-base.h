@@ -43,7 +43,11 @@ class V8_TRIVIAL_ABI StackAllocated<true> : public StackAllocated<false> {
                                     no_checking_tag tag)
       : StackAllocated<false>(other, tag) {}
 
+#ifdef ENABLE_SLOW_DCHECKS
   V8_EXPORT void VerifyOnStack() const;
+#else
+  V8_INLINE V8_EXPORT void VerifyOnStack() const {}
+#endif
 };
 
 /**
@@ -86,11 +90,21 @@ class IndirectHandleBase {
     return internal::ValueHelper::SlotAsValue<T, check_null>(slot());
   }
 
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  V8_INLINE internal::ValueHelper::InternalRepresentationType repr() const {
+    return location_ ? *location_ : internal::ValueHelper::kEmpty;
+  }
+#else
+  V8_INLINE internal::ValueHelper::InternalRepresentationType repr() const {
+    return location_;
+  }
+#endif  // V8_ENABLE_DIRECT_HANDLE
+
  private:
   internal::Address* location_ = nullptr;
 };
 
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
 
 /**
  * A base class for abstract handles containing direct pointers.
@@ -126,11 +140,15 @@ class DirectHandleBase {
     return reinterpret_cast<T*>(ptr_);
   }
 
+  V8_INLINE internal::ValueHelper::InternalRepresentationType repr() const {
+    return ptr_;
+  }
+
  private:
   internal::Address ptr_ = internal::ValueHelper::kEmpty;
 };
 
-#endif  // V8_ENABLE_DIRECT_LOCAL
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 }  // namespace v8::api_internal
 

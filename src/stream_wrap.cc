@@ -84,8 +84,7 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   sw->InstanceTemplate()->Set(env->oncomplete_string(), v8::Null(isolate));
   sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "callback"),
                               v8::Null(isolate));
-  sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "handle"),
-                              v8::Null(isolate));
+  sw->InstanceTemplate()->Set(env->handle_string(), v8::Null(isolate));
 
   sw->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
@@ -240,7 +239,7 @@ static MaybeLocal<Object> AcceptHandle(Environment* env,
   if (!WrapType::Instantiate(env, parent, WrapType::SOCKET).ToLocal(&wrap_obj))
     return Local<Object>();
 
-  HandleWrap* wrap = Unwrap<HandleWrap>(wrap_obj);
+  HandleWrap* wrap = BaseObject::Unwrap<HandleWrap>(wrap_obj);
   CHECK_NOT_NULL(wrap);
   uv_stream_t* stream = reinterpret_cast<uv_stream_t*>(wrap->GetHandle());
   CHECK_NOT_NULL(stream);

@@ -522,6 +522,24 @@ void MacroAssembler::Cneg(const Register& rd, const Register& rn,
   cneg(rd, rn, cond);
 }
 
+void MacroAssembler::Abs(const Register& rd, const Register& rn) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  abs(rd, rn);
+}
+
+void MacroAssembler::Cnt(const Register& rd, const Register& rn) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  cnt(rd, rn);
+}
+
+void MacroAssembler::Ctz(const Register& rd, const Register& rn) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  ctz(rd, rn);
+}
+
 // Conditionally zero the destination register. Only X registers are supported
 // due to the truncation side-effect when used on W registers.
 void MacroAssembler::CzeroX(const Register& rd, Condition cond) {
@@ -585,6 +603,38 @@ void MacroAssembler::Csneg(const Register& rd, const Register& rn,
   DCHECK(!rd.IsZero());
   DCHECK((cond != al) && (cond != nv));
   csneg(rd, rn, rm, cond);
+}
+
+void MacroAssembler::Cpy(const Register& rd, const Register& rs,
+                         const Register& rn) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(rd.Is64Bits());
+  DCHECK(rs.Is64Bits());
+  DCHECK(rn.Is64Bits());
+  DCHECK(!rd.IsZero());
+  DCHECK(!rs.IsZero());
+  DCHECK(!rn.IsZero());
+
+  // TODO(sparker): Check whether forward copies, ones that either don't
+  // overlap or where the source address is greater than the destination, could
+  // be faster.
+  cpyp(rd, rs, rn);
+  cpym(rd, rs, rn);
+  cpye(rd, rs, rn);
+}
+
+void MacroAssembler::Set(const Register& rd, const Register& rn,
+                         const Register& rs) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(rd.Is64Bits());
+  DCHECK(rn.Is64Bits());
+  DCHECK(rs.Is64Bits());
+  DCHECK(!rd.IsZero());
+  DCHECK(!rn.IsZero());
+
+  setp(rd, rn, rs);
+  setm(rd, rn, rs);
+  sete(rd, rn, rs);
 }
 
 void MacroAssembler::Dmb(BarrierDomain domain, BarrierType type) {
@@ -1230,6 +1280,11 @@ void MacroAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
   CompareAndBranch(x, y, lt, dest);
 }
 
+void MacroAssembler::JumpIfUnsignedLessThan(Register x, int32_t y,
+                                            Label* dest) {
+  CompareAndBranch(x, y, lo, dest);
+}
+
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   JumpIfSmi(value, nullptr, not_smi_label);
 }
@@ -1443,25 +1498,15 @@ void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
   Add(sp, sp, size);
 }
 
-void MacroAssembler::DropArguments(const Register& count,
-                                   ArgumentsCountMode mode) {
-  int extra_slots = 1;  // Padding slot.
-  if (mode == kCountExcludesReceiver) {
-    // Add a slot for the receiver.
-    ++extra_slots;
-  }
+void MacroAssembler::DropArguments(const Register& count, int extra_slots) {
   UseScratchRegisterScope temps(this);
   Register tmp = temps.AcquireX();
-  Add(tmp, count, extra_slots);
+  Add(tmp, count, extra_slots + 1);  // +1 is for rounding the count up to 2.
   Bic(tmp, tmp, 1);
   Drop(tmp, kXRegSize);
 }
 
-void MacroAssembler::DropArguments(int64_t count, ArgumentsCountMode mode) {
-  if (mode == kCountExcludesReceiver) {
-    // Add a slot for the receiver.
-    ++count;
-  }
+void MacroAssembler::DropArguments(int64_t count) {
   Drop(RoundUp(count, 2), kXRegSize);
 }
 
@@ -1532,6 +1577,33 @@ void MacroAssembler::TestAndBranchIfAllClear(const Register& reg,
     B(eq, label);
   }
 }
+
+#define MINMAX(V)         \
+  V(Smax, smax, is_int8)  \
+  V(Smin, smin, is_int8)  \
+  V(Umax, umax, is_uint8) \
+  V(Umin, umin, is_uint8)
+
+#define DEFINE_MASM_FUNC(MASM, ASM, RANGE)                          \
+  void MacroAssembler::MASM(const Register& rd, const Register& rn, \
+                            const Operand& op) {                    \
+    DCHECK(allow_macro_instructions());                             \
+    DCHECK(!rd.IsZero());                                           \
+    if (op.IsImmediate()) {                                         \
+      int64_t imm = op.ImmediateValue();                            \
+      if (!RANGE(imm)) {                                            \
+        UseScratchRegisterScope temps(this);                        \
+        Register temp = temps.AcquireSameSizeAs(rd);                \
+        Mov(temp, imm);                                             \
+        MASM(rd, rn, temp);                                         \
+        return;                                                     \
+      }                                                             \
+    }                                                               \
+    ASM(rd, rn, op);                                                \
+  }
+MINMAX(DEFINE_MASM_FUNC)
+#undef DEFINE_MASM_FUNC
+#undef MINMAX
 
 }  // namespace internal
 }  // namespace v8

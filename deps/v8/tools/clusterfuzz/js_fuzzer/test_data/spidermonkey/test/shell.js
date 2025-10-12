@@ -3,3 +3,9 @@
 // found in the LICENSE file.
 
 console.log('/test/shell.js');
+
+function testFun(test) {
+  if (test) throw Exception();
+}
+
+testFun(() => { throw Exception(() => { throw Exception()}); });

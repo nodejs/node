@@ -266,6 +266,20 @@ class View extends BaseCommand {
     const deps = Object.entries(manifest.dependencies || {}).map(([k, dep]) =>
       `${chalk.blue(k)}: ${dep}`
     )
+
+    // Sort dist-tags by publish time when available, then by tag name, keeping `latest` at the top of the list.
+    const distTags = Object.entries(packu['dist-tags'])
+      .sort(([aTag, aVer], [bTag, bVer]) => {
+        const timeMap = packu.time || {}
+        const aTime = aTag === 'latest' ? Infinity : Date.parse(timeMap[aVer] || 0)
+        const bTime = bTag === 'latest' ? Infinity : Date.parse(timeMap[bVer] || 0)
+        if (aTime === bTime) {
+          return aTag > bTag ? -1 : 1
+        }
+        return aTime > bTime ? -1 : 1
+      })
+      .map(([k, t]) => `${chalk.blue(k)}: ${t}`)
+
     const site = manifest.homepage?.url || manifest.homepage
     const bins = Object.keys(manifest.bin || {})
     const licenseField = manifest.license || 'Proprietary'
@@ -333,9 +347,11 @@ class View extends BaseCommand {
     }
 
     res.push('\ndist-tags:')
-    res.push(columns(Object.entries(packu['dist-tags']).map(([k, t]) =>
-      `${chalk.blue(k)}: ${t}`
-    )))
+    const maxTags = 12
+    res.push(columns(distTags.slice(0, maxTags), { padding: 1, sort: false }))
+    if (distTags.length > maxTags) {
+      res.push(chalk.dim(`(...and ${distTags.length - maxTags} more.)`))
+    }
 
     const publisher = manifest._npmUser && unparsePerson({
       name: chalk.blue(manifest._npmUser.name),
@@ -343,7 +359,7 @@ class View extends BaseCommand {
     })
     if (publisher || packu.time) {
       let publishInfo = 'published'
-      if (packu.time) {
+      if (packu.time?.[manifest.version]) {
         publishInfo += ` ${chalk.cyan(relativeDate(packu.time[manifest.version]))}`
       }
       if (publisher) {
@@ -432,10 +448,12 @@ function cleanup (data) {
   }
 
   const keys = Object.keys(data)
+
   if (keys.length <= 3 && data.name && (
     (keys.length === 1) ||
     (keys.length === 3 && data.email && data.url) ||
-    (keys.length === 2 && (data.email || data.url))
+    (keys.length === 2 && (data.email || data.url)) ||
+    data.trustedPublisher
   )) {
     data = unparsePerson(data)
   }

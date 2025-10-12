@@ -35,7 +35,7 @@ static void BM_TryLock(benchmark::State& state) {
   static absl::NoDestructor<absl::base_internal::SpinLock> spinlock(
       scheduling_mode);
   for (auto _ : state) {
-    if (spinlock->TryLock()) spinlock->Unlock();
+    if (spinlock->try_lock()) spinlock->unlock();
   }
 }
 
@@ -50,7 +50,7 @@ static void BM_SpinLock(benchmark::State& state) {
   static absl::NoDestructor<absl::base_internal::SpinLock> spinlock(
       scheduling_mode);
   for (auto _ : state) {
-    absl::base_internal::SpinLockHolder holder(spinlock.get());
+    absl::base_internal::SpinLockHolder holder(*spinlock.get());
   }
 }
 

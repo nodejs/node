@@ -25,10 +25,11 @@
 
 #include "async_wrap-inl.h"
 #include "env-inl.h"
+#include "llhttp.h"
 #include "memory_tracker-inl.h"
+#include "node_external_reference.h"
 #include "stream_base-inl.h"
 #include "v8.h"
-#include "llhttp.h"
 
 #include <cstdlib>  // free()
 #include <cstring>  // strdup(), strchr()
@@ -47,7 +48,7 @@
 
 
 namespace node {
-namespace {  // NOLINT(build/namespaces)
+namespace http_parser {  // NOLINT(build/namespaces)
 
 using v8::Array;
 using v8::Boolean;
@@ -62,9 +63,11 @@ using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::String;
 using v8::Uint32;
 using v8::Undefined;
@@ -560,7 +563,7 @@ class Parser : public AsyncWrap, public StreamListener {
     new Parser(binding_data, args.This());
   }
 
-
+  // TODO(@anonrig): Add V8 Fast API
   static void Close(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -568,7 +571,7 @@ class Parser : public AsyncWrap, public StreamListener {
     delete parser;
   }
 
-
+  // TODO(@anonrig): Add V8 Fast API
   static void Free(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -579,6 +582,7 @@ class Parser : public AsyncWrap, public StreamListener {
     parser->EmitDestroy();
   }
 
+  // TODO(@anonrig): Add V8 Fast API
   static void Remove(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -691,6 +695,7 @@ class Parser : public AsyncWrap, public StreamListener {
     }
   }
 
+  // TODO(@anonrig): Add V8 Fast API
   template <bool should_pause>
   static void Pause(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
@@ -706,7 +711,7 @@ class Parser : public AsyncWrap, public StreamListener {
     }
   }
 
-
+  // TODO(@anonrig): Add V8 Fast API
   static void Consume(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -716,7 +721,7 @@ class Parser : public AsyncWrap, public StreamListener {
     stream->PushStreamListener(parser);
   }
 
-
+  // TODO(@anonrig): Add V8 Fast API
   static void Unconsume(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -733,32 +738,13 @@ class Parser : public AsyncWrap, public StreamListener {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
-    Local<Object> ret = Buffer::Copy(
+    Local<Object> ret;
+    if (Buffer::Copy(
         parser->env(),
         parser->current_buffer_data_,
-        parser->current_buffer_len_).ToLocalChecked();
-
-    args.GetReturnValue().Set(ret);
-  }
-
-  static void Duration(const FunctionCallbackInfo<Value>& args) {
-    Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
-
-    if (parser->last_message_start_ == 0) {
-      args.GetReturnValue().Set(0);
-      return;
+        parser->current_buffer_len_).ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
     }
-
-    double duration = (uv_hrtime() - parser->last_message_start_) / 1e6;
-    args.GetReturnValue().Set(duration);
-  }
-
-  static void HeadersCompleted(const FunctionCallbackInfo<Value>& args) {
-    Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
-
-    args.GetReturnValue().Set(parser->headers_completed_);
   }
 
  protected:
@@ -1089,7 +1075,7 @@ void ConnectionsList::All(const FunctionCallbackInfo<Value>& args) {
 
   ASSIGN_OR_RETURN_UNWRAP(&list, args.This());
 
-  std::vector<Local<Value>> result;
+  LocalVector<Value> result(isolate);
   result.reserve(list->all_connections_.size());
   for (auto parser : list->all_connections_) {
     result.emplace_back(parser->object());
@@ -1106,7 +1092,7 @@ void ConnectionsList::Idle(const FunctionCallbackInfo<Value>& args) {
 
   ASSIGN_OR_RETURN_UNWRAP(&list, args.This());
 
-  std::vector<Local<Value>> result;
+  LocalVector<Value> result(isolate);
   result.reserve(list->all_connections_.size());
   for (auto parser : list->all_connections_) {
     if (parser->last_message_start_ == 0) {
@@ -1125,7 +1111,7 @@ void ConnectionsList::Active(const FunctionCallbackInfo<Value>& args) {
 
   ASSIGN_OR_RETURN_UNWRAP(&list, args.This());
 
-  std::vector<Local<Value>> result;
+  LocalVector<Value> result(isolate);
   result.reserve(list->active_connections_.size());
   for (auto parser : list->active_connections_) {
     result.emplace_back(parser->object());
@@ -1174,7 +1160,7 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
   auto iter = list->active_connections_.begin();
   auto end = list->active_connections_.end();
 
-  std::vector<Local<Value>> result;
+  LocalVector<Value> result(isolate);
   result.reserve(list->active_connections_.size());
   while (iter != end) {
     Parser* parser = *iter;
@@ -1200,6 +1186,10 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
 
 const llhttp_settings_t Parser::settings = {
     Proxy<Call, &Parser::on_message_begin>::Raw,
+
+    // on_protocol
+    nullptr,
+
     Proxy<DataCall, &Parser::on_url>::Raw,
     Proxy<DataCall, &Parser::on_status>::Raw,
 
@@ -1219,6 +1209,8 @@ const llhttp_settings_t Parser::settings = {
     Proxy<DataCall, &Parser::on_body>::Raw,
     Proxy<Call, &Parser::on_message_complete>::Raw,
 
+    // on_protocol_complete
+    nullptr,
     // on_url_complete
     nullptr,
     // on_status_complete
@@ -1243,97 +1235,59 @@ const llhttp_settings_t Parser::settings = {
     nullptr,
 };
 
-void InitializeHttpParser(Local<Object> target,
-                          Local<Value> unused,
-                          Local<Context> context,
-                          void* priv) {
-  Realm* realm = Realm::GetCurrent(context);
-  Environment* env = realm->env();
-  Isolate* isolate = env->isolate();
-  BindingData* const binding_data = realm->AddBindingData<BindingData>(target);
-  if (binding_data == nullptr) return;
+void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                Local<ObjectTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(Parser::kInternalFieldCount);
 
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "REQUEST"),
-         Integer::New(env->isolate(), HTTP_REQUEST));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "RESPONSE"),
-         Integer::New(env->isolate(), HTTP_RESPONSE));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnMessageBegin"),
-         Integer::NewFromUnsigned(env->isolate(), kOnMessageBegin));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnHeaders"),
-         Integer::NewFromUnsigned(env->isolate(), kOnHeaders));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnHeadersComplete"),
-         Integer::NewFromUnsigned(env->isolate(), kOnHeadersComplete));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnBody"),
-         Integer::NewFromUnsigned(env->isolate(), kOnBody));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnMessageComplete"),
-         Integer::NewFromUnsigned(env->isolate(), kOnMessageComplete));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnExecute"),
-         Integer::NewFromUnsigned(env->isolate(), kOnExecute));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnTimeout"),
-         Integer::NewFromUnsigned(env->isolate(), kOnTimeout));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "REQUEST"),
+         Integer::New(isolate, HTTP_REQUEST));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "RESPONSE"),
+         Integer::New(isolate, HTTP_RESPONSE));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kOnMessageBegin"),
+         Integer::NewFromUnsigned(isolate, kOnMessageBegin));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kOnHeaders"),
+         Integer::NewFromUnsigned(isolate, kOnHeaders));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kOnHeadersComplete"),
+         Integer::NewFromUnsigned(isolate, kOnHeadersComplete));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kOnBody"),
+         Integer::NewFromUnsigned(isolate, kOnBody));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kOnMessageComplete"),
+         Integer::NewFromUnsigned(isolate, kOnMessageComplete));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kOnExecute"),
+         Integer::NewFromUnsigned(isolate, kOnExecute));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kOnTimeout"),
+         Integer::NewFromUnsigned(isolate, kOnTimeout));
 
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientNone"),
-         Integer::NewFromUnsigned(env->isolate(), kLenientNone));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientHeaders"),
-         Integer::NewFromUnsigned(env->isolate(), kLenientHeaders));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientChunkedLength"),
-         Integer::NewFromUnsigned(env->isolate(), kLenientChunkedLength));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientKeepAlive"),
-         Integer::NewFromUnsigned(env->isolate(), kLenientKeepAlive));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientTransferEncoding"),
-         Integer::NewFromUnsigned(env->isolate(), kLenientTransferEncoding));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientVersion"),
-         Integer::NewFromUnsigned(env->isolate(), kLenientVersion));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientDataAfterClose"),
-         Integer::NewFromUnsigned(env->isolate(), kLenientDataAfterClose));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientOptionalLFAfterCR"),
-         Integer::NewFromUnsigned(env->isolate(), kLenientOptionalLFAfterCR));
-  t->Set(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientOptionalCRLFAfterChunk"),
-      Integer::NewFromUnsigned(env->isolate(), kLenientOptionalCRLFAfterChunk));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientOptionalCRBeforeLF"),
-         Integer::NewFromUnsigned(env->isolate(), kLenientOptionalCRBeforeLF));
-  t->Set(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientSpacesAfterChunkSize"),
-      Integer::NewFromUnsigned(env->isolate(), kLenientSpacesAfterChunkSize));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientNone"),
+         Integer::NewFromUnsigned(isolate, kLenientNone));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientHeaders"),
+         Integer::NewFromUnsigned(isolate, kLenientHeaders));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientChunkedLength"),
+         Integer::NewFromUnsigned(isolate, kLenientChunkedLength));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientKeepAlive"),
+         Integer::NewFromUnsigned(isolate, kLenientKeepAlive));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientTransferEncoding"),
+         Integer::NewFromUnsigned(isolate, kLenientTransferEncoding));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientVersion"),
+         Integer::NewFromUnsigned(isolate, kLenientVersion));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientDataAfterClose"),
+         Integer::NewFromUnsigned(isolate, kLenientDataAfterClose));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientOptionalLFAfterCR"),
+         Integer::NewFromUnsigned(isolate, kLenientOptionalLFAfterCR));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientOptionalCRLFAfterChunk"),
+         Integer::NewFromUnsigned(isolate, kLenientOptionalCRLFAfterChunk));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientOptionalCRBeforeLF"),
+         Integer::NewFromUnsigned(isolate, kLenientOptionalCRBeforeLF));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientSpacesAfterChunkSize"),
+         Integer::NewFromUnsigned(isolate, kLenientSpacesAfterChunkSize));
 
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientAll"),
-         Integer::NewFromUnsigned(env->isolate(), kLenientAll));
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientAll"),
+         Integer::NewFromUnsigned(isolate, kLenientAll));
 
-  Local<Array> methods = Array::New(env->isolate());
-  Local<Array> all_methods = Array::New(env->isolate());
-  size_t method_index = -1;
-  size_t all_method_index = -1;
-#define V(num, name, string)                                                   \
-  methods                                                                      \
-      ->Set(env->context(),                                                    \
-            ++method_index,                                                    \
-            FIXED_ONE_BYTE_STRING(env->isolate(), #string))                    \
-      .Check();
-  HTTP_METHOD_MAP(V)
-#undef V
-#define V(num, name, string)                                                   \
-  all_methods                                                                  \
-      ->Set(env->context(),                                                    \
-            ++all_method_index,                                                \
-            FIXED_ONE_BYTE_STRING(env->isolate(), #string))                    \
-      .Check();
-  HTTP_ALL_METHOD_MAP(V)
-#undef V
-
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "methods"),
-              methods).Check();
-  target
-      ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "allMethods"),
-            all_methods)
-      .Check();
-
-  t->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  t->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
   SetProtoMethod(isolate, t, "close", Parser::Close);
   SetProtoMethod(isolate, t, "free", Parser::Free);
   SetProtoMethod(isolate, t, "remove", Parser::Remove);
@@ -1345,10 +1299,8 @@ void InitializeHttpParser(Local<Object> target,
   SetProtoMethod(isolate, t, "consume", Parser::Consume);
   SetProtoMethod(isolate, t, "unconsume", Parser::Unconsume);
   SetProtoMethod(isolate, t, "getCurrentBuffer", Parser::GetCurrentBuffer);
-  SetProtoMethod(isolate, t, "duration", Parser::Duration);
-  SetProtoMethod(isolate, t, "headersCompleted", Parser::HeadersCompleted);
 
-  SetConstructorFunction(context, target, "HTTPParser", t);
+  SetConstructorFunction(isolate, target, "HTTPParser", t);
 
   Local<FunctionTemplate> c =
       NewFunctionTemplate(isolate, ConnectionsList::New);
@@ -1358,10 +1310,77 @@ void InitializeHttpParser(Local<Object> target,
   SetProtoMethod(isolate, c, "idle", ConnectionsList::Idle);
   SetProtoMethod(isolate, c, "active", ConnectionsList::Active);
   SetProtoMethod(isolate, c, "expired", ConnectionsList::Expired);
-  SetConstructorFunction(context, target, "ConnectionsList", c);
+  SetConstructorFunction(isolate, target, "ConnectionsList", c);
 }
 
-}  // anonymous namespace
+void CreatePerContextProperties(Local<Object> target,
+                                Local<Value> unused,
+                                Local<Context> context,
+                                void* priv) {
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
+  Isolate* isolate = env->isolate();
+  BindingData* const binding_data = realm->AddBindingData<BindingData>(target);
+  if (binding_data == nullptr) return;
+
+  LocalVector<Value> methods_val(isolate);
+  LocalVector<Value> all_methods_val(isolate);
+
+#define V(num, name, string)                                                   \
+  methods_val.push_back(FIXED_ONE_BYTE_STRING(isolate, #string));
+  HTTP_METHOD_MAP(V)
+#undef V
+#define V(num, name, string)                                                   \
+  all_methods_val.push_back(FIXED_ONE_BYTE_STRING(isolate, #string));
+  HTTP_ALL_METHOD_MAP(V)
+#undef V
+
+  Local<Array> methods =
+      Array::New(isolate, methods_val.data(), methods_val.size());
+  Local<Array> all_methods =
+      Array::New(isolate, all_methods_val.data(), all_methods_val.size());
+  if (!target
+           ->Set(env->context(),
+                 FIXED_ONE_BYTE_STRING(isolate, "methods"),
+                 methods)
+           .IsJust()) {
+    return;
+  }
+  if (target
+          ->Set(env->context(),
+                FIXED_ONE_BYTE_STRING(isolate, "allMethods"),
+                all_methods)
+          .IsJust()) {
+    return;
+  }
+}
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(Parser::New);
+  registry->Register(Parser::Close);
+  registry->Register(Parser::Free);
+  registry->Register(Parser::Remove);
+  registry->Register(Parser::Execute);
+  registry->Register(Parser::Finish);
+  registry->Register(Parser::Initialize);
+  registry->Register(Parser::Pause<true>);
+  registry->Register(Parser::Pause<false>);
+  registry->Register(Parser::Consume);
+  registry->Register(Parser::Unconsume);
+  registry->Register(Parser::GetCurrentBuffer);
+  registry->Register(ConnectionsList::New);
+  registry->Register(ConnectionsList::All);
+  registry->Register(ConnectionsList::Idle);
+  registry->Register(ConnectionsList::Active);
+  registry->Register(ConnectionsList::Expired);
+}
+
+}  // namespace http_parser
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(http_parser, node::InitializeHttpParser)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(
+    http_parser, node::http_parser::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(http_parser,
+                              node::http_parser::CreatePerIsolateProperties)
+NODE_BINDING_EXTERNAL_REFERENCE(http_parser,
+                                node::http_parser::RegisterExternalReferences)

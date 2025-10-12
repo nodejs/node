@@ -31,13 +31,15 @@
 
 
 /* Does the file path contain embedded nul bytes? */
-static int includes_nul(const char *s, size_t n) {
+static int includes_invalid_nul(const char *s, size_t n) {
   if (n == 0)
     return 0;
 #ifdef __linux__
-  /* Accept abstract socket namespace path ("\0/virtual/path"). */
-  s++;
-  n--;
+  /* Accept abstract socket namespace paths, throughout which nul bytes have
+   * no special significance ("\0foo\0bar").
+   */
+  if (s[0] == '\0')
+    return 0;
 #endif
   return NULL != memchr(s, '\0', n);
 }
@@ -76,10 +78,15 @@ int uv_pipe_bind2(uv_pipe_t* handle,
   if (name == NULL)
     return UV_EINVAL;
 
+  /* namelen==0 on Linux means autobind the listen socket in the abstract
+   * socket namespace, see `man 7 unix` for details.
+   */
+#if !defined(__linux__)
   if (namelen == 0)
     return UV_EINVAL;
+#endif
 
-  if (includes_nul(name, namelen))
+  if (includes_invalid_nul(name, namelen))
     return UV_EINVAL;
 
   if (flags & UV_PIPE_NO_TRUNCATE)
@@ -266,7 +273,7 @@ int uv_pipe_connect2(uv_connect_t* req,
   if (namelen == 0)
     return UV_EINVAL;
 
-  if (includes_nul(name, namelen))
+  if (includes_invalid_nul(name, namelen))
     return UV_EINVAL;
 
   if (flags & UV_PIPE_NO_TRUNCATE)
@@ -344,9 +351,19 @@ static int uv__pipe_getsockpeername(const uv_pipe_t* handle,
                                     uv__peersockfunc func,
                                     char* buffer,
                                     size_t* size) {
+#if defined(__linux__)
+  static const int is_linux = 1;
+#else
+  static const int is_linux = 0;
+#endif
   struct sockaddr_un sa;
   socklen_t addrlen;
+  size_t slop;
+  char* p;
   int err;
+
+  if (buffer == NULL || size == NULL || *size == 0)
+    return UV_EINVAL;
 
   addrlen = sizeof(sa);
   memset(&sa, 0, addrlen);
@@ -359,17 +376,20 @@ static int uv__pipe_getsockpeername(const uv_pipe_t* handle,
     return err;
   }
 
-#if defined(__linux__)
-  if (sa.sun_path[0] == 0)
-    /* Linux abstract namespace */
+  slop = 1;
+  if (is_linux && sa.sun_path[0] == '\0') {
+    /* Linux abstract namespace. Not zero-terminated. */
+    slop = 0;
     addrlen -= offsetof(struct sockaddr_un, sun_path);
-  else
-#endif
-    addrlen = strlen(sa.sun_path);
+  } else {
+    p = memchr(sa.sun_path, '\0', sizeof(sa.sun_path));
+    if (p == NULL)
+      p = ARRAY_END(sa.sun_path);
+    addrlen = p - sa.sun_path;
+  }
 
-
-  if ((size_t)addrlen >= *size) {
-    *size = addrlen + 1;
+  if ((size_t)addrlen + slop > *size) {
+    *size = addrlen + slop;
     return UV_ENOBUFS;
   }
 
@@ -427,13 +447,18 @@ uv_handle_type uv_pipe_pending_type(uv_pipe_t* handle) {
 
 
 int uv_pipe_chmod(uv_pipe_t* handle, int mode) {
-  unsigned desired_mode;
-  struct stat pipe_stat;
-  char* name_buffer;
+  char name_buffer[1 + UV__PATH_MAX];
+  int desired_mode;
   size_t name_len;
+  const char* name;
+  int fd;
   int r;
 
-  if (handle == NULL || uv__stream_fd(handle) == -1)
+  if (handle == NULL)
+    return UV_EBADF;
+
+  fd = uv__stream_fd(handle);
+  if (fd == -1)
     return UV_EBADF;
 
   if (mode != UV_READABLE &&
@@ -441,53 +466,45 @@ int uv_pipe_chmod(uv_pipe_t* handle, int mode) {
       mode != (UV_WRITABLE | UV_READABLE))
     return UV_EINVAL;
 
-  /* Unfortunately fchmod does not work on all platforms, we will use chmod. */
-  name_len = 0;
-  r = uv_pipe_getsockname(handle, NULL, &name_len);
-  if (r != UV_ENOBUFS)
-    return r;
-
-  name_buffer = uv__malloc(name_len);
-  if (name_buffer == NULL)
-    return UV_ENOMEM;
-
-  r = uv_pipe_getsockname(handle, name_buffer, &name_len);
-  if (r != 0) {
-    uv__free(name_buffer);
-    return r;
-  }
-
-  /* stat must be used as fstat has a bug on Darwin */
-  if (uv__stat(name_buffer, &pipe_stat) == -1) {
-    uv__free(name_buffer);
-    return -errno;
-  }
-
   desired_mode = 0;
   if (mode & UV_READABLE)
     desired_mode |= S_IRUSR | S_IRGRP | S_IROTH;
   if (mode & UV_WRITABLE)
     desired_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
 
-  /* Exit early if pipe already has desired mode. */
-  if ((pipe_stat.st_mode & desired_mode) == desired_mode) {
-    uv__free(name_buffer);
-    return 0;
-  }
+  /* fchmod on macOS and (Free|Net|Open)BSD does not support UNIX sockets. */
+  if (fchmod(fd, desired_mode))
+    if (errno != EINVAL && errno != EOPNOTSUPP)
+      return UV__ERR(errno);
 
-  pipe_stat.st_mode |= desired_mode;
+  /* Fall back to chmod. */
+  name_len = sizeof(name_buffer);
+  r = uv_pipe_getsockname(handle, name_buffer, &name_len);
+  if (r != 0)
+    return r;
+  name = name_buffer;
 
-  r = chmod(name_buffer, pipe_stat.st_mode);
-  uv__free(name_buffer);
+  /* On some platforms, getsockname returns an empty string, and we try with pipe_fname. */
+  if (name_len == 0 && handle->pipe_fname != NULL)
+    name = handle->pipe_fname;
 
-  return r != -1 ? 0 : UV__ERR(errno);
+  if (chmod(name, desired_mode))
+    return UV__ERR(errno);
+
+  return 0;
 }
 
 
 int uv_pipe(uv_os_fd_t fds[2], int read_flags, int write_flags) {
   uv_os_fd_t temp[2];
   int err;
-#if defined(__FreeBSD__) || defined(__linux__)
+#if defined(__linux__) || \
+    defined(__FreeBSD__) || \
+    defined(__OpenBSD__) || \
+    defined(__DragonFly__) || \
+    defined(__NetBSD__) || \
+    defined(__illumos__) || \
+    (defined(UV__SOLARIS_11_4) && UV__SOLARIS_11_4)
   int flags = O_CLOEXEC;
 
   if ((read_flags & UV_NONBLOCK_PIPE) && (write_flags & UV_NONBLOCK_PIPE))

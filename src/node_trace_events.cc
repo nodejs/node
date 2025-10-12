@@ -24,7 +24,6 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Isolate;
 using v8::Local;
-using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Uint8Array;
@@ -107,12 +106,10 @@ void GetEnabledCategories(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   std::string categories =
       GetTracingAgentWriter()->agent()->GetEnabledCategories();
-  if (!categories.empty()) {
-    args.GetReturnValue().Set(
-      String::NewFromUtf8(env->isolate(),
-                          categories.c_str(),
-                          NewStringType::kNormal,
-                          categories.size()).ToLocalChecked());
+  Local<Value> ret;
+  if (!categories.empty() &&
+      ToV8Value(env->context(), categories, env->isolate()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
   }
 }
 

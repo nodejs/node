@@ -32,22 +32,25 @@
 // migration, because it guarantees pointer stability. Consider migrating to
 // `node_hash_map` and perhaps converting to a more efficient `flat_hash_map`
 // upon further review.
+//
+// `node_hash_map` is not exception-safe.
 
 #ifndef ABSL_CONTAINER_NODE_HASH_MAP_H_
 #define ABSL_CONTAINER_NODE_HASH_MAP_H_
 
 #include <cstddef>
-#include <tuple>
+#include <memory>
 #include <type_traits>
 #include <utility>
 
 #include "absl/algorithm/container.h"
-#include "absl/base/macros.h"
+#include "absl/base/attributes.h"
+#include "absl/container/hash_container_defaults.h"
 #include "absl/container/internal/container_memory.h"
-#include "absl/container/internal/hash_function_defaults.h"  // IWYU pragma: export
 #include "absl/container/internal/node_slot_policy.h"
 #include "absl/container/internal/raw_hash_map.h"  // IWYU pragma: export
 #include "absl/memory/memory.h"
+#include "absl/meta/type_traits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -96,29 +99,33 @@ class NodeHashMapPolicy;
 // In most cases `T` needs only to provide the `absl_container_hash`. In this
 // case `std::equal_to<void>` will be used instead of `eq` part.
 //
+// PERFORMANCE WARNING: Erasure & sparsity can negatively affect performance:
+//  * Iteration takes O(capacity) time, not O(size).
+//  * erase() slows down begin() and ++iterator.
+//  * Capacity only shrinks on rehash() or clear() -- not on erase().
+//
 // Example:
 //
 //   // Create a node hash map of three strings (that map to strings)
 //   absl::node_hash_map<std::string, std::string> ducks =
 //     {{"a", "huey"}, {"b", "dewey"}, {"c", "louie"}};
 //
-//  // Insert a new element into the node hash map
-//  ducks.insert({"d", "donald"}};
+//   // Insert a new element into the node hash map
+//   ducks.insert({"d", "donald"}};
 //
-//  // Force a rehash of the node hash map
-//  ducks.rehash(0);
+//   // Force a rehash of the node hash map
+//   ducks.rehash(0);
 //
-//  // Find the element with the key "b"
-//  std::string search_key = "b";
-//  auto result = ducks.find(search_key);
-//  if (result != ducks.end()) {
-//    std::cout << "Result: " << result->second << std::endl;
-//  }
-template <class Key, class Value,
-          class Hash = absl::container_internal::hash_default_hash<Key>,
-          class Eq = absl::container_internal::hash_default_eq<Key>,
+//   // Find the element with the key "b"
+//   std::string search_key = "b";
+//   auto result = ducks.find(search_key);
+//   if (result != ducks.end()) {
+//     std::cout << "Result: " << result->second << std::endl;
+//   }
+template <class Key, class Value, class Hash = DefaultHashContainerHash<Key>,
+          class Eq = DefaultHashContainerEq<Key>,
           class Alloc = std::allocator<std::pair<const Key, Value>>>
-class node_hash_map
+class ABSL_ATTRIBUTE_OWNER node_hash_map
     : public absl::container_internal::raw_hash_map<
           absl::container_internal::NodeHashMapPolicy<Key, Value>, Hash, Eq,
           Alloc> {
@@ -146,9 +153,9 @@ class node_hash_map
   //
   // * Copy assignment operator
   //
-  //  // Hash functor and Comparator are copied as well
-  //  absl::node_hash_map<int, std::string> map4;
-  //  map4 = map3;
+  //   // Hash functor and Comparator are copied as well
+  //   absl::node_hash_map<int, std::string> map4;
+  //   map4 = map3;
   //
   // * Move constructor
   //
@@ -234,8 +241,13 @@ class node_hash_map
   //   Erases the element at `position` of the `node_hash_map`, returning
   //   `void`.
   //
-  //   NOTE: this return behavior is different than that of STL containers in
-  //   general and `std::unordered_map` in particular.
+  //   NOTE: Returning `void` in this case is different than that of STL
+  //   containers in general and `std::unordered_map` in particular (which
+  //   return an iterator to the element following the erased element). If that
+  //   iterator is needed, simply post increment the iterator:
+  //
+  //     map.erase(it++);
+  //
   //
   // iterator erase(const_iterator first, const_iterator last):
   //
@@ -415,8 +427,7 @@ class node_hash_map
   // node_hash_map::swap(node_hash_map& other)
   //
   // Exchanges the contents of this `node_hash_map` with those of the `other`
-  // node hash map, avoiding invocation of any move, copy, or swap operations on
-  // individual elements.
+  // node hash map.
   //
   // All iterators and references on the `node_hash_map` remain valid, excepting
   // for the past-the-end iterator, which is invalidated.
@@ -556,6 +567,53 @@ typename node_hash_map<K, V, H, E, A>::size_type erase_if(
   return container_internal::EraseIf(pred, &c);
 }
 
+// swap(node_hash_map<>, node_hash_map<>)
+//
+// Swaps the contents of two `node_hash_map` containers.
+//
+// NOTE: we need to define this function template in order for
+// `flat_hash_set::swap` to be called instead of `std::swap`. Even though we
+// have `swap(raw_hash_set&, raw_hash_set&)` defined, that function requires a
+// derived-to-base conversion, whereas `std::swap` is a function template so
+// `std::swap` will be preferred by compiler.
+template <typename K, typename V, typename H, typename E, typename A>
+void swap(node_hash_map<K, V, H, E, A>& x,
+          node_hash_map<K, V, H, E, A>& y) noexcept(noexcept(x.swap(y))) {
+  return x.swap(y);
+}
+
+namespace container_internal {
+
+// c_for_each_fast(node_hash_map<>, Function)
+//
+// Container-based version of the <algorithm> `std::for_each()` function to
+// apply a function to a container's elements.
+// There is no guarantees on the order of the function calls.
+// Erasure and/or insertion of elements in the function is not allowed.
+template <typename K, typename V, typename H, typename E, typename A,
+          typename Function>
+decay_t<Function> c_for_each_fast(const node_hash_map<K, V, H, E, A>& c,
+                                  Function&& f) {
+  container_internal::ForEach(f, &c);
+  return f;
+}
+template <typename K, typename V, typename H, typename E, typename A,
+          typename Function>
+decay_t<Function> c_for_each_fast(node_hash_map<K, V, H, E, A>& c,
+                                  Function&& f) {
+  container_internal::ForEach(f, &c);
+  return f;
+}
+template <typename K, typename V, typename H, typename E, typename A,
+          typename Function>
+decay_t<Function> c_for_each_fast(node_hash_map<K, V, H, E, A>&& c,
+                                  Function&& f) {
+  container_internal::ForEach(f, &c);
+  return f;
+}
+
+}  // namespace container_internal
+
 namespace container_internal {
 
 template <class Key, class Value>
@@ -605,10 +663,10 @@ class NodeHashMapPolicy
   static Value& value(value_type* elem) { return elem->second; }
   static const Value& value(const value_type* elem) { return elem->second; }
 
-  template <class Hash>
+  template <class Hash, bool kIsDefault>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return memory_internal::IsLayoutCompatible<Key, Value>::value
-               ? &TypeErasedDerefAndApplyToSlotFn<Hash, Key>
+               ? &TypeErasedDerefAndApplyToSlotFn<Hash, Key, kIsDefault>
                : nullptr;
   }
 };

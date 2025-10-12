@@ -99,26 +99,24 @@ class SourcePosition final {
   }
   void SetExternalLine(int line) {
     DCHECK(IsExternal());
-    DCHECK(line <= ExternalLineField::kMax - 1);
     value_ = ExternalLineField::update(value_, line);
   }
   void SetExternalFileId(int file_id) {
     DCHECK(IsExternal());
-    DCHECK(file_id <= ExternalFileIdField::kMax - 1);
     value_ = ExternalFileIdField::update(value_, file_id);
   }
 
   void SetScriptOffset(int script_offset) {
     DCHECK(IsJavaScript());
-    DCHECK(script_offset <= ScriptOffsetField::kMax - 2);
     DCHECK_GE(script_offset, kNoSourcePosition);
     value_ = ScriptOffsetField::update(value_, script_offset + 1);
   }
   void SetInliningId(int inlining_id) {
-    DCHECK(inlining_id <= InliningIdField::kMax - 2);
     DCHECK_GE(inlining_id, kNotInlined);
     value_ = InliningIdField::update(value_, inlining_id + 1);
   }
+
+  static constexpr int MaxInliningId() { return InliningIdField::kMax; }
 
   static const int kNotInlined = -1;
   static_assert(kNoSourcePosition == -1);
@@ -186,11 +184,11 @@ struct WasmInliningPosition {
 
 struct SourcePositionInfo {
   SourcePositionInfo(Isolate* isolate, SourcePosition pos,
-                     Handle<SharedFunctionInfo> f);
+                     DirectHandle<SharedFunctionInfo> f);
 
   SourcePosition position;
-  Handle<SharedFunctionInfo> shared;
-  Handle<Script> script;
+  IndirectHandle<SharedFunctionInfo> shared;
+  IndirectHandle<Script> script;
   int line = -1;
   int column = -1;
 };

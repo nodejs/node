@@ -16,10 +16,10 @@ describe('node:test reporters', { concurrency: true }, () => {
   it('should default to outputing TAP to stdout', async () => {
     const child = spawnSync(process.execPath, ['--test', testFile]);
     assert.strictEqual(child.stderr.toString(), '');
-    assert.match(child.stdout.toString(), /TAP version 13/);
-    assert.match(child.stdout.toString(), /ok 1 - ok/);
-    assert.match(child.stdout.toString(), /not ok 2 - failing/);
-    assert.match(child.stdout.toString(), /ok 2 - top level/);
+    assert.match(child.stdout.toString(), /✖ failing tests:/);
+    assert.match(child.stdout.toString(), /✔ ok/);
+    assert.match(child.stdout.toString(), /✖ failing/);
+    assert.match(child.stdout.toString(), /✔ top level/);
   });
 
   it('should default destination to stdout when passing a single reporter', async () => {
@@ -113,7 +113,7 @@ describe('node:test reporters', { concurrency: true }, () => {
                                testFile]);
       assert.strictEqual(child.stderr.toString(), '');
       const stdout = child.stdout.toString();
-      assert.match(stdout, /{"test:enqueue":5,"test:dequeue":5,"test:complete":5,"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:diagnostic":\d+}$/);
+      assert.match(stdout, /{"test:enqueue":5,"test:dequeue":5,"test:complete":5,"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:summary":2,"test:diagnostic":\d+}$/);
       assert.strictEqual(stdout.slice(0, filename.length + 2), `${filename} {`);
     });
   });
@@ -125,7 +125,7 @@ describe('node:test reporters', { concurrency: true }, () => {
     assert.strictEqual(child.stderr.toString(), '');
     assert.match(
       child.stdout.toString(),
-      /^package: reporter-cjs{"test:enqueue":5,"test:dequeue":5,"test:complete":5,"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:diagnostic":\d+}$/,
+      /^package: reporter-cjs{"test:enqueue":5,"test:dequeue":5,"test:complete":5,"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:summary":2,"test:diagnostic":\d+}$/,
     );
   });
 
@@ -136,7 +136,7 @@ describe('node:test reporters', { concurrency: true }, () => {
     assert.strictEqual(child.stderr.toString(), '');
     assert.match(
       child.stdout.toString(),
-      /^package: reporter-esm{"test:enqueue":5,"test:dequeue":5,"test:complete":5,"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:diagnostic":\d+}$/,
+      /^package: reporter-esm{"test:enqueue":5,"test:dequeue":5,"test:complete":5,"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:summary":2,"test:diagnostic":\d+}$/,
     );
   });
 
@@ -190,5 +190,18 @@ describe('node:test reporters', { concurrency: true }, () => {
     assert.match(fileConent, /ℹ cancelled 0/);
     assert.match(fileConent, /ℹ skipped 0/);
     assert.match(fileConent, /ℹ todo 0/);
+  });
+
+  it('should correctly report pass/fail for junit reporter using reporters.js', async () => {
+    const file = tmpdir.resolve(`${tmpFiles++}.xml`);
+    const child = spawnSync(process.execPath,
+                            ['--test', '--test-reporter', 'junit', '--test-reporter-destination', file, testFile]);
+    assert.strictEqual(child.stderr.toString(), '');
+    assert.strictEqual(child.stdout.toString(), '');
+    const fileContents = fs.readFileSync(file, 'utf8');
+    assert.match(fileContents, /<testsuite .*name="nested".*tests="2".*failures="1".*skipped="0".*>/);
+    assert.match(fileContents, /<testcase .*name="failing".*>\s*<failure .*type="testCodeFailure".*message="error".*>/);
+    assert.match(fileContents, /<testcase .*name="ok".*classname="test".*\/>/);
+    assert.match(fileContents, /<testcase .*name="top level".*classname="test".*\/>/);
   });
 });

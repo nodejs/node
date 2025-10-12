@@ -30,6 +30,66 @@ function createTmpFile(content = 'console.log("running");', ext = '.js', basenam
   return file;
 }
 
+function runInBackground({ args = [], options = {}, completed = 'Completed running', shouldFail = false }) {
+  let future = Promise.withResolvers();
+  let child;
+  let stderr = '';
+  let stdout = [];
+
+  const run = () => {
+    args.unshift('--no-warnings');
+    child = spawn(execPath, args, { encoding: 'utf8', stdio: 'pipe', ...options });
+
+    child.stderr.on('data', (data) => {
+      stderr += data;
+    });
+
+    const rl = createInterface({ input: child.stdout });
+    rl.on('line', (data) => {
+      if (!data.startsWith('Waiting for graceful termination') && !data.startsWith('Gracefully restarted')) {
+        stdout.push(data);
+        if (data.startsWith(completed)) {
+          future.resolve({ stderr, stdout });
+          future = Promise.withResolvers();
+          stdout = [];
+          stderr = '';
+        } else if (data.startsWith('Failed running')) {
+          if (shouldFail) {
+            future.resolve({ stderr, stdout });
+          } else {
+            future.reject({ stderr, stdout });
+          }
+          future = Promise.withResolvers();
+          stdout = [];
+          stderr = '';
+        }
+      }
+    });
+  };
+
+  return {
+    async done() {
+      child?.kill();
+      future.resolve();
+      return { stdout, stderr };
+    },
+    restart(timeout = 1000) {
+      if (!child) {
+        run();
+      }
+      const timer = setTimeout(() => {
+        if (!future.resolved) {
+          child.kill();
+          future.reject(new Error('Timed out waiting for restart'));
+        }
+      }, timeout);
+      return future.promise.finally(() => {
+        clearTimeout(timer);
+      });
+    }
+  };
+}
+
 async function runWriteSucceed({
   file,
   watchedFile,
@@ -111,10 +171,10 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout, [
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -125,11 +185,87 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout, [
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
+  });
+
+  it('should reload env variables when --env-file changes', async () => {
+    const envKey = `TEST_ENV_${Date.now()}`;
+    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey});`);
+    const envFile = createTmpFile(`${envKey}=value1`, '.env');
+    const { done, restart } = runInBackground({ args: ['--watch', `--env-file=${envFile}`, jsFile] });
+
+    try {
+      await restart();
+      writeFileSync(envFile, `${envKey}=value2`);
+
+      // Second restart, after env change
+      const { stdout, stderr } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout, [
+        `Restarting ${inspect(jsFile)}`,
+        'ENV: value2',
+        `Completed running ${inspect(jsFile)}. Waiting for file changes before restarting...`,
+      ]);
+    } finally {
+      await done();
+    }
+  });
+
+  it('should load new env variables when --env-file changes', async () => {
+    const envKey = `TEST_ENV_${Date.now()}`;
+    const envKey2 = `TEST_ENV_2_${Date.now()}`;
+    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey} + '\\n' + 'ENV2: ' + process.env.${envKey2});`);
+    const envFile = createTmpFile(`${envKey}=value1`, '.env');
+    const { done, restart } = runInBackground({ args: ['--watch', `--env-file=${envFile}`, jsFile] });
+
+    try {
+      await restart();
+      writeFileSync(envFile, `${envKey}=value1\n${envKey2}=newValue`);
+
+      // Second restart, after env change
+      const { stderr, stdout } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout, [
+        `Restarting ${inspect(jsFile)}`,
+        'ENV: value1',
+        'ENV2: newValue',
+        `Completed running ${inspect(jsFile)}. Waiting for file changes before restarting...`,
+      ]);
+    } finally {
+      await done();
+    }
+  });
+
+  it('should load new env variables when --env-file-if-exists changes', async () => {
+    const envKey = `TEST_ENV_${Date.now()}`;
+    const envKey2 = `TEST_ENV_2_${Date.now()}`;
+    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey} + '\\n' + 'ENV2: ' + process.env.${envKey2});`);
+    const envFile = createTmpFile(`${envKey}=value1`, '.env');
+    const { done, restart } = runInBackground({ args: ['--watch', `--env-file-if-exists=${envFile}`, jsFile] });
+
+    try {
+      await restart();
+      writeFileSync(envFile, `${envKey}=value1\n${envKey2}=newValue`);
+
+      // Second restart, after env change
+      const { stderr, stdout } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout, [
+        `Restarting ${inspect(jsFile)}`,
+        'ENV: value1',
+        'ENV2: newValue',
+        `Completed running ${inspect(jsFile)}. Waiting for file changes before restarting...`,
+      ]);
+    } finally {
+      await done();
+    }
   });
 
   it('should watch changes to a failing file', async () => {
@@ -143,9 +279,9 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
 
     assert.match(stderr, /Error: fails\r?\n/);
     assert.deepStrictEqual(stdout, [
-      `Failed running ${inspect(file)}`,
+      `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
-      `Failed running ${inspect(file)}`,
+      `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -162,10 +298,10 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout, [
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
     assert.strictEqual(stderr, '');
   });
@@ -188,9 +324,9 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
 
     assert.match(stderr, /Error: Cannot find module/g);
     assert.deepStrictEqual(stdout, [
-      `Failed running ${inspect(file)}`,
+      `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
-      `Failed running ${inspect(file)}`,
+      `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -212,9 +348,9 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
 
     assert.match(stderr, /Error: Cannot find module/g);
     assert.deepStrictEqual(stdout, [
-      `Failed running ${inspect(file)}`,
+      `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
-      `Failed running ${inspect(file)}`,
+      `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -244,10 +380,10 @@ console.log(dependency);
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout, [
       '{}',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       '{}',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -262,10 +398,10 @@ console.log(dependency);
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout, [
       '{}',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       '{}',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -276,13 +412,13 @@ console.log(dependency);
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout, [
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -299,10 +435,10 @@ console.log(values.random);
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout, [
       random,
-      `Completed running ${inspect(`${file} --random ${random}`)}`,
+      `Completed running ${inspect(`${file} --random ${random}`)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(`${file} --random ${random}`)}`,
       random,
-      `Completed running ${inspect(`${file} --random ${random}`)}`,
+      `Completed running ${inspect(`${file} --random ${random}`)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -316,10 +452,10 @@ console.log(values.random);
     assert.notStrictEqual(pid, importPid);
     assert.deepStrictEqual(stdout, [
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -336,10 +472,10 @@ console.log(values.random);
 
     assert.deepStrictEqual(stdout, [
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -385,10 +521,10 @@ console.log(values.random);
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout, [
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -400,10 +536,10 @@ console.log(values.random);
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout, [
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -431,11 +567,11 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'hello',
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -463,11 +599,11 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'hello',
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -495,11 +631,11 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'hello',
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -527,15 +663,15 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'hello',
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
-  it('should run when `--watch --inspect`', async () => {
+  it('should run when `--watch --inspect`', { skip: !process.features.inspector }, async () => {
     const file = createTmpFile();
     const args = ['--watch', '--inspect', file];
     const { stdout, stderr } = await runWriteSucceed({ file, watchedFile: file, watchFlag: null, args });
@@ -543,10 +679,10 @@ console.log(values.random);
     assert.match(stderr, /listening on ws:\/\//);
     assert.deepStrictEqual(stdout, [
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -568,11 +704,11 @@ console.log(values.random);
     assert.deepStrictEqual(stdout, [
       'hello',
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 
@@ -652,7 +788,7 @@ process.on('message', (message) => {
       `Restarting ${inspect(file)}`,
       'running',
       'Received: second message',
-      `Completed running ${inspect(file)}`,
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
 });

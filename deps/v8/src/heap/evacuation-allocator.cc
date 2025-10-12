@@ -23,24 +23,33 @@ EvacuationAllocator::EvacuationAllocator(
                                MainAllocator::kInGC);
   code_space_allocator_.emplace(heap, compaction_spaces_.Get(CODE_SPACE),
                                 MainAllocator::kInGC);
-  shared_space_allocator_.emplace(heap, compaction_spaces_.Get(SHARED_SPACE),
-                                  MainAllocator::kInGC);
+  if (heap_->isolate()->has_shared_space()) {
+    shared_space_allocator_.emplace(heap, compaction_spaces_.Get(SHARED_SPACE),
+                                    MainAllocator::kInGC);
+  }
   trusted_space_allocator_.emplace(heap, compaction_spaces_.Get(TRUSTED_SPACE),
                                    MainAllocator::kInGC);
 }
 
 void EvacuationAllocator::FreeLast(AllocationSpace space,
-                                   Tagged<HeapObject> object, int object_size) {
-  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
+                                   Tagged<HeapObject> object,
+                                   SafeHeapObjectSize object_size) {
+  DCHECK_IMPLIES(!shared_space_allocator_, space != SHARED_SPACE);
+  // TODO(425150995): We should have uint versions for allocation to avoid
+  // introducing OOBs via sign-extended ints along the way.
+  int unsafe_object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size.value());
   switch (space) {
     case NEW_SPACE:
-      FreeLastInMainAllocator(new_space_allocator(), object, object_size);
+      FreeLastInMainAllocator(new_space_allocator(), object,
+                              unsafe_object_size);
       return;
     case OLD_SPACE:
-      FreeLastInMainAllocator(old_space_allocator(), object, object_size);
+      FreeLastInMainAllocator(old_space_allocator(), object,
+                              unsafe_object_size);
       return;
     case SHARED_SPACE:
-      FreeLastInMainAllocator(shared_space_allocator(), object, object_size);
+      FreeLastInMainAllocator(shared_space_allocator(), object,
+                              unsafe_object_size);
       return;
     default:
       // Only new and old space supported.
@@ -68,9 +77,9 @@ void EvacuationAllocator::Finalize() {
   code_space_allocator()->FreeLinearAllocationArea();
   heap_->code_space()->MergeCompactionSpace(compaction_spaces_.Get(CODE_SPACE));
 
-  if (heap_->shared_space()) {
-    shared_space_allocator()->FreeLinearAllocationArea();
-    heap_->shared_space()->MergeCompactionSpace(
+  if (shared_space_allocator_) {
+    shared_space_allocator_->FreeLinearAllocationArea();
+    heap_->shared_allocation_space()->MergeCompactionSpace(
         compaction_spaces_.Get(SHARED_SPACE));
   }
 

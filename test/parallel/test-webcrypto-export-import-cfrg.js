@@ -12,7 +12,7 @@ const { subtle } = globalThis.crypto;
 
 const keyData = {
   'Ed25519': {
-    jwsAlg: 'EdDSA',
+    jwsAlg: 'Ed25519',
     spki: Buffer.from(
       '302a300506032b6570032100a054b618c12b26c8d43595a5c38dd2b0140b944a' +
       '151f75003278c2b6c58ec08f', 'hex'),
@@ -27,7 +27,7 @@ const keyData = {
     }
   },
   'Ed448': {
-    jwsAlg: 'EdDSA',
+    jwsAlg: 'Ed448',
     spki: Buffer.from(
       '3043300506032b6571033a0008cc38160c85bca5656ac4924af7ea97a9161b20' +
       '2528273dcb84afd2eeb99ac912a401b34ef15ef4d9486406a6eecc31e5909219' +
@@ -88,21 +88,28 @@ const testVectors = [
     publicUsages: ['verify']
   },
   {
-    name: 'Ed448',
-    privateUsages: ['sign'],
-    publicUsages: ['verify']
-  },
-  {
     name: 'X25519',
     privateUsages: ['deriveKey', 'deriveBits'],
     publicUsages: []
   },
-  {
-    name: 'X448',
-    privateUsages: ['deriveKey', 'deriveBits'],
-    publicUsages: []
-  },
 ];
+
+if (!process.features.openssl_is_boringssl) {
+  testVectors.push(
+    {
+      name: 'Ed448',
+      privateUsages: ['sign'],
+      publicUsages: ['verify']
+    },
+    {
+      name: 'X448',
+      privateUsages: ['deriveKey', 'deriveBits'],
+      publicUsages: []
+    },
+  );
+} else {
+  common.printSkipMessage('Skipping unsupported Curve448 test cases');
+}
 
 async function testImportSpki({ name, publicUsages }, extractable) {
   const key = await subtle.importKey(
@@ -115,6 +122,8 @@ async function testImportSpki({ name, publicUsages }, extractable) {
   assert.strictEqual(key.extractable, extractable);
   assert.deepStrictEqual(key.usages, publicUsages);
   assert.deepStrictEqual(key.algorithm.name, name);
+  assert.strictEqual(key.algorithm, key.algorithm);
+  assert.strictEqual(key.usages, key.usages);
 
   if (extractable) {
     // Test the roundtrip
@@ -151,6 +160,8 @@ async function testImportPkcs8({ name, privateUsages }, extractable) {
   assert.strictEqual(key.extractable, extractable);
   assert.deepStrictEqual(key.usages, privateUsages);
   assert.deepStrictEqual(key.algorithm.name, name);
+  assert.strictEqual(key.algorithm, key.algorithm);
+  assert.strictEqual(key.usages, key.usages);
 
   if (extractable) {
     // Test the roundtrip
@@ -179,10 +190,7 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
 
   const jwk = keyData[name].jwk;
 
-  const [
-    publicKey,
-    privateKey,
-  ] = await Promise.all([
+  const tests = [
     subtle.importKey(
       'jwk',
       {
@@ -217,7 +225,37 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
       { name },
       extractable,
       privateUsages),
-  ]);
+  ];
+
+  // Test the deprecated "alg" value
+  if (keyData[name].jwsAlg?.startsWith('Ed')) {
+    tests.push(
+      subtle.importKey(
+        'jwk',
+        {
+          alg: 'EdDSA',
+          kty: jwk.kty,
+          crv: jwk.crv,
+          x: jwk.x,
+        },
+        { name },
+        extractable, publicUsages),
+      subtle.importKey(
+        'jwk',
+        {
+          ...jwk,
+          alg: 'EdDSA',
+        },
+        { name },
+        extractable,
+        privateUsages),
+    );
+  }
+
+  const [
+    publicKey,
+    privateKey,
+  ] = await Promise.all(tests);
 
   assert.strictEqual(publicKey.type, 'public');
   assert.strictEqual(privateKey.type, 'private');
@@ -227,6 +265,10 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
   assert.deepStrictEqual(privateKey.usages, privateUsages);
   assert.strictEqual(publicKey.algorithm.name, name);
   assert.strictEqual(privateKey.algorithm.name, name);
+  assert.strictEqual(privateKey.algorithm, privateKey.algorithm);
+  assert.strictEqual(privateKey.usages, privateKey.usages);
+  assert.strictEqual(publicKey.algorithm, publicKey.algorithm);
+  assert.strictEqual(publicKey.usages, publicKey.usages);
 
   if (extractable) {
     // Test the round trip
@@ -251,8 +293,13 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
     assert.strictEqual(pvtJwk.crv, jwk.crv);
     assert.strictEqual(pvtJwk.d, jwk.d);
 
-    assert.strictEqual(pubJwk.alg, undefined);
-    assert.strictEqual(pvtJwk.alg, undefined);
+    if (jwk.crv.startsWith('Ed')) {
+      assert.strictEqual(pubJwk.alg, jwk.crv);
+      assert.strictEqual(pvtJwk.alg, jwk.crv);
+    } else {
+      assert.strictEqual(pubJwk.alg, undefined);
+      assert.strictEqual(pvtJwk.alg, undefined);
+    }
   } else {
     await assert.rejects(
       subtle.exportKey('jwk', publicKey), {
@@ -276,22 +323,24 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
       { message: 'Invalid JWK "use" Parameter' });
   }
 
-  // The JWK alg member is ignored
-  // https://github.com/WICG/webcrypto-secure-curves/pull/24
   if (name.startsWith('Ed')) {
-    await subtle.importKey(
-      'jwk',
-      { kty: jwk.kty, x: jwk.x, crv: jwk.crv, alg: 'foo' },
-      { name },
-      extractable,
-      publicUsages);
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, x: jwk.x, crv: jwk.crv, alg: 'foo' },
+        { name },
+        extractable,
+        publicUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
 
-    await subtle.importKey(
-      'jwk',
-      { ...jwk, alg: 'foo' },
-      { name },
-      extractable,
-      privateUsages);
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: 'foo' },
+        { name },
+        extractable,
+        privateUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
   }
 
   for (const crv of [undefined, name === 'Ed25519' ? 'Ed448' : 'Ed25519']) {
@@ -322,6 +371,15 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
       extractable,
       [/* empty usages */]),
     { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
+
+  await assert.rejects(
+    subtle.importKey(
+      'jwk',
+      { kty: jwk.kty, /* missing x */ crv: jwk.crv },
+      { name },
+      extractable,
+      publicUsages),
+    { name: 'DataError', message: 'Invalid keyData' });
 }
 
 async function testImportRaw({ name, publicUsages }) {
@@ -336,6 +394,8 @@ async function testImportRaw({ name, publicUsages }) {
   assert.strictEqual(publicKey.type, 'public');
   assert.deepStrictEqual(publicKey.usages, publicUsages);
   assert.strictEqual(publicKey.algorithm.name, name);
+  assert.strictEqual(publicKey.algorithm, publicKey.algorithm);
+  assert.strictEqual(publicKey.usages, publicKey.usages);
 }
 
 (async function() {

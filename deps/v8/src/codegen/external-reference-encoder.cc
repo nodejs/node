@@ -57,7 +57,7 @@ ExternalReferenceEncoder::~ExternalReferenceEncoder() {
 #endif  // DEBUG
 
 Maybe<ExternalReferenceEncoder::Value> ExternalReferenceEncoder::TryEncode(
-    Address address) {
+    Address address) const {
   Maybe<uint32_t> maybe_index = map_->Get(address);
   if (maybe_index.IsNothing()) return Nothing<Value>();
   Value result(maybe_index.FromJust());
@@ -68,7 +68,7 @@ Maybe<ExternalReferenceEncoder::Value> ExternalReferenceEncoder::TryEncode(
 }
 
 ExternalReferenceEncoder::Value ExternalReferenceEncoder::Encode(
-    Address address) {
+    Address address) const {
   Maybe<uint32_t> maybe_index = map_->Get(address);
   if (maybe_index.IsNothing()) {
     void* addr = reinterpret_cast<void*>(address);

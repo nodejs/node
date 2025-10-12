@@ -48,6 +48,8 @@
 #include <sys/types.h>
 #endif
 
+#include <simdutf.h>
+
 #include <atomic>
 #include <cstdio>
 #include <cstring>
@@ -100,15 +102,31 @@ static void MakeUtf8String(Isolate* isolate,
                            MaybeStackBuffer<T>* target) {
   Local<String> string;
   if (!value->ToString(isolate->GetCurrentContext()).ToLocal(&string)) return;
+  String::ValueView value_view(isolate, string);
 
-  size_t storage;
-  if (!StringBytes::StorageSize(isolate, string, UTF8).To(&storage)) return;
-  storage += 1;
+  auto value_length = value_view.length();
+
+  if (value_view.is_one_byte()) {
+    auto const_char = reinterpret_cast<const char*>(value_view.data8());
+    auto expected_length =
+        target->capacity() < (static_cast<size_t>(value_length) * 2 + 1)
+            ? simdutf::utf8_length_from_latin1(const_char, value_length)
+            : value_length * 2;
+
+    // Add +1 for null termination.
+    target->AllocateSufficientStorage(expected_length + 1);
+    const auto actual_length = simdutf::convert_latin1_to_utf8(
+        const_char, value_length, target->out());
+    target->SetLengthAndZeroTerminate(actual_length);
+    return;
+  }
+
+  // Add +1 for null termination.
+  size_t storage = (3 * value_length) + 1;
   target->AllocateSufficientStorage(storage);
-  const int flags =
-      String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
-  const int length =
-      string->WriteUtf8(isolate, target->out(), storage, nullptr, flags);
+
+  size_t length = string->WriteUtf8V2(
+      isolate, target->out(), storage, String::WriteFlags::kReplaceInvalidUtf8);
   target->SetLengthAndZeroTerminate(length);
 }
 
@@ -128,12 +146,10 @@ TwoByteValue::TwoByteValue(Isolate* isolate, Local<Value> value) {
   Local<String> string;
   if (!value->ToString(isolate->GetCurrentContext()).ToLocal(&string)) return;
 
-  // Allocate enough space to include the null terminator
-  const size_t storage = string->Length() + 1;
-  AllocateSufficientStorage(storage);
-
-  const int flags = String::NO_NULL_TERMINATION;
-  const int length = string->Write(isolate, out(), 0, storage, flags);
+  // Allocate enough space to include the null terminator.
+  const size_t length = string->Length();
+  AllocateSufficientStorage(length + 1);
+  string->WriteV2(isolate, 0, length, out());
   SetLengthAndZeroTerminate(length);
 }
 
@@ -196,24 +212,6 @@ std::string GetProcessTitle(const char* default_title) {
 
 std::string GetHumanReadableProcessName() {
   return SPrintF("%s[%d]", GetProcessTitle("Node.js"), uv_os_getpid());
-}
-
-std::vector<std::string_view> SplitString(const std::string_view in,
-                                          const std::string_view delim) {
-  std::vector<std::string_view> out;
-
-  for (auto first = in.data(), second = in.data(), last = first + in.size();
-       second != last && first != last;
-       first = second + 1) {
-    second =
-        std::find_first_of(first, last, std::cbegin(delim), std::cend(delim));
-
-    if (first != second) {
-      out.emplace_back(first, second - first);
-    }
-  }
-
-  return out;
 }
 
 void ThrowErrStringTooLong(Isolate* isolate) {
@@ -393,7 +391,7 @@ void SetMethod(Local<v8::Context> context,
                Local<v8::Object> that,
                const std::string_view name,
                v8::FunctionCallback callback) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           callback,
@@ -454,7 +452,7 @@ void SetFastMethod(Local<v8::Context> context,
                    const std::string_view name,
                    v8::FunctionCallback slow_callback,
                    const v8::CFunction* c_function) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           slow_callback,
@@ -476,7 +474,7 @@ void SetFastMethodNoSideEffect(Local<v8::Context> context,
                                const std::string_view name,
                                v8::FunctionCallback slow_callback,
                                const v8::CFunction* c_function) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           slow_callback,
@@ -564,7 +562,7 @@ void SetMethodNoSideEffect(Local<v8::Context> context,
                            Local<v8::Object> that,
                            const std::string_view name,
                            v8::FunctionCallback callback) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           callback,
@@ -598,6 +596,32 @@ void SetMethodNoSideEffect(Isolate* isolate,
       v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
           .ToLocalChecked();
   that->Set(name_string, t);
+}
+
+void SetProtoDispose(v8::Isolate* isolate,
+                     v8::Local<v8::FunctionTemplate> that,
+                     v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  that->PrototypeTemplate()->Set(v8::Symbol::GetDispose(isolate), t);
+}
+
+void SetProtoAsyncDispose(v8::Isolate* isolate,
+                          v8::Local<v8::FunctionTemplate> that,
+                          v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  that->PrototypeTemplate()->Set(v8::Symbol::GetAsyncDispose(isolate), t);
 }
 
 void SetProtoMethod(v8::Isolate* isolate,
@@ -665,7 +689,7 @@ void SetConstructorFunction(Local<v8::Context> context,
                             const char* name,
                             Local<v8::FunctionTemplate> tmpl,
                             SetConstructorFunctionFlag flag) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   SetConstructorFunction(
       context, that, OneByteString(isolate, name), tmpl, flag);
 }
@@ -675,8 +699,9 @@ void SetConstructorFunction(Local<Context> context,
                             Local<String> name,
                             Local<FunctionTemplate> tmpl,
                             SetConstructorFunctionFlag flag) {
-  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
+  if (flag == SetConstructorFunctionFlag::SET_CLASS_NAME) [[likely]] {
     tmpl->SetClassName(name);
+  }
   that->Set(context, name, tmpl->GetFunction(context).ToLocalChecked()).Check();
 }
 
@@ -694,8 +719,9 @@ void SetConstructorFunction(Isolate* isolate,
                             Local<String> name,
                             Local<FunctionTemplate> tmpl,
                             SetConstructorFunctionFlag flag) {
-  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
+  if (flag == SetConstructorFunctionFlag::SET_CLASS_NAME) [[likely]] {
     tmpl->SetClassName(name);
+  }
   that->Set(name, tmpl);
 }
 
@@ -720,12 +746,14 @@ RAIIIsolateWithoutEntering::RAIIIsolateWithoutEntering(const SnapshotData* data)
     SnapshotBuilder::InitializeIsolateParams(data, &params);
   }
   params.array_buffer_allocator = allocator_.get();
+  params.cpp_heap = v8::CppHeap::Create(per_process::v8_platform.Platform(),
+                                        v8::CppHeapCreateParams{{}})
+                        .release();
   Isolate::Initialize(isolate_, params);
 }
 
 RAIIIsolateWithoutEntering::~RAIIIsolateWithoutEntering() {
-  per_process::v8_platform.Platform()->UnregisterIsolate(isolate_);
-  isolate_->Dispose();
+  per_process::v8_platform.Platform()->DisposeIsolate(isolate_);
 }
 
 RAIIIsolate::RAIIIsolate(const SnapshotData* data)
@@ -758,6 +786,16 @@ std::string DetermineSpecificErrorType(Environment* env,
         input.As<v8::Object>()->GetConstructorName();
     Utf8Value name(env->isolate(), constructor_name);
     return SPrintF("an instance of %s", name.out());
+  } else if (input->IsSymbol()) {
+    v8::MaybeLocal<v8::String> str =
+        input.As<v8::Symbol>()->ToDetailString(env->context());
+    v8::Local<v8::String> js_str;
+    if (!str.ToLocal(&js_str)) {
+      return "Symbol";
+    }
+    Utf8Value name(env->isolate(), js_str);
+    // Symbol(xxx)
+    return name.out();
   }
 
   Utf8Value utf8_value(env->isolate(),
@@ -795,8 +833,11 @@ v8::Maybe<int32_t> GetValidatedFd(Environment* env,
   const bool is_out_of_range = fd < 0 || fd > INT32_MAX;
 
   if (is_out_of_range || !IsSafeJsInt(input)) {
-    Utf8Value utf8_value(
-        env->isolate(), input->ToDetailString(env->context()).ToLocalChecked());
+    Local<String> str;
+    if (!input->ToDetailString(env->context()).ToLocal(&str)) {
+      return v8::Nothing<int32_t>();
+    }
+    Utf8Value utf8_value(env->isolate(), str);
     if (is_out_of_range && !std::isinf(fd)) {
       THROW_ERR_OUT_OF_RANGE(env,
                              "The value of \"fd\" is out of range. "

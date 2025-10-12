@@ -38,13 +38,14 @@ class MockPlatform : public TestPlatform {
   MockPlatform() : taskrunner_(new MockTaskRunner()) {}
   ~MockPlatform() override {
     for (auto& task : worker_tasks_) {
-      CcTest::default_platform()->CallOnWorkerThread(std::move(task));
+      CcTest::default_platform()->PostTaskOnWorkerThread(
+          TaskPriority::kUserVisible, std::move(task));
     }
     worker_tasks_.clear();
   }
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      v8::Isolate* isolate) override {
+      v8::Isolate* isolate, v8::TaskPriority) override {
     return taskrunner_;
   }
 

@@ -53,8 +53,11 @@ class FlagRegistry {
   // Store a flag in this registry. Takes ownership of *flag.
   void RegisterFlag(CommandLineFlag& flag, const char* filename);
 
-  void Lock() ABSL_EXCLUSIVE_LOCK_FUNCTION(lock_) { lock_.Lock(); }
-  void Unlock() ABSL_UNLOCK_FUNCTION(lock_) { lock_.Unlock(); }
+  void lock() ABSL_EXCLUSIVE_LOCK_FUNCTION(lock_) { lock_.lock(); }
+  inline void Lock() ABSL_EXCLUSIVE_LOCK_FUNCTION(lock_) { lock(); }
+
+  void unlock() ABSL_UNLOCK_FUNCTION(lock_) { lock_.unlock(); }
+  inline void Unlock() ABSL_UNLOCK_FUNCTION(lock_) { unlock(); }
 
   // Returns the flag object for the specified name, or nullptr if not found.
   // Will emit a warning if a 'retired' flag is specified.
@@ -87,8 +90,8 @@ namespace {
 
 class FlagRegistryLock {
  public:
-  explicit FlagRegistryLock(FlagRegistry& fr) : fr_(fr) { fr_.Lock(); }
-  ~FlagRegistryLock() { fr_.Unlock(); }
+  explicit FlagRegistryLock(FlagRegistry& fr) : fr_(fr) { fr_.lock(); }
+  ~FlagRegistryLock() { fr_.unlock(); }
 
  private:
   FlagRegistry& fr_;
@@ -217,6 +220,13 @@ void FinalizeRegistry() {
 
 namespace {
 
+// These are only used as constexpr global objects.
+// They do not use a virtual destructor to simplify their implementation.
+// They are not destroyed except at program exit, so leaks do not matter.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+#endif
 class RetiredFlagObj final : public CommandLineFlag {
  public:
   constexpr RetiredFlagObj(const char* name, FlagFastTypeId type_id)
@@ -276,14 +286,16 @@ class RetiredFlagObj final : public CommandLineFlag {
   const char* const name_;
   const FlagFastTypeId type_id_;
 };
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 }  // namespace
 
-void Retire(const char* name, FlagFastTypeId type_id, char* buf) {
+void Retire(const char* name, FlagFastTypeId type_id, unsigned char* buf) {
   static_assert(sizeof(RetiredFlagObj) == kRetiredFlagObjSize, "");
   static_assert(alignof(RetiredFlagObj) == kRetiredFlagObjAlignment, "");
-  auto* flag = ::new (static_cast<void*>(buf))
-      flags_internal::RetiredFlagObj(name, type_id);
+  auto* flag = ::new (buf) flags_internal::RetiredFlagObj(name, type_id);
   FlagRegistry::GlobalRegistry().RegisterFlag(*flag, nullptr);
 }
 

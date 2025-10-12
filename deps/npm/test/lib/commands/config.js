@@ -164,8 +164,9 @@ t.test('config list with publishConfig', async t => {
     prefixDir: {
       'package.json': JSON.stringify({
         publishConfig: {
+          other: 'not defined',
           registry: 'https://some.registry',
-          _authToken: 'mytoken',
+          '//some.registry:_authToken': 'mytoken',
         },
       }),
     },
@@ -173,7 +174,7 @@ t.test('config list with publishConfig', async t => {
   })
 
   t.test('local', async t => {
-    const { npm, joinedOutput } = await loadMockNpmWithPublishConfig(t)
+    const { npm, logs, joinedOutput } = await loadMockNpmWithPublishConfig(t)
 
     await npm.exec('config', ['list'])
 
@@ -182,6 +183,7 @@ t.test('config list with publishConfig', async t => {
     t.match(output, 'registry = "https://some.registry"')
 
     t.matchSnapshot(output, 'output matches snapshot')
+    t.matchSnapshot(logs.warn, 'warns about unknown config')
   })
 
   t.test('global', async t => {
@@ -223,7 +225,7 @@ t.test('config delete single key', async t => {
 
   await npm.exec('config', ['delete', 'access'])
 
-  t.equal(npm.config.get('access'), null, 'acces should be defaulted')
+  t.equal(npm.config.get('access'), null, 'access should be defaulted')
 
   const contents = await fs.readFile(join(home, '.npmrc'), { encoding: 'utf8' })
   const rc = ini.parse(contents)
@@ -292,7 +294,7 @@ t.test('config delete key --global', async t => {
 t.test('config set invalid option', async t => {
   const { npm } = await loadMockNpm(t)
   await t.rejects(
-    npm.exec('config', ['set', 'nonexistantconfigoption', 'something']),
+    npm.exec('config', ['set', 'nonexistentconfigoption', 'something']),
     /not a valid npm option/
   )
 })
@@ -315,7 +317,7 @@ t.test('config set nerf-darted option', async t => {
   )
 })
 
-t.test('config set scoped optoin', async t => {
+t.test('config set scoped option', async t => {
   const { npm } = await loadMockNpm(t)
   await npm.exec('config', ['set', '@npm:registry', 'https://registry.npmjs.org'])
   t.equal(

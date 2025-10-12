@@ -4,6 +4,8 @@
 
 #include "src/compiler/graph-assembler.h"
 
+#include <optional>
+
 #include "src/base/container-utils.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/machine-type.h"
@@ -15,6 +17,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/type-cache.h"
 // For TNode types.
+#include "src/compiler/allocation-builder-inl.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/heap-number.h"
@@ -44,7 +47,7 @@ class V8_NODISCARD GraphAssembler::BlockInlineReduction {
 
 GraphAssembler::GraphAssembler(
     MachineGraph* mcgraph, Zone* zone, BranchSemantics default_branch_semantics,
-    base::Optional<NodeChangedCallback> node_changed_callback,
+    std::optional<NodeChangedCallback> node_changed_callback,
     bool mark_loop_exits)
     : temp_zone_(zone),
       mcgraph_(mcgraph),
@@ -92,8 +95,9 @@ Node* GraphAssembler::UniqueIntPtrConstant(intptr_t value) {
           : common()->Int32Constant(static_cast<int32_t>(value))));
 }
 
-Node* JSGraphAssembler::SmiConstant(int32_t value) {
-  return AddClonedNode(jsgraph()->SmiConstant(value));
+TNode<Smi> JSGraphAssembler::SmiConstant(int32_t value) {
+  return TNode<Smi>::UncheckedCast(
+      AddClonedNode(jsgraph()->SmiConstant(value)));
 }
 
 Node* GraphAssembler::Float64Constant(double value) {
@@ -119,6 +123,10 @@ Node* GraphAssembler::ExternalConstant(ExternalReference ref) {
   return AddClonedNode(mcgraph()->ExternalConstant(ref));
 }
 
+Node* GraphAssembler::IsolateField(IsolateFieldId id) {
+  return ExternalConstant(ExternalReference::Create(id));
+}
+
 Node* GraphAssembler::Parameter(int index) {
   return AddNode(
       graph()->NewNode(common()->Parameter(index), graph()->start()));
@@ -132,15 +140,18 @@ Node* GraphAssembler::LoadFramePointer() {
   return AddNode(graph()->NewNode(machine()->LoadFramePointer()));
 }
 
+Node* GraphAssembler::LoadRootRegister() {
+  return AddNode(graph()->NewNode(machine()->LoadRootRegister()));
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 Node* GraphAssembler::LoadStackPointer() {
   return AddNode(graph()->NewNode(machine()->LoadStackPointer(), effect()));
 }
 
-Node* GraphAssembler::SetStackPointer(Node* node,
-                                      wasm::FPRelativeScope fp_scope) {
+Node* GraphAssembler::SetStackPointer(Node* node) {
   return AddNode(
-      graph()->NewNode(machine()->SetStackPointer(fp_scope), node, effect()));
+      graph()->NewNode(machine()->SetStackPointer(), node, effect()));
 }
 #endif
 
@@ -463,6 +474,27 @@ TNode<Boolean> JSGraphAssembler::ObjectIsUndetectable(TNode<Object> value) {
       graph()->NewNode(simplified()->ObjectIsUndetectable(), value));
 }
 
+Node* JSGraphAssembler::BooleanNot(Node* cond) {
+  return AddNode(graph()->NewNode(simplified()->BooleanNot(), cond));
+}
+
+Node* JSGraphAssembler::CheckSmi(Node* value, const FeedbackSource& feedback) {
+  return AddNode(graph()->NewNode(simplified()->CheckSmi(feedback), value,
+                                  effect(), control()));
+}
+
+Node* JSGraphAssembler::CheckNumberFitsInt32(Node* value,
+                                             const FeedbackSource& feedback) {
+  return AddNode(graph()->NewNode(simplified()->CheckNumberFitsInt32(feedback),
+                                  value, effect(), control()));
+}
+
+Node* JSGraphAssembler::CheckNumber(Node* value,
+                                    const FeedbackSource& feedback) {
+  return AddNode(graph()->NewNode(simplified()->CheckNumber(feedback), value,
+                                  effect(), control()));
+}
+
 Node* JSGraphAssembler::CheckIf(Node* cond, DeoptimizeReason reason,
                                 const FeedbackSource& feedback) {
   return AddNode(graph()->NewNode(simplified()->CheckIf(reason, feedback), cond,
@@ -474,6 +506,22 @@ Node* JSGraphAssembler::Assert(Node* cond, const char* condition_string,
   return AddNode(graph()->NewNode(
       common()->Assert(BranchSemantics::kJS, condition_string, file, line),
       cond, effect(), control()));
+}
+
+void JSGraphAssembler::Assert(TNode<Word32T> cond, const char* condition_string,
+                              const char* file, int line) {
+  AddNode(graph()->NewNode(
+      common()->Assert(BranchSemantics::kMachine, condition_string, file, line),
+      cond, effect(), control()));
+}
+
+void JSGraphAssembler::DetachContextCell(TNode<Object> context,
+                                         TNode<Object> new_value, int index,
+                                         FrameState frame_state) {
+  AddNode<Object>(graph()->NewNode(javascript()->DetachContextCell(index),
+                                   context, new_value, NoContextConstant(),
+                                   static_cast<Node*>(frame_state), effect(),
+                                   control()));
 }
 
 TNode<Boolean> JSGraphAssembler::NumberIsFloat64Hole(TNode<Number> value) {
@@ -545,28 +593,28 @@ class ArrayBufferViewAccessBuilder {
     });
   }
 
-  base::Optional<int> TryComputeStaticElementShift() {
+  std::optional<int> TryComputeStaticElementShift() {
     DCHECK(instance_type_ != JS_RAB_GSAB_DATA_VIEW_TYPE);
     if (instance_type_ == JS_DATA_VIEW_TYPE) return 0;
-    if (candidates_.empty()) return base::nullopt;
+    if (candidates_.empty()) return std::nullopt;
     int shift = ElementsKindToShiftSize(*candidates_.begin());
     if (!base::all_of(candidates_, [shift](auto e) {
           return ElementsKindToShiftSize(e) == shift;
         })) {
-      return base::nullopt;
+      return std::nullopt;
     }
     return shift;
   }
 
-  base::Optional<int> TryComputeStaticElementSize() {
+  std::optional<int> TryComputeStaticElementSize() {
     DCHECK(instance_type_ != JS_RAB_GSAB_DATA_VIEW_TYPE);
     if (instance_type_ == JS_DATA_VIEW_TYPE) return 1;
-    if (candidates_.empty()) return base::nullopt;
+    if (candidates_.empty()) return std::nullopt;
     int size = ElementsKindToByteSize(*candidates_.begin());
     if (!base::all_of(candidates_, [size](auto e) {
           return ElementsKindToByteSize(e) == size;
         })) {
-      return base::nullopt;
+      return std::nullopt;
     }
     return size;
   }
@@ -578,8 +626,19 @@ class ArrayBufferViewAccessBuilder {
     // Case 1: Normal (backed by AB/SAB) or non-length tracking backed by GSAB
     // (can't go oob once constructed)
     auto GsabFixedOrNormal = [&]() {
-      return MachineLoadField<UintPtrT>(AccessBuilder::ForJSTypedArrayLength(),
-                                        view, UseInfo::Word());
+      TNode<UintPtrT> byte_length = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteLength(), view,
+          UseInfo::Word());
+      if (auto size_opt = TryComputeStaticElementSize()) {
+        return a.UintPtrDiv(byte_length, a.UintPtrConstant(*size_opt));
+      } else {
+        TNode<Map> typed_array_map = a.LoadField<Map>(
+            AccessBuilder::ForMap(WriteBarrierKind::kNoWriteBarrier), view);
+        TNode<Uint32T> elements_kind = a.LoadElementsKind(typed_array_map);
+        TNode<Uint32T> element_size =
+            a.LookupByteSizeForElementsKind(elements_kind);
+        return a.UintPtrDiv(byte_length, a.ChangeUint32ToUintPtr(element_size));
+      }
     };
 
     // If we statically know we cannot have rab/gsab backed, we can simply
@@ -662,8 +721,7 @@ class ArrayBufferViewAccessBuilder {
       TNode<Number> temp = TNode<Number>::UncheckedCast(a.TypeGuard(
           TypeCache::Get()->kJSArrayBufferViewByteLengthType,
           a.JSCallRuntime1(Runtime::kGrowableSharedArrayBufferByteLength,
-                           buffer, context, base::nullopt,
-                           Operator::kNoWrite)));
+                           buffer, context, std::nullopt, Operator::kNoWrite)));
       TNode<UintPtrT> byte_length =
           a.EnterMachineGraph<UintPtrT>(temp, UseInfo::Word());
       TNode<UintPtrT> byte_offset = MachineLoadField<UintPtrT>(
@@ -793,8 +851,7 @@ class ArrayBufferViewAccessBuilder {
       TNode<Number> temp = TNode<Number>::UncheckedCast(a.TypeGuard(
           TypeCache::Get()->kJSArrayBufferViewByteLengthType,
           a.JSCallRuntime1(Runtime::kGrowableSharedArrayBufferByteLength,
-                           buffer, context, base::nullopt,
-                           Operator::kNoWrite)));
+                           buffer, context, std::nullopt, Operator::kNoWrite)));
       TNode<UintPtrT> byte_length =
           a.EnterMachineGraph<UintPtrT>(temp, UseInfo::Word());
       TNode<UintPtrT> byte_offset = MachineLoadField<UintPtrT>(
@@ -829,19 +886,15 @@ class ArrayBufferViewAccessBuilder {
         .Value();
   }
 
-  TNode<Word32T> BuildDetachedCheck(TNode<JSArrayBufferView> view) {
+  TNode<Word32T> BuildDetachedOrOutOfBoundsCheck(
+      TNode<JSArrayBufferView> view) {
     auto& a = *assembler_;
 
     // Load the underlying buffer and its bitfield.
     TNode<HeapObject> buffer = a.LoadField<HeapObject>(
         AccessBuilder::ForJSArrayBufferViewBuffer(), view);
-    TNode<Word32T> buffer_bit_field =
-        MachineLoadField<Word32T>(AccessBuilder::ForJSArrayBufferBitField(),
-                                  buffer, UseInfo::TruncatingWord32());
     // Mask the detached bit.
-    TNode<Word32T> detached_bit =
-        a.Word32And(buffer_bit_field,
-                    a.Uint32Constant(JSArrayBuffer::WasDetachedBit::kMask));
+    TNode<Word32T> detached_bit = a.ArrayBufferDetachedBit(buffer);
 
     // If we statically know we cannot have rab/gsab backed, we are done here.
     if (!maybe_rab_gsab()) {
@@ -923,6 +976,22 @@ TNode<Number> JSGraphAssembler::ArrayBufferViewByteLength(
       TypeCache::Get()->kJSArrayBufferByteLengthType);
 }
 
+TNode<Word32T> JSGraphAssembler::ArrayBufferDetachedBit(
+    TNode<HeapObject> buffer) {
+  TNode<Word32T> bitfield = EnterMachineGraph<Word32T>(
+      LoadField<Word32T>(AccessBuilder::ForJSArrayBufferBitField(), buffer),
+      UseInfo::TruncatingWord32());
+  return Word32And(bitfield,
+                   Uint32Constant(JSArrayBuffer::WasDetachedBit::kMask));
+}
+
+TNode<Word32T> JSGraphAssembler::ArrayBufferViewDetachedBit(
+    TNode<JSArrayBufferView> array_buffer_view) {
+  TNode<HeapObject> buffer = LoadField<HeapObject>(
+      AccessBuilder::ForJSArrayBufferViewBuffer(), array_buffer_view);
+  return ArrayBufferDetachedBit(buffer);
+}
+
 TNode<Number> JSGraphAssembler::TypedArrayLength(
     TNode<JSTypedArray> typed_array,
     std::set<ElementsKind> elements_kinds_candidates, TNode<Context> context) {
@@ -933,14 +1002,15 @@ TNode<Number> JSGraphAssembler::TypedArrayLength(
                                   TypeCache::Get()->kJSTypedArrayLengthType);
 }
 
-void JSGraphAssembler::CheckIfTypedArrayWasDetached(
+void JSGraphAssembler::CheckIfTypedArrayWasDetachedOrOutOfBounds(
     TNode<JSTypedArray> typed_array,
     std::set<ElementsKind> elements_kinds_candidates,
     const FeedbackSource& feedback) {
   ArrayBufferViewAccessBuilder builder(this, JS_TYPED_ARRAY_TYPE,
                                        std::move(elements_kinds_candidates));
 
-  TNode<Word32T> detached_check = builder.BuildDetachedCheck(typed_array);
+  TNode<Word32T> detached_check =
+      builder.BuildDetachedOrOutOfBoundsCheck(typed_array);
   TNode<Boolean> is_not_detached =
       ExitMachineGraph<Boolean>(Word32Equal(detached_check, Uint32Constant(0)),
                                 MachineRepresentation::kBit, Type::Boolean());
@@ -971,7 +1041,7 @@ TNode<Uint32T> JSGraphAssembler::LookupByteSizeForElementsKind(
 
 TNode<Object> JSGraphAssembler::JSCallRuntime1(
     Runtime::FunctionId function_id, TNode<Object> arg0, TNode<Context> context,
-    base::Optional<FrameState> frame_state, Operator::Properties properties) {
+    std::optional<FrameState> frame_state, Operator::Properties properties) {
   return MayThrow([&]() {
     if (frame_state.has_value()) {
       return AddNode<Object>(graph()->NewNode(
@@ -995,12 +1065,6 @@ TNode<Object> JSGraphAssembler::JSCallRuntime2(Runtime::FunctionId function_id,
         graph()->NewNode(javascript()->CallRuntime(function_id, 2), arg0, arg1,
                          context, frame_state, effect(), control()));
   });
-}
-
-Node* JSGraphAssembler::Chained(const Operator* op, Node* input) {
-  DCHECK_EQ(op->ValueInputCount(), 1);
-  return AddNode(
-      graph()->NewNode(common()->Chained(op), input, effect(), control()));
 }
 
 Node* GraphAssembler::TypeGuard(Type type, Node* value) {
@@ -1037,7 +1101,7 @@ TNode<RawPtrT> GraphAssembler::StackSlot(int size, int alignment,
 }
 
 Node* GraphAssembler::AdaptLocalArgument(Node* argument) {
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
   // With direct locals, the argument can be passed directly.
   return BitcastTaggedToWord(argument);
 #else
@@ -1215,6 +1279,10 @@ void GraphAssembler::BranchWithCriticalSafetyCheck(
   }
 
   BranchImpl(default_branch_semantics_, condition, if_true, if_false, hint);
+}
+
+void GraphAssembler::RuntimeAbort(AbortReason reason) {
+  AddNode(graph()->NewNode(simplified()->RuntimeAbort(reason)));
 }
 
 void GraphAssembler::ConnectUnreachableToEnd() {

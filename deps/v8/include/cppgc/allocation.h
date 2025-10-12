@@ -44,10 +44,9 @@ class AllocationHandle;
 
 namespace internal {
 
-// Similar to C++17 std::align_val_t;
-enum class AlignVal : size_t {};
+using AlignVal = std::align_val_t;
 
-class V8_EXPORT MakeGarbageCollectedTraitInternal {
+class MakeGarbageCollectedTraitInternal {
  protected:
   static inline void MarkObjectAsFullyConstructed(const void* payload) {
     // See api_constants for an explanation of the constants.
@@ -72,7 +71,7 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
   template <typename GCInfoType, typename CustomSpace, size_t alignment>
   struct AllocationDispatcher final {
     static void* Invoke(AllocationHandle& handle, size_t size) {
-      static_assert(std::is_base_of<CustomSpaceBase, CustomSpace>::value,
+      static_assert(std::is_base_of_v<CustomSpaceBase, CustomSpace>,
                     "Custom space must inherit from CustomSpaceBase.");
       static_assert(
           !CustomSpace::kSupportsCompaction,
@@ -112,7 +111,7 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
                               api_constants::kDefaultAlignment>
       final {
     static void* Invoke(AllocationHandle& handle, size_t size) {
-      static_assert(std::is_base_of<CustomSpaceBase, CustomSpace>::value,
+      static_assert(std::is_base_of_v<CustomSpaceBase, CustomSpace>,
                     "Custom space must inherit from CustomSpaceBase.");
       return MakeGarbageCollectedTraitInternal::Allocate(
           handle, size, internal::GCInfoTrait<GCInfoType>::Index(),
@@ -121,16 +120,15 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
   };
 
  private:
-  static void* CPPGC_DEFAULT_ALIGNED Allocate(cppgc::AllocationHandle&, size_t,
-                                              GCInfoIndex);
-  static void* CPPGC_DOUBLE_WORD_ALIGNED Allocate(cppgc::AllocationHandle&,
-                                                  size_t, AlignVal,
-                                                  GCInfoIndex);
-  static void* CPPGC_DEFAULT_ALIGNED Allocate(cppgc::AllocationHandle&, size_t,
-                                              GCInfoIndex, CustomSpaceIndex);
-  static void* CPPGC_DOUBLE_WORD_ALIGNED Allocate(cppgc::AllocationHandle&,
-                                                  size_t, AlignVal, GCInfoIndex,
-                                                  CustomSpaceIndex);
+  V8_EXPORT static void* CPPGC_DEFAULT_ALIGNED
+  Allocate(cppgc::AllocationHandle&, size_t, GCInfoIndex);
+  V8_EXPORT static void* CPPGC_DOUBLE_WORD_ALIGNED
+  Allocate(cppgc::AllocationHandle&, size_t, AlignVal, GCInfoIndex);
+  V8_EXPORT static void* CPPGC_DEFAULT_ALIGNED
+  Allocate(cppgc::AllocationHandle&, size_t, GCInfoIndex, CustomSpaceIndex);
+  V8_EXPORT static void* CPPGC_DOUBLE_WORD_ALIGNED
+  Allocate(cppgc::AllocationHandle&, size_t, AlignVal, GCInfoIndex,
+           CustomSpaceIndex);
 
   friend class HeapObjectHeader;
 };
@@ -166,7 +164,7 @@ class MakeGarbageCollectedTraitBase
    */
   V8_INLINE static void* Allocate(AllocationHandle& handle, size_t size) {
     static_assert(
-        std::is_base_of<typename T::ParentMostGarbageCollectedType, T>::value,
+        std::is_base_of_v<typename T::ParentMostGarbageCollectedType, T>,
         "U of GarbageCollected<U> must be a base of T. Check "
         "GarbageCollected<T> base class inheritance.");
     static constexpr size_t kWantedAlignment =

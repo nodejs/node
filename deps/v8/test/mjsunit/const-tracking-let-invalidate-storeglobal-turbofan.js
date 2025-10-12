@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --const-tracking-let --allow-natives-syntax
-// Flags: --turbofan --no-always-turbofan --maglev --no-stress-maglev
+// Flags: --script-context-cells --allow-natives-syntax
+// Flags: --turbofan --maglev --no-stress-maglev
 // Flags: --sparkplug --no-always-sparkplug
 
-load('test/mjsunit/const-tracking-let-other-script.js');
+d8.file.execute('test/mjsunit/const-tracking-let-other-script.js');
 
 // This will use the StoreGlobal bytecode.
 function write(newA) {

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_PGO_H_
+#define V8_WASM_PGO_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_PGO_H_
-#define V8_WASM_PGO_H_
 
 #include <vector>
 
@@ -42,7 +42,7 @@ class ProfileInformation {
 
 void DumpProfileToFile(const WasmModule* module,
                        base::Vector<const uint8_t> wire_bytes,
-                       uint32_t* tiering_budget_array);
+                       std::atomic<uint32_t>* tiering_budget_array);
 
 V8_WARN_UNUSED_RESULT std::unique_ptr<ProfileInformation> LoadProfileFromFile(
     const WasmModule* module, base::Vector<const uint8_t> wire_bytes);

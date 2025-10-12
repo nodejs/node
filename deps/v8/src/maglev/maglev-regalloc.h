@@ -11,6 +11,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -19,6 +20,18 @@ namespace maglev {
 class MaglevCompilationInfo;
 class MaglevPrintingVisitor;
 class MergePointRegisterState;
+
+struct RegallocBlockInfo {
+  struct RegallocLoopInfo {
+    // Hints about which nodes should be in registers or spilled when entering
+    // a loop.
+    ZonePtrList<ValueNode> reload_hints_;
+    ZonePtrList<ValueNode> spill_hints_;
+    explicit RegallocLoopInfo(Zone* zone)
+        : reload_hints_(0, zone), spill_hints_(0, zone) {}
+  };
+  absl::flat_hash_map<BasicBlock::Id, RegallocLoopInfo> loop_info_;
+};
 
 // Represents the state of the register frame during register allocation,
 // including current register values, and the state of each register.
@@ -44,9 +57,9 @@ template <typename RegisterT>
 class RegisterFrameState {
  public:
   static constexpr bool kIsGeneralRegister =
-      std::is_same<Register, RegisterT>();
+      std::is_same_v<Register, RegisterT>;
   static constexpr bool kIsDoubleRegister =
-      std::is_same<DoubleRegister, RegisterT>();
+      std::is_same_v<DoubleRegister, RegisterT>;
 
   static_assert(kIsGeneralRegister || kIsDoubleRegister,
                 "RegisterFrameState should be used only for Register and "
@@ -81,7 +94,7 @@ class RegisterFrameState {
   void AddToFree(RegTList list) { free_ |= list; }
 
   void FreeRegistersUsedBy(ValueNode* node) {
-    RegTList list = node->ClearRegisters<RegisterT>();
+    RegTList list = node->regalloc_info()->ClearRegisters<RegisterT>();
     DCHECK_EQ(free_ & list, kEmptyRegList);
     free_ |= list;
   }
@@ -91,13 +104,13 @@ class RegisterFrameState {
     DCHECK(!blocked_.has(reg));
     values_[reg.code()] = node;
     block(reg);
-    node->AddRegister(reg);
+    node->regalloc_info()->AddRegister(reg);
   }
   void SetValueWithoutBlocking(RegisterT reg, ValueNode* node) {
     DCHECK(!free_.has(reg));
     DCHECK(!blocked_.has(reg));
     values_[reg.code()] = node;
-    node->AddRegister(reg);
+    node->regalloc_info()->AddRegister(reg);
   }
   ValueNode* GetValue(RegisterT reg) const {
     DCHECK(!free_.has(reg));
@@ -141,7 +154,8 @@ class RegisterFrameState {
 class StraightForwardRegisterAllocator {
  public:
   StraightForwardRegisterAllocator(MaglevCompilationInfo* compilation_info,
-                                   Graph* graph);
+                                   Graph* graph,
+                                   RegallocBlockInfo* regalloc_info);
   ~StraightForwardRegisterAllocator();
 
  private:
@@ -172,7 +186,9 @@ class StraightForwardRegisterAllocator {
 
   void PrintLiveRegs() const;
 
-  void UpdateUse(Input* input) { return UpdateUse(input->node(), input); }
+  void UpdateUse(Input input) {
+    return UpdateUse(input.node(), input.location());
+  }
   void UpdateUse(ValueNode* node, InputLocation* input_location);
 
   void MarkAsClobbered(ValueNode* node,
@@ -183,9 +199,9 @@ class StraightForwardRegisterAllocator {
   void AllocateNodeResult(ValueNode* node);
   void AllocateEagerDeopt(const EagerDeoptInfo& deopt_info);
   void AllocateLazyDeopt(const LazyDeoptInfo& deopt_info);
-  void AssignFixedInput(Input& input);
-  void AssignArbitraryRegisterInput(NodeBase* result_node, Input& input);
-  void AssignAnyInput(Input& input);
+  void AssignFixedInput(Input input);
+  void AssignArbitraryRegisterInput(NodeBase* result_node, Input input);
+  void AssignAnyInput(Input input);
   void AssignInputs(NodeBase* node);
   template <typename RegisterT>
   void AssignFixedTemporaries(RegisterFrameState<RegisterT>& registers,
@@ -225,7 +241,7 @@ class StraightForwardRegisterAllocator {
 
   template <typename RegisterT>
   RegisterFrameState<RegisterT>& GetRegisterFrameState() {
-    if constexpr (std::is_same<RegisterT, Register>::value) {
+    if constexpr (std::is_same_v<RegisterT, Register>) {
       return general_registers_;
     } else {
       return double_registers_;
@@ -255,7 +271,7 @@ class StraightForwardRegisterAllocator {
       RegisterFrameState<RegisterT>& registers, RegisterT reg, ValueNode* node);
   compiler::AllocatedOperand ForceAllocate(Register reg, ValueNode* node);
   compiler::AllocatedOperand ForceAllocate(DoubleRegister reg, ValueNode* node);
-  compiler::AllocatedOperand ForceAllocate(const Input& input, ValueNode* node);
+  compiler::AllocatedOperand ForceAllocate(ConstInput input, ValueNode* node);
 
   template <typename Function>
   void ForEachMergePointRegisterState(
@@ -267,6 +283,9 @@ class StraightForwardRegisterAllocator {
   bool IsInRegister(MergePointRegisterState& target_state, ValueNode* incoming);
   bool IsForwardReachable(BasicBlock* start_block, NodeIdT first_id,
                           NodeIdT last_id);
+  bool AllUsedRegistersLiveAt(ConditionalControlNode* control_node,
+                              BasicBlock* target);
+  bool AllUsedRegistersLiveAt(BasicBlock* target);
 #endif
 
   template <typename RegisterT>
@@ -283,17 +302,30 @@ class StraightForwardRegisterAllocator {
   void MergeRegisterValues(ControlNode* control, BasicBlock* target,
                            int predecessor_id);
 
+  void ApplyPatches(BasicBlock* block);
+
+  ProcessingState GetCurrentState();
+
+  bool has_graph_labeller() const { return graph_->has_graph_labeller(); }
+
   MaglevGraphLabeller* graph_labeller() const {
-    return compilation_info_->graph_labeller();
+    return graph_->graph_labeller();
   }
 
   MaglevCompilationInfo* compilation_info_;
   std::unique_ptr<MaglevPrintingVisitor> printing_visitor_;
   Graph* graph_;
+  struct BlockPatch {
+    ptrdiff_t diff;
+    Node* new_node;
+  };
+  ZoneVector<BlockPatch> patches_;
+
   BlockConstIterator block_it_;
   NodeIterator node_it_;
   // The current node, whether a Node in the body or the ControlNode.
   NodeBase* current_node_;
+  RegallocBlockInfo* regalloc_info_;
 };
 
 }  // namespace maglev

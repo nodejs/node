@@ -194,26 +194,12 @@
 //
 // Macros for basic C++ coding:
 //   GTEST_AMBIGUOUS_ELSE_BLOCKER_ - for disabling a gcc warning.
-//   GTEST_MUST_USE_RESULT_   - declares that a function's result must be used.
 //   GTEST_INTENTIONAL_CONST_COND_PUSH_ - start code section where MSVC C4127 is
 //                                        suppressed (constant conditional).
 //   GTEST_INTENTIONAL_CONST_COND_POP_  - finish code section where MSVC C4127
 //                                        is suppressed.
-//   GTEST_INTERNAL_HAS_ANY - for enabling UniversalPrinter<std::any> or
-//                            UniversalPrinter<absl::any> specializations.
-//                            Always defined to 0 or 1.
-//   GTEST_INTERNAL_HAS_OPTIONAL - for enabling UniversalPrinter<std::optional>
-//   or
-//                                 UniversalPrinter<absl::optional>
-//                                 specializations. Always defined to 0 or 1.
 //   GTEST_INTERNAL_HAS_STD_SPAN - for enabling UniversalPrinter<std::span>
 //                                 specializations. Always defined to 0 or 1
-//   GTEST_INTERNAL_HAS_STRING_VIEW - for enabling Matcher<std::string_view> or
-//                                    Matcher<absl::string_view>
-//                                    specializations. Always defined to 0 or 1.
-//   GTEST_INTERNAL_HAS_VARIANT - for enabling UniversalPrinter<std::variant> or
-//                                UniversalPrinter<absl::variant>
-//                                specializations. Always defined to 0 or 1.
 //   GTEST_USE_OWN_FLAGFILE_FLAG_ - Always defined to 0 or 1.
 //   GTEST_HAS_CXXABI_H_ - Always defined to 0 or 1.
 //   GTEST_CAN_STREAM_RESULTS_ - Always defined to 0 or 1.
@@ -260,11 +246,6 @@
 //   BoolFromGTestEnv()   - parses a bool environment variable.
 //   Int32FromGTestEnv()  - parses an int32_t environment variable.
 //   StringFromGTestEnv() - parses a string environment variable.
-//
-// Deprecation warnings:
-//   GTEST_INTERNAL_DEPRECATED(message) - attribute marking a function as
-//                                        deprecated; calling a marked function
-//                                        should generate a compiler warning
 
 // The definition of GTEST_INTERNAL_CPLUSPLUS_LANG comes first because it can
 // potentially be used as an #include guard.
@@ -275,8 +256,8 @@
 #endif
 
 #if !defined(GTEST_INTERNAL_CPLUSPLUS_LANG) || \
-    GTEST_INTERNAL_CPLUSPLUS_LANG < 201402L
-#error C++ versions less than C++14 are not supported.
+    GTEST_INTERNAL_CPLUSPLUS_LANG < 201703L
+#error C++ versions less than C++17 are not supported.
 #endif
 
 // MSVC >= 19.11 (VS 2017 Update 3) supports __has_include.
@@ -288,10 +269,14 @@
 
 // Detect C++ feature test macros as gracefully as possible.
 // MSVC >= 19.15, Clang >= 3.4.1, and GCC >= 4.1.2 support feature test macros.
-#if GTEST_INTERNAL_CPLUSPLUS_LANG >= 202002L && \
-    (!defined(__has_include) || GTEST_INTERNAL_HAS_INCLUDE(<version>))
-#include <version>  // C++20 and later
-#elif (!defined(__has_include) || GTEST_INTERNAL_HAS_INCLUDE(<ciso646>))
+//
+// GCC15 warns that <ciso646> is deprecated in C++17 and suggests using
+// <version> instead, even though <version> is not available in C++17 mode prior
+// to GCC9.
+#if GTEST_INTERNAL_CPLUSPLUS_LANG >= 202002L || \
+    GTEST_INTERNAL_HAS_INCLUDE(<version>)
+#include <version>  // C++20 or <version> support.
+#else
 #include <ciso646>  // Pre-C++20
 #endif
 
@@ -772,25 +757,6 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #define GTEST_HAVE_FEATURE_(x) 0
 #endif
 
-// Use this annotation after a variable or parameter declaration to tell the
-// compiler the variable/parameter may be used.
-// Example:
-//
-//   GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED int foo = bar();
-//
-// This can be removed once we only support only C++17 or newer and
-// [[maybe_unused]] is available on all supported platforms.
-#if GTEST_INTERNAL_HAVE_CPP_ATTRIBUTE(maybe_unused)
-#define GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED [[maybe_unused]]
-#elif GTEST_HAVE_ATTRIBUTE_(unused)
-// This is inferior to [[maybe_unused]] as it can produce a
-// -Wused-but-marked-unused warning on optionally used symbols, but it is all we
-// have.
-#define GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED __attribute__((__unused__))
-#else
-#define GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED
-#endif
-
 // Use this annotation before a function that takes a printf format string.
 #if GTEST_HAVE_ATTRIBUTE_(format) && defined(__MINGW_PRINTF_FORMAT)
 // MinGW has two different printf implementations. Ensure the format macro
@@ -803,17 +769,6 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
   __attribute__((format(printf, string_index, first_to_check)))
 #else
 #define GTEST_ATTRIBUTE_PRINTF_(string_index, first_to_check)
-#endif
-
-// Tell the compiler to warn about unused return values for functions declared
-// with this macro.  The macro should be used on function declarations
-// following the argument list:
-//
-//   Sprocket* AllocateSprocket() GTEST_MUST_USE_RESULT_;
-#if GTEST_HAVE_ATTRIBUTE_(warn_unused_result)
-#define GTEST_MUST_USE_RESULT_ __attribute__((warn_unused_result))
-#else
-#define GTEST_MUST_USE_RESULT_
 #endif
 
 // MS C++ compiler emits warning when a conditional expression is compile time
@@ -1430,9 +1385,9 @@ class GTEST_API_ Mutex {
   Mutex();
   ~Mutex();
 
-  void Lock();
+  void lock();
 
-  void Unlock();
+  void unlock();
 
   // Does nothing if the current thread holds the mutex. Otherwise, crashes
   // with high probability.
@@ -1469,9 +1424,9 @@ class GTEST_API_ Mutex {
 // "MutexLock l(&mu)".  Hence the typedef trick below.
 class GTestMutexLock {
  public:
-  explicit GTestMutexLock(Mutex* mutex) : mutex_(mutex) { mutex_->Lock(); }
+  explicit GTestMutexLock(Mutex* mutex) : mutex_(mutex) { mutex_->lock(); }
 
-  ~GTestMutexLock() { mutex_->Unlock(); }
+  ~GTestMutexLock() { mutex_->unlock(); }
 
  private:
   Mutex* const mutex_;
@@ -1686,14 +1641,14 @@ class ThreadLocal : public ThreadLocalBase {
 class MutexBase {
  public:
   // Acquires this mutex.
-  void Lock() {
+  void lock() {
     GTEST_CHECK_POSIX_SUCCESS_(pthread_mutex_lock(&mutex_));
     owner_ = pthread_self();
     has_owner_ = true;
   }
 
   // Releases this mutex.
-  void Unlock() {
+  void unlock() {
     // Since the lock is being released the owner_ field should no longer be
     // considered valid. We don't protect writing to has_owner_ here, as it's
     // the caller's responsibility to ensure that the current thread holds the
@@ -1761,9 +1716,9 @@ class Mutex : public MutexBase {
 // "MutexLock l(&mu)".  Hence the typedef trick below.
 class GTestMutexLock {
  public:
-  explicit GTestMutexLock(MutexBase* mutex) : mutex_(mutex) { mutex_->Lock(); }
+  explicit GTestMutexLock(MutexBase* mutex) : mutex_(mutex) { mutex_->lock(); }
 
-  ~GTestMutexLock() { mutex_->Unlock(); }
+  ~GTestMutexLock() { mutex_->unlock(); }
 
  private:
   MutexBase* const mutex_;
@@ -1909,8 +1864,8 @@ class GTEST_API_ ThreadLocal {
 class Mutex {
  public:
   Mutex() {}
-  void Lock() {}
-  void Unlock() {}
+  void lock() {}
+  void unlock() {}
   void AssertHeld() const {}
 };
 
@@ -2367,91 +2322,11 @@ const char* StringFromGTestEnv(const char* flag, const char* default_val);
 }  // namespace internal
 }  // namespace testing
 
-#if !defined(GTEST_INTERNAL_DEPRECATED)
-
-// Internal Macro to mark an API deprecated, for googletest usage only
-// Usage: class GTEST_INTERNAL_DEPRECATED(message) MyClass or
-// GTEST_INTERNAL_DEPRECATED(message) <return_type> myFunction(); Every usage of
-// a deprecated entity will trigger a warning when compiled with
-// `-Wdeprecated-declarations` option (clang, gcc, any __GNUC__ compiler).
-// For msvc /W3 option will need to be used
-// Note that for 'other' compilers this macro evaluates to nothing to prevent
-// compilations errors.
-#if defined(_MSC_VER)
-#define GTEST_INTERNAL_DEPRECATED(message) __declspec(deprecated(message))
-#elif defined(__GNUC__)
-#define GTEST_INTERNAL_DEPRECATED(message) __attribute__((deprecated(message)))
+#if GTEST_INTERNAL_HAVE_CPP_ATTRIBUTE(clang::annotate)
+#define GTEST_INTERNAL_DEPRECATE_AND_INLINE(msg) \
+  [[deprecated(msg), clang::annotate("inline-me")]]
 #else
-#define GTEST_INTERNAL_DEPRECATED(message)
-#endif
-
-#endif  // !defined(GTEST_INTERNAL_DEPRECATED)
-
-#ifdef GTEST_HAS_ABSL
-// Always use absl::any for UniversalPrinter<> specializations if googletest
-// is built with absl support.
-#define GTEST_INTERNAL_HAS_ANY 1
-#include "absl/types/any.h"
-namespace testing {
-namespace internal {
-using Any = ::absl::any;
-}  // namespace internal
-}  // namespace testing
-#else
-#if defined(__cpp_lib_any) || (GTEST_INTERNAL_HAS_INCLUDE(<any>) &&        \
-                               GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
-                               (!defined(_MSC_VER) || GTEST_HAS_RTTI))
-// Otherwise for C++17 and higher use std::any for UniversalPrinter<>
-// specializations.
-#define GTEST_INTERNAL_HAS_ANY 1
-#include <any>
-namespace testing {
-namespace internal {
-using Any = ::std::any;
-}  // namespace internal
-}  // namespace testing
-// The case where absl is configured NOT to alias std::any is not
-// supported.
-#endif  // __cpp_lib_any
-#endif  // GTEST_HAS_ABSL
-
-#ifndef GTEST_INTERNAL_HAS_ANY
-#define GTEST_INTERNAL_HAS_ANY 0
-#endif
-
-#ifdef GTEST_HAS_ABSL
-// Always use absl::optional for UniversalPrinter<> specializations if
-// googletest is built with absl support.
-#define GTEST_INTERNAL_HAS_OPTIONAL 1
-#include "absl/types/optional.h"
-namespace testing {
-namespace internal {
-template <typename T>
-using Optional = ::absl::optional<T>;
-inline ::absl::nullopt_t Nullopt() { return ::absl::nullopt; }
-}  // namespace internal
-}  // namespace testing
-#else
-#if defined(__cpp_lib_optional) || (GTEST_INTERNAL_HAS_INCLUDE(<optional>) && \
-                                    GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L)
-// Otherwise for C++17 and higher use std::optional for UniversalPrinter<>
-// specializations.
-#define GTEST_INTERNAL_HAS_OPTIONAL 1
-#include <optional>
-namespace testing {
-namespace internal {
-template <typename T>
-using Optional = ::std::optional<T>;
-inline ::std::nullopt_t Nullopt() { return ::std::nullopt; }
-}  // namespace internal
-}  // namespace testing
-// The case where absl is configured NOT to alias std::optional is not
-// supported.
-#endif  // __cpp_lib_optional
-#endif  // GTEST_HAS_ABSL
-
-#ifndef GTEST_INTERNAL_HAS_OPTIONAL
-#define GTEST_INTERNAL_HAS_OPTIONAL 0
+#define GTEST_INTERNAL_DEPRECATE_AND_INLINE(msg) [[deprecated(msg)]]
 #endif
 
 #if defined(__cpp_lib_span) || (GTEST_INTERNAL_HAS_INCLUDE(<span>) && \
@@ -2495,42 +2370,12 @@ using StringView = ::std::string_view;
 #define GTEST_INTERNAL_HAS_STRING_VIEW 0
 #endif
 
-#ifdef GTEST_HAS_ABSL
-// Always use absl::variant for UniversalPrinter<> specializations if googletest
-// is built with absl support.
-#define GTEST_INTERNAL_HAS_VARIANT 1
-#include "absl/types/variant.h"
-namespace testing {
-namespace internal {
-template <typename... T>
-using Variant = ::absl::variant<T...>;
-}  // namespace internal
-}  // namespace testing
+#if (defined(__cpp_lib_three_way_comparison) || \
+     (GTEST_INTERNAL_HAS_INCLUDE(<compare>) &&  \
+      GTEST_INTERNAL_CPLUSPLUS_LANG >= 201907L))
+#define GTEST_INTERNAL_HAS_COMPARE_LIB 1
 #else
-#if defined(__cpp_lib_variant) || (GTEST_INTERNAL_HAS_INCLUDE(<variant>) && \
-                                   GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L)
-// Otherwise for C++17 and higher use std::variant for UniversalPrinter<>
-// specializations.
-#define GTEST_INTERNAL_HAS_VARIANT 1
-#include <variant>
-namespace testing {
-namespace internal {
-template <typename... T>
-using Variant = ::std::variant<T...>;
-}  // namespace internal
-}  // namespace testing
-// The case where absl is configured NOT to alias std::variant is not supported.
-#endif  // __cpp_lib_variant
-#endif  // GTEST_HAS_ABSL
-
-#ifndef GTEST_INTERNAL_HAS_VARIANT
-#define GTEST_INTERNAL_HAS_VARIANT 0
-#endif
-
-#if (defined(__cpp_constexpr) && !defined(__cpp_inline_variables)) || \
-    (defined(GTEST_INTERNAL_CPLUSPLUS_LANG) &&                        \
-     GTEST_INTERNAL_CPLUSPLUS_LANG < 201703L)
-#define GTEST_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL 1
+#define GTEST_INTERNAL_HAS_COMPARE_LIB 0
 #endif
 
 #endif  // GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_PORT_H_

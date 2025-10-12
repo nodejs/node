@@ -80,7 +80,7 @@ class NameTrait final : public NameTraitBase {
 #elif CPPGC_SUPPORTS_OBJECT_NAMES
     return true;
 #else   // !CPPGC_SUPPORTS_OBJECT_NAMES
-    return std::is_base_of<NameProvider, T>::value;
+    return std::is_base_of_v<NameProvider, T>;
 #endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
   }
 
@@ -121,7 +121,11 @@ class NameTrait final : public NameTraitBase {
 #undef PRETTY_FUNCTION_VALUE
 
 #else   // !CPPGC_SUPPORTS_OBJECT_NAMES
-    return {NameProvider::kHiddenName, true};
+    // We wanted to use a class name but were unable to provide one due to
+    // compiler limitations or build configuration. As such, return the hidden
+    // name with name_was_hidden=false, which will cause this object to be
+    // visible in the snapshot.
+    return {NameProvider::kHiddenName, false};
 #endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
   }
 };

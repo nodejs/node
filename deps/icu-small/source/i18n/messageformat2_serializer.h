@@ -10,6 +10,8 @@
 
 #if U_SHOW_CPLUSPLUS_API
 
+#if !UCONFIG_NO_NORMALIZATION
+
 #if !UCONFIG_NO_FORMATTING
 
 #if !UCONFIG_NO_MF2
@@ -38,21 +40,18 @@ namespace message2 {
 
         void whitespace();
         void emit(UChar32);
-        template <int32_t N>
-        void emit(const UChar32 (&)[N]);
+        void emit(const std::u16string_view&);
         void emit(const UnicodeString&);
         void emit(const Literal&);
         void emit(const Key&);
         void emit(const SelectorKeys&);
         void emit(const Operand&);
-        void emit(const Reserved&);
         void emit(const Expression&);
         void emit(const PatternPart&);
         void emit(const Pattern&);
         void emit(const Variant*);
         void emitAttributes(const OptionMap&);
         void emit(const OptionMap&);
-        void serializeUnsupported();
         void serializeDeclarations();
         void serializeSelectors();
         void serializeVariants();
@@ -65,6 +64,8 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_MF2 */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* #if !UCONFIG_NO_NORMALIZATION */
 
 #endif /* U_SHOW_CPLUSPLUS_API */
 

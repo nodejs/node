@@ -5,6 +5,8 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 
+#include <string_view>
+
 #include "src/base/strings.h"
 #include "src/execution/frame-constants.h"
 #include "src/objects/fixed-array.h"
@@ -32,8 +34,10 @@ class RegExpMacroAssembler {
   static constexpr int kMaxRegisterCount = (1 << 16);
   static constexpr int kMaxRegister = kMaxRegisterCount - 1;
   static constexpr int kMaxCaptures = (kMaxRegister - 1) / 2;
+  // Note the minimum value is chosen s.t. a negated valid offset is also a
+  // valid offset.
   static constexpr int kMaxCPOffset = (1 << 15) - 1;
-  static constexpr int kMinCPOffset = -(1 << 15);
+  static constexpr int kMinCPOffset = -kMaxCPOffset;
 
   static constexpr int kTableSizeBits = 7;
   static constexpr int kTableSize = 1 << kTableSizeBits;
@@ -42,9 +46,11 @@ class RegExpMacroAssembler {
   static constexpr int kUseCharactersValue = -1;
 
   RegExpMacroAssembler(Isolate* isolate, Zone* zone);
+  RegExpMacroAssembler(const RegExpMacroAssembler& other) V8_NOEXCEPT = default;
   virtual ~RegExpMacroAssembler() = default;
 
-  virtual Handle<HeapObject> GetCode(Handle<String> source) = 0;
+  virtual DirectHandle<HeapObject> GetCode(DirectHandle<String> source,
+                                           RegExpFlags flags) = 0;
 
   // This function is called when code generation is aborted, so that
   // the assembler could clean up internal data structures.
@@ -52,7 +58,7 @@ class RegExpMacroAssembler {
   // The maximal number of pushes between stack checks. Users must supply
   // kCheckStackLimit flag to push operations (instead of kNoStackLimitCheck)
   // at least once for every stack_limit() pushes that are executed.
-  virtual int stack_limit_slack() = 0;
+  virtual int stack_limit_slack_slot_count() = 0;
   virtual bool CanReadUnaligned() const = 0;
 
   virtual void AdvanceCurrentPosition(int by) = 0;  // Signed cp change.
@@ -71,7 +77,7 @@ class RegExpMacroAssembler {
                                       Label* on_equal) = 0;
   virtual void CheckCharacterGT(base::uc16 limit, Label* on_greater) = 0;
   virtual void CheckCharacterLT(base::uc16 limit, Label* on_less) = 0;
-  virtual void CheckGreedyLoop(Label* on_tos_equals_current_position) = 0;
+  virtual void CheckFixedLengthLoop(Label* on_tos_equals_current_position) = 0;
   virtual void CheckAtStart(int cp_offset, Label* on_at_start) = 0;
   virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start) = 0;
   virtual void CheckNotBackReference(int start_reg, bool read_backward,
@@ -107,6 +113,11 @@ class RegExpMacroAssembler {
   // The current character (modulus the kTableSize) is looked up in the byte
   // array, and if the found byte is non-zero, we jump to the on_bit_set label.
   virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) = 0;
+
+  virtual void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
+                                   Handle<ByteArray> nibble_table,
+                                   int advance_by) = 0;
+  virtual bool SkipUntilBitInTableUseSimd(int advance_by) { return false; }
 
   // Checks whether the given offset from the current position is before
   // the end of the string.  May overwrite the current character.
@@ -147,7 +158,10 @@ class RegExpMacroAssembler {
   // will go to this label. Always checks the backtrack stack limit.
   virtual void PushBacktrack(Label* label) = 0;
   virtual void PushCurrentPosition() = 0;
-  enum StackCheckFlag { kNoStackLimitCheck = false, kCheckStackLimit = true };
+  enum class StackCheckFlag : uint8_t {
+    kNoStackLimitCheck = false,
+    kCheckStackLimit = true
+  };
   virtual void PushRegister(int register_index,
                             StackCheckFlag check_stack_limit) = 0;
   virtual void ReadCurrentPositionFromRegister(int reg) = 0;
@@ -159,6 +173,8 @@ class RegExpMacroAssembler {
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset) = 0;
   virtual void ClearRegisters(int reg_from, int reg_to) = 0;
   virtual void WriteStackPointerToRegister(int reg) = 0;
+  virtual void RecordComment(std::string_view comment) = 0;
+  virtual MacroAssembler* masm() = 0;
 
   // Check that we are not in the middle of a surrogate pair.
   void CheckNotInSurrogatePair(int cp_offset, Label* on_failure);
@@ -216,25 +232,24 @@ class RegExpMacroAssembler {
   //
   // Called from generated code.
   static uint32_t IsCharacterInRangeArray(uint32_t current_char,
-                                          Address raw_byte_array,
-                                          Isolate* isolate);
+                                          Address raw_byte_array);
 
   // Controls the generation of large inlined constants in the code.
-  void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
+  virtual void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
   bool slow_safe() const { return slow_safe_compiler_; }
 
   // Controls after how many backtracks irregexp should abort execution.  If it
   // can fall back to the experimental engine (see `set_can_fallback`), it will
   // return the appropriate error code, otherwise it will return the number of
   // matches found so far (perhaps none).
-  void set_backtrack_limit(uint32_t backtrack_limit) {
+  virtual void set_backtrack_limit(uint32_t backtrack_limit) {
     backtrack_limit_ = backtrack_limit;
   }
 
   // Set whether or not irregexp can fall back to the experimental engine on
   // excessive backtracking.  The number of backtracks considered excessive can
   // be controlled with set_backtrack_limit.
-  void set_can_fallback(bool val) { can_fallback_ = val; }
+  virtual void set_can_fallback(bool val) { can_fallback_ = val; }
 
   enum GlobalMode {
     NOT_GLOBAL,
@@ -244,7 +259,7 @@ class RegExpMacroAssembler {
   };
   // Set whether the regular expression has the global flag.  Exiting due to
   // a failure in a global regexp may still mean success overall.
-  inline void set_global_mode(GlobalMode mode) { global_mode_ = mode; }
+  inline virtual void set_global_mode(GlobalMode mode) { global_mode_ = mode; }
   inline bool global() const { return global_mode_ != NOT_GLOBAL; }
   inline bool global_with_zero_length_check() const {
     return global_mode_ == GLOBAL || global_mode_ == GLOBAL_UNICODE;
@@ -299,9 +314,10 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   ~NativeRegExpMacroAssembler() override = default;
 
   // Returns a {Result} sentinel, or the number of successful matches.
-  static int Match(Handle<JSRegExp> regexp, Handle<String> subject,
-                   int* offsets_vector, int offsets_vector_length,
-                   int previous_index, Isolate* isolate);
+  static int Match(DirectHandle<IrRegExpData> regexp_data,
+                   DirectHandle<String> subject, int* offsets_vector,
+                   int offsets_vector_length, int previous_index,
+                   Isolate* isolate);
 
   V8_EXPORT_PRIVATE static int ExecuteForTesting(
       Tagged<String> input, int start_offset, const uint8_t* input_start,
@@ -351,9 +367,10 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   static int Execute(Tagged<String> input, int start_offset,
                      const uint8_t* input_start, const uint8_t* input_end,
                      int* output, int output_size, Isolate* isolate,
-                     Tagged<JSRegExp> regexp);
+                     Tagged<IrRegExpData> regexp_data);
 
-  ZoneUnorderedMap<uint32_t, Handle<FixedUInt16Array>> range_array_cache_;
+  ZoneUnorderedMap<uint32_t, IndirectHandle<FixedUInt16Array>>
+      range_array_cache_;
 };
 
 }  // namespace internal

@@ -33,6 +33,7 @@ following table:
 | File (\*.h/\*.cc)    | Description                                                                |
 | -------------------- | -------------------------------------------------------------------------- |
 | `crypto_aes`         | AES Cipher support.                                                        |
+| `crypto_argon2`      | Argon2 key / bit generation implementation.                                |
 | `crypto_cipher`      | General Encryption/Decryption utilities.                                   |
 | `crypto_clienthello` | TLS/SSL client hello parser implementation. Used during SSL/TLS handshake. |
 | `crypto_context`     | Implementation of the `SecureContext` object.                              |
@@ -106,10 +107,6 @@ an `ArrayBuffer` (`v8::BackingStore`), or allocated data.
 * If allocated data is used, then it must have been allocated using OpenSSL's
   allocator. It will be freed automatically when the `ByteSource` is destroyed.
 
-The `ByteSource::Builder` class can be used to allocate writable memory that can
-then be released as a `ByteSource`, making it read-only, or freed by destroying
-the `ByteSource::Builder` without releasing it as a `ByteSource`.
-
 ### `ArrayBufferOrViewContents`
 
 The `ArrayBufferOrViewContents` class is a helper utility that abstracts
@@ -149,15 +146,10 @@ threadpool).
 Refer to `crypto_keys.h` and `crypto_keys.cc` for all code relating to the
 core key objects.
 
-#### `ManagedEVPPKey`
-
-The `ManagedEVPPKey` class is a smart pointer for OpenSSL `EVP_PKEY`
-structures. These manage the lifecycle of Public and Private key pairs.
-
 #### `KeyObjectData`
 
 `KeyObjectData` is an internal thread-safe structure used to wrap either
-a `ManagedEVPPKey` (for Public or Private keys) or a `ByteSource` containing
+a `EVPKeyPointer` (for Public or Private keys) or a `ByteSource` containing
 a Secret key.
 
 #### `KeyObjectHandle`

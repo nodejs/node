@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_JS_SHARED_ARRAY_INL_H_
 #define V8_OBJECTS_JS_SHARED_ARRAY_INL_H_
 
+#include "src/objects/js-shared-array.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/api/api-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/smi-inl.h"
 
@@ -20,8 +22,6 @@ namespace internal {
 #include "torque-generated/src/objects/js-shared-array-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSSharedArray)
-
-CAST_ACCESSOR(JSSharedArray)
 
 }  // namespace internal
 }  // namespace v8

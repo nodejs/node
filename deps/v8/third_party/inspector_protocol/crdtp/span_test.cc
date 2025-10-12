@@ -85,6 +85,12 @@ TEST(SpanFromTest, FromVectorUint8AndUint16) {
   EXPECT_EQ(bar.size(), bar_span.size());
 }
 
+TEST(SpanFromTest, FromVectorImplicit) {
+  std::vector<uint8_t> foo = {'f', 'o', 'o'};
+  span<uint8_t> foo_span(foo);
+  EXPECT_EQ(foo.size(), foo_span.size());
+}
+
 TEST(SpanComparisons, ByteWiseLexicographicalOrder) {
   // Compare the empty span.
   EXPECT_FALSE(SpanLessThan(span<uint8_t>(), span<uint8_t>()));

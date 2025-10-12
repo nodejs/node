@@ -107,6 +107,10 @@ class V8_EXPORT Context : public Data {
    * configured if the default context snapshot contains no pointer embedder
    * data, or if no custom startup snapshot is configured in the
    * v8::CreateParams used to create the isolate.
+   *
+   * \param api_wrapper_deserializer An optional callback used to deserialize
+   * API wrapper objects that was initially set with v8::Object::Wrap() and then
+   * serialized using SerializeAPIWrapperCallback.
    */
   static Local<Context> New(
       Isolate* isolate, ExtensionConfiguration* extensions = nullptr,
@@ -116,17 +120,19 @@ class V8_EXPORT Context : public Data {
           DeserializeInternalFieldsCallback(),
       MicrotaskQueue* microtask_queue = nullptr,
       DeserializeContextDataCallback context_data_deserializer =
-          DeserializeContextDataCallback());
+          DeserializeContextDataCallback(),
+      DeserializeAPIWrapperCallback api_wrapper_deserializer =
+          DeserializeAPIWrapperCallback());
 
   /**
    * Create a new context from a (non-default) context snapshot. There
    * is no way to provide a global object template since we do not create
    * a new global object from template, but we can reuse a global object.
    *
-   * \param isolate See v8::Context::New.
+   * \param isolate See v8::Context::New().
    *
    * \param context_snapshot_index The index of the context snapshot to
-   * deserialize from. Use v8::Context::New for the default snapshot.
+   * deserialize from. Use v8::Context::New() for the default snapshot.
    *
    * \param internal_fields_deserializer An optional callback used
    * to deserialize fields set by
@@ -136,19 +142,23 @@ class V8_EXPORT Context : public Data {
    * pointer fields in the default context snapshot or if no startup
    * snapshot is configured when the isolate is created.
    *
-   * \param extensions See v8::Context::New.
+   * \param extensions See v8::Context::New().
    *
-   * \param global_object See v8::Context::New.
+   * \param global_object See v8::Context::New().
    *
    * \param internal_fields_deserializer Similar to
-   * internal_fields_deserializer in v8::Context::New but applies to
+   * internal_fields_deserializer in v8::Context::New() but applies to
    * the context specified by the context_snapshot_index.
    *
-   * \param microtask_queue  See v8::Context::New.
+   * \param microtask_queue  See v8::Context::New().
    *
    * \param context_data_deserializer  Similar to
-   * context_data_deserializer in v8::Context::New but applies to
+   * context_data_deserializer in v8::Context::New() but applies to
    * the context specified by the context_snapshot_index.
+   *
+   *\param api_wrapper_deserializer Similar to api_wrapper_deserializer in
+   * v8::Context::New() but applies to the context specified by the
+   * context_snapshot_index.
    */
   static MaybeLocal<Context> FromSnapshot(
       Isolate* isolate, size_t context_snapshot_index,
@@ -158,7 +168,9 @@ class V8_EXPORT Context : public Data {
       MaybeLocal<Value> global_object = MaybeLocal<Value>(),
       MicrotaskQueue* microtask_queue = nullptr,
       DeserializeContextDataCallback context_data_deserializer =
-          DeserializeContextDataCallback());
+          DeserializeContextDataCallback(),
+      DeserializeAPIWrapperCallback api_wrapper_deserializer =
+          DeserializeAPIWrapperCallback());
 
   /**
    * Returns an global object that isn't backed by an actual context.
@@ -244,6 +256,9 @@ class V8_EXPORT Context : public Data {
   Maybe<void> DeepFreeze(DeepFreezeDelegate* delegate = nullptr);
 
   /** Returns the isolate associated with a current context. */
+  V8_DEPRECATED(
+      "Use Isolate::GetCurrent() instead, which is guaranteed to return the "
+      "same isolate since https://crrev.com/c/6458560.")
   Isolate* GetIsolate();
 
   /** Returns the microtask queue associated with a current context. */
@@ -290,6 +305,8 @@ class V8_EXPORT Context : public Data {
    * SetAlignedPointerInEmbedderData with the same index. Note that index 0
    * currently has a special meaning for Chrome's debugger.
    */
+  V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate,
+                                                    int index);
   V8_INLINE void* GetAlignedPointerFromEmbedderData(int index);
 
   /**
@@ -297,7 +314,13 @@ class V8_EXPORT Context : public Data {
    * index, growing the data as needed. Note that index 0 currently has a
    * special meaning for Chrome's debugger.
    */
+  V8_DEPRECATE_SOON(
+      "Use SetAlignedPointerInEmbedderData with EmbedderDataTypeTag parameter "
+      "instead.")
   void SetAlignedPointerInEmbedderData(int index, void* value);
+
+  void SetAlignedPointerInEmbedderData(int index, void* value,
+                                       EmbedderDataTypeTag slot);
 
   /**
    * Control whether code generation from strings is allowed. Calling
@@ -306,7 +329,7 @@ class V8_EXPORT Context : public Data {
    * 'Function' constructor are used an exception will be thrown.
    *
    * If code generation from strings is not allowed the
-   * V8::AllowCodeGenerationFromStrings callback will be invoked if
+   * V8::ModifyCodeGenerationFromStringsCallback callback will be invoked if
    * set before blocking the call to 'eval' or the 'Function'
    * constructor. If that callback returns true, the call will be
    * allowed, otherwise an exception will be thrown. If no callback is
@@ -413,7 +436,8 @@ class V8_EXPORT Context : public Data {
 
   static void CheckCast(Data* obj);
 
-  internal::Address* GetDataFromSnapshotOnce(size_t index);
+  internal::ValueHelper::InternalRepresentationType GetDataFromSnapshotOnce(
+      size_t index);
   Local<Value> SlowGetEmbedderData(int index);
   void* SlowGetAlignedPointerFromEmbedderData(int index);
 };
@@ -436,11 +460,29 @@ Local<Value> Context::GetEmbedderData(int index) {
   value = I::DecompressTaggedField(embedder_data, static_cast<uint32_t>(value));
 #endif
 
-  auto isolate = reinterpret_cast<v8::Isolate*>(
-      internal::IsolateFromNeverReadOnlySpaceObject(ctx));
+  auto* isolate = I::GetCurrentIsolate();
   return Local<Value>::New(isolate, value);
 #else
   return SlowGetEmbedderData(index);
+#endif
+}
+
+void* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index) {
+#if !defined(V8_ENABLE_CHECKS)
+  using A = internal::Address;
+  using I = internal::Internals;
+  A ctx = internal::ValueHelper::ValueAsAddress(this);
+  A embedder_data =
+      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
+  int value_offset = I::kEmbedderDataArrayHeaderSize +
+                     (I::kEmbedderDataSlotSize * index) +
+                     I::kEmbedderDataSlotExternalPointerOffset;
+  return reinterpret_cast<void*>(
+      I::ReadExternalPointerField<{internal::kFirstEmbedderDataTag,
+                                   internal::kLastEmbedderDataTag}>(
+          isolate, embedder_data, value_offset));
+#else
+  return SlowGetAlignedPointerFromEmbedderData(index);
 #endif
 }
 
@@ -454,9 +496,10 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
   int value_offset = I::kEmbedderDataArrayHeaderSize +
                      (I::kEmbedderDataSlotSize * index) +
                      I::kEmbedderDataSlotExternalPointerOffset;
-  Isolate* isolate = I::GetIsolateForSandbox(ctx);
+  Isolate* isolate = I::GetCurrentIsolateForSandbox();
   return reinterpret_cast<void*>(
-      I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+      I::ReadExternalPointerField<{internal::kFirstEmbedderDataTag,
+                                   internal::kLastEmbedderDataTag}>(
           isolate, embedder_data, value_offset));
 #else
   return SlowGetAlignedPointerFromEmbedderData(index);
@@ -465,10 +508,10 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
 
 template <class T>
 MaybeLocal<T> Context::GetDataFromSnapshotOnce(size_t index) {
-  if (auto slot = GetDataFromSnapshotOnce(index); slot) {
-    internal::PerformCastCheck(
-        internal::ValueHelper::SlotAsValue<T, false>(slot));
-    return Local<T>::FromSlot(slot);
+  if (auto repr = GetDataFromSnapshotOnce(index);
+      repr != internal::ValueHelper::kEmpty) {
+    internal::PerformCastCheck(internal::ValueHelper::ReprAsValue<T>(repr));
+    return Local<T>::FromRepr(repr);
   }
   return {};
 }

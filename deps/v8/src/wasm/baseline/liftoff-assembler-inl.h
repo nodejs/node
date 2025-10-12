@@ -6,6 +6,7 @@
 #define V8_WASM_BASELINE_LIFTOFF_ASSEMBLER_INL_H_
 
 #include "src/wasm/baseline/liftoff-assembler.h"
+// Include the non-inl header before the rest of the headers.
 
 // Include platform specific implementation.
 #if V8_TARGET_ARCH_IA32
@@ -16,13 +17,13 @@
 #include "src/wasm/baseline/arm64/liftoff-assembler-arm64-inl.h"
 #elif V8_TARGET_ARCH_ARM
 #include "src/wasm/baseline/arm/liftoff-assembler-arm-inl.h"
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_PPC64
 #include "src/wasm/baseline/ppc/liftoff-assembler-ppc-inl.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/wasm/baseline/mips64/liftoff-assembler-mips64-inl.h"
 #elif V8_TARGET_ARCH_LOONG64
 #include "src/wasm/baseline/loong64/liftoff-assembler-loong64-inl.h"
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
 #include "src/wasm/baseline/s390/liftoff-assembler-s390-inl.h"
 #elif V8_TARGET_ARCH_RISCV64
 #include "src/wasm/baseline/riscv/liftoff-assembler-riscv64-inl.h"
@@ -105,7 +106,7 @@ void LiftoffAssembler::PopToFixedRegister(LiftoffRegister reg) {
 void LiftoffAssembler::LoadFixedArrayLengthAsInt32(LiftoffRegister dst,
                                                    Register array,
                                                    LiftoffRegList pinned) {
-  int offset = FixedArray::kLengthOffset - kHeapObjectTag;
+  int offset = offsetof(FixedArray, length_) - kHeapObjectTag;
   LoadSmiAsInt32(dst, array, offset);
 }
 
@@ -122,6 +123,12 @@ void LiftoffAssembler::LoadSmiAsInt32(LiftoffRegister dst, Register src_addr,
     Load(dst, src_addr, no_reg, offset, LoadType::kI32Load);
     emit_i32_sari(dst.gp(), dst.gp(), kSmiTagSize);
   }
+}
+
+void LiftoffAssembler::LoadCodePointer(Register dst, Register src_addr,
+                                       int32_t offset_imm) {
+    return Load(LiftoffRegister(dst), src_addr, no_reg, offset_imm,
+                LoadType::kI32Load);
 }
 
 void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,
@@ -205,6 +212,12 @@ void LiftoffAssembler::bailout(LiftoffBailoutReason reason,
 // part.
 
 #ifdef V8_TARGET_ARCH_32_BIT
+
+void LiftoffAssembler::emit_ptrsize_cond_jumpi(Condition cond, Label* label,
+                                               Register lhs, int32_t imm,
+                                               const FreezeCacheState& frozen) {
+  emit_i32_cond_jumpi(cond, label, lhs, imm, frozen);
+}
 
 namespace liftoff {
 template <void (LiftoffAssembler::*op)(Register, Register, Register)>
@@ -299,6 +312,8 @@ void LiftoffAssembler::emit_i64_xori(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
   if (dst != src) Move(dst, src, kI32);
 }
+
+void LiftoffAssembler::clear_i32_upper_half(Register dst) { UNREACHABLE(); }
 
 #endif  // V8_TARGET_ARCH_32_BIT
 

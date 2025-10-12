@@ -73,7 +73,6 @@ void AssemblerRISCVC::c_lwsp(Register rd, uint16_t uimm8) {
 void AssemblerRISCVC::c_jr(Register rs1) {
   DCHECK(rs1 != zero_reg);
   GenInstrCR(0b1000, C2, rs1, zero_reg);
-  BlockTrampolinePoolFor(1);
 }
 
 void AssemblerRISCVC::c_mv(Register rd, Register rs2) {
@@ -86,7 +85,8 @@ void AssemblerRISCVC::c_ebreak() { GenInstrCR(0b1001, C2, zero_reg, zero_reg); }
 void AssemblerRISCVC::c_jalr(Register rs1) {
   DCHECK(rs1 != zero_reg);
   GenInstrCR(0b1001, C2, rs1, zero_reg);
-  BlockTrampolinePoolFor(1);
+  // This could potentially be the location of a safepoint.
+  RecordPcForSafepoint();
 }
 
 void AssemblerRISCVC::c_add(Register rd, Register rs2) {
@@ -220,7 +220,6 @@ void AssemblerRISCVC::c_j(int16_t imm12) {
                    ((imm12 & 0x40) >> 1) | ((imm12 & 0x20) >> 5) |
                    ((imm12 & 0x10) << 5) | (imm12 & 0xe);
   GenInstrCJ(0b101, C1, uimm11);
-  BlockTrampolinePoolFor(1);
 }
 
 // CB Instructions

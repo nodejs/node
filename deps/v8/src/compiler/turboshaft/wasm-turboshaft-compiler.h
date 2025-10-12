@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_COMPILER_TURBOSHAFT_WASM_TURBOSHAFT_COMPILER_H_
+#define V8_COMPILER_TURBOSHAFT_WASM_TURBOSHAFT_COMPILER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_COMPILER_TURBOSHAFT_WASM_TURBOSHAFT_COMPILER_H_
-#define V8_COMPILER_TURBOSHAFT_WASM_TURBOSHAFT_COMPILER_H_
 
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -15,7 +15,7 @@
 namespace v8::internal::wasm {
 struct CompilationEnv;
 struct WasmCompilationResult;
-class WasmFeatures;
+class WasmDetectedFeatures;
 }  // namespace v8::internal::wasm
 
 namespace v8::internal::compiler {
@@ -24,8 +24,8 @@ struct WasmCompilationData;
 namespace turboshaft {
 
 wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
-    wasm::CompilationEnv* env, WasmCompilationData& data,
-    wasm::WasmFeatures* detected);
+    wasm::CompilationEnv*, WasmCompilationData&, wasm::WasmDetectedFeatures*,
+    Counters*);
 
 class TurboshaftCompilationJob : public OptimizedCompilationJob {
  public:

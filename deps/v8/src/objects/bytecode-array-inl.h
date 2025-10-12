@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_BYTECODE_ARRAY_INL_H_
 #define V8_OBJECTS_BYTECODE_ARRAY_INL_H_
 
+#include "src/objects/bytecode-array.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/interpreter/bytecode-register.h"
-#include "src/objects/bytecode-array.h"
 #include "src/objects/fixed-array-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -17,7 +19,6 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(BytecodeArray)
 OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, ExposedTrustedObject)
 
 SMI_ACCESSORS(BytecodeArray, length, kLengthOffset)
@@ -56,12 +57,28 @@ int BytecodeArray::register_count() const {
   return static_cast<int>(frame_size()) / kSystemPointerSize;
 }
 
-void BytecodeArray::set_parameter_count(int32_t number_of_parameters) {
-  DCHECK_GE(number_of_parameters, 0);
-  // Parameter count is stored as the size on stack of the parameters to allow
-  // it to be used directly by generated code.
-  WriteField<int32_t>(kParameterSizeOffset,
-                      (number_of_parameters << kSystemPointerSizeLog2));
+uint16_t BytecodeArray::parameter_count() const {
+  return ReadField<uint16_t>(kParameterSizeOffset);
+}
+
+uint16_t BytecodeArray::parameter_count_without_receiver() const {
+  return parameter_count() - 1;
+}
+
+void BytecodeArray::set_parameter_count(uint16_t number_of_parameters) {
+  WriteField<uint16_t>(kParameterSizeOffset, number_of_parameters);
+}
+
+uint16_t BytecodeArray::max_arguments() const {
+  return ReadField<uint16_t>(kMaxArgumentsOffset);
+}
+
+void BytecodeArray::set_max_arguments(uint16_t max_arguments) {
+  WriteField<uint16_t>(kMaxArgumentsOffset, max_arguments);
+}
+
+int32_t BytecodeArray::max_frame_size() const {
+  return frame_size() + (max_arguments() << kSystemPointerSizeLog2);
 }
 
 interpreter::Register BytecodeArray::incoming_new_target_or_generator_register()
@@ -88,12 +105,6 @@ void BytecodeArray::set_incoming_new_target_or_generator_register(
   }
 }
 
-int32_t BytecodeArray::parameter_count() const {
-  // Parameter count is stored as the size on stack of the parameters to allow
-  // it to be used directly by generated code.
-  return ReadField<int32_t>(kParameterSizeOffset) >> kSystemPointerSizeLog2;
-}
-
 void BytecodeArray::clear_padding() {
   int data_size = kHeaderSize + length();
   memset(reinterpret_cast<void*>(address() + data_size), 0,
@@ -112,12 +123,9 @@ DEF_GETTER(BytecodeArray, SourcePositionTable, Tagged<TrustedByteArray>) {
   // WARNING: This function may be called from a background thread, hence
   // changes to how it accesses the heap can easily lead to bugs.
   Tagged<Object> maybe_table = raw_source_position_table(kAcquireLoad);
-  if (IsTrustedByteArray(maybe_table))
-    return TrustedByteArray::cast(maybe_table);
-  DCHECK_EQ(maybe_table, Smi::zero());
-  return GetIsolateFromWritableObject(*this)
-      ->heap()
-      ->empty_trusted_byte_array();
+  if (maybe_table != Smi::zero())
+    return TrustedCast<TrustedByteArray>(maybe_table);
+  return Isolate::Current()->heap()->empty_trusted_byte_array();
 }
 
 void BytecodeArray::SetSourcePositionsFailedToCollect() {
@@ -153,34 +161,28 @@ int BytecodeArray::BytecodeArraySize() const { return SizeFor(this->length()); }
 DEF_GETTER(BytecodeArray, SizeIncludingMetadata, int) {
   int size = BytecodeArraySize();
   Tagged<Object> maybe_constant_pool = raw_constant_pool(cage_base);
-  if (IsTrustedFixedArray(maybe_constant_pool)) {
-    size += TrustedFixedArray::cast(maybe_constant_pool)->Size(cage_base);
+  if (Tagged<TrustedFixedArray> array; TryCast(maybe_constant_pool, &array)) {
+    size += array->Size();
   } else {
     DCHECK_EQ(maybe_constant_pool, Smi::zero());
   }
   Tagged<Object> maybe_handler_table = raw_handler_table(cage_base);
-  if (IsTrustedByteArray(maybe_handler_table)) {
-    size += TrustedByteArray::cast(maybe_handler_table)->AllocatedSize();
+  if (Tagged<TrustedByteArray> bytes; TryCast(maybe_handler_table, &bytes)) {
+    size += bytes->AllocatedSize();
   } else {
     DCHECK_EQ(maybe_handler_table, Smi::zero());
   }
   Tagged<Object> maybe_table = raw_source_position_table(kAcquireLoad);
   if (IsByteArray(maybe_table)) {
-    size += ByteArray::cast(maybe_table)->AllocatedSize();
+    size += Cast<ByteArray>(maybe_table)->AllocatedSize();
   }
   return size;
 }
 
-CAST_ACCESSOR(BytecodeWrapper)
 OBJECT_CONSTRUCTORS_IMPL(BytecodeWrapper, Struct)
 
 TRUSTED_POINTER_ACCESSORS(BytecodeWrapper, bytecode, BytecodeArray,
                           kBytecodeOffset, kBytecodeArrayIndirectPointerTag)
-
-void BytecodeWrapper::clear_padding() {
-  WriteField<int32_t>(kPadding1Offset, 0);
-  WriteField<int32_t>(kPadding2Offset, 0);
-}
 
 }  // namespace internal
 }  // namespace v8

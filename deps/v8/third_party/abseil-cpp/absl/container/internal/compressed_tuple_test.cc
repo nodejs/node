@@ -15,8 +15,11 @@
 #include "absl/container/internal/compressed_tuple.h"
 
 #include <memory>
+#include <set>
 #include <string>
+#include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -28,13 +31,21 @@
 
 // These are declared at global scope purely so that error messages
 // are smaller and easier to understand.
-enum class CallType { kConstRef, kConstMove };
+enum class CallType { kMutableRef, kConstRef, kMutableMove, kConstMove };
 
 template <int>
 struct Empty {
+  constexpr CallType value() & { return CallType::kMutableRef; }
   constexpr CallType value() const& { return CallType::kConstRef; }
+  constexpr CallType value() && { return CallType::kMutableMove; }
   constexpr CallType value() const&& { return CallType::kConstMove; }
 };
+
+// Unconditionally return an lvalue reference to `t`.
+template <typename T>
+constexpr T& AsLValue(T&& t) {
+  return t;
+}
 
 template <typename T>
 struct NotEmpty {
@@ -55,6 +66,7 @@ namespace {
 
 using absl::test_internal::CopyableMovableInstance;
 using absl::test_internal::InstanceTracker;
+using ::testing::Each;
 
 TEST(CompressedTupleTest, Sizeof) {
   EXPECT_EQ(sizeof(int), sizeof(CompressedTuple<int>));
@@ -69,6 +81,30 @@ TEST(CompressedTupleTest, Sizeof) {
             sizeof(CompressedTuple<int, Empty<0>, NotEmpty<double>>));
   EXPECT_EQ(sizeof(TwoValues<int, double>),
             sizeof(CompressedTuple<int, Empty<0>, NotEmpty<double>, Empty<1>>));
+}
+
+TEST(CompressedTupleTest, PointerToEmpty) {
+  auto to_void_ptrs = [](const auto&... objs) {
+    return std::vector<const void*>{static_cast<const void*>(&objs)...};
+  };
+  {
+    using Tuple = CompressedTuple<int, Empty<0>>;
+    EXPECT_EQ(sizeof(int), sizeof(Tuple));
+    Tuple t;
+    EXPECT_THAT(to_void_ptrs(t.get<1>()), Each(&t));
+  }
+  {
+    using Tuple = CompressedTuple<int, Empty<0>, Empty<1>>;
+    EXPECT_EQ(sizeof(int), sizeof(Tuple));
+    Tuple t;
+    EXPECT_THAT(to_void_ptrs(t.get<1>(), t.get<2>()), Each(&t));
+  }
+  {
+    using Tuple = CompressedTuple<int, Empty<0>, Empty<1>, Empty<2>>;
+    EXPECT_EQ(sizeof(int), sizeof(Tuple));
+    Tuple t;
+    EXPECT_THAT(to_void_ptrs(t.get<1>(), t.get<2>(), t.get<3>()), Each(&t));
+  }
 }
 
 TEST(CompressedTupleTest, OneMoveOnRValueConstructionTemp) {
@@ -347,8 +383,10 @@ TEST(CompressedTupleTest, Constexpr) {
     constexpr int value() const { return v; }
     int v;
   };
-  constexpr CompressedTuple<int, double, CompressedTuple<int>, Empty<0>> x(
-      7, 1.25, CompressedTuple<int>(5), {});
+
+  using Tuple = CompressedTuple<int, double, CompressedTuple<int>, Empty<0>>;
+
+  constexpr Tuple x(7, 1.25, CompressedTuple<int>(5), {});
   constexpr int x0 = x.get<0>();
   constexpr double x1 = x.get<1>();
   constexpr int x2 = x.get<2>().get<0>();
@@ -358,6 +396,18 @@ TEST(CompressedTupleTest, Constexpr) {
   EXPECT_EQ(x1, 1.25);
   EXPECT_EQ(x2, 5);
   EXPECT_EQ(x3, CallType::kConstRef);
+
+  constexpr int m0 = Tuple(5, 0.25, CompressedTuple<int>(3), {}).get<0>();
+  constexpr double m1 = Tuple(5, 0.25, CompressedTuple<int>(3), {}).get<1>();
+  constexpr int m2 =
+      Tuple(5, 0.25, CompressedTuple<int>(3), {}).get<2>().get<0>();
+  constexpr CallType m3 =
+      Tuple(5, 0.25, CompressedTuple<int>(3), {}).get<3>().value();
+
+  EXPECT_EQ(m0, 5);
+  EXPECT_EQ(m1, 0.25);
+  EXPECT_EQ(m2, 3);
+  EXPECT_EQ(m3, CallType::kMutableMove);
 
   constexpr CompressedTuple<Empty<0>, TrivialStruct, int> trivial = {};
   constexpr CallType trivial0 = trivial.get<0>().value();
@@ -402,14 +452,15 @@ TEST(CompressedTupleTest, EmptyFinalClass) {
 }
 #endif
 
-// TODO(b/214288561): enable this test.
-TEST(CompressedTupleTest, DISABLED_NestedEbo) {
+TEST(CompressedTupleTest, NestedEbo) {
   struct Empty1 {};
   struct Empty2 {};
   CompressedTuple<Empty1, CompressedTuple<Empty2>, int> x;
   CompressedTuple<Empty1, Empty2, int> y;
-  // Currently fails with sizeof(x) == 8, sizeof(y) == 4.
   EXPECT_EQ(sizeof(x), sizeof(y));
+
+  using NestedEmpty = CompressedTuple<Empty1, CompressedTuple<Empty2>>;
+  EXPECT_TRUE(std::is_empty_v<NestedEmpty>);
 }
 
 }  // namespace

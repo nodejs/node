@@ -451,7 +451,7 @@ void InspectorSocketServer::TerminateConnections() {
 
 bool InspectorSocketServer::TargetExists(const std::string& id) {
   const std::vector<std::string>& target_ids = delegate_->GetTargetIds();
-  const auto& found = std::find(target_ids.begin(), target_ids.end(), id);
+  const auto& found = std::ranges::find(target_ids, id);
   return found != target_ids.end();
 }
 

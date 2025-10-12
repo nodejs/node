@@ -13,7 +13,7 @@ echo This script will install Python and the Visual Studio Build Tools, necessar
 echo to compile Node.js native modules. Note that Chocolatey and required Windows
 echo updates will also be installed.
 echo.
-echo This will require about 3 GiB of free disk space, plus any space necessary to
+echo This will require about 7 GiB of free disk space, plus any space necessary to
 echo install Windows updates. This will take a while to run.
 echo.
 echo Please close all open programs for the duration of the installation. If the
@@ -52,4 +52,15 @@ pause
 
 cls
 
-"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command Start-Process '%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe' -ArgumentList '-NoProfile -InputFormat None -ExecutionPolicy Bypass -Command [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; iex ((New-Object System.Net.WebClient).DownloadString(''https://chocolatey.org/install.ps1'')); choco upgrade -y python visualstudio2019-workload-vctools; Read-Host ''Type ENTER to exit'' ' -Verb RunAs
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" ^
+-NoProfile ^
+-InputFormat None ^
+-ExecutionPolicy Bypass ^
+-Command Start-Process ^
+    '%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe' ^
+    -ArgumentList '-NoProfile -InputFormat None -ExecutionPolicy Bypass -Command ^
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ^
+    iex ((New-Object System.Net.WebClient).DownloadString(''https://chocolatey.org/install.ps1'')); ^
+    choco upgrade -y python visualstudio2019-workload-vctools; ^
+    Read-Host ''Type ENTER to exit'' ' ^
+    -Verb RunAs

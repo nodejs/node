@@ -1,6 +1,7 @@
 // Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 #ifndef V8_CODEGEN_RISCV_BASE_CONSTANTS_RISCV_H_
 #define V8_CODEGEN_RISCV_BASE_CONSTANTS_RISCV_H_
 
@@ -90,7 +91,19 @@ enum VSew {
       kVsInvalid
 };
 
-constexpr size_t kMaxPCRelativeCodeRangeInMB = 4094;
+// RISC-V can perform PC-relative jumps within a 32-bit range using the
+// following two instructions:
+//   auipc   t6, imm20    ; t6 = PC + imm20 * 2^12
+//   jalr    ra, t6, imm12; ra = PC + 4, PC = t6 + imm12,
+// Both imm20 and imm12 are treated as two's-complement signed values, usually
+// calculated as:
+//   imm20 = (offset + 0x800) >> 12
+//   imm12 = offset & 0xfff
+// offset is the signed offset from the auipc instruction. Adding 0x800 handles
+// the offset, but if the offset is >= 2^31 - 2^11, it will overflow. Therefore,
+// the true 32-bit range is:
+//   [-2^31 - 2^11, 2^31 - 2^11)
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 2047;
 
 // -----------------------------------------------------------------------------
 // Registers and FPURegisters.
@@ -201,6 +214,9 @@ enum SoftwareInterruptCodes {
 //   debugger.
 const uint32_t kMaxTracepointCode = 63;
 const uint32_t kMaxWatchpointCode = 31;
+// Indicate that the stack is being switched, so the simulator must update its
+// stack limit. The new stack limit is passed in t6.
+const uint32_t kExceptionIsSwitchStackLimit = 128;
 const uint32_t kMaxStopCode = 127;
 static_assert(kMaxWatchpointCode < kMaxStopCode);
 static_assert(kMaxTracepointCode < kMaxStopCode);
@@ -993,8 +1009,14 @@ class InstructionGetters : public T {
 
   inline int Shamt32() const {
     // Valid only for shift instructions (SLLIW, SRLIW, SRAIW)
+#ifdef V8_TARGET_ARCH_RISCV32
+    DCHECK(((this->InstructionBits() & kBaseOpcodeMask) == OP_IMM_32 ||
+            (this->InstructionBits() & kBaseOpcodeMask) == OP_IMM) &&
+           (this->Funct3Value() == 0b001 || this->Funct3Value() == 0b101));
+#else
     DCHECK((this->InstructionBits() & kBaseOpcodeMask) == OP_IMM_32 &&
            (this->Funct3Value() == 0b001 || this->Funct3Value() == 0b101));
+#endif
     // | 0A00000 | shamt | rs1 | funct3 | rd | opcode |
     //  31        24   20
     return this->Bits(kImm12Shift + 4, kImm12Shift);
@@ -1206,8 +1228,8 @@ class InstructionGetters : public T {
     }
   }
 
-#define sext(x, len) (((int32_t)(x) << (32 - len)) >> (32 - len))
-#define zext(x, len) (((uint32_t)(x) << (32 - len)) >> (32 - len))
+#define sext(x, len) ((static_cast<int32_t>(x) << (32 - len)) >> (32 - len))
+#define zext(x, len) ((static_cast<uint32_t>(x) << (32 - len)) >> (32 - len))
 
   inline int32_t RvvSimm5() const {
     DCHECK(this->InstructionType() == InstructionBase::kVType);
@@ -1228,6 +1250,10 @@ class InstructionGetters : public T {
 
   // Say if the instruction is a break or a trap.
   bool IsTrap() const;
+
+  bool IsAUIPC() const {
+    return (this->InstructionBits() & kBaseOpcodeMask) == AUIPC;
+  }
 };
 
 class Instruction : public InstructionGetters<InstructionBase> {

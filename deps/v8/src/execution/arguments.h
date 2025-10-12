@@ -10,6 +10,7 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
+#include "src/sandbox/check.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/allocation.h"
 
@@ -43,7 +44,7 @@ class Arguments {
 
    private:
     Address* location_;
-    Handle<Object> old_value_;
+    DirectHandle<Object> old_value_;
   };
 
   Arguments(int length, Address* arguments)
@@ -73,6 +74,8 @@ class Arguments {
     // Corruption of certain heap objects (see e.g. crbug.com/1507223) can lead
     // to OOB arguments access, and therefore OOB stack access. This SBXCHECK
     // defends against that.
+    // Note: "LE" is intentional: it's okay to compute the address of the
+    // first nonexistent entry.
     SBXCHECK_LE(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
     uintptr_t offset = index * kSystemPointerSize;
     if (arguments_type == ArgumentsType::kJS) {
@@ -94,7 +97,7 @@ template <ArgumentsType T>
 template <class S>
 Handle<S> Arguments<T>::at(int index) const {
   Handle<Object> obj = Handle<Object>(address_of_arg_at(index));
-  return Handle<S>::cast(obj);
+  return Cast<S>(obj);
 }
 
 template <ArgumentsType T>
@@ -133,16 +136,46 @@ FullObjectSlot Arguments<T>::slot_from_address_at(int index, int offset) const {
 
 #endif  // V8_RUNTIME_CALL_STATS
 
+namespace detail {
+// The RUNTIME_FUNCTION_RETURNS_TYPE macro doesn't know the Runtime::kFoo name
+// of the runtime function it's used for since it's only passed Runtime_Foo as
+// "Name". RuntimeFunctionFullName is a trick to get from Runtime_Foo to
+// Runtime::kFoo, in order to figure out if Runtime::kFoo can trigger GC.
+enum class RuntimeFunctionFullName {
+#define F(name, ...) kRuntime_##name,
+  FOR_EACH_INTRINSIC(F)
+#undef F
+};
+
+constexpr bool RuntimeFunctionFullNameCanTriggerGC(
+    RuntimeFunctionFullName function_name) {
+  switch (function_name) {
+#define CASE(name, ...)                          \
+  case RuntimeFunctionFullName::kRuntime_##name: \
+    return Runtime::kCanTriggerGC[static_cast<int>(Runtime::k##name)];
+    FOR_EACH_INTRINSIC(CASE)
+#undef CASE
+  }
+}
+}  // namespace detail
+
 #define RUNTIME_FUNCTION_RETURNS_TYPE(Type, InternalType, Convert, Name)   \
   static V8_INLINE InternalType __RT_impl_##Name(RuntimeArguments args,    \
                                                  Isolate* isolate);        \
   RUNTIME_ENTRY_WITH_RCS(Type, InternalType, Convert, Name)                \
   Type Name(int args_length, Address* args_object, Isolate* isolate) {     \
     DCHECK(isolate->context().is_null() || IsContext(isolate->context())); \
+    DCHECK(isolate->IsOnCentralStack());                                   \
     CLOBBER_DOUBLE_REGISTERS();                                            \
     TEST_AND_CALL_RCS(Name)                                                \
     RuntimeArguments args(args_length, args_object);                       \
-    return Convert(__RT_impl_##Name(args, isolate));                       \
+    if constexpr (detail::RuntimeFunctionFullNameCanTriggerGC(             \
+                      detail::RuntimeFunctionFullName::k##Name)) {         \
+      return Convert(__RT_impl_##Name(args, isolate));                     \
+    } else {                                                               \
+      DisallowGarbageCollection no_gc;                                     \
+      return Convert(__RT_impl_##Name(args, isolate));                     \
+    }                                                                      \
   }                                                                        \
                                                                            \
   static InternalType __RT_impl_##Name(RuntimeArguments args, Isolate* isolate)

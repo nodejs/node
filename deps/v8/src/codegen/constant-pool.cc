@@ -9,7 +9,7 @@
 namespace v8 {
 namespace internal {
 
-#if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
+#if defined(V8_TARGET_ARCH_PPC64)
 
 ConstantPoolBuilder::ConstantPoolBuilder(int ptr_reach_bits,
                                          int double_reach_bits) {
@@ -209,7 +209,7 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
   return !empty ? (assm->pc_offset() - emitted_label_.pos()) : 0;
 }
 
-#endif  // defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
+#endif  // defined(V8_TARGET_ARCH_PPC64)
 
 #if defined(V8_TARGET_ARCH_ARM64)
 
@@ -518,11 +518,19 @@ RelocInfoStatus ConstantPool::GetRelocInfoStatusFor(
 
 void ConstantPool::EmitAndClear(Jump require_jump) {
   DCHECK(!IsBlocked());
-  // Prevent recursive pool emission.
-  Assembler::BlockPoolsScope block_pools(assm_, PoolEmissionCheck::kSkip);
+  // Prevent recursive pool emission. We conservatively assume that we will
+  // have to add padding for alignment, so the margin is guaranteed to be
+  // at least as large as the actual size of the constant pool.
+  int margin = ComputeSize(require_jump, Alignment::kRequired);
+  Assembler::BlockPoolsScope block_pools(assm_, PoolEmissionCheck::kSkip,
+                                         margin);
+
+  // The pc offset may have changed as a result of blocking pools. We can
+  // now go ahead and compute the required alignment and the correct size.
   Alignment require_alignment =
       IsAlignmentRequiredIfEmittedAt(require_jump, assm_->pc_offset());
   int size = ComputeSize(require_jump, require_alignment);
+  DCHECK_LE(size, margin);
   Label size_check;
   assm_->bind(&size_check);
   assm_->RecordConstPool(size);

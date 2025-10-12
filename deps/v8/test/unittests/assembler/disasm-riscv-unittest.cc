@@ -142,7 +142,6 @@ TEST_F(DisasmRiscvTest, Arith) {
 TEST_F(DisasmRiscvTest, RVB) {
   SET_UP();
 
-#ifdef CAN_USE_ZBS_INSTRUCTIONS
   COMPARE(sh1add(s6, t1, t5), "21e32b33       sh1add    s6, t1, t5");
   COMPARE(sh2add(s7, t1, t2), "20734bb3       sh2add    s7, t1, t2");
   COMPARE(sh3add(s4, t1, t3), "21c36a33       sh3add    s4, t1, t3");
@@ -155,9 +154,7 @@ TEST_F(DisasmRiscvTest, RVB) {
   COMPARE(sh3adduw(s4, t1, t3), "21c36a3b       sh3add.uw s4, t1, t3");
   COMPARE(slliuw(s6, t1, 10), "08a31b1b       slli.uw   s6, t1, 10");
 #endif
-#endif
 
-#ifdef CAN_USE_ZBB_INSTRUCTIONS
   COMPARE(andn(a0, s3, s4), "4149f533       andn      a0, s3, s4");
   COMPARE(orn(a0, s3, s4), "4149e533       orn       a0, s3, s4");
   COMPARE(xnor(a0, s3, s4), "4149c533       xnor      a0, s3, s4");
@@ -182,9 +179,19 @@ TEST_F(DisasmRiscvTest, RVB) {
   COMPARE(zexth(a0, s2), "08094533       zext.h    a0, s2");
   COMPARE(rev8(a0, s2), "69895513       rev8      a0, s2");
 #endif
+
+  COMPARE(rol(a0, s3, s4), "61499533       rol       a0, s3, s4");
+  COMPARE(ror(a0, s3, s4), "6149d533       ror       a0, s3, s4");
+  COMPARE(orcb(a0, s3), "2879d513       orc.b     a0, s3");
+#ifdef V8_TARGET_ARCH_RISCV64
+  COMPARE(rori(a0, s3, 63), "63f9d513       rori      a0, s3, 63");
+  COMPARE(roriw(a0, s3, 31), "61f9d51b       roriw     a0, s3, 31");
+  COMPARE(rolw(a0, s3, s4), "6149953b       rolw     a0, s3, s4");
+  COMPARE(rorw(a0, s3, s4), "6149d53b       rorw     a0, s3, s4");
+#else
+  COMPARE(rori(a0, s3, 31), "61f9d513       rori      a0, s3, 31");
 #endif
 
-#ifdef CAN_USE_ZBS_INSTRUCTIONS
   COMPARE(bclr(a0, s2, s1), "48991533       bclr      a0, s2, s1");
   COMPARE(bclri(a0, s1, 3), "48349513       bclri     a0, s1, 3");
   COMPARE(bext(a0, s2, s1), "48995533       bext      a0, s2, s1");
@@ -193,7 +200,6 @@ TEST_F(DisasmRiscvTest, RVB) {
   COMPARE(binvi(a0, s1, 3), "68349513       binvi     a0, s1, 3");
   COMPARE(bset(a0, s2, s1), "28991533       bset      a0, s2, s1");
   COMPARE(bseti(a0, s1, 3), "28349513       bseti     a0, s1, 3");
-#endif
   VERIFY_RUN();
 }
 
@@ -265,6 +271,16 @@ TEST_F(DisasmRiscvTest, CSR) {
 
   VERIFY_RUN();
 }
+
+TEST_F(DisasmRiscvTest, ZICOND) {
+  SET_UP();
+
+  COMPARE(czero_eqz(a0, s1, t3), "0fc4d533       czero.eqz a0, s1, t3");
+  COMPARE(czero_nez(s3, a1, t1), "0e65f9b3       czero.nez s3, a1, t1");
+
+  VERIFY_RUN();
+}
+
 #ifdef V8_TARGET_ARCH_RISCV64
 TEST_F(DisasmRiscvTest, RV64I) {
   SET_UP();
@@ -357,7 +373,7 @@ TEST_F(DisasmRiscvTest, RV64A) {
   COMPARE(amomin_d(true, true, a0, s3, s4),
           "8749b52f       amomin.d.aqrl a0, s4, (s3)");
   COMPARE(amomax_d(false, true, a0, s3, s4),
-          "a349b52f       amoswap.d.rl a0, s4, (s3)");
+          "a349b52f       amomax.d.rl a0, s4, (s3)");
   COMPARE(amominu_d(true, false, a0, s3, s4),
           "c549b52f       amominu.d.aq a0, s4, (s3)");
   COMPARE(amomaxu_d(false, true, a0, s3, s4),
@@ -435,8 +451,8 @@ TEST_F(DisasmRiscvTest, RV32D) {
   COMPARE(fsgnjx_d(ft0, ft8, fa5), "22fe2053       fsgnjx.d  ft0, ft8, fa5");
   COMPARE(fmin_d(ft0, ft8, fa5), "2afe0053       fmin.d    ft0, ft8, fa5");
   COMPARE(fmax_d(ft0, ft8, fa5), "2afe1053       fmax.d    ft0, ft8, fa5");
-  COMPARE(fcvt_s_d(ft0, ft8, RDN), "401e2053       fcvt.s.d  [RDN] ft0, ft8");
-  COMPARE(fcvt_d_s(ft0, fa0), "42050053       fcvt.d.s  ft0, fa0");
+  COMPARE(fcvt_s_d(ft0, ft8, RDN), "401e2053       fcvt.s.d [RDN] ft0, ft8");
+  COMPARE(fcvt_d_s(ft0, fa0), "42050053       fcvt.d.s [RNE] ft0, fa0");
   COMPARE(feq_d(a0, ft8, fa5), "a2fe2553       feq.d     a0, ft8, fa5");
   COMPARE(flt_d(a0, ft8, fa5), "a2fe1553       flt.d     a0, ft8, fa5");
   COMPARE(fle_d(a0, ft8, fa5), "a2fe0553       fle.d     a0, ft8, fa5");
@@ -461,6 +477,57 @@ TEST_F(DisasmRiscvTest, RV64D) {
   VERIFY_RUN();
 }
 #endif
+
+TEST_F(DisasmRiscvTest, RVZFH) {
+  SET_UP();
+  // RV32F Standard Extension
+  COMPARE(flh(fa0, s3, -268), "ef499507       flh       fa0, -268(s3)");
+  COMPARE(fsh(ft7, sp, -268), "ee711a27       fsh       ft7, -268(sp)");
+  COMPARE(fmadd_h(fa0, ft8, fa5, fs5),
+          "acfe0543       fmadd.h   fa0, ft8, fa5, fs5");
+  COMPARE(fmsub_h(fa0, ft8, fa5, fs5),
+          "acfe0547       fmsub.h   fa0, ft8, fa5, fs5");
+  COMPARE(fnmsub_h(fa0, ft8, fa5, fs5),
+          "acfe054b       fnmsub.h   fa0, ft8, fa5, fs5");
+  COMPARE(fnmadd_h(fa0, ft8, fa5, fs5),
+          "acfe054f       fnmadd.h   fa0, ft8, fa5, fs5");
+  COMPARE(fadd_h(fa0, ft8, fa5), "04fe0553       fadd.h    fa0, ft8, fa5");
+  COMPARE(fsub_h(fa0, ft8, fa5), "0cfe0553       fsub.h    fa0, ft8, fa5");
+  COMPARE(fmul_h(fa0, ft8, fa5), "14fe0553       fmul.h    fa0, ft8, fa5");
+  COMPARE(fdiv_h(ft0, ft8, fa5), "1cfe0053       fdiv.h    ft0, ft8, fa5");
+  COMPARE(fsqrt_h(ft0, ft8), "5c0e0053       fsqrt.h   ft0, ft8");
+  COMPARE(fsgnj_h(ft0, ft8, fa5), "24fe0053       fsgnj.h   ft0, ft8, fa5");
+  COMPARE(fsgnjn_h(ft0, ft8, fa5), "24fe1053       fsgnjn.h  ft0, ft8, fa5");
+  COMPARE(fsgnjx_h(ft0, ft8, fa5), "24fe2053       fsgnjx.h  ft0, ft8, fa5");
+  COMPARE(fmin_h(ft0, ft8, fa5), "2cfe0053       fmin.h    ft0, ft8, fa5");
+  COMPARE(fmax_h(ft0, ft8, fa5), "2cfe1053       fmax.h    ft0, ft8, fa5");
+  COMPARE(fcvt_w_h(a0, ft8, RNE), "c40e0553       fcvt.w.h [RNE] a0, ft8");
+  COMPARE(fcvt_wu_h(a0, ft8, RTZ), "c41e1553       fcvt.wu.h [RTZ] a0, ft8");
+  COMPARE(feq_h(a0, ft8, fa5), "a4fe2553       feq.h     a0, ft8, fa5");
+  COMPARE(flt_h(a0, ft8, fa5), "a4fe1553       flt.h     a0, ft8, fa5");
+  COMPARE(fle_h(a0, ft8, fa5), "a4fe0553       fle.h     a0, ft8, fa5");
+  COMPARE(fclass_h(a0, ft8), "e40e1553       fclass.h  a0, ft8");
+  COMPARE(fcvt_h_w(ft0, s3), "d4098053       fcvt.h.w [RNE] ft0, s3");
+  COMPARE(fcvt_h_wu(ft0, s3), "d4198053       fcvt.h.wu [RNE] ft0, s3");
+  COMPARE(fmv_h_x(ft0, s3), "f4098053       fmv.h.x   ft0, s3");
+  COMPARE(fmv_x_h(a0, ft8), "e40e0553       fmv.x.h   a0, ft8");
+
+#ifdef V8_TARGET_ARCH_RISCV64
+  // RV64D Standard Extension (in addition to RV32D)
+  COMPARE(fcvt_l_h(a0, ft8, RMM), "c42e4553       fcvt.l.h [RMM] a0, ft8");
+  COMPARE(fcvt_lu_h(a0, ft8, RDN), "c43e2553       fcvt.lu.h [RDN] a0, ft8");
+
+  COMPARE(fcvt_h_l(ft0, s3), "d4298053       fcvt.h.l [RNE] ft0, s3");
+  COMPARE(fcvt_h_lu(ft0, s3), "d4398053       fcvt.h.lu [RNE] ft0, s3");
+
+  COMPARE(fcvt_h_d(ft0, ft8, RMM), "441e4053       fcvt.h.d [RMM] ft0, ft8");
+  COMPARE(fcvt_d_h(ft0, ft8, RMM), "422e4053       fcvt.d.h [RMM] ft0, ft8");
+
+  COMPARE(fcvt_h_s(ft0, ft8, RMM), "440e4053       fcvt.h.s [RMM] ft0, ft8");
+  COMPARE(fcvt_s_h(ft0, ft8, RMM), "402e4053       fcvt.s.h [RMM] ft0, ft8");
+#endif
+  VERIFY_RUN();
+}
 
 TEST_F(DisasmRiscvTest, PSEUDO) {
   SET_UP();

@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -29,12 +29,12 @@ let responses = 0;
 let requests = 0;
 let connection;
 
-const server = http.Server(function(req, res) {
+const server = http.Server(common.mustCall((req, res) => {
   requests++;
   assert.strictEqual(req.connection, connection);
   res.writeHead(200);
   res.end('hello world\n');
-});
+}, expected));
 
 server.once('connection', function(c) {
   connection = c;

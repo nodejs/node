@@ -195,6 +195,9 @@ MAGIC_MARKER_PAIRS = (
 )
 # See StackTraceFailureMessage in isolate.h
 STACK_TRACE_MARKER = 0xdecade30
+STACK_TRACE_MID_MARKER = 0xdecade33
+STACK_TRACE_END_MARKER = 0xdecade36
+STACK_TRACE_OLD_END_MARKER = 0xdecade31
 # See FailureMessage in logging.cc
 ERROR_MESSAGE_MARKER = 0xdecade10
 
@@ -817,7 +820,12 @@ class MinidumpReader(object):
 
   def ReadTagged(self, address):
     if self.Is32BitTagged():
-      return self.ReadU32(address)
+      tagged = self.ReadU32(address)
+      if self.IsPointerCompressed():
+        # Uncompress using the slot address.
+        return (address & (0xFFFFFFFF << 32)) | (tagged & 0xFFFFFFFF)
+      else:
+        return tagged
     return self.ReadU64(address)
 
   def ReadUIntPtr(self, address):
@@ -1217,14 +1225,23 @@ class HeapObject(object):
                            instance_type)
 
   def ObjectField(self, offset):
+    if not self.heap.reader.IsValidAddress(self.address + offset):
+      return None
     field_value = self.heap.reader.ReadTagged(self.address + offset)
     return self.heap.FindObjectOrSmi(field_value)
 
   def SmiField(self, offset):
+    if not self.heap.reader.IsValidAddress(self.address + offset):
+      return None
     field_value = self.heap.reader.ReadTagged(self.address + offset)
     if self.heap.IsSmi(field_value):
       return self.heap.SmiUntag(field_value)
     return None
+
+  def Uint32Field(self, offset):
+    if not self.heap.reader.IsValidAddress(self.address + offset):
+      return None
+    return self.heap.reader.ReadU32(self.address + offset)
 
 
 class Map(HeapObject):
@@ -1348,7 +1365,7 @@ class String(HeapObject):
 
   def __init__(self, heap, map, address):
     HeapObject.__init__(self, heap, map, address)
-    self.length = self.SmiField(self.LengthOffset())
+    self.length = self.Uint32Field(self.LengthOffset())
 
   def GetChars(self):
     return "?string?"
@@ -1367,7 +1384,7 @@ class SeqString(String):
   def __init__(self, heap, map, address):
     String.__init__(self, heap, map, address)
     self.chars = heap.reader.ReadBytes(self.address + self.CharsOffset(),
-                                       self.length)
+                                       self.length).decode('utf8')
 
   def GetChars(self):
     return self.chars
@@ -1417,9 +1434,11 @@ class ConsString(String):
 
   def GetChars(self):
     try:
-      return self.left.GetChars() + self.right.GetChars()
-    except:
-      return "***CAUGHT EXCEPTION IN GROKDUMP***"
+      left = self.left.GetChars() if self.left is not None else "<lhs>"
+      right = self.right.GetChars() if self.right is not None else "<rhs>"
+      return left + right
+    except Exception as e:
+      return "***CAUGHT EXCEPTION IN GROKDUMP***: " + str(e)
 
 
 class Oddball(HeapObject):
@@ -1763,34 +1782,28 @@ class Code(HeapObject):
 
 class V8Heap(object):
   CLASS_MAP = {
-    "SYMBOL_TYPE": SeqString,
-    "ONE_BYTE_SYMBOL_TYPE": SeqString,
-    "CONS_SYMBOL_TYPE": ConsString,
-    "CONS_ONE_BYTE_SYMBOL_TYPE": ConsString,
-    "EXTERNAL_SYMBOL_TYPE": ExternalString,
-    "EXTERNAL_SYMBOL_WITH_ONE_BYTE_DATA_TYPE": ExternalString,
-    "EXTERNAL_ONE_BYTE_SYMBOL_TYPE": ExternalString,
-    "UNCACHED_EXTERNAL_SYMBOL_TYPE": ExternalString,
-    "UNCACHED_EXTERNAL_SYMBOL_WITH_ONE_BYTE_DATA_TYPE": ExternalString,
-    "UNCACHED_EXTERNAL_ONE_BYTE_SYMBOL_TYPE": ExternalString,
-    "STRING_TYPE": SeqString,
-    "ONE_BYTE_STRING_TYPE": SeqString,
-    "CONS_STRING_TYPE": ConsString,
-    "CONS_ONE_BYTE_STRING_TYPE": ConsString,
-    "EXTERNAL_STRING_TYPE": ExternalString,
-    "EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE": ExternalString,
-    "EXTERNAL_ONE_BYTE_STRING_TYPE": ExternalString,
-    "MAP_TYPE": Map,
-    "ODDBALL_TYPE": Oddball,
-    "FIXED_ARRAY_TYPE": FixedArray,
-    "HASH_TABLE_TYPE": FixedArray,
-    "OBJECT_BOILERPLATE_DESCRIPTION_TYPE": FixedArray,
-    "SCOPE_INFO_TYPE": FixedArray,
-    "JS_FUNCTION_TYPE": JSFunction,
-    "SHARED_FUNCTION_INFO_TYPE": SharedFunctionInfo,
-    "SCRIPT_TYPE": Script,
-    "CODE_CACHE_TYPE": CodeCache,
-    "CODE_TYPE": Code,
+      "SYMBOL_TYPE": SeqString,
+      "SEQ_TWO_BYTE_STRING_TYPE": SeqString,
+      "SEQ_ONE_BYTE_STRING_TYPE": SeqString,
+      "INTERNALIZED_TWO_BYTE_STRING_TYPE": SeqString,
+      "INTERNALIZED_ONE_BYTE_STRING_TYPE": SeqString,
+      "CONS_TWO_BYTE_STRING_TYPE": ConsString,
+      "CONS_ONE_BYTE_STRING_TYPE": ConsString,
+      "EXTERNAL_TWO_BYTE_STRING_TYPE": ExternalString,
+      "EXTERNAL_ONE_BYTE_STRING_TYPE": ExternalString,
+      "EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE": ExternalString,
+      "EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE": ExternalString,
+      "MAP_TYPE": Map,
+      "ODDBALL_TYPE": Oddball,
+      "FIXED_ARRAY_TYPE": FixedArray,
+      "HASH_TABLE_TYPE": FixedArray,
+      "OBJECT_BOILERPLATE_DESCRIPTION_TYPE": FixedArray,
+      "SCOPE_INFO_TYPE": FixedArray,
+      "JS_FUNCTION_TYPE": JSFunction,
+      "SHARED_FUNCTION_INFO_TYPE": SharedFunctionInfo,
+      "SCRIPT_TYPE": Script,
+      "CODE_CACHE_TYPE": CodeCache,
+      "CODE_TYPE": Code,
   }
 
   def __init__(self, reader, stack_map):
@@ -1856,6 +1869,9 @@ class V8Heap(object):
   def IsTaggedObjectAddress(self, address):
     return (address & self.ObjectAlignmentMask()) == 1
 
+  def IsWeakTaggedObjectAddress(self, address):
+    return (address & self.ObjectAlignmentMask()) == 3
+
   def IsValidTaggedObjectAddress(self, address):
     if not self.IsTaggedObjectAddress(address): return False
     return self.reader.IsValidAddress(address)
@@ -1879,10 +1895,16 @@ class V8Heap(object):
   def IsTaggedAddress(self, address):
     return (address & self.ObjectAlignmentMask()) == 1
 
+  def IsWeakTaggedAddress(self, address):
+    return (address & self.ObjectAlignmentMask()) == 3
+
+  def IsMaybeWeakTaggedAddress(self, address):
+    return (address & 1) == 1
+
   def IsSmi(self, tagged_address):
     if self.reader.Is64() and not self.reader.IsPointerCompressed():
       return (tagged_address & 0xFFFFFFFF) == 0
-    return not self.IsTaggedAddress(tagged_address)
+    return (tagged_address & 1) == 0
 
   def SmiUntag(self, tagged_address):
     if self.reader.Is64() and not self.reader.IsPointerCompressed():
@@ -1940,6 +1962,27 @@ class V8Heap(object):
       find_object_in_region(self.reader, start, end-start, None)
 
     return objects
+
+
+for instance_type in V8Heap.CLASS_MAP.keys():
+  if instance_type not in set(INSTANCE_TYPES.values()):
+    print(
+        f"Warning: No instance type {instance_type} in"
+        "v8heapconst.INSTANCE_TYPES, you may need to regenerate v8heapconst.py")
+
+
+class UnknownObject(HeapObject):
+
+  def __init__(self, heap, address):
+    HeapObject.__init__(self, heap, None, None)
+    self.address = address
+
+  def GetChars(self):
+    return "<???>"
+
+  def __str__(self):
+    return "<0x%x>" % self.address
+
 
 class KnownObject(HeapObject):
   def __init__(self, heap, known_name):
@@ -2039,6 +2082,7 @@ class InspectionInfo(object):
 
 class InspectionPadawan(object):
   """The padawan can improve annotations by sensing well-known objects."""
+
   def __init__(self, reader, heap):
     self.reader = reader
     self.heap = heap
@@ -2099,18 +2143,28 @@ class InspectionPadawan(object):
       return self.FrameMarkerName(address)
     if self.heap.IsSmi(address):
       return self.FormatSmi(address)
-    if not self.heap.IsTaggedAddress(address): return None
+    if not self.heap.IsMaybeWeakTaggedAddress(address):
+      return None
     tagged_address = address
+    is_weak = self.heap.IsWeakTaggedAddress(address)
+    if is_weak:
+      tagged_address &= ~2
     if self.heap.IsPointerCompressed():
-      # Interpret the first page as the read-only space in pointer-comrpession.
+      # Interpret the first page as the read-only space in pointer-compression.
       page = self.GetPageAddress(tagged_address)
       tagged_page = page & 0xFFFFFFFF
       if tagged_page == 0:
         offset = self.GetPageOffset(tagged_address)
+        if offset == 1 and is_weak:
+          return "<cleared>"
         lookup_key = ("read_only_space", offset)
         known_obj_name = KNOWN_OBJECTS.get(lookup_key)
         if known_obj_name:
           return KnownObject(self, known_obj_name)
+        known_map_info = KNOWN_MAPS.get(lookup_key)
+        if known_map_info:
+          known_map_type, known_map_name = known_map_info
+          return KnownObject(self, known_map_name)
 
     if self.IsInKnownOldSpace(tagged_address):
       offset = self.GetPageOffset(tagged_address)
@@ -2118,43 +2172,65 @@ class InspectionPadawan(object):
       known_obj_name = KNOWN_OBJECTS.get(lookup_key)
       if known_obj_name:
         return KnownObject(self, known_obj_name)
+      known_map_info = KNOWN_MAPS.get(lookup_key)
+      if known_map_info:
+        known_map_type, known_map_name = known_map_info
+        return KnownObject(self, known_map_name)
+
     if self.IsInKnownMapSpace(tagged_address):
       known_map = self.SenseMap(tagged_address)
       if known_map:
         return known_map
+
     found_obj = self.heap.FindObject(tagged_address)
-    if found_obj: return found_obj
+    if found_obj:
+      return found_obj
     address = tagged_address - 1
     if self.reader.IsValidAddress(address):
       map_tagged_address = self.reader.ReadTagged(address)
       map = self.SenseMap(map_tagged_address)
-      if map is None: return None
+      if map is None:
+        return None
       instance_type_name = INSTANCE_TYPES.get(map.instance_type)
-      if instance_type_name is None: return None
+      if instance_type_name is None:
+        return None
       cls = V8Heap.CLASS_MAP.get(instance_type_name, HeapObject)
       return cls(self, map, address)
     return None
 
   def SenseMap(self, tagged_address):
+    if self.heap.IsPointerCompressed():
+      # Interpret the first page as the read-only space in pointer-compression.
+      page = self.GetPageAddress(tagged_address)
+      tagged_page = page & 0xFFFFFFFF
+      if tagged_page == 0:
+        offset = self.GetPageOffset(tagged_address)
+        lookup_key = ("read_only_space", offset)
+        known_map_info = KNOWN_MAPS.get(lookup_key)
+        if known_map_info:
+          known_map_type, known_map_name = known_map_info
+          return KnownMap(self, known_map_name, known_map_type)
     if self.IsInKnownMapSpace(tagged_address):
       offset = self.GetPageOffset(tagged_address)
-      lookup_key = ("MAP_SPACE", offset)
+      lookup_key = ("old_space", offset)
       known_map_info = KNOWN_MAPS.get(lookup_key)
       if known_map_info:
         known_map_type, known_map_name = known_map_info
         return KnownMap(self, known_map_name, known_map_type)
     found_map = self.heap.FindMap(tagged_address)
-    if found_map: return found_map
+    if found_map:
+      return found_map
     return None
 
   def FindObjectOrSmi(self, tagged_address):
     """When used as a mixin in place of V8Heap."""
     found_obj = self.SenseObject(tagged_address)
-    if found_obj: return found_obj
+    if found_obj:
+      return found_obj
     if self.IsSmi(tagged_address):
       return self.FormatSmi(tagged_address)
     else:
-      return "Unknown(%s)" % self.reader.FormatIntPtr(tagged_address)
+      return UnknownObject(self, tagged_address)
 
   def FindObject(self, tagged_address):
     """When used as a mixin in place of V8Heap."""
@@ -2172,9 +2248,11 @@ class InspectionPadawan(object):
 
   def FindFirstAsciiString(self, start, end=None, min_length=32):
     """ Walk the memory until we find a large string """
-    if not end: end = start + 64
+    if not end:
+      end = start + 64
     for slot in range(start, end):
-      if not self.reader.IsValidAddress(slot): break
+      if not self.reader.IsValidAddress(slot):
+        break
       message = self.reader.ReadAsciiString(slot)
       if len(message) > min_length:
         return (slot, message)
@@ -2187,12 +2265,15 @@ class InspectionPadawan(object):
     """
     # Only look at the first 1k words on the stack
     ptr_size = self.reader.MachinePointerSize()
-    if start is None: start = self.reader.ExceptionSP()
-    if not self.reader.IsValidAddress(start): return start
+    if start is None:
+      start = self.reader.ExceptionSP()
+    if not self.reader.IsValidAddress(start):
+      return start
     end = start + ptr_size * 1024 * 4
     magic1 = None
     for slot in range(start, end, ptr_size):
-      if not self.reader.IsValidAddress(slot + ptr_size): break
+      if not self.reader.IsValidAddress(slot + ptr_size):
+        break
       magic1 = self.reader.ReadUIntPtr(slot)
       magic2 = self.reader.ReadUIntPtr(slot + ptr_size)
       pair = (magic1 & 0xFFFFFFFF, magic2 & 0xFFFFFFFF)
@@ -2204,23 +2285,57 @@ class InspectionPadawan(object):
       elif pair[0] == ERROR_MESSAGE_MARKER:
         return self.TryExtractErrorMessage(slot, start, end, print_message)
     # Simple fallback in case not stack trace object was found
-    return self.TryExtractOldStyleStackTrace(0, start, end,
-                                             print_message)
+    return self.TryExtractOldStyleStackTrace(0, start, end, print_message)
 
   def TryExtractStackTrace(self, slot, start, end, print_message):
     ptr_size = self.reader.MachinePointerSize()
     assert self.reader.ReadUIntPtr(slot) & 0xFFFFFFFF == STACK_TRACE_MARKER
-    end_marker = STACK_TRACE_MARKER + 1;
+    # Look for the mid marker after the start slot.
+    mid_slot = self.reader.FindPtr(STACK_TRACE_MID_MARKER, start + ptr_size,
+                                   start + ptr_size * 100)
+    if not mid_slot:
+      return self.TryExtractOldStackTrace(slot, start, end, print_message)
+    end_search = mid_slot + (32 * 1024) + (4 * ptr_size)
+    end_slot = self.reader.FindPtr(STACK_TRACE_END_MARKER, end_search,
+                                   end_search + ptr_size * 512)
+    if not end_slot:
+      return start
+
+    print("Stack Message (start=%s):" % self.heap.FormatIntPtr(slot))
+    value = self.reader.ReadUIntPtr(slot)
+    print(" %s: %s" % ("isolate".rjust(14), self.heap.FormatIntPtr(value)))
+    slot += ptr_size
+    i = 0
+    while slot < mid_slot:
+      value = self.reader.ReadUIntPtr(slot)
+      print(" %s: %s" % ("ptr%d" % i, self.heap.FormatIntPtr(value)))
+      slot += ptr_size
+      i += 1
+    slot = mid_slot + ptr_size
+    for i in range(4):
+      value = self.reader.ReadUIntPtr(slot)
+      print(" %s: %s" % ("codeObject%d" % i, self.heap.FormatIntPtr(value)))
+      slot += ptr_size
+    print("  message start: %s" % self.heap.FormatIntPtr(slot))
+    stack_start = end_slot + ptr_size
+    print("  stack_start:   %s" % self.heap.FormatIntPtr(stack_start))
+    (message_start, message) = self.FindFirstAsciiString(slot)
+    self.FormatStackTrace(message, print_message)
+    return stack_start
+
+  def TryExtractOldStackTrace(self, slot, start, end, print_message):
+    ptr_size = self.reader.MachinePointerSize()
+    assert self.reader.ReadUIntPtr(slot) & 0xFFFFFFFF == STACK_TRACE_MARKER
     header_size = 10
     # Look for the end marker after the fields and the message buffer.
-    end_search = start + (32 * 1024) + (header_size * ptr_size);
-    end_slot = self.reader.FindPtr(end_marker, end_search,
+    end_search = start + (32 * 1024) + (header_size * ptr_size)
+    end_slot = self.reader.FindPtr(STACK_TRACE_OLD_END_MARKER, end_search,
                                    end_search + ptr_size * 512)
-    if not end_slot: return start
+    if not end_slot:
+      return start
     print("Stack Message (start=%s):" % self.heap.FormatIntPtr(slot))
-    slot += ptr_size
-    for name in ("isolate","ptr1", "ptr2", "ptr3", "ptr4", "codeObject1",
-                 "codeObject2", "codeObject3", "codeObject4"):
+    for name in ("isolate", "ptr1", "ptr2", "ptr3", "ptr4", "ptr5", "ptr6",
+                 "codeObject1", "codeObject2", "codeObject3", "codeObject4"):
       value = self.reader.ReadUIntPtr(slot)
       print(" %s: %s" % (name.rjust(14), self.heap.FormatIntPtr(value)))
       slot += ptr_size
@@ -2233,12 +2348,13 @@ class InspectionPadawan(object):
 
   def TryExtractErrorMessage(self, slot, start, end, print_message):
     ptr_size = self.reader.MachinePointerSize()
-    end_marker = ERROR_MESSAGE_MARKER + 1;
+    end_marker = ERROR_MESSAGE_MARKER + 1
     header_size = 1
-    end_search = start + 1024 + (header_size * ptr_size);
+    end_search = start + 1024 + (header_size * ptr_size)
     end_slot = self.reader.FindPtr(end_marker, end_search,
                                    end_search + ptr_size * 512)
-    if not end_slot: return start
+    if not end_slot:
+      return start
     print("Error Message (start=%s):" % self.heap.FormatIntPtr(slot))
     slot += ptr_size
     (message_start, message) = self.FindFirstAsciiString(slot)
@@ -2257,7 +2373,8 @@ class InspectionPadawan(object):
       magic1 = None
       magic2 = None
       message_start, message = self.FindFirstAsciiString(start, end, 128)
-      if message_start is None: return start
+      if message_start is None:
+        return start
     else:
       message_start = self.reader.ReadUIntPtr(message_slot + ptr_size * 4)
       message = self.reader.ReadAsciiString(message_start)
@@ -2302,18 +2419,20 @@ class InspectionPadawan(object):
     print("="*80)
     print("")
 
-
   def TryInferFramePointer(self, slot, address):
     """ Assume we have a framepointer if we find 4 consecutive links """
     for i in range(0, 4):
-      if not self.reader.IsExceptionStackAddress(address): return 0
+      if not self.reader.IsExceptionStackAddress(address):
+        return 0
       next_address = self.reader.ReadUIntPtr(address)
-      if next_address == address: return 0
+      if next_address == address:
+        return 0
       address = next_address
     return slot
 
   def TryInferContext(self, address):
-    if self.context: return
+    if self.context:
+      return
     ptr_size = self.reader.MachinePointerSize()
     possible_context = dict()
     count = 0
@@ -2326,12 +2445,14 @@ class InspectionPadawan(object):
           possible_context[prev_addr] = 1
       address = self.reader.ReadUIntPtr(address)
       count += 1
-    if count <= 5 or len(possible_context) == 0: return
+    if count <= 5 or len(possible_context) == 0:
+      return
     # Find entry with highest count
     possible_context = list(possible_context.items())
     possible_context.sort(key=lambda pair: pair[1])
     address,count = possible_context[-1]
-    if count <= 4: return
+    if count <= 4:
+      return
     self.context = address
 
   def InterpretMemory(self, start, end):
@@ -2400,8 +2521,10 @@ class InspectionPadawan(object):
           elif maybe_address_contents == 0xdecade01:
             address_info = ["<==== HeapStats end marker"]
           elif maybe_address_contents is not None:
-            address_info = [" %d (%d Mbytes)" % (maybe_address_contents,
-                                                 maybe_address_contents >> 20)]
+            address_info = [
+                " %d (%d Mbytes)" %
+                (maybe_address_contents, maybe_address_contents >> 20)
+            ]
         if slot == frame_pointer:
           if not self.reader.IsExceptionStackAddress(maybe_address):
             address_info.append("<==== BAD frame pointer")
@@ -2411,11 +2534,10 @@ class InspectionPadawan(object):
           frame_pointer = maybe_address
       address_type_marker = self.heap.AddressTypeMarker(maybe_address)
       string_value = self.reader.ReadAsciiPtr(slot)
-      print("%s: %s %s %s %s" % (self.reader.FormatIntPtr(slot),
-                           self.reader.FormatIntPtr(maybe_address),
-                           address_type_marker,
-                           string_value,
-                           ' | '.join(address_info)))
+      print("%s: %s %s %s %s" %
+            (self.reader.FormatIntPtr(slot),
+             self.reader.FormatIntPtr(maybe_address), address_type_marker,
+             string_value, ' | '.join(address_info)))
       if maybe_address_contents == 0xdecade01:
         in_oom_dump_area = False
       heap_object = self.heap.FindObject(maybe_address)
@@ -2845,7 +2967,6 @@ class InspectionWebFormatter(object):
     f.write('<div class="code">')
     self.output_context(f, InspectionWebFormatter.CONTEXT_SHORT)
     self.output_disasm_pc(f)
-
     # Output stack, trying to also output the stack trace if dumped.
     stack_top = self.try_output_stack_trace(f)
 
@@ -2884,19 +3005,67 @@ class InspectionWebFormatter(object):
   def output_stack_trace(self, f, slot, start, end, print_message):
     ptr_size = self.reader.MachinePointerSize()
     assert self.reader.ReadUIntPtr(slot) & 0xFFFFFFFF == STACK_TRACE_MARKER
-    end_marker = STACK_TRACE_MARKER + 1
+    # Look for the mid marker after the start slot.
+    mid_slot = self.reader.FindPtr(STACK_TRACE_MID_MARKER, start + ptr_size,
+                                   start + ptr_size * 100)
+    if not mid_slot:
+      return self.output_old_stack_trace(f, slot, start, end, print_message)
+    end_search = mid_slot + (32 * 1024) + (4 * ptr_size)
+    end_slot = self.reader.FindPtr(STACK_TRACE_END_MARKER, end_search,
+                                   end_search + ptr_size * 512)
+    if not end_slot:
+      return start
+
+    f.write("<h3>PushStackTraceAndDie Stack Message (start=%s):</h3>" %
+            self.format_address(slot))
+    slot += ptr_size
+    value = self.reader.ReadUIntPtr(slot)
+    f.write(f"<b>isolate</b>: {self.format_address(value)}<br>")
+    slot += ptr_size
+    i = 0
+    while slot < mid_slot:
+      value = self.reader.ReadUIntPtr(slot)
+      try:
+        obj = self.format_object(value)
+      except Exception as e:
+        obj = str(e)
+      f.write(f"<b>ptr{i}</b>: {self.format_address(value)} {obj}<br>")
+      slot += ptr_size
+      i += 1
+    slot = mid_slot + ptr_size
+    for i in range(4):
+      value = self.reader.ReadUIntPtr(slot)
+      try:
+        obj = self.format_object(value)
+      except Exception as e:
+        obj = str(e)
+      f.write(f"<b>codeObject{i}</b>: {self.format_address(value)} {obj}<br>")
+      slot += ptr_size
+    f.write("<b>message start</b>: %s<br>" % self.format_address(slot))
+    stack_start = end_slot + ptr_size
+    f.write("<b>stack_start</b>:   %s<br>" % self.format_address(stack_start))
+    (message_start, message) = self.padawan.FindFirstAsciiString(slot)
+    if print_message and message is not None:
+      f.write("<a href='#eom'>Scroll to end of message...</a><br>")
+      self.output_stack_trace_message(f, message)
+      f.write("<span id=eom></span>")
+    return stack_start
+
+  def output_old_stack_trace(self, f, slot, start, end, print_message):
+    ptr_size = self.reader.MachinePointerSize()
+    assert self.reader.ReadUIntPtr(slot) & 0xFFFFFFFF == STACK_TRACE_MARKER
     header_size = 10
     # Look for the end marker after the fields and the message buffer.
     end_search = start + (32 * 1024) + (header_size * ptr_size)
-    end_slot = self.reader.FindPtr(end_marker, end_search,
+    end_slot = self.reader.FindPtr(STACK_TRACE_OLD_END_MARKER, end_search,
                                    end_search + ptr_size * 512)
     if not end_slot:
       return start
     f.write("<h3>PushStackTraceAndDie Stack Message (start=%s):</h3>" %
             self.format_address(slot))
     slot += ptr_size
-    for name in ("isolate", "ptr1", "ptr2", "ptr3", "ptr4", "codeObject1",
-                 "codeObject2", "codeObject3", "codeObject4"):
+    for name in ("isolate", "ptr1", "ptr2", "ptr3", "ptr4", "ptr5", "ptr6",
+                 "codeObject1", "codeObject2", "codeObject3", "codeObject4"):
       value = self.reader.ReadUIntPtr(slot)
       f.write("<b>%s</b>: %s %s<br>" %
               (name.rjust(14), self.format_address(value),
@@ -2906,7 +3075,7 @@ class InspectionWebFormatter(object):
     stack_start = end_slot + ptr_size
     f.write("<b>stack_start</b>:   %s<br>" % self.format_address(stack_start))
     (message_start, message) = self.padawan.FindFirstAsciiString(slot)
-    if print_message:
+    if print_message and message is not None:
       f.write("<a href='#eom'>Scroll to end of message...</a><br>")
       self.output_stack_trace_message(f, message)
       f.write("<span id=eom></span>")

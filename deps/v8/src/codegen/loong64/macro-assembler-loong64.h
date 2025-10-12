@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CODEGEN_LOONG64_MACRO_ASSEMBLER_LOONG64_H_
+#define V8_CODEGEN_LOONG64_MACRO_ASSEMBLER_LOONG64_H_
+
 #ifndef INCLUDED_FROM_MACRO_ASSEMBLER_H
 #error This header must be included via macro-assembler.h
 #endif
 
-#ifndef V8_CODEGEN_LOONG64_MACRO_ASSEMBLER_LOONG64_H_
-#define V8_CODEGEN_LOONG64_MACRO_ASSEMBLER_LOONG64_H_
+#include <optional>
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/loong64/assembler-loong64.h"
@@ -21,9 +23,6 @@ namespace internal {
 
 // Forward declarations.
 enum class AbortReason : uint8_t;
-
-// Flags used for LeaveExitFrame function.
-enum LeaveExitFrameMode { EMIT_RETURN = true, NO_EMIT_RETURN = false };
 
 // Flags used for the li macro-assembler function.
 enum LiFlags {
@@ -115,6 +114,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Like Assert(), but always enabled.
   void Check(Condition cc, AbortReason reason, Register rj, Operand rk);
 
+  // Same as Check() but expresses that the check is needed for the sandbox.
+  void SbxCheck(Condition cc, AbortReason reason, Register rj, Operand rk);
+
   // Print a message to stdout and abort execution.
   void Abort(AbortReason msg);
 
@@ -187,6 +189,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // that is guaranteed not to be clobbered.
   MemOperand ExternalReferenceAsOperand(ExternalReference reference,
                                         Register scratch);
+  MemOperand ExternalReferenceAsOperand(IsolateFieldId id) {
+    return ExternalReferenceAsOperand(ExternalReference::Create(id), no_reg);
+  }
 
   inline void Move(Register output, MemOperand operand) {
     Ld_d(output, operand);
@@ -199,6 +204,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #define COND_ARGS                              \
   Condition cond = al, Register rj = zero_reg, \
             const Operand &rk = Operand(zero_reg)
+
+  // We should not use near calls or jumps for calls to external references,
+  // since the code spaces are not guaranteed to be close to each other.
+  bool CanUseNearCallOrJump(RelocInfo::Mode rmode) {
+    return rmode != RelocInfo::EXTERNAL_REFERENCE;
+  }
+
+  static bool IsNearCallOffset(int64_t offset);
+
+  static int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
+                                       uint8_t* pc);
 
   void Jump(Register target, COND_ARGS);
   void Jump(intptr_t target, RelocInfo::Mode rmode, COND_ARGS);
@@ -230,15 +246,34 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object);
+  // TODO(42204201): These don't work properly with leaptiering as we need to
+  // validate the parameter count at runtime. Instead, we should replace them
+  // with CallJSDispatchEntry that generates a call to a given (compile-time
+  // constant) JSDispatchHandle.
+  void CallJSFunction(Register function_object, uint16_t argument_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
+
+#ifdef V8_ENABLE_LEAPTIERING
+  void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
+                           uint16_t argument_count);
+#endif
+#ifdef V8_ENABLE_WEBASSEMBLY
+  void ResolveWasmCodePointer(Register target, uint64_t signature_hash);
+  void CallWasmCodePointer(Register target, uint64_t signature_hash,
+                           CallJumpMode call_jump_mode = CallJumpMode::kCall);
+  void CallWasmCodePointerNoSignatureCheck(Register target);
+  void LoadWasmCodePointer(Register dst, MemOperand src);
+#endif
 
   // Generates an instruction sequence s.t. the return address points to the
   // instruction following the call.
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
 
+  // TODO(olivf, 42204201) Rename this to AssertNotDeoptimized once
+  // non-leaptiering is removed from the codebase.
+  void BailoutIfDeoptimized();
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
@@ -250,14 +285,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Drop(int count, Condition cond = cc_always, Register reg = no_reg,
             const Operand& op = Operand(no_reg));
 
-  enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
-  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
-  void DropArguments(Register count, ArgumentsCountType type,
-                     ArgumentsCountMode mode, Register scratch = no_reg);
-  void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
-                                       ArgumentsCountType type,
-                                       ArgumentsCountMode mode,
-                                       Register scratch = no_reg);
+  void DropArguments(Register count);
+  void DropArgumentsAndPushNewReceiver(Register argc, Register receiver);
 
   void Ld_d(Register rd, const MemOperand& rj);
   void St_d(Register rd, const MemOperand& rj);
@@ -587,8 +616,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Trunc_uw_s(Register rd, FPURegister fj, FPURegister scratch);
 
   // Change endianness
-  void ByteSwapSigned(Register dest, Register src, int operand_size);
-  void ByteSwapUnsigned(Register dest, Register src, int operand_size);
+  void ByteSwap(Register dest, Register src, int operand_size);
 
   void Ld_b(Register rd, const MemOperand& rj);
   void Ld_bu(Register rd, const MemOperand& rj);
@@ -643,6 +671,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       mov(dst, src);
     }
   }
+  void LoadIsolateField(Register dst, IsolateFieldId id);
 
   inline void FmoveLow(Register dst_low, FPURegister src) {
     movfr2gr_s(dst_low, src);
@@ -708,6 +737,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
+
+  void LoadInterpreterDataBytecodeArray(Register destination,
+                                        Register interpreter_data);
+  void LoadInterpreterDataInterpreterTrampoline(Register destination,
+                                                Register interpreter_data);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
   void FPUCanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);
@@ -787,11 +821,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   static int ActivationFrameAlignment();
 
   // Load Scaled Address instructions. Parameter sa (shift argument) must be
-  // between [1, 31] (inclusive). The scratch register may be clobbered.
-  void Alsl_w(Register rd, Register rj, Register rk, uint8_t sa,
-              Register scratch = t7);
-  void Alsl_d(Register rd, Register rj, Register rk, uint8_t sa,
-              Register scratch = t7);
+  // between [1, 31] (inclusive).
+  void Alsl_w(Register rd, Register rj, Register rk, uint8_t sa);
+  void Alsl_d(Register rd, Register rj, Register rk, uint8_t sa);
 
   // Compute the start of the generated instruction stream from the current PC.
   // This is an alternative to embedding the {CodeObject} handle as a reference.
@@ -830,9 +862,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecompressTagged(Register dst, const MemOperand& src);
   void DecompressTagged(Register dst, Register src);
   void DecompressTagged(Register dst, Tagged_t immediate);
+  void DecompressProtected(const Register& destination,
+                           const MemOperand& field_operand);
 
   void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src);
-  void AtomicDecompressTagged(Register dst, const MemOperand& src);
+  // Returns the pc offset of the atomic load instruction.
+  int AtomicDecompressTagged(Register dst, const MemOperand& src);
 
   // ---------------------------------------------------------------------------
   // V8 Sandbox support
@@ -848,7 +883,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Loads a field containing an off-heap ("external") pointer and does
   // necessary decoding if sandbox is enabled.
   void LoadExternalPointerField(Register destination, MemOperand field_operand,
-                                ExternalPointerTag tag,
+                                ExternalPointerTagRange tag_range,
                                 Register isolate_root = no_reg);
 
   // Load a trusted pointer field.
@@ -901,7 +936,27 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadCodeEntrypointViaCodePointer(Register destination,
                                         MemOperand field_operand,
                                         CodeEntrypointTag tag);
+
+  // Load the value of Code pointer table corresponding to
+  // IsolateGroup::current()->code_pointer_table_.
+  // Only available when the sandbox is enabled.
+  void LoadCodePointerTableBase(Register destination);
 #endif
+
+#ifdef V8_ENABLE_LEAPTIERING
+  void LoadEntrypointFromJSDispatchTable(Register destination,
+                                         Register dispatch_handle,
+                                         Register scratch);
+  void LoadEntrypointFromJSDispatchTable(Register destination,
+                                         JSDispatchHandle dispatch_handle,
+                                         Register scratch);
+  void LoadParameterCountFromJSDispatchTable(Register destination,
+                                             Register dispatch_handle,
+                                             Register scratch);
+  void LoadEntrypointAndParameterCountFromJSDispatchTable(
+      Register entrypoint, Register parameter_count, Register dispatch_handle,
+      Register scratch);
+#endif  // V8_ENABLE_LEAPTIERING
 
   // Load a protected pointer field.
   void LoadProtectedPointerField(Register destination,
@@ -952,6 +1007,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void JumpIfNotRoot(Register with, RootIndex index, Label* if_not_equal) {
     Branch(if_not_equal, ne, with, index);
   }
+
+#if V8_STATIC_ROOTS_BOOL
+  // Fast variant which is guaranteed to not actually load the instance type
+  // from the map.
+  void BranchObjectTypeFast(Label* target, Condition cc, Register heap_object,
+                            Register compressed_map_scratch, InstanceType type);
+  void BranchInstanceTypeWithUniqueCompressedMap(Label* target, Condition cc,
+                                                 Register map, Register scratch,
+                                                 InstanceType type);
+#endif  // V8_STATIC_ROOTS_BOOL
 
   // Checks if value is in range [lower_limit, higher_limit] using a single
   // comparison.
@@ -1015,13 +1080,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Msub_d(FPURegister fd, FPURegister fa, FPURegister fj, FPURegister fk);
 
   // Enter exit frame.
-  // argc - argument count to be dropped by LeaveExitFrame.
   // stack_space - extra stack space.
-  void EnterExitFrame(int stack_space, StackFrame::Type frame_type);
+  void EnterExitFrame(Register scratch, int stack_space,
+                      StackFrame::Type frame_type);
 
   // Leave the current exit frame.
-  void LeaveExitFrame(Register arg_count, bool do_return = NO_EMIT_RETURN,
-                      bool argument_count_is_length = false);
+  void LeaveExitFrame(Register scratch);
 
   // Make sure the stack is aligned. Only emits code in debug mode.
   void AssertStackIsAligned() NOOP_UNLESS_DEBUG_CODE;
@@ -1041,23 +1105,47 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // -------------------------------------------------------------------------
   // JavaScript invokes.
 
+  // On function call, call into the debugger.
+  void CallDebugOnFunctionCall(
+      Register fun, Register new_target,
+      Register expected_parameter_count_or_dispatch_handle,
+      Register actual_parameter_count);
+
+  // The way we invoke JSFunctions differs depending on whether leaptiering is
+  // enabled. As such, these functions exist in two variants. In the future,
+  // leaptiering will be used on all platforms. At that point, the
+  // non-leaptiering variants will disappear.
+
+#ifdef V8_ENABLE_LEAPTIERING
+  // Invoke the JavaScript function in the given register. Changes the
+  // current context to the context in the function before invoking.
+  void InvokeFunction(Register function, Register actual_parameter_count,
+                      InvokeType type,
+                      ArgumentAdaptionMode argument_adaption_mode =
+                          ArgumentAdaptionMode::kAdapt);
+  // Invoke the JavaScript function in the given register.
+  // Changes the current context to the context in the function before invoking.
+  void InvokeFunctionWithNewTarget(Register function, Register new_target,
+                                   Register actual_parameter_count,
+                                   InvokeType type);
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeFunctionCode(Register function, Register new_target,
-                          Register expected_parameter_count,
-                          Register actual_parameter_count, InvokeType type);
-
-  // On function call, call into the debugger.
-  void CallDebugOnFunctionCall(Register fun, Register new_target,
-                               Register expected_parameter_count,
-                               Register actual_parameter_count);
-
+                          Register actual_parameter_count, InvokeType type,
+                          ArgumentAdaptionMode argument_adaption_mode =
+                              ArgumentAdaptionMode::kAdapt);
+#else
+  void InvokeFunction(Register function, Register expected_parameter_count,
+                      Register actual_parameter_count, InvokeType type);
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunctionWithNewTarget(Register function, Register new_target,
                                    Register actual_parameter_count,
                                    InvokeType type);
-  void InvokeFunction(Register function, Register expected_parameter_count,
-                      Register actual_parameter_count, InvokeType type);
+  // Invoke the JavaScript function code by either calling or jumping.
+  void InvokeFunctionCode(Register function, Register new_target,
+                          Register expected_parameter_count,
+                          Register actual_parameter_count, InvokeType type);
+#endif
 
   // Exception handling.
 
@@ -1174,14 +1262,18 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                           Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
+  // TODO(olivf): Rename to GenerateTailCallToUpdatedFunction.
+  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
+
+#ifndef V8_ENABLE_LEAPTIERING
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure);
-  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind,
       Label* flags_need_processing);
   void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
                                                Register feedback_vector);
+#endif  // !V8_ENABLE_LEAPTIERING
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {
@@ -1202,8 +1294,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,
-                      Register actual_parameter_count, Label* done,
-                      InvokeType type);
+                      Register actual_parameter_count, InvokeType type);
 
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
@@ -1257,10 +1348,10 @@ struct MoveCycleState {
   RegList scratch_regs;
   DoubleRegList scratch_fpregs;
   // Available scratch registers during the move cycle resolution scope.
-  base::Optional<UseScratchRegisterScope> temps;
+  std::optional<UseScratchRegisterScope> temps;
   // Scratch register picked by {MoveToTempLocation}.
-  base::Optional<Register> scratch_reg;
-  base::Optional<DoubleRegister> scratch_fpreg;
+  std::optional<Register> scratch_reg;
+  std::optional<DoubleRegister> scratch_fpreg;
 };
 
 // Provides access to exit frame parameters (GC-ed).
@@ -1279,14 +1370,16 @@ inline MemOperand ExitFrameCallerStackSlotOperand(int index) {
 }
 
 // Calls an API function. Allocates HandleScope, extracts returned value
-// from handle and propagates exceptions.  Restores context.  On return removes
-// *stack_space_operand * kSystemPointerSize or stack_space * kSystemPointerSize
+// from handle and propagates exceptions. Clobbers C argument registers
+// and C caller-saved registers. Restores context. On return removes
+//   (*argc_operand + slots_to_drop_on_return) * kSystemPointerSize
 // (GCed, includes the call JS arguments space and the additional space
 // allocated for the fast call).
 void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               Register function_address,
                               ExternalReference thunk_ref, Register thunk_arg,
-                              int stack_space, MemOperand* stack_space_operand,
+                              int slots_to_drop_on_return,
+                              MemOperand* argc_operand,
                               MemOperand return_value_operand);
 
 }  // namespace internal

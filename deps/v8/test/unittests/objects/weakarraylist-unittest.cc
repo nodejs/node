@@ -11,14 +11,14 @@ namespace internal {
 using WeakArrayListTest = TestWithIsolate;
 
 TEST_F(WeakArrayListTest, Compact) {
-  Handle<WeakArrayList> list = isolate()->factory()->NewWeakArrayList(10);
+  DirectHandle<WeakArrayList> list = isolate()->factory()->NewWeakArrayList(10);
   EXPECT_EQ(list->length(), 0);
   EXPECT_EQ(list->capacity(), 10);
 
   Tagged<MaybeObject> some_object = *isolate()->factory()->empty_fixed_array();
   Tagged<MaybeObject> weak_ref = MakeWeak(some_object);
   Tagged<MaybeObject> smi = Smi::FromInt(0);
-  Tagged<MaybeObject> cleared_ref = ClearedValue(isolate());
+  Tagged<MaybeObject> cleared_ref = kClearedWeakValue;
   list->Set(0, weak_ref);
   list->Set(1, smi);
   list->Set(2, cleared_ref);
@@ -31,14 +31,14 @@ TEST_F(WeakArrayListTest, Compact) {
 }
 
 TEST_F(WeakArrayListTest, OutOfPlaceCompact) {
-  Handle<WeakArrayList> list = isolate()->factory()->NewWeakArrayList(20);
+  DirectHandle<WeakArrayList> list = isolate()->factory()->NewWeakArrayList(20);
   EXPECT_EQ(list->length(), 0);
   EXPECT_EQ(list->capacity(), 20);
 
   Tagged<MaybeObject> some_object = *isolate()->factory()->empty_fixed_array();
   Tagged<MaybeObject> weak_ref = MakeWeak(some_object);
   Tagged<MaybeObject> smi = Smi::FromInt(0);
-  Tagged<MaybeObject> cleared_ref = ClearedValue(isolate());
+  Tagged<MaybeObject> cleared_ref = kClearedWeakValue;
   list->Set(0, weak_ref);
   list->Set(1, smi);
   list->Set(2, cleared_ref);
@@ -46,7 +46,7 @@ TEST_F(WeakArrayListTest, OutOfPlaceCompact) {
   list->Set(4, cleared_ref);
   list->set_length(6);
 
-  Handle<WeakArrayList> compacted =
+  DirectHandle<WeakArrayList> compacted =
       isolate()->factory()->CompactWeakArrayList(list, 4);
   EXPECT_EQ(list->length(), 6);
   EXPECT_EQ(compacted->length(), 4);

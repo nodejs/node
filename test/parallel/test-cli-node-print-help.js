@@ -11,9 +11,8 @@ const { exec, spawn } = require('child_process');
 const { once } = require('events');
 let stdOut;
 
-
 function startPrintHelpTest() {
-  exec(`${process.execPath} --help`, common.mustSucceed((stdout, stderr) => {
+  exec(...common.escapePOSIXShell`"${process.execPath}" --help`, common.mustSucceed((stdout, stderr) => {
     stdOut = stdout;
     validateNodePrintHelp();
   }));
@@ -27,7 +26,7 @@ function validateNodePrintHelp() {
   const cliHelpOptions = [
     { compileConstant: HAVE_OPENSSL,
       flags: [ '--openssl-config=...', '--tls-cipher-list=...',
-               '--use-bundled-ca', '--use-openssl-ca',
+               '--use-bundled-ca', '--use-openssl-ca', '--use-system-ca',
                '--enable-fips', '--force-fips' ] },
     { compileConstant: NODE_HAVE_I18N_SUPPORT,
       flags: [ '--icu-data-dir=...', 'NODE_ICU_DATA' ] },

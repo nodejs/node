@@ -24,6 +24,8 @@
     "fail": {
       "expected": [
         "PerformanceResourceTiming interface: attribute firstInterimResponseStart",
+        "PerformanceResourceTiming interface: attribute finalResponseHeadersStart",
+        "PerformanceResourceTiming interface: resource must inherit property \"finalResponseHeadersStart\" with the proper type",
         "PerformanceResourceTiming interface: attribute renderBlockingStatus",
         "PerformanceResourceTiming interface: attribute contentType",
         "PerformanceResourceTiming interface: resource must inherit property \"firstInterimResponseStart\" with the proper type",

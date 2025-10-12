@@ -64,6 +64,10 @@ class PreFinalizerHandler;
 class StatsCollector;
 
 enum class HeapObjectNameForUnnamedObject : uint8_t;
+enum class StickyBits : uint8_t {
+  kDisabled,
+  kEnabled,
+};
 
 class MoveListener {
  public:
@@ -202,7 +206,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
     stats_collector_->SetMetricRecorder(std::move(histogram_recorder));
   }
 
-  int GetCreationThreadId() const { return creation_thread_id_; }
+  virtual bool CurrentThreadIsHeapThread() const;
 
   MarkingType marking_support() const { return marking_support_; }
   SweepingType sweeping_support() const { return sweeping_support_; }
@@ -217,6 +221,11 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
     DCHECK_IMPLIES(supported, YoungGenerationEnabler::IsEnabled());
 #endif  // defined(CPPGC_YOUNG_GENERATION)
     return supported;
+  }
+
+  StickyBits sticky_bits() const {
+    return generational_gc_supported() ? StickyBits::kEnabled
+                                       : StickyBits::kDisabled;
   }
 
   // Returns whether objects should derive their name from C++ class names. Also
@@ -278,6 +287,10 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   PageAllocator* page_allocator() const;
 
+  // This field should be first so that it is initialized first at heap creation
+  // and is available upon initialization of other fields.
+  int heap_thread_id_ = v8::base::OS::GetCurrentThreadId();
+
   RawHeap raw_heap_;
   std::shared_ptr<cppgc::Platform> platform_;
   std::unique_ptr<FatalOutOfMemoryHandler> oom_handler_;
@@ -320,7 +333,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   bool in_atomic_pause_ = false;
 
-  int creation_thread_id_ = v8::base::OS::GetCurrentThreadId();
 
   MarkingType marking_support_;
   SweepingType sweeping_support_;

@@ -14,7 +14,6 @@ import { errors } from 'undici'
 | `HeadersTimeoutError`                | `UND_ERR_HEADERS_TIMEOUT`             | socket is destroyed due to headers timeout.                               |
 | `HeadersOverflowError`               | `UND_ERR_HEADERS_OVERFLOW`            | socket is destroyed due to headers' max size being exceeded.              |
 | `BodyTimeoutError`                   | `UND_ERR_BODY_TIMEOUT`                | socket is destroyed due to body timeout.                                  |
-| `ResponseStatusCodeError`            | `UND_ERR_RESPONSE_STATUS_CODE`        | an error is thrown when `throwOnError` is `true` for status codes >= 400. |
 | `InvalidArgumentError`               | `UND_ERR_INVALID_ARG`                 | passed an invalid argument.                                               |
 | `InvalidReturnValueError`            | `UND_ERR_INVALID_RETURN_VALUE`        | returned an invalid value.                                                |
 | `RequestAbortedError`                | `UND_ERR_ABORTED`                     | the request has been aborted by the user                                  |
@@ -28,6 +27,7 @@ import { errors } from 'undici'
 | `ResponseExceededMaxSizeError`       | `UND_ERR_RES_EXCEEDED_MAX_SIZE`       | response body exceed the max size allowed                                 |
 | `SecureProxyConnectionError`         | `UND_ERR_PRX_TLS`                     | tls connection to a proxy failed                                          |
 
+Be aware of the possible difference between the global dispatcher version and the actual undici version you might be using. We recommend to avoid the check `instanceof errors.UndiciError` and seek for the `error.code === '<error_code>'` instead to avoid inconsistencies.
 ### `SocketError`
 
 The `SocketError` has a `.socket` property which holds socket metadata:

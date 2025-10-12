@@ -246,6 +246,17 @@
       ]
     },
     {
+      "name": "IteratorsWithOptimization",
+      "path": ["Iterators"],
+      "main": "run.js",
+      "resources": ["forof.js"],
+      "flags": ["--max-opt=0", "--for_of_optimization"],
+      "results_regexp": "^%s\\-Iterators\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ForOf"}
+        ]
+    },
+    {
       "name": "StringIterators",
       "path": ["StringIterators"],
       "main": "run.js",
@@ -624,7 +635,7 @@
         {
           "name": "NumberToString",
           "main": "run.js",
-          "flags": [],
+          "flags": ["--no-maglev"],
           "resources": ["typedLowering.js"],
           "test_flags": ["typedLowering"],
           "results_regexp": "^NumberToString\\-TurboFan\\(Score\\): (.+)$"

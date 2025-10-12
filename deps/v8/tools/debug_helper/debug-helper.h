@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file defines the public interface to v8_debug_helper.
-
 #ifndef V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_H_
 #define V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_H_
+
+// This file defines the public interface to v8_debug_helper.
 
 #include <cstdint>
 #include <memory>
@@ -22,7 +22,7 @@
 
 #else  // defined(_WIN32)
 
-#ifdef BUILDING_V8_DEBUG_HELPER
+#if defined(BUILDING_V8_DEBUG_HELPER) || USING_V8_DEBUG_HELPER
 #define V8_DEBUG_HELPER_EXPORT __attribute__((visibility("default")))
 #else
 #define V8_DEBUG_HELPER_EXPORT
@@ -166,9 +166,12 @@ struct HeapAddresses {
 
   // Any valid heap pointer address. On platforms where pointer compression is
   // enabled, this can allow us to get data from compressed pointers even if the
-  // other data above is not provided. The Isolate pointer is valid for this
-  // purpose if you have it.
+  // other data above is not provided.
   uintptr_t any_heap_pointer;
+
+  // A pointer to the static array
+  // v8::internal::MemoryChunk::metadata_pointer_table_.
+  uintptr_t metadata_pointer_table;
 };
 
 }  // namespace debug_helper

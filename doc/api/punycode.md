@@ -21,7 +21,7 @@ The `punycode` module is a bundled version of the [Punycode.js][] module. It
 can be accessed using:
 
 ```js
-const punycode = require('punycode');
+const punycode = require('node:punycode');
 ```
 
 [Punycode][] is a character encoding scheme defined by RFC 3492 that is
@@ -155,7 +155,7 @@ punycode.ucs2.encode([0x1D306]); // '\uD834\uDF06'
 added: v0.6.1
 -->
 
-* {string}
+* Type: {string}
 
 Returns a string identifying the current [Punycode.js][] version number.
 

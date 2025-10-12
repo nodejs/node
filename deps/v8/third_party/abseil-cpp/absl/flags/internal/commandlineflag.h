@@ -17,7 +17,7 @@
 #define ABSL_FLAGS_INTERNAL_COMMANDLINEFLAG_H_
 
 #include "absl/base/config.h"
-#include "absl/base/internal/fast_type_id.h"
+#include "absl/base/fast_type_id.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -28,7 +28,7 @@ namespace flags_internal {
 // cases this id is enough to uniquely identify the flag's value type. In a few
 // cases we'll have to resort to using actual RTTI implementation if it is
 // available.
-using FlagFastTypeId = absl::base_internal::FastTypeIdType;
+using FlagFastTypeId = absl::FastTypeIdType;
 
 // Options that control SetCommandLineOptionWithMode.
 enum FlagSettingMode {

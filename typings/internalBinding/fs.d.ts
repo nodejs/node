@@ -76,6 +76,10 @@ declare namespace InternalFSBinding {
   function copyFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, req: undefined, ctx: FSSyncContext): void;
   function copyFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, usePromises: typeof kUsePromises): Promise<void>;
 
+  function cpSyncCheckPaths(src: StringOrBuffer, dest: StringOrBuffer, dereference: boolean, recursive: boolean): void;
+  function cpSyncOverrideFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, preserveTimestamps: boolean): void;
+  function cpSyncCopyDir(src: StringOrBuffer, dest: StringOrBuffer, force: boolean, errorOnExist: boolean, verbatimSymlinks: boolean, dereference: boolean): void;
+
   function fchmod(fd: number, mode: number, req: FSReqCallback): void;
   function fchmod(fd: number, mode: number): void;
   function fchmod(fd: number, mode: number, usePromises: typeof kUsePromises): Promise<void>;
@@ -111,7 +115,7 @@ declare namespace InternalFSBinding {
   function futimes(fd: number, atime: number, mtime: number): void;
   function futimes(fd: number, atime: number, mtime: number, usePromises: typeof kUsePromises): Promise<void>;
 
-  function internalModuleStat(path: string): number;
+  function internalModuleStat(receiver: unknown, path: string): number;
 
   function lchown(path: string, uid: number, gid: number, req: FSReqCallback): void;
   function lchown(path: string, uid: number, gid: number, req: undefined, ctx: FSSyncContext): void;
@@ -233,7 +237,7 @@ declare namespace InternalFSBinding {
   function writeString(fd: number, value: string, pos: unknown, encoding: unknown, req: undefined, ctx: FSSyncContext): number;
   function writeString(fd: number, value: string, pos: unknown, encoding: unknown, usePromises: typeof kUsePromises): Promise<number>;
 
-  function getFormatOfExtensionlessFile(url: string): ConstantsBinding['fs'];
+  function getFormatOfExtensionlessFile(url: string): ConstantsBinding['internal'];
 
   function writeFileUtf8(path: string, data: string, flag: number, mode: number): void;
   function writeFileUtf8(fd: number, data: string, flag: number, mode: number): void;
@@ -257,6 +261,9 @@ export interface FsBinding {
   chown: typeof InternalFSBinding.chown;
   close: typeof InternalFSBinding.close;
   copyFile: typeof InternalFSBinding.copyFile;
+  cpSyncCheckPaths: typeof InternalFSBinding.cpSyncCheckPaths;
+  cpSyncOverrideFile: typeof InternalFSBinding.cpSyncOverrideFile;
+  cpSyncCopyDir: typeof InternalFSBinding.cpSyncCopyDir;
   fchmod: typeof InternalFSBinding.fchmod;
   fchown: typeof InternalFSBinding.fchown;
   fdatasync: typeof InternalFSBinding.fdatasync;
@@ -288,6 +295,7 @@ export interface FsBinding {
   utimes: typeof InternalFSBinding.utimes;
   writeBuffer: typeof InternalFSBinding.writeBuffer;
   writeBuffers: typeof InternalFSBinding.writeBuffers;
+  writeFileUtf8: typeof InternalFSBinding.writeFileUtf8;
   writeString: typeof InternalFSBinding.writeString;
 
   getFormatOfExtensionlessFile: typeof InternalFSBinding.getFormatOfExtensionlessFile;

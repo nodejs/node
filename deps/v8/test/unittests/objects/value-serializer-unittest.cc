@@ -59,23 +59,23 @@ class ValueSerializerTest : public TestWithIsolate {
     Local<FunctionTemplate> function_template = v8::FunctionTemplate::New(
         isolate(), [](const FunctionCallbackInfo<Value>& info) {
           CHECK(i::ValidateCallbackInfo(info));
-          info.Holder()->SetInternalField(0, info[0]);
-          info.Holder()->SetInternalField(1, info[1]);
+          info.This()->SetInternalField(0, info[0]);
+          info.This()->SetInternalField(1, info[1]);
         });
     function_template->InstanceTemplate()->SetInternalFieldCount(2);
-    function_template->InstanceTemplate()->SetAccessor(
+    function_template->InstanceTemplate()->SetNativeDataProperty(
         StringFromUtf8("value"),
         [](Local<Name> property, const PropertyCallbackInfo<Value>& info) {
           CHECK(i::ValidateCallbackInfo(info));
           info.GetReturnValue().Set(
-              info.Holder()->GetInternalField(0).As<v8::Value>());
+              info.HolderV2()->GetInternalField(0).As<v8::Value>());
         });
-    function_template->InstanceTemplate()->SetAccessor(
+    function_template->InstanceTemplate()->SetNativeDataProperty(
         StringFromUtf8("value2"),
         [](Local<Name> property, const PropertyCallbackInfo<Value>& info) {
           CHECK(i::ValidateCallbackInfo(info));
           info.GetReturnValue().Set(
-              info.Holder()->GetInternalField(1).As<v8::Value>());
+              info.HolderV2()->GetInternalField(1).As<v8::Value>());
         });
     for (Local<Context> context :
          {serialization_context, deserialization_context}) {
@@ -1916,8 +1916,8 @@ TEST_F(ValueSerializerTest, RoundTripArrayBuffer) {
   ExpectScriptTrue("Object.getPrototypeOf(result) === ArrayBuffer.prototype");
   // TODO(v8:11111): Use API functions for testing max_byte_length and resizable
   // once they're exposed via the API.
-  i::Handle<i::JSArrayBuffer> array_buffer =
-      Utils::OpenHandle(ArrayBuffer::Cast(*value));
+  i::DirectHandle<i::JSArrayBuffer> array_buffer =
+      Utils::OpenDirectHandle(ArrayBuffer::Cast(*value));
   EXPECT_EQ(0u, array_buffer->max_byte_length());
   EXPECT_EQ(false, array_buffer->is_resizable_by_js());
 
@@ -1925,7 +1925,7 @@ TEST_F(ValueSerializerTest, RoundTripArrayBuffer) {
   ASSERT_TRUE(value->IsArrayBuffer());
   EXPECT_EQ(3u, ArrayBuffer::Cast(*value)->ByteLength());
   ExpectScriptTrue("new Uint8Array(result).toString() === '0,128,255'");
-  array_buffer = Utils::OpenHandle(ArrayBuffer::Cast(*value));
+  array_buffer = Utils::OpenDirectHandle(ArrayBuffer::Cast(*value));
   EXPECT_EQ(3u, array_buffer->max_byte_length());
   EXPECT_EQ(false, array_buffer->is_resizable_by_js());
 
@@ -1943,8 +1943,8 @@ TEST_F(ValueSerializerTest, RoundTripResizableArrayBuffer) {
 
   // TODO(v8:11111): Use API functions for testing max_byte_length and resizable
   // once they're exposed via the API.
-  i::Handle<i::JSArrayBuffer> array_buffer =
-      Utils::OpenHandle(ArrayBuffer::Cast(*value));
+  i::DirectHandle<i::JSArrayBuffer> array_buffer =
+      Utils::OpenDirectHandle(ArrayBuffer::Cast(*value));
   EXPECT_EQ(200u, array_buffer->max_byte_length());
   EXPECT_EQ(true, array_buffer->is_resizable_by_js());
 }
@@ -2090,7 +2090,7 @@ TEST_F(ValueSerializerTest, RoundTripTypedArray) {
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
   Local<Value> value;
-  i::Handle<i::JSTypedArray> i_ta;
+  i::DirectHandle<i::JSTypedArray> i_ta;
 #define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype)             \
   value = RoundTripTest("new " #Type "Array(2)");                        \
   ASSERT_TRUE(value->Is##Type##Array());                                 \
@@ -2098,7 +2098,7 @@ TEST_F(ValueSerializerTest, RoundTripTypedArray) {
   EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());                     \
   ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type            \
                    "Array.prototype");                                   \
-  i_ta = v8::Utils::OpenHandle(TypedArray::Cast(*value));                \
+  i_ta = v8::Utils::OpenDirectHandle(TypedArray::Cast(*value));          \
   EXPECT_EQ(false, i_ta->is_length_tracking());                          \
   EXPECT_EQ(false, i_ta->is_backed_by_rab());
 
@@ -2140,7 +2140,7 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingTypedArray) {
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
   Local<Value> value;
-  i::Handle<i::JSTypedArray> i_ta;
+  i::DirectHandle<i::JSTypedArray> i_ta;
 #define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype)          \
   value = RoundTripTest("new " #Type                                  \
                         "Array(new ArrayBuffer(80, "                  \
@@ -2150,7 +2150,7 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingTypedArray) {
   EXPECT_EQ(80u / sizeof(ctype), TypedArray::Cast(*value)->Length()); \
   ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type         \
                    "Array.prototype");                                \
-  i_ta = v8::Utils::OpenHandle(TypedArray::Cast(*value));             \
+  i_ta = v8::Utils::OpenDirectHandle(TypedArray::Cast(*value));       \
   EXPECT_EQ(true, i_ta->is_length_tracking());                        \
   EXPECT_EQ(true, i_ta->is_backed_by_rab());
 
@@ -2165,7 +2165,7 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedNonLengthTrackingTypedArray) {
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
   Local<Value> value;
-  i::Handle<i::JSTypedArray> i_ta;
+  i::DirectHandle<i::JSTypedArray> i_ta;
 #define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype)             \
   value = RoundTripTest("new " #Type                                     \
                         "Array(new ArrayBuffer(80, "                     \
@@ -2175,7 +2175,7 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedNonLengthTrackingTypedArray) {
   EXPECT_EQ(4u, TypedArray::Cast(*value)->Length());                     \
   ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type            \
                    "Array.prototype");                                   \
-  i_ta = v8::Utils::OpenHandle(TypedArray::Cast(*value));                \
+  i_ta = v8::Utils::OpenDirectHandle(TypedArray::Cast(*value));          \
   EXPECT_EQ(false, i_ta->is_length_tracking());                          \
   EXPECT_EQ(true, i_ta->is_backed_by_rab());
 
@@ -2514,8 +2514,8 @@ TEST_F(ValueSerializerTest, RoundTripDataView) {
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed
   // via the API.
-  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv =
-      v8::Utils::OpenHandle(DataView::Cast(*value));
+  i::DirectHandle<i::JSDataViewOrRabGsabDataView> i_dv =
+      v8::Utils::OpenDirectHandle(DataView::Cast(*value));
   EXPECT_EQ(false, i_dv->is_length_tracking());
   EXPECT_EQ(false, i_dv->is_backed_by_rab());
 }
@@ -2544,8 +2544,8 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedDataView) {
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
-  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv =
-      v8::Utils::OpenHandle(DataView::Cast(*value));
+  i::DirectHandle<i::JSDataViewOrRabGsabDataView> i_dv =
+      v8::Utils::OpenDirectHandle(DataView::Cast(*value));
   EXPECT_EQ(false, i_dv->is_length_tracking());
   EXPECT_EQ(true, i_dv->is_backed_by_rab());
 }
@@ -2560,8 +2560,8 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingDataView) {
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
-  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv =
-      v8::Utils::OpenHandle(DataView::Cast(*value));
+  i::DirectHandle<i::JSDataViewOrRabGsabDataView> i_dv =
+      v8::Utils::OpenDirectHandle(DataView::Cast(*value));
   EXPECT_EQ(true, i_dv->is_length_tracking());
   EXPECT_EQ(true, i_dv->is_backed_by_rab());
 }
@@ -2645,7 +2645,7 @@ class ValueSerializerTestWithSharedArrayBufferClone
           i_isolate, pages, pages, i::WasmMemoryFlag::kWasmMemory32,
           i::SharedFlag::kShared);
       memcpy(backing_store->buffer_start(), data, byte_length);
-      i::Handle<i::JSArrayBuffer> buffer =
+      i::DirectHandle<i::JSArrayBuffer> buffer =
           i_isolate->factory()->NewJSSharedArrayBuffer(
               std::move(backing_store));
       return Utils::ToLocalShared(buffer);
@@ -2766,9 +2766,10 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     Context::Scope scope(serialization_context());
     const int32_t kMaxPages = 1;
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
-    i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(*input_buffer());
+    i::DirectHandle<i::JSArrayBuffer> obj =
+        Utils::OpenDirectHandle(*input_buffer());
     input = Utils::Convert<i::WasmMemoryObject, Value>(i::WasmMemoryObject::New(
-        i_isolate, obj, kMaxPages, i::WasmMemoryFlag::kWasmMemory32));
+        i_isolate, obj, kMaxPages, i::wasm::AddressType::kI32));
   }
   RoundTripTest(input);
   ExpectScriptTrue("result instanceof WebAssembly.Memory");
@@ -2800,10 +2801,11 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     Context::Scope scope(serialization_context());
     const int32_t kMaxPages = 1;
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
-    i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*input_buffer());
-    i::Handle<i::WasmMemoryObject> wasm_memory = i::WasmMemoryObject::New(
-        i_isolate, buffer, kMaxPages, i::WasmMemoryFlag::kWasmMemory32);
-    i::Handle<i::FixedArray> fixed_array =
+    i::DirectHandle<i::JSArrayBuffer> buffer =
+        Utils::OpenDirectHandle(*input_buffer());
+    i::DirectHandle<i::WasmMemoryObject> wasm_memory = i::WasmMemoryObject::New(
+        i_isolate, buffer, kMaxPages, i::wasm::AddressType::kI32);
+    i::DirectHandle<i::FixedArray> fixed_array =
         i_isolate->factory()->NewFixedArray(2);
     fixed_array->set(0, *buffer);
     fixed_array->set(1, *wasm_memory);
@@ -3139,6 +3141,69 @@ TEST_F(ValueSerializerTestWithHostObject, RoundTripHostJSObject) {
   ExpectScriptTrue("result.a === result.b");
 }
 
+TEST_F(ValueSerializerTestWithHostObject, RoundTripJSErrorObject) {
+  i::DisableHandleChecksForMockingScope mocking_scope;
+
+  EXPECT_CALL(serializer_delegate_, HasCustomHostObject(isolate()))
+      .WillOnce(Invoke([](Isolate* isolate) { return true; }));
+  EXPECT_CALL(serializer_delegate_, IsHostObject(isolate(), _))
+      .WillRepeatedly(Invoke([this](Isolate* isolate, Local<Object> object) {
+        EXPECT_TRUE(object->IsObject());
+        Local<Context> context = isolate->GetCurrentContext();
+        return object->Has(context, StringFromUtf8("my_host_object"));
+      }));
+  // Read/Write HostObject methods are not invoked for non-host JSErrors.
+  EXPECT_CALL(serializer_delegate_, WriteHostObject(isolate(), _)).Times(0);
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate())).Times(0);
+
+  RoundTripTest(
+      "var e = new Error('before serialize');"
+      "({ a: e, get b() { return this.a; } })");
+  ExpectScriptTrue("!('my_host_object' in result)");
+  ExpectScriptTrue("!('my_host_object' in result.a)");
+  ExpectScriptTrue("result.a.message === 'before serialize'");
+  ExpectScriptTrue("result.a instanceof Error");
+  ExpectScriptTrue("result.a === result.b");
+}
+
+TEST_F(ValueSerializerTestWithHostObject, RoundTripHostJSErrorObject) {
+  i::DisableHandleChecksForMockingScope mocking_scope;
+
+  EXPECT_CALL(serializer_delegate_, HasCustomHostObject(isolate()))
+      .WillOnce(Invoke([](Isolate* isolate) { return true; }));
+  EXPECT_CALL(serializer_delegate_, IsHostObject(isolate(), _))
+      .WillRepeatedly(Invoke([this](Isolate* isolate, Local<Object> object) {
+        EXPECT_TRUE(object->IsObject());
+        Local<Context> context = isolate->GetCurrentContext();
+        return object->Has(context, StringFromUtf8("my_host_object"));
+      }));
+  EXPECT_CALL(serializer_delegate_, WriteHostObject(isolate(), _))
+      .WillOnce(Invoke([this](Isolate*, Local<Object> object) {
+        EXPECT_TRUE(object->IsObject());
+        WriteExampleHostObjectTag();
+        return Just(true);
+      }));
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillOnce(Invoke([this](Isolate* isolate) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        Local<Context> context = isolate->GetCurrentContext();
+        Local<Object> obj =
+            v8::Exception::Error(StringFromUtf8("deserialized")).As<Object>();
+        obj->Set(context, StringFromUtf8("my_host_object"), v8::True(isolate))
+            .Check();
+        return obj;
+      }));
+  RoundTripTest(
+      "var e = new Error('before serialize');"
+      "e.my_host_object = true;"
+      "({ a: e, get b() { return this.a; } })");
+  ExpectScriptTrue("!('my_host_object' in result)");
+  ExpectScriptTrue("result.a.my_host_object");
+  ExpectScriptTrue("result.a.message === 'deserialized'");
+  ExpectScriptTrue("result.a instanceof Error");
+  ExpectScriptTrue("result.a === result.b");
+}
+
 class ValueSerializerTestWithHostArrayBufferView
     : public ValueSerializerTestWithHostObject {
  protected:
@@ -3213,15 +3278,11 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
 
  protected:
   static void SetUpTestSuite() {
-    g_saved_flag = i::v8_flags.expose_wasm;
-    i::v8_flags.expose_wasm = true;
     ValueSerializerTest::SetUpTestSuite();
   }
 
   static void TearDownTestSuite() {
     ValueSerializerTest::TearDownTestSuite();
-    i::v8_flags.expose_wasm = g_saved_flag;
-    g_saved_flag = false;
   }
 
   class ThrowingSerializer : public ValueSerializer::Delegate {
@@ -3279,12 +3340,14 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
   Local<WasmModuleObject> MakeWasm() {
     Context::Scope scope(serialization_context());
     i::wasm::ErrorThrower thrower(i_isolate(), "MakeWasm");
-    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
-    auto compile_imports = i::wasm::CompileTimeImports{};
-    i::MaybeHandle<i::JSObject> compiled =
-        i::wasm::GetWasmEngine()->SyncCompile(
-            i_isolate(), enabled_features, compile_imports, &thrower,
-            i::wasm::ModuleWireBytes(base::ArrayVector(kIncrementerWasm)));
+    auto enabled_features =
+        i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate());
+    base::OwnedVector<const uint8_t> wire_bytes =
+        base::OwnedCopyOf(kIncrementerWasm);
+    i::MaybeDirectHandle<i::JSObject> compiled =
+        i::wasm::GetWasmEngine()->SyncCompile(i_isolate(), enabled_features,
+                                              i::wasm::CompileTimeImports{},
+                                              &thrower, std::move(wire_bytes));
     CHECK(!thrower.error());
     return Local<WasmModuleObject>::Cast(
         Utils::ToLocal(compiled.ToHandleChecked()));
@@ -3350,7 +3413,6 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
   }
 
  private:
-  static bool g_saved_flag;
   std::vector<CompiledWasmModule> transfer_modules_;
   SerializeToTransfer serialize_delegate_;
   DeserializeFromTransfer deserialize_delegate_;
@@ -3360,7 +3422,6 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
   ValueDeserializer::Delegate default_deserializer_;
 };
 
-bool ValueSerializerTestWithWasm::g_saved_flag = false;
 const char* ValueSerializerTestWithWasm::kUnsupportedSerialization =
     "Wasm Serialization Not Supported";
 
@@ -3370,10 +3431,11 @@ const char* ValueSerializerTestWithWasm::kUnsupportedSerialization =
 TEST_F(ValueSerializerTestWithWasm, DefaultSerializationDelegate) {
   EnableThrowingSerializer();
   Local<Message> message = InvalidEncodeTest(MakeWasm());
-  size_t msg_len = static_cast<size_t>(message->Get()->Length());
+  uint32_t msg_len = message->Get()->Length();
   std::unique_ptr<char[]> buff(new char[msg_len + 1]);
-  message->Get()->WriteOneByte(isolate(),
-                               reinterpret_cast<uint8_t*>(buff.get()));
+  message->Get()->WriteOneByteV2(isolate(), 0, msg_len,
+                                 reinterpret_cast<uint8_t*>(buff.get()),
+                                 String::WriteFlags::kNullTerminate);
   // the message ends with the custom error string
   size_t custom_msg_len = strlen(kUnsupportedSerialization);
   ASSERT_GE(msg_len, custom_msg_len);
@@ -3522,9 +3584,10 @@ TEST_F(ValueSerializerTest, RoundTripError) {
 
   {
     Context::Scope scope(deserialization_context());
-    EXPECT_EQ(error->GetPrototype(), Exception::Error(String::Empty(isolate()))
-                                         .As<Object>()
-                                         ->GetPrototype());
+    EXPECT_EQ(error->GetPrototypeV2(),
+              Exception::Error(String::Empty(isolate()))
+                  .As<Object>()
+                  ->GetPrototypeV2());
   }
   ASSERT_TRUE(error->Get(deserialization_context(), StringFromUtf8("name"))
                   .ToLocal(&name));

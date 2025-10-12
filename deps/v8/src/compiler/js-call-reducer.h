@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_JS_CALL_REDUCER_H_
 #define V8_COMPILER_JS_CALL_REDUCER_H_
 
+#include <optional>
+
 #include "src/base/flags.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/graph-reducer.h"
@@ -71,10 +73,14 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Zone* ZoneForGraphAssembler() const { return temp_zone(); }
   JSGraph* JSGraphForGraphAssembler() const { return jsgraph(); }
 
-  bool has_wasm_calls() const { return has_wasm_calls_; }
-  const wasm::WasmModule* wasm_module_for_inlining() const {
-    return wasm_module_for_inlining_;
+#if V8_ENABLE_WEBASSEMBLY
+  bool has_js_wasm_calls() const {
+    return wasm_native_module_for_inlining_ != nullptr;
   }
+  const wasm::NativeModule* wasm_native_module_for_inlining() const {
+    return wasm_native_module_for_inlining_;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   CompilationDependencies* dependencies() const;
   JSHeapBroker* broker() const { return broker_; }
@@ -147,19 +153,21 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceRegExpPrototypeTest(Node* node);
   Reduction ReduceReturnReceiver(Node* node);
 
+  Reduction ReduceStringConstructor(Node* node, JSFunctionRef constructor);
   enum class StringIndexOfIncludesVariant { kIncludes, kIndexOf };
   Reduction ReduceStringPrototypeIndexOfIncludes(
       Node* node, StringIndexOfIncludesVariant variant);
   Reduction ReduceStringPrototypeSubstring(Node* node);
   Reduction ReduceStringPrototypeSlice(Node* node);
   Reduction ReduceStringPrototypeSubstr(Node* node);
-  Reduction ReduceStringPrototypeStringAt(
-      const Operator* string_access_operator, Node* node);
+  Reduction ReduceStringPrototypeStringCharCodeAt(Node* node);
+  Reduction ReduceStringPrototypeStringCodePointAt(Node* node);
   Reduction ReduceStringPrototypeCharAt(Node* node);
   Reduction ReduceStringPrototypeStartsWith(Node* node);
   Reduction ReduceStringPrototypeEndsWith(Node* node);
 
 #ifdef V8_INTL_SUPPORT
+  Reduction ReduceStringPrototypeLocaleCompareIntl(Node* node);
   Reduction ReduceStringPrototypeToLowerCaseIntl(Node* node);
   Reduction ReduceStringPrototypeToUpperCaseIntl(Node* node);
 #endif  // V8_INTL_SUPPORT
@@ -167,7 +175,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceStringFromCharCode(Node* node);
   Reduction ReduceStringFromCodePoint(Node* node);
   Reduction ReduceStringPrototypeIterator(Node* node);
-  Reduction ReduceStringPrototypeLocaleCompare(Node* node);
   Reduction ReduceStringIteratorPrototypeNext(Node* node);
   Reduction ReduceStringPrototypeConcat(Node* node);
 
@@ -184,7 +191,11 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                         SharedFunctionInfoRef shared);
   Reduction ReduceTypedArrayPrototypeToStringTag(Node* node);
   Reduction ReduceArrayBufferViewByteLengthAccessor(Node* node,
-                                                    InstanceType instance_type);
+                                                    InstanceType instance_type,
+                                                    Builtin builtin);
+  Reduction ReduceArrayBufferViewByteOffsetAccessor(Node* node,
+                                                    InstanceType instance_type,
+                                                    Builtin builtin);
   Reduction ReduceTypedArrayPrototypeLength(Node* node);
 
   Reduction ReduceForInsufficientFeedback(Node* node, DeoptimizeReason reason);
@@ -229,6 +240,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                  ExternalArrayType element_type);
 
   Reduction ReduceDatePrototypeGetTime(Node* node);
+  Reduction ReduceDatePrototypeGetField(Node* node, JSDate::FieldIndex field);
+
   Reduction ReduceDateNow(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
 
@@ -236,8 +249,13 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceBigIntConstructor(Node* node);
   Reduction ReduceBigIntAsN(Node* node, Builtin builtin);
 
-  base::Optional<Reduction> TryReduceJSCallMathMinMaxWithArrayLike(Node* node);
+  std::optional<Reduction> TryReduceJSCallMathMinMaxWithArrayLike(Node* node);
   Reduction ReduceJSCallMathMinMaxWithArrayLike(Node* node, Builtin builtin);
+
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  Reduction ReduceGetContinuationPreservedEmbedderData(Node* node);
+  Reduction ReduceSetContinuationPreservedEmbedderData(Node* node);
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
   // The pendant to ReplaceWithValue when using GraphAssembler-based reductions.
   Reduction ReplaceWithSubgraph(JSCallReducerAssembler* gasm, Node* subgraph);
@@ -270,7 +288,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Node* ConvertHoleToUndefined(Node* value, ElementsKind elements_kind);
 
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Zone* temp_zone() const { return temp_zone_; }
   Isolate* isolate() const;
@@ -290,8 +308,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   // For preventing infinite recursion via ReduceJSCallWithArrayLikeOrSpread.
   std::unordered_set<Node*> generated_calls_with_array_like_or_spread_;
 
-  bool has_wasm_calls_ = false;
-  const wasm::WasmModule* wasm_module_for_inlining_ = nullptr;
+#if V8_ENABLE_WEBASSEMBLY
+  const wasm::NativeModule* wasm_native_module_for_inlining_ = nullptr;
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 }  // namespace compiler

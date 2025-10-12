@@ -12,6 +12,7 @@ namespace internal {
 namespace compiler {
 
 class BinaryOperationFeedback;
+class TypeOfOpFeedback;
 class CallFeedback;
 class CompareOperationFeedback;
 class ElementAccessFeedback;
@@ -35,6 +36,7 @@ class ProcessedFeedback : public ZoneObject {
     kForIn,
     kGlobalAccess,
     kInstanceOf,
+    kTypeOf,
     kLiteral,
     kMegaDOMPropertyAccess,
     kNamedAccess,
@@ -47,6 +49,7 @@ class ProcessedFeedback : public ZoneObject {
   bool IsInsufficient() const { return kind() == kInsufficient; }
 
   BinaryOperationFeedback const& AsBinaryOperation() const;
+  TypeOfOpFeedback const& AsTypeOf() const;
   CallFeedback const& AsCall() const;
   CompareOperationFeedback const& AsCompareOperation() const;
   ElementAccessFeedback const& AsElementAccess() const;
@@ -105,18 +108,23 @@ class KeyedAccessMode {
   bool IsStore() const;
   KeyedAccessLoadMode load_mode() const;
   KeyedAccessStoreMode store_mode() const;
+  // This is a hint indicating that the keyed IC was not in "elements mode".
+  // There may well be keys of any kind (string, integer, string representation
+  // of an integer, or "JSAny", really) that will need to be handled.
+  bool string_keys() const { return string_keys_; }
 
  private:
   AccessMode const access_mode_;
-  union LoadStoreMode {
-    LoadStoreMode(KeyedAccessLoadMode load_mode);
-    LoadStoreMode(KeyedAccessStoreMode store_mode);
-    KeyedAccessLoadMode load_mode;
-    KeyedAccessStoreMode store_mode;
-  } const load_store_mode_;
+  union {
+    KeyedAccessLoadMode load_mode_;    // If IsLoad().
+    KeyedAccessStoreMode store_mode_;  // If IsStore().
+  };
+  bool string_keys_;
 
-  KeyedAccessMode(AccessMode access_mode, KeyedAccessLoadMode load_mode);
-  KeyedAccessMode(AccessMode access_mode, KeyedAccessStoreMode store_mode);
+  KeyedAccessMode(AccessMode access_mode, KeyedAccessLoadMode load_mode,
+                  bool string_keys);
+  KeyedAccessMode(AccessMode access_mode, KeyedAccessStoreMode store_mode,
+                  bool string_keys);
 };
 
 class ElementAccessFeedback : public ProcessedFeedback {
@@ -152,6 +160,10 @@ class ElementAccessFeedback : public ProcessedFeedback {
   //
   ElementAccessFeedback const& Refine(
       JSHeapBroker* broker, ZoneVector<MapRef> const& inferred_maps) const;
+  ElementAccessFeedback const& Refine(
+      JSHeapBroker* broker, ZoneRefSet<Map> const& inferred_maps,
+      bool always_keep_group_target = true) const;
+  NamedAccessFeedback const& Refine(JSHeapBroker* broker, NameRef name) const;
 
  private:
   KeyedAccessMode const keyed_mode_;
@@ -161,14 +173,19 @@ class ElementAccessFeedback : public ProcessedFeedback {
 class NamedAccessFeedback : public ProcessedFeedback {
  public:
   NamedAccessFeedback(NameRef name, ZoneVector<MapRef> const& maps,
-                      FeedbackSlotKind slot_kind);
+                      FeedbackSlotKind slot_kind,
+                      bool has_deprecated_map_without_migration_target = false);
 
   NameRef name() const { return name_; }
   ZoneVector<MapRef> const& maps() const { return maps_; }
+  bool has_deprecated_map_without_migration_target() const {
+    return has_deprecated_map_without_migration_target_;
+  }
 
  private:
   NameRef const name_;
   ZoneVector<MapRef> const maps_;
+  bool has_deprecated_map_without_migration_target_;
 };
 
 class MegaDOMPropertyAccessFeedback : public ProcessedFeedback {
@@ -212,6 +229,9 @@ class SingleValueFeedback : public ProcessedFeedback {
       : ProcessedFeedback(K, slot_kind), value_(value) {
     DCHECK(
         (K == kBinaryOperation && slot_kind == FeedbackSlotKind::kBinaryOp) ||
+        (K == kBinaryOperation &&
+         slot_kind == FeedbackSlotKind::kStringAddAndInternalize) ||
+        (K == kTypeOf && slot_kind == FeedbackSlotKind::kTypeOf) ||
         (K == kCompareOperation && slot_kind == FeedbackSlotKind::kCompareOp) ||
         (K == kForIn && slot_kind == FeedbackSlotKind::kForIn) ||
         (K == kInstanceOf && slot_kind == FeedbackSlotKind::kInstanceOf) ||
@@ -228,6 +248,12 @@ class SingleValueFeedback : public ProcessedFeedback {
 class InstanceOfFeedback
     : public SingleValueFeedback<OptionalJSObjectRef,
                                  ProcessedFeedback::kInstanceOf> {
+  using SingleValueFeedback::SingleValueFeedback;
+};
+
+class TypeOfOpFeedback
+    : public SingleValueFeedback<TypeOfFeedback::Result,
+                                 ProcessedFeedback::kTypeOf> {
   using SingleValueFeedback::SingleValueFeedback;
 };
 

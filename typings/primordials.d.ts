@@ -46,6 +46,19 @@ declare namespace primordials {
   export import decodeURIComponent = globalThis.decodeURIComponent;
   export import encodeURI = globalThis.encodeURI;
   export import encodeURIComponent = globalThis.encodeURIComponent;
+  export const AtomicsAdd: typeof Atomics.add
+  export const AtomicsAnd: typeof Atomics.and
+  export const AtomicsCompareExchange: typeof Atomics.compareExchange
+  export const AtomicsExchange: typeof Atomics.exchange
+  export const AtomicsIsLockFree: typeof Atomics.isLockFree
+  export const AtomicsLoad: typeof Atomics.load
+  export const AtomicsNotify: typeof Atomics.notify
+  export const AtomicsOr: typeof Atomics.or
+  export const AtomicsStore: typeof Atomics.store
+  export const AtomicsSub: typeof Atomics.sub
+  export const AtomicsWait: typeof Atomics.wait
+  export const AtomicsWaitAsync: typeof Atomics.waitAsync
+  export const AtomicsXor: typeof Atomics.xor
   export const JSONParse: typeof JSON.parse
   export const JSONStringify: typeof JSON.stringify
   export const MathAbs: typeof Math.abs
@@ -111,6 +124,7 @@ declare namespace primordials {
   export const ArrayPrototype: typeof Array.prototype
   export const ArrayIsArray: typeof Array.isArray
   export const ArrayFrom: typeof Array.from
+  export const ArrayFromAsync: typeof Array.fromAsync
   export const ArrayOf: typeof Array.of
   export const ArrayPrototypeConcat: UncurryThis<typeof Array.prototype.concat>
   export const ArrayPrototypeCopyWithin: UncurryThis<typeof Array.prototype.copyWithin>
@@ -150,7 +164,10 @@ declare namespace primordials {
   export import ArrayBuffer = globalThis.ArrayBuffer;
   export const ArrayBufferPrototype: typeof ArrayBuffer.prototype
   export const ArrayBufferIsView: typeof ArrayBuffer.isView
+  export const ArrayBufferPrototypeGetDetached: UncurryGetter<typeof ArrayBuffer.prototype, 'detached'>;
   export const ArrayBufferPrototypeSlice: UncurryThis<typeof ArrayBuffer.prototype.slice>
+  export const ArrayBufferPrototypeTransfer: UncurryThis<typeof ArrayBuffer.prototype.transfer>
+  export const ArrayBufferPrototypeGetByteLength: UncurryGetter<typeof ArrayBuffer.prototype , "byteLength">;
   export const AsyncIteratorPrototype: AsyncIterable<any>;
   export import BigInt = globalThis.BigInt;
   export const BigIntPrototype: typeof BigInt.prototype
@@ -263,6 +280,7 @@ declare namespace primordials {
   export const FunctionPrototypeApply: UncurryThis<typeof Function.prototype.apply>
   export const FunctionPrototypeBind: UncurryThis<typeof Function.prototype.bind>
   export const FunctionPrototypeCall: UncurryThis<typeof Function.prototype.call>
+  export const FunctionPrototypeSymbolHasInstance: UncurryMethod<typeof Function.prototype, typeof Symbol.hasInstance>
   export const FunctionPrototypeToString: UncurryThis<typeof Function.prototype.toString>
   export import Int16Array = globalThis.Int16Array;
   export const Int16ArrayPrototype: typeof Int16Array.prototype
@@ -354,6 +372,8 @@ declare namespace primordials {
   export const RegExpPrototypeGetSource: UncurryGetter<typeof RegExp.prototype, "source">;
   export const RegExpPrototypeGetSticky: UncurryGetter<typeof RegExp.prototype, "sticky">;
   export const RegExpPrototypeGetUnicode: UncurryGetter<typeof RegExp.prototype, "unicode">;
+  export const RegExpPrototypeSymbolReplace: UncurryMethod<typeof RegExp.prototype, typeof Symbol.replace>
+  export const RegExpPrototypeSymbolSplit: UncurryMethod<typeof RegExp.prototype, typeof Symbol.split>
   export import Set = globalThis.Set;
   export const SetLength: typeof Set.length
   export const SetName: typeof Set.name
@@ -428,9 +448,9 @@ declare namespace primordials {
   export const SymbolPrototype: typeof Symbol.prototype
   export const SymbolFor: typeof Symbol.for
   export const SymbolKeyFor: typeof Symbol.keyFor
+  export const SymbolAsyncDispose: typeof Symbol.asyncDispose
   export const SymbolAsyncIterator: typeof Symbol.asyncIterator
   export const SymbolDispose: typeof Symbol.dispose
-  export const SymbolAsyncDispose: typeof Symbol.asyncDispose
   export const SymbolHasInstance: typeof Symbol.hasInstance
   export const SymbolIsConcatSpreadable: typeof Symbol.isConcatSpreadable
   export const SymbolIterator: typeof Symbol.iterator
@@ -475,10 +495,29 @@ declare namespace primordials {
     constructor: new (length: number) => T,
     items: readonly TypedArrayContentType<T>[],
   ): T;
+  export const TypedArray: TypedArray;
+  export const TypedArrayPrototype:
+    | typeof Uint8Array.prototype
+    | typeof Int8Array.prototype
+    | typeof Uint16Array.prototype
+    | typeof Int16Array.prototype
+    | typeof Uint32Array.prototype
+    | typeof Int32Array.prototype
+    | typeof Float32Array.prototype
+    | typeof Float64Array.prototype
+    | typeof BigInt64Array.prototype
+    | typeof BigUint64Array.prototype
+    | typeof Uint8ClampedArray.prototype;
   export const TypedArrayPrototypeGetBuffer: UncurryGetter<TypedArray, "buffer">;
   export const TypedArrayPrototypeGetByteLength: UncurryGetter<TypedArray, "byteLength">;
   export const TypedArrayPrototypeGetByteOffset: UncurryGetter<TypedArray, "byteOffset">;
   export const TypedArrayPrototypeGetLength: UncurryGetter<TypedArray, "length">;
+  export function TypedArrayPrototypeAt<T extends TypedArray>(self: T, ...args: Parameters<T["at"]>): ReturnType<T["at"]>;
+  export function TypedArrayPrototypeIncludes<T extends TypedArray>(self: T, ...args: Parameters<T["includes"]>): ReturnType<T["includes"]>;
+  export function TypedArrayPrototypeFill<T extends TypedArray>(self: T, ...args: Parameters<T["fill"]>): ReturnType<T["fill"]>;
+  export function TypedArrayPrototypeSet<T extends TypedArray>(self: T, ...args: Parameters<T["set"]>): ReturnType<T["set"]>;
+  export function TypedArrayPrototypeSubarray<T extends TypedArray>(self: T, ...args: Parameters<T["subarray"]>): ReturnType<T["subarray"]>;
+  export function TypedArrayPrototypeSlice<T extends TypedArray>(self: T, ...args: Parameters<T["slice"]>): ReturnType<T["slice"]>;
   export function TypedArrayPrototypeGetSymbolToStringTag(self: unknown):
     | 'Int8Array'
     | 'Int16Array'
@@ -528,6 +567,7 @@ declare namespace primordials {
   export const PromisePrototypeThen: UncurryThis<typeof Promise.prototype.then>
   export const PromisePrototypeCatch: UncurryThis<typeof Promise.prototype.catch>
   export const PromisePrototypeFinally: UncurryThis<typeof Promise.prototype.finally>
+  export const PromiseWithResolvers: typeof Promise.withResolvers
   export import Proxy = globalThis.Proxy
   import _globalThis = globalThis
   export { _globalThis as globalThis }

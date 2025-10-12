@@ -32,11 +32,12 @@ class BuiltinsConstantsTableBuilder final {
   // Returns the index within the builtins constants table for the given
   // object, possibly adding the object to the table. Objects are deduplicated.
   uint32_t AddObject(Handle<Object> object);
+  bool HasObject(Handle<Object> object) const;
 
   // Self-references during code generation start out by referencing a handle
   // with a temporary dummy object. Once the final InstructionStream object
   // exists, such entries in the constants map must be patched up.
-  void PatchSelfReference(Handle<Object> self_reference,
+  void PatchSelfReference(DirectHandle<Object> self_reference,
                           Handle<InstructionStream> code_object);
 
   // References to the array that stores basic block usage counters start out as
@@ -54,6 +55,10 @@ class BuiltinsConstantsTableBuilder final {
   // Maps objects to corresponding indices within the constants list.
   using ConstantsMap = IdentityMap<uint32_t, FreeStoreAllocationPolicy>;
   ConstantsMap map_;
+
+  // Protects accesses to map_, which is concurrently accessed when generating
+  // builtins off-main-thread.
+  mutable base::Mutex mutex_;
 };
 
 }  // namespace internal

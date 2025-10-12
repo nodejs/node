@@ -1,7 +1,6 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <memory_tracker.h>
 #include <ngtcp2/ngtcp2_crypto.h>
@@ -10,8 +9,7 @@
 #include "cid.h"
 #include "defs.h"
 
-namespace node {
-namespace quic {
+namespace node::quic {
 
 // TokenSecrets are used to generate things like stateless reset tokens,
 // retry tokens, and token packets. They are always QUIC_TOKENSECRET_LEN
@@ -251,8 +249,6 @@ class RegularToken final : public MemoryRetainer {
   const ngtcp2_vec ptr_;
 };
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

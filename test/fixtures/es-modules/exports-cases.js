@@ -7,3 +7,4 @@ exports['\u{D83C}'] = 'no';
 exports['\u{D83C}\u{DF10}'] = 'yes';
 exports.package  = 10; // reserved word
 Object.defineProperty(exports, 'z', { value: 'yes' });
+exports['module.exports'] = 5;

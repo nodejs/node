@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <numeric>
 #include <random>
 #include <string>
@@ -27,6 +29,7 @@
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hash_function_defaults.h"
 #include "absl/container/internal/raw_hash_set.h"
+#include "absl/random/random.h"
 #include "absl/strings/str_format.h"
 #include "benchmark/benchmark.h"
 
@@ -61,7 +64,7 @@ struct IntPolicy {
     return std::forward<F>(f)(x, x);
   }
 
-  template <class Hash>
+  template <class Hash, bool kIsDefault>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return nullptr;
   }
@@ -124,7 +127,7 @@ class StringPolicy {
                       PairArgs(std::forward<Args>(args)...));
   }
 
-  template <class Hash>
+  template <class Hash, bool kIsDefault>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return nullptr;
   }
@@ -169,8 +172,7 @@ struct string_generator {
 //
 // On a table of size N, keep deleting the LRU entry and add a random one.
 void BM_CacheInSteadyState(benchmark::State& state) {
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  absl::InsecureBitGen rng;
   string_generator gen{12};
   StringTable t;
   std::deque<std::string> keys;
@@ -247,8 +249,7 @@ void BM_EndComparison(benchmark::State& state) {
 BENCHMARK(BM_EndComparison);
 
 void BM_Iteration(benchmark::State& state) {
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  absl::InsecureBitGen rng;
   string_generator gen{12};
   StringTable t;
 
@@ -290,8 +291,7 @@ BENCHMARK(BM_Iteration)
     ->ArgPair(1000, 10);
 
 void BM_CopyCtorSparseInt(benchmark::State& state) {
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  absl::InsecureBitGen rng;
   IntTable t;
   std::uniform_int_distribution<uint64_t> dist(0, ~uint64_t{});
 
@@ -309,8 +309,7 @@ void BM_CopyCtorSparseInt(benchmark::State& state) {
 BENCHMARK(BM_CopyCtorSparseInt)->Range(1, 4096);
 
 void BM_CopyCtorInt(benchmark::State& state) {
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  absl::InsecureBitGen rng;
   IntTable t;
   std::uniform_int_distribution<uint64_t> dist(0, ~uint64_t{});
 
@@ -327,8 +326,7 @@ void BM_CopyCtorInt(benchmark::State& state) {
 BENCHMARK(BM_CopyCtorInt)->Range(0, 4096);
 
 void BM_CopyCtorString(benchmark::State& state) {
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  absl::InsecureBitGen rng;
   StringTable t;
   std::uniform_int_distribution<uint64_t> dist(0, ~uint64_t{});
 
@@ -345,8 +343,7 @@ void BM_CopyCtorString(benchmark::State& state) {
 BENCHMARK(BM_CopyCtorString)->Range(0, 4096);
 
 void BM_CopyAssign(benchmark::State& state) {
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  absl::InsecureBitGen rng;
   IntTable t;
   std::uniform_int_distribution<uint64_t> dist(0, ~uint64_t{});
   while (t.size() < state.range(0)) {
@@ -362,8 +359,7 @@ void BM_CopyAssign(benchmark::State& state) {
 BENCHMARK(BM_CopyAssign)->Range(128, 4096);
 
 void BM_RangeCtor(benchmark::State& state) {
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  absl::InsecureBitGen rng;
   std::uniform_int_distribution<uint64_t> dist(0, ~uint64_t{});
   std::vector<int> values;
   const size_t desired_size = state.range(0);
@@ -415,7 +411,17 @@ void BM_ReserveIntTable(benchmark::State& state) {
     }
   }
 }
-BENCHMARK(BM_ReserveIntTable)->Range(1, 64);
+BENCHMARK(BM_ReserveIntTable)
+    ->Arg(1)
+    ->Arg(2)
+    ->Arg(4)
+    ->Arg(8)
+    ->Arg(16)
+    ->Arg(32)
+    ->Arg(64)
+    ->Arg(128)
+    ->Arg(256)
+    ->Arg(512);
 
 void BM_ReserveStringTable(benchmark::State& state) {
   constexpr size_t kBatchSize = 1024;
@@ -434,7 +440,17 @@ void BM_ReserveStringTable(benchmark::State& state) {
     }
   }
 }
-BENCHMARK(BM_ReserveStringTable)->Range(1, 64);
+BENCHMARK(BM_ReserveStringTable)
+    ->Arg(1)
+    ->Arg(2)
+    ->Arg(4)
+    ->Arg(8)
+    ->Arg(16)
+    ->Arg(32)
+    ->Arg(64)
+    ->Arg(128)
+    ->Arg(256)
+    ->Arg(512);
 
 // Like std::iota, except that ctrl_t doesn't support operator++.
 template <typename CtrlIter>
@@ -503,17 +519,6 @@ void BM_Group_MaskNonFull(benchmark::State& state) {
 }
 BENCHMARK(BM_Group_MaskNonFull);
 
-void BM_Group_CountLeadingEmptyOrDeleted(benchmark::State& state) {
-  std::array<ctrl_t, Group::kWidth> group;
-  Iota(group.begin(), group.end(), -2);
-  Group g{group.data()};
-  for (auto _ : state) {
-    ::benchmark::DoNotOptimize(g);
-    ::benchmark::DoNotOptimize(g.CountLeadingEmptyOrDeleted());
-  }
-}
-BENCHMARK(BM_Group_CountLeadingEmptyOrDeleted);
-
 void BM_Group_MatchFirstEmptyOrDeleted(benchmark::State& state) {
   std::array<ctrl_t, Group::kWidth> group;
   Iota(group.begin(), group.end(), -2);
@@ -574,6 +579,67 @@ void BM_Resize(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_Resize);
+
+void BM_EraseIf(benchmark::State& state) {
+  int64_t num_elements = state.range(0);
+  size_t num_erased = static_cast<size_t>(state.range(1));
+
+  constexpr size_t kRepetitions = 64;
+
+  absl::BitGen rng;
+
+  std::vector<std::vector<int64_t>> keys(kRepetitions);
+  std::vector<IntTable> tables;
+  std::vector<int64_t> threshold;
+  for (auto& k : keys) {
+    tables.push_back(IntTable());
+    auto& table = tables.back();
+    for (int64_t i = 0; i < num_elements; i++) {
+      // We use random keys to reduce noise.
+      k.push_back(
+          absl::Uniform<int64_t>(rng, 0, std::numeric_limits<int64_t>::max()));
+      if (!table.insert(k.back()).second) {
+        k.pop_back();
+        --i;  // duplicated value, retrying
+      }
+    }
+    std::sort(k.begin(), k.end());
+    threshold.push_back(static_cast<int64_t>(num_erased) < num_elements
+                            ? k[num_erased]
+                            : std::numeric_limits<int64_t>::max());
+  }
+
+  while (state.KeepRunningBatch(static_cast<int64_t>(kRepetitions) *
+                                std::max(num_elements, int64_t{1}))) {
+    benchmark::DoNotOptimize(tables);
+    for (size_t t_id = 0; t_id < kRepetitions; t_id++) {
+      auto& table = tables[t_id];
+      benchmark::DoNotOptimize(num_erased);
+      auto pred = [t = threshold[t_id]](int64_t key) { return key < t; };
+      benchmark::DoNotOptimize(pred);
+      benchmark::DoNotOptimize(table);
+      absl::container_internal::EraseIf(pred, &table);
+    }
+    state.PauseTiming();
+    for (size_t t_id = 0; t_id < kRepetitions; t_id++) {
+      auto& k = keys[t_id];
+      auto& table = tables[t_id];
+      for (size_t i = 0; i < num_erased; i++) {
+        table.insert(k[i]);
+      }
+    }
+    state.ResumeTiming();
+  }
+}
+
+BENCHMARK(BM_EraseIf)
+    ->ArgNames({"num_elements", "num_erased"})
+    ->ArgPair(10, 0)
+    ->ArgPair(1000, 0)
+    ->ArgPair(10, 5)
+    ->ArgPair(1000, 500)
+    ->ArgPair(10, 10)
+    ->ArgPair(1000, 1000);
 
 }  // namespace
 }  // namespace container_internal

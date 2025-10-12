@@ -165,7 +165,11 @@ const errorMessage = (er, npm) => {
         const pkg = er.pkgid.replace(/(?!^)@.*$/, '')
 
         detail.push(['404', ''])
-        detail.push(['404', '', `'${replaceInfo(er.pkgid)}' is not in this registry.`])
+        detail.push([
+          '404',
+          '',
+          `The requested resource '${replaceInfo(er.pkgid)}' could not be found or you do not have permission to access it.`,
+        ])
 
         const nameValidator = require('validate-npm-package-name')
         const valResult = nameValidator(pkg)
@@ -199,6 +203,13 @@ const errorMessage = (er, npm) => {
         'or move it out of the way first.',
       ].join('\n')])
       break
+
+    case 'EBADDEVENGINES': {
+      const { current, required } = er
+      summary.push(['EBADDEVENGINES', er.message])
+      detail.push(['EBADDEVENGINES', { current, required }])
+      break
+    }
 
     case 'EBADPLATFORM': {
       const actual = er.current

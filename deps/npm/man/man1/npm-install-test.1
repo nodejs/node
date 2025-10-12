@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL-TEST" "1" "July 2024" "NPM@10.8.2" ""
+.TH "NPM-INSTALL-TEST" "1" "October 2025" "NPM@11.6.2" ""
 .SH "NAME"
 \fBnpm-install-test\fR - Install package(s) and run tests
 .SS "Synopsis"
@@ -94,7 +94,7 @@ Only install direct dependencies in the top level \fBnode_modules\fR, but hoist 
 .SS "\fBomit\fR"
 .RS 0
 .IP \(bu 4
-Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production', otherwise empty.
+Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production'; otherwise, empty.
 .IP \(bu 4
 Type: "dev", "optional", or "peer" (can be set multiple times)
 .RE 0
@@ -192,7 +192,8 @@ Type: Boolean
 .P
 If true, npm does not run scripts specified in package.json files.
 .P
-Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run-script\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm
+run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
 .SS "\fBaudit\fR"
 .RS 0
 .IP \(bu 4
@@ -203,6 +204,18 @@ Type: Boolean
 
 .P
 When "true" submit audit reports alongside the current npm command to the default registry and all registries configured for scopes. See the documentation for npm help audit for details on what is submitted.
+.SS "\fBbefore\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Date
+.RE 0
+
+.P
+If passed to \fBnpm install\fR, will rebuild the npm tree such that only versions that were available \fBon or before\fR the given date are installed. If there are no versions available for the current set of dependencies, the command will error.
+.P
+If the requested version is a \fBdist-tag\fR and the given tag does not pass the \fB--before\fR filter, the most recent version less than or equal to that tag will be used. For example, \fBfoo@latest\fR might install \fBfoo@1.2\fR even though \fBlatest\fR is \fB2.0\fR.
 .SS "\fBbin-links\fR"
 .RS 0
 .IP \(bu 4

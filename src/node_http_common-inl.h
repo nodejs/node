@@ -2,9 +2,11 @@
 #define SRC_NODE_HTTP_COMMON_INL_H_
 
 #include "node_http_common.h"
+
+#include "env-inl.h"
 #include "node.h"
 #include "node_mem-inl.h"
-#include "env-inl.h"
+#include "string_bytes.h"
 #include "v8.h"
 
 #include <algorithm>
@@ -37,13 +39,12 @@ NgHeaders<T>::NgHeaders(Environment* env, v8::Local<v8::Array> headers) {
   nv_t* const nva = reinterpret_cast<nv_t*>(start);
 
   CHECK_LE(header_contents + header_string_len, *buf_ + buf_.length());
-  CHECK_EQ(header_string.As<v8::String>()->WriteOneByte(
-               env->isolate(),
-               reinterpret_cast<uint8_t*>(header_contents),
-               0,
-               header_string_len,
-               v8::String::NO_NULL_TERMINATION),
-           header_string_len);
+  CHECK_EQ(StringBytes::Write(env->isolate(),
+                              header_contents,
+                              header_string_len,
+                              header_string.As<v8::String>(),
+                              LATIN1),
+           static_cast<size_t>(header_string_len));
 
   size_t n = 0;
   char* p;
@@ -93,17 +94,13 @@ bool NgHeader<T>::IsZeroLength(
 }
 
 template <typename T>
-bool NgHeader<T>::IsZeroLength(
-    int32_t token,
-    NgHeader<T>::rcbuf_t* name,
-    NgHeader<T>::rcbuf_t* value) {
-
+bool NgHeader<T>::IsZeroLength(int32_t token,
+                               NgHeader<T>::rcbuf_t* name,
+                               NgHeader<T>::rcbuf_t* value) {
   if (NgHeader<T>::rcbufferpointer_t::IsZeroLength(value))
     return true;
 
-  const char* header_name = T::ToHttpHeaderName(token);
-  return header_name != nullptr ||
-      NgHeader<T>::rcbufferpointer_t::IsZeroLength(name);
+  return NgHeader<T>::rcbufferpointer_t::IsZeroLength(name);
 }
 
 template <typename T>

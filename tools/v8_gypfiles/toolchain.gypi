@@ -40,9 +40,15 @@
     'ubsan_vptr%': 0,
     'has_valgrind%': 0,
     'coverage%': 0,
+
+    # Toolchain settings.
     'v8_target_arch%': '<(target_arch)',
     'v8_host_byteorder%': '<!("<(python)" -c "import sys; print(sys.byteorder)")',
     'force_dynamic_crt%': 0,
+
+    # Enable control-flow integrity features, such as pointer authentication
+    # for ARM64.
+    'v8_control_flow_integrity%': 0,
 
     # Setting 'v8_can_use_vfp32dregs' to 'true' will cause V8 to use the VFP
     # registers d16-d31 in the generated code, both in the snapshot and for the
@@ -69,9 +75,6 @@
     # Enable profiling support. Only required on Windows.
     'v8_enable_prof%': 0,
 
-    # Some versions of GCC 4.5 seem to need -fno-strict-aliasing.
-    'v8_no_strict_aliasing%': 0,
-
     # Chrome needs this definition unconditionally. For standalone V8 builds,
     # it's handled in gypfiles/standalone.gypi.
     'want_separate_host_toolset%': 1,
@@ -89,10 +92,10 @@
     'binutils_dir%': '',
 
     'conditions': [
-      ['OS=="linux" and host_arch=="x64"', {
+      ['OS in "linux openharmony" and host_arch=="x64"', {
         'binutils_dir%': 'third_party/binutils/Linux_x64/Release/bin',
       }],
-      ['OS=="linux" and host_arch=="ia32"', {
+      ['OS in "linux openharmony" and host_arch=="ia32"', {
         'binutils_dir%': 'third_party/binutils/Linux_ia32/Release/bin',
       }],
     ],
@@ -100,38 +103,7 @@
     # Indicates if gcmole tools are downloaded by a hook.
     'gcmole%': 0,
   },
-
-  # [GYP] this needs to be outside of the top level 'variables'
-  'conditions': [
-    ['host_arch=="ia32" or host_arch=="x64" or \
-      host_arch=="ppc" or host_arch=="ppc64" or \
-      host_arch=="s390x" or \
-      clang==1', {
-      'variables': {
-        'host_cxx_is_biarch%': 1,
-       },
-     }, {
-      'variables': {
-        'host_cxx_is_biarch%': 0,
-      },
-    }],
-    ['target_arch=="ia32" or target_arch=="x64" or \
-      target_arch=="ppc" or target_arch=="ppc64" or \
-      target_arch=="s390x" or clang==1', {
-      'variables': {
-        'target_cxx_is_biarch%': 1,
-       },
-     }, {
-      'variables': {
-        'target_cxx_is_biarch%': 0,
-      },
-    }],
-  ],
   'target_defaults': {
-    'include_dirs': [
-      '<(V8_ROOT)',
-      '<(V8_ROOT)/include',
-    ],
     'cflags!': ['-Wall', '-Wextra'],
     'conditions': [
       ['clang==0 and OS!="win"', {
@@ -163,6 +135,23 @@
         'msvs_settings': {
           'VCCLCompilerTool': {
             'AdditionalOptions': ['-Wno-invalid-offsetof'],
+          },
+        },
+      }],
+      ['clang==1', {
+        'cflags_cc': [
+          '-Wno-nullability-completeness',
+        ],
+        'xcode_settings': {
+          'OTHER_CFLAGS': [
+            '-Wno-nullability-completeness',
+          ],
+        },
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'AdditionalOptions': [
+              '-Wno-nullability-completeness',
+            ],
           },
         },
       }],
@@ -331,43 +320,24 @@
           }],
           ],
       }],  # s390x
-      ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
+      ['v8_target_arch=="ppc64"', {
+        'defines': [
+          'V8_TARGET_ARCH_PPC64',
+        ],
+        'cflags': [
+          '-ffp-contract=off',
+        ],
         'conditions': [
-          ['v8_target_arch=="ppc"', {
-            'defines': [
-              'V8_TARGET_ARCH_PPC',
-            ],
+          ['OS=="aix" or OS=="os400"', {
+            # Work around AIX ceil, trunc and round oddities.
+            'cflags': [ '-mcpu=power5+ -mfprnd' ],
           }],
-          ['v8_target_arch=="ppc64"', {
-            'defines': [
-              'V8_TARGET_ARCH_PPC64',
-            ],
-            'cflags': [
-              '-ffp-contract=off',
-            ],
-          }],
-          ['v8_host_byteorder=="little"', {
-            'defines': [
-              'V8_TARGET_ARCH_PPC_LE',
-            ],
-          }],
-          ['v8_host_byteorder=="big"', {
-            'defines': [
-              'V8_TARGET_ARCH_PPC_BE',
-            ],
-            'conditions': [
-              ['OS=="aix" or OS=="os400"', {
-                # Work around AIX ceil, trunc and round oddities.
-                'cflags': [ '-mcpu=power5+ -mfprnd' ],
-              }],
-              ['OS=="aix" or OS=="os400"', {
-                # Work around AIX assembler popcntb bug.
-                'cflags': [ '-mno-popcntb' ],
-              }],
-            ],
+          ['OS=="aix" or OS=="os400"', {
+            # Work around AIX assembler popcntb bug.
+            'cflags': [ '-mno-popcntb' ],
           }],
         ],
-      }],  # ppc
+      }],  # ppc64
       ['v8_target_arch=="ia32"', {
         'defines': [
           'V8_TARGET_ARCH_IA32',
@@ -540,7 +510,7 @@
         'defines': [
           'WIN32',
           'NOMINMAX',  # Refs: https://chromium-review.googlesource.com/c/v8/v8/+/1456620
-          '_WIN32_WINNT=0x0602',  # Windows 8
+          '_WIN32_WINNT=0x0A00',  # Windows 10
           '_SILENCE_ALL_CXX20_DEPRECATION_WARNINGS',
         ],
         # 4351: VS 2005 and later are warning us that they've fixed a bug
@@ -548,6 +518,13 @@
         'msvs_disabled_warnings': [4351],
         'msvs_configuration_attributes': {
           'CharacterSet': '1',
+        },
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'AdditionalOptions': [
+              '/bigobj', # Prevent C1128: number of sections exceeded object file format limit.
+            ],
+          },
         },
       }],
       ['OS=="win" and v8_enable_prof==1', {
@@ -569,7 +546,7 @@
           'V8_TARGET_OS_IOS',
         ]
       }],
-      ['OS=="linux"', {
+      ['OS=="linux" or OS=="openharmony"', {
         'defines': [
           'V8_HAVE_TARGET_OS',
           'V8_TARGET_OS_LINUX',
@@ -587,92 +564,17 @@
           'V8_TARGET_OS_WIN',
         ]
       }],
-      ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-         or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
-        v8_target_arch=="ia32"', {
+      ['OS in "linux freebsd openbsd solaris netbsd mac android qnx openharmony" and v8_target_arch=="ia32"', {
         'cflags': [
           '-msse2',
           '-mfpmath=sse',
           '-mmmx',  # Allows mmintrin.h for MMX intrinsics.
         ],
       }],
-      ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-         or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
-        (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
-         v8_target_arch=="ppc")', {
-        'target_conditions': [
-          ['_toolset=="host"', {
-            'conditions': [
-              ['host_cxx_is_biarch==1', {
-                'conditions': [
-                  ['host_arch=="s390x"', {
-                    'cflags': [ '-m31' ],
-                    'ldflags': [ '-m31' ]
-                  },{
-                   'cflags': [ '-m32' ],
-                   'ldflags': [ '-m32' ]
-                  }],
-                ],
-              }],
-            ],
-            'xcode_settings': {
-              'ARCHS': [ 'i386' ],
-            },
-          }],
-          ['_toolset=="target"', {
-            'conditions': [
-              ['target_cxx_is_biarch==1', {
-                'conditions': [
-                  ['host_arch=="s390x"', {
-                    'cflags': [ '-m31' ],
-                    'ldflags': [ '-m31' ]
-                  },{
-                   'cflags': [ '-m32' ],
-                   'ldflags': [ '-m32' ],
-                  }],
-                ],
-              }],
-            ],
-            'xcode_settings': {
-              'ARCHS': [ 'i386' ],
-            },
-          }],
-        ],
-      }],
-      ['(OS=="linux" or OS=="android") and \
-        (v8_target_arch=="x64" or v8_target_arch=="arm64" or \
-         v8_target_arch=="ppc64" or v8_target_arch=="s390x")', {
-        'target_conditions': [
-          ['_toolset=="host"', {
-            'conditions': [
-              ['host_cxx_is_biarch==1', {
-                'cflags': [ '-m64' ],
-                'ldflags': [ '-m64' ]
-              }],
-             ],
-           }],
-          ['_toolset=="target"', {
-             'conditions': [
-               ['target_cxx_is_biarch==1', {
-                 'cflags': [ '-m64' ],
-                 'ldflags': [ '-m64' ],
-               }],
-             ]
-           }],
-         ],
-      }],
       ['OS=="android" and v8_android_log_stdout==1', {
         'defines': [
           'V8_ANDROID_LOG_STDOUT',
         ],
-      }],
-      ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-         or OS=="netbsd" or OS=="qnx" or OS=="aix" or OS=="os400"', {
-        'conditions': [
-          [ 'v8_no_strict_aliasing==1', {
-            'cflags': [ '-fno-strict-aliasing' ],
-          }],
-        ],  # conditions
       }],
       ['OS=="solaris"', {
         'defines': [ '__C99FEATURES__=1' ],  # isinf() etc.
@@ -690,9 +592,6 @@
           '__STDC_FORMAT_MACROS',
           '_ALL_SOURCE=1'],
         'conditions': [
-          [ 'v8_target_arch=="ppc"', {
-            'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
-          }],
           [ 'v8_target_arch=="ppc64"', {
             'cflags': [ '-maix64', '-fdollars-in-identifiers', '-fno-extern-tls-init' ],
             'ldflags': [ '-maix64 -Wl,-bbigtoc' ],
@@ -703,16 +602,10 @@
     'configurations': {
       'Debug': {
         'defines': [
-          'ENABLE_DISASSEMBLER',
-          'V8_ENABLE_CHECKS',
-          'OBJECT_PRINT',
           'DEBUG',
-          'V8_TRACE_MAPS',
-          'V8_ENABLE_ALLOCATION_TIMEOUT',
-          'V8_ENABLE_FORCE_SLOW_PATH',
         ],
         'conditions': [
-          ['OS=="linux" and v8_enable_backtrace==1', {
+          ['OS in "linux openharmony" and v8_enable_backtrace==1', {
             # Support for backtrace_symbols.
             'ldflags': [ '-rdynamic' ],
           }],
@@ -759,8 +652,7 @@
               'v8_enable_slow_dchecks%': 1,
             },
             'conditions': [
-              ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx" or OS=="aix" or OS=="os400"', {
+              ['OS in "linux freebsd openbsd netbsd qnx aix os400 openharmony"', {
                 'cflags!': [
                   '-O3',
                   '-O2',
@@ -810,8 +702,7 @@
               'v8_enable_slow_dchecks%': 0,
             },
             'conditions': [
-              ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx" or OS=="aix" or OS=="os400"', {
+              ['OS in "linux freebsd openbsd netbsd qnx aix os400 openharmony"', {
                 'cflags!': [
                   '-O0',
                   '-O1',
@@ -836,7 +727,6 @@
               ['OS=="mac"', {
                 'xcode_settings': {
                   'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
-                  'GCC_STRICT_ALIASING': 'YES',
                 },
               }],
               ['v8_enable_slow_dchecks==1', {
@@ -848,7 +738,10 @@
           }],
           # Temporary refs: https://github.com/nodejs/node/pull/23801
           ['v8_enable_handle_zapping==1', {
-            'defines': ['ENABLE_HANDLE_ZAPPING',],
+            'defines': [
+              'ENABLE_LOCAL_HANDLE_ZAPPING',
+              'ENABLE_GLOBAL_HANDLE_ZAPPING',
+            ],
           }],
         ],
 
@@ -860,8 +753,7 @@
          # Temporary refs: https://github.com/nodejs/node/pull/23801
         'defines!': ['ENABLE_HANDLE_ZAPPING',],
         'conditions': [
-          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
-            or OS=="aix" or OS=="os400"', {
+          ['OS in "linux freebsd openbsd netbsd aix os400 openharmony"', {
             'cflags!': [
               '-Os',
             ],
@@ -895,12 +787,6 @@
           ['OS=="mac"', {
             'xcode_settings': {
               'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
-
-              # -fstrict-aliasing.  Mainline gcc
-              # enables this at -O2 and above,
-              # but Apple gcc does not unless it
-              # is specified explicitly.
-              'GCC_STRICT_ALIASING': 'YES',
             },
           }],  # OS=="mac"
           ['OS=="win"', {

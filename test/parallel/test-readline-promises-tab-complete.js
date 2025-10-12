@@ -8,7 +8,9 @@ const assert = require('assert');
 const { EventEmitter } = require('events');
 const { getStringWidth } = require('internal/util/inspect');
 
-common.skipIfDumbTerminal();
+if (process.env.TERM === 'dumb') {
+  common.skip('skipping - dumb terminal');
+}
 
 // This test verifies that the tab completion supports unicode and the writes
 // are limited to the minimum.
@@ -78,7 +80,7 @@ common.skipIfDumbTerminal();
           output = '';
         });
       }
-      rli.close();
+      fi.end();
     });
   });
 });
@@ -112,5 +114,5 @@ common.skipIfDumbTerminal();
     assert.match(output, /^Tab completion error: Error: message/);
     output = '';
   });
-  rli.close();
+  fi.end();
 }

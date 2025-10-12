@@ -34,6 +34,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/optimization.h"
+#include "absl/base/options.h"
 #include "absl/base/port.h"
 
 // ABSL_ARRAYSIZE()
@@ -81,8 +82,9 @@ ABSL_NAMESPACE_END
 // ABSL_ASSERT()
 //
 // In C++11, `assert` can't be used portably within constexpr functions.
+// `assert` also generates spurious unused-symbol warnings.
 // ABSL_ASSERT functions as a runtime assert but works in C++11 constexpr
-// functions.  Example:
+// functions, and maintains references to symbols.  Example:
 //
 // constexpr double Divide(double a, double b) {
 //   return ABSL_ASSERT(b != 0), a / b;
@@ -91,8 +93,18 @@ ABSL_NAMESPACE_END
 // This macro is inspired by
 // https://akrzemi1.wordpress.com/2017/05/18/asserts-in-constexpr-functions/
 #if defined(NDEBUG)
-#define ABSL_ASSERT(expr) \
-  (false ? static_cast<void>(expr) : static_cast<void>(0))
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+// We use `decltype` here to avoid generating unnecessary code that the
+// optimizer then has to optimize away.
+// This not only improves compilation performance by reducing codegen bloat
+// and optimization work, but also guarantees fast run-time performance without
+// having to rely on the optimizer.
+#define ABSL_ASSERT(expr) (decltype((expr) ? void() : void())())
+#else
+// Pre-C++20, lambdas can't be inside unevaluated operands, so we're forced to
+// rely on the optimizer.
+#define ABSL_ASSERT(expr) (false ? ((expr) ? void() : void()) : void())
+#endif
 #else
 #define ABSL_ASSERT(expr)                           \
   (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
@@ -120,12 +132,31 @@ ABSL_NAMESPACE_END
 //
 // See `ABSL_OPTION_HARDENED` in `absl/base/options.h` for more information on
 // hardened mode.
-#if ABSL_OPTION_HARDENED == 1 && defined(NDEBUG)
+#if (ABSL_OPTION_HARDENED == 1 || ABSL_OPTION_HARDENED == 2) && defined(NDEBUG)
 #define ABSL_HARDENING_ASSERT(expr)                 \
   (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
                              : [] { ABSL_INTERNAL_HARDENING_ABORT(); }())
 #else
 #define ABSL_HARDENING_ASSERT(expr) ABSL_ASSERT(expr)
+#endif
+
+// ABSL_HARDENING_ASSERT_SLOW()
+//
+// `ABSL_HARDENING_ASSERT()` is like `ABSL_HARDENING_ASSERT()`,
+//  but specifically for assertions whose predicates are too slow
+//  to be enabled in many applications.
+//
+// When `NDEBUG` is not defined, `ABSL_HARDENING_ASSERT_SLOW()` is identical to
+// `ABSL_ASSERT()`.
+//
+// See `ABSL_OPTION_HARDENED` in `absl/base/options.h` for more information on
+// hardened mode.
+#if ABSL_OPTION_HARDENED == 1 && defined(NDEBUG)
+#define ABSL_HARDENING_ASSERT_SLOW(expr)            \
+  (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
+                             : [] { ABSL_INTERNAL_HARDENING_ABORT(); }())
+#else
+#define ABSL_HARDENING_ASSERT_SLOW(expr) ABSL_ASSERT(expr)
 #endif
 
 #ifdef ABSL_HAVE_EXCEPTIONS
@@ -172,6 +203,18 @@ ABSL_NAMESPACE_END
 #define ABSL_DEPRECATE_AND_INLINE() [[deprecated]]
 #else
 #define ABSL_DEPRECATE_AND_INLINE()
+#endif
+
+// Requires the compiler to prove that the size of the given object is at least
+// the expected amount.
+#if ABSL_HAVE_ATTRIBUTE(diagnose_if) && ABSL_HAVE_BUILTIN(__builtin_object_size)
+#define ABSL_INTERNAL_NEED_MIN_SIZE(Obj, N)                     \
+  __attribute__((diagnose_if(__builtin_object_size(Obj, 0) < N, \
+                             "object size provably too small "  \
+                             "(this would corrupt memory)",     \
+                             "error")))
+#else
+#define ABSL_INTERNAL_NEED_MIN_SIZE(Obj, N)
 #endif
 
 #endif  // ABSL_BASE_MACROS_H_

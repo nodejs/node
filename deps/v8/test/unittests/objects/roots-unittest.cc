@@ -20,7 +20,7 @@ using RootsTest = TestWithIsolate;
 namespace {
 AllocationSpace GetSpaceFromObject(Tagged<Object> object) {
   DCHECK(IsHeapObject(object));
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(HeapObject::cast(object));
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(Cast<HeapObject>(object));
   if (chunk->InReadOnlySpace()) return RO_SPACE;
   return chunk->Metadata()->owner()->identity();
 }
@@ -59,7 +59,6 @@ bool CanBeInReadOnlySpace(Factory* factory, Handle<Object> object) {
   V(shared_wasm_memories)                 \
   V(materialized_objects)                 \
   V(public_symbol_table)                  \
-  V(retaining_path_targets)               \
   V(serialized_global_proxy_sizes)        \
   V(serialized_objects)                   \
   IF_WASM(V, js_to_wasm_wrappers)         \
@@ -83,7 +82,7 @@ bool CanBeInReadOnlySpace(Factory* factory, Handle<Object> object) {
 
 // Some mutable roots may initially point to undefined until they are properly
 // initialized.
-bool IsUninitialized(Handle<Object> object) {
+bool IsUninitializedHole(DirectHandle<Object> object) {
   return !IsTrustedObject(*object) && IsUndefined(*object);
 }
 }  // namespace
@@ -95,8 +94,8 @@ bool IsUninitialized(Handle<Object> object) {
   Handle<Object> name = factory->name();                             \
   CHECK_EQ(*name, heap->name());                                     \
   if (IsHeapObject(*name) && !CanBeInReadOnlySpace(factory, name) && \
-      !IsUninitialized(name)) {                                      \
-    CHECK_NE(RO_SPACE, GetSpaceFromObject(HeapObject::cast(*name))); \
+      !IsUninitializedHole(name)) {                                  \
+    CHECK_NE(RO_SPACE, GetSpaceFromObject(Cast<HeapObject>(*name))); \
   }
 
 // The following tests check that all the roots accessible via public Heap
@@ -116,7 +115,7 @@ TEST_F(RootsTest, TestHeapNumberList) {
     auto obj = roots.object_at(pos);
     bool in_nr_range = pos >= RootIndex::kFirstHeapNumberRoot &&
                        pos <= RootIndex::kLastHeapNumberRoot;
-    CHECK_EQ(IsHeapNumber(obj), in_nr_range);
+    CHECK_EQ(!IsAnyHole(obj) && IsHeapNumber(obj), in_nr_range);
   }
 }
 

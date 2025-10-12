@@ -13,20 +13,19 @@
 #include "src/compiler/turboshaft/memory-optimization-reducer.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
-#include "src/compiler/turboshaft/variable-reducer.h"
-#include "src/compiler/turboshaft/wasm-lowering-reducer.h"
+#include "src/compiler/turboshaft/wasm-code-coverage-reducer.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/roots/roots-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
 
-void WasmOptimizePhase::Run(Zone* temp_zone) {
-  UnparkedScopeIfNeeded scope(PipelineData::Get().broker(),
+void WasmOptimizePhase::Run(PipelineData* data, Zone* temp_zone) {
+  UnparkedScopeIfNeeded scope(data->broker(),
                               v8_flags.turboshaft_trace_reduction);
   CopyingPhase<LateEscapeAnalysisReducer, MachineOptimizationReducer,
                MemoryOptimizationReducer, BranchEliminationReducer,
-               LateLoadEliminationReducer,
-               ValueNumberingReducer>::Run(temp_zone);
+               LateLoadEliminationReducer, WasmCodeCoverageReducer,
+               ValueNumberingReducer>::Run(data, temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

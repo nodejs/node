@@ -8,7 +8,7 @@
       'includes': ['config/archs/linux64-s390x/asm/openssl.gypi'],
     }, 'target_arch=="arm" and OS=="linux"', {
       'includes': ['config/archs/linux-armv4/asm/openssl.gypi'],
-    }, 'target_arch=="arm64" and OS=="linux"', {
+    }, 'target_arch=="arm64" and OS in "linux openharmony"', {
       'includes': ['config/archs/linux-aarch64/asm/openssl.gypi'],
     }, 'target_arch=="arm64" and OS=="mac"', {
       'includes': ['config/archs/darwin64-arm64-cc/asm/openssl.gypi'],

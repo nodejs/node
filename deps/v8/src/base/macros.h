@@ -13,17 +13,52 @@
 #include "src/base/logging.h"
 
 // No-op macro which is used to work around MSVC's funky VA_ARGS support.
-#define EXPAND(x) x
+#define EXPAND(X) X
 
 // This macro does nothing. That's all.
 #define NOTHING(...)
 
-#define CONCAT_(a, b) a##b
-#define CONCAT(a, b) CONCAT_(a, b)
+#define CONCAT_(a, ...) a##__VA_ARGS__
+#define CONCAT(a, ...) CONCAT_(a, __VA_ARGS__)
 // Creates an unique identifier. Useful for scopes to avoid shadowing names.
 #define UNIQUE_IDENTIFIER(base) CONCAT(base, __COUNTER__)
 
+// COUNT_MACRO_ARGS(...) returns the number of arguments passed. Currently, up
+// to 8 arguments are supported.
+#define COUNT_MACRO_ARGS(...) \
+  EXPAND(COUNT_MACRO_ARGS_IMPL(__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1, 0))
+#define COUNT_MACRO_ARGS_IMPL(_8, _7, _6, _5, _4, _3, _2, _1, N, ...) N
+// GET_NTH_ARG(N, ...) returns the Nth argument in the list of arguments
+// following. Currently, up to N=8 is supported.
+#define GET_NTH_ARG(N, ...) CONCAT(GET_NTH_ARG_IMPL_, N)(__VA_ARGS__)
+#define GET_NTH_ARG_IMPL_0(_0, ...) _0
+#define GET_NTH_ARG_IMPL_1(_0, _1, ...) _1
+#define GET_NTH_ARG_IMPL_2(_0, _1, _2, ...) _2
+#define GET_NTH_ARG_IMPL_3(_0, _1, _2, _3, ...) _3
+#define GET_NTH_ARG_IMPL_4(_0, _1, _2, _3, _4, ...) _4
+#define GET_NTH_ARG_IMPL_5(_0, _1, _2, _3, _4, _5, ...) _5
+#define GET_NTH_ARG_IMPL_6(_0, _1, _2, _3, _4, _5, _6, ...) _6
+#define GET_NTH_ARG_IMPL_7(_0, _1, _2, _3, _4, _5, _6, _7, ...) _7
+
+// UNPAREN(x) removes a layer of nested parentheses on x, if any. This means
+// that both UNPAREN(x) and UNPAREN((x)) expand to x. This is helpful for macros
+// that want to support multi argument templates with commas, e.g.
+//
+//   #define FOO(Type, Name) UNPAREN(Type) Name;
+//
+// will work with both
+//
+//   FOO(int, x);
+//   FOO((Foo<int, double, float>), x);
+#define UNPAREN(X) CONCAT(DROP_, UNPAREN_ X)
+#define UNPAREN_(...) UNPAREN_ __VA_ARGS__
+#define DROP_UNPAREN_
+
 #define OFFSET_OF(type, field) offsetof(type, field)
+
+// A comma, to be used in macro arguments where it would otherwise be
+// interpreted as separator of arguments.
+#define LITERAL_COMMA ,
 
 // The arraysize(arr) macro returns the # of elements in an array arr.
 // The expression is a compile-time constant, and therefore can be
@@ -31,13 +66,11 @@
 // a pointer by mistake, you will get a compile-time error.
 #define arraysize(array) (sizeof(ArraySizeHelper(array)))
 
-
 // This template function declaration is used in defining arraysize.
 // Note that the function doesn't need an implementation, as we only
 // use its type.
 template <typename T, size_t N>
 char (&ArraySizeHelper(T (&array)[N]))[N];
-
 
 #if !V8_CC_MSVC
 // That gcc wants both of these prototypes seems mysterious. VC, for
@@ -46,6 +79,48 @@ char (&ArraySizeHelper(T (&array)[N]))[N];
 template <typename T, size_t N>
 char (&ArraySizeHelper(const T (&array)[N]))[N];
 #endif
+
+// Clang/GCC helpfully warn us about dangling else in nested if statements. This
+// dangling is intentional for the way some macros work, so we can suppress the
+// warning with Pragmas. Clang and GCC helpfully disagree on where the warning
+// is (on the if or the else), so they need separate macros.
+// NOLINTBEGIN
+#if defined(__clang__)
+#define SUPPRESSED_DANGLING_ELSE_WARNING_IF(...) if (__VA_ARGS__)
+#define SUPPRESSED_DANGLING_ELSE_WARNING_ELSE                             \
+  _Pragma("GCC diagnostic push")                                          \
+      _Pragma("GCC diagnostic ignored \"-Wdangling-else\"") else _Pragma( \
+          "GCC diagnostic pop")
+#elif defined(__GNUC__)
+#define SUPPRESSED_DANGLING_ELSE_WARNING_IF(...)                             \
+  _Pragma("GCC diagnostic push")                                             \
+      _Pragma("GCC diagnostic ignored \"-Wdangling-else\"") if (__VA_ARGS__) \
+          _Pragma("GCC diagnostic pop")
+#define SUPPRESSED_DANGLING_ELSE_WARNING_ELSE else
+#else
+#define SUPPRESSED_DANGLING_ELSE_WARNING_IF(...) if (__VA_ARGS__)
+#define SUPPRESSED_DANGLING_ELSE_WARNING_ELSE else
+#endif
+// NOLINTEND
+
+// Macro magic for the syntax:
+//   SCOPED_VARIABLE(FooScope x) {
+//     // x is alive here.
+//   }
+//   // x is dead here.
+//
+// This is a little macro trick: C++17 onwards allows `if` conditions to have an
+// initializer, whose value is alive in both the true and false branches of
+// the `if`. We can therefore create a variable declaration that is scoped to
+// the next block (or single statement) by declaring it in this if. To avoid
+// accidentally making `SCOPED_VARIABLE(init) {} else {}` valid syntax, we make
+// the block be part of the else branch of the if.
+//
+// This is particularly useful for macros that want to internally define some
+// variables, and be followed by a block.
+#define SCOPED_VARIABLE(init)                         \
+  SUPPRESSED_DANGLING_ELSE_WARNING_IF(init; false) {} \
+  SUPPRESSED_DANGLING_ELSE_WARNING_ELSE
 
 // This is an equivalent to C++20's std::bit_cast<>(), but with additional
 // warnings. It morally does what `*reinterpret_cast<Dest*>(&source)` does, but
@@ -132,6 +207,13 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #endif
 #endif
 
+// Define V8_USE_HWADDRESS_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(hwaddress_sanitizer)
+#define V8_USE_HWADDRESS_SANITIZER 1
+#endif
+#endif
+
 // Define V8_USE_MEMORY_SANITIZER macro.
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer)
@@ -145,6 +227,13 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define V8_USE_UNDEFINED_BEHAVIOR_SANITIZER 1
 #endif
 #endif
+
+// Define V8_USE_SAFE_STACK macro.
+#if defined(__has_feature)
+#if __has_feature(safe_stack)
+#define V8_USE_SAFE_STACK 1
+#endif  // __has_feature(safe_stack)
+#endif  // defined(__has_feature)
 
 // DISABLE_CFI_PERF -- Disable Control Flow Integrity checks for Perf reasons.
 #define DISABLE_CFI_PERF V8_CLANG_NO_SANITIZE("cfi")
@@ -164,6 +253,16 @@ V8_INLINE Dest bit_cast(Source const& source) {
   V8_CLANG_NO_SANITIZE("function")
 #endif
 
+// V8_PRETTY_FUNCTION_VALUE_OR(ELSE) emits a pretty function value, if
+// available for this compiler, otherwise it emits ELSE.
+#if defined(V8_CC_GNU)
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) __PRETTY_FUNCTION__
+#elif defined(V8_CC_MSVC)
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) __FUNCSIG__
+#else
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) ELSE
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -173,7 +272,7 @@ namespace base {
 // base::is_trivially_copyable will differ for these cases.
 template <typename T>
 struct is_trivially_copyable {
-#if V8_CC_MSVC
+#if V8_CC_MSVC || (__GNUC__ == 12 && __GNUC_MINOR__ <= 2)
   // Unfortunately, MSVC 2015 is broken in that std::is_trivially_copyable can
   // be false even though it should be true according to the standard.
   // (status at 2018-02-26, observed on the msvc waterfall bot).
@@ -181,6 +280,11 @@ struct is_trivially_copyable {
   // intended, so we reimplement this according to the standard.
   // See also https://developercommunity.visualstudio.com/content/problem/
   //          170883/msvc-type-traits-stdis-trivial-is-bugged.html.
+  //
+  // GCC 12.1 and 12.2 are broken too, they are shipped by some stable Linux
+  // distributions, so the same polyfill is also used.
+  // See
+  // https://gcc.gnu.org/git/?p=gcc.git;a=commitdiff;h=aeba3e009b0abfccaf01797556445dbf891cc8dc
   static constexpr bool value =
       // Copy constructor is trivial or deleted.
       (std::is_trivially_copy_constructible<T>::value ||
@@ -199,7 +303,7 @@ struct is_trivially_copyable {
       // Trivial non-deleted destructor.
       std::is_trivially_destructible<T>::value;
 #else
-  static constexpr bool value = std::is_trivially_copyable<T>::value;
+  static constexpr bool value = std::is_trivially_copyable_v<T>;
 #endif
 };
 #define ASSERT_TRIVIALLY_COPYABLE(T)                         \
@@ -208,6 +312,18 @@ struct is_trivially_copyable {
 #define ASSERT_NOT_TRIVIALLY_COPYABLE(T)                      \
   static_assert(!::v8::base::is_trivially_copyable<T>::value, \
                 #T " should not be trivially copyable")
+
+// Be aware that base::is_trivially_destructible will differ from
+// std::is_trivially_destructible for cases like DirectHandle<T>.
+template <typename T>
+struct is_trivially_destructible : public std::is_trivially_destructible<T> {};
+
+#define ASSERT_TRIVIALLY_DESTRUCTIBLE(T)                         \
+  static_assert(::v8::base::is_trivially_destructible<T>::value, \
+                #T " should be trivially destructible")
+#define ASSERT_NOT_TRIVIALLY_DESTRUCTIBLE(T)                      \
+  static_assert(!::v8::base::is_trivially_destructible<T>::value, \
+                #T " should not be trivially destructible")
 
 // The USE(x, ...) template is used to silence C++ compiler warnings
 // issued for (yet) unused variables (typically parameters).
@@ -294,15 +410,15 @@ inline uint64_t make_uint64(uint32_t high, uint32_t low) {
 
 // Return the largest multiple of m which is <= x.
 template <typename T>
-inline T RoundDown(T x, intptr_t m) {
-  static_assert(std::is_integral<T>::value);
+constexpr T RoundDown(T x, intptr_t m) {
+  static_assert(std::is_integral_v<T>);
   // m must be a power of two.
   DCHECK(m != 0 && ((m & (m - 1)) == 0));
   return x & static_cast<T>(-m);
 }
 template <intptr_t m, typename T>
-constexpr inline T RoundDown(T x) {
-  static_assert(std::is_integral<T>::value);
+constexpr T RoundDown(T x) {
+  static_assert(std::is_integral_v<T>);
   // m must be a power of two.
   static_assert(m != 0 && ((m & (m - 1)) == 0));
   return x & static_cast<T>(-m);
@@ -310,16 +426,16 @@ constexpr inline T RoundDown(T x) {
 
 // Return the smallest multiple of m which is >= x.
 template <typename T>
-inline T RoundUp(T x, intptr_t m) {
-  static_assert(std::is_integral<T>::value);
+constexpr T RoundUp(T x, intptr_t m) {
+  static_assert(std::is_integral_v<T>);
   DCHECK_GE(x, 0);
   DCHECK_GE(std::numeric_limits<T>::max() - x, m - 1);  // Overflow check.
   return RoundDown<T>(static_cast<T>(x + (m - 1)), m);
 }
 
 template <intptr_t m, typename T>
-constexpr inline T RoundUp(T x) {
-  static_assert(std::is_integral<T>::value);
+constexpr T RoundUp(T x) {
+  static_assert(std::is_integral_v<T>);
   DCHECK_GE(x, 0);
   DCHECK_GE(std::numeric_limits<T>::max() - x, m - 1);  // Overflow check.
   return RoundDown<m, T>(static_cast<T>(x + (m - 1)));
@@ -368,9 +484,9 @@ bool is_inbounds(float_t v) {
 // Setup for Windows shared library export.
 #define V8_EXPORT_ENUM
 #ifdef BUILDING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
+#define V8_EXPORT_PRIVATE __declspec(dllexport)
 #elif USING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
+#define V8_EXPORT_PRIVATE __declspec(dllimport)
 #else
 #define V8_EXPORT_PRIVATE
 #endif  // BUILDING_V8_SHARED
@@ -378,18 +494,14 @@ bool is_inbounds(float_t v) {
 #else  // V8_OS_WIN
 
 // Setup for Linux shared library export.
-#if V8_HAS_ATTRIBUTE_VISIBILITY
-#ifdef BUILDING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
-#define V8_EXPORT_ENUM
+#if V8_HAS_ATTRIBUTE_VISIBILITY && \
+    (defined(BUILDING_V8_SHARED_PRIVATE) || USING_V8_SHARED_PRIVATE)
+#define V8_EXPORT_PRIVATE __attribute__((visibility("default")))
+#define V8_EXPORT_ENUM V8_EXPORT_PRIVATE
 #else
 #define V8_EXPORT_PRIVATE
 #define V8_EXPORT_ENUM
-#endif
-#else
-#define V8_EXPORT_PRIVATE
-#define V8_EXPORT_ENUM
-#endif
+#endif  // V8_HAS_ATTRIBUTE_VISIBILITY && ..
 
 #endif  // V8_OS_WIN
 
@@ -401,6 +513,18 @@ bool is_inbounds(float_t v) {
 #else
 #define IF_WASM(V, ...)
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+#ifdef V8_ENABLE_DRUMBRAKE
+#define IF_WASM_DRUMBRAKE(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_WASM_DRUMBRAKE(V, ...)
+#endif  // V8_ENABLE_DRUMBRAKE
+
+#if defined(V8_ENABLE_DRUMBRAKE) && !defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
+#define IF_WASM_DRUMBRAKE_INSTR_HANDLER(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_WASM_DRUMBRAKE_INSTR_HANDLER(V, ...)
+#endif  // V8_ENABLE_DRUMBRAKE && !V8_DRUMBRAKE_BOUNDS_CHECKS
 
 // Defines IF_TSAN, to be used in macro lists for elements that should only be
 // there if TSAN is enabled.
@@ -420,6 +544,15 @@ bool is_inbounds(float_t v) {
 #define IF_INTL(V, ...)
 #endif  // V8_INTL_SUPPORT
 
+// Defines IF_SHADOW_STACK, to be used in macro lists for elements that should
+// only be there if CET shadow stack is enabled.
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_SHADOW_STACK(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_SHADOW_STACK(V, ...)
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+
 // Defines IF_TARGET_ARCH_64_BIT, to be used in macro lists for elements that
 // should only be there if the target architecture is a 64-bit one.
 #if V8_TARGET_ARCH_64_BIT
@@ -429,20 +562,44 @@ bool is_inbounds(float_t v) {
 #define IF_TARGET_ARCH_64_BIT(V, ...)
 #endif  // V8_TARGET_ARCH_64_BIT
 
-// Defines IF_OFFICIAL_BUILD and IF_NO_OFFICIAL_BUILD, to be used in macro lists
-// for elements that should only be there in official / non-official builds.
-#ifdef OFFICIAL_BUILD
+// Defines IF_V8_WASM_RANDOM_FUZZERS and IF_NO_V8_WASM_RANDOM_FUZZERS, to be
+// used in macro lists for elements that should only be there/absent when
+// building the Wasm fuzzers.
+#ifdef V8_WASM_RANDOM_FUZZERS
 // EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
-#define IF_OFFICIAL_BUILD(V, ...) EXPAND(V(__VA_ARGS__))
-#define IF_NO_OFFICIAL_BUILD(V, ...)
+#define IF_V8_WASM_RANDOM_FUZZERS(V, ...) EXPAND(V(__VA_ARGS__))
+#define IF_NO_V8_WASM_RANDOM_FUZZERS(V, ...)
 #else
-#define IF_OFFICIAL_BUILD(V, ...)
-#define IF_NO_OFFICIAL_BUILD(V, ...) EXPAND(V(__VA_ARGS__))
-#endif  // OFFICIAL_BUILD
+#define IF_V8_WASM_RANDOM_FUZZERS(V, ...)
+#define IF_NO_V8_WASM_RANDOM_FUZZERS(V, ...) EXPAND(V(__VA_ARGS__))
+#endif  // V8_WASM_RANDOM_FUZZERS
+
+#ifdef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
+#define IF_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS(V, ...) \
+  EXPAND(V(__VA_ARGS__))
+#define IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(V, ...)
+#else
+#define IF_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS(V, ...)
+#define IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(V, ...) \
+  EXPAND(V(__VA_ARGS__))
+#endif  // V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
 
 #ifdef GOOGLE3
 // Disable FRIEND_TEST macro in Google3.
 #define FRIEND_TEST(test_case_name, test_name)
 #endif
+
+// Enable/disable -Wsign-* warnings in code.
+// See http://crbug.com/441221573 for detail.
+#if defined(__clang__)
+#define START_PROHIBIT_SIGN_CONVERSION()                      \
+  _Pragma("clang diagnostic push")                            \
+      _Pragma("clang diagnostic error \"-Wsign-conversion\"") \
+          _Pragma("clang diagnostic error \"-Wsign-compare\"")
+#define END_PROHIBIT_SIGN_CONVERSION() _Pragma("clang diagnostic pop")
+#else
+#define START_PROHIBIT_SIGN_CONVERSION()
+#define END_PROHIBIT_SIGN_CONVERSION()
+#endif  // defined(__clang__)
 
 #endif  // V8_BASE_MACROS_H_

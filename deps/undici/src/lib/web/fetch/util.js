@@ -2,28 +2,14 @@
 
 const { Transform } = require('node:stream')
 const zlib = require('node:zlib')
-const { redirectStatusSet, referrerPolicySet: referrerPolicyTokens, badPortsSet } = require('./constants')
+const { redirectStatusSet, referrerPolicyTokens, badPortsSet } = require('./constants')
 const { getGlobalOrigin } = require('./global')
 const { collectASequenceOfCodePoints, collectAnHTTPQuotedString, removeChars, parseMIMEType } = require('./data-url')
 const { performance } = require('node:perf_hooks')
-const { isBlobLike, ReadableStreamFrom, isValidHTTPToken, normalizedMethodRecordsBase } = require('../../core/util')
+const { ReadableStreamFrom, isValidHTTPToken, normalizedMethodRecordsBase } = require('../../core/util')
 const assert = require('node:assert')
 const { isUint8Array } = require('node:util/types')
-const { webidl } = require('./webidl')
-
-let supportedHashes = []
-
-// https://nodejs.org/api/crypto.html#determining-if-crypto-support-is-unavailable
-/** @type {import('crypto')} */
-let crypto
-try {
-  crypto = require('node:crypto')
-  const possibleRelevantHashes = ['sha256', 'sha384', 'sha512']
-  supportedHashes = crypto.getHashes().filter((hash) => possibleRelevantHashes.includes(hash))
-/* c8 ignore next 3 */
-} catch {
-
-}
+const { webidl } = require('../webidl')
 
 function responseURL (response) {
   // https://fetch.spec.whatwg.org/#responses
@@ -170,29 +156,24 @@ function isValidHeaderValue (potentialValue) {
   ) === false
 }
 
-// https://w3c.github.io/webappsec-referrer-policy/#set-requests-referrer-policy-on-redirect
-function setRequestReferrerPolicyOnRedirect (request, actualResponse) {
-  //  Given a request request and a response actualResponse, this algorithm
-  //  updates request’s referrer policy according to the Referrer-Policy
-  //  header (if any) in actualResponse.
-
-  // 1. Let policy be the result of executing § 8.1 Parse a referrer policy
-  // from a Referrer-Policy header on actualResponse.
-
-  // 8.1 Parse a referrer policy from a Referrer-Policy header
+/**
+ * Parse a referrer policy from a Referrer-Policy header
+ * @see https://w3c.github.io/webappsec-referrer-policy/#parse-referrer-policy-from-header
+ */
+function parseReferrerPolicy (actualResponse) {
   // 1. Let policy-tokens be the result of extracting header list values given `Referrer-Policy` and response’s header list.
-  const { headersList } = actualResponse
+  const policyHeader = (actualResponse.headersList.get('referrer-policy', true) ?? '').split(',')
+
   // 2. Let policy be the empty string.
+  let policy = ''
+
   // 3. For each token in policy-tokens, if token is a referrer policy and token is not the empty string, then set policy to token.
-  // 4. Return policy.
-  const policyHeader = (headersList.get('referrer-policy', true) ?? '').split(',')
 
   // Note: As the referrer-policy can contain multiple policies
   // separated by comma, we need to loop through all of them
   // and pick the first valid one.
   // Ref: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy#specify_a_fallback_policy
-  let policy = ''
-  if (policyHeader.length > 0) {
+  if (policyHeader.length) {
     // The right-most policy takes precedence.
     // The left-most policy is the fallback.
     for (let i = policyHeader.length; i !== 0; i--) {
@@ -203,6 +184,23 @@ function setRequestReferrerPolicyOnRedirect (request, actualResponse) {
       }
     }
   }
+
+  // 4. Return policy.
+  return policy
+}
+
+/**
+ * Given a request request and a response actualResponse, this algorithm
+ * updates request’s referrer policy according to the Referrer-Policy
+ * header (if any) in actualResponse.
+ * @see https://w3c.github.io/webappsec-referrer-policy/#set-requests-referrer-policy-on-redirect
+ * @param {import('./request').Request} request
+ * @param {import('./response').Response} actualResponse
+ */
+function setRequestReferrerPolicyOnRedirect (request, actualResponse) {
+  // 1. Let policy be the result of executing § 8.1 Parse a referrer policy
+  // from a Referrer-Policy header on actualResponse.
+  const policy = parseReferrerPolicy(actualResponse)
 
   // 2. If policy is not the empty string, then set request’s referrer policy to policy.
   if (policy !== '') {
@@ -374,8 +372,16 @@ function clonePolicyContainer (policyContainer) {
   }
 }
 
-// https://w3c.github.io/webappsec-referrer-policy/#determine-requests-referrer
+/**
+ * Determine request’s Referrer
+ *
+ * @see https://w3c.github.io/webappsec-referrer-policy/#determine-requests-referrer
+ */
 function determineRequestsReferrer (request) {
+  // Given a request request, we can determine the correct referrer information
+  // to send by examining its referrer policy as detailed in the following
+  // steps, which return either no referrer or a URL:
+
   // 1. Let policy be request's referrer policy.
   const policy = request.referrerPolicy
 
@@ -387,6 +393,8 @@ function determineRequestsReferrer (request) {
   let referrerSource = null
 
   // 3. Switch on request’s referrer:
+
+  // "client"
   if (request.referrer === 'client') {
     // Note: node isn't a browser and doesn't implement document/iframes,
     // so we bypass this step and replace it with our own.
@@ -397,9 +405,10 @@ function determineRequestsReferrer (request) {
       return 'no-referrer'
     }
 
-    // note: we need to clone it as it's mutated
+    // Note: we need to clone it as it's mutated
     referrerSource = new URL(globalOrigin)
-  } else if (request.referrer instanceof URL) {
+  // a URL
+  } else if (webidl.is.URL(request.referrer)) {
     // Let referrerSource be request’s referrer.
     referrerSource = request.referrer
   }
@@ -418,18 +427,37 @@ function determineRequestsReferrer (request) {
     referrerURL = referrerOrigin
   }
 
-  const areSameOrigin = sameOrigin(request, referrerURL)
-  const isNonPotentiallyTrustWorthy = isURLPotentiallyTrustworthy(referrerURL) &&
-    !isURLPotentiallyTrustworthy(request.url)
+  // 7. The user agent MAY alter referrerURL or referrerOrigin at this point
+  // to enforce arbitrary policy considerations in the interests of minimizing
+  // data leakage. For example, the user agent could strip the URL down to an
+  // origin, modify its host, replace it with an empty string, etc.
 
   // 8. Execute the switch statements corresponding to the value of policy:
   switch (policy) {
-    case 'origin': return referrerOrigin != null ? referrerOrigin : stripURLForReferrer(referrerSource, true)
-    case 'unsafe-url': return referrerURL
-    case 'same-origin':
-      return areSameOrigin ? referrerOrigin : 'no-referrer'
-    case 'origin-when-cross-origin':
-      return areSameOrigin ? referrerURL : referrerOrigin
+    case 'no-referrer':
+      // Return no referrer
+      return 'no-referrer'
+    case 'origin':
+      // Return referrerOrigin
+      if (referrerOrigin != null) {
+        return referrerOrigin
+      }
+      return stripURLForReferrer(referrerSource, true)
+    case 'unsafe-url':
+      // Return referrerURL.
+      return referrerURL
+    case 'strict-origin': {
+      const currentURL = requestCurrentURL(request)
+
+      // 1. If referrerURL is a potentially trustworthy URL and request’s
+      //    current URL is not a potentially trustworthy URL, then return no
+      //    referrer.
+      if (isURLPotentiallyTrustworthy(referrerURL) && !isURLPotentiallyTrustworthy(currentURL)) {
+        return 'no-referrer'
+      }
+      // 2. Return referrerOrigin
+      return referrerOrigin
+    }
     case 'strict-origin-when-cross-origin': {
       const currentURL = requestCurrentURL(request)
 
@@ -449,39 +477,58 @@ function determineRequestsReferrer (request) {
       // 3. Return referrerOrigin.
       return referrerOrigin
     }
-    case 'strict-origin': // eslint-disable-line
-      /**
-         * 1. If referrerURL is a potentially trustworthy URL and
-         * request’s current URL is not a potentially trustworthy URL,
-         * then return no referrer.
-         * 2. Return referrerOrigin
-        */
-    case 'no-referrer-when-downgrade': // eslint-disable-line
-      /**
-       * 1. If referrerURL is a potentially trustworthy URL and
-       * request’s current URL is not a potentially trustworthy URL,
-       * then return no referrer.
-       * 2. Return referrerOrigin
-      */
+    case 'same-origin':
+      // 1. If the origin of referrerURL and the origin of request’s current
+      // URL are the same, then return referrerURL.
+      if (sameOrigin(request, referrerURL)) {
+        return referrerURL
+      }
+      // 2. Return no referrer.
+      return 'no-referrer'
+    case 'origin-when-cross-origin':
+      // 1. If the origin of referrerURL and the origin of request’s current
+      // URL are the same, then return referrerURL.
+      if (sameOrigin(request, referrerURL)) {
+        return referrerURL
+      }
+      // 2. Return referrerOrigin.
+      return referrerOrigin
+    case 'no-referrer-when-downgrade': {
+      const currentURL = requestCurrentURL(request)
 
-    default: // eslint-disable-line
-      return isNonPotentiallyTrustWorthy ? 'no-referrer' : referrerOrigin
+      // 1. If referrerURL is a potentially trustworthy URL and request’s
+      //    current URL is not a potentially trustworthy URL, then return no
+      //    referrer.
+      if (isURLPotentiallyTrustworthy(referrerURL) && !isURLPotentiallyTrustworthy(currentURL)) {
+        return 'no-referrer'
+      }
+      // 2. Return referrerURL.
+      return referrerURL
+    }
   }
 }
 
 /**
+ * Certain portions of URLs must not be included when sending a URL as the
+ * value of a `Referer` header: a URLs fragment, username, and password
+ * components must be stripped from the URL before it’s sent out. This
+ * algorithm accepts a origin-only flag, which defaults to false. If set to
+ * true, the algorithm will additionally remove the URL’s path and query
+ * components, leaving only the scheme, host, and port.
+ *
  * @see https://w3c.github.io/webappsec-referrer-policy/#strip-url
  * @param {URL} url
- * @param {boolean|undefined} originOnly
+ * @param {boolean} [originOnly=false]
  */
-function stripURLForReferrer (url, originOnly) {
+function stripURLForReferrer (url, originOnly = false) {
   // 1. Assert: url is a URL.
-  assert(url instanceof URL)
+  assert(webidl.is.URL(url))
 
+  // Note: Create a new URL instance to avoid mutating the original URL.
   url = new URL(url)
 
   // 2. If url’s scheme is a local scheme, then return no referrer.
-  if (url.protocol === 'file:' || url.protocol === 'about:' || url.protocol === 'blank:') {
+  if (urlIsLocal(url)) {
     return 'no-referrer'
   }
 
@@ -495,7 +542,7 @@ function stripURLForReferrer (url, originOnly) {
   url.hash = ''
 
   // 6. If the origin-only flag is true, then:
-  if (originOnly) {
+  if (originOnly === true) {
     // 1. Set url’s path to « the empty string ».
     url.pathname = ''
 
@@ -507,245 +554,128 @@ function stripURLForReferrer (url, originOnly) {
   return url
 }
 
-function isURLPotentiallyTrustworthy (url) {
-  if (!(url instanceof URL)) {
+const isPotentialleTrustworthyIPv4 = RegExp.prototype.test
+  .bind(/^127\.(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)\.){2}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)$/)
+
+const isPotentiallyTrustworthyIPv6 = RegExp.prototype.test
+  .bind(/^(?:(?:0{1,4}:){7}|(?:0{1,4}:){1,6}:|::)0{0,3}1$/)
+
+/**
+ * Check if host matches one of the CIDR notations 127.0.0.0/8 or ::1/128.
+ *
+ * @param {string} origin
+ * @returns {boolean}
+ */
+function isOriginIPPotentiallyTrustworthy (origin) {
+  // IPv6
+  if (origin.includes(':')) {
+    // Remove brackets from IPv6 addresses
+    if (origin[0] === '[' && origin[origin.length - 1] === ']') {
+      origin = origin.slice(1, -1)
+    }
+    return isPotentiallyTrustworthyIPv6(origin)
+  }
+
+  // IPv4
+  return isPotentialleTrustworthyIPv4(origin)
+}
+
+/**
+ * A potentially trustworthy origin is one which a user agent can generally
+ * trust as delivering data securely.
+ *
+ * Return value `true` means `Potentially Trustworthy`.
+ * Return value `false` means `Not Trustworthy`.
+ *
+ * @see https://w3c.github.io/webappsec-secure-contexts/#is-origin-trustworthy
+ * @param {string} origin
+ * @returns {boolean}
+ */
+function isOriginPotentiallyTrustworthy (origin) {
+  // 1. If origin is an opaque origin, return "Not Trustworthy".
+  if (origin == null || origin === 'null') {
     return false
   }
 
-  // If child of about, return true
+  // 2. Assert: origin is a tuple origin.
+  origin = new URL(origin)
+
+  // 3. If origin’s scheme is either "https" or "wss",
+  //    return "Potentially Trustworthy".
+  if (origin.protocol === 'https:' || origin.protocol === 'wss:') {
+    return true
+  }
+
+  // 4. If origin’s host matches one of the CIDR notations 127.0.0.0/8 or
+  // ::1/128 [RFC4632], return "Potentially Trustworthy".
+  if (isOriginIPPotentiallyTrustworthy(origin.hostname)) {
+    return true
+  }
+
+  // 5. If the user agent conforms to the name resolution rules in
+  //    [let-localhost-be-localhost] and one of the following is true:
+
+  //    origin’s host is "localhost" or "localhost."
+  if (origin.hostname === 'localhost' || origin.hostname === 'localhost.') {
+    return true
+  }
+
+  //    origin’s host ends with ".localhost" or ".localhost."
+  if (origin.hostname.endsWith('.localhost') || origin.hostname.endsWith('.localhost.')) {
+    return true
+  }
+
+  // 6. If origin’s scheme is "file", return "Potentially Trustworthy".
+  if (origin.protocol === 'file:') {
+    return true
+  }
+
+  // 7. If origin’s scheme component is one which the user agent considers to
+  // be authenticated, return "Potentially Trustworthy".
+
+  // 8. If origin has been configured as a trustworthy origin, return
+  //    "Potentially Trustworthy".
+
+  // 9. Return "Not Trustworthy".
+  return false
+}
+
+/**
+ * A potentially trustworthy URL is one which either inherits context from its
+ * creator (about:blank, about:srcdoc, data) or one whose origin is a
+ * potentially trustworthy origin.
+ *
+ * Return value `true` means `Potentially Trustworthy`.
+ * Return value `false` means `Not Trustworthy`.
+ *
+ * @see https://www.w3.org/TR/secure-contexts/#is-url-trustworthy
+ * @param {URL} url
+ * @returns {boolean}
+ */
+function isURLPotentiallyTrustworthy (url) {
+  // Given a URL record (url), the following algorithm returns "Potentially
+  // Trustworthy" or "Not Trustworthy" as appropriate:
+  if (!webidl.is.URL(url)) {
+    return false
+  }
+
+  // 1. If url is "about:blank" or "about:srcdoc",
+  //    return "Potentially Trustworthy".
   if (url.href === 'about:blank' || url.href === 'about:srcdoc') {
     return true
   }
 
-  // If scheme is data, return true
+  // 2. If url’s scheme is "data", return "Potentially Trustworthy".
   if (url.protocol === 'data:') return true
 
-  // If file, return true
-  if (url.protocol === 'file:') return true
+  // Note: The origin of blob: URLs is the origin of the context in which they
+  // were created. Therefore, blobs created in a trustworthy origin will
+  // themselves be potentially trustworthy.
+  if (url.protocol === 'blob:') return true
 
+  // 3. Return the result of executing § 3.1 Is origin potentially trustworthy?
+  // on url’s origin.
   return isOriginPotentiallyTrustworthy(url.origin)
-
-  function isOriginPotentiallyTrustworthy (origin) {
-    // If origin is explicitly null, return false
-    if (origin == null || origin === 'null') return false
-
-    const originAsURL = new URL(origin)
-
-    // If secure, return true
-    if (originAsURL.protocol === 'https:' || originAsURL.protocol === 'wss:') {
-      return true
-    }
-
-    // If localhost or variants, return true
-    if (/^127(?:\.[0-9]+){0,2}\.[0-9]+$|^\[(?:0*:)*?:?0*1\]$/.test(originAsURL.hostname) ||
-     (originAsURL.hostname === 'localhost' || originAsURL.hostname.includes('localhost.')) ||
-     (originAsURL.hostname.endsWith('.localhost'))) {
-      return true
-    }
-
-    // If any other, return false
-    return false
-  }
-}
-
-/**
- * @see https://w3c.github.io/webappsec-subresource-integrity/#does-response-match-metadatalist
- * @param {Uint8Array} bytes
- * @param {string} metadataList
- */
-function bytesMatch (bytes, metadataList) {
-  // If node is not built with OpenSSL support, we cannot check
-  // a request's integrity, so allow it by default (the spec will
-  // allow requests if an invalid hash is given, as precedence).
-  /* istanbul ignore if: only if node is built with --without-ssl */
-  if (crypto === undefined) {
-    return true
-  }
-
-  // 1. Let parsedMetadata be the result of parsing metadataList.
-  const parsedMetadata = parseMetadata(metadataList)
-
-  // 2. If parsedMetadata is no metadata, return true.
-  if (parsedMetadata === 'no metadata') {
-    return true
-  }
-
-  // 3. If response is not eligible for integrity validation, return false.
-  // TODO
-
-  // 4. If parsedMetadata is the empty set, return true.
-  if (parsedMetadata.length === 0) {
-    return true
-  }
-
-  // 5. Let metadata be the result of getting the strongest
-  //    metadata from parsedMetadata.
-  const strongest = getStrongestMetadata(parsedMetadata)
-  const metadata = filterMetadataListByAlgorithm(parsedMetadata, strongest)
-
-  // 6. For each item in metadata:
-  for (const item of metadata) {
-    // 1. Let algorithm be the alg component of item.
-    const algorithm = item.algo
-
-    // 2. Let expectedValue be the val component of item.
-    const expectedValue = item.hash
-
-    // See https://github.com/web-platform-tests/wpt/commit/e4c5cc7a5e48093220528dfdd1c4012dc3837a0e
-    // "be liberal with padding". This is annoying, and it's not even in the spec.
-
-    // 3. Let actualValue be the result of applying algorithm to bytes.
-    let actualValue = crypto.createHash(algorithm).update(bytes).digest('base64')
-
-    if (actualValue[actualValue.length - 1] === '=') {
-      if (actualValue[actualValue.length - 2] === '=') {
-        actualValue = actualValue.slice(0, -2)
-      } else {
-        actualValue = actualValue.slice(0, -1)
-      }
-    }
-
-    // 4. If actualValue is a case-sensitive match for expectedValue,
-    //    return true.
-    if (compareBase64Mixed(actualValue, expectedValue)) {
-      return true
-    }
-  }
-
-  // 7. Return false.
-  return false
-}
-
-// https://w3c.github.io/webappsec-subresource-integrity/#grammardef-hash-with-options
-// https://www.w3.org/TR/CSP2/#source-list-syntax
-// https://www.rfc-editor.org/rfc/rfc5234#appendix-B.1
-const parseHashWithOptions = /(?<algo>sha256|sha384|sha512)-((?<hash>[A-Za-z0-9+/]+|[A-Za-z0-9_-]+)={0,2}(?:\s|$)( +[!-~]*)?)?/i
-
-/**
- * @see https://w3c.github.io/webappsec-subresource-integrity/#parse-metadata
- * @param {string} metadata
- */
-function parseMetadata (metadata) {
-  // 1. Let result be the empty set.
-  /** @type {{ algo: string, hash: string }[]} */
-  const result = []
-
-  // 2. Let empty be equal to true.
-  let empty = true
-
-  // 3. For each token returned by splitting metadata on spaces:
-  for (const token of metadata.split(' ')) {
-    // 1. Set empty to false.
-    empty = false
-
-    // 2. Parse token as a hash-with-options.
-    const parsedToken = parseHashWithOptions.exec(token)
-
-    // 3. If token does not parse, continue to the next token.
-    if (
-      parsedToken === null ||
-      parsedToken.groups === undefined ||
-      parsedToken.groups.algo === undefined
-    ) {
-      // Note: Chromium blocks the request at this point, but Firefox
-      // gives a warning that an invalid integrity was given. The
-      // correct behavior is to ignore these, and subsequently not
-      // check the integrity of the resource.
-      continue
-    }
-
-    // 4. Let algorithm be the hash-algo component of token.
-    const algorithm = parsedToken.groups.algo.toLowerCase()
-
-    // 5. If algorithm is a hash function recognized by the user
-    //    agent, add the parsed token to result.
-    if (supportedHashes.includes(algorithm)) {
-      result.push(parsedToken.groups)
-    }
-  }
-
-  // 4. Return no metadata if empty is true, otherwise return result.
-  if (empty === true) {
-    return 'no metadata'
-  }
-
-  return result
-}
-
-/**
- * @param {{ algo: 'sha256' | 'sha384' | 'sha512' }[]} metadataList
- */
-function getStrongestMetadata (metadataList) {
-  // Let algorithm be the algo component of the first item in metadataList.
-  // Can be sha256
-  let algorithm = metadataList[0].algo
-  // If the algorithm is sha512, then it is the strongest
-  // and we can return immediately
-  if (algorithm[3] === '5') {
-    return algorithm
-  }
-
-  for (let i = 1; i < metadataList.length; ++i) {
-    const metadata = metadataList[i]
-    // If the algorithm is sha512, then it is the strongest
-    // and we can break the loop immediately
-    if (metadata.algo[3] === '5') {
-      algorithm = 'sha512'
-      break
-    // If the algorithm is sha384, then a potential sha256 or sha384 is ignored
-    } else if (algorithm[3] === '3') {
-      continue
-    // algorithm is sha256, check if algorithm is sha384 and if so, set it as
-    // the strongest
-    } else if (metadata.algo[3] === '3') {
-      algorithm = 'sha384'
-    }
-  }
-  return algorithm
-}
-
-function filterMetadataListByAlgorithm (metadataList, algorithm) {
-  if (metadataList.length === 1) {
-    return metadataList
-  }
-
-  let pos = 0
-  for (let i = 0; i < metadataList.length; ++i) {
-    if (metadataList[i].algo === algorithm) {
-      metadataList[pos++] = metadataList[i]
-    }
-  }
-
-  metadataList.length = pos
-
-  return metadataList
-}
-
-/**
- * Compares two base64 strings, allowing for base64url
- * in the second string.
- *
-* @param {string} actualValue always base64
- * @param {string} expectedValue base64 or base64url
- * @returns {boolean}
- */
-function compareBase64Mixed (actualValue, expectedValue) {
-  if (actualValue.length !== expectedValue.length) {
-    return false
-  }
-  for (let i = 0; i < actualValue.length; ++i) {
-    if (actualValue[i] !== expectedValue[i]) {
-      if (
-        (actualValue[i] === '+' && expectedValue[i] === '-') ||
-        (actualValue[i] === '/' && expectedValue[i] === '_')
-      ) {
-        continue
-      }
-      return false
-    }
-  }
-
-  return true
 }
 
 // https://w3c.github.io/webappsec-upgrade-insecure-requests/#upgrade-request
@@ -772,17 +702,6 @@ function sameOrigin (A, B) {
 
   // 3. Return false.
   return false
-}
-
-function createDeferredPromise () {
-  let res
-  let rej
-  const promise = new Promise((resolve, reject) => {
-    res = resolve
-    rej = reject
-  })
-
-  return { promise, resolve: res, reject: rej }
 }
 
 function isAborted (fetchParams) {
@@ -825,7 +744,7 @@ const esIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf([][Symbo
 /**
  * @see https://webidl.spec.whatwg.org/#dfn-iterator-prototype-object
  * @param {string} name name of the instance
- * @param {symbol} kInternalIterator
+ * @param {((target: any) => any)} kInternalIterator
  * @param {string | number} [keyIndex]
  * @param {string | number} [valueIndex]
  */
@@ -867,7 +786,7 @@ function createIterator (name, kInternalIterator, keyIndex = 0, valueIndex = 1) 
       // 7. Let kind be object’s kind.
       // 8. Let values be object’s target's value pairs to iterate over.
       const index = this.#index
-      const values = this.#target[kInternalIterator]
+      const values = kInternalIterator(this.#target)
 
       // 9. Let len be the length of values.
       const len = values.length
@@ -961,7 +880,7 @@ function createIterator (name, kInternalIterator, keyIndex = 0, valueIndex = 1) 
  * @see https://webidl.spec.whatwg.org/#dfn-iterator-prototype-object
  * @param {string} name name of the instance
  * @param {any} object class
- * @param {symbol} kInternalIterator
+ * @param {(target: any) => any} kInternalIterator
  * @param {string | number} [keyIndex]
  * @param {string | number} [valueIndex]
  */
@@ -1027,9 +946,14 @@ function iteratorMixin (name, object, kInternalIterator, keyIndex = 0, valueInde
 }
 
 /**
+ * @param {import('./body').ExtractBodyResult} body
+ * @param {(bytes: Uint8Array) => void} processBody
+ * @param {(error: Error) => void} processBodyError
+ * @returns {void}
+ *
  * @see https://fetch.spec.whatwg.org/#body-fully-read
  */
-async function fullyReadBody (body, processBody, processBodyError) {
+function fullyReadBody (body, processBody, processBodyError) {
   // 1. If taskDestination is null, then set taskDestination to
   //    the result of starting a new parallel queue.
 
@@ -1041,31 +965,17 @@ async function fullyReadBody (body, processBody, processBodyError) {
   //    with taskDestination.
   const errorSteps = processBodyError
 
+  try {
   // 4. Let reader be the result of getting a reader for body’s stream.
   //    If that threw an exception, then run errorSteps with that
   //    exception and return.
-  let reader
+    const reader = body.stream.getReader()
 
-  try {
-    reader = body.stream.getReader()
-  } catch (e) {
-    errorSteps(e)
-    return
-  }
-
-  // 5. Read all bytes from reader, given successSteps and errorSteps.
-  try {
-    successSteps(await readAllBytes(reader))
+    // 5. Read all bytes from reader, given successSteps and errorSteps.
+    readAllBytes(reader, successSteps, errorSteps)
   } catch (e) {
     errorSteps(e)
   }
-}
-
-function isReadableStreamLike (stream) {
-  return stream instanceof ReadableStream || (
-    stream[Symbol.toStringTag] === 'ReadableStream' &&
-    typeof stream.tee === 'function'
-  )
 }
 
 /**
@@ -1102,43 +1012,56 @@ function isomorphicEncode (input) {
 /**
  * @see https://streams.spec.whatwg.org/#readablestreamdefaultreader-read-all-bytes
  * @see https://streams.spec.whatwg.org/#read-loop
- * @param {ReadableStreamDefaultReader} reader
+ * @param {ReadableStream<Uint8Array<ArrayBuffer>>} reader
+ * @param {(bytes: Uint8Array) => void} successSteps
+ * @param {(error: Error) => void} failureSteps
+ * @returns {Promise<void>}
  */
-async function readAllBytes (reader) {
-  const bytes = []
-  let byteLength = 0
+async function readAllBytes (reader, successSteps, failureSteps) {
+  try {
+    const bytes = []
+    let byteLength = 0
 
-  while (true) {
-    const { done, value: chunk } = await reader.read()
+    do {
+      const { done, value: chunk } = await reader.read()
 
-    if (done) {
-      // 1. Call successSteps with bytes.
-      return Buffer.concat(bytes, byteLength)
-    }
+      if (done) {
+        // 1. Call successSteps with bytes.
+        successSteps(Buffer.concat(bytes, byteLength))
+        return
+      }
 
-    // 1. If chunk is not a Uint8Array object, call failureSteps
-    //    with a TypeError and abort these steps.
-    if (!isUint8Array(chunk)) {
-      throw new TypeError('Received non-Uint8Array chunk')
-    }
+      // 1. If chunk is not a Uint8Array object, call failureSteps
+      //    with a TypeError and abort these steps.
+      if (!isUint8Array(chunk)) {
+        failureSteps(new TypeError('Received non-Uint8Array chunk'))
+        return
+      }
 
-    // 2. Append the bytes represented by chunk to bytes.
-    bytes.push(chunk)
-    byteLength += chunk.length
+      // 2. Append the bytes represented by chunk to bytes.
+      bytes.push(chunk)
+      byteLength += chunk.length
 
     // 3. Read-loop given reader, bytes, successSteps, and failureSteps.
+    } while (true)
+  } catch (e) {
+    // 1. Call failureSteps with e.
+    failureSteps(e)
   }
 }
 
 /**
  * @see https://fetch.spec.whatwg.org/#is-local
  * @param {URL} url
+ * @returns {boolean}
  */
 function urlIsLocal (url) {
   assert('protocol' in url) // ensure it's a url object
 
   const protocol = url.protocol
 
+  // A URL is local if its scheme is a local scheme.
+  // A local scheme is "about", "blob", or "data".
   return protocol === 'about:' || protocol === 'blob:' || protocol === 'data:'
 }
 
@@ -1174,9 +1097,16 @@ function urlIsHttpHttpsScheme (url) {
 }
 
 /**
+ * @typedef {Object} RangeHeaderValue
+ * @property {number|null} rangeStartValue
+ * @property {number|null} rangeEndValue
+ */
+
+/**
  * @see https://fetch.spec.whatwg.org/#simple-range-header-value
  * @param {string} value
  * @param {boolean} allowWhitespace
+ * @return {RangeHeaderValue|'failure'}
  */
 function simpleRangeHeaderValue (value, allowWhitespace) {
   // 1. Let data be the isomorphic decoding of value.
@@ -1340,6 +1270,14 @@ function buildContentRange (rangeStart, rangeEnd, fullLength) {
 // interpreted as a zlib stream, otherwise it's interpreted as a
 // raw deflate stream.
 class InflateStream extends Transform {
+  #zlibOptions
+
+  /** @param {zlib.ZlibOptions} [zlibOptions] */
+  constructor (zlibOptions) {
+    super()
+    this.#zlibOptions = zlibOptions
+  }
+
   _transform (chunk, encoding, callback) {
     if (!this._inflateStream) {
       if (chunk.length === 0) {
@@ -1347,8 +1285,8 @@ class InflateStream extends Transform {
         return
       }
       this._inflateStream = (chunk[0] & 0x0F) === 0x08
-        ? zlib.createInflate()
-        : zlib.createInflateRaw()
+        ? zlib.createInflate(this.#zlibOptions)
+        : zlib.createInflateRaw(this.#zlibOptions)
 
       this._inflateStream.on('data', this.push.bind(this))
       this._inflateStream.on('end', () => this.push(null))
@@ -1367,8 +1305,12 @@ class InflateStream extends Transform {
   }
 }
 
-function createInflate () {
-  return new InflateStream()
+/**
+ * @param {zlib.ZlibOptions} [zlibOptions]
+ * @returns {InflateStream}
+ */
+function createInflate (zlibOptions) {
+  return new InflateStream(zlibOptions)
 }
 
 /**
@@ -1569,7 +1511,6 @@ module.exports = {
   isAborted,
   isCancelled,
   isValidEncodedURL,
-  createDeferredPromise,
   ReadableStreamFrom,
   tryUpgradeRequestToAPotentiallyTrustworthyURL,
   clampAndCoarsenConnectionTimingInfo,
@@ -1589,7 +1530,6 @@ module.exports = {
   requestCurrentURL,
   responseURL,
   responseLocationURL,
-  isBlobLike,
   isURLPotentiallyTrustworthy,
   isValidReasonPhrase,
   sameOrigin,
@@ -1601,8 +1541,6 @@ module.exports = {
   isValidHeaderValue,
   isErrorLike,
   fullyReadBody,
-  bytesMatch,
-  isReadableStreamLike,
   readableStreamClose,
   isomorphicEncode,
   urlIsLocal,
@@ -1611,10 +1549,10 @@ module.exports = {
   readAllBytes,
   simpleRangeHeaderValue,
   buildContentRange,
-  parseMetadata,
   createInflate,
   extractMimeType,
   getDecodeSplit,
   utf8DecodeBytes,
-  environmentSettingsObject
+  environmentSettingsObject,
+  isOriginIPPotentiallyTrustworthy
 }

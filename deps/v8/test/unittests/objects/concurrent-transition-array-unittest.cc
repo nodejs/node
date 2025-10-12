@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/api/api.h"
 #include "src/base/platform/semaphore.h"
 #include "src/handles/handles-inl.h"
@@ -27,7 +29,7 @@ class ConcurrentSearchThread : public v8::base::Thread {
   ConcurrentSearchThread(Heap* heap, base::Semaphore* background_thread_started,
                          std::unique_ptr<PersistentHandles> ph,
                          Handle<Name> name, Handle<Map> map,
-                         base::Optional<Handle<Map>> result_map)
+                         std::optional<Handle<Map>> result_map)
       : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
         heap_(heap),
         background_thread_started_(background_thread_started),
@@ -56,7 +58,7 @@ class ConcurrentSearchThread : public v8::base::Thread {
   std::unique_ptr<PersistentHandles> ph_;
   Handle<Name> name_;
   Handle<Map> map_;
-  base::Optional<Handle<Map>> result_map_;
+  std::optional<Handle<Map>> result_map_;
 };
 
 // Background search thread class that creates the transitions accessor before
@@ -140,7 +142,7 @@ TEST_F(ConcurrentTransitionArrayTest, FullFieldTransitions) {
   v8::HandleScope scope(isolate());
 
   Handle<String> name1 = MakeString("name1");
-  Handle<String> name2 = MakeString("name2");
+  DirectHandle<String> name2 = MakeString("name2");
   const PropertyAttributes attributes = NONE;
   const PropertyKind kind = PropertyKind::kData;
 
@@ -151,7 +153,7 @@ TEST_F(ConcurrentTransitionArrayTest, FullFieldTransitions) {
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  Handle<Map> map2 =
+  DirectHandle<Map> map2 =
       Map::CopyWithField(i_isolate(), map0, name2, FieldType::Any(i_isolate()),
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
@@ -198,7 +200,7 @@ TEST_F(ConcurrentTransitionArrayTest, WeakRefToFullFieldTransitions) {
   v8::HandleScope scope(isolate());
 
   Handle<String> name1 = MakeString("name1");
-  Handle<String> name2 = MakeString("name2");
+  DirectHandle<String> name2 = MakeString("name2");
   const PropertyAttributes attributes = NONE;
   const PropertyKind kind = PropertyKind::kData;
 
@@ -209,7 +211,7 @@ TEST_F(ConcurrentTransitionArrayTest, WeakRefToFullFieldTransitions) {
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  Handle<Map> map2 =
+  DirectHandle<Map> map2 =
       Map::CopyWithField(i_isolate(), map0, name2, FieldType::Any(i_isolate()),
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
@@ -260,8 +262,8 @@ TEST_F(ConcurrentTransitionArrayTest, FullFieldTransitions_withSlack) {
   v8::HandleScope scope(isolate());
 
   Handle<String> name1 = MakeString("name1");
-  Handle<String> name2 = MakeString("name2");
-  Handle<String> name3 = MakeString("name3");
+  DirectHandle<String> name2 = MakeString("name2");
+  DirectHandle<String> name3 = MakeString("name3");
   const PropertyAttributes attributes = NONE;
   const PropertyKind kind = PropertyKind::kData;
 
@@ -272,12 +274,12 @@ TEST_F(ConcurrentTransitionArrayTest, FullFieldTransitions_withSlack) {
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  Handle<Map> map2 =
+  DirectHandle<Map> map2 =
       Map::CopyWithField(i_isolate(), map0, name2, FieldType::Any(i_isolate()),
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  Handle<Map> map3 =
+  DirectHandle<Map> map3 =
       Map::CopyWithField(i_isolate(), map0, name3, FieldType::Any(i_isolate()),
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
@@ -334,14 +336,14 @@ TEST_F(ConcurrentTransitionArrayTest, FullFieldTransitions_withSlack) {
 TEST_F(ConcurrentTransitionArrayTest, UninitializedToFullFieldTransitions) {
   v8::HandleScope scope(isolate());
 
-  Handle<String> name1 = MakeString("name1");
+  DirectHandle<String> name1 = MakeString("name1");
   Handle<String> name2 = MakeString("name2");
   const PropertyAttributes attributes = NONE;
   const PropertyKind kind = PropertyKind::kData;
 
   // Set map0 to be a full transition array with transition 'name1' to map1.
   Handle<Map> map0 = Map::Create(i_isolate(), 0);
-  Handle<Map> map1 =
+  DirectHandle<Map> map1 =
       Map::CopyWithField(i_isolate(), map0, name1, FieldType::Any(i_isolate()),
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
@@ -362,7 +364,7 @@ TEST_F(ConcurrentTransitionArrayTest, UninitializedToFullFieldTransitions) {
   // Background thread will search for name2, guaranteed to *not* be on the map.
   std::unique_ptr<ConcurrentSearchThread> thread(new ConcurrentSearchThread(
       i_isolate()->heap(), &background_thread_started, std::move(ph),
-      persistent_name2, persistent_map0, base::nullopt));
+      persistent_name2, persistent_map0, std::nullopt));
   CHECK(thread->Start());
 
   background_thread_started.Wait();
@@ -388,7 +390,7 @@ TEST_F(ConcurrentTransitionArrayTest,
   v8::HandleScope scope(isolate());
 
   Handle<String> name1 = MakeString("name1");
-  Handle<String> name2 = MakeString("name2");
+  DirectHandle<String> name2 = MakeString("name2");
   const PropertyAttributes attributes = NONE;
   const PropertyKind kind = PropertyKind::kData;
 
@@ -399,7 +401,7 @@ TEST_F(ConcurrentTransitionArrayTest,
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  Handle<Map> map2 =
+  DirectHandle<Map> map2 =
       Map::CopyWithField(i_isolate(), map0, name2, FieldType::Any(i_isolate()),
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)

@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common.js');
+const { hasOpenSSL } = require('../../test/common/crypto.js');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -18,10 +19,14 @@ function readKeyPair(publicKeyName, privateKeyName) {
 }
 
 const keyFixtures = {
-  ec: readKeyPair('ec_p256_public', 'ec_p256_private'),
-  rsa: readKeyPair('rsa_public_2048', 'rsa_private_2048'),
-  ed25519: readKeyPair('ed25519_public', 'ed25519_private'),
+  'ec': readKeyPair('ec_p256_public', 'ec_p256_private'),
+  'rsa': readKeyPair('rsa_public_2048', 'rsa_private_2048'),
+  'ed25519': readKeyPair('ed25519_public', 'ed25519_private'),
 };
+
+if (hasOpenSSL(3, 5)) {
+  keyFixtures['ml-dsa-44'] = readKeyPair('ml_dsa_44_public', 'ml_dsa_44_private');
+}
 
 const data = crypto.randomBytes(256);
 
@@ -29,7 +34,7 @@ let pems;
 let keyObjects;
 
 const bench = common.createBenchmark(main, {
-  keyType: ['rsa', 'ec', 'ed25519'],
+  keyType: Object.keys(keyFixtures),
   mode: ['sync', 'async', 'async-parallel'],
   keyFormat: ['pem', 'der', 'jwk', 'keyObject', 'keyObject.unique'],
   n: [1e3],
@@ -104,6 +109,7 @@ function main({ n, mode, keyFormat, keyType }) {
       digest = 'sha256';
       break;
     case 'ed25519':
+    case 'ml-dsa-44':
       break;
     default:
       throw new Error('not implemented');

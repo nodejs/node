@@ -152,6 +152,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64Float32RoundUp:
     case kMips64Float64ExtractLowWord32:
     case kMips64Float64ExtractHighWord32:
+    case kMips64Float64FromWord32Pair:
     case kMips64Float64InsertLowWord32:
     case kMips64Float64InsertHighWord32:
     case kMips64Float64Max:
@@ -1307,7 +1308,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return 1;
     case kArchComment:
     case kArchNop:
-    case kArchThrowTerminator:
     case kArchDeoptimize:
       return 0;
     case kArchRet:
@@ -1616,6 +1616,8 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return Latency::MFC1;
     case kMips64Float64InsertLowWord32:
       return Latency::MFHC1 + Latency::MTC1 + Latency::MTHC1;
+    case kMips64Float64FromWord32Pair:
+      return Latency::MTC1 + Latency::MTHC1;
     case kMips64Float64ExtractHighWord32:
       return Latency::MFHC1;
     case kMips64Float64InsertHighWord32:

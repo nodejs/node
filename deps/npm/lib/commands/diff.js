@@ -83,7 +83,7 @@ class Diff extends BaseCommand {
     try {
       const { content: pkg } = await pkgJson.normalize(this.prefix)
       name = pkg.name
-    } catch (e) {
+    } catch {
       log.verbose('diff', 'could not read project dir package.json')
     }
 
@@ -106,7 +106,7 @@ class Diff extends BaseCommand {
       const pkgName = await this.packageName()
       return [
         `${pkgName}@${this.npm.config.get('tag')}`,
-        `file:${this.prefix.replace(/#/g, '%23')}`,
+        `file:${this.prefix}`,
       ]
     }
 
@@ -117,7 +117,7 @@ class Diff extends BaseCommand {
     try {
       const { content: pkg } = await pkgJson.normalize(this.prefix)
       pkgName = pkg.name
-    } catch (e) {
+    } catch {
       log.verbose('diff', 'could not read project dir package.json')
       noPackageJson = true
     }
@@ -134,7 +134,7 @@ class Diff extends BaseCommand {
       }
       return [
         `${pkgName}@${a}`,
-        `file:${this.prefix.replace(/#/g, '%23')}`,
+        `file:${this.prefix}`,
       ]
     }
 
@@ -156,7 +156,7 @@ class Diff extends BaseCommand {
         node = actualTree &&
           actualTree.inventory.query('name', spec.name)
             .values().next().value
-      } catch (e) {
+      } catch {
         log.verbose('diff', 'failed to load actual install tree')
       }
 
@@ -166,7 +166,7 @@ class Diff extends BaseCommand {
         }
         return [
           `${spec.name}@${spec.fetchSpec}`,
-          `file:${this.prefix.replace(/#/g, '%23')}`,
+          `file:${this.prefix}`,
         ]
       }
 
@@ -179,10 +179,10 @@ class Diff extends BaseCommand {
         }
       }
 
-      const aSpec = `file:${node.realpath.replace(/#/g, '%23')}`
+      const aSpec = `file:${node.realpath}`
 
-      // finds what version of the package to compare against, if a exact
-      // version or tag was passed than it should use that, otherwise
+      // finds what version of the package to compare against, if an exact
+      // version or tag was passed than it should use that; otherwise,
       // work from the top of the arborist tree to find the original semver
       // range declared in the package that depends on the package.
       let bSpec
@@ -212,8 +212,8 @@ class Diff extends BaseCommand {
       ]
     } else if (spec.type === 'directory') {
       return [
-        `file:${spec.fetchSpec.replace(/#/g, '%23')}`,
-        `file:${this.prefix.replace(/#/g, '%23')}`,
+        `file:${spec.fetchSpec}`,
+        `file:${this.prefix}`,
       ]
     } else {
       throw this.usageError(`Spec type ${spec.type} not supported.`)
@@ -230,7 +230,7 @@ class Diff extends BaseCommand {
       try {
         const { content: pkg } = await pkgJson.normalize(this.prefix)
         pkgName = pkg.name
-      } catch (e) {
+      } catch {
         log.verbose('diff', 'could not read project dir package.json')
       }
 
@@ -265,7 +265,7 @@ class Diff extends BaseCommand {
       }
       const arb = new Arborist(opts)
       actualTree = await arb.loadActual(opts)
-    } catch (e) {
+    } catch {
       log.verbose('diff', 'failed to load actual install tree')
     }
 
@@ -281,7 +281,7 @@ class Diff extends BaseCommand {
 
       const res = !node || !node.package || !node.package.version
         ? spec.fetchSpec
-        : `file:${node.realpath.replace(/#/g, '%23')}`
+        : `file:${node.realpath}`
 
       return `${spec.name}@${res}`
     })

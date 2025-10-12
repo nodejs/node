@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_OBJECTS_JS_RELATIVE_TIME_FORMAT_INL_H_
+#define V8_OBJECTS_JS_RELATIVE_TIME_FORMAT_INL_H_
+
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
 
-#ifndef V8_OBJECTS_JS_RELATIVE_TIME_FORMAT_INL_H_
-#define V8_OBJECTS_JS_RELATIVE_TIME_FORMAT_INL_H_
-
 #include "src/objects/js-relative-time-format.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -27,7 +29,7 @@ ACCESSORS(JSRelativeTimeFormat, icu_formatter,
           Tagged<Managed<icu::RelativeDateTimeFormatter>>, kIcuFormatterOffset)
 
 inline void JSRelativeTimeFormat::set_numeric(Numeric numeric) {
-  DCHECK_GE(NumericBit::kMax, numeric);
+  DCHECK(NumericBit::is_valid(numeric));
   int hints = flags();
   hints = NumericBit::update(hints, numeric);
   set_flags(hints);

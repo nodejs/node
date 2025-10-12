@@ -16,6 +16,11 @@
     "expected": false
   },
   {
+    "url": undefined,
+    "base": "https://test:test/",
+    "expected": false
+  },
+  {
     "url": "aaa:/b",
     "base": undefined,
     "expected": true

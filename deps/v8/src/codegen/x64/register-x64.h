@@ -89,9 +89,10 @@ static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
 // Assign |source| value to |no_reg| and return the |source|'s previous value.
-inline Register ReassignRegister(Register& source) {
-  Register result = source;
-  source = Register::no_reg();
+template <typename RegT>
+inline RegT ReassignRegister(RegT& source) {
+  RegT result = source;
+  source = RegT::no_reg();
   return result;
 }
 
@@ -176,6 +177,16 @@ constexpr int kRegisterPassedArguments = arraysize(kCArgRegs);
   V(ymm14)               \
   V(ymm15)
 
+#ifdef V8_TARGET_OS_WIN
+#define C_CALL_CALLEE_SAVE_REGISTERS rbx, rdi, rsi, r12, r13, r14, r15
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS \
+  xmm6, xmm7, xmm8, xmm9, xmm10, xmm11, xmm12, xmm13, xmm14, xmm15
+
+#else  // V8_TARGET_OS_WIN
+#define C_CALL_CALLEE_SAVE_REGISTERS rbx, r12, r13, r14, r15
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS
+#endif  // V8_TARGET_OS_WIN
+
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
   // No argument padding required.
@@ -226,6 +237,10 @@ class YMMRegister : public XMMRegister {
   static constexpr YMMRegister from_code(int code) {
     V8_ASSUME(code >= 0 && code < XMMRegister::kNumRegisters);
     return YMMRegister(code);
+  }
+
+  static constexpr YMMRegister from_xmm(XMMRegister xmm) {
+    return YMMRegister(xmm.code());
   }
 
  private:
@@ -279,12 +294,12 @@ constexpr Register kJavaScriptCallCodeStartRegister = rcx;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = rdx;
 constexpr Register kJavaScriptCallExtraArg1Register = rbx;
+constexpr Register kJavaScriptCallDispatchHandleRegister = r15;
 
 constexpr Register kRuntimeCallFunctionRegister = rbx;
 constexpr Register kRuntimeCallArgCountRegister = rax;
 constexpr Register kRuntimeCallArgvRegister = r15;
-// TODO(14499): Rename to kWasmInstanceDataRegister.
-constexpr Register kWasmInstanceRegister = rsi;
+constexpr Register kWasmImplicitArgRegister = rsi;
 constexpr Register kWasmTrapHandlerFaultAddressRegister = r10;
 
 // Default scratch register used by MacroAssembler (and other code that needs

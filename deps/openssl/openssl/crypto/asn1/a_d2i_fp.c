@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -123,7 +123,7 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
 
     b = BUF_MEM_new();
     if (b == NULL) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_BUF_LIB);
         return -1;
     }
 
@@ -134,7 +134,7 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
             want -= diff;
 
             if (len + want < len || !BUF_MEM_grow_clean(b, len + want)) {
-                ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+                ERR_raise(ERR_LIB_ASN1, ERR_R_BUF_LIB);
                 goto err;
             }
             i = BIO_read(in, &(b->data[len]), want);
@@ -148,6 +148,9 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
                     goto err;
                 }
                 len += i;
+                if ((size_t)i < want)
+                    continue;
+
             }
         }
         /* else data already loaded */
@@ -206,7 +209,7 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
                     size_t chunk = want > chunk_max ? chunk_max : want;
 
                     if (!BUF_MEM_grow_clean(b, len + chunk)) {
-                        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+                        ERR_raise(ERR_LIB_ASN1, ERR_R_BUF_LIB);
                         goto err;
                     }
                     want -= chunk;

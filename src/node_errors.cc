@@ -136,8 +136,13 @@ static std::string GetErrorSource(Isolate* isolate,
 
   // Print (filename):(line number): (message).
   ScriptOrigin origin = message->GetScriptOrigin();
-  node::Utf8Value filename(isolate, message->GetScriptResourceName());
-  const char* filename_string = *filename;
+  std::string filename_string;
+  if (message->GetScriptResourceName()->IsUndefined()) {
+    filename_string = "<anonymous_script>";
+  } else {
+    node::Utf8Value filename(isolate, message->GetScriptResourceName());
+    filename_string = filename.ToString();
+  }
   int linenum = message->GetLineNumber(context).FromJust();
 
   int script_start = (linenum - origin.LineOffset()) == 1
@@ -548,7 +553,7 @@ static void ReportFatalException(Environment* env,
   }
 
   if (env->isolate_data()->options()->report_uncaught_exception) {
-    TriggerNodeReport(env, report_message.c_str(), "Exception", "", error);
+    TriggerNodeReport(env, report_message, "Exception", "", error);
   }
 
   if (env->options()->trace_uncaught) {
@@ -628,7 +633,7 @@ v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
     v8::Local<v8::Context> context,
     v8::Local<v8::Value> source,
     bool is_code_like) {
-  HandleScope scope(context->GetIsolate());
+  HandleScope scope(Isolate::GetCurrent());
 
   if (context->GetNumberOfEmbedderDataFields() <=
       ContextEmbedderIndex::kAllowCodeGenerationFromStrings) {
@@ -1011,7 +1016,7 @@ const char* errno_string(int errorno) {
 }
 
 void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
-  Isolate* isolate = message->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   switch (message->ErrorLevel()) {
     case Isolate::MessageErrorLevel::kMessageWarning: {
       Environment* env = Environment::GetCurrent(isolate);
@@ -1034,6 +1039,46 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
       TriggerUncaughtException(isolate, error, message);
       break;
   }
+}
+
+void GetErrorSourcePositions(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
+  Realm* realm = Realm::GetCurrent(args);
+  Local<Context> context = realm->context();
+
+  CHECK(args[0]->IsObject());
+
+  Local<Message> msg = Exception::CreateMessage(isolate, args[0]);
+
+  // Message::GetEndColumn may not reflect the actual end column in all cases.
+  // So only expose startColumn to JS land.
+  Local<v8::Name> names[] = {
+      OneByteString(isolate, "sourceLine"),
+      OneByteString(isolate, "scriptResourceName"),
+      OneByteString(isolate, "lineNumber"),
+      OneByteString(isolate, "startColumn"),
+  };
+
+  Local<String> source_line;
+  if (!msg->GetSourceLine(context).ToLocal(&source_line)) {
+    return;
+  }
+  int line_number;
+  if (!msg->GetLineNumber(context).To(&line_number)) {
+    return;
+  }
+
+  Local<Value> values[] = {
+      source_line,
+      msg->GetScriptOrigin().ResourceName(),
+      v8::Integer::New(isolate, line_number),
+      v8::Integer::New(isolate, msg->GetStartColumn()),
+  };
+  Local<Object> info =
+      Object::New(isolate, v8::Null(isolate), names, values, arraysize(names));
+
+  args.GetReturnValue().Set(info);
 }
 
 void SetPrepareStackTraceCallback(const FunctionCallbackInfo<Value>& args) {
@@ -1101,6 +1146,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetEnhanceStackForFatalException);
   registry->Register(NoSideEffectsToString);
   registry->Register(TriggerUncaughtException);
+  registry->Register(GetErrorSourcePositions);
 }
 
 void Initialize(Local<Object> target,
@@ -1128,8 +1174,10 @@ void Initialize(Local<Object> target,
       context, target, "noSideEffectsToString", NoSideEffectsToString);
   SetMethod(
       context, target, "triggerUncaughtException", TriggerUncaughtException);
+  SetMethod(
+      context, target, "getErrorSourcePositions", GetErrorSourcePositions);
 
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<Object> exit_codes = Object::New(isolate);
   READONLY_PROPERTY(target, "exitCodes", exit_codes);
 
@@ -1210,9 +1258,12 @@ void TriggerUncaughtException(Isolate* isolate,
   // monkey-patchable.
   Local<Object> process_object = env->process_object();
   Local<String> fatal_exception_string = env->fatal_exception_string();
-  Local<Value> fatal_exception_function =
-      process_object->Get(env->context(),
-                          fatal_exception_string).ToLocalChecked();
+  Local<Value> fatal_exception_function;
+  if (!process_object->Get(env->context(), fatal_exception_string)
+           .ToLocal(&fatal_exception_function)) {
+    // V8 will have scheduled a superseding error to throw
+    return;
+  }
   // If the exception happens before process._fatalException is attached
   // during bootstrap, or if the user has patched it incorrectly, exit
   // the current Node.js instance.

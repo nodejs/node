@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "async_wrap.h"  // NOLINT(build/include_inline)
+#include "async_context_frame.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "node_errors.h"
@@ -106,6 +107,18 @@ void AsyncWrap::EmitPromiseResolve(Environment* env, double async_id) {
        env->async_hooks_promise_resolve_function());
 }
 
+void AsyncWrap::EmitTraceAsyncStart() const {
+  if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+          TRACING_CATEGORY_NODE1(async_hooks))) {
+    tracing::AsyncWrapArgs data(env()->execution_async_id(),
+                                get_trigger_async_id());
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE1(async_hooks),
+                                      provider_names[provider_type()],
+                                      static_cast<int64_t>(get_async_id()),
+                                      "data",
+                                      tracing::CastTracedValue(data));
+  }
+}
 
 void AsyncWrap::EmitTraceEventBefore() {
   switch (provider_type()) {
@@ -487,34 +500,19 @@ AsyncWrap::AsyncWrap(Environment* env,
                      Local<Object> object,
                      ProviderType provider,
                      double execution_async_id)
-    : AsyncWrap(env, object, provider, execution_async_id, false) {}
-
-AsyncWrap::AsyncWrap(Environment* env,
-                     Local<Object> object,
-                     ProviderType provider,
-                     double execution_async_id,
-                     bool silent)
     : AsyncWrap(env, object) {
   CHECK_NE(provider, PROVIDER_NONE);
   provider_type_ = provider;
 
   // Use AsyncReset() call to execute the init() callbacks.
-  AsyncReset(object, execution_async_id, silent);
+  AsyncReset(object, execution_async_id);
   init_hook_ran_ = true;
 }
 
-AsyncWrap::AsyncWrap(Environment* env,
-                     Local<Object> object,
-                     ProviderType provider,
-                     double execution_async_id,
-                     double trigger_async_id)
-    : AsyncWrap(env, object, provider, execution_async_id, true) {
-  trigger_async_id_ = trigger_async_id;
-}
-
 AsyncWrap::AsyncWrap(Environment* env, Local<Object> object)
-  : BaseObject(env, object) {
-}
+    : BaseObject(env, object),
+      context_frame_(env->isolate(),
+                     async_context_frame::current(env->isolate())) {}
 
 // This method is necessary to work around one specific problem:
 // Before the init() hook runs, if there is one, the BaseObject() constructor
@@ -590,8 +588,7 @@ void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
 // Generalized call for both the constructor and for handles that are pooled
 // and reused over their lifetime. This way a new uid can be assigned when
 // the resource is pulled out of the pool and put back into use.
-void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
-                           bool silent) {
+void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id) {
   CHECK_NE(provider_type(), PROVIDER_NONE);
 
   if (async_id_ != kInvalidAsyncId) {
@@ -606,8 +603,9 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
                                                      : execution_async_id;
   trigger_async_id_ = env()->get_default_trigger_async_id();
 
+  Isolate* isolate = env()->isolate();
   {
-    HandleScope handle_scope(env()->isolate());
+    HandleScope handle_scope(isolate);
     Local<Object> obj = object();
     CHECK(!obj.IsEmpty());
     if (resource != obj) {
@@ -615,29 +613,9 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
     }
   }
 
-  switch (provider_type()) {
-#define V(PROVIDER)                                                           \
-    case PROVIDER_ ## PROVIDER:                                               \
-      if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(                        \
-          TRACING_CATEGORY_NODE1(async_hooks))) {                             \
-        auto data = tracing::TracedValue::Create();                           \
-        data->SetInteger("executionAsyncId",                                  \
-                         static_cast<int64_t>(env()->execution_async_id()));  \
-        data->SetInteger("triggerAsyncId",                                    \
-                         static_cast<int64_t>(get_trigger_async_id()));       \
-        TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(                                    \
-          TRACING_CATEGORY_NODE1(async_hooks),                                \
-          #PROVIDER, static_cast<int64_t>(get_async_id()),                    \
-          "data", std::move(data));                                           \
-        }                                                                     \
-      break;
-    NODE_ASYNC_PROVIDER_TYPES(V)
-#undef V
-    default:
-      UNREACHABLE();
-  }
+  EmitTraceAsyncStart();
 
-  if (silent) return;
+  context_frame_.Reset(isolate, async_context_frame::current(isolate));
 
   EmitAsyncInit(env(), resource,
                 env()->async_hooks()->provider_string(provider_type()),
@@ -680,8 +658,15 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
   ProviderType provider = provider_type();
   async_context context { get_async_id(), get_trigger_async_id() };
-  MaybeLocal<Value> ret = InternalMakeCallback(
-      env(), object(), object(), cb, argc, argv, context);
+  MaybeLocal<Value> ret =
+      InternalMakeCallback(env(),
+                           object(),
+                           object(),
+                           cb,
+                           argc,
+                           argv,
+                           context,
+                           context_frame_.Get(env()->isolate()));
 
   // This is a static call with cached values because the `this` object may
   // no longer be alive at this point.

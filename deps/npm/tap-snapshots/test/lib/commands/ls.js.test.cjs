@@ -248,7 +248,7 @@ exports[`test/lib/commands/ls.js TAP ls --parseable no args > should output pars
 {CWD}/prefix/node_modules/dog
 `
 
-exports[`test/lib/commands/ls.js TAP ls --parseable overridden dep > should contain overridden outout 1`] = `
+exports[`test/lib/commands/ls.js TAP ls --parseable overridden dep > should contain overridden output 1`] = `
 {CWD}/prefix:test-overridden@1.0.0
 {CWD}/prefix/node_modules/foo:foo@1.0.0
 {CWD}/prefix/node_modules/bar:bar@1.0.0:OVERRIDDEN
@@ -288,11 +288,11 @@ exports[`test/lib/commands/ls.js TAP ls --parseable using aliases > should outpu
 {CWD}/prefix/node_modules/a
 `
 
-exports[`test/lib/commands/ls.js TAP ls --parseable with filter arg > should output parseable contaning only occurrences of filtered by package 1`] = `
+exports[`test/lib/commands/ls.js TAP ls --parseable with filter arg > should output parseable containing only occurrences of filtered by package 1`] = `
 {CWD}/prefix/node_modules/chai
 `
 
-exports[`test/lib/commands/ls.js TAP ls --parseable with filter arg nested dep > should output parseable contaning only occurrences of filtered package 1`] = `
+exports[`test/lib/commands/ls.js TAP ls --parseable with filter arg nested dep > should output parseable containing only occurrences of filtered package 1`] = `
 {CWD}/prefix/node_modules/dog
 `
 
@@ -300,7 +300,7 @@ exports[`test/lib/commands/ls.js TAP ls --parseable with missing filter arg > sh
 
 `
 
-exports[`test/lib/commands/ls.js TAP ls --parseable with multiple filter args > should output parseable contaning only occurrences of multiple filtered packages and their ancestors 1`] = `
+exports[`test/lib/commands/ls.js TAP ls --parseable with multiple filter args > should output parseable containing only occurrences of multiple filtered packages and their ancestors 1`] = `
 {CWD}/prefix/node_modules/chai
 {CWD}/prefix/node_modules/dog
 `
@@ -453,7 +453,7 @@ workspaces-tree@1.0.0 {CWD}/prefix
       \`-- bar@1.0.0
 `
 
-exports[`test/lib/commands/ls.js TAP ls loading a tree containing workspaces should inlude root and specified workspace > output 1`] = `
+exports[`test/lib/commands/ls.js TAP ls loading a tree containing workspaces should include root and specified workspace > output 1`] = `
 workspaces-tree@1.0.0 {CWD}/prefix
 +-- d@1.0.0 -> ./d
 | \`-- foo@1.1.1
@@ -541,13 +541,13 @@ test-npm-ls@1.0.0 {CWD}/prefix
   \`-- dog@1.0.0
 `
 
-exports[`test/lib/commands/ls.js TAP ls overridden dep > should contain overridden outout 1`] = `
+exports[`test/lib/commands/ls.js TAP ls overridden dep > should contain overridden output 1`] = `
 test-overridden@1.0.0 {CWD}/prefix
 \`-- foo@1.0.0
   \`-- bar@1.0.0 overridden
 `
 
-exports[`test/lib/commands/ls.js TAP ls overridden dep w/ color > should contain overridden outout 1`] = `
+exports[`test/lib/commands/ls.js TAP ls overridden dep w/ color > should contain overridden output 1`] = `
 [0mtest-overridden@1.0.0 {CWD}/prefix[0m
 [0m\`-- foo@1.0.0[0m
 [0m  \`-- bar@1.0.0 [2moverridden[22m[0m
@@ -609,18 +609,18 @@ dedupe-entries@1.0.0 {CWD}/prefix
 \`-- @npmcli/c@1.0.0
 `
 
-exports[`test/lib/commands/ls.js TAP ls with dot filter arg > should output tree contaning only occurrences of filtered by package and colored output 1`] = `
+exports[`test/lib/commands/ls.js TAP ls with dot filter arg > should output tree containing only occurrences of filtered by package and colored output 1`] = `
 test-npm-ls@1.0.0 {CWD}/prefix
 \`-- (empty)
 `
 
-exports[`test/lib/commands/ls.js TAP ls with filter arg > should output tree contaning only occurrences of filtered by package and colored output 1`] = `
+exports[`test/lib/commands/ls.js TAP ls with filter arg > should output tree containing only occurrences of filtered by package and colored output 1`] = `
 [0mtest-npm-ls@1.0.0 {CWD}/prefix[0m
 [0m\`-- [33mchai@1.0.0[39m[0m
 [0m[0m
 `
 
-exports[`test/lib/commands/ls.js TAP ls with filter arg nested dep > should output tree contaning only occurrences of filtered package and its ancestors 1`] = `
+exports[`test/lib/commands/ls.js TAP ls with filter arg nested dep > should output tree containing only occurrences of filtered package and its ancestors 1`] = `
 test-npm-ls@1.0.0 {CWD}/prefix
 \`-- foo@1.0.0
   \`-- dog@1.0.0
@@ -631,7 +631,7 @@ test-npm-ls@1.0.0 {CWD}/prefix
 \`-- (empty)
 `
 
-exports[`test/lib/commands/ls.js TAP ls with multiple filter args > should output tree contaning only occurrences of multiple filtered packages and their ancestors 1`] = `
+exports[`test/lib/commands/ls.js TAP ls with multiple filter args > should output tree containing only occurrences of multiple filtered packages and their ancestors 1`] = `
 test-npm-ls@1.0.0 {CWD}/prefix
 +-- chai@1.0.0
 \`-- foo@1.0.0

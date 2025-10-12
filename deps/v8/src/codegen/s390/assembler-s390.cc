@@ -38,9 +38,9 @@
 #include <set>
 #include <string>
 
-#if V8_TARGET_ARCH_S390
+#if V8_TARGET_ARCH_S390X
 
-#if V8_HOST_ARCH_S390
+#if V8_HOST_ARCH_S390X && !V8_OS_ZOS
 #include <elf.h>  // Required for auxv checks for STFLE support
 #include <sys/auxv.h>
 #endif
@@ -61,13 +61,21 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 }
 
 static bool supportsCPUFeature(const char* feature) {
+#if V8_OS_ZOS
+  // TODO(gabylb): zos - use cpu_init() and cpu_supports() to test support of
+  // z/OS features when the current compiler supports them.
+  // Currently the only feature to be checked is Vector Extension Facility
+  // ("vector128" on z/OS, "vx" on LoZ) - hence the assert in case that changed.
+  assert(strcmp(feature, "vx") == 0);
+  return __is_vxf_available();
+#else
   static std::set<std::string>& features = *new std::set<std::string>();
   static std::set<std::string>& all_available_features =
       *new std::set<std::string>({"iesan3", "zarch", "stfle", "msa", "ldisp",
                                   "eimm", "dfp", "etf3eh", "highgprs", "te",
                                   "vx"});
   if (features.empty()) {
-#if V8_HOST_ARCH_S390
+#if V8_HOST_ARCH_S390X
 
 #ifndef HWCAP_S390_VX
 #define HWCAP_S390_VX 2048
@@ -96,6 +104,7 @@ static bool supportsCPUFeature(const char* feature) {
   }
   USE(all_available_features);
   return features.find(feature) != features.end();
+#endif  // !V8_OS_ZOS
 }
 
 #undef CHECK_AVAILABILITY_FOR
@@ -104,7 +113,9 @@ static bool supportsCPUFeature(const char* feature) {
 // Check whether Store Facility STFLE instruction is available on the platform.
 // Instruction returns a bit vector of the enabled hardware facilities.
 static bool supportsSTFLE() {
-#if V8_HOST_ARCH_S390
+#if V8_OS_ZOS
+  return __is_stfle_available();
+#elif V8_HOST_ARCH_S390X
   static bool read_tried = false;
   static uint32_t auxv_hwcap = 0;
 
@@ -114,13 +125,8 @@ static bool supportsSTFLE() {
 
     read_tried = true;
     if (fd != -1) {
-#if V8_TARGET_ARCH_S390X
       static Elf64_auxv_t buffer[16];
       Elf64_auxv_t* auxv_element;
-#else
-      static Elf32_auxv_t buffer[16];
-      Elf32_auxv_t* auxv_element;
-#endif
       int bytes_read = 0;
       while (bytes_read >= 0) {
         // Read a chunk of the AUXV
@@ -181,7 +187,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 // Need to define host, as we are generating inlined S390 assembly to test
 // for facilities.
-#if V8_HOST_ARCH_S390
+#if V8_HOST_ARCH_S390X
   if (performSTFLE) {
     // STFLE D(B) requires:
     //    GPR0 to specify # of double words to update minus 1.
@@ -190,17 +196,22 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     // The facilities we are checking for are:
     //   Bit 45 - Distinct Operands for instructions like ARK, SRK, etc.
     // As such, we require only 1 double word
-    int64_t facilities[3] = {0L};
+    int64_t facilities[4] = {0L};
+#if V8_OS_ZOS
+    int64_t reg0 = 3;
+    asm volatile(" stfle %0" : "=m"(facilities), __ZL_NR("+", r0)(reg0)::"cc");
+#else
     int16_t reg0;
     // LHI sets up GPR0
     // STFLE is specified as .insn, as opcode is not recognized.
     // We register the instructions kill r0 (LHI) and the CC (STFLE).
     asm volatile(
-        "lhi   %%r0,2\n"
+        "lhi   %%r0,3\n"
         ".insn s,0xb2b00000,%0\n"
         : "=Q"(facilities), "=r"(reg0)
         :
         : "cc", "r0");
+#endif  // V8_OS_ZOS
 
     uint64_t one = static_cast<uint64_t>(1);
     // Test for Distinct Operands Facility - Bit 45
@@ -230,9 +241,18 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
         supportsCPUFeature("vx")) {
       supported_ |= (1u << VECTOR_ENHANCE_FACILITY_2);
     }
-    // Test for Miscellaneous Instruction Extension Facility - Bit 58
+    // Test for Vector Enhancement Facility 3 - Bit 198
+    if (facilities[3] & (one << (63 - (198 - 192))) &&
+        supportsCPUFeature("vx")) {
+      supported_ |= (1u << VECTOR_ENHANCE_FACILITY_3);
+    }
+    // Test for Miscellaneous Instruction Extension Facility 2 - Bit 58
     if (facilities[0] & (1lu << (63 - 58))) {
       supported_ |= (1u << MISC_INSTR_EXT2);
+    }
+    // Test for Miscellaneous Instruction Extension Facility 4 - Bit 84
+    if (facilities[1] & (one << (63 - (84 - 64)))) {
+      supported_ |= (1u << MISC_INSTR_EXT4);
     }
   }
 #else
@@ -242,11 +262,13 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= (1u << GENERAL_INSTR_EXT);
   supported_ |= (1u << FLOATING_POINT_EXT);
   supported_ |= (1u << MISC_INSTR_EXT2);
+  supported_ |= (1u << MISC_INSTR_EXT4);
   USE(performSTFLE);  // To avoid assert
   USE(supportsCPUFeature);
   supported_ |= (1u << VECTOR_FACILITY);
   supported_ |= (1u << VECTOR_ENHANCE_FACILITY_1);
   supported_ |= (1u << VECTOR_ENHANCE_FACILITY_2);
+  supported_ |= (1u << VECTOR_ENHANCE_FACILITY_3);
 #endif
   supported_ |= (1u << FPU);
 
@@ -258,14 +280,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 }
 
 void CpuFeatures::PrintTarget() {
-  const char* s390_arch = nullptr;
-
-#if V8_TARGET_ARCH_S390X
-  s390_arch = "s390x";
-#else
-  s390_arch = "s390";
-#endif
-
+  const char* s390_arch = "s390x";
   PrintF("target %s\n", s390_arch);
 }
 
@@ -279,7 +294,10 @@ void CpuFeatures::PrintFeatures() {
          CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
   PrintF("VECTOR_ENHANCE_FACILITY_2=%d\n",
          CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2));
+  PrintF("VECTOR_ENHANCE_FACILITY_3=%d\n",
+         CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_3));
   PrintF("MISC_INSTR_EXT2=%d\n", CpuFeatures::IsSupported(MISC_INSTR_EXT2));
+  PrintF("MISC_INSTR_EXT4=%d\n", CpuFeatures::IsSupported(MISC_INSTR_EXT4));
 }
 
 Register ToRegister(int num) {
@@ -338,16 +356,10 @@ MemOperand::MemOperand(Register rn, int32_t offset)
 MemOperand::MemOperand(Register rx, Register rb, int32_t offset)
     : baseRegister(rb), indexRegister(rx), offset_(offset) {}
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
-  for (auto& request : heap_number_requests_) {
-    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    Handle<HeapObject> object =
-        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-            request.heap_number());
-    set_target_address_at(pc, kNullAddress, object.address(),
-                          SKIP_ICACHE_FLUSH);
-  }
+void Assembler::PatchInHeapNumberRequest(Address pc,
+                                         Handle<HeapNumber> object) {
+  set_target_address_at(pc, kNullAddress, object.address(), nullptr,
+                        SKIP_ICACHE_FLUSH);
 }
 
 // -----------------------------------------------------------------------------
@@ -355,7 +367,9 @@ void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
 
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
-    : AssemblerBase(options, std::move(buffer)), scratch_register_list_({ip}) {
+    : AssemblerBase(options, std::move(buffer)),
+      scratch_register_list_(DefaultTmpList()),
+      scratch_double_register_list_(DefaultFPTmpList()) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   last_bound_pos_ = 0;
   relocations_.reserve(128);
@@ -387,8 +401,12 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
   // this point to make CodeDesc initialization less fiddly.
 
   static constexpr int kConstantPoolSize = 0;
+  static constexpr int kBuiltinJumpTableInfoSize = 0;
   const int instruction_size = pc_offset();
-  const int code_comments_offset = instruction_size - code_comments_size;
+  const int builtin_jump_table_info_offset =
+      instruction_size - kBuiltinJumpTableInfoSize;
+  const int code_comments_offset =
+      builtin_jump_table_info_offset - code_comments_size;
   const int constant_pool_offset = code_comments_offset - kConstantPoolSize;
   const int handler_table_offset2 = (handler_table_offset == kNoHandlerTable)
                                         ? constant_pool_offset
@@ -401,7 +419,8 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
                        handler_table_offset2, constant_pool_offset,
-                       code_comments_offset, reloc_info_offset);
+                       code_comments_offset, builtin_jump_table_info_offset,
+                       reloc_info_offset);
 }
 
 void Assembler::Align(int m) {
@@ -424,19 +443,11 @@ Condition Assembler::GetCondition(Instr instr) {
   }
 }
 
-#if V8_TARGET_ARCH_S390X
 // This code assumes a FIXED_SEQUENCE for 64bit loads (iihf/iilf)
 bool Assembler::Is64BitLoadIntoIP(SixByteInstr instr1, SixByteInstr instr2) {
   // Check the instructions are the iihf/iilf load into ip
   return (((instr1 >> 32) == 0xC0C8) && ((instr2 >> 32) == 0xC0C9));
 }
-#else
-// This code assumes a FIXED_SEQUENCE for 32bit loads (iilf)
-bool Assembler::Is32BitLoadIntoIP(SixByteInstr instr) {
-  // Check the instruction is an iilf load into ip/r12.
-  return ((instr >> 32) == 0xC0C9);
-}
-#endif
 
 // Labels refer to positions in the (to be) generated code.
 // There are bound, linked, and unused labels.
@@ -671,6 +682,17 @@ void Assembler::nop(int type) {
       // TODO(john.yan): Use a better NOP break
       oill(r3, Operand::Zero());
       break;
+#if V8_OS_ZOS
+    case BASR_CALL_TYPE_NOP:
+      emit2bytes(0x0000);
+      break;
+    case BRAS_CALL_TYPE_NOP:
+      emit2bytes(0x0001);
+      break;
+    case BRASL_CALL_TYPE_NOP:
+      emit2bytes(0x0011);
+      break;
+#endif
     default:
       UNIMPLEMENTED();
   }
@@ -784,6 +806,12 @@ void Assembler::db(uint8_t data) {
   pc_ += sizeof(uint8_t);
 }
 
+void Assembler::dh(uint16_t data) {
+  CheckBuffer();
+  *reinterpret_cast<uint16_t*>(pc_) = data;
+  pc_ += sizeof(uint16_t);
+}
+
 void Assembler::dd(uint32_t data) {
   CheckBuffer();
   *reinterpret_cast<uint32_t*>(pc_) = data;
@@ -836,13 +864,18 @@ void Assembler::EmitRelocations() {
       Address pos = target_address_at(pc, 0);
       set_target_address_at(pc, 0,
                             reinterpret_cast<Address>(buffer_start_) + pos,
-                            SKIP_ICACHE_FLUSH);
+                            nullptr, SKIP_ICACHE_FLUSH);
     }
 
     reloc_info_writer.Write(&rinfo);
   }
 }
 
+RegList Assembler::DefaultTmpList() { return {r1, ip}; }
+DoubleRegList Assembler::DefaultFPTmpList() {
+  return {kScratchDoubleReg, kDoubleRegZero};
+}
+
 }  // namespace internal
 }  // namespace v8
-#endif  // V8_TARGET_ARCH_S390
+#endif  // V8_TARGET_ARCH_S390X

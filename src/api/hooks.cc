@@ -26,10 +26,6 @@ void AtExit(Environment* env, void (*cb)(void* arg), void* arg) {
   env->AtExit(cb, arg);
 }
 
-void EmitBeforeExit(Environment* env) {
-  USE(EmitProcessBeforeExit(env));
-}
-
 Maybe<bool> EmitProcessBeforeExit(Environment* env) {
   TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment), "BeforeExit");
   if (!env->destroy_async_id_list()->empty())
@@ -46,16 +42,8 @@ Maybe<bool> EmitProcessBeforeExit(Environment* env) {
   Local<Integer> exit_code = Integer::New(
       isolate, static_cast<int32_t>(env->exit_code(ExitCode::kNoFailure)));
 
-  return ProcessEmit(env, "beforeExit", exit_code).IsEmpty() ?
-      Nothing<bool>() : Just(true);
-}
-
-static ExitCode EmitExitInternal(Environment* env) {
-  return EmitProcessExitInternal(env).FromMaybe(ExitCode::kGenericUserError);
-}
-
-int EmitExit(Environment* env) {
-  return static_cast<int>(EmitExitInternal(env));
+  return ProcessEmit(env, "beforeExit", exit_code).IsEmpty() ? Nothing<bool>()
+                                                             : Just(true);
 }
 
 Maybe<ExitCode> EmitProcessExitInternal(Environment* env) {
@@ -70,14 +58,26 @@ Maybe<ExitCode> EmitProcessExitInternal(Environment* env) {
     return Nothing<ExitCode>();
   }
 
-  Local<Integer> exit_code = Integer::New(
-      isolate, static_cast<int32_t>(env->exit_code(ExitCode::kNoFailure)));
+  ExitCode exit_code = env->exit_code(ExitCode::kNoFailure);
 
-  if (ProcessEmit(env, "exit", exit_code).IsEmpty()) {
+  // the exit code wasn't already set, so let's check for unsettled tlas
+  if (exit_code == ExitCode::kNoFailure) {
+    auto unsettled_tla = env->CheckUnsettledTopLevelAwait();
+    if (!unsettled_tla.FromJust()) {
+      exit_code = ExitCode::kUnsettledTopLevelAwait;
+      env->set_exit_code(exit_code);
+    }
+  }
+
+  Local<Integer> exit_code_int =
+      Integer::New(isolate, static_cast<int32_t>(exit_code));
+
+  if (ProcessEmit(env, "exit", exit_code_int).IsEmpty()) {
     return Nothing<ExitCode>();
   }
+
   // Reload exit code, it may be changed by `emit('exit')`
-  return Just(env->exit_code(ExitCode::kNoFailure));
+  return Just(env->exit_code(exit_code));
 }
 
 Maybe<int> EmitProcessExit(Environment* env) {
@@ -180,6 +180,12 @@ void RequestInterrupt(Environment* env, void (*fun)(void* arg), void* arg) {
 
 async_id AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
   Environment* env = Environment::GetCurrent(isolate);
+  if (env == nullptr) return -1;
+  return env->execution_async_id();
+}
+
+async_id AsyncHooksGetExecutionAsyncId(Local<Context> context) {
+  Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) return -1;
   return env->execution_async_id();
 }

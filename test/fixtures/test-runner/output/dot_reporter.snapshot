@@ -1,7 +1,7 @@
 ..XX...X..XXX.X.....
-XXX.....X..X...X....
+XXX............X....
 .....X...XXX.XX.....
-.XXXXXXX...XXXXX
+XXXXXXX...XXXXX
 
 Failed tests:
 
@@ -66,7 +66,8 @@ Failed tests:
     code: 'ERR_ASSERTION',
     actual: true,
     expected: false,
-    operator: 'strictEqual'
+    operator: 'strictEqual',
+    diff: 'simple'
   }
 ✖ reject fail (*ms)
   Error: rejected from reject fail
@@ -93,10 +94,6 @@ Failed tests:
   '1 subtest failed'
 ✖ sync throw non-error fail (*ms)
   Symbol(thrown symbol from sync throw non-error fail)
-✖ +long running (*ms)
-  'test did not finish before its parent and was cancelled'
-✖ top level (*ms)
-  '1 subtest failed'
 ✖ sync skip option is false fail (*ms)
   Error: this should be executed
       *
@@ -137,7 +134,7 @@ Failed tests:
 ✖ custom inspect symbol fail (*ms)
   customized
 ✖ custom inspect symbol that throws fail (*ms)
-  { foo: 1, [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]] }
+  { foo: 1, Symbol(nodejs.util.inspect.custom): [Function: [nodejs.util.inspect.custom]] }
 ✖ sync throw fails at first (*ms)
   Error: thrown from subtest sync throw fails at first
       *
@@ -219,7 +216,8 @@ Failed tests:
     code: 'ERR_ASSERTION',
     actual: [Object],
     expected: [Object],
-    operator: 'deepEqual'
+    operator: 'deepEqual',
+    diff: 'simple'
   }
 ✖ invalid subtest fail (*ms)
   'test could not be started because its parent finished'

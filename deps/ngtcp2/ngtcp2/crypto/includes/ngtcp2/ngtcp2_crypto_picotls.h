@@ -31,13 +31,13 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif /* defined(__cplusplus) */
 
 /**
  * @struct
  *
  * :type:`ngtcp2_crypto_picotls_ctx` contains per-connection state of
- * Picotls objects and must be an object to bet set to
+ * Picotls object, and must be set to
  * `ngtcp2_conn_set_tls_native_handle`.
  */
 typedef struct ngtcp2_crypto_picotls_ctx {
@@ -79,7 +79,7 @@ ngtcp2_crypto_picotls_from_epoch(size_t epoch);
  * Picotls backend.
  */
 NGTCP2_EXTERN size_t ngtcp2_crypto_picotls_from_ngtcp2_encryption_level(
-    ngtcp2_encryption_level encryption_level);
+  ngtcp2_encryption_level encryption_level);
 
 /**
  * @function
@@ -160,7 +160,7 @@ ngtcp2_crypto_picotls_configure_client_context(ptls_context_t *ctx);
  * It returns 0 if it succeeds, or -1.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_picotls_configure_server_session(
-    ngtcp2_crypto_picotls_ctx *cptls);
+  ngtcp2_crypto_picotls_ctx *cptls);
 
 /**
  * @function
@@ -224,8 +224,8 @@ ngtcp2_crypto_picotls_deconfigure_session(ngtcp2_crypto_picotls_ctx *cptls);
  * :macro:`NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1`.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_picotls_collect_extension(
-    ptls_t *ptls, struct st_ptls_handshake_properties_t *properties,
-    uint16_t type);
+  ptls_t *ptls, struct st_ptls_handshake_properties_t *properties,
+  uint16_t type);
 
 /**
  * @function
@@ -236,11 +236,11 @@ NGTCP2_EXTERN int ngtcp2_crypto_picotls_collect_extension(
  * extensions are ignored.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_picotls_collected_extensions(
-    ptls_t *ptls, struct st_ptls_handshake_properties_t *properties,
-    ptls_raw_extension_t *extensions);
+  ptls_t *ptls, struct st_ptls_handshake_properties_t *properties,
+  ptls_raw_extension_t *extensions);
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* defined(__cplusplus) */
 
-#endif /* NGTCP2_CRYPTO_PICOTLS_H */
+#endif /* !defined(NGTCP2_CRYPTO_PICOTLS_H) */

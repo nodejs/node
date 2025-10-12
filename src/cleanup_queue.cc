@@ -13,13 +13,13 @@ std::vector<CleanupQueue::CleanupHookCallback> CleanupQueue::GetOrdered()
   // We can't erase the copied elements from `cleanup_hooks_` yet, because we
   // need to be able to check whether they were un-scheduled by another hook.
 
-  std::sort(callbacks.begin(),
-            callbacks.end(),
-            [](const CleanupHookCallback& a, const CleanupHookCallback& b) {
-              // Sort in descending order so that the most recently inserted
-              // callbacks are run first.
-              return a.insertion_order_counter_ > b.insertion_order_counter_;
-            });
+  std::ranges::sort(
+      callbacks,
+      [](const CleanupHookCallback& a, const CleanupHookCallback& b) {
+        // Sort in descending order so that the most recently inserted
+        // callbacks are run first.
+        return a.insertion_order_counter_ > b.insertion_order_counter_;
+      });
 
   return callbacks;
 }

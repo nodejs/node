@@ -9,17 +9,19 @@
 #include <stdint.h>
 
 #include <cmath>
+#include <optional>
 
 #include "src/ast/ast-value-factory.h"
 #include "src/base/strings.h"
+#include "src/base/vlq-base64.h"
 #include "src/numbers/conversions-inl.h"
+#include "src/numbers/conversions.h"
 #include "src/objects/bigint.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/scanner-inl.h"
 #include "src/zone/zone.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class Scanner::ErrorState {
  public:
@@ -166,6 +168,7 @@ Token::Value Scanner::Next() {
   // clear its token to indicate that it wasn't scanned yet. Otherwise we use
   // current_ as next_ and scan into it, leaving next_next_ uninitialized.
   if (V8_LIKELY(next_next().token == Token::kUninitialized)) {
+    DCHECK(next_next_next().token == Token::kUninitialized);
     next_ = previous;
     // User 'previous' instead of 'next_' because for some reason the compiler
     // thinks 'next_' could be modified before the entry into Scan.
@@ -173,7 +176,14 @@ Token::Value Scanner::Next() {
     Scan(previous);
   } else {
     next_ = next_next_;
-    next_next_ = previous;
+
+    if (V8_LIKELY(next_next_next().token == Token::kUninitialized)) {
+      next_next_ = previous;
+    } else {
+      next_next_ = next_next_next_;
+      next_next_next_ = previous;
+    }
+
     previous->token = Token::kUninitialized;
     DCHECK_NE(Token::kUninitialized, current().token);
   }
@@ -194,6 +204,23 @@ Token::Value Scanner::PeekAhead() {
   next_next_ = next_;
   next_ = temp;
   return next_next().token;
+}
+
+Token::Value Scanner::PeekAheadAhead() {
+  if (next_next_next().token != Token::kUninitialized) {
+    return next_next_next().token;
+  }
+  // PeekAhead() must be called first in order to call PeekAheadAhead().
+  DCHECK(next_next().token != Token::kUninitialized);
+  TokenDesc* temp = next_;
+  TokenDesc* temp_next = next_next_;
+  next_ = next_next_next_;
+  next().after_line_terminator = false;
+  Scan();
+  next_next_next_ = next_;
+  next_next_ = temp_next;
+  next_ = temp;
+  return next_next_next().token;
 }
 
 Token::Value Scanner::SkipSingleHTMLComment() {
@@ -223,6 +250,32 @@ Token::Value Scanner::SkipMagicComment(base::uc32 hash_or_at_sign) {
   return SkipSingleLineComment();
 }
 
+namespace {
+
+void ProcessPerFunctionCompileHints(const base::Vector<const uint8_t>& data,
+                                    int current_position,
+                                    std::vector<int>& positions) {
+  // Compile hints are relative to the position of the comment end.
+  int last_position = current_position;
+  size_t pos = 0;
+  const char* char_data = reinterpret_cast<const char*>(data.data());
+  while (pos < static_cast<size_t>(data.length())) {
+    int32_t delta = base::VLQBase64Decode(char_data, data.length(), &pos);
+    if (delta == std::numeric_limits<int32_t>::min()) {
+      // Invalid data, bail out and clear the data we read so far. (Not using
+      // the data until the invalid portion is consistent with 2-byte data not
+      // being handled at all.)
+      positions.clear();
+      return;
+    }
+    last_position += delta;
+    positions.push_back(last_position);
+  }
+  positions.shrink_to_fit();
+}
+
+}  // namespace
+
 void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   // Magic comments are of the form: //[#@]\s<name>=\s*<value>\s*.* and this
   // function will just return if it cannot parse a magic comment.
@@ -240,16 +293,25 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   if (!name.is_one_byte()) return;
   base::Vector<const uint8_t> name_literal = name.one_byte_literal();
   LiteralBuffer* value;
-  LiteralBuffer compile_hints_value;
+  LiteralBuffer per_function_compile_hints_value;
   if (name_literal == base::StaticOneByteVector("sourceURL")) {
     value = &source_url_;
   } else if (name_literal == base::StaticOneByteVector("sourceMappingURL")) {
     value = &source_mapping_url_;
     DCHECK(hash_or_at_sign == '#' || hash_or_at_sign == '@');
     saw_source_mapping_url_magic_comment_at_sign_ = hash_or_at_sign == '@';
+  } else if (!saw_non_comment_ &&
+             name_literal ==
+                 base::StaticOneByteVector("allFunctionsCalledOnLoad") &&
+             hash_or_at_sign == '#' && c0_ != '=') {
+    saw_magic_comment_compile_hints_all_ = true;
   } else if (name_literal ==
-             base::StaticOneByteVector("experimentalChromiumCompileHints")) {
-    value = &compile_hints_value;
+                 base::StaticOneByteVector("functionsCalledOnLoad") &&
+             hash_or_at_sign == '#') {
+    value = &per_function_compile_hints_value;
+  } else if (name_literal == base::StaticOneByteVector("debugId") &&
+             hash_or_at_sign == '#') {
+    value = &debug_id_;
   } else {
     return;
   }
@@ -275,13 +337,37 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
     }
     Advance();
   }
-  if (value == &compile_hints_value) {
+  if (value == &per_function_compile_hints_value &&
+      per_function_compile_hints_value.is_one_byte()) {
     base::Vector<const uint8_t> value_literal =
-        compile_hints_value.one_byte_literal();
-    if (value_literal == base::StaticOneByteVector("all")) {
-      saw_magic_comment_compile_hints_all_ = true;
-    }
+        per_function_compile_hints_value.one_byte_literal();
+    per_function_compile_hint_positions_.clear();
+    per_function_compile_hint_positions_idx_ = 0;
+    ProcessPerFunctionCompileHints(value_literal, source_pos(),
+                                   per_function_compile_hint_positions_);
   }
+}
+
+bool Scanner::HasPerFunctionCompileHint(int position) {
+  // Allow off-by-<slack> in the compile hints positions, to account for adding
+  // newlines at the end of the comment, function positions being off-by-one,
+  // etc.
+  const int kSlack = 3;
+  while (per_function_compile_hint_positions_idx_ <
+             per_function_compile_hint_positions_.size() &&
+         per_function_compile_hint_positions_
+                 [per_function_compile_hint_positions_idx_] <
+             position - kSlack) {
+    ++per_function_compile_hint_positions_idx_;
+  }
+  if (per_function_compile_hint_positions_idx_ >=
+      per_function_compile_hint_positions_.size()) {
+    return false;
+  }
+  int hint_position = per_function_compile_hint_positions_
+      [per_function_compile_hint_positions_idx_];
+  return hint_position >= position - kSlack &&
+         hint_position <= position + kSlack;
 }
 
 Token::Value Scanner::SkipMultiLineComment() {
@@ -345,7 +431,7 @@ Token::Value Scanner::ScanHtmlComment() {
 
 #ifdef DEBUG
 void Scanner::SanityCheckTokenDesc(const TokenDesc& token) const {
-  // Only TEMPLATE_* tokens can have a invalid_template_escape_message.
+  // Only TEMPLATE_* tokens can have an invalid_template_escape_message.
   // kIllegal and kUninitialized can have garbage for the field.
 
   switch (token.token) {
@@ -426,7 +512,7 @@ bool Scanner::ScanEscape() {
     case '8':
     case '9':
       // '\8' and '\9' are disallowed in strict mode.
-      // Re-use the octal error state to propagate the error.
+      // Reuse the octal error state to propagate the error.
       octal_pos_ = Location(source_pos() - 2, source_pos() - 1);
       octal_message_ = capture_raw ? MessageTemplate::kTemplate8Or9Escape
                                    : MessageTemplate::kStrict8Or9Escape;
@@ -603,28 +689,41 @@ Token::Value Scanner::ScanTemplateSpan() {
 }
 
 template <typename IsolateT>
-Handle<String> Scanner::SourceUrl(IsolateT* isolate) const {
-  Handle<String> tmp;
+DirectHandle<String> Scanner::SourceUrl(IsolateT* isolate) const {
+  DirectHandle<String> tmp;
   if (source_url_.length() > 0) {
     tmp = source_url_.Internalize(isolate);
   }
   return tmp;
 }
 
-template Handle<String> Scanner::SourceUrl(Isolate* isolate) const;
-template Handle<String> Scanner::SourceUrl(LocalIsolate* isolate) const;
+template DirectHandle<String> Scanner::SourceUrl(Isolate* isolate) const;
+template DirectHandle<String> Scanner::SourceUrl(LocalIsolate* isolate) const;
 
 template <typename IsolateT>
-Handle<String> Scanner::SourceMappingUrl(IsolateT* isolate) const {
-  Handle<String> tmp;
+DirectHandle<String> Scanner::SourceMappingUrl(IsolateT* isolate) const {
+  DirectHandle<String> tmp;
   if (source_mapping_url_.length() > 0) {
     tmp = source_mapping_url_.Internalize(isolate);
   }
   return tmp;
 }
 
-template Handle<String> Scanner::SourceMappingUrl(Isolate* isolate) const;
-template Handle<String> Scanner::SourceMappingUrl(LocalIsolate* isolate) const;
+template DirectHandle<String> Scanner::SourceMappingUrl(Isolate* isolate) const;
+template DirectHandle<String> Scanner::SourceMappingUrl(
+    LocalIsolate* isolate) const;
+
+template <typename IsolateT>
+DirectHandle<String> Scanner::DebugId(IsolateT* isolate) const {
+  DirectHandle<String> tmp;
+  if (debug_id_.length() > 0) {
+    tmp = debug_id_.Internalize(isolate);
+  }
+  return tmp;
+}
+
+template DirectHandle<String> Scanner::DebugId(Isolate* isolate) const;
+template DirectHandle<String> Scanner::DebugId(LocalIsolate* isolate) const;
 
 bool Scanner::ScanDigitsWithNumericSeparators(bool (*predicate)(base::uc32 ch),
                                               bool is_check_first_digit) {
@@ -724,7 +823,7 @@ bool Scanner::ScanOctalDigits() {
 
 bool Scanner::ScanImplicitOctalDigits(int start_pos,
                                       Scanner::NumberKind* kind) {
-  *kind = IMPLICIT_OCTAL;
+  DCHECK_EQ(*kind, IMPLICIT_OCTAL);
 
   while (true) {
     // (possible) octal number
@@ -818,7 +917,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
         if (next().literal_chars.one_byte_literal().length() <= 10 &&
             value <= Smi::kMaxValue && c0_ != '.' && !IsIdentifierStart(c0_)) {
-          next().smi_value_ = static_cast<uint32_t>(value);
+          next().smi_value = static_cast<uint32_t>(value);
 
           if (kind == DECIMAL_WITH_LEADING_ZERO) {
             octal_pos_ = Location(start_pos, source_pos());
@@ -859,7 +958,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     Advance();
   } else if (AsciiAlphaToLower(c0_) == 'e') {
     // scan exponent, if any
-    DCHECK(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
+    DCHECK_NE(kind, HEX);  // 'e'/'E' must be scanned as part of the hex number
 
     if (!IsDecimalNumberKind(kind)) return Token::kIllegal;
 
@@ -882,6 +981,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     octal_message_ = MessageTemplate::kStrictDecimalWithLeadingZero;
   }
 
+  next().number_kind = kind;
   return is_bigint ? Token::kBigInt : Token::kNumber;
 }
 
@@ -1004,13 +1104,13 @@ bool Scanner::ScanRegExpPattern() {
   return true;
 }
 
-base::Optional<RegExpFlags> Scanner::ScanRegExpFlags() {
+std::optional<RegExpFlags> Scanner::ScanRegExpFlags() {
   DCHECK_EQ(Token::kRegExpLiteral, next().token);
 
   RegExpFlags flags;
   next().literal_chars.Start();
   while (IsIdentifierPart(c0_)) {
-    base::Optional<RegExpFlag> maybe_flag = JSRegExp::FlagFromChar(c0_);
+    std::optional<RegExpFlag> maybe_flag = JSRegExp::FlagFromChar(c0_);
     if (!maybe_flag.has_value()) return {};
     RegExpFlag flag = maybe_flag.value();
     if (flags & flag) return {};
@@ -1049,9 +1149,19 @@ const AstRawString* Scanner::CurrentRawSymbol(
 
 double Scanner::DoubleValue() {
   DCHECK(is_literal_one_byte());
-  return StringToDouble(
-      literal_one_byte_string(),
-      ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
+  switch (current().number_kind) {
+    case IMPLICIT_OCTAL:
+      return ImplicitOctalStringToDouble(literal_one_byte_string());
+    case BINARY:
+      return BinaryStringToDouble(literal_one_byte_string());
+    case OCTAL:
+      return OctalStringToDouble(literal_one_byte_string());
+    case HEX:
+      return HexStringToDouble(literal_one_byte_string());
+    case DECIMAL:
+    case DECIMAL_WITH_LEADING_ZERO:
+      return StringToDouble(literal_one_byte_string(), NO_CONVERSION_FLAG);
+  }
 }
 
 const char* Scanner::CurrentLiteralAsCString(Zone* zone) const {
@@ -1085,5 +1195,4 @@ void Scanner::SeekNext(size_t position) {
   DCHECK_EQ(next().location.beg_pos, static_cast<int>(position));
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

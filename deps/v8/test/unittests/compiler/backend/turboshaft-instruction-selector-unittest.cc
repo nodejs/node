@@ -7,8 +7,8 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/compiler-source-position-table.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -19,8 +19,7 @@
 namespace v8::internal::compiler::turboshaft {
 
 TurboshaftInstructionSelectorTest::TurboshaftInstructionSelectorTest()
-    : TestWithNativeContextAndZone(kCompressGraphZone),
-      rng_(v8_flags.random_seed) {}
+    : rng_(v8_flags.random_seed) {}
 
 TurboshaftInstructionSelectorTest::~TurboshaftInstructionSelectorTest() =
     default;
@@ -34,7 +33,7 @@ TurboshaftInstructionSelectorTest::StreamBuilder::Build(
     StdoutStream{} << "=== Graph before instruction selection ===" << std::endl
                    << output_graph();
   }
-  size_t const node_count = output_graph().number_of_operations();
+  size_t const node_count = output_graph().NumberOfOperationsForDebugging();
   EXPECT_NE(0u, node_count);
   Linkage linkage(call_descriptor());
 
@@ -62,7 +61,9 @@ TurboshaftInstructionSelectorTest::StreamBuilder::Build(
       InstructionSelector::kEnableSwitchJumpTable, &tick_counter, nullptr,
       &max_unoptimized_frame_height, &max_pushed_argument_count,
       source_position_mode, features, InstructionSelector::kDisableScheduling,
-      InstructionSelector::kEnableRootsRelativeAddressing);
+      InstructionSelector::kEnableRootsRelativeAddressing,
+      InstructionSelector::kDisableTraceTurboJson,
+      InstructionSelector::kNoDeterministicNan);
 
   selector.SelectInstructions();
 
@@ -73,6 +74,7 @@ TurboshaftInstructionSelectorTest::StreamBuilder::Build(
   }
   Stream s;
   s.virtual_registers_ = selector.GetVirtualRegistersForTesting();
+  s.instruction_blocks_ = instruction_blocks;
   // Map virtual registers.
   for (Instruction* const instr : sequence) {
     if (instr->opcode() < 0) continue;
@@ -168,10 +170,11 @@ bool TurboshaftInstructionSelectorTest::Stream::IsUsedAtStart(
 
 const FrameStateFunctionInfo*
 TurboshaftInstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
-    int parameter_count, int local_count) {
+    uint16_t parameter_count, int local_count) {
+  const uint16_t max_arguments = 0;
   return test_->zone()->New<FrameStateFunctionInfo>(
-      FrameStateType::kUnoptimizedFunction, parameter_count, local_count,
-      Handle<SharedFunctionInfo>());
+      FrameStateType::kUnoptimizedFunction, parameter_count, max_arguments,
+      local_count, Handle<SharedFunctionInfo>(), Handle<BytecodeArray>());
 }
 
 // -----------------------------------------------------------------------------

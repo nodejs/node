@@ -4,8 +4,6 @@
 
 #include "src/compiler/turboshaft/use-map.h"
 
-#include "src/compiler/turboshaft/graph.h"
-
 namespace v8::internal::compiler::turboshaft {
 
 UseMap::UseMap(const Graph& graph, Zone* zone, FunctionType filter)
@@ -41,7 +39,7 @@ UseMap::UseMap(const Graph& graph, Zone* zone, FunctionType filter)
         uses_.resize(offset);
       }
 
-      if (filter(op, zone)) continue;
+      if (filter(graph, op, zone)) continue;
 
       if (block.IsLoop()) {
         if (op.Is<PhiOp>()) {

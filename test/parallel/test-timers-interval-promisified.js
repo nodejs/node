@@ -14,8 +14,6 @@ const setPromiseTimeout = promisify(timers.setTimeout);
 
 const { setInterval } = timerPromises;
 
-process.on('multipleResolves', common.mustNotCall());
-
 {
   const iterable = setInterval(1, undefined);
   const iterator = iterable[Symbol.asyncIterator]();

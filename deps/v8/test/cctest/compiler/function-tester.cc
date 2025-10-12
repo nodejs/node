@@ -29,7 +29,7 @@ FunctionTester::FunctionTester(const char* source, uint32_t flags)
   CHECK_EQ(0u, flags_ & ~supported_flags);
 }
 
-FunctionTester::FunctionTester(Handle<Code> code, int param_count)
+FunctionTester::FunctionTester(DirectHandle<Code> code, int param_count)
     : isolate(main_isolate()),
       function((v8_flags.allow_natives_syntax = true,
                 NewFunction(BuildFunction(param_count).c_str()))),
@@ -37,14 +37,15 @@ FunctionTester::FunctionTester(Handle<Code> code, int param_count)
   CHECK(!code.is_null());
   CHECK(IsCode(*code));
   Compile(function);
-  function->set_code(*code, kReleaseStore);
+  function->UpdateCode(isolate, *code);
 }
 
-FunctionTester::FunctionTester(Handle<Code> code) : FunctionTester(code, 0) {}
+FunctionTester::FunctionTester(DirectHandle<Code> code)
+    : FunctionTester(code, 0) {}
 
 void FunctionTester::CheckThrows(Handle<Object> a) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  MaybeHandle<Object> no_result = Call(a);
+  MaybeDirectHandle<Object> no_result = Call(a);
   CHECK(isolate->has_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());
@@ -52,7 +53,7 @@ void FunctionTester::CheckThrows(Handle<Object> a) {
 
 void FunctionTester::CheckThrows(Handle<Object> a, Handle<Object> b) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  MaybeHandle<Object> no_result = Call(a, b);
+  MaybeDirectHandle<Object> no_result = Call(a, b);
   CHECK(isolate->has_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());
@@ -61,7 +62,7 @@ void FunctionTester::CheckThrows(Handle<Object> a, Handle<Object> b) {
 v8::Local<v8::Message> FunctionTester::CheckThrowsReturnMessage(
     Handle<Object> a, Handle<Object> b) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  MaybeHandle<Object> no_result = Call(a, b);
+  MaybeDirectHandle<Object> no_result = Call(a, b);
   CHECK(isolate->has_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());
@@ -69,20 +70,20 @@ v8::Local<v8::Message> FunctionTester::CheckThrowsReturnMessage(
   return try_catch.Message();
 }
 
-void FunctionTester::CheckCall(Handle<Object> expected, Handle<Object> a,
+void FunctionTester::CheckCall(DirectHandle<Object> expected, Handle<Object> a,
                                Handle<Object> b, Handle<Object> c,
                                Handle<Object> d) {
-  Handle<Object> result = Call(a, b, c, d).ToHandleChecked();
+  DirectHandle<Object> result = Call(a, b, c, d).ToHandleChecked();
   CHECK(Object::SameValue(*expected, *result));
 }
 
 Handle<JSFunction> FunctionTester::NewFunction(const char* source) {
-  return Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+  return Cast<JSFunction>(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
 }
 
-Handle<JSObject> FunctionTester::NewObject(const char* source) {
-  return Handle<JSObject>::cast(
+DirectHandle<JSObject> FunctionTester::NewObject(const char* source) {
+  return Cast<JSObject>(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(CompileRun(source))));
 }
 
@@ -94,19 +95,23 @@ Handle<Object> FunctionTester::Val(double value) {
   return isolate->factory()->NewNumber(value);
 }
 
-Handle<Object> FunctionTester::infinity() {
+DirectHandle<Object> FunctionTester::infinity() {
   return isolate->factory()->infinity_value();
 }
 
-Handle<Object> FunctionTester::minus_infinity() { return Val(-V8_INFINITY); }
+DirectHandle<Object> FunctionTester::minus_infinity() {
+  return Val(-V8_INFINITY);
+}
 
-Handle<Object> FunctionTester::nan() { return isolate->factory()->nan_value(); }
+DirectHandle<Object> FunctionTester::nan() {
+  return isolate->factory()->nan_value();
+}
 
 Handle<Object> FunctionTester::undefined() {
   return isolate->factory()->undefined_value();
 }
 
-Handle<Object> FunctionTester::null() {
+DirectHandle<Object> FunctionTester::null() {
   return isolate->factory()->null_value();
 }
 

@@ -13,9 +13,11 @@
 
 namespace v8::internal {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 TNode<WasmTrustedInstanceData>
 WasmBuiltinsAssembler::LoadInstanceDataFromFrame() {
-  return CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
+  return CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
 }
 
 TNode<WasmTrustedInstanceData>
@@ -28,32 +30,32 @@ WasmBuiltinsAssembler::LoadTrustedDataFromInstance(
 
 TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   static_assert(BuiltinFrameConstants::kFunctionOffset ==
-                WasmFrameConstants::kWasmInstanceOffset);
+                WasmFrameConstants::kWasmInstanceDataOffset);
   TVARIABLE(NativeContext, context_result);
   TNode<HeapObject> function_or_instance =
-      CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
-  Label js(this);
-  Label apifunc(this);
+      CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
+  Label is_js_function(this);
+  Label is_import_data(this);
   Label done(this);
   TNode<Uint16T> instance_type =
       LoadMapInstanceType(LoadMap(function_or_instance));
-  GotoIf(IsJSFunctionInstanceType(instance_type), &js);
-  GotoIf(Word32Equal(instance_type, Int32Constant(WASM_API_FUNCTION_REF_TYPE)),
-         &apifunc);
+  GotoIf(IsJSFunctionInstanceType(instance_type), &is_js_function);
+  GotoIf(Word32Equal(instance_type, Int32Constant(WASM_IMPORT_DATA_TYPE)),
+         &is_import_data);
   context_result = LoadContextFromInstanceData(CAST(function_or_instance));
   Goto(&done);
 
-  BIND(&js);
+  BIND(&is_js_function);
   TNode<JSFunction> function = CAST(function_or_instance);
   TNode<Context> context =
       LoadObjectField<Context>(function, JSFunction::kContextOffset);
   context_result = LoadNativeContext(context);
   Goto(&done);
 
-  BIND(&apifunc);
-  TNode<WasmApiFunctionRef> apiref = CAST(function_or_instance);
+  BIND(&is_import_data);
+  TNode<WasmImportData> import_data = CAST(function_or_instance);
   context_result = LoadObjectField<NativeContext>(
-      apiref, WasmApiFunctionRef::kNativeContextOffset);
+      import_data, WasmImportData::kNativeContextOffset);
   Goto(&done);
 
   BIND(&done);
@@ -66,6 +68,15 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromInstanceData(
       Load(MachineType::AnyTagged(), trusted_data,
            IntPtrConstant(WasmTrustedInstanceData::kNativeContextOffset -
                           kHeapObjectTag)));
+}
+
+TNode<WasmTrustedInstanceData>
+WasmBuiltinsAssembler::LoadSharedPartFromInstanceData(
+    TNode<WasmTrustedInstanceData> trusted_data) {
+  return CAST(LoadProtectedPointerFromObject(
+      trusted_data,
+      IntPtrConstant(WasmTrustedInstanceData::kProtectedSharedPartOffset -
+                     kHeapObjectTag)));
 }
 
 TNode<FixedArray> WasmBuiltinsAssembler::LoadTablesFromInstanceData(
@@ -114,23 +125,10 @@ TF_BUILTIN(WasmFloat64ToNumber, WasmBuiltinsAssembler) {
 
 TF_BUILTIN(WasmFloat64ToString, WasmBuiltinsAssembler) {
   TNode<Float64T> val = UncheckedParameter<Float64T>(Descriptor::kValue);
-  // Having to allocate a HeapNumber is a bit unfortunate, but the subsequent
-  // runtime call will have to allocate a string anyway, which probably
-  // dwarfs the cost of one more small allocation here.
-  TNode<Number> tagged = ChangeFloat64ToTagged(val);
-  Return(NumberToString(tagged));
+  Return(Float64ToString(val));
 }
 
 TF_BUILTIN(JSToWasmLazyDeoptContinuation, WasmBuiltinsAssembler) {
-  // Reset thread_in_wasm_flag.
-  TNode<ExternalReference> thread_in_wasm_flag_address_address =
-      ExternalConstant(
-          ExternalReference::thread_in_wasm_flag_address_address(isolate()));
-  auto thread_in_wasm_flag_address =
-      Load<RawPtrT>(thread_in_wasm_flag_address_address);
-  StoreNoWriteBarrier(MachineRepresentation::kWord32,
-                      thread_in_wasm_flag_address, Int32Constant(0));
-
   // Return the argument.
   auto value = Parameter<Object>(Descriptor::kArgument);
   Return(value);
@@ -138,19 +136,52 @@ TF_BUILTIN(JSToWasmLazyDeoptContinuation, WasmBuiltinsAssembler) {
 
 TF_BUILTIN(WasmToJsWrapperCSA, WasmBuiltinsAssembler) {
   TorqueStructWasmToJSResult result = WasmToJSWrapper(
-      UncheckedParameter<WasmApiFunctionRef>(Descriptor::kWasmApiFunctionRef));
+      UncheckedParameter<WasmImportData>(Descriptor::kWasmImportData));
   PopAndReturn(result.popCount, result.result0, result.result1, result.result2,
                result.result3);
 }
 
 TF_BUILTIN(WasmToJsWrapperInvalidSig, WasmBuiltinsAssembler) {
-  TNode<WasmApiFunctionRef> ref =
-      UncheckedParameter<WasmApiFunctionRef>(Descriptor::kWasmApiFunctionRef);
+  TNode<WasmImportData> data =
+      UncheckedParameter<WasmImportData>(Descriptor::kWasmImportData);
   TNode<Context> context =
-      LoadObjectField<Context>(ref, WasmApiFunctionRef::kNativeContextOffset);
+      LoadObjectField<Context>(data, WasmImportData::kNativeContextOffset);
 
   CallRuntime(Runtime::kWasmThrowJSTypeError, context);
   Unreachable();
 }
+
+// Suppose we wanted to generate JavaScript constructor functions that wrap
+// exported Wasm functions as follows:
+//
+//   function MakeConstructor(wasm_instance, name) {
+//     let wasm_func = wasm_instance.exports[name];
+//     return function(...args) {
+//       return wasm_func(...args);
+//     }
+//   }
+//   let Foo = MakeConstructor(...);
+//   let foo = new Foo(1, 2, 3);
+//
+// This builtin models the code that these functions would have: it fetches the
+// target Wasm function from a Context slot and tail-calls to it with the
+// existing arguments on the stack. So when mass-creating such constructors,
+// we don't need to compile any bytecode, we only need to allocate an
+// appropriate Context and use this builtin as the code.
+TF_BUILTIN(WasmConstructorWrapper, WasmBuiltinsAssembler) {
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
+  TNode<Context> context = Parameter<Context>(Descriptor::kContext);
+  static constexpr int kSlot = wasm::kConstructorFunctionContextSlot;
+  TNode<JSFunction> target = CAST(LoadContextElementNoCell(context, kSlot));
+  TailCallBuiltin(Builtin::kCallFunction_ReceiverIsNullOrUndefined, context,
+                  target, argc);
+}
+
+TNode<BoolT> WasmBuiltinsAssembler::InSharedSpace(TNode<HeapObject> object) {
+  TNode<IntPtrT> address = BitcastTaggedToWord(object);
+  return IsPageFlagSet(address, MemoryChunk::kInSharedHeap);
+}
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace v8::internal

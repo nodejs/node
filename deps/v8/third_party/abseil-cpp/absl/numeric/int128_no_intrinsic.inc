@@ -139,26 +139,29 @@ inline int128::operator float() const {
   // complement overwhelms the precision of the mantissa.
   //
   // Also check to make sure we don't negate Int128Min()
+  constexpr float pow_2_64 = 18446744073709551616.0f;
   return hi_ < 0 && *this != Int128Min()
              ? -static_cast<float>(-*this)
              : static_cast<float>(lo_) +
-                   std::ldexp(static_cast<float>(hi_), 64);
+                   static_cast<float>(hi_) * pow_2_64;
 }
 
 inline int128::operator double() const {
   // See comment in int128::operator float() above.
+  constexpr double pow_2_64 = 18446744073709551616.0;
   return hi_ < 0 && *this != Int128Min()
              ? -static_cast<double>(-*this)
              : static_cast<double>(lo_) +
-                   std::ldexp(static_cast<double>(hi_), 64);
+                   static_cast<double>(hi_) * pow_2_64;
 }
 
 inline int128::operator long double() const {
   // See comment in int128::operator float() above.
+  constexpr long double pow_2_64 = 18446744073709551616.0L;
   return hi_ < 0 && *this != Int128Min()
              ? -static_cast<long double>(-*this)
              : static_cast<long double>(lo_) +
-                   std::ldexp(static_cast<long double>(hi_), 64);
+                   static_cast<long double>(hi_) * pow_2_64;
 }
 
 // Comparison operators.
@@ -185,6 +188,24 @@ constexpr bool operator>(int128 lhs, int128 rhs) {
 constexpr bool operator<=(int128 lhs, int128 rhs) { return !(lhs > rhs); }
 
 constexpr bool operator>=(int128 lhs, int128 rhs) { return !(lhs < rhs); }
+
+#ifdef __cpp_impl_three_way_comparison
+constexpr absl::strong_ordering operator<=>(int128 lhs, int128 rhs) {
+  if (int64_t lhs_high = Int128High64(lhs), rhs_high = Int128High64(rhs);
+      lhs_high < rhs_high) {
+    return absl::strong_ordering::less;
+  } else if (lhs_high > rhs_high) {
+    return absl::strong_ordering::greater;
+  } else if (uint64_t lhs_low = Uint128Low64(lhs), rhs_low = Uint128Low64(rhs);
+             lhs_low < rhs_low) {
+    return absl::strong_ordering::less;
+  } else if (lhs_low > rhs_low) {
+    return absl::strong_ordering::greater;
+  } else {
+    return absl::strong_ordering::equal;
+  }
+}
+#endif
 
 // Unary operators.
 

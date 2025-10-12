@@ -67,6 +67,9 @@
 /* Define to 1 if you have the connect function. */
 #cmakedefine HAVE_CONNECT 1
 
+/* Define to 1 if you have the connectx function. */
+#cmakedefine HAVE_CONNECTX 1
+
 /* define if the compiler supports basic C++11 syntax */
 #cmakedefine HAVE_CXX11 1
 
@@ -78,6 +81,9 @@
 
 /* Define to 1 if you have the <poll.h> header file. */
 #cmakedefine HAVE_POLL_H 1
+
+/* Define to 1 if you have the memmem function. */
+#cmakedefine HAVE_MEMMEM 1
 
 /* Define to 1 if you have the poll function. */
 #cmakedefine HAVE_POLL 1
@@ -139,11 +145,20 @@
 /* Define to 1 if you have the `if_nametoindex' function. */
 #cmakedefine HAVE_IF_NAMETOINDEX 1
 
+/* Define to 1 if you have the `GetBestRoute2' function. */
+#cmakedefine HAVE_GETBESTROUTE2 1
+
 /* Define to 1 if you have the `ConvertInterfaceIndexToLuid' function. */
 #cmakedefine HAVE_CONVERTINTERFACEINDEXTOLUID 1
 
 /* Define to 1 if you have the `ConvertInterfaceLuidToNameA' function. */
 #cmakedefine HAVE_CONVERTINTERFACELUIDTONAMEA 1
+
+/* Define to 1 if you have the `NotifyIpInterfaceChange' function. */
+#cmakedefine HAVE_NOTIFYIPINTERFACECHANGE 1
+
+/* Define to 1 if you have the `RegisterWaitForSingleObject' function. */
+#cmakedefine HAVE_REGISTERWAITFORSINGLEOBJECT 1
 
 /* Define to 1 if you have a IPv6 capable working inet_net_pton function. */
 #cmakedefine HAVE_INET_NET_PTON 1
@@ -233,6 +248,9 @@
 /* Define to 1 if you have the send function. */
 #cmakedefine HAVE_SEND 1
 
+/* Define to 1 if you have the sendto function. */
+#cmakedefine HAVE_SENDTO 1
+
 /* Define to 1 if you have the setsockopt function. */
 #cmakedefine HAVE_SETSOCKOPT 1
 
@@ -241,6 +259,9 @@
 
 /* Define to 1 if you have the <signal.h> header file. */
 #cmakedefine HAVE_SIGNAL_H 1
+
+/* Define to 1 if you have the strnlen function. */
+#cmakedefine HAVE_STRNLEN 1
 
 /* Define to 1 if your struct sockaddr_in6 has sin6_scope_id. */
 #cmakedefine HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID 1

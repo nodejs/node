@@ -39,12 +39,12 @@ section of your executable or of your library.<br>
 Here is a short CMakeLists.txt example of an application project using Abseil.
 
 ```cmake
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 project(my_app_project)
 
 # Pick the C++ standard to compile with.
-# Abseil currently supports C++14, C++17, and C++20.
-set(CMAKE_CXX_STANDARD 14)
+# Abseil currently supports C++17 and C++20.
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_subdirectory(abseil-cpp)
@@ -62,7 +62,7 @@ will control Abseil library targets) is set to at least that minimum. For
 example:
 
 ```cmake
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 project(my_lib_project)
 
 # Leave C++ standard up to the root application, so set it only if this is the

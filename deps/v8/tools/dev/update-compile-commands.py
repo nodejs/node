@@ -25,8 +25,8 @@ PYLIB_CHECK = os.path.join(PYLIB_PATH, 'clang', 'compile_db.py')
 GM_CHECK = os.path.join(GM_PATH, 'gm.py')
 def CheckRelativeImport(path):
   if not os.path.exists(path):
-    print(f"Error: Please run this script from the root of a V8 checkout. "
-          "{path} must be a valid relative path.")
+    print("Error: Please run this script from the root of a V8 checkout. "
+          f"{path} must be a valid relative path.")
     sys.exit(1)
 CheckRelativeImport(PYLIB_CHECK)
 CheckRelativeImport(GM_CHECK)
@@ -60,7 +60,7 @@ def PrepareBuildDir(arch, mode):
     code = _Call(f"gn gen {build_dir}")
     if code != 0: raise Exception("gn gen failed")
   else:
-    _Call(f"ninja -C {build_dir} build.ninja")
+    _Call(f"autoninja -C {build_dir} build.ninja")
   return build_dir
 
 def AddTargetsForArch(arch, combined):

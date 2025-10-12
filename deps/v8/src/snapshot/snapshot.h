@@ -82,8 +82,8 @@ class Snapshot : public AllStatic {
   static bool Initialize(Isolate* isolate);
 
   // Create a new context using the internal context snapshot.
-  static MaybeHandle<Context> NewContextFromSnapshot(
-      Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
+  static MaybeDirectHandle<Context> NewContextFromSnapshot(
+      Isolate* isolate, DirectHandle<JSGlobalProxy> global_proxy,
       size_t context_index,
       DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
@@ -94,7 +94,7 @@ class Snapshot : public AllStatic {
   // a new isolate and context, and finally runs VerifyHeap on the fresh
   // isolate.
   V8_EXPORT_PRIVATE static void SerializeDeserializeAndVerifyForTesting(
-      Isolate* isolate, Handle<Context> default_context);
+      Isolate* isolate, DirectHandle<Context> default_context);
 
   // ---------------- Helper methods ------------------------------------------
 
@@ -168,12 +168,12 @@ class SnapshotCreatorImpl final {
 
   Isolate* isolate() const { return isolate_; }
 
-  void SetDefaultContext(Handle<NativeContext> context,
+  void SetDefaultContext(DirectHandle<NativeContext> context,
                          SerializeEmbedderFieldsCallback callback);
-  size_t AddContext(Handle<NativeContext> context,
+  size_t AddContext(DirectHandle<NativeContext> context,
                     SerializeEmbedderFieldsCallback callback);
 
-  size_t AddData(Handle<NativeContext> context, Address object);
+  size_t AddData(DirectHandle<NativeContext> context, Address object);
   size_t AddData(Address object);
 
   StartupData CreateBlob(
@@ -199,7 +199,7 @@ class SnapshotCreatorImpl final {
 
   void InitInternal(const StartupData*);
 
-  Handle<NativeContext> context_at(size_t i) const;
+  DirectHandle<NativeContext> context_at(size_t i) const;
   bool created() const { return contexts_.size() == 0; }
 
   const bool owns_isolate_;

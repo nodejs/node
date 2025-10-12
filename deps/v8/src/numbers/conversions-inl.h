@@ -5,6 +5,9 @@
 #ifndef V8_NUMBERS_CONVERSIONS_INL_H_
 #define V8_NUMBERS_CONVERSIONS_INL_H_
 
+#include "src/numbers/conversions.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <float.h>   // Required for DBL_MAX and on Win32 for finite()
 #include <limits.h>  // Required for INT_MAX etc.
 #include <stdarg.h>
@@ -17,8 +20,8 @@
 #include "src/base/bits.h"
 #include "src/base/numbers/double.h"
 #include "src/base/platform/platform.h"
-#include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi-inl.h"
 
 namespace v8 {
@@ -240,12 +243,12 @@ bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value) {
 
 int32_t NumberToInt32(Tagged<Object> number) {
   if (IsSmi(number)) return Smi::ToInt(number);
-  return DoubleToInt32(HeapNumber::cast(number)->value());
+  return DoubleToInt32(Cast<HeapNumber>(number)->value());
 }
 
 uint32_t NumberToUint32(Tagged<Object> number) {
   if (IsSmi(number)) return Smi::ToInt(number);
-  return DoubleToUint32(HeapNumber::cast(number)->value());
+  return DoubleToUint32(Cast<HeapNumber>(number)->value());
 }
 
 uint32_t PositiveNumberToUint32(Tagged<Object> number) {
@@ -254,7 +257,7 @@ uint32_t PositiveNumberToUint32(Tagged<Object> number) {
     if (value <= 0) return 0;
     return value;
   }
-  double value = HeapNumber::cast(number)->value();
+  double value = Cast<HeapNumber>(number)->value();
   // Catch all values smaller than 1 and use the double-negation trick for NANs.
   if (!(value >= 1)) return 0;
   uint32_t max = std::numeric_limits<uint32_t>::max();
@@ -264,7 +267,7 @@ uint32_t PositiveNumberToUint32(Tagged<Object> number) {
 
 int64_t NumberToInt64(Tagged<Object> number) {
   if (IsSmi(number)) return Smi::ToInt(number);
-  double d = HeapNumber::cast(number)->value();
+  double d = Cast<HeapNumber>(number)->value();
   if (std::isnan(d)) return 0;
   if (d >= static_cast<double>(std::numeric_limits<int64_t>::max())) {
     return std::numeric_limits<int64_t>::max();
@@ -281,7 +284,7 @@ uint64_t PositiveNumberToUint64(Tagged<Object> number) {
     if (value <= 0) return 0;
     return value;
   }
-  double value = HeapNumber::cast(number)->value();
+  double value = Cast<HeapNumber>(number)->value();
   // Catch all values smaller than 1 and use the double-negation trick for NANs.
   if (!(value >= 1)) return 0;
   uint64_t max = std::numeric_limits<uint64_t>::max();
@@ -302,14 +305,20 @@ bool TryNumberToSize(Tagged<Object> number, size_t* result) {
     }
     return false;
   } else {
-    double value = HeapNumber::cast(number)->value();
+    double value = Cast<HeapNumber>(number)->value();
     // If value is compared directly to the limit, the limit will be
     // casted to a double and could end up as limit + 1,
     // because a double might not have enough mantissa bits for it.
     // So we might as well cast the limit first, and use < instead of <=.
     double maxSize = static_cast<double>(std::numeric_limits<size_t>::max());
     if (value >= 0 && value < maxSize) {
-      *result = static_cast<size_t>(value);
+      size_t size = static_cast<size_t>(value);
+#ifdef V8_ENABLE_SANDBOX
+      if (size > kMaxSafeBufferSizeForSandbox) {
+        return false;
+      }
+#endif
+      *result = size;
       return true;
     } else {
       return false;

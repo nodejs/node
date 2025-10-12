@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_BYTECODE_ANALYSIS_H_
 #define V8_COMPILER_BYTECODE_ANALYSIS_H_
 
+#include <optional>
+
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-register.h"
@@ -34,8 +36,8 @@ class V8_EXPORT_PRIVATE BytecodeLoopAssignments {
   int local_count() const { return bit_vector_->length() - parameter_count_; }
 
  private:
-  int const parameter_count_;
-  BitVector* const bit_vector_;
+  int parameter_count_;
+  BitVector* bit_vector_;
 };
 
 // Jump targets for resuming a suspended generator.
@@ -73,6 +75,11 @@ struct V8_EXPORT_PRIVATE LoopInfo {
         loop_end_(loop_end),
         assignments_(parameter_count, register_count, zone),
         resume_jump_targets_(zone) {}
+  LoopInfo(const LoopInfo&) V8_NOEXCEPT = default;
+  LoopInfo(LoopInfo&&) V8_NOEXCEPT = default;
+  LoopInfo& operator=(const LoopInfo&) V8_NOEXCEPT = default;
+  LoopInfo& operator=(LoopInfo&&) V8_NOEXCEPT = default;
+  ~LoopInfo() = default;
 
   int parent_offset() const { return parent_offset_; }
   int loop_start() const { return loop_start_; }
@@ -81,8 +88,6 @@ struct V8_EXPORT_PRIVATE LoopInfo {
   void mark_resumable() { resumable_ = true; }
   bool innermost() const { return innermost_; }
   void mark_not_innermost() { innermost_ = false; }
-  bool trivial() const { return trivial_; }
-  void mark_non_trivial() { trivial_ = false; }
 
   bool Contains(int offset) const {
     return offset >= loop_start_ && offset < loop_end_;
@@ -105,7 +110,6 @@ struct V8_EXPORT_PRIVATE LoopInfo {
   int loop_end_;
   bool resumable_ = false;
   bool innermost_ = true;
-  bool trivial_ = true;
   BytecodeLoopAssignments assignments_;
   ZoneVector<ResumeJumpTarget> resume_jump_targets_;
 };
@@ -134,7 +138,9 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
   // null if there isn't any.
   const LoopInfo* TryGetLoopInfoFor(int header_offset) const;
 
-  const ZoneMap<int, LoopInfo>& GetLoopInfos() const { return header_to_info_; }
+  const base::Vector<const LoopInfo>& GetLoopInfos() const {
+    return loop_infos_;
+  }
 
   // Get the top-level resume jump targets.
   const ZoneVector<ResumeJumpTarget>& resume_jump_targets() const {
@@ -163,26 +169,6 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
   int bytecode_count() const { return bytecode_count_; }
 
  private:
-  struct LoopStackEntry {
-    int header_offset;
-    LoopInfo* loop_info;
-  };
-
-  void Analyze();
-  void PushLoop(int loop_header, int loop_end);
-
-#if DEBUG
-  bool ResumeJumpTargetsAreValid();
-  bool ResumeJumpTargetLeavesResolveSuspendIds(
-      int parent_offset,
-      const ZoneVector<ResumeJumpTarget>& resume_jump_targets,
-      std::map<int, int>* unresolved_suspend_ids);
-
-  bool LivenessIsValid();
-#endif
-
-  Zone* zone() const { return zone_; }
-  Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
   BytecodeLivenessMap& liveness_map() {
     DCHECK(analyze_liveness_);
     return *liveness_map_;
@@ -192,20 +178,18 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
     return *liveness_map_;
   }
 
-  std::ostream& PrintLivenessTo(std::ostream& os) const;
-
-  Handle<BytecodeArray> const bytecode_array_;
-  Zone* const zone_;
   BytecodeOffset const osr_bailout_id_;
   bool const analyze_liveness_;
-  ZoneStack<LoopStackEntry> loop_stack_;
-  ZoneVector<int> loop_end_index_queue_;
   ZoneVector<ResumeJumpTarget> resume_jump_targets_;
   ZoneMap<int, int> end_to_header_;
-  ZoneMap<int, LoopInfo> header_to_info_;
+  // Sorted vector of LoopInfos, in order of loop header offset.
+  base::Vector<const LoopInfo> loop_infos_;
   int osr_entry_point_;
-  base::Optional<BytecodeLivenessMap> liveness_map_;
-  int bytecode_count_;
+  std::optional<BytecodeLivenessMap> liveness_map_;
+  int bytecode_count_ = -1;
+
+  class BytecodeAnalysisImpl;
+  friend class BytecodeAnalysisImpl;
 };
 
 }  // namespace compiler

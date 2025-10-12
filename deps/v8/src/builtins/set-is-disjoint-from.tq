@@ -5,6 +5,7 @@
 namespace collections {
 
 // https://tc39.es/proposal-set-methods/#sec-set.prototype.isdisjointfrom
+@incrementUseCounter('v8::Isolate::kSetMethods')
 transitioning javascript builtin SetPrototypeIsDisjointFrom(
     js-implicit context: NativeContext, receiver: JSAny)(
     other: JSAny): Boolean {
@@ -73,7 +74,7 @@ transitioning javascript builtin SetPrototypeIsDisjointFrom(
     }
   } label SlowPath {
     // 5. If thisSize ≤ otherRec.[[Size]], then
-    if (thisSize <= Convert<int32>(otherRec.size)) {
+    if (Convert<Number>(thisSize) <= otherRec.size) {
       // a. Let index be 0.
       let thisIter = collections::NewOrderedHashSetIterator(table.GetTable());
 

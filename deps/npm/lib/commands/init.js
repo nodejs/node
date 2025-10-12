@@ -19,7 +19,9 @@ class Init extends BaseCommand {
     'init-author-url',
     'init-license',
     'init-module',
+    'init-type',
     'init-version',
+    'init-private',
     'yes',
     'force',
     'scope',
@@ -31,7 +33,7 @@ class Init extends BaseCommand {
 
   static name = 'init'
   static usage = [
-    '<package-spec> (same as `npx <package-spec>`)',
+    '<package-spec> (same as `npx create-<package-spec>`)',
     '<@scope> (same as `npx <@scope>/create`)',
   ]
 
@@ -95,7 +97,7 @@ class Init extends BaseCommand {
     await this.update(workspacesPaths)
   }
 
-  async execCreate (args, path = process.cwd()) {
+  async execCreate (args, runPath = process.cwd()) {
     const [initerName, ...otherArgs] = args
     let packageName = initerName
 
@@ -129,18 +131,23 @@ class Init extends BaseCommand {
       globalBin,
       chalk,
     } = this.npm
-    const runPath = path
     const scriptShell = this.npm.config.get('script-shell') || undefined
     const yes = this.npm.config.get('yes')
 
+    // only send the init-private flag if it is set
+    const opts = { ...flatOptions }
+    if (this.npm.config.isDefault('init-private')) {
+      delete opts.initPrivate
+    }
+
     await libexec({
-      ...flatOptions,
+      ...opts,
       args: newArgs,
       localBin,
       globalBin,
       output,
       chalk,
-      path,
+      path: this.npm.localPrefix,
       runPath,
       scriptShell,
       yes,
@@ -170,6 +177,7 @@ class Init extends BaseCommand {
       return data
     } catch (er) {
       if (er.message === 'canceled') {
+        output.flush()
         log.warn('init', 'canceled')
       } else {
         throw er
@@ -193,7 +201,7 @@ class Init extends BaseCommand {
     // top-level package.json
     try {
       statSync(resolve(workspacePath, 'package.json'))
-    } catch (err) {
+    } catch {
       return
     }
 

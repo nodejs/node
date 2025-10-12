@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-multi-memory
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -64,7 +63,7 @@ const k10s = 10000;
   print(arguments.callee.name);
   function workerCode() {
     instance = undefined;
-    onmessage = function(msg) {
+    onmessage = function({data:msg}) {
       if (!instance) {
         instance = new WebAssembly.Instance(msg.module, msg.imports);
         postMessage('instantiated');

@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,22 +15,17 @@ static DSO *DSO_new_method(DSO_METHOD *meth)
     DSO *ret;
 
     ret = OPENSSL_zalloc(sizeof(*ret));
-    if (ret == NULL) {
-        ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+    if (ret == NULL)
         return NULL;
-    }
     ret->meth_data = sk_void_new_null();
     if (ret->meth_data == NULL) {
         /* sk_new doesn't generate any errors so we do */
-        ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_DSO, ERR_R_CRYPTO_LIB);
         OPENSSL_free(ret);
         return NULL;
     }
     ret->meth = DSO_METHOD_openssl();
-    ret->references = 1;
-    ret->lock = CRYPTO_THREAD_lock_new();
-    if (ret->lock == NULL) {
-        ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+    if (!CRYPTO_NEW_REF(&ret->references, 1)) {
         sk_void_free(ret->meth_data);
         OPENSSL_free(ret);
         return NULL;
@@ -56,10 +51,10 @@ int DSO_free(DSO *dso)
     if (dso == NULL)
         return 1;
 
-    if (CRYPTO_DOWN_REF(&dso->references, &i, dso->lock) <= 0)
+    if (CRYPTO_DOWN_REF(&dso->references, &i) <= 0)
         return 0;
 
-    REF_PRINT_COUNT("DSO", dso);
+    REF_PRINT_COUNT("DSO", i, dso);
     if (i > 0)
         return 1;
     REF_ASSERT_ISNT(i < 0);
@@ -79,7 +74,7 @@ int DSO_free(DSO *dso)
     sk_void_free(dso->meth_data);
     OPENSSL_free(dso->filename);
     OPENSSL_free(dso->loaded_filename);
-    CRYPTO_THREAD_lock_free(dso->lock);
+    CRYPTO_FREE_REF(&dso->references);
     OPENSSL_free(dso);
     return 1;
 }
@@ -98,10 +93,10 @@ int DSO_up_ref(DSO *dso)
         return 0;
     }
 
-    if (CRYPTO_UP_REF(&dso->references, &i, dso->lock) <= 0)
+    if (CRYPTO_UP_REF(&dso->references, &i) <= 0)
         return 0;
 
-    REF_PRINT_COUNT("DSO", dso);
+    REF_PRINT_COUNT("DSO", i, dso);
     REF_ASSERT_ISNT(i < 2);
     return ((i > 1) ? 1 : 0);
 }
@@ -114,7 +109,7 @@ DSO *DSO_load(DSO *dso, const char *filename, DSO_METHOD *meth, int flags)
     if (dso == NULL) {
         ret = DSO_new_method(meth);
         if (ret == NULL) {
-            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_DSO, ERR_R_DSO_LIB);
             goto err;
         }
         allocated = 1;
@@ -241,10 +236,8 @@ int DSO_set_filename(DSO *dso, const char *filename)
     }
     /* We'll duplicate filename */
     copied = OPENSSL_strdup(filename);
-    if (copied == NULL) {
-        ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+    if (copied == NULL)
         return 0;
-    }
     OPENSSL_free(dso->filename);
     dso->filename = copied;
     return 1;
@@ -289,10 +282,8 @@ char *DSO_convert_filename(DSO *dso, const char *filename)
     }
     if (result == NULL) {
         result = OPENSSL_strdup(filename);
-        if (result == NULL) {
-            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+        if (result == NULL)
             return NULL;
-        }
     }
     return result;
 }

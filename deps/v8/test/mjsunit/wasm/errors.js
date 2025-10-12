@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -86,8 +86,8 @@ function assertConversionError(bytes, imports, msg) {
 })();
 
 function import_error(index, module, func, msg) {
-  let full_msg = 'Import #' + index + ' module=\"' + module + '\"';
-  if (func !== undefined) full_msg += ' function=\"' + func + '\"';
+  let full_msg = 'Import #' + index + ' \"' + module + '\"';
+  if (func !== undefined) full_msg += ' \"' + func + '\"';
   return full_msg + ': ' + msg;
 }
 

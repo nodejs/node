@@ -10,4 +10,3 @@ mock.method(TestCoverage.prototype, 'summary', () => {
 });
 
 test('ok');
-

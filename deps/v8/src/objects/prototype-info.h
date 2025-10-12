@@ -22,20 +22,33 @@ namespace internal {
 class PrototypeInfo
     : public TorqueGeneratedPrototypeInfo<PrototypeInfo, Struct> {
  public:
+  // Cached most commonly used load-non-existent handlers.
+  enum CachedHandlerIndex {
+    // No access check, no lookup on receiver.
+    kLoadNonExistentHandlerDefault = 0,
+    kLoadNonExistentHandlerWithLookupOnReceiver,
+
+    kCachedHandlerCount,
+  };
+
+  static constexpr int kSize =
+      kCachedHandlerOffset + kCachedHandlerCount * kTaggedSize;
+
   static const int UNREGISTERED = -1;
 
   // For caching derived maps for Object.create, Reflect.construct and proxies.
   DECL_GETTER(derived_maps, Tagged<HeapObject>)
   DECL_RELEASE_ACQUIRE_ACCESSORS(derived_maps, Tagged<HeapObject>)
 
-  static inline void SetObjectCreateMap(Handle<PrototypeInfo> info,
-                                        Handle<Map> map, Isolate* isolate);
+  static inline void SetObjectCreateMap(DirectHandle<PrototypeInfo> info,
+                                        DirectHandle<Map> map,
+                                        Isolate* isolate);
   inline Tagged<MaybeObject> ObjectCreateMap(AcquireLoadTag);
   inline Tagged<MaybeObject> ObjectCreateMap();
 
-  static inline void AddDerivedMap(Handle<PrototypeInfo> info, Handle<Map> to,
-                                   Isolate* isolate);
-  inline Tagged<MaybeObject> GetDerivedMap(Handle<Map> from);
+  static inline void AddDerivedMap(DirectHandle<PrototypeInfo> info,
+                                   DirectHandle<Map> to, Isolate* isolate);
+  inline Tagged<MaybeObject> GetDerivedMap(DirectHandle<Map> from);
 
   static inline bool IsPrototypeInfoFast(Tagged<Object> object);
 
@@ -59,7 +72,8 @@ class V8_EXPORT_PRIVATE PrototypeUsers : public WeakArrayList {
  public:
   static Handle<WeakArrayList> Add(Isolate* isolate,
                                    Handle<WeakArrayList> array,
-                                   Handle<Map> value, int* assigned_index);
+                                   DirectHandle<Map> value,
+                                   int* assigned_index);
 
   static inline void MarkSlotEmpty(Tagged<WeakArrayList> array, int index);
 
@@ -69,7 +83,8 @@ class V8_EXPORT_PRIVATE PrototypeUsers : public WeakArrayList {
   using CompactionCallback = void (*)(Tagged<HeapObject> object, int from_index,
                                       int to_index);
   static Tagged<WeakArrayList> Compact(
-      Handle<WeakArrayList> array, Heap* heap, CompactionCallback callback,
+      DirectHandle<WeakArrayList> array, Heap* heap,
+      CompactionCallback callback,
       AllocationType allocation = AllocationType::kYoung);
 
 #ifdef VERIFY_HEAP

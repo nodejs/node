@@ -5,8 +5,11 @@
 #ifndef V8_OBJECTS_TYPE_HINTS_H_
 #define V8_OBJECTS_TYPE_HINTS_H_
 
+#include <stdint.h>
+
+#include <iosfwd>
+
 #include "src/base/flags.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -16,6 +19,7 @@ enum class BinaryOperationHint : uint8_t {
   kNone,
   kSignedSmall,
   kSignedSmallInputs,
+  kAdditiveSafeInteger,
   kNumber,
   kNumberOrOddball,
   kString,
@@ -45,6 +49,7 @@ enum class CompareOperationHint : uint8_t {
   kBigInt64,
   kReceiver,
   kReceiverOrNullOrUndefined,
+  kStringOrOddball,
   kAny
 };
 

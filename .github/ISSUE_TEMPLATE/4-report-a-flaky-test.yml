@@ -28,14 +28,14 @@ body:
         - AIX
         - FreeBSD
         - Linux ARM64
-        - Linux ARMv7
         - Linux PPC64LE
         - Linux s390x
         - Linux x64
         - macOS ARM64
         - macOS x64
         - SmartOS
-        - Windows
+        - Windows ARM64
+        - Windows x64
         - Other
   - type: textarea
     attributes:

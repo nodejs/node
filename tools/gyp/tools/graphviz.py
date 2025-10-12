@@ -8,7 +8,6 @@
 generate input suitable for graphviz to render a dependency graph of
 targets."""
 
-
 import collections
 import json
 import sys
@@ -22,7 +21,7 @@ def ParseTarget(target):
 
 def LoadEdges(filename, targets):
     """Load the edges map from the dump file, and filter it to only
-  show targets in |targets| and their depedendents."""
+    show targets in |targets| and their depedendents."""
 
     file = open("dump.json")
     edges = json.load(file)
@@ -43,7 +42,7 @@ def LoadEdges(filename, targets):
 
 def WriteGraph(edges):
     """Print a graphviz graph to stdout.
-  |edges| is a map of target to a list of other targets it depends on."""
+    |edges| is a map of target to a list of other targets it depends on."""
 
     # Bucket targets by file.
     files = collections.defaultdict(list)
@@ -64,9 +63,7 @@ def WriteGraph(edges):
             # the display by making it a box without an internal node.
             target = targets[0]
             build_file, target_name, toolset = ParseTarget(target)
-            print(
-                f'  "{target}" [shape=box, label="{filename}\\n{target_name}"]'
-            )
+            print(f'  "{target}" [shape=box, label="{filename}\\n{target_name}"]')
         else:
             # Group multiple nodes together in a subgraph.
             print('  subgraph "cluster_%s" {' % filename)

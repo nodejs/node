@@ -1,11 +1,11 @@
 'use strict';
 // Flags: --expose-gc
 require('../common');
-const onGC = require('../common/ongc');
+const { onGC } = require('../common/gc');
 
 // See https://github.com/nodejs/node/issues/53335
 const poller = setInterval(() => {
-  global.gc();
+  globalThis.gc();
 }, 100);
 
 let count = 0;

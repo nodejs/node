@@ -14,6 +14,8 @@
 
 #include "absl/strings/internal/cordz_info.h"
 
+#include <cstdint>
+
 #include "absl/base/config.h"
 #include "absl/base/internal/spinlock.h"
 #include "absl/container/inlined_vector.h"
@@ -31,10 +33,6 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace cord_internal {
-
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-constexpr size_t CordzInfo::kMaxStackDepth;
-#endif
 
 ABSL_CONST_INIT CordzInfo::List CordzInfo::global_list_{absl::kConstInit};
 
@@ -247,10 +245,12 @@ CordzInfo* CordzInfo::Next(const CordzSnapshot& snapshot) const {
   return next;
 }
 
-void CordzInfo::TrackCord(InlineData& cord, MethodIdentifier method) {
+void CordzInfo::TrackCord(InlineData& cord, MethodIdentifier method,
+                          int64_t sampling_stride) {
   assert(cord.is_tree());
   assert(!cord.is_profiled());
-  CordzInfo* cordz_info = new CordzInfo(cord.as_tree(), nullptr, method);
+  CordzInfo* cordz_info =
+      new CordzInfo(cord.as_tree(), nullptr, method, sampling_stride);
   cord.set_cordz_info(cordz_info);
   cordz_info->Track();
 }
@@ -266,7 +266,8 @@ void CordzInfo::TrackCord(InlineData& cord, const InlineData& src,
   if (cordz_info != nullptr) cordz_info->Untrack();
 
   // Start new cord sample
-  cordz_info = new CordzInfo(cord.as_tree(), src.cordz_info(), method);
+  cordz_info = new CordzInfo(cord.as_tree(), src.cordz_info(), method,
+                             src.cordz_info()->sampling_stride());
   cord.set_cordz_info(cordz_info);
   cordz_info->Track();
 }
@@ -298,9 +299,8 @@ size_t CordzInfo::FillParentStack(const CordzInfo* src, void** stack) {
   return src->stack_depth_;
 }
 
-CordzInfo::CordzInfo(CordRep* rep,
-                     const CordzInfo* src,
-                     MethodIdentifier method)
+CordzInfo::CordzInfo(CordRep* rep, const CordzInfo* src,
+                     MethodIdentifier method, int64_t sampling_stride)
     : rep_(rep),
       stack_depth_(
           static_cast<size_t>(absl::GetStackTrace(stack_,
@@ -309,7 +309,8 @@ CordzInfo::CordzInfo(CordRep* rep,
       parent_stack_depth_(FillParentStack(src, parent_stack_)),
       method_(method),
       parent_method_(GetParentMethod(src)),
-      create_time_(absl::Now()) {
+      create_time_(absl::Now()),
+      sampling_stride_(sampling_stride) {
   update_tracker_.LossyAdd(method);
   if (src) {
     // Copy parent counters.
@@ -326,7 +327,7 @@ CordzInfo::~CordzInfo() {
 }
 
 void CordzInfo::Track() {
-  SpinLockHolder l(&list_->mutex);
+  SpinLockHolder l(list_->mutex);
 
   CordzInfo* const head = list_->head.load(std::memory_order_acquire);
   if (head != nullptr) {
@@ -339,7 +340,7 @@ void CordzInfo::Track() {
 void CordzInfo::Untrack() {
   ODRCheck();
   {
-    SpinLockHolder l(&list_->mutex);
+    SpinLockHolder l(list_->mutex);
 
     CordzInfo* const head = list_->head.load(std::memory_order_acquire);
     CordzInfo* const next = ci_next_.load(std::memory_order_acquire);
@@ -369,7 +370,7 @@ void CordzInfo::Untrack() {
 
   // We are likely part of a snapshot, extend the life of the CordRep
   {
-    absl::MutexLock lock(&mutex_);
+    absl::MutexLock lock(mutex_);
     if (rep_) CordRep::Ref(rep_);
   }
   CordzHandle::Delete(this);
@@ -377,14 +378,14 @@ void CordzInfo::Untrack() {
 
 void CordzInfo::Lock(MethodIdentifier method)
     ABSL_EXCLUSIVE_LOCK_FUNCTION(mutex_) {
-  mutex_.Lock();
+  mutex_.lock();
   update_tracker_.LossyAdd(method);
   assert(rep_);
 }
 
 void CordzInfo::Unlock() ABSL_UNLOCK_FUNCTION(mutex_) {
   bool tracked = rep_ != nullptr;
-  mutex_.Unlock();
+  mutex_.unlock();
   if (!tracked) {
     Untrack();
   }

@@ -27,8 +27,8 @@ class IdentityMapTester {
   IdentityMapTester(Heap* heap, Zone* zone)
       : map(heap, ZoneAllocationPolicy(zone)) {}
 
-  void TestInsertFind(Handle<Object> key1, void* val1, Handle<Object> key2,
-                      void* val2) {
+  void TestInsertFind(DirectHandle<Object> key1, void* val1,
+                      DirectHandle<Object> key2, void* val2) {
     CHECK_NULL(map.Find(key1));
     CHECK_NULL(map.Find(key2));
 
@@ -78,8 +78,8 @@ class IdentityMapTester {
     }
   }
 
-  void TestFindDelete(Handle<Object> key1, void* val1, Handle<Object> key2,
-                      void* val2) {
+  void TestFindDelete(DirectHandle<Object> key1, void* val1,
+                      DirectHandle<Object> key2, void* val2) {
     CHECK_NULL(map.Find(key1));
     CHECK_NULL(map.Find(key2));
 
@@ -143,26 +143,27 @@ class IdentityMapTester {
     for (int i = 0; i < map.capacity_; i++) {
       Address key = map.keys_[i];
       if (!Internals::HasHeapObjectTag(key)) {
-        map.keys_[i] = Internals::IntToSmi(Internals::SmiValue(key) + shift);
+        map.keys_[i] =
+            Internals::IntegralToSmi(Internals::SmiValue(key) + shift);
       }
     }
     map.gc_counter_ = -1;
   }
 
-  void CheckFind(Handle<Object> key, void* value) {
+  void CheckFind(DirectHandle<Object> key, void* value) {
     void** entry = map.Find(key);
     CHECK_NOT_NULL(entry);
     CHECK_EQ(value, *entry);
   }
 
-  void CheckFindOrInsert(Handle<Object> key, void* value) {
+  void CheckFindOrInsert(DirectHandle<Object> key, void* value) {
     auto find_result = map.FindOrInsert(key);
     CHECK(find_result.already_exists);
     CHECK_NOT_NULL(find_result.entry);
     CHECK_EQ(value, *find_result.entry);
   }
 
-  void CheckDelete(Handle<Object> key, void* value) {
+  void CheckDelete(DirectHandle<Object> key, void* value) {
     void* entry;
     CHECK(map.Delete(key, &entry));
     CHECK_NOT_NULL(entry);
@@ -185,8 +186,8 @@ class IdentityMapTester {
 
 class IdentityMapTest : public TestWithIsolateAndZone {
  public:
-  Handle<Smi> smi(int value) {
-    return Handle<Smi>(Smi::FromInt(value), isolate());
+  DirectHandle<Smi> smi(int value) {
+    return DirectHandle<Smi>(Smi::FromInt(value), isolate());
   }
 
   Handle<Object> num(double value) {
@@ -710,6 +711,7 @@ TEST_F(IdentityMapTest, GCShortCutting) {
   // We don't create ThinStrings immediately when using the forwarding table.
   if (v8_flags.always_use_string_forwarding_table) return;
   v8_flags.shortcut_strings_with_stack = true;
+  v8_flags.scavenger_precise_object_pinning = false;
   ManualGCScope manual_gc_scope(isolate());
   IdentityMapTester t(isolate()->heap(), zone());
   Factory* factory = isolate()->factory();
@@ -737,7 +739,13 @@ TEST_F(IdentityMapTest, GCShortCutting) {
 
     // Do an explicit, real GC, this should short-cut the thin string to point
     // to the internalized string (this is not implemented for MinorMS).
-    InvokeMinorGC();
+    {
+      // If CSS pins a this string, it will not be considered as a candidate
+      // for shortcutting.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+          isolate()->heap());
+      InvokeMinorGC();
+    }
     DCHECK_IMPLIES(!v8_flags.minor_ms && !v8_flags.optimize_for_size,
                    *thin_string == *internalized_string);
 

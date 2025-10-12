@@ -1,5 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
-
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "sessionticket.h"
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
@@ -38,13 +39,16 @@ SessionTicket::SessionTicket(Store&& ticket, Store&& transport_params)
       transport_params_(std::move(transport_params)) {}
 
 Maybe<SessionTicket> SessionTicket::FromV8Value(Environment* env,
-                                                v8::Local<v8::Value> value) {
+                                                Local<Value> value) {
   if (!value->IsArrayBufferView()) {
     THROW_ERR_INVALID_ARG_TYPE(env, "The ticket must be an ArrayBufferView.");
     return Nothing<SessionTicket>();
   }
 
-  Store content(value.As<ArrayBufferView>());
+  Store content;
+  if (!Store::From(value.As<ArrayBufferView>()).To(&content)) {
+    return Nothing<SessionTicket>();
+  }
   ngtcp2_vec vec = content;
 
   ValueDeserializer des(env->isolate(), vec.base, vec.len);
@@ -57,27 +61,32 @@ Maybe<SessionTicket> SessionTicket::FromV8Value(Environment* env,
   Local<Value> ticket;
   Local<Value> transport_params;
 
-  errors::TryCatchScope tryCatch(env);
-
   if (!des.ReadValue(env->context()).ToLocal(&ticket) ||
-      !des.ReadValue(env->context()).ToLocal(&transport_params) ||
-      !ticket->IsArrayBufferView() || !transport_params->IsArrayBufferView()) {
-    if (tryCatch.HasCaught()) {
-      // Any errors thrown we want to catch and suppress. The only
-      // error we want to expose to the user is that the ticket format
-      // is invalid.
-      if (!tryCatch.HasTerminated()) {
-        THROW_ERR_INVALID_ARG_VALUE(env, "The ticket format is invalid.");
-        tryCatch.ReThrow();
-      }
-      return Nothing<SessionTicket>();
-    }
-    THROW_ERR_INVALID_ARG_VALUE(env, "The ticket format is invalid.");
+      !des.ReadValue(env->context()).ToLocal(&transport_params)) {
+    return Nothing<SessionTicket>();
+  }
+  if (!ticket->IsArrayBufferView()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "The ticket must be an ArrayBufferView");
+    return Nothing<SessionTicket>();
+  }
+  if (!transport_params->IsArrayBufferView()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env, "The transport parameters must be an ArrayBufferView");
     return Nothing<SessionTicket>();
   }
 
-  return Just(SessionTicket(Store(ticket.As<ArrayBufferView>()),
-                            Store(transport_params.As<ArrayBufferView>())));
+  Store ticket_store;
+  Store transport_params_store;
+  if (!Store::From(ticket.As<ArrayBufferView>()).To(&ticket_store)) {
+    return Nothing<SessionTicket>();
+  }
+  if (!Store::From(transport_params.As<ArrayBufferView>())
+           .To(&transport_params_store)) {
+    return Nothing<SessionTicket>();
+  }
+
+  return Just(SessionTicket(std::move(ticket_store),
+                            std::move(transport_params_store)));
 }
 
 MaybeLocal<Object> SessionTicket::encode(Environment* env) const {
@@ -110,7 +119,7 @@ void SessionTicket::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 int SessionTicket::GenerateCallback(SSL* ssl, void* arg) {
-  SessionTicket::AppData::Collect(ssl);
+  AppData::Collect(ssl);
   return 1;
 }
 
@@ -130,8 +139,7 @@ SSL_TICKET_RETURN SessionTicket::DecryptedCallback(SSL* ssl,
     case SSL_TICKET_SUCCESS_RENEW:
       [[fallthrough]];
     case SSL_TICKET_SUCCESS:
-      return static_cast<SSL_TICKET_RETURN>(
-          SessionTicket::AppData::Extract(ssl));
+      return static_cast<SSL_TICKET_RETURN>(AppData::Extract(ssl));
   }
 }
 
@@ -155,9 +163,8 @@ std::optional<const uv_buf_t> SessionTicket::AppData::Get() const {
 }
 
 void SessionTicket::AppData::Collect(SSL* ssl) {
-  auto source = GetAppDataSource(ssl);
-  if (source != nullptr) {
-    SessionTicket::AppData app_data(ssl);
+  AppData app_data(ssl);
+  if (auto source = GetAppDataSource(ssl)) {
     source->CollectSessionTicketAppData(&app_data);
   }
 }
@@ -165,7 +172,7 @@ void SessionTicket::AppData::Collect(SSL* ssl) {
 SessionTicket::AppData::Status SessionTicket::AppData::Extract(SSL* ssl) {
   auto source = GetAppDataSource(ssl);
   if (source != nullptr) {
-    SessionTicket::AppData app_data(ssl);
+    AppData app_data(ssl);
     return source->ExtractSessionTicketAppData(app_data);
   }
   return Status::TICKET_IGNORE;
@@ -174,4 +181,5 @@ SessionTicket::AppData::Status SessionTicket::AppData::Extract(SSL* ssl) {
 }  // namespace quic
 }  // namespace node
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

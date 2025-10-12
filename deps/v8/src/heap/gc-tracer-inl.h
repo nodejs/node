@@ -5,10 +5,12 @@
 #ifndef V8_HEAP_GC_TRACER_INL_H_
 #define V8_HEAP_GC_TRACER_INL_H_
 
+#include "src/heap/gc-tracer.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
-#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 
 namespace v8 {
@@ -52,8 +54,7 @@ GCTracer::Scope::~Scope() {
 
   if (thread_kind_ == ThreadKind::kMain) {
     if (scope_ == ScopeId::MC_INCREMENTAL ||
-        scope_ == ScopeId::MC_INCREMENTAL_START ||
-        scope_ == ScopeId::MC_INCREMENTAL_FINALIZE) {
+        scope_ == ScopeId::MC_INCREMENTAL_START) {
       auto* long_task_stats =
           tracer_->heap_->isolate_->GetCurrentLongTaskStats();
       long_task_stats->gc_full_incremental_wall_clock_duration_us +=

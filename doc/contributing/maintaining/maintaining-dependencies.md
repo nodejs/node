@@ -10,6 +10,7 @@ This a list of all the dependencies:
 
 * [acorn][]
 * [ada][]
+* [amaro][]
 * [base64][]
 * [brotli][]
 * [c-ares][]
@@ -18,6 +19,7 @@ This a list of all the dependencies:
 * [googletest][]
 * [histogram][]
 * [icu-small][]
+* [inspector\_protocol][inspector_protocol]
 * [libuv][]
 * [llhttp][]
 * [minimatch][]
@@ -28,12 +30,12 @@ This a list of all the dependencies:
 * [openssl][]
 * [postject][]
 * [simdjson][]
-* [simdutf][]
 * [sqlite][]
 * [undici][]
 * [uvwasi][]
 * [V8][]
 * [zlib][]
+* [zstd][]
 
 Any code which meets one or more of these conditions should
 be managed as a dependency:
@@ -109,7 +111,7 @@ shared library is available can added by:
 Support for an externalizable dependency with JavaScript code
 can be added by:
 
-* adding an entry to the `sharable_builtins` map in
+* adding an entry to the `shareable_builtins` map in
   `configure.py`. The path should correspond to the file
   within the deps directory that is normally bundled into
   Node.js. For example `deps/cjs-module-lexer/lexer.js`.
@@ -125,6 +127,17 @@ can be added by:
   paste one of the existing entries and then update to match the
   import name for the dependency and the #define generated.
 
+* if the version of the dependency is reported in `process.versions`,
+  update `src/node_metadata.h` and `src/node_metadata.cc` so that the
+  version is not reported when the dependency is externalized.
+  Not reporting the version is better than incorrectly reporting
+  the version of the dependency bundled with Node.js, instead of the
+  version for the externalized dependency. Use one of the existing
+  externalized dependencies, like Undici, as an example of how to
+  update these files correctly. Make sure to run the tests with the
+  dependency externalized, as the tests will also need to be updated
+  to handle this properly.
+
 ## Supporting non-externalized dependencies with JavaScript code
 
 If the dependency consists of JavaScript in the
@@ -132,6 +145,48 @@ If the dependency consists of JavaScript in the
 can be added as a non-externalizable dependency. In this case
 simply add the path to the JavaScript file in the `deps_files`
 list in the `node.gyp` file.
+
+## Common approach for dependencies with WASM components
+
+WASM components within dependencies are most often built
+outside of the regular Node.js `make build` step. They also
+require different tools.
+
+It is important that the tools and their versions used to build
+WASM components shipped within Node.js are well documented and
+be available if needed to rebuild/update older Node.js versions.
+
+In order to minimize the different number of tools and versions
+used to build WASM components and to document and ensure future
+availability, the project builds and maintains a common
+[wasm-builder](https://github.com/nodejs/wasm-builder) container
+that should be use to build WASM components in Node.js
+dependencies.
+
+The container provides a durable copy of the versions of the tools
+used for a specific build which are under the control of the Node.js
+project. In addition, the tools and verions are documented through metadata
+within the container in the `/home/node/metadata directory`.
+
+The available tools can be found by looking at the current version of the
+[Dockerfile](https://github.com/nodejs/wasm-builder/blob/main/container-build-info/Dockerfile)
+used to create the container.
+
+If additional WASM tool are needed beyond those available in the
+container, additions should be PR'd into the wasm-builder container.
+
+Examples of using the container include:
+
+* [build/wasm.js](https://github.com/nodejs/undici/blob/main/build/wasm.js) from undici
+* [tools/build-wasm.js](https://github.com/nodejs/amaro/blob/main/tools/build-wasm.js) from amaro
+
+In addition to using the container to build WASM components, the goal is also
+for the WASM components and final files that are shipped with Node.js to be
+built by the [dep-updaters](https://github.com/nodejs/node/tree/main/tools/dep_updaters)
+that are run on a regular basis and that they use only the files available in the Node.js
+repo for the dependency. For example, being able to rebuild the WASM and files that
+we ship in Node.js using only the files in
+[../deps/undici](https://github.com/nodejs/node/tree/main/deps/undici).
 
 ## Updating dependencies
 
@@ -167,6 +222,11 @@ an abstract syntax tree walker for the ESTree format.
 
 The [ada](https://github.com/ada-url/ada) dependency is a
 fast and spec-compliant URL parser written in C++.
+
+### amaro
+
+The [amaro](https://www.npmjs.com/package/amaro) dependency is a wrapper around the
+WebAssembly version of the SWC JavaScript/TypeScript parser.
 
 ### brotli
 
@@ -211,6 +271,12 @@ The [icu](http://site.icu-project.org) is widely used set of C/C++
 and Java libraries providing Unicode and Globalization
 support for software applications.
 See [maintaining-icu][] for more information.
+
+### inspector\_protocol
+
+The [inspector\_protocol](https://chromium.googlesource.com/deps/inspector_protocol/)
+is Chromium's of code generators and templates for the inspector protocol.
+See [this doc](../../../tools/inspector_protocol/README.md) for more information.
 
 ### libuv
 
@@ -297,11 +363,6 @@ The [postject](https://github.com/nodejs/postject) dependency is used for the
 The [simdjson](https://github.com/simdjson/simdjson) dependency is
 a C++ library for fast JSON parsing.
 
-### simdutf
-
-The [simdutf](https://github.com/simdutf/simdutf) dependency is
-a C++ library for fast UTF-8 decoding and encoding.
-
 ### sqlite
 
 The [sqlite](https://github.com/sqlite/sqlite) dependency is
@@ -334,8 +395,14 @@ dependency lossless data-compression library,
 it comes from the Chromium team's zlib fork which incorporated
 performance improvements not currently available in standard zlib.
 
+### zstd
+
+The [zstd](https://github.com/facebook/zstd) dependency is used for compression
+according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
+
 [acorn]: #acorn
 [ada]: #ada
+[amaro]: #amaro
 [base64]: #base64
 [brotli]: #brotli
 [c-ares]: #c-ares
@@ -345,6 +412,7 @@ performance improvements not currently available in standard zlib.
 [googletest]: #googletest
 [histogram]: #histogram
 [icu-small]: #icu-small
+[inspector_protocol]: #inspector_protocol
 [libuv]: #libuv
 [llhttp]: #llhttp
 [maintaining-V8]: ./maintaining-V8.md
@@ -361,10 +429,10 @@ performance improvements not currently available in standard zlib.
 [openssl]: #openssl
 [postject]: #postject
 [simdjson]: #simdjson
-[simdutf]: #simdutf
 [sqlite]: #sqlite
 [undici]: #undici
 [update-openssl-action]: ../../../.github/workflows/update-openssl.yml
 [uvwasi]: #uvwasi
 [v8]: #v8
 [zlib]: #zlib
+[zstd]: #zstd

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CODEGEN_IA32_MACRO_ASSEMBLER_IA32_H_
+#define V8_CODEGEN_IA32_MACRO_ASSEMBLER_IA32_H_
+
 #ifndef INCLUDED_FROM_MACRO_ASSEMBLER_H
 #error This header must be included via macro-assembler.h
 #endif
-
-#ifndef V8_CODEGEN_IA32_MACRO_ASSEMBLER_IA32_H_
-#define V8_CODEGEN_IA32_MACRO_ASSEMBLER_IA32_H_
 
 #include <stdint.h>
 
@@ -162,6 +162,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void CallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin);
 
+#ifdef V8_ENABLE_LEAPTIERING
+  void LoadEntrypointFromJSDispatchTable(Register destination,
+                                         Register dispatch_handle);
+#endif  // V8_ENABLE_LEAPTIERING
+
   // Load the code entry point from the Code object.
   void LoadCodeInstructionStart(Register destination, Register code_object,
                                 CodeEntrypointTag = kDefaultCodeEntrypointTag);
@@ -170,9 +175,14 @@ class V8_EXPORT_PRIVATE MacroAssembler
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
-  void CallJSFunction(Register function_object);
+  void CallJSFunction(Register function_object, uint16_t argument_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
+#ifdef V8_ENABLE_WEBASSEMBLY
+  void ResolveWasmCodePointer(Register target);
+  void CallWasmCodePointer(Register target,
+                           CallJumpMode call_jump_mode = CallJumpMode::kCall);
+#endif
 
   void Jump(const ExternalReference& reference);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
@@ -183,6 +193,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef, Label::Distance distance);
+
+  void LoadInterpreterDataBytecodeArray(Register destination,
+                                        Register interpreter_data);
+  void LoadInterpreterDataInterpreterTrampoline(Register destination,
+                                                Register interpreter_data);
 
   void Trap();
   void DebugBreak();
@@ -257,18 +272,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Prologue();
 
   // Helpers for argument handling
-  enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
-  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
-  void DropArguments(Register count, Register scratch, ArgumentsCountType type,
-                     ArgumentsCountMode mode);
+  void DropArguments(Register count, Register scratch);
   void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
-                                       Register scratch,
-                                       ArgumentsCountType type,
-                                       ArgumentsCountMode mode);
+                                       Register scratch);
   void DropArgumentsAndPushNewReceiver(Register argc, Operand receiver,
-                                       Register scratch,
-                                       ArgumentsCountType type,
-                                       ArgumentsCountMode mode);
+                                       Register scratch);
 
   void Lzcnt(Register dst, Register src) { Lzcnt(dst, Operand(src)); }
   void Lzcnt(Register dst, Operand src);
@@ -320,6 +328,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // that is guaranteed not to be clobbered.
   Operand ExternalReferenceAsOperand(ExternalReference reference,
                                      Register scratch);
+  Operand ExternalReferenceAsOperand(IsolateFieldId id) {
+    return ExternalReferenceAsOperand(ExternalReference::Create(id), no_reg);
+  }
   Operand ExternalReferenceAddressAsOperand(ExternalReference reference);
   Operand HeapObjectAsOperand(Handle<HeapObject> object);
 
@@ -568,15 +579,18 @@ class V8_EXPORT_PRIVATE MacroAssembler
                           Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
+  // TODO(olivf): Rename to GenerateTailCallToUpdatedFunction.
+  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
+#ifndef V8_ENABLE_LEAPTIERING
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure, Register scratch1,
                                            Register slot_address);
-  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, XMMRegister saved_feedback_vector,
       CodeKind current_code_kind, Label* flags_need_processing);
   void OptimizeCodeOrTailCallOptimizedCodeSlot(
       Register flags, XMMRegister saved_feedback_vector);
+#endif  // V8_ENABLE_LEAPTIERING
 
   // Abort execution if argument is not a smi, enabled via --debug-code.
   void AssertSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
@@ -680,14 +694,12 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
  protected:
   // Drops arguments assuming that the return address was already popped.
-  void DropArguments(Register count, ArgumentsCountType type = kCountIsInteger,
-                     ArgumentsCountMode mode = kCountExcludesReceiver);
+  void DropArguments(Register count);
 
  private:
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,
-                      Register actual_parameter_count, Label* done,
-                      InvokeType type);
+                      Register actual_parameter_count, InvokeType type);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };
@@ -723,16 +735,18 @@ struct MoveCycleState {
   bool pending_double_scratch_register_use = false;
 };
 
-// Calls an API function.  Allocates HandleScope, extracts returned value
-// from handle and propagates exceptions.  Clobbers esi, edi and caller-saved
-// registers.  Restores context.  On return removes
-// *stack_space_operand * kSystemPointerSize or stack_space * kSystemPointerSize
-// (GCed).
+// Calls an API function. Allocates HandleScope, extracts returned value
+// from handle and propagates exceptions. Clobbers C argument registers
+// and C caller-saved registers. Restores context. On return removes
+//   (*argc_operand + slots_to_drop_on_return) * kSystemPointerSize
+// (GCed, includes the call JS arguments space and the additional space
+// allocated for the fast call).
 void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               Register function_address,
                               ExternalReference thunk_ref, Register thunk_arg,
-                              int stack_space, Operand* stack_space_operand,
-                              Operand return_value_operand);
+                              int slots_to_drop_on_return,
+                              MemOperand* argc_operand,
+                              MemOperand return_value_operand);
 
 #define ACCESS_MASM(masm) masm->
 

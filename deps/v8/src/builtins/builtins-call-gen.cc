@@ -4,6 +4,8 @@
 
 #include "src/builtins/builtins-call-gen.h"
 
+#include <optional>
+
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/codegen/macro-assembler.h"
@@ -17,6 +19,8 @@
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 void Builtins::Generate_CallFunction_ReceiverIsNullOrUndefined(
     MacroAssembler* masm) {
@@ -120,12 +124,12 @@ TF_BUILTIN(Call_ReceiverIsAny_Baseline, CallOrConstructBuiltinsAssembler) {
 
 TF_BUILTIN(Call_ReceiverIsNullOrUndefined_WithFeedback,
            CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kFunction);
+  auto target = Parameter<JSAny>(Descriptor::kFunction);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   CollectCallFeedback(
       target, [=] { return receiver; }, context, feedback_vector, slot);
   TailCallBuiltin(Builtin::kCall_ReceiverIsNullOrUndefined, context, target,
@@ -134,12 +138,12 @@ TF_BUILTIN(Call_ReceiverIsNullOrUndefined_WithFeedback,
 
 TF_BUILTIN(Call_ReceiverIsNotNullOrUndefined_WithFeedback,
            CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kFunction);
+  auto target = Parameter<JSAny>(Descriptor::kFunction);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   CollectCallFeedback(
       target, [=] { return receiver; }, context, feedback_vector, slot);
   TailCallBuiltin(Builtin::kCall_ReceiverIsNotNullOrUndefined, context, target,
@@ -147,19 +151,19 @@ TF_BUILTIN(Call_ReceiverIsNotNullOrUndefined_WithFeedback,
 }
 
 TF_BUILTIN(Call_ReceiverIsAny_WithFeedback, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kFunction);
+  auto target = Parameter<JSAny>(Descriptor::kFunction);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   CollectCallFeedback(
       target, [=] { return receiver; }, context, feedback_vector, slot);
   TailCallBuiltin(Builtin::kCall_ReceiverIsAny, context, target, argc);
 }
 
 void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
-    TNode<Object> target, base::Optional<TNode<Object>> new_target,
+    TNode<JSAny> target, std::optional<TNode<Object>> new_target,
     TNode<Object> arguments_list, TNode<Context> context) {
   Label if_done(this), if_arguments(this), if_array(this),
       if_holey_array(this, Label::kDeferred),
@@ -213,11 +217,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // Check if {arguments_list} is an (unmodified) arguments object.
-  TNode<Map> sloppy_arguments_map = CAST(
-      LoadContextElement(native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
+  TNode<Map> sloppy_arguments_map = CAST(LoadContextElementNoCell(
+      native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
   GotoIf(TaggedEqual(arguments_list_map, sloppy_arguments_map), &if_arguments);
-  TNode<Map> strict_arguments_map = CAST(
-      LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX));
+  TNode<Map> strict_arguments_map = CAST(LoadContextElementNoCell(
+      native_context, Context::STRICT_ARGUMENTS_MAP_INDEX));
   GotoIf(TaggedEqual(arguments_list_map, strict_arguments_map), &if_arguments);
 
   // Check if {arguments_list} is a fast JSArray.
@@ -278,7 +282,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     var_elements = CAST(CallRuntime(Runtime::kCreateListFromArrayLike, context,
                                     arguments_list));
     var_length = LoadAndUntagToWord32ObjectField(var_elements.value(),
-                                                 FixedArray::kLengthOffset);
+                                                 offsetof(FixedArray, length_));
     Goto(&if_done);
   }
 
@@ -334,7 +338,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
 // boxed as HeapNumbers, then tail calls CallVarargs/ConstructVarargs depending
 // on whether {new_target} was passed.
 void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
-    TNode<Object> target, base::Optional<TNode<Object>> new_target,
+    TNode<JSAny> target, std::optional<TNode<Object>> new_target,
     TNode<FixedDoubleArray> elements, TNode<Int32T> length,
     TNode<Int32T> args_count, TNode<Context> context, TNode<Int32T> kind) {
   const ElementsKind new_kind = PACKED_ELEMENTS;
@@ -362,8 +366,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
 }
 
 void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
-    TNode<Object> target, base::Optional<TNode<Object>> new_target,
-    TNode<Object> spread, TNode<Int32T> args_count, TNode<Context> context) {
+    TNode<JSAny> target, std::optional<TNode<Object>> new_target,
+    TNode<JSAny> spread, TNode<Int32T> args_count, TNode<Context> context) {
   Label if_smiorobject(this), if_double(this),
       if_generic(this, Label::kDeferred);
 
@@ -475,10 +479,10 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
 template <class Descriptor>
 void CallOrConstructBuiltinsAssembler::CallReceiver(
-    Builtin id, base::Optional<TNode<Object>> receiver) {
-  static_assert(std::is_same<Descriptor,
-                             CallTrampoline_Baseline_CompactDescriptor>::value,
-                "Incompatible Descriptor");
+    Builtin id, std::optional<TNode<JSAny>> receiver) {
+  static_assert(
+      std::is_same_v<Descriptor, CallTrampoline_Baseline_CompactDescriptor>,
+      "Incompatible Descriptor");
   auto bitfield = UncheckedParameter<Word32T>(Descriptor::kBitField);
   TNode<Int32T> argc =
       Signed(DecodeWord32<
@@ -493,11 +497,11 @@ void CallOrConstructBuiltinsAssembler::CallReceiver(
 template <class Descriptor>
 void CallOrConstructBuiltinsAssembler::CallReceiver(
     Builtin id, TNode<Int32T> argc, TNode<UintPtrT> slot,
-    base::Optional<TNode<Object>> maybe_receiver) {
-  auto target = Parameter<Object>(Descriptor::kFunction);
+    std::optional<TNode<JSAny>> maybe_receiver) {
+  auto target = Parameter<JSAny>(Descriptor::kFunction);
   auto context = LoadContextFromBaseline();
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
-  LazyNode<Object> receiver = [=] {
+  LazyNode<JSAny> receiver = [=, this] {
     if (maybe_receiver) {
       return *maybe_receiver;
     } else {
@@ -511,8 +515,8 @@ void CallOrConstructBuiltinsAssembler::CallReceiver(
 }
 
 TF_BUILTIN(CallWithArrayLike, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  base::Optional<TNode<Object>> new_target = base::nullopt;
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  std::optional<TNode<Object>> new_target = std::nullopt;
   auto arguments_list = Parameter<Object>(Descriptor::kArgumentsList);
   auto context = Parameter<Context>(Descriptor::kContext);
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
@@ -520,31 +524,31 @@ TF_BUILTIN(CallWithArrayLike, CallOrConstructBuiltinsAssembler) {
 
 // TODO(ishell): not used, consider removing.
 TF_BUILTIN(CallWithArrayLike_WithFeedback, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  base::Optional<TNode<Object>> new_target = base::nullopt;
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  std::optional<TNode<Object>> new_target = std::nullopt;
   auto arguments_list = Parameter<Object>(Descriptor::kArgumentsList);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   CollectCallFeedback(
       target, [=] { return receiver; }, context, feedback_vector, slot);
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
 TF_BUILTIN(CallWithSpread, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  base::Optional<TNode<Object>> new_target = base::nullopt;
-  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  std::optional<TNode<Object>> new_target = std::nullopt;
+  auto spread = Parameter<JSAny>(Descriptor::kSpread);
   auto args_count = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
 TF_BUILTIN(CallWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  base::Optional<TNode<Object>> new_target = base::nullopt;
-  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  std::optional<TNode<Object>> new_target = std::nullopt;
+  auto spread = Parameter<JSAny>(Descriptor::kSpread);
   auto args_count = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
   auto context = LoadContextFromBaseline();
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
@@ -557,14 +561,14 @@ TF_BUILTIN(CallWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
 }
 
 TF_BUILTIN(CallWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  base::Optional<TNode<Object>> new_target = base::nullopt;
-  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  std::optional<TNode<Object>> new_target = std::nullopt;
+  auto spread = Parameter<JSAny>(Descriptor::kSpread);
   auto args_count = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   CollectCallFeedback(
       target, [=] { return receiver; }, context, feedback_vector, slot);
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
@@ -638,7 +642,7 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
           LoadObjectField<SharedFunctionInfo>(
               var_template.value(), JSFunction::kSharedFunctionInfoOffset);
       TNode<Object> template_data =
-          LoadSharedFunctionInfoFunctionData(template_shared);
+          LoadSharedFunctionInfoUntrustedFunctionData(template_shared);
       GotoIf(TaggedIsSmi(template_data), &holder_next);
       var_template = CAST(template_data);
       Goto(&template_loop);
@@ -751,6 +755,8 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
       TNode<HeapObject> signature = LoadObjectField<HeapObject>(
           function_template_info, FunctionTemplateInfo::kSignatureOffset);
       CSA_DCHECK(this, Word32BinaryNot(IsUndefined(signature)));
+      // TODO(ishell, http://crbug.com/326505377): rename to
+      // CheckCompatibleReceiverOrThrow().
       holder = GetCompatibleReceiver(receiver, signature, context);
       break;
     }
@@ -789,8 +795,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
     case CallFunctionTemplateMode::kGeneric:
       TailCallBuiltin(Builtin::kCallApiCallbackGeneric, context,
                       TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
-                      topmost_script_having_context, function_template_info,
-                      holder);
+                      topmost_script_having_context, function_template_info);
       break;
 
     case CallFunctionTemplateMode::kCheckAccess:
@@ -801,7 +806,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
       TailCallBuiltin(Builtin::kCallApiCallbackOptimized, context,
                       callback_address,
                       TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
-                      callback_data, holder);
+                      function_template_info);
       break;
     }
   }
@@ -867,10 +872,16 @@ TF_BUILTIN(CallFunctionTemplate_CheckAccessAndCompatibleReceiver,
 }
 
 TF_BUILTIN(HandleApiCallOrConstruct, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  auto dispatch_handle =
+      UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
+#else
+  auto dispatch_handle = InvalidDispatchHandleConstant();
+#endif
 
   Label if_call(this), if_construct(this);
   Branch(IsUndefined(new_target), &if_call, &if_construct);
@@ -880,7 +891,7 @@ TF_BUILTIN(HandleApiCallOrConstruct, CallOrConstructBuiltinsAssembler) {
     TNode<SharedFunctionInfo> shared =
         LoadJSFunctionSharedFunctionInfo(CAST(target));
     TNode<FunctionTemplateInfo> function_template_info =
-        CAST(LoadSharedFunctionInfoFunctionData(shared));
+        CAST(LoadSharedFunctionInfoUntrustedFunctionData(shared));
 
     // The topmost script-having context is not guaranteed to be equal to
     // current context at this point. For example, if target function was
@@ -900,10 +911,12 @@ TF_BUILTIN(HandleApiCallOrConstruct, CallOrConstructBuiltinsAssembler) {
   {
     // Tail call to the stub while leaving all the incoming JS arguments on
     // the stack.
-    TailCallBuiltin(Builtin::kHandleApiConstruct, context, target, new_target,
-                    argc);
+    TailCallJSBuiltin(Builtin::kHandleApiConstruct, context, target, new_target,
+                      argc, dispatch_handle);
   }
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

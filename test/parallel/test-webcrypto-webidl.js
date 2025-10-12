@@ -386,9 +386,9 @@ const opts = { prefix, context };
 
     for (const good of [
       { name: 'HMAC', hash: { name: 'SHA-1' } },
-      { name: 'HMAC', hash: { name: 'SHA-1' }, length: 20 },
+      { name: 'HMAC', hash: { name: 'SHA-1' }, length: 32 },
       { name: 'HMAC', hash: 'SHA-1' },
-      { name: 'HMAC', hash: 'SHA-1', length: 20 },
+      { name: 'HMAC', hash: 'SHA-1', length: 32 },
     ]) {
       assert.deepStrictEqual(converter({ ...good, filtered: 'out' }, opts), good);
       assert.throws(() => converter({ ...good, hash: undefined }, opts), {
@@ -452,7 +452,7 @@ const opts = { prefix, context };
 
 // AesCbcParams
 {
-  const good = { name: 'AES-CBC', iv: Buffer.alloc(0) };
+  const good = { name: 'AES-CBC', iv: Buffer.alloc(16) };
   assert.deepStrictEqual(converters.AesCbcParams({ ...good, filtered: 'out' }, opts), good);
 
   assert.throws(() => converters.AesCbcParams({ ...good, iv: undefined }, opts), {
@@ -462,26 +462,26 @@ const opts = { prefix, context };
   });
 }
 
-// AesGcmParams
+// AeadParams
 {
   for (const good of [
     { name: 'AES-GCM', iv: Buffer.alloc(0) },
-    { name: 'AES-GCM', iv: Buffer.alloc(0), tagLength: 16 },
-    { name: 'AES-GCM', iv: Buffer.alloc(0), tagLength: 16, additionalData: Buffer.alloc(0) },
+    { name: 'AES-GCM', iv: Buffer.alloc(0), tagLength: 64 },
+    { name: 'AES-GCM', iv: Buffer.alloc(0), tagLength: 64, additionalData: Buffer.alloc(0) },
   ]) {
-    assert.deepStrictEqual(converters.AesGcmParams({ ...good, filtered: 'out' }, opts), good);
+    assert.deepStrictEqual(converters.AeadParams({ ...good, filtered: 'out' }, opts), good);
 
-    assert.throws(() => converters.AesGcmParams({ ...good, iv: undefined }, opts), {
+    assert.throws(() => converters.AeadParams({ ...good, iv: undefined }, opts), {
       name: 'TypeError',
       code: 'ERR_MISSING_OPTION',
-      message: `${prefix}: ${context} can not be converted to 'AesGcmParams' because 'iv' is required in 'AesGcmParams'.`,
+      message: `${prefix}: ${context} can not be converted to 'AeadParams' because 'iv' is required in 'AeadParams'.`,
     });
   }
 }
 
 // AesCtrParams
 {
-  const good = { name: 'AES-CTR', counter: Buffer.alloc(0), length: 20 };
+  const good = { name: 'AES-CTR', counter: Buffer.alloc(16), length: 20 };
   assert.deepStrictEqual(converters.AesCtrParams({ ...good, filtered: 'out' }, opts), good);
 
   for (const required of ['counter', 'length']) {
@@ -507,12 +507,12 @@ const opts = { prefix, context };
   }).then(common.mustCall());
 }
 
-// Ed448Params
+// ContextParams
 {
   for (const good of [
     { name: 'Ed448', context: new Uint8Array() },
     { name: 'Ed448' },
   ]) {
-    assert.deepStrictEqual(converters.Ed448Params({ ...good, filtered: 'out' }, opts), good);
+    assert.deepStrictEqual(converters.ContextParams({ ...good, filtered: 'out' }, opts), good);
   }
 }

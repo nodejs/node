@@ -3,6 +3,7 @@ name: Test Linux
 on:
   pull_request:
     paths-ignore:
+      - .mailmap
       - README.md
       - .github/**
       - '!.github/workflows/test-linux.yml'
@@ -14,6 +15,7 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths-ignore:
+      - .mailmap
       - README.md
       - .github/**
       - '!.github/workflows/test-linux.yml'
@@ -25,8 +27,9 @@ concurrency:
 env:
   PYTHON_VERSION: '3.12'
   FLAKY_TESTS: keep_retrying
-  CC: sccache clang
-  CXX: sccache clang++
+  CLANG_VERSION: '19'
+  CC: sccache clang-19
+  CXX: sccache clang++-19
   SCCACHE_GHA_ENABLED: 'true'
 
 permissions:
@@ -35,22 +38,38 @@ permissions:
 jobs:
   test-linux:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
+          path: node
+      - name: Install Clang ${{ env.CLANG_VERSION }}
+        uses: ./node/.github/actions/install-clang
+        with:
+          clang-version: ${{ env.CLANG_VERSION }}
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Set up sccache
-        uses: mozilla-actions/sccache-action@89e9040de88b577a072e3760aaf59f585da083af  # v0.0.5
+        uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
         with:
-          version: v0.8.0
+          version: v0.10.0
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn"
+        run: make -C node build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn"
       - name: Test
-        run: make run-ci -j4 V=1 TEST_CI_ARGS="-p actions --node-args='--test-reporter=spec' --node-args='--test-reporter-destination=stdout' --measure-flakiness 9"
+        run: make -C node run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
+      - name: Re-run test in a folder whose name contains unusual chars
+        run: |
+          mv node "$DIR"
+          cd "$DIR"
+          ./tools/test.py --flaky-tests keep_retrying -p actions -j 4
+        env:
+          DIR: dir%20with $unusual"chars?'åß∂ƒ©∆¬…`

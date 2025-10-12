@@ -30,7 +30,15 @@ extern macro PromiseBuiltinsAssembler::IsIsolatePromiseHookEnabled(uint32):
 
 extern macro PromiseBuiltinsAssembler::PromiseHookFlags(): uint32;
 
+namespace macros {
+extern macro GetContinuationPreservedEmbedderData(): Object;
+extern macro SetContinuationPreservedEmbedderData(Object): void;
+}
+
 namespace promise {
+const kInvalidAsyncTaskId:
+    constexpr uint32 generates 'JSPromise::kInvalidAsyncTaskId';
+
 extern macro IsFunctionWithPrototypeSlotMap(Map): bool;
 
 @export
@@ -44,9 +52,8 @@ macro PromiseInit(promise: JSPromise): void {
   promise.flags = SmiTag(JSPromiseFlags{
     status: PromiseState::kPending,
     has_handler: false,
-    handled_hint: false,
     is_silent: false,
-    async_task_id: 0
+    async_task_id: kInvalidAsyncTaskId
   });
   promise_internal::ZeroOutEmbedderOffsets(promise);
 }
@@ -64,9 +71,8 @@ macro InnerNewJSPromise(implicit context: Context)(): JSPromise {
   promise.flags = SmiTag(JSPromiseFlags{
     status: PromiseState::kPending,
     has_handler: false,
-    handled_hint: false,
     is_silent: false,
-    async_task_id: 0
+    async_task_id: kInvalidAsyncTaskId
   });
   return promise;
 }
@@ -80,7 +86,7 @@ macro NewPromiseFulfillReactionJobTask(
     return new PromiseFulfillReactionJobTask{
       map: PromiseFulfillReactionJobTaskMapConstant(),
       continuation_preserved_embedder_data:
-          GetContinuationPreservedEmbedderData(),
+          macros::GetContinuationPreservedEmbedderData(),
       argument,
       context: handlerContext,
       handler,
@@ -108,7 +114,7 @@ macro NewPromiseRejectReactionJobTask(
     return new PromiseRejectReactionJobTask{
       map: PromiseRejectReactionJobTaskMapConstant(),
       continuation_preserved_embedder_data:
-          GetContinuationPreservedEmbedderData(),
+          macros::GetContinuationPreservedEmbedderData(),
       argument,
       context: handlerContext,
       handler,
@@ -263,8 +269,8 @@ transitioning macro RunAnyPromiseHookInit(
 // This uses the given parent as the parent promise for the promise
 // init hook.
 @export
-transitioning macro NewJSPromise(implicit context: Context)(parent: Object):
-    JSPromise {
+transitioning macro NewJSPromise(implicit context: Context)(
+                                 parent: Object): JSPromise {
   const instance = InnerNewJSPromise();
   PromiseInit(instance);
   RunAnyPromiseHookInit(instance, parent);
@@ -303,7 +309,7 @@ macro NewPromiseReaction(
     return new PromiseReaction{
       map: PromiseReactionMapConstant(),
       continuation_preserved_embedder_data:
-          GetContinuationPreservedEmbedderData(),
+          macros::GetContinuationPreservedEmbedderData(),
       next: next,
       reject_handler: rejectHandler,
       fulfill_handler: fulfillHandler,
@@ -347,7 +353,7 @@ macro NewPromiseResolveThenableJobTask(
     return new PromiseResolveThenableJobTask{
       map: PromiseResolveThenableJobTaskMapConstant(),
       continuation_preserved_embedder_data:
-          GetContinuationPreservedEmbedderData(),
+          macros::GetContinuationPreservedEmbedderData(),
       context: nativeContext,
       promise_to_resolve: promiseToResolve,
       thenable,
@@ -452,4 +458,24 @@ transitioning macro BranchIfAccessCheckFailed(
     }
   } label HasAccess {}
 }
+
+@if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+transitioning javascript builtin GetContinuationPreservedEmbedderData(
+    js-implicit context: Context, receiver: JSAny)(): JSAny {
+  // The embbeder API allows storing arbitrary Data, which might not be
+  // something that can be exposed to script.
+  const data = macros::GetContinuationPreservedEmbedderData();
+  if (!Is<JSAny>(data)) {
+    return Undefined;
+  }
+  return UnsafeCast<JSAny>(data);
+}
+
+@if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+transitioning javascript builtin SetContinuationPreservedEmbedderData(
+    js-implicit context: Context, receiver: JSAny)(data: Object): Undefined {
+  macros::SetContinuationPreservedEmbedderData(data);
+  return Undefined;
+}
+
 }

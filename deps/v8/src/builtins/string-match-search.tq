@@ -8,8 +8,8 @@ struct StringMatchFunctor {
   macro FnSymbol(): Symbol {
     return MatchSymbolConstant();
   }
-  macro CanCallFast(implicit context: Context)(maybeRegExp: HeapObject):
-      bool {
+  macro CanCallFast(implicit context: Context)(
+                       maybeRegExp: HeapObject): bool {
     return regexp::IsFastRegExpForMatch(maybeRegExp);
   }
   transitioning macro CallFast(
@@ -22,8 +22,8 @@ struct StringSearchFunctor {
   macro FnSymbol(): Symbol {
     return SearchSymbolConstant();
   }
-  macro CanCallFast(implicit context: Context)(maybeRegExp: HeapObject):
-      bool {
+  macro CanCallFast(implicit context: Context)(
+                       maybeRegExp: HeapObject): bool {
     return regexp::IsFastRegExpForSearch(maybeRegExp);
   }
   transitioning macro CallFast(

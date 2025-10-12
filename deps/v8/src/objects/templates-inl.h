@@ -5,11 +5,14 @@
 #ifndef V8_OBJECTS_TEMPLATES_INL_H_
 #define V8_OBJECTS_TEMPLATES_INL_H_
 
+#include "src/objects/templates.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/shared-function-info.h"
-#include "src/objects/templates.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -20,13 +23,11 @@ namespace internal {
 #include "torque-generated/src/objects/templates-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateInfo)
+TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateInfoWithProperties)
 TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ObjectTemplateInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateRareData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(DictionaryTemplateInfo)
-
-NEVER_READ_ONLY_SPACE_IMPL(DictionaryTemplateInfo)
-NEVER_READ_ONLY_SPACE_IMPL(ObjectTemplateInfo)
 
 BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag,
                is_object_template_call_handler,
@@ -43,8 +44,18 @@ BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, remove_prototype,
                RemovePrototypeBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, accept_any_receiver,
                AcceptAnyReceiverBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, published,
-               PublishedBit::kShift)
+
+bool FunctionTemplateInfo::published() const {
+  return BooleanBit::get(relaxed_flag(), PublishedBit::kShift);
+}
+
+void FunctionTemplateInfo::set_published(bool value) {
+  DCHECK(value);
+  if (published()) return;
+  CHECK(!HeapLayout::InReadOnlySpace(*this));
+  set_relaxed_flag(
+      BooleanBit::set(relaxed_flag(), PublishedBit::kShift, value));
+}
 
 BIT_FIELD_ACCESSORS(
     FunctionTemplateInfo, relaxed_flag,
@@ -117,46 +128,51 @@ bool FunctionTemplateInfo::has_callback(IsolateT* isolate) const {
 // static
 Tagged<FunctionTemplateRareData>
 FunctionTemplateInfo::EnsureFunctionTemplateRareData(
-    Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
+    Isolate* isolate,
+    DirectHandle<FunctionTemplateInfo> function_template_info) {
   Tagged<HeapObject> extra =
       function_template_info->rare_data(isolate, kAcquireLoad);
   if (IsUndefined(extra, isolate)) {
     return AllocateFunctionTemplateRareData(isolate, function_template_info);
   } else {
-    return FunctionTemplateRareData::cast(extra);
+    return Cast<FunctionTemplateRareData>(extra);
   }
 }
 
-#define RARE_ACCESSORS(Name, CamelName, Type, Default)                         \
-  DEF_GETTER(FunctionTemplateInfo, Get##CamelName, Tagged<Type>) {             \
+#define RARE_ACCESSORS(Name, CamelName, Default, ...)                          \
+  DEF_GETTER(FunctionTemplateInfo, Get##CamelName, Tagged<__VA_ARGS__>) {      \
     Tagged<HeapObject> extra = rare_data(cage_base, kAcquireLoad);             \
-    Tagged<Undefined> undefined =                                              \
-        GetReadOnlyRoots(cage_base).undefined_value();                         \
+    Tagged<Undefined> undefined = GetReadOnlyRoots().undefined_value();        \
     return extra == undefined ? Default                                        \
-                              : FunctionTemplateRareData::cast(extra)->Name(); \
+                              : Cast<FunctionTemplateRareData>(extra)->Name(); \
   }                                                                            \
   inline void FunctionTemplateInfo::Set##CamelName(                            \
-      Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info,   \
-      Handle<Type> Name) {                                                     \
+      Isolate* isolate,                                                        \
+      DirectHandle<FunctionTemplateInfo> function_template_info,               \
+      DirectHandle<__VA_ARGS__> Name) {                                        \
     Tagged<FunctionTemplateRareData> rare_data =                               \
         EnsureFunctionTemplateRareData(isolate, function_template_info);       \
     rare_data->set_##Name(*Name);                                              \
   }
 
-RARE_ACCESSORS(prototype_template, PrototypeTemplate, HeapObject, undefined)
+RARE_ACCESSORS(prototype_template, PrototypeTemplate, undefined,
+               UnionOf<Undefined, ObjectTemplateInfo>)
 RARE_ACCESSORS(prototype_provider_template, PrototypeProviderTemplate,
-               HeapObject, undefined)
-RARE_ACCESSORS(parent_template, ParentTemplate, HeapObject, undefined)
-RARE_ACCESSORS(named_property_handler, NamedPropertyHandler, HeapObject,
-               undefined)
-RARE_ACCESSORS(indexed_property_handler, IndexedPropertyHandler, HeapObject,
-               undefined)
-RARE_ACCESSORS(instance_template, InstanceTemplate, HeapObject, undefined)
-RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, HeapObject,
-               undefined)
-RARE_ACCESSORS(access_check_info, AccessCheckInfo, HeapObject, undefined)
-RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray,
-               GetReadOnlyRoots(cage_base).empty_fixed_array())
+               undefined, UnionOf<Undefined, FunctionTemplateInfo>)
+RARE_ACCESSORS(parent_template, ParentTemplate, undefined,
+               UnionOf<Undefined, FunctionTemplateInfo>)
+RARE_ACCESSORS(named_property_handler, NamedPropertyHandler, undefined,
+               UnionOf<Undefined, InterceptorInfo>)
+RARE_ACCESSORS(indexed_property_handler, IndexedPropertyHandler, undefined,
+               UnionOf<Undefined, InterceptorInfo>)
+RARE_ACCESSORS(instance_template, InstanceTemplate, undefined,
+               UnionOf<Undefined, ObjectTemplateInfo>)
+RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, undefined,
+               UnionOf<Undefined, FunctionTemplateInfo>)
+RARE_ACCESSORS(access_check_info, AccessCheckInfo, undefined,
+               UnionOf<Undefined, AccessCheckInfo>)
+RARE_ACCESSORS(c_function_overloads, CFunctionOverloads,
+               GetReadOnlyRoots().empty_fixed_array(), FixedArray)
 #undef RARE_ACCESSORS
 
 InstanceType FunctionTemplateInfo::GetInstanceType() const {
@@ -207,11 +223,6 @@ static_assert(
     FunctionTemplateInfo::AllowedReceiverInstanceTypeRangeEndBits::is_valid(
         LAST_JS_API_OBJECT_TYPE));
 
-bool TemplateInfo::should_cache() const {
-  return serial_number() != kDoNotCache;
-}
-bool TemplateInfo::is_cached() const { return serial_number() > kUncached; }
-
 bool FunctionTemplateInfo::instantiated() {
   return IsSharedFunctionInfo(shared_function_info());
 }
@@ -219,7 +230,7 @@ bool FunctionTemplateInfo::instantiated() {
 inline bool FunctionTemplateInfo::BreakAtEntry(Isolate* isolate) {
   Tagged<Object> maybe_shared = shared_function_info();
   if (IsSharedFunctionInfo(maybe_shared)) {
-    Tagged<SharedFunctionInfo> shared = SharedFunctionInfo::cast(maybe_shared);
+    Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(maybe_shared);
     return shared->BreakAtEntry(isolate);
   }
   return false;
@@ -228,20 +239,20 @@ inline bool FunctionTemplateInfo::BreakAtEntry(Isolate* isolate) {
 Tagged<FunctionTemplateInfo> FunctionTemplateInfo::GetParent(Isolate* isolate) {
   Tagged<Object> parent = GetParentTemplate();
   return IsUndefined(parent, isolate) ? Tagged<FunctionTemplateInfo>{}
-                                      : FunctionTemplateInfo::cast(parent);
+                                      : Cast<FunctionTemplateInfo>(parent);
 }
 
 Tagged<ObjectTemplateInfo> ObjectTemplateInfo::GetParent(Isolate* isolate) {
   Tagged<Object> maybe_ctor = constructor();
   if (IsUndefined(maybe_ctor, isolate)) return ObjectTemplateInfo();
   Tagged<FunctionTemplateInfo> constructor =
-      FunctionTemplateInfo::cast(maybe_ctor);
+      Cast<FunctionTemplateInfo>(maybe_ctor);
   while (true) {
     constructor = constructor->GetParent(isolate);
     if (constructor.is_null()) return ObjectTemplateInfo();
     Tagged<Object> maybe_obj = constructor->GetInstanceTemplate();
     if (!IsUndefined(maybe_obj, isolate)) {
-      return ObjectTemplateInfo::cast(maybe_obj);
+      return Cast<ObjectTemplateInfo>(maybe_obj);
     }
   }
   return Tagged<ObjectTemplateInfo>();
@@ -276,117 +287,136 @@ bool FunctionTemplateInfo::IsTemplateFor(Tagged<JSObject> object) const {
   return IsTemplateFor(object->map());
 }
 
-bool TemplateInfo::TryGetIsolate(Isolate** isolate) const {
-  if (GetIsolateFromHeapObject(*this, isolate)) return true;
-  Isolate* isolate_value = Isolate::TryGetCurrent();
-  if (isolate_value != nullptr) {
-    *isolate = isolate_value;
-    return true;
-  }
-  return false;
+bool TemplateInfo::is_cacheable() const {
+  return IsCacheableBit::decode(template_info_flags());
+}
+void TemplateInfo::set_is_cacheable(bool is_cacheable) {
+  set_template_info_flags(
+      IsCacheableBit::update(template_info_flags(), is_cacheable));
 }
 
-Isolate* TemplateInfo::GetIsolateChecked() const {
-  Isolate* isolate;
-  CHECK(TryGetIsolate(&isolate));
-  return isolate;
+bool TemplateInfo::should_promote_to_read_only() const {
+  return ShouldPromoteToReadOnlyBit::decode(template_info_flags());
+}
+void TemplateInfo::set_should_promote_to_read_only(
+    bool should_promote_to_read_only) {
+  DCHECK(should_promote_to_read_only);
+  set_template_info_flags(ShouldPromoteToReadOnlyBit::update(
+      template_info_flags(), should_promote_to_read_only));
+}
+
+uint32_t TemplateInfo::serial_number() const {
+  return SerialNumberBits::decode(template_info_flags());
+}
+void TemplateInfo::set_serial_number(uint32_t value) {
+  set_template_info_flags(
+      SerialNumberBits::update(template_info_flags(), value));
+}
+
+uint32_t TemplateInfo::EnsureHasSerialNumber(Isolate* isolate) {
+  uint32_t serial_number = this->serial_number();
+  if (serial_number == kUninitializedSerialNumber) {
+    CHECK(!HeapLayout::InReadOnlySpace(*this));
+    serial_number = isolate->heap()->GetNextTemplateSerialNumber();
+    set_serial_number(serial_number);
+  }
+  return serial_number;
+}
+
+uint32_t TemplateInfo::GetHash() const {
+  uint32_t hash = ComputeUnseededHash(serial_number());
+  // Make sure that the hash can be encoded in a Smi in order to make it
+  // compatible with Object::GetSimpleHash() and avoid surprises.
+  return hash & Smi::kMaxValue;
 }
 
 // static
-template <typename ReturnType>
-MaybeHandle<ReturnType> TemplateInfo::ProbeInstantiationsCache(
+MaybeHandle<Object> TemplateInfo::ProbeInstantiationsCache(
     Isolate* isolate, DirectHandle<NativeContext> native_context,
-    int serial_number, CachingMode caching_mode) {
-  DCHECK_NE(serial_number, TemplateInfo::kDoNotCache);
-  if (serial_number == TemplateInfo::kUncached) {
+    DirectHandle<TemplateInfo> info, CachingMode caching_mode) {
+  DCHECK(info->is_cacheable());
+
+  uint32_t serial_number = info->serial_number();
+  if (serial_number == kUninitializedSerialNumber) {
     return {};
   }
 
-  if (serial_number < TemplateInfo::kFastTemplateInstantiationsCacheSize) {
+  if (serial_number < kFastTemplateInstantiationsCacheSize) {
     Tagged<FixedArray> fast_cache =
         native_context->fast_template_instantiations_cache();
-    Handle<Object> object{fast_cache->get(serial_number), isolate};
-    if (IsTheHole(*object, isolate)) {
+    Tagged<Object> object = fast_cache->get(serial_number);
+    if (IsTheHole(object, isolate)) {
       return {};
     }
-    return Handle<ReturnType>::cast(object);
+    return handle(object, isolate);
   }
-  if (caching_mode == CachingMode::kUnlimited ||
-      (serial_number < TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
-    Tagged<SimpleNumberDictionary> slow_cache =
-        native_context->slow_template_instantiations_cache();
-    InternalIndex entry = slow_cache->FindEntry(isolate, serial_number);
-    if (entry.is_found()) {
-      return handle(ReturnType::cast(slow_cache->ValueAt(entry)), isolate);
-    }
+  Tagged<EphemeronHashTable> cache =
+      native_context->slow_template_instantiations_cache();
+  ReadOnlyRoots roots(isolate);
+  // Instead of detouring via Object::GetHash() load the hash directly.
+  uint32_t hash = info->GetHash();
+  InternalIndex entry = cache->FindEntry(isolate, roots, info, hash);
+  if (entry.is_found()) {
+    return handle(cache->ValueAt(entry), isolate);
   }
   return {};
 }
 
 // static
-template <typename InstantiationType, typename TemplateInfoType>
 void TemplateInfo::CacheTemplateInstantiation(
     Isolate* isolate, DirectHandle<NativeContext> native_context,
-    DirectHandle<TemplateInfoType> data, CachingMode caching_mode,
-    Handle<InstantiationType> object) {
-  DCHECK_NE(TemplateInfo::kDoNotCache, data->serial_number());
+    DirectHandle<TemplateInfo> info, CachingMode caching_mode,
+    DirectHandle<Object> object) {
+  DCHECK(info->is_cacheable());
 
-  int serial_number = data->serial_number();
-  if (serial_number == TemplateInfo::kUncached) {
-    serial_number = isolate->heap()->GetNextTemplateSerialNumber();
-  }
+  uint32_t serial_number = info->EnsureHasSerialNumber(isolate);
 
-  if (serial_number < TemplateInfo::kFastTemplateInstantiationsCacheSize) {
+  if (serial_number < kFastTemplateInstantiationsCacheSize) {
     Handle<FixedArray> fast_cache =
         handle(native_context->fast_template_instantiations_cache(), isolate);
-    Handle<FixedArray> new_cache =
-        FixedArray::SetAndGrow(isolate, fast_cache, serial_number, object);
-    if (*new_cache != *fast_cache) {
-      native_context->set_fast_template_instantiations_cache(*new_cache);
-    }
-    data->set_serial_number(serial_number);
-  } else if (caching_mode == CachingMode::kUnlimited ||
-             (serial_number <
-              TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
-    Handle<SimpleNumberDictionary> cache =
-        handle(native_context->slow_template_instantiations_cache(), isolate);
+    fast_cache->set(serial_number, *object);
+    return;
+  }
+  Handle<EphemeronHashTable> cache =
+      handle(native_context->slow_template_instantiations_cache(), isolate);
+  if (caching_mode == CachingMode::kUnlimited ||
+      (cache->NumberOfElements() < kMaxTemplateInstantiationsCacheSize)) {
+    ReadOnlyRoots roots(isolate);
+    // Instead of detouring via Object::GetHash() load the hash directly.
+    uint32_t hash = info->GetHash();
     auto new_cache =
-        SimpleNumberDictionary::Set(isolate, cache, serial_number, object);
+        EphemeronHashTable::Put(isolate, cache, info, object, hash);
     if (*new_cache != *cache) {
       native_context->set_slow_template_instantiations_cache(*new_cache);
     }
-    data->set_serial_number(serial_number);
-  } else {
-    // we've overflowed the cache limit, no more caching
-    data->set_serial_number(TemplateInfo::kDoNotCache);
   }
 }
 
 // static
-template <typename TemplateInfoType>
 void TemplateInfo::UncacheTemplateInstantiation(
     Isolate* isolate, DirectHandle<NativeContext> native_context,
-    DirectHandle<TemplateInfoType> data, CachingMode caching_mode) {
-  int serial_number = data->serial_number();
-  if (serial_number < 0) return;
+    DirectHandle<TemplateInfo> info, CachingMode caching_mode) {
+  int serial_number = info->serial_number();
+  if (serial_number == kUninitializedSerialNumber) return;
 
-  if (serial_number < TemplateInfo::kFastTemplateInstantiationsCacheSize) {
+  if (serial_number < kFastTemplateInstantiationsCacheSize) {
     Tagged<FixedArray> fast_cache =
         native_context->fast_template_instantiations_cache();
     DCHECK(!IsUndefined(fast_cache->get(serial_number), isolate));
     fast_cache->set(serial_number, ReadOnlyRoots{isolate}.the_hole_value(),
                     SKIP_WRITE_BARRIER);
-    data->set_serial_number(TemplateInfo::kUncached);
-  } else if (caching_mode == CachingMode::kUnlimited ||
-             (serial_number <
-              TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
-    Handle<SimpleNumberDictionary> cache =
-        handle(native_context->slow_template_instantiations_cache(), isolate);
-    InternalIndex entry = cache->FindEntry(isolate, serial_number);
-    DCHECK(entry.is_found());
-    cache = SimpleNumberDictionary::DeleteEntry(isolate, cache, entry);
-    native_context->set_slow_template_instantiations_cache(*cache);
-    data->set_serial_number(TemplateInfo::kUncached);
+    return;
+  }
+  Handle<EphemeronHashTable> cache =
+      handle(native_context->slow_template_instantiations_cache(), isolate);
+  // Instead of detouring via Object::GetHash() load the hash directly.
+  uint32_t hash = info->GetHash();
+  bool was_present = false;
+  auto new_cache =
+      EphemeronHashTable::Remove(isolate, cache, info, &was_present, hash);
+  DCHECK(was_present);
+  if (!new_cache.is_identical_to(cache)) {
+    native_context->set_slow_template_instantiations_cache(*new_cache);
   }
 }
 

@@ -62,6 +62,10 @@ class SweeperTest : public testing::TestWithHeap {
   void MarkObject(void* payload) {
     HeapObjectHeader& header = HeapObjectHeader::FromObject(payload);
     header.TryMarkAtomic();
+    BasePage* page = BasePage::FromPayload(&header);
+    page->IncrementMarkedBytes(page->is_large()
+                                   ? LargePage::From(page)->PayloadSize()
+                                   : header.AllocatedSize());
   }
 
   PageBackend* GetBackend() { return Heap::From(GetHeap())->page_backend(); }
@@ -253,8 +257,8 @@ TEST_F(SweeperTest, UnmarkObjects) {
   auto& normal_object_header = HeapObjectHeader::FromObject(normal_object);
   auto& large_object_header = HeapObjectHeader::FromObject(large_object);
 
-  normal_object_header.TryMarkAtomic();
-  large_object_header.TryMarkAtomic();
+  MarkObject(normal_object);
+  MarkObject(large_object);
 
   EXPECT_TRUE(normal_object_header.IsMarked());
   EXPECT_TRUE(large_object_header.IsMarked());

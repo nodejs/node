@@ -17,14 +17,14 @@
 // -----------------------------------------------------------------------------
 //
 // This file contains mock distribution functions for use alongside an
-// `absl::MockingBitGen` object within the Googletest testing framework. Such
+// `absl::MockingBitGen` object within the GoogleTest testing framework. Such
 // mocks are useful to provide deterministic values as return values within
 // (otherwise random) Abseil distribution functions.
 //
 // The return type of each function is a mock expectation object which
 // is used to set the match result.
 //
-// More information about the Googletest testing framework is available at
+// More information about the GoogleTest testing framework is available at
 // https://github.com/google/googletest
 //
 // EXPECT_CALL and ON_CALL need to be made within the same DLL component as
@@ -46,16 +46,18 @@
 #ifndef ABSL_RANDOM_MOCK_DISTRIBUTIONS_H_
 #define ABSL_RANDOM_MOCK_DISTRIBUTIONS_H_
 
-#include <limits>
-#include <type_traits>
-#include <utility>
-
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-#include "absl/meta/type_traits.h"
+#include "absl/base/config.h"
+#include "absl/random/bernoulli_distribution.h"
+#include "absl/random/beta_distribution.h"
 #include "absl/random/distributions.h"
+#include "absl/random/exponential_distribution.h"
+#include "absl/random/gaussian_distribution.h"
 #include "absl/random/internal/mock_overload_set.h"
+#include "absl/random/internal/mock_validators.h"
+#include "absl/random/log_uniform_int_distribution.h"
 #include "absl/random/mocking_bit_gen.h"
+#include "absl/random/poisson_distribution.h"
+#include "absl/random/zipf_distribution.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -80,8 +82,9 @@ ABSL_NAMESPACE_BEGIN
 //  assert(x == 123456)
 //
 template <typename R>
-using MockUniform = random_internal::MockOverloadSet<
+using MockUniform = random_internal::MockOverloadSetWithValidator<
     random_internal::UniformDistributionWrapper<R>,
+    random_internal::UniformDistributionValidator<R>,
     R(IntervalClosedOpenTag, MockingBitGen&, R, R),
     R(IntervalClosedClosedTag, MockingBitGen&, R, R),
     R(IntervalOpenOpenTag, MockingBitGen&, R, R),

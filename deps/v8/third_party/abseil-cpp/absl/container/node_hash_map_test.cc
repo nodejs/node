@@ -14,6 +14,18 @@
 
 #include "absl/container/node_hash_map.h"
 
+#include <cstddef>
+#include <new>
+#include <string>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+#include "absl/base/config.h"
+#include "absl/container/internal/hash_policy_testing.h"
 #include "absl/container/internal/tracked.h"
 #include "absl/container/internal/unordered_map_constructor_test.h"
 #include "absl/container/internal/unordered_map_lookup_test.h"
@@ -29,6 +41,7 @@ using ::testing::Field;
 using ::testing::IsEmpty;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
+using ::testing::UnorderedElementsAreArray;
 
 using MapTypes = ::testing::Types<
     absl::node_hash_map<int, int, StatefulTestingHash, StatefulTestingEqual,
@@ -257,8 +270,58 @@ TEST(NodeHashMap, EraseIf) {
   }
 }
 
-// This test requires std::launder for mutable key access in node handles.
-#if defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606
+TEST(NodeHashMap, CForEach) {
+  node_hash_map<int, int> m;
+  std::vector<std::pair<int, int>> expected;
+  for (int i = 0; i < 100; ++i) {
+    {
+      SCOPED_TRACE("mutable object iteration");
+      std::vector<std::pair<int, int>> v;
+      absl::container_internal::c_for_each_fast(
+          m, [&v](std::pair<const int, int>& p) { v.push_back(p); });
+      EXPECT_THAT(v, UnorderedElementsAreArray(expected));
+    }
+    {
+      SCOPED_TRACE("const object iteration");
+      std::vector<std::pair<int, int>> v;
+      const node_hash_map<int, int>& cm = m;
+      absl::container_internal::c_for_each_fast(
+          cm, [&v](const std::pair<const int, int>& p) { v.push_back(p); });
+      EXPECT_THAT(v, UnorderedElementsAreArray(expected));
+    }
+    {
+      SCOPED_TRACE("const object iteration");
+      std::vector<std::pair<int, int>> v;
+      absl::container_internal::c_for_each_fast(
+          node_hash_map<int, int>(m),
+          [&v](std::pair<const int, int>& p) { v.push_back(p); });
+      EXPECT_THAT(v, UnorderedElementsAreArray(expected));
+    }
+    m[i] = i;
+    expected.emplace_back(i, i);
+  }
+}
+
+TEST(NodeHashMap, CForEachMutate) {
+  node_hash_map<int, int> s;
+  std::vector<std::pair<int, int>> expected;
+  for (int i = 0; i < 100; ++i) {
+    std::vector<std::pair<int, int>> v;
+    absl::container_internal::c_for_each_fast(
+        s, [&v](std::pair<const int, int>& p) {
+          v.push_back(p);
+          p.second++;
+        });
+    EXPECT_THAT(v, UnorderedElementsAreArray(expected));
+    for (auto& p : expected) {
+      p.second++;
+    }
+    EXPECT_THAT(s, UnorderedElementsAreArray(expected));
+    s[i] = i;
+    expected.emplace_back(i, i);
+  }
+}
+
 TEST(NodeHashMap, NodeHandleMutableKeyAccess) {
   node_hash_map<std::string, std::string> map;
 
@@ -270,7 +333,6 @@ TEST(NodeHashMap, NodeHandleMutableKeyAccess) {
 
   EXPECT_THAT(map, testing::ElementsAre(Pair("key", "mapped")));
 }
-#endif
 
 TEST(NodeHashMap, RecursiveTypeCompiles) {
   struct RecursiveType {

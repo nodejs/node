@@ -34,6 +34,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/strings/string_view.h"
@@ -45,7 +46,7 @@ namespace log_internal {
 class SyntheticBinary;
 class VLogSite;
 
-int RegisterAndInitialize(VLogSite* v);
+int RegisterAndInitialize(VLogSite* absl_nonnull v);
 void UpdateVLogSites();
 constexpr int kUseFlag = (std::numeric_limits<int16_t>::min)();
 
@@ -60,7 +61,7 @@ constexpr int kUseFlag = (std::numeric_limits<int16_t>::min)();
 class VLogSite final {
  public:
   // `f` must not be destroyed until the program exits.
-  explicit constexpr VLogSite(const char* f)
+  explicit constexpr VLogSite(const char* absl_nonnull f)
       : file_(f), v_(kUninitialized), next_(nullptr) {}
   VLogSite(const VLogSite&) = delete;
   VLogSite& operator=(const VLogSite&) = delete;
@@ -93,7 +94,7 @@ class VLogSite final {
   }
 
  private:
-  friend int log_internal::RegisterAndInitialize(VLogSite* v);
+  friend int log_internal::RegisterAndInitialize(VLogSite* absl_nonnull v);
   friend void log_internal::UpdateVLogSites();
   friend class log_internal::SyntheticBinary;
   static constexpr int kUninitialized = (std::numeric_limits<int>::max)();
@@ -116,7 +117,7 @@ class VLogSite final {
   ABSL_ATTRIBUTE_NOINLINE bool SlowIsEnabled5(int stale_v);
 
   // This object is too size-sensitive to use absl::string_view.
-  const char* const file_;
+  const char* absl_nonnull const file_;
   std::atomic<int> v_;
   std::atomic<VLogSite*> next_;
 };
@@ -130,7 +131,7 @@ int VLogLevel(absl::string_view file);
 // Registers a site `v` to get updated as `vmodule` and `v` change.  Also
 // initializes the site based on their current values, and returns that result.
 // Does not allocate memory.
-int RegisterAndInitialize(VLogSite* v);
+int RegisterAndInitialize(VLogSite* absl_nonnull v);
 
 // Allocates memory.
 void UpdateVLogSites();
@@ -154,7 +155,8 @@ int PrependVModule(absl::string_view module_pattern, int log_level);
 void OnVLogVerbosityUpdate(std::function<void()> cb);
 
 // Does not allocate memory.
-VLogSite* SetVModuleListHeadForTestOnly(VLogSite* v);
+VLogSite* absl_nullable SetVModuleListHeadForTestOnly(
+    VLogSite* absl_nullable v);
 
 }  // namespace log_internal
 ABSL_NAMESPACE_END

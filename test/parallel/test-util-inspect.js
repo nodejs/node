@@ -145,7 +145,7 @@ assert.strictEqual(
     Object.assign(new String('hello'), { [Symbol('foo')]: 123 }),
     { showHidden: true }
   ),
-  "[String: 'hello'] { [length]: 5, [Symbol(foo)]: 123 }"
+  "[String: 'hello'] { [length]: 5, Symbol(foo): 123 }"
 );
 
 assert.match(util.inspect((new JSStream())._externalStream),
@@ -770,23 +770,25 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 // Note: Symbols are not supported by `Error#toString()` which is called by
 // accessing the `stack` property.
 [
-  [404, '404: foo', '[404]'],
-  [0, '0: foo', '[RangeError: foo]'],
-  [0n, '0: foo', '[RangeError: foo]'],
+  [404, '404 [RangeError]: foo', '[RangeError: foo\n    404]'],
+  [0, '0 [RangeError]: foo', '[RangeError: foo]'],
+  [0n, '0 [RangeError]: foo', '[RangeError: foo]'],
   [null, 'null: foo', '[RangeError: foo]'],
   [undefined, 'RangeError: foo', '[RangeError: foo]'],
-  [false, 'false: foo', '[RangeError: foo]'],
+  [false, 'false [RangeError]: foo', '[RangeError: foo]'],
   ['', 'foo', '[RangeError: foo]'],
-  [[1, 2, 3], '1,2,3: foo', '[1,2,3]'],
+  [[1, 2, 3], '1,2,3 [RangeError]: foo', '[RangeError: foo\n    [\n      1,\n      2,\n      3\n    ]]'],
 ].forEach(([value, outputStart, stack]) => {
   let err = new RangeError('foo');
   err.name = value;
+  const result = util.inspect(err);
   assert(
-    util.inspect(err).startsWith(outputStart),
+    result.startsWith(outputStart),
     util.format(
-      'The name set to %o did not result in the expected output "%s"',
+      'The name set to %o did not result in the expected output "%s", got "%s"',
       value,
-      outputStart
+      outputStart,
+      result.split('\n')[0]
     )
   );
 
@@ -823,7 +825,7 @@ assert.strictEqual(util.inspect({ __proto__: Date.prototype }), 'Date {}');
 {
   const x = { [util.inspect.custom]: util.inspect };
   assert(util.inspect(x).includes(
-    '[Symbol(nodejs.util.inspect.custom)]: [Function: inspect] {\n'));
+    'Symbol(nodejs.util.inspect.custom): [Function: inspect] {\n'));
 }
 
 // `util.inspect` should display the escaped value of a key.
@@ -920,7 +922,7 @@ assert.strictEqual(util.inspect({ __proto__: Date.prototype }), 'Date {}');
   testColorStyle('null', null);
   testColorStyle('string', 'test string');
   testColorStyle('date', new Date());
-  testColorStyle('regexp', /regexp/);
+  // RegExp now uses token-level highlighting; verified in a dedicated test file.
 }
 
 // An object with "hasOwnProperty" overwritten should not throw.
@@ -1045,7 +1047,7 @@ util.inspect({ hasOwnProperty: null });
   const UIC = 'nodejs.util.inspect.custom';
   assert.strictEqual(
     util.inspect(subject),
-    `{\n  a: 123,\n  [Symbol(${UIC})]: [Function: [${UIC}]]\n}`
+    `{\n  a: 123,\n  Symbol(${UIC}): [Function: [${UIC}]]\n}`
   );
 }
 
@@ -1145,27 +1147,29 @@ if (typeof Symbol !== 'undefined') {
 
   subject[Symbol('sym\nbol')] = 42;
 
-  assert.strictEqual(util.inspect(subject), '{ [Symbol(sym\\nbol)]: 42 }');
+  assert.strictEqual(util.inspect(subject), '{ Symbol(sym\\nbol): 42 }');
   assert.strictEqual(
     util.inspect(subject, options),
-    '{ [Symbol(sym\\nbol)]: 42 }'
+    '{ Symbol(sym\\nbol): 42 }'
   );
 
   Object.defineProperty(
     subject,
     Symbol(),
     { enumerable: false, value: 'non-enum' });
-  assert.strictEqual(util.inspect(subject), '{ [Symbol(sym\\nbol)]: 42 }');
+  assert.strictEqual(util.inspect(subject), '{ Symbol(sym\\nbol): 42 }');
   assert.strictEqual(
     util.inspect(subject, options),
-    "{ [Symbol(sym\\nbol)]: 42, [Symbol()]: 'non-enum' }"
+    "{ Symbol(sym\\nbol): 42, [Symbol()]: 'non-enum' }"
   );
 
   subject = [1, 2, 3];
   subject[Symbol('symbol')] = 42;
 
-  assert.strictEqual(util.inspect(subject),
-                     '[ 1, 2, 3, [Symbol(symbol)]: 42 ]');
+  assert.strictEqual(
+    util.inspect(subject),
+    '[ 1, 2, 3, Symbol(symbol): 42 ]'
+  );
 }
 
 // Test Set.
@@ -1263,9 +1267,9 @@ if (typeof Symbol !== 'undefined') {
 // a bonafide native Promise.
 {
   const oldPromise = Promise;
-  global.Promise = function() { this.bar = 42; };
+  globalThis.Promise = function() { this.bar = 42; };
   assert.strictEqual(util.inspect(new Promise()), '{ bar: 42 }');
-  global.Promise = oldPromise;
+  globalThis.Promise = oldPromise;
 }
 
 // Test Map iterators.
@@ -1411,11 +1415,11 @@ if (typeof Symbol !== 'undefined') {
   assert.strictEqual(util.inspect(new ArraySubclass(1, 2, 3)),
                      'ArraySubclass(3) [ 1, 2, 3 ]');
   assert.strictEqual(util.inspect(new SetSubclass([1, 2, 3])),
-                     'SetSubclass(3) [Set] { 1, 2, 3 }');
+                     'SetSubclass(3) { 1, 2, 3 }');
   assert.strictEqual(util.inspect(new MapSubclass([['foo', 42]])),
-                     "MapSubclass(1) [Map] { 'foo' => 42 }");
+                     "MapSubclass(1) { 'foo' => 42 }");
   assert.strictEqual(util.inspect(new PromiseSubclass(() => {})),
-                     'PromiseSubclass [Promise] { <pending> }');
+                     'PromiseSubclass { <pending> }');
   assert.strictEqual(util.inspect(new SymbolNameClass()),
                      'Symbol(name) {}');
   assert.strictEqual(
@@ -1426,6 +1430,29 @@ if (typeof Symbol !== 'undefined') {
     util.inspect(Object.setPrototypeOf(x, null)),
     '[ObjectSubclass: null prototype] { foo: 42 }'
   );
+
+  class MiddleErrorPart extends Error {}
+  assert(util.inspect(new MiddleErrorPart('foo')).includes('MiddleErrorPart: foo'));
+
+  class MapClass extends Map {}
+  assert.strictEqual(util.inspect(new MapClass([['key', 'value']])),
+                     "MapClass(1) { 'key' => 'value' }");
+
+  class AbcMap extends Map {}
+  assert.strictEqual(util.inspect(new AbcMap([['key', 'value']])),
+                     "AbcMap(1) { 'key' => 'value' }");
+
+  class SetAbc extends Set {}
+  assert.strictEqual(util.inspect(new SetAbc([1, 2, 3])),
+                     'SetAbc(3) { 1, 2, 3 }');
+
+  class FooSet extends Set {}
+  assert.strictEqual(util.inspect(new FooSet([1, 2, 3])),
+                     'FooSet(3) { 1, 2, 3 }');
+
+  class Settings extends Set {}
+  assert.strictEqual(util.inspect(new Settings([1, 2, 3])),
+                     'Settings(3) [Set] { 1, 2, 3 }');
 }
 
 // Empty and circular before depth.
@@ -1589,7 +1616,7 @@ util.inspect(process);
   const obj = { [util.inspect.custom]: 'fhqwhgads' };
   assert.strictEqual(
     util.inspect(obj),
-    "{ [Symbol(nodejs.util.inspect.custom)]: 'fhqwhgads' }"
+    "{ Symbol(nodejs.util.inspect.custom): 'fhqwhgads' }"
   );
 }
 
@@ -1598,7 +1625,7 @@ util.inspect(process);
   const obj = { [Symbol.toStringTag]: 'a' };
   assert.strictEqual(
     util.inspect(obj),
-    "{ [Symbol(Symbol.toStringTag)]: 'a' }"
+    "{ Symbol(Symbol.toStringTag): 'a' }"
   );
   Object.defineProperty(obj, Symbol.toStringTag, {
     value: 'a',
@@ -1642,7 +1669,20 @@ util.inspect(process);
     }
   }
 
-  assert.throws(() => util.inspect(new ThrowingClass()), /toStringTag error/);
+  assert.strictEqual(util.inspect(new ThrowingClass()), 'ThrowingClass {}');
+
+  const y = {
+    get [Symbol.toStringTag]() {
+      return JSON.stringify(this);
+    }
+  };
+  const x = { y };
+  y.x = x;
+
+  assert.strictEqual(
+    util.inspect(x),
+    '<ref *1> {\n  y: { x: [Circular *1], Symbol(Symbol.toStringTag): [Getter] }\n}'
+  );
 
   class NotStringClass {
     get [Symbol.toStringTag]() {
@@ -2259,7 +2299,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   value[Symbol('foo')] = 'yeah';
   res = util.inspect(value);
   assert.notStrictEqual(res, expectedWithoutProto);
-  assert.match(res, /\[Symbol\(foo\)]: 'yeah'/);
+  assert.match(res, /Symbol\(foo\): 'yeah'/);
 });
 
 assert.strictEqual(inspect(1n), '1n');
@@ -2275,7 +2315,7 @@ assert.strictEqual(
   Object.defineProperty(obj, 'Non\nenumerable\tkey', { value: true });
   assert.strictEqual(
     util.inspect(obj, { showHidden: true }),
-    '{ [Non\\nenumerable\\tkey]: true }'
+    '{ [\'Non\\nenumerable\\tkey\']: true }'
   );
 }
 
@@ -2366,7 +2406,7 @@ assert.strictEqual(
   arr[Symbol('a')] = false;
   assert.strictEqual(
     inspect(arr, { sorted: true }),
-    '[ 3, 2, 1, [Symbol(a)]: false, [Symbol(b)]: true, a: 1, b: 2, c: 3 ]'
+    '[ 3, 2, 1, Symbol(a): false, Symbol(b): true, a: 1, b: 2, c: 3 ]'
   );
 }
 
@@ -2824,7 +2864,7 @@ assert.strictEqual(
   // Use a fake stack to verify the expected colored outcome.
   const stack = [
     'Error: CWD is grayed out, even cwd that are percent encoded!',
-    '    at A.<anonymous> (/test/node_modules/foo/node_modules/bar/baz.js:2:7)',
+    '    at A.<anonymous> (/test/node_modules/foo/node_modules/@namespace/bar/baz.js:2:7)',
     '    at Module._compile (node:internal/modules/cjs/loader:827:30)',
     '    at Fancy (node:vm:697:32)',
     // This file is not an actual Node.js core file.
@@ -2849,7 +2889,7 @@ assert.strictEqual(
   }
   const escapedCWD = util.inspect(process.cwd()).slice(1, -1);
   util.inspect(err, { colors: true }).split('\n').forEach((line, i) => {
-    let expected = stack[i].replace(/node_modules\/([^/]+)/gi, (_, m) => {
+    let expected = stack[i].replace(/node_modules\/(@[^/]+\/[^/]+|[^/]+)/gi, (_, m) => {
       return `node_modules/\u001b[4m${m}\u001b[24m`;
     }).replaceAll(new RegExp(`(\\(?${escapedCWD}(\\\\|/))`, 'gi'), (_, m) => {
       return `\x1B[90m${m}\x1B[39m`;
@@ -2905,6 +2945,175 @@ assert.strictEqual(
   assert.strictEqual(actual, expected);
 
   process.cwd = originalCWD;
+}
+
+{
+  // Use a fake stack to verify the expected colored outcome.
+  const err = new Error('Hide duplicate frames in long stack');
+  err.stack = [
+    'Error: Hide duplicate frames in long stack',
+    '    at A.<anonymous> (/foo/node_modules/bar/baz.js:2:7)',
+    '    at A.<anonymous> (/foo/node_modules/bar/baz.js:2:7)',
+    '    at Module._compile (node:internal/modules/cjs/loader:827:30)',
+    '    at Fancy (node:vm:697:32)',
+    '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Fancy (node:vm:697:32)',
+    '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+  ].join('\n');
+
+  assert.strictEqual(
+    util.inspect(err, { colors: true }),
+    'Error: Hide duplicate frames in long stack\n' +
+      '    at A.<anonymous> (/foo/node_modules/\x1B[4mbar\x1B[24m/baz.js:2:7)\n' +
+      '    at A.<anonymous> (/foo/node_modules/\x1B[4mbar\x1B[24m/baz.js:2:7)\n' +
+      '\x1B[90m    at Module._compile (node:internal/modules/cjs/loader:827:30)\x1B[39m\n' +
+      '\x1B[90m    at Fancy (node:vm:697:32)\x1B[39m\n' +
+      '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)\n' +
+      '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 3 duplicate lines matching above lines ...\x1B[39m\n' +
+
+      '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 5 duplicate lines matching above 1 lines 5 times...\x1B[39m\n' +
+
+      '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
+      '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
+      '\x1B[90m    ... collapsed 10 duplicate lines matching above 5 lines 2 times...\x1B[39m\n' +
+
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
+      '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '    at /test/test-util-inspect.js:2239:9\n' +
+      '\x1B[90m    at getActual (node:assert:592:5)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 4 duplicate lines matching above 2 lines 2 times...\x1B[39m',
+  );
+
+  // Use a fake stack to verify the expected colored outcome.
+  const err2 = new Error('Hide duplicate frames in long stack');
+  err2.stack = [
+    'Error: Hide duplicate frames in long stack',
+    '    at A.<anonymous> (/foo/node_modules/bar/baz.js:2:7)',
+    '    at A.<anonymous> (/foo/node_modules/bar/baz.js:2:7)',
+    '    at Module._compile (node:internal/modules/cjs/loader:827:30)',
+
+    // 3
+    '    at Fancy (node:vm:697:32)',
+    '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Fancy (node:vm:697:32)',
+    '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+
+    // 6 * 1
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+
+    // 10
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+
+    // 2 * 2
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+  ].join('\n');
+
+  assert.strictEqual(
+    util.inspect(err2, { colors: true }),
+    'Error: Hide duplicate frames in long stack\n' +
+      '    at A.<anonymous> (/foo/node_modules/\x1B[4mbar\x1B[24m/baz.js:2:7)\n' +
+      '    at A.<anonymous> (/foo/node_modules/\x1B[4mbar\x1B[24m/baz.js:2:7)\n' +
+      '\x1B[90m    at Module._compile (node:internal/modules/cjs/loader:827:30)\x1B[39m\n' +
+      '\x1B[90m    at Fancy (node:vm:697:32)\x1B[39m\n' +
+      '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)\n' +
+      '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 3 duplicate lines matching above lines ...\x1B[39m\n' +
+      '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 6 duplicate lines matching above 1 lines 6 times...\x1B[39m\n' +
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
+      '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
+      '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
+      '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '\x1B[90m    ... collapsed 10 duplicate lines matching above lines ...\x1B[39m\n' +
+      '    at /test/test-util-inspect.js:2239:9\n' +
+      '\x1B[90m    at getActual (node:assert:592:5)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 4 duplicate lines matching above 2 lines 2 times...\x1B[39m',
+  );
 }
 
 {
@@ -3170,7 +3379,7 @@ assert.strictEqual(
   }
 
   // Consistency check.
-  assert(fullObjectGraph(global).has(Function.prototype));
+  assert(fullObjectGraph(globalThis).has(Function.prototype));
 }
 
 {
@@ -3249,6 +3458,13 @@ assert.strictEqual(
     util.inspect({ ['__proto__']: { a: 1 } }),
     "{ ['__proto__']: { a: 1 } }"
   );
+
+  const o = { ['__proto__']: { a: 1 } };
+  Object.defineProperty(o, '__proto__', { enumerable: false });
+  assert.strictEqual(
+    util.inspect(o, { showHidden: true }),
+    "{ [['__proto__']]: { a: 1 } }"
+  );
 }
 
 {
@@ -3304,6 +3520,27 @@ assert.strictEqual(
     util.inspect(-123456789.12345678, { numericSeparator: true }),
     '-123_456_789.123_456_78'
   );
+
+  // Regression test for https://github.com/nodejs/node/issues/59376
+  // numericSeparator should work correctly for negative fractional numbers
+  {
+    // Test the exact values from the GitHub issue
+    const values = [0.1234, -0.12, -0.123, -0.1234, -1.234];
+    assert.strictEqual(
+      util.inspect(values, { numericSeparator: true }),
+      '[ 0.123_4, -0.12, -0.123, -0.123_4, -1.234 ]'
+    );
+
+    // Test individual negative fractional numbers between -1 and 0
+    assert.strictEqual(
+      util.inspect(-0.1234, { numericSeparator: true }),
+      '-0.123_4'
+    );
+    assert.strictEqual(
+      util.inspect(-0.12345, { numericSeparator: true }),
+      '-0.123_45'
+    );
+  }
 }
 
 // Regression test for https://github.com/nodejs/node/issues/41244
@@ -3312,5 +3549,159 @@ assert.strictEqual(
     get [Symbol.iterator]() {
       throw new Error();
     }
-  }), '{ [Symbol(Symbol.iterator)]: [Getter] }');
+  }), '{ Symbol(Symbol.iterator): [Getter] }');
+}
+
+{
+  const sym = Symbol('bar()');
+  const o = {
+    'foo': 0,
+    'Symbol(foo)': 0,
+    [Symbol('foo')]: 0,
+    [Symbol('foo()')]: 0,
+    [sym]: 0,
+  };
+  Object.defineProperty(o, sym, { enumerable: false });
+
+  assert.strictEqual(
+    util.inspect(o, { showHidden: true }),
+    '{\n' +
+    '  foo: 0,\n' +
+    "  'Symbol(foo)': 0,\n" +
+    '  Symbol(foo): 0,\n' +
+    '  Symbol(foo()): 0,\n' +
+    '  [Symbol(bar())]: 0\n' +
+    '}',
+  );
+}
+
+{
+  const o = {};
+  const { prototype: BuiltinPrototype } = Object;
+  const desc = Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor');
+  Object.defineProperty(BuiltinPrototype, 'constructor', {
+    get: () => BuiltinPrototype,
+    configurable: true,
+  });
+  assert.strictEqual(
+    util.inspect(o),
+    '{}',
+  );
+  Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+}
+
+{
+  const o = { f() {} };
+  const { prototype: BuiltinPrototype } = Function;
+  const desc = Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor');
+  Object.defineProperty(BuiltinPrototype, 'constructor', {
+    get: () => BuiltinPrototype,
+    configurable: true,
+  });
+  assert.strictEqual(
+    util.inspect(o),
+    '{ f: [Function: f] }',
+  );
+  Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+}
+{
+  const prototypes = [
+    Array.prototype,
+    ArrayBuffer.prototype,
+    Buffer.prototype,
+    Function.prototype,
+    Map.prototype,
+    Object.prototype,
+    Reflect.getPrototypeOf(Uint8Array.prototype),
+    Set.prototype,
+    Uint8Array.prototype,
+  ];
+  const descriptors = new Map();
+  const buffer = Buffer.from('Hello');
+  const o = {
+    arrayBuffer: new ArrayBuffer(), buffer, typedArray: Uint8Array.from(buffer),
+    array: [], func() {}, set: new Set([1]), map: new Map(),
+  };
+  for (const BuiltinPrototype of prototypes) {
+    descriptors.set(BuiltinPrototype, Reflect.getOwnPropertyDescriptor(BuiltinPrototype, 'constructor'));
+    Object.defineProperty(BuiltinPrototype, 'constructor', {
+      get: () => BuiltinPrototype,
+      configurable: true,
+    });
+  }
+  assert.strictEqual(
+    util.inspect(o),
+    '{\n' +
+    '  arrayBuffer: ArrayBuffer { [Uint8Contents]: <>, byteLength: 0 },\n' +
+    '  buffer: <Buffer 48 65 6c 6c 6f>,\n' +
+    '  typedArray: TypedArray(5) [Uint8Array] [ 72, 101, 108, 108, 111 ],\n' +
+    '  array: [],\n' +
+    '  func: [Function: func],\n' +
+    '  set: Set(1) { 1 },\n' +
+    '  map: Map(0) {}\n' +
+    '}',
+  );
+  for (const [BuiltinPrototype, desc] of descriptors) {
+    Object.defineProperty(BuiltinPrototype, 'constructor', desc);
+  }
+}
+
+{
+  function f() {}
+  Object.defineProperty(f, 'name', { value: Symbol('f') });
+
+  assert.strictEqual(
+    util.inspect(f),
+    '[Function: Symbol(f)]',
+  );
+}
+
+{
+  const error = new EvalError();
+  const re = /a/g;
+  error.name = re;
+  assert.strictEqual(error.name, re);
+  assert.strictEqual(
+    util.inspect(error),
+    `${re} [EvalError]
+${error.stack.split('\n').slice(1).join('\n')}`,
+  );
+}
+
+{
+  const error = new Error();
+  error.stack = [Symbol('foo')];
+
+  assert.strictEqual(
+    inspect(error),
+    '[Error\n    [\n      Symbol(foo)\n    ]]'
+  );
+}
+
+{
+  const prepareStackTrace = Error.prepareStackTrace;
+
+  Error.prepareStackTrace = (error) => error;
+
+  const error = new Error('foo');
+
+  assert.strictEqual(inspect(error), '[Error: foo\n    [Circular *1]]');
+
+  Error.prepareStackTrace = prepareStackTrace;
+}
+
+{
+  const error = new Error('foo');
+  error.stack = error;
+
+  assert.strictEqual(inspect(error), '[Error: foo\n    [Circular *1]]');
+}
+
+{
+  const error = new Error('foo');
+  const error2 = new Error('bar');
+  error.stack = error2;
+  error2.stack = error;
+
+  assert.strictEqual(inspect(error), '[Error: foo\n    [Error: bar\n        [Circular *1]]]');
 }

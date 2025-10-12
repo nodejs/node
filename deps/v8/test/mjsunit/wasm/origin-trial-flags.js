@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-experimental-wasm-stringref
 // Flags: --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function instantiateModuleWithStringRef() {
   // Build a WebAssembly module which uses stringref features.

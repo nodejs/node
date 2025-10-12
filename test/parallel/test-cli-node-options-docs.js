@@ -101,7 +101,8 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
   }
 
   // NODE_OPTIONS
-  if (isInNodeOption && !hasTrueAsDefaultValue && new RegExp(`\`${envVar}\``).test(nodeOptionsText) === false) {
+  if (isInNodeOption && !hasTrueAsDefaultValue &&
+    new RegExp(`\`${envVar}\``).test(nodeOptionsText) === false) {
     assert(false, `Should have option ${envVar} in NODE_OPTIONS documented`);
   }
 
@@ -121,6 +122,21 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
       manPagesOptions.delete(envVar.slice(1));
     }
   }
+}
+
+{
+  const sections = /^## (.+)$/mg;
+  const cliOptionPattern = /^### (?:`-\w.*`, )?`([^`]+)`/mg;
+  let match;
+  let previousIndex = 0;
+  do {
+    const sectionTitle = match?.[1];
+    match = sections.exec(cliText);
+    const filteredCLIText = cliText.slice(previousIndex, match?.index);
+    const options = Array.from(filteredCLIText.matchAll(cliOptionPattern), (match) => match[1]);
+    assert.deepStrictEqual(options, options.toSorted(), `doc/api/cli.md ${sectionTitle} subsections are not in alphabetical order`);
+    previousIndex = match?.index;
+  } while (match);
 }
 
 // add alias handling

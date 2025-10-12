@@ -36,10 +36,25 @@ const packument = (nv, opts) => {
       _id: 'blue',
       name: 'blue',
       'dist-tags': {
+        v1: '1.0.0',
+        next: '1.0.1',
+        prev: '1.0.0',
         latest: '1.0.0',
+        a: '1.0.0',
+        c: '1.0.0',
+        b: '1.0.0',
+        d: '1.0.0',
+        f: '1.0.1',
+        g: '1.0.1',
+        h: '1.0.1',
+        e: '1.0.1',
+        z: '1.0.0',
+        x: '1.0.1',
+        y: '1.0.0',
       },
       time: {
         '1.0.0': yesterday,
+        '1.0.1': '2012-12-20T00:00:00.000Z',
       },
       versions: {
         '1.0.0': {
@@ -64,10 +79,61 @@ const packument = (nv, opts) => {
         },
       },
     },
+    // package with no time attribute
+    gray: {
+      _id: 'gray',
+      name: 'gray',
+      'dist-tags': {
+        latest: '1.1.0',
+        beta: '1.2.0-beta',
+        alpha: '1.2.0-alpha',
+        old: '1.0.0',
+        stable: '1.1.0',
+      },
+      versions: {
+        '1.1.0': {
+          name: 'gray',
+          version: '1.1.0',
+          dist: {
+            shasum: 'b',
+            tarball: 'http://gray/1.1.0.tgz',
+            fileCount: 1,
+          },
+        },
+      },
+    },
     cyan: {
       _npmUser: {
         name: 'claudia',
         email: 'claudia@cyan.com',
+      },
+      name: 'cyan',
+      'dist-tags': {
+        latest: '1.0.0',
+      },
+      versions: {
+        '1.0.0': {
+          version: '1.0.0',
+          name: 'cyan',
+          dist: {
+            shasum: '123',
+            tarball: 'http://hm.cyan.com/1.0.0.tgz',
+            integrity: '---',
+            fileCount: 1,
+            unpackedSize: 1000000,
+          },
+        },
+        '1.0.1': {},
+      },
+    },
+    'cyan-oidc': {
+      _npmUser: {
+        name: 'claudia',
+        email: 'claudia@cyan.com',
+        trustedPublisher: {
+          id: 'github',
+          oidcConfigId: 'oidc:a0e127d0-8d66-45d0-8264-e4f8372c7249',
+        },
       },
       name: 'cyan',
       'dist-tags': {
@@ -398,6 +464,12 @@ t.test('package with --json and semver range', async t => {
   const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
   await view.exec(['cyan@^1.0.0'])
   t.matchSnapshot(joinedOutput())
+})
+
+t.test('package with _npmUser.trustedPublisher shows cleaned up property with --json', async t => {
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
+  await view.exec(['cyan-oidc@^1.0.0'])
+  t.match(joinedOutput(), /claudia <claudia@cyan.com>/, 'uses oidc trustedPublisher info for _npmUser')
 })
 
 t.test('package with --json and no versions', async t => {
@@ -753,4 +825,10 @@ t.test('no package completion', async t => {
   const res = await view.completion({ conf: { argv: { remain: ['npm', 'view'] } } })
   t.notOk(res, 'there is no package completion')
   t.end()
+})
+
+t.test('package with multiple dist‑tags and no time', async t => {
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false } })
+  await view.exec(['https://github.com/npm/gray'])
+  t.matchSnapshot(joinedOutput())
 })

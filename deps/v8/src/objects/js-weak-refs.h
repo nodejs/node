@@ -6,6 +6,8 @@
 #define V8_OBJECTS_JS_WEAK_REFS_H_
 
 #include "src/objects/js-objects.h"
+#include "src/objects/tagged-field.h"
+#include "src/objects/union.h"
 #include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -33,11 +35,11 @@ class JSFinalizationRegistry
   class BodyDescriptor;
 
   inline static void RegisterWeakCellWithUnregisterToken(
-      Handle<JSFinalizationRegistry> finalization_registry,
-      Handle<WeakCell> weak_cell, Isolate* isolate);
+      DirectHandle<JSFinalizationRegistry> finalization_registry,
+      DirectHandle<WeakCell> weak_cell, Isolate* isolate);
   inline static bool Unregister(
-      Handle<JSFinalizationRegistry> finalization_registry,
-      Handle<HeapObject> unregister_token, Isolate* isolate);
+      DirectHandle<JSFinalizationRegistry> finalization_registry,
+      DirectHandle<HeapObject> unregister_token, Isolate* isolate);
 
   // RemoveUnregisterToken is called from both Unregister and during GC. Since
   // it modifies slots in key_map and WeakCells and the normal write barrier is
@@ -56,15 +58,24 @@ class JSFinalizationRegistry
   // Returns true if the cleared_cells list is non-empty.
   inline bool NeedsCleanup() const;
 
+  V8_EXPORT_PRIVATE Tagged<WeakCell> PopClearedCell(
+      Isolate* isolate, bool* key_map_may_need_shrink);
+
+  static void ShrinkKeyMap(
+      Isolate* isolate,
+      DirectHandle<JSFinalizationRegistry> finalization_registry);
+
+  // Pop cleared cells and call their finalizers.
+  static Maybe<bool> Cleanup(
+      Isolate* isolate,
+      DirectHandle<JSFinalizationRegistry> finalization_registry);
+
   // Remove the already-popped weak_cell from its unregister token linked list,
   // as well as removing the entry from the key map if it is the only WeakCell
   // with its unregister token. This method cannot GC and does not shrink the
   // key map. Asserts that weak_cell has a non-undefined unregister token.
-  //
-  // It takes raw Addresses because it is called from CSA and Torque.
-  V8_EXPORT_PRIVATE static void RemoveCellFromUnregisterTokenMap(
-      Isolate* isolate, Address raw_finalization_registry,
-      Address raw_weak_cell);
+  V8_EXPORT_PRIVATE void RemoveCellFromUnregisterTokenMap(
+      Isolate* isolate, Tagged<WeakCell> weak_cell);
 
   // Bitfields in flags.
   DEFINE_TORQUE_GENERATED_FINALIZATION_REGISTRY_FLAGS()
@@ -73,9 +84,47 @@ class JSFinalizationRegistry
 };
 
 // Internal object for storing weak references in JSFinalizationRegistry.
-class WeakCell : public TorqueGeneratedWeakCell<WeakCell, HeapObject> {
+V8_OBJECT class WeakCell : public HeapObjectLayout {
  public:
+  inline Tagged<UnionOf<JSFinalizationRegistry, Undefined>>
+  finalization_registry() const;
+  inline void set_finalization_registry(
+      Tagged<UnionOf<JSFinalizationRegistry, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Symbol, JSReceiver, Undefined>> target() const;
+  inline void set_target(Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Symbol, JSReceiver, Undefined>> unregister_token()
+      const;
+  inline void set_unregister_token(
+      Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<JSAny> holdings() const;
+  inline void set_holdings(Tagged<JSAny> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<WeakCell, Undefined>> prev() const;
+  inline void set_prev(Tagged<UnionOf<WeakCell, Undefined>> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<WeakCell, Undefined>> next() const;
+  inline void set_next(Tagged<UnionOf<WeakCell, Undefined>> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<WeakCell, Undefined>> key_list_prev() const;
+  inline void set_key_list_prev(Tagged<UnionOf<WeakCell, Undefined>> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<WeakCell, Undefined>> key_list_next() const;
+  inline void set_key_list_next(Tagged<UnionOf<WeakCell, Undefined>> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   EXPORT_DECL_VERIFIER(WeakCell)
+
+  DECL_PRINTER(WeakCell)
 
   class BodyDescriptor;
 
@@ -95,17 +144,46 @@ class WeakCell : public TorqueGeneratedWeakCell<WeakCell, HeapObject> {
 
   inline void RemoveFromFinalizationRegistryCells(Isolate* isolate);
 
-  TQ_OBJECT_CONSTRUCTORS(WeakCell)
-};
+ private:
+  friend class JSFinalizationRegistry;
+  friend class MarkCompactCollector;
+  template <typename ConcreteVisitor>
+  friend class MarkingVisitorBase;
+  friend class TorqueGeneratedWeakCellAsserts;
+  friend class V8HeapExplorer;
 
-class JSWeakRef : public TorqueGeneratedJSWeakRef<JSWeakRef, JSObject> {
+  TaggedMember<UnionOf<JSFinalizationRegistry, Undefined>>
+      finalization_registry_;
+  TaggedMember<UnionOf<Symbol, JSReceiver, Undefined>> target_;
+  TaggedMember<UnionOf<Symbol, JSReceiver, Undefined>> unregister_token_;
+  TaggedMember<JSAny> holdings_;
+  TaggedMember<UnionOf<WeakCell, Undefined>> prev_;
+  TaggedMember<UnionOf<WeakCell, Undefined>> next_;
+  TaggedMember<UnionOf<WeakCell, Undefined>> key_list_prev_;
+  TaggedMember<UnionOf<WeakCell, Undefined>> key_list_next_;
+} V8_OBJECT_END;
+
+// TODO(42202654): Revise `JSWeakRef` to use `TaggedMember`s once `JSObject`
+// inherits from `HeapObjectLayout`.
+class JSWeakRef : public JSObject {
  public:
+  constexpr JSWeakRef() : JSObject() {}
+
+  static constexpr int kTargetOffset = JSObject::kHeaderSize;
+  static constexpr int kTargetOffsetEnd = kTargetOffset + kTaggedSize - 1;
+  static constexpr int kHeaderSize = kTargetOffsetEnd + 1;
+
+  DECL_ACCESSORS(target, Tagged<Union<JSReceiver, Symbol, Undefined>>)
   DECL_PRINTER(JSWeakRef)
   EXPORT_DECL_VERIFIER(JSWeakRef)
 
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(JSWeakRef)
+ protected:
+  constexpr V8_INLINE JSWeakRef(Address ptr, SkipTypeCheckTag)
+      : JSObject(ptr, SkipTypeCheckTag()) {}
+
+  friend class Tagged<JSWeakRef>;
 };
 
 }  // namespace internal

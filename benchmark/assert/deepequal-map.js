@@ -5,7 +5,7 @@ const { deepEqual, deepStrictEqual, notDeepEqual, notDeepStrictEqual } =
   require('assert');
 
 const bench = common.createBenchmark(main, {
-  n: [5e3],
+  n: [2e3],
   len: [5e2],
   strict: [0, 1],
   method: [
@@ -31,7 +31,7 @@ function benchmark(method, n, values, values2) {
 }
 
 function main({ n, len, method, strict }) {
-  const array = Array(len).fill(1);
+  const array = Array.from({ length: len }, () => '');
 
   switch (method) {
     case 'deepEqual_primitiveOnly': {

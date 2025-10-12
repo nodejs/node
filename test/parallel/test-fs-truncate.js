@@ -33,9 +33,6 @@ tmpdir.refresh();
 
 let stat;
 
-const msg = 'Using fs.truncate with a file descriptor is deprecated.' +
-            ' Please use fs.ftruncate with a file descriptor instead.';
-
 // Check truncateSync
 fs.writeFileSync(filename, data);
 stat = fs.statSync(filename);
@@ -63,10 +60,6 @@ assert.strictEqual(stat.size, 1024);
 fs.ftruncateSync(fd);
 stat = fs.statSync(filename);
 assert.strictEqual(stat.size, 0);
-
-// truncateSync
-common.expectWarning('DeprecationWarning', msg, 'DEP0081');
-fs.truncateSync(fd);
 
 fs.closeSync(fd);
 

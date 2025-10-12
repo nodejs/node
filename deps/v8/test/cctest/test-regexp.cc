@@ -26,6 +26,8 @@ const int kSubjectStringLength = arraysize(kOneByteSubjectString) - 1;
 static_assert(arraysize(kOneByteSubjectString) ==
               arraysize(kTwoByteSubjectString));
 
+namespace base = v8::base;
+
 class OneByteVectorResource : public String::ExternalOneByteStringResource {
  public:
   explicit OneByteVectorResource(base::Vector<const char> vector)
@@ -62,7 +64,7 @@ class InterruptTest {
   InterruptTest()
       : i_thread(this),
         env_(),
-        isolate_(env_->GetIsolate()),
+        isolate_(env_.isolate()),
         sem_(0),
         ran_test_body_(false),
         ran_to_completion_(false) {}
@@ -90,7 +92,7 @@ class InterruptTest {
     Local<String> string =
         Local<String>::New(isolate, instance->subject_string_handle_);
     CHECK(string->CanMakeExternal(String::Encoding::ONE_BYTE_ENCODING));
-    string->MakeExternal(&one_byte_string_resource);
+    string->MakeExternal(isolate, &one_byte_string_resource);
   }
 
   static void MakeSubjectTwoByteExternal(Isolate* isolate, void* data) {
@@ -99,23 +101,21 @@ class InterruptTest {
     Local<String> string =
         Local<String>::New(isolate, instance->subject_string_handle_);
     CHECK(string->CanMakeExternal(String::Encoding::TWO_BYTE_ENCODING));
-    string->MakeExternal(&two_byte_string_resource);
+    string->MakeExternal(isolate, &two_byte_string_resource);
   }
 
   static void TwoByteSubjectToOneByte(Isolate* isolate, void* data) {
     auto instance = reinterpret_cast<InterruptTest*>(data);
     HandleScope scope(isolate);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     Local<RegExp> re = instance->regexp_handle_.Get(isolate);
-    i::Handle<i::JSRegExp> regexp = Utils::OpenHandle(*re);
+    i::DirectHandle<i::JSRegExp> regexp = Utils::OpenDirectHandle(*re);
     // We executed on a two-byte subject so far, so we expect only bytecode for
     // two-byte to be present.
-    i::Tagged<i::Object> one_byte_code = regexp->bytecode(/* is_latin1 */ true);
-    CHECK(IsSmi(one_byte_code));
-    CHECK_EQ(i::Smi::cast(one_byte_code).value(),
-             i::JSRegExp::kUninitializedValue);
-    i::Tagged<i::Object> two_byte_code =
-        regexp->bytecode(/* is_latin1 */ false);
-    CHECK(IsByteArray(two_byte_code));
+    i::Tagged<i::IrRegExpData> re_data =
+        CheckedCast<i::IrRegExpData>(regexp->data(i_isolate));
+    CHECK(!re_data->has_latin1_bytecode());
+    CHECK(re_data->has_uc16_bytecode());
 
     // Transition the subject string to one-byte by internalizing it.
     // It already contains only one-byte characters.
@@ -162,7 +162,7 @@ class InterruptTest {
     HandleScope handle_scope(isolate_);
     i::Isolate* i_isolate = this->i_isolate();
     // The string must be in old space to support externalization.
-    i::Handle<i::String> i_one_byte_string =
+    i::DirectHandle<i::String> i_one_byte_string =
         i_isolate->factory()->NewStringFromAsciiChecked(
             &kOneByteSubjectString[0], i::AllocationType::kOld);
     SetSubjectString(Utils::ToLocal(i_one_byte_string));
@@ -172,7 +172,7 @@ class InterruptTest {
     HandleScope handle_scope(isolate_);
     i::Isolate* i_isolate = this->i_isolate();
     // The string must be in old space to support externalization.
-    i::Handle<i::String> i_two_byte_string =
+    i::DirectHandle<i::String> i_two_byte_string =
         i_isolate->factory()
             ->NewStringFromTwoByte(
                 base::Vector<const base::uc16>(&kTwoByteSubjectString[0],
@@ -186,7 +186,7 @@ class InterruptTest {
     env_->Global()
         ->Set(env_.local(), v8_str("subject_string"), subject)
         .FromJust();
-    subject_string_handle_.Reset(env_->GetIsolate(), subject);
+    subject_string_handle_.Reset(env_.isolate(), subject);
   }
 
   Local<String> GetSubjectString() const {
@@ -210,7 +210,7 @@ class InterruptTest {
 
     DCHECK(!subject_string_handle_.IsEmpty());
 
-    TryCatch try_catch(env_->GetIsolate());
+    TryCatch try_catch(env_.isolate());
 
     isolate_->RequestInterrupt(&SignalSemaphore, this);
     MaybeLocal<Object> result = regexp_handle_.Get(isolate_)->Exec(
@@ -342,7 +342,9 @@ TEST(InterruptAndTransitionSubjectFromTwoByteToOneByte) {
   test.RunTest(InterruptTest::TwoByteSubjectToOneByte);
   // After the test, we expect that bytecode for a one-byte subject has been
   // installed during the interrupt.
-  i::Handle<i::JSRegExp> regexp = Utils::OpenHandle(*test.GetRegExp());
-  i::Tagged<i::Object> one_byte_code = regexp->bytecode(/* is_latin1 */ true);
-  CHECK(IsByteArray(one_byte_code));
+  i::DirectHandle<i::JSRegExp> regexp =
+      Utils::OpenDirectHandle(*test.GetRegExp());
+  i::Tagged<i::IrRegExpData> data =
+      CheckedCast<i::IrRegExpData>(regexp->data(i_isolate));
+  CHECK(data->has_latin1_bytecode());
 }

@@ -61,8 +61,8 @@ function sum(p, c) {
         throw new Error('boom');
       }
       return c;
-    }, 0)
-  , /boom/).then(common.mustCall());
+    }, 0),
+                 /boom/).then(common.mustCall());
 }
 
 {

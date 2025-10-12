@@ -50,7 +50,7 @@ parameter count: 1
 bytecode array length: 8
 bytecodes: [
   /*  102 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
-  /*  111 E> */ B(StaContextSlot), R(context), U8(2), U8(1),
+  /*  111 E> */ B(StaContextSlotNoCell), R(context), U8(2), U8(1),
                 B(LdaUndefined),
   /*  123 S> */ B(Return),
 ]

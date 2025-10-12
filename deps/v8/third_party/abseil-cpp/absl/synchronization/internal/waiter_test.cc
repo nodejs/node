@@ -44,7 +44,7 @@ extern "C" int __clock_gettime(clockid_t c, struct timespec* ts);
 extern "C" int clock_gettime(clockid_t c, struct timespec* ts) {
   if (c == CLOCK_MONOTONIC &&
       !absl::synchronization_internal::KernelTimeout::SupportsSteadyClock()) {
-    absl::SharedBitGen gen;
+    thread_local absl::BitGen gen;  // NOLINT
     ts->tv_sec = absl::Uniform(gen, 0, 1'000'000'000);
     ts->tv_nsec = absl::Uniform(gen, 0, 1'000'000'000);
     return 0;
@@ -108,7 +108,10 @@ TYPED_TEST_P(WaiterTest, WaitDurationWoken) {
       absl::synchronization_internal::KernelTimeout(absl::Seconds(10))));
   absl::Duration waited = absl::Now() - start;
   EXPECT_GE(waited, WithTolerance(absl::Milliseconds(500)));
+#ifndef _MSC_VER
+  // Skip on MSVC due to flakiness.
   EXPECT_LT(waited, absl::Seconds(2));
+#endif
 }
 
 TYPED_TEST_P(WaiterTest, WaitTimeWoken) {
@@ -126,7 +129,10 @@ TYPED_TEST_P(WaiterTest, WaitTimeWoken) {
       start + absl::Seconds(10))));
   absl::Duration waited = absl::Now() - start;
   EXPECT_GE(waited, WithTolerance(absl::Milliseconds(500)));
-  EXPECT_LT(waited, absl::Seconds(2));
+  #ifndef _MSC_VER
+    // Skip on MSVC due to flakiness.
+    EXPECT_LT(waited, absl::Seconds(2));
+  #endif
 }
 
 TYPED_TEST_P(WaiterTest, WaitDurationReached) {
@@ -136,7 +142,10 @@ TYPED_TEST_P(WaiterTest, WaitDurationReached) {
       absl::synchronization_internal::KernelTimeout(absl::Milliseconds(500))));
   absl::Duration waited = absl::Now() - start;
   EXPECT_GE(waited, WithTolerance(absl::Milliseconds(500)));
-  EXPECT_LT(waited, absl::Seconds(1));
+  #ifndef _MSC_VER
+    // Skip on MSVC due to flakiness.
+    EXPECT_LT(waited, absl::Seconds(1));
+  #endif
 }
 
 TYPED_TEST_P(WaiterTest, WaitTimeReached) {
@@ -146,7 +155,10 @@ TYPED_TEST_P(WaiterTest, WaitTimeReached) {
       start + absl::Milliseconds(500))));
   absl::Duration waited = absl::Now() - start;
   EXPECT_GE(waited, WithTolerance(absl::Milliseconds(500)));
-  EXPECT_LT(waited, absl::Seconds(1));
+  #ifndef _MSC_VER
+    // Skip on MSVC due to flakiness.
+    EXPECT_LT(waited, absl::Seconds(1));
+  #endif
 }
 
 REGISTER_TYPED_TEST_SUITE_P(WaiterTest,

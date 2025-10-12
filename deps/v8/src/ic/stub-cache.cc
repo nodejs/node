@@ -70,8 +70,14 @@ bool CommonStubCacheChecks(StubCache* stub_cache, Tagged<Name> name,
                            Tagged<Map> map, Tagged<MaybeObject> handler) {
   // Validate that the name and handler do not move on scavenge, and that we
   // can use identity checks instead of structural equality checks.
-  DCHECK(!Heap::InYoungGeneration(name));
-  DCHECK(!Heap::InYoungGeneration(handler));
+  DCHECK(!HeapLayout::InYoungGeneration(name));
+  DCHECK(!HeapLayout::InYoungGeneration(handler));
+#ifdef V8_COMPRESS_POINTERS
+  // If the handler is a heap object, it is expected to live in the regular
+  // cage, not the code cage. No cage information is stored in the cache and
+  // StubCache::Get() assumes that this is true.
+  DCHECK(handler.IsSmi() || handler.IsInMainCageBase());
+#endif  // V8_COMPRESS_POINTERS
   DCHECK(IsUniqueName(name));
   if (handler.ptr() != kNullAddress) DCHECK(IC::IsHandler(handler));
   return true;
@@ -97,9 +103,9 @@ void StubCache::Set(Tagged<Name> name, Tagged<Map> map,
   if (!old_handler.SafeEquals(isolate()->builtins()->code(Builtin::kIllegal)) &&
       !primary->map.IsSmi()) {
     Tagged<Map> old_map =
-        Map::cast(StrongTaggedValue::ToObject(isolate(), primary->map));
+        Cast<Map>(StrongTaggedValue::ToObject(isolate(), primary->map));
     Tagged<Name> old_name =
-        Name::cast(StrongTaggedValue::ToObject(isolate(), primary->key));
+        Cast<Name>(StrongTaggedValue::ToObject(isolate(), primary->key));
     int secondary_offset = SecondaryOffset(old_name, old_map);
     Entry* secondary = entry(secondary_, secondary_offset);
     *secondary = *primary;

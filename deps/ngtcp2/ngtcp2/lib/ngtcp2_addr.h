@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -45,22 +45,21 @@ void ngtcp2_addr_copy(ngtcp2_addr *dest, const ngtcp2_addr *src);
  */
 int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b);
 
-/* NGTCP2_ADDR_COMPARE_FLAG_NONE indicates that no flag set. */
-#define NGTCP2_ADDR_COMPARE_FLAG_NONE 0x0u
-/* NGTCP2_ADDR_COMPARE_FLAG_ADDR indicates IP addresses do not
+/* NGTCP2_ADDR_CMP_FLAG_NONE indicates that no flag set. */
+#define NGTCP2_ADDR_CMP_FLAG_NONE 0x0u
+/* NGTCP2_ADDR_CMP_FLAG_ADDR indicates IP addresses do not match. */
+#define NGTCP2_ADDR_CMP_FLAG_ADDR 0x1u
+/* NGTCP2_ADDR_CMP_FLAG_PORT indicates ports do not match. */
+#define NGTCP2_ADDR_CMP_FLAG_PORT 0x2u
+/* NGTCP2_ADDR_CMP_FLAG_FAMILY indicates address families do not
    match. */
-#define NGTCP2_ADDR_COMPARE_FLAG_ADDR 0x1u
-/* NGTCP2_ADDR_COMPARE_FLAG_PORT indicates ports do not match. */
-#define NGTCP2_ADDR_COMPARE_FLAG_PORT 0x2u
-/* NGTCP2_ADDR_COMPARE_FLAG_FAMILY indicates address families do not
-   match. */
-#define NGTCP2_ADDR_COMPARE_FLAG_FAMILY 0x4u
+#define NGTCP2_ADDR_CMP_FLAG_FAMILY 0x4u
 
 /*
- * ngtcp2_addr_compare compares address and port between |a| and |b|,
- * and returns zero or more of NGTCP2_ADDR_COMPARE_FLAG_*.
+ * ngtcp2_addr_cmp compares address and port between |a| and |b|, and
+ * returns zero or more of NGTCP2_ADDR_CMP_FLAG_*.
  */
-uint32_t ngtcp2_addr_compare(const ngtcp2_addr *a, const ngtcp2_addr *b);
+uint32_t ngtcp2_addr_cmp(const ngtcp2_addr *a, const ngtcp2_addr *b);
 
 /*
  * ngtcp2_addr_empty returns nonzero if |addr| has zero length
@@ -68,4 +67,11 @@ uint32_t ngtcp2_addr_compare(const ngtcp2_addr *a, const ngtcp2_addr *b);
  */
 int ngtcp2_addr_empty(const ngtcp2_addr *addr);
 
-#endif /* NGTCP2_ADDR_H */
+/**
+ * @function
+ *
+ * `ngtcp2_sockaddr_eq` returns nonzero if |a| equals |b|.
+ */
+int ngtcp2_sockaddr_eq(const ngtcp2_sockaddr *a, const ngtcp2_sockaddr *b);
+
+#endif /* !defined(NGTCP2_ADDR_H) */

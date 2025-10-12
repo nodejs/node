@@ -18,33 +18,32 @@ namespace {
 // that contains all enumerable properties of the {receiver} and its prototypes
 // have none, the map of the {receiver}. This is used to speed up the check for
 // deletions during a for-in.
-MaybeHandle<HeapObject> Enumerate(Isolate* isolate,
-                                  Handle<JSReceiver> receiver) {
+MaybeDirectHandle<HeapObject> Enumerate(Isolate* isolate,
+                                        DirectHandle<JSReceiver> receiver) {
   JSObject::MakePrototypesFast(receiver, kStartAtReceiver, isolate);
   FastKeyAccumulator accumulator(isolate, receiver,
                                  KeyCollectionMode::kIncludePrototypes,
                                  ENUMERABLE_STRINGS, true);
   // Test if we have an enum cache for {receiver}.
   if (!accumulator.is_receiver_simple_enum()) {
-    Handle<FixedArray> keys;
+    DirectHandle<FixedArray> keys;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, keys,
         accumulator.GetKeys(accumulator.may_have_elements()
                                 ? GetKeysConversion::kConvertToString
-                                : GetKeysConversion::kNoNumbers),
-        HeapObject);
+                                : GetKeysConversion::kNoNumbers));
     // Test again, since cache may have been built by GetKeys() calls above.
     if (!accumulator.is_receiver_simple_enum()) return keys;
   }
   DCHECK(!IsJSModuleNamespace(*receiver));
-  return handle(receiver->map(), isolate);
+  return direct_handle(receiver->map(), isolate);
 }
 
 // This is a slight modification of JSReceiver::HasProperty, dealing with
 // the oddities of JSProxy and JSModuleNamespace in for-in filter.
-MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
-                                          Handle<JSReceiver> receiver,
-                                          Handle<Object> key) {
+MaybeDirectHandle<Object> HasEnumerableProperty(
+    Isolate* isolate, DirectHandle<JSReceiver> receiver,
+    DirectHandle<Object> key) {
   bool success = false;
   Maybe<PropertyAttributes> result = Just(ABSENT);
   PropertyKey lookup_key(isolate, key, &success);
@@ -57,39 +56,39 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
       case LookupIterator::JSPROXY: {
         // For proxies we have to invoke the [[GetOwnProperty]] trap.
         result = JSProxy::GetPropertyAttributes(&it);
-        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.IsNothing()) return MaybeDirectHandle<Object>();
         if (result.FromJust() == ABSENT) {
           // Continue lookup on the proxy's prototype.
-          Handle<JSProxy> proxy = it.GetHolder<JSProxy>();
-          Handle<Object> prototype;
+          DirectHandle<JSProxy> proxy = it.GetHolder<JSProxy>();
+          DirectHandle<Object> prototype;
           ASSIGN_RETURN_ON_EXCEPTION(isolate, prototype,
-                                     JSProxy::GetPrototype(proxy), Object);
+                                     JSProxy::GetPrototype(proxy));
           if (IsNull(*prototype, isolate)) {
             return isolate->factory()->undefined_value();
           }
           // We already have a stack-check in JSProxy::GetPrototype.
-          return HasEnumerableProperty(
-              isolate, Handle<JSReceiver>::cast(prototype), key);
+          return HasEnumerableProperty(isolate, Cast<JSReceiver>(prototype),
+                                       key);
         } else if (result.FromJust() & DONT_ENUM) {
           return isolate->factory()->undefined_value();
         } else {
           return it.GetName();
         }
       }
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
       case LookupIterator::WASM_OBJECT:
-        THROW_NEW_ERROR(isolate,
-                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque),
-                        Object);
+        continue;  // Continue to the prototype, if present.
       case LookupIterator::INTERCEPTOR: {
         result = JSObject::GetPropertyAttributesWithInterceptor(&it);
-        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.IsNothing()) return MaybeDirectHandle<Object>();
         if (result.FromJust() != ABSENT) return it.GetName();
         continue;
       }
       case LookupIterator::ACCESS_CHECK: {
         if (it.HasAccess()) continue;
         result = JSObject::GetPropertyAttributesWithFailedAccessCheck(&it);
-        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.IsNothing()) return MaybeDirectHandle<Object>();
         if (result.FromJust() != ABSENT) return it.GetName();
         return isolate->factory()->undefined_value();
       }
@@ -99,7 +98,7 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
       case LookupIterator::ACCESSOR: {
         if (IsJSModuleNamespace(*it.GetHolder<Object>())) {
           result = JSModuleNamespace::GetPropertyAttributes(&it);
-          if (result.IsNothing()) return MaybeHandle<Object>();
+          if (result.IsNothing()) return MaybeDirectHandle<Object>();
           DCHECK_EQ(0, result.FromJust() & DONT_ENUM);
         }
         return it.GetName();
@@ -115,21 +114,19 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
 
 }  // namespace
 
-
 RUNTIME_FUNCTION(Runtime_ForInEnumerate) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSReceiver> receiver = args.at<JSReceiver>(0);
+  DirectHandle<JSReceiver> receiver = args.at<JSReceiver>(0);
   RETURN_RESULT_OR_FAILURE(isolate, Enumerate(isolate, receiver));
 }
-
 
 RUNTIME_FUNCTION(Runtime_ForInHasProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSReceiver> receiver = args.at<JSReceiver>(0);
-  Handle<Object> key = args.at(1);
-  Handle<Object> result;
+  DirectHandle<JSReceiver> receiver = args.at<JSReceiver>(0);
+  DirectHandle<Object> key = args.at(1);
+  DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, HasEnumerableProperty(isolate, receiver, key));
   return isolate->heap()->ToBoolean(!IsUndefined(*result, isolate));

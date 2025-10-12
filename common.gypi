@@ -27,6 +27,8 @@
 
     'clang%': 0,
     'error_on_warn%': 'false',
+    'suppress_all_error_on_warn%': 'false',
+    'control_flow_guard%': 'false',
 
     'openssl_product': '<(STATIC_LIB_PREFIX)openssl<(STATIC_LIB_SUFFIX)',
     'openssl_no_asm%': 0,
@@ -36,7 +38,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.16',
+    'v8_embedder_string': '-node.9',
 
     ##### V8 defaults for Node.js #####
 
@@ -76,13 +78,11 @@
     'v8_win64_unwinding_info': 1,
 
     # Variables controlling external defines exposed in public headers.
-    'v8_enable_conservative_stack_scanning%': 0,
-    'v8_enable_direct_local%': 0,
     'v8_enable_map_packing%': 0,
     'v8_enable_pointer_compression_shared_cage%': 0,
+    'v8_enable_external_code_space%': 0,
     'v8_enable_sandbox%': 0,
     'v8_enable_v8_checks%': 0,
-    'v8_enable_zone_compression%': 0,
     'v8_use_perfetto': 0,
     'tsan%': 0,
 
@@ -110,14 +110,17 @@
         'v8_base': '<(PRODUCT_DIR)/libv8_snapshot.a',
       }],
       # V8 pointer compression only supports 64bit architectures.
-      ['target_arch in "arm ia32 mips mipsel ppc"', {
+      ['target_arch in "arm ia32 mips mipsel"', {
         'v8_enable_pointer_compression': 0,
+        'v8_enable_pointer_compression_shared_cage': 0,
         'v8_enable_31bit_smis_on_64bit_arch': 0,
+        'v8_enable_external_code_space': 0,
+        'v8_enable_sandbox': 0
       }],
       ['target_arch in "ppc64 s390x"', {
         'v8_enable_backtrace': 1,
       }],
-      ['OS=="linux"', {
+      ['OS=="linux" or OS=="openharmony"', {
         'node_section_ordering_info%': ''
       }],
       ['OS == "zos"', {
@@ -199,7 +202,7 @@
               'LLVM_LTO': 'YES',
             },
           }],
-          ['OS=="linux"', {
+          ['OS=="linux" or OS=="openharmony"', {
             'conditions': [
               ['node_section_ordering_info!=""', {
                 'cflags': [
@@ -227,7 +230,7 @@
             # frames otherwise, even with --call-graph dwarf.
             'cflags': [ '-fno-omit-frame-pointer' ],
           }],
-          ['OS=="linux"', {
+          ['OS=="linux" or OS=="openharmony"', {
             'conditions': [
               ['enable_pgo_generate=="true"', {
                 'cflags': ['<(pgo_generate)'],
@@ -273,6 +276,9 @@
     # Defines these mostly for node-gyp to pickup.
     'defines': [
       '_GLIBCXX_USE_CXX11_ABI=1',
+      # This help forks when building Node.js on a 32-bit arch as
+      # libuv is always compiled with _FILE_OFFSET_BITS=64
+      '_FILE_OFFSET_BITS=64'
     ],
 
     # Forcibly disable -Werror.  We support a wide range of compilers, it's
@@ -308,6 +314,11 @@
               '/Zm2000',
             ],
           }],
+          ['control_flow_guard=="true"', {
+            'AdditionalOptions': [
+              '/guard:cf',                        # Control Flow Guard
+            ],
+          }],
         ],
         'BufferSecurityCheck': 'true',
         'DebugInformationFormat': 1,          # /Z7 embed info in .obj files
@@ -333,6 +344,11 @@
           }],
           ['target_arch=="arm64"', {
             'TargetMachine' : 0,              # NotSet. MACHINE:ARM64 is inferred from the input files.
+          }],
+          ['control_flow_guard=="true"', {
+            'AdditionalOptions': [
+              '/guard:cf',                        # Control Flow Guard
+            ],
           }],
         ],
         'GenerateDebugInformation': 'true',
@@ -436,11 +452,11 @@
       ['v8_enable_pointer_compression == 1 or v8_enable_31bit_smis_on_64bit_arch == 1', {
         'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH'],
       }],
-      ['v8_enable_zone_compression == 1', {
-        'defines': ['V8_COMPRESS_ZONES',],
-      }],
       ['v8_enable_sandbox == 1', {
         'defines': ['V8_ENABLE_SANDBOX',],
+      }],
+      ['v8_enable_external_code_space == 1', {
+        'defines': ['V8_EXTERNAL_CODE_SPACE',],
       }],
       ['v8_deprecation_warnings == 1', {
         'defines': ['V8_DEPRECATION_WARNINGS',],
@@ -456,12 +472,6 @@
       }],
       ['tsan == 1', {
         'defines': ['V8_IS_TSAN',],
-      }],
-      ['v8_enable_conservative_stack_scanning == 1', {
-        'defines': ['V8_ENABLE_CONSERVATIVE_STACK_SCANNING',],
-      }],
-      ['v8_enable_direct_local == 1', {
-        'defines': ['V8_ENABLE_DIRECT_LOCAL',],
       }],
       ['OS == "win"', {
         'defines': [
@@ -482,13 +492,18 @@
           'NOMINMAX',
         ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris aix os400"', {
+      [ 'OS in "linux freebsd openbsd solaris aix os400 openharmony"', {
         'cflags': [ '-pthread' ],
         'ldflags': [ '-pthread' ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris android aix os400 cloudabi"', {
+      [ 'OS in "linux freebsd openbsd solaris android aix os400 cloudabi openharmony"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
-        'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++20' ],
+        'cflags_cc': [
+          '-fno-rtti',
+          '-fno-exceptions',
+          '-fno-strict-aliasing',
+          '-std=gnu++20',
+        ],
         'defines': [ '__STDC_FORMAT_MACROS' ],
         'ldflags': [ '-rdynamic' ],
         'target_conditions': [
@@ -510,12 +525,13 @@
                 'cflags': [ '-m64' ],
                 'ldflags': [ '-m64' ],
               }],
-              [ 'host_arch=="ppc" and OS not in "aix os400"', {
-                'cflags': [ '-m32' ],
-                'ldflags': [ '-m32' ],
-              }],
               [ 'host_arch=="ppc64" and OS not in "aix os400"', {
-                'cflags': [ '-m64', '-mminimal-toc' ],
+                'conditions': [
+                  [ 'clang==0', {
+                    'cflags': [ '-mminimal-toc' ],
+                  }],
+                ],
+                'cflags': [ '-m64' ],
                 'ldflags': [ '-m64' ],
               }],
               [ 'host_arch=="s390x" and OS=="linux"', {
@@ -534,12 +550,13 @@
                 'cflags': [ '-m64' ],
                 'ldflags': [ '-m64' ],
               }],
-              [ 'target_arch=="ppc" and OS not in "aix os400"', {
-                'cflags': [ '-m32' ],
-                'ldflags': [ '-m32' ],
-              }],
               [ 'target_arch=="ppc64" and OS not in "aix os400"', {
-                'cflags': [ '-m64', '-mminimal-toc' ],
+                'conditions': [
+                  [ 'clang==0', {
+                    'cflags': [ '-mminimal-toc' ],
+                  }],
+                ],
+                'cflags': [ '-m64' ],
                 'ldflags': [ '-m64' ],
               }],
               [ 'target_arch=="s390x" and OS=="linux"', {
@@ -558,6 +575,7 @@
           }],
           [ 'node_shared=="true"', {
             'cflags': [ '-fPIC' ],
+            'ldflags': [ '-fPIC' ],
           }],
         ],
       }],
@@ -619,12 +637,10 @@
           'GCC_ENABLE_CPP_EXCEPTIONS': 'NO',        # -fno-exceptions
           'GCC_ENABLE_CPP_RTTI': 'NO',              # -fno-rtti
           'GCC_ENABLE_PASCAL_STRINGS': 'NO',        # No -mpascal-strings
+          'GCC_STRICT_ALIASING': 'NO',              # -fno-strict-aliasing
           'PREBINDING': 'NO',                       # No -Wl,-prebind
-          'MACOSX_DEPLOYMENT_TARGET': '11.0',       # -mmacosx-version-min=11.0
+          'MACOSX_DEPLOYMENT_TARGET': '13.5',       # -mmacosx-version-min=13.5
           'USE_HEADERMAP': 'NO',
-          'OTHER_CFLAGS': [
-            '-fno-strict-aliasing',
-          ],
           'WARNING_CFLAGS': [
             '-Wall',
             '-Wendif-labels',

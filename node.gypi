@@ -27,7 +27,11 @@
 
   'conditions': [
     [ 'clang==1', {
-      'cflags': [ '-Werror=undefined-inline', '-Werror=extra-semi']
+      'cflags': [
+        '-Werror=undefined-inline',
+        '-Werror=extra-semi',
+        '-Werror=ctad-maybe-unsupported',
+      ],
     }],
     [ '"<(_type)"=="executable"', {
       'msvs_settings': {
@@ -66,20 +70,23 @@
         '_UNICODE=1',
       ],
       'conditions': [
-        ['clang==0', {
-          'msvs_precompiled_header': 'tools/msvs/pch/node_pch.h',
-          'msvs_precompiled_source': 'tools/msvs/pch/node_pch.cc',
-          'sources': [
-            '<(_msvs_precompiled_header)',
-            '<(_msvs_precompiled_source)',
-          ],
-        }],
-      ],
+          ['clang != 1 or use_ccache_win != 1', {
+            'msvs_precompiled_header': 'tools/msvs/pch/node_pch.h',
+            'msvs_precompiled_source': 'tools/msvs/pch/node_pch.cc',
+            'sources': [
+              '<(_msvs_precompiled_header)',
+              '<(_msvs_precompiled_source)',
+            ],
+          }]
+      ]
     }, { # POSIX
       'defines': [ '__POSIX__' ],
     }],
     [ 'node_enable_d8=="true"', {
       'dependencies': [ 'tools/v8_gypfiles/d8.gyp:d8' ],
+    }],
+    [ 'node_enable_v8windbg=="true"', {
+      'dependencies': [ 'tools/v8_gypfiles/v8windbg.gyp:build_v8windbg' ],
     }],
     [ 'node_use_bundled_v8=="true"', {
       'dependencies': [
@@ -95,9 +102,6 @@
       'defines': [
         'NODE_USE_V8_PLATFORM=0',
       ],
-    }],
-    [ 'v8_enable_shared_ro_heap==1', {
-      'defines': ['NODE_V8_SHARED_RO_HEAP',],
     }],
     [ 'node_tag!=""', {
       'defines': [ 'NODE_TAG="<(node_tag)"' ],
@@ -216,18 +220,35 @@
       'dependencies': [ 'deps/nghttp2/nghttp2.gyp:nghttp2' ],
     }],
 
+    [ 'node_shared_ada=="false"', {
+        'dependencies': [ 'deps/ada/ada.gyp:ada' ],
+    }],
+
+    [ 'node_shared_simdjson=="false"', {
+        'dependencies': [ 'deps/simdjson/simdjson.gyp:simdjson' ],
+    }],
+
+    [ 'node_shared_simdutf=="false"', {
+        'dependencies': [ 'tools/v8_gypfiles/v8.gyp:simdutf' ],
+    }],
+
     [ 'node_shared_brotli=="false"', {
       'dependencies': [ 'deps/brotli/brotli.gyp:brotli' ],
     }],
 
-    [ 'node_shared_sqlite=="false"', {
+    [ 'node_use_sqlite=="true" and node_shared_sqlite=="false"', {
       'dependencies': [ 'deps/sqlite/sqlite.gyp:sqlite' ],
+    }],
+
+    [ 'node_shared_zstd=="false"', {
+      'dependencies': [ 'deps/zstd/zstd.gyp:zstd' ],
     }],
 
     [ 'OS=="mac"', {
       # linking Corefoundation is needed since certain macOS debugging tools
-      # like Instruments require it for some features
-      'libraries': [ '-framework CoreFoundation' ],
+      # like Instruments require it for some features. Security is needed for
+      # --use-system-ca.
+      'libraries': [ '-framework CoreFoundation -framework Security' ],
       'defines!': [
         'NODE_PLATFORM="mac"',
       ],
@@ -289,7 +310,7 @@
         'NODE_PLATFORM="sunos"',
       ],
     }],
-    [ '(OS=="freebsd" or OS=="linux") and node_shared=="false"'
+    [ '(OS=="freebsd" or OS=="linux" or OS=="openharmony") and node_shared=="false"'
         ' and force_load=="true"', {
       'ldflags': [
         '-Wl,-z,noexecstack',
@@ -314,7 +335,7 @@
         ],
       },
     }],
-    [ 'coverage=="true" and node_shared=="false" and OS in "mac freebsd linux"', {
+    [ 'coverage=="true" and node_shared=="false" and OS in "mac freebsd linux openharmony"', {
       'cflags!': [ '-O3' ],
       'ldflags': [ '--coverage',
                    '-g',
@@ -346,12 +367,12 @@
     [ 'OS=="sunos"', {
       'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
     }],
-    [ 'OS=="linux"', {
+    [ 'OS=="linux" or OS=="openharmony"', {
       'libraries!': [
         '-lrt'
       ],
     }],
-    [ 'OS in "freebsd linux"', {
+    [ 'OS in "freebsd linux openharmony"', {
       'ldflags': [ '-Wl,-z,relro',
                    '-Wl,-z,now' ]
     }],
@@ -362,9 +383,13 @@
           'defines': [ 'OPENSSL_API_COMPAT=0x10100000L', ],
           'dependencies': [
             './deps/openssl/openssl.gyp:openssl',
+            './deps/ngtcp2/ngtcp2.gyp:ngtcp2',
+            './deps/ngtcp2/ngtcp2.gyp:nghttp3',
 
             # For tests
             './deps/openssl/openssl.gyp:openssl-cli',
+            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_server',
+            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_client',
           ],
           'conditions': [
             # -force_load or --whole-archive are not applicable for
@@ -383,7 +408,7 @@
                 },
               },
               'conditions': [
-                ['OS in "linux freebsd" and node_shared=="false"', {
+                ['OS in "linux freebsd openharmony" and node_shared=="false"', {
                   'ldflags': [
                     '-Wl,--whole-archive,'
                       '<(obj_dir)/deps/openssl/<(openssl_product)',
@@ -402,15 +427,14 @@
             }],
           ]
         }],
-        [ 'openssl_quic=="true" and node_shared_ngtcp2=="false"', {
-          'dependencies': [ './deps/ngtcp2/ngtcp2.gyp:ngtcp2' ]
-        }],
-        [ 'openssl_quic=="true" and node_shared_nghttp3=="false"', {
-          'dependencies': [ './deps/ngtcp2/ngtcp2.gyp:nghttp3' ]
-        }]
       ]
     }, {
       'defines': [ 'HAVE_OPENSSL=0' ]
+    }],
+    [ 'node_use_amaro=="true"', {
+      'defines': [ 'HAVE_AMARO=1' ],
+    }, {
+      'defines': [ 'HAVE_AMARO=0' ]
     }],
   ],
 }

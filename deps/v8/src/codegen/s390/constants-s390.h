@@ -10,11 +10,11 @@
 #define __STDC_FORMAT_MACROS
 #endif
 #include <inttypes.h>
-
 #include <stdint.h>
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/common/code-memory-access.h"
 #include "src/common/globals.h"
 
 // UNIMPLEMENTED_ macro for S390.
@@ -26,12 +26,44 @@
 #define UNIMPLEMENTED_S390()
 #endif
 
+#if V8_OS_ZOS
+#define ABI_USES_FUNCTION_DESCRIPTORS 1
+#define ABI_PASSES_HANDLES_IN_REGS 1
+#define ABI_RETURNS_OBJECTPAIR_IN_REGS 1
+#ifdef _EXT
+// Defined in stdlib.h and conflict with those in S390_RS_A_OPCODE_LIST below:
+#undef cs
+#undef cds
+#endif
+#else
+#define ABI_USES_FUNCTION_DESCRIPTORS 0
+#define ABI_PASSES_HANDLES_IN_REGS 1
+
+// ObjectPair is defined under runtime/runtime-util.h.
+// On 64-bit, ObjectPair is a Struct.  ABI dictaes Structs be
+//            returned in a storage buffer allocated by the caller,
+//            with the address of this buffer passed as a hidden
+//            argument in r2. (Does NOT return in Regs)
+// For x86 linux, ObjectPair is returned in registers.
+#define ABI_RETURNS_OBJECTPAIR_IN_REGS 0
+#endif
+
+#define ABI_CALL_VIA_IP 1
+
 namespace v8 {
 namespace internal {
 
 // The maximum size of the code range s.t. pc-relative calls are possible
 // between all Code objects in the range.
 constexpr size_t kMaxPCRelativeCodeRangeInMB = 4096;
+
+#if V8_OS_ZOS
+// Used to encode a boolean value when emitting 32 bit
+// opcodes which will indicate the presence of function descriptors
+constexpr int kHasFunctionDescriptorBitShift = 4;
+constexpr int kHasFunctionDescriptorBitMask = 1
+                                              << kHasFunctionDescriptorBitShift;
+#endif
 
 // Number of registers
 const int kNumRegisters = 16;
@@ -190,6 +222,14 @@ inline Condition NegateCondition(Condition cond) {
       return CC_OF;
     case CC_OF:
       return CC_NOF;
+    case kUnsignedLessThan:
+      return kUnsignedGreaterThanEqual;
+    case kUnsignedGreaterThan:
+      return kUnsignedLessThanEqual;
+    case kUnsignedLessThanEqual:
+      return kUnsignedGreaterThan;
+    case kUnsignedGreaterThanEqual:
+      return kUnsignedLessThan;
     default:
       DCHECK(false);
   }
@@ -1503,7 +1543,9 @@ using SixByteInstr = uint64_t;
   V(clhhr, CLHHR, 0xB9CF)     /* type = RRE   COMPARE LOGICAL HIGH (32)  */    \
   V(chlr, CHLR, 0xB9DD)       /* type = RRE   COMPARE HIGH (32)  */            \
   V(clhlr, CLHLR, 0xB9DF)     /* type = RRE   COMPARE LOGICAL HIGH (32)  */    \
-  V(popcnt, POPCNT_Z, 0xB9E1) /* type = RRE   POPULATION COUNT  */
+  V(popcnt, POPCNT_Z, 0xB9E1) /* type = RRE   POPULATION COUNT  */             \
+  V(clzg, CLZG, 0xB968)       /* type = RRE   COUNT LEADING ZEROS  */          \
+  V(ctzg, CTZG, 0xB969)       /* type = RRE   COUNT TRAILING ZEROS  */
 
 #define S390_RIE_C_OPCODE_LIST(V)                                             \
   V(cgij, CGIJ,                                                               \
@@ -1917,13 +1959,13 @@ class Instruction {
 
   // Set the raw instruction bits to value.
   template <typename T>
-  inline void SetInstructionBits(T value) const {
+  inline void SetInstructionBits(
+      T value, WritableJitAllocation* jit_allocation = nullptr) const {
     Instruction::SetInstructionBits<T>(reinterpret_cast<const uint8_t*>(this),
-                                       value);
+                                       value, jit_allocation);
   }
-  inline void SetInstructionBits(Instr value) {
-    *reinterpret_cast<Instr*>(this) = value;
-  }
+  V8_EXPORT_PRIVATE void SetInstructionBits(
+      Instr value, WritableJitAllocation* jit_allocation = nullptr);
 
   // Read one particular bit out of the instruction bits.
   inline int Bit(int nr) const { return (InstructionBits() >> nr) & 1; }
@@ -2027,7 +2069,9 @@ class Instruction {
 
   // Set the Instruction Bits to value
   template <typename T>
-  static inline void SetInstructionBits(uint8_t* instr, T value) {
+  static inline void SetInstructionBits(
+      uint8_t* instr, T value,
+      WritableJitAllocation* jit_allocation = nullptr) {
 #if V8_TARGET_LITTLE_ENDIAN
     // The instruction bits are stored in big endian format even on little
     // endian hosts, in order to decode instruction length and opcode.
@@ -2053,17 +2097,39 @@ class Instruction {
     }
 #endif
     if (sizeof(T) <= 4) {
-      *reinterpret_cast<T*>(instr) = value;
+      if (jit_allocation) {
+        jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(instr),
+                                            value);
+      } else {
+        *reinterpret_cast<T*>(instr) = value;
+      }
     } else {
 #if V8_TARGET_LITTLE_ENDIAN
       uint64_t orig_value = static_cast<uint64_t>(value);
-      *reinterpret_cast<uint32_t*>(instr) = static_cast<uint32_t>(value);
-      *reinterpret_cast<uint16_t*>(instr + 4) =
-          static_cast<uint16_t>((orig_value >> 32) & 0xFFFF);
+      if (jit_allocation) {
+        jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(instr),
+                                            static_cast<uint32_t>(value));
+        jit_allocation->WriteUnalignedValue(
+            reinterpret_cast<Address>(instr + 4),
+            static_cast<uint16_t>((orig_value >> 32) & 0xFFFF));
+      } else {
+        *reinterpret_cast<uint32_t*>(instr) = static_cast<uint32_t>(value);
+        *reinterpret_cast<uint16_t*>(instr + 4) =
+            static_cast<uint16_t>((orig_value >> 32) & 0xFFFF);
+      }
 #else
-      *reinterpret_cast<uint32_t*>(instr) = static_cast<uint32_t>(value >> 16);
-      *reinterpret_cast<uint16_t*>(instr + 4) =
-          static_cast<uint16_t>(value & 0xFFFF);
+      if (jit_allocation) {
+        jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(instr),
+                                            static_cast<uint32_t>(value >> 16));
+        jit_allocation->WriteUnalignedValue(
+            reinterpret_cast<Address>(instr + 4),
+            static_cast<uint16_t>(value & 0xFFFF));
+      } else {
+        *reinterpret_cast<uint32_t*>(instr) =
+            static_cast<uint32_t>(value >> 16);
+        *reinterpret_cast<uint16_t*>(instr + 4) =
+            static_cast<uint16_t>(value & 0xFFFF);
+      }
 #endif
     }
   }
@@ -2469,6 +2535,10 @@ class DoubleRegisters {
  private:
   static const char* names_[kNumDoubleRegisters];
 };
+
+// The maximum size of the stack restore after a fast API call that pops the
+// stack parameters of the call off the stack.
+constexpr int kMaxSizeOfMoveAfterFastCall = 6;
 
 }  // namespace internal
 }  // namespace v8

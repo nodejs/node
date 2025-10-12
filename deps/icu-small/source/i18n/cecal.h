@@ -82,13 +82,6 @@ protected:
      */
     virtual ~CECalendar();
 
-    /**
-     * Default assignment operator
-     * @param right    Calendar object to be copied
-     * @internal
-     */
-    CECalendar& operator=(const CECalendar& right);
-
 protected:
     //-------------------------------------------------------------------------
     // Calendar framework
@@ -126,7 +119,7 @@ protected:
      * @internal
      */
     static void jdToCE(int32_t julianDay, int32_t jdEpochOffset,
-        int32_t& year, int32_t& month, int32_t& day);
+        int32_t& year, int32_t& month, int32_t& day, UErrorCode& status);
 };
 
 U_NAMESPACE_END

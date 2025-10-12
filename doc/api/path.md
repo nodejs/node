@@ -9,8 +9,12 @@
 The `node:path` module provides utilities for working with file and directory
 paths. It can be accessed using:
 
-```js
+```cjs
 const path = require('node:path');
+```
+
+```mjs
+import path from 'node:path';
 ```
 
 ## Windows vs. POSIX
@@ -110,7 +114,7 @@ and is not a string.
 added: v0.9.3
 -->
 
-* {string}
+* Type: {string}
 
 Provides the platform-specific path delimiter:
 
@@ -282,10 +286,16 @@ path.format({
 ## `path.matchesGlob(path, pattern)`
 
 <!-- YAML
-added: v22.5.0
+added:
+  - v22.5.0
+  - v20.17.0
+changes:
+  - version:
+    - v24.8.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59572
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `path` {string} The path to glob-match against.
 * `pattern` {string} The glob to check the path against.
@@ -311,17 +321,19 @@ added: v0.11.2
 * `path` {string}
 * Returns: {boolean}
 
-The `path.isAbsolute()` method determines if `path` is an absolute path.
+The `path.isAbsolute()` method determines if the literal `path` is absolute.
+Therefore, it’s not safe for mitigating path traversals.
 
 If the given `path` is a zero-length string, `false` will be returned.
 
 For example, on POSIX:
 
 ```js
-path.isAbsolute('/foo/bar'); // true
-path.isAbsolute('/baz/..');  // true
-path.isAbsolute('qux/');     // false
-path.isAbsolute('.');        // false
+path.isAbsolute('/foo/bar');   // true
+path.isAbsolute('/baz/..');    // true
+path.isAbsolute('/baz/../..'); // true
+path.isAbsolute('qux/');       // false
+path.isAbsolute('.');          // false
 ```
 
 On Windows:
@@ -493,7 +505,7 @@ changes:
     description: Exposed as `require('path/posix')`.
 -->
 
-* {Object}
+* Type: {Object}
 
 The `path.posix` property provides access to POSIX specific implementations
 of the `path` methods.
@@ -587,7 +599,7 @@ A [`TypeError`][] is thrown if any of the arguments is not a string.
 added: v0.7.9
 -->
 
-* {string}
+* Type: {string}
 
 Provides the platform-specific path segment separator:
 
@@ -638,7 +650,7 @@ changes:
     description: Exposed as `require('path/win32')`.
 -->
 
-* {Object}
+* Type: {Object}
 
 The `path.win32` property provides access to Windows-specific implementations
 of the `path` methods.

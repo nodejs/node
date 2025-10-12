@@ -64,8 +64,7 @@ struct WordOperationTyper {
       return type_t::Set(elements, zone);
     }
 
-    auto range =
-        MakeRange(base::Vector<const word_t>{elements.data(), elements.size()});
+    auto range = MakeRange(base::VectorOf(elements));
     auto result = type_t::Range(range.first, range.second, zone);
     DCHECK(
         base::all_of(elements, [&](word_t e) { return result.Contains(e); }));
@@ -739,8 +738,8 @@ struct FloatOperationTyper {
         results[2] = l_max / r_min;
         results[3] = l_max / r_max;
 
-        for (float_t r : results) {
-          if (std::isnan(r)) return type_t::Any();
+        for (float_t res : results) {
+          if (std::isnan(res)) return type_t::Any();
         }
 
         const float_t result_min = array_min(results);
@@ -1174,13 +1173,15 @@ class Typer {
   static Type TypeConstant(ConstantOp::Kind kind, ConstantOp::Storage value) {
     switch (kind) {
       case ConstantOp::Kind::kFloat32:
-        if (std::isnan(value.float32)) return Float32Type::NaN();
-        if (IsMinusZero(value.float32)) return Float32Type::MinusZero();
-        return Float32Type::Constant(value.float32);
+        if (value.float32.is_nan()) return Float32Type::NaN();
+        if (IsMinusZero(value.float32.get_scalar()))
+          return Float32Type::MinusZero();
+        return Float32Type::Constant(value.float32.get_scalar());
       case ConstantOp::Kind::kFloat64:
-        if (std::isnan(value.float64)) return Float64Type::NaN();
-        if (IsMinusZero(value.float64)) return Float64Type::MinusZero();
-        return Float64Type::Constant(value.float64);
+        if (value.float64.is_nan()) return Float64Type::NaN();
+        if (IsMinusZero(value.float64.get_scalar()))
+          return Float64Type::MinusZero();
+        return Float64Type::Constant(value.float64.get_scalar());
       case ConstantOp::Kind::kWord32:
         return Word32Type::Constant(static_cast<uint32_t>(value.integral));
       case ConstantOp::Kind::kWord64:

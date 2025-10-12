@@ -111,8 +111,16 @@ RegExpMacroAssemblerRISCV::RegExpMacroAssemblerRISCV(Isolate* isolate,
   __ bind(&start_label_);  // And then continue from here.
 }
 
-RegExpMacroAssemblerRISCV::~RegExpMacroAssemblerRISCV() {
-  // Unuse labels in case we throw away the assembler without calling GetCode.
+RegExpMacroAssemblerRISCV::~RegExpMacroAssemblerRISCV() = default;
+
+void RegExpMacroAssemblerRISCV::AbortedCodeGeneration() {
+  // Tell the underlying assembler that we're aborting the code generation, so
+  // it can clean up and clear constant pools.
+  masm_->AbortedCodeGeneration();
+
+  // We are throwing away the assembler without calling GetCode, so we unuse
+  // all the labels to avoid running into issues when destructing linked, but
+  // not bound, labels.
   entry_label_.Unuse();
   start_label_.Unuse();
   success_label_.Unuse();
@@ -124,8 +132,8 @@ RegExpMacroAssemblerRISCV::~RegExpMacroAssemblerRISCV() {
   fallback_label_.Unuse();
 }
 
-int RegExpMacroAssemblerRISCV::stack_limit_slack() {
-  return RegExpStack::kStackLimitSlack;
+int RegExpMacroAssemblerRISCV::stack_limit_slack_slot_count() {
+  return RegExpStack::kStackLimitSlackSlotCount;
 }
 
 void RegExpMacroAssemblerRISCV::AdvanceCurrentPosition(int by) {
@@ -202,7 +210,7 @@ void RegExpMacroAssemblerRISCV::CheckCharacterLT(base::uc16 limit,
   BranchOrBacktrack(on_less, lt, current_character(), Operand(limit));
 }
 
-void RegExpMacroAssemblerRISCV::CheckGreedyLoop(Label* on_equal) {
+void RegExpMacroAssemblerRISCV::CheckFixedLengthLoop(Label* on_equal) {
   Label backtrack_non_equal;
   __ Lw(a0, MemOperand(backtrack_stackpointer(), 0));
   __ BranchShort(&backtrack_non_equal, ne, current_input_offset(), Operand(a0));
@@ -494,8 +502,21 @@ void RegExpMacroAssemblerRISCV::CheckBitInTable(Handle<ByteArray> table,
     __ AddWord(a0, a0, current_character());
   }
 
-  __ Lbu(a0, FieldMemOperand(a0, ByteArray::kHeaderSize));
+  __ Lbu(a0, FieldMemOperand(a0, OFFSET_OF_DATA_START(ByteArray)));
   BranchOrBacktrack(on_bit_set, ne, a0, Operand(zero_reg));
+}
+
+void RegExpMacroAssemblerRISCV::SkipUntilBitInTable(
+    int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
+    int advance_by) {
+  // TODO(pthier): Optimize. Table can be loaded outside of the loop.
+  Label cont, again;
+  Bind(&again);
+  LoadCurrentCharacter(cp_offset, &cont, true);
+  CheckBitInTable(table, &cont);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&again);
+  Bind(&cont);
 }
 
 bool RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(
@@ -646,7 +667,8 @@ void RegExpMacroAssemblerRISCV::PopRegExpBasePointer(Register stack_pointer_out,
   StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
 }
 
-Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
+DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
+    DirectHandle<String> source, RegExpFlags flags) {
   Label return_a0;
   if (masm_->has_exception()) {
     // If the code gets corrupted due to long regular expressions and lack of
@@ -996,8 +1018,8 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
           .set_empty_source_position_table()
           .Build();
   LOG(masm_->isolate(),
-      RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
-  return Handle<HeapObject>::cast(code);
+      RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
+  return Cast<HeapObject>(code);
 }
 
 void RegExpMacroAssemblerRISCV::GoTo(Label* to) {
@@ -1067,13 +1089,18 @@ void RegExpMacroAssemblerRISCV::PushBacktrack(Label* label) {
 
 void RegExpMacroAssemblerRISCV::PushCurrentPosition() {
   Push(current_input_offset());
+  CheckStackLimit();
 }
 
 void RegExpMacroAssemblerRISCV::PushRegister(int register_index,
                                              StackCheckFlag check_stack_limit) {
   __ LoadWord(a0, register_location(register_index));
   Push(a0);
-  if (check_stack_limit) CheckStackLimit();
+  if (check_stack_limit == StackCheckFlag::kCheckStackLimit) {
+    CheckStackLimit();
+  } else if (V8_UNLIKELY(v8_flags.slow_debug_code)) {
+    AssertAboveStackLimitMinusSlack();
+  }
 }
 
 void RegExpMacroAssemblerRISCV::ReadCurrentPositionFromRegister(int reg) {
@@ -1221,7 +1248,7 @@ int64_t RegExpMacroAssemblerRISCV::CheckStackGuardState(Address* return_address,
                                                         Address re_frame,
                                                         uintptr_t extra_space) {
   Tagged<InstructionStream> re_code =
-      InstructionStream::cast(Tagged<Object>(raw_code));
+      SbxCast<InstructionStream>(Tagged<Object>(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset),
       static_cast<int>(frame_entry<int64_t>(re_frame, kStartIndexOffset)),
@@ -1322,6 +1349,27 @@ void RegExpMacroAssemblerRISCV::CheckStackLimit() {
   __ LoadWord(a0, MemOperand(a0));
   SafeCall(&stack_overflow_label_, Uless_equal, backtrack_stackpointer(),
            Operand(a0));
+}
+
+void RegExpMacroAssemblerRISCV::AssertAboveStackLimitMinusSlack() {
+  // ExternalReference stack_limit =
+  //     ExternalReference::address_of_regexp_stack_limit_address(
+  //         masm_->isolate());
+  // __ li(a0, Operand(stack_limit));
+  // __ LoadWord(a0, MemOperand(a0, 0));
+  // SafeCall(&stack_overflow_label_, ls, backtrack_stackpointer(),
+  // Operand(a0));
+  DCHECK(v8_flags.slow_debug_code);
+  Label no_stack_overflow;
+  ASM_CODE_COMMENT_STRING(masm_.get(), "AssertAboveStackLimitMinusSlack");
+  auto l = ExternalReference::address_of_regexp_stack_limit_address(isolate());
+  __ li(a0, l);
+  __ LoadWord(a0, MemOperand(a0, 0));
+  __ SubWord(a0, a0, Operand(RegExpStack::kStackLimitSlackSize));
+  __ Branch(&no_stack_overflow, Ugreater, backtrack_stackpointer(),
+            Operand(a0));
+  __ DebugBreak();
+  __ bind(&no_stack_overflow);
 }
 
 void RegExpMacroAssemblerRISCV::LoadCurrentCharacterUnchecked(int cp_offset,

@@ -4,6 +4,7 @@
 #include "node_builtins.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
+#include "node_url_pattern.h"
 #include "util.h"
 
 #include <string>
@@ -20,6 +21,12 @@
 #define NODE_BUILTIN_PROFILER_BINDINGS(V)
 #endif
 
+#ifdef DEBUG
+#define NODE_BUILTIN_DEBUG_BINDINGS(V) V(debug)
+#else
+#define NODE_BUILTIN_DEBUG_BINDINGS(V)
+#endif
+
 // A list of built-in bindings. In order to do binding registration
 // in node::Init(), need to add built-in bindings in the following list.
 // Then in binding::RegisterBuiltinBindings(), it calls bindings' registration
@@ -29,6 +36,7 @@
 // The binding IDs that start with 'internal_only' are not exposed to the user
 // land even from internal/test/binding module under --expose-internals.
 #define NODE_BUILTIN_STANDARD_BINDINGS(V)                                      \
+  V(async_context_frame)                                                       \
   V(async_wrap)                                                                \
   V(blob)                                                                      \
   V(block_list)                                                                \
@@ -51,6 +59,7 @@
   V(internal_only_v8)                                                          \
   V(js_stream)                                                                 \
   V(js_udp_wrap)                                                               \
+  V(locks)                                                                     \
   V(messaging)                                                                 \
   V(modules)                                                                   \
   V(module_wrap)                                                               \
@@ -67,7 +76,6 @@
   V(serdes)                                                                    \
   V(signal_wrap)                                                               \
   V(spawn_sync)                                                                \
-  V(sqlite)                                                                    \
   V(stream_pipe)                                                               \
   V(stream_wrap)                                                               \
   V(string_decoder)                                                            \
@@ -80,13 +88,13 @@
   V(types)                                                                     \
   V(udp_wrap)                                                                  \
   V(url)                                                                       \
+  V(url_pattern)                                                               \
   V(util)                                                                      \
   V(uv)                                                                        \
   V(v8)                                                                        \
   V(wasi)                                                                      \
   V(wasm_web_api)                                                              \
   V(watchdog)                                                                  \
-  V(webstorage)                                                                \
   V(worker)                                                                    \
   V(zlib)
 
@@ -95,7 +103,9 @@
   NODE_BUILTIN_OPENSSL_BINDINGS(V)                                             \
   NODE_BUILTIN_ICU_BINDINGS(V)                                                 \
   NODE_BUILTIN_PROFILER_BINDINGS(V)                                            \
-  NODE_BUILTIN_QUIC_BINDINGS(V)
+  NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
+  NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
+  NODE_BUILTIN_SQLITE_BINDINGS(V)
 
 // This is used to load built-in bindings. Instead of using
 // __attribute__((constructor)), we call the _register_<modname>
@@ -477,9 +487,9 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
       dlib->Close();
 #ifdef _WIN32
       // Windows needs to add the filename into the error message
-      errmsg += *filename;
+      errmsg += filename.ToStringView();
 #endif  // _WIN32
-      THROW_ERR_DLOPEN_FAILED(env, "%s", errmsg.c_str());
+      THROW_ERR_DLOPEN_FAILED(env, "%s", errmsg);
       return false;
     }
 
@@ -510,7 +520,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
         if (mp == nullptr || mp->nm_context_register_func == nullptr) {
           dlib->Close();
           THROW_ERR_DLOPEN_FAILED(
-              env, "Module did not self-register: '%s'.", *filename);
+              env, "Module did not self-register: '%s'.", filename);
           return false;
         }
       }
@@ -639,7 +649,7 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
     exports = InitInternalBinding(realm, mod);
     realm->internal_bindings.insert(mod);
   } else {
-    return THROW_ERR_INVALID_MODULE(isolate, "No such binding: %s", *module_v);
+    return THROW_ERR_INVALID_MODULE(isolate, "No such binding: %s", module_v);
   }
 
   args.GetReturnValue().Set(exports);
@@ -670,14 +680,14 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
   if (mod == nullptr) {
     return THROW_ERR_INVALID_MODULE(
-        env, "No such binding was linked: %s", *module_name_v);
+        env, "No such binding was linked: %s", module_name_v);
   }
 
   Local<Object> module = Object::New(env->isolate());
   Local<Object> exports = Object::New(env->isolate());
-  Local<String> exports_prop =
-      String::NewFromUtf8Literal(env->isolate(), "exports");
-  module->Set(env->context(), exports_prop, exports).Check();
+  if (module->Set(env->context(), env->exports_string(), exports).IsNothing()) {
+    return;
+  }
 
   if (mod->nm_context_register_func != nullptr) {
     mod->nm_context_register_func(
@@ -689,10 +699,11 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
         env, "Linked binding has no declared entry point.");
   }
 
-  auto effective_exports =
-      module->Get(env->context(), exports_prop).ToLocalChecked();
-
-  args.GetReturnValue().Set(effective_exports);
+  Local<Value> effective_exports;
+  if (module->Get(env->context(), env->exports_string())
+          .ToLocal(&effective_exports)) {
+    args.GetReturnValue().Set(effective_exports);
+  }
 }
 
 // Call built-in bindings' _register_<module name> function to

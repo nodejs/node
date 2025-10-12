@@ -343,12 +343,9 @@ CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister() {
   return r2;
 }
 // static
-constexpr Register CallApiCallbackOptimizedDescriptor::CallDataRegister() {
+constexpr Register
+CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister() {
   return r3;
-}
-// static
-constexpr Register CallApiCallbackOptimizedDescriptor::HolderRegister() {
-  return r0;
 }
 
 // static
@@ -365,10 +362,6 @@ CallApiCallbackGenericDescriptor::TopmostScriptHavingContextRegister() {
 constexpr Register
 CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister() {
   return r3;
-}
-// static
-constexpr Register CallApiCallbackGenericDescriptor::HolderRegister() {
-  return r0;
 }
 
 // static

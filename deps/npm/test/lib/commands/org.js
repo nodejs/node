@@ -424,7 +424,7 @@ t.test('npm org ls', async t => {
       org: 'orgname',
       opts: npm.flatOptions,
     },
-    'receieved the correct args'
+    'received the correct args'
   )
   t.strictSame(outputs, [
     'one - developer',
@@ -450,7 +450,7 @@ t.test('npm org ls - user filter', async t => {
       org: 'orgname',
       opts: npm.flatOptions,
     },
-    'receieved the correct args'
+    'received the correct args'
   )
   t.strictSame(outputs, [
     'username - admin',
@@ -473,7 +473,7 @@ t.test('npm org ls - user filter, missing user', async t => {
       org: 'orgname',
       opts: npm.flatOptions,
     },
-    'receieved the correct args'
+    'received the correct args'
   )
   t.strictSame(outputs, [])
 })
@@ -503,7 +503,7 @@ t.test('npm org ls - json output', async t => {
       org: 'orgname',
       opts: npm.flatOptions,
     },
-    'receieved the correct args'
+    'received the correct args'
   )
   t.strictSame(JSON.parse(outputs[0]), orgList, 'prints the correct output')
 })
@@ -528,7 +528,7 @@ t.test('npm org ls - parseable output', async t => {
       org: 'orgname',
       opts: npm.flatOptions,
     },
-    'receieved the correct args'
+    'received the correct args'
   )
   t.strictSame(
     outputs.map(line => line.split(/\t/)),
@@ -562,7 +562,7 @@ t.test('npm org ls - silent output', async t => {
       org: 'orgname',
       opts: npm.flatOptions,
     },
-    'receieved the correct args'
+    'received the correct args'
   )
   t.strictSame(outputs, [], 'printed no output')
 })

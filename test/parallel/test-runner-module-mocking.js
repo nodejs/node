@@ -1,8 +1,9 @@
 // Flags: --experimental-test-module-mocks --experimental-require-module
 'use strict';
 const common = require('../common');
+const { isMainThread } = require('worker_threads');
 
-if (!common.isMainThread) {
+if (!isMainThread) {
   common.skip('registering customization hooks in Workers does not work');
 }
 
@@ -154,7 +155,7 @@ test('CJS mocking with namedExports option', async (t) => {
     assert.strictEqual(original.string, 'original cjs string');
     assert.strictEqual(original.fn, undefined);
 
-    t.mock.module(fixture, {
+    t.mock.module(pathToFileURL(fixture), {
       namedExports: { fn() { return 42; } },
     });
     const mocked = require(fixture);
@@ -174,7 +175,7 @@ test('CJS mocking with namedExports option', async (t) => {
     assert.strictEqual(original.string, 'original cjs string');
     assert.strictEqual(original.fn, undefined);
 
-    t.mock.module(fixture, {
+    t.mock.module(pathToFileURL(fixture), {
       namedExports: { fn() { return 42; } },
       cache: true,
     });
@@ -195,7 +196,7 @@ test('CJS mocking with namedExports option', async (t) => {
     assert.strictEqual(original.string, 'original cjs string');
     assert.strictEqual(original.fn, undefined);
 
-    t.mock.module(fixture, {
+    t.mock.module(pathToFileURL(fixture), {
       namedExports: { fn() { return 42; } },
       cache: false,
     });
@@ -219,7 +220,7 @@ test('CJS mocking with namedExports option', async (t) => {
 
     const defaultExport = { val1: 5, val2: 3 };
 
-    t.mock.module(fixture, {
+    t.mock.module(pathToFileURL(fixture), {
       defaultExport,
       namedExports: { val1: 'mock value' },
     });
@@ -242,7 +243,7 @@ test('CJS mocking with namedExports option', async (t) => {
 
     const defaultExport = null;
 
-    t.mock.module(fixture, {
+    t.mock.module(pathToFileURL(fixture), {
       defaultExport,
       namedExports: { val1: 'mock value' },
     });
@@ -256,7 +257,7 @@ test('CJS mocking with namedExports option', async (t) => {
 
 test('ESM mocking with namedExports option', async (t) => {
   await t.test('does not cache by default', async (t) => {
-    const fixture = fixtures.path('module-mocking', 'basic-esm.mjs');
+    const fixture = fixtures.fileURL('module-mocking', 'basic-esm.mjs');
     const original = await import(fixture);
 
     assert.strictEqual(original.string, 'original esm string');
@@ -276,7 +277,7 @@ test('ESM mocking with namedExports option', async (t) => {
   });
 
   await t.test('explicitly enables caching', async (t) => {
-    const fixture = fixtures.path('module-mocking', 'basic-esm.mjs');
+    const fixture = fixtures.fileURL('module-mocking', 'basic-esm.mjs');
     const original = await import(fixture);
 
     assert.strictEqual(original.string, 'original esm string');
@@ -297,7 +298,7 @@ test('ESM mocking with namedExports option', async (t) => {
   });
 
   await t.test('explicitly disables caching', async (t) => {
-    const fixture = fixtures.path('module-mocking', 'basic-esm.mjs');
+    const fixture = fixtures.fileURL('module-mocking', 'basic-esm.mjs');
     const original = await import(fixture);
 
     assert.strictEqual(original.string, 'original esm string');
@@ -318,7 +319,8 @@ test('ESM mocking with namedExports option', async (t) => {
   });
 
   await t.test('named exports are not applied to defaultExport', async (t) => {
-    const fixture = fixtures.path('module-mocking', 'basic-esm.mjs');
+    const fixturePath = fixtures.path('module-mocking', 'basic-esm.mjs');
+    const fixture = pathToFileURL(fixturePath);
     const original = await import(fixture);
 
     assert.strictEqual(original.string, 'original esm string');
@@ -338,11 +340,11 @@ test('ESM mocking with namedExports option', async (t) => {
     assert.strictEqual(mocked.default, 'mock default');
     assert.strictEqual(mocked.val1, 'mock value');
     t.mock.reset();
-    common.expectRequiredModule(require(fixture), original);
+    common.expectRequiredModule(require(fixturePath), original);
   });
 
   await t.test('throws if named exports cannot be applied to defaultExport as CJS', async (t) => {
-    const fixture = fixtures.path('module-mocking', 'basic-cjs.js');
+    const fixture = fixtures.fileURL('module-mocking', 'basic-cjs.js');
     const original = await import(fixture);
 
     assert.strictEqual(original.default.string, 'original cjs string');
@@ -363,16 +365,45 @@ test('ESM mocking with namedExports option', async (t) => {
   });
 });
 
+test('JSON mocking', async (t) => {
+  await t.test('with defaultExport', async (t) => {
+    const fixturePath = fixtures.path('module-mocking', 'basic.json');
+    const fixture = pathToFileURL(fixturePath);
+    const { default: original } = await import(fixture, { with: { type: 'json' } });
+
+    assert.deepStrictEqual(original, { foo: 'bar' });
+
+    const defaultExport = { qux: 'zed' };
+
+    t.mock.module(fixture, { defaultExport });
+
+    const { default: mocked } = await import(fixture, { with: { type: 'json' } });
+
+    assert.deepStrictEqual(mocked, defaultExport);
+  });
+
+  await t.test('throws without appropriate import attributes', async (t) => {
+    const fixturePath = fixtures.path('module-mocking', 'basic.json');
+    const fixture = pathToFileURL(fixturePath);
+
+    const defaultExport = { qux: 'zed' };
+    t.mock.module(fixture, { defaultExport });
+
+    await assert.rejects(() => import(fixture), /import attribute/);
+  });
+});
+
 test('modules cannot be mocked multiple times at once', async (t) => {
   await t.test('CJS', async (t) => {
     const fixture = fixtures.path('module-mocking', 'basic-cjs.js');
+    const fixtureURL = pathToFileURL(fixture).href;
 
-    t.mock.module(fixture, {
+    t.mock.module(fixtureURL, {
       namedExports: { fn() { return 42; } },
     });
 
     assert.throws(() => {
-      t.mock.module(fixture, {
+      t.mock.module(fixtureURL, {
         namedExports: { fn() { return 55; } },
       });
     }, {
@@ -386,7 +417,7 @@ test('modules cannot be mocked multiple times at once', async (t) => {
   });
 
   await t.test('ESM', async (t) => {
-    const fixture = fixtures.path('module-mocking', 'basic-esm.mjs');
+    const fixture = fixtures.fileURL('module-mocking', 'basic-esm.mjs').href;
 
     t.mock.module(fixture, {
       namedExports: { fn() { return 42; } },
@@ -405,14 +436,29 @@ test('modules cannot be mocked multiple times at once', async (t) => {
 
     assert.strictEqual(mocked.fn(), 42);
   });
+
+  await t.test('Importing a Windows path should fail', { skip: !common.isWindows }, async (t) => {
+    const fixture = fixtures.path('module-mocking', 'wrong-path.js');
+    t.mock.module(fixture, { namedExports: { fn() { return 42; } } });
+    await assert.rejects(import(fixture), { code: 'ERR_UNSUPPORTED_ESM_URL_SCHEME' });
+  });
+
+  await t.test('Importing a module with a quote in its URL should work', async (t) => {
+    const fixture = fixtures.fileURL('module-mocking', 'don\'t-open.mjs');
+    t.mock.module(fixture, { namedExports: { fn() { return 42; } } });
+
+    const mocked = await import(fixture);
+
+    assert.strictEqual(mocked.fn(), 42);
+  });
 });
 
 test('mocks are automatically restored', async (t) => {
   const cjsFixture = fixtures.path('module-mocking', 'basic-cjs.js');
-  const esmFixture = fixtures.path('module-mocking', 'basic-esm.mjs');
+  const esmFixture = fixtures.fileURL('module-mocking', 'basic-esm.mjs');
 
   await t.test('CJS', async (t) => {
-    t.mock.module(cjsFixture, {
+    t.mock.module(pathToFileURL(cjsFixture), {
       namedExports: { fn() { return 42; } },
     });
 
@@ -442,9 +488,9 @@ test('mocks are automatically restored', async (t) => {
 
 test('mocks can be restored independently', async (t) => {
   const cjsFixture = fixtures.path('module-mocking', 'basic-cjs.js');
-  const esmFixture = fixtures.path('module-mocking', 'basic-esm.mjs');
+  const esmFixture = fixtures.fileURL('module-mocking', 'basic-esm.mjs');
 
-  const cjsMock = t.mock.module(cjsFixture, {
+  const cjsMock = t.mock.module(pathToFileURL(cjsFixture), {
     namedExports: { fn() { return 42; } },
   });
 
@@ -511,10 +557,11 @@ test('node:- core module mocks can be used by both module systems', async (t) =>
 
 test('CJS mocks can be used by both module systems', async (t) => {
   const cjsFixture = fixtures.path('module-mocking', 'basic-cjs.js');
-  const cjsMock = t.mock.module(cjsFixture, {
+  const cjsFixtureURL = pathToFileURL(cjsFixture);
+  const cjsMock = t.mock.module(cjsFixtureURL, {
     namedExports: { fn() { return 42; } },
   });
-  let esmImpl = await import(cjsFixture);
+  let esmImpl = await import(cjsFixtureURL);
   let cjsImpl = require(cjsFixture);
 
   assert.strictEqual(esmImpl.fn(), 42);
@@ -522,37 +569,17 @@ test('CJS mocks can be used by both module systems', async (t) => {
 
   cjsMock.restore();
 
-  esmImpl = await import(cjsFixture);
+  esmImpl = await import(cjsFixtureURL);
   cjsImpl = require(cjsFixture);
 
   assert.strictEqual(esmImpl.default.string, 'original cjs string');
   assert.strictEqual(cjsImpl.string, 'original cjs string');
 });
 
-test('ESM mocks can be used by both module systems', async (t) => {
-  const esmFixture = fixtures.path('module-mocking', 'basic-esm.mjs');
-  const esmMock = t.mock.module(esmFixture, {
-    namedExports: { fn() { return 42; } },
-  });
-
-  let cjsImpl = require(esmFixture);
-  let esmImpl = await import(esmFixture);
-
-  assert.strictEqual(cjsImpl.fn(), 42);
-  assert.strictEqual(esmImpl.fn(), 42);
-
-  esmMock.restore();
-  cjsImpl = require(esmFixture);
-  esmImpl = await import(esmFixture);
-
-  assert.strictEqual(esmImpl.string, 'original esm string');
-  assert.strictEqual(cjsImpl.string, 'original esm string');
-});
-
 test('relative paths can be used by both module systems', async (t) => {
   const fixture = relative(
     __dirname, fixtures.path('module-mocking', 'basic-esm.mjs')
-  );
+  ).replaceAll('\\', '/');
   const mock = t.mock.module(fixture, {
     namedExports: { fn() { return 42; } },
   });
@@ -582,13 +609,11 @@ test('node_modules can be used by both module systems', async (t) => {
 
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
-  assert.match(stdout, /# pass 1/);
+  assert.match(stdout, /pass 1/);
 });
 
 test('file:// imports are supported in ESM only', async (t) => {
-  const fixture = pathToFileURL(
-    fixtures.path('module-mocking', 'basic-esm.mjs')
-  ).href;
+  const fixture = fixtures.fileURL('module-mocking', 'basic-esm.mjs').href;
   const mock = t.mock.module(fixture, {
     namedExports: { fn() { return 42; } },
   });
@@ -604,9 +629,9 @@ test('file:// imports are supported in ESM only', async (t) => {
 });
 
 test('mocked modules do not impact unmocked modules', async (t) => {
-  const mockedFixture = fixtures.path('module-mocking', 'basic-cjs.js');
-  const unmockedFixture = fixtures.path('module-mocking', 'basic-esm.mjs');
-  t.mock.module(mockedFixture, {
+  const mockedFixture = fixtures.fileURL('module-mocking', 'basic-cjs.js');
+  const unmockedFixture = fixtures.fileURL('module-mocking', 'basic-esm.mjs');
+  t.mock.module(`${mockedFixture}`, {
     namedExports: { fn() { return 42; } },
   });
   const mockedImpl = await import(mockedFixture);
@@ -619,22 +644,79 @@ test('mocked modules do not impact unmocked modules', async (t) => {
 
 test('defaultExports work with CJS mocks in both module systems', async (t) => {
   const fixture = fixtures.path('module-mocking', 'basic-cjs.js');
+  const fixtureURL = pathToFileURL(fixture);
   const original = require(fixture);
   const defaultExport = Symbol('default');
 
   assert.strictEqual(original.string, 'original cjs string');
-  t.mock.module(fixture, { defaultExport });
+  t.mock.module(fixtureURL, { defaultExport });
   assert.strictEqual(require(fixture), defaultExport);
-  assert.strictEqual((await import(fixture)).default, defaultExport);
+  assert.strictEqual((await import(fixtureURL)).default, defaultExport);
 });
 
 test('defaultExports work with ESM mocks in both module systems', async (t) => {
-  const fixture = fixtures.path('module-mocking', 'basic-esm.mjs');
+  const fixturePath = fixtures.path('module-mocking', 'basic-esm.mjs');
+  const fixture = pathToFileURL(fixturePath);
   const original = await import(fixture);
   const defaultExport = Symbol('default');
 
   assert.strictEqual(original.string, 'original esm string');
-  t.mock.module(fixture, { defaultExport });
+  t.mock.module(`${fixture}`, { defaultExport });
   assert.strictEqual((await import(fixture)).default, defaultExport);
-  assert.strictEqual(require(fixture), defaultExport);
+  assert.strictEqual(require(fixturePath), defaultExport);
+});
+
+test('wrong import syntax should throw error after module mocking', async () => {
+  const { stdout, stderr, code } = await common.spawnPromisified(
+    process.execPath,
+    [
+      '--experimental-test-module-mocks',
+      fixtures.path('module-mocking/wrong-import-after-module-mocking.js'),
+    ]
+  );
+
+  assert.strictEqual(stdout, '');
+  assert.match(stderr, /Error \[ERR_MODULE_NOT_FOUND\]: Cannot find module/);
+  assert.strictEqual(code, 1);
+});
+
+test('should throw ERR_ACCESS_DENIED when permission model is enabled', async (t) => {
+  const cwd = fixtures.path('test-runner');
+  const fixture = fixtures.path('test-runner', 'mock-nm.js');
+  const args = [
+    '--permission',
+    '--allow-fs-read=*',
+    '--experimental-test-module-mocks',
+    fixture,
+  ];
+  const {
+    code,
+    stdout,
+  } = await common.spawnPromisified(process.execPath, args, { cwd });
+
+  assert.strictEqual(code, 1);
+  assert.match(stdout, /Error: Access to this API has been restricted/);
+  assert.match(stdout, /permission: 'WorkerThreads'/);
+});
+
+test('should work when --allow-worker is passed and permission model is enabled', async (t) => {
+  const cwd = fixtures.path('test-runner');
+  const fixture = fixtures.path('test-runner', 'mock-nm.js');
+  const args = [
+    '--permission',
+    '--allow-fs-read=*',
+    '--allow-worker',
+    '--experimental-test-module-mocks',
+    fixture,
+  ];
+  const {
+    code,
+    stdout,
+    stderr,
+    signal,
+  } = await common.spawnPromisified(process.execPath, args, { cwd });
+
+  assert.strictEqual(code, 0, stderr);
+  assert.strictEqual(signal, null);
+  assert.match(stdout, /pass 1/, stderr);
 });

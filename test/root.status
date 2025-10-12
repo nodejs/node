@@ -78,7 +78,6 @@ parallel/test-tick-processor-arguments: SLOW
 parallel/test-tls-env-bad-extra-ca: SLOW
 parallel/test-tls-env-extra-ca: SLOW
 parallel/test-tls-handshake-exception: SLOW
-parallel/test-tls-securepair-leak: SLOW
 parallel/test-tls-server-verify: SLOW
 parallel/test-tls-session-cache: SLOW
 parallel/test-tls-ticket-cluster: SLOW

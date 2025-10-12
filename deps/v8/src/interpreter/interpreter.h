@@ -35,6 +35,18 @@ namespace interpreter {
 
 class InterpreterAssembler;
 
+struct BytecodeHandlerData {
+  BytecodeHandlerData(Bytecode bytecode, OperandScale operand_scale)
+      : bytecode(bytecode), operand_scale(operand_scale) {}
+
+  Bytecode bytecode;
+  OperandScale operand_scale;
+  ImplicitRegisterUse implicit_register_use = ImplicitRegisterUse::kNone;
+  bool made_call = false;
+  bool reloaded_frame_ptr = false;
+  bool bytecode_array_valid = true;
+};
+
 class Interpreter {
  public:
   explicit Interpreter(Isolate* isolate);
@@ -69,7 +81,7 @@ class Interpreter {
   void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
                           Tagged<Code> handler);
 
-  V8_EXPORT_PRIVATE Handle<JSObject> GetDispatchCountersObject();
+  V8_EXPORT_PRIVATE DirectHandle<JSObject> GetDispatchCountersObject();
 
   void ForEachBytecode(const std::function<void(Bytecode, OperandScale)>& f);
 

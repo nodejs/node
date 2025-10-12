@@ -17,9 +17,12 @@
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 // fp16_ieee_to_fp32_value()
 TNode<Float32T> CodeStubAssembler::ChangeFloat16ToFloat32(
-    TNode<Float16T> value) {
+    TNode<Float16RawBitsT> value) {
   /*
    * Extend the half-precision floating-point number to 32 bits and shift to the
    * upper part of the 32-bit word:
@@ -171,7 +174,7 @@ TNode<Float32T> CodeStubAssembler::ChangeFloat16ToFloat32(
 }
 
 // fp16_ieee_from_fp32_value()
-TNode<Float16T> CodeStubAssembler::TruncateFloat32ToFloat16(
+TNode<Float16RawBitsT> CodeStubAssembler::TruncateFloat32ToFloat16(
     TNode<Float32T> value) {
   TVARIABLE(Float32T, base);
 
@@ -216,17 +219,19 @@ TNode<Float16T> CodeStubAssembler::TruncateFloat32ToFloat16(
   {
     result = Uint16Constant(0x7E00);
     Goto(&done);
-  };
+  }
   BIND(&is_not_nan);
   {
     result = ReinterpretCast<Uint16T>(Uint32Add(exp_bits, mantissa_bits));
     Goto(&done);
-  };
+  }
 
   BIND(&done);
-  return ReinterpretCast<Float16T>(
+  return ReinterpretCast<Float16RawBitsT>(
       Word32Or(Word32Shr(sign, 16), result.value()));
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

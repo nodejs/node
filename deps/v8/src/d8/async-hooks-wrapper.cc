@@ -32,8 +32,9 @@ std::shared_ptr<AsyncHooksWrap> UnwrapHook(
     return nullptr;
   }
 
-  i::Handle<i::Object> handle = Utils::OpenHandle(*hook->GetInternalField(0));
-  return i::Handle<i::Managed<AsyncHooksWrap>>::cast(handle)->get();
+  i::DirectHandle<i::Object> handle =
+      Utils::OpenDirectHandle(*hook->GetInternalField(0));
+  return Cast<i::Managed<AsyncHooksWrap>>(handle)->get();
 }
 
 void EnableHook(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -164,7 +165,7 @@ Local<Object> AsyncHooks::CreateHook(
   Local<Object> obj = async_hooks_templ.Get(v8_isolate)
                           ->NewInstance(currentContext)
                           .ToLocalChecked();
-  i::Handle<i::Object> managed = i::Managed<AsyncHooksWrap>::FromSharedPtr(
+  i::DirectHandle<i::Object> managed = i::Managed<AsyncHooksWrap>::From(
       reinterpret_cast<i::Isolate*>(v8_isolate), sizeof(AsyncHooksWrap), wrap);
   obj->SetInternalField(0, Utils::ToLocal(managed));
 
@@ -175,7 +176,7 @@ Local<Object> AsyncHooks::CreateHook(
 
 void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
                                   Local<Value> parent) {
-  v8::Isolate* v8_isolate = promise->GetIsolate();
+  v8::Isolate* v8_isolate = v8::Isolate::GetCurrent();
   AsyncHooks* hooks = PerIsolateData::Get(v8_isolate)->GetAsyncHooks();
   if (v8_isolate->IsExecutionTerminating() || hooks->skip_after_termination_) {
     hooks->skip_after_termination_ = true;
@@ -184,10 +185,10 @@ void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
 
   HandleScope handle_scope(v8_isolate);
-  i::Handle<i::Object> exception;
+  i::DirectHandle<i::Object> exception;
   // Keep track of any previously thrown exception.
   if (i_isolate->has_exception()) {
-    exception = handle(i_isolate->exception(), i_isolate);
+    exception = direct_handle(i_isolate->exception(), i_isolate);
   }
   {
     TryCatch try_catch(v8_isolate);

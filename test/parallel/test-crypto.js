@@ -29,6 +29,7 @@ const assert = require('assert');
 const crypto = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
+const { hasOpenSSL3 } = require('../common/crypto');
 
 // Test Certificates
 const certPfx = fixtures.readKey('rsa_cert.pfx');
@@ -208,24 +209,24 @@ assert.throws(() => {
   ].join('\n');
   crypto.createSign('SHA256').update('test').sign(priv);
 }, (err) => {
-  if (!common.hasOpenSSL3)
+  if (!hasOpenSSL3)
     assert.ok(!('opensslErrorStack' in err));
-  assert.throws(() => { throw err; }, common.hasOpenSSL3 ? {
+  assert.throws(() => { throw err; }, hasOpenSSL3 ? {
     name: 'Error',
     message: 'error:02000070:rsa routines::digest too big for rsa key',
     library: 'rsa routines',
   } : {
     name: 'Error',
     message: /routines:RSA_sign:digest too big for rsa key$/,
-    library: 'rsa routines',
+    library: /rsa routines/i,
     function: 'RSA_sign',
-    reason: 'digest too big for rsa key',
+    reason: /digest[\s_]too[\s_]big[\s_]for[\s_]rsa[\s_]key/i,
     code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY'
   });
   return true;
 });
 
-if (!common.hasOpenSSL3) {
+if (!hasOpenSSL3) {
   assert.throws(() => {
     // The correct header inside `rsa_private_pkcs8_bad.pem` should have been
     // -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----

@@ -1,7 +1,11 @@
 import { createRequire } from 'node:module';
 
-export const requireEslintTool = createRequire(new URL(import.meta.url));
-export const resolveEslintTool = (request) => requireEslintTool.resolve(request);
+export { default as globals } from 'globals';
+
+export const importEslintTool = (specifier) => import(specifier);
+
+const localRequire = createRequire(new URL(import.meta.url));
+export const resolveEslintTool = (request) => localRequire.resolve(request);
 
 export const noRestrictedSyntaxCommonAll = [
   {

@@ -5,8 +5,16 @@
 #ifndef V8CONFIG_H_
 #define V8CONFIG_H_
 
+// gcc 10 defines __cplusplus to "an unspecified value strictly larger than
+// 201703L" for its experimental -std=gnu++2a config.
+// TODO(leszeks): Change to `__cplusplus <= 202002L` once we only support
+// compilers with full C++20 support.
+#if __cplusplus <= 201703L
+#error "C++20 or later required."
+#endif
+
 #ifdef V8_GN_HEADER
-#if __cplusplus >= 201703L && !__has_include("v8-gn.h")
+#if !__has_include("v8-gn.h")
 #error Missing v8-gn.h. The configuration for v8 is missing from the include \
 path. Add it with -I<path> to the command line
 #endif
@@ -23,6 +31,8 @@ path. Add it with -I<path> to the command line
 # include <TargetConditionals.h>
 #elif defined(__linux__)
 # include <features.h>
+#elif defined(__MVS__)
+# include "zos-base.h"
 #endif
 
 
@@ -75,6 +85,7 @@ path. Add it with -I<path> to the command line
 //  V8_OS_DARWIN        - Darwin (macOS, iOS)
 //  V8_OS_MACOS         - macOS
 //  V8_OS_IOS           - iOS
+//  V8_OS_TVOS          - tvOS (also sets V8_OS_IOS)
 //  V8_OS_NETBSD        - NetBSD
 //  V8_OS_OPENBSD       - OpenBSD
 //  V8_OS_POSIX         - POSIX compatible (mostly everything except Windows)
@@ -83,6 +94,7 @@ path. Add it with -I<path> to the command line
 //  V8_OS_STARBOARD     - Starboard (platform abstraction for Cobalt)
 //  V8_OS_AIX           - AIX
 //  V8_OS_WIN           - Microsoft Windows
+//  V8_OS_ZOS           - z/OS
 
 #if defined(__ANDROID__)
 # define V8_OS_ANDROID 1
@@ -97,6 +109,9 @@ path. Add it with -I<path> to the command line
 # if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
 #  define V8_OS_IOS 1
 #  define V8_OS_STRING "ios"
+#  if defined(TARGET_OS_TV) && TARGET_OS_TV
+#   define V8_OS_TVOS 1
+#  endif
 # else
 #  define V8_OS_MACOS 1
 #  define V8_OS_STRING "macos"
@@ -163,6 +178,11 @@ path. Add it with -I<path> to the command line
 #elif defined(_WIN32)
 # define V8_OS_WIN 1
 # define V8_OS_STRING "windows"
+
+#elif defined(__MVS__)
+# define V8_OS_POSIX 1
+# define V8_OS_ZOS 1
+# define V8_OS_STRING "zos"
 #endif
 
 // -----------------------------------------------------------------------------
@@ -171,6 +191,7 @@ path. Add it with -I<path> to the command line
 //  V8_TARGET_OS_ANDROID
 //  V8_TARGET_OS_FUCHSIA
 //  V8_TARGET_OS_IOS
+//  V8_TARGET_OS_TVOS (also sets V8_TARGET_OS_IOS)
 //  V8_TARGET_OS_LINUX
 //  V8_TARGET_OS_MACOS
 //  V8_TARGET_OS_WIN
@@ -184,6 +205,7 @@ path. Add it with -I<path> to the command line
 # if !defined(V8_TARGET_OS_ANDROID) \
   && !defined(V8_TARGET_OS_FUCHSIA) \
   && !defined(V8_TARGET_OS_IOS) \
+  && !defined(V8_TARGET_OS_TVOS) \
   && !defined(V8_TARGET_OS_LINUX) \
   && !defined(V8_TARGET_OS_MACOS) \
   && !defined(V8_TARGET_OS_WIN) \
@@ -196,6 +218,7 @@ path. Add it with -I<path> to the command line
 # if defined(V8_TARGET_OS_ANDROID) \
   || defined(V8_TARGET_OS_FUCHSIA) \
   || defined(V8_TARGET_OS_IOS) \
+  || defined(V8_TARGET_OS_TVOS) \
   || defined(V8_TARGET_OS_LINUX) \
   || defined(V8_TARGET_OS_MACOS) \
   || defined(V8_TARGET_OS_WIN) \
@@ -214,6 +237,10 @@ path. Add it with -I<path> to the command line
 
 #ifdef V8_OS_IOS
 # define V8_TARGET_OS_IOS
+#endif
+
+#ifdef V8_OS_TVOS
+# define V8_TARGET_OS_TVOS
 #endif
 
 #ifdef V8_OS_LINUX
@@ -306,6 +333,7 @@ path. Add it with -I<path> to the command line
 //  V8_HAS_CPP_ATTRIBUTE_NODISCARD      - [[nodiscard]] supported
 //  V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS
 //                                      - [[no_unique_address]] supported
+//  V8_HAS_CPP_ATTRIBUTE_LIFETIME_BOUND - [[clang::lifetimebound]] supported
 //  V8_HAS_BUILTIN_ADD_OVERFLOW         - __builtin_add_overflow() supported
 //  V8_HAS_BUILTIN_BIT_CAST             - __builtin_bit_cast() supported
 //  V8_HAS_BUILTIN_BSWAP16              - __builtin_bswap16() supported
@@ -355,6 +383,7 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
 # define V8_HAS_ATTRIBUTE_USED (__has_attribute(used))
 # define V8_HAS_ATTRIBUTE_RETAIN (__has_attribute(retain))
+# define V8_HAS_ATTRIBUTE_OPTNONE (__has_attribute(optnone))
 // Support for the "preserve_most" attribute is limited:
 // - 32-bit platforms do not implement it,
 // - component builds fail because _dl_runtime_resolve clobbers registers,
@@ -376,8 +405,15 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_ATTRIBUTE_WEAK (__has_attribute(weak))
 
 # define V8_HAS_CPP_ATTRIBUTE_NODISCARD (V8_HAS_CPP_ATTRIBUTE(nodiscard))
+#if defined(V8_CC_MSVC)
+# define V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS       \
+    (V8_HAS_CPP_ATTRIBUTE(msvc::no_unique_address) || \
+     V8_HAS_CPP_ATTRIBUTE(no_unique_address))
+#else
 # define V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS \
     (V8_HAS_CPP_ATTRIBUTE(no_unique_address))
+#endif
+# define V8_HAS_CPP_ATTRIBUTE_LIFETIME_BOUND (V8_HAS_CPP_ATTRIBUTE(clang::lifetimebound))
 
 # define V8_HAS_BUILTIN_ADD_OVERFLOW (__has_builtin(__builtin_add_overflow))
 # define V8_HAS_BUILTIN_ASSUME (__has_builtin(__builtin_assume))
@@ -477,22 +513,42 @@ path. Add it with -I<path> to the command line
 # define V8_INLINE inline
 #endif
 
+// A macro to force better inlining of calls in a statement. Don't bother for
+// debug builds.
+// Use like:
+//   V8_INLINE_STATEMENT foo = bar(); // Will force inlining the bar() call.
+#if !defined(DEBUG) && defined(__clang__) && V8_HAS_ATTRIBUTE_ALWAYS_INLINE
+# define V8_INLINE_STATEMENT [[clang::always_inline]]
+#else
+# define V8_INLINE_STATEMENT
+#endif
+
+#if V8_HAS_BUILTIN_ASSUME
 #ifdef DEBUG
-// In debug mode, check assumptions instead of actually adding annotations.
-# define V8_ASSUME DCHECK
-#elif V8_HAS_BUILTIN_ASSUME
+// In debug mode, check assumptions in addition to adding annotations.
+// This helps GCC (and maybe other compilers) figure out that certain
+// situations are unreachable.
+# define V8_ASSUME(condition)    \
+  do {                           \
+    DCHECK(condition);           \
+    __builtin_assume(condition); \
+  } while (false)
+#else  // DEBUG
 # define V8_ASSUME __builtin_assume
+#endif  // DEBUG
 #elif V8_HAS_BUILTIN_UNREACHABLE
 # define V8_ASSUME(condition)                  \
   do {                                         \
+    DCHECK(condition);                         \
     if (!(condition)) __builtin_unreachable(); \
   } while (false)
 #else
 # define V8_ASSUME USE
 #endif
 
-// Prefer c++20 std::assume_aligned
-#if __cplusplus >= 202002L && defined(__cpp_lib_assume_aligned)
+// Prefer c++20 std::assume_aligned. Don't use it on MSVC though, because it's
+// not happy with our large 4GB alignment values.
+#if __cplusplus >= 202002L && defined(__cpp_lib_assume_aligned) && !V8_CC_MSVC
 # define V8_ASSUME_ALIGNED(ptr, alignment) \
   std::assume_aligned<(alignment)>(ptr)
 #elif V8_HAS_BUILTIN_ASSUME_ALIGNED
@@ -549,10 +605,14 @@ path. Add it with -I<path> to the command line
 // functions.
 // Use like:
 //   V8_NOINLINE V8_PRESERVE_MOST void UnlikelyMethod();
+#if V8_OS_WIN
+# define V8_PRESERVE_MOST
+#else
 #if V8_HAS_ATTRIBUTE_PRESERVE_MOST
 # define V8_PRESERVE_MOST __attribute__((preserve_most))
 #else
 # define V8_PRESERVE_MOST /* NOT SUPPORTED */
+#endif
 #endif
 
 
@@ -650,6 +710,17 @@ path. Add it with -I<path> to the command line
 #define V8_NODISCARD /* NOT SUPPORTED */
 #endif
 
+
+// Annotate a function to ensure the function is retained in the compiled binary
+// even if it appears to be unused to the compiler.
+#if V8_HAS_ATTRIBUTE_USED && V8_HAS_ATTRIBUTE_VISIBILITY
+#define V8_SYMBOL_USED \
+  __attribute__((used, visibility("default")))
+#else
+#define V8_SYMBOL_USED /* NOT SUPPORTED */
+#endif
+
+
 // The no_unique_address attribute allows tail padding in a non-static data
 // member to overlap other members of the enclosing class (and in the special
 // case when the type is empty, permits it to fully overlap other members). The
@@ -666,9 +737,52 @@ path. Add it with -I<path> to the command line
 // [[no_unique_address]] comes in C++20 but supported in clang with
 // -std >= c++11.
 #if V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS
+#if defined(V8_CC_MSVC) && V8_HAS_CPP_ATTRIBUTE(msvc::no_unique_address)
+// Unfortunately MSVC ignores [[no_unique_address]] (see
+// https://devblogs.microsoft.com/cppblog/msvc-cpp20-and-the-std-cpp20-switch/#msvc-extensions-and-abi),
+// and clang-cl matches it for ABI compatibility reasons. We need to prefer
+// [[msvc::no_unique_address]] when available if we actually want any effect.
+#define V8_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
+#else
 #define V8_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#endif
 #else
 #define V8_NO_UNIQUE_ADDRESS /* NOT SUPPORTED */
+#endif
+
+// Annotates a pointer or reference parameter or return value for a member
+// function as having lifetime intertwined with the instance on which the
+// function is called. For parameters, the function is assumed to store the
+// value into the called-on object, so if the referred-to object is later
+// destroyed, the called-on object is also considered to be dangling. For return
+// values, the value is assumed to point into the called-on object, so if that
+// object is destroyed, the returned value is also considered to be dangling.
+// Useful to diagnose some cases of lifetime errors.
+//
+// See also:
+//   https://clang.llvm.org/docs/AttributeReference.html#lifetimebound
+//
+// Usage:
+// ```
+//   struct S {
+//      S(int* p V8_LIFETIME_BOUND);
+//      int* Get() V8_LIFETIME_BOUND;
+//   };
+//   S Func1() {
+//     int i = 0;
+//     // The following return will not compile; diagnosed as returning address
+//     // of a stack object.
+//     return S(&i);
+//   }
+//   int* Func2(int* p) {
+//     // The following return will not compile; diagnosed as returning address
+//     // of a local temporary.
+//     return S(p).Get();
+//   }
+#if V8_HAS_CPP_ATTRIBUTE_LIFETIME_BOUND
+#define V8_LIFETIME_BOUND [[clang::lifetimebound]]
+#else
+#define V8_LIFETIME_BOUND /* NOT SUPPORTED */
 #endif
 
 // Marks a type as being eligible for the "trivial" ABI despite having a
@@ -743,15 +857,12 @@ V8 shared library set USING_V8_SHARED.
 #else  // V8_OS_WIN
 
 // Setup for Linux shared library export.
-#if V8_HAS_ATTRIBUTE_VISIBILITY
-# ifdef BUILDING_V8_SHARED
-#  define V8_EXPORT __attribute__ ((visibility("default")))
-# else
-#  define V8_EXPORT
-# endif
+#if (V8_HAS_ATTRIBUTE_VISIBILITY && \
+     (defined(BUILDING_V8_SHARED) || USING_V8_SHARED))
+# define V8_EXPORT __attribute__((visibility("default")))
 #else
 # define V8_EXPORT
-#endif
+# endif  // V8_HAS_ATTRIBUTE_VISIBILITY && ...
 
 #endif  // V8_OS_WIN
 
@@ -789,16 +900,9 @@ V8 shared library set USING_V8_SHARED.
 #elif defined(__PPC64__) || defined(_ARCH_PPC64)
 #define V8_HOST_ARCH_PPC64 1
 #define V8_HOST_ARCH_64_BIT 1
-#elif defined(__PPC__) || defined(_ARCH_PPC)
-#define V8_HOST_ARCH_PPC 1
-#define V8_HOST_ARCH_32_BIT 1
-#elif defined(__s390__) || defined(__s390x__)
-#define V8_HOST_ARCH_S390 1
-#if defined(__s390x__)
+#elif defined(__s390x__)
+#define V8_HOST_ARCH_S390X 1
 #define V8_HOST_ARCH_64_BIT 1
-#else
-#define V8_HOST_ARCH_32_BIT 1
-#endif
 #elif defined(__riscv) || defined(__riscv__)
 #if __riscv_xlen == 64
 #define V8_HOST_ARCH_RISCV64 1
@@ -818,10 +922,10 @@ V8 shared library set USING_V8_SHARED.
 // The macros may be set externally. If not, detect in the same way as the host
 // architecture, that is, target the native environment as presented by the
 // compiler.
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM &&     \
-    !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_PPC && \
-    !V8_TARGET_ARCH_PPC64 && !V8_TARGET_ARCH_S390 &&                          \
-    !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_LOONG64 &&                     \
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && \
+    !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS64 &&                    \
+    !V8_TARGET_ARCH_PPC64 && !V8_TARGET_ARCH_S390X &&                     \
+    !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_LOONG64 &&                 \
     !V8_TARGET_ARCH_RISCV32
 #if defined(_M_X64) || defined(__x86_64__)
 #define V8_TARGET_ARCH_X64 1
@@ -837,13 +941,8 @@ V8 shared library set USING_V8_SHARED.
 #define V8_TARGET_ARCH_LOONG64 1
 #elif defined(_ARCH_PPC64)
 #define V8_TARGET_ARCH_PPC64 1
-#elif defined(_ARCH_PPC)
-#define V8_TARGET_ARCH_PPC 1
-#elif defined(__s390__)
-#define V8_TARGET_ARCH_S390 1
-#if defined(__s390x__)
+#elif defined(__s390x__)
 #define V8_TARGET_ARCH_S390X 1
-#endif
 #elif defined(__riscv) || defined(__riscv__)
 #if __riscv_xlen == 64
 #define V8_TARGET_ARCH_RISCV64 1
@@ -870,22 +969,14 @@ V8 shared library set USING_V8_SHARED.
 #define V8_TARGET_ARCH_32_BIT 1
 #elif V8_TARGET_ARCH_ARM64
 #define V8_TARGET_ARCH_64_BIT 1
-#elif V8_TARGET_ARCH_MIPS
-#define V8_TARGET_ARCH_32_BIT 1
 #elif V8_TARGET_ARCH_MIPS64
 #define V8_TARGET_ARCH_64_BIT 1
 #elif V8_TARGET_ARCH_LOONG64
 #define V8_TARGET_ARCH_64_BIT 1
-#elif V8_TARGET_ARCH_PPC
-#define V8_TARGET_ARCH_32_BIT 1
 #elif V8_TARGET_ARCH_PPC64
 #define V8_TARGET_ARCH_64_BIT 1
-#elif V8_TARGET_ARCH_S390
-#if V8_TARGET_ARCH_S390X
+#elif V8_TARGET_ARCH_S390X
 #define V8_TARGET_ARCH_64_BIT 1
-#else
-#define V8_TARGET_ARCH_32_BIT 1
-#endif
 #elif V8_TARGET_ARCH_RISCV64
 #define V8_TARGET_ARCH_64_BIT 1
 #elif V8_TARGET_ARCH_RISCV32
@@ -915,8 +1006,10 @@ V8 shared library set USING_V8_SHARED.
 #if (V8_TARGET_ARCH_MIPS64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_MIPS64))
 #error Target architecture mips64 is only supported on mips64 and x64 host
 #endif
-#if (V8_TARGET_ARCH_RISCV64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_RISCV64))
-#error Target architecture riscv64 is only supported on riscv64 and x64 host
+#if (V8_TARGET_ARCH_RISCV64 && \
+     !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_ARM64 || V8_HOST_ARCH_RISCV64))
+#error Target architecture riscv64 is only supported on riscv64, x64, and \
+arm64 host
 #endif
 #if (V8_TARGET_ARCH_RISCV32 && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_RISCV32))
 #error Target architecture riscv32 is only supported on riscv32 and ia32 host
@@ -942,14 +1035,14 @@ V8 shared library set USING_V8_SHARED.
 #else
 #define V8_TARGET_LITTLE_ENDIAN 1
 #endif
-#elif defined(__BIG_ENDIAN__)  // FOR PPCGR on AIX
+#elif V8_TARGET_ARCH_PPC64
+#if V8_OS_AIX
 #define V8_TARGET_BIG_ENDIAN 1
-#elif V8_TARGET_ARCH_PPC_LE
+#else
 #define V8_TARGET_LITTLE_ENDIAN 1
-#elif V8_TARGET_ARCH_PPC_BE
-#define V8_TARGET_BIG_ENDIAN 1
-#elif V8_TARGET_ARCH_S390
-#if V8_TARGET_ARCH_S390_LE_SIM
+#endif
+#elif V8_TARGET_ARCH_S390X
+#if V8_TARGET_ARCH_S390X_LE_SIM
 #define V8_TARGET_LITTLE_ENDIAN 1
 #else
 #define V8_TARGET_BIG_ENDIAN 1
@@ -972,6 +1065,11 @@ V8 shared library set USING_V8_SHARED.
 #define V8_STATIC_ROOTS_BOOL false
 #else
 #define V8_STATIC_ROOTS_BOOL true
+#endif
+#ifdef V8_TARGET_BIG_ENDIAN
+#define V8_TARGET_BIG_ENDIAN_BOOL true
+#else
+#define V8_TARGET_BIG_ENDIAN_BOOL false
 #endif
 
 #endif  // V8CONFIG_H_

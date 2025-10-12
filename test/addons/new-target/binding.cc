@@ -10,7 +10,7 @@ inline void NewClass(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 inline void Initialize(v8::Local<v8::Object> binding) {
-  auto isolate = binding->GetIsolate();
+  auto isolate = v8::Isolate::GetCurrent();
   auto context = isolate->GetCurrentContext();
   binding->Set(context, v8::String::NewFromUtf8(
         isolate, "Class").ToLocalChecked(),

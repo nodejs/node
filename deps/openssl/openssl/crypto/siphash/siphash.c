@@ -210,22 +210,22 @@ int SipHash_Final(SIPHASH *ctx, unsigned char *out, size_t outlen)
     switch (ctx->len) {
     case 7:
         b |= ((uint64_t)ctx->leavings[6]) << 48;
-        /* fall thru */
+        /* fall through */
     case 6:
         b |= ((uint64_t)ctx->leavings[5]) << 40;
-        /* fall thru */
+        /* fall through */
     case 5:
         b |= ((uint64_t)ctx->leavings[4]) << 32;
-        /* fall thru */
+        /* fall through */
     case 4:
         b |= ((uint64_t)ctx->leavings[3]) << 24;
-        /* fall thru */
+        /* fall through */
     case 3:
         b |= ((uint64_t)ctx->leavings[2]) << 16;
-        /* fall thru */
+        /* fall through */
     case 2:
         b |= ((uint64_t)ctx->leavings[1]) <<  8;
-        /* fall thru */
+        /* fall through */
     case 1:
         b |= ((uint64_t)ctx->leavings[0]);
     case 0:

@@ -8,6 +8,10 @@ const fs = require('fs');
 const exec = require('child_process').exec;
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
+const {
+  hasOpenSSL,
+  opensslCli,
+} = require('../common/crypto');
 
 // Test certificates
 const certPem = fixtures.readKey('rsa_cert.crt');
@@ -62,7 +66,7 @@ const keySize = 2048;
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, { message: common.hasOpenSSL3 ?
+  }, { message: hasOpenSSL(3) ?
     'error:1C8000A5:Provider routines::illegal or unsupported padding mode' :
     'bye, bye, error stack' });
 
@@ -340,7 +344,7 @@ assert.throws(
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, common.hasOpenSSL3 ? {
+  }, hasOpenSSL(3) ? {
     code: 'ERR_OSSL_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
     message: /illegal or unsupported padding mode/,
   } : {
@@ -422,6 +426,7 @@ assert.throws(
   { private: fixtures.readKey('ed448_private.pem', 'ascii'),
     public: fixtures.readKey('ed448_public.pem', 'ascii'),
     algo: null,
+    supportsContext: true,
     sigLen: 114 },
   { private: fixtures.readKey('rsa_private_2048.pem', 'ascii'),
     public: fixtures.readKey('rsa_public_2048.pem', 'ascii'),
@@ -469,6 +474,55 @@ assert.throws(
     assert.strictEqual(crypto.verify(algo, data, pair.private, sig),
                        true);
   });
+
+  if (pair.supportsContext && hasOpenSSL(3, 2)) {
+    const data = Buffer.from('Hello world');
+    {
+      const context = new Uint8Array();
+      const sig = crypto.sign(algo, data, { key: pair.private, context });
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public }, sig), true);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context }, sig), true);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context: crypto.randomBytes(30) }, sig), false);
+    }
+
+    {
+      const context = new Uint8Array(32);
+      const sig = crypto.sign(algo, data, { key: pair.private, context });
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public }, sig), false);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context }, sig), true);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context: crypto.randomBytes(30) }, sig), false);
+    }
+
+    assert.throws(() => crypto.sign(algo, data, { key: pair.private, context: new Uint8Array(256) }), {
+      code: 'ERR_OUT_OF_RANGE',
+      message: 'context string must be at most 255 bytes',
+    });
+
+    assert.throws(() => {
+      crypto.verify(algo, data, { key: pair.public, context: new Uint8Array(256) }, new Uint8Array());
+    }, {
+      code: 'ERR_OUT_OF_RANGE',
+      message: 'context string must be at most 255 bytes',
+    });
+  } else if (pair.supportsContext) {
+    const data = Buffer.from('Hello world');
+    {
+      const context = new Uint8Array();
+      const sig = crypto.sign(algo, data, { key: pair.private, context });
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public }, sig), true);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context }, sig), true);
+    }
+
+    {
+      const context = new Uint8Array(32);
+      assert.throws(() => {
+        crypto.sign(algo, data, { key: pair.private, context });
+      }, { message: 'Context parameter is unsupported' });
+      assert.throws(() => {
+        crypto.verify(algo, data, { key: pair.public, context: crypto.randomBytes(30) }, crypto.randomBytes(32));
+      }, { message: 'Context parameter is unsupported' });
+    }
+  }
 });
 
 [1, {}, [], true, Infinity].forEach((input) => {
@@ -599,8 +653,9 @@ assert.throws(
 // Note: this particular test *must* be the last in this file as it will exit
 // early if no openssl binary is found
 {
-  if (!common.opensslCli)
+  if (!opensslCli) {
     common.skip('node compiled without OpenSSL CLI.');
+  }
 
   const pubfile = fixtures.path('keys', 'rsa_public_2048.pem');
   const privkey = fixtures.readKey('rsa_private_2048.pem');
@@ -621,12 +676,10 @@ assert.throws(
   const msgfile = tmpdir.resolve('s5.msg');
   fs.writeFileSync(msgfile, msg);
 
-  const cmd =
-    `"${common.opensslCli}" dgst -sha256 -verify "${pubfile}" -signature "${
-      sigfile}" -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-2 "${
-      msgfile}"`;
-
-  exec(cmd, common.mustCall((err, stdout, stderr) => {
+  exec(...common.escapePOSIXShell`"${
+    opensslCli}" dgst -sha256 -verify "${pubfile}" -signature "${
+    sigfile}" -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-2 "${msgfile
+  }"`, common.mustCall((err, stdout, stderr) => {
     assert(stdout.includes('Verified OK'));
   }));
 }
@@ -791,5 +844,23 @@ assert.throws(
     assert.throws(() => {
       crypto.createVerify('SHA256').update('Test123').verify(publicKey, 'sig');
     }, { code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION', message: 'Unsupported crypto operation' });
+  }
+}
+
+{
+  // Dh, x25519 and x448 should not be used for signing/verifying
+  // https://github.com/nodejs/node/issues/53742
+  for (const algo of ['dh', 'x25519', 'x448']) {
+    const privateKey = fixtures.readKey(`${algo}_private.pem`, 'ascii');
+    const publicKey = fixtures.readKey(`${algo}_public.pem`, 'ascii');
+    assert.throws(() => {
+      crypto.createSign('SHA256').update('Test123').sign(privateKey);
+    }, { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE', message: /operation not supported for this keytype/ });
+    assert.throws(() => {
+      crypto.createVerify('SHA256').update('Test123').verify(privateKey, 'sig');
+    }, { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE', message: /operation not supported for this keytype/ });
+    assert.throws(() => {
+      crypto.createVerify('SHA256').update('Test123').verify(publicKey, 'sig');
+    }, { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE', message: /operation not supported for this keytype/ });
   }
 }

@@ -11,11 +11,11 @@ namespace v8 {
 namespace internal {
 
 // V(name, operand_count)
-#define TRANSLATION_JS_FRAME_OPCODE_LIST(V)    \
-  V(INTERPRETED_FRAME_WITH_RETURN, 5)          \
-  V(INTERPRETED_FRAME_WITHOUT_RETURN, 3)       \
-  V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME, 3) \
-  V(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME, 3)
+#define TRANSLATION_JS_FRAME_OPCODE_LIST(V)   \
+  V(INTERPRETED_FRAME_WITH_RETURN, 6)         \
+  V(INTERPRETED_FRAME_WITHOUT_RETURN, 4)      \
+  V(JAVASCRIPT_BUILTIN_CONTINUATION_FRAME, 3) \
+  V(JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME, 3)
 
 #define TRANSLATION_FRAME_OPCODE_LIST(V)               \
   V(CONSTRUCT_CREATE_STUB_FRAME, 2)                    \
@@ -23,22 +23,27 @@ namespace internal {
   V(BUILTIN_CONTINUATION_FRAME, 3)                     \
   IF_WASM(V, JS_TO_WASM_BUILTIN_CONTINUATION_FRAME, 4) \
   IF_WASM(V, WASM_INLINED_INTO_JS_FRAME, 3)            \
-  V(INLINED_EXTRA_ARGUMENTS, 2)
+  IF_WASM(V, LIFTOFF_FRAME, 3)                         \
+  V(INLINED_EXTRA_ARGUMENTS, 3)
 
 #define TRANSLATION_OPCODE_LIST(V)    \
   TRANSLATION_JS_FRAME_OPCODE_LIST(V) \
   TRANSLATION_FRAME_OPCODE_LIST(V)    \
   V(ARGUMENTS_ELEMENTS, 1)            \
   V(ARGUMENTS_LENGTH, 0)              \
+  V(REST_LENGTH, 0)                   \
   V(BEGIN_WITHOUT_FEEDBACK, 3)        \
   V(BEGIN_WITH_FEEDBACK, 3)           \
   V(BOOL_REGISTER, 1)                 \
   V(BOOL_STACK_SLOT, 1)               \
   V(CAPTURED_OBJECT, 1)               \
+  V(STRING_CONCAT, 0)                 \
   V(DOUBLE_REGISTER, 1)               \
   V(DOUBLE_STACK_SLOT, 1)             \
+  V(SIMD128_STACK_SLOT, 1)            \
   V(HOLEY_DOUBLE_REGISTER, 1)         \
   V(HOLEY_DOUBLE_STACK_SLOT, 1)       \
+  V(SIMD128_REGISTER, 1)              \
   V(DUPLICATED_OBJECT, 1)             \
   V(FLOAT_REGISTER, 1)                \
   V(FLOAT_STACK_SLOT, 1)              \
@@ -81,7 +86,7 @@ inline int TranslationOpcodeOperandCount(TranslationOpcode o) {
   return counts[static_cast<int>(o)];
 }
 
-constexpr int kMaxTranslationOperandCount = 5;
+constexpr int kMaxTranslationOperandCount = 6;
 #define CASE(name, operand_count) \
   static_assert(operand_count <= kMaxTranslationOperandCount);
 TRANSLATION_OPCODE_LIST(CASE)

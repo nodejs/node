@@ -51,7 +51,7 @@
     'baseline': {
       'filepath': 'src/baseline/',
     },
-    'feature_shipping_status': {
+    'flags': {
       'filepath': 'src/flags/flag-definitions.h',
     },
     'heap_changes': {
@@ -72,6 +72,9 @@
     },
     'maglev': {
       'filepath': 'src/maglev/',
+    },
+    'compiler': {
+      'filepath': 'src/compiler',
     },
     'parser': {
       'filepath': 'src/ast/' \
@@ -104,9 +107,6 @@
     'trap-handler': {
       'filepath': 'src/trap-handler/',
     },
-    'tests': {
-      'filepath': 'test/',
-    },
   },
 
   'WATCHLISTS': {
@@ -114,6 +114,9 @@
       'leszeks+watch@chromium.org',
       'verwaest+watch@chromium.org',
       'victorgomes+watch@chromium.org',
+    ],
+    'compiler': [
+      'dmercadier+watch@chromium.org',
     ],
     'snapshot': [
       'jgruber+watch@chromium.org',
@@ -125,9 +128,8 @@
       'leszeks+watch@chromium.org',
       'verwaest+watch@chromium.org',
     ],
-    'feature_shipping_status': [
-      'hablich@chromium.org',
-      'saelo+watch@chromium.org',
+    'flags': [
+      'v8-flag-updates@chromium.org',
     ],
     'heap_changes': [
       'hpayer@chromium.org',
@@ -179,9 +181,6 @@
       'clemensb@chromium.org',
       'mark@chromium.org',
       'mseaborn@chromium.org',
-    ],
-    'tests': [
-      'almuthanna+watch@chromium.org',
     ],
   },
 }

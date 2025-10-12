@@ -107,6 +107,7 @@ const setupMockNpm = async (t, {
   exec = null, // optionally exec the command before returning
   // test dirs
   prefixDir = {},
+  prefixOverride = null, // sets global and local prefix to this, the same as the `--prefix` flag
   homeDir = {},
   cacheDir = {},
   globalPrefixDir = { node_modules: {} },
@@ -170,9 +171,9 @@ const setupMockNpm = async (t, {
 
   const dirs = {
     testdir: dir,
-    prefix: path.join(dir, 'prefix'),
+    prefix: prefixOverride ?? path.join(dir, 'prefix'),
     cache: path.join(dir, 'cache'),
-    globalPrefix: path.join(dir, 'global'),
+    globalPrefix: prefixOverride ?? path.join(dir, 'global'),
     home: path.join(dir, 'home'),
     other: path.join(dir, 'other'),
   }
@@ -292,12 +293,26 @@ const setupMockNpm = async (t, {
 
 const loadNpmWithRegistry = async (t, opts) => {
   const mock = await setupMockNpm(t, opts)
+  return {
+    ...mock,
+    ...loadRegistry(t, mock, opts),
+    ...loadFsAssertions(t, mock),
+  }
+}
+
+const loadRegistry = (t, mock, opts) => {
   const registry = new MockRegistry({
     tap: t,
-    registry: mock.npm.config.get('registry'),
-    strict: true,
+    registry: opts.registry ?? mock.npm.config.get('registry'),
+    authorization: opts.authorization,
+    basic: opts.basic,
+    debug: opts.debugRegistry ?? false,
+    strict: opts.strictRegistryNock ?? true,
   })
+  return { registry }
+}
 
+const loadFsAssertions = (t, mock) => {
   const fileShouldExist = (filePath) => {
     t.equal(
       fsSync.existsSync(path.join(mock.npm.prefix, filePath)), true, `${filePath} should exist`
@@ -352,7 +367,7 @@ const loadNpmWithRegistry = async (t, opts) => {
     packageDirty,
   }
 
-  return { registry, assert, ...mock }
+  return { assert }
 }
 
 /** breaks down a spec "abbrev@1.1.1" into different parts for mocking */

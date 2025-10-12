@@ -13,12 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/strings/str_join.h"
-
 #include <string>
-#include <vector>
+#include <tuple>
 #include <utility>
+#include <vector>
 
+#include "absl/strings/str_join.h"
 #include "benchmark/benchmark.h"
 
 namespace {
@@ -93,5 +93,14 @@ BENCHMARK(BM_JoinStreamable)
     ->ArgPair(256, 16)
     ->ArgPair(16, 256)
     ->ArgPair(256, 256);
+
+void BM_JoinTuple(benchmark::State& state) {
+  for (auto _ : state) {
+    std::string s =
+        absl::StrJoin(std::make_tuple(123456789, 987654321, 24680, 13579), "/");
+    benchmark::DoNotOptimize(s);
+  }
+}
+BENCHMARK(BM_JoinTuple);
 
 }  // namespace

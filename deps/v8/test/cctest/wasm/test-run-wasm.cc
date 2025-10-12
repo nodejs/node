@@ -6,13 +6,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "src/base/functional/function-ref.h"
 #include "src/base/overflowing-math.h"
 #include "src/utils/utils.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/common/value-helper.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -137,13 +138,248 @@ WASM_EXEC_TEST(Int32Add_multi_if) {
   RunInt32AddTest(execution_tier, code, sizeof(code));
 }
 
-WASM_EXEC_TEST(Float32Add) {
-  WasmRunner<int32_t> r(execution_tier);
-  // int(11.5f + 44.5f)
-  r.Build(
-      {WASM_I32_SCONVERT_F32(WASM_F32_ADD(WASM_F32(11.5f), WASM_F32(44.5f)))});
-  CHECK_EQ(56, r.Call());
+namespace {
+std::optional<Float32> propagate_f32_binop_nan(Float32 lhs, Float32 rhs) {
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_S390X) || \
+    defined(V8_TARGET_ARCH_LOONG64)
+  // On these platforms any signalling NaN "wins" (but is made quiet).
+  if (lhs.is_nan() && !lhs.is_quiet_nan()) return lhs.to_quiet_nan();
+  if (rhs.is_nan() && !rhs.is_quiet_nan()) return rhs.to_quiet_nan();
+#endif
+#if defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
+  // On Riscv platforms the result is a canonical NaN if either operand is a
+  // NaN.
+  if (lhs.is_nan() || rhs.is_nan()) return Float32::quiet_nan();
+#endif
+  if (lhs.is_nan()) return lhs.to_quiet_nan();
+  if (rhs.is_nan()) return rhs.to_quiet_nan();
+  return {};
 }
+
+// Compute the expected result of a float binop.
+// The Wasm spec is pretty relaxed on this, but we want a deterministic result,
+// in particular to be able to do differential fuzzing across tiers.
+Float32 f32_add_result(Float32 lhs, Float32 rhs) {
+  if (auto maybe_nan = propagate_f32_binop_nan(lhs, rhs)) return *maybe_nan;
+
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) ||   \
+    defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_LOONG64) || \
+    defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
+  if (lhs.is_inf() && rhs.is_inf()) {
+    // Same sign -> +-inf. Otherwise NaN.
+    return lhs.is_negative() == rhs.is_negative() ? lhs : Float32::quiet_nan();
+  }
+#endif
+
+  return Float32::FromNonSignallingFloat(lhs.get_scalar() + rhs.get_scalar());
+}
+
+Float32 f32_sub_result(Float32 lhs, Float32 rhs) {
+  if (auto maybe_nan = propagate_f32_binop_nan(lhs, rhs)) return *maybe_nan;
+
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) ||   \
+    defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_RISCV64) || \
+    defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_LOONG64)
+  // inf - inf -> NaN
+  // -inf - -inf -> NaN
+  if (lhs.is_inf() && rhs.is_inf() && lhs.is_negative() == rhs.is_negative()) {
+    return Float32::quiet_nan();
+  }
+#endif
+
+  return Float32::FromNonSignallingFloat(lhs.get_scalar() - rhs.get_scalar());
+}
+
+Float32 f32_mul_result(Float32 lhs, Float32 rhs) {
+  if (auto maybe_nan = propagate_f32_binop_nan(lhs, rhs)) return *maybe_nan;
+
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_RISCV64) ||   \
+    defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_LOONG64) || \
+    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X)
+  // 0 * Inf == NaN
+  if (lhs.get_scalar() == 0 && rhs.is_inf()) return Float32::quiet_nan();
+  // Inf * 0 == NaN
+  if (rhs.get_scalar() == 0 && lhs.is_inf()) return Float32::quiet_nan();
+#endif
+
+  return Float32::FromNonSignallingFloat(lhs.get_scalar() * rhs.get_scalar());
+}
+
+Float32 f32_div_result(Float32 lhs, Float32 rhs) {
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_RISCV64) || \
+    defined(V8_TARGET_ARCH_RISCV32)
+  if (rhs.get_scalar() == 0) {
+    // +-0 / +-0 == NaN
+    // +-NaN / +-0 == NaN
+    if (lhs.get_scalar() == 0 || lhs.is_nan()) return Float32::quiet_nan();
+    // Otherwise it's -inf or inf.
+    bool is_negative = lhs.is_negative() ^ rhs.is_negative();
+    constexpr float inf = std::numeric_limits<float>::infinity();
+    return Float32{is_negative ? -inf : inf};
+  }
+#endif
+
+  if (auto maybe_nan = propagate_f32_binop_nan(lhs, rhs)) return *maybe_nan;
+
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_RISCV64) ||   \
+    defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_LOONG64) || \
+    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X)
+  // +-inf / +-inf == NaN
+  if (lhs.is_inf() && rhs.is_inf()) return Float32::quiet_nan();
+  if (rhs.get_scalar() == 0) {
+    // +-0 / +-0 == NaN
+    if (lhs.get_scalar() == 0) return Float32::quiet_nan();
+    // Otherwise it's -inf or inf.
+    bool is_negative = lhs.is_negative() ^ rhs.is_negative();
+    constexpr float inf = std::numeric_limits<float>::infinity();
+    return Float32{is_negative ? -inf : inf};
+  }
+#endif
+
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
+  // Intel: The `vdivss` instruction generates -NaN for two zero or inf inputs.
+  if ((lhs.get_scalar() == 0 && rhs.get_scalar() == 0) ||
+      (lhs.is_inf() && rhs.is_inf())) {
+    return Float32::quiet_nan().to_negative();
+  }
+#endif
+
+  return Float32::FromNonSignallingFloat(lhs.get_scalar() / rhs.get_scalar());
+}
+
+using F32ExpectedFn = base::FunctionRef<Float32(Float32, Float32)>;
+
+void TestF32BinopOnConsts(TestExecutionTier tier, uint8_t opcode,
+                          F32ExpectedFn expected_fn) {
+  // Floating point inputs.
+  FOR_FLOAT32_INPUTS(i) {
+    FOR_FLOAT32_INPUTS(j) {
+      WasmRunner<float> r(tier);
+      r.Build({WASM_F32(i), WASM_F32(j), opcode});
+      Float32 expected = expected_fn(Float32::FromNonSignallingFloat(i),
+                                     Float32::FromNonSignallingFloat(j));
+      CHECK_FLOAT_EQ(expected.get_scalar(), r.Call());
+    }
+  }
+
+  // Integer inputs.
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
+      WasmRunner<uint32_t> r(tier);
+      r.Build({WASM_F32_REINTERPRET_I32(WASM_I32V(i)),
+               WASM_F32_REINTERPRET_I32(WASM_I32V(j)), opcode,
+               kExprI32ReinterpretF32});
+      Float32 expected =
+          expected_fn(Float32::FromBits(i), Float32::FromBits(j));
+      CHECK_EQ(expected, Float32::FromBits(r.Call()));
+    }
+  }
+}
+
+void TestF32BinopOnParams(TestExecutionTier tier, uint8_t opcode,
+                          F32ExpectedFn expected_fn) {
+  // Floating point inputs.
+  WasmRunner<float, float, float> r1(tier);
+  r1.Build({WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), opcode});
+
+  FOR_FLOAT32_INPUTS(i) {
+    FOR_FLOAT32_INPUTS(j) {
+      Float32 expected = expected_fn(Float32::FromNonSignallingFloat(i),
+                                     Float32::FromNonSignallingFloat(j));
+      CHECK_FLOAT_EQ(expected.get_scalar(), r1.Call(i, j));
+    }
+  }
+
+  // Integer inputs.
+  WasmRunner<uint32_t, uint32_t, uint32_t> r2(tier);
+  r2.Build({WASM_F32_REINTERPRET_I32(WASM_LOCAL_GET(0)),
+            WASM_F32_REINTERPRET_I32(WASM_LOCAL_GET(1)), opcode,
+            kExprI32ReinterpretF32});
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
+      Float32 expected =
+          expected_fn(Float32::FromBits(i), Float32::FromBits(j));
+      CHECK_EQ(expected, Float32::FromBits(r2.Call(i, j)));
+    }
+  }
+}
+
+void TestF32BinopOnConstAndParam(TestExecutionTier tier, uint8_t opcode,
+                                 F32ExpectedFn expected_fn) {
+  // Floating point inputs.
+  FOR_FLOAT32_INPUTS(i) {
+    WasmRunner<float, float> r(tier);
+    r.Build({WASM_F32(i), WASM_LOCAL_GET(0), opcode});
+
+    FOR_FLOAT32_INPUTS(j) {
+      Float32 expected = expected_fn(Float32::FromNonSignallingFloat(i),
+                                     Float32::FromNonSignallingFloat(j));
+      CHECK_FLOAT_EQ(expected.get_scalar(), r.Call(j));
+    }
+  }
+
+  // Integer inputs.
+  FOR_UINT32_INPUTS(i) {
+    WasmRunner<uint32_t, uint32_t> r(tier);
+    r.Build({WASM_F32_REINTERPRET_I32(WASM_I32V(i)),
+             WASM_F32_REINTERPRET_I32(WASM_LOCAL_GET(0)), opcode,
+             kExprI32ReinterpretF32});
+    FOR_UINT32_INPUTS(j) {
+      Float32 expected =
+          expected_fn(Float32::FromBits(i), Float32::FromBits(j));
+      CHECK_EQ(expected, Float32::FromBits(r.Call(j)));
+    }
+  }
+}
+
+void TestF32BinopOnParamAndConst(TestExecutionTier tier, uint8_t opcode,
+                                 F32ExpectedFn expected_fn) {
+  // Floating point inputs.
+  FOR_FLOAT32_INPUTS(j) {
+    WasmRunner<float, float> r(tier);
+    r.Build({WASM_LOCAL_GET(0), WASM_F32(j), opcode});
+
+    FOR_FLOAT32_INPUTS(i) {
+      Float32 expected = expected_fn(Float32::FromNonSignallingFloat(i),
+                                     Float32::FromNonSignallingFloat(j));
+      CHECK_FLOAT_EQ(expected.get_scalar(), r.Call(i));
+    }
+  }
+
+  // Integer inputs.
+  FOR_UINT32_INPUTS(j) {
+    WasmRunner<uint32_t, uint32_t> r(tier);
+    r.Build({WASM_F32_REINTERPRET_I32(WASM_LOCAL_GET(0)),
+             WASM_F32_REINTERPRET_I32(WASM_I32V(j)), opcode,
+             kExprI32ReinterpretF32});
+    FOR_UINT32_INPUTS(i) {
+      Float32 expected =
+          expected_fn(Float32::FromBits(i), Float32::FromBits(j));
+      CHECK_EQ(expected, Float32::FromBits(r.Call(i)));
+    }
+  }
+}
+
+#define F32_BINOP_TEST(Name, opcode, expected_fn)                     \
+  WASM_EXEC_TEST(Name##_Consts) {                                     \
+    TestF32BinopOnConsts(execution_tier, opcode, expected_fn);        \
+  }                                                                   \
+  WASM_EXEC_TEST(Name##_Params) {                                     \
+    TestF32BinopOnParams(execution_tier, opcode, expected_fn);        \
+  }                                                                   \
+  WASM_EXEC_TEST(Name##_Const_Param) {                                \
+    TestF32BinopOnConstAndParam(execution_tier, opcode, expected_fn); \
+  }                                                                   \
+  WASM_EXEC_TEST(Name##_Param_Const) {                                \
+    TestF32BinopOnParamAndConst(execution_tier, opcode, expected_fn); \
+  }
+
+}  // anonymous namespace
+
+F32_BINOP_TEST(Float32Add, kExprF32Add, f32_add_result)
+F32_BINOP_TEST(Float32Sub, kExprF32Sub, f32_sub_result)
+F32_BINOP_TEST(Float32Mul, kExprF32Mul, f32_mul_result)
+F32_BINOP_TEST(Float32Div, kExprF32Div, f32_div_result)
 
 WASM_EXEC_TEST(Float64Add) {
   WasmRunner<int32_t> r(execution_tier);
@@ -618,12 +854,22 @@ WASM_EXEC_TEST(Float64Unops) {
 }
 
 WASM_EXEC_TEST(Float32Neg) {
-  WasmRunner<float, float> r(execution_tier);
-  r.Build({WASM_F32_NEG(WASM_LOCAL_GET(0))});
+  WasmRunner<void> r(execution_tier);
+  enum { kMemoryElemInput = 0, kMemoryElemOutput, kMemoryElemCount };
+  float* memory = r.builder().AddMemoryElems<float>(kMemoryElemCount);
+  r.Build({WASM_STORE_MEM_OFFSET(
+      MachineType::Float32(), kMemoryElemOutput * sizeof(float), WASM_ZERO,
+      WASM_F32_NEG(WASM_LOAD_MEM_OFFSET(MachineType::Float32(),
+                                        kMemoryElemInput * sizeof(float),
+                                        WASM_ZERO)))});
 
   FOR_FLOAT32_INPUTS(i) {
-    CHECK_EQ(0x80000000,
-             base::bit_cast<uint32_t>(i) ^ base::bit_cast<uint32_t>(r.Call(i)));
+    r.builder().WriteMemory(&memory[kMemoryElemInput], i);
+    r.Call();
+    float o = r.builder().ReadMemory(&memory[kMemoryElemOutput]);
+    constexpr uint32_t float32_sign_bit = 0x8000'0000;
+    CHECK_EQ(float32_sign_bit,
+             base::bit_cast<uint32_t>(i) ^ base::bit_cast<uint32_t>(o));
   }
 }
 
@@ -2112,53 +2358,6 @@ WASM_EXEC_TEST(Infinite_Loop_not_taken2_brif) {
   CHECK_EQ(45, r.Call(1));
 }
 
-static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
-  Isolate* isolate = CcTest::InitIsolateOnce();
-  Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-  HandleScope scope(isolate);
-  // TODO(ahaas): Enable this test for externref opcodes when code generation
-  // for them is implemented.
-  if (WasmOpcodes::IsExternRefOpcode(opcode)) return;
-  // Enable all optional operators.
-  compiler::CommonOperatorBuilder common(&zone);
-  compiler::MachineOperatorBuilder machine(
-      &zone, MachineType::PointerRepresentation(),
-      compiler::MachineOperatorBuilder::kAllOptionalOps);
-  compiler::Graph graph(&zone);
-  compiler::JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr,
-                            &machine);
-  const FunctionSig* sig = WasmOpcodes::Signature(opcode);
-  CompilationEnv env = CompilationEnv::NoModuleAllFeatures();
-
-  if (sig->parameter_count() == 1) {
-    uint8_t code[] = {WASM_NO_LOCALS, kExprLocalGet, 0,
-                      static_cast<uint8_t>(opcode), WASM_END};
-    TestBuildingGraph(&zone, &jsgraph, &env, sig, nullptr, code,
-                      code + arraysize(code));
-  } else {
-    CHECK_EQ(2, sig->parameter_count());
-    uint8_t code[] = {WASM_NO_LOCALS,
-                      kExprLocalGet,
-                      0,
-                      kExprLocalGet,
-                      1,
-                      static_cast<uint8_t>(opcode),
-                      WASM_END};
-    TestBuildingGraph(&zone, &jsgraph, &env, sig, nullptr, code,
-                      code + arraysize(code));
-  }
-}
-
-TEST(Build_Wasm_SimpleExprs) {
-// Test that the decoder can build a graph for all supported simple expressions.
-#define GRAPH_BUILD_TEST(name, ...) \
-  TestBuildGraphForSimpleExpression(kExpr##name);
-
-  FOREACH_SIMPLE_OPCODE(GRAPH_BUILD_TEST);
-
-#undef GRAPH_BUILD_TEST
-}
-
 WASM_EXEC_TEST(Int32LoadInt8_signext) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   const int kNumElems = kWasmPageSize;
@@ -2513,7 +2712,7 @@ WASM_EXEC_TEST(Regular_Factorial) {
 }
 
 namespace {
-// TODO(cleanup): Define in cctest.h and re-use where appropriate.
+// TODO(cleanup): Define in cctest.h and reuse where appropriate.
 class IsolateScope {
  public:
   IsolateScope() {
@@ -2542,15 +2741,20 @@ class IsolateScope {
 // f(N,X) where N=<1 => X
 // f(N,X) => f(N-1,X*N).
 
+int GetStackSizeKB() {
+  return static_cast<int>(base::Stack::GetStackStart() -
+                          base::Stack::GetCurrentStackPosition()) /
+         KB;
+}
+
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, GetStackSizeKB() + 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                   isolate_scope.i_isolate());
+  WasmRunner<uint32_t, uint32_t> r(isolate_scope.i_isolate(), execution_tier);
 
   WasmFunctionCompiler& fact_aux_fn =
       r.NewFunction<uint32_t, uint32_t, uint32_t>("fact_aux");
@@ -2579,13 +2783,12 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
 
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, GetStackSizeKB() + 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                   isolate_scope.i_isolate());
+  WasmRunner<uint32_t, uint32_t> r(isolate_scope.i_isolate(), execution_tier);
 
   WasmFunctionCompiler& f_fn = r.NewFunction<uint32_t, uint32_t, uint32_t>("f");
   WasmFunctionCompiler& g_fn = r.NewFunction<uint32_t, uint32_t, uint32_t>("g");
@@ -2621,18 +2824,17 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
 
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, GetStackSizeKB() + 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                   isolate_scope.i_isolate());
+  WasmRunner<uint32_t, uint32_t> r(isolate_scope.i_isolate(), execution_tier);
 
   TestSignatures sigs;
 
   WasmFunctionCompiler& f_ind_fn = r.NewFunction(sigs.i_iii(), "f_ind");
-  uint32_t sig_index = r.builder().AddSignature(sigs.i_iii());
+  ModuleTypeIndex sig_index = r.builder().AddSignature(sigs.i_iii());
   f_ind_fn.SetSigIndex(sig_index);
 
   // Function table.
@@ -2667,13 +2869,12 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
 
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, GetStackSizeKB() + 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<int32_t, int32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                 isolate_scope.i_isolate());
+  WasmRunner<int32_t, int32_t> r(isolate_scope.i_isolate(), execution_tier);
   TestSignatures sigs;
 
   WasmFunctionCompiler& sum_aux_fn = r.NewFunction(sigs.i_ii(), "sum_aux");
@@ -2706,13 +2907,12 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
 
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, GetStackSizeKB() + 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<int32_t, int32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                 isolate_scope.i_isolate());
+  WasmRunner<int32_t, int32_t> r(isolate_scope.i_isolate(), execution_tier);
   TestSignatures sigs;
 
   WasmFunctionCompiler& b1_fn = r.NewFunction(sigs.i_ii(), "b1");
@@ -2753,7 +2953,6 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
 static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
   const int kExpected = 6333;
   const int kElemSize = 8;
-  TestSignatures sigs;
 
   // 64-bit cases handled in test-run-wasm-64.cc.
   static MachineType mixed[] = {
@@ -2779,7 +2978,7 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
     for (int i = 0; i < num_params; ++i) {
       b.AddParam(ValueType::For(memtypes[i]));
     }
-    WasmFunctionCompiler& f = r.NewFunction(b.Build());
+    WasmFunctionCompiler& f = r.NewFunction(b.Get());
     f.Build({WASM_LOCAL_GET(which)});
 
     // =========================================================================
@@ -3051,11 +3250,11 @@ WASM_EXEC_TEST(SimpleCallIndirect) {
 
   WasmFunctionCompiler& t1 = r.NewFunction(sigs.i_ii());
   t1.Build({WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
-  t1.SetSigIndex(1);
+  t1.SetSigIndex(ModuleTypeIndex{1});
 
   WasmFunctionCompiler& t2 = r.NewFunction(sigs.i_ii());
   t2.Build({WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
-  t2.SetSigIndex(1);
+  t2.SetSigIndex(ModuleTypeIndex{1});
 
   // Signature table.
   r.builder().AddSignature(sigs.f_ff());
@@ -3084,11 +3283,11 @@ WASM_EXEC_TEST(MultipleCallIndirect) {
 
   WasmFunctionCompiler& t1 = r.NewFunction(sigs.i_ii());
   t1.Build({WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
-  t1.SetSigIndex(1);
+  t1.SetSigIndex(ModuleTypeIndex{1});
 
   WasmFunctionCompiler& t2 = r.NewFunction(sigs.i_ii());
   t2.Build({WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
-  t2.SetSigIndex(1);
+  t2.SetSigIndex(ModuleTypeIndex{1});
 
   // Signature table.
   r.builder().AddSignature(sigs.f_ff());
@@ -3127,7 +3326,7 @@ WASM_EXEC_TEST(CallIndirect_EmptyTable) {
   // One function.
   WasmFunctionCompiler& t1 = r.NewFunction(sigs.i_ii());
   t1.Build({WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
-  t1.SetSigIndex(1);
+  t1.SetSigIndex(ModuleTypeIndex{1});
 
   // Signature table.
   r.builder().AddSignature(sigs.f_ff());
@@ -3473,11 +3672,31 @@ WASM_EXEC_TEST(F64CopySign) {
 }
 
 WASM_EXEC_TEST(F32CopySign) {
-  WasmRunner<float, float, float> r(execution_tier);
-  r.Build({WASM_F32_COPYSIGN(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
+  WasmRunner<void> r(execution_tier);
+  enum {
+    kMemoryElemInput1 = 0,
+    kMemoryElemInput2,
+    kMemoryElemOutput,
+    kMemoryElemCount
+  };
+  float* memory = r.builder().AddMemoryElems<float>(kMemoryElemCount);
+  r.Build({WASM_STORE_MEM_OFFSET(
+      MachineType::Float32(), kMemoryElemOutput * sizeof(float), WASM_ZERO,
+      WASM_F32_COPYSIGN(
+          WASM_LOAD_MEM_OFFSET(MachineType::Float32(),
+                               kMemoryElemInput1 * sizeof(float), WASM_ZERO),
+          WASM_LOAD_MEM_OFFSET(MachineType::Float32(),
+                               kMemoryElemInput2 * sizeof(float),
+                               WASM_ZERO)))});
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(copysignf(i, j), r.Call(i, j)); }
+    FOR_FLOAT32_INPUTS(j) {
+      r.builder().WriteMemory(&memory[kMemoryElemInput1], i);
+      r.builder().WriteMemory(&memory[kMemoryElemInput2], j);
+      r.Call();
+      float o = r.builder().ReadMemory(&memory[kMemoryElemOutput]);
+      CHECK_FLOAT_EQ(copysignf(i, j), o);
+    }
   }
 }
 
@@ -3652,8 +3871,9 @@ WASM_EXEC_TEST(IfInsideUnreachable) {
 
 WASM_EXEC_TEST(IndirectNull) {
   WasmRunner<int32_t> r(execution_tier);
-  FunctionSig sig(1, 0, &kWasmI32);
-  uint8_t sig_index = r.builder().AddSignature(&sig);
+  ValueType kI32 = kWasmI32;
+  FunctionSig sig(1, 0, &kI32);
+  ModuleTypeIndex sig_index = r.builder().AddSignature(&sig);
   r.builder().AddIndirectFunctionTable(nullptr, 1);
 
   r.Build({WASM_CALL_INDIRECT(sig_index, WASM_I32V(0))});
@@ -3663,10 +3883,11 @@ WASM_EXEC_TEST(IndirectNull) {
 
 WASM_EXEC_TEST(IndirectNullTyped) {
   WasmRunner<int32_t> r(execution_tier);
-  FunctionSig sig(1, 0, &kWasmI32);
-  uint8_t sig_index = r.builder().AddSignature(&sig);
-  r.builder().AddIndirectFunctionTable(nullptr, 1,
-                                       ValueType::RefNull(sig_index));
+  ValueType kI32 = kWasmI32;
+  FunctionSig sig(1, 0, &kI32);
+  ModuleTypeIndex sig_index = r.builder().AddSignature(&sig);
+  r.builder().AddIndirectFunctionTable(
+      nullptr, 1, ValueType::RefNull(sig_index, false, RefTypeKind::kFunction));
 
   r.Build({WASM_CALL_INDIRECT(sig_index, WASM_I32V(0))});
 

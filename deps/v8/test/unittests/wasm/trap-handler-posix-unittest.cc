@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "include/v8-initialization.h"
+#include "src/base/platform/memory-protection-key.h"
 #include "src/trap-handler/trap-handler.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -27,7 +28,7 @@ class SignalHandlerFallbackTest : public ::testing::Test {
     struct sigaction action;
     action.sa_sigaction = SignalHandler;
     sigemptyset(&action.sa_mask);
-    action.sa_flags = SA_SIGINFO;
+    action.sa_flags = SA_SIGINFO | SA_ONSTACK;
     sigaction(SIGSEGV, &action, &old_segv_action_);
     sigaction(SIGBUS, &action, &old_bus_action_);
   }
@@ -42,6 +43,15 @@ class SignalHandlerFallbackTest : public ::testing::Test {
 
  private:
   static void SignalHandler(int signal, siginfo_t* info, void*) {
+#if V8_HAS_PKU_SUPPORT
+    // Since we use siglongjmp to "return" from the signal handler, we need to
+    // restore pkey permissions with full access here. Normally we would only
+    // give the signal handler read access.
+    const bool kNeedsFullAccess = true;
+    v8::base::MemoryProtectionKey::
+        SetDefaultPermissionsForAllKeysInSignalHandler(kNeedsFullAccess);
+#endif  // V8_HAS_PKU_SUPPORT
+
     siglongjmp(continuation_, 1);
   }
   struct sigaction old_segv_action_;

@@ -7,6 +7,7 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "include/v8-callbacks.h"
@@ -631,14 +632,8 @@ class ELF {
     V8_TARGET_ARCH_PPC64 && V8_TARGET_LITTLE_ENDIAN
     const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 2, 1, 1, 0,
                                0,    0,   0,   0,   0, 0, 0, 0};
-#elif V8_TARGET_ARCH_PPC64 && V8_TARGET_BIG_ENDIAN && V8_OS_LINUX
-    const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 2, 2, 1, 0,
-                               0,    0,   0,   0,   0, 0, 0, 0};
 #elif V8_TARGET_ARCH_S390X
     const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 2, 2, 1, 3,
-                               0,    0,   0,   0,   0, 0, 0, 0};
-#elif V8_TARGET_ARCH_S390
-    const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 1, 2, 1, 3,
                                0,    0,   0,   0,   0, 0, 0, 0};
 #else
 #error Unsupported target architecture.
@@ -664,7 +659,7 @@ class ELF {
     // id=B81AEC1A37F5DAF185257C3E004E8845&linkid=1n0000&c_t=
     // c9xw7v5dzsj7gt1ifgf4cjbcnskqptmr
     header->machine = 21;
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
     // Processor identification value is 22 (EM_S390) as defined in the ABI:
     // http://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_s390.html#AEN1691
     // http://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html#AEN1599
@@ -752,8 +747,7 @@ class ELFSymbol {
         section(section) {}
 
   Binding binding() const { return static_cast<Binding>(info >> 4); }
-#if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || \
-     (V8_TARGET_ARCH_S390 && V8_TARGET_ARCH_32_BIT))
+#if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM)
   struct SerializedLayout {
     SerializedLayout(uint32_t name, uintptr_t value, uintptr_t size,
                      Binding binding, Type type, uint16_t section)
@@ -940,7 +934,7 @@ class CodeDescription {
     return !shared_info_.is_null() && IsScript(shared_info_->script());
   }
 
-  Tagged<Script> script() { return Script::cast(shared_info_->script()); }
+  Tagged<Script> script() { return Cast<Script>(shared_info_->script()); }
 
   bool IsLineInfoAvailable() { return lineinfo_ != nullptr; }
 
@@ -960,7 +954,7 @@ class CodeDescription {
 
   std::unique_ptr<char[]> GetFilename() {
     if (!shared_info_.is_null() && IsString(script()->name())) {
-      return String::cast(script()->name())->ToCString();
+      return Cast<String>(script()->name())->ToCString();
     } else {
       std::unique_ptr<char[]> result(new char[1]);
       result[0] = 0;
@@ -1090,15 +1084,13 @@ class DebugInfoSection : public DebugSection {
       w->Write<uint8_t>(DW_OP_reg6);  // and here on x64.
 #elif V8_TARGET_ARCH_ARM
       UNIMPLEMENTED();
-#elif V8_TARGET_ARCH_MIPS
-      UNIMPLEMENTED();
 #elif V8_TARGET_ARCH_MIPS64
       UNIMPLEMENTED();
 #elif V8_TARGET_ARCH_LOONG64
       UNIMPLEMENTED();
 #elif V8_TARGET_ARCH_PPC64 && V8_OS_LINUX
       w->Write<uint8_t>(DW_OP_reg31);  // The frame pointer is here on PPC64.
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
       w->Write<uint8_t>(DW_OP_reg11);  // The frame pointer's here on S390.
 #else
 #error Unsupported target architecture.
@@ -1916,7 +1908,7 @@ static void AddUnwindInfo(CodeDescription* desc) {
 
 static base::LazyMutex mutex = LAZY_MUTEX_INITIALIZER;
 
-static base::Optional<std::pair<CodeMap::iterator, CodeMap::iterator>>
+static std::optional<std::pair<CodeMap::iterator, CodeMap::iterator>>
 GetOverlappingRegions(CodeMap* map, const base::AddressRegion region) {
   DCHECK_LT(region.begin(), region.end());
 

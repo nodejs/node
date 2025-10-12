@@ -17,20 +17,20 @@ using ::v8::Value;
 namespace {
 
 void CheckElementValue(i::Isolate* isolate, int expected,
-                       i::Handle<i::Object> obj, int offset) {
+                       i::DirectHandle<i::JSAny> obj, int offset) {
   i::Tagged<i::Object> element =
       *i::Object::GetElement(isolate, obj, offset).ToHandleChecked();
   CHECK_EQ(expected, i::Smi::ToInt(element));
 }
 
 template <class ElementType>
-void ObjectWithExternalArrayTestHelper(Local<Context> context,
+void ObjectWithExternalArrayTestHelper(v8::Isolate* v8_isolate,
+                                       Local<Context> context,
                                        v8::Local<v8::TypedArray> obj,
                                        int element_count,
                                        i::ExternalArrayType array_type,
                                        int64_t low, int64_t high) {
-  i::Handle<i::JSTypedArray> jsobj = v8::Utils::OpenHandle(*obj);
-  v8::Isolate* v8_isolate = context->GetIsolate();
+  i::DirectHandle<i::JSTypedArray> jsobj = v8::Utils::OpenDirectHandle(*obj);
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   obj->Set(context, v8_str("field"), v8::Int32::New(v8_isolate, 1503))
       .FromJust();
@@ -178,8 +178,8 @@ void ObjectWithExternalArrayTestHelper(Local<Context> context,
   CHECK_EQ(0, result->Int32Value(context).FromJust());
   if (array_type == i::kExternalFloat64Array ||
       array_type == i::kExternalFloat32Array) {
-    CHECK(std::isnan(i::Object::Number(
-        *i::Object::GetElement(isolate, jsobj, 7).ToHandleChecked())));
+    CHECK(std::isnan(i::Object::NumberValue(Cast<i::Number>(
+        *i::Object::GetElement(isolate, jsobj, 7).ToHandleChecked()))));
   } else {
     CheckElementValue(isolate, 0, jsobj, 7);
   }
@@ -191,8 +191,8 @@ void ObjectWithExternalArrayTestHelper(Local<Context> context,
       "ext_array[6];");
   CHECK_EQ(2, result->Int32Value(context).FromJust());
   CHECK_EQ(2,
-           static_cast<int>(i::Object::Number(
-               *i::Object::GetElement(isolate, jsobj, 6).ToHandleChecked())));
+           static_cast<int>(i::Object::NumberValue(Cast<i::Number>(
+               *i::Object::GetElement(isolate, jsobj, 6).ToHandleChecked()))));
 
   if (array_type != i::kExternalFloat32Array &&
       array_type != i::kExternalFloat64Array) {
@@ -364,7 +364,7 @@ void TypedArrayTestHelper(i::ExternalArrayType array_type, int64_t low,
   const int kElementCount = 50;
 
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<ArrayBufferType> ab =
@@ -383,12 +383,12 @@ void TypedArrayTestHelper(i::ExternalArrayType array_type, int64_t low,
     data[i] = static_cast<ElementType>(i);
   }
 
-  ObjectWithExternalArrayTestHelper<ElementType>(env.local(), ta, kElementCount,
-                                                 array_type, low, high);
+  ObjectWithExternalArrayTestHelper<ElementType>(
+      env.isolate(), env.local(), ta, kElementCount, array_type, low, high);
 
   // TODO(v8:11111): Use API functions for testing these, once they're exposed
   // via the API.
-  i::Handle<i::JSTypedArray> i_ta = v8::Utils::OpenHandle(*ta);
+  i::DirectHandle<i::JSTypedArray> i_ta = v8::Utils::OpenDirectHandle(*ta);
   CHECK(!i_ta->is_length_tracking());
   CHECK(!i_ta->is_backed_by_rab());
 }
@@ -444,7 +444,7 @@ THREADED_TEST(DataView) {
   const int kSize = 50;
 
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 2 + kSize);
@@ -456,7 +456,8 @@ THREADED_TEST(DataView) {
 
   // TODO(v8:11111): Use API functions for testing these, once they're exposed
   // via the API.
-  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv = v8::Utils::OpenHandle(*dv);
+  i::DirectHandle<i::JSDataViewOrRabGsabDataView> i_dv =
+      v8::Utils::OpenDirectHandle(*dv);
   CHECK(!i_dv->is_length_tracking());
   CHECK(!i_dv->is_backed_by_rab());
 }
@@ -510,7 +511,7 @@ THREADED_TEST(SharedDataView) {
   const int kSize = 50;
 
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::SharedArrayBuffer> ab =
@@ -523,7 +524,8 @@ THREADED_TEST(SharedDataView) {
 
   // TODO(v8:11111): Use API functions for testing these, once they're exposed
   // via the API.
-  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv = v8::Utils::OpenHandle(*dv);
+  i::DirectHandle<i::JSDataViewOrRabGsabDataView> i_dv =
+      v8::Utils::OpenDirectHandle(*dv);
   CHECK(!i_dv->is_length_tracking());
   CHECK(!i_dv->is_backed_by_rab());
 }
@@ -531,7 +533,7 @@ THREADED_TEST(SharedDataView) {
 #define IS_ARRAY_BUFFER_VIEW_TEST(View)                                     \
   THREADED_TEST(Is##View) {                                                 \
     LocalContext env;                                                       \
-    v8::Isolate* isolate = env->GetIsolate();                               \
+    v8::Isolate* isolate = env.isolate();                                   \
     v8::HandleScope handle_scope(isolate);                                  \
                                                                             \
     Local<Value> result = CompileRun(                                       \
@@ -557,7 +559,7 @@ IS_ARRAY_BUFFER_VIEW_TEST(DataView)
 
 TEST(InternalFieldsOnTypedArray) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = env.local();
   Context::Scope context_scope(context);
@@ -571,7 +573,7 @@ TEST(InternalFieldsOnTypedArray) {
 
 TEST(InternalFieldsOnDataView) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = env.local();
   Context::Scope context_scope(context);
@@ -583,10 +585,112 @@ TEST(InternalFieldsOnDataView) {
   }
 }
 
+TEST(DetachedArrayBufferViewsPretendOffsetAndLengthAreZero) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = env.local();
+  Context::Scope context_scope(context);
+
+  v8::Local<v8::ArrayBuffer> buffer = v8::Local<v8::ArrayBuffer>::Cast(
+      CompileRun("let ab = new ArrayBuffer(100, {maxByteLength: 200}); ab"));
+
+  v8::Local<v8::Uint16Array> fixed_length_ta =
+      v8::Uint16Array::New(buffer, 2, 1);
+  // Length-tracking TypedArrays cannot (yet) be constructed via the API.
+  v8::Local<v8::Uint16Array> length_tracking_ta =
+      v8::Local<v8::Uint16Array>::Cast(CompileRun("new Uint16Array(ab, 2)"));
+
+  // RAB/GSAB-backed DataViews cannot (yet) be constructed via the API.
+  v8::Local<v8::DataView> fixed_length_dv =
+      v8::Local<v8::DataView>::Cast(CompileRun("new DataView(ab, 1, 1)"));
+  v8::Local<v8::DataView> length_tracking_dv =
+      v8::Local<v8::DataView>::Cast(CompileRun("new DataView(ab, 1)"));
+
+  CHECK_EQ(2, fixed_length_ta->ByteOffset());
+  CHECK_EQ(2, length_tracking_ta->ByteOffset());
+  CHECK_EQ(1, fixed_length_dv->ByteOffset());
+  CHECK_EQ(1, length_tracking_dv->ByteOffset());
+
+  CHECK_EQ(2, fixed_length_ta->ByteLength());
+  CHECK_EQ(98, length_tracking_ta->ByteLength());
+  CHECK_EQ(1, fixed_length_dv->ByteLength());
+  CHECK_EQ(99, length_tracking_dv->ByteLength());
+
+  CHECK_EQ(1, fixed_length_ta->Length());
+  CHECK_EQ(49, length_tracking_ta->Length());
+
+  buffer->Detach({}).Check();
+
+  CHECK_EQ(0, fixed_length_ta->ByteOffset());
+  CHECK_EQ(0, length_tracking_ta->ByteOffset());
+  CHECK_EQ(0, fixed_length_dv->ByteOffset());
+  CHECK_EQ(0, length_tracking_dv->ByteOffset());
+
+  CHECK_EQ(0, fixed_length_ta->ByteLength());
+  CHECK_EQ(0, length_tracking_ta->ByteLength());
+  CHECK_EQ(0, fixed_length_dv->ByteLength());
+  CHECK_EQ(0, length_tracking_dv->ByteLength());
+
+  CHECK_EQ(0, fixed_length_ta->Length());
+  CHECK_EQ(0, length_tracking_ta->Length());
+}
+
+TEST(OutOfBoundsArrayBufferViewsPretendOffsetAndLengthAreZero) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = env.local();
+  Context::Scope context_scope(context);
+
+  v8::Local<v8::ArrayBuffer> buffer = v8::Local<v8::ArrayBuffer>::Cast(
+      CompileRun("let ab = new ArrayBuffer(100, {maxByteLength: 200}); ab"));
+
+  v8::Local<v8::Uint16Array> fixed_length_ta =
+      v8::Uint16Array::New(buffer, 2, 1);
+  // Length-tracking TypedArrays cannot (yet) be constructed via the API.
+  v8::Local<v8::Uint16Array> length_tracking_ta =
+      v8::Local<v8::Uint16Array>::Cast(CompileRun("new Uint16Array(ab, 2)"));
+
+  // RAB/GSAB-backed DataViews cannot (yet) be constructed via the API.
+  v8::Local<v8::DataView> fixed_length_dv =
+      v8::Local<v8::DataView>::Cast(CompileRun("new DataView(ab, 1, 1)"));
+  v8::Local<v8::DataView> length_tracking_dv =
+      v8::Local<v8::DataView>::Cast(CompileRun("new DataView(ab, 1)"));
+
+  CHECK_EQ(2, fixed_length_ta->ByteOffset());
+  CHECK_EQ(2, length_tracking_ta->ByteOffset());
+  CHECK_EQ(1, fixed_length_dv->ByteOffset());
+  CHECK_EQ(1, length_tracking_dv->ByteOffset());
+
+  CHECK_EQ(2, fixed_length_ta->ByteLength());
+  CHECK_EQ(98, length_tracking_ta->ByteLength());
+  CHECK_EQ(1, fixed_length_dv->ByteLength());
+  CHECK_EQ(99, length_tracking_dv->ByteLength());
+
+  CHECK_EQ(1, fixed_length_ta->Length());
+  CHECK_EQ(49, length_tracking_ta->Length());
+
+  CompileRun("ab.resize(0)");
+
+  CHECK_EQ(0, fixed_length_ta->ByteOffset());
+  CHECK_EQ(0, length_tracking_ta->ByteOffset());
+  CHECK_EQ(0, fixed_length_dv->ByteOffset());
+  CHECK_EQ(0, length_tracking_dv->ByteOffset());
+
+  CHECK_EQ(0, fixed_length_ta->ByteLength());
+  CHECK_EQ(0, length_tracking_ta->ByteLength());
+  CHECK_EQ(0, fixed_length_dv->ByteLength());
+  CHECK_EQ(0, length_tracking_dv->ByteLength());
+
+  CHECK_EQ(0, fixed_length_ta->Length());
+  CHECK_EQ(0, length_tracking_ta->Length());
+}
+
 namespace {
 void TestOnHeapHasBuffer(const char* array_name, size_t elem_size) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8::base::ScopedVector<char> source(128);
@@ -604,21 +708,21 @@ void TestOnHeapHasBuffer(const char* array_name, size_t elem_size) {
     CHECK(!typed_array->HasBuffer());
 
     // Get the buffer and check its length.
-    i::Handle<i::JSTypedArray> i_typed_array =
-        v8::Utils::OpenHandle(*typed_array);
-    auto i_array_buffer1 = i_typed_array->GetBuffer();
+    i::DirectHandle<i::JSTypedArray> i_typed_array =
+        v8::Utils::OpenDirectHandle(*typed_array);
+    auto i_array_buffer1 = i_typed_array->GetBuffer(env.i_isolate());
     CHECK_EQ(size, i_array_buffer1->byte_length());
     CHECK(typed_array->HasBuffer());
 
     // Should have the same buffer each time.
-    auto i_array_buffer2 = i_typed_array->GetBuffer();
+    auto i_array_buffer2 = i_typed_array->GetBuffer(env.i_isolate());
     CHECK(i_array_buffer1.is_identical_to(i_array_buffer2));
   }
 }
 
 void TestOffHeapHasBuffer(const char* array_name, size_t elem_size) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8::base::ScopedVector<char> source(128);
@@ -635,9 +739,9 @@ void TestOffHeapHasBuffer(const char* array_name, size_t elem_size) {
     CHECK(typed_array->HasBuffer());
 
     // Get the buffer and check its length.
-    i::Handle<i::JSTypedArray> i_typed_array =
-        v8::Utils::OpenHandle(*typed_array);
-    auto i_array_buffer1 = i_typed_array->GetBuffer();
+    i::DirectHandle<i::JSTypedArray> i_typed_array =
+        v8::Utils::OpenDirectHandle(*typed_array);
+    auto i_array_buffer1 = i_typed_array->GetBuffer(env.i_isolate());
     CHECK_EQ(length * elem_size, i_array_buffer1->byte_length());
 
     size *= 2;

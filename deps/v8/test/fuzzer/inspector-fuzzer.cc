@@ -4,6 +4,7 @@
 
 #include <locale.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,6 +18,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
+#include "test/fuzzer/fuzzer-support.h"
 #include "test/inspector/frontend-channel.h"
 #include "test/inspector/isolate-data.h"
 #include "test/inspector/task-runner.h"
@@ -192,7 +194,7 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     int context_group_id = info[0].As<v8::Int32>()->Value();
     bool is_fully_trusted =
         info.Length() == 3 || info[3].As<v8::Boolean>()->Value();
-    base::Optional<int> session_id;
+    std::optional<int> session_id;
     RunSyncTask(backend_runner_,
                 [context_group_id, &session_id, &channel, &state,
                  is_fully_trusted](InspectorIsolateData* data) {
@@ -284,9 +286,10 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
         ToV8String(isolate, "markObjectAsNotInspectable"),
         v8::FunctionTemplate::New(
             isolate, &InspectorExtension::MarkObjectAsNotInspectable));
-    inspector->Set(ToV8String(isolate, "createObjectWithAccessor"),
-                   v8::FunctionTemplate::New(
-                       isolate, &InspectorExtension::CreateObjectWithAccessor));
+    inspector->Set(
+        ToV8String(isolate, "createObjectWithNativeDataProperty"),
+        v8::FunctionTemplate::New(
+            isolate, &InspectorExtension::CreateObjectWithNativeDataProperty));
     inspector->Set(ToV8String(isolate, "storeCurrentStackTrace"),
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::StoreCurrentStackTrace));
@@ -437,7 +440,7 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
         .ToChecked();
   }
 
-  static void CreateObjectWithAccessor(
+  static void CreateObjectWithNativeDataProperty(
       const v8::FunctionCallbackInfo<v8::Value>& info) {
     DCHECK(ValidateCallbackInfo(info));
     if (info.Length() != 2 || !info[0]->IsString() || !info[1]->IsBoolean()) {
@@ -446,10 +449,11 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
     v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
     if (info[1].As<v8::Boolean>()->Value()) {
-      templ->SetAccessor(v8::Local<v8::String>::Cast(info[0]), AccessorGetter,
-                         AccessorSetter);
+      templ->SetNativeDataProperty(v8::Local<v8::String>::Cast(info[0]),
+                                   AccessorGetter, AccessorSetter);
     } else {
-      templ->SetAccessor(v8::Local<v8::String>::Cast(info[0]), AccessorGetter);
+      templ->SetNativeDataProperty(v8::Local<v8::String>::Cast(info[0]),
+                                   AccessorGetter);
     }
     info.GetReturnValue().Set(
         templ->NewInstance(isolate->GetCurrentContext()).ToLocalChecked());
@@ -629,9 +633,14 @@ void FuzzInspector(const uint8_t* data, size_t size) {
   // running background tasks to be properly joined.
 }
 
-}  //  namespace
+}  // namespace
 }  // namespace internal
 }  // namespace v8
+
+V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
+  v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
+  return 0;
+}
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::internal::FuzzInspector(data, size);

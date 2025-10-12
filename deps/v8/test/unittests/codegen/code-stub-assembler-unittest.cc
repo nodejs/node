@@ -62,7 +62,8 @@ TARGET_TEST_F(CodeStubAssemblerTest, IntPtrMin) {
 
 namespace {
 
-void ExpectArrayListsEqual(Handle<ArrayList> array1, Handle<ArrayList> array2) {
+void ExpectArrayListsEqual(DirectHandle<ArrayList> array1,
+                           DirectHandle<ArrayList> array2) {
   EXPECT_EQ(array1->capacity(), array2->capacity());
   EXPECT_EQ(array1->length(), array2->length());
   for (int i = 0; i < array1->length(); i++) {
@@ -77,7 +78,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAllocateEquivalent) {
 
   // Tests that the CSA implementation of ArrayList behave the same as the C++
   // implementation.
-  Handle<Code> allocate_arraylist_in_csa;
+  DirectHandle<Code> allocate_arraylist_in_csa;
   {
     compiler::CodeAssemblerTester tester(i_isolate(), JSParameterCount(0));
     CodeStubAssembler assembler(tester.state());
@@ -87,9 +88,9 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAllocateEquivalent) {
     allocate_arraylist_in_csa = tester.GenerateCodeCloseAndEscape();
   }
 
-  Handle<ArrayList> array1 = ArrayList::New(i_isolate(), L);
+  DirectHandle<ArrayList> array1 = ArrayList::New(i_isolate(), L);
   compiler::FunctionTester ft(i_isolate(), allocate_arraylist_in_csa, 0);
-  Handle<ArrayList> array2 = ft.CallChecked<ArrayList>();
+  DirectHandle<ArrayList> array2 = ft.CallChecked<ArrayList>();
   ExpectArrayListsEqual(array1, array2);
 }
 
@@ -98,7 +99,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAddEquivalent) {
 
   // Tests that the CSA implementation of ArrayList behave the same as the C++
   // implementation.
-  Handle<Code> allocate_arraylist_in_csa;
+  DirectHandle<Code> allocate_arraylist_in_csa;
   {
     compiler::CodeAssemblerTester tester(i_isolate(), JSParameterCount(0));
     CodeStubAssembler assembler(tester.state());
@@ -112,12 +113,12 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAddEquivalent) {
     allocate_arraylist_in_csa = tester.GenerateCodeCloseAndEscape();
   }
 
-  Handle<ArrayList> array1 = ArrayList::New(i_isolate(), L);
+  DirectHandle<ArrayList> array1 = ArrayList::New(i_isolate(), L);
   for (int i = 0; i < 5; i++) {
     array1 = ArrayList::Add(i_isolate(), array1, Smi::FromInt(i));
   }
   compiler::FunctionTester ft(i_isolate(), allocate_arraylist_in_csa, 0);
-  Handle<ArrayList> list2 = ft.CallChecked<ArrayList>();
+  DirectHandle<ArrayList> list2 = ft.CallChecked<ArrayList>();
   ExpectArrayListsEqual(array1, list2);
 }
 
@@ -126,7 +127,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListElementsEquivalent) {
 
   // Tests that the CSA implementation of ArrayList behave the same as the C++
   // implementation.
-  Handle<Code> allocate_arraylist_in_csa;
+  DirectHandle<Code> allocate_arraylist_in_csa;
   {
     compiler::CodeAssemblerTester tester(i_isolate(), JSParameterCount(0));
     CodeStubAssembler assembler(tester.state());
@@ -140,13 +141,14 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListElementsEquivalent) {
     allocate_arraylist_in_csa = tester.GenerateCodeCloseAndEscape();
   }
 
-  Handle<ArrayList> array1 = ArrayList::New(i_isolate(), L);
+  DirectHandle<ArrayList> array1 = ArrayList::New(i_isolate(), L);
   for (int i = 0; i < 5; i++) {
     array1 = ArrayList::Add(i_isolate(), array1, Smi::FromInt(i));
   }
-  Handle<FixedArray> elements1 = ArrayList::ToFixedArray(i_isolate(), array1);
+  DirectHandle<FixedArray> elements1 =
+      ArrayList::ToFixedArray(i_isolate(), array1);
   compiler::FunctionTester ft(i_isolate(), allocate_arraylist_in_csa, 0);
-  Handle<FixedArray> elements2 = ft.CallChecked<FixedArray>();
+  DirectHandle<FixedArray> elements2 = ft.CallChecked<FixedArray>();
   EXPECT_EQ(elements1->length(), elements2->length());
   for (int i = 0; i < elements1->length(); i++) {
     EXPECT_EQ(elements1->get(i), elements2->get(i));

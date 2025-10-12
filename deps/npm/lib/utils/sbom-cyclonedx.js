@@ -1,6 +1,6 @@
 const crypto = require('node:crypto')
-const normalizeData = require('normalize-package-data')
 const parseLicense = require('spdx-expression-parse')
+const PackageJson = require('@npmcli/package-json')
 const npa = require('npm-package-arg')
 const ssri = require('ssri')
 
@@ -8,7 +8,6 @@ const CYCLONEDX_SCHEMA = 'http://cyclonedx.org/schema/bom-1.5.schema.json'
 const CYCLONEDX_FORMAT = 'CycloneDX'
 const CYCLONEDX_SCHEMA_VERSION = '1.5'
 
-const PROP_PATH = 'cdx:npm:package:path'
 const PROP_BUNDLED = 'cdx:npm:package:bundled'
 const PROP_DEVELOPMENT = 'cdx:npm:package:development'
 const PROP_EXTRANEOUS = 'cdx:npm:package:extraneous'
@@ -31,19 +30,18 @@ const cyclonedxOutput = ({ npm, nodes, packageType, packageLockOnly }) => {
   const childNodes = nodes.filter(node => !node.isRoot && !node.isLink)
   const uuid = crypto.randomUUID()
 
-  const deps = []
-  const seen = new Set()
-  for (let node of nodes) {
-    if (node.isLink) {
-      node = node.target
+  // Create list of child nodes w/ unique IDs
+  const childNodeMap = new Map()
+  for (const item of childNodes) {
+    const id = toCyclonedxID(item)
+    if (!childNodeMap.has(id)) {
+      childNodeMap.set(id, item)
     }
-
-    if (seen.has(node)) {
-      continue
-    }
-    seen.add(node)
-    deps.push(toCyclonedxDependency(node, nodes))
   }
+  const uniqueChildNodes = Array.from(childNodeMap.values())
+
+  const deps = [rootNode, ...uniqueChildNodes]
+    .map(node => toCyclonedxDependency(node, nodes))
 
   const bom = {
     $schema: CYCLONEDX_SCHEMA,
@@ -65,7 +63,7 @@ const cyclonedxOutput = ({ npm, nodes, packageType, packageLockOnly }) => {
       ],
       component: toCyclonedxItem(rootNode, { packageType }),
     },
-    components: childNodes.map(toCyclonedxItem),
+    components: uniqueChildNodes.map(toCyclonedxItem),
     dependencies: deps,
   }
 
@@ -81,7 +79,9 @@ const toCyclonedxItem = (node, { packageType }) => {
   const purl = npa.toPurl(spec) + (isGitNode(node) ? `?vcs_url=${node.resolved}` : '')
 
   if (node.package) {
-    normalizeData(node.package)
+    const toNormalize = new PackageJson()
+    toNormalize.fromContent(node.package).normalize({ steps: ['normalizeData'] })
+    node.package = toNormalize.content
   }
 
   let parsedLicense
@@ -94,7 +94,7 @@ const toCyclonedxItem = (node, { packageType }) => {
     }
 
     parsedLicense = parseLicense(license)
-  } catch (err) {
+  } catch {
     parsedLicense = null
   }
 
@@ -109,10 +109,7 @@ const toCyclonedxItem = (node, { packageType }) => {
       : (node.package?.author || undefined),
     description: node.package?.description || undefined,
     purl: purl,
-    properties: [{
-      name: PROP_PATH,
-      value: node.location,
-    }],
+    properties: [],
     externalReferences: [],
   }
 
@@ -192,7 +189,7 @@ const isGitNode = (node) => {
   try {
     const { type } = npa(node.resolved)
     return type === 'git' || type === 'hosted'
-  } catch (err) {
+  } catch {
     /* istanbul ignore next */
     return false
   }

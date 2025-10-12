@@ -40,8 +40,8 @@ enum class MockLogDefault { kIgnoreUnexpected, kDisallowUnexpected };
 
 // ScopedMockLog
 //
-// ScopedMockLog is a LogSink that intercepts LOG() messages issued during its
-// lifespan.
+// ScopedMockLog is a LogSink that intercepts LOG() messages issued by all
+// threads when active.
 //
 // Using this together with GoogleTest, it's easy to test how a piece of code
 // calls LOG(). The typical usage, noting the distinction between
@@ -160,7 +160,13 @@ class ScopedMockLog final {
   // from the log message text, log message path and log message severity.
   //
   // If no expectations are specified for this mock, the default action is to
-  // forward the call to the `Log` mock.
+  // forward the call to the `Log` mock.  Tests using `Send` are advised to call
+  //
+  //   `EXPECT_CALL(sink, Send).Times(0);`
+  //
+  // prior to specifying other expectations to suppress forwarding to `Log`.
+  // That way, unexpected calls show up as calls to `Send` with complete data
+  // and metadata for easier debugging.
   MOCK_METHOD(void, Send, (const absl::LogEntry&));
 
   // Implements the mock method:

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,13 +13,11 @@ typedef struct ossl_namemap_st OSSL_NAMEMAP;
 
 OSSL_NAMEMAP *ossl_namemap_stored(OSSL_LIB_CTX *libctx);
 
-OSSL_NAMEMAP *ossl_namemap_new(void);
+OSSL_NAMEMAP *ossl_namemap_new(OSSL_LIB_CTX *libctx);
 void ossl_namemap_free(OSSL_NAMEMAP *namemap);
 int ossl_namemap_empty(OSSL_NAMEMAP *namemap);
 
 int ossl_namemap_add_name(OSSL_NAMEMAP *namemap, int number, const char *name);
-int ossl_namemap_add_name_n(OSSL_NAMEMAP *namemap, int number,
-                            const char *name, size_t name_len);
 
 /*
  * The number<->name relationship is 1<->many

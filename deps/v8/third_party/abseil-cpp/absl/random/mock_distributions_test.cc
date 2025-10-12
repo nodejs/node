@@ -14,7 +14,13 @@
 
 #include "absl/random/mock_distributions.h"
 
+#include <cmath>
+#include <limits>
+
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/numeric/int128.h"
+#include "absl/random/distributions.h"
 #include "absl/random/mocking_bit_gen.h"
 #include "absl/random/random.h"
 
@@ -63,10 +69,213 @@ TEST(MockDistributions, Examples) {
       .WillOnce(Return(0.001));
   EXPECT_EQ(absl::Gaussian<double>(gen, 0.0, 1.0), 0.001);
 
-  EXPECT_NE(absl::LogUniform<int>(gen, 0, 1000000, 2), 2040);
-  EXPECT_CALL(absl::MockLogUniform<int>(), Call(gen, 0, 1000000, 2))
-      .WillOnce(Return(2040));
-  EXPECT_EQ(absl::LogUniform<int>(gen, 0, 1000000, 2), 2040);
+  const int kHigh = (1 << 30) - 1;
+  EXPECT_NE(absl::LogUniform<int>(gen, 0, kHigh, 2), kHigh);
+  EXPECT_CALL(absl::MockLogUniform<int>(), Call(gen, 0, kHigh, 2))
+      .WillOnce(Return(kHigh));
+  EXPECT_EQ(absl::LogUniform<int>(gen, 0, kHigh, 2), kHigh);
+}
+
+TEST(MockDistributions, UniformUInt128BoundariesAreAllowed) {
+  absl::MockingBitGen gen;
+
+  EXPECT_CALL(absl::MockUniform<absl::uint128>(), Call(gen))
+      .WillOnce(Return(absl::Uint128Max()));
+  EXPECT_EQ(absl::Uniform<absl::uint128>(gen), absl::Uint128Max());
+}
+
+TEST(MockDistributions, UniformDoubleBoundaryCasesAreAllowed) {
+  absl::MockingBitGen gen;
+
+  EXPECT_CALL(absl::MockUniform<double>(), Call(gen, 1.0, 10.0))
+      .WillOnce(Return(
+          std::nextafter(10.0, -std::numeric_limits<double>::infinity())));
+  EXPECT_EQ(absl::Uniform<double>(gen, 1.0, 10.0),
+            std::nextafter(10.0, -std::numeric_limits<double>::infinity()));
+
+  EXPECT_CALL(absl::MockUniform<double>(),
+              Call(absl::IntervalOpen, gen, 1.0, 10.0))
+      .WillOnce(Return(
+          std::nextafter(10.0, -std::numeric_limits<double>::infinity())));
+  EXPECT_EQ(absl::Uniform<double>(absl::IntervalOpen, gen, 1.0, 10.0),
+            std::nextafter(10.0, -std::numeric_limits<double>::infinity()));
+
+  EXPECT_CALL(absl::MockUniform<double>(),
+              Call(absl::IntervalOpen, gen, 1.0, 10.0))
+      .WillOnce(
+          Return(std::nextafter(1.0, std::numeric_limits<double>::infinity())));
+  EXPECT_EQ(absl::Uniform<double>(absl::IntervalOpen, gen, 1.0, 10.0),
+            std::nextafter(1.0, std::numeric_limits<double>::infinity()));
+}
+
+TEST(MockDistributions, UniformDoubleEmptyRangesAllowTheBoundary) {
+  absl::MockingBitGen gen;
+
+  ON_CALL(absl::MockUniform<double>(), Call(absl::IntervalOpen, gen, 1.0, 1.0))
+      .WillByDefault(Return(1.0));
+  EXPECT_EQ(absl::Uniform<double>(absl::IntervalOpen, gen, 1.0, 1.0), 1.0);
+
+  ON_CALL(absl::MockUniform<double>(),
+          Call(absl::IntervalOpenClosed, gen, 1.0, 1.0))
+      .WillByDefault(Return(1.0));
+  EXPECT_EQ(absl::Uniform<double>(absl::IntervalOpenClosed, gen, 1.0, 1.0),
+            1.0);
+
+  ON_CALL(absl::MockUniform<double>(),
+          Call(absl::IntervalClosedOpen, gen, 1.0, 1.0))
+      .WillByDefault(Return(1.0));
+  EXPECT_EQ(absl::Uniform<double>(absl::IntervalClosedOpen, gen, 1.0, 1.0),
+            1.0);
+}
+
+TEST(MockDistributions, UniformIntEmptyRangeCasesAllowTheBoundary) {
+  absl::MockingBitGen gen;
+
+  ON_CALL(absl::MockUniform<int>(), Call(absl::IntervalOpen, gen, 1, 1))
+      .WillByDefault(Return(1));
+  EXPECT_EQ(absl::Uniform<int>(absl::IntervalOpen, gen, 1, 1), 1);
+
+  ON_CALL(absl::MockUniform<int>(), Call(absl::IntervalOpenClosed, gen, 1, 1))
+      .WillByDefault(Return(1));
+  EXPECT_EQ(absl::Uniform<int>(absl::IntervalOpenClosed, gen, 1, 1), 1);
+
+  ON_CALL(absl::MockUniform<int>(), Call(absl::IntervalClosedOpen, gen, 1, 1))
+      .WillByDefault(Return(1));
+  EXPECT_EQ(absl::Uniform<int>(absl::IntervalClosedOpen, gen, 1, 1), 1);
+}
+
+TEST(MockUniformDeathTest, OutOfBoundsValuesAreRejected) {
+  absl::MockingBitGen gen;
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<int>(), Call(gen, 1, 100))
+            .WillOnce(Return(0));
+        absl::Uniform<int>(gen, 1, 100);
+      },
+      " 0 is not in \\[1, 100\\)");
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<int>(), Call(gen, 1, 100))
+            .WillOnce(Return(101));
+        absl::Uniform<int>(gen, 1, 100);
+      },
+      " 101 is not in \\[1, 100\\)");
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<int>(), Call(gen, 1, 100))
+            .WillOnce(Return(100));
+        absl::Uniform<int>(gen, 1, 100);
+      },
+      " 100 is not in \\[1, 100\\)");
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<int>(),
+                    Call(absl::IntervalOpen, gen, 1, 100))
+            .WillOnce(Return(1));
+        absl::Uniform<int>(absl::IntervalOpen, gen, 1, 100);
+      },
+      " 1 is not in \\(1, 100\\)");
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<int>(),
+                    Call(absl::IntervalOpen, gen, 1, 100))
+            .WillOnce(Return(101));
+        absl::Uniform<int>(absl::IntervalOpen, gen, 1, 100);
+      },
+      " 101 is not in \\(1, 100\\)");
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<int>(),
+                    Call(absl::IntervalOpen, gen, 1, 100))
+            .WillOnce(Return(100));
+        absl::Uniform<int>(absl::IntervalOpen, gen, 1, 100);
+      },
+      " 100 is not in \\(1, 100\\)");
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<int>(),
+                    Call(absl::IntervalOpenClosed, gen, 1, 100))
+            .WillOnce(Return(1));
+        absl::Uniform<int>(absl::IntervalOpenClosed, gen, 1, 100);
+      },
+      " 1 is not in \\(1, 100\\]");
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<int>(),
+                    Call(absl::IntervalOpenClosed, gen, 1, 100))
+            .WillOnce(Return(101));
+        absl::Uniform<int>(absl::IntervalOpenClosed, gen, 1, 100);
+      },
+      " 101 is not in \\(1, 100\\]");
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<int>(),
+                    Call(absl::IntervalOpenClosed, gen, 1, 100))
+            .WillOnce(Return(0));
+        absl::Uniform<int>(absl::IntervalOpenClosed, gen, 1, 100);
+      },
+      " 0 is not in \\(1, 100\\]");
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<int>(),
+                    Call(absl::IntervalOpenClosed, gen, 1, 100))
+            .WillOnce(Return(101));
+        absl::Uniform<int>(absl::IntervalOpenClosed, gen, 1, 100);
+      },
+      " 101 is not in \\(1, 100\\]");
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<int>(),
+                    Call(absl::IntervalClosed, gen, 1, 100))
+            .WillOnce(Return(0));
+        absl::Uniform<int>(absl::IntervalClosed, gen, 1, 100);
+      },
+      " 0 is not in \\[1, 100\\]");
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<int>(),
+                    Call(absl::IntervalClosed, gen, 1, 100))
+            .WillOnce(Return(101));
+        absl::Uniform<int>(absl::IntervalClosed, gen, 1, 100);
+      },
+      " 101 is not in \\[1, 100\\]");
+}
+
+TEST(MockUniformDeathTest, OutOfBoundsDoublesAreRejected) {
+  absl::MockingBitGen gen;
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<double>(), Call(gen, 1.0, 10.0))
+            .WillOnce(Return(10.0));
+        EXPECT_EQ(absl::Uniform<double>(gen, 1.0, 10.0), 10.0);
+      },
+      " 10 is not in \\[1, 10\\)");
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<double>(),
+                    Call(absl::IntervalOpen, gen, 1.0, 10.0))
+            .WillOnce(Return(10.0));
+        EXPECT_EQ(absl::Uniform<double>(absl::IntervalOpen, gen, 1.0, 10.0),
+                  10.0);
+      },
+      " 10 is not in \\(1, 10\\)");
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        EXPECT_CALL(absl::MockUniform<double>(),
+                    Call(absl::IntervalOpen, gen, 1.0, 10.0))
+            .WillOnce(Return(1.0));
+        EXPECT_EQ(absl::Uniform<double>(absl::IntervalOpen, gen, 1.0, 10.0),
+                  1.0);
+      },
+      " 1 is not in \\(1, 10\\)");
 }
 
 }  // namespace

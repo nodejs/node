@@ -14,8 +14,16 @@ const kArrayPrototypeValues: constexpr BuiltinsName
 const kSetPrototypeValues: constexpr BuiltinsName
     generates 'Builtin::kSetPrototypeValues';
 
-extern builtin IterableToList(implicit context: Context)(JSAny, JSAny):
-    JSArray;
+extern builtin IterableToList(implicit context: Context)(JSAny,
+                              JSAny): JSArray;
+
+macro CanCopyElementsFastNumber(source: JSArray): bool {
+  const map: Map = source.map;
+  const elementsKind: ElementsKind = LoadMapElementsKind(map);
+
+  return IsFastSmiElementsKind(elementsKind) ||
+      IsDoubleElementsKind(elementsKind);
+}
 
 // %TypedArray%.from ( source [ , mapfn [ , thisArg ] ] )
 // https://tc39.github.io/ecma262/#sec-%typedarray%.from
@@ -94,7 +102,7 @@ transitioning javascript builtin TypedArrayFrom(
             // Check that the iterator function is exactly
             // Builtin::kArrayPrototypeValues.
             if (!TaggedEqual(
-                    iteratorFn.shared_function_info.function_data,
+                    iteratorFn.shared_function_info.untrusted_function_data,
                     SmiConstant(kArrayPrototypeValues))) {
               goto UseUserProvidedIterator;
             }
@@ -103,8 +111,14 @@ transitioning javascript builtin TypedArrayFrom(
             // source object directly, taking advantage of the special-case code
             // in TypedArrayCopyElements
             finalLength = Convert<uintptr>(sourceArray.length);
-            finalSource = source;
+            if (CanCopyElementsFastNumber(sourceArray)) {
+              finalSource = sourceArray;
+            } else {
+              finalSource = iterator::FastIterableToList(sourceArray) otherwise
+              UseUserProvidedIterator;
+            }
           }
+
           case (sourceTypedArray: JSTypedArray): {
             finalLength =
                 LoadJSTypedArrayLengthAndCheckDetached(sourceTypedArray)
@@ -113,7 +127,7 @@ transitioning javascript builtin TypedArrayFrom(
             // Check that the iterator function is exactly
             // Builtin::kTypedArrayPrototypeValues.
             if (!TaggedEqual(
-                    iteratorFn.shared_function_info.function_data,
+                    iteratorFn.shared_function_info.untrusted_function_data,
                     SmiConstant(kTypedArrayPrototypeValues)))
               goto UseUserProvidedIterator;
 
@@ -126,7 +140,7 @@ transitioning javascript builtin TypedArrayFrom(
             // Check that the iterator function is exactly
             // Builtin::kSetPrototypeValues.
             if (!TaggedEqual(
-                    iteratorFn.shared_function_info.function_data,
+                    iteratorFn.shared_function_info.untrusted_function_data,
                     SmiConstant(kSetPrototypeValues))) {
               goto UseUserProvidedIterator;
             }
@@ -220,16 +234,13 @@ transitioning javascript builtin TypedArrayFrom(
       // The buffer may be detached or the target TypedArray may go out of
       // bounds during executing ToNumber/ToBigInt or when we executed the
       // mapper function above.
-      accessor.StoreJSAny(context, targetObj, k, mappedValue)
-          otherwise IfDetachedOrOutOfBounds;
+      accessor.StoreJSAny(context, targetObj, k, mappedValue);
 
       // 12f. Set k to k + 1. (done by the loop).
     }
     return targetObj;
   } label NotConstructor deferred {
     ThrowTypeError(MessageTemplate::kNotConstructor, receiver);
-  } label IfDetachedOrOutOfBounds deferred {
-    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameFrom);
   }
 }
 }

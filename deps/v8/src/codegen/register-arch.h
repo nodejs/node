@@ -15,13 +15,13 @@
 #include "src/codegen/arm64/register-arm64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "src/codegen/arm/register-arm.h"
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_PPC64
 #include "src/codegen/ppc/register-ppc.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/codegen/mips64/register-mips64.h"
 #elif V8_TARGET_ARCH_LOONG64
 #include "src/codegen/loong64/register-loong64.h"
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
 #include "src/codegen/s390/register-s390.h"
 #elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
 #include "src/codegen/riscv/register-riscv.h"

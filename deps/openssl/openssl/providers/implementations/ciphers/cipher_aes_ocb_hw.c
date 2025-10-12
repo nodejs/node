@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -103,6 +103,93 @@ static const PROV_CIPHER_HW aes_t4_ocb = {                                     \
 # define PROV_CIPHER_HW_select()                                               \
     if (SPARC_AES_CAPABLE)                                                     \
         return &aes_t4_ocb;
+
+#elif defined(OPENSSL_CPUID_OBJ) && defined(__riscv) && __riscv_xlen == 64
+
+static int cipher_hw_aes_ocb_rv64i_zknd_zkne_initkey(PROV_CIPHER_CTX *vctx,
+                                                     const unsigned char *key,
+                                                     size_t keylen)
+{
+    PROV_AES_OCB_CTX *ctx = (PROV_AES_OCB_CTX *)vctx;
+
+    OCB_SET_KEY_FN(rv64i_zkne_set_encrypt_key, rv64i_zknd_set_decrypt_key,
+                   rv64i_zkne_encrypt, rv64i_zknd_decrypt, NULL, NULL);
+    return 1;
+}
+
+static int cipher_hw_aes_ocb_rv64i_zvkned_initkey(PROV_CIPHER_CTX *vctx,
+                                                     const unsigned char *key,
+                                                     size_t keylen)
+{
+    PROV_AES_OCB_CTX *ctx = (PROV_AES_OCB_CTX *)vctx;
+
+    /* Zvkned only supports 128 and 256 bit keys. */
+    if (keylen * 8 == 128 || keylen * 8 == 256) {
+        OCB_SET_KEY_FN(rv64i_zvkned_set_encrypt_key,
+                       rv64i_zvkned_set_decrypt_key,
+                       rv64i_zvkned_encrypt, rv64i_zvkned_decrypt,
+                       NULL, NULL);
+    } else {
+        OCB_SET_KEY_FN(AES_set_encrypt_key, AES_set_encrypt_key,
+                       rv64i_zvkned_encrypt, rv64i_zvkned_decrypt,
+                       NULL, NULL);
+    }
+    return 1;
+}
+
+# define PROV_CIPHER_HW_declare()                                              \
+static const PROV_CIPHER_HW aes_rv64i_zknd_zkne_ocb = {                        \
+    cipher_hw_aes_ocb_rv64i_zknd_zkne_initkey,                                 \
+    NULL                                                                       \
+};                                                                             \
+static const PROV_CIPHER_HW aes_rv64i_zvkned_ocb = {                           \
+    cipher_hw_aes_ocb_rv64i_zvkned_initkey,                                    \
+    NULL                                                                       \
+};
+# define PROV_CIPHER_HW_select()                                               \
+    if (RISCV_HAS_ZVKNED() && riscv_vlen() >= 128)                             \
+        return &aes_rv64i_zvkned_ocb;                                          \
+    else if (RISCV_HAS_ZKND_AND_ZKNE())                                        \
+        return &aes_rv64i_zknd_zkne_ocb;
+
+#elif defined(OPENSSL_CPUID_OBJ) && defined(__riscv) && __riscv_xlen == 32
+
+static int cipher_hw_aes_ocb_rv32i_zknd_zkne_initkey(PROV_CIPHER_CTX *vctx,
+                                                     const unsigned char *key,
+                                                     size_t keylen)
+{
+    PROV_AES_OCB_CTX *ctx = (PROV_AES_OCB_CTX *)vctx;
+
+    OCB_SET_KEY_FN(rv32i_zkne_set_encrypt_key, rv32i_zknd_zkne_set_decrypt_key,
+                   rv32i_zkne_encrypt, rv32i_zknd_decrypt, NULL, NULL);
+    return 1;
+}
+
+static int cipher_hw_aes_ocb_rv32i_zbkb_zknd_zkne_initkey(PROV_CIPHER_CTX *vctx,
+                                                          const unsigned char *key,
+                                                          size_t keylen)
+{
+    PROV_AES_OCB_CTX *ctx = (PROV_AES_OCB_CTX *)vctx;
+
+    OCB_SET_KEY_FN(rv32i_zbkb_zkne_set_encrypt_key, rv32i_zbkb_zknd_zkne_set_decrypt_key,
+                   rv32i_zkne_encrypt, rv32i_zknd_decrypt, NULL, NULL);
+    return 1;
+}
+
+# define PROV_CIPHER_HW_declare()                                              \
+static const PROV_CIPHER_HW aes_rv32i_zknd_zkne_ocb = {                        \
+    cipher_hw_aes_ocb_rv32i_zknd_zkne_initkey,                                 \
+    NULL                                                                       \
+};                                                                             \
+static const PROV_CIPHER_HW aes_rv32i_zbkb_zknd_zkne_ocb = {                   \
+    cipher_hw_aes_ocb_rv32i_zbkb_zknd_zkne_initkey,                            \
+    NULL                                                                       \
+};
+# define PROV_CIPHER_HW_select()                                               \
+    if (RISCV_HAS_ZBKB_AND_ZKND_AND_ZKNE())                                    \
+        return &aes_rv32i_zbkb_zknd_zkne_ocb;                                  \
+    if (RISCV_HAS_ZKND_AND_ZKNE())                                             \
+        return &aes_rv32i_zknd_zkne_ocb;
 #else
 # define PROV_CIPHER_HW_declare()
 # define PROV_CIPHER_HW_select()

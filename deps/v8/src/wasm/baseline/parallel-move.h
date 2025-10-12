@@ -161,13 +161,14 @@ class ParallelMove {
       DCHECK_EQ(register_move(dst)->src, src);
       // Check for compatible value kinds.
       // - references can occur with mixed kRef / kRefNull kinds.
-      // - FP registers can only occur with mixed f32 / f64 kinds (if they hold
-      //   the initial zero value).
+      // - FP registers can only occur with f32 / f64 / s128 kinds (mixed kinds
+      //   only if they hold the initial zero value).
       // - others must match exactly.
       DCHECK_EQ(is_object_reference(register_move(dst)->kind),
                 is_object_reference(kind));
       DCHECK_EQ(dst.is_fp(), register_move(dst)->kind == kF32 ||
-                                 register_move(dst)->kind == kF64);
+                                 register_move(dst)->kind == kF64 ||
+                                 register_move(dst)->kind == kS128);
       if (!is_object_reference(kind) && !dst.is_fp()) {
         DCHECK_EQ(register_move(dst)->kind, kind);
       }
@@ -238,18 +239,10 @@ class ParallelMove {
   }
 
  private:
-  using MovesStorage =
-      std::aligned_storage<kAfterMaxLiftoffRegCode * sizeof(RegisterMove),
-                           alignof(RegisterMove)>::type;
-  using LoadsStorage =
-      std::aligned_storage<kAfterMaxLiftoffRegCode * sizeof(RegisterLoad),
-                           alignof(RegisterLoad)>::type;
-
-  ASSERT_TRIVIALLY_COPYABLE(RegisterMove);
-  ASSERT_TRIVIALLY_COPYABLE(RegisterLoad);
-
-  MovesStorage register_moves_;  // uninitialized
-  LoadsStorage register_loads_;  // uninitialized
+  alignas(RegisterMove) char register_moves_
+      [kAfterMaxLiftoffRegCode * sizeof(RegisterMove)];  // uninitialized
+  alignas(RegisterLoad) char register_loads_
+      [kAfterMaxLiftoffRegCode * sizeof(RegisterLoad)];  // uninitialized
   int src_reg_use_count_[kAfterMaxLiftoffRegCode] = {0};
   LiftoffRegList move_dst_regs_;
   LiftoffRegList load_dst_regs_;
@@ -259,11 +252,11 @@ class ParallelMove {
   int last_spill_offset_;
 
   RegisterMove* register_move(LiftoffRegister reg) {
-    return reinterpret_cast<RegisterMove*>(&register_moves_) +
+    return reinterpret_cast<RegisterMove*>(register_moves_) +
            reg.liftoff_code();
   }
   RegisterLoad* register_load(LiftoffRegister reg) {
-    return reinterpret_cast<RegisterLoad*>(&register_loads_) +
+    return reinterpret_cast<RegisterLoad*>(register_loads_) +
            reg.liftoff_code();
   }
   int* src_reg_use_count(LiftoffRegister reg) {

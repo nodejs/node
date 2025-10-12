@@ -8,8 +8,10 @@
 #include <atomic>
 
 #include "src/base/bit-field.h"
+#include "src/common/globals.h"
 #include "src/objects/objects.h"
 #include "src/objects/primitive-heap-object.h"
+#include "src/utils/utils.h"
 #include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -20,6 +22,10 @@ namespace internal {
 
 namespace compiler {
 class WasmGraphBuilder;
+}
+
+namespace maglev {
+class MaglevGraphBuilder;
 }
 
 class SharedStringAccessGuardIfNeeded;
@@ -67,10 +73,11 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
 
   // Equality operations.
   inline bool Equals(Tagged<Name> other);
-  inline static bool Equals(Isolate* isolate, Handle<Name> one,
-                            Handle<Name> two);
+  inline static bool Equals(Isolate* isolate, DirectHandle<Name> one,
+                            DirectHandle<Name> two);
 
   // Conversion.
+  inline bool IsArrayIndex();
   inline bool AsArrayIndex(uint32_t* index);
   inline bool AsIntegerIndex(size_t* index);
 
@@ -96,12 +103,11 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
 
   // Return a string version of this name that is converted according to the
   // rules described in ES6 section 9.2.11.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToFunctionName(
-      Isolate* isolate, Handle<Name> name);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToFunctionName(
-      Isolate* isolate, Handle<Name> name, Handle<String> prefix);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> ToFunctionName(
+      Isolate* isolate, DirectHandle<Name> name);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> ToFunctionName(
+      Isolate* isolate, DirectHandle<Name> name, DirectHandle<String> prefix);
 
-  DECL_CAST(Name)
   DECL_VERIFIER(Name)
   DECL_PRINTER(Name)
   void NameShortPrint();
@@ -143,9 +149,12 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   // Array index strings this short can keep their index in the hash field.
   static const int kMaxCachedArrayIndexLength = 7;
 
+  static const uint32_t kMaxArrayIndex = kMaxUInt32 - 1;
   // Maximum number of characters to consider when trying to convert a string
   // value into an array index.
   static const int kMaxArrayIndexSize = 10;
+  static_assert(TenToThe(kMaxArrayIndexSize) >= kMaxArrayIndex);
+  static_assert(TenToThe(kMaxArrayIndexSize - 1) < kMaxArrayIndex);
   // Maximum number of characters in a string that can possibly be an
   // "integer index" in the spec sense, i.e. a canonical representation of a
   // number in the range up to MAX_SAFE_INTEGER. We parse these into a size_t,
@@ -220,6 +229,8 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   friend class V8HeapExplorer;
   friend class CodeStubAssembler;
   friend class StringBuiltinsAssembler;
+  friend class SandboxTesting;
+  friend class maglev::MaglevGraphBuilder;
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;
   friend class compiler::WasmGraphBuilder;
@@ -286,8 +297,6 @@ V8_OBJECT class Symbol : public Name {
   // This also sets the is_private bit.
   inline bool is_private_brand() const;
   inline void set_is_private_brand();
-
-  DECL_CAST(Symbol)
 
   // Dispatched behavior.
   DECL_PRINTER(Symbol)

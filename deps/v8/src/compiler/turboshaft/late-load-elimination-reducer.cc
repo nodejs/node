@@ -4,7 +4,10 @@
 
 #include "src/compiler/turboshaft/late-load-elimination-reducer.h"
 
+#include "src/compiler/backend/instruction.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/turboshaft/operation-matcher.h"
+#include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -12,8 +15,26 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#ifdef DEBUG
+#define TRACE(x)                                    \
+  do {                                              \
+    if (v8_flags.turboshaft_trace_load_elimination) \
+      StdoutStream() << x << std::endl;             \
+  } while (false)
+#else
+#define TRACE(x)
+#endif
+
+std::ostream& operator<<(std::ostream& os, const MemoryAddress& mem) {
+  return os << "MemoryAddress{base=" << mem.base << ", index=" << mem.index
+            << ", offset=" << mem.offset << ", elem_size_log2="
+            << static_cast<uint32_t>(mem.element_size_log2)
+            << ", size=" << static_cast<uint32_t>(mem.size) << "}";
+}
+
 void LateLoadEliminationAnalyzer::Run() {
-  LoopFinder loop_finder(phase_zone_, &graph_);
+  TRACE("LateLoadElimination: Starting analysis");
+  LoopFinder loop_finder(phase_zone_, &graph_, LoopFinder::Config{});
   AnalyzerIterator iterator(phase_zone_, graph_, loop_finder);
 
   bool compute_start_snapshot = true;
@@ -27,11 +48,13 @@ void LateLoadEliminationAnalyzer::Run() {
     if (const GotoOp* last = block->LastOperation(graph_).TryCast<GotoOp>()) {
       if (last->destination->IsLoop() &&
           last->destination->LastPredecessor() == block) {
+        TRACE("> Considering reprocessing loop header " << last->destination);
         const Block* loop_header = last->destination;
         // {block} is the backedge of a loop. We recompute the loop header's
         // initial snapshots, and if they differ from its original snapshot,
         // then we revisit the loop.
         if (BeginBlock<true>(loop_header)) {
+          TRACE(">> Will need to revisit loop");
           // We set the snapshot of the loop's 1st predecessor to the newly
           // computed snapshot. It's not quite correct, but this predecessor
           // is guaranteed to end with a Goto, and we are now visiting the
@@ -56,6 +79,7 @@ void LateLoadEliminationAnalyzer::Run() {
           iterator.MarkLoopForRevisit();
           compute_start_snapshot = false;
         } else {
+          TRACE(">> No need to revisit loop");
           SealAndDiscard();
         }
       }
@@ -138,6 +162,7 @@ void LateLoadEliminationAnalyzer::Run() {
 
 void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
                                                bool compute_start_snapshot) {
+  TRACE("> ProcessBlock(" << block.index() << ")");
   if (compute_start_snapshot) {
     BeginBlock(&block);
   }
@@ -172,10 +197,6 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // Invalidate state (+ maybe invalidate aliases)
         ProcessCall(op_idx, op.Cast<CallOp>());
         break;
-      case Opcode::kPhi:
-        // Invalidate aliases
-        ProcessPhi(op_idx, op.Cast<PhiOp>());
-        break;
       case Opcode::kAssumeMap:
         // Update known maps
         ProcessAssumeMap(op_idx, op.Cast<AssumeMapOp>());
@@ -184,31 +205,81 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // Check for tagged -> word32 load replacement
         ProcessChange(op_idx, op.Cast<ChangeOp>());
         break;
+
+      case Opcode::kWordBinop:
+        // A WordBinop should never invalidate aliases (since the only time when
+        // it should take a non-aliasing object as input is for Smi checks).
+        DcheckWordBinop(op_idx, op.Cast<WordBinopOp>());
+        break;
+
+      case Opcode::kFrameState:
+      case Opcode::kDeoptimizeIf:
+      case Opcode::kComparison:
+#ifdef V8_ENABLE_WEBASSEMBLY
+      case Opcode::kTrapIf:
+#endif
+        // We explicitly break for these opcodes so that we don't call
+        // InvalidateAllNonAliasingInputs on their inputs, since they don't
+        // really create aliases. (and also, they don't write so it's
+        // fine to break)
+        DCHECK(!op.Effects().can_write());
+        break;
+
+      case Opcode::kDeoptimize:
+      case Opcode::kReturn:
+        // We explicitly break for these opcodes so that we don't call
+        // InvalidateAllNonAliasingInputs on their inputs, since they are block
+        // terminators without successors, meaning that it's not useful for the
+        // rest of the analysis to invalidate anything here.
+        DCHECK(op.IsBlockTerminator() && SuccessorBlocks(op).empty());
+        break;
+
+      case Opcode::kAtomicRMW:
+        ProcessAtomicRMW(op_idx, op.Cast<AtomicRMWOp>());
+        break;
+
       case Opcode::kCatchBlockBegin:
       case Opcode::kRetain:
       case Opcode::kDidntThrow:
       case Opcode::kCheckException:
-      case Opcode::kAtomicRMW:
       case Opcode::kAtomicWord32Pair:
       case Opcode::kMemoryBarrier:
-      case Opcode::kStackCheck:
       case Opcode::kParameter:
       case Opcode::kDebugBreak:
+      case Opcode::kJSStackCheck:
 #ifdef V8_ENABLE_WEBASSEMBLY
+      case Opcode::kWasmStackCheck:
       case Opcode::kSimd128LaneMemory:
       case Opcode::kGlobalSet:
       case Opcode::kArraySet:
       case Opcode::kStructSet:
       case Opcode::kSetStackPointer:
+      case Opcode::kMemoryCopy:
+      case Opcode::kMemoryFill:
+      case Opcode::kWasmIncCoverageCounter:
 #endif  // V8_ENABLE_WEBASSEMBLY
-        // We explicitely break for those operations that have can_write effects
+        // We explicitly break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
         break;
+
       default:
         // Operations that `can_write` should invalidate the state. All such
         // operations should be already handled above, which means that we don't
         // need a `if (can_write) { Invalidate(); }` here.
         CHECK(!op.Effects().can_write());
+
+        // Even if the operation doesn't write, it could create an alias to its
+        // input by returning it. This happens for instance in Phis and in
+        // Change (although ChangeOp is already handled earlier by calling
+        // ProcessChange). We are conservative here by calling
+        // InvalidateAllNonAliasingInputs for all operations even though only
+        // few can actually create aliases to fresh allocations, the reason
+        // being that missing such a case would be a security issue, and it
+        // should be rare for fresh allocations to be used outside of
+        // Call/Store/Load/Change anyways.
+        TRACE("> Process other op (id=" << op_idx << ")");
+        InvalidateAllNonAliasingInputs(op);
+
         break;
     }
   }
@@ -249,14 +320,18 @@ bool RepIsCompatible(RegisterRepresentation actual,
 
 void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
                                               const LoadOp& load) {
+  TRACE("> ProcessLoad(" << op_idx << ")");
+
   if (!load.kind.load_eliminable) {
     // We don't optimize Loads/Stores to addresses that could be accessed
     // non-canonically.
+    TRACE(">> Not load-eliminable; skipping");
     return;
   }
   if (load.kind.is_atomic) {
     // Atomic loads cannot be eliminated away, but potential concurrency
     // invalidates known stored values.
+    TRACE(">> Atomic load, invalidating related memory");
     memory_.Invalidate(load.base(), load.index(), load.offset);
     return;
   }
@@ -273,10 +348,16 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
     // Tagged and the other one Float64).
     DCHECK_EQ(replacement.outputs_rep().size(), 1);
     DCHECK_EQ(load.outputs_rep().size(), 1);
+    TRACE(">> Found potential replacement at offset " << existing);
     if (RepIsCompatible(replacement.outputs_rep()[0], load.outputs_rep()[0],
                         load.loaded_rep)) {
+      TRACE(">>> Confirming replacement");
       replacements_[op_idx] = Replacement::LoadElimination(existing);
       return;
+    } else {
+      TRACE(">>> Replacement has wrong representation: "
+            << replacement.outputs_rep()[0] << " instead of "
+            << load.outputs_rep()[0]);
     }
   }
   // Reset the replacement of {op_idx} to Invalid, in case a previous visit of a
@@ -293,6 +374,7 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
       base != nullptr && base->kind == ConstantOp::Kind::kExternal) {
     // External constants can be written by other threads, so we don't
     // load-eliminate them, in order to always reload them.
+    TRACE(">> Ignoring load from External constant");
     return;
   }
 
@@ -301,6 +383,7 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
 
 void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
                                                const StoreOp& store) {
+  TRACE("> ProcessStore(" << op_idx << ")");
   // If we have a raw base and we allow those to be inner pointers, we can
   // overwrite arbitrary values and need to invalidate anything that is
   // potentially aliasing.
@@ -308,24 +391,62 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
       !store.kind.tagged_base &&
       raw_base_assumption_ == RawBaseAssumption::kMaybeInnerPointer;
 
-  if (invalidate_maybe_aliasing) memory_.InvalidateMaybeAliasing();
+  if (invalidate_maybe_aliasing) {
+    TRACE(
+        ">> Raw base or maybe inner pointer ==> Invalidating whole "
+        "maybe-aliasing memory");
+    memory_.InvalidateMaybeAliasing();
+  }
 
   if (!store.kind.load_eliminable) {
     // We don't optimize Loads/Stores to addresses that could be accessed
     // non-canonically.
+    TRACE(">> Not load-eliminable; skipping");
     return;
   }
-
-  OpIndex value = store.value();
 
   // Updating the known stored values.
   if (!invalidate_maybe_aliasing) memory_.Invalidate(store);
   memory_.Insert(store);
 
   // Updating aliases if the value stored was known as non-aliasing.
+  OpIndex value = store.value();
   if (non_aliasing_objects_.HasKeyFor(value)) {
+    TRACE(">> Invalidate non-alias for value=" << value);
     non_aliasing_objects_.Set(value, false);
   }
+
+  // If we just stored a map, invalidate all object_maps_.
+  if (store.offset == HeapObject::kMapOffset && !store.index().valid()) {
+    // TODO(dmercadier): can we only do this for objects that are potentially
+    // aliasing with the `base` (based on their maps and the maps of `base`)?
+    // Also, it might be worth to record a new map if this is actually a map
+    // store.
+    // TODO(dmercadier): do this only if `value` is a Constant with kind
+    // kHeapObject, since all map stores should store a known constant maps.
+    TRACE(">> Wiping all maps\n");
+    for (auto it : object_maps_) {
+      object_maps_.Set(it.second, MapMaskAndOr{});
+    }
+  }
+}
+
+void LateLoadEliminationAnalyzer::ProcessAtomicRMW(OpIndex op_idx,
+                                                   const AtomicRMWOp& store) {
+#if V8_ENABLE_WEBASSEMBLY
+  TRACE("> ProcessAtomicRMW(" << op_idx << ")");
+  // With shared-everything-treads atomic rmw operations are also used for heap
+  // operations. If the atomic operation is not operating on linear memory, we
+  // need to invalidate it. TODO(mliedtke): Only invalidate the potentially
+  // aliasing information.
+  if (!v8_flags.experimental_wasm_shared ||
+      store.base_rep == RegisterRepresentation::WordPtr()) {
+    TRACE(">> Skipping operation on linear memory");
+    return;
+  }
+  TRACE(">> Invalidating whole maybe-aliasing memory");
+  memory_.InvalidateMaybeAliasing();
+#endif
 }
 
 // Since we only loosely keep track of what can or can't alias, we assume that
@@ -334,6 +455,7 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
 // call if it was an argument of the call.
 void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
                                               const CallOp& op) {
+  TRACE("> ProcessCall(" << op_idx << ")");
   const Operation& callee = graph_.Get(op.callee());
 #ifdef DEBUG
   if (const ConstantOp* external_constant =
@@ -348,21 +470,24 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
   // Some builtins do not create aliases and do not invalidate existing
   // memory, and some even return fresh objects. For such cases, we don't
   // invalidate the state, and record the non-alias if any.
-  if (!op.Effects().can_write()) return;
-  // Note: This does not detect wasm stack checks, but those are detected by the
-  // check just above.
-  if (op.IsStackCheck(graph_, broker_, StackCheckKind::kJSIterationBody)) {
-    // This is a stack check that cannot write heap memory.
+  if (!op.Effects().can_write()) {
+    TRACE(">> Call doesn't write, skipping");
     return;
   }
-  if (auto builtin_id =
-          TryGetBuiltinId(callee.TryCast<ConstantOp>(), broker_)) {
+
+  auto builtin_id = TryGetBuiltinId(callee.TryCast<ConstantOp>(), broker_);
+
+  if (builtin_id) {
     switch (*builtin_id) {
       // TODO(dmercadier): extend this list.
       case Builtin::kCopyFastSmiOrObjectElements:
         // This function just replaces the Elements array of an object.
         // It doesn't invalidate any alias or any other memory than this
         // Elements array.
+        TRACE(
+            ">> Call is CopyFastSmiOrObjectElements, invalidating only "
+            "Elements for "
+            << op.arguments()[0]);
         memory_.Invalidate(op.arguments()[0], OpIndex::Invalid(),
                            JSObject::kElementsOffset);
         return;
@@ -370,16 +495,56 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
         break;
     }
   }
+
   // Not a builtin call, or not a builtin that we know doesn't invalidate
   // memory.
+  InvalidateAllNonAliasingInputs(op);
 
-  for (OpIndex input : op.inputs()) {
-    InvalidateIfAlias(input);
+  if (builtin_id) {
+    switch (*builtin_id) {
+      case Builtin::kCreateShallowObjectLiteral:
+        // This builtin creates a fresh non-aliasing object.
+        non_aliasing_objects_.Set(op_idx, true);
+        break;
+      default:
+        break;
+    }
   }
 
   // The call could modify arbitrary memory, so we invalidate every
   // potentially-aliasing object.
   memory_.InvalidateMaybeAliasing();
+}
+
+// The only time an Allocate should flow into a WordBinop is for Smi checks
+// (which, by the way, should be removed by MachineOptimizationReducer (since
+// Allocate never returns a Smi), but there is no guarantee that this happens
+// before load elimination). So, there is no need to invalidate non-aliases, and
+// we just DCHECK in this function that indeed, nothing else than a Smi check
+// happens on non-aliasing objects.
+void LateLoadEliminationAnalyzer::DcheckWordBinop(OpIndex op_idx,
+                                                  const WordBinopOp& binop) {
+#ifdef DEBUG
+  auto check = [&](V<Word> left, V<Word> right) {
+    if (auto key = non_aliasing_objects_.TryGetKeyFor(left);
+        key.has_value() && non_aliasing_objects_.Get(*key)) {
+      int64_t cst;
+      DCHECK_EQ(binop.kind, WordBinopOp::Kind::kBitwiseAnd);
+      DCHECK(OperationMatcher(graph_).MatchSignedIntegralConstant(right, &cst));
+      DCHECK_EQ(cst, kSmiTagMask);
+    }
+  };
+  check(binop.left(), binop.right());
+  check(binop.right(), binop.left());
+#endif
+}
+
+void LateLoadEliminationAnalyzer::InvalidateAllNonAliasingInputs(
+    const Operation& op) {
+  TRACE(">> InvalidateAllNonAliasingInputs for " << op);
+  for (OpIndex input : op.inputs()) {
+    InvalidateIfAlias(input);
+  }
 }
 
 void LateLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
@@ -388,41 +553,53 @@ void LateLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
     // An known non-aliasing object was passed as input to the Call; the Call
     // could create aliases, so we have to consider going forward that this
     // object could actually have aliases.
+    TRACE(">> InvalidateIfAlias: invalidating for id=" << op_idx);
     non_aliasing_objects_.Set(*key, false);
   }
   if (const FrameStateOp* frame_state =
           graph_.Get(op_idx).TryCast<FrameStateOp>()) {
+    TRACE(
+        ">> InvalidateIfAlias: recursively invalidating for FrameState inputs "
+        "(FrameState id="
+        << op_idx << ")");
     // We also mark the arguments of FrameState passed on to calls as
     // potentially-aliasing, because they could be accessed by the caller with a
     // function_name.arguments[index].
     // TODO(dmercadier): this is more conservative that we'd like, since only a
     // few functions use .arguments. Using a native-context-specific protector
     // for .arguments might allow to avoid invalidating frame states' content.
+    // Actually, FrameStates should know if they are inlined or not, and they
+    // should know what their inputs are (ie, locals, parameters, etc.). So, we
+    // should be able to inspect FrameStates and invalidate only Parameters.
     for (OpIndex input : frame_state->inputs()) {
       InvalidateIfAlias(input);
     }
   }
 }
 
-void LateLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
-                                                  const AllocateOp&) {
-  non_aliasing_objects_.Set(op_idx, true);
+void LateLoadEliminationAnalyzer::InvalidateAllMaps() {
+  TRACE(">> InvalidateAllMaps");
+  memory_.InvalidateAtMapOffset();
+  TRACE(">>> Wiping all maps\n");
+  for (auto it : object_maps_) {
+    object_maps_.Set(it.second, MapMaskAndOr{});
+  }
 }
 
-void LateLoadEliminationAnalyzer::ProcessPhi(OpIndex op_idx, const PhiOp& phi) {
-  for (OpIndex input : phi.inputs()) {
-    if (auto key = non_aliasing_objects_.TryGetKeyFor(input)) {
-      non_aliasing_objects_.Set(*key, false);
-    }
-    // If {non_aliasing_objects_} has no key for {input}, then {input} was not
-    // known as non-aliasing (and is thus considered by default as
-    // maybe-aliasing), so there is no need to create an entry for it in
-    // {non_aliasing_objects_}.
-  }
+void LateLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
+                                                  const AllocateOp&) {
+  TRACE("> ProcessAllocate(" << op_idx << ") ==> Fresh non-aliasing object");
+  non_aliasing_objects_.Set(op_idx, true);
+
+  // Allocate can trigger a GC, which can shortcut references to strings after
+  // flattening. That will change the map we see on repeated loads.
+  // TODO(nicohartmann): See if we can limit this to fewer cases.
+  InvalidateAllMaps();
 }
 
 void LateLoadEliminationAnalyzer::ProcessAssumeMap(
     OpIndex op_idx, const AssumeMapOp& assume_map) {
+  TRACE("> ProcessAssumeMap(" << op_idx << ")");
   OpIndex object = assume_map.heap_object();
   object_maps_.Set(object, CombineMinMax(object_maps_.Get(object),
                                          ComputeMinMaxHash(assume_map.maps)));
@@ -456,6 +633,7 @@ bool IsInt32TruncatedLoadPattern(const Graph& graph, OpIndex change_idx,
 
 void LateLoadEliminationAnalyzer::ProcessChange(OpIndex op_idx,
                                                 const ChangeOp& change) {
+  TRACE("> ProcessChange(" << op_idx << ")");
   // We look for this special case:
   // TruncateWord64ToWord32(BitcastTaggedToWordPtrForTagAndSmiBits(Load(x))) =>
   // Load(x)
@@ -465,6 +643,8 @@ void LateLoadEliminationAnalyzer::ProcessChange(OpIndex op_idx,
                                   &load_idx)) {
     int32_truncated_loads_[load_idx][op_idx] = bitcast_idx;
   }
+
+  InvalidateIfAlias(change.input());
 }
 
 void LateLoadEliminationAnalyzer::FinishBlock(const Block* block) {

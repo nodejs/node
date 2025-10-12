@@ -10,10 +10,21 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-FrameElider::FrameElider(InstructionSequence* code, bool has_dummy_end_block)
-    : code_(code), has_dummy_end_block_(has_dummy_end_block) {}
+FrameElider::FrameElider(InstructionSequence* code, bool has_dummy_end_block,
+                         bool is_wasm_to_js)
+    : code_(code),
+      has_dummy_end_block_(has_dummy_end_block),
+      is_wasm_to_js_(is_wasm_to_js) {}
 
 void FrameElider::Run() {
+  if (!v8_flags.turbo_elide_frames) {
+#ifdef DEBUG
+    for (InstructionBlock* block : instruction_blocks()) {
+      CHECK(block->needs_frame());
+    }
+#endif
+    return;
+  }
   MarkBlocks();
   PropagateMarks();
   MarkDeConstruction();
@@ -31,14 +42,18 @@ void FrameElider::MarkBlocks() {
         break;
       }
       if (instr->arch_opcode() == ArchOpcode::kArchStackSlot &&
-          instr->InputAt(0)->IsImmediate() &&
-          code_->GetImmediate(ImmediateOperand::cast(instr->InputAt(0)))
-                  .ToInt32() > 0) {
+          ((instr->InputAt(0)->IsImmediate() &&
+            code_->GetImmediate(ImmediateOperand::cast(instr->InputAt(0)))
+                    .ToInt32() > 0) ||
+           is_wasm_to_js_)) {
         // We shouldn't allow accesses to the stack below the current stack
         // pointer (indicated by positive slot indices).
         // This is in particular because signal handlers (which could, of
         // course, be triggered at any point in time) will overwrite this
         // memory.
+        // Additionally wasm-to-JS code always requires a frame to address
+        // stack slots, because the stack pointer may switch to the central
+        // stack at the beginning of the code.
         block->mark_needs_frame();
         break;
       }
@@ -75,14 +90,21 @@ void FrameElider::MarkDeConstruction() {
           DCHECK_EQ(1U, block->SuccessorCount());
           const Instruction* last =
               InstructionAt(block->last_instruction_index());
-          if (last->IsThrow() || last->IsTailCall() ||
-              last->IsDeoptimizeCall()) {
+          if (last->IsTailCall() || last->IsDeoptimizeCall()) {
             // We need to keep the frame if we exit the block through any
             // of these.
             continue;
           }
           // The only cases when we need to deconstruct are ret and jump.
           DCHECK(last->IsRet() || last->IsJump());
+          block->mark_must_deconstruct_frame();
+        }
+      }
+      if (block->SuccessorCount() == 0) {
+        const Instruction* last =
+            InstructionAt(block->last_instruction_index());
+        // The only cases when we need to deconstruct are ret and jump.
+        if (last->IsRet() || last->IsJump()) {
           block->mark_must_deconstruct_frame();
         }
       }

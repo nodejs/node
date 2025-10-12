@@ -9,6 +9,7 @@
 
 #include "include/v8-platform.h"
 #include "src/base/base-export.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 
 namespace v8 {
@@ -54,6 +55,8 @@ class V8_BASE_EXPORT VirtualAddressSpacePageAllocator
   bool DiscardSystemPages(void* address, size_t size) override;
 
   bool DecommitPages(void* address, size_t size) override;
+
+  bool SealPages(void* address, size_t size) override;
 
  private:
   // Client of this class must keep the VirtualAddressSpace alive during the

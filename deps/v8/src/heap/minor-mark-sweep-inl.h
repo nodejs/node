@@ -5,12 +5,15 @@
 #ifndef V8_HEAP_MINOR_MARK_SWEEP_INL_H_
 #define V8_HEAP_MINOR_MARK_SWEEP_INL_H_
 
+#include "src/heap/minor-mark-sweep.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <atomic>
+#include <optional>
 
 #include "src/base/build_config.h"
 #include "src/common/globals.h"
-#include "src/heap/minor-mark-sweep.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/young-generation-marking-visitor-inl.h"
 #include "src/objects/heap-object.h"
@@ -57,7 +60,7 @@ void YoungGenerationRootMarkingVisitor::VisitPointersImpl(Root root,
 
 template <typename Visitor>
 bool YoungGenerationRememberedSetsMarkingWorklist::ProcessNextItem(
-    Visitor* visitor, base::Optional<size_t>& index) {
+    Visitor* visitor, std::optional<size_t>& index) {
   if (remaining_remembered_sets_marking_items_.load(
           std::memory_order_relaxed) == 0) {
     return false;
@@ -81,8 +84,6 @@ bool YoungGenerationRememberedSetsMarkingWorklist::ProcessNextItem(
 template <typename Visitor>
 void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::Process(
     Visitor* visitor) {
-  CodePageHeaderModificationScope header_modification_scope(
-      "Marking modifies the remembered sets in the page header");
   if (slots_type_ == SlotsType::kRegularSlots) {
     MarkUntypedPointers(visitor);
   } else {
@@ -103,7 +104,7 @@ void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
         RememberedSet<OLD_TO_NEW>::template Iterate<AccessMode::NON_ATOMIC>(
             slot_set_, chunk_, callback, SlotSet::FREE_EMPTY_BUCKETS);
     if (slot_count == 0) {
-      SlotSet::Delete(slot_set_, chunk_->buckets());
+      SlotSet::Delete(slot_set_);
       slot_set_ = nullptr;
     }
   }
@@ -113,7 +114,7 @@ void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
             AccessMode::NON_ATOMIC>(background_slot_set_, chunk_, callback,
                                     SlotSet::FREE_EMPTY_BUCKETS);
     if (slot_count == 0) {
-      SlotSet::Delete(background_slot_set_, chunk_->buckets());
+      SlotSet::Delete(background_slot_set_);
       background_slot_set_ = nullptr;
     }
   }
@@ -145,8 +146,8 @@ V8_INLINE SlotCallbackResult
 YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::CheckAndMarkObject(
     Visitor* visitor, TSlot slot) {
   static_assert(
-      std::is_same<TSlot, FullMaybeObjectSlot>::value ||
-          std::is_same<TSlot, MaybeObjectSlot>::value,
+      std::is_same_v<TSlot, FullMaybeObjectSlot> ||
+          std::is_same_v<TSlot, MaybeObjectSlot>,
       "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
   return visitor->VisitObjectViaSlotInRememberedSet(slot) ? KEEP_SLOT
                                                           : REMOVE_SLOT;

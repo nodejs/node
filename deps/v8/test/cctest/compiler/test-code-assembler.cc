@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-function.h"
+#include "src/api/api-inl.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/compiler/code-assembler.h"
 #include "src/compiler/node-properties.h"
@@ -64,7 +66,7 @@ TEST(SimpleIntPtrReturn) {
   m.Return(m.BitcastWordToTagged(
       m.IntPtrConstant(reinterpret_cast<intptr_t>(&test))));
   FunctionTester ft(asm_tester.GenerateCode());
-  MaybeHandle<Object> result = ft.Call();
+  MaybeDirectHandle<Object> result = ft.Call();
   CHECK_EQ(reinterpret_cast<Address>(&test), (*result.ToHandleChecked()).ptr());
 }
 
@@ -157,13 +159,13 @@ TEST(SimpleCallJSFunction0Arg) {
     auto receiver = SmiTag(&m, m.IntPtrConstant(42));
 
     TNode<Object> result =
-        m.CallJS(Builtins::Call(), context, function, {}, receiver);
+        m.CallJS(Builtins::Call(), context, function, receiver);
     m.Return(result);
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(&ft);
-  MaybeHandle<Object> result = ft.Call(sum);
+  MaybeDirectHandle<Object> result = ft.Call(sum);
   CHECK_EQ(Smi::FromInt(42), *result.ToHandleChecked());
 }
 
@@ -180,13 +182,13 @@ TEST(SimpleCallJSFunction1Arg) {
     auto a = SmiTag(&m, m.IntPtrConstant(13));
 
     TNode<Object> result =
-        m.CallJS(Builtins::Call(), context, function, {}, receiver, a);
+        m.CallJS(Builtins::Call(), context, function, receiver, a);
     m.Return(result);
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(&ft);
-  MaybeHandle<Object> result = ft.Call(sum);
+  MaybeDirectHandle<Object> result = ft.Call(sum);
   CHECK_EQ(Smi::FromInt(55), *result.ToHandleChecked());
 }
 
@@ -204,13 +206,13 @@ TEST(SimpleCallJSFunction2Arg) {
     auto b = SmiTag(&m, m.IntPtrConstant(153));
 
     TNode<Object> result =
-        m.CallJS(Builtins::Call(), context, function, {}, receiver, a, b);
+        m.CallJS(Builtins::Call(), context, function, receiver, a, b);
     m.Return(result);
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(&ft);
-  MaybeHandle<Object> result = ft.Call(sum);
+  MaybeDirectHandle<Object> result = ft.Call(sum);
   CHECK_EQ(Smi::FromInt(208), *result.ToHandleChecked());
 }
 
@@ -477,7 +479,7 @@ TEST(TestCodeAssemblerCodeComment) {
   m.Comment("Comment1");
   m.Return(m.SmiConstant(1));
 
-  Handle<Code> code = asm_tester.GenerateCode();
+  DirectHandle<Code> code = asm_tester.GenerateCode();
   CHECK_NE(code->code_comments(), kNullAddress);
   CodeCommentsIterator it(code->code_comments(), code->code_comments_size());
   CHECK(it.HasCurrent());
@@ -498,6 +500,48 @@ TEST(StaticAssert) {
   CodeAssembler m(asm_tester.state());
   m.StaticAssert(m.ReinterpretCast<BoolT>(m.Int32Constant(1)));
   USE(asm_tester.GenerateCode());
+}
+
+TEST(ClearStaleDispatchHandleEntry) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  HandleScope outer(isolate);
+
+  // This handle will keep alive the old optimized code below.
+  DirectHandle<Code> old_code;
+
+  {
+    HandleScope inner(isolate);
+    DirectHandle<Code> new_code;
+
+    {
+      CodeAssemblerTester asm_tester(isolate, JSParameterCount(1));
+      CodeAssembler m(asm_tester.state());
+      m.Return(SmiTag(&m, m.IntPtrConstant(42)));
+      new_code = asm_tester.GenerateCodeCloseAndEscape();
+    }
+
+    const char* source = "(function (a) {})";
+    Handle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CompileRun(source))));
+
+    {
+      Zone zone(isolate->allocator(), ZONE_NAME);
+      Optimize(function, &zone, isolate, 0);
+    }
+
+    old_code = direct_handle(function->code(isolate), isolate);
+    function->UpdateCode(isolate, *new_code);
+    old_code = inner.CloseAndEscape(old_code);
+
+    // The function has been updated with new code. The entry in the dispatch
+    // handle table now points to the new code. However, both the function and
+    // the new code object are not reachable after this scope closes and will
+    // be reclaimed by the GC. On the other hand, the old code escapes and
+    // will not be reclaimed.
+  }
+
+  // The GC should correctly clear the stale dispatch table entry.
+  isolate->heap()->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
 }
 
 }  // namespace compiler

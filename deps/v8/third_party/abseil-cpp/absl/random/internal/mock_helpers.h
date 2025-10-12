@@ -16,16 +16,25 @@
 #ifndef ABSL_RANDOM_INTERNAL_MOCK_HELPERS_H_
 #define ABSL_RANDOM_INTERNAL_MOCK_HELPERS_H_
 
-#include <tuple>
-#include <type_traits>
 #include <utility>
 
-#include "absl/base/internal/fast_type_id.h"
+#include "absl/base/config.h"
+#include "absl/base/fast_type_id.h"
 #include "absl/types/optional.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace random_internal {
+
+// A no-op validator meeting the ValidatorT requirements for MockHelpers.
+//
+// Custom validators should follow a similar structure, passing the type to
+// MockHelpers::MockFor<KeyT>(m, CustomValidatorT()).
+struct NoOpValidator {
+  // Default validation: do nothing.
+  template <typename ResultT, typename... Args>
+  static void Validate(ResultT, Args&&...) {}
+};
 
 // MockHelpers works in conjunction with MockOverloadSet, MockingBitGen, and
 // BitGenRef to enable the mocking capability for absl distribution functions.
@@ -39,7 +48,7 @@ namespace random_internal {
 //   result_type(args...)
 //
 class MockHelpers {
-  using IdType = ::absl::base_internal::FastTypeIdType;
+  using IdType = ::absl::FastTypeIdType;
 
   // Given a key signature type used to index the mock, extract the components.
   // KeyT is expected to have the form:
@@ -73,8 +82,7 @@ class MockHelpers {
                                                 Args&&... args) {
     ArgTupleT arg_tuple(std::forward<Args>(args)...);
     ReturnT result;
-    if (urbg->InvokeMock(::absl::base_internal::FastTypeId<KeyT>(), &arg_tuple,
-                         &result)) {
+    if (urbg->InvokeMock(FastTypeId<KeyT>(), &arg_tuple, &result)) {
       return result;
     }
     return absl::nullopt;
@@ -83,9 +91,9 @@ class MockHelpers {
  public:
   // InvokeMock is private; this provides access for some specialized use cases.
   template <typename URBG>
-  static inline bool PrivateInvokeMock(URBG* urbg, IdType type,
+  static inline bool PrivateInvokeMock(URBG* urbg, IdType key_id,
                                        void* args_tuple, void* result) {
-    return urbg->InvokeMock(type, args_tuple, result);
+    return urbg->InvokeMock(key_id, args_tuple, result);
   }
 
   // Invoke a mock for the KeyT (may or may not be a signature).
@@ -109,6 +117,29 @@ class MockHelpers {
         0, urbg, std::forward<Args>(args)...);
   }
 
+  // Acquire a mock for the KeyT (may or may not be a signature), set up to use
+  // the ValidatorT to verify that the result is in the range of the RNG
+  // function.
+  //
+  // KeyT is used to generate a typeid-based lookup for the mock.
+  // KeyT is a signature of the form:
+  //   result_type(discriminator_type, std::tuple<args...>)
+  // The mocked function signature will be composed from KeyT as:
+  //   result_type(args...)
+  // ValidatorT::Validate will be called after the result of the RNG. The
+  //   signature is expected to be of the form:
+  //      ValidatorT::Validate(result, args...)
+  template <typename KeyT, typename ValidatorT, typename MockURBG>
+  static auto MockFor(MockURBG& m, ValidatorT)
+      -> decltype(m.template RegisterMock<
+                  typename KeySignature<KeyT>::result_type,
+                  typename KeySignature<KeyT>::arg_tuple_type>(
+          m, std::declval<IdType>(), ValidatorT())) {
+    return m.template RegisterMock<typename KeySignature<KeyT>::result_type,
+                                   typename KeySignature<KeyT>::arg_tuple_type>(
+        m, ::absl::FastTypeId<KeyT>(), ValidatorT());
+  }
+
   // Acquire a mock for the KeyT (may or may not be a signature).
   //
   // KeyT is used to generate a typeid-based lookup for the mock.
@@ -117,14 +148,8 @@ class MockHelpers {
   // The mocked function signature will be composed from KeyT as:
   //   result_type(args...)
   template <typename KeyT, typename MockURBG>
-  static auto MockFor(MockURBG& m)
-      -> decltype(m.template RegisterMock<
-                  typename KeySignature<KeyT>::result_type,
-                  typename KeySignature<KeyT>::arg_tuple_type>(
-          m, std::declval<IdType>())) {
-    return m.template RegisterMock<typename KeySignature<KeyT>::result_type,
-                                   typename KeySignature<KeyT>::arg_tuple_type>(
-        m, ::absl::base_internal::FastTypeId<KeyT>());
+  static decltype(auto) MockFor(MockURBG& m) {
+    return MockFor<KeyT>(m, NoOpValidator());
   }
 };
 

@@ -15,7 +15,7 @@ extern builtin CallVarargs(
     FixedArray  // arguments list
     ): JSAny;
 
-macro ConvertToAndFromWasm(context: Context, wasmType: int32, value: JSAny):
+macro ConvertToAndFromWasm(context: Context, wasmType: uint32, value: JSAny):
     JSAny {
   if (wasmType == kWasmI32Type) {
     typeswitch (value) {
@@ -40,15 +40,15 @@ macro ConvertToAndFromWasm(context: Context, wasmType: int32, value: JSAny):
   } else if (wasmType == kWasmF64Type) {
     return Convert<Number>(WasmTaggedToFloat64(value));
   } else {
-    const wasmKind = wasmType & kValueTypeKindBitsMask;
-    dcheck(wasmKind == ValueKind::kRef || wasmKind == ValueKind::kRefNull);
+    dcheck((wasmType & kValueTypeIsRefBit) != 0);
     if (value == Null) {
       // At the moment it is not possible to define non-nullable types for
       // WebAssembly.Functions.
       return value;
     }
-    const heapType = (wasmType >> kValueTypeKindBits) & kValueTypeHeapTypeMask;
-    if (heapType != HeapType::kFunc) {
+    const refKind =
+        (wasmType & kValueTypeRefKindBits) >>> kValueTypeRefKindShift;
+    if (refKind != ToUint(RefTypeKind::kFunction)) {
       // We only have to check funcrefs.
       return value;
     }
@@ -63,29 +63,40 @@ macro ConvertToAndFromWasm(context: Context, wasmType: int32, value: JSAny):
 
 extern runtime WasmThrowJSTypeError(Context): never;
 
+// The varargs arguments is just there so that the generated Code has a
+// parameter_count of 0 (kDontAdaptArgumentsSentinel) and so becomes compatible
+// with an existing entry in the JSDispatchTable.
 transitioning javascript builtin JSToJSWrapperInvalidSig(
-    js-implicit context: NativeContext)(): JSAny {
+    js-implicit context: NativeContext)(...arguments): JSAny {
   runtime::WasmThrowJSTypeError(context);
 }
 
 transitioning javascript builtin JSToJSWrapper(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
-    ...arguments): JSAny {
-  const functionData =
-      UnsafeCast<WasmFunctionData>(target.shared_function_info.function_data);
-  const ref = UnsafeCast<WasmApiFunctionRef>(functionData.internal.ref);
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
+    dispatchHandle: DispatchHandle)(...arguments): JSAny {
+  // This is a generic builtin that can be installed on functions with different
+  // parameter counts, so we need to support that.
+  SetSupportsDynamicParameterCount(target, dispatchHandle);
 
-  const signaturePod = &ref.sig.bytes;
-  const serializedSig = torque_internal::unsafe::NewConstSlice<int32>(
-      signaturePod.object, signaturePod.offset,
-      signaturePod.length / torque_internal::SizeOf<int32>());
-  const returnCount =
-      Convert<intptr>(*torque_internal::unsafe::NewReference<int32>(
-          serializedSig.object, serializedSig.offset));
-  const paramCount: intptr = serializedSig.length - returnCount - 1;
-  const returnTypes = Subslice(serializedSig, Convert<intptr>(1), returnCount)
-      otherwise unreachable;
-  const paramTypes = Subslice(serializedSig, returnCount + 1, paramCount)
+  const functionData = target.shared_function_info.wasm_js_function_data;
+
+  const importData =
+      UnsafeCast<WasmImportData>(functionData.internal.implicit_arg);
+
+  const returnCount = *torque_internal::unsafe::NewOffHeapReference(
+      %RawDownCast<RawPtr<intptr>>(importData.sig + 0));
+  const paramCount = *torque_internal::unsafe::NewOffHeapReference(
+      %RawDownCast<RawPtr<intptr>>(
+          importData.sig + torque_internal::SizeOf<intptr>()));
+  const valueTypesStorage = *torque_internal::unsafe::NewOffHeapReference(
+      %RawDownCast<RawPtr<RawPtr<uint32>>>(
+          importData.sig + 2 * torque_internal::SizeOf<intptr>()));
+  const signatureValueTypes =
+      torque_internal::unsafe::NewOffHeapConstSlice<uint32>(
+          valueTypesStorage, paramCount + returnCount);
+  const returnTypes =
+      Subslice(signatureValueTypes, 0, returnCount) otherwise unreachable;
+  const paramTypes = Subslice(signatureValueTypes, returnCount, paramCount)
       otherwise unreachable;
 
   const numOutParams = paramCount + 1;
@@ -106,7 +117,7 @@ transitioning javascript builtin JSToJSWrapper(
 
   dcheck(nextIndex == numOutParams);
   const calleeResult = CallVarargs(
-      context, ref.callable, 0, Convert<int32>(numOutParams), outParams);
+      context, importData.callable, 0, Convert<int32>(numOutParams), outParams);
 
   let result: JSAny;
   if (returnCount == 0) {
@@ -131,20 +142,6 @@ transitioning javascript builtin JSToJSWrapper(
     result = resultArray;
   }
 
-  // The normal return sequence of Torque-generated JavaScript builtins does not
-  // consider the case where the caller may push additional "undefined"
-  // parameters on the stack, and therefore does not generate code to pop these
-  // additional parameters. Here we calculate the actual number of parameters on
-  // the stack. This number is the number of actual parameters provided by the
-  // caller, which is `arguments.length`, or the number of declared arguments,
-  // if not enough actual parameters were provided, i.e.
-  // `SharedFunctionInfo::length`.
-  let popCount = arguments.length;
-  const declaredArgCount = paramCount;
-  if (declaredArgCount > popCount) {
-    popCount = declaredArgCount;
-  }
-  // Also pop the receiver.
-  PopAndReturn(popCount + 1, result);
+  return result;
 }
 }

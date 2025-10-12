@@ -40,7 +40,7 @@
 #include <sys/utsname.h>
 #endif
 
-#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#if V8_TARGET_ARCH_PPC64
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
@@ -75,10 +75,12 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 // Probe for additional features at runtime.
 #ifdef USE_SIMULATOR
   // Simulator
-  supported_ |= (1u << PPC_10_PLUS);
+  supported_ |= (1u << PPC_11_PLUS);
 #else
   base::CPU cpu;
-  if (cpu.part() == base::CPU::kPPCPower10) {
+  if (cpu.part() == base::CPU::kPPCPower11) {
+    supported_ |= (1u << PPC_11_PLUS);
+  } else if (cpu.part() == base::CPU::kPPCPower10) {
 #if defined(__PASE__)
     // Some P10 features such as prefixed isns will only be supported in future
     // ibmi versions. We only enable full power 10 features if version>7.4
@@ -99,10 +101,6 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     supported_ |= (1u << PPC_9_PLUS);
   } else if (cpu.part() == base::CPU::kPPCPower8) {
     supported_ |= (1u << PPC_8_PLUS);
-  } else if (cpu.part() == base::CPU::kPPCPower7) {
-    supported_ |= (1u << PPC_7_PLUS);
-  } else if (cpu.part() == base::CPU::kPPCPower6) {
-    supported_ |= (1u << PPC_6_PLUS);
   }
 #if V8_OS_LINUX
   if (cpu.icache_line_size() != base::CPU::kUnknownCacheLineSize) {
@@ -110,10 +108,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
 #endif
 #endif
+  if (supported_ & (1u << PPC_11_PLUS)) supported_ |= (1u << PPC_10_PLUS);
   if (supported_ & (1u << PPC_10_PLUS)) supported_ |= (1u << PPC_9_PLUS);
   if (supported_ & (1u << PPC_9_PLUS)) supported_ |= (1u << PPC_8_PLUS);
-  if (supported_ & (1u << PPC_8_PLUS)) supported_ |= (1u << PPC_7_PLUS);
-  if (supported_ & (1u << PPC_7_PLUS)) supported_ |= (1u << PPC_6_PLUS);
 
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
@@ -124,22 +121,15 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 void CpuFeatures::PrintTarget() {
   const char* ppc_arch = nullptr;
-
-#if V8_TARGET_ARCH_PPC64
   ppc_arch = "ppc64";
-#else
-  ppc_arch = "ppc";
-#endif
-
   printf("target %s\n", ppc_arch);
 }
 
 void CpuFeatures::PrintFeatures() {
-  printf("PPC_6_PLUS=%d\n", CpuFeatures::IsSupported(PPC_6_PLUS));
-  printf("PPC_7_PLUS=%d\n", CpuFeatures::IsSupported(PPC_7_PLUS));
   printf("PPC_8_PLUS=%d\n", CpuFeatures::IsSupported(PPC_8_PLUS));
   printf("PPC_9_PLUS=%d\n", CpuFeatures::IsSupported(PPC_9_PLUS));
   printf("PPC_10_PLUS=%d\n", CpuFeatures::IsSupported(PPC_10_PLUS));
+  printf("PPC_11_PLUS=%d\n", CpuFeatures::IsSupported(PPC_11_PLUS));
 }
 
 Register ToRegister(int num) {
@@ -207,17 +197,11 @@ MemOperand::MemOperand(Register ra, Register rb)
 MemOperand::MemOperand(Register ra, Register rb, int64_t offset)
     : ra_(ra), offset_(offset), rb_(rb) {}
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
-  for (auto& request : heap_number_requests_) {
-    Handle<HeapObject> object =
-        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-            request.heap_number());
-    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    Address constant_pool = kNullAddress;
-    set_target_address_at(pc, constant_pool, object.address(),
-                          SKIP_ICACHE_FLUSH);
-  }
+void Assembler::PatchInHeapNumberRequest(Address pc,
+                                         Handle<HeapNumber> object) {
+  Address constant_pool = kNullAddress;
+  set_target_address_at(pc, constant_pool, object.address(), nullptr,
+                        SKIP_ICACHE_FLUSH);
 }
 
 // -----------------------------------------------------------------------------
@@ -226,7 +210,8 @@ void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_({ip}),
+      scratch_register_list_(DefaultTmpList()),
+      scratch_double_register_list_(DefaultFPTmpList()),
       constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
@@ -270,8 +255,12 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
   // TODO(jgruber): Reconsider how these offsets and sizes are maintained up to
   // this point to make CodeDesc initialization less fiddly.
 
+  static constexpr int kBuiltinJumpTableInfoSize = 0;
   const int instruction_size = pc_offset();
-  const int code_comments_offset = instruction_size - code_comments_size;
+  const int builtin_jump_table_info_offset =
+      instruction_size - kBuiltinJumpTableInfoSize;
+  const int code_comments_offset =
+      builtin_jump_table_info_offset - code_comments_size;
   const int constant_pool_offset = code_comments_offset - constant_pool_size;
   const int handler_table_offset2 = (handler_table_offset == kNoHandlerTable)
                                         ? constant_pool_offset
@@ -284,7 +273,8 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
                        handler_table_offset2, constant_pool_offset,
-                       code_comments_offset, reloc_info_offset);
+                       code_comments_offset, builtin_jump_table_info_offset,
+                       reloc_info_offset);
 }
 
 void Assembler::Align(int m) {
@@ -330,7 +320,6 @@ Register Assembler::GetRB(Instr instr) {
   return Register::from_code(Instruction::RBValue(instr));
 }
 
-#if V8_TARGET_ARCH_PPC64
 // This code assumes a FIXED_SEQUENCE for 64bit loads (lis/ori)
 bool Assembler::Is64BitLoadIntoR12(Instr instr1, Instr instr2, Instr instr3,
                                    Instr instr4, Instr instr5) {
@@ -344,15 +333,6 @@ bool Assembler::Is64BitLoadIntoR12(Instr instr1, Instr instr2, Instr instr3,
           (instr3 == 0x798C07C6) && ((instr4 >> 16) == 0x658C) &&
           ((instr5 >> 16) == 0x618C));
 }
-#else
-// This code assumes a FIXED_SEQUENCE for 32bit loads (lis/ori)
-bool Assembler::Is32BitLoadIntoR12(Instr instr1, Instr instr2) {
-  // Check the instruction is indeed a two part load (into r12)
-  // 3d802553       lis     r12, 9555
-  // 618c5000       ori   r12, r12, 20480
-  return (((instr1 >> 16) == 0x3D80) && ((instr2 >> 16) == 0x618C));
-}
-#endif
 
 bool Assembler::IsCmpRegister(Instr instr) {
   return (((instr & kOpcodeMask) == EXT2) &&
@@ -365,12 +345,10 @@ bool Assembler::IsRlwinm(Instr instr) {
 
 bool Assembler::IsAndi(Instr instr) { return ((instr & kOpcodeMask) == ANDIx); }
 
-#if V8_TARGET_ARCH_PPC64
 bool Assembler::IsRldicl(Instr instr) {
   return (((instr & kOpcodeMask) == EXT5) &&
           ((EXT5 | (instr & kExt5OpcodeMask)) == RLDICL));
 }
-#endif
 
 bool Assembler::IsCmpImmediate(Instr instr) {
   return ((instr & kOpcodeMask) == CMPI);
@@ -907,11 +885,7 @@ void Assembler::oris(Register dst, Register src, const Operand& imm) {
 
 void Assembler::cmpi(Register src1, const Operand& src2, CRegister cr) {
   intptr_t imm16 = src2.immediate();
-#if V8_TARGET_ARCH_PPC64
   int L = 1;
-#else
-  int L = 0;
-#endif
   DCHECK(is_int16(imm16));
   DCHECK(cr.code() >= 0 && cr.code() <= 7);
   imm16 &= kImm16Mask;
@@ -920,11 +894,7 @@ void Assembler::cmpi(Register src1, const Operand& src2, CRegister cr) {
 
 void Assembler::cmpli(Register src1, const Operand& src2, CRegister cr) {
   uintptr_t uimm16 = src2.immediate();
-#if V8_TARGET_ARCH_PPC64
   int L = 1;
-#else
-  int L = 0;
-#endif
   DCHECK(is_uint16(uimm16));
   DCHECK(cr.code() >= 0 && cr.code() <= 7);
   uimm16 &= kImm16Mask;
@@ -1003,15 +973,11 @@ void Assembler::lha(Register dst, const MemOperand& src) {
 }
 
 void Assembler::lwa(Register dst, const MemOperand& src) {
-#if V8_TARGET_ARCH_PPC64
   int offset = src.offset();
   DCHECK(src.ra_ != r0);
   CHECK(!(offset & 3) && is_int16(offset));
   offset = kImm16Mask & offset;
   emit(LD | dst.code() * B21 | src.ra().code() * B16 | offset | 2);
-#else
-  lwz(dst, src);
-#endif
 }
 
 void Assembler::stb(Register dst, const MemOperand& src) {
@@ -1038,7 +1004,6 @@ void Assembler::neg(Register rt, Register ra, OEBit o, RCBit r) {
   emit(EXT2 | NEGX | rt.code() * B21 | ra.code() * B16 | o | r);
 }
 
-#if V8_TARGET_ARCH_PPC64
 // 64bit specific instructions
 void Assembler::ld(Register rd, const MemOperand& src) {
   int offset = src.offset();
@@ -1148,7 +1113,6 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
                       RCBit r) {
   xo_form(EXT2 | DIVDU, dst, src1, src2, o, r);
 }
-#endif
 
 // Prefixed instructions.
 #define GENERATE_PREFIX_SUFFIX_BITS(immediate, prefix, suffix)      \
@@ -1330,11 +1294,7 @@ bool Assembler::use_constant_pool_for_mov(Register dst, const Operand& src,
     return false;
   }
   intptr_t value = src.immediate();
-#if V8_TARGET_ARCH_PPC64
   bool allowOverflow = !((canOptimize && is_int32(value)) || dst == r0);
-#else
-  bool allowOverflow = !(canOptimize || dst == r0);
-#endif
   if (canOptimize &&
       (is_int16(value) ||
        (CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)))) {
@@ -1396,21 +1356,12 @@ void Assembler::mov(Register dst, const Operand& src) {
       RecordRelocInfo(src.rmode_);
     }
     ConstantPoolEntry::Access access = ConstantPoolAddEntry(src.rmode_, value);
-#if V8_TARGET_ARCH_PPC64
     if (access == ConstantPoolEntry::OVERFLOWED) {
       addis(dst, kConstantPoolRegister, Operand::Zero());
       ld(dst, MemOperand(dst, 0));
     } else {
       ld(dst, MemOperand(kConstantPoolRegister, 0));
     }
-#else
-    if (access == ConstantPoolEntry::OVERFLOWED) {
-      addis(dst, kConstantPoolRegister, Operand::Zero());
-      lwz(dst, MemOperand(dst, 0));
-    } else {
-      lwz(dst, MemOperand(kConstantPoolRegister, 0));
-    }
-#endif
     return;
   }
 
@@ -1421,11 +1372,8 @@ void Assembler::mov(Register dst, const Operand& src) {
       pli(dst, Operand(value));
     } else {
       uint16_t u16;
-#if V8_TARGET_ARCH_PPC64
       if (is_int32(value)) {
-#endif
         lis(dst, Operand(value >> 16));
-#if V8_TARGET_ARCH_PPC64
       } else {
         if (is_int48(value)) {
           li(dst, Operand(value >> 32));
@@ -1442,7 +1390,6 @@ void Assembler::mov(Register dst, const Operand& src) {
           oris(dst, dst, Operand(u16));
         }
       }
-#endif
       u16 = (value & 0xFFFF);
       if (u16) {
         ori(dst, dst, Operand(u16));
@@ -1460,7 +1407,6 @@ void Assembler::mov(Register dst, const Operand& src) {
 
 void Assembler::bitwise_mov(Register dst, intptr_t value) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-#if V8_TARGET_ARCH_PPC64
   int32_t hi_32 = static_cast<int32_t>(value >> 32);
   int32_t lo_32 = static_cast<int32_t>(value);
   int hi_word = static_cast<int>(hi_32 >> 16);
@@ -1472,12 +1418,6 @@ void Assembler::bitwise_mov(Register dst, intptr_t value) {
   lo_word = static_cast<int>(lo_32 & 0xFFFF);
   oris(dst, dst, Operand(hi_word));
   ori(dst, dst, Operand(lo_word));
-#else
-  int hi_word = static_cast<int>(value >> 16);
-  int lo_word = static_cast<int>(value & 0xFFFF);
-  lis(dst, Operand(SIGN_EXT_IMM16(hi_word)));
-  ori(dst, dst, Operand(lo_word));
-#endif
 }
 
 void Assembler::bitwise_mov32(Register dst, int32_t value) {
@@ -1616,9 +1556,7 @@ void Assembler::emit_label_addr(Label* label) {
     // the link and target_at_put patches the instruction(s).
     BlockTrampolinePoolScope block_trampoline_pool(this);
     emit(kUnboundJumpTableEntryOpcode | (link & kImm26Mask));
-#if V8_TARGET_ARCH_PPC64
     nop();
-#endif
   }
 }
 
@@ -1659,7 +1597,6 @@ void Assembler::mfcr(Register dst) { emit(EXT2 | MFCR | dst.code() * B21); }
 void Assembler::mtcrf(Register src, uint8_t FXM) {
   emit(MTCRF | src.code() * B21 | FXM * B12);
 }
-#if V8_TARGET_ARCH_PPC64
 void Assembler::mffprd(Register dst, DoubleRegister src) {
   emit(EXT2 | MFVSRD | src.code() * B21 | dst.code() * B16);
 }
@@ -1679,7 +1616,6 @@ void Assembler::mtfprwz(DoubleRegister dst, Register src) {
 void Assembler::mtfprwa(DoubleRegister dst, Register src) {
   emit(EXT2 | MTVSRWA | dst.code() * B21 | src.code() * B16);
 }
-#endif
 
 // Exception-generating instructions and debugging support.
 // Stops with a non-negative code less than kNumOfWatchedStops support
@@ -2209,7 +2145,7 @@ void Assembler::EmitRelocations() {
       intptr_t pos = static_cast<intptr_t>(target_address_at(pc, kNullAddress));
       set_target_address_at(pc, 0,
                             reinterpret_cast<Address>(buffer_start_) + pos,
-                            SKIP_ICACHE_FLUSH);
+                            nullptr, SKIP_ICACHE_FLUSH);
     }
 
     reloc_info_writer.Write(&rinfo);
@@ -2264,7 +2200,12 @@ PatchingAssembler::~PatchingAssembler() {
   DCHECK_EQ(reloc_info_writer.pos(), buffer_start_ + buffer_->size());
 }
 
+RegList Assembler::DefaultTmpList() { return {r26, ip}; }
+DoubleRegList Assembler::DefaultFPTmpList() {
+  return {kScratchDoubleReg, kDoubleRegZero};
+}
+
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#endif  // V8_TARGET_ARCH_PPC64

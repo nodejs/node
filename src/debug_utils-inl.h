@@ -5,30 +5,47 @@
 
 #include "debug_utils.h"
 #include "env.h"
+#include "util-inl.h"
 
 #include <type_traits>
 
 namespace node {
 
+template <typename T>
+concept StringViewConvertible = requires(T a) {
+                                  {
+                                    a.ToStringView()
+                                    } -> std::convertible_to<std::string_view>;
+                                };
+template <typename T>
+concept StringConvertible = requires(T a) {
+                              {
+                                a.ToString()
+                                } -> std::convertible_to<std::string>;
+                            };
+
 struct ToStringHelper {
   template <typename T>
-  static std::string Convert(
-      const T& value,
-      std::string(T::* to_string)() const = &T::ToString) {
-    return (value.*to_string)();
+    requires(StringConvertible<T>) && (!StringViewConvertible<T>)
+  static std::string Convert(const T& value) {
+    return value.ToString();
   }
+  template <typename T>
+    requires StringViewConvertible<T>
+  static std::string_view Convert(const T& value) {
+    return value.ToStringView();
+  }
+
   template <typename T,
             typename test_for_number = typename std::
                 enable_if<std::is_arithmetic<T>::value, bool>::type,
             typename dummy = bool>
   static std::string Convert(const T& value) { return std::to_string(value); }
-  static std::string Convert(const char* value) {
+  static std::string_view Convert(const char* value) {
     return value != nullptr ? value : "(null)";
   }
   static std::string Convert(const std::string& value) { return value; }
-  static std::string Convert(std::string_view value) {
-    return std::string(value);
-  }
+  static std::string_view Convert(std::string_view value) { return value; }
   static std::string Convert(bool value) { return value ? "true" : "false"; }
   template <unsigned BASE_BITS,
             typename T,
@@ -49,53 +66,68 @@ struct ToStringHelper {
   template <unsigned BASE_BITS,
             typename T,
             typename = std::enable_if_t<!std::is_integral_v<T>>>
-  static std::string BaseConvert(T value) {
+  static auto BaseConvert(T&& value) {
     return Convert(std::forward<T>(value));
   }
 };
 
 template <typename T>
-std::string ToString(const T& value) {
+auto ToStringOrStringView(const T& value) {
   return ToStringHelper::Convert(value);
 }
 
+template <typename T>
+std::string ToString(const T& value) {
+  return std::string(ToStringOrStringView(value));
+}
+
 template <unsigned BASE_BITS, typename T>
-std::string ToBaseString(const T& value) {
+auto ToBaseString(const T& value) {
   return ToStringHelper::BaseConvert<BASE_BITS>(value);
 }
 
-inline std::string SPrintFImpl(const char* format) {
-  const char* p = strchr(format, '%');
-  if (LIKELY(p == nullptr)) return format;
-  CHECK_EQ(p[1], '%');  // Only '%%' allowed when there are no arguments.
+inline std::string SPrintFImpl(std::string_view format) {
+  auto offset = format.find('%');
+  if (offset == std::string_view::npos) return std::string(format);
+  CHECK_LT(offset + 1, format.size());
+  CHECK_EQ(format[offset + 1],
+           '%');  // Only '%%' allowed when there are no arguments.
 
-  return std::string(format, p + 1) + SPrintFImpl(p + 2);
+  return std::string(format.substr(0, offset + 1)) +
+         SPrintFImpl(format.substr(offset + 2));
 }
 
 template <typename Arg, typename... Args>
 std::string COLD_NOINLINE SPrintFImpl(  // NOLINT(runtime/string)
-    const char* format, Arg&& arg, Args&&... args) {
-  const char* p = strchr(format, '%');
-  CHECK_NOT_NULL(p);  // If you hit this, you passed in too many arguments.
-  std::string ret(format, p);
+    std::string_view format,
+    Arg&& arg,
+    Args&&... args) {
+  auto offset = format.find('%');
+  CHECK_NE(offset, std::string_view::npos);  // If you hit this, you passed in
+                                             // too many arguments.
+  std::string ret(format.substr(0, offset));
   // Ignore long / size_t modifiers
-  while (strchr("lz", *++p) != nullptr) {}
-  switch (*p) {
+  while (++offset < format.size() &&
+         (format[offset] == 'l' || format[offset] == 'z')) {
+  }
+  switch (offset == format.size() ? '\0' : format[offset]) {
     case '%': {
-      return ret + '%' + SPrintFImpl(p + 1,
-                                     std::forward<Arg>(arg),
-                                     std::forward<Args>(args)...);
+      return ret + '%' +
+             SPrintFImpl(format.substr(offset + 1),
+                         std::forward<Arg>(arg),
+                         std::forward<Args>(args)...);
     }
     default: {
-      return ret + '%' + SPrintFImpl(p,
-                                     std::forward<Arg>(arg),
-                                     std::forward<Args>(args)...);
+      return ret + '%' +
+             SPrintFImpl(format.substr(offset),
+                         std::forward<Arg>(arg),
+                         std::forward<Args>(args)...);
     }
     case 'd':
     case 'i':
     case 'u':
     case 's':
-      ret += ToString(arg);
+      ret += ToStringOrStringView(arg);
       break;
     case 'o':
       ret += ToBaseString<3>(arg);
@@ -118,17 +150,21 @@ std::string COLD_NOINLINE SPrintFImpl(  // NOLINT(runtime/string)
       break;
     }
   }
-  return ret + SPrintFImpl(p + 1, std::forward<Args>(args)...);
+  return ret +
+         SPrintFImpl(format.substr(offset + 1), std::forward<Args>(args)...);
 }
 
 template <typename... Args>
 std::string COLD_NOINLINE SPrintF(  // NOLINT(runtime/string)
-    const char* format, Args&&... args) {
+    std::string_view format,
+    Args&&... args) {
   return SPrintFImpl(format, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
-void COLD_NOINLINE FPrintF(FILE* file, const char* format, Args&&... args) {
+void COLD_NOINLINE FPrintF(FILE* file,
+                           std::string_view format,
+                           Args&&... args) {
   FWrite(file, SPrintF(format, std::forward<Args>(args)...));
 }
 
@@ -137,14 +173,16 @@ inline void FORCE_INLINE Debug(EnabledDebugList* list,
                                DebugCategory cat,
                                const char* format,
                                Args&&... args) {
-  if (!UNLIKELY(list->enabled(cat))) return;
+  if (!list->enabled(cat)) [[unlikely]]
+    return;
   FPrintF(stderr, format, std::forward<Args>(args)...);
 }
 
 inline void FORCE_INLINE Debug(EnabledDebugList* list,
                                DebugCategory cat,
                                const char* message) {
-  if (!UNLIKELY(list->enabled(cat))) return;
+  if (!list->enabled(cat)) [[unlikely]]
+    return;
   FPrintF(stderr, "%s", message);
 }
 
@@ -193,8 +231,10 @@ inline void FORCE_INLINE Debug(AsyncWrap* async_wrap,
                                const char* format,
                                Args&&... args) {
   DCHECK_NOT_NULL(async_wrap);
-  DebugCategory cat = static_cast<DebugCategory>(async_wrap->provider_type());
-  if (!UNLIKELY(async_wrap->env()->enabled_debug_list()->enabled(cat))) return;
+  if (auto cat = static_cast<DebugCategory>(async_wrap->provider_type());
+      !async_wrap->env()->enabled_debug_list()->enabled(cat)) [[unlikely]] {
+    return;
+  }
   UnconditionalAsyncWrapDebug(async_wrap, format, std::forward<Args>(args)...);
 }
 

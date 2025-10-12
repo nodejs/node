@@ -74,14 +74,14 @@ class DuplicationOptimizationReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(DuplucationOptimization)
 
-  OpIndex REDUCE_INPUT_GRAPH(Branch)(OpIndex ig_index, const BranchOp& branch) {
+  V<None> REDUCE_INPUT_GRAPH(Branch)(V<None> ig_index, const BranchOp& branch) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphBranch(ig_index, branch);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     const Operation& cond = __ input_graph().Get(branch.condition());
-    OpIndex new_cond = OpIndex::Invalid();
+    V<Word32> new_cond;
     if (!MaybeDuplicateCond(cond, branch.condition(), &new_cond)) {
       goto no_change;
     }
@@ -89,17 +89,17 @@ class DuplicationOptimizationReducer : public Next {
     DCHECK(new_cond.valid());
     __ Branch(new_cond, __ MapToNewGraph(branch.if_true),
               __ MapToNewGraph(branch.if_false), branch.hint);
-    return OpIndex::Invalid();
+    return V<None>::Invalid();
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(Select)(OpIndex ig_index, const SelectOp& select) {
+  V<Any> REDUCE_INPUT_GRAPH(Select)(V<Any> ig_index, const SelectOp& select) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphSelect(ig_index, select);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     const Operation& cond = __ input_graph().Get(select.cond());
-    OpIndex new_cond = OpIndex::Invalid();
+    V<Word32> new_cond;
     if (!MaybeDuplicateCond(cond, select.cond(), &new_cond)) goto no_change;
 
     DCHECK(new_cond.valid());
@@ -142,7 +142,7 @@ class DuplicationOptimizationReducer : public Next {
 
  private:
   bool MaybeDuplicateCond(const Operation& cond, OpIndex input_idx,
-                          OpIndex* new_cond) {
+                          V<Word32>* new_cond) {
     if (cond.saturated_use_count.IsOne()) return false;
 
     switch (cond.opcode) {
@@ -204,10 +204,10 @@ class DuplicationOptimizationReducer : public Next {
                         __ MapToNewGraph(binop.right()), binop.kind, binop.rep);
   }
 
-  OpIndex MaybeDuplicateComparison(const ComparisonOp& comp,
-                                   OpIndex input_idx) {
+  V<Word32> MaybeDuplicateComparison(const ComparisonOp& comp,
+                                     OpIndex input_idx) {
     if (!MaybeCanDuplicateGenericBinop(input_idx, comp.left(), comp.right())) {
-      return OpIndex::Invalid();
+      return {};
     }
 
     DisableValueNumbering disable_gvn(this);
@@ -227,7 +227,7 @@ class DuplicationOptimizationReducer : public Next {
   }
 
   OpIndex MaybeDuplicateOutputGraphShift(OpIndex index) {
-    OpIndex shifted;
+    V<Word> shifted;
     int shifted_by;
     ShiftOp::Kind shift_kind;
     WordRepresentation shift_rep;

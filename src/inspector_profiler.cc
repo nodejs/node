@@ -8,10 +8,10 @@
 #include "node_file.h"
 #include "node_internals.h"
 #include "util-inl.h"
+#include "uv.h"
 #include "v8-inspector.h"
 
 #include <cinttypes>
-#include <filesystem>
 #include <limits>
 #include <sstream>
 #include "simdutf.h"
@@ -249,7 +249,7 @@ void V8ProfilerConnection::WriteProfile(simdjson::ondemand::object* result) {
 
   std::string filename = GetFilename();
   DCHECK(!filename.empty());
-  std::string path = (std::filesystem::path(directory) / filename).string();
+  std::string path = directory + kPathSeparator + filename;
 
   WriteResult(env_, path.c_str(), profile);
 }
@@ -305,7 +305,7 @@ void V8CoverageConnection::WriteProfile(simdjson::ondemand::object* result) {
 
   std::string filename = GetFilename();
   DCHECK(!filename.empty());
-  std::string path = (std::filesystem::path(directory) / filename).string();
+  std::string path = directory + kPathSeparator + filename;
 
   // Only insert source map cache when there's source map data at all.
   if (!source_map_cache_v->IsUndefined()) {
@@ -466,13 +466,34 @@ static void EndStartedProfilers(Environment* env) {
   }
 }
 
+static std::string ReplacePlaceholders(const std::string& pattern) {
+  std::string result = pattern;
+
+  static const std::unordered_map<std::string, std::function<std::string()>>
+      kPlaceholderMap = {
+          {"${pid}", []() { return std::to_string(uv_os_getpid()); }},
+          // TODO(haramj): Add more placeholders as needed.
+      };
+
+  for (const auto& [placeholder, getter] : kPlaceholderMap) {
+    size_t pos = 0;
+    while ((pos = result.find(placeholder, pos)) != std::string::npos) {
+      const std::string value = getter();
+      result.replace(pos, placeholder.length(), value);
+      pos += value.length();
+    }
+  }
+
+  return result;
+}
+
 void StartProfilers(Environment* env) {
   AtExit(env, [](void* env) {
     EndStartedProfilers(static_cast<Environment*>(env));
   }, env);
 
   std::string coverage_str =
-      env->env_vars()->Get("NODE_V8_COVERAGE").FromMaybe(std::string());
+      env->env_vars()->Get("NODE_V8_COVERAGE").value_or(std::string());
   if (!coverage_str.empty() || env->options()->test_runner_coverage) {
     CHECK_NULL(env->coverage_connection());
     env->set_coverage_connection(std::make_unique<V8CoverageConnection>(env));
@@ -487,7 +508,9 @@ void StartProfilers(Environment* env) {
       DiagnosticFilename filename(env, "CPU", "cpuprofile");
       env->set_cpu_prof_name(*filename);
     } else {
-      env->set_cpu_prof_name(env->options()->cpu_prof_name);
+      std::string resolved_name =
+          ReplacePlaceholders(env->options()->cpu_prof_name);
+      env->set_cpu_prof_name(resolved_name);
     }
     CHECK_NULL(env->cpu_profiler_connection());
     env->set_cpu_profiler_connection(
@@ -556,6 +579,21 @@ static void StopCoverage(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void EndCoverage(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  V8CoverageConnection* connection = env->coverage_connection();
+
+  Debug(env,
+        DebugCategory::INSPECTOR_PROFILER,
+        "EndCoverage, connection %s nullptr\n",
+        connection == nullptr ? "==" : "!=");
+
+  if (connection != nullptr) {
+    Debug(env, DebugCategory::INSPECTOR_PROFILER, "Ending coverage\n");
+    connection->End();
+  }
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
@@ -565,6 +603,7 @@ static void Initialize(Local<Object> target,
       context, target, "setSourceMapCacheGetter", SetSourceMapCacheGetter);
   SetMethod(context, target, "takeCoverage", TakeCoverage);
   SetMethod(context, target, "stopCoverage", StopCoverage);
+  SetMethod(context, target, "endCoverage", EndCoverage);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -572,6 +611,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetSourceMapCacheGetter);
   registry->Register(TakeCoverage);
   registry->Register(StopCoverage);
+  registry->Register(EndCoverage);
 }
 
 }  // namespace profiler

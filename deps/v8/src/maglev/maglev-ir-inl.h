@@ -5,138 +5,28 @@
 #ifndef V8_MAGLEV_MAGLEV_IR_INL_H_
 #define V8_MAGLEV_MAGLEV_IR_INL_H_
 
-#include <type_traits>
-
-#include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/interpreter/bytecode-register.h"
+#include "src/maglev/maglev-deopt-frame-visitor.h"
+#include "src/sandbox/js-dispatch-table-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace maglev {
 
-namespace detail {
-
-// A little bit of template magic to allow DeepForEachInput to either take a
-// `const DeoptInfo*` or a `DeoptInfo*`, depending on whether the Function
-// processes read-only `ValueNode*` or read-write `ValueNode*&`.
-template <typename F, typename Ret, typename A, typename... Rest>
-A first_argument_helper(Ret (F::*)(A, Rest...));
-
-template <typename F, typename Ret, typename A, typename... Rest>
-A first_argument_helper(Ret (F::*)(A, Rest...) const);
-
-template <typename Function>
-using first_argument = decltype(first_argument_helper(
-    &std::remove_reference_t<Function>::operator()));
-
-template <typename T, typename Function>
-using const_if_function_first_arg_not_reference =
-    std::conditional_t<std::is_reference_v<first_argument<Function>>, T,
-                       const T>;
-
-template <typename Function>
-void DeepForEachInputImpl(
-    const_if_function_first_arg_not_reference<DeoptFrame, Function>& frame,
-    InputLocation* input_locations, int& index, Function&& f) {
-  if (frame.parent()) {
-    DeepForEachInputImpl(*frame.parent(), input_locations, index, f);
-  }
-  switch (frame.type()) {
-    case DeoptFrame::FrameType::kInterpretedFrame:
-      f(frame.as_interpreted().closure(), &input_locations[index++]);
-      frame.as_interpreted().frame_state()->ForEachValue(
-          frame.as_interpreted().unit(),
-          [&](first_argument<Function> node, interpreter::Register reg) {
-            f(node, &input_locations[index++]);
-          });
-      break;
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
-      f(frame.as_inlined_arguments().closure(), &input_locations[index++]);
-      for (first_argument<Function> node :
-           frame.as_inlined_arguments().arguments()) {
-        f(node, &input_locations[index++]);
-      }
-      break;
-    }
-    case DeoptFrame::FrameType::kConstructInvokeStubFrame: {
-      f(frame.as_construct_stub().receiver(), &input_locations[index++]);
-      f(frame.as_construct_stub().context(), &input_locations[index++]);
-      break;
-    }
-    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      for (first_argument<Function> node :
-           frame.as_builtin_continuation().parameters()) {
-        f(node, &input_locations[index++]);
-      }
-      f(frame.as_builtin_continuation().context(), &input_locations[index++]);
-      break;
-  }
-}
-
-template <typename Function>
-void DeepForEachInput(const_if_function_first_arg_not_reference<
-                          EagerDeoptInfo, Function>* deopt_info,
-                      Function&& f) {
-  int index = 0;
-  DeepForEachInputImpl(deopt_info->top_frame(), deopt_info->input_locations(),
-                       index, std::forward<Function>(f));
-}
-
-template <typename Function>
-void DeepForEachInput(const_if_function_first_arg_not_reference<
-                          LazyDeoptInfo, Function>* deopt_info,
-                      Function&& f) {
-  int index = 0;
-  InputLocation* input_locations = deopt_info->input_locations();
-  auto& top_frame = deopt_info->top_frame();
-  if (top_frame.parent()) {
-    DeepForEachInputImpl(*top_frame.parent(), input_locations, index, f);
-  }
-  // Handle the top-of-frame info separately, since we have to skip the result
-  // location.
-  switch (top_frame.type()) {
-    case DeoptFrame::FrameType::kInterpretedFrame:
-      f(top_frame.as_interpreted().closure(), &input_locations[index++]);
-      top_frame.as_interpreted().frame_state()->ForEachValue(
-          top_frame.as_interpreted().unit(),
-          [&](first_argument<Function> node, interpreter::Register reg) {
-            // Skip over the result location since it is irrelevant for lazy
-            // deopts (unoptimized code will recreate the result).
-            if (deopt_info->IsResultRegister(reg)) return;
-            f(node, &input_locations[index++]);
-          });
-      break;
-    case DeoptFrame::FrameType::kConstructInvokeStubFrame: {
-      f(top_frame.as_construct_stub().receiver(), &input_locations[index++]);
-      f(top_frame.as_construct_stub().context(), &input_locations[index++]);
-      break;
-    }
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      // The inlined arguments frame can never be the top frame.
-      UNREACHABLE();
-    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      for (first_argument<Function> node :
-           top_frame.as_builtin_continuation().parameters()) {
-        f(node, &input_locations[index++]);
-      }
-      f(top_frame.as_builtin_continuation().context(),
-        &input_locations[index++]);
-      break;
-  }
-}
-
-}  // namespace detail
-
 #ifdef DEBUG
 inline RegList GetGeneralRegistersUsedAsInputs(
     const EagerDeoptInfo* deopt_info) {
   RegList regs;
-  detail::DeepForEachInput(deopt_info,
-                           [&regs](ValueNode* value, InputLocation* input) {
-                             if (input->IsGeneralRegister()) {
-                               regs.set(input->AssignedGeneralRegister());
-                             }
-                           });
+  InputLocation* input = deopt_info->input_locations();
+  deopt_info->ForEachInput([&regs, &input](ValueNode* value) {
+    if (input->IsGeneralRegister()) {
+      regs.set(input->AssignedGeneralRegister());
+    }
+    input++;
+  });
   return regs;
 }
 #endif  // DEBUG
@@ -169,28 +59,118 @@ inline void DefineSameAsFirst(Node* node) {
   node->result().SetUnallocated(kNoVreg, 0);
 }
 
-inline void UseRegister(Input& input) {
-  input.SetUnallocated(compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
-                       compiler::UnallocatedOperand::USED_AT_END, kNoVreg);
+inline void UseRegister(Input input) {
+  input.location()->SetUnallocated(
+      compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
+      compiler::UnallocatedOperand::USED_AT_END, kNoVreg);
 }
-inline void UseAndClobberRegister(Input& input) {
-  input.SetUnallocated(compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
-                       compiler::UnallocatedOperand::USED_AT_START, kNoVreg);
+inline void UseAndClobberRegister(Input input) {
+  input.location()->SetUnallocated(
+      compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
+      compiler::UnallocatedOperand::USED_AT_START, kNoVreg);
 }
-inline void UseAny(Input& input) {
-  input.SetUnallocated(
+inline void UseAny(Input input) {
+  input.location()->SetUnallocated(
       compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
       compiler::UnallocatedOperand::USED_AT_END, kNoVreg);
 }
-inline void UseFixed(Input& input, Register reg) {
-  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER, reg.code(),
-                       kNoVreg);
+inline void UseFixed(Input input, Register reg) {
+  input.location()->SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER,
+                                   reg.code(), kNoVreg);
   input.node()->SetHint(input.operand());
 }
-inline void UseFixed(Input& input, DoubleRegister reg) {
-  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_FP_REGISTER,
-                       reg.code(), kNoVreg);
+inline void UseFixed(Input input, DoubleRegister reg) {
+  input.location()->SetUnallocated(
+      compiler::UnallocatedOperand::FIXED_FP_REGISTER, reg.code(), kNoVreg);
   input.node()->SetHint(input.operand());
+}
+
+CallKnownJSFunction::CallKnownJSFunction(
+    uint64_t bitfield,
+#ifdef V8_ENABLE_LEAPTIERING
+    JSDispatchHandle dispatch_handle,
+#endif
+    compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
+    ValueNode* context, ValueNode* receiver, ValueNode* new_target)
+    : Base(bitfield),
+#ifdef V8_ENABLE_LEAPTIERING
+      dispatch_handle_(dispatch_handle),
+#endif
+      shared_function_info_(shared_function_info),
+      expected_parameter_count_(
+#ifdef V8_ENABLE_LEAPTIERING
+          IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
+              dispatch_handle)
+#else
+          shared_function_info
+              .internal_formal_parameter_count_with_receiver_deprecated()
+#endif
+      ) {
+  set_input(kClosureIndex, closure);
+  set_input(kContextIndex, context);
+  set_input(kReceiverIndex, receiver);
+  set_input(kNewTargetIndex, new_target);
+}
+
+void NodeBase::UnwrapDeoptFrames() {
+  // Unwrap (and remove uses of its inputs) of Identity and ReturnedValue.
+  if (properties().can_eager_deopt() || properties().is_deopt_checkpoint()) {
+    eager_deopt_info()->UnwrapIdentities();
+  }
+  if (properties().can_lazy_deopt()) {
+    lazy_deopt_info()->UnwrapIdentities();
+  }
+}
+
+void NodeBase::OverwriteWithIdentityTo(ValueNode* node) {
+  // OverwriteWith() checks if the node we're overwriting to has the same
+  // input count and the same properties. Here we don't need to do that, since
+  // overwriting with a node with property pure, we only need to check if
+  // there is at least 1 input. Since the first input is always the one
+  // closest to the input_base().
+  DCHECK_GE(input_count(), 1);
+  // Remove use of all inputs first.
+  for (Input input : inputs()) {
+    input.clear();
+  }
+  // Unfortunately we cannot remove uses from deopt frames, since these could be
+  // shared with other nodes. But we can remove uses from Identity and
+  // ReturnedValue nodes.
+  UnwrapDeoptFrames();
+
+  set_opcode(Opcode::kIdentity);
+  set_properties(StaticPropertiesForOpcode(Opcode::kIdentity));
+  bitfield_ = InputCountField::update(bitfield_, 1);
+  set_input(0, node);
+}
+
+void NodeBase::OverwriteWithReturnValue(ValueNode* node) {
+  DCHECK_EQ(opcode(), Opcode::kCallKnownJSFunction);
+  // This node might eventually be overwritten by conversion nodes which need
+  // a register snapshot.
+  DCHECK(properties().needs_register_snapshot());
+  if (node->is_tagged()) {
+    return OverwriteWithIdentityTo(node);
+  }
+
+  DCHECK_GE(input_count(), 1);
+  // Remove use of all inputs first.
+  for (Input input : inputs()) {
+    input.clear();
+  }
+  // Unfortunately we cannot remove uses from deopt frames, since these could be
+  // shared with other nodes. But we can remove uses from Identity and
+  // ReturnedValue nodes.
+  UnwrapDeoptFrames();
+
+  RegisterSnapshot registers = register_snapshot();
+  set_opcode(Opcode::kReturnedValue);
+  set_properties(StaticPropertiesForOpcode(Opcode::kReturnedValue));
+  bitfield_ = InputCountField::update(bitfield_, 1);
+  // After updating the input count, the possition of the register snapshot is
+  // wrong. We simply write a copy to the new location.
+  set_register_snapshot(registers);
+  set_input(0, node);
 }
 
 }  // namespace maglev

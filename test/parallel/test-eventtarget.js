@@ -683,7 +683,7 @@ let asyncTest = Promise.resolve();
   const et = new EventTarget();
   et.addEventListener('foo', common.mustNotCall(), { [kWeakHandler]: {} });
   setImmediate(() => {
-    global.gc();
+    globalThis.gc();
     et.dispatchEvent(new Event('foo'));
   });
 }
@@ -746,4 +746,10 @@ let asyncTest = Promise.resolve();
   strictEqual(event.cancelBubble, false);
   event.cancelBubble = true;
   strictEqual(event.cancelBubble, true);
+}
+
+{
+  // A null eventInitDict should not throw an error.
+  new Event('', null);
+  new Event('', undefined);
 }

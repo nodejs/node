@@ -1,8 +1,9 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto)
+if (!common.hasCrypto) {
   common.skip('missing crypto');
+}
 
 // This test verifies the behavior of the tls setSecureContext() method.
 // It also verifies that existing connections are not disrupted when the
@@ -55,17 +56,18 @@ server.listen(0, common.mustCall(() => {
 
     server.setSecureContext(credentialOptions[1]);
     firstResponse.write('request-');
-    const errorMessageRegex = common.hasOpenSSL3 ?
-      /^Error: self-signed certificate$/ :
-      /^Error: self signed certificate$/;
-    await assert.rejects(makeRequest(port, 3), errorMessageRegex);
+    await assert.rejects(makeRequest(port, 3), {
+      code: 'DEPTH_ZERO_SELF_SIGNED_CERT',
+    });
 
     server.setSecureContext(credentialOptions[0]);
     assert.strictEqual(await makeRequest(port, 4), 'success');
 
     server.setSecureContext(credentialOptions[1]);
     firstResponse.end('fun!');
-    await assert.rejects(makeRequest(port, 5), errorMessageRegex);
+    await assert.rejects(makeRequest(port, 5), {
+      code: 'DEPTH_ZERO_SELF_SIGNED_CERT',
+    });
 
     assert.strictEqual(await firstRequest, 'multi-request-success-fun!');
     server.close();

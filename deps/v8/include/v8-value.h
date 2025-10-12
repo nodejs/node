@@ -347,6 +347,11 @@ class V8_EXPORT Value : public Data {
   bool IsWasmMemoryObject() const;
 
   /**
+   * Returns true if this value is a WasmMemoryMapDescriptor.
+   */
+  bool IsWasmMemoryMapDescriptor() const;
+
+  /**
    * Returns true if this value is a WasmModuleObject.
    */
   bool IsWasmModuleObject() const;
@@ -360,6 +365,11 @@ class V8_EXPORT Value : public Data {
    * Returns true if the value is a Module Namespace Object.
    */
   bool IsModuleNamespaceObject() const;
+
+  /**
+   * Returns true if the value is a primitive.
+   */
+  bool IsPrimitive() const;
 
   /**
    * Perform `ToPrimitive(value)` as specified in:
@@ -461,6 +471,14 @@ class V8_EXPORT Value : public Data {
   Local<String> TypeOf(Isolate*);
 
   Maybe<bool> InstanceOf(Local<Context> context, Local<Object> object);
+
+  /**
+   * Get the hash of this value. The hash is not guaranteed to be
+   * unique. For |Object| and |Name| instances the result is equal to
+   * |GetIdentityHash|. Hashes are not guaranteed to be stable across
+   * different isolates or processes.
+   */
+  uint32_t GetHash();
 
  private:
   V8_INLINE bool QuickIsUndefined() const;
@@ -635,8 +653,9 @@ bool Value::QuickIsString() const {
   A obj = internal::ValueHelper::ValueAsAddress(this);
   if (!I::HasHeapObjectTag(obj)) return false;
 #if V8_STATIC_ROOTS_BOOL && !V8_MAP_PACKING
-  return I::CheckInstanceMapRange(obj, I::StaticReadOnlyRoot::kFirstStringMap,
-                                  I::StaticReadOnlyRoot::kLastStringMap);
+  return I::CheckInstanceMapRange(obj,
+                                  I::StaticReadOnlyRoot::kStringMapLowerBound,
+                                  I::StaticReadOnlyRoot::kStringMapUpperBound);
 #else
   return (I::GetInstanceType(obj) < I::kFirstNonstringType);
 #endif  // V8_STATIC_ROOTS_BOOL

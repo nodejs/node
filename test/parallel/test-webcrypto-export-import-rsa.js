@@ -19,6 +19,16 @@ const hashes = [
   'SHA-512',
 ];
 
+if (!process.features.openssl_is_boringssl) {
+  hashes.push(
+    'SHA3-256',
+    'SHA3-384',
+    'SHA3-512',
+  );
+} else {
+  common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+}
+
 const keyData = {
   1024: {
     spki: Buffer.from(
@@ -315,6 +325,8 @@ async function testImportSpki({ name, publicUsages }, size, hash, extractable) {
   assert.deepStrictEqual(key.algorithm.publicExponent,
                          new Uint8Array([1, 0, 1]));
   assert.strictEqual(key.algorithm.hash.name, hash);
+  assert.strictEqual(key.algorithm, key.algorithm);
+  assert.strictEqual(key.usages, key.usages);
 
   if (extractable) {
     const spki = await subtle.exportKey('spki', key);
@@ -349,6 +361,8 @@ async function testImportPkcs8(
   assert.deepStrictEqual(key.algorithm.publicExponent,
                          new Uint8Array([1, 0, 1]));
   assert.strictEqual(key.algorithm.hash.name, hash);
+  assert.strictEqual(key.algorithm, key.algorithm);
+  assert.strictEqual(key.usages, key.usages);
 
   if (extractable) {
     const pkcs8 = await subtle.exportKey('pkcs8', key);
@@ -380,6 +394,19 @@ async function testImportJwk(
 
   const jwk = keyData[size].jwk;
 
+  let alg;
+  switch (name) {
+    case 'RSA-PSS':
+      alg = hash.startsWith('SHA-') ? `PS${hash === 'SHA-1' ? 1 : hash.substring(4)}` : undefined;
+      break;
+    case 'RSA-OAEP':
+      alg = hash.startsWith('SHA-') ? `RSA-OAEP${hash === 'SHA-1' ? '' : hash.substring(3)}` : undefined;
+      break;
+    case 'RSASSA-PKCS1-v1_5':
+      alg = hash.startsWith('SHA-') ? `RS${hash === 'SHA-1' ? 1 : hash.substring(4)}` : undefined;
+      break;
+  }
+
   const [
     publicKey,
     privateKey,
@@ -390,14 +417,14 @@ async function testImportJwk(
         kty: jwk.kty,
         n: jwk.n,
         e: jwk.e,
-        alg: `PS${hash.substring(4)}`
+        alg,
       },
       { name, hash },
       extractable,
       publicUsages),
     subtle.importKey(
       'jwk',
-      { ...jwk, alg: `PS${hash.substring(4)}` },
+      { ...jwk, alg },
       { name, hash },
       extractable,
       privateUsages),
@@ -415,6 +442,10 @@ async function testImportJwk(
                          new Uint8Array([1, 0, 1]));
   assert.deepStrictEqual(publicKey.algorithm.publicExponent,
                          privateKey.algorithm.publicExponent);
+  assert.strictEqual(privateKey.algorithm, privateKey.algorithm);
+  assert.strictEqual(privateKey.usages, privateKey.usages);
+  assert.strictEqual(publicKey.algorithm, publicKey.algorithm);
+  assert.strictEqual(publicKey.usages, publicKey.usages);
 
   if (extractable) {
     const [
@@ -427,6 +458,8 @@ async function testImportJwk(
 
     assert.strictEqual(pubJwk.kty, 'RSA');
     assert.strictEqual(pvtJwk.kty, 'RSA');
+    assert.strictEqual(pubJwk.alg, alg);
+    assert.strictEqual(pvtJwk.alg, alg);
     assert.strictEqual(pubJwk.n, jwk.n);
     assert.strictEqual(pvtJwk.n, jwk.n);
     assert.strictEqual(pubJwk.e, jwk.e);
@@ -474,23 +507,11 @@ async function testImportJwk(
       { message: 'Invalid JWK "use" Parameter' });
   }
 
-  {
-    let invalidAlg = name === 'RSA-OAEP' ? name : name === 'RSA-PSS' ? 'PS' : 'RS';
-    switch (name) {
-      case 'RSA-OAEP':
-        if (hash === 'SHA-1')
-          invalidAlg += '-256';
-        break;
-      default:
-        if (hash === 'SHA-256')
-          invalidAlg += '384';
-        else
-          invalidAlg += '256';
-    }
+  if (alg) {
     await assert.rejects(
       subtle.importKey(
         'jwk',
-        { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: invalidAlg },
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: alg.toLowerCase() },
         { name, hash },
         extractable,
         publicUsages),
@@ -498,7 +519,60 @@ async function testImportJwk(
     await assert.rejects(
       subtle.importKey(
         'jwk',
-        { ...jwk, alg: invalidAlg },
+        { ...jwk, alg: alg.toLowerCase() },
+        { name, hash },
+        extractable,
+        privateUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+  }
+
+  if (!hash.startsWith('SHA3-')) {
+    let invalidAlgHash = name === 'RSA-OAEP' ? name : name === 'RSA-PSS' ? 'PS' : 'RS';
+    switch (name) {
+      case 'RSA-OAEP':
+        if (hash === 'SHA-1')
+          invalidAlgHash += '-256';
+        break;
+      default:
+        if (hash === 'SHA-256')
+          invalidAlgHash += '384';
+        else
+          invalidAlgHash += '256';
+    }
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: invalidAlgHash },
+        { name, hash },
+        extractable,
+        publicUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: invalidAlgHash },
+        { name, hash },
+        extractable,
+        privateUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+  }
+
+  if (!hash.startsWith('SHA3-')) {
+    const invalidAlgType = name === 'RSA-PSS' ? `RS${hash.substring(4)}` : `PS${hash.substring(4)}`;
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: invalidAlgType },
+        { name, hash },
+        extractable,
+        publicUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' }).catch((e) => {
+      throw e;
+    });
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: invalidAlgType },
         { name, hash },
         extractable,
         privateUsages),
@@ -513,6 +587,15 @@ async function testImportJwk(
       extractable,
       [/* empty usages */]),
     { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
+
+  await assert.rejects(
+    subtle.importKey(
+      'jwk',
+      { kty: jwk.kty, /* missing e */ n: jwk.n },
+      { name, hash },
+      extractable,
+      publicUsages),
+    { name: 'DataError', message: 'Invalid keyData' });
 }
 
 // combinations to test

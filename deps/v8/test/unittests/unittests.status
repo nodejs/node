@@ -30,7 +30,9 @@
   'ParsingTest.ParserSync': [PASS, NO_VARIANTS],
 
   # Slow tests.
+  'Mutex.SharedMutexThreadsFuzz': [PASS, SLOW],
   'ParsingTest.ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
+  'SignalAndMutexTest.SignalsPlusSharedMutexes': [PASS, SLOW],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'LogAllTest.LogAll': [PASS, SLOW, HEAVY],
@@ -38,6 +40,10 @@
 
   # BUG(13660): Flaky test.
   'OS.RemapPages': [SKIP],
+
+  # Those smoke tests fail nondeterministically to test fuzzer infrastructure.
+  # We cannot run them in unittest mode as they would produce flakes.
+  'SmokeTest.*': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -47,6 +53,22 @@
 }],
 
 ##############################################################################
+['system == macos', {
+  # Throwing C++ exceptions doesn't work; probably because the unittests
+  # binary on macOS is built with -fno-exceptions?
+  'LanguageServerJson.LexerError': [SKIP],
+  'LanguageServerJson.ParserError': [SKIP],
+  'Torque.DoubleUnderScorePrefixIllegalForIdentifiers': [SKIP],
+  'Torque.Enums': [SKIP],
+  'Torque.ImportNonExistentFile': [SKIP],
+}],  # system == macos
+
+['system == macos and target_cpu == arm64', {
+  # The read-write-execute handling in the test hasn't been updated to
+  # support the later macOS versions that run on ARM64.
+  'MemoryAllocationPermissionsTest.DoTest': [FAIL],
+}],  # system == macos and target_cpu == arm64
+
 ['system == macos and asan', {
   # BUG(820416).
   'BitsDeathTest*': [SKIP],
@@ -59,22 +81,6 @@
   'RandomNumberGenerator.NextSampleSlowInvalidParam1': [SKIP],
   'RandomNumberGenerator.NextSampleSlowInvalidParam2': [SKIP],
 }],  # system == macos and asan
-
-['system == macos and arch == arm64 and not simulator_run', {
-  # Throwing C++ exceptions doesn't work; probably because the unittests
-  # binary is built with -fno-exceptions?
-  'LanguageServerJson.*': [SKIP],
-  'LanguageServer.*': [SKIP],
-  'Torque.*': [SKIP],
-
-  # Test uses fancy signal handling. Needs investigation.
-  'MemoryAllocationPermissionsTest.DoTest': [SKIP],
-
-  # Time tick resolution appears to be ~42 microseconds. Tests expect 1 us.
-  'TimeTicks.NowResolution': [FAIL],
-  'RuntimeCallStatsTest.BasicJavaScript': [SKIP],
-  'RuntimeCallStatsTest.FunctionLengthGetter': [SKIP],
-}],  # system == macos and arch == arm64 and not simulator_run
 
 # TODO(v8:12824): Enable this test once this is resolved.
 ['arch == arm64 and msan', {
@@ -154,6 +160,9 @@
   'LogMapsCodeTest.LogMapsDetailsCode': [SKIP],
   'LogMapsTest.LogMapsDetailsStartup': [SKIP],
   'LogMapsTest.LogMapsDetailsContexts': [SKIP],
+
+  # These tests need a lot of memory on TSan.
+  'ModuleGenerationTest.*': [PASS, HEAVY],
 }],  # tsan == True
 
 ##############################################################################
@@ -181,9 +190,16 @@
 }],
 
 ################################################################################
-['not clang and (arch == riscv64 or arch == riscv32)',{
-  'LoggingTest.SourceLocation':[SKIP]  # issue-174
-}],
+['arch == riscv64 or arch == riscv32', {
+  # TODO(kasperl@rivosinc.com): Temporarily allow the tests to fail as we
+  # investigate what sometimes gives unexpected values for f32.{min,max,neg}.
+  'CrossCompilerDeterminismTest.TestFloat32Binop': [PASS, FAIL],
+  'CrossCompilerDeterminismTest.TestFloat32Unop': [PASS, FAIL],
+}],  # arch == riscv64 or arch == riscv32
+
+['(arch == riscv64 or arch == riscv32) and not clang', {
+  'LoggingTest.SourceLocation': [SKIP]  # issue-174
+}],  # (arch == riscv64 or arch == riscv32) and not clang
 
 ##############################################################################
 ['lite_mode', {
@@ -222,65 +238,6 @@
   # These require executable code space.
   'AssemblerX64Test.*': [SKIP],
 }],  # has_jitless
-
-################################################################################
-['third_party_heap', {
-  # Tests on OptimizingCompileDispatcher
-  'OptimizingCompileDispatcherTest.NonBlockingFlush': [SKIP],
-  'OptimizingCompileDispatcherTest.Construct': [SKIP],
-  # Test V8 stock GC
-  'SpacesTest.CompactionSpaceMerge': [SKIP],
-  # Requires --concurrent_inlining / --finalize_streaming_on_background:
-  'LocalFactoryTest.AstConsString_CreatesConsString': [SKIP],
-  'LocalFactoryTest.AstRawString_IsInternalized': [SKIP],
-  'LocalFactoryTest.EagerFunction': [SKIP],
-  'LocalFactoryTest.EmptyScript': [SKIP],
-  'LocalFactoryTest.GCDuringPublish': [SKIP],
-  'LocalFactoryTest.ImplicitNameFunction': [SKIP],
-  'LocalFactoryTest.LazyFunction': [SKIP],
-  'LocalFactoryTest.OneByteInternalizedString_DuplicateIsDeduplicated': [SKIP],
-  'LocalFactoryTest.OneByteInternalizedString_IsAddedToStringTable': [SKIP],
-  # Requires write barriers
-  'SpacesTest.WriteBarrierInYoungGenerationToSpace': [SKIP],
-  'SpacesTest.WriteBarrierInYoungGenerationFromSpace': [SKIP],
-  # Requires a second isolate
-  'ValueSerializerTest.DecodeArrayBufferOOM': [SKIP],
-  'LogExternalLogEventListenerInnerFunctionTest.ExternalLogEventListenerInnerFunctions': [SKIP],
-  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
-  'ManagedTest.*': [SKIP],
-
-  # Performs GC
-  'APIExceptionTest.ExceptionMessageDoesNotKeepContextAlive': [SKIP],
-  'GlobalHandlesTest.FinalizerDiesAndKeepsPhantomAliveOnMarkCompact': [SKIP],
-  'GlobalHandlesTest.FinalizerWeakness': [SKIP],
-  'GlobalHandlesTest.GCFromWeakCallbacks': [SKIP],
-  'GlobalHandlesTest.PhantomHandlesWithoutCallbacks': [SKIP],
-  'GlobalHandlesTest.SecondPassPhantomCallbacks': [SKIP],
-  'GlobalHandlesTest.WeakHandleToUnmodifiedJSApiObjectDiesOnMarkCompact': [SKIP],
-  'GlobalHandlesTest.WeakHandleToUnmodifiedJSObjectDiesOnMarkCompact': [SKIP],
-  'LocalHeapTest.GCEpilogue': [SKIP],
-  'UnifiedHeapDetachedTest.AllocationBeforeConfigureHeap': [SKIP],
-  'UnifiedHeapTest.FindingV8ToBlinkReference': [SKIP],
-  'ManagedTest.GCCausesDestruction': [SKIP],
-  'WeakMapsTest.WeakMapsWithChainedEntries': [SKIP],
-  'WeakMapsTest.Weakness': [SKIP],
-  'WeakSetsTest.WeakSet_Weakness': [SKIP],
-
-  # CodeRange tests
-  'CodePagesTest.LargeCodeObjectWithSignalHandler': [SKIP],
-  'CodePagesTest.LargeCodeObject': [SKIP],
-  'CodePagesTest.OptimizedCodeWithCodeRange': [SKIP],
-  'CodePagesTest.Sorted': [SKIP],
-  'CodePagesTest.CodeRangeCorrectContents': [SKIP],
-
-  # Access chunk metadata
-  'RootsTest.TestHeapRootsNotReadOnly': [SKIP],
-  'RootsTest.TestReadOnlyRoots': [SKIP],
-
-  # Expects OOM
-  'FactoryCodeBuilderOOMTest.Factory_CodeBuilder_BuildOOM': [SKIP],
-  'FactoryCodeBuilderOOMTest.Factory_CodeBuilder_TryBuildOOM': [SKIP],
-}], # third_party_heap
 
 ##############################################################################
 ['byteorder == big', {
@@ -369,13 +326,13 @@
 ##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
 # for OptimizeFunctionOnNextCall.
-['variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
+['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
   # Maglev doesn't support compiler::NodeObserver machinery.
   'SloppyEqualityTest.SloppyEqualityTest': [FAIL],
   # Maglev doesn't produce optimized enough code to trigger expected
   # deoptimization.
   'FeedbackVectorTest.VectorCallSpeculationModeAndFeedbackContent': [FAIL],
-}],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
+}],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
 ##############################################################################
 ['system == windows', {
@@ -395,11 +352,36 @@
   'LogAllTest.LogAll': [SKIP],
 }],  # 'clang_coverage and mode == debug'
 
+['device_type == bullhead', {
+  # https://crbug.com/374300658
+  'SandboxTest.*': [SKIP],
+}],  # 'device_type == bullhead'
+
 ##############################################################################
-# Turboshaft not implemented yet
-['arch == s390x', {
-  'TurboshaftInstructionSelectorTest/*': [SKIP],
-  'TurboshaftInstructionSelectorTest.*': [SKIP],
-}],  # arch == s390x
+['simulator_run', {
+  # Do not execute tests which abort the process in the simulator; the
+  # simulator will start the interactive debugger and then timeout because
+  # there is no input.
+  'MacroAssemblerTest.TestCheck': [SKIP],
+  'MacroAssemblerTest.TestHardAbort': [SKIP],
+}],  # simulator_run
+
+##############################################################################
+['sandbox_hardware_support', {
+  # Tests that require the sampler/profiler, which doesn't work on older kernel
+  # versions if hardware sandboxing is active. See https://crbug.com/429173713.
+  'LogTest.*': [SKIP],
+  'LogMapsTest.*': [SKIP],
+  'LogAllTest.LogAll': [SKIP],
+  'LogTimerTest.ConsoleTimeEvents': [SKIP],
+  'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+  'LogExternalLogEventListenerTest.ExternalLogEventListener': [SKIP],
+  'LogExternalLogEventListenerInnerFunctionTest.ExternalLogEventListenerInnerFunctions': [SKIP],
+  'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'LogMapsCodeTest.LogMapsDetailsCode': [SKIP],
+  'LogFunctionEventsTest.LogFunctionEvents': [SKIP],
+  'CompilerTest.ProfilerEnabledDuringBackgroundCompile': [SKIP],
+}],
 
 ]

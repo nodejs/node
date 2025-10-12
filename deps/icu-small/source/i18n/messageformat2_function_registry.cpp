@@ -3,14 +3,20 @@
 
 #include "unicode/utypes.h"
 
+#if !UCONFIG_NO_NORMALIZATION
+
 #if !UCONFIG_NO_FORMATTING
 
 #if !UCONFIG_NO_MF2
+
+#include <math.h>
 
 #include "unicode/dtptngen.h"
 #include "unicode/messageformat2_data_model_names.h"
 #include "unicode/messageformat2_function_registry.h"
 #include "unicode/smpdtfmt.h"
+#include "charstr.h"
+#include "double-conversion.h"
 #include "messageformat2_allocation.h"
 #include "messageformat2_function_registry_internal.h"
 #include "messageformat2_macros.h"
@@ -18,6 +24,13 @@
 #include "number_types.h"
 #include "uvector.h" // U_ASSERT
 
+// The C99 standard suggested that C++ implementations not define PRId64 etc. constants
+// unless this macro is defined.
+// See the Notes at https://en.cppreference.com/w/cpp/types/integer .
+// Similar to defining __STDC_LIMIT_MACROS in unicode/ptypes.h .
+#ifndef __STDC_FORMAT_MACROS
+#   define __STDC_FORMAT_MACROS
+#endif
 #include <inttypes.h>
 #include <math.h>
 
@@ -74,10 +87,11 @@ MFFunctionRegistry::Builder::Builder(UErrorCode& errorCode) {
     formattersByType = new Hashtable();
     if (!(formatters != nullptr && selectors != nullptr && formattersByType != nullptr)) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
+    } else {
+        formatters->setValueDeleter(uprv_deleteUObject);
+        selectors->setValueDeleter(uprv_deleteUObject);
+        formattersByType->setValueDeleter(uprv_deleteUObject);
     }
-    formatters->setValueDeleter(uprv_deleteUObject);
-    selectors->setValueDeleter(uprv_deleteUObject);
-    formattersByType->setValueDeleter(uprv_deleteUObject);
 }
 
 MFFunctionRegistry::Builder::~Builder() {
@@ -147,9 +161,13 @@ void MFFunctionRegistry::checkStandard() const {
     checkFormatter("time");
     checkFormatter("number");
     checkFormatter("integer");
+    checkFormatter("test:function");
+    checkFormatter("test:format");
     checkSelector("number");
     checkSelector("integer");
     checkSelector("string");
+    checkSelector("test:function");
+    checkSelector("test:select");
 }
 
 // Formatter/selector helpers
@@ -287,7 +305,7 @@ MFFunctionRegistry::~MFFunctionRegistry() {
         // Style options -- specific to `:number`
         if (!isInteger) {
             if (number.usePercent(opts)) {
-                nf = nf.unit(NoUnit::percent());
+                nf = nf.unit(NoUnit::percent()).scale(Scale::powerOfTen(2));
             }
         }
 
@@ -296,18 +314,36 @@ MFFunctionRegistry::~MFFunctionRegistry() {
             int32_t minFractionDigits = number.minimumFractionDigits(opts);
             int32_t maxFractionDigits = number.maximumFractionDigits(opts);
             int32_t minSignificantDigits = number.minimumSignificantDigits(opts);
-            Precision p = Precision::minMaxFraction(minFractionDigits, maxFractionDigits);
-            if (minSignificantDigits > 0) {
+            Precision p = Precision::unlimited();
+            bool precisionOptions = false;
+
+            // Returning -1 means the option wasn't provided
+            if (maxFractionDigits != -1 && minFractionDigits != -1) {
+                precisionOptions = true;
+                p = Precision::minMaxFraction(minFractionDigits, maxFractionDigits);
+            } else if (minFractionDigits != -1) {
+                precisionOptions = true;
+                p = Precision::minFraction(minFractionDigits);
+            } else if (maxFractionDigits != -1) {
+                precisionOptions = true;
+                p = Precision::maxFraction(maxFractionDigits);
+            }
+
+            if (minSignificantDigits != -1) {
+                precisionOptions = true;
                 p = p.minSignificantDigits(minSignificantDigits);
             }
-            if (maxSignificantDigits > 0) {
+            if (maxSignificantDigits != -1) {
+                precisionOptions = true;
                 p = p.maxSignificantDigits(maxSignificantDigits);
             }
-            nf = nf.precision(p);
+            if (precisionOptions) {
+                nf = nf.precision(p);
+            }
         } else {
             // maxSignificantDigits applies to `:integer`, but the other precision options don't
             Precision p = Precision::integer();
-            if (maxSignificantDigits > 0) {
+            if (maxSignificantDigits != -1) {
                 p = p.maxSignificantDigits(maxSignificantDigits);
             }
             nf = nf.precision(p);
@@ -347,8 +383,26 @@ MFFunctionRegistry::~MFFunctionRegistry() {
             grp = UNumberGroupingStrategy::UNUM_GROUPING_AUTO;
         }
         nf = nf.grouping(grp);
+
+        // numberingSystem
+        UnicodeString ns = opts.getStringFunctionOption(UnicodeString("numberingSystem"));
+        if (ns.length() > 0) {
+            ns = ns.toLower(Locale("en-US"));
+            CharString buffer;
+            // Ignore bad option values, so use a local status
+            UErrorCode localStatus = U_ZERO_ERROR;
+            // Copied from number_skeletons.cpp (helpers::parseNumberingSystemOption)
+            buffer.appendInvariantChars({false, ns.getBuffer(), ns.length()}, localStatus);
+            if (U_SUCCESS(localStatus)) {
+                LocalPointer<NumberingSystem> symbols
+                    (NumberingSystem::createInstanceByName(buffer.data(), localStatus));
+                if (U_SUCCESS(localStatus)) {
+                    nf = nf.adoptSymbols(symbols.orphan());
+                }
+            }
+        }
     }
-    return LocalizedNumberFormatter(nf.locale(number.locale));
+    return nf.locale(number.locale);
 }
 
 Formatter* StandardFunctions::NumberFactory::createFormatter(const Locale& locale, UErrorCode& errorCode) {
@@ -377,25 +431,85 @@ static FormattedPlaceholder notANumber(const FormattedPlaceholder& input) {
     return FormattedPlaceholder(input, FormattedValue(UnicodeString("NaN")));
 }
 
-static FormattedPlaceholder stringAsNumber(const number::LocalizedNumberFormatter& nf, const FormattedPlaceholder& input, UErrorCode& errorCode) {
+static double parseNumberLiteral(const Formattable& input, UErrorCode& errorCode) {
     if (U_FAILURE(errorCode)) {
         return {};
     }
 
-    double numberValue;
     // Copying string to avoid GCC dangling-reference warning
     // (although the reference is safe)
-    UnicodeString inputStr = input.asFormattable().getString(errorCode);
+    UnicodeString inputStr = input.getString(errorCode);
     // Precondition: `input`'s source Formattable has type string
     if (U_FAILURE(errorCode)) {
         return {};
     }
-    UErrorCode localErrorCode = U_ZERO_ERROR;
-    strToDouble(inputStr, numberValue, localErrorCode);
-    if (U_FAILURE(localErrorCode)) {
+
+    // Hack: Check for cases that are forbidden by the MF2 grammar
+    // but allowed by StringToDouble
+    int32_t len = inputStr.length();
+
+    if (len > 0 && ((inputStr[0] == '+')
+                    || (inputStr[0] == '0' && len > 1 && inputStr[1] != '.')
+                    || (inputStr[len - 1] == '.')
+                    || (inputStr[0] == '.'))) {
         errorCode = U_MF_OPERAND_MISMATCH_ERROR;
+        return 0;
+    }
+
+    // Otherwise, convert to double using double_conversion::StringToDoubleConverter
+    using namespace double_conversion;
+    int processedCharactersCount = 0;
+    StringToDoubleConverter converter(0, 0, 0, "", "");
+    double result =
+        converter.StringToDouble(reinterpret_cast<const uint16_t*>(inputStr.getBuffer()),
+                                 len,
+                                 &processedCharactersCount);
+    if (processedCharactersCount != len) {
+        errorCode = U_MF_OPERAND_MISMATCH_ERROR;
+    }
+    return result;
+}
+
+static UChar32 digitToChar(int32_t val, UErrorCode errorCode) {
+    if (U_FAILURE(errorCode)) {
+        return '0';
+    }
+    if (val < 0 || val > 9) {
+        errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+    }
+    switch(val) {
+        case 0:
+            return '0';
+        case 1:
+            return '1';
+        case 2:
+            return '2';
+        case 3:
+            return '3';
+        case 4:
+            return '4';
+        case 5:
+            return '5';
+        case 6:
+            return '6';
+        case 7:
+            return '7';
+        case 8:
+            return '8';
+        case 9:
+            return '9';
+        default:
+            errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+            return '0';
+    }
+}
+
+static FormattedPlaceholder tryParsingNumberLiteral(const number::LocalizedNumberFormatter& nf, const FormattedPlaceholder& input, UErrorCode& errorCode) {
+    double numberValue = parseNumberLiteral(input.asFormattable(), errorCode);
+    if (U_FAILURE(errorCode)) {
         return notANumber(input);
     }
+
     UErrorCode savedStatus = errorCode;
     number::FormattedNumber result = nf.formatDouble(numberValue, errorCode);
     // Ignore U_USING_DEFAULT_WARNING
@@ -419,7 +533,10 @@ int32_t StandardFunctions::Number::maximumFractionDigits(const FunctionOptions& 
             return static_cast<int32_t>(val);
         }
     }
-    return number::impl::kMaxIntFracSig;
+    // Returning -1 indicates that the option wasn't provided or was a non-integer.
+    // The caller needs to check for that case, since passing -1 to Precision::maxFraction()
+    // is an error.
+    return -1;
 }
 
 int32_t StandardFunctions::Number::minimumFractionDigits(const FunctionOptions& opts) const {
@@ -434,7 +551,10 @@ int32_t StandardFunctions::Number::minimumFractionDigits(const FunctionOptions& 
             }
         }
     }
-    return 0;
+    // Returning -1 indicates that the option wasn't provided or was a non-integer.
+    // The caller needs to check for that case, since passing -1 to Precision::minFraction()
+    // is an error.
+    return -1;
 }
 
 int32_t StandardFunctions::Number::minimumIntegerDigits(const FunctionOptions& opts) const {
@@ -462,10 +582,10 @@ int32_t StandardFunctions::Number::minimumSignificantDigits(const FunctionOption
             }
         }
     }
-    // Returning 0 indicates that the option wasn't provided or was a non-integer.
-    // The caller needs to check for that case, since passing 0 to Precision::minSignificantDigits()
+    // Returning -1 indicates that the option wasn't provided or was a non-integer.
+    // The caller needs to check for that case, since passing -1 to Precision::minSignificantDigits()
     // is an error.
-    return 0;
+    return -1;
 }
 
 int32_t StandardFunctions::Number::maximumSignificantDigits(const FunctionOptions& opts) const {
@@ -478,10 +598,10 @@ int32_t StandardFunctions::Number::maximumSignificantDigits(const FunctionOption
             return static_cast<int32_t>(val);
         }
     }
-    // Returning 0 indicates that the option wasn't provided or was a non-integer.
-    // The caller needs to check for that case, since passing 0 to Precision::maxSignificantDigits()
+    // Returning -1 indicates that the option wasn't provided or was a non-integer.
+    // The caller needs to check for that case, since passing -1 to Precision::maxSignificantDigits()
     // is an error.
-    return 0; // Not a valid value for Precision; has to be checked
+    return -1; // Not a valid value for Precision; has to be checked
 }
 
 bool StandardFunctions::Number::usePercent(const FunctionOptions& opts) const {
@@ -540,7 +660,7 @@ FormattedPlaceholder StandardFunctions::Number::format(FormattedPlaceholder&& ar
         }
         case UFMT_STRING: {
             // Try to parse the string as a number
-            return stringAsNumber(realFormatter, arg, errorCode);
+            return tryParsingNumberLiteral(realFormatter, arg, errorCode);
         }
         default: {
             // Other types can't be parsed as a number
@@ -582,65 +702,15 @@ Selector* StandardFunctions::PluralFactory::createSelector(const Locale& locale,
 
     Selector* result;
     if (isInteger) {
-        result = new Plural(Plural::integer(locale));
+        result = new Plural(Plural::integer(locale, errorCode));
     } else {
-        result = new Plural(locale);
+        result = new Plural(locale, errorCode);
     }
+    NULL_ON_ERROR(errorCode);
     if (result == nullptr) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
-        return nullptr;
     }
     return result;
-}
-
-static double tryAsString(const UnicodeString& s, UErrorCode& errorCode) {
-    if (U_FAILURE(errorCode)) {
-        return 0;
-    }
-    // Try parsing the inputString as a double
-    double valToCheck;
-    strToDouble(s, valToCheck, errorCode);
-    return valToCheck;
-}
-
-static double tryWithFormattable(const Formattable& value, UErrorCode& errorCode) {
-    if (U_FAILURE(errorCode)) {
-        return 0;
-    }
-    double valToCheck;
-    switch (value.getType()) {
-        case UFMT_DOUBLE: {
-            valToCheck = value.getDouble(errorCode);
-            break;
-        }
-        case UFMT_LONG: {
-            valToCheck = (double) value.getLong(errorCode);
-            break;
-        }
-        case UFMT_INT64: {
-            valToCheck = (double) value.getInt64(errorCode);
-            break;
-        }
-        case UFMT_STRING: {
-            const UnicodeString& s = value.getString(errorCode);
-            U_ASSERT(U_SUCCESS(errorCode));
-            return tryAsString(s, errorCode);
-        }
-        default: {
-            errorCode = U_ILLEGAL_ARGUMENT_ERROR;
-            return 0;
-        }
-    }
-    U_ASSERT(U_SUCCESS(errorCode));
-    return valToCheck;
-}
-
-static UnicodeString toJSONString(double d) {
-    // TODO :(
-    char buffer[512];
-    // "Only integer matching is required in the Technical Preview."
-    snprintf(buffer, 512, "%" PRId64, static_cast<int64_t>(d));
-    return UnicodeString(buffer);
 }
 
 void StandardFunctions::Plural::selectKey(FormattedPlaceholder&& toFormat,
@@ -658,42 +728,57 @@ void StandardFunctions::Plural::selectKey(FormattedPlaceholder&& toFormat,
         return;
     }
 
-    // Only doubles and integers can match
-    double valToCheck;
+    // Handle any formatting options
+    PluralType type = pluralType(opts);
+    FormattedPlaceholder resolvedSelector = numberFormatter->format(std::move(toFormat),
+                                                                    std::move(opts),
+                                                                    errorCode);
+    CHECK_ERROR(errorCode);
 
-    bool isFormattedString = toFormat.isEvaluated() && toFormat.output().isString();
-    bool isFormattedNumber = toFormat.isEvaluated() && toFormat.output().isNumber();
+    U_ASSERT(resolvedSelector.isEvaluated() && resolvedSelector.output().isNumber());
 
-    if (isFormattedString) {
-        // Formatted string: try parsing it as a number
-        valToCheck = tryAsString(toFormat.output().getString(), errorCode);
-    } else {
-        // Already checked that contents can be formatted
-        valToCheck = tryWithFormattable(toFormat.asFormattable(), errorCode);
-    }
+    // See  https://github.com/unicode-org/message-format-wg/blob/main/spec/registry.md#number-selection
+    // 1. Let exact be the JSON string representation of the numeric value of resolvedSelector
+    const number::FormattedNumber& formattedNumber = resolvedSelector.output().getNumber();
+    UnicodeString exact = formattedNumber.toString(errorCode);
 
     if (U_FAILURE(errorCode)) {
         // Non-number => selector error
         errorCode = U_MF_SELECTOR_ERROR;
         return;
     }
-    // TODO: This needs to be checked against https://github.com/unicode-org/message-format-wg/blob/main/spec/registry.md#number-selection
-    // Determine `exact`, per step 1 under "Number Selection"
-    UnicodeString exact = toJSONString(valToCheck);
 
-    // Generate the matches
-    // -----------------------
+    // Step 2. Let keyword be a string which is the result of rule selection on resolvedSelector.
+    // If the option select is set to exact, rule-based selection is not used. Return the empty string.
+    UnicodeString keyword;
+    if (type != PluralType::PLURAL_EXACT) {
+        UPluralType t = type == PluralType::PLURAL_ORDINAL ? UPLURAL_TYPE_ORDINAL : UPLURAL_TYPE_CARDINAL;
+        // Look up plural rules by locale and type
+        LocalPointer<PluralRules> rules(PluralRules::forLocale(locale, t, errorCode));
+        CHECK_ERROR(errorCode);
+
+        keyword = rules->select(formattedNumber, errorCode);
+    }
+
+    // Steps 3-4 elided:
+    // 3. Let resultExact be a new empty list of strings.
+    // 4. Let resultKeyword be a new empty list of strings.
+    // Instead, we use `prefs` the concatenation of `resultExact`
+    // and `resultKeyword`.
 
     prefsLen = 0;
 
-    // First, check for an exact match
+    // 5. For each string key in keys:
     double keyAsDouble = 0;
     for (int32_t i = 0; i < keysLen; i++) {
         // Try parsing the key as a double
         UErrorCode localErrorCode = U_ZERO_ERROR;
         strToDouble(keys[i], keyAsDouble, localErrorCode);
+        // 5i. If the value of key matches the production number-literal, then
         if (U_SUCCESS(localErrorCode)) {
+            // 5i(a). If key and exact consist of the same sequence of Unicode code points, then
             if (exact == keys[i]) {
+                // 5i(a)(a) Append key as the last element of the list resultExact.
 		prefs[prefsLen] = keys[i];
                 prefsLen++;
                 break;
@@ -701,43 +786,57 @@ void StandardFunctions::Plural::selectKey(FormattedPlaceholder&& toFormat,
         }
     }
 
-    PluralType type = pluralType(opts);
     // Return immediately if exact matching was requested
     if (prefsLen == keysLen || type == PluralType::PLURAL_EXACT) {
         return;
     }
 
-    UPluralType t = type == PluralType::PLURAL_ORDINAL ? UPLURAL_TYPE_ORDINAL : UPLURAL_TYPE_CARDINAL;
-    // Look up plural rules by locale and type
-    LocalPointer<PluralRules> rules(PluralRules::forLocale(locale, t, errorCode));
-    CHECK_ERROR(errorCode);
-
-
-    // Check for a match based on the plural category
-    UnicodeString match;
-    if (isFormattedNumber) {
-        match = rules->select(toFormat.output().getNumber(), errorCode);
-    } else {
-        if (isInteger) {
-            match = rules->select(static_cast<int32_t>(trunc(valToCheck)));
-        } else {
-            match = rules->select(valToCheck);
-        }
-    }
-    CHECK_ERROR(errorCode);
 
     for (int32_t i = 0; i < keysLen; i ++) {
         if (prefsLen >= keysLen) {
             break;
         }
-        if (match == keys[i]) {
+        // 5ii. Else if key is one of the keywords zero, one, two, few, many, or other, then
+        // 5ii(a). If key and keyword consist of the same sequence of Unicode code points, then
+        if (keyword == keys[i]) {
+            // 5ii(a)(a) Append key as the last element of the list resultKeyword.
             prefs[prefsLen] = keys[i];
             prefsLen++;
         }
     }
+
+    // Note: Step 5(iii) "Else, emit a Selection Error" is omitted in both loops
+
+    // 6. Return a new list whose elements are the concatenation of the elements
+    // (in order) of resultExact followed by the elements (in order) of resultKeyword.
+    // (Implicit, since `prefs` is an out-parameter)
+}
+
+StandardFunctions::Plural::Plural(const Locale& loc, UErrorCode& status) : locale(loc) {
+    CHECK_ERROR(status);
+
+    numberFormatter.adoptInstead(new StandardFunctions::Number(loc));
+    if (!numberFormatter.isValid()) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+    }
+}
+
+StandardFunctions::Plural::Plural(const Locale& loc, bool isInt, UErrorCode& status) : locale(loc), isInteger(isInt) {
+    CHECK_ERROR(status);
+
+    if (isInteger) {
+        numberFormatter.adoptInstead(new StandardFunctions::Number(loc, true));
+    } else {
+        numberFormatter.adoptInstead(new StandardFunctions::Number(loc));
+    }
+
+    if (!numberFormatter.isValid()) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+    }
 }
 
 StandardFunctions::Plural::~Plural() {}
+
 StandardFunctions::PluralFactory::~PluralFactory() {}
 
 // --------- DateTimeFactory
@@ -1177,6 +1276,273 @@ void StandardFunctions::TextSelector::selectKey(FormattedPlaceholder&& toFormat,
 StandardFunctions::TextFactory::~TextFactory() {}
 StandardFunctions::TextSelector::~TextSelector() {}
 
+// ------------ TestFormatFactory
+
+Formatter* StandardFunctions::TestFormatFactory::createFormatter(const Locale& locale, UErrorCode& errorCode) {
+    NULL_ON_ERROR(errorCode);
+
+    // Results are not locale-dependent
+    (void) locale;
+
+    Formatter* result = new TestFormat();
+    if (result == nullptr) {
+        errorCode = U_MEMORY_ALLOCATION_ERROR;
+    }
+    return result;
+}
+
+StandardFunctions::TestFormatFactory::~TestFormatFactory() {}
+StandardFunctions::TestFormat::~TestFormat() {}
+
+// Extract numeric value from a Formattable or, if it's a string,
+// parse it as a number according to the MF2 `number-literal` grammar production
+double formattableToNumber(const Formattable& arg, UErrorCode& status) {
+    if (U_FAILURE(status)) {
+        return 0;
+    }
+
+    double result = 0;
+
+    switch (arg.getType()) {
+        case UFMT_DOUBLE: {
+            result = arg.getDouble(status);
+            U_ASSERT(U_SUCCESS(status));
+            break;
+        }
+        case UFMT_LONG: {
+            result = (double) arg.getLong(status);
+            U_ASSERT(U_SUCCESS(status));
+            break;
+        }
+        case UFMT_INT64: {
+            result = (double) arg.getInt64(status);
+            U_ASSERT(U_SUCCESS(status));
+            break;
+        }
+        case UFMT_STRING: {
+            // Try to parse the string as a number
+            result = parseNumberLiteral(arg, status);
+            if (U_FAILURE(status)) {
+                status = U_MF_OPERAND_MISMATCH_ERROR;
+            }
+            break;
+        }
+        default: {
+            // Other types can't be parsed as a number
+            status = U_MF_OPERAND_MISMATCH_ERROR;
+            break;
+        }
+        }
+    return result;
+}
+
+
+/* static */ void StandardFunctions::TestFormat::testFunctionParameters(const FormattedPlaceholder& arg,
+                                                                        const FunctionOptions& options,
+                                                                        int32_t& decimalPlaces,
+                                                                        bool& failsFormat,
+                                                                        bool& failsSelect,
+                                                                        double& input,
+                                                                        UErrorCode& status) {
+    CHECK_ERROR(status);
+
+    // 1. Let DecimalPlaces be 0.
+    decimalPlaces = 0;
+
+    // 2. Let FailsFormat be false.
+    failsFormat = false;
+
+    // 3. Let FailsSelect be false.
+    failsSelect = false;
+
+    // 4. Let arg be the resolved value of the expression operand.
+    // (already true)
+
+    // Step 5 omitted because composition isn't fully implemented yet
+    // 6. Else if arg is a numerical value or a string matching the number-literal production, then
+    input = formattableToNumber(arg.asFormattable(), status);
+    if (U_FAILURE(status)) {
+        // 7. Else,
+        // 7i. Emit "bad-input" Resolution Error.
+        status = U_MF_OPERAND_MISMATCH_ERROR;
+        // 7ii. Use a fallback value as the resolved value of the expression.
+        // Further steps of this algorithm are not followed.
+    }
+    // 8. If the decimalPlaces option is set, then
+    Formattable opt;
+    if (options.getFunctionOption(UnicodeString("decimalPlaces"), opt)) {
+        // 8i. If its value resolves to a numerical integer value 0 or 1
+        // or their corresponding string representations '0' or '1', then
+        double decimalPlacesInput = formattableToNumber(opt, status);
+        if (U_SUCCESS(status)) {
+            if (decimalPlacesInput == 0 || decimalPlacesInput == 1) {
+                // 8ia. Set DecimalPlaces to be the numerical value of the option.
+                decimalPlaces = decimalPlacesInput;
+            }
+        }
+        // 8ii. Else if its value is not an unresolved value set by option resolution,
+        else {
+            // 8iia. Emit "bad-option" Resolution Error.
+            status = U_MF_BAD_OPTION;
+            // 8iib. Use a fallback value as the resolved value of the expression.
+        }
+    }
+    // 9. If the fails option is set, then
+    Formattable failsOpt;
+    if (options.getFunctionOption(UnicodeString("fails"), failsOpt)) {
+        UnicodeString failsString = failsOpt.getString(status);
+        if (U_SUCCESS(status)) {
+            // 9i. If its value resolves to the string 'always', then
+            if (failsString == u"always") {
+                // 9ia. Set FailsFormat to be true
+                failsFormat = true;
+                // 9ib. Set FailsSelect to be true.
+                failsSelect = true;
+            }
+            // 9ii. Else if its value resolves to the string "format", then
+            else if (failsString == u"format") {
+                // 9ia. Set FailsFormat to be true
+                failsFormat = true;
+            }
+            // 9iii. Else if its value resolves to the string "select", then
+            else if (failsString == u"select") {
+                // 9iiia. Set FailsSelect to be true.
+                failsSelect = true;
+            }
+            // 9iv. Else if its value does not resolve to the string "never", then
+            else if (failsString != u"never") {
+                // 9iv(a). Emit "bad-option" Resolution Error.
+                status = U_MF_BAD_OPTION;
+            }
+        } else {
+            // 9iv. again
+            status = U_MF_BAD_OPTION;
+        }
+    }
+}
+
+FormattedPlaceholder StandardFunctions::TestFormat::format(FormattedPlaceholder&& arg,
+                                                           FunctionOptions&& options,
+                                                           UErrorCode& status) const{
+
+    int32_t decimalPlaces;
+    bool failsFormat;
+    bool failsSelect;
+    double input;
+
+    testFunctionParameters(arg, options, decimalPlaces,
+                           failsFormat, failsSelect, input, status);
+    if (U_FAILURE(status)) {
+        return FormattedPlaceholder(arg.getFallback());
+    }
+
+    // If FailsFormat is true, attempting to format the placeholder to any
+    // formatting target will fail.
+    if (failsFormat) {
+        status = U_MF_FORMATTING_ERROR;
+        return FormattedPlaceholder(arg.getFallback());
+    }
+    UnicodeString result;
+    // When :test:function is used as a formatter, a placeholder resolving to a value
+    // with a :test:function expression is formatted as a concatenation of the following parts:
+    // 1. If Input is less than 0, the character - U+002D Hyphen-Minus.
+    if (input < 0) {
+        result += HYPHEN;
+    }
+    // 2. The truncated absolute integer value of Input, i.e. floor(abs(Input)), formatted as a
+    // sequence of decimal digit characters (U+0030...U+0039).
+    char buffer[256];
+    bool ignore;
+    int ignoreLen;
+    int ignorePoint;
+    double_conversion::DoubleToStringConverter::DoubleToAscii(floor(abs(input)),
+                                                              double_conversion::DoubleToStringConverter::DtoaMode::SHORTEST,
+                                                              0,
+                                                              buffer,
+                                                              256,
+                                                              &ignore,
+                                                              &ignoreLen,
+                                                              &ignorePoint);
+    result += UnicodeString(buffer);
+    // 3. If DecimalPlaces is 1, then
+    if (decimalPlaces == 1) {
+        // 3i. The character . U+002E Full Stop.
+        result += u".";
+        // 3ii. The single decimal digit character representing the value
+        // floor((abs(Input) - floor(abs(Input))) * 10)
+        int32_t val = floor((abs(input) - floor(abs(input)) * 10));
+        result += digitToChar(val, status);
+        U_ASSERT(U_SUCCESS(status));
+    }
+    return FormattedPlaceholder(result);
+}
+
+// ------------ TestSelectFactory
+
+StandardFunctions::TestSelectFactory::~TestSelectFactory() {}
+StandardFunctions::TestSelect::~TestSelect() {}
+
+Selector* StandardFunctions::TestSelectFactory::createSelector(const Locale& locale,
+                                                               UErrorCode& errorCode) const {
+    NULL_ON_ERROR(errorCode);
+
+    // Results are not locale-dependent
+    (void) locale;
+
+    Selector* result = new TestSelect();
+    if (result == nullptr) {
+        errorCode = U_MEMORY_ALLOCATION_ERROR;
+    }
+    return result;
+}
+
+void StandardFunctions::TestSelect::selectKey(FormattedPlaceholder&& val,
+                                              FunctionOptions&& options,
+                                              const UnicodeString* keys,
+                                              int32_t keysLen,
+                                              UnicodeString* prefs,
+                                              int32_t& prefsLen,
+                                              UErrorCode& status) const {
+    int32_t decimalPlaces;
+    bool failsFormat;
+    bool failsSelect;
+    double input;
+
+    TestFormat::testFunctionParameters(val, options, decimalPlaces,
+                                       failsFormat, failsSelect, input, status);
+
+    if (U_FAILURE(status)) {
+        return;
+    }
+
+    if (failsSelect) {
+        status = U_MF_SELECTOR_ERROR;
+        return;
+    }
+
+    // If the Input is 1 and DecimalPlaces is 1, the method will return some slice
+    // of the list « '1.0', '1' », depending on whether those values are included in keys.
+    bool include1point0 = false;
+    bool include1 = false;
+    if (input == 1 && decimalPlaces == 1) {
+        include1point0 = true;
+        include1 = true;
+    } else if (input == 1 && decimalPlaces == 0) {
+        include1 = true;
+    }
+
+    // If the Input is 1 and DecimalPlaces is 0, the method will return the list « '1' » if
+    // keys includes '1', or an empty list otherwise.
+    // If the Input is any other value, the method will return an empty list.
+    for (int32_t i = 0; i < keysLen; i++) {
+        if ((keys[i] == u"1" && include1)
+            || (keys[i] == u"1.0" && include1point0)) {
+            prefs[prefsLen] = keys[i];
+            prefsLen++;
+        }
+    }
+}
+
 } // namespace message2
 U_NAMESPACE_END
 
@@ -1184,3 +1550,4 @@ U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
+#endif /* #if !UCONFIG_NO_NORMALIZATION */

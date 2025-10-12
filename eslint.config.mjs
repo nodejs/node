@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs';
 import Module from 'node:module';
 import { fileURLToPath, URL } from 'node:url';
 
@@ -7,21 +8,31 @@ import libConfig from './lib/eslint.config_partial.mjs';
 import testConfig from './test/eslint.config_partial.mjs';
 import toolsConfig from './tools/eslint/eslint.config_partial.mjs';
 import {
+  importEslintTool,
   noRestrictedSyntaxCommonAll,
   noRestrictedSyntaxCommonLib,
-  requireEslintTool,
   resolveEslintTool,
 } from './tools/eslint/eslint.config_utils.mjs';
 import nodeCore from './tools/eslint/eslint-plugin-node-core.js';
 
-const js = requireEslintTool('@eslint/js');
-const babelEslintParser = requireEslintTool('@babel/eslint-parser');
+const { globalIgnores } = await importEslintTool('eslint/config');
+const { default: js } = await importEslintTool('@eslint/js');
+const { default: babelEslintParser } = await importEslintTool('@babel/eslint-parser');
+const babelPluginProposalExplicitResourceManagement =
+  resolveEslintTool('@babel/plugin-proposal-explicit-resource-management');
 const babelPluginSyntaxImportAttributes = resolveEslintTool('@babel/plugin-syntax-import-attributes');
-const jsdoc = requireEslintTool('eslint-plugin-jsdoc');
-const markdown = requireEslintTool('eslint-plugin-markdown');
-const stylisticJs = requireEslintTool('@stylistic/eslint-plugin-js');
+const babelPluginSyntaxImportSource = resolveEslintTool('@babel/plugin-syntax-import-source');
+const { default: jsdoc } = await importEslintTool('eslint-plugin-jsdoc');
+const { default: markdown } = await importEslintTool('eslint-plugin-markdown');
+const { default: stylisticJs } = await importEslintTool('@stylistic/eslint-plugin');
 
 nodeCore.RULES_DIR = fileURLToPath(new URL('./tools/eslint-rules', import.meta.url));
+
+function filterFilesInDir(dirpath, filterFn) {
+  return readdirSync(dirpath)
+    .filter(filterFn)
+    .map((f) => `${dirpath}/${f}`);
+}
 
 // The Module._resolveFilename() monkeypatching is to make it so that ESLint is able to
 // dynamically load extra modules that we install with it.
@@ -38,25 +49,40 @@ Module._resolveFilename = (request, parent, isMain, options) => {
 
 export default [
   // #region ignores
-  {
-    ignores: [
-      '**/node_modules/**',
-      'benchmark/fixtures/**',
-      'benchmark/tmp/**',
-      'doc/**/*.js',
-      'doc/changelogs/CHANGELOG_V1*.md',
-      '!doc/api_assets/*.js',
-      '!doc/changelogs/CHANGELOG_V18.md',
-      'lib/punycode.js',
-      'test/.tmp.*/**',
-      'test/addons/??_*',
-      'test/fixtures/**',
-      'test/message/esm_display_syntax_error.mjs',
-      'tools/github_reporter/**',
-      'tools/icu/**',
-      'tools/lint-md/lint-md.mjs',
-    ],
-  },
+  globalIgnores([
+    '**/node_modules/**',
+    'benchmark/fixtures/**',
+    'benchmark/tmp/**',
+    'doc/changelogs/CHANGELOG_V1*.md',
+    '!doc/changelogs/CHANGELOG_V18.md',
+    'lib/punycode.js',
+    'test/.tmp.*/**',
+    'test/addons/??_*',
+
+    // We want to lint only a few specific fixtures folders
+    'test/fixtures/*',
+    '!test/fixtures/console',
+    '!test/fixtures/errors',
+    '!test/fixtures/eval',
+    '!test/fixtures/source-map',
+    'test/fixtures/source-map/*',
+    '!test/fixtures/source-map/output',
+    ...filterFilesInDir(
+      'test/fixtures/source-map/output',
+      // Filtering tsc output files (i.e. if there a foo.ts, we ignore foo.js):
+      (f, _, files) => f.endsWith('js') && files.includes(f.replace(/(\.[cm]?)js$/, '$1ts')),
+    ),
+    '!test/fixtures/test-runner',
+    'test/fixtures/test-runner/*',
+    '!test/fixtures/test-runner/output',
+    ...filterFilesInDir(
+      'test/fixtures/test-runner/output',
+      // Filtering tsc output files (i.e. if there a foo.ts, we ignore foo.js):
+      (f, _, files) => f.endsWith('js') && files.includes(f.replace(/\.[cm]?js$/, '.ts')),
+    ),
+    '!test/fixtures/v8',
+    '!test/fixtures/vm',
+  ]),
   // #endregion
   // #region general config
   js.configs.recommended,
@@ -78,8 +104,11 @@ export default [
       parser: babelEslintParser,
       parserOptions: {
         babelOptions: {
+          parserOpts: { createImportExpressions: true },
           plugins: [
+            babelPluginProposalExplicitResourceManagement,
             babelPluginSyntaxImportAttributes,
+            babelPluginSyntaxImportSource,
           ],
         },
         requireConfigFile: false,
@@ -91,6 +120,7 @@ export default [
   {
     languageOptions: {
       globals: {
+        AsyncDisposableStack: 'readonly',
         ByteLengthQueuingStrategy: 'readonly',
         CompressionStream: 'readonly',
         CountQueuingStrategy: 'readonly',
@@ -99,8 +129,10 @@ export default [
         Crypto: 'readonly',
         CryptoKey: 'readonly',
         DecompressionStream: 'readonly',
+        DisposableStack: 'readonly',
         EventSource: 'readable',
         fetch: 'readonly',
+        Float16Array: 'readonly',
         FormData: 'readonly',
         navigator: 'readonly',
         ReadableStream: 'readonly',
@@ -144,6 +176,7 @@ export default [
           ignorePattern: '.*',
         },
       }],
+      'logical-assignment-operators': ['error', 'always', { enforceForIfStatements: true }],
       'default-case-last': 'error',
       'dot-notation': 'error',
       'eqeqeq': ['error', 'smart'],
@@ -229,17 +262,21 @@ export default [
       // ESLint recommended rules that we disable.
       'no-inner-declarations': 'off',
 
-      // JSDoc recommended rules that we disable.
+      // JSDoc rules.
       'jsdoc/require-jsdoc': 'off',
       'jsdoc/require-param-description': 'off',
-      'jsdoc/newline-after-description': 'off',
       'jsdoc/require-returns-description': 'off',
-      'jsdoc/valid-types': 'off',
-      'jsdoc/no-defaults': 'off',
+      'jsdoc/valid-types': 'error',
+      'jsdoc/no-defaults': 'error',
       'jsdoc/no-undefined-types': 'off',
       'jsdoc/require-param': 'off',
-      'jsdoc/check-tag-names': 'off',
-      'jsdoc/require-returns': 'off',
+      'jsdoc/check-tag-names': 'error',
+      'jsdoc/require-returns': 'error',
+      'jsdoc/check-line-alignment': ['error', 'any', {
+        tags: ['param', 'property', 'returns', 'file'],
+        wrapIndent: '  ',
+      }],
+      'jsdoc/check-alignment': 'error',
 
       // Stylistic rules.
       '@stylistic/js/arrow-parens': 'error',
@@ -252,7 +289,7 @@ export default [
       '@stylistic/js/computed-property-spacing': 'error',
       '@stylistic/js/dot-location': ['error', 'property'],
       '@stylistic/js/eol-last': 'error',
-      '@stylistic/js/func-call-spacing': 'error',
+      '@stylistic/js/function-call-spacing': 'error',
       '@stylistic/js/indent': ['error', 2, {
         ArrayExpression: 'first',
         CallExpression: { arguments: 'first' },
@@ -289,7 +326,7 @@ export default [
         'error',
         { blankLine: 'always', prev: 'function', next: 'function' },
       ],
-      '@stylistic/js/quotes': ['error', 'single', { avoidEscape: true }],
+      '@stylistic/js/quotes': ['error', 'single', { avoidEscape: true, allowTemplateLiterals: true }],
       '@stylistic/js/quote-props': ['error', 'consistent'],
       '@stylistic/js/rest-spread-spacing': 'error',
       '@stylistic/js/semi': 'error',
@@ -313,6 +350,7 @@ export default [
       'node-core/no-unescaped-regexp-dot': 'error',
       'node-core/no-duplicate-requires': 'error',
       'node-core/prefer-proto': 'error',
+      'node-core/prefer-optional-chaining': 'error',
     },
   },
   // #endregion
@@ -346,31 +384,31 @@ export default [
       'error',
       {
         name: '__filename',
-        message: 'Use import.meta.url instead',
+        message: 'Use import.meta.url instead.',
       },
       {
         name: '__dirname',
-        message: 'Not available in ESM',
+        message: 'Not available in ESM.',
       },
       {
         name: 'exports',
-        message: 'Not available in ESM',
+        message: 'Not available in ESM.',
       },
       {
         name: 'module',
-        message: 'Not available in ESM',
+        message: 'Not available in ESM.',
       },
       {
         name: 'require',
-        message: 'Use import instead',
+        message: 'Use import instead.',
       },
       {
         name: 'Buffer',
-        message: 'Import Buffer instead of using the global',
+        message: "Import 'Buffer' instead of using the global.",
       },
       {
         name: 'process',
-        message: 'Import process instead of using the global',
+        message: "Import 'process' instead of using the global.",
       },
     ] },
   },

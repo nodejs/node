@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// AddressSanitizer support.
-
 #ifndef V8_BASE_SANITIZER_ASAN_H_
 #define V8_BASE_SANITIZER_ASAN_H_
+
+// AddressSanitizer support.
 
 #include <type_traits>
 
@@ -61,11 +61,10 @@ class AsanUnpoisonScope final {
 
 #define DISABLE_ASAN
 
-#define ASAN_POISON_MEMORY_REGION(start, size)                      \
-  static_assert(std::is_pointer<decltype(start)>::value,            \
-                "static type violation");                           \
-  static_assert(std::is_convertible<decltype(size), size_t>::value, \
-                "static type violation");                           \
+#define ASAN_POISON_MEMORY_REGION(start, size)                                \
+  static_assert(std::is_pointer_v<decltype(start)>, "static type violation"); \
+  static_assert(std::is_convertible_v<decltype(size), size_t>,                \
+                "static type violation");                                     \
   USE(start, size)
 
 #define ASAN_UNPOISON_MEMORY_REGION(start, size) \
@@ -80,5 +79,15 @@ class AsanUnpoisonScope final {
 };
 
 #endif  // !V8_USE_ADDRESS_SANITIZER
+
+#ifdef V8_USE_HWADDRESS_SANITIZER
+
+#define DISABLE_HWASAN __attribute__((no_sanitize("hwaddress")))
+
+#else  // !V8_USE_HWADDRESS_SANITIZER
+
+#define DISABLE_HWASAN
+
+#endif  // !V8_USE_HWADDRESS_SANITIZER
 
 #endif  // V8_BASE_SANITIZER_ASAN_H_

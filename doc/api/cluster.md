@@ -317,6 +317,7 @@ if (cluster.isPrimary) {
 ```cjs
 const cluster = require('node:cluster');
 const http = require('node:http');
+const numCPUs = require('node:os').availableParallelism();
 const process = require('node:process');
 
 if (cluster.isPrimary) {
@@ -335,7 +336,6 @@ if (cluster.isPrimary) {
   }
 
   // Start workers and listen for messages containing notifyRequest
-  const numCPUs = require('node:os').availableParallelism();
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
   }
@@ -450,7 +450,7 @@ if (cluster.isPrimary) {
 added: v6.0.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 This property is `true` if the worker exited due to `.disconnect()`.
 If the worker exited any other way, it is `false`. If the
@@ -477,7 +477,7 @@ worker.kill();
 added: v0.8.0
 -->
 
-* {integer}
+* Type: {integer}
 
 Each new worker is given its own unique id, this id is stored in the
 `id`.
@@ -595,7 +595,7 @@ it is [`kill()`][].
 added: v0.7.0
 -->
 
-* {ChildProcess}
+* Type: {ChildProcess}
 
 All workers are created using [`child_process.fork()`][], the returned object
 from this function is stored as `.process`. In a worker, the global `process`
@@ -860,7 +860,7 @@ Deprecated alias for [`cluster.isPrimary`][].
 added: v16.0.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 True if the process is a primary. This is determined
 by the `process.env.NODE_UNIQUE_ID`. If `process.env.NODE_UNIQUE_ID` is
@@ -872,7 +872,7 @@ undefined, then `isPrimary` is `true`.
 added: v0.6.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 True if the process is not a primary (it is the negation of `cluster.isPrimary`).
 
@@ -919,7 +919,7 @@ changes:
     description: The `stdio` option is supported now.
 -->
 
-* {Object}
+* Type: {Object}
   * `execArgv` {string\[]} List of string arguments passed to the Node.js
     executable. **Default:** `process.execArgv`.
   * `exec` {string} File path to worker file. **Default:** `process.argv[1]`.
@@ -1026,7 +1026,7 @@ This can only be called from the primary process.
 added: v0.7.0
 -->
 
-* {Object}
+* Type: {Object}
 
 A reference to the current worker object. Not available in the primary process.
 
@@ -1060,7 +1060,7 @@ if (cluster.isPrimary) {
 added: v0.7.0
 -->
 
-* {Object}
+* Type: {Object}
 
 A hash that stores the active worker objects, keyed by `id` field. This makes it
 easy to loop through all the workers. It is only available in the primary

@@ -2,19 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_WELL_KNOWN_IMPORTS_H_
+#define V8_WASM_WELL_KNOWN_IMPORTS_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
-#ifndef V8_WASM_WELL_KNOWN_IMPORTS_H_
-#define V8_WASM_WELL_KNOWN_IMPORTS_H_
-
+#include <atomic>
 #include <memory>
 
-#include "src/base/atomicops.h"
-#include "src/base/platform/mutex.h"
 #include "src/base/vector.h"
-#include "src/common/globals.h"
 
 namespace v8::internal::wasm {
 
@@ -50,7 +48,10 @@ enum class WellKnownImport : uint8_t {
   kStringToUtf8Array,
   kStringToWtf16Array,
 
-  kLastCompileTimeImport = kStringToWtf16Array,
+  // JS Prototypes setup (Custom Descriptors proposal)
+  kConfigureAllPrototypes,
+
+  kLastCompileTimeImport = kConfigureAllPrototypes,
   ////////////////////////////////////////////////////////
   // End of compile-time "builtin" imports.
   ////////////////////////////////////////////////////////
@@ -77,6 +78,19 @@ enum class WellKnownImport : uint8_t {
   kDataViewSetUint16,
   kDataViewSetUint32,
   kDataViewByteLength,
+
+  // Math functions.
+  kMathF64Acos,
+  kMathF64Asin,
+  kMathF64Atan,
+  kMathF64Atan2,
+  kMathF64Cos,
+  kMathF64Sin,
+  kMathF64Tan,
+  kMathF64Exp,
+  kMathF64Log,
+  kMathF64Pow,
+  kMathF64Sqrt,  // Used by dart2wasm. f64.sqrt is equivalent.
 
   // String-related functions:
   kDoubleToString,
@@ -135,17 +149,17 @@ class WellKnownImportsList {
     return statuses_[index].load(std::memory_order_relaxed);
   }
 
+  // Note: you probably want to be holding the associated NativeModule's
+  // {allocation_lock_} when calling this method.
   V8_WARN_UNUSED_RESULT UpdateResult
   Update(base::Vector<WellKnownImport> entries);
 
-  // If you need this mutex and the NativeModule's allocation_mutex_, always
-  // get the latter first.
-  base::Mutex* mutex() { return &mutex_; }
-
  private:
-  // This mutex guards {statuses_}, for operations that need to ensure that
-  // they see a consistent view of {statutes_} for some period of time.
-  base::Mutex mutex_;
+  // Operations that need to ensure that they see a consistent view of
+  // {statuses_} for some period of time should use the associated
+  // NativeModule's {allocation_lock_} for that purpose (which they will
+  // likely need anyway, due to WellKnownImport statuses and published
+  // code objects needing to stay in sync).
   std::unique_ptr<std::atomic<WellKnownImport>[]> statuses_;
 
 #if DEBUG

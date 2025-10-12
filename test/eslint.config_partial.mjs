@@ -1,11 +1,9 @@
 /* eslint-disable @stylistic/js/max-len */
 
 import {
+  globals,
   noRestrictedSyntaxCommonAll,
-  requireEslintTool,
 } from '../tools/eslint/eslint.config_utils.mjs';
-
-const globals = requireEslintTool('globals');
 
 export default [
   {
@@ -14,6 +12,7 @@ export default [
       globals: {
         ...globals.node,
         CloseEvent: true,
+        ErrorEvent: true,
       },
     },
     rules: {
@@ -39,6 +38,10 @@ export default [
           message: 'Do not use a literal for the third argument of assert.deepStrictEqual()',
         },
         {
+          selector: "CallExpression:matches([callee.name='notDeepStrictEqual'], [callee.property.name='deepStrictEqual'])[arguments.2.type='Literal']",
+          message: 'Do not use a literal for the third argument of assert.notDeepStrictEqual()',
+        },
+        {
           selector: "CallExpression:matches([callee.name='doesNotThrow'], [callee.property.name='doesNotThrow'])",
           message: 'Do not use `assert.doesNotThrow()`. Write the code without the wrapper and add a comment instead.',
         },
@@ -51,8 +54,16 @@ export default [
           message: '`assert.rejects()` must be invoked with at least two arguments.',
         },
         {
+          selector: "CallExpression[callee.property.name='notStrictEqual'][arguments.2.type='Literal']",
+          message: 'Do not use a literal for the third argument of assert.notStrictEqual()',
+        },
+        {
           selector: "CallExpression[callee.property.name='strictEqual'][arguments.2.type='Literal']",
           message: 'Do not use a literal for the third argument of assert.strictEqual()',
+        },
+        {
+          selector: "CallExpression[callee.name='assert'][arguments.1.type='Literal']:not([arguments.1.raw=/['\"`].*/])",
+          message: 'Do not use a non-string literal for the second argument of assert()',
         },
         {
           selector: "CallExpression:matches([callee.name='throws'], [callee.property.name='throws'])[arguments.1.type='Literal']:not([arguments.1.regex])",
@@ -93,6 +104,10 @@ export default [
         {
           selector: "ExpressionStatement>CallExpression:matches([callee.name='rejects'], [callee.object.name='assert'][callee.property.name='rejects'])",
           message: 'Calling `assert.rejects` without `await` or `.then(common.mustCall())` will not detect never-settling promises.',
+        },
+        {
+          selector: 'CallExpression[callee.property.name="catch"]>:first-child:matches(CallExpression[callee.object.name="common"][callee.property.name="mustNotCall"], CallExpression[callee.name="mustNotCall"])',
+          message: 'Calling `.catch(common.mustNotCall())` will not detect never-settling promises. Use `.then(common.mustCall())` instead.',
         },
       ],
 
@@ -141,7 +156,15 @@ export default [
   },
   {
     files: [
-      'test/{common,wpt}/**/*.{js,mjs,cjs}',
+      'test/{async-hooks,message,module-hooks,node-api,pummel,pseudo-tty,v8-updates,wasi}/**/*.{js,mjs,cjs}',
+    ],
+    rules: {
+      'node-core/must-call-assert': 'error',
+    },
+  },
+  {
+    files: [
+      'test/{common,fixtures,wpt}/**/*.{js,mjs,cjs}',
       'test/eslint.config_partial.mjs',
     ],
     rules: {

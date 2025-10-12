@@ -74,6 +74,10 @@ size_t EC_POINT_point2oct(const EC_GROUP *group, const EC_POINT *point,
                           point_conversion_form_t form, unsigned char *buf,
                           size_t len, BN_CTX *ctx)
 {
+    if (point == NULL) {
+        ERR_raise(ERR_LIB_EC, ERR_R_PASSED_NULL_PARAMETER);
+        return 0;
+    }
     if (group->meth->point2oct == 0
         && !(group->meth->flags & EC_FLAGS_DEFAULT_OCT)) {
         ERR_raise(ERR_LIB_EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -140,10 +144,8 @@ size_t EC_POINT_point2buf(const EC_GROUP *group, const EC_POINT *point,
     len = EC_POINT_point2oct(group, point, form, NULL, 0, NULL);
     if (len == 0)
         return 0;
-    if ((buf = OPENSSL_malloc(len)) == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+    if ((buf = OPENSSL_malloc(len)) == NULL)
         return 0;
-    }
     len = EC_POINT_point2oct(group, point, form, buf, len, ctx);
     if (len == 0) {
         OPENSSL_free(buf);

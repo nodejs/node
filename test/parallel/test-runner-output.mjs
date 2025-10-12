@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
@@ -9,6 +10,10 @@ import { fileURLToPath } from 'node:url';
 const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
   process.config.variables.node_shared_openssl;
+
+// We're using dynamic import here to not break `NODE_REGENERATE_SNAPSHOTS`.
+const canColorize = (await import('internal/tty')).default.getColorDepth() > 2;
+const skipCoverageColors = !canColorize;
 
 function replaceTestDuration(str) {
   return str
@@ -32,7 +37,8 @@ function replaceJunitDuration(str) {
   return str
     .replaceAll(/time="[0-9.]+"/g, 'time="*"')
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
-    .replaceAll(hostname(), 'HOSTNAME')
+    .replaceAll(`hostname="${hostname()}"`, 'hostname="HOSTNAME"')
+    .replaceAll(/file="[^"]*"/g, 'file="*"')
     .replace(stackTraceBasePath, '$3');
 }
 
@@ -65,7 +71,7 @@ const defaultTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
   removeWindowsPathEscaping,
-  snapshot.replaceFullPaths,
+  snapshot.transformProjectRoot(),
   snapshot.replaceWindowsPaths,
   replaceTestDuration,
   replaceTestLocationLine,
@@ -85,53 +91,150 @@ const junitTransform = snapshot.transform(
 const lcovTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
-  snapshot.replaceFullPaths,
+  snapshot.transformProjectRoot(),
   snapshot.replaceWindowsPaths,
   pickTestFileFromLcov
 );
 
 
 const tests = [
-  { name: 'test-runner/output/abort.js' },
-  { name: 'test-runner/output/abort_suite.js' },
-  { name: 'test-runner/output/abort_hooks.js' },
-  { name: 'test-runner/output/describe_it.js' },
-  { name: 'test-runner/output/describe_nested.js' },
+  { name: 'test-runner/output/abort.js', flags: ['--test-reporter=tap'] },
+  {
+    name: 'test-runner/output/abort-runs-after-hook.js',
+    flags: ['--test-reporter=tap'],
+  },
+  { name: 'test-runner/output/abort_suite.js', flags: ['--test-reporter=tap'] },
+  { name: 'test-runner/output/abort_hooks.js', flags: ['--test-reporter=tap'] },
+  { name: 'test-runner/output/describe_it.js', flags: ['--test-reporter=tap'] },
+  {
+    name: 'test-runner/output/describe_nested.js',
+    flags: ['--test-reporter=tap'],
+  },
   { name: 'test-runner/output/eval_dot.js', transform: specTransform },
   { name: 'test-runner/output/eval_spec.js', transform: specTransform },
   { name: 'test-runner/output/eval_tap.js' },
-  { name: 'test-runner/output/hooks.js' },
+  {
+    name: 'test-runner/output/filtered-suite-delayed-build.js',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/filtered-suite-order.mjs',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/filtered-suite-throws.js',
+    flags: ['--test-reporter=tap'],
+  },
+  { name: 'test-runner/output/hooks.js', flags: ['--test-reporter=tap'] },
   { name: 'test-runner/output/hooks_spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/skip-each-hooks.js', transform: specTransform },
   { name: 'test-runner/output/suite-skip-hooks.js', transform: specTransform },
-  { name: 'test-runner/output/timeout_in_before_each_should_not_affect_further_tests.js' },
-  { name: 'test-runner/output/hooks-with-no-global-test.js' },
-  { name: 'test-runner/output/global-hooks-with-no-tests.js' },
-  { name: 'test-runner/output/before-and-after-each-too-many-listeners.js' },
-  { name: 'test-runner/output/before-and-after-each-with-timeout-too-many-listeners.js' },
+  {
+    name: 'test-runner/output/timeout_in_before_each_should_not_affect_further_tests.js',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/test-timeout-flag.js',
+    flags: [
+      '--test-reporter=tap',
+      '--test-timeout=100',
+    ],
+  },
+  // --test-timeout should work with or without --test flag
+  {
+    name: 'test-runner/output/test-timeout-flag.js',
+    flags: [
+      '--test-reporter=tap',
+      '--test-timeout=100',
+      '--test',
+    ],
+  },
+  {
+    name: 'test-runner/output/hooks-with-no-global-test.js',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/global-hooks-with-no-tests.js',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/before-and-after-each-too-many-listeners.js',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/before-and-after-each-with-timeout-too-many-listeners.js',
+    flags: ['--test-reporter=tap'],
+  },
   { name: 'test-runner/output/force_exit.js', transform: specTransform },
-  { name: 'test-runner/output/global_after_should_fail_the_test.js' },
-  { name: 'test-runner/output/no_refs.js' },
-  { name: 'test-runner/output/no_tests.js' },
-  { name: 'test-runner/output/only_tests.js' },
+  {
+    name: 'test-runner/output/global_after_should_fail_the_test.js',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/no_refs.js',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/no_tests.js',
+    flags: ['--test-reporter=tap'],
+  },
+  { name: 'test-runner/output/only_tests.js', flags: ['--test-reporter=tap'] },
   { name: 'test-runner/output/dot_reporter.js', transform: specTransform },
   { name: 'test-runner/output/junit_reporter.js', transform: junitTransform },
   { name: 'test-runner/output/spec_reporter_successful.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter_cli.js', transform: specTransform },
-  { name: 'test-runner/output/source_mapped_locations.mjs' },
-  process.features.inspector ? { name: 'test-runner/output/lcov_reporter.js', transform: lcovTransform } : false,
-  { name: 'test-runner/output/output.js' },
+  {
+    name: 'test-runner/output/source_mapped_locations.mjs',
+    flags: ['--test-reporter=tap'],
+  },
+  process.features.inspector ?
+    {
+      name: 'test-runner/output/lcov_reporter.js',
+      transform: lcovTransform
+    } :
+    false,
+  { name: 'test-runner/output/output.js', flags: ['--test-reporter=tap'] },
   { name: 'test-runner/output/output_cli.js' },
-  { name: 'test-runner/output/name_and_skip_patterns.js' },
-  { name: 'test-runner/output/name_pattern.js' },
-  { name: 'test-runner/output/name_pattern_with_only.js' },
-  { name: 'test-runner/output/skip_pattern.js' },
-  { name: 'test-runner/output/unfinished-suite-async-error.js' },
-  { name: 'test-runner/output/unresolved_promise.js' },
+  {
+    name: 'test-runner/output/name_and_skip_patterns.js',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/name_pattern.js',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/name_pattern_with_only.js',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/skip_pattern.js',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/unfinished-suite-async-error.js',
+    flags: ['--test-reporter=tap'],
+  },
   { name: 'test-runner/output/default_output.js', transform: specTransform, tty: true },
-  { name: 'test-runner/output/arbitrary-output.js' },
-  { name: 'test-runner/output/async-test-scheduling.mjs' },
+  {
+    name: 'test-runner/output/arbitrary-output.js',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/non-tty-forced-color-output.js',
+    transform: specTransform,
+  },
+  canColorize ? {
+    name: 'test-runner/output/assertion-color-tty.mjs',
+    flags: ['--test', '--stack-trace-limit=0'],
+    transform: specTransform,
+    tty: true,
+  } : false,
+  {
+    name: 'test-runner/output/async-test-scheduling.mjs',
+    flags: ['--test-reporter=tap'],
+  },
   !skipForceColors ? {
     name: 'test-runner/output/arbitrary-output-colored.js',
     transform: snapshot.transform(specTransform, replaceTestDuration), tty: true
@@ -143,15 +246,105 @@ const tests = [
       snapshot.replaceWindowsLineEndings,
       replaceTestDuration,
     ),
+    flags: ['--test-reporter=tap'],
   },
-  { name: 'test-runner/output/test-runner-plan.js' },
-  process.features.inspector ? { name: 'test-runner/output/coverage_failure.js' } : false,
+  {
+    name: 'test-runner/output/test-runner-plan.js',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/test-runner-watch-spec.mjs',
+    transform: specTransform,
+  },
+  {
+    name: 'test-runner/output/test-runner-plan-timeout.js',
+    flags: ['--test-reporter=tap', '--test-force-exit'],
+  },
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage_failure.js',
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
+  } : false,
+  {
+    name: 'test-runner/output/test-diagnostic-warning-without-test-only-flag.js',
+    flags: ['--test', '--test-reporter=tap'],
+  },
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-width-40.mjs',
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-width-80.mjs',
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
+  } : false,
+  process.features.inspector && !skipCoverageColors ? {
+    name: 'test-runner/output/coverage-width-80-color.mjs',
+    flags: ['--test-coverage-exclude=!test/**'],
+    transform: specTransform,
+    tty: true
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-width-100.mjs',
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-width-150.mjs',
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-width-infinity.mjs',
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-width-80-uncovered-lines.mjs',
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-width-100-uncovered-lines.mjs',
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
+  } : false,
+  process.features.inspector && !skipCoverageColors ? {
+    name: 'test-runner/output/coverage-width-80-uncovered-lines-color.mjs',
+    flags: ['--test-coverage-exclude=!test/**'],
+    transform: specTransform,
+    tty: true
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-width-150-uncovered-lines.mjs',
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-width-infinity-uncovered-lines.mjs',
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-short-filename.mjs',
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=../output/**'],
+    cwd: fixtures.path('test-runner/coverage-snap'),
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/typescript-coverage.mts',
+    flags: ['--disable-warning=ExperimentalWarning',
+            '--test-reporter=tap',
+            '--experimental-transform-types',
+            '--experimental-test-module-mocks',
+            '--experimental-test-coverage',
+            '--test-coverage-exclude=!test/**']
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-with-mock.mjs',
+    flags: ['--disable-warning=ExperimentalWarning',
+            '--test-reporter=tap',
+            '--experimental-transform-types',
+            '--experimental-test-module-mocks',
+            '--experimental-test-coverage',
+            '--test-coverage-exclude=!test/**']
+  } : false,
 ]
 .filter(Boolean)
-.map(({ name, tty, transform }) => ({
+.map(({ flags, name, tty, transform, cwd }) => ({
   name,
   fn: common.mustCall(async () => {
-    await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { tty });
+    await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { tty, flags, cwd });
   }),
 }));
 

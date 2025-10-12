@@ -25,7 +25,8 @@ TEST_F(StrongRootAllocatorTest, AddressRetained) {
 
   {
     v8::HandleScope scope(v8_isolate());
-    Handle<FixedArray> h = factory()->NewFixedArray(10, AllocationType::kOld);
+    DirectHandle<FixedArray> h =
+        factory()->NewFixedArray(10, AllocationType::kOld);
     allocated[7] = h->ptr();
     Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h);
     weak.Reset(v8_isolate(), l);
@@ -60,7 +61,8 @@ TEST_F(StrongRootAllocatorTest, StructNotRetained) {
 
   {
     v8::HandleScope scope(v8_isolate());
-    Handle<FixedArray> h = factory()->NewFixedArray(10, AllocationType::kOld);
+    DirectHandle<FixedArray> h =
+        factory()->NewFixedArray(10, AllocationType::kOld);
     allocated[7].content = h->ptr();
     Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h);
     weak.Reset(v8_isolate(), l);
@@ -86,7 +88,8 @@ TEST_F(StrongRootAllocatorTest, VectorRetained) {
 
     {
       v8::HandleScope scope(v8_isolate());
-      Handle<FixedArray> h = factory()->NewFixedArray(10, AllocationType::kOld);
+      DirectHandle<FixedArray> h =
+          factory()->NewFixedArray(10, AllocationType::kOld);
       v[7] = h->ptr();
       Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h);
       weak.Reset(v8_isolate(), l);
@@ -120,7 +123,8 @@ TEST_F(StrongRootAllocatorTest, VectorOfStructNotRetained) {
 
   {
     v8::HandleScope scope(v8_isolate());
-    Handle<FixedArray> h = factory()->NewFixedArray(10, AllocationType::kOld);
+    DirectHandle<FixedArray> h =
+        factory()->NewFixedArray(10, AllocationType::kOld);
     v[7].content = h->ptr();
     Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h);
     weak.Reset(v8_isolate(), l);
@@ -139,12 +143,13 @@ TEST_F(StrongRootAllocatorTest, ListNotRetained) {
   Global<v8::FixedArray> weak;
 
   StrongRootAllocator<Address> allocator(heap());
-  std::list<Address, StrongRootAllocator<Address>> l(allocator);
+  std::list<Address, StrongRootAllocator<Address>> list(allocator);
 
   {
     v8::HandleScope scope(v8_isolate());
-    Handle<FixedArray> h = factory()->NewFixedArray(10, AllocationType::kOld);
-    l.push_back(h->ptr());
+    DirectHandle<FixedArray> h =
+        factory()->NewFixedArray(10, AllocationType::kOld);
+    list.push_back(h->ptr());
     Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h);
     weak.Reset(v8_isolate(), l);
     weak.SetWeak();
@@ -167,7 +172,8 @@ TEST_F(StrongRootAllocatorTest, SetNotRetained) {
 
   {
     v8::HandleScope scope(v8_isolate());
-    Handle<FixedArray> h = factory()->NewFixedArray(10, AllocationType::kOld);
+    DirectHandle<FixedArray> h =
+        factory()->NewFixedArray(10, AllocationType::kOld);
     s.insert(h->ptr());
     Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h);
     weak.Reset(v8_isolate(), l);
@@ -192,7 +198,8 @@ TEST_F(StrongRootAllocatorTest, LocalVector) {
 
     {
       v8::EscapableHandleScope inner_scope(v8_isolate());
-      Handle<FixedArray> h = factory()->NewFixedArray(10, AllocationType::kOld);
+      DirectHandle<FixedArray> h =
+          factory()->NewFixedArray(10, AllocationType::kOld);
       Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h);
       weak.Reset(v8_isolate(), l);
       weak.SetWeak();
@@ -213,7 +220,7 @@ TEST_F(StrongRootAllocatorTest, LocalVector) {
   EXPECT_TRUE(weak.IsEmpty());
 }
 
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
 TEST_F(StrongRootAllocatorTest, LocalVectorWithDirect) {
   ManualGCScope manual_gc_scope(i_isolate());
   Global<v8::FixedArray> weak;
@@ -224,7 +231,8 @@ TEST_F(StrongRootAllocatorTest, LocalVectorWithDirect) {
 
     {
       v8::HandleScope scope(v8_isolate());
-      Handle<FixedArray> h = factory()->NewFixedArray(10, AllocationType::kOld);
+      DirectHandle<FixedArray> h =
+          factory()->NewFixedArray(10, AllocationType::kOld);
       Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h);
       // This is legal without escaping, because locals are direct.
       v[7] = l;
@@ -245,7 +253,7 @@ TEST_F(StrongRootAllocatorTest, LocalVectorWithDirect) {
   }
   EXPECT_TRUE(weak.IsEmpty());
 }
-#endif  // V8_ENABLE_DIRECT_LOCAL
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 }  // namespace internal
 }  // namespace v8

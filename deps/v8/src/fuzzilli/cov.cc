@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include "src/base/platform/memory.h"
+#include "src/sandbox/hardware-support.h"
 
 #define SHM_SIZE 0x100000
 #define MAX_EDGES ((SHM_SIZE - 4) * 8)
@@ -57,8 +58,10 @@ extern "C" void __sanitizer_cov_trace_pc_guard_init(uint32_t* start,
   // Map the shared memory region
   const char* shm_key = getenv("SHM_ID");
   if (!shm_key) {
-    puts("[COV] no shared memory bitmap available, skipping");
-    shmem = (struct shmem_data*)v8::base::Malloc(SHM_SIZE);
+    fprintf(stderr, "[COV] no shared memory bitmap available, skipping\n");
+    shmem = (struct shmem_data*)mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE,
+                                     MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    CHECK_NE(shmem, MAP_FAILED);
   } else {
     int fd = shm_open(shm_key, O_RDWR, S_IREAD | S_IWRITE);
     if (fd <= -1) {
@@ -80,9 +83,36 @@ extern "C" void __sanitizer_cov_trace_pc_guard_init(uint32_t* start,
 
   shmem->num_edges = static_cast<uint32_t>(stop - start);
   builtins_start = 1 + shmem->num_edges;
-  printf("[COV] edge counters initialized. Shared memory: %s with %u edges\n",
-         shm_key, shmem->num_edges);
+  fprintf(stderr,
+          "[COV] edge counters initialized. Shared memory: %s with %u edges\n",
+          shm_key, shmem->num_edges);
 }
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+void sanitizer_cov_prepare_for_hardware_sandbox() {
+  // We need to allow the coverage instrumentation to run in sandboxed
+  // execution mode, for example to be able to run sandboxed C++ code. For that
+  // to work, we need to make both the shared memory region and the edge guards
+  // sandbox-accessible as they are both written to from
+  // __sanitizer_cov_trace_pc_guard (which would then run in sandboxed mode).
+  v8::internal::SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(
+      reinterpret_cast<uintptr_t>(shmem), SHM_SIZE);
+
+  // While the shared memory region is guaranteed to be page-aligned, the
+  // edge guards are not so we need to do some rounding and will thereby also
+  // make some unrelated memory sandbox-accessible. Since this is just used
+  // in fuzzer builds, that should be fine.
+  const size_t kPageSize = sysconf(_SC_PAGESIZE);
+  const uintptr_t kPageMask = ~(kPageSize - 1);
+  uintptr_t edge_guards_start = reinterpret_cast<uintptr_t>(edges_start);
+  uintptr_t edge_guards_end = reinterpret_cast<uintptr_t>(edges_stop);
+  edge_guards_start &= kPageMask;
+  edge_guards_end = (edge_guards_end - 1 + kPageSize) & kPageMask;
+  size_t edge_guards_size = edge_guards_end - edge_guards_start;
+  v8::internal::SandboxHardwareSupport::RegisterUnsafeSandboxExtensionMemory(
+      edge_guards_start, edge_guards_size);
+}
+#endif
 
 uint32_t sanitizer_cov_count_discovered_edges() {
   uint32_t on_edges_counter = 0;
@@ -110,15 +140,16 @@ extern "C" void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
 
 void cov_init_builtins_edges(uint32_t num_edges) {
   if (num_edges + shmem->num_edges > MAX_EDGES) {
-    printf(
-        "[COV] Error: Insufficient amount of edges left for builtins "
-        "coverage.\n");
+    fprintf(stderr,
+            "[COV] Error: Insufficient amount of edges left for builtins "
+            "coverage.\n");
     exit(-1);
   }
   builtins_edge_count = num_edges;
   builtins_start = 1 + shmem->num_edges;
   shmem->num_edges += builtins_edge_count;
-  printf("[COV] Additional %d edges for builtins initialized.\n", num_edges);
+  fprintf(stderr, "[COV] Additional %d edges for builtins initialized.\n",
+          num_edges);
 }
 
 // This function is ran once per REPRL loop. In case of crash the coverage of
@@ -127,7 +158,7 @@ void cov_init_builtins_edges(uint32_t num_edges) {
 void cov_update_builtins_basic_block_coverage(
     const std::vector<bool>& cov_map) {
   if (cov_map.size() != builtins_edge_count) {
-    printf("[COV] Error: Size of builtins cov map changed.\n");
+    fprintf(stderr, "[COV] Error: Size of builtins cov map changed.\n");
     exit(-1);
   }
   for (uint32_t i = 0; i < cov_map.size(); ++i) {

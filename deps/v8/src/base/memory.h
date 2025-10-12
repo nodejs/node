@@ -14,8 +14,6 @@ using Address = uintptr_t;
 
 // Memory provides an interface to 'raw' memory. It encapsulates the casts
 // that typically are needed when incompatible pointer types are used.
-// Note that this class currently relies on undefined behaviour. There is a
-// proposal (http://wg21.link/p0593r2) to make it defined behaviour though.
 template <class T>
 inline T& Memory(Address addr) {
   DCHECK(IsAligned(addr, alignof(T)));
@@ -86,7 +84,7 @@ static inline V ReadLittleEndianValue(V* p) {
 template <typename V>
 static inline void WriteLittleEndianValue(V* p, V value) {
   static_assert(
-      !std::is_array<V>::value,
+      !std::is_array_v<V>,
       "Passing an array decays to pointer, causing unexpected results.");
   WriteLittleEndianValue<V>(reinterpret_cast<Address>(p), value);
 }

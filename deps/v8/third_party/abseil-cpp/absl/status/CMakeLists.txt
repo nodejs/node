@@ -35,6 +35,7 @@ absl_cc_library(
     absl::core_headers
     absl::function_ref
     absl::inlined_vector
+    absl::leak_check
     absl::memory
     absl::no_destructor
     absl::nullability
@@ -42,8 +43,8 @@ absl_cc_library(
     absl::raw_logging_internal
     absl::span
     absl::stacktrace
-    absl::strerror
     absl::str_format
+    absl::strerror
     absl::strings
     absl::symbolize
   PUBLIC
@@ -98,7 +99,45 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::status
+    absl::status_matchers
     absl::statusor
     absl::strings
+    GTest::gmock_main
+)
+
+absl_cc_library(
+  NAME
+    status_matchers
+  HDRS
+    "status_matchers.h"
+  SRCS
+    "internal/status_matchers.h"
+    "internal/status_matchers.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::base
+    absl::status
+    absl::statusor
+    absl::strings
+    GTest::gmock
+    GTest::gtest
+  PUBLIC
+  TESTONLY
+)
+
+absl_cc_test(
+  NAME
+    status_matchers_test
+  SRCS
+   "status_matchers_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::status
+    absl::statusor
+    absl::status_matchers
     GTest::gmock_main
 )

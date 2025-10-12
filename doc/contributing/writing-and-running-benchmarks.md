@@ -9,6 +9,7 @@
   * [Benchmark analysis requirements](#benchmark-analysis-requirements)
 * [Running benchmarks](#running-benchmarks)
   * [Running individual benchmarks](#running-individual-benchmarks)
+  * [Calibrating the number of iterations with calibrate-n.js](#calibrating-the-number-of-iterations-with-calibrate-njs)
   * [Running all benchmarks](#running-all-benchmarks)
   * [Specifying CPU Cores for Benchmarks with run.js](#specifying-cpu-cores-for-benchmarks-with-runjs)
   * [Filtering benchmarks](#filtering-benchmarks)
@@ -94,6 +95,16 @@ A list of mirrors is [located here](https://cran.r-project.org/mirrors.html).
 
 ## Running benchmarks
 
+### Setting CPU Frequency scaling governor to "performance"
+
+It is recommended to set the CPU frequency to `performance` before running
+benchmarks. This increases the likelihood of each benchmark achieving peak performance
+according to the hardware. Therefore, run:
+
+```console
+$ ./benchmark/cpu.sh fast
+```
+
 ### Running individual benchmarks
 
 This can be useful for debugging a benchmark or doing a quick performance
@@ -132,6 +143,46 @@ buffers/buffer-tostring.js n=10000000 len=1024 arg=true: 3498295.68561504
 buffers/buffer-tostring.js n=10000000 len=1024 arg=false: 3783071.1678948295
 ```
 
+### Calibrating the number of iterations with calibrate-n.js
+
+Before running benchmarks, it's often useful to determine the optimal number of iterations (`n`)
+that provides statistically stable results. The `calibrate-n.js` tool helps find this value by
+running a benchmark multiple times with increasing `n` values until the coefficient of variation (CV)
+falls below a target threshold.
+
+```console
+$ node benchmark/calibrate-n.js benchmark/buffers/buffer-compare.js
+
+--------------------------------------------------------
+Benchmark: buffers/buffer-compare.js
+--------------------------------------------------------
+What we are trying to find: The optimal number of iterations (n)
+that produces consistent benchmark results without wasting time.
+
+How it works:
+1. Run the benchmark multiple times with a specific n value
+2. Group results by configuration
+3. If overall CV is above 5% or any configuration has CV above 10%, increase n and try again
+4. Stop when we have stable results (overall CV < 5% and all configs CV < 10%) or max increases reached
+
+Configuration:
+- Starting n: 10 iterations
+- Runs per n value: 30
+- Target CV threshold: 5% (lower CV = more stable results)
+- Max increases: 6
+- Increase factor: 10x
+```
+
+The tool accepts several options:
+
+* `--runs=N`: Number of runs for each n value (default: 30)
+* `--cv-threshold=N`: Target coefficient of variation threshold (default: 0.05)
+* `--max-increases=N`: Maximum number of n increases to try (default: 6)
+* `--start-n=N`: Initial n value to start with (default: 10)
+* `--increase=N`: Factor by which to increase n (default: 10)
+
+Once you've determined a stable `n` value, you can use it when running your benchmarks.
+
 ### Running all benchmarks
 
 Similar to running individual benchmarks, a group of benchmarks can be executed
@@ -163,6 +214,16 @@ It is possible to execute more groups by adding extra process arguments.
 ```bash
 node benchmark/run.js assert async_hooks
 ```
+
+It's also possible to execute the benchmark more than once using the
+`--runs` flag.
+
+```bash
+node benchmark/run.js --runs 10 assert async_hooks
+```
+
+This command will run the benchmark files in `benchmark/assert` and `benchmark/async_hooks`
+10 times each.
 
 #### Specifying CPU Cores for Benchmarks with run.js
 
@@ -270,6 +331,19 @@ process/bench-env.js operation="set" n=1000000: 1,295,176.3266261867
 process/bench-env.js operation="enumerate" n=1000000: 24,592.32231990992
 process/bench-env.js operation="query" n=1000000: 3,625,787.2150573144
 process/bench-env.js operation="delete" n=1000000: 1,521,131.5742806569
+```
+
+#### Grouping benchmarks
+
+Benchmarks can also have groups, giving the developer greater flexibility in differentiating between test cases
+and also helping reduce the time to run the combination of benchmark parameters.
+
+By default, all groups are executed when running the benchmark.
+However, it is possible to specify individual groups by setting the
+`NODE_RUN_BENCHMARK_GROUPS` environment variable when running `compare.js`:
+
+```bash
+NODE_RUN_BENCHMARK_GROUPS=fewHeaders,manyHeaders node http/headers.js
 ```
 
 ### Comparing Node.js versions
@@ -492,6 +566,23 @@ The arguments of `createBenchmark` are:
 * `options` {Object} The benchmark options. Supported options:
   * `flags` {Array} Contains node-specific command line flags to pass to
     the child process.
+
+  * `byGroups` {Boolean} option for processing `configs` by groups:
+    ```js
+    const bench = common.createBenchmark(main, {
+      groupA: {
+        source: ['array'],
+        len: [10, 2048],
+        n: [50],
+      },
+      groupB: {
+        source: ['buffer', 'string'],
+        len: [2048],
+        n: [50, 2048],
+      },
+    }, { byGroups: true });
+    ```
+
   * `combinationFilter` {Function} Has a single parameter which is an object
     containing a combination of benchmark parameters. It should return `true`
     or `false` to indicate whether the combination should be included or not.
@@ -522,7 +613,7 @@ the code inside the `main` function if it's more than just declaration.
 ```js
 'use strict';
 const common = require('../common.js');
-const { SlowBuffer } = require('node:buffer');
+const { Buffer } = require('node:buffer');
 
 const configs = {
   // Number of operations, specified here so they show up in the report.
@@ -553,10 +644,11 @@ function main(conf) {
   bench.start();
 
   // Do operations here
-  const BufferConstructor = conf.type === 'fast' ? Buffer : SlowBuffer;
 
   for (let i = 0; i < conf.n; i++) {
-    new BufferConstructor(conf.size);
+    conf.type === 'fast' ?
+      Buffer.allocUnsafe(conf.size) :
+      Buffer.allocUnsafeSlow(conf.size);
   }
 
   // End the timer, pass in the number of operations

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,7 +10,7 @@
 /*
  * This module is meant to be used as template for non-x87 floating-
  * point assembly modules. The template itself is x86_64-specific
- * though, as it was debugged on x86_64. So that implementor would
+ * though, as it was debugged on x86_64. So that implementer would
  * have to recognize platform-specific parts, UxTOy and inline asm,
  * and act accordingly.
  *
@@ -69,7 +69,7 @@ typedef union { double d; u64 u; } elem64;
 #if defined(__x86_64__) || (defined(__PPC__) && defined(__LITTLE_ENDIAN__))
 # define U8TOU32(p)     (*(const u32 *)(p))
 # define U32TO8(p,v)    (*(u32 *)(p) = (v))
-#elif defined(__PPC__)
+#elif defined(__PPC__) || defined(__POWERPC__)
 # define U8TOU32(p)     ({u32 ret; asm ("lwbrx	%0,0,%1":"=r"(ret):"b"(p)); ret; })
 # define U32TO8(p,v)    asm ("stwbrx %0,0,%1"::"r"(v),"b"(p):"memory")
 #elif defined(__s390x__)
@@ -95,7 +95,7 @@ typedef struct {
 /* "round toward zero (truncate), mask all exceptions" */
 #if defined(__x86_64__)
 static const u32 mxcsr = 0x7f80;
-#elif defined(__PPC__)
+#elif defined(__PPC__) || defined(__POWERPC__)
 static const u64 one = 1;
 #elif defined(__s390x__)
 static const u32 fpc = 1;
@@ -134,7 +134,7 @@ int poly1305_init(void *ctx, const unsigned char key[16])
 
         asm volatile ("stmxcsr	%0":"=m"(mxcsr_orig));
         asm volatile ("ldmxcsr	%0"::"m"(mxcsr));
-#elif defined(__PPC__)
+#elif defined(__PPC__) || defined(__POWERPC__)
         double fpscr_orig, fpscr = *(double *)&one;
 
         asm volatile ("mffs	%0":"=f"(fpscr_orig));
@@ -207,7 +207,7 @@ int poly1305_init(void *ctx, const unsigned char key[16])
          */
 #if defined(__x86_64__)
         asm volatile ("ldmxcsr	%0"::"m"(mxcsr_orig));
-#elif defined(__PPC__)
+#elif defined(__PPC__) || defined(__POWERPC__)
         asm volatile ("mtfsf	255,%0"::"f"(fpscr_orig));
 #elif defined(__s390x__)
         asm volatile ("lfpc	%0"::"m"(fpc_orig));
@@ -256,7 +256,7 @@ void poly1305_blocks(void *ctx, const unsigned char *inp, size_t len,
 
     asm volatile ("stmxcsr	%0":"=m"(mxcsr_orig));
     asm volatile ("ldmxcsr	%0"::"m"(mxcsr));
-#elif defined(__PPC__)
+#elif defined(__PPC__) || defined(__POWERPC__)
     double fpscr_orig, fpscr = *(double *)&one;
 
     asm volatile ("mffs		%0":"=f"(fpscr_orig));
@@ -416,7 +416,7 @@ void poly1305_blocks(void *ctx, const unsigned char *inp, size_t len,
      */
 #if defined(__x86_64__)
     asm volatile ("ldmxcsr	%0"::"m"(mxcsr_orig));
-#elif defined(__PPC__)
+#elif defined(__PPC__) || defined(__POWERPC__)
     asm volatile ("mtfsf	255,%0"::"f"(fpscr_orig));
 #elif defined(__s390x__)
     asm volatile ("lfpc		%0"::"m"(fpc_orig));

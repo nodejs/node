@@ -6,9 +6,13 @@
 
 #include "src/common/globals.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/live-object-range-inl.h"
 #include "src/heap/marking-worklist.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/new-spaces.h"
+#include "src/heap/visit-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/visitors-inl.h"
@@ -43,8 +47,8 @@ void MarkingVerifierBase::VerifyMarkingOnPage(const PageMetadata* page,
     if (current >= end) break;
     CHECK(IsMarked(object));
     CHECK(current >= next_object_must_be_here_or_later);
-    object->Iterate(cage_base(), this);
-    next_object_must_be_here_or_later = current + size;
+    VisitObject(heap_->isolate(), object, this);
+    next_object_must_be_here_or_later = current + size.value();
     // The object is either part of a black area of black allocation or a
     // regular black object
     CHECK(bitmap(page)->AllBitsSetInRange(
@@ -83,7 +87,7 @@ void MarkingVerifierBase::VerifyMarking(LargeObjectSpace* lo_space) {
   LargeObjectSpaceObjectIterator it(lo_space);
   for (Tagged<HeapObject> obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     if (IsMarked(obj)) {
-      obj->Iterate(cage_base(), this);
+      VisitObject(heap_->isolate(), obj, this);
     }
   }
 }
@@ -101,15 +105,16 @@ void ExternalStringTableCleanerVisitor<mode>::VisitRootPointers(
   for (FullObjectSlot p = start; p < end; ++p) {
     Tagged<Object> o = *p;
     if (!IsHeapObject(o)) continue;
-    Tagged<HeapObject> heap_object = HeapObject::cast(o);
+    Tagged<HeapObject> heap_object = Cast<HeapObject>(o);
     // MinorMS doesn't update the young strings set and so it may contain
     // strings that are already in old space.
-    if (!marking_state->IsUnmarked(heap_object)) continue;
+    if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state, heap_object))
+      continue;
     if ((mode == ExternalStringTableCleaningMode::kYoungOnly) &&
-        !Heap::InYoungGeneration(heap_object))
+        !HeapLayout::InYoungGeneration(heap_object))
       continue;
     if (IsExternalString(o)) {
-      heap_->FinalizeExternalString(String::cast(o));
+      heap_->FinalizeExternalString(Cast<String>(o));
     } else {
       // The original external string may have been internalized.
       DCHECK(IsThinString(o));
@@ -137,7 +142,7 @@ bool IsCppHeapMarkingFinished(
   const auto* cpp_heap = CppHeap::From(heap->cpp_heap());
   if (!cpp_heap) return true;
 
-  return cpp_heap->IsTracingDone() && local_marking_worklists->IsWrapperEmpty();
+  return cpp_heap->IsMarkingDone() && local_marking_worklists->IsWrapperEmpty();
 }
 
 #if DEBUG
@@ -175,11 +180,23 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
     // Old-to-shared slots may survive GC but there should never be any slots in
     // new or shared spaces.
     AllocationSpace id = chunk->owner_identity();
-    if (id == SHARED_SPACE || id == SHARED_LO_SPACE || id == NEW_SPACE ||
-        id == NEW_LO_SPACE) {
+    if (IsAnyWritableSharedSpace(id) || IsAnyNewSpace(id)) {
       DCHECK_NULL((chunk->slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
       DCHECK_NULL((chunk->typed_slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
+      DCHECK_NULL(
+          (chunk->slot_set<TRUSTED_TO_SHARED_TRUSTED, AccessMode::ATOMIC>()));
     }
+
+    // No support for trusted-to-shared-trusted typed slots.
+    DCHECK_NULL((chunk->typed_slot_set<TRUSTED_TO_SHARED_TRUSTED>()));
+  }
+
+  if (v8_flags.sticky_mark_bits) {
+    OldGenerationMemoryChunkIterator::ForAll(
+        heap, [](MutablePageMetadata* chunk) {
+          DCHECK(!chunk->ContainsSlots<OLD_TO_NEW>());
+          DCHECK(!chunk->ContainsSlots<OLD_TO_NEW_BACKGROUND>());
+        });
   }
 }
 #endif  // DEBUG

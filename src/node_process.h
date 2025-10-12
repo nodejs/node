@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_debug.h"
 #include "node_snapshotable.h"
 #include "v8-fast-api-calls.h"
 #include "v8.h"
@@ -24,25 +25,27 @@ void CreateEnvProxyTemplate(IsolateData* isolate_data);
 void RawDebug(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 v8::MaybeLocal<v8::Value> ProcessEmit(Environment* env,
-                                      const char* event,
+                                      std::string_view event,
                                       v8::Local<v8::Value> message);
 
 v8::Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
-                                          const char* warning,
-                                          const char* type = nullptr,
-                                          const char* code = nullptr);
+                                          std::string_view warning,
+                                          std::string_view type = "",
+                                          std::string_view code = "");
 
 template <typename... Args>
 inline v8::Maybe<bool> ProcessEmitWarning(Environment* env,
                                           const char* fmt,
                                           Args&&... args);
 
-v8::Maybe<bool> ProcessEmitWarningSync(Environment* env, const char* message);
+v8::Maybe<void> ProcessEmitWarningSync(Environment* env,
+                                       std::string_view message);
 v8::Maybe<bool> ProcessEmitExperimentalWarning(Environment* env,
-                                              const char* warning);
-v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
-                                              const char* warning,
-                                              const char* deprecation_code);
+                                               const std::string& warning);
+v8::Maybe<bool> ProcessEmitDeprecationWarning(
+    Environment* env,
+    const std::string& warning,
+    std::string_view deprecation_code);
 
 v8::MaybeLocal<v8::Object> CreateProcessObject(Realm* env);
 void PatchProcessObject(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -70,21 +73,23 @@ class BindingData : public SnapshotableObject {
   SET_SELF_SIZE(BindingData)
 
   static BindingData* FromV8Value(v8::Local<v8::Value> receiver);
-  static void NumberImpl(BindingData* receiver);
+  static void HrtimeImpl(BindingData* receiver);
 
-  static void FastNumber(v8::Local<v8::Value> receiver) {
-    NumberImpl(FromV8Value(receiver));
+  static void FastHrtime(v8::Local<v8::Value> receiver) {
+    TRACK_V8_FAST_API_CALL("process.hrtime");
+    HrtimeImpl(FromV8Value(receiver));
   }
 
-  static void SlowNumber(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SlowHrtime(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void BigIntImpl(BindingData* receiver);
+  static void HrtimeBigIntImpl(BindingData* receiver);
 
-  static void FastBigInt(v8::Local<v8::Value> receiver) {
-    BigIntImpl(FromV8Value(receiver));
+  static void FastHrtimeBigInt(v8::Local<v8::Value> receiver) {
+    TRACK_V8_FAST_API_CALL("process.hrtimeBigInt");
+    HrtimeBigIntImpl(FromV8Value(receiver));
   }
 
-  static void SlowBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SlowHrtimeBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -97,8 +102,8 @@ class BindingData : public SnapshotableObject {
   // These need to be static so that we have their addresses available to
   // register as external references in the snapshot at environment creation
   // time.
-  static v8::CFunction fast_number_;
-  static v8::CFunction fast_bigint_;
+  static v8::CFunction fast_hrtime_;
+  static v8::CFunction fast_hrtime_bigint_;
 };
 
 }  // namespace process

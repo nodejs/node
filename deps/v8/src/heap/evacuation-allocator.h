@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_EVACUATION_ALLOCATOR_H_
 #define V8_HEAP_EVACUATION_ALLOCATOR_H_
 
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/new-spaces.h"
@@ -24,10 +26,11 @@ class EvacuationAllocator {
   // EvacuationAllocator.
   void Finalize();
 
-  inline AllocationResult Allocate(AllocationSpace space, int object_size,
+  inline AllocationResult Allocate(AllocationSpace space,
+                                   SafeHeapObjectSize object_size,
                                    AllocationAlignment alignment);
   void FreeLast(AllocationSpace space, Tagged<HeapObject> object,
-                int object_size);
+                SafeHeapObjectSize object_size);
 
  private:
   void FreeLastInMainAllocator(MainAllocator* allocator,
@@ -48,11 +51,11 @@ class EvacuationAllocator {
   Heap* const heap_;
   NewSpace* const new_space_;
   CompactionSpaceCollection compaction_spaces_;
-  base::Optional<MainAllocator> new_space_allocator_;
-  base::Optional<MainAllocator> old_space_allocator_;
-  base::Optional<MainAllocator> code_space_allocator_;
-  base::Optional<MainAllocator> shared_space_allocator_;
-  base::Optional<MainAllocator> trusted_space_allocator_;
+  std::optional<MainAllocator> new_space_allocator_;
+  std::optional<MainAllocator> old_space_allocator_;
+  std::optional<MainAllocator> code_space_allocator_;
+  std::optional<MainAllocator> shared_space_allocator_;
+  std::optional<MainAllocator> trusted_space_allocator_;
 };
 
 }  // namespace internal

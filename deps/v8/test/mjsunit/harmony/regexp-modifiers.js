@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --js-regexp-modifiers
 
 function test_invalid(re) {
   assertEarlyError(`/${re}/`);
@@ -24,6 +23,18 @@ test_invalid('(?i-i:.)');
 test_invalid('(?s-s:.)');
 test_invalid('(?msi-ims:.)');
 test_invalid('(?i--m:.)');
+test_invalid('(?i<)');
+test_invalid('(?i=)');
+test_invalid('(?i!)');
+test_invalid('(?m<)');
+test_invalid('(?m=)');
+test_invalid('(?m!)');
+test_invalid('(?s<)');
+test_invalid('(?s=)');
+test_invalid('(?s!)');
+test_invalid('(?-<)');
+test_invalid('(?-=)');
+test_invalid('(?-!)');
 
 function test(re, expectedMatch, expectedNoMatch = []) {
   for (const match of expectedMatch) {

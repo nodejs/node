@@ -19,12 +19,12 @@ const bench = common.createBenchmark(main, {
   ],
   prefixPath: ['/tmp'],
   nFiles: [10, 100, 1000],
-  count: [30],
+  n: [30],
 });
 
 function spawnProcess(script, bench, state) {
   const cmd = process.execPath || process.argv[0];
-  while (state.finished < state.count) {
+  while (state.finished < state.n) {
     const child = spawnSync(cmd, script);
     if (child.status !== 0) {
       console.log('---- STDOUT ----');
@@ -39,21 +39,21 @@ function spawnProcess(script, bench, state) {
       bench.start();
     }
 
-    if (state.finished === state.count) {
-      bench.end(state.count);
+    if (state.finished === state.n) {
+      bench.end(state.n);
     }
   }
 }
 
-function main({ count, script, nFiles, prefixPath }) {
+function main({ n, script, nFiles, prefixPath }) {
   script = path.resolve(__dirname, '../../', `${script}.js`);
   const optionsWithScript = [
-    '--experimental-permission',
+    '--permission',
     `--allow-fs-read=${script}`,
     ...mockFiles(nFiles, prefixPath).map((file) => '--allow-fs-read=' + file),
     script,
   ];
   const warmup = 3;
-  const state = { count, finished: -warmup };
+  const state = { n, finished: -warmup };
   spawnProcess(optionsWithScript, bench, state);
 }

@@ -9,6 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/pointer-with-payload.h"
+#include "src/base/small-vector.h"
 
 namespace v8 {
 
@@ -125,7 +126,7 @@ class FuncNameInferrer {
   void InferFunctionsNames();
 
   AstValueFactory* ast_value_factory_;
-  std::vector<Name> names_stack_;
+  base::SmallVector<Name, 8> names_stack_;
   std::vector<FunctionLiteral*> funcs_to_infer_;
   size_t scope_depth_ = 0;
 };

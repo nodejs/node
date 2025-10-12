@@ -124,7 +124,7 @@
  * @internal
  */
 U_CAPI UChar32 U_EXPORT2
-utf8_nextCharSafeBody(const uint8_t *s, int32_t *pi, int32_t length, UChar32 c, UBool strict);
+utf8_nextCharSafeBody(const uint8_t *s, int32_t *pi, int32_t length, UChar32 c, int8_t strict);
 
 /**
  * Function for handling "append code point" with error-checking.
@@ -148,7 +148,7 @@ utf8_appendCharSafeBody(uint8_t *s, int32_t i, int32_t length, UChar32 c, UBool 
  * @internal
  */
 U_CAPI UChar32 U_EXPORT2
-utf8_prevCharSafeBody(const uint8_t *s, int32_t start, int32_t *pi, UChar32 c, UBool strict);
+utf8_prevCharSafeBody(const uint8_t *s, int32_t start, int32_t *pi, UChar32 c, int8_t strict);
 
 /**
  * Function for handling "skip backward one code point" with error-checking.

@@ -7,6 +7,19 @@
 template("sqlite_gn_build") {
   config("sqlite_config") {
     include_dirs = [ "." ]
+    defines = [
+      "SQLITE_ENABLE_COLUMN_METADATA",
+      "SQLITE_ENABLE_DBSTAT_VTAB",
+      "SQLITE_ENABLE_FTS3",
+      "SQLITE_ENABLE_FTS3_PARENTHESIS",
+      "SQLITE_ENABLE_FTS5",
+      "SQLITE_ENABLE_GEOPOLY",
+      "SQLITE_ENABLE_MATH_FUNCTIONS",
+      "SQLITE_ENABLE_PREUPDATE_HOOK",
+      "SQLITE_ENABLE_RBU",
+      "SQLITE_ENABLE_RTREE",
+      "SQLITE_ENABLE_SESSION",
+    ]
   }
 
   gypi_values = exec_script("../../tools/gypi_to_gn.py",
@@ -18,8 +31,14 @@ template("sqlite_gn_build") {
     forward_variables_from(invoker, "*")
     public_configs = [ ":sqlite_config" ]
     sources = gypi_values.sqlite_sources
+    cflags_c = [
+      "-Wno-implicit-fallthrough",
+      "-Wno-unreachable-code-return",
+      "-Wno-unreachable-code-break",
+      "-Wno-unreachable-code",
+    ]
     if (is_win) {
-      cflags_c = [
+      cflags_c += [
         "-Wno-sign-compare",
         "-Wno-unused-but-set-variable",
         "-Wno-unused-function",

@@ -1,0 +1,8 @@
+Checks that error preview does not run user code
+
+Running test: ErrorStack
+{
+    stackCalled : false
+    stackCalledOnBase : false
+    stackCalledOnProxy : false
+}

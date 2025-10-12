@@ -1,4 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 
 #include <base_object-inl.h>
 #include <env-inl.h>
@@ -20,12 +22,11 @@ using v8::Value;
 
 namespace quic {
 
-int DebugIndentScope::indent_ = 0;
-
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
   Endpoint::InitPerIsolate(isolate_data, target);
   Session::InitPerIsolate(isolate_data, target);
+  Stream::InitPerIsolate(isolate_data, target);
 }
 
 void CreatePerContextProperties(Local<Object> target,
@@ -36,12 +37,14 @@ void CreatePerContextProperties(Local<Object> target,
   BindingData::InitPerContext(realm, target);
   Endpoint::InitPerContext(realm, target);
   Session::InitPerContext(realm, target);
+  Stream::InitPerContext(realm, target);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   BindingData::RegisterExternalReferences(registry);
   Endpoint::RegisterExternalReferences(registry);
   Session::RegisterExternalReferences(registry);
+  Stream::RegisterExternalReferences(registry);
 }
 
 }  // namespace quic
@@ -52,4 +55,5 @@ NODE_BINDING_CONTEXT_AWARE_INTERNAL(quic,
 NODE_BINDING_PER_ISOLATE_INIT(quic, node::quic::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(quic, node::quic::RegisterExternalReferences)
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --experimental-wasm-exnref --turboshaft-wasm
+// Flags: --allow-natives-syntax --wasm-staging
 
 // This file is for the most parts a direct port of
 // test/mjsunit/wasm/exceptions.js using the new exception handling proposal.
 // Tests that are independent of the version of the proposal are not included
 // (e.g. tests that only use the `throw` instruction), and some exnref-specific
 // tests are added.
-// See also exnref-rethrow.js and exnref-global.js.
+// See also exnref-rethrow.js, exnref-global.js and exnref-api.js.
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
@@ -611,12 +611,11 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
           kExprEnd,
           kExprReturn,
         kExprEnd,
-        kExprGlobalSet, g.index,
+        kExprThrowRef
   ]).exportFunc();
   let instance = builder.instantiate();
 
-  instance.exports.catch_all_ref();
-  assertTrue(instance.exports.g.value instanceof WebAssembly.Exception);
+  assertThrows(instance.exports.catch_all_ref, WebAssembly.Exception);
 })();
 
 (function TestCatchRefTwoParams() {
@@ -640,4 +639,35 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   let instance = builder.instantiate();
 
   assertEquals([1, 2], instance.exports.catch_ref_two_params());
+})();
+
+(function TestThrowNoExn() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("throw_noexn", kSig_v_v)
+      .addBody([
+          kExprRefNull, kNullExnRefCode,
+          kExprThrowRef
+  ]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertTraps(kTrapRethrowNull, () => instance.exports.throw_noexn());
+})();
+
+(function TestJSNonNullableExnRef() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let import_sig = makeSig([], [wasmRefType(kWasmExnRef)]);
+  let imported = builder.addImport('m', 'i', import_sig);
+  builder.addFunction("call_import", kSig_v_v)
+      .addBody([
+          kExprCallFunction, imported,
+          kExprDrop,
+      ]).exportFunc();
+  let export_sig = makeSig([wasmRefType(kWasmExnRef)], []);
+  builder.addFunction("export", export_sig)
+      .addBody([]).exportFunc();
+  let instance = builder.instantiate({m: {i: () => {}}});
+  assertThrows(instance.exports.call_import);
+  assertThrows(instance.exports.export);
 })();

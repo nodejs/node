@@ -3,15 +3,18 @@
 // found in the LICENSE file.
 
 #include "src/base/logging.h"
+#include "src/codegen/assembler.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/instance-type-inl.h"
+#include "src/objects/instance-type.h"
 
 namespace v8 {
 namespace internal {
@@ -19,61 +22,75 @@ namespace maglev {
 
 #define __ masm->
 
+namespace {
+void LoadNewAllocationTop(MaglevAssembler* masm, Register new_top,
+                          Register object, int size_in_bytes) {
+  __ leaq(new_top, Operand(object, size_in_bytes));
+}
+
+void LoadNewAllocationTop(MaglevAssembler* masm, Register new_top,
+                          Register object, Register size_in_bytes) {
+  __ Move(new_top, object);
+  __ addq(new_top, size_in_bytes);
+}
+
+template <typename T>
+void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
+                 RegisterSnapshot register_snapshot, Register object,
+                 T size_in_bytes, AllocationType alloc_type,
+                 AllocationAlignment alignment) {
+  // TODO(victorgomes): Call the runtime for large object allocation.
+  // TODO(victorgomes): Support double alignment.
+  DCHECK_EQ(alignment, kTaggedAligned);
+  if (v8_flags.single_generation) {
+    alloc_type = AllocationType::kOld;
+  }
+  ExternalReference top = SpaceAllocationTopAddress(isolate, alloc_type);
+  ExternalReference limit = SpaceAllocationLimitAddress(isolate, alloc_type);
+  ZoneLabelRef done(masm);
+  Register new_top = kScratchRegister;
+  // Check if there is enough space.
+  __ Move(object, __ ExternalReferenceAsOperand(top));
+  LoadNewAllocationTop(masm, new_top, object, size_in_bytes);
+  __ cmpq(new_top, __ ExternalReferenceAsOperand(limit));
+  // Otherwise call runtime.
+  __ JumpToDeferredIf(kUnsignedGreaterThanEqual, AllocateSlow<T>,
+                      register_snapshot, object, AllocateBuiltin(alloc_type),
+                      size_in_bytes, done);
+  // Store new top and tag object.
+  __ movq(__ ExternalReferenceAsOperand(top), new_top);
+#if V8_VERIFY_WRITE_BARRIERS
+  if (v8_flags.verify_write_barriers) {
+    ExternalReference last_young_allocation =
+        ExternalReference::last_young_allocation_address(isolate);
+
+    if (alloc_type == AllocationType::kYoung) {
+      __ movq(__ ExternalReferenceAsOperand(last_young_allocation), object);
+    } else {
+      __ movq(__ ExternalReferenceAsOperand(last_young_allocation),
+              Immediate(0));
+    }
+  }
+#endif  // V8_VERIFY_WRITE_BARRIERS
+  __ addq(object, Immediate(kHeapObjectTag));
+  __ bind(*done);
+}
+}  // namespace
+
 void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
                                Register object, int size_in_bytes,
                                AllocationType alloc_type,
                                AllocationAlignment alignment) {
-  // TODO(victorgomes): Call the runtime for large object allocation.
-  // TODO(victorgomes): Support double alignment.
-  DCHECK_EQ(alignment, kTaggedAligned);
-  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
-  if (v8_flags.single_generation) {
-    alloc_type = AllocationType::kOld;
-  }
-  bool in_new_space = alloc_type == AllocationType::kYoung;
-  ExternalReference top =
-      in_new_space
-          ? ExternalReference::new_space_allocation_top_address(isolate_)
-          : ExternalReference::old_space_allocation_top_address(isolate_);
-  ExternalReference limit =
-      in_new_space
-          ? ExternalReference::new_space_allocation_limit_address(isolate_)
-          : ExternalReference::old_space_allocation_limit_address(isolate_);
+  AllocateRaw(this, isolate_, register_snapshot, object, size_in_bytes,
+              alloc_type, alignment);
+}
 
-  ZoneLabelRef done(this);
-  Register new_top = kScratchRegister;
-  // Check if there is enough space.
-  Move(object, ExternalReferenceAsOperand(top));
-  leaq(new_top, Operand(object, size_in_bytes));
-  cmpq(new_top, ExternalReferenceAsOperand(limit));
-  // Otherwise call runtime.
-  JumpToDeferredIf(
-      greater_equal,
-      [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
-         Register object, Builtin builtin, int size_in_bytes,
-         ZoneLabelRef done) {
-        // Remove {object} from snapshot, since it is the returned allocated
-        // HeapObject.
-        register_snapshot.live_registers.clear(object);
-        register_snapshot.live_tagged_registers.clear(object);
-        {
-          SaveRegisterStateForCall save_register_state(masm, register_snapshot);
-          using D = AllocateDescriptor;
-          __ Move(D::GetRegisterParameter(D::kRequestedSize), size_in_bytes);
-          __ CallBuiltin(builtin);
-          save_register_state.DefineSafepoint();
-          __ Move(object, kReturnRegister0);
-        }
-        __ jmp(*done);
-      },
-      register_snapshot, object,
-      in_new_space ? Builtin::kAllocateInYoungGeneration
-                   : Builtin::kAllocateInOldGeneration,
-      size_in_bytes, done);
-  // Store new top and tag object.
-  movq(ExternalReferenceAsOperand(top), new_top);
-  addq(object, Immediate(kHeapObjectTag));
-  bind(*done);
+void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
+                               Register object, Register size_in_bytes,
+                               AllocationType alloc_type,
+                               AllocationAlignment alignment) {
+  AllocateRaw(this, isolate_, register_snapshot, object, size_in_bytes,
+              alloc_type, alignment);
 }
 
 void MaglevAssembler::LoadSingleCharacterString(Register result,
@@ -85,18 +102,21 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
     Assert(below_equal, AbortReason::kUnexpectedValue);
   }
   DCHECK_NE(char_code, scratch);
-  Register table = scratch;
-  LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  LoadTaggedFieldByIndex(result, table, char_code, kTaggedSize,
-                         FixedArray::kHeaderSize);
+  movq(result, MemOperand(kRootRegister, char_code, times_system_pointer_size,
+                          RootRegisterOffsetForRootIndex(
+                              RootIndex::kFirstSingleCharacterString)));
 }
 
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Label* char_code_fits_one_byte,
                                          Register result, Register char_code,
-                                         Register scratch) {
+                                         Register scratch,
+                                         CharCodeMaskMode mask_mode) {
   DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
+  if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
+    andl(char_code, Immediate(0xFFFF));
+  }
   cmpl(char_code, Immediate(String::kMaxOneByteCharCode));
   JumpToDeferredIf(
       above,
@@ -105,6 +125,9 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
          Register scratch) {
         // Be sure to save {char_code}. If it aliases with {result}, use
         // the scratch register.
+        // TODO(victorgomes): This is probably not needed any more, because
+        // we now ensure that results registers don't alias with inputs/temps.
+        // Confirm, and drop this check.
         if (char_code == result) {
           // This is guaranteed to be true since we've already checked
           // char_code != scratch.
@@ -115,7 +138,6 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         DCHECK(!register_snapshot.live_tagged_registers.has(char_code));
         register_snapshot.live_registers.set(char_code);
         __ AllocateTwoByteString(register_snapshot, result, 1);
-        __ andl(char_code, Immediate(0xFFFF));
         __ movw(FieldOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString)),
                 char_code);
         __ jmp(*done);
@@ -131,7 +153,10 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
 void MaglevAssembler::StringCharCodeOrCodePointAt(
     BuiltinStringPrototypeCharCodeOrCodePointAt::Mode mode,
     RegisterSnapshot& register_snapshot, Register result, Register string,
-    Register index, Register scratch, Label* result_fits_one_byte) {
+    Register index, Register scratch1, Register scratch2,
+    Label* result_fits_one_byte) {
+  ASM_CODE_COMMENT(this);
+
   ZoneLabelRef done(this);
   Label seq_string;
   Label cons_string;
@@ -168,8 +193,6 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       },
       mode, register_snapshot, done, result, string, index);
 
-  Register instance_type = scratch;
-
   // We might need to try more than one time for ConsString, SlicedString and
   // ThinString.
   Label loop;
@@ -178,19 +201,57 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   if (v8_flags.debug_code) {
     // Check if {string} is a string.
     AssertNotSmi(string);
-    LoadMap(scratch, string);
-    CmpInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE, LAST_STRING_TYPE);
+    LoadMap(scratch1, string);
+    CmpInstanceTypeRange(scratch1, scratch1, FIRST_STRING_TYPE,
+                         LAST_STRING_TYPE);
     Check(below_equal, AbortReason::kUnexpectedValue);
 
-    movl(scratch, FieldOperand(string, offsetof(String, length_)));
-    cmpl(index, scratch);
+    movl(scratch1, FieldOperand(string, offsetof(String, length_)));
+    cmpl(index, scratch1);
     Check(below, AbortReason::kUnexpectedValue);
   }
 
+#if V8_STATIC_ROOTS_BOOL
+  Register map = scratch1;
+  LoadMapForCompare(map, string);
+#else
+  Register instance_type = scratch1;
   // Get instance type.
   LoadInstanceType(instance_type, string);
+#endif
 
   {
+#if V8_STATIC_ROOTS_BOOL
+    using StringTypeRange = InstanceTypeChecker::kUniqueMapRangeOfStringType;
+    // Check the string map ranges in dense increasing order, to avoid needing
+    // to subtract away the lower bound.
+    static_assert(StringTypeRange::kSeqString.first == 0);
+    CompareInt32AndJumpIf(map, StringTypeRange::kSeqString.second,
+                          kUnsignedLessThanEqual, &seq_string, Label::kNear);
+
+    static_assert(StringTypeRange::kSeqString.second + Map::kSize ==
+                  StringTypeRange::kExternalString.first);
+    CompareInt32AndJumpIf(map, StringTypeRange::kExternalString.second,
+                          kUnsignedLessThanEqual, deferred_runtime_call);
+    // TODO(victorgomes): Add fast path for external strings.
+
+    static_assert(StringTypeRange::kExternalString.second + Map::kSize ==
+                  StringTypeRange::kConsString.first);
+    CompareInt32AndJumpIf(map, StringTypeRange::kConsString.second,
+                          kUnsignedLessThanEqual, &cons_string, Label::kNear);
+
+    static_assert(StringTypeRange::kConsString.second + Map::kSize ==
+                  StringTypeRange::kSlicedString.first);
+    CompareInt32AndJumpIf(map, StringTypeRange::kSlicedString.second,
+                          kUnsignedLessThanEqual, &sliced_string, Label::kNear);
+
+    static_assert(StringTypeRange::kSlicedString.second + Map::kSize ==
+                  StringTypeRange::kThinString.first);
+    // No need to check for thin strings, they're the last string map.
+    static_assert(StringTypeRange::kThinString.second ==
+                  InstanceTypeChecker::kStringMapUpperBound);
+    // Fallthrough to thin string.
+#else
     // TODO(victorgomes): Add fast path for external strings.
     Register representation = kScratchRegister;
     movl(representation, instance_type);
@@ -204,6 +265,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     cmpl(representation, Immediate(kThinStringTag));
     j(not_equal, deferred_runtime_call);
     // Fallthrough to thin string.
+#endif
   }
 
   // Is a thin string.
@@ -214,7 +276,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
   bind(&sliced_string);
   {
-    Register offset = scratch;
+    Register offset = scratch1;
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
@@ -234,39 +296,57 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   bind(&seq_string);
   {
     Label two_byte_string;
+#if V8_STATIC_ROOTS_BOOL
+    if (InstanceTypeChecker::kTwoByteStringMapBit == 0) {
+      TestInt32AndJumpIfAllClear(map,
+                                 InstanceTypeChecker::kStringMapEncodingMask,
+                                 &two_byte_string, Label::kNear);
+    } else {
+      TestInt32AndJumpIfAnySet(map, InstanceTypeChecker::kStringMapEncodingMask,
+                               &two_byte_string, Label::kNear);
+    }
+#else
     andl(instance_type, Immediate(kStringEncodingMask));
     cmpl(instance_type, Immediate(kTwoByteStringTag));
     j(equal, &two_byte_string, Label::kNear);
+#endif
     // The result of one-byte string will be the same for both modes
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
-    movzxbl(result, FieldOperand(string, index, times_1,
-                                 OFFSET_OF_DATA_START(SeqOneByteString)));
+    SeqOneByteStringCharCodeAt(result, string, index);
     jmp(result_fits_one_byte);
     bind(&two_byte_string);
-    movzxwl(result, FieldOperand(string, index, times_2,
-                                 OFFSET_OF_DATA_START(SeqTwoByteString)));
 
-    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
-      Register first_code_point = scratch;
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt) {
+      movzxwl(result, FieldOperand(string, index, times_2,
+                                   OFFSET_OF_DATA_START(SeqTwoByteString)));
+    } else {
+      DCHECK_EQ(mode,
+                BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+      Register string_backup = string;
+      if (result == string) {
+        string_backup = scratch2;
+        movq(string_backup, string);
+      }
+      movzxwl(result, FieldOperand(string, index, times_2,
+                                   OFFSET_OF_DATA_START(SeqTwoByteString)));
+
+      Register first_code_point = scratch1;
       movl(first_code_point, result);
       andl(first_code_point, Immediate(0xfc00));
       cmpl(first_code_point, Immediate(0xd800));
       j(not_equal, *done);
 
-      Register length = scratch;
-      StringLength(length, string);
+      Register length = scratch1;
+      StringLength(length, string_backup);
       incl(index);
       cmpl(index, length);
       j(greater_equal, *done);
 
-      Register second_code_point = scratch;
+      Register second_code_point = scratch1;
       movzxwl(second_code_point,
-              FieldOperand(string, index, times_2,
+              FieldOperand(string_backup, index, times_2,
                            OFFSET_OF_DATA_START(SeqTwoByteString)));
-
-      // {index} is not needed at this point.
-      Register scratch2 = index;
       movl(scratch2, second_code_point);
       andl(scratch2, Immediate(0xfc00));
       cmpl(scratch2, Immediate(0xdc00));
@@ -293,6 +373,39 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       movl(index, Immediate(0xdeadbeef));
     }
   }
+}
+
+void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
+                                                 Register string,
+                                                 Register index) {
+  ASM_CODE_COMMENT(this);
+  if (v8_flags.debug_code) {
+    TemporaryRegisterScope scope(this);
+    Register scratch = scope.AcquireScratch();
+
+    // Check if {string} is a string.
+    AssertNotSmi(string);
+    LoadMap(scratch, string);
+    CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                             LAST_STRING_TYPE);
+    Check(kUnsignedLessThanEqual, AbortReason::kUnexpectedValue);
+
+    // Check if {string} is a sequential one-byte string.
+    AndInt32(scratch, kStringRepresentationAndEncodingMask);
+    CompareInt32AndAssert(scratch, kSeqOneByteStringTag, kEqual,
+                          AbortReason::kUnexpectedValue);
+
+    LoadInt32(scratch, FieldMemOperand(string, offsetof(String, length_)));
+    CompareInt32AndAssert(index, scratch, kUnsignedLessThan,
+                          AbortReason::kUnexpectedValue);
+  }
+
+  movzxbl(result, FieldOperand(string, index, times_1,
+                               OFFSET_OF_DATA_START(SeqOneByteString)));
+}
+
+void MaglevAssembler::CountLeadingZerosInt32(Register dst, Register src) {
+  Lzcntl(dst, src);
 }
 
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
@@ -323,7 +436,8 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
 
 void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
                                                Label* fail) {
-  // Truncating conversion of the input float64 value to a int32.
+  DCHECK_NE(src, kScratchDoubleReg);
+  // Truncating conversion of the input float64 value to an int32.
   Cvttpd2dq(kScratchDoubleReg, src);
   // Convert that int32 value back to float64.
   Cvtdq2pd(kScratchDoubleReg, kScratchDoubleReg);
@@ -384,7 +498,7 @@ void MaglevAssembler::TryTruncateDoubleToUint32(Register dst,
 void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
                                               DoubleRegister value,
                                               Label* success, Label* fail) {
-  // Truncating conversion of the input float64 value to a int32.
+  // Truncating conversion of the input float64 value to an int32.
   Cvttpd2dq(kScratchDoubleReg, value);
   // Convert that int32 value back to float64.
   Cvtdq2pd(kScratchDoubleReg, kScratchDoubleReg);
@@ -406,13 +520,13 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
   uint32_t source_frame_size =
       graph->min_maglev_stackslots_for_unoptimized_frame_size();
 
-  if (v8_flags.maglev_assert_stack_size && v8_flags.debug_code) {
+  if (V8_ENABLE_SANDBOX_BOOL || v8_flags.debug_code) {
     movq(kScratchRegister, rbp);
     subq(kScratchRegister, rsp);
     cmpq(kScratchRegister,
          Immediate(source_frame_size * kSystemPointerSize +
                    StandardFrameConstants::kFixedFrameSizeFromFp));
-    Assert(equal, AbortReason::kOsrUnexpectedStackSize);
+    SbxCheck(equal, AbortReason::kOsrUnexpectedStackSize);
   }
 
   uint32_t target_frame_size =
@@ -443,25 +557,32 @@ void MaglevAssembler::Prologue(Graph* graph) {
 
   CodeEntry();
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  AssertInSandboxedExecutionMode();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   BailoutIfDeoptimized(rbx);
 
   if (graph->has_recursive_calls()) {
     BindJumpTarget(code_gen_state()->entry_label());
   }
 
+#ifndef V8_ENABLE_LEAPTIERING
   // Tiering support.
   if (v8_flags.turbofan) {
     using D = MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor;
     Register feedback_vector = D::GetRegisterParameter(D::kFeedbackVector);
     DCHECK(!AreAliased(feedback_vector, kJavaScriptCallArgCountRegister,
                        kJSFunctionRegister, kContextRegister,
-                       kJavaScriptCallNewTargetRegister));
+                       kJavaScriptCallNewTargetRegister,
+                       kJavaScriptCallDispatchHandleRegister));
     Move(feedback_vector,
          compilation_info()->toplevel_compilation_unit()->feedback().object());
     TailCallBuiltin(Builtin::kMaglevOptimizeCodeOrTailCallOptimizedCodeSlot,
                     CheckFeedbackVectorFlagsNeedsProcessing(feedback_vector,
                                                             CodeKind::MAGLEV));
   }
+#endif  // !V8_ENABLE_LEAPTIERING
 
   EnterFrame(StackFrame::MAGLEV);
   // Save arguments in frame.

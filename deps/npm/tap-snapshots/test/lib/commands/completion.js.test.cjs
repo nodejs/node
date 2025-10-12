@@ -64,7 +64,6 @@ Array [
     get
     help
     help-search
-    hook
     init
     install
     install-ci-test
@@ -89,7 +88,7 @@ Array [
     repo
     restart
     root
-    run-script
+    run
     sbom
     search
     set
@@ -101,6 +100,7 @@ Array [
     team
     test
     token
+    undeprecate
     uninstall
     unpublish
     unstar
@@ -135,7 +135,7 @@ Array [
     t
     ddp
     v
-    run
+    run-script
     clean-install
     clean-install-test
     x

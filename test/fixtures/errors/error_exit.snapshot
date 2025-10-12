@@ -12,7 +12,8 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
   code: 'ERR_ASSERTION',
   actual: 1,
   expected: 2,
-  operator: 'strictEqual'
+  operator: 'strictEqual',
+  diff: 'simple'
 }
 
 Node.js *

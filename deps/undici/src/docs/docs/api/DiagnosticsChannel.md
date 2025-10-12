@@ -19,7 +19,7 @@ diagnosticsChannel.channel('undici:request:create').subscribe(({ request }) => {
   console.log('completed', request.completed)
   console.log('method', request.method)
   console.log('path', request.path)
-  console.log('headers') // array of strings, e.g: ['foo', 'bar']
+  console.log('headers', request.headers) // array of strings, e.g: ['foo', 'bar']
   request.addHeader('hello', 'world')
   console.log('headers', request.headers) // e.g. ['foo', 'bar', 'hello', 'world']
 })
@@ -27,8 +27,21 @@ diagnosticsChannel.channel('undici:request:create').subscribe(({ request }) => {
 
 Note: a request is only loosely completed to a given socket.
 
+## `undici:request:bodyChunkSent`
+
+This message is published when a chunk of the request body is being sent.
+
+```js
+import diagnosticsChannel from 'diagnostics_channel'
+
+diagnosticsChannel.channel('undici:request:bodyChunkSent').subscribe(({ request, chunk }) => {
+  // request is the same object undici:request:create
+})
+```
 
 ## `undici:request:bodySent`
+
+This message is published after the request body has been fully sent.
 
 ```js
 import diagnosticsChannel from 'diagnostics_channel'
@@ -40,7 +53,7 @@ diagnosticsChannel.channel('undici:request:bodySent').subscribe(({ request }) =>
 
 ## `undici:request:headers`
 
-This message is published after the response headers have been received, i.e. the response has been completed.
+This message is published after the response headers have been received.
 
 ```js
 import diagnosticsChannel from 'diagnostics_channel'
@@ -51,6 +64,18 @@ diagnosticsChannel.channel('undici:request:headers').subscribe(({ request, respo
   console.log(response.statusText)
   // response.headers are buffers.
   console.log(response.headers.map((x) => x.toString()))
+})
+```
+
+## `undici:request:bodyChunkReceived`
+
+This message is published after a chunk of the response body has been received.
+
+```js
+import diagnosticsChannel from 'diagnostics_channel'
+
+diagnosticsChannel.channel('undici:request:bodyChunkReceived').subscribe(({ request, chunk }) => {
+  // request is the same object undici:request:create
 })
 ```
 
@@ -144,12 +169,37 @@ This message is published after the client has successfully connected to a serve
 ```js
 import diagnosticsChannel from 'diagnostics_channel'
 
-diagnosticsChannel.channel('undici:websocket:open').subscribe(({ address, protocol, extensions }) => {
+diagnosticsChannel.channel('undici:websocket:open').subscribe(({ 
+  address,           // { address: string, family: string, port: number }
+  protocol,          // string - negotiated subprotocol
+  extensions,        // string - negotiated extensions
+  websocket,         // WebSocket - the WebSocket instance
+  handshakeResponse  // object - HTTP response that upgraded the connection
+}) => {
   console.log(address) // address, family, and port
   console.log(protocol) // negotiated subprotocols
   console.log(extensions) // negotiated extensions
+  console.log(websocket) // the WebSocket instance
+  
+  // Handshake response details
+  console.log(handshakeResponse.status) // 101 for successful WebSocket upgrade
+  console.log(handshakeResponse.statusText) // 'Switching Protocols'
+  console.log(handshakeResponse.headers) // Object containing response headers
 })
 ```
+
+### Handshake Response Object
+
+The `handshakeResponse` object contains the HTTP response that upgraded the connection to WebSocket:
+
+- `status` (number): The HTTP status code (101 for successful WebSocket upgrade)
+- `statusText` (string): The HTTP status message ('Switching Protocols' for successful upgrade)
+- `headers` (object): The HTTP response headers from the server, including:
+  - `upgrade: 'websocket'`
+  - `connection: 'upgrade'`
+  - `sec-websocket-accept` and other WebSocket-related headers
+
+This information is particularly useful for debugging and monitoring WebSocket connections, as it provides access to the initial HTTP handshake response that established the WebSocket connection.
 
 ## `undici:websocket:close`
 
@@ -159,7 +209,7 @@ This message is published after the connection has closed.
 import diagnosticsChannel from 'diagnostics_channel'
 
 diagnosticsChannel.channel('undici:websocket:close').subscribe(({ websocket, code, reason }) => {
-  console.log(websocket) // the WebSocket object
+  console.log(websocket) // the WebSocket instance
   console.log(code) // the closing status code
   console.log(reason) // the closing reason
 })
@@ -184,9 +234,10 @@ This message is published after the client receives a ping frame, if the connect
 ```js
 import diagnosticsChannel from 'diagnostics_channel'
 
-diagnosticsChannel.channel('undici:websocket:ping').subscribe(({ payload }) => {
+diagnosticsChannel.channel('undici:websocket:ping').subscribe(({ payload, websocket }) => {
   // a Buffer or undefined, containing the optional application data of the frame
   console.log(payload)
+  console.log(websocket) // the WebSocket instance
 })
 ```
 
@@ -197,8 +248,9 @@ This message is published after the client receives a pong frame.
 ```js
 import diagnosticsChannel from 'diagnostics_channel'
 
-diagnosticsChannel.channel('undici:websocket:pong').subscribe(({ payload }) => {
+diagnosticsChannel.channel('undici:websocket:pong').subscribe(({ payload, websocket }) => {
   // a Buffer or undefined, containing the optional application data of the frame
   console.log(payload)
+  console.log(websocket) // the WebSocket instance
 })
 ```

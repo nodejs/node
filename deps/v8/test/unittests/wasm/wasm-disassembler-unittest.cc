@@ -145,6 +145,16 @@ TEST_F(WasmDisassemblerTest, Stringref) {
   CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
 }
 
+TEST_F(WasmDisassemblerTest, SharedEverything) {
+  // TODO(42204563): Add tests for other shared-everything instructions.
+  constexpr uint8_t module_bytes[] = {
+#include "wasm-disassembler-unittest-shared-everything.wasm.inc"
+  };
+  std::string expected;
+#include "wasm-disassembler-unittest-shared-everything.wat.inc"
+  CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
+}
+
 TEST_F(WasmDisassemblerTest, Exnref) {
   constexpr uint8_t module_bytes[] = {
 #include "wasm-disassembler-unittest-exnref.wasm.inc"

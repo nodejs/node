@@ -5,6 +5,7 @@
 namespace collections {
 
 // https://tc39.es/proposal-set-methods/#sec-set.prototype.issubsetof
+@incrementUseCounter('v8::Isolate::kSetMethods')
 transitioning javascript builtin SetPrototypeIsSubsetOf(
     js-implicit context: NativeContext, receiver: JSAny)(
     other: JSAny): Boolean {
@@ -25,7 +26,7 @@ transitioning javascript builtin SetPrototypeIsSubsetOf(
   const thisSize = table.LoadSize();
 
   // 5. If thisSize > otherRec.[[Size]], return false.
-  if (thisSize > Convert<int32>(otherRec.size)) {
+  if (Convert<Number>(thisSize) > otherRec.size) {
     return False;
   }
 
