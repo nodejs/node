@@ -1069,8 +1069,7 @@ class FdEntry final : public EntryImpl {
 
 class FeederEntry final : public EntryImpl {
  public:
-  FeederEntry(DataQueueFeeder* feeder) : feeder_(feeder) {
-  }
+  FeederEntry(DataQueueFeeder* feeder) : feeder_(feeder) {}
 
   static std::unique_ptr<FeederEntry> Create(DataQueueFeeder* feeder) {
     return std::make_unique<FeederEntry>(feeder);
@@ -1081,9 +1080,9 @@ class FeederEntry final : public EntryImpl {
   }
 
   std::unique_ptr<Entry> slice(
-      uint64_t start, std::optional<uint64_t> end = std::nullopt) override {
-      // we are not idempotent
-      return std::unique_ptr<Entry>(nullptr);
+    uint64_t start, std::optional<uint64_t> end = std::nullopt) override {
+    // we are not idempotent
+    return std::unique_ptr<Entry>(nullptr);
   }
 
   std::optional<uint64_t> size() const override {
@@ -1104,10 +1103,9 @@ class FeederEntry final : public EntryImpl {
    public:
     static std::shared_ptr<ReaderImpl> Create(FeederEntry* entry) {
       return std::make_shared<ReaderImpl>(entry);
-    };
-
-    explicit ReaderImpl(FeederEntry* entry) : entry_(entry) {
     }
+
+    explicit ReaderImpl(FeederEntry* entry) : entry_(entry) {}
 
     ~ReaderImpl() {
       entry_->feeder_->DrainAndClose();
@@ -1123,7 +1121,7 @@ class FeederEntry final : public EntryImpl {
         return bob::STATUS_EOS;
       }
       entry_->feeder_->addPendingPull(
-        DataQueueFeeder::PendingPull(std::move(next)));
+          DataQueueFeeder::PendingPull(std::move(next)));
       entry_->feeder_->tryWakePulls();
       return bob::STATUS_WAIT;
     }
@@ -1138,7 +1136,6 @@ class FeederEntry final : public EntryImpl {
 };
 
 // ============================================================================
-
 
 std::shared_ptr<DataQueue> DataQueue::CreateIdempotent(
     std::vector<std::unique_ptr<Entry>> list) {

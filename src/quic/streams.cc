@@ -229,7 +229,6 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
     return Just(dataQueue);
   }
 
-
   THROW_ERR_INVALID_ARG_TYPE(env, "Invalid data source type");
   return Nothing<std::shared_ptr<DataQueue>>();
 }
@@ -1337,8 +1336,7 @@ void Stream::Unschedule() {
 
 }  // namespace quic
 
-DataQueueFeeder::DataQueueFeeder(Environment* env,
-                   Local<Object> object)
+DataQueueFeeder::DataQueueFeeder(Environment* env, Local<Object> object)
     : AsyncWrap(env, object) {
   MakeWeak();
 }
@@ -1367,7 +1365,6 @@ void DataQueueFeeder::DrainAndClose() {
   done = true;
 }
 
-
 JS_METHOD_IMPL(DataQueueFeeder::New) {
   DCHECK(args.IsConstructCall());
   auto env = Environment::GetCurrent(args);
@@ -1383,7 +1380,7 @@ JS_METHOD_IMPL(DataQueueFeeder::Ready) {
     return;
   } else {
     Local<Promise::Resolver> readFinish =
-      Promise::Resolver::New(env->context()).ToLocalChecked();
+        Promise::Resolver::New(env->context()).ToLocalChecked();
     feeder->readFinish_.Reset(env->isolate(), readFinish);
     args.GetReturnValue().Set(readFinish->GetPromise());
     return;
@@ -1397,7 +1394,7 @@ JS_METHOD_IMPL(DataQueueFeeder::Submit) {
 
   bool done = false;
   if (args[1]->IsBoolean() && args[1].As<v8::Boolean>()->Value()) {
-     done = true;
+    done = true;
   }
   if (!args[0].IsEmpty()) {
     CHECK_GT(feeder->pendingPulls_.size(), 0);
@@ -1408,8 +1405,8 @@ JS_METHOD_IMPL(DataQueueFeeder::Submit) {
       chunk = Uint8Array::New(buffer, 0, buffer->ByteLength());
     }
     if (!chunk->IsTypedArray()) {
-       THROW_ERR_INVALID_ARG_TYPE(env,
-        "Invalid data must be Arraybuffer or TypedArray");
+      THROW_ERR_INVALID_ARG_TYPE(
+        env, "Invalid data must be Arraybuffer or TypedArray");
     }
     Local<TypedArray> typedArray = chunk.As<TypedArray>();
     // now we create a copy
@@ -1423,10 +1420,10 @@ JS_METHOD_IMPL(DataQueueFeeder::Submit) {
     JS_TRY_ALLOCATE_BACKING(env, backingUniq, nread);
     std::shared_ptr<BackingStore> backing = std::move(backingUniq);
 
-    auto originalStore  = typedArray->Buffer()->GetBackingStore();
-    const void* originalData = static_cast<char*>(originalStore->Data())
-                      + typedArray->ByteOffset();
-    memcpy(backing->Data(), originalData,  nread);
+    auto originalStore = typedArray->Buffer()->GetBackingStore();
+    const void* originalData =
+        static_cast<char*>(originalStore->Data()) + typedArray->ByteOffset();
+    memcpy(backing->Data(), originalData, nread);
     auto& pending = feeder->pendingPulls_.front();
     auto pop = OnScopeLeave([feeder] { feeder->pendingPulls_.pop_front(); });
     DataQueue::Vec vec;
@@ -1446,7 +1443,7 @@ JS_METHOD_IMPL(DataQueueFeeder::Submit) {
       return;
     } else {
       Local<Promise::Resolver> readFinish =
-        Promise::Resolver::New(env->context()).ToLocalChecked();
+          Promise::Resolver::New(env->context()).ToLocalChecked();
       feeder->readFinish_.Reset(env->isolate(), readFinish);
       args.GetReturnValue().Set(readFinish->GetPromise());
       return;
@@ -1467,15 +1464,14 @@ JS_CONSTRUCTOR_IMPL(DataQueueFeeder, dataqueuefeeder_constructor_template, {
   JS_NEW_CONSTRUCTOR();
   JS_INHERIT(AsyncWrap);
   JS_CLASS(dataqueuefeeder);
-  SetProtoMethod(isolate, tmpl, "error",  Error);
+  SetProtoMethod(isolate, tmpl, "error", Error);
   SetProtoMethod(isolate, tmpl, "submit", Submit);
-  SetProtoMethod(isolate, tmpl, "ready",  Ready);
+  SetProtoMethod(isolate, tmpl, "ready", Ready);
 })
 
 
-void DataQueueFeeder::InitPerIsolate(
-  IsolateData* data,
-  Local<ObjectTemplate> target) {
+void DataQueueFeeder::InitPerIsolate(IsolateData* data,
+                                     Local<ObjectTemplate> target) {
   // TODO(@jasnell): Implement the per-isolate state
 }
 
@@ -1487,8 +1483,7 @@ void DataQueueFeeder::InitPerContext(Realm* realm, Local<Object> target) {
 }
 
 void DataQueueFeeder::RegisterExternalReferences(
-  ExternalReferenceRegistry* registry
-) {
+  ExternalReferenceRegistry* registry) {
   registry->Register(New);
   registry->Register(Submit);
   registry->Register(Error);
