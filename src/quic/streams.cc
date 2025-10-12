@@ -1406,7 +1406,7 @@ JS_METHOD_IMPL(DataQueueFeeder::Submit) {
     }
     if (!chunk->IsTypedArray()) {
       THROW_ERR_INVALID_ARG_TYPE(
-        env, "Invalid data must be Arraybuffer or TypedArray");
+          env, "Invalid data must be Arraybuffer or TypedArray");
     }
     Local<TypedArray> typedArray = chunk.As<TypedArray>();
     // now we create a copy
@@ -1469,7 +1469,6 @@ JS_CONSTRUCTOR_IMPL(DataQueueFeeder, dataqueuefeeder_constructor_template, {
   SetProtoMethod(isolate, tmpl, "ready", Ready);
 })
 
-
 void DataQueueFeeder::InitPerIsolate(IsolateData* data,
                                      Local<ObjectTemplate> target) {
   // TODO(@jasnell): Implement the per-isolate state
@@ -1483,7 +1482,7 @@ void DataQueueFeeder::InitPerContext(Realm* realm, Local<Object> target) {
 }
 
 void DataQueueFeeder::RegisterExternalReferences(
-  ExternalReferenceRegistry* registry) {
+    ExternalReferenceRegistry* registry) {
   registry->Register(New);
   registry->Register(Submit);
   registry->Register(Error);

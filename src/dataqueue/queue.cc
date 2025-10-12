@@ -1080,7 +1080,7 @@ class FeederEntry final : public EntryImpl {
   }
 
   std::unique_ptr<Entry> slice(
-    uint64_t start, std::optional<uint64_t> end = std::nullopt) override {
+      uint64_t start, std::optional<uint64_t> end = std::nullopt) override {
     // we are not idempotent
     return std::unique_ptr<Entry>(nullptr);
   }
@@ -1107,9 +1107,7 @@ class FeederEntry final : public EntryImpl {
 
     explicit ReaderImpl(FeederEntry* entry) : entry_(entry) {}
 
-    ~ReaderImpl() {
-      entry_->feeder_->DrainAndClose();
-    }
+    ~ReaderImpl() { entry_->feeder_->DrainAndClose(); }
 
     int Pull(Next next,
              int options,
