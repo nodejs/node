@@ -1942,6 +1942,8 @@ BaseObjectPtr<Stream> Session::CreateStream(
   if (auto stream = Stream::Create(this, id, std::move(data_source)))
       [[likely]] {
     AddStream(stream, option);
+    ResumeStream(id);  // ok, we need to resume, as the Resume before fails
+    // as the stream was not added yet
     return stream;
   }
   return {};

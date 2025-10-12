@@ -18,6 +18,8 @@
 #include <memory>
 #include <vector>
 
+#include "../quic/streams.h"
+
 namespace node {
 
 using v8::ArrayBufferView;
@@ -1062,9 +1064,81 @@ class FdEntry final : public EntryImpl {
   friend class ReaderImpl;
 };
 
+}  // namespace
 // ============================================================================
 
-}  // namespace
+class FeederEntry final : public EntryImpl {
+ public:
+  FeederEntry(DataQueueFeeder* feeder) : feeder_(feeder) {
+  }
+
+  static std::unique_ptr<FeederEntry> Create(DataQueueFeeder* feeder) {
+    return std::make_unique<FeederEntry>(feeder);
+  }
+
+  std::shared_ptr<DataQueue::Reader> get_reader() override {
+    return ReaderImpl::Create(this);
+  }
+
+  std::unique_ptr<Entry> slice(
+      uint64_t start, std::optional<uint64_t> end = std::nullopt) override {
+      // we are not idempotent
+      return std::unique_ptr<Entry>(nullptr);
+  }
+
+  std::optional<uint64_t> size() const override {
+    return std::optional<uint64_t>();
+  }
+
+  bool is_idempotent() const override { return false; }
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(FeederEntry)
+  SET_SELF_SIZE(FeederEntry)
+
+ private:
+  DataQueueFeeder* feeder_;
+
+  class ReaderImpl final : public DataQueue::Reader,
+                           public std::enable_shared_from_this<ReaderImpl> {
+   public:
+    static std::shared_ptr<ReaderImpl> Create(FeederEntry* entry) {
+      return std::make_shared<ReaderImpl>(entry);
+    };
+
+    explicit ReaderImpl(FeederEntry* entry) : entry_(entry) {
+    }
+
+    ~ReaderImpl() {
+      entry_->feeder_->DrainAndClose();
+    }
+
+    int Pull(Next next,
+             int options,
+             DataQueue::Vec* data,
+             size_t count,
+             size_t max_count_hint = bob::kMaxCountHint) override {
+      if (entry_->feeder_->Done()) {
+        std::move(next)(bob::STATUS_EOS, nullptr, 0, [](uint64_t) {});
+        return bob::STATUS_EOS;
+      }
+      entry_->feeder_->addPendingPull(
+        DataQueueFeeder::PendingPull(std::move(next)));
+      entry_->feeder_->tryWakePulls();
+      return bob::STATUS_WAIT;
+    }
+
+    SET_NO_MEMORY_INFO()
+    SET_MEMORY_INFO_NAME(FeederEntry::Reader)
+    SET_SELF_SIZE(ReaderImpl)
+
+   private:
+    FeederEntry* entry_;
+  };
+};
+
+// ============================================================================
+
 
 std::shared_ptr<DataQueue> DataQueue::CreateIdempotent(
     std::vector<std::unique_ptr<Entry>> list) {
@@ -1136,6 +1210,11 @@ std::unique_ptr<DataQueue::Entry> DataQueue::CreateDataQueueEntry(
 std::unique_ptr<DataQueue::Entry> DataQueue::CreateFdEntry(Environment* env,
                                                            Local<Value> path) {
   return FdEntry::Create(env, path);
+}
+
+std::unique_ptr<DataQueue::Entry> DataQueue::CreateFeederEntry(
+    DataQueueFeeder* feeder) {
+  return FeederEntry::Create(feeder);
 }
 
 void DataQueue::Initialize(Environment* env, v8::Local<v8::Object> target) {
