@@ -290,6 +290,35 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
       isolate, sqlite3_errmsg(db), sqlite3_errstr(errcode), errcode);
 }
 
+inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
+                                            sqlite3* db,
+                                            const char* message) {
+  int errcode = sqlite3_extended_errcode(db);
+  const char* errstr = sqlite3_errstr(errcode);
+  const char* errmsg = sqlite3_errmsg(db);
+  Local<String> js_errstr;
+  Local<String> js_errmsg;
+  Local<Object> e;
+  if (!String::NewFromUtf8(isolate, errstr).ToLocal(&js_errmsg) ||
+      !String::NewFromUtf8(isolate, errmsg).ToLocal(&js_errstr) ||
+      !CreateSQLiteError(isolate, message).ToLocal(&e) ||
+      e->Set(isolate->GetCurrentContext(),
+             Environment::GetCurrent(isolate)->errcode_string(),
+             Integer::New(isolate, errcode))
+          .IsNothing() ||
+      e->Set(isolate->GetCurrentContext(),
+             Environment::GetCurrent(isolate)->errstr_string(),
+             js_errstr)
+          .IsNothing() ||
+      e->Set(isolate->GetCurrentContext(),
+             Environment::GetCurrent(isolate)->errmsg_string(),
+             js_errmsg)
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
+  return e;
+}
+
 void JSValueToSQLiteResult(Isolate* isolate,
                            sqlite3_context* ctx,
                            Local<Value> value) {
@@ -340,6 +369,20 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, DatabaseSync* db) {
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
   Local<Object> e;
   if (CreateSQLiteError(isolate, message).ToLocal(&e)) {
+    isolate->ThrowException(e);
+  }
+}
+
+inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate,
+                                   DatabaseSync* db,
+                                   const char* message) {
+  if (db->ShouldIgnoreSQLiteError()) {
+    db->SetIgnoreNextSQLiteError(false);
+    return;
+  }
+
+  Local<Object> e;
+  if (CreateSQLiteError(isolate, db->Connection(), message).ToLocal(&e)) {
     isolate->ThrowException(e);
   }
 }
@@ -3972,7 +4015,9 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
     StatementPtr stmt_ptr(s);
 
     if (r != SQLITE_OK) {
-      THROW_ERR_SQLITE_ERROR(isolate, session->database_.get());
+      THROW_ERR_SQLITE_ERROR(
+          isolate, session->database_.get(), "Failed to prepare statement");
+      sqlite3_finalize(s);
       return BaseObjectPtr<StatementSync>();
     }
 
