@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="Math" time="*" disabled="0" errors="0" tests="2" failures="0" skipped="0" hostname="HOSTNAME">
+		<testsuite name="Addition" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
+			<testcase name="adds positive numbers" time="*" classname="Math.Addition" file="*"/>
+		</testsuite>
+		<testsuite name="Multiplication" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
+			<testcase name="multiplies positive numbers" time="*" classname="Math.Multiplication" file="*"/>
+		</testsuite>
+	</testsuite>
+	<testsuite name="String" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
+		<testcase name="concatenates strings" time="*" classname="String" file="*"/>
+	</testsuite>
+	<testcase name="standalone test" time="*" classname="test" file="*"/>
+	<!-- tests 4 -->
+	<!-- suites 4 -->
+	<!-- pass 4 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms * -->
+</testsuites>
