@@ -12,7 +12,6 @@ using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
-using v8::NewStringType;
 using v8::Nothing;
 using v8::Object;
 using v8::String;
@@ -201,7 +200,8 @@ async_context EmitAsyncInit(Isolate* isolate,
                             Local<Object> resource,
                             const char* name,
                             async_id trigger_async_id) {
-  return EmitAsyncInit(isolate, resource, std::string_view(name), trigger_async_id);
+  return EmitAsyncInit(
+      isolate, resource, std::string_view(name), trigger_async_id);
 }
 
 async_context EmitAsyncInit(Isolate* isolate,
@@ -210,8 +210,8 @@ async_context EmitAsyncInit(Isolate* isolate,
                             async_id trigger_async_id) {
   HandleScope handle_scope(isolate);
   Local<String> type = ToV8Value(isolate->GetCurrentContext(), name, isolate)
-                          .ToLocalChecked()
-                          .As<String>();
+                           .ToLocalChecked()
+                           .As<String>();
   return EmitAsyncInit(isolate, resource, type, trigger_async_id);
 }
 

@@ -1026,8 +1026,11 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
       Utf8Value filename(isolate, message->GetScriptOrigin().ResourceName());
       Utf8Value msg(isolate, message->Get());
       // (filename):(line) (message)
-      std::string warning = SPrintF("%s:%s %s",
-        filename, message->GetLineNumber(env->context()).FromMaybe(-1), msg);
+      std::string warning =
+          SPrintF("%s:%s %s",
+                  filename,
+                  message->GetLineNumber(env->context()).FromMaybe(-1),
+                  msg);
       USE(ProcessEmitWarningGeneric(env, warning, "V8"));
       break;
     }

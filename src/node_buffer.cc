@@ -1007,13 +1007,12 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                                     offset / 2,
                                     is_forward);
     } else {
-      result =
-          nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                               haystack_length / 2,
-                               needle_value.out(),
-                               needle_value.length(),
-                               offset / 2,
-                               is_forward);
+      result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
+                                    haystack_length / 2,
+                                    needle_value.out(),
+                                    needle_value.length(),
+                                    offset / 2,
+                                    is_forward);
     }
     result *= 2;
   } else if (enc == UTF8) {
@@ -1022,13 +1021,13 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
       return args.GetReturnValue().Set(-1);
     CHECK_GE(needle_length, needle_value.length());
 
-    result =
-        nbytes::SearchString(reinterpret_cast<const uint8_t*>(haystack),
-                             haystack_length,
-                             reinterpret_cast<const uint8_t*>(needle_value.out()),
-                             needle_length,
-                             offset,
-                             is_forward);
+    result = nbytes::SearchString(
+        reinterpret_cast<const uint8_t*>(haystack),
+        haystack_length,
+        reinterpret_cast<const uint8_t*>(needle_value.out()),
+        needle_length,
+        offset,
+        is_forward);
   } else if (enc == LATIN1) {
     uint8_t* needle_data = node::UncheckedMalloc<uint8_t>(needle_length);
     if (needle_data == nullptr) {
