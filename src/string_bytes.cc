@@ -304,10 +304,10 @@ size_t StringBytes::Write(Isolate* isolate,
               input_view.length());
         }
       } else {
-        String::Value value(isolate, str);
+        TwoByteValue value(isolate, str);
         size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
-            reinterpret_cast<const char16_t*>(*value),
+            reinterpret_cast<const char16_t*>(value.out()),
             value.length(),
             buf,
             written_len,
@@ -343,10 +343,10 @@ size_t StringBytes::Write(Isolate* isolate,
               input_view.length());
         }
       } else {
-        String::Value value(isolate, str);
+        TwoByteValue value(isolate, str);
         size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
-            reinterpret_cast<const char16_t*>(*value),
+            reinterpret_cast<const char16_t*>(value.out()),
             value.length(),
             buf,
             written_len);
@@ -368,8 +368,8 @@ size_t StringBytes::Write(Isolate* isolate,
                               reinterpret_cast<const char*>(input_view.data8()),
                               input_view.length());
       } else {
-        String::Value value(isolate, str);
-        nbytes = nbytes::HexDecode(buf, buflen, *value, value.length());
+        TwoByteValue value(isolate, str);
+        nbytes = nbytes::HexDecode(buf, buflen, value.out(), value.length());
       }
       break;
 
