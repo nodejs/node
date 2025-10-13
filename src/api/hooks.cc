@@ -201,10 +201,17 @@ async_context EmitAsyncInit(Isolate* isolate,
                             Local<Object> resource,
                             const char* name,
                             async_id trigger_async_id) {
+  return EmitAsyncInit(isolate, resource, std::string_view(name), trigger_async_id);
+}
+
+async_context EmitAsyncInit(Isolate* isolate,
+                            Local<Object> resource,
+                            std::string_view name,
+                            async_id trigger_async_id) {
   HandleScope handle_scope(isolate);
-  Local<String> type =
-      String::NewFromUtf8(isolate, name, NewStringType::kInternalized)
-          .ToLocalChecked();
+  Local<String> type = ToV8Value(isolate->GetCurrentContext(), name, isolate)
+                          .ToLocalChecked()
+                          .As<String>();
   return EmitAsyncInit(isolate, resource, type, trigger_async_id);
 }
 
