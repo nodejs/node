@@ -1024,15 +1024,14 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
         break;
       }
       Utf8Value filename(isolate, message->GetScriptOrigin().ResourceName());
+      Utf8Value msg(isolate, message->Get());
       // (filename):(line) (message)
-      std::stringstream warning;
-      warning << *filename;
-      warning << ":";
-      warning << message->GetLineNumber(env->context()).FromMaybe(-1);
-      warning << " ";
-      v8::String::Utf8Value msg(isolate, message->Get());
-      warning << *msg;
-      USE(ProcessEmitWarningGeneric(env, warning.str().c_str(), "V8"));
+      std::string warning =
+          SPrintF("%s:%s %s",
+                  filename,
+                  message->GetLineNumber(env->context()).FromMaybe(-1),
+                  msg);
+      USE(ProcessEmitWarningGeneric(env, warning, "V8"));
       break;
     }
     case Isolate::MessageErrorLevel::kMessageError:
