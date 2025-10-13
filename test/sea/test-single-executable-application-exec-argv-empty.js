@@ -9,7 +9,7 @@ const {
 
 skipIfSingleExecutableIsNotSupported();
 
-// This tests the execArgvExtension "cli" mode in single executable applications.
+// This tests the execArgv functionality with empty array in single executable applications.
 
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
@@ -25,15 +25,14 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
 tmpdir.refresh();
 
 // Copy test fixture to working directory
-copyFileSync(fixtures.path('sea-exec-argv-extension-cli.js'), tmpdir.resolve('sea.js'));
+copyFileSync(fixtures.path('sea-exec-argv-empty.js'), tmpdir.resolve('sea.js'));
 
 writeFileSync(configFile, `
 {
   "main": "sea.js",
   "output": "sea-prep.blob",
   "disableExperimentalSEAWarning": true,
-  "execArgv": ["--no-warnings"],
-  "execArgvExtension": "cli"
+  "execArgv": []
 }
 `);
 
@@ -46,18 +45,17 @@ assert(existsSync(seaPrepBlob));
 
 generateSEA(outputFile, process.execPath, seaPrepBlob);
 
-// Test that --node-options works with execArgvExtension: "cli"
+// Test that empty execArgv work correctly
 spawnSyncAndAssert(
   outputFile,
-  ['--node-options=--max-old-space-size=1024', 'user-arg1', 'user-arg2'],
+  ['user-arg'],
   {
     env: {
-      ...process.env,
-      NODE_OPTIONS: '--max-old-space-size=2048', // Should be ignored
       COMMON_DIRECTORY: join(__dirname, '..', 'common'),
       NODE_DEBUG_NATIVE: 'SEA',
-    }
+      ...process.env,
+    },
   },
   {
-    stdout: /execArgvExtension cli test passed/
+    stdout: /empty execArgv test passed/,
   });

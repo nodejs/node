@@ -50,7 +50,7 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
         NODE_DEBUG_NATIVE: 'SEA',
         ...process.env,
       },
-      cwd: tmpdir.path
+      cwd: tmpdir.path,
     });
 
   assert(existsSync(seaPrepBlob));
@@ -64,7 +64,7 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
         ...process.env,
         NODE_DEBUG_NATIVE: 'SEA',
         __TEST_PERSON_JPG: fixtures.path('person.jpg'),
-      }
+      },
     },
   );
 }

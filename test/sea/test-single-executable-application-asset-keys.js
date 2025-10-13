@@ -1,5 +1,8 @@
 'use strict';
 
+// This test verifies that the `getAssetKeys()` function works correctly
+// in a single executable application with assets.
+
 require('../common');
 
 const {
@@ -9,50 +12,49 @@ const {
 
 skipIfSingleExecutableIsNotSupported();
 
-// This tests the creation of a single executable application which uses the
-// V8 code cache.
-
-const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
-const { copyFileSync, writeFileSync, existsSync } = require('fs');
-const { spawnSyncAndAssert, spawnSyncAndExitWithoutError } = require('../common/child_process');
-const { join } = require('path');
-const assert = require('assert');
 
-const inputFile = fixtures.path('sea.js');
-const requirableFile = tmpdir.resolve('requirable.js');
+const { copyFileSync, writeFileSync, existsSync } = require('fs');
+const {
+  spawnSyncAndExitWithoutError,
+  spawnSyncAndAssert,
+} = require('../common/child_process');
+const assert = require('assert');
+const fixtures = require('../common/fixtures');
+
 const configFile = tmpdir.resolve('sea-config.json');
 const seaPrepBlob = tmpdir.resolve('sea-prep.blob');
 const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'sea');
 
 tmpdir.refresh();
-
-writeFileSync(requirableFile, `
-module.exports = {
-  hello: 'world',
-};
-`);
+copyFileSync(fixtures.path('sea', 'get-asset-keys.js'), tmpdir.resolve('sea.js'));
+writeFileSync(tmpdir.resolve('asset-1.txt'), 'This is asset 1');
+writeFileSync(tmpdir.resolve('asset-2.txt'), 'This is asset 2');
+writeFileSync(tmpdir.resolve('asset-3.txt'), 'This is asset 3');
 
 writeFileSync(configFile, `
 {
   "main": "sea.js",
   "output": "sea-prep.blob",
-  "useCodeCache": true
+  "assets": {
+    "asset-1.txt": "asset-1.txt",
+    "asset-2.txt": "asset-2.txt",
+    "asset-3.txt": "asset-3.txt"
+  }
 }
-`);
+`, 'utf8');
 
-// Copy input to working directory
-copyFileSync(inputFile, tmpdir.resolve('sea.js'));
 spawnSyncAndExitWithoutError(
   process.execPath,
   ['--experimental-sea-config', 'sea-config.json'],
   {
-    cwd: tmpdir.path,
     env: {
       NODE_DEBUG_NATIVE: 'SEA',
       ...process.env,
     },
-  });
+    cwd: tmpdir.path,
+  },
+  {});
 
 assert(existsSync(seaPrepBlob));
 
@@ -60,14 +62,13 @@ generateSEA(outputFile, process.execPath, seaPrepBlob);
 
 spawnSyncAndAssert(
   outputFile,
-  [ '-a', '--b=c', 'd' ],
   {
     env: {
-      COMMON_DIRECTORY: join(__dirname, '..', 'common'),
-      NODE_DEBUG_NATIVE: 'SEA',
       ...process.env,
-    }
+      NODE_DEBUG_NATIVE: 'SEA',
+    },
   },
   {
-    stdout: 'Hello, world! 😊\n'
-  });
+    stdout: /Asset keys: \["asset-1\.txt","asset-2\.txt","asset-3\.txt"\]/,
+  },
+);
