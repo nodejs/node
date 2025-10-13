@@ -9,7 +9,7 @@ const {
 
 skipIfSingleExecutableIsNotSupported();
 
-// This tests the execArgv functionality with multiple arguments in single executable applications.
+// This tests the execArgvExtension "none" mode in single executable applications.
 
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
@@ -25,14 +25,15 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
 tmpdir.refresh();
 
 // Copy test fixture to working directory
-copyFileSync(fixtures.path('sea-exec-argv.js'), tmpdir.resolve('sea.js'));
+copyFileSync(fixtures.path('sea-exec-argv-extension-none.js'), tmpdir.resolve('sea.js'));
 
 writeFileSync(configFile, `
 {
   "main": "sea.js",
   "output": "sea-prep.blob",
   "disableExperimentalSEAWarning": true,
-  "execArgv": ["--no-warnings", "--max-old-space-size=2048"]
+  "execArgv": ["--no-warnings"],
+  "execArgvExtension": "none"
 }
 `);
 
@@ -45,23 +46,18 @@ assert(existsSync(seaPrepBlob));
 
 generateSEA(outputFile, process.execPath, seaPrepBlob);
 
-// Test that multiple execArgv are properly applied
+// Test that NODE_OPTIONS is ignored with execArgvExtension: "none"
 spawnSyncAndAssert(
   outputFile,
   ['user-arg1', 'user-arg2'],
   {
     env: {
       ...process.env,
-      NODE_NO_WARNINGS: '0',
+      NODE_OPTIONS: '--max-old-space-size=2048',
       COMMON_DIRECTORY: join(__dirname, '..', 'common'),
       NODE_DEBUG_NATIVE: 'SEA',
-    }
+    },
   },
   {
-    stdout: /multiple execArgv test passed/,
-    stderr(output) {
-      assert.doesNotMatch(output, /This warning should not be shown in the output/);
-      return true;
-    },
-    trim: true,
+    stdout: /execArgvExtension none test passed/,
   });

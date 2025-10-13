@@ -38,7 +38,7 @@ writeFileSync(configFile, `
 spawnSyncAndExitWithoutError(
   process.execPath,
   ['--experimental-sea-config', 'sea-config.json'],
-  { cwd: tmpdir.path }
+  { cwd: tmpdir.path },
 );
 
 assert(existsSync(seaPrepBlob));
@@ -65,5 +65,5 @@ spawnSyncAndAssert(
       return true;
     },
     trim: true,
-  }
+  },
 );

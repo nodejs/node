@@ -14,7 +14,8 @@ skipIfSingleExecutableIsNotSupported();
 const tmpdir = require('../common/tmpdir');
 const { writeFileSync, existsSync } = require('fs');
 const {
-  spawnSyncAndAssert, spawnSyncAndExitWithoutError,
+  spawnSyncAndAssert,
+  spawnSyncAndExit,
 } = require('../common/child_process');
 const assert = require('assert');
 
@@ -25,18 +26,37 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
 {
   tmpdir.refresh();
 
-  // FIXME(joyeecheung): currently `worker_threads` cannot be loaded during the
-  // snapshot building process because internal/worker.js is accessing isMainThread at
-  // the top level (and there are maybe more code that access these at the top-level),
-  // and have to be loaded in the deserialized snapshot main function.
-  // Change these states to be accessed on-demand.
+  writeFileSync(tmpdir.resolve('snapshot.js'), '', 'utf-8');
+  writeFileSync(configFile, `
+  {
+    "main": "snapshot.js",
+    "output": "sea-prep.blob",
+    "useSnapshot": true
+  }
+  `);
+
+  spawnSyncAndExit(
+    process.execPath,
+    ['--experimental-sea-config', 'sea-config.json'],
+    {
+      cwd: tmpdir.path,
+    },
+    {
+      status: 1,
+      signal: null,
+      stderr: /snapshot\.js does not invoke v8\.startupSnapshot\.setDeserializeMainFunction\(\)/,
+    });
+}
+
+{
+  tmpdir.refresh();
   const code = `
   const {
     setDeserializeMainFunction,
   } = require('v8').startupSnapshot;
+  
   setDeserializeMainFunction(() => {
-    const { Worker } = require('worker_threads');
-    new Worker("console.log('Hello from Worker')", { eval: true });
+    console.log('Hello from snapshot');
   });
   `;
 
@@ -49,7 +69,7 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
   }
   `);
 
-  spawnSyncAndExitWithoutError(
+  spawnSyncAndAssert(
     process.execPath,
     ['--experimental-sea-config', 'sea-config.json'],
     {
@@ -58,6 +78,9 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
         NODE_DEBUG_NATIVE: 'SEA',
         ...process.env,
       },
+    },
+    {
+      stderr: /Single executable application is an experimental feature/,
     });
 
   assert(existsSync(seaPrepBlob));
@@ -68,13 +91,18 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
     outputFile,
     {
       env: {
-        NODE_DEBUG_NATIVE: 'SEA',
+        NODE_DEBUG_NATIVE: 'SEA,MKSNAPSHOT',
         ...process.env,
-      }
+      },
     },
     {
       trim: true,
-      stdout: 'Hello from Worker'
-    }
+      stdout: 'Hello from snapshot',
+      stderr(output) {
+        assert.doesNotMatch(
+          output,
+          /Single executable application is an experimental feature/);
+      },
+    },
   );
 }

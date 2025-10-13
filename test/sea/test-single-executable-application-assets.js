@@ -45,12 +45,12 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
     process.execPath,
     ['--experimental-sea-config', 'sea-config.json'],
     {
-      cwd: tmpdir.path
+      cwd: tmpdir.path,
     },
     {
       status: 1,
       signal: null,
-      stderr: /"assets" field of sea-config\.json is not a map of strings/
+      stderr: /"assets" field of sea-config\.json is not a map of strings/,
     });
 }
 
@@ -71,12 +71,12 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
     process.execPath,
     ['--experimental-sea-config', 'sea-config.json'],
     {
-      cwd: tmpdir.path
+      cwd: tmpdir.path,
     },
     {
       status: 1,
       signal: null,
-      stderr: /Cannot read asset nonexistent\.txt: no such file or directory/
+      stderr: /Cannot read asset nonexistent\.txt: no such file or directory/,
     });
 }
 
@@ -104,7 +104,7 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
         NODE_DEBUG_NATIVE: 'SEA',
         ...process.env,
       },
-      cwd: tmpdir.path
+      cwd: tmpdir.path,
     });
 
   assert(existsSync(seaPrepBlob));
@@ -119,11 +119,11 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
         NODE_DEBUG_NATIVE: 'SEA',
         __TEST_PERSON_JPG: fixtures.path('person.jpg'),
         __TEST_UTF8_TEXT_PATH: fixtures.path('utf8_test_text.txt'),
-      }
+      },
     },
     {
       trim: true,
       stdout: fixtures.utf8TestText,
-    }
+    },
   );
 }

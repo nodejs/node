@@ -9,8 +9,8 @@ const {
 
 skipIfSingleExecutableIsNotSupported();
 
-// This tests the creation of a single executable application which has the
-// experimental SEA warning disabled.
+// This tests the creation of a single executable application which uses the
+// V8 code cache.
 
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
@@ -37,7 +37,7 @@ writeFileSync(configFile, `
 {
   "main": "sea.js",
   "output": "sea-prep.blob",
-  "disableExperimentalSEAWarning": true
+  "useCodeCache": true
 }
 `);
 
@@ -46,7 +46,13 @@ copyFileSync(inputFile, tmpdir.resolve('sea.js'));
 spawnSyncAndExitWithoutError(
   process.execPath,
   ['--experimental-sea-config', 'sea-config.json'],
-  { cwd: tmpdir.path });
+  {
+    cwd: tmpdir.path,
+    env: {
+      NODE_DEBUG_NATIVE: 'SEA',
+      ...process.env,
+    },
+  });
 
 assert(existsSync(seaPrepBlob));
 
@@ -60,8 +66,8 @@ spawnSyncAndAssert(
       COMMON_DIRECTORY: join(__dirname, '..', 'common'),
       NODE_DEBUG_NATIVE: 'SEA',
       ...process.env,
-    }
+    },
   },
   {
-    stdout: 'Hello, world! 😊\n'
+    stdout: 'Hello, world! 😊\n',
   });
