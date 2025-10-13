@@ -237,8 +237,8 @@ void UpdateHeapCodeStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 
 void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
-  String::Utf8Value flags(args.GetIsolate(), args[0]);
-  V8::SetFlagsFromString(*flags, static_cast<size_t>(flags.length()));
+  Utf8Value flags(args.GetIsolate(), args[0]);
+  V8::SetFlagsFromString(flags.out(), flags.length());
 }
 
 static void IsStringOneByteRepresentation(
