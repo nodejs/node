@@ -35,7 +35,7 @@ const assert = require('assert');
   writeFileSync(main, 'console.log("hello")', 'utf-8');
   const configJson = JSON.stringify({
     main: 'bundle.js',
-    output: 'output.blob'
+    output: 'output.blob',
   });
   writeFileSync(config, configJson, 'utf8');
   const child = spawnSync(
