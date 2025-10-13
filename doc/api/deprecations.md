@@ -551,7 +551,7 @@ Type: End-of-Life
 The `os.tmpDir()` API was deprecated in Node.js 7.0.0 and has since been
 removed. Please use [`os.tmpdir()`][] instead.
 
-An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/tmpDir-to-tmpdir)):
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/tmpdir-to-tmpdir)):
 
 ```bash
 npx codemod@latest @nodejs/tmpDir-to-tmpdir
@@ -1897,6 +1897,12 @@ Type: End-of-Life
 deprecated. Please use `fs.ftruncate()` or `fs.ftruncateSync()` to work with
 file descriptors.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/fs-truncate-fd-deprecation)):
+
+```bash
+npx codemod@latest @nodejs/fs-truncate-fd-deprecation
+```
+
 ### DEP0082: `REPLServer.prototype.memory()`
 
 <!-- YAML
@@ -2380,6 +2386,12 @@ Deprecated alias for [`zlib.bytesWritten`][]. This original name was chosen
 because it also made sense to interpret the value as the number of bytes
 read by the engine, but is inconsistent with other streams in Node.js that
 expose values under these names.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/zlib-bytesread-to-byteswritten)):
+
+```bash
+npx codemod@latest @nodejs/zlib-bytesread-to-byteswritten
+```
 
 ### DEP0109: `http`, `https`, and `tls` support for invalid URLs
 
@@ -3278,6 +3290,13 @@ changes:
 Type: End-of-Life
 
 Use  `'hashAlgorithm'` instead of `'hash'`, and `'mgf1HashAlgorithm'` instead of `'mgf1Hash'`.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/crypto-rsa-pss-update)):
+
+```bash
+npx codemod@latest @nodejs/crypto-rsa-pss-update
+```
+
 
 ### DEP0155: Trailing slashes in pattern specifier resolutions
 
