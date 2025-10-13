@@ -25,6 +25,7 @@ on:
           - gyp-next
           - histogram
           - icu
+          - inspector_protocol
           - libuv
           - llhttp
           - minimatch
@@ -146,6 +147,14 @@ jobs:
             label: dependencies, test, icu
             run: |
               ./tools/dep_updaters/update-icu.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: inspector_protocol
+            subsystem: deps
+            label: dependencies, inspector
+            run: |
+              ./tools/dep_updaters/update-inspector-protocol.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
