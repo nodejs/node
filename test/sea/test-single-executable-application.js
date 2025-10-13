@@ -9,7 +9,7 @@ const {
 
 skipIfSingleExecutableIsNotSupported();
 
-// This tests the execArgvExtension "env" mode (default) in single executable applications.
+// This tests the creation of a single executable application.
 
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
@@ -18,25 +18,30 @@ const { spawnSyncAndAssert, spawnSyncAndExitWithoutError } = require('../common/
 const { join } = require('path');
 const assert = require('assert');
 
+const inputFile = fixtures.path('sea.js');
+const requirableFile = tmpdir.resolve('requirable.js');
 const configFile = tmpdir.resolve('sea-config.json');
 const seaPrepBlob = tmpdir.resolve('sea-prep.blob');
 const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'sea');
 
 tmpdir.refresh();
 
-// Copy test fixture to working directory
-copyFileSync(fixtures.path('sea-exec-argv-extension-env.js'), tmpdir.resolve('sea.js'));
+writeFileSync(requirableFile, `
+module.exports = {
+  hello: 'world',
+};
+`);
 
 writeFileSync(configFile, `
 {
   "main": "sea.js",
   "output": "sea-prep.blob",
-  "disableExperimentalSEAWarning": true,
-  "execArgv": ["--no-warnings"],
-  "execArgvExtension": "env"
+  "disableExperimentalSEAWarning": false
 }
 `);
 
+// Copy input to working directory
+copyFileSync(inputFile, tmpdir.resolve('sea.js'));
 spawnSyncAndExitWithoutError(
   process.execPath,
   ['--experimental-sea-config', 'sea-config.json'],
@@ -46,23 +51,16 @@ assert(existsSync(seaPrepBlob));
 
 generateSEA(outputFile, process.execPath, seaPrepBlob);
 
-// Test that NODE_OPTIONS works with execArgvExtension: "env" (default behavior)
 spawnSyncAndAssert(
   outputFile,
-  ['user-arg1', 'user-arg2'],
+  [ '-a', '--b=c', 'd' ],
   {
     env: {
-      ...process.env,
-      NODE_OPTIONS: '--max-old-space-size=512',
       COMMON_DIRECTORY: join(__dirname, '..', 'common'),
       NODE_DEBUG_NATIVE: 'SEA',
-    }
+      ...process.env,
+    },
   },
   {
-    stdout: /execArgvExtension env test passed/,
-    stderr(output) {
-      assert.doesNotMatch(output, /This warning should not be shown in the output/);
-      return true;
-    },
-    trim: true
+    stdout: 'Hello, world! 😊\n',
   });

@@ -43,7 +43,7 @@ spawnSyncAndExitWithoutError(
       NODE_DEBUG_NATIVE: 'SEA',
       ...process.env,
     },
-    cwd: tmpdir.path
+    cwd: tmpdir.path,
   },
   {});
 
@@ -57,9 +57,9 @@ spawnSyncAndAssert(
     env: {
       ...process.env,
       NODE_DEBUG_NATIVE: 'SEA',
-    }
+    },
   },
   {
     stdout: /Asset keys: \[\]/,
-  }
+  },
 );

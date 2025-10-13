@@ -16,7 +16,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /Cannot read single executable configuration from non-existent-relative\.json/
+      stderr: /Cannot read single executable configuration from non-existent-relative\.json/,
     });
 }
 
@@ -29,7 +29,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /Cannot read single executable configuration from .*non-existent-absolute\.json/
+      stderr: /Cannot read single executable configuration from .*non-existent-absolute\.json/,
     });
 }
 
@@ -43,7 +43,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /INCOMPLETE_ARRAY_OR_OBJECT/
+      stderr: /INCOMPLETE_ARRAY_OR_OBJECT/,
     });
 }
 
@@ -57,7 +57,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /"main" field of .*empty\.json is not a non-empty string/
+      stderr: /"main" field of .*empty\.json is not a non-empty string/,
     });
 }
 
@@ -71,7 +71,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /"main" field of .*no-main\.json is not a non-empty string/
+      stderr: /"main" field of .*no-main\.json is not a non-empty string/,
     });
 }
 
@@ -85,7 +85,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /"output" field of .*no-output\.json is not a non-empty string/
+      stderr: /"output" field of .*no-output\.json is not a non-empty string/,
     });
 }
 
@@ -105,7 +105,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /"disableExperimentalSEAWarning" field of .*invalid-disableExperimentalSEAWarning\.json is not a Boolean/
+      stderr: /"disableExperimentalSEAWarning" field of .*invalid-disableExperimentalSEAWarning\.json is not a Boolean/,
     });
 }
 
@@ -119,7 +119,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /Cannot read main script .*bundle\.js/
+      stderr: /Cannot read main script .*bundle\.js/,
     });
 }
 
@@ -129,7 +129,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
   const main = tmpdir.resolve('bundle.js');
   const configJson = JSON.stringify({
     main,
-    output: 'sea.blob'
+    output: 'sea.blob',
   });
   writeFileSync(config, configJson, 'utf8');
   spawnSyncAndAssert(
@@ -138,7 +138,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /Cannot read main script .*bundle\.js/
+      stderr: /Cannot read main script .*bundle\.js/,
     });
 }
 
@@ -160,7 +160,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /Cannot write output to .*output-dir/
+      stderr: /Cannot write output to .*output-dir/,
     });
 }
 
@@ -173,7 +173,7 @@ const { spawnSyncAndAssert } = require('../common/child_process');
   writeFileSync(main, 'console.log("hello")', 'utf-8');
   const configJson = JSON.stringify({
     main,
-    output: 'output-dir'
+    output: 'output-dir',
   });
   writeFileSync(config, configJson, 'utf8');
   spawnSyncAndAssert(
@@ -182,6 +182,6 @@ const { spawnSyncAndAssert } = require('../common/child_process');
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /Cannot write output to output-dir/
+      stderr: /Cannot write output to output-dir/,
     });
 }
