@@ -6496,6 +6496,9 @@ def CheckStringValueUsage(filename, lines, error):
     lines: An array of strings, each representing a line of the file.
     error: The function to call with any errors found.
   """
+  if filename.startswith('test/') or filename.startswith('test\\'):
+    return # Skip test files, where Node.js headers may not be available
+
   for linenum, line in enumerate(lines):
     if Search(r'\bString::Utf8Value\b', line):
       error(filename, linenum, 'runtime/v8_string_value', 5,
