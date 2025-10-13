@@ -1458,8 +1458,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
       }
 
       if (table_value->IsString()) {
-        String::Utf8Value str(env->isolate(), table_value);
-        table = *str;
+        table = Utf8Value(env->isolate(), table_value).ToString();
       } else {
         THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(), "The \"options.table\" argument must be a string.");
@@ -1479,8 +1478,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
         return;
       }
       if (db_value->IsString()) {
-        String::Utf8Value str(env->isolate(), db_value);
-        db_name = std::string(*str);
+        db_name = Utf8Value(env->isolate(), db_value).ToString();
       } else {
         THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(), "The \"options.db\" argument must be a string.");
