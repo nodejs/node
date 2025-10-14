@@ -355,6 +355,9 @@
       ['v8_enable_pointer_compression==1', {
         'defines': ['V8_COMPRESS_POINTERS'],
       }],
+      ['v8_enable_pointer_compression==1 and v8_enable_pointer_compression_shared_cage!=1', {
+        'defines': ['V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES'],
+      }],
       ['v8_enable_pointer_compression_shared_cage==1', {
         'defines': ['V8_COMPRESS_POINTERS_IN_SHARED_CAGE'],
       }],
