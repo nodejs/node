@@ -973,8 +973,6 @@ added:
   - v18.19.0
 -->
 
-> Stability: 1.2 - Release candidate
-
 * `data` {any} The data from `register(loader, import.meta.url, { data })`.
 
 The `initialize` hook is only accepted by [`register`][]. `registerHooks()` does
