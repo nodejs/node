@@ -682,7 +682,7 @@ try {
 ```
 
 If the file previously was shorter than `len` bytes, it is extended, and the
-extended part is filled with null bytes (`'\0'`):
+extended part is filled with null bytes (`'\0'`).
 
 If `len` is negative then `0` will be used.
 
@@ -1767,6 +1767,10 @@ can only point to directories.
 
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43315
+    description: Creates a file if it didn't exist.
 -->
 
 * `path` {string|Buffer|URL}
@@ -4604,6 +4608,9 @@ $ tree .
 <!-- YAML
 added: v0.8.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43315
+    description: Creates a file if it didn't exist.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -6465,6 +6472,10 @@ this API: [`fs.symlink()`][].
 
 <!-- YAML
 added: v0.8.6
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43315
+    description: Creates a file if it didn't exist.
 -->
 
 * `path` {string|Buffer|URL}
