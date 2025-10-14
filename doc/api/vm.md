@@ -483,8 +483,8 @@ function resolveAndLinkDependencies(module) {
         // The "secret" variable refers to the global variable we added to
         // "contextifiedObject" when creating the context.
         export default secret;
-      `, { context: referencingModule.context });
-      moduleMap.set(specifier, linkedModule);
+      `, { context: module.context });
+      moduleMap.set(specifier, requestedModule);
       // Resolve the dependencies of the new module as well.
       resolveAndLinkDependencies(requestedModule);
     }
@@ -564,8 +564,8 @@ const contextifiedObject = vm.createContext({
           // The "secret" variable refers to the global variable we added to
           // "contextifiedObject" when creating the context.
           export default secret;
-        `, { context: referencingModule.context });
-        moduleMap.set(specifier, linkedModule);
+        `, { context: module.context });
+        moduleMap.set(specifier, requestedModule);
         // Resolve the dependencies of the new module as well.
         resolveAndLinkDependencies(requestedModule);
       }
