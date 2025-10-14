@@ -296,12 +296,12 @@ class MatcherBase : private MatcherDescriberInterface {
     return *this;
   }
 
-  MatcherBase(MatcherBase&& other)
+  MatcherBase(MatcherBase&& other) noexcept
       : vtable_(other.vtable_), buffer_(other.buffer_) {
     other.vtable_ = nullptr;
   }
 
-  MatcherBase& operator=(MatcherBase&& other) {
+  MatcherBase& operator=(MatcherBase&& other) noexcept {
     if (this == &other) return *this;
     Destroy();
     vtable_ = other.vtable_;
