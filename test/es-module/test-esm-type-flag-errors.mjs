@@ -36,14 +36,16 @@ describe('--experimental-default-type=module', { concurrency: !process.env.TEST_
     const result = await spawnPromisified(process.execPath, [
       '--experimental-default-type=module',
       fixtures.path('es-modules/package-type-commonjs/echo-require-cache.js'),
-    ]);
-
-    deepStrictEqual(result, {
-      code: 0,
-      stderr: '',
-      stdout: 'undefined\n',
-      signal: null,
+    ], {
+      env: {
+        ...process.env,
+        NODE_DEBUG: 'esm',
+      }
     });
+    match(result.stderr, /Translating CJSModule file.+echo-require-cache\.js/);
+    match(result.stdout, /Object: null prototype/);
+    strictEqual(result.code, 0);
+    strictEqual(result.signal, null);
   });
 
   it('should affect .cjs files that are imported', async () => {
@@ -51,25 +53,34 @@ describe('--experimental-default-type=module', { concurrency: !process.env.TEST_
       '--experimental-default-type=module',
       '-e',
       `import ${JSON.stringify(fixtures.fileURL('es-module-require-cache/echo.cjs'))}`,
-    ]);
-
-    deepStrictEqual(result, {
-      code: 0,
-      stderr: '',
-      stdout: 'undefined\n',
-      signal: null,
+    ], {
+      env: {
+        ...process.env,
+        NODE_DEBUG: 'esm',
+      }
     });
+
+    match(result.stderr, /Translating CJSModule file.+echo\.cjs/);
+    match(result.stdout, /Object: null prototype/);
+    strictEqual(result.code, 0);
+    strictEqual(result.signal, null);
   });
 
   it('should affect entry point .cjs files (with no hooks)', async () => {
-    const { stderr, stdout, code } = await spawnPromisified(process.execPath, [
+    const result = await spawnPromisified(process.execPath, [
       '--experimental-default-type=module',
       fixtures.path('es-module-require-cache/echo.cjs'),
-    ]);
+    ], {
+      env: {
+        ...process.env,
+        NODE_DEBUG: 'esm',
+      }
+    });
 
-    strictEqual(stderr, '');
-    match(stdout, /^undefined\n$/);
-    strictEqual(code, 0);
+    match(result.stderr, /Translating CJSModule file.+echo\.cjs/);
+    match(result.stdout, /Object: null prototype/);
+    strictEqual(result.code, 0);
+    strictEqual(result.signal, null);
   });
 
   it('should affect entry point .cjs files (when any hooks is registered)', async () => {
