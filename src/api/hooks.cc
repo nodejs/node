@@ -12,6 +12,7 @@ using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
+using v8::NewStringType;
 using v8::Nothing;
 using v8::Object;
 using v8::String;
@@ -209,9 +210,10 @@ async_context EmitAsyncInit(Isolate* isolate,
                             std::string_view name,
                             async_id trigger_async_id) {
   HandleScope handle_scope(isolate);
-  Local<String> type = ToV8Value(isolate->GetCurrentContext(), name, isolate)
-                           .ToLocalChecked()
-                           .As<String>();
+  Local<String> type =
+      String::NewFromUtf8(
+          isolate, name.data(), NewStringType::kInternalized, name.size())
+          .ToLocalChecked();
   return EmitAsyncInit(isolate, resource, type, trigger_async_id);
 }
 
