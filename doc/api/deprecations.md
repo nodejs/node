@@ -688,10 +688,10 @@ Type: End-of-Life
 
 `util.debug()` has been removed. Please use [`console.error()`][] instead.
 
-An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-debug-to-console-error)):
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-print-to-console-log)):
 
 ```bash
-npx codemod@latest @nodejs/util-debug-to-console-error
+npx codemod@latest @nodejs/util-print-to-console-log
 ```
 
 ### DEP0029: `util.error()`
