@@ -10,6 +10,5 @@ export interface ConfigBinding {
   hasInspector: boolean;
   noBrowserGlobals: boolean;
   bits: number;
-  hasDtrace: boolean;
   getDefaultLocale(): string;
 }
