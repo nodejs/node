@@ -29,8 +29,15 @@ function findFrameInInitiator(regex, initiator) {
 
 async function test() {
   await session.post('Network.enable');
+
+  const CUSTOM_HEADER_NAME = 'X-Custom-Header';
+  const CUSTOM_HEADER_VALUE = 'CustomHeaderValue';
+
   const server = new WebSocketServer({
     responseError: true,
+    customHandleUpgradeHeaders: [
+      `${CUSTOM_HEADER_NAME}: ${CUSTOM_HEADER_VALUE}`,
+    ]
   });
   await server.start();
   const url = `ws://127.0.0.1:${server.port}/`;
@@ -49,6 +56,11 @@ async function test() {
     assert.strictEqual(message.params.requestId, requestId);
     assert.strictEqual(message.params.response.status, 101);
     assert.strictEqual(message.params.response.statusText, 'Switching Protocols');
+    assert.strictEqual(message.params.response.headers.upgrade, 'websocket');
+    assert.strictEqual(message.params.response.headers.connection, 'Upgrade');
+    assert.ok(message.params.response.headers['sec-websocket-accept']);
+    assert.ok(message.params.response.headers['sec-websocket-accept'].length > 0);
+    assert.strictEqual(message.params.response.headers[CUSTOM_HEADER_NAME.toLowerCase()], CUSTOM_HEADER_VALUE);
     assert.strictEqual(typeof message.params.timestamp, 'number');
     socket.close();
   }));
