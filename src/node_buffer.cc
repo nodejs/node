@@ -592,7 +592,6 @@ uint32_t FastCopy(Local<Value> receiver,
 
   if (!node::Buffer::HasInstance(source_obj) ||
       !node::Buffer::HasInstance(target_obj)) {
-    // Just return 0 — Fast API callbacks can’t throw safely
     return 0;
   }
   // Validate First before call CopyImpl blindly
