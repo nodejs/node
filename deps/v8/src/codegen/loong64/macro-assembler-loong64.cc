@@ -2650,12 +2650,12 @@ int32_t MacroAssembler::GetOffset(Label* L, OffsetSize bits) {
 }
 
 Register MacroAssembler::GetRkAsRegisterHelper(const Operand& rk,
-                                               Register scratch) {
+                                               UseScratchRegisterScope temps) {
   Register r2 = no_reg;
   if (rk.is_reg()) {
     r2 = rk.rm();
   } else {
-    r2 = scratch;
+    r2 = temps.Acquire();
     li(r2, rk);
   }
 
@@ -2667,7 +2667,6 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
                                            bool need_link) {
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch = temps.Acquire();
   DCHECK_NE(rj, zero_reg);
 
   // Be careful to always use shifted_branch_offset only just before the
@@ -2703,7 +2702,7 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
           if (L->is_bound() && !is_near(L, OffsetSize::kOffset16)) return false;
           if (need_link) pcaddi(ra, 2);
           // We don't want any other register but scratch clobbered.
-          Register sc = GetRkAsRegisterHelper(rk, scratch);
+          Register sc = GetRkAsRegisterHelper(rk, temps);
           offset = GetOffset(L, OffsetSize::kOffset16);
           beq(rj, sc, offset);
         }
@@ -2725,7 +2724,7 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
           if (L->is_bound() && !is_near(L, OffsetSize::kOffset16)) return false;
           if (need_link) pcaddi(ra, 2);
           // We don't want any other register but scratch clobbered.
-          Register sc = GetRkAsRegisterHelper(rk, scratch);
+          Register sc = GetRkAsRegisterHelper(rk, temps);
           offset = GetOffset(L, OffsetSize::kOffset16);
           bne(rj, sc, offset);
         }
@@ -2744,7 +2743,7 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
         } else {
           if (L->is_bound() && !is_near(L, OffsetSize::kOffset16)) return false;
           if (need_link) pcaddi(ra, 2);
-          Register sc = GetRkAsRegisterHelper(rk, scratch);
+          Register sc = GetRkAsRegisterHelper(rk, temps);
           DCHECK(rj != sc);
           offset = GetOffset(L, OffsetSize::kOffset16);
           blt(sc, rj, offset);
@@ -2765,7 +2764,7 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
         } else {
           if (L->is_bound() && !is_near(L, OffsetSize::kOffset16)) return false;
           if (need_link) pcaddi(ra, 2);
-          Register sc = GetRkAsRegisterHelper(rk, scratch);
+          Register sc = GetRkAsRegisterHelper(rk, temps);
           DCHECK(rj != sc);
           offset = GetOffset(L, OffsetSize::kOffset16);
           bge(rj, sc, offset);
@@ -2783,7 +2782,7 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
         } else {
           if (L->is_bound() && !is_near(L, OffsetSize::kOffset16)) return false;
           if (need_link) pcaddi(ra, 2);
-          Register sc = GetRkAsRegisterHelper(rk, scratch);
+          Register sc = GetRkAsRegisterHelper(rk, temps);
           DCHECK(rj != sc);
           offset = GetOffset(L, OffsetSize::kOffset16);
           blt(rj, sc, offset);
@@ -2804,7 +2803,7 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
         } else {
           if (L->is_bound() && !is_near(L, OffsetSize::kOffset16)) return false;
           if (need_link) pcaddi(ra, 2);
-          Register sc = GetRkAsRegisterHelper(rk, scratch);
+          Register sc = GetRkAsRegisterHelper(rk, temps);
           DCHECK(rj != sc);
           offset = GetOffset(L, OffsetSize::kOffset16);
           bge(sc, rj, offset);
@@ -2824,7 +2823,7 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
         } else {
           if (L->is_bound() && !is_near(L, OffsetSize::kOffset16)) return false;
           if (need_link) pcaddi(ra, 2);
-          Register sc = GetRkAsRegisterHelper(rk, scratch);
+          Register sc = GetRkAsRegisterHelper(rk, temps);
           DCHECK(rj != sc);
           offset = GetOffset(L, OffsetSize::kOffset16);
           bltu(sc, rj, offset);
@@ -2845,7 +2844,7 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
         } else {
           if (L->is_bound() && !is_near(L, OffsetSize::kOffset16)) return false;
           if (need_link) pcaddi(ra, 2);
-          Register sc = GetRkAsRegisterHelper(rk, scratch);
+          Register sc = GetRkAsRegisterHelper(rk, temps);
           DCHECK(rj != sc);
           offset = GetOffset(L, OffsetSize::kOffset16);
           bgeu(rj, sc, offset);
@@ -2860,7 +2859,7 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
         } else {
           if (L->is_bound() && !is_near(L, OffsetSize::kOffset16)) return false;
           if (need_link) pcaddi(ra, 2);
-          Register sc = GetRkAsRegisterHelper(rk, scratch);
+          Register sc = GetRkAsRegisterHelper(rk, temps);
           DCHECK(rj != sc);
           offset = GetOffset(L, OffsetSize::kOffset16);
           bltu(rj, sc, offset);
@@ -2880,7 +2879,7 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
         } else {
           if (L->is_bound() && !is_near(L, OffsetSize::kOffset16)) return false;
           if (need_link) pcaddi(ra, 2);
-          Register sc = GetRkAsRegisterHelper(rk, scratch);
+          Register sc = GetRkAsRegisterHelper(rk, temps);
           DCHECK(rj != sc);
           offset = GetOffset(L, OffsetSize::kOffset16);
           bgeu(sc, rj, offset);
@@ -3111,10 +3110,12 @@ void MacroAssembler::CompareTaggedRootAndBranch(const Register& obj,
   // Some smi roots contain system pointer size values like stack limits.
   DCHECK(base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
                          RootIndex::kLastStrongOrReadOnlyRoot));
-  Register temp = temps.Acquire();
-  DCHECK(!AreAliased(obj, temp));
-  LoadRoot(temp, index);
-  CompareTaggedAndBranch(target, cc, obj, Operand(temp));
+  Register scratch1 = temps.Acquire();
+  Register scratch2 = temps.Acquire();
+  DCHECK(!AreAliased(obj, scratch1, scratch2));
+  slli_w(scratch1, obj, 0);
+  LoadTaggedRoot(scratch2, index);
+  Branch(target, cc, scratch1, Operand(scratch2));
 }
 
 // Compare the object in a register to a value from the root list.
