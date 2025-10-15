@@ -578,20 +578,19 @@ void CopyImpl(Local<Value> source_obj,
 void SlowCopy(const FunctionCallbackInfo<Value>& args) {
   Local<Value> source_obj = args[0];
   Local<Value> target_obj = args[1];
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
+  Isolate* isolate = args.GetIsolate();
 
   // Add validation before call CopyImpl blindly
-  if (!Buffer::HasInstance(source_obj) || !Buffer::HasInstance(target_obj)) {
-    isolate->ThrowException(v8::Exception::TypeError(String::NewFromUtf8Literal(
-        isolate, "Arguments must be Buffer instances")));
+  if (!source_obj->IsArrayBufferView() || !target_obj->IsArrayBufferView()) {
+    isolate->ThrowException(v8::Exception::TypeError(
+        String::NewFromUtf8Literal(isolate, "Arguments must be ArrayBufferViews")));
     return;
   }
   const uint32_t target_start = args[2].As<Uint32>()->Value();
   const uint32_t source_start = args[3].As<Uint32>()->Value();
   const uint32_t to_copy = args[4].As<Uint32>()->Value();
-  size_t source_len = Buffer::Length(source_obj.As<Object>());
-  size_t target_len = Buffer::Length(target_obj.As<Object>());
+  size_t source_len = source_obj.As<ArrayBufferView>()->ByteLength();
+  size_t target_len = target_obj.As<ArrayBufferView>()->ByteLength();
 
   if (source_start > source_len || target_start > target_len ||
       to_copy > source_len - source_start ||
@@ -607,7 +606,7 @@ void SlowCopy(const FunctionCallbackInfo<Value>& args) {
 }
 
 // Assume caller has properly validated args.
-uint32_t FastCopy(Local<Value> receiver,
+int32_t FastCopy(Local<Value> receiver,
                   Local<Value> source_obj,
                   Local<Value> target_obj,
                   uint32_t target_start,
@@ -618,18 +617,18 @@ uint32_t FastCopy(Local<Value> receiver,
   HandleScope scope(options.isolate);
   Isolate* isolate = options.isolate;
 
-  if (!node::Buffer::HasInstance(source_obj) ||
-      !node::Buffer::HasInstance(target_obj)) {
+  if (!source_obj->IsArrayBufferView() || !target_obj->IsArrayBufferView()) {
+    isolate->ThrowException(v8::Exception::TypeError(
+        String::NewFromUtf8Literal(isolate, "Arguments must be ArrayBufferViews")));
     return 0;
   }
   // Validate First before call CopyImpl blindly
-  size_t src_len = Buffer::Length(source_obj.As<v8::Object>());
-  size_t dst_len = Buffer::Length(target_obj.As<v8::Object>());
+  size_t src_len = source_obj.As<ArrayBufferView>()->ByteLength();
+  size_t dst_len = target_obj.As<ArrayBufferView>()->ByteLength();
 
   if (source_start > src_len || target_start > dst_len ||
       to_copy > src_len - source_start || to_copy > dst_len - target_start) {
-    // options.fallback = true;  // Let JS slow path handle it (safe fallback)
-    return 0;
+    return -1;
   }
   CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
 
