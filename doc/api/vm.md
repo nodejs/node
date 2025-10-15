@@ -621,7 +621,7 @@ in the ECMAScript specification.
 Evaluate the module and its depenendencies. Corresponds to the [Evaluate() concrete method][] field of
 [Cyclic Module Record][]s in the ECMAScript specification.
 
-If the module is a `vm.SourceTextModule`,`evaluate()` must be called after the module has been at least linked;
+If the module is a `vm.SourceTextModule`, `evaluate()` must be called after the module has been instantiated;
 otherwise `evaluate()` will return a rejected promise.
 
 For a `vm.SourceTextModule`, the promise returned by `evaluate()` may be fulfilled either
@@ -631,7 +631,7 @@ synchronously or asynchronously:
    fulfilled _synchronously_ after the module and all its dependencies have been evaluated.
    1. If the evaluation succeeds, the promise will be _synchronously_ resolved to `undefined`.
    2. If the evaluation results in an exception, the promise will be _synchronously_ rejected with the exception
-      that causes the evaluation to fail.
+      `module.error` that causes the evaluation to fail and .
 2. If the `vm.SourceTextModule` has top-level `await` in itself or any of its dependencies, the promise will be
    fulfilled _asynchronously_ after the module and all its dependencies have been evaluated.
    1. If the evaluation succeeds, the promise will be _asynchronously_ resolved to `undefined`.
