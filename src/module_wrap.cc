@@ -563,8 +563,9 @@ ModulePhase to_phase_constant(ModuleImportPhase phase) {
       return kEvaluationPhase;
     case ModuleImportPhase::kSource:
       return kSourcePhase;
+    default:
+      UNREACHABLE();
   }
-  UNREACHABLE();
 }
 
 static Local<Object> createImportAttributesContainer(
