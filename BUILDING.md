@@ -352,6 +352,25 @@ You can also execute the tests in a test suite directory
 tools/test.py test/message
 ```
 
+You can execute tests that match a specific naming pattern using the wildcard
+`*`. For example, to run all tests under `test/parallel` with a name that starts
+with `test-stream-`:
+
+```bash
+tools/test.py test/parallel/test-stream-*
+# In some shell environments, you may need to quote the pattern
+tools/test.py "test/parallel/test-stream-*"
+```
+
+The whildcard `*` can be used in any part of the path. For example, to run all tests
+with a name that starts with `test-inspector-`, regardless of the directory they are in:
+
+```bash
+# Matches test/sequential/test-inspector-*, test/parallel/test-inspector-*,
+# test/known_issues/test-inspector-*, etc.
+tools/test.py test/*/test-inspector-*
+```
+
 If you want to check the other options, please refer to the help by using
 the `--help` option:
 
