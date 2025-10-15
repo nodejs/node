@@ -25,6 +25,7 @@ on:
           - gyp-next
           - histogram
           - icu
+          - inspector_protocol
           - libuv
           - llhttp
           - minimatch
@@ -146,6 +147,14 @@ jobs:
             label: dependencies, test, icu
             run: |
               ./tools/dep_updaters/update-icu.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: inspector_protocol
+            subsystem: deps
+            label: dependencies, inspector
+            run: |
+              ./tools/dep_updaters/update-inspector-protocol.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
@@ -276,7 +285,9 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        if: matrix.id == 'icu' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
+        if: |
+          (matrix.id == 'icu' || matrix.id == 'inspector_protocol') &&
+          (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
