@@ -2641,8 +2641,9 @@ ECMAScript Language Specification.
 
 <!-- YAML
 added: REPLACEME
-napiVersion: 8
 -->
+
+> Stability: 1 - Experimental
 
 ```cpp
 napi_status napi_create_object_with_properties(napi_env env,
