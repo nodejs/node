@@ -404,6 +404,7 @@ assert.deepStrictEqual(test_object.TestGetProperty(), {
 
   const objectWithCustomPrototype = test_object.TestCreateObjectWithCustomPrototype();
   assert.strictEqual(typeof objectWithCustomPrototype, 'object');
+  assert.deepStrictEqual(Object.getOwnPropertyNames(objectWithCustomPrototype), ['value']);
   assert.strictEqual(objectWithCustomPrototype.value, 42);
   assert.strictEqual(typeof objectWithCustomPrototype.test, 'function');
 }
