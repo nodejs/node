@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DJCE Montpellier - Boutique</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      background-color: #0b3c8d; /* bleu DJCE */
+      color: white;
+    }
+    header {
+      background-color: white;
+      color: #0b3c8d;
+      text-align: center;
+      padding: 20px 0;
+      font-size: 28px;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+    main {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      padding: 30px;
+      max-width: 1000px;
+      margin: auto;
+    }
+    .card {
+      background-color: white;
+      color: #0b3c8d;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      padding: 20px;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+    .card:hover { transform: scale(1.03); }
+    img {
+      width: 100%;
+      border-radius: 10px;
+      height: 200px;
+      object-fit: cover;
+    }
+    button {
+      background-color: #0b3c8d;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 15px;
+      margin-top: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover { background-color: #002c63; }
+    footer {
+      text-align: center;
+      padding: 20px;
+      background-color: white;
+      color: #0b3c8d;
+      margin-top: 40px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header>DJCE Montpellier - Boutique</header>
+
+  <main>
+    <div class="card">
+      <img src="https://picsum.photos/400/300?1" alt="Produit 1">
+      <h3>Tee-shirt DJCE</h3>
+      <p>25 €</p>
+      <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
+        <input type="hidden" name="cmd" value="_xclick">
+        <input type="hidden" name="business" value="votre-email-paypal@example.com">
+        <input type="hidden" name="item_name" value="Tee-shirt DJCE">
+        <input type="hidden" name="amount" value="25.00">
+        <input type="hidden" name="currency_code" value="EUR">
+        <button type="submit">Acheter avec PayPal</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <img src="https://picsum.photos/400/300?2" alt="Produit 2">
+      <h3>Casquette DJCE</h3>
+      <p>18 €</p>
+      <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
+        <input type="hidden" name="cmd" value="_xclick">
+        <input type="hidden" name="business" value="votre-email-paypal@example.com">
+        <input type="hidden" name="item_name" value="Casquette DJCE">
+        <input type="hidden" name="amount" value="18.00">
+        <input type="hidden" name="currency_code" value="EUR">
+        <button type="submit">Acheter avec PayPal</button>
+      </form>
+    </div>
+  </main>
+
+  <footer>© DJCE Montpellier — Site officiel</footer>
+</body>
+</html>
