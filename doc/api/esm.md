@@ -331,6 +331,15 @@ syncBuiltinESMExports();
 
 fs.readFileSync === readFileSync;
 ```
+### Performance note
+
+When importing Node.js built-in modules using ESM (for example, `import { STATUS_CODES } from 'http'`),
+all properties of the module are eagerly evaluated and added to the namespace at import time.
+In contrast, CommonJS (`require('http')`) loads properties lazily when accessed.
+
+This means ESM imports can have slightly higher startup times compared to CommonJS,
+especially in short-running scripts or CLI tools.  
+For long-running applications (e.g., servers), this difference is negligible.
 
 ## `import()` expressions
 
