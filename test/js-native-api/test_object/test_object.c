@@ -743,10 +743,9 @@ static napi_value TestCreateObjectWithPropertiesEmpty(napi_env env,
   napi_value result;
 
   napi_value null_prototype;
-  NODE_API_CALL(env, napi_get_null(env, &null_prototype));
   NODE_API_CALL(env,
                 napi_create_object_with_properties(
-                    env, null_prototype, NULL, NULL, 0, &result));
+                    env, NULL, NULL, NULL, 0, &result));
 
   return result;
 }
