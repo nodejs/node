@@ -631,7 +631,7 @@ synchronously or asynchronously:
    fulfilled _synchronously_ after the module and all its dependencies have been evaluated.
    1. If the evaluation succeeds, the promise will be _synchronously_ resolved to `undefined`.
    2. If the evaluation results in an exception, the promise will be _synchronously_ rejected with the exception
-      `module.error` that causes the evaluation to fail and .
+      that causes the evaluation to fail, which is the same as `module.error`.
 2. If the `vm.SourceTextModule` has top-level `await` in itself or any of its dependencies, the promise will be
    fulfilled _asynchronously_ after the module and all its dependencies have been evaluated.
    1. If the evaluation succeeds, the promise will be _asynchronously_ resolved to `undefined`.
