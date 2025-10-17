@@ -160,7 +160,8 @@ namespace A {
 
 Since Decorators are currently a [TC39 Stage 3 proposal](https://github.com/tc39/proposal-decorators),
 they are not transformed and will result in a parser error.
-Node.js does not provide polyfills for decorators and will not support them until they are supported natively in JavaScript.
+Node.js does not provide polyfills for decorators and will not support them until
+they are supported natively in JavaScript.
 
 In addition, Node.js does not read `tsconfig.json` files and does not support
 features that depend on settings within `tsconfig.json`, such as paths or
