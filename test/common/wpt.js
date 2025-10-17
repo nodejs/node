@@ -412,7 +412,7 @@ class BuildRequirement {
     // Not using common.hasCrypto because of the global leak checks
     this.hasCrypto = Boolean(process.versions.openssl) &&
       !process.env.NODE_SKIP_CRYPTO;
-    
+
     // Not using common.hasInspector because of the global leak checks
     this.hasInspector = Boolean(process.features.inspector);
   }
