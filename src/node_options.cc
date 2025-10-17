@@ -127,7 +127,15 @@ void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
   }
 
   // Get available memory in bytes
+#ifdef V8_COMPRESS_POINTERS
+  // When pointer compression is enabled, V8 uses a 4 GiB heap limit.
+  // We'll use the smaller of that or the total system memory as
+  // reported by uv.
+  uint64_t total_memory =
+      std::min(uv_get_total_memory(), kMaxPointerCompressionHeap);  // 4 GiB
+#else
   uint64_t total_memory = uv_get_total_memory();
+#endif
   uint64_t constrained_memory = uv_get_constrained_memory();
 
   // Use constrained memory if available, otherwise use total memory

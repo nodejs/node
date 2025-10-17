@@ -122,7 +122,11 @@ assert(
 );
 
 // Validate heap sizes against system memory
-const totalMemoryMB = Math.floor(os.totalmem() / 1024 / 1024);
+// When pointer compression is enabled, the maximum total memory is 4 GB
+const totalmem = Math.floor(os.totalmem() / 1024 / 1024);
+const totalMemoryMB = process.config.variables.v8_enable_pointer_compression ?
+  Math.min(4096, totalmem) :
+  totalmem;
 const uint64Max = 2 ** 64 - 1;
 const constrainedMemory = process.constrainedMemory();
 const constrainedMemoryMB = Math.floor(constrainedMemory / 1024 / 1024);
