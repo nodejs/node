@@ -485,6 +485,11 @@ To generate a test coverage report, see the
 Nightly coverage reports for the Node.js `main` branch are available at
 <https://coverage.nodejs.org/>.
 
+## Running tests
+
+See the [Building guide](../../BUILDING.md#running-tests) for details on how to
+run tests.
+
 [ASCII]: https://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest
 [Test Coverage section of the Building guide]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#running-coverage
