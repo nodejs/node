@@ -39,6 +39,27 @@ strict methods. For example, [`assert.deepEqual()`][] will behave like
 In strict assertion mode, error messages for objects display a diff. In legacy
 assertion mode, error messages for objects display the objects, often truncated.
 
+### Message parameter semantics
+
+For assertion methods that accept an optional `message` parameter, the message
+may be provided in one of the following forms:
+
+* **string**: Used as-is. If additional arguments are supplied after the
+  `message` string, they are treated as printf-like substitutions (see
+  [`util.format()`][]).
+* **Error**: If an `Error` instance is provided as `message`, that error is
+  thrown directly instead of an `AssertionError`.
+* **function**: A function of the form `(actual, expected) => string`. It is
+  called only when the assertion fails and should return a string to be used as
+  the error message. Non-string return values are ignored and the default
+  message is used instead.
+
+If additional arguments are passed along with an `Error` or a function as
+`message`, the call is rejected with `ERR_AMBIGUOUS_ARGUMENT`.
+
+If the first item is neither a string, `Error`, nor function, `ERR_INVALID_ARG_TYPE`
+is thrown.
+
 To use strict assertion mode:
 
 ```mjs
@@ -305,10 +326,14 @@ destructuring and call methods directly on the instance.
 
 <!-- YAML
 added: v0.5.9
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58849
+    description: Message may now be a `printf`-like format string or function.
 -->
 
 * `value` {any} The input that is checked for being truthy.
-* `message` {string|Error}
+* `message` {string|Error|Function}
 
 An alias of [`assert.ok()`][].
 
@@ -324,6 +349,9 @@ changes:
   - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/57627
     description: Invalid dates are now considered equal.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58849
+    description: Message may now be a `printf`-like format string or function.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57622
     description: Recursion now stops when either side encounters a circular
@@ -375,7 +403,7 @@ changes:
 
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {string|Error|Function}
 
 **Strict assertion mode**
 
@@ -524,6 +552,9 @@ changes:
   - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/57627
     description: Invalid dates are now considered equal.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58849
+    description: Message may now be a `printf`-like format string or function.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57622
     description: Recursion now stops when either side encounters a circular
@@ -567,7 +598,7 @@ changes:
 
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {string|Error|Function}
 
 Tests for deep equality between the `actual` and `expected` parameters.
 "Deep" equality means that the enumerable "own" properties of child objects
@@ -829,6 +860,9 @@ added:
   - v13.6.0
   - v12.16.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58849
+    description: Message may now be a `printf`-like format string or function.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/38111
     description: This API is no longer experimental.
@@ -836,7 +870,7 @@ changes:
 
 * `string` {string}
 * `regexp` {RegExp}
-* `message` {string|Error}
+* `message` {string|Error|Function}
 
 Expects the `string` input not to match the regular expression.
 
@@ -1069,6 +1103,9 @@ assert.doesNotThrow(
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58849
+    description: Message may now be a `printf`-like format string or function.
   - version:
       - v16.0.0
       - v14.18.0
@@ -1083,7 +1120,7 @@ changes:
 
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {string|Error|Function}
 
 **Strict assertion mode**
 
@@ -1254,6 +1291,9 @@ added:
   - v13.6.0
   - v12.16.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58849
+    description: Message may now be a `printf`-like format string or function.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/38111
     description: This API is no longer experimental.
@@ -1261,7 +1301,7 @@ changes:
 
 * `string` {string}
 * `regexp` {RegExp}
-* `message` {string|Error}
+* `message` {string|Error|Function}
 
 Expects the `string` input to match the regular expression.
 
@@ -1303,6 +1343,9 @@ instance of {Error} then it will be thrown instead of the
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58849
+    description: Message may now be a `printf`-like format string or function.
   - version:
       - v16.0.0
       - v14.18.0
@@ -1338,7 +1381,7 @@ changes:
 
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {string|Error|Function}
 
 **Strict assertion mode**
 
@@ -1427,6 +1470,9 @@ instead of the `AssertionError`.
 <!-- YAML
 added: v1.2.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58849
+    description: Message may now be a `printf`-like format string or function.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15398
     description: The `-0` and `+0` are not considered equal anymore.
@@ -1458,7 +1504,7 @@ changes:
 
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {string|Error|Function}
 
 Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual()`][].
 
@@ -1487,6 +1533,9 @@ instead of the [`AssertionError`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58849
+    description: Message may now be a `printf`-like format string or function.
   - version:
       - v16.0.0
       - v14.18.0
@@ -1501,7 +1550,7 @@ changes:
 
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {string|Error|Function}
 
 **Strict assertion mode**
 
@@ -1551,6 +1600,9 @@ parameter is an instance of {Error} then it will be thrown instead of the
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58849
+    description: Message may now be a `printf`-like format string or function.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17003
     description: Used comparison changed from Strict Equality to `Object.is()`.
@@ -1558,7 +1610,7 @@ changes:
 
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {string|Error|Function}
 
 Tests strict inequality between the `actual` and `expected` parameters as
 determined by [`Object.is()`][].
@@ -1604,6 +1656,9 @@ instead of the `AssertionError`.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58849
+    description: Message may now be a `printf`-like format string or function.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18319
     description: The `assert.ok()` (no arguments) will now use a predefined
@@ -1611,7 +1666,7 @@ changes:
 -->
 
 * `value` {any}
-* `message` {string|Error}
+* `message` {string|Error|Function}
 
 Tests if `value` is truthy. It is equivalent to
 `assert.equal(!!value, true, message)`.
@@ -1844,6 +1899,9 @@ argument gets considered.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58849
+    description: Message may now be a `printf`-like format string or function.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17003
     description: Used comparison changed from Strict Equality to `Object.is()`.
@@ -1851,7 +1909,14 @@ changes:
 
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {string|Error|Function} Postfix `printf`-like arguments in case
+  it's used as format string.
+  If message is a function, it is called in case of a comparison failure. The
+  function receives the `actual` and `expected` arguments and has to return a
+  string that is going to be used as error message.
+  `printf`-like format strings and functions are beneficial for performance
+  reasons in case arguments are passed through. In addition, it allows nice
+  formatting with ease.
 
 Tests strict equality between the `actual` and `expected` parameters as
 determined by [`Object.is()`][].
@@ -1880,8 +1945,17 @@ const oranges = 2;
 assert.strictEqual(apples, oranges, `apples ${apples} !== oranges ${oranges}`);
 // AssertionError [ERR_ASSERTION]: apples 1 !== oranges 2
 
+assert.strictEqual(apples, oranges, 'apples %s !== oranges %s', apples, oranges);
+// AssertionError [ERR_ASSERTION]: apples 1 !== oranges 2
+
 assert.strictEqual(1, '1', new TypeError('Inputs are not identical'));
 // TypeError: Inputs are not identical
+
+assert.strictEqual(apples, oranges, (actual, expected) => {
+  // Do 'heavy' computations
+  return `I expected ${expected} but I got ${actual}`;
+});
+// AssertionError [ERR_ASSERTION]: I expected oranges but I got apples
 ```
 
 ```cjs
@@ -1908,8 +1982,17 @@ const oranges = 2;
 assert.strictEqual(apples, oranges, `apples ${apples} !== oranges ${oranges}`);
 // AssertionError [ERR_ASSERTION]: apples 1 !== oranges 2
 
+assert.strictEqual(apples, oranges, 'apples %s !== oranges %s', apples, oranges);
+// AssertionError [ERR_ASSERTION]: apples 1 !== oranges 2
+
 assert.strictEqual(1, '1', new TypeError('Inputs are not identical'));
 // TypeError: Inputs are not identical
+
+assert.strictEqual(apples, oranges, (actual, expected) => {
+  // Do 'heavy' computations
+  return `I expected ${expected} but I got ${actual}`;
+});
+// AssertionError [ERR_ASSERTION]: I expected oranges but I got apples
 ```
 
 If the values are not strictly equal, an [`AssertionError`][] is thrown with a
@@ -2295,7 +2378,7 @@ changes:
 
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {string|Error|Function}
 
 Tests for partial deep equality between the `actual` and `expected` parameters.
 "Deep" equality means that the enumerable "own" properties of child objects
@@ -2460,5 +2543,6 @@ assert.partialDeepStrictEqual(
 [`assert.strictEqual()`]: #assertstrictequalactual-expected-message
 [`assert.throws()`]: #assertthrowsfn-error-message
 [`getColorDepth()`]: tty.md#writestreamgetcolordepthenv
+[`util.format()`]: util.md#utilformatformat-args
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots
