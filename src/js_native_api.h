@@ -79,6 +79,7 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_get_boolean(napi_env env,
 NAPI_EXTERN napi_status NAPI_CDECL napi_create_object(napi_env env,
                                                       napi_value* result);
 #ifdef NAPI_EXPERIMENTAL
+#define NODE_API_EXPERIMENTAL_HAS_CREATE_OBJECT_WITH_PROPERTIES
 NAPI_EXTERN napi_status NAPI_CDECL
 napi_create_object_with_properties(napi_env env,
                                    napi_value prototype_or_null,
