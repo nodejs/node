@@ -913,6 +913,20 @@ function expectRequiredTLAError(err) {
   }
 }
 
+function skipIfNoWatchModeSignals() {
+  if (exports.isWindows) {
+    skip('no signals on Windows');
+  }
+
+  if (exports.isIBMi) {
+    skip('IBMi does not support `fs.watch()`');
+  }
+
+  if (exports.isAIX) {
+    skip('folder watch capability is limited in AIX.');
+  }
+}
+
 const common = {
   allowGlobals,
   buildType,
@@ -960,6 +974,7 @@ const common = {
   skipIf32Bits,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
+  skipIfNoWatchModeSignals,
   skipIfSQLiteMissing,
   spawnPromisified,
 

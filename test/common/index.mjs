@@ -46,6 +46,7 @@ const {
   skipIf32Bits,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
+  skipIfNoWatchModeSignals,
   skipIfSQLiteMissing,
   spawnPromisified,
 } = common;
@@ -97,6 +98,7 @@ export {
   skipIf32Bits,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
+  skipIfNoWatchModeSignals,
   skipIfSQLiteMissing,
   spawnPromisified,
 };
