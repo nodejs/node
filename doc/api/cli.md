@@ -3886,6 +3886,8 @@ documented here:
 
 ### `--harmony-shadow-realm`
 
+### `--heap-snapshot-on-oom`
+
 ### `--interpreted-frames-native-stack`
 
 ### `--jitless`
