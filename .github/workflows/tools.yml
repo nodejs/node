@@ -30,6 +30,7 @@ on:
           - llhttp
           - minimatch
           - nbytes
+          - nixpkgs-unstable
           - nghttp2
           - nghttp3
           - ngtcp2
@@ -190,6 +191,14 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+          - id: nixpkgs-unstable
+            subsystem: tools
+            label: tools
+            run: |
+              ./tools/dep_updaters/update-nixpkgs-pin.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: nghttp2
             subsystem: deps
             label: dependencies
@@ -292,6 +301,9 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
+      - name: Set up Nix
+        if: matrix.id == 'nixpkgs-unstable' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
+        uses: cachix/install-nix-action@7be5dee1421f63d07e71ce6e0a9f8a4b07c2a487  # v31.6.1
       - run: ${{ matrix.run }}
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         env:

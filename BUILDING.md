@@ -239,6 +239,7 @@ Consult previous versions of this document for older versions of Node.js:
 
 Installation via Linux package manager can be achieved with:
 
+* Nix, NixOS: `nix-shell`
 * Ubuntu, Debian: `sudo apt-get install python3 g++-12 gcc-12 make python3-pip`
 * Fedora: `sudo dnf install python3 gcc-c++ make python3-pip`
 * CentOS and RHEL: `sudo yum install python3 gcc-c++ make python3-pip`
@@ -259,6 +260,75 @@ installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
 `make`.
 
+#### Nix integration
+
+If you are using Nix and direnv, you can use the following to get started:
+
+```bash
+echo 'use_nix --arg sharedLibDeps {} --argstr icu small' > .envrc
+direnv allow .
+make build-ci -j12
+```
+
+The use of `make build-ci` is to ensure you are using the `CONFIG_FLAGS`
+environment variable. You can also specify it manually:
+
+```bash
+./configure $CONFIG_FLAGS
+make -j12
+```
+
+Passing the `--arg sharedLibDeps {}` instructs direnv and Nix to generate an
+environment that uses the vendored-in native dependencies. Using the vendored-in
+dependencies result in a result closer to the official binaries, the tradeoff
+being the build will take longer to complete as you'd have to build those
+dependencies instead of using the cached ones from the Nix cache. You can omit
+that flag to use all the shared dependencies, or specify only some dependencies:
+
+```bash
+cat -> .envrc <<'EOF'
+use nix --arg sharedLibDeps '{
+  inherit (import <nixpkgs> {})
+    openssl
+    zlib
+  ;
+}'
+EOF
+```
+
+Passing the `--argstr icu small` instructs direnv and Nix to pass `--with-intl=small` in
+the `CONFIG_FLAGS` environment variable. If you omit this, the prebuilt ICU from Nix cache
+will be used, which should speed up greatly compilation time.
+
+The use of `direnv` is completely optional, you can also use `nix-shell` directly,
+e.g. here's a command you can use to build a binary for benchmarking purposes:
+
+```bash
+# Passing `--arg loadJSBuiltinsDynamically false` to instruct the compiler to
+# embed the JS core files so it is no longer affected by local changes
+# (necessary for getting useful benchmark results).
+# Passing `--arg devTools '[]' --arg benchmarkTools '[]'` since we don't need
+# those to build node.
+nix-shell \
+  --arg loadJSBuiltinsDynamically false \
+  --arg devTools '[]' --arg benchmarkTools '[]' \
+  --run 'make build-ci -j12'
+
+mv out/Release/node ./node_old
+
+# ...
+# Make your local changes, and re-build node
+
+nix-shell \
+  --arg loadJSBuiltinsDynamically false \
+  --arg devTools '[]' --arg benchmarkTools '[]' \
+  --run 'make build-ci -j12'
+
+nix-shell --pure --run './node benchmark/compare.js --old ./node_old  --new ./node http | Rscript benchmark/compare.R'
+```
+
+There are additional attributes you can pass, see `shell.nix` file for more details.
+
 #### Building Node.js
 
 If the path to your build directory contains a space, the build will likely
@@ -267,7 +337,6 @@ fail.
 To build Node.js:
 
 ```bash
-export CXX=g++-12
 ./configure
 make -j4
 ```
