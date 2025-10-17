@@ -1061,6 +1061,12 @@ Type: End-of-Life
 The `util.isBoolean()` API has been removed. Please use
 `typeof arg === 'boolean'` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0046: `util.isBuffer()`
 
 <!-- YAML
@@ -1087,6 +1093,12 @@ Type: End-of-Life
 
 The `util.isBuffer()` API has been removed. Please use
 [`Buffer.isBuffer()`][] instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0047: `util.isDate()`
 
@@ -1119,6 +1131,12 @@ Also for stronger approaches, consider using:
 `Date.prototype.toString.call(arg) === '[object Date]' && !isNaN(arg)`.
 This can also be used in a `try/catch` block to handle invalid date objects.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0048: `util.isError()`
 
 <!-- YAML
@@ -1144,6 +1162,12 @@ changes:
 Type: End-of-Life
 
 The `util.isError()` API has been removed. Please use `Error.isError(arg)`.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0049: `util.isFunction()`
 
@@ -1172,6 +1196,12 @@ Type: End-of-Life
 The `util.isFunction()` API has been removed. Please use
 `typeof arg === 'function'` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0050: `util.isNull()`
 
 <!-- YAML
@@ -1198,6 +1228,12 @@ Type: End-of-Life
 
 The `util.isNull()` API has been removed. Please use
 `arg === null` instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0051: `util.isNullOrUndefined()`
 
@@ -1226,6 +1262,12 @@ Type: End-of-Life
 The `util.isNullOrUndefined()` API has been removed. Please use
 `arg === null || arg === undefined` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0052: `util.isNumber()`
 
 <!-- YAML
@@ -1252,6 +1294,12 @@ Type: End-of-Life
 
 The `util.isNumber()` API has been removed. Please use
 `typeof arg === 'number'` instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0053: `util.isObject()`
 
@@ -1280,6 +1328,12 @@ Type: End-of-Life
 The `util.isObject()` API has been removed. Please use
 `arg && typeof arg === 'object'` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0054: `util.isPrimitive()`
 
 <!-- YAML
@@ -1305,6 +1359,12 @@ changes:
 Type: End-of-Life
 
 The `util.isPrimitive()` API has been removed. Please use `Object(arg) !== arg` instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0055: `util.isRegExp()`
 
@@ -1333,6 +1393,12 @@ Type: End-of-Life
 The `util.isRegExp()` API has been removed. Please use
 `arg instanceof RegExp` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0056: `util.isString()`
 
 <!-- YAML
@@ -1359,6 +1425,12 @@ Type: End-of-Life
 
 The `util.isString()` API has been removed. Please use
 `typeof arg === 'string'` instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0057: `util.isSymbol()`
 
@@ -1387,6 +1459,12 @@ Type: End-of-Life
 The `util.isSymbol()` API has been removed. Please use
 `typeof arg === 'symbol'` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0058: `util.isUndefined()`
 
 <!-- YAML
@@ -1413,6 +1491,12 @@ Type: End-of-Life
 
 The `util.isUndefined()` API has been removed. Please use
 `arg === undefined` instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0059: `util.log()`
 
