@@ -5985,7 +5985,7 @@ the runtime.
 added: v8.6.0
 napiVersion: 1
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59828
     description: The `async_resource` object will now be held as a strong reference.
 -->

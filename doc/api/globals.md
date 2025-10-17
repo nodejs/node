@@ -461,6 +461,13 @@ added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
+A browser-compatible implementation of [`DecompressionStream`][].
+
+## `ErrorEvent`
+
+<!-- YAML
+added: v25.0.0
+-->
 
 A browser-compatible implementation of [`DecompressionStream`][].
 

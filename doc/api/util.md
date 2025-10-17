@@ -848,7 +848,7 @@ stream.write('With ES6');
 added: v0.3.0
 changes:
   - version:
-    - REPLACEME
+    - v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59710
     description: The util.inspect.styles.regexp style is now a method that is
                  invoked for coloring the stringified regular expression.
