@@ -3880,6 +3880,8 @@ documented here:
 
 ### `--harmony-shadow-realm`
 
+### `--heap-snapshot-on-oom`
+
 ### `--huge-max-old-generation-size`
 
 ### `--interpreted-frames-native-stack`
