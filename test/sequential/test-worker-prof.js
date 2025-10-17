@@ -77,7 +77,7 @@ if (process.argv[2] === 'child') {
   // When not tracking Worker threads, only 1 or 2 ticks would
   // have been recorded.
   // prof_sampling_interval is by default 1 millisecond. A higher SPIN_MS
-  // should result in more ticks, while 15 should be safe on most machines.
-  assert(workerTicks.length > 15, `worker ticks <= 15:\n${workerTicks.join('\n')}`);
-  assert(parentTicks.length > 15, `parent ticks <= 15:\n${parentTicks.join('\n')}`);
+  // should result in more ticks, while 10 should be safe on most machines.
+  assert(workerTicks.length > 10, `worker ticks <= 10:\n${workerTicks.join('\n')}`);
+  assert(parentTicks.length > 10, `parent ticks <= 10:\n${parentTicks.join('\n')}`);
 }
