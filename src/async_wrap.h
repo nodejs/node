@@ -49,8 +49,6 @@ namespace node {
   V(HTTP2STREAM)                                                               \
   V(HTTP2PING)                                                                 \
   V(HTTP2SETTINGS)                                                             \
-  V(HTTPINCOMINGMESSAGE)                                                       \
-  V(HTTPCLIENTREQUEST)                                                         \
   V(LOCKS)                                                                     \
   V(JSSTREAM)                                                                  \
   V(JSUDPWRAP)                                                                 \
