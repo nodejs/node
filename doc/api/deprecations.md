@@ -3123,6 +3123,12 @@ The `node:repl` module exports a `_builtinLibs` property that contains an array
 of built-in modules. It was incomplete so far and instead it's better to rely
 upon `require('node:module').builtinModules`.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/repl-builtin-modules)):
+
+```bash
+npx codemod@latest @nodejs/repl-builtin-modules
+```
+
 ### DEP0143: `Transform._transformState`
 
 <!-- YAML
@@ -4124,6 +4130,12 @@ The `node:repl` module exports a `builtinModules` property that contains an arra
 of built-in modules. This was incomplete and matched the already deprecated
 `repl._builtinLibs` ([DEP0142][]) instead it's better to rely
 upon `require('node:module').builtinModules`.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/repl-builtin-modules)):
+
+```bash
+npx codemod@latest @nodejs/repl-builtin-modules
+```
 
 ### DEP0192: `require('node:_tls_common')` and `require('node:_tls_wrap')`
 
