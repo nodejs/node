@@ -585,9 +585,6 @@ added: v22.8.0
 <!-- YAML
 added: v8.8.0
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/60302
-    description: Change stability index for async variant from Release candidate to Experimental.
   - version:
     - v23.5.0
     - v22.15.0
