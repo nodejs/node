@@ -562,9 +562,9 @@ struct Session::Impl final : public MemoryRetainer {
     // will remove themselves from the Session as soon as they are closed.
     // Note: we create a copy because the streams will remove themselves
     // while they are cleaning up which will invalidate the iterator.
-    StreamsMap streams = streams_;
+    StreamsMap streams = streams_; // needs to be a ref
     for (auto& stream : streams) stream.second->Destroy(last_error_);
-    DCHECK(streams.empty());
+    DCHECK(streams_.empty()); // do not check our local copy
 
     // Clear the pending streams.
     while (!pending_bidi_stream_queue_.IsEmpty()) {
@@ -1399,8 +1399,10 @@ void Session::Close(CloseMethod method) {
     Debug(this, "Closing with error: %s", impl_->last_error_);
   }
 
-  STAT_RECORD_TIMESTAMP(Stats, closing_at);
-  impl_->state_->closing = 1;
+  // This is done already in the implmentation
+  // STAT_RECORD_TIMESTAMP(Stats, closing_at);
+  // The next line would be prevent, that close of the implementation is executed!
+  // impl_->state_->closing = 1;
 
   // With both the DEFAULT and SILENT options, we will proceed to closing
   // the session immediately. All open streams will be immediately destroyed
@@ -1451,7 +1453,8 @@ void Session::FinishClose() {
   // FinishClose() should be called only after, and as a result of, Close()
   // being called first.
   DCHECK(!is_destroyed());
-  DCHECK(impl_->state_->closing);
+  // The next line does not make sense, as in the implementation is also checking if closing is not in progress
+  // DCHECK(impl_->state_->closing);
 
   // If impl_->Close() returns true, then the session can be destroyed
   // immediately without round-tripping through JavaScript.
@@ -1469,8 +1472,7 @@ void Session::Destroy() {
   // being called first.
   DCHECK(impl_);
   DCHECK(impl_->state_->closing);
-  Debug(this, "Session destroyed");
-  impl_.reset();
+  Debug(this, "Session destroyed");  
   if (qlog_stream_ || keylog_stream_) {
     env()->SetImmediate(
         [qlog = qlog_stream_, keylog = keylog_stream_](Environment*) {
@@ -1480,6 +1482,9 @@ void Session::Destroy() {
   }
   qlog_stream_.reset();
   keylog_stream_.reset();
+  impl_.reset();  // This can cause the session (so us) object to be garbage
+                  // collected, so the session object may not be valid after
+                  // this call.
 }
 
 PendingStream::PendingStreamQueue& Session::pending_bidi_stream_queue() const {
@@ -2093,7 +2098,7 @@ void Session::RemoveStream(stream_id id) {
   // returns.
   if (impl_->state_->closing && impl_->state_->graceful_close) {
     FinishClose();
-    CHECK(is_destroyed());
+    // CHECK(is_destroyed()); // this will not work, our this pointer may not be valid anymore!
   }
 }
 
