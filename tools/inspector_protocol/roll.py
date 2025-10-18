@@ -47,13 +47,6 @@ def CheckRepoIsClean(path):
     raise Exception('%s is not a clean git repo (run git status)' % path)
 
 
-def CheckRepoIsNotAtMainBranch(path):
-  os.chdir(path)
-  stdout = RunCmd(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip()
-  if stdout == 'main':
-    raise Exception('%s is at main branch - refusing to copy there.' % path)
-
-
 def CheckRepoIsInspectorProtocolCheckout(path):
   os.chdir(path)
   revision = RunCmd(['git', 'config', '--get', 'remote.origin.url']).strip()
@@ -123,12 +116,7 @@ def main(argv):
   downstream = os.path.normpath(os.path.expanduser(
       args.node_src_downstream))
   CheckRepoIsClean(upstream)
-  CheckRepoIsClean(downstream)
   CheckRepoIsInspectorProtocolCheckout(upstream)
-  # Check that the destination Git repo isn't at the main branch - it's
-  # generally a bad idea to check into the main branch, so we catch this
-  # common pilot error here early.
-  CheckRepoIsNotAtMainBranch(downstream)
 
   # Read V8's inspector_protocol revision
   v8_ip_revision = ReadV8IPRevision(downstream)
