@@ -16,7 +16,7 @@ const jsonModuleDataUrl = 'data:application/json,""';
 const stubJsModule = createDynamicModule([], ['default'], jsModuleDataUrl);
 const stubJsonModule = createDynamicModule([], ['default'], jsonModuleDataUrl);
 
-const loader = createModuleLoader(false);
+const loader = createModuleLoader();
 const jsModuleJob = new ModuleJob(loader, stubJsModule.module, undefined,
                                   () => new Promise(() => {}));
 const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
