@@ -3236,13 +3236,17 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   int text_length = FixedLengthLoopLengthForAlternative(&alternatives_->at(0));
   AlternativeGenerationList alt_gens(choice_count, zone());
 
+  // Flags need to be reset to the state of the ChoiceNode at the beginning
+  // of each alternative (in-line and out-of-line), as flags might be modified
+  // when emitting an alternative.
+  RegExpFlags flags = compiler->flags();
   if (choice_count > 1 && text_length != kNodeIsTooComplexForFixedLengthLoops) {
     trace = EmitFixedLengthLoop(compiler, trace, &alt_gens, &preload,
-                                &fixed_length_loop_state, text_length);
+                                &fixed_length_loop_state, text_length, flags);
   } else {
     preload.eats_at_least_ = EmitOptimizedUnanchoredSearch(compiler, trace);
 
-    EmitChoices(compiler, &alt_gens, 0, trace, &preload);
+    EmitChoices(compiler, &alt_gens, 0, trace, &preload, flags);
   }
 
   // At this point we need to generate slow checks for the alternatives where
@@ -3250,6 +3254,7 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   // label was bound.
   int new_flush_budget = trace->flush_budget() / choice_count;
   for (int i = 0; i < choice_count; i++) {
+    compiler->set_flags(flags);
     AlternativeGeneration* alt_gen = alt_gens.at(i);
     Trace new_trace(*trace);
     // If there are actions to be flushed we have to limit how many times
@@ -3269,7 +3274,7 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 Trace* ChoiceNode::EmitFixedLengthLoop(
     RegExpCompiler* compiler, Trace* trace, AlternativeGenerationList* alt_gens,
     PreloadState* preload, FixedLengthLoopState* fixed_length_loop_state,
-    int text_length) {
+    int text_length, RegExpFlags flags) {
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   // Here we have special handling for greedy loops containing only text nodes
   // and other simple nodes.  We call these fixed length loops.  These are
@@ -3296,7 +3301,7 @@ Trace* ChoiceNode::EmitFixedLengthLoop(
 
   // In a fixed length loop there is only one other choice, which is what
   // comes after the greedy quantifer.  Try to match that now.
-  EmitChoices(compiler, alt_gens, 1, new_trace, preload);
+  EmitChoices(compiler, alt_gens, 1, new_trace, preload, flags);
 
   fixed_length_loop_state->BindStepBackwardsLabel(macro_assembler);
   // If we have unwound to the bottom then backtrack.
@@ -3356,7 +3361,7 @@ int ChoiceNode::EmitOptimizedUnanchoredSearch(RegExpCompiler* compiler,
 void ChoiceNode::EmitChoices(RegExpCompiler* compiler,
                              AlternativeGenerationList* alt_gens,
                              int first_choice, Trace* trace,
-                             PreloadState* preload) {
+                             PreloadState* preload, RegExpFlags flags) {
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   SetUpPreLoad(compiler, trace, preload);
 
@@ -3367,6 +3372,7 @@ void ChoiceNode::EmitChoices(RegExpCompiler* compiler,
   int new_flush_budget = trace->flush_budget() / choice_count;
 
   for (int i = first_choice; i < choice_count; i++) {
+    compiler->set_flags(flags);
     bool is_last = i == choice_count - 1;
     bool fall_through_on_failure = !is_last;
     GuardedAlternative alternative = alternatives_->at(i);
