@@ -3716,3 +3716,28 @@ ${error.stack.split('\n').slice(1).join('\n')}`,
 
   assert.strictEqual(inspect(error), '[Error: foo\n    [Error: bar\n        [Circular *1]]]');
 }
+
+{
+  Object.defineProperty(Error, Symbol.hasInstance,
+                        { __proto__: null, value: common.mustNotCall(), configurable: true });
+  const error = new Error();
+
+  const throwingGetter = {
+    __proto__: null,
+    get() {
+      throw error;
+    },
+    configurable: true,
+    enumerable: true,
+  };
+
+  Object.defineProperties(error, {
+    name: throwingGetter,
+    stack: throwingGetter,
+    cause: throwingGetter,
+  });
+
+  assert.strictEqual(inspect(error), `[object Error] {\n  stack: [Getter/Setter],\n  name: [Getter],\n  cause: [Getter]\n}`);
+  assert.match(inspect(DOMException.prototype), /^\[object DOMException\] \{/);
+  delete Error[Symbol.hasInstance];
+}
