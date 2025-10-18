@@ -71,6 +71,9 @@ const serverEndpoint = await listen(async (serverSession) => {
   await serverSession.opened;
   const transformStream = new TransformStream();
   const sendStream = await serverSession.createUnidirectionalStream({ body: transformStream.readable });
+  sendStream.closed.catch(() => {
+    // ignore
+  });
   strictEqual(sendStream.direction, 'uni');
   const serverWritable = transformStream.writable;
   const writer = serverWritable.getWriter();
@@ -80,6 +83,9 @@ const serverEndpoint = await listen(async (serverSession) => {
   }
   await writer.ready;
   await writer.close();
+  serverSession.closed.catch((err) => {
+    // ignore the error
+  });
   serverSession.close();
 }, { keys, certs });
 
@@ -100,10 +106,16 @@ clientSession.onstream = mustCall(async (stream) => {
     }
     if (done) break;
   }
+  stream.closed.catch(() => {
+    // ignore
+  });
   // Now compare what we got
   deepStrictEqual(uint8concat(KNOWN_BYTES_LONG), uint8concat(readChunks));
   clientFinished.resolve();
 }, 1);
 
 await clientFinished.promise;
+clientSession.closed.catch((err) => {
+  // ignore the error
+});
 clientSession.close();
