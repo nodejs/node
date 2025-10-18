@@ -1128,10 +1128,7 @@ void Stream::Acknowledge(size_t datalen) {
 
   Debug(this, "Acknowledging %zu bytes", datalen);
 
-  // ngtcp2 guarantees that offset must always be greater than the previously
-  // received offset.
-  DCHECK_GE(datalen, STAT_GET(Stats, max_offset_ack));
-  STAT_SET(Stats, max_offset_ack, datalen);
+  STAT_SET(Stats, max_offset_ack, STAT_GET(Stats, max_offset_ack) + datalen);
 
   // Consumes the given number of bytes in the buffer.
   outbound_->Acknowledge(datalen);
