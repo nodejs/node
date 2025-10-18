@@ -1,4 +1,4 @@
-import { hasCrypto, hasIntl, hasSQLite } from '../common/index.mjs';
+import { hasCrypto, hasIntl, hasInspector, hasSQLite } from '../common/index.mjs';
 import assert from 'node:assert';
 import { builtinModules } from 'node:module';
 import { isMainThread } from 'node:worker_threads';
@@ -39,6 +39,10 @@ if (!hasIntl) {
 // TODO(@jasnell): Remove this once node:quic graduates from unflagged.
 publicBuiltins.delete('node:quic');
 
+if (!hasInspector) {
+  publicBuiltins.delete('inspector');
+  publicBuiltins.delete('inspector/promises');
+}
 if (!hasSQLite) {
   publicBuiltins.delete('node:sqlite');
 }
