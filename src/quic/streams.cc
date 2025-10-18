@@ -225,7 +225,7 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
     ASSIGN_OR_RETURN_UNWRAP(
         &dataQueueFeeder, value, Nothing<std::shared_ptr<DataQueue>>());
     std::shared_ptr<DataQueue> dataQueue = DataQueue::Create();
-    dataQueue->append(DataQueue::CreateFeederEntry(dataQueueFeeder));
+    dataQueue->append(std::move(DataQueue::CreateFeederEntry(dataQueueFeeder)));
     return Just(dataQueue);
   }
 
@@ -1396,7 +1396,8 @@ JS_METHOD_IMPL(DataQueueFeeder::Submit) {
   if (args[1]->IsBoolean() && args[1].As<v8::Boolean>()->Value()) {
     done = true;
   }
-  if (!args[0].IsEmpty()) {
+  if (!args[0].IsEmpty() && 
+      !args[0]->IsUndefined() && !args[0]->IsNull()) {
     CHECK_GT(feeder->pendingPulls_.size(), 0);
     auto chunk = args[0];
 
@@ -1407,6 +1408,7 @@ JS_METHOD_IMPL(DataQueueFeeder::Submit) {
     if (!chunk->IsTypedArray()) {
       THROW_ERR_INVALID_ARG_TYPE(
           env, "Invalid data must be Arraybuffer or TypedArray");
+      return;
     }
     Local<TypedArray> typedArray = chunk.As<TypedArray>();
     // now we create a copy
