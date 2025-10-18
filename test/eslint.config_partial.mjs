@@ -156,7 +156,21 @@ export default [
   },
   {
     files: [
-      'test/{async-hooks,benchmark,cctest,client-proxy,message,module-hooks,node-api,pummel,pseudo-tty,v8-updates,wasi}/**/*.{js,mjs,cjs}',
+      `test/{${[
+        'abort',
+        'addons',
+        'async-hooks',
+        'benchmark',
+        'cctest',
+        'client-proxy',
+        'message',
+        'module-hooks',
+        'node-api',
+        'pummel',
+        'pseudo-tty',
+        'v8-updates',
+        'wasi',
+      ].join(',')}}/**/*.{js,mjs,cjs}`,
     ],
     rules: {
       'node-core/must-call-assert': 'error',

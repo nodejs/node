@@ -17,7 +17,7 @@ let after = 0;
 let destroy = 0;
 
 async_hooks.createHook({
-  init(id, type, triggerAsyncId, resource) {
+  init: common.mustCall((id, type, triggerAsyncId, resource) => {
     assert.strictEqual(typeof id, 'number');
     assert.strictEqual(typeof resource, 'object');
     assert(id > 1);
@@ -26,7 +26,7 @@ async_hooks.createHook({
       assert.strictEqual(triggerAsyncId, expectedTriggerId);
       bindingUids.push(id);
     }
-  },
+  }, 7),
 
   before(id) {
     if (bindingUids.includes(id)) before++;
@@ -48,8 +48,11 @@ for (const call of [binding.callViaFunction,
     let uid;
     const object = {
       methöd(arg) {
+        // eslint-disable-next-line node-core/must-call-assert
         assert.strictEqual(this, object);
+        // eslint-disable-next-line node-core/must-call-assert
         assert.strictEqual(arg, 42);
+        // eslint-disable-next-line node-core/must-call-assert
         assert.strictEqual(async_hooks.executionAsyncId(), uid);
         return 'baz';
       },
