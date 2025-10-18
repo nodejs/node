@@ -802,7 +802,7 @@ node --entry-url 'data:text/javascript,console.log("Hello")'
 <!-- YAML
 added: v22.9.0
 changes:
-  - version: REPLACEME
+  - version: v22.21.0
     pr-url: https://github.com/nodejs/node/pull/59925
     description: The `--env-file-if-exists` flag is no longer experimental.
 -->
@@ -815,7 +815,7 @@ does not exist.
 <!-- YAML
 added: v20.6.0
 changes:
-  - version: REPLACEME
+  - version: v22.21.0
     pr-url: https://github.com/nodejs/node/pull/59925
     description: The `--env-file` flag is no longer experimental.
   - version:
@@ -2988,7 +2988,7 @@ See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
 ### `--use-env-proxy`
 
 <!-- YAML
-added: REPLACEME
+added: v22.21.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -3648,7 +3648,7 @@ variable is strongly discouraged.
 ### `NODE_USE_ENV_PROXY=1`
 
 <!-- YAML
-added: REPLACEME
+added: v22.21.0
 -->
 
 > Stability: 1.1 - Active Development
