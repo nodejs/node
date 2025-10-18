@@ -217,7 +217,10 @@ static uint32_t GetUVHandleTypeCode(const uv_handle_type type) {
     case UV_UNKNOWN_HANDLE:
       return 5;
     default:
-      ABORT();
+      // For an unhandled handle type, we want to return `UNKNOWN` instead of
+      // `null` since the type is "known" by UV, just not exposed further to
+      // JS land
+      return 5;
   }
 }
 
@@ -225,7 +228,12 @@ static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   int fd;
   if (!args[0]->Int32Value(env->context()).To(&fd)) return;
-  CHECK_GE(fd, 0);
+
+  // If the provided file descriptor is not valid, we return null
+  if (fd < 0) [[unlikely]] {
+    args.GetReturnValue().Set(v8::Null(env->isolate()));
+    return;
+  }
 
   uv_handle_type t = uv_guess_handle(fd);
   args.GetReturnValue().Set(GetUVHandleTypeCode(t));
