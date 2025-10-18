@@ -238,7 +238,7 @@ export default [
       'no-throw-literal': 'error',
       'no-undef': ['error', { typeof: true }],
       'no-undef-init': 'error',
-      'no-unused-expressions': ['error', { allowShortCircuit: true }],
+      'no-unused-expressions': ['error', { allowShortCircuit: true, allowTaggedTemplates: true }],
       'no-unused-vars': ['error', { args: 'none', caughtErrors: 'all' }],
       'no-use-before-define': ['error', {
         classes: true,
