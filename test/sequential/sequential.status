@@ -25,8 +25,27 @@ test-http2-large-file: PASS, FLAKY
 test-http-server-request-timeouts-mixed: PASS, FLAKY
 
 [$system==macos]
-# https://github.com/nodejs/node/issues/54816
+
+[$system==macos && $arch==x64]
+# https://github.com/nodejs/node/issues/59553
+test-single-executable-application: PASS, FLAKY
+test-single-executable-application-assets: PASS, FLAKY
+test-single-executable-application-assets-raw: PASS, FLAKY
+test-single-executable-application-asset-keys-empty: PASS, FLAKY
+test-single-executable-application-asset-keys: PASS, FLAKY
+test-single-executable-application-disable-experimental-sea-warning: PASS, FLAKY
 test-single-executable-application-empty: PASS, FLAKY
+test-single-executable-application-exec-argv: PASS, FLAKY
+test-single-executable-application-exec-argv-empty: PASS, FLAKY
+test-single-executable-application-exec-argv-extension-cli: PASS, FLAKY
+test-single-executable-application-exec-argv-extension-env: PASS, FLAKY
+test-single-executable-application-exec-argv-extension-none: PASS, FLAKY
+test-single-executable-application-inspect-in-sea-flags: PASS, FLAKY
+test-single-executable-application-inspect: PASS, FLAKY
+test-single-executable-application-snapshot: PASS, FLAKY
+test-single-executable-application-snapshot-and-code-cache: PASS, FLAKY
+test-single-executable-application-snapshot-worker: PASS, FLAKY
+test-single-executable-application-use-code-cache: PASS, FLAKY
 
 # https://github.com/nodejs/node/issues/43465
 test-http-server-request-timeouts-mixed: PASS, FLAKY

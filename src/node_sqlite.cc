@@ -1215,9 +1215,7 @@ void DatabaseSync::CustomFunction(const FunctionCallbackInfo<Value>& args) {
     argc = -1;
   } else {
     Local<Value> js_len;
-    if (!fn->Get(env->context(),
-                 FIXED_ONE_BYTE_STRING(env->isolate(), "length"))
-             .ToLocal(&js_len)) {
+    if (!fn->Get(env->context(), env->length_string()).ToLocal(&js_len)) {
       return;
     }
     argc = js_len.As<Int32>()->Value();
@@ -1448,7 +1446,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
 
     Local<Object> options = args[0].As<Object>();
 
-    Local<String> table_key = FIXED_ONE_BYTE_STRING(env->isolate(), "table");
+    Local<String> table_key = env->table_string();
     bool hasIt;
     if (!options->HasOwnProperty(env->context(), table_key).To(&hasIt)) {
       return;
@@ -1625,26 +1623,28 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
   job->ScheduleBackup();
 }
 
+struct ConflictCallbackContext {
+  std::function<bool(std::string_view)> filterCallback;
+  std::function<int(int)> conflictCallback;
+};
+
 // the reason for using static functions here is that SQLite needs a
 // function pointer
-static std::function<int(int)> conflictCallback;
 
 static int xConflict(void* pCtx, int eConflict, sqlite3_changeset_iter* pIter) {
-  if (!conflictCallback) return SQLITE_CHANGESET_ABORT;
-  return conflictCallback(eConflict);
+  auto ctx = static_cast<ConflictCallbackContext*>(pCtx);
+  if (!ctx->conflictCallback) return SQLITE_CHANGESET_ABORT;
+  return ctx->conflictCallback(eConflict);
 }
 
-static std::function<bool(std::string)> filterCallback;
-
 static int xFilter(void* pCtx, const char* zTab) {
-  if (!filterCallback) return 1;
-
-  return filterCallback(zTab) ? 1 : 0;
+  auto ctx = static_cast<ConflictCallbackContext*>(pCtx);
+  if (!ctx->filterCallback) return 1;
+  return ctx->filterCallback(zTab) ? 1 : 0;
 }
 
 void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
-  conflictCallback = nullptr;
-  filterCallback = nullptr;
+  ConflictCallbackContext context;
 
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
@@ -1680,7 +1680,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
         return;
       }
       Local<Function> conflictFunc = conflictValue.As<Function>();
-      conflictCallback = [env, conflictFunc](int conflictType) -> int {
+      context.conflictCallback = [env, conflictFunc](int conflictType) -> int {
         Local<Value> argv[] = {Integer::New(env->isolate(), conflictType)};
         TryCatch try_catch(env->isolate());
         Local<Value> result =
@@ -1718,15 +1718,18 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
 
       Local<Function> filterFunc = filterValue.As<Function>();
 
-      filterCallback = [env, filterFunc](std::string item) -> bool {
+      context.filterCallback = [env,
+                                filterFunc](std::string_view item) -> bool {
         // TODO(@jasnell): The use of ToLocalChecked here means that if
         // the filter function throws an error the process will crash.
         // The filterCallback should be updated to avoid the check and
         // propagate the error correctly.
-        Local<Value> argv[] = {String::NewFromUtf8(env->isolate(),
-                                                   item.c_str(),
-                                                   NewStringType::kNormal)
-                                   .ToLocalChecked()};
+        Local<Value> argv[] = {
+            String::NewFromUtf8(env->isolate(),
+                                item.data(),
+                                NewStringType::kNormal,
+                                static_cast<int>(item.size()))
+                .ToLocalChecked()};
         Local<Value> result =
             filterFunc->Call(env->context(), Null(env->isolate()), 1, argv)
                 .ToLocalChecked();
@@ -1742,7 +1745,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       const_cast<void*>(static_cast<const void*>(buf.data())),
       xFilter,
       xConflict,
-      nullptr);
+      static_cast<void*>(&context));
   if (r == SQLITE_OK) {
     args.GetReturnValue().Set(true);
     return;
@@ -1759,15 +1762,14 @@ void DatabaseSync::EnableLoadExtension(
     const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
-  Environment* env = Environment::GetCurrent(args);
+  auto isolate = args.GetIsolate();
   if (!args[0]->IsBoolean()) {
-    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+    THROW_ERR_INVALID_ARG_TYPE(isolate,
                                "The \"allow\" argument must be a boolean.");
     return;
   }
 
   const int enable = args[0].As<Boolean>()->Value();
-  auto isolate = env->isolate();
 
   if (db->allow_load_extension_ == false && enable == true) {
     THROW_ERR_INVALID_STATE(

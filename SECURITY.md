@@ -15,6 +15,13 @@ you informed of the progress being made towards a fix and full announcement,
 and may ask for additional information or guidance surrounding the reported
 issue.
 
+If you do not receive an acknowledgement of your report within 6 business
+days, or if you cannot find a private security contact for the project, you
+may escalate to the OpenJS Foundation CNA at `security@lists.openjsf.org`.
+
+If the project acknowledges your report but does not provide any further
+response or engagement within 14 days, escalation is also appropriate.
+
 ### Node.js bug bounty program
 
 The Node.js project engages in an official bug bounty program for security

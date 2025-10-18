@@ -279,12 +279,12 @@ static TXE *qtx_resize_txe(OSSL_QTX *qtx, TXE_LIST *txl, TXE *txe, size_t n)
      * data.
      */
     txe2 = OPENSSL_realloc(txe, sizeof(TXE) + n);
-    if (txe2 == NULL || txe == txe2) {
+    if (txe2 == NULL) {
         if (p == NULL)
             ossl_list_txe_insert_head(txl, txe);
         else
             ossl_list_txe_insert_after(txl, p, txe);
-        return txe2;
+        return NULL;
     }
 
     if (p == NULL)

@@ -268,6 +268,7 @@ static int ml_dsa_import(void *keydata, int selection, const OSSL_PARAM params[]
 {
     ML_DSA_KEY *key = keydata;
     int include_priv;
+    int res;
 
     if (!ossl_prov_is_running() || key == NULL)
         return 0;
@@ -276,7 +277,17 @@ static int ml_dsa_import(void *keydata, int selection, const OSSL_PARAM params[]
         return 0;
 
     include_priv = ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0);
-    return ml_dsa_key_fromdata(key, params, include_priv);
+    res = ml_dsa_key_fromdata(key, params, include_priv);
+#ifdef FIPS_MODULE
+    if (res > 0) {
+        res = ml_dsa_pairwise_test(key);
+        if (!res) {
+            ossl_ml_dsa_key_reset(key);
+            ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT_IMPORT);
+        }
+    }
+#endif  /* FIPS_MODULE */
+    return res;
 }
 
 #define ML_DSA_IMEXPORTABLE_PARAMETERS \

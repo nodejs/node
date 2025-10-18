@@ -108,15 +108,15 @@ size_t StringUtil::CharacterCount(const std::string_view s) {
 }
 
 String Binary::toBase64() const {
-  MaybeStackBuffer<char> buffer;
-  size_t str_len = simdutf::base64_length_from_binary(bytes_->size());
-  buffer.SetLength(str_len);
+  size_t expected_base64_length =
+      simdutf::base64_length_from_binary(bytes_->size());
+  MaybeStackBuffer<char> buffer(expected_base64_length);
 
   size_t len =
       simdutf::binary_to_base64(reinterpret_cast<const char*>(bytes_->data()),
                                 bytes_->size(),
                                 buffer.out());
-  CHECK_EQ(len, str_len);
+  CHECK_EQ(len, expected_base64_length);
   return buffer.ToString();
 }
 

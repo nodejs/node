@@ -14,6 +14,7 @@ describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () =>
     );
 
   const tests = [
+    { name: 'source-map/output/source_map_assert_source_line.ts' },
     { name: 'source-map/output/source_map_disabled_by_api.js' },
     { name: 'source-map/output/source_map_disabled_by_process_api.js' },
     { name: 'source-map/output/source_map_enabled_by_api.js' },

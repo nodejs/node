@@ -168,6 +168,19 @@ static int asn1_write_micalg(BIO *out, STACK_OF(X509_ALGOR) *mdalgs)
             BIO_write(out, ",", 1);
         write_comma = 1;
         md_nid = OBJ_obj2nid(sk_X509_ALGOR_value(mdalgs, i)->algorithm);
+
+        /* RFC 8702 does not define a micalg for SHAKE, assuming "shake-<bitlen>" */
+        if (md_nid == NID_shake128) {
+            if (BIO_puts(out, "shake-128") < 0)
+                goto err;
+            continue;
+        }
+        if (md_nid == NID_shake256) {
+            if (BIO_puts(out, "shake-256") < 0)
+                goto err;
+            continue;
+        }
+
         md = EVP_get_digestbynid(md_nid);
         if (md && md->md_ctrl) {
             int rv;
@@ -204,15 +217,15 @@ static int asn1_write_micalg(BIO *out, STACK_OF(X509_ALGOR) *mdalgs)
 
         case NID_id_GostR3411_94:
             BIO_puts(out, "gostr3411-94");
-            goto err;
+            break;
 
         case NID_id_GostR3411_2012_256:
             BIO_puts(out, "gostr3411-2012-256");
-            goto err;
+            break;
 
         case NID_id_GostR3411_2012_512:
             BIO_puts(out, "gostr3411-2012-512");
-            goto err;
+            break;
 
         default:
             if (have_unknown) {
@@ -272,7 +285,8 @@ int SMIME_write_ASN1_ex(BIO *bio, ASN1_VALUE *val, BIO *data, int flags,
         BIO_printf(bio, "Content-Type: multipart/signed;");
         BIO_printf(bio, " protocol=\"%ssignature\";", mime_prefix);
         BIO_puts(bio, " micalg=\"");
-        asn1_write_micalg(bio, mdalgs);
+        if (!asn1_write_micalg(bio, mdalgs))
+            return 0;
         BIO_printf(bio, "\"; boundary=\"----%s\"%s%s",
                    bound, mime_eol, mime_eol);
         BIO_printf(bio, "This is an S/MIME signed message%s%s",

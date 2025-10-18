@@ -1356,7 +1356,7 @@ static int fix_rsa_padding_mode(enum state state,
         if (i == OSSL_NELEM(str_value_map)) {
             ERR_raise_data(ERR_LIB_RSA, RSA_R_UNKNOWN_PADDING_TYPE,
                            "[action:%d, state:%d] padding name %s",
-                           ctx->action_type, state, ctx->p1);
+                           ctx->action_type, state, (const char *)ctx->p2);
             ctx->p1 = ret = -2;
         } else if (state == POST_CTRL_TO_PARAMS) {
             /* EVP_PKEY_CTRL_GET_RSA_PADDING weirdness explained further up */

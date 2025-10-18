@@ -182,10 +182,8 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Integer> result =
-      Integer::NewFromUnsigned(env->isolate(),
-                               ScriptCompiler::CachedDataVersionTag());
+  Local<Integer> result = Integer::NewFromUnsigned(
+      args.GetIsolate(), ScriptCompiler::CachedDataVersionTag());
   args.GetReturnValue().Set(result);
 }
 

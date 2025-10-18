@@ -242,7 +242,7 @@ static int kek_unwrap_key(unsigned char *out, size_t *outlen,
         /* Check byte failure */
         goto err;
     }
-    if (inlen < (size_t)(tmp[0] - 4)) {
+    if (inlen < 4 + (size_t)tmp[0]) {
         /* Invalid length value */
         goto err;
     }

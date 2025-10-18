@@ -11,12 +11,18 @@
 #include <openssl/core_names.h>
 #include <openssl/param_build.h>
 #include <openssl/self_test.h>
+#include <openssl/proverr.h>
 #include "crypto/slh_dsa.h"
 #include "internal/fips.h"
 #include "internal/param_build_set.h"
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
 #include "prov/provider_ctx.h"
+
+#ifdef FIPS_MODULE
+static int slh_dsa_fips140_pairwise_test(const SLH_DSA_KEY *key,
+                                         SLH_DSA_HASH_CTX *ctx);
+#endif  /* FIPS_MODULE */
 
 static OSSL_FUNC_keymgmt_free_fn slh_dsa_free_key;
 static OSSL_FUNC_keymgmt_has_fn slh_dsa_has;
@@ -281,9 +287,8 @@ static void *slh_dsa_gen_init(void *provctx, int selection,
  * Refer to FIPS 140-3 IG 10.3.A Additional Comment 1
  * Perform a pairwise test for SLH_DSA by signing and verifying a signature.
  */
-static int slh_dsa_fips140_pairwise_test(SLH_DSA_HASH_CTX *ctx,
-                                         const SLH_DSA_KEY *key,
-                                         OSSL_LIB_CTX *lib_ctx)
+static int slh_dsa_fips140_pairwise_test(const SLH_DSA_KEY *key,
+                                         SLH_DSA_HASH_CTX *ctx)
 {
     int ret = 0;
     OSSL_SELF_TEST *st = NULL;
@@ -293,15 +298,25 @@ static int slh_dsa_fips140_pairwise_test(SLH_DSA_HASH_CTX *ctx,
     size_t msg_len = sizeof(msg);
     uint8_t *sig = NULL;
     size_t sig_len;
+    OSSL_LIB_CTX *lib_ctx;
+    int alloc_ctx = 0;
 
     /* During self test, it is a waste to do this test */
     if (ossl_fips_self_testing())
         return 1;
 
+    if (ctx == NULL) {
+        ctx = ossl_slh_dsa_hash_ctx_new(key);
+        if (ctx == NULL)
+            return 0;
+        alloc_ctx = 1;
+    }
+    lib_ctx = ossl_slh_dsa_key_get0_libctx(key);
+
     OSSL_SELF_TEST_get_callback(lib_ctx, &cb, &cb_arg);
     st = OSSL_SELF_TEST_new(cb, cb_arg);
     if (st == NULL)
-        return 0;
+        goto err;
 
     OSSL_SELF_TEST_onbegin(st, OSSL_SELF_TEST_TYPE_PCT,
                            OSSL_SELF_TEST_DESC_PCT_SLH_DSA);
@@ -322,6 +337,8 @@ static int slh_dsa_fips140_pairwise_test(SLH_DSA_HASH_CTX *ctx,
 
     ret = 1;
 err:
+    if (alloc_ctx)
+        ossl_slh_dsa_hash_ctx_free(ctx);
     OPENSSL_free(sig);
     OSSL_SELF_TEST_onend(st, ret);
     OSSL_SELF_TEST_free(st);
@@ -342,12 +359,12 @@ static void *slh_dsa_gen(void *genctx, const char *alg)
         return NULL;
     ctx = ossl_slh_dsa_hash_ctx_new(key);
     if (ctx == NULL)
-        return NULL;
+        goto err;
     if (!ossl_slh_dsa_generate_key(ctx, key, gctx->libctx,
                                    gctx->entropy, gctx->entropy_len))
         goto err;
 #ifdef FIPS_MODULE
-    if (!slh_dsa_fips140_pairwise_test(ctx, key, gctx->libctx)) {
+    if (!slh_dsa_fips140_pairwise_test(key, ctx)) {
         ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
         goto err;
     }

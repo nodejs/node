@@ -57,7 +57,7 @@ function parent() {
 
 function test(environ, shouldWrite, section, forceColors = false) {
   let expectErr = '';
-  const expectOut = shouldWrite ? 'enabled\n' : 'disabled\n';
+  const expectOut = shouldWrite ? 'outer enabled\ninner enabled\n' : 'outer disabled\ninner disabled\n';
 
   const spawn = require('child_process').spawn;
   const child = spawn(process.execPath, [__filename, 'child', section], {
@@ -117,11 +117,18 @@ function child(section) {
   Object.defineProperty(process.stderr, 'hasColors', {
     value: tty.WriteStream.prototype.hasColors
   });
+
+  let innerDebug = null;
   // eslint-disable-next-line no-restricted-syntax
   const debug = util.debuglog(section, common.mustCall((cb) => {
     assert.strictEqual(typeof cb, 'function');
+    innerDebug = cb;
   }));
   debug('this', { is: 'a' }, /debugging/);
   debug('num=%d str=%s obj=%j', 1, 'a', { foo: 'bar' });
-  console.log(debug.enabled ? 'enabled' : 'disabled');
+  console.log(debug.enabled ? 'outer enabled' : 'outer disabled');
+  console.log(innerDebug.enabled ? 'inner enabled' : 'inner disabled');
+
+  assert.strictEqual(typeof Object.getOwnPropertyDescriptor(debug, 'enabled').get, 'function');
+  assert.strictEqual(typeof Object.getOwnPropertyDescriptor(innerDebug, 'enabled').get, 'function');
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -228,7 +228,7 @@ static int pkey_rsa_verifyrecover(EVP_PKEY_CTX *ctx,
                 return -1;
             ret = RSA_public_decrypt(siglen, sig, rctx->tbuf, rsa,
                                      RSA_X931_PADDING);
-            if (ret < 1)
+            if (ret <= 0)
                 return 0;
             ret--;
             if (rctx->tbuf[ret] != RSA_X931_hash_id(EVP_MD_get_type(rctx->md))) {
@@ -255,7 +255,7 @@ static int pkey_rsa_verifyrecover(EVP_PKEY_CTX *ctx,
     } else {
         ret = RSA_public_decrypt(siglen, sig, rout, rsa, rctx->pad_mode);
     }
-    if (ret < 0)
+    if (ret <= 0)
         return ret;
     *routlen = ret;
     return 1;
@@ -313,7 +313,7 @@ static int pkey_rsa_verify(EVP_PKEY_CTX *ctx,
             return -1;
         rslen = RSA_public_decrypt(siglen, sig, rctx->tbuf,
                                    rsa, rctx->pad_mode);
-        if (rslen == 0)
+        if (rslen <= 0)
             return 0;
     }
 

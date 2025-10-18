@@ -129,8 +129,7 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
 namespace task_queue {
 
 static void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
+  Isolate* isolate = args.GetIsolate();
 
   CHECK(args[0]->IsFunction());
 

@@ -103,7 +103,6 @@ int wrap_password_callback(char *buf, int bufsiz, int verify, void *cb_data);
 /* progress callback for dsaparam, dhparam, req, genpkey, etc. */
 int progress_cb(EVP_PKEY_CTX *ctx);
 
-int chopup_args(ARGS *arg, char *buf);
 void dump_cert_text(BIO *out, X509 *x);
 void print_name(BIO *out, const char *title, const X509_NAME *nm);
 void print_bignum_var(BIO *, const BIGNUM *, const char *,

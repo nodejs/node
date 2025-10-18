@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -129,7 +129,7 @@ static const unsigned char digestinfo_ripemd160_der[] = {
 # ifndef OPENSSL_NO_SM3
 /* SM3 (1 2 156 10197 1 401) */
 static const unsigned char digestinfo_sm3_der[] = {
-    ASN1_SEQUENCE, 0x0f + SM3_DIGEST_LENGTH,
+    ASN1_SEQUENCE, 0x10 + SM3_DIGEST_LENGTH,
       ASN1_SEQUENCE, 0x0c,
         ASN1_OID, 0x08, 1 * 40 + 2, 0x81, 0x1c, 0xcf, 0x55, 1, 0x83, 0x78,
         ASN1_NULL, 0x00,

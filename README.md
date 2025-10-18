@@ -168,8 +168,6 @@ For information about the governance of the Node.js project, see
   **Marco Ippolito** <<marcoippolito54@gmail.com>> (he/him)
 * [mcollina](https://github.com/mcollina) -
   **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
-* [mhdawson](https://github.com/mhdawson) -
-  **Michael Dawson** <<midawson@redhat.com>> (he/him)
 * [panva](https://github.com/panva) -
   **Filip Skokan** <<panva.ip@gmail.com>> (he/him)
 * [RafaelGSS](https://github.com/RafaelGSS) -
@@ -240,6 +238,8 @@ For information about the governance of the Node.js project, see
   **Isaac Z. Schlueter** <<i@izs.me>>
 * [joshgav](https://github.com/joshgav) -
   **Josh Gavant** <<josh.gavant@outlook.com>>
+* [mhdawson](https://github.com/mhdawson) -
+  **Michael Dawson** <<midawson@redhat.com>> (he/him)
 * [mmarchini](https://github.com/mmarchini) -
   **Mary Marchini** <<oss@mmarchini.me>> (she/her)
 * [mscdex](https://github.com/mscdex) -

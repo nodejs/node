@@ -63,6 +63,8 @@ static const ERR_STRING_DATA PROV_str_reasons[] = {
      "fips module conditional error"},
     {ERR_PACK(ERR_LIB_PROV, 0, PROV_R_FIPS_MODULE_ENTERING_ERROR_STATE),
      "fips module entering error state"},
+    {ERR_PACK(ERR_LIB_PROV, 0, PROV_R_FIPS_MODULE_IMPORT_PCT_ERROR),
+     "fips module import pct error"},
     {ERR_PACK(ERR_LIB_PROV, 0, PROV_R_FIPS_MODULE_IN_ERROR_STATE),
      "fips module in error state"},
     {ERR_PACK(ERR_LIB_PROV, 0, PROV_R_GENERATE_ERROR), "generate error"},

@@ -352,7 +352,7 @@ napi_create_reference(napi_env env,
 
 // Deletes a reference. The referenced value is released, and may
 // be GC'd unless there are other references to it.
-NAPI_EXTERN napi_status NAPI_CDECL napi_delete_reference(napi_env env,
+NAPI_EXTERN napi_status NAPI_CDECL napi_delete_reference(node_api_basic_env env,
                                                          napi_ref ref);
 
 // Increments the reference count, optionally returning the resulting count.
@@ -473,6 +473,14 @@ napi_get_dataview_info(napi_env env,
                        void** data,
                        napi_value* arraybuffer,
                        size_t* byte_offset);
+
+#ifdef NAPI_EXPERIMENTAL
+#define NODE_API_EXPERIMENTAL_HAS_SHAREDARRAYBUFFER
+NAPI_EXTERN napi_status NAPI_CDECL
+node_api_is_sharedarraybuffer(napi_env env, napi_value value, bool* result);
+NAPI_EXTERN napi_status NAPI_CDECL node_api_create_sharedarraybuffer(
+    napi_env env, size_t byte_length, void** data, napi_value* result);
+#endif  // NAPI_EXPERIMENTAL
 
 // version management
 NAPI_EXTERN napi_status NAPI_CDECL napi_get_version(node_api_basic_env env,

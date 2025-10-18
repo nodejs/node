@@ -330,21 +330,29 @@ class KVStore {
 };
 
 // Convenience wrapper around v8::String::NewFromOneByte().
-inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
-                                           const char* data,
-                                           int length = -1);
+inline v8::Local<v8::String> OneByteString(
+    v8::Isolate* isolate,
+    const char* data,
+    int length = -1,
+    v8::NewStringType type = v8::NewStringType::kNormal);
 
 // For the people that compile with -funsigned-char.
-inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
-                                           const signed char* data,
-                                           int length = -1);
+inline v8::Local<v8::String> OneByteString(
+    v8::Isolate* isolate,
+    const signed char* data,
+    int length = -1,
+    v8::NewStringType type = v8::NewStringType::kNormal);
 
-inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
-                                           const unsigned char* data,
-                                           int length = -1);
+inline v8::Local<v8::String> OneByteString(
+    v8::Isolate* isolate,
+    const unsigned char* data,
+    int length = -1,
+    v8::NewStringType type = v8::NewStringType::kNormal);
 
-inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
-                                           std::string_view str);
+inline v8::Local<v8::String> OneByteString(
+    v8::Isolate* isolate,
+    std::string_view str,
+    v8::NewStringType type = v8::NewStringType::kNormal);
 
 // Used to be a macro, hence the uppercase name.
 template <std::size_t N>
@@ -352,15 +360,7 @@ template <std::size_t N>
 inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(v8::Isolate* isolate,
                                                    const char (&data)[N]) {
   CHECK_EQ(data[N - 1], '\0');
-  return OneByteString(isolate, data, N - 1);
-}
-
-template <std::size_t N>
-  requires(N > 0)
-inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(
-    v8::Isolate* isolate, const std::array<char, N>& arr) {
-  CHECK_EQ(arr[N - 1], '\0');
-  return OneByteString(isolate, arr.data(), N - 1);
+  return OneByteString(isolate, data, N - 1, v8::NewStringType::kInternalized);
 }
 
 // tolower() is locale-sensitive.  Use ToLower() instead.
@@ -660,13 +660,9 @@ struct MallocedBuffer {
 };
 
 // Test whether some value can be called with ().
-template <typename T, typename = void>
-struct is_callable : std::is_function<T> { };
-
 template <typename T>
-struct is_callable<T, typename std::enable_if<
-    std::is_same<decltype(void(&T::operator())), void>::value
-    >::type> : std::true_type { };
+concept is_callable =
+    std::is_function<T>::value || requires { &T::operator(); };
 
 template <typename T, void (*function)(T*)>
 struct FunctionDeleter {

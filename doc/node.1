@@ -346,6 +346,20 @@ The file used to store localStorage data.
 .It Fl -max-http-header-size Ns = Ns Ar size
 Specify the maximum size of HTTP headers in bytes. Defaults to 16 KiB.
 .
+.It Fl -max-old-space-size-percentage Ns = Ns Ar percentage
+Sets the maximum memory size of V8's old memory section as a percentage of available system memory.
+This flag takes precedence over
+.Fl -max-old-space-size
+when both are specified.
+The
+.Ar percentage
+parameter must be a number greater than 0 and up to 100, representing the percentage
+of available system memory to allocate to the V8 heap.
+.Pp
+Note: This flag utilizes
+.Fl -max-old-space-size ,
+which may be unreliable on 32-bit platforms due to integer overflow issues.
+.
 .It Fl -napi-modules
 This option is a no-op.
 It is kept for compatibility.
@@ -613,6 +627,9 @@ See
 and
 .Ev SSL_CERT_FILE .
 .
+.It Fl -use-env-proxy
+Parse proxy settings from HTTP_PROXY/HTTPS_PROXY/NO_PROXY environment variables and apply the setting in global HTTP/HTTPS clients.
+.
 .It Fl -use-system-ca
 Use the trusted CA certificates present in the system store, in addition to the certificates in the
 bundled Mozilla CA store and certificates from `NODE_EXTRA_CA_CERTS`. On Windows and macOS, it uses system APIs to
@@ -827,6 +844,19 @@ If any other value is provided, Node.js makes no guarantees about the reporter f
 When set to
 .Ar 0 ,
 TLS certificate validation is disabled.
+.
+.It Ev NODE_USE_ENV_PROXY
+When enabled, Node.js parses the
+.Ar HTTP_PROXY
+,
+.Ar HTTPS_PROXY
+and
+.Ar NO_PROXY
+environment variables during startup, and tunnels requests over the specified proxy.
+.Pp
+This currently only affects requests sent over
+.Ar fetch() .
+Support for other built-in http and https methods is under way.
 .
 .It Ev NODE_USE_SYSTEM_CA
 Similar to

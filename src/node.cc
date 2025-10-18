@@ -818,6 +818,13 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
   // anymore.
   v8_args.emplace_back("--no-harmony-import-assertions");
 
+  if (!per_process::cli_options->per_isolate->max_old_space_size_percentage
+           .empty()) {
+    v8_args.emplace_back(
+        "--max_old_space_size=" +
+        per_process::cli_options->per_isolate->max_old_space_size);
+  }
+
   auto env_opts = per_process::cli_options->per_isolate->per_env;
   if (std::find(v8_args.begin(), v8_args.end(),
                 "--abort-on-uncaught-exception") != v8_args.end() ||
@@ -1255,20 +1262,6 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       return result;
     }
 
-    if (per_process::cli_options->use_system_ca) {
-      // Load the system CA certificates eagerly off the main thread to avoid
-      // blocking the main thread when the first TLS connection is made. We
-      // don't need to wait for the thread to finish with code here, as
-      // GetSystemStoreCACertificates() has a function-local static and any
-      // actual user of it will wait for that to complete initialization.
-      int r = crypto::LoadSystemCACertificatesOffThread();
-      if (r != 0) {
-        FPrintF(
-            stderr,
-            "Warning: Failed to load system CA certificates off thread: %s\n",
-            uv_strerror(r));
-      }
-    }
     // Ensure CSPRNG is properly seeded.
     CHECK(ncrypto::CSPRNG(nullptr, 0));
 

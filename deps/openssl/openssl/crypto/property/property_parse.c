@@ -641,7 +641,7 @@ static void put_str(const char *str, char **buf, size_t *remain, size_t *needed)
         }
 
     quotes = quote != '\0';
-    if (*remain == 0) {
+    if (*remain <= (size_t)quotes) {
         *needed += 2 * quotes;
         return;
     }

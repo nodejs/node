@@ -35,3 +35,12 @@ assert.strictEqual(copiedOpts.pathname, undefined);
 assert.strictEqual(copiedOpts.search, undefined);
 assert.strictEqual(copiedOpts.hash, undefined);
 assert.strictEqual(copiedOpts.href, undefined);
+
+// Test when passed an invalid argument
+assert.throws(() => {
+  urlToHttpOptions('http://127.0.0.1');
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "url" argument must be of type object. Received type string (\'http://127.0.0.1\')',
+  name: 'TypeError'
+});

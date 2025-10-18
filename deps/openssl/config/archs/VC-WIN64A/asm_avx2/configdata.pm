@@ -181,7 +181,7 @@ our %config = (
     ],
     "dynamic_engines" => "0",
     "ex_libs" => [],
-    "full_version" => "3.5.2",
+    "full_version" => "3.5.4",
     "includes" => [],
     "lflags" => [],
     "lib_defines" => [
@@ -246,7 +246,7 @@ our %config = (
     ],
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-brotli no-brotli-dynamic no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-demos no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fips-jitter no-fuzz-afl no-fuzz-libfuzzer no-h3demo no-hqinterop no-jitter no-ktls no-loadereng no-md2 no-msan no-pie no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-sslkeylog no-tfo no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-zlib no-zlib-dynamic no-zstd no-zstd-dynamic",
-    "patch" => "2",
+    "patch" => "4",
     "perl_archname" => "x86_64-linux-gnu-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
     "perl_version" => "5.34.0",
@@ -299,11 +299,11 @@ our %config = (
     "prerelease" => "",
     "processor" => "",
     "rc4_int" => "unsigned int",
-    "release_date" => "5 Aug 2025",
+    "release_date" => "30 Sep 2025",
     "shlib_version" => "3",
     "sourcedir" => ".",
     "target" => "VC-WIN64A",
-    "version" => "3.5.2"
+    "version" => "3.5.4"
 );
 our %target = (
     "AR" => "lib",
@@ -318,7 +318,7 @@ our %target = (
     "LDFLAGS" => "/nologo /debug",
     "MT" => "mt",
     "MTFLAGS" => "-nologo",
-    "RANLIB" => "CODE(0x55c0b2e98700)",
+    "RANLIB" => "CODE(0x558d04eaabb0)",
     "RC" => "rc",
     "_conf_fname_int" => [
         "Configurations/00-base-templates.conf",
@@ -12274,6 +12274,7 @@ our %unified_info = (
                 "test/testutil/libtestutil-lib-apps_shims.o",
                 "test/testutil/libtestutil-lib-basic_output.o",
                 "test/testutil/libtestutil-lib-cb.o",
+                "test/testutil/libtestutil-lib-compare.o",
                 "test/testutil/libtestutil-lib-driver.o",
                 "test/testutil/libtestutil-lib-fake_random.o",
                 "test/testutil/libtestutil-lib-format_output.o",
@@ -31919,6 +31920,7 @@ our %unified_info = (
             "test/testutil/libtestutil-lib-apps_shims.o",
             "test/testutil/libtestutil-lib-basic_output.o",
             "test/testutil/libtestutil-lib-cb.o",
+            "test/testutil/libtestutil-lib-compare.o",
             "test/testutil/libtestutil-lib-driver.o",
             "test/testutil/libtestutil-lib-fake_random.o",
             "test/testutil/libtestutil-lib-format_output.o",
@@ -32634,6 +32636,9 @@ our %unified_info = (
         ],
         "test/testutil/libtestutil-lib-cb.o" => [
             "test/testutil/cb.c"
+        ],
+        "test/testutil/libtestutil-lib-compare.o" => [
+            "test/testutil/compare.c"
         ],
         "test/testutil/libtestutil-lib-driver.o" => [
             "test/testutil/driver.c"

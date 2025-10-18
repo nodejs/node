@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -560,7 +560,7 @@ static int block_in(BIO *b)
 {
     BIO_OK_CTX *ctx;
     EVP_MD_CTX *md;
-    unsigned long tl = 0;
+    size_t tl = 0;
     unsigned char tmp[EVP_MAX_MD_SIZE];
     int md_size;
 
@@ -571,15 +571,18 @@ static int block_in(BIO *b)
         goto berr;
 
     assert(sizeof(tl) >= OK_BLOCK_BLOCK); /* always true */
-    tl = ctx->buf[0];
-    tl <<= 8;
-    tl |= ctx->buf[1];
-    tl <<= 8;
-    tl |= ctx->buf[2];
-    tl <<= 8;
-    tl |= ctx->buf[3];
+    tl = ((size_t)ctx->buf[0] << 24)
+           | ((size_t)ctx->buf[1] << 16)
+           | ((size_t)ctx->buf[2] << 8)
+           | ((size_t)ctx->buf[3]);
 
-    if (ctx->buf_len < tl + OK_BLOCK_BLOCK + md_size)
+    if (tl > OK_BLOCK_SIZE)
+        goto berr;
+
+    if (tl > SIZE_MAX - OK_BLOCK_BLOCK - (size_t)md_size)
+        goto berr;
+
+    if (ctx->buf_len < tl + OK_BLOCK_BLOCK + (size_t)md_size)
         return 1;
 
     if (!EVP_DigestUpdate(md,
@@ -587,7 +590,7 @@ static int block_in(BIO *b)
         goto berr;
     if (!EVP_DigestFinal_ex(md, tmp, NULL))
         goto berr;
-    if (memcmp(&(ctx->buf[tl + OK_BLOCK_BLOCK]), tmp, md_size) == 0) {
+    if (memcmp(&(ctx->buf[tl + OK_BLOCK_BLOCK]), tmp, (size_t)md_size) == 0) {
         /* there might be parts from next block lurking around ! */
         ctx->buf_off_save = tl + OK_BLOCK_BLOCK + md_size;
         ctx->buf_len_save = ctx->buf_len;

@@ -62,8 +62,10 @@ __tsan_mutex_post_lock((x), 0, 0)
 /*
  * The Non-Stop KLT thread model currently seems broken in its rwlock
  * implementation
+ * Likewise is there a problem with the glibc implementation on riscv.
  */
-# if defined(PTHREAD_RWLOCK_INITIALIZER) && !defined(_KLT_MODEL_)
+# if defined(PTHREAD_RWLOCK_INITIALIZER) && !defined(_KLT_MODEL_) \
+                                         && !defined(__riscv)
 #  define USE_RWLOCK
 # endif
 
@@ -279,7 +281,7 @@ static struct rcu_qp *get_hold_current_qp(struct rcu_lock_st *lock)
 
         /* if the idx hasn't changed, we're good, else try again */
         if (qp_idx == ATOMIC_LOAD_N(uint32_t, &lock->reader_idx,
-                                    __ATOMIC_RELAXED))
+                                    __ATOMIC_ACQUIRE))
             break;
 
         ATOMIC_SUB_FETCH(&lock->qp_group[qp_idx].users, (uint64_t)1,
@@ -403,8 +405,12 @@ static struct rcu_qp *update_qp(CRYPTO_RCU_LOCK *lock, uint32_t *curr_id)
     *curr_id = lock->id_ctr;
     lock->id_ctr++;
 
+    /*
+     * make the current state of everything visible by this release
+     * when get_hold_current_qp acquires the next qp
+     */
     ATOMIC_STORE_N(uint32_t, &lock->reader_idx, lock->current_alloc_idx,
-                   __ATOMIC_RELAXED);
+                   __ATOMIC_RELEASE);
 
     /*
      * this should make sure that the new value of reader_idx is visible in

@@ -240,6 +240,7 @@ class EnvironmentOptions : public Options {
   bool force_repl = false;
 
   bool insecure_http_parser = false;
+  bool use_env_proxy = false;
 
   bool tls_min_v1_0 = false;
   bool tls_min_v1_1 = false;
@@ -283,6 +284,8 @@ class PerIsolateOptions : public Options {
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
   bool experimental_shadow_realm = false;
+  std::string max_old_space_size_percentage;
+  std::string max_old_space_size;
   int64_t stack_trace_limit = 10;
   std::string report_signal = "SIGUSR2";
   bool build_snapshot = false;
@@ -290,6 +293,8 @@ class PerIsolateOptions : public Options {
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors,
                     std::vector<std::string>* argv) override;
+  void HandleMaxOldSpaceSizePercentage(std::vector<std::string>* errors,
+                                       std::string* max_old_space_size);
 
   inline std::shared_ptr<PerIsolateOptions> Clone() const;
 

@@ -278,6 +278,9 @@
         "max-http-header-size": {
           "type": "number"
         },
+        "max-old-space-size-percentage": {
+          "type": "string"
+        },
         "network-family-autoselection": {
           "type": "boolean"
         },
@@ -545,6 +548,9 @@
           "type": "string"
         },
         "use-bundled-ca": {
+          "type": "boolean"
+        },
+        "use-env-proxy": {
           "type": "boolean"
         },
         "use-largepages": {

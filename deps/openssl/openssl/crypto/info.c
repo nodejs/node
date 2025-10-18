@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,6 +22,9 @@
 
 #if defined(__arm__) || defined(__arm) || defined(__aarch64__)
 # include "arm_arch.h"
+# define CPU_INFO_STR_LEN 128
+#elif defined(__powerpc__) || defined(__POWERPC__) || defined(_ARCH_PPC)
+# include "crypto/ppc_arch.h"
 # define CPU_INFO_STR_LEN 128
 #elif defined(__s390__) || defined(__s390x__)
 # include "s390x_arch.h"
@@ -74,6 +77,15 @@ DEFINE_RUN_ONCE_STATIC(init_info_strings)
     BIO_snprintf(ossl_cpu_info_str, sizeof(ossl_cpu_info_str),
                  CPUINFO_PREFIX "OPENSSL_armcap=0x%x", OPENSSL_armcap_P);
     if ((env = getenv("OPENSSL_armcap")) != NULL)
+        BIO_snprintf(ossl_cpu_info_str + strlen(ossl_cpu_info_str),
+                     sizeof(ossl_cpu_info_str) - strlen(ossl_cpu_info_str),
+                     " env:%s", env);
+# elif defined(__powerpc__) || defined(__POWERPC__) || defined(_ARCH_PPC)
+    const char *env;
+
+    BIO_snprintf(ossl_cpu_info_str, sizeof(ossl_cpu_info_str),
+                 CPUINFO_PREFIX "OPENSSL_ppccap=0x%x", OPENSSL_ppccap_P);
+    if ((env = getenv("OPENSSL_ppccap")) != NULL)
         BIO_snprintf(ossl_cpu_info_str + strlen(ossl_cpu_info_str),
                      sizeof(ossl_cpu_info_str) - strlen(ossl_cpu_info_str),
                      " env:%s", env);

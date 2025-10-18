@@ -260,6 +260,8 @@ int enc_main(int argc, char **argv)
                 goto opthelp;
             if (k)
                 n *= 1024;
+            if (n > INT_MAX)
+                goto opthelp;
             bsize = (int)n;
             break;
         case OPT_K:

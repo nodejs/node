@@ -168,6 +168,17 @@ int ossl_qrx_provide_secret(OSSL_QRX              *qrx,
                             size_t                 secret_len);
 
 /*
+ * Utility function to update the pn space from a src to a dst qrx.
+ * Occasionally we use a temporary qrx to do packet validation on quic frames
+ * that are not yet associated with a channel, and in the event a validation is
+ * successful AND we allocate a new qrx for the newly created channel, we need
+ * to migrate the largest_pn values recorded in the tmp qrx to the channel qrx.
+ * If we don't then PN decoding fails in cases where the initial PN is a large value.
+ * This function does that migration for us
+ */
+void ossl_qrx_update_pn_space(OSSL_QRX *src, OSSL_QRX *dst);
+
+/*
  * Informs the QRX that it can now discard key material for a given EL. The QRX
  * will no longer be able to process incoming packets received at that
  * encryption level. This function is idempotent and succeeds if the EL has

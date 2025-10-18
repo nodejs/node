@@ -287,7 +287,7 @@ static long file_ctrl(BIO *b, int cmd, long num, void *ptr)
         if (fp == NULL) {
             ERR_raise_data(ERR_LIB_SYS, get_last_sys_error(),
                            "calling fopen(%s, %s)",
-                           ptr, p);
+                           (const char *)ptr, p);
             ERR_raise(ERR_LIB_BIO, ERR_R_SYS_LIB);
             ret = 0;
             break;

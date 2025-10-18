@@ -237,6 +237,16 @@ static void qrx_cleanup_urxl(OSSL_QRX *qrx, QUIC_URXE_LIST *l)
     }
 }
 
+void ossl_qrx_update_pn_space(OSSL_QRX *src, OSSL_QRX *dst)
+{
+    size_t i;
+
+    for (i = 0; i < QUIC_PN_SPACE_NUM; i++)
+        dst->largest_pn[i] = src->largest_pn[i];
+
+    return;
+}
+
 void ossl_qrx_free(OSSL_QRX *qrx)
 {
     uint32_t i;

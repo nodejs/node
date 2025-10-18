@@ -117,6 +117,14 @@ http.get({
 added: v0.3.4
 changes:
   - version:
+    - v22.21.0
+    pr-url: https://github.com/nodejs/node/pull/58980
+    description: Add support for `proxyEnv`.
+  - version:
+    - v22.21.0
+    pr-url: https://github.com/nodejs/node/pull/58980
+    description: Add support for `defaultPort` and `protocol`.
+  - version:
     - v22.20.0
     pr-url: https://github.com/nodejs/node/pull/59315
     description: Add support for `agentKeepAliveTimeoutBuffer`.
@@ -188,6 +196,20 @@ changes:
     **Default:** `'lifo'`.
   * `timeout` {number} Socket timeout in milliseconds.
     This will set the timeout when the socket is created.
+  * `proxyEnv` {Object|undefined} Environment variables for proxy configuration.
+    See [Built-in Proxy Support][] for details. **Default:** `undefined`
+    * `HTTP_PROXY` {string|undefined} URL for the proxy server that HTTP requests should use.
+      If undefined, no proxy is used for HTTP requests.
+    * `HTTPS_PROXY` {string|undefined} URL for the proxy server that HTTPS requests should use.
+      If undefined, no proxy is used for HTTPS requests.
+    * `NO_PROXY` {string|undefined} Patterns specifying the endpoints
+      that should not be routed through a proxy.
+    * `http_proxy` {string|undefined} Same as `HTTP_PROXY`. If both are set, `http_proxy` takes precedence.
+    * `https_proxy` {string|undefined} Same as `HTTPS_PROXY`. If both are set, `https_proxy` takes precedence.
+    * `no_proxy` {string|undefined} Same as `NO_PROXY`. If both are set, `no_proxy` takes precedence.
+  * `defaultPort` {number} Default port to use when the port is not specified
+    in requests. **Default:** `80`.
+  * `protocol` {string} The protocol to use for the agent. **Default:** `'http:'`.
 
 `options` in [`socket.connect()`][] are also supported.
 
@@ -1649,6 +1671,11 @@ per connection (in the case of HTTP Keep-Alive connections).
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: v22.21.0
+    pr-url: https://github.com/nodejs/node/pull/59824
+    description: Whether this event is fired can now be controlled by the
+                 `shouldUpgradeCallback` and sockets will be destroyed
+                 if upgraded while no event handler is listening.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19981
     description: Not listening to this event no longer causes the socket
@@ -1660,12 +1687,24 @@ changes:
 * `socket` {stream.Duplex} Network socket between the server and client
 * `head` {Buffer} The first packet of the upgraded stream (may be empty)
 
-Emitted each time a client requests an HTTP upgrade. Listening to this event
-is optional and clients cannot insist on a protocol change.
+Emitted each time a client's HTTP upgrade request is accepted. By default
+all HTTP upgrade requests are ignored (i.e. only regular `'request'` events
+are emitted, sticking with the normal HTTP request/response flow) unless you
+listen to this event, in which case they are all accepted (i.e. the `'upgrade'`
+event is emitted instead, and future communication must handled directly
+through the raw socket). You can control this more precisely by using the
+server `shouldUpgradeCallback` option.
+
+Listening to this event is optional and clients cannot insist on a protocol
+change.
 
 After this event is emitted, the request's socket will not have a `'data'`
 event listener, meaning it will need to be bound in order to handle data
 sent to the server on that socket.
+
+If an upgrade is accepted by `shouldUpgradeCallback` but no event handler
+is registered then the socket is destroyed, resulting in an immediate
+connection closure for the client.
 
 This event is guaranteed to be passed an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specifies a socket
@@ -2116,7 +2155,7 @@ added: v0.4.0
 -->
 
 * `name` {string}
-* Returns: {any}
+* Returns: {number | string | string\[] | undefined}
 
 Reads out a header that's already been queued but not sent to the client.
 The name is case-insensitive. The type of the return value depends
@@ -2251,7 +2290,7 @@ added: v0.4.0
 -->
 
 * `name` {string}
-* `value` {any}
+* `value` {number | string | string\[]}
 * Returns: {http.ServerResponse}
 
 Returns the response object.
@@ -3202,7 +3241,7 @@ added: v0.4.0
 -->
 
 * `name` {string} Name of header
-* Returns: {string | undefined}
+* Returns: {number | string | string\[] | undefined}
 
 Gets the value of the HTTP header with the given name. If that header is not
 set, the returned value will be `undefined`.
@@ -3304,7 +3343,7 @@ added: v0.4.0
 -->
 
 * `name` {string} Header name
-* `value` {any} Header value
+* `value` {number | string | string\[]} Header value
 * Returns: {this}
 
 Sets a single header value. If the header already exists in the to-be-sent
@@ -3511,6 +3550,9 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
+  - version: v22.21.0
+    pr-url: https://github.com/nodejs/node/pull/59824
+    description: The `shouldUpgradeCallback` option is now supported.
   - version:
     - v20.1.0
     - v18.17.0
@@ -3600,6 +3642,13 @@ changes:
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
     to be used. Useful for extending the original `ServerResponse`. **Default:**
     `ServerResponse`.
+  * `shouldUpgradeCallback(request)` {Function} A callback which receives an
+    incoming request and returns a boolean, to control which upgrade attempts
+    should be accepted. Accepted upgrades will fire an `'upgrade'` event (or
+    their sockets will be destroyed, if no listener is registered) while
+    rejected upgrades will fire a `'request'` event like any non-upgrade
+    request. This options defaults to
+    `() => server.listenerCount('upgrade') > 0`.
   * `uniqueHeaders` {Array} A list of response headers that should be sent only
     once. If the header's value is an array, the items will be joined
     using `; `.
@@ -4272,6 +4321,104 @@ added:
 
 A browser-compatible implementation of {WebSocket}.
 
+## Built-in Proxy Support
+
+<!-- YAML
+added: v22.21.0
+-->
+
+> Stability: 1.1 - Active development
+
+When Node.js creates the global agent, if the `NODE_USE_ENV_PROXY` environment variable is
+set to `1` or `--use-env-proxy` is enabled, the global agent will be constructed
+with `proxyEnv: process.env`, enabling proxy support based on the environment variables.
+Custom agents can also be created with proxy support by passing a
+`proxyEnv` option when constructing the agent. The value can be `process.env`
+if they just want to inherit the configuration from the environment variables,
+or an object with specific setting overriding the environment.
+
+The following properties of the `proxyEnv` are checked to configure proxy
+support.
+
+* `HTTP_PROXY` or `http_proxy`: Proxy server URL for HTTP requests. If both are set,
+  `http_proxy` takes precedence.
+* `HTTPS_PROXY` or `https_proxy`: Proxy server URL for HTTPS requests. If both are set,
+  `https_proxy` takes precedence.
+* `NO_PROXY` or `no_proxy`: Comma-separated list of hosts to bypass the proxy. If both are set,
+  `no_proxy` takes precedence.
+
+If the request is made to a Unix domain socket, the proxy settings will be ignored.
+
+### Proxy URL Format
+
+Proxy URLs can use either HTTP or HTTPS protocols:
+
+* HTTP proxy: `http://proxy.example.com:8080`
+* HTTPS proxy: `https://proxy.example.com:8080`
+* Proxy with authentication: `http://username:password@proxy.example.com:8080`
+
+### `NO_PROXY` Format
+
+The `NO_PROXY` environment variable supports several formats:
+
+* `*` - Bypass proxy for all hosts
+* `example.com` - Exact host name match
+* `.example.com` - Domain suffix match (matches `sub.example.com`)
+* `*.example.com` - Wildcard domain match
+* `192.168.1.100` - Exact IP address match
+* `192.168.1.1-192.168.1.100` - IP address range
+* `example.com:8080` - Hostname with specific port
+
+Multiple entries should be separated by commas.
+
+### Example
+
+To start a Node.js process with proxy support enabled for all requests sent
+through the default global agent, either use the `NODE_USE_ENV_PROXY` environment
+variable:
+
+```console
+NODE_USE_ENV_PROXY=1 HTTP_PROXY=http://proxy.example.com:8080 NO_PROXY=localhost,127.0.0.1 node client.js
+```
+
+Or the `--use-env-proxy` flag.
+
+```console
+HTTP_PROXY=http://proxy.example.com:8080 NO_PROXY=localhost,127.0.0.1 node --use-env-proxy client.js
+```
+
+To create a custom agent with built-in proxy support:
+
+```cjs
+const http = require('node:http');
+
+// Creating a custom agent with custom proxy support.
+const agent = new http.Agent({ proxyEnv: { HTTP_PROXY: 'http://proxy.example.com:8080' } });
+
+http.request({
+  hostname: 'www.example.com',
+  port: 80,
+  path: '/',
+  agent,
+}, (res) => {
+  // This request will be proxied through proxy.example.com:8080 using the HTTP protocol.
+  console.log(`STATUS: ${res.statusCode}`);
+});
+```
+
+Alternatively, the following also works:
+
+```cjs
+const http = require('node:http');
+// Use lower-cased option name.
+const agent1 = new http.Agent({ proxyEnv: { http_proxy: 'http://proxy.example.com:8080' } });
+// Use values inherited from the environment variables, if the process is started with
+// HTTP_PROXY=http://proxy.example.com:8080 this will use the proxy server specified
+// in process.env.HTTP_PROXY.
+const agent2 = new http.Agent({ proxyEnv: process.env });
+```
+
+[Built-in Proxy Support]: #built-in-proxy-support
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
 [`'checkContinue'`]: #event-checkcontinue

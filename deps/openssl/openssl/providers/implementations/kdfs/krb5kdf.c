@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -350,7 +350,7 @@ static int cipher_init(EVP_CIPHER_CTX *ctx,
 {
     int klen, ret;
 
-    ret = EVP_EncryptInit_ex(ctx, cipher, engine, key, NULL);
+    ret = EVP_EncryptInit_ex(ctx, cipher, engine, NULL, NULL);
     if (!ret)
         goto out;
     /* set the key len for the odd variable key len cipher */
@@ -362,6 +362,9 @@ static int cipher_init(EVP_CIPHER_CTX *ctx,
             goto out;
         }
     }
+    ret = EVP_EncryptInit_ex(ctx, NULL, NULL, key, NULL);
+    if (!ret)
+        goto out;
     /* we never want padding, either the length requested is a multiple of
      * the cipher block size or we are passed a cipher that can cope with
      * partial blocks via techniques like cipher text stealing */

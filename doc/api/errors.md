@@ -2301,6 +2301,13 @@ The V8 platform used by this instance of Node.js does not support creating
 Workers. This is caused by lack of embedder support for Workers. In particular,
 this error will not occur with standard builds of Node.js.
 
+<a id="ERR_MODULE_LINK_MISMATCH"></a>
+
+### `ERR_MODULE_LINK_MISMATCH`
+
+A module can not be linked because the same module requests in it are not
+resolved to the same module.
+
 <a id="ERR_MODULE_NOT_FOUND"></a>
 
 ### `ERR_MODULE_NOT_FOUND`
@@ -2519,6 +2526,18 @@ Accessing `Object.prototype.__proto__` has been forbidden using
 [`--disable-proto=throw`][]. [`Object.getPrototypeOf`][] and
 [`Object.setPrototypeOf`][] should be used to get and set the prototype of an
 object.
+
+<a id="ERR_PROXY_INVALID_CONFIG"></a>
+
+### `ERR_PROXY_INVALID_CONFIG`
+
+Failed to proxy a request because the proxy configuration is invalid.
+
+<a id="ERR_PROXY_TUNNEL"></a>
+
+### `ERR_PROXY_TUNNEL`
+
+Failed to establish proxy tunnel when `NODE_USE_ENV_PROXY` or `--use-env-proxy` is enabled.
 
 <a id="ERR_QUIC_APPLICATION_ERROR"></a>
 
