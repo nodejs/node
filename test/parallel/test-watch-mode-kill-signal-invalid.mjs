@@ -1,11 +1,12 @@
 // Test that --watch-kill-signal errors when an invalid kill signal is provided.
 
-import { skipIfNoWatchModeSignals } from '../common/index.mjs';
+import '../common/index.mjs';
 import assert from 'node:assert';
 import { writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import tmpdir from '../common/tmpdir.js';
 import fixtures from '../common/fixtures.js';
+import { skipIfNoWatchModeSignals } from '../common/watch.js';
 
 skipIfNoWatchModeSignals();
 

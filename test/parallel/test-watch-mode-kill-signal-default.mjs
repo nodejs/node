@@ -1,12 +1,13 @@
 // Test that the kill signal sent by --watch defaults to SIGTERM.
 
-import { skipIfNoWatchModeSignals } from '../common/index.mjs';
+import '../common/index.mjs';
 import assert from 'node:assert';
 import { writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import tmpdir from '../common/tmpdir.js';
 import fixtures from '../common/fixtures.js';
+import { skipIfNoWatchModeSignals } from '../common/watch.js';
 
 skipIfNoWatchModeSignals();
 
