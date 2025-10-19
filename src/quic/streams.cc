@@ -1349,7 +1349,9 @@ void DataQueueFeeder::tryWakePulls() {
 
 void DataQueueFeeder::DrainAndClose() {
   if (done) return;
-  done = true; // do not do this several time, and note, it may be called several times.
+  done = true;
+  // do not do this several time, and note,
+  // it may be called several times.
   while (!pendingPulls_.empty()) {
     auto& pending = pendingPulls_.front();
     auto pop = OnScopeLeave([this] { pendingPulls_.pop_front(); });
@@ -1393,7 +1395,7 @@ JS_METHOD_IMPL(DataQueueFeeder::Submit) {
   if (args[1]->IsBoolean() && args[1].As<v8::Boolean>()->Value()) {
     done = true;
   }
-  if (!args[0].IsEmpty() && 
+  if (!args[0].IsEmpty() &&
       !args[0]->IsUndefined() && !args[0]->IsNull()) {
     CHECK_GT(feeder->pendingPulls_.size(), 0);
     auto chunk = args[0];
