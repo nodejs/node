@@ -1395,8 +1395,7 @@ JS_METHOD_IMPL(DataQueueFeeder::Submit) {
   if (args[1]->IsBoolean() && args[1].As<v8::Boolean>()->Value()) {
     done = true;
   }
-  if (!args[0].IsEmpty() &&
-      !args[0]->IsUndefined() && !args[0]->IsNull()) {
+  if (!args[0].IsEmpty() && !args[0]->IsUndefined() && !args[0]->IsNull()) {
     CHECK_GT(feeder->pendingPulls_.size(), 0);
     auto chunk = args[0];
 
