@@ -412,6 +412,9 @@ class BuildRequirement {
     // Not using common.hasCrypto because of the global leak checks
     this.hasCrypto = Boolean(process.versions.openssl) &&
       !process.env.NODE_SKIP_CRYPTO;
+
+    // Not using common.hasInspector because of the global leak checks
+    this.hasInspector = Boolean(process.features.inspector);
   }
 
   /**
@@ -428,6 +431,9 @@ class BuildRequirement {
     }
     if (requires.has('crypto') && !this.hasCrypto) {
       return 'crypto';
+    }
+    if (requires.has('inspector') && !this.hasInspector) {
+      return 'inspector';
     }
     return false;
   }
