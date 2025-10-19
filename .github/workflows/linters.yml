@@ -151,10 +151,10 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: cachix/install-nix-action@7be5dee1421f63d07e71ce6e0a9f8a4b07c2a487  # v31.6.1
       - name: Lint Nix files
-        run: nix-shell -I nixpkgs=./tools/nix/pkgs.nix -p 'nixfmt-tree' --run 'treefmt --quiet --fail-on-change'
-      - if: ${{ failure() }}
-        name: Show diff
-        run: git --no-pager diff
+        run: |
+          nix-shell -I nixpkgs=./tools/nix/pkgs.nix -p 'nixfmt-tree' --run '
+            treefmt --quiet --fail-on-change
+          ' || git --no-pager diff --exit-code
 
   lint-py:
     if: github.event.pull_request.draft == false
