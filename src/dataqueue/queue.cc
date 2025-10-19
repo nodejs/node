@@ -450,9 +450,11 @@ class NonIdempotentDataQueueReader final
                             status == bob::Status::STATUS_EOS,
                         vecs == nullptr && count == 0);
           if (status == bob::Status::STATUS_EOS) {
+            current_reader_ = nullptr; // must be done before erasing the entries
+            // as FdEntry's and FeederEntry's reader hold a pointer to the entry!
+            // and FeederEntry invoke it in destructor
             data_queue_->entries_.erase(data_queue_->entries_.begin());
             ended_ = data_queue_->entries_.empty();
-            current_reader_ = nullptr;
             if (!ended_) status = bob::Status::STATUS_CONTINUE;
             std::move(next)(status, nullptr, 0, [](uint64_t) {});
             return;
