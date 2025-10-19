@@ -886,8 +886,7 @@ Maybe<void> InitializePrimordials(Local<Context> context,
   if (!GetPerContextExports(context).ToLocal(&exports)) {
     return Nothing<void>();
   }
-  Local<String> primordials_string =
-      FIXED_ONE_BYTE_STRING(isolate, "primordials");
+  Local<String> primordials_string = isolate_data->primordials_string();
   // Ensure that `InitializePrimordials` is called exactly once on a given
   // context.
   CHECK(!exports->Has(context, primordials_string).FromJust());
