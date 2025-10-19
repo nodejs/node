@@ -542,7 +542,12 @@ struct Session::Impl final : public MemoryRetainer {
         local_address_(config.local_address),
         remote_address_(config.remote_address),
         application_(SelectApplication(session, config_)),
-        timer_(session_->env(), [this] { session_->OnTimeout(); }) {
+        timer_(session_->env(), [this] {
+          auto impl = session_->impl_; // we hold a reference to ourself,
+          // as the reference from session to us may go away
+          // while we call OnTimeout
+          session_->OnTimeout();
+          }) {
     timer_.Unref();
   }
   DISALLOW_COPY_AND_MOVE(Impl)
@@ -558,11 +563,16 @@ struct Session::Impl final : public MemoryRetainer {
     state_->closing = 1;
     STAT_RECORD_TIMESTAMP(Stats, closing_at);
 
+    // we hold a reference to ourself,
+    // as the reference from session to us may go away
+    // while we destroy streams
+    auto impl = session_->impl_;  
+
     // Iterate through all of the known streams and close them. The streams
     // will remove themselves from the Session as soon as they are closed.
     // Note: we create a copy because the streams will remove themselves
     // while they are cleaning up which will invalidate the iterator.
-    StreamsMap streams = streams_; // needs to be a ref
+    StreamsMap streams = streams_;
     for (auto& stream : streams) stream.second->Destroy(last_error_);
     DCHECK(streams_.empty()); // do not check our local copy
 
@@ -1297,7 +1307,7 @@ Session::Session(Endpoint* endpoint,
     : AsyncWrap(endpoint->env(), object, PROVIDER_QUIC_SESSION),
       side_(config.side),
       allocator_(BindingData::Get(env())),
-      impl_(std::make_unique<Impl>(this, endpoint, config)),
+      impl_(std::make_shared<Impl>(this, endpoint, config)),
       connection_(InitConnection()),
       tls_session_(tls_context->NewSession(this, session_ticket)) {
   DCHECK(impl_);
