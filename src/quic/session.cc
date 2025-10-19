@@ -544,7 +544,7 @@ struct Session::Impl final : public MemoryRetainer {
         remote_address_(config.remote_address),
         application_(SelectApplication(session, config_)),
         timer_(session_->env(), [this] {
-          auto impl = session_->impl_; // we hold a reference to ourself,
+          auto impl = session_->impl_;  // we hold a reference to ourself,
           // as the reference from session to us may go away
           // while we call OnTimeout
           session_->OnTimeout();
@@ -567,7 +567,7 @@ struct Session::Impl final : public MemoryRetainer {
     // we hold a reference to ourself,
     // as the reference from session to us may go away
     // while we destroy streams
-    auto impl = session_->impl_;  
+    auto impl = session_->impl_;
 
     // Iterate through all of the known streams and close them. The streams
     // will remove themselves from the Session as soon as they are closed.
@@ -575,7 +575,7 @@ struct Session::Impl final : public MemoryRetainer {
     // while they are cleaning up which will invalidate the iterator.
     StreamsMap streams = streams_;
     for (auto& stream : streams) stream.second->Destroy(last_error_);
-    DCHECK(streams_.empty()); // do not check our local copy
+    DCHECK(streams_.empty());  // do not check our local copy
 
     // Clear the pending streams.
     while (!pending_bidi_stream_queue_.IsEmpty()) {
@@ -1412,7 +1412,8 @@ void Session::Close(CloseMethod method) {
 
   // This is done already in the implmentation
   // STAT_RECORD_TIMESTAMP(Stats, closing_at);
-  // The next line would be prevent, that close of the implementation is executed!
+  // The next line would prevent,
+  // that close of the implementation is executed!
   // impl_->state_->closing = 1;
 
   // With both the DEFAULT and SILENT options, we will proceed to closing
@@ -1461,12 +1462,15 @@ void Session::Close(CloseMethod method) {
 }
 
 void Session::FinishClose() {
-  if (impl_->state_->finish_closing) return; // we were already called, avoids calling it twice
+  if (impl_->state_->finish_closing) return;
+  // we were already called, avoids calling it twice
   impl_->state_->finish_closing = 1;
-  // FinishClose() should be called only after, and as a result of, Close()
+  // FinishClose() should be called only after,
+  // and as a result of, Close()
   // being called first.
   DCHECK(!is_destroyed());
-  // The next line does not make sense, as in the implementation is also checking if closing is not in progress
+  // The next line does not make sense, as in the implementation
+  // is also checking if closing is not in progress
   // DCHECK(impl_->state_->closing);
 
   // If impl_->Close() returns true, then the session can be destroyed
@@ -1481,11 +1485,12 @@ void Session::FinishClose() {
 }
 
 void Session::Destroy() {
-  // Destroy() should be called only after, and as a result of, Close()
+  // Destroy() should be called only after,
+  // and as a result of, Close()
   // being called first.
   DCHECK(impl_);
   DCHECK(impl_->state_->closing);
-  Debug(this, "Session destroyed");  
+  Debug(this, "Session destroyed");
   if (qlog_stream_ || keylog_stream_) {
     env()->SetImmediate(
         [qlog = qlog_stream_, keylog = keylog_stream_](Environment*) {
@@ -2111,7 +2116,8 @@ void Session::RemoveStream(stream_id id) {
   // returns.
   if (impl_->state_->closing && impl_->state_->graceful_close) {
     FinishClose();
-    // CHECK(is_destroyed()); // this will not work, our this pointer may not be valid anymore!
+    // CHECK(is_destroyed());
+    // this will not work, our this pointer may not be valid anymore!
   }
 }
 
