@@ -436,6 +436,32 @@ class DataQueueFeeder final : public AsyncWrap {
   bool done = false;
 };
 
+void DataQueueFeeder::tryWakePulls() {
+  if (!readFinish_.IsEmpty()) {
+    Local<Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
+    // I do not think, that this can error...
+    (void)resolver->Resolve(env()->context(), v8::True(env()->isolate()));
+    readFinish_.Reset();
+  }
+}
+
+void DataQueueFeeder::DrainAndClose() {
+  if (done) return;
+  done = true;
+  // do not do this several time, and note,
+  // it may be called several times.
+  while (!pendingPulls_.empty()) {
+    auto& pending = pendingPulls_.front();
+    auto pop = OnScopeLeave([this] { pendingPulls_.pop_front(); });
+    pending.next(bob::STATUS_EOS, nullptr, 0, [](uint64_t) {});
+  }
+  if (!readFinish_.IsEmpty()) {
+    Local<Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
+    (void)resolver->Resolve(env()->context(), v8::False(env()->isolate()));
+    readFinish_.Reset();
+  }
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
