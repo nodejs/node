@@ -1,4 +1,4 @@
-name: Test Shared librairies
+name: Test Shared libraries
 
 on:
   pull_request:
