@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.34.1](https://github.com/nodejs/corepack/compare/v0.34.0...v0.34.1) (2025-10-17)
+
+
+### Bug Fixes
+
+* incorrect registry origin check ([#743](https://github.com/nodejs/corepack/issues/743)) ([cc840b2](https://github.com/nodejs/corepack/commit/cc840b2d232a29c225d2436d350640f0035ed28b))
+* update package manager versions ([#728](https://github.com/nodejs/corepack/issues/728)) ([78ce029](https://github.com/nodejs/corepack/commit/78ce0297a9152bb5c68f724821a9a0095b408334))
+
 ## [0.34.0](https://github.com/nodejs/corepack/compare/v0.33.0...v0.34.0) (2025-07-19)
 
 
