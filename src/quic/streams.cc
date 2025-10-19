@@ -225,7 +225,7 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
     ASSIGN_OR_RETURN_UNWRAP(
         &dataQueueFeeder, value, Nothing<std::shared_ptr<DataQueue>>());
     std::shared_ptr<DataQueue> dataQueue = DataQueue::Create();
-    dataQueue->append(std::move(DataQueue::CreateFeederEntry(dataQueueFeeder)));
+    dataQueue->append(DataQueue::CreateFeederEntry(dataQueueFeeder));
     return Just(dataQueue);
   }
 
@@ -1349,6 +1349,7 @@ void DataQueueFeeder::tryWakePulls() {
 
 void DataQueueFeeder::DrainAndClose() {
   if (done) return;
+  done = true; // do not do this several time, and note, it may be called several times.
   while (!pendingPulls_.empty()) {
     auto& pending = pendingPulls_.front();
     auto pop = OnScopeLeave([this] { pendingPulls_.pop_front(); });
@@ -1359,7 +1360,6 @@ void DataQueueFeeder::DrainAndClose() {
     (void)resolver->Resolve(env()->context(), v8::False(env()->isolate()));
     readFinish_.Reset();
   }
-  done = true;
 }
 
 JS_METHOD_IMPL(DataQueueFeeder::New) {
