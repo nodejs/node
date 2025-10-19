@@ -548,7 +548,7 @@ struct Session::Impl final : public MemoryRetainer {
           // as the reference from session to us may go away
           // while we call OnTimeout
           session_->OnTimeout();
-          }) {
+        }) {
     timer_.Unref();
   }
   DISALLOW_COPY_AND_MOVE(Impl)
