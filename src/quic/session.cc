@@ -63,6 +63,7 @@ namespace quic {
   V(DATAGRAM, datagram, uint8_t)                                               \
   V(SESSION_TICKET, session_ticket, uint8_t)                                   \
   V(CLOSING, closing, uint8_t)                                                 \
+  V(FINISH_CLOSING, finish_closing, uint8_t)                                   \
   V(GRACEFUL_CLOSE, graceful_close, uint8_t)                                   \
   V(SILENT_CLOSE, silent_close, uint8_t)                                       \
   V(STATELESS_RESET, stateless_reset, uint8_t)                                 \
@@ -1403,7 +1404,7 @@ bool Session::is_destroyed_or_closing() const {
 
 void Session::Close(CloseMethod method) {
   if (is_destroyed()) return;
-  auto& stats_ = impl_->stats_;
+  // auto& stats_ = impl_->stats_;
 
   if (impl_->last_error_) {
     Debug(this, "Closing with error: %s", impl_->last_error_);
@@ -1460,6 +1461,8 @@ void Session::Close(CloseMethod method) {
 }
 
 void Session::FinishClose() {
+  if (impl_->state_->finish_closing) return; // we were already called, avoids calling it twice
+  impl_->state_->finish_closing = 1;
   // FinishClose() should be called only after, and as a result of, Close()
   // being called first.
   DCHECK(!is_destroyed());
