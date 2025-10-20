@@ -1237,11 +1237,11 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
             }
             break;
           case wasm::ValueKind::kS128: {
-            int64x2 values = value.simd_value().to_i64x2();
+            Simd128::int64x2 values = value.simd_value().to_i64x2();
             const int offset = base_offset - liftoff_iter->offset();
-            output_frame->SetLiftoffFrameSlot64(offset, values.val[0]);
+            output_frame->SetLiftoffFrameSlot64(offset, values[0]);
             output_frame->SetLiftoffFrameSlot64(offset + sizeof(int64_t),
-                                                values.val[1]);
+                                                values[1]);
             break;
           }
           case wasm::ValueKind::kF64:

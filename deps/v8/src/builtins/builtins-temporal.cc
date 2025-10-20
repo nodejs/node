@@ -484,7 +484,7 @@ TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, EpochMilliseconds,
                   epochMilliseconds, epoch_milliseconds, CONVERT_DOUBLE)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, EpochNanoseconds, nanoseconds)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DayOfWeek, dayOfWeek,
-                  day_of_week, CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
+                  day_of_week, CONVERT_SMI)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DayOfYear, dayOfYear,
                   day_of_year, CONVERT_SMI)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, WeekOfYear, weekOfYear,
@@ -493,7 +493,7 @@ TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, YearOfWeek, YearOfWeek,
                   year_of_week, CONVERT_NULLABLE_INTEGER)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, HoursInDay, hoursInDay)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInWeek, daysInWeek,
-                  days_in_week, CONVERT_FALLIBLE_INTEGER_AS_NULLABLE)
+                  days_in_week, CONVERT_SMI)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInMonth, daysInMonth,
                   days_in_month, CONVERT_SMI)
 TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInYear, daysInYear,

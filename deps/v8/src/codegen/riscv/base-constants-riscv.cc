@@ -231,6 +231,17 @@ uint32_t InstructionGetters<T>::Rvvuimm() const {
 }
 
 template <class T>
+uint32_t InstructionGetters<T>::MopNumber() {
+  if ((this->InstructionBits() & kMopMask) == RO_MOP_R_N) {
+    return this->Bits(21, 20) | this->Bits(27, 26) << 2 |
+           this->Bits(30, 30) << 4;
+  } else {
+    DCHECK_EQ((this->InstructionBits() & kMopMask), RO_MOP_RR_N);
+    return this->Bits(27, 26) | this->Bits(30, 30) << 2;
+  }
+}
+
+template <class T>
 bool InstructionGetters<T>::IsLoad() {
   switch (OperandFunct3()) {
     case RO_LB:

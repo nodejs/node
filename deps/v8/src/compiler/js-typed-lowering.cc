@@ -175,6 +175,12 @@ class JSBinopReduction final {
       if (m.right().HasResolvedValue() && m.right().Ref(broker).IsString()) {
         StringRef right_string = m.right().Ref(broker).AsString();
         if (right_string.length() >= ConsString::kMinLength) return true;
+        if (right_string.length() > 0 &&
+            m.left().opcode() == IrOpcode::kNewConsString) {
+          // Left is a ConsString and right is not the empty string, so we can
+          // create a ConsString.
+          return true;
+        }
       }
       if (m.left().HasResolvedValue() && m.left().Ref(broker).IsString()) {
         StringRef left_string = m.left().Ref(broker).AsString();
@@ -1921,12 +1927,10 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
   node->InsertInput(zone, cursor++, entry_node);
   node->InsertInput(zone, cursor++, argc_node);
 
-  static const int kReturnCount = 1;
   const char* debug_name = Builtins::name(builtin);
   Operator::Properties properties = node->op()->properties();
-  auto call_descriptor = Linkage::GetCEntryStubCallDescriptor(
-      zone, kReturnCount, argc, debug_name, properties, flags,
-      StackArgumentOrder::kJS);
+  auto call_descriptor = Linkage::GetCPPBuiltinCallDescriptor(
+      zone, argc, debug_name, properties, flags);
 
   NodeProperties::ChangeOp(node, jsgraph->common()->Call(call_descriptor));
 }

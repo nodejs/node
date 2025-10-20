@@ -505,11 +505,17 @@ class TestCase(object):
     return self.path_and_suffix('.mjs')
 
   def _create_cmd(self, ctx, params, env, timeout):
+    shell_dir = self.test_config.shell_dir
+    try:
+      # Try to make the shell dir relative to the current working directory,
+      # keep the absolute path if it fails.
+      shell_dir = shell_dir.relative_to(Path.cwd())
+    except ValueError:
+      pass
+
     return ctx.command(
         cmd_prefix=self.test_config.command_prefix,
-        shell=ctx.platform_shell(
-            self.get_shell(), params,
-            self.test_config.shell_dir.relative_to(Path.cwd())),
+        shell=ctx.platform_shell(self.get_shell(), params, shell_dir),
         args=params,
         env=env,
         timeout=timeout,

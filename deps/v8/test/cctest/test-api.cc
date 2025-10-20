@@ -3311,9 +3311,9 @@ static void CheckAlignedPointerInInternalField(Local<v8::Object> obj,
   CHECK(HAS_SMI_TAG(reinterpret_cast<i::Address>(value)));
   obj->SetAlignedPointerInInternalField(0, value, kTestTypeTagA);
   i::heap::InvokeMajorGC(CcTest::heap());
-  CHECK_EQ(value, obj->GetAlignedPointerFromInternalField(0));
-  CHECK_EQ(value,
-           obj->GetAlignedPointerFromInternalField(CcTest::isolate(), 0));
+  CHECK_EQ(value, obj->GetAlignedPointerFromInternalField(0, kTestTypeTagA));
+  CHECK_EQ(value, obj->GetAlignedPointerFromInternalField(CcTest::isolate(), 0,
+                                                          kTestTypeTagA));
 }
 
 THREADED_TEST(InternalFieldsAlignedPointers) {
@@ -3346,7 +3346,8 @@ THREADED_TEST(InternalFieldsAlignedPointers) {
 
   v8::Global<v8::Object> persistent(isolate, obj);
   CHECK_EQ(1, Object::InternalFieldCount(persistent));
-  CHECK_EQ(huge, Object::GetAlignedPointerFromInternalField(persistent, 0));
+  CHECK_EQ(huge, Object::GetAlignedPointerFromInternalField(persistent, 0,
+                                                            kTestTypeTagA));
 }
 
 START_ALLOW_USE_DEPRECATED()
@@ -3373,26 +3374,32 @@ THREADED_TEST(SetAlignedPointerInInternalFields) {
   i::heap::InvokeMajorGC(CcTest::heap());
   {
     v8::SealHandleScope no_handle_leak(isolate);
-    CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(0));
-    CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(1));
+    CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(
+                                   0, v8::kEmbedderDataTypeTagDefault));
+    CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(
+                                   1, v8::kEmbedderDataTypeTagDefault));
 
     CHECK_EQ(heap_allocated_1,
-             obj->GetAlignedPointerFromInternalField(isolate, 0));
+             obj->GetAlignedPointerFromInternalField(
+                 isolate, 0, v8::kEmbedderDataTypeTagDefault));
     CHECK_EQ(heap_allocated_2,
-             obj->GetAlignedPointerFromInternalField(isolate, 1));
+             obj->GetAlignedPointerFromInternalField(
+                 isolate, 1, v8::kEmbedderDataTypeTagDefault));
   }
 
   indices[0] = 1;
   indices[1] = 0;
   obj->SetAlignedPointerInInternalFields(2, indices, values);
   i::heap::InvokeMajorGC(CcTest::heap());
-  CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(0));
-  CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(1));
+  CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(
+                                 0, v8::kEmbedderDataTypeTagDefault));
+  CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(
+                                 1, v8::kEmbedderDataTypeTagDefault));
 
-  CHECK_EQ(heap_allocated_2,
-           obj->GetAlignedPointerFromInternalField(isolate, 0));
-  CHECK_EQ(heap_allocated_1,
-           obj->GetAlignedPointerFromInternalField(isolate, 1));
+  CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(
+                                 isolate, 0, v8::kEmbedderDataTypeTagDefault));
+  CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(
+                                 isolate, 1, v8::kEmbedderDataTypeTagDefault));
 
   delete[] heap_allocated_1;
   delete[] heap_allocated_2;
@@ -3405,17 +3412,17 @@ static void CheckAlignedPointerInEmbedderData(LocalContext* env,
   CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
   (*env)->SetAlignedPointerInEmbedderData(index, value, kTestTypeTagA);
   i::heap::InvokeMajorGC(CcTest::heap());
-  CHECK_EQ(value, (*env)->GetAlignedPointerFromEmbedderData(index));
   CHECK_EQ(value,
-           some_obj->GetAlignedPointerFromEmbedderDataInCreationContext(index));
+           (*env)->GetAlignedPointerFromEmbedderData(index, kTestTypeTagA));
   CHECK_EQ(value, some_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
-                      CcTest::isolate(), index));
+                      index, kTestTypeTagA));
+  CHECK_EQ(value, some_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                      CcTest::isolate(), index, kTestTypeTagA));
 }
 
 static void* AlignedTestPointer(int i) {
   return reinterpret_cast<void*>(i * 1234);
 }
-
 
 THREADED_TEST(EmbedderDataAlignedPointers) {
   LocalContext env;
@@ -3450,7 +3457,8 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
   i::heap::InvokeMajorGC(CcTest::heap());
   for (int i = 0; i < 100; i++) {
     v8::SealHandleScope no_handle_leak(env.isolate());
-    CHECK_EQ(AlignedTestPointer(i), env->GetAlignedPointerFromEmbedderData(i));
+    CHECK_EQ(AlignedTestPointer(i), env->GetAlignedPointerFromEmbedderData(
+                                        i, i % V8_EMBEDDER_DATA_TAG_COUNT));
   }
 }
 
@@ -3471,7 +3479,8 @@ THREADED_TEST(EmbedderDataAlignedPointersViaDetachedGlobal) {
   i::heap::InvokeMajorGC(CcTest::heap());
 
   CHECK_EQ(stack_allocated,
-           obj->GetAlignedPointerFromEmbedderDataInCreationContext(isolate, 1));
+           obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+               isolate, 1, kTestTypeTagA));
 
   env->DetachGlobal();
 
@@ -3479,7 +3488,8 @@ THREADED_TEST(EmbedderDataAlignedPointersViaDetachedGlobal) {
   // directly from current native context as long as its global object IS the
   // detached global object.
   CHECK_EQ(stack_allocated,
-           obj->GetAlignedPointerFromEmbedderDataInCreationContext(isolate, 1));
+           obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+               isolate, 1, kTestTypeTagA));
 }
 
 static void CheckEmbedderData(LocalContext* env, int index,
@@ -3487,7 +3497,6 @@ static void CheckEmbedderData(LocalContext* env, int index,
   (*env)->SetEmbedderData(index, data);
   CHECK((*env)->GetEmbedderData(index)->StrictEquals(data));
 }
-
 
 THREADED_TEST(EmbedderData) {
   LocalContext env;
@@ -4652,7 +4661,8 @@ class PhantomStdMapTraits : public v8::StdMapTraits<K, V> {
   static void DisposeCallbackData(WeakCallbackDataType* data) { delete data; }
   static void Dispose(v8::Isolate* isolate, v8::Global<V> value, K key) {
     CHECK_EQ(IntKeyToVoidPointer(key),
-             v8::Object::GetAlignedPointerFromInternalField(value, 0));
+             v8::Object::GetAlignedPointerFromInternalField(value, 0,
+                                                            kTestTypeTagA));
   }
   static void OnWeakCallback(
       const v8::WeakCallbackInfo<WeakCallbackDataType>&) {}
@@ -8374,12 +8384,13 @@ void InternalFieldCallback(bool global_gc) {
     t2 = new Trivial2(103, 9);
 
     obj->SetAlignedPointerInInternalField(0, t1, kTestTypeTagA);
-    t1 = reinterpret_cast<Trivial*>(obj->GetAlignedPointerFromInternalField(0));
+    t1 = reinterpret_cast<Trivial*>(
+        obj->GetAlignedPointerFromInternalField(0, kTestTypeTagA));
     CHECK_EQ(42, t1->x());
 
     obj->SetAlignedPointerInInternalField(1, t2, kTestTypeTagB);
-    t2 =
-        reinterpret_cast<Trivial2*>(obj->GetAlignedPointerFromInternalField(1));
+    t2 = reinterpret_cast<Trivial2*>(
+        obj->GetAlignedPointerFromInternalField(1, kTestTypeTagB));
     CHECK_EQ(103, t2->x());
 
     handle.SetWeak<v8::Persistent<v8::Object>>(
@@ -8743,7 +8754,7 @@ THREADED_TEST(StringWrite) {
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<String> str = v8_str("abcde");
-  // abc<Icelandic eth><Unicode snowman>.
+  // "abc<Icelandic eth><Unicode snowman>" represented as u"abc\xf0\u2603".
   v8::Local<String> str2 = v8_str("abc\xC3\xB0\xE2\x98\x83");
   v8::Local<String> str3 =
       v8::String::NewFromUtf8Literal(context.isolate(), "abc\0def");
@@ -9040,6 +9051,39 @@ THREADED_TEST(StringWrite) {
   CHECK_NE(0, strcmp("abcde", buf));
   buf[5] = '\0';
   CHECK_EQ(0, strcmp("abcde", buf));
+
+  memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
+  str2->WriteOneByteV2(isolate, 0, 5, reinterpret_cast<uint8_t*>(buf));
+  str2->WriteV2(isolate, 0, 5, wbuf);
+  CHECK_EQ(0, strncmp("abc\xf0\x03\x01", buf, 6));
+  uint16_t answer9[] = {'a', 'b', 'c', 0xf0, 0x2603, 0x101};
+  CHECK_EQ(0, StrNCmp16(answer9, wbuf, 6));
+
+  memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
+  str2->WriteOneByteV2(isolate, 0, 3, reinterpret_cast<uint8_t*>(buf));
+  str2->WriteV2(isolate, 0, 3, wbuf);
+  CHECK_EQ(0, strncmp("abc\x01\x01\x01", buf, 6));
+  uint16_t answer10[] = {'a', 'b', 'c', 0x101, 0x101, 0x101};
+  CHECK_EQ(0, StrNCmp16(answer10, wbuf, 6));
+
+  memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
+  str2->WriteOneByteV2(isolate, 1, 3, reinterpret_cast<uint8_t*>(buf));
+  str2->WriteV2(isolate, 1, 3, wbuf);
+  CHECK_EQ(0, strncmp("bc\xf0\x01\x01\x01", buf, 6));
+  uint16_t answer11[] = {'b', 'c', 0xf0, 0x101, 0x101, 0x101};
+  CHECK_EQ(0, StrNCmp16(answer11, wbuf, 6));
+
+  memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
+  str2->WriteOneByteV2(isolate, 4, 1, reinterpret_cast<uint8_t*>(buf),
+                       String::WriteFlags::kNullTerminate);
+  str2->WriteV2(isolate, 4, 1, wbuf, String::WriteFlags::kNullTerminate);
+  CHECK_EQ(0, strcmp("\x03", buf));
+  uint16_t answer12[] = {0x2603, '\0'};
+  CHECK_EQ(0, StrCmp16(answer12, wbuf));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   utf8buf[8] = 'X';
@@ -28402,8 +28446,9 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
                            v8::FastApiCallbackOptions& options) {
     v8::Object* receiver_obj = *receiver;
     CHECK(IsValidUnwrapObject(receiver_obj));
-    ApiNumberChecker<T>* receiver_ptr =
-        GetInternalField<ApiNumberChecker<T>>(receiver_obj);
+    ApiNumberChecker<T>* receiver_ptr = reinterpret_cast<ApiNumberChecker<T>*>(
+        receiver_obj->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex,
+                                                         kTestTypeTagA));
     receiver_ptr->SetCallFast();
     receiver_ptr->fast_value_ = argument;
   }
@@ -28416,7 +28461,7 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
       return;
     }
     ApiNumberChecker<T>* checker =
-        GetInternalField<ApiNumberChecker<T>>(receiver);
+        GetInternalField<ApiNumberChecker<T>>(receiver, kTestTypeTagA);
     CHECK_EQ(info.Length(), checker->args_count_);
 
     checker->SetCallSlow();
@@ -28441,7 +28486,7 @@ struct UnexpectedObjectChecker
                            v8::Local<v8::Value> argument,
                            v8::FastApiCallbackOptions& options) {
     UnexpectedObjectChecker* receiver_ptr =
-        GetInternalField<UnexpectedObjectChecker>(*receiver);
+        GetInternalField<UnexpectedObjectChecker>(*receiver, kTestTypeTagA);
     receiver_ptr->SetCallFast();
     if (argument->IsObject()) {
       v8::Object* argument_obj = v8::Object::Cast(*argument);
@@ -28452,7 +28497,7 @@ struct UnexpectedObjectChecker
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
     UnexpectedObjectChecker* receiver_ptr =
-        GetInternalField<UnexpectedObjectChecker>(*info.This());
+        GetInternalField<UnexpectedObjectChecker>(*info.This(), kTestTypeTagA);
     receiver_ptr->SetCallSlow();
     if (info[0]->IsObject()) {
       v8::Object* argument_obj = v8::Object::Cast(*info[0]);
@@ -28474,11 +28519,12 @@ struct ApiObjectChecker
                            v8::Local<v8::Value> argument,
                            v8::FastApiCallbackOptions& options) {
     ApiObjectChecker* receiver_ptr =
-        GetInternalField<ApiObjectChecker>(*receiver);
+        GetInternalField<ApiObjectChecker>(*receiver, kTestTypeTagA);
     receiver_ptr->SetCallFast();
 
     v8::Object* argument_obj = v8::Object::Cast(*argument);
-    EmbedderType* argument_ptr = GetInternalField<EmbedderType>(argument_obj);
+    EmbedderType* argument_ptr =
+        GetInternalField<EmbedderType>(argument_obj, kTestTypeTagA);
     CHECK(receiver_ptr->ctor_->IsLeafTemplateForApiObject(argument));
 
     argument_ptr->data = receiver_ptr->initial_data_;
@@ -28486,7 +28532,7 @@ struct ApiObjectChecker
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
     ApiObjectChecker* receiver_ptr =
-        GetInternalField<ApiObjectChecker>(*info.This());
+        GetInternalField<ApiObjectChecker>(*info.This(), kTestTypeTagA);
     receiver_ptr->SetCallSlow();
 
     CHECK(info[0]->IsObject());
@@ -28812,7 +28858,7 @@ struct ReturnValueChecker : BasicApiChecker<T, ReturnValueChecker<T>, T> {
   static T FastCallback(v8::Local<v8::Object> receiver, T arg,
                         v8::FastApiCallbackOptions& options) {
     ReturnValueChecker<T>* receiver_ptr =
-        GetInternalField<ReturnValueChecker<T>>(*receiver);
+        GetInternalField<ReturnValueChecker<T>>(*receiver, kTestTypeTagA);
     receiver_ptr->SetCallFast();
     return arg;
   }
@@ -28820,7 +28866,7 @@ struct ReturnValueChecker : BasicApiChecker<T, ReturnValueChecker<T>, T> {
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
     ReturnValueChecker<T>* receiver_ptr =
-        GetInternalField<ReturnValueChecker<T>>(*info.This());
+        GetInternalField<ReturnValueChecker<T>>(*info.This(), kTestTypeTagA);
     receiver_ptr->SetCallSlow();
     info.GetReturnValue().Set(info[0]);
   }
@@ -28843,7 +28889,7 @@ struct AllocationChecker : BasicApiChecker<int32_t, AllocationChecker, void> {
   static void FastCallback(v8::Local<v8::Object> receiver, int32_t argument,
                            v8::FastApiCallbackOptions& options) {
     AllocationChecker* receiver_ptr =
-        GetInternalField<AllocationChecker>(*receiver);
+        GetInternalField<AllocationChecker>(*receiver, kTestTypeTagA);
     CHECK_EQ(receiver_ptr->expected_argument_, argument);
     receiver_ptr->SetCallFast();
     i::Isolate* isolate = receiver_ptr->isolate_;
@@ -28857,14 +28903,15 @@ struct AllocationChecker : BasicApiChecker<int32_t, AllocationChecker, void> {
       v8::Context::Scope context_scope(receiver_ptr->context_);
       CompileRun("gc();");
     }
-    CHECK_EQ(receiver_ptr, GetInternalField<AllocationChecker>(*receiver));
+    CHECK_EQ(receiver_ptr,
+             GetInternalField<AllocationChecker>(*receiver, kTestTypeTagA));
     CHECK_EQ(receiver_ptr->expected_argument_, number->value());
   }
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
     AllocationChecker* receiver_ptr =
-        GetInternalField<AllocationChecker>(*info.This());
+        GetInternalField<AllocationChecker>(*info.This(), kTestTypeTagA);
     receiver_ptr->SetCallSlow();
     info.GetReturnValue().Set(info[0]);
   }
@@ -28885,7 +28932,7 @@ struct ThrowInReentrantJSChecker
   static void FastCallback(v8::Local<v8::Object> receiver, int32_t argument,
                            v8::FastApiCallbackOptions& options) {
     ThrowInReentrantJSChecker* receiver_ptr =
-        GetInternalField<ThrowInReentrantJSChecker>(*receiver);
+        GetInternalField<ThrowInReentrantJSChecker>(*receiver, kTestTypeTagA);
     receiver_ptr->SetCallFast();
     i::Isolate* isolate = receiver_ptr->isolate_;
     i::HandleScope handle_scope(isolate);
@@ -28896,7 +28943,8 @@ struct ThrowInReentrantJSChecker
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
     ThrowInReentrantJSChecker* receiver_ptr =
-        GetInternalField<ThrowInReentrantJSChecker>(*info.This());
+        GetInternalField<ThrowInReentrantJSChecker>(*info.This(),
+                                                    kTestTypeTagA);
     receiver_ptr->SetCallSlow();
     v8::Isolate* isolate = info.GetIsolate();
     v8::HandleScope handle_scope(isolate);
@@ -29122,7 +29170,7 @@ struct RecursiveReentrantJSChecker
   static void FastCallback(v8::Local<v8::Object> receiver, int32_t argument,
                            v8::FastApiCallbackOptions& options) {
     RecursiveReentrantJSChecker* receiver_ptr =
-        GetInternalField<RecursiveReentrantJSChecker>(*receiver);
+        GetInternalField<RecursiveReentrantJSChecker>(*receiver, kTestTypeTagA);
     receiver_ptr->SetCallFast();
     *(receiver_ptr->sum_) += argument;
     i::Isolate* isolate = receiver_ptr->isolate_;
@@ -29142,7 +29190,8 @@ struct RecursiveReentrantJSChecker
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
     RecursiveReentrantJSChecker* receiver_ptr =
-        GetInternalField<RecursiveReentrantJSChecker>(*info.This());
+        GetInternalField<RecursiveReentrantJSChecker>(*info.This(),
+                                                      kTestTypeTagA);
     receiver_ptr->SetCallSlow();
     v8::Isolate* isolate = info.GetIsolate();
     v8::HandleScope handle_scope(isolate);
@@ -29838,7 +29887,7 @@ struct SeqOneByteStringChecker {
   static Ret FastCallback(v8::Local<v8::Object> receiver,
                           const v8::FastOneByteString& string) {
     SeqOneByteStringChecker* receiver_ptr =
-        GetInternalField<SeqOneByteStringChecker>(*receiver);
+        GetInternalField<SeqOneByteStringChecker>(*receiver, kTestTypeTagA);
     receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
 
     return receiver_ptr->func_();
@@ -29846,7 +29895,7 @@ struct SeqOneByteStringChecker {
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     SeqOneByteStringChecker* receiver_ptr =
-        GetInternalField<SeqOneByteStringChecker>(*info.This());
+        GetInternalField<SeqOneByteStringChecker>(*info.This(), kTestTypeTagA);
     receiver_ptr->result_ |= ApiCheckerResult::kSlowCalled;
 
     CHECK(info[0]->IsString());

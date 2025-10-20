@@ -8,6 +8,7 @@
 #include "src/heap/heap-visitor-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/objects/allocation-site.h"
+#include "src/objects/casting-inl.h"
 #include "src/objects/js-weak-refs.h"
 
 namespace v8 {
@@ -31,11 +32,11 @@ Tagged<Object> VisitWeakList(Heap* heap, Tagged<Object> list,
   Tagged<HeapObject> undefined = ReadOnlyRoots(heap).undefined_value();
   Tagged<Object> head = undefined;
   Tagged<T> tail;
-  bool record_slots = MustRecordSlots(heap);
+  const bool record_slots = MustRecordSlots(heap);
 
   while (list != undefined) {
     // Check whether to keep the candidate in the list.
-    Tagged<T> candidate = Cast<T>(list);
+    Tagged<T> candidate = GCSafeCast<T>(list, heap);
 
     Tagged<Object> retained = retainer->RetainAs(list);
 
@@ -49,7 +50,7 @@ Tagged<Object> VisitWeakList(Heap* heap, Tagged<Object> list,
       } else {
         // Subsequent elements in the list.
         DCHECK(!tail.is_null());
-        WeakListVisitor<T>::SetWeakNext(tail, Cast<HeapObject>(retained));
+        WeakListVisitor<T>::SetWeakNext(heap, tail, Cast<HeapObject>(retained));
         if (record_slots) {
           Tagged<HeapObject> slot_holder =
               WeakListVisitor<T>::WeakNextHolder(tail);
@@ -61,19 +62,16 @@ Tagged<Object> VisitWeakList(Heap* heap, Tagged<Object> list,
       }
       // Retained object is new tail.
       DCHECK(!IsUndefined(retained, heap->isolate()));
-      candidate = Cast<T>(retained);
+      candidate = GCSafeCast<T>(retained, heap);
       tail = candidate;
 
       // tail is a live object, visit it.
-      WeakListVisitor<T>::VisitLiveObject(heap, tail, retainer);
-
-    } else {
-      WeakListVisitor<T>::VisitPhantomObject(heap, candidate);
+      WeakListVisitor<T>::VisitLiveObject(heap, tail);
     }
   }
 
   // Terminate the list if there is one or more elements.
-  if (!tail.is_null()) WeakListVisitor<T>::SetWeakNext(tail, undefined);
+  if (!tail.is_null()) WeakListVisitor<T>::SetWeakNext(heap, tail, undefined);
   return head;
 }
 
@@ -83,13 +81,14 @@ static void ClearWeakList(Heap* heap, Tagged<Object> list) {
   while (list != undefined) {
     Tagged<T> candidate = Cast<T>(list);
     list = WeakListVisitor<T>::WeakNext(candidate);
-    WeakListVisitor<T>::SetWeakNext(candidate, undefined);
+    WeakListVisitor<T>::SetWeakNext(heap, candidate, undefined);
   }
 }
 
 template <>
 struct WeakListVisitor<Context> {
-  static void SetWeakNext(Tagged<Context> context, Tagged<HeapObject> next) {
+  static void SetWeakNext(Heap* heap, Tagged<Context> context,
+                          Tagged<HeapObject> next) {
     context->SetNoCell(Context::NEXT_CONTEXT_LINK, next, UPDATE_WRITE_BARRIER);
   }
 
@@ -105,8 +104,7 @@ struct WeakListVisitor<Context> {
     return FixedArray::SizeFor(Context::NEXT_CONTEXT_LINK);
   }
 
-  static void VisitLiveObject(Heap* heap, Tagged<Context> context,
-                              WeakObjectRetainer* retainer) {
+  static void VisitLiveObject(Heap* heap, Tagged<Context> context) {
     if (heap->gc_state() == Heap::MARK_COMPACT) {
       // Record the slots of the weak entries in the native context.
       for (int idx = Context::FIRST_WEAK_SLOT;
@@ -135,13 +133,11 @@ struct WeakListVisitor<Context> {
                                                  Cast<HeapObject>(list_head));
     }
   }
-
-  static void VisitPhantomObject(Heap* heap, Tagged<Context> context) {}
 };
 
 template <>
 struct WeakListVisitor<AllocationSiteWithWeakNext> {
-  static void SetWeakNext(Tagged<AllocationSiteWithWeakNext> obj,
+  static void SetWeakNext(Heap* heap, Tagged<AllocationSiteWithWeakNext> obj,
                           Tagged<HeapObject> next) {
     obj->set_weak_next(
         Cast<UnionOf<Undefined, AllocationSiteWithWeakNext>>(next),
@@ -161,22 +157,22 @@ struct WeakListVisitor<AllocationSiteWithWeakNext> {
     return offsetof(AllocationSiteWithWeakNext, weak_next_);
   }
 
-  static void VisitLiveObject(Heap*, Tagged<AllocationSite>,
-                              WeakObjectRetainer*) {}
-
-  static void VisitPhantomObject(Heap*, Tagged<AllocationSite>) {}
+  static void VisitLiveObject(Heap*, Tagged<AllocationSite>) {}
 };
 
 template <>
 struct WeakListVisitor<JSFinalizationRegistry> {
-  static void SetWeakNext(Tagged<JSFinalizationRegistry> obj,
+  static void SetWeakNext(Heap* heap, Tagged<JSFinalizationRegistry> obj,
                           Tagged<HeapObject> next) {
-    obj->set_next_dirty(Cast<UnionOf<Undefined, JSFinalizationRegistry>>(next),
-                        UPDATE_WRITE_BARRIER);
+    obj->set_next_dirty(
+        GCSafeCast<UnionOf<Undefined, JSFinalizationRegistry>>(next, heap),
+        UPDATE_WRITE_BARRIER);
   }
 
   static Tagged<Object> WeakNext(Tagged<JSFinalizationRegistry> obj) {
-    return obj->next_dirty();
+    // Use `RawField` instead of `next_dirty` to avoid type checks that don't
+    // work with forwarding addresses.
+    return obj->RawField(JSFinalizationRegistry::kNextDirtyOffset).load();
   }
 
   static Tagged<HeapObject> WeakNextHolder(Tagged<JSFinalizationRegistry> obj) {
@@ -187,12 +183,9 @@ struct WeakListVisitor<JSFinalizationRegistry> {
     return JSFinalizationRegistry::kNextDirtyOffset;
   }
 
-  static void VisitLiveObject(Heap* heap, Tagged<JSFinalizationRegistry> obj,
-                              WeakObjectRetainer*) {
+  static void VisitLiveObject(Heap* heap, Tagged<JSFinalizationRegistry> obj) {
     heap->set_dirty_js_finalization_registries_list_tail(obj);
   }
-
-  static void VisitPhantomObject(Heap*, Tagged<JSFinalizationRegistry>) {}
 };
 
 template Tagged<Object> VisitWeakList<Context>(Heap* heap, Tagged<Object> list,

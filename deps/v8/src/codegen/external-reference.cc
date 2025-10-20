@@ -11,6 +11,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
+#include "src/base/macros.h"
 #include "src/codegen/cpu-features.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
@@ -264,11 +265,6 @@ ExternalReference ExternalReference::Create(Runtime::FunctionId id) {
 }
 
 // static
-ExternalReference ExternalReference::Create(IsolateFieldId id) {
-  return ExternalReference(id);
-}
-
-// static
 ExternalReference ExternalReference::Create(const Runtime::Function* f) {
   return ExternalReference(
       Redirect(f->entry, BuiltinCallTypeForResultSize(f->result_size)));
@@ -484,14 +480,14 @@ uint32_t fp64_to_fp16_raw_bits(double input) { return DoubleToFloat16(input); }
 uint32_t fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch(uint32_t hi,
                                                        uint32_t lo) {
   uint64_t input = static_cast<uint64_t>(hi) << 32 | lo;
-  return DoubleToFloat16(std::bit_cast<double, uint64_t>(input));
+  return DoubleToFloat16(base::bit_cast<double, uint64_t>(input));
 }
 
 // Since floating point parameters and return value are not supported
 // for C-linkage functions on 32bit architectures, we should use raw bits.
 uint32_t fp16_raw_bits_ieee_to_fp32_raw_bits(uint32_t input) {
   float value = fp16_ieee_to_fp32_value(input);
-  return std::bit_cast<uint32_t, float>(value);
+  return base::bit_cast<uint32_t, float>(value);
 }
 
 FUNCTION_REFERENCE(ieee754_fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch,
@@ -517,6 +513,12 @@ FUNCTION_REFERENCE(shared_barrier_from_code_function,
 
 FUNCTION_REFERENCE(insert_remembered_set_function,
                    Heap::InsertIntoRememberedSetFromCode)
+
+FUNCTION_REFERENCE(verify_skipped_write_barrier,
+                   Heap::VerifySkippedWriteBarrier)
+
+FUNCTION_REFERENCE(verify_skipped_indirect_write_barrier,
+                   Heap::VerifySkippedIndirectWriteBarrier)
 
 namespace {
 
@@ -591,10 +593,6 @@ Address ExternalReference::UnwrapRedirection(Address redirection_trampoline) {
 #endif
 }
 
-ExternalReference ExternalReference::stress_deopt_count(Isolate* isolate) {
-  return ExternalReference(isolate->stress_deopt_count_address());
-}
-
 ExternalReference ExternalReference::force_slow_path(Isolate* isolate) {
   return ExternalReference(isolate->force_slow_path_address());
 }
@@ -611,8 +609,10 @@ FUNCTION_REFERENCE(ensure_valid_return_address,
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 FUNCTION_REFERENCE(wasm_start_stack, wasm::start_stack)
+FUNCTION_REFERENCE(wasm_suspender_has_js_frames, wasm::suspender_has_js_frames)
 FUNCTION_REFERENCE(wasm_suspend_stack, wasm::suspend_stack)
-FUNCTION_REFERENCE(wasm_resume_stack, wasm::resume_stack)
+FUNCTION_REFERENCE(wasm_resume_jspi_stack, wasm::resume_jspi_stack)
+FUNCTION_REFERENCE(wasm_resume_wasmfx_stack, wasm::resume_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_return_stack, wasm::return_stack)
 FUNCTION_REFERENCE(wasm_switch_to_the_central_stack,
                    wasm::switch_to_the_central_stack)
@@ -823,26 +823,6 @@ ExternalReference ExternalReference::is_shared_space_isolate_flag_address(
     Isolate* isolate) {
   return ExternalReference(
       isolate->isolate_data()->is_shared_space_isolate_flag_address());
-}
-
-ExternalReference ExternalReference::new_space_allocation_top_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->NewSpaceAllocationTopAddress());
-}
-
-ExternalReference ExternalReference::new_space_allocation_limit_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->NewSpaceAllocationLimitAddress());
-}
-
-ExternalReference ExternalReference::old_space_allocation_top_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->OldSpaceAllocationTopAddress());
-}
-
-ExternalReference ExternalReference::old_space_allocation_limit_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->OldSpaceAllocationLimitAddress());
 }
 
 ExternalReference ExternalReference::last_young_allocation_address(
@@ -1947,9 +1927,9 @@ size_t hash_value(ExternalReference reference) {
 namespace {
 static constexpr const char* GetNameOfIsolateFieldId(IsolateFieldId id) {
   switch (id) {
-#define CASE(id, name, camel)    \
-  case IsolateFieldId::k##camel: \
-    return name;
+#define CASE(CamelName, name)        \
+  case IsolateFieldId::k##CamelName: \
+    return #name;
     EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(CASE)
 #undef CASE
 #define CASE(camel, size, name)  \

@@ -96,7 +96,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     const wasm::CanonicalSig* sig =
         GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
     ResolvedWasmImport resolved({}, -1, maybe_import->js_function, sig,
-                                sig_index, WellKnownImport::kUninstantiated);
+                                WellKnownImport::kUninstantiated);
     ImportCallKind kind = resolved.kind();
     DirectHandle<JSReceiver> callable = resolved.callable();
     std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =

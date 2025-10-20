@@ -488,10 +488,13 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
   // Only SourceTextModules may be async.
   if (!IsSourceTextModule(*this)) return false;
   Tagged<SourceTextModule> root = Cast<SourceTextModule>(*this);
+  DCHECK(root->status() == kLinked || root->status() == kEvaluated ||
+         root->status() == kEvaluatingAsync || root->status() == kErrored);
 
   Zone zone(isolate->allocator(), ZONE_NAME);
   const size_t bucket_count = 2;
-  ZoneUnorderedSet<Tagged<Module>, Module::Hash> visited(&zone, bucket_count);
+  ZoneUnorderedSet<Tagged<SourceTextModule>, Module::Hash> visited(
+      &zone, bucket_count);
   ZoneVector<Tagged<SourceTextModule>> worklist(&zone);
   visited.insert(root);
   worklist.push_back(root);
@@ -504,10 +507,18 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
     if (current->has_toplevel_await()) return true;
     Tagged<FixedArray> requested_modules = current->requested_modules();
     for (int i = 0, length = requested_modules->length(); i < length; ++i) {
-      Tagged<Module> descendant = Cast<Module>(requested_modules->get(i));
-      if (IsSourceTextModule(descendant)) {
+      Tagged<Object> raw_descendant = requested_modules->get(i);
+      // The current module must have been linked as the root has been linked.
+      // If the request is a source phase import, the descendant can be a
+      // JavaScript object, and it can not be async. Skip it.
+      // If the request is an evaluation phase import, the descendant can be
+      // either a SourceTextModule or a SyntheticModule. Visit it if it is a
+      // SourceTextModule.
+      if (IsSourceTextModule(raw_descendant)) {
+        Tagged<SourceTextModule> descendant =
+            Cast<SourceTextModule>(raw_descendant);
         const bool cycle = !visited.insert(descendant).second;
-        if (!cycle) worklist.push_back(Cast<SourceTextModule>(descendant));
+        if (!cycle) worklist.push_back(descendant);
       }
     }
   } while (!worklist.empty());

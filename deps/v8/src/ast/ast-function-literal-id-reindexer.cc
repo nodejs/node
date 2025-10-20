@@ -70,11 +70,12 @@ void AstFunctionLiteralIdReindexer::VisitClassLiteral(ClassLiteral* expr) {
   for (int i = 0; i < props->length(); ++i) {
     ClassLiteralProperty* prop = props->at(i);
 
-    // Public fields with computed names have their key
-    // and value present in instance_members_initializer_function, so they will
+    // Public fields and auto accessors with computed names have their key and
+    // value present in instance_members_initializer_function, so they will
     // already have been visited.
     if (prop->is_computed_name() &&
-        prop->kind() == ClassLiteralProperty::Kind::FIELD) {
+        (prop->kind() == ClassLiteralProperty::Kind::FIELD ||
+         (prop->kind() == ClassLiteralProperty::Kind::AUTO_ACCESSOR))) {
       if (!prop->key()->IsLiteral()) {
         CheckVisited(prop->key());
       }
@@ -84,6 +85,10 @@ void AstFunctionLiteralIdReindexer::VisitClassLiteral(ClassLiteral* expr) {
         Visit(prop->key());
       }
       Visit(prop->value());
+    }
+    if (prop->kind() == ClassLiteralProperty::Kind::AUTO_ACCESSOR) {
+      Visit(prop->auto_accessor_info()->generated_getter());
+      Visit(prop->auto_accessor_info()->generated_setter());
     }
   }
 }

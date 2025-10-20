@@ -493,7 +493,7 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
 
   if (type != ConsoleAPIType::kClear) {
     inspector->client()->consoleAPIMessage(
-        groupId, clientLevel, toStringView(message->m_message),
+        groupId, contextId, clientLevel, toStringView(message->m_message),
         toStringView(message->m_url), message->m_lineNumber,
         message->m_columnNumber, message->m_stackTrace.get());
   }

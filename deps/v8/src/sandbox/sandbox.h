@@ -338,15 +338,25 @@ class V8_EXPORT_PRIVATE Sandbox {
 
 // Helper function that can be used to ensure that certain objects are not
 // located inside the sandbox. Typically used for trusted objects.
-// Will always return false when the sandbox is disabled or partially reserved.
-V8_INLINE bool InsideSandbox(uintptr_t address) {
+// Returns true when the sandbox is disabled, or when the sandbox is partially
+// reserved and the address is outside the reservation.
+V8_INLINE bool OutsideSandbox(uintptr_t address) {
 #ifdef V8_ENABLE_SANDBOX
   Sandbox* sandbox = Sandbox::current();
   // Use ReservationContains (instead of just Contains) to correctly handle the
   // case of partially-reserved sandboxes.
-  return sandbox->ReservationContains(address);
+  return !sandbox->ReservationContains(address);
 #else
-  return false;
+  return true;
+#endif
+}
+
+V8_INLINE bool InsideSandbox(uintptr_t address) {
+#ifdef V8_ENABLE_SANDBOX
+  Sandbox* sandbox = Sandbox::current();
+  return sandbox->Contains(address);
+#else
+  return true;
 #endif
 }
 

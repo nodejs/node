@@ -22,12 +22,34 @@
 //
 // Futex equivalents: https://outerproduct.net/futex-dictionary.html; we
 // support Linux/Emscripten/Apple/Windows and C++20 std::atomic::wait, plus a
-// usleep fallback.
+// NanoSleep fallback.
+
+#include <time.h>
 
 #include <atomic>
 #include <climits>  // INT_MAX
 
 #include "hwy/base.h"
+
+#if HWY_OS_APPLE
+#include <AvailabilityMacros.h>
+// __ulock* were added in OS X 10.12 (Sierra, 2016).
+#if MAC_OS_X_VERSION_MAX_ALLOWED < 101200 && !defined(HWY_DISABLE_FUTEX)
+#define HWY_DISABLE_FUTEX
+#endif
+#endif  // HWY_OS_APPLE
+
+#if HWY_OS_WIN
+// Need to include <windows.h> on Windows, even if HWY_DISABLE_FUTEX is defined,
+// since hwy::NanoSleep uses Windows API's that are defined in windows.h.
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif  // NOMINMAX
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif  // WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 #if HWY_ARCH_WASM
 #include <emscripten/threading.h>
@@ -65,15 +87,54 @@ int __ulock_wake(uint32_t op, void* address, uint64_t zero);
 
 #elif HWY_OS_WIN && !defined(HWY_DISABLE_FUTEX)
 // WakeByAddressAll requires Windows 8, so add an opt-out.
-#include <windows.h>
+#if HWY_COMPILER_MSVC || HWY_COMPILER_CLANGCL
 #pragma comment(lib, "synchronization.lib")
+#endif
 
 #elif HWY_CXX_LANG < 202002L  // NOT C++20, which has native support
 #define HWY_FUTEX_SLEEP
-#include <chrono>  // NOLINT (sleep_for)
 #endif
 
 namespace hwy {
+
+// Attempts to pause for the specified nanoseconds, though the resolution is
+// closer to 0.1 microseconds. Returns false if no wait happened. Thread-safe.
+static inline bool NanoSleep(uint64_t ns) {
+#if HWY_OS_WIN
+  static thread_local HANDLE hTimer = nullptr;
+  if (HWY_UNLIKELY(hTimer == nullptr)) {
+    // Must be manual reset: auto-reset would immediately signal after the next
+    // SetWaitableTimer.
+    hTimer = CreateWaitableTimer(nullptr, TRUE, nullptr);
+    if (hTimer == nullptr) return false;
+  }
+
+  // Negative means relative, in units of 100 ns.
+  LARGE_INTEGER time;
+  time.QuadPart = -static_cast<LONGLONG>(ns / 100);
+  const LONG period = 0;  // signal once
+  if (!SetWaitableTimer(hTimer, &time, period, nullptr, nullptr, FALSE)) {
+    return false;
+  }
+
+  (void)WaitForSingleObject(hTimer, INFINITE);
+  return true;
+#else
+  timespec duration;
+  duration.tv_sec = static_cast<time_t>(ns / 1000000000);
+  duration.tv_nsec = static_cast<decltype(duration.tv_nsec)>(ns % 1000000000);
+  timespec remainder;
+  // Repeat if interrupted by a signal. Note that the remainder may be rounded
+  // up, which could cause an infinite loop if continually interrupted. Using
+  // clock_nanosleep would work, but we'd have to get the current time. We
+  // assume durations are short, and instead just cap the number of retries.
+  for (int rep = 0; rep < 3; ++rep) {
+    if (nanosleep(&duration, &remainder) == 0 || errno != EINTR) break;
+    duration = remainder;
+  }
+  return true;
+#endif
+}
 
 // Waits until `current != prev` and returns the new value. May return
 // immediately if `current` already changed, or after blocking and waking.
@@ -139,7 +200,7 @@ static inline uint32_t BlockUntilDifferent(
   for (;;) {
     const uint32_t next = current.load(acq);
     if (next != prev) return next;
-    std::this_thread::sleep_for(std::chrono::microseconds(2));
+    NanoSleep(2000);
   }
 
 #elif HWY_CXX_LANG >= 202002L
@@ -184,7 +245,7 @@ static inline void WakeAll(std::atomic<uint32_t>& current) {
   __ulock_wake(UL_COMPARE_AND_WAIT | ULF_WAKE_ALL, address, 0);
 
 #elif defined(HWY_FUTEX_SLEEP)
-  // Sleep loop does not require wakeup.
+  // NanoSleep loop does not require wakeup.
   (void)current;
 #elif HWY_CXX_LANG >= 202002L
   current.notify_all();

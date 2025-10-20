@@ -66,14 +66,6 @@
    'func': ['variant == stress', SKIP],
 }],  # 'arch == riscv32'
 
-['arch == riscv32 and mode == debug and simulator_run', {
-  # Fails in debug mode, because the vector unit isn't properly set up and
-  # the simulator catches it:
-  #   Fatal error in ../../src/execution/riscv/simulator-riscv.cc, line ????
-  #   Debug check failed: vu_enabled_.
-  'simd/simd_load_zero': [FAIL],
-}],  # 'arch == riscv32 and mode == debug and simulator_run'
-
 ['arch == ppc64', {
   # These tests fail because ppc float min and max doesn't convert sNaN to qNaN.
   'f32': [SKIP],

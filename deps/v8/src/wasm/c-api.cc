@@ -1581,7 +1581,7 @@ auto make_func(Store* store_abs, std::shared_ptr<FuncData> data) -> own<Func> {
       i::wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
   i::DirectHandle<i::WasmCapiFunction> function = i::WasmCapiFunction::New(
       isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
-      embedder_data, sig_index, sig);
+      embedder_data, sig);
   i::TrustedCast<i::WasmImportData>(
       function->shared()->wasm_capi_function_data()->internal()->implicit_arg())
       ->set_callable(*function);

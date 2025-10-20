@@ -95,11 +95,6 @@ bool IsTaggedIndex(Tagged<Object> obj) {
          TaggedIndex::IsValid(Tagged<TaggedIndex>(obj.ptr()).value());
 }
 
-bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
-  return IsHeapObject(obj) &&
-         IsJSObjectThatCanBeTrackedAsPrototype(Cast<HeapObject>(obj));
-}
-
 #define IS_TYPE_FUNCTION_DEF(type_)                                          \
   bool Is##type_(Tagged<Object> obj) {                                       \
     return IsHeapObject(obj) && Is##type_(Cast<HeapObject>(obj));            \
@@ -499,11 +494,16 @@ constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged<MaybeObject> obj) {
 
 bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj) {
 #ifdef V8_ENABLE_SANDBOX
-  return !InsideSandbox(obj.address()) ||
+  return OutsideSandbox(obj.address()) ||
          MemoryChunk::FromHeapObject(obj)->SandboxSafeInReadOnlySpace();
 #else
   return true;
 #endif
+}
+
+bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
+  return IsHeapObject(obj) &&
+         IsJSObjectThatCanBeTrackedAsPrototype(Cast<HeapObject>(obj));
 }
 
 bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
@@ -511,6 +511,19 @@ bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
   // threadsafe. Objects in the shared heap have fixed layouts and their maps
   // never change.
   return IsJSObject(obj) && !HeapLayout::InWritableSharedSpace(*obj);
+}
+
+bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
+  return IsHeapObject(obj) &&
+         IsAnyObjectThatCanBeTrackedAsPrototype(Cast<HeapObject>(obj));
+}
+
+bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
+  // Do not optimize objects in the shared heap because it is not
+  // threadsafe. Objects in the shared heap have fixed layouts and their maps
+  // never change.
+  return (IsJSObject(obj) || IsWasmObject(obj)) &&
+         !HeapLayout::InWritableSharedSpace(*obj);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUniqueName) {
@@ -874,11 +887,11 @@ ElementsKind Object::OptimalElementsKind(Tagged<Object> obj,
   // if (IsUninitializedHole(heap_object)) {
   //   return PACKED_SMI_ELEMENTS;
   // }
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   if (IsUndefined(heap_object, GetReadOnlyRoots())) {
     return HOLEY_DOUBLE_ELEMENTS;
   }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   return PACKED_ELEMENTS;
 }
 

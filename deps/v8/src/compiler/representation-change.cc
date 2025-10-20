@@ -860,11 +860,11 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
             std::numeric_limits<double>::quiet_NaN());
       } else if (use_info.truncation()
                      .TruncatesBooleanAndNullAndBigIntToNumber()) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
         return jsgraph()->Float64Constant(UndefinedNan());
 #else
         UNREACHABLE();
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
       } else {
         DCHECK(use_info.type_check() == TypeCheckKind::kNone ||
                use_info.type_check() == TypeCheckKind::kNumber ||

@@ -140,7 +140,6 @@ v8_source_set("cctest_sources") {
     "test-mementos.cc",
     "test-orderedhashtable.cc",
     "test-profile-generator.cc",
-    "test-property-details.cc",
     "test-ptr-compr-cage.cc",
     "test-random-number-generator.cc",
     "test-regexp.cc",

@@ -108,6 +108,11 @@ static constexpr int kConstructorFunctionContextSlot =
     Context::MIN_CONTEXT_SLOTS;
 static constexpr int kConstructorFunctionContextLength =
     kConstructorFunctionContextSlot + 1;
+
+// Same trick for generated method wrappers.
+static constexpr int kMethodWrapperContextSlot = Context::MIN_CONTEXT_SLOTS;
+static constexpr int kMethodWrapperContextLength =
+    kMethodWrapperContextSlot + 1;
 }  // namespace wasm
 
 // A helper for an entry for an imported function, indexed statically.
@@ -502,10 +507,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_PRIMITIVE_ACCESSORS(memory0_size, size_t)
   DECL_PROTECTED_POINTER_ACCESSORS(managed_native_module,
                                    TrustedManaged<wasm::NativeModule>)
-  DECL_PRIMITIVE_ACCESSORS(new_allocation_limit_address, Address*)
-  DECL_PRIMITIVE_ACCESSORS(new_allocation_top_address, Address*)
-  DECL_PRIMITIVE_ACCESSORS(old_allocation_limit_address, Address*)
-  DECL_PRIMITIVE_ACCESSORS(old_allocation_top_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(globals_start, uint8_t*)
   DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
   DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
@@ -516,7 +517,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_ACCESSORS(data_segment_sizes, Tagged<FixedUInt32Array>)
   DECL_ACCESSORS(element_segments, Tagged<FixedArray>)
   DECL_PRIMITIVE_ACCESSORS(break_on_entry, uint8_t)
-  DECL_PRIMITIVE_ACCESSORS(stress_deopt_counter_address, Address)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic. Depending on the V8 build mode there could be no padding.
@@ -551,13 +551,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kJumpTableStartOffset, kSystemPointerSize)                            \
   /* End of often-accessed fields. */                                     \
   /* Continue with system pointer size fields to maintain alignment. */   \
-  V(kNewAllocationLimitAddressOffset, kSystemPointerSize)                 \
-  V(kNewAllocationTopAddressOffset, kSystemPointerSize)                   \
-  V(kOldAllocationLimitAddressOffset, kSystemPointerSize)                 \
-  V(kOldAllocationTopAddressOffset, kSystemPointerSize)                   \
   V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
   V(kTieringBudgetArrayOffset, kSystemPointerSize)                        \
-  V(kStressDeoptCounterOffset, kSystemPointerSize)                        \
   /* Less than system pointer size aligned fields are below. */           \
   V(kProtectedMemoryBasesAndSizesOffset, kTaggedSize)                     \
   V(kDataSegmentStartsOffset, kTaggedSize)                                \
@@ -1010,8 +1005,7 @@ class WasmExportedFunction : public JSFunction {
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function, int arity,
       DirectHandle<Code> export_wrapper, const wasm::WasmModule* module,
-      int func_index, wasm::CanonicalTypeIndex sig_id,
-      const wasm::CanonicalSig* sig, wasm::Promise promise);
+      int func_index, const wasm::CanonicalSig* sig, wasm::Promise promise);
 
   static void MarkAsReceiverIsFirstParam(
       Isolate* isolate, DirectHandle<WasmExportedFunction> exported_function);
@@ -1020,7 +1014,6 @@ class WasmExportedFunction : public JSFunction {
   // a freshly-compiled wrapper.
   static DirectHandle<Code> GetWrapper(Isolate* isolate,
                                        const wasm::CanonicalSig* sig,
-                                       wasm::CanonicalTypeIndex sig_id,
                                        bool receiver_is_first_param,
                                        const wasm::WasmModule* module);
 
@@ -1053,7 +1046,6 @@ class WasmCapiFunction : public JSFunction {
   static DirectHandle<WasmCapiFunction> New(Isolate* isolate,
                                             Address call_target,
                                             DirectHandle<Foreign> embedder_data,
-                                            wasm::CanonicalTypeIndex sig_index,
                                             const wasm::CanonicalSig* sig);
 
   const wasm::CanonicalSig* sig() const;
@@ -1111,14 +1103,7 @@ class WasmExportedFunctionData
   DECL_PROTECTED_POINTER_ACCESSORS(instance_data, WasmTrustedInstanceData)
   DECL_CODE_POINTER_ACCESSORS(c_wrapper_code)
 
-  DECL_PRIMITIVE_ACCESSORS(sig, const wasm::CanonicalSig*)
-  // Prefer to use this convenience wrapper of the Torque-generated
-  // {canonical_type_index()}.
-  inline wasm::CanonicalTypeIndex sig_index() const;
-
   inline bool is_promising() const;
-
-  bool MatchesSignature(wasm::CanonicalTypeIndex other_canonical_sig_index);
 
   // Dispatched behavior.
   DECL_PRINTER(WasmExportedFunctionData)
@@ -1264,10 +1249,6 @@ class WasmCapiFunctionData
     : public TorqueGeneratedWasmCapiFunctionData<WasmCapiFunctionData,
                                                  WasmFunctionData> {
  public:
-  // Prefer to use this convenience wrapper of the Torque-generated
-  // {canonical_sig_index()}.
-  inline wasm::CanonicalTypeIndex sig_index() const;
-
   DECL_PRINTER(WasmCapiFunctionData)
 
   using BodyDescriptor =
@@ -1517,19 +1498,6 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   TQ_OBJECT_CONSTRUCTORS(WasmArray)
 };
 
-class WasmDescriptorOptions
-    : public TorqueGeneratedWasmDescriptorOptions<WasmDescriptorOptions,
-                                                  JSObject> {
- public:
-  static DirectHandle<WasmDescriptorOptions> New(
-      Isolate* isolate, DirectHandle<Object> prototype);
-  DECL_PRINTER(WasmDescriptorOptions)
-
-  class BodyDescriptor;
-
-  TQ_OBJECT_CONSTRUCTORS(WasmDescriptorOptions)
-};
-
 // The suspender object provides an API to suspend and resume wasm code using
 // promises. See: https://github.com/WebAssembly/js-promise-integration.
 class WasmSuspenderObject
@@ -1576,19 +1544,44 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
  public:
 #if V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL
   // TODO(manoskouk): Make it smaller if able and needed.
-  static constexpr int kSize = 64 * KB + kTaggedSize;
+  // The payload size is either two max page size -- one so that we can safely
+  // unmap the page immediately after the header, and a second for holes, so
+  // that the page containing the holes can be unmapped conditionally
+  // independent of the wasm null page. The unmapped hole page is part of the
+  // WasmNull so that RO heap iteration can safely skip over the unmapped page.
+  // TODO(leszeks): Consider making hole unmapping independent of wasm null.
+  static constexpr int kFirstPayloadSize = 64 * KB;
+  static constexpr int kSecondPayloadSize = 64 * KB;
+  static constexpr int kFullPayloadSize =
+      kFirstPayloadSize + kSecondPayloadSize;
   // Payload should be a multiple of page size.
-  static_assert((kSize - kTaggedSize) % kMinimumOSPageSize == 0);
+  static_assert(kFirstPayloadSize % kMinimumOSPageSize == 0);
+  static_assert(kFullPayloadSize % kMinimumOSPageSize == 0);
+
+  Address first_payload() { return field_address(kPayloadOffset); }
+  Address second_payload() {
+    return field_address(kPayloadOffset + kFirstPayloadSize);
+  }
+
+  static constexpr int kPayloadOffset = HeapObject::kHeaderSize;
+  static constexpr int kSizeWithFirstPayload =
+      kPayloadOffset + kFirstPayloadSize;
+  static constexpr int kSizeWithFullPayload = kPayloadOffset + kFullPayloadSize;
+
+  static inline int Size() {
+    return v8_flags.unmap_holes ? WasmNull::kSizeWithFullPayload
+                                : WasmNull::kSizeWithFirstPayload;
+  }
+
   // Any wasm struct offset should fit in the object.
-  static_assert(kSize >=
+  static_assert(kSizeWithFirstPayload >=
                 WasmStruct::kHeaderSize +
                     (wasm::kMaxStructFieldIndexForImplicitNullCheck + 1) *
                         kSimd128Size);
-
-  Address payload() { return ptr() + kHeaderSize - kHeapObjectTag; }
-  static constexpr size_t kPayloadSize = kSize - kTaggedSize;
 #else
-  static constexpr int kSize = kTaggedSize;
+  static constexpr int kSize = HeapObject::kHeaderSize;
+
+  static constexpr inline int Size() { return kSize; }
 #endif
 
   // WasmNull cannot use `FixedBodyDescriptorFor()` as its map is variable size

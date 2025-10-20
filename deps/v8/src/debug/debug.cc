@@ -2747,10 +2747,16 @@ bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
                             debug::LiveEditResult* result) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DebugScope debug_scope(this);
-  running_live_edit_ = true;
-  LiveEdit::PatchScript(isolate_, script, source, preview,
-                        allow_top_frame_live_editing, result);
-  running_live_edit_ = false;
+
+  if (v8_flags.inspector_live_edit) {
+    running_live_edit_ = true;
+    LiveEdit::PatchScript(isolate_, script, source, preview,
+                          allow_top_frame_live_editing, result);
+    running_live_edit_ = false;
+  } else {
+    result->status = debug::LiveEditResult::FEATURE_DISABLED;
+  }
+
   return result->status == debug::LiveEditResult::OK;
 }
 

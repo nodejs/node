@@ -84,8 +84,6 @@ class WithUnifiedHeapSnapshot : public TMixin {
     v8::HeapProfiler* heap_profiler = TMixin::v8_isolate()->GetHeapProfiler();
 
     v8::HeapProfiler::HeapSnapshotOptions options;
-    options.control = nullptr;
-    options.global_object_name_resolver = nullptr;
     options.snapshot_mode = snapshot_mode;
     options.numerics_mode = v8::HeapProfiler::NumericsMode::kHideNumericValues;
     options.stack_state = stack_state;
@@ -301,8 +299,6 @@ class UnifiedHeapWithCustomSpaceSnapshotTest
     v8::HeapProfiler* heap_profiler = v8_isolate()->GetHeapProfiler();
 
     v8::HeapProfiler::HeapSnapshotOptions options;
-    options.control = nullptr;
-    options.global_object_name_resolver = nullptr;
     options.snapshot_mode = snapshot_mode;
     options.numerics_mode = v8::HeapProfiler::NumericsMode::kHideNumericValues;
     options.stack_state = stack_state;

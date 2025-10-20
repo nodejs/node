@@ -207,10 +207,11 @@ CallInterfaceDescriptor Builtins::CallInterfaceDescriptorFor(Builtin builtin) {
 #undef CASE_OTHER
     default:
       Builtins::Kind kind = Builtins::KindOf(builtin);
-      DCHECK_NE(BCH, kind);
-      DCHECK_NE(BCH_TSA, kind);
       if (kind == TFJ_TSA || kind == TFJ || kind == CPP) {
         return JSTrampolineDescriptor{};
+      }
+      if (kind == BCH || kind == BCH_TSA) {
+        return InterpreterDispatchDescriptor{};
       }
       UNREACHABLE();
   }
@@ -225,7 +226,6 @@ Callable Builtins::CallableFor(Isolate* isolate, Builtin builtin) {
 
 // static
 bool Builtins::HasJSLinkage(Builtin builtin) {
-  DCHECK_NE(BCH, Builtins::KindOf(builtin));
   return CallInterfaceDescriptorFor(builtin) == JSTrampolineDescriptor{};
 }
 
@@ -516,19 +516,6 @@ bool Builtins::IsCpp(Builtin builtin) {
 
 // static
 CodeEntrypointTag Builtins::EntrypointTagFor(Builtin builtin) {
-  if (builtin == Builtin::kNoBuiltinId) {
-    // Special case needed for example for tests.
-    return kDefaultCodeEntrypointTag;
-  }
-
-#if V8_ENABLE_DRUMBRAKE
-  if (builtin == Builtin::kGenericJSToWasmInterpreterWrapper) {
-    return kJSEntrypointTag;
-  } else if (builtin == Builtin::kGenericWasmToJSInterpreterWrapper) {
-    return kWasmEntrypointTag;
-  }
-#endif  // V8_ENABLE_DRUMBRAKE
-
   Kind kind = Builtins::KindOf(builtin);
   switch (kind) {
     case CPP:

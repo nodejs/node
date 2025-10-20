@@ -543,15 +543,14 @@ void RegExpMacroAssemblerS390::CheckBitInTable(Handle<ByteArray> table,
 
 void RegExpMacroAssemblerS390::SkipUntilBitInTable(
     int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
-    int advance_by) {
+    int advance_by, Label* on_match, Label* on_no_match) {
   // TODO(pthier): Optimize. Table can be loaded outside of the loop.
-  Label cont, again;
+  Label again;
   Bind(&again);
-  LoadCurrentCharacter(cp_offset, &cont, true);
-  CheckBitInTable(table, &cont);
+  LoadCurrentCharacter(cp_offset, on_no_match, true);
+  CheckBitInTable(table, on_match);
   AdvanceCurrentPosition(advance_by);
   GoTo(&again);
-  Bind(&cont);
 }
 
 bool RegExpMacroAssemblerS390::CheckSpecialClassRanges(

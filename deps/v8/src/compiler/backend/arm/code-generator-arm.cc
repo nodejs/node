@@ -230,6 +230,48 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Zone* zone_;
 };
 
+class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
+                                     Register value, Register scratch,
+                                     UnwindingInfoWriter* unwinding_info_writer)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        scratch_(scratch),
+        must_save_lr_(!gen->frame_access_state()->has_frame()),
+        unwinding_info_writer_(unwinding_info_writer),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    __ PreCheckSkippedWriteBarrier(object_, value_, scratch_, exit());
+
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    if (must_save_lr_) {
+      // We need to save and restore lr if the frame was elided.
+      __ Push(lr);
+      unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset());
+    }
+    __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
+                                                      save_fp_mode);
+    if (must_save_lr_) {
+      __ Pop(lr);
+      unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
+    }
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Register const scratch_;
+  bool const must_save_lr_;
+  UnwindingInfoWriter* const unwinding_info_writer_;
+  Zone* zone_;
+};
+
 template <typename T>
 class OutOfLineFloatMin final : public OutOfLineCode {
  public:
@@ -687,8 +729,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
-    case kArchCallWasmFunctionIndirect:
-    case kArchResumeWasmContinuation: {
+    case kArchCallWasmFunctionIndirect: {
       if (instr->InputAt(0)->IsImmediate()) {
         DCHECK_EQ(arch_opcode, kArchCallWasmFunction);
         Constant constant = i.ToConstant(instr->InputAt(0));
@@ -697,9 +738,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else if (arch_opcode == kArchCallWasmFunctionIndirect) {
         __ CallWasmCodePointer(i.InputRegister(0));
       } else {
-        // TODO(thibaudm): Use a WasmCodePointer for
-        // kArchResumeWasmContinuation. Can this be merged with
-        // kArchCallWasmFunctionIndirect?
         __ Call(i.InputRegister(0));
       }
       RecordCallPosition(instr);
@@ -1016,7 +1054,52 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchStoreSkippedWriteBarrier:  // Fall through.
+    case kArchAtomicStoreSkippedWriteBarrier: {
+      Register object = i.InputRegister(0);
+      Register value = i.InputRegister(2);
+
+      if (v8_flags.debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ cmp(value, Operand(kClearedWeakHeapObjectLower32));
+        __ Check(ne, AbortReason::kOperandIsCleared);
+      }
+
+      AddressingMode addressing_mode =
+          AddressingModeField::decode(instr->opcode());
+      Operand offset(0);
+
+      if (arch_opcode == kArchAtomicStoreSkippedWriteBarrier) {
+        __ dmb(ISH);
+      }
+
+      DCHECK(v8_flags.verify_write_barriers);
+      Register scratch = i.TempRegister(0);
+      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+          this, object, value, scratch, &unwinding_info_writer_);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
+
+      if (addressing_mode == kMode_Offset_RI) {
+        int32_t immediate = i.InputInt32(1);
+        offset = Operand(immediate);
+        __ str(value, MemOperand(object, immediate));
+      } else {
+        DCHECK_EQ(kMode_Offset_RR, addressing_mode);
+        Register reg = i.InputRegister(1);
+        offset = Operand(reg);
+        __ str(value, MemOperand(object, reg));
+      }
+      if (arch_opcode == kArchAtomicStoreSkippedWriteBarrier &&
+          AtomicMemoryOrderField::decode(instr->opcode()) ==
+              AtomicMemoryOrder::kSeqCst) {
+        __ dmb(ISH);
+      }
+      break;
+    }
     case kArchStoreIndirectWithWriteBarrier:
+    case kArchStoreIndirectSkippedWriteBarrier:
       UNREACHABLE();
     case kArchStackSlot: {
       FrameOffset offset =

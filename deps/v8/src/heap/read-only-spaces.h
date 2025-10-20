@@ -24,6 +24,7 @@ namespace internal {
 
 class MemoryAllocator;
 class ReadOnlyHeap;
+class SharedReadOnlySpace;
 class SnapshotByteSource;
 
 class ReadOnlyPageMetadata : public MemoryChunkMetadata {

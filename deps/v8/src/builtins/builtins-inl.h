@@ -181,8 +181,6 @@ constexpr Builtin Builtins::CEntry(int result_size, ArgvMode argv_mode,
     return Builtin::kCEntry_Return1_ArgvInRegister_NoBuiltinExit;
   } else if (rs == 2 && am == ArgvMode::kStack && !be) {
     return Builtin::kCEntry_Return2_ArgvOnStack_NoBuiltinExit;
-  } else if (rs == 2 && am == ArgvMode::kStack && be) {
-    return Builtin::kCEntry_Return2_ArgvOnStack_BuiltinExit;
   } else if (rs == 2 && am == ArgvMode::kRegister && !be) {
     return Builtin::kCEntry_Return2_ArgvInRegister_NoBuiltinExit;
   }

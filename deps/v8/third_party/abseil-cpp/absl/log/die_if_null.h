@@ -23,10 +23,13 @@
 
 #include <stdint.h>
 
+#include <type_traits>
 #include <utility>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/base/internal/nullability_traits.h"
+#include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 
 // ABSL_DIE_IF_NULL()
@@ -56,12 +59,30 @@ namespace log_internal {
 // generates less code than its implementation would if inlined, for a slight
 // code size reduction each time `ABSL_DIE_IF_NULL` is called.
 [[noreturn]] ABSL_ATTRIBUTE_NOINLINE void DieBecauseNull(
-    const char* file, int line, const char* exprtext);
+    const char* absl_nonnull file, int line, const char* absl_nonnull exprtext);
 
 // Helper for `ABSL_DIE_IF_NULL`.
+
+// Since we use `remove_reference_t` before `AddNonnullIfCompatible`, we need
+// to explicitly have overloads for both lvalue reference and rvalue reference
+// arguments and returns.
 template <typename T>
-[[nodiscard]] T DieIfNull(const char* file, int line, const char* exprtext,
-                          T&& t) {
+[[nodiscard]] typename absl::base_internal::AddNonnullIfCompatible<
+    std::remove_reference_t<T>>::type&
+DieIfNull(const char* absl_nonnull file, int line,
+          const char* absl_nonnull exprtext, T& t) {
+  if (ABSL_PREDICT_FALSE(t == nullptr)) {
+    // Call a non-inline helper function for a small code size improvement.
+    DieBecauseNull(file, line, exprtext);
+  }
+  return t;
+}
+
+template <typename T>
+[[nodiscard]] typename absl::base_internal::AddNonnullIfCompatible<
+    std::remove_reference_t<T>>::type&&
+DieIfNull(const char* absl_nonnull file, int line,
+          const char* absl_nonnull exprtext, T&& t) {
   if (ABSL_PREDICT_FALSE(t == nullptr)) {
     // Call a non-inline helper function for a small code size improvement.
     DieBecauseNull(file, line, exprtext);

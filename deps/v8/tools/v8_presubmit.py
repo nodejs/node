@@ -83,6 +83,11 @@ ASSERT_UNOPTIMIZED_PATTERN = re.compile("assertUnoptimized")
 TOOLS_PATH = dirname(abspath(__file__))
 DEPS_DEPOT_TOOLS_PATH = abspath(
     join(TOOLS_PATH, '..', 'third_party', 'depot_tools'))
+# If the depot_tools don't exist in the V8 directory, we are probably in a
+# chromium checkout, so we can use the depot tools of the chromium checkout.
+if not isdir(DEPS_DEPOT_TOOLS_PATH):
+  DEPS_DEPOT_TOOLS_PATH = abspath(
+      join(TOOLS_PATH, '..', '..', 'third_party', 'depot_tools'))
 
 sys.path.append(DEPS_DEPOT_TOOLS_PATH)
 import rdb_wrapper

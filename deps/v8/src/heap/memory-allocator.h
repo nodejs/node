@@ -180,6 +180,8 @@ class MemoryAllocator final {
   // Returns page allocator suitable for allocating pages for the given space.
   v8::PageAllocator* page_allocator(AllocationSpace space) const {
     switch (space) {
+      case RO_SPACE:
+        return read_only_page_allocator_;
       case CODE_SPACE:
       case CODE_LO_SPACE:
         return code_page_allocator_;
@@ -188,7 +190,12 @@ class MemoryAllocator final {
       case TRUSTED_LO_SPACE:
       case SHARED_TRUSTED_LO_SPACE:
         return trusted_page_allocator_;
-      default:
+      case NEW_SPACE:
+      case NEW_LO_SPACE:
+      case OLD_SPACE:
+      case LO_SPACE:
+      case SHARED_SPACE:
+      case SHARED_LO_SPACE:
         return data_page_allocator_;
     }
   }
@@ -327,6 +334,9 @@ class MemoryAllocator final {
   // or a BoundedPageAllocator (when pointer compression is enabled).
   v8::PageAllocator* data_page_allocator_;
 
+  // Allocator for read-only pages.
+  v8::PageAllocator* read_only_page_allocator_;
+
   // Page allocator used for allocating code pages. Depending on the
   // configuration it may be a page allocator instance provided by v8::Platform
   // or a BoundedPageAllocator from Heap::code_range_ (when pointer compression
@@ -388,7 +398,7 @@ class MemoryAllocator final {
   //
   // Set of regular pages that are delayed then pool. Delayed pages can be
   // immediately reused for allocations.
-  std::vector<MutablePageMetadata*> delayed_then_pooled_pages_;
+  std::vector<PageMetadata*> delayed_then_pooled_pages_;
   // Set of large delayed then pooled pages. Delayed pages cannot be reused (not
   // implemented).
   std::vector<LargePageMetadata*> delayed_then_pooled_large_pages_;

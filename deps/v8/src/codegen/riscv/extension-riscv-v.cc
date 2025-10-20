@@ -871,29 +871,5 @@ void AssemblerRISCVV::vcpop_m(Register rd, VRegister vs2, MaskType mask) {
   GenInstrV(VWXUNARY0_FUNCT6, OP_MVV, rd, 0b10000, vs2, mask);
 }
 
-LoadStoreLaneParams::LoadStoreLaneParams(MachineRepresentation rep,
-                                         uint8_t laneidx) {
-#ifdef CAN_USE_RVV_INSTRUCTIONS
-  switch (rep) {
-    case MachineRepresentation::kWord8:
-      *this = LoadStoreLaneParams(laneidx, 8, kRvvVLEN / 16);
-      break;
-    case MachineRepresentation::kWord16:
-      *this = LoadStoreLaneParams(laneidx, 16, kRvvVLEN / 8);
-      break;
-    case MachineRepresentation::kWord32:
-      *this = LoadStoreLaneParams(laneidx, 32, kRvvVLEN / 4);
-      break;
-    case MachineRepresentation::kWord64:
-      *this = LoadStoreLaneParams(laneidx, 64, kRvvVLEN / 2);
-      break;
-    default:
-      UNREACHABLE();
-  }
-#else
-  UNREACHABLE();
-#endif
-}
-
 }  // namespace internal
 }  // namespace v8

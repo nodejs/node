@@ -13,9 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "tests/mul_pairwise_test.cc"
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
@@ -308,7 +305,7 @@ struct TestSatWidenMulPairwiseAccumulate {
         dw, vw_max,
         SatWidenMulPairwiseAccumulate(dw, vn_min, vn_min, vw_kneg1));
 
-    const VN vn_p = PositiveIota(dn);
+    const VN vn_p = PositiveIota(dn, 1);
     const VN vn_n = Neg(vn_p);
 
     const VW vw_sum2_p = SumsOf2(vn_p);

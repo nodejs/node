@@ -469,7 +469,7 @@ template <typename T>
 size_t ConcurrentHeapVisitor<ConcreteVisitor>::VisitStringLocked(
     Tagged<T> object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  ObjectLockGuard guard(object);
+  ObjectLockGuard guard(Isolate::Current(), object);
   // The object has been locked. At this point shared read access is
   // guaranteed but we must re-read the map and check whether the string has
   // transitioned.

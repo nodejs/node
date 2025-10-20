@@ -9,9 +9,9 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include "src/compiler/frame-states.h"
 #include "src/compiler/js-inlining.h"
 #include "src/compiler/turboshaft/assembler.h"
-#include "src/compiler/turboshaft/define-assembler-macros.inc"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/wasm-assembler-helpers.h"
@@ -20,11 +20,15 @@
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/turboshaft-graph-interface-inl.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-subtyping.h"
+#include "src/wasm/wrappers-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 #define TRACE(x)                         \
   do {                                   \
@@ -37,6 +41,7 @@ template <class Next>
 class WasmInJSInliningReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(WasmInJSInlining)
+  const bool has_wasm_in_js_inlining_reducer = true;
 
   V<Any> REDUCE(Call)(V<CallTarget> callee,
                       OptionalV<turboshaft::FrameState> frame_state,
@@ -48,15 +53,29 @@ class WasmInJSInliningReducer : public Next {
                               effects);
     }
 
-    // We shouldn't have attached `JSWasmCallParameters` at this call, unless
-    // we have TS Wasm-in-JS inlining enabled.
-    CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
-
     wasm::NativeModule* native_module =
         descriptor->js_wasm_call_parameters->native_module();
     uint32_t func_idx = descriptor->js_wasm_call_parameters->function_index();
 
-    V<Any> result = TryInlineWasmCall(native_module, func_idx, arguments);
+    V<Any> result;
+    if (v8_flags.turbolev_inline_js_wasm_wrappers && frame_state.has_value()) {
+      CHECK(v8_flags.turbolev);
+      // TODO(353475584): Wrapper inlining in Turboshaft is only implemented for
+      // the Turbolev frontend right now.
+      V<JSFunction> js_closure = V<JSFunction>::Cast(callee);
+      V<Context> js_context = V<Context>::Cast(arguments[arguments.size() - 1]);
+
+      result = TryInlineJSWasmCallWrapperAndBody(
+          native_module, func_idx, arguments, js_closure, js_context,
+          descriptor->js_wasm_call_parameters->receiver_is_first_param(),
+          frame_state.value());
+    } else {
+      // We shouldn't have attached `JSWasmCallParameters` at this call, unless
+      // we have TS Wasm-in-JS inlining enabled.
+      CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
+      result = TryInlineWasmCall(native_module, func_idx, arguments);
+    }
+
     if (!result.valid()) {
       result =
           Next::ReduceCall(callee, frame_state, arguments, descriptor, effects);
@@ -64,9 +83,19 @@ class WasmInJSInliningReducer : public Next {
     return result;
   }
 
- private:
   V<Any> TryInlineWasmCall(wasm::NativeModule* native_module, uint32_t func_idx,
                            base::Vector<const OpIndex> arguments);
+
+ private:
+  V<Any> TryInlineJSWasmCallWrapperAndBody(
+      wasm::NativeModule* native_module, uint32_t func_idx,
+      base::Vector<const OpIndex> arguments, V<JSFunction> js_closure,
+      V<Context> js_context, bool receiver_is_first_param,
+      V<turboshaft::FrameState> frame_state);
+
+  V<turboshaft::FrameState> CreateJSWasmCallBuiltinContinuationFrameState(
+      V<Context> js_context, V<turboshaft::FrameState> outer_frame_state,
+      const wasm::CanonicalSig* signature);
 };
 
 using wasm::ArrayIndexImmediate;
@@ -885,7 +914,8 @@ class WasmInJsInliningInterface {
     Bailout(decoder);
   }
 
-  void RefGetDesc(FullDecoder* decoder, const Value& ref, Value* desc) {
+  void RefGetDesc(FullDecoder* decoder, wasm::ModuleTypeIndex struct_index,
+                  const Value& ref, Value* desc) {
     Bailout(decoder);
   }
 
@@ -1229,6 +1259,39 @@ class WasmInJsInliningInterface {
 };
 
 template <class Next>
+V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
+    wasm::NativeModule* native_module, uint32_t func_idx,
+    base::Vector<const OpIndex> arguments, V<JSFunction> js_closure,
+    V<Context> js_context, bool receiver_is_first_param,
+    V<turboshaft::FrameState> outer_frame_state) {
+  const wasm::WasmModule* module = native_module->module();
+  DCHECK_LT(func_idx, module->functions.size());
+  const wasm::WasmFunction& func = module->functions[func_idx];
+  wasm::CanonicalTypeIndex sig_id = module->canonical_sig_id(func.sig_index);
+  const wasm::CanonicalSig* sig =
+      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
+
+  V<turboshaft::FrameState> frame_state =
+      CreateJSWasmCallBuiltinContinuationFrameState(js_context,
+                                                    outer_frame_state, sig);
+  using GraphBuilder = wasm::WasmWrapperTSGraphBuilder<Assembler<ReducerList>>;
+  std::optional<typename GraphBuilder::InlinedFunctionData>
+      inlined_function_data;
+  if (v8_flags.turboshaft_wasm_in_js_inlining) {
+    inlined_function_data = {native_module, func_idx};
+  }
+
+  TRACE("Inlining JS-to-Wasm wrapper for Wasm function ["
+        << func_idx << "] "
+        << JSInliner::WasmFunctionNameForTrace(native_module, func_idx)
+        << " of module " << module);
+
+  GraphBuilder builder(Asm().phase_zone(), Asm(), sig, inlined_function_data);
+  return builder.BuildJSToWasmWrapperImpl(receiver_is_first_param, js_closure,
+                                          js_context, arguments, frame_state);
+}
+
+template <class Next>
 V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
     wasm::NativeModule* native_module, uint32_t func_idx,
     base::Vector<const OpIndex> arguments) {
@@ -1316,8 +1379,41 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
   return emitting_decoder.interface().Result();
 }
 
-}  // namespace v8::internal::compiler::turboshaft
+template <class Next>
+V<turboshaft::FrameState>
+WasmInJSInliningReducer<Next>::CreateJSWasmCallBuiltinContinuationFrameState(
+    V<Context> js_context, V<turboshaft::FrameState> outer_frame_state,
+    const wasm::CanonicalSig* signature) {
+  constexpr uint16_t kParameterCount = 0;
+  constexpr int kLocalCount = 0;
+  const FrameStateType frame_type =
+      FrameStateType::kJSToWasmBuiltinContinuation;
+  Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>();
+  Zone* zone = __ data() -> compilation_zone();
+
+  const FrameStateFunctionInfo* frame_state_function_info =
+      zone->template New<compiler::JSToWasmFrameStateFunctionInfo>(
+          frame_type, kParameterCount, kLocalCount, shared, signature);
+  const FrameStateInfo* frame_state_info = zone->template New<FrameStateInfo>(
+      Builtins::GetContinuationBytecodeOffset(
+          Builtin::kJSToWasmLazyDeoptContinuation),
+      OutputFrameStateCombine::Ignore(), frame_state_function_info);
+
+  FrameStateData::Builder builder;
+  builder.AddParentFrameState(outer_frame_state);
+  builder.AddInput(
+      MachineType::AnyTagged(),
+      __ HeapConstant(
+          __ data()->isolate()->factory()->undefined_value()));  // Closure.
+  builder.AddInput(MachineType::AnyTagged(), js_context);
+
+  constexpr bool kInlined = true;
+  return __ FrameState(builder.Inputs(), kInlined,
+                       builder.AllocateFrameStateData(*frame_state_info, zone));
+}
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
+
+}  // namespace v8::internal::compiler::turboshaft
 
 #endif  // V8_COMPILER_TURBOSHAFT_WASM_IN_JS_INLINING_REDUCER_INL_H_

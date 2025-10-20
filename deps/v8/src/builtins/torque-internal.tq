@@ -323,13 +323,13 @@ InitializeFieldsFromIterator<char16, UninitializedIterator>(
     _originIterator: UninitializedIterator): void {}
 
 extern macro IsDoubleHole(HeapObject, intptr): bool;
-@if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+@if(V8_ENABLE_UNDEFINED_DOUBLE)
 extern macro IsDoubleUndefined(HeapObject, intptr): bool;
 extern macro StoreDoubleHole(HeapObject, intptr): void;
-@if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+@if(V8_ENABLE_UNDEFINED_DOUBLE)
 extern macro StoreDoubleUndefined(HeapObject, intptr): void;
 
-@if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+@if(V8_ENABLE_UNDEFINED_DOUBLE)
 macro LoadFloat64OrUndefinedOrHole(r:&float64_or_undefined_or_hole):
     float64_or_undefined_or_hole {
   return float64_or_undefined_or_hole{
@@ -341,7 +341,7 @@ macro LoadFloat64OrUndefinedOrHole(r:&float64_or_undefined_or_hole):
   };
 }
 
-@ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+@ifnot(V8_ENABLE_UNDEFINED_DOUBLE)
 macro LoadFloat64OrHole(r:&float64_or_undefined_or_hole):
     float64_or_undefined_or_hole {
   return float64_or_undefined_or_hole{
@@ -351,7 +351,7 @@ macro LoadFloat64OrHole(r:&float64_or_undefined_or_hole):
   };
 }
 
-@if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+@if(V8_ENABLE_UNDEFINED_DOUBLE)
 macro StoreFloat64OrUndefinedOrHole(
     r:&float64_or_undefined_or_hole,
     value: float64_or_undefined_or_hole): void {
@@ -366,7 +366,7 @@ macro StoreFloat64OrUndefinedOrHole(
   }
 }
 
-@ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+@ifnot(V8_ENABLE_UNDEFINED_DOUBLE)
 macro StoreFloat64OrHole(
     r:&float64_or_undefined_or_hole,
     value: float64_or_undefined_or_hole): void {

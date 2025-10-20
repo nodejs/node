@@ -16,6 +16,7 @@
 #ifndef HIGHWAY_HWY_CACHE_CONTROL_H_
 #define HIGHWAY_HWY_CACHE_CONTROL_H_
 
+#include "hwy/aligned_allocator.h"  // HWY_ALIGNMENT
 #include "hwy/base.h"
 
 // Requires SSE2; fails to compile on 32-bit Clang 7 (see
@@ -65,6 +66,21 @@ HWY_INLINE HWY_ATTR_CACHE void LoadFence() {
 
 // TODO(janwas): remove when this function is removed. (See above.)
 #pragma pop_macro("LoadFence")
+
+// Overwrites "to" while attempting to bypass the cache (read-for-ownership).
+// Both pointers must be aligned.
+static HWY_INLINE void StreamCacheLine(const uint64_t* HWY_RESTRICT from,
+                                       uint64_t* HWY_RESTRICT to) {
+  HWY_DASSERT(IsAligned(from));
+  HWY_DASSERT(IsAligned(to));
+#if HWY_COMPILER_CLANG && !defined(HWY_DISABLE_CACHE_CONTROL)
+  for (size_t i = 0; i < HWY_ALIGNMENT / sizeof(uint64_t); ++i) {
+    __builtin_nontemporal_store(from[i], to + i);
+  }
+#else
+  hwy::CopyBytes(from, to, HWY_ALIGNMENT);
+#endif
+}
 
 // Ensures values written by previous `Stream` calls are visible on the current
 // core. This is NOT sufficient for synchronizing across cores; when `Stream`

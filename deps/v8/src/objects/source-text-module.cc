@@ -1121,16 +1121,16 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
           execute_async_module_context}
           .Build();
 
-  // 8. Perform ! PerformPromiseThen(capability.[[Promise]],
-  //                                 onFulfilled, onRejected).
+  // 8. Perform PerformPromiseThen(capability.[[Promise]],
+  //                               onFulfilled, onRejected).
   DirectHandle<Object> args[] = {on_fulfilled, on_rejected};
   if (V8_UNLIKELY(Execution::CallBuiltin(isolate, isolate->promise_then(),
                                          capability, base::VectorOf(args))
                       .is_null())) {
-    // TODO(349961173): We assume the builtin call can only fail with a
-    // termination exception. If this check fails in the wild investigate why
-    // the call fails. Otherwise turn this into a DCHECK in the future.
-    CHECK(isolate->is_execution_terminating());
+    // This may fail with a termination exception or if, for any weird reason,
+    // the promise has been rejected. See bugs: https://crbug.com/349961173 and
+    // https://crbug.com/442161248.
+    CHECK(isolate->has_exception());
     return Nothing<bool>();
   }
 

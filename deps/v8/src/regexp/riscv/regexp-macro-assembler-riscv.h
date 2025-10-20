@@ -56,8 +56,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
                                      Label* on_not_in_range) override;
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
   void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
-                           Handle<ByteArray> nibble_table,
-                           int advance_by) override;
+                           Handle<ByteArray> nibble_table, int advance_by,
+                           Label* on_match, Label* on_no_match) override;
+  bool SkipUntilBitInTableUseSimd(int advance_by) override;
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
@@ -88,9 +89,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
   void WriteCurrentPositionToRegister(int reg, int cp_offset) override;
   void ClearRegisters(int reg_from, int reg_to) override;
   void WriteStackPointerToRegister(int reg) override;
-#ifdef RISCV_HAS_NO_UNALIGNED
-  bool CanReadUnaligned() const override;
-#endif
 
   void RecordComment(std::string_view comment) override {
     masm_->RecordComment(comment);

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff
 // Flags: --experimental-wasm-simd-opt
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
@@ -51,11 +50,10 @@ d8.file.execute('test/mjsunit/value-helper.js');
   builder.addFunction("simd", kSig_i_iiii).addLocals(kWasmS128, 5).addBody(simd).exportFunc();
   builder.addFunction("scalar", kSig_i_iiii).addBody(scalar).exportFunc();
   const wasm = builder.instantiate().exports;
-  for (let a of int32_array) {
-    for (let b of int32_array) {
-      assertEquals(wasm.simd(b, b, a, a),
-                   wasm.scalar(b, b, a, a));
-    }
+  for (let i = 0; i < int32_array.length - 3; ++i) {
+    const args = int32_array.slice(i, i + 3);
+    assertEquals(wasm.simd(...args),
+                 wasm.scalar(...args));
   }
 })();
 
@@ -102,11 +100,10 @@ d8.file.execute('test/mjsunit/value-helper.js');
   builder.addFunction("simd", kSig_i_iiii).addLocals(kWasmS128, 5).addBody(simd).exportFunc();
   builder.addFunction("scalar", kSig_i_iiii).addBody(scalar).exportFunc();
   const wasm = builder.instantiate().exports;
-  for (let a of int32_array) {
-    for (let b of int32_array) {
-      assertEquals(wasm.simd(b, a, a, b),
-                   wasm.scalar(b, a, a, b));
-    }
+  for (let i = 0; i < int32_array.length - 3; ++i) {
+    const args = int32_array.slice(i, i + 3);
+    assertEquals(wasm.simd(...args),
+                 wasm.scalar(...args));
   }
 })();
 
@@ -153,11 +150,10 @@ d8.file.execute('test/mjsunit/value-helper.js');
   builder.addFunction("simd", kSig_i_iiii).addLocals(kWasmS128, 5).addBody(simd).exportFunc();
   builder.addFunction("scalar", kSig_i_iiii).addBody(scalar).exportFunc();
   const wasm = builder.instantiate().exports;
-  for (let a of int32_array) {
-    for (let b of int32_array) {
-      assertEquals(wasm.simd(b, a, b, a),
-                   wasm.scalar(b, a, b, a));
-    }
+  for (let i = 0; i < int32_array.length - 3; ++i) {
+    const args = int32_array.slice(i, i + 3);
+    assertEquals(wasm.simd(...args),
+                 wasm.scalar(...args));
   }
 })();
 
@@ -204,11 +200,10 @@ d8.file.execute('test/mjsunit/value-helper.js');
   builder.addFunction("simd", kSig_i_iiii).addLocals(kWasmS128, 5).addBody(simd).exportFunc();
   builder.addFunction("scalar", kSig_i_iiii).addBody(scalar).exportFunc();
   const wasm = builder.instantiate().exports;
-  for (let a of int32_array) {
-    for (let b of int32_array) {
-      assertEquals(wasm.simd(a, a, a, b),
-                   wasm.scalar(a, a, a, b));
-    }
+  for (let i = 0; i < int32_array.length - 3; ++i) {
+    const args = int32_array.slice(i, i + 3);
+    assertEquals(wasm.simd(...args),
+                 wasm.scalar(...args));
   }
 })();
 
@@ -255,11 +250,10 @@ d8.file.execute('test/mjsunit/value-helper.js');
   builder.addFunction("simd", kSig_i_iiii).addLocals(kWasmS128, 5).addBody(simd).exportFunc();
   builder.addFunction("scalar", kSig_i_iiii).addBody(scalar).exportFunc();
   const wasm = builder.instantiate().exports;
-  for (let a of int32_array) {
-    for (let b of int32_array) {
-      assertEquals(wasm.simd(b, b, a, a),
-                   wasm.scalar(b, b, a, a));
-    }
+  for (let i = 0; i < int32_array.length - 3; ++i) {
+    const args = int32_array.slice(i, i + 3);
+    assertEquals(wasm.simd(...args),
+                 wasm.scalar(...args));
   }
 })();
 
@@ -306,11 +300,10 @@ d8.file.execute('test/mjsunit/value-helper.js');
   builder.addFunction("simd", kSig_i_iiii).addLocals(kWasmS128, 5).addBody(simd).exportFunc();
   builder.addFunction("scalar", kSig_i_iiii).addBody(scalar).exportFunc();
   const wasm = builder.instantiate().exports;
-  for (let a of int32_array) {
-    for (let b of int32_array) {
-      assertEquals(wasm.simd(a, a, a, b),
-                   wasm.scalar(a, a, a, b));
-    }
+  for (let i = 0; i < int32_array.length - 3; ++i) {
+    const args = int32_array.slice(i, i + 3);
+    assertEquals(wasm.simd(...args),
+                 wasm.scalar(...args));
   }
 })();
 
@@ -357,11 +350,10 @@ d8.file.execute('test/mjsunit/value-helper.js');
   builder.addFunction("simd", kSig_i_iiii).addLocals(kWasmS128, 5).addBody(simd).exportFunc();
   builder.addFunction("scalar", kSig_i_iiii).addBody(scalar).exportFunc();
   const wasm = builder.instantiate().exports;
-  for (let a of int32_array) {
-    for (let b of int32_array) {
-      assertEquals(wasm.simd(b, a, a, b),
-                   wasm.scalar(b, a, a, b));
-    }
+  for (let i = 0; i < int32_array.length - 3; ++i) {
+    const args = int32_array.slice(i, i + 3);
+    assertEquals(wasm.simd(...args),
+                 wasm.scalar(...args));
   }
 })();
 
@@ -424,11 +416,10 @@ d8.file.execute('test/mjsunit/value-helper.js');
   builder.addFunction("simd", kSig_d_dddd).addLocals(kWasmS128, 5).addBody(simd).exportFunc();
   builder.addFunction("scalar", kSig_d_dddd).addBody(scalar).exportFunc();
   const wasm = builder.instantiate().exports;
-  for (let a of float64_array) {
-    for (let b of float64_array) {
-      assertEquals(wasm.simd(a, b, b, a),
-                   wasm.scalar(a, b, b, a));
-    }
+  for (let i = 0; i < float64_array.length - 3; ++i) {
+    const args = float64_array.slice(i, i + 3);
+    assertEquals(wasm.simd(...args),
+                 wasm.scalar(...args));
   }
 })();
 
@@ -495,11 +486,10 @@ d8.file.execute('test/mjsunit/value-helper.js');
   builder.addFunction("simd", kSig_i_iiii).addLocals(kWasmS128, 5).addBody(simd).exportFunc();
   builder.addFunction("scalar", kSig_i_iiii).addBody(scalar).exportFunc();
   const wasm = builder.instantiate().exports;
-  for (let a of int32_array) {
-    for (let b of int32_array) {
-      assertEquals(wasm.simd(a, b, b, a),
-                   wasm.scalar(a, b, b, a));
-    }
+  for (let i = 0; i < int32_array.length - 3; ++i) {
+    const args = int32_array.slice(i, i + 3);
+    assertEquals(wasm.simd(...args),
+                 wasm.scalar(...args));
   }
 })();
 
@@ -595,114 +585,136 @@ d8.file.execute('test/mjsunit/value-helper.js');
   builder.addFunction("simd", kSig_l_iiii).addLocals(kWasmS128, 3).addBody(simd).exportFunc();
   builder.addFunction("scalar", kSig_l_iiii).addLocals(kWasmI32, 1).addBody(scalar).exportFunc();
   const wasm = builder.instantiate().exports;
-  for (let a of int8_array) {
-    for (let b of int8_array) {
-      for (let c of int8_array) {
-        for (let d of int8_array) {
-          assertEquals(wasm.simd(a, b, c, d),
-                       wasm.scalar(a, b, c, d));
-        }
-      }
-    }
+  for (let i = 0; i < int8_array.length - 3; ++i) {
+    const args = int8_array.slice(i, i + 3);
+    assertEquals(wasm.simd(...args),
+                 wasm.scalar(...args));
   }
 })();
 
-(function InterleaveU8x4Add() {
+(function DeinterleaveU8x4() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const simd = wasmI32Const(0x0).concat([
     kSimdPrefix, kExprI8x16Splat,
-    kExprLocalTee, 5,
+    kExprLocalSet, 5,
     kExprLocalGet, 0,
     kSimdPrefix, kExprI8x16Splat,
-    kExprLocalGet, 1,
+    kExprLocalGet, 3,
     kSimdPrefix, kExprI8x16ReplaceLane, 1,
     kExprLocalGet, 2,
     kSimdPrefix, kExprI8x16ReplaceLane, 2,
-    kExprLocalGet, 3,
+    kExprLocalGet, 2,
     kSimdPrefix, kExprI8x16ReplaceLane, 3,
     kExprLocalGet, 1,
+    kSimdPrefix, kExprI8x16ReplaceLane, 4,
+    kExprLocalGet, 1,
     kSimdPrefix, kExprI8x16ReplaceLane, 5,
-    kExprLocalGet, 2,
+    kExprLocalGet, 3,
     kSimdPrefix, kExprI8x16ReplaceLane, 6,
-    kExprLocalGet, 3,
-    kSimdPrefix, kExprI8x16ReplaceLane, 7,
-    kExprLocalGet, 1,
+    kExprLocalGet, 2,
+    kSimdPrefix, kExprI8x16ReplaceLane, 8,
+    kExprLocalGet, 2,
     kSimdPrefix, kExprI8x16ReplaceLane, 9,
-    kExprLocalGet, 2,
+    kExprLocalGet, 3,
     kSimdPrefix, kExprI8x16ReplaceLane, 10,
-    kExprLocalGet, 3,
-    kSimdPrefix, kExprI8x16ReplaceLane, 11,
     kExprLocalGet, 1,
-    kSimdPrefix, kExprI8x16ReplaceLane, 13,
-    kExprLocalGet, 2,
-    kSimdPrefix, kExprI8x16ReplaceLane, 14,
+    kSimdPrefix, kExprI8x16ReplaceLane, 11,
     kExprLocalGet, 3,
-    kSimdPrefix, kExprI8x16ReplaceLane, 15,
+    kSimdPrefix, kExprI8x16ReplaceLane, 12,
+    kExprLocalGet, 2,
+    kSimdPrefix, kExprI8x16ReplaceLane, 13,
+    kExprLocalGet, 1,
+    kSimdPrefix, kExprI8x16ReplaceLane, 14,
+    // After all the replace_lane operations above, we have the following
+    // vector of locals:
+    //           0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+    // locals: [ 0, 3, 2, 2, 1, 1, 3, 0, 2, 2, 3, 1, 3, 2, 1, 0 ]
     kExprLocalTee, 4,
     kExprLocalGet, 4,
-    kSimdPrefix, kExprI8x16Shuffle,
+    kSimdPrefix, kExprI8x16Shuffle,  // deinterleave 4 bytes, starting from index 3.
     0x03, 0x07, 0x0b, 0x0f, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     ...SimdInstr(kExprI16x8UConvertI8x16Low),
-    ...SimdInstr(kExprI32x4UConvertI16x8Low),
+    ...SimdInstr(kExprI32x4UConvertI16x8Low), // i32x4 zext, locals: [ 2, 0, 1, 0 ]
+    kExprLocalGet, 5,
     ...SimdInstr(kExprI32x4Add),
     kExprLocalGet, 4,
     kExprLocalGet, 4,
-    kSimdPrefix, kExprI8x16Shuffle,
+    kSimdPrefix, kExprI8x16Shuffle, // deinterleave 4 bytes, starting from index 2.
     0x02, 0x06, 0x0a, 0x0e, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     ...SimdInstr(kExprI16x8UConvertI8x16Low),
-    ...SimdInstr(kExprI32x4UConvertI16x8Low),
-    ...SimdInstr(kExprI32x4Add),
+    ...SimdInstr(kExprI32x4UConvertI16x8Low), // i32x4 zext, locals: [ 2, 3, 3, 1 ]
+    ...SimdInstr(kExprI32x4Sub),
+    // [
+    //    2 - 2,
+    //    0 - 3,
+    //    1 - 3,
+    //    0 - 1,
+    // ]
     kExprLocalGet, 4,
     kExprLocalGet, 4,
-    kSimdPrefix, kExprI8x16Shuffle,
+    kSimdPrefix, kExprI8x16Shuffle, // deinterleave 4 bytes, starting from index 1.
     0x01, 0x05, 0x09, 0x0d, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     ...SimdInstr(kExprI16x8UConvertI8x16Low),
-    ...SimdInstr(kExprI32x4UConvertI16x8Low),
-    ...SimdInstr(kExprI32x4Add),
+    ...SimdInstr(kExprI32x4UConvertI16x8Low), // i32x4 zext, locals: [ 3, 1, 2, 2 ]
+     ...SimdInstr(kExprI32x4Mul),
+     // [
+     //   3 * (2 - 2),
+     //   1 * (0 - 3),
+     //   2 * (1 - 3),
+     //   2 * (0 - 1),
+     // ]
     kExprLocalGet, 4,
     kExprLocalGet, 4,
-    kSimdPrefix, kExprI8x16Shuffle,
+    kSimdPrefix, kExprI8x16Shuffle, // deinterleave 4 bytes, starting from index 0.
     0x00, 0x04, 0x08, 0x0c, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     ...SimdInstr(kExprI16x8UConvertI8x16Low),
-    ...SimdInstr(kExprI32x4UConvertI16x8Low),
-    ...SimdInstr(kExprI32x4Add),
+    ...SimdInstr(kExprI32x4UConvertI16x8Low), // i32x4 zext, locals: [ 0, 1, 2, 3 ]
+    ...SimdInstr(kExprI32x4Sub),
+     // [
+     //   (3 * (2 - 2)) - 0,
+     //   (1 * (0 - 3)) - 1,
+     //   (2 * (1 - 3)) - 2,
+     //   (2 * (0 - 1)) - 3,
+     // ]
+    kExprLocalTee, 6,
+    kSimdPrefix, kExprI32x4ExtractLane, 2,
+    kExprLocalGet, 6,
     kSimdPrefix, kExprI32x4ExtractLane, 0,
+    kExprI32Sub,
+    kExprLocalGet, 6,
+    kSimdPrefix, kExprI32x4ExtractLane, 1,
+    kExprLocalGet, 6,
+    kSimdPrefix, kExprI32x4ExtractLane, 3,
+    kExprI32Sub,
+    kExprI32Sub,
   ]);
-  const byte_mask = wasmI32Const(0xFF);
-  const scalar = wasmI32Const(0xFF).concat([
-    kExprLocalTee, 4,
-    kExprLocalGet, 0,
-    kExprI32And,
-    kExprLocalGet, 1,
-    kExprLocalGet, 4,
-    kExprI32And,
-    kExprI32Add,
-    kExprLocalGet, 2,
-    kExprLocalGet, 4,
-    kExprI32And,
-    kExprLocalGet, 3,
-    kExprLocalGet, 4,
-    kExprI32And,
-    kExprI32Add,
-    kExprI32Add,
-  ]);
-  builder.addFunction("simd", kSig_i_iiii).addLocals(kWasmS128, 2).addBody(simd).exportFunc();
-  builder.addFunction("scalar", kSig_i_iiii).addLocals(kWasmI32, 1).addBody(scalar).exportFunc();
+  // lanes:
+  //   0: -local_0
+  //   1: ((local_0 - local_3) * local_1) - local_1
+  //   2: ((local_1 - local_3) * local_2) - local_2
+  //   3: ((local_1 - local_2) * local_2) - local_3
+  const scalar = (local_0, local_1, local_2, local_3) => {
+    const masked_local_0 = 0xFF & local_0;
+    const masked_local_1 = 0xFF & local_1;
+    const masked_local_2 = 0xFF & local_2;
+    const masked_local_3 = 0xFF & local_3;
+    const lane_0 = -masked_local_0;
+    const lane_1 = ((masked_local_0 - masked_local_3) * masked_local_1) - masked_local_1;
+    const lane_2 = ((masked_local_1 - masked_local_3) * masked_local_2) - masked_local_2;
+    const lane_3 = ((masked_local_0 - masked_local_1) * masked_local_2) - masked_local_3;
+    return (lane_2 - lane_0) - (lane_1 - lane_3);
+  };
+  builder.addFunction("simd", kSig_i_iiii).addLocals(kWasmS128, 3).addBody(simd).exportFunc();
   const wasm = builder.instantiate().exports;
-  for (let a of int8_array) {
-    for (let b of int8_array) {
-      for (let c of int8_array) {
-        for (let d of int8_array) {
-          assertEquals(wasm.simd(a, b, c, d),
-                       wasm.scalar(a, b, c, d));
-        }
-      }
-    }
+  for (let i = 0; i < int8_array.length - 3; ++i) {
+    const args = int8_array.slice(i, i + 3);
+    assertEquals(wasm.simd(...args),
+                 scalar(...args));
   }
 })();
 
@@ -800,15 +812,10 @@ d8.file.execute('test/mjsunit/value-helper.js');
   builder.addFunction("simd", kSig_l_iiii).addLocals(kWasmS128, 3).addBody(simd).exportFunc();
   builder.addFunction("scalar", kSig_l_iiii).addBody(scalar).exportFunc();
   const wasm = builder.instantiate().exports;
-  for (let a of int8_array) {
-    for (let b of int8_array) {
-      for (let c of int8_array) {
-        for (let d of int8_array) {
-          assertEquals(wasm.simd(a, b, c, d),
-                       wasm.scalar(a, b, c, d));
-        }
-      }
-    }
+  for (let i = 0; i < int8_array.length - 3; ++i) {
+    const args = int8_array.slice(i, i + 3);
+    assertEquals(wasm.simd(...args),
+                 wasm.scalar(...args));
   }
 })();
 
@@ -863,15 +870,10 @@ d8.file.execute('test/mjsunit/value-helper.js');
   builder.addFunction("simd", kSig_i_iiii).addLocals(kWasmS128, 2).addBody(simd).exportFunc();
   builder.addFunction("scalar", kSig_i_iiii).addBody(scalar).exportFunc();
   const wasm = builder.instantiate().exports;
-  for (let a of int16_array) {
-    for (let b of int16_array) {
-      for (let c of int16_array) {
-        for (let d of int16_array) {
-          assertEquals(wasm.simd(a, b, c, d),
-                       wasm.scalar(a, b, c, d));
-        }
-      }
-    }
+  for (let i = 0; i < int16_array.length - 3; ++i) {
+    const args = int16_array.slice(i, i + 3);
+    assertEquals(wasm.simd(...args),
+                 wasm.scalar(...args));
   }
 })();
 
@@ -928,14 +930,9 @@ d8.file.execute('test/mjsunit/value-helper.js');
   builder.addFunction("simd", kSig_i_iiii).addLocals(kWasmS128, 2).addBody(simd).exportFunc();
   builder.addFunction("scalar", kSig_i_iiii).addBody(scalar).exportFunc();
   const wasm = builder.instantiate().exports;
-  for (let a of int16_array) {
-    for (let b of int16_array) {
-      for (let c of int16_array) {
-        for (let d of int16_array) {
-          assertEquals(wasm.simd(a, b, c, d),
-                       wasm.scalar(a, b, c, d));
-        }
-      }
-    }
+  for (let i = 0; i < int16_array.length - 3; ++i) {
+    const args = int16_array.slice(i, i + 3);
+    assertEquals(wasm.simd(...args),
+                 wasm.scalar(...args));
   }
 })();

@@ -1176,7 +1176,8 @@ UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
     // create an OLD_TO_SHARED slot.
     ObjectSlot slot = young_object->RawFieldOfFirstElement();
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-        MutablePageMetadata::FromHeapObject(*young_object), slot.address()));
+        MutablePageMetadata::FromHeapObject(i_isolate, *young_object),
+        slot.address()));
   }
 }
 
@@ -1850,6 +1851,7 @@ UNINITIALIZED_TEST(ConcurrentExternalizationWithSharedResources) {
 
 void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
                                                   bool transition_with_stack) {
+  if (v8_flags.conservative_stack_scanning) return;
   v8_flags.shared_string_table = true;
   i::FlagList::EnforceFlagImplications();
 
@@ -2222,7 +2224,8 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
       // create an OLD_TO_SHARED slot.
       ObjectSlot slot = young_object->RawFieldOfFirstElement();
       CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-          MutablePageMetadata::FromHeapObject(*young_object), slot.address()));
+          MutablePageMetadata::FromHeapObject(i_client, *young_object),
+          slot.address()));
     }
 
     client->Dispose();
@@ -2408,7 +2411,8 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
       // create an OLD_TO_SHARED slot.
       ObjectSlot slot = young_object->RawFieldOfFirstElement();
       CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-          MutablePageMetadata::FromHeapObject(*young_object), slot.address()));
+          MutablePageMetadata::FromHeapObject(i_client, *young_object),
+          slot.address()));
     }
 
     client_isolate_->Dispose();

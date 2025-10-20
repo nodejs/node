@@ -12,16 +12,19 @@ namespace v8::internal {
 
 class ObjectLock final {
  public:
-  V8_INLINE static void Lock(Tagged<HeapObject> heap_object);
-  V8_INLINE static void Unlock(Tagged<HeapObject> heap_object);
+  V8_INLINE static void Lock(Isolate* isolate, Tagged<HeapObject> heap_object);
+  V8_INLINE static void Unlock(Isolate* isolate,
+                               Tagged<HeapObject> heap_object);
 };
 
 class ObjectLockGuard final {
  public:
-  V8_INLINE explicit ObjectLockGuard(Tagged<HeapObject> object);
+  V8_INLINE explicit ObjectLockGuard(Isolate* isolate,
+                                     Tagged<HeapObject> object);
   V8_INLINE ~ObjectLockGuard();
 
  private:
+  Isolate* isolate_;
   Tagged<HeapObject> raw_object_;
 };
 

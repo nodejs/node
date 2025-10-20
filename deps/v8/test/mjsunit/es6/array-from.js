@@ -194,7 +194,7 @@ assertEquals(true, xlength.configurable);
   assertTrue(%HasSmiElements(arr));
 
   var arr = Array.from({length: 3});
-  if(!%IsExperimentalUndefinedDoubleEnabled()) {
+  if(!%IsUndefinedDoubleEnabled()) {
     // TODO(385155404): Consider reenabling when we can transition back to packed.
     assertTrue(%HasPackedElements(arr));
     assertTrue(%HasObjectElements(arr));

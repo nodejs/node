@@ -87,6 +87,9 @@ class NumFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--stress-interrupt-budget", default=0, type="int",
                       help="probability [0-10] of adding the --interrupt-budget "
                            "flag to the test")
+    parser.add_option("--stress-bytecode-budget", default=0, type="int",
+                      help="probability [0-10] of adding bytecode budget "
+                           "flags to the test")
 
     # Combine multiple tests
     parser.add_option("--combine-tests", default=False, action="store_true",

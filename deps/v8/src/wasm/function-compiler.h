@@ -128,7 +128,6 @@ static_assert(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
 class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  public:
   JSToWasmWrapperCompilationUnit(Isolate* isolate, const CanonicalSig* sig,
-                                 CanonicalTypeIndex sig_index,
                                  bool receiver_is_first_param);
   ~JSToWasmWrapperCompilationUnit();
 
@@ -144,12 +143,10 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   DirectHandle<Code> Finalize();
 
   const CanonicalSig* sig() const { return sig_; }
-  CanonicalTypeIndex sig_index() const { return sig_index_; }
 
   // Run a compilation unit synchronously.
   static DirectHandle<Code> CompileJSToWasmWrapper(
-      Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index,
-      bool receiver_is_first_param);
+      Isolate* isolate, const CanonicalSig* sig, bool receiver_is_first_param);
 
  private:
   // Wrapper compilation is bound to an isolate. Concurrent accesses to the
@@ -158,7 +155,6 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   // is guaranteed to be alive when this unit executes.
   Isolate* isolate_;
   const CanonicalSig* sig_;
-  CanonicalTypeIndex sig_index_;
   bool receiver_is_first_param_;
   std::unique_ptr<OptimizedCompilationJob> job_;
 };

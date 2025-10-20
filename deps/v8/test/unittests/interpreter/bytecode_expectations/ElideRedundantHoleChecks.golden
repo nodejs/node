@@ -5,7 +5,7 @@
 ---
 wrap: no
 test function name: f
-elide redundant tdz checks: yes
+extra flags: --ignition-elide-redundant-tdz-checks
 
 ---
 snippet: "
@@ -801,7 +801,7 @@ snippet: "
   {
     f = function f(a) {
   switch (a) {
-    case x: y; break;
+    case x: if (a) break; y; break;
     case 42: y; z;
     default: y; w;
   }
@@ -813,7 +813,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 2
-bytecode array length: 57
+bytecode array length: 65
 bytecodes: [
   /*   24 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
   /*   44 E> */ B(ThrowReferenceErrorIfHole), U8(0),
@@ -822,27 +822,31 @@ bytecodes: [
                 B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(42),
                 B(TestEqualStrict), R(0), U8(0),
-                B(JumpIfTrue), U8(10),
-                B(Jump), U8(16),
-  /*   47 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
+                B(JumpIfTrue), U8(16),
+                B(Jump), U8(22),
+  /*   47 S> */ B(Ldar), R(arg0),
+                B(JumpIfToBooleanFalse), U8(4),
+  /*   54 S> */ B(Jump), U8(24),
+  /*   61 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
                 B(ThrowReferenceErrorIfHole), U8(1),
-  /*   50 S> */ B(Jump), U8(18),
-  /*   68 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
+  /*   64 S> */ B(Jump), U8(18),
+  /*   82 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
                 B(ThrowReferenceErrorIfHole), U8(1),
-  /*   71 S> */ B(LdaImmutableCurrentContextSlot), U8(5),
+  /*   85 S> */ B(LdaImmutableCurrentContextSlot), U8(5),
                 B(ThrowReferenceErrorIfHole), U8(2),
-  /*   85 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
+  /*   99 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
                 B(ThrowReferenceErrorIfHole), U8(1),
-  /*   88 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
-                B(ThrowReferenceErrorIfHole), U8(3),
-  /*   93 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
-  /*   96 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
-  /*   99 S> */ B(LdaImmutableCurrentContextSlot), U8(5),
-                B(ThrowReferenceErrorIfHole), U8(2),
   /*  102 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(ThrowReferenceErrorIfHole), U8(3),
+  /*  107 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+  /*  110 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
+                B(ThrowReferenceErrorIfHole), U8(1),
+  /*  113 S> */ B(LdaImmutableCurrentContextSlot), U8(5),
+                B(ThrowReferenceErrorIfHole), U8(2),
+  /*  116 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(ThrowReferenceErrorIfHole), U8(3),
                 B(LdaUndefined),
-  /*  107 S> */ B(Return),
+  /*  121 S> */ B(Return),
 ]
 constant pool: [
   INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
@@ -870,7 +874,7 @@ snippet: "
 "
 frame size: 0
 parameter count: 2
-bytecode array length: 24
+bytecode array length: 22
 bytecodes: [
   /*   33 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(ThrowReferenceErrorIfHole), U8(0),
@@ -880,7 +884,6 @@ bytecodes: [
   /*   58 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
                 B(ThrowReferenceErrorIfHole), U8(1),
   /*   63 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
-                B(ThrowReferenceErrorIfHole), U8(0),
   /*   66 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
                 B(ThrowReferenceErrorIfHole), U8(1),
                 B(LdaUndefined),

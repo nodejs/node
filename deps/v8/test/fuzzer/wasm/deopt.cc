@@ -20,9 +20,9 @@
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/common/flag-utils.h"
+#include "test/common/wasm/fuzzer-common.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
-#include "test/fuzzer/wasm/fuzzer-common.h"
 
 // This fuzzer fuzzes deopts.
 // It generates a main function accepting a call target. The call target is then

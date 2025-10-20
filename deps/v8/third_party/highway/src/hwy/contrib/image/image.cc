@@ -15,34 +15,21 @@
 
 #include "hwy/contrib/image/image.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <algorithm>  // std::swap
-#include <cstddef>
 
-#undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "hwy/contrib/image/image.cc"
-#include "hwy/foreach_target.h"  // IWYU pragma: keep
-#include "hwy/highway.h"
+#include "hwy/aligned_allocator.h"
+#include "hwy/base.h"
+#include "hwy/per_target.h"
 
-HWY_BEFORE_NAMESPACE();
 namespace hwy {
-namespace HWY_NAMESPACE {
-size_t GetVectorSize() { return Lanes(ScalableTag<uint8_t>()); }
-// NOLINTNEXTLINE(google-readability-namespace-comments)
-}  // namespace HWY_NAMESPACE
-
-}  // namespace hwy
-HWY_AFTER_NAMESPACE();
-
-#if HWY_ONCE
-namespace hwy {
-namespace {
-HWY_EXPORT(GetVectorSize);  // Local function.
-}  // namespace
 
 size_t ImageBase::VectorSize() {
   // Do not cache result - must return the current value, which may be greater
   // than the first call if it was subject to DisableTargets!
-  return HWY_DYNAMIC_DISPATCH(GetVectorSize)();
+  return VectorBytes();
 }
 
 size_t ImageBase::BytesPerRow(const size_t xsize, const size_t sizeof_t) {
@@ -125,7 +112,7 @@ void ImageBase::InitializePadding(const size_t sizeof_t, Padding padding) {
     // prevents msan warnings from uninitialized images.
     memset(row, 0, initialize_size);
 #else
-    memset(row + valid_size, 0, initialize_size - valid_size);
+    hwy::ZeroBytes(row + valid_size, initialize_size - valid_size);
 #endif  // clang6
   }
 #else
@@ -142,4 +129,3 @@ void ImageBase::Swap(ImageBase& other) {
 }
 
 }  // namespace hwy
-#endif  // HWY_ONCE

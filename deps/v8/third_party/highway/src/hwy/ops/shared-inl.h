@@ -162,9 +162,10 @@ HWY_INLINE void MaybePoison(T* HWY_RESTRICT unaligned, size_t count) {
 #endif
 }
 
+// This can be useful for working around MSAN limitations. For example, prior
+// to Clang 16, it did not understand AVX-512 CompressStore.
 template <typename T>
 HWY_INLINE void MaybeUnpoison(T* HWY_RESTRICT unaligned, size_t count) {
-  // Workaround for MSAN not marking compressstore as initialized (b/233326619)
 #if HWY_IS_MSAN
   __msan_unpoison(unaligned, count * sizeof(T));
 #else
@@ -458,13 +459,32 @@ HWY_INLINE HWY_MAYBE_UNUSED constexpr size_t MaxLanes(D) {
   return HWY_MAX_LANES_D(D);
 }
 
-#if !HWY_HAVE_SCALABLE
+#undef HWY_HAVE_CONSTEXPR_LANES
+#undef HWY_LANES_CONSTEXPR
 
-// If non-scalable, this is constexpr; otherwise the target's header defines a
-// non-constexpr version of this function. This is the actual vector length,
-// used when advancing loop counters.
+#if HWY_HAVE_SCALABLE
+#define HWY_HAVE_CONSTEXPR_LANES 0
+#define HWY_LANES_CONSTEXPR
+#else
+
+// We want Lanes() to be constexpr where possible, so that compilers are able to
+// precompute offsets. However, user code must not depend on the constexpr,
+// because that will fail for RISC-V V and Arm SVE. To achieve both, we mark it
+// as non-constexpr in debug builds, but not sanitizers, because we typically
+// want them to see the same code.
+#if HWY_IS_DEBUG_BUILD && !HWY_IS_SANITIZER
+#define HWY_HAVE_CONSTEXPR_LANES 0
+#define HWY_LANES_CONSTEXPR
+#else
+#define HWY_HAVE_CONSTEXPR_LANES 1
+#define HWY_LANES_CONSTEXPR constexpr
+#endif
+
+// Returns actual vector length, used when advancing loop counters. The
+// non-constexpr implementations are defined in their target's header. For a
+// guaranteed-constexpr upper bound, use `MaxLanes(d)`.
 template <class D>
-HWY_INLINE HWY_MAYBE_UNUSED constexpr size_t Lanes(D) {
+HWY_INLINE HWY_MAYBE_UNUSED HWY_LANES_CONSTEXPR size_t Lanes(D) {
   return HWY_MAX_LANES_D(D);
 }
 
@@ -631,8 +651,11 @@ HWY_API bool IsAligned(D d, T* ptr) {
 #define HWY_IF_SIGNED_V(V) HWY_IF_SIGNED(hwy::HWY_NAMESPACE::TFromV<V>)
 #define HWY_IF_FLOAT_V(V) HWY_IF_FLOAT(hwy::HWY_NAMESPACE::TFromV<V>)
 #define HWY_IF_NOT_FLOAT_V(V) HWY_IF_NOT_FLOAT(hwy::HWY_NAMESPACE::TFromV<V>)
+#define HWY_IF_FLOAT3264_V(V) HWY_IF_FLOAT3264(hwy::HWY_NAMESPACE::TFromV<V>)
 #define HWY_IF_SPECIAL_FLOAT_V(V) \
   HWY_IF_SPECIAL_FLOAT(hwy::HWY_NAMESPACE::TFromV<V>)
+#define HWY_IF_FLOAT_OR_SPECIAL_V(V) \
+  HWY_IF_FLOAT_OR_SPECIAL(hwy::HWY_NAMESPACE::TFromV<V>)
 #define HWY_IF_NOT_FLOAT_NOR_SPECIAL_V(V) \
   HWY_IF_NOT_FLOAT_NOR_SPECIAL(hwy::HWY_NAMESPACE::TFromV<V>)
 
@@ -672,10 +695,16 @@ HWY_API bool IsAligned(D d, T* ptr) {
 #define HWY_IF_MULADDSUB_V(V) \
   HWY_IF_LANES_GT_D(hwy::HWY_NAMESPACE::DFromV<V>, 1)
 
+#undef HWY_IF_PAIRWISE_ADD_128_D
+#define HWY_IF_PAIRWISE_ADD_128_D(D) HWY_IF_V_SIZE_GT_D(D, 8)
+
+#undef HWY_IF_PAIRWISE_SUB_128_D
+#define HWY_IF_PAIRWISE_SUB_128_D(D) HWY_IF_V_SIZE_GT_D(D, 8)
+
 // HWY_IF_U2I_DEMOTE_FROM_LANE_SIZE_V is used to disable the default
 // implementation of unsigned to signed DemoteTo/ReorderDemote2To in
 // generic_ops-inl.h for at least some of the unsigned to signed demotions on
-// SCALAR/EMU128/SSE2/SSSE3/SSE4/AVX2/SVE/SVE2
+// SCALAR/EMU128/SSE2/SSSE3/SSE4/AVX2/SVE/SVE2/LSX/LASX
 
 #undef HWY_IF_U2I_DEMOTE_FROM_LANE_SIZE_V
 #define HWY_IF_U2I_DEMOTE_FROM_LANE_SIZE_V(V) void* = nullptr

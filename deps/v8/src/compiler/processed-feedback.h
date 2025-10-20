@@ -172,18 +172,26 @@ class ElementAccessFeedback : public ProcessedFeedback {
 
 class NamedAccessFeedback : public ProcessedFeedback {
  public:
-  NamedAccessFeedback(NameRef name, ZoneVector<MapRef> const& maps,
+  NamedAccessFeedback(JSHeapBroker* broker, NameRef name,
+                      ZoneVector<MapRef> const& maps,
                       FeedbackSlotKind slot_kind,
                       bool has_deprecated_map_without_migration_target = false);
 
   NameRef name() const { return name_; }
+  NameRef original_name_maybe_thin() const { return original_name_maybe_thin_; }
   ZoneVector<MapRef> const& maps() const { return maps_; }
   bool has_deprecated_map_without_migration_target() const {
     return has_deprecated_map_without_migration_target_;
   }
 
  private:
+  // The unpacked name of the property. If the original name was a ThinString,
+  // this will be the actual underlying string. Used for optimizations that
+  // care about the string's content and require IsUniqueName.
   NameRef const name_;
+  // The original name of the property, which could be a ThinString. This is
+  // crucial for checks that rely on object identity.
+  NameRef const original_name_maybe_thin_;
   ZoneVector<MapRef> const maps_;
   bool has_deprecated_map_without_migration_target_;
 };

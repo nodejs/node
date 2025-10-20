@@ -3377,7 +3377,7 @@ bool FastJsonStringifier<Char>::AppendStringSIMD(
   const SrcChar* block = chars;
   const SrcChar* end = chars + length;
   hw::FixedTag<SrcChar, 16> tag;
-  static constexpr size_t stride = hw::Lanes(tag);
+  static const size_t stride = hw::Lanes(tag);
 
   const auto mask_0x20 = hw::Set(tag, 0x20);
   const auto mask_0x22 = hw::Set(tag, 0x22);

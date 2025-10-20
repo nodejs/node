@@ -104,9 +104,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   code->set_jump_table_info_offset(options.jump_table_info_offset);
   code->set_unwinding_info_offset(options.unwinding_info_offset);
   code->set_parameter_count(options.parameter_count);
-#ifdef V8_ENABLE_LEAPTIERING
   code->set_js_dispatch_handle(kNullJSDispatchHandle);
-#endif  // V8_ENABLE_LEAPTIERING
 
   // Set bytecode/interpreter data or deoptimization data.
   if (CodeKindUsesBytecodeOrInterpreterData(options.kind)) {
@@ -1329,7 +1327,8 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawArray(
   if ((size >
        isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&
       v8_flags.use_marking_progress_bar) {
-    LargePageMetadata::FromHeapObject(result)
+    LargePageMetadata::FromHeapObject(isolate()->GetMainThreadIsolateUnsafe(),
+                                      result)
         ->marking_progress_tracker()
         .Enable(size);
   }
@@ -1480,7 +1479,6 @@ FactoryBase<Impl>::RefineAllocationTypeForInPlaceInternalizableString(
   return impl()->AllocationTypeForInPlaceInternalizableString();
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 template <typename Impl>
 JSDispatchHandle FactoryBase<Impl>::NewJSDispatchHandle(
     uint16_t parameter_count, DirectHandle<Code> code,
@@ -1494,7 +1492,6 @@ JSDispatchHandle FactoryBase<Impl>::NewJSDispatchHandle(
   auto allocator = isolate()->heap()->allocator();
   return allocator->CustomAllocateWithRetryOrFail(Allocate, type);
 }
-#endif  // V8_ENABLE_LEAPTIERING
 
 // Instantiate FactoryBase for the two variants we want.
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) FactoryBase<Factory>;
