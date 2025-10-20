@@ -409,7 +409,7 @@ class DataQueueFeeder final : public AsyncWrap {
     if (!readFinish_.IsEmpty()) {
       Local<Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
       // I do not think, that this can error...
-      (void)resolver->Resolve(env()->context(), v8::True(env()->isolate()));
+      v8::Maybe<bool> ignoredResult = resolver->Resolve(env()->context(), v8::True(env()->isolate()));
       readFinish_.Reset();
     }
   }
@@ -426,7 +426,7 @@ class DataQueueFeeder final : public AsyncWrap {
     }
     if (!readFinish_.IsEmpty()) {
       Local<Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
-      (void)resolver->Resolve(env()->context(), v8::False(env()->isolate()));
+      v8::Maybe<bool> ignoredResult = resolver->Resolve(env()->context(), v8::False(env()->isolate()));
       readFinish_.Reset();
     }
   }
