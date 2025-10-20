@@ -323,8 +323,6 @@ For information about the governance of the Node.js project, see
   **Erick Wendel** <<erick.workspace@gmail.com>> (he/him)
 * [Ethan-Arrowood](https://github.com/Ethan-Arrowood) -
   **Ethan Arrowood** <<ethan@arrowood.dev>> (he/him)
-* [F3n67u](https://github.com/F3n67u) -
-  **Feng Yu** <<F3n67u@outlook.com>> (he/him)
 * [fhinkel](https://github.com/fhinkel) -
   **Franziska Hinkelmann** <<franziska.hinkelmann@gmail.com>> (she/her)
 * [Flarna](https://github.com/Flarna) -
@@ -527,6 +525,8 @@ For information about the governance of the Node.js project, see
   **Eugene Ostroukhov** <<eostroukhov@google.com>>
 * [evanlucas](https://github.com/evanlucas) -
   **Evan Lucas** <<evanlucas@me.com>> (he/him)
+* [F3n67u](https://github.com/F3n67u) -
+  **Feng Yu** <<F3n67u@outlook.com>> (he/him)
 * [firedfox](https://github.com/firedfox) -
   **Daniel Wang** <<wangyang0123@gmail.com>>
 * [Fishrock123](https://github.com/Fishrock123) -
@@ -751,8 +751,6 @@ maintaining the Node.js project.
   **Oliver Medhurst** <<honk@goose.icu>> (they/them)
 * [daeyeon](https://github.com/daeyeon) -
   **Daeyeon Jeong** <<daeyeon.dev@gmail.com>> (he/him)
-* [F3n67u](https://github.com/F3n67u) -
-  **Feng Yu** <<F3n67u@outlook.com>> (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
   **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
 * [gurgunday](https://github.com/gurgunday) -
