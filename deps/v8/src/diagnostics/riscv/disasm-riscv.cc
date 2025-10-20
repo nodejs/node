@@ -109,6 +109,7 @@ class Decoder {
   void PrintRvvUimm5(Instruction* instr);
   void PrintRoundingMode(Instruction* instr);
   void PrintMemoryOrder(Instruction* instr, bool is_pred);
+  void PrintMopNumber(Instruction* instr);
 
   // Each of these functions decodes one particular instruction type.
   void DecodeRType(Instruction* instr);
@@ -500,6 +501,12 @@ void Decoder::PrintMemoryOrder(Instruction* instr, bool is_pred) {
       base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s", s.c_str());
 }
 
+void Decoder::PrintMopNumber(Instruction* instr) {
+  int mop_number = instr->MopNumber();
+  out_buffer_pos_ +=
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%02d", mop_number);
+}
+
 // Printing of instruction name.
 void Decoder::PrintInstructionName(Instruction* instr) {}
 
@@ -838,6 +845,11 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       DCHECK(STRING_STARTS_WITH(format, "target"));
       PrintTarget(instr);
       return 6;
+    }
+    case 'm': {  // 'mop: print MOP instr number
+      DCHECK(STRING_STARTS_WITH(format, "mop"));
+      PrintMopNumber(instr);
+      return 3;
     }
   }
   UNREACHABLE();
@@ -1877,6 +1889,41 @@ void Decoder::DecodeIType(Instruction* instr) {
       }
       break;
     }
+    case RO_MOP: {
+      if ((instr->InstructionBits() & kMopMask) == RO_MOP_R_N) {
+        switch (instr->MopNumber()) {
+          case SSPOPCHK_MOP_NUM:
+            if (CpuFeatures::IsSupported(ZICFISS)) {
+              if (instr->RdValue() == zero_reg.code()) {  // sspopchk
+                Format(instr, "sspopchk  'rs2");
+                return;
+              } else {  // ssrdp
+                DCHECK(instr->Rs2Value() == zero_reg.code());
+                Format(instr, "ssrdp  'rd");
+                return;
+              }
+            }
+            break;
+          default:
+            break;
+        }
+        Format(instr, "mop.r.'mop  'rd, 'rs1");
+      } else {
+        CHECK((instr->InstructionBits() & kMopMask) == RO_MOP_RR_N);
+        switch (instr->MopNumber()) {
+          case SSPUSH_MOP_NUM:  // sspush
+            if (CpuFeatures::IsSupported(ZICFISS)) {
+              Format(instr, "sspush  'rs2");
+              return;
+            }
+            break;
+          default:
+            break;
+        }
+        Format(instr, "mop.rr.'mop 'rd, 'rs1, 'rs2");
+      }
+      break;
+    }
     // TODO(riscv): use Zifencei Standard Extension macro block
     case RO_FENCE_I:
       Format(instr, "fence.i");
@@ -1982,16 +2029,12 @@ void Decoder::DecodeIType(Instruction* instr) {
       Format(instr, "fld       'fd, 'imm12('rs1)");
       break;
     default:
-#ifdef CAN_USE_RVV_INSTRUCTIONS
       if (instr->vl_vs_width() != -1) {
         DecodeRvvVL(instr);
       } else {
         UNSUPPORTED_RISCV();
       }
       break;
-#else
-      UNSUPPORTED_RISCV();
-#endif
   }
 }
 
@@ -2023,16 +2066,12 @@ void Decoder::DecodeSType(Instruction* instr) {
       Format(instr, "fsd       'fs2, 'offS('rs1)");
       break;
     default:
-#ifdef CAN_USE_RVV_INSTRUCTIONS
       if (instr->vl_vs_width() != -1) {
         DecodeRvvVS(instr);
       } else {
         UNSUPPORTED_RISCV();
       }
       break;
-#else
-      UNSUPPORTED_RISCV();
-#endif
   }
 }
 

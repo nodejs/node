@@ -31,7 +31,6 @@
 
 namespace hwy {
 namespace {
-using HWY_NAMESPACE::AdjustedReps;
 
 // Template arg for kMin avoids compiler behavior mismatch for lambda capture.
 template <class Set, size_t kMax, size_t kMin = 0>

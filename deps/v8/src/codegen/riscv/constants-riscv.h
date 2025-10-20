@@ -16,6 +16,7 @@
 #include "src/codegen/riscv/constant-riscv-zfh.h"
 #include "src/codegen/riscv/constant-riscv-zicsr.h"
 #include "src/codegen/riscv/constant-riscv-zifencei.h"
+#include "src/codegen/riscv/constant-riscv-zimop.h"
 namespace v8 {
 namespace internal {
 // The maximum size of the stack restore after a fast API call that pops the

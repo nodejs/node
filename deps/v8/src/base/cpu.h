@@ -132,6 +132,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_msa() const { return has_msa_; }
 
   // riscv-specific part codes
+  unsigned vlen() const { return vlen_; }
   bool has_rvv() const { return has_rvv_; }
   bool has_zba() const { return has_zba_; }
   bool has_zbb() const { return has_zbb_; }
@@ -142,6 +143,7 @@ class V8_BASE_EXPORT CPU final {
     kRiscvSV57,
   };
   RV_MMU_MODE riscv_mmu() const { return riscv_mmu_; }
+  static const unsigned kUnknownVlen = 0;
 
  private:
 #if defined(V8_OS_STARBOARD)
@@ -206,6 +208,7 @@ class V8_BASE_EXPORT CPU final {
   bool is_running_in_vm_;
   bool has_msa_;
   RV_MMU_MODE riscv_mmu_;
+  unsigned vlen_;
   bool has_rvv_;
   bool has_zba_;
   bool has_zbb_;

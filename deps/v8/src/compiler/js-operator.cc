@@ -603,12 +603,36 @@ size_t hash_value(CreateLiteralParameters const& p) {
                             p.flags());
 }
 
-
 std::ostream& operator<<(std::ostream& os, CreateLiteralParameters const& p) {
   return os << Brief(*p.constant_.object()) << ", " << p.length() << ", "
             << p.flags();
 }
 
+bool operator==(SetPrototypePropertiesParameters const& lhs,
+                SetPrototypePropertiesParameters const& rhs) {
+  return lhs.constant.object().location() == rhs.constant.object().location() &&
+         lhs.source == rhs.source;
+}
+
+bool operator!=(SetPrototypePropertiesParameters const& lhs,
+                SetPrototypePropertiesParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(SetPrototypePropertiesParameters const& p) {
+  return base::hash_combine(p.constant.object().location(), p.source);
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         SetPrototypePropertiesParameters const& p) {
+  return os << Brief(*p.constant.object()) << "\nslot: " << p.source;
+}
+
+SetPrototypePropertiesParameters SetPrototypePropertiesParametersOf(
+    const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSSetPrototypeProperties, op->opcode());
+  return OpParameter<SetPrototypePropertiesParameters>(op);
+}
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSCreateLiteralArray ||
@@ -704,11 +728,13 @@ ForInParameters const& ForInParametersOf(const Operator* op) {
 #if V8_ENABLE_WEBASSEMBLY
 JSWasmCallParameters::JSWasmCallParameters(
     wasm::NativeModule* native_module, int function_index,
-    SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback)
+    SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback,
+    bool receiver_is_first_param)
     : native_module_(native_module),
       function_index_(function_index),
       shared_fct_info_(shared_fct_info),
-      feedback_(feedback) {}
+      feedback_(feedback),
+      receiver_is_first_param_(receiver_is_first_param) {}
 
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSWasmCall, op->opcode());
@@ -1444,6 +1470,18 @@ const Operator* JSOperatorBuilder::CreateLiteralObject(
       "JSCreateLiteralObject",                             // name
       1, 1, 1, 1, 1, 2,                                    // counts
       parameters);                                         // parameter
+}
+
+const Operator* JSOperatorBuilder::SetPrototypeProperties(
+    ObjectBoilerplateDescriptionRef constant_properties,
+    FeedbackSource source) {
+  SetPrototypePropertiesParameters parameters(constant_properties, source);
+  return zone()->New<Operator1<SetPrototypePropertiesParameters>>(  // --
+      IrOpcode::kJSSetPrototypeProperties,                          // opcode
+      Operator::kNoProperties,     // properties
+      "JSSetPrototypeProperties",  // name
+      1, 1, 1, 0, 1, 2,            // counts
+      parameters);                 // parameter
 }
 
 const Operator* JSOperatorBuilder::GetTemplateObject(

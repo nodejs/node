@@ -106,7 +106,8 @@ DirectHandle<SmiStringCache> SmiStringCache::New(IsolateT* isolate,
 
 // Clears all entried in the table.
 void SmiStringCache::Clear() {
-  MemsetTagged(RawFieldOfFirstElement(), kEmptySentinel, Super::capacity());
+  Relaxed_MemsetTagged(RawFieldOfFirstElement(), kEmptySentinel,
+                       Super::capacity());
 }
 
 // static
@@ -210,8 +211,8 @@ DirectHandle<DoubleStringCache> DoubleStringCache::New(IsolateT* isolate,
 void DoubleStringCache::Clear() {
   static_assert(sizeof(Entry) % kTaggedSize == 0);
   auto* data = reinterpret_cast<Tagged_t*>(begin());
-  MemsetTagged(data, kEmptySentinel,
-               capacity() * (sizeof(Entry) / kTaggedSize));
+  Relaxed_MemsetTagged(data, kEmptySentinel,
+                       capacity() * (sizeof(Entry) / kTaggedSize));
 }
 
 }  // namespace v8::internal

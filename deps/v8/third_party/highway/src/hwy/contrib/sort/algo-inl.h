@@ -20,10 +20,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <algorithm>   // std::sort, std::min, std::max
+#include <algorithm>  // std::sort
 #include <functional>  // std::less, std::greater
 #include <vector>
 
+#include "hwy/base.h"
 #include "hwy/contrib/sort/vqsort.h"
 #include "hwy/highway.h"
 #include "hwy/print.h"
@@ -128,8 +129,8 @@ template <typename T>
 class InputStats {
  public:
   void Notify(T value) {
-    min_ = std::min(min_, value);
-    max_ = std::max(max_, value);
+    min_ = HWY_MIN(min_, value);
+    max_ = HWY_MAX(max_, value);
     // Converting to integer would truncate floats, multiplying to save digits
     // risks overflow especially when casting, so instead take the sum of the
     // bit representations as the checksum.
@@ -554,8 +555,7 @@ void Run(Algo algo, KeyType* inout, size_t num_keys, SharedState& shared,
     case Algo::kVXSort: {
 #if (VXSORT_AVX3 && HWY_TARGET != HWY_AVX3) || \
     (!VXSORT_AVX3 && HWY_TARGET != HWY_AVX2)
-      fprintf(stderr, "Do not call for target %s\n",
-              hwy::TargetName(HWY_TARGET));
+      HWY_WARN("Do not call for target %s\n", hwy::TargetName(HWY_TARGET));
       return;
 #else
 #if VXSORT_AVX3
@@ -566,7 +566,7 @@ void Run(Algo algo, KeyType* inout, size_t num_keys, SharedState& shared,
       if (kAscending) {
         return vx.sort(inout, inout + num_keys - 1);
       } else {
-        fprintf(stderr, "Skipping VX - does not support descending order\n");
+        HWY_WARN("Skipping VX - does not support descending order\n");
         return;
       }
 #endif  // enabled for this target
@@ -607,9 +607,6 @@ void Run(Algo algo, KeyType* inout, size_t num_keys, SharedState& shared,
       return CallHeapPartialSort(inout, num_keys, k_keys, Order());
     case Algo::kHeapSelect:
       return CallHeapSelect(inout, num_keys, k_keys, Order());
-
-    default:
-      HWY_ABORT("Not implemented");
   }
 }
 

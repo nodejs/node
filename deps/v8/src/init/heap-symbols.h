@@ -670,6 +670,8 @@
   V(_, fractionalSecondDigits_string, "fractionalSecondDigits")               \
   V(_, from_string, "from")                                                   \
   V(_, Function_string, "Function")                                           \
+  V(_, Function_prototype_apply_string, "Function.prototype.apply")           \
+  V(_, Function_prototype_call_string, "Function.prototype.call")             \
   V(_, function_native_code_string, "function () { [native code] }")          \
   V(_, function_string, "function")                                           \
   V(_, function_to_string, "[object Function]")                               \

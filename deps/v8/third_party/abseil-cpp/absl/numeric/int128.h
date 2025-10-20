@@ -164,9 +164,9 @@ class
   constexpr explicit operator __int128() const;
   constexpr explicit operator unsigned __int128() const;
 #endif  // ABSL_HAVE_INTRINSIC_INT128
-  explicit operator float() const;
-  explicit operator double() const;
-  explicit operator long double() const;
+  constexpr explicit operator float() const;
+  constexpr explicit operator double() const;
+  constexpr explicit operator long double() const;
 
   // Trivial copy constructor, assignment operator and destructor.
 
@@ -357,14 +357,18 @@ class int128 {
   constexpr int128(unsigned long v);       // NOLINT(runtime/int)
   constexpr int128(long long v);           // NOLINT(runtime/int)
   constexpr int128(unsigned long long v);  // NOLINT(runtime/int)
+  constexpr explicit int128(uint128 v);
 #ifdef ABSL_HAVE_INTRINSIC_INT128
   constexpr int128(__int128 v);  // NOLINT(runtime/explicit)
   constexpr explicit int128(unsigned __int128 v);
-#endif  // ABSL_HAVE_INTRINSIC_INT128
-  constexpr explicit int128(uint128 v);
+  constexpr explicit int128(float v);
+  constexpr explicit int128(double v);
+  constexpr explicit int128(long double v);
+#else
   explicit int128(float v);
   explicit int128(double v);
   explicit int128(long double v);
+#endif  // ABSL_HAVE_INTRINSIC_INT128
 
   // Assignment operators from arithmetic types
   int128& operator=(int v);
@@ -401,9 +405,9 @@ class int128 {
   constexpr explicit operator __int128() const;
   constexpr explicit operator unsigned __int128() const;
 #endif  // ABSL_HAVE_INTRINSIC_INT128
-  explicit operator float() const;
-  explicit operator double() const;
-  explicit operator long double() const;
+  constexpr explicit operator float() const;
+  constexpr explicit operator double() const;
+  constexpr explicit operator long double() const;
 
   // Trivial copy constructor, assignment operator and destructor.
 
@@ -794,18 +798,18 @@ constexpr uint128::operator unsigned __int128() const {
 
 // Conversion operators to floating point types.
 
-inline uint128::operator float() const {
+constexpr uint128::operator float() const {
   // Note: This method might return Inf.
   constexpr float pow_2_64 = 18446744073709551616.0f;
   return static_cast<float>(lo_) + static_cast<float>(hi_) * pow_2_64;
 }
 
-inline uint128::operator double() const {
+constexpr uint128::operator double() const {
   constexpr double pow_2_64 = 18446744073709551616.0;
   return static_cast<double>(lo_) + static_cast<double>(hi_) * pow_2_64;
 }
 
-inline uint128::operator long double() const {
+constexpr uint128::operator long double() const {
   constexpr long double pow_2_64 = 18446744073709551616.0L;
   return static_cast<long double>(lo_) +
          static_cast<long double>(hi_) * pow_2_64;

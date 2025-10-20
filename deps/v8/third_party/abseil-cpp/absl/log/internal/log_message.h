@@ -64,8 +64,12 @@ class LogMessage {
   struct WarningTag {};
   struct ErrorTag {};
 
-  // Used for `LOG`.
+  // Used for `LOG`.  Taking `const char *` instead of `string_view` keeps
+  // callsites a little bit smaller at the cost of doing `strlen` at runtime.
   LogMessage(const char* absl_nonnull file, int line,
+             absl::LogSeverity severity) ABSL_ATTRIBUTE_COLD;
+  // Used for FFI integrations that don't have a NUL-terminated string.
+  LogMessage(absl::string_view file, int line,
              absl::LogSeverity severity) ABSL_ATTRIBUTE_COLD;
   // These constructors are slightly smaller/faster to call; the severity is
   // curried into the function pointer.

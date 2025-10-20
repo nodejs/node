@@ -22,20 +22,22 @@ const DROP_DISCOURAGED_FILES_PROB = 0.8;
 const WASM_MODULE_BUILDER = 'test/mjsunit/wasm/wasm-module-builder.js';
 const WASM_LOAD_LINE = `d8.file.execute("${WASM_MODULE_BUILDER}")`;
 
-function* walkDirectory(directory, filter) {
+function* walkDirectory(directory, fileFilter, dirFilter) {
   // Generator for recursively walk a directory.
   for (const filePath of fs.readdirSync(directory)) {
     const currentPath = path.join(directory, filePath);
     const stat = fs.lstatSync(currentPath);
     if (stat.isFile()) {
-      if (!filter || filter(currentPath)) {
+      if (!fileFilter || fileFilter(currentPath)) {
         yield currentPath;
       }
       continue;
     }
 
     if (stat.isDirectory()) {
-      for (let childFilePath of walkDirectory(currentPath, filter)) {
+      if (dirFilter && dirFilter(currentPath)) continue;
+      for (let childFilePath of walkDirectory(
+          currentPath, fileFilter, dirFilter)) {
         yield childFilePath;
       }
     }
@@ -67,8 +69,11 @@ class Corpus extends sourceHelpers.BaseCorpus {
   // Input corpus.
   constructor(inputDir, corpusName, extraStrict=false) {
     super(inputDir);
+    this.corpusName = corpusName;
     this.extraStrict = extraStrict;
+  }
 
+  create() {
     // Filter for permitted JS files.
     function isPermittedJSFile(absPath) {
       return (absPath.endsWith('.js') &&
@@ -79,11 +84,15 @@ class Corpus extends sourceHelpers.BaseCorpus {
     this.skippedFiles = [];
     this.softSkippedFiles = [];
     this.permittedFiles = [];
-    const directory = path.join(inputDir, corpusName);
-    for (const absPath of walkDirectory(directory, isPermittedJSFile)) {
+    const directory = path.join(this.inputDir, this.corpusName);
+    const dirFilter = (absPath) => {
+      return this.isDirectorySkipped(path.relative(this.inputDir, absPath));
+    };
+    for (const absPath of walkDirectory(
+        directory, isPermittedJSFile, dirFilter)) {
       const relPath = path.relative(this.inputDir, absPath);
       if (exceptions.isTestSkippedRel(relPath) ||
-          this.isTestSkippedInCorpus(relPath)) {
+          this.isTestSkipped(relPath)) {
         this.skippedFiles.push(relPath);
       } else if (exceptions.isTestSoftSkippedAbs(absPath) ||
           exceptions.isTestSoftSkippedRel(relPath)) {
@@ -94,12 +103,20 @@ class Corpus extends sourceHelpers.BaseCorpus {
     }
     random.shuffle(this.softSkippedFiles);
     random.shuffle(this.permittedFiles);
+    return this;
   }
 
   /**
    * Enable subclasses to decide on more skipped files.
    */
-  isTestSkippedInCorpus(relPath) {
+  isTestSkipped(relPath) {
+    return false;
+  }
+
+  /**
+   * Skip entire directories during traversal.
+   */
+  isDirectorySkipped(relPath) {
     return false;
   }
 
@@ -177,7 +194,9 @@ class Corpus extends sourceHelpers.BaseCorpus {
 }
 
 class FuzzilliCorpus extends Corpus {
-  constructor(inputDir, corpusName, extraStrict=false, v8Corpus=undefined) {
+  constructor(inputDir, corpusName, extraStrict=false, v8Corpus=undefined,
+              forDiffFuzz=false) {
+    // This loads only the corpora optimized for differential fuzzing.
     super(inputDir, 'fuzzilli', extraStrict);
     this.flagMap = new Map();
 
@@ -187,13 +206,27 @@ class FuzzilliCorpus extends Corpus {
       this.v8Corpus = create(inputDir, 'v8');
     }
     assert(this.v8Corpus);
+    this.forDiffFuzz = forDiffFuzz;
+  }
+
+  isDirectorySkipped(relPath) {
+    const pathComponents = relPath.split(path.sep);
+    assert(pathComponents.length > 0);
+    assert(pathComponents[0] == 'fuzzilli');
+
+    if (pathComponents.length != 2) return false;
+
+    // Skip diff-fuzz files when we don't want them, or skip other files
+    // when we want the diff-fuzz files.
+    return pathComponents[1].includes('diff-fuzz') ^ this.forDiffFuzz;
   }
 
   get diffFuzzLabel() {
-    // Sources from Fuzzilli use the same universal label for differential
+    // Sources from Fuzzilli use the same universal labels for differential
     // fuzzing because the input file path is random and volatile. It can't
-    // be used to map to particular content.
-    return "fuzzilli_source";
+    // be used to map to particular content. Use a separate label for diff-fuzz
+    // optimized files.
+    return this.forDiffFuzz ? "fuzzilli_diff_fuzz_source" : "fuzzilli_source";
   }
 
   loadFlags(relPath, data) {
@@ -232,7 +265,8 @@ class FuzzilliCorpus extends Corpus {
 
 // As above, but skipping files from the crashes directories.
 class FuzzilliNoCrashCorpus extends FuzzilliCorpus {
-  isTestSkippedInCorpus(relPath) {
+  isTestSkipped(relPath) {
+    if (super.isTestSkipped(relPath)) return true;
     const pathComponents = relPath.split(path.sep);
     if (pathComponents.length < 3) {
       return false;
@@ -245,8 +279,8 @@ class FuzzilliNoCrashCorpus extends FuzzilliCorpus {
 // Fuzzilli corpus that only contains the files depending on the
 // wasm-module-builder.
 class FuzzilliWasmCorpus extends FuzzilliCorpus {
-  isTestSkippedInCorpus(relPath) {
-    return !needsWasmModuleBuilder(
+  isTestSkipped(relPath) {
+    return super.isTestSkipped(relPath) || !needsWasmModuleBuilder(
         path.resolve(path.join(this.inputDir, relPath)));
   }
 }
@@ -280,7 +314,7 @@ class V8Corpus extends Corpus {
 // V8 corpus that only contains the files depending on the
 // wasm-module-builder.
 class V8WasmCorpus extends V8Corpus {
-  isTestSkippedInCorpus(relPath) {
+  isTestSkipped(relPath) {
     return !needsWasmModuleBuilder(
         path.resolve(path.join(this.inputDir, relPath)));
   }
@@ -296,11 +330,10 @@ const CORPUS_CLASSES = {
 
 function create(inputDir, corpusName, ...args) {
   const cls = CORPUS_CLASSES[corpusName] || Corpus;
-  return new cls(inputDir, corpusName, ...args);
+  return new cls(inputDir, corpusName, ...args).create();
 }
 
 module.exports = {
   DROP_DISCOURAGED_FILES_PROB: DROP_DISCOURAGED_FILES_PROB,
   create: create,
-  walkDirectory: walkDirectory,
 }

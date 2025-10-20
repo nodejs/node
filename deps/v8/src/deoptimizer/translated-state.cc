@@ -664,9 +664,9 @@ Tagged<Object> TranslatedValue::GetRawValue() const {
 
     case kHoleyDouble:
       if (double_value().is_hole_nan()
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
           || double_value().is_undefined_nan()
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
       ) {
         // Hole NaNs and undefined NaNs that made it to here represent the
         // undefined value.
@@ -1628,14 +1628,13 @@ int TranslatedState::CreateNextTranslatedValue(
       }
       Simd128 value = registers->GetSimd128Register(input_reg);
       if (trace_file != nullptr) {
-        int8x16 val = value.to_i8x16();
+        Simd128::int8x16 val = value.to_i8x16();
         PrintF(trace_file,
                "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
                "%02x %02x %02x %02x ; %s (Simd128)",
-               val.val[0], val.val[1], val.val[2], val.val[3], val.val[4],
-               val.val[5], val.val[6], val.val[7], val.val[8], val.val[9],
-               val.val[10], val.val[11], val.val[12], val.val[13], val.val[14],
-               val.val[15], RegisterName(DoubleRegister::from_code(input_reg)));
+               val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7],
+               val[8], val[9], val[10], val[11], val[12], val[13], val[14],
+               val[15], RegisterName(DoubleRegister::from_code(input_reg)));
       }
       TranslatedValue translated_value =
           TranslatedValue::NewSimd128(this, value);
@@ -1779,14 +1778,13 @@ int TranslatedState::CreateNextTranslatedValue(
           iterator->NextOperand());
       Simd128 value = getSimd128Slot(fp, slot_offset);
       if (trace_file != nullptr) {
-        int8x16 val = value.to_i8x16();
+        Simd128::int8x16 val = value.to_i8x16();
         PrintF(trace_file,
                "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
                "%02x %02x %02x %02x ; (Simd128) [fp %c %d]",
-               val.val[0], val.val[1], val.val[2], val.val[3], val.val[4],
-               val.val[5], val.val[6], val.val[7], val.val[8], val.val[9],
-               val.val[10], val.val[11], val.val[12], val.val[13], val.val[14],
-               val.val[15], slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
+               val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7],
+               val[8], val[9], val[10], val[11], val[12], val[13], val[14],
+               val[15], slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
       TranslatedValue translated_value =
           TranslatedValue::NewSimd128(this, value);

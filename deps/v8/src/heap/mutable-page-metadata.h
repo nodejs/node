@@ -73,12 +73,10 @@ class MutablePageMetadata : public MemoryChunkMetadata {
       MutablePageMetadata* to, size_t amount);
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
-  V8_INLINE static MutablePageMetadata* FromAddress(Address a);
   V8_INLINE static MutablePageMetadata* FromAddress(const Isolate* i,
                                                     Address a);
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
-  V8_INLINE static MutablePageMetadata* FromHeapObject(Tagged<HeapObject> o);
   V8_INLINE static MutablePageMetadata* FromHeapObject(const Isolate* i,
                                                        Tagged<HeapObject> o);
 

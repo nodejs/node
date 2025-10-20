@@ -165,6 +165,52 @@ static inline bool HasStackSlotInput(Instruction* instr, size_t index) {
 
 namespace {
 
+class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
+                                     Register value, Register scratch,
+                                     UnwindingInfoWriter* unwinding_info_writer)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        scratch_(scratch),
+        must_save_lr_(!gen->frame_access_state()->has_frame()),
+        unwinding_info_writer_(unwinding_info_writer),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    if (COMPRESS_POINTERS_BOOL) {
+      __ DecompressTagged(value_, value_);
+    }
+
+    __ PreCheckSkippedWriteBarrier(object_, value_, scratch_, exit());
+
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    if (must_save_lr_) {
+      // We need to save and restore lr if the frame was elided.
+      __ Push(r14);
+      unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset());
+    }
+    __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
+                                                      save_fp_mode);
+    if (must_save_lr_) {
+      __ Pop(r14);
+      unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
+    }
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Register const scratch_;
+  bool const must_save_lr_;
+  UnwindingInfoWriter* const unwinding_info_writer_;
+  Zone* zone_;
+};
+
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, MemOperand operand,
@@ -832,14 +878,11 @@ static inline bool is_wasm_on_be(OptimizedCompilationInfo* info) {
     __ load_and_op(result, value, MemOperand(addr));      \
   } while (false)
 
-#define ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end,             \
-                      maybe_reverse_bytes)                                    \
+#define ATOMIC_BIN_OP_HALFWORD_IMPLEMENTATION(bin_inst, offset, shift_amount, \
+                                              start, end)                     \
   do {                                                                        \
-    /* At the moment this is only true when dealing with 2-byte values.*/     \
     bool is_on_heap = MiscField::decode(instr->opcode());                     \
-    bool reverse_bytes =                                                      \
-        maybe_reverse_bytes && is_wasm_on_be(info()) && !is_on_heap;          \
-    USE(reverse_bytes);                                                       \
+    bool reverse_bytes = is_wasm_on_be(info()) && !is_on_heap;                \
     Label do_cs;                                                              \
     __ LoadU32(prev, MemOperand(addr, offset));                               \
     __ bind(&do_cs);                                                          \
@@ -847,18 +890,24 @@ static inline bool is_wasm_on_be(OptimizedCompilationInfo* info) {
       Register temp2 = GetRegisterThatIsNotOneOf(value, result, prev);        \
       __ Push(temp2);                                                         \
       __ lrvr(temp2, prev);                                                   \
-      __ RotateInsertSelectBits(temp2, temp2, Operand(start), Operand(end),   \
-                                Operand(static_cast<intptr_t>(shift_amount)), \
-                                true);                                        \
+      if (!offset) {                                                          \
+        __ ShiftLeftU32(temp2, temp2, Operand(16));                           \
+      } else {                                                                \
+        __ ShiftRightU32(temp2, temp2, Operand(16));                          \
+      }                                                                       \
       __ RotateInsertSelectBits(temp, value, Operand(start), Operand(end),    \
                                 Operand(static_cast<intptr_t>(shift_amount)), \
                                 true);                                        \
       __ bin_inst(new_val, temp2, temp);                                      \
       __ lrvr(temp2, new_val);                                                \
+      if (!offset) {                                                          \
+        __ ShiftLeftU32(temp2, temp2, Operand(16));                           \
+      } else {                                                                \
+        __ ShiftRightU32(temp2, temp2, Operand(16));                          \
+      }                                                                       \
       __ lr(temp, prev);                                                      \
       __ RotateInsertSelectBits(temp, temp2, Operand(start), Operand(end),    \
-                                Operand(static_cast<intptr_t>(shift_amount)), \
-                                false);                                       \
+                                Operand(Operand::Zero()), false);             \
       __ Pop(temp2);                                                          \
     } else {                                                                  \
       __ RotateInsertSelectBits(temp, value, Operand(start), Operand(end),    \
@@ -873,43 +922,64 @@ static inline bool is_wasm_on_be(OptimizedCompilationInfo* info) {
     __ bne(&do_cs, Label::kNear);                                             \
   } while (false)
 
+#define ATOMIC_BIN_OP_BYTE_IMPLEMENTATION(bin_inst, offset, shift_amount,   \
+                                          start, end)                       \
+  do {                                                                      \
+    Label do_cs;                                                            \
+    __ LoadU32(prev, MemOperand(addr, offset));                             \
+    __ bind(&do_cs);                                                        \
+    __ RotateInsertSelectBits(temp, value, Operand(start), Operand(end),    \
+                              Operand(static_cast<intptr_t>(shift_amount)), \
+                              true);                                        \
+    __ bin_inst(new_val, prev, temp);                                       \
+    __ lr(temp, prev);                                                      \
+    __ RotateInsertSelectBits(temp, new_val, Operand(start), Operand(end),  \
+                              Operand::Zero(), false);                      \
+    __ CmpAndSwap(prev, temp, MemOperand(addr, offset));                    \
+    __ bne(&do_cs, Label::kNear);                                           \
+  } while (false)
+
 #ifdef V8_TARGET_BIG_ENDIAN
-#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)      \
-  {                                                                  \
-    constexpr int offset = -(2 * index);                             \
-    constexpr int shift_amount = 16 - (index * 16);                  \
-    constexpr int start = 48 - shift_amount;                         \
-    constexpr int end = start + 15;                                  \
-    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end, true); \
-    extract_result();                                                \
+#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)           \
+  {                                                                       \
+    constexpr int offset = -(2 * index);                                  \
+    constexpr int shift_amount = 16 - (index * 16);                       \
+    constexpr int start = 48 - shift_amount;                              \
+    constexpr int end = start + 15;                                       \
+    ATOMIC_BIN_OP_HALFWORD_IMPLEMENTATION(bin_inst, offset, shift_amount, \
+                                          start, end);                    \
+    extract_result();                                                     \
   }
-#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)           \
-  {                                                                   \
-    constexpr int offset = -(index);                                  \
-    constexpr int shift_amount = 24 - (index * 8);                    \
-    constexpr int start = 56 - shift_amount;                          \
-    constexpr int end = start + 7;                                    \
-    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end, false); \
-    extract_result();                                                 \
+#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)                  \
+  {                                                                          \
+    constexpr int offset = -(index);                                         \
+    constexpr int shift_amount = 24 - (index * 8);                           \
+    constexpr int start = 56 - shift_amount;                                 \
+    constexpr int end = start + 7;                                           \
+    ATOMIC_BIN_OP_BYTE_IMPLEMENTATION(bin_inst, offset, shift_amount, start, \
+                                      end);                                  \
+    extract_result();                                                        \
   }
 #else
-#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)       \
-  {                                                                   \
-    constexpr int offset = -(2 * index);                              \
-    constexpr int shift_amount = index * 16;                          \
-    constexpr int start = 48 - shift_amount;                          \
-    constexpr int end = start + 15;                                   \
-    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end, false); \
-    extract_result();                                                 \
+#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)           \
+  {                                                                       \
+    constexpr int offset = -(2 * index);                                  \
+    constexpr int shift_amount = index * 16;                              \
+    constexpr int start = 48 - shift_amount;                              \
+    constexpr int end = start + 15;                                       \
+    ATOMIC_BIN_OP_HALFWORD_IMPLEMENTATION(bin_inst, offset, shift_amount, \
+                                          start, end);                    \
+    extract_result();                                                     \
   }
-#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)           \
-  {                                                                   \
-    constexpr int offset = -(index);                                  \
-    constexpr int shift_amount = index * 8;                           \
-    constexpr int start = 56 - shift_amount;                          \
-    constexpr int end = start + 7;                                    \
-    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end, false); \
-    extract_result();                                                 \
+#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)                  \
+  {                                                                          \
+    constexpr int offset = -(index);                                         \
+    constexpr int shift_amount = index * 8;                                  \
+    constexpr int start = 56 - shift_amount;                                 \
+    constexpr int end = start + 7;                                           \
+    ATOMIC_BIN_OP_BYTE_IMPLEMENTATION(bin_inst, offset, shift_amount, start, \
+                                      end);                                  \
+    extract_result();                                                        \
   }
 #endif  // V8_TARGET_BIG_ENDIAN
 
@@ -1149,8 +1219,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
-    case kArchCallWasmFunctionIndirect:
-    case kArchResumeWasmContinuation: {
+    case kArchCallWasmFunctionIndirect: {
       // We must not share code targets for calls to builtins for wasm code, as
       // they might need to be patched individually.
       if (instr->InputAt(0)->IsImmediate()) {
@@ -1161,9 +1230,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else if (opcode == kArchCallWasmFunctionIndirect) {
         __ CallWasmCodePointer(i.InputRegister(0));
       } else {
-        // TODO(thibaudm): Use a WasmCodePointer for
-        // kArchResumeWasmContinuation. Can this be merged with
-        // kArchCallWasmFunctionIndirect?
         __ Call(i.InputRegister(0));
       }
       RecordCallPosition(instr);
@@ -1452,7 +1518,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchStoreSkippedWriteBarrier:  // Fall through.
+    case kArchAtomicStoreSkippedWriteBarrier: {
+      AddressingMode addressing_mode;
+      size_t index = 0;
+      MemOperand operand = i.MemoryOperand(&addressing_mode, &index);
+      Register value = i.InputRegister(index);
+      Register object = i.InputRegister(0);
+
+      if (v8_flags.debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ CmpU64(value, Operand(kClearedWeakHeapObjectLower32));
+        __ Check(ne, AbortReason::kOperandIsCleared);
+      }
+
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+          this, object, value, kScratchReg, &unwinding_info_writer_);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
+
+      __ StoreTaggedField(value, operand, r0);
+      break;
+    }
     case kArchStoreIndirectWithWriteBarrier:
+    case kArchStoreIndirectSkippedWriteBarrier:
       UNREACHABLE();
     case kArchStackSlot: {
       FrameOffset offset =

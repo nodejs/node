@@ -26,7 +26,8 @@ class LargePageMetadata : public MutablePageMetadata {
     return cast(MutablePageMetadata::cast(metadata));
   }
 
-  V8_INLINE static LargePageMetadata* FromHeapObject(Tagged<HeapObject> o);
+  V8_INLINE static LargePageMetadata* FromHeapObject(Isolate* i,
+                                                     Tagged<HeapObject> o);
 
   LargePageMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
                     Address area_start, Address area_end,

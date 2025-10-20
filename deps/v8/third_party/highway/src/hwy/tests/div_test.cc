@@ -38,9 +38,7 @@ struct TestIntegerDiv {
     const size_t N = Lanes(d);
     using V = VFromD<D>;
     auto expected = AllocateAligned<T>(N);
-    auto expected_even = AllocateAligned<T>(N);
-    auto expected_odd = AllocateAligned<T>(N);
-    HWY_ASSERT(expected && expected_even && expected_odd);
+    HWY_ASSERT(expected);
 
     V a = Load(d, a_lanes);
     V b = Load(d, b_lanes);
@@ -54,32 +52,11 @@ struct TestIntegerDiv {
           neg_b ? static_cast<T>(-static_cast<TI>(b_lanes[i])) : b_lanes[i];
       HWY_ASSERT(b1 != 0);
       expected[i] = static_cast<T>(a1 / b1);
-      if ((i & 1) == 0) {
-        expected_even[i] = expected[i];
-        expected_odd[i] = static_cast<T>(0);
-      } else {
-        expected_even[i] = static_cast<T>(0);
-        expected_odd[i] = expected[i];
-      }
     }
 
     HWY_ASSERT_VEC_EQ(d, expected.get(), Div(a, b));
-
-    const V vmin = Set(d, LimitsMin<T>());
-    const V zero = Zero(d);
-    const V all_ones = Set(d, static_cast<T>(-1));
-
-    HWY_ASSERT_VEC_EQ(d, expected_even.get(),
-                      OddEven(zero, Div(a, OddEven(zero, b))));
-    HWY_ASSERT_VEC_EQ(d, expected_odd.get(),
-                      OddEven(Div(a, OddEven(b, zero)), zero));
-
-    HWY_ASSERT_VEC_EQ(
-        d, expected_even.get(),
-        OddEven(zero, Div(OddEven(vmin, a), OddEven(all_ones, b))));
-    HWY_ASSERT_VEC_EQ(
-        d, expected_odd.get(),
-        OddEven(Div(OddEven(a, vmin), OddEven(b, all_ones)), zero));
+    // No longer test that we can divide by zero and then mask out the result:
+    // this is UB.
   }
 
   template <typename T, class D>
@@ -177,41 +154,18 @@ struct TestIntegerMod {
     auto a_lanes = AllocateAligned<T>(N);
     auto b_lanes = AllocateAligned<T>(N);
     auto expected = AllocateAligned<T>(N);
-    auto expected_even = AllocateAligned<T>(N);
-    auto expected_odd = AllocateAligned<T>(N);
-    HWY_ASSERT(a_lanes && b_lanes && expected && expected_even && expected_odd);
+    HWY_ASSERT(a_lanes && b_lanes && expected);
 
     Store(a, d, a_lanes.get());
     Store(b, d, b_lanes.get());
 
     for (size_t i = 0; i < N; i++) {
       expected[i] = static_cast<T>(a_lanes[i] % b_lanes[i]);
-      if ((i & 1) == 0) {
-        expected_even[i] = expected[i];
-        expected_odd[i] = static_cast<T>(0);
-      } else {
-        expected_even[i] = static_cast<T>(0);
-        expected_odd[i] = expected[i];
-      }
     }
 
     HWY_ASSERT_VEC_EQ(d, expected.get(), Mod(a, b));
-
-    const auto vmin = Set(d, LimitsMin<T>());
-    const auto zero = Zero(d);
-    const auto all_ones = Set(d, static_cast<T>(-1));
-
-    HWY_ASSERT_VEC_EQ(d, expected_even.get(),
-                      OddEven(zero, Mod(a, OddEven(zero, b))));
-    HWY_ASSERT_VEC_EQ(d, expected_odd.get(),
-                      OddEven(Mod(a, OddEven(b, zero)), zero));
-
-    HWY_ASSERT_VEC_EQ(
-        d, expected_even.get(),
-        OddEven(zero, Mod(OddEven(vmin, a), OddEven(all_ones, b))));
-    HWY_ASSERT_VEC_EQ(
-        d, expected_odd.get(),
-        OddEven(Mod(OddEven(a, vmin), OddEven(b, all_ones)), zero));
+    // No longer test that we can divide by zero and then mask out the result:
+    // this is UB.
   }
 
   template <typename T, class D>

@@ -1306,12 +1306,12 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
                 JSReceiver::GetElement(isolate, array, j), false);
             if (!visitor->visit(j, element_value)) return false;
           }
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
         } else if (elements->is_undefined(j)) {
           DirectHandle<Object> element_value =
               isolate->factory()->undefined_value();
           if (!visitor->visit(j, element_value)) return false;
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
         } else {
           double double_value = elements->get_scalar(j);
           DirectHandle<Object> element_value =
@@ -1491,24 +1491,24 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args,
               for (uint32_t k = 0; k < length; k++) {
                 const bool is_hole = elements->is_the_hole(k);
                 if (is_hole
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
                     || elements->is_undefined(k)
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
                 ) {
                   if (has_array_prototype &&
                       Protectors::IsNoElementsIntact(isolate)) {
                     // If we do not have elements on the prototype chain,
                     // we can generate a HOLEY_DOUBLE_ELEMENTS.
                     kind = HOLEY_DOUBLE_ELEMENTS;
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
                     if (is_hole) {
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
                       double_storage->set_the_hole(j);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
                     } else {
                       double_storage->set_undefined(j);
                     }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
                   } else {
                     failure = true;
                     break;
@@ -1528,7 +1528,7 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args,
               for (uint32_t k = 0; k < length; k++) {
                 Tagged<Object> element = elements->get(k);
                 if (element == the_hole) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
                   if (has_array_prototype &&
                       Protectors::IsNoElementsIntact(isolate)) {
                     // If we do not have elements on the prototype chain,
@@ -1536,12 +1536,12 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args,
                     kind = HOLEY_DOUBLE_ELEMENTS;
                     double_storage->set_the_hole(j);
                   } else {
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
                     failure = true;
                     break;
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
                   }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
                 } else {
                   int32_t int_value = Smi::ToInt(element);
                   double_storage->set(j, int_value);

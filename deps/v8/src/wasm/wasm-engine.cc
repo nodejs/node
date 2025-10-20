@@ -512,10 +512,6 @@ struct WasmEngine::IsolateInfo {
 
   // Keep new modules in debug state.
   bool keep_in_debug_state = false;
-
-  // Keep track whether we already added a sample for PKU support (we only want
-  // one sample per Isolate).
-  bool pku_support_sampled = false;
 };
 
 void WasmEngine::ClearWeakScriptHandle(Isolate* isolate,
@@ -1251,6 +1247,12 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
     DCHECK_EQ(0, isolates_.count(isolate));
     isolates_.emplace(isolate, std::move(isolate_info));
   }
+
+  // Record memory protection key support.
+  bool has_mpk = WasmCodeManager::HasMemoryProtectionKeySupport();
+  isolate->counters()->wasm_memory_protection_keys_support()->AddSample(
+      has_mpk ? 1 : 0);
+
   if (log_code) {
     // Log existing wrappers (which are shared across isolates).
     GetWasmImportWrapperCache()->LogForIsolate(isolate);
@@ -1588,15 +1590,6 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
   }
   if (isolate_info->log_codes) {
     EnableCodeLogging(native_module.get());
-  }
-
-  // Record memory protection key support.
-  if (!isolate_info->pku_support_sampled) {
-    isolate_info->pku_support_sampled = true;
-    auto* histogram =
-        isolate->counters()->wasm_memory_protection_keys_support();
-    bool has_mpk = WasmCodeManager::HasMemoryProtectionKeySupport();
-    histogram->AddSample(has_mpk ? 1 : 0);
   }
 
   isolate->counters()->wasm_modules_per_isolate()->AddSample(

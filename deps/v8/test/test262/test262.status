@@ -1395,4 +1395,25 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/ArrayBuffer/prototype/resize/this-is-immutable-arraybuffer-object': [SKIP],
+  'built-ins/ArrayBuffer/prototype/transfer/this-is-immutable-arraybuffer': [SKIP],
+  'built-ins/ArrayBuffer/prototype/transferToFixedLength/this-is-immutable-arraybuffer': [SKIP],
+  'built-ins/DataView/prototype/setBigInt64/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setBigUint64/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setFloat16/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setFloat32/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setFloat64/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setInt16/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setInt32/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setInt8/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setUint16/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setUint32/immutable-buffer': [SKIP],
+  'built-ins/DataView/prototype/setUint8/immutable-buffer': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]

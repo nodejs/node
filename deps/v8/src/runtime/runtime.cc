@@ -108,7 +108,7 @@ bool Runtime::NeedsExactContext(FunctionId id) {
     case Runtime::kReThrow:
     case Runtime::kReThrowWithMessage:
     case Runtime::kThrow:
-    case Runtime::kThrowApplyNonFunction:
+    case Runtime::kThrowTargetNonFunction:
     case Runtime::kThrowCalledNonCallable:
     case Runtime::kThrowConstAssignError:
     case Runtime::kThrowConstructorNonCallableError:
@@ -152,7 +152,7 @@ bool Runtime::IsNonReturning(FunctionId id) {
     case Runtime::kReThrow:
     case Runtime::kReThrowWithMessage:
     case Runtime::kThrow:
-    case Runtime::kThrowApplyNonFunction:
+    case Runtime::kThrowTargetNonFunction:
     case Runtime::kThrowCalledNonCallable:
     case Runtime::kThrowConstructedNonConstructable:
     case Runtime::kThrowConstructorReturnedNonObject:

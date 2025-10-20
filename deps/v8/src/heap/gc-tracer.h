@@ -626,7 +626,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   base::TimeDelta background_scopes_[Scope::NUMBER_OF_SCOPES];
 
 #if defined(V8_USE_PERFETTO)
-  perfetto::ThreadTrack parent_track_;
+  perfetto::NamedTrack parent_track_;
 #endif
 
   FRIEND_TEST(GCTracerTest, AllocationThroughput);

@@ -10,12 +10,18 @@
 	#include <math.h>
 #endif
 
-#ifdef _MSC_VER
-	#include <intrin.h>
-#endif
-
 #include <fp16/bitcasts.h>
 #include <fp16/macros.h>
+
+#if defined(_MSC_VER)
+	#include <intrin.h>
+#endif
+#if defined(__F16C__) && FP16_USE_NATIVE_CONVERSION && !FP16_USE_FLOAT16_TYPE && !FP16_USE_FP16_TYPE
+	#include <immintrin.h>
+#endif
+#if (defined(__aarch64__) || defined(_M_ARM64)) && FP16_USE_NATIVE_CONVERSION && !FP16_USE_FLOAT16_TYPE && !FP16_USE_FP16_TYPE
+	#include <arm_neon.h>
+#endif
 
 
 /*
@@ -107,18 +113,30 @@ static inline uint32_t fp16_ieee_to_fp32_bits(uint16_t h) {
  * floating-point operations and bitcasts between integer and floating-point variables.
  */
 static inline float fp16_ieee_to_fp32_value(uint16_t h) {
-#if FP16_USE_FLOAT16_TYPE
-	union {
-		uint16_t as_bits;
-		_Float16 as_value;
-	} fp16 = { h };
-	return (float) fp16.as_value;
-#elif FP16_USE_FP16_TYPE
-	union {
-		uint16_t as_bits;
-		__fp16 as_value;
-	} fp16 = { h };
-	return (float) fp16.as_value;
+#if FP16_USE_NATIVE_CONVERSION
+	#if FP16_USE_FLOAT16_TYPE
+		union {
+			uint16_t as_bits;
+			_Float16 as_value;
+		} fp16 = { h };
+		return (float) fp16.as_value;
+	#elif FP16_USE_FP16_TYPE
+		union {
+			uint16_t as_bits;
+			__fp16 as_value;
+		} fp16 = { h };
+		return (float) fp16.as_value;
+	#else
+		#if (defined(__INTEL_COMPILER) || defined(__GNUC__)) && defined(__F16C__)
+			return _cvtsh_ss((unsigned short) h);
+		#elif defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64)) && defined(__AVX2__)
+			return _mm_cvtss_f32(_mm_cvtph_ps(_mm_cvtsi32_si128((int) (unsigned int) h)));
+		#elif defined(_M_ARM64) || defined(__aarch64__)
+			return vgetq_lane_f32(vcvt_f32_f16(vreinterpret_f16_u16(vdup_n_u16(h))), 0);
+		#else
+			#error "Archtecture- or compiler-specific implementation required"
+		#endif
+	#endif
 #else
 	/*
 	 * Extend the half-precision floating-point number to 32 bits and shift to the upper part of the 32-bit word:
@@ -236,18 +254,30 @@ static inline float fp16_ieee_to_fp32_value(uint16_t h) {
  * floating-point operations and bitcasts between integer and floating-point variables.
  */
 static inline uint16_t fp16_ieee_from_fp32_value(float f) {
-#if FP16_USE_FLOAT16_TYPE
-	union {
-		_Float16 as_value;
-		uint16_t as_bits;
-	} fp16 = { (_Float16) f };
-	return fp16.as_bits;
-#elif FP16_USE_FP16_TYPE
-	union {
-		__fp16 as_value;
-		uint16_t as_bits;
-	} fp16 = { (__fp16) f };
-	return fp16.as_bits;
+#if FP16_USE_NATIVE_CONVERSION
+	#if FP16_USE_FLOAT16_TYPE
+		union {
+			_Float16 as_value;
+			uint16_t as_bits;
+		} fp16 = { (_Float16) f };
+		return fp16.as_bits;
+	#elif FP16_USE_FP16_TYPE
+		union {
+			__fp16 as_value;
+			uint16_t as_bits;
+		} fp16 = { (__fp16) f };
+		return fp16.as_bits;
+	#else
+		#if (defined(__INTEL_COMPILER) || defined(__GNUC__)) && defined(__F16C__)
+			return _cvtss_sh(f, _MM_FROUND_CUR_DIRECTION);
+		#elif defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64)) && defined(__AVX2__)
+			return (uint16_t) _mm_cvtsi128_si32(_mm_cvtps_ph(_mm_set_ss(f), _MM_FROUND_CUR_DIRECTION));
+		#elif defined(_M_ARM64) || defined(__aarch64__)
+			return vget_lane_u16(vcvt_f16_f32(vdupq_n_f32(f)), 0);
+		#else
+			#error "Archtecture- or compiler-specific implementation required"
+		#endif
+	#endif
 #else
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) || defined(__GNUC__) && !defined(__STRICT_ANSI__)
 	const float scale_to_inf = 0x1.0p+112f;

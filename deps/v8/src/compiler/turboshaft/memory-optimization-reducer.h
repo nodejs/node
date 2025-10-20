@@ -142,6 +142,7 @@ struct MemoryAnalyzer {
     const Operation& value = input_graph.Get(store.value());
 
     WriteBarrierKind write_barrier_kind = store.write_barrier;
+    if (write_barrier_kind == WriteBarrierKind::kNoWriteBarrier) return false;
     if (write_barrier_kind != WriteBarrierKind::kAssertNoWriteBarrier) {
       // If we have {kAssertNoWriteBarrier}, we cannot skip elimination
       // checks.
@@ -218,7 +219,7 @@ class MemoryOptimizationReducer : public Next {
     if (analyzer_->skipped_write_barriers.count(ig_index)) {
       __ Store(__ MapToNewGraph(store.base()), __ MapToNewGraph(store.index()),
                __ MapToNewGraph(store.value()), store.kind, store.stored_rep,
-               WriteBarrierKind::kNoWriteBarrier, store.offset,
+               skipped_write_barrier_kind_, store.offset,
                store.element_size_log2,
                store.maybe_initializing_or_transitioning,
                store.indirect_pointer_tag());
@@ -251,28 +252,9 @@ class MemoryOptimizationReducer : public Next {
       type = AllocationType::kOld;
     }
 
-    V<WordPtr> top_address;
-    if (isolate_ != nullptr) {
-      top_address = __ ExternalConstant(
-          type == AllocationType::kYoung
-              ? ExternalReference::new_space_allocation_top_address(isolate_)
-              : ExternalReference::old_space_allocation_top_address(isolate_));
-    } else {
-      // Wasm mode: producing isolate-independent code, loading the isolate
-      // address at runtime.
-#if V8_ENABLE_WEBASSEMBLY
-      V<WasmTrustedInstanceData> instance_data = __ WasmInstanceDataParameter();
-      int top_address_offset =
-          type == AllocationType::kYoung
-              ? WasmTrustedInstanceData::kNewAllocationTopAddressOffset
-              : WasmTrustedInstanceData::kOldAllocationTopAddressOffset;
-      top_address =
-          __ Load(instance_data, LoadOp::Kind::TaggedBase().Immutable(),
-                  MemoryRepresentation::UintPtr(), top_address_offset);
-#else
-      UNREACHABLE();
-#endif  // V8_ENABLE_WEBASSEMBLY
-    }
+    V<WordPtr> top_address = __ IsolateField(
+        type == AllocationType::kYoung ? IsolateFieldId::kNewAllocationInfoTop
+                                       : IsolateFieldId::kOldAllocationInfoTop);
 
     if (analyzer_->IsFoldedAllocation(__ current_operation_origin())) {
       DCHECK_NE(__ GetVariable(top(type)), V<WordPtr>::Invalid());
@@ -353,6 +335,9 @@ class MemoryOptimizationReducer : public Next {
         __ GotoIfNot(LIKELY(__ UintPtrLessThan(
                          size, __ IntPtrConstant(kMaxRegularHeapObjectSize))),
                      call_runtime);
+        if (v8_flags.verify_write_barriers) {
+          SetLastYoungAllocation(type, top_value);
+        }
         __ SetVariable(top(type), new_top);
         __ StoreOffHeap(top_address, new_top, MemoryRepresentation::UintPtr());
         __ Goto(done);
@@ -402,6 +387,11 @@ class MemoryOptimizationReducer : public Next {
     __ BindReachable(done);
     // Compute the new top and write it back.
     V<WordPtr> obj_addr = __ GetVariable(top(type));
+
+    if (v8_flags.verify_write_barriers) {
+      SetLastYoungAllocation(type, obj_addr);
+    }
+
     __ SetVariable(top(type), __ WordPtrAdd(__ GetVariable(top(type)), size));
     __ StoreOffHeap(top_address, __ GetVariable(top(type)),
                     MemoryRepresentation::UintPtr());
@@ -502,6 +492,8 @@ class MemoryOptimizationReducer : public Next {
   const TSCallDescriptor* allocate_wasm_shared_builtin_descriptor_ = nullptr;
 #endif
   std::optional<Variable> top_[2];
+  const WriteBarrierKind skipped_write_barrier_kind_ =
+      v8_flags.verify_write_barriers ? kSkippedWriteBarrier : kNoWriteBarrier;
 
   static_assert(static_cast<int>(AllocationType::kYoung) == 0);
   static_assert(static_cast<int>(AllocationType::kOld) == 1);
@@ -532,31 +524,19 @@ class MemoryOptimizationReducer : public Next {
   }
 #endif
 
+  void SetLastYoungAllocation(AllocationType type, V<WordPtr> obj) {
+    DCHECK(v8_flags.verify_write_barriers);
+    V<WordPtr> last_value =
+        type == AllocationType::kYoung ? obj : __ IntPtrConstant(0);
+
+    __ StoreOffHeap(__ IsolateField(IsolateFieldId::kLastYoungAllocation),
+                    last_value, MemoryRepresentation::UintPtr());
+  }
+
   V<WordPtr> GetLimitAddress(AllocationType type) {
-    V<WordPtr> limit_address;
-    if (isolate_ != nullptr) {
-      limit_address = __ ExternalConstant(
-          type == AllocationType::kYoung
-              ? ExternalReference::new_space_allocation_limit_address(isolate_)
-              : ExternalReference::old_space_allocation_limit_address(
-                    isolate_));
-    } else {
-      // Wasm mode: producing isolate-independent code, loading the isolate
-      // address at runtime.
-#if V8_ENABLE_WEBASSEMBLY
-      V<WasmTrustedInstanceData> instance_node = __ WasmInstanceDataParameter();
-      int limit_address_offset =
-          type == AllocationType::kYoung
-              ? WasmTrustedInstanceData::kNewAllocationLimitAddressOffset
-              : WasmTrustedInstanceData::kOldAllocationLimitAddressOffset;
-      limit_address =
-          __ Load(instance_node, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::UintPtr(), limit_address_offset);
-#else
-      UNREACHABLE();
-#endif  // V8_ENABLE_WEBASSEMBLY
-    }
-    return limit_address;
+    return __ IsolateField(type == AllocationType::kYoung
+                               ? IsolateFieldId::kNewAllocationInfoLimit
+                               : IsolateFieldId::kOldAllocationInfoLimit);
   }
 };
 

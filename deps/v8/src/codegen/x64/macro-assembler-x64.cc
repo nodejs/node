@@ -464,13 +464,9 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // catch stores of Smis and read-only objects.
   Label done;
 
-#if V8_STATIC_ROOTS_BOOL
   if (ro_check == ReadOnlyCheck::kInline) {
-    // Quick check for Read-only and small Smi values.
-    static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
-    JumpIfUnsignedLessThan(value, kRegularPageSize, &done);
+    MaybeJumpIfReadOnlyOrSmallSmi(value, &done);
   }
-#endif  // V8_STATIC_ROOTS_BOOL
 
   // Skip barrier if writing a smi.
   if (smi_check == SmiCheck::kInline) {
@@ -1121,6 +1117,38 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
   }
 }
 
+void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
+    Register object, Register value, SaveFPRegsMode fp_mode) {
+  ASM_CODE_COMMENT(this);
+  PushCallerSaved(fp_mode);
+  CallVerifySkippedWriteBarrierStub(object, value);
+  PopCallerSaved(fp_mode);
+}
+
+void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
+                                                       Register value) {
+  ASM_CODE_COMMENT(this);
+  MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
+  PrepareCallCFunction(2);
+  CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2);
+}
+
+void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+    Register object, Register value, SaveFPRegsMode fp_mode) {
+  ASM_CODE_COMMENT(this);
+  PushCallerSaved(fp_mode);
+  CallVerifySkippedIndirectWriteBarrierStub(object, value);
+  PopCallerSaved(fp_mode);
+}
+
+void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStub(Register object,
+                                                               Register value) {
+  ASM_CODE_COMMENT(this);
+  MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
+  PrepareCallCFunction(2);
+  CallCFunction(ExternalReference::verify_skipped_indirect_write_barrier(), 2);
+}
+
 #ifdef V8_IS_TSAN
 void MacroAssembler::CallTSANStoreStub(Register address, Register value,
                                        SaveFPRegsMode fp_mode, int size,
@@ -1190,6 +1218,15 @@ void MacroAssembler::CallTSANRelaxedLoadStub(Register address,
 }
 #endif  // V8_IS_TSAN
 
+void MacroAssembler::MaybeJumpIfReadOnlyOrSmallSmi(Register value,
+                                                   Label* dest) {
+#if V8_STATIC_ROOTS_BOOL
+  // Quick check for Read-only and small Smi values.
+  static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
+  JumpIfUnsignedLessThan(value, kRegularPageSize, dest);
+#endif  // V8_STATIC_ROOTS_BOOL
+}
+
 void MacroAssembler::RecordWrite(Register object, Register slot_address,
                                  Register value, SaveFPRegsMode fp_mode,
                                  SmiCheck smi_check, ReadOnlyCheck ro_check,
@@ -1230,13 +1267,9 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   // young generation.
   Label done;
 
-#if V8_STATIC_ROOTS_BOOL
   if (ro_check == ReadOnlyCheck::kInline) {
-    // Quick check for Read-only and small Smi values.
-    static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
-    JumpIfUnsignedLessThan(value, kRegularPageSize, &done);
+    MaybeJumpIfReadOnlyOrSmallSmi(value, &done);
   }
-#endif  // V8_STATIC_ROOTS_BOOL
 
   if (smi_check == SmiCheck::kInline) {
     // Skip barrier if writing a smi.
@@ -3702,11 +3735,17 @@ void MacroAssembler::CallWasmCodePointer(Register target,
   Move(kScratchRegister, ExternalReference::wasm_code_pointer_table());
 
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
-  // Check that using a 32-bit shift is valid for any valid code pointer.
-  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <=
-                (kMaxInt >> 4));
-  shll(target, Immediate(4));
+  // Mask `target` to be within [0, WasmCodePointerTable::kMaxWasmCodePointers).
+  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <
+                (kMaxUInt32 / sizeof(wasm::WasmCodePointerTableEntry)));
+  static_assert(base::bits::IsPowerOfTwo(
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers));
+  andl(target, Immediate(wasm::WasmCodePointerTable::kMaxWasmCodePointers - 1));
+
+  // Shift to multiply by `sizeof(WasmCodePointerTableEntry)`.
+  shll(target, Immediate(base::bits::WhichPowerOfTwo(
+                   sizeof(wasm::WasmCodePointerTableEntry))));
+
   // Add `target` and `kScratchRegister` early to free `kScratchRegister` again.
   addq(target, kScratchRegister);
 
@@ -3744,11 +3783,17 @@ void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
   Move(kScratchRegister, ExternalReference::wasm_code_pointer_table());
 
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
-  // Check that using a 32-bit shift is valid for any valid code pointer.
-  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <=
-                (kMaxInt >> 4));
-  shll(target, Immediate(4));
+  // Mask `target` to be within [0, WasmCodePointerTable::kMaxWasmCodePointers).
+  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <
+                (kMaxUInt32 / sizeof(wasm::WasmCodePointerTableEntry)));
+  static_assert(base::bits::IsPowerOfTwo(
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers));
+  andl(target, Immediate(wasm::WasmCodePointerTable::kMaxWasmCodePointers - 1));
+
+  // Shift to multiply by `sizeof(WasmCodePointerTableEntry)`.
+  shll(target, Immediate(base::bits::WhichPowerOfTwo(
+                   sizeof(wasm::WasmCodePointerTableEntry))));
+
   call(Operand(kScratchRegister, target, ScaleFactor::times_1, 0));
 #else
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 8);
@@ -5018,6 +5063,50 @@ void MacroAssembler::JumpIfNotMarking(Label* not_marking,
   testb(Operand(kRootRegister, IsolateData::is_marking_flag_offset()),
         Immediate(static_cast<uint8_t>(1)));
   j(zero, not_marking, condition_met_distance);
+}
+
+void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
+                                                 Register value,
+                                                 Register scratch, Label* ok) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, scratch));
+  DCHECK(!AreAliased(value, scratch));
+
+  // The most common case: Static write barrier elimination is allowed on the
+  // last young allocation.
+  leaq(scratch, Operand(object, -kHeapObjectTag));
+  cmpq(scratch,
+       Operand(kRootRegister, IsolateData::last_young_allocation_offset()));
+  j(Condition::equal, ok);
+
+  // Write barier can also be removed if value is in read-only space.
+  CheckPageFlag(value, scratch, MemoryChunk::kIsInReadOnlyHeapMask, not_zero,
+                ok);
+
+  Label not_ok;
+
+  // Handle allocation folding, allow WB removal if:
+  //   LAB start <= last_young_allocation_ < (object address+1) < LAB top
+  // Note that object has tag bit set, so object == object address+1.
+
+  // Check LAB start <= last_young_allocation_.
+  movq(scratch,
+       Operand(kRootRegister, IsolateData::last_young_allocation_offset()));
+  cmpq(scratch,
+       Operand(kRootRegister, IsolateData::new_allocation_info_start_offset()));
+  j(Condition::kUnsignedLessThan, &not_ok);
+
+  // Check last_young_allocation_ < (object address+1).
+  cmpq(scratch, object);
+  j(Condition::kUnsignedGreaterThanEqual, &not_ok);
+
+  // Check (object address+1) < LAB top.
+  cmpq(object,
+       Operand(kRootRegister, IsolateData::new_allocation_info_top_offset()));
+  j(Condition::kUnsignedLessThan, ok);
+
+  // Slow path: Potentially check more cases in C++.
+  bind(&not_ok);
 }
 
 void MacroAssembler::CheckMarkBit(Register object, Register scratch0,

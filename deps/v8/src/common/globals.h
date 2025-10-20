@@ -119,6 +119,12 @@ namespace internal {
 #define COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL false
 #endif
 
+#ifdef V8_CONTIGUOUS_COMPRESSED_RO_SPACE
+#define CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL true
+#else
+#define CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL false
+#endif
+
 #if COMPRESS_POINTERS_BOOL && !COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
 #define COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL true
 #else
@@ -349,10 +355,10 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE 1
 #endif
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-#define V8_EXPERIMENTAL_UNDEFINED_DOUBLE_BOOL true
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+#define V8_UNDEFINED_DOUBLE_BOOL true
 #else
-#define V8_EXPERIMENTAL_UNDEFINED_DOUBLE_BOOL false
+#define V8_UNDEFINED_DOUBLE_BOOL false
 #endif
 
 #define V8_STACK_ALLOCATED CPPGC_STACK_ALLOCATED
@@ -397,8 +403,9 @@ constexpr int kInt16Size = sizeof(int16_t);
 constexpr int kUInt16Size = sizeof(uint16_t);
 constexpr int kIntSize = sizeof(int);
 constexpr int kInt32Size = sizeof(int32_t);
-constexpr int kInt64Size = sizeof(int64_t);
 constexpr int kUInt32Size = sizeof(uint32_t);
+constexpr int kInt64Size = sizeof(int64_t);
+constexpr int kUInt64Size = sizeof(uint64_t);
 constexpr int kSizetSize = sizeof(size_t);
 constexpr int kFloat16Size = sizeof(uint16_t);
 constexpr int kFloatSize = sizeof(float);
@@ -475,17 +482,16 @@ constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 constexpr size_t kMaximalCodeRangeSize = 128 * MB;
 constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #endif
+constexpr size_t kMinimumCodeRangeSize = 64 * MB;
 #if V8_OS_WIN
-constexpr size_t kMinimumCodeRangeSize = 4 * MB;
 constexpr size_t kReservedCodeRangePages = 1;
 #else
-constexpr size_t kMinimumCodeRangeSize = 3 * MB;
 constexpr size_t kReservedCodeRangePages = 0;
 #endif
 
 // These constants define the total trusted space memory per process.
 constexpr size_t kMaximalTrustedRangeSize = 1 * GB;
-constexpr size_t kMinimumTrustedRangeSize = 32 * MB;
+constexpr size_t kMinimumTrustedRangeSize = 512 * MB;
 
 #else  // V8_HOST_ARCH_64_BIT
 
@@ -594,13 +600,6 @@ static_assert(kPointerSize == (1 << kPointerSizeLog2));
 #define V8_COMPRESS_POINTERS_8GB_BOOL true
 #else
 #define V8_COMPRESS_POINTERS_8GB_BOOL false
-#endif
-
-// In slow debug builds, write barrier verification is always enabled.
-#ifdef ENABLE_SLOW_DCHECKS
-#if !defined(V8_VERIFY_WRITE_BARRIERS) && !V8_DISABLE_WRITE_BARRIERS
-#define V8_VERIFY_WRITE_BARRIERS true
-#endif
 #endif
 
 // This type defines the raw storage type for external (or off-V8 heap) pointers
@@ -741,6 +740,38 @@ constexpr bool StaticStringsEqual(const char* s1, const char* s2) {
     if (*s1 == '\0') return true;
   }
 }
+
+#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+constexpr size_t kContiguousReadOnlyReservationSize =
+    V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB;
+// Bound the worst case consumption of contiguous RO space across the various
+// cages/regions.
+static_assert(kMinimumTrustedRangeSize >= 512 * MB);
+static_assert(!kPlatformRequiresCodeRange || kMinimumCodeRangeSize >= 64 * MB);
+
+// In this configuration we only allocate RO objects in the first
+// `kContiguousReadOnlyReservationSize` of the shared data cage. We also create
+// red zones in all cages and reservations that can be used to allocate
+// `HeapObject`s. within this range, i.e., trusted cage and code range.
+//
+// We want the reservation size to be a power-of-2 to allow cheap containment
+// checks.
+static_assert(base::bits::IsPowerOfTwo(kContiguousReadOnlyReservationSize));
+// The mask here can be used to check whether any Tagged<T> (cage doesn't matter
+// here) is contained in RO space as follows:
+//   ((address & kContiguousReadOnlySpaceMask) == 0) => "object in RO space"
+// See `HeapLayout::InReadOnlySpace()` for usage.
+//
+// E.g., for a 8MiB contiguous region:
+// ```
+//   0x00000000ffffffff  // (kPtrComprCageBaseAlignment-1)
+// ^ 0x00000000007fffff  // (kContiguousReadOnlyReservationSize - 1)
+// = 0x00000000ff800000  // kContiguousReadOnlySpaceMask
+// ```
+constexpr Address kContiguousReadOnlySpaceMask =
+    (kPtrComprCageBaseAlignment - 1) ^ (kContiguousReadOnlyReservationSize - 1);
+
+#endif  // COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
 
 // -----------------------------------------------------------------------------
 // Declarations for use in both the preparser and the rest of V8.
@@ -1427,6 +1458,7 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType type) {
 }
 
 enum class PerformHeapLimitCheck { kYes, kNo };
+enum class PerformIneffectiveMarkCompactCheck { kYes, kNo };
 
 class AllocationHint final {
  public:
@@ -1572,6 +1604,11 @@ inline constexpr bool IsSharedAllocationType(AllocationType kind) {
          kind == AllocationType::kSharedMap;
 }
 
+enum class RecordYoungSlot : bool {
+  kNo,
+  kYes,
+};
+
 enum AllocationAlignment : uint8_t {
   // The allocated address is kTaggedSize aligned (this is default for most of
   // the allocations).
@@ -1636,8 +1673,14 @@ enum class ExternalBackingStoreType {
 };
 
 enum class NewJSObjectType : uint8_t {
-  kNoAPIWrapper,
-  kAPIWrapper,
+  // JS objects that may require embedder fields depending on their instance
+  // type. They are not API wrappers.
+  kMaybeEmbedderFieldsAndNoApiWrapper,
+  // JS objects that don't require any embedder fields and are not API wrappers.
+  kNoEmbedderFieldsAndNoApiWrapper,
+  // JS objects that may require embedder fields depending on their instance
+  // type and also are API wrappers.
+  kMaybeEmbedderFieldsAndApiWrapper,
 };
 
 bool inline IsBaselineCodeFlushingEnabled(base::EnumSet<CodeFlushMode> mode) {
@@ -1818,7 +1861,7 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 #ifdef V8_COMPRESS_POINTERS_8GB
 #define ALIGN_TO_ALLOCATION_ALIGNMENT(value)      \
   (((value) + ::i::kObjectAlignment8GbHeapMask) & \
-   ~::i::kObjectAlignment8GbHeapMask)
+   ~::i::kObjectAlignment8GbHeapMask)  // NOLINT(whitespace/indent)
 #else
 #define ALIGN_TO_ALLOCATION_ALIGNMENT(value) (value)
 #endif
@@ -1971,22 +2014,22 @@ enum class AllocationSiteUpdateMode { kUpdate, kCheckOnly };
      (!defined(USE_SIMULATOR) || !defined(_MIPS_TARGET_SIMULATOR)))
 constexpr uint32_t kHoleNanUpper32 = 0xFFFF7FFF;
 constexpr uint32_t kHoleNanLower32 = 0xFFFF7FFF;
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 constexpr uint32_t kUndefinedNanUpper32 = 0xFFFE7FFF;
 constexpr uint32_t kUndefinedNanLower32 = 0xFFFE7FFF;
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 #else
 constexpr uint32_t kHoleNanUpper32 = 0xFFF7FFFF;
 constexpr uint32_t kHoleNanLower32 = 0xFFF7FFFF;
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 constexpr uint32_t kUndefinedNanUpper32 = 0xFFF6FFFF;
 constexpr uint32_t kUndefinedNanLower32 = 0xFFF6FFFF;
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 #endif
 
 constexpr uint64_t kHoleNanInt64 =
     (static_cast<uint64_t>(kHoleNanUpper32) << 32) | kHoleNanLower32;
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 constexpr uint64_t kUndefinedNanInt64 =
     (static_cast<uint64_t>(kUndefinedNanUpper32) << 32) | kUndefinedNanLower32;
 
@@ -2000,7 +2043,7 @@ inline constexpr double UndefinedNan() {
 inline constexpr double HoleNan() {
   return base::uint64_to_double(kHoleNanInt64);
 }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 // ES6 section 20.1.2.6 Number.MAX_SAFE_INTEGER
 constexpr uint64_t kMaxSafeIntegerUint64 = 9007199254740991;  // 2^53-1

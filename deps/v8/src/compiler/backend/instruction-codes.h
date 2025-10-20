@@ -109,6 +109,9 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchStoreWithWriteBarrier)                             \
   V(ArchAtomicStoreWithWriteBarrier)                       \
   V(ArchStoreIndirectWithWriteBarrier)                     \
+  V(ArchStoreSkippedWriteBarrier)                          \
+  V(ArchAtomicStoreSkippedWriteBarrier)                    \
+  V(ArchStoreIndirectSkippedWriteBarrier)                  \
   V(AtomicLoadInt8)                                        \
   V(AtomicLoadUint8)                                       \
   V(AtomicLoadInt16)                                       \
@@ -134,7 +137,6 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchCallJSFunction)                                                    \
   IF_WASM(V, ArchCallWasmFunction)                                         \
   IF_WASM(V, ArchCallWasmFunctionIndirect)                                 \
-  IF_WASM(V, ArchResumeWasmContinuation)                                   \
   V(ArchCallCFunction)                                                     \
   V(ArchCallBuiltinPointer)                                                \
   /* Update IsCallWithDescriptorFlags if further Call opcodes are added */ \

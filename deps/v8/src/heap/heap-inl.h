@@ -161,26 +161,6 @@ PagedSpace* Heap::paged_space(int idx) const {
 
 Space* Heap::space(int idx) const { return space_[idx].get(); }
 
-Address* Heap::NewSpaceAllocationTopAddress() {
-  return new_space_ || v8_flags.sticky_mark_bits
-             ? isolate()->isolate_data()->new_allocation_info_.top_address()
-             : nullptr;
-}
-
-Address* Heap::NewSpaceAllocationLimitAddress() {
-  return new_space_ || v8_flags.sticky_mark_bits
-             ? isolate()->isolate_data()->new_allocation_info_.limit_address()
-             : nullptr;
-}
-
-Address* Heap::OldSpaceAllocationTopAddress() {
-  return allocator()->old_space_allocator()->allocation_top_address();
-}
-
-Address* Heap::OldSpaceAllocationLimitAddress() {
-  return allocator()->old_space_allocator()->allocation_limit_address();
-}
-
 inline const base::AddressRegion& Heap::code_region() {
   static constexpr base::AddressRegion kEmptyRegion;
   return code_range_ ? code_range_->reservation()->region() : kEmptyRegion;
@@ -283,7 +263,11 @@ bool Heap::InOldSpace(Tagged<Object> object) {
 
 // static
 Heap* Heap::FromWritableHeapObject(Tagged<HeapObject> obj) {
-  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(obj);
+  // TODO(leszeks): It's probably not right to use the current Isolate to infer
+  // the current heap from an object, rather than reading the heap from the
+  // current isolate directly.
+  MemoryChunkMetadata* chunk =
+      MemoryChunkMetadata::FromHeapObject(Isolate::Current(), obj);
   // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
   // find a heap. The exception is when the ReadOnlySpace is writeable, during
   // bootstrapping, so explicitly allow this case.

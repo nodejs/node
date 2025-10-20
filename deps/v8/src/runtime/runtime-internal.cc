@@ -299,15 +299,20 @@ RUNTIME_FUNCTION(Runtime_ThrowNotConstructor) {
       isolate, NewTypeError(MessageTemplate::kNotConstructor, object));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
+RUNTIME_FUNCTION(Runtime_ThrowTargetNonFunction) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(2, args.length());
   Handle<Object> object = args.at(0);
+
+  Handle<String> target = args.at<String>(1);
   Handle<String> type = Object::TypeOf(isolate, object);
   Handle<String> msg;
   if (IsNull(*object)) {
     // "which is null"
-    msg = isolate->factory()->NewStringFromAsciiChecked("null");
+    msg = isolate->factory()->null_string();
+  } else if (IsUndefined(*object)) {
+    // "which is undefined"
+    msg = isolate->factory()->undefined_string();
   } else if (isolate->factory()->object_string()->Equals(*type)) {
     // "which is an object"
     msg = isolate->factory()->NewStringFromAsciiChecked("an object");
@@ -319,7 +324,8 @@ RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
               .ToHandleChecked();
   }
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kApplyNonFunction, object, msg));
+      isolate,
+      NewTypeError(MessageTemplate::kTargetNonFunction, target, object, msg));
 }
 
 RUNTIME_FUNCTION(Runtime_StackGuard) {

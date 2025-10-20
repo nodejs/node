@@ -103,7 +103,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Merges the boilerplate definition at index_obj into the prototype of the
   // function object in accumulator
-  BytecodeArrayBuilder& SetPrototypeProperties(size_t index_obj);
+  BytecodeArrayBuilder& SetPrototypeProperties(size_t index_obj, size_t slot);
 
   // Global loads to the accumulator and stores from the accumulator.
   BytecodeArrayBuilder& LoadGlobal(const AstRawString* name, int feedback_slot,

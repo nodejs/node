@@ -619,12 +619,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> NumberAdd(TNode<Number> a, TNode<Number> b);
   TNode<Number> NumberSub(TNode<Number> a, TNode<Number> b);
   void GotoIfNotNumber(TNode<Object> value, Label* is_not_number);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   void GotoIfNumberOrUndefined(TNode<Object> value,
                                Label* is_number_or_undefined);
   void GotoIfNotNumberOrUndefined(TNode<Object> value,
                                   Label* is_not_number_or_undefined);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   void GotoIfNumber(TNode<Object> value, Label* is_number);
   TNode<Number> SmiToNumber(TNode<Smi> v) { return v; }
 
@@ -1650,12 +1650,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           Label* if_undefined, Label* if_hole);
 
   TNode<BoolT> IsDoubleHole(TNode<Object> base, TNode<IntPtrT> offset);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   TNode<BoolT> IsDoubleUndefined(TNode<Object> base, TNode<IntPtrT> offset);
   TNode<BoolT> IsDoubleUndefined(TNode<Float64T> value);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   TNode<Float64T> LoadDoubleWithUndefinedAndHoleCheck(
       TNode<Object> base, TNode<IntPtrT> offset, Label* if_undefined,
       Label* if_hole, MachineType machine_type = MachineType::Float64());
@@ -1666,7 +1666,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Float64T> LoadDoubleWithUndefinedAndHoleCheck(
       TNode<Object> base, TNode<IntPtrT> offset, Label* if_undefined,
       Label* if_hole, MachineType machine_type = MachineType::Float64());
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   TNode<Numeric> LoadFixedTypedArrayElementAsTagged(TNode<RawPtrT> data_pointer,
                                                     TNode<UintPtrT> index,
                                                     ElementsKind elements_kind);
@@ -1982,18 +1982,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Float64T> value, CheckBounds check_bounds = CheckBounds::kAlways);
 
   void StoreDoubleHole(TNode<HeapObject> object, TNode<IntPtrT> offset);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   void StoreDoubleUndefined(TNode<HeapObject> object, TNode<IntPtrT> offset);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   void StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
                                  TNode<IntPtrT> index);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   template <typename TIndex>
     requires(std::is_same_v<TIndex, Smi> || std::is_same_v<TIndex, UintPtrT> ||
              std::is_same_v<TIndex, IntPtrT>)
   void StoreFixedDoubleArrayUndefined(TNode<FixedDoubleArray> array,
                                       TNode<TIndex> index);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   void StoreFeedbackVectorSlot(
       TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
       TNode<AnyTaggedT> value,
@@ -2307,7 +2307,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<JSObject> AllocateJSIteratorResultForEntry(TNode<Context> context,
                                                    TNode<Object> key,
                                                    TNode<Object> value);
-
+  TNode<Object> GetResultValueForHole(TNode<Object> value);
   // Calls the next method of an iterator and returns the pair of
   // {value, done} properties of the result.
   std::pair<TNode<Object>, TNode<Object>> CallIteratorNext(
@@ -2663,9 +2663,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<IntPtrT> TryTaggedToInt32AsIntPtr(TNode<Object> value,
                                           Label* if_not_possible);
   TNode<Float64T> TryTaggedToFloat64(TNode<Object> value,
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
                                      Label* if_valueisundefined,
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
                                      Label* if_valueisnotnumber);
   TNode<Float64T> TruncateTaggedToFloat64(TNode<Context> context,
                                           TNode<Object> value);
@@ -4411,12 +4411,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Support for printf-style debugging
   void Print(const char* s);
+  void Print(TNode<String>, TNode<Object> value);
   void Print(const char* prefix, TNode<MaybeObject> tagged_value);
   void Print(TNode<MaybeObject> tagged_value) {
     return Print(nullptr, tagged_value);
   }
+  void Print(TNode<String> prefix, TNode<Uint32T> value);
   void Print(const char* prefix, TNode<Uint32T> value);
+  void Print(TNode<String> prefix, TNode<Uint64T> value);
+  void Print(const char* prefix, TNode<Uint64T> value);
   void Print(const char* prefix, TNode<UintPtrT> value);
+  void Print(TNode<String> prefix, TNode<Float32T> value);
+  void Print(const char* prefix, TNode<Float32T> value);
+  void Print(TNode<String> prefix, TNode<Float64T> value);
   void Print(const char* prefix, TNode<Float64T> value);
   void PrintErr(const char* s);
   void PrintErr(const char* prefix, TNode<MaybeObject> tagged_value);
@@ -4429,6 +4436,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void PrintToStream(const char* prefix, TNode<Uint32T> value, int stream);
   void PrintToStream(const char* prefix, TNode<UintPtrT> value, int stream);
   void PrintToStream(const char* prefix, TNode<Float64T> value, int stream);
+  std::array<TNode<Object>, 4> EncodeValueForDebugPrint(TNode<Word32T> value);
+  std::array<TNode<Object>, 4> EncodeValueForDebugPrint(TNode<Word64T> value);
+  std::array<TNode<Object>, 4> EncodeValueForDebugPrint(TNode<Float32T> value);
+  std::array<TNode<Object>, 4> EncodeValueForDebugPrint(TNode<Float64T> value);
+  void PrintToStream(const char* prefix, DebugPrintValueType value_type,
+                     const std::array<TNode<Object>, 4>& chunks, int stream);
+  void PrintToStream(TNode<String> prefix, DebugPrintValueType value_type,
+                     const std::array<TNode<Object>, 4>& chunks, int stream);
+  void PrintStringSimple(TNode<String> string);
 
   template <class... TArgs>
   TNode<HeapObject> MakeTypeError(MessageTemplate message,

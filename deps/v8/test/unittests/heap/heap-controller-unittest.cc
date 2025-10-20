@@ -62,8 +62,7 @@ TEST_F(MemoryControllerTest, MaxHeapGrowingFactor) {
   CheckEqualRounded(1.600, V8Controller::MaxGrowingFactor(physical_memory,
                                                           max_heap_size / 2));
   CheckEqualRounded(
-      2.0, V8Controller::MaxGrowingFactor(
-               physical_memory, (max_heap_size - Heap::kPointerMultiplier)));
+      2.0, V8Controller::MaxGrowingFactor(physical_memory, max_heap_size - 1));
   CheckEqualRounded(
       4.0, V8Controller::MaxGrowingFactor(physical_memory, max_heap_size));
 }

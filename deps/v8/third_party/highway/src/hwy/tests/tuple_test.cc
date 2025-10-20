@@ -72,8 +72,7 @@ struct TestCreateAndSet {
     HWY_ASSERT_VEC_EQ(d, v0, Get4<3>(t4));
 #else
     (void)d;
-    fprintf(stderr, "Warning: tuples are disabled for target %s\n",
-            hwy::TargetName(HWY_TARGET));
+    HWY_WARN("Tuples disabled for target %s\n", hwy::TargetName(HWY_TARGET));
 #endif  // HWY_HAVE_TUPLE
   }
 };

@@ -165,3 +165,94 @@ TEST_F(GCCallbacksTest, GCCallbacks) {
 
 }  // namespace
 }  // namespace v8
+
+namespace v8::internal {
+using GCCallbackFlagsTest = TestWithHeapInternalsAndContext;
+
+using GCCallbackFunction = std::function<void(v8::Isolate* isolate, v8::GCType,
+                                              v8::GCCallbackFlags flags)>;
+
+class CallbackScope {
+ public:
+  CallbackScope(v8::Isolate* isolate, GCCallbackFunction prologue,
+                GCCallbackFunction epilogue)
+      : isolate_(isolate), prologue_(prologue), epilogue_(epilogue) {
+    isolate_->AddGCPrologueCallback(PrologueCallback, this);
+    isolate_->AddGCEpilogueCallback(EpilogueCallback, this);
+  }
+
+  ~CallbackScope() {
+    isolate_->RemoveGCPrologueCallback(PrologueCallback, this);
+    isolate_->RemoveGCEpilogueCallback(EpilogueCallback, this);
+  }
+
+ private:
+  static void PrologueCallback(v8::Isolate* isolate, v8::GCType gc_type,
+                               v8::GCCallbackFlags flags, void* data) {
+    reinterpret_cast<CallbackScope*>(data)->prologue_(isolate, gc_type, flags);
+  }
+
+  static void EpilogueCallback(v8::Isolate* isolate, v8::GCType gc_type,
+                               v8::GCCallbackFlags flags, void* data) {
+    reinterpret_cast<CallbackScope*>(data)->epilogue_(isolate, gc_type, flags);
+  }
+
+  v8::Isolate* isolate_;
+  GCCallbackFunction prologue_;
+  GCCallbackFunction epilogue_;
+};
+
+TEST_F(GCCallbackFlagsTest, CollectAllAvailableGarbage) {
+  ManualGCScope gc_scope(i_isolate());
+
+  size_t prologue_count = 0;
+  size_t epilogue_count = 0;
+
+  CallbackScope callback_scope(
+      v8_isolate(),
+      [&](v8::Isolate* isolate, v8::GCType, v8::GCCallbackFlags flags) {
+        ASSERT_TRUE(flags &
+                    GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage);
+        ASSERT_FALSE(flags & GCCallbackFlags::kGCCallbackFlagLastResort);
+        prologue_count++;
+      },
+      [&](v8::Isolate* isolate, v8::GCType, v8::GCCallbackFlags flags) {
+        ASSERT_TRUE(flags &
+                    GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage);
+        ASSERT_FALSE(flags & GCCallbackFlags::kGCCallbackFlagLastResort);
+        epilogue_count++;
+      });
+
+  i_isolate()->heap()->CollectAllAvailableGarbage(
+      GarbageCollectionReason::kHeapProfiler);
+  EXPECT_GT(prologue_count, 0u);
+  EXPECT_EQ(prologue_count, epilogue_count);
+}
+
+TEST_F(GCCallbackFlagsTest, CollectAllAvailableGarbageAndLastResort) {
+  ManualGCScope gc_scope(i_isolate());
+
+  size_t prologue_count = 0;
+  size_t epilogue_count = 0;
+
+  CallbackScope callback_scope(
+      v8_isolate(),
+      [&](v8::Isolate* isolate, v8::GCType, v8::GCCallbackFlags flags) {
+        ASSERT_TRUE(flags &
+                    GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage);
+        ASSERT_TRUE(flags & GCCallbackFlags::kGCCallbackFlagLastResort);
+        prologue_count++;
+      },
+      [&](v8::Isolate* isolate, v8::GCType, v8::GCCallbackFlags flags) {
+        ASSERT_TRUE(flags &
+                    GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage);
+        ASSERT_TRUE(flags & GCCallbackFlags::kGCCallbackFlagLastResort);
+        epilogue_count++;
+      });
+
+  i_isolate()->heap()->CollectAllAvailableGarbage(
+      GarbageCollectionReason::kLastResort);
+  EXPECT_GT(prologue_count, 0u);
+  EXPECT_EQ(prologue_count, epilogue_count);
+}
+}  // namespace v8::internal

@@ -59,7 +59,7 @@ class RegExpMacroAssembler {
   // kCheckStackLimit flag to push operations (instead of kNoStackLimitCheck)
   // at least once for every stack_limit() pushes that are executed.
   virtual int stack_limit_slack_slot_count() = 0;
-  virtual bool CanReadUnaligned() const = 0;
+  bool CanReadUnaligned() const;
 
   virtual void AdvanceCurrentPosition(int by) = 0;  // Signed cp change.
   virtual void AdvanceRegister(int reg, int by) = 0;  // r[reg] += by.
@@ -116,12 +116,36 @@ class RegExpMacroAssembler {
 
   virtual void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
                                    Handle<ByteArray> nibble_table,
-                                   int advance_by) = 0;
+                                   int advance_by, Label* on_match,
+                                   Label* on_no_match) = 0;
   virtual bool SkipUntilBitInTableUseSimd(int advance_by) { return false; }
 
-  // Checks whether the given offset from the current position is before
-  // the end of the string.  May overwrite the current character.
-  virtual void CheckPosition(int cp_offset, Label* on_outside_input);
+  virtual void SkipUntilCharAnd(int cp_offset, int advance_by,
+                                unsigned character, unsigned mask,
+                                int eats_at_least, Label* on_match,
+                                Label* on_no_match);
+  virtual void SkipUntilChar(int cp_offset, int advance_by, unsigned character,
+                             Label* on_match, Label* on_no_match);
+  virtual void SkipUntilCharPosChecked(int cp_offset, int advance_by,
+                                       unsigned character, int eats_at_least,
+                                       Label* on_match, Label* on_no_match);
+  virtual void SkipUntilCharOrChar(int cp_offset, int advance_by,
+                                   unsigned char1, unsigned char2,
+                                   Label* on_match, Label* on_no_match);
+  virtual void SkipUntilGtOrNotBitInTable(int cp_offset, int advance_by,
+                                          unsigned character,
+                                          Handle<ByteArray> table,
+                                          Label* on_match, Label* on_no_match);
+  virtual void SkipUntilOneOfMasked(int cp_offset, int advance_by,
+                                    unsigned both_chars, unsigned both_mask,
+                                    int max_offset, unsigned chars1,
+                                    unsigned mask1, unsigned chars2,
+                                    unsigned mask2, Label* on_match1,
+                                    Label* on_match2, Label* on_failure);
+
+  // Checks whether the given offset from the current position is is in-bounds.
+  // May overwrite the current character.
+  virtual void CheckPosition(int cp_offset, Label* on_outside_input) = 0;
   // Check whether a standard/default character class matches the current
   // character. Returns false if the type of special character class does
   // not have custom support.
@@ -323,8 +347,6 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
       Tagged<String> input, int start_offset, const uint8_t* input_start,
       const uint8_t* input_end, int* output, int output_size, Isolate* isolate,
       Tagged<JSRegExp> regexp);
-
-  bool CanReadUnaligned() const override;
 
   void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
                                 bool check_bounds, int characters,

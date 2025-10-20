@@ -39,12 +39,6 @@ TEST(SysinfoTest, NumCPUs) {
 
 TEST(SysinfoTest, GetTID) {
   EXPECT_EQ(GetTID(), GetTID());  // Basic compile and equality test.
-#ifdef __native_client__
-  // Native Client has a race condition bug that leads to memory
-  // exhaustion when repeatedly creating and joining threads.
-  // https://bugs.chromium.org/p/nativeclient/issues/detail?id=1027
-  return;
-#endif
   // Test that TIDs are unique to each thread.
   // Uses a few loops to exercise implementations that reallocate IDs.
   for (int i = 0; i < 10; ++i) {

@@ -547,8 +547,10 @@ class PromotedPageRecordMigratedSlotVisitor final
   V8_INLINE void VerifyHost(Tagged<HeapObject> host) {
     DCHECK(!HeapLayout::InWritableSharedSpace(host));
     DCHECK(!HeapLayout::InYoungGeneration(host));
-    DCHECK(!MutablePageMetadata::FromHeapObject(host)->SweepingDone());
-    DCHECK_EQ(MutablePageMetadata::FromHeapObject(host), host_page_);
+    DCHECK(!MutablePageMetadata::FromHeapObject(Isolate::Current(), host)
+                ->SweepingDone());
+    DCHECK_EQ(MutablePageMetadata::FromHeapObject(Isolate::Current(), host),
+              host_page_);
   }
 
   template <typename TObject>

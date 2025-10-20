@@ -80,6 +80,8 @@ cc_library(
         ":log",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:nullability",
+        "//absl/base:nullability_traits_internal",
         "//absl/strings",
     ],
 )

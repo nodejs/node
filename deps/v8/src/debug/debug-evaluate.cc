@@ -1054,8 +1054,11 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
       return DebugInfo::kRequiresRuntimeChecks;
 
     // Debugging builtins.
+    case Builtin::kDebugPrintWord32:
+    case Builtin::kDebugPrintWord64:
+    case Builtin::kDebugPrintFloat32:
     case Builtin::kDebugPrintFloat64:
-    case Builtin::kDebugPrintWordPtr:
+    case Builtin::kDebugPrintObject:
       return DebugInfo::kHasNoSideEffect;
 
     default:
@@ -1076,6 +1079,7 @@ bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
     case Bytecode::kStaInArrayLiteral:
     case Bytecode::kDefineKeyedOwnPropertyInLiteral:
     case Bytecode::kStaCurrentContextSlotNoCell:
+    case Bytecode::kForOfNext:
       return true;
     default:
       return interpreter::Bytecodes::IsCallRuntime(bytecode);
@@ -1183,7 +1187,6 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kCEntry_Return1_ArgvOnStack_BuiltinExit:
     case Builtin::kCEntry_Return1_ArgvInRegister_NoBuiltinExit:
     case Builtin::kCEntry_Return2_ArgvOnStack_NoBuiltinExit:
-    case Builtin::kCEntry_Return2_ArgvOnStack_BuiltinExit:
     case Builtin::kCEntry_Return2_ArgvInRegister_NoBuiltinExit:
     case Builtin::kWasmCEntry:
     case Builtin::kCloneFastJSArray:
@@ -1293,6 +1296,19 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
         default:
           return false;
       }
+    case Builtin::kCallWrappedFunction:
+    case Builtin::kCallBoundFunction:
+    case Builtin::kCallProxy:
+    case Builtin::kCallFunction_ReceiverIsAny:
+    case Builtin::kCallFunction_ReceiverIsNotNullOrUndefined:
+      switch (caller) {
+        case Builtin::kFunctionPrototypeCall:
+        case Builtin::kFunctionPrototypeApply:
+          return true;
+        default:
+          return false;
+      }
+
     case Builtin::kRegExpMatchFast:
       // This is not a problem. We force String.prototype.match to take the
       // slow path so that this call is not made.

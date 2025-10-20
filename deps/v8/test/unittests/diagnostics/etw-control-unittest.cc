@@ -77,13 +77,13 @@ TEST_F(EtwControlTest, Enable) {
       .Times(1);
   ON_CALL(etw_isolate_operations_mock,
           RequestInterrupt(testing::Eq(isolate), testing::_, testing::_))
-      .WillByDefault(testing::Invoke(
+      .WillByDefault(
           [&isolate_thread](Isolate* isolate, InterruptCallback callback,
                             void* data) {
             isolate_thread = std::thread([isolate, callback, data]() {
               callback(reinterpret_cast<v8::Isolate*>(isolate), data);
             });
-          }));
+          });
 
   ETWEnableCallback(&v8_etw_guid, kEtwControlEnable, /*level*/ 5,
                     /*match_any_keyword*/ ~0, /*match_all_keyword*/ 0,
@@ -149,13 +149,13 @@ TEST_F(EtwControlTest, EnableWithFilterData) {
           testing::Return<FilterETWSessionByURLResult>({true, true}));
   ON_CALL(etw_isolate_operations_mock,
           RequestInterrupt(testing::Eq(isolate), testing::_, testing::_))
-      .WillByDefault(testing::Invoke(
+      .WillByDefault(
           [&isolate_thread](Isolate* isolate, InterruptCallback callback,
                             void* data) {
             isolate_thread = std::thread([isolate, callback, data]() {
               callback(reinterpret_cast<v8::Isolate*>(isolate), data);
             });
-          }));
+          });
 
   EVENT_FILTER_DESCRIPTOR event_filter_descriptor;
   struct SchematizedTestFilter : public EVENT_FILTER_HEADER {
@@ -239,13 +239,13 @@ TEST_F(EtwControlTest, EnableWithNonMatchingFilterData) {
       .Times(1);
   ON_CALL(etw_isolate_operations_mock,
           RequestInterrupt(testing::Eq(isolate), testing::_, testing::_))
-      .WillByDefault(testing::Invoke(
+      .WillByDefault(
           [&isolate_thread](Isolate* isolate, InterruptCallback callback,
                             void* data) {
             isolate_thread = std::thread([isolate, callback, data]() {
               callback(reinterpret_cast<v8::Isolate*>(isolate), data);
             });
-          }));
+          });
 
   EVENT_FILTER_DESCRIPTOR event_filter_descriptor;
   struct SchematizedTestFilter : public EVENT_FILTER_HEADER {
@@ -340,13 +340,13 @@ TEST_F(EtwControlTest, EnableWithCustomFilterOnly) {
           testing::Return<FilterETWSessionByURLResult>({true, true}));
   ON_CALL(etw_isolate_operations_mock,
           RequestInterrupt(testing::Eq(isolate), testing::_, testing::_))
-      .WillByDefault(testing::Invoke(
+      .WillByDefault(
           [&isolate_thread](Isolate* isolate, InterruptCallback callback,
                             void* data) {
             isolate_thread = std::thread([isolate, callback, data]() {
               callback(reinterpret_cast<v8::Isolate*>(isolate), data);
             });
-          }));
+          });
 
   EVENT_FILTER_DESCRIPTOR event_filter_descriptor;
   struct SchematizedTestFilter : public EVENT_FILTER_HEADER {
@@ -433,13 +433,13 @@ TEST_F(EtwControlTest, EnableWithNonMatchingCustomFilterOnly) {
           testing::Return<FilterETWSessionByURLResult>({false, true}));
   ON_CALL(etw_isolate_operations_mock,
           RequestInterrupt(testing::Eq(isolate), testing::_, testing::_))
-      .WillByDefault(testing::Invoke(
+      .WillByDefault(
           [&isolate_thread](Isolate* isolate, InterruptCallback callback,
                             void* data) {
             isolate_thread = std::thread([isolate, callback, data]() {
               callback(reinterpret_cast<v8::Isolate*>(isolate), data);
             });
-          }));
+          });
 
   EVENT_FILTER_DESCRIPTOR event_filter_descriptor;
   struct SchematizedTestFilter : public EVENT_FILTER_HEADER {

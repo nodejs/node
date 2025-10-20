@@ -440,6 +440,106 @@ class BytecodeGenerator::ControlScopeForTopLevel final
   }
 };
 
+// Scoped class to help elide hole checks within a conditionally executed basic
+// block. Each conditionally executed basic block must have a scope to emit
+// hole checks correctly.
+//
+// The duration of the scope must correspond to a basic block. Numbered
+// Variables (see Variable::HoleCheckBitmap) are remembered in the bitmap when
+// the first hole check is emitted. Subsequent hole checks are elided.
+//
+// On scope exit, the hole check state at construction time is restored.
+class V8_NODISCARD BytecodeGenerator::HoleCheckElisionScope {
+ public:
+  explicit HoleCheckElisionScope(BytecodeGenerator* bytecode_generator)
+      : HoleCheckElisionScope(&bytecode_generator->hole_check_bitmap_) {}
+
+  ~HoleCheckElisionScope() { *bitmap_ = prev_bitmap_value_; }
+
+ protected:
+  explicit HoleCheckElisionScope(Variable::HoleCheckBitmap* bitmap)
+      : bitmap_(bitmap), prev_bitmap_value_(*bitmap) {}
+
+  Variable::HoleCheckBitmap* bitmap_;
+  Variable::HoleCheckBitmap prev_bitmap_value_;
+};
+
+// Scoped class to help elide hole checks within control flow that branch and
+// merge.
+//
+// Each such control flow construct (e.g., if-else, ternary expressions) must
+// have a scope to emit hole checks correctly. Additionally, each branch must
+// have a Branch.
+//
+// The Merge or MergeIf method must be called to merge variables that have been
+// hole-checked along every branch are marked as no longer needing a hole check.
+//
+// Example:
+//
+//   HoleCheckElisionMergeScope merge_elider(this);
+//   {
+//      HoleCheckElisionMergeScope::Branch branch_elider(merge_elider);
+//      Visit(then_branch);
+//   }
+//   {
+//      HoleCheckElisionMergeScope::Branch branch_elider(merge_elider);
+//      Visit(else_branch);
+//   }
+//   merge_elider.Merge();
+//
+// Conversely, it is incorrect to use this class for control flow constructs
+// that do not merge (e.g., if without else). HoleCheckElisionScope should be
+// used for those cases.
+class V8_NODISCARD BytecodeGenerator::HoleCheckElisionMergeScope final {
+ public:
+  explicit HoleCheckElisionMergeScope(BytecodeGenerator* bytecode_generator)
+      : bitmap_(&bytecode_generator->hole_check_bitmap_) {}
+
+  ~HoleCheckElisionMergeScope() {
+    // Did you forget to call Merge or MergeIf?
+    DCHECK(merge_called_);
+  }
+
+  void MergeBranch(BytecodeGenerator* generator) {
+    merge_value_ &= generator->hole_check_bitmap_;
+  }
+
+  void Merge() {
+    DCHECK_NE(UINT64_MAX, merge_value_);
+    *bitmap_ = merge_value_;
+#ifdef DEBUG
+    merge_called_ = true;
+#endif
+  }
+
+  void MergeIf(bool cond) {
+    if (cond) Merge();
+#ifdef DEBUG
+    merge_called_ = true;
+#endif
+  }
+
+  class V8_NODISCARD Branch final : public HoleCheckElisionScope {
+   public:
+    explicit Branch(HoleCheckElisionMergeScope& merge_into)
+        : HoleCheckElisionScope(merge_into.bitmap_),
+          merge_into_bitmap_(&merge_into.merge_value_) {}
+
+    ~Branch() { *merge_into_bitmap_ &= *bitmap_; }
+
+   private:
+    Variable::HoleCheckBitmap* merge_into_bitmap_;
+  };
+
+ private:
+  Variable::HoleCheckBitmap* bitmap_;
+  Variable::HoleCheckBitmap merge_value_ = UINT64_MAX;
+
+#ifdef DEBUG
+  bool merge_called_ = false;
+#endif
+};
+
 // Scoped class for enabling break inside blocks and switch blocks.
 class BytecodeGenerator::ControlScopeForBreakable final
     : public BytecodeGenerator::ControlScope {
@@ -449,7 +549,10 @@ class BytecodeGenerator::ControlScopeForBreakable final
                            BreakableControlFlowBuilder* control_builder)
       : ControlScope(generator),
         statement_(statement),
-        control_builder_(control_builder) {}
+        control_builder_(control_builder),
+        merge_elider_(generator) {}
+
+  HoleCheckElisionMergeScope& merge_elider() { return merge_elider_; }
 
  protected:
   bool Execute(Command command, Statement* statement,
@@ -457,6 +560,7 @@ class BytecodeGenerator::ControlScopeForBreakable final
     if (statement != statement_) return false;
     switch (command) {
       case CMD_BREAK:
+        merge_elider_.MergeBranch(generator());
         PopContextToExpectedDepth();
         control_builder_->Break();
         return true;
@@ -472,6 +576,7 @@ class BytecodeGenerator::ControlScopeForBreakable final
  private:
   Statement* statement_;
   BreakableControlFlowBuilder* control_builder_;
+  HoleCheckElisionMergeScope merge_elider_;
 };
 
 // Scoped class for enabling 'break' and 'continue' in iteration
@@ -484,7 +589,10 @@ class BytecodeGenerator::ControlScopeForIteration final
                            LoopBuilder* loop_builder)
       : ControlScope(generator),
         statement_(statement),
-        loop_builder_(loop_builder) {}
+        loop_builder_(loop_builder),
+        merge_elider_(generator) {}
+
+  HoleCheckElisionMergeScope& merge_elider() { return merge_elider_; }
 
  protected:
   bool Execute(Command command, Statement* statement,
@@ -496,6 +604,7 @@ class BytecodeGenerator::ControlScopeForIteration final
         loop_builder_->Break();
         return true;
       case CMD_CONTINUE:
+        merge_elider_.MergeBranch(generator());
         PopContextToExpectedDepth();
         loop_builder_->Continue();
         return true;
@@ -510,6 +619,7 @@ class BytecodeGenerator::ControlScopeForIteration final
  private:
   Statement* statement_;
   LoopBuilder* loop_builder_;
+  HoleCheckElisionMergeScope merge_elider_;
 };
 
 // Scoped class for enabling 'throw' in try-catch constructs.
@@ -1108,102 +1218,6 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
   }
 
   ZoneMap<Key, int> map_;
-};
-
-// Scoped class to help elide hole checks within a conditionally executed basic
-// block. Each conditionally executed basic block must have a scope to emit
-// hole checks correctly.
-//
-// The duration of the scope must correspond to a basic block. Numbered
-// Variables (see Variable::HoleCheckBitmap) are remembered in the bitmap when
-// the first hole check is emitted. Subsequent hole checks are elided.
-//
-// On scope exit, the hole check state at construction time is restored.
-class V8_NODISCARD BytecodeGenerator::HoleCheckElisionScope {
- public:
-  explicit HoleCheckElisionScope(BytecodeGenerator* bytecode_generator)
-      : HoleCheckElisionScope(&bytecode_generator->hole_check_bitmap_) {}
-
-  ~HoleCheckElisionScope() { *bitmap_ = prev_bitmap_value_; }
-
- protected:
-  explicit HoleCheckElisionScope(Variable::HoleCheckBitmap* bitmap)
-      : bitmap_(bitmap), prev_bitmap_value_(*bitmap) {}
-
-  Variable::HoleCheckBitmap* bitmap_;
-  Variable::HoleCheckBitmap prev_bitmap_value_;
-};
-
-// Scoped class to help elide hole checks within control flow that branch and
-// merge.
-//
-// Each such control flow construct (e.g., if-else, ternary expressions) must
-// have a scope to emit hole checks correctly. Additionally, each branch must
-// have a Branch.
-//
-// The Merge or MergeIf method must be called to merge variables that have been
-// hole-checked along every branch are marked as no longer needing a hole check.
-//
-// Example:
-//
-//   HoleCheckElisionMergeScope merge_elider(this);
-//   {
-//      HoleCheckElisionMergeScope::Branch branch_elider(merge_elider);
-//      Visit(then_branch);
-//   }
-//   {
-//      HoleCheckElisionMergeScope::Branch branch_elider(merge_elider);
-//      Visit(else_branch);
-//   }
-//   merge_elider.Merge();
-//
-// Conversely, it is incorrect to use this class for control flow constructs
-// that do not merge (e.g., if without else). HoleCheckElisionScope should be
-// used for those cases.
-class V8_NODISCARD BytecodeGenerator::HoleCheckElisionMergeScope final {
- public:
-  explicit HoleCheckElisionMergeScope(BytecodeGenerator* bytecode_generator)
-      : bitmap_(&bytecode_generator->hole_check_bitmap_) {}
-
-  ~HoleCheckElisionMergeScope() {
-    // Did you forget to call Merge or MergeIf?
-    DCHECK(merge_called_);
-  }
-
-  void Merge() {
-    DCHECK_NE(UINT64_MAX, merge_value_);
-    *bitmap_ = merge_value_;
-#ifdef DEBUG
-    merge_called_ = true;
-#endif
-  }
-
-  void MergeIf(bool cond) {
-    if (cond) Merge();
-#ifdef DEBUG
-    merge_called_ = true;
-#endif
-  }
-
-  class V8_NODISCARD Branch final : public HoleCheckElisionScope {
-   public:
-    explicit Branch(HoleCheckElisionMergeScope& merge_into)
-        : HoleCheckElisionScope(merge_into.bitmap_),
-          merge_into_bitmap_(&merge_into.merge_value_) {}
-
-    ~Branch() { *merge_into_bitmap_ &= *bitmap_; }
-
-   private:
-    Variable::HoleCheckBitmap* merge_into_bitmap_;
-  };
-
- private:
-  Variable::HoleCheckBitmap* bitmap_;
-  Variable::HoleCheckBitmap merge_value_ = UINT64_MAX;
-
-#ifdef DEBUG
-  bool merge_called_ = false;
-#endif
 };
 
 class BytecodeGenerator::IteratorRecord final {
@@ -2092,22 +2106,18 @@ void BytecodeGenerator::VisitBlockMaybeDispose(Block* stmt) {
 
 void BytecodeGenerator::VisitBlockDeclarationsAndStatements(Block* stmt) {
   BlockBuilder block_builder(builder(), block_coverage_builder_, stmt);
-  ControlScopeForBreakable execution_control(this, stmt, &block_builder);
+
   if (stmt->scope() != nullptr) {
     VisitDeclarations(stmt->scope()->declarations());
   }
-  if (V8_UNLIKELY(stmt->is_breakable())) {
-    // Loathsome labeled blocks can be the target of break statements, which
-    // causes unconditional blocks to act conditionally, and therefore to
-    // require their own elision scope.
-    //
-    // lbl: {
-    //   if (cond) break lbl;
-    //   x;
-    // }
-    // x;  <-- Cannot elide TDZ check
-    HoleCheckElisionScope elider(this);
-    VisitStatements(stmt->statements());
+  if (stmt->is_breakable()) {
+    ControlScopeForBreakable execution_control(this, stmt, &block_builder);
+    {
+      HoleCheckElisionMergeScope::Branch branch_elider(
+          execution_control.merge_elider());
+      VisitStatements(stmt->statements());
+    }
+    execution_control.merge_elider().Merge();
   } else {
     VisitStatements(stmt->statements());
   }
@@ -2297,8 +2307,9 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
 
 bool BytecodeGenerator::IsPrototypeAssignment(
     Statement* stmt, Variable** var,
-    base::SmallVector<std::pair<Property*, Expression*>, kInitialPropertyCount>&
-        properties) {
+    base::SmallVector<std::pair<const AstRawString*, Expression*>,
+                      kInitialPropertyCount>& properties,
+    std::unordered_set<const AstRawString*>& duplicates) {
   // The expression Statement is an assignment
   // ========================================
   ExpressionStatement* expr_stmt = stmt->AsExpressionStatement();
@@ -2337,6 +2348,12 @@ bool BytecodeGenerator::IsPrototypeAssignment(
     return false;
   }
 
+  const AstRawString* prop_str = prop->key()->AsLiteral()->AsRawString();
+  if (prop_str == ast_string_constants()->proto_string() ||
+      prop_str == ast_string_constants()->constructor_string()) {
+    return false;
+  }
+
   // The target Object is the "prototype" property
   // =============================================
   if (!prop->obj()->IsProperty()) {
@@ -2359,12 +2376,16 @@ bool BytecodeGenerator::IsPrototypeAssignment(
   Variable* tmp_var = proto_prop->obj()->AsVariableProxy()->var();
   VariableLocation loc = tmp_var->location();
   if (loc != VariableLocation::PARAMETER && loc != VariableLocation::LOCAL &&
-      (loc != VariableLocation::CONTEXT &&
-       tmp_var->maybe_assigned() == kNotAssigned)) {
+      !(loc == VariableLocation::CONTEXT &&
+        tmp_var->maybe_assigned() == kNotAssigned)) {
     return false;
   }
 
-  if (tmp_var == nullptr) {
+  if (!duplicates.insert(prop_str).second) {
+    return false;
+  }
+
+  if (*var == nullptr) {
     // This is the first proto assignment in the sequence
     *var = tmp_var;
   } else if (*var != tmp_var) {
@@ -2374,14 +2395,14 @@ bool BytecodeGenerator::IsPrototypeAssignment(
 
   // Success
   properties.push_back(std::make_pair(
-      prop,
+      prop_str,
       value));  // This will be reused as part of an ObjectLiteral
 
   return true;
 }
 
 void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
-    const base::SmallVector<std::pair<Property*, Expression*>,
+    const base::SmallVector<std::pair<const AstRawString*, Expression*>,
                             kInitialPropertyCount>& properties,
     Variable* var) {
   // Create a boiler plate object in the constant pool to be merged into the
@@ -2390,10 +2411,26 @@ void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
   proto_assign_seq_.push_back(std::make_pair(
       zone()->New<ProtoAssignmentSeqBuilder>(properties), entry));
 
+  int first_idx = -1;
+  for (auto& p : properties) {
+    auto func = p.second->AsFunctionLiteral();
+    if (func) {
+      int idx = GetNewClosureSlot(func);
+      DCHECK_NE(idx, -1);
+      if (first_idx == -1) {
+        first_idx = idx;
+      }
+    }
+  }
+
+  // We need it to be valid, even if unused
+  if (first_idx == -1) {
+    first_idx = 0;
+  }
   // Load the variable whose prototype is to be set into the Accumulator
   BuildVariableLoad(var, HoleCheckMode::kElided);
   // Merge in-place proto-def boilerplate object into Accumulator
-  builder()->SetPrototypeProperties(entry);
+  builder()->SetPrototypeProperties(entry, first_idx);
 }
 
 void BytecodeGenerator::VisitStatements(
@@ -2402,13 +2439,13 @@ void BytecodeGenerator::VisitStatements(
     if (v8_flags.proto_assign_seq_opt) {
       Variable* var = nullptr;
       int proto_assign_idx = stmt_idx;
-      base::SmallVector<std::pair<Property*, Expression*>,
+      base::SmallVector<std::pair<const AstRawString*, Expression*>,
                         kInitialPropertyCount>
           properties;
-
+      std::unordered_set<const AstRawString*> duplicates;
       while (proto_assign_idx < statements->length() &&
              IsPrototypeAssignment(statements->at(proto_assign_idx), &var,
-                                   properties)) {
+                                   properties, duplicates)) {
         ++proto_assign_idx;
       }
 
@@ -2843,10 +2880,6 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     switch_builder.Break();
   }
 
-  // It is only correct to merge hole check states if there is a default clause,
-  // as otherwise it's unknown if the switch is exhaustive.
-  HoleCheckElisionMergeScope merge_elider(this);
-
   case_compare_ctr = 0;
   for (int i = 0; i < clauses->length(); ++i) {
     CaseClause* clause = clauses->at(i);
@@ -2870,11 +2903,11 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
       switch_builder.BindDefault(clause);
     }
     // Regardless, generate code (in case of fall throughs).
-    HoleCheckElisionMergeScope::Branch branch_elider(merge_elider);
+    HoleCheckElisionMergeScope::Branch branch_elider(scope.merge_elider());
     VisitStatements(clause->statements());
   }
 
-  merge_elider.MergeIf(info.DefaultExists());
+  scope.merge_elider().MergeIf(info.DefaultExists());
 }
 
 template <typename TryBodyFunc, typename CatchBodyFunc>
@@ -3091,7 +3124,12 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
                                            LoopBuilder* loop_builder) {
   loop_builder->LoopBody();
   ControlScopeForIteration execution_control(this, stmt, loop_builder);
-  Visit(stmt->body());
+  {
+    HoleCheckElisionMergeScope::Branch branch_elider(
+        execution_control.merge_elider());
+    Visit(stmt->body());
+  }
+  execution_control.merge_elider().Merge();
   loop_builder->BindContinueTarget();
 }
 
@@ -3330,7 +3368,8 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
           // iterator result and append the argument.
           builder()->SetExpressionAsStatementPosition(stmt->each(),
                                                       /* is_breakable */ false);
-          if (v8_flags.for_of_optimization) {
+          if (v8_flags.for_of_optimization &&
+              iterator.type() != IteratorType::kAsync) {
             builder()
                 ->ForOfNext(iterator.object(), iterator.next(), output)
                 .LoadAccumulatorWithRegister(done);
@@ -7936,6 +7975,9 @@ void BytecodeGenerator::BuildIteratorNext(const IteratorRecord& iterator,
   builder()->CallProperty(iterator.next(), RegisterList(iterator.object()),
                           feedback_index(feedback_spec()->AddCallICSlot()));
 
+  // TODO(408061015): Optimize AsyncArrayIterators by splitting the optimized
+  // bytecode to get the next result, await the result, and then get value and
+  // done.
   if (iterator.type() == IteratorType::kAsync) {
     BuildAwait();
   }
@@ -8950,6 +8992,18 @@ int BytecodeGenerator::GetCachedCreateClosureSlot(FunctionLiteral* literal) {
   index = feedback_spec()->AddCreateClosureParameterCount(
       JSParameterCount(literal->parameter_count()));
   feedback_slot_cache()->Put(slot_kind, literal, index);
+  return index;
+}
+
+int BytecodeGenerator::GetNewClosureSlot(FunctionLiteral* literal) {
+  DCHECK_EQ(feedback_slot_cache()->Get(
+                FeedbackSlotCache::SlotKind::kClosureFeedbackCell, literal),
+            -1);
+
+  int index = feedback_spec()->AddCreateClosureParameterCount(
+      JSParameterCount(literal->parameter_count()));
+  feedback_slot_cache()->Put(FeedbackSlotCache::SlotKind::kClosureFeedbackCell,
+                             literal, index);
   return index;
 }
 

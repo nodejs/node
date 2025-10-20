@@ -2058,8 +2058,7 @@ TEST(AllocationFoldingCSA) {
 
   const int kNumParams = 1;
   const int kNumArrays = 7;
-  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams),
-                                 CodeKind::FOR_TESTING);
+  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   CodeStubAssembler m(asm_tester.state());
 
   {

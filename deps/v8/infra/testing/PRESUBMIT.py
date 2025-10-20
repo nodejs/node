@@ -123,9 +123,9 @@ def _check_test(error_msg, test):
   if not all(isinstance(x, str) for x in test_args):
     errors += error_msg('If specified, all test_args must be strings')
 
-  # Limit shards to 14 to avoid erroneous resource exhaustion.
+  # Limit shards to avoid erroneous resource exhaustion.
   errors += _check_int_range(
-      error_msg, test, 'shards', lower_bound=1, upper_bound=14)
+      error_msg, test, 'shards', lower_bound=1, upper_bound=16)
 
   variant = test.get('variant', 'default')
   if not variant or not isinstance(variant, str):

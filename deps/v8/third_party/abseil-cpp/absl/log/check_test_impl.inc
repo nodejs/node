@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
 #ifndef ABSL_LOG_CHECK_TEST_IMPL_H_
 #define ABSL_LOG_CHECK_TEST_IMPL_H_
 
@@ -241,6 +243,18 @@ TEST(CHECKTest, TestBinaryChecksWithPrimitives) {
   ABSL_TEST_CHECK_LT(1, 2);
 }
 
+TEST(CHECKTest, TestBinaryChecksWithStringComparison) {
+  const std::string a = "a";
+  ABSL_TEST_CHECK_EQ(a, "a");
+  ABSL_TEST_CHECK_NE(a, "b");
+  ABSL_TEST_CHECK_GE(a, a);
+  ABSL_TEST_CHECK_GE("b", a);
+  ABSL_TEST_CHECK_LE(a, "a");
+  ABSL_TEST_CHECK_LE(a, "b");
+  ABSL_TEST_CHECK_GT("b", a);
+  ABSL_TEST_CHECK_LT(a, "b");
+}
+
 // For testing using CHECK*() on anonymous enums.
 enum { CASE_A, CASE_B };
 
@@ -278,8 +292,7 @@ TEST(CHECKDeathTest, TestBinaryChecksWithUnprintable) {
   ExampleTypeThatHasNoStreamOperator a{true};
   ExampleTypeThatHasNoStreamOperator b{false};
   ABSL_TEST_CHECK_EQ(a, a);
-  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(a, b),
-               "Check failed: a == b \\(UNPRINTABLE vs. UNPRINTABLE\\)");
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(a, b), "Check failed: a == b");
   ABSL_TEST_CHECK_EQ(a, true);
   EXPECT_DEATH(ABSL_TEST_CHECK_EQ(a, false),
                "Check failed: a == false \\(UNPRINTABLE vs. 0\\)");

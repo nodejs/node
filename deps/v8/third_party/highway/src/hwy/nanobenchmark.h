@@ -49,25 +49,7 @@
 #include <stdint.h>
 
 #include "hwy/highway_export.h"
-#include "hwy/timer.h"
-
-// Enables sanity checks that verify correct operation at the cost of
-// longer benchmark runs.
-#ifndef NANOBENCHMARK_ENABLE_CHECKS
-#define NANOBENCHMARK_ENABLE_CHECKS 0
-#endif
-
-#define NANOBENCHMARK_CHECK_ALWAYS(condition)                             \
-  while (!(condition)) {                                                  \
-    fprintf(stderr, "Nanobenchmark check failed at line %d\n", __LINE__); \
-    abort();                                                              \
-  }
-
-#if NANOBENCHMARK_ENABLE_CHECKS
-#define NANOBENCHMARK_CHECK(condition) NANOBENCHMARK_CHECK_ALWAYS(condition)
-#else
-#define NANOBENCHMARK_CHECK(condition)
-#endif
+#include "hwy/timer.h"  // IWYU pragma: export
 
 namespace hwy {
 

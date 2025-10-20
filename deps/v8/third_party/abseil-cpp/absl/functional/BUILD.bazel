@@ -104,8 +104,10 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":any_invocable",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/meta:type_traits",
+        "//absl/utility",
     ],
 )
 
@@ -117,8 +119,10 @@ cc_test(
     deps = [
         ":any_invocable",
         ":function_ref",
+        "//absl/base:config",
         "//absl/container:test_instance_tracker",
         "//absl/memory",
+        "//absl/utility",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

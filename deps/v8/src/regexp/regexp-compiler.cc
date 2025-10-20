@@ -3074,8 +3074,10 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   GetSkipTable(min_lookahead, max_lookahead, boolean_skip_table, nibble_table);
   DCHECK_NE(0, skip_distance);
 
+  Label cont;
   masm->SkipUntilBitInTable(max_lookahead, boolean_skip_table, nibble_table,
-                            skip_distance);
+                            skip_distance, &cont, &cont);
+  masm->Bind(&cont);
 }
 
 /* Code generation for choice nodes.

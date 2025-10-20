@@ -150,7 +150,7 @@ void WriteToStream(const char* data, void* os) {
 }  // namespace
 
 struct LogMessage::LogMessageData final {
-  LogMessageData(const char* absl_nonnull file, int line,
+  LogMessageData(absl::string_view file, int line,
                  absl::LogSeverity severity, absl::Time timestamp);
   LogMessageData(const LogMessageData&) = delete;
   LogMessageData& operator=(const LogMessageData&) = delete;
@@ -202,7 +202,7 @@ struct LogMessage::LogMessageData final {
   void FinalizeEncodingAndFormat();
 };
 
-LogMessage::LogMessageData::LogMessageData(const char* absl_nonnull file,
+LogMessage::LogMessageData::LogMessageData(absl::string_view file,
                                            int line, absl::LogSeverity severity,
                                            absl::Time timestamp)
     : extra_sinks_only(false), manipulated(nullptr) {
@@ -274,6 +274,9 @@ void LogMessage::LogMessageData::FinalizeEncodingAndFormat() {
 }
 
 LogMessage::LogMessage(const char* absl_nonnull file, int line,
+                       absl::LogSeverity severity)
+  : LogMessage(absl::string_view(file), line, severity) {}
+LogMessage::LogMessage(absl::string_view file, int line,
                        absl::LogSeverity severity)
     : data_(absl::make_unique<LogMessageData>(file, line, severity,
                                               absl::Now())) {

@@ -140,6 +140,8 @@ class V8_BASE_EXPORT RegionAllocator final {
   // Total size of not yet acquired regions.
   size_t free_size() const { return free_size_; }
 
+  size_t GetLargestFreeRegionSize() const;
+
   // The alignment of the allocated region's addresses and granularity of
   // the allocated region's sizes.
   size_t page_size() const { return page_size_; }
@@ -213,7 +215,7 @@ class V8_BASE_EXPORT RegionAllocator final {
   Region* FreeListFindRegion(size_t size);
 
   // Finds largest free region for given size.
-  Region* FreeListFindLargestRegion(size_t size);
+  Region* FreeListFindLargestRegion(size_t size) const;
 
   // Removes given region from the set of free regions.
   void FreeListRemoveRegion(Region* region);

@@ -34,10 +34,7 @@ namespace internal {
 // into the pointer. This may be more efficient.
 constexpr int kCodeEntrypointTagShift = 48;
 enum CodeEntrypointTag : uint64_t {
-  // TODO(saelo): eventually, we'll probably want to remove the default tag.
-  kDefaultCodeEntrypointTag = 0,
-  // TODO(saelo): give these unique tags.
-  kJSEntrypointTag = kDefaultCodeEntrypointTag,
+  kJSEntrypointTag = 0,
   kWasmEntrypointTag = uint64_t{1} << kCodeEntrypointTagShift,
   kBytecodeHandlerEntrypointTag = uint64_t{2} << kCodeEntrypointTagShift,
   kLoadWithVectorICHandlerEntrypointTag = uint64_t{3}
@@ -47,8 +44,21 @@ enum CodeEntrypointTag : uint64_t {
   kStoreTransitionICHandlerEntrypointTag = uint64_t{5}
                                            << kCodeEntrypointTagShift,
   kRegExpEntrypointTag = uint64_t{6} << kCodeEntrypointTagShift,
+
+  // TODO(ishell): this is only necessary for wasm which generates indirect
+  // calls to WasmCEntry builtin via Code object. We should call it via
+  // builtin pointer instead and remove this tag.
+  kCEntryEntrypointTag = uint64_t{7} << kCodeEntrypointTagShift,
+
   // TODO(saelo): create more of these tags.
 
+  // Tag to use for Code objects with stub linkage created by unittests.
+  kCodeEntrypointTagForTesting = uint64_t{0xfd} << kCodeEntrypointTagShift,
+
+  // Tag to use for uninitialized code pointer table entries. This ensures
+  // that the uninitialized value is unusable until the actual one is stored
+  // by CodePointerTable::SetEntrypoint().
+  kUninitializedEntrypointTag = uint64_t{0xfe} << kCodeEntrypointTagShift,
   // Tag to use for code that will never be called indirectly via the CPT.
   kInvalidEntrypointTag = uint64_t{0xff} << kCodeEntrypointTagShift,
   // Tag used internally by the code pointer table to mark free entries.
