@@ -3,99 +3,22 @@ import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
-import { hostname } from 'node:os';
-import { chdir, cwd } from 'node:process';
-import { fileURLToPath } from 'node:url';
+
+const {
+  defaultTransform,
+  specTransform,
+  junitTransform,
+  lcovTransform,
+  replaceTestDuration,
+  ensureCwdIsProjectRoot,
+  canColorize,
+} = snapshot;
+
+ensureCwdIsProjectRoot();
 
 const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
   process.config.variables.node_shared_openssl;
-
-// We're using dynamic import here to not break `NODE_REGENERATE_SNAPSHOTS`.
-const canColorize = (await import('internal/tty')).default.getColorDepth() > 2;
-const skipCoverageColors = !canColorize;
-
-function replaceTestDuration(str) {
-  return str
-    .replaceAll(/duration_ms: [0-9.]+/g, 'duration_ms: *')
-    .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *');
-}
-
-const root = fileURLToPath(new URL('../..', import.meta.url)).slice(0, -1);
-
-const color = '(\\[\\d+m)';
-const stackTraceBasePath = new RegExp(`${color}\\(${root.replaceAll(/[\\^$*+?.()|[\]{}]/g, '\\$&')}/?${color}(.*)${color}\\)`, 'g');
-
-function replaceSpecDuration(str) {
-  return str
-    .replaceAll(/[0-9.]+ms/g, '*ms')
-    .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
-    .replace(stackTraceBasePath, '$3');
-}
-
-function replaceJunitDuration(str) {
-  return str
-    .replaceAll(/time="[0-9.]+"/g, 'time="*"')
-    .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
-    .replaceAll(`hostname="${hostname()}"`, 'hostname="HOSTNAME"')
-    .replaceAll(/file="[^"]*"/g, 'file="*"')
-    .replace(stackTraceBasePath, '$3');
-}
-
-function removeWindowsPathEscaping(str) {
-  return common.isWindows ? str.replaceAll(/\\\\/g, '\\') : str;
-}
-
-function replaceTestLocationLine(str) {
-  return str.replaceAll(/(js:)(\d+)(:\d+)/g, '$1(LINE)$3');
-}
-
-// The Node test coverage returns results for all files called by the test. This
-// will make the output file change if files like test/common/index.js change.
-// This transform picks only the first line and then the lines from the test
-// file.
-function pickTestFileFromLcov(str) {
-  const lines = str.split(/\n/);
-  const firstLineOfTestFile = lines.findIndex(
-    (line) => line.startsWith('SF:') && line.trim().endsWith('output.js')
-  );
-  const lastLineOfTestFile = lines.findIndex(
-    (line, index) => index > firstLineOfTestFile && line.trim() === 'end_of_record'
-  );
-  return (
-    lines[0] + '\n' + lines.slice(firstLineOfTestFile, lastLineOfTestFile + 1).join('\n') + '\n'
-  );
-}
-
-const defaultTransform = snapshot.transform(
-  snapshot.replaceWindowsLineEndings,
-  snapshot.replaceStackTrace,
-  removeWindowsPathEscaping,
-  snapshot.transformProjectRoot(),
-  snapshot.replaceWindowsPaths,
-  replaceTestDuration,
-  replaceTestLocationLine,
-);
-const specTransform = snapshot.transform(
-  replaceSpecDuration,
-  snapshot.replaceWindowsLineEndings,
-  snapshot.replaceStackTrace,
-  snapshot.replaceWindowsPaths,
-);
-const junitTransform = snapshot.transform(
-  replaceJunitDuration,
-  snapshot.replaceWindowsLineEndings,
-  snapshot.replaceStackTrace,
-  snapshot.replaceWindowsPaths,
-);
-const lcovTransform = snapshot.transform(
-  snapshot.replaceWindowsLineEndings,
-  snapshot.replaceStackTrace,
-  snapshot.transformProjectRoot(),
-  snapshot.replaceWindowsPaths,
-  pickTestFileFromLcov
-);
-
 
 const tests = [
   { name: 'test-runner/output/abort.js', flags: ['--test-reporter=tap'] },
@@ -225,7 +148,7 @@ const tests = [
     name: 'test-runner/output/non-tty-forced-color-output.js',
     transform: specTransform,
   },
-  canColorize ? {
+  canColorize() ? {
     name: 'test-runner/output/assertion-color-tty.mjs',
     flags: ['--test', '--stack-trace-limit=0'],
     transform: specTransform,
@@ -276,7 +199,7 @@ const tests = [
     name: 'test-runner/output/coverage-width-80.mjs',
     flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
   } : false,
-  process.features.inspector && !skipCoverageColors ? {
+  process.features.inspector && canColorize() ? {
     name: 'test-runner/output/coverage-width-80-color.mjs',
     flags: ['--test-coverage-exclude=!test/**'],
     transform: specTransform,
@@ -302,7 +225,7 @@ const tests = [
     name: 'test-runner/output/coverage-width-100-uncovered-lines.mjs',
     flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
   } : false,
-  process.features.inspector && !skipCoverageColors ? {
+  process.features.inspector && canColorize() ? {
     name: 'test-runner/output/coverage-width-80-uncovered-lines-color.mjs',
     flags: ['--test-coverage-exclude=!test/**'],
     transform: specTransform,
@@ -348,9 +271,6 @@ const tests = [
   }),
 }));
 
-if (cwd() !== root) {
-  chdir(root);
-}
 describe('test runner output', { concurrency: true }, () => {
   for (const { name, fn } of tests) {
     it(name, fn);
