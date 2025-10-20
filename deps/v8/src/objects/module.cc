@@ -223,8 +223,7 @@ bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
     DCHECK_EQ(module->status(), kUnlinked);
     return false;
   }
-  DCHECK(module->status() == kLinked || module->status() == kEvaluated ||
-         module->status() == kEvaluatingAsync || module->status() == kErrored);
+  DCHECK_GE(module->status(), kLinked);
   DCHECK(stack.empty());
   return true;
 }
@@ -488,8 +487,7 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
   // Only SourceTextModules may be async.
   if (!IsSourceTextModule(*this)) return false;
   Tagged<SourceTextModule> root = Cast<SourceTextModule>(*this);
-  DCHECK(root->status() == kLinked || root->status() == kEvaluated ||
-         root->status() == kEvaluatingAsync || root->status() == kErrored);
+  DCHECK_GE(root->status(), kLinked);
 
   Zone zone(isolate->allocator(), ZONE_NAME);
   const size_t bucket_count = 2;
