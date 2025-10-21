@@ -37,7 +37,7 @@ python "$BASE_DIR/tools/inspector_protocol/roll.py" \
   --node_src_downstream "$BASE_DIR" \
   --force
 
-NEW_VERSION=$(grep "Revision:" "$DEPS_DIR/inspector_protocol/README.node" | sed -n "s/^Revision: \(\\w*\)/\1/p")
+NEW_VERSION=$(grep "Revision:" "$DEPS_DIR/inspector_protocol/README.node" | sed -n 's/^Revision: \([[:xdigit:]]\{36\}\).*$/\1/p')
 
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need
