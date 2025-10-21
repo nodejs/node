@@ -353,7 +353,7 @@ del .gyp_configure_stamp 2> NUL
 @rem Generate the VS project.
 echo configure %configure_flags%
 echo %configure_flags%> .used_configure_flags
-python configure %configure_flags%
+call python configure %configure_flags%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 set project_generated=1
