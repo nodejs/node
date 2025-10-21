@@ -12,7 +12,7 @@ namespace crdtp {
 
 DeserializerState::DeserializerState(std::vector<uint8_t> bytes)
     : storage_(new std::vector<uint8_t>(std::move(bytes))),
-      tokenizer_(span<uint8_t>(storage_->data(), storage_->size())) {}
+      tokenizer_(*storage_) {}
 
 DeserializerState::DeserializerState(Storage storage, span<uint8_t> span)
     : storage_(std::move(storage)), tokenizer_(span) {}

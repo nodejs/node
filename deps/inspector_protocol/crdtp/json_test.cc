@@ -90,7 +90,7 @@ TEST(JsonEncoder, EscapesLoneHighSurrogates) {
   std::string out;
   Status status;
   std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
-  writer->HandleString16(span<uint16_t>(chars.data(), chars.size()));
+  writer->HandleString16(chars);
   EXPECT_EQ("\"a\\ud800b\\udadac\\udbffd\"", out);
 }
 
@@ -103,7 +103,7 @@ TEST(JsonEncoder, EscapesLoneLowSurrogates) {
   std::string out;
   Status status;
   std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
-  writer->HandleString16(span<uint16_t>(chars.data(), chars.size()));
+  writer->HandleString16(chars);
   EXPECT_EQ("\"a\\udc00b\\udedec\\udfffd\"", out);
 }
 
@@ -114,7 +114,7 @@ TEST(JsonEncoder, EscapesFFFF) {
   std::string out;
   Status status;
   std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
-  writer->HandleString16(span<uint16_t>(chars.data(), chars.size()));
+  writer->HandleString16(chars);
   EXPECT_EQ("\"abc\\uffffd\"", out);
 }
 
@@ -123,7 +123,7 @@ TEST(JsonEncoder, Passes0x7FString8) {
   std::string out;
   Status status;
   std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
-  writer->HandleString8(span<uint8_t>(chars.data(), chars.size()));
+  writer->HandleString8(chars);
   EXPECT_EQ(
       "\"a\x7f"
       "b\"",
@@ -135,7 +135,7 @@ TEST(JsonEncoder, Passes0x7FString16) {
   std::string out;
   Status status;
   std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
-  writer->HandleString16(span<uint16_t>(chars16.data(), chars16.size()));
+  writer->HandleString16(chars16);
   EXPECT_EQ(
       "\"a\x7f"
       "b\"",
@@ -737,8 +737,7 @@ TYPED_TEST(ConvertJSONToCBORTest, RoundTripValidJson16) {
       '"', ':', '[', '1',    ',',    '2', ',', '3', ']', '}'};
   std::vector<uint8_t> cbor;
   {
-    Status status =
-        ConvertJSONToCBOR(span<uint16_t>(json16.data(), json16.size()), &cbor);
+    Status status = ConvertJSONToCBOR(json16, &cbor);
     EXPECT_THAT(status, StatusIsOk());
   }
   TypeParam roundtrip_json;
