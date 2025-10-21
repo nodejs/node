@@ -1,5 +1,5 @@
 'use strict';
-const { hasCrypto } = require('../common');
+const { hasCrypto, hasLocalStorage } = require('../common');
 const { test } = require('node:test');
 const assert = require('assert');
 
@@ -12,7 +12,7 @@ const assert = require('assert');
 if (process.stdout.isTTY)
   process.env.NODE_DISABLE_COLORS = '1';
 
-test('', { skip: !hasCrypto }, () => {
+test({ skip: !hasCrypto || !hasLocalStorage }, () => {
   // See https://github.com/nodejs/node/issues/10258
   {
     const date = new Date('2016');

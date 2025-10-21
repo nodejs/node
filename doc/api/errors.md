@@ -3354,6 +3354,17 @@ added: v18.1.0
 The `Response` that has been passed to `WebAssembly.compileStreaming` or to
 `WebAssembly.instantiateStreaming` is not a valid WebAssembly response.
 
+<a id="ERR_WEBSTORAGE_MISSING_STORAGE_PATH"></a>
+
+### `ERR_WEBSTORAGE_MISSING_STORAGE_PATH`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An attempt was made to access the global [`localStorage`][] object, but the
+[`--localstorage-file`][] command-line argument was not provided.
+
 <a id="ERR_WORKER_INIT_FAILED"></a>
 
 ### `ERR_WORKER_INIT_FAILED`
@@ -4370,6 +4381,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`--disable-proto=throw`]: cli.md#--disable-protomode
 [`--force-fips`]: cli.md#--force-fips
+[`--localstorage-file`]: cli.md#--localstorage-filefile
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Class: assert.AssertionError`]: assert.md#class-assertassertionerror
@@ -4412,6 +4424,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`http`]: http.md
 [`https`]: https.md
 [`libuv Error handling`]: https://docs.libuv.org/en/v1.x/errors.html
+[`localStorage`]: globals.md#localstorage
 [`net.Socket.write()`]: net.md#socketwritedata-encoding-callback
 [`net`]: net.md
 [`new URL(input)`]: url.md#new-urlinput-base
