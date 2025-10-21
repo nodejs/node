@@ -399,8 +399,7 @@ are also recursively evaluated by the following rules.
   both sides are {NaN}.
 * [Type tags][Object.prototype.toString()] of objects should be the same.
 * Only [enumerable "own" properties][] are considered.
-* Object constructors are also compared to ensure that instances are strictly deep-equal. 
-  This means that even if two objects share the same prototype and properties, differing constructors will result in inequality.
+* Object constructors are compared when available.
 * {Error} names, messages, causes, and errors are always compared,
   even if these are not enumerable properties.
 * [Object wrappers][] are compared both as objects and unwrapped values.
