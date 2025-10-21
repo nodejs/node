@@ -10,7 +10,7 @@ const { describe, it } = require('node:test');
 // should be displayed as autocompletion result.
 
 describe('REPL tab completion with new expressions', () => {
-  it('should output completion of class properties', (_, done) => {
+  it('should output completion of class properties', () => {
     const { replServer, input } = startNewREPLServer({ terminal: false });
 
     input.run([
@@ -20,13 +20,22 @@ describe('REPL tab completion with new expressions', () => {
             `,
     ]);
 
+    // Handle completion for property of root class.
     replServer.complete(
       'new X.',
       common.mustSucceed((completions) => {
         assert.strictEqual(completions[1], 'X.');
-        replServer.close();
-        done();
       })
     );
+
+    // Handle completion for property with another class as value.
+    replServer.complete(
+      'new X.Y.',
+      common.mustSucceed((completions) => {
+        assert.strictEqual(completions[1], 'X.Y.');
+      })
+    );
+
+    replServer.close();
   });
 });
