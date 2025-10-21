@@ -1,5 +1,6 @@
 {
    "recommendations": [
-      "waderyan.nodejs-extension-pack"
+      "waderyan.nodejs-extension-pack",
+      "amazonwebservices.amazon-q-vscode"
    ]
 }
