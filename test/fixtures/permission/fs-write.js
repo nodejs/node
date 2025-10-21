@@ -584,3 +584,48 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
     code: 'ERR_ACCESS_DENIED',
   });
 }
+
+// fs.utimes with read-only fd
+{
+  assert.throws(() => {
+    // blocked file is allowed to read
+    const fd = fs.openSync(blockedFile, 'r');
+    const date = new Date();
+    date.setFullYear(2100,0,1);
+
+    fs.futimes(fd, date, date, common.expectsError({
+      code: 'ERR_ACCESS_DENIED',
+    }));
+    fs.futimesSync(fd, date, date);
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+  });
+}
+
+// fs.fdatasync with read-only fd
+{
+  assert.throws(() => {
+    // blocked file is allowed to read
+    const fd = fs.openSync(blockedFile, 'r');
+    fs.fdatasync(fd, common.expectsError({
+      code: 'ERR_ACCESS_DENIED',
+    }));
+    fs.fdatasyncSync(fd);
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+  });
+}
+
+// fs.fsync with read-only fd
+{
+  assert.throws(() => {
+    // blocked file is allowed to read
+    const fd = fs.openSync(blockedFile, 'r');
+    fs.fsync(fd, common.expectsError({
+      code: 'ERR_ACCESS_DENIED',
+    }));
+    fs.fsyncSync(fd);
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+  });
+}
