@@ -149,23 +149,31 @@ class JSONEncoder : public ParserHandler {
     Emit('"');
     for (const uint16_t ch : chars) {
       if (ch == '"') {
-        Emit('\\'); Emit('"');
+        Emit('\\');
+        Emit('"');
       } else if (ch == '\\') {
-        Emit('\\'); Emit('\\');
+        Emit('\\');
+        Emit('\\');
       } else if (ch >= 32 && ch <= 127) {
         Emit(ch);
       } else if (ch == '\n') {
-        Emit('\\'); Emit('n');
+        Emit('\\');
+        Emit('n');
       } else if (ch == '\r') {
-        Emit('\\'); Emit('r');
+        Emit('\\');
+        Emit('r');
       } else if (ch == '\t') {
-        Emit('\\'); Emit('t');
+        Emit('\\');
+        Emit('t');
       } else if (ch == '\b') {
-        Emit('\\'); Emit('b');
+        Emit('\\');
+        Emit('b');
       } else if (ch == '\f') {
-        Emit('\\'); Emit('f');
+        Emit('\\');
+        Emit('f');
       } else {
-        Emit('\\'); Emit('u');
+        Emit('\\');
+        Emit('u');
         PrintHex(ch, out_);
       }
     }
@@ -177,26 +185,42 @@ class JSONEncoder : public ParserHandler {
       return;
     state_.top().StartElement(out_);
     Emit('"');
+    // Fast path for input strings that can be emitted as-is.
+    if (std::all_of(chars.begin(), chars.end(), [](uint8_t c) {
+          return c != '"' && c != '\\' && c >= 32 && c <= 127;
+        })) {
+      Emit(chars);
+      Emit('"');
+      return;
+    }
     for (size_t ii = 0; ii < chars.size(); ++ii) {
       uint8_t c = chars[ii];
       if (c == '"') {
-        Emit('\\'); Emit('"');
+        Emit('\\');
+        Emit('"');
       } else if (c == '\\') {
-        Emit('\\'); Emit('\\');
+        Emit('\\');
+        Emit('\\');
       } else if (c >= 32 && c <= 127) {
         Emit(c);
       } else if (c == '\n') {
-        Emit('\\'); Emit('n');
+        Emit('\\');
+        Emit('n');
       } else if (c == '\r') {
-        Emit('\\'); Emit('r');
+        Emit('\\');
+        Emit('r');
       } else if (c == '\t') {
-        Emit('\\'); Emit('t');
+        Emit('\\');
+        Emit('t');
       } else if (c == '\b') {
-        Emit('\\'); Emit('b');
+        Emit('\\');
+        Emit('b');
       } else if (c == '\f') {
-        Emit('\\'); Emit('f');
+        Emit('\\');
+        Emit('f');
       } else if (c < 32) {
-        Emit('\\'); Emit('u');
+        Emit('\\');
+        Emit('u');
         PrintHex(static_cast<uint16_t>(c), out_);
       } else {
         // Inspect the leading byte to figure out how long the utf8
@@ -330,10 +354,11 @@ class JSONEncoder : public ParserHandler {
     if (!status_->ok())
       return;
     state_.top().StartElement(out_);
-    if (value)
+    if (value) {
       Emit("true");
-    else
+    } else {
       Emit("false");
+    }
   }
 
   void HandleNull() override {
@@ -351,12 +376,15 @@ class JSONEncoder : public ParserHandler {
 
  private:
   inline void Emit(char c) { out_->push_back(c); }
-  template<size_t N>
+  template <size_t N>
   inline void Emit(const char (&str)[N]) {
     out_->insert(out_->end(), str, str + N - 1);
   }
   inline void Emit(const std::string& str) {
     out_->insert(out_->end(), str.begin(), str.end());
+  }
+  inline void Emit(const span<uint8_t>& bytes) {
+    out_->insert(out_->end(), bytes.begin(), bytes.end());
   }
 
   C* out_;
@@ -882,7 +910,7 @@ class JsonParser {
           HandleError(Error::JSON_PARSER_INVALID_STRING, token_start);
           return;
         }
-        handler_->HandleString16(span<uint16_t>(value.data(), value.size()));
+        handler_->HandleString16(value);
         break;
       }
       case ArrayBegin: {
@@ -929,7 +957,7 @@ class JsonParser {
             HandleError(Error::JSON_PARSER_INVALID_STRING, token_start);
             return;
           }
-          handler_->HandleString16(span<uint16_t>(key.data(), key.size()));
+          handler_->HandleString16(key);
           start = token_end;
 
           token = ParseToken(start, end, &token_start, &token_end);
