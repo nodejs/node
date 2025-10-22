@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/source_mapped_locations.mjs matches
 // test-runner/output/source_mapped_locations.snapshot
 import '../common/index.mjs';

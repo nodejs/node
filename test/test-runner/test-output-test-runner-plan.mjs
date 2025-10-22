@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/test-runner-plan.js matches
 // test-runner/output/test-runner-plan.snapshot
 import '../common/index.mjs';

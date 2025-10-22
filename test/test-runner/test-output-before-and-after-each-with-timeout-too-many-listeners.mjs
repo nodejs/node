@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/before-and-after-each-with-timeout-too-many-listeners.js matches
 // test-runner/output/before-and-after-each-with-timeout-too-many-listeners.snapshot
 import '../common/index.mjs';

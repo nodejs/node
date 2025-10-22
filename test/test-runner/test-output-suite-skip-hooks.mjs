@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/suite-skip-hooks.js matches
 // test-runner/output/suite-skip-hooks.snapshot
 import '../common/index.mjs';

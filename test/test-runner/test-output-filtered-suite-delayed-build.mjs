@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/filtered-suite-delayed-build.js matches
 // test-runner/output/filtered-suite-delayed-build.snapshot
 import '../common/index.mjs';

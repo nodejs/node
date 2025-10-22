@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/filtered-suite-order.mjs matches
 // test-runner/output/filtered-suite-order.snapshot
 import '../common/index.mjs';

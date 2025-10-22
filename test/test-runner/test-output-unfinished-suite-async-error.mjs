@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/unfinished-suite-async-error.js matches
 // test-runner/output/unfinished-suite-async-error.snapshot
 import '../common/index.mjs';

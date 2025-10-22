@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/abort-runs-after-hook.js matches
 // test-runner/output/abort-runs-after-hook.snapshot
 import '../common/index.mjs';

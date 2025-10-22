@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/junit_reporter.js matches
 // test-runner/output/junit_reporter.snapshot
 import '../common/index.mjs';

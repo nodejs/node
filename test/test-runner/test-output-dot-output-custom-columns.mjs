@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/dot_output_custom_columns.js matches
 // test-runner/output/dot_output_custom_columns.snapshot
 import '../common/index.mjs';

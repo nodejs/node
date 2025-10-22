@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/coverage-width-40.mjs matches
 // test-runner/output/coverage-width-40.snapshot
 import * as common from '../common/index.mjs';

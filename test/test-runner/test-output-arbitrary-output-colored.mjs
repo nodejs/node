@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/arbitrary-output-colored.js matches
 // test-runner/output/arbitrary-output-colored.snapshot
 import * as common from '../common/index.mjs';

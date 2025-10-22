@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/skip-each-hooks.js matches
 // test-runner/output/skip-each-hooks.snapshot
 import '../common/index.mjs';

@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/describe_nested.js matches test-runner/output/describe_nested.snapshot
 import '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';

@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/spec_reporter_cli.js matches
 // test-runner/output/spec_reporter_cli.snapshot
 import '../common/index.mjs';

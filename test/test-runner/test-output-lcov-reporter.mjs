@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/lcov_reporter.js matches test-runner/output/lcov_reporter.snapshot
 import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';

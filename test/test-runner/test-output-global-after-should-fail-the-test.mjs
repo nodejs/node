@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/global_after_should_fail_the_test.js matches
 // test-runner/output/global_after_should_fail_the_test.snapshot
 import '../common/index.mjs';

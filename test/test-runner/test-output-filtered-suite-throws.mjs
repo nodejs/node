@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/filtered-suite-throws.js matches
 // test-runner/output/filtered-suite-throws.snapshot
 import '../common/index.mjs';

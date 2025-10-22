@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/describe_it.js matches test-runner/output/describe_it.snapshot
 import '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';

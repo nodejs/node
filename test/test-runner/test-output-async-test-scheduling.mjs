@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/async-test-scheduling.mjs matches
 // test-runner/output/async-test-scheduling.snapshot
 import '../common/index.mjs';

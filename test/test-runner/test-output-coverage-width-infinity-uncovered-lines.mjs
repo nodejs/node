@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/coverage-width-infinity-uncovered-lines.mjs matches
 // test-runner/output/coverage-width-infinity-uncovered-lines.snapshot
 import * as common from '../common/index.mjs';

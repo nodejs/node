@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/global-hooks-with-no-tests.js matches
 // test-runner/output/global-hooks-with-no-tests.snapshot
 import '../common/index.mjs';

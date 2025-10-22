@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/test-runner-plan-timeout.js matches
 // test-runner/output/test-runner-plan-timeout.snapshot
 import '../common/index.mjs';

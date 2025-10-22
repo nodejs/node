@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/abort_suite.js matches test-runner/output/abort_suite.snapshot
 import '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';

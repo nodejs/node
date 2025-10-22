@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/timeout_in_before_each_should_not_affect_further_tests.js matches
 // test-runner/output/timeout_in_before_each_should_not_affect_further_tests.snapshot
 import '../common/index.mjs';

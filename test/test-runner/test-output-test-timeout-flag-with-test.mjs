@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/test-timeout-flag.js matches
 // test-runner/output/test-timeout-flag.snapshot with --test flag.
 // --test-timeout should work with or without --test flag.

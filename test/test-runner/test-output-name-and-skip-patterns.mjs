@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/name_and_skip_patterns.js matches
 // test-runner/output/name_and_skip_patterns.snapshot
 import '../common/index.mjs';

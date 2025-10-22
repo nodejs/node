@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/non-tty-forced-color-output.js matches
 // test-runner/output/non-tty-forced-color-output.snapshot
 import '../common/index.mjs';

@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/test-diagnostic-warning-without-test-only-flag.js matches
 // test-runner/output/test-diagnostic-warning-without-test-only-flag.snapshot
 import '../common/index.mjs';

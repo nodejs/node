@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/before-and-after-each-too-many-listeners.js matches
 // test-runner/output/before-and-after-each-too-many-listeners.snapshot
 import '../common/index.mjs';

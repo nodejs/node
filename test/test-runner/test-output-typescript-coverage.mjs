@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/typescript-coverage.mts matches
 // test-runner/output/typescript-coverage.snapshot
 import * as common from '../common/index.mjs';

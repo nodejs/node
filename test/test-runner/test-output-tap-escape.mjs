@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/tap_escape.js matches test-runner/output/tap_escape.snapshot
 import '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';

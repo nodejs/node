@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/test-runner-watch-spec.mjs matches
 // test-runner/output/test-runner-watch-spec.snapshot
 import '../common/index.mjs';

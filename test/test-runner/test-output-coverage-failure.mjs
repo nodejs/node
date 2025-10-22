@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Test that the output of test-runner/output/coverage_failure.js matches
 // test-runner/output/coverage_failure.snapshot
 import * as common from '../common/index.mjs';
