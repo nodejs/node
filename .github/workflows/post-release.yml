@@ -18,10 +18,14 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          # Trigger update-links workflow on nodejs/release-cloudflare-worker
+      - name: Trigger update-links workflow on nodejs/release-cloudflare-worker
+        run: |
           gh workflow run update-links.yml --repo nodejs/release-cloudflare-worker
-          # Trigger create-release-post workflow on nodejs/nodejs.org
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+
+      - name: Trigger create-release-post workflow on nodejs/nodejs.org
+        run: |
           gh workflow run create-release-post.yml --repo nodejs/nodejs.org -f version=$VERSION
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
