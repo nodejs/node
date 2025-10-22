@@ -8,7 +8,7 @@ const BREAK_MESSAGE = new RegExp('(?:' + [
 ].join('|') + ') in', 'i');
 
 let TIMEOUT = common.platformTimeout(10000);
-// Some macOS  and Windows machines require more time to receive the outputs from the client.
+// Some macOS and Windows machines require more time to receive the outputs from the client.
 // https://github.com/nodejs/build/issues/3014
 if (common.isWindows || common.isMacOS) {
   TIMEOUT = common.platformTimeout(15000);
