@@ -3305,10 +3305,6 @@ and is incompatible with `--run`, as `--run` takes precedence and ignores watch 
 node --watch-path=./src --watch-path=./tests index.js
 ```
 
-This option is only supported on macOS and Windows.
-An `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM` exception will be thrown
-when the option is used on a platform that does not support it.
-
 ### `--watch-preserve-output`
 
 <!-- YAML
