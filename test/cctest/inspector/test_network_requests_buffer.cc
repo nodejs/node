@@ -168,7 +168,7 @@ TEST(RequestsBuffer, EnforceLimit) {
     buffer.find("4")->second.push_request_data_blob(
         protocol::Binary::fromSpan(kDummyData, 10));
     // "3" and "4" are kept.
-    EXPECT_EQ(buffer.total_buffer_size(), 15);
+    EXPECT_EQ(buffer.total_buffer_size(), 15u);
   }
 
   EXPECT_FALSE(buffer.contains("1"));
