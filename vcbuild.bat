@@ -652,7 +652,8 @@ robocopy /e doc\api %config%\doc\api
   -i lib/*.js ^
   -o out/doc/api/ ^
   -c file://%~dp0\CHANGELOG.md ^
-  -v %NODE_VERSION%
+  -v %NODE_VERSION% ^
+  --type-map "%~dp0doc\type-map.json"
 
 :run
 @rem Run tests if requested.
@@ -668,7 +669,7 @@ for /d %%F in (test\addons\??_*) do (
   rd /s /q %%F
 )
 :: generate
-"%npx_exe%" --prefix tools/doc doc-kit generate -t addon-verify -i "%~dp0doc\api\addons.md" -o "%~dp0test\addons"
+"%npx_exe%" --prefix tools/doc doc-kit generate -t addon-verify -i "%~dp0doc\api\addons.md" -o "%~dp0test\addons" --type-map "%~dp0doc\type-map.json"
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal
@@ -811,7 +812,6 @@ for /D %%D IN (doc\*) do (
   )
 )
 %node_exe% tools\lint-md\lint-md.mjs %lint_md_files%
-%npx_exe% --prefix tools\doc doc-kit lint -i doc\api\*.md
 ENDLOCAL
 goto format-md
 
