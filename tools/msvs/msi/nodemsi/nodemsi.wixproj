@@ -1,5 +1,5 @@
-<Project Sdk="WixToolset.Sdk/4.0.0-rc.1">
-  <Import Project="Sdk.props" Sdk="WixToolset.Sdk" Version="4.0.0-rc.1" />
+<Project>
+  <Import Project="Sdk.props" Sdk="WixToolset.Sdk" Version="4.0.6" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
@@ -39,22 +39,26 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="WixToolset.UI.wixext" Version="4.0.0-rc.1" />
-    <PackageReference Include="WixToolset.Util.wixext" Version="4.0.0-rc.1" />
-    <PackageReference Include="WixToolset.Heat" Version="4.0.0-rc.1" />
+    <PackageReference Include="WixToolset.UI.wixext" Version="4.0.6" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="4.0.6" />
+    <PackageReference Include="WixToolset.Heat" Version="4.0.6" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../custom_actions/custom_actions.vcxproj" />
   </ItemGroup>
-  <Import Project="Sdk.targets" Sdk="WixToolset.Sdk" Version="4.0.0-rc.1" />
+  <Import Project="Sdk.targets" Sdk="WixToolset.Sdk" Version="4.0.6" />
   <Target Name="BeforeBuild">
     <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm" PreprocessorVariable="var.NpmSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="NpmSourceFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\..\npm.wxs">
     </HeatDirectory>
     <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\corepack" PreprocessorVariable="var.CorepackSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="CorepackSourceFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\..\corepack.wxs">
     </HeatDirectory>
   </Target>
-  <PropertyGroup>
-    <PostBuildEvent>move "$(TargetDir)en-us\$(TargetFileName)" "$(TargetPath)"
-    move "$(TargetDir)en-us\$(TargetPdbFileName)" "$(TargetPdbPath)"</PostBuildEvent>
-  </PropertyGroup>
+  <Target Name="AfterBuild">
+    <Move SourceFiles="$(OutputPath)en-us\$(OutputName).msi"
+          DestinationFiles="$(OutputPath)$(OutputName).msi"
+          Condition="Exists('$(OutputPath)en-us\$(OutputName).msi')" />
+    <Move SourceFiles="$(OutputPath)en-us\$(OutputName).wixpdb"
+          DestinationFiles="$(OutputPath)$(OutputName).wixpdb"
+          Condition="Exists('$(OutputPath)en-us\$(OutputName).wixpdb')" />
+  </Target>
 </Project>
