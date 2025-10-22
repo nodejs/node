@@ -25,4 +25,4 @@ jobs:
           gh workflow run create-release-post.yml --repo nodejs/nodejs.org -f version=$VERSION
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
-          VERSION: ${{ inputs.version || github.event.releease.tag_name }}
+          VERSION: ${{ inputs.version || github.event.release.tag_name }}
