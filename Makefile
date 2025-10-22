@@ -389,7 +389,7 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 		echo "Skipping .docbuildstamp (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r test/addons/??_*/; \
-		$(call available-node, $(NPX) --prefix tools/doc doc-kit generate -t addon-verify -i doc/api/addons.md -o test/addons/) \
+		$(call available-node, $(NPX) --prefix tools/doc doc-kit generate -t addon-verify -i doc/api/addons.md -o test/addons/ --type-map doc/type-map.json) \
 		[ $$? -eq 0 ] && touch $@; \
 	fi
 
@@ -837,6 +837,7 @@ out/doc/api/%.html out/doc/api/%.json: doc/api/%.md tools/doc/node_modules | out
 		-c ./CHANGELOG.md \
 		-v $(VERSION) \
 		--index doc/api/index.md \
+		--type-map doc/type-map.json \
 	) \
 
 out/doc/api/all.html: $(apidocs_html) | out/doc/api
@@ -849,6 +850,7 @@ out/doc/api/all.html: $(apidocs_html) | out/doc/api
 		-c ./CHANGELOG.md \
 		-v $(VERSION) \
 		--index doc/api/index.md \
+		--type-map doc/type-map.json \
 	) \
 
 out/doc/api/all.json: $(apidocs_json) | out/doc/api
@@ -861,6 +863,7 @@ out/doc/api/all.json: $(apidocs_json) | out/doc/api
 		-c ./CHANGELOG.md \
 		-v $(VERSION) \
 		--index doc/api/index.md \
+		--type-map doc/type-map.json \
 	) \
 
 .PHONY: docopen
