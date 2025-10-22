@@ -30,8 +30,8 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [14. Push the release tag](#14-push-the-release-tag)
   * [15. Promote and sign the release builds](#15-promote-and-sign-the-release-builds)
   * [16. Check the release](#16-check-the-release)
-  * [17. Create a blog post](#17-create-a-blog-post)
-  * [18. Create the release on GitHub](#18-create-the-release-on-github)
+  * [17. Create the release on GitHub](#17-create-the-release-on-github)
+    * [17.1 Merge the blog post](#171-merge-the-blog-post)
   * [19. Announce](#19-announce)
   * [20. Celebrate](#20-celebrate)
 * [LTS releases](#lts-releases)
@@ -1069,53 +1069,7 @@ have the right internal version strings. Check that the API docs are available
 at <https://nodejs.org/api/>. Check that the release catalog files are correct
 at <https://nodejs.org/dist/index.tab> and <https://nodejs.org/dist/index.json>.
 
-### 17. Create a blog post
-
-There is an automatic build that is kicked off when you promote new builds, so
-within a few minutes nodejs.org will be listing your new version as the latest
-release. However, the blog post is not yet fully automatic.
-
-Create a new blog post by running the [nodejs.org release-post.js script][]:
-
-```bash
-node ./apps/site/scripts/release-post/index.mjs x.y.z
-```
-
-This script will use the promoted builds and changelog to generate the post. Run
-`npm run serve` to preview the post locally before pushing to the
-[nodejs.org repository][].
-
-* You can add a short blurb just under the main heading if you want to say
-  something important, otherwise the text should be publication ready.
-
-* The links to the download files won't be complete unless you waited for the
-  ARMv6 builds. Any downloads that are missing will have `*Coming soon*` next to
-  them. It's your responsibility to manually update these later when you have
-  the outstanding builds.
-
-* The `SHASUMS256.txt.asc` content is at the bottom of the post. When you update
-  the list of tarballs you'll need to copy/paste the new contents of this file
-  to reflect those changes.
-
-* Always use pull-requests on the [nodejs.org repository][]. Be respectful
-  of the website team, but you do not have to wait for PR sign-off. Please
-  use the following commit message format:
-
-  ```console
-  Blog: vX.Y.Z release post
-
-  Refs: <full URL to your release proposal PR>
-  ```
-
-* In order to trigger the CI Checks of the [nodejs.org repository][]; Please
-  attach the `github_actions:pull-request` label to the PR.
-
-* Changes to the base branch, `main`, on the [nodejs.org repository][] will
-  trigger a new build of nodejs.org, so your changes should appear a few minutes
-  after pushing. You can follow the [Deployments](https://github.com/nodejs/nodejs.org/deployments) page
-  to see when the build finishes and gets published.
-
-### 18. Create the release on GitHub
+### 17. Create the release on GitHub
 
 * Go to the [New release page](https://github.com/nodejs/node/releases/new).
 * Select the tag version you pushed earlier.
@@ -1124,6 +1078,13 @@ This script will use the promoted builds and changelog to generate the post. Run
 * If you are not releasing the latest "Current", uncheck
   "Set as the latest release".
 * Click on the "Publish release" button.
+
+#### 17.1 Merge the Blog Post
+
+Once a release is created, an automation will open a PR in the [nodejs.org repository][]
+to create a blog post. You can add a short blurb just under the main heading if you want
+to say something important, otherwise the text should be publication ready. Be respectful
+of the website team, but you do not have to wait for PR sign-off.
 
 ### 19. Announce
 
