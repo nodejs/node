@@ -487,7 +487,7 @@ class XCObject:
 
         children = []
         for property, attributes in self._schema.items():
-            (is_list, property_type, is_strong) = attributes[0:3]
+            (is_list, _property_type, is_strong) = attributes[0:3]
             if is_strong and property in self._properties:
                 if not is_list:
                     children.append(self._properties[property])
@@ -913,7 +913,7 @@ class XCObject:
         # TODO(mark): A stronger verification mechanism is needed.  Some
         # subclasses need to perform validation beyond what the schema can enforce.
         for property, attributes in self._schema.items():
-            (is_list, property_type, is_strong, is_required) = attributes[0:4]
+            (_is_list, _property_type, _is_strong, is_required) = attributes[0:4]
             if is_required and property not in self._properties:
                 raise KeyError(self.__class__.__name__ + " requires " + property)
 
@@ -923,7 +923,7 @@ class XCObject:
 
         defaults = {}
         for property, attributes in self._schema.items():
-            (is_list, property_type, is_strong, is_required) = attributes[0:4]
+            (_is_list, _property_type, _is_strong, is_required) = attributes[0:4]
             if (
                 is_required
                 and len(attributes) >= 5
@@ -1616,7 +1616,7 @@ class PBXFileReference(XCFileLikeElement, XCContainerPortal, XCRemoteObject):
                 prop_name = "lastKnownFileType"
             else:
                 basename = posixpath.basename(self._properties["path"])
-                (root, ext) = posixpath.splitext(basename)
+                (_root, ext) = posixpath.splitext(basename)
                 # Check the map using a lowercase extension.
                 # TODO(mark): Maybe it should try with the original case first and fall
                 # back to lowercase, in case there are any instances where case
@@ -2010,7 +2010,7 @@ class PBXFrameworksBuildPhase(XCBuildPhase):
         return "Frameworks"
 
     def FileGroup(self, path):
-        (root, ext) = posixpath.splitext(path)
+        (_root, ext) = posixpath.splitext(path)
         if ext != "":
             ext = ext[1:].lower()
         if ext == "o":

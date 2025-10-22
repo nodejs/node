@@ -2757,7 +2757,7 @@ def ValidateRulesInTarget(target, target_dict, extra_sources_for_rules):
         source_keys.extend(extra_sources_for_rules)
         for source_key in source_keys:
             for source in target_dict.get(source_key, []):
-                (source_root, source_extension) = os.path.splitext(source)
+                (_source_root, source_extension) = os.path.splitext(source)
                 if source_extension.startswith("."):
                     source_extension = source_extension[1:]
                 if source_extension == rule_extension:

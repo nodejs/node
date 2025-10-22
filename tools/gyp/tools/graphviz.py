@@ -47,7 +47,7 @@ def WriteGraph(edges):
     # Bucket targets by file.
     files = collections.defaultdict(list)
     for src, dst in edges.items():
-        build_file, target_name, toolset = ParseTarget(src)
+        build_file, target_name, _toolset = ParseTarget(src)
         files[build_file].append(src)
 
     print("digraph D {")
@@ -62,14 +62,14 @@ def WriteGraph(edges):
             # If there's only one node for this file, simplify
             # the display by making it a box without an internal node.
             target = targets[0]
-            build_file, target_name, toolset = ParseTarget(target)
+            build_file, target_name, _toolset = ParseTarget(target)
             print(f'  "{target}" [shape=box, label="{filename}\\n{target_name}"]')
         else:
             # Group multiple nodes together in a subgraph.
             print('  subgraph "cluster_%s" {' % filename)
             print('    label = "%s"' % filename)
             for target in targets:
-                build_file, target_name, toolset = ParseTarget(target)
+                build_file, target_name, _toolset = ParseTarget(target)
                 print(f'    "{target}" [label="{target_name}"]')
             print("  }")
 
