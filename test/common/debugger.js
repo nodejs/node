@@ -92,10 +92,7 @@ function startCLI(args, flags = [], spawnOpts = {}, opts = { randomPort: true })
 
         const timer = setTimeout(() => {
           tearDown();
-          reject(new Error([
-            `Timeout (${TIMEOUT}) while waiting for ${pattern}`,
-            `found: ${this.output}`,
-          ].join('; ')));
+          reject(new Error(`Timeout (${TIMEOUT}) while waiting for ${pattern}; found: ${this.output}`));
         }, TIMEOUT);
 
         function tearDown() {
