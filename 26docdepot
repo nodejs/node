@@ -1,0 +1,140 @@
+/*
+26DocDepot - Fullstack starter (Frontend + Backend) avec logo intégré
+*/
+
+import React, { useState, useEffect } from 'react';
+import logo from './assets/logo-site.jpeg'; // <-- Import du logo ajouté ici
+
+const PRIMARY = '#007BFF';
+const WHITE = '#FFFFFF';
+
+function IconUpload() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+      <path d="M12 3v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7 10l5-5 5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function App() {
+  const [showUpload, setShowUpload] = useState(false);
+  const [files, setFiles] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    fetch('/api/list')
+      .then(r => r.json())
+      .then(data => setFiles(data.files || []))
+      .catch(err => console.error(err));
+  }, []);
+
+  async function handleUpload(e) {
+    e.preventDefault();
+    if (!selectedFile) return setMessage('Choisissez un fichier PDF.');
+    setUploading(true);
+    setMessage('');
+    const fd = new FormData();
+    fd.append('file', selectedFile);
+
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const j = await res.json();
+    setUploading(false);
+    if (j?.ok) {
+      setFiles(prev => [j.file, ...prev]);
+      setShowUpload(false);
+      setSelectedFile(null);
+      setMessage('Fichier déposé avec succès.');
+    } else {
+      setMessage(j?.error || 'Erreur lors de l\'upload');
+    }
+  }
+
+  async function handleReplace(slug) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/pdf';
+    input.onchange = async () => {
+      const f = input.files[0];
+      if (!f) return;
+      const fd = new FormData();
+      fd.append('file', f);
+      fd.append('slug', slug);
+      const res = await fetch('/api/replace', { method: 'POST', body: fd });
+      const j = await res.json();
+      if (j?.ok) {
+        setFiles(prev => prev.map(p => p.slug === slug ? j.file : p));
+        alert('Remplacement effectué. Le lien reste le même.');
+      } else alert(j?.error || 'Erreur');
+    };
+    input.click();
+  }
+
+  function qrUrlForSlug(slug) {
+    const url = encodeURIComponent(window.location.origin + '/f/' + slug);
+    return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${url}`;
+  }
+
+  return (
+    <div style={{fontFamily:'Poppins, Roboto, system-ui'}} className="min-h-screen bg-white text-gray-800">
+      <header style={{background:PRIMARY}} className="p-4 shadow-md">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3 text-white">
+            <img src={logo} alt="26DocDepot logo" className="w-10 h-10 rounded-full bg-white" />
+            <div>
+              <div className="text-2xl font-bold">26DocDepot</div>
+              <div className="hidden sm:block text-sm opacity-90">Déposez, gérez et partagez vos PDF — lien permanent + QR</div>
+            </div>
+          </div>
+          <div>
+            <button onClick={() => setShowUpload(true)} className="bg-white text-[14px] font-medium px-4 py-2 rounded-lg shadow-sm">
+              Déposer un PDF
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto p-6">
+        <section className="bg-white rounded-2xl p-6 shadow-sm mb-6">
+          <h1 className="text-2xl font-semibold mb-2">Déposez, gérez et partagez vos PDF avec un lien permanent et un QR code unique.</h1>
+          <p className="text-gray-600 mb-4">Téléversez vos documents PDF, partagez-les via un lien permanent ou imprimez un QR code qui pointe vers la page publique de téléchargement.</p>
+          <div className="flex gap-3">
+            <button onClick={() => setShowUpload(true)} style={{background:PRIMARY, color:WHITE}} className="px-4 py-3 rounded-lg inline-flex items-center gap-2">
+              <IconUpload /> Déposer un PDF
+            </button>
+            <a href="/dashboard" className="px-4 py-3 border rounded-lg">Accéder au tableau de bord</a>
+          </div>
+        </section>
+
+        <section className="mb-6">
+          <h2 className="text-xl font-semibold mb-3">Vos dépôts récents</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {files.length===0 && <div className="p-4 bg-gray-50 rounded">Aucun fichier déposé pour l'instant.</div>}
+            {files.map(f => (
+              <div key={f.slug} className="p-4 border rounded-lg flex justify-between items-center">
+                <div>
+                  <div className="font-medium">{f.name}</div>
+                  <div className="text-sm text-gray-500">{f.size_human} • {f.created_at}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => window.open('/f/' + f.slug, '_blank')} className="px-3 py-2 border rounded">Voir</button>
+                  <button onClick={() => handleReplace(f.slug)} className="px-3 py-2 border rounded">Remplacer</button>
+                  <a href={qrUrlForSlug(f.slug)} target="_blank" rel="noreferrer" download className="px-3 py-2 border rounded">Télécharger QR</a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      <footer className="mt-12 py-6 border-t text-center">
+        <div className="max-w-5xl mx-auto">©2025 26DocDepot</div>
+      </footer>
+    </div>
+  );
+}
+
+export default App;
