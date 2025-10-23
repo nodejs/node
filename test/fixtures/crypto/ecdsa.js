@@ -72,18 +72,20 @@ module.exports = function() {
         'b6a0a14d7e4bc6dd2eda82c9234f174b670b60c8f7d101f68fdf5889e02373b025' +
         'dcbc4c82f2929b8e06c68535da98e38fe399c53a814b097935581ef21535eb',
         'hex'),
-      'SHA3-256': Buffer.from(
-        'f6a48eb5557f484ed0c3e4b5c78a3cf497cbd346db06a4165d429248aa2cc51a69' +
-        '747d09f57af145469a8b607a9b8b9709629d74e8f5ca337c6ddc581b6f6103',
-        'hex'),
-      'SHA3-384': Buffer.from(
-        '777785978eb59da32888554dc7fd62d1ba1a3033cddaa8c36b8f3dcea8f85e1c8e' +
-        '6db26f509747bd144dfa9436784bf4abbcaa6abcf1ecc09cea3b921d46738c',
-        'hex'),
-      'SHA3-512': Buffer.from(
-        '0f01c2083b5dd7fccb2784563f88cd9a815d570a1690695e426643ab725780760d' +
-        'e972e26e18d67f5557be89f17b4cd0065ce2937de299bdb2e972ebf7635084',
-        'hex')
+      ...(!process.features.openssl_is_boringssl ? {
+        'SHA3-256': Buffer.from(
+          'f6a48eb5557f484ed0c3e4b5c78a3cf497cbd346db06a4165d429248aa2cc51a69' +
+          '747d09f57af145469a8b607a9b8b9709629d74e8f5ca337c6ddc581b6f6103',
+          'hex'),
+        'SHA3-384': Buffer.from(
+          '777785978eb59da32888554dc7fd62d1ba1a3033cddaa8c36b8f3dcea8f85e1c8e' +
+          '6db26f509747bd144dfa9436784bf4abbcaa6abcf1ecc09cea3b921d46738c',
+          'hex'),
+        'SHA3-512': Buffer.from(
+          '0f01c2083b5dd7fccb2784563f88cd9a815d570a1690695e426643ab725780760d' +
+          'e972e26e18d67f5557be89f17b4cd0065ce2937de299bdb2e972ebf7635084',
+          'hex')
+      } : {})
     },
     'P-384': {
       'SHA-1': Buffer.from(
@@ -102,18 +104,20 @@ module.exports = function() {
         '72fbdb369fd34c1c54264d07f4facd69b02e4206f8a8bb259b882a305c56fde2d3' +
         '5107e493c53cd6b4af0b31306f4d03fd43cfc762a1030e17a3d775453a1212b142' +
         '9f7b3d93066a5f42a10b138cd177dc09616e827d598822d78d4627b754e6', 'hex'),
-      'SHA3-256': Buffer.from(
-        '0b07c078be30fa5925a307d6fc559c5f398e63fb5d007d6b24a834847f2d3d18d5' +
-        'b5e840711c52a7bc6626c3ced93301e873c013a706f6b297c12cc6d47a71e0529e' +
-        '719f43957de9995621d3cb0217469adaa6fd3135470771d0aa9d05d7a9c6', 'hex'),
-      'SHA3-384': Buffer.from(
-        '2f36e8b04af46f68ef900c2720e3518b06f5440865d44072bbad5d62288c575042' +
-        'b183a372acd70328c738668dcecb9866801462d62df3c35450fdc6c95433103fcd' +
-        'c77999b640e3f92bd4e9be6e27ab129d1bc4f0b2a4c829388666920892d3', 'hex'),
-      'SHA3-512': Buffer.from(
-        '32a951e886c33ac57a008efe9643bc92aa3ece9521d115e0c7240caecf124d1f7c' +
-        'dcba7fabb9ad5202e04f7aa591ab01ed3f060f04f493e4f24430fe8159200612f0' +
-        '2849108b8be6edc8494c328097ad9265928efe5cb9d91be2f013ee17ee4e', 'hex')
+      ...(!process.features.openssl_is_boringssl ? {
+        'SHA3-256': Buffer.from(
+          '0b07c078be30fa5925a307d6fc559c5f398e63fb5d007d6b24a834847f2d3d18d5' +
+          'b5e840711c52a7bc6626c3ced93301e873c013a706f6b297c12cc6d47a71e0529e' +
+          '719f43957de9995621d3cb0217469adaa6fd3135470771d0aa9d05d7a9c6', 'hex'),
+        'SHA3-384': Buffer.from(
+          '2f36e8b04af46f68ef900c2720e3518b06f5440865d44072bbad5d62288c575042' +
+          'b183a372acd70328c738668dcecb9866801462d62df3c35450fdc6c95433103fcd' +
+          'c77999b640e3f92bd4e9be6e27ab129d1bc4f0b2a4c829388666920892d3', 'hex'),
+        'SHA3-512': Buffer.from(
+          '32a951e886c33ac57a008efe9643bc92aa3ece9521d115e0c7240caecf124d1f7c' +
+          'dcba7fabb9ad5202e04f7aa591ab01ed3f060f04f493e4f24430fe8159200612f0' +
+          '2849108b8be6edc8494c328097ad9265928efe5cb9d91be2f013ee17ee4e', 'hex')
+      } : {})
     },
     'P-521': {
       'SHA-1': Buffer.from(
@@ -140,29 +144,35 @@ module.exports = function() {
         '01f0071e6a32867fa70f695cd39c4e87e142b9e4134d38740bd6fee354a575167e' +
         '13524e94832637910fe11e53a85fb21b91adb81bb1779c4e2b8bc87c717dc35084',
         'hex'),
-      'SHA3-256': Buffer.from(
-        '00463679f47a4c705e03447360dcf34d1743e0d4b2591cc66832a6bc80d92e538c' +
-        '169a1fd330f98e7235ca7fec7e16ac44fb13095b8edf2c76b75c4845177d59e425' +
-        '0127c4359f6a4c9ccb63e7a9ff8122c0b4a8b7408e28c96817ecc3baf8c559c413' +
-        'c3bb580447dec9f52139b2afde369cd51730f050bc94137556ae137f0509464219',
-        'hex'),
-      'SHA3-384': Buffer.from(
-        '01969a4db0888bc067a68a31fe5d0fc97e0b701f570565f7b25cb27707c6f020ff' +
-        '680f8553ec5c2d6885e9e91b39262ed1bde375525eb13fdf12089b7939c7689735' +
-        '0101c8b8d1129a217e8e956bef78cf7b9a0458523b04ac8e0b84ce73d54326f7a8' +
-        '704ee42fe183f3ef79d83e676f34dc5476e2342641a5b973d3d94e8503676fbbc5',
-        'hex'),
-      'SHA3-512': Buffer.from(
-        '000f362e914ee0136663cf57bf4085c25604af6dc198b4818751e1195ee7e41a16' +
-        '91be909dcbc2bae00b8917f6bb918eae3740ac1b76e0913137c2da1171d6400b55' +
-        '01ec6e1dc5987a27fe16fc2ce5c8e954088f898a9bbefb176eaa8bbd9ccc264c4c' +
-        'cc38c83ac8b5a168f90228daf8405a2b9bf7829c263a646b4e1098e2ace38deec7',
-        'hex')
+      ...(!process.features.openssl_is_boringssl ? {
+        'SHA3-256': Buffer.from(
+          '00463679f47a4c705e03447360dcf34d1743e0d4b2591cc66832a6bc80d92e538c' +
+          '169a1fd330f98e7235ca7fec7e16ac44fb13095b8edf2c76b75c4845177d59e425' +
+          '0127c4359f6a4c9ccb63e7a9ff8122c0b4a8b7408e28c96817ecc3baf8c559c413' +
+          'c3bb580447dec9f52139b2afde369cd51730f050bc94137556ae137f0509464219',
+          'hex'),
+        'SHA3-384': Buffer.from(
+          '01969a4db0888bc067a68a31fe5d0fc97e0b701f570565f7b25cb27707c6f020ff' +
+          '680f8553ec5c2d6885e9e91b39262ed1bde375525eb13fdf12089b7939c7689735' +
+          '0101c8b8d1129a217e8e956bef78cf7b9a0458523b04ac8e0b84ce73d54326f7a8' +
+          '704ee42fe183f3ef79d83e676f34dc5476e2342641a5b973d3d94e8503676fbbc5',
+          'hex'),
+        'SHA3-512': Buffer.from(
+          '000f362e914ee0136663cf57bf4085c25604af6dc198b4818751e1195ee7e41a16' +
+          '91be909dcbc2bae00b8917f6bb918eae3740ac1b76e0913137c2da1171d6400b55' +
+          '01ec6e1dc5987a27fe16fc2ce5c8e954088f898a9bbefb176eaa8bbd9ccc264c4c' +
+          'cc38c83ac8b5a168f90228daf8405a2b9bf7829c263a646b4e1098e2ace38deec7',
+          'hex')
+      } : {})
     }
   }
 
   const curves = ['P-256', 'P-384', 'P-521'];
-  const hashes = ['SHA-1', 'SHA-256', 'SHA-384', 'SHA-512', 'SHA3-256', 'SHA3-384', 'SHA3-512'];
+  const hashes = ['SHA-1', 'SHA-256', 'SHA-384', 'SHA-512'];
+
+  if (!process.features.openssl_is_boringssl) {
+    hashes.push('SHA3-256', 'SHA3-384', 'SHA3-512');
+  }
 
   const vectors = [];
   curves.forEach((namedCurve) => {
