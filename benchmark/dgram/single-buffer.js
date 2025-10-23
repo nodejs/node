@@ -10,23 +10,23 @@ const PORT = common.PORT;
 // event loop cycles more than anything else.
 const bench = common.createBenchmark(main, {
   len: [1, 64, 256, 1024],
-  num: [100],
+  n: [100],
   type: ['send', 'recv'],
   dur: [5],
 });
 
-function main({ dur, len, num, type }) {
+function main({ dur, len, num: n, type }) {
   const chunk = Buffer.allocUnsafe(len);
   let sent = 0;
   let received = 0;
   const socket = dgram.createSocket('udp4');
 
   function onsend() {
-    if (sent++ % num === 0) {
+    if (sent++ % n === 0) {
       // The setImmediate() is necessary to have event loop progress on OSes
       // that only perform synchronous I/O on nonblocking UDP sockets.
       setImmediate(() => {
-        for (let i = 0; i < num; i++) {
+        for (let i = 0; i < n; i++) {
           socket.send(chunk, PORT, '127.0.0.1', onsend);
         }
       });

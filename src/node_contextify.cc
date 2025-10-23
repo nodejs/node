@@ -292,10 +292,10 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
                               options->allow_code_gen_wasm);
 
   Utf8Value name_val(env->isolate(), options->name);
-  ContextInfo info(*name_val);
+  ContextInfo info(name_val.ToString());
   if (!options->origin.IsEmpty()) {
     Utf8Value origin_val(env->isolate(), options->origin);
-    info.origin = *origin_val;
+    info.origin = origin_val.ToString();
   }
 
   BaseObjectPtr<ContextifyContext> result;

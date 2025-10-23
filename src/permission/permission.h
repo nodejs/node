@@ -27,24 +27,62 @@ class FSReqBase;
 
 namespace permission {
 
-#define THROW_IF_INSUFFICIENT_PERMISSIONS(env, perm_, resource_, ...)          \
+#define THROW_IF_INSUFFICIENT_PERMISSIONS(env, perm, resource, ...)            \
   do {                                                                         \
-    if (!env->permission()->is_granted(env, perm_, resource_)) [[unlikely]] {  \
+    node::Environment* env__ = (env);                                          \
+    const node::permission::PermissionScope perm__ = (perm);                   \
+    const auto resource__ = (resource);                                        \
+    if (!env__->permission()->is_granted(env__, perm__, resource__))           \
+        [[unlikely]] {                                                         \
       node::permission::Permission::ThrowAccessDenied(                         \
-          (env), perm_, resource_);                                            \
+          env__, perm__, resource__);                                          \
       return __VA_ARGS__;                                                      \
     }                                                                          \
   } while (0)
 
 #define ASYNC_THROW_IF_INSUFFICIENT_PERMISSIONS(                               \
-    env, wrap, perm_, resource_, ...)                                          \
+    env, wrap, perm, resource, ...)                                            \
   do {                                                                         \
-    if (!env->permission()->is_granted(env, perm_, resource_)) [[unlikely]] {  \
+    node::Environment* env__ = (env);                                          \
+    const node::permission::PermissionScope perm__ = (perm);                   \
+    const auto resource__ = (resource);                                        \
+    if (!env__->permission()->is_granted(env__, perm__, resource__))           \
+        [[unlikely]] {                                                         \
       node::permission::Permission::AsyncThrowAccessDenied(                    \
-          (env), wrap, perm_, resource_);                                      \
+          env__, (wrap), perm__, resource__);                                  \
       return __VA_ARGS__;                                                      \
     }                                                                          \
   } while (0)
+
+#define ERR_ACCESS_DENIED_IF_INSUFFICIENT_PERMISSIONS(                         \
+    env, perm, resource, args, ...)                                            \
+  do {                                                                         \
+    node::Environment* env__ = (env);                                          \
+    const node::permission::PermissionScope perm__ = (perm);                   \
+    const auto resource__ = (resource);                                        \
+    if (!env__->permission()->is_granted(env__, perm__, resource__))           \
+        [[unlikely]] {                                                         \
+      Local<Value> err_access;                                                 \
+      if (node::permission::CreateAccessDeniedError(env__, perm__, resource__) \
+              .ToLocal(&err_access)) {                                         \
+        args.GetReturnValue().Set(err_access);                                 \
+      } else {                                                                 \
+        args.GetReturnValue().Set(UV_EACCES);                                  \
+      }                                                                        \
+      return __VA_ARGS__;                                                      \
+    }                                                                          \
+  } while (0)
+
+#define SET_INSUFFICIENT_PERMISSION_ERROR_CALLBACK(scope)                      \
+  void InsufficientPermissionError(std::string_view resource) {                \
+    v8::HandleScope handle_scope(env()->isolate());                            \
+    v8::Context::Scope context_scope(env()->context());                        \
+    v8::Local<v8::Value> arg;                                                  \
+    if (!permission::CreateAccessDeniedError(env(), (scope), resource)         \
+             .ToLocal(&arg)) {                                                 \
+    }                                                                          \
+    MakeCallback(env()->oncomplete_string(), 1, &arg);                         \
+  }
 
 class Permission {
  public:

@@ -752,7 +752,6 @@ static void PrintSystemInformation(JSONWriter* writer) {
 
   writer->json_objectstart("userLimits");
   struct rlimit limit;
-  std::string soft, hard;
 
   for (size_t i = 0; i < arraysize(rlimit_strings); i++) {
     if (getrlimit(rlimit_strings[i].id, &limit) == 0) {
@@ -788,8 +787,6 @@ static void PrintLoadedLibraries(JSONWriter* writer) {
 
 // Obtain and report the node and subcomponent version strings.
 static void PrintComponentVersions(JSONWriter* writer) {
-  std::stringstream buf;
-
   writer->json_objectstart("componentVersions");
 
   for (const auto& version : per_process::metadata.versions.pairs()) {
@@ -857,7 +854,7 @@ std::string TriggerNodeReport(Isolate* isolate,
       THROW_IF_INSUFFICIENT_PERMISSIONS(
           env,
           permission::PermissionScope::kFileSystemWrite,
-          std::string_view(Environment::GetCwd(env->exec_path())),
+          Environment::GetCwd(env->exec_path()),
           filename);
     }
   }

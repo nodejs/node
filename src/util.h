@@ -365,11 +365,13 @@ inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(v8::Isolate* isolate,
 
 // tolower() is locale-sensitive.  Use ToLower() instead.
 inline char ToLower(char c);
-inline std::string ToLower(const std::string& in);
+template <typename T>
+inline std::string ToLower(const T& in);
 
 // toupper() is locale-sensitive.  Use ToUpper() instead.
 inline char ToUpper(char c);
-inline std::string ToUpper(const std::string& in);
+template <typename T>
+inline std::string ToUpper(const T& in);
 
 // strcasecmp() is locale-sensitive.  Use StringEqualNoCase() instead.
 inline bool StringEqualNoCase(const char* a, const char* b);
@@ -552,11 +554,6 @@ class Utf8Value : public MaybeStackBuffer<char> {
  public:
   explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
 
-  inline std::string ToString() const { return std::string(out(), length()); }
-  inline std::string_view ToStringView() const {
-    return std::string_view(out(), length());
-  }
-
   inline bool operator==(const char* a) const { return strcmp(out(), a) == 0; }
   inline bool operator!=(const char* a) const { return !(*this == a); }
 };
@@ -570,10 +567,6 @@ class BufferValue : public MaybeStackBuffer<char> {
  public:
   explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 
-  inline std::string ToString() const { return std::string(out(), length()); }
-  inline std::string_view ToStringView() const {
-    return std::string_view(out(), length());
-  }
   inline std::u8string_view ToU8StringView() const {
     return std::u8string_view(reinterpret_cast<const char8_t*>(out()),
                               length());
