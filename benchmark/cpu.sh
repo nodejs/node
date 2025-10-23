@@ -11,17 +11,13 @@ MAXID=$(cat $CPUPATH/present | awk -F- '{print $NF}')
   echo "Warning: This script typically needs root access to modify CPU governor. Consider running it with sudo." >&2
 
 get_default_governor() {
-  available_governors=$(cat "$CPUPATH/cpu0/cpufreq/scaling_available_governors")
+  case "$(cat "$CPUPATH/cpu0/cpufreq/scaling_available_governors")" in
+    *"schedutil"*)    echo "schedutil"   ;;
+    *"ondemand"*)     echo "ondemand"    ;;
+    *"conservative"*) echo "conservative";;
+    *)                echo "powersave"   ;;
+  esac
 
-  if echo "$available_governors" | grep -q "schedutil"; then
-    echo "schedutil"
-  elif echo "$available_governors" | grep -q "ondemand"; then
-    echo "ondemand"
-  elif echo "$available_governors" | grep -q "conservative"; then
-    echo "conservative"
-  else
-    echo "powersave"
-  fi
 }
 
 set_governor() {
