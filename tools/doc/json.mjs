@@ -371,6 +371,15 @@ const typeExpr = /^\{([^}]+)\}\s*/;
 const leadingHyphen = /^-\s*/;
 const defaultExpr = /\s*\*\*Default:\*\*\s*([^]+)$/i;
 
+function replaceAllHtmlComments(str) {
+  let prev;
+  do {
+    prev = str;
+    str = str.replace(/<!--.*?-->/sg, '');
+  } while (str !== prev);
+  return str;
+}
+
 function parseListItem(item, file) {
   const current = {};
 
@@ -378,7 +387,7 @@ function parseListItem(item, file) {
     .map((node) => (
       file.value.slice(node.position.start.offset, node.position.end.offset)),
     )
-    .join('').replace(/\s+/g, ' ').replace(/<!--.*?-->/sg, '');
+    .join('').replace(/\s+/g, ' ').replaceAllHtmlComments('');
   let text = current.textRaw;
 
   if (!text) {
