@@ -1085,11 +1085,12 @@ There is an automatic build that is kicked off when you promote new builds, so
 within a few minutes nodejs.org will be listing your new version as the latest
 release, and a blog post draft PR will be created.
 
-In the event that a draft PR _is not created_, the following script can be used
-as an alternative:
+In the event that a draft PR _is not created_, the [`scripts:release-post`][] script
+can be used as an alternative:
 
 ```bash
-node ./apps/site/scripts/release-post/index.mjs x.y.z
+# In the apps/site folder of nodejs/nodejs.org
+node --run scripts:release-post x.y.z
 ```
 
 This script will use the promoted builds and changelog to generate the post.
@@ -1480,6 +1481,7 @@ Typical resolution: sign the release again.
 [Node.js Snap management repository]: https://github.com/nodejs/snap
 [Snap]: https://snapcraft.io/node
 [`create-release-proposal`]: https://github.com/nodejs/node/actions/workflows/create-release-proposal.yml
+[`scripts:release-post`]: https://github.com/nodejs/nodejs.org/blob/HEAD/apps/site/scripts/release-post/index.mjs
 [build-infra team]: https://github.com/orgs/nodejs/teams/build-infra
 [expected assets]: https://github.com/nodejs/build/tree/HEAD/ansible/www-standalone/tools/promote/expected_assets
 [nodejs.org repository]: https://github.com/nodejs/nodejs.org
