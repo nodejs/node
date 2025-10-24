@@ -3,7 +3,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   pieces: [4, 16],
-  pieceSize: [1, 16, 256],
+  pieceSize: [0, 1, 16, 256],
   withTotalLength: [0, 1],
   n: [8e5],
 });
