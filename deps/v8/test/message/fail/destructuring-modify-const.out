@@ -1,5 +1,0 @@
-*%(basename)s:9: TypeError: Assignment to constant variable.
-x++;
- ^
-TypeError: Assignment to constant variable.
-    at *%(basename)s:9:2

@@ -1,5 +1,0 @@
-*%(basename)s:9: SyntaxError: Identifier 'foo' has already been declared
-  function foo() {}
-  ^
-SyntaxError: Identifier 'foo' has already been declared
-

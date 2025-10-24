@@ -1,1 +1,0 @@
-This directory's purpose is test OWNERS enforcement.

@@ -1,7 +1,0 @@
-defines = -DUSE_GLIB=1 -DV8_TARGET_ARCH_X64
-include_dirs = -I.. -Igen -I../include -Igen/include
-cflags = -Wall -Werror
-cflags_cc = -isystem../../buildtools/third_party/libc++/trunk/include
-label_name = v8_base_without_compiler
-target_out_dir = obj
-target_output_name = v8_base_without_compiler

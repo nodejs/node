@@ -1,6 +1,0 @@
-Don't crash when pausing in a strict function produced by eval.
-Evaluate f("test"):
-{
-    type : string
-    value : test
-}

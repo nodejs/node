@@ -1,6 +1,0 @@
-Checks that console preview does not run user code
-
-Running test: ObjectGetter
-{
-    getterCalled : false
-}

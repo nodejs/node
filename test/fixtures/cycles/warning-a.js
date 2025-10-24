@@ -1,1 +1,0 @@
-require('./warning-b.js');

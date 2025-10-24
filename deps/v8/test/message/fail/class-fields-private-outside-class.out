@@ -1,4 +1,0 @@
-*%(basename)s:6: SyntaxError: Private field '#x' must be declared in an enclosing class
-new Foo().#x;
-         ^
-SyntaxError: Private field '#x' must be declared in an enclosing class

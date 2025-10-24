@@ -1,9 +1,0 @@
-{
-  "scripts": {
-    "array": [],
-    "boolean": true,
-    "null": null,
-    "number": 1.0,
-    "object": {}
-  }
-}

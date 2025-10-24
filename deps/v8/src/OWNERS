@@ -1,3 +1,0 @@
-per-file *DEPS=file:../COMMON_OWNERS
-per-file intl-*=file:../INTL_OWNERS
-per-file *-intl*=file:../INTL_OWNERS

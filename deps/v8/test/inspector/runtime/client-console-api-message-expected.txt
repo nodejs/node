@@ -1,8 +1,0 @@
-Checks that we passed correct arguments in V8InspectorClient::consoleAPIMessage. Note: lines and columns are 1-based.
-log: 42 (:1:9)
-    at (anonymous function) (:1:9)
-info: 239 (:13:15)
-    at b (:13:15)
-    at a (:15:5)
-    at consoleTrace (:17:3)
-    at (anonymous function) (:1:1)

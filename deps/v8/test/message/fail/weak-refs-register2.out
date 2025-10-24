@@ -1,6 +1,0 @@
-*%(basename)s:*: TypeError: FinalizationRegistry.prototype.register: target and holdings must not be same
-fg.register(o, o);
-   ^
-TypeError: FinalizationRegistry.prototype.register: target and holdings must not be same
-    at FinalizationRegistry.register (<anonymous>)
-    at *%(basename)s:*:4

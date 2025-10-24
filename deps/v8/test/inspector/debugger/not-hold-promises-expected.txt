@@ -1,2 +1,0 @@
-Tests that we don't hold promises.
-SUCCESS

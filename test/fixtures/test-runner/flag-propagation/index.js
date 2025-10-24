@@ -1,1 +1,0 @@
-// Empty file used by test/parallel/test-runner-flag-propagation.js

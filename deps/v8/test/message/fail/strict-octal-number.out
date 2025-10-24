@@ -1,4 +1,0 @@
-*%(basename)s:32: SyntaxError: Octal literals are not allowed in strict mode.
-  var x = 012;
-          ^^^
-SyntaxError: Octal literals are not allowed in strict mode.

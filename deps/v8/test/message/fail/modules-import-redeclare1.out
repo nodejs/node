@@ -1,5 +1,0 @@
-*%(basename)s:6: SyntaxError: Identifier 'x' has already been declared
-import {x} from "modules-import-redeclare1.mjs";
-        ^
-SyntaxError: Identifier 'x' has already been declared
-

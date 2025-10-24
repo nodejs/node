@@ -1,9 +1,0 @@
-# Copyright 2017 the V8 project authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
-*%(basename)s:6: RangeError: offset is out of bounds
-a.set([2], -1);
-  ^
-RangeError: offset is out of bounds
-    at Uint8Array.set (<anonymous>)
-    at *%(basename)s:6:3

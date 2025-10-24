@@ -1,4 +1,0 @@
-*%(basename)s:8: SyntaxError: Identifier 'x' has already been declared
-    let x
-        ^
-SyntaxError: Identifier 'x' has already been declared

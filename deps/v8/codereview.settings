@@ -1,7 +1,0 @@
-PROJECT: v8
-GERRIT_HOST: True
-CODE_REVIEW_SERVER: https://codereview.chromium.org
-CC_LIST: v8-reviews@googlegroups.com
-VIEW_VC: https://chromium.googlesource.com/v8/v8/+/
-STATUS: http://v8-status.appspot.com/status
-RUN_POST_UPLOAD_HOOK: True

@@ -1,4 +1,0 @@
-*%(basename)s:5: SyntaxError: Function statements require a function name
-function (){}
-^^^^^^^^
-SyntaxError: Function statements require a function name

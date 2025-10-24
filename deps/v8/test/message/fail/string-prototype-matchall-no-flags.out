@@ -1,6 +1,0 @@
-*%(basename)s:5: TypeError: The .flags property of the argument to String.prototype.matchAll cannot be null or undefined
-"foo".matchAll({[Symbol.match]: true});
-      ^
-TypeError: The .flags property of the argument to String.prototype.matchAll cannot be null or undefined
-    at String.matchAll (<anonymous>)
-    at *%(basename)s:5:7

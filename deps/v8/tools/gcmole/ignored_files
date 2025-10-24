@@ -1,2 +1,0 @@
-src/profiler/heap-snapshot-generator.cc
-src/execution/isolate.cc

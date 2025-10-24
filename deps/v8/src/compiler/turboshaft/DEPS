@@ -1,5 +1,0 @@
-include_rules = [
-  # Allow Turboshaft to include Maglev files to be able to use the
-  # Maglev graph builder.
-  "+src/maglev",
-]

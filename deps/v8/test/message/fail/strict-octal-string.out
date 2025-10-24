@@ -1,4 +1,0 @@
-*%(basename)s:32: SyntaxError: Octal escape sequences are not allowed in strict mode.
-  var x = "hello\040world";
-                 ^^
-SyntaxError: Octal escape sequences are not allowed in strict mode.

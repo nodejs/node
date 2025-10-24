@@ -1,5 +1,0 @@
-*%(basename)s:5: TypeError: x is not iterable (cannot read property null)
-console.log(1, ...x);
-                  ^
-TypeError: x is not iterable (cannot read property null)
-    at *%(basename)s:5:9

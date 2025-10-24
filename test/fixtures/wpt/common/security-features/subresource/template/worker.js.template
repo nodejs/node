@@ -1,3 +1,0 @@
-postMessage({
-  "headers": %(headers)s
-});

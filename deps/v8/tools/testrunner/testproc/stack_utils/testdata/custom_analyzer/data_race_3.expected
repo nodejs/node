@@ -1,3 +1,0 @@
-v8::internal::compiler::JSObjectRef::GetOwnConstantElementFromHeap(v8::internal::FixedArrayBase, v8::internal::ElementsKind, unsigned int) const
-v8::internal::compiler::JSObjectRef::GetOwnConstantElement(v8::internal::compiler::FixedArrayBaseRef, unsigned int, v8::internal::compiler::CompilationDependencies*) const
-v8::internal::compiler::JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(v8::internal::compiler::Node*, v8::internal::compiler::Node*, v8::internal::compiler::AccessMode, v8::internal::KeyedAccessLoadMode)

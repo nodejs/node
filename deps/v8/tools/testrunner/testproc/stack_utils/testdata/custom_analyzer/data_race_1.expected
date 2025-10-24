@@ -1,3 +1,0 @@
-SetFlag
-MarkWasUsedForAllocation
-v8::internal::PagedSpaceBase::SetLinearAllocationArea(unsigned long, unsigned long)

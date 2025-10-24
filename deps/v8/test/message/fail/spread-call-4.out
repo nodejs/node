@@ -1,5 +1,0 @@
-*%(basename)s:5: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function
-console.log(1, ...x);
-                  ^
-TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function
-    at *%(basename)s:5:9

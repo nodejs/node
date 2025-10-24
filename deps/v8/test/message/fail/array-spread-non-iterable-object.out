@@ -1,5 +1,0 @@
-*%(basename)s:5: TypeError: a is not iterable
-[...(a={})]
-      ^
-TypeError: a is not iterable
-    at *%(basename)s:5:7

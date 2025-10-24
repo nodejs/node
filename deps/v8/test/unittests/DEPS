@@ -1,8 +1,0 @@
-include_rules = [
-  '+absl/flags',
-  "+perfetto",
-  "+protos/perfetto",
-  "+src",
-  "+testing",
-  "+third_party/siphash",
-]

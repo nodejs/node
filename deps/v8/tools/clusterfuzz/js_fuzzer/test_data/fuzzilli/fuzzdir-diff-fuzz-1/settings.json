@@ -1,7 +1,0 @@
-{
-  "processArguments": [
-    "--fuzzing",
-    "--fuzzilli-flag3",
-    "--random-seed=456"
-  ]
-}

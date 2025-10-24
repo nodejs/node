@@ -158,13 +158,13 @@ No other CPU idle time is taken into consideration. The following is an example
 of how a mostly idle process will have a high ELU.
 
 ```mjs
-import { eventLoopUtilization } from 'node:perf_hooks';
+import { performance } from 'node:perf_hooks';
 import { spawnSync } from 'node:child_process';
 
 setImmediate(() => {
-  const elu = eventLoopUtilization();
+  const elu = performance.eventLoopUtilization();
   spawnSync('sleep', ['5']);
-  console.log(eventLoopUtilization(elu).utilization);
+  console.log(performance.eventLoopUtilization(elu).utilization);
 });
 ```
 

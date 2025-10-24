@@ -1,5 +1,0 @@
-*%(basename)s:7: TypeError: nonIterable is not a function or its return value is not iterable
-[...nonIterable()];
-    ^
-TypeError: nonIterable is not a function or its return value is not iterable
-    at *%(basename)s:7:5

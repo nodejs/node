@@ -1,9 +1,0 @@
-Checks that inspector does not retain old collected scripts.
-
-Limit scripts cache size to 1MB
-Generate 15 scripts 100KB each
-Generate 15 more scripts 100KB each
-Check that earlier scripts are gone
-Total scripts size < 1KB: true
-Check that some of the later scripts are still there
-Total scripts size > 850KB: true

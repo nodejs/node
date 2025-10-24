@@ -1,3 +1,0 @@
-__cxx_atomic_load<int>
-load
-atomic_load_explicit<int>

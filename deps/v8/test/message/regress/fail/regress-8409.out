@@ -1,4 +1,0 @@
-*%(basename)s:5: SyntaxError: Unexpected token ')'
-[().x] = 1
-  ^
-SyntaxError: Unexpected token ')'

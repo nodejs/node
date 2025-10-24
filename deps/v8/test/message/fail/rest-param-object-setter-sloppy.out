@@ -1,4 +1,0 @@
-*%(basename)s:10: SyntaxError: Setter function argument must not be a rest parameter
-  set bad(...args) { _bad = args[0]; }
-         ^^^^^^^^^
-SyntaxError: Setter function argument must not be a rest parameter

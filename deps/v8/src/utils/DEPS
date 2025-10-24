@@ -1,5 +1,0 @@
-specific_include_rules = {
-  "utils.h": [
-    "+third_party/siphash",
-  ],
-}

@@ -1,6 +1,0 @@
-prefix pseudo-tty
-
-[$system==solaris]
-# https://github.com/nodejs/node/pull/16225 - `ioctl(fd, TIOCGWINSZ)` seems
-# to fail with EINVAL on SmartOS when `fd` is a pty from python's pty module.
-test-tty-stdout-resize     : FAIL, PASS

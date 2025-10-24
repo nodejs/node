@@ -1,4 +1,0 @@
-{
-  "crash_type": "CHECK failure",
-  "crash_state": "kind() == CodeKind::BASELINE"
-}

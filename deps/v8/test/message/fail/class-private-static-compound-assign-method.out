@@ -1,6 +1,0 @@
-*%(basename)s:7: TypeError: Receiver must be class A
-  static test() { this.#a += 1; }
-                       ^
-TypeError: Receiver must be class A
-    at Object.test (*%(basename)s:7:24)
-    at *%(basename)s:10:8

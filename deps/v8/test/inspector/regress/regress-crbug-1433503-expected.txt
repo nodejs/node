@@ -1,1 +1,0 @@
-Don't crash when disconnecting the session while message tasks are still in-flight.

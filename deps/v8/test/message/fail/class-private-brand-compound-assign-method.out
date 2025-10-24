@@ -1,6 +1,0 @@
-*%(basename)s:7: TypeError: Receiver must be an instance of class A
-  test() { this.#a += 1; }
-                ^
-TypeError: Receiver must be an instance of class A
-    at Object.test (*%(basename)s:7:17)
-    at *%(basename)s:10:18

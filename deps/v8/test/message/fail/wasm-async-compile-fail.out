@@ -1,5 +1,0 @@
-*%(basename)s:9: CompileError: WebAssembly.compile(): Compiling function #0:"f" failed: expected 1 elements on the stack for fallthru, found 0 @+24
-let rethrow = e => setTimeout(_ => {throw e}, 0);
-                                    ^
-CompileError: WebAssembly.compile(): Compiling function #0:"f" failed: expected 1 elements on the stack for fallthru, found 0 @+24
-

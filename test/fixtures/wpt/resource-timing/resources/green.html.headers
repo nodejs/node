@@ -1,1 +1,0 @@
-Access-Control-Allow-Origin: *

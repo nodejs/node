@@ -1,4 +1,0 @@
-*%(basename)s:6: SyntaxError: Duplicate parameter name not allowed in this context
-function foo(b, a, a, d) { return a }
-                   ^
-SyntaxError: Duplicate parameter name not allowed in this context

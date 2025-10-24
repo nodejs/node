@@ -1,4 +1,0 @@
-{
-  "crash_type": "Fatal error",
-  "crash_state": "Missing deoptimization information for OptimizedFrame::Summarize"
-}

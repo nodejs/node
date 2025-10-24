@@ -1,4 +1,0 @@
-*%(basename)s:5: SyntaxError: Invalid left-hand side in assignment
-function f() { new.target = 5 }
-               ^^^^^^^^^^
-SyntaxError: Invalid left-hand side in assignment

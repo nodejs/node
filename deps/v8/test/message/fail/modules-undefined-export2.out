@@ -1,5 +1,0 @@
-*%(basename)s:5: SyntaxError: Export 'x' is not defined in module
-export {x as y};
-        ^^^^^^
-SyntaxError: Export 'x' is not defined in module
-

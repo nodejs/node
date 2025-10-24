@@ -1,6 +1,0 @@
-*%(basename)s:6: RangeError: Invalid DataView length 1
-let t2 = new DataView(t.buffer, 8, 1);
-         ^
-RangeError: Invalid DataView length 1
-    at new DataView (<anonymous>)
-    at *%(basename)s:6:10

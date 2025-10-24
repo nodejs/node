@@ -1,1 +1,0 @@
-See README.rst

@@ -1,4 +1,0 @@
-*%(basename)s:5: SyntaxError: Unexpected reserved word
-import { import } from "mod";
-         ^^^^^^
-SyntaxError: Unexpected reserved word

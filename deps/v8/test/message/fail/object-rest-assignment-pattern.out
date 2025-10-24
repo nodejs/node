@@ -1,4 +1,0 @@
-*%(basename)s:5: SyntaxError: `...` must be followed by an assignable reference in assignment contexts
-({...{}} = {});
-     ^^
-SyntaxError: `...` must be followed by an assignable reference in assignment contexts

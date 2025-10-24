@@ -1,6 +1,0 @@
-*%(basename)s:*: TypeError: Invalid unregisterToken ('1')
-fg.unregister(1);
-   ^
-TypeError: Invalid unregisterToken ('1')
-    at FinalizationRegistry.unregister (<anonymous>)
-    at *%(basename)s:*:4

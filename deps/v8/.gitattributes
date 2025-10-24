@@ -1,7 +1,0 @@
-# Automatically normalize line endings (to LF) for all text-based files.
-* text=auto eol=lf
-# Do not modify line endings for binary files (which are sometimes auto
-# detected as text files by git).
-*.png binary
-# Don't include minified JS in git grep/diff output
-test/mjsunit/asm/sqlite3/*.js -diff

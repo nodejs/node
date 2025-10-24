@@ -1,4 +1,0 @@
-include_rules = [
-  "+src/compiler/node.h",
-  "+src/heap/marking-inl.h",
-]

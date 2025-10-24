@@ -1,8 +1,0 @@
-Test wasm scope information with externref globals
-
-Running test: test
-Waiting for wasm script to be parsed.
-Setting breakpoint in wasm.
-Running main.
-Paused in debugger.
-   globals: {"name": $m.global, "type": externref, "value": hello, world}
