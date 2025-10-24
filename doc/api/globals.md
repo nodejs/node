@@ -1105,8 +1105,7 @@ added: v0.0.1
 added: v22.4.0
 -->
 
-> Stability: 1.0 - Early development. Enable this API with the
-> \[`--experimental-webstorage`]\[] CLI flag.
+> Stability: 1.0 - Early development.
 
 A browser-compatible implementation of {Storage}. Disable this API with the
 [`--no-webstorage`][] (or its alias `--no-experimental-webstorage`) CLI flag.
