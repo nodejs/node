@@ -1,3 +1,6 @@
+// This test is adopted from V8's test suite.
+// See deps/v8/test/mjsunit/instanceof-2.js in Node.js source repository.
+//
 // Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -29,14 +32,6 @@
 const common = require('../../common');
 const addon = require(`./build/${common.buildType}/test_general`);
 const assert = require('assert');
-
-function assertTrue(assertion) {
-  return assert.strictEqual(assertion, true);
-}
-
-function assertEquals(leftHandSide, rightHandSide) {
-  assert.strictEqual(leftHandSide, rightHandSide);
-}
 
 const except = 'exception';
 
@@ -307,10 +302,10 @@ for (let i = 0; i < 256; i++) {
 function InstanceTest(x, func) {
   try {
     const answer = addon.doInstanceOf(x, func);
-    assertEquals(correct_answers[correct_answer_index], answer);
+    assert.strictEqual(correct_answers[correct_answer_index], answer);
   } catch (e) {
-    assertTrue(/prototype/.test(e));
-    assertEquals(correct_answers[correct_answer_index], except);
+    assert.ok(/prototype/.test(e));
+    assert.strictEqual(correct_answers[correct_answer_index], except);
   }
   correct_answer_index++;
 }
