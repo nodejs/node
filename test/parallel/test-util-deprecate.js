@@ -61,6 +61,28 @@ for (const fn of [
   fn2();
 }
 
+
+// Test modifyPrototype option
+{
+  const msg = 'prototype-test';
+  const code = 'proto-code';
+
+  function OriginalFn() {}
+  OriginalFn.prototype.testMethod = function() { return 'test'; };
+
+  const deprecatedWithoutProto = util.deprecate(OriginalFn, msg, code, { modifyPrototype: false });
+
+  assert.notStrictEqual(deprecatedWithoutProto.prototype, OriginalFn.prototype);
+  assert.notStrictEqual(Object.getPrototypeOf(deprecatedWithoutProto), OriginalFn);
+  assert.strictEqual(deprecatedWithoutProto.prototype.testMethod, undefined);
+
+  const deprecatedWithProto = util.deprecate(OriginalFn, msg, code);
+
+  assert.strictEqual(deprecatedWithProto.prototype, OriginalFn.prototype);
+  assert.strictEqual(Object.getPrototypeOf(deprecatedWithProto), OriginalFn);
+  assert.strictEqual(typeof deprecatedWithProto.prototype.testMethod, 'function');
+}
+
 process.on('warning', (warning) => {
   assert.strictEqual(warning.name, 'DeprecationWarning');
   assert.ok(expectedWarnings.has(warning.message));
