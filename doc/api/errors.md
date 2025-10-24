@@ -2929,6 +2929,13 @@ instance.setEncoding('utf8');
 An attempt was made to call [`stream.write()`][] after `stream.end()` has been
 called.
 
+<a id="ERR_STRING_NOT_WELL_FORMED"></a>
+
+### `ERR_STRING_NOT_WELL_FORMED`
+
+Input string was not well-formed Unicode and could not be converted to bytes
+without collisions.
+
 <a id="ERR_STRING_TOO_LONG"></a>
 
 ### `ERR_STRING_TOO_LONG`

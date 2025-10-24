@@ -76,7 +76,7 @@ const signing = [
   { type: 'ed25519', hashes: [null] },
 ];
 
-const expectedError = Error; // TODO
+const expectedError = /ERR_STRING_NOT_WELL_FORMED/;
 
 async function testOneArg(f) {
   assert(f.length === 1 || f.length === 2);
