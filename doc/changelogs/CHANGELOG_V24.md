@@ -4,9 +4,13 @@
 
 <table>
 <tr>
+<th>LTS 'Krypton'</th>
 <th>Current</th>
 </tr>
 <tr>
+<td>
+<a href="#24.11.0">24.11.0</a><br/>
+</td>
 <td>
 <a href="#24.10.0">24.10.0</a><br/>
 <a href="#24.9.0">24.9.0</a><br/>
@@ -52,6 +56,19 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="24.11.0"></a>
+
+## 2025-10-28, Version 24.11.0 'Krypton' (LTS), @richardlau
+
+### Notable Changes
+
+This release marks the transition of Node.js 24.x into Long Term Support (LTS)
+with the codename 'Krypton'. It will continue to receive updates through to
+the end of April 2028.
+
+Other than updating metadata, such as the `process.release` object, to reflect
+that the release is LTS, no further changes from Node.js 24.10.0 are included.
 
 <a id="24.10.0"></a>
 
