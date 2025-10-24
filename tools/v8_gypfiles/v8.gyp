@@ -50,7 +50,7 @@
       # including unnecessary internal symbols, which may lead to run-time fixups.
       # This is not done on AIX where symbols are exported by tools/create_expfile.sh
       # see https://github.com/nodejs/node/pull/56290#issuecomment-2582703109
-      ['OS!="aix"', {
+      ['OS!="aix" and OS!="os400"', {
         'defines': [
           'BUILDING_V8_SHARED',  # Make V8_EXPORT visible.
         ]
@@ -65,7 +65,7 @@
           'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',  # -fvisibility=hidden
           'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES'  # -fvisibility-inlines-hidden
         },
-      }, 'OS!="aix" and (OS!="win" or clang==1)', {
+      }, '(OS!="aix" and OS!="os400") and (OS!="win" or clang==1)', {
         'cflags': [
           '-fvisibility=hidden',
           '-fvisibility-inlines-hidden'
