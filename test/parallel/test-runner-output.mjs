@@ -181,6 +181,11 @@ const tests = [
   { name: 'test-runner/output/only_tests.js', flags: ['--test-reporter=tap'] },
   { name: 'test-runner/output/dot_reporter.js', transform: specTransform },
   { name: 'test-runner/output/junit_reporter.js', transform: junitTransform },
+  {
+    name: 'test-runner/output/junit_classname_hierarchy.js',
+    flags: ['--test-reporter=junit'],
+    transform: junitTransform,
+  },
   { name: 'test-runner/output/spec_reporter_successful.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter_cli.js', transform: specTransform },

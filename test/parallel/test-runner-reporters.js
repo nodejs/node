@@ -201,7 +201,7 @@ describe('node:test reporters', { concurrency: true }, () => {
     const fileContents = fs.readFileSync(file, 'utf8');
     assert.match(fileContents, /<testsuite .*name="nested".*tests="2".*failures="1".*skipped="0".*>/);
     assert.match(fileContents, /<testcase .*name="failing".*>\s*<failure .*type="testCodeFailure".*message="error".*>/);
-    assert.match(fileContents, /<testcase .*name="ok".*classname="test".*\/>/);
+    assert.match(fileContents, /<testcase .*name="ok".*classname="nested".*\/>/);
     assert.match(fileContents, /<testcase .*name="top level".*classname="test".*\/>/);
   });
 });
