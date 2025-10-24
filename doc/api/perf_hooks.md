@@ -120,6 +120,10 @@ the Resource Timeline. If `name` is provided, removes only the named resource.
 added:
  - v14.10.0
  - v12.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60370
+    description: Added `perf_hooks.eventLoopUtilization` alias.
 -->
 
 * `utilization1` {Object} The result of a previous call to
@@ -371,6 +375,9 @@ which the current `node` process began, measured in Unix time.
 <!-- YAML
 added: v8.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60370
+    description: Added `perf_hooks.timerify` alias.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37475
     description: Added the histogram option.
