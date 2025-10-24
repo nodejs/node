@@ -1622,39 +1622,66 @@ changes:
 
 See how to write a custom [rejection handler][rejection].
 
-## `events.listenerCount(emitter, eventName)`
+## `events.listenerCount(emitterOrTarget, eventName)`
 
 <!-- YAML
 added: v0.9.12
-deprecated: v3.2.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60214
+    description: Now accepts EventTarget arguments.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60214
+    description: Deprecation revoked.
+  - version: v3.2.0
+    pr-url: https://github.com/nodejs/node/pull/2349
+    description: Documentation-only deprecation.
 -->
 
-> Stability: 0 - Deprecated: Use [`emitter.listenerCount()`][] instead.
+* `emitterOrTarget` {EventEmitter|EventTarget}
+* `eventName` {string|symbol}
+* Returns: {integer}
 
-* `emitter` {EventEmitter} The emitter to query
-* `eventName` {string|symbol} The event name
+Returns the number of registered listeners for the event named `eventName`.
 
-A class method that returns the number of listeners for the given `eventName`
-registered on the given `emitter`.
+For `EventEmitter`s this behaves exactly the same as calling `.listenerCount`
+on the emitter.
+
+For `EventTarget`s this is the only way to obtain the listener count. This can
+be useful for debugging and diagnostic purposes.
 
 ```mjs
 import { EventEmitter, listenerCount } from 'node:events';
 
-const myEmitter = new EventEmitter();
-myEmitter.on('event', () => {});
-myEmitter.on('event', () => {});
-console.log(listenerCount(myEmitter, 'event'));
-// Prints: 2
+{
+  const ee = new EventEmitter();
+  ee.on('event', () => {});
+  ee.on('event', () => {});
+  console.log(listenerCount(ee, 'event')); // 2
+}
+{
+  const et = new EventTarget();
+  et.addEventListener('event', () => {});
+  et.addEventListener('event', () => {});
+  console.log(listenerCount(et, 'event')); // 2
+}
 ```
 
 ```cjs
 const { EventEmitter, listenerCount } = require('node:events');
 
-const myEmitter = new EventEmitter();
-myEmitter.on('event', () => {});
-myEmitter.on('event', () => {});
-console.log(listenerCount(myEmitter, 'event'));
-// Prints: 2
+{
+  const ee = new EventEmitter();
+  ee.on('event', () => {});
+  ee.on('event', () => {});
+  console.log(listenerCount(ee, 'event')); // 2
+}
+{
+  const et = new EventTarget();
+  et.addEventListener('event', () => {});
+  et.addEventListener('event', () => {});
+  console.log(listenerCount(et, 'event')); // 2
+}
 ```
 
 ## `events.on(emitter, eventName[, options])`
@@ -2648,7 +2675,6 @@ to the `EventTarget`.
 [`Event` Web API]: https://dom.spec.whatwg.org/#event
 [`domain`]: domain.md
 [`e.stopImmediatePropagation()`]: #eventstopimmediatepropagation
-[`emitter.listenerCount()`]: #emitterlistenercounteventname-listener
 [`emitter.removeListener()`]: #emitterremovelistenereventname-listener
 [`emitter.setMaxListeners(n)`]: #emittersetmaxlistenersn
 [`event.defaultPrevented`]: #eventdefaultprevented
