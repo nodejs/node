@@ -60,7 +60,7 @@ async function testRunnerWatch({
                       ['--watch', '--test', '--test-reporter=spec',
                        isolation ? `--test-isolation=${isolation}` : '',
                        file ? fixturePaths[file] : undefined].filter(Boolean),
-                      { encoding: 'utf8', stdio: ['inherit', 'pipe', 'inherit'], cwd: tmpdir.path });
+                      { encoding: 'utf8', stdio: 'pipe', cwd: tmpdir.path });
   let stdout = '';
   let currentRun = '';
   const runs = [];
