@@ -483,6 +483,33 @@ console.log(allUsers);
 // ]
 ```
 
+```cjs
+const { DatabaseSync } = require('node:sqlite');
+
+const db = new DatabaseSync(':memory:');
+const sql = db.createTagStore();
+
+db.exec('CREATE TABLE users (id INT, name TEXT)');
+
+// Using the 'run' method to insert data.
+// The tagged literal is used to identify the prepared statement.
+sql.run`INSERT INTO users VALUES (1, 'Alice')`;
+sql.run`INSERT INTO users VALUES (2, 'Bob')`;
+
+// Using the 'get' method to retrieve a single row.
+const id = 1;
+const user = sql.get`SELECT * FROM users WHERE id = ${id}`;
+console.log(user); // { id: 1, name: 'Alice' }
+
+// Using the 'all' method to retrieve all rows.
+const allUsers = sql.all`SELECT * FROM users ORDER BY id`;
+console.log(allUsers);
+// [
+//   { id: 1, name: 'Alice' },
+//   { id: 2, name: 'Bob' }
+// ]
+```
+
 ### `database.createSession([options])`
 
 <!-- YAML
