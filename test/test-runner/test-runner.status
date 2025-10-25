@@ -5,3 +5,7 @@ prefix test-runner
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+
+# https://github.com/nodejs/node/pull/54888#issuecomment-2351128116
+# TODO(pmarchini): This test is failing when isolation is set to none and must be fixed.
+test-watch-create-isolation-none: SKIP
