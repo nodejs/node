@@ -1323,6 +1323,18 @@ class Internals {
 #endif
   }
 
+  V8_DEPRECATED(
+      "Use GetCurrentIsolateForSandbox() instead, which is guaranteed to "
+      "return the same isolate since https://crrev.com/c/6458560.")
+  V8_INLINE static v8::Isolate* GetIsolateForSandbox(Address obj) {
+#ifdef V8_ENABLE_SANDBOX
+    return GetCurrentIsolate();
+#else
+    // Not used in non-sandbox mode.
+    return nullptr;
+#endif
+  }
+
   // Returns v8::Isolate::Current(), but without needing to include the
   // v8-isolate.h header.
   V8_EXPORT static v8::Isolate* GetCurrentIsolate();

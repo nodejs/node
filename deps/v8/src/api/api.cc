@@ -2913,6 +2913,11 @@ Local<String> Message::Get() const {
   return scope.Escape(result);
 }
 
+v8::Isolate* Message::GetIsolate() const {
+  i::Isolate* i_isolate = i::Isolate::Current();
+  return reinterpret_cast<Isolate*>(i_isolate);
+}
+
 ScriptOrigin Message::GetScriptOrigin() const {
   auto self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();
@@ -7205,6 +7210,8 @@ Maybe<void> Context::DeepFreeze(DeepFreezeDelegate* delegate) {
   return JustVoid();
 }
 
+v8::Isolate* Context::GetIsolate() { return Isolate::GetCurrent(); }
+
 v8::MicrotaskQueue* Context::GetMicrotaskQueue() {
   auto env = Utils::OpenDirectHandle(this);
   Utils::ApiCheck(i::IsNativeContext(*env), "v8::Context::GetMicrotaskQueue",
@@ -7794,6 +7801,11 @@ bool v8::String::StringEquals(Local<String> that) const {
   auto self = Utils::OpenDirectHandle(this);
   auto other = Utils::OpenDirectHandle(*that);
   return self->Equals(*other);
+}
+
+Isolate* v8::Object::GetIsolate() {
+  i::Isolate* i_isolate = i::Isolate::Current();
+  return reinterpret_cast<Isolate*>(i_isolate);
 }
 
 Local<v8::Object> v8::Object::New(Isolate* v8_isolate) {

@@ -255,6 +255,12 @@ class V8_EXPORT Context : public Data {
    */
   Maybe<void> DeepFreeze(DeepFreezeDelegate* delegate = nullptr);
 
+  /** Returns the isolate associated with a current context. */
+  V8_DEPRECATED(
+      "Use Isolate::GetCurrent() instead, which is guaranteed to return the "
+      "same isolate since https://crrev.com/c/6458560.")
+  Isolate* GetIsolate();
+
   /** Returns the microtask queue associated with a current context. */
   MicrotaskQueue* GetMicrotaskQueue();
 

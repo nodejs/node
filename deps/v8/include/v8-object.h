@@ -900,6 +900,21 @@ class V8_EXPORT Object : public Value {
       Local<Context> context, int argc, Local<Value> argv[]);
 
   /**
+   * Return the isolate to which the Object belongs to.
+   */
+  V8_DEPRECATED(
+      "Use Isolate::GetCurrent() instead, which is guaranteed to return the "
+      "same isolate since https://crrev.com/c/6458560.")
+  Isolate* GetIsolate();
+
+  V8_DEPRECATED(
+      "Use Isolate::GetCurrent() instead, which is guaranteed to return the "
+      "same isolate since https://crrev.com/c/6458560.")
+  V8_INLINE static Isolate* GetIsolate(const TracedReference<Object>& handle) {
+    return handle.template value<Object>()->GetIsolate();
+  }
+
+  /**
    * If this object is a Set, Map, WeakSet or WeakMap, this returns a
    * representation of the elements of this object as an array.
    * If this object is a SetIterator or MapIterator, this returns all
