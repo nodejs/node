@@ -187,6 +187,20 @@
     });
   }
 
+  function setupSidebarScroll() {
+    const sidebar = document.querySelector('#column2');
+    if (!sidebar) return;
+
+    const currentModule = window.location.pathname.split('/').pop();
+    if (!currentModule) return;
+
+    const link = sidebar.querySelector(`a[href="${currentModule}"]`);
+    if (!link) return;
+    
+    link.scrollIntoView({ block: 'center' });
+  }
+
+
   function bootstrap() {
     // Check if we have JavaScript support.
     document.documentElement.classList.add('has-js');
@@ -206,6 +220,8 @@
     setupFlavorToggles();
 
     setupCopyButton();
+
+    setupSidebarScroll();
   }
 
   if (document.readyState === 'loading') {
