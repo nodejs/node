@@ -8,7 +8,7 @@ common.skipIfEslintMissing();
 const RuleTester = require('../../tools/eslint/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/must-call-assert');
 
-const message = 'Assertions must be wrapped into `common.mustCall` or `common.mustCallAtLeast`';
+const message = 'Assertions must be wrapped into `common.mustSucceed`, `common.mustCall` or `common.mustCallAtLeast`';
 
 const tester = new RuleTester();
 tester.run('must-call-assert', rule, {
@@ -18,6 +18,8 @@ tester.run('must-call-assert', rule, {
     'process.once("message", common.mustCall((code) => {assert.strictEqual(code, 0)}));',
     'process.once("message", common.mustCall((code) => {if(2+2 === 5) { assert.strictEqual(code, 0)} }));',
     'process.once("message", common.mustCall((code) => { (() => assert.strictEqual(code, 0))(); }));',
+    'someAsyncTask(common.mustSucceed((code) => { (() => assert.strictEqual(code, 0))(); }));',
+    'someAsyncTask(mustSucceed((code) => { (() => assert.strictEqual(code, 0))(); }));',
     '(async () => {await assert.rejects(fun())})().then()',
     '[1, true].forEach((val) => assert.strictEqual(fun(val), 0));',
     'const assert = require("node:assert")',
@@ -72,6 +74,26 @@ tester.run('must-call-assert', rule, {
         assert.strictEqual(2+2, 5);
       });
     });
+    `,
+    `
+    spawnSyncAndAssert(
+      outputFile,
+      {
+        env: {
+          NODE_DEBUG_NATIVE: 'SEA,MKSNAPSHOT',
+          ...process.env,
+        },
+      },
+      {
+        trim: true,
+        stdout: 'Hello from snapshot',
+        stderr(output) {
+          assert.doesNotMatch(
+            output,
+            /Single executable application is an experimental feature/);
+        },
+      },
+    );
     `,
   ],
   invalid: [
