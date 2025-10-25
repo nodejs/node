@@ -98,7 +98,7 @@ function checkWorkerActive() {
   const w = workerELU();
 
   metricsCh.port2.postMessage({ cmd: 'spin', dur: 50 });
-  metricsCh.port2.once('message', (wElu) => {
+  metricsCh.port2.once('message', mustCall((wElu) => {
     const w2 = workerELU(w);
 
     assert.ok(w2.active >= 50, `${w2.active} < 50`);
@@ -107,7 +107,7 @@ function checkWorkerActive() {
               `${idleActive(wElu)} >= ${idleActive(w2)}`);
 
     metricsCh.port2.postMessage({ cmd: 'close' });
-  });
+  }));
 }
 
 function idleActive(elu) {

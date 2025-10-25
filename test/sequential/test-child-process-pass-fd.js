@@ -21,7 +21,7 @@ const N = 80;
 let messageCallbackCount = 0;
 
 function forkWorker() {
-  const messageCallback = (msg, handle) => {
+  const messageCallback = common.mustCall((msg, handle) => {
     messageCallbackCount++;
     assert.strictEqual(msg, 'handle');
     assert.ok(handle);
@@ -32,11 +32,11 @@ function forkWorker() {
       recvData += data;
     }));
 
-    handle.on('end', () => {
+    handle.on('end', common.mustCall(() => {
       assert.strictEqual(recvData, 'hello');
       worker.kill();
-    });
-  };
+    }));
+  });
 
   const worker = fork(__filename, ['child']);
   worker.on('error', (err) => {
@@ -70,13 +70,13 @@ if (process.argv[2] !== 'child') {
   // thus no work to do, and will exit immediately, preventing process leaks.
   process.on('message', common.mustCall());
 
-  const server = net.createServer((c) => {
-    process.once('message', (msg) => {
+  const server = net.createServer(common.mustCall((c) => {
+    process.once('message', common.mustCall((msg) => {
       assert.strictEqual(msg, 'got');
       c.end('hello');
-    });
+    }));
     socketConnected();
-  }).unref();
+  })).unref();
   server.listen(0, common.localhostIPv4, () => {
     const { port } = server.address();
     socket = net.connect(port, common.localhostIPv4, socketConnected).unref();

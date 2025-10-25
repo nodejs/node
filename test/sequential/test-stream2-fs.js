@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 
@@ -58,13 +58,13 @@ class TestWriter extends Stream {
 const r = new FSReadable(file);
 const w = new TestWriter();
 
-w.on('results', function(res) {
+w.on('results', common.mustCall((res) => {
   console.error(res, w.length);
   assert.strictEqual(w.length, size);
   assert.deepStrictEqual(res.map(function(c) {
     return c.length;
   }), expectLengths);
   console.log('ok');
-});
+}));
 
 r.pipe(w);
