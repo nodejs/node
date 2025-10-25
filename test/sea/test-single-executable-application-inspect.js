@@ -64,7 +64,7 @@ seaProcess.stdout.on('data', (data) => {
   console.log(`[SEA][STDOUT] ${data}`);
 });
 
-seaProcess.stderr.on('data', common.mustCall((data) => {
+seaProcess.stderr.on('data', common.mustCallAtLeast((data) => {
   console.log(`[SEA][STDERR] ${data}`);
   seaStderr += data;
 
