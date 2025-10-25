@@ -70,10 +70,21 @@ tester.run('must-call-assert', rule, {
     import assert from 'node:assert';
 
     describe("whatever", () => {
-      it("should not be reported", async () => {
+      it("should not be reported", async (t) => {
         assert.strictEqual(2+2, 5);
+        await t.test("name", () => {
+          assert.ok(global.test);
+        });
       });
     });
+    `,
+    `
+    process.on("message", common.mustCall(() => {
+      Promise.all([].map(async (val) => {
+        val = await asyncTask(val);
+        assert.strictEqual(val, 3);
+      })).then(common.mustCall());
+    }));
     `,
     `
     spawnSyncAndAssert(
