@@ -438,7 +438,7 @@ const { hasOpenSSL3 } = require('../common/crypto');
   const cert = fixtures.readKey('incorrect_san_correct_subject-cert.pem');
 
   // The hostname is the CN, but not a SAN entry.
-  const servername = 'good.example.com';
+  const servername = process.features.openssl_is_boringssl ? undefined : 'good.example.com';
   const certX509 = new X509Certificate(cert);
   assert.strictEqual(certX509.subject, `CN=${servername}`);
   assert.strictEqual(certX509.subjectAltName, 'DNS:evil.example.com');
