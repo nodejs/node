@@ -331,6 +331,9 @@ using WasmCustomDescriptorsEnabledCallback = bool (*)(Local<Context> context);
 using SharedArrayBufferConstructorEnabledCallback =
     bool (*)(Local<Context> context);
 
+// --- Callback for checking if WebAssembly JSPI is enabled ---
+using WasmJSPIEnabledCallback = bool (*)(Local<Context> context);
+
 /**
  * Import phases in import requests.
  */
