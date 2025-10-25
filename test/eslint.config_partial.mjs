@@ -178,6 +178,7 @@ export default [
         'pummel',
         'report',
         'sea',
+        'sequential',
         'sqlite',
         'system-ca',
         'test426',
