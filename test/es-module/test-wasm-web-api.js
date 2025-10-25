@@ -45,17 +45,17 @@ function testCompileStreaming(makeResponsePromise, checkResult) {
 }
 
 function testCompileStreamingSuccess(makeResponsePromise) {
-  return testCompileStreaming(makeResponsePromise, async (modPromise) => {
+  return testCompileStreaming(makeResponsePromise, common.mustCall(async (modPromise) => {
     const mod = await modPromise;
     assert.strictEqual(mod.constructor, WebAssembly.Module);
-  });
+  }, 2));
 }
 
 function testCompileStreamingRejection(makeResponsePromise, rejection) {
-  return testCompileStreaming(makeResponsePromise, (modPromise) => {
+  return testCompileStreaming(makeResponsePromise, common.mustCall((modPromise) => {
     assert.strictEqual(modPromise.constructor, Promise);
     return assert.rejects(modPromise, rejection);
-  });
+  }, 2));
 }
 
 function testCompileStreamingSuccessUsingFetch(responseCallback) {
@@ -70,13 +70,13 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
 (async () => {
   // A non-Response should cause a TypeError.
   for (const invalid of [undefined, null, 0, true, 'foo', {}, [], Symbol()]) {
-    await withPromiseAndResolved(() => Promise.resolve(invalid), (arg) => {
+    await withPromiseAndResolved(() => Promise.resolve(invalid), common.mustCall((arg) => {
       return assert.rejects(() => WebAssembly.compileStreaming(arg), {
         name: 'TypeError',
         code: 'ERR_INVALID_ARG_TYPE',
         message: /^The "source" argument .*$/
       });
-    });
+    }, 2));
   }
 
   // When given a Promise, any rejection should be propagated as-is.
@@ -120,7 +120,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
   // the same WebAssembly file as in the previous test but insert useless custom
   // sections into the WebAssembly module to increase the file size without
   // changing the relevant contents.
-  await testCompileStreamingSuccessUsingFetch((res) => {
+  await testCompileStreamingSuccessUsingFetch(common.mustCall((res) => {
     res.setHeader('Content-Type', 'application/wasm');
 
     // Send the WebAssembly magic and version first.
@@ -150,7 +150,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
         res.end(simpleWasmBytes.slice(8));
       }
     })(0);
-  });
+  }, 2));
 
   // A valid WebAssembly file with an empty parameter in the (otherwise valid)
   // MIME type.
@@ -233,7 +233,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
     // which only contains an 'unreachable' instruction.
     res.setHeader('Content-Type', 'application/wasm');
     res.end(fixtures.readSync('crash.wasm'));
-  }), async (modPromise) => {
+  }), common.mustCall(async (modPromise) => {
     // Call the WebAssembly function and check that the error stack contains the
     // correct "WebAssembly location" as per the specification.
     const mod = await modPromise;
@@ -245,5 +245,5 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
                    /^\s*at http:\/\/127\.0\.0\.1:\d+\/foo\.wasm:wasm-function\[0\]:0x22$/);
       return true;
     });
-  });
+  }, 2));
 })().then(common.mustCall());

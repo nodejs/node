@@ -165,6 +165,7 @@ export default [
         'client-proxy',
         'doctool',
         'embedding',
+        'es-module',
         'fixtures',
         'fuzzers',
         'internet',
