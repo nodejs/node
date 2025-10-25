@@ -9,6 +9,7 @@ const shake256 = crypto.getHashes().includes('shake256');
 const chacha = crypto.getCiphers().includes('chacha20-poly1305');
 const ocb = hasOpenSSL(3);
 const kmac = hasOpenSSL(3);
+const boringSSL = process.features.openssl_is_boringssl;
 
 const { subtle } = globalThis.crypto;
 const X25519 = await subtle.generateKey('X25519', false, ['deriveBits', 'deriveKey']);
@@ -108,9 +109,9 @@ export const vectors = {
     [true, 'RSA-PSS'],
     [true, 'RSASSA-PKCS1-v1_5'],
     [true, 'X25519'],
-    [true, 'X448'],
+    [!boringSSL, 'X448'],
     [true, 'Ed25519'],
-    [true, 'Ed448'],
+    [!boringSSL, 'Ed448'],
     [true, 'ECDH'],
     [true, 'ECDSA'],
     [pqc, 'ML-DSA-44'],
