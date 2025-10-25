@@ -41,12 +41,7 @@
 #include "absl/types/optional.h"
 #include "absl/types/span.h"
 
-#if defined(__native_client__)
-
-#include <nacl/nacl_random.h>
-#define ABSL_RANDOM_USE_NACL_SECURE_RANDOM 1
-
-#elif defined(_WIN32)
+#if defined(_WIN32)
 
 #include <windows.h>
 #define ABSL_RANDOM_USE_BCRYPT 1
@@ -107,27 +102,6 @@ bool ReadSeedMaterialFromOSEntropyImpl(absl::Span<uint32_t> values) {
       0);                                                    // flags
   BCryptCloseAlgorithmProvider(hProvider, 0);
   return BCRYPT_SUCCESS(ret);
-}
-
-#elif defined(ABSL_RANDOM_USE_NACL_SECURE_RANDOM)
-
-// On NaCL use nacl_secure_random to acquire bytes.
-bool ReadSeedMaterialFromOSEntropyImpl(absl::Span<uint32_t> values) {
-  auto buffer = reinterpret_cast<uint8_t*>(values.data());
-  size_t buffer_size = sizeof(uint32_t) * values.size();
-
-  uint8_t* output_ptr = buffer;
-  while (buffer_size > 0) {
-    size_t nread = 0;
-    const int error = nacl_secure_random(output_ptr, buffer_size, &nread);
-    if (error != 0 || nread > buffer_size) {
-      ABSL_RAW_LOG(ERROR, "Failed to read secure_random seed data: %d", error);
-      return false;
-    }
-    output_ptr += nread;
-    buffer_size -= nread;
-  }
-  return true;
 }
 
 #elif defined(__Fuchsia__)

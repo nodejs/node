@@ -27,6 +27,7 @@ absl_source_set("check_op") {
     "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/debugging:leak_check",
     "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:has_ostream_operator",
   ]
 }
 

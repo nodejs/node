@@ -180,10 +180,10 @@ class ConcurrentMarkingVisitor final
     return false;
   }
 
-  template <typename TSlot>
+  template <typename TSlot, RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
   void RecordSlot(Tagged<HeapObject> object, TSlot slot,
                   Tagged<HeapObject> target) {
-    MarkCompactCollector::RecordSlot(object, slot, target);
+    MarkCompactCollector::RecordSlot<TSlot, kRecordYoung>(object, slot, target);
   }
 
   void IncrementLiveBytesCached(MutablePageMetadata* chunk, intptr_t by) {
@@ -438,8 +438,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           }
           const auto visited_size = visitor.Visit(map, object);
           visitor.IncrementLiveBytesCached(
-              MutablePageMetadata::cast(
-                  MemoryChunkMetadata::FromHeapObject(object)),
+              MutablePageMetadata::cast(MemoryChunkMetadata::FromHeapObject(
+                  heap_->isolate(), object)),
               ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
           if (is_per_context_mode) {
             native_context_stats.IncrementSize(
@@ -549,7 +549,7 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
         if (visited_size) {
           current_marked_bytes += visited_size;
           visitor.IncrementLiveBytesCached(
-              MutablePageMetadata::FromHeapObject(heap_object),
+              MutablePageMetadata::FromHeapObject(isolate, heap_object),
               ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
         }
       }

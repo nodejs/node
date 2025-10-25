@@ -26,7 +26,7 @@ inline void MarkingBitmap::SetBitsInCell<AccessMode::NON_ATOMIC>(
 template <>
 inline void MarkingBitmap::SetBitsInCell<AccessMode::ATOMIC>(
     uint32_t cell_index, MarkBit::CellType mask) {
-  base::AsAtomicWord::Relaxed_SetBits(cells() + cell_index, mask, mask);
+  base::AsAtomicWord::Relaxed_SetBits(cells() + cell_index, mask);
 }
 
 template <>
@@ -149,13 +149,6 @@ inline void MarkingBitmap::ClearRange(MarkBitIndex start_index,
 }
 
 // static
-MarkingBitmap* MarkingBitmap::FromAddress(Address address) {
-  Address metadata_address =
-      MutablePageMetadata::FromAddress(address)->MetadataAddress();
-  return Cast(metadata_address + MutablePageMetadata::MarkingBitmapOffset());
-}
-
-// static
 MarkingBitmap* MarkingBitmap::FromAddress(const Isolate* isolate,
                                           Address address) {
   Address metadata_address =
@@ -164,14 +157,9 @@ MarkingBitmap* MarkingBitmap::FromAddress(const Isolate* isolate,
 }
 
 // static
-MarkBit MarkingBitmap::MarkBitFromAddress(Address address) {
-  return MarkBitFromAddress(FromAddress(address), address);
-}
-
-// static
 MarkBit MarkingBitmap::MarkBitFromAddress(MarkingBitmap* bitmap,
                                           Address address) {
-  DCHECK_EQ(bitmap, FromAddress(address));
+  DCHECK_EQ(bitmap, FromAddress(Isolate::Current(), address));
   const auto index = AddressToIndex(address);
   const auto mask = IndexInCellMask(index);
   MarkBit::CellType* cell = bitmap->cells() + IndexToCell(index);
@@ -287,16 +275,6 @@ inline Address MarkingBitmap::FindPreviousValidObject(const PageMetadata* page,
   return chunk->address() + MarkingBitmap::IndexToAddressOffset(
                                 cell_index * MarkingBitmap::kBitsPerCell +
                                 index_of_last_leading_one);
-}
-
-// static
-MarkBit MarkBit::From(Address address) {
-  return MarkingBitmap::MarkBitFromAddress(address);
-}
-
-// static
-MarkBit MarkBit::From(Tagged<HeapObject> heap_object) {
-  return MarkingBitmap::MarkBitFromAddress(heap_object.ptr());
 }
 
 // static

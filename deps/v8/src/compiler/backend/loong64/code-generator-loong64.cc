@@ -156,7 +156,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
-        must_save_lr_(!gen->frame_access_state()->has_frame()),
+        must_save_ra_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()),
         indirect_pointer_tag_(indirect_pointer_tag) {
   }
@@ -175,7 +175,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
-    if (must_save_lr_) {
+    if (must_save_ra_) {
       // We need to save and restore ra if the frame was elided.
       __ Push(ra);
     }
@@ -196,7 +196,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     } else {
       __ CallRecordWriteStubSaveRegisters(object_, offset_, save_fp_mode);
     }
-    if (must_save_lr_) {
+    if (must_save_ra_) {
       __ Pop(ra);
     }
   }
@@ -209,7 +209,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #if V8_ENABLE_WEBASSEMBLY
   StubCallMode const stub_mode_;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  bool must_save_lr_;
+  bool must_save_ra_;
   Zone* zone_;
   IndirectPointerTag indirect_pointer_tag_;
 };
@@ -290,6 +290,73 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
   DCHECK_EQ(kMemoryAccessDirect, AccessModeField::decode(opcode));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
+                                     Register value, Register scratch)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        scratch_(scratch),
+        must_save_ra_(!gen->frame_access_state()->has_frame()),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    if (COMPRESS_POINTERS_BOOL) {
+      __ DecompressTagged(value_, value_);
+    }
+
+    if (must_save_ra_) {
+      // We need to save and restore ra if the frame was elided.
+      __ Push(ra);
+    }
+
+    __ PreCheckSkippedWriteBarrier(object_, value_, scratch_, exit());
+
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
+                                                      save_fp_mode);
+
+    if (must_save_ra_) {
+      __ Pop(ra);
+    }
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Register const scratch_;
+  const bool must_save_ra_;
+  Zone* zone_;
+};
+
+class OutOfLineVerifySkippedIndirectWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedIndirectWriteBarrier(CodeGenerator* gen,
+                                             Register object, Register value)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(object_, value_,
+                                                              save_fp_mode);
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Zone* zone_;
+};
 
 Condition FlagsConditionToConditionCmp(FlagsCondition condition) {
   switch (condition) {
@@ -692,8 +759,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
-    case kArchCallWasmFunctionIndirect:
-    case kArchResumeWasmContinuation: {
+    case kArchCallWasmFunctionIndirect: {
       if (instr->InputAt(0)->IsImmediate()) {
         DCHECK_EQ(arch_opcode, kArchCallWasmFunction);
         Constant constant = i.ToConstant(instr->InputAt(0));
@@ -704,9 +770,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             i.InputRegister(0),
             i.InputInt64(instr->WasmSignatureHashInputIndex()));
       } else {
-        // TODO(thibaudm): Use a WasmCodePointer for
-        // kArchResumeWasmContinuation. Can this be merged with
-        // kArchCallWasmFunctionIndirect?
         __ Call(i.InputRegister(0));
       }
       RecordCallPosition(instr);
@@ -988,6 +1051,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kArchStoreSkippedWriteBarrier: {
+      AddressingMode addressing_mode =
+          AddressingModeField::decode(instr->opcode());
+      Register object = i.InputRegister(0);
+      Register value = i.InputRegister(2);
+
+      if (v8_flags.debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ Check(ne, AbortReason::kOperandIsCleared, value,
+                 Operand(kClearedWeakHeapObjectLower32));
+      }
+
+      DCHECK(v8_flags.verify_write_barriers);
+      Register scratch = i.TempRegister(0);
+      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+          this, object, value, scratch);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
+
+      MacroAssemblerBase::BlockTrampolinePoolScope block_trampoline_pool(
+          masm());
+      if (addressing_mode == kMode_MRI) {
+        __ StoreTaggedField(value, MemOperand(object, i.InputInt32(1)));
+      } else {
+        DCHECK_EQ(addressing_mode, kMode_MRR);
+        __ StoreTaggedField(value, MemOperand(object, i.InputRegister(1)));
+      }
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr,
+                             __ pc_offset() - kInstrSize);
+      break;
+    }
     case kArchAtomicStoreWithWriteBarrier: {
       DCHECK_EQ(AddressingModeField::decode(instr->opcode()), kMode_MRR);
       MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
@@ -1019,6 +1114,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ bind(ool->exit());
+      break;
+    }
+    case kArchAtomicStoreSkippedWriteBarrier: {
+      DCHECK_EQ(AddressingModeField::decode(instr->opcode()), kMode_MRR);
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+      Register temp = i.TempRegister(0);
+      __ Add_d(temp, object, offset);
+
+      DCHECK(v8_flags.verify_write_barriers);
+      Register scratch = i.TempRegister(1);
+      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+          this, object, value, scratch);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
+
+      MacroAssemblerBase::BlockTrampolinePoolScope block_trampoline_pool(
+          masm());
+      if (COMPRESS_POINTERS_BOOL) {
+        __ St_w(value, MemOperand(temp, 0));
+      } else {
+        __ St_d(value, MemOperand(temp, 0));
+      }
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr,
+                             __ pc_offset() - kInstrSize);
       break;
     }
     case kArchStoreIndirectWithWriteBarrier: {
@@ -1055,6 +1176,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                          ool->entry());
         __ bind(ool->exit());
       }
+      break;
+    }
+    case kArchStoreIndirectSkippedWriteBarrier: {
+      AddressingMode addressing_mode =
+          AddressingModeField::decode(instr->opcode());
+      Register object = i.InputRegister(0);
+      Register value = i.InputRegister(2);
+
+#if DEBUG
+      IndirectPointerTag tag = static_cast<IndirectPointerTag>(i.InputInt64(3));
+      DCHECK(IsValidIndirectPointerTag(tag));
+#endif  // DEBUG
+
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool = zone()->New<OutOfLineVerifySkippedIndirectWriteBarrier>(
+          this, object, value);
+      __ jmp(ool->entry());
+      __ bind(ool->exit());
+
+      MacroAssemblerBase::BlockTrampolinePoolScope block_trampoline_pool(
+          masm());
+      Operand offset(0);
+      if (addressing_mode == kMode_MRI) {
+        __ StoreIndirectPointerField(value,
+                                     MemOperand(object, i.InputInt32(1)));
+      } else {
+        DCHECK_EQ(addressing_mode, kMode_MRR);
+        __ StoreIndirectPointerField(value,
+                                     MemOperand(object, i.InputRegister(1)));
+      }
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr,
+                             __ pc_offset() - kInstrSize);
       break;
     }
     case kArchStackSlot: {

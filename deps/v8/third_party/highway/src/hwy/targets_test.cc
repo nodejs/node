@@ -35,6 +35,7 @@ namespace {
     }                                                                        \
   }
 
+DECLARE_FUNCTION(AVX10_2)
 DECLARE_FUNCTION(AVX3_SPR)
 DECLARE_FUNCTION(AVX3_ZEN4)
 DECLARE_FUNCTION(AVX3_DL)
@@ -63,6 +64,9 @@ DECLARE_FUNCTION(WASM)
 DECLARE_FUNCTION(WASM_EMU256)
 
 DECLARE_FUNCTION(RVV)
+
+DECLARE_FUNCTION(LASX)
+DECLARE_FUNCTION(LSX)
 
 DECLARE_FUNCTION(SCALAR)
 DECLARE_FUNCTION(EMU128)
@@ -134,6 +138,10 @@ void CheckFakeFunction() {
   CallFunctionForTarget(HWY_WASM_EMU256, __LINE__);
 
   CallFunctionForTarget(HWY_RVV, __LINE__);
+
+  CallFunctionForTarget(HWY_LASX, __LINE__);
+  CallFunctionForTarget(HWY_LSX, __LINE__);
+
   // The tables only have space for either HWY_SCALAR or HWY_EMU128; the former
   // is opt-in only.
 #if defined(HWY_COMPILE_ONLY_SCALAR) || HWY_BROKEN_EMU128

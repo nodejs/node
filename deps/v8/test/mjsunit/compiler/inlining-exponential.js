@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
+// The `TypeAssertionsPhase` creates a lot of blocks, which causes the
+// `RegisterAllocatorVerifier` to OOM, see https://crbug.com/443918300.
+// Flags: --no-assert-types
 
 // {f8} has 6 calls to {f7}, which has 6 to {f6}, and so on up to {f1}, which
 // means that {f8} calls 6**7=279936 calls. If Turbofan tries to inline all of

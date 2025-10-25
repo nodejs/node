@@ -30,6 +30,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
   using Operator = compiler::Operator;
   using Float32 = compiler::turboshaft::Float32;
   using Float64 = compiler::turboshaft::Float64;
+  using FrameState = compiler::turboshaft::FrameState;
   template <typename... Ts>
   using Label = v8::internal::compiler::turboshaft::Label<Ts...>;
   using LoadOp = compiler::turboshaft::LoadOp;
@@ -38,6 +39,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
   using OpEffects = compiler::turboshaft::OpEffects;
   using OpIndex = compiler::turboshaft::OpIndex;
   using OptionalOpIndex = compiler::turboshaft::OptionalOpIndex;
+  template <typename T>
+  using OptionalV = compiler::turboshaft::OptionalV<T>;
   using RegisterRepresentation = compiler::turboshaft::RegisterRepresentation;
   template <typename T>
   using ScopedVar = compiler::turboshaft::ScopedVar<T, Assembler>;
@@ -54,9 +57,17 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
  public:
   using WasmGraphBuilderBase<Assembler>::Asm;
 
-  WasmWrapperTSGraphBuilder(Zone* zone, Assembler& assembler,
-                            const CanonicalSig* sig)
-      : WasmGraphBuilderBase<Assembler>(zone, assembler), sig_(sig) {}
+  struct InlinedFunctionData {
+    NativeModule* native_module = nullptr;
+    uint32_t function_index = 0;
+  };
+
+  WasmWrapperTSGraphBuilder(
+      Zone* zone, Assembler& assembler, const CanonicalSig* sig,
+      std::optional<InlinedFunctionData> inlined_function_data = {})
+      : WasmGraphBuilderBase<Assembler>(zone, assembler),
+        sig_(sig),
+        inlined_function_data_(std::move(inlined_function_data)) {}
 
   void AbortIfNot(V<Word32> condition, AbortReason abort_reason);
 
@@ -139,10 +150,18 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
   void BuildCallWasmFromWrapper(Zone* zone, const CanonicalSig* sig,
                                 V<Word32> callee,
                                 const base::Vector<OpIndex> args,
-                                base::Vector<OpIndex> returns);
+                                base::Vector<OpIndex> returns,
+                                OptionalV<FrameState> frame_state);
 
   OpIndex BuildCallAndReturn(V<Context> js_context, V<HeapObject> function_data,
-                             base::Vector<OpIndex> args, bool do_conversion);
+                             base::Vector<OpIndex> args, bool do_conversion,
+                             OptionalV<FrameState> frame_state);
+
+  V<Any> BuildJSToWasmWrapperImpl(bool receiver_is_first_param,
+                                  V<JSFunction> js_closure,
+                                  V<Context> js_context,
+                                  base::Vector<const OpIndex> arguments,
+                                  OptionalV<FrameState> frame_state);
 
   void BuildJSToWasmWrapper(bool receiver_is_first_param);
 
@@ -655,7 +674,14 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
   }
 
  private:
+  V<Object> InlineWasmFunctionInsideWrapper(V<Context> js_context,
+                                            V<WasmFunctionData> function_data,
+                                            base::Vector<OpIndex> inlined_args,
+                                            bool do_conversion,
+                                            OptionalV<FrameState> frame_state);
+
   const CanonicalSig* const sig_;
+  std::optional<InlinedFunctionData> inlined_function_data_;
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

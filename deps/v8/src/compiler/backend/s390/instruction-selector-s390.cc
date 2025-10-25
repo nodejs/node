@@ -942,13 +942,20 @@ static void VisitGeneralStore(
         S390OperandGenerator::RegisterUseKind::kUseUniqueRegister);
     DCHECK_LT(input_count, 4);
     inputs[input_count++] = g.UseUniqueRegister(value);
-    RecordWriteMode record_write_mode =
-        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
-    InstructionCode code = kArchStoreWithWriteBarrier;
+    InstructionCode code;
+
+    if (write_barrier_kind == kSkippedWriteBarrier) {
+      code = kArchStoreSkippedWriteBarrier;
+    } else {
+      RecordWriteMode record_write_mode =
+          WriteBarrierKindToRecordWriteMode(write_barrier_kind);
+      code = kArchStoreWithWriteBarrier;
+      code |= RecordWriteModeField::encode(record_write_mode);
+    }
+
     code |= AddressingModeField::encode(addressing_mode);
-    code |= RecordWriteModeField::encode(record_write_mode);
     selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     ArchOpcode opcode;
@@ -1045,7 +1052,9 @@ void InstructionSelector::VisitStore(OpIndex node) {
     write_barrier_kind = kFullWriteBarrier;
   }
 
-    VisitGeneralStore(this, node, rep, write_barrier_kind);
+  DCHECK_IMPLIES(write_barrier_kind == kSkippedWriteBarrier,
+                 v8_flags.verify_write_barriers);
+  VisitGeneralStore(this, node, rep, write_barrier_kind);
 }
 
 void InstructionSelector::VisitProtectedStore(OpIndex node) {

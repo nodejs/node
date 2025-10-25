@@ -189,7 +189,7 @@ void Script::TraceScriptRundown() {
   auto value = v8::tracing::TracedValue::Create();
   value->SetInteger("scriptId", this->id());
   value->SetInteger("executionContextId", contextId);
-  value->SetUnsignedInteger("isolate", isolate->debug()->IsolateId());
+  value->SetString("isolate", std::to_string(isolate->debug()->IsolateId()));
   value->SetBoolean("isModule", this->origin_options().IsModule());
   value->SetBoolean("hasSourceUrl", this->HasSourceURLComment());
   if (this->HasValidSource()) {
@@ -231,7 +231,7 @@ void Script::TraceScriptRundownSources() {
   const int32_t kSplitMaxLength = 1000000;    // 1mb
   if (source_length > kSourceMaxLength) {
     auto value = v8::tracing::TracedValue::Create();
-    value->SetUnsignedInteger("isolate", isolate->debug()->IsolateId());
+    value->SetString("isolate", std::to_string(isolate->debug()->IsolateId()));
     value->SetInteger("scriptId", script_id);
     value->SetInteger("length", source_length);
     value->SetInteger("limit", kSourceMaxLength);
@@ -240,7 +240,7 @@ void Script::TraceScriptRundownSources() {
         "TooLargeScriptCatchup", "data", std::move(value));
   } else if (source_length <= kSplitMaxLength) {
     auto value = v8::tracing::TracedValue::Create();
-    value->SetUnsignedInteger("isolate", isolate->debug()->IsolateId());
+    value->SetString("isolate", std::to_string(isolate->debug()->IsolateId()));
     value->SetInteger("scriptId", script_id);
     value->SetInteger("length", source_length);
     value->SetString("sourceText", source->ToCString().get());
@@ -256,8 +256,8 @@ void Script::TraceScriptRundownSources() {
       auto split_trace_value = v8::tracing::TracedValue::Create();
       split_trace_value->SetInteger("splitIndex", i);
       split_trace_value->SetInteger("splitCount", split_count);
-      split_trace_value->SetUnsignedInteger("isolate",
-                                            isolate->debug()->IsolateId());
+      split_trace_value->SetString(
+          "isolate", std::to_string(isolate->debug()->IsolateId()));
       split_trace_value->SetInteger("scriptId", script_id);
       split_trace_value->SetString(
           "sourceText", std::string(source_ptr.get() + begin, end - begin));

@@ -6,8 +6,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace v8 {
-namespace base {
+namespace v8::base {
 
 using Address = AddressRegion::Address;
 
@@ -62,5 +61,33 @@ TEST(AddressRegionTest, Contains) {
   }
 }
 
-}  // namespace base
-}  // namespace v8
+TEST(AddressRegionTest, GetOverlap) {
+  constexpr AddressRegion region(100, 20);
+  // No overlap.
+  EXPECT_EQ(0u, region.GetOverlap(AddressRegion(0, 20)).size());
+  EXPECT_EQ(0u, region.GetOverlap(AddressRegion(120, 20)).size());
+  // Adjacent.
+  EXPECT_EQ(0u, region.GetOverlap(AddressRegion(80, 20)).size());
+  EXPECT_EQ(0u, region.GetOverlap(AddressRegion(120, 20)).size());
+  // Simple overlap.
+  EXPECT_EQ(AddressRegion(100, 10), region.GetOverlap(AddressRegion(90, 20)));
+  EXPECT_EQ(AddressRegion(110, 10), region.GetOverlap(AddressRegion(110, 20)));
+  // Full overlap.
+  EXPECT_EQ(region, region.GetOverlap(AddressRegion(90, 40)));
+  // Identical.
+  EXPECT_EQ(region, region.GetOverlap(region));
+  // Zero-sized regions.
+  EXPECT_EQ(0u, region.GetOverlap(AddressRegion(0, 0)).size());
+  EXPECT_EQ(0u, region.GetOverlap(AddressRegion(100, 0)).size());
+  EXPECT_EQ(0u, region.GetOverlap(AddressRegion(110, 0)).size());
+  EXPECT_EQ(0u, region.GetOverlap(AddressRegion(120, 0)).size());
+}
+
+TEST(AddressRegionTest, Constexpr) {
+  static_assert(AddressRegion(0, 20) == AddressRegion(0, 20));
+  static_assert(AddressRegion(0, 20).size() == 20);
+  static_assert(AddressRegion(0, 20).GetOverlap(AddressRegion(20, 20)).size() ==
+                0);
+}
+
+}  // namespace v8::base

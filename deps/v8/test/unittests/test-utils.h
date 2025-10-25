@@ -20,6 +20,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/flags/save-flags.h"
 #include "src/handles/handles.h"
 #include "src/heap/parked-scope.h"
 #include "src/logging/log.h"
@@ -518,19 +519,6 @@ using TestJSSharedMemoryWithNativeContext =  //
             WithIsolateScopeMixin<           //
                 WithIsolateMixin<            //
                     TestJSSharedMemoryWithPlatform>>>>;
-
-class V8_NODISCARD SaveFlags {
- public:
-  SaveFlags();
-  ~SaveFlags();
-  SaveFlags(const SaveFlags&) = delete;
-  SaveFlags& operator=(const SaveFlags&) = delete;
-
- private:
-#define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) ctype SAVED_##nam;
-#include "src/flags/flag-definitions.h"
-#undef FLAG_MODE_APPLY
-};
 
 // For GTest.
 inline void PrintTo(Tagged<Object> o, ::std::ostream* os) {

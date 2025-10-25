@@ -45,6 +45,8 @@ V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
   static const int kMantissaBitsInTopWord = 20;
   static const int kNonMantissaBitsInTopWord = 12;
 
+  static const int kValueOffset;
+
   DECL_PRINTER(HeapNumber)
   DECL_VERIFIER(HeapNumber)
   V8_EXPORT_PRIVATE void HeapNumberShortPrint(std::ostream& os);
@@ -66,6 +68,8 @@ V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
 
   UnalignedDoubleMember value_;
 } V8_OBJECT_END;
+
+constexpr int HeapNumber::kValueOffset = offsetof(HeapNumber, value_);
 
 }  // namespace internal
 }  // namespace v8

@@ -318,6 +318,7 @@ class Code : public ExposedTrustedObject {
   inline bool CanContainWeakObjects();
   inline bool IsWeakObject(Tagged<HeapObject> object);
   static inline bool IsWeakObjectInOptimizedCode(Tagged<HeapObject> object);
+  inline bool IsWeakObjectInOptimizedCode(JSDispatchHandle);
   static inline bool IsWeakObjectInDeoptimizationLiteralArray(
       Tagged<Object> object);
 

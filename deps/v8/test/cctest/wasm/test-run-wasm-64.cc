@@ -1356,7 +1356,7 @@ WASM_EXEC_TEST(I64Global) {
                                WASM_I64_SCONVERT_I32(WASM_LOCAL_GET(0)))),
            WASM_ZERO});
 
-  r.builder().WriteMemory<int64_t>(global, 0xFFFFFFFFFFFFFFFFLL);
+  *global = 0xFFFFFFFFFFFFFFFFLL;
   for (int i = 9; i < 444444; i += 111111) {
     int64_t expected = *global & i;
     r.Call(i);

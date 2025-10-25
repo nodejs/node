@@ -127,7 +127,7 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitExternalPointer(
   // set to a non-null value before the marking pause.
   // TODO(342905179): Avoid adding null handle locations to the remset, and
   // instead make external pointer writes invoke a marking barrier.
-  auto slot_chunk = MutablePageMetadata::FromHeapObject(host);
+  auto slot_chunk = MutablePageMetadata::FromHeapObject(isolate_, host);
   RememberedSet<SURVIVOR_TO_EXTERNAL_POINTER>::template Insert<
       AccessMode::ATOMIC>(slot_chunk, slot_chunk->Offset(slot.address()));
 }
@@ -212,7 +212,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
     if (visited_size) {
       IncrementLiveBytesCached(
           MutablePageMetadata::cast(
-              MemoryChunkMetadata::FromHeapObject(heap_object)),
+              MemoryChunkMetadata::FromHeapObject(isolate_, heap_object)),
           ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
     }
     return true;

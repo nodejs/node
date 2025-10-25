@@ -68,7 +68,7 @@ cc_library(
     deps = [
         ":algorithm",
         "//absl/base:config",
-        "//absl/base:nullability",
+        "//absl/base:core_headers",
         "//absl/meta:type_traits",
     ],
 )

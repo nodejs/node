@@ -126,8 +126,8 @@ DirectHandle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
 
   const int kNumParams = 2;
 
-  compiler::CodeAssemblerTester asm_tester(
-      isolate, JSParameterCount(kNumParams), CodeKind::FOR_TESTING);
+  compiler::CodeAssemblerTester asm_tester(isolate,
+                                           JSParameterCount(kNumParams));
   {
     CodeStubAssembler m(asm_tester.state());
 
@@ -170,8 +170,8 @@ DirectHandle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
   Handle<JSFunction> result_function(JSFunction{}, isolate);
 
   const int kNumParams = 2;
-  compiler::CodeAssemblerTester asm_tester(
-      isolate, JSParameterCount(kNumParams), CodeKind::FOR_TESTING);
+  compiler::CodeAssemblerTester asm_tester(isolate,
+                                           JSParameterCount(kNumParams));
   {
     CodeStubAssembler m(asm_tester.state());
 

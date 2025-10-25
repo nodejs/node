@@ -73,8 +73,8 @@ EXTRA_FLAGS = [
     (0.25, '--wasm-staging'),
     (0.1, '--ephemeron-fixpoint-iterations=0'),
     (0.25, '--experimental-wasm-revectorize'),
-    (0.5, '--additive-safe-int-feedback'),
     (0.1, '--no-memory-pool'),
+    (0.1, '--handle-weak-ref-weakly-in-minor-gc'),
 ]
 
 MIN_DEOPT = 1
@@ -368,6 +368,21 @@ class InterruptBudgetFuzzer(Fuzzer):
       yield [flag1, flag2, flag3, flag4]
 
 
+class BytecodeBudgetFuzzer(Fuzzer):
+  def create_flags_generator(self, rng, test, analysis_value):
+    while True:
+      max_bytecode = rng.randint(0, 920)
+      flag1 = f'--max-inlined-bytecode-size={max_bytecode}'
+      flag2 = ('--max-inlined-bytecode-size-cumulative='
+               f'{max_bytecode + rng.randint(0, 920)}')
+      flag3 = ('--max-turbolev-inlined-bytecode-size-cumulative='
+               f'{rng.randint(0, 3680)}')
+      flag4 = f'--max-inlined-bytecode-size-small={rng.randint(0, 54)}'
+      flag5 = ('--max-inlined-bytecode-size-small-with-heapnum-in-out='
+               f'{rng.randint(0, 150)}')
+      yield [flag1, flag2, flag3, flag4, flag5]
+
+
 class AllocationOffsetFuzzer(Fuzzer):
   """Creates a random number of fake allocations before the actual test."""
 
@@ -444,6 +459,7 @@ class DeoptFuzzer(Fuzzer):
 
 FUZZERS = {
     'allocation': (None, AllocationOffsetFuzzer),
+    'bytecode': (None, BytecodeBudgetFuzzer),
     'compaction': (None, CompactionFuzzer),
     'delay': (None, TaskDelayFuzzer),
     'deopt': (DeoptAnalyzer, DeoptFuzzer),

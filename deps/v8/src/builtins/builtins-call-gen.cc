@@ -12,6 +12,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/execution/protectors.h"
+#include "src/heap/factory-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments.h"
 #include "src/objects/property-cell.h"
@@ -179,7 +180,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
            &if_target_not_callable);
     BIND(&if_target_not_callable);
     {
-      CallRuntime(Runtime::kThrowApplyNonFunction, context, target);
+      CallRuntime(Runtime::kThrowTargetNonFunction, context, target,
+                  HeapConstantNoHole(
+                      isolate()->factory()->Function_prototype_apply_string()));
       Unreachable();
     }
     BIND(&if_target_callable);

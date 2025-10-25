@@ -125,6 +125,7 @@ class StackHandler {
   IF_WASM(V, C_WASM_ENTRY, CWasmEntryFrame)                               \
   /* Can only appear as the first frame of a wasm stack: */               \
   IF_WASM(V, WASM_STACK_ENTRY, WasmStackEntryFrame)                       \
+  IF_WASM(V, WASM_STACK_EXIT, WasmStackExitFrame)                         \
   IF_WASM(V, WASM_EXIT, WasmExitFrame)                                    \
   IF_WASM(V, WASM_LIFTOFF_SETUP, WasmLiftoffSetupFrame)                   \
   IF_WASM(V, WASM_SEGMENT_START, WasmSegmentStartFrame)                   \
@@ -1453,6 +1454,18 @@ class WasmStackEntryFrame : public TypedFrame {
 
  protected:
   inline explicit WasmStackEntryFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class WasmStackExitFrame : public TypedFrame {
+ public:
+  Type type() const override { return WASM_STACK_EXIT; }
+  void Iterate(RootVisitor* v) const override {}
+
+ protected:
+  inline explicit WasmStackExitFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;

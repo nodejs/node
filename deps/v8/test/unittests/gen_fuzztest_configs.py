@@ -62,14 +62,16 @@ fi
 FUZZER_NAME_RE = re.compile(r'^\w+\.\w+$')
 
 
-def list_fuzz_tests(executable):
+def list_fuzz_tests(executable : Path):
   env = os.environ
   env['ASAN_OPTIONS'] = 'detect_odr_violation=0'
   env['CENTIPEDE_RUNNER_FLAGS'] = 'stack_limit_kb=0:'
+  assert executable.exists()
+  assert executable.is_absolute()
   test_list = subprocess.check_output(
       [executable, '--list_fuzz_tests=true'],
       env=env,
-      cwd='.',
+      cwd=BASE_DIR,
   ).decode('utf-8')
   return sorted(set(re.findall('Fuzz test: (.*)', test_list)))
 

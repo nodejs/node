@@ -133,7 +133,6 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   function_index: Smi;
   // Contains a Smi; boxed so that generated code can update the value.
   wrapper_budget: Cell;
-  canonical_type_index: Smi;
 
   // Experimental: set this to non-zero to let the JS-side receiver be passed
   // as Wasm-side first parameter.
@@ -159,8 +158,6 @@ extern class WasmJSFunctionData extends WasmFunctionData {
 }
 
 extern class WasmCapiFunctionData extends WasmFunctionData {
-  // TODO(jkummerow): Move {canonical_sig_index} into {WasmFunctionData}.
-  canonical_sig_index: Smi;
   embedder_data: Foreign;  // Managed<wasm::FuncData>
   sig: RawFunctionSigPtr;
 }
@@ -173,7 +170,7 @@ extern class WasmResumeData extends HeapObject {
 extern class WasmSuspenderObject extends ExposedTrustedObject {
   stack: ExternalPointer;
   parent: ProtectedPointer<WasmSuspenderObject>;
-  promise: JSPromise;
+  promise: JSPromise|Undefined;
   resume: JSObject|Undefined;
   reject: JSObject|Undefined;
 }
@@ -303,10 +300,6 @@ extern class WasmArray extends WasmObject {
 
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
-}
-
-extern class WasmDescriptorOptions extends JSObject {
-  prototype: Object;
 }
 
 class WasmStringViewIter extends HeapObject {

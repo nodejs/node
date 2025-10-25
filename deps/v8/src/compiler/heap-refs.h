@@ -829,6 +829,10 @@ class NameRef : public HeapObjectRef {
 
   IndirectHandle<Name> object() const;
 
+  // Returns ThinString::actual() if the current (uncached) map is a ThinString
+  // map, a self reference for all other cases.
+  NameRef UnpackIfThin(JSHeapBroker* broker);
+
   bool IsUniqueName() const;
 };
 
@@ -873,6 +877,8 @@ class FeedbackVectorRef : public HeapObjectRef {
   FeedbackCellRef GetClosureFeedbackCell(JSHeapBroker* broker, int index) const;
 
   bool was_once_deoptimized() const;
+
+  HeapObjectRef GetClosureFeedbackCellArrayRef(JSHeapBroker* broker);
 };
 
 class AccessorInfoRef : public HeapObjectRef {

@@ -170,7 +170,7 @@ void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
   // todo: compress pointer
   __ AssertSmi(lhs);
   __ AssertSmi(rhs);
-  __ CompareTaggedAndBranch(target, cc, lhs, Operand(rhs), distance);
+  __ CompareTaggedAndBranch(target, cc, lhs, Operand(rhs));
 }
 void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
@@ -179,7 +179,7 @@ void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
   ScratchRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
   __ LoadWord(scratch, operand);
-  __ CompareTaggedAndBranch(target, cc, value, Operand(scratch), distance);
+  __ CompareTaggedAndBranch(target, cc, value, Operand(scratch));
 }
 void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
                                      Register value, Label* target,
@@ -188,7 +188,7 @@ void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
   ScratchRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
   __ LoadWord(scratch, operand);
-  __ CompareTaggedAndBranch(target, cc, scratch, Operand(value), distance);
+  __ CompareTaggedAndBranch(target, cc, scratch, Operand(value));
 }
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
                                    Label* target, Label::Distance distance) {
@@ -523,7 +523,7 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   // We're going to use pc-relative addressing to load from the jump table,
   // so we need to block trampoline pool emission for the entire length of
   // the table including the preamble.
-  MacroAssembler::BlockTrampolinePoolScope block(
+  MacroAssembler::BlockPoolsScope block_pools(
       masm_, (2 + 5 + num_labels * 2) * kInstrSize);
 
   int64_t imm64;

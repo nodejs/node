@@ -85,17 +85,12 @@ class TypeCanonicalizer {
   V8_EXPORT_PRIVATE const CanonicalArrayType* LookupArray(
       CanonicalTypeIndex index) const;
 
-  // Returns if {canonical_sub_index} is a canonical subtype of
-  // {canonical_super_index}.
+  // Returns if {sub_index} is a canonical subtype of {super_type}, which must
+  // be an indexed type. Interprets {sub_index} as (exact sub_index), which is
+  // appropriate for checking the actual type of a thing against a required
+  // type.
   V8_EXPORT_PRIVATE bool IsCanonicalSubtype(CanonicalTypeIndex sub_index,
-                                            CanonicalTypeIndex super_index);
-
-  // Returns if the type at {sub_index} in {sub_module} is a subtype of the
-  // type at {super_index} in {super_module} after canonicalization.
-  V8_EXPORT_PRIVATE bool IsCanonicalSubtype(ModuleTypeIndex sub_index,
-                                            ModuleTypeIndex super_index,
-                                            const WasmModule* sub_module,
-                                            const WasmModule* super_module);
+                                            CanonicalValueType super_type);
 
   // Deletes recursive groups. Used by fuzzers to avoid accumulating memory, and
   // used by specific tests e.g. for serialization / deserialization.

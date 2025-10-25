@@ -123,7 +123,7 @@ static void **NextStackFrame(void **old_frame_pointer, const void *uc,
       // earlier in the stack than the old_frame_pointer, then use it. If it is
       // later, then we have already unwound through it and it needs no special
       // handling.
-      if (pre_signal_frame_pointer >= old_frame_pointer) {
+      if (pre_signal_frame_pointer > old_frame_pointer) {
         new_frame_pointer = pre_signal_frame_pointer;
       }
     }

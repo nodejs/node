@@ -1071,7 +1071,7 @@ class V8_EXPORT ObjectTemplate : public Template {
 /**
  * A template to create dictionary objects at runtime.
  */
-class V8_EXPORT DictionaryTemplate final {
+class V8_EXPORT DictionaryTemplate final : public Data {
  public:
   /** Creates a new template. Also declares data properties that can be passed
    * on instantiation of the template. Properties can only be declared on

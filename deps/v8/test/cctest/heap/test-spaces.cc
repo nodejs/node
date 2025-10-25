@@ -599,7 +599,9 @@ HEAP_TEST(Regress791582) {
     Tagged<HeapObject> obj = result.ToObjectChecked();
     heap->CreateFillerObjectAt(obj.address(), until_page_end);
     // Simulate allocation folding moving the top pointer back.
-    *heap->NewSpaceAllocationTopAddress() = obj.address();
+    LinearAllocationArea* new_space =
+        &isolate->isolate_data()->new_allocation_info();
+    *new_space->top_address() = obj.address();
   }
 
   {

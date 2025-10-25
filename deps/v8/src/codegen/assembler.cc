@@ -223,6 +223,7 @@ bool CpuFeatures::supports_cetss_ = false;
 unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::icache_line_size_ = 0;
 unsigned CpuFeatures::dcache_line_size_ = 0;
+unsigned CpuFeatures::vlen_ = 0;
 
 HeapNumberRequest::HeapNumberRequest(double heap_number, int offset)
     : offset_(offset) {

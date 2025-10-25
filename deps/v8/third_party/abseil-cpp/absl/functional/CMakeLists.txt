@@ -87,9 +87,11 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::config
     absl::core_headers
     absl::any_invocable
     absl::meta
+    absl::utility
   PUBLIC
 )
 
@@ -101,9 +103,11 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::config
     absl::function_ref
     absl::memory
     absl::test_instance_tracker
+    absl::utility
     GTest::gmock_main
 )
 

@@ -26,12 +26,9 @@ void ProtoAssignmentSeqBuilder::BuildBoilerplateDescription(
   int position = 0;
   for (size_t i = 0; i < properties_.size(); i++) {
     auto pair = properties_.at(i);
-    Literal* key_literal = pair.first->key()->AsLiteral();
+    const AstRawString* key_str = pair.first;
 
-    DCHECK(key_literal->IsPropertyName());
-
-    DirectHandle<Object> key =
-        Cast<Object>(key_literal->AsRawPropertyName()->string());
+    DirectHandle<Object> key = Cast<Object>(key_str->string());
     DirectHandle<Object> value =
         GetBoilerplateValue(pair.second, isolate, script);
     boilerplate_description->set_key_value(position++, *key, *value);

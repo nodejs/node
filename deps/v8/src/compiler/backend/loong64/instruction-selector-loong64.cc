@@ -89,6 +89,7 @@ class Loong64OperandGenerator final : public OperandGenerator {
   bool CanBeImmediate(int64_t value, InstructionCode opcode) {
     switch (ArchOpcodeField::decode(opcode)) {
       case kArchAtomicStoreWithWriteBarrier:
+      case kArchAtomicStoreSkippedWriteBarrier:
         return false;
       case kLoong64Cmp32:
       case kLoong64Cmp64:
@@ -593,6 +594,9 @@ void InstructionSelector::VisitStore(OpIndex node) {
     write_barrier_kind = kFullWriteBarrier;
   }
 
+  DCHECK_IMPLIES(write_barrier_kind == kSkippedWriteBarrier,
+                 v8_flags.verify_write_barriers);
+
   // TODO(loong64): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
@@ -611,24 +615,37 @@ void InstructionSelector::VisitStore(OpIndex node) {
       addressing_mode = kMode_MRR;
     }
     inputs[input_count++] = g.UseUniqueRegister(value);
-    RecordWriteMode record_write_mode =
-        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionCode code;
     if (rep == MachineRepresentation::kIndirectPointer) {
-      DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
+      DCHECK(write_barrier_kind == kIndirectPointerWriteBarrier ||
+             write_barrier_kind == kSkippedWriteBarrier);
       // In this case we need to add the IndirectPointerTag as additional input.
-      code = kArchStoreIndirectWithWriteBarrier;
+      code = write_barrier_kind == kSkippedWriteBarrier
+                 ? kArchStoreIndirectSkippedWriteBarrier
+                 : kArchStoreIndirectWithWriteBarrier;
+      code |= RecordWriteModeField::encode(
+          RecordWriteMode::kValueIsIndirectPointer);
       IndirectPointerTag tag = store_view.indirect_pointer_tag();
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
+    } else if (write_barrier_kind == kSkippedWriteBarrier) {
+      code = kArchStoreSkippedWriteBarrier;
     } else {
       code = kArchStoreWithWriteBarrier;
+      const RecordWriteMode record_write_mode =
+          WriteBarrierKindToRecordWriteMode(write_barrier_kind);
+      code |= RecordWriteModeField::encode(record_write_mode);
     }
     code |= AddressingModeField::encode(addressing_mode);
-    code |= RecordWriteModeField::encode(record_write_mode);
     if (store_view.is_store_trap_on_null()) {
       code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
     }
-    Emit(code, 0, nullptr, input_count, inputs);
+
+    InstructionOperand temps[1];
+    size_t temp_count = 0;
+    if (write_barrier_kind == kSkippedWriteBarrier) {
+      temps[temp_count++] = g.TempRegister();
+    }
+    Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
     return;
   }
 
@@ -1786,6 +1803,10 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     write_barrier_kind = kFullWriteBarrier;
   }
 
+  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index),
+                                 g.UseRegisterOrImmediateZero(value)};
+  InstructionOperand temps[2] = {};
+  size_t temp_count = 0;
   InstructionCode code;
 
   if (write_barrier_kind != kNoWriteBarrier &&
@@ -1793,10 +1814,17 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     DCHECK(CanBeTaggedPointer(rep));
     DCHECK_EQ(AtomicWidthSize(width), kTaggedSize);
 
-    RecordWriteMode record_write_mode =
-        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
-    code = kArchAtomicStoreWithWriteBarrier;
-    code |= RecordWriteModeField::encode(record_write_mode);
+    if (write_barrier_kind == kSkippedWriteBarrier) {
+      code = kArchAtomicStoreSkippedWriteBarrier;
+      code |= RecordWriteModeField::encode(RecordWriteMode::kValueIsAny);
+      temps[temp_count++] = g.TempRegister();
+      temps[temp_count++] = g.TempRegister();
+    } else {
+      RecordWriteMode record_write_mode =
+          WriteBarrierKindToRecordWriteMode(write_barrier_kind);
+      code = kArchAtomicStoreWithWriteBarrier;
+      code |= RecordWriteModeField::encode(record_write_mode);
+    }
   } else {
     switch (rep) {
       case MachineRepresentation::kWord8:
@@ -1836,15 +1864,14 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
   }
 
   if (g.CanBeImmediate(index, code)) {
+    inputs[1] = g.UseImmediate(index);
     selector->Emit(code | AddressingModeField::encode(kMode_MRI) |
                        AtomicWidthField::encode(width),
-                   g.NoOutput(), g.UseRegister(base), g.UseImmediate(index),
-                   g.UseRegisterOrImmediateZero(value));
+                   0, nullptr, arraysize(inputs), inputs, temp_count, temps);
   } else {
     selector->Emit(code | AddressingModeField::encode(kMode_MRR) |
                        AtomicWidthField::encode(width),
-                   g.NoOutput(), g.UseRegister(base), g.UseRegister(index),
-                   g.UseRegisterOrImmediateZero(value));
+                   0, nullptr, arraysize(inputs), inputs, temp_count, temps);
   }
 }
 

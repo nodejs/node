@@ -638,7 +638,8 @@ Reduction TypedOptimization::ReduceStringLength(Node* node) {
       }
       break;
     }
-    case IrOpcode::kStringConcat: {
+    case IrOpcode::kStringConcat:
+    case IrOpcode::kNewConsString: {
       // The first value input to the {input} is the resulting length.
       return Replace(input->InputAt(0));
     }

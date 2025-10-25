@@ -144,9 +144,13 @@ namespace v8::internal::wasm {
   V(WasmAnyConvertExternShared)                                                \
   V(WasmStringFromDataSegment)                                                 \
   V(WasmStringAdd_CheckNone)                                                   \
+  V(DebugPrintWord32)                                                          \
+  V(DebugPrintWord64)                                                          \
+  V(DebugPrintFloat32)                                                         \
   V(DebugPrintFloat64)                                                         \
-  V(DebugPrintWordPtr)                                                         \
+  V(DebugPrintObject)                                                          \
   V(WasmFastApiCallTypeCheckAndUpdateIC)                                       \
+  V(WasmFXResume)                                                              \
   V(DeoptimizationEntry_Eager)                                                 \
   V(WasmLiftoffDeoptFinish)                                                    \
   V(WasmPropagateException)                                                    \

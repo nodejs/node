@@ -89,7 +89,6 @@ Vec<D> LargerSortValue(D d, Vec<D> v) {
   using T = TFromD<decltype(d)>;
   const RebindToUnsigned<D> du;
   using VU = Vec<decltype(du)>;
-  using TU = TFromD<decltype(du)>;
 
   const VU vu = BitCast(du, Abs(v));
 
@@ -97,7 +96,14 @@ Vec<D> LargerSortValue(D d, Vec<D> v) {
   // than float comparison and treats -0 as 0 (so we return +epsilon).
   const Mask<decltype(du)> was_pos = Le(BitCast(du, v), SignBit(du));
   // If positive, add 1, else -1.
+#if HWY_ARCH_ARM_V7
+  // Workaround for incorrect codegen. ~x - x is equivalent to x? 1 : -1.
+  const VU was_pos_u = VecFromMask(du, was_pos);
+  const VU add = Not(was_pos_u) - was_pos_u;
+#else
+  using TU = TFromD<decltype(du)>;
   const VU add = IfThenElse(was_pos, Set(du, 1u), Set(du, LimitsMax<TU>()));
+#endif
   // Prev/next integer is the prev/next value, even if mantissa under/overflows.
   v = BitCast(d, Add(vu, add));
   // But we may have overflowed into inf or NaN; replace with inf if positive,

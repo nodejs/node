@@ -252,7 +252,8 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
       DirectHandle<JSArrayBuffer> buf = v8::Utils::OpenDirectHandle(*ab);
       root->set(0, *buf);  // Buffer that should be promoted as live.
-      MutablePageMetadata::FromHeapObject(*buf)->MarkNeverEvacuate();
+      MutablePageMetadata::FromHeapObject(heap->isolate(), *buf)
+          ->MarkNeverEvacuate();
     }
     DirectHandleVector<FixedArray> handles(isolate);
     // Make the whole page transition from new->old, getting the buffers

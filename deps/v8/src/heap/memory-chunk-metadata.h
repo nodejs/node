@@ -8,6 +8,7 @@
 #include "src/base/bit-field.h"
 #include "src/base/hashing.h"
 #include "src/common/globals.h"
+#include "src/heap/base-space.h"
 #include "src/heap/memory-chunk.h"
 #include "src/objects/heap-object.h"
 #include "src/utils/allocation.h"
@@ -23,18 +24,16 @@ class BaseSpace;
 
 class MemoryChunkMetadata {
  public:
-  // Only works if the pointer is in the first kPageSize of the MemoryChunk.
-  V8_INLINE static MemoryChunkMetadata* FromAddress(Address a);
+  // Only works if the pointer is in the first kPageSize of the MemoryChunk.k
   V8_INLINE static MemoryChunkMetadata* FromAddress(const Isolate* isolate,
                                                     Address a);
 
   // Objects pointers always point within the first kPageSize, so these calls
   // always succeed.
-  V8_INLINE static MemoryChunkMetadata* FromHeapObject(Tagged<HeapObject> o);
   V8_INLINE static MemoryChunkMetadata* FromHeapObject(const Isolate* i,
                                                        Tagged<HeapObject> o);
   V8_INLINE static MemoryChunkMetadata* FromHeapObject(
-      const HeapObjectLayout* o);
+      const Isolate* i, const HeapObjectLayout* o);
 
   V8_INLINE static void UpdateHighWaterMark(Address mark);
 
@@ -68,7 +67,12 @@ class MemoryChunkMetadata {
   void set_owner(BaseSpace* space) { owner_ = space; }
   // Gets the chunk's allocation space, potentially dealing with a null owner_
   // (like read-only chunks have).
-  inline AllocationSpace owner_identity() const;
+  inline AllocationSpace owner_identity() const {
+    if (!owner()) {
+      return RO_SPACE;
+    }
+    return owner()->identity();
+  }
 
   bool IsWritable() const {
     const bool is_sealed_ro = IsSealedReadOnlySpaceField::decode(flags_);
@@ -80,7 +84,8 @@ class MemoryChunkMetadata {
     return !is_sealed_ro;
   }
 
-  bool IsMutablePageMetadata() const { return owner() != nullptr; }
+  bool IsMutablePageMetadata() const { return owner_identity() != RO_SPACE; }
+  bool IsReadOnlyPageMetadata() const { return owner_identity() == RO_SPACE; }
 
   bool Contains(Address addr) const {
     return addr >= area_start() && addr < area_end();

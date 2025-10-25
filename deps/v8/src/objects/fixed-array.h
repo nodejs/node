@@ -472,10 +472,10 @@ V8_OBJECT class FixedDoubleArray
   static inline Handle<Object> get(Tagged<FixedDoubleArray> array, int index,
                                    Isolate* isolate);
   inline void set(int index, double value);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   inline void set_undefined(int index);
   inline bool is_undefined(int index);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
   inline void set_the_hole(Isolate* isolate, int index);
   inline void set_the_hole(int index);

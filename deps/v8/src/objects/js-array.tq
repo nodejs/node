@@ -176,7 +176,7 @@ LoadElementNoHole<FixedDoubleArray>(
              IfHole;
     return AllocateHeapNumberWithValue(e);
   } label IfUndefined {
-    dcheck(kEnableExperimentalUndefinedDouble);
+    dcheck(kEnableUndefinedDouble);
     return Undefined;
   }
 }
@@ -286,7 +286,7 @@ struct FastJSArrayWitness {
   macro Push(value: JSAny): void labels Failed {
     dcheck(this.arrayIsPushable);
     if (this.hasDoubles) {
-      @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+      @if(V8_ENABLE_UNDEFINED_DOUBLE) {
         if (this.hasDoubleHoles) {
           BuildAppendJSArray(
               ElementsKind::HOLEY_DOUBLE_ELEMENTS, this.unstable, value)
@@ -297,7 +297,7 @@ struct FastJSArrayWitness {
               otherwise Failed;
         }
       }
-      @ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+      @ifnot(V8_ENABLE_UNDEFINED_DOUBLE) {
         BuildAppendJSArray(
             ElementsKind::PACKED_DOUBLE_ELEMENTS, this.unstable, value)
             otherwise Failed;
@@ -336,15 +336,14 @@ struct FastJSArrayWitness {
   unstable: FastJSArray;
   const map: Map;
   const hasDoubles: bool;
-  @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) const hasDoubleHoles:
-      bool;
+  @if(V8_ENABLE_UNDEFINED_DOUBLE) const hasDoubleHoles: bool;
   const hasSmis: bool;
   arrayIsPushable: bool;
 }
 
 macro NewFastJSArrayWitness(array: FastJSArray): FastJSArrayWitness {
   const kind = array.map.elements_kind;
-  @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+  @if(V8_ENABLE_UNDEFINED_DOUBLE) {
     return FastJSArrayWitness{
       stable: array,
       unstable: array,
@@ -356,7 +355,7 @@ macro NewFastJSArrayWitness(array: FastJSArray): FastJSArrayWitness {
       arrayIsPushable: false
     };
   }
-  @ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+  @ifnot(V8_ENABLE_UNDEFINED_DOUBLE) {
     return FastJSArrayWitness{
       stable: array,
       unstable: array,

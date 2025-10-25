@@ -1220,14 +1220,16 @@ TEST_F(LogTest, BuiltinsNotLoggedAsLazyCompile) {
     v8::base::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,BooleanConstructor",
                        builtin->instruction_start(),
                        builtin->instruction_size());
+    static_assert(static_cast<int>(i::CodeKind::BUILTIN) == 3,
+                  "Update ',3,' below to proper value");
     CHECK(logger.ContainsLine(
-        {"code-creation,Builtin,2,", std::string(buffer.begin())}));
+        {"code-creation,Builtin,3,", std::string(buffer.begin())}));
 
     v8::base::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,",
                        builtin->instruction_start(),
                        builtin->instruction_size());
     CHECK(!logger.ContainsLine(
-        {"code-creation,JS,2,", std::string(buffer.begin())}));
+        {"code-creation,JS,3,", std::string(buffer.begin())}));
   }
 }
 }  // namespace v8

@@ -7,6 +7,7 @@
 #include <limits>
 #include <optional>
 
+#include "src/base/bits.h"
 #include "src/base/bounds.h"
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
@@ -1444,10 +1445,16 @@ void VisitStoreCommon(InstructionSelector* selector,
                  : MemoryAccessMode::kMemoryAccessProtectedMemOutOfBounds)
           : MemoryAccessMode::kMemoryAccessDirect;
 
+  DCHECK_IMPLIES(write_barrier_kind == kSkippedWriteBarrier,
+                 v8_flags.verify_write_barriers);
+
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(
-        CanBeTaggedOrCompressedOrIndirectPointer(store_rep.representation()));
+#if DEBUG
+    MachineRepresentation mach_rep = store_rep.representation();
+    DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(mach_rep) ||
+           CanBeTaggedSigned(mach_rep));
+#endif  // DEBUG
     // Uncompressed stores should not happen if we need a write barrier.
     CHECK((store.ts_stored_rep() !=
            MemoryRepresentation::AnyUncompressedTagged()) &&
@@ -1464,22 +1471,30 @@ void VisitStoreCommon(InstructionSelector* selector,
         X64OperandGenerator::RegisterUseKind::kUseUniqueRegister);
     DCHECK_LT(input_count, 4);
     inputs[input_count++] = g.UseUniqueRegister(value);
-    RecordWriteMode record_write_mode =
-        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     InstructionCode code;
     if (store_rep.representation() == MachineRepresentation::kIndirectPointer) {
-      DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
+      DCHECK(write_barrier_kind == kIndirectPointerWriteBarrier ||
+             write_barrier_kind == kSkippedWriteBarrier);
       // In this case we need to add the IndirectPointerTag as additional input.
-      code = kArchStoreIndirectWithWriteBarrier;
+      code = write_barrier_kind == kSkippedWriteBarrier
+                 ? kArchStoreIndirectSkippedWriteBarrier
+                 : kArchStoreIndirectWithWriteBarrier;
+      code |= RecordWriteModeField::encode(
+          RecordWriteMode::kValueIsIndirectPointer);
       IndirectPointerTag tag = store.indirect_pointer_tag();
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
+    } else if (write_barrier_kind == kSkippedWriteBarrier) {
+      code = is_seqcst ? kArchAtomicStoreSkippedWriteBarrier
+                       : kArchStoreSkippedWriteBarrier;
     } else {
       code = is_seqcst ? kArchAtomicStoreWithWriteBarrier
                        : kArchStoreWithWriteBarrier;
+      const RecordWriteMode record_write_mode =
+          WriteBarrierKindToRecordWriteMode(write_barrier_kind);
+      code |= RecordWriteModeField::encode(record_write_mode);
     }
     code |= AddressingModeField::encode(addressing_mode);
-    code |= RecordWriteModeField::encode(record_write_mode);
     code |= AccessModeField::encode(access_mode);
     selector->Emit(code, 0, nullptr, input_count, inputs, arraysize(temps),
                    temps);
@@ -2056,9 +2071,14 @@ bool TryEmitLoadForLoadWord64AndShiftRight(InstructionSelector* selector,
         // in a register and replacing it with an immediate is not allowed. This
         // usually only happens in dead code anyway.
         if (!inputs[input_count - 1].IsImmediate()) return false;
+        int32_t displacement;
+        if (base::bits::SignedAddOverflow32(
+                static_cast<int32_t>(m->displacement), 4, &displacement) ||
+            !ValueFitsIntoImmediate(displacement)) {
+          return false;
+        }
         inputs[input_count - 1] =
-            ImmediateOperand(ImmediateOperand::INLINE_INT32,
-                             static_cast<int32_t>(m->displacement) + 4);
+            ImmediateOperand(ImmediateOperand::INLINE_INT32, displacement);
       }
       InstructionOperand outputs[] = {g.DefineAsRegister(node)};
       InstructionCode code = opcode | AddressingModeField::encode(mode);

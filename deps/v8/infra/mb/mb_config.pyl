@@ -136,6 +136,7 @@
       'V8 Linux64 - verify builtins': 'release_x64_verify_builtins',
       'V8 Linux64 - verify deterministic': 'release_x64_verify_deterministic',
       'V8 Linux - full debug builder': 'full_debug_x86',
+      'V8 Linux64 - full debug builder': 'full_debug_x64',
       'V8 Mac64 - full debug builder': 'full_debug_x64',
       'V8 Random Deopt Fuzzer - debug': 'debug_x64',
     },
@@ -145,44 +146,44 @@
       'V8 Centipede Linux64 ASAN  - release builder':
         'release_x64_asan_centipede',
       'V8 Clusterfuzz Win64 ASAN - release builder':
-        'release_x64_asan_no_lsan_verify_heap',
+        'release_x64_asan_no_lsan_verify_heap_undefined_double',
       # Note this is called a debug builder, but it uses a release build
       # configuration with dchecks (which enables DEBUG in V8), since win-asan
       # debug is not supported.
       'V8 Clusterfuzz Win64 ASAN - debug builder':
-        'release_x64_asan_no_lsan_verify_heap_dchecks',
+        'release_x64_asan_no_lsan_verify_heap_dchecks_undefined_double',
       'V8 Clusterfuzz Mac64 ASAN - release builder':
-          'release_x64_asan_no_lsan_verify_heap',
+          'release_x64_asan_no_lsan_verify_heap_undefined_double',
       'V8 Clusterfuzz Mac64 ASAN - debug builder':
-          'debug_x64_asan_no_lsan_static',
+          'debug_x64_asan_no_lsan_static_undefined_double',
       'V8 Clusterfuzz Linux64 - release builder':
-          'release_x64_correctness_fuzzer',
-      'V8 Clusterfuzz Linux64 - debug builder': 'debug_x64',
+          'release_x64_correctness_fuzzer_undefined_double',
+      'V8 Clusterfuzz Linux64 - debug builder': 'debug_x64_undefined_double',
       'V8 Clusterfuzz Linux64 ASAN no inline - release builder':
-          'release_x64_asan_symbolized_verify_heap',
+          'release_x64_asan_symbolized_verify_heap_undefined_double',
       'V8 Clusterfuzz Linux ASAN no inline - release builder':
-          'release_x86_asan_symbolized_verify_heap',
-      'V8 Clusterfuzz Linux64 ASAN - debug builder': 'debug_x64_asan',
+          'release_x86_asan_symbolized_verify_heap_undefined_double',
+      'V8 Clusterfuzz Linux64 ASAN - debug builder': 'debug_x64_asan_undefined_double',
       'V8 Clusterfuzz Linux64 ASAN - undefined double - debug builder': 'debug_x64_asan_undefined_double',
-      'V8 Clusterfuzz Linux ASAN - debug builder': 'debug_x86_asan',
+      'V8 Clusterfuzz Linux ASAN - debug builder': 'debug_x86_asan_undefined_double',
       'V8 Clusterfuzz Linux64 ASAN arm64 - debug builder':
-          'debug_simulate_arm64_asan',
-      'V8 Clusterfuzz Linux - debug builder': 'debug_x86',
+          'debug_simulate_arm64_asan_undefined_double',
+      'V8 Clusterfuzz Linux - debug builder': 'debug_x86_undefined_double',
       'V8 Clusterfuzz Linux ASAN arm - debug builder':
-          'debug_simulate_arm_asan',
+          'debug_simulate_arm_asan_undefined_double',
       'V8 Clusterfuzz Linux64 CFI - release builder':
-          'release_x64_cfi_clusterfuzz',
+          'release_x64_cfi_clusterfuzz_undefined_double',
       'V8 Clusterfuzz Linux MSAN no origins':
-          'release_simulate_arm64_msan_no_origins',
+          'release_simulate_arm64_msan_no_origins_undefined_double',
       'V8 Clusterfuzz Linux MSAN chained origins':
-          'release_simulate_arm64_msan',
-      'V8 Clusterfuzz Linux64 TSAN - release builder': 'release_x64_tsan',
+          'release_simulate_arm64_msan_undefined_double',
+      'V8 Clusterfuzz Linux64 TSAN - release builder': 'release_x64_tsan_undefined_double',
       'V8 Clusterfuzz Linux64 UBSan - release builder':
-          'release_x64_ubsan_recover',
+          'release_x64_ubsan_recover_undefined_double',
       'V8 Clusterfuzz Linux64 sandbox testing - release builder':
-          'release_x64_sandbox_testing',
+          'release_x64_sandbox_testing_undefined_double',
       'V8 Clusterfuzz Linux64 ASAN sandbox testing - release builder':
-          'release_x64_asan_sandbox_testing',
+          'release_x64_asan_sandbox_testing_undefined_double',
     },
     'client.v8.perf' : {
       # Arm
@@ -232,7 +233,9 @@
       'V8 Linux - ppc64 - sim - builder': 'release_simulate_ppc64',
       'V8 Linux - s390x - sim - builder': 'release_simulate_s390x',
       # RISC-V
+      'V8 Linux - riscv32 - sim - debug builder': 'debug_simulate_riscv32',
       'V8 Linux - riscv32 - sim - builder': 'release_simulate_riscv32',
+      'V8 Linux - riscv64 - sim - debug builder': 'debug_simulate_riscv64',
       'V8 Linux - riscv64 - sim - builder': 'release_simulate_riscv64',
       'V8 Linux - riscv64 - sim - pointer compression - builder': 'release_simulate_riscv64_pointer_compression',
       # Loongson
@@ -275,6 +278,7 @@
       'v8_linux64_dict_tracking_compile_dbg': 'debug_x64_dict_tracking_trybot',
       'v8_linux64_disable_runtime_call_stats_compile_rel': 'release_x64_disable_runtime_call_stats',
       'v8_linux64_css_compile_dbg': 'debug_x64_conservative_stack_scanning',
+      'v8_linux64_full_compile_dbg': 'full_debug_x64',
       'v8_linux64_gc_stress_custom_snapshot_compile_dbg': 'debug_x64_trybot_custom',
       'v8_linux64_gc_stress_compile_dbg': 'debug_x64_trybot',
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
@@ -300,14 +304,16 @@
       'v8_linux64_arm64_no_wasm_compile_dbg': 'debug_arm64_webassembly_disabled',
       'v8_linux64_verify_csa_compile_rel': 'release_x64_verify_csa',
       'v8_linux64_asan_compile_rel': 'release_x64_asan_minimal_symbols',
-      'v8_linux64_sandbox_testing_compile_rel': 'release_x64_sandbox_testing',
-      'v8_linux64_asan_sandbox_testing_compile_rel': 'release_x64_asan_sandbox_testing',
+      'v8_linux64_sandbox_testing_compile_rel': 'release_x64_sandbox_testing_undefined_double',
+      'v8_linux64_asan_sandbox_testing_compile_rel': 'release_x64_asan_sandbox_testing_undefined_double',
       'v8_linux64_cfi_compile_rel': 'release_x64_cfi',
       'v8_linux64_fuzzilli_compile_rel': 'release_x64_fuzzilli',
       'v8_linux64_loong64_compile_rel': 'release_simulate_loong64',
       'v8_linux64_lower_limits_compile_rel': 'release_x64_lower_limits',
       'v8_linux64_msan_compile_rel': 'release_simulate_arm64_msan_minimal_symbols',
+      'v8_linux_riscv32_compile_dbg': 'debug_simulate_riscv32',
       'v8_linux_riscv32_compile_rel': 'release_simulate_riscv32',
+      'v8_linux64_riscv64_compile_dbg': 'debug_simulate_riscv64',
       'v8_linux64_riscv64_compile_rel': 'release_simulate_riscv64',
       'v8_linux64_riscv64_pointer_compression_compile_rel': 'release_simulate_riscv64_pointer_compression',
       'v8_linux64_sticky_mark_bits_compile_dbg': 'debug_x64_sticky_mark_bits',
@@ -351,7 +357,7 @@
       'v8_linux_arm64_compile_dbg': 'debug_simulate_arm64',
       'v8_linux_arm64_gc_stress_compile_dbg': 'debug_simulate_arm64',
       'v8_linux_mips64el_compile_rel': 'release_simulate_mips64el',
-      'v8_numfuzz_asan_compile_rel': 'release_x64_asan_symbolized_verify_heap',
+      'v8_numfuzz_asan_compile_rel': 'release_x64_asan_symbolized_verify_heap_undefined_double',
       'v8_numfuzz_compile_rel': 'release_x64',
       'v8_numfuzz_compile_dbg': 'debug_x64',
       'v8_numfuzz_tsan_compile_rel': 'release_x64_tsan',
@@ -450,14 +456,19 @@
     # Debug configs for simulators.
     'debug_simulate_arm': [
       'debug_bot', 'simulate_arm'],
-    'debug_simulate_arm_asan': [
-      'debug_bot', 'simulate_arm', 'asan'],
+    'debug_simulate_arm_asan_undefined_double': [
+      'debug_bot', 'simulate_arm', 'asan', 'v8_enable_undefined_double'],
     'debug_simulate_arm_lite': [
       'debug_bot', 'simulate_arm', 'v8_enable_lite_mode'],
     'debug_simulate_arm64': [
       'debug_bot', 'simulate_arm64'],
-    'debug_simulate_arm64_asan': [
-      'debug_bot', 'simulate_arm64', 'asan', 'lsan'],
+    'debug_simulate_arm64_asan_undefined_double': [
+      'debug_bot', 'simulate_arm64', 'asan', 'lsan',
+      'v8_enable_undefined_double'],
+    'debug_simulate_riscv32': [
+      'debug_bot', 'simulate_riscv32'],
+    'debug_simulate_riscv64': [
+      'debug_bot', 'simulate_riscv64'],
 
     # Release configs for simulators.
     'release_simulate_arm_gcmole': [
@@ -481,10 +492,11 @@
       'release_bot', 'simulate_arm64', 'msan'],
     'release_simulate_arm64_msan_minimal_symbols': [
       'release_bot', 'simulate_arm64', 'msan', 'minimal_symbols'],
-    'release_simulate_arm64_msan_no_origins': [
-      'release_bot', 'simulate_arm64', 'msan_no_origins'],
-    'release_simulate_arm64_msan': [
-      'release_bot', 'simulate_arm64', 'msan'],
+    'release_simulate_arm64_msan_no_origins_undefined_double': [
+      'release_bot', 'simulate_arm64', 'msan_no_origins',
+      'v8_enable_undefined_double'],
+    'release_simulate_arm64_msan_undefined_double': [
+      'release_bot', 'simulate_arm64', 'msan', 'v8_enable_undefined_double'],
     'release_simulate_loong64': [
       'release_bot', 'simulate_loong64'],
     'release_simulate_mips64el': [
@@ -578,25 +590,27 @@
       'release_bot', 'x64', 'asan', 'lsan', 'minimal_symbols'],
     'release_x64_asan_no_lsan': [
       'release_bot', 'x64', 'asan'],
-    'release_x64_asan_no_lsan_verify_heap': [
-      'release_bot', 'x64', 'asan', 'v8_verify_heap'],
-    'release_x64_asan_no_lsan_verify_heap_dchecks': [
+    'release_x64_asan_no_lsan_verify_heap_undefined_double': [
+      'release_bot', 'x64', 'asan', 'v8_verify_heap',
+      'v8_enable_undefined_double'],
+    'release_x64_asan_no_lsan_verify_heap_dchecks_undefined_double': [
       'release_bot', 'x64', 'asan', 'dcheck_always_on',
-      'v8_enable_slow_dchecks', 'v8_verify_heap'],
-    'release_x64_sandbox_testing': [
-      'release_bot', 'x64', 'symbolized', 'backtrace', 'v8_enable_memory_corruption_api'],
-    'release_x64_asan_sandbox_testing': [
+      'v8_enable_slow_dchecks', 'v8_verify_heap', 'v8_enable_undefined_double'],
+    'release_x64_sandbox_testing_undefined_double': [
+      'release_bot', 'x64', 'symbolized', 'backtrace', 'v8_enable_memory_corruption_api',
+      'v8_enable_undefined_double'],
+    'release_x64_asan_sandbox_testing_undefined_double': [
       'release_bot', 'x64', 'asan', 'symbolized',
-      'v8_enable_memory_corruption_api'],
-    'release_x64_asan_symbolized_verify_heap': [
+      'v8_enable_memory_corruption_api', 'v8_enable_undefined_double'],
+    'release_x64_asan_symbolized_verify_heap_undefined_double': [
       'release_bot', 'x64', 'asan', 'lsan', 'symbolized',
-      'v8_verify_heap'],
+      'v8_verify_heap', 'v8_enable_undefined_double'],
     'release_x64_cet_shadow_stack': [
       'release_bot', 'x64', 'cet_shadow_stack'],
     'release_x64_cfi': [
       'release_bot', 'x64', 'cfi'],
-    'release_x64_cfi_clusterfuzz': [
-      'release_bot', 'x64', 'cfi_clusterfuzz'],
+    'release_x64_cfi_clusterfuzz_undefined_double': [
+      'release_bot', 'x64', 'cfi_clusterfuzz', 'v8_enable_undefined_double'],
     'release_x64_coverage': [
       'release_bot', 'x64', 'clang_coverage'],
     'release_x64_fuzzilli': [
@@ -604,8 +618,9 @@
       'v8_verify_heap', 'v8_verify_csa', 'fuzzilli'],
     'release_x64_gcmole': [
       'release_bot', 'x64', 'gcmole'],
-    'release_x64_correctness_fuzzer' : [
-      'release_bot', 'x64', 'v8_correctness_fuzzer'],
+    'release_x64_correctness_fuzzer_undefined_double' : [
+      'release_bot', 'x64', 'v8_correctness_fuzzer',
+      'v8_enable_undefined_double'],
     'release_x64_disable_runtime_call_stats': [
       'release_bot', 'x64', 'v8_disable_runtime_call_stats'],
     'release_x64_fuchsia': [
@@ -641,14 +656,14 @@
       'release_bot', 'x64', 'tsan', 'disable_concurrent_marking'],
     'release_x64_tsan_minimal_symbols': [
       'release_bot', 'x64', 'tsan', 'minimal_symbols'],
-    'release_x64_tsan': [
-      'release_bot', 'x64', 'tsan'],
+    'release_x64_tsan_undefined_double': [
+      'release_bot', 'x64', 'tsan', 'v8_enable_undefined_double'],
     'release_x64_ubsan': [
       'release_bot', 'x64', 'ubsan'],
     'release_x64_ubsan_minimal_symbols': [
       'release_bot', 'x64', 'ubsan', 'minimal_symbols'],
-    'release_x64_ubsan_recover': [
-      'release_bot', 'x64', 'ubsan_recover'],
+    'release_x64_ubsan_recover_undefined_double': [
+      'release_bot', 'x64', 'ubsan_recover', 'v8_enable_undefined_double'],
     'release_x64_shared_verify_heap': [
       'release_bot', 'x64', 'shared', 'v8_verify_heap'],
     'release_x64_verify_builtins': [
@@ -674,13 +689,13 @@
     # Debug configs for x64.
     'debug_x64': [
       'debug_bot', 'x64'],
-    'debug_x64_asan': [
-      'debug_bot', 'x64', 'asan', 'lsan'],
+    'debug_x64_asan_undefined_double': [
+      'debug_bot', 'x64', 'asan', 'lsan', 'v8_enable_undefined_double'],
     'debug_x64_asan_centipede': [
       'debug_bot', 'x64', 'asan', 'use_centipede'],
-    'debug_x64_asan_no_lsan_static': [
+    'debug_x64_asan_no_lsan_static_undefined_double': [
       'debug', 'static', 'remoteexec', 'v8_enable_slow_dchecks',
-      'v8_optimized_debug', 'x64', 'asan'],
+      'v8_optimized_debug', 'x64', 'asan', 'v8_enable_undefined_double'],
     'debug_x64_asan_undefined_double': [
       'debug_bot', 'x64', 'asan', 'v8_enable_undefined_double'],
     'debug_x64_conservative_stack_scanning': [
@@ -715,8 +730,8 @@
       'debug_bot', 'x64', 'v8_enable_sticky_mark_bits'],
     'debug_x64_trybot': [
       'debug_trybot', 'x64'],
-    'debug_x64': [
-      'debug_bot', 'x64'],
+    'debug_x64_undefined_double': [
+      'debug_bot', 'x64', 'v8_enable_undefined_double'],
     'debug_x64_dict_tracking_trybot': [
       'debug_trybot', 'x64', 'v8_enable_dict_property_const_tracking'],
     'debug_x64_trybot_custom': [
@@ -732,25 +747,25 @@
     # Debug configs for x86.
     'debug_x86': [
       'debug_bot', 'x86'],
-    'debug_x86_asan': [
-      'debug_bot', 'x86', 'asan', 'lsan'],
+    'debug_x86_asan_undefined_double': [
+      'debug_bot', 'x86', 'asan', 'lsan', 'v8_enable_undefined_double'],
     'debug_x86_minimal_symbols': [
       'debug_bot', 'x86', 'minimal_symbols'],
     'debug_x86_no_i18n': [
       'debug_bot', 'x86', 'v8_no_i18n'],
     'debug_x86_trybot': [
       'debug_trybot', 'x86'],
-    'debug_x86': [
-      'debug_bot', 'x86'],
+    'debug_x86_undefined_double': [
+      'debug_bot', 'x86', 'v8_enable_undefined_double'],
     'debug_x86_vtunejit': [
       'debug_bot', 'x86', 'v8_enable_vtunejit'],
     'full_debug_x86': [
       'debug', 'x86', 'remoteexec', 'v8_enable_slow_dchecks', 'v8_full_debug'],
 
     # Release configs for x86.
-    'release_x86_asan_symbolized_verify_heap': [
+    'release_x86_asan_symbolized_verify_heap_undefined_double': [
       'release_bot', 'x86', 'asan', 'lsan', 'symbolized',
-      'v8_verify_heap'],
+      'v8_verify_heap', 'v8_enable_undefined_double'],
     'release_x86_gcmole': [
       'release_bot', 'x86', 'gcmole'],
     'release_x86_gcmole_trybot': [
@@ -1136,7 +1151,7 @@
     },
 
     'v8_enable_undefined_double': {
-      'gn_args': 'v8_enable_experimental_undefined_double=true',
+      'gn_args': 'v8_enable_undefined_double=true',
     },
 
     'v8_enable_verify_predictable': {

@@ -1374,14 +1374,24 @@ void InstructionSelector::VisitI16x8SConvertI32x4(OpIndex node) {
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
   InstructionCode opcode = kRiscvI16x8SConvertI32x4;
-  // Request a register group (two adjacent registers starting at an even
-  // index). There is nothing special about the registers, as long as they
-  // are adjacent and start at an even index.
-  // Fixed registers also ensure that the inputs don't overlap with the output.
-  auto input0 = g.UseFixed(op.input(0), v28);
-  auto input1 = g.UseFixed(op.input(1), v29);
-  opcode |= EncodeRegisterConstraint(
-      RiscvRegisterConstraint::kRegisterGroupNoOverlap);
+  InstructionOperand input0;
+  InstructionOperand input1;
+  if (CpuFeatures::vlen() > 128) {
+    // No need for register groups, as one register is big enough to hold
+    // 256 bits.
+    input0 = g.UseRegister(op.input(0));
+    input1 = g.UseRegister(op.input(1));
+  } else {
+    // Request a register group (two adjacent registers starting at an even
+    // index). There is nothing special about the registers, as long as they
+    // are adjacent and start at an even index.
+    // Fixed registers also ensure that the inputs don't overlap with the
+    // output.
+    input0 = g.UseFixed(op.input(0), v28);
+    input1 = g.UseFixed(op.input(1), v29);
+    opcode |= EncodeRegisterConstraint(
+        RiscvRegisterConstraint::kRegisterGroupNoOverlap);
+  }
   Emit(opcode, g.DefineAsRegister(node), input0, input1);
 }
 
@@ -1390,14 +1400,24 @@ void InstructionSelector::VisitI16x8UConvertI32x4(OpIndex node) {
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
   InstructionCode opcode = kRiscvI16x8UConvertI32x4;
-  // Request a register group (two adjacent registers starting at an even
-  // index). There is nothing special about the registers, as long as they
-  // are adjacent and start at an even index.
-  // Fixed registers also ensure that the inputs don't overlap with the output.
-  auto input0 = g.UseFixed(op.input(0), v28);
-  auto input1 = g.UseFixed(op.input(1), v29);
-  opcode |= EncodeRegisterConstraint(
-      RiscvRegisterConstraint::kRegisterGroupNoOverlap);
+  InstructionOperand input0;
+  InstructionOperand input1;
+  if (CpuFeatures::vlen() > 128) {
+    // No need for register groups, as one register is big enough to hold
+    // 256 bits.
+    input0 = g.UseRegister(op.input(0));
+    input1 = g.UseRegister(op.input(1));
+  } else {
+    // Request a register group (two adjacent registers starting at an even
+    // index). There is nothing special about the registers, as long as they
+    // are adjacent and start at an even index.
+    // Fixed registers also ensure that the inputs don't overlap with the
+    // output.
+    input0 = g.UseFixed(op.input(0), v28);
+    input1 = g.UseFixed(op.input(1), v29);
+    opcode |= EncodeRegisterConstraint(
+        RiscvRegisterConstraint::kRegisterGroupNoOverlap);
+  }
   Emit(opcode, g.DefineAsRegister(node), input0, input1);
 }
 
@@ -1414,14 +1434,24 @@ void InstructionSelector::VisitI8x16SConvertI16x8(OpIndex node) {
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
   InstructionCode opcode = kRiscvI8x16SConvertI16x8;
-  // Request a register group (two adjacent registers starting at an even
-  // index). There is nothing special about the registers, as long as they
-  // are adjacent and start at an even index.
-  // Fixed registers also ensure that the inputs don't overlap with the output.
-  auto input0 = g.UseFixed(op.input(0), v28);
-  auto input1 = g.UseFixed(op.input(1), v29);
-  opcode |= EncodeRegisterConstraint(
-      RiscvRegisterConstraint::kRegisterGroupNoOverlap);
+  InstructionOperand input0;
+  InstructionOperand input1;
+  if (CpuFeatures::vlen() > 128) {
+    // No need for register groups, as one register is big enough to hold
+    // 256 bits.
+    input0 = g.UseRegister(op.input(0));
+    input1 = g.UseRegister(op.input(1));
+  } else {
+    // Request a register group (two adjacent registers starting at an even
+    // index). There is nothing special about the registers, as long as they
+    // are adjacent and start at an even index.
+    // Fixed registers also ensure that the inputs don't overlap with the
+    // output.
+    input0 = g.UseFixed(op.input(0), v28);
+    input1 = g.UseFixed(op.input(1), v29);
+    opcode |= EncodeRegisterConstraint(
+        RiscvRegisterConstraint::kRegisterGroupNoOverlap);
+  }
   Emit(opcode, g.DefineAsRegister(node), input0, input1);
 }
 
@@ -1430,14 +1460,24 @@ void InstructionSelector::VisitI8x16UConvertI16x8(OpIndex node) {
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
   InstructionCode opcode = kRiscvI8x16UConvertI16x8;
-  // Request a register group (two adjacent registers starting at an even
-  // index). There is nothing special about the registers, as long as they
-  // are adjacent and start at an even index.
-  // Fixed registers also ensure that the inputs don't overlap with the output.
-  auto input0 = g.UseFixed(op.input(0), v28);
-  auto input1 = g.UseFixed(op.input(1), v29);
-  opcode |= EncodeRegisterConstraint(
-      RiscvRegisterConstraint::kRegisterGroupNoOverlap);
+  InstructionOperand input0;
+  InstructionOperand input1;
+  if (CpuFeatures::vlen() > 128) {
+    // No need for register groups, as one register is big enough to hold
+    // 256 bits.
+    input0 = g.UseRegister(op.input(0));
+    input1 = g.UseRegister(op.input(1));
+  } else {
+    // Request a register group (two adjacent registers starting at an even
+    // index). There is nothing special about the registers, as long as they
+    // are adjacent and start at an even index.
+    // Fixed registers also ensure that the inputs don't overlap with the
+    // output.
+    input0 = g.UseFixed(op.input(0), v28);
+    input1 = g.UseFixed(op.input(1), v29);
+    opcode |= EncodeRegisterConstraint(
+        RiscvRegisterConstraint::kRegisterGroupNoOverlap);
+  }
   Emit(opcode, g.DefineAsRegister(node), input0, input1);
 }
 

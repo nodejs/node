@@ -18,43 +18,133 @@
 
 namespace v8::internal::maglev {
 
-class ClearReturnedValueUsesFromDeoptFrames {
+// Recomputes the use hints for all Phi nodes in the graph. This is
+// necessary after inlining, as the original use hints may be out of date.
+// For example, a Phi node in the caller's graph might now be used by a node
+// from the inlined function, and this new use needs to be recorded.
+//
+// This processor first clears all existing use hints on all Phi nodes. Then,
+// it iterates through all nodes in the graph and re-calculates the use hints
+// for any Phi nodes that are used as inputs.
+class RecomputePhiUseHintsProcessor {
  public:
-  explicit ClearReturnedValueUsesFromDeoptFrames(Zone* zone) : visited_(zone) {}
+#define TRACE_PHI_USE_HINTS(x)                                \
+  do {                                                        \
+    if (V8_UNLIKELY(v8_flags.trace_maglev_phi_untagging)) {   \
+      StdoutStream() << "[phi use hints] " << x << std::endl; \
+    }                                                         \
+  } while (false)
+
+  explicit RecomputePhiUseHintsProcessor(Zone* zone) : live_loop_phis_(zone) {}
+
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
   void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
-    if (block->is_loop()) {
-      DeoptFrame* deopt_frame = block->state()->backedge_deopt_frame();
-      if (deopt_frame && !visited_.contains(deopt_frame)) {
-        EagerDeoptInfo(nullptr, deopt_frame, {}).UnwrapIdentities();
-        visited_.insert(deopt_frame);
+    if (!block->has_phi()) return BlockProcessResult::kContinue;
+    Phi::List& phis = *block->phis();
+    bool is_loop_header = block->is_loop();
+    for (auto it = phis.begin(); it != phis.end(); ++it) {
+      TRACE_PHI_USE_HINTS(
+          "cleaning use hints for "
+          << PrintNodeLabel(*it)
+          << " previous values:  use_reprs=" << (*it)->use_repr_hints()
+          << " and same_loop_use_reprs=" << (*it)->same_loop_use_repr_hints());
+      it->ClearUseHints();
+      if (is_loop_header) {
+        live_loop_phis_.insert(*it);
       }
     }
     return BlockProcessResult::kContinue;
   }
   void PostPhiProcessing() {}
-  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
-    if (!v8_flags.maglev_non_eager_inlining) return ProcessResult::kContinue;
-    // While visiting the deopt info, the iterator will clear the identity nodes
-    // automatically.
-    if (node->properties().can_lazy_deopt() &&
-        !visited_.contains(&node->lazy_deopt_info()->top_frame())) {
-      node->lazy_deopt_info()->UnwrapIdentities();
-      visited_.insert(&node->lazy_deopt_info()->top_frame());
+
+  ProcessResult Process(JumpLoop* node, const ProcessingState& state) {
+    BasicBlock* loop_header = node->target();
+    DCHECK(loop_header->is_loop());
+    if (!loop_header->has_phi()) return ProcessResult::kContinue;
+    Phi::List& phis = *loop_header->phis();
+    for (auto it = phis.begin(); it != phis.end(); ++it) {
+      for (Input input : it->inputs()) {
+        if (!input.node()) continue;
+        if (Phi* input_phi = input.node()->TryCast<Phi>()) {
+          input_phi->RecordUseReprHint((*it)->use_repr_hints());
+          TRACE_PHI_USE_HINTS("updating use hints for "
+                              << PrintNodeLabel(input_phi)
+                              << ": use_reprs=" << input_phi->use_repr_hints()
+                              << " and same_loop_use_reprs="
+                              << input_phi->same_loop_use_repr_hints());
+        }
+      }
+      DCHECK(live_loop_phis_.contains(*it));
+      live_loop_phis_.erase(*it);
     }
-    if (node->properties().can_eager_deopt() &&
-        !visited_.contains(&node->eager_deopt_info()->top_frame())) {
-      node->eager_deopt_info()->UnwrapIdentities();
-      visited_.insert(&node->eager_deopt_info()->top_frame());
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(Phi* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
+    DCHECK(!node->Is<Phi>());
+    for (Input input : node->inputs()) {
+      if (!input.node()) continue;
+      if (Phi* phi = input.node()->TryCast<Phi>()) {
+        UseRepresentation use_repr = UseRepresentation::kTagged;
+        if (node->properties().is_conversion()) {
+          use_repr = UseRepresentationFromValue(
+              node->Cast<ValueNode>()->value_representation());
+        } else if (node->Is<ReturnedValue>()) {
+          ValueNode* unwrapped = node->input_node(0);
+          while (!unwrapped->Is<ReturnedValue>()) {
+            unwrapped = unwrapped->input_node(0);
+          }
+          DCHECK(!unwrapped->properties().is_conversion());
+          DCHECK(!node->Is<TruncateCheckedNumberOrOddballToInt32>());
+          DCHECK(!node->Is<TruncateUnsafeNumberOrOddballToInt32>());
+          DCHECK(!node->Is<TruncateUint32ToInt32>());
+          DCHECK(!node->Is<TruncateHoleyFloat64ToInt32>());
+          use_repr =
+              UseRepresentationFromValue(unwrapped->value_representation());
+        } else if (node->Is<TruncateUint32ToInt32>() ||
+                   node->Is<TruncateHoleyFloat64ToInt32>() ||
+                   node->Is<TruncateCheckedNumberOrOddballToInt32>() ||
+                   node->Is<TruncateUnsafeNumberOrOddballToInt32>()) {
+          use_repr = UseRepresentation::kTruncatedInt32;
+        }
+        phi->RecordUseReprHint(UseRepresentationSet{use_repr},
+                               live_loop_phis_.contains(phi));
+        TRACE_PHI_USE_HINTS(
+            "updating use hints for "
+            << PrintNodeLabel(phi) << ": use_reprs=" << phi->use_repr_hints()
+            << " and same_loop_use_reprs=" << phi->same_loop_use_repr_hints()
+            << " after visiting input " << PrintNode(node));
+      }
     }
     return ProcessResult::kContinue;
   }
 
  private:
-  // DeoptFrames are shared, so we save if we have already visited it.
-  ZoneUnorderedSet<DeoptFrame*> visited_;
+  ZoneAbslFlatHashSet<Phi*> live_loop_phis_;
+
+  constexpr UseRepresentation UseRepresentationFromValue(
+      ValueRepresentation repr) {
+    switch (repr) {
+      case ValueRepresentation::kInt32:
+        return UseRepresentation::kInt32;
+      case ValueRepresentation::kUint32:
+        return UseRepresentation::kUint32;
+      case ValueRepresentation::kFloat64:
+        return UseRepresentation::kFloat64;
+      case ValueRepresentation::kHoleyFloat64:
+        return UseRepresentation::kHoleyFloat64;
+      default:
+        return UseRepresentation::kTagged;
+    }
+    UNREACHABLE();
+  }
+#undef TRACE_PHI_USE_HINTS
 };
 
 // Optimizations involving loops which cannot be done at graph building time.

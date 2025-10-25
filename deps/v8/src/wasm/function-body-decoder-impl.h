@@ -1536,7 +1536,7 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     const Value& length)                                                       \
   F(I31GetS, const Value& input, Value* result)                                \
   F(I31GetU, const Value& input, Value* result)                                \
-  F(RefGetDesc, const Value& ref, Value* desc)                                 \
+  F(RefGetDesc, ModuleTypeIndex struct_index, const Value& ref, Value* desc)   \
   F(RefTest, HeapType target_type, const Value& obj, Value* result,            \
     bool null_succeeds)                                                        \
   F(RefTestAbstract, const Value& obj, HeapType type, Value* result,           \
@@ -4243,9 +4243,17 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (!this->ValidateFunction(this->pc_ + 1, imm)) return 0;
     ModuleTypeIndex index = this->module_->functions[imm.index].sig_index;
     const TypeDefinition& type_def = this->module_->type(index);
-    Value* value =
-        Push(ValueType::Ref(index, type_def.is_shared, RefTypeKind::kFunction)
-                 .AsExactIfEnabled(this->enabled_));
+    ValueType result_type =
+        ValueType::Ref(index, type_def.is_shared, RefTypeKind::kFunction);
+    // For imported functions, we must return an inexact type, because
+    // importing checks subtyping, i.e. for function types f1 <: f2, it is
+    // legal to provide a function with type f1 when one with type f2 is
+    // expected.
+    if (this->enabled_.has_custom_descriptors() &&
+        imm.index >= this->module_->num_imported_functions) {
+      result_type = result_type.AsExact();
+    }
+    Value* value = Push(result_type);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(RefFunc, imm.index, value);
     return 1 + imm.length;
   }
@@ -6007,10 +6015,28 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return 0;
         }
         Value ref = Pop(ValueType::RefNull(imm.heap_type()));
+        // "none" and "bottom" are subtypes of "exact $t", and to maintain
+        // subsumption, the result must not be less specific when the input is
+        // more specific, so here we must treat them both as if they were exact.
+        // See example at:
+        // https://github.com/WebAssembly/custom-descriptors/issues/48
+        Exactness result_exactness = ref.type.exactness();
+        if (ref.type == kWasmNullRef || ref.type == kWasmRefNone ||
+            ref.type == kWasmBottom) {
+          result_exactness = kExact;
+        } else {
+          // All other generic types would have failed validation above.
+          DCHECK(ref.type.has_index());
+          // Exactness is only propagated if the actual type on the stack
+          // exactly matched the type immediate.
+          if (ref.type.ref_index() != imm.index) {
+            result_exactness = kAnySubtype;
+          }
+        }
         Value* desc =
             Push(ValueType::Ref(this->module_->heap_type(type.descriptor))
-                     .AsExact(ref.type.exactness()));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(RefGetDesc, ref, desc);
+                     .AsExact(result_exactness));
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(RefGetDesc, imm.index, ref, desc);
         return opcode_length + imm.length;
       }
       case kExprRefCastDesc:

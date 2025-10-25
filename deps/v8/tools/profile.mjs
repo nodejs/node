@@ -397,9 +397,13 @@ export class Profile {
         return this.CodeState.SPARKPLUG;
       case '+':
       case '+\'':
+      case 'o+':
+      case 'o+\'':
         return this.CodeState.MAGLEV;
       case '*':
       case '*\'':
+      case 'o*':
+      case 'o*\'':
         return this.CodeState.TURBOFAN;
     }
     throw new Error(`unknown code state: ${s}`);

@@ -806,7 +806,8 @@ void AsmJsParser::ValidateFunction() {
   }
 
   // Check against limit on number of local variables.
-  if (locals.size() + function_temp_locals_used_ > kV8MaxWasmFunctionLocals) {
+  if (locals.size() + function_temp_locals_used_ + params.size() >
+      kV8MaxWasmFunctionLocals) {
     FAIL("Number of local variables exceeds internal limit");
   }
 

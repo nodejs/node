@@ -85,15 +85,9 @@ void JSDispatchTable::InitializePreAllocatedEntry(Space* space,
                                 parameter_count, space->allocate_black());
 }
 
-#if V8_VERIFY_WRITE_BARRIERS
-bool JSDispatchTable::IsMarked(JSDispatchHandle handle) {
-  return at(HandleToIndex(handle)).IsMarked();
-}
-#endif  // V8_VERIFY_WRITE_BARRIERS
-
 void JSDispatchTable::PrintEntry(JSDispatchHandle handle) {
   uint32_t index = HandleToIndex(handle);
-  i::PrintF("JSDispatchEntry @ %p\n", &at(index));
+  i::PrintF("JSDispatchEntry (handle: %u) @ %p\n", handle.value(), &at(index));
   i::PrintF("* code %p\n", reinterpret_cast<void*>(GetCode(handle).address()));
   i::PrintF("* params %d\n", at(HandleToIndex(handle)).GetParameterCount());
   i::PrintF("* entrypoint %p\n",

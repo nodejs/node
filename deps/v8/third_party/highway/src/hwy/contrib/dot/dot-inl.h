@@ -23,6 +23,7 @@
 #endif
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include "hwy/highway.h"
 
@@ -30,6 +31,8 @@ HWY_BEFORE_NAMESPACE();
 namespace hwy {
 namespace HWY_NAMESPACE {
 
+// NOTE: the D argument describes the inputs, not the output, because both
+// f32/f32, bf16/bf16, and f32/bf16 inputs accumulate to f32.
 struct Dot {
   // Specify zero or more of these, ORed together, as the kAssumptions template
   // argument to Compute. Each one may improve performance or reduce code size,
@@ -56,7 +59,7 @@ struct Dot {
     static_assert(IsFloat<T>(), "MulAdd requires float type");
     using V = decltype(Zero(d));
 
-    const size_t N = Lanes(d);
+    HWY_LANES_CONSTEXPR size_t N = Lanes(d);
     size_t i = 0;
 
     constexpr bool kIsAtLeastOneVector =
@@ -163,7 +166,7 @@ struct Dot {
     const Half<decltype(dbf)> dbfh;
     using VF = decltype(Zero(df));
 
-    const size_t NF = Lanes(df);
+    HWY_LANES_CONSTEXPR size_t NF = Lanes(df);
 
     constexpr bool kIsAtLeastOneVector =
         (kAssumptions & kAtLeastOneVector) != 0;
@@ -267,7 +270,7 @@ struct Dot {
     const Repartition<float, D> df32;
 
     using V = decltype(Zero(df32));
-    const size_t N = Lanes(d);
+    HWY_LANES_CONSTEXPR size_t N = Lanes(d);
     size_t i = 0;
 
     constexpr bool kIsAtLeastOneVector =
@@ -350,6 +353,102 @@ struct Dot {
     sum2 = Add(sum2, sum3);
     sum0 = Add(sum0, sum2);
     return ReduceSum(df32, sum0);
+  }
+
+  // Returns sum{i32(pa[i]) * i32(pb[i])} for i16 inputs. Aligning the pointers
+  // to a multiple of N elements is helpful but not required.
+  template <int kAssumptions, class D, HWY_IF_I16_D(D)>
+  static HWY_INLINE int32_t Compute(const D d,
+                                    const int16_t* const HWY_RESTRICT pa,
+                                    const int16_t* const HWY_RESTRICT pb,
+                                    const size_t num_elements) {
+    const RebindToUnsigned<D> du16;
+    const RepartitionToWide<D> di32;
+
+    using VI32 = Vec<decltype(di32)>;
+    HWY_LANES_CONSTEXPR size_t N = Lanes(d);
+    size_t i = 0;
+
+    constexpr bool kIsAtLeastOneVector =
+        (kAssumptions & kAtLeastOneVector) != 0;
+    constexpr bool kIsMultipleOfVector =
+        (kAssumptions & kMultipleOfVector) != 0;
+    constexpr bool kIsPaddedToVector = (kAssumptions & kPaddedToVector) != 0;
+
+    // Won't be able to do a full vector load without padding => scalar loop.
+    if (!kIsAtLeastOneVector && !kIsMultipleOfVector && !kIsPaddedToVector &&
+        HWY_UNLIKELY(num_elements < N)) {
+      int32_t sum0 = 0;  // Only 2x unroll to avoid excessive code size for..
+      int32_t sum1 = 0;  // this unlikely(?) case.
+      for (; i + 2 <= num_elements; i += 2) {
+        sum0 += int32_t{pa[i + 0]} * int32_t{pb[i + 0]};
+        sum1 += int32_t{pa[i + 1]} * int32_t{pb[i + 1]};
+      }
+      if (i < num_elements) {
+        sum1 += int32_t{pa[i]} * int32_t{pb[i]};
+      }
+      return sum0 + sum1;
+    }
+
+    // See comment in the other Compute() overload. Unroll 2x, but we need
+    // twice as many sums for ReorderWidenMulAccumulate.
+    VI32 sum0 = Zero(di32);
+    VI32 sum1 = Zero(di32);
+    VI32 sum2 = Zero(di32);
+    VI32 sum3 = Zero(di32);
+
+    // Main loop: unrolled
+    for (; i + 2 * N <= num_elements; /* i += 2 * N */) {  // incr in loop
+      const auto a0 = LoadU(d, pa + i);
+      const auto b0 = LoadU(d, pb + i);
+      i += N;
+      sum0 = ReorderWidenMulAccumulate(di32, a0, b0, sum0, sum1);
+      const auto a1 = LoadU(d, pa + i);
+      const auto b1 = LoadU(d, pb + i);
+      i += N;
+      sum2 = ReorderWidenMulAccumulate(di32, a1, b1, sum2, sum3);
+    }
+
+    // Possibly one more iteration of whole vectors
+    if (i + N <= num_elements) {
+      const auto a0 = LoadU(d, pa + i);
+      const auto b0 = LoadU(d, pb + i);
+      i += N;
+      sum0 = ReorderWidenMulAccumulate(di32, a0, b0, sum0, sum1);
+    }
+
+    if (!kIsMultipleOfVector) {
+      const size_t remaining = num_elements - i;
+      if (remaining != 0) {
+        if (kIsPaddedToVector) {
+          const auto mask = FirstN(du16, remaining);
+          const auto va = LoadU(d, pa + i);
+          const auto vb = LoadU(d, pb + i);
+          const auto a16 = BitCast(d, IfThenElseZero(mask, BitCast(du16, va)));
+          const auto b16 = BitCast(d, IfThenElseZero(mask, BitCast(du16, vb)));
+          sum2 = ReorderWidenMulAccumulate(di32, a16, b16, sum2, sum3);
+
+        } else {
+          // Unaligned load such that the last element is in the highest lane -
+          // ensures we do not touch any elements outside the valid range.
+          // If we get here, then num_elements >= N.
+          HWY_DASSERT(i >= N);
+          i += remaining - N;
+          const auto skip = FirstN(du16, N - remaining);
+          const auto va = LoadU(d, pa + i);  // always unaligned
+          const auto vb = LoadU(d, pb + i);
+          const auto a16 = BitCast(d, IfThenZeroElse(skip, BitCast(du16, va)));
+          const auto b16 = BitCast(d, IfThenZeroElse(skip, BitCast(du16, vb)));
+          sum2 = ReorderWidenMulAccumulate(di32, a16, b16, sum2, sum3);
+        }
+      }
+    }  // kMultipleOfVector
+
+    // Reduction tree: sum of all accumulators by pairs, then across lanes.
+    sum0 = Add(sum0, sum1);
+    sum2 = Add(sum2, sum3);
+    sum0 = Add(sum0, sum2);
+    return ReduceSum(di32, sum0);
   }
 };
 

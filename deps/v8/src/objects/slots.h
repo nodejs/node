@@ -585,14 +585,27 @@ class WriteProtectedSlot : public SlotT {
 // |src| and |dst| must be kTaggedSize-aligned.
 inline void CopyTagged(Address dst, const Address src, size_t num_tagged);
 
-// Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
+// Fills `start` with `count` `value`s.
 inline void MemsetTagged(Tagged_t* start, Tagged<MaybeObject> value,
-                         size_t counter);
+                         size_t count);
 
-// Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
+// Fills `start` with `count` `value`s.
 template <typename T>
 inline void MemsetTagged(SlotBase<T, Tagged_t> start, Tagged<MaybeObject> value,
-                         size_t counter);
+                         size_t count);
+
+// Fills `start` with `count` `value`s using relaxed atomic stores.
+inline void Relaxed_MemsetTagged(Tagged_t* start, Tagged<MaybeObject> value,
+                                 size_t count);
+
+// Fills `start` with `count` `value`s using relaxed atomic stores.
+template <typename T>
+inline void Relaxed_MemsetTagged(SlotBase<T, Tagged_t> start,
+                                 Tagged<MaybeObject> value, size_t count);
+
+// Fills `start` with `count` `value`s.
+inline void MemsetPointer(FullObjectSlot start, Tagged<Object> value,
+                          size_t count);
 
 }  // namespace v8::internal
 

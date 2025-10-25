@@ -741,6 +741,9 @@ class MaglevCodeGeneratingNodeProcessor {
       __ Prologue(graph);
     }
 
+    // Maglev always sets up a frame.
+    __ set_has_frame(true);
+
     // "Deferred" computation has to be done before block removal, because
     // block removal doesn't propagate deferredness of removed blocks.
     int deferred_count = ComputeDeferred(graph);
@@ -1486,6 +1489,12 @@ class MaglevFrameTranslationBuilder {
     return kNotDuplicated;
   }
 
+  void BuildHeapNumber(const VirtualObject* vobject) {
+    DCHECK_EQ(vobject->object_type(), vobj::ObjectType::kHeapNumber);
+    ValueNode* value_node = vobject->get(HeapNumber::kValueOffset);
+    return BuildHeapNumber(value_node->Cast<Float64Constant>()->value());
+  }
+
   void BuildHeapNumber(Float64 number) {
     DirectHandle<Object> value =
         local_isolate_->factory()->NewHeapNumberFromBits<AllocationType::kOld>(
@@ -1493,27 +1502,31 @@ class MaglevFrameTranslationBuilder {
     translation_array_builder_->StoreLiteral(GetDeoptLiteral(*value));
   }
 
-  void BuildConsString(const VirtualObject* object,
-                       const InputLocation*& input_location,
-                       const VirtualObjectList& virtual_objects) {
-    auto cons_string = object->cons_string();
-    translation_array_builder_->StringConcat();
-    BuildNestedValue(cons_string.first(), input_location, virtual_objects);
-    BuildNestedValue(cons_string.second(), input_location, virtual_objects);
-  }
+  void BuildFixedDoubleArray(const VirtualObject* object,
+                             const InputLocation*& input_location,
+                             const VirtualObjectList& virtual_objects) {
+    DCHECK_EQ(object->object_type(), vobj::ObjectType::kFixedDoubleArray);
 
-  void BuildFixedDoubleArray(uint32_t length,
-                             compiler::FixedDoubleArrayRef array) {
-    translation_array_builder_->BeginCapturedObject(length + 2);
-    translation_array_builder_->StoreLiteral(
-        GetDeoptLiteral(*local_isolate_->factory()->fixed_double_array_map()));
-    translation_array_builder_->StoreLiteral(
-        GetDeoptLiteral(Smi::FromInt(length)));
-    for (uint32_t i = 0; i < length; i++) {
-      Float64 value = array.GetFromImmutableFixedDoubleArray(i);
+    using Shape = VirtualFixedDoubleArrayShape;
+    static_assert(Shape::header_slot_count == 2);
+    translation_array_builder_->BeginCapturedObject(object->slot_count());
+    BuildNestedValue(object->get(HeapObject::kMapOffset), input_location,
+                     virtual_objects);
+    BuildNestedValue(object->get(FixedArrayBase::kLengthOffset), input_location,
+                     virtual_objects);
+
+    // TODO(jgruber): It's awkward that we have to do this translation here.
+    // Move it to an earlier pass and handle FixedDoubleArray vobjects on the
+    // default path.
+    ReadOnlyRoots roots{local_isolate_};
+    for (int i = Shape::header_slot_count; i < object->slot_count(); i++) {
+      vobj::Field desc = object->FieldForSlot(i);
+      ValueNode* node = object->get(desc.offset);
+      static_assert(Shape::kElementsAreFloat64Constant);
+      Float64 value = node->Cast<Float64Constant>()->value();
       if (value.is_hole_nan()) {
         translation_array_builder_->StoreLiteral(
-            GetDeoptLiteral(ReadOnlyRoots(local_isolate_).the_hole_value()));
+            GetDeoptLiteral(roots.the_hole_value()));
       } else {
         BuildHeapNumber(value);
       }
@@ -1555,36 +1568,35 @@ class MaglevFrameTranslationBuilder {
   void BuildVirtualObject(const VirtualObject* object,
                           const InputLocation*& input_location,
                           const VirtualObjectList& virtual_objects) {
-    if (object->type() == VirtualObject::kHeapNumber) {
-      return BuildHeapNumber(object->number());
+    vobj::ObjectType object_type = object->object_type();
+    if (object_type == vobj::ObjectType::kHeapNumber) {
+      // TODO(jgruber): Could we use the standard path below instead?
+      return BuildHeapNumber(object);
     }
     int dup_id =
         GetDuplicatedId(reinterpret_cast<intptr_t>(object->allocation()));
     if (dup_id != kNotDuplicated) {
       translation_array_builder_->DuplicateObject(dup_id);
-      object->ForEachNestedRuntimeInput(virtual_objects,
-                                        [&](ValueNode*) { input_location++; });
+      object->ForEachNestedRuntimeInput(
+          virtual_objects, [&](ValueNode*) { input_location++; },
+          VirtualObject::ForEachSlotIterationMode::kForDeopt);
       return;
     }
-    switch (object->type()) {
-      case VirtualObject::kHeapNumber:
-        // Handled above.
-        UNREACHABLE();
-      case VirtualObject::kConsString:
-        return BuildConsString(object, input_location, virtual_objects);
-      case VirtualObject::kFixedDoubleArray:
-        return BuildFixedDoubleArray(object->double_elements_length(),
-                                     object->double_elements());
-      case VirtualObject::kDefault:
-        translation_array_builder_->BeginCapturedObject(object->slot_count() +
-                                                        1);
-        DCHECK(object->has_static_map());
-        translation_array_builder_->StoreLiteral(
-            GetDeoptLiteral(*object->map().object()));
-        object->ForEachInput([&](ValueNode* node) {
-          BuildNestedValue(node, input_location, virtual_objects);
-        });
+    // TODO(jgruber): Fold this into the standard path below.
+    if (object_type == vobj::ObjectType::kFixedDoubleArray) {
+      return BuildFixedDoubleArray(object, input_location, virtual_objects);
     }
+
+    if (object_type == vobj::ObjectType::kConsString) {
+      translation_array_builder_->StringConcat();
+    } else {
+      translation_array_builder_->BeginCapturedObject(object->slot_count());
+    }
+    auto callback = [&](ValueNode* node, const vobj::Field& desc) {
+      BuildNestedValue(node, input_location, virtual_objects);
+    };
+    object->ForEachSlot(callback,
+                        VirtualObject::ForEachSlotIterationMode::kForDeopt);
   }
 
   void BuildDeoptFrameSingleValue(const ValueNode* value,
@@ -1639,6 +1651,7 @@ class MaglevFrameTranslationBuilder {
             if (LazyDeoptInfo::InReturnValues(reg, result_location,
                                               result_size)) {
               translation_array_builder_->StoreOptimizedOut();
+              input_location++;
             } else {
               BuildDeoptFrameSingleValue(value, input_location,
                                          virtual_objects);
@@ -1658,8 +1671,10 @@ class MaglevFrameTranslationBuilder {
           compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_LE(i, reg.index());
             if (LazyDeoptInfo::InReturnValues(reg, result_location,
-                                              result_size))
+                                              result_size)) {
+              input_location++;
               return;
+            }
             while (i < reg.index()) {
               translation_array_builder_->StoreOptimizedOut();
               i++;

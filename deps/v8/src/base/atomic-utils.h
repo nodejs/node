@@ -135,6 +135,13 @@ class AsAtomicImpl {
   }
 
   template <typename T>
+  static T Relaxed_FetchOr(T* addr, std::remove_reference_t<T> bits) {
+    static_assert(sizeof(T) <= sizeof(AtomicStorageType));
+    return cast_helper<T>::to_return_type(base::Relaxed_FetchOr(
+        to_storage_addr(addr), cast_helper<T>::to_storage_type(bits)));
+  }
+
+  template <typename T>
   static T AcquireRelease_CompareAndSwap(T* addr,
                                          std::remove_reference_t<T> old_value,
                                          std::remove_reference_t<T> new_value) {
@@ -185,6 +192,18 @@ class AsAtomicImpl {
       old_value = Relaxed_CompareAndSwap(addr, old_value, new_value);
     } while (old_value != old_value_before_cas);
     return true;
+  }
+
+  // Atomically sets bits selected by the mask to 1. Returns false if the bits
+  // are already set as needed.
+  template <typename T>
+  static bool Relaxed_SetBits(T* addr, T mask) {
+    static_assert(sizeof(T) <= sizeof(AtomicStorageType));
+    T old_value = Relaxed_Load(addr);
+    if ((old_value & mask) == mask) return false;
+
+    T old_value_before_fo = Relaxed_FetchOr(addr, mask);
+    return (old_value_before_fo | mask) != old_value_before_fo;
   }
 
  private:

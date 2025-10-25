@@ -188,7 +188,8 @@ struct ReadOnlySegmentForSerialization {
 
 ro::EncodedTagged Encode(Isolate* isolate, Tagged<HeapObject> o) {
   Address o_address = o.address();
-  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromAddress(o_address);
+  MemoryChunkMetadata* chunk =
+      MemoryChunkMetadata::FromAddress(isolate, o_address);
 
   ReadOnlySpace* ro_space = isolate->read_only_heap()->read_only_space();
   int index = static_cast<int>(ro_space->IndexOf(chunk));
@@ -462,7 +463,13 @@ std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> GetUnmappedRegions(
     unmapped.push_back({wasm_null_padding_start,
                         wasm_null.address() - wasm_null_padding_start});
   }
-  unmapped.push_back({wasm_null->payload(), WasmNull::kPayloadSize});
+  if (v8_flags.unmap_holes) {
+    unmapped.push_back(
+        {wasm_null->first_payload(), WasmNull::kFullPayloadSize});
+  } else {
+    unmapped.push_back(
+        {wasm_null->first_payload(), WasmNull::kFirstPayloadSize});
+  }
   return unmapped;
 #else
   return {};
