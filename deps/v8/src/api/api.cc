@@ -847,10 +847,6 @@ bool Data::IsFunctionTemplate() const {
   return i::IsFunctionTemplateInfo(*Utils::OpenDirectHandle(this));
 }
 
-bool Data::IsDictionaryTemplate() const {
-  return i::IsDictionaryTemplateInfo(*Utils::OpenDirectHandle(this));
-}
-
 bool Data::IsContext() const {
   return i::IsContext(*Utils::OpenDirectHandle(this));
 }
