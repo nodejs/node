@@ -86,4 +86,4 @@ echo "$NEW_GYP" >"$DEPS_DIR/googletest/googletest.gyp"
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need
 # to add it to $GITHUB_ENV variable
-finalize_version_update "googletest" "$NEW_VERSION"
+finalize_version_update "googletest" "$NEW_UPSTREAM_SHA1"
