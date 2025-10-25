@@ -251,3 +251,71 @@ tmpdir.refresh();
     checkResults
   );
 }
+
+{
+  const historyPath = tmpdir.resolve(`.${Math.floor(Math.random() * 10000)}`);
+
+  // Test for issue #59938: REPL cursor navigation in viewport overflow
+  // This test just verifies cursor position consistency when input exceeds
+  // terminal height. The actual screen rendering fix is harder to test
+  // but can be manually verified.
+  class MockOutput extends stream.Writable {
+    constructor() {
+      super({
+        write(chunk, _, next) {
+          next();
+        }
+      });
+      this.columns = 80;
+      this.rows = 20;
+    }
+  }
+
+  const checkResults = common.mustSucceed((r) => {
+    r.write('const arr = [');
+    r.input.run([{ name: 'enter' }]);
+
+    for (let i = 1; i <= 25; i++) {
+      r.write(`  ${i},`);
+      r.input.run([{ name: 'enter' }]);
+    }
+
+    r.write('];');
+
+    const endCursor = r.cursor;
+    assert.ok(endCursor > 0);
+
+    for (let i = 0; i < 27; i++) {
+      r.input.run([{ name: 'up' }]);
+    }
+
+    assert.strictEqual(r.cursor, 0);
+
+    const prevRowsAtTop = r.prevRows;
+    assert.ok(prevRowsAtTop !== undefined);
+
+    for (let i = 0; i < 10; i++) {
+      r.input.run([{ name: 'down' }]);
+    }
+
+    const midCursor = r.cursor;
+    assert.ok(midCursor > 0 && midCursor < endCursor);
+
+    // Navigate back to end
+    for (let i = 0; i < 17; i++) {
+      r.input.run([{ name: 'down' }]);
+    }
+
+    assert.strictEqual(r.cursor, endCursor);
+  });
+
+  repl.createInternalRepl(
+    { NODE_REPL_HISTORY: historyPath },
+    {
+      terminal: true,
+      input: new ActionStream(),
+      output: new MockOutput(),
+    },
+    checkResults
+  );
+}
