@@ -2,6 +2,12 @@
 
 <!--introduced_in=v0.1.25-->
 
+<!-- YAML
+llm_description: >
+  Parses and formats URL query strings, providing fast utilities for handling
+  key-value pairs.
+-->
+
 > Stability: 2 - Stable
 
 <!--name=querystring-->
