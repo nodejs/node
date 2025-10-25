@@ -463,4 +463,40 @@ describe('cjs & esm ambiguous syntax case', () => {
     assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
   });
+
+  it('should throw an ambiguous syntax error when using top-level await with __filename', async () => {
+    const { stderr, code, signal } = await spawnPromisified(
+      process.execPath,
+      [
+        '--eval',
+        `console.log(__filename);\nawait 1;`,
+      ]
+    );
+
+    match(
+      stderr,
+      /ReferenceError: Cannot determine intended module format because both __filename and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, use import\.meta\.filename instead\./
+    );
+
+    strictEqual(code, 1);
+    strictEqual(signal, null);
+  });
+
+  it('should throw an ambiguous syntax error when using top-level await with __dirname', async () => {
+    const { stderr, code, signal } = await spawnPromisified(
+      process.execPath,
+      [
+        '--eval',
+        `console.log(__dirname);\nawait 1;`,
+      ]
+    );
+
+    match(
+      stderr,
+      /ReferenceError: Cannot determine intended module format because both __dirname and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, use import\.meta\.dirname instead\./
+    );
+
+    strictEqual(code, 1);
+    strictEqual(signal, null);
+  });
 });
