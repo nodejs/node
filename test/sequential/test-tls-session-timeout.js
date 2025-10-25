@@ -90,7 +90,7 @@ function doTest() {
     client.stdout.on('data', (data) => {
       clientOutput += data.toString();
     });
-    client.on('exit', (code) => {
+    client.on('exit', common.mustCall((code) => {
       let connectionType;
       // Log the output for debugging purposes. Don't remove them or otherwise
       // the CI output is useless when this test flakes.
@@ -120,7 +120,7 @@ function doTest() {
       assert.strictEqual(code, 0);
       assert.strictEqual(connectionType, expectedType);
       cb(connectionType);
-    });
+    }));
   }
 
   const server = tls.createServer(options, (cleartext) => {

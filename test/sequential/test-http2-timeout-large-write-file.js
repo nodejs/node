@@ -47,9 +47,9 @@ server.on('stream', common.mustCall((stream) => {
   stream.end();
 }));
 server.setTimeout(serverTimeout);
-server.on('timeout', () => {
+server.on('timeout', common.mustCallAtLeast(() => {
   assert.ok(!didReceiveData, 'Should not timeout');
-});
+}, 0));
 
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`https://localhost:${server.address().port}`,
