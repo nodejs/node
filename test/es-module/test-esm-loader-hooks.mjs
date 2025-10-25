@@ -776,7 +776,7 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
     assert.strictEqual(signal, null);
   });
 
-  describe('should use hooks', async () => {
+  it('should use hooks', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--no-experimental-require-module',
       '--import',

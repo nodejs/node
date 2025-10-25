@@ -1,6 +1,6 @@
 import { spawnPromisified } from '../common/index.mjs';
 import { fileURL, path } from '../common/fixtures.mjs';
-import { match, ok, notStrictEqual } from 'node:assert';
+import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
@@ -13,8 +13,8 @@ describe('ESM: loader with syntax error', { concurrency: !process.env.TEST_PARAL
       path('print-error-message.js'),
     ]);
 
-    match(stderr, /SyntaxError/);
-    ok(!stderr.includes('Bad command or file name'));
-    notStrictEqual(code, 0);
+    assert.match(stderr, /SyntaxError/);
+    assert.ok(!stderr.includes('Bad command or file name'));
+    assert.notStrictEqual(code, 0);
   });
 });
