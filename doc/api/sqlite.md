@@ -99,6 +99,10 @@ exposed by this class execute synchronously.
 added: v22.5.0
 changes:
   - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60217
+    description: Add `defensive` option.
+  - version:
       - v24.4.0
       - v22.18.0
     pr-url: https://github.com/nodejs/node/pull/58697
@@ -140,6 +144,10 @@ changes:
     character (e.g., `foo` instead of `:foo`). **Default:** `true`.
   * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters are ignored when binding.
     If `false`, an exception is thrown for unknown named parameters. **Default:** `false`.
+  * `defensive` {boolean} If `true`, enables the defensive flag. When the defensive flag is enabled,
+    language features that allow ordinary SQL to deliberately corrupt the database file are disabled.
+    The defensive flag can also be set using `enableDefensive()`.
+    **Default:** `false`.
 
 Constructs a new `DatabaseSync` instance.
 
@@ -260,6 +268,19 @@ added:
 Enables or disables the `loadExtension` SQL function, and the `loadExtension()`
 method. When `allowExtension` is `false` when constructing, you cannot enable
 loading extensions for security reasons.
+
+### `database.enableDefensive(active)`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+* `active` {boolean} Whether to set the defensive flag.
+
+Enables or disables the defensive flag. When the defensive flag is active,
+language features that allow ordinary SQL to deliberately corrupt the database file are disabled.
+See [`SQLITE_DBCONFIG_DEFENSIVE`][] in the SQLite documentation for details.
 
 ### `database.location([dbName])`
 
@@ -1306,6 +1327,7 @@ callback function to indicate what type of operation is being authorized.
 [Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
+[`SQLITE_DBCONFIG_DEFENSIVE`]: https://www.sqlite.org/c3ref/c_dbconfig_defensive.html#sqlitedbconfigdefensive
 [`SQLITE_DETERMINISTIC`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_DIRECTONLY`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_MAX_FUNCTION_ARG`]: https://www.sqlite.org/limits.html#max_function_arg
