@@ -2,7 +2,9 @@
 #define SRC_NODE_API_INTERNALS_H_
 
 #include "v8.h"
+#ifndef NAPI_EXPERIMENTAL
 #define NAPI_EXPERIMENTAL
+#endif
 #include "env-inl.h"
 #include "js_native_api_v8.h"
 #include "node_api.h"
