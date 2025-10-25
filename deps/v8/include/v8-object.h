@@ -457,6 +457,18 @@ class V8_EXPORT Object : public Value {
   Local<Value> GetPrototypeV2();
 
   /**
+   * Set the prototype object.  This does not skip objects marked to
+   * be skipped by __proto__ and it does not consult the security
+   * handler.
+   */
+  V8_DEPRECATED(
+      "V8 will stop providing access to hidden prototype (i.e. "
+      "JSGlobalObject). Use SetPrototypeV2() instead. "
+      "See http://crbug.com/333672197.")
+  V8_WARN_UNUSED_RESULT Maybe<bool> SetPrototype(Local<Context> context,
+                                                 Local<Value> prototype);
+
+  /**
    * Set the prototype object (same as calling Object.setPrototypeOf(..)).
    * This does not consult the security handler.
    * TODO(http://crbug.com/333672197): rename back to SetPrototype().

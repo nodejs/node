@@ -4706,6 +4706,12 @@ Maybe<bool> SetPrototypeImpl(v8::Object* this_, Local<Context> context,
 
 }  // namespace
 
+Maybe<bool> v8::Object::SetPrototype(Local<Context> context,
+                                     Local<Value> value) {
+  static constexpr bool from_javascript = false;
+  return SetPrototypeImpl(this, context, value, from_javascript);
+}
+
 Maybe<bool> v8::Object::SetPrototypeV2(Local<Context> context,
                                        Local<Value> value) {
   static constexpr bool from_javascript = true;
