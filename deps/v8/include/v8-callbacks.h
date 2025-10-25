@@ -321,6 +321,9 @@ using WasmAsyncResolvePromiseCallback = void (*)(
 using WasmLoadSourceMapCallback = Local<String> (*)(Isolate* isolate,
                                                     const char* name);
 
+// --- Callback for checking if WebAssembly imported strings are enabled ---
+using WasmImportedStringsEnabledCallback = bool (*)(Local<Context> context);
+
 // --- Callback for checking if WebAssembly Custom Descriptors are enabled ---
 using WasmCustomDescriptorsEnabledCallback = bool (*)(Local<Context> context);
 
