@@ -72,6 +72,22 @@ assert.throws(() => {
            'or Uint8Array. Received type number (3)'
 });
 
+assert.throws(() => {
+  Buffer.concat([Buffer.from('hello')], 3.5);
+}, {
+  code: 'ERR_OUT_OF_RANGE',
+  message: 'The value of "length" is out of range. It must be an integer. ' +
+           'Received 3.5'
+});
+
+assert.throws(() => {
+  Buffer.concat([Buffer.from('hello')], -2);
+}, {
+  code: 'ERR_OUT_OF_RANGE',
+  message: 'The value of "length" is out of range. It must be >= 0 && <= 9007199254740991. ' +
+           'Received -2'
+});
+
 // eslint-disable-next-line node-core/crypto-check
 const random10 = common.hasCrypto ?
   require('crypto').randomBytes(10) :
