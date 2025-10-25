@@ -71,11 +71,11 @@ assert.throws(() => {
     if (arg === 1) {
       // The tests are first run on bootstrap during LoadEnvironment() in
       // src/node.cc. Now run the tests through node::MakeCallback().
-      setImmediate(() => {
+      setImmediate(common.mustCall(() => {
         makeCallback({}, common.mustCall(() => {
           verifyExecutionOrder(2);
         }));
-      });
+      }));
     } else if (arg === 2) {
       // Make sure there are no conflicts using node::MakeCallback()
       // within timers.
