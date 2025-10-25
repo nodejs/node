@@ -2,7 +2,7 @@ import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { spawn } from 'node:child_process';
 import { describe, it } from 'node:test';
-import { strictEqual, match } from 'node:assert';
+import assert from 'node:assert';
 
 describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL }, () => {
   describe('string input', { concurrency: !process.env.TEST_PARALLEL }, () => {
@@ -12,10 +12,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         'import { version } from "node:process"; console.log(version);',
       ]);
 
-      strictEqual(stderr, '');
-      strictEqual(stdout, `${process.version}\n`);
-      strictEqual(code, 0);
-      strictEqual(signal, null);
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout, `${process.version}\n`);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
     });
 
     // ESM is unsupported for --print via --input-type=module
@@ -24,7 +24,7 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
       const child = spawn(process.execPath, []);
       child.stdin.end('console.log(typeof import.meta.resolve)');
 
-      match((await child.stdout.toArray()).toString(), /^function\r?\n$/);
+      assert.match((await child.stdout.toArray()).toString(), /^function\r?\n$/);
     });
 
     it('should be overridden by --input-type', async () => {
@@ -34,10 +34,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         'import.meta.url',
       ]);
 
-      match(stderr, /SyntaxError: Cannot use 'import\.meta' outside a module/);
-      strictEqual(stdout, '');
-      strictEqual(code, 1);
-      strictEqual(signal, null);
+      assert.match(stderr, /SyntaxError: Cannot use 'import\.meta' outside a module/);
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
     });
 
     it('should not switch to module if code is parsable as script', async () => {
@@ -46,10 +46,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         'let __filename,__dirname,require,module,exports;this.a',
       ]);
 
-      strictEqual(stderr, '');
-      strictEqual(stdout, '');
-      strictEqual(code, 0);
-      strictEqual(signal, null);
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
     });
 
     it('does not trigger detection via source code `eval()`', async () => {
@@ -58,10 +58,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         'eval("import \'nonexistent\';");',
       ]);
 
-      match(stderr, /SyntaxError: Cannot use import statement outside a module/);
-      strictEqual(stdout, '');
-      strictEqual(code, 1);
-      strictEqual(signal, null);
+      assert.match(stderr, /SyntaxError: Cannot use import statement outside a module/);
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
     });
   });
 
@@ -98,10 +98,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
           entryPath,
         ]);
 
-        strictEqual(stderr, '');
-        strictEqual(stdout, 'executed\n');
-        strictEqual(code, 0);
-        strictEqual(signal, null);
+        assert.strictEqual(stderr, '');
+        assert.strictEqual(stdout, 'executed\n');
+        assert.strictEqual(code, 0);
+        assert.strictEqual(signal, null);
       });
     }
   });
@@ -139,10 +139,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
           entryPath,
         ]);
 
-        strictEqual(stderr, '');
-        strictEqual(stdout, 'executed\n');
-        strictEqual(code, 0);
-        strictEqual(signal, null);
+        assert.strictEqual(stderr, '');
+        assert.strictEqual(stdout, 'executed\n');
+        assert.strictEqual(code, 0);
+        assert.strictEqual(signal, null);
       });
     }
 
@@ -161,10 +161,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         fixtures.path('es-modules/package-without-type/noext-esm'),
       ]);
 
-      strictEqual(stderr, '');
-      strictEqual(stdout, 'null\nexecuted\n');
-      strictEqual(code, 0);
-      strictEqual(signal, null);
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout, 'null\nexecuted\n');
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
 
     });
   });
@@ -189,10 +189,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
           entryPath,
         ]);
 
-        match(stderr, /SyntaxError: Unexpected token 'export'/);
-        strictEqual(stdout, '');
-        strictEqual(code, 1);
-        strictEqual(signal, null);
+        assert.match(stderr, /SyntaxError: Unexpected token 'export'/);
+        assert.strictEqual(stdout, '');
+        assert.strictEqual(code, 1);
+        assert.strictEqual(signal, null);
       });
     }
   });
@@ -217,10 +217,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
           entryPath,
         ]);
 
-        match(stderr, /ReferenceError: module is not defined in ES module scope/);
-        strictEqual(stdout, '');
-        strictEqual(code, 1);
-        strictEqual(signal, null);
+        assert.match(stderr, /ReferenceError: module is not defined in ES module scope/);
+        assert.strictEqual(stdout, '');
+        assert.strictEqual(code, 1);
+        assert.strictEqual(signal, null);
       });
     }
   });
@@ -233,10 +233,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         'await Promise.resolve(); console.log("executed");',
       ]);
 
-      strictEqual(stderr, '');
-      strictEqual(stdout, 'executed\n');
-      strictEqual(code, 0);
-      strictEqual(signal, null);
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout, 'executed\n');
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
     });
 
     it('reports unfinished top-level `await`', async () => {
@@ -245,10 +245,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         fixtures.path('es-modules/tla/unresolved.js'),
       ]);
 
-      strictEqual(stderr, '');
-      strictEqual(stdout, '');
-      strictEqual(code, 13);
-      strictEqual(signal, null);
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 13);
+      assert.strictEqual(signal, null);
     });
 
     it('permits top-level `await` above import/export syntax', async () => {
@@ -257,10 +257,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         'await Promise.resolve(); import "node:os"; console.log("executed");',
       ]);
 
-      strictEqual(stderr, '');
-      strictEqual(stdout, 'executed\n');
-      strictEqual(code, 0);
-      strictEqual(signal, null);
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout, 'executed\n');
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
     });
 
     it('still throws on `await` in an ordinary sync function', async () => {
@@ -269,10 +269,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         'function fn() { await Promise.resolve(); } fn();',
       ]);
 
-      match(stderr, /SyntaxError: await is only valid in async function/);
-      strictEqual(stdout, '');
-      strictEqual(code, 1);
-      strictEqual(signal, null);
+      assert.match(stderr, /SyntaxError: await is only valid in async function/);
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
     });
 
     it('throws on undefined `require` when top-level `await` triggers ESM parsing', async () => {
@@ -281,13 +281,13 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         'const fs = require("node:fs"); await Promise.resolve();',
       ]);
 
-      match(
+      assert.match(
         stderr,
         /ReferenceError: Cannot determine intended module format because both require\(\) and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require\(\) with import\./
       );
-      strictEqual(stdout, '');
-      strictEqual(code, 1);
-      strictEqual(signal, null);
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
     });
 
     it('permits declaration of CommonJS module variables', async () => {
@@ -296,10 +296,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         fixtures.path('es-modules/package-without-type/commonjs-wrapper-variables.js'),
       ]);
 
-      strictEqual(stderr, '');
-      strictEqual(stdout, 'exports require module __filename __dirname\n');
-      strictEqual(code, 0);
-      strictEqual(signal, null);
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout, 'exports require module __filename __dirname\n');
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
     });
 
     it('permits declaration of CommonJS module variables above import/export', async () => {
@@ -308,10 +308,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         'const module = 3; import "node:os"; console.log("executed");',
       ]);
 
-      strictEqual(stderr, '');
-      strictEqual(stdout, 'executed\n');
-      strictEqual(code, 0);
-      strictEqual(signal, null);
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout, 'executed\n');
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
     });
 
     it('still throws on double `const` declaration not at the top level', async () => {
@@ -320,10 +320,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         'function fn() { const require = 1; const require = 2; } fn();',
       ]);
 
-      match(stderr, /SyntaxError: Identifier 'require' has already been declared/);
-      strictEqual(stdout, '');
-      strictEqual(code, 1);
-      strictEqual(signal, null);
+      assert.match(stderr, /SyntaxError: Identifier 'require' has already been declared/);
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
     });
   });
 
@@ -347,10 +347,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
           entryPath,
         ]);
 
-        match(stderr, /MODULE_TYPELESS_PACKAGE_JSON/);
-        strictEqual(stdout, 'executed\n');
-        strictEqual(code, 0);
-        strictEqual(signal, null);
+        assert.match(stderr, /MODULE_TYPELESS_PACKAGE_JSON/);
+        assert.strictEqual(stdout, 'executed\n');
+        assert.strictEqual(code, 0);
+        assert.strictEqual(signal, null);
       });
     }
 
@@ -359,10 +359,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         fixtures.path('es-modules/loose.js'),
       ]);
 
-      strictEqual(stderr, '');
-      strictEqual(stdout, 'executed\n');
-      strictEqual(code, 0);
-      strictEqual(signal, null);
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout, 'executed\n');
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
     });
 
 
@@ -371,11 +371,11 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         fixtures.path('es-modules/package-without-type/detected-as-esm.js'),
       ]);
 
-      match(stderr, /MODULE_TYPELESS_PACKAGE_JSON/);
-      strictEqual(stderr.match(/MODULE_TYPELESS_PACKAGE_JSON/g).length, 1);
-      strictEqual(stdout, 'executed\nexecuted\n');
-      strictEqual(code, 0);
-      strictEqual(signal, null);
+      assert.match(stderr, /MODULE_TYPELESS_PACKAGE_JSON/);
+      assert.strictEqual(stderr.match(/MODULE_TYPELESS_PACKAGE_JSON/g).length, 1);
+      assert.strictEqual(stdout, 'executed\nexecuted\n');
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
     });
 
     it('can be disabled via --no-experimental-detect-module', async () => {
@@ -384,10 +384,10 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         fixtures.path('es-modules/package-without-type/module.js'),
       ]);
 
-      match(stderr, /SyntaxError: Unexpected token 'export'/);
-      strictEqual(stdout, '');
-      strictEqual(code, 1);
-      strictEqual(signal, null);
+      assert.match(stderr, /SyntaxError: Unexpected token 'export'/);
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
     });
   });
 });
@@ -406,10 +406,10 @@ describe('Wrapping a `require` of an ES module while using `--abort-on-uncaught-
       cwd: fixtures.path('es-modules'),
     });
 
-    strictEqual(stderr, '');
-    strictEqual(stdout, '');
-    strictEqual(code, 0);
-    strictEqual(signal, null);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
   });
 });
 
@@ -420,10 +420,10 @@ describe('when working with Worker threads', () => {
       'new worker_threads.Worker("let __filename,__dirname,require,module,exports;this.a",{eval:true})',
     ]);
 
-    strictEqual(stderr, '');
-    strictEqual(stdout, '');
-    strictEqual(code, 0);
-    strictEqual(signal, null);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
   });
 });
 
@@ -438,12 +438,12 @@ describe('cjs & esm ambiguous syntax case', () => {
       ]
     );
 
-    match(
+    assert.match(
       stderr,
       /ReferenceError: Cannot determine intended module format because both require\(\) and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require\(\) with import\./
     );
 
-    strictEqual(code, 1);
-    strictEqual(signal, null);
+    assert.strictEqual(code, 1);
+    assert.strictEqual(signal, null);
   });
 });
