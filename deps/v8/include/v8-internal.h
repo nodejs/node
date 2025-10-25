@@ -424,7 +424,7 @@ constexpr size_t kMaxCppHeapPointers = 0;
 // The number of tags reserved for embedder data stored in internal fields. The
 // value is picked arbitrarily, and is slightly larger than the number of tags
 // currently used in Chrome.
-#define V8_EMBEDDER_DATA_TAG_COUNT 15
+#define V8_EMBEDDER_DATA_TAG_COUNT 5
 
 // Generic tag range struct to represent ranges of type tags.
 //
