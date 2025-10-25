@@ -2,23 +2,27 @@
 
 ## Table of contents
 
-* [Prerequisites](#prerequisites)
-  * [HTTP benchmark requirements](#http-benchmark-requirements)
-  * [HTTPS benchmark requirements](#https-benchmark-requirements)
-  * [HTTP/2 benchmark requirements](#http2-benchmark-requirements)
-  * [Benchmark analysis requirements](#benchmark-analysis-requirements)
-* [Running benchmarks](#running-benchmarks)
-  * [Running individual benchmarks](#running-individual-benchmarks)
-  * [Calibrating the number of iterations with calibrate-n.js](#calibrating-the-number-of-iterations-with-calibrate-njs)
-  * [Running all benchmarks](#running-all-benchmarks)
-  * [Specifying CPU Cores for Benchmarks with run.js](#specifying-cpu-cores-for-benchmarks-with-runjs)
-  * [Filtering benchmarks](#filtering-benchmarks)
-  * [Comparing Node.js versions](#comparing-nodejs-versions)
-  * [Comparing parameters](#comparing-parameters)
-  * [Running benchmarks on the CI](#running-benchmarks-on-the-ci)
-* [Creating a benchmark](#creating-a-benchmark)
-  * [Basics of a benchmark](#basics-of-a-benchmark)
-  * [Creating an HTTP benchmark](#creating-an-http-benchmark)
+* [How to write and run benchmarks in Node.js core](#how-to-write-and-run-benchmarks-in-nodejs-core)
+  * [Table of contents](#table-of-contents)
+  * [Prerequisites](#prerequisites)
+    * [HTTP benchmark requirements](#http-benchmark-requirements)
+      * [HTTPS benchmark requirements](#https-benchmark-requirements)
+      * [HTTP/2 benchmark requirements](#http2-benchmark-requirements)
+    * [Benchmark analysis requirements](#benchmark-analysis-requirements)
+  * [Running benchmarks](#running-benchmarks)
+    * [Setting CPU Frequency scaling governor to "performance"](#setting-cpu-frequency-scaling-governor-to-performance)
+    * [Running individual benchmarks](#running-individual-benchmarks)
+    * [Calibrating the number of iterations with calibrate-n.js](#calibrating-the-number-of-iterations-with-calibrate-njs)
+    * [Running all benchmarks](#running-all-benchmarks)
+      * [Specifying CPU Cores for Benchmarks with run.js](#specifying-cpu-cores-for-benchmarks-with-runjs)
+      * [Filtering benchmarks](#filtering-benchmarks)
+      * [Grouping benchmarks](#grouping-benchmarks)
+    * [Comparing Node.js versions](#comparing-nodejs-versions)
+    * [Comparing parameters](#comparing-parameters)
+    * [Running benchmarks on the CI](#running-benchmarks-on-the-ci)
+  * [Creating a benchmark](#creating-a-benchmark)
+    * [Basics of a benchmark](#basics-of-a-benchmark)
+    * [Creating an HTTP benchmark](#creating-an-http-benchmark)
 
 ## Prerequisites
 
@@ -566,7 +570,7 @@ The arguments of `createBenchmark` are:
 * `configs` {Object} The benchmark parameters. `createBenchmark` will run all
   possible combinations of these parameters, unless specified otherwise.
   Each configuration is a property with an array of possible values.
-  The configuration values can only be strings or numbers.
+  The configuration values can be strings, numbers, or booleans.
 * `options` {Object} The benchmark options. Supported options:
   * `flags` {Array} Contains node-specific command line flags to pass to
     the child process.
