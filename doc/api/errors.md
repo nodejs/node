@@ -703,6 +703,13 @@ by the `node:assert` module.
 An attempt was made to register something that is not a function as an
 `AsyncHooks` callback.
 
+<a id="ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED"></a>
+
+### `ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED`
+
+An operation related to module loading is customized by an asynchronous loader
+hook that never settled the promise before the loader thread exits.
+
 <a id="ERR_ASYNC_TYPE"></a>
 
 ### `ERR_ASYNC_TYPE`
