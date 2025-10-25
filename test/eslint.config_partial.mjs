@@ -168,6 +168,7 @@ export default [
         'node-api',
         'pummel',
         'pseudo-tty',
+        'sequential',
         'v8-updates',
         'wasi',
       ].join(',')}}/**/*.{js,mjs,cjs}`,

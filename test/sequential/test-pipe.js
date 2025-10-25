@@ -57,9 +57,7 @@ const web = http.Server(common.mustCall((req, res) => {
     res.end();
   }));
 
-  req.connection.on('error', (e) => {
-    assert.ifError(e);
-  });
+  req.connection.on('error', common.mustNotCall());
 }));
 
 web.listen(webPort, startClient);
@@ -70,21 +68,19 @@ const tcp = net.Server(common.mustCall((s) => {
 
   let i = 0;
 
-  s.on('data', (d) => {
+  s.on('data', common.mustCallAtLeast((d) => {
     tcpLengthSeen += d.length;
     for (let j = 0; j < d.length; j++) {
       assert.strictEqual(d[j], buffer[i]);
       i++;
     }
-  });
+  }));
 
   s.on('end', common.mustCall(() => {
     s.end();
   }));
 
-  s.on('error', (e) => {
-    assert.ifError(e);
-  });
+  s.on('error', common.mustNotCall());
 }));
 
 tcp.listen(tcpPort, startClient);
