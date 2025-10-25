@@ -98,6 +98,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 #ifdef _RISCV_TARGET_SIMULATOR
   supported_ |= SimulatorFeatures();
+  vlen_ = kSimulatorRvvVLEN;
 #endif  // _RISCV_TARGET_SIMULATOR
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
@@ -106,7 +107,11 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #ifndef USE_SIMULATOR
   base::CPU cpu;
   if (cpu.has_fpu()) supported_ |= 1u << FPU;
-  if (cpu.has_rvv()) supported_ |= 1u << RISCV_SIMD;
+  if (cpu.has_rvv()) {
+    supported_ |= 1u << RISCV_SIMD;
+    vlen_ = cpu.vlen();
+    DCHECK_NE(vlen_, base::CPU::kUnknownVlen);
+  }
   if (cpu.has_zba()) supported_ |= 1u << ZBA;
   if (cpu.has_zbb()) supported_ |= 1u << ZBB;
   if (cpu.has_zbs()) supported_ |= 1u << ZBS;
@@ -129,7 +134,11 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 void CpuFeatures::PrintTarget() {}
 void CpuFeatures::PrintFeatures() {
-  printf("supports_wasm_simd_128=%d\n", CpuFeatures::SupportsWasmSimd128());
+  printf("supports_wasm_simd_128=%d", CpuFeatures::SupportsWasmSimd128());
+  if (CpuFeatures::SupportsWasmSimd128()) {
+    printf(", vlen=%u", CpuFeatures::vlen());
+  }
+  printf("\n");
   printf("RISC-V Extension zba=%d,zbb=%d,zbs=%d,ZICOND=%d\n",
          CpuFeatures::IsSupported(ZBA), CpuFeatures::IsSupported(ZBB),
          CpuFeatures::IsSupported(ZBS), CpuFeatures::IsSupported(ZICOND));
@@ -264,16 +273,10 @@ Assembler::Assembler(const AssemblerOptions& options,
       constpool_(this) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
-  trampoline_pool_blocked_nesting_ = 0;
   next_buffer_check_ = v8_flags.force_long_branches
                            ? kMaxInt
                            : kMaxBranchOffset - BlockTrampolinePoolScope::kGap;
-  internal_trampoline_exception_ = false;
-  last_bound_pos_ = 0;
-
   trampoline_emitted_ = v8_flags.force_long_branches;
-  unbound_labels_count_ = 0;
-  block_buffer_growth_ = false;
 }
 
 void Assembler::AbortedCodeGeneration() { constpool_.Clear(); }
@@ -376,7 +379,7 @@ int Assembler::target_at(int pos, bool is_internal) {
   DEBUG_PRINTF("target_at: %p (%d)\n\t",
                reinterpret_cast<Instr*>(buffer_start_ + pos), pos);
   Instr instr = instruction->InstructionBits();
-  disassembleInstr(buffer_start_ + pos);
+  DisassembleInstruction(buffer_start_ + pos);
 
   switch (instruction->InstructionOpcodeType()) {
     case BRANCH: {
@@ -468,18 +471,6 @@ int Assembler::target_at(int pos, bool is_internal) {
   return instr | (imm12 & kBImm12Mask);
 }
 
-[[nodiscard]] static inline Instr SetLoadOffset(int32_t offset, Instr instr) {
-#if V8_TARGET_ARCH_RISCV64
-  DCHECK(Assembler::IsLd(instr));
-#elif V8_TARGET_ARCH_RISCV32
-  DCHECK(Assembler::IsLw(instr));
-#endif
-  DCHECK(is_int12(offset));
-  instr &= ~kImm12Mask;
-  int32_t imm12 = offset << kImm12Shift;
-  return instr | (imm12 & kImm12Mask);
-}
-
 [[nodiscard]] static inline Instr SetJalOffset(int32_t pos, int32_t target_pos,
                                                Instr instr) {
   DCHECK(Assembler::IsJal(instr));
@@ -537,7 +528,7 @@ bool Assembler::MustUseReg(RelocInfo::Mode rmode) {
   return !RelocInfo::IsNoInfo(rmode);
 }
 
-void Assembler::disassembleInstr(uint8_t* pc) {
+void Assembler::DisassembleInstruction(uint8_t* pc) {
   if (!v8_flags.riscv_debug) return;
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
@@ -622,9 +613,9 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
     } break;
   }
 
-  disassembleInstr(buffer_start_ + pos);
+  DisassembleInstruction(buffer_start_ + pos);
   if (instruction->InstructionOpcodeType() == AUIPC) {
-    disassembleInstr(buffer_start_ + pos + 4);
+    DisassembleInstruction(buffer_start_ + pos + 4);
   }
 }
 
@@ -679,7 +670,6 @@ void Assembler::bind_to(Label* L, int pos) {
         if (dist > kMaxBranchOffset) {
           if (trampoline_pos == kInvalidSlotPos) {
             trampoline_pos = get_trampoline_entry(fixup_pos);
-            CHECK_NE(trampoline_pos, kInvalidSlotPos);
           }
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
           CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
@@ -691,7 +681,6 @@ void Assembler::bind_to(Label* L, int pos) {
         if (dist > kMaxJumpOffset) {
           if (trampoline_pos == kInvalidSlotPos) {
             trampoline_pos = get_trampoline_entry(fixup_pos);
-            CHECK_NE(trampoline_pos, kInvalidSlotPos);
           }
           CHECK((trampoline_pos - fixup_pos) <= kMaxJumpOffset);
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
@@ -705,10 +694,6 @@ void Assembler::bind_to(Label* L, int pos) {
     }
   }
   L->bind_to(pos);
-
-  // Keep track of the last bound label so we don't eliminate any instructions
-  // before a bound label.
-  if (pos > last_bound_pos_) last_bound_pos_ = pos;
 }
 
 void Assembler::bind(Label* L) {
@@ -783,18 +768,11 @@ int Assembler::PatchBranchLongOffset(Address pc, Instr instr_auipc,
 
 // Returns the next free trampoline entry.
 int32_t Assembler::get_trampoline_entry(int32_t pos) {
-  int32_t trampoline_entry = kInvalidSlotPos;
-  if (!internal_trampoline_exception_) {
-    DEBUG_PRINTF("\ttrampoline start: %d,pos: %d\n", trampoline_.start(), pos);
-    if (trampoline_.start() > pos) {
-      trampoline_entry = trampoline_.take_slot();
-    }
-
-    if (kInvalidSlotPos == trampoline_entry) {
-      internal_trampoline_exception_ = true;
-    }
-  }
-  return trampoline_entry;
+  DEBUG_PRINTF("\ttrampoline start: %d,pos: %d\n", trampoline_.start(), pos);
+  CHECK(trampoline_.start() > pos);
+  int32_t entry = trampoline_.take_slot();
+  CHECK_NE(entry, kInvalidSlotPos);
+  return entry;
 }
 
 uintptr_t Assembler::jump_address(Label* L) {
@@ -819,11 +797,11 @@ uintptr_t Assembler::jump_address(Label* L) {
     }
   }
   uintptr_t imm = reinterpret_cast<uintptr_t>(buffer_start_) + target_pos;
-  if (v8_flags.riscv_c_extension)
+  if (v8_flags.riscv_c_extension) {
     DCHECK_EQ(imm & 1, 0);
-  else
+  } else {
     DCHECK_EQ(imm & 3, 0);
-
+  }
   return imm;
 }
 
@@ -850,10 +828,11 @@ int32_t Assembler::branch_long_offset(Label* L) {
     }
   }
   intptr_t offset = target_pos - pc_offset();
-  if (v8_flags.riscv_c_extension)
+  if (v8_flags.riscv_c_extension) {
     DCHECK_EQ(offset & 1, 0);
-  else
+  } else {
     DCHECK_EQ(offset & 3, 0);
+  }
   DCHECK(is_int32(offset));
   VU.clear();
   return static_cast<int32_t>(offset);
@@ -892,34 +871,6 @@ int32_t Assembler::branch_offset_helper(Label* L, OffsetSize bits) {
   return offset;
 }
 
-void Assembler::label_at_put(Label* L, int at_offset) {
-  int target_pos;
-  DEBUG_PRINTF("\tlabel_at_put: %p @ %p (%d)\n", L,
-               reinterpret_cast<Instr*>(buffer_start_ + at_offset), at_offset);
-  if (L->is_bound()) {
-    target_pos = L->pos();
-    instr_at_put(at_offset, target_pos + (InstructionStream::kHeaderSize -
-                                          kHeapObjectTag));
-  } else {
-    if (L->is_linked()) {
-      target_pos = L->pos();  // L's link.
-      int32_t imm18 = target_pos - at_offset;
-      DCHECK_EQ(imm18 & 3, 0);
-      int32_t imm16 = imm18 >> 2;
-      DCHECK(is_int16(imm16));
-      instr_at_put(at_offset, static_cast<int32_t>(imm16 & kImm16Mask));
-    } else {
-      target_pos = kEndOfJumpChain;
-      instr_at_put(at_offset, target_pos);
-      if (!trampoline_emitted_) {
-        unbound_labels_count_++;
-        next_buffer_check_ -= kTrampolineSlotsSize;
-      }
-    }
-    L->link_to(at_offset);
-  }
-}
-
 //===----------------------------------------------------------------------===//
 // Instructions
 //===----------------------------------------------------------------------===//
@@ -927,24 +878,26 @@ void Assembler::label_at_put(Label* L, int at_offset) {
 // Definitions for using compressed vs non compressed
 
 void Assembler::NOP() {
-  if (v8_flags.riscv_c_extension)
+  if (v8_flags.riscv_c_extension) {
     c_nop();
-  else
+  } else {
     nop();
+  }
 }
 
 void Assembler::EBREAK() {
-  if (v8_flags.riscv_c_extension)
+  if (v8_flags.riscv_c_extension) {
     c_ebreak();
-  else
+  } else {
     ebreak();
+  }
 }
 
 // Assembler Pseudo Instructions (Tables 25.2 and 25.3, RISC-V Unprivileged ISA)
 
 void Assembler::nop() { addi(ToRegister(0), ToRegister(0), 0); }
 
-inline int64_t signExtend(uint64_t V, int N) {
+inline int64_t SignExtend(uint64_t V, int N) {
   return static_cast<int64_t>(V << (64 - N)) >> (64 - N);
 }
 
@@ -1003,7 +956,6 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
     if (up_32 == 0 || low_32 == 0) {
       // No temp register is needed
     } else {
-      BlockTrampolinePoolScope block_trampoline_pool(this);
       temp_reg = temps.CanAcquire() ? temps.Acquire() : no_reg;
     }
     if (temp_reg != no_reg) {
@@ -1411,20 +1363,20 @@ void Assembler::GrowBuffer() {
 }
 
 void Assembler::db(uint8_t data) {
-  if (!is_buffer_growth_blocked()) CheckBuffer();
   DEBUG_PRINTF("%p(%d): constant 0x%x\n", pc_, pc_offset(), data);
+  CheckBuffer();
   EmitHelper(data);
 }
 
 void Assembler::dd(uint32_t data) {
-  if (!is_buffer_growth_blocked()) CheckBuffer();
   DEBUG_PRINTF("%p(%d): constant 0x%x\n", pc_, pc_offset(), data);
+  CheckBuffer();
   EmitHelper(data);
 }
 
 void Assembler::dq(uint64_t data) {
-  if (!is_buffer_growth_blocked()) CheckBuffer();
   DEBUG_PRINTF("%p(%d): constant 0x%" PRIx64 "\n", pc_, pc_offset(), data);
+  CheckBuffer();
   EmitHelper(data);
 }
 
@@ -1434,7 +1386,7 @@ void Assembler::dq(Label* label) {
 void Assembler::dd(Label* label) {
 #endif
   uintptr_t data;
-  if (!is_buffer_growth_blocked()) CheckBuffer();
+  CheckBuffer();
   if (label->is_bound()) {
     internal_reference_positions_.insert(pc_offset());
     data = reinterpret_cast<uintptr_t>(buffer_start_ + label->pos());
@@ -1463,68 +1415,66 @@ void Assembler::CheckTrampolinePool() {
   DEBUG_PRINTF("\ttrampoline_pool_blocked_nesting:%d\n",
                trampoline_pool_blocked_nesting_);
   if (is_trampoline_pool_blocked()) {
-    // Emission is currently blocked; make sure we try again as soon as
-    // possible.
-    next_buffer_check_ = pc_offset() + kInstrSize;
+    // Emission is currently blocked; we will check again when we leave the
+    // blocking scope. We shouldn't move the next check position here, because
+    // it would interfere with the adjustments we make when we produce new
+    // unbound labels and when we bind them.
     return;
   }
 
   DCHECK_GE(unbound_labels_count_, 0);
   if (unbound_labels_count_ > 0) {
     // First we emit jump, then we emit trampoline pool.
-    {
-      int size = kTrampolinePoolOverhead +
-                 unbound_labels_count_ * kTrampolineSlotsSize;
-      DEBUG_PRINTF("inserting trampoline pool at %p (%d) with size %d\n",
-                   reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
-                   pc_offset(), size);
-      int pc_offset_for_safepoint_before = pc_offset_for_safepoint();
-      USE(pc_offset_for_safepoint_before);  // Only used in DCHECK below.
+    int size =
+        kTrampolinePoolOverhead + unbound_labels_count_ * kTrampolineSlotsSize;
+    DEBUG_PRINTF("inserting trampoline pool at %p (%d) with size %d\n",
+                 reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
+                 pc_offset(), size);
+    int pc_offset_for_safepoint_before = pc_offset_for_safepoint();
+    USE(pc_offset_for_safepoint_before);  // Only used in DCHECK below.
 
-      // Mark the trampoline pool as emitted eagerly to avoid recursive
-      // emissions occurring from the blocking scope.
-      trampoline_emitted_ = true;
+    // Mark the trampoline pool as emitted eagerly to avoid recursive
+    // emissions occurring from the blocking scope.
+    trampoline_emitted_ = true;
 
-      // By construction, we know that any branch or jump up until this point
-      // can reach the last entry in the trampoline pool. Therefore, we can
-      // safely jump around the pool as long as the last entry isn't too big
-      // to allow skipping the pool with a single 'jump immediate' instruction.
-      static_assert(kMaxBranchOffset <= kMaxJumpOffset - kTrampolineSlotsSize);
-      int preamble_start = pc_offset();
-      USE(preamble_start);  // Only used in DCHECK.
-      BlockTrampolinePoolScope block_trampoline_pool(this, size);
-      j(size);
+    // By construction, we know that any branch or jump up until this point
+    // can reach the last entry in the trampoline pool. Therefore, we can
+    // safely jump around the pool as long as the last entry isn't too big
+    // to allow skipping the pool with a single 'jump immediate' instruction.
+    static_assert(kMaxBranchOffset <= kMaxJumpOffset - kTrampolineSlotsSize);
+    int preamble_start = pc_offset();
+    USE(preamble_start);  // Only used in DCHECK.
+    BlockPoolsScope block_pools(this, PoolEmissionCheck::kSkip, size);
+    j(size);
 
-      int pool_start = pc_offset();
-      DCHECK_EQ(pool_start - preamble_start, kTrampolinePoolOverhead);
-      for (int i = 0; i < unbound_labels_count_; i++) {
-        // Emit a dummy far branch. It will be patched later when one of the
-        // unbound labels are bound.
-        auipc(t6, 0);  // Read pc into t6.
-        jr(t6, 0);     // Jump to t6 - the auipc instruction.
-      }
-
-      trampoline_ = Trampoline(pool_start, unbound_labels_count_);
-      int pool_size = pc_offset() - pool_start;
-      USE(pool_size);  // Only used in DCHECK.
-      DCHECK_EQ(pool_size, unbound_labels_count_ * kTrampolineSlotsSize);
-
-      // Make sure we didn't mess with the recorded pc for the next safepoint
-      // as part of emitting the branch trampolines.
-      DCHECK_EQ(pc_offset_for_safepoint(), pc_offset_for_safepoint_before);
-
-      // As we are only going to emit the trampoline pool once, we do not have
-      // to check ever again. We set the next check position to something we
-      // will never reach.
-      next_buffer_check_ = kMaxInt;
+    int pool_start = pc_offset();
+    DCHECK_EQ(pool_start - preamble_start, kTrampolinePoolOverhead);
+    for (int i = 0; i < unbound_labels_count_; i++) {
+      // Emit a dummy far branch. It will be patched later when one of the
+      // unbound labels are bound.
+      auipc(t6, 0);  // Read pc into t6.
+      jr(t6, 0);     // Jump to t6 - the auipc instruction.
     }
+
+    trampoline_ = Trampoline(pool_start, unbound_labels_count_);
+    int pool_size = pc_offset() - pool_start;
+    USE(pool_size);  // Only used in DCHECK.
+    DCHECK_EQ(pool_size, unbound_labels_count_ * kTrampolineSlotsSize);
+
+    // Make sure we didn't mess with the recorded pc for the next safepoint
+    // as part of emitting the branch trampolines.
+    DCHECK_EQ(pc_offset_for_safepoint(), pc_offset_for_safepoint_before);
+
+    // As we are only going to emit the trampoline pool once, we do not have
+    // to check ever again. We set the next check position to something we
+    // will never reach.
+    next_buffer_check_ = kMaxInt;
   } else {
     // Number of branches to unbound label at this point is zero, so we can
     // move next buffer check to maximum.
     next_buffer_check_ =
         pc_offset() + kMaxBranchOffset - BlockTrampolinePoolScope::kGap;
   }
-  return;
 }
 
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
@@ -1772,10 +1722,9 @@ int Assembler::ConstantPoolSizeAt(Instruction* instr) {
   }
 }
 
-void Assembler::RecordConstPool(int size) {
+void Assembler::RecordConstPool(int size, const BlockPoolsScope& scope) {
   // We only need this for debugger support, to correctly compute offsets in the
   // code.
-  Assembler::BlockPoolsScope block_pools(this);
   RecordRelocInfo(RelocInfo::CONST_POOL, static_cast<intptr_t>(size));
 }
 
@@ -1794,29 +1743,26 @@ void Assembler::EmitHelper(T x) {
 }
 
 void Assembler::emit(Instr x) {
-  if (!is_buffer_growth_blocked()) {
-    CheckBuffer();
-  }
   DEBUG_PRINTF("%p(%d): ", pc_, pc_offset());
+  CheckBuffer();
   EmitHelper(x);
-  disassembleInstr(pc_ - sizeof(x));
+  DisassembleInstruction(pc_ - sizeof(x));
   CheckTrampolinePoolQuick();
 }
 
 void Assembler::emit(ShortInstr x) {
-  if (!is_buffer_growth_blocked()) {
-    CheckBuffer();
-  }
   DEBUG_PRINTF("%p(%d): ", pc_, pc_offset());
+  CheckBuffer();
   EmitHelper(x);
-  disassembleInstr(pc_ - sizeof(x));
+  DisassembleInstruction(pc_ - sizeof(x));
   CheckTrampolinePoolQuick();
 }
 
 void Assembler::emit(uint64_t data) {
   DEBUG_PRINTF("%p(%d): ", pc_, pc_offset());
-  if (!is_buffer_growth_blocked()) CheckBuffer();
+  CheckBuffer();
   EmitHelper(data);
+  CheckTrampolinePoolQuick();
 }
 
 void Assembler::instr_at_put(int pos, Instr instr,
@@ -1847,102 +1793,6 @@ void Assembler::instr_at_put(Address pc, Instr instr,
     *reinterpret_cast<Instr*>(pc) = instr;
   }
 }
-
-// Constant Pool
-
-void ConstantPool::EmitPrologue(Alignment require_alignment) {
-  // Recorded constant pool size is expressed in number of 32-bits words,
-  // and includes prologue and alignment, but not the jump around the pool
-  // and the size of the marker itself.
-  // word_count may exceed 12 bits, so auipc is used.
-  const int marker_size = 1;
-  int word_count =
-      ComputeSize(Jump::kOmitted, require_alignment) / kInt32Size - marker_size;
-  DCHECK(is_int20(word_count));
-  assm_->auipc(zero_reg, word_count);
-  assm_->EmitPoolGuard();
-}
-
-int ConstantPool::PrologueSize(Jump require_jump) const {
-  // Prologue is:
-  //   j over  ;; if require_jump
-  //   ld x0, x0, #pool_size
-  //   j 0x0
-  int prologue_size = require_jump == Jump::kRequired ? kInstrSize : 0;
-  prologue_size += 2 * kInstrSize;
-  return prologue_size;
-}
-
-void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
-                                                 Instruction* entry_offset,
-                                                 const ConstantPoolKey& key) {
-  Instr instr_auipc = assm_->instr_at(load_offset);
-  Instr instr_load = assm_->instr_at(load_offset + 4);
-  // Instruction to patch must be 'ld/lw rd, offset(rd)' with 'offset == 0'.
-  DCHECK(assm_->IsAuipc(instr_auipc));
-#if V8_TARGET_ARCH_RISCV64
-  DCHECK(assm_->IsLd(instr_load));
-#elif V8_TARGET_ARCH_RISCV32
-  DCHECK(assm_->IsLw(instr_load));
-#endif
-  DCHECK_EQ(assm_->LoadOffset(instr_load), 1);
-  DCHECK_EQ(assm_->AuipcOffset(instr_auipc), 0);
-  int32_t distance = static_cast<int32_t>(
-      reinterpret_cast<Address>(entry_offset) -
-      reinterpret_cast<Address>(assm_->toAddress(load_offset)));
-  CHECK(is_int32(distance + 0x800));
-  int32_t Hi20 = (static_cast<int32_t>(distance) + 0x800) >> 12;
-  int32_t Lo12 = static_cast<int32_t>(distance) << 20 >> 20;
-  assm_->instr_at_put(load_offset, SetHi20Offset(Hi20, instr_auipc));
-  assm_->instr_at_put(load_offset + 4, SetLoadOffset(Lo12, instr_load));
-}
-
-void ConstantPool::Check(Emission force_emit, Jump require_jump,
-                         size_t margin) {
-  // Some short sequence of instruction must not be broken up by constant pool
-  // emission, such sequences are protected by a ConstPool::BlockScope.
-  if (IsBlocked() || assm_->is_trampoline_pool_blocked()) {
-    // Something is wrong if emission is forced and blocked at the same time.
-    DCHECK_EQ(force_emit, Emission::kIfNeeded);
-    return;
-  }
-
-  // We emit a constant pool only if :
-  //  * it is not empty
-  //  * emission is forced by parameter force_emit (e.g. at function end).
-  //  * emission is mandatory or opportune according to {ShouldEmitNow}.
-  if (!IsEmpty() && (force_emit == Emission::kForced ||
-                     ShouldEmitNow(require_jump, margin))) {
-    // Check that the code buffer is large enough before emitting the constant
-    // pool (this includes the gap to the relocation information).
-    int worst_case_size = ComputeSize(Jump::kRequired, Alignment::kRequired);
-    int needed_space = worst_case_size + assm_->kGap;
-    while (assm_->buffer_space() <= needed_space) {
-      assm_->GrowBuffer();
-    }
-
-    // Since we do not know how much space the constant pool is going to take
-    // up, we cannot handle getting here while the trampoline pool is blocked.
-    CHECK(!assm_->is_trampoline_pool_blocked());
-    EmitAndClear(require_jump);
-  }
-  // Since a constant pool is (now) empty, move the check offset forward by
-  // the standard interval.
-  SetNextCheckIn(ConstantPool::kCheckInterval);
-}
-
-// Pool entries are accessed with pc relative load therefore this cannot be more
-// than 1 * MB. Since constant pool emission checks are interval based, and we
-// want to keep entries close to the code, we try to emit every 64KB.
-const size_t ConstantPool::kMaxDistToPool32 = 1 * MB;
-const size_t ConstantPool::kMaxDistToPool64 = 1 * MB;
-const size_t ConstantPool::kCheckInterval = 128 * kInstrSize;
-const size_t ConstantPool::kApproxDistToPool32 = 64 * KB;
-const size_t ConstantPool::kApproxDistToPool64 = kApproxDistToPool32;
-
-const size_t ConstantPool::kOpportunityDistToPool32 = 64 * KB;
-const size_t ConstantPool::kOpportunityDistToPool64 = 64 * KB;
-const size_t ConstantPool::kApproxMaxEntryCount = 512;
 
 #if defined(V8_TARGET_ARCH_RISCV64)
 // LLVM Code
@@ -2039,7 +1889,7 @@ void Assembler::RecursiveLiImpl(Register rd, int64_t Val) {
   int64_t Hi52 = (static_cast<uint64_t>(Val) + 0x800ull) >> 12;
   int ShiftAmount =
       12 + base::bits::CountTrailingZeros(static_cast<uint64_t>(Hi52));
-  Hi52 = signExtend(Hi52 >> (ShiftAmount - 12), 64 - ShiftAmount);
+  Hi52 = SignExtend(Hi52 >> (ShiftAmount - 12), 64 - ShiftAmount);
 
   // If the remaining bits don't fit in 12 bits, we might be able to reduce
   // the shift amount in order to use LUI which will zero the lower 12 bits.
@@ -2117,7 +1967,7 @@ int Assembler::RecursiveLiImplCount(int64_t Val) {
   int64_t Hi52 = (static_cast<uint64_t>(Val) + 0x800ull) >> 12;
   int ShiftAmount =
       12 + base::bits::CountTrailingZeros(static_cast<uint64_t>(Hi52));
-  Hi52 = signExtend(Hi52 >> (ShiftAmount - 12), 64 - ShiftAmount);
+  Hi52 = SignExtend(Hi52 >> (ShiftAmount - 12), 64 - ShiftAmount);
 
   // If the remaining bits don't fit in 12 bits, we might be able to reduce
   // the shift amount in order to use LUI which will zero the lower 12 bits.
@@ -2271,5 +2121,6 @@ int Assembler::GeneralLiCount(int64_t imm, bool is_get_temp_reg) {
 
 RegList Assembler::DefaultTmpList() { return {t3, t5}; }
 DoubleRegList Assembler::DefaultFPTmpList() { return {kScratchDoubleReg}; }
+
 }  // namespace internal
 }  // namespace v8

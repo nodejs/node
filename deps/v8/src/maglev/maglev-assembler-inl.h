@@ -30,7 +30,7 @@
 #elif V8_TARGET_ARCH_S390X
 #include "src/maglev/s390/maglev-assembler-s390-inl.h"
 #elif V8_TARGET_ARCH_PPC64
-#include "src/maglev/ppc64/maglev-assembler-ppc64-inl.h"
+#include "src/maglev/ppc/maglev-assembler-ppc-inl.h"
 #else
 #error "Maglev does not supported this architecture."
 #endif
@@ -1146,22 +1146,16 @@ inline void MaglevAssembler::AssertElidedWriteBarrier(
   Label* deferred_write_barrier_check = MakeDeferredCode(
       [](MaglevAssembler* masm, ZoneLabelRef ok, Register object,
          Register value, RegisterSnapshot snapshot) {
-#if DEBUG
-        masm->set_allow_call(true);
-#endif  // DEBUG
-        {
-          SaveRegisterStateForCall save_register_state(masm, snapshot);
 #ifdef V8_COMPRESS_POINTERS
-          masm->DecompressTagged(object, object);
-          masm->DecompressTagged(value, value);
+        masm->DecompressTagged(value, value);
 #endif
-          masm->Push(object, value);
-          masm->Move(kContextRegister, masm->native_context().object());
-          masm->CallRuntime(Runtime::kCheckNoWriteBarrierNeeded, 2);
+        {
+          TemporaryRegisterScope temps(masm);
+          Register scratch = temps.AcquireScratch();
+          masm->PreCheckSkippedWriteBarrier(object, value, scratch, *ok);
         }
-#if DEBUG
-        masm->set_allow_call(false);
-#endif  // DEBUG
+        masm->CallVerifySkippedWriteBarrierStubSaveRegisters(
+            object, value, SaveFPRegsMode::kSave);
         masm->Jump(*ok);
       },
       ok, object, value, snapshot);

@@ -7,6 +7,14 @@
 
 #include <ostream>
 
+#define ARITHMETIC_BITWISE_OPERATION_LIST(V) \
+  V(BitwiseAnd)                              \
+  V(BitwiseOr)                               \
+  V(BitwiseXor)                              \
+  V(ShiftLeft)                               \
+  V(ShiftRight)                              \
+  V(ShiftRightLogical)
+
 #define ARITHMETIC_OPERATION_LIST(V) \
   V(Add)                             \
   V(Subtract)                        \
@@ -14,12 +22,7 @@
   V(Divide)                          \
   V(Modulus)                         \
   V(Exponentiate)                    \
-  V(BitwiseAnd)                      \
-  V(BitwiseOr)                       \
-  V(BitwiseXor)                      \
-  V(ShiftLeft)                       \
-  V(ShiftRight)                      \
-  V(ShiftRightLogical)
+  ARITHMETIC_BITWISE_OPERATION_LIST(V)
 
 #define UNARY_OPERATION_LIST(V) \
   V(BitwiseNot)                 \
@@ -45,6 +48,34 @@ enum class Operation : uint8_t {
   OPERATION_LIST(DEFINE_OP)
 #undef DEFINE_OP
 };
+
+template <Operation kOperation>
+constexpr inline bool IsBitwiseBinaryOperation() {
+  switch (kOperation) {
+#define CASE(name) case Operation::k##name:
+    ARITHMETIC_BITWISE_OPERATION_LIST(CASE)
+#undef CASE
+    return true;
+    default:
+      return false;
+  }
+}
+
+constexpr inline bool IsUnaryOperation(Operation op) {
+  switch (op) {
+#define UNARY_CASE(name)   \
+  case Operation::k##name: \
+    return true;
+    UNARY_OPERATION_LIST(UNARY_CASE)
+#undef UNARY_CASE
+    default:
+      return false;
+  }
+}
+
+constexpr inline bool IsBinaryOperation(Operation op) {
+  return !IsUnaryOperation(op);
+}
 
 inline std::ostream& operator<<(std::ostream& os, const Operation& operation) {
   switch (operation) {

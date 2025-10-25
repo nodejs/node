@@ -175,11 +175,27 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
         return it->isolate()->factory()->undefined_value();
       case LookupIterator::WASM_OBJECT:
         continue;  // Continue to the prototype, if present.
-      case LookupIterator::ACCESSOR:
-        // TODO(verwaest): For now this doesn't call into AccessorInfo, since
-        // clients don't need it. Update once relevant.
+      case LookupIterator::ACCESSOR: {
+        auto accessors = it->GetAccessors();
+        // Special handling for AccessorInfo, which behaves like a data
+        // property.
+        if (IsAccessorInfo(*accessors)) {
+          auto info = Cast<AccessorInfo>(*accessors);
+          if (info->getter_side_effect_type() ==
+              SideEffectType::kHasNoSideEffect) {
+            v8::TryCatch try_catch(
+                reinterpret_cast<v8::Isolate*>(it->isolate()));
+            try_catch.SetVerbose(false);
+            try_catch.SetCaptureMessage(false);
+            Handle<Object> result;
+            if (Object::GetPropertyWithAccessor(it).ToHandle(&result)) {
+              return result;
+            }
+          }
+        }
         it->NotFound();
         return it->isolate()->factory()->undefined_value();
+      }
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
         return it->isolate()->factory()->undefined_value();
       case LookupIterator::DATA:
@@ -543,7 +559,6 @@ Tagged<String> JSReceiver::class_name() {
   }
   if (IsJSWeakMap(*this)) return roots.WeakMap_string();
   if (IsJSWeakSet(*this)) return roots.WeakSet_string();
-  if (IsJSGlobalProxy(*this)) return roots.global_string();
   if (IsShared(*this)) {
     if (IsJSSharedStruct(*this)) return roots.SharedStruct_string();
     if (IsJSSharedArray(*this)) return roots.SharedArray_string();
@@ -570,8 +585,8 @@ GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
     if (IsJSFunction(*maybe_constructor)) {
       DirectHandle<JSFunction> constructor =
           Cast<JSFunction>(maybe_constructor);
-      Handle<String> name = SharedFunctionInfo::DebugName(
-          isolate, direct_handle(constructor->shared(), isolate));
+      DirectHandle<String> name =
+          JSFunction::GetDebugName(isolate, constructor);
       if (name->length() != 0 &&
           !name->Equals(ReadOnlyRoots(isolate).Object_string())) {
         return std::make_pair(indirect_handle(constructor, isolate), name);
@@ -586,7 +601,7 @@ GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
       }
     }
   }
-
+  bool is_hidden_prototype = false;
   for (PrototypeIterator it(isolate, receiver, kStartAtReceiver); !it.IsAtEnd();
        it.AdvanceIgnoringProxies()) {
     auto current = PrototypeIterator::GetCurrent<JSReceiver>(it);
@@ -599,6 +614,22 @@ GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
     if (IsString(*maybe_to_string_tag)) {
       return std::make_pair(MaybeHandle<JSFunction>(),
                             Cast<String>(maybe_to_string_tag));
+    }
+
+    // If current object is a hidden prototype then the most accurate name
+    // is the class name of its constructor's template.
+    if (is_hidden_prototype) {
+      DirectHandle<Object> maybe_constructor(current->map()->GetConstructor(),
+                                             isolate);
+      if (IsFunctionTemplateInfo(*maybe_constructor)) {
+        DirectHandle<FunctionTemplateInfo> function_template =
+            Cast<FunctionTemplateInfo>(maybe_constructor);
+        if (!IsUndefined(function_template->class_name(), isolate)) {
+          return std::make_pair(
+              MaybeHandle<JSFunction>(),
+              handle(Cast<String>(function_template->class_name()), isolate));
+        }
+      }
     }
 
     // Consider the following example:
@@ -628,6 +659,7 @@ GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
         }
       }
     }
+    is_hidden_prototype = IsJSGlobalProxy(*current);
   }
 
   return std::make_pair(MaybeHandle<JSFunction>(),
@@ -2658,8 +2690,6 @@ int JSObject::GetHeaderSize(InstanceType type,
       return WasmExceptionPackage::kHeaderSize;
     case WASM_SUSPENDING_OBJECT_TYPE:
       return WasmSuspendingObject::kHeaderSize;
-    case WASM_DESCRIPTOR_OPTIONS_TYPE:
-      return WasmDescriptorOptions::kHeaderSize;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default: {
       // Special type check for API Objects because they are in a large variable
@@ -4906,11 +4936,13 @@ void JSObject::MakePrototypesFast(DirectHandle<Object> receiver,
                                   WhereToStart where_to_start,
                                   Isolate* isolate) {
   if (!IsJSReceiver(*receiver)) return;
-  if (IsWasmObject(*receiver)) where_to_start = kStartAtPrototype;
   for (PrototypeIterator iter(isolate, Cast<JSReceiver>(receiver),
                               where_to_start);
        !iter.IsAtEnd(); iter.Advance()) {
     DirectHandle<Object> current = PrototypeIterator::GetCurrent(iter);
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsWasmObject(*current)) continue;
+#endif  // V8_ENABLE_WEBASSEMBLY
     if (!IsJSObjectThatCanBeTrackedAsPrototype(*current)) return;
     DirectHandle<JSObject> current_obj = Cast<JSObject>(current);
     Tagged<Map> current_map = current_obj->map();
@@ -5049,7 +5081,11 @@ void JSObject::LazyRegisterPrototypeUser(DirectHandle<Map> user,
                                          Isolate* isolate) {
   // Contract: In line with InvalidatePrototypeChains()'s requirements,
   // leaf maps don't need to register as users, only prototypes do.
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(user->is_prototype_map() || IsWasmObjectMap(*user));
+#else
   DCHECK(user->is_prototype_map());
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   DirectHandle<Map> current_user = user;
   DirectHandle<PrototypeInfo> current_user_info =
@@ -5069,8 +5105,8 @@ void JSObject::LazyRegisterPrototypeUser(DirectHandle<Map> user,
     // change, so they don't need to be tracked as prototypes
     // anyway. Additionally, registering users of shared objects is not
     // threadsafe.
-    if (!IsJSObjectThatCanBeTrackedAsPrototype(*maybe_proto)) continue;
-    auto proto = Cast<JSObject>(maybe_proto);
+    if (!IsAnyObjectThatCanBeTrackedAsPrototype(*maybe_proto)) continue;
+    DirectHandle<JSReceiver> proto = Cast<JSReceiver>(maybe_proto);
     DirectHandle<PrototypeInfo> proto_info =
         Map::GetOrCreatePrototypeInfo(proto, isolate);
     Handle<Object> maybe_registry(proto_info->prototype_users(), isolate);
@@ -5143,7 +5179,12 @@ namespace {
 // AccessorAssembler::InvalidateValidityCellIfPrototype() which does pre-checks
 // before jumping here.
 void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(map->is_prototype_map() || IsWasmObjectMap(map));
+#else
   DCHECK(map->is_prototype_map());
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   if (v8_flags.trace_prototype_users) {
     PrintF("Invalidating prototype map %p 's cell\n",
            reinterpret_cast<void*>(map.ptr()));

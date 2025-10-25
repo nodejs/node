@@ -815,13 +815,11 @@ class ABSL_ATTRIBUTE_WARN_UNUSED InlinedVector {
   // `InlinedVector::clear()`
   //
   // Destroys all elements in the inlined vector, setting the size to `0` and
-  // deallocating any held memory.
+  // preserving capacity.
   void clear() noexcept {
     inlined_vector_internal::DestroyAdapter<A>::DestroyElements(
         storage_.GetAllocator(), data(), size());
-    storage_.DeallocateIfAllocated();
-
-    storage_.SetInlinedSize(0);
+    storage_.SetSize(0);
   }
 
   // `InlinedVector::reserve(...)`

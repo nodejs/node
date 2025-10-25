@@ -1709,7 +1709,7 @@ class V8_EXPORT Isolate {
   void SetWasmLoadSourceMapCallback(WasmLoadSourceMapCallback callback);
 
   void SetWasmImportedStringsEnabledCallback(
-      WasmImportedStringsEnabledCallback callback);
+      WasmImportedStringsEnabledCallback callback) {}
 
   void SetWasmCustomDescriptorsEnabledCallback(
       WasmCustomDescriptorsEnabledCallback callback);
@@ -1717,7 +1717,7 @@ class V8_EXPORT Isolate {
   void SetSharedArrayBufferConstructorEnabledCallback(
       SharedArrayBufferConstructorEnabledCallback callback);
 
-  void SetWasmJSPIEnabledCallback(WasmJSPIEnabledCallback callback);
+  void SetWasmJSPIEnabledCallback(WasmJSPIEnabledCallback callback) {}
 
   /**
    * This function can be called by the embedder to signal V8 that the dynamic

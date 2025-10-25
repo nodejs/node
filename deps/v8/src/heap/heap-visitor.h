@@ -125,7 +125,6 @@ class MaybeObjectSize final {
   IF_WASM(V, WasmGlobalObject)              \
   IF_WASM(V, WasmInstanceObject)            \
   IF_WASM(V, WasmMemoryObject)              \
-  IF_WASM(V, WasmDescriptorOptions)         \
   IF_WASM(V, WasmSuspendingObject)          \
   IF_WASM(V, WasmTableObject)               \
   IF_WASM(V, WasmTagObject)
@@ -394,7 +393,8 @@ class NewSpaceVisitor : public ConcurrentHeapVisitor<ConcreteVisitor> {
                                  MaybeObjectSize) {
     UNREACHABLE();
   }
-  size_t VisitWeakCell(Tagged<Map>, Tagged<WeakCell>, MaybeObjectSize) {
+  size_t VisitAllocationSite(Tagged<Map> map, Tagged<AllocationSite>,
+                             MaybeObjectSize) {
     UNREACHABLE();
   }
 

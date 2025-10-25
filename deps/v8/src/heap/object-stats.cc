@@ -517,6 +517,9 @@ void ObjectStatsCollectorImpl::RecordHashTableVirtualObjectStats(
 bool ObjectStatsCollectorImpl::RecordSimpleVirtualObjectStats(
     Tagged<HeapObject> parent, Tagged<HeapObject> obj,
     ObjectStats::VirtualInstanceType type) {
+  // Don't bother recording holes, they're anyway RO space and it's complicated
+  // with unmapped pages.
+  if (SafeIsAnyHole(obj)) return false;
   return RecordVirtualObjectStats(parent, obj, type, obj->Size(cage_base()),
                                   ObjectStats::kNoOverAllocation, kCheckCow);
 }
@@ -1076,7 +1079,7 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
   Tagged<TrustedFixedArray> constant_pool = bytecode->constant_pool();
   for (int i = 0; i < constant_pool->length(); i++) {
     Tagged<Object> entry = constant_pool->get(i);
-    if (IsFixedArrayExact(entry)) {
+    if (!IsTheHole(entry) && IsFixedArrayExact(entry)) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           constant_pool, Cast<HeapObject>(entry),
           StatsEnum::EMBEDDED_OBJECT_TYPE);

@@ -165,10 +165,13 @@ bool EmbedderDataSlot::store_handle(IsolateForSandbox isolate,
                                     Tagged<HeapObject> host,
                                     ExternalPointerHandle handle) {
   DCHECK_NE(handle, kNullExternalPointerHandle);
-  ExternalPointerTable& table =
-      isolate.GetExternalPointerTableFor(kEmbedderDataSlotPayloadTag);
-  ExternalPointerTable::Space* space = isolate.GetExternalPointerTableSpaceFor(
-      kEmbedderDataSlotPayloadTag, host.address());
+  // The actual type tag does not matter here, as it is only used  to load the
+  // correct external pointer table and space, both here and in the write
+  // barrier code below. It only has to be in the range of embedder data tags.
+  constexpr ExternalPointerTag kAnyTag = kFirstEmbedderDataTag;
+  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(kAnyTag);
+  ExternalPointerTable::Space* space =
+      isolate.GetExternalPointerTableSpaceFor(kAnyTag, host.address());
 
   ExternalPointerHandle new_handle = table.DuplicateEntry(space, handle);
   if (new_handle == kNullExternalPointerHandle) return false;
@@ -182,8 +185,7 @@ bool EmbedderDataSlot::store_handle(IsolateForSandbox isolate,
   // Use `offset` to avoid compilation issues for gn arg
   // `v8_disable_write_barriers = true`.
   USE(offset);
-  EXTERNAL_POINTER_WRITE_BARRIER(host, static_cast<int>(offset),
-                                 kEmbedderDataSlotPayloadTag);
+  EXTERNAL_POINTER_WRITE_BARRIER(host, static_cast<int>(offset), kAnyTag);
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
   return true;
 }

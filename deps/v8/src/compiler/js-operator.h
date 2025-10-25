@@ -767,6 +767,29 @@ class CreateLiteralParameters final {
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
+class SetPrototypePropertiesParameters final {
+ public:
+  explicit SetPrototypePropertiesParameters(
+      ObjectBoilerplateDescriptionRef constant, FeedbackSource source)
+      : constant(constant), source(source) {}
+
+  friend bool operator==(SetPrototypePropertiesParameters const&,
+                         SetPrototypePropertiesParameters const&);
+  friend bool operator!=(SetPrototypePropertiesParameters const&,
+                         SetPrototypePropertiesParameters const&);
+
+  friend size_t hash_value(SetPrototypePropertiesParameters const&);
+
+  friend std::ostream& operator<<(std::ostream&,
+                                  SetPrototypePropertiesParameters const&);
+
+  const ObjectBoilerplateDescriptionRef constant;
+  FeedbackSource source;
+};
+
+SetPrototypePropertiesParameters SetPrototypePropertiesParametersOf(
+    const Operator* op);
+
 class CloneObjectParameters final {
  public:
   CloneObjectParameters(FeedbackSource const& feedback, int flags)
@@ -847,7 +870,8 @@ class JSWasmCallParameters {
   explicit JSWasmCallParameters(wasm::NativeModule* native_module,
                                 int function_index,
                                 SharedFunctionInfoRef shared_fct_info,
-                                FeedbackSource const& feedback);
+                                FeedbackSource const& feedback,
+                                bool receiver_is_first_param = false);
 
   wasm::NativeModule* native_module() const { return native_module_; }
   int function_index() const { return function_index_; }
@@ -855,12 +879,14 @@ class JSWasmCallParameters {
   FeedbackSource const& feedback() const { return feedback_; }
   int input_count() const;
   int arity_without_implicit_args() const;
+  bool receiver_is_first_param() const { return receiver_is_first_param_; }
 
  private:
   wasm::NativeModule* native_module_;
   int function_index_;
   SharedFunctionInfoRef shared_fct_info_;
   const FeedbackSource feedback_;
+  bool receiver_is_first_param_;
 };
 
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op)
@@ -958,6 +984,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
                                       FeedbackSource const& feedback,
                                       int literal_flags,
                                       int number_of_properties);
+  const Operator* SetPrototypeProperties(
+      ObjectBoilerplateDescriptionRef constant, FeedbackSource source);
   const Operator* CloneObject(FeedbackSource const& feedback,
                               int literal_flags);
   const Operator* CreateLiteralRegExp(StringRef constant_pattern,

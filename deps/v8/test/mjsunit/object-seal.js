@@ -406,7 +406,7 @@ function testPackedSealedArray1(obj) {
 
   // Verify search, filter, iterator
   obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
-  if(!%IsExperimentalUndefinedDoubleEnabled()) {
+  if(!%IsUndefinedDoubleEnabled()) {
     // TODO(385155404): Consider reenabling when we can transition back to packed.
     assertTrue(%HasPackedElements(obj));
   }
@@ -455,7 +455,7 @@ function testPackedSealedArray1(obj) {
   }
 };
 obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
-if(!%IsExperimentalUndefinedDoubleEnabled()) {
+if(!%IsUndefinedDoubleEnabled()) {
   // TODO(385155404): Consider reenabling when we can transition back to packed.
   assertTrue(%HasPackedElements(obj));
 }
@@ -464,7 +464,7 @@ testPackedSealedArray1(obj);
 
 // Verify after transition from preventExtensions
 obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
-if(!%IsExperimentalUndefinedDoubleEnabled()) {
+if(!%IsUndefinedDoubleEnabled()) {
   // TODO(385155404): Consider reenabling when we can transition back to packed.
   assertTrue(%HasPackedElements(obj));
 }

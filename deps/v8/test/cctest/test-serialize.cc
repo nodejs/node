@@ -967,13 +967,14 @@ v8::StartupData SerializeInternalFields(v8::Local<v8::Object> holder, int index,
   if (data == reinterpret_cast<void*>(2000)) {
     // Used for SnapshotCreatorTemplates test. We check that none of the fields
     // have been cleared yet.
-    CHECK_NOT_NULL(holder->GetAlignedPointerFromInternalField(1));
+    CHECK_NOT_NULL(
+        holder->GetAlignedPointerFromInternalField(1, kInternalFieldDataTag));
   } else {
     CHECK_EQ(reinterpret_cast<void*>(2016), data);
   }
   if (index != 1) return {nullptr, 0};
   InternalFieldData* embedder_field = static_cast<InternalFieldData*>(
-      holder->GetAlignedPointerFromInternalField(index));
+      holder->GetAlignedPointerFromInternalField(index, kInternalFieldDataTag));
   if (embedder_field == nullptr) return {nullptr, 0};
   int size = sizeof(*embedder_field);
   char* payload = new char[size];
@@ -4182,16 +4183,16 @@ void TestSnapshotCreatorTemplates(bool promote_templates_to_read_only) {
                                       .ToLocalChecked();
 
         InternalFieldData* a1 = reinterpret_cast<InternalFieldData*>(
-            a->GetAlignedPointerFromInternalField(1));
+            a->GetAlignedPointerFromInternalField(1, kInternalFieldDataTag));
         v8::Local<v8::Value> a2 = a->GetInternalField(2).As<v8::Value>();
 
         InternalFieldData* b1 = reinterpret_cast<InternalFieldData*>(
-            b->GetAlignedPointerFromInternalField(1));
+            b->GetAlignedPointerFromInternalField(1, kInternalFieldDataTag));
         v8::Local<v8::Value> b2 = b->GetInternalField(2).As<v8::Value>();
 
         v8::Local<v8::Value> c0 = c->GetInternalField(0).As<v8::Value>();
         InternalFieldData* c1 = reinterpret_cast<InternalFieldData*>(
-            c->GetAlignedPointerFromInternalField(1));
+            c->GetAlignedPointerFromInternalField(1, kInternalFieldDataTag));
         v8::Local<v8::Value> c2 = c->GetInternalField(2).As<v8::Value>();
 
         CHECK(c0->IsUndefined());
@@ -4251,7 +4252,7 @@ v8::StartupData SerializeInternalFields(v8::Local<v8::Object> holder, int index,
                                         void* data) {
   CHECK_EQ(data, &serialize_internal_fields_data);
   InternalFieldData* field = static_cast<InternalFieldData*>(
-      holder->GetAlignedPointerFromInternalField(index));
+      holder->GetAlignedPointerFromInternalField(index, kRawDataTag));
   if (index == 0) {
     CHECK_NULL(field);
     return {nullptr, 0};
@@ -4269,7 +4270,7 @@ v8::StartupData SerializeContextData(v8::Local<v8::Context> context, int index,
                                      void* data) {
   CHECK_EQ(data, &serialize_context_data_data);
   InternalFieldData* field = static_cast<InternalFieldData*>(
-      context->GetAlignedPointerFromEmbedderData(index));
+      context->GetAlignedPointerFromEmbedderData(index, kRawDataTag));
   if (index == 0) {
     CHECK_NULL(field);
     return {nullptr, 0};
@@ -4367,7 +4368,8 @@ UNINITIALIZED_TEST(SerializeContextData) {
             isolate, nullptr, {}, {}, deserialize_internal_fields, nullptr,
             deserialize_context_data);
         InternalFieldData* data = static_cast<InternalFieldData*>(
-            context->GetAlignedPointerFromEmbedderData(1));
+            context->GetAlignedPointerFromEmbedderData(1,
+                                                       kInternalFieldDataTag));
         CHECK_EQ(context_data_test::context_data.data, data->data);
         context->SetAlignedPointerInEmbedderData(1, nullptr, kRawDataTag);
         delete data;
@@ -4377,7 +4379,7 @@ UNINITIALIZED_TEST(SerializeContextData) {
         CHECK(obj_val->IsObject());
         v8::Local<v8::Object> obj = obj_val.As<v8::Object>();
         InternalFieldData* field = static_cast<InternalFieldData*>(
-            obj->GetAlignedPointerFromInternalField(1));
+            obj->GetAlignedPointerFromInternalField(1, kInternalFieldDataTag));
         CHECK_EQ(context_data_test::object_data.data, field->data);
         obj->SetAlignedPointerInInternalField(1, nullptr, kRawDataTag);
         delete field;
@@ -4438,7 +4440,8 @@ UNINITIALIZED_TEST(SerializeContextData) {
                                       nullptr, deserialize_context_data)
                 .ToLocalChecked();
         InternalFieldData* data = static_cast<InternalFieldData*>(
-            context->GetAlignedPointerFromEmbedderData(1));
+            context->GetAlignedPointerFromEmbedderData(1,
+                                                       kInternalFieldDataTag));
         CHECK_EQ(context_data_test::context_data.data, data->data);
         context->SetAlignedPointerInEmbedderData(1, nullptr, kRawDataTag);
         delete data;
@@ -4448,7 +4451,7 @@ UNINITIALIZED_TEST(SerializeContextData) {
         CHECK(obj_val->IsObject());
         v8::Local<v8::Object> obj = obj_val.As<v8::Object>();
         InternalFieldData* field = static_cast<InternalFieldData*>(
-            obj->GetAlignedPointerFromInternalField(1));
+            obj->GetAlignedPointerFromInternalField(1, kInternalFieldDataTag));
         CHECK_EQ(context_data_test::object_data.data, field->data);
         obj->SetAlignedPointerInInternalField(1, nullptr, kRawDataTag);
         delete field;
@@ -4503,16 +4506,18 @@ UNINITIALIZED_TEST(SerializeContextData) {
         v8::HandleScope handle_scope(isolate);
         v8::Local<v8::Context> context =
             v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
-        CHECK_NULL(context->GetAlignedPointerFromEmbedderData(0));
+        CHECK_NULL(context->GetAlignedPointerFromEmbedderData(0, kRawDataTag));
         // It would be more consistent if the API would always null out pointers
         // stored in embedder slots (if no custom serializer/deserializer is
         // provided), but in the wide pointer case we don't actually know
         // whether it's a pointer or a Smi, so we just let these values pass
         // through.
         if (V8_ENABLE_SANDBOX_BOOL)
-          CHECK_NULL(context->GetAlignedPointerFromEmbedderData(1));
+          CHECK_NULL(
+              context->GetAlignedPointerFromEmbedderData(1, kRawDataTag));
         else
-          CHECK_EQ(raw_data, context->GetAlignedPointerFromEmbedderData(1));
+          CHECK_EQ(raw_data,
+                   context->GetAlignedPointerFromEmbedderData(1, kRawDataTag));
       }
       isolate->Dispose();
     }

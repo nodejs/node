@@ -590,6 +590,27 @@ WASM_COMPILED_EXEC_TEST(RefCastNoChecks) {
   tester.CheckResult(kTestSuccessful, 0);
 }
 
+WASM_COMPILED_EXEC_TEST(RefCastAbstractNoChecks) {
+  FlagScope<bool> scope(&v8_flags.experimental_wasm_assume_ref_cast_succeeds,
+                        true);
+  WasmGCTester tester(execution_tier);
+
+  HeapType struct_type = tester.DefineStruct({F(kWasmI32, true)});
+  const ModuleTypeIndex struct_index = struct_type.ref_index();
+
+  const uint8_t kTestSuccessful = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmAnyRef},
+      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(struct_index)),
+       WASM_STRUCT_GET(
+           struct_index, 0,
+           WASM_REF_CAST(WASM_REF_CAST(WASM_LOCAL_GET(0), kStructRefCode),
+                         struct_index)),
+       WASM_END});
+
+  tester.CompileModule();
+  tester.CheckResult(kTestSuccessful, 0);
+}
+
 WASM_COMPILED_EXEC_TEST(BrOnCast) {
   WasmGCTester tester(execution_tier);
   HeapType type = tester.DefineStruct({F(kWasmI32, true)});

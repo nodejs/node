@@ -15,6 +15,8 @@
 
 #include <stddef.h>
 
+#include "hwy/base.h"
+
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "tests/swizzle_block_test.cc"
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
@@ -67,6 +69,39 @@ struct TestSwapAdjacentBlocks {
 
 HWY_NOINLINE void TestAllSwapAdjacentBlocks() {
   ForAllTypes(ForGEVectors<128, TestSwapAdjacentBlocks>());
+}
+
+struct TestInterleaveBlocks {
+  template <class T, class D>
+  HWY_NOINLINE void operator()(T /*unused*/, D d) {
+    const size_t N = Lanes(d);
+    constexpr size_t kLanesPerBlock = 16 / sizeof(T);
+    if (N < 2 * kLanesPerBlock) return;
+    const VFromD<D> va = Iota(d, 1);
+    const VFromD<D> vb = Iota(d, N + 1);
+    auto expected_even = AllocateAligned<T>(N);
+    auto expected_odd = AllocateAligned<T>(N);
+    HWY_ASSERT(expected_even && expected_odd);
+    for (size_t i = 0; i < N; ++i) {
+      const size_t idx_block = i / kLanesPerBlock;
+      const size_t mod = 1 + i % kLanesPerBlock;
+      const size_t base_even = RoundDownTo(idx_block, 2) * kLanesPerBlock;
+      const size_t base_odd = (idx_block | 1) * kLanesPerBlock;
+      if (idx_block & 1) {  // odd blocks come from B, hence + N
+        expected_even[i] = ConvertScalarTo<T>(base_even + N + mod);
+        expected_odd[i] = ConvertScalarTo<T>(base_odd + N + mod);
+      } else {  // even blocks come from A
+        expected_even[i] = ConvertScalarTo<T>(base_even + mod);
+        expected_odd[i] = ConvertScalarTo<T>(base_odd + mod);
+      }
+    }
+    HWY_ASSERT_VEC_EQ(d, expected_even.get(), InterleaveEvenBlocks(d, va, vb));
+    HWY_ASSERT_VEC_EQ(d, expected_odd.get(), InterleaveOddBlocks(d, va, vb));
+  }
+};
+
+HWY_NOINLINE void TestAllInterleaveBlocks() {
+  ForAllTypes(ForGEVectors<128, TestInterleaveBlocks>());
 }
 
 class TestInsertBlock {
@@ -256,6 +291,7 @@ namespace {
 HWY_BEFORE_TEST(HwySwizzleBlockTest);
 HWY_EXPORT_AND_TEST_P(HwySwizzleBlockTest, TestAllOddEvenBlocks);
 HWY_EXPORT_AND_TEST_P(HwySwizzleBlockTest, TestAllSwapAdjacentBlocks);
+HWY_EXPORT_AND_TEST_P(HwySwizzleBlockTest, TestAllInterleaveBlocks);
 HWY_EXPORT_AND_TEST_P(HwySwizzleBlockTest, TestAllInsertBlock);
 HWY_EXPORT_AND_TEST_P(HwySwizzleBlockTest, TestAllExtractBlock);
 HWY_EXPORT_AND_TEST_P(HwySwizzleBlockTest, TestAllBroadcastBlock);

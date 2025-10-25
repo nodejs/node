@@ -740,6 +740,10 @@ V8_INLINE bool IsWasmObject(T obj, Isolate* = nullptr) {
 }
 #endif
 
+// Returns true for JS and Wasm objects not on the shared heap.
+V8_INLINE bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj);
+V8_INLINE bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj);
+// Same, but only permits JS objects.
 V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj);
 V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj);
 

@@ -118,3 +118,13 @@ var desc = Object.getOwnPropertyDescriptor(f, "prototype");
 assertFalse(desc.configurable);
 assertFalse(desc.enumerable);
 assertTrue(desc.writable);
+
+assertThrows(() => {
+  const temp =  Function.prototype.apply
+  temp()
+}, TypeError, "Function.prototype.apply was called on undefined, which is undefined and not a function")
+
+assertThrows(() => {
+  const temp =  Function.prototype.call
+  temp()
+}, TypeError, "Function.prototype.call was called on undefined, which is undefined and not a function")

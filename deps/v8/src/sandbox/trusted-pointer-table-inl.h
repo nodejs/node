@@ -221,7 +221,7 @@ void TrustedPointerTable::Validate(Address pointer, IndirectPointerTag tag) {
 
   // Entries must never point into the sandbox, as they couldn't be trusted in
   // that case. This CHECK is a defense-in-depth mechanism to guarantee this.
-  CHECK(!InsideSandbox(pointer));
+  CHECK(OutsideSandbox(pointer));
 }
 
 }  // namespace internal

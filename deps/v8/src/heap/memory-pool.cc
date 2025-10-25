@@ -17,6 +17,81 @@
 
 namespace v8::internal {
 
+PooledPage::PooledPage(void* uninitialized_metadata, VirtualMemory reservation)
+    : uninitialized_metadata_(uninitialized_metadata),
+      reservation_(std::move(reservation)) {}
+
+// static
+PooledPage PooledPage::Create(PageMetadata* metadata) {
+  // This method is called only on the main thread and only during the
+  // atomic pause so a lock is not needed.
+  DCHECK_NOT_NULL(metadata);
+  DCHECK_EQ(metadata->size(), PageMetadata::kPageSize);
+  DCHECK(!metadata->is_large());
+  DCHECK(!metadata->is_trusted());
+  DCHECK(!metadata->is_executable());
+  // Ensure that ReleaseAllAllocatedMemory() was called on the page.
+  DCHECK(!metadata->ContainsAnySlots());
+  DCHECK(metadata->reserved_memory()->IsReserved());
+  DCHECK_EQ(metadata->reserved_memory()->size(), metadata->size());
+
+  VirtualMemory chunk_reservation(std::move(*metadata->reserved_memory()));
+  DCHECK_EQ(chunk_reservation.size(), metadata->size());
+  DCHECK_EQ(chunk_reservation.address(), metadata->ChunkAddress());
+
+  MemoryChunk* chunk = metadata->Chunk();
+  DCHECK(!chunk->InReadOnlySpace());
+
+  // Destroy the chunk and the metadata object but do not release the underlying
+  // memory as that is going to be pooled.
+  chunk->~MemoryChunk();
+  metadata->~PageMetadata();
+
+  return PooledPage(metadata, std::move(chunk_reservation));
+}
+
+// static
+PooledPage PooledPage::Create(LargePageMetadata* metadata) {
+  DCHECK_NOT_NULL(metadata);
+  DCHECK(metadata->is_large());
+  // Ensure that ReleaseAllAllocatedMemory() was called on the page.
+  DCHECK(!metadata->ContainsAnySlots());
+
+  VirtualMemory chunk_reservation(std::move(*metadata->reserved_memory()));
+  DCHECK_EQ(chunk_reservation.size(), metadata->size());
+  DCHECK_EQ(chunk_reservation.address(), metadata->ChunkAddress());
+
+  MemoryChunk* chunk = metadata->Chunk();
+
+  // Destroy the chunk and the metadata object but do not release the underlying
+  // memory as that is going to be pooled.
+  chunk->~MemoryChunk();
+  metadata->~LargePageMetadata();
+
+  return PooledPage(metadata, std::move(chunk_reservation));
+}
+
+PooledPage::~PooledPage() {
+  if (!reservation_.IsReserved()) {
+    return;
+  }
+  {
+    DiscardSealedMemoryScope discard_scope("Deleting MemoryChunk reservation");
+    reservation_.Free();
+  }
+  free(uninitialized_metadata_);
+}
+
+PooledPage::Result PooledPage::ToResult() {
+  base::AddressRegion uninitialized_chunk = reservation_.region();
+  void* uninitialized_metadata = uninitialized_metadata_;
+  // Reset the reservation without returning the memory which is now owned by
+  // the caller of `Release()`.
+  reservation_.Reset();
+  uninitialized_metadata_ = nullptr;
+  return {uninitialized_metadata, uninitialized_chunk};
+}
+
 template <typename PoolEntry>
 void MemoryPool::PoolImpl<PoolEntry>::TearDown() {
   DCHECK(local_pools_.empty());
@@ -190,13 +265,7 @@ bool MemoryPool::LargePagePoolImpl::Add(std::vector<LargePageMetadata*>& pages,
     }
 
     total_size_ += page->size();
-#ifdef V8_ENABLE_SANDBOX
-    MemoryChunk::ClearMetadataPointer(page);
-#endif  // V8_ENABLE_SANDBOX
-    pages_.emplace_back(time,
-                        LargePageMemory(page, [](LargePageMetadata* metadata) {
-                          MemoryAllocator::DeleteMemoryChunk(metadata);
-                        }));
+    pages_.emplace_back(time, PooledPage::Create(page));
     added_to_pool = true;
     return true;
   });
@@ -205,8 +274,8 @@ bool MemoryPool::LargePagePoolImpl::Add(std::vector<LargePageMetadata*>& pages,
   return added_to_pool;
 }
 
-LargePageMetadata* MemoryPool::LargePagePoolImpl::Remove(Isolate* isolate,
-                                                         size_t chunk_size) {
+std::optional<PooledPage::Result> MemoryPool::LargePagePoolImpl::Remove(
+    Isolate* isolate, size_t chunk_size) {
   base::MutexGuard guard(&mutex_);
   auto selected = pages_.end();
   DCHECK_EQ(total_size_, ComputeTotalSize());
@@ -215,29 +284,28 @@ LargePageMetadata* MemoryPool::LargePagePoolImpl::Remove(Isolate* isolate,
   // |chunk_size|. In case the page is larger than necessary, the next full GC
   // will trim down its size.
   for (auto it = pages_.begin(); it != pages_.end(); it++) {
-    const size_t page_size = it->second->size();
-    if (page_size < chunk_size) continue;
-    if (selected == pages_.end() || page_size < selected->second->size()) {
+    const size_t page_size = it->second.size();
+    if (page_size < chunk_size) {
+      continue;
+    }
+    if (selected == pages_.end() || page_size < selected->second.size()) {
       selected = it;
     }
   }
 
   if (selected == pages_.end()) {
-    return nullptr;
+    return std::nullopt;
   }
 
-  LargePageMetadata* result = selected->second.release();
-#ifdef V8_ENABLE_SANDBOX
-  MemoryChunk::ResetMetadataPointer(isolate, result);
-#endif  // V8_ENABLE_SANDBOX
-  total_size_ -= result->size();
+  PooledPage result(std::move(selected->second));
+  total_size_ -= result.size();
   pages_.erase(selected);
   DCHECK_EQ(total_size_, ComputeTotalSize());
-  return result;
+  return {result.ToResult()};
 }
 
 void MemoryPool::LargePagePoolImpl::ReleaseAll() {
-  std::vector<std::pair<InternalTime, LargePageMemory>> pages_to_free;
+  std::vector<std::pair<InternalTime, PooledPage>> pages_to_free;
 
   {
     base::MutexGuard guard(&mutex_);
@@ -249,13 +317,13 @@ void MemoryPool::LargePagePoolImpl::ReleaseAll() {
 }
 
 size_t MemoryPool::LargePagePoolImpl::ReleaseUpTo(InternalTime release_time) {
-  std::vector<LargePageMemory> entries_to_free;
+  std::vector<PooledPage> entries_to_free;
   size_t freed = 0;
   {
     base::MutexGuard guard(&mutex_);
     std::erase_if(pages_, [this, &entries_to_free, release_time](auto& entry) {
       if (entry.first <= release_time) {
-        total_size_ -= entry.second->size();
+        total_size_ -= entry.second.size();
         entries_to_free.push_back(std::move(entry.second));
         return true;
       }
@@ -272,7 +340,7 @@ size_t MemoryPool::LargePagePoolImpl::ComputeTotalSize() const {
   size_t result = 0;
 
   for (auto& entry : pages_) {
-    result += entry.second->size();
+    result += entry.second.size();
   }
 
   return result;
@@ -385,36 +453,17 @@ size_t MemoryPool::GetTotalCount() const { return page_pool_.Size(); }
 
 void MemoryPool::Add(Isolate* isolate, MutablePageMetadata* page) {
   DCHECK_NOT_NULL(isolate);
-  // This method is called only on the main thread and only during the
-  // atomic pause so a lock is not needed.
-  DCHECK_NOT_NULL(page);
-  DCHECK_EQ(page->size(), PageMetadata::kPageSize);
-  DCHECK(!page->is_large());
-  DCHECK(!page->is_trusted());
-  DCHECK(!page->Chunk()->InReadOnlySpace());
-  DCHECK(!page->is_executable());
-  // Ensure that ReleaseAllAllocatedMemory() was called on the page.
-  DCHECK(!page->ContainsAnySlots());
-#ifdef V8_ENABLE_SANDBOX
-  MemoryChunk::ClearMetadataPointer(page);
-#endif  // V8_ENABLE_SANDBOX
   page_pool_.PutLocal(isolate,
-                      PageMemory(page, [](MutablePageMetadata* metadata) {
-                        MemoryAllocator::DeleteMemoryChunk(metadata);
-                      }));
+                      PooledPage::Create(static_cast<PageMetadata*>(page)));
 }
 
-MutablePageMetadata* MemoryPool::Remove(Isolate* isolate) {
+std::optional<PooledPage::Result> MemoryPool::Remove(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate);
-  auto result = page_pool_.Get(isolate);
-  if (result) {
-    MutablePageMetadata* chunk = result.value().release();
-#ifdef V8_ENABLE_SANDBOX
-    MemoryChunk::ResetMetadataPointer(isolate, chunk);
-#endif  // V8_ENABLE_SANDBOX
-    return chunk;
+  std::optional<PooledPage> result = page_pool_.Get(isolate);
+  if (!result) {
+    return std::nullopt;
   }
-  return nullptr;
+  return result->ToResult();
 }
 
 class MemoryPool::ReleasePooledLargeChunksTask final : public CancelableTask {
@@ -461,8 +510,8 @@ void MemoryPool::AddLarge(Isolate* isolate,
   }
 }
 
-LargePageMetadata* MemoryPool::RemoveLarge(Isolate* isolate,
-                                           size_t chunk_size) {
+std::optional<PooledPage::Result> MemoryPool::RemoveLarge(Isolate* isolate,
+                                                          size_t chunk_size) {
   return large_pool_.Remove(isolate, chunk_size);
 }
 

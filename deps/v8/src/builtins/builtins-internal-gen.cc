@@ -1423,11 +1423,6 @@ void Builtins::Generate_CEntry_Return2_ArgvOnStack_NoBuiltinExit(
   Generate_CEntry(masm, 2, ArgvMode::kStack, false, false);
 }
 
-void Builtins::Generate_CEntry_Return2_ArgvOnStack_BuiltinExit(
-    MacroAssembler* masm) {
-  Generate_CEntry(masm, 2, ArgvMode::kStack, true, false);
-}
-
 void Builtins::Generate_CEntry_Return2_ArgvInRegister_NoBuiltinExit(
     MacroAssembler* masm) {
   Generate_CEntry(masm, 2, ArgvMode::kRegister, false, false);

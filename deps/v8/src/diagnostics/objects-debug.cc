@@ -881,7 +881,7 @@ void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   Tagged<Code> code = jdt->GetCode(handle);
   CodeKind kind = code->kind();
-  CHECK(kind == CodeKind::FOR_TESTING || kind == CodeKind::BUILTIN ||
+  CHECK(kind == CodeKind::FOR_TESTING_JS || kind == CodeKind::BUILTIN ||
         kind == CodeKind::INTERPRETED_FUNCTION || kind == CodeKind::BASELINE ||
         kind == CodeKind::MAGLEV || kind == CodeKind::TURBOFAN_JS);
 #endif
@@ -975,9 +975,9 @@ void TrustedByteArray::TrustedByteArrayVerify(Isolate* isolate) {
 void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
   for (int i = 0; i < length(); i++) {
     if (!is_the_hole(i)
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
         && !is_undefined(i)
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     ) {
       uint64_t value = get_representation(i);
       uint64_t unexpected =

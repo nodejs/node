@@ -32,6 +32,8 @@ absl_source_set("die_if_null") {
     ":log",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/base:nullability_traits_internal",
     "//third_party/abseil-cpp/absl/strings",
   ]
 }

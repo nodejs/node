@@ -178,9 +178,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #endif  // V8_ENABLE_LEAPTIERING
 
   // Load the code entry point from the Code object.
-  void LoadCodeInstructionStart(
-      Register destination, Register code_object,
-      CodeEntrypointTag tag = kDefaultCodeEntrypointTag);
+  void LoadCodeInstructionStart(Register destination, Register code_object,
+                                CodeEntrypointTag tag = kInvalidEntrypointTag);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
@@ -224,6 +223,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CallRecordWriteStub(
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
+
+  void CallVerifySkippedWriteBarrierStubSaveRegisters(Register object,
+                                                      Register value,
+                                                      SaveFPRegsMode fp_mode);
+  void CallVerifySkippedWriteBarrierStub(Register object, Register value);
 
   void MultiPush(RegList regs, Register location = sp);
   void MultiPop(RegList regs, Register location = sp);
@@ -315,6 +319,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Subtract (Register - Immediate)
   void SubS32(Register dst, const Operand& imm);
   void SubS64(Register dst, const Operand& imm);
+  void SubS64(Register dst, int imm) { SubS64(dst, Operand(imm)); }
   void SubS32(Register dst, Register src, const Operand& imm);
   void SubS64(Register dst, Register src, const Operand& imm);
   void SubS32(Register dst, Register src, int32_t imm);
@@ -1160,6 +1165,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
 
+  void PreCheckSkippedWriteBarrier(Register object, Register value,
+                                   Register scratch, Label* ok);
+
   void ComputeCodeStartAddress(Register dst);
   void LoadPC(Register dst);
 
@@ -1885,6 +1893,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // ---------------------------------------------------------------------------
   // GC Support
+
+  void MaybeJumpIfReadOnlyOrSmallSmi(Register, Label*) {}
 
   void IncrementalMarkingRecordWriteHelper(Register object, Register value,
                                            Register address);

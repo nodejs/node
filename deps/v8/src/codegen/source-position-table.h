@@ -36,6 +36,8 @@ struct PositionTableEntry {
   int code_offset;
   bool is_statement;
   bool is_breakable;
+
+  bool operator==(const PositionTableEntry&) const = default;
 };
 
 class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
@@ -95,6 +97,8 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
     PositionTableEntry position_;
     IterationFilter iteration_filter_;
     FunctionEntryFilter function_entry_filter_;
+
+    bool operator==(const IndexAndPositionState&) const = default;
   };
 
   // We expose three flavours of the iterator, depending on the argument passed

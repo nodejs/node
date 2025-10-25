@@ -49,6 +49,19 @@ using std::make_index_sequence;
 using std::make_integer_sequence;
 using std::move;
 
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+// Backfill for std::nontype_t. An instance of this class can be provided as a
+// disambiguation tag to `absl::function_ref` to pass the address of a known
+// callable at compile time.
+// Requires C++20 due to `auto` template parameter.
+template <auto>
+struct nontype_t {
+  explicit nontype_t() = default;
+};
+template <auto V>
+constexpr nontype_t<V> nontype{};
+#endif
+
 ABSL_NAMESPACE_END
 }  // namespace absl
 

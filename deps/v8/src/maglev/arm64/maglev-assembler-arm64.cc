@@ -38,8 +38,8 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   if (v8_flags.single_generation) {
     alloc_type = AllocationType::kOld;
   }
-  ExternalReference top = SpaceAllocationTopAddress(isolate, alloc_type);
-  ExternalReference limit = SpaceAllocationLimitAddress(isolate, alloc_type);
+  IsolateFieldId top = SpaceAllocationTopAddress(alloc_type);
+  IsolateFieldId limit = SpaceAllocationLimitAddress(alloc_type);
   ZoneLabelRef done(masm);
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.AcquireScratch();
@@ -50,16 +50,16 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   // {size_in_bytes}.
   Register new_top = object;
   // Check if there is enough space.
-  __ Ldr(object, __ ExternalReferenceAsOperand(top, scratch));
+  __ Ldr(object, __ ExternalReferenceAsOperand(top));
   __ Add(new_top, object, size_in_bytes);
-  __ Ldr(scratch, __ ExternalReferenceAsOperand(limit, scratch));
+  __ Ldr(scratch, __ ExternalReferenceAsOperand(limit));
   __ Cmp(new_top, scratch);
   // Otherwise call runtime.
   __ JumpToDeferredIf(kUnsignedGreaterThanEqual, AllocateSlow<T>,
                       register_snapshot, object, AllocateBuiltin(alloc_type),
                       size_in_bytes, done);
   // Store new top and tag object.
-  __ Move(__ ExternalReferenceAsOperand(top, scratch), new_top);
+  __ Move(__ ExternalReferenceAsOperand(top), new_top);
 #if V8_VERIFY_WRITE_BARRIERS
   if (v8_flags.verify_write_barriers) {
     ExternalReference last_young_allocation =
@@ -701,6 +701,14 @@ void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
   Fcmp(value, converted_back);
   JumpIf(kNotEqual, fail);
   Jump(success);
+}
+
+void MaglevAssembler::Move(ExternalReference dst, int32_t imm) {
+  TemporaryRegisterScope temps(this);
+  Register scratch_imm = temps.AcquireScratch();
+  Register scratch_dst = temps.AcquireScratch();
+  Move(scratch_imm, imm);
+  str(scratch_imm, ExternalReferenceAsOperand(dst, scratch_dst));
 }
 
 }  // namespace maglev
