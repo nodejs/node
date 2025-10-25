@@ -1361,8 +1361,6 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   if (gc_reason == GarbageCollectionReason::kLastResort ||
       gc_reason == GarbageCollectionReason::kExternalMemoryPressure) {
     gc_flags |= GCFlag::kLastResort;
-    gc_callback_flags = static_cast<GCCallbackFlags>(
-        gc_callback_flags | GCCallbackFlags::kGCCallbackFlagLastResort);
   }
 
   if (gc_reason == GarbageCollectionReason::kLowMemoryNotification) {

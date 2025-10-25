@@ -213,13 +213,11 @@ TEST_F(GCCallbackFlagsTest, CollectAllAvailableGarbage) {
       [&](v8::Isolate* isolate, v8::GCType, v8::GCCallbackFlags flags) {
         ASSERT_TRUE(flags &
                     GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage);
-        ASSERT_FALSE(flags & GCCallbackFlags::kGCCallbackFlagLastResort);
         prologue_count++;
       },
       [&](v8::Isolate* isolate, v8::GCType, v8::GCCallbackFlags flags) {
         ASSERT_TRUE(flags &
                     GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage);
-        ASSERT_FALSE(flags & GCCallbackFlags::kGCCallbackFlagLastResort);
         epilogue_count++;
       });
 
@@ -240,13 +238,11 @@ TEST_F(GCCallbackFlagsTest, CollectAllAvailableGarbageAndLastResort) {
       [&](v8::Isolate* isolate, v8::GCType, v8::GCCallbackFlags flags) {
         ASSERT_TRUE(flags &
                     GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage);
-        ASSERT_TRUE(flags & GCCallbackFlags::kGCCallbackFlagLastResort);
         prologue_count++;
       },
       [&](v8::Isolate* isolate, v8::GCType, v8::GCCallbackFlags flags) {
         ASSERT_TRUE(flags &
                     GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage);
-        ASSERT_TRUE(flags & GCCallbackFlags::kGCCallbackFlagLastResort);
         epilogue_count++;
       });
 
