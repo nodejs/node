@@ -1,7 +1,7 @@
 'use strict';
 
 const message =
-  'Assertions must be wrapped into `common.mustCall` or `common.mustCallAtLeast`';
+  'Assertions must be wrapped into `common.mustSucceed`, `common.mustCall` or `common.mustCallAtLeast`';
 
 
 const requireCall = 'CallExpression[callee.name="require"]';
@@ -24,6 +24,13 @@ function findEnclosingFunction(node) {
       ) continue; // `[].forEach()` call
     } else if (node.parent?.type === 'NewExpression') {
       if (node.parent.callee.type === 'Identifier' && node.parent.callee.name === 'Promise') continue;
+    } else if (node.parent?.type === 'Property') {
+      const ancestor = node.parent.parent?.parent;
+      if (ancestor?.type === 'CallExpression' &&
+          ancestor.callee.type === 'Identifier' &&
+          ancestor.callee.name === 'spawnSyncAndAssert') {
+        continue;
+      }
     }
     break;
   }
@@ -31,7 +38,7 @@ function findEnclosingFunction(node) {
 }
 
 function isMustCallOrMustCallAtLeast(str) {
-  return str === 'mustCall' || str === 'mustCallAtLeast';
+  return str === 'mustCall' || str === 'mustCallAtLeast' || str === 'mustSucceed';
 }
 
 function isMustCallOrTest(str) {
