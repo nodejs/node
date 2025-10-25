@@ -1,6 +1,6 @@
 import { skip, spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
-import { match, strictEqual } from 'node:assert';
+import assert from 'node:assert';
 import { test } from 'node:test';
 
 if (!process.config.variables.node_use_amaro) skip('Requires Amaro');
@@ -10,9 +10,9 @@ test('expect failure of a .mts file with CommonJS syntax', async () => {
     fixtures.path('typescript/mts/test-mts-but-commonjs-syntax.mts'),
   ]);
 
-  strictEqual(result.stdout, '');
-  match(result.stderr, /require is not defined in ES module scope, you can use import instead/);
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, /require is not defined in ES module scope, you can use import instead/);
+  assert.strictEqual(result.code, 1);
 });
 
 test('execute an .mts file importing an .mts file', async () => {
@@ -20,9 +20,9 @@ test('execute an .mts file importing an .mts file', async () => {
     fixtures.path('typescript/mts/test-import-module.mts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('execute an .mts file importing a .ts file', async () => {
@@ -31,9 +31,9 @@ test('execute an .mts file importing a .ts file', async () => {
     fixtures.path('typescript/mts/test-import-ts-file.mts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('execute an .mts file importing a .cts file', async () => {
@@ -42,9 +42,9 @@ test('execute an .mts file importing a .cts file', async () => {
     fixtures.path('typescript/mts/test-import-commonjs.mts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('execute an .mts file from node_modules', async () => {
@@ -52,9 +52,9 @@ test('execute an .mts file from node_modules', async () => {
     fixtures.path('typescript/mts/test-mts-node_modules.mts'),
   ]);
 
-  match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
 test('execute a .cts file from node_modules', async () => {
@@ -62,9 +62,9 @@ test('execute a .cts file from node_modules', async () => {
     fixtures.path('typescript/mts/test-cts-node_modules.mts'),
   ]);
 
-  match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
 test('execute a .ts file from node_modules', async () => {
@@ -72,9 +72,9 @@ test('execute a .ts file from node_modules', async () => {
     fixtures.path('typescript/mts/test-ts-node_modules.mts'),
   ]);
 
-  match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
 test('execute an empty .ts file', async () => {
@@ -83,9 +83,9 @@ test('execute an empty .ts file', async () => {
     fixtures.path('typescript/ts/test-empty-file.ts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 0);
 });
 
 test('execute .ts file importing a module', async () => {
@@ -94,9 +94,9 @@ test('execute .ts file importing a module', async () => {
     fixtures.path('typescript/ts/test-import-fs.ts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, 'Hello, TypeScript!\n');
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.strictEqual(result.stdout, 'Hello, TypeScript!\n');
+  assert.strictEqual(result.code, 0);
 });
 
 test('mts -> import cts -> require mts', async () => {
@@ -105,7 +105,7 @@ test('mts -> import cts -> require mts', async () => {
     fixtures.path('typescript/mts/issue-59963/a.mts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, 'Hello from c.mts\n');
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.strictEqual(result.stdout, 'Hello from c.mts\n');
+  assert.strictEqual(result.code, 0);
 });
