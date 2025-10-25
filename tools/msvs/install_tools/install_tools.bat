@@ -61,6 +61,6 @@ cls
     -ArgumentList '-NoProfile -InputFormat None -ExecutionPolicy Bypass -Command ^
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ^
     iex ((New-Object System.Net.WebClient).DownloadString(''https://chocolatey.org/install.ps1'')); ^
-    choco upgrade -y python visualstudio2019-workload-vctools; ^
+    choco upgrade -y python visualstudio2022-workload-vctools; ^
     Read-Host ''Type ENTER to exit'' ' ^
     -Verb RunAs
