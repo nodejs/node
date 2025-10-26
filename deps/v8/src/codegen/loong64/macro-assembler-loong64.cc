@@ -142,6 +142,58 @@ void MacroAssembler::PushStandardFrame(Register function_reg) {
   Add_d(fp, sp, Operand(offset));
 }
 
+void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
+                                                 Register value,
+                                                 Register scratch, Label* ok) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, scratch));
+  DCHECK(!AreAliased(value, scratch));
+
+  // The most common case: Static write barrier elimination is allowed on the
+  // last young allocation.
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch1 = temps.Acquire();
+    Sub_d(scratch, object, kHeapObjectTag);
+    Ld_d(scratch1, MemOperand(kRootRegister,
+                              IsolateData::last_young_allocation_offset()));
+    Branch(ok, Condition::kEqual, scratch, Operand(scratch1));
+  }
+
+  // Write barier can also be removed if value is in read-only space.
+  CheckPageFlag(value, MemoryChunk::kIsInReadOnlyHeapMask, ne, ok);
+
+  Label not_ok;
+
+  // Handle allocation folding, allow WB removal if:
+  //   LAB start <= last_young_allocation_ < (object address+1) < LAB top
+  // Note that object has tag bit set, so object == object address+1.
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch1 = temps.Acquire();
+
+    // Check LAB start <= last_young_allocation_.
+    Ld_d(scratch, MemOperand(kRootRegister,
+                             IsolateData::new_allocation_info_start_offset()));
+    Ld_d(scratch1, MemOperand(kRootRegister,
+                              IsolateData::last_young_allocation_offset()));
+    Branch(&not_ok, Condition::kUnsignedGreaterThan, scratch,
+           Operand(scratch1));
+
+    // Check last_young_allocation_ < (object address+1).
+    Branch(&not_ok, Condition::kUnsignedGreaterThanEqual, scratch1,
+           Operand(object));
+
+    // Check (object address+1) < LAB top.
+    Ld_d(scratch, MemOperand(kRootRegister,
+                             IsolateData::new_allocation_info_top_offset()));
+    Branch(ok, Condition::kUnsignedLessThan, object, Operand(scratch));
+  }
+
+  // Slow path: Potentially check more cases in C++.
+  bind(&not_ok);
+}
+
 // Clobbers object, dst, value, and ra, if (ra_status == kRAHasBeenSaved)
 // The register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
@@ -582,8 +634,30 @@ void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
 void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
                                                        Register value) {
   ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  PrepareCallCFunction(2, scratch);
   MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
   CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2,
+                SetIsolateDataSlots::kNo);
+}
+
+void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+    Register object, Register value, SaveFPRegsMode fp_mode) {
+  ASM_CODE_COMMENT(this);
+  PushCallerSaved(fp_mode);
+  CallVerifySkippedIndirectWriteBarrierStub(object, value);
+  PopCallerSaved(fp_mode);
+}
+
+void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStub(Register object,
+                                                               Register value) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  PrepareCallCFunction(2, scratch);
+  MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
+  CallCFunction(ExternalReference::verify_skipped_indirect_write_barrier(), 2,
                 SetIsolateDataSlots::kNo);
 }
 

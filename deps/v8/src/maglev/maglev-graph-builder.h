@@ -441,13 +441,8 @@ class MaglevGraphBuilder {
 
   // Return true if the given offset is a merge point, i.e. there are jumps
   // targetting it.
-  bool IsOffsetAMergePoint(int offset) {
+  bool IsOffsetAMergePoint(int offset) const {
     return merge_states_[offset] != nullptr;
-  }
-
-  bool IsOffsetAMergePointOrLoopHeapder(int offset) {
-    return IsOffsetAMergePoint(offset) ||
-           bytecode_analysis().IsLoopHeader(offset);
   }
 
   ValueNode* GetContextAtDepth(ValueNode* context, size_t depth);
