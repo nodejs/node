@@ -52,11 +52,7 @@ typedef enum {
    * Unlike NGHTTP2_ERR_IGN_HTTP_HEADER, this does not invoke
    * nghttp2_on_invalid_header_callback.
    */
-  NGHTTP2_ERR_REMOVE_HTTP_HEADER = -106,
-  /*
-   * Cancel pushed stream.
-   */
-  NGHTTP2_ERR_PUSH_CANCEL = -107,
+  NGHTTP2_ERR_REMOVE_HTTP_HEADER = -106
 } nghttp2_internal_error;
 
 #endif /* !defined(NGHTTP2_INT_H) */
