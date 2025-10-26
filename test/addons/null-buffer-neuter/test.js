@@ -6,6 +6,6 @@ const binding = require(`./build/${common.buildType}/binding`);
 
 binding.run();
 global.gc();
-setImmediate(() => {
+setImmediate(common.mustCall(() => {
   assert.strictEqual(binding.isAlive(), 0);
-});
+}));
