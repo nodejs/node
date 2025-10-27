@@ -5,6 +5,7 @@ const assert = require('assert');
 
 const {
   createHistogram,
+  timerify,
   performance,
   PerformanceObserver
 } = require('perf_hooks');
@@ -13,9 +14,12 @@ const {
   setTimeout: sleep
 } = require('timers/promises');
 
+// Verifies that `performance.timerify` is an alias of `perf_hooks.timerify`.
+assert.strictEqual(performance.timerify, timerify);
+
 {
   // Intentional non-op. Do not wrap in common.mustCall();
-  const n = performance.timerify(function noop() {});
+  const n = timerify(function noop() {});
 
   const obs = new PerformanceObserver(common.mustCall((list) => {
     const entries = list.getEntries();
@@ -36,7 +40,7 @@ const {
   // performance timeline entry will not be reported.
   const obs = new PerformanceObserver(common.mustNotCall());
   obs.observe({ entryTypes: ['function'] });
-  const n = performance.timerify(() => {
+  const n = timerify(() => {
     throw new Error('test');
   });
   assert.throws(() => n(), /^Error: test$/);
@@ -45,7 +49,7 @@ const {
 
 {
   class N {}
-  const n = performance.timerify(N);
+  const n = timerify(N);
 
   const obs = new PerformanceObserver(common.mustCall((list) => {
     const entries = list.getEntries();
@@ -66,7 +70,7 @@ const {
 
 {
   [1, {}, [], null, undefined, Infinity].forEach((input) => {
-    assert.throws(() => performance.timerify(input),
+    assert.throws(() => timerify(input),
                   {
                     code: 'ERR_INVALID_ARG_TYPE',
                     name: 'TypeError',
@@ -78,9 +82,9 @@ const {
 // Function can be wrapped many times, also check length and name
 {
   const m = (a, b = 1) => {};
-  const n = performance.timerify(m);
-  const o = performance.timerify(m);
-  const p = performance.timerify(n);
+  const n = timerify(m);
+  const o = timerify(m);
+  const p = timerify(n);
   assert.notStrictEqual(n, o);
   assert.notStrictEqual(n, p);
   assert.notStrictEqual(o, p);
@@ -97,7 +101,7 @@ const {
     for (let i = 0; i < 1e3; i++)
       _deadCode = i;
   };
-  const n = performance.timerify(m, { histogram });
+  const n = timerify(m, { histogram });
   assert.strictEqual(histogram.max, 0);
   for (let i = 0; i < 10; i++) {
     n();
@@ -106,7 +110,7 @@ const {
   assert.ok(_deadCode >= 0);
   assert.notStrictEqual(histogram.max, 0);
   [1, '', {}, [], false].forEach((histogram) => {
-    assert.throws(() => performance.timerify(m, { histogram }), {
+    assert.throws(() => timerify(m, { histogram }), {
       code: 'ERR_INVALID_ARG_TYPE'
     });
   });
@@ -117,14 +121,14 @@ const {
   const m = async (a, b = 1) => {
     await sleep(10);
   };
-  const n = performance.timerify(m, { histogram });
+  const n = timerify(m, { histogram });
   assert.strictEqual(histogram.max, 0);
   for (let i = 0; i < 10; i++) {
     await n();
   }
   assert.notStrictEqual(histogram.max, 0);
   [1, '', {}, [], false].forEach((histogram) => {
-    assert.throws(() => performance.timerify(m, { histogram }), {
+    assert.throws(() => timerify(m, { histogram }), {
       code: 'ERR_INVALID_ARG_TYPE'
     });
   });
@@ -132,17 +136,17 @@ const {
 
 // Regression tests for https://github.com/nodejs/node/issues/40623
 {
-  assert.strictEqual(performance.timerify(function func() {
+  assert.strictEqual(timerify(function func() {
     return 1;
   })(), 1);
-  assert.strictEqual(performance.timerify(function() {
+  assert.strictEqual(timerify(function() {
     return 1;
   })(), 1);
-  assert.strictEqual(performance.timerify(() => {
+  assert.strictEqual(timerify(() => {
     return 1;
   })(), 1);
   class C {}
-  const wrap = performance.timerify(C);
+  const wrap = timerify(C);
   assert.ok(new wrap() instanceof C);
   assert.throws(() => wrap(), {
     name: 'TypeError',
