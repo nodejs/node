@@ -10,7 +10,7 @@ const {
   parentPort,
 } = require('worker_threads');
 const { performance } = require('perf_hooks');
-const { eventLoopUtilization } = require('perf_hooks').performance;
+const { eventLoopUtilization } = require('perf_hooks');
 
 // Use argv to detect whether we're running as a Worker called by this test vs.
 // this test also being called as a Worker.
