@@ -28,15 +28,28 @@ const child = spawn(
 
 let stdout = '';
 child.stdout.on('data', (data) => {
-  stdout += `${data}`;
+  const dataStr = data.toString();
+  console.log(`[STDOUT] ${dataStr}`);
+  stdout += `${dataStr}`;
   if (/__(SIGINT|SIGTERM) received__/.test(stdout)) {
+    console.log(`[PARENT] Sending kill signal to child process: ${child.pid}`);
     child.kill();
   }
 });
 
+// After the write triggers a restart of the grandchild, the newly spawned second
+// grandchild can post another 'script ready' message before the stdout from the first
+// grandchild is relayed by the watcher and processed by this parent process to kill
+// the watcher. If we write again and trigger another restart, we can
+// end up in an infinite loop and never receive the stdout of the grandchildren in time.
+// Only write once to verify the first grandchild process receives the expected signal.
+// We don't care about the subsequent grandchild processes.
+let written = false;
 child.on('message', (msg) => {
-  if (msg === 'script ready') {
+  console.log(`[MESSAGE]`, msg);
+  if (msg === 'script ready' && !written) {
     writeFileSync(indexPath, indexContents);
+    written = true;
   }
 });
 
