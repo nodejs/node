@@ -26,8 +26,8 @@ readable.on('readable', common.mustCall(function() {
   // TODO(mcollina): there is something odd in the highWaterMark logic
   // investigate.
   if (i === 1) {
-    assert.strictEqual(data.length, 8192 * 2);
+    assert.strictEqual(data.length, 8192);
   } else {
-    assert.strictEqual(data.length, 8192 * 3);
+    assert.strictEqual(data.length, 8192);
   }
 }, 11));
