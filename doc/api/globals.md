@@ -274,6 +274,12 @@ added: v16.0.0
 
 Global alias for [`buffer.atob()`][].
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/buffer-atob-btoa
+```
+
 ## Class: `BroadcastChannel`
 
 <!-- YAML
