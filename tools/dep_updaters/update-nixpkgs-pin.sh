@@ -8,16 +8,15 @@ NIXPKGS_PIN_FILE="$BASE_DIR/tools/nix/pkgs.nix"
 
 NIXPKGS_REPO=$(grep 'repo =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
 CURRENT_VERSION_SHA1=$(grep 'rev =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
-CURRENT_VERSION=$(echo "$CURRENT_VERSION_SHA1" | head -c 7)
 
 NEW_UPSTREAM_SHA1=$(git ls-remote "$NIXPKGS_REPO.git" nixpkgs-unstable | awk '{print $1}')
-NEW_VERSION=$(echo "$NEW_UPSTREAM_SHA1" | head -c 7)
+NEW_VERSION=$(echo "$NEW_UPSTREAM_SHA1" | head -c 35)
 
 
 # shellcheck disable=SC1091
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
-compare_dependency_version "nixpkgs-unstable" "$NEW_VERSION" "$CURRENT_VERSION"
+compare_dependency_version "nixpkgs-unstable" "$CURRENT_VERSION_SHA1" "$NEW_UPSTREAM_SHA1"
 
 CURRENT_TARBALL_HASH=$(grep 'sha256 =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
 NEW_TARBALL_HASH=$(nix-prefetch-url --unpack "$NIXPKGS_REPO/archive/$NEW_UPSTREAM_SHA1.tar.gz")
