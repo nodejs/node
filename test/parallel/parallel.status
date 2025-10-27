@@ -154,3 +154,8 @@ test-cluster-primary-error: PASS, FLAKY
 [$arch==loong64]
 # https://github.com/nodejs/node/issues/51662
 test-http-correct-hostname: SKIP
+
+[$system==macos || $system=win32 || ($system==linux && $arch==s390x) || ($system==linux && $arch==arm64)]
+# https://github.com/nodejs/node/issues/60297
+test-watch-mode-kill-signal-default: PASS, FLAKY
+test-watch-mode-kill-signal-override: PASS, FLAKY
