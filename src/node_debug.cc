@@ -8,6 +8,7 @@
 #include "v8-fast-api-calls.h"
 #include "v8.h"
 
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #endif  // DEBUG
@@ -23,8 +24,19 @@ using v8::Number;
 using v8::Object;
 using v8::Value;
 
+thread_local std::unordered_map<std::string, int> generic_usage_counters;
 thread_local std::unordered_map<FastStringKey, int, FastStringKey::Hash>
     v8_fast_api_call_counts;
+
+void CountGenericUsage(const char* counter_name) {
+  if (generic_usage_counters.find(counter_name) == generic_usage_counters.end())
+    generic_usage_counters[counter_name] = 0;
+  generic_usage_counters[counter_name]++;
+}
+
+int GetGenericUsageCount(const char* counter_name) {
+  return generic_usage_counters[counter_name];
+}
 
 void TrackV8FastApiCall(FastStringKey key) {
   v8_fast_api_call_counts[key]++;
@@ -32,6 +44,17 @@ void TrackV8FastApiCall(FastStringKey key) {
 
 int GetV8FastApiCallCount(FastStringKey key) {
   return v8_fast_api_call_counts[key];
+}
+
+void GetGenericUsageCount(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!args[0]->IsString()) {
+    env->ThrowError("getGenericUsageCount must be called with a string");
+    return;
+  }
+  Utf8Value utf8_key(env->isolate(), args[0]);
+  args.GetReturnValue().Set(
+      GetGenericUsageCount(utf8_key.ToStringView().data()));
 }
 
 void GetV8FastApiCallCount(const FunctionCallbackInfo<Value>& args) {
@@ -89,6 +112,7 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   SetMethod(context, target, "getV8FastApiCallCount", GetV8FastApiCallCount);
+  SetMethod(context, target, "getGenericUsageCount", GetGenericUsageCount);
   SetFastMethod(context, target, "isEven", SlowIsEven, &fast_is_even);
   SetFastMethod(context, target, "isOdd", SlowIsOdd, &fast_is_odd);
 }

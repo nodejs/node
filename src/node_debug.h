@@ -13,10 +13,14 @@ namespace debug {
 void TrackV8FastApiCall(FastStringKey key);
 int GetV8FastApiCallCount(FastStringKey key);
 
+void CountGenericUsage(const char* counter_name);
+#define COUNT_GENERIC_USAGE(name) node::debug::CountGenericUsage(name)
+
 #define TRACK_V8_FAST_API_CALL(key)                                            \
   node::debug::TrackV8FastApiCall(FastStringKey(key))
 #else  // !DEBUG
 #define TRACK_V8_FAST_API_CALL(key)
+#define COUNT_GENERIC_USAGE(name)
 #endif  // DEBUG
 
 }  // namespace debug
