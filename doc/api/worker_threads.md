@@ -1831,7 +1831,7 @@ added:
 -->
 
 An object that can be used to query performance information from a worker
-instance. Similar to [`perf_hooks.performance`][].
+instance.
 
 #### `performance.eventLoopUtilization([utilization1[, utilization2]])`
 
@@ -2227,8 +2227,7 @@ thread spawned will spawn another until the application crashes.
 [`fs.open()`]: fs.md#fsopenpath-flags-mode-callback
 [`markAsUntransferable()`]: #worker_threadsmarkasuntransferableobject
 [`node:cluster` module]: cluster.md
-[`perf_hooks.performance`]: perf_hooks.md#perf_hooksperformance
-[`perf_hooks` `eventLoopUtilization()`]: perf_hooks.md#performanceeventlooputilizationutilization1-utilization2
+[`perf_hooks` `eventLoopUtilization()`]: perf_hooks.md#perf_hookseventlooputilizationutilization1-utilization2
 [`port.on('message')`]: #event-message
 [`port.onmessage()`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort/onmessage
 [`port.postMessage()`]: #portpostmessagevalue-transferlist
