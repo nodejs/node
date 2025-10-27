@@ -15,6 +15,6 @@ for (let i = 0; i < 10; i++) {
     stdout: true
   });
   w.on('exit', common.mustCall(() => {
-    assert.strictEqual(w.stdout.read().toString(), 'A\nB\n');
+    assert.strictEqual(w.stdout.read(w.stdout.readableLength).toString(), 'A\nB\n');
   }));
 }

@@ -3,6 +3,7 @@ import * as fixtures from '../common/fixtures.mjs';
 import { join } from 'node:path';
 import { describe, it, run } from 'node:test';
 import { dot, spec, tap } from 'node:test/reporters';
+import consumers from 'node:stream/consumers';
 import assert from 'node:assert';
 import util from 'node:util';
 
@@ -111,34 +112,31 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   describe('should be piped with spec reporter', () => {
     it('new spec', async () => {
       const specReporter = new spec();
-      const result = await run({
+      const result = await consumers.text(run({
         files: [join(testFixtures, 'default-behavior/test/random.cjs')]
-      }).compose(specReporter).toArray();
-      const stringResults = result.map((bfr) => bfr.toString());
-      assert.match(stringResults[0], /this should pass/);
-      assert.match(stringResults[1], /tests 1/);
-      assert.match(stringResults[1], /pass 1/);
+      }).compose(specReporter));
+      assert.match(result, /this should pass/);
+      assert.match(result, /tests 1/);
+      assert.match(result, /pass 1/);
     });
 
     it('spec()', async () => {
       const specReporter = spec();
-      const result = await run({
+      const result = await consumers.text(run({
         files: [join(testFixtures, 'default-behavior/test/random.cjs')]
-      }).compose(specReporter).toArray();
-      const stringResults = result.map((bfr) => bfr.toString());
-      assert.match(stringResults[0], /this should pass/);
-      assert.match(stringResults[1], /tests 1/);
-      assert.match(stringResults[1], /pass 1/);
+      }).compose(specReporter));
+      assert.match(result, /this should pass/);
+      assert.match(result, /tests 1/);
+      assert.match(result, /pass 1/);
     });
 
     it('spec', async () => {
-      const result = await run({
+      const result = await consumers.text(run({
         files: [join(testFixtures, 'default-behavior/test/random.cjs')]
-      }).compose(spec).toArray();
-      const stringResults = result.map((bfr) => bfr.toString());
-      assert.match(stringResults[0], /this should pass/);
-      assert.match(stringResults[1], /tests 1/);
-      assert.match(stringResults[1], /pass 1/);
+      }).compose(spec));
+      assert.match(result, /this should pass/);
+      assert.match(result, /tests 1/);
+      assert.match(result, /pass 1/);
     });
   });
 
