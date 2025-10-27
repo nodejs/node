@@ -23,6 +23,7 @@
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_sockaddr-inl.h"
@@ -690,6 +691,7 @@ ReqWrap<uv_udp_send_t>* UDPWrap::CreateSendWrap(size_t msg_size) {
 }
 
 double UDPWrap::FastGetSendQueueSize(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("udp.getSendQueueSize");
   UDPWrap* wrap = BaseObject::Unwrap<UDPWrap>(receiver.As<Object>());
   if (wrap == nullptr) return static_cast<double>(UV_EBADF);
   return static_cast<double>(
@@ -697,6 +699,7 @@ double UDPWrap::FastGetSendQueueSize(Local<Value> receiver) {
 }
 
 double UDPWrap::FastGetSendQueueCount(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("udp.getSendQueueCount");
   UDPWrap* wrap = BaseObject::Unwrap<UDPWrap>(receiver.As<Object>());
   if (wrap == nullptr) return static_cast<double>(UV_EBADF);
   return static_cast<double>(

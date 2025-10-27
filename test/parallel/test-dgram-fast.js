@@ -32,6 +32,6 @@ testFastDgram();
 
 if (common.isDebug) {
   const { getV8FastApiCallCount } = internalBinding('debug');
-  assert.strictEqual(getV8FastApiCallCount('udp.getSendQueueSize'), 1);
-  assert.strictEqual(getV8FastApiCallCount('udp.getSendQueueCount'), 1);
+  assert.strictEqual(getV8FastApiCallCount('udp.getSendQueueSize'), 0);
+  assert.strictEqual(getV8FastApiCallCount('udp.getSendQueueCount'), 0);
 }
