@@ -1239,6 +1239,23 @@ Emitted when an error occurs during the processing of a stream on the client.
 
 Emitted when a stream is received on the client.
 
+##### Event: `'http2.client.stream.bodyChunkSent'`
+
+* `stream` {ClientHttp2Stream}
+* `writev` {boolean}
+* `data` {Buffer | string | Buffer\[] | Object\[]}
+  * `chunk` {Buffer|string}
+  * `encoding` {string}
+* `encoding` {string}
+
+Emitted when a chunk of the client stream body is being sent.
+
+##### Event: `'http2.client.stream.bodySent'`
+
+* `stream` {ClientHttp2Stream}
+
+Emitted after the client stream body has been fully sent.
+
 ##### Event: `'http2.client.stream.close'`
 
 * `stream` {ClientHttp2Stream}
