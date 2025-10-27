@@ -11,8 +11,11 @@ const { internalBinding } = require('internal/test/binding');
 const { getGenericUsageCount } = internalBinding('debug');
 const assert = require('assert');
 
-const initialCount = getGenericUsageCount('NodeArrayBufferAllocator.Allocate.ZeroFilled');
+const initialUninitializedCount = getGenericUsageCount('NodeArrayBufferAllocator.Allocate.Uninitialized');
+const initialZeroFilledCount = getGenericUsageCount('NodeArrayBufferAllocator.Allocate.ZeroFilled');
 const buffer = Buffer.allocUnsafe(Buffer.poolSize + 1);
-assert.strictEqual(buffer.every((b) => b === 0), true);
-const newCount = getGenericUsageCount('NodeArrayBufferAllocator.Allocate.ZeroFilled');
-assert.notStrictEqual(newCount, initialCount);
+assert(buffer.every((b) => b === 0));
+const newUninitializedCount = getGenericUsageCount('NodeArrayBufferAllocator.Allocate.Uninitialized');
+const newZeroFilledCount = getGenericUsageCount('NodeArrayBufferAllocator.Allocate.ZeroFilled');
+assert.strictEqual(newUninitializedCount, initialUninitializedCount);
+assert.notStrictEqual(newZeroFilledCount, initialZeroFilledCount);
