@@ -32,7 +32,7 @@ const asyncReadable = new Readable({
 });
 
 asyncReadable.on('readable', common.mustCall(() => {
-  if (asyncReadable.read() !== null) {
+  if (asyncReadable.read(asyncReadable.readableLength) !== null) {
     // After each read(), the buffer is empty.
     // If the stream doesn't end now,
     // then we need to notify the reader on future changes.

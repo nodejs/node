@@ -59,7 +59,7 @@ ms.on('readable', function() {
     results.push(String(chunk));
 });
 
-const expect = [ 'first chunksecond to last chunk', 'last chunk' ];
+const expect = [ 'first chunk', 'second to last chunk', 'last chunk' ];
 process.on('exit', function() {
   assert.strictEqual(ms._chunks, -1);
   assert.deepStrictEqual(results, expect);

@@ -80,9 +80,15 @@ const GHI = new Uint8Array([0x47, 0x48, 0x49]);
   readable.push(DEF);
   readable.unshift(ABC);
 
-  const buf = readable.read();
+  let buf;
+
+  buf = readable.read();
   assert(buf instanceof Buffer);
-  assert.deepStrictEqual([...buf], [...ABC, ...DEF]);
+  assert.deepStrictEqual([...buf], [...ABC]);
+
+  buf = readable.read();
+  assert(buf instanceof Buffer);
+  assert.deepStrictEqual([...buf], [...DEF]);
 }
 
 {
