@@ -6,10 +6,13 @@ const TIMEOUT = 10;
 const SPIN_DUR = 50;
 
 const assert = require('assert');
-const { performance } = require('perf_hooks');
+const { performance, eventLoopUtilization } = require('perf_hooks');
 const { Worker, parentPort } = require('worker_threads');
 
-const { nodeTiming, eventLoopUtilization } = performance;
+// Verifies that `performance.eventLoopUtilization` is an alias of
+// `perf_hooks.eventLoopUtilization`.
+assert.strictEqual(performance.eventLoopUtilization, eventLoopUtilization);
+const { nodeTiming } = performance;
 const elu = eventLoopUtilization();
 
 // Take into account whether this test was started as a Worker.
