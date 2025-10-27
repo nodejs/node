@@ -193,7 +193,10 @@ jobs:
               rm temp-output
           - id: nixpkgs-unstable
             subsystem: tools
-            label: tools
+            # dont-land labels are there so we can guarantee released versions of
+            # Node.js can be built with the same env along the whole release line life – or
+            # at least we can detect and document necessary updates.
+            label: tools, dont-land-on-v20.x, dont-land-on-v22.x, dont-land-on-v24.x, dont-land-on-v25.x
             run: |
               ./tools/dep_updaters/update-nixpkgs-pin.sh > temp-output
               cat temp-output
