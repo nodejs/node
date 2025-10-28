@@ -6,6 +6,7 @@
 #include "node.h"
 #include "node_builtins.h"
 #include "node_context_data.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_exit_code.h"
 #include "node_internals.h"
@@ -112,10 +113,13 @@ MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
 
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
   void* ret;
-  if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers)
+  if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers) {
+    COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.ZeroFilled");
     ret = allocator_->Allocate(size);
-  else
+  } else {
+    COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.Uninitialized");
     ret = allocator_->AllocateUninitialized(size);
+  }
   if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   }
@@ -123,6 +127,7 @@ void* NodeArrayBufferAllocator::Allocate(size_t size) {
 }
 
 void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
+  COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.Uninitialized");
   void* ret = allocator_->AllocateUninitialized(size);
   if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);

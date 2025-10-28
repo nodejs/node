@@ -156,7 +156,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
-        must_save_lr_(!gen->frame_access_state()->has_frame()),
+        must_save_ra_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()),
         indirect_pointer_tag_(indirect_pointer_tag) {
   }
@@ -175,7 +175,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
-    if (must_save_lr_) {
+    if (must_save_ra_) {
       // We need to save and restore ra if the frame was elided.
       __ Push(ra);
     }
@@ -196,7 +196,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     } else {
       __ CallRecordWriteStubSaveRegisters(object_, offset_, save_fp_mode);
     }
-    if (must_save_lr_) {
+    if (must_save_ra_) {
       __ Pop(ra);
     }
   }
@@ -209,7 +209,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #if V8_ENABLE_WEBASSEMBLY
   StubCallMode const stub_mode_;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  bool must_save_lr_;
+  bool must_save_ra_;
   Zone* zone_;
   IndirectPointerTag indirect_pointer_tag_;
 };
@@ -294,10 +294,12 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
 class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
  public:
   OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
-                                     Register value)
+                                     Register value, Register scratch)
       : OutOfLineCode(gen),
         object_(object),
         value_(value),
+        scratch_(scratch),
+        must_save_ra_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()) {}
 
   void Generate() final {
@@ -305,12 +307,49 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
       __ DecompressTagged(value_, value_);
     }
 
+    if (must_save_ra_) {
+      // We need to save and restore ra if the frame was elided.
+      __ Push(ra);
+    }
+
+    __ PreCheckSkippedWriteBarrier(object_, value_, scratch_, exit());
+
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
 
     __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
                                                       save_fp_mode);
+
+    if (must_save_ra_) {
+      __ Pop(ra);
+    }
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Register const scratch_;
+  const bool must_save_ra_;
+  Zone* zone_;
+};
+
+class OutOfLineVerifySkippedIndirectWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedIndirectWriteBarrier(CodeGenerator* gen,
+                                             Register object, Register value)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(object_, value_,
+                                                              save_fp_mode);
   }
 
  private:
@@ -1025,12 +1064,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  Operand(kClearedWeakHeapObjectLower32));
       }
 
-      if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
-                                                                   value);
-        __ JumpIfNotSmi(value, ool->entry());
-        __ bind(ool->exit());
-      }
+      DCHECK(v8_flags.verify_write_barriers);
+      Register scratch = i.TempRegister(0);
+      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+          this, object, value, scratch);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
 
       MacroAssemblerBase::BlockTrampolinePoolScope block_trampoline_pool(
           masm());
@@ -1085,12 +1124,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register temp = i.TempRegister(0);
       __ Add_d(temp, object, offset);
 
-      if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
-                                                                   value);
-        __ JumpIfNotSmi(value, ool->entry());
-        __ bind(ool->exit());
-      }
+      DCHECK(v8_flags.verify_write_barriers);
+      Register scratch = i.TempRegister(1);
+      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+          this, object, value, scratch);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
 
       MacroAssemblerBase::BlockTrampolinePoolScope block_trampoline_pool(
           masm());
@@ -1149,6 +1188,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       IndirectPointerTag tag = static_cast<IndirectPointerTag>(i.InputInt64(3));
       DCHECK(IsValidIndirectPointerTag(tag));
 #endif  // DEBUG
+
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool = zone()->New<OutOfLineVerifySkippedIndirectWriteBarrier>(
+          this, object, value);
+      __ jmp(ool->entry());
+      __ bind(ool->exit());
 
       MacroAssemblerBase::BlockTrampolinePoolScope block_trampoline_pool(
           masm());
