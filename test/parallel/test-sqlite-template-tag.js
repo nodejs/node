@@ -103,7 +103,7 @@ test('sql.db returns the associated DatabaseSync instance', () => {
   assert.strictEqual(sql.db, db);
 });
 
-test('regression test https://github.com/nodejs/node/issues/60448', () => {
+test('a tag store keeps the database alive by itself', () => {
   const sql = new DatabaseSync(':memory:').createTagStore();
 
   sql.db.exec('CREATE TABLE test (data INTEGER)');
