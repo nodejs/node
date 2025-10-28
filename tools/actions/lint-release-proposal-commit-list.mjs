@@ -32,7 +32,7 @@ if (commitListingStart === -1) {
   assert.ok(releaseStart, 'Could not determine the start of the release section');
   const releaseEnd = changelog.indexOf('\n\n<a', releaseStart.index);
   assert.notStrictEqual(releaseEnd, -1, 'Could not determine the end of the release section');
-  commitList = changelog.slice(commitListingStart, commitListingEnd + 1);
+  commitList = changelog.slice(commitListingStart, releaseEnd + 1);
 }
 
 // Normalize for consistent comparison
