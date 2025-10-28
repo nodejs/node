@@ -26,12 +26,14 @@ const child = spawn(
 );
 
 let stdout = '';
+let firstGrandchildPid;
 child.stdout.on('data', (data) => {
   const dataStr = data.toString();
   console.log(`[STDOUT] ${dataStr}`);
   stdout += `${dataStr}`;
-  if (/__(SIGINT|SIGTERM) received__/.test(stdout)) {
-    console.log(`[PARENT] Sending kill signal to child process: ${child.pid}`);
+  const match = dataStr.match(/__(SIGINT|SIGTERM) received__ (\d+)/);
+  if (match && match[2] === firstGrandchildPid) {
+    console.log(`[PARENT] Sending kill signal to watcher process: ${child.pid}`);
     child.kill();
   }
 });
@@ -43,16 +45,18 @@ child.stdout.on('data', (data) => {
 // end up in an infinite loop and never receive the stdout of the grandchildren in time.
 // Only write once to verify the first grandchild process receives the expected signal.
 // We don't care about the subsequent grandchild processes.
-let written = false;
 child.on('message', (msg) => {
   console.log(`[MESSAGE]`, msg);
-  if (msg === 'script ready' && !written) {
-    writeFileSync(indexPath, indexContents);
-    written = true;
+  if (!firstGrandchildPid && typeof msg === 'string') {
+    const match = msg.match(/script ready (\d+)/);
+    if (match) {
+      firstGrandchildPid = match[1];  // This is the first grandchild
+      writeFileSync(indexPath, indexContents);
+    }
   }
 });
 
 await once(child, 'exit');
 
-assert.match(stdout, /__SIGTERM received__/);
-assert.doesNotMatch(stdout, /__SIGINT received__/);
+assert.match(stdout, new RegExp(`__SIGTERM received__ ${firstGrandchildPid}`));
+assert.doesNotMatch(stdout, new RegExp(`__SIGINT received__ ${firstGrandchildPid}`));
