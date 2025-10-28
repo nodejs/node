@@ -70,6 +70,15 @@ the end of April 2028.
 Other than updating metadata, such as the `process.release` object, to reflect
 that the release is LTS, no further changes from Node.js 24.10.0 are included.
 
+### Known issue
+
+An issue has been identified in the Node.js 24.x line with `Buffer.allocUnsafe`
+unintentionally returning zero-filled buffers. This API is
+[documented to return uninitialized memory](https://nodejs.org/docs/latest-v24.x/api/buffer.html#static-method-bufferallocunsafesize).
+The documented behavior will be restored in the next Node.js 24.x LTS release to bring
+it back in line with previous releases. For more information, see
+[#60423](https://github.com/nodejs/node/issues/60423).
+
 <a id="24.10.0"></a>
 
 ## 2025-10-08, Version 24.10.0 (Current), @RafaelGSS
