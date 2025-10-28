@@ -200,6 +200,8 @@ Although the CPU is mostly idle while running this script, the value of
 Passing in a user-defined object instead of the result of a previous call to
 `eventLoopUtilization()` will lead to undefined behavior. The return values
 are not guaranteed to reflect any correct state of the event loop.
+_This property is an extension by Node.js. It is not available in Web browsers._
+
 
 ### `performance.getEntries()`
 
