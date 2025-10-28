@@ -10,6 +10,7 @@ namespace util {
 
 using v8::ALL_PROPERTIES;
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BigInt;
 using v8::Boolean;
@@ -34,6 +35,7 @@ using v8::ONLY_WRITABLE;
 using v8::Promise;
 using v8::PropertyFilter;
 using v8::Proxy;
+using v8::SharedArrayBuffer;
 using v8::SKIP_STRINGS;
 using v8::SKIP_SYMBOLS;
 using v8::StackFrame;
@@ -438,6 +440,30 @@ static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void ConstructSharedArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  int64_t length;
+  // Note: IntegerValue() clamps its output, so excessively large input values
+  // will not overflow
+  if (!args[0]->IntegerValue(env->context()).To(&length)) {
+    return;
+  }
+  if (length < 0 ||
+      static_cast<uint64_t>(length) > ArrayBuffer::kMaxByteLength) {
+    env->ThrowRangeError("Invalid array buffer length");
+    return;
+  }
+  Local<SharedArrayBuffer> sab;
+  if (!SharedArrayBuffer::MaybeNew(env->isolate(), static_cast<size_t>(length))
+           .ToLocal(&sab)) {
+    // Note: SharedArrayBuffer::MaybeNew doesn't schedule an exception if it
+    // fails
+    env->ThrowRangeError("Array buffer allocation failed");
+    return;
+  }
+  args.GetReturnValue().Set(sab);
+}
+
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
@@ -455,6 +481,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsInsideNodeModules);
   registry->Register(DefineLazyProperties);
   registry->Register(DefineLazyPropertiesGetter);
+  registry->Register(ConstructSharedArrayBuffer);
 }
 
 void Initialize(Local<Object> target,
@@ -554,9 +581,12 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "getCallSites", GetCallSites);
   SetMethod(context, target, "sleep", Sleep);
   SetMethod(context, target, "parseEnv", ParseEnv);
-
   SetMethod(
       context, target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
+  SetMethod(context,
+            target,
+            "constructSharedArrayBuffer",
+            ConstructSharedArrayBuffer);
 
   Local<String> should_abort_on_uncaught_toggle =
       FIXED_ONE_BYTE_STRING(env->isolate(), "shouldAbortOnUncaughtToggle");
