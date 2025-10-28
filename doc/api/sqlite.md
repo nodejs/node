@@ -99,7 +99,7 @@ exposed by this class execute synchronously.
 added: v22.5.0
 changes:
   - version:
-      - REPLACEME
+      - v25.1.0
     pr-url: https://github.com/nodejs/node/pull/60217
     description: Add `defensive` option.
   - version:
@@ -273,7 +273,7 @@ loading extensions for security reasons.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v25.1.0
 -->
 
 * `active` {boolean} Whether to set the defensive flag.
