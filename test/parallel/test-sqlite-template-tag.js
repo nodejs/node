@@ -104,7 +104,7 @@ test('sql.db returns the associated DatabaseSync instance', () => {
 test('regression test https://github.com/nodejs/node/issues/60448', () => {
   const sql = new DatabaseSync(':memory:').createTagStore();
 
-  sql.db.exec('CREATE TABLE test (data NUMBER)');
+  sql.db.exec('CREATE TABLE test (data INTEGER)');
 
   // Simulating meaningful work/likely triggering garbage collection...
   for (const x of new Array(100_000).fill(0)) {
