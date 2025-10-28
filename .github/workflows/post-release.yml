@@ -1,0 +1,32 @@
+name: Post-Release actions
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version to generate a blog post for.
+        type: string
+        required: true
+  release:
+    types: [released]
+
+permissions:
+  contents: read
+
+jobs:
+  post-release-actions:
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger update-links workflow on nodejs/release-cloudflare-worker
+        run: |
+          gh workflow run update-links.yml --repo nodejs/release-cloudflare-worker
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+
+      - name: Trigger create-release-post workflow on nodejs/nodejs.org
+        run: |
+          gh workflow run create-release-post.yml --repo nodejs/nodejs.org -f version=$VERSION
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          VERSION: ${{ inputs.version || github.event.release.tag_name }}
