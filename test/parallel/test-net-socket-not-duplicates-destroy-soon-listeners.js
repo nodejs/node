@@ -1,5 +1,6 @@
 'use strict';
 require('../common');
+const { addresses } = require('../common/internet');
 
 const assert = require('assert');
 const net = require('net');
@@ -8,7 +9,7 @@ const socket = new net.Socket();
 socket.on('error', () => {
   // noop
 });
-socket.connect({ host: 'non-existing.domain', port: 1234 });
+socket.connect({ host: addresses.INVALID_HOST, port: 1234 });
 socket.destroySoon();
 socket.destroySoon();
 const finishListenersCount = socket.listeners('finish').length;
