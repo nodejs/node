@@ -11,12 +11,12 @@ socket.destroySoon();
 socket.destroySoon();
 const finishListenersCount = socket.listeners('finish').length;
 const connectListenersCount = socket.listeners('connect').length;
-assert.equal(
+assert.strictEqual(
   finishListenersCount,
   1,
   '"finish" event listeners should not be duplicated for multiple "Socket.destroySoon" calls'
 );
-assert.equal(
+assert.strictEqual(
   connectListenersCount,
   1,
   '"connect" event listeners should not be duplicated for multiple "Socket.destroySoon" calls'
