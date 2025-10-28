@@ -4298,18 +4298,46 @@ bool EVPMDCtxPointer::copyTo(const EVPMDCtxPointer& other) const {
 std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::signInit(const EVPKeyPointer& key,
                                                        const Digest& digest) {
   EVP_PKEY_CTX* ctx = nullptr;
+
+  if (digest == nullptr) {
+    // Inicializa sin digest (firma raw, sin hashing interno)
+    ctx = EVP_PKEY_CTX_new(key.get(), nullptr);
+    if (!ctx) return std::nullopt;
+    if (EVP_PKEY_sign_init(ctx) <= 0) {
+      EVP_PKEY_CTX_free(ctx);
+      return std::nullopt;
+    }
+    ctx_.reset(ctx);
+    return ctx;
+  }
+
   if (!EVP_DigestSignInit(ctx_.get(), &ctx, digest, nullptr, key.get())) {
     return std::nullopt;
   }
+
   return ctx;
 }
 
 std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInit(
     const EVPKeyPointer& key, const Digest& digest) {
   EVP_PKEY_CTX* ctx = nullptr;
+
+  if (digest == nullptr) {
+    // Inicializa sin digest (verificación raw, sin hashing interno)
+    ctx = EVP_PKEY_CTX_new(key.get(), nullptr);
+    if (!ctx) return std::nullopt;
+    if (EVP_PKEY_verify_init(ctx) <= 0) {
+      EVP_PKEY_CTX_free(ctx);
+      return std::nullopt;
+    }
+    ctx_.reset(ctx);
+    return ctx;
+  }
+
   if (!EVP_DigestVerifyInit(ctx_.get(), &ctx, digest, nullptr, key.get())) {
     return std::nullopt;
   }
+
   return ctx;
 }
 
