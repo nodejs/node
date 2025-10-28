@@ -283,7 +283,7 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
 
       assert.match(
         stderr,
-        /ReferenceError: Cannot determine intended module format because both require and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require\(\) with import\./
+        /ReferenceError: Cannot determine intended module format because both 'require' and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require\(\) with import\./
       );
       assert.strictEqual(stdout, '');
       assert.strictEqual(code, 1);
@@ -432,14 +432,15 @@ describe('cjs & esm ambiguous syntax case', () => {
     const { stderr, code, signal } = await spawnPromisified(
       process.execPath,
       [
+        '--input-type=module',
         '--eval',
-        `const fs = require('fs');\nawait 1;`,
+        `await 1;\nconst fs = require('fs');`,
       ]
     );
 
     assert.match(
       stderr,
-      /ReferenceError: Cannot determine intended module format because both require and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require\(\) with import\./
+      /ReferenceError: Cannot determine intended module format because both 'require' and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require\(\) with import\./
     );
 
     strictEqual(code, 1);
@@ -457,7 +458,7 @@ describe('cjs & esm ambiguous syntax case', () => {
 
     match(
       stderr,
-      /ReferenceError: Cannot determine intended module format because both exports and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, use export instead of module\.exports\/exports\./
+      /ReferenceError: Cannot determine intended module format because both 'exports' and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, use export instead of module\.exports\/exports\./
     );
 
     assert.strictEqual(code, 1);
@@ -475,7 +476,7 @@ describe('cjs & esm ambiguous syntax case', () => {
 
     match(
       stderr,
-      /ReferenceError: Cannot determine intended module format because both __filename and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, use import\.meta\.filename instead\./
+      /ReferenceError: Cannot determine intended module format because both '__filename' and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, use import\.meta\.filename instead\./
     );
 
     strictEqual(code, 1);
@@ -493,7 +494,7 @@ describe('cjs & esm ambiguous syntax case', () => {
 
     match(
       stderr,
-      /ReferenceError: Cannot determine intended module format because both __dirname and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, use import\.meta\.dirname instead\./
+      /ReferenceError: Cannot determine intended module format because both '__dirname' and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, use import\.meta\.dirname instead\./
     );
 
     strictEqual(code, 1);
