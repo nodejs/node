@@ -832,7 +832,7 @@ void DatabaseSync::CreateTagStore(const FunctionCallbackInfo<Value>& args) {
   }
 
   BaseObjectPtr<SQLTagStore> session =
-      SQLTagStore::Create(env, BaseObjectWeakPtr<DatabaseSync>(db), capacity);
+      SQLTagStore::Create(env, BaseObjectPtr<DatabaseSync>(db), capacity);
   if (!session) {
     // Handle error if creation failed
     THROW_ERR_SQLITE_ERROR(env->isolate(), "Failed to create SQLTagStore");
@@ -2660,7 +2660,7 @@ void IllegalConstructor(const FunctionCallbackInfo<Value>& args) {
 
 SQLTagStore::SQLTagStore(Environment* env,
                          Local<Object> object,
-                         BaseObjectWeakPtr<DatabaseSync> database,
+                         BaseObjectPtr<DatabaseSync> database,
                          int capacity)
     : BaseObject(env, object),
       database_(std::move(database)),
@@ -2709,7 +2709,7 @@ Local<FunctionTemplate> SQLTagStore::GetConstructorTemplate(Environment* env) {
 }
 
 BaseObjectPtr<SQLTagStore> SQLTagStore::Create(
-    Environment* env, BaseObjectWeakPtr<DatabaseSync> database, int capacity) {
+    Environment* env, BaseObjectPtr<DatabaseSync> database, int capacity) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
            ->InstanceTemplate()

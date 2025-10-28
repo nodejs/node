@@ -100,3 +100,17 @@ test('TagStore capacity, size, and clear', () => {
 test('sql.db returns the associated DatabaseSync instance', () => {
   assert.strictEqual(sql.db, db);
 });
+
+test('regression test https://github.com/nodejs/node/issues/60448', () => {
+  const sql = new DatabaseSync(':memory:').createTagStore();
+
+  sql.db.exec('CREATE TABLE test (data NUMBER)');
+
+  // Simulating meaningful work/likely triggering garbage collection...
+  for (const x of new Array(100_000).fill(0)) {
+    // eslint-disable-next-line no-unused-expressions
+    x + x;
+  }
+  // eslint-disable-next-line no-unused-expressions
+  sql.run`INSERT INTO test (data) VALUES (1)`;
+});
