@@ -3188,7 +3188,10 @@ static void SaveVectorRegisters(MacroAssembler* masm,
   // Check if the machine has simd128 support. Otherwise, the
   // vector registers might not exist and accessing them would SIGILL.
   Label done;
+
+  ASM_CODE_COMMENT(masm);
   __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
+  __ Lb(kScratchReg, MemOperand(kScratchReg, 0));
   // If != 0, then simd is available.
   __ Branch(&done, eq, kScratchReg, Operand(zero_reg), Label::Distance::kNear);
 
@@ -3210,7 +3213,9 @@ static void RestoreVectorRegisters(MacroAssembler* masm,
   // Check if the machine has simd128 support. Otherwise, the
   // vector registers might not exist and accessing them would SIGILL.
   Label done;
+  ASM_CODE_COMMENT(masm);
   __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
+  __ Lb(kScratchReg, MemOperand(kScratchReg, 0));
   // If != 0, then simd is available.
   __ Branch(&done, eq, kScratchReg, Operand(zero_reg), Label::Distance::kNear);
 
