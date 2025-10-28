@@ -753,6 +753,14 @@ bool DatabaseSync::Open() {
   CHECK_ERROR_OR_THROW(env()->isolate(), this, r, SQLITE_OK, false);
   CHECK_EQ(foreign_keys_enabled, open_config_.get_enable_foreign_keys());
 
+  int defensive_enabled;
+  r = sqlite3_db_config(connection_,
+                        SQLITE_DBCONFIG_DEFENSIVE,
+                        static_cast<int>(open_config_.get_enable_defensive()),
+                        &defensive_enabled);
+  CHECK_ERROR_OR_THROW(env()->isolate(), this, r, SQLITE_OK, false);
+  CHECK_EQ(defensive_enabled, open_config_.get_enable_defensive());
+
   sqlite3_busy_timeout(connection_, open_config_.get_timeout());
 
   if (allow_load_extension_) {
@@ -1064,6 +1072,21 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
         open_config.set_allow_unknown_named_params(
             allow_unknown_named_params_v.As<Boolean>()->Value());
       }
+    }
+
+    Local<Value> defensive_v;
+    if (!options->Get(env->context(), env->defensive_string())
+             .ToLocal(&defensive_v)) {
+      return;
+    }
+    if (!defensive_v->IsUndefined()) {
+      if (!defensive_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.defensive\" argument must be a boolean.");
+        return;
+      }
+      open_config.set_enable_defensive(defensive_v.As<Boolean>()->Value());
     }
   }
 
@@ -1833,6 +1856,26 @@ void DatabaseSync::EnableLoadExtension(
   const int load_extension_ret = sqlite3_db_config(
       db->connection_, SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION, enable, nullptr);
   CHECK_ERROR_OR_THROW(isolate, db, load_extension_ret, SQLITE_OK, void());
+}
+
+void DatabaseSync::EnableDefensive(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  auto isolate = args.GetIsolate();
+  if (!args[0]->IsBoolean()) {
+    THROW_ERR_INVALID_ARG_TYPE(isolate,
+                               "The \"active\" argument must be a boolean.");
+    return;
+  }
+
+  const int enable = args[0].As<Boolean>()->Value();
+  int defensive_enabled;
+  const int defensive_ret = sqlite3_db_config(
+      db->connection_, SQLITE_DBCONFIG_DEFENSIVE, enable, &defensive_enabled);
+  CHECK_ERROR_OR_THROW(isolate, db, defensive_ret, SQLITE_OK, void());
 }
 
 void DatabaseSync::LoadExtension(const FunctionCallbackInfo<Value>& args) {
@@ -3316,6 +3359,8 @@ static void Initialize(Local<Object> target,
                  db_tmpl,
                  "enableLoadExtension",
                  DatabaseSync::EnableLoadExtension);
+  SetProtoMethod(
+      isolate, db_tmpl, "enableDefensive", DatabaseSync::EnableDefensive);
   SetProtoMethod(
       isolate, db_tmpl, "loadExtension", DatabaseSync::LoadExtension);
   SetProtoMethod(

@@ -274,6 +274,12 @@ added: v16.0.0
 
 Global alias for [`buffer.atob()`][].
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/buffer-atob-btoa
+```
+
 ## Class: `BroadcastChannel`
 
 <!-- YAML
@@ -1105,8 +1111,7 @@ added: v0.0.1
 added: v22.4.0
 -->
 
-> Stability: 1.0 - Early development. Enable this API with the
-> \[`--experimental-webstorage`]\[] CLI flag.
+> Stability: 1.0 - Early development.
 
 A browser-compatible implementation of {Storage}. Disable this API with the
 [`--no-webstorage`][] (or its alias `--no-experimental-webstorage`) CLI flag.
