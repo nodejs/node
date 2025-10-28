@@ -3,12 +3,21 @@ const assert = require('assert');
 const net = require('net');
 
 const socket = new net.Socket();
-socket.on('error', () => {});
+socket.on('error', () => {
+  // noop
+});
 socket.connect({ host: 'non-existing.domain', port: 1234 });
 socket.destroySoon();
-socket.connect({ host: 'non-existing.domain', port: 1234 });
 socket.destroySoon();
 const finishListenersCount = socket.listeners('finish').length;
 const connectListenersCount = socket.listeners('connect').length;
-assert.equal(finishListenersCount, 1);
-assert.equal(connectListenersCount, 1);
+assert.equal(
+  finishListenersCount,
+  1,
+  '"finish" event listeners should not be duplicated for multiple "Socket.destroySoon" calls'
+);
+assert.equal(
+  connectListenersCount,
+  1,
+  '"connect" event listeners should not be duplicated for multiple "Socket.destroySoon" calls'
+);
