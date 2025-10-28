@@ -1,4 +1,6 @@
 'use strict';
+// Flags: --expose-gc 
+
 require('../common');
 const assert = require('assert');
 const { DatabaseSync } = require('node:sqlite');
@@ -106,11 +108,8 @@ test('regression test https://github.com/nodejs/node/issues/60448', () => {
 
   sql.db.exec('CREATE TABLE test (data INTEGER)');
 
-  // Simulating meaningful work/likely triggering garbage collection...
-  for (const x of new Array(100_000).fill(0)) {
-    // eslint-disable-next-line no-unused-expressions
-    x + x;
-  }
+  global.gc();
+
   // eslint-disable-next-line no-unused-expressions
   sql.run`INSERT INTO test (data) VALUES (1)`;
 });
