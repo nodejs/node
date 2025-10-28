@@ -24,17 +24,16 @@ using v8::Number;
 using v8::Object;
 using v8::Value;
 
-thread_local std::unordered_map<std::string, int> generic_usage_counters;
+thread_local std::unordered_map<FastStringKey, int, FastStringKey::Hash>
+    generic_usage_counters;
 thread_local std::unordered_map<FastStringKey, int, FastStringKey::Hash>
     v8_fast_api_call_counts;
 
-void CountGenericUsage(const char* counter_name) {
-  if (generic_usage_counters.find(counter_name) == generic_usage_counters.end())
-    generic_usage_counters[counter_name] = 0;
+void CountGenericUsage(FastStringKey counter_name) {
   generic_usage_counters[counter_name]++;
 }
 
-int GetGenericUsageCount(const char* counter_name) {
+int GetGenericUsageCount(FastStringKey counter_name) {
   return generic_usage_counters[counter_name];
 }
 
@@ -53,8 +52,8 @@ void GetGenericUsageCount(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Utf8Value utf8_key(env->isolate(), args[0]);
-  args.GetReturnValue().Set(
-      GetGenericUsageCount(utf8_key.ToStringView().data()));
+  args.GetReturnValue().Set(GetGenericUsageCount(
+      FastStringKey::AllowDynamic(utf8_key.ToStringView())));
 }
 
 void GetV8FastApiCallCount(const FunctionCallbackInfo<Value>& args) {
