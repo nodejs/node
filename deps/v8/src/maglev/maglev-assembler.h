@@ -20,22 +20,20 @@ namespace maglev {
 class Graph;
 class MaglevAssembler;
 
-inline ExternalReference SpaceAllocationTopAddress(Isolate* isolate,
-                                                   AllocationType alloc_type) {
+inline IsolateFieldId SpaceAllocationTopAddress(AllocationType alloc_type) {
   if (alloc_type == AllocationType::kYoung) {
-    return ExternalReference::new_space_allocation_top_address(isolate);
+    return IsolateFieldId::kNewAllocationInfoTop;
   }
   DCHECK_EQ(alloc_type, AllocationType::kOld);
-  return ExternalReference::old_space_allocation_top_address(isolate);
+  return IsolateFieldId::kOldAllocationInfoTop;
 }
 
-inline ExternalReference SpaceAllocationLimitAddress(
-    Isolate* isolate, AllocationType alloc_type) {
+inline IsolateFieldId SpaceAllocationLimitAddress(AllocationType alloc_type) {
   if (alloc_type == AllocationType::kYoung) {
-    return ExternalReference::new_space_allocation_limit_address(isolate);
+    return IsolateFieldId::kNewAllocationInfoLimit;
   }
   DCHECK_EQ(alloc_type, AllocationType::kOld);
-  return ExternalReference::old_space_allocation_limit_address(isolate);
+  return IsolateFieldId::kOldAllocationInfoLimit;
 }
 
 inline Builtin AllocateBuiltin(AllocationType alloc_type) {
@@ -460,6 +458,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void Move(DoubleRegister dst, Float64 n);
   inline void Move(Register dst, Handle<HeapObject> obj);
 
+  void Move(ExternalReference dst, int32_t imm);
+
   inline void MoveTagged(Register dst, Handle<HeapObject> obj);
 
   inline void LoadMapForCompare(Register dst, Register obj);
@@ -649,14 +649,14 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                          Label* target, Label::Distance distance = Label::kFar);
 
   inline void Float64SilenceNan(DoubleRegister value);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   inline void JumpIfUndefinedNan(DoubleRegister value, Register scratch,
                                  Label* target,
                                  Label::Distance distance = Label::kFar);
   inline void JumpIfNotUndefinedNan(DoubleRegister value, Register scratch,
                                     Label* target,
                                     Label::Distance distance = Label::kFar);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   inline void JumpIfHoleNan(DoubleRegister value, Register scratch,
                             Label* target,
                             Label::Distance distance = Label::kFar);
@@ -818,6 +818,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   void TryMigrateInstanceAndMarkMapAsMigrationTarget(
       Register object, RegisterSnapshot& register_snapshot);
+
+  void ResetLastYoungAllocation();
 
   compiler::NativeContextRef native_context() const {
     return code_gen_state()->broker()->target_native_context();

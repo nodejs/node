@@ -37,15 +37,6 @@
 #include "hwy/print-inl.h"
 #include "hwy/tests/test_util-inl.h"
 
-// TODO(b/314758657): Compiler bug causes incorrect results on SSE2/S-SSE3.
-#undef VQSORT_SKIP
-#if !defined(VQSORT_DO_NOT_SKIP) && HWY_COMPILER_CLANG && HWY_ARCH_X86 && \
-    HWY_TARGET >= HWY_SSSE3
-#define VQSORT_SKIP 1
-#else
-#define VQSORT_SKIP 0
-#endif
-
 HWY_BEFORE_NAMESPACE();
 namespace hwy {
 namespace HWY_NAMESPACE {
@@ -310,7 +301,7 @@ static HWY_NOINLINE void TestBaseCase() {
 
 HWY_NOINLINE void TestAllBaseCase() {
   // Workaround for stack overflow on MSVC debug.
-#if defined(_MSC_VER) || VQSORT_SKIP
+#if defined(_MSC_VER)
   return;
 #endif
 
@@ -504,7 +495,7 @@ static HWY_NOINLINE void TestRandomGenerator() {
   // Ensure lower and upper 32 bits are uniformly distributed.
   uint64_t sum_lo = 0, sum_hi = 0;
   for (size_t i = 0; i < 1000; ++i) {
-    const uint64_t bits = detail::RandomBits(state);
+    const uint64_t bits = RandomBits(state);
     sum_lo += bits & 0xFFFFFFFF;
     sum_hi += bits >> 32;
   }
@@ -522,7 +513,7 @@ static HWY_NOINLINE void TestRandomGenerator() {
     uint64_t sum = 0;
     constexpr size_t kReps = 10000;
     for (size_t rep = 0; rep < kReps; ++rep) {
-      const uint32_t bits = detail::RandomBits(state) & 0xFFFFFFFF;
+      const uint32_t bits = RandomBits(state) & 0xFFFFFFFF;
       const size_t index = detail::RandomChunkIndex(num_blocks, bits);
       HWY_ASSERT(((index + 1) * lanes_per_block) <=
                  num_blocks * lanes_per_block);

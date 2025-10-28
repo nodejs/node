@@ -316,6 +316,13 @@ HeapAllocator::CollectGarbageAndRetryAllocation(AllocateFunction&& Allocate,
                                             : PerformHeapLimitCheck::kYes;
 
   for (int i = 0; i < 2; i++) {
+    if (v8_flags.ineffective_gcs_forces_last_resort &&
+        allocation != AllocationType::kYoung &&
+        heap_for_allocation(allocation)
+            ->HasConsecutiveIneffectiveMarkCompact()) {
+      return {};
+    }
+
     // Skip the heap limit check in the GC if enabled. The heap limit needs to
     // be enforced by the caller.
     CollectGarbage(allocation, perform_heap_limit_check);

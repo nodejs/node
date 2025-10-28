@@ -141,8 +141,8 @@ const char* ComputeMarker(Tagged<SharedFunctionInfo> shared,
       kind == CodeKind::INTERPRETED_FUNCTION) {
     return "";
   }
-  return CodeKindToMarker(
-      kind, IsCode(code) && code->GetCode()->is_context_specialized());
+  return CodeKindToMarker(kind, code->is_context_specialized(cage_base),
+                          code->osr_offset(cage_base));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -2548,7 +2548,11 @@ void ExistingCodeLogger::LogCodeObject(Tagged<AbstractCode> object) {
     case CodeKind::MAGLEV:
       return;  // We log this later using LogCompiledFunctions.
     case CodeKind::FOR_TESTING:
-      description = "STUB code";
+      description = "Test Code with stub linkage";
+      tag = CodeTag::kStub;
+      break;
+    case CodeKind::FOR_TESTING_JS:
+      description = "Test Code with JS linkage";
       tag = CodeTag::kStub;
       break;
     case CodeKind::REGEXP:

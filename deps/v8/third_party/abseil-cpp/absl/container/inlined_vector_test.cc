@@ -920,7 +920,9 @@ TEST(IntVec, Clear) {
     SCOPED_TRACE(len);
     IntVec v;
     Fill(&v, len);
+    size_t capacity_before_clear = v.capacity();
     v.clear();
+    EXPECT_EQ(v.capacity(), capacity_before_clear);
     EXPECT_EQ(0u, v.size());
     EXPECT_EQ(v.begin(), v.end());
   }

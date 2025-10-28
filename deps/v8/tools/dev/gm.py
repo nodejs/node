@@ -155,13 +155,22 @@ V8_DIR = Path(__file__).resolve().parent.parent.parent
 GCLIENT_FILE_PATH = V8_DIR.parent / ".gclient"
 RECLIENT_CERT_CACHE = V8_DIR / ".#gm_reclient_cert_cache"
 
+if (V8_DIR.parent / "chrome").exists():
+  CHROMIUM_DIR = V8_DIR.parent
+  GCLIENT_FILE_PATH = CHROMIUM_DIR / ".gclient"
+else:
+  CHROMIUM_DIR = None
+
 out_dir_override = os.getenv("V8_GM_OUTDIR")
 if out_dir_override and Path(out_dir_override).is_dir:
   OUTDIR = Path(out_dir_override).absolute()
   OUTDIR_BASENAME = OUTDIR.parts[-1]
 else:
   OUTDIR_BASENAME = "out"
-  OUTDIR = Path(V8_DIR / OUTDIR_BASENAME)
+  if CHROMIUM_DIR:
+    OUTDIR = Path(CHROMIUM_DIR / OUTDIR_BASENAME)
+  else:
+    OUTDIR = Path(V8_DIR / OUTDIR_BASENAME)
 
 BUILD_DISTRIBUTION_RE = re.compile(r"\nuse_(remoteexec|goma) = (false|true)")
 GOMA_DIR_LINE = re.compile(r"\ngoma_dir = \"[^\"]+\"")
@@ -187,8 +196,7 @@ def get_v8_solution(solutions):
 def detect_reclient():
   if not GCLIENT_FILE_PATH.exists():
     return Reclient.NONE
-  with open(GCLIENT_FILE_PATH) as f:
-    content = f.read()
+  content = GCLIENT_FILE_PATH.read_text()
   try:
     config_dict = {}
     exec(content, config_dict)
@@ -200,9 +208,9 @@ def detect_reclient():
     print("# Can't detect reclient due to missing v8 gclient solution.")
     return Reclient.NONE
   custom_vars = v8_solution.get("custom_vars", {})
-  if custom_vars.get("rbe_instance"):
+  if "rbe_instance" in custom_vars:
     return Reclient.CUSTOM
-  if custom_vars.get("download_remoteexec_cfg"):
+  if "download_remoteexec_cfg" in custom_vars:
     return Reclient.GOOGLE
   return Reclient.NONE
 
@@ -214,22 +222,23 @@ def detect_reclient_cert():
   # We cache the cert expiration time in a file, because that's much faster
   # to read than invoking `gcertstatus`.
   if RECLIENT_CERT_CACHE.exists():
-    with open(RECLIENT_CERT_CACHE, 'r') as f:
-      cached_time = int(f.read())
+    cached_time = int(RECLIENT_CERT_CACHE.read_text())
     if now < cached_time:
       return True
   cmd = ["gcertstatus", "-nocheck_ssh", "-format=simple"]
   ret = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   if ret.returncode != 0:
     return False
+  gcertstatus_output = ret.stdout.decode("utf-8").strip()
+  if not gcertstatus_output:
+    return False
   # Request fresh cert if less than an hour remains. Reproxy will refuse to
   # start when the certificate is close to expiring.
   MARGIN = 3600
-  lifetime = int(ret.stdout.decode("utf-8").strip().split(':')[1]) - MARGIN
+  lifetime = int(gcertstatus_output.split(":")[1]) - MARGIN
   if lifetime < 0:
     return False
-  with open(RECLIENT_CERT_CACHE, 'w') as f:
-    f.write(str(now + lifetime))
+  RECLIENT_CERT_CACHE.write_text(str(now + lifetime))
   return True
 
 
@@ -364,8 +373,7 @@ def _call_with_output(cmd):
 def _write(filename, content, log=True):
   if log:
     print(f"# echo > {filename} << EOF\n{content}EOF")
-  with filename.open("w") as f:
-    f.write(content)
+  filename.write_text(content)
 
 
 def _notify(summary, body):
@@ -422,9 +430,8 @@ class RawConfig:
 
   def update_build_distribution_args(self):
     args_gn = self.path / "args.gn"
-    assert args_gn.exists()
-    with open(args_gn) as f:
-      gn_args = f.read()
+    assert args_gn.exists(), f"args.gn does not exist: {args_gn}"
+    gn_args = args_gn.read_text()
     # Remove custom reclient config path (it will be added again as part of
     # the config line below if needed).
     new_gn_args = DEPRECATED_RBE_CFG_RE.sub("", gn_args)
@@ -448,7 +455,10 @@ class RawConfig:
     # When printing, print a relative path for conciseness.
     cwd = Path.cwd()
     if cwd == V8_DIR:
-      printable_path = self.path.relative_to(cwd)
+      try:
+        printable_path = self.path.relative_to(cwd)
+      except:
+        printable_path = self.path
     else:
       printable_path = self.path
     build_ninja = self.path / "build.ninja"
@@ -671,6 +681,7 @@ class ArgumentParser(object):
     # "out/foo.d8" -> path="out/foo", targets=["d8"]
     # "out/d8.cctest" -> path="out/d8", targets=["cctest"]
     # "out/x.y.d8.cctest" -> path="out/x.y", targets=["d8", "cctest"]
+    argstring = argstring.replace(outdir_prefix, "")
     words = argstring.split('.')
     path_end = len(words)
     targets = []
@@ -690,7 +701,7 @@ class ArgumentParser(object):
         break
       path_end -= 1
     targets = targets or DEFAULT_TARGETS
-    path = V8_DIR / Path('.'.join(words[:path_end]))
+    path = OUTDIR / Path('.'.join(words[:path_end]))
     args_gn = path / "args.gn"
     # Only accept existing build output directories, otherwise fall back
     # to regular parsing.

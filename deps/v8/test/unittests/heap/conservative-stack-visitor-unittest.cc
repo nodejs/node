@@ -126,6 +126,7 @@ using ConservativeStackVisitorTest = TestWithHeapInternalsAndContext;
 // Stack::IteratePointers.
 
 TEST_F(ConservativeStackVisitorTest, DirectBasePointer) {
+  ManualGCScope manual_gc_scope(isolate());
   auto recorder = std::make_unique<RecordingVisitor>(isolate());
 
   // Ensure the heap is iterable before CSS.

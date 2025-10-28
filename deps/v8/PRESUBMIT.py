@@ -172,8 +172,15 @@ def _CheckUnwantedDependencies(input_api, output_api):
   # eval-ed and thus doesn't have __file__.
   original_sys_path = sys.path
   try:
-    sys.path = sys.path + [input_api.os_path.join(
-        input_api.PresubmitLocalPath(), 'buildtools', 'checkdeps')]
+    root = input_api.PresubmitLocalPath()
+    if not os.path.exists(os.path.join(root, 'buildtools')):
+      root = os.path.dirname(root)
+      if not os.path.exists(os.path.join(root, 'buildtools')):
+        raise RuntimeError(
+            "Failed to find //buildtools directory for checkdeps")
+    sys.path = sys.path + [
+        input_api.os_path.join(root, 'buildtools', 'checkdeps')
+    ]
     import checkdeps
     from cpp_checker import CppChecker
     from rules import Rule
@@ -485,6 +492,7 @@ def _CommonChecks(input_api, output_api):
       _CheckInlineHeadersIncludeNonInlineHeadersFirst,
       _CheckJSONFiles,
       _CheckNoexceptAnnotations,
+      _CheckBannedCpp,
       _RunTestsWithVPythonSpec,
       _CheckPythonLiterals,
   ]
@@ -605,6 +613,48 @@ def _CheckNoexceptAnnotations(input_api, output_api):
         'Please report false positives on https://crbug.com/v8/8616.',
         errors)]
   return []
+
+
+def _CheckBannedCpp(input_api, output_api):
+  # We only check for a single pattern right now; feel free to add more, but
+  # potentially change the logic for files_to_skip then (and skip individual
+  # checks for individual files instead).
+  bad_cpp = [
+      ('std::bit_cast',
+       'Use base::bit_cast instead, which has additional checks'),
+  ]
+
+  def file_filter(x):
+    return input_api.FilterSourceFile(
+        x,
+        files_to_skip=[
+            # The implementation of base::bit_cast uses std::bit_cast.
+            r'src/base/macros\.h',
+            # src/base/numerics is a dependency-free header-only library, hence
+            # uses std::bit_cast directly.
+            r'src/base/numerics/.*'
+        ],
+        files_to_check=[r'.*\.h$', r'.*\.cc$'])
+
+  errors = []
+  for f in input_api.AffectedSourceFiles(file_filter):
+    for line_number, line in f.ChangedContents():
+      for pattern, message in bad_cpp:
+        if not pattern in line:
+          continue
+        # Skip if part of a comment.
+        if '//' in line and line.index('//') < line.index(pattern):
+          continue
+
+        # Make sure there are word separators around the pattern.
+        regex = r'\b%s\b' % pattern
+        if not input_api.re.search(regex, line):
+          continue
+
+        errors.append(
+            output_api.PresubmitError('Banned pattern ({}):\n  {}:{} {}'.format(
+                regex, f.LocalPath(), line_number, message)))
+  return errors
 
 
 def CheckChangeOnUpload(input_api, output_api):

@@ -2182,7 +2182,7 @@ inline void RegExpMatchGlobalAtom_OneCharPattern(
   // We need a wider tag to avoid overflows on lanes when summing up submatches.
   using WidenedTag = hw::RepartitionToWide<decltype(tag)>;
   WidenedTag sum_tag;
-  static constexpr size_t stride = hw::Lanes(tag);
+  static const size_t stride = hw::Lanes(tag);
   // Subtle: the valid variants are {SChar,PChar} in:
   // {uint8_t,uint8_t}, {uc16,uc16}, {uc16,uint8_t}. In the latter case,
   // we cast the uint8_t pattern to uc16 for the comparison.
@@ -2200,7 +2200,7 @@ inline void RegExpMatchGlobalAtom_OneCharPattern(
   // the maximum number of matches we can count in the vector before it
   // overflows.
   int max_count = std::numeric_limits<SChar>::max();
-  while (block + stride * max_count <= end) {
+  while (stride * max_count <= static_cast<size_t>(end - block)) {
     for (int i = 0; i < max_count; i++, block += stride) {
       const auto input = hw::LoadU(tag, block);
       const auto match = input == mask;
@@ -2222,7 +2222,7 @@ inline void RegExpMatchGlobalAtom_OneCharPattern(
   // For blocks shorter than stride * max_count, lanes in submatches can't
   // overflow.
   DCHECK_LT(end - block, stride * max_count);
-  for (; block + stride <= end; block += stride) {
+  for (; stride <= static_cast<size_t>(end - block); block += stride) {
     const auto input = hw::LoadU(tag, block);
     const auto match = input == mask;
     submatches = hw::Sub(submatches, hw::VecFromMask(tag, match));

@@ -6,6 +6,7 @@
 
 #include <bit>
 
+#include "src/base/macros.h"
 #include "src/codegen/external-reference.h"
 
 namespace v8 {
@@ -101,7 +102,7 @@ Node* MachineGraph::Float32Constant(float value) {
 }
 
 Node* MachineGraph::Float64Constant(double value) {
-  return Float64Constant(Float64::FromBits(std::bit_cast<uint64_t>(value)));
+  return Float64Constant(Float64::FromBits(base::bit_cast<uint64_t>(value)));
 }
 
 Node* MachineGraph::Float64Constant(Float64 value) {

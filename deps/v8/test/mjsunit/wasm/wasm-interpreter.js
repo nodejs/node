@@ -3234,3 +3234,31 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let instance = builder.instantiate({});
   assertEquals(5.5, instance.exports.main(123435));
 })();
+
+(function TestCallingInterpreterInALoop() {
+  print(arguments.callee.name);
+
+  var builder = new WasmModuleBuilder();
+
+  var kSig_r_v = makeSig([], [kWasmExternRef]);
+  builder.addImport("o", "fn1", kSig_r_v);
+  builder.addExport("fn1", 0);
+
+  var kSig_r_rrrrrr = makeSig([kWasmExternRef, kWasmExternRef, kWasmExternRef,
+    kWasmExternRef, kWasmExternRef, kWasmExternRef], [kWasmExternRef]);
+  builder.addFunction("fn2", kSig_r_rrrrrr)
+    .addBody([
+      kExprRefNull, kExternRefCode,
+    ])
+    .exportAs("fn2");
+
+  var instance = builder.instantiate({
+    o: {
+      fn1: Date,
+    }
+  });
+
+  const arr = new Uint16Array(524288);  // 512K elements
+
+  arr.forEach(instance.exports.fn1);
+})();

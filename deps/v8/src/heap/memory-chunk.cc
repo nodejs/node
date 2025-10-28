@@ -76,18 +76,6 @@ void MemoryChunk::ClearMetadataPointer(MemoryChunkMetadata* metadata) {
 }
 
 // static
-void MemoryChunk::ResetMetadataPointer(Isolate* isolate,
-                                       MemoryChunkMetadata* metadata) {
-  uint32_t metadata_index = MetadataTableIndex(metadata->ChunkAddress());
-  IsolateGroup::MemoryChunkMetadataTableEntry* metadata_pointer_table =
-      MetadataTableAddress();
-  IsolateGroup::MemoryChunkMetadataTableEntry& chunk_metadata =
-      metadata_pointer_table[metadata_index];
-  CHECK_NULL(chunk_metadata.isolate());
-  chunk_metadata.SetMetadata(metadata, isolate);
-}
-
-// static
 uint32_t MemoryChunk::MetadataTableIndex(Address chunk_address) {
   uint32_t index;
   if (V8HeapCompressionScheme::GetPtrComprCageBaseAddress(chunk_address) ==

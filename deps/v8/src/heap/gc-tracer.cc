@@ -182,7 +182,7 @@ GCTracer::GCTracer(Heap* heap, base::TimeTicks startup_time,
       previous_mark_compact_end_time_(startup_time)
 #if defined(V8_USE_PERFETTO)
       ,
-      parent_track_(perfetto::ThreadTrack::Current())
+      parent_track_(heap->tracing_track())
 #endif
 {
   // All accesses to incremental_marking_scope assume that incremental marking
@@ -1408,18 +1408,15 @@ void GCTracer::RecordGCSumCounters() {
 void GCTracer::RecordGCSizeCounters() const {
 #if defined(V8_USE_PERFETTO)
   TRACE_COUNTER(
-      TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+      "v8.memory",
       perfetto::CounterTrack("OldGenerationConsumedBytes", parent_track_),
       heap_->OldGenerationConsumedBytes());
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+  TRACE_COUNTER("v8.memory",
                 perfetto::CounterTrack("GlobalConsumedBytes", parent_track_),
                 heap_->GlobalConsumedBytes());
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+  TRACE_COUNTER("v8.memory",
                 perfetto::CounterTrack("ExternalMemoryBytes", parent_track_),
                 heap_->external_memory());
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                perfetto::CounterTrack("NewSpaceCapacity", parent_track_),
-                heap_->NewSpaceCapacity());
 #endif
 }
 
@@ -1665,7 +1662,7 @@ void GCTracer::ReportFullCycleToRecorder() {
       current_.old_generation_consumed_limit;
   event.old_generation_consumed.bytes_current =
       current_.old_generation_consumed_current;
-  event.global_consumed.bytes_max = current_.max_old_generation_memory;
+  event.old_generation_consumed.bytes_max = current_.max_old_generation_memory;
   // Global Consumed Bytes:
   event.global_consumed.bytes_baseline = current_.global_consumed_baseline;
   event.global_consumed.bytes_limit = current_.global_consumed_limit;

@@ -236,7 +236,7 @@ Load<FastDoubleElements>(context: Context, sortState: SortState, index: Smi):
     const value = elements.values[index].Value() otherwise IfUndefined, IfHole;
     return AllocateHeapNumberWithValue(value);
   } label IfUndefined {
-    dcheck(kEnableExperimentalUndefinedDouble);
+    dcheck(kEnableUndefinedDouble);
     return Undefined;
   } label IfHole {
     return TheHole;
@@ -275,8 +275,8 @@ Store<FastDoubleElements>(
     const val = Convert<float64>(heapVal);
     StoreFixedDoubleArrayElement(elements, index, val);
   } label IfUndefined {
-    dcheck(kEnableExperimentalUndefinedDouble);
-    @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+    dcheck(kEnableUndefinedDouble);
+    @if(V8_ENABLE_UNDEFINED_DOUBLE) {
       dcheck(Is<Undefined>(value));
       StoreFixedDoubleArrayUndefined(elements, index);
     }

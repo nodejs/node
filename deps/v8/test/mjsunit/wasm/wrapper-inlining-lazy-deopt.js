@@ -64,7 +64,7 @@ function createWasmModuleForLazyDeopt(returnType, createValue, callback) {
     var result = 0;
     for (let i = 0; i < iterationCount + 5; i++) {
       if (i == 2) %OptimizeOsr();
-      result = %ObserveNode(triggerDeopt(arg0 + globalForExternref));
+      result = triggerDeopt(arg0 + globalForExternref);
     }
     return result;
   }
@@ -84,7 +84,7 @@ function createWasmModuleForLazyDeopt(returnType, createValue, callback) {
     var result = 0;
     for (let i = 0; i < iterationCount + 5; i++) {
       if (i == 2) %OptimizeOsr();
-      result = %ObserveNode(triggerDeopt(arg0 + globalForI32));
+      result = triggerDeopt(arg0 + globalForI32);
     }
     return result;
   }
@@ -104,7 +104,7 @@ function createWasmModuleForLazyDeopt(returnType, createValue, callback) {
     var result = 0;
     for (let i = 0; i < iterationCount + 5; i++) {
       if (i == 2) %OptimizeOsr();
-      result = %ObserveNode(triggerDeopt(arg0 + globalForF32));
+      result = triggerDeopt(arg0 + globalForF32);
     }
     return result;
   }
@@ -124,7 +124,7 @@ function createWasmModuleForLazyDeopt(returnType, createValue, callback) {
     var result = 0;
     for (let i = 0; i < iterationCount + 5; i++) {
       if (i == 2) %OptimizeOsr();
-      result = %ObserveNode(triggerDeopt(arg0 + globalForI64));
+      result = triggerDeopt(arg0 + globalForI64);
     }
     return result;
   }
@@ -144,7 +144,7 @@ function createWasmModuleForLazyDeopt(returnType, createValue, callback) {
     var result = 0;
     for (let i = 0; i < iterationCount + 5; i++) {
       if (i == 2) %OptimizeOsr();
-      result = %ObserveNode(triggerDeopt(arg0 + globalForF64));
+      result = triggerDeopt(arg0 + globalForF64);
     }
     return result;
   }

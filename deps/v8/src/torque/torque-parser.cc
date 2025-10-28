@@ -48,8 +48,7 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
   BuildFlags() {
     build_flags_["V8_EXTERNAL_CODE_SPACE"] = V8_EXTERNAL_CODE_SPACE_BOOL;
     build_flags_["TAGGED_SIZE_8_BYTES"] = TargetArchitecture::TaggedSize() == 8;
-    build_flags_["V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE"] =
-        V8_EXPERIMENTAL_UNDEFINED_DOUBLE_BOOL;
+    build_flags_["V8_ENABLE_UNDEFINED_DOUBLE"] = V8_UNDEFINED_DOUBLE_BOOL;
 #ifdef V8_INTL_SUPPORT
     build_flags_["V8_INTL_SUPPORT"] = true;
 #else

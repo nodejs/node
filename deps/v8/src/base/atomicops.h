@@ -125,6 +125,21 @@ inline Atomic32 Relaxed_CompareAndSwap(volatile Atomic32* ptr,
   return old_value;
 }
 
+inline Atomic8 Relaxed_FetchOr(volatile Atomic8* ptr, Atomic8 bits) {
+  auto old = helper::to_std_atomic(ptr);
+  return old->fetch_or(bits, std::memory_order_relaxed);
+}
+
+inline Atomic16 Relaxed_FetchOr(volatile Atomic16* ptr, Atomic16 bits) {
+  auto old = helper::to_std_atomic(ptr);
+  return old->fetch_or(bits, std::memory_order_relaxed);
+}
+
+inline Atomic32 Relaxed_FetchOr(volatile Atomic32* ptr, Atomic32 bits) {
+  auto old = helper::to_std_atomic(ptr);
+  return old->fetch_or(bits, std::memory_order_relaxed);
+}
+
 inline Atomic32 Relaxed_AtomicExchange(volatile Atomic32* ptr,
                                        Atomic32 new_value) {
   return std::atomic_exchange_explicit(helper::to_std_atomic(ptr), new_value,
@@ -274,6 +289,11 @@ inline Atomic64 Relaxed_CompareAndSwap(volatile Atomic64* ptr,
       helper::to_std_atomic(ptr), &old_value, new_value,
       std::memory_order_relaxed, std::memory_order_relaxed);
   return old_value;
+}
+
+inline Atomic64 Relaxed_FetchOr(volatile Atomic64* ptr, Atomic64 bits) {
+  auto old = helper::to_std_atomic(ptr);
+  return old->fetch_or(bits, std::memory_order_relaxed);
 }
 
 inline Atomic64 Relaxed_AtomicExchange(volatile Atomic64* ptr,

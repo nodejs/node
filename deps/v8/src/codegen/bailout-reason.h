@@ -94,6 +94,7 @@ namespace internal {
   V(kUnexpectedStackPointer, "The stack pointer is not the expected value")    \
   V(kUnexpectedValue, "Unexpected value")                                      \
   V(kUninhabitableType, "Uninhabitable type")                                  \
+  V(kUnreachable, "Unreachable code")                                          \
   V(kUnsupportedDeopt,                                                         \
     "Lazy deopt after a fast API call with return value is unsupported")       \
   V(kUnsupportedModuleOperation, "Unsupported module operation")               \

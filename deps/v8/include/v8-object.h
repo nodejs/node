@@ -33,6 +33,11 @@ class PropertyCallbackInfo;
  */
 using EmbedderDataTypeTag = uint16_t;
 
+constexpr EmbedderDataTypeTag kEmbedderDataTypeTagDefault = 0;
+
+V8_EXPORT internal::ExternalPointerTag ToExternalPointerTag(
+    v8::EmbedderDataTypeTag api_tag);
+
 /**
  * A private symbol
  *
@@ -177,10 +182,10 @@ using AccessorNameSetterCallback =
  * the kind of cross-context access that should be allowed.
  *
  */
-enum V8_DEPRECATE_SOON(
-    "This enum is no longer used and will be removed in V8 12.9.")
+enum V8_DEPRECATED(
+    "This enum is no longer used and will be removed in V8 14.3.")
     AccessControl {
-      DEFAULT V8_ENUM_DEPRECATE_SOON("not used") = 0,
+      DEFAULT V8_ENUM_DEPRECATED("not used") = 0,
     };
 
 /**
@@ -466,8 +471,7 @@ class V8_EXPORT Object : public Value {
   /**
    * Set the prototype object (same as calling Object.setPrototypeOf(..)).
    * This does not consult the security handler.
-   * TODO(333672197): rename back to SetPrototype() once the old version goes
-   * through the deprecation process and is removed.
+   * TODO(http://crbug.com/333672197): rename back to SetPrototype().
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetPrototypeV2(Local<Context> context,
                                                    Local<Value> prototype);
@@ -531,11 +535,40 @@ class V8_EXPORT Object : public Value {
    * must have been set by SetAlignedPointerInInternalField, everything else
    * leads to undefined behavior.
    */
-  V8_INLINE void* GetAlignedPointerFromInternalField(int index);
+  V8_INLINE void* GetAlignedPointerFromInternalField(int index,
+                                                     EmbedderDataTypeTag tag);
   V8_INLINE void* GetAlignedPointerFromInternalField(v8::Isolate* isolate,
-                                                     int index);
+                                                     int index,
+                                                     EmbedderDataTypeTag tag);
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
+      "parameter instead.")
+  V8_INLINE void* GetAlignedPointerFromInternalField(int index) {
+    return GetAlignedPointerFromInternalField(index,
+                                              kEmbedderDataTypeTagDefault);
+  }
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
+      "parameter instead.")
+  V8_INLINE void* GetAlignedPointerFromInternalField(v8::Isolate* isolate,
+                                                     int index) {
+    return GetAlignedPointerFromInternalField(isolate, index,
+                                              kEmbedderDataTypeTagDefault);
+  }
 
   /** Same as above, but works for PersistentBase. */
+  V8_INLINE static void* GetAlignedPointerFromInternalField(
+      const PersistentBase<Object>& object, int index,
+      EmbedderDataTypeTag tag) {
+    return object.template value<Object>()->GetAlignedPointerFromInternalField(
+        index, tag);
+  }
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
+      "parameter instead.")
   V8_INLINE static void* GetAlignedPointerFromInternalField(
       const PersistentBase<Object>& object, int index) {
     return object.template value<Object>()->GetAlignedPointerFromInternalField(
@@ -543,6 +576,16 @@ class V8_EXPORT Object : public Value {
   }
 
   /** Same as above, but works for TracedReference. */
+  V8_INLINE static void* GetAlignedPointerFromInternalField(
+      const BasicTracedReference<Object>& object, int index,
+      EmbedderDataTypeTag tag) {
+    return object.template value<Object>()->GetAlignedPointerFromInternalField(
+        index, tag);
+  }
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
+      "parameter instead.")
   V8_INLINE static void* GetAlignedPointerFromInternalField(
       const BasicTracedReference<Object>& object, int index) {
     return object.template value<Object>()->GetAlignedPointerFromInternalField(
@@ -554,13 +597,15 @@ class V8_EXPORT Object : public Value {
    * a field, GetAlignedPointerFromInternalField must be used, everything else
    * leads to undefined behavior.
    */
+  void SetAlignedPointerInInternalField(int index, void* value,
+                                        EmbedderDataTypeTag tag);
+
   V8_DEPRECATE_SOON(
       "Use SetAlignedPointerInInternalField with EmbedderDataTypeTag parameter "
       "instead.")
-  void SetAlignedPointerInInternalField(int index, void* value);
-
-  void SetAlignedPointerInInternalField(int index, void* value,
-                                        EmbedderDataTypeTag tag);
+  void SetAlignedPointerInInternalField(int index, void* value) {
+    SetAlignedPointerInInternalField(index, value, kEmbedderDataTypeTagDefault);
+  }
 
   V8_DEPRECATE_SOON(
       "Use SetAlignedPointerInInternalField with EmbedderDataTypeTag "
@@ -795,9 +840,27 @@ class V8_EXPORT Object : public Value {
    * Prefer using version with Isolate parameter if you have an Isolate,
    * otherwise use the other one.
    */
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(
+      v8::Isolate* isolate, int index, EmbedderDataTypeTag tag);
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(
+      int index, EmbedderDataTypeTag tag);
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromEmbedderDataInCreationContext with "
+      "EmbedderDataTypeTag parameter instead.")
   void* GetAlignedPointerFromEmbedderDataInCreationContext(v8::Isolate* isolate,
-                                                           int index);
-  void* GetAlignedPointerFromEmbedderDataInCreationContext(int index);
+                                                           int index) {
+    return GetAlignedPointerFromEmbedderDataInCreationContext(
+        isolate, index, kEmbedderDataTypeTagDefault);
+  }
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromEmbedderDataInCreationContext with "
+      "EmbedderDataTypeTag parameter instead.")
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(int index) {
+    return GetAlignedPointerFromEmbedderDataInCreationContext(
+        index, kEmbedderDataTypeTagDefault);
+  }
 
   /**
    * Checks whether a callback is set by the
@@ -909,8 +972,10 @@ class V8_EXPORT Object : public Value {
   Object();
   static void CheckCast(Value* obj);
   Local<Data> SlowGetInternalField(int index);
-  void* SlowGetAlignedPointerFromInternalField(int index);
-  void* SlowGetAlignedPointerFromInternalField(v8::Isolate* isolate, int index);
+  void* SlowGetAlignedPointerFromInternalField(int index,
+                                               EmbedderDataTypeTag tag);
+  void* SlowGetAlignedPointerFromInternalField(v8::Isolate* isolate, int index,
+                                               EmbedderDataTypeTag tag);
 };
 
 // --- Implementation ---
@@ -929,7 +994,7 @@ Local<Data> Object::GetInternalField(int index) {
     A value = I::ReadRawField<A>(obj, offset);
 #ifdef V8_COMPRESS_POINTERS
     // We read the full pointer value and then decompress it in order to avoid
-    // dealing with potential endiannes issues.
+    // dealing with potential endianness issues.
     value = I::DecompressTaggedField(obj, static_cast<uint32_t>(value));
 #endif
 
@@ -941,7 +1006,8 @@ Local<Data> Object::GetInternalField(int index) {
 }
 
 void* Object::GetAlignedPointerFromInternalField(v8::Isolate* isolate,
-                                                 int index) {
+                                                 int index,
+                                                 EmbedderDataTypeTag tag) {
 #if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
@@ -953,17 +1019,16 @@ void* Object::GetAlignedPointerFromInternalField(v8::Isolate* isolate,
     int offset = I::kJSAPIObjectWithEmbedderSlotsHeaderSize +
                  (I::kEmbedderDataSlotSize * index) +
                  I::kEmbedderDataSlotExternalPointerOffset;
-    A value =
-        I::ReadExternalPointerField<{internal::kFirstEmbedderDataTag,
-                                     internal::kLastEmbedderDataTag}>(
-            isolate, obj, offset);
+    A value = I::ReadExternalPointerField(isolate, obj, offset,
+                                          ToExternalPointerTag(tag));
     return reinterpret_cast<void*>(value);
   }
 #endif
-  return SlowGetAlignedPointerFromInternalField(isolate, index);
+  return SlowGetAlignedPointerFromInternalField(isolate, index, tag);
 }
 
-void* Object::GetAlignedPointerFromInternalField(int index) {
+void* Object::GetAlignedPointerFromInternalField(int index,
+                                                 EmbedderDataTypeTag tag) {
 #if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
@@ -976,14 +1041,12 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
                  (I::kEmbedderDataSlotSize * index) +
                  I::kEmbedderDataSlotExternalPointerOffset;
     Isolate* isolate = I::GetCurrentIsolateForSandbox();
-    A value =
-        I::ReadExternalPointerField<{internal::kFirstEmbedderDataTag,
-                                     internal::kLastEmbedderDataTag}>(
-            isolate, obj, offset);
+    A value = I::ReadExternalPointerField(isolate, obj, offset,
+                                          ToExternalPointerTag(tag));
     return reinterpret_cast<void*>(value);
   }
 #endif
-  return SlowGetAlignedPointerFromInternalField(index);
+  return SlowGetAlignedPointerFromInternalField(index, tag);
 }
 
 // static

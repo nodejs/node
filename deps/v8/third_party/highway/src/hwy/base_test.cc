@@ -17,6 +17,8 @@
 
 #include <limits>
 
+#include "hwy/nanobenchmark.h"
+
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "base_test.cc"
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
@@ -27,6 +29,12 @@ HWY_BEFORE_NAMESPACE();
 namespace hwy {
 namespace HWY_NAMESPACE {
 namespace {
+
+HWY_NOINLINE void TestUnreachable() {
+  if (!hwy::Unpredictable1()) {
+    HWY_UNREACHABLE;
+  }
+}
 
 HWY_NOINLINE void TestAllLimits() {
   HWY_ASSERT_EQ(uint8_t{0}, LimitsMin<uint8_t>());
@@ -101,6 +109,22 @@ struct TestLowestHighest {
     if (!IsSpecialFloat<T>()) {
       HWY_ASSERT_EQ(std::numeric_limits<T>::lowest(), LowestValue<T>());
       HWY_ASSERT_EQ(std::numeric_limits<T>::max(), HighestValue<T>());
+
+      if (IsFloat<T>()) {
+        HWY_ASSERT(ScalarSignBit(NegativeInfOrLowestValue<T>()));
+        HWY_ASSERT(!ScalarIsFinite(NegativeInfOrLowestValue<T>()));
+        HWY_ASSERT(!ScalarSignBit(PositiveInfOrHighestValue<T>()));
+        HWY_ASSERT(!ScalarIsFinite(PositiveInfOrHighestValue<T>()));
+        HWY_ASSERT(NegativeInfOrLowestValue<T>() <
+                   std::numeric_limits<T>::lowest());
+        HWY_ASSERT(PositiveInfOrHighestValue<T>() >
+                   std::numeric_limits<T>::max());
+      } else {
+        HWY_ASSERT_EQ(std::numeric_limits<T>::lowest(),
+                      NegativeInfOrLowestValue<T>());
+        HWY_ASSERT_EQ(std::numeric_limits<T>::max(),
+                      PositiveInfOrHighestValue<T>());
+      }
     }
   }
 };
@@ -111,6 +135,7 @@ struct TestIsUnsigned {
   HWY_NOINLINE void operator()(T /*unused*/) const {
     static_assert(!IsFloat<T>(), "Expected !IsFloat");
     static_assert(!IsSigned<T>(), "Expected !IsSigned");
+    static_assert(IsUnsigned<T>(), "Expected IsUnsigned");
     static_assert(IsInteger<T>(), "Expected IsInteger");
   }
 };
@@ -120,6 +145,7 @@ struct TestIsSigned {
   HWY_NOINLINE void operator()(T /*unused*/) const {
     static_assert(!IsFloat<T>(), "Expected !IsFloat");
     static_assert(IsSigned<T>(), "Expected IsSigned");
+    static_assert(!IsUnsigned<T>(), "Expected !IsUnsigned");
     static_assert(IsInteger<T>(), "Expected IsInteger");
   }
 };
@@ -128,8 +154,9 @@ struct TestIsFloat {
   template <class T>
   HWY_NOINLINE void operator()(T /*unused*/) const {
     static_assert(IsFloat<T>(), "Expected IsFloat");
-    static_assert(!IsInteger<T>(), "Expected !IsInteger");
     static_assert(IsSigned<T>(), "Floats are also considered signed");
+    static_assert(!IsUnsigned<T>(), "Expected !IsUnsigned");
+    static_assert(!IsInteger<T>(), "Expected !IsInteger");
   }
 };
 
@@ -262,6 +289,44 @@ HWY_NOINLINE void TestAllDivisor() {
   for (uint32_t d = 0xFFFFFF00u; d != 0; ++d) {
     const Divisor divisor(d);
     for (uint32_t n = 0xFFFFFF00u; n != 0; ++n) {
+      HWY_ASSERT(divisor.Divide(n) == n / d);
+      HWY_ASSERT(divisor.Remainder(n) == n % d);
+    }
+  }
+}
+
+HWY_NOINLINE void TestAllDivisor64() {
+  // Small d, small n
+  for (uint64_t d = 1; d < 256; ++d) {
+    const Divisor64 divisor(d);
+    for (uint64_t n = 0; n < 256; ++n) {
+      HWY_ASSERT(divisor.Divide(n) == n / d);
+      HWY_ASSERT(divisor.Remainder(n) == n % d);
+    }
+  }
+
+  // Large d, small n
+  for (uint64_t d = 0xFFFFFFFFFFFFFF00ULL; d != 0; ++d) {
+    const Divisor64 divisor(d);
+    for (uint64_t n = 0; n < 256; ++n) {
+      HWY_ASSERT(divisor.Divide(n) == n / d);
+      HWY_ASSERT(divisor.Remainder(n) == n % d);
+    }
+  }
+
+  // Small d, large n
+  for (uint64_t d = 1; d < 256; ++d) {
+    const Divisor64 divisor(d);
+    for (uint64_t n = 0xFFFFFFFFFFFFFF00ULL; n != 0; ++n) {
+      HWY_ASSERT(divisor.Divide(n) == n / d);
+      HWY_ASSERT(divisor.Remainder(n) == n % d);
+    }
+  }
+
+  // Large d, large n
+  for (uint64_t d = 0xFFFFFFFFFFFFFF00ULL; d != 0; ++d) {
+    const Divisor64 divisor(d);
+    for (uint64_t n = 0xFFFFFFFFFFFFFF00ULL; n != 0; ++n) {
       HWY_ASSERT(divisor.Divide(n) == n / d);
       HWY_ASSERT(divisor.Remainder(n) == n % d);
     }
@@ -848,6 +913,7 @@ HWY_AFTER_NAMESPACE();
 namespace hwy {
 namespace {
 HWY_BEFORE_TEST(BaseTest);
+HWY_EXPORT_AND_TEST_P(BaseTest, TestUnreachable);
 HWY_EXPORT_AND_TEST_P(BaseTest, TestAllLimits);
 HWY_EXPORT_AND_TEST_P(BaseTest, TestAllLowestHighest);
 HWY_EXPORT_AND_TEST_P(BaseTest, TestAllType);
@@ -855,6 +921,7 @@ HWY_EXPORT_AND_TEST_P(BaseTest, TestAllIsSame);
 HWY_EXPORT_AND_TEST_P(BaseTest, TestAllBitScan);
 HWY_EXPORT_AND_TEST_P(BaseTest, TestAllPopCount);
 HWY_EXPORT_AND_TEST_P(BaseTest, TestAllDivisor);
+HWY_EXPORT_AND_TEST_P(BaseTest, TestAllDivisor64);
 HWY_EXPORT_AND_TEST_P(BaseTest, TestAllScalarShr);
 HWY_EXPORT_AND_TEST_P(BaseTest, TestAllMul128);
 HWY_EXPORT_AND_TEST_P(BaseTest, TestAllEndian);

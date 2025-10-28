@@ -33,6 +33,17 @@ class VariantsGenerator(testsuite.VariantsGenerator):
     return self._supported_variants
 
 
+class TestListerDummy():
+  """A one-off test case used for the look-up call that lists all the tests."""
+  def __init__(self, suite):
+    self.suite = suite
+
+  def get_android_resources(self):
+    # We require all golden files on the Android device when we list the tests.
+    expectations = self.suite.root / 'interpreter' / 'bytecode_expectations'
+    return list(expectations.glob('**/*.golden'))
+
+
 class TestLoader(testsuite.TestLoader):
   def _list_test_filenames(self):
     args = ['--gtest_list_tests'] + self.test_config.extra_flags
@@ -40,7 +51,10 @@ class TestLoader(testsuite.TestLoader):
     output = None
     for i in range(3):  # Try 3 times in case of errors.
       cmd = self.ctx.command(
-          cmd_prefix=self.test_config.command_prefix, shell=shell, args=args)
+          cmd_prefix=self.test_config.command_prefix,
+          test_case=TestListerDummy(self.suite),
+          shell=shell,
+          args=args)
       output = cmd.execute()
       if output.exit_code == 0:
         break

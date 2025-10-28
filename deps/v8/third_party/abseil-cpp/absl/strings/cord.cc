@@ -161,8 +161,10 @@ static CordRep* absl_nonnull CordRepFromString(std::string&& src) {
 // --------------------------------------------------------------------
 // Cord::InlineRep functions
 
-inline void Cord::InlineRep::set_data(const char* absl_nonnull data, size_t n) {
+inline void Cord::InlineRep::set_data(const char* absl_nullable data,
+                                      size_t n) {
   static_assert(kMaxInline == 15, "set_data is hard-coded for a length of 15");
+  assert(data != nullptr || n == 0);
   data_.set_inline_data(data, n);
 }
 

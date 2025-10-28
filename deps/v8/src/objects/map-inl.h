@@ -76,7 +76,11 @@ DEF_GETTER(Map, prototype_info, Tagged<UnionOf<Smi, PrototypeInfo>>) {
   Tagged<UnionOf<Smi, PrototypeInfo>> value =
       TaggedField<UnionOf<Smi, PrototypeInfo>,
                   kTransitionsOrPrototypeInfoOffset>::load(cage_base, *this);
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(this->is_prototype_map() || IsWasmObjectMap(*this));
+#else
   DCHECK(this->is_prototype_map());
+#endif  // V8_ENABLE_WEBASSEMBLY
   return value;
 }
 RELEASE_ACQUIRE_ACCESSORS(Map, prototype_info,
@@ -589,7 +593,11 @@ bool Map::has_prototype_info() const {
 }
 
 bool Map::TryGetPrototypeInfo(Tagged<PrototypeInfo>* result) const {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(is_prototype_map() || IsWasmObjectMap(*this));
+#else
   DCHECK(is_prototype_map());
+#endif  // V8_ENABLE_WEBASSEMBLY
   Tagged<Object> maybe_proto_info = prototype_info();
   if (!PrototypeInfo::IsPrototypeInfoFast(maybe_proto_info)) return false;
   *result = Cast<PrototypeInfo>(maybe_proto_info);
@@ -609,10 +617,10 @@ bool Map::TryGetValidityCellHolderMap(
   Tagged<Object> maybe_prototype =
       map->GetPrototypeChainRootMap(isolate)->prototype();
 
-  if (!IsJSObjectThatCanBeTrackedAsPrototype(maybe_prototype)) {
+  if (!IsAnyObjectThatCanBeTrackedAsPrototype(maybe_prototype)) {
     return false;
   }
-  *out_validity_cell_holder_map = Cast<JSObject>(maybe_prototype)->map();
+  *out_validity_cell_holder_map = Cast<JSReceiver>(maybe_prototype)->map();
   return true;
 }
 

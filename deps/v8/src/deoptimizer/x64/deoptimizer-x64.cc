@@ -50,12 +50,12 @@ void Deoptimizer::ZapCode(Address start, Address end, RelocIterator& it) {
   for (; !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     if (RelocInfo::IsGCRelocMode(info->rmode())) {
-      Address next_hole = info->target_address_address();
+      Address next_hole = info->target_address_address_for_gc();
       if (next_hole > end) break;
       while (masm.current_pc() < next_hole) {
         masm.int3();
       }
-      masm.skip_bytes(info->target_address_size());
+      masm.skip_bytes(info->target_address_size_for_gc());
     }
   }
   while (masm.current_pc() < end) {

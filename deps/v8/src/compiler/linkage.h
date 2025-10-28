@@ -420,15 +420,15 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
           Operator::kNoProperties /* use with care! */);
 
   static CallDescriptor* GetRuntimeCallDescriptor(
-      Zone* zone, Runtime::FunctionId function, int js_parameter_count,
+      Zone* zone, Runtime::FunctionId function, int parameter_count,
       Operator::Properties properties, CallDescriptor::Flags flags,
       LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo);
 
-  static CallDescriptor* GetCEntryStubCallDescriptor(
-      Zone* zone, int return_count, int js_parameter_count,
-      const char* debug_name, Operator::Properties properties,
-      CallDescriptor::Flags flags,
-      StackArgumentOrder stack_order = StackArgumentOrder::kDefault);
+  // |js_parameter_count| must include BuiltinArguments::kNumExtraArgs and
+  // receiver.
+  static CallDescriptor* GetCPPBuiltinCallDescriptor(
+      Zone* zone, int js_parameter_count, const char* debug_name,
+      Operator::Properties properties, CallDescriptor::Flags flags);
 
   static CallDescriptor* GetStubCallDescriptor(
       Zone* zone, const CallInterfaceDescriptor& descriptor,
@@ -520,6 +520,12 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   static const int kOsrAccumulatorRegisterIndex = -1;
 
  private:
+  static CallDescriptor* GetCEntryStubCallDescriptor(
+      Zone* zone, int return_count, int stack_parameter_count,
+      const char* debug_name, Operator::Properties properties,
+      CallDescriptor::Flags flags, StackArgumentOrder stack_order,
+      CodeEntrypointTag entrypoint_tag);
+
   CallDescriptor* const incoming_;
 };
 

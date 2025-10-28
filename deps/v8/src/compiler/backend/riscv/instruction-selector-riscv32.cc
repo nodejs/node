@@ -246,6 +246,9 @@ void InstructionSelector::VisitStore(OpIndex node) {
       store_view.stored_rep().write_barrier_kind();
   MachineRepresentation rep = store_view.stored_rep().representation();
 
+  DCHECK_IMPLIES(write_barrier_kind == kSkippedWriteBarrier,
+                 v8_flags.verify_write_barriers);
+
   // TODO(riscv): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier && index.has_value() &&
       V8_LIKELY(!v8_flags.disable_write_barriers)) {
@@ -255,21 +258,27 @@ void InstructionSelector::VisitStore(OpIndex node) {
     inputs[input_count++] = g.UseUniqueRegister(base);
     inputs[input_count++] = g.UseUniqueRegister(store_view.index().value());
     inputs[input_count++] = g.UseUniqueRegister(value);
-    RecordWriteMode record_write_mode =
-        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
+
     InstructionCode code;
-    if (rep == MachineRepresentation::kIndirectPointer) {
-      DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
-      // In this case we need to add the IndirectPointerTag as additional input.
-      code = kArchStoreIndirectWithWriteBarrier;
-      IndirectPointerTag tag = store_view.indirect_pointer_tag();
-      inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
+    if (write_barrier_kind == kSkippedWriteBarrier) {
+      code = kArchStoreSkippedWriteBarrier;
     } else {
-      code = kArchStoreWithWriteBarrier;
+      RecordWriteMode record_write_mode =
+          WriteBarrierKindToRecordWriteMode(write_barrier_kind);
+      if (rep == MachineRepresentation::kIndirectPointer) {
+        DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
+        // In this case we need to add the IndirectPointerTag as additional
+        // input.
+        code = kArchStoreIndirectWithWriteBarrier;
+        IndirectPointerTag tag = store_view.indirect_pointer_tag();
+        inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
+      } else {
+        code = kArchStoreWithWriteBarrier;
+      }
+      code |= RecordWriteModeField::encode(record_write_mode);
     }
-    code |= RecordWriteModeField::encode(record_write_mode);
     if (store_view.is_store_trap_on_null()) {
       code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
     }

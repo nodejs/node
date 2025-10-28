@@ -424,6 +424,33 @@ HWY_NOINLINE void TestAllMulOdd() {
   // uint64_t MulOdd is already tested in TestMulEvenOdd64
 }
 
+struct TestMulRound {
+  template <typename T, class D>
+  HWY_NOINLINE void operator()(T /*unused*/, D d) {
+    const Vec<D> v0 = Zero(d);
+
+    // Test that we correctly get all zeros
+    HWY_ASSERT_VEC_EQ(d, v0, MulRound(v0, v0));
+
+    // Test that we round to closest even in case of tie
+    const Vec<D> v_half = Set(d, ConvertScalarTo<T>(0.5f));
+    const Vec<D> v_1 = Set(d, ConvertScalarTo<T>(1));
+
+    HWY_ASSERT_VEC_EQ(d, v0, MulRound(v_half, v_1));
+
+    // Test arbitrary multiplication
+    const Vec<D> v_2 = Set(d, ConvertScalarTo<T>(6.75));
+    const Vec<D> v_3 = Set(d, ConvertScalarTo<T>(3.33));
+    const Vec<D> expected = Set(d, ConvertScalarTo<T>(22));
+
+    HWY_ASSERT_VEC_EQ(d, expected, MulRound(v_2, v_3));
+  }
+};
+
+HWY_NOINLINE void TestAllMulRound() {
+  ForFloatTypes(ForPartialVectors<TestMulRound>());
+}
+
 }  // namespace
 // NOLINTNEXTLINE(google-readability-namespace-comments)
 }  // namespace HWY_NAMESPACE
@@ -439,6 +466,7 @@ HWY_EXPORT_AND_TEST_P(HwyMulTest, TestAllMulHigh);
 HWY_EXPORT_AND_TEST_P(HwyMulTest, TestAllMulFixedPoint15);
 HWY_EXPORT_AND_TEST_P(HwyMulTest, TestAllMulEven);
 HWY_EXPORT_AND_TEST_P(HwyMulTest, TestAllMulOdd);
+HWY_EXPORT_AND_TEST_P(HwyMulTest, TestAllMulRound);
 HWY_AFTER_TEST();
 }  // namespace
 }  // namespace hwy

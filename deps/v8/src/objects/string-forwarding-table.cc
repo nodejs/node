@@ -22,8 +22,8 @@ StringForwardingTable::Block::Block(int capacity) : capacity_(capacity) {
   static_assert(sizeof(Record) % sizeof(Address) == 0);
   static_assert(offsetof(Record, original_string_) == 0);
   constexpr int kRecordPointerSize = sizeof(Record) / sizeof(Address);
-  MemsetPointer(reinterpret_cast<Address*>(&elements_[0]), 0,
-                capacity_ * kRecordPointerSize);
+  Memset(reinterpret_cast<Address*>(&elements_[0]), 0,
+         capacity_ * kRecordPointerSize);
 }
 
 void* StringForwardingTable::Block::operator new(size_t size, int capacity) {

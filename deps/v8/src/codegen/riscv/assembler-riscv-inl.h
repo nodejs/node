@@ -422,12 +422,14 @@ void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
 }
 
 [[nodiscard]] static inline Instr SetLo12Offset(int32_t lo12, Instr instr) {
-  DCHECK(Assembler::IsJalr(instr) || Assembler::IsAddi(instr));
+  DCHECK(Assembler::IsJalr(instr) || Assembler::IsAddi(instr) ||
+         Assembler::IsLoadWord(instr));
   DCHECK(is_int12(lo12));
   instr &= ~kImm12Mask;
   int32_t imm12 = lo12 << kImm12Shift;
   DCHECK(Assembler::IsJalr(instr | (imm12 & kImm12Mask)) ||
-         Assembler::IsAddi(instr | (imm12 & kImm12Mask)));
+         Assembler::IsAddi(instr | (imm12 & kImm12Mask)) ||
+         Assembler::IsLoadWord(instr | (imm12 & kImm12Mask)));
   return instr | (imm12 & kImm12Mask);
 }
 

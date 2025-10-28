@@ -175,13 +175,13 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   TNode<Object> ConvertHoleToUndefined(TNode<Object> value, ElementsKind kind) {
     DCHECK(IsHoleyElementsKind(kind));
     if (kind == HOLEY_DOUBLE_ELEMENTS) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       return AddNode<Number>(graph()->NewNode(
           simplified()->ChangeFloat64OrUndefinedOrHoleToTagged(), value));
 #else
       return AddNode<Number>(
           graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(), value));
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     }
     return ConvertTaggedHoleToUndefined(value);
   }
@@ -2044,7 +2044,7 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeFilter(
 
   // The output array is packed (filter doesn't visit holes).
   ElementsKind filtered_kind = GetPackedElementsKind(kind);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
     // Array may contain double-encoded undefineds that may be preserved by
     // the filter operation, so the output has to be holey, too.
@@ -2053,7 +2053,7 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeFilter(
     // encounter an undefined.
     filtered_kind = ElementsKind::HOLEY_DOUBLE_ELEMENTS;
   }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   TNode<JSArray> a = AllocateEmptyJSArray(filtered_kind, native_context);
 
   TNode<Number> original_length = LoadJSArrayLength(receiver, kind);
@@ -3900,7 +3900,40 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
 
 #if V8_ENABLE_WEBASSEMBLY
 
-namespace {
+Reduction JSCallReducer::ReduceWasmMethodWrapper(Node* node,
+                                                 JSFunctionRef function,
+                                                 SharedFunctionInfoRef shared) {
+  if (!shared.HasBuiltinId() ||
+      shared.builtin_id() != Builtin::kWasmMethodWrapper) {
+    return NoChange();
+  }
+  JSCallNode n(node);
+  CallParameters const& p = n.Parameters();
+  if (p.feedback().IsValid() &&
+      p.speculation_mode() != SpeculationMode::kAllowSpeculation) {
+    return NoChange();
+  }
+
+  // Duplicate the receiver into the first argument slot...
+  node->InsertInput(graph()->zone(), n.FirstArgumentIndex(), n.receiver());
+  NodeProperties::ChangeOp(
+      node, javascript()->Call(
+                JSCallNode::ArityForArgc(n.ArgumentCount() + 1), p.frequency(),
+                p.feedback(), ConvertReceiverMode::kAny, p.speculation_mode()));
+  // ...and call the target function directly.
+  ContextRef context = function.context(broker());
+  OptionalObjectRef target =
+      context.get(broker(), wasm::kMethodWrapperContextSlot);
+  if (!target.has_value()) {
+    // This is unexpected; if you see this happening please tell
+    // jkummerow@chromium.org how to reproduce it.
+    TRACE_BROKER_MISSING(broker(), "target value for context " << context);
+    return NoChange();
+  }
+  node->ReplaceInput(n.TargetIndex(),
+                     jsgraph()->ConstantNoHole(target.value(), broker()));
+  return Changed(node).FollowedBy(ReduceJSCall(node));
+}
 
 bool CanInlineJSToWasmCall(const wasm::CanonicalSig* wasm_signature) {
   if (wasm_signature->return_count() > 1) {
@@ -3920,8 +3953,6 @@ bool CanInlineJSToWasmCall(const wasm::CanonicalSig* wasm_signature) {
 
   return true;
 }
-
-}  // namespace
 
 Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
                                                 SharedFunctionInfoRef shared) {
@@ -4257,12 +4288,12 @@ bool IsCallWithArrayLikeOrSpread(Node* node) {
 Node* JSCallReducer::ConvertHoleToUndefined(Node* value, ElementsKind kind) {
   DCHECK(IsHoleyElementsKind(kind));
   if (kind == HOLEY_DOUBLE_ELEMENTS) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     return graph()->NewNode(
         simplified()->ChangeFloat64OrUndefinedOrHoleToTagged(), value);
 #else
     return graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(), value);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   }
   return graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(), value);
 }
@@ -4727,8 +4758,13 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       if (!function.native_context(broker()).equals(native_context())) {
         return NoChange();
       }
-
-      Reduction res = ReduceJSCall(node, function.shared(broker()));
+      SharedFunctionInfoRef shared = function.shared(broker());
+      Reduction res = ReduceJSCall(node, shared);
+#if V8_ENABLE_WEBASSEMBLY
+      if (!res.Changed()) {
+        res = ReduceWasmMethodWrapper(node, function, shared);
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY
       if (!res.Changed()) return NoChangeOrSoftDeopt();
       return res;
     } else if (target_ref.IsJSBoundFunction()) {
@@ -6448,8 +6484,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
       {
         // Call the generic C++ implementation.
         const Builtin builtin = Builtin::kArrayShift;
-        auto call_descriptor = Linkage::GetCEntryStubCallDescriptor(
-            graph()->zone(), 1, BuiltinArguments::kNumExtraArgsWithReceiver,
+        auto call_descriptor = Linkage::GetCPPBuiltinCallDescriptor(
+            graph()->zone(), BuiltinArguments::kNumExtraArgsWithReceiver,
             Builtins::name(builtin), node->op()->properties(),
             CallDescriptor::kNeedsFrameState);
         const bool has_builtin_exit_frame = true;

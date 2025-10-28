@@ -13,7 +13,48 @@ namespace v8::internal {
 
 class Isolate;
 class LargePageMetadata;
+class MemoryChunkMetadata;
+class PageMetadata;
 class MutablePageMetadata;
+
+// PooledPage converts a metadata object into a pooled entry. The metadata entry
+// should be considered invalid after invoking `Create()`. PooledPage takes over
+// memory reservations from the MemoryChunk and the metadata objects.
+//
+// The purpose of PooledPage is making explicit where destructors are called and
+// memory is freed.
+class PooledPage final {
+ public:
+  struct Result {
+    void* uninitialized_metadata;
+    base::AddressRegion uninitialized_chunk;
+  };
+
+  // Bottlenecks for converting metadata objects into the pooled page
+  // counterpart.
+  static PooledPage Create(PageMetadata* metadata);
+  static PooledPage Create(LargePageMetadata* metadata);
+
+  ~PooledPage();
+
+  PooledPage(PooledPage&&) V8_NOEXCEPT = default;
+  PooledPage& operator=(PooledPage&&) V8_NOEXCEPT = default;
+  PooledPage(const PooledPage&) = delete;
+  PooledPage& operator=(const PooledPage&) = delete;
+
+  size_t size() const { return reservation_.size(); }
+
+  // Transfers ownership to a `Result` that is then used by the callers to
+  // initialize the chunk and metadata.
+  Result ToResult();
+
+ private:
+  PooledPage(void* uninitialized_metadata, VirtualMemory reservation);
+
+  void* uninitialized_metadata_;
+  // The reservation that was previously used by MemoryChunk.
+  VirtualMemory reservation_;
+};
 
 // Pool that keeps memory cached until explicitly flushed. The pool assumes that
 // memory can be freely reused and globally shared. E.g., pages entering the
@@ -33,15 +74,17 @@ class MemoryPool final {
 
   // Adds page to the pool.
   void Add(Isolate* isolate, MutablePageMetadata* chunk);
-
   // Tries to get page from the pool. Order of priority for pools:
   // 1. Local pool for the isolate.
   // 2. Shared pool.
   // 3. Steal from another isolate.
-  MutablePageMetadata* Remove(Isolate* isolate);
+  std::optional<PooledPage::Result> Remove(Isolate* isolate);
 
   void AddLarge(Isolate* isolate, std::vector<LargePageMetadata*>& pages);
-  LargePageMetadata* RemoveLarge(Isolate* isolate, size_t chunk_size);
+  // Tries to get a large page from the pool with at least `chunk_size` usable
+  // bytes.
+  std::optional<PooledPage::Result> RemoveLarge(Isolate* isolate,
+                                                size_t chunk_size);
 
   // Adds a zone reservation to the pool.
   void AddZoneReservation(Isolate* isolate, VirtualMemory zone_reservation);
@@ -83,14 +126,6 @@ class MemoryPool final {
   class ReleasePooledChunksTask;
   class ReleasePooledLargeChunksTask;
 
-  // Simple wrapper to be able to free the regular page via destructors.
-  using PageMemory = std::unique_ptr<MutablePageMetadata,
-                                     std::function<void(MutablePageMetadata*)>>;
-  // Simple wrapper to be able to free the large page via destructors.
-  using LargePageMemory =
-      std::unique_ptr<LargePageMetadata,
-                      std::function<void(LargePageMetadata*)>>;
-
   template <typename PoolEntry>
   class PoolImpl final {
    public:
@@ -125,7 +160,8 @@ class MemoryPool final {
     ~LargePagePoolImpl() { DCHECK(pages_.empty()); }
 
     bool Add(std::vector<LargePageMetadata*>& pages, InternalTime time);
-    LargePageMetadata* Remove(Isolate* isolate, size_t chunk_size);
+    std::optional<PooledPage::Result> Remove(Isolate* isolate,
+                                             size_t chunk_size);
     void ReleaseAll();
     size_t ReleaseUpTo(InternalTime release_time);
 
@@ -134,11 +170,11 @@ class MemoryPool final {
 
    private:
     base::Mutex mutex_;
-    std::vector<std::pair<InternalTime, LargePageMemory>> pages_;
+    std::vector<std::pair<InternalTime, PooledPage>> pages_;
     size_t total_size_ = 0;
   };
 
-  PoolImpl<PageMemory> page_pool_;
+  PoolImpl<PooledPage> page_pool_;
   PoolImpl<VirtualMemory> zone_pool_;
 
   LargePagePoolImpl large_pool_;

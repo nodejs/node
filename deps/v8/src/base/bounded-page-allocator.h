@@ -64,6 +64,12 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
     kHintedAddressTakenOrNotFound,
   };
 
+  struct Stats {
+    size_t free_size = 0;
+    size_t largest_free_region = 0;
+    AllocationStatus allocation_status = AllocationStatus::kSuccess;
+  };
+
   using Address = uintptr_t;
 
   static const char* AllocationStatusToString(AllocationStatus);
@@ -131,6 +137,8 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
   AllocationStatus get_last_allocation_status() const {
     return allocation_status_;
   }
+
+  Stats RecordStats();
 
  private:
   v8::base::Mutex mutex_;

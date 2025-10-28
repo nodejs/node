@@ -4,6 +4,7 @@
 
 #include "include/v8-function.h"
 #include "src/flags/flags.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #if V8_ENABLE_WEBASSEMBLY
@@ -25,6 +26,7 @@ using v8::Location;
 using v8::MaybeLocal;
 using v8::Module;
 using v8::ModuleRequest;
+using v8::Object;
 using v8::Promise;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
@@ -1211,6 +1213,60 @@ TEST_F(ModuleTest, IsGraphAsyncTopLevelAwait) {
   cycle_self_module_global.Reset();
   cycle_one_module_global.Reset();
   cycle_two_module_global.Reset();
+}
+
+bool resolve_source_return_object_invoked = false;
+MaybeLocal<Object> ResolveSourceReturnObject(
+    Local<Context> context, Local<String> specifier,
+    Local<FixedArray> import_attributes, Local<Module> referrer) {
+  Isolate* isolate = Isolate::GetCurrent();
+
+  CHECK(!specifier.IsEmpty());
+  String::Utf8Value specifier_utf8(isolate, specifier);
+  CHECK_EQ(0, strcmp("my-mod", *specifier_utf8));
+
+  CHECK_EQ(0, import_attributes->Length());
+
+  resolve_source_return_object_invoked = true;
+
+  return Object::New(isolate);
+}
+
+TEST_F(ModuleTest, IsGraphAsyncImportSource) {
+  i::FlagScope<bool> f(&i::v8_flags.js_source_phase_imports, true);
+
+  HandleScope scope(isolate());
+
+  // Check that v8::Module::IsGraphAsync() returns false for source
+  // phase imports.
+
+  Local<String> url = NewString("www.google.com");
+  Local<String> source_text =
+      NewString("import source modSource from 'my-mod';");
+
+  ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false, false,
+                      true);
+  ScriptCompiler::Source source(source_text, origin);
+
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+
+  CHECK(!resolve_source_return_object_invoked);
+  CHECK(module
+            ->InstantiateModule(
+                context(),
+                [](Local<Context> context, Local<String> specifier,
+                   Local<FixedArray> import_attributes,
+                   Local<Module> referrer) -> MaybeLocal<Module> {
+                  // There is no evaluation phase import.
+                  UNREACHABLE();
+                },
+                ResolveSourceReturnObject)
+            .IsJust());
+  CHECK(resolve_source_return_object_invoked);
+
+  // IsGraphAsync should return false
+  CHECK_EQ(module->IsGraphAsync(), false);
 }
 
 TEST_F(ModuleTest, HasTopLevelAwait) {
