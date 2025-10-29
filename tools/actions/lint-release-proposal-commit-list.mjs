@@ -23,7 +23,7 @@ const commitListingStart = changelog.indexOf('\n### Commits\n');
 let commitList;
 if (commitListingStart === -1) {
   // We're preparing a semver-major release.
-  assert.match(changelog, /\n### Semver-Major Commits\n/)
+  assert.match(changelog, /\n### Semver-Major Commits\n/);
   // The proposal should contain only the release commit.
   commitList = '';
 } else {
