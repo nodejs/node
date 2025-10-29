@@ -1,11 +1,18 @@
 'use strict';
 
 const message =
-  'Assertions must be wrapped into `common.mustCall` or `common.mustCallAtLeast`';
+  'Assertions must be wrapped into `common.mustSucceed`, `common.mustCall` or `common.mustCallAtLeast`';
 
 
 const requireCall = 'CallExpression[callee.name="require"]';
 const assertModuleSpecifier = '/^(node:)?assert(.strict)?$/';
+
+const isPromiseAllCallArg = (node) =>
+  node.parent?.type === 'CallExpression' &&
+  node.parent.callee.type === 'MemberExpression' &&
+  node.parent.callee.object.type === 'Identifier' && node.parent.callee.object.name === 'Promise' &&
+  node.parent.callee.property.type === 'Identifier' && node.parent.callee.property.name === 'all' &&
+  node.parent.arguments.length === 1 && node.parent.arguments[0] === node;
 
 function findEnclosingFunction(node) {
   while (true) {
@@ -20,10 +27,20 @@ function findEnclosingFunction(node) {
       if (
         node.parent.callee.type === 'MemberExpression' &&
         (node.parent.callee.object.type === 'ArrayExpression' || node.parent.callee.object.type === 'Identifier') &&
-        node.parent.callee.property.name === 'forEach'
+        (
+          node.parent.callee.property.name === 'forEach' ||
+          (node.parent.callee.property.name === 'map' && isPromiseAllCallArg(node.parent))
+        )
       ) continue; // `[].forEach()` call
     } else if (node.parent?.type === 'NewExpression') {
       if (node.parent.callee.type === 'Identifier' && node.parent.callee.name === 'Promise') continue;
+    } else if (node.parent?.type === 'Property') {
+      const ancestor = node.parent.parent?.parent;
+      if (ancestor?.type === 'CallExpression' &&
+          ancestor.callee.type === 'Identifier' &&
+          /^spawnSyncAnd(Exit(WithoutError)?|Assert)$/.test(ancestor.callee.name)) {
+        continue;
+      }
     }
     break;
   }
@@ -31,7 +48,7 @@ function findEnclosingFunction(node) {
 }
 
 function isMustCallOrMustCallAtLeast(str) {
-  return str === 'mustCall' || str === 'mustCallAtLeast';
+  return str === 'mustCall' || str === 'mustCallAtLeast' || str === 'mustSucceed';
 }
 
 function isMustCallOrTest(str) {
@@ -68,6 +85,7 @@ module.exports = {
                       parent.arguments[0].type === 'Literal' &&
                       parent.arguments[0].value === 'exit'
                     ),
+                  t: (name) => name === 'test', // t.test
                 }[parent.callee.object.name]?.(parent.callee.property.name)
               ) {
                 return;

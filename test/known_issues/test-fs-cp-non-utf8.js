@@ -9,7 +9,7 @@ if (!common.isLinux) {
   common.skip('This test is only applicable to Linux');
 }
 
-const { ok, strictEqual } = require('assert');
+const assert = require('assert');
 const { join } = require('path');
 const path = require('path');
 const tmpdir = require('../common/tmpdir');
@@ -42,8 +42,8 @@ const name = Buffer.from([
 const testPath = Buffer.concat([tmpdirPath, sepBuf, name]);
 
 writeFileSync(testPath, 'test content');
-ok(existsSync(testPath));
-strictEqual(readFileSync(testPath, 'utf8'), 'test content');
+assert.ok(existsSync(testPath));
+assert.strictEqual(readFileSync(testPath, 'utf8'), 'test content');
 
 // The cpSync is expected to fail because the implementation does not
 // properly handle non-UTF8 names in the path.

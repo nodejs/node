@@ -32,7 +32,7 @@ test('top level test enabled', common.mustCall(async (t) => {
   );
 }));
 
-describe('top level describe enabled', () => {
+describe('top level describe enabled', common.mustCall(() => {
   before(common.mustCall());
   beforeEach(common.mustCall(3));
   afterEach(common.mustCall(3));
@@ -44,7 +44,7 @@ describe('top level describe enabled', () => {
   describe('nested describe enabled', common.mustCall(() => {
     it('is enabled', common.mustCall());
   }));
-});
+}));
 
 describe('yes', function() {
   it('no', () => {});
@@ -76,13 +76,13 @@ describe('no with todo', { todo: true }, () => {
   });
 });
 
-describe('DescribeForMatchWithAncestors', () => {
+describe('DescribeForMatchWithAncestors', common.mustCall(() => {
   it('NestedTest', () => common.mustNotCall());
 
-  describe('NestedDescribeForMatchWithAncestors', () => {
+  describe('NestedDescribeForMatchWithAncestors', common.mustCall(() => {
     it('NestedTest', common.mustCall());
-  });
-});
+  }));
+}));
 
 describe('DescribeForMatchWithAncestors', () => {
   it('NestedTest', () => common.mustNotCall());

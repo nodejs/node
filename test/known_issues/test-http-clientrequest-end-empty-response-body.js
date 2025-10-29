@@ -17,9 +17,9 @@ const response = '';
 const methods = [ 'GET', 'HEAD', 'DELETE', 'POST', 'PATCH', 'PUT', 'OPTIONS' ];
 
 const server = http.createServer(common.mustCall(function(req, res) {
-  req.on('data', function(chunk) {
+  req.on('data', common.mustCall((chunk) => {
     assert.strictEqual(chunk.toString(), upload);
-  });
+  }));
   res.setHeader('Content-Type', 'text/plain');
   res.write(`${req.method}\r\n`);
   for (let i = 0; i < req.rawHeaders.length; i += 2) {
@@ -31,22 +31,22 @@ const server = http.createServer(common.mustCall(function(req, res) {
   res.end();
 }), methods.length);
 
-server.listen(0, function tryNextRequest() {
+server.listen(0, common.mustCall(function tryNextRequest() {
   const method = methods.pop();
   if (method === undefined) return;
   const port = server.address().port;
-  const req = http.request({ method, port }, function(res) {
+  const req = http.request({ method, port }, common.mustCall((res) => {
     const chunks = [];
     res.on('data', function(chunk) {
       chunks.push(chunk);
     });
-    res.on('end', function() {
+    res.on('end', common.mustCall(() => {
       const received = Buffer.concat(chunks).toString();
       const expected = method.toLowerCase() + '\r\n' + response;
       assert.strictEqual(received.toLowerCase(), expected);
       tryNextRequest();
-    });
-  });
+    }));
+  }));
 
   req.end();
-}).unref();
+})).unref();
