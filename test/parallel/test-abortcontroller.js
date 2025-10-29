@@ -25,7 +25,7 @@ test('Abort is fired with the correct event type on AbortControllers', () => {
   const fn = mock.fn(common.mustCall((event) => {
     assert.ok(event);
     assert.strictEqual(event.type, 'abort');
-  }));
+  }, 2));
 
   ac.signal.onabort = fn;
   ac.signal.addEventListener('abort', fn);
