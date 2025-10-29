@@ -31,23 +31,7 @@ const fixtures = require('../common/fixtures');
       
       register('data:text/javascript,' + encodeURIComponent(code));
       
-      try {
-        await import('file:///test-null-source.js');
-        console.log('ERROR: Should have thrown');
-        process.exit(1);
-      } catch (err) {
-        // Should throw ERR_INVALID_RETURN_PROPERTY_VALUE, not ERR_INTERNAL_ASSERTION
-        if (err.code === 'ERR_INTERNAL_ASSERTION') {
-          console.log('FAIL: Got ERR_INTERNAL_ASSERTION');
-          process.exit(1);
-        }
-        if (err.code === 'ERR_INVALID_RETURN_PROPERTY_VALUE') {
-          console.log('PASS: Got expected error');
-          process.exit(0);
-        }
-        console.log('ERROR: Got unexpected error:', err.code);
-        process.exit(1);
-      }
+      await assert.rejects(import('file:///test-null-source.js'), { code: 'ERR_INVALID_RETURN_PROPERTY_VALUE' });
       `,
     ],
     { encoding: 'utf8' }
