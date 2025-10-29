@@ -25,6 +25,31 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#ifdef DEBUG
+class Block;
+namespace detail {
+// In general, `.value()` on OptionalOpIndex (or OptionalV) should only be used
+// after having checked `.valid()` before. However, when generating unreachable
+// operations, surprising things can happen, and OptionalOpIndex that should
+// "obviously" be valid can end up not being valid. For instance:
+//
+//      OptionalOpIndex idx;
+//      idx = __ Word32Add(...);
+//
+// After this, it's actually possible that `idx` is still Invalid if we were
+// generating unreachable operations. To avoid all callers of `.value()` to have
+// to check this, we use a global `current_assembler_block` variable, which is
+// set/unset in the Assembler constructor/destructor and points to the
+// `current_block_` of the current Assembler (if any), and can thus be used to
+// check if we are generating unreachable operations. If that's the case, then
+// we relax the DCHECK in `.value()`.
+inline thread_local Block** current_assembler_block = nullptr;
+inline bool generating_unreachable_operations() {
+  return current_assembler_block && !*current_assembler_block;
+}
+}  // namespace detail
+#endif
+
 // Operations are stored in possibly multiple sequential storage slots.
 using OperationStorageSlot = uint64_t;
 // Operations occupy at least 2 slots, therefore we assign one id per two slots.
@@ -182,7 +207,7 @@ class OptionalOpIndex : protected OpIndex {
 
   constexpr bool has_value() const { return valid(); }
   constexpr OpIndex value() const {
-    DCHECK(has_value());
+    DCHECK(has_value() || detail::generating_unreachable_operations());
     return OpIndex(*this);
   }
   constexpr OpIndex value_or_invalid() const { return OpIndex(*this); }
@@ -684,7 +709,7 @@ class OptionalV : public OptionalOpIndex {
   static OptionalV Nullopt() { return OptionalV(OptionalOpIndex::Nullopt()); }
 
   constexpr V<T> value() const {
-    DCHECK(has_value());
+    DCHECK(has_value() || detail::generating_unreachable_operations());
     return V<T>::Cast(OptionalOpIndex::value());
   }
   constexpr V<T> value_or_invalid() const {

@@ -124,6 +124,12 @@ void NodeBase::UnwrapDeoptFrames() {
   }
 }
 
+void NodeBase::ClearInputs() {
+  for (Input input : inputs()) {
+    input.clear();
+  }
+}
+
 void NodeBase::OverwriteWith(Opcode new_opcode,
                              std::optional<OpProperties> maybe_new_properties) {
   OpProperties new_properties = maybe_new_properties.has_value()
@@ -141,6 +147,17 @@ void NodeBase::OverwriteWith(Opcode new_opcode,
   }
 }
 
+template <typename NodeT, typename... Args>
+NodeT* NodeBase::OverwriteWith(Args&&... args) {
+#ifdef DEBUG
+  CheckCanOverwriteWith(opcode_of<NodeT>, NodeT::kProperties);
+#endif
+  uint64_t bitfield = OpcodeField::encode(opcode_of<NodeT>) |
+                      OpPropertiesField::encode(NodeT::kProperties) |
+                      InputCountField::encode(NodeT::kInputCount);
+  return new (this) NodeT(bitfield, std::forward<Args>(args)...);
+}
+
 void NodeBase::OverwriteWithIdentityTo(ValueNode* node) {
   // OverwriteWith() checks if the node we're overwriting to has the same
   // input count and the same properties. Here we don't need to do that, since
@@ -149,9 +166,7 @@ void NodeBase::OverwriteWithIdentityTo(ValueNode* node) {
   // closest to the input_base().
   DCHECK_GE(input_count(), 1);
   // Remove use of all inputs first.
-  for (Input input : inputs()) {
-    input.clear();
-  }
+  ClearInputs();
   // Unfortunately we cannot remove uses from deopt frames, since these could be
   // shared with other nodes. But we can remove uses from Identity and
   // ReturnedValue nodes.
@@ -174,9 +189,7 @@ void NodeBase::OverwriteWithReturnValue(ValueNode* node) {
 
   DCHECK_GE(input_count(), 1);
   // Remove use of all inputs first.
-  for (Input input : inputs()) {
-    input.clear();
-  }
+  ClearInputs();
   // Unfortunately we cannot remove uses from deopt frames, since these could be
   // shared with other nodes. But we can remove uses from Identity and
   // ReturnedValue nodes.

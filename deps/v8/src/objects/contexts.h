@@ -164,6 +164,7 @@ enum ContextLookupFlags {
     initial_disposable_stack_prototype)                                        \
   V(INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX, JSObject,                            \
     initial_map_iterator_prototype)                                            \
+  V(INITIAL_MAP_PROTOTYPE_INDEX, JSObject, initial_map_prototype)              \
   V(INITIAL_MAP_PROTOTYPE_MAP_INDEX, Map, initial_map_prototype_map)           \
   V(INITIAL_OBJECT_PROTOTYPE_INDEX, JSObject, initial_object_prototype)        \
   V(INITIAL_SET_ITERATOR_PROTOTYPE_INDEX, JSObject,                            \
@@ -174,6 +175,7 @@ enum ContextLookupFlags {
   V(INITIAL_STRING_ITERATOR_PROTOTYPE_INDEX, JSObject,                         \
     initial_string_iterator_prototype)                                         \
   V(INITIAL_STRING_PROTOTYPE_INDEX, JSObject, initial_string_prototype)        \
+  V(INITIAL_WEAKMAP_PROTOTYPE_INDEX, JSObject, initial_weakmap_prototype)      \
   V(INITIAL_WEAKMAP_PROTOTYPE_MAP_INDEX, Map, initial_weakmap_prototype_map)   \
   V(INITIAL_WEAKSET_PROTOTYPE_MAP_INDEX, Map, initial_weakset_prototype_map)   \
   V(INTL_COLLATOR_FUNCTION_INDEX, JSFunction, intl_collator_function)          \
@@ -590,6 +592,8 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline Tagged<Context> previous() const;
 
   inline Tagged<Object> next_context_link() const;
+  inline void set_next_context_link(
+      Tagged<Object> object, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline bool has_extension() const;
   inline Tagged<HeapObject> extension() const;

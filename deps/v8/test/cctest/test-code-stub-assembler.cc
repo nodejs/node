@@ -1021,7 +1021,8 @@ void TestNameDictionaryLookup() {
     DirectHandle<Object> value =
         factory->NewPropertyCell(keys[i], fake_details, keys[i]);
     dictionary =
-        Dictionary::Add(isolate, dictionary, keys[i], value, fake_details);
+        Dictionary::Add(isolate, dictionary, keys[i], value, fake_details)
+            .ToHandleChecked();
   }
 
   for (size_t i = 0; i < arraysize(keys); i++) {
@@ -2672,26 +2673,21 @@ TEST(ShortBuiltinCallsThreshold) {
 
   const uint64_t kPhysicalMemoryThreshold = size_t{4} * GB;
 
-  size_t heap_size, old, young;
+  size_t old;
 
   // If the physical memory is < kPhysicalMemoryThreshold then the old space
   // size must be below the kShortBuiltinCallsOldSpaceThreshold.
   const uint64_t physical_memory = kPhysicalMemoryThreshold - MB;
-  heap_size = Heap::HeapSizeFromPhysicalMemory(physical_memory);
-  i::Heap::GenerationSizesFromHeapSize(physical_memory, heap_size, &young,
-                                       &old);
+  old = Heap::OldGenerationSizeFromPhysicalMemory(physical_memory);
   CHECK_LT(old, kShortBuiltinCallsOldSpaceSizeThreshold);
 
   // If the physical memory is >= kPhysicalMemoryThreshold then the old space
   // size must be below the kShortBuiltinCallsOldSpaceThreshold.
-  heap_size = Heap::HeapSizeFromPhysicalMemory(kPhysicalMemoryThreshold);
-  i::Heap::GenerationSizesFromHeapSize(physical_memory, heap_size, &young,
-                                       &old);
+  old = Heap::OldGenerationSizeFromPhysicalMemory(kPhysicalMemoryThreshold);
   CHECK_GE(old, kShortBuiltinCallsOldSpaceSizeThreshold);
 
-  heap_size = Heap::HeapSizeFromPhysicalMemory(kPhysicalMemoryThreshold + MB);
-  i::Heap::GenerationSizesFromHeapSize(physical_memory, heap_size, &young,
-                                       &old);
+  old =
+      Heap::OldGenerationSizeFromPhysicalMemory(kPhysicalMemoryThreshold + MB);
   CHECK_GE(old, kShortBuiltinCallsOldSpaceSizeThreshold);
 }
 #endif  // !defined(V8_OS_ANDROID)

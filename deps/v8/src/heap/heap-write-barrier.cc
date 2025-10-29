@@ -608,19 +608,26 @@ WriteBarrierModeScope::WriteBarrierModeScope(WriteBarrierMode mode)
 
 WriteBarrierModeScope::WriteBarrierModeScope(Tagged<HeapObject> object,
                                              WriteBarrierMode mode)
-    : mode_(mode) {
+    : object_(object), mode_(mode) {
 #if V8_VERIFY_WRITE_BARRIERS
   if (v8_flags.verify_write_barriers) {
     LocalHeap* local_heap = LocalHeap::Current();
     CHECK_EQ(local_heap->write_barrier_mode_for_object_, kNullAddress);
-    local_heap->write_barrier_mode_for_object_ = object.address();
+    CHECK(!object_.is_null());
+    local_heap->write_barrier_mode_for_object_ = object_.address();
   }
 #endif  // V8_VERIFY_WRITE_BARRIERS
 }
 
 WriteBarrierModeScope::~WriteBarrierModeScope() {
 #if V8_VERIFY_WRITE_BARRIERS
-  if (v8_flags.verify_write_barriers) {
+  if (v8_flags.verify_write_barriers && mode_.has_value()) {
+    LocalHeap* local_heap = LocalHeap::Current();
+    if (object_.is_null()) {
+      CHECK_EQ(local_heap->write_barrier_mode_for_object_, kNullAddress);
+    } else {
+      CHECK_EQ(local_heap->write_barrier_mode_for_object_, object_.address());
+    }
     LocalHeap::Current()->write_barrier_mode_for_object_ = kNullAddress;
   }
 #endif  // V8_VERIFY_WRITE_BARRIERS

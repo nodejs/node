@@ -73,30 +73,6 @@ enum class UnitDisplay {
   LONG,
 };
 
-// [[Notation]] is one of the String values "standard", "scientific",
-// "engineering", or "compact", specifying whether the number should be
-// displayed without scaling, scaled to the units place with the power of ten
-// in scientific notation, scaled to the nearest thousand with the power of
-// ten in scientific notation, or scaled to the nearest locale-dependent
-// compact decimal notation power of ten with the corresponding compact
-// decimal notation affix.
-
-enum class Notation {
-  STANDARD,
-  SCIENTIFIC,
-  ENGINEERING,
-  COMPACT,
-};
-
-// [[CompactDisplay]] is one of the String values "short" or "long",
-// specifying whether to display compact notation affixes in short form ("5K")
-// or long form ("5 thousand") if formatting with the "compact" notation. It
-// is only used when [[Notation]] has the value "compact".
-enum class CompactDisplay {
-  SHORT,
-  LONG,
-};
-
 // [[SignDisplay]] is one of the String values "auto", "always", "never", or
 // "exceptZero", specifying whether to show the sign on negative numbers
 // only, positive and negative numbers including zero, neither positive nor
@@ -173,25 +149,29 @@ UNumberSignDisplay ToUNumberSignDisplay(SignDisplay sign_display,
   }
 }
 
-icu::number::Notation ToICUNotation(Notation notation,
-                                    CompactDisplay compact_display) {
+}  // namespace
+
+icu::number::Notation Intl::ToICUNotation(
+    Intl::Notation notation, Intl::CompactDisplay compact_display) {
   switch (notation) {
-    case Notation::STANDARD:
+    case Intl::Notation::STANDARD:
       return icu::number::Notation::simple();
-    case Notation::SCIENTIFIC:
+    case Intl::Notation::SCIENTIFIC:
       return icu::number::Notation::scientific();
-    case Notation::ENGINEERING:
+    case Intl::Notation::ENGINEERING:
       return icu::number::Notation::engineering();
     // 29. If notation is "compact", then
-    case Notation::COMPACT:
+    case Intl::Notation::COMPACT:
       // 29. a. Set numberFormat.[[CompactDisplay]] to compactDisplay.
-      if (compact_display == CompactDisplay::SHORT) {
+      if (compact_display == Intl::CompactDisplay::SHORT) {
         return icu::number::Notation::compactShort();
       }
-      DCHECK(compact_display == CompactDisplay::LONG);
+      DCHECK(compact_display == Intl::CompactDisplay::LONG);
       return icu::number::Notation::compactLong();
   }
 }
+
+namespace {
 
 UNumberFormatRoundingMode ToUNumberFormatRoundingMode(
     Intl::RoundingMode rounding_mode) {
@@ -478,46 +458,49 @@ DirectHandle<String> UnitDisplayString(Isolate* isolate,
   return isolate->factory()->short_string();
 }
 
+}  // anonymous namespace
+
 // Parse Notation from skeleton.
-Notation NotationFromSkeleton(const icu::UnicodeString& skeleton) {
+Intl::Notation Intl::NotationFromSkeleton(const icu::UnicodeString& skeleton) {
   // Ex: skeleton as
   // "scientific .### rounding-mode-half-up"
   if (skeleton.indexOf("scientific") >= 0) {
-    return Notation::SCIENTIFIC;
+    return Intl::Notation::SCIENTIFIC;
   }
   // Ex: skeleton as
   // "engineering .### rounding-mode-half-up"
   if (skeleton.indexOf("engineering") >= 0) {
-    return Notation::ENGINEERING;
+    return Intl::Notation::ENGINEERING;
   }
   // Ex: skeleton as
   // "compact-short .### rounding-mode-half-up" or
   // "compact-long .### rounding-mode-half-up
   if (skeleton.indexOf("compact-") >= 0) {
-    return Notation::COMPACT;
+    return Intl::Notation::COMPACT;
   }
   // Ex: skeleton as
   // "unit/length-foot .### rounding-mode-half-up"
-  return Notation::STANDARD;
+  return Intl::Notation::STANDARD;
 }
 
-DirectHandle<String> NotationAsString(Isolate* isolate, Notation notation) {
+DirectHandle<String> Intl::NotationAsString(Isolate* isolate,
+                                            Intl::Notation notation) {
   switch (notation) {
-    case Notation::SCIENTIFIC:
+    case Intl::Notation::SCIENTIFIC:
       return isolate->factory()->scientific_string();
-    case Notation::ENGINEERING:
+    case Intl::Notation::ENGINEERING:
       return isolate->factory()->engineering_string();
-    case Notation::COMPACT:
+    case Intl::Notation::COMPACT:
       return isolate->factory()->compact_string();
-    case Notation::STANDARD:
+    case Intl::Notation::STANDARD:
       return isolate->factory()->standard_string();
   }
   UNREACHABLE();
 }
 
 // Return CompactString as string based on skeleton.
-DirectHandle<String> CompactDisplayString(Isolate* isolate,
-                                          const icu::UnicodeString& skeleton) {
+DirectHandle<String> Intl::CompactDisplayString(
+    Isolate* isolate, const icu::UnicodeString& skeleton) {
   // Ex: skeleton as
   // "compact-long .### rounding-mode-half-up"
   if (skeleton.indexOf("compact-long") >= 0) {
@@ -528,6 +511,8 @@ DirectHandle<String> CompactDisplayString(Isolate* isolate,
   DCHECK_GE(skeleton.indexOf("compact-short"), 0);
   return isolate->factory()->short_string();
 }
+
+namespace {
 
 // Return SignDisplay as string based on skeleton.
 DirectHandle<String> SignDisplayString(Isolate* isolate,
@@ -1006,16 +991,16 @@ DirectHandle<JSObject> JSNumberFormat::ResolvedOptions(
             UseGroupingFromSkeleton(isolate, skeleton), Just(kDontThrow))
             .FromJust());
 
-  Notation notation = NotationFromSkeleton(skeleton);
+  Intl::Notation notation = Intl::NotationFromSkeleton(skeleton);
   CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->notation_string(),
-            NotationAsString(isolate, notation), Just(kDontThrow))
+            Intl::NotationAsString(isolate, notation), Just(kDontThrow))
             .FromJust());
   // Only output compactDisplay when notation is compact.
-  if (notation == Notation::COMPACT) {
+  if (notation == Intl::Notation::COMPACT) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->compactDisplay_string(),
-              CompactDisplayString(isolate, skeleton), Just(kDontThrow))
+              Intl::CompactDisplayString(isolate, skeleton), Just(kDontThrow))
               .FromJust());
   }
   CHECK(JSReceiver::CreateDataProperty(
@@ -1328,23 +1313,23 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
                    .scale(icu::number::Scale::powerOfTen(2));
   }
 
-  Notation notation = Notation::STANDARD;
+  Intl::Notation notation = Intl::Notation::STANDARD;
   // xx. Let notation be ? GetOption(options, "notation", "string", «
   // "standard", "scientific",  "engineering", "compact" », "standard").
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, notation,
-      GetStringOption<Notation>(
+      GetStringOption<Intl::Notation>(
           isolate, options, isolate->factory()->notation_string(), service,
           std::to_array<const std::string_view>(
               {"standard", "scientific", "engineering", "compact"}),
-          std::array{Notation::STANDARD, Notation::SCIENTIFIC,
-                     Notation::ENGINEERING, Notation::COMPACT},
-          Notation::STANDARD));
+          std::array{Intl::Notation::STANDARD, Intl::Notation::SCIENTIFIC,
+                     Intl::Notation::ENGINEERING, Intl::Notation::COMPACT},
+          Intl::Notation::STANDARD));
   // xx. Set numberFormat.[[Notation]] to notation.
 
   // xx. If style is *"currency"* and *"notation"* is *"standard"*, then
   int mnfd_default, mxfd_default;
-  if (style == Style::CURRENCY && notation == Notation::STANDARD) {
+  if (style == Style::CURRENCY && notation == Intl::Notation::STANDARD) {
     // b. Let cDigits be CurrencyDigits(currency).
     int c_digits = CurrencyDigits(currency_ustr);
     // c. Let mnfdDefault be cDigits.
@@ -1369,9 +1354,9 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // 23. Perform ? SetNumberFormatDigitOptions(numberFormat, options,
   // mnfdDefault, mxfdDefault).
   Maybe<Intl::NumberFormatDigitOptions> maybe_digit_options =
-      Intl::SetNumberFormatDigitOptions(isolate, options, mnfd_default,
-                                        mxfd_default,
-                                        notation == Notation::COMPACT, service);
+      Intl::SetNumberFormatDigitOptions(
+          isolate, options, mnfd_default, mxfd_default,
+          notation == Intl::Notation::COMPACT, service);
   MAYBE_RETURN(maybe_digit_options, DirectHandle<JSNumberFormat>());
   Intl::NumberFormatDigitOptions digit_options = maybe_digit_options.FromJust();
 
@@ -1388,25 +1373,27 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
 
   // 28. Let compactDisplay be ? GetOption(options, "compactDisplay",
   // "string", « "short", "long" »,  "short").
-  Maybe<CompactDisplay> maybe_compact_display = GetStringOption<CompactDisplay>(
-      isolate, options, isolate->factory()->compactDisplay_string(), service,
-      std::to_array<const std::string_view>({"short", "long"}),
-      std::array{CompactDisplay::SHORT, CompactDisplay::LONG},
-      CompactDisplay::SHORT);
+  Maybe<Intl::CompactDisplay> maybe_compact_display =
+      GetStringOption<Intl::CompactDisplay>(
+          isolate, options, isolate->factory()->compactDisplay_string(),
+          service, std::to_array<const std::string_view>({"short", "long"}),
+          std::array{Intl::CompactDisplay::SHORT, Intl::CompactDisplay::LONG},
+          Intl::CompactDisplay::SHORT);
   MAYBE_RETURN(maybe_compact_display, MaybeDirectHandle<JSNumberFormat>());
-  CompactDisplay compact_display = maybe_compact_display.FromJust();
+  Intl::CompactDisplay compact_display = maybe_compact_display.FromJust();
 
   // The default notation in ICU is Simple, which mapped from STANDARD
   // so we can skip setting it.
-  if (notation != Notation::STANDARD) {
-    settings = settings.notation(ToICUNotation(notation, compact_display));
+  if (notation != Intl::Notation::STANDARD) {
+    settings =
+        settings.notation(Intl::ToICUNotation(notation, compact_display));
   }
 
   // 28. Let defaultUseGrouping be "auto".
   UseGrouping default_use_grouping = UseGrouping::AUTO;
 
   // 29. If notation is "compact", then
-  if (notation == Notation::COMPACT) {
+  if (notation == Intl::Notation::COMPACT) {
     // a. Set numberFormat.[[CompactDisplay]] to compactDisplay.
     // Done in above together
     // b. Set defaultUseGrouping to "min2".

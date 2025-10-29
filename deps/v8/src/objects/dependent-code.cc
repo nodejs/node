@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 
 Tagged<DependentCode> DependentCode::GetDependentCode(
-    Tagged<HeapObject> object) {
+    Tagged<DependableObject> object) {
   if (IsMap(object)) {
     return Cast<Map>(object)->dependent_code();
   } else if (IsPropertyCell(object)) {
@@ -30,7 +30,7 @@ Tagged<DependentCode> DependentCode::GetDependentCode(
   UNREACHABLE();
 }
 
-void DependentCode::SetDependentCode(DirectHandle<HeapObject> object,
+void DependentCode::SetDependentCode(DirectHandle<DependableObject> object,
                                      DirectHandle<DependentCode> dep) {
   if (IsMap(*object)) {
     Cast<Map>(object)->set_dependent_code(*dep);
@@ -62,7 +62,7 @@ void PrintDependencyGroups(DependentCode::DependencyGroups groups) {
 }  // namespace
 
 void DependentCode::InstallDependency(Isolate* isolate, Handle<Code> code,
-                                      Handle<HeapObject> object,
+                                      Handle<DependableObject> object,
                                       DependencyGroups groups) {
   if (V8_UNLIKELY(v8_flags.trace_compilation_dependencies)) {
     StdoutStream{} << "Installing dependency of [" << code << "] on [" << object

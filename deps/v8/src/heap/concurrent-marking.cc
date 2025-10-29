@@ -324,6 +324,23 @@ class ConcurrentMarking::JobTaskMinor : public v8::JobTask {
   const uint64_t trace_id_;
 };
 
+class ConcurrentMarking::MinorMarkingState {
+ public:
+  ~MinorMarkingState() { DCHECK_EQ(0, active_markers_); }
+
+  V8_INLINE void MarkerStarted() {
+    active_markers_.fetch_add(1, std::memory_order_relaxed);
+  }
+
+  // Returns true if all markers are done.
+  V8_INLINE bool MarkerDone() {
+    return active_markers_.fetch_sub(1, std::memory_order_relaxed) == 1;
+  }
+
+ private:
+  std::atomic<int> active_markers_{0};
+};
+
 ConcurrentMarking::ConcurrentMarking(Heap* heap, WeakObjects* weak_objects)
     : heap_(heap), weak_objects_(weak_objects) {
 #ifndef V8_ATOMIC_OBJECT_FIELD_WRITES
@@ -477,23 +494,6 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
 
   DCHECK(task_state->local_pretenuring_feedback.empty());
 }
-
-class ConcurrentMarking::MinorMarkingState {
- public:
-  ~MinorMarkingState() { DCHECK_EQ(0, active_markers_); }
-
-  V8_INLINE void MarkerStarted() {
-    active_markers_.fetch_add(1, std::memory_order_relaxed);
-  }
-
-  // Returns true if all markers are done.
-  V8_INLINE bool MarkerDone() {
-    return active_markers_.fetch_sub(1, std::memory_order_relaxed) == 1;
-  }
-
- private:
-  std::atomic<int> active_markers_{0};
-};
 
 namespace {
 

@@ -462,9 +462,6 @@ void WasmInternalFunction::set_call_target(WasmCodePointer code_pointer) {
 }
 
 // WasmJSFunctionData
-wasm::CanonicalTypeIndex WasmJSFunctionData::sig_index() const {
-  return wasm::CanonicalTypeIndex{static_cast<uint32_t>(canonical_sig_index())};
-}
 PROTECTED_POINTER_ACCESSORS(WasmJSFunctionData, protected_offheap_data,
                             TrustedManaged<WasmJSFunctionData::OffheapData>,
                             kProtectedOffheapDataOffset)
@@ -751,8 +748,20 @@ const wasm::CanonicalValueType WasmArray::GcSafeElementType(Tagged<Map> map) {
 
 int WasmArray::SizeFor(Tagged<Map> map, int length) {
   int element_size = DecodeElementSizeFromMap(map);
+  return SizeFor(element_size, length);
+}
+
+constexpr int WasmArray::SizeFor(int element_size, int length) {
   return kHeaderSize + RoundUp(element_size * length, kTaggedSize);
 }
+
+// Allocating arrays currently requires passing the requested byte size to the
+// runtime function as a Smi.
+static_assert(Smi::IsValid(WasmArray::SizeFor(1, WasmArray::MaxLength(1))));
+static_assert(Smi::IsValid(WasmArray::SizeFor(2, WasmArray::MaxLength(2))));
+static_assert(Smi::IsValid(WasmArray::SizeFor(4, WasmArray::MaxLength(4))));
+static_assert(Smi::IsValid(WasmArray::SizeFor(8, WasmArray::MaxLength(8))));
+static_assert(Smi::IsValid(WasmArray::SizeFor(16, WasmArray::MaxLength(16))));
 
 uint32_t WasmArray::element_offset(uint32_t index) {
   DCHECK_LE(index, length());

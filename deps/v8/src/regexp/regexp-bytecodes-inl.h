@@ -203,7 +203,7 @@ class RegExpBytecodeOperandsBase {
  public:
   template <Operand op>
     requires(RegExpOperandTypeTraits<Type(op)>::kIsBasic)
-  static auto Get(const uint8_t* pc) {
+  static auto Get(const uint8_t* pc, const DisallowGarbageCollection& no_gc) {
     constexpr RegExpBytecodeOperandType OperandType = Type(op);
     constexpr int offset = Offset(op);
     using CType = RegExpOperandTypeTraits<OperandType>::kCType;
@@ -218,11 +218,34 @@ class RegExpBytecodeOperandsBase {
   }
 
   template <Operand op>
+    requires(RegExpOperandTypeTraits<Type(op)>::kIsBasic)
+  static auto Get(DirectHandle<TrustedByteArray> bytecode, int offset,
+                  Zone* zone) {
+    // Basic operand types won't allocate, so we can always fallback to the
+    // GC-unsafe version.
+    DisallowGarbageCollection no_gc;
+    return Get<op>(bytecode->begin() + offset, no_gc);
+  }
+
+  template <Operand op>
     requires(Type(op) == RegExpBytecodeOperandType::kBitTable)
-  static auto Get(const uint8_t* pc) {
+  static auto Get(const uint8_t* pc, const DisallowGarbageCollection& no_gc) {
+    static_assert(Size(op) == RegExpMacroAssembler::kTableSize / kBitsPerByte);
     DCHECK_EQ(*pc, RegExpBytecodes::ToByte(bc));
     constexpr int offset = Offset(op);
     return pc + offset;
+  }
+
+  template <Operand op>
+    requires(Type(op) == RegExpBytecodeOperandType::kBitTable)
+  static auto Get(DirectHandle<TrustedByteArray> bytecode, int offset,
+                  Zone* zone) {
+    static_assert(Size(op) == RegExpMacroAssembler::kTableSize / kBitsPerByte);
+    DCHECK_EQ(bytecode->get(offset), RegExpBytecodes::ToByte(bc));
+    constexpr int op_offset = Offset(op);
+    const uint8_t* start = bytecode->begin() + offset + op_offset;
+    const uint8_t* end = start + Size(op);
+    return ZoneVector<uint8_t>(start, end, zone);
   }
 };
 

@@ -81,7 +81,7 @@
 // const Employee* absl_nonnull e;
 //
 // // A non-null pointer to a const nullable pointer to an `Employee`.
-// Employee* absl_nullable const* absl_nonnull e = nullptr;
+// Employee* absl_nullable const* absl_nonnull e;
 //
 // // A non-null function pointer.
 // void (*absl_nonnull func)(int, double);

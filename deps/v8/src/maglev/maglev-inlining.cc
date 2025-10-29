@@ -333,7 +333,7 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
     for (auto bb : saved_bb) {
       graph_->Add(bb);
     }
-    RemovePredecessorFollowing(control_node, call_block);
+    call_block->RemovePredecessorFollowing(control_node);
     // TODO(victorgomes): We probably don't need to iterate all the graph to
     // remove unreachable blocks, but only the successors of control_node in
     // saved_bbs.
@@ -395,25 +395,6 @@ void MaglevInliner::UpdatePredecessorsOf(BasicBlock* block,
       break;
     }
   }
-}
-
-void MaglevInliner::RemovePredecessorFollowing(ControlNode* control,
-                                               BasicBlock* call_block) {
-  BasicBlock::ForEachSuccessorFollowing(control, [&](BasicBlock* succ) {
-    if (!succ->has_state()) {
-      succ->set_predecessor(nullptr);
-      return;
-    }
-    if (succ->is_loop() && succ->backedge_predecessor() == call_block) {
-      succ->state()->TurnLoopIntoRegularBlock();
-      return;
-    }
-    for (int i = succ->predecessor_count() - 1; i >= 0; i--) {
-      if (succ->predecessor_at(i) == call_block) {
-        succ->state()->RemovePredecessorAt(i);
-      }
-    }
-  });
 }
 
 ProcessResult ReturnedValueRepresentationSelector::Process(

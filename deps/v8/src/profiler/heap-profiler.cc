@@ -180,6 +180,9 @@ void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
     int pid = base::OS::GetCurrentProcessId();
     std::string filename = "v8-heap-" + std::to_string(time) + "-" +
                            std::to_string(pid) + ".heapsnapshot";
+    if (v8_flags.heap_snapshot_path.value()) {
+      filename = v8_flags.heap_snapshot_path.value();
+    }
     v8::HeapProfiler::HeapSnapshotOptions options;
     std::unique_ptr<HeapSnapshot> result(
         new HeapSnapshot(this, snapshot_mode, options.numerics_mode));
@@ -192,18 +195,28 @@ void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
     END_ALLOW_USE_DEPRECATED()
     if (!generator.GenerateSnapshotAfterGC()) return;
     i::FileOutputStream stream(filename.c_str());
-    HeapSnapshotJSONSerializer serializer(result.get());
-    serializer.Serialize(&stream);
-    PrintF("Wrote heap snapshot to %s.\n", filename.c_str());
+    if (stream.IsOpen()) {
+      HeapSnapshotJSONSerializer serializer(result.get());
+      serializer.Serialize(&stream);
+      PrintF("Wrote heap snapshot to %s.\n", filename.c_str());
+    } else {
+      PrintF("Failed to open heap snapshot file '%s' for writing.\n",
+             filename.c_str());
+    }
   });
 }
 
 void HeapProfiler::TakeSnapshotToFile(
     const v8::HeapProfiler::HeapSnapshotOptions options, std::string filename) {
   HeapSnapshot* snapshot = TakeSnapshot(options);
+  if (!snapshot) return;
   FileOutputStream stream(filename.c_str());
-  HeapSnapshotJSONSerializer serializer(snapshot);
-  serializer.Serialize(&stream);
+  if (stream.IsOpen()) {
+    HeapSnapshotJSONSerializer serializer(snapshot);
+    serializer.Serialize(&stream);
+  } else {
+    RemoveSnapshot(snapshot);
+  }
 }
 
 std::string HeapProfiler::TakeSnapshotToString(

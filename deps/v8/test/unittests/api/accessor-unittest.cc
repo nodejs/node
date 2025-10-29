@@ -23,6 +23,7 @@ using testing::IsString;
 using testing::IsUndefined;
 
 using AccessorTest = v8::TestWithContext;
+using AccessorTestWithShadowRealm = v8::TestShadowRealmWithContext;
 
 // The goal is to avoid the callback.
 static void UnreachableCallback(
@@ -847,8 +848,8 @@ v8::MaybeLocal<v8::Context> TestHostCreateShadowRealmContextCallback(
 }
 }  // namespace
 
-TEST_F(AccessorTest, WrapFunctionTemplateSetNativeDataProperty) {
-  i::v8_flags.harmony_shadow_realm = true;
+TEST_F(AccessorTestWithShadowRealm, WrapFunctionTemplateSetNativeDataProperty) {
+  CHECK(i::v8_flags.harmony_shadow_realm);
   isolate()->SetHostCreateShadowRealmContextCallback(
       TestHostCreateShadowRealmContextCallback);
 
@@ -858,11 +859,19 @@ TEST_F(AccessorTest, WrapFunctionTemplateSetNativeDataProperty) {
     v8::TryCatch try_catch(isolate());
     CHECK(TryRunJS("new ShadowRealm().evaluate('globalThis.func1')").IsEmpty());
     CHECK(try_catch.HasCaught());
+    std::string message =
+        *v8::String::Utf8Value(isolate(), try_catch.Exception());
+    CHECK_EQ(message, std::string("TypeError: Cannot wrap target callable "
+                                  "(Error: side effect in getter)"));
   }
   // Check that getter is called on WrappedFunctionCreate.
   {
     v8::TryCatch try_catch(isolate());
     CHECK(TryRunJS("new ShadowRealm().evaluate('globalThis.func2')").IsEmpty());
     CHECK(try_catch.HasCaught());
+    std::string message =
+        *v8::String::Utf8Value(isolate(), try_catch.Exception());
+    CHECK_EQ(message, std::string("TypeError: Cannot wrap target callable "
+                                  "(Error: side effect in getter)"));
   }
 }

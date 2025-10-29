@@ -11,6 +11,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/string-format.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/machine-type.h"
@@ -93,7 +94,8 @@ void ValidateOpInputRep(
       std::cerr << "Input has results " << PrintCollection(input_reps)
                 << ", but expected at least " << (*projection_index + 1)
                 << " results.\n";
-      UNREACHABLE();
+      FATAL("Wrong input arity in a %s: not enough inputs.\n",
+            OpcodeName(input_op.opcode));
     }
   } else if (input_reps.size() == 1) {
     input_rep = input_reps[0];
@@ -106,7 +108,8 @@ void ValidateOpInputRep(
               << " with wrong arity.\n";
     std::cerr << "Expected a single output but found " << input_reps.size()
               << ".\n";
-    UNREACHABLE();
+    FATAL("Wrong input arity in a %s: too many inputs.\n",
+          OpcodeName(input_op.opcode));
   }
   for (RegisterRepresentation expected_rep : expected_reps) {
     if (input_rep.AllowImplicitRepresentationChangeTo(
@@ -124,7 +127,7 @@ void ValidateOpInputRep(
             << PrintCollection(expected_reps).WithoutBrackets() << " but found "
             << input_rep << ".\n";
   std::cout << "Input: " << graph.Get(input) << "\n";
-  UNREACHABLE();
+  FATAL("Wrong input representation in a %s.\n", OpcodeName(input_op.opcode));
 }
 
 void ValidateOpInputRep(const Graph& graph, OpIndex input,
@@ -567,21 +570,24 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       os << "external: " << external_reference();
       break;
     case Kind::kHeapObject:
-      os << "heap object: " << JSONEscaped(handle());
+      os << "heap object: " << base::JSONEscaped(handle());
       break;
     case Kind::kCompressedHeapObject:
-      os << "compressed heap object: " << JSONEscaped(handle());
+      os << "compressed heap object: " << base::JSONEscaped(handle());
       break;
     case Kind::kTrustedHeapObject:
-      os << "trusted heap object: " << JSONEscaped(handle());
+      os << "trusted heap object: " << base::JSONEscaped(handle());
       break;
     case Kind::kRelocatableWasmCall:
-      os << "relocatable wasm call: 0x"
-         << reinterpret_cast<void*>(storage.integral);
+      os << "relocatable wasm call: 0x" << std::hex << storage.integral
+         << std::dec;
       break;
     case Kind::kRelocatableWasmStubCall:
-      os << "relocatable wasm stub call: 0x"
-         << reinterpret_cast<void*>(storage.integral);
+      os << "relocatable wasm stub call: "
+         << (Builtins::IsBuiltinId(static_cast<int>(storage.integral))
+                 ? Builtins::name(Builtin(storage.integral))
+                 : "<not a builtin>")
+         << " (0x" << std::hex << storage.integral << std::dec << ")";
       break;
     case Kind::kRelocatableWasmCanonicalSignatureId:
       os << "relocatable wasm canonical signature ID: "
@@ -1116,7 +1122,24 @@ std::ostream& operator<<(std::ostream& os, BlockIndex b) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Block* b) {
-  return os << b->index();
+  if (b == nullptr) {
+    os << "nullptr";
+  } else {
+    os << b->index();
+  }
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, EffectHandler h) {
+  return os << h.block;
+}
+
+std::ostream& operator<<(std::ostream& os, base::Vector<EffectHandler> hs) {
+  os << "effect handlers: ";
+  for (auto& h : hs) {
+    os << h.tag_index << ":" << h.block << (&h == &hs.last() ? "" : " ");
+  }
+  return os;
 }
 
 std::ostream& operator<<(std::ostream& os, OpEffects effects) {
@@ -1586,7 +1609,7 @@ void PrintMapSet(std::ostream& os, const ZoneRefSet<Map>& maps) {
   os << "{";
   for (size_t i = 0; i < maps.size(); ++i) {
     if (i != 0) os << ",";
-    os << JSONEscaped(maps[i].object());
+    os << base::JSONEscaped(maps[i].object());
   }
   os << "}";
 }
@@ -2141,13 +2164,25 @@ size_t CallOp::hash_value(HashingStrategy strategy) const {
   }
 }
 
+template <>
+struct fast_hash<EffectHandler> {
+  size_t operator()(const EffectHandler& h) {
+    DCHECK_NOT_NULL(h.block);
+    const BlockIndex index = h.block->index();
+    DCHECK(index.valid());
+    return index.id();
+  }
+};
+
 size_t CheckExceptionOp::hash_value(HashingStrategy strategy) const {
   if (strategy == HashingStrategy::kMakeSnapshotStable) {
     // Destructure here to cause a compilation error in case `options` is
     // changed.
-    auto [didnt_throw_block_value, catch_block_value] = options();
+    auto [didnt_throw_block_value, catch_block_value, effects_value] =
+        options();
     return HashWithOptions(index_for_bound_block(didnt_throw_block_value),
-                           index_for_bound_block(catch_block_value));
+                           index_for_bound_block(catch_block_value),
+                           effects_value);
   } else {
     return Base::hash_value(strategy);
   }

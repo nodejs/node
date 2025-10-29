@@ -55,8 +55,12 @@ struct HeapStatistics final {
     size_t resident_size_bytes = 0;
     /** Amount of memory actually used on the page. */
     size_t used_size_bytes = 0;
-    /** Statistics for object allocated on the page. Filled only when
-     * NameProvider::SupportsCppClassNamesAsObjectNames() is true. */
+    /**
+     * Statistics for object allocated on the page. If an object provides a
+     * name by inheriting from NameProvider, its name will be recorded in the
+     * statistics. Other objects, without an explicit name, are merged under a
+     * single type unless the CPPGC_SUPPORTS_OBJECT_NAME build flag is enabled.
+     */
     std::vector<ObjectStatsEntry> object_statistics;
   };
 

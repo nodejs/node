@@ -9,15 +9,14 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/wasm-gc-typed-optimization-reducer.h"
 #include "src/compiler/turboshaft/wasm-load-elimination-reducer.h"
-#include "src/compiler/turboshaft/wasm-type-cast-rtt-optimization-helpers.h"
 
 namespace v8::internal::compiler::turboshaft {
 
 void WasmGCOptimizePhase::Run(PipelineData* data, Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(data->broker(),
                               v8_flags.turboshaft_trace_reduction);
-  CopyingPhase<WasmLoadEliminationReducer, WasmGCTypedOptimizationReducer,
-               WasmLoopTypeCastRttPreFinder>::Run(data, temp_zone);
+  CopyingPhase<WasmLoadEliminationReducer, WasmGCTypedOptimizationReducer>::Run(
+      data, temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -253,9 +253,14 @@ bool RelocInfo::IsCodedSpecially() {
 
 bool RelocInfo::IsInConstantPool() {
   Instruction* instr = reinterpret_cast<Instruction*>(pc_);
-  DCHECK_IMPLIES(instr->IsLdrLiteralW(), COMPRESS_POINTERS_BOOL);
-  return instr->IsLdrLiteralX() ||
-         (COMPRESS_POINTERS_BOOL && instr->IsLdrLiteralW());
+  if (instr->IsLdrLiteralX()) return true;
+  if (!instr->IsLdrLiteralW()) return false;
+#ifdef DEBUG
+  uint32_t value = *reinterpret_cast<uint32_t*>(instr->ImmPCOffsetTarget());
+  DCHECK(COMPRESS_POINTERS_BOOL ||
+         JSDispatchTable::MaybeValidJSDispatchHandle(value));
+#endif  // DEBUG
+  return true;
 }
 
 uint32_t RelocInfo::wasm_call_tag() const {
@@ -4963,7 +4968,7 @@ void Assembler::CheckVeneerPool(bool force_emit, bool require_jump,
     return;
   }
 
-  DCHECK(pc_offset() < unresolved_branches_first_limit());
+  CHECK_LT(pc_offset(), unresolved_branches_first_limit());
 
   // Some short sequence of instruction mustn't be broken up by veneer pool
   // emission, such sequences are protected by calls to BlockVeneerPoolFor and

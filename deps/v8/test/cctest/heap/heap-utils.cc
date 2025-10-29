@@ -295,7 +295,7 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   CHECK(marking->IsMarking());
   if (!force_completion) return;
 
-  IsolateSafepointScope scope(heap);
+  SafepointScope scope(heap->isolate(), kGlobalSafepointForSharedSpaceIsolate);
   MarkingBarrier::PublishAll(heap);
   marking->MarkRootsForTesting();
 
@@ -306,7 +306,8 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
 
 void SimulateFullSpace(v8::internal::PagedSpace* space) {
   Heap* heap = space->heap();
-  IsolateSafepointScope safepoint_scope(heap);
+  SafepointScope safepoint_scope(heap->isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   heap->FreeLinearAllocationAreas();
 
   // If you see this check failing, disable the flag at the start of your test:
@@ -322,7 +323,8 @@ void SimulateFullSpace(v8::internal::PagedSpace* space) {
 
 void AbandonCurrentlyFreeMemory(PagedSpace* space) {
   Heap* heap = space->heap();
-  IsolateSafepointScope safepoint_scope(heap);
+  SafepointScope safepoint_scope(heap->isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   heap->FreeLinearAllocationAreas();
 
   for (PageMetadata* page : *space) {

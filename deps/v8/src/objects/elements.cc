@@ -5709,6 +5709,7 @@ MaybeDirectHandle<Object> ArrayConstructInitializeElements(
     return array;
 
   } else if (args->length() == 1 && IsNumber(*args->at(0))) {
+    // Keep in sync with: `Runtime_NewArray`.
     uint32_t length;
     if (!Object::ToArrayLength(*args->at(0), &length)) {
       return ThrowArrayLengthRangeError(isolate);

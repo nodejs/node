@@ -70,10 +70,16 @@ extern class Map extends HeapObject {
 
   prototype: JSReceiver|Null;
   constructor_or_back_pointer_or_native_context: Object;
+
   @if(V8_ENABLE_WEBASSEMBLY) instance_descriptors: DescriptorArray
       |WasmStruct;
   @ifnot(V8_ENABLE_WEBASSEMBLY) instance_descriptors: DescriptorArray;
-  dependent_code: DependentCode;
+
+  // Wasm maps with custom descriptors overload the "dependent_code" field to
+  // store their direct supertype map (i.e. their type's canonical RTT).
+  @if(V8_ENABLE_WEBASSEMBLY) dependent_code: DependentCode|Map;
+  @ifnot(V8_ENABLE_WEBASSEMBLY) dependent_code: DependentCode;
+
   prototype_validity_cell: Zero|Cell;
   transitions_or_prototype_info: Map|Weak<Map>|TransitionArray|PrototypeInfo|
       Zero;

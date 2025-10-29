@@ -193,8 +193,7 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
     compiler::JSHeapBroker* broker, LocalIsolate* local_isolate,
     ValueNode* context) {
   while (true) {
-    if (auto load_prev_ctxt =
-            context->TryCast<LoadTaggedFieldForContextSlotNoCells>()) {
+    if (auto load_prev_ctxt = context->TryCast<LoadContextSlotNoCells>()) {
       DCHECK_EQ(load_prev_ctxt->offset(),
                 Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
       // Recurse until we find the root.
@@ -249,6 +248,39 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
       DCHECK(false);
       may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
       break;
+  }
+}
+
+void KnownNodeAspects::ClearUnstableNodeAspectsForStoreMap(
+    StoreMap* node, bool is_tracing_enabled) {
+  switch (node->kind()) {
+    case StoreMap::Kind::kInitializing:
+    case StoreMap::Kind::kInlinedAllocation:
+      return;
+    case StoreMap::Kind::kTransitioning: {
+      if (NodeInfo* node_info = TryGetInfoFor(node->object_input().node())) {
+        if (node_info->possible_maps_are_known() &&
+            node_info->possible_maps().size() == 1) {
+          compiler::MapRef old_map = node_info->possible_maps().at(0);
+          auto MaybeAliases = [&](compiler::MapRef map) -> bool {
+            return map.equals(old_map);
+          };
+          ClearUnstableMapsIfAny(MaybeAliases);
+          if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                          is_tracing_enabled)) {
+            std::cout << "  ! StoreMap: Clearing unstable map "
+                      << Brief(*old_map.object()) << std::endl;
+          }
+          return;
+        }
+      }
+      break;
+    }
+  }
+  // TODO(olivf): Only invalidate nodes with the same type.
+  ClearUnstableMaps();
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building && is_tracing_enabled)) {
+    std::cout << "  ! StoreMap: Clearing unstable maps" << std::endl;
   }
 }
 
@@ -425,6 +457,38 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
   }
 
   return true;
+}
+
+SmallZoneVector<KnownNodeAspects::LoadedContextSlotsKey, 8>
+KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
+                                              int offset, ValueNode* value) {
+  SmallZoneVector<LoadedContextSlotsKey, 8> aliased_slots_(graph->zone());
+  if (!loaded_context_slots_.empty()) {
+    UpdateMayHaveAliasingContexts(graph->broker(),
+                                  graph->broker()->local_isolate(), context);
+  }
+  if (may_have_aliasing_contexts() == ContextSlotLoadsAlias::kYes) {
+    compiler::OptionalScopeInfoRef scope_info = graph->TryGetScopeInfo(context);
+    for (auto& cache : loaded_context_slots_) {
+      int cached_offset = std::get<int>(cache.first);
+      ValueNode* cached_context = std::get<ValueNode*>(cache.first);
+      if (cached_offset == offset && cached_context != context) {
+        if (graph->ContextMayAlias(cached_context, scope_info) &&
+            cache.second != value) {
+          if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                          graph->is_tracing_enabled())) {
+            std::cout << "  * Clearing probably aliasing value "
+                      << PrintNodeLabel(std::get<ValueNode*>(cache.first))
+                      << "[" << offset << "]: " << PrintNode(value)
+                      << std::endl;
+          }
+          cache.second = nullptr;
+          aliased_slots_.push_back(cache.first);
+        }
+      }
+    }
+  }
+  return aliased_slots_;
 }
 
 }  // namespace maglev

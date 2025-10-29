@@ -359,8 +359,11 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   bool is_constant_pool_available() const {
     if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
       // We need to disable constant pool here for embeded builtins
-      // because the metadata section is not adjacent to instructions
-      return constant_pool_available_ && !options().isolate_independent_code;
+      // because the metadata section is not adjacent to instructions.
+      // We also need to disable it on Wasm as the constant pool register is not
+      // yet handled during stack switching.
+      return constant_pool_available_ && !options().isolate_independent_code &&
+             !options().is_wasm;
     } else {
       // Embedded constant pool not supported on this architecture.
       UNREACHABLE();

@@ -36,6 +36,7 @@ const { NumberMutator } = require('./mutators/number_mutator.js');
 const { ObjectMutator } = require('./mutators/object_mutator.js');
 const { VariableMutator } = require('./mutators/variable_mutator.js');
 const { VariableOrObjectMutator } = require('./mutators/variable_or_object_mutation.js');
+const { StringUnicodeMutator } = require('./mutators/string_unicode_mutator.js');
 
 const CHAKRA_WASM_MODULE_BUILDER_REL = 'chakra/WasmSpec/testsuite/harness/wasm-module-builder.js'
 const CHAKRA_WASM_CONSTANTS_REL = 'chakra/WasmSpec/testsuite/harness/wasm-constants.js'
@@ -51,11 +52,15 @@ function defaultSettings() {
     DIFF_FUZZ_TRACK_CAUGHT: 0.5,
     DIFF_FUZZ_SKIP_FUNCTIONS: 0.5,
     ENABLE_ALLOCATION_TIMEOUT: 0.5,
+    ENABLE_IDENTIFIER_UNICODE_ESCAPE: 0.05,
+    ENABLE_STRINGLITERAL_UNICODE_ESCAPE: 0.05,
+    ENABLE_REGEXPLITERAL_UNICODE_ESCAPE: 0.05,
     MUTATE_ALLOCATION_TIMEOUT: 0.02,
     MUTATE_ARRAYS: 0.1,
     MUTATE_CROSSOVER_INSERT: 0.1,
     MUTATE_EXPRESSIONS: 0.1,
     MUTATE_FUNCTION_CALLS: 0.1,
+    MUTATE_UNICODE_ESCAPE_PROB: 0.005,
     MUTATE_NUMBERS: 0.05,
     MUTATE_OBJECTS: 0.1,
     MUTATE_VARIABLES: 0.075,
@@ -104,6 +109,7 @@ class ScriptMutator {
     this.timeout = new AllocationTimeoutMutator(settings);
     this.closures = new ClosureRemover(settings);
     this.trycatch = new AddTryCatchMutator(settings);
+    this.unicode = new StringUnicodeMutator(settings);
     this.settings = settings;
   }
 
@@ -218,8 +224,13 @@ class ScriptMutator {
     // Try-catch wrapping should follow after error-prone mutations.
     mutators.push(this.trycatch);
 
-    // Non-error-prone mutations that should not get further mutated.
+    // Non-error-prone mutations that should not get further arbitrarily mutated.
+    // It is ok to unicode escape, as we do next.
     mutators.push(this.timeout);
+
+    // This shouldn't get further mutated, because Babel functionality gets broken
+    // when identifier names are changed.
+    mutators.push(this.unicode);
 
     for (const mutator of mutators) {
       mutator.mutate(source, context);

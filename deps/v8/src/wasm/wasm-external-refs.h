@@ -191,16 +191,19 @@ double flat_string_to_f64(Address string_address);
 // Called from the stack switching builtins to handle some of the
 // platform-independent stack switching logic: updating the stack limit,
 // validating the switch, debug traces, managing the stack memory, etc.
-void start_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+void start_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                  Address fp, Address pc);
 int32_t suspender_has_js_frames(Isolate* isolate);
-void suspend_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+void suspend_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                    Address fp, Address pc);
-void resume_jspi_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+void resume_jspi_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                        Address fp, Address pc, Address suspender);
-void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                          Address fp, Address pc);
-void return_stack(Isolate* isolate, wasm::StackMemory* from);
+Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
+                             Address pc, Address wanted_tag_raw,
+                             Address cont_raw);
+void return_stack(Isolate* isolate, wasm::StackMemory* to);
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
 void switch_from_the_central_stack(Isolate* isolate);

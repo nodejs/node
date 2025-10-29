@@ -166,6 +166,8 @@ class RelocInfo {
     FIRST_BUILTIN_ENTRY_MODE = OFF_HEAP_TARGET,
     LAST_BUILTIN_ENTRY_MODE = NEAR_BUILTIN_ENTRY,
     FIRST_SHAREABLE_RELOC_MODE = WASM_CALL,
+    FIRST_DEOPT_MODE = DEOPT_SCRIPT_OFFSET,
+    LAST_DEOPT_MODE = DEOPT_NODE_ID,
   };
 
   static_assert(NUMBER_OF_MODES <= kBitsPerInt);
@@ -222,6 +224,9 @@ class RelocInfo {
   }
   static constexpr bool IsConstPool(Mode mode) { return mode == CONST_POOL; }
   static constexpr bool IsVeneerPool(Mode mode) { return mode == VENEER_POOL; }
+  static constexpr bool IsDeoptMode(Mode mode) {
+    return mode >= FIRST_DEOPT_MODE && mode <= LAST_DEOPT_MODE;
+  }
   static constexpr bool IsDeoptPosition(Mode mode) {
     return mode == DEOPT_SCRIPT_OFFSET || mode == DEOPT_INLINING_ID;
   }

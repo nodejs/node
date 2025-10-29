@@ -2306,7 +2306,7 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
 // The subsequent ones must be about the same <var> to return true.
 
 bool BytecodeGenerator::IsPrototypeAssignment(
-    Statement* stmt, Variable** var,
+    Statement* stmt, Variable** var, HoleCheckMode* hole_check_mode,
     base::SmallVector<std::pair<const AstRawString*, Expression*>,
                       kInitialPropertyCount>& properties,
     std::unordered_set<const AstRawString*>& duplicates) {
@@ -2388,6 +2388,7 @@ bool BytecodeGenerator::IsPrototypeAssignment(
   if (*var == nullptr) {
     // This is the first proto assignment in the sequence
     *var = tmp_var;
+    *hole_check_mode = proto_prop->obj()->AsVariableProxy()->hole_check_mode();
   } else if (*var != tmp_var) {
     // This prototype assignment is about another var
     return false;
@@ -2398,13 +2399,15 @@ bool BytecodeGenerator::IsPrototypeAssignment(
       prop_str,
       value));  // This will be reused as part of an ObjectLiteral
 
+  DCHECK_EQ(*hole_check_mode,
+            proto_prop->obj()->AsVariableProxy()->hole_check_mode());
   return true;
 }
 
 void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
     const base::SmallVector<std::pair<const AstRawString*, Expression*>,
                             kInitialPropertyCount>& properties,
-    Variable* var) {
+    Variable* var, HoleCheckMode hole_check_mode) {
   // Create a boiler plate object in the constant pool to be merged into the
   // proto
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
@@ -2420,6 +2423,7 @@ void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
       if (first_idx == -1) {
         first_idx = idx;
       }
+      AddToEagerLiteralsIfEager(func);
     }
   }
 
@@ -2428,7 +2432,7 @@ void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
     first_idx = 0;
   }
   // Load the variable whose prototype is to be set into the Accumulator
-  BuildVariableLoad(var, HoleCheckMode::kElided);
+  BuildVariableLoad(var, hole_check_mode);
   // Merge in-place proto-def boilerplate object into Accumulator
   builder()->SetPrototypeProperties(entry, first_idx);
 }
@@ -2438,6 +2442,8 @@ void BytecodeGenerator::VisitStatements(
   for (int stmt_idx = start; stmt_idx < statements->length(); stmt_idx++) {
     if (v8_flags.proto_assign_seq_opt) {
       Variable* var = nullptr;
+      HoleCheckMode hole_check_mode;
+
       int proto_assign_idx = stmt_idx;
       base::SmallVector<std::pair<const AstRawString*, Expression*>,
                         kInitialPropertyCount>
@@ -2445,13 +2451,13 @@ void BytecodeGenerator::VisitStatements(
       std::unordered_set<const AstRawString*> duplicates;
       while (proto_assign_idx < statements->length() &&
              IsPrototypeAssignment(statements->at(proto_assign_idx), &var,
-                                   properties, duplicates)) {
+                                   &hole_check_mode, properties, duplicates)) {
         ++proto_assign_idx;
       }
 
       if (proto_assign_idx - stmt_idx > 1) {
         DCHECK_EQ((size_t)(proto_assign_idx - stmt_idx), properties.size());
-        VisitConsecutivePrototypeAssignments(properties, var);
+        VisitConsecutivePrototypeAssignments(properties, var, hole_check_mode);
         stmt_idx = proto_assign_idx;  // the outer loop should now ignore these
                                       // statements
         DCHECK(!builder()->RemainderOfBlockIsDead());

@@ -19,4 +19,15 @@ GetTrackEventCategoryRegistry() {
 
 }  // namespace v8
 
+namespace perfetto {
+
+TraceTimestamp
+TraceTimestampTraits<::v8::base::TimeTicks>::ConvertTimestampToTraceTimeNs(
+    const ::v8::base::TimeTicks& ticks) {
+  return {static_cast<uint32_t>(::v8::TrackEvent::GetTraceClockId()),
+          static_cast<uint64_t>(ticks.since_origin().InNanoseconds())};
+}
+
+}  // namespace perfetto
+
 #endif

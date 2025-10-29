@@ -6,6 +6,7 @@
 #define V8_SNAPSHOT_READ_ONLY_SERIALIZER_DESERIALIZER_H_
 
 #include "src/common/globals.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -121,8 +122,9 @@ struct EncodedTagged {
 static_assert(EncodedTagged::kSize == sizeof(EncodedTagged));
 
 struct EncodedExternalReference {
+  static constexpr int kTagBits = 8;
   static constexpr int kIsApiReferenceBits = 1;
-  static constexpr int kIndexBits = 31;
+  static constexpr int kIndexBits = 23;
   static constexpr int kSize = kUInt32Size;
 
   uint32_t ToUint32() const {
@@ -136,11 +138,15 @@ struct EncodedExternalReference {
   // This ctor is needed to convert parameter types. We can't use bool/uint32_t
   // as underlying member types since that messes with field packing on
   // windows.
-  EncodedExternalReference(bool is_api_reference, uint32_t index)
-      : is_api_reference(is_api_reference), index(index) {}
+  EncodedExternalReference(uint16_t tag, bool is_api_reference, uint32_t index)
+      : tag(tag), is_api_reference(is_api_reference), index(index) {
+    DCHECK(is_uint23(index));
+    DCHECK(is_uint8(tag));
+  }
 
-  int is_api_reference : kIsApiReferenceBits;
-  int index : kIndexBits;
+  unsigned tag : kTagBits;
+  unsigned is_api_reference : kIsApiReferenceBits;
+  unsigned index : kIndexBits;
 };
 static_assert(EncodedExternalReference::kSize ==
               sizeof(EncodedExternalReference));

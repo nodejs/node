@@ -31,10 +31,10 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 using std::bad_optional_access;
-using std::optional;
 using std::make_optional;
-using std::nullopt_t;
 using std::nullopt;
+using std::nullopt_t;
+using std::optional;
 ABSL_NAMESPACE_END
 }  // namespace absl
 

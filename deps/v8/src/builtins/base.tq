@@ -498,6 +498,7 @@ extern enum MessageTemplate {
   kWasmTrapDivUnrepresentable,
   kWasmTrapRemByZero,
   kWasmTrapFloatUnrepresentable,
+  kWasmTrapNullFunc,
   kWasmTrapFuncSigMismatch,
   kWasmTrapDataSegmentOutOfBounds,
   kWasmTrapElementSegmentOutOfBounds,
@@ -509,6 +510,7 @@ extern enum MessageTemplate {
   kWasmTrapArrayOutOfBounds,
   kWasmTrapArrayTooLarge,
   kWasmTrapStringOffsetOutOfBounds,
+  kWasmTrapResume,
   kWasmObjectsAreOpaque,
   kWeakRefsRegisterTargetAndHoldingsMustNotBeSame,
   kInvalidWeakRefsRegisterTarget,
@@ -807,8 +809,6 @@ extern macro GetInterestingProperty(Context, JSReceiver, Name): JSAny
     labels NotFound;
 extern transitioning builtin SetProperty(
     implicit context: Context)(JSAny, JSAny, JSAny): JSAny;
-extern transitioning builtin SetPropertyIgnoreAttributes(
-    implicit context: Context)(JSObject, String, JSAny, Smi): JSAny;
 extern transitioning builtin CreateDataProperty(
     implicit context: Context)(JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin DeleteProperty(
@@ -935,6 +935,9 @@ extern macro LoadBufferObject(RawPtr, constexpr int32): Object;
 extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;
 extern macro LoadBufferSmi(RawPtr, constexpr int32): Smi;
 extern macro LoadBufferIntptr(RawPtr, constexpr int32): intptr;
+
+extern macro LoadFullTagged(RawPtr): Object;
+extern macro StoreFullTaggedNoWriteBarrier(RawPtr, Object): void;
 
 extern runtime StringEqual(Context, String, String): Oddball;
 extern builtin StringLessThan(String, String): Boolean;
@@ -2228,7 +2231,7 @@ operator '==' macro HashFieldTypeEquals(
 
 const kNoHashSentinel:
     constexpr int32 generates 'PropertyArray::kNoHashSentinel';
-extern macro LoadNameHash(Name): uint32;
+extern macro LoadNameHashAssumeComputed(Name): uint32;
 
 extern transitioning builtin ToName(implicit context: Context)(JSAny): AnyName;
 

@@ -126,9 +126,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   // Generic at put operation.
   template <template <typename> typename HandleType>
     requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
-  V8_WARN_UNUSED_RESULT static HandleType<Derived> AtPut(
-      Isolate* isolate, HandleType<Derived> dictionary, Key key,
-      DirectHandle<Object> value, PropertyDetails details);
+  V8_WARN_UNUSED_RESULT static auto AtPut(Isolate* isolate,
+                                          HandleType<Derived> dictionary,
+                                          Key key, DirectHandle<Object> value,
+                                          PropertyDetails details);
   static void UncheckedAtPut(Isolate* isolate, DirectHandle<Derived> dictionary,
                              Key key, DirectHandle<Object> value,
                              PropertyDetails details);
@@ -220,7 +221,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
 
   template <template <typename> typename HandleType>
     requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
-  V8_WARN_UNUSED_RESULT static HandleType<Derived> Add(
+  V8_WARN_UNUSED_RESULT static HandleType<Derived>::MaybeType Add(
       Isolate* isolate, HandleType<Derived> dictionary, Key key,
       DirectHandle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);

@@ -763,7 +763,7 @@
 }],
 
 ################################################################################
-['variant == stress', {
+['variant == stress or variant == wasm_assert_types', {
   # The 'stress' variants sets the '--no-liftoff' flag, which means that Wasm
   # compiles directly to TurboFan. This makes the cache no longer incremental,
   # and these tests don't make sense.
@@ -846,6 +846,9 @@
 }],  # direct_handle
 
 ['clang_coverage and mode == debug', {
+  # Slow tests.
+  'test-ptr-compr-cage/SharedPtrComprCageRace': [PASS, SLOW],
+
   # Too slow tests.
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
   'test-serialize/ContextSerializerContext': [SKIP],

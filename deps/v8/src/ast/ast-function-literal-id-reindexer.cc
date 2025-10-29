@@ -57,10 +57,11 @@ void AstFunctionLiteralIdReindexer::VisitClassLiteral(ClassLiteral* expr) {
   for (int i = 0; i < private_members->length(); ++i) {
     ClassLiteralProperty* prop = private_members->at(i);
 
-    // Private fields have their key and value present in
+    // Private fields and auto-accessors have their key and value present in
     // instance_members_initializer_function, so they will
     // already have been visited.
-    if (prop->kind() == ClassLiteralProperty::Kind::FIELD) {
+    if (prop->kind() == ClassLiteralProperty::Kind::FIELD ||
+        prop->kind() == ClassLiteralProperty::Kind::AUTO_ACCESSOR) {
       CheckVisited(prop->value());
     } else {
       Visit(prop->value());

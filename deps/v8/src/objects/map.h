@@ -224,7 +224,9 @@ using MapHandlesSpan = v8::MemorySpan<DirectHandle<Map>>;
 // | TaggedPointer | [instance_descriptors] (if JS object)           |
 // |               | [custom_descriptor]    (if WasmStruct)          |
 // +---------------+-------------------------------------------------+
-// | TaggedPointer | [dependent_code]                                |
+// | TaggedPointer | [immediate_supertype_map] (if WasmStruct with   |
+// |               |                            custom descriptor)   |
+// |               | [dependent_code] (all other maps)               |
 // +---------------+-------------------------------------------------+
 // | TaggedPointer | [prototype_validity_cell]                       |
 // +---------------+-------------------------------------------------+
@@ -689,7 +691,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   // [instance descriptors]: describes the object.
   DECL_ACCESSORS(instance_descriptors, Tagged<DescriptorArray>)
-  DECL_RELAXED_ACCESSORS(instance_descriptors, Tagged<DescriptorArray>)
   DECL_ACQUIRE_GETTER(instance_descriptors, Tagged<DescriptorArray>)
   V8_EXPORT_PRIVATE void SetInstanceDescriptors(
       Isolate* isolate, Tagged<DescriptorArray> descriptors,
@@ -709,6 +710,14 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   // [dependent code]: list of optimized codes that weakly embed this map.
   DECL_ACCESSORS(dependent_code, Tagged<DependentCode>)
+#if V8_ENABLE_WEBASSEMBLY
+  // [immediate_supertype_map]: overlaid onto the "dependent_code" field,
+  // Wasm maps with custom descriptors store their immediate supertype map
+  // (i.e. the canonical RTT for their static type) here, for fast access
+  // from type checks in generated code.
+  DECL_ACCESSORS(immediate_supertype_map, Tagged<Map>)
+  static constexpr int kImmediateSupertypeOffset = kDependentCodeOffset;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // [prototype_validity_cell]: Cell containing the validity bit for prototype
   // chains or Tagged<Smi>(0) if uninitialized.

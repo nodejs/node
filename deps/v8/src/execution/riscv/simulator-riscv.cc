@@ -5505,9 +5505,34 @@ void Simulator::DecodeRVIType() {
     }
     case RO_MOP: {
       if ((instr_.InstructionBits() & kMopMask) == RO_MOP_R_N) {
+        switch (instr_.MopNumber()) {
+          case SSPOPCHK_MOP_NUM:
+            if (CpuFeatures::IsSupported(ZICFISS)) {
+              if (instr_.RdValue() == 0) {  // sspopchk
+                PopShadowStack(rs1());
+              } else {  // ssrdp
+                DCHECK_EQ(instr_.Rs1Value(), 0);
+                FATAL("Unimplemented Instr: ssrdp");
+              }
+              return;
+            }
+            break;
+          default:
+            break;
+        }
         set_rd(0);
       } else {
         CHECK((instr_.InstructionBits() & kMopMask) == RO_MOP_RR_N);
+        switch (instr_.MopNumber()) {
+          case SSPUSH_MOP_NUM:  // sspush
+            if (CpuFeatures::IsSupported(ZICFISS)) {
+              PushShadowStack(rs2());
+              return;
+            }
+            break;
+          default:
+            break;
+        }
         set_rd(0);
       }
       break;
@@ -8389,6 +8414,40 @@ void Simulator::CallInternal(Address entry) {
   set_register(s11, s11_val);
   set_register(gp, gp_val);
   set_register(sp, sp_val);
+}
+
+void Simulator::PushShadowStack(uintptr_t value) {
+  if (csr_ssp_ <= 0) {
+    size_t old_size = shadow_stack_.size();
+    size_t new_size = old_size * 2;
+    size_t new_ssp = new_size - old_size;
+    auto new_stack = base::Vector<uintptr_t>::New(new_size);
+    new_stack.SubVectorFrom(new_ssp).OverwriteWith(shadow_stack_);
+    shadow_stack_.Dispose();
+    shadow_stack_ = new_stack;
+    csr_ssp_ = new_ssp;
+  }
+  csr_ssp_ = csr_ssp_ - 1;
+  shadow_stack_[csr_ssp_] = value;
+  SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")", value, icount_);
+  return;
+}
+
+uintptr_t Simulator::PopShadowStack(uintptr_t value) {
+  CHECK_LT(csr_ssp_, shadow_stack_.size());
+  CHECK_GE(csr_ssp_, 0);
+  auto temp = shadow_stack_[csr_ssp_];
+  if (temp != value) {
+    if (v8_flags.sim_abort_on_shadowstack_mismatch) {
+      FATAL("RISC-V ShadowStack mismatch");
+    } else {
+      ss_mismatch_count_ += 1;
+    }
+  } else {
+    csr_ssp_ += 1;
+  }
+  SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")", value, icount_);
+  return temp;
 }
 
 #ifdef V8_TARGET_ARCH_RISCV64

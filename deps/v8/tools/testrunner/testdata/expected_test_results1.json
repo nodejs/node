@@ -2,7 +2,7 @@
   "duration_mean": 1,
   "max_rss_tests": [
     {
-      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner",
+      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort",
       "duration": 1,
       "exit_code": 1,
       "expected": [
@@ -12,8 +12,7 @@
         "--test",
         "strawberries",
         "--random-seed=123",
-        "--nohard-abort",
-        "--testing-d8-test-runner"
+        "--nohard-abort"
       ],
       "framework_name": "standard_runner",
       "marked_heavy": false,
@@ -31,7 +30,7 @@
       "variant_flags": []
     },
     {
-      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner",
+      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort",
       "duration": 1,
       "exit_code": 1,
       "expected": [
@@ -41,8 +40,7 @@
         "--test",
         "strawberries",
         "--random-seed=123",
-        "--nohard-abort",
-        "--testing-d8-test-runner"
+        "--nohard-abort"
       ],
       "framework_name": "standard_runner",
       "marked_heavy": false,
@@ -60,7 +58,7 @@
       "variant_flags": []
     },
     {
-      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner",
+      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort",
       "duration": 1,
       "exit_code": 1,
       "expected": [
@@ -70,8 +68,7 @@
         "--test",
         "strawberries",
         "--random-seed=123",
-        "--nohard-abort",
-        "--testing-d8-test-runner"
+        "--nohard-abort"
       ],
       "framework_name": "standard_runner",
       "marked_heavy": false,
@@ -91,7 +88,7 @@
   ],
   "max_vms_tests": [
     {
-      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner",
+      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort",
       "duration": 1,
       "exit_code": 1,
       "expected": [
@@ -101,8 +98,7 @@
         "--test",
         "strawberries",
         "--random-seed=123",
-        "--nohard-abort",
-        "--testing-d8-test-runner"
+        "--nohard-abort"
       ],
       "framework_name": "standard_runner",
       "marked_heavy": false,
@@ -120,7 +116,7 @@
       "variant_flags": []
     },
     {
-      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner",
+      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort",
       "duration": 1,
       "exit_code": 1,
       "expected": [
@@ -130,8 +126,7 @@
         "--test",
         "strawberries",
         "--random-seed=123",
-        "--nohard-abort",
-        "--testing-d8-test-runner"
+        "--nohard-abort"
       ],
       "framework_name": "standard_runner",
       "marked_heavy": false,
@@ -149,7 +144,7 @@
       "variant_flags": []
     },
     {
-      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner",
+      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort",
       "duration": 1,
       "exit_code": 1,
       "expected": [
@@ -159,8 +154,7 @@
         "--test",
         "strawberries",
         "--random-seed=123",
-        "--nohard-abort",
-        "--testing-d8-test-runner"
+        "--nohard-abort"
       ],
       "framework_name": "standard_runner",
       "marked_heavy": false,
@@ -180,7 +174,7 @@
   ],
   "results": [
     {
-      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner",
+      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort",
       "crash_state": "",
       "crash_type": "",
       "duration": 1,
@@ -193,8 +187,7 @@
         "--test",
         "strawberries",
         "--random-seed=123",
-        "--nohard-abort",
-        "--testing-d8-test-runner"
+        "--nohard-abort"
       ],
       "framework_name": "standard_runner",
       "max_rss": 1,
@@ -206,13 +199,13 @@
       "shard_count": 1,
       "shard_id": 0,
       "stderr": "",
-      "stdout": "--test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner\n",
+      "stdout": "--test strawberries --random-seed=123 --nohard-abort\n",
       "target_name": "d8_mocked.py",
       "variant": "default",
       "variant_flags": []
     },
     {
-      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner",
+      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort",
       "crash_state": "",
       "crash_type": "",
       "duration": 1,
@@ -225,8 +218,7 @@
         "--test",
         "strawberries",
         "--random-seed=123",
-        "--nohard-abort",
-        "--testing-d8-test-runner"
+        "--nohard-abort"
       ],
       "framework_name": "standard_runner",
       "max_rss": 1,
@@ -238,13 +230,13 @@
       "shard_count": 1,
       "shard_id": 0,
       "stderr": "",
-      "stdout": "--test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner\n",
+      "stdout": "--test strawberries --random-seed=123 --nohard-abort\n",
       "target_name": "d8_mocked.py",
       "variant": "default",
       "variant_flags": []
     },
     {
-      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner",
+      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort",
       "crash_state": "",
       "crash_type": "",
       "duration": 1,
@@ -257,8 +249,7 @@
         "--test",
         "strawberries",
         "--random-seed=123",
-        "--nohard-abort",
-        "--testing-d8-test-runner"
+        "--nohard-abort"
       ],
       "framework_name": "standard_runner",
       "max_rss": 1,
@@ -270,7 +261,7 @@
       "shard_count": 1,
       "shard_id": 0,
       "stderr": "",
-      "stdout": "--test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner\n",
+      "stdout": "--test strawberries --random-seed=123 --nohard-abort\n",
       "target_name": "d8_mocked.py",
       "variant": "default",
       "variant_flags": []
@@ -278,7 +269,7 @@
   ],
   "slowest_tests": [
     {
-      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner",
+      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort",
       "duration": 1,
       "exit_code": 1,
       "expected": [
@@ -288,8 +279,7 @@
         "--test",
         "strawberries",
         "--random-seed=123",
-        "--nohard-abort",
-        "--testing-d8-test-runner"
+        "--nohard-abort"
       ],
       "framework_name": "standard_runner",
       "marked_heavy": false,
@@ -307,7 +297,7 @@
       "variant_flags": []
     },
     {
-      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner",
+      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort",
       "duration": 1,
       "exit_code": 1,
       "expected": [
@@ -317,8 +307,7 @@
         "--test",
         "strawberries",
         "--random-seed=123",
-        "--nohard-abort",
-        "--testing-d8-test-runner"
+        "--nohard-abort"
       ],
       "framework_name": "standard_runner",
       "marked_heavy": false,
@@ -336,7 +325,7 @@
       "variant_flags": []
     },
     {
-      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner",
+      "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort",
       "duration": 1,
       "exit_code": 1,
       "expected": [
@@ -346,8 +335,7 @@
         "--test",
         "strawberries",
         "--random-seed=123",
-        "--nohard-abort",
-        "--testing-d8-test-runner"
+        "--nohard-abort"
       ],
       "framework_name": "standard_runner",
       "marked_heavy": false,

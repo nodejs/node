@@ -304,9 +304,9 @@ TEST(SharedEngineRunThreadedTierUp) {
     HandleScope scope(isolate->isolate());
     DirectHandle<WasmInstanceObject> instance = isolate->ImportInstance(module);
     WasmDetectedFeatures detected;
-    WasmCompilationUnit::CompileWasmFunction(
-        isolate->isolate()->counters(), module.get(), &detected,
-        &module->module()->functions[0], ExecutionTier::kTurbofan);
+    WasmCompilationUnit::CompileWasmFunction(module.get(), &detected,
+                                             &module->module()->functions[0],
+                                             ExecutionTier::kTurbofan);
     CHECK_EQ(23, isolate->Run(instance));
   });
   for (auto& thread : threads) CHECK(thread.Start());

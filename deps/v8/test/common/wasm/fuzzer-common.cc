@@ -67,15 +67,12 @@ bool CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
     constexpr bool kIsShared = false;
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
                            func_code.end(), kIsShared);
-    auto result =
-        ExecuteLiftoffCompilation(&env, func_body,
-                                  LiftoffOptions{}
-                                      .set_func_index(func.func_index)
-                                      .set_for_debugging(kForDebugging)
-                                      .set_max_steps(max_steps)
-                                      // TODO(clemensb): Fully remove
-                                      // nondeterminism detection.
-                                      .set_detect_nondeterminism(false));
+    auto result = ExecuteLiftoffCompilation(
+        &env, func_body,
+        LiftoffOptions{.func_index = static_cast<int>(func.func_index),
+                       .for_debugging = kForDebugging,
+                       .counter_updates = native_module->counter_updates(),
+                       .max_steps = max_steps});
     if (!result.succeeded()) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
       // Liftoff compilation can bailout on x64 / ia32 if SSE4.1 is unavailable.
@@ -1101,6 +1098,14 @@ static uint8_t kDummyModuleWireBytes[]{
 }  // namespace
 
 void AddDummyTypesToTypeCanonicalizer(Isolate* isolate) {
+#ifdef DEBUG
+  // We do not want to dump this dummy module; it would be confusing to dump two
+  // modules.
+  FlagScope<bool> no_dump_module(&v8_flags.dump_wasm_module, false);
+#else
+  static_assert(v8_flags.dump_wasm_module.value() == false);
+#endif
+
   const size_t type_count = GetTypeCanonicalizer()->GetCurrentNumberOfTypes();
   const bool is_valid = GetWasmEngine()->SyncValidate(
       isolate, WasmEnabledFeatures(), CompileTimeImportsForFuzzing(),
@@ -1214,6 +1219,11 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   uint8_t configuration_byte = data.empty() ? 0 : data[0];
   if (!data.empty()) data += 1;
 
+  // Enable Wasm type assertions half the time.
+  const bool assert_types = configuration_byte & 1;
+  configuration_byte >>= 1;
+  FlagScope<bool> assert_types_scope(&v8_flags.wasm_assert_types, assert_types);
+
   // Derive the compiler configuration for the first four functions from the
   // configuration byte, to choose for each function between:
   // 0: TurboFan
@@ -1226,6 +1236,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
     tier_mask |= (compiler_config == 0) << i;
     debug_mask |= (compiler_config == 2) << i;
   }
+  configuration_byte = 0;
   // The purpose of setting the tier mask (which affects the initial
   // compilation of each function) is to deterministically test a combination
   // of Liftoff and Turbofan.

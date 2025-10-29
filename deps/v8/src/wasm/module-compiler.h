@@ -32,7 +32,6 @@ namespace internal {
 
 class JSArrayBuffer;
 class JSPromise;
-class Counters;
 class WasmModuleObject;
 class WasmInstanceObject;
 class WasmTrustedInstanceData;
@@ -72,7 +71,7 @@ std::shared_ptr<wasm::WasmImportWrapperHandle> CompileImportWrapperForTest(
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is
 // also lazy.
-bool CompileLazy(Isolate*, Tagged<WasmTrustedInstanceData>, int func_index);
+bool CompileLazy(Isolate*, NativeModule*, int func_index);
 
 // Throws the compilation error after failed lazy compilation.
 void ThrowLazyCompilationError(Isolate* isolate,
@@ -119,7 +118,9 @@ class AsyncCompileJob {
                   int compilation_id);
   ~AsyncCompileJob();
 
-  void Start();
+  // Start asynchronous decoding; this triggers the full asynchronous
+  // (non-streaming) compilation.
+  void StartAsyncDecoding();
 
   std::shared_ptr<StreamingDecoder> CreateStreamingDecoder();
 
@@ -137,17 +138,19 @@ class AsyncCompileJob {
   class CompilationStateCallback;
 
   // States of the AsyncCompileJob.
-  // Step 1 (async). Decodes the wasm module.
+  // Step 1 (async). Decodes the wasm module (only called for non-streaming
+  //                 compilation; streaming uses the StreamingDecoder instead).
   // --> Fail on decoding failure,
-  // --> PrepareAndStartCompile on success.
+  // --> PrepareNativeModule on success.
   class DecodeModule;
 
-  // Step 2 (sync). Prepares runtime objects and starts background compilation.
+  // Step 2 (async). Allocates NativeModule and potentially starts background
+  // compilation.
   // --> finish directly on native module cache hit,
   // --> finish directly on validation error,
-  // --> trigger eager compilation, if any; FinishCompile is triggered when
+  // --> trigger eager compilation, if any; FinishCompilation is triggered when
   // done.
-  class PrepareAndStartCompile;
+  class PrepareNativeModule;
 
   // Step 3 (sync). Compilation finished. Finalize the module and resolve the
   // promise.
@@ -184,8 +187,6 @@ class AsyncCompileJob {
   void FinishSuccessfully();
 
   void StartForegroundTask();
-  void ExecuteForegroundTaskImmediately();
-
   void StartBackgroundTask();
 
   enum UseExistingForegroundTask : bool {
@@ -200,10 +201,6 @@ class AsyncCompileJob {
             UseExistingForegroundTask = kAssertNoExistingForegroundTask,
             typename... Args>
   void DoSync(Args&&... args);
-
-  // Switches to the compilation step {Step} and immediately executes that step.
-  template <typename Step, typename... Args>
-  void DoImmediately(Args&&... args);
 
   // Switches to the compilation step {Step} and starts a background task to
   // execute it.
@@ -221,6 +218,7 @@ class AsyncCompileJob {
   WasmDetectedFeatures detected_features_;
   CompileTimeImports compile_imports_;
   base::TimeTicks start_time_;
+  base::TimeTicks compilation_finished_time_;
   // Copy of the module wire bytes, moved into the {native_module_} on its
   // creation.
   base::OwnedVector<const uint8_t> bytes_copy_;
@@ -230,7 +228,6 @@ class AsyncCompileJob {
   IndirectHandle<NativeContext> native_context_;
   IndirectHandle<NativeContext> incumbent_context_;
   v8::metrics::Recorder::ContextId context_id_;
-  v8::metrics::WasmModuleDecoded metrics_event_;
   const std::shared_ptr<CompilationResultResolver> resolver_;
 
   IndirectHandle<WasmModuleObject> module_object_;

@@ -50,7 +50,8 @@ def createItem(d, experimental, deprecated, name=None):
   return result
 
 
-def parse(data, file_name, map_binary_to_string=False):
+def parse(data, file_name, map_binary_to_string, source_set):
+  assert source_set is None or isinstance(source_set, set)
   protocol = collections.OrderedDict()
   protocol['version'] = collections.OrderedDict()
   protocol['domains'] = []
@@ -58,6 +59,8 @@ def parse(data, file_name, map_binary_to_string=False):
   item = None
   subitems = None
   nukeDescription = False
+  if source_set is not None:
+    source_set.add(file_name)
   global description
   lines = data.split('\n')
   for i in range(0, len(lines)):
@@ -89,12 +92,13 @@ def parse(data, file_name, map_binary_to_string=False):
     match = re.compile(r'^include (.*)').match(line)
     if match:
       included_filename = match.group(1)
-      if path.isabs(included_filename):
-        raise Exception("Only relative paths are supported in include's")
-      resolved_path = path.normpath(
-          path.join(path.dirname(file_name), included_filename))
+      if os.path.isabs(included_filename):
+        raise Exception("Only relative paths are supported in includes")
+      resolved_path = os.path.normpath(
+          os.path.join(os.path.dirname(file_name), included_filename))
       with open(resolved_path, 'r') as file:
-        included_data = parse(file.read(), resolved_path, map_binary_to_string)
+        included_data = parse(file.read(), resolved_path, map_binary_to_string,
+                              source_set)
         protocol['domains'].extend(included_data['domains'])
       continue
 
@@ -187,7 +191,7 @@ def parse(data, file_name, map_binary_to_string=False):
   return protocol
 
 
-def loads(data, file_name, map_binary_to_string=False):
+def loads(data, file_name, map_binary_to_string=False, source_set=None):
   if file_name.endswith(".pdl"):
-    return parse(data, file_name, map_binary_to_string)
+    return parse(data, file_name, map_binary_to_string, source_set)
   return json.loads(data)

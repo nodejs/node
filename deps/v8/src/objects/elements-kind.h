@@ -535,8 +535,8 @@ inline bool IsSimpleMapChangeTransition(ElementsKind from_kind,
          (IsSmiElementsKind(from_kind) && IsObjectElementsKind(to_kind));
 }
 
-bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
-                                         ElementsKind to_kind);
+V8_EXPORT_PRIVATE bool IsMoreGeneralElementsKindTransition(
+    ElementsKind from_kind, ElementsKind to_kind);
 
 inline ElementsKind GetMoreGeneralElementsKind(ElementsKind from_kind,
                                                ElementsKind to_kind) {

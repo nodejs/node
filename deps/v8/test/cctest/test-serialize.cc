@@ -190,7 +190,7 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
 
   // Note this effectively reimplements Snapshot::Create, keep in sync.
 
-  SafepointScope safepoint(i_isolate, SafepointKind::kIsolate);
+  SafepointScope safepoint(i_isolate, kGlobalSafepointForSharedSpaceIsolate);
   DisallowGarbageCollection no_gc;
   HandleScope scope(i_isolate);
 
@@ -410,7 +410,7 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
 
     env.Reset();
 
-    SafepointScope safepoint(isolate, SafepointKind::kIsolate);
+    SafepointScope safepoint(isolate, kGlobalSafepointForSharedSpaceIsolate);
     DisallowGarbageCollection no_gc;
 
     if (!isolate->initialized_from_snapshot()) {
@@ -603,7 +603,8 @@ static void SerializeCustomContext(
       // so that it is found below, during heap verification at the GC before
       // isolate disposal.
 
-      SafepointScope safepoint(i_isolate, SafepointKind::kIsolate);
+      SafepointScope safepoint(i_isolate,
+                               kGlobalSafepointForSharedSpaceIsolate);
       DisallowGarbageCollection no_gc;
 
       if (i_isolate->heap()->read_only_space()->writable()) {
@@ -694,13 +695,6 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
                  .ToHandleChecked();
       CHECK(IsContext(*root));
       DirectHandle<NativeContext> context = Cast<NativeContext>(root);
-
-      // Add context to the weak native context list
-      Cast<Context>(context)->SetNoCell(Context::NEXT_CONTEXT_LINK,
-                                        isolate->heap()->native_contexts_list(),
-                                        UPDATE_WRITE_BARRIER);
-      isolate->heap()->set_native_contexts_list(*context);
-
       CHECK(context->global_proxy() == *global_proxy);
       DirectHandle<String> o =
           isolate->factory()->NewStringFromAsciiChecked("o");
@@ -944,6 +938,75 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithIrregexpCodeKeepCode) {
 UNINITIALIZED_TEST(CustomSnapshotDataBlobWithIrregexpCodeClearCode) {
   TestCustomSnapshotDataBlobWithIrregexpCode(
       v8::SnapshotCreator::FunctionCodeHandling::kClear);
+}
+
+UNINITIALIZED_TEST(TestCustomSnapshotDataBlobWithLargeObjectString) {
+  if (V8_SINGLE_GENERATION_BOOL) {
+    // The relevant strings are in-place internalized in this mode, and thus
+    // never reach the codepath that allocates them in RO space. Skip the test.
+    return;
+  }
+
+  i::v8_flags.allow_natives_syntax = true;
+  std::stringstream ss;
+  ss << "var short_onebyte_string = %InternalizeString('a'.repeat(128));"
+     << std::endl
+     << "var lo_onebyte_string = %InternalizeString('a'.repeat("
+     << kMaxRegularHeapObjectSize << "));" << std::endl;
+  ss << "var short_twobyte_string = "
+        "%InternalizeString('\\u{1F600}'.repeat(128));"
+     << std::endl
+     << "var lo_twobyte_string = %InternalizeString('\\u{1F600}'.repeat("
+     << kMaxRegularHeapObjectSize << "));" << std::endl;
+  std::string src = ss.str();
+
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData data1 = CreateSnapshotDataBlob(src.c_str());
+
+  v8::Isolate::CreateParams params1;
+  params1.snapshot_blob = &data1;
+  params1.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate1 = TestSerializer::NewIsolate(params1);
+  {
+    v8::Isolate::Scope i_scope(isolate1);
+    v8::HandleScope h_scope(isolate1);
+    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    v8::Context::Scope c_scope(context);
+    {
+      // Short internalized strings go into RO space.
+      i::DirectHandle<i::String> obj_handle = Utils::OpenDirectHandle(
+          *CompileRun("short_onebyte_string").As<v8::String>());
+      Tagged<String> obj = *obj_handle;
+      CHECK(HeapLayout::InReadOnlySpace(obj));
+    }
+    {
+      // Large objects (according to kMaxRegularHeapObjectSize) go into LO
+      // spaces.
+      i::DirectHandle<i::String> obj_handle = Utils::OpenDirectHandle(
+          *CompileRun("lo_onebyte_string").As<v8::String>());
+      Tagged<String> obj = *obj_handle;
+      CHECK(HeapLayout::InAnyLargeSpace(obj));
+    }
+    {
+      i::DirectHandle<i::String> obj_handle = Utils::OpenDirectHandle(
+          *CompileRun("short_twobyte_string").As<v8::String>());
+      Tagged<String> obj = *obj_handle;
+      CHECK(StringShape{obj}.IsTwoByte());
+      CHECK(HeapLayout::InReadOnlySpace(obj));
+    }
+    {
+      i::DirectHandle<i::String> obj_handle = Utils::OpenDirectHandle(
+          *CompileRun("lo_twobyte_string").As<v8::String>());
+      Tagged<String> obj = *obj_handle;
+      CHECK(StringShape{obj}.IsTwoByte());
+      CHECK(HeapLayout::InAnyLargeSpace(obj));
+    }
+  }
+  isolate1->Dispose();
+  delete[] data1.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
 }
 
 UNINITIALIZED_TEST(SnapshotChecksum) {
@@ -3499,15 +3562,18 @@ UNINITIALIZED_TEST(SnapshotCreatorMultipleContexts) {
 }
 
 namespace {
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kIntPointerTag = 28;
 int serialized_static_field = 314;
 
 void SerializedCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   if (info.Data()->IsExternal()) {
-    CHECK_EQ(info.Data().As<v8::External>()->Value(),
+    CHECK_EQ(info.Data().As<v8::External>()->Value(kIntPointerTag),
              static_cast<void*>(&serialized_static_field));
-    int* value =
-        reinterpret_cast<int*>(info.Data().As<v8::External>()->Value());
+    int* value = reinterpret_cast<int*>(
+        info.Data().As<v8::External>()->Value(kIntPointerTag));
     (*value)++;
   }
   info.GetReturnValue().Set(v8_num(42));
@@ -3586,11 +3652,11 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
           context->GetNumberOfEmbedderDataFields();
       v8::Context::Scope context_scope(context);
       v8::Local<v8::External> writable_external =
-          v8::External::New(isolate, &serialized_static_field);
+          v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
       context->SetEmbedderData(my_context_embedder_field_index,
                                writable_external);
       v8::Local<v8::External> external =
-          v8::External::New(isolate, &serialized_static_field);
+          v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback, external);
       callback->SealAndPrepareForPromotionToReadOnly();
@@ -3702,7 +3768,7 @@ UNINITIALIZED_TEST(SnapshotCreatorShortExternalReferences) {
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
       v8::Local<v8::External> external =
-          v8::External::New(isolate, &serialized_static_field);
+          v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback, external);
       callback->SealAndPrepareForPromotionToReadOnly();
@@ -4044,7 +4110,7 @@ void TestSnapshotCreatorTemplates(bool promote_templates_to_read_only) {
       v8::Local<v8::ObjectTemplate> global_template =
           v8::ObjectTemplate::New(isolate, global_template_constructor);
       v8::Local<v8::External> external =
-          v8::External::New(isolate, &serialized_static_field);
+          v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback, external);
       global_template->Set(isolate, "f", callback);
@@ -4073,10 +4139,10 @@ void TestSnapshotCreatorTemplates(bool promote_templates_to_read_only) {
           object_template->NewInstance(context).ToLocalChecked();
       v8::Local<v8::Object> c =
           object_template->NewInstance(context).ToLocalChecked();
-      v8::Local<v8::External> resource_external =
-          v8::External::New(isolate, &serializable_one_byte_resource);
+      v8::Local<v8::External> resource_external = v8::External::New(
+          isolate, &serializable_one_byte_resource, kIntPointerTag);
       v8::Local<v8::External> field_external =
-          v8::External::New(isolate, &serialized_static_field);
+          v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
 
       a->SetInternalField(0, b);
       b->SetInternalField(0, c);
@@ -4203,10 +4269,10 @@ void TestSnapshotCreatorTemplates(bool promote_templates_to_read_only) {
 
         CHECK(a2->IsExternal());
         CHECK_EQ(static_cast<void*>(&serializable_one_byte_resource),
-                 v8::Local<v8::External>::Cast(a2)->Value());
+                 v8::Local<v8::External>::Cast(a2)->Value(kIntPointerTag));
         CHECK(b2->IsExternal());
         CHECK_EQ(static_cast<void*>(&serialized_static_field),
-                 v8::Local<v8::External>::Cast(b2)->Value());
+                 v8::Local<v8::External>::Cast(b2)->Value(kIntPointerTag));
         CHECK(c2->IsInt32() && c2->Int32Value(context).FromJust() == 35);
 
         // Calling GetDataFromSnapshotOnce again returns an empty MaybeLocal.
@@ -4882,7 +4948,7 @@ UNINITIALIZED_TEST(SnapshotCreatorAddData) {
   FreeCurrentEmbeddedBlob();
 }
 
-TEST(SnapshotCreatorUnknownHandles) {
+UNINITIALIZED_TEST(SnapshotCreatorUnknownHandles) {
   v8::StartupData blob;
 
   {

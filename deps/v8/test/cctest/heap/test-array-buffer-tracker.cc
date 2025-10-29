@@ -80,6 +80,7 @@ TEST(ArrayBuffer_OnlyMC) {
 
 TEST(ArrayBuffer_OnlyScavenge) {
   if (v8_flags.single_generation) return;
+  if (v8_flags.scavenger_chaos_mode) return;
   v8_flags.concurrent_array_buffer_sweeping = false;
 
   ManualGCScope manual_gc_scope;
@@ -108,6 +109,7 @@ TEST(ArrayBuffer_OnlyScavenge) {
 
 TEST(ArrayBuffer_ScavengeAndMC) {
   if (v8_flags.single_generation) return;
+  if (v8_flags.scavenger_chaos_mode) return;
   v8_flags.concurrent_array_buffer_sweeping = false;
 
   ManualGCScope manual_gc_scope;

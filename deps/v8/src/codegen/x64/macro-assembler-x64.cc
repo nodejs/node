@@ -3735,16 +3735,16 @@ void MacroAssembler::CallWasmCodePointer(Register target,
   Move(kScratchRegister, ExternalReference::wasm_code_pointer_table());
 
 #ifdef V8_ENABLE_SANDBOX
-  // Mask `target` to be within [0, WasmCodePointerTable::kMaxWasmCodePointers).
-  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <
-                (kMaxUInt32 / sizeof(wasm::WasmCodePointerTableEntry)));
-  static_assert(base::bits::IsPowerOfTwo(
-      wasm::WasmCodePointerTable::kMaxWasmCodePointers));
-  andl(target, Immediate(wasm::WasmCodePointerTable::kMaxWasmCodePointers - 1));
-
-  // Shift to multiply by `sizeof(WasmCodePointerTableEntry)`.
-  shll(target, Immediate(base::bits::WhichPowerOfTwo(
-                   sizeof(wasm::WasmCodePointerTableEntry))));
+  // Execute a left shift followed by right shift to achieve two things:
+  // - Only keep `kNumRelevantBits` bits (to avoid OOB access to the table),
+  // - shift by `kLeftShift` to translate from index to offset into the table.
+  static constexpr int kLeftShift =
+      base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
+  static constexpr int kNumRelevantBits = base::bits::WhichPowerOfTwo(
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers);
+  static constexpr int kNumClearedHighBits = 32 - kNumRelevantBits;
+  shll(target, Immediate(kNumClearedHighBits));
+  shrl(target, Immediate(kNumClearedHighBits - kLeftShift));
 
   // Add `target` and `kScratchRegister` early to free `kScratchRegister` again.
   addq(target, kScratchRegister);
@@ -3783,16 +3783,17 @@ void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
   Move(kScratchRegister, ExternalReference::wasm_code_pointer_table());
 
 #ifdef V8_ENABLE_SANDBOX
-  // Mask `target` to be within [0, WasmCodePointerTable::kMaxWasmCodePointers).
-  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <
-                (kMaxUInt32 / sizeof(wasm::WasmCodePointerTableEntry)));
-  static_assert(base::bits::IsPowerOfTwo(
-      wasm::WasmCodePointerTable::kMaxWasmCodePointers));
-  andl(target, Immediate(wasm::WasmCodePointerTable::kMaxWasmCodePointers - 1));
-
-  // Shift to multiply by `sizeof(WasmCodePointerTableEntry)`.
-  shll(target, Immediate(base::bits::WhichPowerOfTwo(
-                   sizeof(wasm::WasmCodePointerTableEntry))));
+  // Execute a left shift followed by right shift to achieve two things:
+  // - Only keep `kNumRelevantBits` bits (to avoid OOB access to the table),
+  // - shift by `kLeftShift` to translate from index to offset into the table.
+  static constexpr int kLeftShift =
+      base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
+  static constexpr int kNumRelevantBits = base::bits::WhichPowerOfTwo(
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers);
+  static constexpr int kNumClearedHighBits = 32 - kNumRelevantBits;
+  static_assert(kNumClearedHighBits == 9);
+  shll(target, Immediate(kNumClearedHighBits));
+  shrl(target, Immediate(kNumClearedHighBits - kLeftShift));
 
   call(Operand(kScratchRegister, target, ScaleFactor::times_1, 0));
 #else
@@ -4034,6 +4035,8 @@ void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
   } else {
     PopReturnAddressTo(scratch);
     addq(rsp, Immediate(bytes_dropped));
+    // Push and ret (instead of jmp) to keep the RSB and the CET shadow stack
+    // balanced.
     PushReturnAddressFrom(scratch);
     ret(0);
   }
@@ -4694,10 +4697,9 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     bind(&regular_invoke);
 }
 
-void MacroAssembler::CallDebugOnFunctionCall(
-    Register fun, Register new_target,
-    Register expected_parameter_count_or_dispatch_handle,
-    Register actual_parameter_count) {
+void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
+                                             Register dispatch_handle,
+                                             Register actual_parameter_count) {
   ASM_CODE_COMMENT(this);
   // Load receiver to pass it later to DebugOnFunctionCall hook.
   // Receiver is located on top of the stack if we have a frame (usually a
@@ -4708,8 +4710,10 @@ void MacroAssembler::CallDebugOnFunctionCall(
   FrameScope frame(
       this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
 
-  SmiTag(expected_parameter_count_or_dispatch_handle);
-  Push(expected_parameter_count_or_dispatch_handle);
+  // We must not Smi-tag the dispatch handle, because its top bits are
+  // meaningful; and we also don't need to, because its low bits are zero.
+  static_assert(kJSDispatchHandleShift >= 1);
+  Push(dispatch_handle);
 
   SmiTag(actual_parameter_count);
   Push(actual_parameter_count);
@@ -4728,8 +4732,7 @@ void MacroAssembler::CallDebugOnFunctionCall(
   }
   Pop(actual_parameter_count);
   SmiUntag(actual_parameter_count);
-  Pop(expected_parameter_count_or_dispatch_handle);
-  SmiUntag(expected_parameter_count_or_dispatch_handle);
+  Pop(dispatch_handle);
 }
 
 void MacroAssembler::StubPrologue(StackFrame::Type type) {
@@ -5329,7 +5332,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
   if (argc_operand == nullptr) {
     DCHECK_NE(slots_to_drop_on_return, 0);
-    __ ret(slots_to_drop_on_return * kSystemPointerSize);
+    __ Ret(slots_to_drop_on_return * kSystemPointerSize, scratch);
   } else {
     __ PopReturnAddressTo(scratch);
     // {argc_operand} was loaded into {argc_reg} above.

@@ -185,6 +185,37 @@ class FormattedString {
 // explicitly declare template parameters anyway.
 FormattedString()->FormattedString<>;
 
+class JSONEscaped {
+ public:
+  template <typename T>
+  explicit JSONEscaped(const T& value) {
+    std::ostringstream s;
+    s << value;
+    str_ = s.str();
+  }
+  explicit JSONEscaped(std::string str) : str_(std::move(str)) {}
+  explicit JSONEscaped(const std::ostringstream& os) : str_(os.str()) {}
+
+  friend std::ostream& operator<<(std::ostream& os, const JSONEscaped& e) {
+    for (char c : e.str_) PipeCharacter(os, c);
+    return os;
+  }
+
+ private:
+  static std::ostream& PipeCharacter(std::ostream& os, char c) {
+    if (c == '"') return os << "\\\"";
+    if (c == '\\') return os << "\\\\";
+    if (c == '\b') return os << "\\b";
+    if (c == '\f') return os << "\\f";
+    if (c == '\n') return os << "\\n";
+    if (c == '\r') return os << "\\r";
+    if (c == '\t') return os << "\\t";
+    return os << c;
+  }
+
+  std::string str_;
+};
+
 }  // namespace v8::base
 
 #endif  // V8_BASE_STRING_FORMAT_H_

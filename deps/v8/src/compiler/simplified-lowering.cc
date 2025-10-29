@@ -1602,8 +1602,10 @@ class RepresentationSelector {
       BaseTaggedness base_taggedness,
       MachineRepresentation field_representation, Type field_type,
       MachineRepresentation value_representation, Node* value) {
-    if (base_taggedness == kTaggedBase &&
-        CanBeTaggedPointer(field_representation)) {
+    if (CanBeIndirectPointer(field_representation)) {
+      return kIndirectPointerWriteBarrier;
+    } else if (base_taggedness == kTaggedBase &&
+               CanBeTaggedPointer(field_representation)) {
       Type value_type = NodeProperties::GetType(value);
       if (value_representation == MachineRepresentation::kTaggedSigned) {
         // Write barriers are only for stores of heap objects.
@@ -2167,15 +2169,13 @@ class RepresentationSelector {
 
     FastApiCallNode n(node);
 
-    base::SmallVector<UseInfo, kInitialArgumentsCount> arg_use_info(
-        c_arg_count);
     // Propagate representation information from TypeInfo.
     int cursor = 0;
     for (int i = 0; i < c_arg_count; i++) {
-      arg_use_info[i] = UseInfoForFastApiCallArgument(
+      UseInfo use_info = UseInfoForFastApiCallArgument(
           c_signature->ArgumentInfo(i), c_signature->GetInt64Representation(),
           op_params.feedback());
-      ProcessInput<T>(node, cursor++, arg_use_info[i]);
+      ProcessInput<T>(node, cursor++, use_info);
     }
     // Callback data for fast call.
     DCHECK_EQ(n.CallbackDataIndex(), cursor);
@@ -2409,9 +2409,6 @@ class RepresentationSelector {
     DCHECK_EQ(wasm_arg_count, params.arity_without_implicit_args());
     DCHECK_EQ(wasm_arg_count, n.ArgumentCount());
 
-    base::SmallVector<UseInfo, kInitialArgumentsCount> arg_use_info(
-        wasm_arg_count);
-
     // Visit JSFunction and Receiver nodes.
     ProcessInput<T>(node, JSWasmCallNode::TargetIndex(), UseInfo::Any());
     ProcessInput<T>(node, JSWasmCallNode::ReceiverIndex(), UseInfo::Any());
@@ -2420,9 +2417,9 @@ class RepresentationSelector {
     for (int i = 0; i < wasm_arg_count; i++) {
       TNode<Object> input = n.Argument(i);
       DCHECK_NOT_NULL(input);
-      arg_use_info[i] = UseInfoForJSWasmCallArgument(
+      UseInfo use_info = UseInfoForJSWasmCallArgument(
           input, wasm_signature->GetParam(i), params.feedback());
-      ProcessInput<T>(node, JSWasmCallNode::ArgumentIndex(i), arg_use_info[i]);
+      ProcessInput<T>(node, JSWasmCallNode::ArgumentIndex(i), use_info);
     }
 
     // Visit value, context and frame state inputs as tagged.
@@ -2440,7 +2437,7 @@ class RepresentationSelector {
     if (wasm_signature->return_count() == 1) {
       wasm::CanonicalValueType return_type = wasm_signature->GetReturn();
       DCHECK_IMPLIES(return_type.is_ref(),
-                     return_type.is_reference_to(wasm::HeapType::kExtern));
+                     return_type.is_reference_to(wasm::GenericKind::kExtern));
       MachineType machine_type = MachineTypeForWasmReturnType(return_type);
       SetOutput<T>(node, machine_type.representation(),
                    JSWasmCallNode::TypeForWasmReturnKind(return_type.kind()));

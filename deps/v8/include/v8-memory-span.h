@@ -8,28 +8,13 @@
 #include <stddef.h>
 
 #include <array>
+#include <compare>
 #include <cstddef>
 #include <iterator>
+#include <ranges>
 #include <type_traits>
 
 #include "v8config.h"  // NOLINT(build/include_directory)
-
-// TODO(pkasting): Use <compare>/spaceship unconditionally after dropping
-// support for old libstdc++ versions.
-#if __has_include(<version>)
-#include <version>
-#endif
-#if defined(__cpp_lib_three_way_comparison) && \
-    __cpp_lib_three_way_comparison >= 201711L
-#define V8_HAVE_SPACESHIP_OPERATOR 1
-#else
-#define V8_HAVE_SPACESHIP_OPERATOR 0
-#endif
-
-// TODO(pkasting): Make this block unconditional after dropping support for old
-// libstdc++ versions.
-#if __has_include(<ranges>)
-#include <ranges>
 
 namespace v8 {
 
@@ -46,7 +31,6 @@ inline constexpr bool std::ranges::enable_view<v8::MemorySpan<T>> = true;
 template <typename T>
 inline constexpr bool std::ranges::enable_borrowed_range<v8::MemorySpan<T>> =
     true;
-#endif
 
 namespace v8 {
 
@@ -164,52 +148,13 @@ class V8_EXPORT MemorySpan {
     using pointer = value_type*;
     using reference = value_type&;
     using iterator_category = std::random_access_iterator_tag;
-    // There seems to be no feature-test macro covering this, so use the
-    // presence of `<ranges>` as a crude proxy, since it was added to the
-    // standard as part of the Ranges papers.
-    // TODO(pkasting): Add this unconditionally after dropping support for old
-    // libstdc++ versions.
-#if __has_include(<ranges>)
     using iterator_concept = std::contiguous_iterator_tag;
-#endif
 
     // Required to satisfy `std::semiregular<>`.
     constexpr Iterator() = default;
 
-    [[nodiscard]] friend constexpr bool operator==(const Iterator& a,
-                                                   const Iterator& b) {
-      // TODO(pkasting): Replace this body with `= default` after dropping
-      // support for old gcc versions.
-      return a.ptr_ == b.ptr_;
-    }
-#if V8_HAVE_SPACESHIP_OPERATOR
-    [[nodiscard]] friend constexpr auto operator<=>(const Iterator&,
-                                                    const Iterator&) = default;
-#else
-    // Assume that if spaceship isn't present, operator rewriting might not be
-    // either.
-    [[nodiscard]] friend constexpr bool operator!=(const Iterator& a,
-                                                   const Iterator& b) {
-      return a.ptr_ != b.ptr_;
-    }
-
-    [[nodiscard]] friend constexpr bool operator<(const Iterator& a,
-                                                  const Iterator& b) {
-      return a.ptr_ < b.ptr_;
-    }
-    [[nodiscard]] friend constexpr bool operator<=(const Iterator& a,
-                                                   const Iterator& b) {
-      return a.ptr_ <= b.ptr_;
-    }
-    [[nodiscard]] friend constexpr bool operator>(const Iterator& a,
-                                                  const Iterator& b) {
-      return a.ptr_ > b.ptr_;
-    }
-    [[nodiscard]] friend constexpr bool operator>=(const Iterator& a,
-                                                   const Iterator& b) {
-      return a.ptr_ >= b.ptr_;
-    }
-#endif
+    [[nodiscard]] constexpr bool operator==(const Iterator&) const = default;
+    [[nodiscard]] constexpr auto operator<=>(const Iterator&) const = default;
 
     constexpr Iterator& operator++() {
       ++ptr_;

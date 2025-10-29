@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <memory>
 #include <optional>
 #include <unordered_map>
 
@@ -15,17 +16,21 @@
 #include "src/flags/flags.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
+#include "src/heap/base/worklist.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/conservative-stack-visitor-inl.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/evacuation-allocator-inl.h"
+#include "src/heap/evacuation-allocator.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-layout.h"
 #include "src/heap/heap-visitor-inl.h"
+#include "src/heap/heap-visitor.h"
 #include "src/heap/heap.h"
+#include "src/heap/index-generator.h"
 #include "src/heap/large-page-metadata-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
@@ -35,7 +40,9 @@
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/page-metadata.h"
+#include "src/heap/parallel-work-item.h"
 #include "src/heap/pretenuring-handler-inl.h"
+#include "src/heap/pretenuring-handler.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/sweeper.h"
@@ -44,7 +51,6 @@
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-objects.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-body-descriptors-inl.h"
@@ -54,6 +60,15 @@
 
 namespace v8 {
 namespace internal {
+
+class RootScavengeVisitor;
+class Scavenger;
+class ScavengerCopiedObjectVisitor;
+
+enum class ObjectAge { kOld, kYoung };
+
+using SurvivingNewLargeObjectsMap =
+    std::unordered_map<Tagged<HeapObject>, Tagged<Map>, Object::Hasher>;
 
 namespace {
 
@@ -77,12 +92,387 @@ bool HeapObjectWillBeOld(const Heap* heap, Tagged<HeapObject> object) {
   if (HeapLayout::IsSelfForwarded(object) &&
       MemoryChunkMetadata::FromHeapObject(heap->isolate(), object)
           ->will_be_promoted()) {
+    DCHECK(Heap::InFromPage(object));
     return true;
   }
   return false;
 }
 
+V8_INLINE bool IsUnscavengedHeapObject(Tagged<Object> object) {
+  return Heap::InFromPage(object) && !Cast<HeapObject>(object)
+                                          ->map_word(kRelaxedLoad)
+                                          .IsForwardingAddress();
+}
+
+bool IsUnscavengedHeapObjectSlot(Heap* heap, FullObjectSlot p) {
+  return IsUnscavengedHeapObject(*p);
+}
+
 }  // namespace
+
+class ScavengerWeakObjectsProcessor final {
+ public:
+  static constexpr int kWeakObjectListSegmentSize = 64;
+  using JSWeakRefsList =
+      ::heap::base::Worklist<Tagged<JSWeakRef>, kWeakObjectListSegmentSize>;
+  using WeakCellsList =
+      ::heap::base::Worklist<Tagged<WeakCell>, kWeakObjectListSegmentSize>;
+
+  static void Process(Heap* heap, JSWeakRefsList& js_weak_refs,
+                      WeakCellsList& weak_cells) {
+    Retainer weak_object_retainer(heap);
+    // Iterate the weak list of dirty finalization registries. Dead registries
+    // are dropped from the list, and addresses of live scavenged registries are
+    // updated.
+    heap->ProcessDirtyJSFinalizationRegistries(&weak_object_retainer);
+    // Clear the target field of JSWeakRef if the target is dead.
+    ProcessJSWeakRefs(heap, js_weak_refs);
+    // For each WeakCell:
+    // 1) If the target is dead, clear the target field, mark the finalization
+    // registry as dirty, and schedule it to be cleaned up (in a task). 2) If
+    // the unregister token is dead, clear the token field and remove the cell
+    // from the registry's token-to-cell map.
+    ProcessWeakCells(heap, weak_cells);
+  }
+
+ private:
+  class Retainer final : public WeakObjectRetainer {
+   public:
+    explicit Retainer(const Heap* heap) : heap_(heap) {}
+
+    Tagged<Object> RetainAs(Tagged<Object> object) override {
+      Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
+      if (IsUnscavengedHeapObject(heap_object)) {
+        return Smi::zero();
+      }
+      if (!Heap::InFromPage(heap_object)) {
+        DCHECK(!heap_object->map_word(kRelaxedLoad).IsForwardingAddress());
+        return object;
+      }
+      MapWord map_word = heap_object->map_word(kRelaxedLoad);
+      DCHECK(map_word.IsForwardingAddress());
+      Tagged<HeapObject> retained_as =
+          map_word.ToForwardingAddress(heap_object);
+      DCHECK(IsJSFinalizationRegistry(retained_as));
+      return retained_as;
+    }
+
+    bool ShouldRecordSlots() const final { return true; }
+
+    void RecordSlot(Tagged<HeapObject> host, ObjectSlot slot,
+                    Tagged<HeapObject> object) final {
+      DCHECK(IsJSFinalizationRegistry(host));
+      DCHECK(IsJSFinalizationRegistry(object));
+      // `JSFinalizationRegistry` objects are generally long living and thus are
+      // unlikely to be young.
+      if (V8_LIKELY(HeapObjectWillBeOld(heap_, host)) &&
+          V8_UNLIKELY(!HeapObjectWillBeOld(heap_, object))) {
+        AddToRememberedSet<OLD_TO_NEW>(heap_, host, slot.address());
+      }
+    }
+
+   private:
+    const Heap* const heap_;
+  };
+
+  static void ProcessField(const Heap* heap, Tagged<HeapObject> host,
+                           ObjectSlot slot, auto dead_callback) {
+    Tagged<HeapObject> object = Cast<HeapObject>(slot.load());
+    DCHECK(!Heap::InFromPage(host));
+    if (Heap::InFromPage(object)) {
+      DCHECK(!IsUndefined(object));
+      if (IsUnscavengedHeapObject(object)) {
+        DCHECK(Object::CanBeHeldWeakly(object));
+        // The object is dead.
+        dead_callback(host, object);
+      } else {
+        // The object is alive.
+        MapWord map_word = object->map_word(kRelaxedLoad);
+        DCHECK(map_word.IsForwardingAddress());
+        Tagged<HeapObject> new_object = map_word.ToForwardingAddress(object);
+        DCHECK(!Heap::InFromPage(new_object));
+        // `host` is younger than `object`, but in rare cases
+        // `host` could be promoted to old gen while `object` remains in
+        // young gen. For such cases a write barrier is needed to update the
+        // old-to-new remembered set.
+        DCHECK(!HeapLayout::InWritableSharedSpace(new_object));
+        slot.store(new_object);
+        if (HeapObjectWillBeOld(heap, host)) {
+          if (V8_UNLIKELY(!HeapObjectWillBeOld(heap, new_object))) {
+            AddToRememberedSet<OLD_TO_NEW>(heap, host, slot.address());
+          } else if (V8_UNLIKELY(
+                         HeapLayout::InWritableSharedSpace(new_object))) {
+            AddToRememberedSet<OLD_TO_SHARED>(heap, host, slot.address());
+          }
+        }
+      }
+    }
+  }
+
+  static void ProcessJSWeakRefs(Heap* heap, JSWeakRefsList& js_weak_refs) {
+    const auto on_dead_target_callback = [heap](Tagged<HeapObject> host,
+                                                Tagged<HeapObject>) {
+      Cast<JSWeakRef>(host)->set_target(
+          ReadOnlyRoots(heap->isolate()).undefined_value(), SKIP_WRITE_BARRIER);
+    };
+
+    JSWeakRefsList::Local local_js_weak_refs(js_weak_refs);
+    Tagged<JSWeakRef> js_weak_ref;
+    while (local_js_weak_refs.Pop(&js_weak_ref)) {
+      ProcessField(heap, js_weak_ref,
+                   js_weak_ref->RawField(JSWeakRef::kTargetOffset),
+                   on_dead_target_callback);
+    }
+  }
+
+  static void ProcessWeakCells(Heap* heap, WeakCellsList& weak_cells) {
+    const auto on_slot_updated_callback = [heap](Tagged<HeapObject> object,
+                                                 ObjectSlot slot,
+                                                 Tagged<HeapObject> target) {
+      DCHECK(!IsUnscavengedHeapObject(target));
+      DCHECK(!HeapLayout::InWritableSharedSpace(target));
+      if (V8_UNLIKELY(HeapObjectWillBeOld(heap, object) &&
+                      !HeapObjectWillBeOld(heap, target))) {
+        AddToRememberedSet<OLD_TO_NEW>(heap, object, slot.address());
+      }
+    };
+    const auto on_dead_target_callback = [heap, on_slot_updated_callback](
+                                             Tagged<HeapObject> host,
+                                             Tagged<HeapObject>) {
+      Tagged<WeakCell> weak_cell = Cast<WeakCell>(host);
+      // The WeakCell is liove but its value is dead. WeakCell retains the
+      // JSFinalizationRegistry, so it's also guaranteed to be live.
+      Tagged<JSFinalizationRegistry> finalization_registry =
+          Cast<JSFinalizationRegistry>(weak_cell->finalization_registry());
+      if (!finalization_registry->scheduled_for_cleanup()) {
+        heap->EnqueueDirtyJSFinalizationRegistry(finalization_registry,
+                                                 on_slot_updated_callback,
+                                                 SKIP_WRITE_BARRIER_FOR_GC);
+      }
+      // We're modifying the pointers in WeakCell and JSFinalizationRegistry
+      // during GC; thus we need to record the slots it writes. The normal
+      // write barrier is not enough, since it's disabled before GC.
+      weak_cell->Nullify(heap->isolate(), on_slot_updated_callback);
+      DCHECK(finalization_registry->NeedsCleanup());
+      DCHECK(finalization_registry->scheduled_for_cleanup());
+    };
+    const auto on_dead_unregister_token_callback =
+        [heap, on_slot_updated_callback](
+            Tagged<HeapObject> host, Tagged<HeapObject> dead_unregister_token) {
+          Tagged<WeakCell> weak_cell = Cast<WeakCell>(host);
+          // The unregister token is dead. Remove any corresponding entries in
+          // the key map. Multiple WeakCell with the same token will have all
+          // their unregister_token field set to undefined when processing the
+          // first WeakCell. Like above, we're modifying pointers during GC, so
+          // record the slots.
+          Tagged<JSFinalizationRegistry> finalization_registry =
+              Cast<JSFinalizationRegistry>(weak_cell->finalization_registry());
+          finalization_registry->RemoveUnregisterToken(
+              dead_unregister_token, heap->isolate(),
+              JSFinalizationRegistry::kKeepMatchedCellsInRegistry,
+              on_slot_updated_callback, SKIP_WRITE_BARRIER_FOR_GC);
+        };
+
+    WeakCellsList::Local local_weak_cells(weak_cells);
+    Tagged<WeakCell> weak_cell;
+    while (local_weak_cells.Pop(&weak_cell)) {
+      ProcessField(heap, weak_cell, ObjectSlot(&weak_cell->target_),
+                   on_dead_target_callback);
+      ProcessField(heap, weak_cell, ObjectSlot(&weak_cell->unregister_token_),
+                   on_dead_unregister_token_callback);
+    }
+    heap->PostFinalizationRegistryCleanupTaskIfNeeded();
+  }
+};
+
+class Scavenger {
+ public:
+  static constexpr int kScavengedObjectListSegmentSize = 256;
+
+  struct ScavengedObjectListEntry {
+    Tagged<HeapObject> heap_object;
+    Tagged<Map> map;
+    SafeHeapObjectSize size;
+  };
+
+  using ScavengedObjectList =
+      ::heap::base::Worklist<ScavengedObjectListEntry,
+                             kScavengedObjectListSegmentSize>;
+
+  using EmptyChunksList = ::heap::base::Worklist<MutablePageMetadata*, 64>;
+
+  Scavenger(Heap* heap, bool is_logging, EmptyChunksList* empty_chunks,
+            ScavengedObjectList* copied_list,
+            ScavengedObjectList* promoted_list,
+            EphemeronRememberedSet::TableList* ephemeron_table_list,
+            ScavengerWeakObjectsProcessor::JSWeakRefsList* js_weak_refs_list,
+            ScavengerWeakObjectsProcessor::WeakCellsList* weak_cells_list,
+            bool should_handle_weak_objects_weakly);
+
+  // Entry point for scavenging an old generation page. For scavenging single
+  // objects see RootScavengingVisitor and ScavengerCopiedObjectVisitor below.
+  void ScavengePage(MutablePageMetadata* page);
+
+  // Processes remaining work (=objects) after single objects have been
+  // manually scavenged using ScavengeObject or CheckAndScavengeObject.
+  void Process(JobDelegate* delegate = nullptr);
+
+  // Finalize the Scavenger. Needs to be called from the main thread.
+  void Finalize(
+      std::vector<SurvivingNewLargeObjectsMap>& surviving_new_large_objects);
+  void Publish();
+
+  void AddEphemeronHashTable(Tagged<EphemeronHashTable> table);
+
+  // Returns true if the object is a large young object, and false otherwise.
+  bool PromoteIfLargeObject(Tagged<HeapObject> object);
+
+  void PinAndPushObject(MutablePageMetadata* metadata,
+                        Tagged<HeapObject> object, MapWord map_word);
+
+  size_t bytes_copied() const { return copied_size_; }
+  size_t bytes_promoted() const { return promoted_size_; }
+
+ private:
+  enum PromotionHeapChoice { kPromoteIntoLocalHeap, kPromoteIntoSharedHeap };
+
+  // Number of objects to process before interrupting for potentially waking
+  // up other tasks.
+  static const int kInterruptThreshold = 128;
+
+  inline Heap* heap() { return heap_; }
+
+  inline void SynchronizePageAccess(Tagged<MaybeObject> object) const;
+
+  void AddPageToSweeperIfNecessary(MutablePageMetadata* page);
+
+  // Potentially scavenges an object referenced from |slot| if it is
+  // indeed a HeapObject and resides in from space.
+  template <typename TSlot>
+  inline SlotCallbackResult CheckAndScavengeObject(Heap* heap, TSlot slot);
+
+  template <typename TSlot>
+  inline void CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
+                                                MutablePageMetadata* page,
+                                                TSlot slot);
+  inline void CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
+                                              MutablePageMetadata* page,
+                                              SlotType slot_type,
+                                              Address slot_address,
+                                              Tagged<MaybeObject> new_target);
+
+  // Scavenges an object |object| referenced from slot |p|. |object| is required
+  // to be in from space.
+  template <typename THeapObjectSlot>
+  inline SlotCallbackResult ScavengeObject(THeapObjectSlot p,
+                                           Tagged<HeapObject> object);
+
+  // Tries to allocate a new target and migrate `object` over to it. Returns
+  // false if the space could not be allocated. Will return true if the object
+  // was migrated and the `slot` was updated, independent of whether this
+  // migrate operation copied the object or some other racing operation
+  // succeeded.
+  template <typename THeapObjectSlot, typename OnSuccessCallback>
+  V8_INLINE bool TryMigrateObject(Tagged<Map> map, THeapObjectSlot slot,
+                                  Tagged<HeapObject> object,
+                                  SafeHeapObjectSize object_size,
+                                  AllocationSpace space,
+                                  OnSuccessCallback on_success);
+
+  template <typename THeapObjectSlot>
+  V8_INLINE bool SemiSpaceCopyObject(Tagged<Map> map, THeapObjectSlot slot,
+                                     Tagged<HeapObject> object,
+                                     SafeHeapObjectSize object_size,
+                                     ObjectFields object_fields);
+
+  template <typename THeapObjectSlot,
+            PromotionHeapChoice promotion_heap_choice = kPromoteIntoLocalHeap>
+  V8_INLINE bool PromoteObject(Tagged<Map> map, THeapObjectSlot slot,
+                               Tagged<HeapObject> object,
+                               SafeHeapObjectSize object_size,
+                               ObjectFields object_fields);
+
+  template <typename THeapObjectSlot>
+  V8_INLINE SlotCallbackResult EvacuateObject(THeapObjectSlot slot,
+                                              Tagged<Map> map,
+                                              Tagged<HeapObject> source);
+
+  V8_INLINE bool HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
+                                   SafeHeapObjectSize object_size,
+                                   ObjectFields object_fields);
+
+  // Different cases for object evacuation.
+  template <typename THeapObjectSlot,
+            PromotionHeapChoice promotion_heap_choice = kPromoteIntoLocalHeap>
+  V8_INLINE SlotCallbackResult EvacuateObjectDefault(
+      Tagged<Map> map, THeapObjectSlot slot, Tagged<HeapObject> object,
+      SafeHeapObjectSize object_size, ObjectFields object_fields);
+
+  template <typename THeapObjectSlot>
+  inline SlotCallbackResult EvacuateThinString(Tagged<Map> map,
+                                               THeapObjectSlot slot,
+                                               Tagged<ThinString> object,
+                                               SafeHeapObjectSize object_size);
+
+  template <typename THeapObjectSlot>
+  inline SlotCallbackResult EvacuateShortcutCandidate(
+      Tagged<Map> map, THeapObjectSlot slot, Tagged<ConsString> object,
+      SafeHeapObjectSize object_size);
+
+  template <typename THeapObjectSlot>
+  inline SlotCallbackResult EvacuateInPlaceInternalizableString(
+      Tagged<Map> map, THeapObjectSlot slot, Tagged<String> string,
+      SafeHeapObjectSize object_size, ObjectFields object_fields);
+
+  void RememberPromotedEphemeron(Tagged<EphemeronHashTable> table, int index);
+
+  V8_INLINE bool ShouldEagerlyProcessPromotedList() const;
+
+  void PushPinnedObject(Tagged<HeapObject> object, Tagged<Map> map,
+                        SafeHeapObjectSize object_size);
+  void PushPinnedPromotedObject(Tagged<HeapObject> object, Tagged<Map> map,
+                                SafeHeapObjectSize object_size);
+
+  V8_INLINE bool ShouldHandleWeakObjectsWeakly() const {
+    return should_handle_weak_objects_weakly_;
+  }
+  template <ObjectAge>
+  V8_INLINE bool ShouldRecordWeakObject(Tagged<HeapObject> host,
+                                        ObjectSlot slot);
+  template <ObjectAge>
+  void RecordJSWeakRefIfNeeded(Tagged<JSWeakRef> js_weak_ref);
+  template <ObjectAge>
+  void RecordWeakCellIfNeeded(Tagged<WeakCell> weak_cell);
+
+  bool ShouldBePromoted(Address object_address);
+
+  Heap* const heap_;
+  EmptyChunksList::Local local_empty_chunks_;
+  ScavengedObjectList::Local local_copied_list_;
+  ScavengedObjectList::Local local_promoted_list_;
+  EphemeronRememberedSet::TableList::Local local_ephemeron_table_list_;
+  ScavengerWeakObjectsProcessor::JSWeakRefsList::Local local_js_weak_refs_list_;
+  ScavengerWeakObjectsProcessor::WeakCellsList::Local local_weak_cells_list_;
+  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
+  EphemeronRememberedSet::TableMap local_ephemeron_remembered_set_;
+  SurvivingNewLargeObjectsMap local_surviving_new_large_objects_;
+  size_t copied_size_{0};
+  size_t promoted_size_{0};
+  EvacuationAllocator allocator_;
+  std::optional<base::RandomNumberGenerator> rng_;
+
+  const bool is_logging_;
+  const bool shared_string_table_;
+  const bool mark_shared_heap_;
+  const bool shortcut_strings_;
+  const bool should_handle_weak_objects_weakly_;
+
+  friend class RootScavengeVisitor;
+  template <typename ConcreteVisitor, ObjectAge>
+  friend class ScavengerObjectVisitorBase;
+  friend class ScavengerCopiedObjectVisitor;
+  friend class ScavengerPromotedObjectVisitor;
+};
 
 template <typename ConcreteVisitor, ObjectAge kExpectedObjectAge>
 class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
@@ -108,11 +498,9 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
   V8_INLINE void VisitCustomWeakPointers(Tagged<HeapObject> host,
                                          ObjectSlot start,
                                          ObjectSlot end) override {
-    DCHECK(GCAwareObjectTypeCheck<JSWeakRef>(host, scavenger_->heap_) ||
-           GCAwareObjectTypeCheck<WeakCell>(host, scavenger_->heap_) ||
-           GCAwareObjectTypeCheck<JSFinalizationRegistry>(host,
-                                                          scavenger_->heap_));
-    if (v8_flags.handle_weak_ref_weakly_in_minor_gc) {
+    if (scavenger_->ShouldHandleWeakObjectsWeakly()) {
+      DCHECK(IsJSWeakRef(host) || IsWeakCell(host) ||
+             IsJSFinalizationRegistry(host));
       return;
     }
     // Strongify the weak pointers.
@@ -291,13 +679,15 @@ class ScavengerPromotedObjectVisitor final
       USE(success);
       DCHECK(success);
 
+      DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
       if (result == KEEP_SLOT) {
         SLOW_DCHECK(IsHeapObject(target));
+        DCHECK(!HeapLayout::InWritableSharedSpace(target));
         // Sweeper is stopped during scavenge, so we can directly
         // insert into its remembered set here.
         AddToRememberedSet<OLD_TO_NEW>(heap_, host, slot.address());
+        return;
       }
-      DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
     }
 
     if (HeapLayout::InWritableSharedSpace(target)) {
@@ -310,28 +700,48 @@ class ScavengerPromotedObjectVisitor final
   friend class Scavenger;
 };
 
-namespace {
+class ScavengerJobTask : public v8::JobTask {
+ public:
+  ScavengerJobTask(
+      Heap* heap, std::vector<std::unique_ptr<Scavenger>>* scavengers,
+      std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
+          old_to_new_chunks,
+      const Scavenger::ScavengedObjectList& copied_list,
+      const Scavenger::ScavengedObjectList& promoted_list,
+      std::atomic<size_t>& estimate_concurrency);
 
-V8_INLINE bool IsUnscavengedHeapObject(Tagged<Object> object) {
-  return Heap::InFromPage(object) && !Cast<HeapObject>(object)
-                                          ->map_word(kRelaxedLoad)
-                                          .IsForwardingAddress();
-}
+  void Run(JobDelegate* delegate) override;
+  size_t GetMaxConcurrency(size_t worker_count) const override;
 
-bool IsUnscavengedHeapObjectSlot(Heap* heap, FullObjectSlot p) {
-  return IsUnscavengedHeapObject(*p);
-}
+  uint64_t trace_id() const { return trace_id_; }
 
-}  // namespace
+ private:
+  void ProcessItems(JobDelegate* delegate, Scavenger* scavenger);
+  void ConcurrentScavengePages(Scavenger* scavenger);
 
-ScavengerCollector::JobTask::JobTask(
-    ScavengerCollector* collector,
-    std::vector<std::unique_ptr<Scavenger>>* scavengers,
+  Heap* const heap_;
+
+  std::vector<std::unique_ptr<Scavenger>>* scavengers_;
+  std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
+      old_to_new_chunks_;
+  std::atomic<size_t> remaining_memory_chunks_{0};
+  IndexGenerator generator_;
+
+  const Scavenger::ScavengedObjectList& copied_list_;
+  const Scavenger::ScavengedObjectList& promoted_list_;
+
+  const uint64_t trace_id_;
+  std::atomic<size_t>& estimate_concurrency_;
+};
+
+ScavengerJobTask::ScavengerJobTask(
+    Heap* heap, std::vector<std::unique_ptr<Scavenger>>* scavengers,
     std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
         old_to_new_chunks,
     const Scavenger::ScavengedObjectList& copied_list,
-    const Scavenger::ScavengedObjectList& promoted_list)
-    : collector_(collector),
+    const Scavenger::ScavengedObjectList& promoted_list,
+    std::atomic<size_t>& estimate_concurrency)
+    : heap_(heap),
       scavengers_(scavengers),
       old_to_new_chunks_(std::move(old_to_new_chunks)),
       remaining_memory_chunks_(old_to_new_chunks_.size()),
@@ -339,48 +749,47 @@ ScavengerCollector::JobTask::JobTask(
       copied_list_(copied_list),
       promoted_list_(promoted_list),
       trace_id_(reinterpret_cast<uint64_t>(this) ^
-                collector_->heap_->tracer()->CurrentEpoch(
-                    GCTracer::Scope::SCAVENGER)) {}
+                heap_->tracer()->CurrentEpoch(GCTracer::Scope::SCAVENGER)),
+      estimate_concurrency_(estimate_concurrency) {}
 
-void ScavengerCollector::JobTask::Run(JobDelegate* delegate) {
+void ScavengerJobTask::Run(JobDelegate* delegate) {
   DCHECK_LT(delegate->GetTaskId(), scavengers_->size());
   // Set the current isolate such that trusted pointer tables etc are
   // available and the cage base is set correctly for multi-cage mode.
-  SetCurrentIsolateScope isolate_scope(collector_->heap_->isolate());
+  SetCurrentIsolateScope isolate_scope(heap_->isolate());
 
-  collector_->estimate_concurrency_.fetch_add(1, std::memory_order_relaxed);
+  estimate_concurrency_.fetch_add(1, std::memory_order_relaxed);
 
   Scavenger* scavenger = (*scavengers_)[delegate->GetTaskId()].get();
   if (delegate->IsJoiningThread()) {
-    TRACE_GC_WITH_FLOW(collector_->heap_->tracer(),
+    TRACE_GC_WITH_FLOW(heap_->tracer(),
                        GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL, trace_id_,
                        TRACE_EVENT_FLAG_FLOW_IN);
     ProcessItems(delegate, scavenger);
   } else {
     TRACE_GC_EPOCH_WITH_FLOW(
-        collector_->heap_->tracer(),
+        heap_->tracer(),
         GCTracer::Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL,
         ThreadKind::kBackground, trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
     ProcessItems(delegate, scavenger);
   }
 }
 
-size_t ScavengerCollector::JobTask::GetMaxConcurrency(
-    size_t worker_count) const {
+size_t ScavengerJobTask::GetMaxConcurrency(size_t worker_count) const {
   // We need to account for local segments held by worker_count in addition to
   // GlobalPoolSize() of copied_list_, pinned_list_ and promoted_list_.
   size_t wanted_num_workers = std::max<size_t>(
       remaining_memory_chunks_.load(std::memory_order_relaxed),
       worker_count + copied_list_.Size() + promoted_list_.Size());
-  if (!collector_->heap_->ShouldUseBackgroundThreads() ||
-      collector_->heap_->ShouldOptimizeForBattery()) {
+  if (!heap_->ShouldUseBackgroundThreads() ||
+      heap_->ShouldOptimizeForBattery()) {
     return std::min<size_t>(wanted_num_workers, 1);
   }
   return std::min<size_t>(scavengers_->size(), wanted_num_workers);
 }
 
-void ScavengerCollector::JobTask::ProcessItems(JobDelegate* delegate,
-                                               Scavenger* scavenger) {
+void ScavengerJobTask::ProcessItems(JobDelegate* delegate,
+                                    Scavenger* scavenger) {
   double scavenging_time = 0.0;
   {
     TimedScope scope(&scavenging_time);
@@ -389,15 +798,14 @@ void ScavengerCollector::JobTask::ProcessItems(JobDelegate* delegate,
     scavenger->Process(delegate);
   }
   if (V8_UNLIKELY(v8_flags.trace_parallel_scavenge)) {
-    PrintIsolate(collector_->heap_->isolate(),
+    PrintIsolate(heap_->isolate(),
                  "scavenge[%p]: time=%.2f copied=%zu promoted=%zu\n",
                  static_cast<void*>(this), scavenging_time,
                  scavenger->bytes_copied(), scavenger->bytes_promoted());
   }
 }
 
-void ScavengerCollector::JobTask::ConcurrentScavengePages(
-    Scavenger* scavenger) {
+void ScavengerJobTask::ConcurrentScavengePages(Scavenger* scavenger) {
   while (remaining_memory_chunks_.load(std::memory_order_relaxed) > 0) {
     std::optional<size_t> index = generator_.GetNext();
     if (!index) {
@@ -417,8 +825,87 @@ void ScavengerCollector::JobTask::ConcurrentScavengePages(
   }
 }
 
+struct PinnedObjectEntry {
+  Address address;
+  MapWord map_word;
+  SafeHeapObjectSize size;
+  MutablePageMetadata* metadata;
+};
+using PinnedObjects = std::vector<PinnedObjectEntry>;
+
+// Quarantined pages must be swept before the next GC. If the next GC uses
+// conservative scanning and encounters a stale object left over from a
+// previous GC, this can result in memory corruptions.
+class ScavengerCollector::QuarantinedPageSweeper {
+ public:
+  explicit QuarantinedPageSweeper(Heap* heap) : heap_(heap) {}
+  ~QuarantinedPageSweeper() {
+    if (IsSweeping()) {
+      FinishSweeping();
+    }
+  }
+
+  void StartSweeping(const PinnedObjects&& pinned_objects);
+  void FinishSweeping();
+  bool IsSweeping() const {
+    DCHECK_IMPLIES(job_handle_, job_handle_->IsValid());
+    return job_handle_.get();
+  }
+
+ private:
+  class JobTask : public v8::JobTask {
+   public:
+    JobTask(Heap* heap, const PinnedObjects&& pinned_objects);
+    ~JobTask() {
+      DCHECK(is_done_.load(std::memory_order_relaxed));
+      DCHECK(pinned_object_per_page_.empty());
+      DCHECK(pinned_objects_.empty());
+    }
+
+    void Run(JobDelegate* delegate) override;
+
+    size_t GetMaxConcurrency(size_t worker_count) const override {
+      return is_done_.load(std::memory_order_relaxed) ? 0 : 1;
+    }
+
+    uint64_t trace_id() const { return trace_id_; }
+
+   private:
+    using ObjectsAndSizes = std::vector<std::pair<Address, size_t>>;
+    using PinnedObjectPerPage =
+        std::unordered_map<MemoryChunk*, ObjectsAndSizes,
+                           base::hash<MemoryChunk*>>;
+    using FreeSpaceHandler = std::function<void(Heap*, Address, size_t, bool)>;
+    static void CreateFillerFreeSpaceHandler(Heap* heap, Address address,
+                                             size_t size, bool should_zap);
+    static void AddToFreeListFreeSpaceHandler(Heap* heap, Address address,
+                                              size_t size, bool should_zap);
+
+    size_t SweepPage(FreeSpaceHandler free_space_handler, MemoryChunk* chunk,
+                     PageMetadata* page,
+                     ObjectsAndSizes& pinned_objects_on_page);
+    void CreateFillerFreeHandler(Address address, size_t size);
+
+    Heap* const heap_;
+    const uint64_t trace_id_;
+    const bool should_zap_;
+    PinnedObjects pinned_objects_;
+
+    std::atomic_bool is_done_{false};
+    PinnedObjectPerPage pinned_object_per_page_;
+    PinnedObjectPerPage::iterator next_page_iterator_;
+  };
+
+  Heap* const heap_;
+  std::unique_ptr<JobHandle> job_handle_;
+};
+
 ScavengerCollector::ScavengerCollector(Heap* heap)
-    : isolate_(heap->isolate()), heap_(heap), quarantined_page_sweeper_(heap) {}
+    : heap_(heap),
+      quarantined_page_sweeper_(
+          std::make_unique<QuarantinedPageSweeper>(heap)) {}
+
+ScavengerCollector::~ScavengerCollector() = default;
 
 namespace {
 
@@ -579,7 +1066,7 @@ template <typename ConcreteVisitor>
 class ObjectPinningVisitorBase : public RootVisitor {
  public:
   ObjectPinningVisitorBase(const Heap* heap, Scavenger& scavenger,
-                           ScavengerCollector::PinnedObjects& pinned_objects)
+                           PinnedObjects& pinned_objects)
       : RootVisitor(),
         heap_(heap),
         scavenger_(scavenger),
@@ -623,11 +1110,10 @@ class ObjectPinningVisitorBase : public RootVisitor {
     Address object_address = object.address();
     MapWord map_word = object->map_word(kRelaxedLoad);
     DCHECK(!map_word.IsForwardingAddress());
-    DCHECK(std::all_of(
-        pinned_objects_.begin(), pinned_objects_.end(),
-        [object_address](ScavengerCollector::PinnedObjectEntry& entry) {
-          return entry.address != object_address;
-        }));
+    DCHECK(std::all_of(pinned_objects_.begin(), pinned_objects_.end(),
+                       [object_address](PinnedObjectEntry& entry) {
+                         return entry.address != object_address;
+                       }));
     const auto object_size = object->SafeSizeFromMap(map_word.ToMap());
     DCHECK_LT(0, object_size.value());
     pinned_objects_.push_back(
@@ -645,15 +1131,14 @@ class ObjectPinningVisitorBase : public RootVisitor {
  private:
   const Heap* const heap_;
   Scavenger& scavenger_;
-  ScavengerCollector::PinnedObjects& pinned_objects_;
+  PinnedObjects& pinned_objects_;
 };
 
 class ConservativeObjectPinningVisitor final
     : public ObjectPinningVisitorBase<ConservativeObjectPinningVisitor> {
  public:
-  ConservativeObjectPinningVisitor(
-      const Heap* heap, Scavenger& scavenger,
-      ScavengerCollector::PinnedObjects& pinned_objects)
+  ConservativeObjectPinningVisitor(const Heap* heap, Scavenger& scavenger,
+                                   PinnedObjects& pinned_objects)
       : ObjectPinningVisitorBase<ConservativeObjectPinningVisitor>(
             heap, scavenger, pinned_objects) {}
 
@@ -669,7 +1154,7 @@ class PreciseObjectPinningVisitor final
     : public ObjectPinningVisitorBase<PreciseObjectPinningVisitor> {
  public:
   PreciseObjectPinningVisitor(const Heap* heap, Scavenger& scavenger,
-                              ScavengerCollector::PinnedObjects& pinned_objects)
+                              PinnedObjects& pinned_objects)
       : ObjectPinningVisitorBase<PreciseObjectPinningVisitor>(heap, scavenger,
                                                               pinned_objects) {}
 
@@ -733,9 +1218,8 @@ class TreatConservativelyVisitor final : public RootVisitor {
   double stressing_threshold_;
 };
 
-void RestorePinnedObjects(
-    SemiSpaceNewSpace& new_space,
-    const ScavengerCollector::PinnedObjects& pinned_objects) {
+void RestorePinnedObjects(SemiSpaceNewSpace& new_space,
+                          const PinnedObjects& pinned_objects) {
   // Restore the maps of quarantined objects. We use the iteration over
   // quarantined objects to split them based on pages. This will be used below
   // for sweeping the quarantined pages (since there are no markbits).
@@ -921,7 +1405,7 @@ size_t ScavengerCollector::QuarantinedPageSweeper::JobTask::SweepPage(
 }
 
 void ScavengerCollector::QuarantinedPageSweeper::StartSweeping(
-    const ScavengerCollector::PinnedObjects&& pinned_objects) {
+    const PinnedObjects&& pinned_objects) {
   DCHECK_NULL(job_handle_);
   DCHECK(!pinned_objects.empty());
   auto job = std::make_unique<JobTask>(heap_, std::move(pinned_objects));
@@ -936,11 +1420,183 @@ void ScavengerCollector::QuarantinedPageSweeper::FinishSweeping() {
   job_handle_.reset();
 }
 
-void ScavengerCollector::CollectGarbage() {
-  ScopedFullHeapCrashKey collect_full_heap_dump_if_crash(isolate_);
+// Helper class for turning the scavenger into an object visitor that is also
+// filtering out non-HeapObjects and objects which do not reside in new space.
+class RootScavengeVisitor final : public RootVisitor {
+ public:
+  explicit RootScavengeVisitor(Scavenger& scavenger);
+  ~RootScavengeVisitor() final;
 
-  DCHECK(surviving_new_large_objects_.empty());
-  DCHECK(!quarantined_page_sweeper_.IsSweeping());
+  void VisitRootPointer(Root root, const char* description,
+                        FullObjectSlot p) final;
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) final;
+
+ private:
+  void ScavengePointer(FullObjectSlot p);
+
+  Scavenger& scavenger_;
+};
+
+class ScavengerEphemeronProcessor final {
+ public:
+  static void Process(Heap* heap,
+                      EphemeronRememberedSet::TableList* ephemeron_table_list) {
+    ClearYoungEphemerons(ephemeron_table_list);
+    ClearOldEphemerons(heap);
+  }
+
+ private:
+  // Clear ephemeron entries from EphemeronHashTables in new-space whenever the
+  // entry has a dead new-space key.
+  static void ClearYoungEphemerons(
+      EphemeronRememberedSet::TableList* ephemeron_table_list) {
+    ephemeron_table_list->Iterate([](Tagged<EphemeronHashTable> table) {
+      for (InternalIndex i : table->IterateEntries()) {
+        // Keys in EphemeronHashTables must be heap objects.
+        HeapObjectSlot key_slot(
+            table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i)));
+        Tagged<HeapObject> key = key_slot.ToHeapObject();
+        // If the key is not in the from page, it's not being scavenged.
+        if (!Heap::InFromPage(key)) continue;
+        // Checking whether an object is a hole without static roots requires a
+        // valid MapWord which is not guaranteed here in case we are looking at
+        // a forward pointer.
+        DCHECK_IMPLIES(v8_flags.unmap_holes, !IsAnyHole(key));
+        MapWord map_word = key->map_word(kRelaxedLoad);
+        if (!map_word.IsForwardingAddress()) {
+          // If the key is not forwarded, then it's dead.
+          DCHECK(IsUnscavengedHeapObject(key));
+          table->RemoveEntry(i);
+        } else {
+          // Otherwise, we need to update the key slot to the forwarded address.
+          DCHECK(!IsUnscavengedHeapObject(key));
+          key_slot.StoreHeapObject(map_word.ToForwardingAddress(key));
+        }
+      }
+    });
+    ephemeron_table_list->Clear();
+  }
+
+  // Clear ephemeron entries from EphemeronHashTables in old-space whenever the
+  // entry has a dead new-space key.
+  static void ClearOldEphemerons(Heap* heap) {
+    auto* table_map = heap->ephemeron_remembered_set()->tables();
+    for (auto it = table_map->begin(); it != table_map->end();) {
+      Tagged<EphemeronHashTable> table = it->first;
+      auto& indices = it->second;
+      for (auto iti = indices.begin(); iti != indices.end();) {
+        // Keys in EphemeronHashTables must be heap objects.
+        HeapObjectSlot key_slot(table->RawFieldOfElementAt(
+            EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
+        Tagged<HeapObject> key = key_slot.ToHeapObject();
+        // If the key is not young, we don't need it in the remembered set.
+        if (!HeapLayout::InYoungGeneration(key)) {
+          iti = indices.erase(iti);
+        }
+        // If the key is not in the from page, it's not being scavenged.
+        if (!Heap::InFromPage(key)) continue;
+        // Checking whether an object is a hole without static roots requires a
+        // valid MapWord which is not guaranteed here in case we are looking at
+        // a forward pointer.
+        DCHECK_IMPLIES(v8_flags.unmap_holes, !IsAnyHole(key));
+        MapWord map_word = key->map_word(kRelaxedLoad);
+        DCHECK_IMPLIES(Heap::InToPage(key), !map_word.IsForwardingAddress());
+        if (!map_word.IsForwardingAddress()) {
+          // If the key is not forwarded, then it's dead.
+          DCHECK(IsUnscavengedHeapObject(key));
+          table->RemoveEntry(InternalIndex(*iti));
+          iti = indices.erase(iti);
+        } else {
+          // Otherwise, we need to update the key slot to the forwarded address.
+          DCHECK(!IsUnscavengedHeapObject(key));
+          Tagged<HeapObject> forwarded = map_word.ToForwardingAddress(key);
+          key_slot.StoreHeapObject(forwarded);
+          if (!HeapLayout::InYoungGeneration(forwarded)) {
+            // If the key was promoted out of new space, we don't need to keep
+            // it in the remembered set.
+            iti = indices.erase(iti);
+          } else {
+            ++iti;
+          }
+        }
+      }
+
+      if (indices.empty()) {
+        it = table_map->erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+};
+
+namespace {
+
+void SweepArrayBufferExtensions(Heap* heap) {
+  DCHECK_EQ(0, heap->new_lo_space()->Size());
+  heap->array_buffer_sweeper()->RequestSweep(
+      ArrayBufferSweeper::SweepingType::kYoung,
+      (heap->new_space()->SizeOfObjects() == 0)
+          ? ArrayBufferSweeper::TreatAllYoungAsPromoted::kYes
+          : ArrayBufferSweeper::TreatAllYoungAsPromoted::kNo);
+}
+
+int NumberOfScavengeTasks(Heap* heap) {
+  // The maximum number of scavenger tasks including the main thread. The actual
+  // number of tasks is determined at runtime.
+  static constexpr int kMaxScavengerTasks = 8;
+
+  if (!v8_flags.parallel_scavenge) {
+    return 1;
+  }
+  const int num_scavenge_tasks =
+      static_cast<int>(
+          SemiSpaceNewSpace::From(heap->new_space())->TotalCapacity()) /
+          MB +
+      1;
+  static int num_cores = V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1;
+  int tasks = std::max(
+      1, std::min({num_scavenge_tasks, kMaxScavengerTasks, num_cores}));
+  if (!heap->CanPromoteYoungAndExpandOldGeneration(
+          static_cast<size_t>(tasks * PageMetadata::kPageSize))) {
+    // Optimize for memory usage near the heap limit.
+    tasks = 1;
+  }
+  return tasks;
+}
+
+void HandleSurvivingNewLargeObjects(
+    Heap* heap, const std::vector<SurvivingNewLargeObjectsMap>
+                    surviving_new_large_objects) {
+  DCHECK(!heap->incremental_marking()->IsMarking());
+
+  for (const auto& surviving_object_map : surviving_new_large_objects) {
+    for (const auto& update_info : surviving_object_map) {
+      Tagged<HeapObject> object = update_info.first;
+      Tagged<Map> map = update_info.second;
+      DCHECK(HeapLayout::IsSelfForwarded(object));
+      // Order is important here. We have to re-install the map to have access
+      // to meta-data like size during page promotion.
+      object->set_map_word(map, kRelaxedStore);
+
+      LargePageMetadata* page =
+          LargePageMetadata::FromHeapObject(heap->isolate(), object);
+      SBXCHECK(page->is_large());
+      SBXCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
+      heap->lo_space()->PromoteNewLargeObject(page);
+    }
+  }
+  heap->new_lo_space()->set_objects_size(0);
+}
+
+}  // namespace
+
+void ScavengerCollector::CollectGarbage() {
+  Isolate* const isolate = heap_->isolate();
+  ScopedFullHeapCrashKey collect_full_heap_dump_if_crash(isolate);
+
+  DCHECK(!quarantined_page_sweeper_->IsSweeping());
 
   SemiSpaceNewSpace* new_space = SemiSpaceNewSpace::From(heap_->new_space());
   new_space->GarbageCollectionPrologue();
@@ -957,27 +1613,39 @@ void ScavengerCollector::CollectGarbage() {
   Scavenger::ScavengedObjectList copied_list;
   Scavenger::ScavengedObjectList promoted_list;
   EphemeronRememberedSet::TableList ephemeron_table_list;
-  Scavenger::JSWeakRefsList js_weak_refs_list;
-  Scavenger::WeakCellsList weak_cells_list;
+  ScavengerWeakObjectsProcessor::JSWeakRefsList js_weak_refs_list;
+  ScavengerWeakObjectsProcessor::WeakCellsList weak_cells_list;
 
   PinnedObjects pinned_objects;
 
-  const int num_scavenge_tasks = NumberOfScavengeTasks();
-  std::vector<std::unique_ptr<Scavenger>> scavengers;
+  const Heap::StackScanMode stack_scan_mode =
+      heap_->ConservativeStackScanningModeForMinorGC();
+  const bool is_using_conservative_stack_scanning =
+      stack_scan_mode != Heap::StackScanMode::kNone && heap_->IsGCWithStack();
+  const bool is_using_precise_pinning =
+      heap_->ShouldUsePrecisePinningForMinorGC();
+  const bool should_handle_weak_objects_weakly =
+      v8_flags.handle_weak_ref_weakly_in_minor_gc &&
+      !is_using_conservative_stack_scanning && !is_using_precise_pinning;
 
-  const bool is_logging = isolate_->log_object_relocation();
+  const int num_scavenge_tasks = NumberOfScavengeTasks(heap_);
+  std::vector<std::unique_ptr<Scavenger>> scavengers;
+  scavengers.reserve(num_scavenge_tasks);
+
+  const bool is_logging = isolate->log_object_relocation();
   for (int i = 0; i < num_scavenge_tasks; ++i) {
-    scavengers.emplace_back(new Scavenger(
-        this, heap_, is_logging, &empty_chunks, &copied_list, &promoted_list,
-        &ephemeron_table_list, &js_weak_refs_list, &weak_cells_list));
+    scavengers.emplace_back(std::make_unique<Scavenger>(
+        heap_, is_logging, &empty_chunks, &copied_list, &promoted_list,
+        &ephemeron_table_list, &js_weak_refs_list, &weak_cells_list,
+        should_handle_weak_objects_weakly));
   }
-  Scavenger& main_thread_scavenger = *scavengers[kMainThreadId].get();
+  Scavenger& main_thread_scavenger = *scavengers[0].get();
 
   {
     // Identify weak unmodified handles. Requires an unmodified graph.
     TRACE_GC(heap_->tracer(),
              GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY);
-    isolate_->traced_handles()->ComputeWeaknessForYoungObjects();
+    isolate->traced_handles()->ComputeWeaknessForYoungObjects();
   }
 
   std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
@@ -998,10 +1666,7 @@ void ScavengerCollector::CollectGarbage() {
           }
         });
 
-    const Heap::StackScanMode stack_scan_mode =
-        heap_->ConservativeStackScanningModeForMinorGC();
-    if (stack_scan_mode != Heap::StackScanMode::kNone &&
-        heap_->IsGCWithStack()) {
+    if (is_using_conservative_stack_scanning) {
       // Pinning objects must be the first step and must happen before
       // scavenging any objects. Specifically we must all pin all objects
       // before visiting other pinned objects. If we scavenge some object X
@@ -1016,7 +1681,7 @@ void ScavengerCollector::CollectGarbage() {
       // start bitmap. Stack scanning will incrementally build the map as it
       // searches through pages.
       YoungGenerationConservativeStackVisitor stack_visitor(
-          isolate_, &conservative_pinning_visitor);
+          isolate, &conservative_pinning_visitor);
       // Marker was already set by Heap::CollectGarbage.
       heap_->IterateConservativeStackRoots(&stack_visitor, stack_scan_mode);
       if (V8_UNLIKELY(v8_flags.stress_scavenger_conservative_object_pinning)) {
@@ -1024,8 +1689,7 @@ void ScavengerCollector::CollectGarbage() {
         heap_->IterateRootsForPrecisePinning(&handles_visitor);
       }
     }
-    const bool is_using_precise_pinning =
-        heap_->ShouldUsePrecisePinningForMinorGC();
+
     if (is_using_precise_pinning) {
       PreciseObjectPinningVisitor precise_pinning_visitor(
           heap_, main_thread_scavenger, pinned_objects);
@@ -1047,19 +1711,19 @@ void ScavengerCollector::CollectGarbage() {
     RootScavengeVisitor root_scavenge_visitor(main_thread_scavenger);
 
     heap_->IterateRoots(&root_scavenge_visitor, options);
-    isolate_->global_handles()->IterateYoungStrongAndDependentRoots(
+    isolate->global_handles()->IterateYoungStrongAndDependentRoots(
         &root_scavenge_visitor);
-    isolate_->traced_handles()->IterateYoungRoots(&root_scavenge_visitor);
+    isolate->traced_handles()->IterateYoungRoots(&root_scavenge_visitor);
   }
   {
     // Parallel phase scavenging all copied and promoted objects.
     TRACE_GC_ARG1(heap_->tracer(),
                   GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL_PHASE,
                   "UseBackgroundThreads", heap_->ShouldUseBackgroundThreads());
-
-    auto job = std::make_unique<JobTask>(this, &scavengers,
-                                         std::move(old_to_new_chunks),
-                                         copied_list, promoted_list);
+    std::atomic<size_t> estimate_concurrency{0};
+    auto job = std::make_unique<ScavengerJobTask>(
+        heap_, &scavengers, std::move(old_to_new_chunks), copied_list,
+        promoted_list, estimate_concurrency);
     TRACE_GC_NOTE_WITH_FLOW("Parallel scavenge started", job->trace_id(),
                             TRACE_EVENT_FLAG_FLOW_OUT);
     V8::GetCurrentPlatform()
@@ -1067,6 +1731,11 @@ void ScavengerCollector::CollectGarbage() {
         ->Join();
     DCHECK(copied_list.IsEmpty());
     DCHECK(promoted_list.IsEmpty());
+
+    size_t estimated_concurrency =
+        estimate_concurrency.load(std::memory_order_relaxed);
+    heap_->tracer()->SampleConcurrencyEsimate(
+        estimated_concurrency == 0 ? 1 : estimated_concurrency);
   }
 
   {
@@ -1074,9 +1743,9 @@ void ScavengerCollector::CollectGarbage() {
     TRACE_GC(heap_->tracer(),
              GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
     GlobalHandlesWeakRootsUpdatingVisitor visitor;
-    isolate_->global_handles()->ProcessWeakYoungObjects(
+    isolate->global_handles()->ProcessWeakYoungObjects(
         &visitor, &IsUnscavengedHeapObjectSlot);
-    isolate_->traced_handles()->ProcessWeakYoungObjects(
+    isolate->traced_handles()->ProcessWeakYoungObjects(
         &visitor, &IsUnscavengedHeapObjectSlot);
   }
 
@@ -1084,10 +1753,9 @@ void ScavengerCollector::CollectGarbage() {
     // Finalize parallel scavenging.
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_FINALIZE);
 
-    DCHECK(surviving_new_large_objects_.empty());
-
+    std::vector<SurvivingNewLargeObjectsMap> surviving_new_large_objects;
     for (auto& scavenger : scavengers) {
-      scavenger->Finalize();
+      scavenger->Finalize(surviving_new_large_objects);
     }
     scavengers.clear();
 
@@ -1095,14 +1763,12 @@ void ScavengerCollector::CollectGarbage() {
     // Sweep the external pointer table.
     DCHECK(heap_->concurrent_marking()->IsStopped());
     DCHECK(!heap_->incremental_marking()->IsMajorMarking());
-    heap_->isolate()->external_pointer_table().Sweep(
-        heap_->young_external_pointer_space(), heap_->isolate()->counters());
+    isolate->external_pointer_table().Sweep(
+        heap_->young_external_pointer_space(), isolate->counters());
 #endif  // V8_COMPRESS_POINTERS
 
-    HandleSurvivingNewLargeObjects();
-
-    heap_->tracer()->SampleConcurrencyEsimate(
-        FetchAndResetConcurrencyEstimate());
+    HandleSurvivingNewLargeObjects(heap_,
+                                   std::move(surviving_new_large_objects));
   }
 
   {
@@ -1112,12 +1778,19 @@ void ScavengerCollector::CollectGarbage() {
         &Heap::UpdateYoungReferenceInExternalStringTableEntry);
 
     if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
-      isolate_->string_forwarding_table()->UpdateAfterYoungEvacuation();
+      isolate->string_forwarding_table()->UpdateAfterYoungEvacuation();
     }
   }
 
-  ProcessWeakReferences(&ephemeron_table_list);
-  ProcessWeakObjects(js_weak_refs_list, weak_cells_list);
+  ScavengerEphemeronProcessor::Process(heap_, &ephemeron_table_list);
+
+  DCHECK_IMPLIES(!should_handle_weak_objects_weakly,
+                 js_weak_refs_list.IsEmpty());
+  DCHECK_IMPLIES(!should_handle_weak_objects_weakly, weak_cells_list.IsEmpty());
+  if (should_handle_weak_objects_weakly) {
+    ScavengerWeakObjectsProcessor::Process(heap_, js_weak_refs_list,
+                                           weak_cells_list);
+  }
 
   {
     TRACE_GC(heap_->tracer(),
@@ -1139,7 +1812,7 @@ void ScavengerCollector::CollectGarbage() {
 
   // Start sweeping quarantined pages.
   if (!pinned_objects.empty()) {
-    quarantined_page_sweeper_.StartSweeping(std::move(pinned_objects));
+    quarantined_page_sweeper_->StartSweeping(std::move(pinned_objects));
   } else {
     // Sweeping is not started since there are no pages to sweep. Mark sweeping
     // as completed so that the current GC cycle can be stopped since there is
@@ -1168,10 +1841,10 @@ void ScavengerCollector::CollectGarbage() {
 #endif
   }
 
-  SweepArrayBufferExtensions();
+  SweepArrayBufferExtensions(heap_);
 
-  isolate_->global_handles()->UpdateListOfYoungNodes();
-  isolate_->traced_handles()->UpdateListOfYoungNodes();
+  isolate->global_handles()->UpdateListOfYoungNodes();
+  isolate->traced_handles()->UpdateListOfYoungNodes();
 
   // Update how much has survived scavenge.
   heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedYoungObjectSize());
@@ -1182,82 +1855,22 @@ void ScavengerCollector::CollectGarbage() {
   }
 }
 
-void ScavengerCollector::SweepArrayBufferExtensions() {
-  DCHECK_EQ(0, heap_->new_lo_space()->Size());
-  heap_->array_buffer_sweeper()->RequestSweep(
-      ArrayBufferSweeper::SweepingType::kYoung,
-      (heap_->new_space()->SizeOfObjects() == 0)
-          ? ArrayBufferSweeper::TreatAllYoungAsPromoted::kYes
-          : ArrayBufferSweeper::TreatAllYoungAsPromoted::kNo);
-}
-
-void ScavengerCollector::HandleSurvivingNewLargeObjects() {
-  DCHECK(!heap_->incremental_marking()->IsMarking());
-
-  for (SurvivingNewLargeObjectMapEntry update_info :
-       surviving_new_large_objects_) {
-    Tagged<HeapObject> object = update_info.first;
-    Tagged<Map> map = update_info.second;
-    // Order is important here. We have to re-install the map to have access
-    // to meta-data like size during page promotion.
-    object->set_map_word(map, kRelaxedStore);
-
-    LargePageMetadata* page =
-        LargePageMetadata::FromHeapObject(heap_->isolate(), object);
-    SBXCHECK(page->is_large());
-    SBXCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
-    heap_->lo_space()->PromoteNewLargeObject(page);
-  }
-  surviving_new_large_objects_.clear();
-  heap_->new_lo_space()->set_objects_size(0);
-}
-
-void ScavengerCollector::MergeSurvivingNewLargeObjects(
-    const SurvivingNewLargeObjectsMap& objects) {
-  for (SurvivingNewLargeObjectMapEntry object : objects) {
-    bool success = surviving_new_large_objects_.insert(object).second;
-    USE(success);
-    DCHECK(success);
-  }
-}
-
 void ScavengerCollector::CompleteSweepingQuarantinedPagesIfNeeded() {
-  if (!quarantined_page_sweeper_.IsSweeping()) {
+  if (!quarantined_page_sweeper_->IsSweeping()) {
     return;
   }
-  quarantined_page_sweeper_.FinishSweeping();
+  quarantined_page_sweeper_->FinishSweeping();
   heap_->tracer()->NotifyYoungSweepingCompletedAndStopCycleIfFinished();
 }
 
-int ScavengerCollector::NumberOfScavengeTasks() {
-  if (!v8_flags.parallel_scavenge) {
-    return 1;
-  }
-  const int num_scavenge_tasks =
-      static_cast<int>(
-          SemiSpaceNewSpace::From(heap_->new_space())->TotalCapacity()) /
-          MB +
-      1;
-  static int num_cores = V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1;
-  int tasks = std::max(
-      1, std::min({num_scavenge_tasks, kMaxScavengerTasks, num_cores}));
-  if (!heap_->CanPromoteYoungAndExpandOldGeneration(
-          static_cast<size_t>(tasks * PageMetadata::kPageSize))) {
-    // Optimize for memory usage near the heap limit.
-    tasks = 1;
-  }
-  return tasks;
-}
-
-Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
-                     EmptyChunksList* empty_chunks,
-                     ScavengedObjectList* copied_list,
-                     ScavengedObjectList* promoted_list,
-                     EphemeronRememberedSet::TableList* ephemeron_table_list,
-                     JSWeakRefsList* js_weak_refs_list,
-                     WeakCellsList* weak_cells_list)
-    : collector_(collector),
-      heap_(heap),
+Scavenger::Scavenger(
+    Heap* heap, bool is_logging, EmptyChunksList* empty_chunks,
+    ScavengedObjectList* copied_list, ScavengedObjectList* promoted_list,
+    EphemeronRememberedSet::TableList* ephemeron_table_list,
+    ScavengerWeakObjectsProcessor::JSWeakRefsList* js_weak_refs_list,
+    ScavengerWeakObjectsProcessor::WeakCellsList* weak_cells_list,
+    bool should_handle_weak_objects_weakly)
+    : heap_(heap),
       local_empty_chunks_(*empty_chunks),
       local_copied_list_(*copied_list),
       local_promoted_list_(*promoted_list),
@@ -1271,8 +1884,12 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
                            heap->isolate()->has_shared_space()),
       mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
       shortcut_strings_(
-          heap->CanShortcutStringsDuringGC(GarbageCollector::SCAVENGER)) {
+          heap->CanShortcutStringsDuringGC(GarbageCollector::SCAVENGER)),
+      should_handle_weak_objects_weakly_(should_handle_weak_objects_weakly) {
   DCHECK(!heap->incremental_marking()->IsMarking());
+  if (V8_UNLIKELY(v8_flags.scavenger_chaos_mode)) {
+    rng_.emplace(heap_->isolate()->fuzzer_rng()->NextInt64());
+  }
 }
 
 bool Scavenger::ShouldEagerlyProcessPromotedList() const {
@@ -1295,10 +1912,24 @@ void Scavenger::SynchronizePageAccess(Tagged<MaybeObject> object) const {
 #endif
 }
 
-bool Scavenger::MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
-                              Tagged<HeapObject> target,
-                              SafeHeapObjectSize size,
-                              PromotionHeapChoice promotion_heap_choice) {
+template <typename THeapObjectSlot, typename OnSuccessCallback>
+bool Scavenger::TryMigrateObject(Tagged<Map> map, THeapObjectSlot slot,
+                                 Tagged<HeapObject> source,
+                                 SafeHeapObjectSize object_size,
+                                 AllocationSpace space,
+                                 OnSuccessCallback on_success) {
+  // We should never reach this path for large objects.
+  DCHECK_LE(static_cast<size_t>(object_size.value()),
+            MemoryChunkLayout::AllocatableMemoryInDataPage());
+  Tagged<HeapObject> target;
+  if (!allocator_
+           .Allocate(space, object_size,
+                     HeapObject::RequiredAlignment(space, map))
+           .To(&target)) [[unlikely]] {
+    return false;
+  }
+  DCHECK(heap()->marking_state()->IsUnmarked(target));
+
   // This CAS can be relaxed because we do not access the object body if the
   // object was already copied by another thread. We only access the page header
   // of such objects and this is safe because of the memory fence after page
@@ -1306,7 +1937,12 @@ bool Scavenger::MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
   if (!source->relaxed_compare_and_swap_map_word_forwarded(
           MapWord::FromMap(map), target)) {
     // Other task migrated the object.
-    return false;
+    allocator_.FreeLast(space, target, object_size);
+    const MapWord map_word = source->map_word(kRelaxedLoad);
+    UpdateHeapObjectReferenceSlot(slot, map_word.ToForwardingAddress(source));
+    SynchronizePageAccess(*slot);
+    DCHECK(!Heap::InFromPage(*slot));
+    return true;
   }
 
   // Copy the content of source to target. Note that we do this on purpose
@@ -1315,79 +1951,48 @@ bool Scavenger::MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
   // memory ordering for the CAS above.
   target->set_map_word(map, kRelaxedStore);
   heap()->CopyBlock(target.address() + kTaggedSize,
-                    source.address() + kTaggedSize, size.value() - kTaggedSize);
+                    source.address() + kTaggedSize,
+                    object_size.value() - kTaggedSize);
 
-  if (V8_UNLIKELY(is_logging_)) {
+  if (is_logging_) [[unlikely]] {
     // TODO(425150995): We should have uint versions for allocation to avoid
     // introducing OOBs via sign-extended ints along the way.
-    heap()->OnMoveEvent(source, target, size.value());
+    heap()->OnMoveEvent(source, target, object_size.value());
   }
 
-  PretenuringHandler::UpdateAllocationSite(heap_, map, source, size,
-                                           &local_pretenuring_feedback_);
-
+  UpdateHeapObjectReferenceSlot(slot, target);
+  on_success(target);
   return true;
 }
 
-template <typename THeapObjectSlot, typename OnSuccessCallback>
-bool Scavenger::TryMigrateObject(Tagged<Map> map, THeapObjectSlot slot,
-                                 Tagged<HeapObject> object,
-                                 SafeHeapObjectSize object_size,
-                                 AllocationSpace space,
-                                 PromotionHeapChoice promotion_heap_choice,
-                                 OnSuccessCallback on_success) {
-  AllocationAlignment alignment = HeapObject::RequiredAlignment(space, map);
-  AllocationResult allocation =
-      allocator_.Allocate(space, object_size, alignment);
-
-  Tagged<HeapObject> target;
-  if (allocation.To(&target)) {
-    DCHECK(heap()->marking_state()->IsUnmarked(target));
-    const bool self_success =
-        MigrateObject(map, object, target, object_size, promotion_heap_choice);
-    if (!self_success) {
-      allocator_.FreeLast(space, target, object_size);
-      MapWord map_word = object->map_word(kRelaxedLoad);
-      UpdateHeapObjectReferenceSlot(slot, map_word.ToForwardingAddress(object));
-      SynchronizePageAccess(*slot);
-      DCHECK(!Heap::InFromPage(*slot));
-      return true;
-    }
-    UpdateHeapObjectReferenceSlot(slot, target);
-    on_success(target);
-    return true;
-  }
-  return false;
-}
-
 template <typename THeapObjectSlot>
-CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
-    Tagged<Map> map, THeapObjectSlot slot, Tagged<HeapObject> object,
-    SafeHeapObjectSize object_size, ObjectFields object_fields) {
+bool Scavenger::SemiSpaceCopyObject(Tagged<Map> map, THeapObjectSlot slot,
+                                    Tagged<HeapObject> object,
+                                    SafeHeapObjectSize object_size,
+                                    ObjectFields object_fields) {
   static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
                     std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK(heap()->AllowedToBeMigrated(map, object, NEW_SPACE));
-  if (TryMigrateObject(
-          map, slot, object, object_size, NEW_SPACE, kPromoteIntoLocalHeap,
-          [this, map, object_fields, object_size](Tagged<HeapObject> target) {
-            copied_size_ += object_size.value();
-            if (object_fields == ObjectFields::kMaybePointers) {
-              local_copied_list_.Push({target, map, object_size});
-            }
-          })) {
-    return CopyAndForwardResult::SUCCESS_YOUNG_GENERATION;
-  }
-  return CopyAndForwardResult::FAILURE;
+  return TryMigrateObject(
+      map, slot, object, object_size, NEW_SPACE,
+      [this, map, object_fields, object,
+       object_size](Tagged<HeapObject> target) {
+        PretenuringHandler::UpdateAllocationSite(
+            heap_, map, object, object_size, &local_pretenuring_feedback_);
+        copied_size_ += object_size.value();
+        if (object_fields == ObjectFields::kMaybePointers) {
+          local_copied_list_.Push({target, map, object_size});
+        }
+      });
 }
 
 template <typename THeapObjectSlot,
           Scavenger::PromotionHeapChoice promotion_heap_choice>
-CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
-                                              THeapObjectSlot slot,
-                                              Tagged<HeapObject> object,
-                                              SafeHeapObjectSize object_size,
-                                              ObjectFields object_fields) {
+bool Scavenger::PromoteObject(Tagged<Map> map, THeapObjectSlot slot,
+                              Tagged<HeapObject> object,
+                              SafeHeapObjectSize object_size,
+                              ObjectFields object_fields) {
   static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
                     std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
@@ -1395,26 +2000,14 @@ CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
             Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
   AllocationSpace target_space =
       promotion_heap_choice == kPromoteIntoLocalHeap ? OLD_SPACE : SHARED_SPACE;
-  if (TryMigrateObject(
-          map, slot, object, object_size, target_space, promotion_heap_choice,
-          [this, map, object_fields, object_size](Tagged<HeapObject> target) {
-            promoted_size_ += object_size.value();
-            if (object_fields == ObjectFields::kMaybePointers) {
-              local_promoted_list_.Push({target, map, object_size});
-            }
-          })) {
-    return Heap::InToPage(*slot)
-               ? CopyAndForwardResult::SUCCESS_YOUNG_GENERATION
-               : CopyAndForwardResult::SUCCESS_OLD_GENERATION;
-  }
-  return CopyAndForwardResult::FAILURE;
-}
-
-SlotCallbackResult Scavenger::RememberedSetEntryNeeded(
-    CopyAndForwardResult result) {
-  DCHECK_NE(CopyAndForwardResult::FAILURE, result);
-  return result == CopyAndForwardResult::SUCCESS_YOUNG_GENERATION ? KEEP_SLOT
-                                                                  : REMOVE_SLOT;
+  return TryMigrateObject(
+      map, slot, object, object_size, target_space,
+      [this, map, object_fields, object_size](Tagged<HeapObject> target) {
+        promoted_size_ += object_size.value();
+        if (object_fields == ObjectFields::kMaybePointers) {
+          local_promoted_list_.Push({target, map, object_size});
+        }
+      });
 }
 
 bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
@@ -1424,7 +2017,7 @@ bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
   // page (code pages have a different offset but are never young). This check
   // avoids the page flag access.
   if (MemoryChunk::AddressToOffset(object.address()) !=
-      MemoryChunkLayout::ObjectStartOffsetInDataPage()) {
+      MemoryChunkLayout::ObjectStartOffsetInDataPage()) [[likely]] {
     return false;
   }
 
@@ -1448,6 +2041,33 @@ bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
   return true;
 }
 
+bool Scavenger::ShouldBePromoted(Address object_address) {
+  if (V8_UNLIKELY(v8_flags.scavenger_chaos_mode)) {
+    DCHECK(rng_.has_value());
+    DCHECK_LE(v8_flags.scavenger_chaos_mode_threshold, 100u);
+    return v8_flags.scavenger_chaos_mode_threshold >
+           static_cast<unsigned int>(rng_->NextInt(100));
+  }
+  return heap_->semi_space_new_space()->ShouldBePromoted(object_address);
+}
+
+namespace {
+template <typename THeapObjectSlot>
+SlotCallbackResult RememberedSetEntryNeeded(Heap* heap, THeapObjectSlot slot) {
+  Tagged<HeapObject> heap_object;
+  bool is_heap_object = (*slot).GetHeapObject(&heap_object);
+  USE(is_heap_object);
+  DCHECK(is_heap_object);
+  DCHECK(!HeapLayout::InAnyLargeSpace(heap_object));
+  const bool should_keep_slot =
+      Heap::InToPage(heap_object) ||
+      (Heap::InFromPage(heap_object) &&
+       !MemoryChunkMetadata::FromHeapObject(heap->isolate(), heap_object)
+            ->will_be_promoted());
+  return should_keep_slot ? KEEP_SLOT : REMOVE_SLOT;
+}
+}  // namespace
+
 template <typename THeapObjectSlot,
           Scavenger::PromotionHeapChoice promotion_heap_choice>
 SlotCallbackResult Scavenger::EvacuateObjectDefault(
@@ -1457,37 +2077,33 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(
                     std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   SLOW_DCHECK(object->SafeSizeFromMap(map).value() == object_size.value());
-  CopyAndForwardResult result;
 
-  if (HandleLargeObject(map, object, object_size, object_fields)) {
+  if (HandleLargeObject(map, object, object_size, object_fields)) [[unlikely]] {
     return REMOVE_SLOT;
   }
+  DCHECK_LE(static_cast<size_t>(object_size.value()),
+            MemoryChunkLayout::AllocatableMemoryInDataPage());
 
-  SLOW_DCHECK(static_cast<size_t>(object_size.value()) <=
-              MemoryChunkLayout::AllocatableMemoryInDataPage());
-
-  if (!heap()->semi_space_new_space()->ShouldBePromoted(object.address())) {
+  if (!ShouldBePromoted(object.address())) {
     // A semi-space copy may fail due to fragmentation. In that case, we
     // try to promote the object.
-    result = SemiSpaceCopyObject(map, slot, object, object_size, object_fields);
-    if (result != CopyAndForwardResult::FAILURE) {
-      return RememberedSetEntryNeeded(result);
+    if (SemiSpaceCopyObject(map, slot, object, object_size, object_fields))
+        [[likely]] {
+      return RememberedSetEntryNeeded(heap_, slot);
     }
   }
 
   // We may want to promote this object if the object was already semi-space
   // copied in a previous young generation GC or if the semi-space copy above
   // failed.
-  result = PromoteObject<THeapObjectSlot, promotion_heap_choice>(
-      map, slot, object, object_size, object_fields);
-  if (result != CopyAndForwardResult::FAILURE) {
-    return RememberedSetEntryNeeded(result);
+  if (PromoteObject<THeapObjectSlot, promotion_heap_choice>(
+          map, slot, object, object_size, object_fields)) [[likely]] {
+    return RememberedSetEntryNeeded(heap_, slot);
   }
 
   // If promotion failed, we try to copy the object to the other semi-space.
-  result = SemiSpaceCopyObject(map, slot, object, object_size, object_fields);
-  if (result != CopyAndForwardResult::FAILURE) {
-    return RememberedSetEntryNeeded(result);
+  if (SemiSpaceCopyObject(map, slot, object, object_size, object_fields)) {
+    return RememberedSetEntryNeeded(heap_, slot);
   }
 
   heap()->FatalProcessOutOfMemory("Scavenger: semi-space copy");
@@ -1691,19 +2307,19 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
                            ->will_be_promoted());
     return result;
   } else if (Heap::InToPage(object)) {
-    // Already updated slot. This can happen when processing of the work list
-    // is interleaved with processing roots.
+    // Already updated slot. This can happen e.g. when a slot is found in both
+    // the OLD_TO_NEW and OLD_TO_NEW_BACKGROUND remembered sets.
     return KEEP_SLOT;
   }
-  // Slots can point to "to" space if the slot has been recorded multiple
-  // times in the remembered set. We remove the redundant slot now.
+  // Slots can point to old space if the slot has been updated since it was
+  // recorded. We remove the redundant slot now.
   return REMOVE_SLOT;
 }
 
 template <ObjectAge Age>
 V8_INLINE bool Scavenger::ShouldRecordWeakObject(Tagged<HeapObject> host,
                                                  ObjectSlot slot) {
-  DCHECK(v8_flags.handle_weak_ref_weakly_in_minor_gc);
+  DCHECK(ShouldHandleWeakObjectsWeakly());
   Tagged<HeapObject> object = Cast<HeapObject>(slot.load());
   DCHECK_NE(kNullAddress, object.ptr());
   SynchronizePageAccess(object);
@@ -1742,7 +2358,7 @@ template void Scavenger::RecordJSWeakRefIfNeeded<ObjectAge::kOld>(
 
 template <ObjectAge Age>
 void Scavenger::RecordJSWeakRefIfNeeded(Tagged<JSWeakRef> js_weak_ref) {
-  if (!v8_flags.handle_weak_ref_weakly_in_minor_gc) {
+  if (!ShouldHandleWeakObjectsWeakly()) {
     return;
   }
 
@@ -1759,7 +2375,7 @@ template void Scavenger::RecordWeakCellIfNeeded<ObjectAge::kOld>(
 
 template <ObjectAge Age>
 void Scavenger::RecordWeakCellIfNeeded(Tagged<WeakCell> weak_cell) {
-  if (!v8_flags.handle_weak_ref_weakly_in_minor_gc) {
+  if (!ShouldHandleWeakObjectsWeakly()) {
     return;
   }
 
@@ -1779,6 +2395,17 @@ void Scavenger::RememberPromotedEphemeron(Tagged<EphemeronHashTable> table,
   indices.first->second.insert(index);
 }
 
+namespace {
+#if DEBUG
+template <typename SlotType>
+bool IsObjectInSlotShared(SlotType slot) {
+  Tagged<HeapObject> heap_object;
+  if (!(*slot).GetHeapObject(&heap_object)) return false;
+  return HeapLayout::InWritableSharedSpace(heap_object);
+}
+#endif  // DEBUG
+}  // namespace
+
 void Scavenger::ScavengePage(MutablePageMetadata* page) {
   const bool record_old_to_shared_slots = heap_->isolate()->has_shared_space();
 
@@ -1791,6 +2418,7 @@ void Scavenger::ScavengePage(MutablePageMetadata* page) {
           SlotCallbackResult result = CheckAndScavengeObject(heap_, slot);
           // A new space string might have been promoted into the shared heap
           // during GC.
+          DCHECK_IMPLIES(IsObjectInSlotShared(slot), result == REMOVE_SLOT);
           if (result == REMOVE_SLOT && record_old_to_shared_slots) {
             CheckOldToNewSlotForSharedUntyped(chunk, page, slot);
           }
@@ -1815,6 +2443,7 @@ void Scavenger::ScavengePage(MutablePageMetadata* page) {
           Tagged<HeapObject> new_target = old_target;
           FullMaybeObjectSlot slot(&new_target);
           SlotCallbackResult result = CheckAndScavengeObject(heap(), slot);
+          DCHECK_IMPLIES(IsObjectInSlotShared(slot), result == REMOVE_SLOT);
           if (result == REMOVE_SLOT && record_old_to_shared_slots) {
             CheckOldToNewSlotForSharedTyped(chunk, page, slot_type,
                                             slot_address, *slot);
@@ -1858,6 +2487,7 @@ void Scavenger::ScavengePage(MutablePageMetadata* page) {
           SlotCallbackResult result = CheckAndScavengeObject(heap_, slot);
           // A new space string might have been promoted into the shared heap
           // during GC.
+          DCHECK_IMPLIES(IsObjectInSlotShared(slot), result == REMOVE_SLOT);
           if (result == REMOVE_SLOT && record_old_to_shared_slots) {
             CheckOldToNewSlotForSharedUntyped(chunk, page, slot);
           }
@@ -1899,245 +2529,8 @@ void Scavenger::Process(JobDelegate* delegate) {
   } while (!done);
 }
 
-void ScavengerCollector::ProcessWeakReferences(
-    EphemeronRememberedSet::TableList* ephemeron_table_list) {
-  ClearYoungEphemerons(ephemeron_table_list);
-  ClearOldEphemerons();
-}
-
-// Clear ephemeron entries from EphemeronHashTables in new-space whenever the
-// entry has a dead new-space key.
-void ScavengerCollector::ClearYoungEphemerons(
-    EphemeronRememberedSet::TableList* ephemeron_table_list) {
-  ephemeron_table_list->Iterate([](Tagged<EphemeronHashTable> table) {
-    for (InternalIndex i : table->IterateEntries()) {
-      // Keys in EphemeronHashTables must be heap objects.
-      HeapObjectSlot key_slot(
-          table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i)));
-      Tagged<HeapObject> key = key_slot.ToHeapObject();
-      // If the key is not in the from page, it's not being scavenged.
-      if (!Heap::InFromPage(key)) continue;
-      DCHECK(!IsAnyHole(key));
-      MapWord map_word = key->map_word(kRelaxedLoad);
-      if (!map_word.IsForwardingAddress()) {
-        // If the key is not forwarded, then it's dead.
-        DCHECK(IsUnscavengedHeapObject(key));
-        table->RemoveEntry(i);
-      } else {
-        // Otherwise, we need to update the key slot to the forwarded address.
-        DCHECK(!IsUnscavengedHeapObject(key));
-        key_slot.StoreHeapObject(map_word.ToForwardingAddress(key));
-      }
-    }
-  });
-  ephemeron_table_list->Clear();
-}
-
-// Clear ephemeron entries from EphemeronHashTables in old-space whenever the
-// entry has a dead new-space key.
-void ScavengerCollector::ClearOldEphemerons() {
-  auto* table_map = heap_->ephemeron_remembered_set_->tables();
-  for (auto it = table_map->begin(); it != table_map->end();) {
-    Tagged<EphemeronHashTable> table = it->first;
-    auto& indices = it->second;
-    for (auto iti = indices.begin(); iti != indices.end();) {
-      // Keys in EphemeronHashTables must be heap objects.
-      HeapObjectSlot key_slot(table->RawFieldOfElementAt(
-          EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
-      Tagged<HeapObject> key = key_slot.ToHeapObject();
-      // If the key is not young, we don't need it in the remembered set.
-      if (!HeapLayout::InYoungGeneration(key)) {
-        iti = indices.erase(iti);
-      }
-      // If the key is not in the from page, it's not being scavenged.
-      if (!Heap::InFromPage(key)) continue;
-      DCHECK(!IsAnyHole(key));
-      MapWord map_word = key->map_word(kRelaxedLoad);
-      DCHECK_IMPLIES(Heap::InToPage(key), !map_word.IsForwardingAddress());
-      if (!map_word.IsForwardingAddress()) {
-        // If the key is not forwarded, then it's dead.
-        DCHECK(IsUnscavengedHeapObject(key));
-        table->RemoveEntry(InternalIndex(*iti));
-        iti = indices.erase(iti);
-      } else {
-        // Otherwise, we need to update the key slot to the forwarded address.
-        DCHECK(!IsUnscavengedHeapObject(key));
-        Tagged<HeapObject> forwarded = map_word.ToForwardingAddress(key);
-        key_slot.StoreHeapObject(forwarded);
-        if (!HeapLayout::InYoungGeneration(forwarded)) {
-          // If the key was promoted out of new space, we don't need to keep it
-          // in the remembered set.
-          iti = indices.erase(iti);
-        } else {
-          ++iti;
-        }
-      }
-    }
-
-    if (indices.empty()) {
-      it = table_map->erase(it);
-    } else {
-      ++it;
-    }
-  }
-}
-
-namespace {
-class ScavengerWeakObjectRetainer : public WeakObjectRetainer {
- public:
-  Tagged<Object> RetainAs(Tagged<Object> object) override {
-    Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
-    if (IsUnscavengedHeapObject(heap_object)) {
-      return Smi::zero();
-    }
-    DCHECK(!Heap::InToPage(heap_object));
-    if (!HeapLayout::InYoungGeneration(heap_object)) {
-      return object;
-    }
-    MapWord map_word = heap_object->map_word(kRelaxedLoad);
-    DCHECK(map_word.IsForwardingAddress());
-    return map_word.ToForwardingAddress(heap_object);
-  }
-};
-}  // namespace
-
-void ScavengerCollector::ProcessWeakObjects(
-    Scavenger::JSWeakRefsList& js_weak_refs,
-    Scavenger::WeakCellsList& weak_cells) {
-  ScavengerWeakObjectRetainer weak_object_retainer;
-  // Iterate the weak list of dirty finalization registries. Dead registries are
-  // dropped from the list, and addresses of live scavenged registries are
-  // updated.
-  heap_->ProcessDirtyJSFinalizationRegistries(&weak_object_retainer);
-  // Clear the target field of JSWeakRef if the target is dead.
-  ProcessJSWeakRefs(js_weak_refs);
-  // For each WeakCell:
-  // 1) If the target is dead, clear the target field, mark the finalization
-  // registry as dirty, and schedule it to be cleaned up (in a task). 2) If the
-  // unregister token is dead, clear the token field and remove the cell from
-  // the registry's token-to-cell map.
-  ProcessWeakCells(weak_cells);
-}
-
-void ProcessWeakObjectField(const Heap* heap, Tagged<HeapObject> host,
-                            ObjectSlot slot, auto dead_callback) {
-  Tagged<HeapObject> object = Cast<HeapObject>(slot.load());
-  DCHECK(!Heap::InFromPage(host) || HeapLayout::IsSelfForwarded(host));
-  if (Heap::InFromPage(object)) {
-    DCHECK(!IsUndefined(object));
-    if (IsUnscavengedHeapObject(object)) {
-      DCHECK(Object::CanBeHeldWeakly(object));
-      // The object is dead.
-      dead_callback(host, object);
-    } else {
-      // The object is alive.
-      MapWord map_word = object->map_word(kRelaxedLoad);
-      DCHECK(map_word.IsForwardingAddress());
-      Tagged<HeapObject> new_object = map_word.ToForwardingAddress(object);
-      DCHECK(!Heap::InFromPage(new_object) ||
-             HeapLayout::IsSelfForwarded(new_object));
-      // `host` is younger than `object`, but in rare cases
-      // `host` could be promoted to old gen while `object` remains in
-      // young gen. For such cases a write barrier is needed to update the
-      // old-to-new remembered set.
-      DCHECK(!HeapLayout::InWritableSharedSpace(new_object));
-      slot.store(new_object);
-      if (V8_UNLIKELY(HeapObjectWillBeOld(heap, host) &&
-                      !HeapObjectWillBeOld(heap, new_object))) {
-        AddToRememberedSet<OLD_TO_NEW>(heap, host, slot.address());
-      }
-    }
-  }
-}
-
-void ScavengerCollector::ProcessJSWeakRefs(
-    Scavenger::JSWeakRefsList& js_weak_refs) {
-  const auto on_dead_target_callback = [this](Tagged<HeapObject> host,
-                                              Tagged<HeapObject>) {
-    GCSafeCast<JSWeakRef>(host, heap_)
-        ->set_target(ReadOnlyRoots(heap_->isolate()).undefined_value(),
-                     SKIP_WRITE_BARRIER);
-  };
-
-  Scavenger::JSWeakRefsList::Local local_js_weak_refs(js_weak_refs);
-  Tagged<JSWeakRef> js_weak_ref;
-  while (local_js_weak_refs.Pop(&js_weak_ref)) {
-    ProcessWeakObjectField(heap_, js_weak_ref,
-                           js_weak_ref->RawField(JSWeakRef::kTargetOffset),
-                           on_dead_target_callback);
-  }
-}
-
-void ScavengerCollector::ProcessWeakCells(
-    Scavenger::WeakCellsList& weak_cells) {
-  const auto on_slot_updated_callback = [this](Tagged<HeapObject> object,
-                                               ObjectSlot slot,
-                                               Tagged<Object> target) {
-    DCHECK(!IsUnscavengedHeapObject(target));
-    DCHECK(!Cast<HeapObject>(target)
-                ->map_word(kRelaxedLoad)
-                .IsForwardingAddress() ||
-           HeapLayout::IsSelfForwarded(Cast<HeapObject>(target)));
-    if (V8_UNLIKELY(HeapObjectWillBeOld(heap_, object) &&
-                    !HeapObjectWillBeOld(heap_, Cast<HeapObject>(target)))) {
-      AddToRememberedSet<OLD_TO_NEW>(heap_, object, slot.address());
-    }
-  };
-  const auto on_dead_target_callback = [this, on_slot_updated_callback](
-                                           Tagged<HeapObject> host,
-                                           Tagged<HeapObject>) {
-    Tagged<WeakCell> weak_cell = GCSafeCast<WeakCell>(host, heap_);
-    // The WeakCell is liove but its value is dead. WeakCell retains the
-    // JSFinalizationRegistry, so it's also guaranteed to be live.
-    Tagged<JSFinalizationRegistry> finalization_registry =
-        GCSafeCast<JSFinalizationRegistry>(weak_cell->finalization_registry(),
-                                           heap_);
-    if (!finalization_registry->scheduled_for_cleanup()) {
-      heap_->EnqueueDirtyJSFinalizationRegistry(finalization_registry,
-                                                on_slot_updated_callback);
-    }
-    // We're modifying the pointers in WeakCell and JSFinalizationRegistry
-    // during GC; thus we need to record the slots it writes. The normal
-    // write barrier is not enough, since it's disabled before GC.
-    weak_cell->GCSafeNullify(heap_->isolate(), on_slot_updated_callback);
-    DCHECK(GCAwareObjectTypeCheck<WeakCell>(
-        finalization_registry
-            ->RawField(JSFinalizationRegistry::kClearedCellsOffset)
-            .load(),
-        heap_));
-    DCHECK(finalization_registry->scheduled_for_cleanup());
-  };
-  const auto on_dead_unregister_token_callback =
-      [this, on_slot_updated_callback](
-          Tagged<HeapObject> host, Tagged<HeapObject> dead_unregister_token) {
-        Tagged<WeakCell> weak_cell = GCSafeCast<WeakCell>(host, heap_);
-        // The unregister token is dead. Remove any corresponding entries in the
-        // key map. Multiple WeakCell with the same token will have all their
-        // unregister_token field set to undefined when processing the first
-        // WeakCell. Like above, we're modifying pointers during GC, so record
-        // the slots.
-        Tagged<JSFinalizationRegistry> finalization_registry =
-            GCSafeCast<JSFinalizationRegistry>(
-                weak_cell->finalization_registry(), heap_);
-        finalization_registry->RemoveUnregisterToken(
-            dead_unregister_token, heap_->isolate(),
-            JSFinalizationRegistry::kKeepMatchedCellsInRegistry,
-            on_slot_updated_callback);
-      };
-
-  Scavenger::WeakCellsList::Local local_weak_cells(weak_cells);
-  Tagged<WeakCell> weak_cell;
-  while (local_weak_cells.Pop(&weak_cell)) {
-    ProcessWeakObjectField(heap_, weak_cell, ObjectSlot(&weak_cell->target_),
-                           on_dead_target_callback);
-    ProcessWeakObjectField(heap_, weak_cell,
-                           ObjectSlot(&weak_cell->unregister_token_),
-                           on_dead_unregister_token_callback);
-  }
-  heap_->PostFinalizationRegistryCleanupTaskIfNeeded();
-}
-
-void Scavenger::Finalize() {
+void Scavenger::Finalize(
+    std::vector<SurvivingNewLargeObjectsMap>& surviving_new_large_objects) {
   heap()->pretenuring_handler()->MergeAllocationSitePretenuringFeedback(
       local_pretenuring_feedback_);
   for (const auto& it : local_ephemeron_remembered_set_) {
@@ -2158,7 +2551,8 @@ void Scavenger::Finalize() {
   }
   heap()->IncrementNewSpaceSurvivingObjectSize(copied_size_);
   heap()->IncrementPromotedObjectsSize(promoted_size_);
-  collector_->MergeSurvivingNewLargeObjects(local_surviving_new_large_objects_);
+  surviving_new_large_objects.emplace_back(
+      std::move(local_surviving_new_large_objects_));
   allocator_.Finalize();
   local_empty_chunks_.Publish();
   local_ephemeron_table_list_.Publish();

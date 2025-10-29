@@ -160,9 +160,9 @@ TEST(Compare, Conversions) {
 struct WeakOrderingLess {
   template <typename T>
   absl::weak_ordering operator()(const T& a, const T& b) const {
-    return a < b ? absl::weak_ordering::less
-                 : a == b ? absl::weak_ordering::equivalent
-                          : absl::weak_ordering::greater;
+    return a < b    ? absl::weak_ordering::less
+           : a == b ? absl::weak_ordering::equivalent
+                    : absl::weak_ordering::greater;
   }
 };
 

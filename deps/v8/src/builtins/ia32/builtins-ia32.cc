@@ -3180,6 +3180,9 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ JumpIfSmi(tmp, &allocate_vector);
 
   // Vector exists. Finish setting up the stack frame.
+  // Increment the total invocation count of the function.
+  __ add(FieldOperand(tmp, OFFSET_OF_DATA_START(FixedArray)),
+         Immediate(Smi::FromInt(1)));
   __ Push(tmp);                // Feedback vector.
   __ mov(tmp, instance_data_slot);  // Calling PC.
   __ Push(tmp);
@@ -3229,6 +3232,9 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   // [ WASM_LIFTOFF_SETUP ]      [       WASM         ]  <-- marker_slot
   // [      saved ebp     ]      [    saved ebp       ]
   __ mov(marker_slot, Immediate(StackFrame::TypeToMarker(StackFrame::WASM)));
+  // Increment the total invocation count of the function.
+  __ add(FieldOperand(tmp, OFFSET_OF_DATA_START(FixedArray)),
+         Immediate(Smi::FromInt(1)));
   __ Push(tmp);                // Feedback vector.
   __ mov(tmp, instance_data_slot);  // Calling PC.
   __ Push(tmp);
@@ -3935,6 +3941,46 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   LoadJumpBuffer(masm, target_stack, true);
   __ Trap();
   __ bind(&suspend);
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ ret(0);
+}
+
+void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
+  Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
+  Label resume;
+  __ Push(cont);
+  __ Push(kContextRegister);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PrepareCallCFunction(6, edi);
+    __ Move(Operand(esp, 0 * kSystemPointerSize),
+            Immediate(ExternalReference::isolate_address()));
+    __ mov(MemOperand(esp, 1 * kSystemPointerSize), esp);
+    __ mov(MemOperand(esp, 2 * kSystemPointerSize), ebp);
+    __ LoadLabelAddress(ecx, &resume);
+    __ mov(MemOperand(esp, 3 * kSystemPointerSize), ecx);
+    __ mov(MemOperand(esp, 4 * kSystemPointerSize), tag);
+    __ mov(MemOperand(esp, 5 * kSystemPointerSize), cont);
+    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 6);
+  }
+  Register target_stack = edi;
+  __ mov(target_stack, kReturnRegister0);
+  __ Pop(kContextRegister);
+  cont = kReturnRegister0;
+  __ Pop(cont);
+
+  Label ok;
+  __ cmp(target_stack, Immediate(0));
+  __ j(not_equal, &ok);
+  // No handler found.
+  __ CallRuntime(Runtime::kThrowWasmSuspendError);
+
+  __ bind(&ok);
+  LoadJumpBuffer(masm, target_stack, true);
+  __ Trap();
+  __ bind(&resume);
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ ret(0);
 }

@@ -443,10 +443,7 @@ class CppGraphBuilderImpl final {
  public:
   CppGraphBuilderImpl(
       CppHeap& cpp_heap, v8::EmbedderGraph& graph,
-      UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects)
-      : cpp_heap_(cpp_heap),
-        graph_(graph),
-        cpp_heap_external_objects_(std::move(cpp_heap_external_objects)) {}
+      UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects);
 
   void Run();
 
@@ -807,6 +804,13 @@ class CppGraphBuilderImpl::WorkstackItemBase {
   State* parent_;
   State& current_;
 };
+
+CppGraphBuilderImpl::CppGraphBuilderImpl(
+    CppHeap& cpp_heap, v8::EmbedderGraph& graph,
+    UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects)
+    : cpp_heap_(cpp_heap),
+      graph_(graph),
+      cpp_heap_external_objects_(std::move(cpp_heap_external_objects)) {}
 
 void CppGraphBuilderImpl::ProcessPendingObjects() {
   while (!workstack_.empty()) {

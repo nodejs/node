@@ -86,7 +86,6 @@ class MaglevInliner {
 
   static void UpdatePredecessorsOf(BasicBlock* block, BasicBlock* prev_pred,
                                    BasicBlock* new_pred);
-  void RemovePredecessorFollowing(ControlNode* control, BasicBlock* call_block);
 };
 
 }  // namespace v8::internal::maglev

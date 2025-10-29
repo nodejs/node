@@ -819,9 +819,22 @@ TEST(HeapSnapshotExternalString) {
   heap_profiler->DeleteAllHeapSnapshots();
 }
 
-// Allow usages of v8::Object::GetPrototype() for now.
+namespace {
+
 // TODO(https://crbug.com/333672197): remove.
-START_ALLOW_USE_DEPRECATED()
+v8::Local<v8::Object> GetHiddenPrototype(v8::Isolate* isolate,
+                                         v8::Local<v8::Object> global_proxy) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  DCHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(*global_proxy)));
+  i::DirectHandle<i::JSGlobalProxy> i_global_proxy =
+      i::Cast<i::JSGlobalProxy>(v8::Utils::OpenHandle(*global_proxy));
+  DCHECK(!i_global_proxy->IsDetached());
+  i::DirectHandle<i::JSObject> global(
+      i::Cast<i::JSObject>(i_global_proxy->map()->prototype()), i_isolate);
+  return v8::Utils::ToLocal(global);
+}
+
+}  // namespace
 
 TEST(HeapSnapshotConsString) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -832,7 +845,7 @@ TEST(HeapSnapshotConsString) {
   LocalContext env(nullptr, global_template);
   v8::Local<v8::Object> global_proxy = env->Global();
   CHECK_EQ(1, global_proxy->InternalFieldCount());
-  v8::Local<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
+  v8::Local<v8::Object> global = GetHiddenPrototype(isolate, global_proxy);
   CHECK_EQ(1, global->InternalFieldCount());
 
   i::Factory* factory = CcTest::i_isolate()->factory();
@@ -864,10 +877,6 @@ TEST(HeapSnapshotConsString) {
 
   heap_profiler->DeleteAllHeapSnapshots();
 }
-
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-END_ALLOW_USE_DEPRECATED()
 
 TEST(HeapSnapshotSymbol) {
   LocalContext env;
@@ -1065,10 +1074,6 @@ TEST(HeapSnapshotMap) {
                     "transition"));
 }
 
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-START_ALLOW_USE_DEPRECATED()
-
 TEST(HeapSnapshotInternalReferences) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -1077,7 +1082,7 @@ TEST(HeapSnapshotInternalReferences) {
   global_template->SetInternalFieldCount(2);
   LocalContext env(nullptr, global_template);
   v8::Local<v8::Object> global_proxy = env->Global();
-  v8::Local<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
+  v8::Local<v8::Object> global = GetHiddenPrototype(isolate, global_proxy);
   CHECK_EQ(2, global->InternalFieldCount());
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
   global->SetInternalField(0, v8_num(17));
@@ -1093,10 +1098,6 @@ TEST(HeapSnapshotInternalReferences) {
   CHECK(GetProperty(env.isolate(), global_node, v8::HeapGraphEdge::kInternal,
                     "1"));
 }
-
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-END_ALLOW_USE_DEPRECATED()
 
 TEST(HeapSnapshotEphemeron) {
   LocalContext env;
@@ -2456,10 +2457,6 @@ TEST(NodesIteration) {
   CHECK_EQ(1, count);
 }
 
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-START_ALLOW_USE_DEPRECATED()
-
 TEST(GetHeapValueForNode) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -2471,7 +2468,7 @@ TEST(GetHeapValueForNode) {
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   CHECK(heap_profiler->FindObjectById(global->GetId())->IsObject());
   v8::Local<v8::Object> js_global =
-      env->Global()->GetPrototype().As<v8::Object>();
+      GetHiddenPrototype(env.isolate(), env->Global());
   CHECK_EQ(js_global, heap_profiler->FindObjectById(global->GetId()));
   const v8::HeapGraphNode* obj =
       GetProperty(env.isolate(), global, v8::HeapGraphEdge::kProperty, "a");
@@ -2493,7 +2490,6 @@ TEST(GetHeapValueForNode) {
                                         .As<v8::String>();
   CHECK_EQ(js_n_prop, heap_profiler->FindObjectById(n_prop->GetId()));
 }
-
 
 TEST(GetHeapValueForDeletedObject) {
   LocalContext env;
@@ -2555,7 +2551,7 @@ TEST(GetConstructor) {
       "var obj6 = {};\n"
       "obj6.constructor = 6;");
   v8::Local<v8::Object> js_global =
-      env->Global()->GetPrototype().As<v8::Object>();
+      GetHiddenPrototype(env.isolate(), env->Global());
   v8::Local<v8::Object> obj1 = js_global->Get(env.local(), v8_str("obj1"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
@@ -2614,7 +2610,7 @@ TEST(GetConstructorName) {
       "var obj6 = {};\n"
       "obj6.constructor = 6;");
   v8::Local<v8::Object> js_global =
-      env->Global()->GetPrototype().As<v8::Object>();
+      GetHiddenPrototype(env.isolate(), env->Global());
   v8::Local<v8::Object> obj1 = js_global->Get(env.local(), v8_str("obj1"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
@@ -2659,10 +2655,6 @@ TEST(GetConstructorName) {
                                       i_isolate, *js_obj6)));
 }
 
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-END_ALLOW_USE_DEPRECATED()
-
 TEST(FastCaseAccessors) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -2698,10 +2690,6 @@ TEST(FastCaseAccessors) {
   CHECK(!func);
 }
 
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-START_ALLOW_USE_DEPRECATED()
-
 TEST(FastCaseRedefinedAccessors) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -2722,7 +2710,7 @@ TEST(FastCaseRedefinedAccessors) {
       "  enumerable: true,\n"
       "});\n");
   v8::Local<v8::Object> js_global =
-      env->Global()->GetPrototype().As<v8::Object>();
+      GetHiddenPrototype(env.isolate(), env->Global());
   i::Handle<i::JSReceiver> js_obj1 =
       v8::Utils::OpenHandle(*js_global->Get(env.local(), v8_str("obj1"))
                                  .ToLocalChecked()
@@ -2744,10 +2732,6 @@ TEST(FastCaseRedefinedAccessors) {
                      "set prop");
   CHECK(func);
 }
-
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-END_ALLOW_USE_DEPRECATED()
 
 TEST(SlowCaseAccessors) {
   LocalContext env;

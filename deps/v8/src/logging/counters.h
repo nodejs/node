@@ -6,6 +6,7 @@
 #define V8_LOGGING_COUNTERS_H_
 
 #include <memory>
+#include <variant>
 
 #include "include/v8-callbacks.h"
 #include "src/base/atomic-utils.h"
@@ -18,8 +19,7 @@
 #include "src/objects/objects.h"
 #include "src/utils/allocation.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // StatsCounters is an interface for plugging into external
 // counters for monitoring.  Counters can be looked up and
@@ -737,7 +737,95 @@ class HistogramResetter : public CountersVisitor {
   void VisitHistogram(Histogram* histogram, const char* caption) final;
 };
 
-}  // namespace internal
-}  // namespace v8
+// Stores histogram samples and other counter updates and allows to publish them
+// later in a given Isolate.
+// This is useful for data which is collected in background work and/or when no
+// isolate is available (yet). To easily support adding data from background
+// threads, this class is synchronized automatically via an internal mutex.
+class DelayedCounterUpdates {
+ public:
+  // We do not have histogram IDs, so just store the member function on the
+  // isolate which returns the histogram.
+  using GetHistogramFn = Histogram* (Counters::*)();
+  using GetTimedHistogramFn = TimedHistogram* (Counters::*)();
+  using GetStatsCounterFn = StatsCounter* (Counters::*)();
+
+  // `Publish` will add any outstanding samples to the given isolate.
+  void Publish(Isolate* isolate) {
+    if (V8_LIKELY(!has_updates_.load(std::memory_order_relaxed))) return;
+    PublishImpl(isolate);
+  }
+
+  void AddSample(GetHistogramFn fn, int sample) {
+    base::MutexGuard mutex_guard{&mutex_};
+    outstanding_updates_.push_back(HistogramUpdate{fn, sample});
+    has_updates_.store(true, std::memory_order_relaxed);
+  }
+
+  void AddTimedSample(GetTimedHistogramFn fn, base::TimeDelta sample) {
+    base::MutexGuard mutex_guard{&mutex_};
+    outstanding_updates_.push_back(TimedHistogramUpdate{fn, sample});
+    has_updates_.store(true, std::memory_order_relaxed);
+  }
+
+  void AddIncrement(GetStatsCounterFn fn, int increment) {
+    base::MutexGuard mutex_guard{&mutex_};
+    outstanding_updates_.push_back(StatsCounterUpdate{fn, increment});
+    has_updates_.store(true, std::memory_order_relaxed);
+  }
+
+  void AddAll(DelayedCounterUpdates&& other) {
+    // No need to take `other`'s mutex, as it's an r-value ref, so unshared.
+    if (other.outstanding_updates_.empty()) return;
+    base::MutexGuard mutex_guard{&mutex_};
+    if (outstanding_updates_.empty()) {
+      outstanding_updates_.swap(other.outstanding_updates_);
+    } else {
+      outstanding_updates_.insert(outstanding_updates_.end(),
+                                  other.outstanding_updates_.begin(),
+                                  other.outstanding_updates_.end());
+      other.outstanding_updates_.clear();
+    }
+    has_updates_.store(true, std::memory_order_relaxed);
+  }
+
+  size_t EstimateCurrentMemoryConsumption() const {
+    base::MutexGuard mutex_guard{&mutex_};
+    return sizeof(this) + outstanding_updates_.capacity() *
+                              sizeof(*outstanding_updates_.data());
+  }
+
+  // For debugging.
+  size_t NumOutstandingUpdates() const {
+    base::MutexGuard mutex_guard{&mutex_};
+    return outstanding_updates_.size();
+  }
+
+ private:
+  V8_NOINLINE V8_PRESERVE_MOST void PublishImpl(Isolate*);
+
+  struct HistogramUpdate {
+    GetHistogramFn fn;
+    int sample;
+  };
+  struct TimedHistogramUpdate {
+    GetTimedHistogramFn fn;
+    base::TimeDelta sample;
+  };
+  struct StatsCounterUpdate {
+    GetStatsCounterFn fn;
+    int increment;
+  };
+  using AnyUpdate =
+      std::variant<HistogramUpdate, TimedHistogramUpdate, StatsCounterUpdate>;
+
+  // `has_updates_` enables the fast path in `Publish` for the common case that
+  // no counter updates are outstanding.
+  std::atomic<bool> has_updates_;
+  mutable base::Mutex mutex_;
+  std::vector<AnyUpdate> outstanding_updates_;
+};
+
+}  // namespace v8::internal
 
 #endif  // V8_LOGGING_COUNTERS_H_

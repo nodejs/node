@@ -110,6 +110,9 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
 
   BIND(&tailcall_to_shared);
   // Tail call into code object on the SharedFunctionInfo.
+  // TODO(https://crbug.com/451355210, ishell): consider removing this
+  // duplicate implementation in favour of returning code object from above
+  // runtime calls once non-leaptering code is removed.
   TNode<Code> code = GetSharedFunctionInfoCode(shared);
 
   // TailCallJSCode will take care of parameter count validation between the

@@ -4252,7 +4252,7 @@ void CodeGenerator::AssembleConstructFrame() {
                    CommonFrameConstants::kFixedFrameSizeAboveFp)));
         __ wasm_call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
                      RelocInfo::WASM_STUB_CALL);
-        // If the call succesfully grew the stack, we don't expect it to have
+        // If the call successfully grew the stack, we don't expect it to have
         // allocated any heap objects or otherwise triggered any GC.
         // If it was not able to grow the stack, it may have triggered a GC when
         // allocating the stack overflow exception object, but the call did not

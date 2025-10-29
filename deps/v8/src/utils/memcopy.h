@@ -41,7 +41,11 @@ using MemMoveFunction = void (*)(void* dest, const void* src, size_t size);
 V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
   MemMove(dest, src, size);
 }
+
+constexpr size_t kBlockCopyLimitForWordsAndTagged = 16;
+
 #elif defined(V8_HOST_ARCH_ARM)
+
 using MemCopyUint8Function = void (*)(uint8_t* dest, const uint8_t* src,
                                       size_t size);
 V8_EXPORT_PRIVATE extern MemCopyUint8Function memcopy_uint8_function;
@@ -62,8 +66,13 @@ V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
 
 // For values < 12, the assembler function is slower than the inlined C code.
 const int kMinComplexConvertMemCopy = 12;
-#else
+
+constexpr size_t kBlockCopyLimitForWordsAndTagged = 16;
+
+#else  // !defined(V8_TARGET_ARCH_IA32) && !defined(V8_HOST_ARCH_ARM)
+
 #if defined(V8_OPTIMIZE_WITH_NEON)
+
 // We intentionally use misaligned read/writes for NEON intrinsics, disable
 // alignment sanitization explicitly.
 // Overlapping writes help to save instructions, e.g. doing 2 two-byte writes
@@ -127,6 +136,7 @@ inline void MemCopy(void* dst, const void* src, size_t count) {
 }
 
 #else  // !defined(V8_OPTIMIZE_WITH_NEON)
+
 // Copy memory area to disjoint memory area.
 inline void MemCopy(void* dest, const void* src, size_t size) {
   // Fast path for small sizes. The compiler will expand the {memcpy} for small
@@ -159,7 +169,9 @@ inline void MemCopy(void* dest, const void* src, size_t size) {
       return;
   }
 }
+
 #endif  // !defined(V8_OPTIMIZE_WITH_NEON)
+
 #if V8_TARGET_BIG_ENDIAN
 inline void MemCopyAndSwitchEndianness(void* dst, void* src,
                                        size_t num_elements,
@@ -225,8 +237,12 @@ V8_EXPORT_PRIVATE inline void MemMove(void* dest, const void* src,
       return;
   }
 }
-const size_t kMinComplexMemCopy = 8;
-#endif  // V8_TARGET_ARCH_IA32
+
+// Disable the CopyImpl fast paths as MemCopy has its own fast paths.
+constexpr size_t kMinComplexMemCopy = 0;
+constexpr size_t kBlockCopyLimitForWordsAndTagged = 0;
+
+#endif  // !defined(V8_TARGET_ARCH_IA32) && !defined(V8_HOST_ARCH_ARM)
 
 // Copies words from |src| to |dst|. The data spans must not overlap.
 // |src| and |dst| must be TWord-size aligned.
@@ -241,34 +257,44 @@ inline void CopyImpl(T* dst_ptr, const T* src_ptr, size_t count) {
   DCHECK(((src <= dst) && ((src + count * kTWordSize) <= dst)) ||
          ((dst <= src) && ((dst + count * kTWordSize) <= src)));
 #endif
-  if (count == 0) return;
-
-  // Use block copying MemCopy if the segment we're copying is
-  // enough to justify the extra call/setup overhead.
-  if (count < kBlockCopyLimit) {
-    do {
-      count--;
-      *dst_ptr++ = *src_ptr++;
-    } while (count > 0);
-  } else {
-    MemCopy(dst_ptr, src_ptr, count * kTWordSize);
+  if (count == 0) {
+    return;
   }
+
+  if constexpr (kBlockCopyLimit > 0) {
+    if (count < kBlockCopyLimit) {
+      do {
+        count--;
+        *dst_ptr++ = *src_ptr++;
+      } while (count > 0);
+      return;
+    }
+  }
+
+  MemCopy(dst_ptr, src_ptr, count * kTWordSize);
 }
 
-// Copies kSystemPointerSize-sized words from |src| to |dst|. The data spans
-// must not overlap. |src| and |dst| must be kSystemPointerSize-aligned.
-inline void CopyWords(Address dst, const Address src, size_t num_words) {
-  static const size_t kBlockCopyLimit = 16;
-  CopyImpl<kBlockCopyLimit>(reinterpret_cast<Address*>(dst),
-                            reinterpret_cast<const Address*>(src), num_words);
+// Copies `count` system words from `src` to `dst`.  The data spans must not
+// overlap. `src` and `dst` must be kSystemPointerSize-aligned.
+inline void CopyWords(Address dst, const Address src, size_t count) {
+  CopyImpl<kBlockCopyLimitForWordsAndTagged>(
+      reinterpret_cast<Address*>(dst), reinterpret_cast<const Address*>(src),
+      count);
 }
 
-// Copies data from |src| to |dst|.  The data spans must not overlap.
+// Copies `count` tagged words from `src` to `dst`.  The data spans must not
+// overlap. `src` and `dst` must be kTaggedSize-aligned.
+inline void CopyTagged(Address dst, const Address src, size_t count) {
+  CopyImpl<kBlockCopyLimitForWordsAndTagged>(
+      reinterpret_cast<Tagged_t*>(dst), reinterpret_cast<const Tagged_t*>(src),
+      count);
+}
+
+// Copies `count` bytes from `src` to `dst`.  The data spans must not overlap.
 template <typename T>
-inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
+inline void CopyBytes(T* dst, const T* src, size_t count) {
   static_assert(sizeof(T) == 1);
-  if (num_bytes == 0) return;
-  CopyImpl<kMinComplexMemCopy>(dst, src, num_bytes);
+  CopyImpl<kMinComplexMemCopy>(dst, src, count);
 }
 
 // Copy from 8bit/16bit chars to 8bit/16bit chars. Values are zero-extended if

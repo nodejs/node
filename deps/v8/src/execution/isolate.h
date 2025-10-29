@@ -490,7 +490,8 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
 #define ISOLATE_INIT_LIST(V)                                                \
   /* Assembler state. */                                                    \
   V(FatalErrorCallback, exception_behavior, nullptr)                        \
-  V(OOMErrorCallback, oom_behavior, nullptr)                                \
+  V(OOMErrorCallbackWithData, oom_behavior, nullptr)                        \
+  V(void*, oom_callback_data, nullptr)                                      \
   V(LogEventCallback, event_logger, nullptr)                                \
   V(ModifyCodeGenerationFromStringsCallback2, modify_code_gen_callback,     \
     nullptr)                                                                \
@@ -1263,7 +1264,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Address* builtin_entry_table() { return isolate_data_.builtin_entry_table(); }
 
-#ifdef V8_ENABLE_LEAPTIERING
   V8_INLINE JSDispatchHandle
   builtin_dispatch_handle(JSBuiltinDispatchHandleRoot::Idx idx) {
 #if V8_STATIC_DISPATCH_HANDLES_BOOL
@@ -1282,7 +1282,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return heap()->js_dispatch_table_space();
   }
 
-#endif
   V8_INLINE Address* builtin_table() { return isolate_data_.builtin_table(); }
   V8_INLINE Address* builtin_tier0_table() {
     return isolate_data_.builtin_tier0_table();
@@ -1541,8 +1540,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool NeedsSourcePositions() const;
 
   bool IsLoggingCodeCreation() const;
-
-  inline bool InFastCCall() const;
 
   bool AllowsCodeCompaction() const;
 

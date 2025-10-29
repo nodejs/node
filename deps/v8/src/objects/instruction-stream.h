@@ -10,6 +10,7 @@
 #endif
 
 #include "src/codegen/code-desc.h"
+#include "src/heap/heap-write-barrier.h"
 #include "src/objects/trusted-object.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -153,7 +154,12 @@ class InstructionStream : public TrustedObject {
 
   class V8_NODISCARD WriteBarrierPromise {
    public:
-    WriteBarrierPromise() = default;
+#ifdef DEBUG
+    explicit WriteBarrierPromise(Tagged<InstructionStream> host)
+        : write_barrier_mode_scope_(host, SKIP_WRITE_BARRIER_SCOPE) {}
+#else
+    explicit WriteBarrierPromise(Tagged<InstructionStream> host) {}
+#endif
     WriteBarrierPromise(WriteBarrierPromise&&) V8_NOEXCEPT = default;
     WriteBarrierPromise(const WriteBarrierPromise&) = delete;
     WriteBarrierPromise& operator=(const WriteBarrierPromise&) = delete;
@@ -165,6 +171,7 @@ class InstructionStream : public TrustedObject {
 
    private:
     std::set<Address> delayed_write_barriers_;
+    WriteBarrierModeScope write_barrier_mode_scope_;
 #else
     void RegisterAddress(Address address) {}
     void ResolveAddress(Address address) {}

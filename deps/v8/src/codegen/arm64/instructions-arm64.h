@@ -527,7 +527,6 @@ class Instruction {
   void SetBranchImmTarget(Instruction* target,
                           WritableJitAllocation* jit_allocation = nullptr) {
     DCHECK(IsAligned(DistanceTo(target), kInstrSize));
-    DCHECK(IsValidImmPCOffset(branch_type, DistanceTo(target)));
     int offset = static_cast<int>(DistanceTo(target) >> kInstrSizeLog2);
     Instr branch_imm = 0;
     uint32_t imm_mask = 0;

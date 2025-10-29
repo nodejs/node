@@ -16,18 +16,18 @@
 #include "src/codegen/compiler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-deopt-data.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-tier.h"
 
-namespace v8 {
-namespace internal {
-
+namespace v8::internal {
 class Counters;
 class TurbofanCompilationJob;
+}  // namespace v8::internal
 
-namespace wasm {
+namespace v8::internal::wasm {
 
 class NativeModule;
 class WasmCode;
@@ -92,6 +92,7 @@ struct WasmCompilationResult {
   Kind kind = kFunction;
   ForDebugging for_debugging = kNotForDebugging;
   bool frame_has_feedback_slot = false;
+  base::OwnedVector<const WasmCode::EffectHandler> effect_handlers;
 };
 
 class V8_EXPORT_PRIVATE WasmCompilationUnit final {
@@ -103,15 +104,15 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
   }
 
   WasmCompilationResult ExecuteCompilation(CompilationEnv*,
-                                           const WireBytesStorage*, Counters*,
-                                           WasmDetectedFeatures* detected);
+                                           const WireBytesStorage*,
+                                           DelayedCounterUpdates*,
+                                           WasmDetectedFeatures*);
 
   ExecutionTier tier() const { return tier_; }
   ForDebugging for_debugging() const { return for_debugging_; }
   int func_index() const { return func_index_; }
 
-  static void CompileWasmFunction(Counters*, NativeModule*,
-                                  WasmDetectedFeatures* detected,
+  static void CompileWasmFunction(NativeModule*, WasmDetectedFeatures*,
                                   const WasmFunction*, ExecutionTier);
 
  private:
@@ -159,22 +160,20 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   std::unique_ptr<OptimizedCompilationJob> job_;
 };
 
-inline bool CanUseGenericJsToWasmWrapper(const WasmModule* module,
+inline bool CanUseGenericJsToWasmWrapper(ModuleOrigin origin,
                                          const CanonicalSig* sig) {
 #if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 ||  \
      V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_PPC64 || \
      V8_TARGET_ARCH_LOONG64)
   // We don't use the generic wrapper for asm.js, because it creates invalid
   // stack traces.
-  return !is_asmjs_module(module) && v8_flags.wasm_generic_wrapper &&
+  return origin == kWasmOrigin && v8_flags.wasm_generic_wrapper &&
          IsJSCompatibleSignature(sig);
 #else
   return false;
 #endif
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_FUNCTION_COMPILER_H_

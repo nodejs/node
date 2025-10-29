@@ -53,6 +53,28 @@ void Int32AbsWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
+void Int32Increment::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+void Int32Increment::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result());
+  __ add(out, value, Operand(1));
+}
+
+void Int32Decrement::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+void Int32Decrement::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result());
+  __ sub(out, value, Operand(1));
+}
+
 void Int32IncrementWithOverflow::SetValueLocationConstraints() {
   UseRegister(value_input());
   DefineAsRegister(this);
@@ -821,6 +843,48 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
   __ MovFromFloatResult(out);
 }
 
+void Float64Min::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Float64Min::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+
+  Label has_nan, done;
+  __ FloatMin(out, left, right, &has_nan);
+  __ Jump(&done);
+
+  __ bind(&has_nan);
+  __ FloatMinOutOfLine(out, left, right);
+  __ bind(&done);
+}
+
+void Float64Max::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Float64Max::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+
+  Label has_nan, done;
+  __ FloatMax(out, left, right, &has_nan);
+  __ Jump(&done);
+
+  __ bind(&has_nan);
+  __ FloatMaxOutOfLine(out, left, right);
+  __ bind(&done);
+}
+
 int Float64Ieee754Unary::MaxCallStackArgs() const { return 0; }
 void Float64Ieee754Unary::SetValueLocationConstraints() {
   UseFixed(input(), d0);
@@ -929,7 +993,6 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
   __ VFPCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void Float64ToHoleyFloat64::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
@@ -942,6 +1005,7 @@ void Float64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
   __ VFPCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void ConvertHoleNanToUndefinedNan::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);

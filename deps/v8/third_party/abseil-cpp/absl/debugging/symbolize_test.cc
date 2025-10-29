@@ -107,8 +107,6 @@ static ABSL_PER_THREAD_TLS_KEYWORD char
 #endif
 
 #if !defined(__EMSCRIPTEN__)
-static void *GetPCFromFnPtr(void *ptr) { return ptr; }
-
 // Used below to hopefully inhibit some compiler/linker optimizations
 // that may remove kHpageTextPadding, kPadding0, and kPadding1 from
 // the binary.
@@ -118,12 +116,6 @@ static volatile bool volatile_bool = false;
 static constexpr size_t kHpageSize = 1 << 21;
 const char kHpageTextPadding[kHpageSize * 4] ABSL_ATTRIBUTE_SECTION_VARIABLE(
         .text) = "";
-
-#else
-static void *GetPCFromFnPtr(void *ptr) {
-  return EM_ASM_PTR(
-      { return wasmOffsetConverter.convert(wasmTable.get($0).name, 0); }, ptr);
-}
 
 #endif  // !defined(__EMSCRIPTEN__)
 
@@ -174,12 +166,10 @@ void ABSL_ATTRIBUTE_NOINLINE TestWithReturnAddress() {
 
 TEST(Symbolize, Cached) {
   // Compilers should give us pointers to them.
-  EXPECT_STREQ("nonstatic_func",
-               TrySymbolize(GetPCFromFnPtr((void *)(&nonstatic_func))));
+  EXPECT_STREQ("nonstatic_func", TrySymbolize((void*)(&nonstatic_func)));
   // The name of an internal linkage symbol is not specified; allow either a
   // mangled or an unmangled name here.
-  const char *static_func_symbol =
-      TrySymbolize(GetPCFromFnPtr((void *)(&static_func)));
+  const char* static_func_symbol = TrySymbolize((void*)(&static_func));
   EXPECT_TRUE(strcmp("static_func", static_func_symbol) == 0 ||
               strcmp("static_func()", static_func_symbol) == 0);
 
@@ -189,50 +179,38 @@ TEST(Symbolize, Cached) {
 TEST(Symbolize, Truncation) {
   constexpr char kNonStaticFunc[] = "nonstatic_func";
   EXPECT_STREQ("nonstatic_func",
-               TrySymbolizeWithLimit(GetPCFromFnPtr((void *)(&nonstatic_func)),
+               TrySymbolizeWithLimit((void*)(&nonstatic_func),
                                      strlen(kNonStaticFunc) + 1));
   EXPECT_STREQ("nonstatic_...",
-               TrySymbolizeWithLimit(GetPCFromFnPtr((void *)(&nonstatic_func)),
+               TrySymbolizeWithLimit((void*)(&nonstatic_func),
                                      strlen(kNonStaticFunc) + 0));
   EXPECT_STREQ("nonstatic...",
-               TrySymbolizeWithLimit(GetPCFromFnPtr((void *)(&nonstatic_func)),
+               TrySymbolizeWithLimit((void*)(&nonstatic_func),
                                      strlen(kNonStaticFunc) - 1));
-  EXPECT_STREQ("n...", TrySymbolizeWithLimit(
-                           GetPCFromFnPtr((void *)(&nonstatic_func)), 5));
-  EXPECT_STREQ("...", TrySymbolizeWithLimit(
-                          GetPCFromFnPtr((void *)(&nonstatic_func)), 4));
-  EXPECT_STREQ("..", TrySymbolizeWithLimit(
-                         GetPCFromFnPtr((void *)(&nonstatic_func)), 3));
-  EXPECT_STREQ(
-      ".", TrySymbolizeWithLimit(GetPCFromFnPtr((void *)(&nonstatic_func)), 2));
-  EXPECT_STREQ(
-      "", TrySymbolizeWithLimit(GetPCFromFnPtr((void *)(&nonstatic_func)), 1));
-  EXPECT_EQ(nullptr, TrySymbolizeWithLimit(
-                         GetPCFromFnPtr((void *)(&nonstatic_func)), 0));
+  EXPECT_STREQ("n...", TrySymbolizeWithLimit((void*)(&nonstatic_func), 5));
+  EXPECT_STREQ("...", TrySymbolizeWithLimit((void*)(&nonstatic_func), 4));
+  EXPECT_STREQ("..", TrySymbolizeWithLimit((void*)(&nonstatic_func), 3));
+  EXPECT_STREQ(".", TrySymbolizeWithLimit((void*)(&nonstatic_func), 2));
+  EXPECT_STREQ("", TrySymbolizeWithLimit((void*)(&nonstatic_func), 1));
+  EXPECT_EQ(nullptr, TrySymbolizeWithLimit((void*)(&nonstatic_func), 0));
 }
 
 TEST(Symbolize, SymbolizeWithDemangling) {
   Foo::func(100);
 #ifdef __EMSCRIPTEN__
   // Emscripten's online symbolizer is more precise with arguments.
-  EXPECT_STREQ("Foo::func(int)",
-               TrySymbolize(GetPCFromFnPtr((void *)(&Foo::func))));
+  EXPECT_STREQ("Foo::func(int)", TrySymbolize((void*)(&Foo::func)));
 #else
-  EXPECT_STREQ("Foo::func()",
-               TrySymbolize(GetPCFromFnPtr((void *)(&Foo::func))));
+  EXPECT_STREQ("Foo::func()", TrySymbolize((void*)(&Foo::func)));
 #endif
 }
 
 TEST(Symbolize, SymbolizeSplitTextSections) {
-  EXPECT_STREQ("unlikely_func()",
-               TrySymbolize(GetPCFromFnPtr((void *)(&unlikely_func))));
-  EXPECT_STREQ("hot_func()", TrySymbolize(GetPCFromFnPtr((void *)(&hot_func))));
-  EXPECT_STREQ("startup_func()",
-               TrySymbolize(GetPCFromFnPtr((void *)(&startup_func))));
-  EXPECT_STREQ("exit_func()",
-               TrySymbolize(GetPCFromFnPtr((void *)(&exit_func))));
-  EXPECT_STREQ("regular_func()",
-               TrySymbolize(GetPCFromFnPtr((void *)(&regular_func))));
+  EXPECT_STREQ("unlikely_func()", TrySymbolize((void*)(&unlikely_func)));
+  EXPECT_STREQ("hot_func()", TrySymbolize((void*)(&hot_func)));
+  EXPECT_STREQ("startup_func()", TrySymbolize((void*)(&startup_func)));
+  EXPECT_STREQ("exit_func()", TrySymbolize((void*)(&exit_func)));
+  EXPECT_STREQ("regular_func()", TrySymbolize((void*)(&regular_func)));
 }
 
 // Tests that verify that Symbolize stack footprint is within some limit.
@@ -630,5 +608,12 @@ int main(int argc, char **argv) {
 #endif
 #endif
 
+#if !defined(__EMSCRIPTEN__)
+  // All of these test cases rely on symbolizing function pointers.
+  // On most platforms, function pointers directly map to PC.
+  // In WebAssembly, function pointers are indices into the function table
+  // and there is no longer a mapping from function index back into the
+  // file offset for symbolization.
   return RUN_ALL_TESTS();
+#endif  // !defined(__EMSCRIPTEN__)
 }

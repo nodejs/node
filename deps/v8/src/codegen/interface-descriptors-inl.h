@@ -815,6 +815,10 @@ constexpr auto WasmToJSWrapperDescriptor::return_double_registers() {
 constexpr auto WasmFXResumeDescriptor::registers() {
   return RegisterArray(wasm::kGpParamRegisters[0]);
 }
+constexpr auto WasmFXSuspendDescriptor::registers() {
+  // Reg 0 is the context register.
+  return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2]);
+}
 #endif
 
 #define DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER(Name, DescriptorName) \

@@ -880,7 +880,8 @@ void JSObject::JSObjectPrint(std::ostream& os) {
 
 void JSExternalObject::JSExternalObjectPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, nullptr);
-  os << "\n - external value: " << value();
+  os << "\n - external value: "
+     << value({kFirstExternalTypeTag, kLastExternalTypeTag});
   JSObjectPrintBody(os, *this);
 }
 
@@ -2629,6 +2630,7 @@ void Code::CodePrint(std::ostream& os, const char* name, Address current_pc) {
   os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
   os << "\n - instruction_start: "
      << reinterpret_cast<void*>(instruction_start());
+  os << "\n - is_disabled_builtin: " << is_disabled_builtin();
   os << "\n - is_turbofanned: " << is_turbofanned();
   os << "\n - stack_slots: " << stack_slots();
   os << "\n - marked_for_deoptimization: " << marked_for_deoptimization();
@@ -3065,15 +3067,16 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
   os << "\n - function_index: " << function_index();
   os << "\n - wrapper_budget: " << wrapper_budget()->value();
   os << "\n - receiver_is_first_param: " << receiver_is_first_param();
-  os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
-     << sig()->return_count() << " returns)";
+  os << "\n - packed_args_size: " << packed_args_size();
+  os << "\n - c_wrapper_code: "
+     << c_wrapper_code(GetCurrentIsolateForSandbox());
   os << "\n";
 }
 
 void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmJSFunctionData");
   WasmFunctionDataPrint(os);
-  os << "\n - canonical_sig_index: " << canonical_sig_index();
+  os << "\n - offheap_data: " << offheap_data();
   os << "\n";
 }
 
@@ -3113,6 +3116,8 @@ void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
   os << "\n - call target: [" << call_target().value() << "] -> "
      << AsHex::Address(wasm::GetProcessWideWasmCodePointerTable()
                            ->GetEntrypointWithoutSignatureCheck(call_target()));
+  os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
+     << sig()->return_count() << " returns)";
   os << "\n";
 }
 
@@ -3127,8 +3132,6 @@ void WasmCapiFunctionData::WasmCapiFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmCapiFunctionData");
   WasmFunctionDataPrint(os);
   os << "\n - embedder_data: " << Brief(embedder_data());
-  os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
-     << sig()->return_count() << " returns)";
   os << "\n";
 }
 
@@ -3507,7 +3510,8 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
   }
   if (ClassScopeHasPrivateBrand()) os << "\n - class scope has private brand";
   if (HasSavedClassVariable()) os << "\n - has saved class variable";
-  if (HasNewTarget()) os << "\n - needs new target";
+  if (CanOnlyAccessFixedFormalParameters())
+    os << "\n - can only access fixed formal parameters";
   if (HasFunctionName()) {
     os << "\n - function name(" << FunctionVariableBits::decode(flags) << "): ";
     ShortPrint(FunctionName(), os);

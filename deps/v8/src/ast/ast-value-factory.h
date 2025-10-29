@@ -252,19 +252,22 @@ using AstRawStringMap =
   F(bigint_string, "bigint")                              \
   F(boolean_string, "boolean")                            \
   F(computed_string, "<computed>")                        \
-  F(dot_brand_string, ".brand")                           \
   F(constructor_string, "constructor")                    \
   F(default_string, "default")                            \
+  F(defer_string, "defer")                                \
   F(done_string, "done")                                  \
+  F(dot_brand_string, ".brand")                           \
+  F(dot_catch_string, ".catch")                           \
   F(dot_default_string, ".default")                       \
   F(dot_for_string, ".for")                               \
   F(dot_generator_object_string, ".generator_object")     \
   F(dot_home_object_string, ".home_object")               \
-  F(dot_result_string, ".result")                         \
+  F(dot_new_target_string, ".new.target")                 \
   F(dot_repl_result_string, ".repl_result")               \
+  F(dot_result_string, ".result")                         \
   F(dot_static_home_object_string, ".static_home_object") \
   F(dot_switch_tag_string, ".switch_tag")                 \
-  F(dot_catch_string, ".catch")                           \
+  F(dot_this_function_string, ".this_function")           \
   F(empty_string, "")                                     \
   F(eval_string, "eval")                                  \
   F(from_string, "from")                                  \
@@ -274,7 +277,6 @@ using AstRawStringMap =
   F(let_string, "let")                                    \
   F(meta_string, "meta")                                  \
   F(native_string, "native")                              \
-  F(new_target_string, ".new.target")                     \
   F(next_string, "next")                                  \
   F(number_string, "number")                              \
   F(object_string, "object")                              \
@@ -288,11 +290,9 @@ using AstRawStringMap =
   F(symbol_string, "symbol")                              \
   F(target_string, "target")                              \
   F(this_string, "this")                                  \
-  F(this_function_string, ".this_function")               \
   F(throw_string, "throw")                                \
   F(undefined_string, "undefined")                        \
   F(value_string, "value")
-
 class AstStringConstants final {
  public:
 #define F(name, str) +1

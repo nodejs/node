@@ -39,10 +39,8 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
   inline void clear_interrupt_budget();
   inline void clear_dispatch_handle();
 
-#ifdef V8_ENABLE_LEAPTIERING
   inline JSDispatchHandle dispatch_handle() const;
   inline void set_dispatch_handle(JSDispatchHandle new_handle);
-#endif  // V8_ENABLE_LEAPTIERING
 
   inline void clear_padding();
   inline void reset_feedback_vector(

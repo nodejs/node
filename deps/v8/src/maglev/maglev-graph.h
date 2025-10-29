@@ -228,6 +228,8 @@ class Graph final : public ZoneObject {
   // Resolve the scope info of a context value.
   // An empty result means we don't statically know the context's scope.
   compiler::OptionalScopeInfoRef TryGetScopeInfo(ValueNode* context);
+  bool ContextMayAlias(ValueNode* context,
+                       compiler::OptionalScopeInfoRef scope_info);
 
   void record_scope_info(ValueNode* context,
                          compiler::OptionalScopeInfoRef scope_info) {
