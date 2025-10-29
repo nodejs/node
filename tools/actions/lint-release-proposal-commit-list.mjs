@@ -23,8 +23,9 @@ const commitListingStart = changelog.indexOf('\n### Commits\n');
 let commitList;
 if (commitListingStart === -1) {
   // We're preparing a semver-major release.
-  commitList = changelog.replace(/(^.+\n### Semver-Major|\n### Semver-(Minor|Patch)) Commits\n/gs, '')
-    .replaceAll('**(SEMVER-MAJOR)** ', '');
+  assert.match(changelog, /\n### Semver-Major Commits\n/)
+  // The proposal should contain only the release commit.
+  commitList = '';
 } else {
   const commitListingEnd = changelog.indexOf('\n\n<a', commitListingStart);
   assert.notStrictEqual(commitListingEnd, -1);
