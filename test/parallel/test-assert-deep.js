@@ -1,6 +1,6 @@
 'use strict';
 
-const { hasCrypto } = require('../common');
+const { mustCall, hasCrypto } = require('../common');
 const assert = require('assert');
 const util = require('util');
 const { test } = require('node:test');
@@ -223,10 +223,10 @@ function assertNotDeepOrStrict(a, b, err, options) {
     () => assert.deepStrictEqual(b, a),
     err || { code: 'ERR_ASSERTION' }
   );
-  const partial = () => {
+  const partial = mustCall(() => {
     assert.partialDeepStrictEqual(b, a);
     assert.partialDeepStrictEqual(a, b);
-  };
+  });
   if (options?.partial === 'pass') {
     partial();
   } else {

@@ -8,10 +8,10 @@ const fn = common.mustCall(AsyncResource.bind(() => {
   return executionAsyncId();
 }));
 
-setImmediate(() => {
+setImmediate(common.mustCall(() => {
   const asyncId = executionAsyncId();
   assert.notStrictEqual(asyncId, fn());
-});
+}));
 
 const asyncResource = new AsyncResource('test');
 
@@ -28,11 +28,11 @@ const fn2 = asyncResource.bind((a, b) => {
 assert.strictEqual(fn2.asyncResource, asyncResource);
 assert.strictEqual(fn2.length, 2);
 
-setImmediate(() => {
+setImmediate(common.mustCall(() => {
   const asyncId = executionAsyncId();
   assert.strictEqual(asyncResource.asyncId(), fn2());
   assert.notStrictEqual(asyncId, fn2());
-});
+}));
 
 const foo = {};
 const fn3 = asyncResource.bind(common.mustCall(function() {

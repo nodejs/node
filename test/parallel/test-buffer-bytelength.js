@@ -106,17 +106,13 @@ assert.strictEqual(Buffer.byteLength('aaaa==', 'base64url'), 3);
 assert.strictEqual(Buffer.byteLength('Il était tué'), 14);
 assert.strictEqual(Buffer.byteLength('Il était tué', 'utf8'), 14);
 
-['ascii', 'latin1', 'binary']
-  .reduce((es, e) => es.concat(e, e.toUpperCase()), [])
-  .forEach((encoding) => {
-    assert.strictEqual(Buffer.byteLength('Il était tué', encoding), 12);
-  });
+for (const encoding of ['ascii', 'latin1', 'binary'].flatMap((e) => [e, e.toUpperCase()])) {
+  assert.strictEqual(Buffer.byteLength('Il était tué', encoding), 12);
+}
 
-['ucs2', 'ucs-2', 'utf16le', 'utf-16le']
-  .reduce((es, e) => es.concat(e, e.toUpperCase()), [])
-  .forEach((encoding) => {
-    assert.strictEqual(Buffer.byteLength('Il était tué', encoding), 24);
-  });
+for (const encoding of ['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].flatMap((e) => [e, e.toUpperCase()])) {
+  assert.strictEqual(Buffer.byteLength('Il était tué', encoding), 24);
+}
 
 // Test that ArrayBuffer from a different context is detected correctly
 const arrayBuf = vm.runInNewContext('new ArrayBuffer()');
