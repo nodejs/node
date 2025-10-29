@@ -2,7 +2,7 @@
 
 const common = require('../common');
 const { createLogger, JSONHandler } = require('node:logger');
-const fs = require('fs');
+const fs = require('node:fs');
 
 const bench = common.createBenchmark(main, {
   n: [1e5],
