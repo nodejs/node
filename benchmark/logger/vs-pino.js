@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const fs = require('fs');
+const fs = require('node:fs');
 
 const bench = common.createBenchmark(main, {
   n: [1e5],
