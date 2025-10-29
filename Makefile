@@ -1468,6 +1468,29 @@ lint-js-ci: tools/eslint/node_modules/eslint/bin/eslint.js
 jslint-ci: lint-js-ci
 	$(warning Please use lint-js-ci instead of jslint-ci)
 
+# TypeScript type checking
+tools/typescript/node_modules/typescript/bin/tsc: tools/typescript/package.json
+	-cd tools/typescript && $(call available-node,$(run-npm-ci))
+
+.PHONY: typecheck-build
+typecheck-build: ## Install TypeScript type checker dependencies
+	$(info Installing TypeScript for type checking...)
+	cd tools/typescript && $(call available-node,$(run-npm-ci))
+
+.PHONY: typecheck
+typecheck: ## Type-check TypeScript files in lib/
+	@if [ -f "tools/typescript/node_modules/typescript/bin/tsc" ]; then \
+		$(MAKE) run-typecheck ; \
+	else \
+		echo 'TypeScript type checking is not available'; \
+		echo "Run 'make typecheck-build'"; \
+	fi
+
+.PHONY: run-typecheck
+run-typecheck:
+	$(info Running TypeScript type checker...)
+	@$(call available-node,tools/typescript/node_modules/typescript/bin/tsc)
+
 LINT_CPP_ADDON_DOC_FILES_GLOB = test/addons/??_*/*.cc test/addons/??_*/*.h
 LINT_CPP_ADDON_DOC_FILES = $(wildcard $(LINT_CPP_ADDON_DOC_FILES_GLOB))
 LINT_CPP_EXCLUDE ?=
@@ -1636,11 +1659,12 @@ lint: ## Run JS, C++, MD and doc linters.
 	$(MAKE) lint-addon-docs || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-md || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-yaml || EXIT_STATUS=$$? ; \
+	$(MAKE) typecheck || EXIT_STATUS=$$? ; \
 	exit $$EXIT_STATUS
 CONFLICT_RE=^>>>>>>> [[:xdigit:]]+|^<<<<<<< [[:alpha:]]+
 
 # Related CI job: node-test-linter
-lint-ci: lint-js-ci lint-cpp lint-py lint-md lint-addon-docs lint-yaml-build lint-yaml
+lint-ci: lint-js-ci lint-cpp lint-py lint-md lint-addon-docs lint-yaml-build lint-yaml typecheck
 	@if ! ( grep -IEqrs "$(CONFLICT_RE)" --exclude="error-message.js" --exclude="merge-conflict.json" benchmark deps doc lib src test tools ) \
 		&& ! ( $(FIND) . -maxdepth 1 -type f | xargs grep -IEqs "$(CONFLICT_RE)" ); then \
 		exit 0 ; \
@@ -1661,6 +1685,7 @@ lint-clean: ## Remove linting artifacts.
 	$(RM) .eslintcache
 	$(RM) -r tools/eslint/node_modules
 	$(RM) -r tools/lint-md/node_modules
+	$(RM) -r tools/typescript/node_modules
 	$(RM) tools/pip/site_packages
 
 HAS_DOCKER ?= $(shell command -v docker > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)

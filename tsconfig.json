@@ -1,9 +1,10 @@
 {
-  "include": ["lib", "doc"],
+  "include": ["lib/**/*.ts", "doc"],
   "exclude": ["src", "tools", "out"],
   "files": [
     "./typings/globals.d.ts",
-    "./typings/primordials.d.ts"
+    "./typings/primordials.d.ts",
+    "./deps/amaro/lib/wasm.d.ts"
   ],
   "compilerOptions": {
     "allowJs": true,
@@ -12,6 +13,11 @@
     "lib": ["ESNext", "DOM"],
     "target": "ESNext",
     "module": "CommonJS",
+    "moduleResolution": "node",
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "noResolve": true,
     "baseUrl": ".",
     "paths": {
       "_http_agent": ["./lib/_http_agent.js"],

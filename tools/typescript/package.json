@@ -1,0 +1,9 @@
+{
+    "name": "node-type-checker",
+    "version": "1.0.0",
+    "private": true,
+    "description": "TypeScript type checker for Node.js core",
+    "dependencies": {
+        "typescript": "^5.9.3"
+    }
+}

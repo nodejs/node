@@ -66,9 +66,11 @@ interface InternalBindingMap {
 
 type InternalBindingKeys = keyof InternalBindingMap;
 
-declare function internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T]
-
 declare global {
+  function internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T];
+  function require(id: string): any;
+  var module: { exports: any };
+  var exports: any;
   type TypedArray =
     | Uint8Array
     | Uint8ClampedArray

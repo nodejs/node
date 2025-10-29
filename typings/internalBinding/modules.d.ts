@@ -28,4 +28,11 @@ export interface ModulesBinding {
   enableCompileCache(path?: string): { status: number, message?: string, directory?: string }
   getCompileCacheDir(): string | undefined
   flushCompileCache(keepDeserializedCache?: boolean): void
+  getCompileCacheEntry(source: string, filename: string, type: number): any
+  saveCompileCacheEntry(filename: string, data: any): void
+  cachedCodeTypes: {
+    kStrippedTypeScript: number
+    kTransformedTypeScript: number
+    kTransformedTypeScriptWithSourceMaps: number
+  }
 }

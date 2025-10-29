@@ -61,7 +61,7 @@ interface JsxConfig {
 
 
 
-type Mode = "strip-only" | "transform";
+export type Mode = "strip-only" | "transform";
 
 
 

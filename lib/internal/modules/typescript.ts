@@ -1,5 +1,9 @@
 'use strict';
 
+type Options = import('../../../deps/amaro/lib/wasm').Options;
+type TransformOutput = import('../../../deps/amaro/lib/wasm').TransformOutput;
+type Mode = 'strip-only' | 'transform';
+
 const {
   ObjectPrototypeHasOwnProperty,
 } = primordials;
@@ -9,11 +13,13 @@ const {
   validateObject,
   validateString,
 } = require('internal/validators');
-const { assertTypeScript,
-        emitExperimentalWarning,
-        getLazy,
-        isUnderNodeModules,
-        kEmptyObject } = require('internal/util');
+const {
+  assertTypeScript,
+  emitExperimentalWarning,
+  getLazy,
+  isUnderNodeModules,
+  kEmptyObject
+} = require('internal/util');
 const {
   ERR_INVALID_TYPESCRIPT_SYNTAX,
   ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING,
@@ -30,31 +36,26 @@ const {
 
 /**
  * The TypeScript parsing mode, either 'strip-only' or 'transform'.
- * @type {function(): TypeScriptMode}
  */
-const getTypeScriptParsingMode = getLazy(() =>
-  (getOptionValue('--experimental-transform-types') ?
-    (emitExperimentalWarning('Transform Types'), 'transform') : 'strip-only'),
+const getTypeScriptParsingMode: () => Mode = getLazy(() =>
+(getOptionValue('--experimental-transform-types') ?
+  (emitExperimentalWarning('Transform Types'), 'transform') : 'strip-only'),
 );
 
 /**
  * Load the TypeScript parser.
  * and returns an object with a `code` property.
- * @returns {Function} The TypeScript parser function.
  */
-const loadTypeScriptParser = getLazy(() => {
+const loadTypeScriptParser: () => (source: string, options: Options) => TransformOutput = getLazy(() => {
   assertTypeScript();
-  const amaro = require('internal/deps/amaro/dist/index');
+  const amaro: { transformSync: (source: string, options: Options) => TransformOutput } = require('internal/deps/amaro/dist/index');
   return amaro.transformSync;
 });
 
 /**
- *
- * @param {string} source the source code
- * @param {object} options the options to pass to the parser
- * @returns {TransformOutput} an object with a `code` property.
+ * Parse TypeScript source code.
  */
-function parseTypeScript(source, options) {
+function parseTypeScript(source: string, options: Options): TransformOutput {
   const parse = loadTypeScriptParser();
   try {
     return parse(source, options);
@@ -82,12 +83,9 @@ function parseTypeScript(source, options) {
 }
 
 /**
- *
- * @param {Error} error the error to decorate: ERR_INVALID_TYPESCRIPT_SYNTAX, ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX
- * @param {object} amaroError the error object from amaro
- * @returns {Error} the decorated error
+ * Decorate an error with a code snippet from the Amaro error.
  */
-function decorateErrorWithSnippet(error, amaroError) {
+function decorateErrorWithSnippet(error: Error, amaroError: any): Error {
   const errorHints = `${amaroError.filename}:${amaroError.startLine}\n${amaroError.snippet}`;
   error.stack = `${errorHints}\n${error.stack}`;
   return error;
@@ -95,11 +93,8 @@ function decorateErrorWithSnippet(error, amaroError) {
 
 /**
  * Performs type-stripping to TypeScript source code.
- * @param {string} code TypeScript code to parse.
- * @param {TransformOptions} options The configuration for type stripping.
- * @returns {string} The stripped TypeScript code.
  */
-function stripTypeScriptTypes(code, options = kEmptyObject) {
+function stripTypeScriptTypes(code: string, options = kEmptyObject): string {
   emitExperimentalWarning('stripTypeScriptTypes');
   validateString(code, 'code');
   validateObject(options, 'options');
@@ -128,21 +123,10 @@ function stripTypeScriptTypes(code, options = kEmptyObject) {
 }
 
 /**
- * @typedef {'strip-only' | 'transform'} TypeScriptMode
- * @typedef {object} TypeScriptOptions
- * @property {TypeScriptMode} mode Mode.
- * @property {boolean} sourceMap Whether to generate source maps.
- * @property {string|undefined} filename Filename.
- */
-
-/**
  * Processes TypeScript code by stripping types or transforming.
  * Handles source maps if needed.
- * @param {string} code TypeScript code to process.
- * @param {TypeScriptOptions} options The configuration object.
- * @returns {string} The processed code.
  */
-function processTypeScriptCode(code, options) {
+function processTypeScriptCode(code: string, options: Options): string {
   const { code: transformedCode, map } = parseTypeScript(code, options);
 
   if (map) {
@@ -158,11 +142,8 @@ function processTypeScriptCode(code, options) {
 
 /**
  * Get the type enum used for compile cache.
- * @param {TypeScriptMode} mode Mode of transpilation.
- * @param {boolean} sourceMap Whether source maps are enabled.
- * @returns {number}
  */
-function getCachedCodeType(mode, sourceMap) {
+function getCachedCodeType(mode: Mode, sourceMap: boolean): number {
   if (mode === 'transform') {
     if (sourceMap) { return kTransformedTypeScriptWithSourceMaps; }
     return kTransformedTypeScript;
@@ -173,11 +154,8 @@ function getCachedCodeType(mode, sourceMap) {
 /**
  * Performs type-stripping to TypeScript source code internally.
  * It is used by internal loaders.
- * @param {string} source TypeScript code to parse.
- * @param {string} filename The filename of the source code.
- * @returns {TransformOutput} The stripped TypeScript code.
  */
-function stripTypeScriptModuleTypes(source, filename) {
+function stripTypeScriptModuleTypes(source: string, filename: string): string {
   assert(typeof source === 'string');
   if (isUnderNodeModules(filename)) {
     throw new ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING(filename);
@@ -200,7 +178,7 @@ function stripTypeScriptModuleTypes(source, filename) {
     return cached.transpiled;
   }
 
-  const options = {
+  const options: Options = {
     mode,
     sourceMap,
     filename,
@@ -219,12 +197,9 @@ function stripTypeScriptModuleTypes(source, filename) {
 }
 
 /**
- *
- * @param {string} code The compiled code.
- * @param {string} sourceMap The source map.
- * @returns {string} The code with the source map attached.
+ * Add a source map to compiled code.
  */
-function addSourceMap(code, sourceMap) {
+function addSourceMap(code: string, sourceMap: string): string {
   // The base64 encoding should be https://datatracker.ietf.org/doc/html/rfc4648#section-4,
   // not base64url https://datatracker.ietf.org/doc/html/rfc4648#section-5. See data url
   // spec https://tools.ietf.org/html/rfc2397#section-2.

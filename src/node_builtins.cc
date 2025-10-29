@@ -178,19 +178,99 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 }
 
 #ifdef NODE_BUILTIN_MODULES_PATH
-static std::string OnDiskFileName(const char* id) {
-  std::string filename = NODE_BUILTIN_MODULES_PATH;
-  filename += "/";
+static std::string OnDiskFileName(const char* id,
+                                  bool* is_typescript = nullptr) {
+  std::string base_path = NODE_BUILTIN_MODULES_PATH;
+  base_path += "/";
 
   if (strncmp(id, "internal/deps", strlen("internal/deps")) == 0) {
-    id += strlen("internal/");
+    base_path += id + strlen("internal/");
   } else {
-    filename += "lib/";
+    base_path += "lib/";
+    base_path += id;
   }
-  filename += id;
-  filename += ".js";
 
-  return filename;
+  // Try .ts file first
+  std::string ts_filename = base_path + ".ts";
+  uv_fs_t req;
+  int r = uv_fs_stat(nullptr, &req, ts_filename.c_str(), nullptr);
+  uv_fs_req_cleanup(&req);
+
+  if (r == 0) {
+    if (is_typescript != nullptr) *is_typescript = true;
+    return ts_filename;
+  }
+
+  // Fall back to .js file
+  if (is_typescript != nullptr) *is_typescript = false;
+  return base_path + ".js";
+}
+
+// Strip TypeScript types by calling the JavaScript stripTypeScriptModuleTypes
+// function
+static MaybeLocal<String> StripTypeScriptTypes(Local<Context> context,
+                                               const std::string& source,
+                                               const std::string& filename) {
+  Isolate* isolate = context->GetIsolate();
+  EscapableHandleScope scope(isolate);
+
+  // Get the current environment
+  Environment* env = Environment::GetCurrent(context);
+  if (env == nullptr) {
+    // Runtime not initialized yet, cannot strip types
+    // Return the source as-is (this shouldn't happen in practice)
+    return String::NewFromUtf8(
+        isolate, source.c_str(), NewStringType::kNormal, source.length());
+  }
+
+  // Require the typescript module
+  Local<Value> typescript_module;
+  if (!env->builtin_module_require()
+           ->Call(context,
+                  Undefined(isolate),
+                  1,
+                  &FIXED_ONE_BYTE_STRING(isolate, "internal/modules/typescript")
+                       .As<Value>())
+           .ToLocal(&typescript_module) ||
+      !typescript_module->IsObject()) {
+    // Cannot load typescript module, return source as-is
+    return String::NewFromUtf8(
+        isolate, source.c_str(), NewStringType::kNormal, source.length());
+  }
+
+  // Get the stripTypeScriptModuleTypes function
+  Local<Object> typescript_obj = typescript_module.As<Object>();
+  Local<Value> strip_fn;
+  if (!typescript_obj
+           ->Get(context,
+                 FIXED_ONE_BYTE_STRING(isolate, "stripTypeScriptModuleTypes"))
+           .ToLocal(&strip_fn) ||
+      !strip_fn->IsFunction()) {
+    // Function not found, return source as-is
+    return String::NewFromUtf8(
+        isolate, source.c_str(), NewStringType::kNormal, source.length());
+  }
+
+  // Call stripTypeScriptModuleTypes(source, filename)
+  Local<Value> args[2] = {
+      String::NewFromUtf8(
+          isolate, source.c_str(), NewStringType::kNormal, source.length())
+          .ToLocalChecked(),
+      String::NewFromUtf8(
+          isolate, filename.c_str(), NewStringType::kNormal, filename.length())
+          .ToLocalChecked()};
+
+  Local<Value> result;
+  if (!strip_fn.As<Function>()
+           ->Call(context, Undefined(isolate), 2, args)
+           .ToLocal(&result) ||
+      !result->IsString()) {
+    // Stripping failed, return original source
+    return String::NewFromUtf8(
+        isolate, source.c_str(), NewStringType::kNormal, source.length());
+  }
+
+  return scope.Escape(result.As<String>());
 }
 #endif  // NODE_BUILTIN_MODULES_PATH
 
@@ -282,6 +362,25 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
   if (!LoadBuiltinSource(isolate, id).ToLocal(&source)) {
     return {};
   }
+
+#ifdef NODE_BUILTIN_MODULES_PATH
+  // Check if this is a TypeScript file and strip types if needed
+  bool is_typescript = false;
+  std::string filename_for_check = OnDiskFileName(id, &is_typescript);
+
+  if (is_typescript) {
+    // Convert source to std::string
+    node::Utf8Value utf8_source(isolate, source);
+    std::string source_str(*utf8_source, utf8_source.length());
+
+    // Strip TypeScript types
+    if (!StripTypeScriptTypes(context, source_str, filename_for_check)
+             .ToLocal(&source)) {
+      // If stripping fails, use the original source
+      // (this will likely cause a syntax error, but better than crashing)
+    }
+  }
+#endif  // NODE_BUILTIN_MODULES_PATH
 
   std::string filename_s = std::string("node:") + id;
   Local<String> filename = OneByteString(isolate, filename_s);
