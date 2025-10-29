@@ -12,7 +12,7 @@ const bench = common.createBenchmark(main, {
 function main({ n, logger, scenario }) {
   const nullFd = fs.openSync('/dev/null', 'w');
   let testLogger;
-  let consumer; // ← Consumer'ı üstte tanımla
+  let consumer;
 
   if (logger === 'node-logger') {
     const { createLogger, JSONConsumer } = require('logger');
@@ -78,7 +78,7 @@ function main({ n, logger, scenario }) {
       }
     }
 
-    if (consumer) { // ← Güvenlik kontrolü
+    if (consumer) {
       consumer.flushSync();
     }
     fs.closeSync(nullFd);
