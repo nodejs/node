@@ -233,7 +233,14 @@ assert.deepStrictEqual(c, b.slice(0, c.length));
   const copied = buf.copy(x);
   assert.strictEqual(copied, 4);
   assert.ok(x instanceof Uint16Array);
-  assert.deepStrictEqual(Array.from(x), [513, 1027, 0, 0]);
+  const bytes = new Uint8Array(x.buffer, x.byteOffset, 4);
+  assert.deepStrictEqual(Array.from(bytes), [1, 2, 3, 4]);
+  const remaining = new Uint8Array(
+    x.buffer,
+    x.byteOffset + 4,
+    x.byteLength - 4
+  );
+  assert.ok(remaining.every((b) => b === 0));
 }
 
 {
