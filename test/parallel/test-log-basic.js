@@ -52,6 +52,8 @@ const path = require('path');
 // Test msg field is required
 {
   const logger = createLogger();
+
+  // Object without msg should throw
   assert.throws(() => {
     logger.info({ userId: 123 }); // Missing msg
   }, {
@@ -63,9 +65,10 @@ const path = require('path');
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
   });
-}
 
-// Test child logger context inheritance
+  // String without second arg should work (no assertion needed, just shouldn't throw)
+  logger.info('just a message');
+}// Test child logger context inheritance
 {
   const logger = createLogger({ level: 'info' });
   const childLogger = logger.child({ requestId: 'abc-123' });
@@ -182,7 +185,8 @@ const path = require('path');
   assert.throws(() => {
     handler.handle({});
   }, {
-    message: /must be implemented/,
+    code: 'ERR_METHOD_NOT_IMPLEMENTED',
+    message: /Handler\.handle\(\) method is not implemented/,
   });
 }
 
@@ -207,4 +211,163 @@ const path = require('path');
   // This should be processed (error > warn)
   logger.error({ msg: 'processed' });
   assert.strictEqual(handleCalled, true);
+}
+
+// Test invalid fields argument
+{
+  const logger = createLogger();
+  assert.throws(() => {
+    logger.info('message', 'not an object'); // Second arg must be object
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+}
+
+// Test string message signature
+{
+  const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-string.json`);
+  const handler = new JSONHandler({
+    stream: fs.openSync(tmpfile, 'w'),
+    level: 'info',
+  });
+  const logger = new Logger({ handler });
+
+  logger.info('simple message');
+
+  handler.flushSync();
+  handler.end();
+  const output = fs.readFileSync(tmpfile, 'utf8');
+  const parsed = JSON.parse(output.trim());
+
+  assert.strictEqual(parsed.msg, 'simple message');
+  assert.strictEqual(parsed.level, 'info');
+
+  fs.unlinkSync(tmpfile);
+}
+
+// Test string message with fields
+{
+  const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-string-fields.json`);
+  const handler = new JSONHandler({
+    stream: fs.openSync(tmpfile, 'w'),
+    level: 'info',
+  });
+  const logger = new Logger({ handler });
+
+  logger.info('user login', { userId: 123, ip: '127.0.0.1' });
+
+  handler.flushSync();
+  handler.end();
+  const output = fs.readFileSync(tmpfile, 'utf8');
+  const parsed = JSON.parse(output.trim());
+
+  assert.strictEqual(parsed.msg, 'user login');
+  assert.strictEqual(parsed.userId, 123);
+  assert.strictEqual(parsed.ip, '127.0.0.1');
+
+  fs.unlinkSync(tmpfile);
+}
+
+// Test Error object serialization
+{
+  const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-error.json`);
+  const handler = new JSONHandler({
+    stream: fs.openSync(tmpfile, 'w'),
+    level: 'info',
+  });
+  const logger = new Logger({ handler });
+
+  const err = new Error('test error');
+  err.code = 'TEST_ERROR';
+  logger.error({ msg: 'operation failed', err });
+
+  handler.flushSync();
+  handler.end();
+  const output = fs.readFileSync(tmpfile, 'utf8');
+  const parsed = JSON.parse(output.trim());
+
+  // Error should be serialized with stack trace
+  assert.strictEqual(parsed.msg, 'operation failed');
+  assert.strictEqual(typeof parsed.err, 'object');
+  assert.strictEqual(parsed.err.message, 'test error');
+  assert.strictEqual(parsed.err.code, 'TEST_ERROR');
+  assert(parsed.err.stack);
+
+  fs.unlinkSync(tmpfile);
+}
+
+// Test Error as first argument
+{
+  const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-error-first.json`);
+  const handler = new JSONHandler({
+    stream: fs.openSync(tmpfile, 'w'),
+    level: 'info',
+  });
+  const logger = new Logger({ handler });
+
+  const err = new Error('boom');
+  logger.error(err); // Error as first arg
+
+  handler.flushSync();
+  handler.end();
+  const output = fs.readFileSync(tmpfile, 'utf8');
+  const parsed = JSON.parse(output.trim());
+
+  assert.strictEqual(parsed.msg, 'boom'); // message from error
+  assert.strictEqual(typeof parsed.err, 'object');
+  assert(parsed.err.stack);
+
+  fs.unlinkSync(tmpfile);
+}
+
+// Test child logger with parent fields merge
+{
+  const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-child-merge.json`);
+  const handler = new JSONHandler({
+    stream: fs.openSync(tmpfile, 'w'),
+    level: 'info',
+    fields: { service: 'api' }, // handler fields
+  });
+  const logger = new Logger({ handler });
+  const childLogger = logger.child({ requestId: '123' }); // child bindings
+
+  childLogger.info('request processed', { duration: 150 }); // log fields
+
+  handler.flushSync();
+  handler.end();
+  const output = fs.readFileSync(tmpfile, 'utf8');
+  const parsed = JSON.parse(output.trim());
+
+  // Merge order: handler fields < bindings < log fields
+  assert.strictEqual(parsed.service, 'api');
+  assert.strictEqual(parsed.requestId, '123');
+  assert.strictEqual(parsed.duration, 150);
+  assert.strictEqual(parsed.msg, 'request processed');
+
+  fs.unlinkSync(tmpfile);
+}
+
+// Test field override priority
+{
+  const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-override.json`);
+  const handler = new JSONHandler({
+    stream: fs.openSync(tmpfile, 'w'),
+    level: 'info',
+    fields: { env: 'dev', version: '1.0' },
+  });
+  const logger = new Logger({ handler });
+  const childLogger = logger.child({ env: 'staging' });
+
+  childLogger.info('test', { env: 'production' });
+
+  handler.flushSync();
+  handler.end();
+  const output = fs.readFileSync(tmpfile, 'utf8');
+  const parsed = JSON.parse(output.trim());
+
+  // Log fields should override everything
+  assert.strictEqual(parsed.env, 'production');
+  assert.strictEqual(parsed.version, '1.0');
+
+  fs.unlinkSync(tmpfile);
 }
