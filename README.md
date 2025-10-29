@@ -18,12 +18,9 @@ that discourage, exhaust, or otherwise negatively affect other participants.
 ## Table of contents
 
 * [Support](#support)
-* [Release types](#release-types)
-  * [Download](#download)
-    * [Current and LTS releases](#current-and-lts-releases)
-    * [Nightly releases](#nightly-releases)
-    * [API documentation](#api-documentation)
-  * [Verifying binaries](#verifying-binaries)
+* [Releases](#releases)
+* [Download](#download)
+* [Documentation](#documentation)
 * [Building Node.js](#building-nodejs)
 * [Security](#security)
 * [Contributing to Node.js](#contributing-to-nodejs)
@@ -31,100 +28,39 @@ that discourage, exhaust, or otherwise negatively affect other participants.
   * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
   * [Collaborators](#collaborators)
   * [Triagers](#triagers)
-  * [Release keys](#release-keys)
+  * [Security release stewards](#security-release-stewards)
+* [Release keys](#release-keys)
 * [License](#license)
 
 ## Support
 
-Looking for help? Check out the
-[instructions for getting support](.github/SUPPORT.md).
+Looking for help? Check out the [instructions for getting support](.github/SUPPORT.md).
 
-## Release types
+## Releases
 
-* **Current**: Under active development. Code for the Current release is in the
-  branch for its major version number (for example,
-  [v22.x](https://github.com/nodejs/node/tree/v22.x)). Node.js releases a new
-  major version every 6 months, allowing for breaking changes. This happens in
-  April and October every year. Releases appearing each October have a support
-  life of 8 months. Releases appearing each April convert to LTS (see below)
-  each October.
-* **LTS**: Releases that receive Long Term Support, with a focus on stability
-  and security. Every even-numbered major version will become an LTS release.
-  LTS releases receive 12 months of _Active LTS_ support and a further 18 months
-  of _Maintenance_. LTS release lines have alphabetically-ordered code names,
-  beginning with v4 Argon. There are no breaking changes or feature additions,
-  except in some special circumstances.
-* **Nightly**: Code from the Current branch built every 24-hours when there are
-  changes. Use with caution.
+See [RELEASE.md](./RELEASE.md) for an overview of releases and how to verify them,
+and the [Release Working Group README](https://github.com/nodejs/Release#readme) for
+release schedules and policies.
 
-Current and LTS releases follow [semantic versioning](https://semver.org). A
-member of the Release Team [signs](#release-keys) each Current and LTS release.
-For more information, see the
-[Release README](https://github.com/nodejs/Release#readme).
+## Download
 
-### Download
+See [how to download, install, or get the release source tarball of Node.js](https://nodejs.org/en/download/).
 
-Binaries, installers, and source tarballs are available at
-<https://nodejs.org/en/download/>.
+## Documentation
 
-#### Current and LTS releases
-
-<https://nodejs.org/download/release/>
-
-The [latest](https://nodejs.org/download/release/latest/) directory is an
-alias for the latest Current release. The latest-_codename_ directory is an
-alias for the latest release from an LTS line. For example, the
-[latest-hydrogen](https://nodejs.org/download/release/latest-hydrogen/)
-directory contains the latest Hydrogen (Node.js 18) release.
-
-#### Nightly releases
-
-<https://nodejs.org/download/nightly/>
-
-Each directory and filename includes the version (e.g., `v22.0.0`),
-followed by the UTC date (e.g., `20240424` for April 24, 2024),
-and the short commit SHA of the HEAD of the release (e.g., `ddd0a9e494`).
-For instance, a full directory name might look like `v22.0.0-nightly20240424ddd0a9e494`.
-
-#### API documentation
-
-Documentation for the latest Current release is at <https://nodejs.org/api/>.
-Version-specific documentation is available in each release directory in the
-_docs_ subdirectory. Version-specific documentation is also at
-<https://nodejs.org/download/docs/>.
-
-### Verifying binaries
-
-Download directories contain a `SHASUMS256.txt.asc` file with SHA checksums for the
-files and the releaser PGP signature.
-
-You can get a trusted keyring from nodejs/release-keys, e.g. using `curl`:
-
-```bash
-curl -fsLo "/path/to/nodejs-keyring.kbx" "https://github.com/nodejs/release-keys/raw/HEAD/gpg/pubring.kbx"
-```
-
-Alternatively, you can import the releaser keys in your default keyring, see
-[Release keys](#release-keys) for commands to how to do that.
-
-Then, you can verify the files you've downloaded locally
-(if you're using your default keyring, pass `--keyring="${GNUPGHOME:-~/.gnupg}/pubring.kbx"`):
-
-```bash
-curl -fsO "https://nodejs.org/dist/${VERSION}/SHASUMS256.txt.asc" \
-&& gpgv --keyring="/path/to/nodejs-keyring.kbx" --output SHASUMS256.txt < SHASUMS256.txt.asc \
-&& shasum --check SHASUMS256.txt --ignore-missing
-```
+* [Learn how to use Node.js](https://nodejs.org/en/learn/getting-started/introduction-to-nodejs) on the Node.js website.
+* Rendered [API documentation](https://nodejs.org/api/) for the latest Current release
+* [Index](https://nodejs.org/download/docs/) of version-specific API documentation
+* Source code of the API documentation are in [doc/api](./doc/api/).
 
 ## Building Node.js
 
-See [BUILDING.md](BUILDING.md) for instructions on how to build Node.js from
-source and a list of supported platforms.
+* [Building Node.js from source](./BUILDING.md#building-nodejs-on-supported-platforms).
+* [List of supported platforms](./BUILDING.md#supported-platforms).
 
 ## Security
 
-For information on reporting security vulnerabilities in Node.js, see
-[SECURITY.md](./SECURITY.md).
+See [information on reporting security vulnerabilities in Node.js](./SECURITY.md).
 
 ## Contributing to Node.js
 
@@ -777,7 +713,40 @@ maintaining the Node.js project.
 Triagers follow the [Triage Guide](./doc/contributing/issues.md#triaging-a-bug-report) when
 responding to new issues.
 
-### Release keys
+### Security release stewards
+
+When possible, the commitment to take slots in the
+security release steward rotation is made by companies in order
+to ensure individuals who act as security stewards have the
+support and recognition from their employer to be able to
+prioritize security releases. Security release stewards manage security
+releases on a rotation basis as outlined in the
+[security release process](./doc/contributing/security-release-process.md).
+
+* [Datadog](https://www.datadoghq.com/)
+  * [bengl](https://github.com/bengl) -
+    **Bryan English** <<bryan@bryanenglish.com>> (he/him)
+* [HeroDevs](https://www.herodevs.com/)
+  * [marco-ippolito](https://github.com/marco-ippolito) -
+    **Marco Ippolito** <<marcoippolito54@gmail.com>> (he/him)
+* [NodeSource](https://nodesource.com/)
+  * [juanarbol](https://github.com/juanarbol) -
+    **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
+  * [RafaelGSS](https://github.com/RafaelGSS) -
+    **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
+* [Platformatic](https://platformatic.dev/)
+  * [mcollina](https://github.com/mcollina) -
+    **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
+* [Red Hat](https://redhat.com) / [IBM](https://ibm.com)
+  * [joesepi](https://github.com/joesepi) -
+    **Joe Sepi** <<joesepi@ibm.com>> (he/him)
+  * [mhdawson](https://github.com/mhdawson) -
+    **Michael Dawson** <<midawson@redhat.com>> (he/him)
+
+<!-- The release keys cannot be moved out of this README, because there are scripts
+parsing it to get the keys. -->
+
+## Release keys
 
 Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
 
@@ -866,36 +835,6 @@ The project maintains a keyring able to verify all past releases of Node.js at
 <https://github.com/nodejs/release-keys/raw/refs/heads/main/gpg/pubring.kbx>.
 
 </details>
-
-### Security release stewards
-
-When possible, the commitment to take slots in the
-security release steward rotation is made by companies in order
-to ensure individuals who act as security stewards have the
-support and recognition from their employer to be able to
-prioritize security releases. Security release stewards manage security
-releases on a rotation basis as outlined in the
-[security release process](./doc/contributing/security-release-process.md).
-
-* [Datadog](https://www.datadoghq.com/)
-  * [bengl](https://github.com/bengl) -
-    **Bryan English** <<bryan@bryanenglish.com>> (he/him)
-* [HeroDevs](https://www.herodevs.com/)
-  * [marco-ippolito](https://github.com/marco-ippolito) -
-    **Marco Ippolito** <<marcoippolito54@gmail.com>> (he/him)
-* [NodeSource](https://nodesource.com/)
-  * [juanarbol](https://github.com/juanarbol) -
-    **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
-  * [RafaelGSS](https://github.com/RafaelGSS) -
-    **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
-* [Platformatic](https://platformatic.dev/)
-  * [mcollina](https://github.com/mcollina) -
-    **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
-* [Red Hat](https://redhat.com) / [IBM](https://ibm.com)
-  * [joesepi](https://github.com/joesepi) -
-    **Joe Sepi** <<joesepi@ibm.com>> (he/him)
-  * [mhdawson](https://github.com/mhdawson) -
-    **Michael Dawson** <<midawson@redhat.com>> (he/him)
 
 ## License
 
