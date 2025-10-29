@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const { deepStrictEqual, strictEqual, throws } = require('assert');
+const assert = require('assert');
 const { runInNewContext } = require('vm');
 
 const checkString = 'test';
@@ -26,10 +26,10 @@ class MyBadPrimitive {
   }
 }
 
-deepStrictEqual(Buffer.from(new String(checkString)), check);
-deepStrictEqual(Buffer.from(new MyString()), check);
-deepStrictEqual(Buffer.from(new MyPrimitive()), check);
-deepStrictEqual(
+assert.deepStrictEqual(Buffer.from(new String(checkString)), check);
+assert.deepStrictEqual(Buffer.from(new MyString()), check);
+assert.deepStrictEqual(Buffer.from(new MyPrimitive()), check);
+assert.deepStrictEqual(
   Buffer.from(runInNewContext('new String(checkString)', { checkString })),
   check
 );
@@ -56,8 +56,8 @@ deepStrictEqual(
              'Buffer, ArrayBuffer, or Array or an Array-like Object.' +
              common.invalidArgTypeHelper(input)
   };
-  throws(() => Buffer.from(input), errObj);
-  throws(() => Buffer.from(input, 'hex'), errObj);
+  assert.throws(() => Buffer.from(input), errObj);
+  assert.throws(() => Buffer.from(input, 'hex'), errObj);
 });
 
 Buffer.allocUnsafe(10); // Should not throw.
@@ -68,9 +68,9 @@ Buffer.from('deadbeaf', 'hex'); // Should not throw.
   const u16 = new Uint16Array([0xffff]);
   const b16 = Buffer.copyBytesFrom(u16);
   u16[0] = 0;
-  strictEqual(b16.length, 2);
-  strictEqual(b16[0], 255);
-  strictEqual(b16[1], 255);
+  assert.strictEqual(b16.length, 2);
+  assert.strictEqual(b16[0], 255);
+  assert.strictEqual(b16[1], 255);
 }
 
 {
@@ -78,30 +78,30 @@ Buffer.from('deadbeaf', 'hex'); // Should not throw.
   const b16 = Buffer.copyBytesFrom(u16, 1, 5);
   u16[0] = 0xffff;
   u16[1] = 0;
-  strictEqual(b16.length, 2);
-  strictEqual(b16[0], 255);
-  strictEqual(b16[1], 255);
+  assert.strictEqual(b16.length, 2);
+  assert.strictEqual(b16[0], 255);
+  assert.strictEqual(b16[1], 255);
 }
 
 {
   const u32 = new Uint32Array([0xffffffff]);
   const b32 = Buffer.copyBytesFrom(u32);
   u32[0] = 0;
-  strictEqual(b32.length, 4);
-  strictEqual(b32[0], 255);
-  strictEqual(b32[1], 255);
-  strictEqual(b32[2], 255);
-  strictEqual(b32[3], 255);
+  assert.strictEqual(b32.length, 4);
+  assert.strictEqual(b32[0], 255);
+  assert.strictEqual(b32[1], 255);
+  assert.strictEqual(b32[2], 255);
+  assert.strictEqual(b32[3], 255);
 }
 
-throws(() => {
+assert.throws(() => {
   Buffer.copyBytesFrom();
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 
 ['', Symbol(), true, false, {}, [], () => {}, 1, 1n, null, undefined].forEach(
-  (notTypedArray) => throws(() => {
+  (notTypedArray) => assert.throws(() => {
     Buffer.copyBytesFrom('nope');
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
@@ -109,7 +109,7 @@ throws(() => {
 );
 
 ['', Symbol(), true, false, {}, [], () => {}, 1n].forEach((notANumber) =>
-  throws(() => {
+  assert.throws(() => {
     Buffer.copyBytesFrom(new Uint8Array(1), notANumber);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
@@ -117,7 +117,7 @@ throws(() => {
 );
 
 [-1, NaN, 1.1, -Infinity].forEach((outOfRange) =>
-  throws(() => {
+  assert.throws(() => {
     Buffer.copyBytesFrom(new Uint8Array(1), outOfRange);
   }, {
     code: 'ERR_OUT_OF_RANGE',
@@ -125,7 +125,7 @@ throws(() => {
 );
 
 ['', Symbol(), true, false, {}, [], () => {}, 1n].forEach((notANumber) =>
-  throws(() => {
+  assert.throws(() => {
     Buffer.copyBytesFrom(new Uint8Array(1), 0, notANumber);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
@@ -133,7 +133,7 @@ throws(() => {
 );
 
 [-1, NaN, 1.1, -Infinity].forEach((outOfRange) =>
-  throws(() => {
+  assert.throws(() => {
     Buffer.copyBytesFrom(new Uint8Array(1), 0, outOfRange);
   }, {
     code: 'ERR_OUT_OF_RANGE',
