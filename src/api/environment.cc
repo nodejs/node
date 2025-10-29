@@ -223,8 +223,6 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
     // heap based on the actual physical memory.
     params->constraints.ConfigureDefaults(total_memory, 0);
   }
-  params->embedder_wrapper_object_index = BaseObject::InternalFields::kSlot;
-  params->embedder_wrapper_type_index = std::numeric_limits<int>::max();
 
 #ifdef NODE_ENABLE_VTUNE_PROFILING
   params->code_event_handler = vTune::GetVtuneCodeEventHandler();
