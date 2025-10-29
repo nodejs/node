@@ -1,18 +1,22 @@
 # Developing Node.js using Dev Containers
 
-[Dev Containers](https://containers.dev/) allows development inside a containerized environment, ensuring
-consistency across different development setups.
+Node.js publishes a [nightly image on DockerHub](https://hub.docker.com/r/nodejs/devcontainer) for
+[Dev Containers](https://containers.dev/) that can be used to spin up a
+development container that comes with pre-installed build dependencies and pre-genreated build cache.
 
-Node.js provides a [nightly Dev Container image](https://hub.docker.com/r/nodejs/devcontainer) that can
-be used to set up a development environment quickly and enable incremental compilation based on nightly builds.
-Most of the times, if you only have some changes in the main branch and do not need to change the V8 headers
-(which is rare), using the nightly image will allow you to compile your changes from a fresh checkout
-in a few seconds instead of spending tens of minutes or even hours to compile the entire codebase from scratch.
+When you need to test a few changes in the main branch and do not need
+to change the V8 headers (which is rare), using the nightly image will allow you to compile your
+changes from a fresh checkout quickly without having to compile the entire codebase, especially V8,
+from scratch.
+
 The Dev Container also allows you to test your changes in a different operating system, and to test
 third-party code from bug reports safely with your work-in-progress Node.js branches in an isolated environment.
 
-This guide will walk you through the steps to set up a Dev Container for Node.js development using
-[Visual Studio Code (VS Code)](https://code.visualstudio.com/).
+There are many command line tools, IDEs and services that [support Dev Containers](https://containers.dev/supporting).
+Among them, [Visual Studio Code (VS Code)](https://code.visualstudio.com/) is a very popuplar option.
+This guide will walk you through the steps to set up a Dev Container for Node.js development using VS Code.
+You should be able to use the same [`nodejs/devcontainer:nightly` image](https://hub.docker.com/r/nodejs/devcontainer)
+in other tools and services using generally similar steps.
 
 ## Prerequisites
 
