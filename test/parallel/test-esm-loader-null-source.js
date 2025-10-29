@@ -12,6 +12,12 @@ const fixtures = require('../common/fixtures');
 // Test case: Loader returning null source for CommonJS module
 // This should throw ERR_INVALID_RETURN_PROPERTY_VALUE, not ERR_INTERNAL_ASSERTION
 {
+  function load(url, context, next) {
+          if (url.includes("test-null-source")) {
+            return { format: "commonjs", source: null, shortCircuit: true };
+          }
+          return next(url);
+   }
   const result = spawnSync(
     process.execPath,
     [
@@ -22,14 +28,7 @@ const fixtures = require('../common/fixtures');
       import { register } from 'node:module';
       
       // Register a custom loader that returns null source
-      const code = 'export function load(url, context, next) {' +
-        '  if (url.includes("test-null-source")) {' +
-        '    return { format: "commonjs", source: null, shortCircuit: true };' +
-        '  }' +
-        '  return next(url);' +
-        '}';
-      
-      register('data:text/javascript,' + encodeURIComponent(code));
+      register('data:text/javascript,export ' + encodeURIComponent(${load}));
       
       await assert.rejects(import('file:///test-null-source.js'), { code: 'ERR_INVALID_RETURN_PROPERTY_VALUE' });
       `,
