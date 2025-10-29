@@ -3,7 +3,7 @@
 require('../common');
 
 const assert = require('assert');
-const { createLogger, Logger, Handler, JSONHandler, LEVELS } = require('logger');
+const { createLogger, Logger, LogConsumer, JSONConsumer, LEVELS, channels } = require('logger');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -95,20 +95,21 @@ const path = require('path');
   assert.strictEqual(childLogger.enabled('debug'), true);
 }
 
-// Test JSONHandler output format
+// Test JSONConsumer output format
 {
   const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-1.json`);
-  const handler = new JSONHandler({
+  const consumer = new JSONConsumer({
     stream: fs.openSync(tmpfile, 'w'),
     level: 'info',
   });
-  const logger = new Logger({ handler });
+  consumer.attach();
+  const logger = createLogger({ level: 'info' });
 
   logger.info({ msg: 'test message', userId: 123 });
 
   // Flush synchronously and read the output
-  handler.flushSync();
-  handler.end();
+  consumer.flushSync();
+  consumer.end();
   const output = fs.readFileSync(tmpfile, 'utf8');
 
   // Parse the JSON output
@@ -122,20 +123,21 @@ const path = require('path');
   fs.unlinkSync(tmpfile);
 }
 
-// Test JSONHandler with additional fields
+// Test JSONConsumer with additional fields
 {
   const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-2.json`);
-  const handler = new JSONHandler({
+  const consumer = new JSONConsumer({
     stream: fs.openSync(tmpfile, 'w'),
     level: 'info',
     fields: { hostname: 'test-host', pid: 12345 },
   });
-  const logger = new Logger({ handler });
+  consumer.attach();
+  const logger = createLogger({ level: 'info' });
 
   logger.info({ msg: 'with fields' });
 
-  handler.flushSync();
-  handler.end();
+  consumer.flushSync();
+  consumer.end();
   const output = fs.readFileSync(tmpfile, 'utf8');
   const parsed = JSON.parse(output.trim());
   assert.strictEqual(parsed.hostname, 'test-host');
@@ -149,17 +151,18 @@ const path = require('path');
 // Test child logger bindings in output
 {
   const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-3.json`);
-  const handler = new JSONHandler({
+  const consumer = new JSONConsumer({
     stream: fs.openSync(tmpfile, 'w'),
     level: 'info',
   });
-  const logger = new Logger({ handler });
+  consumer.attach();
+  const logger = createLogger({ level: 'info' });
   const childLogger = logger.child({ requestId: 'xyz-789' });
 
   childLogger.info({ msg: 'child log', action: 'create' });
 
-  handler.flushSync();
-  handler.end();
+  consumer.flushSync();
+  consumer.end();
   const output = fs.readFileSync(tmpfile, 'utf8');
   const parsed = JSON.parse(output.trim());
   assert.strictEqual(parsed.requestId, 'xyz-789');
@@ -179,30 +182,30 @@ const path = require('path');
   });
 }
 
-// Test Handler is abstract
+// Test LogConsumer is abstract
 {
-  const handler = new Handler({ level: 'info' });
+  const consumer = new LogConsumer({ level: 'info' });
   assert.throws(() => {
-    handler.handle({});
+    consumer.handle({});
   }, {
     code: 'ERR_METHOD_NOT_IMPLEMENTED',
-    message: /Handler\.handle\(\) method is not implemented/,
+    message: /LogConsumer\.handle\(\) method is not implemented/,
   });
 }
 
-// Test disabled level skips processing
+// Test disabled level skips processing with diagnostics_channel
 {
   let handleCalled = false;
 
-  class TestHandler extends Handler {
+  class TestConsumer extends LogConsumer {
     handle() {
       handleCalled = true;
     }
   }
 
-  const logger = new Logger({
-    handler: new TestHandler({ level: 'warn' }),
-  });
+  const consumer = new TestConsumer({ level: 'warn' });
+  consumer.attach();
+  const logger = createLogger({ level: 'warn' });
 
   // This should be skipped (info < warn)
   logger.info({ msg: 'skipped' });
@@ -226,16 +229,17 @@ const path = require('path');
 // Test string message signature
 {
   const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-string.json`);
-  const handler = new JSONHandler({
+  const consumer = new JSONConsumer({
     stream: fs.openSync(tmpfile, 'w'),
     level: 'info',
   });
-  const logger = new Logger({ handler });
+  consumer.attach();
+  const logger = createLogger({ level: 'info' });
 
   logger.info('simple message');
 
-  handler.flushSync();
-  handler.end();
+  consumer.flushSync();
+  consumer.end();
   const output = fs.readFileSync(tmpfile, 'utf8');
   const parsed = JSON.parse(output.trim());
 
@@ -248,16 +252,17 @@ const path = require('path');
 // Test string message with fields
 {
   const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-string-fields.json`);
-  const handler = new JSONHandler({
+  const consumer = new JSONConsumer({
     stream: fs.openSync(tmpfile, 'w'),
     level: 'info',
   });
-  const logger = new Logger({ handler });
+  consumer.attach();
+  const logger = createLogger({ level: 'info' });
 
   logger.info('user login', { userId: 123, ip: '127.0.0.1' });
 
-  handler.flushSync();
-  handler.end();
+  consumer.flushSync();
+  consumer.end();
   const output = fs.readFileSync(tmpfile, 'utf8');
   const parsed = JSON.parse(output.trim());
 
@@ -271,18 +276,19 @@ const path = require('path');
 // Test Error object serialization
 {
   const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-error.json`);
-  const handler = new JSONHandler({
+  const consumer = new JSONConsumer({
     stream: fs.openSync(tmpfile, 'w'),
     level: 'info',
   });
-  const logger = new Logger({ handler });
+  consumer.attach();
+  const logger = createLogger({ level: 'info' });
 
   const err = new Error('test error');
   err.code = 'TEST_ERROR';
   logger.error({ msg: 'operation failed', err });
 
-  handler.flushSync();
-  handler.end();
+  consumer.flushSync();
+  consumer.end();
   const output = fs.readFileSync(tmpfile, 'utf8');
   const parsed = JSON.parse(output.trim());
 
@@ -299,17 +305,18 @@ const path = require('path');
 // Test Error as first argument
 {
   const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-error-first.json`);
-  const handler = new JSONHandler({
+  const consumer = new JSONConsumer({
     stream: fs.openSync(tmpfile, 'w'),
     level: 'info',
   });
-  const logger = new Logger({ handler });
+  consumer.attach();
+  const logger = createLogger({ level: 'info' });
 
   const err = new Error('boom');
   logger.error(err); // Error as first arg
 
-  handler.flushSync();
-  handler.end();
+  consumer.flushSync();
+  consumer.end();
   const output = fs.readFileSync(tmpfile, 'utf8');
   const parsed = JSON.parse(output.trim());
 
@@ -323,22 +330,23 @@ const path = require('path');
 // Test child logger with parent fields merge
 {
   const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-child-merge.json`);
-  const handler = new JSONHandler({
+  const consumer = new JSONConsumer({
     stream: fs.openSync(tmpfile, 'w'),
     level: 'info',
-    fields: { service: 'api' }, // handler fields
+    fields: { service: 'api' }, // consumer fields
   });
-  const logger = new Logger({ handler });
+  consumer.attach();
+  const logger = createLogger({ level: 'info' });
   const childLogger = logger.child({ requestId: '123' }); // child bindings
 
   childLogger.info('request processed', { duration: 150 }); // log fields
 
-  handler.flushSync();
-  handler.end();
+  consumer.flushSync();
+  consumer.end();
   const output = fs.readFileSync(tmpfile, 'utf8');
   const parsed = JSON.parse(output.trim());
 
-  // Merge order: handler fields < bindings < log fields
+  // Merge order: consumer fields < bindings < log fields
   assert.strictEqual(parsed.service, 'api');
   assert.strictEqual(parsed.requestId, '123');
   assert.strictEqual(parsed.duration, 150);
@@ -350,18 +358,19 @@ const path = require('path');
 // Test field override priority
 {
   const tmpfile = path.join(os.tmpdir(), `test-log-${process.pid}-override.json`);
-  const handler = new JSONHandler({
+  const consumer = new JSONConsumer({
     stream: fs.openSync(tmpfile, 'w'),
     level: 'info',
     fields: { env: 'dev', version: '1.0' },
   });
-  const logger = new Logger({ handler });
+  consumer.attach();
+  const logger = createLogger({ level: 'info' });
   const childLogger = logger.child({ env: 'staging' });
 
   childLogger.info('test', { env: 'production' });
 
-  handler.flushSync();
-  handler.end();
+  consumer.flushSync();
+  consumer.end();
   const output = fs.readFileSync(tmpfile, 'utf8');
   const parsed = JSON.parse(output.trim());
 
@@ -370,4 +379,68 @@ const path = require('path');
   assert.strictEqual(parsed.version, '1.0');
 
   fs.unlinkSync(tmpfile);
+}
+
+// Test multiple consumers (Qard's use case)
+{
+  const tmpfile1 = path.join(os.tmpdir(), `test-log-${process.pid}-multi1.json`);
+  const tmpfile2 = path.join(os.tmpdir(), `test-log-${process.pid}-multi2.json`);
+
+  // Console consumer logs everything (debug+)
+  const consumer1 = new JSONConsumer({
+    stream: fs.openSync(tmpfile1, 'w'),
+    level: 'debug',
+  });
+  consumer1.attach();
+
+  // Service consumer logs only warnings+ (warn+)
+  const consumer2 = new JSONConsumer({
+    stream: fs.openSync(tmpfile2, 'w'),
+    level: 'warn',
+  });
+  consumer2.attach();
+
+  const logger = createLogger({ level: 'debug' });
+
+  logger.debug({ msg: 'debug message' });
+  logger.info({ msg: 'info message' });
+  logger.warn({ msg: 'warn message' });
+  logger.error({ msg: 'error message' });
+
+  consumer1.flushSync();
+  consumer1.end();
+  consumer2.flushSync();
+  consumer2.end();
+
+  const output1 = fs.readFileSync(tmpfile1, 'utf8');
+  const lines1 = output1.trim().split('\n');
+
+  const output2 = fs.readFileSync(tmpfile2, 'utf8');
+  const lines2 = output2.trim().split('\n');
+
+  // Consumer1 should have all 4 logs (debug+)
+  assert.strictEqual(lines1.length, 4);
+  assert.strictEqual(JSON.parse(lines1[0]).level, 'debug');
+  assert.strictEqual(JSON.parse(lines1[1]).level, 'info');
+  assert.strictEqual(JSON.parse(lines1[2]).level, 'warn');
+  assert.strictEqual(JSON.parse(lines1[3]).level, 'error');
+
+  // Consumer2 should have only 2 logs (warn+)
+  assert.strictEqual(lines2.length, 2);
+  assert.strictEqual(JSON.parse(lines2[0]).level, 'warn');
+  assert.strictEqual(JSON.parse(lines2[1]).level, 'error');
+
+  fs.unlinkSync(tmpfile1);
+  fs.unlinkSync(tmpfile2);
+}
+
+// Test channels export
+{
+  assert.strictEqual(typeof channels, 'object');
+  assert.strictEqual(typeof channels.trace, 'object');
+  assert.strictEqual(typeof channels.debug, 'object');
+  assert.strictEqual(typeof channels.info, 'object');
+  assert.strictEqual(typeof channels.warn, 'object');
+  assert.strictEqual(typeof channels.error, 'object');
+  assert.strictEqual(typeof channels.fatal, 'object');
 }
