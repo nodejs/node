@@ -243,14 +243,14 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert(Buffer.isBuffer(privateDER));
 
   const plaintext = Buffer.from('Hello world', 'utf8');
-  const testDecryption = (fn, ciphertexts, decryptionKeys) => {
+  const testDecryption = common.mustCall((fn, ciphertexts, decryptionKeys) => {
     for (const ciphertext of ciphertexts) {
       for (const key of decryptionKeys) {
         const deciphered = fn(key, ciphertext);
         assert.deepStrictEqual(deciphered, plaintext);
       }
     }
-  };
+  }, 2);
 
   testDecryption(privateDecrypt, [
     // Encrypt using the public key.
