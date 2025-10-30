@@ -812,7 +812,7 @@ tools/doc/node_modules: tools/doc/package.json
 	else \
 		if ! [ `command -v node` ]; then \
 			if [ -x "$(NODE)" ] && [ -e "$(NODE)" ]; then \
-				export PATH=$(dir $(NODE)):${PATH}"; \
+				export PATH=$(dir $(NODE)):${PATH}; \
 			else \
 				echo "No available node, cannot install dependencies"; \
 				exit 1; \
