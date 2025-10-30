@@ -781,7 +781,10 @@ added: v24.5.0
 An instance of a [`LockManager`][LockManager] that can be used to coordinate
 access to resources that may be shared across multiple threads within the same
 process. The API mirrors the semantics of the
-[browser `LockManager`][]
+[browser `LockManager`][].
+
+Use [`process.locksCounters()`][] to monitor lock acquisitions, contention, and
+queue sizes across the process.
 
 ### Class: `Lock`
 
@@ -2249,6 +2252,7 @@ thread spawned will spawn another until the application crashes.
 [`process.env`]: process.md#processenv
 [`process.execArgv`]: process.md#processexecargv
 [`process.exit()`]: process.md#processexitcode
+[`process.locksCounters()`]: process.md#processlockscounters
 [`process.stderr`]: process.md#processstderr
 [`process.stdin`]: process.md#processstdin
 [`process.stdout`]: process.md#processstdout

@@ -319,6 +319,10 @@ void LockManager::ProcessQueue(Environment* env) {
      *    remove later
      */
     if (if_available_request) {
+      {
+        Mutex::ScopedLock scoped_lock(mutex_);
+        counters.total_aborts++;
+      }
       Local<Value> null_arg = Null(isolate);
       Local<Value> callback_result;
       {
@@ -456,7 +460,17 @@ void LockManager::ProcessQueue(Environment* env) {
                                grantable_request->released_promise());
     {
       Mutex::ScopedLock scoped_lock(mutex_);
-      held_locks_[grantable_request->name()].push_back(granted_lock);
+      auto& resource_locks = held_locks_[grantable_request->name()];
+      resource_locks.push_back(granted_lock);
+      if (grantable_request->steal()) {
+        counters.total_steals++;
+      }
+
+      if (grantable_request->mode() == Lock::Mode::Exclusive) {
+        counters.total_exclusive_acquired++;
+      } else {
+        counters.total_shared_acquired++;
+      }
     }
 
     // Create and store the new granted lock
@@ -715,6 +729,10 @@ void LockManager::ReleaseLockAndProcessQueue(Environment* env,
   // stolen.
   if (!lock->is_stolen()) {
     if (was_rejected) {
+      {
+        Mutex::ScopedLock scoped_lock(mutex_);
+        counters.total_aborts++;
+      }
       // Propagate rejection from the user callback
       if (lock->released_promise()
               ->Reject(context, callback_result)
@@ -798,6 +816,37 @@ void LockManager::CleanupEnvironment(Environment* env_to_cleanup) {
 
   // Finally, remove it from registered_envs_
   registered_envs_.erase(env_to_cleanup);
+}
+
+LockManager::LocksCountersSnapshot LockManager::GetCountersSnapshot() const {
+  LocksCountersSnapshot snapshot;
+  Mutex::ScopedLock scoped_lock(mutex_);
+
+  snapshot.total_steals = counters.total_steals;
+  snapshot.total_aborts = counters.total_aborts;
+  snapshot.total_exclusive_acquired = counters.total_exclusive_acquired;
+  snapshot.total_shared_acquired = counters.total_shared_acquired;
+
+  for (const auto& pending_request : pending_queue_) {
+    if (pending_request->mode() == Lock::Mode::Exclusive) {
+      snapshot.pending_exclusive++;
+    } else {
+      snapshot.pending_shared++;
+    }
+  }
+
+  for (const auto& resource : held_locks_) {
+    const auto& locks = resource.second;
+    for (const auto& lock : locks) {
+      if (lock->mode() == Lock::Mode::Exclusive) {
+        snapshot.holders_exclusive++;
+      } else {
+        snapshot.holders_shared++;
+      }
+    }
+  }
+
+  return snapshot;
 }
 
 // Cleanup hook wrapper

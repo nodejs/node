@@ -8,6 +8,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "node_locks.h"
 #include "node_process-inl.h"
 #include "path.h"
 #include "util-inl.h"
@@ -39,6 +40,7 @@ typedef int mode_t;
 
 namespace node {
 
+using node::worker::locks::LockManager;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::CFunction;
@@ -154,6 +156,25 @@ static void ThreadCPUUsage(const FunctionCallbackInfo<Value>& args) {
   // Set the Float64Array elements to be user / system values in microseconds.
   fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
   fields[1] = MICROS_PER_SEC * rusage.ru_stime.tv_sec + rusage.ru_stime.tv_usec;
+}
+
+static void LocksCounters(const FunctionCallbackInfo<Value>& args) {
+  LockManager::LocksCountersSnapshot snapshot =
+      LockManager::GetCurrent()->GetCountersSnapshot();
+
+  Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 8);
+
+  uint64_t* bigint_fields = static_cast<uint64_t*>(ab->Data());
+  bigint_fields[0] = snapshot.total_aborts;
+  bigint_fields[1] = snapshot.total_steals;
+  bigint_fields[2] = snapshot.total_exclusive_acquired;
+  bigint_fields[3] = snapshot.total_shared_acquired;
+
+  double* fields = static_cast<double*>(ab->Data());
+  fields[4] = static_cast<double>(snapshot.holders_exclusive);
+  fields[5] = static_cast<double>(snapshot.holders_shared);
+  fields[6] = static_cast<double>(snapshot.pending_exclusive);
+  fields[7] = static_cast<double>(snapshot.pending_shared);
 }
 
 static void Cwd(const FunctionCallbackInfo<Value>& args) {
@@ -770,6 +791,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "rss", Rss);
   SetMethod(isolate, target, "cpuUsage", CPUUsage);
   SetMethod(isolate, target, "threadCpuUsage", ThreadCPUUsage);
+  SetMethodNoSideEffect(isolate, target, "locksCounters", LocksCounters);
   SetMethod(isolate, target, "resourceUsage", ResourceUsage);
 
   SetMethod(isolate, target, "_debugEnd", DebugEnd);
@@ -819,6 +841,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Rss);
   registry->Register(CPUUsage);
   registry->Register(ThreadCPUUsage);
+  registry->Register(LocksCounters);
   registry->Register(ResourceUsage);
 
   registry->Register(GetActiveRequests);

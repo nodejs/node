@@ -155,6 +155,17 @@ class LockManager final {
                                   std::shared_ptr<Lock> lock,
                                   v8::Local<v8::Value> result,
                                   bool was_rejected = false);
+  struct LocksCountersSnapshot {
+    uint64_t total_steals = 0;
+    uint64_t total_aborts = 0;
+    uint64_t total_exclusive_acquired = 0;
+    uint64_t total_shared_acquired = 0;
+    size_t holders_exclusive = 0;
+    size_t holders_shared = 0;
+    size_t pending_exclusive = 0;
+    size_t pending_shared = 0;
+  };
+  LocksCountersSnapshot GetCountersSnapshot() const;
 
  private:
   LockManager() = default;
@@ -171,6 +182,13 @@ class LockManager final {
   static LockManager current_;
 
   mutable Mutex mutex_;
+  struct Counters {
+    uint64_t total_steals = 0;
+    uint64_t total_aborts = 0;
+    uint64_t total_exclusive_acquired = 0;
+    uint64_t total_shared_acquired = 0;
+  };
+  Counters counters;
   // All entries for a given Environment* are purged in CleanupEnvironment().
   std::unordered_map<std::u16string, std::deque<std::shared_ptr<Lock>>>
       held_locks_;

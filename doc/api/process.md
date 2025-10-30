@@ -3735,6 +3735,60 @@ console.log(resourceUsage());
 */
 ```
 
+## `process.locksCounters()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object} Web Locks usage statistics for the current process.
+  * `totalAborts` {bigint} Lock requests aborted (either `ifAvailable` could not
+    be granted, or the callback rejected/threw).
+  * `totalSteals` {bigint} Lock requests granted with `{ steal: true }`.
+  * `totalExclusiveAcquired` {bigint} Total exclusive locks acquired.
+  * `totalSharedAcquired` {bigint} Total shared locks acquired.
+  * `holdersExclusive` {number} Exclusive locks currently held.
+  * `holdersShared` {number} Shared locks currently held.
+  * `pendingExclusive` {number} Exclusive lock requests currently queued.
+  * `pendingShared` {number} Shared lock requests currently queued.
+
+Returns an object containing lock usage metrics for the current process to provide visibility into
+[`navigator.locks`][] (Web Locks API).
+
+```mjs
+import process from 'node:process';
+import { locks } from 'node:worker_threads';
+
+const before = process.locksCounters();
+
+await locks.request('my_resource', async () => {
+  const current = process.locksCounters();
+  console.log(current.holdersExclusive); // 1
+  console.log(current.totalExclusiveAcquired - before.totalExclusiveAcquired); // 1n
+});
+
+const after = process.locksCounters();
+console.log(after.holdersExclusive); // 0 (released)
+console.log(after.totalExclusiveAcquired - before.totalExclusiveAcquired); // 1n (cumulative)
+```
+
+```cjs
+const process = require('node:process');
+const { locks } = require('node:worker_threads');
+
+const before = process.locksCounters();
+
+locks.request('my_resource', async () => {
+  const current = process.locksCounters();
+  console.log(current.holdersExclusive); // 1
+  console.log(current.totalExclusiveAcquired - before.totalExclusiveAcquired); // 1n
+}).then(() => {
+  const after = process.locksCounters();
+  console.log(after.holdersExclusive); // 0 (released)
+  console.log(after.totalExclusiveAcquired - before.totalExclusiveAcquired); // 1n (cumulative)
+});
+```
+
 ## `process.send(message[, sendHandle[, options]][, callback])`
 
 <!-- YAML
@@ -4535,6 +4589,7 @@ cases:
 [`module.getSourceMapsSupport()`]: module.md#modulegetsourcemapssupport
 [`module.isBuiltin(id)`]: module.md#moduleisbuiltinmodulename
 [`module.setSourceMapsSupport()`]: module.md#modulesetsourcemapssupportenabled-options
+[`navigator.locks`]: globals.md#navigatorlocks
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
 [`os.constants.dlopen`]: os.md#dlopen-constants
