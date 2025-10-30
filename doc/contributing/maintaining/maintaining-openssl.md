@@ -61,7 +61,37 @@ This updates all sources in deps/openssl/openssl by:
     $ git commit openssl
 ```
 
-## 2. Execute `make` in `deps/openssl/config` directory
+## 2. Fix up assembler directives for 32-bit Windows.
+
+This will allow the commits to be cherry-picked to older release lines that
+still provide binaries on 32-bit Windows.
+
+Edit `deps/openssl/openssl/crypto/perlasm/x86asm.pl` to use nasm-style `%ifdef`, but only
+for win32. This endbranch subroutine can be used as a workaround to enable different
+ifdef styles for different x86 systems:
+
+```perl
+sub ::endbranch
+{
+    my $ifdef = "#ifdef";
+    my $endif = "#endif";
+    if ($::win32) { $ifdef = "%ifdef"; $endif = "%endif"; }
+    &::generic("$ifdef __CET__\n");
+    &::data_byte(0xf3,0x0f,0x1e,0xfb);
+    &::generic("$endif\n");
+}
+```
+
+OpenSSL official build procedure is using the C preprocessor before the assembler
+(which is nasm in win32 context).
+
+More about the nasm-style `%ifdef` and gcc-style `#ifdef` issues:
+
+* <https://github.com/openssl/openssl/issues/18459>
+* <https://github.com/nodejs/node/pull/43603#issuecomment-1170670844>
+* <https://github.com/nodejs/node/issues/44822>
+
+## 3. Execute `make` in `deps/openssl/config` directory
 
 Use `make` to regenerate all platform dependent files in
 `deps/openssl/config/archs/`:
@@ -75,18 +105,7 @@ make -C deps/openssl/config clean
 make -C deps/openssl/config
 ```
 
-Fix up 32-bit Windows assembler directives. This will allow the commits to be
-cherry-picked to older release lines that still provide binaries on 32-bit Windows.
-
-```bash
-make -C deps/openssl/config clean
-# Edit deps/openssl/openssl/crypto/perlasm/x86asm.pl changing
-# #ifdef to %ifdef to make it compatible to nasm on 32-bit Windows.
-# See: https://github.com/nodejs/node/pull/43603#issuecomment-1170670844
-# Reference: https://github.com/openssl/openssl/issues/18459
-```
-
-## 3. Check diffs
+## 4. Check diffs
 
 Check diffs to ensure updates are right. Even if there are no updates in openssl
 sources, `buildinf.h` files will be updated because they have timestamp
@@ -103,7 +122,7 @@ created. When source files or build options are updated in Windows,
 it needs to change these two Makefiles by hand. If you are not sure,
 please ask @shigeki for details.
 
-## 4. Commit and make test
+## 5. Commit and make test
 
 Update all architecture dependent files. Do not forget to git add or remove
 files if they are changed before committing:
