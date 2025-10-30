@@ -3,10 +3,10 @@
 .align	4
 _aesni_encrypt:
 L_aesni_encrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movl	4(%esp),%eax
 	movl	12(%esp),%edx
@@ -33,10 +33,10 @@ L000enc1_loop_1:
 .align	4
 _aesni_decrypt:
 L_aesni_decrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movl	4(%esp),%eax
 	movl	12(%esp),%edx
@@ -61,10 +61,10 @@ L001dec1_loop_2:
 	ret
 .align	4
 __aesni_encrypt2:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movups	(%edx),%xmm0
 	shll	$4,%ecx
@@ -91,10 +91,10 @@ L002enc2_loop:
 	ret
 .align	4
 __aesni_decrypt2:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movups	(%edx),%xmm0
 	shll	$4,%ecx
@@ -121,10 +121,10 @@ L003dec2_loop:
 	ret
 .align	4
 __aesni_encrypt3:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movups	(%edx),%xmm0
 	shll	$4,%ecx
@@ -156,10 +156,10 @@ L004enc3_loop:
 	ret
 .align	4
 __aesni_decrypt3:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movups	(%edx),%xmm0
 	shll	$4,%ecx
@@ -191,10 +191,10 @@ L005dec3_loop:
 	ret
 .align	4
 __aesni_encrypt4:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movups	(%edx),%xmm0
 	movups	16(%edx),%xmm1
@@ -232,10 +232,10 @@ L006enc4_loop:
 	ret
 .align	4
 __aesni_decrypt4:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movups	(%edx),%xmm0
 	movups	16(%edx),%xmm1
@@ -273,10 +273,10 @@ L007dec4_loop:
 	ret
 .align	4
 __aesni_encrypt6:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movups	(%edx),%xmm0
 	shll	$4,%ecx
@@ -330,10 +330,10 @@ L_aesni_encrypt6_enter:
 	ret
 .align	4
 __aesni_decrypt6:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movups	(%edx),%xmm0
 	shll	$4,%ecx
@@ -389,10 +389,10 @@ L_aesni_decrypt6_enter:
 .align	4
 _aesni_ecb_encrypt:
 L_aesni_ecb_encrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -627,10 +627,10 @@ L012ecb_ret:
 .align	4
 _aesni_ccm64_encrypt_blocks:
 L_aesni_ccm64_encrypt_blocks_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -718,10 +718,10 @@ L031ccm64_enc2_loop:
 .align	4
 _aesni_ccm64_decrypt_blocks:
 L_aesni_ccm64_decrypt_blocks_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -844,10 +844,10 @@ L036enc1_loop_6:
 .align	4
 _aesni_ctr32_encrypt_blocks:
 L_aesni_ctr32_encrypt_blocks_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -1085,10 +1085,10 @@ L040ctr32_ret:
 .align	4
 _aesni_xts_encrypt:
 L_aesni_xts_encrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -1448,10 +1448,10 @@ L056xts_enc_ret:
 .align	4
 _aesni_xts_decrypt:
 L_aesni_xts_decrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -1841,10 +1841,10 @@ L069xts_dec_ret:
 .align	4
 _aesni_ocb_encrypt:
 L_aesni_ocb_encrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -2239,10 +2239,10 @@ L078done:
 .align	4
 _aesni_ocb_decrypt:
 L_aesni_ocb_decrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -2637,10 +2637,10 @@ L088done:
 .align	4
 _aesni_cbc_encrypt:
 L_aesni_cbc_encrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -2899,10 +2899,10 @@ L094cbc_abort:
 	ret
 .align	4
 __aesni_set_encrypt_key:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -3237,10 +3237,10 @@ L115bad_keybits:
 .align	4
 _aesni_set_encrypt_key:
 L_aesni_set_encrypt_key_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movl	4(%esp),%eax
 	movl	8(%esp),%ecx
@@ -3251,10 +3251,10 @@ L_aesni_set_encrypt_key_begin:
 .align	4
 _aesni_set_decrypt_key:
 L_aesni_set_decrypt_key_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movl	4(%esp),%eax
 	movl	8(%esp),%ecx

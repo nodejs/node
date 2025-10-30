@@ -3,10 +3,10 @@
 .type	__x86_DES_encrypt,@function
 .align	4
 __x86_DES_encrypt:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ecx
 	# Round 0 
@@ -478,10 +478,10 @@ __x86_DES_encrypt:
 .type	__x86_DES_decrypt,@function
 .align	4
 __x86_DES_decrypt:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ecx
 	# Round 15 
@@ -955,10 +955,10 @@ __x86_DES_decrypt:
 .align	4
 _DES_encrypt1:
 L_DES_encrypt1_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%esi
 	pushl	%edi
@@ -1072,10 +1072,10 @@ L002done:
 .align	4
 _DES_encrypt2:
 L_DES_encrypt2_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%esi
 	pushl	%edi
@@ -1119,10 +1119,10 @@ L005done:
 .align	4
 _DES_encrypt3:
 L_DES_encrypt3_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebx
 	movl	8(%esp),%ebx
@@ -1244,10 +1244,10 @@ L_DES_encrypt3_begin:
 .align	4
 _DES_decrypt3:
 L_DES_decrypt3_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebx
 	movl	8(%esp),%ebx
@@ -1369,10 +1369,10 @@ L_DES_decrypt3_begin:
 .align	4
 _DES_ncbc_encrypt:
 L_DES_ncbc_encrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 
 	pushl	%ebp
@@ -1435,55 +1435,55 @@ L010PIC_point:
 	xorl	%edx,%edx
 	jmp	*%ebp
 L012ej7:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movb	6(%esi),%dh
 	shll	$8,%edx
 L013ej6:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movb	5(%esi),%dh
 L014ej5:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movb	4(%esi),%dl
 L015ej4:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movl	(%esi),%ecx
 	jmp	L016ejend
 L017ej3:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movb	2(%esi),%ch
 	shll	$8,%ecx
 L018ej2:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movb	1(%esi),%ch
 L019ej1:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movb	(%esi),%cl
 L016ejend:
@@ -1588,10 +1588,10 @@ L011cbc_enc_jmp_table:
 .align	4
 _DES_ede3_cbc_encrypt:
 L_DES_ede3_cbc_encrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 
 	pushl	%ebp
@@ -1658,55 +1658,55 @@ L034PIC_point:
 	xorl	%edx,%edx
 	jmp	*%ebp
 L036ej7:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movb	6(%esi),%dh
 	shll	$8,%edx
 L037ej6:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movb	5(%esi),%dh
 L038ej5:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movb	4(%esi),%dl
 L039ej4:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movl	(%esi),%ecx
 	jmp	L040ejend
 L041ej3:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movb	2(%esi),%ch
 	shll	$8,%ecx
 L042ej2:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movb	1(%esi),%ch
 L043ej1:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movb	(%esi),%cl
 L040ejend:
