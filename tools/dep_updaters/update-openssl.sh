@@ -70,10 +70,22 @@ regenerate() {
   echo "Regenerating platform-dependent files..."
 
   make -C "$DEPS_DIR/openssl/config" clean
-  # Needed for compatibility with nasm on 32-bit Windows
-  # See https://github.com/nodejs/node/blob/main/doc/contributing/maintaining/maintaining-openssl.md#2-execute-make-in-depsopensslconfig-directory
-  sed -i 's/#ifdef/%ifdef/g' "$DEPS_DIR/openssl/openssl/crypto/perlasm/x86asm.pl"
-  sed -i 's/#endif/%endif/g' "$DEPS_DIR/openssl/openssl/crypto/perlasm/x86asm.pl"
+
+  # There is an issue with #ifdef and #endif in assembler files when doing win32 builds.
+  # More information:
+  # * https://github.com/openssl/openssl/issues/18459
+  # * https://github.com/nodejs/node/pull/43603#issuecomment-1170670844
+  # * https://github.com/nodejs/node/issues/44822
+
+  # Instead of replacing #ifdef and #endif with %ifdef and %endif, replace them with perl variables
+  perl -0777 -i -pe 's/sub ::endbranch.*?\n\}/sub ::endbranch    # modified by node update openssl script\n{\n    my \$ifdef = "#ifdef";\n    my \$endif = "#endif";\n    if (\$::win32) { \$ifdef="%ifdef"; \$endif="%endif"; }\n    &::generic("\$ifdef __CET__\\n");\n    &::data_byte(0xf3,0x0f,0x1e,0xfb);\n    &::generic("\$endif\\n");\n}/s' "$DEPS_DIR/openssl/openssl/crypto/perlasm/x86asm.pl"
+  #    -0777 is needed for multi-line replacement
+
+  # The single perl command can also be replaced by 3 commands that modify the x86asm.pl in a more flexible way.
+  # sed -i 's/("#ifdef/("\$ifdef/g' "$DEPS_DIR/openssl/openssl/crypto/perlasm/x86asm.pl"
+  # sed -i 's/("#endif/("\$endif/g' "$DEPS_DIR/openssl/openssl/crypto/perlasm/x86asm.pl"
+  # perl -0777 -i -pe 's/sub ::endbranch\n\{/sub ::endbranch    # modified by node update openssl script\n{\n    my \$ifdef = "#ifdef";\n    my \$endif = "#endif";\n    if (\$::win32) { \$ifdef="%ifdef"; \$endif="%endif"; }/s' "$DEPS_DIR/openssl/openssl/crypto/perlasm/x86asm.pl"
+
   make -C "$BASE_DIR" gen-openssl
 
   echo "All done!"
