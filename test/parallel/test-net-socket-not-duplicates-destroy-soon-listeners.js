@@ -9,10 +9,14 @@ const socket = new net.Socket();
 socket.on('error', () => {
   // noop
 });
-socket.connect({ host: addresses.INVALID_HOST, port: 1234 });
-socket.destroySoon();
-socket.destroySoon();
-const finishListenersCount = socket.listeners('finish').length;
-const connectListenersCount = socket.listeners('connect').length;
-assert.strictEqual(finishListenersCount, 1);
-assert.strictEqual(connectListenersCount, 1);
+const connectOptions = { host: addresses.INVALID_HOST, port: 1234 };
+
+socket.connect(connectOptions);
+socket.destroySoon(); // Adds "connect" and "finish" event listeners when socket has "writable" state
+socket.destroy(); // Makes imideditly socket again "writable"
+
+socket.connect(connectOptions);
+socket.destroySoon(); // Should not duplicate "connect" and "finish" event listeners
+
+assert.strictEqual(socket.listeners('finish').length, 1);
+assert.strictEqual(socket.listeners('connect').length, 1);
