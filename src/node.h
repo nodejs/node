@@ -76,7 +76,6 @@
 #include "v8-platform.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 
-#define NAPI_EXPERIMENTAL
 #include "node_api.h"
 
 #include <functional>
