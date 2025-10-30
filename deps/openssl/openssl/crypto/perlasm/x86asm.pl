@@ -172,11 +172,14 @@ sub ::vprotd
     {	&::generic("vprotd",@_);	}
 }
 
-sub ::endbranch
+sub ::endbranch    # modified by node update openssl script
 {
-    &::generic("%ifdef __CET__\n");
+    my $ifdef = "#ifdef";
+    my $endif = "#endif";
+    if ($::win32) { $ifdef="%ifdef"; $endif="%endif"; }
+    &::generic("$ifdef __CET__\n");
     &::data_byte(0xf3,0x0f,0x1e,0xfb);
-    &::generic("%endif\n");
+    &::generic("$endif\n");
 }
 
 # label management
