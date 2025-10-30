@@ -123,6 +123,9 @@ To rebuild the Dev Container in VS Code, open the command palette and select
 
 ## Further Reading
 
+* If you want to propose changes to the official Node.js Nightly Dev Container image, feedback is welcome at
+  [nodejs/devcontainer](https://github.com/nodejs/devcontainer). There, you can find the Dockerfile and
+  automated nightly workflows.
 * [Visual Studio Code Dev Containers Documentation](https://code.visualstudio.com/docs/remote/containers)
-* If you want to propose changes to the official Node.js Nightly Dev Container image, feedback is welcome at  [nodejs/devcontainer](https://github.com/nodejs/devcontainer). There, you can find
-   the Dockerfile and automated nightly workflows.
+* [GitHub's Introduction to Dev Containers](https://docs.github.com/en/codespaces/setting-up-your-project-for-codespaces/adding-a-dev-container-configuration/introduction-to-dev-containers)
+* [The Dev Containers Specification](https://containers.dev/implementors/spec/)
