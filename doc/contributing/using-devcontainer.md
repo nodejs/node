@@ -36,6 +36,9 @@ If you haven't already, clone the Node.js repository to your local machine.
 git clone https://github.com/nodejs/node.git
 ```
 
+Or follow [this guide](./pull-requests.md#setting-up-your-local-environment) if you are
+setting up the git repository to contribute changes as pull requests.
+
 ### 2. Open the Repository in VS Code
 
 Launch VS Code and open the cloned Node.js repository.
