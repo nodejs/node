@@ -76,7 +76,7 @@
 #include "v8-platform.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 
-#include "node_api.h"
+#include "node_api_types.h"  //  napi_addon_register_func
 
 #include <functional>
 #include <memory>
