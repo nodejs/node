@@ -270,6 +270,12 @@ direnv allow .
 make build-ci -j12
 ```
 
+Most dependencies will likely be available in the official nixpkgs cache,
+although for some dependencies we have to deviate for the upstream repository,
+in which case those will be built locally, or you can use the Cachix repository
+for the project: `cachix use nodejs`. See <https://docs.cachix.org/> for more
+information.
+
 The use of `make build-ci` is to ensure you are using the `CONFIG_FLAGS`
 environment variable. You can also specify it manually:
 
