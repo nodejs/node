@@ -2637,6 +2637,43 @@ It is the equivalent of doing `new Object()` in JavaScript.
 The JavaScript `Object` type is described in [Section object type][] of the
 ECMAScript Language Specification.
 
+#### `napi_create_object_with_properties`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```cpp
+napi_status napi_create_object_with_properties(napi_env env,
+                                               napi_value prototype_or_null,
+                                               const napi_value* property_names,
+                                               const napi_value* property_values,
+                                               size_t property_count,
+                                               napi_value* result)
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] prototype_or_null`: The prototype object for the new object. Can be a
+  `napi_value` representing a JavaScript object to use as the prototype, a
+  `napi_value` representing JavaScript `null`, or a `nullptr` that will be converted to `null`.
+* `[in] property_names`: Array of `napi_value` representing the property names.
+* `[in] property_values`: Array of `napi_value` representing the property values.
+* `[in] property_count`: Number of properties in the arrays.
+* `[out] result`: A `napi_value` representing a JavaScript `Object`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates a JavaScript `Object` with the specified prototype and
+properties. This is more efficient than calling `napi_create_object` followed
+by multiple `napi_set_property` calls, as it can create the object with all
+properties atomically, avoiding potential V8 map transitions.
+
+The arrays `property_names` and `property_values` must have the same length
+specified by `property_count`. The properties are added to the object in the
+order they appear in the arrays.
+
 #### `napi_create_symbol`
 
 <!-- YAML
