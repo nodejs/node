@@ -54,7 +54,7 @@ Launch VS Code and open the cloned Node.js repository.
 VS Code will build the Dev Container based on the configuration file. This may take some time depending
 on your internet connection and system performance.
 
-After the container is built, it will start automatically. By default it will run `git restore-mtime` to
+After the Dev Container is built, it will start automatically. By default it will run `git restore-mtime` to
 restore the modification times of the files in the working directory, in order to keep the build cache valid,
 and you will see something like this in the terminal.
 
@@ -68,11 +68,12 @@ This may take a few seconds. Wait until it finishes before you open a new termin
 
 ### 5. Build your changes
 
-Once the container is running, you can open a terminal in VS Code and run the build commands. By default, your
-local repository is mounted inside a checkout in the container, so any changes you make will be reflected in
-the container environment.
+Once the Dev Container is running, you can open a terminal in VS Code and run the build commands. By default,
+your local repository is mounted inside a checkout in the Dev Container, so any changes you make will be reflected
+in the container environment.
 
-In the Dev Container, the necessary dependencies are already installed. For better developer experience, the
+In the Dev Container, the necessary dependencies are already installed and Node.js has already been 
+compiled, so a usable cache will exist. For better developer experience, the
 build tool used in the Dev Container is `ninja`, instead of `make`. See
 [Building Node.js with Ninja](./building-node-with-ninja.md) for more details on using `ninja` to build Node.js.
 
@@ -107,19 +108,18 @@ so by running the following command in the terminal on your host machine:
 docker pull nodejs/devcontainer:nightly
 ```
 
-The default configuration creates a volume to cache the build outputs between container restarts. If you wish to clear
+The default configuration creates a volume to cache the build outputs between Dev Container restarts. If you wish to clear
 the build cache, you can do so by deleting the volume named `node-devcontainer-cache`.
 
 ```bash
 docker volume rm node-devcontainer-cache
 ```
 
-To rebuild the container in VS Code, open the command palette and select
+To rebuild the Dev Container in VS Code, open the command palette and select
 `Dev Containers: Rebuild and Reopen in Container`.
 
 ## Further Reading
 
 * [Visual Studio Code Dev Containers Documentation](https://code.visualstudio.com/docs/remote/containers)
-* If you want to propose changes to the official nightly Dev Container image, the repository is
-  [nodejs/devcontainer](https://github.com/nodejs/devcontainer) which contains the nightly workflows and
-  the Dockerfile.
+* If you want to propose changes to the official Node.js Nightly Dev Container image, feedback is welcome at  [nodejs/devcontainer](https://github.com/nodejs/devcontainer). There, you can find
+   the Dockerfile and automated nightly workflows.
