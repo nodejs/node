@@ -20,6 +20,6 @@ generateKeyPair('rsa', {
     type: 'pkcs1',
     format: 'pem'
   }
-}, common.mustSucceed());
+}, common.mustNotCall());
 
 setTimeout(() => process.exit(), common.platformTimeout(10));
