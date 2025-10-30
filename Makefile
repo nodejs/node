@@ -806,6 +806,14 @@ tools/doc/node_modules: tools/doc/package.json
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping tools/doc/node_modules (no crypto and/or no ICU)"; \
 	else \
+		if ! [ `command -v node` ]; then \
+			if [ -x "$(NODE)" ] && [ -e "$(NODE)" ]; then \
+				export PATH=$(dir $(NODE)):${PATH}"; \
+			else \
+				echo "No available node, cannot install dependencies"; \
+				exit 1; \
+			fi; \
+		fi; \
 		cd tools/doc && $(call available-node,$(run-npm-ci)) \
 	fi
 
