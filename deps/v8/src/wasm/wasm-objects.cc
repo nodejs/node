@@ -1207,6 +1207,9 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     if (!old_buffer->is_resizable_by_js()) {
       // Broadcasting the update should update this memory object too.
       CHECK(memory_object->needs_new_buffer());
+      // For the current isolate, immediately update the buffer.
+      RefreshSharedBuffer(isolate, memory_object, old_buffer,
+                          ResizableFlag::kNotResizable);
     }
     // As {old_pages} was read racefully, we return here the synchronized
     // value provided by {GrowWasmMemoryInPlace}, to provide the atomic
