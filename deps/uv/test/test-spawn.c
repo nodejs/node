@@ -211,7 +211,7 @@ static void timer_counter_cb(uv_timer_t* handle) {
   ++timer_counter;
 }
 
-void filter_vt(char *t, char with_nl_and_sp) {
+static void filter_vt(char* t, char with_nl_and_sp) {
   int wi = 0, len = strlen(t), csi = 0, osc = 0;
   for (int ri = 0; ri < len; ri++) {
     if (with_nl_and_sp && t[ri] == 13 && t[ri+1] == 10) {

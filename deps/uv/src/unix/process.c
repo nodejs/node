@@ -383,18 +383,19 @@ static void uv__process_child_init(const uv_process_options_t* options,
   }
 
   if (options->flags & UV_PROCESS_PTY) {
-    // Put ourself into a new session and process group, making us session
-    // and process group leader.
-    if (setsid() < 0) {
-        uv__write_errno(error_fd);
-    }
+    /* Put ourself into a new session and process group, making us session
+     * and process group leader.
+     */
+    if (setsid() < 0)
+      uv__write_errno(error_fd);
 
     // Make our dear terminal the controlling terminal.
     if (ioctl(STDIN_FILENO, TIOCSCTTY) < 0)
-        uv__write_errno(error_fd);
+      uv__write_errno(error_fd);
   }
-  else if (options->flags & UV_PROCESS_DETACHED)
+  else if (options->flags & UV_PROCESS_DETACHED) {
     setsid();
+  }
 
   if (options->cwd != NULL && chdir(options->cwd))
     uv__write_errno(error_fd);
@@ -987,16 +988,15 @@ int uv__pty_resize_fd(int pty_fd,
                   unsigned short cols,
                   unsigned short rows) {
   struct winsize winp;
+  memset(&winp, 0, sizeof(winp));
   winp.ws_col = cols;
   winp.ws_row = rows;
-  winp.ws_xpixel = 0;
-  winp.ws_ypixel = 0;
   if (ioctl(pty_fd, TIOCSWINSZ, &winp) < 0)
     return UV__ERR(errno);
   return 0;
 }
 
-int uv__spawn_make_pty(int *fd_pty, int *fd_tty, int cols, int rows) {
+int uv__spawn_make_pty(int* fd_pty, int* fd_tty, int cols, int rows) {
     int ret;
     int my_errno;
 
@@ -1005,42 +1005,29 @@ int uv__spawn_make_pty(int *fd_pty, int *fd_tty, int cols, int rows) {
         return UV__ERR(errno);
 
     if (grantpt(*fd_pty) < 0) {
-        my_errno = UV__ERR(errno);
-        close(*fd_pty);
-        return my_errno;
+        SAVE_ERRNO(close(*fd_pty));
+        return UV__ERR(errno);
     }
 
     if (unlockpt(*fd_pty) < 0) {
-        my_errno = UV__ERR(errno);
-        close(*fd_pty);
-        return my_errno;
+        SAVE_ERRNO(close(*fd_pty));
+        return UV__ERR(errno);
     }
 
-    int path_tty_size = 40;
-    char *path_tty = uv__malloc(path_tty_size * sizeof(char));
+    char path_tty[TTY_NAME_MAX + 1] = {0};
     // Apple and linux both have ptsname_r.
     // Use TIOCGPTPEER. (see man ioctl_tty) Where is that available?
-    // There is no ptsname_r on OpenBSD.
-    while ((ret = ptsname_r(*fd_pty, path_tty, path_tty_size)) == ERANGE) {
-        path_tty_size *= 2;
-        path_tty = uv__realloc(path_tty, path_tty_size * sizeof(char));
-    }
-    if (ret != 0) {
-        my_errno = UV__ERR(errno);
-        uv__free(path_tty);
-        close(*fd_pty);
-        return my_errno;
+    // TODO(patrickbkr): There is no ptsname_r on OpenBSD.
+    if (ptsname_r(*fd_pty, path_tty, TTY_NAME_MAX + 1) != 0) {
+        SAVE_ERRNO(close(*fd_pty));
+        return UV__ERR(errno);
     }
 
     *fd_tty = open(path_tty, O_RDWR | O_NOCTTY);
     if (*fd_tty < 0) {
-        my_errno = UV__ERR(errno);
-        uv__free(path_tty);
-        close(*fd_pty);
-        return my_errno;
+        SAVE_ERRNO(close(*fd_pty));
+        return UV__ERR(errno);
     }
-
-    uv__free(path_tty);
 
     if ((my_errno = uv__pty_resize_fd(*fd_pty, cols, rows)) != 0) {
         close(*fd_pty);
@@ -1112,14 +1099,16 @@ int uv_spawn(uv_loop_t* loop,
     pipes[i][1] = -1;
   }
 
-  for (i = (options->flags & UV_PROCESS_PTY) ? 3 : 0; i < options->stdio_count; i++) {
+  for (i = (options->flags & UV_PROCESS_PTY) ? 3 : 0;
+      i < options->stdio_count; i++) {
     err = uv__process_init_stdio(options->stdio + i, pipes[i]);
     if (err)
       goto error;
   }
 
   if (options->flags & UV_PROCESS_PTY) {
-    if ((err = uv__spawn_make_pty(&process->pty_fd, &fd_tty, options->pty_cols, options->pty_rows)) != 0)
+    if ((err = uv__spawn_make_pty(&process->pty_fd, &fd_tty, options->pty_cols,
+        options->pty_rows)) != 0)
       goto error;
 
     pipes[0][1] = fd_tty;
@@ -1138,7 +1127,8 @@ int uv_spawn(uv_loop_t* loop,
 #endif
 
   /* Spawn the child */
-  exec_errorno = uv__spawn_and_init_child(loop, options, stdio_count, pipes, &pid, process->pty_fd);
+  exec_errorno = uv__spawn_and_init_child(loop, options, stdio_count, pipes,
+      &pid, process->pty_fd);
 
 #if 0
   /* This runs into a nodejs issue (it expects initialized streams, even if the
@@ -1175,7 +1165,7 @@ int uv_spawn(uv_loop_t* loop,
   }
 
   // We could special case this (do it as part of the below for loop) if it's ok for the pipe to be non-blocking.
-  // TODO: Validate this.
+  // TODO(patrickbkr): Validate this.
   if (options->flags & UV_PROCESS_PTY) {
     err = uv__close(fd_tty);
 
