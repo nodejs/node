@@ -77,8 +77,7 @@ static napi_value Multiply(napi_env env, napi_callback_info info) {
 
 static void FinalizeCallback(node_api_basic_env env,
                              void* finalize_data,
-                             void* finalize_hint)
-{
+                             void* finalize_hint) {
   free(finalize_data);
 }
 
