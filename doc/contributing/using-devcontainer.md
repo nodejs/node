@@ -75,7 +75,7 @@ Once the Dev Container is running, you can open a terminal in VS Code and run th
 your local repository is mounted inside a checkout in the Dev Container, so any changes you make will be reflected
 in the container environment.
 
-In the Dev Container, the necessary dependencies are already installed and Node.js has already been 
+In the Dev Container, the necessary dependencies are already installed and Node.js has already been
 compiled, so a usable cache will exist. For better developer experience, the
 build tool used in the Dev Container is `ninja`, instead of `make`. See
 [Building Node.js with Ninja](./building-node-with-ninja.md) for more details on using `ninja` to build Node.js.
@@ -111,8 +111,8 @@ so by running the following command in the terminal on your host machine:
 docker pull nodejs/devcontainer:nightly
 ```
 
-The default configuration creates a volume to cache the build outputs between Dev Container restarts. If you wish to clear
-the build cache, you can do so by deleting the volume named `node-devcontainer-cache`.
+The default configuration creates a volume to cache the build outputs between Dev Container restarts. If you wish to
+clear the build cache, you can do so by deleting the volume named `node-devcontainer-cache`.
 
 ```bash
 docker volume rm node-devcontainer-cache
