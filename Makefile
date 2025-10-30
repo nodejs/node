@@ -807,7 +807,7 @@ apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
 run-npm-ci = $(PWD)/$(NPM) ci --omit=dev
 
 tools/doc/node_modules: tools/doc/package.json
-	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+	if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping tools/doc/node_modules (no crypto and/or no ICU)"; \
 	else \
 		if ! [ `command -v node` ]; then \
