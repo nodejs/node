@@ -444,3 +444,57 @@ const path = require('path');
   assert.strictEqual(typeof channels.error, 'object');
   assert.strictEqual(typeof channels.fatal, 'object');
 }
+
+// Test: Support both 'err' and 'error' fields
+{
+  const logs = [];
+  const consumer = new JSONConsumer({
+    stream: {
+      write(data) { logs.push(JSON.parse(data)); },
+      flush() {},
+      flushSync() {},
+      end() {},
+    },
+    level: 'info',
+  });
+  consumer.attach();
+
+  const logger = new Logger({ level: 'info' });
+
+  const err = new Error('Error 1');
+  const error = new Error('Error 2');
+
+  logger.error({ msg: 'Multiple errors', err, error });
+
+  assert.strictEqual(logs.length, 1);
+  assert.strictEqual(logs[0].err.message, 'Error 1');
+  assert.strictEqual(logs[0].error.message, 'Error 2');
+  assert.ok(logs[0].err.stack);
+  assert.ok(logs[0].error.stack);
+}
+
+// Test: 'error' field serialization
+{
+  const logs = [];
+  const consumer = new JSONConsumer({
+    stream: {
+      write(data) { logs.push(JSON.parse(data)); },
+      flush() {},
+      flushSync() {},
+      end() {},
+    },
+    level: 'info',
+  });
+  consumer.attach();
+
+  const logger = new Logger({ level: 'info' });
+  const error = new Error('Test error');
+  error.code = 'TEST_CODE';
+
+  logger.error({ msg: 'Operation failed', error });
+
+  assert.strictEqual(logs.length, 1);
+  assert.strictEqual(logs[0].error.message, 'Test error');
+  assert.strictEqual(logs[0].error.code, 'TEST_CODE');
+  assert.ok(logs[0].error.stack);
+}
