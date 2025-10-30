@@ -124,6 +124,7 @@
 
 // Forward-declare libuv loop
 struct uv_loop_s;
+struct napi_module;
 
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h
