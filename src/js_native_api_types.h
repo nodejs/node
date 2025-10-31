@@ -1,6 +1,22 @@
 #ifndef SRC_JS_NATIVE_API_TYPES_H_
 #define SRC_JS_NATIVE_API_TYPES_H_
 
+// Use INT_MAX, this should only be consumed by the pre-processor anyway.
+#define NAPI_VERSION_EXPERIMENTAL 2147483647
+#ifndef NAPI_VERSION
+#ifdef NAPI_EXPERIMENTAL
+#define NAPI_VERSION NAPI_VERSION_EXPERIMENTAL
+#else
+// The baseline version for N-API.
+// The NAPI_VERSION controls which version will be used by default when
+// compilling a native addon. If the addon developer specifically wants to use
+// functions available in a new version of N-API that is not yet ported in all
+// LTS versions, they can set NAPI_VERSION knowing that they have specifically
+// depended on that version.
+#define NAPI_VERSION 8
+#endif
+#endif
+
 // This file needs to be compatible with C compilers.
 // This is a public include file, and these includes have essentially
 // became part of it's API.
