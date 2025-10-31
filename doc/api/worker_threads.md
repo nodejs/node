@@ -1411,7 +1411,7 @@ port1.onmessage = ({ data }) => console.log(data);
 
 port2.postMessage(new Foo());
 
-// Prints: { c: 3 }
+// Prints: { c: 3 } then throws DOMException [DataCloneError]: Cannot clone object of unsupported type.
 ```
 
 This limitation extends to many built-in objects, such as the global `URL`
@@ -1424,7 +1424,7 @@ port1.onmessage = ({ data }) => console.log(data);
 
 port2.postMessage(new URL('https://example.org'));
 
-// Prints: { }
+// Throws: DOMException [DataCloneError]: Cannot clone object of unsupported type.
 ```
 
 ### `port.hasRef()`
