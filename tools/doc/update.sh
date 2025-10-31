@@ -4,7 +4,7 @@ if ! [ -x "$NODE" ]; then
     NODE=$(command -v node)
 
     if ! [ -x "$NODE" ]; then
-        echo node not found
+        echo 'node not found' >&2
         exit 1
     fi
 fi
