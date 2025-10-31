@@ -167,6 +167,7 @@ export default [
         'embedding',
         'fixtures',
         'fuzzers',
+        'internet',
         'js-native-api',
         'known_issues',
         'message',
@@ -190,7 +191,6 @@ export default [
         'wasm-allocation',
         'wpt',
       ].join(',')}}/**/*.{js,mjs,cjs}`,
-      'test/internet/test-dns-*.{js,mjs,cjs}',
     ],
     rules: {
       'node-core/must-call-assert': 'error',
