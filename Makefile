@@ -86,7 +86,6 @@ NODE_EXE = node$(EXEEXT)
 NODE ?= "$(PWD)/$(NODE_EXE)"
 NODE_G_EXE = node_g$(EXEEXT)
 NPM ?= ./deps/npm/bin/npm-cli.js
-NPX ?= ./deps/npm/bin/npx-cli.js
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
@@ -100,7 +99,7 @@ V ?= 0
 # Use -e to double check in case it's a broken link
 available-node = \
 	if [ -x "$(NODE)" ] && [ -e "$(NODE)" ]; then \
-		"$(NODE)" $(1); \
+		PATH="$(PWD)/out/$(BUILDTYPE):$$PATH" "$(NODE)" $(1); \
 	elif [ -x `command -v node` ] && [ -e `command -v node` ] && [ `command -v node` ]; then \
 		`command -v node` $(1); \
 	else \
@@ -382,6 +381,8 @@ ifeq ($(OSTYPE),os400)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
+DOC_KIT ?= tools/doc/node_modules/.bin/doc-kit
+
 node_use_openssl_and_icu = $(call available-node,"-p" \
 			 "process.versions.openssl != undefined && process.versions.icu != undefined")
 test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
@@ -389,7 +390,7 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 		echo "Skipping .docbuildstamp (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r test/addons/??_*/; \
-		$(call available-node, $(NPX) --prefix tools/doc doc-kit generate -t addon-verify -i doc/api/addons.md -o test/addons/ --type-map doc/type-map.json) \
+		$(call available-node, $(DOC_KIT) generate -t addon-verify -i doc/api/addons.md -o test/addons/ --type-map doc/type-map.json) \
 		[ $$? -eq 0 ] && touch $@; \
 	fi
 
@@ -798,14 +799,6 @@ tools/doc/node_modules: tools/doc/package.json
 	if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping tools/doc/node_modules (no crypto and/or no ICU)"; \
 	else \
-		if ! [ `command -v node` ]; then \
-			if [ -x "$(NODE)" ] && [ -e "$(NODE)" ]; then \
-				export PATH="$(dir $(subst $\",,$(NODE))):${PATH};" \
-			else \
-				echo "No available node, cannot install dependencies"; \
-				exit 1; \
-			fi; \
-		fi; \
 		cd tools/doc && $(call available-node,$(run-npm-ci)) \
 	fi
 
@@ -837,7 +830,7 @@ out/doc/api: doc/api
 # For generating individual doc files instead of all at once
 out/doc/api/%.html out/doc/api/%.json: doc/api/%.md tools/doc/node_modules | out/doc/api
 	$(call available-node, \
-		$(NPX) --prefix tools/doc doc-kit generate \
+		$(DOC_KIT) generate \
 		-t $(subst .,legacy-, $(suffix $@)) \
 		-i $< \
 		--ignore $(skip_apidoc_files) \
@@ -850,7 +843,7 @@ out/doc/api/%.html out/doc/api/%.json: doc/api/%.md tools/doc/node_modules | out
 
 out/doc/api/all.html: $(apidocs_html) | out/doc/api
 	$(call available-node, \
-		$(NPX) --prefix tools/doc doc-kit generate \
+		$(DOC_KIT) generate \
 		-t legacy-html-all \
 		-i doc/api/*.md \
 		--ignore $(skip_apidoc_files) \
@@ -863,7 +856,7 @@ out/doc/api/all.html: $(apidocs_html) | out/doc/api
 
 out/doc/api/all.json: $(apidocs_json) | out/doc/api
 	$(call available-node, \
-		$(NPX) --prefix tools/doc doc-kit generate \
+		$(DOC_KIT) generate \
 		-t legacy-json-all \
 		-i doc/api/*.md \
 		--ignore $(skip_apidoc_files) \
