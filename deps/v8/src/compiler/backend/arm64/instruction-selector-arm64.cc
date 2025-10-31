@@ -5819,19 +5819,14 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
     int lane_size = kBitsPerByte * kSimd128Size / lanes;
     Emit(kArm64S128Dup | LaneSizeField::encode(lane_size), dup,
          g.UseRegister(dup_input), g.UseImmediate(dup_index));
-    if (is_swizzle) {
-      Emit(shuffle_op, g.DefineAsRegister(node), g.UseRegister(input0), dup);
-      return;
-    } else {
-      // For non-swizzles, we first need to perform the shuffles with the two
-      // original inputs, into a temp register.
-      InstructionOperand temp = g.TempSimd128Register();
-      Emit(shuffle_op, temp, g.UseRegister(input0), g.UseRegister(input1));
-      // Then we need to move the dup result into the top 8 bytes.
-      Emit(kArm64S128MoveLane | LaneSizeField::encode(64),
-           g.DefineSameAsFirst(node), temp, dup, g.UseImmediate(1),
-           g.UseImmediate(1));
-    }
+    // First need to perform the shuffles with the two original inputs, into a
+    // temp register.
+    InstructionOperand temp = g.TempSimd128Register();
+    Emit(shuffle_op, temp, g.UseRegister(input0), g.UseRegister(input1));
+    // Then we need to move the dup result into the top 8 bytes.
+    Emit(kArm64S128MoveLane | LaneSizeField::encode(64),
+         g.DefineSameAsFirst(node), temp, dup, g.UseImmediate(1),
+         g.UseImmediate(1));
   };
 
   std::array<uint8_t, kSimd128HalfSize> bottom_shuffle;

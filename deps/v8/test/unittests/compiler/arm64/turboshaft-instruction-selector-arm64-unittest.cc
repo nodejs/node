@@ -3627,7 +3627,7 @@ std::ostream& operator<<(std::ostream& os, const DupAndShuffleInst& inst) {
 const DupAndShuffleInst kDupAndShuffles[] = {
     {"Dup 0 and UnzipLeft",
      kArm64S128UnzipLeft,
-     2,
+     3,
      0,
      16,
      0,
@@ -3635,7 +3635,7 @@ const DupAndShuffleInst kDupAndShuffles[] = {
      {{0, 1, 4, 5, 8, 9, 12, 13, 0, 1, 0, 1, 0, 1, 0, 1}}},
     {"Dup 1 and UnzipLeft",
      kArm64S128UnzipLeft,
-     2,
+     3,
      0,
      16,
      1,
@@ -3643,7 +3643,7 @@ const DupAndShuffleInst kDupAndShuffles[] = {
      {{0, 1, 4, 5, 8, 9, 12, 13, 2, 3, 2, 3, 2, 3, 2, 3}}},
     {"Dup 0 and UnzipRight",
      kArm64S128UnzipRight,
-     2,
+     3,
      0,
      16,
      0,
@@ -3738,28 +3738,29 @@ TEST_P(TurboshaftInstructionSelectorDupAndShuffleTest, DupAndShuffle) {
   Stream s = m.Build();
   EXPECT_EQ(inst.expected_num_insts, s.size());
 
-  if (inst.expected_num_insts > 1) {
+  if (inst.expected_num_insts == 3) {
+    // The dup
     EXPECT_EQ(kArm64S128Dup, s[0]->arch_opcode());
+    EXPECT_EQ(inst.lane_size, LaneSizeField::decode(s[0]->opcode()));
     EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)),
               s.ToVreg(m.Parameter(inst.expected_param_index)));
     EXPECT_EQ(s.ToInt32(s[0]->InputAt(1)), inst.index);
 
-    EXPECT_EQ(inst.lane_size, LaneSizeField::decode(s[0]->opcode()));
+    // The shuffle
     EXPECT_EQ(inst.arch_opcode, s[1]->arch_opcode());
     EXPECT_EQ(inst.lane_size, LaneSizeField::decode(s[1]->opcode()));
-
-    if (inst.expected_num_insts == 3) {
-      EXPECT_EQ(s.ToVreg(s[1]->InputAt(0)), s.ToVreg(m.Parameter(0)));
-      EXPECT_EQ(s.ToVreg(s[1]->InputAt(1)), s.ToVreg(m.Parameter(1)));
-      EXPECT_EQ(kArm64S128MoveLane, s[2]->arch_opcode());
-      EXPECT_EQ(1U, s[2]->OutputCount());
+    EXPECT_EQ(s.ToVreg(s[1]->InputAt(0)), s.ToVreg(m.Parameter(0)));
+    if (inst.is_swizzle) {
+      EXPECT_EQ(s.ToVreg(s[1]->InputAt(1)), s.ToVreg(m.Parameter(0)));
     } else {
-      EXPECT_EQ(s.ToVreg(s[1]->InputAt(0)),
-                s.ToVreg(m.Parameter(inst.expected_param_index)));
-      EXPECT_EQ(s.ToVreg(s[1]->InputAt(1)), s.ToVreg(s[0]->Output()));
-      EXPECT_EQ(1U, s[1]->OutputCount());
+      EXPECT_EQ(s.ToVreg(s[1]->InputAt(1)), s.ToVreg(m.Parameter(1)));
     }
+
+    // Copy the top half of the dup into the result register.
+    EXPECT_EQ(kArm64S128MoveLane, s[2]->arch_opcode());
+    EXPECT_EQ(1U, s[2]->OutputCount());
   } else {
+    DCHECK_EQ(inst.expected_num_insts, 1);
     EXPECT_EQ(inst.arch_opcode, s[0]->arch_opcode());
   }
 }
