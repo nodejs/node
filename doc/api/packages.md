@@ -146,7 +146,8 @@ CommonJS. This includes the following:
 
 Node.js has two types of module resolution and loading, chosen based on how the module is requested.
 
-When a module is requested via `require()`:
+When a module is requested via `require()` (available by default in CommonJS modules,
+and can be dynamically generated using `createRequire()` in both CommonJS and ES Modules):
 
 * Resolution:
   * The resolution initiated by `require()` supports [folders as modules][].
@@ -164,7 +165,8 @@ When a module is requested via `require()`:
     the [ECMAScript module][ES Module] _and its dependencies_ are synchronous
     (i.e. they do not contain top-level `await`).
 
-When a module is requested via `import` statements or `import()` expressions:
+When a module is requested via static `import` statements (only available in ES Modules)
+or `import()` expressions (available in both CommonJS and ES Modules):
 
 * Resolution:
   * The resolution of `import`/`import()` does not support folders as modules,
@@ -1173,11 +1175,11 @@ This field defines [subpath imports][] for the current package.
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`ERR_UNKNOWN_FILE_EXTENSION`]: errors.md#err_unknown_file_extension
 [`package.json`]: #nodejs-packagejson-field-definitions
+[customization hooks]: module.md#customization-hooks
 [entry points]: #package-entry-points
 [folders as modules]: modules.md#folders-as-modules
 [import maps]: https://github.com/WICG/import-maps
 [load ECMAScript modules from CommonJS modules]: modules.md#loading-ecmascript-modules-using-require
-[customization hooks]: module.md#customization-hooks
 [packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
 [self-reference]: #self-referencing-a-package-using-its-name
 [subpath exports]: #subpath-exports
