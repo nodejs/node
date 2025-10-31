@@ -13,7 +13,7 @@ if ! [ -x "$NPM" ]; then
     NPM=../../deps/npm/bin/npm-cli.js
 
     if ! [ -x "$NPM" ]; then
-        echo npm not found
+        echo 'npm not found' >&2
         exit 1
     fi
 fi
