@@ -693,8 +693,8 @@ available.
 
 Do not pass a pooled {Buffer} object instance in to this method.
 Pooled `Buffer` objects are created using `Buffer.allocUnsafe()`,
-or `Buffer.from()`, or are often returned by various `node:fs` module
-callbacks. These types of `Buffer`s use a shared underlying
+`Buffer.from()`, or `Buffer.of()` are often returned by various `node:fs`
+module callbacks. These types of `Buffer`s use a shared underlying
 {ArrayBuffer} object that contains all of the data from all of
 the pooled `Buffer` instances. When a `Buffer`, {TypedArray},
 or {DataView} is passed in to `readableStreamBYOBReader.read()`,
