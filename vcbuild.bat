@@ -184,7 +184,7 @@ if defined package set stage_package=1
 set "node_exe=%config%\node.exe"
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
 set "npm_exe="%~dp0%node_exe%" %~dp0deps\npm\bin\npm-cli.js"
-set "npx_exe="%~dp0%node_exe%" %~dp0deps\npm\bin\npx-cli.js"
+set "doc_kit_exe="%~dp0%node_exe%" %~dp0tools\doc\node_modules\.bin\doc-kit"
 if "%target_env%"=="vs2022" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2022"
 if "%target_env%"=="vs2026" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2026"
 
@@ -620,7 +620,7 @@ if errorlevel 1 goto exit
 
 :install-doctools
 REM only install if building doc OR testing doctool OR building addons
-if not defined doc if not defined build_addons if not defined lint_md (
+if not defined doc if not defined build_addons (
   echo.%test_args% | findstr doctool 1>nul
   if errorlevel 1 goto :skip-install-doctools
 )
@@ -645,8 +645,8 @@ if not exist %node_exe% (
 mkdir %config%\doc
 robocopy /e doc\api %config%\doc\api
 
-%npx_exe% ^
-  --prefix tools/doc doc-kit generate ^
+%doc_kit_exe% ^
+  generate ^
   -t legacy-html-all legacy-json-all api-links ^
   -i doc/api/*.md ^
   -i lib/*.js ^
@@ -669,7 +669,7 @@ for /d %%F in (test\addons\??_*) do (
   rd /s /q %%F
 )
 :: generate
-"%npx_exe%" --prefix tools/doc doc-kit generate -t addon-verify -i "%~dp0doc\api\addons.md" -o "%~dp0test\addons" --type-map "%~dp0doc\type-map.json"
+%doc_kit_exe% generate -t addon-verify -i "%~dp0doc\api\addons.md" -o "%~dp0test\addons" --type-map "%~dp0doc\type-map.json"
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal
