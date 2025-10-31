@@ -48,14 +48,14 @@ function testCompileStreamingSuccess(makeResponsePromise) {
   return testCompileStreaming(makeResponsePromise, common.mustCall(async (modPromise) => {
     const mod = await modPromise;
     assert.strictEqual(mod.constructor, WebAssembly.Module);
-  }));
+  }, 2));
 }
 
 function testCompileStreamingRejection(makeResponsePromise, rejection) {
   return testCompileStreaming(makeResponsePromise, common.mustCall((modPromise) => {
     assert.strictEqual(modPromise.constructor, Promise);
     return assert.rejects(modPromise, rejection);
-  }));
+  }, 2));
 }
 
 function testCompileStreamingSuccessUsingFetch(responseCallback) {
@@ -76,7 +76,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
         code: 'ERR_INVALID_ARG_TYPE',
         message: /^The "source" argument .*$/
       });
-    }));
+    }, 2));
   }
 
   // When given a Promise, any rejection should be propagated as-is.
@@ -150,7 +150,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
         res.end(simpleWasmBytes.slice(8));
       }
     })(0);
-  }));
+  }, 2));
 
   // A valid WebAssembly file with an empty parameter in the (otherwise valid)
   // MIME type.
@@ -245,5 +245,5 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
                    /^\s*at http:\/\/127\.0\.0\.1:\d+\/foo\.wasm:wasm-function\[0\]:0x22$/);
       return true;
     });
-  }));
+  }, 2));
 })().then(common.mustCall());
