@@ -19,7 +19,7 @@ function test(f) {
     if (f) {
       running = true;
       console.log(f.name);
-      f(done).then(common.mustCall());
+      f(done)?.then(common.mustCall());
     }
   }
 
