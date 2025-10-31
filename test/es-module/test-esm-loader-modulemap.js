@@ -17,12 +17,9 @@ const stubJsModule = createDynamicModule([], ['default'], jsModuleDataUrl);
 const stubJsonModule = createDynamicModule([], ['default'], jsonModuleDataUrl);
 
 const loader = createModuleLoader();
-const jsModuleJob = new ModuleJob(loader, stubJsModule.module, undefined,
-                                  () => new Promise(() => {}));
-const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
-                                    { type: 'json' },
-                                    () => new Promise(() => {}));
-
+const jsModuleJob = new ModuleJob(loader, jsModuleDataUrl, {}, stubJsModule.module);
+const jsonModuleJob = new ModuleJob(loader, jsonModuleDataUrl,
+                                    { type: 'json' }, stubJsonModule.module);
 
 // LoadCache.set and LoadCache.get store and retrieve module jobs for a
 // specified url/type tuple; LoadCache.has correctly reports whether such jobs
