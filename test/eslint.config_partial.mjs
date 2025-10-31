@@ -190,6 +190,7 @@ export default [
         'wasm-allocation',
         'wpt',
       ].join(',')}}/**/*.{js,mjs,cjs}`,
+      'test/internet/test-dns-*.{js,mjs,cjs}',
     ],
     rules: {
       'node-core/must-call-assert': 'error',
