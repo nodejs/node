@@ -142,20 +142,34 @@ void UDPWrapBase::RegisterExternalReferences(
   registry->Register(RecvStop);
 }
 
-UDPWrap::UDPWrap(Environment* env, Local<Object> object)
+UDPWrap::UDPWrap(Environment* env, Local<Object> object, uint32_t msg_count)
     : HandleWrap(env,
                  object,
                  reinterpret_cast<uv_handle_t*>(&handle_),
-                 AsyncWrap::PROVIDER_UDPWRAP) {
+                 AsyncWrap::PROVIDER_UDPWRAP),
+      msg_count_(msg_count),
+      mmsg_buf_(uv_buf_init(nullptr, 0)) {
   object->SetAlignedPointerInInternalField(
       UDPWrapBase::kUDPWrapBaseField, static_cast<UDPWrapBase*>(this));
-
-  int r = uv_udp_init(env->event_loop(), &handle_);
+  int r;
+  if (msg_count > 0) {
+    r = uv_udp_init_ex(
+        env->event_loop(), &handle_, AF_UNSPEC | UV_UDP_RECVMMSG);
+  } else {
+    r = uv_udp_init(env->event_loop(), &handle_);
+  }
   CHECK_EQ(r, 0);  // can't fail anyway
-
   set_listener(this);
 }
 
+UDPWrap::~UDPWrap() {
+  // Libuv does not release the memory of memory which allocated
+  // by handle->alloc_cb when we call close in handle->read_cb,
+  // so we should release the memory here if necessary.
+  if (using_recvmmsg()) {
+    release_buf();
+  }
+}
 
 void UDPWrap::Initialize(Local<Object> target,
                          Local<Value> unused,
@@ -270,8 +284,12 @@ void UDPWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 void UDPWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
+  uint32_t msg_count = 0;
+  if (args[0]->IsUint32()) {
+    msg_count = args[0].As<Uint32>()->Value();
+  }
   Environment* env = Environment::GetCurrent(args);
-  new UDPWrap(env, args.This());
+  new UDPWrap(env, args.This(), msg_count);
 }
 
 
@@ -741,6 +759,19 @@ void UDPWrap::OnAlloc(uv_handle_t* handle,
 }
 
 uv_buf_t UDPWrap::OnAlloc(size_t suggested_size) {
+  if (using_recvmmsg()) {
+    CHECK(mmsg_buf_.base == nullptr);
+    if (msg_count_ > SIZE_MAX / suggested_size) {
+      return mmsg_buf_;
+    }
+    suggested_size *= msg_count_;
+    void* base = malloc(suggested_size);
+    if (base == nullptr) {
+      return mmsg_buf_;
+    }
+    mmsg_buf_ = uv_buf_init(reinterpret_cast<char*>(base), suggested_size);
+    return mmsg_buf_;
+  }
   return env()->allocate_managed_buffer(suggested_size);
 }
 
@@ -759,7 +790,17 @@ void UDPWrap::OnRecv(ssize_t nread,
                      unsigned int flags) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
-  std::unique_ptr<BackingStore> bs = env->release_managed_buffer(buf_);
+  std::unique_ptr<BackingStore> bs;
+
+  auto cleanup = OnScopeLeave([&]() {
+    if (using_recvmmsg() && (nread <= 0 || (flags & UV_UDP_MMSG_FREE))) {
+      release_buf();
+    }
+  });
+
+  if (!using_recvmmsg()) {
+    bs = env->release_managed_buffer(buf_);
+  }
   if (nread == 0 && addr == nullptr) {
     return;
   }
@@ -778,6 +819,10 @@ void UDPWrap::OnRecv(ssize_t nread,
     return;
   } else if (nread == 0) {
     bs = ArrayBuffer::NewBackingStore(isolate, 0);
+  } else if (using_recvmmsg()) {
+    bs = ArrayBuffer::NewBackingStore(
+        isolate, nread, BackingStoreInitializationMode::kUninitialized);
+    memcpy(bs->Data(), buf_.base, nread);
   } else if (static_cast<size_t>(nread) != bs->ByteLength()) {
     CHECK_LE(static_cast<size_t>(nread), bs->ByteLength());
     std::unique_ptr<BackingStore> old_bs = std::move(bs);
