@@ -70,7 +70,7 @@ Edit `deps/openssl/openssl/crypto/perlasm/x86asm.pl` to use nasm-style `%ifdef`,
 for win32. This endbranch subroutine can be used as a workaround to enable different
 ifdef styles for different x86 systems:
 
-```perl
+```text
 sub ::endbranch
 {
     my $ifdef = "#ifdef";
