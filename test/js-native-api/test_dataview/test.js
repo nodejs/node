@@ -18,7 +18,7 @@ const test_dataview = require(`./build/${common.buildType}/test_dataview`);
 // Test for creating dataview with SharedArrayBuffer
 {
   const buffer = new SharedArrayBuffer(128);
-  const template = Reflect.construct(DataView, [buffer]);
+  const template = new DataView(buffer);
 
   const theDataview = test_dataview.CreateDataViewFromJSDataView(template);
   assert.ok(theDataview instanceof DataView,
