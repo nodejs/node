@@ -6924,15 +6924,18 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoad() {
   }
 
   int start_offset = iterator_.current_offset();
+#ifdef DEBUG
   SourcePositionTableIterator::IndexAndPositionState
       start_source_position_iterator_state =
           source_position_iterator_.GetState();
+#endif
 
   std::optional<ContinuationOffsets> continuation =
       FindContinuationForPolymorphicPropertyLoadImpl();
 
   iterator_.SetOffset(start_offset);
-  source_position_iterator_.RestoreState(start_source_position_iterator_state);
+  DCHECK_EQ(start_source_position_iterator_state,
+            source_position_iterator_.GetState());
   return continuation;
 }
 
@@ -6949,11 +6952,64 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoadImpl() {
   // Where <allowed bytecodes> are:
   // - not affecting control flow
   // - not storing into REG
+  // - not the start or end of a try block
   // and the continuation is limited in length.
 
-  // Skip GetnamedProperty.
+  // Try-block starts are not visible as control flow or basic blocks, so detect
+  // them using the bytecode offset.
+  int next_handler_change = kMaxInt;
+  HandlerTable table(*bytecode().object());
+  if (next_handler_table_index_ < table.NumberOfRangeEntries()) {
+    next_handler_change = table.GetRangeStart(next_handler_table_index_);
+  }
+  // Try-block ends are detected via the top end offset in the current handler
+  // stack.
+  if (IsInsideTryBlock()) {
+    const HandlerTableEntry& entry = catch_block_stack_.top();
+    next_handler_change = std::min(next_handler_change, entry.end);
+  }
+
+  auto IsOffsetAPolymorphicContinuationInterrupt =
+      [this, next_handler_change](int offset) {
+        // We can't continue a polymorphic load over a merge, since the
+        // other side of the merge will observe the call without the load.
+        //
+        // TODO(leszeks): I guess we could split that merge if we wanted to,
+        // introducing a new merge that has the polymorphic loads+calls on one
+        // side and the generic call on the other.
+        if (IsOffsetAMergePoint(offset)) return true;
+
+        // We currently can't continue a polymorphic load across a peeled
+        // loop header -- not because of any actual semantic reason, a peeled
+        // loop should be just like straightline code, but just because this
+        // iteration isn't compatible with the PeelLoop iteration.
+        //
+        // TODO(leszeks): We could probably make loop peeling work happen on the
+        // JumpLoop rather than loop header, and then this continuation code
+        // would work. Only for the first peeled iteration though, not for
+        // speeling.
+        if (loop_headers_to_peel_.Contains(offset)) return true;
+
+        // Loop peeling should be the only reason there was no merge point for a
+        // loop header.
+        DCHECK(!bytecode_analysis_.IsLoopHeader(offset));
+
+        // We can't currently continue a polymorphic load over a try-catch
+        // start/end -- again, not for any semantic reason, but just because
+        // this iteration doesn't consider the catch handler stack.
+        //
+        // TODO(leszeks): If this saved/restore the handler stack, it would
+        // probably work, but we'd need to confirm that later phases don't need
+        // strict nesting of handlers (since the first polymorphic call would
+        // be inside the handler range, but the second polymorphic load after it
+        // in linear scan order would be outside of the handler range).
+        if (offset >= next_handler_change) return true;
+        return false;
+      };
+
+  // Skip GetNamedProperty.
   iterator_.Advance();
-  if (IsOffsetAMergePointOrLoopHeapder(iterator_.current_offset())) {
+  if (IsOffsetAPolymorphicContinuationInterrupt(iterator_.current_offset())) {
     return {};
   }
 
@@ -6975,7 +7031,7 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoadImpl() {
   int limit = 20;
   while (--limit > 0) {
     iterator_.Advance();
-    if (IsOffsetAMergePointOrLoopHeapder(iterator_.current_offset())) {
+    if (IsOffsetAPolymorphicContinuationInterrupt(iterator_.current_offset())) {
       return {};
     }
 

@@ -3,7 +3,7 @@
 // This tests the creation of a single executable application that can be
 // debugged using the inspector protocol with NODE_OPTIONS=--inspect-brk=0
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { writeFileSync, existsSync } = require('fs');
 const { spawn } = require('child_process');
@@ -64,7 +64,7 @@ seaProcess.stdout.on('data', (data) => {
   console.log(`[SEA][STDOUT] ${data}`);
 });
 
-seaProcess.stderr.on('data', (data) => {
+seaProcess.stderr.on('data', common.mustCallAtLeast((data) => {
   console.log(`[SEA][STDERR] ${data}`);
   seaStderr += data;
 
@@ -103,19 +103,19 @@ seaProcess.stderr.on('data', (data) => {
       console.log(`[INSPECT][STDERR] ${data}`);
     });
 
-    inspectorProcess.on('close', (code) => {
+    inspectorProcess.on('close', common.mustCall((code) => {
       assert.strictEqual(code, 0, `Inspector process exited with code ${code}.`);
-    });
+    }));
 
     inspectorProcess.on('error', (err) => {
       throw err;
     });
   }
-});
+}));
 
-seaProcess.on('close', (code) => {
+seaProcess.on('close', common.mustCall((code) => {
   assert.strictEqual(code, 0, `SEA process exited with code ${code}.`);
-});
+}));
 
 seaProcess.on('error', (err) => {
   throw err;

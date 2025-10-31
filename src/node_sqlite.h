@@ -65,6 +65,10 @@ class DatabaseOpenConfiguration {
     return allow_unknown_named_params_;
   }
 
+  inline void set_enable_defensive(bool flag) { defensive_ = flag; }
+
+  inline bool get_enable_defensive() const { return defensive_; }
+
  private:
   std::string location_;
   bool read_only_ = false;
@@ -75,6 +79,7 @@ class DatabaseOpenConfiguration {
   bool return_arrays_ = false;
   bool allow_bare_named_params_ = true;
   bool allow_unknown_named_params_ = false;
+  bool defensive_ = false;
 };
 
 class DatabaseSync;
@@ -140,6 +145,7 @@ class DatabaseSync : public BaseObject {
   static void ApplyChangeset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableLoadExtension(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EnableDefensive(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoadExtension(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAuthorizer(const v8::FunctionCallbackInfo<v8::Value>& args);
   static int AuthorizerCallback(void* user_data,
