@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 
@@ -30,10 +30,10 @@ if (cluster.isPrimary) {
 
   const worker = cluster.fork();
 
-  worker.on('exit', (code) => {
+  worker.on('exit', common.mustCall((code) => {
     assert.strictEqual(code, OK);
     process.exit(0);
-  });
+  }));
 
   const result = worker.send('SOME MESSAGE');
   assert.strictEqual(result, true);
@@ -58,10 +58,10 @@ const check = (m) => {
 
   assert.deepStrictEqual(messages[0], messages[1]);
 
-  cluster.worker.once('error', (e) => {
+  cluster.worker.once('error', common.mustCall((e) => {
     assert.strictEqual(e, 'HI');
     process.exit(OK);
-  });
+  }));
 
   process.emit('error', 'HI');
 };
