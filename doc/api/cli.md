@@ -29,8 +29,8 @@ directory. That entry point string is then resolved as if it's been requested
 by `require()` from the current working directory. If no corresponding file
 is found, an error is thrown.
 
-The resolved path is usually also loaded as if it's been requested by `require()`,
-unless one of the conditions below apply, then it's loaded as if it's been requested
+By default, the resolved path is also loaded as if it's been requested by `require()`,
+unless one of the conditions below apply—then it's loaded as if it's been requested
 by `import()`:
 
 * The program was started with a command-line flag that forces the entry

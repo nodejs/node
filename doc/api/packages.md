@@ -161,7 +161,7 @@ When a module is requested via `require()`:
   * Files with any other extension, or without extensions, are treated as JavaScript
     text files.
   * `require()` can only be used to [load ECMAScript modules from CommonJS modules][] if
-    the [ECMAScript module][ES Module] and its dependencies are synchronous
+    the [ECMAScript module][ES Module] _and its dependencies_ are synchronous
     (i.e. they do not contain top-level `await`).
 
 When a module is requested via `import` statements or `import()` expressions:
@@ -183,12 +183,13 @@ When a module is requested via `import` statements or `import()` expressions:
     files.
   * `.wasm` files are treated as [WebAssembly modules][].
   * Any other file extensions will result in a  [`ERR_UNKNOWN_FILE_EXTENSION`][] error.
+    Additional file extensions can be facilitated via [customization hooks][].
   * `import`/`import()` can be used to load JavaScript [CommonJS modules][commonjs].
     Such modules are passed through the `cjs-module-lexer` to try to identify named
     exports, which are available if they can be determined through static analysis.
 
 Regardless of how a module is requested, the resolution and loading process can be customized
-using [loader hooks][].
+using [customization hooks][].
 
 ### `package.json` and file extensions
 
@@ -1176,7 +1177,7 @@ This field defines [subpath imports][] for the current package.
 [folders as modules]: modules.md#folders-as-modules
 [import maps]: https://github.com/WICG/import-maps
 [load ECMAScript modules from CommonJS modules]: modules.md#loading-ecmascript-modules-using-require
-[loader hooks]: module.md#customization-hooks
+[customization hooks]: module.md#customization-hooks
 [packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
 [self-reference]: #self-referencing-a-package-using-its-name
 [subpath exports]: #subpath-exports
