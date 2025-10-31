@@ -5,34 +5,6 @@
 #include <stdbool.h>  // NOLINT(modernize-deprecated-headers)
 #include <stddef.h>   // NOLINT(modernize-deprecated-headers)
 
-// Use INT_MAX, this should only be consumed by the pre-processor anyway.
-#define NAPI_VERSION_EXPERIMENTAL 2147483647
-#ifndef NAPI_VERSION
-#ifdef NAPI_EXPERIMENTAL
-#define NAPI_VERSION NAPI_VERSION_EXPERIMENTAL
-#else
-// The baseline version for N-API.
-// The NAPI_VERSION controls which version will be used by default when
-// compilling a native addon. If the addon developer specifically wants to use
-// functions available in a new version of N-API that is not yet ported in all
-// LTS versions, they can set NAPI_VERSION knowing that they have specifically
-// depended on that version.
-#define NAPI_VERSION 8
-#endif
-#endif
-
-#if defined(NAPI_EXPERIMENTAL) &&                                              \
-    !defined(NODE_API_EXPERIMENTAL_NO_WARNING) &&                              \
-    !defined(NODE_WANT_INTERNALS)
-#ifdef _MSC_VER
-#pragma message("NAPI_EXPERIMENTAL is enabled. "                               \
-                "Experimental features may be unstable.")
-#else
-#warning "NAPI_EXPERIMENTAL is enabled. " \
-       "Experimental features may be unstable."
-#endif
-#endif
-
 #include "js_native_api_types.h"
 
 // If you need __declspec(dllimport), either include <node_api.h> instead, or
