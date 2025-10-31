@@ -557,7 +557,9 @@ added:
 An exception is thrown if the database is not
 open. This method is a wrapper around [`sqlite3changeset_apply()`][].
 
-```js
+```mjs
+import { DatabaseSync } from 'node:sqlite';
+
 const sourceDb = new DatabaseSync(':memory:');
 const targetDb = new DatabaseSync(':memory:');
 
@@ -589,6 +591,19 @@ changes:
 
 Closes the database connection. If the database connection is already closed
 then this is a no-op.
+
+This method is invoked automatically when the database is used with the `using`
+statement:
+
+```mjs
+import { DatabaseSync } from 'node:sqlite';
+
+{
+  using db = new DatabaseSync('file.db');
+  db.exec('CREATE TABLE t (id INTEGER)');
+  db.exec('INSERT INTO t VALUES (1)');
+} // Database is closed automatically here
+```
 
 ## Class: `Session`
 
