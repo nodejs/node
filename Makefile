@@ -819,7 +819,7 @@ doc-only: tools/doc/node_modules \
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping doc-only (no crypto or no icu)"; \
 	else \
-		$(MAKE) out/doc/api/all.html out/doc/api/all.json; \
+		$(MAKE) out/doc/api/all.html out/doc/api/all.json out/doc/apilinks.json; \
 	fi
 
 .PHONY: doc
@@ -872,6 +872,17 @@ out/doc/api/all.json: $(apidocs_json) | out/doc/api
 		-c ./CHANGELOG.md \
 		-v $(VERSION) \
 		--index doc/api/index.md \
+		--type-map doc/type-map.json \
+	) \
+
+out/doc/apilinks.json: $(wildcard lib/*.js) | out/doc
+	$(call available-node, \
+		$(DOC_KIT) generate \
+		-t api-links \
+		-i lib/*.js \
+		-o $(@D) \
+		-c ./CHANGELOG.md \
+		-v $(VERSION) \
 		--type-map doc/type-map.json \
 	) \
 
