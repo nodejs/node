@@ -1400,6 +1400,16 @@ added: v16.18.0
 
 Emitted when a new process is created.
 
+#### Stream
+
+> Stability: 1 - Experimental
+##### Event: `'stream.readable.addChunk'`
+
+* `stream` {stream.Readable}
+* `chunk` {Buffer}
+
+Emitted when a chunk is added to a readable stream.
+
 ##### Event: `'execve'`
 
 * `execPath` {string}
