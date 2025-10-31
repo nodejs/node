@@ -727,6 +727,7 @@
                     '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
                   ],
                   'action': [
+                    '<@(emulator)',
                     '<(node_mksnapshot_exec)',
                     '--build-snapshot',
                     '<(node_snapshot_main)',
@@ -746,6 +747,7 @@
                     '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
                   ],
                   'action': [
+                    '<@(emulator)',
                     '<@(_inputs)',
                     '<@(_outputs)',
                   ],
@@ -1050,6 +1052,7 @@
             '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
           ],
           'action': [
+            '<@(emulator)',
             '<(node_js2c_exec)',
             '<@(_outputs)',
             'lib',
@@ -1530,6 +1533,7 @@
                '<(PRODUCT_DIR)/<(node_core_target_name).def',
              ],
              'action': [
+               '<@(emulator)',
                '<(PRODUCT_DIR)/gen_node_def.exe',
                '<@(_inputs)',
                '<@(_outputs)',
