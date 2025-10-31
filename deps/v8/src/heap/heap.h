@@ -1703,6 +1703,11 @@ class Heap final {
   bool ShouldUseBackgroundThreads() const;
   bool ShouldUseIncrementalMarking() const;
 
+  void AddTotalAllocatedBytes(size_t size) {
+    total_allocated_bytes_.fetch_add(size, std::memory_order_relaxed);
+  }
+  uint64_t GetTotalAllocatedBytes();
+
   HeapAllocator* allocator() { return heap_allocator_; }
   const HeapAllocator* allocator() const { return heap_allocator_; }
 
@@ -2497,6 +2502,8 @@ class Heap final {
   // The amount of physical memory on the device passed in by the embedder. If
   // no value was provided this will be 0.
   uint64_t physical_memory_;
+
+  std::atomic<uint64_t> total_allocated_bytes_ = 0;
 
 #if defined(V8_USE_PERFETTO)
   perfetto::NamedTrack tracing_track_;

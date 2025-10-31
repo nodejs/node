@@ -6557,7 +6557,8 @@ HeapStatistics::HeapStatistics()
       peak_malloced_memory_(0),
       does_zap_garbage_(false),
       number_of_native_contexts_(0),
-      number_of_detached_contexts_(0) {}
+      number_of_detached_contexts_(0),
+      total_allocated_bytes_(0) {}
 
 HeapSpaceStatistics::HeapSpaceStatistics()
     : space_name_(nullptr),
@@ -10411,6 +10412,7 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->number_of_native_contexts_ = heap->NumberOfNativeContexts();
   heap_statistics->number_of_detached_contexts_ =
       heap->NumberOfDetachedContexts();
+  heap_statistics->total_allocated_bytes_ = heap->GetTotalAllocatedBytes();
   heap_statistics->does_zap_garbage_ = i::heap::ShouldZapGarbage();
 
 #if V8_ENABLE_WEBASSEMBLY

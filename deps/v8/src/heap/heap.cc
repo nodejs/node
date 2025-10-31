@@ -7839,6 +7839,10 @@ int Heap::NextStackTraceId() {
   return last_id;
 }
 
+uint64_t Heap::GetTotalAllocatedBytes() {
+  return total_allocated_bytes_.load(std::memory_order_relaxed);
+}
+
 EmbedderStackStateScope::EmbedderStackStateScope(
     Heap* heap, EmbedderStackStateOrigin origin, StackState stack_state)
     : heap_(heap),

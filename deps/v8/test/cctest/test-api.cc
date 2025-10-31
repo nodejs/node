@@ -17700,6 +17700,152 @@ TEST(GetHeapSpaceStatistics) {
   CHECK_EQ(total_physical_size, heap_statistics.total_physical_size());
 }
 
+UNINITIALIZED_TEST(GetHeapTotalAllocatedBytes) {
+  // This test is incompatible with concurrent allocation, which may occur
+  // while collecting the statistics and break the final `CHECK_EQ`s.
+  if (i::v8_flags.stress_concurrent_allocation) return;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  const uint32_t number_of_elements = 1;
+  const uint32_t allocation_size = i::FixedArray::SizeFor(number_of_elements);
+  const uint32_t trusted_allocation_size =
+      i::TrustedFixedArray::SizeFor(number_of_elements);
+  const uint32_t lo_number_of_elements = 256 * 1024;
+  const uint32_t lo_allocation_size =
+      i::FixedArray::SizeFor(lo_number_of_elements);
+  const uint32_t trusted_lo_allocation_size =
+      i::TrustedFixedArray::SizeFor(lo_number_of_elements);
+  const uint32_t expected_allocation_size =
+      allocation_size * 2 + lo_allocation_size * 2 + trusted_allocation_size +
+      trusted_lo_allocation_size;
+
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    LocalContext env(isolate);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+    v8::HeapStatistics heap_stats_before;
+    isolate->GetHeapStatistics(&heap_stats_before);
+    size_t initial_allocated = heap_stats_before.total_allocated_bytes();
+
+    i::MaybeHandle<i::FixedArray> young_alloc =
+        i_isolate->factory()->TryNewFixedArray(number_of_elements,
+                                               i::AllocationType::kYoung);
+    USE(young_alloc);
+    i::MaybeHandle<i::FixedArray> old_alloc =
+        i_isolate->factory()->TryNewFixedArray(number_of_elements,
+                                               i::AllocationType::kOld);
+    USE(old_alloc);
+    i::Handle<i::TrustedFixedArray> trusted_alloc =
+        i_isolate->factory()->NewTrustedFixedArray(number_of_elements,
+                                                   i::AllocationType::kTrusted);
+    USE(trusted_alloc);
+    i::MaybeHandle<i::FixedArray> old_lo_alloc =
+        i_isolate->factory()->TryNewFixedArray(lo_number_of_elements,
+                                               i::AllocationType::kOld);
+    USE(old_lo_alloc);
+
+    {
+      v8::HandleScope inner_handle_scope(isolate);
+      auto young_lo_alloc = i_isolate->factory()->TryNewFixedArray(
+          lo_number_of_elements, i::AllocationType::kYoung);
+      USE(young_lo_alloc);
+    }
+
+    auto trusted_lo_alloc = i_isolate->factory()->NewTrustedFixedArray(
+        lo_number_of_elements, i::AllocationType::kTrusted);
+    USE(trusted_lo_alloc);
+
+    v8::HeapStatistics heap_stats_after;
+    isolate->GetHeapStatistics(&heap_stats_after);
+    uint64_t final_allocated = heap_stats_after.total_allocated_bytes();
+
+    CHECK_GT(final_allocated, initial_allocated);
+    uint64_t allocated_diff = final_allocated - initial_allocated;
+    CHECK_GE(allocated_diff, expected_allocation_size);
+
+    // This either tests counting happening when a LAB freed and validate
+    // there's no double counting on evacuated/promoted objects.
+    v8::internal::heap::InvokeAtomicMajorGC(i_isolate->heap());
+
+    v8::HeapStatistics heap_stats_after_gc;
+    isolate->GetHeapStatistics(&heap_stats_after_gc);
+    uint64_t total_allocation_after_gc =
+        heap_stats_after_gc.total_allocated_bytes();
+
+    CHECK_EQ(total_allocation_after_gc, final_allocated);
+  }
+
+  isolate->Dispose();
+}
+
+#if V8_CAN_CREATE_SHARED_HEAP_BOOL
+
+UNINITIALIZED_TEST(GetHeapTotalAllocatedBytesSharedSpaces) {
+  // This test is incompatible with concurrent allocation, which may occur
+  // while collecting the statistics and break the final `CHECK_EQ`s.
+  if (i::v8_flags.stress_concurrent_allocation) return;
+  if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) return;
+
+  i::v8_flags.shared_heap = true;
+  i::FlagList::EnforceFlagImplications();
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    LocalContext env(isolate);
+
+    v8::HeapStatistics heap_stats_before;
+    isolate->GetHeapStatistics(&heap_stats_before);
+    size_t initial_allocated = heap_stats_before.total_allocated_bytes();
+
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+    const uint32_t number_of_elements = 1;
+    const uint32_t allocation_size = i::FixedArray::SizeFor(number_of_elements);
+    const uint32_t trusted_allocation_size =
+        i::TrustedFixedArray::SizeFor(number_of_elements);
+    const uint32_t lo_number_of_elements = 256 * 1024;
+    const uint32_t lo_allocation_size =
+        i::FixedArray::SizeFor(lo_number_of_elements);
+    const uint32_t expected_allocation_size =
+        allocation_size + trusted_allocation_size + lo_allocation_size;
+
+    i::MaybeHandle<i::FixedArray> shared_alloc =
+        i_isolate->factory()->TryNewFixedArray(number_of_elements,
+                                               i::AllocationType::kSharedOld);
+    USE(shared_alloc);
+    i::Handle<i::TrustedFixedArray> shared_trusted_alloc =
+        i_isolate->factory()->NewTrustedFixedArray(
+            number_of_elements, i::AllocationType::kSharedTrusted);
+    USE(shared_trusted_alloc);
+    i::MaybeHandle<i::FixedArray> shared_lo_alloc =
+        i_isolate->factory()->TryNewFixedArray(lo_number_of_elements,
+                                               i::AllocationType::kSharedOld);
+    USE(shared_lo_alloc);
+
+    v8::HeapStatistics heap_stats_after;
+    isolate->GetHeapStatistics(&heap_stats_after);
+    uint64_t final_allocated = heap_stats_after.total_allocated_bytes();
+
+    CHECK_GT(final_allocated, initial_allocated);
+    uint64_t allocated_diff = final_allocated - initial_allocated;
+    CHECK_GE(allocated_diff, expected_allocation_size);
+  }
+
+  isolate->Dispose();
+}
+
+#endif  // V8_CAN_CREATE_SHARED_HEAP_BOOL
+
 TEST(NumberOfNativeContexts) {
   static const size_t kNumTestContexts = 10;
   i::Isolate* isolate = CcTest::i_isolate();
