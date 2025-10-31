@@ -2093,6 +2093,12 @@ void TLSWrap::GetEphemeralKeyInfo(const FunctionCallbackInfo<Value>& args) {
 void TLSWrap::GetProtocol(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+
+  if (w->kind_ == Kind::kServer) {
+    args.GetReturnValue().SetNull();
+    return;
+  }
+
   args.GetReturnValue().Set(
       OneByteString(args.GetIsolate(), SSL_get_version(w->ssl_.get())));
 }
