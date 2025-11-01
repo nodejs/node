@@ -2519,12 +2519,12 @@ void WasmDispatchTable::SetForNonWrapper(
     uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
     WasmDispatchTable::NewOrExistingEntry new_or_existing) {
-  return SetForNonWrapper<WasmDispatchTable>(*this, index, implicit_arg,
-                                             call_target, sig_id,
+  return ::v8::internal::SetForNonWrapper<WasmDispatchTable>(
+      *this, index, implicit_arg, call_target, sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                                             function_index,
+      function_index,
 #endif
-                                             new_or_existing);
+      new_or_existing);
 }
 
 void WasmDispatchTableForImports::SetForNonWrapper(
@@ -2534,7 +2534,7 @@ void WasmDispatchTableForImports::SetForNonWrapper(
     uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
     WasmDispatchTable::NewOrExistingEntry new_or_existing) {
-  return SetForNonWrapper<WasmDispatchTableForImports>(
+  return ::v8::internal::SetForNonWrapper<WasmDispatchTableForImports>(
       *this, index, implicit_arg, call_target, sig_id,
 #if V8_ENABLE_DRUMBRAKE
       function_index,
@@ -2595,12 +2595,12 @@ void WasmDispatchTable::SetForWrapper(
     uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
     WasmDispatchTable::NewOrExistingEntry new_or_existing) {
-  return SetForWrapper<WasmDispatchTable>(*this, index, implicit_arg,
-                                          wrapper_handle, sig_id,
+  return ::v8::internal::SetForWrapper<WasmDispatchTable>(
+      *this, index, implicit_arg, wrapper_handle, sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                                          function_index,
+      function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-                                          new_or_existing);
+      new_or_existing);
 }
 
 void WasmDispatchTableForImports::SetForWrapper(
@@ -2611,12 +2611,12 @@ void WasmDispatchTableForImports::SetForWrapper(
     uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
     WasmDispatchTable::NewOrExistingEntry new_or_existing) {
-  return SetForWrapper<WasmDispatchTableForImports>(*this, index, implicit_arg,
-                                                    wrapper_handle, sig_id,
+  return ::v8::internal::SetForWrapper<WasmDispatchTableForImports>(
+      *this, index, implicit_arg, wrapper_handle, sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                                                    function_index,
+      function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-                                                    new_or_existing);
+      new_or_existing);
 }
 
 template <AnyWasmDispatchTable DispatchTable>
