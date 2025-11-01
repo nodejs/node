@@ -5,6 +5,8 @@ const assert = require('node:assert');
 const util = require('node:util');
 const { WriteStream } = require('node:tty');
 
+process.env.FORCE_COLOR = '1';
+
 const styled = '\u001b[31mtest\u001b[39m';
 const noChange = 'test';
 
@@ -35,6 +37,14 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
 });
+
+assert.throws(() => {
+  util.styleText(['invalid'], 'text');
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
+
+process.env.FORCE_COLOR = '0';
 
 assert.strictEqual(
   util.styleText('red', 'test', { validateStream: false }),
@@ -133,12 +143,6 @@ assert.strictEqual(
 );
 
 assert.throws(() => {
-  util.styleText(['invalid'], 'text');
-}, {
-  code: 'ERR_INVALID_ARG_VALUE',
-});
-
-assert.throws(() => {
   util.styleText('red', 'text', { stream: {} });
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
@@ -153,6 +157,8 @@ assert.strictEqual(
 );
 
 assert.strictEqual(util.styleText('none', 'test'), 'test');
+
+delete process.env.FORCE_COLOR;
 
 const fd = common.getTTYfd();
 if (fd !== -1) {
