@@ -460,7 +460,7 @@ function testPackedFrozenArray1(obj) {
 }
 
 obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
-if(!%IsExperimentalUndefinedDoubleEnabled()) {
+if(!%IsUndefinedDoubleEnabled()) {
   // TODO(385155404): Consider reenabling when we can transition back to packed.
   assertTrue(%HasPackedElements(obj));
 }
@@ -469,7 +469,7 @@ testPackedFrozenArray1(obj);
 
 // Verify change from sealed to frozen
 obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
-if(!%IsExperimentalUndefinedDoubleEnabled()) {
+if(!%IsUndefinedDoubleEnabled()) {
   // TODO(385155404): Consider reenabling when we can transition back to packed.
   assertTrue(%HasPackedElements(obj));
 }
@@ -480,7 +480,7 @@ testPackedFrozenArray1(obj);
 
 // Verify change from non-extensible to frozen
 obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
-if(!%IsExperimentalUndefinedDoubleEnabled()) {
+if(!%IsUndefinedDoubleEnabled()) {
   // TODO(385155404): Consider reenabling when we can transition back to packed.
   assertTrue(%HasPackedElements(obj));
 }

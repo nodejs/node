@@ -1140,6 +1140,8 @@ const char* buildStatus(v8::debug::LiveEditResult::Status status) {
     case v8::debug::LiveEditResult::BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE:
       return protocol::Debugger::SetScriptSource::StatusEnum::
           BlockedByTopLevelEsModuleChange;
+    case v8::debug::LiveEditResult::FEATURE_DISABLED:
+      UNREACHABLE();
   }
 }
 }  // namespace
@@ -1173,6 +1175,10 @@ Response V8DebuggerAgentImpl::setScriptSource(
   v8::debug::LiveEditResult result;
   it->second->setSource(newContent, dryRun.value_or(false),
                         allowTopFrameLiveEditing, &result);
+  if (result.status == v8::debug::LiveEditResult::FEATURE_DISABLED) {
+    return Response::ServerError(
+        "setScriptSource functionality no longer available");
+  }
   *status = buildStatus(result.status);
   if (result.status == v8::debug::LiveEditResult::COMPILE_ERROR) {
     *optOutCompileError =

@@ -165,13 +165,13 @@ try {
 assert.strictEqual(path.dirname(__filename), __dirname);
 
 console.error('load custom file types with extensions');
-require.extensions['.test'] = function(module, filename) {
+require.extensions['.test'] = common.mustCall(function(module, filename) {
   let content = fs.readFileSync(filename).toString();
   assert.strictEqual(content, 'this is custom source\n');
   content = content.replace('this is custom source',
                             'exports.test = \'passed\'');
   module._compile(content, filename);
-};
+});
 
 assert.strictEqual(require('../fixtures/registerExt').test, 'passed');
 // Unknown extension, load as .js

@@ -30,8 +30,8 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [14. Push the release tag](#14-push-the-release-tag)
   * [15. Promote and sign the release builds](#15-promote-and-sign-the-release-builds)
   * [16. Check the release](#16-check-the-release)
-  * [17. Create a blog post](#17-create-a-blog-post)
-  * [18. Create the release on GitHub](#18-create-the-release-on-github)
+  * [17. Create the release on GitHub](#17-create-the-release-on-github)
+  * [18. Create a blog post](#18-create-a-blog-post)
   * [19. Announce](#19-announce)
   * [20. Celebrate](#20-celebrate)
 * [LTS releases](#lts-releases)
@@ -1069,21 +1069,31 @@ have the right internal version strings. Check that the API docs are available
 at <https://nodejs.org/api/>. Check that the release catalog files are correct
 at <https://nodejs.org/dist/index.tab> and <https://nodejs.org/dist/index.json>.
 
-### 17. Create a blog post
+### 17. Create the release on GitHub
+
+* Go to the [New release page](https://github.com/nodejs/node/releases/new).
+* Select the tag version you pushed earlier.
+* For release title, copy the title from the changelog.
+* For the description, copy the rest of the changelog entry.
+* If you are not releasing the latest "Current", uncheck
+  "Set as the latest release".
+* Click on the "Publish release" button.
+
+### 18. Create a blog post
 
 There is an automatic build that is kicked off when you promote new builds, so
 within a few minutes nodejs.org will be listing your new version as the latest
-release. However, the blog post is not yet fully automatic.
+release, and a blog post draft PR will be created.
 
-Create a new blog post by running the [nodejs.org release-post.js script][]:
+In the event that a draft PR _is not created_, the [`scripts:release-post`][] script
+can be used as an alternative:
 
 ```bash
-node ./apps/site/scripts/release-post/index.mjs x.y.z
+# In the apps/site folder of nodejs/nodejs.org
+node --run scripts:release-post x.y.z
 ```
 
-This script will use the promoted builds and changelog to generate the post. Run
-`npm run serve` to preview the post locally before pushing to the
-[nodejs.org repository][].
+This script will use the promoted builds and changelog to generate the post.
 
 * You can add a short blurb just under the main heading if you want to say
   something important, otherwise the text should be publication ready.
@@ -1098,32 +1108,12 @@ This script will use the promoted builds and changelog to generate the post. Run
   to reflect those changes.
 
 * Always use pull-requests on the [nodejs.org repository][]. Be respectful
-  of the website team, but you do not have to wait for PR sign-off. Please
-  use the following commit message format:
-
-  ```console
-  Blog: vX.Y.Z release post
-
-  Refs: <full URL to your release proposal PR>
-  ```
-
-* In order to trigger the CI Checks of the [nodejs.org repository][]; Please
-  attach the `github_actions:pull-request` label to the PR.
+  of the website team, but you do not have to wait for PR sign-off.
 
 * Changes to the base branch, `main`, on the [nodejs.org repository][] will
   trigger a new build of nodejs.org, so your changes should appear a few minutes
   after pushing. You can follow the [Deployments](https://github.com/nodejs/nodejs.org/deployments) page
   to see when the build finishes and gets published.
-
-### 18. Create the release on GitHub
-
-* Go to the [New release page](https://github.com/nodejs/node/releases/new).
-* Select the tag version you pushed earlier.
-* For release title, copy the title from the changelog.
-* For the description, copy the rest of the changelog entry.
-* If you are not releasing the latest "Current", uncheck
-  "Set as the latest release".
-* Click on the "Publish release" button.
 
 ### 19. Announce
 
@@ -1491,7 +1481,7 @@ Typical resolution: sign the release again.
 [Node.js Snap management repository]: https://github.com/nodejs/snap
 [Snap]: https://snapcraft.io/node
 [`create-release-proposal`]: https://github.com/nodejs/node/actions/workflows/create-release-proposal.yml
+[`scripts:release-post`]: https://github.com/nodejs/nodejs.org/blob/HEAD/apps/site/scripts/release-post/index.mjs
 [build-infra team]: https://github.com/orgs/nodejs/teams/build-infra
 [expected assets]: https://github.com/nodejs/build/tree/HEAD/ansible/www-standalone/tools/promote/expected_assets
-[nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/HEAD/apps/site/scripts/release-post/index.mjs
 [nodejs.org repository]: https://github.com/nodejs/nodejs.org

@@ -85,7 +85,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
     }
     GCFlags gc_flags = v8_flags.memory_reducer_favors_memory
                            ? GCFlag::kReduceMemoryFootprint
-                           : GCFlag::kNoFlags;
+                           : heap()->GCFlagsForIncrementalMarking();
     heap()->StartIncrementalMarking(gc_flags,
                                     GarbageCollectionReason::kMemoryReducer,
                                     kGCCallbackFlagCollectAllExternalMemory);

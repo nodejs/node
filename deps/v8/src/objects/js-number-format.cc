@@ -1413,6 +1413,16 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
     default_use_grouping = UseGrouping::MIN2;
   }
 
+  if (v8_flags.icu_default_italian_number_grouping_always) {
+    // Before ICU 76 1234 is formatted as "1.234" in Italian by default, and
+    // starting in ICU 76 it is "1234". There were bug reports against Firefox
+    // and iOS due to this. Setting the default grouping to "always" restores
+    // the old behavior.
+    if (strcmp(icu_locale.getLanguage(), "it") == 0) {
+      default_use_grouping = UseGrouping::ALWAYS;
+    }
+  }
+
   // 30. Let useGrouping be ? GetStringOrBooleanOption(options, "useGrouping",
   // « "min2", "auto", "always" », "always", false, defaultUseGrouping).
   Maybe<UseGrouping> maybe_use_grouping = GetStringOrBooleanOption<UseGrouping>(

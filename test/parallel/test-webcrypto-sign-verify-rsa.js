@@ -241,13 +241,13 @@ async function testSaltLength(keyLength, hash, hLen) {
       ['SHA-256', 32],
       ['SHA-384', 48],
       ['SHA-512', 64],
-      ['SHA3-256', 32],
-      ['SHA3-384', 48],
-      ['SHA3-512', 64],
+      ...(!process.features.openssl_is_boringssl ? [
+        ['SHA3-256', 32],
+        ['SHA3-384', 48],
+        ['SHA3-512', 64],
+      ] : []),
     ]) {
-      if (hash.startsWith('SHA-3') && !process.features.openssl_is_boringssl) {
-        variations.push(testSaltLength(keyLength, hash, hLen));
-      }
+      variations.push(testSaltLength(keyLength, hash, hLen));
     }
   }
 

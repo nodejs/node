@@ -1029,6 +1029,9 @@ void VisitStoreCommon(InstructionSelector* selector,
     write_barrier_kind = kFullWriteBarrier;
   }
 
+  DCHECK_IMPLIES(write_barrier_kind == kSkippedWriteBarrier,
+                 v8_flags.verify_write_barriers);
+
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedPointer(rep));
@@ -1041,14 +1044,20 @@ void VisitStoreCommon(InstructionSelector* selector,
         IA32OperandGenerator::RegisterMode::kUniqueRegister);
     DCHECK_LT(input_count, 4);
     inputs[input_count++] = g.UseUniqueRegister(value);
-    RecordWriteMode record_write_mode =
-        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionOperand temps[] = {g.TempRegister()};
     size_t const temp_count = arraysize(temps);
-    InstructionCode code = is_seqcst ? kArchAtomicStoreWithWriteBarrier
-                                     : kArchStoreWithWriteBarrier;
+    InstructionCode code;
+    if (write_barrier_kind == kSkippedWriteBarrier) {
+      code = is_seqcst ? kArchAtomicStoreSkippedWriteBarrier
+                       : kArchStoreSkippedWriteBarrier;
+    } else {
+      code = is_seqcst ? kArchAtomicStoreWithWriteBarrier
+                       : kArchStoreWithWriteBarrier;
+      RecordWriteMode record_write_mode =
+          WriteBarrierKindToRecordWriteMode(write_barrier_kind);
+      code |= RecordWriteModeField::encode(record_write_mode);
+    }
     code |= AddressingModeField::encode(addressing_mode);
-    code |= RecordWriteModeField::encode(record_write_mode);
     selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     InstructionOperand inputs[4];

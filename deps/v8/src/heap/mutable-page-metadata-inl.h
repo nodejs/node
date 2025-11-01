@@ -16,19 +16,9 @@ namespace v8 {
 namespace internal {
 
 // static
-MutablePageMetadata* MutablePageMetadata::FromAddress(Address a) {
-  return cast(MemoryChunkMetadata::FromAddress(a));
-}
-
-// static
 MutablePageMetadata* MutablePageMetadata::FromAddress(const Isolate* i,
                                                       Address a) {
   return cast(MemoryChunkMetadata::FromAddress(i, a));
-}
-
-// static
-MutablePageMetadata* MutablePageMetadata::FromHeapObject(Tagged<HeapObject> o) {
-  return cast(MemoryChunkMetadata::FromHeapObject(o));
 }
 
 // static

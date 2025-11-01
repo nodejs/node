@@ -1,0 +1,166 @@
+# This action uses the following secrets:
+#   CACHIX_AUTH_TOKEN: Write access to nodejs.cachix.org – without it, the cache is read-only.
+name: Test Shared libraries
+
+on:
+  pull_request:
+    paths-ignore:
+      - .mailmap
+      - '**.md'
+      - AUTHORS
+      - deps/ada/**
+      - deps/brotli/**
+      - deps/cares/**
+      - deps/corepack/**
+      - deps/icu-small/**
+      - deps/icu-tmp/**
+      - deps/llhttp/**
+      - deps/nghttp2/**
+      - deps/ngtcp2/**
+      - deps/openssl/*/**
+      - deps/simdjson/**
+      - deps/sqlite/**
+      - deps/uv/**
+      - deps/uvwasi/**
+      - deps/zlib/**
+      - deps/zstd/**
+      - doc/**
+      - .github/**
+      - '!.github/workflows/test-shared.yml'
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - main
+      - canary
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+    paths-ignore:
+      - .mailmap
+      - '**.md'
+      - AUTHORS
+      - deps/ada/**
+      - deps/brotli/**
+      - deps/cares/**
+      - deps/corepack/**
+      - deps/icu-small/**
+      - deps/icu-tmp/**
+      - deps/llhttp/**
+      - deps/nghttp2/**
+      - deps/ngtcp2/**
+      - deps/openssl/*/**
+      - deps/simdjson/**
+      - deps/sqlite/**
+      - deps/uv/**
+      - deps/uvwasi/**
+      - deps/zlib/**
+      - deps/zstd/**
+      - doc/**
+      - .github/**
+      - '!.github/workflows/test-shared.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  FLAKY_TESTS: keep_retrying
+
+permissions:
+  contents: read
+
+jobs:
+  build-tarball:
+    if: github.event.pull_request.draft == false
+    name: ${{ github.event_name == 'workflow_dispatch' && 'Skipped job' || 'Build slim tarball' }}
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        with:
+          persist-credentials: false
+
+      - name: Make tarball
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        run: |
+          export DATESTRING=$(date "+%Y-%m-%d")
+          export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
+          ./configure && make tar -j4 SKIP_XZ=1 SKIP_SHARED_DEPS=1
+        env:
+          DISTTYPE: nightly
+
+      - name: Upload tarball artifact
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: tarballs
+          path: '*.tar.gz'
+          compression-level: 0
+
+  build:
+    needs: build-tarball
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            system: x86_64-linux
+          - runner: ubuntu-24.04-arm
+            system: aarch64-linux
+          - runner: macos-13
+            system: x86_64-darwin
+          - runner: macos-latest
+            system: aarch64-darwin
+    name: '${{ matrix.system }}: with shared libraries'
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v5.0.0
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        with:
+          name: tarballs
+          path: tarballs
+
+      - name: Extract tarball
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        run: |
+          tar xzf tarballs/*.tar.gz -C "$RUNNER_TEMP"
+          echo "TAR_DIR=$RUNNER_TEMP/$(basename tarballs/*.tar.gz .tar.gz)" >> "$GITHUB_ENV"
+
+      - uses: cachix/install-nix-action@7be5dee1421f63d07e71ce6e0a9f8a4b07c2a487  # v31.6.1
+        with:
+          extra_nix_config: sandbox = true
+
+      - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
+        with:
+          name: nodejs
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Configure sccache
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        with:
+          script: |
+            core.exportVariable('SCCACHE_GHA_VERSION', 'on');
+            core.exportVariable('ACTIONS_CACHE_SERVICE_V2', 'on');
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Load shell.nix
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          mv "$TAR_DIR"/*.nix .
+          mkdir tools
+          mv "$TAR_DIR"/tools/nix tools/.
+
+      - name: Build Node.js and run tests
+        run: |
+          nix-shell \
+            -I nixpkgs=./tools/nix/pkgs.nix \
+            --pure --keep TAR_DIR --keep FLAKY_TESTS \
+            --keep SCCACHE_GHA_VERSION --keep ACTIONS_CACHE_SERVICE_V2 --keep ACTIONS_RESULTS_URL --keep ACTIONS_RUNTIME_TOKEN \
+            --arg loadJSBuiltinsDynamically false \
+            --arg ccache '(import <nixpkgs> {}).sccache' \
+            --arg devTools '[]' \
+            --arg benchmarkTools '[]' \
+            ${{ endsWith(matrix.system, '-darwin') && '--arg extraConfigFlags ''["--without-inspector"]'' \' || '\' }}
+            --run '
+                make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9 --skip-tests=$CI_SKIP_TESTS"
+            '

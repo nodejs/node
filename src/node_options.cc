@@ -128,7 +128,15 @@ void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
   }
 
   // Get available memory in bytes
+#ifdef V8_COMPRESS_POINTERS
+  // When pointer compression is enabled, V8 uses a 4 GiB heap limit.
+  // We'll use the smaller of that or the total system memory as
+  // reported by uv.
+  uint64_t total_memory =
+      std::min(uv_get_total_memory(), kMaxPointerCompressionHeap);  // 4 GiB
+#else
   uint64_t total_memory = uv_get_total_memory();
+#endif
   uint64_t constrained_memory = uv_get_constrained_memory();
 
   // Use constrained memory if available, otherwise use total memory
@@ -242,7 +250,7 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     } else if (test_runner_force_exit) {
       errors->push_back("either --watch or --test-force-exit "
                         "can be used, not both");
-    } else if (!test_runner && (argv->size() < 1 || (*argv)[1].empty())) {
+    } else if (!test_runner && watch_mode_paths.empty() && argv->size() < 1) {
       errors->push_back("--watch requires specifying a file");
     }
 
@@ -1013,20 +1021,26 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--watch",
             "run in watch mode",
             &EnvironmentOptions::watch_mode,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kWatchNamespace);
   AddOption("--watch-path",
             "path to watch",
             &EnvironmentOptions::watch_mode_paths,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kWatchNamespace);
   AddOption("--watch-kill-signal",
             "kill signal to send to the process on watch mode restarts"
             "(default: SIGTERM)",
             &EnvironmentOptions::watch_mode_kill_signal,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kWatchNamespace);
   AddOption("--watch-preserve-output",
             "preserve outputs on watch mode restart",
             &EnvironmentOptions::watch_mode_preserve_output,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kWatchNamespace);
   Implies("--watch-path", "--watch");
   AddOption("--check",
             "syntax check script without executing",

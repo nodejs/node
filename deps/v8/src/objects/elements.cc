@@ -2485,9 +2485,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
           for (size_t k = start_from; k < length; ++k) {
             if (elements->is_the_hole(static_cast<int>(k))) return Just(true);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
             if (elements->is_undefined(static_cast<int>(k))) return Just(true);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
           }
           return Just(false);
         }
@@ -2525,11 +2525,11 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           for (size_t k = start_from; k < length; ++k) {
             if (elements->is_the_hole(static_cast<int>(k))) continue;
             if (elements->get_scalar(static_cast<int>(k)) == search_number) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
               // This can never be undefined, otherwise search_number would be a
               // NaN.
               DCHECK(!elements->is_undefined(static_cast<int>(k)));
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
               return Just(true);
             }
           }
@@ -2564,10 +2564,10 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
           for (size_t k = start_from; k < length; ++k) {
             if (elements->is_the_hole(static_cast<int>(k))) continue;
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
             // We do not treat the undefined NaN as a NaN.
             if (elements->is_undefined(static_cast<int>(k))) continue;
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
             if (std::isnan(elements->get_scalar(static_cast<int>(k)))) {
               return Just(true);
             }
@@ -3235,12 +3235,12 @@ class FastDoubleElementsAccessor
 
   static inline void SetImpl(Tagged<FixedArrayBase> backing_store,
                              InternalIndex entry, Tagged<Object> value) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     if (IsUndefined(value)) {
       Cast<FixedDoubleArray>(backing_store)->set_undefined(entry.as_int());
       return;
     }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     Cast<FixedDoubleArray>(backing_store)
         ->set(entry.as_int(), Object::NumberValue(value));
   }
@@ -3335,7 +3335,7 @@ class FastDoubleElementsAccessor
     if (start_from >= length) return Just<int64_t>(-1);
 
     if (!IsNumber(value)) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       if (IsUndefined(value)) {
         Tagged<FixedDoubleArray> elements =
             Cast<FixedDoubleArray>(receiver->elements());
@@ -3349,7 +3349,7 @@ class FastDoubleElementsAccessor
           }
         }
       }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
       return Just<int64_t>(-1);
     }
     if (IsNaN(value)) {
@@ -3690,6 +3690,10 @@ class TypedElementsAccessor
     ElementType* data = static_cast<ElementType*>(typed_array->DataPtr());
     ElementType* first = data + start;
     ElementType* last = data + end;
+
+    // Guard against switching the ElementsKind to make this too big.
+    SBXCHECK(sizeof(ElementType) * end <= ArrayBuffer::kMaxByteLength);
+
     if (typed_array->buffer()->is_shared()) {
       // TypedArrays backed by shared buffers need to be filled using atomic
       // operations. Since 8-byte data are not currently always 8-byte aligned,
@@ -3931,6 +3935,10 @@ class TypedElementsAccessor
     if (len == 0) return;
 
     ElementType* data = static_cast<ElementType*>(typed_array->DataPtr());
+
+    // Guard against switching the ElementsKind to make this too big.
+    SBXCHECK(ElementsKindToByteSize(Kind) * len <= ArrayBuffer::kMaxByteLength);
+
     if (typed_array->buffer()->is_shared()) {
       // TypedArrays backed by shared buffers need to be reversed using atomic
       // operations. Since 8-byte data are not currently always 8-byte aligned,
@@ -4085,6 +4093,10 @@ class TypedElementsAccessor
       size_t source_byte_length = length * source_size;
       size_t dest_byte_length = length * destination_size;
 
+      // Guard against switching the ElementsKind to make this too big.
+      SBXCHECK(source_byte_length <= ArrayBuffer::kMaxByteLength);
+      SBXCHECK(dest_byte_length <= ArrayBuffer::kMaxByteLength);
+
       // If the typedarrays are overlapped, clone the source.
       if (dest_data + dest_byte_length > source_data &&
           source_data + source_byte_length > dest_data) {
@@ -4103,13 +4115,15 @@ class TypedElementsAccessor
       }
 
       switch (source_kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                   \
-  case TYPE##_ELEMENTS:                                             \
-    CopyBetweenBackingStores<TYPE##_ELEMENTS>(                      \
-        reinterpret_cast<ctype*>(source_data),                      \
-        reinterpret_cast<ElementType*>(dest_data), length,          \
-        source_shared || destination_shared ? kShared : kUnshared); \
-    break;
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                              \
+  case TYPE##_ELEMENTS: {                                                      \
+    ctype* source_data_ptr = reinterpret_cast<ctype*>(source_data);            \
+    ElementType* dest_data_ptr = reinterpret_cast<ElementType*>(dest_data);    \
+    CopyBetweenBackingStores<TYPE##_ELEMENTS>(                                 \
+        source_data_ptr, dest_data_ptr, length,                                \
+        source_shared || destination_shared ? kShared : kUnshared);            \
+    break;                                                                     \
+  }
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
         RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
         default:
@@ -4235,9 +4249,9 @@ class TypedElementsAccessor
           Cast<FixedDoubleArray>(source->elements());
       for (size_t i = 0; i < length; i++) {
         if (source_store->is_the_hole(static_cast<int>(i))
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
             || source_store->is_undefined(static_cast<int>(i))
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
         ) {
           SetImpl(dest_data + i, FromObject(undefined), destination_shared);
         } else {
@@ -4257,6 +4271,11 @@ class TypedElementsAccessor
     Isolate* isolate = Isolate::Current();
     // 8. Let k be 0.
     // 9. Repeat, while k < srcLength,
+
+    // Guard against switching the ElementsKind to make this too big.
+    SBXCHECK(ElementsKindToByteSize(Kind) * length <=
+             ArrayBuffer::kMaxByteLength);
+
     for (size_t i = 0; i < length; i++) {
       DirectHandle<Object> elem;
       // a. Let Pk be ! ToString(𝔽(k)).
@@ -4358,6 +4377,10 @@ struct CopyBetweenBackingStoresImpl {
   static void Copy(TypedArrayCType<SourceKind>* source_data_ptr,
                    TypedArrayCType<Kind>* dest_data_ptr, size_t length,
                    IsSharedBuffer is_shared) {
+    SBXCHECK(ElementsKindToByteSize(SourceKind) * length <=
+             ArrayBuffer::kMaxByteLength);
+    SBXCHECK(ElementsKindToByteSize(Kind) * length <=
+             ArrayBuffer::kMaxByteLength);
     for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
       // We use scalar accessors to avoid boxing/unboxing, so there are no
       // allocations.
@@ -4375,6 +4398,11 @@ template <ElementsKind DestKind, ElementsKind SourceKind>
 void CopyFromFloat16BackingStore(uint16_t* source_data_ptr,
                                  TypedArrayCType<DestKind>* dest_data_ptr,
                                  size_t length, IsSharedBuffer is_shared) {
+  // Guard against switching the ElementsKind to make this too big.
+  SBXCHECK(ElementsKindToByteSize(DestKind) * length <=
+           ArrayBuffer::kMaxByteLength);
+  SBXCHECK(ElementsKindToByteSize(SourceKind) * length <=
+           ArrayBuffer::kMaxByteLength);
   for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
     // We use scalar accessors to avoid boxing/unboxing, so there are no
     // allocations.
@@ -5745,7 +5773,7 @@ MaybeDirectHandle<Object> ArrayConstructInitializeElements(
       break;
     }
     case HOLEY_DOUBLE_ELEMENTS:
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     {
       auto double_elms = Cast<FixedDoubleArray>(elms);
       for (int entry = 0; entry < number_of_elements; entry++) {
@@ -5758,7 +5786,7 @@ MaybeDirectHandle<Object> ArrayConstructInitializeElements(
       }
       break;
     }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     case PACKED_DOUBLE_ELEMENTS: {
       auto double_elms = Cast<FixedDoubleArray>(elms);
       for (int entry = 0; entry < number_of_elements; entry++) {

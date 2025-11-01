@@ -3150,6 +3150,17 @@ void Assembler::shufps(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   emit(imm8);
 }
 
+void Assembler::shufpd(XMMRegister dst, XMMRegister src, uint8_t imm8) {
+  DCHECK(is_uint8(imm8));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xC6);
+  emit_sse_operand(dst, src);
+  emit(imm8);
+}
+
 void Assembler::movapd(XMMRegister dst, XMMRegister src) {
   DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);

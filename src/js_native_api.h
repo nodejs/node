@@ -78,6 +78,17 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_get_boolean(napi_env env,
 // Methods to create Primitive types/Objects
 NAPI_EXTERN napi_status NAPI_CDECL napi_create_object(napi_env env,
                                                       napi_value* result);
+#ifdef NAPI_EXPERIMENTAL
+#define NODE_API_EXPERIMENTAL_HAS_CREATE_OBJECT_WITH_PROPERTIES
+NAPI_EXTERN napi_status NAPI_CDECL
+napi_create_object_with_properties(napi_env env,
+                                   napi_value prototype_or_null,
+                                   napi_value* property_names,
+                                   napi_value* property_values,
+                                   size_t property_count,
+                                   napi_value* result);
+#endif  // NAPI_EXPERIMENTAL
+
 NAPI_EXTERN napi_status NAPI_CDECL napi_create_array(napi_env env,
                                                      napi_value* result);
 NAPI_EXTERN napi_status NAPI_CDECL

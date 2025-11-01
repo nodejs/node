@@ -130,6 +130,7 @@
   V(cwd_string, "cwd")                                                         \
   V(data_string, "data")                                                       \
   V(default_is_true_string, "defaultIsTrue")                                   \
+  V(defensive_string, "defensive")                                             \
   V(deserialize_info_string, "deserializeInfo")                                \
   V(dest_string, "dest")                                                       \
   V(destroyed_string, "destroyed")                                             \

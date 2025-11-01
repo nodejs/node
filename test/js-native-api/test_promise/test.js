@@ -50,9 +50,9 @@ test_promise.concludeCurrentPromise(undefined, true);
 const rejectPromise = Promise.reject(-1);
 const expected_reason = -1;
 assert.strictEqual(test_promise.isPromise(rejectPromise), true);
-rejectPromise.catch((reason) => {
+rejectPromise.catch(common.mustCall((reason) => {
   assert.strictEqual(reason, expected_reason);
-});
+}));
 
 assert.strictEqual(test_promise.isPromise(2.4), false);
 assert.strictEqual(test_promise.isPromise('I promise!'), false);

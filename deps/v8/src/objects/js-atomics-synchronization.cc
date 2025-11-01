@@ -345,9 +345,18 @@ class V8_NODISCARD AsyncWaiterQueueNode final : public WaiterQueueNode {
   // Removes the node from the isolate's `async_waiter_queue_nodes` list; the
   // passing node will be invalid after this call since the corresponding
   // unique_ptr is deleted upon removal.
-  static void RemoveFromAsyncWaiterQueueList(AsyncWaiterQueueNode<T>* node) {
-    node->requester_->async_waiter_queue_nodes().remove_if(
-        [=](std::unique_ptr<WaiterQueueNode>& n) { return n.get() == node; });
+  static void RemoveFromAsyncWaiterQueueList(Isolate* requester,
+                                             AsyncWaiterQueueNode<T>* node) {
+    auto erased =
+        std::erase_if(requester->async_waiter_queue_nodes(),
+                      [requester, node](std::unique_ptr<WaiterQueueNode>& n) {
+                        if (n.get() == node) {
+                          SBXCHECK_EQ(requester, node->requester_);
+                          return true;
+                        }
+                        return false;
+                      });
+    SBXCHECK_EQ(1, erased);
   }
 
  private:
@@ -954,7 +963,8 @@ void JSAtomicsMutex::UnlockAsyncLockedMutex(
       reinterpret_cast<LockAsyncWaiterQueueNode*>(
           async_locked_waiter_wrapper->foreign_address<kWaiterQueueForeignTag>(
               IsolateForSandbox(requester)));
-  LockAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(waiter_node);
+  LockAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(requester,
+                                                           waiter_node);
   if (IsCurrentThreadOwner()) {
     Unlock(requester);
     return;
@@ -1024,7 +1034,7 @@ void JSAtomicsMutex::HandleAsyncTimeout(LockAsyncWaiterQueueNode* waiter) {
     // The native context was destroyed so the lock_promise was already removed
     // from the native context. Remove the node from the async unlocked waiter
     // list.
-    LockAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(waiter);
+    LockAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(requester, waiter);
     return;
   }
 
@@ -1049,7 +1059,7 @@ void JSAtomicsMutex::HandleAsyncTimeout(LockAsyncWaiterQueueNode* waiter) {
       requester, requester->factory()->undefined_value(), false);
   auto resolve_result = JSPromise::Resolve(lock_async_promise, result);
   USE(resolve_result);
-  LockAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(waiter);
+  LockAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(requester, waiter);
   RemovePromiseFromNativeContext(requester, lock_promise);
 }
 
@@ -1086,7 +1096,7 @@ void JSAtomicsMutex::HandleAsyncNotify(LockAsyncWaiterQueueNode* waiter) {
         SetWaiterQueueStateOnly(state, new_state);
       }
     }
-    LockAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(waiter);
+    LockAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(requester, waiter);
     return;
   }
 
@@ -1107,7 +1117,8 @@ void JSAtomicsMutex::HandleAsyncNotify(LockAsyncWaiterQueueNode* waiter) {
       // async lock call, so we don't need to put the node in the locked waiter
       // list because the original LockAsycWaiterQueueNode is already in
       // the locked waiter list.
-      LockAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(waiter);
+      LockAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(requester,
+                                                               waiter);
     }
     js_mutex->SetCurrentThreadAsOwner();
     auto resolve_result =
@@ -1337,7 +1348,7 @@ void JSAtomicsCondition::HandleAsyncTimeout(WaitAsyncWaiterQueueNode* waiter) {
     // The native context was destroyed so the promise was already removed
     // from the native context. Remove the node from the async unlocked waiter
     // list.
-    WaitAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(waiter);
+    WaitAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(requester, waiter);
     return;
   }
   HandleScope scope(requester);
@@ -1370,7 +1381,7 @@ void JSAtomicsCondition::HandleAsyncNotify(WaitAsyncWaiterQueueNode* waiter) {
     // The native context was destroyed so the promise was already removed
     // from the native context. Remove the node from the async unlocked waiter
     // list.
-    WaitAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(waiter);
+    WaitAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(requester, waiter);
     return;
   }
   HandleScope scope(requester);
@@ -1386,7 +1397,7 @@ void JSAtomicsCondition::HandleAsyncNotify(WaitAsyncWaiterQueueNode* waiter) {
   MaybeDirectHandle<Object> result =
       JSPromise::Resolve(promise, requester->factory()->undefined_value());
   USE(result);
-  WaitAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(waiter);
+  WaitAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(requester, waiter);
   RemovePromiseFromNativeContext(requester, promise);
 }
 

@@ -200,6 +200,11 @@ experimental domain Network
 
   # Enables network tracking, network events will now be delivered to the client.
   command enable
+    parameters
+      # Buffer size in bytes to use when preserving network payloads (XHRs, etc).
+      experimental optional integer maxTotalBufferSize
+      # Per-resource buffer size in bytes to use when preserving network payloads (XHRs, etc).
+      experimental optional integer maxResourceBufferSize
 
   # Returns post data sent with the request. Returns an error when no data was sent with the request.
   command getRequestPostData

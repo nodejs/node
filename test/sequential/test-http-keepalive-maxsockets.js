@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const http = require('http');
@@ -33,7 +33,7 @@ const server = http.createServer(function(req, res) {
   }
   res.end(req.url);
 });
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   const agent = http.Agent({
     keepAlive: true,
     maxSockets: 5,
@@ -41,16 +41,14 @@ server.listen(0, function() {
   });
 
   let closed = false;
-  makeReqs(10, function(er) {
-    assert.ifError(er);
+  makeReqs(10, common.mustSucceed(() => {
     assert.strictEqual(count(agent.freeSockets), 2);
     assert.strictEqual(count(agent.sockets), 0);
     assert.strictEqual(serverSockets.length, 5);
 
     // Now make 10 more reqs.
     // should use the 2 free reqs from the pool first.
-    makeReqs(10, function(er) {
-      assert.ifError(er);
+    makeReqs(10, common.mustSucceed(() => {
       assert.strictEqual(count(agent.freeSockets), 2);
       assert.strictEqual(count(agent.sockets), 0);
       assert.strictEqual(serverSockets.length, 8);
@@ -59,8 +57,8 @@ server.listen(0, function() {
       server.close(function() {
         closed = true;
       });
-    });
-  });
+    }));
+  }));
 
   process.on('exit', function() {
     assert(closed);
@@ -86,17 +84,17 @@ server.listen(0, function() {
       port: server.address().port,
       path: `/${i}`,
       agent: agent
-    }, function(res) {
+    }, common.mustCall((res) => {
       let data = '';
       res.setEncoding('ascii');
       res.on('data', function(c) {
         data += c;
       });
-      res.on('end', function() {
+      res.on('end', common.mustCall(() => {
         assert.strictEqual(data, `/${i}`);
         cb();
-      });
-    }).end();
+      }));
+    })).end();
   }
 
   function count(sockets) {
@@ -104,4 +102,4 @@ server.listen(0, function() {
       return n + sockets[name].length;
     }, 0);
   }
-});
+}));

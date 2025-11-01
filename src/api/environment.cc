@@ -6,6 +6,7 @@
 #include "node.h"
 #include "node_builtins.h"
 #include "node_context_data.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_exit_code.h"
 #include "node_internals.h"
@@ -37,6 +38,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
+using v8::IsolateGroup;
 using v8::Just;
 using v8::JustVoid;
 using v8::Local;
@@ -111,10 +113,13 @@ MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
 
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
   void* ret;
-  if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers)
+  if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers) {
+    COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.ZeroFilled");
     ret = allocator_->Allocate(size);
-  else
+  } else {
+    COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.Uninitialized");
     ret = allocator_->AllocateUninitialized(size);
+  }
   if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   }
@@ -122,6 +127,7 @@ void* NodeArrayBufferAllocator::Allocate(size_t size) {
 }
 
 void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
+  COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.Uninitialized");
   void* ret = allocator_->AllocateUninitialized(size);
   if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
@@ -304,6 +310,17 @@ void SetIsolateUpForNode(v8::Isolate* isolate) {
   SetIsolateUpForNode(isolate, settings);
 }
 
+//
+IsolateGroup GetOrCreateIsolateGroup() {
+  // When pointer compression is disabled, we cannot create new groups,
+  // in which case we'll always return the default.
+  if (IsolateGroup::CanCreateNewGroups()) {
+    return IsolateGroup::Create();
+  }
+
+  return IsolateGroup::GetDefault();
+}
+
 // TODO(joyeecheung): we may want to expose this, but then we need to be
 // careful about what we override in the params.
 Isolate* NewIsolate(Isolate::CreateParams* params,
@@ -311,7 +328,8 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
                     MultiIsolatePlatform* platform,
                     const SnapshotData* snapshot_data,
                     const IsolateSettings& settings) {
-  Isolate* isolate = Isolate::Allocate();
+  IsolateGroup group = GetOrCreateIsolateGroup();
+  Isolate* isolate = Isolate::Allocate(group);
   if (isolate == nullptr) return nullptr;
 
   if (snapshot_data != nullptr) {
@@ -853,8 +871,7 @@ Maybe<void> InitializePrimordials(Local<Context> context,
   if (!GetPerContextExports(context).ToLocal(&exports)) {
     return Nothing<void>();
   }
-  Local<String> primordials_string =
-      FIXED_ONE_BYTE_STRING(isolate, "primordials");
+  Local<String> primordials_string = isolate_data->primordials_string();
   // Ensure that `InitializePrimordials` is called exactly once on a given
   // context.
   CHECK(!exports->Has(context, primordials_string).FromJust());

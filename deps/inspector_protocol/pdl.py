@@ -86,6 +86,18 @@ def parse(data, file_name, map_binary_to_string=False):
       protocol['domains'].append(domain)
       continue
 
+    match = re.compile(
+        r'^include (.*)').match(line)
+    if match:
+      included_filename = match.group(1)
+      if path.isabs(included_filename):
+        raise Exception("Only relative paths are supported in include's")
+      resolved_path = path.normpath(path.join(path.dirname(file_name), included_filename))
+      with open(resolved_path, 'r') as file:
+        included_data = parse(file.read(), resolved_path, map_binary_to_string)
+        protocol['domains'].extend(included_data['domains'])
+      continue
+
     match = re.compile(r'^  depends on ([^\s]+)').match(line)
     if match:
       if 'dependencies' not in domain:

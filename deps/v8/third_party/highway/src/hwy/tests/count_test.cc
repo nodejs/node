@@ -132,6 +132,48 @@ HWY_NOINLINE void TestAllLeadingZeroCount() {
   ForIntegerTypes(ForPartialVectors<TestLeadingZeroCount>());
 }
 
+struct TestMaskedLeadingZeroCount {
+  template <class T, class D>
+  HWY_ATTR_NO_MSAN HWY_NOINLINE void operator()(T /*unused*/, D d) {
+    RandomState rng;
+    using TU = MakeUnsigned<T>;
+    const RebindToUnsigned<decltype(d)> du;
+    size_t N = Lanes(d);
+    const MFromD<D> first_3 = FirstN(d, 3);
+    auto data = AllocateAligned<T>(N);
+    auto lzcnt = AllocateAligned<T>(N);
+    HWY_ASSERT(data && lzcnt);
+
+    constexpr T kNumOfBitsInT = static_cast<T>(sizeof(T) * 8);
+    for (size_t j = 0; j < N; j++) {
+      if (j < 3) {
+        lzcnt[j] = static_cast<T>(kNumOfBitsInT - 2);
+      } else {
+        lzcnt[j] = static_cast<T>(0);
+      }
+    }
+    HWY_ASSERT_VEC_EQ(
+        d, lzcnt.get(),
+        MaskedLeadingZeroCount(first_3, Set(d, static_cast<T>(2))));
+
+    for (size_t j = 0; j < N; j++) {
+      if (j < 3) {
+        lzcnt[j] = static_cast<T>(1);
+      } else {
+        lzcnt[j] = static_cast<T>(0);
+      }
+    }
+    HWY_ASSERT_VEC_EQ(
+        d, lzcnt.get(),
+        MaskedLeadingZeroCount(
+            first_3, BitCast(d, Set(du, TU{1} << (kNumOfBitsInT - 2)))));
+  }
+};
+
+HWY_NOINLINE void TestAllMaskedLeadingZeroCount() {
+  ForIntegerTypes(ForPartialVectors<TestMaskedLeadingZeroCount>());
+}
+
 template <class T, HWY_IF_NOT_FLOAT_NOR_SPECIAL(T),
           HWY_IF_T_SIZE_ONE_OF(T, (1 << 1) | (1 << 2) | (1 << 4))>
 static HWY_INLINE T TrailingZeroCountOfValue(T val) {
@@ -303,6 +345,7 @@ namespace {
 HWY_BEFORE_TEST(HwyCountTest);
 HWY_EXPORT_AND_TEST_P(HwyCountTest, TestAllPopulationCount);
 HWY_EXPORT_AND_TEST_P(HwyCountTest, TestAllLeadingZeroCount);
+HWY_EXPORT_AND_TEST_P(HwyCountTest, TestAllMaskedLeadingZeroCount);
 HWY_EXPORT_AND_TEST_P(HwyCountTest, TestAllTrailingZeroCount);
 HWY_EXPORT_AND_TEST_P(HwyCountTest, TestAllHighestSetBitIndex);
 HWY_AFTER_TEST();

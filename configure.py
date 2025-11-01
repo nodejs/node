@@ -646,6 +646,12 @@ parser.add_argument('--experimental-enable-pointer-compression',
     default=None,
     help='[Experimental] Enable V8 pointer compression (limits max heap to 4GB and breaks ABI compatibility)')
 
+parser.add_argument('--experimental-pointer-compression-shared-cage',
+    action='store_true',
+    dest='pointer_compression_shared_cage',
+    default=None,
+    help='[Experimental] Use V8 pointer compression with shared cage (requires --experimental-enable-pointer-compression)')
+
 parser.add_argument('--v8-options',
     action='store',
     dest='v8_options',
@@ -1789,7 +1795,10 @@ def configure_v8(o, configs):
   # Note that enabling pointer compression without enabling sandbox is unsupported by V8,
   # so this can be broken at any time.
   o['variables']['v8_enable_sandbox'] = 0
-  o['variables']['v8_enable_pointer_compression_shared_cage'] = 1 if options.enable_pointer_compression else 0
+  # We set v8_enable_pointer_compression_shared_cage to 0 always, even when
+  # pointer compression is enabled so that we don't accidentally enable shared
+  # cage mode when pointer compression is on.
+  o['variables']['v8_enable_pointer_compression_shared_cage'] = 1 if options.pointer_compression_shared_cage else 0
   o['variables']['v8_enable_external_code_space'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_extensible_ro_snapshot'] = 0

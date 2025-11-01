@@ -6489,6 +6489,26 @@ def CheckLocalVectorUsage(filename, lines, error):
             'Do not use std::vector<v8::Local<T>>. '
             'Use v8::LocalVector<T> instead.')
 
+def CheckStringValueUsage(filename, lines, error):
+  """Logs an error if v8's String::Value/Utf8Value are used.
+  Args:
+    filename: The name of the current file.
+    lines: An array of strings, each representing a line of the file.
+    error: The function to call with any errors found.
+  """
+  if filename.startswith('test/') or filename.startswith('test\\'):
+    return # Skip test files, where Node.js headers may not be available
+
+  for linenum, line in enumerate(lines):
+    if Search(r'\bString::Utf8Value\b', line):
+      error(filename, linenum, 'runtime/v8_string_value', 5,
+            'Do not use v8::String::Utf8Value. '
+            'Use node::Utf8Value instead.')
+    if Search(r'\bString::Value\b', line):
+      error(filename, linenum, 'runtime/v8_string_value', 5,
+            'Do not use v8::String::Value. '
+            'Use node::TwoByteValue instead.')
+
 def ProcessLine(filename, file_extension, clean_lines, line,
                 include_state, function_state, nesting_state, error,
                 extra_check_functions=None):
@@ -6659,6 +6679,8 @@ def ProcessFileData(filename, file_extension, lines, error,
   CheckInlineHeader(filename, include_state, error)
 
   CheckLocalVectorUsage(filename, lines, error)
+
+  CheckStringValueUsage(filename, lines, error)
 
 def ProcessConfigOverrides(filename):
   """ Loads the configuration files and processes the config overrides.

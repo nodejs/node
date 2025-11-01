@@ -34,7 +34,7 @@
 // CycleClock that runs at atleast 1 MHz. We've found some Android
 // ARM64 devices where this is not the case, so we disable it by
 // default on Android ARM64.
-#if defined(__native_client__) || (defined(__APPLE__)) || \
+#if defined(__APPLE__) || \
     (defined(__ANDROID__) && defined(__aarch64__))
 #define ABSL_USE_UNSCALED_CYCLECLOCK_DEFAULT 0
 #else

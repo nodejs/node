@@ -142,46 +142,56 @@ CommonJS. This includes the following:
 * Lexical redeclarations of the CommonJS wrapper variables (`require`, `module`,
   `exports`, `__dirname`, `__filename`).
 
-### Modules loaders
+### Module resolution and loading
 
-Node.js has two systems for resolving a specifier and loading modules.
+Node.js has two types of module resolution and loading, chosen based on how the module is requested.
 
-There is the CommonJS module loader:
+When a module is requested via `require()` (available by default in CommonJS modules,
+and can be dynamically generated using `createRequire()` in both CommonJS and ES Modules):
 
-* It is fully synchronous.
-* It is responsible for handling `require()` calls.
-* It is monkey patchable.
-* It supports [folders as modules][].
-* When resolving a specifier, if no exact match is found, it will try to add
-  extensions (`.js`, `.json`, and finally `.node`) and then attempt to resolve
-  [folders as modules][].
-* It treats `.json` as JSON text files.
-* `.node` files are interpreted as compiled addon modules loaded with
-  `process.dlopen()`.
-* It treats all files that lack `.json` or `.node` extensions as JavaScript
-  text files.
-* It can only be used to [load ECMAScript modules from CommonJS modules][] if
-  the module graph is synchronous (that contains no top-level `await`).
-  When used to load a JavaScript text file that is not an ECMAScript module,
-  the file will be loaded as a CommonJS module.
+* Resolution:
+  * The resolution initiated by `require()` supports [folders as modules][].
+  * When resolving a specifier, if no exact match is found, `require()` will try to add
+    extensions (`.js`, `.json`, and finally `.node`) and then attempt to resolve
+    [folders as modules][].
+  * It does not support URLs as specifiers by default.
+* Loading:
+  * `.json` files are treated as JSON text files.
+  * `.node` files are interpreted as compiled addon modules loaded with `process.dlopen()`.
+  * `.ts`, `.mts` and `.cts` files are treated as [TypeScript][] text files.
+  * Files with any other extension, or without extensions, are treated as JavaScript
+    text files.
+  * `require()` can only be used to [load ECMAScript modules from CommonJS modules][] if
+    the [ECMAScript module][ES Module] _and its dependencies_ are synchronous
+    (i.e. they do not contain top-level `await`).
 
-There is the ECMAScript module loader:
+When a module is requested via static `import` statements (only available in ES Modules)
+or `import()` expressions (available in both CommonJS and ES Modules):
 
-* It is asynchronous, unless it's being used to load modules for `require()`.
-* It is responsible for handling `import` statements and `import()` expressions.
-* It is not monkey patchable, can be customized using [loader hooks][].
-* It does not support folders as modules, directory indexes (e.g.
-  `'./startup/index.js'`) must be fully specified.
-* It does no extension searching. A file extension must be provided
-  when the specifier is a relative or absolute file URL.
-* It can load JSON modules, but an import type attribute is required.
-* It accepts only `.js`, `.mjs`, and `.cjs` extensions for JavaScript text
-  files.
-* It can be used to load JavaScript CommonJS modules. Such modules
-  are passed through the `cjs-module-lexer` to try to identify named exports,
-  which are available if they can be determined through static analysis.
-  Imported CommonJS modules have their URLs converted to absolute
-  paths and are then loaded via the CommonJS module loader.
+* Resolution:
+  * The resolution of `import`/`import()` does not support folders as modules,
+    directory indexes (e.g. `'./startup/index.js'`) must be fully specified.
+  * It does not perform extension searching. A file extension must be provided
+    when the specifier is a relative or absolute file URL.
+  * It supports `file://` and `data:` URLs as specifiers by default.
+* Loading:
+  * `.json` files are treated as JSON text files. When importing JSON modules,
+    an import type attribute is required (e.g.
+    `import json from './data.json' with { type: 'json' }`).
+  * `.node` files are interpreted as compiled addon modules loaded with
+    `process.dlopen()`, if [`--experimental-addon-modules`][] is enabled.
+  * `.ts`, `.mts` and `.cts` files are treated as [TypeScript][] text files.
+  * It accepts only `.js`, `.mjs`, and `.cjs` extensions for JavaScript text
+    files.
+  * `.wasm` files are treated as [WebAssembly modules][].
+  * Any other file extensions will result in a  [`ERR_UNKNOWN_FILE_EXTENSION`][] error.
+    Additional file extensions can be facilitated via [customization hooks][].
+  * `import`/`import()` can be used to load JavaScript [CommonJS modules][commonjs].
+    Such modules are passed through the `cjs-module-lexer` to try to identify named
+    exports, which are available if they can be determined through static analysis.
+
+Regardless of how a module is requested, the resolution and loading process can be customized
+using [customization hooks][].
 
 ### `package.json` and file extensions
 
@@ -1151,6 +1161,8 @@ This field defines [subpath imports][] for the current package.
 [Node.js documentation for this section]: https://github.com/nodejs/node/blob/HEAD/doc/api/packages.md#conditions-definitions
 [Runtime Keys]: https://runtime-keys.proposal.wintercg.org/
 [Syntax detection]: #syntax-detection
+[TypeScript]: typescript.md
+[WebAssembly modules]: esm.md#wasm-modules
 [WinterCG]: https://wintercg.org/
 [`"exports"`]: #exports
 [`"imports"`]: #imports
@@ -1158,14 +1170,16 @@ This field defines [subpath imports][] for the current package.
 [`"name"`]: #name
 [`"type"`]: #type
 [`--conditions` / `-C` flag]: #resolving-user-conditions
+[`--experimental-addon-modules`]: cli.md#--experimental-addon-modules
 [`--no-addons` flag]: cli.md#--no-addons
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
+[`ERR_UNKNOWN_FILE_EXTENSION`]: errors.md#err_unknown_file_extension
 [`package.json`]: #nodejs-packagejson-field-definitions
+[customization hooks]: module.md#customization-hooks
 [entry points]: #package-entry-points
 [folders as modules]: modules.md#folders-as-modules
 [import maps]: https://github.com/WICG/import-maps
 [load ECMAScript modules from CommonJS modules]: modules.md#loading-ecmascript-modules-using-require
-[loader hooks]: esm.md#loaders
 [packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
 [self-reference]: #self-referencing-a-package-using-its-name
 [subpath exports]: #subpath-exports

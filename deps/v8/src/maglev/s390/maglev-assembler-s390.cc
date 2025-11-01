@@ -38,8 +38,8 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   if (v8_flags.single_generation) {
     alloc_type = AllocationType::kOld;
   }
-  ExternalReference top = SpaceAllocationTopAddress(isolate, alloc_type);
-  ExternalReference limit = SpaceAllocationLimitAddress(isolate, alloc_type);
+  IsolateFieldId top = SpaceAllocationTopAddress(alloc_type);
+  IsolateFieldId limit = SpaceAllocationLimitAddress(alloc_type);
   ZoneLabelRef done(masm);
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.AcquireScratch();
@@ -50,16 +50,16 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   // {size_in_bytes}.
   Register new_top = object;
   // Check if there is enough space.
-  __ LoadU64(object, __ ExternalReferenceAsOperand(top, scratch));
+  __ LoadU64(object, __ ExternalReferenceAsOperand(top));
   __ AddU64(object, size_in_bytes);
-  __ LoadU64(scratch, __ ExternalReferenceAsOperand(limit, scratch));
+  __ LoadU64(scratch, __ ExternalReferenceAsOperand(limit));
   __ CmpU64(new_top, scratch);
   // Otherwise call runtime.
   __ JumpToDeferredIf(kUnsignedGreaterThanEqual, AllocateSlow<T>,
                       register_snapshot, object, AllocateBuiltin(alloc_type),
                       size_in_bytes, done);
   // Store new top and tag object.
-  __ Move(__ ExternalReferenceAsOperand(top, scratch), new_top);
+  __ Move(__ ExternalReferenceAsOperand(top), new_top);
 #if V8_VERIFY_WRITE_BARRIERS
   if (v8_flags.verify_write_barriers) {
     ExternalReference last_young_allocation =
@@ -67,7 +67,7 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
     __ push(object);
 
     if (alloc_type == AllocationType::kYoung) {
-      __ SubS64(object, object, Operand(size_in_bytes));
+      __ SubS64(object, size_in_bytes);
     } else {
       __ Move(object, 0);
     }
@@ -610,6 +610,13 @@ void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
   CmpF64(value, temp);
   JumpIf(ne, fail);
   Jump(success);
+}
+
+void MaglevAssembler::Move(ExternalReference dst, int32_t imm) {
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  Move(r0, imm);
+  StoreU64(r0, ExternalReferenceAsOperand(dst, scratch));
 }
 
 }  // namespace maglev

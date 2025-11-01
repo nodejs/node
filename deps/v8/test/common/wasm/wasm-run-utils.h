@@ -173,6 +173,8 @@ class TestingModuleBuilder {
 
   template <typename T>
   void WriteMemory(T* p, T val) {
+    DCHECK_LE(mem0_start_, reinterpret_cast<uint8_t*>(p));
+    DCHECK_LT(reinterpret_cast<uint8_t*>(p), mem0_start_ + mem0_size_);
     WriteLittleEndianValue<T>(reinterpret_cast<Address>(p), val);
   }
 

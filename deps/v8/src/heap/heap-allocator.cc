@@ -467,7 +467,8 @@ bool HeapAllocator::IsMostRecentYoungAllocation(Address object_address) {
            object_address < new_space_allocator_->top();
   } else {
     // Otherwise the last young allocation has to be a large object.
-    MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromAddress(last);
+    MemoryChunkMetadata* chunk =
+        MemoryChunkMetadata::FromAddress(heap_->isolate(), last);
     CHECK(chunk->is_large());
     CHECK_EQ(chunk->owner_identity(), NEW_LO_SPACE);
     // No allocation folding with large objects, so object_address has to match

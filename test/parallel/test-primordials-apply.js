@@ -10,6 +10,7 @@ const {
   ArrayPrototypeUnshiftApply,
   MathMaxApply,
   MathMinApply,
+  SafeArrayPrototypePushApply,
   StringPrototypeConcatApply,
   TypedArrayOfApply,
 } = require('internal/test/binding').primordials;
@@ -40,6 +41,26 @@ const {
   const expected = [...arr1, ...arr2];
 
   assert.strictEqual(ArrayPrototypePushApply(arr1, arr2), expected.length);
+  assert.deepStrictEqual(arr1, expected);
+}
+
+{
+  const arr1 = [1, 2, 3];
+  const arr2 = [4, 5, 6];
+
+  const expected = [...arr1, ...arr2];
+
+  assert.strictEqual(SafeArrayPrototypePushApply(arr1, arr2), expected.length);
+  assert.deepStrictEqual(arr1, expected);
+}
+
+{
+  const arr1 = [1, 2, 3];
+  const arr2 = Array.from({ length: 1e6 }, (_, i) => i);
+
+  const expected = [...arr1, ...arr2];
+
+  assert.strictEqual(SafeArrayPrototypePushApply(arr1, arr2), expected.length);
   assert.deepStrictEqual(arr1, expected);
 }
 

@@ -142,6 +142,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void JumpIfNotMarking(Label* not_marking,
                         Label::Distance condition_met_distance = Label::kFar);
 
+  void PreCheckSkippedWriteBarrier(Register object, Register value,
+                                   Register scratch, Label* ok);
+
   // Define movq here instead of using AVX_OP. movq is defined using templates
   // and there is a function template `void movq(P1)`, while technically
   // impossible, will be selected when deducing the arguments for AvxHelper.
@@ -687,6 +690,16 @@ class V8_EXPORT_PRIVATE MacroAssembler
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
+  void CallVerifySkippedWriteBarrierStubSaveRegisters(Register object,
+                                                      Register value,
+                                                      SaveFPRegsMode fp_mode);
+  void CallVerifySkippedWriteBarrierStub(Register object, Register value);
+
+  void CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+      Register object, Register value, SaveFPRegsMode fp_mode);
+  void CallVerifySkippedIndirectWriteBarrierStub(Register object,
+                                                 Register value);
+
 #ifdef V8_IS_TSAN
   void CallTSANStoreStub(Register address, Register value,
                          SaveFPRegsMode fp_mode, int size, StubCallMode mode,
@@ -958,6 +971,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   // ---------------------------------------------------------------------------
   // GC Support
+
+  // Performs a fast check for whether `value` is a read-only object or a small
+  // Smi. Only enabled in some configurations.
+  void MaybeJumpIfReadOnlyOrSmallSmi(Register value, Label* dest);
 
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being

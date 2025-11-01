@@ -814,13 +814,24 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArray(
 }
 
 Tagged<BytecodeArray> SharedFunctionInfo::GetActiveBytecodeArray(
-    IsolateForSandbox isolate) const {
+    Isolate* isolate) const {
   Tagged<Object> data = GetTrustedData(isolate);
   if (Tagged<Code> baseline_code; TryCast(data, &baseline_code)) {
     data = baseline_code->bytecode_or_interpreter_data();
   }
   if (Tagged<BytecodeArray> bytecode_array; TryCast(data, &bytecode_array)) {
     return bytecode_array;
+  }
+  if (!Is<InterpreterData>(data)) {
+    // See https://crbug.com/442277757
+    InstanceType type = static_cast<InstanceType>(-1);
+    if (Is<HeapObject>(data)) {
+      type = Cast<HeapObject>(data)->map()->instance_type();
+    }
+    isolate->PushStackTraceAndDie(
+        reinterpret_cast<void*>(data.ptr()),
+        reinterpret_cast<void*>(GetTrustedData(isolate).ptr()),
+        reinterpret_cast<void*>(type));
   }
   return SbxCast<InterpreterData>(data)->bytecode_array();
 }

@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.12'
+  PYTHON_VERSION: '3.14'
   NODE_VERSION: lts/*
 
 permissions:
@@ -47,6 +47,7 @@ jobs:
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
       - name: Environment Information
         run: npx envinfo
       - name: Lint C/C++ files
@@ -67,6 +68,7 @@ jobs:
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
       - name: Environment Information
         run: npx envinfo
       - name: Format C/C++ files
@@ -138,6 +140,22 @@ jobs:
           NODE=$(command -v node) make lint-md
         env:
           NODE_RELEASED_VERSIONS: ${{ steps.get-released-versions.outputs.NODE_RELEASED_VERSIONS }}
+  lint-nix:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+          sparse-checkout: '*.nix'
+          sparse-checkout-cone-mode: false
+      - uses: cachix/install-nix-action@7be5dee1421f63d07e71ce6e0a9f8a4b07c2a487  # v31.6.1
+      - name: Lint Nix files
+        run: |
+          nix-shell -I nixpkgs=./tools/nix/pkgs.nix -p 'nixfmt-tree' --run '
+            treefmt --quiet --fail-on-change
+          ' || git --no-pager diff --exit-code
+
   lint-py:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
@@ -149,6 +167,7 @@ jobs:
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
       - name: Environment Information
         run: npx envinfo
       - name: Lint Python
@@ -166,6 +185,7 @@ jobs:
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
       - name: Environment Information
         run: npx envinfo
       - name: Lint YAML

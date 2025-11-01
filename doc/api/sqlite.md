@@ -99,6 +99,10 @@ exposed by this class execute synchronously.
 added: v22.5.0
 changes:
   - version:
+      - v25.1.0
+    pr-url: https://github.com/nodejs/node/pull/60217
+    description: Add `defensive` option.
+  - version:
       - v24.4.0
       - v22.18.0
     pr-url: https://github.com/nodejs/node/pull/58697
@@ -140,6 +144,10 @@ changes:
     character (e.g., `foo` instead of `:foo`). **Default:** `true`.
   * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters are ignored when binding.
     If `false`, an exception is thrown for unknown named parameters. **Default:** `false`.
+  * `defensive` {boolean} If `true`, enables the defensive flag. When the defensive flag is enabled,
+    language features that allow ordinary SQL to deliberately corrupt the database file are disabled.
+    The defensive flag can also be set using `enableDefensive()`.
+    **Default:** `false`.
 
 Constructs a new `DatabaseSync` instance.
 
@@ -260,6 +268,19 @@ added:
 Enables or disables the `loadExtension` SQL function, and the `loadExtension()`
 method. When `allowExtension` is `false` when constructing, you cannot enable
 loading extensions for security reasons.
+
+### `database.enableDefensive(active)`
+
+<!-- YAML
+added:
+  - v25.1.0
+-->
+
+* `active` {boolean} Whether to set the defensive flag.
+
+Enables or disables the defensive flag. When the defensive flag is active,
+language features that allow ordinary SQL to deliberately corrupt the database file are disabled.
+See [`SQLITE_DBCONFIG_DEFENSIVE`][] in the SQLite documentation for details.
 
 ### `database.location([dbName])`
 
@@ -626,120 +647,6 @@ times with different bound values. Parameters also offer protection against
 [SQL injection][] attacks. For these reasons, prepared statements are preferred
 over hand-crafted SQL strings when handling user input.
 
-## Class: `SQLTagStore`
-
-<!-- YAML
-added: v24.9.0
--->
-
-This class represents a single LRU (Least Recently Used) cache for storing
-prepared statements.
-
-Instances of this class are created via the database.createTagStore() method,
-not by using a constructor. The store caches prepared statements based on the
-provided SQL query string. When the same query is seen again, the store
-retrieves the cached statement and safely applies the new values through
-parameter binding, thereby preventing attacks like SQL injection.
-
-The cache has a maxSize that defaults to 1000 statements, but a custom size can
-be provided (e.g., database.createTagStore(100)). All APIs exposed by this
-class execute synchronously.
-
-### `sqlTagStore.all(sqlTemplate[, ...values])`
-
-<!-- YAML
-added: v24.9.0
--->
-
-* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
-* `...values` {any} Values to be interpolated into the template literal.
-* Returns: {Array} An array of objects representing the rows returned by the query.
-
-Executes the given SQL query and returns all resulting rows as an array of objects.
-
-### `sqlTagStore.get(sqlTemplate[, ...values])`
-
-<!-- YAML
-added: v24.9.0
--->
-
-* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
-* `...values` {any} Values to be interpolated into the template literal.
-* Returns: {Object | undefined} An object representing the first row returned by
-  the query, or `undefined` if no rows are returned.
-
-Executes the given SQL query and returns the first resulting row as an object.
-
-### `sqlTagStore.iterate(sqlTemplate[, ...values])`
-
-<!-- YAML
-added: v24.9.0
--->
-
-* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
-* `...values` {any} Values to be interpolated into the template literal.
-* Returns: {Iterator} An iterator that yields objects representing the rows returned by the query.
-
-Executes the given SQL query and returns an iterator over the resulting rows.
-
-### `sqlTagStore.run(sqlTemplate[, ...values])`
-
-<!-- YAML
-added: v24.9.0
--->
-
-* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
-* `...values` {any} Values to be interpolated into the template literal.
-* Returns: {Object} An object containing information about the execution, including `changes` and `lastInsertRowid`.
-
-Executes the given SQL query, which is expected to not return any rows (e.g., INSERT, UPDATE, DELETE).
-
-### `sqlTagStore.size()`
-
-<!-- YAML
-added: v24.9.0
--->
-
-* Returns: {integer} The number of prepared statements currently in the cache.
-
-A read-only property that returns the number of prepared statements currently in the cache.
-
-### `sqlTagStore.capacity`
-
-<!-- YAML
-added: v24.9.0
--->
-
-* Returns: {integer} The maximum number of prepared statements the cache can hold.
-
-A read-only property that returns the maximum number of prepared statements the cache can hold.
-
-### `sqlTagStore.db`
-
-<!-- YAML
-added: v24.9.0
--->
-
-* {DatabaseSync} The `DatabaseSync` instance that created this `SQLTagStore`.
-
-A read-only property that returns the `DatabaseSync` object associated with this `SQLTagStore`.
-
-### `sqlTagStore.reset()`
-
-<!-- YAML
-added: v24.9.0
--->
-
-Resets the LRU cache, clearing all stored prepared statements.
-
-### `sqlTagStore.clear()`
-
-<!-- YAML
-added: v24.9.0
--->
-
-An alias for `sqlTagStore.reset()`.
-
 ### `statement.all([namedParameters][, ...anonymousParameters])`
 
 <!-- YAML
@@ -969,6 +876,120 @@ added: v22.5.0
 
 The source SQL text of the prepared statement. This property is a
 wrapper around [`sqlite3_sql()`][].
+
+## Class: `SQLTagStore`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+This class represents a single LRU (Least Recently Used) cache for storing
+prepared statements.
+
+Instances of this class are created via the database.createTagStore() method,
+not by using a constructor. The store caches prepared statements based on the
+provided SQL query string. When the same query is seen again, the store
+retrieves the cached statement and safely applies the new values through
+parameter binding, thereby preventing attacks like SQL injection.
+
+The cache has a maxSize that defaults to 1000 statements, but a custom size can
+be provided (e.g., database.createTagStore(100)). All APIs exposed by this
+class execute synchronously.
+
+### `sqlTagStore.all(sqlTemplate[, ...values])`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
+* `...values` {any} Values to be interpolated into the template literal.
+* Returns: {Array} An array of objects representing the rows returned by the query.
+
+Executes the given SQL query and returns all resulting rows as an array of objects.
+
+### `sqlTagStore.get(sqlTemplate[, ...values])`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
+* `...values` {any} Values to be interpolated into the template literal.
+* Returns: {Object | undefined} An object representing the first row returned by
+  the query, or `undefined` if no rows are returned.
+
+Executes the given SQL query and returns the first resulting row as an object.
+
+### `sqlTagStore.iterate(sqlTemplate[, ...values])`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
+* `...values` {any} Values to be interpolated into the template literal.
+* Returns: {Iterator} An iterator that yields objects representing the rows returned by the query.
+
+Executes the given SQL query and returns an iterator over the resulting rows.
+
+### `sqlTagStore.run(sqlTemplate[, ...values])`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+* `sqlTemplate` {Template Literal} A template literal containing the SQL query.
+* `...values` {any} Values to be interpolated into the template literal.
+* Returns: {Object} An object containing information about the execution, including `changes` and `lastInsertRowid`.
+
+Executes the given SQL query, which is expected to not return any rows (e.g., INSERT, UPDATE, DELETE).
+
+### `sqlTagStore.size()`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+* Returns: {integer} The number of prepared statements currently in the cache.
+
+A read-only property that returns the number of prepared statements currently in the cache.
+
+### `sqlTagStore.capacity`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+* Returns: {integer} The maximum number of prepared statements the cache can hold.
+
+A read-only property that returns the maximum number of prepared statements the cache can hold.
+
+### `sqlTagStore.db`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+* {DatabaseSync} The `DatabaseSync` instance that created this `SQLTagStore`.
+
+A read-only property that returns the `DatabaseSync` object associated with this `SQLTagStore`.
+
+### `sqlTagStore.reset()`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+Resets the LRU cache, clearing all stored prepared statements.
+
+### `sqlTagStore.clear()`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+An alias for `sqlTagStore.reset()`.
 
 ### Type conversion between JavaScript and SQLite
 
@@ -1306,6 +1327,7 @@ callback function to indicate what type of operation is being authorized.
 [Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
+[`SQLITE_DBCONFIG_DEFENSIVE`]: https://www.sqlite.org/c3ref/c_dbconfig_defensive.html#sqlitedbconfigdefensive
 [`SQLITE_DETERMINISTIC`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_DIRECTONLY`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_MAX_FUNCTION_ARG`]: https://www.sqlite.org/limits.html#max_function_arg

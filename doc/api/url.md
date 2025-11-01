@@ -1794,6 +1794,12 @@ The formatting process operates as follows:
   string, an [`Error`][] is thrown.
 * `result` is returned.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/node-url-to-whatwg-url)).
+
+```bash
+npx codemod@latest @nodejs/node-url-to-whatwg-url
+```
+
 ### `url.parse(urlString[, parseQueryString[, slashesDenoteHost]])`
 
 <!-- YAML
@@ -1853,7 +1859,7 @@ input. CVEs are not issued for `url.parse()` vulnerabilities. Use the
 function getURL(req) {
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'example.com';
-  return new URL(req.url || '/', `${proto}://${host}`);
+  return new URL(`${proto}://${host}${req.url || '/'}`);
 }
 ```
 
@@ -1863,8 +1869,14 @@ use the example below:
 
 ```js
 function getURL(req) {
-  return new URL(req.url || '/', 'https://example.com');
+  return new URL(`https://example.com${req.url || '/'}`);
 }
+```
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/node-url-to-whatwg-url)).
+
+```bash
+npx codemod@latest @nodejs/node-url-to-whatwg-url
 ```
 
 ### `url.resolve(from, to)`

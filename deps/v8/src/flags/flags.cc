@@ -1133,6 +1133,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
                     turboshaft_wasm_in_js_inlining),
       CONTRADICTION(jit_fuzzing, max_lazy),
       CONTRADICTION(jitless, maglev_future),
+      CONTRADICTION(jitless, turbolev_future),
       CONTRADICTION(jitless, stress_concurrent_inlining),
       CONTRADICTION(jitless, stress_concurrent_inlining_attach_code),
       CONTRADICTION(jitless, stress_maglev),
@@ -1150,6 +1151,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
                     turboshaft_assert_types),
       CONTRADICTION(turboshaft, stress_concurrent_inlining),
       CONTRADICTION(turboshaft, stress_concurrent_inlining_attach_code),
+      CONTRADICTION(minor_ms, handle_weak_ref_weakly_in_minor_gc),
 
       // List of flags that shouldn't be used when --fuzzing or
       // --correctness-fuzzer-suppressions is passed. These flags will be reset

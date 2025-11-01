@@ -25,30 +25,22 @@ For more info about `node inspect`, see the [debugger][] documentation.
 
 The program entry point is a specifier-like string. If the string is not an
 absolute path, it's resolved as a relative path from the current working
-directory. That path is then resolved by [CommonJS][] module loader. If no
-corresponding file is found, an error is thrown.
+directory. That entry point string is then resolved as if it's been requested
+by `require()` from the current working directory. If no corresponding file
+is found, an error is thrown.
 
-If a file is found, its path will be passed to the
-[ES module loader][Modules loaders] under any of the following conditions:
+By default, the resolved path is also loaded as if it's been requested by `require()`,
+unless one of the conditions below apply—then it's loaded as if it's been requested
+by `import()`:
 
 * The program was started with a command-line flag that forces the entry
   point to be loaded with ECMAScript module loader, such as `--import`.
-* The file has an `.mjs` or `.wasm` extension.
+* The file has an `.mjs`, `.mts` or `.wasm` extension.
 * The file does not have a `.cjs` extension, and the nearest parent
   `package.json` file contains a top-level [`"type"`][] field with a value of
   `"module"`.
 
-Otherwise, the file is loaded using the CommonJS module loader. See
-[Modules loaders][] for more details.
-
-### ECMAScript modules loader entry point caveat
-
-When loading, the [ES module loader][Modules loaders] loads the program
-entry point, the `node` command will accept as input only files with `.js`,
-`.mjs`, or `.cjs` extensions. With the following flags, additional file
-extensions are enabled:
-
-* [`--experimental-addon-modules`][] for files with `.node` extension.
+See [module resolution and loading][] for more details.
 
 ## Options
 
@@ -278,7 +270,7 @@ Examples can be found in the [File System Permissions][] documentation.
 ### `--allow-inspector`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 > Stability: 1.0 - Early development
@@ -308,7 +300,7 @@ Error: connect ERR_ACCESS_DENIED Access to this API has been restricted. Use --a
 ### `--allow-net`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 > Stability: 1.1 - Active development
@@ -884,7 +876,9 @@ node --entry-url 'data:text/javascript,console.log("Hello")'
 <!-- YAML
 added: v22.9.0
 changes:
-  - version: v24.10.0
+  - version:
+     - v24.10.0
+     - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/59925
     description: The `--env-file-if-exists` flag is no longer experimental.
 -->
@@ -897,7 +891,9 @@ does not exist.
 <!-- YAML
 added: v20.6.0
 changes:
-  - version: v24.10.0
+  - version:
+     - v24.10.0
+     - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/59925
     description: The `--env-file` flag is no longer experimental.
   - version:
@@ -1022,6 +1018,9 @@ in the `$schema` must be replaced with the version of Node.js you are using.
   },
   "testRunner": {
     "test-isolation": "process"
+  },
+  "watch": {
+    "watch-preserve-output": true
   }
 }
 ```
@@ -1177,7 +1176,7 @@ top-level awaits, and print their location to help users find them.
 ### `--experimental-quic`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1980,7 +1979,7 @@ Silence all process warnings (including deprecations).
 ### `--no-webstorage`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 Disable [`Web Storage`][] support.
@@ -3091,7 +3090,9 @@ See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
 ### `--use-env-proxy`
 
 <!-- YAML
-added: v24.5.0
+added:
+ - v24.5.0
+ - v22.21.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -3139,21 +3140,18 @@ On platforms other than Windows and macOS, this loads certificates from the dire
 and file trusted by OpenSSL, similar to `--use-openssl-ca`, with the difference being
 that it caches the certificates after first load.
 
-On Windows and macOS, the certificate trust policy is planned to follow
-[Chromium's policy for locally trusted certificates][]:
+On Windows and macOS, the certificate trust policy is similar to
+[Chromium's policy for locally trusted certificates][], but with some differences:
 
 On macOS, the following settings are respected:
 
 * Default and System Keychains
   * Trust:
     * Any certificate where the “When using this certificate” flag is set to “Always Trust” or
-    * Any certificate where the “Secure Sockets Layer (SSL)” flag is set to “Always Trust.”
-  * Distrust:
-    * Any certificate where the “When using this certificate” flag is set to “Never Trust” or
-    * Any certificate where the “Secure Sockets Layer (SSL)” flag is set to “Never Trust.”
+    * Any certificate where the “Secure Sockets Layer (SSL)” flag is set to “Always Trust”.
+  * The certificate must also be valid, with "X.509 Basic Policy" set to  “Always Trust”.
 
-On Windows, the following settings are respected (unlike Chromium's policy, distrust
-and intermediate CA are not currently supported):
+On Windows, the following settings are respected:
 
 * Local Machine (accessed via `certlm.msc`)
   * Trust:
@@ -3168,8 +3166,11 @@ and intermediate CA are not currently supported):
     * Trusted Root Certification Authorities
     * Enterprise Trust -> Group Policy -> Trusted Root Certification Authorities
 
-On Windows and macOS, Node.js would check that the user settings for the certificates
-do not forbid them for TLS server authentication before using them.
+On Windows and macOS, Node.js would check that the user settings for the trusted
+certificates do not forbid them for TLS server authentication before using them.
+
+Node.js currently does not support distrust/revocation of certificates
+from another source based on system settings.
 
 On other systems, Node.js loads certificates from the default certificate file
 (typically `/etc/ssl/cert.pem`) and default certificate directory (typically
@@ -3760,7 +3761,9 @@ variable is strongly discouraged.
 ### `NODE_USE_ENV_PROXY=1`
 
 <!-- YAML
-added: v24.0.0
+added:
+ - v24.0.0
+ - v22.21.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -3988,6 +3991,8 @@ documented here:
 
 ### `--harmony-shadow-realm`
 
+### `--heap-snapshot-on-oom`
+
 ### `--interpreted-frames-native-stack`
 
 ### `--jitless`
@@ -4068,7 +4073,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [#42511]: https://github.com/nodejs/node/issues/42511
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [Chromium's policy for locally trusted certificates]: https://chromium.googlesource.com/chromium/src/+/main/net/data/ssl/chrome_root_store/faq.md#does-the-chrome-certificate-verifier-consider-local-trust-decisions
-[CommonJS]: modules.md
 [CommonJS module]: modules.md
 [DEP0025 warning]: deprecations.md#dep0025-requirenodesys
 [ECMAScript module]: esm.md#modules-ecmascript-modules
@@ -4078,7 +4082,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module customization hooks]: module.md#customization-hooks
 [Module customization hooks: enabling]: module.md#enabling
-[Modules loaders]: packages.md#modules-loaders
+[Module resolution and loading]: packages.md#module-resolution-and-loading
 [Navigator API]: globals.md#navigator
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
@@ -4104,7 +4108,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--disable-sigusr1`]: #--disable-sigusr1
 [`--env-file-if-exists`]: #--env-file-if-existsfile
 [`--env-file`]: #--env-filefile
-[`--experimental-addon-modules`]: #--experimental-addon-modules
 [`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule

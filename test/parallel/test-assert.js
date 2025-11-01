@@ -904,10 +904,9 @@ test('Additional asserts', () => {
   assert.throws(
     () => assert(false, Symbol('foo')),
     {
-      code: 'ERR_ASSERTION',
-      constructor: assert.AssertionError,
-      generatedMessage: false,
-      message: 'Symbol(foo)'
+      code: 'ERR_INVALID_ARG_TYPE',
+      constructor: TypeError,
+      message: /"message" argument.+Symbol\(foo\)/
     }
   );
 
@@ -1593,6 +1592,189 @@ test('Additional assert', () => {
 
 test('assert/strict exists', () => {
   assert.strictEqual(require('assert/strict'), assert.strict);
+});
+
+test('Printf-like format strings as error message', () => {
+  assert.throws(
+    () => assert.equal(1, 2, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.strictEqual(1, 2, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.notEqual(1, 1, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.notStrictEqual(1, 1, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.deepEqual(1, 2, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.notDeepEqual(1, 1, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.deepStrictEqual(1, 2, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.notDeepStrictEqual(1, 1, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.partialDeepStrictEqual(1, 2, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.match('foo', /bar/, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.doesNotMatch('foo', /foo/, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+});
+
+test('Functions as error message', () => {
+  function errorMessage(actual, expected) {
+    return `Nice message including ${actual} and ${expected}`;
+  }
+  assert.throws(
+    () => assert.equal(1, 2, errorMessage),
+    { message: 'Nice message including 1 and 2' }
+  );
+
+  assert.throws(
+    () => assert.strictEqual(1, 2, errorMessage),
+    // TODO(BridgeAR): Align input arguments with generated message for all
+    // methods.
+    // TODO(BridgeAR): Check how to handle this for custom messages. Do
+    // we need this? Should it be skipped for methods like these?
+    { message: 'Nice message including 1 and 2\n\n1 !== 2\n' }
+  );
+
+  assert.throws(
+    () => assert.notEqual(1, 1, errorMessage),
+    { message: 'Nice message including 1 and 1' }
+  );
+
+  assert.throws(
+    () => assert.notStrictEqual(1, 1, errorMessage),
+    { message: 'Nice message including 1 and 1' }
+  );
+
+  assert.throws(
+    () => assert.deepEqual(1, 2, errorMessage),
+    { message: 'Nice message including 1 and 2' }
+  );
+
+  assert.throws(
+    () => assert.notDeepEqual(1, 1, errorMessage),
+    { message: 'Nice message including 1 and 1' }
+  );
+
+  assert.throws(
+    () => assert.deepStrictEqual(1, 2, errorMessage),
+    { message: 'Nice message including 1 and 2\n\n1 !== 2\n' }
+  );
+
+  assert.throws(
+    () => assert.notDeepStrictEqual(1, 1, errorMessage),
+    { message: 'Nice message including 1 and 1' }
+  );
+
+  assert.throws(
+    () => assert.partialDeepStrictEqual(1, 2, errorMessage),
+    { message: 'Nice message including 1 and 2\n\n1 !== 2\n' }
+  );
+
+  assert.throws(
+    () => assert.match('foo', /bar/, errorMessage),
+    { message: 'Nice message including foo and /bar/' }
+  );
+
+  assert.throws(
+    () => assert.doesNotMatch('foo', /foo/, errorMessage),
+    { message: 'Nice message including foo and /foo/' }
+  );
+});
+
+test('Ambiguous error messages fail', () => {
+  function errorMessage(actual, expected) {
+    return `Nice message including ${actual} and ${expected}`;
+  }
+
+  assert.throws(
+    () => assert.doesNotMatch('foo', /foo/, errorMessage, 'foobar'),
+    {
+      code: 'ERR_AMBIGUOUS_ARGUMENT',
+      message: /errorMessage/
+    }
+  );
+
+  assert.throws(
+    () => assert.doesNotMatch('foo', /foo/, new Error('baz'), 'foobar'),
+    {
+      code: 'ERR_AMBIGUOUS_ARGUMENT',
+      message: /baz/
+    }
+  );
+});
+
+test('Faulty message functions', () => {
+  assert.throws(
+    () => assert.doesNotMatch('foo', /foo/, (a, b) => 123),
+    {
+      code: 'ERR_ASSERTION',
+      message: "'foo' doesNotMatch /foo/"
+    }
+  );
+
+  assert.throws(
+    () => assert.match('foo', /123/, (a, b) => { new Error('baz'); }),
+    {
+      code: 'ERR_ASSERTION',
+      message: "'foo' match /123/"
+    }
+  );
+});
+
+test('Functions as error message', () => {
+  function errorMessage(actual, expected) {
+    return `Nice message including ${actual} and ${expected}`;
+  }
+
+  assert.throws(
+    () => assert.equal('foo', 'bar', errorMessage),
+    {
+      code: 'ERR_ASSERTION',
+      message: /Nice message including foo and bar/
+    }
+  );
+
+  assert.throws(
+    () => assert.doesNotMatch('foo', /foo/, errorMessage),
+    {
+      code: 'ERR_ASSERTION',
+      message: /Nice message including foo and \/foo\//
+    }
+  );
 });
 
 /* eslint-enable no-restricted-syntax */

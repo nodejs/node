@@ -9,6 +9,7 @@ before(() => testArr.push('global before'));
 after(() => {
   testArr.push('global after');
 
+  // eslint-disable-next-line node-core/must-call-assert
   assert.deepStrictEqual(testArr, [
     'global before',
     'describe before',

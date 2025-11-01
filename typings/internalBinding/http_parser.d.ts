@@ -27,10 +27,18 @@ declare namespace InternalHttpParserBinding {
     static kLenientHeaders: number;
     static kLenientChunkedLength: number;
     static kLenientKeepAlive: number;
+    static kLenientTransferEncoding: number;
+    static kLenientVersion: number;
+    static kLenientDataAfterClose: number;
+    static kLenientOptionalLFAfterCR: number;
+    static kLenientOptionalCRLFAfterChunk: number;
+    static kLenientOptionalCRBeforeLF: number;
+    static kLenientSpacesAfterChunkSize: number;
     static kLenientAll: number;
 
     close(): void;
     free(): void;
+    remove(): void;
     execute(buffer: Buffer): Error | Buffer;
     finish(): Error | Buffer;
     initialize(

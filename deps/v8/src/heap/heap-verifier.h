@@ -7,14 +7,13 @@
 
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
-#include "src/heap/memory-chunk-metadata.h"
-#include "src/heap/read-only-heap.h"
 #include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
 
 class Heap;
+class MemoryChunkMetadata;
 class ReadOnlyHeap;
 
 // Interface for verifying spaces in the heap.

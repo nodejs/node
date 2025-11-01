@@ -9,10 +9,12 @@ class WebSocketServer {
   constructor({
     port = 0,
     server,
+    customHandleUpgradeHeaders = [],
   }) {
     this.port = port;
     this.server = server || http.createServer();
     this.clients = new Set();
+    this.customHandleUpgradeHeaders = customHandleUpgradeHeaders;
 
     this.server.on('upgrade', this.handleUpgrade.bind(this));
   }
@@ -36,6 +38,7 @@ class WebSocketServer {
       'Upgrade: websocket',
       'Connection: Upgrade',
       `Sec-WebSocket-Accept: ${acceptKey}`,
+      ...this.customHandleUpgradeHeaders,
     ];
 
     socket.write(responseHeaders.join('\r\n') + '\r\n\r\n');

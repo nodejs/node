@@ -147,9 +147,9 @@ const args = [
     assert.strictEqual(typeof err.pid, 'number');
     spawnSyncKeys
       .filter((key) => key !== 'pid')
-      .forEach((key) => {
+      .forEach(common.mustCallAtLeast((key) => {
         assert.deepStrictEqual(err[key], spawnSyncResult[key]);
-      });
+      }));
     return true;
   });
 }

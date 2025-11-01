@@ -937,8 +937,9 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
   Handle<Script> script(Cast<Script>(script_function->shared()->script()),
                         isolate);
   v8::debug::LiveEditResult result;
-  LiveEdit::PatchScript(isolate, script, new_source, /* preview */ false,
-                        /* allow_top_frame_live_editing */ false, &result);
+  isolate->debug()->SetScriptSource(script, new_source, /* preview */ false,
+                                    /* allow_top_frame_live_editing */ false,
+                                    &result);
   switch (result.status) {
     case v8::debug::LiveEditResult::COMPILE_ERROR:
       return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
@@ -952,6 +953,9 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
     case v8::debug::LiveEditResult::BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE:
       return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
           "LiveEdit failed: BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE"));
+    case v8::debug::LiveEditResult::FEATURE_DISABLED:
+      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
+          "LiveEdit failed: FEATURE_DISABLED"));
     case v8::debug::LiveEditResult::OK:
       return ReadOnlyRoots(isolate).undefined_value();
   }

@@ -455,8 +455,7 @@ static Maybe<std::string> ErrorToString(Isolate* isolate,
   if (!maybe_str.ToLocal(&js_str)) {
     return Nothing<std::string>();
   }
-  String::Utf8Value sv(isolate, js_str);
-  return Just<>(std::string(*sv, sv.length()));
+  return Just(Utf8Value(isolate, js_str).ToString());
 }
 
 static void PrintEmptyJavaScriptStack(JSONWriter* writer) {

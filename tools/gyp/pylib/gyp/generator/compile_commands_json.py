@@ -100,7 +100,7 @@ def AddCommandsForTarget(cwd, target, params, per_config_commands):
 def GenerateOutput(target_list, target_dicts, data, params):
     per_config_commands = {}
     for qualified_target, target in target_dicts.items():
-        build_file, target_name, toolset = gyp.common.ParseQualifiedTarget(
+        build_file, _target_name, _toolset = gyp.common.ParseQualifiedTarget(
             qualified_target
         )
         if IsMac(params):

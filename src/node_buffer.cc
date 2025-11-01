@@ -986,11 +986,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   size_t result = haystack_length;
 
   if (enc == UCS2) {
-    String::Value needle_value(isolate, needle);
-    if (*needle_value == nullptr) {
-      return args.GetReturnValue().Set(-1);
-    }
-
+    TwoByteValue needle_value(isolate, needle);
     if (haystack_length < 2 || needle_value.length() < 1) {
       return args.GetReturnValue().Set(-1);
     }
@@ -1011,27 +1007,27 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                                     offset / 2,
                                     is_forward);
     } else {
-      result =
-          nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                               haystack_length / 2,
-                               reinterpret_cast<const uint16_t*>(*needle_value),
-                               needle_value.length(),
-                               offset / 2,
-                               is_forward);
+      result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
+                                    haystack_length / 2,
+                                    needle_value.out(),
+                                    needle_value.length(),
+                                    offset / 2,
+                                    is_forward);
     }
     result *= 2;
   } else if (enc == UTF8) {
-    String::Utf8Value needle_value(isolate, needle);
+    Utf8Value needle_value(isolate, needle);
     if (*needle_value == nullptr)
       return args.GetReturnValue().Set(-1);
+    CHECK_GE(needle_length, needle_value.length());
 
-    result =
-        nbytes::SearchString(reinterpret_cast<const uint8_t*>(haystack),
-                             haystack_length,
-                             reinterpret_cast<const uint8_t*>(*needle_value),
-                             needle_length,
-                             offset,
-                             is_forward);
+    result = nbytes::SearchString(
+        reinterpret_cast<const uint8_t*>(haystack),
+        haystack_length,
+        reinterpret_cast<const uint8_t*>(needle_value.out()),
+        needle_length,
+        offset,
+        is_forward);
   } else if (enc == LATIN1) {
     uint8_t* needle_data = node::UncheckedMalloc<uint8_t>(needle_length);
     if (needle_data == nullptr) {
@@ -1316,10 +1312,10 @@ static void Btoa(const FunctionCallbackInfo<Value>& args) {
                                   input->Length(),
                                   buffer.out());
   } else {
-    String::Value value(env->isolate(), input);
+    TwoByteValue value(env->isolate(), input);
     MaybeStackBuffer<char> stack_buf(value.length());
     size_t out_len = simdutf::convert_utf16_to_latin1(
-        reinterpret_cast<const char16_t*>(*value),
+        reinterpret_cast<const char16_t*>(value.out()),
         value.length(),
         stack_buf.out());
     if (out_len == 0) {  // error
@@ -1370,8 +1366,8 @@ static void Atob(const FunctionCallbackInfo<Value>& args) {
     buffer.SetLength(expected_length);
     result = simdutf::base64_to_binary(data, input->Length(), buffer.out());
   } else {  // 16-bit case
-    String::Value value(env->isolate(), input);
-    auto data = reinterpret_cast<const char16_t*>(*value);
+    TwoByteValue value(env->isolate(), input);
+    auto data = reinterpret_cast<const char16_t*>(value.out());
     size_t expected_length =
         simdutf::maximal_binary_length_from_base64(data, value.length());
     buffer.AllocateSufficientStorage(expected_length);

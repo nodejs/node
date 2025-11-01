@@ -14,7 +14,7 @@ absl_source_set("container") {
   deps = [
     ":algorithm",
     "//third_party/abseil-cpp/absl/base:config",
-    "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/meta:type_traits",
   ]
 }

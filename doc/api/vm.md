@@ -485,8 +485,8 @@ function resolveAndLinkDependencies(module) {
         // The "secret" variable refers to the global variable we added to
         // "contextifiedObject" when creating the context.
         export default secret;
-      `, { context: referencingModule.context });
-      moduleMap.set(specifier, linkedModule);
+      `, { context: module.context });
+      moduleMap.set(specifier, requestedModule);
       // Resolve the dependencies of the new module as well.
       resolveAndLinkDependencies(requestedModule);
     }
@@ -566,8 +566,8 @@ const contextifiedObject = vm.createContext({
           // The "secret" variable refers to the global variable we added to
           // "contextifiedObject" when creating the context.
           export default secret;
-        `, { context: referencingModule.context });
-        moduleMap.set(specifier, linkedModule);
+        `, { context: module.context });
+        moduleMap.set(specifier, requestedModule);
         // Resolve the dependencies of the new module as well.
         resolveAndLinkDependencies(requestedModule);
       }
@@ -618,19 +618,47 @@ in the ECMAScript specification.
     work after that. **Default:** `false`.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
-Evaluate the module.
+Evaluate the module and its depenendencies. Corresponds to the [Evaluate() concrete method][] field of
+[Cyclic Module Record][]s in the ECMAScript specification.
 
-This must be called after the module has been linked; otherwise it will reject.
-It could be called also when the module has already been evaluated, in which
-case it will either do nothing if the initial evaluation ended in success
-(`module.status` is `'evaluated'`) or it will re-throw the exception that the
-initial evaluation resulted in (`module.status` is `'errored'`).
+If the module is a `vm.SourceTextModule`, `evaluate()` must be called after the module has been instantiated;
+otherwise `evaluate()` will return a rejected promise.
 
-This method cannot be called while the module is being evaluated
-(`module.status` is `'evaluating'`).
+For a `vm.SourceTextModule`, the promise returned by `evaluate()` may be fulfilled either
+synchronously or asynchronously:
 
-Corresponds to the [Evaluate() concrete method][] field of [Cyclic Module
-Record][]s in the ECMAScript specification.
+1. If the `vm.SourceTextModule` has no top-level `await` in itself or any of its dependencies, the promise will be
+   fulfilled _synchronously_ after the module and all its dependencies have been evaluated.
+   1. If the evaluation succeeds, the promise will be _synchronously_ resolved to `undefined`.
+   2. If the evaluation results in an exception, the promise will be _synchronously_ rejected with the exception
+      that causes the evaluation to fail, which is the same as `module.error`.
+2. If the `vm.SourceTextModule` has top-level `await` in itself or any of its dependencies, the promise will be
+   fulfilled _asynchronously_ after the module and all its dependencies have been evaluated.
+   1. If the evaluation succeeds, the promise will be _asynchronously_ resolved to `undefined`.
+   2. If the evaluation results in an exception, the promise will be _asynchronously_ rejected with the exception
+      that causes the evaluation to fail.
+
+If the module is a `vm.SyntheticModule`, `evaluate()` always returns a promise that fulfills synchronously, see
+the specification of [Evaluate() of a Synthetic Module Record][]:
+
+1. If the `evaluateCallback` passed to its constructor throws an exception synchronously, `evaluate()` returns
+   a promise that will be synchronously rejected with that exception.
+2. If the `evaluateCallback` does not throw an exception, `evaluate()` returns a promise that will be
+   synchronously resolved to `undefined`.
+
+The `evaluateCallback` of a `vm.SyntheticModule` is executed synchronously within the `evaluate()` call, and its
+return value is discarded. This means if `evaluateCallback` is an asynchronous function, the promise returned by
+`evaluate()` will not reflect its asynchronous behavior, and any rejections from an asynchronous
+`evaluateCallback` will be lost.
+
+`evaluate()` could also be called again after the module has already been evaluated, in which case:
+
+1. If the initial evaluation ended in success (`module.status` is `'evaluated'`), it will do nothing
+   and return a promise that resolves to `undefined`.
+2. If the initial evaluation resulted in an exception (`module.status` is `'errored'`), it will re-reject
+   the exception that the initial evaluation resulted in.
+
+This method cannot be called while the module is being evaluated (`module.status` is `'evaluating'`).
 
 ### `module.identifier`
 
@@ -955,7 +983,9 @@ ECMAScript specification.
 ### `sourceTextModule.instantiate()`
 
 <!-- YAML
-added: v24.8.0
+added:
+ - v24.8.0
+ - v22.21.0
 -->
 
 * Returns: {undefined}
@@ -973,7 +1003,9 @@ modules in the cycle before calling this method.
 ### `sourceTextModule.linkRequests(modules)`
 
 <!-- YAML
-added: v24.8.0
+added:
+ - v24.8.0
+ - v22.21.0
 -->
 
 * `modules` {vm.Module\[]} Array of `vm.Module` objects that this module depends on.
@@ -1137,7 +1169,9 @@ added:
  - v13.0.0
  - v12.16.0
 changes:
-  - version: v24.8.0
+  - version:
+     - v24.8.0
+     - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/59000
     description: No longer need to call `syntheticModule.link()` before
                  calling this method.
@@ -2221,6 +2255,7 @@ const { Script, SyntheticModule } = require('node:vm');
 [Cyclic Module Record]: https://tc39.es/ecma262/#sec-cyclic-module-records
 [ECMAScript Module Loader]: esm.md#modules-ecmascript-modules
 [Evaluate() concrete method]: https://tc39.es/ecma262/#sec-moduleevaluation
+[Evaluate() of a Synthetic Module Record]: https://tc39.es/ecma262/#sec-smr-Evaluate
 [FinishLoadingImportedModule]: https://tc39.es/ecma262/#sec-FinishLoadingImportedModule
 [GetModuleNamespace]: https://tc39.es/ecma262/#sec-getmodulenamespace
 [HostLoadImportedModule]: https://tc39.es/ecma262/#sec-HostLoadImportedModule

@@ -11,6 +11,7 @@ declare namespace InternalWorkerBinding {
     );
     startThread(): void;
     stopThread(): void;
+    hasRef(): boolean;
     ref(): void;
     unref(): void;
     getResourceLimits(): Float64Array;
@@ -38,7 +39,9 @@ export interface WorkerBinding {
   Worker: typeof InternalWorkerBinding.Worker;
   getEnvMessagePort(): InternalMessagingBinding.MessagePort;
   threadId: number;
+  threadName: string;
   isMainThread: boolean;
+  isInternalThread: boolean;
   ownsProcessState: boolean;
   resourceLimits?: Float64Array;
   kMaxYoungGenerationSizeMb: number;

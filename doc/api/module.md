@@ -503,10 +503,10 @@ The following constants are returned as the `status` field in the object returne
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58797
     description: Add `portable` option to enable portable compile cache.
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59931
     description: Rename the unreleased `path` option to `directory` to maintain consistency.
 -->
@@ -608,8 +608,7 @@ changes:
 
 <!-- type=misc -->
 
-> Stability: 1.2 - Release candidate (asynchronous version)
-> Stability: 1.1 - Active development (synchronous version)
+> Stability: 1.1 - Active development
 
 There are two types of module customization hooks that are currently supported:
 

@@ -378,7 +378,7 @@ class AndroidMkWriter:
             inputs = rule.get("inputs")
             for rule_source in rule.get("rule_sources", []):
                 (rule_source_dirname, rule_source_basename) = os.path.split(rule_source)
-                (rule_source_root, rule_source_ext) = os.path.splitext(
+                (rule_source_root, _rule_source_ext) = os.path.splitext(
                     rule_source_basename
                 )
 

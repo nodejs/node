@@ -150,42 +150,44 @@ module.exports = function() {
       'b68c04bfe452c3adc6c10066a915231b7b404727eb6201b4921eb96d9407de2b963' +
       '3879ceb71d759d9828d7b4d062f6ef100757d8328187caf57dfb859d1555345207c' +
       '1cce7905c3564c08fec78867a53d5a2cf84810e1ffa', 'hex'),
-    'sha3-512, no salt': Buffer.from(
-      'd2430dc87abeaa7d13f7cec8510f1a296e1c608f44b1696829c59a99e8eefe9b2ee' +
-      '6ee8ad6fdc93c24fcba2f04d1da195924b6209717e1992c10ed9f4783478765fe34' +
-      '3e761203bff9d326bb6dc2061b0a7554c8ce0814b29249136c20c8e30054df0c6bc' +
-      '656509a82845149368896690e32ff5dd32ef01543686f01d6a69bb438b049e66a8b' +
-      'df485a13edcd7dc482da4cc57d0b740aca3e56f0da247794e600afd27b22b6da13b' +
-      'cc15dd2059b525f8cb6bcd07540aa843f0ae51d4b0eea27045485914b908bdd01d0' +
-      'a9d42379f9f7180f4ad162ff73df5fed0200eb02ad01473975d54a77c15a9c61a3c' +
-      'b5e27de5d1eecc363d45506f7123a5ddd115c5e4c9e', 'hex'),
-    'sha3-256, salted': Buffer.from(
-      '59cb9cce6ae838eb20d38d6af4acb9b866b0753bb7df9e441037d788512c03279e8' +
-      '3d9a9cf5c0921fe1c0b6e8e895a8c0ad24a18b123f809b34ef2a3a1f05974030320' +
-      '435692ef5d378cef4368c3658c098a25371dfaf1c0b6910f653a4ec15f2c08956c1' +
-      '405136c2aba7f25a808fa7dbf57a4cb2978bd91af710b27ee239d955c8cac7a76ae' +
-      '9085cefeda2a585a99cc948f064b5da66a9c4aa4f3f767ac905a9f314b47038e05c' +
-      '3608fbb7e67a278e4f009a62c3cd3fdf43692e759d9361be1217999a76a69d4d119' +
-      'f8791a90e207e46b3f6125721f56fd819292d06a3cdae2c62c9a1dc0d964a06036c' +
-      '8c18661cc6c873532a3536ab51e1ce210926db299e2', 'hex'),
-    'sha3-384, salted': Buffer.from(
-      '8d1f9297c8169f27f0c58827dba991d862de58c1155f612ad2995d2bf862d051c4a' +
-      '91b48571849b0412384382e5b77990de6a3c84010046b35c4a504f175a3479483d9' +
-      '5c58f86bb96d53a27e59d6f67fddaae295ce90610f5086acc711557c2c85aac32d3' +
-      '24199cff2367ae44e1d91307a98c8cbfb085a8bce6b1c20714711bc15b0eddb7881' +
-      '823227d4be477ffdad8093663a6a1fc62eb39c49c2c3a821c2b202cf7904b49ca92' +
-      '3c83819602bb13931577354a80f99309030044935b1cd41f0513160e661db1959fb' +
-      '1ec15f087f3d288e875d54cbf070ec860b0aeecc951ea65e97cd5460750d4b7de52' +
-      '22cb9e7466b1f506ecf6a81fc399dfd8334160f9084', 'hex'),
-    'sha3-512, salted': Buffer.from(
-      '7b6d7be418c5d37cc8070698b8b03d818ecd8b673d047d34921913f6d59c69cb496' +
-      '172d6118207d9ff92b8e1246acf0e03a845d935a70f8a82c3d5d6db6a1a0e337269' +
-      '4b904372413dcbaa7ac5486bc8ccaf70d7e9470be82b928a90017e272cf9761ed26' +
-      'c160fe874a2675a4fb2acad72c50fbfffdd70b5a6f2919553d7ea1829934670f8de' +
-      'f2a5c2816404b1aa153323c92c58400622f184b9b0463fa48d6b27091f68c287e3f' +
-      '6d9ab9eb451711a5d984c547f3d56f14a686a89ddf36c47ce25092b8c6530904de9' +
-      '5df7fc602fe9394315f1b1847aae304cb5ad71e2cb78acfbc997a87a9d62a6898bb' +
-      '6d84a81bb89b50186265f4be171a93d837a4bf777c8', 'hex')
+    ...(!process.features.openssl_is_boringssl ? {
+      'sha3-512, no salt': Buffer.from(
+        'd2430dc87abeaa7d13f7cec8510f1a296e1c608f44b1696829c59a99e8eefe9b2ee' +
+        '6ee8ad6fdc93c24fcba2f04d1da195924b6209717e1992c10ed9f4783478765fe34' +
+        '3e761203bff9d326bb6dc2061b0a7554c8ce0814b29249136c20c8e30054df0c6bc' +
+        '656509a82845149368896690e32ff5dd32ef01543686f01d6a69bb438b049e66a8b' +
+        'df485a13edcd7dc482da4cc57d0b740aca3e56f0da247794e600afd27b22b6da13b' +
+        'cc15dd2059b525f8cb6bcd07540aa843f0ae51d4b0eea27045485914b908bdd01d0' +
+        'a9d42379f9f7180f4ad162ff73df5fed0200eb02ad01473975d54a77c15a9c61a3c' +
+        'b5e27de5d1eecc363d45506f7123a5ddd115c5e4c9e', 'hex'),
+      'sha3-256, salted': Buffer.from(
+        '59cb9cce6ae838eb20d38d6af4acb9b866b0753bb7df9e441037d788512c03279e8' +
+        '3d9a9cf5c0921fe1c0b6e8e895a8c0ad24a18b123f809b34ef2a3a1f05974030320' +
+        '435692ef5d378cef4368c3658c098a25371dfaf1c0b6910f653a4ec15f2c08956c1' +
+        '405136c2aba7f25a808fa7dbf57a4cb2978bd91af710b27ee239d955c8cac7a76ae' +
+        '9085cefeda2a585a99cc948f064b5da66a9c4aa4f3f767ac905a9f314b47038e05c' +
+        '3608fbb7e67a278e4f009a62c3cd3fdf43692e759d9361be1217999a76a69d4d119' +
+        'f8791a90e207e46b3f6125721f56fd819292d06a3cdae2c62c9a1dc0d964a06036c' +
+        '8c18661cc6c873532a3536ab51e1ce210926db299e2', 'hex'),
+      'sha3-384, salted': Buffer.from(
+        '8d1f9297c8169f27f0c58827dba991d862de58c1155f612ad2995d2bf862d051c4a' +
+        '91b48571849b0412384382e5b77990de6a3c84010046b35c4a504f175a3479483d9' +
+        '5c58f86bb96d53a27e59d6f67fddaae295ce90610f5086acc711557c2c85aac32d3' +
+        '24199cff2367ae44e1d91307a98c8cbfb085a8bce6b1c20714711bc15b0eddb7881' +
+        '823227d4be477ffdad8093663a6a1fc62eb39c49c2c3a821c2b202cf7904b49ca92' +
+        '3c83819602bb13931577354a80f99309030044935b1cd41f0513160e661db1959fb' +
+        '1ec15f087f3d288e875d54cbf070ec860b0aeecc951ea65e97cd5460750d4b7de52' +
+        '22cb9e7466b1f506ecf6a81fc399dfd8334160f9084', 'hex'),
+      'sha3-512, salted': Buffer.from(
+        '7b6d7be418c5d37cc8070698b8b03d818ecd8b673d047d34921913f6d59c69cb496' +
+        '172d6118207d9ff92b8e1246acf0e03a845d935a70f8a82c3d5d6db6a1a0e337269' +
+        '4b904372413dcbaa7ac5486bc8ccaf70d7e9470be82b928a90017e272cf9761ed26' +
+        'c160fe874a2675a4fb2acad72c50fbfffdd70b5a6f2919553d7ea1829934670f8de' +
+        'f2a5c2816404b1aa153323c92c58400622f184b9b0463fa48d6b27091f68c287e3f' +
+        '6d9ab9eb451711a5d984c547f3d56f14a686a89ddf36c47ce25092b8c6530904de9' +
+        '5df7fc602fe9394315f1b1847aae304cb5ad71e2cb78acfbc997a87a9d62a6898bb' +
+        '6d84a81bb89b50186265f4be171a93d837a4bf777c8', 'hex')
+    } : {})
   }
 
   const vectors = [
@@ -253,54 +255,56 @@ module.exports = function() {
       plaintext,
       signature: signatures['sha-512, salted']
     },
-    {
-      publicKeyBuffer: spki,
-      privateKeyBuffer: pkcs8,
-      algorithm: { name: 'RSA-PSS', saltLength: 0 },
-      hash: 'SHA3-256',
-      plaintext,
-      signature: signatures['sha3-256, no salt']
-    },
-    {
-      publicKeyBuffer: spki,
-      privateKeyBuffer: pkcs8,
-      algorithm: { name: 'RSA-PSS', saltLength: 0 },
-      hash: 'SHA3-384',
-      plaintext,
-      signature: signatures['sha3-384, no salt']
-    },
-    {
-      publicKeyBuffer: spki,
-      privateKeyBuffer: pkcs8,
-      algorithm: { name: 'RSA-PSS', saltLength: 0 },
-      hash: 'SHA3-512',
-      plaintext,
-      signature: signatures['sha3-512, no salt']
-    },
-    {
-      publicKeyBuffer: spki,
-      privateKeyBuffer: pkcs8,
-      algorithm: { name: 'RSA-PSS', saltLength: 32 },
-      hash: 'SHA3-256',
-      plaintext,
-      signature: signatures['sha3-256, salted']
-    },
-    {
-      publicKeyBuffer: spki,
-      privateKeyBuffer: pkcs8,
-      algorithm: { name: 'RSA-PSS', saltLength: 48 },
-      hash: 'SHA3-384',
-      plaintext,
-      signature: signatures['sha3-384, salted']
-    },
-    {
-      publicKeyBuffer: spki,
-      privateKeyBuffer: pkcs8,
-      algorithm: { name: 'RSA-PSS', saltLength: 64 },
-      hash: 'SHA3-512',
-      plaintext,
-      signature: signatures['sha3-512, salted']
-    }
+    ...(!process.features.openssl_is_boringssl ? [
+      {
+        publicKeyBuffer: spki,
+        privateKeyBuffer: pkcs8,
+        algorithm: { name: 'RSA-PSS', saltLength: 0 },
+        hash: 'SHA3-256',
+        plaintext,
+        signature: signatures['sha3-256, no salt']
+      },
+      {
+        publicKeyBuffer: spki,
+        privateKeyBuffer: pkcs8,
+        algorithm: { name: 'RSA-PSS', saltLength: 0 },
+        hash: 'SHA3-384',
+        plaintext,
+        signature: signatures['sha3-384, no salt']
+      },
+      {
+        publicKeyBuffer: spki,
+        privateKeyBuffer: pkcs8,
+        algorithm: { name: 'RSA-PSS', saltLength: 0 },
+        hash: 'SHA3-512',
+        plaintext,
+        signature: signatures['sha3-512, no salt']
+      },
+      {
+        publicKeyBuffer: spki,
+        privateKeyBuffer: pkcs8,
+        algorithm: { name: 'RSA-PSS', saltLength: 32 },
+        hash: 'SHA3-256',
+        plaintext,
+        signature: signatures['sha3-256, salted']
+      },
+      {
+        publicKeyBuffer: spki,
+        privateKeyBuffer: pkcs8,
+        algorithm: { name: 'RSA-PSS', saltLength: 48 },
+        hash: 'SHA3-384',
+        plaintext,
+        signature: signatures['sha3-384, salted']
+      },
+      {
+        publicKeyBuffer: spki,
+        privateKeyBuffer: pkcs8,
+        algorithm: { name: 'RSA-PSS', saltLength: 64 },
+        hash: 'SHA3-512',
+        plaintext,
+        signature: signatures['sha3-512, salted']
+      }
+    ] : []),
   ];
 
   return vectors;

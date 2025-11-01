@@ -11,6 +11,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
@@ -167,16 +168,6 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kCheckedTaggedToArrayIndex:
-    case IrOpcode::kCheckedTaggedToInt32:
-    case IrOpcode::kCheckedTaggedSignedToInt32: {
-      NodeMatcher m(node->InputAt(0));
-      if (m.IsConvertTaggedHoleToUndefined()) {
-        node->ReplaceInput(0, m.InputAt(0));
-        return Changed(node);
-      }
-      break;
-    }
     case IrOpcode::kCheckIf: {
       HeapObjectMatcher m(node->InputAt(0));
       if (m.Is(factory()->true_value())) {
@@ -185,12 +176,26 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kCheckNumberFitsInt32:
-    case IrOpcode::kCheckNumber: {
-      NodeMatcher m(node->InputAt(0));
-      if (m.IsConvertTaggedHoleToUndefined()) {
-        node->ReplaceInput(0, m.InputAt(0));
-        return Changed(node);
+    case IrOpcode::kCheckedTaggedToTaggedPointer: {
+      Node* const input = node->InputAt(0);
+      switch (DecideObjectIsSmi(input)) {
+        case Decision::kFalse:
+          ReplaceWithValue(node, input);
+          return Replace(input);
+        case Decision::kTrue: {
+          Node* effect = NodeProperties::GetEffectInput(node);
+          Node* control = NodeProperties::GetControlInput(node);
+          Node* deopt = jsgraph()->graph()->NewNode(
+              simplified()->CheckIf(DeoptimizeReason::kSmi,
+                                    CheckParametersOf(node->op()).feedback()),
+              jsgraph()->Int32Constant(0), effect, control);
+          Node* unreachable = jsgraph()->graph()->NewNode(
+              jsgraph()->common()->Unreachable(), deopt, control);
+          NodeProperties::ReplaceEffectInput(node, unreachable);
+          return Changed(node);
+        }
+        case Decision::kUnknown:
+          break;
       }
       break;
     }
@@ -217,9 +222,6 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.IsCheckSmi()) {
         ReplaceWithValue(node, input);
         return Replace(input);
-      } else if (m.IsConvertTaggedHoleToUndefined()) {
-        node->ReplaceInput(0, m.InputAt(0));
-        return Changed(node);
       }
       break;
     }

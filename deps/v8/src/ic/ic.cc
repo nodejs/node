@@ -1326,7 +1326,7 @@ KeyedAccessLoadMode GetNewKeyedLoadMode(Isolate* isolate,
 
   // In bound access and did not read a hole.
   if (is_found) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     // We can encode undefined in HOLEY_DOUBLE_ELEMENTS, so we always have to
     // check for those even if we found a value.
     if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
@@ -1337,7 +1337,7 @@ KeyedAccessLoadMode GetNewKeyedLoadMode(Isolate* isolate,
         }
       }
     }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     return always_handle_holes ? KeyedAccessLoadMode::kHandleHoles
                                : KeyedAccessLoadMode::kInBounds;
   }

@@ -67,10 +67,12 @@ An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 changes:
   - version:
     - v24.5.0
+    - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/58980
     description: Add support for `proxyEnv`.
   - version:
     - v24.5.0
+    - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/58980
     description: Add support for `defaultPort` and `protocol`.
   - version: v12.5.0

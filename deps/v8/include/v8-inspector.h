@@ -288,11 +288,21 @@ class V8_EXPORT V8InspectorClient {
 
   virtual void installAdditionalCommandLineAPI(v8::Local<v8::Context>,
                                                v8::Local<v8::Object>) {}
+  // Deprecated. Use version with contextId.
   virtual void consoleAPIMessage(int contextGroupId,
                                  v8::Isolate::MessageErrorLevel level,
                                  const StringView& message,
                                  const StringView& url, unsigned lineNumber,
                                  unsigned columnNumber, V8StackTrace*) {}
+  virtual void consoleAPIMessage(int contextGroupId, int contextId,
+                                 v8::Isolate::MessageErrorLevel level,
+                                 const StringView& message,
+                                 const StringView& url, unsigned lineNumber,
+                                 unsigned columnNumber,
+                                 V8StackTrace* stackTrace) {
+    consoleAPIMessage(contextGroupId, level, message, url, lineNumber,
+                      columnNumber, stackTrace);
+  }
   virtual v8::MaybeLocal<v8::Value> memoryInfo(v8::Isolate*,
                                                v8::Local<v8::Context>) {
     return v8::MaybeLocal<v8::Value>();

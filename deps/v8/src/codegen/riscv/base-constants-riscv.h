@@ -66,7 +66,7 @@ constexpr int kRootRegisterBias = 256;
   V(m2)             \
   V(m4)             \
   V(m8)             \
-  V(RESERVERD)      \
+  V(RESERVED)       \
   V(mf8)            \
   V(mf4)            \
   V(mf2)
@@ -330,18 +330,24 @@ const uint32_t kCSTypeMask = kRvcOpcodeMask | kRvcFunct6Mask;
 const uint32_t kCATypeMask = kRvcOpcodeMask | kRvcFunct6Mask | kRvcFunct2Mask;
 const uint32_t kRvcBImm8Mask = (((1 << 5) - 1) << 2) | (((1 << 3) - 1) << 10);
 
-// for RVV extension
+// We only support 64-bit elements. Also see RVV_SEW above.
 constexpr int kRvvELEN = 64;
+
+// Maximum supported VLEN in bits.
+// Code that could fail with larger VLEN should static_assert against this
+// constant.
+constexpr int kMaxRvvVLEN = 512;
+
 #ifdef RVV_VLEN
-constexpr int kRvvVLEN = RVV_VLEN;
-// TODO(riscv): support rvv 256/512/1024
-static_assert(
-    kRvvVLEN == 128,
-    "RVV extension only supports 128bit wide VLEN at current RISC-V backend.");
+constexpr int kSimulatorRvvVLEN = RVV_VLEN;
+static_assert(kSimulatorRvvVLEN >= 128, "RvvVLEN must be >= 128 bit");
+static_assert((kSimulatorRvvVLEN & (kSimulatorRvvVLEN - 1)) == 0,
+              "RvvVLEN must be a power of 2");
+static_assert(kSimulatorRvvVLEN <= kMaxRvvVLEN,
+              "RvvVLEN size is unimplemented");
 #else
-constexpr int kRvvVLEN = 128;
+constexpr int kSimulatorRvvVLEN = 128;
 #endif
-constexpr int kRvvSLEN = kRvvVLEN;
 
 const int kRvvFunct6Shift = 26;
 const int kRvvFunct6Bits = 6;
@@ -432,6 +438,7 @@ const uint32_t kImm12Mask = ((1 << kImm12Bits) - 1) << kImm12Shift;
 const uint32_t kImm11Mask = ((1 << kImm11Bits) - 1) << kImm11Shift;
 const uint32_t kImm31_12Mask = ((1 << 20) - 1) << 12;
 const uint32_t kImm19_0Mask = ((1 << 20) - 1);
+const uint32_t kMopMask = kITypeMask | 0b1 << 31 | 0b11 << 28 | 0b1 << 25;
 
 const int kNopByte = 0x00000013;
 // Original MIPS constants
@@ -1182,6 +1189,8 @@ class InstructionGetters : public T {
   uint32_t Rvvzimm() const;
 
   uint32_t Rvvuimm() const;
+
+  uint32_t MopNumber();
 
   inline uint32_t RvvVsew() const {
     uint32_t zimm = this->Rvvzimm();

@@ -193,7 +193,15 @@ class InternalizedStringKey final : public StringTableKey {
 
   bool IsMatch(Isolate* isolate, Tagged<String> string) {
     DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
-    return string_->SlowEquals(string);
+    DisallowGarbageCollection no_gc;
+    String::FlatContent content = string->GetFlatContent(no_gc);
+    if (content.IsOneByte()) {
+      return string_->IsEqualTo<String::EqualityType::kNoLengthCheck>(
+          content.ToOneByteVector(), isolate);
+    } else {
+      return string_->IsEqualTo<String::EqualityType::kNoLengthCheck>(
+          content.ToUC16Vector(), isolate);
+    }
   }
 
   void PrepareForInsertion(Isolate* isolate) {

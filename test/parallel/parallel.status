@@ -50,16 +50,14 @@ test-runner-run-watch: PASS, FLAKY
 # https://github.com/nodejs/node/issues/58353
 test-http2-debug: PASS, FLAKY
 
-[$system==linux || $system==win32]
-# https://github.com/nodejs/node/issues/49605
-test-runner-watch-mode: PASS,FLAKY
-
 [$system==macos]
 # https://github.com/nodejs/node/issues/42741
 test-http-server-headers-timeout-keepalive: PASS,FLAKY
 test-http-server-request-timeout-keepalive: PASS,FLAKY
 # https://github.com/nodejs/node/issues/54534
 test-runner-run-watch: PASS, FLAKY
+# https://github.com/nodejs/node/issues/60050
+test-cluster-dgram-1: SKIP
 
 [$arch==arm || $arch==arm64]
 # https://github.com/nodejs/node/pull/31178

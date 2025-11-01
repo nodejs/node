@@ -513,7 +513,7 @@ added:
 Returns a promise that fulfills with an {ArrayBuffer} containing a copy of
 the `Blob` data.
 
-#### `blob.bytes()`
+### `blob.bytes()`
 
 <!-- YAML
 added:

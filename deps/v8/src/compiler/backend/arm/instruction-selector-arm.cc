@@ -772,6 +772,9 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
     write_barrier_kind = kFullWriteBarrier;
   }
 
+  DCHECK_IMPLIES(write_barrier_kind == kSkippedWriteBarrier,
+                 v8_flags.verify_write_barriers);
+
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedPointer(rep));
@@ -789,19 +792,37 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
       addressing_mode = kMode_Offset_RR;
     }
     inputs[input_count++] = g.UseUniqueRegister(value);
-    RecordWriteMode record_write_mode =
-        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionCode code;
-    if (!atomic_order) {
-      code = kArchStoreWithWriteBarrier;
-      code |= RecordWriteModeField::encode(record_write_mode);
+
+    if (write_barrier_kind == kSkippedWriteBarrier) {
+      if (!atomic_order) {
+        code = kArchStoreSkippedWriteBarrier;
+      } else {
+        code = kArchAtomicStoreSkippedWriteBarrier;
+        code |= AtomicMemoryOrderField::encode(*atomic_order);
+      }
     } else {
-      code = kArchAtomicStoreWithWriteBarrier;
-      code |= AtomicMemoryOrderField::encode(*atomic_order);
-      code |= AtomicStoreRecordWriteModeField::encode(record_write_mode);
+      RecordWriteMode record_write_mode =
+          WriteBarrierKindToRecordWriteMode(write_barrier_kind);
+
+      if (!atomic_order) {
+        code = kArchStoreWithWriteBarrier;
+        code |= RecordWriteModeField::encode(record_write_mode);
+      } else {
+        code = kArchAtomicStoreWithWriteBarrier;
+        code |= AtomicMemoryOrderField::encode(*atomic_order);
+        code |= AtomicStoreRecordWriteModeField::encode(record_write_mode);
+      }
     }
+
+    InstructionOperand temps[1];
+    size_t temp_count = 0;
+    if (write_barrier_kind == kSkippedWriteBarrier) {
+      temps[temp_count++] = g.TempRegister();
+    }
+
     code |= AddressingModeField::encode(addressing_mode);
-    selector->Emit(code, 0, nullptr, input_count, inputs);
+    selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     InstructionCode opcode = kArchNop;
     if (!atomic_order) {

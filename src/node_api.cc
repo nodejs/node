@@ -1,7 +1,9 @@
 #include "async_context_frame.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
+#ifndef NAPI_EXPERIMENTAL
 #define NAPI_EXPERIMENTAL
+#endif
 #include "js_native_api_v8.h"
 #include "memory_tracker-inl.h"
 #include "node_api.h"
@@ -212,7 +214,7 @@ class ThreadSafeFunction : public node::AsyncResource {
                      napi_threadsafe_function_call_js call_js_cb_)
       : AsyncResource(env_->isolate,
                       resource,
-                      *v8::String::Utf8Value(env_->isolate, name)),
+                      node::Utf8Value(env_->isolate, name).ToStringView()),
         thread_count(thread_count_),
         is_closing(false),
         dispatch_state(kDispatchIdle),
@@ -1150,7 +1152,7 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
       : AsyncResource(
             env->isolate,
             async_resource,
-            *v8::String::Utf8Value(env->isolate, async_resource_name)),
+            node::Utf8Value(env->isolate, async_resource_name).ToStringView()),
         ThreadPoolWork(env->node_env(), "node_api"),
         _env(env),
         _data(data),

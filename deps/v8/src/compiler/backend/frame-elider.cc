@@ -17,16 +17,16 @@ FrameElider::FrameElider(InstructionSequence* code, bool has_dummy_end_block,
       is_wasm_to_js_(is_wasm_to_js) {}
 
 void FrameElider::Run() {
-  if (!v8_flags.turbo_elide_frames) {
+  if (v8_flags.turbo_elide_frames) {
+    MarkBlocks();
+    PropagateMarks();
+  } else {
 #ifdef DEBUG
     for (InstructionBlock* block : instruction_blocks()) {
       CHECK(block->needs_frame());
     }
 #endif
-    return;
   }
-  MarkBlocks();
-  PropagateMarks();
   MarkDeConstruction();
 }
 

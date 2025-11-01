@@ -99,7 +99,7 @@ class ReferenceSummarizerMarkingVisitor
                            0 /*code_flushing_increase*/),
         marking_state_(marking_state) {}
 
-  template <typename TSlot>
+  template <typename TSlot, RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
   void RecordSlot(Tagged<HeapObject> object, TSlot slot,
                   Tagged<HeapObject> target) {}
 

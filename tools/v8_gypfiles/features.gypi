@@ -355,11 +355,11 @@
       ['v8_enable_pointer_compression==1', {
         'defines': ['V8_COMPRESS_POINTERS'],
       }],
+      ['v8_enable_pointer_compression==1 and v8_enable_pointer_compression_shared_cage!=1', {
+        'defines': ['V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES'],
+      }],
       ['v8_enable_pointer_compression_shared_cage==1', {
         'defines': ['V8_COMPRESS_POINTERS_IN_SHARED_CAGE'],
-      }],
-      ['v8_enable_pointer_compression==1 and v8_enable_pointer_compression_shared_cage==0', {
-        'defines': ['V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE'],
       }],
       ['v8_enable_pointer_compression==1 or v8_enable_31bit_smis_on_64bit_arch==1', {
         'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH',],

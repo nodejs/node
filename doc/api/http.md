@@ -123,10 +123,12 @@ changes:
     description: Add support for `agentKeepAliveTimeoutBuffer`.
   - version:
     - v24.5.0
+    - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/58980
     description: Add support for `proxyEnv`.
   - version:
     - v24.5.0
+    - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/58980
     description: Add support for `defaultPort` and `protocol`.
   - version:
@@ -1672,7 +1674,9 @@ per connection (in the case of HTTP Keep-Alive connections).
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: v24.9.0
+  - version:
+     - v24.9.0
+     - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/59824
     description: Whether this event is fired can now be controlled by the
                  `shouldUpgradeCallback` and sockets will be destroyed
@@ -3555,7 +3559,12 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
-  - version: v24.9.0
+  - version: v25.1.0
+    pr-url: https://github.com/nodejs/node/pull/59778
+    description: Add optimizeEmptyRequests option.
+  - version:
+     - v24.9.0
+     - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/59824
     description: The `shouldUpgradeCallback` option is now supported.
   - version:
@@ -3659,6 +3668,11 @@ changes:
     using `; `.
   * `rejectNonStandardBodyWrites` {boolean} If set to `true`, an error is thrown
     when writing to an HTTP response which does not have a body.
+    **Default:** `false`.
+  * `optimizeEmptyRequests` {boolean} If set to `true`, requests without `Content-Length`
+    or `Transfer-Encoding` headers (indicating no body) will be initialized with an
+    already-ended body stream, so they will never emit any stream events
+    (like `'data'` or `'end'`). You can use `req.readableEnded` to detect this case.
     **Default:** `false`.
 
 * `requestListener` {Function}
@@ -4329,7 +4343,9 @@ A browser-compatible implementation of {WebSocket}.
 ## Built-in Proxy Support
 
 <!-- YAML
-added: v24.5.0
+added:
+ - v24.5.0
+ - v22.21.0
 -->
 
 > Stability: 1.1 - Active development
