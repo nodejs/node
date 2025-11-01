@@ -15,7 +15,11 @@
 #include "bindingdata.h"
 #include "data.h"
 
-namespace node::quic {
+namespace node {
+
+using v8::Global;
+using v8::Promise;
+namespace quic {
 
 class Session;
 class Stream;
@@ -387,7 +391,77 @@ class Stream final : public AsyncWrap,
   void Schedule(Queue* queue);
   void Unschedule();
 };
+}  // namespace quic
+class DataQueueFeeder final : public AsyncWrap {
+ public:
+  using Next = bob::Next<DataQueue::Vec>;
 
-}  // namespace node::quic
+  DataQueueFeeder(Environment* env, v8::Local<v8::Object> object);
+
+  JS_CONSTRUCTOR(DataQueueFeeder);
+  JS_BINDING_INIT_BOILERPLATE();
+
+  static BaseObjectPtr<DataQueueFeeder> Create();
+
+  void setDataQueue(std::shared_ptr<DataQueue> queue) { dataQueue_ = queue; }
+
+  void tryWakePulls() {
+    if (!readFinish_.IsEmpty()) {
+      Local<Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
+      // I do not think, that this can error...
+      [[maybe_unused]] v8::Maybe<bool> ignoredResult =
+          resolver->Resolve(env()->context(), v8::True(env()->isolate()));
+      readFinish_.Reset();
+    }
+  }
+
+  void DrainAndClose() {
+    if (done) return;
+    done = true;
+    // do not do this several time, and note,
+    // it may be called several times.
+    while (!pendingPulls_.empty()) {
+      auto& pending = pendingPulls_.front();
+      auto pop = OnScopeLeave([this] { pendingPulls_.pop_front(); });
+      pending.next(bob::STATUS_EOS, nullptr, 0, [](uint64_t) {});
+    }
+    if (!readFinish_.IsEmpty()) {
+      Local<Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
+      [[maybe_unused]] v8::Maybe<bool> ignoredResult =
+          resolver->Resolve(env()->context(), v8::False(env()->isolate()));
+      readFinish_.Reset();
+    }
+  }
+
+  struct PendingPull {
+    Next next;
+    explicit PendingPull(Next next) : next(std::move(next)) {}
+  };
+
+  void addPendingPull(PendingPull toAdd) {
+    pendingPulls_.emplace_back(std::move(toAdd));
+  }
+
+  bool Done() { return done; }
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(DataQueueFeeder)
+  SET_SELF_SIZE(DataQueueFeeder)
+
+  JS_METHOD(New);
+  JS_METHOD(Submit);
+  JS_METHOD(Error);
+  JS_METHOD(Ready);
+  JS_METHOD(AddFakePull);
+
+ private:
+  std::shared_ptr<DataQueue> dataQueue_;
+  Global<Promise::Resolver> readFinish_;
+
+  std::deque<PendingPull> pendingPulls_;
+  bool done = false;
+};
+
+}  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
