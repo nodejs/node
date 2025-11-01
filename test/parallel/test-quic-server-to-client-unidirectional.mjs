@@ -45,7 +45,7 @@ const KNOWN_BYTES_LONG = [
   createBytesChunk(60000), // 96, 234
   createBytesChunk(12), // 0, 12
   createBytesChunk(50000), // 195, 80
-  createBytesChunk(1600), // 6, 64
+  createBytesChunk(1600).buffer, // 6, 64 we use buffer here to increae test coverage
   createBytesChunk(20000), // 78, 32
   createBytesChunk(30000), // 117, 48
 ];
