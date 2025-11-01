@@ -57,6 +57,7 @@
   V(onpskexchange_symbol, "onpskexchange")                                     \
   V(resource_symbol, "resource_symbol")                                        \
   V(trigger_async_id_symbol, "trigger_async_id_symbol")                        \
+  V(builtin_source_text_module_hdo, "builtin_source_text_module_hdo")          \
   V(source_text_module_default_hdo, "source_text_module_default_hdo")          \
   V(vm_context_no_contextify, "vm_context_no_contextify")                      \
   V(vm_dynamic_import_default_internal, "vm_dynamic_import_default_internal")  \
