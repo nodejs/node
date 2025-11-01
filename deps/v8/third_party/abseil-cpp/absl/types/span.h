@@ -91,10 +91,10 @@ ABSL_NAMESPACE_END
 #if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201911L
 #include <ranges>  // NOLINT(build/c++20)
 template <typename T>
- // NOLINTNEXTLINE(build/c++20)
+// NOLINTNEXTLINE(build/c++20)
 inline constexpr bool std::ranges::enable_view<absl::Span<T>> = true;
 template <typename T>
- // NOLINTNEXTLINE(build/c++20)
+// NOLINTNEXTLINE(build/c++20)
 inline constexpr bool std::ranges::enable_borrowed_range<absl::Span<T>> = true;
 #endif
 

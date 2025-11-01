@@ -734,6 +734,75 @@ TEST(RISCVZicond) {
   }
 }
 
+TEST(RISCVZicfiss) {
+  if (!CpuFeatures::IsSupported(ZICFISS)) return;
+  CcTest::InitializeVM();
+  {
+    auto fn = [](MacroAssembler& assm) {
+      __ sspush_x1();
+      __ sspopchk_x1();
+    };
+    GenAndRunTest(fn);
+  }
+  {
+    auto fn = [](MacroAssembler& assm) {
+      for (int i = 0; i <= kInitialShadowStackSize + 1000; i++) {
+        __ li(t0, i);
+        __ sspush_x5();
+      }
+      for (int i = kInitialShadowStackSize + 1000; i >= 0; i--) {
+        __ li(t0, i);
+        __ sspopchk_x5();
+      }
+    };
+    GenAndRunTest(fn);
+  }
+}
+
+#ifdef USE_SIMULATOR
+TEST(RISCVZicfiss_popchk) {
+  if (!CpuFeatures::IsSupported(ZICFISS)) return;
+  i::v8_flags.sim_abort_on_shadowstack_mismatch = false;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  {
+    auto fn = [](MacroAssembler& assm) {
+      __ li(t0, -1);
+      __ sspush_x5();
+      __ li(t0, 0);
+      __ sspopchk_x5();
+    };
+    GenAndRunTest(fn);
+  }
+  CHECK_EQ(
+      isolate->CurrentPerIsolateThreadData()->simulator()->SSMismatchCount(),
+      1);
+}
+
+TEST(RISCVZicfiss_popchk2) {
+  if (!CpuFeatures::IsSupported(ZICFISS)) return;
+  i::v8_flags.sim_abort_on_shadowstack_mismatch = false;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  {
+    auto fn = [](MacroAssembler& assm) {
+      __ li(t0, -1);
+      __ sspush_x5();
+      __ li(t0, 0);
+      __ sspush_x5();
+
+      __ sspopchk_x5();
+      __ li(t0, 3);
+      __ sspopchk_x5();
+    };
+    GenAndRunTest(fn);
+  }
+  CHECK_EQ(
+      isolate->CurrentPerIsolateThreadData()->simulator()->SSMismatchCount(),
+      1);
+}
+#endif
+
 TEST(RISCVLi) {
   CcTest::InitializeVM();
 

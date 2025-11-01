@@ -803,6 +803,16 @@ var prettyPrinted;
       // succeed and continue the test.
       return;
     }
+    if (is_optimized && (opt_status & V8OptimizationStatus.kTurboFanned) &&
+        (opt_status &
+         V8OptimizationStatus.kOptimizeMaglevOptimizesToTurbofan)) {
+      // In some cases, Turbofan actually emits more generic code than Maglev
+      // (for instance, allowing Oddballs where Maglev only allows HeapNumbers),
+      // and assertUnoptimized with --optimize-maglev-optimizes-to-turbofan will
+      // fail. In those cases, we still want this assert to succeed and the test
+      // to continue.
+      return;
+    }
     assertFalse(is_optimized, 'should not be optimized: ' + name_opt);
   }
 

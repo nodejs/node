@@ -3,7 +3,10 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --no-lazy-feedback-allocation
-// Flags: --single-threaded --no-testing-d8-test-runner
+// Flags: --single-threaded
+
+const topLevel = %GetFunctionForCurrentFrame();
+%PrepareFunctionForOptimization(topLevel);
 
 for (let v0 = 0; v0 < 5; v0++) {
   function f1() {

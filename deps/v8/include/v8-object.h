@@ -438,21 +438,9 @@ class V8_EXPORT Object : public Value {
       KeyConversionMode key_conversion = KeyConversionMode::kKeepNumbers);
 
   /**
-   * Get the prototype object.  This does not skip objects marked to
-   * be skipped by __proto__ and it does not consult the security
-   * handler.
-   */
-  V8_DEPRECATED(
-      "V8 will stop providing access to hidden prototype (i.e. "
-      "JSGlobalObject). Use GetPrototypeV2() instead. "
-      "See http://crbug.com/333672197.")
-  Local<Value> GetPrototype();
-
-  /**
    * Get the prototype object (same as calling Object.getPrototypeOf(..)).
    * This does not consult the security handler.
-   * TODO(333672197): rename back to GetPrototype() once the old version goes
-   * through the deprecation process and is removed.
+   * TODO(http://crbug.com/333672197): rename back to GetPrototype().
    */
   Local<Value> GetPrototypeV2();
 

@@ -44,7 +44,7 @@ def _DebugOrRelease(is_debug):
   return 'dbg' if is_debug else 'rel'
 
 
-def _GenerateDefFileBuild(cpu, is_debug, extra_gn_args, suffix, out_dir, cwd):
+def _GenerateDefFileBuild(cpu, is_debug, use_cxx23, extra_gn_args, suffix, out_dir, cwd):
   if extra_gn_args:
     assert suffix != None, 'suffix is needed when extra_gn_args is used'
 
@@ -54,6 +54,7 @@ def _GenerateDefFileBuild(cpu, is_debug, extra_gn_args, suffix, out_dir, cwd):
       'is_component_build = true',
       'is_debug = {}'.format(str(is_debug).lower()),
       'proprietary_codecs = true',
+      'use_cxx23={}'.format(str(use_cxx23).lower()),
       'symbol_level = 0',
       'target_cpu = "{}"'.format(cpu),
       'target_os = "win"',
@@ -111,10 +112,13 @@ def _GenerateDefFileBuild(cpu, is_debug, extra_gn_args, suffix, out_dir, cwd):
 
   if extra_gn_args:
     def_file = os.path.join('third_party', 'abseil-cpp',
-                            'symbols_{}_{}_{}.def'.format(cpu, flavor, suffix))
+                            'symbols_{}_{}_{}'.format(cpu, flavor, suffix))
   else:
     def_file = os.path.join('third_party', 'abseil-cpp',
-                           'symbols_{}_{}.def'.format(cpu, flavor))
+                           'symbols_{}_{}'.format(cpu, flavor))
+  if use_cxx23:
+    def_file += "_cxx23"
+  def_file += ".def"
 
   with open(def_file, 'w', newline='') as f:
     f.write('EXPORTS\n')
@@ -124,11 +128,11 @@ def _GenerateDefFileBuild(cpu, is_debug, extra_gn_args, suffix, out_dir, cwd):
   logging.info('[%s - %s] .def file successfully generated.', cpu, flavor)
 
 
-def _GenerateDefFile(cpu, is_debug, extra_gn_args=[], suffix=None):
+def _GenerateDefFile(cpu, is_debug, use_cxx23, extra_gn_args=[], suffix=None):
   """Generates a .def file for the absl component build on the specified CPU."""
   cwd = os.getcwd()
   with tempfile.TemporaryDirectory(dir=os.path.join(cwd, 'out')) as out_dir:
-    _GenerateDefFileBuild(cpu, is_debug, extra_gn_args, suffix, out_dir, cwd)
+    _GenerateDefFileBuild(cpu, is_debug, use_cxx23, extra_gn_args, suffix, out_dir, cwd)
 
     # Hack, it looks like there is a race in the directory cleanup.
     time.sleep(10)
@@ -141,10 +145,8 @@ if __name__ == '__main__':
     logging.error('Run this script from a chromium/src/ directory.')
     exit(1)
 
-  _GenerateDefFile('x86', True)
-  _GenerateDefFile('x86', False)
-  _GenerateDefFile('x64', True)
-  _GenerateDefFile('x64', False)
-  _GenerateDefFile('x64', False, ['is_asan = true'], 'asan')
-  _GenerateDefFile('arm64', True)
-  _GenerateDefFile('arm64', False)
+  for use_cxx23 in (True, False):
+    _GenerateDefFile('x64', False, use_cxx23, ['is_asan = true'], 'asan')
+    for arch in ('x86', 'x64', 'arm64'):
+      for is_debug in (True, False):
+          _GenerateDefFile(arch, is_debug, use_cxx23)

@@ -62,11 +62,6 @@
   /* V8 side owner: fgm */                                                     \
   V(wasmfx, "core stack switching", false)                                     \
                                                                                \
-  /* Resizable buffer integration */                                           \
-  /* https://github.com/WebAssembly/spec/issues/1292 */                        \
-  /* V8 side owner: gdeepti */                                                 \
-  V(rab_integration, "resizable buffers integration", false)                   \
-                                                                               \
   /* Compilation hints */                                                      \
   /* https://github.com/WebAssembly/compilation-hints */                       \
   /* V8 side owner: ecmziegler, manoskouk */                                   \
@@ -104,7 +99,13 @@
   V(imported_strings_utf8, "imported strings (utf8 features)", false)          \
                                                                                \
   /* V8 side owner: thibaudm */                                                \
-  V(growable_stacks, "growable stacks for jspi", false)
+  V(growable_stacks, "growable stacks for jspi", false)                        \
+                                                                               \
+  /* Resizable buffer integration */                                           \
+  /* https://github.com/WebAssembly/spec/issues/1292 */                        \
+  /* V8 side owner: gdeepti */                                                 \
+  /* Staged in v14.3 */                                                        \
+  V(rab_integration, "resizable buffers integration", false)
 
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit

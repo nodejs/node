@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "src/base/string-format.h"
 #include "src/codegen/handler-table.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
@@ -90,7 +91,7 @@ void BytecodeArray::PrintJson(std::ostream& os) {
     for (int i = 0; i < constant_pool_length; i++) {
       Tagged<Object> object = constant_pool()->get(i);
       if (i > 0) os << ", ";
-      os << "\"" << object << "\"";
+      os << "\"" << base::JSONEscaped(object) << "\"";
     }
     os << "]";
   }

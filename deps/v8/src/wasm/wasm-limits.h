@@ -33,7 +33,6 @@ constexpr size_t kV8MaxWasmImports = 1'000'000;
 constexpr size_t kV8MaxWasmExports = 1'000'000;
 constexpr size_t kV8MaxWasmGlobals = 1'000'000;
 constexpr size_t kV8MaxWasmTags = 1'000'000;
-constexpr size_t kV8MaxWasmExceptionTypes = 1'000'000;
 constexpr size_t kV8MaxWasmDataSegments = 100'000;
 // This indicates the maximum memory size our implementation supports.
 // Do not use this limit directly; use {max_mem{32,64}_pages()} instead to take
@@ -46,7 +45,6 @@ constexpr size_t kV8MaxWasmMemory32Pages = kSystemPointerSize == 4
 constexpr size_t kV8MaxWasmMemory64Pages = kSystemPointerSize == 4
                                                ? 32'767    // = 2 GiB - 64Kib
                                                : 262'144;  // = 16 GiB
-constexpr size_t kV8MaxWasmStringSize = 100'000;
 constexpr size_t kV8MaxWasmModuleSize = 1024 * 1024 * 1024;  // = 1 GiB
 constexpr size_t kV8MaxWasmFunctionSize = 7'654'321;
 constexpr size_t kV8MaxWasmFunctionLocals = 50'000;

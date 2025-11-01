@@ -102,6 +102,7 @@
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/base/strings.h"
 #include "src/debug/debug-wasm-objects-inl.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -707,6 +708,23 @@ void Map::MapVerify(Isolate* isolate) {
     // has to be the context-free RO meta map.
     if (HeapLayout::InAnySharedSpace(*this)) {
       CHECK_EQ(map(), GetReadOnlyRoots().meta_map());
+    }
+    // Wasm maps must have a WasmTypeInfo, which must contain all of their
+    // supertype maps.
+    CHECK(IsWasmTypeInfo(wasm_type_info()));
+    wasm::CanonicalTypeIndex index = wasm_type_info()->type_index();
+    wasm::TypeCanonicalizer* types = wasm::GetTypeCanonicalizer();
+    uint8_t subtyping_depth = types->GetSubtypingDepth_Slow(index);
+    CHECK_GE(wasm_type_info()->supertypes_length(), subtyping_depth);
+    // Wasm maps with custom descriptors additionally cache their immediate
+    // supertype.
+    // Note: for each static type that has a descriptor, there is also a
+    // canonical RTT that does not have one (and is not used by any actual
+    // objects).
+    if (types->has_descriptor(index) && IsWasmStruct(custom_descriptor())) {
+      CHECK_GT(wasm_type_info()->supertypes_length(), subtyping_depth);
+      CHECK_EQ(immediate_supertype_map(),
+               wasm_type_info()->supertypes(subtyping_depth));
     }
   }
 #endif
@@ -2807,9 +2825,9 @@ class StringTableVerifier : public RootVisitor {
                          FullObjectSlot start, FullObjectSlot end) override {
     UNREACHABLE();
   }
-  void VisitRootPointers(Root root, const char* description,
-                         OffHeapObjectSlot start,
-                         OffHeapObjectSlot end) override {
+  void VisitCompressedRootPointers(Root root, const char* description,
+                                   OffHeapObjectSlot start,
+                                   OffHeapObjectSlot end) override {
     // Visit all HeapObject pointers in [start, end).
     for (OffHeapObjectSlot p = start; p < end; ++p) {
       Tagged<Object> o = p.load(isolate_);

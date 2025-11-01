@@ -35,6 +35,16 @@
 #include "absl/base/config.h"
 #include "absl/meta/type_traits.h"
 
+#ifdef __has_include
+#if __has_include(<version>)
+#include <version>  // NOLINT(misc-include-cleaner)
+#endif
+#endif
+
+#if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201911L
+#include <ranges>  // NOLINT(build/c++20)
+#endif
+
 #if defined(ABSL_USES_STD_STRING_VIEW) || defined(__ANDROID__)
 // We don't control the death messaging when using std::string_view.
 // Android assert messages only go to system log, so death tests cannot inspect
@@ -55,6 +65,15 @@ static_assert(!absl::type_traits_internal::IsOwner<absl::string_view>::value &&
 static_assert(absl::type_traits_internal::IsLifetimeBoundAssignment<
                   absl::string_view, std::string>::value,
               "lifetimebound assignment not detected");
+
+#if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201911L
+// NOLINTNEXTLINE(build/c++20)
+static_assert(std::ranges::enable_view<absl::string_view>,
+              "std::ranges::view not enabled");
+// NOLINTNEXTLINE(build/c++20)
+static_assert(std::ranges::enable_borrowed_range<absl::string_view>,
+              "std::ranges::borrowed_range not enabled");
+#endif
 
 // A minimal allocator that uses malloc().
 template <typename T>

@@ -87,7 +87,8 @@ function assertKind(expected, obj, name_opt) {
   assertEquals(expected, getKind(obj), name_opt);
 }
 
-%EnsureFeedbackVectorForFunction(test_osr_elements_kind);
+
+%PrepareFunctionForOptimization(test_osr_elements_kind);
 function test_osr_elements_kind() {
   %NeverOptimizeFunction(construct_smis);
   %NeverOptimizeFunction(construct_doubles);
@@ -105,7 +106,7 @@ function test_osr_elements_kind() {
     return eval(make_array_string());
   }
 
-  %EnsureFeedbackVectorForFunction(construct_smis);
+  %PrepareFunctionForOptimization(construct_smis);
   function construct_smis() {
     var a = make_array();
     a[0] = 0;  // Send the COW array map to the steak house.
@@ -113,7 +114,7 @@ function test_osr_elements_kind() {
     return a;
   }
 
-  %EnsureFeedbackVectorForFunction(construct_doubles);
+  %PrepareFunctionForOptimization(construct_doubles);
   function construct_doubles() {
     var a = construct_smis();
     a[0] = 1.5;
@@ -123,7 +124,7 @@ function test_osr_elements_kind() {
 
   // Test transition chain SMI->DOUBLE->FAST (optimized function will
   // transition to FAST directly).
-  %EnsureFeedbackVectorForFunction(convert_mixed);
+  %PrepareFunctionForOptimization(convert_mixed);
   function convert_mixed(array, value, kind) {
     array[1] = value;
     assertKind(kind, array);
@@ -148,6 +149,8 @@ function test_osr_elements_kind() {
     assertTrue(%HaveSameMap(smis, doubles));
   }
 }
+
+test_osr_elements_kind();
 
 // Throw away type information in the ICs for next stress run.
 gc();

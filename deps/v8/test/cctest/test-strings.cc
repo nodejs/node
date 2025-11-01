@@ -2145,6 +2145,9 @@ TEST(CheckCachedDataInternalExternalUncachedStringTwoByte) {
 
 TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
 #if V8_INTL_SUPPORT
+  // This tag value has been picked arbitrarily between 0 and
+  // V8_EXTERNAL_POINTER_TAG_COUNT.
+  constexpr v8::ExternalPointerTypeTag kWorkerThreadTag = 23;
   class WorkerThread : public v8::base::Thread {
    public:
     WorkerThread(v8::base::Mutex& m, v8::base::ConditionVariable& cv)
@@ -2158,12 +2161,14 @@ TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
         v8::Isolate::Scope isolate_scope(isolate);
         v8::HandleScope handle_scope(isolate);
         v8::Local<v8::ObjectTemplate> global = ObjectTemplate::New(isolate);
-        v8::Local<v8::Value> wrapper = v8::External::New(isolate, this);
-        global->Set(isolate, "notifyCV",
-                    v8::FunctionTemplate::New(
-                        isolate, (v8::FunctionCallback)&NotifyCallback, wrapper,
-                        Local<v8::Signature>(), 0, ConstructorBehavior::kThrow,
-                        SideEffectType::kHasNoSideEffect));
+        v8::Local<v8::Value> wrapper =
+            v8::External::New(isolate, this, kWorkerThreadTag);
+        global->Set(
+            isolate, "notifyCV",
+            v8::FunctionTemplate::New(
+                isolate, static_cast<v8::FunctionCallback>(&NotifyCallback),
+                wrapper, Local<v8::Signature>(), 0, ConstructorBehavior::kThrow,
+                SideEffectType::kHasNoSideEffect));
         LocalContext context(isolate, nullptr, global);
         v8::TryCatch try_catch(isolate);
         auto result = CompileRun(
@@ -2192,7 +2197,8 @@ TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
    private:
     static WorkerThread* Unwrap(Local<Value> value) {
       CHECK(value->IsExternal());
-      return reinterpret_cast<WorkerThread*>(value.As<External>()->Value());
+      return reinterpret_cast<WorkerThread*>(
+          value.As<External>()->Value(kWorkerThreadTag));
     }
     static void NotifyCallback(
         const v8::FunctionCallbackInfo<v8::Value>& args) {

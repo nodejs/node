@@ -52,6 +52,7 @@
 #include "absl/strings/internal/cordz_update_tracker.h"
 #include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/match.h"
+#include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
@@ -1055,8 +1056,11 @@ void CopyCordToString(const Cord& src, std::string* absl_nonnull dst) {
   if (!src.contents_.is_tree()) {
     src.contents_.CopyTo(dst);
   } else {
-    absl::strings_internal::STLStringResizeUninitialized(dst, src.size());
-    src.CopyToArraySlowPath(&(*dst)[0]);
+    StringResizeAndOverwrite(*dst, src.size(),
+                             [&src](char* buf, size_t buf_size) {
+                               src.CopyToArraySlowPath(buf);
+                               return buf_size;
+                             });
   }
 }
 

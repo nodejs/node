@@ -52,18 +52,6 @@ CodeKinds JSFunction::GetAvailableCodeKinds(IsolateForSandbox isolate) const {
     }
   }
 
-#ifndef V8_ENABLE_LEAPTIERING
-  // Check the optimized code cache.
-  if (has_feedback_vector() && feedback_vector()->has_optimized_code() &&
-      !feedback_vector()
-           ->optimized_code(isolate)
-           ->marked_for_deoptimization()) {
-    Tagged<Code> code = feedback_vector()->optimized_code(isolate);
-    DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
-    result |= CodeKindToCodeKindFlag(code->kind());
-  }
-#endif  // !V8_ENABLE_LEAPTIERING
-
   DCHECK_EQ((result & ~kJSFunctionCodeKindsMask), 0);
   return result;
 }
@@ -243,24 +231,6 @@ bool JSFunction::CanDiscardCompiled(IsolateForSandbox isolate) const {
   return (result & kJSFunctionCodeKindsMask) != 0;
 }
 
-namespace {
-
-#ifndef V8_ENABLE_LEAPTIERING
-constexpr TieringState TieringStateFor(CodeKind target_kind,
-                                       ConcurrencyMode mode) {
-  DCHECK(target_kind == CodeKind::MAGLEV ||
-         target_kind == CodeKind::TURBOFAN_JS);
-  return target_kind == CodeKind::MAGLEV
-             ? (IsConcurrent(mode) ? TieringState::kRequestMaglev_Concurrent
-                                   : TieringState::kRequestMaglev_Synchronous)
-             : (IsConcurrent(mode)
-                    ? TieringState::kRequestTurbofan_Concurrent
-                    : TieringState::kRequestTurbofan_Synchronous);
-}
-#endif  // !V8_ENABLE_LEAPTIERING
-
-}  // namespace
-
 DirectHandle<Object> JSFunction::GetFunctionPrototype(
     Isolate* isolate, DirectHandle<JSFunction> function) {
   if (!function->has_prototype()) {
@@ -309,7 +279,6 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
     }
   }
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   switch (target_kind) {
     case CodeKind::MAGLEV:
@@ -342,9 +311,6 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
     default:
       UNREACHABLE();
   }
-#else
-  set_tiering_state(isolate, TieringStateFor(target_kind, mode));
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void JSFunction::SetInterruptBudget(
@@ -660,7 +626,6 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   if (allocate_new_feedback_cell) {
     DirectHandle<FeedbackCell> feedback_cell =
         isolate->factory()->NewOneClosureCell(feedback_cell_array);
-#ifdef V8_ENABLE_LEAPTIERING
     // This is a rare case where we copy the dispatch entry from a JSFunction
     // to its FeedbackCell instead of the other way around.
     // TODO(42204201): investigate whether this can be avoided so that we only
@@ -671,7 +636,6 @@ void JSFunction::EnsureClosureFeedbackCellArray(
     // The feedback cell should never contain context specialized code.
     DCHECK(!function->code(isolate)->is_context_specialized());
     feedback_cell->set_dispatch_handle(function->dispatch_handle());
-#endif  // V8_ENABLE_LEAPTIERING
     function->set_raw_feedback_cell(*feedback_cell, kReleaseStore);
   } else {
     function->raw_feedback_cell()->set_value(*feedback_cell_array,
@@ -726,11 +690,6 @@ void JSFunction::CreateAndAttachFeedbackVector(
          *isolate->factory()->many_closures_cell());
   DCHECK_EQ(function->raw_feedback_cell()->value(), *feedback_vector);
   function->SetInterruptBudget(isolate, BudgetModification::kRaise);
-
-#ifndef V8_ENABLE_LEAPTIERING
-  DCHECK_EQ(v8_flags.log_function_events,
-            feedback_vector->log_next_execution());
-#endif
 
   if (v8_flags.profile_guided_optimization &&
       v8_flags.profile_guided_optimization_for_empty_feedback_vector &&

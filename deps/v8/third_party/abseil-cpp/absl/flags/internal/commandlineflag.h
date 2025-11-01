@@ -58,7 +58,7 @@ class FlagStateInterface {
   virtual ~FlagStateInterface();
 
   // Restores the flag originated this object to the saved state.
-  virtual void Restore() const = 0;
+  virtual void Restore() && = 0;
 };
 
 }  // namespace flags_internal

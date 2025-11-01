@@ -145,16 +145,22 @@ THREADED_TEST(PropertyHandler) {
   }
 }
 
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kIntPointerTag = 12;
+
 static void GetIntValue(Local<Name> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  int* value = static_cast<int*>(info.Data().As<v8::External>()->Value());
+  int* value =
+      static_cast<int*>(info.Data().As<v8::External>()->Value(kIntPointerTag));
   info.GetReturnValue().Set(v8_num(*value));
 }
 
 static void SetIntValue(Local<Name> property, Local<Value> value,
                         const v8::PropertyCallbackInfo<void>& info) {
-  int* field = static_cast<int*>(info.Data().As<v8::External>()->Value());
+  int* field =
+      static_cast<int*>(info.Data().As<v8::External>()->Value(kIntPointerTag));
   *field = value->Int32Value(info.GetIsolate()->GetCurrentContext()).FromJust();
 }
 
@@ -169,13 +175,13 @@ THREADED_TEST(GlobalVariableAccess) {
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
   templ->InstanceTemplate()->SetNativeDataProperty(
       v8_str("foo"), GetIntValue, SetIntValue,
-      v8::External::New(isolate, &foo));
+      v8::External::New(isolate, &foo, kIntPointerTag));
   templ->InstanceTemplate()->SetNativeDataProperty(
       v8_str("bar"), GetIntValue, SetIntValue,
-      v8::External::New(isolate, &bar));
+      v8::External::New(isolate, &bar, kIntPointerTag));
   templ->InstanceTemplate()->SetNativeDataProperty(
       v8_str("baz"), GetIntValue, SetIntValue,
-      v8::External::New(isolate, &baz));
+      v8::External::New(isolate, &baz, kIntPointerTag));
   LocalContext env(nullptr, templ->InstanceTemplate());
   v8_compile("foo = (++bar) + baz")->Run(env.local()).ToLocalChecked();
   CHECK_EQ(-3, bar);

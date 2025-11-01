@@ -429,7 +429,7 @@ void AssemblerRiscvBase::GenInstrCSR_ir(uint8_t funct3, Register rd,
 
 void AssemblerRiscvBase::GenInstrCSR_ii(uint8_t funct3, Register rd,
                                         ControlStatusReg csr, uint8_t imm5) {
-  GenInstrI(funct3, SYSTEM, rd, ToRegister(imm5), csr);
+  GenInstrI(funct3, SYSTEM, rd, Register::from_code(imm5), csr);
 }
 
 void AssemblerRiscvBase::GenInstrShiftW_ri(bool arithshift, uint8_t funct3,
@@ -447,7 +447,7 @@ void AssemblerRiscvBase::GenInstrALUW_rr(uint8_t funct7, uint8_t funct3,
 
 void AssemblerRiscvBase::GenInstrPriv(uint8_t funct7, Register rs1,
                                       Register rs2) {
-  GenInstrR(funct7, 0b000, SYSTEM, ToRegister(0), rs1, rs2);
+  GenInstrR(funct7, 0b000, SYSTEM, zero_reg, rs1, rs2);
 }
 
 void AssemblerRiscvBase::GenInstrLoadFP_ri(uint8_t funct3, FPURegister rd,

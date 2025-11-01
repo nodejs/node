@@ -2892,6 +2892,16 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ Ld(vector, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
+
+  // Increment the total invocation count of the function.
+  __ Ld(scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
+  if (SmiValuesAre31Bits()) {
+    __ Addu(scratch, scratch, Operand(Smi::FromInt(1)));
+  } else {
+    __ Daddu(scratch, scratch, Operand(Smi::FromInt(1)));
+  }
+  __ Sd(scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
+
   __ Push(vector);
   __ Ret();
 
@@ -3075,6 +3085,8 @@ void Builtins::Generate_WasmReject(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmFXResume(MacroAssembler* masm) { __ Trap(); }
+
+void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) { __ Trap(); }
 
 void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) { __ Trap(); }
 

@@ -70,7 +70,8 @@ class V8_BASE_EXPORT LsanVirtualAddressSpace final
   std::unique_ptr<VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
       PagePermissions max_page_permissions,
-      std::optional<MemoryProtectionKeyId> key) override;
+      std::optional<MemoryProtectionKeyId> key = std::nullopt,
+      PlatformSharedMemoryHandle handle = kInvalidSharedMemoryHandle) override;
 
   bool DiscardSystemPages(Address address, size_t size) override {
     return vas_->DiscardSystemPages(address, size);

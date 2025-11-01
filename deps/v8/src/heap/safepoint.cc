@@ -5,10 +5,12 @@
 #include "src/heap/safepoint.h"
 
 #include <atomic>
+#include <optional>
 #include <vector>
 
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
@@ -312,13 +314,56 @@ Isolate* IsolateSafepoint::shared_space_isolate() const {
   return isolate()->shared_space_isolate();
 }
 
+std::optional<IsolateSafepointScope>
+IsolateSafepoint::ReachSafepointWithoutTriggeringGC() {
+  if (isolate()->has_shared_space()) {
+    if (local_heaps_mutex_.TryLock()) {
+      // We only need this because EnterLocalSafepointScope() requires this. We
+      // already hold the lock so no GC will happen.
+      AllowGarbageCollection allow_gc;
+#if DEBUG
+      const size_t local_gc_count = heap_->gc_count();
+      const size_t shared_gc_count =
+          isolate()->shared_space_isolate()->heap()->gc_count();
+#endif  // DEBUG
+      IsolateSafepointScope safepoint_scope(heap_);
+      DCHECK_EQ(local_gc_count, heap_->gc_count());
+      DCHECK_EQ(shared_gc_count,
+                isolate()->shared_space_isolate()->heap()->gc_count());
+      local_heaps_mutex_.Unlock();
+      local_heaps_mutex_.AssertHeld();
+      return std::move(safepoint_scope);
+    } else {
+      return std::nullopt;
+    }
+  } else {
+    // We only need this because EnterLocalSafepointScope() requires this.
+    // Without a shared heap EnterLocalSafepointScope() will not trigger a GC.
+    AllowGarbageCollection allow_gc;
+#if DEBUG
+    const size_t gc_count = heap_->gc_count();
+#endif  // DEBUG
+    IsolateSafepointScope safepoint_scope(heap_);
+    DCHECK_EQ(gc_count, heap_->gc_count());
+    return std::move(safepoint_scope);
+  }
+}
+
 IsolateSafepointScope::IsolateSafepointScope(Heap* heap)
     : safepoint_(heap->safepoint()) {
   safepoint_->EnterLocalSafepointScope();
 }
 
+IsolateSafepointScope::IsolateSafepointScope(IsolateSafepointScope&& other)
+    V8_NOEXCEPT {
+  safepoint_ = other.safepoint_;
+  other.safepoint_ = nullptr;
+}
+
 IsolateSafepointScope::~IsolateSafepointScope() {
-  safepoint_->LeaveLocalSafepointScope();
+  if (safepoint_) {
+    safepoint_->LeaveLocalSafepointScope();
+  }
 }
 
 GlobalSafepoint::GlobalSafepoint(Isolate* isolate)

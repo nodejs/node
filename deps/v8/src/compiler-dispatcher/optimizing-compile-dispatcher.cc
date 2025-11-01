@@ -220,6 +220,13 @@ bool OptimizingCompileTaskExecutor::TryQueueForOptimization(
     job_handle_->NotifyConcurrencyIncrease();
     return true;
   } else {
+    if (v8_flags.trace_concurrent_recompilation) {
+      OptimizedCompilationInfo* info = job->compilation_info();
+      DirectHandle<JSFunction> function(*info->closure(), isolate);
+      PrintF("  ** Failed to enqueue a job for");
+      ShortPrint(*function);
+      PrintF("\n");
+    }
     return false;
   }
 }

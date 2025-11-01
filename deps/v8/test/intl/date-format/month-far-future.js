@@ -12,8 +12,6 @@ var locales = [
     "ar-u-ca-islamic-tbla",
     "ar-u-ca-islamic-rgsa",
     "he-u-ca-hebrew",
-    "zh-u-ca-chinese",
-    "ko-u-ca-dangi",
     "ja-u-ca-japanese",
     "am-u-ca-ethiopic",
     "am-u-ca-ethioaa",

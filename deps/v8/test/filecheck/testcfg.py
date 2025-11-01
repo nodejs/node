@@ -34,5 +34,7 @@ class FileCheckTestCase(testcase.D8TestCase):
 
   @property
   def output_proc(self):
-    return FileCheckOutProc(self.expected_outcomes,
-                            self.suite.root / self.path_and_suffix('.js'))
+    return FileCheckOutProc(
+        self.expected_outcomes,
+        self.suite.root / self.path_and_suffix('.js'),
+        expect_d8_fails=str(self.path_js).startswith('crash'))

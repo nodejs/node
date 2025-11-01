@@ -625,6 +625,8 @@ class Simulator : public SimulatorBase {
   // below (bad_ra, end_sim_pc).
   bool has_bad_pc() const;
 
+  int64_t SSMismatchCount() { return ss_mismatch_count_; }
+
  private:
   enum special_values {
     // Known bad pc value to ensure that the simulator does not execute
@@ -1188,6 +1190,13 @@ class Simulator : public SimulatorBase {
   sfreg_t FPUregisters_[kNumFPURegisters];
   // Floating-point control and status register.
   uint32_t FCSR_;
+
+  base::Vector<uintptr_t> shadow_stack_ =
+      base::Vector<uintptr_t>::New(kInitialShadowStackSize);
+  size_t csr_ssp_ = shadow_stack_.size();  // Shadow stack pointer
+  void PushShadowStack(uintptr_t value);
+  uintptr_t PopShadowStack(uintptr_t value);
+  int64_t ss_mismatch_count_ = 0;
 
 #ifdef CAN_USE_RVV_INSTRUCTIONS
   // RVV registers

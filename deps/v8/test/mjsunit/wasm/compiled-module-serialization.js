@@ -80,8 +80,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   const invalid_buffer = new ArrayBuffer(10);
   const invalid_buffer_view = new Uint8Array(10);
 
-  module = d8.wasm.deserializeModule(invalid_buffer, invalid_buffer_view);
-  assertEquals(module, undefined);
+  assertThrows(
+      () => d8.wasm.deserializeModule(invalid_buffer, invalid_buffer_view),
+      Error, /Trying to deserialize manipulated bytes/);
 })();
 
 (function RelationBetweenModuleAndClone() {
@@ -404,4 +405,46 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(35, instance.exports.main(5));
   assertEquals(42, instance.exports.main(6));
   assertEquals(42, instance.exports.main(9));
+})();
+
+(function MismatchedCompileTimeImports() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('f', kSig_i_v).addBody(wasmI32Const(0)).exportFunc();
+  const wire_bytes = builder.toBuffer();
+
+  // Serialize the module with *no* builtins.
+  const serialized_bytes_no_builtins =
+      d8.wasm.serializeModule(new WebAssembly.Module(wire_bytes));
+
+  // Serialize the module *with* builtins.
+  const kStringBuiltins = {builtins: ['js-string']};
+  let serialized_bytes_string_builtins = d8.wasm.serializeModule(
+      new WebAssembly.Module(wire_bytes, kStringBuiltins));
+
+  assertNotEquals(
+      new Uint8Array(serialized_bytes_no_builtins),
+      new Uint8Array(serialized_bytes_string_builtins));
+
+  // GC old modules, so we actually try deserialization below.
+  gc();
+
+  // Deserialization fails on mismatched builtins.
+  assertThrows(
+      () => d8.wasm.deserializeModule(
+          serialized_bytes_string_builtins, wire_bytes),
+      Error, /Deserialization failed/);
+  assertThrows(
+      () => d8.wasm.deserializeModule(
+          serialized_bytes_no_builtins, wire_bytes, kStringBuiltins),
+      Error, /Deserialization failed/);
+
+  // Deserialization succeeds on matching builtins.
+  assertInstanceof(
+      d8.wasm.deserializeModule(serialized_bytes_no_builtins, wire_bytes),
+      WebAssembly.Module);
+  assertInstanceof(
+      d8.wasm.deserializeModule(
+          serialized_bytes_string_builtins, wire_bytes, kStringBuiltins),
+      WebAssembly.Module);
 })();

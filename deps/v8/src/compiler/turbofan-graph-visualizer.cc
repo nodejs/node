@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 
+#include "src/base/string-format.h"
 #include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/source-position.h"
@@ -107,7 +108,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
     if (IsString(source_name)) {
       std::ostringstream escaped_name;
       escaped_name << Cast<String>(source_name)->ToCString().get();
-      os << JSONEscaped(escaped_name);
+      os << base::JSONEscaped(escaped_name);
     }
     os << "\"";
     {
@@ -133,7 +134,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
         wasm::DisassembleFunction(module, function_data->function_index(),
                                   native_module->wire_bytes(),
                                   native_module->GetNamesProvider(), str);
-        os << JSONEscaped(str);
+        os << base::JSONEscaped(str);
 #endif  // V8_ENABLE_WEBASSEMBLY
       }
       os << "\"";
@@ -280,7 +281,7 @@ void JsonPrintAllSourceWithPositionsWasm(
     wasm::DisassembleFunction(module, function_id,
                               wire_bytes->GetCode(fct.code), module_bytes,
                               fct.code.offset(), wasm_str);
-    os << JSONEscaped(wasm_str) << "\"}";
+    os << base::JSONEscaped(wasm_str) << "\"}";
   }
   os << "},\n";
   // Print inlining mappings.
@@ -428,10 +429,11 @@ void JSONGraphWriter::PrintNode(Node* node, bool is_live) {
   node->op()->PrintTo(label, Operator::PrintVerbosity::kSilent);
   node->op()->PrintTo(title, Operator::PrintVerbosity::kVerbose);
   node->op()->PrintPropsTo(properties);
-  os_ << "{\"id\":" << SafeId(node) << ",\"label\":\"" << JSONEscaped(label)
-      << "\"" << ",\"title\":\"" << JSONEscaped(title) << "\""
+  os_ << "{\"id\":" << SafeId(node) << ",\"label\":\""
+      << base::JSONEscaped(label) << "\"" << ",\"title\":\""
+      << base::JSONEscaped(title) << "\""
       << ",\"live\": " << (is_live ? "true" : "false") << ",\"properties\":\""
-      << JSONEscaped(properties) << "\"";
+      << base::JSONEscaped(properties) << "\"";
   IrOpcode::Value opcode = node->opcode();
   if (IrOpcode::IsPhiOpcode(opcode)) {
     os_ << ",\"rankInputs\":[0," << NodeProperties::FirstControlIndex(node)
@@ -470,7 +472,7 @@ void JSONGraphWriter::PrintNode(Node* node, bool is_live) {
   if (auto type_opt = GetType(node)) {
     std::ostringstream type_out;
     type_opt->PrintTo(type_out);
-    os_ << ",\"type\":\"" << JSONEscaped(type_out) << "\"";
+    os_ << ",\"type\":\"" << base::JSONEscaped(type_out) << "\"";
   }
   os_ << "}";
 }

@@ -3417,7 +3417,7 @@ void MacroAssembler::Trunc_w_d(Register rd, FPURegister fs, Register result) {
     bind(&bad);
     // scratch still holds proper max/min value
     Mv(rd, scratch);
-    li(result, 0);
+    mv(result, zero_reg);
     // set result to 1 if normal, otherwise set result to 0 for abnormal
     bind(&done);
   } else {
@@ -3799,6 +3799,9 @@ void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
 #endif
     }
     vfadd_vf(dst, src, kScratchDoubleReg, MaskType::Mask);
+  }
+  if (frm != RNE) {
+    VU.set(RNE);
   }
 }
 
@@ -4774,10 +4777,6 @@ bool MacroAssembler::BranchShortHelper(int32_t offset, Label* L, Condition cond,
     case cc_always:
       if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
       j(offset);
-      // TODO(kasperl@rivosinc.com): This probably has no effect, because the
-      // trampoline pool is blocked and that effectively blocks the constant
-      // pool too.
-      EmitConstPoolWithoutJumpIfNeeded();
       break;
     case eq:
       // rs == rt
@@ -4890,9 +4889,9 @@ bool MacroAssembler::BranchShortHelper(int32_t offset, Label* L, Condition cond,
       UNREACHABLE();
   }
 
-  // TODO(kasperl@rivosinc.com): We're always blocking the trampoline pool
-  // here so is it really necessary to check?
-  CheckTrampolinePoolQuick(1 * kInstrSize);
+  // TODO(kasperl@rivosinc.com): If we've just emitted an unconditional branch
+  // it would be great if we could consider emitting the constant pool without
+  // a jump after leaving the pool blocking scope.
   return true;
 }
 
@@ -5432,6 +5431,25 @@ void MacroAssembler::CallBuiltin(Builtin builtin) {
       break;
     }
   }
+  if (v8_flags.debug_code) {
+    // Since the 'Abort' below might do a runtime call, we need to remember
+    // the current call's pc-offset, and restore it after the abort.
+    int old_offset = pc_offset_for_safepoint();
+    // Check that the builtin didn't leave the rounding mode in a bad state.
+    Label done;
+    li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
+    // If != 0, then simd is available.
+    Branch(&done, eq, kScratchReg, Operand(zero_reg), Label::Distance::kNear);
+
+    static_assert(RNE == 0, "RNE must be 0");
+    // Get the floating-point control and status register.
+    csrr(kScratchReg, csr_fcsr);
+    And(kScratchReg, kScratchReg, Operand(kFcsrFrmMask));
+    beqz(kScratchReg, &done);  // Equal to RNE.
+    Abort(AbortReason::kUnexpectedFPCRMode);
+    bind(&done);
+    set_pc_offset_for_safepoint(old_offset);
+  }
 }
 
 void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
@@ -5620,16 +5638,13 @@ void MacroAssembler::LoadAddress(Register dst, Label* target,
   // by any trampoline pool emission here.
   BlockPoolsScope block_pools(this);
   int32_t offset;
-  if (CalculateOffset(target, &offset, OffsetSize::kOffset32)) {
-    CHECK(is_int32(offset + 0x800));
-    int32_t Hi20 = (static_cast<int32_t>(offset) + 0x800) >> 12;
-    int32_t Lo12 = static_cast<int32_t>(offset) << 20 >> 20;
-    auipc(dst, Hi20);
-    AddWord(dst, dst, Lo12);
-  } else {
-    uintptr_t address = jump_address(target);
-    li(dst, Operand(address, rmode), ADDRESS_LOAD);
-  }
+  bool ok = CalculateOffset(target, &offset, OffsetSize::kOffset32);
+  CHECK(ok);
+  CHECK(is_int32(offset + 0x800));
+  int32_t Hi20 = (static_cast<int32_t>(offset) + 0x800) >> 12;
+  int32_t Lo12 = static_cast<int32_t>(offset) << 20 >> 20;
+  auipc(dst, Hi20);
+  AddWord(dst, dst, Lo12);
 }
 
 void MacroAssembler::Switch(Register scratch, Register value,
@@ -7568,14 +7583,15 @@ void MacroAssembler::BailoutIfDeoptimized() {
 #endif
 }
 
-void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
-                                           DeoptimizeKind kind, Label* ret,
-                                           Label*) {
+void MacroAssembler::CallForDeoptimization(
+    Builtin target, int, Label* exit, DeoptimizeKind kind, Label* ret,
+    Label* jump_deoptimization_entry_label) {
   ASM_CODE_COMMENT(this);
+  // make sure the label is within jal's 21 bit range(near)
+  DCHECK_WITH_MSG(is_near(jump_deoptimization_entry_label),
+                  "deopt exit is too far from deopt entry jump");
   BlockPoolsScope block_pools(this);
-  LoadWord(t6, MemOperand(kRootRegister,
-                          IsolateData::BuiltinEntrySlotOffset(target)));
-  Call(t6);
+  Call(jump_deoptimization_entry_label);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
             (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
                                             : Deoptimizer::kEagerDeoptExitSize);

@@ -70,6 +70,25 @@ V8_INLINE void InitExternalPointerField(Address host_address,
 #endif  // V8_ENABLE_SANDBOX
 }
 
+V8_INLINE void InitExternalPointerField(Address host_address,
+                                        Address field_address,
+                                        IsolateForSandbox isolate,
+                                        ExternalPointerTag tag, Address value) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
+  ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
+      isolate.GetExternalPointerTableSpaceFor(tag, host_address), value, tag);
+  // Use a Release_Store to ensure that the store of the pointer into the
+  // table is not reordered after the store of the handle. Otherwise, other
+  // threads may access an uninitialized table entry and crash.
+  auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+  base::AsAtomic32::Release_Store(location, handle);
+#else
+  WriteExternalPointerField(field_address, isolate, tag, value);
+#endif  // V8_ENABLE_SANDBOX
+}
+
 template <ExternalPointerTagRange tag_range>
 V8_INLINE Address ReadExternalPointerField(Address field_address,
                                            IsolateForSandbox isolate) {
@@ -121,9 +140,23 @@ V8_INLINE void WriteExternalPointerField(Address field_address,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-V8_INLINE void SetupLazilyInitializedExternalPointerField(
-    Address field_address) {
+V8_INLINE void WriteExternalPointerField(Address field_address,
+                                         IsolateForSandbox isolate,
+                                         ExternalPointerTag tag,
+                                         Address value) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  // See comment above for why this is a Relaxed_Load.
+  auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+  ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
+  isolate.GetExternalPointerTableFor(tag).Set(handle, value, tag);
+#else
+  WriteMaybeUnalignedValue<Address>(field_address, value);
+#endif  // V8_ENABLE_SANDBOX
 }
+
+V8_INLINE void SetupLazilyInitializedExternalPointerField(
+    Address field_address) {}
 
 }  // namespace internal
 }  // namespace v8

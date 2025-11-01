@@ -217,7 +217,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                                        PropertyAttributes attributes,
                                        StoreOrigin store_origin);
   inline bool IsCacheableTransition();
-  void ApplyTransitionToDataProperty(DirectHandle<JSReceiver> receiver);
+  V8_WARN_UNUSED_RESULT Maybe<bool> ApplyTransitionToDataProperty(
+      DirectHandle<JSReceiver> receiver, Maybe<ShouldThrow> should_throw);
   void ReconfigureDataProperty(DirectHandle<Object> value,
                                PropertyAttributes attributes);
   void Delete();

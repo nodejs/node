@@ -20,9 +20,15 @@
   _Pragma("GCC diagnostic push")                     \
       _Pragma("GCC diagnostic ignored \"-Wshadow\"")
 #define RE_SHADOW _Pragma("GCC diagnostic pop")
+#define NO_UNUSED \
+  _Pragma("GCC diagnostic push")                     \
+      _Pragma("GCC diagnostic ignored \"-Wunused-label\"")
+#define RE_UNUSED _Pragma("GCC diagnostic pop")
 #else
 #define NO_SHADOW
 #define RE_SHADOW
+#define NO_UNUSED
+#define RE_UNUSED
 #endif
 
 #define TSA_DCHECK(assembler, condition) \
@@ -148,6 +154,17 @@
 #define ELSE                                 \
   SUPPRESSED_DANGLING_ELSE_WARNING_ELSE if ( \
       iteration == 1 && (bound = Asm().ControlFlowHelper_BindElse(&state)))
+
+// NOTE: The use of TYPESWITCH requires the additional include of `typeswitch.h`
+#define TYPESWITCH(expr)                                                    \
+  TypeswitchBuilder<decltype(Asm())> typeswitch_xx(Asm(), __ data(), expr); \
+    while(typeswitch_xx.NextState())
+
+#define CASE_(type, name)                                                 \
+  for(auto [emit, name] = typeswitch_xx.template BeginCase<type>(__LINE__); emit; \
+      emit = (typeswitch_xx.EndCase(__LINE__), false))                   \
+    NO_UNUSED CONCAT(case_label_xx_, __LINE__) RE_UNUSED
+
 
 #define Assert(condition) AssertImpl(condition, #condition, __FILE__, __LINE__)
 

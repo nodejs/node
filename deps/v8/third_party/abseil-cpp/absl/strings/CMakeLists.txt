@@ -77,6 +77,7 @@ absl_cc_library(
   DEPS
     absl::string_view
     absl::strings_internal
+    absl::strings_resize_and_overwrite
     absl::base
     absl::bits
     absl::charset
@@ -139,6 +140,34 @@ absl_cc_library(
     absl::endian
     absl::raw_logging_internal
     absl::type_traits
+)
+
+absl_cc_library(
+  NAME
+    strings_resize_and_overwrite
+  HDRS
+    "resize_and_overwrite.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+    absl::core_headers
+    absl::dynamic_annotations
+    absl::throw_delegate
+)
+
+absl_cc_test(
+  NAME
+    strings_resize_and_overwrite_test
+  SRCS
+    "resize_and_overwrite_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings_resize_and_overwrite
+    absl::absl_check
+    absl::dynamic_annotations
+    GTest::gmock_main
 )
 
 absl_cc_test(
@@ -337,11 +366,11 @@ absl_cc_test(
   NAME
     resize_uninitialized_test
   SRCS
-    "internal/resize_uninitialized.h"
     "internal/resize_uninitialized_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::strings_internal
     absl::base
     absl::core_headers
     absl::type_traits
@@ -845,6 +874,7 @@ absl_cc_library(
     absl::cordz_statistics
     absl::cordz_update_tracker
     absl::core_headers
+    absl::no_destructor
     absl::inlined_vector
     absl::span
     absl::raw_logging_internal
@@ -1000,6 +1030,7 @@ absl_cc_library(
     absl::raw_logging_internal
     absl::span
     absl::strings
+    absl::strings_resize_and_overwrite
     absl::type_traits
     absl::weakly_mixed_integer
   PUBLIC

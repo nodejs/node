@@ -127,12 +127,12 @@ inline void AllocationSite::SetElementsKind(ElementsKind kind) {
   set_transition_info(ElementsKindBits::update(transition_info(), kind));
 }
 
-inline bool AllocationSite::CanInlineCall() const {
-  return DoNotInlineBit::decode(transition_info()) == 0;
+inline bool AllocationSite::IsSpeculationDisabled() const {
+  return SpeculationDisabledBit::decode(transition_info()) == 1;
 }
 
-inline void AllocationSite::SetDoNotInlineCall() {
-  set_transition_info(DoNotInlineBit::update(transition_info(), true));
+inline void AllocationSite::SetSpeculationDisabled() {
+  set_transition_info(SpeculationDisabledBit::update(transition_info(), true));
 }
 
 inline bool AllocationSite::PointsToLiteral() const {

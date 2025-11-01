@@ -492,10 +492,9 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
     static_assert(Code::kEndOfStrongFieldsOffset ==
                   Code::kInstructionStartOffset);
 #ifndef V8_ENABLE_SANDBOX
-    static_assert(
-        Code::kInstructionStartOffsetEnd + 1 +
-            (V8_ENABLE_LEAPTIERING_BOOL ? kJSDispatchHandleSize : 0) ==
-        Code::kFlagsOffset);
+    static_assert(Code::kInstructionStartOffsetEnd + 1 +
+                      kJSDispatchHandleSize ==
+                  Code::kFlagsOffset);
 #endif
     static_assert(Code::kFlagsOffsetEnd + 1 == Code::kInstructionSizeOffset);
     static_assert(Code::kInstructionSizeOffsetEnd + 1 ==
@@ -518,8 +517,16 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
                   Code::kParameterCountOffset);
     static_assert(Code::kParameterCountOffsetEnd + 1 == Code::kBuiltinIdOffset);
     static_assert(Code::kBuiltinIdOffsetEnd + 1 == Code::kUnalignedSize);
-    static constexpr int kStartOffset = Code::kFlagsOffset;
 
+    // Hash Code::flags field ignoring the Code::IsDisabledBuiltinField bit.
+    // This bit is set for certain builtins during RO heap deserialization
+    // and thus might differ from the default state.
+    uint32_t flags = code->flags(kRelaxedLoad);
+    flags &= ~Code::IsDisabledBuiltinField::kMask;
+    hash = base::hash_combine(hash, flags);
+
+    // Proceed past the flags field.
+    static constexpr int kStartOffset = Code::kInstructionSizeOffset;
     for (int j = kStartOffset; j < Code::kUnalignedSize; j++) {
       hash = base::hash_combine(hash, size_t{code_ptr[j]});
     }
@@ -1815,7 +1822,10 @@ void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
   DCHECK(accumulator->IsMentionedObjectCacheClear(this));
 
   // Avoid printing anything if there are no frames.
-  if (c_entry_fp(thread_local_top()) == 0 && !InFastCCall()) return;
+  if (c_entry_fp(thread_local_top()) == kNullAddress &&
+      isolate_data()->fast_c_call_caller_fp() == kNullAddress) {
+    return;
+  }
 
   accumulator->Add(
       "\n==== JS stack trace =========================================\n\n");
@@ -4534,6 +4544,14 @@ void Isolate::Deinit() {
     });
   }
 
+#ifdef DEBUG
+  // Don't run Builtins::VerifyGetJSBuiltinState() during snapshot creation.
+  if (v8_flags.verify_get_js_builtin_state && !serializer_enabled()) {
+    const bool kAllowNonInitialState = true;
+    builtins()->VerifyGetJSBuiltinState(kAllowNonInitialState);
+  }
+#endif
+
   // We start with the heap tear down so that releasing managed objects does
   // not cause a GC.
   heap_.StartTearDown();
@@ -4763,10 +4781,8 @@ void Isolate::Deinit() {
   IsolateGroup::current()->code_pointer_table()->TearDownSpace(
       heap()->code_pointer_space());
 #endif  // V8_ENABLE_SANDBOX
-#ifdef V8_ENABLE_LEAPTIERING
   IsolateGroup::current()->js_dispatch_table()->TearDownSpace(
       heap()->js_dispatch_table_space());
-#endif  // V8_ENABLE_LEAPTIERING
 
   {
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
@@ -5843,10 +5859,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 
 #endif  // V8_ENABLE_SANDBOX
-#ifdef V8_ENABLE_LEAPTIERING
   IsolateGroup::current()->js_dispatch_table()->InitializeSpace(
       heap()->js_dispatch_table_space());
-#endif  // V8_ENABLE_LEAPTIERING
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->AddIsolate(this);
@@ -6705,6 +6719,8 @@ MaybeDirectHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
         return NewRejectedPromise(this, api_context, exception);
       }
       break;
+    case ModuleImportPhase::kDefer:
+      UNREACHABLE();
   }
 
   DirectHandle<String> specifier_str;
@@ -7302,9 +7318,10 @@ void Isolate::CheckDetachedContextsAfterGC() {
     }
   }
   detached_contexts->set_length(new_length);
-  while (new_length < length) {
-    detached_contexts->Set(new_length, Smi::zero());
-    ++new_length;
+  int last_context_index = new_length;
+  while (last_context_index < length) {
+    detached_contexts->Set(last_context_index, Smi::zero());
+    ++last_context_index;
   }
 
   if (v8_flags.trace_detached_contexts) {
@@ -7797,7 +7814,7 @@ void Isolate::LocalsBlockListCacheSet(
   }
 
   CHECK(!value.is_null());
-  cache = EphemeronHashTable::Put(cache, scope_info, value);
+  cache = EphemeronHashTable::Put(this, cache, scope_info, value);
   heap()->set_locals_block_list_cache(*cache);
 }
 
@@ -7846,7 +7863,6 @@ void DefaultWasmAsyncResolvePromiseCallback(
 base::LazyMutex read_only_dispatch_entries_mutex_ = LAZY_MUTEX_INITIALIZER;
 
 void Isolate::InitializeBuiltinJSDispatchTable() {
-#ifdef V8_ENABLE_LEAPTIERING
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
 
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
@@ -7877,6 +7893,12 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
       Builtin builtin = JSBuiltinDispatchHandleRoot::to_builtin(idx);
       DCHECK(Builtins::IsIsolateIndependent(builtin));
       Tagged<Code> code = builtins_.code(builtin);
+      if (code->is_disabled_builtin()) {
+        // Initialize preallocated entry for disabled builtin with kIllegal
+        // builtin's Code to ensure that the actual builtin's code can't be
+        // called by reusing the dispatch table handle.
+        code = builtins_.code(Builtin::kIllegal);
+      }
       DCHECK_EQ(code->entrypoint_tag(), CodeEntrypointTag::kJSEntrypointTag);
       // Since we are sharing the dispatch handles we need all isolates to
       // share the builtin code objects.
@@ -7901,14 +7923,18 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
            static_cast<int>(idx) + 1)) {
     Builtin builtin = JSBuiltinDispatchHandleRoot::to_builtin(idx);
     Tagged<Code> code = builtins_.code(builtin);
-    int parameter_count = code->parameter_count();
     DCHECK_LT(idx, JSBuiltinDispatchHandleRoot::kTableSize);
-    JSDispatchHandle handle = jdt->AllocateAndInitializeEntry(
-        heap()->js_dispatch_table_space(), parameter_count, code);
+    JSDispatchHandle handle = kNullJSDispatchHandle;
+    // Don't allocate dispatch table entry for disabled builtin to ensure
+    // it's impossible to call it.
+    if (!code->is_disabled_builtin()) {
+      int parameter_count = code->parameter_count();
+      handle = jdt->AllocateAndInitializeEntry(
+          heap()->js_dispatch_table_space(), parameter_count, code);
+    }
     isolate_data_.builtin_dispatch_table()[idx] = handle;
   }
 #endif  // !V8_STATIC_DISPATCH_HANDLES_BOOL
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void Isolate::PrintNumberStringCacheStats(const char* comment,

@@ -686,16 +686,13 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
                        << " = "
                           "UncheckedParameter<JSDispatchHandleT>(Descriptor::"
                           "kJSDispatchHandle);\n";
-        } else if (V8_ENABLE_LEAPTIERING_BOOL) {
+        } else {
           csa_ccfile() << "  TNode<JSDispatchHandleT> " << generated_name
                        << " = "
                           "ReinterpretCast<JSDispatchHandleT>("
                           "LoadJSFunctionDispatchHandle("
                           "UncheckedParameter<JSFunction>("
                        << "Descriptor::kJSTarget)));\n";
-        } else {
-          csa_ccfile() << "  TNode<JSDispatchHandleT> " << generated_name
-                       << " = InvalidDispatchHandleConstant();\n";
         }
         csa_ccfile() << "  USE(" << generated_name << ");\n";
         expected_types = {TypeOracle::GetDispatchHandleType()};

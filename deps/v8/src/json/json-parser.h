@@ -111,22 +111,34 @@ class JsonParseInternalizer {
                                          DirectHandle<Object> result,
                                          Handle<Object> reviver,
                                          Handle<String> source,
-                                         MaybeHandle<Object> val_node);
+                                         MaybeHandle<Object> val_node,
+                                         bool pass_context_argument);
 
  private:
   JsonParseInternalizer(Isolate* isolate, Handle<JSReceiver> reviver,
                         Handle<String> source)
       : isolate_(isolate), reviver_(reviver), source_(source) {}
 
-  enum WithOrWithoutSource { kWithoutSource, kWithSource };
+  enum ReviverMode {
+    kWithoutContext,  // Two-arg reviver callback, no context argument.
+    kWithoutSource,   // Three-arg reviver callback, context argument has no
+                      // source property.
+    kWithSource,      // Three-arg reviver callback, context object has source
+                      // property.
+  };
 
-  template <WithOrWithoutSource with_source>
+  static constexpr ReviverMode NoSource(ReviverMode old_mode) {
+    if (old_mode == kWithSource) return kWithoutSource;
+    return old_mode;
+  }
+
+  template <ReviverMode reviver_mode>
   MaybeHandle<Object> InternalizeJsonProperty(DirectHandle<JSReceiver> holder,
                                               DirectHandle<String> key,
-                                              Handle<Object> val_node,
+                                              MaybeHandle<Object> val_node,
                                               DirectHandle<Object> snapshot);
 
-  template <WithOrWithoutSource with_source>
+  template <ReviverMode reviver_mode>
   bool RecurseAndApply(Handle<JSReceiver> holder, Handle<String> name,
                        Handle<Object> val_node, Handle<Object> snapshot);
 
@@ -166,22 +178,7 @@ class JsonParser final {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Parse(
       Isolate* isolate, Handle<String> source, Handle<Object> reviver,
-      std::optional<ScriptDetails> script_details) {
-    HighAllocationThroughputScope high_throughput_scope(
-        V8::GetCurrentPlatform());
-    Handle<Object> result;
-    MaybeHandle<Object> val_node;
-    {
-      JsonParser parser(isolate, source, script_details);
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, result, parser.ParseJson(reviver));
-      val_node = parser.parsed_val_node_;
-    }
-    if (IsCallable(*reviver)) {
-      return JsonParseInternalizer::Internalize(isolate, result, reviver,
-                                                source, val_node);
-    }
-    return result;
-  }
+      std::optional<ScriptDetails> script_details);
 
   static constexpr base::uc32 kEndOfString = static_cast<base::uc32>(-1);
   static constexpr base::uc32 kInvalidUnicodeCharacter =
@@ -216,8 +213,13 @@ class JsonParser final {
              std::optional<ScriptDetails> script_details);
   ~JsonParser();
 
-  // Parse a string containing a single JSON value.
-  MaybeHandle<Object> ParseJson(DirectHandle<Object> reviver);
+  // Parse a string containing a single JSON value.  If
+  // collect_source_strings is true then we also build the data structures
+  // for the reviver callback.  This includes both the source strings for
+  // primitive values, and also the val_nodes for non-primitive objects, used
+  // for detecting whether the user has changed the deserialized 'this'
+  // object that was implicitly passed to the reviver key-value callback.
+  MaybeHandle<Object> ParseJson(bool collect_source_strings);
 
   bool ParseRawJson();
 

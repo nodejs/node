@@ -48,7 +48,8 @@ class GraphBackwardProcessor;
 
 enum class BlockProcessResult {
   kContinue,  // Process exited normally.
-  kSkip,      // Skip processing this block (no MultiProcessor support).
+  kSkip,      // Skip processing this blockand and do not call the following
+              // processors.
 };
 
 enum class ProcessResult {

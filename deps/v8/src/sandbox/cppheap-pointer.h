@@ -20,10 +20,6 @@ V8_INLINE Address ReadCppHeapPointerField(Address field_address,
                                           IsolateForPointerCompression isolate,
                                           CppHeapPointerTagRange tag_range);
 
-template <CppHeapPointerTag tag>
-V8_INLINE void WriteLazilyInitializedCppHeapPointerField(
-    Address field_address, IsolateForPointerCompression isolate, Address value);
-
 V8_INLINE void WriteLazilyInitializedCppHeapPointerField(
     Address field_address, IsolateForPointerCompression isolate, Address value,
     CppHeapPointerTag tag);

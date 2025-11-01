@@ -116,10 +116,8 @@ class FastApiCallLoweringReducer : public Next {
 
       GOTO(done, FastApiCallOp::kSuccessValue);
       BIND(trigger_exception);
-      __ template CallRuntime<
-          typename RuntimeCallDescriptor::PropagateException>(
-          isolate_, frame_state, __ NoContextConstant(), LazyDeoptOnThrow::kNo,
-          {});
+      __ template CallRuntime<typename runtime::PropagateException>(
+          frame_state, __ NoContextConstant(), {}, LazyDeoptOnThrow::kNo);
 
       __ Unreachable();
     }

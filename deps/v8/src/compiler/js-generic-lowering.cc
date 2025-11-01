@@ -1125,7 +1125,7 @@ void JSGenericLowering::LowerJSForInNext(Node* node) {
 }
 
 void JSGenericLowering::LowerJSForOfNext(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtin::kForOfNextBaseline);
+  ReplaceWithBuiltinCall(node, Builtin::kForOfNext);
 }
 
 void JSGenericLowering::LowerJSLoadMessage(Node* node) {

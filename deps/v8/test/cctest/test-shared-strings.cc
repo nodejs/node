@@ -875,6 +875,7 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
 UNINITIALIZED_TEST(PromotionScavenge) {
   if (v8_flags.minor_ms) return;
   if (v8_flags.single_generation) return;
+  if (v8_flags.scavenger_chaos_mode) return;
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
@@ -924,6 +925,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
   }
   if (v8_flags.single_generation) return;
   if (v8_flags.stress_concurrent_allocation) return;
+  if (v8_flags.scavenger_chaos_mode) return;
 
   v8_flags.shared_string_table = true;
   v8_flags.scavenger_precise_object_pinning = false;
@@ -2322,7 +2324,7 @@ UNINITIALIZED_TEST(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
         "collector cctest", GCTracer::MarkingType::kIncremental);
     marking->Start(GarbageCollector::MARK_COMPACTOR,
-                   i::GarbageCollectionReason::kTesting);
+                   i::GarbageCollectionReason::kTesting, "testing");
   }
 
   ClientIsolateThreadForPagePromotions thread("worker", &test, &shared_string,
@@ -2801,6 +2803,204 @@ UNINITIALIZED_TEST(ConservativePinningScopeInClientIsolate) {
   }
 
   thread.Join();
+}
+
+UNINITIALIZED_TEST(InternalizeWithoutSharedStringTable) {
+  if (v8_flags.single_generation) return;
+
+  v8_flags.shared_string_table = false;
+  v8_flags.shared_strings = true;
+  i::FlagList::EnforceFlagImplications();
+
+  MultiClientIsolateTest test;
+  Isolate* main_isolate = test.i_main_isolate();
+  Factory* main_factory = main_isolate->factory();
+
+  HandleScope handle_scope(main_isolate);
+
+  const char raw_one_byte[] = "foo";
+  base::uc16 raw_two_byte[] = {2001, 2002, 2003};
+  base::Vector<const base::uc16> two_byte(raw_two_byte, 3);
+
+  // Old generation 1- and 2-byte seq strings are in-place internalizable, but
+  // not shared without shared string table.
+  DirectHandle<String> old_one_byte_seq =
+      main_factory->NewStringFromAsciiChecked(raw_one_byte,
+                                              AllocationType::kOld);
+  CHECK(!old_one_byte_seq->IsShared());
+  CHECK(!HeapLayout::InAnySharedSpace(*old_one_byte_seq));
+  DirectHandle<String> old_two_byte_seq =
+      main_factory->NewStringFromTwoByte(two_byte, AllocationType::kOld)
+          .ToHandleChecked();
+  CHECK(!old_two_byte_seq->IsShared());
+  CHECK(!HeapLayout::InAnySharedSpace(*old_two_byte_seq));
+
+  // Internalized strings are not shared without shared string table.
+  HashSeed seed = HashSeed(main_isolate);
+  DirectHandle<String> one_byte_intern =
+      main_factory->NewOneByteInternalizedString(
+          base::OneByteVector(raw_one_byte),
+          StringHasher::HashSequentialString<char>(raw_one_byte, 3, seed));
+  CHECK(!one_byte_intern->IsShared());
+  CHECK(!HeapLayout::InAnySharedSpace(*one_byte_intern));
+  DirectHandle<String> two_byte_intern =
+      main_factory->NewTwoByteInternalizedString(
+          two_byte,
+          StringHasher::HashSequentialString<uint16_t>(raw_two_byte, 3, seed));
+  CHECK(!two_byte_intern->IsShared());
+  CHECK(!HeapLayout::InAnySharedSpace(*two_byte_intern));
+}
+
+UNINITIALIZED_TEST(InternalizeSharedWithoutSharedStringTable) {
+  if (v8_flags.single_generation) return;
+
+  v8_flags.shared_string_table = false;
+  v8_flags.shared_strings = true;
+  i::FlagList::EnforceFlagImplications();
+
+  MultiClientIsolateTest test;
+  IsolateParkOnDisposeWrapper isolate_wrapper(test.NewClientIsolate(),
+                                              test.main_isolate());
+  Isolate* main_isolate = test.i_main_isolate();
+  Factory* main_factory = main_isolate->factory();
+  Isolate* client_isolate = reinterpret_cast<Isolate*>(isolate_wrapper.isolate);
+  Factory* client_factory = client_isolate->factory();
+
+  HandleScope main_scope(main_isolate);
+  HandleScope client_scope(client_isolate);
+
+  DirectHandle<String> shared_string;
+  DirectHandle<String> main_internalized;
+
+  // Park the client isolate while we do work on the main isolate. Otherwise we
+  // could get a deadlock when a global safepoint is requested.
+  client_isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
+      [&]() {
+        // Create a new shared string on the main isolate.
+        constexpr int kStringLength = 14;
+        constexpr bool kInternalize = false;
+        shared_string = CreateSharedOneByteString(main_isolate, main_factory,
+                                                  kStringLength, kInternalize)
+                            .first;
+        CHECK(shared_string->IsShared());
+        CHECK(HeapLayout::InAnySharedSpace(*shared_string));
+
+        // Internalize shared string on the main isolate.
+        main_internalized = main_factory->InternalizeString(shared_string);
+        // Internalized string is not shared.
+        CHECK(!main_internalized->IsShared());
+        CHECK(!HeapLayout::InAnySharedSpace(*main_internalized));
+        // Shared string is still shared.
+        CHECK(shared_string->IsShared());
+        CHECK(HeapLayout::InAnySharedSpace(*shared_string));
+        CheckSharedStringIsEqualCopy(shared_string, main_internalized);
+        // Both have the same, valid hash.
+        CHECK(String::IsHashFieldComputed(shared_string->raw_hash_field()));
+        CHECK(String::IsHashFieldComputed(main_internalized->raw_hash_field()));
+        CHECK_EQ(shared_string->hash(), main_internalized->hash());
+      });
+
+  // Internalize shared string on client isolate.
+  {
+    v8::Isolate::Scope isolate_scope(isolate_wrapper.isolate);
+    DirectHandle<String> client_internalized =
+        client_factory->InternalizeString(shared_string);
+    // Internalized string is not shared.
+    CHECK(!client_internalized->IsShared());
+    CHECK(!HeapLayout::InAnySharedSpace(*client_internalized));
+    // Shared string is still shared.
+    CHECK(shared_string->IsShared());
+    CHECK(HeapLayout::InAnySharedSpace(*shared_string));
+    // Both have the same, valid hash.
+    CHECK(String::IsHashFieldComputed(shared_string->raw_hash_field()));
+    CHECK(String::IsHashFieldComputed(client_internalized->raw_hash_field()));
+    CHECK_EQ(shared_string->hash(), client_internalized->hash());
+    // Internalized strings on client and main isolate are not the same object.
+    CHECK(!client_internalized.equals(main_internalized));
+    CHECK_NE(*client_internalized, *main_internalized);
+    // Internalized strings on client and main isolate are not comparable.
+    CHECK(!client_internalized->Equals(*main_internalized));
+  }
+}
+
+UNINITIALIZED_TEST(LookupSharedWithoutSharedStringTable) {
+  if (v8_flags.single_generation) return;
+
+  v8_flags.shared_string_table = false;
+  v8_flags.shared_strings = true;
+  i::FlagList::EnforceFlagImplications();
+
+  MultiClientIsolateTest test;
+  Isolate* main_isolate = test.i_main_isolate();
+  Factory* main_factory = main_isolate->factory();
+
+  HandleScope main_scope(main_isolate);
+
+  // Create a new string on the main isolate and internalize it.
+  constexpr int kStringLength = 14;
+  constexpr bool kInternalize = true;
+  auto [shared_string, maybe_internalized_string] = CreateSharedOneByteString(
+      main_isolate, main_factory, kStringLength, kInternalize);
+  DirectHandle<String> main_pre_internalized =
+      maybe_internalized_string.ToHandleChecked();
+  CHECK(shared_string->IsShared());
+  CHECK(HeapLayout::InAnySharedSpace(*shared_string));
+  CHECK(!main_pre_internalized->IsShared());
+  CHECK(!HeapLayout::InAnySharedSpace(*main_pre_internalized));
+
+  // Internalize shared string on the main isolate.
+  DirectHandle<String> main_internalized =
+      main_factory->InternalizeString(shared_string);
+  // Internalized string is not shared and equal to |main_pre_internalized|
+  CHECK(!main_internalized->IsShared());
+  CHECK(!HeapLayout::InAnySharedSpace(*main_internalized));
+  CHECK_EQ(*main_internalized, *main_pre_internalized);
+
+  // Shared string is still a sequential one-byte string.
+  CHECK_EQ(shared_string->map()->instance_type(),
+           InstanceType::SHARED_SEQ_ONE_BYTE_STRING_TYPE);
+  // Shared string is still shared.
+  CHECK(shared_string->IsShared());
+  CHECK(HeapLayout::InAnySharedSpace(*shared_string));
+  CheckSharedStringIsEqualCopy(shared_string, main_internalized);
+  // All strings have the same, valid hash.
+  CHECK(String::IsHashFieldComputed(shared_string->raw_hash_field()));
+  CHECK(String::IsHashFieldComputed(main_internalized->raw_hash_field()));
+  CHECK(String::IsHashFieldComputed(main_pre_internalized->raw_hash_field()));
+  CHECK_EQ(shared_string->hash(), main_internalized->hash());
+  CHECK_EQ(main_internalized->hash(), main_pre_internalized->hash());
+}
+
+UNINITIALIZED_TEST(ExternalizeSharedWithoutSharedStringTable) {
+  if (v8_flags.single_generation) return;
+
+  v8_flags.shared_string_table = false;
+  v8_flags.shared_strings = true;
+  i::FlagList::EnforceFlagImplications();
+
+  MultiClientIsolateTest test;
+  Isolate* main_isolate = test.i_main_isolate();
+  Factory* main_factory = main_isolate->factory();
+
+  HandleScope main_scope(main_isolate);
+
+  // Create a new shared string on the main isolate.
+  const char raw_one_byte[] = "foobarstringtest";
+
+  DirectHandle<String> string = main_factory->NewStringFromAsciiChecked(
+      raw_one_byte, AllocationType::kOld);
+  DirectHandle<String> shared_string = String::Share(main_isolate, string);
+  CHECK(!string->IsShared());
+  CHECK(!HeapLayout::InAnySharedSpace(*string));
+  CHECK(shared_string->IsShared());
+  CHECK(HeapLayout::InAnySharedSpace(*shared_string));
+
+  // Original string can be externalized.
+  CHECK(
+      string->SupportsExternalization(v8::String::Encoding::ONE_BYTE_ENCODING));
+  // Shared string can't be externalized.
+  CHECK(!shared_string->SupportsExternalization(
+      v8::String::Encoding::ONE_BYTE_ENCODING));
 }
 
 }  // namespace test_shared_strings

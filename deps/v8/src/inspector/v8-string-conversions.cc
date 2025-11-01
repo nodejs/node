@@ -359,7 +359,9 @@ std::string UTF16ToUTF8(const UChar* stringStart, size_t length) {
   const UChar* characters = stringStart;
   const UChar* characters_end = characters + length;
   char* buffer = &*output.begin();
-  char* buffer_end = &*output.end();
+  // Dereferencing output.end() is not allowed in some STL libraries, like
+  // Microsoft STL. Compute the end pointer without dereferencing.
+  char* buffer_end = buffer + output.size();
   while (characters < characters_end) {
     // Use strict conversion to detect unpaired surrogates.
     ConversionResult result = convertUTF16ToUTF8(

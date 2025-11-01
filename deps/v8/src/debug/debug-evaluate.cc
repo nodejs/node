@@ -712,7 +712,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kMapPrototypeValues:
     // WeakMap builtins.
     case Builtin::kWeakMapConstructor:
-    case Builtin::kWeakMapGet:
+    case Builtin::kWeakMapPrototypeGet:
     case Builtin::kWeakMapPrototypeHas:
     // Math builtins.
     case Builtin::kMathAbs:
@@ -962,6 +962,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kLocalePrototypeTextInfo:
     case Builtin::kLocalePrototypeTimeZones:
     case Builtin::kLocalePrototypeToString:
+    case Builtin::kLocalePrototypeVariants:
     case Builtin::kLocalePrototypeWeekInfo:
     // Intl.NumberFormat builtins.
     case Builtin::kNumberFormatConstructor:

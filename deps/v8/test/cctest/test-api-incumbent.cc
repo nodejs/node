@@ -34,6 +34,9 @@ struct IncumbentTestExpectations {
   Local<Context> function_context;
   int call_count = 0;
 };
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kIncumbentTestExpectationsTag = 13;
 
 // This callback checks that the incumbent context equals to the expected one
 // and returns the function's context ID (i.e. "globalThis.id").
@@ -44,7 +47,7 @@ void FunctionWithIncumbentCheck(
 
   IncumbentTestExpectations* expected =
       reinterpret_cast<IncumbentTestExpectations*>(
-          info.Data().As<External>()->Value());
+          info.Data().As<External>()->Value(kIncumbentTestExpectationsTag));
 
   expected->call_count++;
 
@@ -110,7 +113,7 @@ v8::LocalVector<Context> SetupCrossContextTest(
   }
 
   Local<External> expected_incumbent_context_ptr =
-      External::New(isolate, expected);
+      External::New(isolate, expected, kIncumbentTestExpectationsTag);
 
   // Create cross-realm references in every realm's global object and
   // a constructor function that also checks the incumbent context.

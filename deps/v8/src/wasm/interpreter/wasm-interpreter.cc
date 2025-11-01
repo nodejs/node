@@ -463,9 +463,9 @@ WasmInterpreterThread::WasmInterpreterThread(Isolate* isolate)
   if (!stack_mem_ ||
       !SetPermissions(page_allocator, stack_mem_, current_stack_size_,
                       PageAllocator::Permission::kReadWrite)) {
-    V8::FatalProcessOutOfMemory(nullptr,
-                                "WasmInterpreterThread::WasmInterpreterThread",
-                                "Cannot allocate Wasm interpreter stack");
+    V8::FatalProcessOutOfMemory(
+        nullptr, "WasmInterpreterThread::WasmInterpreterThread",
+        {.detail = "Cannot allocate Wasm interpreter stack"});
     UNREACHABLE();
   }
 }
@@ -5742,29 +5742,29 @@ class Handlers : public HandlersBase {
   static bool DoRefCast(WasmRef ref, ValueType ref_type, HeapType target_type,
                         bool null_succeeds,
                         WasmInterpreterRuntime* wasm_runtime) {
-    if (target_type.is_index()) {
+    if (target_type.has_index()) {
       DirectHandle<Map> rtt =
           wasm_runtime->RttCanon(target_type.ref_index().index);
       return wasm_runtime->SubtypeCheck(ref, ref_type, rtt,
                                         target_type.ref_index(), null_succeeds);
     } else {
-      switch (target_type.representation()) {
-        case HeapType::kEq:
+      switch (target_type.generic_kind()) {
+        case GenericKind::kEq:
           return wasm_runtime->RefIsEq(ref, ref_type, null_succeeds);
-        case HeapType::kI31:
+        case GenericKind::kI31:
           return wasm_runtime->RefIsI31(ref, ref_type, null_succeeds);
-        case HeapType::kStruct:
+        case GenericKind::kStruct:
           return wasm_runtime->RefIsStruct(ref, ref_type, null_succeeds);
-        case HeapType::kArray:
+        case GenericKind::kArray:
           return wasm_runtime->RefIsArray(ref, ref_type, null_succeeds);
-        case HeapType::kString:
+        case GenericKind::kString:
           return wasm_runtime->RefIsString(ref, ref_type, null_succeeds);
-        case HeapType::kNone:
-        case HeapType::kNoExtern:
-        case HeapType::kNoFunc:
+        case GenericKind::kNone:
+        case GenericKind::kNoExtern:
+        case GenericKind::kNoFunc:
           DCHECK(null_succeeds);
           return wasm_runtime->IsNullTypecheck(ref, ref_type);
-        case HeapType::kAny:
+        case GenericKind::kAny:
           // Any may never need a cast as it is either implicitly convertible or
           // never convertible for any given type.
         default:
@@ -8805,10 +8805,7 @@ bool WasmBytecodeGenerator::TypeCheckAlwaysFails(ValueType obj_type,
   return (types_unrelated &&
           (!null_succeeds || !obj_type.is_nullable() ||
            obj_type.is_string_view() || expected_type.is_string_view())) ||
-         (!null_succeeds &&
-          (expected_type.representation() == HeapType::kNone ||
-           expected_type.representation() == HeapType::kNoFunc ||
-           expected_type.representation() == HeapType::kNoExtern));
+         (!null_succeeds && expected_type.is_none_type());
 }
 
 #ifdef DEBUG

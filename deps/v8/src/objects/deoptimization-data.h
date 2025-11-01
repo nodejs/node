@@ -37,7 +37,7 @@ class DeoptimizationLiteralArray : public TrustedWeakFixedArray {
 
 using ProtectedDeoptimizationLiteralArray = ProtectedFixedArray;
 
-enum class DeoptimizationLiteralKind {
+enum class DeoptimizationLiteralKind : uint8_t {
   kObject,
   kNumber,
   kSignedBigInt64,
@@ -45,7 +45,7 @@ enum class DeoptimizationLiteralKind {
   kHoleNaN,
   kInvalid,
 
-  // These kinds are used by wasm only (as unoptimized JS doesn't have these
+  // These kinds are used by Wasm only (as unoptimized JS doesn't have these
   // types).
   kWasmI31Ref,
   kWasmInt32,
@@ -55,7 +55,7 @@ enum class DeoptimizationLiteralKind {
 };
 
 // A deoptimization literal during code generation. For JS this is transformed
-// into a heap object after code generation. For wasm the DeoptimizationLiteral
+// into a heap object after code generation. For Wasm the DeoptimizationLiteral
 // is directly used by the deoptimizer.
 class DeoptimizationLiteral {
  public:
@@ -78,9 +78,9 @@ class DeoptimizationLiteral {
       : kind_(DeoptimizationLiteralKind::kUnsignedBigInt64),
         uint64_(unsigned_bigint64) {}
   explicit DeoptimizationLiteral(int32_t int32)
-      : kind_(DeoptimizationLiteralKind::kWasmInt32), int64_(int32) {}
+      : kind_(DeoptimizationLiteralKind::kWasmInt32), int32_(int32) {}
   explicit DeoptimizationLiteral(Tagged<Smi> smi)
-      : kind_(DeoptimizationLiteralKind::kWasmI31Ref), int64_(smi.value()) {}
+      : kind_(DeoptimizationLiteralKind::kWasmI31Ref), int32_(smi.value()) {}
 
   static DeoptimizationLiteral HoleNaN() {
     DeoptimizationLiteral literal;
@@ -102,6 +102,7 @@ class DeoptimizationLiteral {
                base::bit_cast<uint64_t>(other.number_);
       case DeoptimizationLiteralKind::kWasmI31Ref:
       case DeoptimizationLiteralKind::kWasmInt32:
+        return int32_ == other.int32_;
       case DeoptimizationLiteralKind::kSignedBigInt64:
         return int64_ == other.int64_;
       case DeoptimizationLiteralKind::kUnsignedBigInt64:
@@ -138,12 +139,12 @@ class DeoptimizationLiteral {
 
   int32_t GetInt32() const {
     DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmInt32);
-    return static_cast<int32_t>(int64_);
+    return int32_;
   }
 
   Tagged<Smi> GetSmi() const {
     DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmI31Ref);
-    return Smi::FromInt(static_cast<int>(int64_));
+    return Smi::FromInt(int32_);
   }
 #endif
 
@@ -156,6 +157,13 @@ class DeoptimizationLiteral {
     return kind_;
   }
 
+  // Serialization / deserialization support.
+  // `Write` returns the number of bytes written into the vector.
+  // `Read` writes into the out parameter and returns the number of bytes read.
+  size_t SerializationSize() const;
+  size_t Write(base::Vector<uint8_t>) const;
+  static size_t Read(base::Vector<const uint8_t>, DeoptimizationLiteral* out);
+
  private:
   DeoptimizationLiteralKind kind_;
 
@@ -164,6 +172,7 @@ class DeoptimizationLiteral {
     double number_;
     Float32 float32_;
     Float64 float64_;
+    int32_t int32_;
     int64_t int64_;
     uint64_t uint64_;
   };

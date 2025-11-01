@@ -72,8 +72,10 @@ class WasmSerializationTest {
   MaybeDirectHandle<WasmModuleObject> Deserialize(
       base::Vector<const char> source_url = {}) {
     return DeserializeNativeModule(
-        CcTest::i_isolate(), base::VectorOf(serialized_bytes_),
-        base::VectorOf(wire_bytes_), compile_imports_, source_url);
+        CcTest::i_isolate(),
+        WasmEnabledFeatures::FromIsolate(CcTest::i_isolate()),
+        base::VectorOf(serialized_bytes_), base::VectorOf(wire_bytes_),
+        compile_imports_, source_url);
   }
 
   void DeserializeAndRun() {
@@ -139,12 +141,11 @@ class WasmSerializationTest {
           v8::Context::New(serialization_v8_isolate);
       serialization_context->Enter();
 
-      auto enabled_features =
-          WasmEnabledFeatures::FromIsolate(serialization_isolate);
       MaybeDirectHandle<WasmModuleObject> maybe_module_object =
-          GetWasmEngine()->SyncCompile(serialization_isolate, enabled_features,
-                                       MakeCompileTimeImports(), &thrower,
-                                       base::OwnedCopyOf(buffer));
+          GetWasmEngine()->SyncCompile(
+              serialization_isolate,
+              WasmEnabledFeatures::FromIsolate(serialization_isolate),
+              MakeCompileTimeImports(), &thrower, base::OwnedCopyOf(buffer));
       DirectHandle<WasmModuleObject> module_object =
           maybe_module_object.ToHandleChecked();
       weak_native_module = module_object->shared_native_module();
@@ -296,11 +297,10 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
 
     Isolate* from_i_isolate = reinterpret_cast<Isolate*>(from_isolate);
     ErrorThrower thrower(from_i_isolate, "TestCompiledWasmModulesTransfer");
-    auto enabled_features = WasmEnabledFeatures::FromIsolate(from_i_isolate);
     MaybeDirectHandle<WasmModuleObject> maybe_module_object =
-        GetWasmEngine()->SyncCompile(from_i_isolate, enabled_features,
-                                     CompileTimeImports{}, &thrower,
-                                     base::OwnedCopyOf(buffer));
+        GetWasmEngine()->SyncCompile(
+            from_i_isolate, WasmEnabledFeatures::FromIsolate(from_i_isolate),
+            CompileTimeImports{}, &thrower, base::OwnedCopyOf(buffer));
     DirectHandle<WasmModuleObject> module_object =
         maybe_module_object.ToHandleChecked();
     v8::Local<v8::WasmModuleObject> v8_module =
@@ -371,9 +371,9 @@ TEST(SerializeLiftoffModuleFails) {
 
   ErrorThrower thrower(isolate, "Test");
   MaybeDirectHandle<WasmModuleObject> maybe_module_object =
-      GetWasmEngine()->SyncCompile(isolate, WasmEnabledFeatures::All(),
-                                   CompileTimeImports{}, &thrower,
-                                   base::OwnedCopyOf(wire_bytes_buffer));
+      GetWasmEngine()->SyncCompile(
+          isolate, WasmEnabledFeatures::FromIsolate(isolate),
+          CompileTimeImports{}, &thrower, base::OwnedCopyOf(wire_bytes_buffer));
   DirectHandle<WasmModuleObject> module_object =
       maybe_module_object.ToHandleChecked();
 
@@ -421,7 +421,7 @@ TEST(SerializeTieringBudget) {
   CompileTimeImports compile_imports = test.MakeCompileTimeImports();
   CHECK(
       DeserializeNativeModule(
-          isolate,
+          isolate, WasmEnabledFeatures::FromIsolate(isolate),
           base::VectorOf(serialized_bytes.buffer.get(), serialized_bytes.size),
           base::VectorOf(test.wire_bytes()), compile_imports, {})
           .ToHandle(&module_object));
@@ -521,7 +521,6 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
 
   // Compile the module and serialize it.
   // Keep a weak pointer so we can check that the original native module died.
-  auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   std::weak_ptr<NativeModule> weak_native_module;
   v8::OwnedBuffer serialized_module;
   CanonicalTypeIndex canonical_sig_id_before_serialization;
@@ -537,8 +536,10 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
 
       DirectHandle<WasmModuleObject> module_object =
           GetWasmEngine()
-              ->SyncCompile(i_isolate, enabled_features, CompileTimeImports{},
-                            &thrower, base::OwnedCopyOf(zone_buffer))
+              ->SyncCompile(i_isolate,
+                            WasmEnabledFeatures::FromIsolate(i_isolate),
+                            CompileTimeImports{}, &thrower,
+                            base::OwnedCopyOf(zone_buffer))
               .ToHandleChecked();
       weak_native_module = module_object->shared_native_module();
 
@@ -601,8 +602,8 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
     builder.WriteTo(&buffer);
     ErrorThrower thrower(i_isolate, "");
     GetWasmEngine()
-        ->SyncCompile(i_isolate, enabled_features, CompileTimeImports{},
-                      &thrower, base::OwnedCopyOf(buffer))
+        ->SyncCompile(i_isolate, WasmEnabledFeatures::FromIsolate(i_isolate),
+                      CompileTimeImports{}, &thrower, base::OwnedCopyOf(buffer))
         .ToHandleChecked();
   }
 
@@ -613,14 +614,14 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
     v8::Local<v8::Context> deserialization_context =
         v8::Context::New(CcTest::isolate());
     deserialization_context->Enter();
-    ErrorThrower thrower(CcTest::i_isolate(), "");
+    ErrorThrower thrower(i_isolate, "");
     base::Vector<const char> kNoSourceUrl;
     DirectHandle<WasmModuleObject> module_object =
-        DeserializeNativeModule(CcTest::i_isolate(),
-                                base::VectorOf(serialized_module.buffer.get(),
-                                               serialized_module.size),
-                                base::VectorOf(zone_buffer),
-                                CompileTimeImports{}, kNoSourceUrl)
+        DeserializeNativeModule(
+            i_isolate, WasmEnabledFeatures::FromIsolate(i_isolate),
+            base::VectorOf(serialized_module.buffer.get(),
+                           serialized_module.size),
+            base::VectorOf(zone_buffer), CompileTimeImports{}, kNoSourceUrl)
             .ToHandleChecked();
 
     // Check that the signature ID got canonicalized to index 1.
@@ -646,7 +647,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
     // Now call the function.
     DirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()
-            ->SyncInstantiate(CcTest::i_isolate(), &thrower, module_object,
+            ->SyncInstantiate(i_isolate, &thrower, module_object,
                               DirectHandle<JSReceiver>::null(),
                               MaybeDirectHandle<JSArrayBuffer>())
             .ToHandleChecked();
@@ -694,7 +695,6 @@ TEST(SerializeDetectedFeatures) {
 
   // Compile and initialize the module and serialize it.
   // Keep a weak pointer so we can check that the original native module died.
-  auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   std::weak_ptr<NativeModule> weak_native_module;
   v8::OwnedBuffer serialized_module;
   {
@@ -709,8 +709,9 @@ TEST(SerializeDetectedFeatures) {
 
       DirectHandle<WasmModuleObject> module_object =
           GetWasmEngine()
-              ->SyncCompile(i_isolate, enabled_features, CompileTimeImports{},
-                            &thrower, base::OwnedCopyOf(buffer))
+              ->SyncCompile(
+                  i_isolate, WasmEnabledFeatures::FromIsolate(i_isolate),
+                  CompileTimeImports{}, &thrower, base::OwnedCopyOf(buffer))
               .ToHandleChecked();
       // Check that "return_call" is in the set of detected features.
       CHECK_EQ(WasmDetectedFeatures{{WasmDetectedFeature::return_call}},
@@ -723,7 +724,7 @@ TEST(SerializeDetectedFeatures) {
       // which should not DCHECK because of a new detected feature.
       DirectHandle<WasmInstanceObject> instance =
           GetWasmEngine()
-              ->SyncInstantiate(CcTest::i_isolate(), &thrower, module_object,
+              ->SyncInstantiate(i_isolate, &thrower, module_object,
                                 DirectHandle<JSReceiver>::null(),
                                 MaybeDirectHandle<JSArrayBuffer>())
               .ToHandleChecked();
@@ -771,14 +772,14 @@ TEST(SerializeDetectedFeatures) {
     v8::Local<v8::Context> deserialization_context =
         v8::Context::New(CcTest::isolate());
     deserialization_context->Enter();
-    ErrorThrower thrower(CcTest::i_isolate(), "");
+    ErrorThrower thrower(i_isolate, "");
     base::Vector<const char> kNoSourceUrl;
     DirectHandle<WasmModuleObject> module_object =
-        DeserializeNativeModule(CcTest::i_isolate(),
-                                base::VectorOf(serialized_module.buffer.get(),
-                                               serialized_module.size),
-                                base::VectorOf(buffer), CompileTimeImports{},
-                                kNoSourceUrl)
+        DeserializeNativeModule(
+            i_isolate, WasmEnabledFeatures::FromIsolate(i_isolate),
+            base::VectorOf(serialized_module.buffer.get(),
+                           serialized_module.size),
+            base::VectorOf(buffer), CompileTimeImports{}, kNoSourceUrl)
             .ToHandleChecked();
 
     CHECK_EQ(WasmDetectedFeatures{{WasmDetectedFeature::return_call}},
@@ -790,7 +791,7 @@ TEST(SerializeDetectedFeatures) {
     // which should not DCHECK because of a new detected feature.
     DirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()
-            ->SyncInstantiate(CcTest::i_isolate(), &thrower, module_object,
+            ->SyncInstantiate(i_isolate, &thrower, module_object,
                               DirectHandle<JSReceiver>::null(),
                               MaybeDirectHandle<JSArrayBuffer>())
             .ToHandleChecked();

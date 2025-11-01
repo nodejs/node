@@ -137,14 +137,8 @@ class V8_EXPORT String : public Name {
   int Length() const;
 
   /**
-   * Returns the number of bytes in the UTF-8 encoded
-   * representation of this string.
-   */
-  V8_DEPRECATED("Use Utf8LengthV2 instead.")
-  int Utf8Length(Isolate* isolate) const;
-
-  /**
    * Returns the number of bytes needed for the Utf8 encoding of this string.
+   * TODO(http://crbug.com/373485796): rename back to Utf8Length().
    */
   size_t Utf8LengthV2(Isolate* isolate) const;
 
@@ -162,55 +156,6 @@ class V8_EXPORT String : public Name {
    * Will read the entire string in some cases.
    */
   bool ContainsOnlyOneByte() const;
-
-  /**
-   * Write the contents of the string to an external buffer.
-   * If no arguments are given, expects the buffer to be large
-   * enough to hold the entire string and NULL terminator. Copies
-   * the contents of the string and the NULL terminator into the
-   * buffer.
-   *
-   * WriteUtf8 will not write partial UTF-8 sequences, preferring to stop
-   * before the end of the buffer.
-   *
-   * Copies up to length characters into the output buffer.
-   * Only null-terminates if there is enough space in the buffer.
-   *
-   * \param buffer The buffer into which the string will be copied.
-   * \param start The starting position within the string at which
-   * copying begins.
-   * \param length The number of characters to copy from the string.  For
-   *    WriteUtf8 the number of bytes in the buffer.
-   * \param nchars_ref The number of characters written, can be NULL.
-   * \param options Various options that might affect performance of this or
-   *    subsequent operations.
-   * \return The number of characters copied to the buffer excluding the null
-   *    terminator.  For WriteUtf8: The number of bytes copied to the buffer
-   *    including the null terminator (if written).
-   */
-  enum WriteOptions {
-    NO_OPTIONS = 0,
-    HINT_MANY_WRITES_EXPECTED = 1,
-    NO_NULL_TERMINATION = 2,
-    PRESERVE_ONE_BYTE_NULL = 4,
-    // Used by WriteUtf8 to replace orphan surrogate code units with the
-    // unicode replacement character. Needs to be set to guarantee valid UTF-8
-    // output.
-    REPLACE_INVALID_UTF8 = 8
-  };
-
-  // 16-bit character codes.
-  V8_DEPRECATED("Use WriteV2 instead.")
-  int Write(Isolate* isolate, uint16_t* buffer, int start = 0, int length = -1,
-            int options = NO_OPTIONS) const;
-  // One byte characters.
-  V8_DEPRECATED("Use WriteOneByteV2 instead.")
-  int WriteOneByte(Isolate* isolate, uint8_t* buffer, int start = 0,
-                   int length = -1, int options = NO_OPTIONS) const;
-  // UTF-8 encoded characters.
-  V8_DEPRECATED("Use WriteUtf8V2 instead.")
-  int WriteUtf8(Isolate* isolate, char* buffer, int length = -1,
-                int* nchars_ref = nullptr, int options = NO_OPTIONS) const;
 
   struct WriteFlags {
     enum {
@@ -237,6 +182,8 @@ class V8_EXPORT String : public Name {
    * \param length The number of characters to copy from the string.
    * \param buffer The buffer into which the string will be copied.
    * \param flags Various flags that influence the behavior of this operation.
+   * TODO(http://crbug.com/373485796): rename back to Write() and
+   * WriteOneByte().
    */
   void WriteV2(Isolate* isolate, uint32_t offset, uint32_t length,
                uint16_t* buffer, int flags = WriteFlags::kNone) const;
@@ -261,6 +208,7 @@ class V8_EXPORT String : public Name {
    * the buffer.
    * \return The number of bytes copied to the buffer including the null
    * terminator (if written).
+   * TODO(http://crbug.com/373485796): rename back to WriteUtf8().
    */
   size_t WriteUtf8V2(Isolate* isolate, char* buffer, size_t capacity,
                      int flags = WriteFlags::kNone,

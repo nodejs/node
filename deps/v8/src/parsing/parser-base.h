@@ -4180,6 +4180,7 @@ ParserBase<Impl>::ParseImportExpressions() {
   // ImportCall[Yield, Await] :
   //   import ( AssignmentExpression[+In, ?Yield, ?Await] )
   //   import . source ( AssignmentExpression[+In, ?Yield, ?Await] )
+  //   import . defer ( AssignmentExpression[+In, ?Yield, ?Await] )
   //
   // ImportMeta : import . meta
 
@@ -4193,6 +4194,9 @@ ParserBase<Impl>::ParseImportExpressions() {
     if (v8_flags.js_source_phase_imports &&
         CheckContextualKeyword(ast_value_factory()->source_string())) {
       phase = ModuleImportPhase::kSource;
+    } else if (v8_flags.js_defer_import_eval &&
+               CheckContextualKeyword(ast_value_factory()->defer_string())) {
+      phase = ModuleImportPhase::kDefer;
     } else {
       ExpectContextualKeyword(ast_value_factory()->meta_string(), "import.meta",
                               pos);
@@ -4230,7 +4234,7 @@ ParserBase<Impl>::ParseImportExpressions() {
   // TODO(42204365): Enable import attributes with source phase import once
   // specified.
   if (v8_flags.harmony_import_attributes &&
-      phase == ModuleImportPhase::kEvaluation && Check(Token::kComma)) {
+      phase != ModuleImportPhase::kSource && Check(Token::kComma)) {
     if (Check(Token::kRightParen)) {
       // A trailing comma allowed after the specifier.
       return factory()->NewImportCallExpression(specifier, phase, pos);

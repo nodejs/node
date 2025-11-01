@@ -44,10 +44,6 @@ void cleanupExpiredWeakPointers(Map& map) {
   }
 }
 
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-START_ALLOW_USE_DEPRECATED()
-
 class MatchPrototypePredicate : public v8::QueryObjectPredicate {
  public:
   MatchPrototypePredicate(V8InspectorImpl* inspector,
@@ -64,9 +60,9 @@ class MatchPrototypePredicate : public v8::QueryObjectPredicate {
     if (objectContext != m_context) return false;
     if (!m_inspector->client()->isInspectableHeapObject(object)) return false;
     // Get prototype chain for current object until first visited prototype.
-    for (v8::Local<v8::Value> prototype = object->GetPrototype();
+    for (v8::Local<v8::Value> prototype = object->GetPrototypeV2();
          prototype->IsObject();
-         prototype = prototype.As<v8::Object>()->GetPrototype()) {
+         prototype = prototype.As<v8::Object>()->GetPrototypeV2()) {
       if (m_prototype == prototype) return true;
     }
     return false;
@@ -77,10 +73,6 @@ class MatchPrototypePredicate : public v8::QueryObjectPredicate {
   v8::Local<v8::Context> m_context;
   v8::Local<v8::Value> m_prototype;
 };
-
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-END_ALLOW_USE_DEPRECATED()
 
 }  // namespace
 

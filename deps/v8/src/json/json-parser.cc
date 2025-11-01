@@ -143,7 +143,8 @@ static const constexpr uint8_t character_json_scan_flags[256] = {
 
 MaybeHandle<Object> JsonParseInternalizer::Internalize(
     Isolate* isolate, DirectHandle<Object> result, Handle<Object> reviver,
-    Handle<String> source, MaybeHandle<Object> val_node) {
+    Handle<String> source, MaybeHandle<Object> val_node,
+    bool pass_context_argument) {
   DCHECK(IsCallable(*reviver));
   JsonParseInternalizer internalizer(isolate, Cast<JSReceiver>(reviver),
                                      source);
@@ -151,30 +152,44 @@ MaybeHandle<Object> JsonParseInternalizer::Internalize(
       isolate->factory()->NewJSObject(isolate->object_function());
   DirectHandle<String> name = isolate->factory()->empty_string();
   JSObject::AddProperty(isolate, holder, name, result, NONE);
-  return internalizer.InternalizeJsonProperty<kWithSource>(
-      holder, name, val_node.ToHandleChecked(), result);
+  if (pass_context_argument) {
+    // Three-argument reviver, so we add a context argument to each
+    // callback to the reviver, and that context object will normally
+    // have a source property.
+    return internalizer.InternalizeJsonProperty<kWithSource>(holder, name,
+                                                             val_node, result);
+  } else {
+    // Faster two-argument reviver.
+    return internalizer.InternalizeJsonProperty<kWithoutContext>(
+        holder, name, val_node, DirectHandle<Object>());
+  }
 }
 
-template <JsonParseInternalizer::WithOrWithoutSource with_source>
+template <JsonParseInternalizer::ReviverMode initial_reviver_mode>
 MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
     DirectHandle<JSReceiver> holder, DirectHandle<String> name,
-    Handle<Object> val_node, DirectHandle<Object> snapshot) {
-  DCHECK_EQ(with_source == kWithSource,
-            !val_node.is_null() && !snapshot.is_null());
+    MaybeHandle<Object> val_node, DirectHandle<Object> snapshot) {
+  DCHECK_EQ(val_node.is_null(), snapshot.is_null());
+  DCHECK_NE(initial_reviver_mode == kWithSource, val_node.is_null());
   DCHECK(IsCallable(*reviver_));
   HandleScope outer_scope(isolate_);
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate_, value, Object::GetPropertyOrElement(isolate_, holder, name));
 
-  // When with_source == kWithSource, the source text is passed to the reviver
-  // if the reviver has not mucked with the originally parsed value.
-  //
-  // When with_source == kWithoutSource, this is unused.
-  bool pass_source_to_reviver =
-      with_source == kWithSource && Object::SameValue(*value, *snapshot);
+  // When reviver_mode == kWithSource, the source text is passed
+  // to the reviver if the reviver has not mucked with the originally parsed
+  // value.
+  ReviverMode reviver_mode;
+  if (initial_reviver_mode == kWithSource &&
+      !Object::SameValue(*value, *snapshot)) {
+    reviver_mode = NoSource(initial_reviver_mode);
+  } else {
+    reviver_mode = initial_reviver_mode;
+  }
 
   if (IsJSReceiver(*value)) {
+    // Value is non-primitive, so we may have to recurse deeper.
     Handle<JSReceiver> object = Cast<JSReceiver>(value);
     Maybe<bool> is_array = Object::IsArray(object);
     if (is_array.IsNothing()) return MaybeHandle<Object>();
@@ -184,8 +199,9 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
           isolate_, length_object,
           Object::GetLengthFromArrayLike(isolate_, object));
       double length = Object::NumberValue(*length_object);
-      if (pass_source_to_reviver) {
-        auto val_nodes_and_snapshots = Cast<FixedArray>(val_node);
+      if (reviver_mode == kWithSource) {
+        auto val_nodes_and_snapshots =
+            Cast<FixedArray>(val_node.ToHandleChecked());
         int snapshot_length = val_nodes_and_snapshots->length() / 2;
         for (int i = 0; i < length; i++) {
           HandleScope inner_scope(isolate_);
@@ -209,26 +225,30 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
           }
         }
       } else {
+        DCHECK(reviver_mode == kWithoutSource ||
+               reviver_mode == kWithoutContext);
         for (int i = 0; i < length; i++) {
           HandleScope inner_scope(isolate_);
           DirectHandle<Object> index = isolate_->factory()->NewNumber(i);
           Handle<String> index_name =
               isolate_->factory()->NumberToString(index);
-          if (!RecurseAndApply<kWithoutSource>(
+          if (!RecurseAndApply<NoSource(initial_reviver_mode)>(
                   object, index_name, Handle<Object>(), Handle<Object>())) {
             return MaybeHandle<Object>();
           }
         }
       }
     } else {
+      DCHECK(!is_array.FromJust());  // It's a non-primitive, non-array.
       DirectHandle<FixedArray> contents;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate_, contents,
           KeyAccumulator::GetKeys(isolate_, object, KeyCollectionMode::kOwnOnly,
                                   ENUMERABLE_STRINGS,
                                   GetKeysConversion::kConvertToString));
-      if (pass_source_to_reviver) {
-        auto val_nodes_and_snapshots = Cast<ObjectTwoHashTable>(val_node);
+      if (reviver_mode == kWithSource) {
+        auto val_nodes_and_snapshots =
+            Cast<ObjectTwoHashTable>(val_node.ToHandleChecked());
         for (int i = 0; i < contents->length(); i++) {
           HandleScope inner_scope(isolate_);
           Handle<String> key_name(Cast<String>(contents->get(i)), isolate_);
@@ -252,10 +272,12 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
           }
         }
       } else {
+        DCHECK(reviver_mode == kWithoutSource ||
+               reviver_mode == kWithoutContext);
         for (int i = 0; i < contents->length(); i++) {
           HandleScope inner_scope(isolate_);
           Handle<String> key_name(Cast<String>(contents->get(i)), isolate_);
-          if (!RecurseAndApply<kWithoutSource>(
+          if (!RecurseAndApply<NoSource(initial_reviver_mode)>(
                   object, key_name, Handle<Object>(), Handle<Object>())) {
             return MaybeHandle<Object>();
           }
@@ -263,14 +285,27 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       }
     }
   }
+  // Done recursing.
+
+  if (reviver_mode == kWithoutContext) {
+    DirectHandle<Object> args[] = {name, value};
+    Handle<Object> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate_, result,
+        Execution::Call(isolate_, reviver_, holder, base::VectorOf(args)));
+    return outer_scope.CloseAndEscape(result);
+  }
 
   DirectHandle<JSObject> context =
       isolate_->factory()->NewJSObject(isolate_->object_function());
-  if (pass_source_to_reviver && IsString(*val_node)) {
-    JSReceiver::CreateDataProperty(isolate_, context,
-                                   isolate_->factory()->source_string(),
-                                   val_node, Just(kThrowOnError))
-        .Check();
+  if (reviver_mode == kWithSource) {
+    auto val = val_node.ToHandleChecked();
+    if (IsString(*val)) {
+      JSReceiver::CreateDataProperty(isolate_, context,
+                                     isolate_->factory()->source_string(), val,
+                                     Just(kThrowOnError))
+          .Check();
+    }
   }
   DirectHandle<Object> args[] = {name, value, context};
   Handle<Object> result;
@@ -280,7 +315,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
   return outer_scope.CloseAndEscape(result);
 }
 
-template <JsonParseInternalizer::WithOrWithoutSource with_source>
+template <JsonParseInternalizer::ReviverMode reviver_mode>
 bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
                                             Handle<String> name,
                                             Handle<Object> val_node,
@@ -290,7 +325,7 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
   DirectHandle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate_, result,
-      InternalizeJsonProperty<with_source>(holder, name, val_node, snapshot),
+      InternalizeJsonProperty<reviver_mode>(holder, name, val_node, snapshot),
       false);
   Maybe<bool> change_result = Nothing<bool>();
   if (IsUndefined(*result, isolate_)) {
@@ -315,7 +350,8 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source,
     : isolate_(isolate),
       object_constructor_(isolate_->object_function()),
       original_source_(source),
-      script_details_(script_details) {
+      script_details_(script_details),
+      parsed_val_node_() {
   size_t start = 0;
   size_t length = source->length();
   PtrComprCageBase cage_base(isolate);
@@ -549,11 +585,8 @@ JsonParser<Char>::~JsonParser() {
 }
 
 template <typename Char>
-MaybeHandle<Object> JsonParser<Char>::ParseJson(DirectHandle<Object> reviver) {
+MaybeHandle<Object> JsonParser<Char>::ParseJson(bool should_track_json_source) {
   Handle<Object> result;
-  // Only record the val node when reviver is callable.
-  bool reviver_is_callable = IsCallable(*reviver);
-  bool should_track_json_source = reviver_is_callable;
   if (V8_UNLIKELY(should_track_json_source)) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, ParseJsonValue<true>());
   } else {
@@ -958,7 +991,6 @@ class JSDataObjectBuilder {
     Tagged<DescriptorArray> descriptors =
         raw_object->map()->instance_descriptors();
 
-    WriteBarrierModeScope mode = raw_object->GetWriteBarrierMode(no_gc);
     FoldedMutableHeapNumberAllocator hn_allocator(isolate_, &hn_allocation,
                                                   no_gc);
 
@@ -989,7 +1021,10 @@ class JSDataObjectBuilder {
                 object->map()->GetInObjectPropertyOffset(i));
       FieldIndex index = FieldIndex::ForInObjectOffset(current_property_offset,
                                                        FieldIndex::kTagged);
-      raw_object->RawFastInobjectPropertyAtPut(index, value, *mode);
+      // Object is the most recent young allocation, so no write barrier
+      // required.
+      raw_object->RawFastInobjectPropertyAtPut(index, value,
+                                               SKIP_WRITE_BARRIER);
       current_property_offset += kTaggedSize;
     }
     DCHECK_EQ(current_property_offset, object->map()->GetInObjectPropertyOffset(
@@ -1340,18 +1375,19 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
       elements_kind = DICTIONARY_ELEMENTS;
       elements = elms;
     } else {
-      Handle<FixedArray> elms =
-          factory()->NewFixedArrayWithHoles(cont.max_index + 1);
+      Handle<FixedArray> elms = factory()->NewFixedArrayWithHoles(
+          cont.max_index + 1, AllocationType::kYoung);
       DisallowGarbageCollection no_gc;
       Tagged<FixedArray> raw_elements = *elms;
-      WriteBarrierModeScope mode = raw_elements->GetWriteBarrierMode(no_gc);
 
       for (int i = 0; i < length; i++) {
         const JsonProperty& property = property_stack_[start + i];
         if (!property.string.is_index()) continue;
         uint32_t index = property.string.index();
         DirectHandle<Object> value = property.value;
-        raw_elements->set(static_cast<int>(index), *value, *mode);
+        // FixedArray is the most recent young allocation, so no write barrier
+        // required.
+        raw_elements->set(static_cast<int>(index), *value, SKIP_WRITE_BARRIER);
       }
       elements = elms;
     }
@@ -1392,25 +1428,19 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(size_t start) {
     }
   }
 
-  Handle<JSArray> array = factory()->NewJSArray(kind, length, length);
-  if (kind == PACKED_DOUBLE_ELEMENTS) {
-    DisallowGarbageCollection no_gc;
-    Tagged<FixedDoubleArray> elements =
-        Cast<FixedDoubleArray>(array->elements());
-    for (int i = 0; i < length; i++) {
-      elements->set(i, Object::NumberValue(*element_stack_[start + i]));
-    }
-  } else {
-    DisallowGarbageCollection no_gc;
-    Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
-    WriteBarrierModeScope mode = kind == PACKED_SMI_ELEMENTS
-                                     ? WriteBarrierModeScope(SKIP_WRITE_BARRIER)
-                                     : elements->GetWriteBarrierMode(no_gc);
-    for (int i = 0; i < length; i++) {
-      elements->set(i, *element_stack_[start + i], *mode);
-    }
-  }
-  return array;
+  HandleScope inner_scope(isolate());
+  Handle<FixedArrayBase> elements =
+      (kind == PACKED_DOUBLE_ELEMENTS)
+          ? FixedDoubleArray::New(
+                isolate(), length,
+                [this, start](int i) {
+                  return Object::NumberValue(*element_stack_[start + i]);
+                })
+          : FixedArray::New(isolate(), length, [this, start](int i) {
+              return *element_stack_[start + i];
+            });
+  return inner_scope.CloseAndEscape(
+      factory()->NewJSArrayWithElements(elements, kind, length));
 }
 
 // Parse rawJSON value.
@@ -1904,11 +1934,9 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
   Handle<Object> val_node;
   // Record the start position and end position for the primitive values.
   uint32_t start_position;
-  uint32_t end_position;
 
   // Workaround for -Wunused-but-set-variable on old gcc versions (version < 8).
   USE(start_position);
-  USE(end_position);
 
   // element_val_node_stack is used to track all the elements's
   // parse nodes. And we use this to construct the JSArray's
@@ -1937,7 +1965,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           Consume(JsonToken::STRING);
           value = MakeString(ScanJsonString(false));
           if constexpr (should_track_json_source) {
-            end_position = position();
+            uint32_t end_position = position();
             val_node = isolate_->factory()->NewSubString(
                 source_, start_position, end_position);
           }
@@ -1946,7 +1974,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
         case JsonToken::NUMBER:
           value = ParseJsonNumber();
           if constexpr (should_track_json_source) {
-            end_position = position();
+            uint32_t end_position = position();
             val_node = isolate_->factory()->NewSubString(
                 source_, start_position, end_position);
           }
@@ -2559,6 +2587,42 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
   }
 
   return JsonString();
+}
+
+template <typename Char>
+MaybeHandle<Object> JsonParser<Char>::Parse(
+    Isolate* isolate, Handle<String> source, Handle<Object> reviver,
+    std::optional<ScriptDetails> script_details) {
+  HighAllocationThroughputScope high_throughput_scope(V8::GetCurrentPlatform());
+  bool collect_source_strings = IsCallable(*reviver);
+  if (IsJSFunction(*reviver)) {
+    Handle<SharedFunctionInfo> reviver_sfi(Cast<JSFunction>(*reviver)->shared(),
+                                           isolate);
+    if (reviver_sfi->CanOnlyAccessFixedFormalParameters() &&
+        reviver_sfi->internal_formal_parameter_count_without_receiver() < 3) {
+      // The reviver function has only one or two arguments, so we don't need
+      // to collect the information on the source for each primitive value.
+      //
+      // Note that on the first run, we don't get here because the optimizers
+      // have not set enough information on the shared function info.  So we
+      // will do the slow JSON parsing initially until the compiler has
+      // optimized more.
+      collect_source_strings = false;
+    }
+  }
+  Handle<Object> result;
+  MaybeHandle<Object> val_node;
+  {
+    JsonParser parser(isolate, source, script_details);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                               parser.ParseJson(collect_source_strings));
+    val_node = parser.parsed_val_node_;
+  }
+  if (IsCallable(*reviver)) {
+    return JsonParseInternalizer::Internalize(isolate, result, reviver, source,
+                                              val_node, collect_source_strings);
+  }
+  return result;
 }
 
 // Explicit instantiation.

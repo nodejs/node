@@ -78,8 +78,7 @@ TEST(CivilTime, FieldsConstruction) {
             absl::FormatCivilTime(absl::CivilMinute(2015, 1, 2)));
   EXPECT_EQ("2015-01-01T00:00",
             absl::FormatCivilTime(absl::CivilMinute(2015, 1)));
-  EXPECT_EQ("2015-01-01T00:00",
-            absl::FormatCivilTime(absl::CivilMinute(2015)));
+  EXPECT_EQ("2015-01-01T00:00", absl::FormatCivilTime(absl::CivilMinute(2015)));
 
   EXPECT_EQ("2015-01-02T03",
             absl::FormatCivilTime(absl::CivilHour(2015, 1, 2, 3, 4, 5)));
@@ -89,82 +88,63 @@ TEST(CivilTime, FieldsConstruction) {
             absl::FormatCivilTime(absl::CivilHour(2015, 1, 2, 3)));
   EXPECT_EQ("2015-01-02T00",
             absl::FormatCivilTime(absl::CivilHour(2015, 1, 2)));
-  EXPECT_EQ("2015-01-01T00",
-            absl::FormatCivilTime(absl::CivilHour(2015, 1)));
-  EXPECT_EQ("2015-01-01T00",
-            absl::FormatCivilTime(absl::CivilHour(2015)));
+  EXPECT_EQ("2015-01-01T00", absl::FormatCivilTime(absl::CivilHour(2015, 1)));
+  EXPECT_EQ("2015-01-01T00", absl::FormatCivilTime(absl::CivilHour(2015)));
 
   EXPECT_EQ("2015-01-02",
             absl::FormatCivilTime(absl::CivilDay(2015, 1, 2, 3, 4, 5)));
   EXPECT_EQ("2015-01-02",
             absl::FormatCivilTime(absl::CivilDay(2015, 1, 2, 3, 4)));
-  EXPECT_EQ("2015-01-02",
-            absl::FormatCivilTime(absl::CivilDay(2015, 1, 2, 3)));
-  EXPECT_EQ("2015-01-02",
-            absl::FormatCivilTime(absl::CivilDay(2015, 1, 2)));
-  EXPECT_EQ("2015-01-01",
-            absl::FormatCivilTime(absl::CivilDay(2015, 1)));
-  EXPECT_EQ("2015-01-01",
-            absl::FormatCivilTime(absl::CivilDay(2015)));
+  EXPECT_EQ("2015-01-02", absl::FormatCivilTime(absl::CivilDay(2015, 1, 2, 3)));
+  EXPECT_EQ("2015-01-02", absl::FormatCivilTime(absl::CivilDay(2015, 1, 2)));
+  EXPECT_EQ("2015-01-01", absl::FormatCivilTime(absl::CivilDay(2015, 1)));
+  EXPECT_EQ("2015-01-01", absl::FormatCivilTime(absl::CivilDay(2015)));
 
   EXPECT_EQ("2015-01",
             absl::FormatCivilTime(absl::CivilMonth(2015, 1, 2, 3, 4, 5)));
   EXPECT_EQ("2015-01",
             absl::FormatCivilTime(absl::CivilMonth(2015, 1, 2, 3, 4)));
-  EXPECT_EQ("2015-01",
-            absl::FormatCivilTime(absl::CivilMonth(2015, 1, 2, 3)));
-  EXPECT_EQ("2015-01",
-            absl::FormatCivilTime(absl::CivilMonth(2015, 1, 2)));
-  EXPECT_EQ("2015-01",
-            absl::FormatCivilTime(absl::CivilMonth(2015, 1)));
-  EXPECT_EQ("2015-01",
-            absl::FormatCivilTime(absl::CivilMonth(2015)));
+  EXPECT_EQ("2015-01", absl::FormatCivilTime(absl::CivilMonth(2015, 1, 2, 3)));
+  EXPECT_EQ("2015-01", absl::FormatCivilTime(absl::CivilMonth(2015, 1, 2)));
+  EXPECT_EQ("2015-01", absl::FormatCivilTime(absl::CivilMonth(2015, 1)));
+  EXPECT_EQ("2015-01", absl::FormatCivilTime(absl::CivilMonth(2015)));
 
   EXPECT_EQ("2015",
             absl::FormatCivilTime(absl::CivilYear(2015, 1, 2, 3, 4, 5)));
-  EXPECT_EQ("2015",
-            absl::FormatCivilTime(absl::CivilYear(2015, 1, 2, 3, 4)));
-  EXPECT_EQ("2015",
-            absl::FormatCivilTime(absl::CivilYear(2015, 1, 2, 3)));
-  EXPECT_EQ("2015",
-            absl::FormatCivilTime(absl::CivilYear(2015, 1, 2)));
-  EXPECT_EQ("2015",
-            absl::FormatCivilTime(absl::CivilYear(2015, 1)));
-  EXPECT_EQ("2015",
-            absl::FormatCivilTime(absl::CivilYear(2015)));
+  EXPECT_EQ("2015", absl::FormatCivilTime(absl::CivilYear(2015, 1, 2, 3, 4)));
+  EXPECT_EQ("2015", absl::FormatCivilTime(absl::CivilYear(2015, 1, 2, 3)));
+  EXPECT_EQ("2015", absl::FormatCivilTime(absl::CivilYear(2015, 1, 2)));
+  EXPECT_EQ("2015", absl::FormatCivilTime(absl::CivilYear(2015, 1)));
+  EXPECT_EQ("2015", absl::FormatCivilTime(absl::CivilYear(2015)));
 }
 
 TEST(CivilTime, FieldsConstructionLimits) {
   const int kIntMax = std::numeric_limits<int>::max();
-  EXPECT_EQ("2038-01-19T03:14:07",
-            absl::FormatCivilTime(absl::CivilSecond(
-                1970, 1, 1, 0, 0, kIntMax)));
-  EXPECT_EQ("6121-02-11T05:21:07",
-            absl::FormatCivilTime(absl::CivilSecond(
-                1970, 1, 1, 0, kIntMax, kIntMax)));
+  EXPECT_EQ("2038-01-19T03:14:07", absl::FormatCivilTime(absl::CivilSecond(
+                                       1970, 1, 1, 0, 0, kIntMax)));
+  EXPECT_EQ("6121-02-11T05:21:07", absl::FormatCivilTime(absl::CivilSecond(
+                                       1970, 1, 1, 0, kIntMax, kIntMax)));
   EXPECT_EQ("251104-11-20T12:21:07",
-            absl::FormatCivilTime(absl::CivilSecond(
-                1970, 1, 1, kIntMax, kIntMax, kIntMax)));
+            absl::FormatCivilTime(
+                absl::CivilSecond(1970, 1, 1, kIntMax, kIntMax, kIntMax)));
   EXPECT_EQ("6130715-05-30T12:21:07",
-            absl::FormatCivilTime(absl::CivilSecond(
-                1970, 1, kIntMax, kIntMax, kIntMax, kIntMax)));
+            absl::FormatCivilTime(absl::CivilSecond(1970, 1, kIntMax, kIntMax,
+                                                    kIntMax, kIntMax)));
   EXPECT_EQ("185087685-11-26T12:21:07",
             absl::FormatCivilTime(absl::CivilSecond(
                 1970, kIntMax, kIntMax, kIntMax, kIntMax, kIntMax)));
 
   const int kIntMin = std::numeric_limits<int>::min();
-  EXPECT_EQ("1901-12-13T20:45:52",
-            absl::FormatCivilTime(absl::CivilSecond(
-                1970, 1, 1, 0, 0, kIntMin)));
-  EXPECT_EQ("-2182-11-20T18:37:52",
-            absl::FormatCivilTime(absl::CivilSecond(
-                1970, 1, 1, 0, kIntMin, kIntMin)));
+  EXPECT_EQ("1901-12-13T20:45:52", absl::FormatCivilTime(absl::CivilSecond(
+                                       1970, 1, 1, 0, 0, kIntMin)));
+  EXPECT_EQ("-2182-11-20T18:37:52", absl::FormatCivilTime(absl::CivilSecond(
+                                        1970, 1, 1, 0, kIntMin, kIntMin)));
   EXPECT_EQ("-247165-02-11T10:37:52",
-            absl::FormatCivilTime(absl::CivilSecond(
-                1970, 1, 1, kIntMin, kIntMin, kIntMin)));
+            absl::FormatCivilTime(
+                absl::CivilSecond(1970, 1, 1, kIntMin, kIntMin, kIntMin)));
   EXPECT_EQ("-6126776-08-01T10:37:52",
-            absl::FormatCivilTime(absl::CivilSecond(
-                1970, 1, kIntMin, kIntMin, kIntMin, kIntMin)));
+            absl::FormatCivilTime(absl::CivilSecond(1970, 1, kIntMin, kIntMin,
+                                                    kIntMin, kIntMin)));
   EXPECT_EQ("-185083747-10-31T10:37:52",
             absl::FormatCivilTime(absl::CivilSecond(
                 1970, kIntMin, kIntMin, kIntMin, kIntMin, kIntMin)));
@@ -173,14 +153,10 @@ TEST(CivilTime, FieldsConstructionLimits) {
 TEST(CivilTime, RangeLimits) {
   const absl::civil_year_t kYearMax =
       std::numeric_limits<absl::civil_year_t>::max();
-  EXPECT_EQ(absl::CivilYear(kYearMax),
-            absl::CivilYear::max());
-  EXPECT_EQ(absl::CivilMonth(kYearMax, 12),
-            absl::CivilMonth::max());
-  EXPECT_EQ(absl::CivilDay(kYearMax, 12, 31),
-            absl::CivilDay::max());
-  EXPECT_EQ(absl::CivilHour(kYearMax, 12, 31, 23),
-            absl::CivilHour::max());
+  EXPECT_EQ(absl::CivilYear(kYearMax), absl::CivilYear::max());
+  EXPECT_EQ(absl::CivilMonth(kYearMax, 12), absl::CivilMonth::max());
+  EXPECT_EQ(absl::CivilDay(kYearMax, 12, 31), absl::CivilDay::max());
+  EXPECT_EQ(absl::CivilHour(kYearMax, 12, 31, 23), absl::CivilHour::max());
   EXPECT_EQ(absl::CivilMinute(kYearMax, 12, 31, 23, 59),
             absl::CivilMinute::max());
   EXPECT_EQ(absl::CivilSecond(kYearMax, 12, 31, 23, 59, 59),
@@ -188,16 +164,11 @@ TEST(CivilTime, RangeLimits) {
 
   const absl::civil_year_t kYearMin =
       std::numeric_limits<absl::civil_year_t>::min();
-  EXPECT_EQ(absl::CivilYear(kYearMin),
-            absl::CivilYear::min());
-  EXPECT_EQ(absl::CivilMonth(kYearMin, 1),
-            absl::CivilMonth::min());
-  EXPECT_EQ(absl::CivilDay(kYearMin, 1, 1),
-            absl::CivilDay::min());
-  EXPECT_EQ(absl::CivilHour(kYearMin, 1, 1, 0),
-            absl::CivilHour::min());
-  EXPECT_EQ(absl::CivilMinute(kYearMin, 1, 1, 0, 0),
-            absl::CivilMinute::min());
+  EXPECT_EQ(absl::CivilYear(kYearMin), absl::CivilYear::min());
+  EXPECT_EQ(absl::CivilMonth(kYearMin, 1), absl::CivilMonth::min());
+  EXPECT_EQ(absl::CivilDay(kYearMin, 1, 1), absl::CivilDay::min());
+  EXPECT_EQ(absl::CivilHour(kYearMin, 1, 1, 0), absl::CivilHour::min());
+  EXPECT_EQ(absl::CivilMinute(kYearMin, 1, 1, 0, 0), absl::CivilMinute::min());
   EXPECT_EQ(absl::CivilSecond(kYearMin, 1, 1, 0, 0, 0),
             absl::CivilSecond::min());
 }
@@ -250,8 +221,7 @@ TEST(CivilTime, ImplicitCrossAlignment) {
       (std::is_convertible<absl::CivilSecond, absl::CivilMinute>::value));
   EXPECT_FALSE(
       (std::is_convertible<absl::CivilSecond, absl::CivilHour>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilSecond, absl::CivilDay>::value));
+  EXPECT_FALSE((std::is_convertible<absl::CivilSecond, absl::CivilDay>::value));
   EXPECT_FALSE(
       (std::is_convertible<absl::CivilSecond, absl::CivilMonth>::value));
   EXPECT_FALSE(
@@ -259,27 +229,20 @@ TEST(CivilTime, ImplicitCrossAlignment) {
 
   EXPECT_FALSE(
       (std::is_convertible<absl::CivilMinute, absl::CivilHour>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilMinute, absl::CivilDay>::value));
+  EXPECT_FALSE((std::is_convertible<absl::CivilMinute, absl::CivilDay>::value));
   EXPECT_FALSE(
       (std::is_convertible<absl::CivilMinute, absl::CivilMonth>::value));
   EXPECT_FALSE(
       (std::is_convertible<absl::CivilMinute, absl::CivilYear>::value));
 
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilHour, absl::CivilDay>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilHour, absl::CivilMonth>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilHour, absl::CivilYear>::value));
+  EXPECT_FALSE((std::is_convertible<absl::CivilHour, absl::CivilDay>::value));
+  EXPECT_FALSE((std::is_convertible<absl::CivilHour, absl::CivilMonth>::value));
+  EXPECT_FALSE((std::is_convertible<absl::CivilHour, absl::CivilYear>::value));
 
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilDay, absl::CivilMonth>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilDay, absl::CivilYear>::value));
+  EXPECT_FALSE((std::is_convertible<absl::CivilDay, absl::CivilMonth>::value));
+  EXPECT_FALSE((std::is_convertible<absl::CivilDay, absl::CivilYear>::value));
 
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilMonth, absl::CivilYear>::value));
+  EXPECT_FALSE((std::is_convertible<absl::CivilMonth, absl::CivilYear>::value));
 }
 
 TEST(CivilTime, ExplicitCrossAlignment) {
@@ -417,8 +380,7 @@ TEST(CivilTime, Relational) {
   // Tests the relational operators of two different civil-time types.
   TEST_RELATIONAL(absl::CivilDay(2014, 1, 1),
                   absl::CivilMinute(2014, 1, 1, 1, 1));
-  TEST_RELATIONAL(absl::CivilDay(2014, 1, 1),
-                  absl::CivilMonth(2014, 2));
+  TEST_RELATIONAL(absl::CivilDay(2014, 1, 1), absl::CivilMonth(2014, 2));
 
 #undef TEST_RELATIONAL
 }
@@ -812,8 +774,7 @@ TEST(CivilTime, ParseEdgeCases) {
   EXPECT_EQ("-9223372036854775808-01-01T00:00", absl::FormatCivilTime(mm));
 
   absl::CivilHour hh;
-  EXPECT_TRUE(
-      absl::ParseLenientCivilTime("9223372036854775807-12-31T23", &hh));
+  EXPECT_TRUE(absl::ParseLenientCivilTime("9223372036854775807-12-31T23", &hh));
   EXPECT_EQ("9223372036854775807-12-31T23", absl::FormatCivilTime(hh));
   EXPECT_TRUE(
       absl::ParseLenientCivilTime("-9223372036854775808-01-01T00", &hh));
@@ -1181,19 +1142,13 @@ TEST(CivilTime, LeapYears) {
       int day;
     } leap_day;  // The date of the day after Feb 28.
   } kLeapYearTable[]{
-      {1900, 365, {3, 1}},
-      {1999, 365, {3, 1}},
+      {1900, 365, {3, 1}},  {1999, 365, {3, 1}},
       {2000, 366, {2, 29}},  // leap year
-      {2001, 365, {3, 1}},
-      {2002, 365, {3, 1}},
-      {2003, 365, {3, 1}},
-      {2004, 366, {2, 29}},  // leap year
-      {2005, 365, {3, 1}},
-      {2006, 365, {3, 1}},
-      {2007, 365, {3, 1}},
-      {2008, 366, {2, 29}},  // leap year
-      {2009, 365, {3, 1}},
-      {2100, 365, {3, 1}},
+      {2001, 365, {3, 1}},  {2002, 365, {3, 1}},
+      {2003, 365, {3, 1}},  {2004, 366, {2, 29}},  // leap year
+      {2005, 365, {3, 1}},  {2006, 365, {3, 1}},
+      {2007, 365, {3, 1}},  {2008, 366, {2, 29}},  // leap year
+      {2009, 365, {3, 1}},  {2100, 365, {3, 1}},
   };
 
   for (int i = 0; i < ABSL_ARRAYSIZE(kLeapYearTable); ++i) {
@@ -1223,7 +1178,7 @@ TEST(CivilTime, FirstThursdayInMonth) {
 
   // Bonus: Date of Thanksgiving in the United States
   // Rule: Fourth Thursday of November
-  const absl::CivilDay thanksgiving = thursday +  7 * 3;
+  const absl::CivilDay thanksgiving = thursday + 7 * 3;
   EXPECT_EQ("2014-11-27", absl::FormatCivilTime(thanksgiving));
 }
 

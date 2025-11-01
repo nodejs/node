@@ -81,7 +81,7 @@ bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
     DirectHandle<Cell> cell = isolate->factory()->NewCell();
     DirectHandle<String> name(Cast<String>(export_names->get(i)), isolate);
     CHECK(IsTheHole(exports->Lookup(name), isolate));
-    exports = ObjectHashTable::Put(exports, name, cell);
+    exports = ObjectHashTable::Put(isolate, exports, name, cell);
   }
   module->set_exports(*exports);
   return true;

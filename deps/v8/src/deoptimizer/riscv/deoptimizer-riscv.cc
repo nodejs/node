@@ -8,8 +8,8 @@
 namespace v8 {
 namespace internal {
 
-const int Deoptimizer::kEagerDeoptExitSize = 2 * kInstrSize;
-const int Deoptimizer::kLazyDeoptExitSize = 2 * kInstrSize;
+const int Deoptimizer::kEagerDeoptExitSize = 1 * kInstrSize;
+const int Deoptimizer::kLazyDeoptExitSize = 1 * kInstrSize;
 
 const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
 

@@ -732,7 +732,6 @@ bool ParseDuration(absl::string_view dur_string, Duration* d);
 // `absl::ParseDuration()`.
 bool AbslParseFlag(absl::string_view text, Duration* dst, std::string* error);
 
-
 // AbslUnparseFlag()
 //
 // Unparses a Duration value into a command-line string representation using
@@ -1681,14 +1680,16 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration FromInt64(int64_t v,
   return (v <= (std::numeric_limits<int64_t>::max)() / 60 &&
           v >= (std::numeric_limits<int64_t>::min)() / 60)
              ? MakeDuration(v * 60)
-             : v > 0 ? InfiniteDuration() : -InfiniteDuration();
+         : v > 0 ? InfiniteDuration()
+                 : -InfiniteDuration();
 }
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration FromInt64(int64_t v,
                                                            std::ratio<3600>) {
   return (v <= (std::numeric_limits<int64_t>::max)() / 3600 &&
           v >= (std::numeric_limits<int64_t>::min)() / 3600)
              ? MakeDuration(v * 3600)
-             : v > 0 ? InfiniteDuration() : -InfiniteDuration();
+         : v > 0 ? InfiniteDuration()
+                 : -InfiniteDuration();
 }
 
 // IsValidRep64<T>(0) is true if the expression `int64_t{std::declval<T>()}` is
@@ -1806,13 +1807,12 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration operator-(Duration d) {
                        (std::numeric_limits<int64_t>::min)()
                    ? InfiniteDuration()
                    : time_internal::MakeDuration(-time_internal::GetRepHi(d))
-             : time_internal::IsInfiniteDuration(d)
-                   ? time_internal::OppositeInfinity(d)
-                   : time_internal::MakeDuration(
-                         time_internal::NegateAndSubtractOne(
-                             time_internal::GetRepHi(d)),
-                         time_internal::kTicksPerSecond -
-                             time_internal::GetRepLo(d));
+         : time_internal::IsInfiniteDuration(d)
+             ? time_internal::OppositeInfinity(d)
+             : time_internal::MakeDuration(
+                   time_internal::NegateAndSubtractOne(
+                       time_internal::GetRepHi(d)),
+                   time_internal::kTicksPerSecond - time_internal::GetRepLo(d));
 }
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration InfiniteDuration() {

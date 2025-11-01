@@ -253,8 +253,8 @@ class KeyedLoadIC : public LoadIC {
       DirectHandle<Map> receiver_map, KeyedAccessLoadMode new_load_mode,
       MaybeDirectHandle<Map> maybe_transition_target = {});
 
-  void LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
-                                      MaybeObjectHandles* handlers,
+  void LoadElementPolymorphicHandlers(MapsAndHandlers* old_maps_and_handlers,
+                                      MapsAndHandlers* new_maps_and_handlers,
                                       KeyedAccessLoadMode new_load_mode);
 
   KeyedAccessLoadMode GetKeyedAccessLoadModeFor(

@@ -2361,8 +2361,8 @@ class MachineLoweringReducer : public Next {
         // Check for exception sentinel: Smi 1 is returned to signal
         // TerminationRequested.
         IF (UNLIKELY(__ TaggedEqual(result, __ TagSmi(1)))) {
-          __ CallRuntime_TerminateExecution(isolate_, frame_state,
-                                            __ NoContextConstant());
+          __ template CallRuntime<runtime::TerminateExecution>(
+              frame_state, __ NoContextConstant(), {}, LazyDeoptOnThrow::kNo);
         }
 
         // Check for exception sentinel: Smi 0 is returned to signal
@@ -2587,10 +2587,11 @@ class MachineLoweringReducer : public Next {
         }
 
         if (BIND(runtime)) {
-          V<Word32> value =
-              __ UntagSmi(V<Smi>::Cast(__ CallRuntime_StringCharCodeAt(
-                  isolate_, __ NoContextConstant(), receiver,
-                  __ TagSmi(__ TruncateWordPtrToWord32(position)))));
+          V<Word32> value = __ UntagSmi(
+              V<Smi>::Cast(__ template CallRuntime<runtime::StringCharCodeAt>(
+                  __ NoContextConstant(),
+                  {.string = receiver,
+                   .index = __ TagSmi(__ TruncateWordPtrToWord32(position))})));
           GOTO(done, value);
         }
       }
@@ -2643,8 +2644,8 @@ class MachineLoweringReducer : public Next {
           __ NoContextConstant(), {.string = string});
     } else {
       DCHECK_EQ(kind, StringToCaseIntlOp::Kind::kUpper);
-      return __ CallRuntime_StringToUpperCaseIntl(
-          isolate_, __ NoContextConstant(), string);
+      return __ template CallRuntime<runtime::StringToUpperCaseIntl>(
+          __ NoContextConstant(), {.string = string});
     }
   }
 #endif  // V8_INTL_SUPPORT
@@ -3471,8 +3472,13 @@ class MachineLoweringReducer : public Next {
   }
 
   V<None> REDUCE(RuntimeAbort)(AbortReason reason) {
-    __ CallRuntime_Abort(isolate_, __ NoContextConstant(),
-                         __ TagSmi(static_cast<int>(reason)));
+    __ template CallRuntime<runtime::Abort>(
+        __ NoContextConstant(),
+        {.messageOrMessageId = __ SmiConstant(Smi::FromEnum(reason))});
+    // RuntimeAbort exits the function and should thus be a block terminator,
+    // but we currently don't allow Simplified operations to be block
+    // terminators. We thus manually add an Unreachable after it.
+    __ Unreachable();
     return V<None>::Invalid();
   }
 
@@ -3547,8 +3553,9 @@ class MachineLoweringReducer : public Next {
           break;
         case ElementsTransition::kSlowTransition:
           // Instance migration, call out to the runtime for {object}.
-          __ CallRuntime_TransitionElementsKind(
-              isolate_, __ NoContextConstant(), object, target_map);
+          __ template CallRuntime<runtime::TransitionElementsKind>(
+              __ NoContextConstant(),
+              {.object = object, .target_map = target_map});
           break;
       }
     }
@@ -3579,8 +3586,9 @@ class MachineLoweringReducer : public Next {
           __ StoreField(object, AccessBuilder::ForMap(), target_map);
         } else {
           // Instance migration, call out to the runtime for {object}.
-          __ CallRuntime_TransitionElementsKind(
-              isolate_, __ NoContextConstant(), object, target_map);
+          __ template CallRuntime<runtime::TransitionElementsKind>(
+              __ NoContextConstant(),
+              {.object = object, .target_map = target_map});
         }
         GOTO(done);
       }
@@ -4037,8 +4045,8 @@ class MachineLoweringReducer : public Next {
         __ Word32BitwiseAnd(bitfield3, Map::Bits3::IsDeprecatedBit::kMask);
     __ DeoptimizeIfNot(deprecated, frame_state, DeoptimizeReason::kWrongMap,
                        feedback);
-    V<Object> result = __ CallRuntime_TryMigrateInstance(
-        isolate_, __ NoContextConstant(), heap_object);
+    V<Object> result = __ template CallRuntime<runtime::TryMigrateInstance>(
+        __ NoContextConstant(), {.heap_object = heap_object});
     // TryMigrateInstance returns a Smi value to signal failure.
     __ DeoptimizeIf(__ ObjectIsSmi(result), frame_state,
                     DeoptimizeReason::kInstanceMigrationFailed, feedback);
@@ -4055,8 +4063,9 @@ class MachineLoweringReducer : public Next {
         __ Word32BitwiseAnd(bitfield3, Map::Bits3::IsDeprecatedBit::kMask);
     __ DeoptimizeIfNot(deprecated, frame_state, DeoptimizeReason::kWrongMap,
                        feedback);
-    __ CallRuntime_TryMigrateInstanceAndMarkMapAsMigrationTarget(
-        isolate_, __ NoContextConstant(), heap_object);
+    __ template CallRuntime<
+        runtime::TryMigrateInstanceAndMarkMapAsMigrationTarget>(
+        __ NoContextConstant(), {.heap_object = heap_object});
   }
 
   // TODO(nicohartmann@): Might use the CallBuiltinDescriptors here.
@@ -4143,8 +4152,9 @@ class MachineLoweringReducer : public Next {
                     __ HeapConstant(target_map));
     } else {
       // Instance migration, call out to the runtime for {array}.
-      __ CallRuntime_TransitionElementsKind(isolate_, __ NoContextConstant(),
-                                            array, __ HeapConstant(target_map));
+      __ template CallRuntime<runtime::TransitionElementsKind>(
+          __ NoContextConstant(),
+          {.object = array, .target_map = __ HeapConstant(target_map)});
     }
   }
 

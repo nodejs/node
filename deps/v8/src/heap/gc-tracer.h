@@ -625,9 +625,9 @@ class V8_EXPORT_PRIVATE GCTracer {
   mutable base::Mutex background_scopes_mutex_;
   base::TimeDelta background_scopes_[Scope::NUMBER_OF_SCOPES];
 
-#if defined(V8_USE_PERFETTO)
   perfetto::NamedTrack parent_track_;
-#endif
+  perfetto::NamedTrack phase_track_;
+  perfetto::NamedTrack state_track_;
 
   FRIEND_TEST(GCTracerTest, AllocationThroughput);
   FRIEND_TEST(GCTracerTest, BackgroundScavengerScope);

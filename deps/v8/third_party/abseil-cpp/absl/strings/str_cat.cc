@@ -27,6 +27,7 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/nullability.h"
 #include "absl/strings/internal/resize_uninitialized.h"
+#include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
@@ -67,13 +68,14 @@ std::string StrCat(const AlphaNum& a, const AlphaNum& b) {
   const uint64_t result_size =
       static_cast<uint64_t>(a.size()) + static_cast<uint64_t>(b.size());
   ABSL_INTERNAL_CHECK(result_size <= kMaxSize, "size_t overflow");
-  absl::strings_internal::STLStringResizeUninitialized(
-      &result, static_cast<size_t>(result_size));
-  char* const begin = &result[0];
-  char* out = begin;
-  out = Append(out, a);
-  out = Append(out, b);
-  assert(out == begin + result.size());
+  absl::StringResizeAndOverwrite(result, static_cast<size_t>(result_size),
+                                 [&a, &b](char* const begin, size_t buf_size) {
+                                   char* out = begin;
+                                   out = Append(out, a);
+                                   out = Append(out, b);
+                                   assert(out == begin + buf_size);
+                                   return buf_size;
+                                 });
   return result;
 }
 
@@ -86,14 +88,16 @@ std::string StrCat(const AlphaNum& a, const AlphaNum& b, const AlphaNum& c) {
                                static_cast<uint64_t>(b.size()) +
                                static_cast<uint64_t>(c.size());
   ABSL_INTERNAL_CHECK(result_size <= kMaxSize, "size_t overflow");
-  strings_internal::STLStringResizeUninitialized(
-      &result, static_cast<size_t>(result_size));
-  char* const begin = &result[0];
-  char* out = begin;
-  out = Append(out, a);
-  out = Append(out, b);
-  out = Append(out, c);
-  assert(out == begin + result.size());
+  absl::StringResizeAndOverwrite(
+      result, static_cast<size_t>(result_size),
+      [&a, &b, &c](char* const begin, size_t buf_size) {
+        char* out = begin;
+        out = Append(out, a);
+        out = Append(out, b);
+        out = Append(out, c);
+        assert(out == begin + buf_size);
+        return buf_size;
+      });
   return result;
 }
 
@@ -103,20 +107,21 @@ std::string StrCat(const AlphaNum& a, const AlphaNum& b, const AlphaNum& c,
   // Use uint64_t to prevent size_t overflow. We assume it is not possible for
   // in memory strings to overflow a uint64_t.
   constexpr uint64_t kMaxSize = uint64_t{std::numeric_limits<size_t>::max()};
-  const uint64_t result_size = static_cast<uint64_t>(a.size()) +
-                               static_cast<uint64_t>(b.size()) +
-                               static_cast<uint64_t>(c.size()) +
-                               static_cast<uint64_t>(d.size());
+  const uint64_t result_size =
+      static_cast<uint64_t>(a.size()) + static_cast<uint64_t>(b.size()) +
+      static_cast<uint64_t>(c.size()) + static_cast<uint64_t>(d.size());
   ABSL_INTERNAL_CHECK(result_size <= kMaxSize, "size_t overflow");
-  strings_internal::STLStringResizeUninitialized(
-      &result, static_cast<size_t>(result_size));
-  char* const begin = &result[0];
-  char* out = begin;
-  out = Append(out, a);
-  out = Append(out, b);
-  out = Append(out, c);
-  out = Append(out, d);
-  assert(out == begin + result.size());
+  absl::StringResizeAndOverwrite(
+      result, static_cast<size_t>(result_size),
+      [&a, &b, &c, &d](char* const begin, size_t buf_size) {
+        char* out = begin;
+        out = Append(out, a);
+        out = Append(out, b);
+        out = Append(out, c);
+        out = Append(out, d);
+        assert(out == begin + buf_size);
+        return buf_size;
+      });
   return result;
 }
 
@@ -133,19 +138,19 @@ std::string CatPieces(std::initializer_list<absl::string_view> pieces) {
     total_size += piece.size();
   }
   ABSL_INTERNAL_CHECK(total_size <= kMaxSize, "size_t overflow");
-  strings_internal::STLStringResizeUninitialized(
-      &result, static_cast<size_t>(total_size));
-
-  char* const begin = &result[0];
-  char* out = begin;
-  for (absl::string_view piece : pieces) {
-    const size_t this_size = piece.size();
-    if (this_size != 0) {
-      memcpy(out, piece.data(), this_size);
-      out += this_size;
-    }
-  }
-  assert(out == begin + result.size());
+  absl::StringResizeAndOverwrite(result, static_cast<size_t>(total_size),
+                                 [&pieces](char* const begin, size_t buf_size) {
+                                   char* out = begin;
+                                   for (absl::string_view piece : pieces) {
+                                     const size_t this_size = piece.size();
+                                     if (this_size != 0) {
+                                       memcpy(out, piece.data(), this_size);
+                                       out += this_size;
+                                     }
+                                   }
+                                   assert(out == begin + buf_size);
+                                   return buf_size;
+                                 });
   return result;
 }
 

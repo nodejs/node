@@ -309,13 +309,14 @@ bool LookupIterator::ExtendingNonExtensible(DirectHandle<JSReceiver> receiver) {
   if (IsAlwaysSharedSpaceJSObjectMap(receiver_map)) {
     return true;
   }
-  // Extending non-extensible objects with private fields is allowed.
+  // Extending non-extensible objects with private fields is currently allowed,
+  // but we're disallowing it soon.
   DCHECK(!receiver_map->is_extensible());
   DCHECK(name_->IsPrivate());
   if (name_->IsPrivateName()) {
     isolate()->CountUsage(v8::Isolate::kExtendingNonExtensibleWithPrivate);
   }
-  return false;
+  return v8_flags.js_nonextensible_applies_to_private;
 }
 
 bool LookupIterator::IsCacheableTransition() {

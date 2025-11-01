@@ -758,9 +758,7 @@ void RegExpMacroAssemblerX64::SkipUntilOneOfMasked(
   Label scalar_repeat;
   const bool use_simd = SkipUntilOneOfMaskedUseSimd(advance_by);
   const int character_count =
-      4 - base::bits::CountLeadingZeros32(both_chars) / CHAR_BIT;
-  DCHECK_EQ(character_count,
-            4 - base::bits::CountLeadingZeros32(both_mask) / CHAR_BIT);
+      4 - base::bits::CountLeadingZeros32(both_mask) / CHAR_BIT;
   DCHECK_EQ(character_count, 4);  // TODO(pthier): Support other variants.
   DCHECK_EQ(mode_, LATIN1);       // TODO(pthier): Support 2-byte.
   if (use_simd) {
@@ -869,7 +867,8 @@ void RegExpMacroAssemblerX64::SkipUntilOneOfMasked(
           } else {
             __ Movdqa(tmp, mask);
             __ Andps(tmp, tmp, input_vec1);
-            Pcmpeq(masm(), res, tmp, characters, character_count);
+            Pcmpeq(masm(), tmp, tmp, characters, character_count);
+            __ Movdqa(res, tmp);
             __ Movdqa(tmp, mask);
             __ Andps(tmp, tmp, input_vec2);
             Pcmpeq(masm(), tmp, tmp, characters, character_count);

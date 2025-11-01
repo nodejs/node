@@ -125,7 +125,7 @@ class UnscaledCycleClockWrapperForGetCurrentTime {
 // spin-delay tuning.
 
 // Acquire seqlock (*seq) and return the value to be written to unlock.
-static inline uint64_t SeqAcquire(std::atomic<uint64_t> *seq) {
+static inline uint64_t SeqAcquire(std::atomic<uint64_t>* seq) {
   uint64_t x = seq->fetch_add(1, std::memory_order_relaxed);
 
   // We put a release fence between update to *seq and writes to shared data.
@@ -140,7 +140,7 @@ static inline uint64_t SeqAcquire(std::atomic<uint64_t> *seq) {
 
 // Release seqlock (*seq) by writing x to it---a value previously returned by
 // SeqAcquire.
-static inline void SeqRelease(std::atomic<uint64_t> *seq, uint64_t x) {
+static inline void SeqRelease(std::atomic<uint64_t>* seq, uint64_t x) {
   // The unlock store to *seq must have release ordering so that all
   // updates to shared data must finish before this store.
   seq->store(x, std::memory_order_release);  // release lock for readers
@@ -218,7 +218,7 @@ ABSL_CONST_INIT static TimeState time_state;
 // assumed to be complete resyncs, which shouldn't happen.  If they do, a full
 // reinitialization of the outer algorithm should occur.)
 static int64_t GetCurrentTimeNanosFromKernel(uint64_t last_cycleclock,
-                                             uint64_t *cycleclock)
+                                             uint64_t* cycleclock)
     ABSL_EXCLUSIVE_LOCKS_REQUIRED(time_state.lock) {
   uint64_t local_approx_syscall_time_in_cycles =  // local copy
       time_state.approx_syscall_time_in_cycles.load(std::memory_order_relaxed);
@@ -274,8 +274,8 @@ static int64_t GetCurrentTimeNanosSlowPath() ABSL_ATTRIBUTE_COLD;
 // Read the contents of *atomic into *sample.
 // Each field is read atomically, but to maintain atomicity between fields,
 // the access must be done under a lock.
-static void ReadTimeSampleAtomic(const struct TimeSampleAtomic *atomic,
-                                 struct TimeSample *sample) {
+static void ReadTimeSampleAtomic(const struct TimeSampleAtomic* atomic,
+                                 struct TimeSample* sample) {
   sample->base_ns = atomic->base_ns.load(std::memory_order_relaxed);
   sample->base_cycles = atomic->base_cycles.load(std::memory_order_relaxed);
   sample->nsscaled_per_cycle =
@@ -397,7 +397,7 @@ static uint64_t SafeDivideAndScale(uint64_t a, uint64_t b) {
 
 static uint64_t UpdateLastSample(
     uint64_t now_cycles, uint64_t now_ns, uint64_t delta_cycles,
-    const struct TimeSample *sample) ABSL_ATTRIBUTE_COLD;
+    const struct TimeSample* sample) ABSL_ATTRIBUTE_COLD;
 
 // The slow path of GetCurrentTimeNanos().  This is taken while gathering
 // initial samples, when enough time has elapsed since the last sample, and if
@@ -454,7 +454,7 @@ static int64_t GetCurrentTimeNanosSlowPath()
 // for readers.  Returns the new estimated time.
 static uint64_t UpdateLastSample(uint64_t now_cycles, uint64_t now_ns,
                                  uint64_t delta_cycles,
-                                 const struct TimeSample *sample)
+                                 const struct TimeSample* sample)
     ABSL_EXCLUSIVE_LOCKS_REQUIRED(time_state.lock) {
   uint64_t estimated_base_ns = now_ns;
   uint64_t lock_value =

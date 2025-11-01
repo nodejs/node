@@ -919,6 +919,13 @@ BUILTIN(LocalePrototypeRegion) {
   return *JSLocale::Region(isolate, locale);
 }
 
+BUILTIN(LocalePrototypeVariants) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.variants");
+
+  return *JSLocale::Variants(isolate, locale);
+}
+
 BUILTIN(LocalePrototypeBaseName) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.baseName");

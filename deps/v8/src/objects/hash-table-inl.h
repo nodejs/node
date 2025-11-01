@@ -83,7 +83,7 @@ void HashTableBase::ElementsRemoved(int n) {
 }
 
 // static
-uint32_t HashTableBase::ComputeCapacity(uint32_t at_least_space_for) {
+constexpr uint32_t HashTableBase::ComputeCapacity(uint32_t at_least_space_for) {
   // Add 50% slack to make slot collisions sufficiently unlikely.
   // See matching computation in HashTable::HasSufficientCapacityToAdd().
   // Must be kept in sync with CodeStubAssembler::HashTableComputeCapacity().

@@ -13,8 +13,7 @@
 #include "src/logging/log-inl.h"
 #include "src/logging/log.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 StatsTable::StatsTable(Counters* counters)
     : lookup_function_(nullptr),
@@ -274,5 +273,31 @@ void CountersVisitor::Visit(StatsCounter* counter, const char* caption) {
   VisitStatsCounter(counter, caption);
 }
 
-}  // namespace internal
-}  // namespace v8
+void DelayedCounterUpdates::PublishImpl(Isolate* isolate) {
+  std::vector<AnyUpdate> updates;
+  {
+    base::MutexGuard mutex_guard{&mutex_};
+    updates.swap(outstanding_updates_);
+    has_updates_.store(false, std::memory_order_relaxed);
+  }
+  for (const auto& update : updates) {
+    if (const HistogramUpdate* histogram_update =
+            std::get_if<HistogramUpdate>(&update)) {
+      Histogram* histogram = (isolate->counters()->*histogram_update->fn)();
+      histogram->AddSample(histogram_update->sample);
+    } else if (const TimedHistogramUpdate* timed_histogram_update =
+                   std::get_if<TimedHistogramUpdate>(&update)) {
+      TimedHistogram* histogram =
+          (isolate->counters()->*timed_histogram_update->fn)();
+      histogram->AddTimedSample(timed_histogram_update->sample);
+    } else {
+      StatsCounterUpdate stats_counter_update =
+          std::get<StatsCounterUpdate>(update);
+      StatsCounter* stats_counter =
+          (isolate->counters()->*stats_counter_update.fn)();
+      stats_counter->Increment(stats_counter_update.increment);
+    }
+  }
+}
+
+}  // namespace v8::internal

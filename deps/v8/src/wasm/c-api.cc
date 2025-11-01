@@ -128,10 +128,10 @@ ValKind V8ValueTypeToWasm(T v8_valtype)
       return ValKind::F64;
     case i::wasm::kRef:
     case i::wasm::kRefNull:
-      switch (v8_valtype.heap_representation()) {
-        case i::wasm::HeapType::kFunc:
+      switch (v8_valtype.generic_kind()) {
+        case i::wasm::GenericKind::kFunc:
           return ValKind::FUNCREF;
-        case i::wasm::HeapType::kExtern:
+        case i::wasm::GenericKind::kExtern:
           return ValKind::EXTERNREF;
         default:
           UNREACHABLE();
@@ -1348,9 +1348,17 @@ WASM_EXPORT auto Module::deserialize(Store* store_abs,
   i::DirectHandle<i::WasmModuleObject> module_obj;
   if (serial_size > 0) {
     size_t data_size = static_cast<size_t>(binary_size);
-    i::wasm::CompileTimeImports compile_imports{};
+    // The C-API does not allow passing compile imports.
+    // We thus use an empty `CompileTimeImports` object, analogous to module
+    // creation.
+    // Note that in contrast to the JS API, this does not handle different
+    // denormals flushing modes (see base::FPU::GetFlushDenormals /
+    // `CompileTimeImport::kDisableDenormalFloats`).
+    i::wasm::CompileTimeImports compile_imports;
+    i::wasm::WasmEnabledFeatures features =
+        i::wasm::WasmEnabledFeatures::FromIsolate(isolate);
     if (!i::wasm::DeserializeNativeModule(
-             isolate,
+             isolate, features,
              {reinterpret_cast<const uint8_t*>(ptr + data_size), serial_size},
              {reinterpret_cast<const uint8_t*>(ptr), data_size},
              compile_imports, {})
@@ -2168,11 +2176,11 @@ WASM_EXPORT auto Table::type() const -> own<TableType> {
   uint32_t max = static_cast<uint32_t>(std::min<uint64_t>(
       i::kMaxUInt32, table->maximum_length_u64().value_or(i::kMaxUInt32)));
   ValKind kind;
-  switch (table->unsafe_type().heap_representation()) {
-    case i::wasm::HeapType::kFunc:
+  switch (table->unsafe_type().raw_bit_field()) {
+    case i::wasm::kWasmFuncRef.raw_bit_field():
       kind = ValKind::FUNCREF;
       break;
-    case i::wasm::HeapType::kExtern:
+    case i::wasm::kWasmExternRef.raw_bit_field():
       kind = ValKind::EXTERNREF;
       break;
     default:

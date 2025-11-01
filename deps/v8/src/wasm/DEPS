@@ -72,6 +72,7 @@ specific_include_rules = {
   "wrappers-inl\.h": [
     "+src/compiler/turboshaft/define-assembler-macros.inc",
     "+src/compiler/turboshaft/undef-assembler-macros.inc",
+    "+src/heap/factory-base-inl.h",
   ]
 
 }

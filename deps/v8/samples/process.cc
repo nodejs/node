@@ -341,14 +341,18 @@ JsHttpRequestProcessor::~JsHttpRequestProcessor() {
   process_.Reset();
 }
 
-
 Global<ObjectTemplate> JsHttpRequestProcessor::request_template_;
 Global<ObjectTemplate> JsHttpRequestProcessor::map_template_;
-
 
 // -----------------------------------
 // --- A c c e s s i n g   M a p s ---
 // -----------------------------------
+
+namespace {
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kMapTag = 6;
+}  // namespace
 
 // Utility function that wraps a C++ http request object in a
 // JavaScript object.
@@ -371,7 +375,7 @@ Local<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
 
   // Wrap the raw C++ pointer in an External so it can be referenced
   // from within JavaScript.
-  Local<External> map_ptr = External::New(GetIsolate(), obj);
+  Local<External> map_ptr = External::New(GetIsolate(), obj, kMapTag);
 
   // Store the map pointer in the JavaScript wrapper.
   result->SetInternalField(0, map_ptr);
@@ -383,15 +387,13 @@ Local<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
   return handle_scope.Escape(result);
 }
 
-
 // Utility function that extracts the C++ map pointer from a wrapper
 // object.
 map<string, string>* JsHttpRequestProcessor::UnwrapMap(Local<Object> obj) {
   Local<External> field = obj->GetInternalField(0).As<Value>().As<External>();
-  void* ptr = field->Value();
+  void* ptr = field->Value(kMapTag);
   return static_cast<map<string, string>*>(ptr);
 }
-
 
 // Convert a JavaScript string to a std::string.  To not bother too
 // much with string encodings we just use ascii.
@@ -454,10 +456,13 @@ Local<ObjectTemplate> JsHttpRequestProcessor::MakeMapTemplate(
   return handle_scope.Escape(result);
 }
 
-
 // -------------------------------------------
 // --- A c c e s s i n g   R e q u e s t s ---
 // -------------------------------------------
+
+namespace {
+constexpr v8::ExternalPointerTypeTag kHttpRequestTag = 7;
+}  // namespace
 
 /**
  * Utility function that wraps a C++ http request object in a
@@ -482,7 +487,8 @@ Local<Object> JsHttpRequestProcessor::WrapRequest(HttpRequest* request) {
 
   // Wrap the raw C++ pointer in an External so it can be referenced
   // from within JavaScript.
-  Local<External> request_ptr = External::New(GetIsolate(), request);
+  Local<External> request_ptr =
+      External::New(GetIsolate(), request, kHttpRequestTag);
 
   // Store the request pointer in the JavaScript wrapper.
   result->SetInternalField(0, request_ptr);
@@ -494,14 +500,13 @@ Local<Object> JsHttpRequestProcessor::WrapRequest(HttpRequest* request) {
   return handle_scope.Escape(result);
 }
 
-
 /**
  * Utility function that extracts the C++ http request object from a
  * wrapper object.
  */
 HttpRequest* JsHttpRequestProcessor::UnwrapRequest(Local<Object> obj) {
   Local<External> field = obj->GetInternalField(0).As<Value>().As<External>();
-  void* ptr = field->Value();
+  void* ptr = field->Value(kHttpRequestTag);
   return static_cast<HttpRequest*>(ptr);
 }
 

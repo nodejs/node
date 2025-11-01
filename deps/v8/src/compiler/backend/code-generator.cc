@@ -75,6 +75,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       resolver_(this),
       safepoints_(codegen_zone),
       handlers_(codegen_zone),
+      effect_handlers_(codegen_zone),
       deoptimization_exits_(codegen_zone),
       protected_deoptimization_literals_(codegen_zone),
       deoptimization_literals_(codegen_zone),
@@ -172,11 +173,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   DeoptimizeReason deoptimization_reason = exit->reason();
   Label* jump_deoptimization_entry_label =
       &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
-  if (info()->source_positions() ||
-      AlwaysPreserveDeoptReason(deoptimization_reason)) {
-    masm()->RecordDeoptReason(deoptimization_reason, exit->node_id(),
-                              exit->pos(), deoptimization_id);
-  }
 
   if (deopt_kind == DeoptimizeKind::kLazy ||
       deopt_kind == DeoptimizeKind::kLazyAfterFastCall) {
@@ -190,6 +186,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   masm()->CallForDeoptimization(target, deoptimization_id, exit->label(),
                                 deopt_kind, exit->continue_label(),
                                 jump_deoptimization_entry_label);
+
+  // RecordDeoptReason has to be right after the call so that the deopt is
+  // associated with the correct pc.
+  if (info()->source_positions() ||
+      AlwaysPreserveDeoptReason(deoptimization_reason)) {
+    masm()->RecordDeoptReason(deoptimization_reason, exit->node_id(),
+                              exit->pos(), deoptimization_id);
+  }
 
   exit->set_emitted();
 
@@ -335,14 +339,6 @@ void CodeGenerator::AssembleCode() {
         masm()->InitializeRootRegister();
       }
     }
-#if defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
-    // RVV uses VectorUnit to emit vset{i}vl{i}, reducing the static and dynamic
-    // overhead of the vset{i}vl{i} instruction. However there are some jumps
-    // back between blocks. the Rvv instruction may get an incorrect vtype. so
-    // here VectorUnit needs to be cleared to ensure that the vtype is correct
-    // within the block.
-    masm()->VU.clear();
-#endif
     if (V8_EMBEDDED_CONSTANT_POOL_BOOL && !block->needs_frame()) {
       ConstantPoolUnavailableScope constant_pool_unavailable(masm());
       result_ = AssembleBlock(block);
@@ -424,6 +420,10 @@ void CodeGenerator::AssembleCode() {
       }
     }
   }
+
+#if defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
+  masm()->EndBlockPools();
+#endif  // defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
 
   offsets_info_.pools = masm()->pc_offset();
   // TODO(jgruber): Move all inlined metadata generation into a new,
@@ -1109,7 +1109,7 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
   wasm::WasmDeoptView view(base::VectorOf(result));
   wasm::WasmDeoptData data = view.GetDeoptData();
   DCHECK_EQ(data.deopt_exit_start_offset, deopt_exit_start_offset_);
-  DCHECK_EQ(data.deopt_literals_size, deoptimization_literals_.size());
+  DCHECK_EQ(data.num_deopt_literals, deoptimization_literals_.size());
   DCHECK_EQ(data.eager_deopt_count, eager_deopt_count_);
   DCHECK_EQ(data.entry_count, deoptimization_exits_.size());
   DCHECK_EQ(data.translation_array_size, frame_translations.size());
@@ -1127,6 +1127,17 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
   }
 #endif
   return result;
+}
+
+base::OwnedVector<wasm::WasmCode::EffectHandler>
+CodeGenerator::GenerateWasmEffectHandler() {
+  auto handlers = base::OwnedVector<wasm::WasmCode::EffectHandler>::New(
+      effect_handlers_.size());
+  for (size_t i = 0; i < effect_handlers_.size(); ++i) {
+    handlers[i] = {effect_handlers_[i].pc_offset, effect_handlers_[i].tag_index,
+                   effect_handlers_[i].handler->pos()};
+  }
+  return handlers;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1146,10 +1157,23 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
       instr->HasCallDescriptorFlag(CallDescriptor::kNeedsFrameState);
   RecordSafepoint(instr->reference_map());
 
+  InstructionOperandConverter i(this, instr);
+  int index = static_cast<int>(instr->InputCount()) - 1;
+  if (instr->HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler)) {
+    int num_handlers = i.ToConstant(instr->InputAt(index)).ToInt32();
+    // Start from the first handler, order matters.
+    for (int handler_idx = index - 2 * num_handlers; handler_idx < index;
+         handler_idx += 2) {
+      RpoNumber handler_rpo =
+          i.ToConstant(instr->InputAt(handler_idx)).ToRpoNumber();
+      int tag_index = i.ToConstant(instr->InputAt(handler_idx + 1)).ToInt32();
+      effect_handlers_.push_back(
+          {tag_index, GetLabel(handler_rpo), masm()->pc_offset()});
+    }
+    index = index - 2 * num_handlers - 1;
+  }
   if (instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
-    InstructionOperandConverter i(this, instr);
-    Constant handler_input =
-        i.ToConstant(instr->InputAt(instr->InputCount() - 1));
+    Constant handler_input = i.ToConstant(instr->InputAt(index--));
     if (handler_input.type() == Constant::Type::kRpoNumber) {
       RpoNumber handler_rpo = handler_input.ToRpoNumber();
       DCHECK(instructions()->InstructionBlockAt(handler_rpo)->IsHandler());

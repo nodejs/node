@@ -20,6 +20,11 @@ namespace base {
 // dynamic storage when it overflows.
 template <typename T, size_t kSize, typename Allocator = std::allocator<T>>
 class SmallVector {
+  // TODO(mliedtke): Remove kHasTrivialElement and replace usages with the
+  // proper conditions.
+  static constexpr bool kHasTrivialElement =
+      is_trivially_copyable<T>::value && is_trivially_destructible<T>::value;
+
  public:
   static constexpr size_t kInlineSize = kSize;
   using value_type = T;
@@ -32,8 +37,13 @@ class SmallVector {
 
   SmallVector() = default;
   explicit SmallVector(const Allocator& allocator) : allocator_(allocator) {}
+  // Constructs a SmallVector with `size` elements. These elements will be
+  // default-initialized(!), differently to e.g. `std::vector`. If
+  // value-initialization is desired, use the constructor overload with an
+  // explicit `initial_value` instead.
   explicit V8_INLINE SmallVector(size_t size,
                                  const Allocator& allocator = Allocator())
+    requires std::default_initializable<T>
       : allocator_(allocator) {
     resize(size);
   }
@@ -249,22 +259,35 @@ class SmallVector {
     DCHECK_LE(erase_start, erase_end);
     DCHECK_LE(erase_end, end_);
     T* new_end = std::move(erase_end, end_, erase_start);
-    std::destroy_n(new_end, std::distance(new_end, end_));
+    std::destroy(new_end, end_);
     end_ = new_end;
     return erase_start;
   }
 
   T* erase(T* pos) { return erase(pos, pos + 1); }
 
-  void resize(size_t new_size) {
+  // Resizes the SmallVector to the provided `new_size`. If `new_size` is larger
+  // than the current size, the new elements will not be default-initialized,
+  // (meaning the objects will only be allocated, not constructed.)
+  // This is only valid if `T` is an implicit lifetime type.
+  void resize_no_init(size_t new_size)
+    requires kHasTrivialElement
+  {
+    if (new_size > capacity()) Grow(new_size);
+    end_ = begin_ + new_size;
+  }
+
+  // Resizes the SmallVector to the provided `new_size`. If `new_size` is larger
+  // than the current size, the new elements will be default-initialized.
+  void resize(size_t new_size)
+    requires std::default_initializable<T>
+  {
     if (new_size > capacity()) Grow(new_size);
     T* new_end = begin_ + new_size;
-    if constexpr (!kHasTrivialElement) {
-      if (new_end > end_) {
-        std::uninitialized_default_construct(end_, new_end);
-      } else {
-        std::destroy_n(new_end, end_ - new_end);
-      }
+    if (new_end > end_) {
+      std::uninitialized_default_construct(end_, new_end);
+    } else {
+      std::destroy(new_end, end_);
     }
     end_ = new_end;
   }
@@ -275,7 +298,7 @@ class SmallVector {
     if (new_end > end_) {
       std::uninitialized_fill(end_, new_end, initial_value);
     } else {
-      std::destroy_n(new_end, end_ - new_end);
+      std::destroy(new_end, end_);
     }
     end_ = new_end;
   }
@@ -286,7 +309,7 @@ class SmallVector {
 
   // Clear without reverting back to inline storage.
   void clear() {
-    std::destroy_n(begin_, end_ - begin_);
+    std::destroy(begin_, end_);
     end_ = begin_;
   }
 
@@ -318,7 +341,7 @@ class SmallVector {
   }
 
   V8_NOINLINE V8_PRESERVE_MOST void FreeStorage() {
-    std::destroy_n(begin_, end_ - begin_);
+    std::destroy(begin_, end_);
     if (is_big()) allocator_.deallocate(begin_, end_of_storage_ - begin_);
   }
 
@@ -326,7 +349,7 @@ class SmallVector {
   // internal use only.
   void reset_to_inline_storage() {
     if constexpr (!kHasTrivialElement) {
-      if (!is_big()) std::destroy_n(begin_, end_ - begin_);
+      if (!is_big()) std::destroy(begin_, end_);
     }
     begin_ = inline_storage_begin();
     end_ = begin_;
@@ -352,9 +375,6 @@ class SmallVector {
   T* end_ = begin_;
   T* end_of_storage_ = begin_ + kInlineSize;
   alignas(T) char inline_storage_[sizeof(T) * kInlineSize];
-
-  static constexpr bool kHasTrivialElement =
-      is_trivially_copyable<T>::value && is_trivially_destructible<T>::value;
 };
 
 }  // namespace base

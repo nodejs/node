@@ -814,14 +814,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Move(FPURegister dst, uint64_t src);
 
   // DaddOverflow sets overflow register to a negative value if
-  // overflow occured, otherwise it is zero or positive
+  // overflow occurred, otherwise it is zero or positive
   void DaddOverflow(Register dst, Register left, const Operand& right,
                     Register overflow);
   // DsubOverflow sets overflow register to a negative value if
-  // overflow occured, otherwise it is zero or positive
+  // overflow occurred, otherwise it is zero or positive
   void DsubOverflow(Register dst, Register left, const Operand& right,
                     Register overflow);
-  // [D]MulOverflow set overflow register to zero if no overflow occured
+  // [D]MulOverflow set overflow register to zero if no overflow occurred
   void MulOverflow(Register dst, Register left, const Operand& right,
                    Register overflow);
   void DMulOverflow(Register dst, Register left, const Operand& right,

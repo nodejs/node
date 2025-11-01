@@ -67,6 +67,14 @@ class WithJSSharedMemoryFeatureFlagsMixin : public TMixin {
   WithJSSharedMemoryFeatureFlagsMixin() { i::v8_flags.harmony_struct = true; }
 };
 
+template <typename TMixin>
+class WithShadowRealmFeatureFlagsMixin : public TMixin {
+ public:
+  WithShadowRealmFeatureFlagsMixin() {
+    i::v8_flags.harmony_shadow_realm = true;
+  }
+};
+
 using CounterMap = std::map<std::string, int>;
 
 enum CountersMode { kNoCounters, kEnableCounters };
@@ -323,7 +331,8 @@ using TestWithContext =                    //
                     ::testing::Test>>>>;
 
 // Use v8::internal::TestJSSharedMemoryWithNativeContext if you are testing
-// internals, aka. directly work with Handles.
+// internals, aka. directly work with Handles and require --harmony-struct
+// feature.
 //
 // Using this will FATAL when !V8_CAN_CREATE_SHARED_HEAP_BOOL
 using TestJSSharedMemoryWithContext =                     //
@@ -332,6 +341,17 @@ using TestJSSharedMemoryWithContext =                     //
             WithIsolateMixin<                             //
                 WithDefaultPlatformMixin<                 //
                     WithJSSharedMemoryFeatureFlagsMixin<  //
+                        ::testing::Test>>>>>;
+
+// Use v8::internal::TestShadowRealmWithContext if you are testing
+// internals, aka. directly work with Handles and require
+// --harmony-shadow-realm feature.
+using TestShadowRealmWithContext =                     //
+    WithContextMixin<                                  //
+        WithIsolateScopeMixin<                         //
+            WithIsolateMixin<                          //
+                WithDefaultPlatformMixin<              //
+                    WithShadowRealmFeatureFlagsMixin<  //
                         ::testing::Test>>>>>;
 
 class PrintExtension : public v8::Extension {

@@ -95,6 +95,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
 #if V8_ENABLE_WEBASSEMBLY
   base::OwnedVector<uint8_t> GenerateWasmDeoptimizationData();
+  base::OwnedVector<wasm::WasmCode::EffectHandler> GenerateWasmEffectHandler();
 #endif
 
   base::OwnedVector<uint8_t> GetSourcePositionTable();
@@ -401,6 +402,12 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
     int pc_offset;
   };
 
+  struct EffectHandlerInfo {
+    int tag_index;
+    Label* handler;
+    int pc_offset;
+  };
+
   friend class OutOfLineCode;
   friend class CodeGeneratorTester;
 
@@ -420,6 +427,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   GapResolver resolver_;
   SafepointTableBuilder safepoints_;
   ZoneVector<HandlerInfo> handlers_;
+  ZoneVector<EffectHandlerInfo> effect_handlers_;
   int next_deoptimization_id_ = 0;
   int deopt_exit_start_offset_ = 0;
   int eager_deopt_count_ = 0;

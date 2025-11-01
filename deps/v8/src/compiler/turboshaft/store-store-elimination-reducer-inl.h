@@ -10,6 +10,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/compiler/turboshaft/uniform-reducer-adapter.h"
@@ -375,9 +376,9 @@ class RedundantStoreAnalysis {
                 DCHECK(!store1.index().valid());
 
                 const ConstantOp* c0 =
-                    graph_.Get(store0.value()).TryCast<ConstantOp>();
+                    graph_.Get(store0.value()).TryCast<Opmask::kHeapConstant>();
                 const ConstantOp* c1 =
-                    graph_.Get(store1.value()).TryCast<ConstantOp>();
+                    graph_.Get(store1.value()).TryCast<Opmask::kHeapConstant>();
 
                 // TODO(dmercadier): for now, we only apply this optimization
                 // when storing read-only values, because otherwise the GC will
@@ -386,8 +387,7 @@ class RedundantStoreAnalysis {
                 // this might work for any object. To do this, we might need to
                 // delay this optimization to later (instruction selector for
                 // instance).
-                if (c0 && c1 && c0->kind == ConstantOp::Kind::kHeapObject &&
-                    c1->kind == ConstantOp::Kind::kHeapObject &&
+                if (store0.base() == store1.base() && c0 && c1 &&
                     store1.offset - store0.offset == 4 &&
                     HeapLayout::InReadOnlySpace(*c0->handle()) &&
                     HeapLayout::InReadOnlySpace(*c1->handle())) {

@@ -61,11 +61,20 @@ void PlatformEmbeddedFileWriterGeneric::DeclareSymbolGlobal(const char* name) {
 }
 
 void PlatformEmbeddedFileWriterGeneric::AlignToCodeAlignment() {
-#if (V8_OS_ANDROID || V8_OS_LINUX) && \
-    (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+#if V8_OS_LINUX && (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64)
   // On these architectures and platforms, we remap the builtins, so need these
   // to be aligned on a page boundary.
+#if V8_TARGET_ARCH_ARM64
+  // 4KB, 16KB and 64KB page sizes are supported. We need to pick the largest
+  // size for compatibility, except on Android where up to 16KB is supported.
+  if (target_os_ == EmbeddedTargetOs::kAndroid) {
+    fprintf(fp_, ".balign 16384\n");
+  } else {
+    fprintf(fp_, ".balign 65536\n");
+  }
+#else
   fprintf(fp_, ".balign 4096\n");
+#endif
 #elif V8_TARGET_ARCH_X64
   // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
   static_assert(64 >= kCodeAlignment);
@@ -82,10 +91,17 @@ void PlatformEmbeddedFileWriterGeneric::AlignToCodeAlignment() {
 }
 
 void PlatformEmbeddedFileWriterGeneric::AlignToPageSizeIfNeeded() {
-#if (V8_OS_ANDROID || V8_OS_LINUX) && \
-    (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+#if V8_OS_LINUX && (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64)
   // Since the builtins are remapped, need to pad until the next page boundary.
+#if V8_TARGET_ARCH_ARM64
+  if (target_os_ == EmbeddedTargetOs::kAndroid) {
+    fprintf(fp_, ".balign 16384\n");
+  } else {
+    fprintf(fp_, ".balign 65536\n");
+  }
+#else
   fprintf(fp_, ".balign 4096\n");
+#endif
 #endif
 }
 

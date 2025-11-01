@@ -900,7 +900,7 @@ class AllocationSiteRef : public HeapObjectRef {
 
   OptionalJSObjectRef boilerplate(JSHeapBroker* broker) const;
   ElementsKind GetElementsKind() const;
-  bool CanInlineCall() const;
+  bool IsSpeculationDisabled() const;
 };
 
 class BigIntRef : public HeapObjectRef {

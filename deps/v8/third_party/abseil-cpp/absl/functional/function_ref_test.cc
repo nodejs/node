@@ -399,6 +399,18 @@ TEST(FunctionRefTest, OptionalArguments) {
   EXPECT_EQ(1337, FunctionRef<int()>(s)());
 }
 
+TEST(FunctionRefTest, NonConstToConstConversion) {
+  // The const-qualified version might inherit from the non-const version.
+  // We want to make sure that this doesn't introduce a bug when an instance of
+  // the base (non-const) class is forwarded through the derived (const) class.
+  // This has the potential to trigger the copy constructor, thus incorrectly
+  // producing a copy rather than another indirection.
+  absl::FunctionRef<int()> a = +[]() { return 1; };
+  absl::FunctionRef<int() const> b = a;
+  a = +[]() { return 2; };
+  EXPECT_EQ(b(), 2);
+}
+
 }  // namespace
 ABSL_NAMESPACE_END
 }  // namespace absl

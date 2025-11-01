@@ -74,9 +74,213 @@ using pc_t = size_t;
 using CodeOffset = size_t;
 using WasmRef = DirectHandle<Object>;
 
+class WasmEHData {
+ public:
+  static const int kCatchAllTagIndex = -1;
+
+  // Zero is always the id of a function main block, so it cannot identify a
+  // try block.
+  static const int kDelegateToCallerIndex = 0;
+
+  typedef int BlockIndex;
+
+  struct CatchHandler {
+    BlockIndex catch_block_index;
+    int tag_index;
+    CodeOffset code_offset;
+  };
+
+  struct TryBlock {
+    TryBlock(BlockIndex parent_or_matching_try_block,
+             BlockIndex ancestor_try_index)
+        : ancestor_try_index(ancestor_try_index),
+          parent_or_matching_try_block(parent_or_matching_try_block),
+          delegate_try_index(-1),
+          end_instruction_code_offset(0) {}
+
+    void SetDelegated(BlockIndex delegate_try_idx) {
+      this->delegate_try_index = delegate_try_idx;
+    }
+    bool IsTryDelegate() const { return delegate_try_index >= 0; }
+
+    // The index of the first TryBlock that is a direct ancestor of this
+    // TryBlock.
+    BlockIndex ancestor_try_index;
+
+    // If this TryBlock is contained in a CatchBlock, this is the matching
+    // TryBlock index of the CatchBlock. Otherwise it matches
+    // ancestor_try_index.
+    BlockIndex parent_or_matching_try_block;
+
+    BlockIndex delegate_try_index;
+    std::vector<CatchHandler> catch_handlers;
+    size_t end_instruction_code_offset;
+  };
+
+  struct CatchBlock {
+    BlockIndex try_block_index;
+    uint32_t first_param_slot_offset;
+    uint32_t first_param_ref_stack_index;
+  };
+
+  const TryBlock* GetTryBlock(CodeOffset code_offset) const;
+  const TryBlock* GetParentTryBlock(const TryBlock* try_block) const;
+  const TryBlock* GetDelegateTryBlock(const TryBlock* try_block) const;
+
+  size_t GetEndInstructionOffsetFor(BlockIndex catch_block_index) const;
+
+  struct ExceptionPayloadSlotOffsets {
+    uint32_t first_param_slot_offset;
+    uint32_t first_param_ref_stack_index;
+  };
+  ExceptionPayloadSlotOffsets GetExceptionPayloadStartSlotOffsets(
+      BlockIndex catch_block_index) const;
+
+  void SetCaughtException(Isolate* isolate, BlockIndex catch_block_index,
+                          DirectHandle<Object> exception);
+  DirectHandle<Object> GetCaughtException(Isolate* isolate,
+                                          BlockIndex catch_block_index) const;
+
+ protected:
+  BlockIndex GetTryBranchOf(BlockIndex catch_block_index) const;
+
+  std::unordered_map<CodeOffset, BlockIndex> code_trycatch_map_;
+  std::unordered_map<BlockIndex, TryBlock> try_blocks_;
+  std::unordered_map<BlockIndex, CatchBlock> catch_blocks_;
+};
+
+class WasmEHDataGenerator : public WasmEHData {
+ public:
+  WasmEHDataGenerator() : current_try_block_index_(-1) {}
+
+  void AddTryBlock(BlockIndex try_block_index,
+                   BlockIndex parent_or_matching_try_block_index,
+                   BlockIndex ancestor_try_block_index);
+  void AddCatchBlock(BlockIndex catch_block_index, int tag_index,
+                     uint32_t first_param_slot_offset,
+                     uint32_t first_param_ref_stack_index,
+                     CodeOffset code_offset);
+  void AddDelegatedBlock(BlockIndex delegated_try_block_index);
+  BlockIndex EndTryCatchBlocks(BlockIndex block_index, CodeOffset code_offset);
+  void RecordPotentialExceptionThrowingInstruction(WasmOpcode opcode,
+                                                   CodeOffset code_offset);
+
+  BlockIndex GetCurrentTryBlockIndex() const {
+    return current_try_block_index_;
+  }
+
+ private:
+  BlockIndex current_try_block_index_;
+};
+
 // We are using sizeof(WasmRef) and kSystemPointerSize interchangeably in the
 // interpreter code.
 static_assert(sizeof(WasmRef) == kSystemPointerSize);
+
+class WasmBytecode {
+ public:
+  WasmBytecode(int func_index, const uint8_t* code_data, size_t code_length,
+               uint32_t stack_frame_size, const FunctionSig* signature,
+               const CanonicalSig* canonical_signature,
+               const InterpreterCode* interpreter_code, size_t blocks_count,
+               const uint8_t* const_slots_data, size_t const_slots_length,
+               uint32_t ref_slots_count, const WasmEHData&& eh_data,
+               const std::map<CodeOffset, pc_t>&& code_pc_map);
+
+  inline const uint8_t* GetCode() const { return code_bytes_; }
+  inline size_t GetCodeSize() const { return code_.size(); }
+
+  inline bool InitializeSlots(uint8_t* sp, size_t stack_space) const;
+
+  pc_t GetPcFromTrapCode(const uint8_t* current_code) const;
+
+  inline int GetFunctionIndex() const { return func_index_; }
+
+  inline uint32_t GetBlocksCount() const { return blocks_count_; }
+
+  inline const FunctionSig* GetFunctionSignature() const { return signature_; }
+  inline const CanonicalSig* GetCanonicalFunctionSignature() const {
+    return canonical_signature_;
+  }
+  inline ValueType return_type(size_t index) const;
+  inline ValueType arg_type(size_t index) const;
+  inline ValueType local_type(size_t index) const;
+
+  inline uint32_t args_count() const { return args_count_; }
+  inline uint32_t args_slots_size() const { return args_slots_size_; }
+  inline uint32_t return_count() const { return return_count_; }
+  inline uint32_t rets_slots_size() const { return rets_slots_size_; }
+  inline uint32_t locals_count() const { return locals_count_; }
+  inline uint32_t locals_slots_size() const { return locals_slots_size_; }
+  inline uint32_t const_slots_size_in_bytes() const {
+    return static_cast<uint32_t>(const_slots_values_.size());
+  }
+
+  inline uint32_t ref_args_count() const { return ref_args_count_; }
+  inline uint32_t ref_rets_count() const { return ref_rets_count_; }
+  inline uint32_t ref_locals_count() const { return ref_locals_count_; }
+  inline uint32_t ref_slots_count() const { return ref_slots_count_; }
+  inline uint32_t internal_ref_slots_count() const {
+    // Ref slots for arguments and return value are allocated by the caller and
+    // not counted in internal_ref_slots_count().
+    return ref_slots_count_ - ref_rets_count_ - ref_args_count_;
+  }
+
+  inline uint32_t frame_size() { return total_frame_size_in_bytes_; }
+
+  static inline uint32_t ArgsSizeInSlots(const FunctionSig* sig);
+  static inline uint32_t RetsSizeInSlots(const FunctionSig* sig);
+  static inline uint32_t RefArgsCount(const FunctionSig* sig);
+  static inline uint32_t RefRetsCount(const FunctionSig* sig);
+  static inline bool ContainsSimd(const FunctionSig* sig);
+  static inline bool HasRefOrSimdArgs(const FunctionSig* sig);
+  static inline uint32_t JSToWasmWrapperPackedArraySize(const FunctionSig* sig);
+  static inline uint32_t RefLocalsCount(const InterpreterCode* wasm_code);
+  static inline uint32_t LocalsSizeInSlots(const InterpreterCode* wasm_code);
+
+  const WasmEHData::TryBlock* GetTryBlock(CodeOffset code_offset) const {
+    return eh_data_.GetTryBlock(code_offset);
+  }
+  const WasmEHData::TryBlock* GetParentTryBlock(
+      const WasmEHData::TryBlock* try_block) const {
+    return eh_data_.GetParentTryBlock(try_block);
+  }
+  WasmEHData::ExceptionPayloadSlotOffsets GetExceptionPayloadStartSlotOffsets(
+      WasmEHData::BlockIndex catch_block_index) const {
+    return eh_data_.GetExceptionPayloadStartSlotOffsets(catch_block_index);
+  }
+  DirectHandle<Object> GetCaughtException(Isolate* isolate,
+                                          uint32_t catch_block_index) const {
+    return eh_data_.GetCaughtException(isolate, catch_block_index);
+  }
+
+ private:
+  std::vector<uint8_t> code_;
+  const uint8_t* code_bytes_;
+  const FunctionSig* signature_;
+  const CanonicalSig* canonical_signature_;
+  const InterpreterCode* interpreter_code_;
+  std::vector<uint8_t> const_slots_values_;
+
+  int func_index_;
+  uint32_t blocks_count_;
+  uint32_t args_count_;
+  uint32_t args_slots_size_;
+  uint32_t return_count_;
+  uint32_t rets_slots_size_;
+  uint32_t locals_count_;
+  uint32_t locals_slots_size_;
+  uint32_t total_frame_size_in_bytes_;
+  uint32_t ref_args_count_;
+  uint32_t ref_rets_count_;
+  uint32_t ref_locals_count_;
+  uint32_t ref_slots_count_;
+
+  WasmEHData eh_data_;
+
+  // TODO(paolosev@microsoft.com) slow! Use std::unordered_map ?
+  std::map<CodeOffset, pc_t> code_pc_map_;
+};
 
 // Code and metadata needed to execute a function.
 struct InterpreterCode {
@@ -1250,210 +1454,6 @@ inline InstructionHandler ReadFnId(const uint8_t*& code) {
 }
 
 extern InstructionHandler s_unwind_code;
-
-class WasmEHData {
- public:
-  static const int kCatchAllTagIndex = -1;
-
-  // Zero is always the id of a function main block, so it cannot identify a
-  // try block.
-  static const int kDelegateToCallerIndex = 0;
-
-  typedef int BlockIndex;
-
-  struct CatchHandler {
-    BlockIndex catch_block_index;
-    int tag_index;
-    CodeOffset code_offset;
-  };
-
-  struct TryBlock {
-    TryBlock(BlockIndex parent_or_matching_try_block,
-             BlockIndex ancestor_try_index)
-        : ancestor_try_index(ancestor_try_index),
-          parent_or_matching_try_block(parent_or_matching_try_block),
-          delegate_try_index(-1),
-          end_instruction_code_offset(0) {}
-
-    void SetDelegated(BlockIndex delegate_try_idx) {
-      this->delegate_try_index = delegate_try_idx;
-    }
-    bool IsTryDelegate() const { return delegate_try_index >= 0; }
-
-    // The index of the first TryBlock that is a direct ancestor of this
-    // TryBlock.
-    BlockIndex ancestor_try_index;
-
-    // If this TryBlock is contained in a CatchBlock, this is the matching
-    // TryBlock index of the CatchBlock. Otherwise it matches
-    // ancestor_try_index.
-    BlockIndex parent_or_matching_try_block;
-
-    BlockIndex delegate_try_index;
-    std::vector<CatchHandler> catch_handlers;
-    size_t end_instruction_code_offset;
-  };
-
-  struct CatchBlock {
-    BlockIndex try_block_index;
-    uint32_t first_param_slot_offset;
-    uint32_t first_param_ref_stack_index;
-  };
-
-  const TryBlock* GetTryBlock(CodeOffset code_offset) const;
-  const TryBlock* GetParentTryBlock(const TryBlock* try_block) const;
-  const TryBlock* GetDelegateTryBlock(const TryBlock* try_block) const;
-
-  size_t GetEndInstructionOffsetFor(BlockIndex catch_block_index) const;
-
-  struct ExceptionPayloadSlotOffsets {
-    uint32_t first_param_slot_offset;
-    uint32_t first_param_ref_stack_index;
-  };
-  ExceptionPayloadSlotOffsets GetExceptionPayloadStartSlotOffsets(
-      BlockIndex catch_block_index) const;
-
-  void SetCaughtException(Isolate* isolate, BlockIndex catch_block_index,
-                          DirectHandle<Object> exception);
-  DirectHandle<Object> GetCaughtException(Isolate* isolate,
-                                          BlockIndex catch_block_index) const;
-
- protected:
-  BlockIndex GetTryBranchOf(BlockIndex catch_block_index) const;
-
-  std::unordered_map<CodeOffset, BlockIndex> code_trycatch_map_;
-  std::unordered_map<BlockIndex, TryBlock> try_blocks_;
-  std::unordered_map<BlockIndex, CatchBlock> catch_blocks_;
-};
-
-class WasmEHDataGenerator : public WasmEHData {
- public:
-  WasmEHDataGenerator() : current_try_block_index_(-1) {}
-
-  void AddTryBlock(BlockIndex try_block_index,
-                   BlockIndex parent_or_matching_try_block_index,
-                   BlockIndex ancestor_try_block_index);
-  void AddCatchBlock(BlockIndex catch_block_index, int tag_index,
-                     uint32_t first_param_slot_offset,
-                     uint32_t first_param_ref_stack_index,
-                     CodeOffset code_offset);
-  void AddDelegatedBlock(BlockIndex delegated_try_block_index);
-  BlockIndex EndTryCatchBlocks(BlockIndex block_index, CodeOffset code_offset);
-  void RecordPotentialExceptionThrowingInstruction(WasmOpcode opcode,
-                                                   CodeOffset code_offset);
-
-  BlockIndex GetCurrentTryBlockIndex() const {
-    return current_try_block_index_;
-  }
-
- private:
-  BlockIndex current_try_block_index_;
-};
-
-class WasmBytecode {
- public:
-  WasmBytecode(int func_index, const uint8_t* code_data, size_t code_length,
-               uint32_t stack_frame_size, const FunctionSig* signature,
-               const CanonicalSig* canonical_signature,
-               const InterpreterCode* interpreter_code, size_t blocks_count,
-               const uint8_t* const_slots_data, size_t const_slots_length,
-               uint32_t ref_slots_count, const WasmEHData&& eh_data,
-               const std::map<CodeOffset, pc_t>&& code_pc_map);
-
-  inline const uint8_t* GetCode() const { return code_bytes_; }
-  inline size_t GetCodeSize() const { return code_.size(); }
-
-  inline bool InitializeSlots(uint8_t* sp, size_t stack_space) const;
-
-  pc_t GetPcFromTrapCode(const uint8_t* current_code) const;
-
-  inline int GetFunctionIndex() const { return func_index_; }
-
-  inline uint32_t GetBlocksCount() const { return blocks_count_; }
-
-  inline const FunctionSig* GetFunctionSignature() const { return signature_; }
-  inline const CanonicalSig* GetCanonicalFunctionSignature() const {
-    return canonical_signature_;
-  }
-  inline ValueType return_type(size_t index) const;
-  inline ValueType arg_type(size_t index) const;
-  inline ValueType local_type(size_t index) const;
-
-  inline uint32_t args_count() const { return args_count_; }
-  inline uint32_t args_slots_size() const { return args_slots_size_; }
-  inline uint32_t return_count() const { return return_count_; }
-  inline uint32_t rets_slots_size() const { return rets_slots_size_; }
-  inline uint32_t locals_count() const { return locals_count_; }
-  inline uint32_t locals_slots_size() const { return locals_slots_size_; }
-  inline uint32_t const_slots_size_in_bytes() const {
-    return static_cast<uint32_t>(const_slots_values_.size());
-  }
-
-  inline uint32_t ref_args_count() const { return ref_args_count_; }
-  inline uint32_t ref_rets_count() const { return ref_rets_count_; }
-  inline uint32_t ref_locals_count() const { return ref_locals_count_; }
-  inline uint32_t ref_slots_count() const { return ref_slots_count_; }
-  inline uint32_t internal_ref_slots_count() const {
-    // Ref slots for arguments and return value are allocated by the caller and
-    // not counted in internal_ref_slots_count().
-    return ref_slots_count_ - ref_rets_count_ - ref_args_count_;
-  }
-
-  inline uint32_t frame_size() { return total_frame_size_in_bytes_; }
-
-  static inline uint32_t ArgsSizeInSlots(const FunctionSig* sig);
-  static inline uint32_t RetsSizeInSlots(const FunctionSig* sig);
-  static inline uint32_t RefArgsCount(const FunctionSig* sig);
-  static inline uint32_t RefRetsCount(const FunctionSig* sig);
-  static inline bool ContainsSimd(const FunctionSig* sig);
-  static inline bool HasRefOrSimdArgs(const FunctionSig* sig);
-  static inline uint32_t JSToWasmWrapperPackedArraySize(const FunctionSig* sig);
-  static inline uint32_t RefLocalsCount(const InterpreterCode* wasm_code);
-  static inline uint32_t LocalsSizeInSlots(const InterpreterCode* wasm_code);
-
-  const WasmEHData::TryBlock* GetTryBlock(CodeOffset code_offset) const {
-    return eh_data_.GetTryBlock(code_offset);
-  }
-  const WasmEHData::TryBlock* GetParentTryBlock(
-      const WasmEHData::TryBlock* try_block) const {
-    return eh_data_.GetParentTryBlock(try_block);
-  }
-  WasmEHData::ExceptionPayloadSlotOffsets GetExceptionPayloadStartSlotOffsets(
-      WasmEHData::BlockIndex catch_block_index) const {
-    return eh_data_.GetExceptionPayloadStartSlotOffsets(catch_block_index);
-  }
-  DirectHandle<Object> GetCaughtException(Isolate* isolate,
-                                          uint32_t catch_block_index) const {
-    return eh_data_.GetCaughtException(isolate, catch_block_index);
-  }
-
- private:
-  std::vector<uint8_t> code_;
-  const uint8_t* code_bytes_;
-  const FunctionSig* signature_;
-  const CanonicalSig* canonical_signature_;
-  const InterpreterCode* interpreter_code_;
-  std::vector<uint8_t> const_slots_values_;
-
-  int func_index_;
-  uint32_t blocks_count_;
-  uint32_t args_count_;
-  uint32_t args_slots_size_;
-  uint32_t return_count_;
-  uint32_t rets_slots_size_;
-  uint32_t locals_count_;
-  uint32_t locals_slots_size_;
-  uint32_t total_frame_size_in_bytes_;
-  uint32_t ref_args_count_;
-  uint32_t ref_rets_count_;
-  uint32_t ref_locals_count_;
-  uint32_t ref_slots_count_;
-
-  WasmEHData eh_data_;
-
-  // TODO(paolosev@microsoft.com) slow! Use std::unordered_map ?
-  std::map<CodeOffset, pc_t> code_pc_map_;
-};
 
 enum InstrHandlerSize {
   Large = 0,  // false

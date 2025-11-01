@@ -1076,7 +1076,7 @@ String::FlatContent String::GetFlatContent(
 template <typename T, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<T>, DirectHandle<String>>)
 HandleType<String> String::Share(Isolate* isolate, HandleType<T> string) {
-  DCHECK(v8_flags.shared_string_table);
+  DCHECK(v8_flags.shared_strings);
   MaybeDirectHandle<Map> new_map;
   switch (
       isolate->factory()->ComputeSharingStrategyForString(string, &new_map)) {

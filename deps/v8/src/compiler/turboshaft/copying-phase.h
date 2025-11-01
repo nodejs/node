@@ -908,11 +908,33 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     // bind a block that represents non-throwing control flow of the original
     // operation, so we can inline the rest of the `didnt_throw` block.
     {
-      CatchScope scope(Asm(), MapToNewGraph(op.catch_block));
+      std::optional<CatchScope> catch_scope;
+      if (op.catch_block != nullptr) {
+        // CheckExceptionOp represents either an exception handler, an effect
+        // handler or both, so the catch block may be empty.
+        catch_scope.emplace(Asm(), MapToNewGraph(op.catch_block));
+      }
+      if (!op.effect_handlers.empty()) {
+        // Similar logic as the catch scope, but effect handlers cannot be
+        // nested, so just set it and clear it after the reduction.
+        base::Vector<EffectHandler> output_handlers =
+            Asm()
+                .output_graph()
+                .graph_zone()
+                ->template AllocateVector<EffectHandler>(
+                    op.effect_handlers.size());
+        for (int i = 0; i < op.effect_handlers.length(); ++i) {
+          output_handlers[i].tag_index = op.effect_handlers[i].tag_index;
+          output_handlers[i].block = MapToNewGraph(op.effect_handlers[i].block);
+        }
+        Asm().set_effect_handlers_for_next_call(output_handlers);
+      }
       DCHECK(Asm().input_graph().Get(*it).template Is<DidntThrowOp>());
       if (!Asm().InlineOp(*it, op.didnt_throw_block)) {
+        Asm().clear_effect_handlers();
         return V<None>::Invalid();
       }
+      Asm().clear_effect_handlers();
       ++it;
     }
     for (; it != end; ++it) {

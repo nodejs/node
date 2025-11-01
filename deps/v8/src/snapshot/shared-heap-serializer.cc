@@ -136,9 +136,9 @@ void SharedHeapSerializer::SerializeStringTable(StringTable* string_table) {
       UNREACHABLE();
     }
 
-    void VisitRootPointers(Root root, const char* description,
-                           OffHeapObjectSlot start,
-                           OffHeapObjectSlot end) override {
+    void VisitCompressedRootPointers(Root root, const char* description,
+                                     OffHeapObjectSlot start,
+                                     OffHeapObjectSlot end) override {
       DCHECK_EQ(root, Root::kStringTable);
       Isolate* isolate = serializer_->isolate();
       for (OffHeapObjectSlot current = start; current < end; ++current) {

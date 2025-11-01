@@ -285,6 +285,29 @@ bool JSLocale::StartsWithUnicodeLanguageId(std::string_view value) {
 }
 
 namespace {
+// Return true if variants contain duplicate elements.
+bool DuplicateVariants(std::string variants) {
+  // The length of one unicode_variant_subtag is between 4-8. To have
+  // duplicate, the length of the variants need to be >= 4+1+4 = 9.
+  if (variants.length() >= 9) {
+    std::transform(
+        variants.begin(), variants.end(), variants.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    size_t pos = 0;
+    size_t count = 1;
+    std::set<std::string> set;
+    while ((pos = variants.find('-')) != std::string::npos) {
+      set.insert(variants.substr(0, pos));
+      variants.erase(0, pos + 1);
+      count++;
+    }
+    set.insert(variants);
+    if (count != set.size()) {
+      return true;
+    }
+  }
+  return false;
+}
 Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
                               DirectHandle<JSReceiver> options,
                               icu::LocaleBuilder* builder) {
@@ -365,6 +388,36 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
     builder->build(status);
     if (U_FAILURE(status) || region_stdstr.empty()) {
       return Just(false);
+    }
+  }
+
+  if (v8_flags.js_intl_locale_variants) {
+    // 8. Let variants be ? GetOption(options, "variants", string, empty,
+    // GetLocaleVariants(baseName)).
+    DirectHandle<String> variants_str;
+    Maybe<bool> maybe_variants =
+        GetStringOption(isolate, options, isolate->factory()->variants_string(),
+                        "ApplyOptionsToTag", &variants_str);
+    MAYBE_RETURN(maybe_variants, Nothing<bool>());
+    // 9. If variants is not undefined, then
+    if (maybe_variants.FromJust()) {
+      // a. If variants is the empty String, throw a RangeError exception.
+      // b. Let lowerVariants be the ASCII-lowercase of variants.
+      std::string variants_stdstr = variants_str->ToStdString();
+      // c. Let variantSubtags be StringSplitToList(lowerVariants, "-").
+      // d. For each element variant of variantSubtags, do
+      // i. If variant cannot be matched by the unicode_variant_subtag Unicode
+      // locale nonterminal, throw a RangeError exception.
+      builder->setVariant(variants_stdstr);
+      builder->build(status);
+      if (U_FAILURE(status) || variants_stdstr.empty()) {
+        return Just(false);
+      }
+      // e. If variantSubtags contains any duplicate elements, throw a
+      // RangeError exception.
+      if (DuplicateVariants(variants_stdstr)) {
+        return Just(false);
+      }
     }
   }
 
@@ -815,6 +868,21 @@ DirectHandle<Object> JSLocale::Script(Isolate* isolate,
   const char* script = locale->icu_locale()->raw()->getScript();
   if (strlen(script) == 0) return factory->undefined_value();
   return factory->NewStringFromAsciiChecked(script);
+}
+DirectHandle<Object> JSLocale::Variants(Isolate* isolate,
+                                        DirectHandle<JSLocale> locale) {
+  Factory* factory = isolate->factory();
+  std::string variants = locale->icu_locale()->raw()->getVariant();
+  if (variants.length() == 0) return factory->undefined_value();
+  // icu::Locale::getVariants() return the variants in upper case characters
+  // with '_', we need to convert it to lower case and '-' before return.
+  std::transform(variants.begin(), variants.end(), variants.begin(),
+                 [](unsigned char c) {
+                   if (c == '_') return '-';
+                   return static_cast<char>(std::tolower(c));
+                 });
+
+  return factory->NewStringFromAsciiChecked(variants.c_str());
 }
 
 DirectHandle<Object> JSLocale::Region(Isolate* isolate,

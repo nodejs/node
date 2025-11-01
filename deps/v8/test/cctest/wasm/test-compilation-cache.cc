@@ -62,7 +62,7 @@ class StreamTester {
     stream_->OnBytesReceived(base::Vector<const uint8_t>(start, length));
   }
 
-  void FinishStream() { stream_->Finish(); }
+  void FinishStream() { stream_->Finish({}); }
 
  private:
   i::HandleScope internal_scope_;

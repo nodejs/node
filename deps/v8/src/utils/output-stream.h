@@ -21,6 +21,8 @@ class V8_EXPORT_PRIVATE FileOutputStream : public v8::OutputStream {
   WriteResult WriteAsciiChunk(char* data, int size) override;
   void EndOfStream() override;
 
+  bool IsOpen() const { return os_.is_open(); }
+
  private:
   std::ofstream os_;
 };
