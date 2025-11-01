@@ -1,6 +1,6 @@
 import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
-import { ok, strictEqual, notStrictEqual, match } from 'node:assert';
+import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
@@ -23,9 +23,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       ].join('\n'),
     ]);
 
-    strictEqual(stderr, '');
-    strictEqual(stdout, '');
-    strictEqual(code, 0);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
   });
 
   it('should not allow code injection through export names', async () => {
@@ -36,9 +36,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       `import * as wasmExports from ${JSON.stringify(fixtures.fileURL('es-modules/export-name-code-injection.wasm'))};`,
     ]);
 
-    strictEqual(stderr, '');
-    strictEqual(stdout, '');
-    strictEqual(code, 0);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
   });
 
   it('should allow non-identifier export names', async () => {
@@ -53,9 +53,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       ].join('\n'),
     ]);
 
-    strictEqual(stderr, '');
-    strictEqual(stdout, '');
-    strictEqual(code, 0);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
   });
 
   it('should properly handle all WebAssembly global types', async () => {
@@ -199,9 +199,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       ].join('\n'),
     ]);
 
-    strictEqual(stderr, '');
-    strictEqual(stdout, '');
-    strictEqual(code, 0);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
   });
 
   it('should properly escape import names as well', async () => {
@@ -216,9 +216,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       ].join('\n'),
     ]);
 
-    strictEqual(stderr, '');
-    strictEqual(stdout, '');
-    strictEqual(code, 0);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
   });
 
   it('should emit experimental warning for module instances', async () => {
@@ -226,10 +226,10 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       fixtures.path('es-modules/wasm-modules.mjs'),
     ]);
 
-    strictEqual(code, 0);
-    strictEqual(signal, null);
-    match(stderr, /ExperimentalWarning/);
-    match(stderr, /Importing WebAssembly module instances/);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+    assert.match(stderr, /ExperimentalWarning/);
+    assert.match(stderr, /Importing WebAssembly module instances/);
   });
 
   it('should support top-level execution', async () => {
@@ -238,9 +238,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       fixtures.path('es-modules/top-level-wasm.wasm'),
     ]);
 
-    strictEqual(stderr, '');
-    strictEqual(stdout, '[Object: null prototype] { prop: \'hello world\' }\n');
-    strictEqual(code, 0);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '[Object: null prototype] { prop: \'hello world\' }\n');
+    assert.strictEqual(code, 0);
   });
 
   it('should support static source phase imports', async () => {
@@ -258,9 +258,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       ].join('\n'),
     ]);
 
-    strictEqual(stderr, '');
-    strictEqual(stdout, '');
-    strictEqual(code, 0);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
   });
 
   it('should support dynamic source phase imports', async () => {
@@ -279,9 +279,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       ].join('\n'),
     ]);
 
-    strictEqual(stderr, '');
-    strictEqual(stdout, '');
-    strictEqual(code, 0);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
   });
 
   it('should not execute source phase imports', async () => {
@@ -297,9 +297,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       ].join('\n'),
     ]);
 
-    strictEqual(stderr, '');
-    strictEqual(stdout, '');
-    strictEqual(code, 0);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
   });
 
   it('should not execute dynamic source phase imports', async () => {
@@ -310,9 +310,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       `await import.source(${JSON.stringify(fixtures.fileURL('es-modules/unimportable.wasm'))})`,
     ]);
 
-    strictEqual(stderr, '');
-    strictEqual(stdout, '');
-    strictEqual(code, 0);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
   });
 
   it('should throw for dynamic source phase imports not defined', async () => {
@@ -332,9 +332,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       ].join('\n'),
     ]);
 
-    strictEqual(stderr, '');
-    strictEqual(stdout, '');
-    strictEqual(code, 0);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
   });
 
   it('should throw for static source phase imports not defined', async () => {
@@ -345,10 +345,10 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       '--eval',
       `import source nosource from ${JSON.stringify(fileUrl)};`,
     ]);
-    match(stderr, /Source phase import object is not defined for module/);
-    ok(stderr.includes(fileUrl));
-    strictEqual(stdout, '');
-    notStrictEqual(code, 0);
+    assert.match(stderr, /Source phase import object is not defined for module/);
+    assert.ok(stderr.includes(fileUrl));
+    assert.strictEqual(stdout, '');
+    assert.notStrictEqual(code, 0);
   });
 
   it('should throw for vm source phase static import', async () => {
@@ -364,9 +364,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
         'await m1.evaluate();',
       ].join('\n'),
     ]);
-    match(stderr, /Source phase import object is not defined for module/);
-    strictEqual(stdout, '');
-    notStrictEqual(code, 0);
+    assert.match(stderr, /Source phase import object is not defined for module/);
+    assert.strictEqual(stdout, '');
+    assert.notStrictEqual(code, 0);
   });
 
   it('should throw for vm source phase dynamic import', async () => {
@@ -384,9 +384,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
         'await m1.evaluate();',
       ].join('\n'),
     ]);
-    match(stderr, /Source phase import object is not defined for module/);
-    strictEqual(stdout, '');
-    notStrictEqual(code, 0);
+    assert.match(stderr, /Source phase import object is not defined for module/);
+    assert.strictEqual(stdout, '');
+    assert.notStrictEqual(code, 0);
   });
 
   it('should reject wasm: import names', async () => {
@@ -397,9 +397,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       `import(${JSON.stringify(fixtures.fileURL('es-modules/invalid-import-name.wasm'))})`,
     ]);
 
-    match(stderr, /Invalid Wasm import name/);
-    strictEqual(stdout, '');
-    notStrictEqual(code, 0);
+    assert.match(stderr, /Invalid Wasm import name/);
+    assert.strictEqual(stdout, '');
+    assert.notStrictEqual(code, 0);
   });
 
   it('should reject wasm-js: import names', async () => {
@@ -410,9 +410,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       `import(${JSON.stringify(fixtures.fileURL('es-modules/invalid-import-name-wasm-js.wasm'))})`,
     ]);
 
-    match(stderr, /Invalid Wasm import name/);
-    strictEqual(stdout, '');
-    notStrictEqual(code, 0);
+    assert.match(stderr, /Invalid Wasm import name/);
+    assert.strictEqual(stdout, '');
+    assert.notStrictEqual(code, 0);
   });
 
   it('should reject wasm-js: import module names', async () => {
@@ -423,9 +423,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       `import(${JSON.stringify(fixtures.fileURL('es-modules/invalid-import-module.wasm'))})`,
     ]);
 
-    match(stderr, /Invalid Wasm import/);
-    strictEqual(stdout, '');
-    notStrictEqual(code, 0);
+    assert.match(stderr, /Invalid Wasm import/);
+    assert.strictEqual(stdout, '');
+    assert.notStrictEqual(code, 0);
   });
 
   it('should reject wasm: export names', async () => {
@@ -436,9 +436,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       `import(${JSON.stringify(fixtures.fileURL('es-modules/invalid-export-name.wasm'))})`,
     ]);
 
-    match(stderr, /Invalid Wasm export/);
-    strictEqual(stdout, '');
-    notStrictEqual(code, 0);
+    assert.match(stderr, /Invalid Wasm export/);
+    assert.strictEqual(stdout, '');
+    assert.notStrictEqual(code, 0);
   });
 
   it('should reject wasm-js: export names', async () => {
@@ -449,9 +449,9 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       `import(${JSON.stringify(fixtures.fileURL('es-modules/invalid-export-name-wasm-js.wasm'))})`,
     ]);
 
-    match(stderr, /Invalid Wasm export/);
-    strictEqual(stdout, '');
-    notStrictEqual(code, 0);
+    assert.match(stderr, /Invalid Wasm export/);
+    assert.strictEqual(stdout, '');
+    assert.notStrictEqual(code, 0);
   });
 
   it('should support js-string builtins', async () => {
@@ -469,8 +469,8 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       ].join('\n'),
     ]);
 
-    strictEqual(stderr, '');
-    strictEqual(stdout, '');
-    strictEqual(code, 0);
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
   });
 });
