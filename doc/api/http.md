@@ -745,7 +745,7 @@ added: v0.1.94
 -->
 
 * `response` {http.IncomingMessage}
-* `socket` {stream.Duplex}
+* `stream` {stream.Duplex}
 * `head` {Buffer}
 
 Emitted each time a server responds to a request with an upgrade. If this
@@ -768,13 +768,13 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('okay');
 });
-server.on('upgrade', (req, socket, head) => {
-  socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
+server.on('upgrade', (req, stream, head) => {
+  stream.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                'Upgrade: WebSocket\r\n' +
                'Connection: Upgrade\r\n' +
                '\r\n');
 
-  socket.pipe(socket); // echo back
+  stream.pipe(stream); // echo back
 });
 
 // Now that server is running
@@ -793,9 +793,9 @@ server.listen(1337, '127.0.0.1', () => {
   const req = http.request(options);
   req.end();
 
-  req.on('upgrade', (res, socket, upgradeHead) => {
+  req.on('upgrade', (res, stream, upgradeHead) => {
     console.log('got upgraded!');
-    socket.end();
+    stream.end();
     process.exit(0);
   });
 });
@@ -809,13 +809,13 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('okay');
 });
-server.on('upgrade', (req, socket, head) => {
-  socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
+server.on('upgrade', (req, stream, head) => {
+  stream.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                'Upgrade: WebSocket\r\n' +
                'Connection: Upgrade\r\n' +
                '\r\n');
 
-  socket.pipe(socket); // echo back
+  stream.pipe(stream); // echo back
 });
 
 // Now that server is running
@@ -834,9 +834,9 @@ server.listen(1337, '127.0.0.1', () => {
   const req = http.request(options);
   req.end();
 
-  req.on('upgrade', (res, socket, upgradeHead) => {
+  req.on('upgrade', (res, stream, upgradeHead) => {
     console.log('got upgraded!');
-    socket.end();
+    stream.end();
     process.exit(0);
   });
 });
@@ -1674,6 +1674,14 @@ per connection (in the case of HTTP Keep-Alive connections).
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60016
+    description: Request bodies are no longer exposed raw (unparsed) on the
+                 socket argument. Instead, if a body is received, the stream
+                 argument will be a duplex that emits socket content only
+                 after the request body, while the parsed request body data
+                 will be emitted from the request, just as in normal server
+                 `'request'` events.
   - version:
      - v24.9.0
      - v22.21.0
@@ -1689,7 +1697,7 @@ changes:
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
   the [`'request'`][] event
-* `socket` {stream.Duplex} Network socket between the server and client
+* `stream` {stream.Duplex} The upgraded stream between the server and client
 * `head` {Buffer} The first packet of the upgraded stream (may be empty)
 
 Emitted each time a client's HTTP upgrade request is accepted. By default
@@ -1697,23 +1705,29 @@ all HTTP upgrade requests are ignored (i.e. only regular `'request'` events
 are emitted, sticking with the normal HTTP request/response flow) unless you
 listen to this event, in which case they are all accepted (i.e. the `'upgrade'`
 event is emitted instead, and future communication must handled directly
-through the raw socket). You can control this more precisely by using the
+through the raw stream). You can control this more precisely by using the
 server `shouldUpgradeCallback` option.
 
 Listening to this event is optional and clients cannot insist on a protocol
 change.
 
-After this event is emitted, the request's socket will not have a `'data'`
-event listener, meaning it will need to be bound in order to handle data
-sent to the server on that socket.
-
 If an upgrade is accepted by `shouldUpgradeCallback` but no event handler
-is registered then the socket is destroyed, resulting in an immediate
+is registered then the socket will be destroyed, resulting in an immediate
 connection closure for the client.
 
-This event is guaranteed to be passed an instance of the {net.Socket} class,
-a subclass of {stream.Duplex}, unless the user specifies a socket
-type other than {net.Socket}.
+In the uncommon case that the incoming request has a body, this body will be
+parsed as normal, separate to the upgrade stream, and the raw stream data will
+only begin after it has completed. To ensure that reading from the stream isn't
+blocked by waiting for the request body to be read, any reads on the stream
+will start the request body flowing automatically. If you want to read the
+request body, ensure that you do so (i.e. you attach `'data'` listeners)
+before starting to read from the upgraded stream.
+
+The stream argument will typically be the {net.Socket} instance used by the
+request, but in some cases (such as with a request body) it may be a duplex
+stream. If required, you can access the raw connection underlying the request
+via [`request.socket`][], which is guaranteed to be an instance of {net.Socket}
+unless the user specified another socket type.
 
 ### `server.close([callback])`
 
