@@ -2,6 +2,7 @@
 
 require('../common');
 const assert = require('assert');
+// eslint-disable-next-line node-core/must-call-assert
 const { Assert } = require('assert');
 const { test } = require('node:test');
 
@@ -18,18 +19,12 @@ test('Assert class destructuring behavior - diff option', () => {
 
   assertInstanceFull.throws(
     () => assertInstanceFull.strictEqual({ a: 1 }, { a: 2 }),
-    (err) => {
-      assert.strictEqual(err.diff, 'full');
-      return true;
-    }
+    { diff: 'full' },
   );
 
   assertInstanceSimple.throws(
     () => assertInstanceSimple.strictEqual({ a: 1 }, { a: 2 }),
-    (err) => {
-      assert.strictEqual(err.diff, 'simple');
-      return true;
-    }
+    { diff: 'simple' },
   );
 
   const { strictEqual: strictEqualSimple } = assertInstanceSimple;

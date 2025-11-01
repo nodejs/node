@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const { strictEqual } = require('assert');
+const assert = require('assert');
 const { AsyncLocalStorage } = require('async_hooks');
 
 const asyncLocalStorage = new AsyncLocalStorage();
@@ -13,4 +13,4 @@ const result =
       return asyncLocalStorage.getStore();
     });
   }));
-strictEqual(result, 123);
+assert.strictEqual(result, 123);
