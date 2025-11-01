@@ -1,68 +1,13 @@
 {
-  pkgs ? import "${./tools/nix/pkgs.nix}" { },
+  pkgs ? import ./tools/nix/pkgs.nix { },
   loadJSBuiltinsDynamically ? true, # Load `lib/**.js` from disk instead of embedding
   ncu-path ? null, # Provide this if you want to use a local version of NCU
   icu ? pkgs.icu,
-  sharedLibDeps ? {
-    inherit (pkgs)
-      ada
-      brotli
-      c-ares
-      libuv
-      nghttp2
-      nghttp3
-      ngtcp2
-      simdjson
-      simdutf
-      sqlite
-      uvwasi
-      zlib
-      zstd
-      ;
-    http-parser = pkgs.llhttp;
-    openssl = pkgs.openssl.overrideAttrs (old: {
-      version = "3.5.4";
-      src = pkgs.fetchurl {
-        url = builtins.replaceStrings [ old.version ] [ "3.5.4" ] old.src.url;
-        hash = "sha256-lnMR+ElVMWlpvbHY1LmDcY70IzhjnGIexMNP3e81Xpk=";
-      };
-      doCheck = false;
-      configureFlags = (old.configureFlags or [ ]) ++ [
-        "no-docs"
-        "no-tests"
-      ];
-      outputs = [
-        "bin"
-        "out"
-        "dev"
-      ];
-    });
-  },
+  sharedLibDeps ? import ./tools/nix/sharedLibDeps.nix { inherit pkgs; },
   ccache ? pkgs.ccache,
   ninja ? pkgs.ninja,
-  devTools ? [
-    pkgs.curl
-    pkgs.gh
-    pkgs.git
-    pkgs.jq
-    pkgs.shellcheck
-  ]
-  ++ (
-    if (ncu-path == null) then
-      [ pkgs.node-core-utils ]
-    else
-      [
-        (pkgs.writeShellScriptBin "git-node" "exec \"${ncu-path}/bin/git-node.js\" \"$@\"")
-        (pkgs.writeShellScriptBin "ncu-ci" "exec \"${ncu-path}/bin/ncu-ci.js\" \"$@\"")
-        (pkgs.writeShellScriptBin "ncu-config" "exec \"${ncu-path}/bin/ncu-config.js\" \"$@\"")
-      ]
-  ),
-  benchmarkTools ? [
-    pkgs.R
-    pkgs.rPackages.ggplot2
-    pkgs.rPackages.plyr
-    pkgs.wrk
-  ],
+  devTools ? import ./tools/nix/devTools.nix { inherit pkgs ncu-path; },
+  benchmarkTools ? import ./tools/nix/benchmarkTools.nix { inherit pkgs; },
   extraConfigFlags ? [
     "--without-npm"
     "--debug-node"
