@@ -3344,21 +3344,30 @@ napi_status NAPI_CDECL napi_create_dataview(napi_env env,
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
-  RETURN_STATUS_IF_FALSE(env, value->IsArrayBuffer(), napi_invalid_arg);
 
-  v8::Local<v8::ArrayBuffer> buffer = value.As<v8::ArrayBuffer>();
-  if (byte_length + byte_offset > buffer->ByteLength()) {
-    napi_throw_range_error(env,
-                           "ERR_NAPI_INVALID_DATAVIEW_ARGS",
-                           "byte_offset + byte_length should be less than or "
-                           "equal to the size in bytes of the array passed in");
-    return napi_set_last_error(env, napi_pending_exception);
+  auto create_dataview = [&](auto buffer) -> napi_status {
+    if (byte_length + byte_offset > buffer->ByteLength()) {
+      napi_throw_range_error(
+          env,
+          "ERR_NAPI_INVALID_DATAVIEW_ARGS",
+          "byte_offset + byte_length should be less than or "
+          "equal to the size in bytes of the array passed in");
+      return napi_set_last_error(env, napi_pending_exception);
+    }
+
+    v8::Local<v8::DataView> data_view =
+        v8::DataView::New(buffer, byte_offset, byte_length);
+    *result = v8impl::JsValueFromV8LocalValue(data_view);
+    return GET_RETURN_STATUS(env);
+  };
+
+  if (value->IsArrayBuffer()) {
+    return create_dataview(value.As<v8::ArrayBuffer>());
+  } else if (value->IsSharedArrayBuffer()) {
+    return create_dataview(value.As<v8::SharedArrayBuffer>());
+  } else {
+    return napi_set_last_error(env, napi_invalid_arg);
   }
-  v8::Local<v8::DataView> DataView =
-      v8::DataView::New(buffer, byte_offset, byte_length);
-
-  *result = v8impl::JsValueFromV8LocalValue(DataView);
-  return GET_RETURN_STATUS(env);
 }
 
 napi_status NAPI_CDECL napi_is_dataview(napi_env env,
