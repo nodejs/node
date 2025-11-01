@@ -452,6 +452,7 @@ class DataQueueFeeder final : public AsyncWrap {
   JS_METHOD(Submit);
   JS_METHOD(Error);
   JS_METHOD(Ready);
+  JS_METHOD(AddFakePull);
 
  private:
   std::shared_ptr<DataQueue> dataQueue_;

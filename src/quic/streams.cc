@@ -1433,6 +1433,17 @@ JS_METHOD_IMPL(DataQueueFeeder::Error) {
   feeder->DrainAndClose();
 }
 
+JS_METHOD_IMPL(DataQueueFeeder::AddFakePull) {
+  DataQueueFeeder* feeder;
+  ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
+  // this adds a fake pull for testing code, not to be used anywhere else
+  Next dummyNext = [](int, const DataQueue::Vec*, size_t, bob::Done) {
+    // intentionally empty
+  };
+  feeder->addPendingPull(PendingPull(std::move(dummyNext)));
+  feeder->tryWakePulls();
+}
+
 JS_CONSTRUCTOR_IMPL(DataQueueFeeder, dataqueuefeeder_constructor_template, {
   auto isolate = env->isolate();
   JS_NEW_CONSTRUCTOR();
@@ -1441,6 +1452,7 @@ JS_CONSTRUCTOR_IMPL(DataQueueFeeder, dataqueuefeeder_constructor_template, {
   SetProtoMethod(isolate, tmpl, "error", Error);
   SetProtoMethod(isolate, tmpl, "submit", Submit);
   SetProtoMethod(isolate, tmpl, "ready", Ready);
+  SetProtoMethod(isolate, tmpl, "addFakePull", AddFakePull);
 })
 
 void DataQueueFeeder::InitPerIsolate(IsolateData* data,
@@ -1461,6 +1473,7 @@ void DataQueueFeeder::RegisterExternalReferences(
   registry->Register(Submit);
   registry->Register(Error);
   registry->Register(Ready);
+  registry->Register(AddFakePull);
 }
 
 }  // namespace node
