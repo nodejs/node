@@ -792,6 +792,17 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "loadEnvFile", LoadEnvFile);
 
   SetMethod(isolate, target, "setEmitWarningSync", SetEmitWarningSync);
+
+  SetMethod(isolate, target, "getNotifications", Environment::GetNotifications);
+  SetMethod(isolate,
+            target,
+            "registerNotification",
+            Environment::RegisterNotification);
+  SetMethod(isolate,
+            target,
+            "unregisterNotification",
+            Environment::UnregisterNotification);
+  SetMethod(isolate, target, "sendNotification", Environment::SendNotification);
 }
 
 static void CreatePerContextProperties(Local<Object> target,
@@ -820,6 +831,11 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(CPUUsage);
   registry->Register(ThreadCPUUsage);
   registry->Register(ResourceUsage);
+
+  registry->Register(Environment::GetNotifications);
+  registry->Register(Environment::RegisterNotification);
+  registry->Register(Environment::UnregisterNotification);
+  registry->Register(Environment::SendNotification);
 
   registry->Register(GetActiveRequests);
   registry->Register(GetActiveHandles);
