@@ -23,8 +23,9 @@ const commitListingStart = changelog.indexOf('\n### Commits\n');
 let commitList;
 if (commitListingStart === -1) {
   // We're preparing a semver-major release.
-  commitList = changelog.replace(/(^.+\n### Semver-Major|\n### Semver-(Minor|Patch)) Commits\n/gs, '')
-    .replaceAll('**(SEMVER-MAJOR)** ', '');
+  assert.match(changelog, /\n### Semver-Major Commits\n/);
+  // The proposal should contain only the release commit.
+  commitList = '';
 } else {
   // We can't assume the Commits section is the one for this release in case of
   // a release to transition to LTS (i.e. with no commits).
