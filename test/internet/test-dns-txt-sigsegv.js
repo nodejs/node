@@ -9,7 +9,7 @@ const dnsPromises = dns.promises;
   assert.strictEqual(result.length, 0);
 })().then(common.mustCall());
 
-dns.resolveTxt('www.microsoft.com', function(err, records) {
+dns.resolveTxt('www.microsoft.com', common.mustCall((err, records) => {
   assert.strictEqual(err, null);
   assert.strictEqual(records.length, 0);
-});
+}));

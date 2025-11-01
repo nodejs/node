@@ -167,6 +167,7 @@ export default [
         'embedding',
         'fixtures',
         'fuzzers',
+        'internet',
         'js-native-api',
         'known_issues',
         'message',

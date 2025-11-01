@@ -34,13 +34,13 @@ const { createConnection } = require('net');
 
   const pass = common.mustCall();
 
-  connection.on('connectionAttemptTimeout', (address, port, family) => {
+  connection.on('connectionAttemptTimeout', common.mustCallAtLeast((address, port, family) => {
     assert.strictEqual(address, INET4_IP);
     assert.strictEqual(port, 443);
     assert.strictEqual(family, 4);
     connection.destroy();
     pass();
-  });
+  }, 0));
 
   connection.on('ready', () => {
     pass();
