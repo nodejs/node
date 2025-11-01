@@ -101,11 +101,11 @@ def get_default_out_dir(args):
     return default_out_dir
   if os.path.exists(args.config):
     return args.config
-  raise RuntimeError('Cannot find out dir, did you run build?')
-
+  raise RuntimeError('Cannot find out dir, did you run build ?')
+ 
 def main():
   if sys.platform == 'cygwin':
-    raise RuntimeError('This script does not support running with cygwin python.')
+    raise RuntimeError('This script does not support running with cygwin Python.')
 
   parser = argparse.ArgumentParser(
       description='Install headers and rebuild child directories')
