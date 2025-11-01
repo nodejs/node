@@ -25,6 +25,7 @@ on:
       - deps/zlib/**
       - deps/zstd/**
       - doc/**
+      - test/internet/**
       - .github/**
       - '!.github/workflows/test-shared.yml'
     types: [opened, synchronize, reopened, ready_for_review]
@@ -55,6 +56,7 @@ on:
       - deps/zlib/**
       - deps/zstd/**
       - doc/**
+      - test/internet/**
       - .github/**
       - '!.github/workflows/test-shared.yml'
 
