@@ -141,6 +141,10 @@ function startCLI(args, flags = [], spawnOpts = {}, opts = { randomPort: true })
       return getOutput();
     },
 
+    get stderrOutput() {
+      return stderrOutput;
+    },
+
     get rawOutput() {
       return outputBuffer.join('').toString();
     },
