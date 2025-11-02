@@ -1,6 +1,5 @@
 'use strict';
 require('../common');
-const { addresses } = require('../common/internet');
 
 const assert = require('assert');
 const { Socket } = require('net');
