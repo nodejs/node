@@ -3,6 +3,8 @@ name: Label PRs
 on:
   pull_request_target:
     types: [opened]
+  pull_request_review:
+    types: [submitted]
 
 permissions:
   contents: read
@@ -13,6 +15,26 @@ jobs:
 
     steps:
       - uses: nodejs/node-pr-labeler@d4cf1b8b9f23189c37917000e5e17e796c770a6b  # v1
+        if: github.event_name != 'pull_request_review'
         with:
           repo-token: ${{ secrets.GH_USER_TOKEN }}
           configuration-path: .github/label-pr-config.yml
+      - name: Add 'Author ready' label
+        if: github.event_name == 'pull_request_review'
+        run: |
+          gh pr view "$PR_URL" --json reviewDecision,statusCheckRollup,mergeable,labels --jq '
+            if .mergeable == "MERGEABLE" and
+               .reviewDecision == "APPROVED" and
+               (.statusCheckRollup | all(.conclusion != "FAILURE")) and
+               ((.labels | all(.name != "needs-ci" and .name != "author ready")) or (.labels | any(.name == "request-ci")))
+            then
+              halt_error
+            end | {
+              labels: .labels | map(.name),
+              failedChecks: .statusCheckRollup | map(select(.conclusion == "FAILURE")),
+              mergeable,
+              reviewDecision,
+            }' || gh pr edit "$PR_URL" --add-label 'author ready'
+        env:
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
