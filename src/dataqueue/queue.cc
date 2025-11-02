@@ -161,9 +161,9 @@ class DataQueueImpl final : public DataQueue,
   }
 
   void clearPendingNext() override {
-     for (const auto& entry : entries_) {
+    for (const auto& entry : entries_) {
       entry->clearPendingNext();
-     }
+    }
   }
 
   void MemoryInfo(node::MemoryTracker* tracker) const override {
@@ -888,9 +888,7 @@ class FdEntry final : public EntryImpl {
     return std::make_unique<FdEntry>(env_, path_, stat_, new_start, new_end);
   }
 
-  void clearPendingNext() override {
-    clearPendingNextImpl();
-  }
+  void clearPendingNext() override { clearPendingNextImpl(); }
 
   std::optional<uint64_t> size() const override { return end_ - start_; }
 
@@ -1098,9 +1096,7 @@ class FdEntry final : public EntryImpl {
       return std::move(pending_pulls_.front());
     }
 
-    void ClearAllPendingPulls() {
-      pending_pulls_.clear();
-    }
+    void ClearAllPendingPulls() { pending_pulls_.clear(); }
 
     friend class FdEntry;
   };
@@ -1134,7 +1130,7 @@ class FeederEntry final : public EntryImpl {
   }
 
   bool is_idempotent() const override { return false; }
- 
+
   void clearPendingNext() override {
     if (feeder_) feeder_->clearPendingNext();
   }
