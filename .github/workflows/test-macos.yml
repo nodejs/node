@@ -8,6 +8,7 @@ on:
       - '**.md'
       - AUTHORS
       - doc/**
+      - test/internet/**
       - .github/**
       - '!.github/workflows/test-macos.yml'
   push:
@@ -21,6 +22,7 @@ on:
       - '**.md'
       - AUTHORS
       - doc/**
+      - test/internet/**
       - .github/**
       - '!.github/workflows/test-macos.yml'
 

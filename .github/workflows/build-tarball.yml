@@ -8,6 +8,7 @@ on:
       - '**.md'
       - AUTHORS
       - doc/**
+      - test/internet/**
       - .github/**
       - '!.github/workflows/build-tarball.yml'
   push:
@@ -20,6 +21,7 @@ on:
       - '**.md'
       - AUTHORS
       - doc/**
+      - test/internet/**
       - .github/**
       - '!.github/workflows/build-tarball.yml'
 
