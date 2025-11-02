@@ -1303,7 +1303,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
 
  protected:
-  inline Register GetRkAsRegisterHelper(const Operand& rk, Register scratch);
+  inline Register GetRkAsRegisterHelper(const Operand& rk,
+                                        UseScratchRegisterScope temps);
   inline int32_t GetOffset(Label* L, OffsetSize bits);
 
  private:
