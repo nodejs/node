@@ -167,6 +167,7 @@ export default [
         'es-module',
         'fixtures',
         'fuzzers',
+        'internet',
         'js-native-api',
         'known_issues',
         'message',
