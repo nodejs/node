@@ -232,11 +232,14 @@ void ConfusabledataBuilder::build(const char * confusables, int32_t confusablesL
     if (U_FAILURE(status)) {
         return;
     }
-    u_strFromUTF8(nullptr, 0, &inputLen, confusables, confusablesLen, &status);
-    if (status != U_BUFFER_OVERFLOW_ERROR) {
+    UErrorCode bufferStatus = U_ZERO_ERROR;
+    u_strFromUTF8(nullptr, 0, &inputLen, confusables, confusablesLen, &bufferStatus);
+    if (bufferStatus != U_BUFFER_OVERFLOW_ERROR) {
+        if (U_FAILURE(bufferStatus)) {
+            status = bufferStatus;
+        }
         return;
     }
-    status = U_ZERO_ERROR;
     fInput = static_cast<char16_t *>(uprv_malloc((inputLen+1) * sizeof(char16_t)));
     if (fInput == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;

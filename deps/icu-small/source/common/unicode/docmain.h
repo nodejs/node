@@ -75,7 +75,8 @@
  *   <tr>
  *     <td>Strings and Character Iteration</td>
  *     <td>ustring.h, utf8.h, utf16.h, icu::StringPiece, UText, UCharIterator, icu::ByteSink</td>
- *     <td>icu::UnicodeString, icu::CharacterIterator, icu::Appendable, icu::StringPiece,icu::ByteSink</td>
+ *     <td>icu::UnicodeString, utfiterator.h (ICU 78+), icu::CharacterIterator, icu::Appendable,<br>
+ *         icu::StringPiece, icu::ByteSink</td>
  *   </tr>
  *   <tr>
  *     <td>Unicode Character<br/>Properties and Names</td>
@@ -160,7 +161,8 @@
  *   <tr>
  *     <td>Number Formatting<br/>(includes currency and unit formatting)</td>
  *     <td>unumberformatter.h, unum.h, usimplenumberformatter.h</td>
- *     <td>icu::number::NumberFormatter (ICU 60+) or icu::NumberFormat (older versions)<br>icu::number::SimpleNumberFormatter (ICU 73+)</td>
+ *     <td>icu::number::NumberFormatter (ICU 60+) or icu::NumberFormat (older versions)<br>
+ *         icu::number::SimpleNumberFormatter (ICU 73+)</td>
  *   </tr>
  *   <tr>
  *     <td>Number Range Formatting<br />(includes currency and unit ranges)</td>

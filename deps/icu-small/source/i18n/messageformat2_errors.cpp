@@ -29,6 +29,14 @@ namespace message2 {
         addError(DynamicError(DynamicErrorType::FormattingError, UnicodeString("unknown formatter")), status);
     }
 
+    void DynamicErrors::setBadOption(const FunctionName& formatterName, UErrorCode& status) {
+        addError(DynamicError(DynamicErrorType::BadOptionError, formatterName), status);
+    }
+
+    void DynamicErrors::setRecoverableBadOption(const FunctionName& formatterName, UErrorCode& status) {
+        addError(DynamicError(DynamicErrorType::RecoverableBadOptionError, formatterName), status);
+    }
+
     void DynamicErrors::setOperandMismatchError(const FunctionName& formatterName, UErrorCode& status) {
         addError(DynamicError(DynamicErrorType::OperandMismatchError, formatterName), status);
     }
@@ -137,6 +145,11 @@ namespace message2 {
                 status = U_MF_FORMATTING_ERROR;
                 break;
             }
+            case DynamicErrorType::BadOptionError:
+            case DynamicErrorType::RecoverableBadOptionError: {
+                status = U_MF_BAD_OPTION;
+                break;
+            }
             case DynamicErrorType::OperandMismatchError: {
                 status = U_MF_OPERAND_MISMATCH_ERROR;
                 break;
@@ -225,6 +238,15 @@ namespace message2 {
         }
         case DynamicErrorType::UnknownFunction: {
             unknownFunctionError = true;
+            resolutionAndFormattingErrors->adoptElement(errorP, status);
+            break;
+        }
+        case DynamicErrorType::BadOptionError: {
+            badOptionError = true;
+            resolutionAndFormattingErrors->adoptElement(errorP, status);
+            break;
+        }
+        case DynamicErrorType::RecoverableBadOptionError: {
             resolutionAndFormattingErrors->adoptElement(errorP, status);
             break;
         }

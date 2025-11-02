@@ -333,7 +333,7 @@ class U_COMMON_API StringPiece : public UMemory {
  * @return true if the string data is equal
  * @stable ICU 4.8
  */
-U_EXPORT UBool U_EXPORT2 
+U_COMMON_API UBool U_EXPORT2 
 operator==(const StringPiece& x, const StringPiece& y);
 
 /**

@@ -102,9 +102,9 @@ ucasemap_setLocale(UCaseMap *csm, const char *locale, UErrorCode *pErrorCode) {
         return;
     }
 
-    int32_t length=uloc_getName(locale, csm->locale, (int32_t)sizeof(csm->locale), pErrorCode);
-    if(*pErrorCode==U_BUFFER_OVERFLOW_ERROR || length==sizeof(csm->locale)) {
-        *pErrorCode=U_ZERO_ERROR;
+    UErrorCode bufferStatus = U_ZERO_ERROR;
+    int32_t length=uloc_getName(locale, csm->locale, (int32_t)sizeof(csm->locale), &bufferStatus);
+    if(bufferStatus==U_BUFFER_OVERFLOW_ERROR || length==sizeof(csm->locale)) {
         /* we only really need the language code for case mappings */
         length=uloc_getLanguage(locale, csm->locale, (int32_t)sizeof(csm->locale), pErrorCode);
     }

@@ -251,13 +251,12 @@ int32_t IndianCalendar::handleGetExtendedYear(UErrorCode& status) {
  * method is called. The getGregorianXxx() methods return Gregorian
  * calendar equivalents for the given Julian day.
  */
-void IndianCalendar::handleComputeFields(int32_t julianDay, UErrorCode&  status) {
+void IndianCalendar::handleComputeFields(int32_t julianDay, UErrorCode& /* status */) {
     double jdAtStartOfGregYear;
     int32_t leapMonth, IndianYear, yday, IndianMonth, IndianDayOfMonth, mday;
     // Stores gregorian date corresponding to Julian day;
-    int32_t gregorianYear = Grego::dayToYear(julianDay - kEpochStartAsJulianDay, status);
+    int32_t gregorianYear = getGregorianYear();
 
-    if (U_FAILURE(status)) return;
     IndianYear = gregorianYear - INDIAN_ERA_START;            // Year in Saka era
     jdAtStartOfGregYear = gregorianToJD(gregorianYear, 0, 1); // JD at start of Gregorian year
     yday = static_cast<int32_t>(julianDay - jdAtStartOfGregYear); // Day number in Gregorian year (starting from 0)
@@ -294,32 +293,16 @@ void IndianCalendar::handleComputeFields(int32_t julianDay, UErrorCode&  status)
    internalSet(UCAL_ORDINAL_MONTH, IndianMonth);
    internalSet(UCAL_DAY_OF_MONTH, IndianDayOfMonth);
    internalSet(UCAL_DAY_OF_YEAR, yday + 1); // yday is 0-based
-}    
-
-constexpr uint32_t kIndianRelatedYearDiff = 79;
-
-int32_t IndianCalendar::getRelatedYear(UErrorCode &status) const
-{
-    int32_t year = get(UCAL_EXTENDED_YEAR, status);
-    if (U_FAILURE(status)) {
-        return 0;
-    }
-    if (uprv_add32_overflow(year, kIndianRelatedYearDiff, &year)) {
-        status = U_ILLEGAL_ARGUMENT_ERROR;
-        return 0;
-    }
-    return year;
-}
-
-void IndianCalendar::setRelatedYear(int32_t year)
-{
-    // set extended year
-    set(UCAL_EXTENDED_YEAR, year - kIndianRelatedYearDiff);
 }
 
 IMPL_SYSTEM_DEFAULT_CENTURY(IndianCalendar, "@calendar=indian")
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(IndianCalendar)
+
+int32_t IndianCalendar::getRelatedYearDifference() const {
+    constexpr int32_t kIndianCalendarRelatedYearDifference = 79;
+    return kIndianCalendarRelatedYearDifference;
+}
 
 U_NAMESPACE_END
 
