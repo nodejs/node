@@ -328,7 +328,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
     if (v8_flags.debug_code) {
       Label not_baseline;
       __ GetObjectType(data, scratch1, scratch1);
-      __ Branch(&not_baseline, ne, scratch1, Operand(CODETYPE));
+      __ Branch(&not_baseline, ne, scratch1, Operand(CODE_TYPE));
       AssertCodeIsBaseline(masm, data, scratch1);
       __ Branch(is_baseline);
       __ bind(&not_baseline);
