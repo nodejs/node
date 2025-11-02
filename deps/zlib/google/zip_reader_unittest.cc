@@ -20,16 +20,18 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
-#include "base/hash/md5.h"
 #include "base/i18n/time_formatting.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "crypto/sha2.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -44,7 +46,8 @@ using ::testing::SizeIs;
 
 namespace {
 
-const static std::string kQuuxExpectedMD5 = "d1ae4ac8a17a0e09317113ab284b57a6";
+const static std::string kQuuxExpectedSHA256 =
+    "8B50F75A113622698B1DBA78B799A0D242F0369DA2E58DA8522A334197241C6E";
 
 class FileWrapper {
  public:
@@ -550,11 +553,11 @@ TEST_F(ZipReaderTest, ExtractToFileAsync_RegularFile) {
   EXPECT_EQ(0, listener.failure_calls());
   EXPECT_LE(1, listener.progress_calls());
 
-  std::string output;
-  ASSERT_TRUE(
-      base::ReadFileToString(test_dir_.AppendASCII("quux.txt"), &output));
-  const std::string md5 = base::MD5String(output);
-  EXPECT_EQ(kQuuxExpectedMD5, md5);
+  std::optional<std::vector<uint8_t>> output =
+      base::ReadFileToBytes(test_dir_.AppendASCII("quux.txt"));
+  ASSERT_TRUE(output.has_value());
+  const std::string sha256 = base::HexEncode(crypto::SHA256Hash(*output));
+  EXPECT_EQ(kQuuxExpectedSHA256, sha256);
 
   std::optional<int64_t> file_size = base::GetFileSize(target_file);
   ASSERT_TRUE(file_size.has_value());
