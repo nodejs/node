@@ -2305,6 +2305,8 @@ import { Resolver } from 'node:dns/promises';
 
 await Readable.from([1, 2, 3, 4]).toArray(); // [1, 2, 3, 4]
 
+const resolver = new Resolver();
+
 // Make dns queries concurrently using .map and collect
 // the results into an array using toArray
 const dnsResults = await Readable.from([
