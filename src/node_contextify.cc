@@ -253,7 +253,7 @@ ContextifyContext* ContextifyContext::New(Local<Context> v8_context,
   // only initialized when needed because even deserializing them slows
   // things down significantly and they are only needed in rare occasions
   // in the vm contexts.
-  if (InitializeContextRuntime(v8_context).IsNothing()) {
+  if (InitializeContextRuntime(v8_context, env->isolate_data()).IsNothing()) {
     return {};
   }
 

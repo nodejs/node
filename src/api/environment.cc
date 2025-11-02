@@ -488,7 +488,7 @@ Environment* CreateEnvironment(
     CHECK(!context.IsEmpty());
     Context::Scope context_scope(context);
 
-    if (InitializeContextRuntime(context).IsNothing()) {
+    if (InitializeContextRuntime(context, isolate_data).IsNothing()) {
       FreeEnvironment(env);
       return nullptr;
     }
@@ -670,10 +670,16 @@ MaybeLocal<Object> GetPerContextExports(Local<Context> context,
 // call NewContext and so they will experience breakages.
 Local<Context> NewContext(Isolate* isolate,
                           Local<ObjectTemplate> object_template) {
+  return NewContext(isolate, object_template, nullptr);
+}
+
+Local<Context> NewContext(Isolate* isolate,
+                          Local<ObjectTemplate> object_template,
+                          IsolateData* isolate_data) {
   auto context = Context::New(isolate, nullptr, object_template);
   if (context.IsEmpty()) return context;
 
-  if (InitializeContext(context).IsNothing()) {
+  if (InitializeContext(context, isolate_data).IsNothing()) {
     return Local<Context>();
   }
 
@@ -686,7 +692,8 @@ void ProtoThrower(const FunctionCallbackInfo<Value>& info) {
 
 // This runs at runtime, regardless of whether the context
 // is created from a snapshot.
-Maybe<void> InitializeContextRuntime(Local<Context> context) {
+Maybe<void> InitializeContextRuntime(Local<Context> context,
+                                     IsolateData* isolate_data) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
@@ -698,6 +705,18 @@ Maybe<void> InitializeContextRuntime(Local<Context> context) {
   // to the runtime flags, propagate the value to the embedder data.
   bool is_code_generation_from_strings_allowed =
       context->IsCodeGenerationFromStringsAllowed();
+
+  // Check if the Node.js option --disallow-code-generation-from-strings is set
+  // Use isolate_data if provided, otherwise fall back to per_process options
+  if (isolate_data != nullptr &&
+      isolate_data->options()->disallow_code_generation_from_strings) {
+    is_code_generation_from_strings_allowed = false;
+  } else if (isolate_data == nullptr &&
+             per_process::cli_options->per_isolate
+                 ->disallow_code_generation_from_strings) {
+    is_code_generation_from_strings_allowed = false;
+  }
+
   context->AllowCodeGenerationFromStrings(false);
   context->SetEmbedderData(
       ContextEmbedderIndex::kAllowCodeGenerationFromStrings,
@@ -922,11 +941,16 @@ Maybe<void> InitializePrimordials(Local<Context> context,
 
 // This initializes the main context (i.e. vm contexts are not included).
 Maybe<bool> InitializeContext(Local<Context> context) {
+  return InitializeContext(context, nullptr);
+}
+
+Maybe<bool> InitializeContext(Local<Context> context,
+                              IsolateData* isolate_data) {
   if (InitializeMainContextForSnapshot(context).IsNothing()) {
     return Nothing<bool>();
   }
 
-  if (InitializeContextRuntime(context).IsNothing()) {
+  if (InitializeContextRuntime(context, isolate_data).IsNothing()) {
     return Nothing<bool>();
   }
   return Just(true);

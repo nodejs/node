@@ -1172,7 +1172,7 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             kAllowedInEnvvar);
   AddOption("--disallow-code-generation-from-strings",
             "disallow eval and friends",
-            V8Option{},
+            &PerIsolateOptions::disallow_code_generation_from_strings,
             kAllowedInEnvvar);
   AddOption("--jitless",
             "disable runtime allocation of executable memory",

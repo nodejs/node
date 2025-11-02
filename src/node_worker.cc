@@ -352,13 +352,14 @@ void Worker::Run() {
                                           SnapshotData::kNodeBaseContextIndex)
                         .ToLocalChecked();
           if (!context.IsEmpty() &&
-              !InitializeContextRuntime(context).IsJust()) {
+              !InitializeContextRuntime(context, data.isolate_data_.get()).IsJust()) {
             context = Local<Context>();
           }
         } else {
           Debug(
               this, "Worker %llu builds context from scratch\n", thread_id_.id);
-          context = NewContext(isolate_);
+          context = NewContext(isolate_, Local<ObjectTemplate>(),
+                               data.isolate_data_.get());
         }
         if (context.IsEmpty()) {
           // TODO(joyeecheung): maybe this should be kBootstrapFailure instead?
