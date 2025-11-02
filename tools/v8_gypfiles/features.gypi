@@ -200,8 +200,7 @@
     # Enable seeded array index hash.
     'v8_enable_seeded_array_index_hash%': 1,
 
-    # Use Perfetto (https://perfetto.dev) as the default TracingController. Not
-    # currently implemented.
+    # Use Perfetto (https://perfetto.dev) as the default TracingController.
     'v8_use_perfetto%': 0,
 
     # Enable map packing & unpacking (sets -dV8_MAP_PACKING).
@@ -463,7 +462,10 @@
         'defines': ['ENABLE_VERIFY_CSA',],
       }],
       ['v8_use_perfetto==1', {
-        'defines': ['V8_USE_PERFETTO',],
+        'defines': [
+          'V8_USE_PERFETTO',
+          'V8_USE_PERFETTO_SDK',
+        ],
       }],
       ['v8_enable_map_packing==1', {
         'defines': ['V8_MAP_PACKING',],
