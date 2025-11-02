@@ -2,11 +2,11 @@
 
 require('../common');
 
-const assert = require('assert');
-const { createLogger, Logger, LogConsumer, JSONConsumer, LEVELS, channels } = require('logger');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+const assert = require('node:assert');
+const { createLogger, Logger, LogConsumer, JSONConsumer, LEVELS, channels } = require('node:logger');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
 // Test LEVELS constant
 {
