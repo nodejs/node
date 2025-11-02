@@ -26,7 +26,6 @@ const serverEndpoint = await listen(async (serverSession) => {
     strictEqual(stream.direction, 'uni', 'Expects an unidirectional stream');
     const reader = stream.readable.getReader();
     const readChunks = [];
-    let readc = 0;
     while (true) {
       const { done, value } = await reader.read();
       // if (readc > 20) throw new Error("after read " + readc);
@@ -67,7 +66,6 @@ sendStream.closed.catch(() => {
 strictEqual(sendStream.direction, 'uni');
 const clientWritable = transformStream.writable;
 const writer = clientWritable.getWriter();
-let run = 0
 for (const chunk of KNOWN_BYTES_LONG) {
   await writer.ready;
   await writer.write(chunk);
