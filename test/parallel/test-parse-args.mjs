@@ -1203,127 +1203,15 @@ test('auto-detect --no-foo as negated when strict:false and allowNegative', () =
     assert.strictEqual(result.helpText, printUsage);
   });
 
-  // Test addHelpOption behavior
-  test('addHelpOption validation must be boolean', () => {
-    const args = ['-f', 'bar'];
-    const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
-
-    assert.throws(() => {
-      parseArgs({ args, options, addHelpOption: 'true' });
-    }, /The "addHelpOption" argument must be of type boolean/
-    );
-  });
-
-  test('addHelpOption is true auto-injects help option when no existing help option', () => {
+  test('auto-injects help option when no existing help option', () => {
     const args = ['--foo', 'bar'];
     const options = { foo: { type: 'string', help: 'use the foo filter' } };
     const help = 'utility to control filters';
 
-    const result = parseArgs({ args, options, help, addHelpOption: true });
+    const result = parseArgs({ args, options, help });
 
     assert.ok(result.helpText.includes('-h, --help                    Show help'));
-    const resultWithHelp = parseArgs({ args: ['--help'], options, help, addHelpOption: true });
+    const resultWithHelp = parseArgs({ args: ['--help'], options, help });
     assert.strictEqual(resultWithHelp.values.help, true);
-  });
-
-  test('addHelpOption is false prevents auto-injection of help option', () => {
-    const args = ['--foo', 'bar'];
-    const options = { foo: { type: 'string', help: 'use the foo filter' } };
-    const help = 'utility to control filters';
-
-    const result = parseArgs({ args, options, help, addHelpOption: false });
-
-    assert.ok(!result.helpText.includes('-h, --help'));
-    assert.throws(() => {
-      parseArgs({ args: ['--help'], options, help, addHelpOption: false });
-    }, { code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION' });
-  });
-
-  test('addHelpOption is false but existing help option should still work', () => {
-    const args = ['--help'];
-    const options = {
-      foo: { type: 'string', help: 'use the foo filter' },
-      help: { type: 'boolean', short: '?', help: 'display help' }
-    };
-    const help = 'utility to control filters';
-
-    const result = parseArgs({ args, options, help, addHelpOption: false });
-
-    assert.strictEqual(result.values.help, true);
-    assert.ok(result.helpText.includes('-?, --help                    display help'));
-  });
-
-  // Test returnHelpText behavior
-  test('returnHelpText validation must be boolean', () => {
-    const args = ['-f', 'bar'];
-    const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
-
-    assert.throws(() => {
-      parseArgs({ args, options, returnHelpText: 'true' });
-    }, /The "returnHelpText" argument must be of type boolean/
-    );
-  });
-
-  test('returnHelpText is false prevents help text generation', () => {
-    const args = ['--foo', 'bar'];
-    const options = { foo: { type: 'string', help: 'use the foo filter' } };
-    const help = 'utility to control filters';
-
-    const result = parseArgs({ args, options, help, returnHelpText: false });
-
-    assert.strictEqual(result.helpText, undefined);
-  });
-
-  test('returnHelpText is true forces help text generation even without general help', () => {
-    const args = ['--foo', 'bar'];
-    const options = { foo: { type: 'string', help: 'use the foo filter' } };
-
-    const result = parseArgs({ args, options, returnHelpText: true, addHelpOption: true });
-
-    assert.ok(result.helpText);
-    assert.ok(result.helpText.includes('--foo <arg>                   use the foo filter'));
-    assert.ok(result.helpText.includes('-h, --help                    Show help'));
-  });
-
-  test('postpone help generation until needed', () => {
-    const options = {
-      foo: { type: 'boolean', short: 'f', help: 'use the foo filter' },
-      bar: { type: 'string', help: 'use the specified bar filter' }
-    };
-
-    const result = parseArgs({
-      addHelpOption: true,
-      returnHelpText: false,
-      options
-    });
-
-    assert.strictEqual(result.helpText, undefined);
-
-    const { helpText } = parseArgs({
-      help: 'utility to control filters',
-      options
-    });
-
-    assert.ok(helpText);
-    assert.ok(helpText.includes('utility to control filters'));
-  });
-
-  test('when both addHelpOption and returnHelpText are false, no help functionality', () => {
-    const args = ['--foo', 'bar'];
-    const options = { foo: { type: 'string', help: 'help text' } };
-    const help = 'Description text';
-
-    const result = parseArgs({
-      args,
-      options,
-      help,
-      addHelpOption: false,
-      returnHelpText: false
-    });
-
-    assert.strictEqual(result.helpText, undefined);
-    assert.throws(() => {
-      parseArgs({ args: ['--help'], options, help, addHelpOption: false });
-    }, { code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION' });
   });
 }
