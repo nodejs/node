@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - .mailmap
       - README.md
+      - test/internet/**
       - .github/**
       - '!.github/workflows/test-linux.yml'
     types: [opened, synchronize, reopened, ready_for_review]
@@ -17,6 +18,7 @@ on:
     paths-ignore:
       - .mailmap
       - README.md
+      - test/internet/**
       - .github/**
       - '!.github/workflows/test-linux.yml'
 
