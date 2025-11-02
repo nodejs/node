@@ -402,6 +402,13 @@ class Stream::Outbound final : public MemoryRetainer {
         queue_(std::move(queue)),
         reader_(queue_->get_reader()) {}
 
+  ~Outbound() {
+    // we need to clear all pending next's from the queue, as it holds pointers
+    // to Stream and Session, which will be invalidated and may cause use after
+    // free otherwise
+    queue_->clearPendingNext();
+  }
+
   void Acknowledge(size_t amount) {
     size_t remaining = std::min(amount, total_ - uncommitted_);
     while (remaining > 0 && head_ != nullptr) {

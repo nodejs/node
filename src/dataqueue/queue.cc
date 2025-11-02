@@ -36,6 +36,7 @@ class NonIdempotentDataQueueReader;
 class EntryImpl : public DataQueue::Entry {
  public:
   virtual std::shared_ptr<DataQueue::Reader> get_reader() = 0;
+  virtual void clearPendingNext() = 0;
 };
 
 class DataQueueImpl final : public DataQueue,
@@ -157,6 +158,12 @@ class DataQueueImpl final : public DataQueue,
       return capped_size > size ? capped_size - size : 0UL;
     }
     return std::nullopt;
+  }
+
+  void clearPendingNext() override {
+     for (const auto& entry : entries_) {
+      entry->clearPendingNext();
+     }
   }
 
   void MemoryInfo(node::MemoryTracker* tracker) const override {
@@ -590,6 +597,10 @@ class EmptyEntry final : public EntryImpl {
     return std::make_unique<EmptyEntry>();
   }
 
+  void clearPendingNext() override {
+    // this is a noop for an empty object
+  }
+
   std::optional<uint64_t> size() const override { return 0; }
 
   bool is_idempotent() const override { return true; }
@@ -702,6 +713,10 @@ class InMemoryEntry final : public EntryImpl {
     return makeEntry(start, byte_length_ - start);
   }
 
+  void clearPendingNext() override {
+    // this is a noop for an object, that immediately calls next.
+  }
+
   std::optional<uint64_t> size() const override { return byte_length_; }
 
   bool is_idempotent() const override { return true; }
@@ -748,6 +763,11 @@ class DataQueueEntry : public EntryImpl {
     if (!sliced) return nullptr;
 
     return std::make_unique<DataQueueEntry>(std::move(sliced));
+  }
+
+  void clearPendingNext() override {
+    // this is just calls clearPendingNext of the queue
+    data_queue_->clearPendingNext();
   }
 
   // Returns the number of bytes represented by this Entry if it is
@@ -868,6 +888,10 @@ class FdEntry final : public EntryImpl {
     return std::make_unique<FdEntry>(env_, path_, stat_, new_start, new_end);
   }
 
+  void clearPendingNext() override {
+    clearPendingNextImpl();
+  }
+
   std::optional<uint64_t> size() const override { return end_ - start_; }
 
   bool is_idempotent() const override { return true; }
@@ -884,6 +908,16 @@ class FdEntry final : public EntryImpl {
   uv_stat_t stat_;
   uint64_t start_ = 0;
   uint64_t end_ = 0;
+
+  class ReaderImpl;
+  std::unordered_set<ReaderImpl*> readers_;
+
+  void clearPendingNextImpl() {
+    // this should clear all pending pulls from the FD reader
+    for (ReaderImpl* p : readers_) {
+      p->ClearAllPendingPulls();
+    }
+  }
 
   bool is_modified(const uv_stat_t& other) {
     return other.st_size != stat_.st_size ||
@@ -932,12 +966,14 @@ class FdEntry final : public EntryImpl {
         : env_(handle->env()), handle_(std::move(handle)), entry_(entry) {
       handle_->PushStreamListener(this);
       handle_->env()->AddCleanupHook(cleanup, this);
+      entry_->readers_.insert(this);
     }
 
     ~ReaderImpl() override {
       handle_->env()->RemoveCleanupHook(cleanup, this);
       DrainAndClose();
       handle_->RemoveStreamListener(this);
+      entry_->readers_.erase(this);
     }
 
     uv_buf_t OnStreamAlloc(size_t suggested_size) override {
@@ -1062,6 +1098,10 @@ class FdEntry final : public EntryImpl {
       return std::move(pending_pulls_.front());
     }
 
+    void ClearAllPendingPulls() {
+      pending_pulls_.clear();
+    }
+
     friend class FdEntry;
   };
 
@@ -1094,6 +1134,10 @@ class FeederEntry final : public EntryImpl {
   }
 
   bool is_idempotent() const override { return false; }
+ 
+  void clearPendingNext() override {
+    if (feeder_) feeder_->clearPendingNext();
+  }
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(FeederEntry)

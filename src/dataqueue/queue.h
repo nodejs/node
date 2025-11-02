@@ -190,6 +190,10 @@ class DataQueue : public MemoryRetainer {
     // idempotent and cannot preserve that quality, subsequent reads
     // must fail with an error when a variance is detected.
     virtual bool is_idempotent() const = 0;
+
+    // calls if required readers to invalidate next function's
+    // which may hold captures to stream and session objects
+    virtual void clearPendingNext() = 0;
   };
 
   // Creates an idempotent DataQueue with a pre-established collection
@@ -298,6 +302,10 @@ class DataQueue : public MemoryRetainer {
   // If the size of the queue cannot be known, or the cap has not
   // been set, maybeCapRemaining() will return std::nullopt.
   virtual std::optional<uint64_t> maybeCapRemaining() const = 0;
+
+  // calls all entries and readers to invalidate next function's
+  // which may hold captures to stream and session objects
+  virtual void clearPendingNext() = 0;
 
   // BackpressureListeners only work on non-idempotent DataQueues.
   virtual void addBackpressureListener(BackpressureListener* listener) = 0;
