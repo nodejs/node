@@ -34,7 +34,6 @@ const serverEndpoint = await listen(async (serverSession) => {
         readChunks.push(value);
       }
       if (done) break;
-      readc++;
     }
     stream.closed.catch(() => {
       // ignore
@@ -69,7 +68,6 @@ const writer = clientWritable.getWriter();
 for (const chunk of KNOWN_BYTES_LONG) {
   await writer.ready;
   await writer.write(chunk);
-  run++;
 }
 await writer.ready;
 await writer.close();
