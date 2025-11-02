@@ -817,18 +817,20 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Jump the register contains a smi.
   void JumpIfSmi(Register value, Label* smi_label);
 
-  void JumpIfEqual(Register a, int32_t b, Label* dest) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    li(scratch, Operand(b));
-    Branch(dest, eq, a, Operand(scratch));
+  inline void JumpIf(Condition cond, Register x, int32_t y, Label* dest) {
+    Branch(dest, cond, x, Operand(y));
   }
 
-  void JumpIfLessThan(Register a, int32_t b, Label* dest) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    li(scratch, Operand(b));
-    Branch(dest, lt, a, Operand(scratch));
+  inline void JumpIfEqual(Register x, int32_t y, Label* dest) {
+    Branch(dest, eq, x, Operand(y));
+  }
+
+  inline void JumpIfLessThan(Register x, int32_t y, Label* dest) {
+    Branch(dest, lt, x, Operand(y));
+  }
+
+  inline void JumpIfUnsignedLessThan(Register x, int32_t y, Label* dest) {
+    Branch(dest, lo, x, Operand(y));
   }
 
   // Push a standard frame, consisting of ra, fp, context and JS function.
@@ -1058,6 +1060,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // ---------------------------------------------------------------------------
   // GC Support
 
+  // Performs a fast check for whether `value` is a read-only object or a small
+  // Smi. Only enabled in some configurations.
+  void MaybeJumpIfReadOnlyOrSmallSmi(Register value, Label* dest);
+
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
   // stored.
@@ -1066,6 +1072,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void RecordWriteField(
       Register object, int offset, Register value, RAStatus ra_status,
       SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
+      ReadOnlyCheck ro_check = ReadOnlyCheck::kInline,
       SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // For a given |object| notify the garbage collector that the slot at |offset|
@@ -1073,6 +1080,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void RecordWrite(
       Register object, Operand offset, Register value, RAStatus ra_status,
       SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
+      ReadOnlyCheck ro_check = ReadOnlyCheck::kInline,
       SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // ---------------------------------------------------------------------------
