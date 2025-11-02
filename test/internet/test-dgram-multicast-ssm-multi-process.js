@@ -63,7 +63,7 @@ function launchChildProcess() {
     }
   });
 
-  worker.on('message', function(msg) {
+  worker.on('message', common.mustCallAtLeast((msg) => {
     if (msg.listening) {
       listening += 1;
 
@@ -88,7 +88,7 @@ function launchChildProcess() {
         console.error('[PARENT] All workers have received the ' +
                       'required number of messages. Will now compare.');
 
-        Object.keys(workers).forEach(function(pid) {
+        for (const pid of Object.keys(workers)) {
           const worker = workers[pid];
 
           let count = 0;
@@ -106,14 +106,14 @@ function launchChildProcess() {
                         worker.pid, count);
 
           assert.strictEqual(count, messages.length);
-        });
+        }
 
         clearTimeout(timer);
         console.error('[PARENT] Success');
         killChildren(workers);
       }
     }
-  });
+  }));
 }
 
 function killChildren(children) {
@@ -176,13 +176,12 @@ if (process.argv[2] !== 'child') {
       buf.length,
       common.PORT,
       GROUP_ADDRESS,
-      function(err) {
-        assert.ifError(err);
+      common.mustSucceed((err) => {
         console.error('[PARENT] sent "%s" to %s:%s',
                       buf.toString(),
                       GROUP_ADDRESS, common.PORT);
         process.nextTick(sendSocket.sendNext);
-      },
+      }),
     );
   };
 }
