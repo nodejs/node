@@ -4,10 +4,6 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include <stdlib.h>
-
-#include <brotli/types.h>
-
 #include "platform.h"
 
 /* Default brotli_alloc_func */

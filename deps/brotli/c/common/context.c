@@ -1,9 +1,9 @@
 #include "context.h"
 
-#include <brotli/types.h>
+#include "platform.h"
 
 /* Common context lookup table for all context modes. */
-const uint8_t _kBrotliContextLookupTable[2048] = {
+const BROTLI_MODEL("small") uint8_t _kBrotliContextLookupTable[2048] = {
   /* CONTEXT_LSB6, last byte. */
    0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
   16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,

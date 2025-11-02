@@ -8,16 +8,40 @@
 
 #include "bit_cost.h"
 
-#include <brotli/types.h>
-
-#include "../common/constants.h"
 #include "../common/platform.h"
 #include "fast_log.h"
-#include "histogram.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
+
+double BrotliBitsEntropy(const uint32_t* population, size_t size) {
+  size_t sum = 0;
+  double retval = 0;
+  const uint32_t* population_end = population + size;
+  size_t p;
+  if (size & 1) {
+    goto odd_number_of_elements_left;
+  }
+  while (population < population_end) {
+    p = *population++;
+    sum += p;
+    retval -= (double)p * FastLog2(p);
+ odd_number_of_elements_left:
+    p = *population++;
+    sum += p;
+    retval -= (double)p * FastLog2(p);
+  }
+  if (sum) retval += (double)sum * FastLog2(sum);
+
+  if (retval < (double)sum) {
+    /* TODO(eustas): consider doing that per-symbol? */
+    /* At least one bit per literal is needed. */
+    retval = (double)sum;
+  }
+
+  return retval;
+}
 
 #define FN(X) X ## Literal
 #include "bit_cost_inc.h"  /* NOLINT(build/include) */

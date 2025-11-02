@@ -10,19 +10,19 @@
 #ifndef BROTLI_ENC_METABLOCK_H_
 #define BROTLI_ENC_METABLOCK_H_
 
-#include <brotli/types.h>
-
 #include "../common/context.h"
 #include "../common/platform.h"
 #include "block_splitter.h"
 #include "command.h"
 #include "histogram.h"
 #include "memory.h"
-#include "quality.h"
+#include "params.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
+
+#define BROTLI_MAX_STATIC_CONTEXTS 13
 
 typedef struct MetaBlockSplit {
   BlockSplit literal_split;

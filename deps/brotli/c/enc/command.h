@@ -9,8 +9,6 @@
 #ifndef BROTLI_ENC_COMMAND_H_
 #define BROTLI_ENC_COMMAND_H_
 
-#include <brotli/types.h>
-
 #include "../common/constants.h"
 #include "../common/platform.h"
 #include "fast_log.h"
@@ -21,14 +19,14 @@
 extern "C" {
 #endif
 
-BROTLI_INTERNAL extern const uint32_t
-    kBrotliInsBase[BROTLI_NUM_INS_COPY_CODES];
-BROTLI_INTERNAL extern const uint32_t
-    kBrotliInsExtra[BROTLI_NUM_INS_COPY_CODES];
-BROTLI_INTERNAL extern const uint32_t
-    kBrotliCopyBase[BROTLI_NUM_INS_COPY_CODES];
-BROTLI_INTERNAL extern const uint32_t
-    kBrotliCopyExtra[BROTLI_NUM_INS_COPY_CODES];
+BROTLI_INTERNAL extern const BROTLI_MODEL("small")
+uint32_t kBrotliInsBase[BROTLI_NUM_INS_COPY_CODES];
+BROTLI_INTERNAL extern const BROTLI_MODEL("small")
+uint32_t kBrotliInsExtra[BROTLI_NUM_INS_COPY_CODES];
+BROTLI_INTERNAL extern const BROTLI_MODEL("small")
+uint32_t kBrotliCopyBase[BROTLI_NUM_INS_COPY_CODES];
+BROTLI_INTERNAL extern const BROTLI_MODEL("small")
+uint32_t kBrotliCopyExtra[BROTLI_NUM_INS_COPY_CODES];
 
 static BROTLI_INLINE uint16_t GetInsertLengthCode(size_t insertlen) {
   if (insertlen < 6) {

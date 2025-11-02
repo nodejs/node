@@ -96,7 +96,7 @@ static void FN(BlockSplitterFinishBlock)(
     split->lengths[0] = (uint32_t)self->block_size_;
     split->types[0] = 0;
     last_entropy[0] =
-        BitsEntropy(histograms[0].data_, self->alphabet_size_);
+        BrotliBitsEntropy(histograms[0].data_, self->alphabet_size_);
     last_entropy[1] = last_entropy[0];
     ++self->num_blocks_;
     ++split->num_types;
@@ -105,8 +105,8 @@ static void FN(BlockSplitterFinishBlock)(
       FN(HistogramClear)(&histograms[self->curr_histogram_ix_]);
     self->block_size_ = 0;
   } else if (self->block_size_ > 0) {
-    double entropy = BitsEntropy(histograms[self->curr_histogram_ix_].data_,
-                                 self->alphabet_size_);
+    double entropy = BrotliBitsEntropy(
+        histograms[self->curr_histogram_ix_].data_, self->alphabet_size_);
     double combined_entropy[2];
     double diff[2];
     size_t j;
@@ -115,7 +115,7 @@ static void FN(BlockSplitterFinishBlock)(
       self->combined_histo[j] = histograms[self->curr_histogram_ix_];
       FN(HistogramAddHistogram)(&self->combined_histo[j],
           &histograms[last_histogram_ix]);
-      combined_entropy[j] = BitsEntropy(
+      combined_entropy[j] = BrotliBitsEntropy(
           &self->combined_histo[j].data_[0], self->alphabet_size_);
       diff[j] = combined_entropy[j] - entropy - last_entropy[j];
     }

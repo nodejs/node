@@ -12,7 +12,7 @@
 #ifndef BROTLI_COMMON_TYPES_H_
 #define BROTLI_COMMON_TYPES_H_
 
-#include <stddef.h>  /* for size_t */
+#include <stddef.h>  /* IWYU pragma: export */
 
 #if defined(_MSC_VER) && (_MSC_VER < 1600)
 typedef __int8 int8_t;
@@ -24,7 +24,7 @@ typedef unsigned __int32 uint32_t;
 typedef unsigned __int64 uint64_t;
 typedef __int64 int64_t;
 #else
-#include <stdint.h>
+#include <stdint.h>  /* IWYU pragma: export */
 #endif  /* defined(_MSC_VER) && (_MSC_VER < 1600) */
 
 /**

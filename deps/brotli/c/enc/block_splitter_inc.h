@@ -79,7 +79,7 @@ static size_t FN(FindBlocks)(const DataType* data, const size_t length,
   size_t j;
   BROTLI_DCHECK(num_histograms <= 256);
 
-  /* Trivial case: single historgram -> single block type. */
+  /* Trivial case: single histogram -> single block type. */
   if (num_histograms <= 1) {
     for (i = 0; i < length; ++i) {
       block_id[i] = 0;
@@ -118,6 +118,8 @@ static size_t FN(FindBlocks)(const DataType* data, const size_t length,
     size_t insert_cost_ix = symbol * num_histograms;
     double min_cost = 1e99;
     double block_switch_cost = block_switch_bitcost;
+    static const size_t prologue_length = 2000;
+    static const double multiplier = 0.07 / 2000;
     size_t k;
     for (k = 0; k < num_histograms; ++k) {
       /* We are coding the symbol with entropy code k. */
@@ -128,8 +130,8 @@ static size_t FN(FindBlocks)(const DataType* data, const size_t length,
       }
     }
     /* More blocks for the beginning. */
-    if (byte_ix < 2000) {
-      block_switch_cost *= 0.77 + 0.07 * (double)byte_ix / 2000;
+    if (byte_ix < prologue_length) {
+      block_switch_cost *= 0.77 + multiplier * (double)byte_ix;
     }
     for (k = 0; k < num_histograms; ++k) {
       cost[k] -= min_cost;
@@ -228,12 +230,16 @@ static void FN(ClusterBlocks)(MemoryManager* m,
   static const uint32_t kInvalidIndex = BROTLI_UINT32_MAX;
   uint32_t* new_index;
   size_t i;
-  uint32_t* BROTLI_RESTRICT const sizes = u32 + 0 * HISTOGRAMS_PER_BATCH;
-  uint32_t* BROTLI_RESTRICT const new_clusters = u32 + 1 * HISTOGRAMS_PER_BATCH;
-  uint32_t* BROTLI_RESTRICT const symbols = u32 + 2 * HISTOGRAMS_PER_BATCH;
-  uint32_t* BROTLI_RESTRICT const remap = u32 + 3 * HISTOGRAMS_PER_BATCH;
+  uint32_t* BROTLI_RESTRICT const sizes =
+      u32 ? (u32 + 0 * HISTOGRAMS_PER_BATCH) : NULL;
+  uint32_t* BROTLI_RESTRICT const new_clusters =
+      u32 ? (u32 + 1 * HISTOGRAMS_PER_BATCH) : NULL;
+  uint32_t* BROTLI_RESTRICT const symbols =
+      u32 ? (u32 + 2 * HISTOGRAMS_PER_BATCH) : NULL;
+  uint32_t* BROTLI_RESTRICT const remap =
+      u32 ? (u32 + 3 * HISTOGRAMS_PER_BATCH) : NULL;
   uint32_t* BROTLI_RESTRICT const block_lengths =
-      u32 + 4 * HISTOGRAMS_PER_BATCH;
+      u32 ? (u32 + 4 * HISTOGRAMS_PER_BATCH) : NULL;
   /* TODO(eustas): move to arena? */
   HistogramType* tmp = BROTLI_ALLOC(m, HistogramType, 2);
 

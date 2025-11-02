@@ -9,10 +9,6 @@
 #ifndef BROTLI_ENC_HISTOGRAM_H_
 #define BROTLI_ENC_HISTOGRAM_H_
 
-#include <string.h>  /* memset */
-
-#include <brotli/types.h>
-
 #include "../common/constants.h"
 #include "../common/context.h"
 #include "../common/platform.h"
