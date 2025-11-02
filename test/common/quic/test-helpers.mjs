@@ -11,7 +11,7 @@ function createBytesChunk(length) {
   const toreturn = new Uint8Array(
     helper.buffer,
     helper.byteOffset,
-    helper.byteLength
+    helper.byteLength,
   );
   return toreturn;
 }
