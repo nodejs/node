@@ -1,0 +1,19 @@
+name: PR Reviewed
+
+on:
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions: {}
+
+jobs:
+  store-pr-number:
+    runs-on: ubuntu-slim
+    steps:
+      - name: Store PR number
+        run: echo "${{ github.event.pull_request.number }}" > pr_number.txt
+      - name: Upload PR number
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: pr-number
+          path: pr_number.txt
