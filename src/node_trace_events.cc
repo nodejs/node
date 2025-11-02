@@ -181,6 +181,14 @@ void NodeCategorySet::Initialize(Local<Object> target,
                   .Check();
   target->Set(context, trace,
               binding->Get(context, trace).ToLocalChecked()).Check();
+
+  Local<String> use_perfetto =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "usePerfetto");
+#if defined(V8_USE_PERFETTO)
+  target->Set(context, use_perfetto, v8::True(isolate)).Check();
+#else
+  target->Set(context, use_perfetto, v8::False(isolate)).Check();
+#endif
 }
 
 void NodeCategorySet::RegisterExternalReferences(
