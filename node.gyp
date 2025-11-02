@@ -1443,6 +1443,14 @@
         }, {
           'sources!': [ '<@(node_cctest_quic_sources)' ],
         }],
+        [ 'v8_use_perfetto==1', {
+          'defines': [
+            'PERFETTO_ENABLE_LEGACY_TRACE_EVENTS=1'
+          ],
+          'dependencies': [
+            'deps/perfetto/perfetto.gyp:perfetto_sdk',
+          ],
+        }],
         ['v8_enable_inspector==1', {
           'defines': [
             'HAVE_INSPECTOR=1',
@@ -1762,6 +1770,14 @@
         [ 'node_use_node_code_cache=="true"', {
           'defines': [
             'NODE_USE_NODE_CODE_CACHE=1',
+          ],
+        }],
+        [ 'v8_use_perfetto==1', {
+          'defines': [
+            'PERFETTO_ENABLE_LEGACY_TRACE_EVENTS=1'
+          ],
+          'dependencies': [
+            'deps/perfetto/perfetto.gyp:perfetto_sdk',
           ],
         }],
         ['v8_enable_inspector==1', {
