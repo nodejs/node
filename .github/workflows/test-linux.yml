@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - .mailmap
       - README.md
+      - test/internet/**
       - '*.nix'
       - .github/**
       - '!.github/workflows/test-linux.yml'
@@ -18,6 +19,7 @@ on:
     paths-ignore:
       - .mailmap
       - README.md
+      - test/internet/**
       - '*.nix'
       - .github/**
       - '!.github/workflows/test-linux.yml'
