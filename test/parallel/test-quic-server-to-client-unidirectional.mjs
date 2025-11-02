@@ -3,6 +3,7 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import { ok, strictEqual, deepStrictEqual } from 'node:assert';
 import { readKey } from '../common/fixtures.mjs';
+import { KNOWN_BYTES_LONG, uint8concat } from '../common/quic/test-helpers.mjs';
 import { TransformStream } from 'node:stream/web';
 
 if (!hasQuic) {
@@ -19,53 +20,6 @@ const certs = readKey('agent1-cert.pem');
 // The opened promise should resolve when the client finished reading
 const clientFinished = Promise.withResolvers();
 
-// start demo data
-// FIX ME: move the following to a central place
-// if used in several tests
-// taken from @fails-components/webtransport tests
-// by the original author
-function createBytesChunk(length) {
-  const workArray = new Array(length / 2);
-  for (let i = 0; i < length / 4; i++) {
-    workArray[2 * i + 1] = length % 0xffff;
-    workArray[2 * i] = i;
-  }
-  const helper = new Uint16Array(workArray);
-  const toreturn = new Uint8Array(
-    helper.buffer,
-    helper.byteOffset,
-    helper.byteLength
-  );
-  return toreturn;
-}
-
-// The number in the comments, help you identify the chunk, as it is the length first two bytes
-// this is helpful, when debugging buffer passing
-const KNOWN_BYTES_LONG = [
-  createBytesChunk(60000), // 96, 234
-  createBytesChunk(12), // 0, 12
-  createBytesChunk(50000), // 195, 80
-  createBytesChunk(1600).buffer, // 6, 64 we use buffer here to increae test coverage
-  createBytesChunk(20000), // 78, 32
-  createBytesChunk(30000), // 117, 48
-];
-
-// end demo data
-
-function uint8concat(arrays) {
-  const length = arrays.reduce((acc, curr) => acc + curr.length, 0);
-  const result = new Uint8Array(length);
-  let pos = 0;
-  let array = 0;
-  while (pos < length) {
-    const curArr = arrays[array];
-    const curLen = curArr.byteLength;
-    const dest = new Uint8Array(result.buffer, result.byteOffset + pos, curLen);
-    dest.set(curArr);
-    array++;
-    pos += curArr.byteLength;
-  }
-}
 
 const serverEndpoint = await listen(async (serverSession) => {
   await serverSession.opened;
