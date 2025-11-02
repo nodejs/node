@@ -433,9 +433,7 @@ class DataQueueFeeder final : public AsyncWrap {
     }
   }
 
-  void clearPendingNext() {
-    pendingPulls_.clear();
-  }
+  void clearPendingNext() { pendingPulls_.clear(); }
 
   struct PendingPull {
     Next next;
