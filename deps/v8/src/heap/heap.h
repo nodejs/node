@@ -1635,6 +1635,11 @@ class Heap final {
   bool ShouldUseBackgroundThreads() const;
   bool ShouldUseIncrementalMarking() const;
 
+  void AddTotalAllocatedBytes(size_t size) {
+    total_allocated_bytes_.fetch_add(size, std::memory_order_relaxed);
+  }
+  uint64_t GetTotalAllocatedBytes();
+
   HeapAllocator* allocator() { return heap_allocator_; }
   const HeapAllocator* allocator() const { return heap_allocator_; }
 
@@ -2408,6 +2413,8 @@ class Heap final {
   // In such cases we may want to update the limits again once loading is
   // actually finished.
   bool is_full_gc_during_loading_ = false;
+
+    std::atomic<uint64_t> total_allocated_bytes_ = 0;
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;
