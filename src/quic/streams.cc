@@ -406,7 +406,7 @@ class Stream::Outbound final : public MemoryRetainer {
     // we need to clear all pending next's from the queue, as it holds pointers
     // to Stream and Session, which will be invalidated and may cause use after
     // free otherwise
-    queue_->clearPendingNext();
+    if (queue_) queue_->clearPendingNext();
   }
 
   void Acknowledge(size_t amount) {
