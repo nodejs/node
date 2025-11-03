@@ -56,6 +56,20 @@ bool FastTimingSafeEqual(Local<Value> receiver,
                          // NOLINTNEXTLINE(runtime/references)
                          FastApiCallbackOptions& options) {
   HandleScope scope(options.isolate);
+  if (!IsAnyBufferSource(a_obj)) {
+    TRACK_V8_FAST_API_CALL("crypto.timingSafeEqual.error");
+    THROW_ERR_INVALID_ARG_TYPE(options.isolate,
+                               "The \"buf1\" argument must be an instance of "
+                               "ArrayBuffer, Buffer, TypedArray, or DataView.");
+    return false;
+  }
+  if (!IsAnyBufferSource(b_obj)) {
+    TRACK_V8_FAST_API_CALL("crypto.timingSafeEqual.error");
+    THROW_ERR_INVALID_ARG_TYPE(options.isolate,
+                               "The \"buf2\" argument must be an instance of "
+                               "ArrayBuffer, Buffer, TypedArray, or DataView.");
+    return false;
+  }
   ArrayBufferViewContents<uint8_t> a(a_obj);
   ArrayBufferViewContents<uint8_t> b(b_obj);
   if (a.length() != b.length()) {
