@@ -14,6 +14,8 @@ import bz2
 import io
 from pathlib import Path
 
+
+
 # If not run from node/, cd to node/.
 os.chdir(Path(__file__).parent)
 
@@ -2486,3 +2488,5 @@ if options.compile_commands_json and sys.platform == 'win32':
   os.path.isfile('./compile_commands.json') and os.unlink('./compile_commands.json')
   shutil.copy2('./out/' + config['BUILDTYPE'] + '/compile_commands.json', './compile_commands.json')
 info('configure completed successfully')
+
+
