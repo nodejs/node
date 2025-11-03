@@ -30,7 +30,7 @@ nightlies or manual for releases) then moves the docs to
 
 **The key things to know about the tooling include:**
 
-1. It can be invoked via npx from the `tools/doc` directory (i.e. `npx --prefix tools/doc doc-kit ...`)
+1. It can be invoked via executing `tools/doc/node_modules/.bin/doc-kit` (ex/ `$ tools/doc/node_modules/.bin/doc-kit generate ...`)
 2. Its usage is detailed in the [nodejs/doc-kit README](https://github.com/nodejs/doc-kit/blob/main/README.md).
 3. The tooling can process multiple files at a time.
 4. The tooling uses a set of dependencies as described in the dependencies
@@ -48,24 +48,24 @@ meant to be a guide on how to write documentation for Node.js.
 
 ## Vocabulary & Good to Know's
 
-* AST means "Abstract Syntax Tree" and it is a data structure that represents
+- AST means "Abstract Syntax Tree" and it is a data structure that represents
   the structure of a certain data format. In our case, the AST is a "graph"
   representation of the contents of the Markdown file.
-* MDN means [Mozilla Developer Network](https://developer.mozilla.org/en-US/)
+- MDN means [Mozilla Developer Network](https://developer.mozilla.org/en-US/)
   and it is a website that contains documentation for web technologies. We use
   it as a reference for the structure of the documentation.
-* The
+- The
   [Stability Index](https://nodejs.org/dist/latest/docs/api/documentation.html#stability-index)
   is used to community the Stability of a given Node.js module. The Stability
   levels include:
-  * Stability 0: Deprecated. (This module is Deprecated)
-  * Stability 1: Experimental. (This module is Experimental)
-  * Stability 2: Stable. (This module is Stable)
-  * Stability 3: Legacy. (This module is Legacy)
-* Within Remark YAML snippets `<!-- something -->` are considered HTML nodes,
+  - Stability 0: Deprecated. (This module is Deprecated)
+  - Stability 1: Experimental. (This module is Experimental)
+  - Stability 2: Stable. (This module is Stable)
+  - Stability 3: Legacy. (This module is Legacy)
+- Within Remark YAML snippets `<!-- something -->` are considered HTML nodes,
   that's because YAML isn't valid Markdown content. (Doesn't abide by the
   Markdown spec)
-* "New Tooling" references to the (written from-scratch) API build tooling
+- "New Tooling" references to the (written from-scratch) API build tooling
   introduced in `nodejs/nodejs.dev` that might replace the current one from
   `nodejs/node`
 
@@ -105,7 +105,7 @@ A description and examples.
 added: v0.10.0
 -->
 
-* {type}
+- {type}
 
 A description of the property.
 
@@ -119,9 +119,9 @@ changes:
     description: A description of the change.
 -->
 
-* `x` {string} The description of the string.
-* `y` {boolean} Should I stay or should I go?
-* `z` {number} How many zebras to bring. **Default:** `100`.
+- `x` {string} The description of the string.
+- `y` {boolean} Should I stay or should I go?
+- `z` {number} How many zebras to bring. **Default:** `100`.
 
 A description of the function.
 
@@ -143,7 +143,7 @@ someFunction('a', true, 10);
 added: REPLACEME
 -->
 
-* `anArg` {type} A description of the listener argument.
+- `anArg` {type} A description of the listener argument.
 
 Modules don't usually raise events on themselves. `cluster` is the
 only exception.
@@ -158,10 +158,10 @@ A description of the class.
 added: v0.10.0
 -->
 
-* `anArg` {Object} Just an argument.
-  * `field` {string} `anArg` can have this field.
-  * `field2` {boolean} Another field. **Default:** `false`.
-* Returns: {boolean} `true` if it worked.
+- `anArg` {Object} Just an argument.
+  - `field` {string} `anArg` can have this field.
+  - `field2` {boolean} Another field. **Default:** `false`.
+- Returns: {boolean} `true` if it worked.
 
 A description of the method for humans.
 
@@ -171,7 +171,7 @@ A description of the method for humans.
 added: v0.10.0
 -->
 
-* Returns: {SomeClass | null} The next `SomeClass` in line.
+- Returns: {SomeClass | null} The next `SomeClass` in line.
 
 `SomeClass` must be registered in `https://github.com/nodejs/doc-kit/blob/main/src/constants.mjs` to be properly parsed in `{type}` fields.
 
@@ -181,7 +181,7 @@ added: v0.10.0
 added: v0.10.0
 -->
 
-* {string}
+- {string}
 
 The indication of what `someProperty` is.
 
@@ -191,10 +191,9 @@ The indication of what `someProperty` is.
 added: v0.10.0
 -->
 
-* `isBlerg` {boolean}
+- `isBlerg` {boolean}
 
 This event is emitted on instances of `SomeClass`, not on the module itself.
-
 ````
 
 [`doc/api/`]: https://github.com/nodejs/node/tree/main/doc/api
