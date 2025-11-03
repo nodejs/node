@@ -22,11 +22,9 @@ fs.readdirSync(apilinks).forEach(mustCallAtLeast((fixture) => {
   fs.mkdirSync(outputPath);
 
   execFileSync(
-    'npx',
+    process.execPath,
     [
-      '--prefix',
-      docToolingDir,
-      'doc-kit',
+      path.resolve(docToolingDir, 'node_modules', '.bin', 'doc-kit'),
       'generate',
       '-t',
       'api-links',
