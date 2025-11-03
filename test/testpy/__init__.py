@@ -35,7 +35,7 @@ from io import open
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 LS_RE = re.compile(r'^test-.*\.m?js$')
 ENV_PATTERN = re.compile(r"//\s+Env:(.*)")
-NODE_TEST_PATTERN = re.compile(r"['\"]node:test['\"]")
+NODE_TEST_PATTERN = re.compile(r"('|`|\")node:test\1")
 
 class SimpleTestCase(test.TestCase):
 
