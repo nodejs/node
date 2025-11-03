@@ -6,23 +6,28 @@ on:
   pull_request_review:
     types: [submitted]
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   label:
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request_review'
 
     steps:
       - uses: nodejs/node-pr-labeler@d4cf1b8b9f23189c37917000e5e17e796c770a6b  # v1
-        if: github.event_name != 'pull_request_review'
         with:
           repo-token: ${{ secrets.GH_USER_TOKEN }}
           configuration-path: .github/label-pr-config.yml
+
+  author_ready:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request_review'
+    permissions:
+      issues: write
+    steps:
       - name: Add 'Author ready' label
-        if: github.event_name == 'pull_request_review'
         run: |
-          gh pr view "$PR_URL" --json reviewDecision,statusCheckRollup,mergeable,labels --jq '
+          gh pr view "$PR_URL" --json review,statusCheckRollup,mergeable,labels --jq '
             if .mergeable == "MERGEABLE" and
                .reviewDecision == "APPROVED" and
                (.statusCheckRollup | all(.conclusion != "FAILURE")) and
@@ -34,7 +39,31 @@ jobs:
               failedChecks: .statusCheckRollup | map(select(.conclusion == "FAILURE")),
               mergeable,
               reviewDecision,
-            }' || gh pr edit "$PR_URL" --add-label 'author ready'
+            }' \
+          || gh api graphql -f query='
+            query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  reviewThreads(first: 100) {
+                    nodes {
+                      isResolved
+                      comments(first: 1) {
+                        nodes {
+                          body
+                          author { login }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }' -F "owner=$OWNER" -F "repo=$REPO" -F "pr=$PR_NUMBER" --jq '
+              .data.repository.pullRequest.reviewThreads.nodes | if all(.isResolved)
+              then
+                halt_error
+              end
+            ' \
+          || gh pr edit "$PR_URL" --add-label 'author ready'
         env:
-          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}
