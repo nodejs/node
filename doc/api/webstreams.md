@@ -1707,6 +1707,7 @@ added: v25.0.0
 ```mjs
 import { bytes } from 'node:stream/consumers';
 import { Readable } from 'node:stream';
+import { Buffer } from 'node:buffer';
 
 const dataBuffer = Buffer.from('hello world from consumers!');
 
@@ -1719,6 +1720,7 @@ console.log(`from readable: ${data.length}`);
 ```cjs
 const { bytes } = require('node:stream/consumers');
 const { Readable } = require('node:stream');
+const { Buffer } = require('node:buffer');
 
 const dataBuffer = Buffer.from('hello world from consumers!');
 
