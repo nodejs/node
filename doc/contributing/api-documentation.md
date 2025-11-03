@@ -48,24 +48,24 @@ meant to be a guide on how to write documentation for Node.js.
 
 ## Vocabulary & Good to Know's
 
-- AST means "Abstract Syntax Tree" and it is a data structure that represents
+* AST means "Abstract Syntax Tree" and it is a data structure that represents
   the structure of a certain data format. In our case, the AST is a "graph"
   representation of the contents of the Markdown file.
-- MDN means [Mozilla Developer Network](https://developer.mozilla.org/en-US/)
+* MDN means [Mozilla Developer Network](https://developer.mozilla.org/en-US/)
   and it is a website that contains documentation for web technologies. We use
   it as a reference for the structure of the documentation.
-- The
+* The
   [Stability Index](https://nodejs.org/dist/latest/docs/api/documentation.html#stability-index)
   is used to community the Stability of a given Node.js module. The Stability
   levels include:
-  - Stability 0: Deprecated. (This module is Deprecated)
-  - Stability 1: Experimental. (This module is Experimental)
-  - Stability 2: Stable. (This module is Stable)
-  - Stability 3: Legacy. (This module is Legacy)
-- Within Remark YAML snippets `<!-- something -->` are considered HTML nodes,
+  * Stability 0: Deprecated. (This module is Deprecated)
+  * Stability 1: Experimental. (This module is Experimental)
+  * Stability 2: Stable. (This module is Stable)
+  * Stability 3: Legacy. (This module is Legacy)
+* Within Remark YAML snippets `<!-- something -->` are considered HTML nodes,
   that's because YAML isn't valid Markdown content. (Doesn't abide by the
   Markdown spec)
-- "New Tooling" references to the (written from-scratch) API build tooling
+* "New Tooling" references to the (written from-scratch) API build tooling
   introduced in `nodejs/nodejs.dev` that might replace the current one from
   `nodejs/node`
 
