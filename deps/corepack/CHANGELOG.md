@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.34.2](https://github.com/nodejs/corepack/compare/v0.34.1...v0.34.2) (2025-10-31)
+
+
+### Bug Fixes
+
+* bump package manager versions ([#754](https://github.com/nodejs/corepack/issues/754)) ([35e3869](https://github.com/nodejs/corepack/commit/35e3869f3f4d21bbfccdf78ea564ab0723d6f36f))
+* fix potential race condition in `node-tar` ([#757](https://github.com/nodejs/corepack/pull/757)) ([78808a7](78808a72691655fe5140c02ae41d4baef88cd9fa))
+
 ## [0.34.1](https://github.com/nodejs/corepack/compare/v0.34.0...v0.34.1) (2025-10-17)
 
 
