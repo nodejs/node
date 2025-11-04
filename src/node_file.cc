@@ -2018,12 +2018,14 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       if (processed_path.length() == 3 && std::isalpha(processed_path[0]) &&
           processed_path[1] == ':' && processed_path[2] == '\\') {
         is_drive_root = true;
-      } else if (processed_path.length() >= 6 &&
-                 processed_path.substr(0, 4) == "\\\\?\\" &&
-                 processed_path.length() >= 7 &&
-                 std::isalpha(processed_path[4]) && processed_path[5] == ':' &&
-                 processed_path[6] == '\\' &&
-                 (processed_path.length() == 7 || processed_path[7] == '\0')) {
+      } else if (processed_path.length() == 7 &&
+                 processed_path[0] == '\\' &&
+                 processed_path[1] == '\\' &&
+                 processed_path[2] == '?' &&
+                 processed_path[3] == '\\' &&
+                 std::isalpha(processed_path[4]) &&
+                 processed_path[5] == ':' &&
+                 processed_path[6] == '\\') {
         is_drive_root = true;
       }
     }
