@@ -184,8 +184,9 @@ function isPi() {
   }
 }
 
-// When using high concurrency or in the CI we need much more time for each connection attempt
-net.setDefaultAutoSelectFamilyAttemptTimeout(platformTimeout(net.getDefaultAutoSelectFamilyAttemptTimeout() * 10));
+// When using high concurrency or in the CI we need much more time for each connection attempt.
+// Default 500ms becomes 2500ms for tests.
+net.setDefaultAutoSelectFamilyAttemptTimeout(platformTimeout(net.getDefaultAutoSelectFamilyAttemptTimeout() * 5));
 const defaultAutoSelectFamilyAttemptTimeout = net.getDefaultAutoSelectFamilyAttemptTimeout();
 
 const buildType = process.config.target_defaults ?
