@@ -7,6 +7,7 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_process-inl.h"
+#include "node_url.h"
 #include "node_watchdog.h"
 #include "util-inl.h"
 
@@ -1197,6 +1198,167 @@ void ModuleWrap::SetImportModuleDynamicallyCallback(
       ImportModuleDynamicallyWithPhase);
 }
 
+void ModuleWrap::SetImportMetaResolveInitializer(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Realm* realm = Realm::GetCurrent(args);
+  HandleScope handle_scope(isolate);
+
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsFunction());
+  Local<Function> initializer = args[0].As<Function>();
+  realm->set_host_import_meta_resolve_initializer(initializer);
+}
+
+static void ImportMetaResolveLazyGetter(
+    Local<v8::Name> name, const PropertyCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  Local<Value> receiver_val = info.This();
+  if (!receiver_val->IsObject()) {
+    THROW_ERR_INVALID_INVOCATION(isolate);
+    return;
+  }
+  Local<Object> receiver = receiver_val.As<Object>();
+  Local<Context> context;
+  if (!receiver->GetCreationContext().ToLocal(&context)) {
+    THROW_ERR_INVALID_INVOCATION(isolate);
+    return;
+  }
+  Realm* realm = Realm::GetCurrent(context);
+  if (realm == nullptr) {
+    THROW_ERR_INVALID_INVOCATION(isolate);
+  }
+  Local<Function> initializer = realm->host_import_meta_resolve_initializer();
+  if (initializer.IsEmpty()) {
+    THROW_ERR_INVALID_INVOCATION(isolate);
+    return;
+  }
+
+  // This should be createImportMetaResolve(). The loader argument is already
+  // bound at initialization time.
+  Local<Value> args[] = {info.Data()};
+  Local<Value> ret;
+  if (!initializer
+           ->Call(context, Undefined(realm->isolate()), arraysize(args), args)
+           .ToLocal(&ret)) {
+    return;
+  }
+  info.GetReturnValue().Set(ret);
+}
+
+static void PathHelpersLazyGetter(Local<v8::Name> name,
+                                  const PropertyCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  // This getter has no JavaScript function representation and is not
+  // invoked in the creation context.
+  // When this getter is invoked in a vm context, the `Realm::GetCurrent(info)`
+  // returns a nullptr and retrieve the creation context via `this` object and
+  // get the creation Realm.
+  Local<Value> receiver_val = info.This();
+  if (!receiver_val->IsObject()) {
+    THROW_ERR_INVALID_INVOCATION(isolate);
+    return;
+  }
+  Local<Object> receiver = receiver_val.As<Object>();
+  Local<Context> context;
+  if (!receiver->GetCreationContext().ToLocal(&context)) {
+    THROW_ERR_INVALID_INVOCATION(isolate);
+    return;
+  }
+  Environment* env = Environment::GetCurrent(context);
+
+  node::Utf8Value url(isolate, info.Data());
+  auto file_url = ada::parse(url.ToStringView());
+  CHECK(file_url);
+  auto file_path = url::FileURLToPath(env, *file_url);
+  CHECK(file_path.has_value());
+  std::string_view ret_view = file_path.value();
+
+  node::Utf8Value utf8name(isolate, name);
+  auto plain_name = utf8name.ToStringView();
+  if (plain_name == "dirname") {
+#ifdef _WIN32
+#define PATH_SEPARATOR '\\'
+#else
+#define PATH_SEPARATOR '/'
+#endif
+    auto index = ret_view.rfind(PATH_SEPARATOR);
+    CHECK(index != std::string_view::npos);
+    ret_view.remove_suffix(ret_view.size() - index);
+#undef PATH_SEPARATOR
+  }
+  Local<Value> ret;
+  if (!ToV8Value(context, ret_view, isolate).ToLocal(&ret)) {
+    return;
+  }
+  info.GetReturnValue().Set(ret);
+}
+
+static Maybe<void> DefaultImportMetaObjectInitializer(Realm* realm,
+                                                      Local<Object> wrap,
+                                                      Local<Object> meta) {
+  Local<Context> context = realm->context();
+  Isolate* isolate = realm->isolate();
+  Environment* env = realm->env();
+
+  Local<Value> url;
+  if (!wrap->Get(context, env->url_string()).ToLocal(&url)) {
+    return Nothing<void>();
+  }
+
+  // N.B.: Order is important to keep keys in alphabetical order.
+
+  Utf8Value url_utf8(isolate, url);
+  if (url_utf8.ToStringView().starts_with("file:")) {
+    // Set a lazy getter of import.meta.dirname
+    if (meta->SetLazyDataProperty(
+                context, env->dirname_string(), PathHelpersLazyGetter, url)
+            .IsNothing()) {
+      return Nothing<void>();
+    }
+
+    // Set a lazy getter of import.meta.filename
+    if (meta->SetLazyDataProperty(
+                context, env->filename_string(), PathHelpersLazyGetter, url)
+            .IsNothing()) {
+      return Nothing<void>();
+    }
+  }
+
+  // Set import.meta.main = moduleWrap.isMain
+  Local<Value> is_main;
+  if (!wrap->Get(context, FIXED_ONE_BYTE_STRING(isolate, "isMain"))
+           .ToLocal(&is_main)) {
+    return Nothing<void>();
+  }
+  if (meta->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "main"),
+                Boolean::New(isolate, is_main->IsTrue()))
+          .IsNothing()) {
+    return Nothing<void>();
+  }
+
+  // Set a lazy getter of import.meta.resolve - only if the initializer is set,
+  // which is only the case when run on a non-loader-hook thread.
+  Local<Function> import_meta_resolve_initializer =
+      realm->host_import_meta_resolve_initializer();
+  if (!import_meta_resolve_initializer.IsEmpty() &&
+      meta->SetLazyDataProperty(context,
+                                FIXED_ONE_BYTE_STRING(isolate, "resolve"),
+                                ImportMetaResolveLazyGetter,
+                                url)
+          .IsNothing()) {
+    return Nothing<void>();
+  }
+
+  // Set import.meta.url = moduleWrap.url
+  if (meta->Set(context, env->url_string(), url).IsNothing()) {
+    return Nothing<void>();
+  }
+
+  return JustVoid();
+}
+
 void ModuleWrap::HostInitializeImportMetaObjectCallback(
     Local<Context> context, Local<Module> module, Local<Object> meta) {
   Environment* env = Environment::GetCurrent(context);
@@ -1222,8 +1384,19 @@ void ModuleWrap::HostInitializeImportMetaObjectCallback(
     return;
   }
   DCHECK(id->IsSymbol());
+
+  // Use the default initializer for source text modules without custom
+  // callbacks.
+  if (id == env->source_text_module_default_hdo()) {
+    USE(DefaultImportMetaObjectInitializer(realm, wrap, meta));
+    return;
+  }
+
+  // For modules that have custom callbacks, call into JS land
+  // to look up the callback from the registry.
   Local<Value> args[] = {id, meta, wrap};
   TryCatchScope try_catch(env);
+
   USE(callback->Call(
       context, Undefined(realm->isolate()), arraysize(args), args));
   if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
@@ -1444,6 +1617,10 @@ void ModuleWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
             SetInitializeImportMetaObjectCallback);
   SetMethod(isolate,
             target,
+            "setImportMetaResolveInitializer",
+            SetImportMetaResolveInitializer);
+  SetMethod(isolate,
+            target,
             "createRequiredModuleFacade",
             CreateRequiredModuleFacade);
   SetMethod(isolate, target, "throwIfPromiseRejected", ThrowIfPromiseRejected);
@@ -1495,6 +1672,7 @@ void ModuleWrap::RegisterExternalReferences(
 
   registry->Register(SetImportModuleDynamicallyCallback);
   registry->Register(SetInitializeImportMetaObjectCallback);
+  registry->Register(SetImportMetaResolveInitializer);
   registry->Register(ThrowIfPromiseRejected);
 }
 }  // namespace loader

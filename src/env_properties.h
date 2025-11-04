@@ -469,6 +469,7 @@
   V(enhance_fatal_stack_before_inspector, v8::Function)                        \
   V(get_source_map_error_source, v8::Function)                                 \
   V(host_import_module_dynamically_callback, v8::Function)                     \
+  V(host_import_meta_resolve_initializer, v8::Function)                        \
   V(host_initialize_import_meta_object_callback, v8::Function)                 \
   V(http2session_on_altsvc_function, v8::Function)                             \
   V(http2session_on_error_function, v8::Function)                              \
