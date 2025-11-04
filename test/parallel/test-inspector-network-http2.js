@@ -14,12 +14,15 @@ const inspector = require('node:inspector/promises');
 const session = new inspector.Session();
 session.connect();
 
+const requestBody = { 'hello': 'world' };
+
 const requestHeaders = {
   'x-header1': ['value1', 'value2'],
   [http2.constants.HTTP2_HEADER_ACCEPT_LANGUAGE]: 'en-US',
   [http2.constants.HTTP2_HEADER_AGE]: 1000,
+  [http2.constants.HTTP2_HEADER_CONTENT_TYPE]: 'application/json; charset=utf-8',
   [http2.constants.HTTP2_HEADER_COOKIE]: ['k1=v1', 'k2=v2'],
-  [http2.constants.HTTP2_HEADER_METHOD]: 'GET',
+  [http2.constants.HTTP2_HEADER_METHOD]: 'POST',
   [http2.constants.HTTP2_HEADER_PATH]: '/hello-world',
 };
 
@@ -54,23 +57,35 @@ const pushResponseHeaders = {
   [http2.constants.HTTP2_HEADER_STATUS]: 200,
 };
 
+const styleCss = 'body { color: red; }\n';
+const serverResponse = 'hello world\n';
+
 const kTimeout = 1000;
 const kDelta = 200;
 
 const handleStream = (stream, headers) => {
   const path = headers[http2.constants.HTTP2_HEADER_PATH];
+  let body = '';
   switch (path) {
     case '/hello-world':
-      stream.pushStream(pushRequestHeaders, common.mustSucceed((pushStream) => {
-        pushStream.respond(pushResponseHeaders);
-        pushStream.end('body { color: red; }\n');
-      }));
+      stream.on('data', (chunk) => {
+        body += chunk;
+      });
 
-      stream.respond(responseHeaders);
+      stream.on('end', () => {
+        assert.strictEqual(body, JSON.stringify(requestBody));
 
-      setTimeout(() => {
-        stream.end('hello world\n');
-      }, kTimeout);
+        stream.pushStream(pushRequestHeaders, common.mustSucceed((pushStream) => {
+          pushStream.respond(pushResponseHeaders);
+          pushStream.end(styleCss);
+        }));
+
+        stream.respond(responseHeaders);
+
+        setTimeout(() => {
+          stream.end(serverResponse);
+        }, kTimeout);
+      });
       break;
     case '/trigger-error':
       stream.close(http2.constants.NGHTTP2_STREAM_CLOSED);
@@ -114,7 +129,6 @@ function verifyRequestWillBeSent({ method, params }, expectedUrl) {
 
   assert.ok(params.requestId.startsWith('node-network-event-'));
   assert.strictEqual(params.request.url, expectedUrl);
-  assert.strictEqual(params.request.method, 'GET');
   assert.strictEqual(typeof params.request.headers, 'object');
 
   if (expectedUrl.endsWith('/hello-world')) {
@@ -123,10 +137,17 @@ function verifyRequestWillBeSent({ method, params }, expectedUrl) {
     assert.strictEqual(params.request.headers.age, '1000');
     assert.strictEqual(params.request.headers['x-header1'], 'value1, value2');
     assert.ok(findFrameInInitiator(__filename, params.initiator));
+    assert.strictEqual(params.request.hasPostData, true);
+    assert.strictEqual(params.request.method, 'POST');
   } else if (expectedUrl.endsWith('/style.css')) {
     assert.strictEqual(params.request.headers['x-header3'], 'value1, value2');
     assert.strictEqual(params.request.headers['x-push'], 'true');
     assert.ok(!findFrameInInitiator(__filename, params.initiator));
+    assert.strictEqual(params.request.hasPostData, true);
+    assert.strictEqual(params.request.method, 'GET');
+  } else {
+    assert.strictEqual(params.request.hasPostData, false);
+    assert.strictEqual(params.request.method, 'GET');
   }
 
   assert.strictEqual(typeof params.timestamp, 'number');
@@ -198,6 +219,8 @@ async function testHttp2(secure = false) {
     rejectUnauthorized: false,
   });
   const request = client.request(requestHeaders);
+  request.write(JSON.stringify(requestBody));
+  request.end();
 
   // Dump the responses.
   request.on('data', () => {});
@@ -216,6 +239,11 @@ async function testHttp2(secure = false) {
   verifyRequestWillBeSent(mainRequest, url);
   verifyRequestWillBeSent(pushRequest, pushedUrl);
 
+  const { postData } = await session.post('Network.getRequestPostData', {
+    requestId: mainRequest.params.requestId
+  });
+  assert.strictEqual(postData, JSON.stringify(requestBody));
+
   const [
     { value: [ mainResponse ] },
     { value: [ pushResponse ] },
@@ -229,6 +257,18 @@ async function testHttp2(secure = false) {
   ] = await Promise.all([loadingFinished.next(), loadingFinished.next()]);
   verifyLoadingFinished(event1);
   verifyLoadingFinished(event2);
+
+  const responseBody = await session.post('Network.getResponseBody', {
+    requestId: mainRequest.params.requestId,
+  });
+  assert.strictEqual(responseBody.base64Encoded, false);
+  assert.strictEqual(responseBody.body, serverResponse);
+
+  const pushResponseBody = await session.post('Network.getResponseBody', {
+    requestId: pushRequest.params.requestId,
+  });
+  assert.strictEqual(pushResponseBody.base64Encoded, true);
+  assert.strictEqual(Buffer.from(pushResponseBody.body, 'base64').toString(), styleCss);
 
   const mainFinished = [event1, event2]
     .find((event) => event.params.requestId === mainResponse.params.requestId);
