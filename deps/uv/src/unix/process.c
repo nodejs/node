@@ -1187,16 +1187,24 @@ int uv_spawn(uv_loop_t* loop,
     uv__handle_start(process);
   }
 
-  // We could special case this (do it as part of the below for loop) if it's ok for the pipe to be non-blocking.
-  // TODO(patrickbkr): Validate this.
+  /* We do the PTY handles separately because STDIN and STDOUT share a handle.
+   * Doing it in the below loop would result in a double close.
+   * Also we are currently not setting the PTY pipes to non-blocking. That's
+   * not per se impossible, but that's for another time to investigate the
+   * ramifications a non-blocking PTY brings with it. */
   if (options->flags & UV_PROCESS_PTY) {
     err = uv__close(fd_tty);
 
-    if ((err = uv_pipe_open((uv_pipe_t *)(options->stdio[0].data.stream), pipes[0][0])) != 0)
-        printf("uv_pipe_open 0 ret: %i\n", err);
+    for (i = 0; i < 2; i++) {
+      err = uv_pipe_open((uv_pipe_t *)(options->stdio[i].data.stream), pipes[i][0]);
+      if (err == 0)
+        continue;
 
-    if ((err = uv_pipe_open((uv_pipe_t *)(options->stdio[1].data.stream), pipes[1][0])) != 0)
-        printf("uv_pipe_open 1 ret: %i\n", err);
+      while (i--)
+        uv__process_close_stream(options->stdio + i);
+
+      goto error;
+    }
   }
 
   for (i = (options->flags & UV_PROCESS_PTY) ? 3 : 0; i < options->stdio_count; i++) {
