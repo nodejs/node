@@ -1103,7 +1103,7 @@ int uv_spawn(uv_loop_t* loop,
   uv__handle_init(loop, (uv_handle_t*)process, UV_PROCESS);
   uv__queue_init(&process->queue);
   process->status = 0;
-  process->pty_fd = -1;
+  process->u.fd = -1;
 
   stdio_count = options->stdio_count;
   if (stdio_count < 3)
@@ -1130,15 +1130,15 @@ int uv_spawn(uv_loop_t* loop,
   }
 
   if (options->flags & UV_PROCESS_PTY) {
-    if ((err = uv__spawn_make_pty(&process->pty_fd, &fd_tty, options->pty_cols,
+    if ((err = uv__spawn_make_pty(&process->u.fd, &fd_tty, options->pty_cols,
         options->pty_rows)) != 0)
       goto error;
 
     pipes[0][1] = fd_tty;
     pipes[1][1] = fd_tty;
     pipes[2][1] = fd_tty;
-    pipes[0][0] = process->pty_fd;
-    if ((pipes[1][0] = dup(process->pty_fd)) < 0) {
+    pipes[0][0] = process->u.fd;
+    if ((pipes[1][0] = dup(process->u.fd)) < 0) {
         err = UV__ERR(errno);
         goto error;
     }
@@ -1151,7 +1151,7 @@ int uv_spawn(uv_loop_t* loop,
 
   /* Spawn the child */
   exec_errorno = uv__spawn_and_init_child(loop, options, stdio_count, pipes,
-      &pid, process->pty_fd);
+      &pid, process->u.fd);
 
 #if 0
   /* This runs into a nodejs issue (it expects initialized streams, even if the
@@ -1277,7 +1277,7 @@ void uv__process_close(uv_process_t* handle) {
 int uv_pty_resize(uv_process_t* process,
                   unsigned short cols,
                   unsigned short rows) {
-  if (process->pty_fd == -1)
+  if (process->u.fd == -1)
     return UV_EINVAL;
-  return uv__pty_resize_fd(process->pty_fd, cols, rows);
+  return uv__pty_resize_fd(process->u.fd, cols, rows);
 }
