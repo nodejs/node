@@ -194,17 +194,33 @@ void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
   bind(&not_ok);
 }
 
+void MacroAssembler::MaybeJumpIfReadOnlyOrSmallSmi(Register value,
+                                                   Label* dest) {
+#if V8_STATIC_ROOTS_BOOL
+  // Quick check for Read-only and small Smi values.
+  static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
+  JumpIfUnsignedLessThan(value, kRegularPageSize, dest);
+#endif  // V8_STATIC_ROOTS_BOOL
+}
+
 // Clobbers object, dst, value, and ra, if (ra_status == kRAHasBeenSaved)
 // The register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, RAStatus ra_status,
                                       SaveFPRegsMode save_fp,
-                                      SmiCheck smi_check, SlotDescriptor slot) {
+                                      SmiCheck smi_check,
+                                      ReadOnlyCheck ro_check,
+                                      SlotDescriptor slot) {
   ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, value));
   // First, check if a write barrier is even needed. The tests below
-  // catch stores of Smis.
+  // catch stores of Smis and read-only objects.
   Label done;
+
+  if (ro_check == ReadOnlyCheck::kInline) {
+    MaybeJumpIfReadOnlyOrSmallSmi(value, &done);
+  }
 
   // Skip barrier if writing a smi.
   if (smi_check == SmiCheck::kInline) {
@@ -228,7 +244,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   }
 
   RecordWrite(object, Operand(offset - kHeapObjectTag), value, ra_status,
-              save_fp, SmiCheck::kOmit, slot);
+              save_fp, SmiCheck::kOmit, ReadOnlyCheck::kOmit, slot);
 
   bind(&done);
 }
@@ -703,7 +719,7 @@ void MacroAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
 void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  Register value, RAStatus ra_status,
                                  SaveFPRegsMode fp_mode, SmiCheck smi_check,
-                                 SlotDescriptor slot) {
+                                 ReadOnlyCheck ro_check, SlotDescriptor slot) {
   DCHECK(!AreAliased(object, value));
 
   if (v8_flags.slow_debug_code) {
@@ -726,8 +742,13 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   }
 
   // First, check if a write barrier is even needed. The tests below
-  // catch stores of smis and stores into the young generation.
+  // catch stores of smis and read-only objects, as well as stores into the
+  // young generation.
   Label done;
+
+  if (ro_check == ReadOnlyCheck::kInline) {
+    MaybeJumpIfReadOnlyOrSmallSmi(value, &done);
+  }
 
   if (smi_check == SmiCheck::kInline) {
     DCHECK_EQ(0, kSmiTag);
@@ -5312,7 +5333,7 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
                         FieldMemOperand(closure, JSFunction::kCodeOffset));
   RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
                    kRAHasNotBeenSaved, SaveFPRegsMode::kIgnore, SmiCheck::kOmit,
-                   SlotDescriptor::ForCodePointerSlot());
+                   ReadOnlyCheck::kOmit, SlotDescriptor::ForCodePointerSlot());
 }
 
 // Read off the flags in the feedback vector and check if there

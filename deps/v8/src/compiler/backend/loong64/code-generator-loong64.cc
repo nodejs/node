@@ -1068,6 +1068,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register scratch = i.TempRegister(0);
       auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
           this, object, value, scratch);
+      __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
       __ JumpIfNotSmi(value, ool->entry());
       __ bind(ool->exit());
 
@@ -1128,6 +1129,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register scratch = i.TempRegister(1);
       auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
           this, object, value, scratch);
+      __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
       __ JumpIfNotSmi(value, ool->entry());
       __ bind(ool->exit());
 
