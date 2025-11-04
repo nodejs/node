@@ -1,4 +1,4 @@
-/* auto-generated on 2025-09-29 20:34:35 -0700. version 4.0.7 Do not edit! */
+/* auto-generated on 2025-10-27 16:52:41 -0400. version 4.1.0 Do not edit! */
 /* including simdjson.cpp:  */
 /* begin file simdjson.cpp */
 #define SIMDJSON_SRC_SIMDJSON_CPP
@@ -3030,6 +3030,25 @@ concept container_but_not_string =
   std::ranges::input_range<T> && !string_like<T> && !concepts::string_view_keyed_map<T>;
 
 
+
+// Concept: Indexable container that is not a string or associative container
+// Accepts: std::vector, std::array, std::deque (have operator[], value_type, not string_like)
+// Rejects: std::string (string_like), std::list (no operator[]), std::map (has key_type)
+template<typename Container>
+concept indexable_container = requires {
+  typename Container::value_type;
+  requires !concepts::string_like<Container>;
+  requires !requires { typename Container::key_type; };  // Reject maps/sets
+  requires requires(Container& c, std::size_t i) {
+    { c[i] } -> std::convertible_to<typename Container::value_type>;
+  };
+};
+
+
+// Variable template to use with std::meta::substitute
+template<typename Container>
+constexpr bool indexable_container_v = indexable_container<Container>;
+
 } // namespace concepts
 
 
@@ -5047,7 +5066,8 @@ namespace internal {
     { INCOMPLETE_ARRAY_OR_OBJECT, "INCOMPLETE_ARRAY_OR_OBJECT: JSON document ended early in the middle of an object or array. This is a fatal and unrecoverable error." },
     { SCALAR_DOCUMENT_AS_VALUE, "SCALAR_DOCUMENT_AS_VALUE: A JSON document made of a scalar (number, Boolean, null or string) is treated as a value. Use get_bool(), get_double(), etc. on the document instead. "},
     { OUT_OF_BOUNDS, "OUT_OF_BOUNDS: Attempt to access location outside of document."},
-    { TRAILING_CONTENT, "TRAILING_CONTENT: Unexpected trailing content in the JSON input."}
+    { TRAILING_CONTENT, "TRAILING_CONTENT: Unexpected trailing content in the JSON input."},
+    { OUT_OF_CAPACITY, "OUT_OF_CAPACITY: The capacity was exceeded, we cannot allocate enough memory."}
   }; // error_messages[]
 
 } // namespace internal
