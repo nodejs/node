@@ -1,4 +1,4 @@
-#include "crypto/crypto_ml_dsa.h"
+#include "crypto/crypto_slh_dsa.h"
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "string_bytes.h"
@@ -15,35 +15,53 @@ using v8::Value;
 namespace crypto {
 
 #if OPENSSL_WITH_PQC
-constexpr const char* GetMlDsaAlgorithmName(int id) {
+constexpr const char* GetSlhDsaAlgorithmName(int id) {
   switch (id) {
-    case EVP_PKEY_ML_DSA_44:
-      return "ML-DSA-44";
-    case EVP_PKEY_ML_DSA_65:
-      return "ML-DSA-65";
-    case EVP_PKEY_ML_DSA_87:
-      return "ML-DSA-87";
+    case EVP_PKEY_SLH_DSA_SHA2_128F:
+      return "SLH-DSA-SHA2-128f";
+    case EVP_PKEY_SLH_DSA_SHA2_128S:
+      return "SLH-DSA-SHA2-128s";
+    case EVP_PKEY_SLH_DSA_SHA2_192F:
+      return "SLH-DSA-SHA2-192f";
+    case EVP_PKEY_SLH_DSA_SHA2_192S:
+      return "SLH-DSA-SHA2-192s";
+    case EVP_PKEY_SLH_DSA_SHA2_256F:
+      return "SLH-DSA-SHA2-256f";
+    case EVP_PKEY_SLH_DSA_SHA2_256S:
+      return "SLH-DSA-SHA2-256s";
+    case EVP_PKEY_SLH_DSA_SHAKE_128F:
+      return "SLH-DSA-SHAKE-128f";
+    case EVP_PKEY_SLH_DSA_SHAKE_128S:
+      return "SLH-DSA-SHAKE-128s";
+    case EVP_PKEY_SLH_DSA_SHAKE_192F:
+      return "SLH-DSA-SHAKE-192f";
+    case EVP_PKEY_SLH_DSA_SHAKE_192S:
+      return "SLH-DSA-SHAKE-192s";
+    case EVP_PKEY_SLH_DSA_SHAKE_256F:
+      return "SLH-DSA-SHAKE-256f";
+    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+      return "SLH-DSA-SHAKE-256s";
     default:
       return nullptr;
   }
 }
 
 /**
- * Exports an ML-DSA key to JWK format.
+ * Exports an SLH-DSA key to JWK format.
  *
  * The resulting JWK object contains:
  * - "kty": "AKP" (Asymmetric Key Pair - required)
- * - "alg": "ML-DSA-XX" (Algorithm identifier - required for "AKP")
+ * - "alg": "SLH-DSA-XX-XX" (Algorithm identifier - required for "AKP")
  * - "pub": "<Base64URL-encoded raw public key>" (required)
- * - "priv": "<Base64URL-encoded raw seed>" (required for private keys)
+ * - "priv": "<Base64URL-encoded raw private key>" (required for private keys)
  */
-bool ExportJwkMlDsaKey(Environment* env,
-                       const KeyObjectData& key,
-                       Local<Object> target) {
+bool ExportJwkSlhDsaKey(Environment* env,
+                        const KeyObjectData& key,
+                        Local<Object> target) {
   Mutex::ScopedLock lock(key.mutex());
   const auto& pkey = key.GetAsymmetricKey();
 
-  const char* alg = GetMlDsaAlgorithmName(pkey.id());
+  const char* alg = GetSlhDsaAlgorithmName(pkey.id());
   CHECK(alg);
 
   static constexpr auto trySetKey = [](Environment* env,
@@ -59,13 +77,7 @@ bool ExportJwkMlDsaKey(Environment* env,
   };
 
   if (key.GetKeyType() == kKeyTypePrivate) {
-    auto seed = pkey.rawSeed();
-    if (!seed) {
-      THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                                        "key does not have an available seed");
-      return false;
-    }
-    if (!trySetKey(env, pkey.rawSeed(), target, env->jwk_priv_string())) {
+    if (!trySetKey(env, pkey.rawPrivateKey(), target, env->jwk_priv_string())) {
       return false;
     }
   }
