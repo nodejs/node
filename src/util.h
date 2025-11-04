@@ -1039,6 +1039,7 @@ class JSONOutputStream final : public v8::OutputStream {
 // case insensitive.
 inline bool IsWindowsBatchFile(const char* filename);
 inline std::wstring ConvertToWideString(const std::string& str, UINT code_page);
+inline std::string ConvertWideToUTF8(const std::wstring& wstr);
 #endif  // _WIN32
 
 // A helper to create a new instance of the dictionary template.
