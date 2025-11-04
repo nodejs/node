@@ -49,6 +49,8 @@ if (!hasOpenSSL3) {
   documented.delete('--openssl-shared-config');
 }
 
+const isV8Sandboxed = process.config.variables.v8_enable_sandbox;
+
 // Filter out options that are conditionally present.
 const conditionalOpts = [
   {
@@ -74,6 +76,9 @@ const conditionalOpts = [
   }, {
     include: process.features.inspector,
     filter: (opt) => opt.startsWith('--inspect') || opt === '--debug-port'
+  }, {
+    include: !isV8Sandboxed,
+    filter: (opt) => ['--secure-heap', '--secure-heap-min'].includes(opt)
   },
 ];
 documented.forEach((opt) => {
