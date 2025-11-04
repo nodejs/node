@@ -60,18 +60,17 @@ const {
   let wrongBlockLength;
   if (hasOpenSSL3) {
     wrongBlockLength = {
-      message: 'error:1C80006B:Provider routines::wrong final block length',
-      code: 'ERR_OSSL_WRONG_FINAL_BLOCK_LENGTH',
-      library: 'Provider routines',
-      reason: 'wrong final block length'
+      message: /wrong[\s_]final[\s_]block[\s_]length/i,
+      code: /ERR_OSSL_(EVP_)?WRONG_FINAL_BLOCK_LENGTH/,
+      library: /Provider routines|Cipher functions/,
+      reason: /wrong[\s_]final[\s_]block[\s_]length/i,
     };
   } else {
     wrongBlockLength = {
-      message: 'error:0606506D:digital envelope' +
-        ' routines:EVP_DecryptFinal_ex:wrong final block length',
-      code: 'ERR_OSSL_EVP_WRONG_FINAL_BLOCK_LENGTH',
-      library: 'digital envelope routines',
-      reason: 'wrong final block length'
+      message: /wrong[\s_]final[\s_]block[\s_]length/i,
+      code: /ERR_OSSL_(EVP_)?WRONG_FINAL_BLOCK_LENGTH/,
+      library: /digital envelope routines|Cipher functions/,
+      reason: /wrong[\s_]final[\s_]block[\s_]length/i,
     };
   }
 

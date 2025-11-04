@@ -182,7 +182,7 @@ assert.throws(
 }
 
 // Test XOF hash functions and the outputLength option.
-{
+if (!process.features.openssl_is_boringssl) {
   // Default outputLengths.
   assert.strictEqual(crypto.createHash('shake128').digest('hex'),
                      '7f9c2ba4e88f827d616045507605853e');
