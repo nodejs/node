@@ -38,6 +38,13 @@
 #include <poll.h>
 #include <termios.h>
 
+#if defined(__DragonFly__) || \
+    defined(__FreeBSD__) || \
+    defined(__NetBSD__) || \
+    defined(__OpenBSD__)
+#include <util.h>
+#endif
+
 #if defined(__APPLE__)
 # include <spawn.h>
 # include <paths.h>
@@ -996,47 +1003,63 @@ int uv__pty_resize_fd(int pty_fd,
   return 0;
 }
 
+/* The BSDs don't have ptsname_r. They do have ptsname, but that's not
+ * reentrant. The obvious alternative is openpty.
+ */
+#if defined(__DragonFly__) || \
+    defined(__FreeBSD__) || \
+    defined(__NetBSD__) || \
+    defined(__OpenBSD__)
 int uv__spawn_make_pty(int* fd_pty, int* fd_tty, int cols, int rows) {
-    int ret;
-    int my_errno;
-
-    *fd_pty = posix_openpt(O_RDWR);
-    if (*fd_pty < 0)
-        return UV__ERR(errno);
-
-    if (grantpt(*fd_pty) < 0) {
-        SAVE_ERRNO(close(*fd_pty));
-        return UV__ERR(errno);
-    }
-
-    if (unlockpt(*fd_pty) < 0) {
-        SAVE_ERRNO(close(*fd_pty));
-        return UV__ERR(errno);
-    }
-
-    char path_tty[TTY_NAME_MAX + 1] = {0};
-    // Apple and linux both have ptsname_r.
-    // Use TIOCGPTPEER. (see man ioctl_tty) Where is that available?
-    // TODO(patrickbkr): There is no ptsname_r on OpenBSD.
-    if (ptsname_r(*fd_pty, path_tty, TTY_NAME_MAX + 1) != 0) {
-        SAVE_ERRNO(close(*fd_pty));
-        return UV__ERR(errno);
-    }
-
-    *fd_tty = open(path_tty, O_RDWR | O_NOCTTY);
-    if (*fd_tty < 0) {
-        SAVE_ERRNO(close(*fd_pty));
-        return UV__ERR(errno);
-    }
-
-    if ((my_errno = uv__pty_resize_fd(*fd_pty, cols, rows)) != 0) {
-        close(*fd_pty);
-        close(*fd_tty);
-        return my_errno;
-    }
-
-    return 0;
+  struct winsize winp;
+  memset(&winp, 0, sizeof(winp));
+  winp.ws_col = cols;
+  winp.ws_row = rows;
+  if (openpty(fd_pty, fd_tty, 0, 0, &winp) < 0) {
+    return UV__ERR(errno);
+  }
+  return 0;
 }
+#else
+int uv__spawn_make_pty(int* fd_pty, int* fd_tty, int cols, int rows) {
+  int ret;
+  int my_errno;
+
+  *fd_pty = posix_openpt(O_RDWR);
+  if (*fd_pty < 0)
+    return UV__ERR(errno);
+
+  if (grantpt(*fd_pty) < 0) {
+    SAVE_ERRNO(close(*fd_pty));
+    return UV__ERR(errno);
+  }
+
+  if (unlockpt(*fd_pty) < 0) {
+    SAVE_ERRNO(close(*fd_pty));
+    return UV__ERR(errno);
+  }
+
+  char path_tty[TTY_NAME_MAX + 1] = {0};
+  if (ptsname_r(*fd_pty, path_tty, TTY_NAME_MAX + 1) != 0) {
+    SAVE_ERRNO(close(*fd_pty));
+    return UV__ERR(errno);
+  }
+
+  *fd_tty = open(path_tty, O_RDWR | O_NOCTTY);
+  if (*fd_tty < 0) {
+    SAVE_ERRNO(close(*fd_pty));
+    return UV__ERR(errno);
+  }
+
+  if ((my_errno = uv__pty_resize_fd(*fd_pty, cols, rows)) != 0) {
+    close(*fd_pty);
+    close(*fd_tty);
+    return my_errno;
+  }
+
+  return 0;
+}
+#endif
 
 int uv_spawn(uv_loop_t* loop,
              uv_process_t* process,
