@@ -268,7 +268,7 @@ static int maybe_run_test(int argc, char **argv) {
     return 1;
   }
   if (strcmp(argv[1], "spawn_helper11") == 0) {
-    char inbuffer[256];
+    char inbuffer[200];
     char outbuffer[256];
     notify_parent_process();
 

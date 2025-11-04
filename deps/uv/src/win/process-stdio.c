@@ -167,7 +167,7 @@ int uv__create_nul_handle(HANDLE* handle_ptr,
 
 
 int uv__stdio_create(uv_loop_t* loop,
-                     const uv_process_options_t* options,
+                     const uv_process_options2_t* options,
                      BYTE** buffer_ptr) {
   BYTE* buffer;
   int count, i;

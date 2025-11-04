@@ -47,6 +47,7 @@ static int exit_cb_called;
 static uv_process_t process;
 static uv_timer_t timer;
 static uv_process_options_t options;
+static uv_process_options2_t options2;
 static char exepath[1024];
 static size_t exepath_size = 1024;
 static char* args[5];
@@ -203,6 +204,23 @@ static void init_process_options(char* test, uv_exit_cb exit_cb) {
   options.args = args;
   options.exit_cb = exit_cb;
   options.flags = 0;
+}
+
+static void init_process_options2(char* test, uv_exit_cb exit_cb) {
+  /* Note spawn_helper1 defined in test/run-tests.c */
+  int r = uv_exepath(exepath, &exepath_size);
+  ASSERT_OK(r);
+  exepath[exepath_size] = '\0';
+  args[0] = exepath;
+  args[1] = test;
+  args[2] = NULL;
+  args[3] = NULL;
+  args[4] = NULL;
+  options2.version = UV_PROCESS_OPTIONS_VERSION;
+  options2.file = exepath;
+  options2.args = args;
+  options2.exit_cb = exit_cb;
+  options2.flags = 0;
 }
 
 
@@ -2186,23 +2204,23 @@ TEST_IMPL(spawn_pty_setup_succeeds) {
   char buffer[] = "hello from parent\n";
 #endif
 
-  init_process_options("spawn_helper10", pty_exit_cb);
+  init_process_options2("spawn_helper10", pty_exit_cb);
 
   uv_pipe_init(uv_default_loop(), &pty_in, 0);
   uv_pipe_init(uv_default_loop(), &pty_out, 0);
 
-  options.flags |= UV_PROCESS_PTY | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
-  options.stdio = stdio;
-  options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
-  options.stdio[0].data.stream = (uv_stream_t*) &pty_in;
-  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-  options.stdio[1].data.stream = (uv_stream_t*) &pty_out;
-  options.stdio[2].flags = UV_IGNORE;
-  options.stdio_count = 3;
-  options.pty_cols = 72;
-  options.pty_rows = 24;
+  options2.flags |= UV_PROCESS_PTY | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+  options2.stdio = stdio;
+  options2.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
+  options2.stdio[0].data.stream = (uv_stream_t*) &pty_in;
+  options2.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options2.stdio[1].data.stream = (uv_stream_t*) &pty_out;
+  options2.stdio[2].flags = UV_IGNORE;
+  options2.stdio_count = 3;
+  options2.pty_cols = 72;
+  options2.pty_rows = 24;
 
-  r = uv_spawn(uv_default_loop(), &process, &options);
+  r = uv_spawn2(uv_default_loop(), &process, &options2);
   ASSERT_OK(r);
 
   // We don't want to write the trailing \0
@@ -2253,26 +2271,26 @@ TEST_IMPL(spawn_pty_stdio_greater_than_3) {
   char buffer[] = "hello from parent\n";
 #endif
 
-  init_process_options("spawn_helper11", pty_exit_cb);
+  init_process_options2("spawn_helper11", pty_exit_cb);
 
   uv_pipe_init(uv_default_loop(), &pty_in, 0);
   uv_pipe_init(uv_default_loop(), &pty_out, 0);
   uv_pipe_init(uv_default_loop(), &pipe4, 0);
 
-  options.flags |= UV_PROCESS_PTY | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
-  options.stdio = stdio;
-  options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
-  options.stdio[0].data.stream = (uv_stream_t*) &pty_in;
-  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-  options.stdio[1].data.stream = (uv_stream_t*) &pty_out;
-  options.stdio[2].flags = UV_IGNORE;
-  options.stdio[3].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-  options.stdio[3].data.stream = (uv_stream_t*) &pipe4;
-  options.stdio_count = 4;
-  options.pty_cols = 72;
-  options.pty_rows = 24;
+  options2.flags |= UV_PROCESS_PTY | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+  options2.stdio = stdio;
+  options2.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
+  options2.stdio[0].data.stream = (uv_stream_t*) &pty_in;
+  options2.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options2.stdio[1].data.stream = (uv_stream_t*) &pty_out;
+  options2.stdio[2].flags = UV_IGNORE;
+  options2.stdio[3].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options2.stdio[3].data.stream = (uv_stream_t*) &pipe4;
+  options2.stdio_count = 4;
+  options2.pty_cols = 72;
+  options2.pty_rows = 24;
 
-  r = uv_spawn(uv_default_loop(), &process, &options);
+  r = uv_spawn2(uv_default_loop(), &process, &options2);
   ASSERT_OK(r);
 
   // We don't want to write the trailing \0
@@ -2313,23 +2331,23 @@ TEST_IMPL(spawn_pty_resize) {
   char buffer[] = "hello from parent\n";
 #endif
 
-  init_process_options("spawn_helper10", pty_exit_cb);
+  init_process_options2("spawn_helper10", pty_exit_cb);
 
   uv_pipe_init(uv_default_loop(), &pty_in, 0);
   uv_pipe_init(uv_default_loop(), &pty_out, 0);
 
-  options.flags |= UV_PROCESS_PTY | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
-  options.stdio = stdio;
-  options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
-  options.stdio[0].data.stream = (uv_stream_t*) &pty_in;
-  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-  options.stdio[1].data.stream = (uv_stream_t*) &pty_out;
-  options.stdio[2].flags = UV_IGNORE;
-  options.stdio_count = 3;
-  options.pty_cols = 72;
-  options.pty_rows = 24;
+  options2.flags |= UV_PROCESS_PTY | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+  options2.stdio = stdio;
+  options2.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
+  options2.stdio[0].data.stream = (uv_stream_t*) &pty_in;
+  options2.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options2.stdio[1].data.stream = (uv_stream_t*) &pty_out;
+  options2.stdio[2].flags = UV_IGNORE;
+  options2.stdio_count = 3;
+  options2.pty_cols = 72;
+  options2.pty_rows = 24;
 
-  r = uv_spawn(uv_default_loop(), &process, &options);
+  r = uv_spawn2(uv_default_loop(), &process, &options2);
   ASSERT_OK(r);
 
   // Workaround for https://github.com/microsoft/terminal/pull/10449.

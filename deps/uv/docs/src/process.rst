@@ -17,6 +17,8 @@ Data types
 
 .. c:type:: uv_process_options_t
 
+    Deprecated, use `uv_spawn2` with `uv_process_options2_t` instead.
+
     Options for spawning the process (passed to :c:func:`uv_spawn`.
 
     ::
@@ -34,15 +36,37 @@ Data types
             uv_gid_t gid;
         } uv_process_options_t;
 
+.. c:type:: uv_process_options2_t
+
+    Options for spawning the process (passed to :c:func:`uv_spawn2`.
+
+    ::
+
+        typedef struct uv_process_options2_s {
+            int version;
+            uv_exit_cb exit_cb;
+            const char* file;
+            char** args;
+            char** env;
+            const char* cwd;
+            unsigned int flags;
+            int stdio_count;
+            uv_stdio_container_t* stdio;
+            unsigned int pty_cols;
+            unsigned int pty_rows;
+            uv_uid_t uid;
+            uv_gid_t gid;
+        } uv_process_options2_t;
+
 .. c:type:: void (*uv_exit_cb)(uv_process_t*, int64_t exit_status, int term_signal)
 
-    Type definition for callback passed in :c:type:`uv_process_options_t` which
+    Type definition for callback passed in :c:type:`uv_process_options2_t` which
     will indicate the exit status and the signal that caused the process to
     terminate, if any.
 
 .. c:enum:: uv_process_flags
 
-    Flags to be set on the flags field of :c:type:`uv_process_options_t`.
+    Flags to be set on the flags field of :c:type:`uv_process_options2_t`.
 
     ::
 
@@ -88,7 +112,7 @@ Data types
             UV_PROCESS_WINDOWS_HIDE_GUI = (1 << 6),
             /*
              * On Windows, if the path to the program to execute, specified in
-             * uv_process_options_t's file field, has a directory component,
+             * uv_process_options2_t's file field, has a directory component,
              * search for the exact file name before trying variants with
              * extensions like '.exe' or '.cmd'.
              */
@@ -186,36 +210,40 @@ Public members
 .. note::
     The :c:type:`uv_handle_t` members also apply.
 
-.. c:member:: uv_exit_cb uv_process_options_t.exit_cb
+.. c:member:: uv_exit_cb uv_process_options2_t.version
+
+    Version of the struct. Simply set it to UV_PROCESS_OPTIONS_VERSION.
+
+.. c:member:: uv_exit_cb uv_process_options2_t.exit_cb
 
     Callback called after the process exits.
 
-.. c:member:: const char* uv_process_options_t.file
+.. c:member:: const char* uv_process_options2_t.file
 
     Path pointing to the program to be executed.
 
-.. c:member:: char** uv_process_options_t.args
+.. c:member:: char** uv_process_options2_t.args
 
     Command line arguments. args[0] should be the path to the program. On
     Windows this uses `CreateProcess` which concatenates the arguments into a
     string this can cause some strange errors. See the
     ``UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS`` flag on :c:enum:`uv_process_flags`.
 
-.. c:member:: char** uv_process_options_t.env
+.. c:member:: char** uv_process_options2_t.env
 
     Environment for the new process. If NULL the parents environment is used.
 
-.. c:member:: const char* uv_process_options_t.cwd
+.. c:member:: const char* uv_process_options2_t.cwd
 
     Current working directory for the subprocess.
 
-.. c:member:: unsigned int uv_process_options_t.flags
+.. c:member:: unsigned int uv_process_options2_t.flags
 
     Various flags that control how :c:func:`uv_spawn` behaves. See
     :c:enum:`uv_process_flags`.
 
-.. c:member:: int uv_process_options_t.stdio_count
-.. c:member:: uv_stdio_container_t* uv_process_options_t.stdio
+.. c:member:: int uv_process_options2_t.stdio_count
+.. c:member:: uv_stdio_container_t* uv_process_options2_t.stdio
 
     The `stdio` field points to an array of :c:type:`uv_stdio_container_t`
     structs that describe the file descriptors that will be made available to
@@ -226,8 +254,14 @@ Public members
         On Windows file descriptors greater than 2 are available to the child process only if
         the child processes uses the MSVCRT runtime.
 
-.. c:member:: uv_uid_t uv_process_options_t.uid
-.. c:member:: uv_gid_t uv_process_options_t.gid
+.. c:member:: uv_gid_t uv_process_options2_t.pty_cols
+.. c:member:: uv_uid_t uv_process_options2_t.pty_rows
+
+    When installing a PTY via the `UV_PROCESS_PTY` flag, set the initial
+    pseudo terminal dimensions via these fields.
+
+.. c:member:: uv_uid_t uv_process_options2_t.uid
+.. c:member:: uv_gid_t uv_process_options2_t.gid
 
     Libuv can change the child process' user/group id. This happens only when
     the appropriate bits are set in the flags fields.
@@ -265,6 +299,27 @@ API
 
 .. c:function:: int uv_spawn(uv_loop_t* loop, uv_process_t* handle, const uv_process_options_t* options)
 
+    Deprecated. Use `uv_spawn2`. `uv_spawn2` behaves identical, but
+    takes a `uv_processs_options2_t` instead.
+
+    Initializes the process handle and starts the process. If the process is
+    successfully spawned, this function will return 0. Otherwise, the
+    negative error code corresponding to the reason it couldn't spawn is
+    returned.
+
+    Possible reasons for failing to spawn would include (but not be limited to)
+    the file to execute not existing, not having permissions to use the setuid or
+    setgid specified, or not having enough memory to allocate for the new
+    process.
+
+    .. versionchanged:: 1.24.0 Added `UV_PROCESS_WINDOWS_HIDE_CONSOLE` and
+                        `UV_PROCESS_WINDOWS_HIDE_GUI` flags.
+
+    .. versionchanged:: 1.48.0 Added the
+                        `UV_PROCESS_WINDOWS_FILE_PATH_EXACT_NAME` flag.
+
+.. c:function:: int uv_spawn2(uv_loop_t* loop, uv_process_t* handle, const uv_process_options2_t* options)
+
     Initializes the process handle and starts the process. If the process is
     successfully spawned, this function will return 0. Otherwise, the
     negative error code corresponding to the reason it couldn't spawn is
@@ -276,13 +331,10 @@ API
     process. If the OS does not support PTYs and `UV_PROCESS_PTY` is passed
     the error will be `UV_ENOTSUP`.
 
-    .. versionchanged:: 1.24.0 Added `UV_PROCESS_WINDOWS_HIDE_CONSOLE` and
-                        `UV_PROCESS_WINDOWS_HIDE_GUI` flags.
+    .. versionadded:: 1.52.0 Identical to `uv_spawn` but takes a
+                      `uv_process_options2_t` instead. With `uv_spawn2` it's
+                      now possible to use a PTY via the `UV_PROCESS_PTY` flag.
 
-    .. versionchanged:: 1.48.0 Added the
-                        `UV_PROCESS_WINDOWS_FILE_PATH_EXACT_NAME` flag.
-
-    .. versionchanged:: 1.51.0 Added the `UV_PROCESS_PTY` flag.
 
 .. c:function:: int uv_process_kill(uv_process_t* handle, int signum)
 
@@ -306,6 +358,6 @@ API
     success, `UV_EINVAL` when the `process` is not PTY enabled, `UV_ENOTSUP`
     when the OS does not support PTYs.
 
-    .. versionadded:: 1.19.0
+    .. versionadded:: 1.52.0
 
 .. seealso:: The :c:type:`uv_handle_t` API functions also apply.

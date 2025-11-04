@@ -1104,6 +1104,27 @@ HRESULT uv__release_pseudo_console(HPCON hPC) {
 int uv_spawn(uv_loop_t* loop,
              uv_process_t* process,
              const uv_process_options_t* options) {
+  uv_process_options2_t options2;
+  options2.version     = UV_PROCESS_OPTIONS_VERSION_V0;
+  options2.exit_cb     = options->exit_cb;
+  options2.file        = options->file;
+  options2.args        = options->args;
+  options2.env         = options->env;
+  options2.cwd         = options->cwd;
+  options2.flags       = options->flags;
+  options2.stdio_count = options->stdio_count;
+  options2.stdio       = options->stdio;
+  options2.pty_cols    = 0;
+  options2.pty_rows    = 0;
+  options2.uid         = options->uid;
+  options2.gid         = options->gid;
+
+  return uv_spawn2(loop, process, &options2);
+}
+
+int uv_spawn2(uv_loop_t* loop,
+             uv_process_t* process,
+             const uv_process_options2_t* options) {
   int i;
   int err = 0;
 
@@ -1131,6 +1152,8 @@ int uv_spawn(uv_loop_t* loop,
   }
 
   if (options->flags & UV_PROCESS_PTY) {
+    if (options->version < UV_PROCESS_OPTIONS_VERSION_V1)
+      return UV_EINVAL;
     if (options->stdio[0].flags != (UV_CREATE_PIPE | UV_READABLE_PIPE) ||
         options->stdio[0].data.stream->type != UV_NAMED_PIPE ||
         options->stdio[1].flags != (UV_CREATE_PIPE | UV_WRITABLE_PIPE) ||
