@@ -37,7 +37,7 @@ namespace permission {
         [[unlikely]] {                                                         \
       node::permission::Permission::ThrowAccessDenied(                         \
           env__, perm__, resource__);                                          \
-      return __VA_ARGS__;                                                      \
+      if (!env__->permission()->warning_only()) return __VA_ARGS__;            \
     }                                                                          \
   } while (0)
 
@@ -51,7 +51,7 @@ namespace permission {
         [[unlikely]] {                                                         \
       node::permission::Permission::AsyncThrowAccessDenied(                    \
           env__, (wrap), perm__, resource__);                                  \
-      return __VA_ARGS__;                                                      \
+      if (!env__->permission()->warning_only()) return __VA_ARGS__;            \
     }                                                                          \
   } while (0)
 
@@ -66,7 +66,7 @@ namespace permission {
       Local<Value> err_access;                                                 \
       if (node::permission::CreateAccessDeniedError(env__, perm__, resource__) \
               .ToLocal(&err_access)) {                                         \
-        args.GetReturnValue().Set(err_access);                                 \
+        \ args.GetReturnValue().Set(err_access);                               \
       } else {                                                                 \
         args.GetReturnValue().Set(UV_EACCES);                                  \
       }                                                                        \
@@ -100,6 +100,8 @@ class Permission {
 
   FORCE_INLINE bool enabled() const { return enabled_; }
 
+  FORCE_INLINE bool warning_only() const { return warning_only_; }
+
   static PermissionScope StringToPermission(const std::string& perm);
   static const char* PermissionToString(PermissionScope perm);
   static void ThrowAccessDenied(Environment* env,
@@ -115,6 +117,7 @@ class Permission {
              const std::vector<std::string>& allow,
              PermissionScope scope);
   void EnablePermissions();
+  void EnableWarningOnly();
 
  private:
   COLD_NOINLINE bool is_scope_granted(Environment* env,
@@ -129,6 +132,7 @@ class Permission {
 
   std::unordered_map<PermissionScope, std::shared_ptr<PermissionBase>> nodes_;
   bool enabled_;
+  bool warning_only_;
 };
 
 v8::MaybeLocal<v8::Value> CreateAccessDeniedError(Environment* env,

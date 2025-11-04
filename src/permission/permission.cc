@@ -6,6 +6,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file.h"
+#include "node_process-inl.h"
 
 #include "v8.h"
 
@@ -70,7 +71,7 @@ PermissionScope Permission::StringToPermission(const std::string& perm) {
 }
 #undef V
 
-Permission::Permission() : enabled_(false) {
+Permission::Permission() : enabled_(false), warning_only_(false) {
   std::shared_ptr<PermissionBase> fs = std::make_shared<FSPermission>();
   std::shared_ptr<PermissionBase> child_p =
       std::make_shared<ChildProcessPermission>();
@@ -149,29 +150,56 @@ MaybeLocal<Value> CreateAccessDeniedError(Environment* env,
 void Permission::ThrowAccessDenied(Environment* env,
                                    PermissionScope perm,
                                    const std::string_view& res) {
-  Local<Value> err;
-  if (CreateAccessDeniedError(env, perm, res).ToLocal(&err)) {
-    env->isolate()->ThrowException(err);
+  // If permission is set to "audit" only. We should not throw, but
+  // emit warning whenever a permission is "bypassed"
+  if (!env->permission()->warning_only()) {
+    Local<Value> err;
+    if (CreateAccessDeniedError(env, perm, res).ToLocal(&err)) {
+      env->isolate()->ThrowException(err);
+    }
+    // If ToLocal returned false, then v8 will have scheduled a
+    // superseding error to be thrown.
+    return;
   }
-  // If ToLocal returned false, then v8 will have scheduled a
-  // superseding error to be thrown.
+  std::string_view perm_str = Permission::PermissionToString(perm);
+  ProcessEmitWarningSync(
+      env,
+      "ERR_ACCESS_DENIED suppressed. Permission: %s, Resource: %s",
+      perm_str,
+      res);
 }
 
 void Permission::AsyncThrowAccessDenied(Environment* env,
                                         fs::FSReqBase* req_wrap,
                                         PermissionScope perm,
                                         const std::string_view& res) {
-  Local<Value> err;
-  if (CreateAccessDeniedError(env, perm, res).ToLocal(&err)) {
-    return req_wrap->Reject(err);
+  if (env->permission()->warning_only()) {
+    Local<Value> err;
+    if (CreateAccessDeniedError(env, perm, res).ToLocal(&err)) {
+      return req_wrap->Reject(err);
+    }
+    // If ToLocal returned false, then v8 will have scheduled a
+    // superseding error to be thrown.
+    return;
   }
-  // If ToLocal returned false, then v8 will have scheduled a
-  // superseding error to be thrown.
+  std::string_view perm_str = Permission::PermissionToString(perm);
+  // TODO: handle warning error
+  ProcessEmitWarning(
+      env,
+      "ERR_ACCESS_DENIED suppressed. Permission: %s, Resource: %s",
+      perm_str,
+      res);
 }
 
 void Permission::EnablePermissions() {
   if (!enabled_) {
     enabled_ = true;
+  }
+}
+
+void Permission::EnableWarningOnly() {
+  if (!warning_only_) {
+    warning_only_ = true;
   }
 }
 

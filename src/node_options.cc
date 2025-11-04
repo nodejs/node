@@ -600,6 +600,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::permission,
             kAllowedInEnvvar,
             false);
+  AddOption("--permission-audit",
+            "enable audit only for the permission system",
+            &EnvironmentOptions::permission_audit,
+            kAllowedInEnvvar,
+            false);
   AddOption("--allow-fs-read",
             "allow permissions to read the filesystem",
             &EnvironmentOptions::allow_fs_read,
