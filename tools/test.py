@@ -969,6 +969,7 @@ class Context(object):
     self.abort_on_timeout = abort_on_timeout
     self.v8_enable_inspector = True
     self.node_has_crypto = True
+    self.use_error_reporter = False
 
   def GetVm(self, arch, mode):
     if self.vm is not None:
@@ -1461,7 +1462,7 @@ def BuildOptions():
       help="Type of build (simple, fips, coverage)",
       default=None)
   result.add_argument("--error-reporter",
-      help="use error reporter",
+      help="use error reporter if the test uses node:test",
       default=True, action="store_true")
   return result
 
@@ -1682,10 +1683,6 @@ def Main():
     options.node_args.append("--always-turbofan")
     options.progress = "deopts"
 
-  if options.error_reporter:
-    options.node_args.append('--test-reporter=./test/common/test-error-reporter.js')
-    options.node_args.append('--test-reporter-destination=stdout')
-
   if options.worker:
     run_worker = join(workspace, "tools", "run-worker.js")
     options.node_args.append(run_worker)
@@ -1703,6 +1700,9 @@ def Main():
                     options.store_unexpected_output,
                     options.repeat,
                     options.abort_on_timeout)
+
+  if options.error_reporter:
+    context.use_error_reporter = True
 
   # Get status for tests
   sections = [ ]
