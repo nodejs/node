@@ -41,7 +41,8 @@ function copyArrayBuffer(buf) {
 
 function checkMethods(certificate) {
 
-  assert.strictEqual(certificate.verifySpkac(spkacValid), true);
+  if (!process.features.openssl_is_boringssl)
+    assert.strictEqual(certificate.verifySpkac(spkacValid), true);
   assert.strictEqual(certificate.verifySpkac(spkacFail), false);
 
   assert.strictEqual(
@@ -56,10 +57,12 @@ function checkMethods(certificate) {
   );
   assert.strictEqual(certificate.exportChallenge(spkacFail), '');
 
-  const ab = copyArrayBuffer(spkacValid);
-  assert.strictEqual(certificate.verifySpkac(ab), true);
-  assert.strictEqual(certificate.verifySpkac(new Uint8Array(ab)), true);
-  assert.strictEqual(certificate.verifySpkac(new DataView(ab)), true);
+  if (!process.features.openssl_is_boringssl) {
+    const ab = copyArrayBuffer(spkacValid);
+    assert.strictEqual(certificate.verifySpkac(ab), true);
+    assert.strictEqual(certificate.verifySpkac(new Uint8Array(ab)), true);
+    assert.strictEqual(certificate.verifySpkac(new DataView(ab)), true);
+  }
 }
 
 {
