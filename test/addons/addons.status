@@ -20,3 +20,13 @@ openssl-providers/test-no-legacy-provider-option: SKIP
 zlib-binding/test: SKIP
 # https://github.com/nodejs/node/issues/34410
 register-signal-handler/test: PASS,FLAKY
+
+[$system==aix]
+# https://github.com/nodejs/node/issues/60494
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max: PASS,FLAKY
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-hex: PASS,FLAKY
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-utf8: PASS,FLAKY
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-base64: PASS,FLAKY
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-2: PASS,FLAKY
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-ascii: PASS,FLAKY
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-binary: PASS,FLAKY
