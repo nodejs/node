@@ -4009,8 +4009,8 @@ changes:
   * `publicKey` {string | Buffer | KeyObject}
   * `privateKey` {string | Buffer | KeyObject}
 
-Generates a new asymmetric key pair of the given `type`. RSA, RSA-PSS, DSA, EC,
-Ed25519, Ed448, X25519, X448, and DH are currently supported.
+Generates a new asymmetric key pair of the given `type`. See the
+supported [asymmetric key types][].
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
@@ -4131,8 +4131,8 @@ changes:
   * `publicKey` {string | Buffer | KeyObject}
   * `privateKey` {string | Buffer | KeyObject}
 
-Generates a new asymmetric key pair of the given `type`. RSA, RSA-PSS, DSA, EC,
-Ed25519, Ed448, X25519, X448, DH, and ML-DSA[^openssl35] are currently supported.
+Generates a new asymmetric key pair of the given `type`. See the
+supported [asymmetric key types][].
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
