@@ -234,6 +234,7 @@ static void timer_counter_cb(uv_timer_t* handle) {
   ++timer_counter;
 }
 
+#ifdef _WIN32
 static void filter_vt(char* t, char with_nl_and_sp) {
   int wi = 0, len = strlen(t), csi = 0, osc = 0;
   for (int ri = 0; ri < len; ri++) {
@@ -263,6 +264,7 @@ static void filter_vt(char* t, char with_nl_and_sp) {
   }
   t[wi] = 0;
 }
+#endif
 
 TEST_IMPL(spawn_fails) {
   int r;
