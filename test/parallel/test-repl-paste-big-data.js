@@ -9,6 +9,11 @@ const { startNewREPLServer } = require('../common/repl');
 const cpuUsage = process.cpuUsage();
 
 const { replServer } = startNewREPLServer({}, { disableDomainErrorAssert: true });
+replServer.input.emit('data', '{}');
+replServer.input.emit('keypress', '', { name: 'left' });
+replServer.input.emit('data', 'node');
+assert.strictEqual(replServer.line, '{node}');
+
 replServer.input.emit('data', 'a'.repeat(2e4) + '\n');
 replServer.input.emit('data', '.exit\n');
 
