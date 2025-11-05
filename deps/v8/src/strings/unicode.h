@@ -212,6 +212,16 @@ class V8_EXPORT_PRIVATE Utf8 {
   // - valid code point range.
   static bool ValidateEncoding(const uint8_t* str, size_t length);
 
+  template <typename Char>
+  static bool IsAsciiOneByteString(const Char* buffer, size_t size);
+
+  template <>
+  inline bool IsAsciiOneByteString<uint8_t>(const uint8_t* buffer, size_t size);
+
+  template <>
+  inline bool IsAsciiOneByteString<uint16_t>(const uint16_t* buffer,
+                                             size_t size);
+
   // Encode the given characters as Utf8 into the provided output buffer.
   struct EncodingResult {
     size_t bytes_written;
