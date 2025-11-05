@@ -731,7 +731,7 @@ inline std::wstring ConvertUTF8ToWideString(const std::string& str) {
   return wstrTo;
 }
 
-std::string ConvertWideToUTF8(const std::wstring& wstr) {
+std::string ConvertWideStringToUTF8(const std::wstring& wstr) {
   if (wstr.empty()) return std::string();
 
   int size_needed = WideCharToMultiByte(CP_UTF8,
