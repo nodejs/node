@@ -206,6 +206,17 @@ bool Utf8::IsValidCharacter(uchar c) {
           c != kBadChar);
 }
 
+template <>
+bool Utf8::IsAsciiOneByteString<uint8_t>(const uint8_t* buffer, size_t size) {
+  return simdutf::validate_ascii(reinterpret_cast<const char*>(buffer), size);
+}
+
+template <>
+bool Utf8::IsAsciiOneByteString<uint16_t>(const uint16_t* buffer, size_t size) {
+  // Necessary for template instantiation.
+  UNREACHABLE();
+}
+
 template <typename Char>
 Utf8::EncodingResult Utf8::Encode(v8::base::Vector<const Char> string,
                                   char* buffer, size_t capacity,
@@ -221,8 +232,17 @@ Utf8::EncodingResult Utf8::Encode(v8::base::Vector<const Char> string,
   const Char* characters = string.begin();
   size_t content_capacity = capacity - write_null;
   CHECK_LE(content_capacity, capacity);
-  uint16_t last = Utf16::kNoPreviousCharacter;
   size_t read_index = 0;
+  if (kSourceIsOneByte && string.size() > 0 &&
+      Utf8::IsAsciiOneByteString(characters,
+                                 std::min(string.size(), content_capacity))) {
+    size_t to_write = std::min(string.size(), content_capacity);
+    // Just memcpy when possible.
+    memcpy(buffer, characters, to_write);
+    read_index = to_write;
+    write_index = to_write;
+  }
+  uint16_t last = Utf16::kNoPreviousCharacter;
   for (; read_index < string.size(); read_index++) {
     Char character = characters[read_index];
 
