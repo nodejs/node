@@ -1038,17 +1038,22 @@ int uv__spawn_make_pty(int* fd_pty, int* fd_tty, int cols, int rows) {
     return UV__ERR(errno);
   }
 
-  char path_tty[TTY_NAME_MAX + 1] = {0};
-  if (ptsname_r(*fd_pty, path_tty, TTY_NAME_MAX + 1) != 0) {
+  int path_tty_size = sysconf(_SC_TTY_NAME_MAX) + 1;
+  char *path_tty = uv__malloc(path_tty_size * sizeof(char));
+  if (ptsname_r(*fd_pty, path_tty, path_tty_size) != 0) {
     SAVE_ERRNO(close(*fd_pty));
     return UV__ERR(errno);
   }
 
   *fd_tty = open(path_tty, O_RDWR | O_NOCTTY);
   if (*fd_tty < 0) {
-    SAVE_ERRNO(close(*fd_pty));
-    return UV__ERR(errno);
+    my_errno = UV__ERR(errno);
+    close(*fd_pty);
+    uv__free(path_tty);
+    return my_errno;
   }
+
+  uv__free(path_tty);
 
   if ((my_errno = uv__pty_resize_fd(*fd_pty, cols, rows)) != 0) {
     close(*fd_pty);
