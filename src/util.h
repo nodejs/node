@@ -507,6 +507,7 @@ class MaybeStackBuffer {
   inline std::basic_string_view<T> ToStringView() const {
     return {out(), length()};
   }
+  // This can only be used if the buffer contains path data in UTF8
   inline std::filesystem::path ToPath() const;
 
  private:
