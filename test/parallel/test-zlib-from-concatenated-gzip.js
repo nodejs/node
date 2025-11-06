@@ -47,9 +47,7 @@ const pmmResultBuffers = [];
 
 fs.createReadStream(pmmFileGz)
   .pipe(zlib.createGunzip())
-  .on('error', (err) => {
-    assert.ifError(err);
-  })
+  .on('error', common.mustNotCall())
   .on('data', (data) => pmmResultBuffers.push(data))
   .on('finish', common.mustCall(() => {
     // Result should match original random garbage
@@ -61,9 +59,7 @@ fs.createReadStream(pmmFileGz)
   const resultBuffers = [];
 
   const unzip = zlib.createGunzip()
-    .on('error', (err) => {
-      assert.ifError(err);
-    })
+    .on('error', common.mustNotCall())
     .on('data', (data) => resultBuffers.push(data))
     .on('finish', common.mustCall(() => {
       assert.strictEqual(
