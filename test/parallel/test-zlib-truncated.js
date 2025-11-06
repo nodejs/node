@@ -1,7 +1,7 @@
 'use strict';
 // Tests zlib streams with truncated compressed input
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
@@ -23,8 +23,7 @@ const errMessage = /unexpected end of file/;
   { comp: 'deflate', decomp: 'inflate', decompSync: 'inflateSync' },
   { comp: 'deflateRaw', decomp: 'inflateRaw', decompSync: 'inflateRawSync' },
 ].forEach(function(methods) {
-  zlib[methods.comp](inputString, function(err, compressed) {
-    assert.ifError(err);
+  zlib[methods.comp](inputString, common.mustSucceed((compressed) => {
     const truncated = compressed.slice(0, compressed.length / 2);
     const toUTF8 = (buffer) => buffer.toString('utf-8');
 
@@ -33,10 +32,9 @@ const errMessage = /unexpected end of file/;
     assert.strictEqual(toUTF8(decompressed), inputString);
 
     // async sanity
-    zlib[methods.decomp](compressed, function(err, result) {
-      assert.ifError(err);
+    zlib[methods.decomp](compressed, common.mustSucceed((result) => {
       assert.strictEqual(toUTF8(result), inputString);
-    });
+    }));
 
     // Sync truncated input test
     assert.throws(function() {
@@ -44,9 +42,9 @@ const errMessage = /unexpected end of file/;
     }, errMessage);
 
     // Async truncated input test
-    zlib[methods.decomp](truncated, function(err, result) {
+    zlib[methods.decomp](truncated, common.mustCall((err) => {
       assert.match(err.message, errMessage);
-    });
+    }));
 
     const syncFlushOpt = { finishFlush: zlib.constants.Z_SYNC_FLUSH };
 
@@ -55,10 +53,9 @@ const errMessage = /unexpected end of file/;
     assert.strictEqual(result, inputString.slice(0, result.length));
 
     // Async truncated input test, finishFlush = Z_SYNC_FLUSH
-    zlib[methods.decomp](truncated, syncFlushOpt, function(err, decompressed) {
-      assert.ifError(err);
+    zlib[methods.decomp](truncated, syncFlushOpt, common.mustSucceed((decompressed) => {
       const result = toUTF8(decompressed);
       assert.strictEqual(result, inputString.slice(0, result.length));
-    });
-  });
+    }));
+  }));
 });
