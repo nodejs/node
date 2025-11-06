@@ -21,25 +21,17 @@
 
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 const zlib = require('node:zlib');
 const assert = require('node:assert');
-const { test } = require('node:test');
 
-test('zlib should not allow writing after close', async (t) => {
-  const { promise, resolve } = Promise.withResolvers();
-  const closeCallback = t.mock.fn();
-  zlib.gzip('hello', function() {
-    const unzip = zlib.createGunzip();
-    unzip.close(closeCallback);
-    unzip.write('asd', function(err) {
-      assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
-      assert.strictEqual(err.name, 'Error');
-      assert.strictEqual(err.message, 'Cannot call write after a stream was destroyed');
-      resolve();
-    });
-  });
-  await promise;
-  assert.strictEqual(closeCallback.mock.callCount(), 1);
-});
+zlib.gzip('hello', common.mustCall(() => {
+  const unzip = zlib.createGunzip();
+  unzip.close(common.mustCall());
+  unzip.write('asd', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(err.name, 'Error');
+    assert.strictEqual(err.message, 'Cannot call write after a stream was destroyed');
+  }));
+}));

@@ -17,9 +17,7 @@ assert.throws(function() {
 }, RangeError);
 
 // Async
-zlib.brotliDecompress(encoded, { maxOutputLength: 256 }, function(err) {
-  assert.strictEqual(err, null);
-});
+zlib.brotliDecompress(encoded, { maxOutputLength: 256 }, common.mustSucceed());
 
 // Sync
 zlib.brotliDecompressSync(encoded, { maxOutputLength: 256 });
