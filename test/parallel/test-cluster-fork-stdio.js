@@ -33,8 +33,8 @@ if (cluster.isPrimary) {
   const pipe = new net.Socket({ fd: 4 });
 
   pipe.unref();
-  pipe.on('data', (data) => {
+  pipe.on('data', common.mustCallAtLeast((data) => {
     assert.ok(data instanceof Buffer);
     pipe.write(data);
-  });
+  }));
 }

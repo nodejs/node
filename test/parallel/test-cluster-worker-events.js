@@ -51,7 +51,7 @@ let sawWorker;
 
 const messages = [];
 
-const check = (m) => {
+const check = common.mustCallAtLeast((m) => {
   messages.push(m);
 
   if (messages.length < 2) return;
@@ -64,7 +64,7 @@ const check = (m) => {
   }));
 
   process.emit('error', 'HI');
-};
+});
 
 process.on('message', (m) => {
   assert(!sawProcess);

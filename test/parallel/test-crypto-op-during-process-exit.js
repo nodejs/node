@@ -1,6 +1,7 @@
 'use strict';
 const common = require('../common');
 if (!common.hasCrypto) { common.skip('missing crypto'); }
+const assert = require('assert');
 const { generateKeyPair } = require('crypto');
 
 if (common.isWindows) {
@@ -20,6 +21,9 @@ generateKeyPair('rsa', {
     type: 'pkcs1',
     format: 'pem'
   }
-}, common.mustNotCall());
+}, (err/* , publicKey, privateKey */) => {
+  // eslint-disable-next-line node-core/must-call-assert
+  assert.ifError(err);
+});
 
 setTimeout(() => process.exit(), common.platformTimeout(10));
