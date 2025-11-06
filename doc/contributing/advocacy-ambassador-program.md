@@ -283,6 +283,8 @@ with projects learning from one another and their users.
 * <https://nodejs.org/api/cli.html#--watch>
 * <https://nodejs.org/api/util.html#utilparseargsconfig>
 * <https://nodejs.org/api/cli.html#--env-filefile>
+* <https://nodejs.org/api/esm.html#importmetadirname>
+* <https://nodejs.org/api/esm.html#importmetafilename>
 * <https://nodejs.org/docs/latest-v22.x/api/util.html#utilstyletextformat-text-options>
 * <https://nodejs.org/api/cli.html#--run>
 * <https://nodejs.org/api/cli.html#--experimental-strip-types>
