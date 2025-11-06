@@ -130,6 +130,27 @@ function verifyLoadingFailed({ method, params }) {
   assert.strictEqual(typeof params.errorText, 'string');
 }
 
+function verifyHttpResponse(response) {
+  assert.strictEqual(response.statusCode, 200);
+  const chunks = [];
+
+  // Verifies that the inspector does not put the response into flowing mode.
+  assert.strictEqual(response.readableFlowing, null);
+  // Verifies that the data listener may be added at a later time, and it can
+  // still observe the data in full.
+  queueMicrotask(() => {
+    response.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+    assert.strictEqual(response.readableFlowing, true);
+  });
+
+  response.on('end', common.mustCall(() => {
+    const body = Buffer.concat(chunks).toString();
+    assert.strictEqual(body, '\nhello world\n');
+  }));
+}
+
 async function testHttpGet() {
   const url = `http://127.0.0.1:${httpServer.address().port}/hello-world`;
   const requestWillBeSentFuture = once(session, 'Network.requestWillBeSent')
@@ -146,11 +167,7 @@ async function testHttpGet() {
     port: httpServer.address().port,
     path: '/hello-world',
     headers: requestHeaders
-  }, common.mustCall((res) => {
-    // Dump the response.
-    res.on('data', () => {});
-    res.on('end', () => {});
-  }));
+  }, common.mustCall(verifyHttpResponse));
 
   await requestWillBeSentFuture;
   const responseReceived = await responseReceivedFuture;
@@ -158,6 +175,12 @@ async function testHttpGet() {
 
   const delta = (loadingFinished.timestamp - responseReceived.timestamp) * 1000;
   assert.ok(delta > kDelta);
+
+  const responseBody = await session.post('Network.getResponseBody', {
+    requestId: responseReceived.requestId,
+  });
+  assert.strictEqual(responseBody.base64Encoded, false);
+  assert.strictEqual(responseBody.body, '\nhello world\n');
 }
 
 async function testHttpsGet() {
@@ -177,11 +200,7 @@ async function testHttpsGet() {
     path: '/hello-world',
     rejectUnauthorized: false,
     headers: requestHeaders,
-  }, common.mustCall((res) => {
-    // Dump the response.
-    res.on('data', () => {});
-    res.on('end', () => {});
-  }));
+  }, common.mustCall(verifyHttpResponse));
 
   await requestWillBeSentFuture;
   const responseReceived = await responseReceivedFuture;
@@ -189,6 +208,12 @@ async function testHttpsGet() {
 
   const delta = (loadingFinished.timestamp - responseReceived.timestamp) * 1000;
   assert.ok(delta > kDelta);
+
+  const responseBody = await session.post('Network.getResponseBody', {
+    requestId: responseReceived.requestId,
+  });
+  assert.strictEqual(responseBody.base64Encoded, false);
+  assert.strictEqual(responseBody.body, '\nhello world\n');
 }
 
 async function testHttpError() {
