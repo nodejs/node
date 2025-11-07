@@ -222,9 +222,12 @@ void FSReqBase::MemoryInfo(MemoryTracker* tracker) const {
 // collection if necessary. If that happens, a process warning will be
 // emitted (or a fatal exception will occur if the fd cannot be closed.)
 FileHandle::FileHandle(BindingData* binding_data,
-                       Local<Object> obj, int fd)
+                       Local<Object> obj,
+                       int fd,
+                       std::string original_name)
     : AsyncWrap(binding_data->env(), obj, AsyncWrap::PROVIDER_FILEHANDLE),
       StreamBase(env()),
+      original_name_(std::move(original_name)),
       fd_(fd),
       binding_data_(binding_data) {
   MakeWeak();
@@ -234,6 +237,7 @@ FileHandle::FileHandle(BindingData* binding_data,
 FileHandle* FileHandle::New(BindingData* binding_data,
                             int fd,
                             Local<Object> obj,
+                            std::string original_name,
                             std::optional<int64_t> maybeOffset,
                             std::optional<int64_t> maybeLength) {
   Environment* env = binding_data->env();
@@ -242,7 +246,7 @@ FileHandle* FileHandle::New(BindingData* binding_data,
                             .ToLocal(&obj)) {
     return nullptr;
   }
-  auto handle = new FileHandle(binding_data, obj, fd);
+  auto handle = new FileHandle(binding_data, obj, fd, original_name);
   if (maybeOffset.has_value()) handle->read_offset_ = maybeOffset.value();
   if (maybeLength.has_value()) handle->read_length_ = maybeLength.value();
   return handle;
@@ -274,6 +278,7 @@ void FileHandle::New(const FunctionCallbackInfo<Value>& args) {
   FileHandle::New(binding_data,
                   args[0].As<Int32>()->Value(),
                   args.This(),
+                  {},
                   maybeOffset,
                   maybeLength);
 }
@@ -293,6 +298,7 @@ int FileHandle::DoWrite(WriteWrap* w,
 
 void FileHandle::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("current_read", current_read_);
+  tracker->TrackField("original_name", original_name_);
 }
 
 BaseObject::TransferMode FileHandle::GetTransferMode() const {
@@ -346,25 +352,28 @@ inline void FileHandle::Close() {
   FS_SYNC_TRACE_END(close);
   uv_fs_req_cleanup(&req);
 
-  struct err_detail { int ret; int fd; };
+  struct err_detail {
+    int ret;
+    int fd;
+    std::string name;
+  };
 
-  err_detail detail { ret, fd_ };
+  err_detail detail{ret, fd_, original_name_};
 
   AfterClose();
 
   if (ret < 0) {
     // Do not unref this
     env()->SetImmediate([detail](Environment* env) {
-      char msg[70];
-      snprintf(msg, arraysize(msg),
-              "Closing file descriptor %d on garbage collection failed",
-              detail.fd);
-      // This exception will end up being fatal for the process because
-      // it is being thrown from within the SetImmediate handler and
-      // there is no JS stack to bubble it to. In other words, tearing
-      // down the process is the only reasonable thing we can do here.
       HandleScope handle_scope(env->isolate());
-      env->ThrowUVException(detail.ret, "close", msg);
+      static constexpr std::string_view unknown_path = "<unknown path>";
+      std::string_view filename =
+          detail.name.empty() ? unknown_path : detail.name;
+      auto formatted = SPrintF(
+          "Closing file descriptor %d on garbage collection failed (%s)",
+          detail.fd,
+          filename);
+      env->ThrowUVException(detail.ret, "close", formatted.c_str());
     });
     return;
   }
@@ -846,8 +855,8 @@ void AfterOpenFileHandle(uv_fs_t* req) {
   FS_ASYNC_TRACE_END1(
       req->fs_type, req_wrap, "result", static_cast<int>(req->result))
   if (after.Proceed()) {
-    FileHandle* fd = FileHandle::New(req_wrap->binding_data(),
-                                     static_cast<int>(req->result));
+    FileHandle* fd = FileHandle::New(
+        req_wrap->binding_data(), static_cast<int>(req->result), {}, req->path);
     if (fd == nullptr) return;
     req_wrap->Resolve(fd->object());
   }
@@ -2277,7 +2286,7 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
     if (result < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
     }
-    FileHandle* fd = FileHandle::New(binding_data, result);
+    FileHandle* fd = FileHandle::New(binding_data, result, {}, path.ToString());
     if (fd == nullptr) return;
     args.GetReturnValue().Set(fd->object());
   }
