@@ -587,6 +587,32 @@ The arguments of `createBenchmark` are:
     containing a combination of benchmark parameters. It should return `true`
     or `false` to indicate whether the combination should be included or not.
 
+  * `setup` {Function} A function that will be run once in the root process
+    before the benchmark combinations are executed in child processes.
+    It can be used to setup any global state required by the benchmark. Note
+    that the JavaScript heap state will not be shared with the benchmark processes,
+    so don't try to access any variables created in the `setup` function from
+    the `main` function, for example.
+    The argument passed into it is an array of all the combinations of
+    configurations that will be executed.
+    If tear down is necessary, register a listener for the `exit` event on
+    `process` inside the `setup` function. In the example below, that's done
+    by `tmpdir.refresh()`.
+
+    ```js
+    const tmpdir = require('../../test/common/tmpdir');
+    const bench = common.createBenchmark(main, {
+      type: ['fast', 'slow'],
+      n: [1e4],
+    }, {
+      setup(configs) {
+        tmpdir.refresh();
+        const maxN = configs.reduce((max, c) => Math.max(max, c.n), 0);
+        setupFixturesReusedForAllBenchmarks(maxN);
+      },
+    });
+    ```
+
 `createBenchmark` returns a `bench` object, which is used for timing
 the runtime of the benchmark. Run `bench.start()` after the initialization
 and `bench.end(n)` when the benchmark is done. `n` is the number of operations
