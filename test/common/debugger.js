@@ -88,12 +88,12 @@ function startCLI(args, flags = [], spawnOpts = {}, opts = { randomPort: true })
           reject(new Error(message));
         }
 
+        // Capture stack trace here to show where waitFor was called from when it times out.
+        const timeoutErr = new Error(`Timeout (${TIMEOUT}) while waiting for ${pattern}`);
         const timer = setTimeout(() => {
           tearDown();
-          reject(new Error([
-            `Timeout (${TIMEOUT}) while waiting for ${pattern}`,
-            `found: ${this.output}`,
-          ].join('; ')));
+          timeoutErr.output = this.output;
+          reject(timeoutErr);
         }, TIMEOUT);
 
         function tearDown() {
@@ -139,6 +139,10 @@ function startCLI(args, flags = [], spawnOpts = {}, opts = { randomPort: true })
 
     get output() {
       return getOutput();
+    },
+
+    get stderrOutput() {
+      return stderrOutput;
     },
 
     get rawOutput() {

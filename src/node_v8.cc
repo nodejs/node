@@ -73,7 +73,8 @@ using v8::Value;
   V(10, number_of_detached_contexts, kNumberOfDetachedContextsIndex)           \
   V(11, total_global_handles_size, kTotalGlobalHandlesSizeIndex)               \
   V(12, used_global_handles_size, kUsedGlobalHandlesSizeIndex)                 \
-  V(13, external_memory, kExternalMemoryIndex)
+  V(13, external_memory, kExternalMemoryIndex)                                 \
+  V(14, total_allocated_bytes, kTotalAllocatedBytes)
 
 #define V(a, b, c) +1
 static constexpr size_t kHeapStatisticsPropertiesCount =

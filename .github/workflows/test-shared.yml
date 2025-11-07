@@ -25,6 +25,7 @@ on:
       - deps/zlib/**
       - deps/zstd/**
       - doc/**
+      - test/internet/**
       - .github/**
       - '!.github/workflows/test-shared.yml'
     types: [opened, synchronize, reopened, ready_for_review]
@@ -55,6 +56,7 @@ on:
       - deps/zlib/**
       - deps/zstd/**
       - doc/**
+      - test/internet/**
       - .github/**
       - '!.github/workflows/test-shared.yml'
 
@@ -90,7 +92,7 @@ jobs:
 
       - name: Upload tarball artifact
         if: ${{ github.event_name != 'workflow_dispatch' }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
         with:
           name: tarballs
           path: '*.tar.gz'
@@ -113,7 +115,7 @@ jobs:
     name: '${{ matrix.system }}: with shared libraries'
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v5.0.0
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53  # v6.0.0
         if: ${{ github.event_name != 'workflow_dispatch' }}
         with:
           name: tarballs
@@ -125,7 +127,7 @@ jobs:
           tar xzf tarballs/*.tar.gz -C "$RUNNER_TEMP"
           echo "TAR_DIR=$RUNNER_TEMP/$(basename tarballs/*.tar.gz .tar.gz)" >> "$GITHUB_ENV"
 
-      - uses: cachix/install-nix-action@7be5dee1421f63d07e71ce6e0a9f8a4b07c2a487  # v31.6.1
+      - uses: cachix/install-nix-action@456688f15bc354bef6d396e4a35f4f89d40bf2b7  # v31.8.2
         with:
           extra_nix_config: sandbox = true
 
@@ -135,7 +137,7 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Configure sccache
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8.0.0
         with:
           script: |
             core.exportVariable('SCCACHE_GHA_VERSION', 'on');

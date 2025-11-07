@@ -255,9 +255,8 @@ This property is experimental and can change in the future. It should only be us
 by tools converting ES modules into CommonJS modules, following existing ecosystem
 conventions. Code authored directly in CommonJS should avoid depending on it.
 
-When an ES Module contains both named exports and a default export, the result returned by `require()`
-is the [module namespace object][], which places the default export in the `.default` property, similar to
-the results returned by `import()`.
+The result returned by `require()` is the [module namespace object][], which places
+the default export in the `.default` property, similar to the results returned by `import()`.
 To customize what should be returned by `require(esm)` directly, the ES Module can export the
 desired value using the string name `"module.exports"`.
 

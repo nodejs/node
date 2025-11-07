@@ -30,11 +30,11 @@ if (!process.argv[2]) {
     })
   };
 
-  primary.on('message', (msg) => {
+  primary.on('message', common.mustCallAtLeast((msg) => {
     const handler = messageHandlers[msg.type];
     assert.ok(handler);
     handler(msg);
-  });
+  }));
 
   primary.on('exit', common.mustCall((code, signal) => {
     assert.strictEqual(code, 0);

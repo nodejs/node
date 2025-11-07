@@ -33,6 +33,6 @@ try {
 
 spawn(process.execPath,
       ['--preserve-symlinks', entry],
-      { stdio: 'inherit' }).on('exit', (code) => {
+      { stdio: 'inherit' }).on('exit', common.mustCall((code) => {
   assert.strictEqual(code, 0);
-});
+}));
