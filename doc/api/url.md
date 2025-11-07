@@ -2,6 +2,11 @@
 
 <!--introduced_in=v0.10.0-->
 
+<!-- YAML
+llm_description: >
+  Provides utilities for parsing, constructing, and manipulating URLs.
+-->
+
 > Stability: 2 - Stable
 
 <!-- source_link=lib/url.js -->
