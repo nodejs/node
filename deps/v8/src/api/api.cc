@@ -8743,6 +8743,23 @@ std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
       static_cast<v8::BackingStore*>(backing_store.release()));
 }
 
+std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStoreForNodeLTS(
+    Isolate* v8_isolate, size_t byte_length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  API_RCS_SCOPE(i_isolate, ArrayBuffer, NewBackingStore);
+  CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  std::unique_ptr<i::BackingStoreBase> backing_store =
+      i::BackingStore::Allocate(i_isolate, byte_length,
+                                i::SharedFlag::kNotShared,
+                                i::InitializedFlag::kUninitialized);
+  if (!backing_store) {
+    return nullptr;
+  }
+  return std::unique_ptr<v8::BackingStore>(
+      static_cast<v8::BackingStore*>(backing_store.release()));
+}
+
 std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
     void* data, size_t byte_length, v8::BackingStore::DeleterCallback deleter,
     void* deleter_data) {

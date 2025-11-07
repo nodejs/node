@@ -107,8 +107,9 @@ void* NodeArrayBufferAllocator::Allocate(size_t size) {
     ret = allocator_->Allocate(size);
   else
     ret = allocator_->AllocateUninitialized(size);
-  if (LIKELY(ret != nullptr))
+  if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
+  }
   return ret;
 }
 
