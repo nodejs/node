@@ -2077,14 +2077,15 @@ functions or objects with a `handleEvent` property whose value is a function.
 In either case, the handler function is invoked with the `event` argument
 passed to the `eventTarget.dispatchEvent()` function.
 
-Async functions may be used as event listeners. If an async handler function
-rejects, the rejection is captured and handled as described in
-[`EventTarget` error handling][].
+Event listeners may return promises, and async functions may be used as event
+listeners. If a returned promise rejects or an async handler function rejects,
+the rejection is captured and handled as described in [`EventTarget` error
+handling][].
 
 An error thrown by one handler function does not prevent the other handlers
 from being invoked.
 
-The return value of a handler function is ignored.
+Other than promises, the return value of a handler function is ignored.
 
 Handlers are always invoked in the order they were added.
 
