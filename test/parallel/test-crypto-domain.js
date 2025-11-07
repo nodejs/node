@@ -28,7 +28,7 @@ const assert = require('assert');
 const crypto = require('crypto');
 const domain = require('domain');
 
-const test = (fn) => {
+function test(fn) {
   const ex = new Error('BAM');
   const d = domain.create();
   d.on('error', common.mustCall(function(err) {
@@ -37,11 +37,11 @@ const test = (fn) => {
   const cb = common.mustCall(function() {
     throw ex;
   });
-  d.run(cb);
+  d.run(fn, cb);
 };
 
 test(function(cb) {
-  crypto.pbkdf2('password', 'salt', 1, 8, cb);
+  crypto.pbkdf2('password', 'salt', 1, 8, 'sha1', cb);
 });
 
 test(function(cb) {

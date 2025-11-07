@@ -39,7 +39,7 @@ const server = http.createServer(common.mustCall((req, res) => {
 
 server.listen(0, common.mustCall(() => {
   child = fork(__filename, [ 'child' ]);
-  child.once('message', (msg) => {
+  child.once('message', common.mustCall((msg) => {
     assert.strictEqual(msg, 'ready');
     const req = http.request({
       port: server.address().port,
@@ -53,5 +53,5 @@ server.listen(0, common.mustCall(() => {
     }));
 
     req.end();
-  });
+  }));
 }));
