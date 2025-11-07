@@ -1,13 +1,8 @@
-# This file is used by GN for building, which is NOT the build system used for
-# building official binaries.
-# Please take a look at node.gyp if you are making changes to build system.
 
 import("node.gni")
 import("$node_v8_path/gni/snapshot_toolchain.gni")
 import("$node_v8_path/gni/v8.gni")
 
-# The actual configurations are put inside a template in unofficial.gni to
-# prevent accidental edits from contributors.
 template("node_gn_build") {
   config("node_features") {
     defines = []
