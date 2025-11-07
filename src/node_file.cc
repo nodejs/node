@@ -3413,12 +3413,10 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
               if (!dereference &&
                   std::filesystem::is_directory(symlink_target) &&
                   isInsideDir(symlink_target, current_dest_symlink_target)) {
-                std::string message =
+                static constexpr const char* message =
                     "Cannot copy %s to a subdirectory of self %s";
-                THROW_ERR_FS_CP_EINVAL(env,
-                                       message.c_str(),
-                                       symlink_target.c_str(),
-                                       current_dest_symlink_target.c_str());
+                THROW_ERR_FS_CP_EINVAL(
+                    env, message, symlink_target, current_dest_symlink_target);
                 return false;
               }
 
@@ -3427,12 +3425,10 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
               // and therefore a broken symlink would be created.
               if (std::filesystem::is_directory(dest_file_path) &&
                   isInsideDir(current_dest_symlink_target, symlink_target)) {
-                std::string message = "cannot overwrite %s with %s";
+                static constexpr const char* message =
+                    "cannot overwrite %s with %s";
                 THROW_ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY(
-                    env,
-                    message.c_str(),
-                    current_dest_symlink_target.c_str(),
-                    symlink_target.c_str());
+                    env, message, current_dest_symlink_target, symlink_target);
                 return false;
               }
 
@@ -3484,7 +3480,7 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
             THROW_ERR_FS_CP_EEXIST(isolate,
                                    "[ERR_FS_CP_EEXIST]: Target already exists: "
                                    "cp returned EEXIST (%s already exists)",
-                                   dest_file_path.c_str());
+                                   dest_file_path);
             return false;
           }
           env->ThrowStdErrException(error, "cp", dest_str.c_str());

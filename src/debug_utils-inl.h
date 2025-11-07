@@ -23,12 +23,25 @@ concept StringConvertible = requires(T a) {
                                 a.ToString()
                                 } -> std::convertible_to<std::string>;
                             };
+// For std::filesystem::path and similar types
+template <typename T>
+concept StringConvertibleFSPathLike = requires(T a) {
+                                        {
+                                          a.string()
+                                          } -> std::convertible_to<std::string>;
+                                      };
 
 struct ToStringHelper {
   template <typename T>
     requires(StringConvertible<T>) && (!StringViewConvertible<T>)
   static std::string Convert(const T& value) {
     return value.ToString();
+  }
+  template <typename T>
+    requires(StringConvertibleFSPathLike<T>) && (!StringViewConvertible<T>) &&
+            (!StringConvertible<T>)
+  static std::string Convert(const T& value) {
+    return value.string();
   }
   template <typename T>
     requires StringViewConvertible<T>
