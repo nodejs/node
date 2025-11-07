@@ -3461,8 +3461,9 @@ bool isInsideDir(const std::filesystem::path& src,
 }
 
 static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(args.Length(), 7);  // src, dest, force, dereference, errorOnExist,
-                               // verbatimSymlinks, preserveTimestamps
+  CHECK_EQ(args.Length(),
+           8);  // src, dest, force, dereference, errorOnExist,
+                // verbatimSymlinks, preserveTimestamps, filterFunction
 
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -3480,6 +3481,40 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
   bool error_on_exist = args[4]->IsTrue();
   bool verbatim_symlinks = args[5]->IsTrue();
   bool preserve_timestamps = args[6]->IsTrue();
+
+  std::optional<std::function<bool(std::string_view, std::string_view)>>
+      filter_fn;
+
+  if (args[7]->IsFunction()) {
+    Local<v8::Function> args_filter_fn = args[7].As<v8::Function>();
+
+    filter_fn = [env, args_filter_fn](std::string_view src,
+                                      std::string_view dest) -> bool {
+      Local<String> src_arg;
+      Local<String> dest_arg;
+
+      if (!String::NewFromUtf8(
+               env->isolate(), src.data(), v8::NewStringType::kNormal)
+               .ToLocal(&src_arg) ||
+          !String::NewFromUtf8(
+               env->isolate(), dest.data(), v8::NewStringType::kNormal)
+               .ToLocal(&dest_arg)) {
+        // if for some reason we fail to load the src or dest strings
+        // just skip the filtering function and allow the copy
+        return true;
+      }
+
+      Local<Value> argv[] = {src_arg, dest_arg};
+
+      Local<Value> result;
+      if (!args_filter_fn->Call(env->context(), Null(env->isolate()), 2, argv)
+               .ToLocal(&result)) {
+        // if the call failed for whatever reason allow the copy
+        return true;
+      }
+      return result->BooleanValue(env->isolate());
+    };
+  }
 
   std::error_code error;
   std::filesystem::create_directories(*dest, error);
@@ -3506,11 +3541,19 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
                        force,
                        error_on_exist,
                        dereference,
-                       &isolate](std::filesystem::path src,
-                                 std::filesystem::path dest) {
+                       &isolate,
+                       &filter_fn](std::filesystem::path src,
+                                   std::filesystem::path dest) {
     std::error_code error;
     for (auto dir_entry : std::filesystem::directory_iterator(src)) {
+      auto dir_entry_path_str = PathToString(dir_entry.path());
       auto dest_file_path = dest / dir_entry.path().filename();
+      auto dest_file_path_str = PathToString(dest_file_path);
+
+      if (filter_fn && !(*filter_fn)(dir_entry_path_str, dest_file_path_str)) {
+        continue;
+      }
+
       auto dest_str = PathToString(dest);
 
       if (dir_entry.is_symlink()) {
@@ -3570,7 +3613,6 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
               }
             } else if (std::filesystem::is_regular_file(dest_file_path)) {
               if (!dereference || (!force && error_on_exist)) {
-                auto dest_file_path_str = PathToString(dest_file_path);
                 env->ThrowStdErrException(
                     std::make_error_code(std::errc::file_exists),
                     "cp",
