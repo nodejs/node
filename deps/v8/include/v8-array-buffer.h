@@ -245,6 +245,13 @@ class V8_EXPORT ArrayBuffer : public Object {
   static std::unique_ptr<BackingStore> NewBackingStore(Isolate* isolate,
                                                        size_t byte_length);
   /**
+   * Returns a new standalone BackingStore with uninitialized memory and
+   * return nullptr on failure.
+   * This variant is for not breaking ABI on Node.js LTS. DO NOT USE.
+   */
+  static std::unique_ptr<BackingStore> NewBackingStoreForNodeLTS(
+      Isolate* isolate, size_t byte_length);
+  /**
    * Returns a new standalone BackingStore that takes over the ownership of
    * the given buffer. The destructor of the BackingStore invokes the given
    * deleter callback.
