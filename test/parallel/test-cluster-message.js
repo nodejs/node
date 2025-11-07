@@ -138,9 +138,9 @@ if (cluster.isWorker) {
   }));
 
   process.once('exit', function() {
-    forEach(checks, common.mustCallAtLeast((check, type) => {
+    for (const [type, check] of Object.entries(checks)) {
       assert.ok(check.receive, `The ${type} did not receive any message`);
       assert.ok(check.correct, `The ${type} did not get the correct message`);
-    }));
+    }
   });
 }
